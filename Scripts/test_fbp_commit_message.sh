@@ -40,6 +40,10 @@
 # Scripts/go_toolchain.sh in the sandbox, fixed in b1f2453) this fixture
 # stayed green without exercising anything. The mutation proof after case 2
 # runs a FBP.sh that exits there and requires the reached-PRE reason.
+#
+# forsgren#1 step 12.2d: case 4 drives a secret-class PRE red and checks
+# that the blocked-commit message names the row that failed (the data guard
+# or the secret scan) instead of assuming gitleaks.
 
 set -uo pipefail
 
@@ -259,6 +263,73 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Case 4: forsgren#1 step 12.2d — the blocked-commit message names the
+# secret-class row that failed. Two rows are secret-class (the secret scan
+# and, by Yves's ruling of 2026-10-02, the data guard), and FullBuildAndPush
+# refuses to commit on either. Its message used to assume the secret scan
+# ("Fix the gitleaks finding above, rotate the value..."), which is wrong
+# advice for a data-guard finding: there is no gitleaks finding and no value
+# to rotate.
+#
+# The stub sfl.sh fails PRE with exit 2 and sfl's own Errors: block naming
+# the failed row (FBP_SANDBOX_SFL_PRE_RC/OUTPUT, Scripts/lib_fbp_sandbox.sh).
+# The checks read only the blocked-commit message, from its
+# "NOT committing" line to its "run FBP.sh again" line: the summary below it
+# reprints sfl's Errors: block, so the whole output names the row anyway.
+#   a. data guard failed  -> the message names the data guard, and does
+#                            not mention gitleaks
+#   b. secret scan failed -> the message still sends you to the gitleaks
+#                            finding, and does not name the data guard
+# ---------------------------------------------------------------------------
+
+# blocked_message — prints the last run's blocked-commit message, from its
+# "NOT committing" line to its "run FBP.sh again" line; nothing when the run
+# printed none.
+blocked_message() {
+  awk '/NOT committing/ { on = 1 } on { print } on && /run FBP\.sh again/ { exit }' <<< "$OUT"
+}
+
+# run_secret_red <label> <fail-line> — runs FullBuildAndPush --no-commit
+# with a PRE that fails secret-class (exit 2) on the row <label>, printing
+# the Errors: block sfl prints, and leaves the message in $BLOCKED. Returns
+# 1 when the run had no sandbox (run_fbp has failed the fixture already).
+run_secret_red() {
+  local errors
+  errors="$(printf 'Errors:\n  %s ❌\n    %s\n' "$1" "$2")"
+  FBP_SANDBOX_SFL_PRE_RC=2 FBP_SANDBOX_SFL_PRE_OUTPUT="${errors}"$'\n' \
+    run_fbp --no-commit "12.2d: a secret-class red" || return 1
+  BLOCKED="$(blocked_message)"
+  if [ -z "$BLOCKED" ]; then
+    fail "secret-class red on '$1': FullBuildAndPush printed no blocked-commit message (no 'NOT committing' line), so nothing here was checked. Output: ${OUT}"
+    return 1
+  fi
+}
+
+if run_secret_red "data guard" "❌ FAIL: events.jsonl — looks like installation config or data"; then
+  if grep -Fqi "gitleaks" <<< "$BLOCKED"; then
+    fail "data-guard red: the blocked-commit message mentions gitleaks, but the data guard failed, not the secret scan — there is no gitleaks finding to fix and no value to rotate. Message: ${BLOCKED}"
+  else
+    echo "  ok: a data-guard red's blocked-commit message does not mention gitleaks"
+  fi
+  if grep -Fq "data guard" <<< "$BLOCKED"; then
+    echo "  ok: a data-guard red's blocked-commit message names the data guard"
+  else
+    fail "data-guard red: the blocked-commit message does not name the data guard, the row that blocked the commit. Message: ${BLOCKED}"
+  fi
+fi
+
+if run_secret_red "secret scan" "❌ FAIL: gitleaks found a leak"; then
+  if grep -Fq "gitleaks" <<< "$BLOCKED"; then
+    echo "  ok: a secret-scan red's blocked-commit message sends you to the gitleaks finding"
+  else
+    fail "secret-scan red: the blocked-commit message no longer mentions the gitleaks finding to fix. Message: ${BLOCKED}"
+  fi
+  if grep -Fq "data guard" <<< "$BLOCKED"; then
+    fail "secret-scan red: the blocked-commit message names the data guard, which did not fail. Message: ${BLOCKED}"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # Self-proofs, issue konenki-website#20 step 3 (items 1 to 3 of the #14 review). Each one
 # runs this fixture, a copy of it, or a small driver, from inside ONE
 # directory made here with the real mktemp and registered with the lib, so
@@ -288,8 +359,9 @@ else
   # before its subshell (issue konenki-website#20 step 2), and even a lib that did not would
   # write its stubs into that empty directory, never into this repo.
   #
-  # Wanted: the run fails; exactly 2 FAIL lines carry the reason, one for
-  # each run_fbp call (cases 1 and 2); every other FAIL line names mktemp
+  # Wanted: the run fails; exactly 4 FAIL lines carry the reason, one for
+  # each run_fbp call (cases 1 and 2, and case 4's two runs, forsgren#1 step
+  # 12.2d, which skip their checks on it); every other FAIL line names mktemp
   # itself (case 3's fake repo and these proofs cannot get a directory
   # either), so no downstream assertion fired. The lib's own stderr line is
   # not a FAIL line and does not count.
@@ -315,8 +387,8 @@ else
       ;;
   esac
 
-  if [ "$callers_reasons" != "2" ]; then
-    fail "callers check the run: with no sandbox, ${callers_reasons:-0} FAIL line(s) carry 'could not create the FBP sandbox', want 2 — one per run_fbp call (cases 1 and 2), so case 2's absence check cannot pass vacuously on empty output. Output: ${callers_out}"
+  if [ "$callers_reasons" != "4" ]; then
+    fail "callers check the run: with no sandbox, ${callers_reasons:-0} FAIL line(s) carry 'could not create the FBP sandbox', want 4 — one per run_fbp call (cases 1 and 2, case 4's two runs), so case 2's absence check cannot pass vacuously on empty output. Output: ${callers_out}"
   fi
 
   if [ -n "$callers_downstream" ]; then
@@ -425,8 +497,8 @@ COMPLETED=1
 
 if [ "$failed" -ne 0 ]; then
   echo ""
-  echo "FAIL: FullBuildAndPush does not show its commit message in the summary, or Scripts/lib_fbp_sandbox.sh carries on without a sandbox (see the FAIL lines above)"
+  echo "FAIL: FullBuildAndPush does not show its commit message in the summary, does not name the secret-class row that blocked the commit, or Scripts/lib_fbp_sandbox.sh carries on without a sandbox (see the FAIL lines above)"
   exit 1
 fi
 
-echo "OK: FullBuildAndPush summary shows the guarded Commit: block, and Scripts/lib_fbp_sandbox.sh stops when it cannot create a sandbox"
+echo "OK: FullBuildAndPush summary shows the guarded Commit: block, its blocked-commit message names the secret-class row that failed, and Scripts/lib_fbp_sandbox.sh stops when it cannot create a sandbox"

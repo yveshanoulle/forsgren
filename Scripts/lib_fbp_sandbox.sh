@@ -38,8 +38,9 @@
 #
 # A sandbox is a fresh git repository holding:
 #   - a stub sfl.sh that exits 0, so PRE and POST gates pass without running,
-#     and writes no .build/sfl-counts.log unless the caller asks for one
-#     (fbp_sandbox_write_sfl below);
+#     and writes no .build/sfl-counts.log unless the caller asks for one,
+#     nor fails PRE unless the caller asks for that (fbp_sandbox_write_sfl
+#     below);
 #   - a stub Scripts/build_site.sh whose page-count sink the caller chooses
 #     (fbp_sandbox_run below);
 #   - a stub Scripts/check_gofmt.sh that exits 0, so FBP.sh's local gofmt
@@ -94,6 +95,17 @@ FBP_SANDBOX_SFL_COUNTS_PRE=""
 FBP_SANDBOX_SFL_COUNTS_POST=""
 FBP_SANDBOX_SINK_PRINTF=""
 FBP_SANDBOX_SINK_MODE=""
+
+# forsgren#1 step 12.2d: two more seams, for case 4 of
+# Scripts/test_fbp_commit_message.sh, set and reset the same way.
+#   FBP_SANDBOX_SFL_PRE_RC: when non-empty, the stub sfl.sh, run as
+#     sfl.sh pre, prints FBP_SANDBOX_SFL_PRE_OUTPUT and exits with this
+#     status instead of 0 (2 is sfl's secret-class red), so a fixture can
+#     drive FullBuildAndPush through a PRE red with sfl's own Errors: block.
+#   FBP_SANDBOX_SFL_PRE_OUTPUT: the text that stub prints, byte for byte.
+# With FBP_SANDBOX_SFL_PRE_RC empty the stub is the same bytes as before.
+FBP_SANDBOX_SFL_PRE_RC=""
+FBP_SANDBOX_SFL_PRE_OUTPUT=""
 
 # Every sandbox this run created, so an interrupted or failing fixture
 # leaves none behind in the temp directory. fbp_sandbox_run deletes each one
@@ -218,7 +230,8 @@ fbp_sandbox_write_build_site() {
 }
 
 # fbp_sandbox_write_sfl — issue konenki-website#17: writes the stub sfl.sh into the current
-# directory. The stub exits 0. For each of FBP_SANDBOX_SFL_COUNTS_PRE and
+# directory. The stub exits 0, unless FBP_SANDBOX_SFL_PRE_RC asks for a PRE
+# red (fbp_sandbox_sfl_pre_red_line, forsgren#1 step 12.2d). For each of FBP_SANDBOX_SFL_COUNTS_PRE and
 # FBP_SANDBOX_SFL_COUNTS_POST that is non-empty, it writes that value plus
 # one trailing newline to .build/sfl-counts.log when its first argument is
 # pre (or post), through the line fbp_sandbox_sfl_counts_line prints. With
@@ -228,9 +241,21 @@ fbp_sandbox_write_sfl() {
     printf '#!/usr/bin/env bash\n'
     fbp_sandbox_sfl_counts_line pre "$FBP_SANDBOX_SFL_COUNTS_PRE"
     fbp_sandbox_sfl_counts_line post "$FBP_SANDBOX_SFL_COUNTS_POST"
+    fbp_sandbox_sfl_pre_red_line
     printf 'exit 0\n'
   } > sfl.sh
   chmod +x sfl.sh
+}
+
+# fbp_sandbox_sfl_pre_red_line — forsgren#1 step 12.2d: prints the stub
+# sfl.sh line that, when the stub runs as sfl.sh pre, prints
+# FBP_SANDBOX_SFL_PRE_OUTPUT (quoted by printf %q, so it lands byte for byte)
+# and exits FBP_SANDBOX_SFL_PRE_RC; prints nothing when that is empty.
+fbp_sandbox_sfl_pre_red_line() {
+  local phase_arg="\"\$1\""
+  if [ -n "$FBP_SANDBOX_SFL_PRE_RC" ]; then
+    printf 'if [ %s = pre ]; then printf %%s %q; exit %s; fi\n' "$phase_arg" "$FBP_SANDBOX_SFL_PRE_OUTPUT" "$FBP_SANDBOX_SFL_PRE_RC"
+  fi
 }
 
 # fbp_sandbox_sfl_counts_line <phase> <counts> — prints the stub sfl.sh line
