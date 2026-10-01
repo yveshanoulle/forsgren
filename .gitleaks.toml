@@ -1,0 +1,21 @@
+[extend]
+# Use the default gitleaks ruleset as the base
+useDefault = true
+
+[allowlist]
+description = "Global allowlist"
+paths = [
+  # Lock files and generated files
+  '''^\.git/''',
+  # Ignore the local environment file containing Trivy credentials
+  '''^\.env$''',
+  '''^\.env\.sh$'''
+]
+regexes = [
+  # GitHub Actions secret references are not real secrets
+  '''\$\{\{\s*secrets\.[A-Z_]+\s*\}\}''',
+  # SSH keyscan output patterns
+  '''ssh-keyscan''',
+  # Fingerprint display lines
+  '''ssh-keygen -lf''',
+]

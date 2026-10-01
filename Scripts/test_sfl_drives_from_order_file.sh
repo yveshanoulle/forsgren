@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # Scripts/test_sfl_drives_from_order_file.sh
 #
-# Ported from konenki-website 2026-10-01 (forsgren#1). forsgren's changes:
-# pin 4 has no CI-only exemption (forsgren has no test_check_built_site.sh),
-# and pin 5, the secret-class tier on the secret scan row, is not here yet:
-# the secret scan lands in ladder step 3, and that step brings pin 5 back
-# with its row. Until then there is no row for pin 5 to guard.
+# Ported from konenki-website 2026-10-01 (forsgren#1). forsgren's change:
+# pin 4 has no CI-only exemption (forsgren has no test_check_built_site.sh).
+# Pin 5 (the secret-class tier on the secret scan row) came back with the
+# secret scan, ladder step 3.
 
 set -euo pipefail
 
@@ -49,7 +48,7 @@ cd "$(dirname "$0")/.."
 # tested script.
 
 SFL="sfl.sh"
-# Overridable so a pin can be shown FAILING against a mutated copy — a green
+# Overridable so pin 5 can be shown FAILING against a mutated copy — a green
 # that was never seen red is a green that might assert nothing.
 ORDER="${1:-Scripts/gate_report_order.txt}"
 
@@ -119,10 +118,36 @@ for f in Scripts/test_*.sh; do
     || fail "${f} is not named by any row in ${ORDER} — it would run unlabelled and appear in no report"
 done
 
-# Pin 5 (the secret scan row carries the PRE secret-class tier, with its
-# non-vacuity mutation) arrives with the secret scan, ladder step 3 of
-# forsgren#1: konenki-website's Scripts/test_sfl_drives_from_order_file.sh
-# holds the version to port.
+# Pin 5: the SECRET-CLASS TIER lives in field 4 of the file. run_gate_secret is
+# what makes sfl exit 2, which FBP.sh reads as "do not commit at all"
+# — committing a secret puts it into history, where removing it is a rewrite
+# rather than an edit. Leaving that routing as a literal inside sfl would have
+# been the one behaviour the order file could not see, and losing it would be
+# silent: the scan would still run, still pass, and a real finding would drop
+# from blocking the commit to merely blocking the push.
+if ! grep -qE '^secret scan\|[^|]+\|pre\|secret-class$' "$ORDER"; then
+  fail "the secret scan row does not carry the PRE secret-class tier — the scan would still run, but a finding would stop blocking the COMMIT and only block the push"
+fi
+
+# Non-vacuity for pin 5: the same file with the tier stripped must be rejected.
+# Every other pin here fails loudly on a repo that has not migrated; this one is
+# a single word in one row, and would sit green forever if it matched nothing.
+if [ "$ORDER" = "Scripts/gate_report_order.txt" ]; then
+  _tmp="$(mktemp -d)"
+  sed \
+    's/^secret scan|\(.*\)|pre|secret-class$/secret scan|\1|pre|/' \
+    "$ORDER" > "${_tmp}/order.txt"
+
+  if cmp -s "$ORDER" "${_tmp}/order.txt"; then
+    fail "the tier-stripping mutation changed nothing — pin 5 is matching something other than the row it claims to"
+  elif "$0" "${_tmp}/order.txt" >/dev/null 2>&1; then
+    fail "an order file with the secret-class tier REMOVED was accepted — pin 5 does not actually guard it"
+  else
+    echo "  ok: stripping the secret-class tier is rejected"
+  fi
+
+  rm -rf "$_tmp"
+fi
 
 COMPLETED=1
 
