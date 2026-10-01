@@ -45,10 +45,21 @@
 #   - a stub Scripts/check_gofmt.sh that exits 0, so FBP.sh's local gofmt
 #     auto-fix has nothing to rewrite;
 #   - a stub bin/say that exits 0, put first on PATH, so a run is silent;
+#   - a copy of the REAL Scripts/go_toolchain.sh and of the repo's go.mod
+#     (forsgren#1 step 4): FBP.sh exports GOTOOLCHAIN from them before PRE
+#     and stops when it cannot, so a sandbox without them aborts every run
+#     before Step 1. They are the real reader and the real toolchain line,
+#     not a stub that echoes a constant, so the sandbox exercises the read;
 #   - a copy of the real FBP.sh (or, for the mutation proof
 #     only, of FBP_SANDBOX_FBP_OVERRIDE), run with the caller's arguments.
 
 FBP_SANDBOX_FBP="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/FBP.sh"
+
+# forsgren#1 step 4: the real Go toolchain reader and the go.mod it reads,
+# copied into every sandbox beside FBP.sh (see the header). Both are derived
+# from FBP_SANDBOX_FBP's directory, the repo root.
+FBP_SANDBOX_GO_TOOLCHAIN="$(dirname "$FBP_SANDBOX_FBP")/Scripts/go_toolchain.sh"
+FBP_SANDBOX_GO_MOD="$(dirname "$FBP_SANDBOX_FBP")/go.mod"
 
 # Issue konenki-website#14 (mutation proof): when non-empty, fbp_sandbox_run copies this
 # file into the sandbox instead of FBP_SANDBOX_FBP. It exists ONLY so the
@@ -276,6 +287,8 @@ fbp_sandbox_run() {
     fbp_sandbox_write_build_site "$sink"
     printf '#!/usr/bin/env bash\nexit 0\n' > Scripts/check_gofmt.sh
     chmod +x Scripts/check_gofmt.sh
+    cp "$FBP_SANDBOX_GO_TOOLCHAIN" Scripts/go_toolchain.sh
+    cp "$FBP_SANDBOX_GO_MOD" go.mod
     cp "${FBP_SANDBOX_FBP_OVERRIDE:-$FBP_SANDBOX_FBP}" ./FBP.sh
     mkdir -p bin
     printf '#!/usr/bin/env bash\nexit 0\n' > bin/say
@@ -362,7 +375,9 @@ fbp_sandbox_record_output() {
 # "# Case 2:" line, so the copy dies with status 0 after case 1, the way a
 # set -u abort inside a function can on macOS bash 3.2. Copies of this lib
 # and of FBP_SANDBOX_FBP go beside it, so the copy's ROOT is <root> and its
-# case 1 runs a sandbox of its own, cleaned by its own copy of the lib.
+# case 1 runs a sandbox of its own, cleaned by its own copy of the lib. The
+# real Scripts/go_toolchain.sh and go.mod go there too, because that copy of
+# the lib copies them into its sandbox from <root> (forsgren#1 step 4).
 # Returns 1 when the insertion changed nothing: the anchor no longer
 # matches, and a proof built on the copy would prove nothing.
 fbp_sandbox_write_aborting_copy() {
@@ -373,6 +388,8 @@ fbp_sandbox_write_aborting_copy() {
   mkdir -p "${root}/Scripts"
   cp "$(dirname "$FBP_SANDBOX_FBP")/Scripts/lib_fbp_sandbox.sh" "${root}/Scripts/lib_fbp_sandbox.sh"
   cp "$FBP_SANDBOX_FBP" "${root}/FBP.sh"
+  cp "$FBP_SANDBOX_GO_TOOLCHAIN" "${root}/Scripts/go_toolchain.sh"
+  cp "$FBP_SANDBOX_GO_MOD" "${root}/go.mod"
   awk '/^# Case 2:/ && !done { print "exit 0"; done = 1 } { print }' "$fixture" > "$copy"
   if cmp -s "$fixture" "$copy"; then
     return 1
