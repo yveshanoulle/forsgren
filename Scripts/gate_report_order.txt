@@ -14,7 +14,7 @@
 #   empty        = ordinary quality failure
 #
 # Ported from konenki-website 2026-10-01 (forsgren#1, ladder steps 1 to 3;
-# the npm rows in step 7).
+# the npm rows in step 7; HTMLHint, Stylelint and lint coverage in step 8).
 # sfl.sh dispatches every gate FROM this file, in file order, filtered by the
 # phase field, so the labels it prints are the labels declared here.
 # Scripts/test_sfl_drives_from_order_file.sh pins that sfl names no label
@@ -25,8 +25,8 @@
 # canon (web-infra's Scripts/check_site_gate_parity.sh, DEFAULT_CANON), so
 # forsgren's report reads like the other sites'. Only the rows whose scripts
 # exist are here: each later step of the forsgren#1 ladder adds its own rows
-# at their canon position (HTMLHint, Stylelint, required pages and privacy
-# are post rows). Rows that are not canon (build site, Go tests, gofmt, the FBP fixtures) sit where
+# at their canon position (required pages and privacy are post rows still
+# to come). Rows that are not canon (build site, Go tests, gofmt, the FBP fixtures) sit where
 # konenki-website puts its own extras: the build-site self-test after the
 # pull contract, the FBP fixtures after the step table.
 #
@@ -84,6 +84,18 @@ Go toolchain pin self-test|Scripts/test_go_toolchain.sh|pre|
 # The Go generator (cmd/forsgren render) and the site build around it.
 build-site self-test|Scripts/test_build_site.sh|pre|
 #
+# HTMLHint and Stylelint validate the generated site (forsgren#1, ladder step
+# 8), at konenki-website's position, right after the build-site self-test.
+# Both lint .build/site by default and accept a site-directory argument, so a
+# caller can lint another build. Configs .htmlhintrc and .stylelintrc.json are
+# konenki-website's, byte-identical. Each self-test is forsgren's own (no repo
+# of the estate has one), drives the REAL linter, and, being non-canon, sits
+# right before the canon row it validates: it runs in pre, the gate in post.
+HTMLHint self-test|Scripts/test_gate_htmlhint.sh|pre|
+HTMLHint|Scripts/gate_htmlhint.sh|post|
+Stylelint self-test|Scripts/test_gate_stylelint.sh|pre|
+Stylelint|Scripts/gate_stylelint.sh|post|
+#
 # go test ./... over the module. Red on a failing test AND on zero tests
 # found: a green over nothing measured is the false clean this gate exists
 # to prevent.
@@ -94,6 +106,15 @@ Go tests|Scripts/check_go_tests.sh|pre|
 # with --fix before PRE, so locally the check sees an already-formatted tree.
 gofmt self-test|Scripts/test_check_gofmt.sh|pre|
 gofmt|Scripts/check_gofmt.sh|pre|
+#
+# Lint coverage (forsgren#1, ladder step 8): did each linter OPEN every .html
+# and .css file the generated site ships? A glob that stops matching is a
+# smaller job that reports success. Gate and fixture are konenki-website's;
+# the fixture byte-identical, the gate adapted only in its default site
+# directory (.build/site). Canon position: after the static-analysis rows,
+# before the npm audit.
+lint-coverage self-test|Scripts/test_check_lint_coverage.sh|pre|
+lint coverage|Scripts/check_lint_coverage.sh|post|
 #
 # Dependency audit belongs before generating deployable output (forsgren#1,
 # ladder step 7). Both scripts are konenki-website's, byte-identical. sfl runs
@@ -117,8 +138,8 @@ FullBuildAndPush build-site page count|Scripts/test_fbp_build_pagecount.sh|pre|
 # BUILD BOUNDARY
 #
 # FBP.sh runs ./Scripts/build_site.sh here (default output .build/site).
-# No post rows yet: the post gates on the generated page (HTMLHint,
-# Stylelint, lint coverage, required pages, privacy posture) arrive in later
-# steps of the forsgren#1 ladder. sfl.sh post meanwhile runs only its own
-# step-count self-check.
+# The post rows above (HTMLHint, Stylelint, lint coverage) lint that output;
+# sfl.sh post runs them in file order, then its own step-count self-check.
+# The remaining post gates on the generated page (required pages, privacy
+# posture) arrive in later steps of the forsgren#1 ladder.
 # ---------------------------------------------------------------------------

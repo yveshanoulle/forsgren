@@ -1,0 +1,13 @@
+{
+  "extends": [
+    "stylelint-config-recommended",
+    "stylelint-config-standard"
+  ],
+  "rules": {
+    "color-function-notation": null,
+    "color-function-alias-notation": null,
+    "alpha-value-notation": "number",
+    "property-no-vendor-prefix": null,
+    "value-keyword-case": null
+  }
+}

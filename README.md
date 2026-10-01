@@ -71,6 +71,31 @@ line, never the name it matched.
 Untracked files are not checked, so `git add` (or `git add -N`) a new file
 before running the gates.
 
+## Quality gates
+
+`./FBP.sh` runs the gates in two phases around the build: `./sfl.sh pre`
+checks the repository before the site is generated, `Scripts/build_site.sh`
+renders the site into `.build/site`, and `./sfl.sh post` checks that
+generated output. `Scripts/gate_report_order.txt` declares every gate, its
+phase and its order; a gate's self-test always runs in PRE, before the gate
+it validates.
+
+The POST gates, on the generated site:
+
+- **HTMLHint** (`Scripts/gate_htmlhint.sh`): every `.html` file under the
+  rules in `.htmlhintrc`. Red on a finding, and on a run that scanned zero
+  files, since nothing linted is not clean.
+- **Stylelint** (`Scripts/gate_stylelint.sh`): every `.css` file under
+  `.stylelintrc.json` (stylelint-config-standard plus konenki-website's
+  overrides). Red on a finding, and on a glob that matches no file.
+- **lint coverage** (`Scripts/check_lint_coverage.sh`): each linter opened
+  every `.html` and `.css` file the site ships, no fewer and no more. A glob
+  that stops matching is a smaller job that still reports success; this is
+  the gate that notices.
+
+A finding in the generated page is fixed in the template under
+`internal/page/`, never by loosening a rule in the config.
+
 ## Installing and updating
 
 Run `./sfl.sh pre` (or `./FBP.sh`) and the tools install themselves.
