@@ -16,6 +16,17 @@
 #     default-argument fallback, a missing path under an existing directory,
 #     and red-on-zero; those and the proofs assert the REASON as well as the
 #     exit code.
+#   - Fixture 13 is INVERTED and fixtures 26-28 plus mutation proof C are
+#     forsgren's flat-Scripts guard (forsgren#1, step 15), which records:
+#       "Ruling (Yves, 2026-10-01): climb ban — N/A for forsgren, with a
+#        flat-folder guard."
+#       "This exception is valid only while `Scripts/` remains flat. The
+#        script-reference gate must reject scripts in subdirectories.
+#        Introducing a script below `Scripts/*/` requires revisiting this
+#        ruling before that structure is accepted."
+#     A script one folder down is red with that reason, the hand-run
+#     directory included; a data file in a subfolder is not a script and
+#     stays green.
 #
 # Why this exists: the guard's whole job is to make a mistake during the
 # Scripts/ reorganisation loud. A guard that cannot tell broken-from-clean is
@@ -189,21 +200,22 @@ if bash "$CHECK_ABS" "$subforward" >/dev/null 2>&1; then
   fail "a reference to a nonexistent Scripts/common/gone.sh was NOT caught (forward check ignores subdirectories)"
 fi
 
-# --- Fixture 13: a script in Scripts/standalone needs no caller → must PASS ---
-# The directory IS the declaration. Until now the same claim lived in a
-# hand-kept STANDALONE basename list inside the guard, so adding a hand-run
-# script meant editing two places and forgetting the second turned the guard
-# red on arrival — the state it exists to prevent. A file's location already
-# says "a human runs this"; nothing should have to say it twice.
+# --- Fixture 13 (INVERTED for forsgren): Scripts/standalone is a subfolder → must FAIL ---
+# MenoPower declares a hand-run script by putting it in Scripts/standalone.
+# forsgren keeps Scripts/ flat (forsgren#1 ruling, see the header), so that
+# directory is a script below Scripts/*/ like any other: red, for the
+# flatness reason, until the ruling is revisited. forsgren declares its
+# hand-run scripts in CLAUDE.md instead (fixture 5d).
 standalone="$tmproot/standalone-dir"
 make_tree "$standalone"
 mkdir -p "$standalone/Scripts/standalone"
 printf '#!/usr/bin/env bash\necho hand-run diagnostic\n' \
   > "$standalone/Scripts/standalone/lonely.sh"
 printf '#!/usr/bin/env bash\nbash Scripts/used.sh\n' > "$standalone/caller.sh"
-if ! bash "$CHECK_ABS" "$standalone" >/dev/null 2>&1; then
-  fail "a script in Scripts/standalone with no caller was reported (the directory should be the declaration)"
-fi
+OUT="$(bash "$CHECK_ABS" "$standalone" 2>&1)"; RC=$?
+[ "$RC" -ne 0 ] || fail "a script in Scripts/standalone was green — Scripts/ must stay flat (forsgren#1)"
+grep -qF 'SCRIPT IN SUBFOLDER: Scripts/standalone/lonely.sh' <<<"$OUT" \
+  || fail "the Scripts/standalone case is red for another reason. Output: $OUT"
 
 # --- Fixtures 15-19 (the CLIMB ban) are not ported: forsgren is flat and does
 # not port the ban (see the gate header). ---
@@ -307,5 +319,50 @@ run_check "$MUTANT" "$emptytree"
 if grep -q 'scanned zero files' <<<"$OUT"; then
   fail "mutation proof B: without the zero-files check the gate still says it scanned zero files — the reason comes from elsewhere"
 fi
+
+# --- forsgren's fixtures 26-28: the flat-Scripts guard (forsgren#1, step 15) ---
+FLAT_REASON="scripts must sit directly under Scripts/ — the climb-ban exception holds only while Scripts/ is flat; see forsgren#1"
+
+# 26: a CALLED script one folder down -> must FAIL, for the flatness reason
+# alone: the forward and reverse checks are both satisfied.
+nested="$tmproot/nested-script"
+make_tree "$nested"
+mkdir -p "$nested/Scripts/sub"
+printf '#!/usr/bin/env bash\necho nested\n' > "$nested/Scripts/sub/x.sh"
+printf '#!/usr/bin/env bash\nbash Scripts/used.sh\nbash Scripts/sub/x.sh\n' > "$nested/caller.sh"
+run_check "$CHECK_ABS" "$nested"
+[ "$RC" -ne 0 ] || fail "a script under Scripts/sub/ was green — Scripts/ must stay flat (forsgren#1)"
+grep -qF "SCRIPT IN SUBFOLDER: Scripts/sub/x.sh — ${FLAT_REASON}" <<<"$OUT" \
+  || fail "the nested-script case does not name the flatness reason. Output: $OUT"
+
+# 27: a Python script one folder down -> must FAIL too: the gate's scripts
+# are .sh and .py, and flatness covers every script it knows.
+nestedpy="$tmproot/nested-python"
+make_tree "$nestedpy"
+mkdir -p "$nestedpy/Scripts/lib"
+printf 'print(1)\n' > "$nestedpy/Scripts/lib/y.py"
+printf '#!/usr/bin/env bash\nbash Scripts/used.sh\npython3 Scripts/lib/y.py\n' > "$nestedpy/caller.sh"
+run_check "$CHECK_ABS" "$nestedpy"
+[ "$RC" -ne 0 ] || fail "a Python script under Scripts/lib/ was green — Scripts/ must stay flat (forsgren#1)"
+grep -qF "SCRIPT IN SUBFOLDER: Scripts/lib/y.py — ${FLAT_REASON}" <<<"$OUT" \
+  || fail "the nested-Python case does not name the flatness reason. Output: $OUT"
+
+# 28: a DATA file in a subfolder -> must PASS. The ruling is about scripts
+# that climb to the root; a fixture or data file runs nothing and climbs
+# nowhere, so a data folder under Scripts/ stays allowed.
+datadir="$tmproot/data-subfolder"
+make_tree "$datadir"
+mkdir -p "$datadir/Scripts/fixtures"
+printf 'plain data\n' > "$datadir/Scripts/fixtures/x.txt"
+printf '#!/usr/bin/env bash\nbash Scripts/used.sh\n' > "$datadir/caller.sh"
+run_check "$CHECK_ABS" "$datadir"
+[ "$RC" -eq 0 ] || fail "a data file in Scripts/fixtures/ was reported — only scripts must sit directly under Scripts/. Output: $OUT"
+
+# C: the flatness check. Without it, fixture 26's tree must be green, so
+# fixture 26 is red because of that check and nothing else.
+mutant flat-unchecked "s/^if \\[ -n \"\\\$nested_scripts\" \\]; then\$/if false; then/"
+run_check "$MUTANT" "$nested"
+[ "$RC" -eq 0 ] \
+  || fail "mutation proof C: a gate without the flatness check is still red on fixture 26 (exit $RC) — red for another reason. Output: $OUT"
 
 echo "✅ test_check_script_references: PASS"
