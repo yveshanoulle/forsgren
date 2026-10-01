@@ -131,7 +131,14 @@ Four PRE gates read the repository's own scripts and files:
   script is written with that repository as the first part of its path
   (`web-infra/Scripts/...`) and is not checked; a bare `Scripts/` path is
   read as forsgren's own. Unlike the gates above, it reads the working tree,
-  untracked files included.
+  untracked files included. It also keeps `Scripts/` flat: a script (`.sh`
+  or `.py`) in any subfolder of `Scripts/` is red. MenoPower bans scripts
+  that climb to the root with `..`; Yves ruled that ban N/A for forsgren
+  while `Scripts/` is flat, because every script then reaches the root with
+  the same single step (forsgren#1, 2026-10-01). This gate enforces the
+  condition the ruling rests on, so a script subfolder means revisiting
+  the ruling first. Data files in a subfolder are not scripts and stay
+  allowed.
 
 shellcheck and yamllint come from Homebrew, through
 `Scripts/required_tools.txt` (see Installing and updating). As with the data

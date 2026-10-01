@@ -21,8 +21,19 @@
 #      Leading dashes are stripped before resolving, so a default argument
 #      written as a parameter expansion with a fallback is still checked.
 #   4. The CLIMB ban is NOT ported: forsgren is flat, and every script finds
-#      its root one level up by design. Banning that is a ruling for Yves,
-#      not part of this port (forsgren#1, step 13).
+#      its root one level up by design. Yves ruled on it on forsgren#1
+#      (step 15):
+#        "Ruling (Yves, 2026-10-01): climb ban — N/A for forsgren, with a
+#         flat-folder guard."
+#        "This exception is valid only while `Scripts/` remains flat. The
+#         script-reference gate must reject scripts in subdirectories.
+#         Introducing a script below `Scripts/*/` requires revisiting this
+#         ruling before that structure is accepted."
+#      So this gate ENFORCES flatness (the FLAT check below): a script (.sh
+#      or .py, the scripts this gate knows) one folder or more below
+#      Scripts/ is red. A subfolder of scripts means revisiting the ruling
+#      first, not widening this check. Data files in a subfolder are not
+#      scripts, run nothing, and stay allowed.
 #   5. Red on zero: a run that scanned no file, or extracted no Scripts
 #      reference at all, is red and says so. Nothing scanned is not clean.
 #   6. Findings carry the estate's red-cross marker, so sfl's failure summary
@@ -76,9 +87,12 @@ SCRIPT_DIRS="Scripts"
 # Scripts run by hand, by design. They have no automated caller and are not
 # meant to gain one, so the reverse check would otherwise be red on arrival.
 #
-# The DIRECTORY is the declaration: put a hand-run script in Scripts/standalone
-# and it is exempt. forsgren has no such directory today; its one hand-run
-# script is declared in CLAUDE.md instead (see change 2 above).
+# The DIRECTORY is the declaration in MenoPower: a hand-run script in
+# Scripts/standalone is exempt from the reverse check. In forsgren that
+# directory is a subfolder, so the FLAT check (change 4) makes any script in
+# it red; the exemption is kept as ported and is dormant until the ruling is
+# revisited. forsgren declares its hand-run scripts in CLAUDE.md instead (see
+# change 2 above).
 STANDALONE_DIR="Scripts/standalone"
 
 # PERFORMANCE: both directions are driven by ONE tree scan each. The first
@@ -254,7 +268,24 @@ if [ -n "$unreferenced" ]; then
   status=1
 fi
 
+# ---------- FLAT: no script below Scripts/*/ (forsgren#1, change 4) ----------
+# The climb-ban exception holds only while Scripts/ is flat: every script
+# reaches the root with one fixed step up. A script one folder down would
+# reach a different directory with the same step, which is the relocation
+# risk the ban exists for in MenoPower.
+nested_scripts=""
+if [ -d Scripts ]; then
+  nested_scripts="$(find Scripts -mindepth 2 -type f \( -name '*.sh' -o -name '*.py' \) \
+    -not -path '*/__pycache__/*' 2>/dev/null | sort)"
+fi
+if [ -n "$nested_scripts" ]; then
+  for n in $nested_scripts; do
+    echo "❌ SCRIPT IN SUBFOLDER: ${n} — scripts must sit directly under Scripts/ — the climb-ban exception holds only while Scripts/ is flat; see forsgren#1" >&2
+  done
+  status=1
+fi
+
 if [ "$status" -eq 0 ]; then
-  echo "✅ script references: every referenced script exists, and every script has a caller (${nscanned} files scanned)"
+  echo "✅ script references: every referenced script exists, every script has a caller, and Scripts/ is flat (${nscanned} files scanned)"
 fi
 exit "$status"
