@@ -116,6 +116,39 @@ print_log_errors() {
   sed -n '/^Errors:/,$p' "$log_file"
 }
 
+# secret_class_hints <pre-log> — prints what to do about each secret-class
+# row that failed in PRE (forsgren#1 step 12.2d). Two rows are secret-class,
+# the secret scan and the data guard (Yves's ruling, 2026-10-02), and the fix
+# differs: one is a gitleaks finding whose value may need rotating, the other
+# a file or a private name that belongs outside this repository. The failed
+# rows come from sfl's own Errors: block in <pre-log> (`  <label> ❌`), so
+# this names what sfl reported rather than guessing. A failed row with no
+# hint of its own (an ordinary one, or a future secret-class row) prints
+# nothing; when no secret-class row is found the last line points at the
+# FAIL lines above.
+secret_class_hints() {
+  local label hinted=false
+  while IFS= read -r label; do
+    case "$label" in
+      "secret scan")
+        echo "   secret scan: fix the gitleaks finding above, and rotate the value if it"
+        echo "   ever reached a remote."
+        hinted=true
+        ;;
+      "data guard")
+        echo "   data guard: its FAIL line above names the file. Move installation config"
+        echo "   or data to the installation's private data repository (or under testdata/"
+        echo "   if it is a made-up fixture), or replace a private name with a made-up one"
+        echo "   such as acme/app."
+        hinted=true
+        ;;
+    esac
+  done < <(sed -n '/^Errors:/,$p' "$1" 2>/dev/null | sed -n 's/^  \(.*\) ❌$/\1/p')
+  if ! $hinted; then
+    echo "   Fix the finding named in the FAIL lines above."
+  fi
+}
+
 # sfl_counts — prints the sentence the sfl.sh phase that just ran wrote to
 # SFL_COUNTS_FILE; nothing when it wrote none. Unlike the page-count read,
 # a sink that is there but cannot be read fails cat, and the assignment
@@ -419,13 +452,14 @@ echo "  Step 4/4: git add / commit / push"
 echo "================================"
 
 # Nothing is staged or committed on a secret-class red. Fix the finding and
-# re-run — do not commit and clean up afterwards, because by then the secret
-# would already be in git history.
+# re-run — do not commit and clean up afterwards, because by then what the
+# gate guards (a secret, an installation's data, a private name) would
+# already be in git history.
 if $SECRET_BLOCK; then
   echo
-  echo "⛔ SECRET-CLASS failure — NOT committing (a secret must not enter git history)."
-  echo "   Fix the gitleaks finding above, rotate the value if it ever reached a"
-  echo "   remote, then run FBP.sh again."
+  echo "⛔ SECRET-CLASS failure — NOT committing (what a secret-class gate guards must not enter git history)."
+  secret_class_hints "$PRE_LOG"
+  echo "   Then run FBP.sh again."
   GIT_STATUS="⛔ (secret-class red — commit blocked)"
 else
   GIT_START="$(date +%s)"

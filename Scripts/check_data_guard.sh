@@ -29,8 +29,15 @@
 #      for nothing is not a clean scan). A relative path is taken from the
 #      directory the gate was invoked from.
 #      The FAIL line names the file and line, NEVER the name it matched: sfl
-#      quotes FAIL lines into its summary and FBP.sh into the commit message,
-#      so printing the name would copy it into git history.
+#      quotes FAIL lines into its summary and FBP.sh into its own, and CI
+#      puts every gate's output on the job's summary page, so a printed name
+#      would be copied wherever those go.
+#
+# SECRET-CLASS (Yves's ruling, 2026-10-02, forsgren#1 step 12.2): this gate's
+# row in Scripts/gate_report_order.txt carries `secret-class`, like the
+# secret scan's, so a finding here blocks the commit itself, not only the
+# push. It is the row's class that does this, not this script's exit code
+# (1 on a finding).
 #
 # TRACKED ONLY, deliberately: untracked scratch in a working tree is not
 # judged. The other side of that: a NEW file is invisible to this gate until

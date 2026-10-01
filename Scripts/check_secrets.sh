@@ -15,8 +15,12 @@ cd "$(dirname "$0")/.." || exit 1
 # happened with the fastlane-certs PAT (MenoPower, 2026-07-08). These repos
 # have deploy workflows and SSH keys in secrets, so they have the shape.
 #
-# SECRET-CLASS: this exits 2, not 1, and sfl turns that into its own exit 2
-# so FullBuildAndPush REFUSES TO COMMIT. An ordinary red still commits
+# SECRET-CLASS: its row in Scripts/gate_report_order.txt carries the class
+# `secret-class`, and that class, not this script's exit code, is what makes
+# sfl (and Scripts/run_ci_phase.sh) exit 2 on a failure here, so
+# FullBuildAndPush REFUSES TO COMMIT. This script exits 2 rather than 1 too,
+# as the estate's copies do, but any non-zero exit would block the commit
+# the same way (forsgren#1 step 12.2d). An ordinary red still commits
 # locally to keep the WIP; a secret-class red must not, because committing it
 # puts the secret into git history where removing it is a rewrite rather than
 # an edit. The distinction is the whole point of the tier.
