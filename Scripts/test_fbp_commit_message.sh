@@ -32,6 +32,14 @@
 # still leaves no sandbox behind.
 # Scripts/test_fbp_build_pagecount.sh carries (a) and (b) for
 # its own run_case.
+#
+# forsgren#1 step 5: cases 1 and 2 also require that the run REACHED PRE
+# (assert_reached_pre). Their own checks read only the Commit: block, which
+# FBP.sh's EXIT trap prints even when the run stops before Step 1, so while
+# every sandbox run aborted at the GOTOOLCHAIN export (no
+# Scripts/go_toolchain.sh in the sandbox, fixed in b1f2453) this fixture
+# stayed green without exercising anything. The mutation proof after case 2
+# runs a FBP.sh that exits there and requires the reached-PRE reason.
 
 set -uo pipefail
 
@@ -74,6 +82,41 @@ run_fbp() {
   OUT="$(fbp_sandbox_output)"
 }
 
+# reached_pre_reason — prints why the last run_fbp's output shows no run
+# that got past the GOTOOLCHAIN export into PRE; prints nothing when it does.
+# forsgren#1 step 5. The marker is the summary's pre gates row: FBP.sh sets
+# it to ⏭️ at start-up and changes it only after ./sfl.sh pre has returned,
+# which comes after the GOTOOLCHAIN export, so a status other than ⏭️ there
+# can only come from a run past that export. The Step 1/4: PRE gates banner
+# is checked too, but it is NOT enough on its own: FBP.sh prints it BEFORE
+# the export, so the run that aborted at go_toolchain.sh printed it as well.
+reached_pre_reason() {
+  local row
+  if ! grep -Fq "Step 1/4: PRE gates" <<< "$OUT"; then
+    echo "never reached PRE: the output has no 'Step 1/4: PRE gates' banner"
+    return
+  fi
+  row="$(awk 'index($0, "  pre gates ") == 1 { print; exit }' <<< "$OUT")"
+  case "$row" in
+    "")
+      echo "never reached PRE: the summary has no pre gates row"
+      ;;
+    *"⏭️"*)
+      echo "never reached PRE: the summary's pre gates row is still ⏭️ ('${row}'), so ./sfl.sh pre never ran — the run stopped before PRE (at the GOTOOLCHAIN export, for one) and the Commit: block came from the EXIT trap alone"
+      ;;
+  esac
+}
+
+# assert_reached_pre <label> — fails the case with reached_pre_reason's
+# reason when the last run_fbp did not get into PRE.
+assert_reached_pre() {
+  local reason
+  reason="$(reached_pre_reason)"
+  if [ -n "$reason" ]; then
+    fail "$1: ${reason}. Output: ${OUT}"
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # Case 1: a run WITH a commit message must show it, labelled.
 # ---------------------------------------------------------------------------
@@ -83,6 +126,8 @@ if run_fbp --no-commit "6.a: the message this run was given"; then
 
   grep -Fq "6.a: the message this run was given" <<< "$OUT" \
     || fail "the summary does not carry the message this run was given, so nothing ties a pasted summary to the commit it belongs to"
+
+  assert_reached_pre "commit message shown"
 fi
 
 # ---------------------------------------------------------------------------
@@ -93,6 +138,59 @@ fi
 if run_fbp --no-commit; then
   grep -Fq "Commit:" <<< "$OUT" \
     && fail "a run given no message still printed the Commit: label — Commit: over a blank line reads as a message that failed to render, and --no-commit with no message is a legitimate run"
+
+  # An absence check passes on any output that lacks the label, a run that
+  # never started included, so this one most of all needs the run to be real.
+  assert_reached_pre "no message, no label"
+fi
+
+# ---------------------------------------------------------------------------
+# Mutation proof for the reached-PRE check (forsgren#1 step 5): runs case 1
+# against a copy of FBP.sh with exit 1 inserted just before the
+# GOTOOLCHAIN export, where the step-4 break stopped every sandbox run. It
+# requires that run to fail the reached-PRE check with the pre gates row
+# reason, the one the marker was chosen for (the banner is already printed
+# there). It also requires that case 1's own Commit: checks still pass on
+# that run, which is the gap the check closes: without it, case 1 is green
+# on a run that never reached PRE.
+#
+# Guards: the insertion must change the copy (else the anchor stopped
+# matching and this proves nothing), and the mutant must exit non-zero.
+# The mutant is handed to Scripts/lib_fbp_sandbox.sh through
+# FBP_SANDBOX_FBP_OVERRIDE as a prefix assignment on the one run_fbp call,
+# as in Scripts/test_fbp_build_pagecount.sh; its directory comes from
+# fbp_sandbox_new_dir, which registers it for the lib's cleanup.
+# ---------------------------------------------------------------------------
+if ! fbp_sandbox_new_dir; then
+  fail "mutation proof (reached PRE): mktemp -d gave no directory, so the reached-PRE check was not seen failing"
+else
+  pre_mutant="${FBP_SANDBOX_NEW_DIR}/FBP.sh"
+  awk '/^if ! GOTOOLCHAIN=/ && !done { print "exit 1"; done = 1 } { print }' "$FBP_SANDBOX_FBP" > "$pre_mutant"
+  chmod +x "$pre_mutant"
+
+  if cmp -s "$FBP_SANDBOX_FBP" "$pre_mutant"; then
+    fail "mutation proof (reached PRE): inserting exit 1 before the GOTOOLCHAIN export changed nothing in ${FBP_SANDBOX_FBP} — the '^if ! GOTOOLCHAIN=' anchor no longer matches, so this proof proves nothing"
+  elif FBP_SANDBOX_FBP_OVERRIDE="$pre_mutant" run_fbp --no-commit "6.a: the message this run was given"; then
+    pre_mutant_rc="$(fbp_sandbox_rc)"
+    pre_mutant_reason="$(reached_pre_reason)"
+    if [ "$pre_mutant_rc" -eq 0 ]; then
+      fail "mutation proof (reached PRE): a FBP.sh that exits before the GOTOOLCHAIN export exited 0 — the mutant did not stop where the step-4 break did. Output: ${OUT}"
+    elif ! grep -Fq "Commit:" <<< "$OUT" || ! grep -Fq "6.a: the message this run was given" <<< "$OUT"; then
+      fail "mutation proof (reached PRE): the run that stopped before PRE did not print the Commit: block — case 1's own checks would catch it, so this proof no longer shows the gap the reached-PRE check closes. Output: ${OUT}"
+    else
+      case "$pre_mutant_reason" in
+        *"pre gates row is still ⏭️"*)
+          echo "  ok: a FBP.sh that stops before the GOTOOLCHAIN export fails the reached-PRE check (pre gates row still ⏭️)"
+          ;;
+        "")
+          fail "mutation proof (reached PRE): a FBP.sh that exits before the GOTOOLCHAIN export passed the reached-PRE check — case 1 would stay green on a run that never reached PRE. Output: ${OUT}"
+          ;;
+        *)
+          fail "mutation proof (reached PRE): the run that stopped before PRE failed the reached-PRE check, but not with the pre gates row reason: ${pre_mutant_reason}"
+          ;;
+      esac
+    fi
+  fi
 fi
 
 # ---------------------------------------------------------------------------
