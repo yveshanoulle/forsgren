@@ -16,7 +16,7 @@ cd "$(dirname "$0")" || exit 1
 # Scripts/*.sh that sfl merely calls does not require a bump.
 # Form ported from web-infra 2026-08-31: it names the file, so a pasted log
 # says which script produced it, not just "the script".
-VERSION=2
+VERSION=3
 
 usage() {
   echo "Usage:"
@@ -48,9 +48,8 @@ if [[ "$PHASE" == "pre" ]]; then
   sfl_pull_or_stop || exit 3
 fi
 
-# The gates call go, git and the shell tools by name; Homebrew's prefixes go
-# first so a GUI-launched shell finds them. The pinned npm linters arrive in a
-# later step of the forsgren#1 ladder (step 5).
+# The gates call go, git, npm and the shell tools by name; Homebrew's prefixes
+# go first so a GUI-launched shell finds them.
 export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
 
 # The tools the gates need that npm cannot pin, from Scripts/required_tools.txt.
@@ -59,6 +58,20 @@ export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
 # that summarises its own exit code. Same script the rest of the estate uses;
 # only the list differs. Fixture: Scripts/test_install_tools.sh.
 ./Scripts/install_tools.sh
+
+# Tooling mirrors konenki-website (forsgren#1, ladder step 7): the linters are
+# pinned devDependencies in package.json + package-lock.json, installed into
+# node_modules and invoked by path — NOT global installs and NOT `npx --yes`,
+# which silently tracks whatever the registry publishes. One pinned version for
+# CI and for here. `npm ci`, never `npm install`: it installs exactly the
+# lockfile and fails when package.json and the lockfile disagree.
+# AFTER install_tools.sh, unlike konenki where it runs before it: node comes
+# from Scripts/required_tools.txt, so on a fresh machine npm exists only once
+# the installer has run.
+if [[ ! -x node_modules/.bin/htmlhint ]]; then
+  echo "INFO: installing pinned devDependencies (npm ci)"
+  npm ci
+fi
 
 # Pin Go exactly. go.mod's `toolchain` line is only a minimum (GOTOOLCHAIN=auto
 # runs the newer of it and the local Go, and install_tools.sh may just have

@@ -1,0 +1,9 @@
+{
+  "name": "forsgren",
+  "private": true,
+  "devDependencies": {
+    "htmlhint": "1.9.2",
+    "stylelint": "17.14.1",
+    "stylelint-config-standard": "40.0.0"
+  }
+}

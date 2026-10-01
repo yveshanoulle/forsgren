@@ -13,7 +13,8 @@
 #   secret-class = a failure blocks commit as well as push
 #   empty        = ordinary quality failure
 #
-# Ported from konenki-website 2026-10-01 (forsgren#1, ladder steps 1 to 3).
+# Ported from konenki-website 2026-10-01 (forsgren#1, ladder steps 1 to 3;
+# the npm rows in step 7).
 # sfl.sh dispatches every gate FROM this file, in file order, filtered by the
 # phase field, so the labels it prints are the labels declared here.
 # Scripts/test_sfl_drives_from_order_file.sh pins that sfl names no label
@@ -61,6 +62,16 @@ data guard|Scripts/check_data_guard.sh|pre|
 # gate; its fixture pins the ff-only/no-auto-rebase contract.
 sfl pull contract|Scripts/test_sfl_pull.sh|pre|
 #
+# Repository dependency/tooling policy (forsgren#1, ladder step 7). These
+# govern what subsequent gates execute, so they belong before the build.
+# The gate is konenki-website's, byte-identical: exact devDependency pins in
+# package.json, package.json and package-lock.json committed (or on their way
+# into this run's commit) and not gitignored, node_modules never tracked.
+# Its self-test is forsgren's own (no repo of the estate has one) and, being
+# non-canon, sits right before the canon row it validates.
+npm manifest policy self-test|Scripts/test_check_guardrail_packages.sh|pre|
+npm manifest policy|Scripts/check_guardrail_packages.sh|pre|
+#
 # Tool installer contract (Scripts/install_tools.sh, identical across the
 # estate). The tools it provides govern every gate after it, so its fixture
 # runs before the build.
@@ -83,6 +94,15 @@ Go tests|Scripts/check_go_tests.sh|pre|
 # with --fix before PRE, so locally the check sees an already-formatted tree.
 gofmt self-test|Scripts/test_check_gofmt.sh|pre|
 gofmt|Scripts/check_gofmt.sh|pre|
+#
+# Dependency audit belongs before generating deployable output (forsgren#1,
+# ladder step 7). Both scripts are konenki-website's, byte-identical. sfl runs
+# the self-healing npm_audit_check.sh (one `npm audit fix`, re-verified; the
+# lockfile change rides into the commit). konenki's CI-only step body and its
+# fixture (report_npm_audit_step.sh) are not ported: forsgren has no CI
+# workflow yet.
+npm-audit self-test|Scripts/test_npm_audit_check.sh|pre|
+npm audit|Scripts/npm_audit_check.sh|pre|
 #
 gate-failure summary|Scripts/test_summarize_gate_failure.sh|pre|
 sfl drives from the order file|Scripts/test_sfl_drives_from_order_file.sh|pre|

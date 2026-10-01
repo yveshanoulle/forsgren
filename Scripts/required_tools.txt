@@ -8,9 +8,7 @@
 # used yet": every listed tool is installed or upgraded on every sfl run, and
 # a name it cannot make runnable fails the run. So each later step of the
 # forsgren#1 ladder adds its own tool here in the same change as its gate:
-# node for the npm linters (step 5; the linters themselves are pinned in
-# package.json and installed by `npm ci`, not by brew), shellcheck and
-# yamllint (step 10), actionlint (step 15).
+# shellcheck and yamllint (step 10), actionlint (step 15).
 #
 # NOT the Go tools. golangci-lint, deadcode and govulncheck are pinned through
 # `tool` directives in go.mod plus go.sum (Yves's ruling on forsgren#1, step
@@ -30,3 +28,11 @@ gitleaks
 
 # Scripts/check_go_tests.sh, check_gofmt.sh and build_site.sh.
 go
+
+# Node, for npm (forsgren#1, ladder step 7): sfl.sh's `npm ci` pre-flight, the
+# npm manifest policy and npm audit gates. NOT the npm linters. htmlhint,
+# stylelint and stylelint-config-standard are pinned devDependencies in
+# package.json + package-lock.json, installed by `npm ci` and invoked by path,
+# one pinned version for CI and for here. Homebrew has no lockfile, so the
+# linters never go in this list. The formula is `node`; it provides `npm` too.
+node

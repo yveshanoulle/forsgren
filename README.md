@@ -93,6 +93,38 @@ nothing else, then run `./FBP.sh`. Go downloads the new toolchain on the first
 run. Do not set the version anywhere else: `go.mod` is the only place it is
 written.
 
+**The npm linters are pinned in `package.json`.** Node itself (and with it
+`npm`) is a Homebrew tool from `Scripts/required_tools.txt`, so like Go it
+follows whatever the formula publishes. The linters the post gates use,
+htmlhint, stylelint and stylelint-config-standard, are not: they are
+`devDependencies` in `package.json` at an exact version (no `^` or `~`), and
+`package-lock.json` pins every package they pull in. Both files are committed.
+`./sfl.sh` runs `npm ci` when `node_modules/.bin/htmlhint` is missing: `npm ci`
+installs exactly what the lockfile says into `node_modules/` (gitignored,
+never committed) and fails when `package.json` and the lockfile disagree.
+Never use `npm install` in a gate or a workflow, and never install the linters
+globally or run them through `npx --yes`.
+
+Two gates keep it that way: **npm manifest policy**
+(`Scripts/check_guardrail_packages.sh`) is red on a version range in
+`package.json`, on a missing or gitignored `package.json` or
+`package-lock.json`, and on a tracked `node_modules/`; **npm audit**
+(`Scripts/npm_audit_check.sh`) is red on a high-severity advisory that one
+`npm audit fix` cannot heal. When that fix does heal it, the changed
+`package-lock.json` rides into the commit.
+
+**To move a linter to a new version,** change its exact pin and the lockfile
+together, then run `./FBP.sh`:
+
+```
+npm install --save-dev --save-exact stylelint@17.15.0
+```
+
+That one command rewrites the pin in `package.json`, re-resolves
+`package-lock.json` and updates `node_modules/` (sfl's `npm ci` runs only when
+`node_modules` has no htmlhint, so it would not pick a bump up on its own).
+Check that `package.json` still shows an exact version, and commit both files.
+
 ## Status
 
 Early. Nothing is built yet; the first work is setting up the repository's
