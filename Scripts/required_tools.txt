@@ -8,7 +8,7 @@
 # used yet": every listed tool is installed or upgraded on every sfl run, and
 # a name it cannot make runnable fails the run. So each later step of the
 # forsgren#1 ladder adds its own tool here in the same change as its gate:
-# shellcheck and yamllint (step 10), actionlint (step 15).
+# actionlint is next (step 17).
 #
 # NOT the Go tools. golangci-lint, deadcode and govulncheck are pinned through
 # `tool` directives in go.mod plus go.sum (Yves's ruling on forsgren#1, step
@@ -36,3 +36,12 @@ go
 # one pinned version for CI and for here. Homebrew has no lockfile, so the
 # linters never go in this list. The formula is `node`; it provides `npm` too.
 node
+
+# Scripts/check_shellcheck.sh (forsgren#1, ladder step 12): every tracked
+# shell script, the *.sh files and the extension-less ones with a bash or sh
+# shebang.
+shellcheck
+
+# Scripts/check_yamllint.sh (forsgren#1, ladder step 12): every tracked
+# .yml / .yaml file, under .yamllint.yml.
+yamllint

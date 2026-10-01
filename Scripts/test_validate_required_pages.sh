@@ -171,7 +171,7 @@ mutant() {
 
 # Mutation proof A: without the existence check, the missing manifest no
 # longer reds as "not found".
-if mutant no-exist-check 's/\[\[ ! -f "\$MANIFEST" \]\]/false/'; then
+if mutant no-exist-check 's/\[\[ ! -f "[$]MANIFEST" \]\]/false/'; then
   set +e
   OUT="$("$TMP/no-exist-check.sh" "$TMP/does-not-exist.json" 2>&1)"
   set -e

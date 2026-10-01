@@ -1,0 +1,23 @@
+# Ported from konenki-website 2026-10-01 (forsgren#1, ladder step 12), which
+# ported it from web-infra with its unit 412. The rules are konenki's,
+# unchanged: a workflow that reads one way in two repos of one estate is worse
+# than either setting. Scripts/check_yamllint.sh lints every tracked YAML file
+# with them, this one included.
+
+extends: default
+
+rules:
+  line-length:
+    max: 200          # workflow files contain long bash commands
+    level: error
+  document-start: disable   # not required for GitHub Actions
+  truthy:
+    allowed-values: ['true', 'false', 'on', 'off']  # 'on' is valid in GH Actions
+  colons:
+    max-spaces-after: -1  # allow alignment
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 1

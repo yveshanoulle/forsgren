@@ -90,6 +90,34 @@ One PRE gate checks the page templates themselves:
   number. Red on a run that scanned zero `.html` files. jscpd is pinned like
   the linters below.
 
+Three PRE gates read the repository's own scripts and files:
+
+- **shellcheck** (`Scripts/check_shellcheck.sh`, the estate's gate from
+  web-infra): every tracked `*.sh` file, and every tracked file without an
+  extension whose first line is a bash or sh shebang, at any depth. The
+  targets come from `git ls-files`, so a new script is checked the moment it
+  is tracked, with no list to keep up to date. Red on any finding, and on a
+  run that found no script. No script is excluded; an exclusion would need an
+  entry in the gate's `EXCLUDE_ALLOWED` and a sentence here with its reason.
+  A finding is fixed in the script; a single line may carry a
+  `# shellcheck disable=SCxxxx` only with a comment saying why.
+- **yamllint** (`Scripts/check_yamllint.sh`, from konenki-website): every
+  tracked `.yml` and `.yaml` file under the rules in `.yamllint.yml`
+  (konenki-website's). konenki lints its workflow directory by name;
+  forsgren has no workflow yet, so the targets come from `git ls-files`, as
+  for shellcheck. `.yamllint.yml` is itself tracked YAML and is linted too,
+  so the list is never empty, and a run that found none is red.
+- **stray tracked files** (`Scripts/test_no_stray_tracked_files.sh`,
+  konenki-website's): red on a tracked `.DS_Store` at any depth, and on a
+  tracked `.yml`/`.yaml` with a top-level `jobs:` key anywhere GitHub would
+  not run it (outside `.github/workflows/`, or in a subdirectory of it): a
+  workflow copy nobody lints and nothing runs. It first proves its matcher
+  on a scratch repository holding one offender of each kind.
+
+shellcheck and yamllint come from Homebrew, through
+`Scripts/required_tools.txt` (see Installing and updating). As with the data
+guard, untracked files are not checked: `git add -N` a new script first.
+
 The POST gates, on the generated site:
 
 - **HTMLHint** (`Scripts/gate_htmlhint.sh`): every `.html` file under the

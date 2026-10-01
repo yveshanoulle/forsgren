@@ -16,7 +16,8 @@
 # Ported from konenki-website 2026-10-01 (forsgren#1, ladder steps 1 to 3;
 # the npm rows in step 7; HTMLHint, Stylelint and lint coverage in step 8;
 # the required-pages rows in step 9; the privacy rows in step 10; the HTML
-# duplication rows in step 11).
+# duplication rows in step 11; shellcheck, yamllint and stray tracked files
+# in step 12).
 # sfl.sh dispatches every gate FROM this file, in file order, filtered by the
 # phase field, so the labels it prints are the labels declared here.
 # Scripts/test_sfl_drives_from_order_file.sh pins that sfl names no label
@@ -143,6 +144,29 @@ Go tests|Scripts/check_go_tests.sh|pre|
 gofmt self-test|Scripts/test_check_gofmt.sh|pre|
 gofmt|Scripts/check_gofmt.sh|pre|
 #
+# Shellcheck and yamllint (forsgren#1, ladder step 12), at their canon
+# position after the html-duplication rows and before lint coverage (forsgren
+# has no gate-wiring or actionlint rows yet, the canon rows between them; the
+# non-canon Go rows above sit where konenki puts its own extras). Both read
+# repository source, so both run in pre.
+# The shellcheck gate and its self-test are web-infra's, the estate canon:
+# targets DERIVED from `git ls-files`, every *.sh plus every extension-less
+# file with a bash or sh shebang, so a new script is covered the moment it is
+# tracked. The self-test is byte-identical; the gate is adapted only in
+# comments that named web-infra's own files. konenki-website runs an older,
+# named-list copy without the self-test.
+# The yamllint gate is konenki-website's, adapted in its targets: konenki
+# names .github/workflows/, which forsgren does not have yet, so the targets
+# are derived the shellcheck way, every tracked .yml/.yaml (.yamllint.yml
+# included, so the list is never empty, and zero is red). Its self-test is
+# forsgren's own (no repo of the estate has one) and, being non-canon, sits
+# right before the canon row it validates. .yamllint.yml is konenki's, the
+# rules unchanged, adapted only in its header comment.
+shellcheck self-test|Scripts/test_check_shellcheck.sh|pre|
+shellcheck|Scripts/check_shellcheck.sh|pre|
+yamllint self-test|Scripts/test_check_yamllint.sh|pre|
+yamllint|Scripts/check_yamllint.sh|pre|
+#
 # Lint coverage (forsgren#1, ladder step 8): did each linter OPEN every .html
 # and .css file the generated site ships? A glob that stops matching is a
 # smaller job that reports success. Gate and fixture are konenki-website's;
@@ -170,6 +194,16 @@ npm audit|Scripts/npm_audit_check.sh|pre|
 # right before the canon row it validates: it runs in pre, the gate in post.
 manifest-covers-site self-test|Scripts/test_required_pages_covers_site_selftest.sh|pre|
 manifest covers site|Scripts/test_required_pages_covers_site.sh|post|
+#
+# No stray tracked files (forsgren#1, ladder step 12). Not canon:
+# konenki-website's issue #10 gate, byte-identical, at konenki's position before the
+# report-script fixtures (forsgren has no quality-trigger-scope row, the one
+# konenki puts before it). Red on a tracked .DS_Store at any depth, and on a
+# tracked .yml/.yaml with a top-level jobs: key anywhere GitHub does not run
+# it: outside .github/workflows/ or in a subdirectory of it. It proves its
+# matcher on a scratch repository before judging this one. Repository source
+# (paths from the index, content from the working tree), so it runs in pre.
+stray tracked files|Scripts/test_no_stray_tracked_files.sh|pre|
 #
 gate-failure summary|Scripts/test_summarize_gate_failure.sh|pre|
 sfl drives from the order file|Scripts/test_sfl_drives_from_order_file.sh|pre|

@@ -224,7 +224,7 @@ fi
 
 # --- Mutation proof B: the zero-sources check is what names the zero red -----
 MUTANT_B="${TMP}/mutant_b.sh"
-sed 's/\[ "\$sources" = "0" \]/false/; s/\[ -z "\$sources" \] ||/false ||/' "$CHECK" > "$MUTANT_B"
+sed 's/\[ "[$]sources" = "0" \]/false/; s/\[ -z "[$]sources" \] ||/false ||/' "$CHECK" > "$MUTANT_B"
 if cmp -s "$CHECK" "$MUTANT_B"; then
   echo "  ❌ mutation proof B: the sed no longer matches the zero-sources check, so this proof proves nothing"
   failures=$((failures + 1))

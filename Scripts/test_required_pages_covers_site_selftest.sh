@@ -144,7 +144,7 @@ expect_rc "6. a manifest that does not exist" 1 \
   "FAIL: ${TMP}/does-not-exist.json not found"
 
 # --- Mutation proof A: the zero-pages check names case 5's reason ----------
-if mutant no-zero-check 's/if \[\[ "\$html_count" -eq 0 \]\]; then/if false; then/'; then
+if mutant no-zero-check 's/if \[\[ "[$]html_count" -eq 0 \]\]; then/if false; then/'; then
   run_gate "$MUTANT" "$EMPTY_SITE" "$EMPTY_MANIFEST"
   if grep -Fq -- "no .html page" <<< "$OUT"; then
     fail "mutation proof A: case 5 still says 'no .html page' with the zero-pages check removed, so that reason does not come from that check. Output: ${OUT}"
@@ -154,7 +154,7 @@ if mutant no-zero-check 's/if \[\[ "\$html_count" -eq 0 \]\]; then/if false; the
 fi
 
 # --- Mutation proof B: the site-directory check names case 4's reason -------
-if mutant no-site-check 's/if \[\[ ! -d "\$SITE_DIR" \]\]; then/if false; then/'; then
+if mutant no-site-check 's/if \[\[ ! -d "[$]SITE_DIR" \]\]; then/if false; then/'; then
   new_manifest nosite-mutant '{"requiredPages":["/"]}'
   run_gate "$MUTANT" "$NOSITE" "$MANIFEST"
   if grep -Fq -- "${NOSITE} not found" <<< "$OUT"; then
