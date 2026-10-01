@@ -1,0 +1,142 @@
+# .github/workflows/quality.yml
+#
+# forsgren's CI (forsgren#1, ladder step 14). Ported from konenki-website's
+# quality.yml: its runner labels, checkout pin, `npm ci`, report rows and
+# details, and its Render report step. NEW here: konenki names every gate in
+# its own step; this job runs Scripts/gate_report_order.txt the way sfl.sh
+# does, phase by phase, through Scripts/run_ci_phase.sh:
+#
+#   PRE gates -> Scripts/build_site.sh into .build/site -> POST gates
+#
+# the same three phases FBP.sh runs locally (gofmt -w, then sfl.sh pre, the
+# build, sfl.sh post). Every order-file row runs here and in sfl, under the
+# same label; Scripts/test_gate_wiring.sh fails the run when the two drift.
+# A red row here is the same row sfl prints, so `./sfl.sh pre` (or post)
+# reproduces it locally.
+#
+# CHECK-ONLY. Nothing here fixes: gofmt runs as `gofmt -l` (the gofmt row),
+# never with --fix, and Scripts/run_ci_phase.sh turns any gate that changes
+# the checked-out tree into a red row (npm_audit_check.sh's local heal, for
+# one), because CI reports what the commit contains.
+name: Quality
+
+on:
+  # No paths filter: the secret scan, the data guard, stray tracked files and
+  # script references read every tracked file, so any filter would leave a
+  # change that runs no gate (konenki's rule, pinned by
+  # Scripts/test_quality_trigger_scope.sh).
+  #
+  # NO pull_request and NO pull_request_target, ever (Yves's ruling on
+  # forsgren#1): this job runs on a self-hosted runner, and a pull request
+  # from a fork would run its own code there the day the repository is
+  # public. The gate that enforces this is the next step of the ladder.
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+# The job reads the repository and nothing else.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality gates
+    runs-on: [self-hosted, macOS, ARM64, host-babacar, runner-forsgren]
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The same environment sfl.sh builds for its gates: Homebrew's
+      # prefixes first on PATH (GITHUB_PATH prepends, so /usr/local/bin goes
+      # in last to end up first, as in sfl's export), and Go pinned exactly
+      # from go.mod's toolchain line. NOT Scripts/install_tools.sh: the
+      # runner is a shared machine, and CI does not install or upgrade its
+      # tools; a missing tool fails its gate by name.
+      - name: Set up the gate environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
+          toolchain="$(./Scripts/go_toolchain.sh)"
+          echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        # npm ci installs exactly package-lock.json, the same versions sfl.sh
+        # uses locally, and fails when package.json and the lockfile disagree.
+        run: npm ci
+
+      # ROWS/DETAILS are set here rather than in a job-level `env:` block:
+      # the `runner` context does not exist when job env is evaluated, so
+      # a runner.temp expression there is an Unrecognized named-value and the
+      # whole workflow file is rejected before a single step runs. The
+      # RUNNER_TEMP environment variable is the runtime equivalent and is
+      # available inside a step.
+      - name: Start report
+        shell: bash
+        run: |
+          set -euo pipefail
+          rows="${RUNNER_TEMP}/quality_rows.md"
+          details="${RUNNER_TEMP}/quality_details"
+          : > "$rows"
+          # A DIRECTORY, one file per gate, not one appended log: the report
+          # must read in DECLARED order, whatever order the gates ran in.
+          rm -rf "$details" && mkdir -p "$details"
+          # GITHUB_ENV takes effect in LATER steps, so this step uses the
+          # literal paths above and every gate after it uses $ROWS/$DETAILS.
+          echo "ROWS=${rows}" >> "$GITHUB_ENV"
+          echo "DETAILS=${details}" >> "$GITHUB_ENV"
+
+      # Every pre row of Scripts/gate_report_order.txt, in file order. A
+      # failing gate does not stop the phase, as in sfl. Exit 2 is a
+      # secret-class finding: the build and POST are then skipped, as FBP.sh
+      # skips them, and the step fails either way.
+      - name: PRE gates
+        id: pre
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" && rc=0 || rc=$?
+          if [ "$rc" -eq 2 ]; then
+            echo "secret_block=true" >> "$GITHUB_OUTPUT"
+          fi
+          exit "$rc"
+
+      # Build boundary. Runs after an ordinary PRE red too (`!cancelled()`),
+      # so one run reports every failure, as FBP.sh does; skipped after a
+      # secret-class finding. Same default output as FBP.sh, .build/site,
+      # which the POST gates read by default.
+      - name: Build site
+        id: build
+        if: ${{ !cancelled() && steps.pre.outputs.secret_block != 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./Scripts/build_site.sh
+
+      # Every post row, on the site just built. Skipped when the build did
+      # not succeed: those gates then report as unmeasured, not as passing.
+      - name: POST gates
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/run_ci_phase.sh post "$ROWS" "$DETAILS"
+
+      # Renders whatever ran. `if: always()` matters: the run that most needs
+      # a report is the one that failed. Gates that never ran are named
+      # rather than omitted: a short table would otherwise read as "fewer
+      # checks exist".
+      - name: Render report
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/render_quality_report.sh "$ROWS" "$DETAILS" >> "$GITHUB_STEP_SUMMARY"

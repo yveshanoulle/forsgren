@@ -104,9 +104,10 @@ Four PRE gates read the repository's own scripts and files:
 - **yamllint** (`Scripts/check_yamllint.sh`, from konenki-website): every
   tracked `.yml` and `.yaml` file under the rules in `.yamllint.yml`
   (konenki-website's). konenki lints its workflow directory by name;
-  forsgren has no workflow yet, so the targets come from `git ls-files`, as
-  for shellcheck. `.yamllint.yml` is itself tracked YAML and is linted too,
-  so the list is never empty, and a run that found none is red.
+  here the targets come from `git ls-files`, as for shellcheck, so the
+  workflow and any other YAML are covered the moment they are tracked.
+  `.yamllint.yml` is itself tracked YAML and is linted too, so the list is
+  never empty, and a run that found none is red.
 - **stray tracked files** (`Scripts/test_no_stray_tracked_files.sh`,
   konenki-website's): red on a tracked `.DS_Store` at any depth, and on a
   tracked `.yml`/`.yaml` with a top-level `jobs:` key anywhere GitHub would
@@ -180,6 +181,88 @@ reason true.
 
 A finding in the generated page is fixed in the template under
 `internal/page/`, never by loosening a rule in the config.
+
+## CI
+
+`.github/workflows/quality.yml` runs the same gates as `./sfl.sh`, on every
+push to `main` and by hand (Actions → Quality → Run workflow).
+
+**What runs where.** Locally, `./FBP.sh` runs `gofmt -w`, `./sfl.sh pre`,
+`Scripts/build_site.sh` and `./sfl.sh post`. CI runs the same three phases
+with nothing fixed: `Scripts/run_ci_phase.sh pre`, then
+`Scripts/build_site.sh` into `.build/site`, then `Scripts/run_ci_phase.sh
+post`. Both read `Scripts/gate_report_order.txt` with the same row rules, so
+every gate runs in both, in the same order, under the same label. Before the
+gates, CI checks out the commit, puts Homebrew's directories first on `PATH`
+and exports `GOTOOLCHAIN` from `go.mod` (as `sfl.sh` does), and runs
+`npm ci`. It does not run `Scripts/install_tools.sh`: the runner is a
+shared machine, so CI does not install or upgrade tools there; a missing
+tool turns its gate red by name.
+
+**Check-only.** CI reports what the commit contains. gofmt runs as
+`gofmt -l` (the `gofmt` row), never with `--fix`, and a gate that changes
+the checked-out tree is a red row, even when it exits 0. That is how CI
+treats `npm audit`: locally `Scripts/npm_audit_check.sh` may heal an
+advisory with one `npm audit fix` and the new `package-lock.json` rides into
+the commit; in CI the same heal is red, naming `package-lock.json`. Run
+`./FBP.sh` and commit the result.
+
+**Failures.** A failing gate does not stop its phase: every row runs, so one
+run reports every failure, as `sfl.sh` does. The build runs after an
+ordinary PRE red too; it is skipped after a secret-class finding (the secret
+scan), as `FBP.sh` skips it, and the POST gates are skipped when the build
+did not succeed. The job's summary page lists every gate in the order
+file's order, ✅, ❌ or `n/a`, with each gate's output below the table.
+Gates that did not run are counted as unmeasured, never as passing.
+
+**From a red CI row to a local run.** A CI row carries the label sfl prints,
+and the order file names the script and phase behind it:
+
+```
+grep '^gofmt|' Scripts/gate_report_order.txt   # gofmt|Scripts/check_gofmt.sh|pre|
+./Scripts/check_gofmt.sh                       # that one gate
+./sfl.sh pre                                   # or the whole phase
+```
+
+A POST gate reads `.build/site`, so run `./Scripts/build_site.sh` first.
+
+**The runner.** The job runs on a self-hosted runner on babacar, named
+`babacar-forsgren`, selected by all five of its labels:
+`runs-on: [self-hosted, macOS, ARM64, host-babacar, runner-forsgren]`.
+`runner-forsgren` is the label that picks this repository's runner among the
+estate's on the same Mac.
+
+**No pull-request trigger, on purpose.** Quality never triggers on
+`pull_request` or `pull_request_target` (Yves's ruling, forsgren#1). On a
+self-hosted runner such a trigger would let a pull request from a fork run
+its own code on babacar the day the repository is public. Changes reach
+`main` as commits, checked by `./FBP.sh` locally and by this job after the
+push.
+
+**No paths filter, on purpose.** The secret scan, the data guard, stray
+tracked files and script references read every tracked file, so a filter
+on paths would leave some change that runs no gate.
+
+Three PRE gates keep the CI honest:
+
+- **gate wiring** (`Scripts/test_gate_wiring.sh`, konenki-website's,
+  adapted): every runnable row of the order file has phase `pre` or `post`
+  (any other phase runs in neither); `FBP.sh` and `quality.yml` each run
+  PRE, the build and POST in that order; `sfl.sh` and
+  `Scripts/run_ci_phase.sh` read a row with the same rules; every script
+  that no row names is a declared exemption with the runner it must still
+  be run by. It also runs `run_ci_phase.sh` itself, over the real order
+  file with a stub at every declared path (each row must run exactly once,
+  in its own phase, in file order) and over made-up order files (failures,
+  the secret-class exit, the tree check, a phase with no row).
+- **quality trigger scope** (`Scripts/test_quality_trigger_scope.sh`): the
+  workflow runs on every push to `main`, with no `paths` or `paths-ignore`
+  filter, and on `workflow_dispatch`.
+- **quality-report render** (`Scripts/test_render_quality_report.sh`): the
+  summary renderer (`Scripts/render_quality_report.sh`) keeps the declared
+  order, exits 0 on a report it rendered, tells an empty or partial run from
+  a clean one, and does not count an `n/a` row as a gate that should have
+  reported.
 
 ## Privacy
 

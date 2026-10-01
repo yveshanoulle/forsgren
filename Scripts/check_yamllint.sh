@@ -4,9 +4,9 @@
 # Ported from konenki-website 2026-10-01 (forsgren#1, ladder step 12), which
 # ported it from web-infra (its unit 411 put it in the canon). konenki lints
 # .github/workflows/ and web-infra adds its compose stacks/, each a NAMED
-# directory. forsgren has neither yet: CI arrives later on the forsgren#1
-# ladder, and `yamllint .github/workflows/` on a directory that does not exist
-# exits 255. So the targets here are DERIVED, the way Scripts/check_shellcheck.sh
+# directory. forsgren had no workflow directory when this was ported (CI came
+# in forsgren#1 step 14), and `yamllint .github/workflows/` on a directory
+# that does not exist exits 255. So the targets here are DERIVED, the way Scripts/check_shellcheck.sh
 # derives its own: every git-tracked *.yml / *.yaml at any depth. A workflow,
 # a .golangci.yml or any other YAML is covered the moment it is tracked,
 # instead of when someone remembers to name its directory.

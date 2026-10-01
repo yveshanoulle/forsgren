@@ -30,8 +30,8 @@
 #
 # Ported from web-infra 2026-10-01 (forsgren#1, ladder step 12), the estate
 # canon; adapted only in these comments, which named web-infra's own files.
-# sfl.sh runs it from Scripts/gate_report_order.txt; forsgren has no CI
-# workflow yet.
+# sfl.sh runs it from Scripts/gate_report_order.txt, and so does CI, through
+# Scripts/run_ci_phase.sh.
 #
 # Local invocation: ./Scripts/check_shellcheck.sh
 

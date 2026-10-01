@@ -22,6 +22,7 @@ It is written in Go: one module, `github.com/yveshanoulle/forsgren`.
 - **`./sfl.sh pre|post`** — the gates of one phase, dispatched from `Scripts/gate_report_order.txt` (`label|script|phase|class`). Every gate is check-only here, as in CI.
 - **`./Scripts/build_site.sh [out-dir]`** — builds `./cmd/forsgren` into `.build/bin/` and renders the site (default `.build/site`); writes the page count to `.build/site-page-count.log` only on full success.
 - **`Scripts/fbp_agent_friend.sh "<message>"`** — FBP.sh under the agent-Friend commit identity, for the subagent loop.
+- **CI** — `.github/workflows/quality.yml`, on every push to `main` and by hand, on the self-hosted runner `[self-hosted, macOS, ARM64, host-babacar, runner-forsgren]`: `Scripts/run_ci_phase.sh pre` → `Scripts/build_site.sh` → `Scripts/run_ci_phase.sh post`, the same order-file rows as sfl, check-only. Never add a `pull_request` or `pull_request_target` trigger (self-hosted runner). See README, CI.
 
 Adding a gate: write the script and its self-test, give each a row in the order file at its canon position, and keep `Scripts/test_sfl_drives_from_order_file.sh` green (every `Scripts/test_*.sh` must be declared).
 

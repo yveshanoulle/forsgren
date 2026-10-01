@@ -17,8 +17,8 @@
 # MenoPower/Scripts/standalone/fbp_agent_friend.sh; they differ only in how
 # the repo root is found (each repo's own convention) and in the name of the
 # script they run (here FBP.sh, by Yves's ruling on forsgren#1).
-# Hand-run by the loop, never by sfl or a workflow (the gate-wiring check
-# that will exempt it arrives with CI, a later step of forsgren#1).
+# Hand-run by the loop, never by sfl or a workflow (Scripts/test_gate_wiring.sh
+# exempts it, and requires CLAUDE.md to declare it).
 # Usage, from anywhere:  Scripts/fbp_agent_friend.sh [FBP args] "<message>"
 set -euo pipefail
 

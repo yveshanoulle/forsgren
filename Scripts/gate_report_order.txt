@@ -17,9 +17,14 @@
 # the npm rows in step 7; HTMLHint, Stylelint and lint coverage in step 8;
 # the required-pages rows in step 9; the privacy rows in step 10; the HTML
 # duplication rows in step 11; shellcheck, yamllint and stray tracked files
-# in step 12; script references, from MenoPower, in step 13).
+# in step 12; script references, from MenoPower, in step 13; gate wiring,
+# quality trigger scope and quality-report render with CI in step 14).
 # sfl.sh dispatches every gate FROM this file, in file order, filtered by the
 # phase field, so the labels it prints are the labels declared here.
+# CI does the same: .github/workflows/quality.yml runs this file through
+# Scripts/run_ci_phase.sh, `pre` before the build and `post` after it, with
+# sfl's row rules, so CI runs the same rows under the same labels.
+# Scripts/test_gate_wiring.sh fails the run when the two drift.
 # Scripts/test_sfl_drives_from_order_file.sh pins that sfl names no label
 # literally, that every row names an executable script, and that every
 # Scripts/test_*.sh is declared by a row.
@@ -42,6 +47,9 @@
 # FBP.sh:
 #   gofmt -w -> pre gates -> Scripts/build_site.sh into .build/site
 #   -> post gates -> commit/push
+# quality.yml (CI, check-only, no gofmt -w):
+#   pre gates -> Scripts/build_site.sh into .build/site -> post gates
+#   -> the step summary
 #
 # THE SECRET PAIR LEADS, SELF-TEST FIRST. Nothing runs before the secret check,
 # and the self-test runs before the gate it validates: a green from a checker
@@ -133,21 +141,33 @@ html-duplication self-test|Scripts/test_check_html_dupl.sh|pre|
 html duplication|Scripts/check_html_dupl.sh|pre|
 html duplication, generated page|Scripts/check_html_dupl_site.sh|post|
 #
+# Gate wiring, the sfl/CI parity guard (forsgren#1, ladder step 14), at its
+# canon position after the html-duplication rows. konenki-website's fixture,
+# adapted: konenki names every gate in its own workflow step and checks the
+# two lists agree; forsgren's quality.yml runs this file through
+# Scripts/run_ci_phase.sh, so the fixture checks that every runnable row has
+# a phase both runners run, that FBP.sh and quality.yml each run PRE, the
+# build and POST in that order, that sfl.sh and run_ci_phase.sh read a row
+# with the same rules, that every other script has its declared runner, and,
+# at runtime, that run_ci_phase.sh runs every row of this file exactly once
+# in its own phase. Repository source, so it runs in pre.
+gate wiring|Scripts/test_gate_wiring.sh|pre|
+#
 # go test ./... over the module. Red on a failing test AND on zero tests
 # found: a green over nothing measured is the false clean this gate exists
 # to prevent.
 Go tests self-test|Scripts/test_check_go_tests.sh|pre|
 Go tests|Scripts/check_go_tests.sh|pre|
 #
-# CHECK-ONLY here (gofmt -l), as CI will call it. FBP.sh runs the same script
+# CHECK-ONLY here (gofmt -l), as CI calls it. FBP.sh runs the same script
 # with --fix before PRE, so locally the check sees an already-formatted tree.
 gofmt self-test|Scripts/test_check_gofmt.sh|pre|
 gofmt|Scripts/check_gofmt.sh|pre|
 #
 # Shellcheck and yamllint (forsgren#1, ladder step 12), at their canon
-# position after the html-duplication rows and before lint coverage (forsgren
-# has no gate-wiring or actionlint rows yet, the canon rows between them; the
-# non-canon Go rows above sit where konenki puts its own extras). Both read
+# position after the gate-wiring row and before lint coverage (forsgren has
+# no actionlint rows yet, the canon rows between them; the non-canon Go rows
+# above sit where konenki puts its own extras). Both read
 # repository source, so both run in pre.
 # The shellcheck gate and its self-test are web-infra's, the estate canon:
 # targets DERIVED from `git ls-files`, every *.sh plus every extension-less
@@ -156,9 +176,9 @@ gofmt|Scripts/check_gofmt.sh|pre|
 # comments that named web-infra's own files. konenki-website runs an older,
 # named-list copy without the self-test.
 # The yamllint gate is konenki-website's, adapted in its targets: konenki
-# names .github/workflows/, which forsgren does not have yet, so the targets
-# are derived the shellcheck way, every tracked .yml/.yaml (.yamllint.yml
-# included, so the list is never empty, and zero is red). Its self-test is
+# names .github/workflows/; here the targets are derived the shellcheck way,
+# every tracked .yml/.yaml (the workflow and .yamllint.yml included, so the
+# list is never empty, and zero is red). Its self-test is
 # forsgren's own (no repo of the estate has one) and, being non-canon, sits
 # right before the canon row it validates. .yamllint.yml is konenki's, the
 # rules unchanged, adapted only in its header comment.
@@ -179,9 +199,11 @@ lint coverage|Scripts/check_lint_coverage.sh|post|
 # Dependency audit belongs before generating deployable output (forsgren#1,
 # ladder step 7). Both scripts are konenki-website's, byte-identical. sfl runs
 # the self-healing npm_audit_check.sh (one `npm audit fix`, re-verified; the
-# lockfile change rides into the commit). konenki's CI-only step body and its
-# fixture (report_npm_audit_step.sh) are not ported: forsgren has no CI
-# workflow yet.
+# lockfile change rides into the commit). CI runs the same row (forsgren#1,
+# step 14), and must not heal: Scripts/run_ci_phase.sh turns a gate that
+# changes the checked-out tree into a red row, so a heal in CI is red with
+# package-lock.json named. konenki's separate CI-only audit step
+# (report_npm_audit_step.sh and its fixture) is therefore not ported.
 npm-audit self-test|Scripts/test_npm_audit_check.sh|pre|
 npm audit|Scripts/npm_audit_check.sh|pre|
 #
@@ -195,10 +217,20 @@ npm audit|Scripts/npm_audit_check.sh|pre|
 manifest-covers-site self-test|Scripts/test_required_pages_covers_site_selftest.sh|pre|
 manifest covers site|Scripts/test_required_pages_covers_site.sh|post|
 #
+# Quality trigger scope (forsgren#1, ladder step 14), at its canon position
+# after manifest covers site. konenki-website's fixture, adapted: its rule is
+# "no paths filter, or one that covers every path the gates read", and
+# forsgren's gates read every tracked file (secret scan, data guard, stray
+# files, script references), so quality.yml must run on every push to main,
+# with no paths or paths-ignore filter, and on workflow_dispatch. konenki's
+# pull_request pin is not ported: forsgren bans that trigger (self-hosted
+# runner), a later step's gate. Repository source, so it runs in pre.
+quality trigger scope|Scripts/test_quality_trigger_scope.sh|pre|
+#
 # No stray tracked files (forsgren#1, ladder step 12). Not canon:
-# konenki-website's issue #10 gate, byte-identical, at konenki's position before the
-# report-script fixtures (forsgren has no quality-trigger-scope row, the one
-# konenki puts before it). Red on a tracked .DS_Store at any depth, and on a
+# konenki-website's issue #10 gate, byte-identical, at konenki's position
+# between the quality-trigger-scope row and the report-script fixtures. Red
+# on a tracked .DS_Store at any depth, and on a
 # tracked .yml/.yaml with a top-level jobs: key anywhere GitHub does not run
 # it: outside .github/workflows/ or in a subdirectory of it. It proves its
 # matcher on a scratch repository before judging this one. Repository source
@@ -218,6 +250,14 @@ stray tracked files|Scripts/test_no_stray_tracked_files.sh|pre|
 # pre, self-test first.
 script references self-test|Scripts/test_check_script_references.sh|pre|
 script references|Scripts/check_script_references.sh|pre|
+#
+# The CI report (forsgren#1, ladder step 14), at its canon position before
+# the gate-failure summary (konenki puts it right after the stray-files row;
+# the non-canon script-references pair sits between them here).
+# Scripts/render_quality_report.sh renders CI's step summary from these rows,
+# in this file's order; this is its fixture, konenki-website's, with one
+# forsgren case (an n/a row is not counted as unreported).
+quality-report render|Scripts/test_render_quality_report.sh|pre|
 #
 gate-failure summary|Scripts/test_summarize_gate_failure.sh|pre|
 sfl drives from the order file|Scripts/test_sfl_drives_from_order_file.sh|pre|
@@ -271,5 +311,6 @@ privacy pages|n/a|static generated page - numbers and dates only; no forms, no a
 # duplication on the generated page, lint coverage, manifest covers site,
 # privacy posture, repository links) check
 # that output; sfl.sh post runs them in file order, then its own step-count
-# self-check.
+# self-check. quality.yml runs the same build between its two
+# Scripts/run_ci_phase.sh calls, and run_ci_phase.sh post runs the same rows.
 # ---------------------------------------------------------------------------
