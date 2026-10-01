@@ -42,6 +42,35 @@ forsgren reads only what is already in GitHub:
   publish: numbers and dates only, no issue titles, no links into private
   repositories
 
+## Where configuration and data live
+
+Not in this repository. It holds code only. An installation keeps its
+configuration (which repositories and services, workflow names, labels, the
+health URL) and its data (`history.csv`, the raw events fetched from GitHub)
+in a separate private data repository, made from a template, and passes them
+to forsgren as paths. Test fixtures are made up (`acme/app`) and live only
+under `testdata/`.
+
+The data guard (`Scripts/check_data_guard.sh`, a PRE gate) keeps it that way.
+Over the files git tracks, it fails when:
+
+- a file that looks like installation config or data sits outside
+  `testdata/`: `history.csv`, `*.history.csv`, `forsgren.config.*`,
+  `forsgren-config.*`, `config.yml`/`.yaml`/`.json` at any depth, or a
+  `*.jsonl` events file;
+- a fixture under `testdata/` or a test file (`*_test.go`, `test_*.sh`)
+  mentions one of the owner's real repository, organisation or domain names.
+
+Those names are not written in this repository, since listing them here would
+publish them. Put them in a file outside it, one per line (`#` starts a
+comment), and point `FORSGREN_PRIVATE_NAMES_FILE` at that file. When the
+variable is unset or the file is missing, the name scan is skipped with a ⚠️
+line and the rest of the gate still runs. The failure line names the file and
+line, never the name it matched.
+
+Untracked files are not checked, so `git add` (or `git add -N`) a new file
+before running the gates.
+
 ## Installing and updating
 
 Run `./sfl.sh pre` (or `./FBP.sh`) and the tools install themselves.

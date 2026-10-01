@@ -46,6 +46,17 @@
 secret-scan self-test|Scripts/test_check_secrets.sh|pre|
 secret scan|Scripts/check_secrets.sh|pre|secret-class
 #
+# THE DATA GUARD (forsgren#1, ladder step 6). Not canon: forsgren's own rule
+# that the repository holds code only, and an installation's config and data
+# live outside it, passed as paths. Red on installation config or data
+# tracked outside testdata/, and on a name from FORSGREN_PRIVATE_NAMES_FILE
+# (a file outside the repo) in a fixture or test file. It sits beside the
+# secret pair because it guards the same thing, what must never reach a
+# public history, and it is an ordinary-class row: a finding still commits
+# locally and blocks the push. Self-test first, as for the secret pair.
+data guard self-test|Scripts/test_check_data_guard.sh|pre|
+data guard|Scripts/check_data_guard.sh|pre|
+#
 # Remote synchronisation is pre-flight infrastructure in sfl, not itself a
 # gate; its fixture pins the ff-only/no-auto-rebase contract.
 sfl pull contract|Scripts/test_sfl_pull.sh|pre|
