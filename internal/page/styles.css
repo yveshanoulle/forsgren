@@ -1,0 +1,11 @@
+body {
+  margin: 0 auto;
+  max-width: 48rem;
+  padding: 1rem;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+.site-name {
+  font-weight: 600;
+}

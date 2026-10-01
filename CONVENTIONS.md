@@ -1,0 +1,30 @@
+# forsgren conventions
+
+How work is tracked in this repo. Follows
+[/Users/yveshanoulle/Sources/web-infra/CONVENTIONS.md](/Users/yveshanoulle/Sources/web-infra/CONVENTIONS.md),
+the estate's shared rules; this file only names forsgren's files and what is
+specific to it.
+
+## Files
+
+- [/Users/yveshanoulle/Sources/forsgren/TODO.md](/Users/yveshanoulle/Sources/forsgren/TODO.md) — **open** items only, one line per open GitHub issue, with its link.
+- [/Users/yveshanoulle/Sources/forsgren/SHIPPED.md](/Users/yveshanoulle/Sources/forsgren/SHIPPED.md) — completed work, append-only history.
+- GitHub issues on [yveshanoulle/forsgren](https://github.com/yveshanoulle/forsgren/issues) — the plan, the step ladder and Yves's rulings for each unit live on its issue.
+
+## Rules
+
+1. **`TODO.md` is for OPEN items only.** When something ships, MOVE it to `SHIPPED.md` in the same commit. No `✅` lines, no struck-through entries.
+2. **One sentence plus the issue link per TODO entry.** The detail, the ladder and the acceptance criteria live on the issue, so there is one place to edit.
+3. **Every entry has a verifiable done condition or an unblock condition** — on its issue.
+4. **Commits link their issue** (`forsgren#N` or `#N` in the message); a commit on an issue is on `main` (no pull requests).
+5. **File links use full absolute paths** in this file, `TODO.md`, `SHIPPED.md` and `CLAUDE.md`, so Claude Code renders them as clickable.
+
+## Code
+
+- Go module `github.com/yveshanoulle/forsgren`, `go 1.26.1`. `cmd/forsgren/` is the composition root and stays thin; the work lives in `internal/`.
+- Go production files stay at or under 600 lines; functions stay short.
+- Page templates are `html/template` files embedded with `//go:embed` (`internal/page/templates/{layout,pages}/`), never `text/template`: the page is meant to be public.
+- Go tools are pinned through `go.mod` `tool` directives and `go.sum`, never installed globally.
+- `gofmt`: auto-fix (`gofmt -w`) in `FBP.sh`'s local run, check-only (`gofmt -l`) in `sfl.sh` and CI.
+- The generated site goes to `.build/site/` and is not committed.
+- Every gate is a script named by a row of `Scripts/gate_report_order.txt`; every `Scripts/test_*.sh` is named by a row.

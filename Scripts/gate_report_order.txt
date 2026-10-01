@@ -1,0 +1,73 @@
+# Scripts/gate_report_order.txt
+# Canonical gate order, phase and labels for the run report.
+#
+# One line per gate:
+# <label>|<script>|<phase>|<class>
+#
+# phase:
+#   pre  = validates repository inputs and checker behaviour before the site
+#          is generated
+#   post = validates the generated site in .build/site
+#
+# class:
+#   secret-class = a failure blocks commit as well as push
+#   empty        = ordinary quality failure
+#
+# Ported from konenki-website 2026-10-01 (forsgren#1, ladder steps 1 and 2).
+# sfl.sh dispatches every gate FROM this file, in file order, filtered by the
+# phase field, so the labels it prints are the labels declared here.
+# Scripts/test_sfl_drives_from_order_file.sh pins that sfl names no label
+# literally, that every row names an executable script, and that every
+# Scripts/test_*.sh is declared by a row.
+#
+# CANON LABELS, CANON ORDER. The labels and their order follow the estate
+# canon (web-infra's Scripts/check_site_gate_parity.sh, DEFAULT_CANON), so
+# forsgren's report reads like the other sites'. Only the rows whose scripts
+# exist are here: each later step of the forsgren#1 ladder adds its own rows
+# at their canon position (the secret pair leads, ahead of the pull contract;
+# HTMLHint, Stylelint, required pages and privacy are post rows). Rows that
+# are not canon (build site, Go tests, gofmt, the FBP fixtures) sit where
+# konenki-website puts its own extras: the build-site self-test after the
+# pull contract, the FBP fixtures after the step table.
+#
+# Checker SELF-TESTS run before the gate they validate, and belong in pre
+# even when the checker they exercise belongs in post: a green from a
+# checker nobody validated is worth nothing.
+#
+# FBP.sh:
+#   gofmt -w -> pre gates -> Scripts/build_site.sh into .build/site
+#   -> post gates -> commit/push
+sfl pull contract|Scripts/test_sfl_pull.sh|pre|
+#
+# The Go generator (cmd/forsgren render) and the site build around it.
+build-site self-test|Scripts/test_build_site.sh|pre|
+#
+# go test ./... over the module. Red on a failing test AND on zero tests
+# found: a green over nothing measured is the false clean this gate exists
+# to prevent.
+Go tests self-test|Scripts/test_check_go_tests.sh|pre|
+Go tests|Scripts/check_go_tests.sh|pre|
+#
+# CHECK-ONLY here (gofmt -l), as CI will call it. FBP.sh runs the same script
+# with --fix before PRE, so locally the check sees an already-formatted tree.
+gofmt self-test|Scripts/test_check_gofmt.sh|pre|
+gofmt|Scripts/check_gofmt.sh|pre|
+#
+gate-failure summary|Scripts/test_summarize_gate_failure.sh|pre|
+sfl drives from the order file|Scripts/test_sfl_drives_from_order_file.sh|pre|
+step table|Scripts/test_render_step_table.sh|pre|
+#
+# FBP.sh's own summary and its build-site page count (konenki-website issues
+# #6 and #8): repository-source presentation, like the report scripts above.
+FullBuildAndPush commit-message block|Scripts/test_fbp_commit_message.sh|pre|
+FullBuildAndPush build-site page count|Scripts/test_fbp_build_pagecount.sh|pre|
+#
+# ---------------------------------------------------------------------------
+# BUILD BOUNDARY
+#
+# FBP.sh runs ./Scripts/build_site.sh here (default output .build/site).
+# No post rows yet: the post gates on the generated page (HTMLHint,
+# Stylelint, lint coverage, required pages, privacy posture) arrive in later
+# steps of the forsgren#1 ladder. sfl.sh post meanwhile runs only its own
+# step-count self-check.
+# ---------------------------------------------------------------------------
