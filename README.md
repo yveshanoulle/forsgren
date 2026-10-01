@@ -42,6 +42,28 @@ forsgren reads only what is already in GitHub:
   publish: numbers and dates only, no issue titles, no links into private
   repositories
 
+## Installing and updating
+
+Run `./sfl.sh pre` (or `./FBP.sh`) and the tools install themselves.
+`Scripts/required_tools.txt` lists them, and `Scripts/install_tools.sh` installs
+each missing one with Homebrew and upgrades the ones already there. Homebrew
+must already be installed. Only the tools the quality gates use are listed.
+
+**Go is pinned separately.** `brew install go` also upgrades an outdated Go for
+the whole machine, which would be a surprise if forsgren followed it. So
+forsgren does not: `go.mod` carries a `toolchain` line (for example
+`toolchain go1.27.1`), and `sfl.sh` and `FBP.sh` export it as `GOTOOLCHAIN`.
+Go then downloads that exact toolchain on first use and runs it, whatever
+version Homebrew installed. (The `toolchain` line alone is only a minimum, so
+the export is what makes the pin exact. Nothing is written to your global Go
+config.) Both scripts stop with a clear error if `go.mod` has no `toolchain`
+line.
+
+**To move to a new Go version,** edit the `toolchain` line in `go.mod`, and
+nothing else, then run `./FBP.sh`. Go downloads the new toolchain on the first
+run. Do not set the version anywhere else: `go.mod` is the only place it is
+written.
+
 ## Status
 
 Early. Nothing is built yet; the first work is setting up the repository's

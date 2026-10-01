@@ -16,7 +16,7 @@ cd "$(dirname "$0")" || exit 1
 # Scripts/*.sh that sfl merely calls does not require a bump.
 # Form ported from web-infra 2026-08-31: it names the file, so a pasted log
 # says which script produced it, not just "the script".
-VERSION=1
+VERSION=2
 
 usage() {
   echo "Usage:"
@@ -49,12 +49,26 @@ if [[ "$PHASE" == "pre" ]]; then
 fi
 
 # The gates call go, git and the shell tools by name; Homebrew's prefixes go
-# first so a GUI-launched shell finds them. The tool installer
-# (Scripts/install_tools.sh + required_tools.txt) and the pinned npm linters
-# arrive in later steps of the forsgren#1 ladder; until then a missing tool
-# fails its gate with `command not found`, which the gate-failure summary
-# quotes.
+# first so a GUI-launched shell finds them. The pinned npm linters arrive in a
+# later step of the forsgren#1 ladder (step 5).
 export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
+
+# The tools the gates need that npm cannot pin, from Scripts/required_tools.txt.
+# PRE-FLIGHT, before any gate: a gate whose tool is absent does not fail
+# cleanly, it reports whatever `command not found` exits with inside a step
+# that summarises its own exit code. Same script the rest of the estate uses;
+# only the list differs. Fixture: Scripts/test_install_tools.sh.
+./Scripts/install_tools.sh
+
+# Pin Go exactly. go.mod's `toolchain` line is only a minimum (GOTOOLCHAIN=auto
+# runs the newer of it and the local Go, and install_tools.sh may just have
+# upgraded Go), so the version is exported from that line: one source of truth.
+# Never `go env -w`, which writes machine-wide config. Fixture:
+# Scripts/test_go_toolchain.sh.
+if ! GOTOOLCHAIN="$(./Scripts/go_toolchain.sh)"; then
+  exit 1
+fi
+export GOTOOLCHAIN
 
 # Every gate here is CHECK-ONLY, the way CI will run it. The one local fix,
 # gofmt -w, belongs to FBP.sh, which runs it before calling sfl (Yves's ruling

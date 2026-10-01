@@ -234,6 +234,14 @@ echo "================================"
 
 PRE_START="$(date +%s)"
 
+# Pin Go exactly, from go.mod's toolchain line (see Scripts/go_toolchain.sh).
+# sfl.sh exports the same value for its gates, but the gofmt run below and
+# build_site.sh between the phases run outside sfl, so FBP exports it too.
+if ! GOTOOLCHAIN="$(./Scripts/go_toolchain.sh)"; then
+  exit 1
+fi
+export GOTOOLCHAIN
+
 # gofmt: AUTO-FIX here, CHECK-ONLY everywhere else (Yves's ruling on
 # forsgren#1). FBP is the local run, so it rewrites the formatting before the
 # gates look; sfl.sh's `gofmt` row (Scripts/check_gofmt.sh without --fix) is

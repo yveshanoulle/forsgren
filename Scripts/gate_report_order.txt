@@ -50,6 +50,15 @@ secret scan|Scripts/check_secrets.sh|pre|secret-class
 # gate; its fixture pins the ff-only/no-auto-rebase contract.
 sfl pull contract|Scripts/test_sfl_pull.sh|pre|
 #
+# Tool installer contract (Scripts/install_tools.sh, identical across the
+# estate). The tools it provides govern every gate after it, so its fixture
+# runs before the build.
+tool install self-test|Scripts/test_install_tools.sh|pre|
+#
+# The Go pin: sfl.sh and FBP.sh export GOTOOLCHAIN from go.mod's toolchain
+# line via Scripts/go_toolchain.sh.
+Go toolchain pin self-test|Scripts/test_go_toolchain.sh|pre|
+#
 # The Go generator (cmd/forsgren render) and the site build around it.
 build-site self-test|Scripts/test_build_site.sh|pre|
 #
