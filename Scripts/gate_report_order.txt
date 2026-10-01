@@ -14,7 +14,8 @@
 #   empty        = ordinary quality failure
 #
 # Ported from konenki-website 2026-10-01 (forsgren#1, ladder steps 1 to 3;
-# the npm rows in step 7; HTMLHint, Stylelint and lint coverage in step 8).
+# the npm rows in step 7; HTMLHint, Stylelint and lint coverage in step 8;
+# the required-pages rows in step 9).
 # sfl.sh dispatches every gate FROM this file, in file order, filtered by the
 # phase field, so the labels it prints are the labels declared here.
 # Scripts/test_sfl_drives_from_order_file.sh pins that sfl names no label
@@ -25,8 +26,7 @@
 # canon (web-infra's Scripts/check_site_gate_parity.sh, DEFAULT_CANON), so
 # forsgren's report reads like the other sites'. Only the rows whose scripts
 # exist are here: each later step of the forsgren#1 ladder adds its own rows
-# at their canon position (required pages and privacy are post rows still
-# to come). Rows that are not canon (build site, Go tests, gofmt, the FBP fixtures) sit where
+# at their canon position (the privacy rows are still to come). Rows that are not canon (build site, Go tests, gofmt, the FBP fixtures) sit where
 # konenki-website puts its own extras: the build-site self-test after the
 # pull contract, the FBP fixtures after the step table.
 #
@@ -96,6 +96,19 @@ HTMLHint|Scripts/gate_htmlhint.sh|post|
 Stylelint self-test|Scripts/test_gate_stylelint.sh|pre|
 Stylelint|Scripts/gate_stylelint.sh|post|
 #
+# The required-pages manifest (forsgren#1, ladder step 9), at its canon
+# position after Stylelint (forsgren has no deployed-pages self-test, the
+# canon row between them). The manifest is internal/page/required-pages.json,
+# hand-authored beside the templates and never generated: build_site.sh
+# renders HTML, it does not write or copy the manifest. Validator and
+# self-test are konenki-website's, adapted only in the manifest path; the
+# self-test adds forsgren's own cases at its end, pinning the named reason of
+# a missing manifest and of an empty list, each with a mutation proof. The
+# self-test drives synthetic manifests, so it runs in pre; the validator
+# runs in post, as in konenki.
+required-pages self-test|Scripts/test_validate_required_pages.sh|pre|
+required-pages manifest|Scripts/validate_required_pages.sh|post|
+#
 # go test ./... over the module. Red on a failing test AND on zero tests
 # found: a green over nothing measured is the false clean this gate exists
 # to prevent.
@@ -125,6 +138,16 @@ lint coverage|Scripts/check_lint_coverage.sh|post|
 npm-audit self-test|Scripts/test_npm_audit_check.sh|pre|
 npm audit|Scripts/npm_audit_check.sh|pre|
 #
+# The manifest must describe exactly the generated servable HTML surface:
+# every .html in .build/site declared, every declared page generated
+# (forsgren#1, ladder step 9). The gate is konenki-website's, adapted in its
+# defaults (.build/site, internal/page/required-pages.json) and in one
+# forsgren rule: a site with no .html is red and says so. Its self-test is
+# forsgren's own (no repo of the estate has one) and, being non-canon, sits
+# right before the canon row it validates: it runs in pre, the gate in post.
+manifest-covers-site self-test|Scripts/test_required_pages_covers_site_selftest.sh|pre|
+manifest covers site|Scripts/test_required_pages_covers_site.sh|post|
+#
 gate-failure summary|Scripts/test_summarize_gate_failure.sh|pre|
 sfl drives from the order file|Scripts/test_sfl_drives_from_order_file.sh|pre|
 step table|Scripts/test_render_step_table.sh|pre|
@@ -138,8 +161,9 @@ FullBuildAndPush build-site page count|Scripts/test_fbp_build_pagecount.sh|pre|
 # BUILD BOUNDARY
 #
 # FBP.sh runs ./Scripts/build_site.sh here (default output .build/site).
-# The post rows above (HTMLHint, Stylelint, lint coverage) lint that output;
-# sfl.sh post runs them in file order, then its own step-count self-check.
-# The remaining post gates on the generated page (required pages, privacy
-# posture) arrive in later steps of the forsgren#1 ladder.
+# The post rows above (HTMLHint, Stylelint, required-pages manifest, lint
+# coverage, manifest covers site) check that output; sfl.sh post runs them in
+# file order, then its own step-count self-check. The remaining post gate on
+# the generated page (privacy posture) arrives in a later step of the
+# forsgren#1 ladder.
 # ---------------------------------------------------------------------------

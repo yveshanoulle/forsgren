@@ -92,6 +92,16 @@ The POST gates, on the generated site:
   every `.html` and `.css` file the site ships, no fewer and no more. A glob
   that stops matching is a smaller job that still reports success; this is
   the gate that notices.
+- **required pages** (`Scripts/validate_required_pages.sh` and
+  `Scripts/test_required_pages_covers_site.sh`): the pages the site must
+  ship are listed, hand-authored, in `internal/page/required-pages.json`
+  (today only `/`). The first checks that list's shape: valid JSON, a
+  non-empty `requiredPages` array of root-relative paths, no scheme or host,
+  no `..`, no duplicates. The second checks it against `.build/site`: every
+  `.html` file there is listed, and every listed page was generated. Both
+  are red on a missing file or an empty list, and the second on a site with
+  no `.html` page at all. A new page means a new line in the list, in the
+  same commit as its template.
 
 A finding in the generated page is fixed in the template under
 `internal/page/`, never by loosening a rule in the config.
