@@ -52,6 +52,8 @@ to forsgren as paths. Test fixtures are made up (`acme/app`) and live only
 under `testdata/`.
 
 The data guard (`Scripts/check_data_guard.sh`, a PRE gate) keeps it that way.
+Like the secret scan it is secret-class: a finding blocks the commit itself,
+not only the push, so the leak never enters history.
 Over the files git tracks, it fails when:
 
 - a file that looks like installation config or data sits outside
@@ -215,8 +217,8 @@ the commit; in CI the same heal is red, naming `package-lock.json`. Run
 **Failures.** A failing gate does not stop its phase: every row runs, so one
 run reports every failure, as `sfl.sh` does. The build runs after an
 ordinary PRE red too; it is skipped after a secret-class finding (the secret
-scan), as `FBP.sh` skips it, and the POST gates are skipped when the build
-did not succeed. The job's summary page lists every gate in the order
+scan or the data guard), as `FBP.sh` skips it, and the POST gates are
+skipped when the build did not succeed. The job's summary page lists every gate in the order
 file's order, ✅, ❌ or `n/a`, with each gate's output below the table.
 Gates that did not run are counted as unmeasured, never as passing.
 

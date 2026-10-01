@@ -55,8 +55,9 @@
 # and the self-test runs before the gate it validates: a green from a checker
 # nobody validated is worth nothing. If a refactor broke the regex in
 # check_secrets.sh it would report "no leaks found" on a tree that has one.
-# The secret scan is the only secret-class row: its exit 2 makes sfl exit 2
-# and FBP.sh refuse to commit.
+# The secret scan is a secret-class row: a failure on it makes sfl exit 2
+# and FBP.sh refuse to commit. It is one of two; the data guard below is the
+# other.
 secret-scan self-test|Scripts/test_check_secrets.sh|pre|
 secret scan|Scripts/check_secrets.sh|pre|secret-class
 #
@@ -66,10 +67,12 @@ secret scan|Scripts/check_secrets.sh|pre|secret-class
 # tracked outside testdata/, and on a name from FORSGREN_PRIVATE_NAMES_FILE
 # (a file outside the repo) in a fixture or test file. It sits beside the
 # secret pair because it guards the same thing, what must never reach a
-# public history, and it is an ordinary-class row: a finding still commits
-# locally and blocks the push. Self-test first, as for the secret pair.
+# public history. So it is a secret-class row, like the secret scan (Yves's
+# ruling, 2026-10-02, forsgren#1 step 12.2): a finding blocks the commit
+# itself, not only the push, because once committed the leak is in history.
+# Self-test first, as for the secret pair; the self-test stays ordinary-class.
 data guard self-test|Scripts/test_check_data_guard.sh|pre|
-data guard|Scripts/check_data_guard.sh|pre|
+data guard|Scripts/check_data_guard.sh|pre|secret-class
 #
 # Remote synchronisation is pre-flight infrastructure in sfl, not itself a
 # gate; its fixture pins the ff-only/no-auto-rebase contract.
