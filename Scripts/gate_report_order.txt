@@ -15,7 +15,8 @@
 #
 # Ported from konenki-website 2026-10-01 (forsgren#1, ladder steps 1 to 3;
 # the npm rows in step 7; HTMLHint, Stylelint and lint coverage in step 8;
-# the required-pages rows in step 9; the privacy rows in step 10).
+# the required-pages rows in step 9; the privacy rows in step 10; the HTML
+# duplication rows in step 11).
 # sfl.sh dispatches every gate FROM this file, in file order, filtered by the
 # phase field, so the labels it prints are the labels declared here.
 # Scripts/test_sfl_drives_from_order_file.sh pins that sfl names no label
@@ -112,6 +113,25 @@ Stylelint|Scripts/gate_stylelint.sh|post|
 required-pages self-test|Scripts/test_validate_required_pages.sh|pre|
 required-pages manifest|Scripts/validate_required_pages.sh|post|
 #
+# HTML duplication, a RATCHET (forsgren#1, ladder step 11), at its canon
+# position after the required-pages rows (forsgren has none of the release
+# and workflow-pin rows between them). konenki-website runs both rows in
+# pre, over its authored SiteSource/ only: its generated pages repeat the
+# composed chrome by design. Yves's ruling for forsgren: ported even with one
+# page, measured on the templates AND on the generated page. So the canon
+# pair is konenki's choice, pre, over the authored source
+# (internal/page/templates, ceiling 0.00%); the generated-page row is
+# forsgren's own, a wrapper calling the same script on .build/site with its
+# own ceiling (0.00%), and runs in post, since that page exists only after
+# the build, right behind the canon row it extends. One self-test, in pre,
+# covers both: it builds its own copy of the site into a temp dir. jscpd
+# 4.2.4 is a pinned devDependency run by path (konenki fetches the same
+# version with npx). Both rows are red on zero .html files scanned, with
+# that reason.
+html-duplication self-test|Scripts/test_check_html_dupl.sh|pre|
+html duplication|Scripts/check_html_dupl.sh|pre|
+html duplication, generated page|Scripts/check_html_dupl_site.sh|post|
+#
 # go test ./... over the module. Red on a failing test AND on zero tests
 # found: a green over nothing measured is the false clean this gate exists
 # to prevent.
@@ -199,8 +219,9 @@ privacy pages|n/a|static generated page - numbers and dates only; no forms, no a
 # BUILD BOUNDARY
 #
 # FBP.sh runs ./Scripts/build_site.sh here (default output .build/site).
-# The post rows above (HTMLHint, Stylelint, required-pages manifest, lint
-# coverage, manifest covers site, privacy posture, repository links) check
+# The post rows above (HTMLHint, Stylelint, required-pages manifest, html
+# duplication on the generated page, lint coverage, manifest covers site,
+# privacy posture, repository links) check
 # that output; sfl.sh post runs them in file order, then its own step-count
 # self-check.
 # ---------------------------------------------------------------------------

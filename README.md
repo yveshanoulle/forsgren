@@ -80,6 +80,16 @@ generated output. `Scripts/gate_report_order.txt` declares every gate, its
 phase and its order; a gate's self-test always runs in PRE, before the gate
 it validates.
 
+One PRE gate checks the page templates themselves:
+
+- **html duplication** (`Scripts/check_html_dupl.sh`, the estate's ratchet
+  from konenki-website): jscpd measures the share of duplicated markup in
+  the `html/template` files under `internal/page/templates` and the gate
+  compares it to a recorded ceiling, today 0.00%. The ceiling only moves
+  down: a red is fixed by removing the duplication, never by raising the
+  number. Red on a run that scanned zero `.html` files. jscpd is pinned like
+  the linters below.
+
 The POST gates, on the generated site:
 
 - **HTMLHint** (`Scripts/gate_htmlhint.sh`): every `.html` file under the
@@ -88,6 +98,12 @@ The POST gates, on the generated site:
 - **Stylelint** (`Scripts/gate_stylelint.sh`): every `.css` file under
   `.stylelintrc.json` (stylelint-config-standard plus konenki-website's
   overrides). Red on a finding, and on a glob that matches no file.
+- **html duplication, generated page** (`Scripts/check_html_dupl_site.sh`):
+  the same ratchet over `.build/site`, with its own ceiling, today 0.00%. It
+  catches what the template scan cannot see, such as a page template that
+  pastes the header instead of calling it. The rendered header alone is
+  long enough to count as a clone, so a second page will red this ceiling
+  even with clean templates; what it does then is still to be decided.
 - **lint coverage** (`Scripts/check_lint_coverage.sh`): each linter opened
   every `.html` and `.css` file the site ships, no fewer and no more. A glob
   that stops matching is a smaller job that still reports success; this is
@@ -162,13 +178,15 @@ written.
 
 **The npm linters are pinned in `package.json`.** Node itself (and with it
 `npm`) is a Homebrew tool from `Scripts/required_tools.txt`, so like Go it
-follows whatever the formula publishes. The linters the post gates use,
-htmlhint, stylelint and stylelint-config-standard, are not: they are
-`devDependencies` in `package.json` at an exact version (no `^` or `~`), and
-`package-lock.json` pins every package they pull in. Both files are committed.
-`./sfl.sh` runs `npm ci` when `node_modules/.bin/htmlhint` is missing: `npm ci`
-installs exactly what the lockfile says into `node_modules/` (gitignored,
-never committed) and fails when `package.json` and the lockfile disagree.
+follows whatever the formula publishes. The npm tools the gates use,
+htmlhint, stylelint and stylelint-config-standard, and jscpd for the html
+duplication ratchet, are not: they are `devDependencies` in `package.json`
+at an exact version (no `^` or `~`), and `package-lock.json` pins every
+package they pull in. Both files are committed. `./sfl.sh` runs `npm ci`
+when `node_modules/.bin/htmlhint` or `node_modules/.bin/jscpd` is missing:
+`npm ci` installs exactly what the lockfile says into `node_modules/`
+(gitignored, never committed) and fails when `package.json` and the
+lockfile disagree.
 Never use `npm install` in a gate or a workflow, and never install the linters
 globally or run them through `npx --yes`.
 

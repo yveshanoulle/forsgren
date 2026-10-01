@@ -16,7 +16,7 @@ cd "$(dirname "$0")" || exit 1
 # Scripts/*.sh that sfl merely calls does not require a bump.
 # Form ported from web-infra 2026-08-31: it names the file, so a pasted log
 # says which script produced it, not just "the script".
-VERSION=3
+VERSION=4
 
 usage() {
   echo "Usage:"
@@ -68,7 +68,10 @@ export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
 # AFTER install_tools.sh, unlike konenki where it runs before it: node comes
 # from Scripts/required_tools.txt, so on a fresh machine npm exists only once
 # the installer has run.
-if [[ ! -x node_modules/.bin/htmlhint ]]; then
+# jscpd joined the check in forsgren#1 step 11 (VERSION 4): a node_modules
+# installed before jscpd was pinned has htmlhint but no jscpd, and would
+# otherwise never be re-installed.
+if [[ ! -x node_modules/.bin/htmlhint || ! -x node_modules/.bin/jscpd ]]; then
   echo "INFO: installing pinned devDependencies (npm ci)"
   npm ci
 fi

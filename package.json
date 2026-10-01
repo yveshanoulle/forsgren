@@ -3,6 +3,7 @@
   "private": true,
   "devDependencies": {
     "htmlhint": "1.9.2",
+    "jscpd": "4.2.4",
     "stylelint": "17.14.1",
     "stylelint-config-standard": "40.0.0"
   }
