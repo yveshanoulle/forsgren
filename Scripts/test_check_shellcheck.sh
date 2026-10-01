@@ -74,12 +74,15 @@ echo "hello"
 # expansion) without needing any particular severity — any finding at all
 # fails shellcheck's default exit code. The $1/$name below are literal
 # fixture text being written to a file for the SCRIPT UNDER TEST to
-# analyze, not a shell expansion in this test file.
-# shellcheck disable=SC2016
-BROKEN_SH='#!/usr/bin/env bash
+# analyze, not a shell expansion in this test file: the quoted heredoc
+# delimiter ('EOF') keeps them unexpanded. `read -d ''` keeps the trailing
+# newline a `$(cat <<'EOF')` would strip, and returns 1 at end of input,
+# hence `|| true`.
+IFS= read -r -d '' BROKEN_SH <<'EOF' || true
+#!/usr/bin/env bash
 name=$1
 echo $name
-'
+EOF
 
 # 1. Clean synthetic tree.
 A="$TMP/clean"

@@ -97,10 +97,15 @@ Four PRE gates read the repository's own scripts and files:
   extension whose first line is a bash or sh shebang, at any depth. The
   targets come from `git ls-files`, so a new script is checked the moment it
   is tracked, with no list to keep up to date. Red on any finding, and on a
-  run that found no script. No script is excluded; an exclusion would need an
-  entry in the gate's `EXCLUDE_ALLOWED` and a sentence here with its reason.
-  A finding is fixed in the script; a single line may carry a
-  `# shellcheck disable=SCxxxx` only with a comment saying why.
+  run that found no script. No script is excluded, and an empty
+  `EXCLUDE_ALLOWED` is the normal state. An exclusion needs three things:
+  the entry in the gate's `EXCLUDE_ALLOWED`, a sentence here naming the
+  script and the reason, and Yves's explicit yes recorded on a GitHub issue,
+  which that sentence links.
+  A finding is fixed in the script. The same rule holds for a single line:
+  it may carry a `# shellcheck disable=SCxxxx` only with a comment giving the
+  reason, and with Yves's explicit yes recorded on a GitHub issue, which
+  that comment links.
 - **yamllint** (`Scripts/check_yamllint.sh`, from konenki-website): every
   tracked `.yml` and `.yaml` file under the rules in `.yamllint.yml`
   (konenki-website's). konenki lints its workflow directory by name;

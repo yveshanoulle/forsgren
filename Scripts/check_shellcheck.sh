@@ -13,15 +13,19 @@
 # until Scripts/test_check_shellcheck.sh proved it.
 #
 # EXCLUDE_ALLOWED lists tracked shell scripts deliberately left out of this
-# check, one per line, each needing a reason recorded here. Empty by
-# design: every tracked shell script is expected to pass shellcheck as-is.
-# Adding an entry costs a deliberate edit here AND a sentence in README.md's
-# Quality gates naming the script and the reason (web-infra, where this gate
-# comes from, asks for a row in its documentation/check-parity.md instead;
-# forsgren has no such file): an exception should cost a deliberate edit in
-# two places, not a silent skip. A plain string, not an array: an empty bash 3.2 array under
-# `set -u` is a fatal expansion on macOS, and this list is expected to stay
-# empty.
+# check, one per line. Empty is the normal state: every tracked shell
+# script is expected to pass shellcheck as-is. An exclusion needs all
+# three of:
+#   (a) the entry here;
+#   (b) a sentence in README.md's Quality gates naming the script and the
+#       reason (web-infra, where this gate comes from, asks for a row in its
+#       documentation/check-parity.md instead; forsgren has no such file);
+#   (c) Yves's explicit yes, recorded on a GitHub issue that the README
+#       sentence links.
+# An exception costs a deliberate, approved decision, never a silent skip
+# (ruling 1B, forsgren#1, 2026-10-01). A plain string, not an array: an
+# empty bash 3.2 array under `set -u` is a fatal expansion on macOS, and
+# this list is expected to stay empty.
 #
 # Testing seam: SHELLCHECK_ROOT overrides the repo root so
 # Scripts/test_check_shellcheck.sh can drive target collection against a
