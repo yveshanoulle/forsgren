@@ -17,9 +17,17 @@
 #   7. a names file with no names in it           -> red: a scan for nothing
 #   8. a repository with no tracked files         -> red: the walk found nothing
 #   9. names set, but no fixture or test file     -> red: the scan read nothing
+#  10. a wildcard row really matches: a tracked  -> red, each named
+#      root events.jsonl (*.jsonl), x.history.csv
+#      (*.history.csv) and forsgren.config.yaml
+#      (forsgren.config.*)
 # Mutation proof: case 2 against a copy of the gate whose history.csv row is
 # removed must turn green, so case 2 is red BECAUSE of that row, not because
 # of something else in its repository.
+# Case 10 is the wildcard rows' own proof (forsgren#1, step 12.2a): every
+# other red case is matched by a literal row, so a gate that compared rows as
+# literal strings (a quoted `case "$1" in "$glob")`) would pass them all. Seen
+# failing by hand under exactly that mutation, all three named, 2026-10-02.
 
 set -euo pipefail
 
@@ -180,6 +188,15 @@ want_red "a repository with no tracked files is red" "no tracked files"
 new_repo "nothing-to-scan"
 run_gate "$NAMES"
 want_red "names set but no fixture or test file is red" "no fixture or test files"
+
+new_repo "wildcard-rows"
+write_file "events.jsonl" $'{"run":1}\n' track
+write_file "x.history.csv" $'date,metric,value\n' track
+write_file "forsgren.config.yaml" $'repos:\n  - acme/app\n' track
+run_gate
+want_red "a root events.jsonl is red and named (the *.jsonl row)" "❌ FAIL: events.jsonl"
+want_said "an x.history.csv is red and named (the *.history.csv row)" "❌ FAIL: x.history.csv"
+want_said "a forsgren.config.yaml is red and named (the forsgren.config.* row)" "❌ FAIL: forsgren.config.yaml"
 
 # ---------------------------------------------------------------------------
 # Mutation proof for case 2: the same repository against a copy of the gate
