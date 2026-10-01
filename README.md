@@ -102,9 +102,41 @@ The POST gates, on the generated site:
   are red on a missing file or an empty list, and the second on a site with
   no `.html` page at all. A new page means a new line in the list, in the
   same commit as its template.
+- **privacy posture** (`Scripts/check_privacy_posture.sh`, the estate's gate
+  from konenki-website): the page collects nothing. Red on a form, an
+  iframe, a script or stylesheet loaded from another host, a CSS `url()`
+  pointing off-site, `document.cookie`, `localStorage` or `sessionStorage`,
+  and a known analytics snippet. A green run lists what the page does load
+  (self-hosted fonts) and the hosts it links to, so the verdict can be read
+  rather than trusted. An outbound link is not a finding: it sends nothing
+  until someone clicks it.
+- **repository links** (`Scripts/check_repo_links.sh`, forsgren's own): no
+  `github.com/<owner>/<repo>` path anywhere in the generated `.html` or
+  `.css`, linked or as text. The gate cannot tell a private repository from
+  a public one, and the page has no reason to point into either. Red on a
+  site with no `.html` page. The failure line names the file and line, never
+  the path it matched, so a private repository's name cannot reach a commit
+  message.
+
+forsgren has no privacy-pages gate: that one is konenki-website's, pinning
+the content of a privacy policy forsgren does not serve. The order file
+declares it `n/a` with its reason, and the privacy posture gate keeps that
+reason true.
 
 A finding in the generated page is fixed in the template under
 `internal/page/`, never by loosening a rule in the config.
+
+## Privacy
+
+The public page shows numbers and dates only. It carries no issue titles and
+no links into private repositories, makes no third-party requests (no web
+fonts, analytics or CDNs: everything it loads is served with it), sets no
+cookies, uses no browser storage and tracks no one. Two POST gates check the
+generated page on every run, privacy posture for the requests, cookies and
+tracking, and repository links for the links (see Quality gates). No gate
+checks for issue titles yet: that rests on the renderer, which is given
+numbers and dates only. A finding is fixed in the template, never by
+loosening the gate.
 
 ## Installing and updating
 

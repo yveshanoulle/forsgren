@@ -15,7 +15,7 @@
 #
 # Ported from konenki-website 2026-10-01 (forsgren#1, ladder steps 1 to 3;
 # the npm rows in step 7; HTMLHint, Stylelint and lint coverage in step 8;
-# the required-pages rows in step 9).
+# the required-pages rows in step 9; the privacy rows in step 10).
 # sfl.sh dispatches every gate FROM this file, in file order, filtered by the
 # phase field, so the labels it prints are the labels declared here.
 # Scripts/test_sfl_drives_from_order_file.sh pins that sfl names no label
@@ -25,10 +25,13 @@
 # CANON LABELS, CANON ORDER. The labels and their order follow the estate
 # canon (web-infra's Scripts/check_site_gate_parity.sh, DEFAULT_CANON), so
 # forsgren's report reads like the other sites'. Only the rows whose scripts
-# exist are here: each later step of the forsgren#1 ladder adds its own rows
-# at their canon position (the privacy rows are still to come). Rows that are not canon (build site, Go tests, gofmt, the FBP fixtures) sit where
-# konenki-website puts its own extras: the build-site self-test after the
-# pull contract, the FBP fixtures after the step table.
+# exist are here, plus the two privacy-pages rows, declared `n/a` with their
+# reason as coachretreat-website and agilelean-website declare them: each
+# later step of the forsgren#1 ladder adds its own rows at their canon
+# position. Rows that are not canon (build site, Go tests, gofmt, the FBP
+# fixtures, repository links) sit where konenki-website puts its own extras:
+# the build-site self-test after the pull contract, the FBP fixtures after the
+# step table.
 #
 # Checker SELF-TESTS run before the gate they validate, and belong in pre
 # even when the checker they exercise belongs in post: a green from a
@@ -157,13 +160,47 @@ step table|Scripts/test_render_step_table.sh|pre|
 FullBuildAndPush commit-message block|Scripts/test_fbp_commit_message.sh|pre|
 FullBuildAndPush build-site page count|Scripts/test_fbp_build_pagecount.sh|pre|
 #
+# THE PRIVACY POSTURE (forsgren#1, ladder step 10), at its canon position
+# after the step table, behind the FBP fixtures as in konenki-website. The
+# public page shows numbers and dates only: no forms, no third-party assets
+# (fonts, analytics, CDNs), no cookies or browser storage, no tracking.
+# The gate is coachretreat-website's copy of konenki-website's, adapted only
+# in its default site directory (.build/site); coachretreat's is the copy for
+# a site that declares `privacy pages|n/a`, and its failure text says so,
+# where konenki's points at konenki's own privacy pages. Its self-test is
+# konenki-website's, adapted in one case: konenki checks its committed Site/,
+# forsgren's site is generated and this self-test runs in pre, before the
+# build, so that case builds its own copy into the temp dir and checks it.
+# Self-test in pre, gate in post.
+privacy-posture self-test|Scripts/test_check_privacy_posture.sh|pre|
+privacy posture|Scripts/check_privacy_posture.sh|post|
+#
+# Repository links. Not canon: forsgren's own, a direct consequence of the
+# design rule that the page carries no links into private repositories. Red
+# on any github.com/<owner>/<repo> path in the generated .html or .css (the
+# gate cannot tell private from public, and the page has no reason to point
+# into any repository), and on a site with no .html page. The FAIL line names
+# file:line, never the path, as the data guard does. Its self-test is
+# forsgren's own, with a mutation proof, and sits right before the gate.
+repository-links self-test|Scripts/test_check_repo_links.sh|pre|
+repository links|Scripts/check_repo_links.sh|post|
+#
+# The privacy pages are konenki-website's legal obligation: konenki.be serves
+# the privacy policy of an app that handles health data, and its
+# check_privacy_pages.sh pins that policy's content (language, title,
+# approved date, binding-version sentence). forsgren serves no privacy page,
+# because its page collects nothing, so neither the gate nor its self-test is
+# ported. Declared n/a, with the reason, so the posture gate above enforces
+# the claim this row makes.
+privacy-pages self-test|n/a|there is no privacy-pages gate here to self-test
+privacy pages|n/a|static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted
+#
 # ---------------------------------------------------------------------------
 # BUILD BOUNDARY
 #
 # FBP.sh runs ./Scripts/build_site.sh here (default output .build/site).
 # The post rows above (HTMLHint, Stylelint, required-pages manifest, lint
-# coverage, manifest covers site) check that output; sfl.sh post runs them in
-# file order, then its own step-count self-check. The remaining post gate on
-# the generated page (privacy posture) arrives in a later step of the
-# forsgren#1 ladder.
+# coverage, manifest covers site, privacy posture, repository links) check
+# that output; sfl.sh post runs them in file order, then its own step-count
+# self-check.
 # ---------------------------------------------------------------------------
