@@ -5,8 +5,8 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-# HTML duplication RATCHET — unit 397, adapted from MenoPower's
-# Scripts/admin/check_html_dupl.sh.
+# HTML duplication RATCHET — unit 397, adapted from
+# MenoPower/Scripts/admin/check_html_dupl.sh.
 #
 # Ported from konenki-website 2026-10-01 (forsgren#1, ladder step 11). No repo
 # of the estate keeps this file identical: konenki, coachretreat and agilelean

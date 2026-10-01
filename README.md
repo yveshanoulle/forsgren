@@ -90,7 +90,7 @@ One PRE gate checks the page templates themselves:
   number. Red on a run that scanned zero `.html` files. jscpd is pinned like
   the linters below.
 
-Three PRE gates read the repository's own scripts and files:
+Four PRE gates read the repository's own scripts and files:
 
 - **shellcheck** (`Scripts/check_shellcheck.sh`, the estate's gate from
   web-infra): every tracked `*.sh` file, and every tracked file without an
@@ -113,6 +113,17 @@ Three PRE gates read the repository's own scripts and files:
   not run it (outside `.github/workflows/`, or in a subdirectory of it): a
   workflow copy nobody lints and nothing runs. It first proves its matcher
   on a scratch repository holding one offender of each kind.
+- **script references** (`Scripts/check_script_references.sh`, MenoPower's
+  guard): red when a script, workflow, order or tool file, or doc names a
+  `Scripts/` path that does not exist, checked case-sensitively, so a path
+  that macOS forgives but GitHub does not is caught too. Red as well on a
+  script that nothing calls: no script, workflow or order-file row mentions
+  it, and CLAUDE.md does not list it as run by hand. Red on a run that
+  scanned no file or found no `Scripts/` path at all. Another repository's
+  script is written with that repository as the first part of its path
+  (`web-infra/Scripts/...`) and is not checked; a bare `Scripts/` path is
+  read as forsgren's own. Unlike the gates above, it reads the working tree,
+  untracked files included.
 
 shellcheck and yamllint come from Homebrew, through
 `Scripts/required_tools.txt` (see Installing and updating). As with the data

@@ -17,7 +17,7 @@
 # the npm rows in step 7; HTMLHint, Stylelint and lint coverage in step 8;
 # the required-pages rows in step 9; the privacy rows in step 10; the HTML
 # duplication rows in step 11; shellcheck, yamllint and stray tracked files
-# in step 12).
+# in step 12; script references, from MenoPower, in step 13).
 # sfl.sh dispatches every gate FROM this file, in file order, filtered by the
 # phase field, so the labels it prints are the labels declared here.
 # Scripts/test_sfl_drives_from_order_file.sh pins that sfl names no label
@@ -25,7 +25,7 @@
 # Scripts/test_*.sh is declared by a row.
 #
 # CANON LABELS, CANON ORDER. The labels and their order follow the estate
-# canon (web-infra's Scripts/check_site_gate_parity.sh, DEFAULT_CANON), so
+# canon (web-infra/Scripts/check_site_gate_parity.sh, DEFAULT_CANON), so
 # forsgren's report reads like the other sites'. Only the rows whose scripts
 # exist are here, plus the two privacy-pages rows, declared `n/a` with their
 # reason as coachretreat-website and agilelean-website declare them: each
@@ -204,6 +204,20 @@ manifest covers site|Scripts/test_required_pages_covers_site.sh|post|
 # matcher on a scratch repository before judging this one. Repository source
 # (paths from the index, content from the working tree), so it runs in pre.
 stray tracked files|Scripts/test_no_stray_tracked_files.sh|pre|
+#
+# Script references (forsgren#1, ladder step 13). Not canon: MenoPower's
+# guard, ported beside the stray-tracked-files row, the other
+# repository-hygiene check. Red when a script, workflow, doc or order file
+# names a Scripts path that does not exist (case-sensitively), when a script
+# has no caller (an executable file, an order or tool file, or CLAUDE.md), and
+# on a run that scanned nothing. A path that names another repository's
+# script says so with that repository as its first component, and is not
+# checked. The self-test is MenoPower's, adapted for forsgren's scope, with
+# forsgren's cases and two mutation proofs at its end; MenoPower's CLIMB ban
+# is not ported (see the gate's header). Repository source, so both run in
+# pre, self-test first.
+script references self-test|Scripts/test_check_script_references.sh|pre|
+script references|Scripts/check_script_references.sh|pre|
 #
 gate-failure summary|Scripts/test_summarize_gate_failure.sh|pre|
 sfl drives from the order file|Scripts/test_sfl_drives_from_order_file.sh|pre|
