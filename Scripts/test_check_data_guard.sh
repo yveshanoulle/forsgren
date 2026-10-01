@@ -17,17 +17,21 @@
 #   7. a names file with no names in it           -> red: a scan for nothing
 #   8. a repository with no tracked files         -> red: the walk found nothing
 #   9. names set, but no fixture or test file     -> red: the scan read nothing
-#  10. a wildcard row really matches: a tracked  -> red, each named
+#  10. a wildcard arm really matches: a tracked  -> red, each named
 #      root events.jsonl (*.jsonl), x.history.csv
 #      (*.history.csv) and forsgren.config.yaml
 #      (forsgren.config.*)
-# Mutation proof: case 2 against a copy of the gate whose history.csv row is
-# removed must turn green, so case 2 is red BECAUSE of that row, not because
-# of something else in its repository.
-# Case 10 is the wildcard rows' own proof (forsgren#1, step 12.2a): every
-# other red case is matched by a literal row, so a gate that compared rows as
-# literal strings (a quoted `case "$1" in "$glob")`) would pass them all. Seen
-# failing by hand under exactly that mutation, all three named, 2026-10-02.
+# Mutation proofs, each against a copy of the gate (the patterns are `case`
+# arms of guarded_reason, one per line):
+#   - case 2: with the history.csv arm deleted, case 2's repository must turn
+#     green, so case 2 is red BECAUSE of that arm, not because of something
+#     else in its repository.
+#   - case 10: with every arm whose pattern holds a `*` quoted (so it matches
+#     only the literal text), case 10's repository must turn green with none
+#     of its three files named, while case 2's repository stays red. Every
+#     other red case is matched by a literal pattern, so a gate that stopped
+#     glob-matching would pass them all; case 10 is the one that notices
+#     (forsgren#1, step 12.2a, automated in 12.2c).
 
 set -euo pipefail
 
@@ -194,33 +198,74 @@ write_file "events.jsonl" $'{"run":1}\n' track
 write_file "x.history.csv" $'date,metric,value\n' track
 write_file "forsgren.config.yaml" $'repos:\n  - acme/app\n' track
 run_gate
-want_red "a root events.jsonl is red and named (the *.jsonl row)" "❌ FAIL: events.jsonl"
-want_said "an x.history.csv is red and named (the *.history.csv row)" "❌ FAIL: x.history.csv"
-want_said "a forsgren.config.yaml is red and named (the forsgren.config.* row)" "❌ FAIL: forsgren.config.yaml"
+want_red "a root events.jsonl is red and named (the *.jsonl arm)" "❌ FAIL: events.jsonl"
+want_said "an x.history.csv is red and named (the *.history.csv arm)" "❌ FAIL: x.history.csv"
+want_said "a forsgren.config.yaml is red and named (the forsgren.config.* arm)" "❌ FAIL: forsgren.config.yaml"
+
+# run_mutant <mutant> <repo-name> — runs a mutated gate against a case's
+# repository, names file unset; sets RC and OUT.
+run_mutant() {
+  set +e
+  OUT="$(env -u FORSGREN_PRIVATE_NAMES_FILE "$1" "${TMP}/$2" 2>&1)"
+  RC=$?
+  set -e
+}
 
 # ---------------------------------------------------------------------------
 # Mutation proof for case 2: the same repository against a copy of the gate
-# with the history.csv pattern row removed. The mutant must change the copy
-# (else the anchor stopped matching and this proves nothing) and must go
-# green: if it stayed red, case 2 was red for some other reason than the row
-# it claims to test.
+# with the history.csv arm deleted. The mutant must change the copy (else the
+# anchor stopped matching and this proves nothing) and must go green: if it
+# stayed red, case 2 was red for some other reason than the arm it claims to
+# test.
 # ---------------------------------------------------------------------------
 MUTANT="${TMP}/check_data_guard_mutant.sh"
-grep -v "^history\.csv|" "$GATE" > "$MUTANT"
+grep -vE '^[[:space:]]*history\.csv\) why=' "$GATE" > "$MUTANT"
 chmod +x "$MUTANT"
-REPO="${TMP}/history-root"
 
 if cmp -s "$GATE" "$MUTANT"; then
-  fail "mutation proof (case 2): removing the '^history.csv|' row changed nothing in ${GATE} — the anchor no longer matches, so this proof proves nothing"
+  fail "mutation proof (case 2): deleting the 'history.csv) why=' arm changed nothing in ${GATE} — the anchor no longer matches, so this proof proves nothing"
 else
-  set +e
-  OUT="$(env -u FORSGREN_PRIVATE_NAMES_FILE "$MUTANT" "$REPO" 2>&1)"
-  RC=$?
-  set -e
+  run_mutant "$MUTANT" "history-root"
   if [[ "$RC" -ne 0 ]]; then
-    fail "mutation proof (case 2): a gate without the history.csv row is still red on case 2's repository — case 2 is red for another reason than the row it tests. Output: ${OUT}"
+    fail "mutation proof (case 2): a gate without the history.csv arm is still red on case 2's repository — case 2 is red for another reason than the arm it tests. Output: ${OUT}"
   else
-    echo "  ok: without the history.csv row, case 2's repository is green (case 2 is red for that row)"
+    echo "  ok: without the history.csv arm, case 2's repository is green (case 2 is red for that arm)"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Mutation proof for case 10: a copy of the gate with every arm whose pattern
+# holds a `*` quoted, so it matches only its literal text. The anchor is the
+# arm shape `<pattern>) why=`, which only guarded_reason's arms have. The
+# mutant must quote at least the three wildcard arms case 10 exercises (else
+# the anchor stopped matching), must go green on case 10's repository with
+# none of its files named (case 10 is red BECAUSE the arms glob-match), and
+# must stay red on case 2's repository (the mutation stopped glob matching
+# only; the literal arms still work, so a green above is not a broken gate).
+# ---------------------------------------------------------------------------
+LITERAL="${TMP}/check_data_guard_literal.sh"
+sed -E 's/^([[:space:]]*)([^[:space:]"]*\*[^[:space:]"]*)\) why=/\1"\2") why=/' \
+  "$GATE" > "$LITERAL"
+chmod +x "$LITERAL"
+quoted="$(grep -cE '^[[:space:]]*"[^"]*\*[^"]*"\) why=' "$LITERAL" || true)"
+
+if [[ "$quoted" -lt 3 ]]; then
+  fail "mutation proof (case 10): quoting the wildcard arms changed ${quoted} arm(s) in ${GATE} (want at least the 3 case 10 exercises) — the anchor no longer matches, so this proof proves nothing"
+else
+  run_mutant "$LITERAL" "wildcard-rows"
+  if [[ "$RC" -ne 0 ]]; then
+    fail "mutation proof (case 10): a gate whose wildcard arms match only literally is still red on case 10's repository — case 10 is red for another reason than glob matching. Output: ${OUT}"
+  elif grep -qE "FAIL: (events\.jsonl|x\.history\.csv|forsgren\.config\.yaml)" <<< "$OUT"; then
+    fail "mutation proof (case 10): a gate whose wildcard arms match only literally still names a case-10 file. Output: ${OUT}"
+  else
+    echo "  ok: with its ${quoted} wildcard arms matching only literally, case 10's repository is green (case 10 is red because the arms glob-match)"
+  fi
+
+  run_mutant "$LITERAL" "history-root"
+  if [[ "$RC" -eq 0 ]] || ! grep -qF "❌ FAIL: history.csv" <<< "$OUT"; then
+    fail "mutation proof (case 10): the literal-only gate is no longer red on case 2's repository — the mutation broke more than glob matching, so case 10 going green above proves nothing. Output: ${OUT}"
+  else
+    echo "  ok: the literal-only gate is still red on case 2's repository (the mutation stopped glob matching, nothing else)"
   fi
 fi
 

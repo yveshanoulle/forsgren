@@ -12,9 +12,10 @@
 # Two checks, both over the files git TRACKS (git ls-files):
 #
 #   a. Installation config or data outside testdata/. A tracked file whose
-#      name matches a row of GUARDED below, anywhere but under a directory
-#      named testdata (at any depth, Go's convention), is red. Fixtures under
-#      testdata/ are made up and are allowed to look like real config.
+#      name matches an arm of guarded_reason below, anywhere but under a
+#      directory named testdata (at any depth, Go's convention), is red.
+#      Fixtures under testdata/ are made up and are allowed to look like real
+#      config.
 #
 #   b. The owner's real names in fixtures and tests. Every tracked file under
 #      testdata/ and every test file (*_test.go, test_*.sh) is searched,
@@ -54,22 +55,6 @@ cd "$ROOT_DIR" || {
   exit 1
 }
 
-# THE ONE LIST of file names that look like installation config or data.
-# <glob matched against the file's basename>|<why it is here>
-# A row starts at column 0: Scripts/test_check_data_guard.sh's mutation proof
-# removes the history.csv row by that anchor.
-GUARDED="$(cat <<'PATTERNS'
-history.csv|the metric history an installation accumulates run after run
-*.history.csv|a per-service or per-installation history file
-forsgren.config.*|an installation's forsgren configuration, by its own name
-forsgren-config.*|the same configuration, hyphenated
-config.yml|a generic config name: forsgren keeps no config of its own, so one here is an installation's
-config.yaml|a generic config name: forsgren keeps no config of its own, so one here is an installation's
-config.json|a generic config name: forsgren keeps no config of its own, so one here is an installation's
-*.jsonl|raw events fetched from GitHub (one JSON object per line), which are installation data
-PATTERNS
-)"
-
 if ! TRACKED="$(git ls-files --cached 2>&1)"; then
   echo "❌ FAIL: git ls-files failed in ${ROOT_DIR}: ${TRACKED}"
   exit 1
@@ -90,21 +75,33 @@ in_testdata() {
   return 1
 }
 
-# guarded_reason <basename> — prints the reason of the first GUARDED row whose
-# glob matches; prints nothing when none does.
+# guarded_reason <basename> — THE ONE LIST of file names that look like
+# installation config or data: each arm is a glob matched against the file's
+# basename, with why it is here. Prints the reason of the first arm that
+# matches; prints nothing when none does.
+#
+# Literal patterns in the code, not rows of a table read at runtime (Yves's
+# ruling, 2026-10-02, forsgren#1 step 12.2, option c): a pattern held in a
+# variable has to be expanded unquoted to keep its glob, which needs an
+# SC2254 suppression; a pattern written as an arm is a glob as it stands,
+# with nothing to suppress.
+#
+# One arm per line, `<pattern>) why="..." ;;`: Scripts/test_check_data_guard.sh
+# mutates this list by that shape (it deletes the history.csv arm, and quotes
+# every arm whose pattern holds a `*` so that it matches only literally).
 guarded_reason() {
-  local glob reason
-  while IFS='|' read -r glob reason; do
-    [ -n "$glob" ] || continue
-    # Unquoted on purpose: the row is a glob.
-    # shellcheck disable=SC2254
-    case "$1" in
-      $glob)
-        printf '%s' "$reason"
-        return 0
-        ;;
-    esac
-  done <<< "$GUARDED"
+  local why=""
+  case "$1" in
+    history.csv) why="the metric history an installation accumulates run after run" ;;
+    *.history.csv) why="a per-service or per-installation history file" ;;
+    forsgren.config.*) why="an installation's forsgren configuration, by its own name" ;;
+    forsgren-config.*) why="the same configuration, hyphenated" ;;
+    config.yml) why="a generic config name: forsgren keeps no config of its own, so one here is an installation's" ;;
+    config.yaml) why="a generic config name: forsgren keeps no config of its own, so one here is an installation's" ;;
+    config.json) why="a generic config name: forsgren keeps no config of its own, so one here is an installation's" ;;
+    *.jsonl) why="raw events fetched from GitHub (one JSON object per line), which are installation data" ;;
+  esac
+  printf '%s' "$why"
 }
 
 # --- a. installation config or data outside testdata/ ----------------------
