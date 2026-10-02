@@ -39,6 +39,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return render(args[1:], stdout, stderr)
 		case "check-config":
 			return checkConfig(args[1:], stdout, stderr)
+		case "init-config":
+			return initConfig(args[1:], stdout, stderr)
 		}
 	}
 	_, _ = fmt.Fprintln(stderr, usage)
@@ -59,6 +61,13 @@ func checkConfig(args []string, stdout, stderr io.Writer) int {
 	}
 	_, _ = fmt.Fprintf(stdout, "OK: %s is a valid forsgren config (version %d): projects: %d, repositories: %d\n",
 		path, cfg.Version, len(cfg.Projects), cfg.RepositoryCount())
+	return 0
+}
+
+// initConfig is a RED STUB (forsgren#12 step 2): it does nothing. The green
+// patch writes the starter config.
+func initConfig(_ []string, _, _ io.Writer) int {
+	_, _ = config.Init("")
 	return 0
 }
 
