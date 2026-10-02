@@ -182,6 +182,13 @@ Go tests|Scripts/check_go_tests.sh|pre|
 gofmt self-test|Scripts/test_check_gofmt.sh|pre|
 gofmt|Scripts/check_gofmt.sh|pre|
 #
+# Go lint and Go test duplication (forsgren#1, ladder step 20). Not canon
+# (the sites have no Go): MenoPower's Go gates, beside the other Go rows.
+# Each self-test is forsgren's (Go lint: no repo of the estate has one) or
+# MenoPower's adapted (test duplication), and runs before its gate.
+Go lint self-test|Scripts/test_check_go_lint.sh|pre|
+Go test duplication self-test|Scripts/test_check_test_dupl.sh|pre|
+#
 # actionlint (forsgren#1, ladder step 18), at its canon position after the
 # gate-wiring row and before shellcheck (the non-canon Go rows above sit
 # where konenki puts its own extras). Valid YAML is not a valid workflow:
