@@ -46,9 +46,9 @@ forsgren reads only what is already in GitHub:
 
 Not in this repository. It holds code only. An installation keeps its
 configuration (which repositories and services, workflow names, labels, the
-health URL) and its data (`history.csv`, the raw events fetched from GitHub)
-in a separate private data repository, made from a template, and passes them
-to forsgren as paths. Test fixtures are made up (`acme/app`) and live only
+health URL) and its data (`data/deployments.csv`, the deployments fetched
+from GitHub) in a separate private data repository, made from a template, and
+passes them to forsgren as paths. Test fixtures are made up (`acme/app`) and live only
 under `testdata/`.
 
 The data guard (`Scripts/check_data_guard.sh`, a PRE gate) keeps it that way.
@@ -57,7 +57,8 @@ not only the push, so the leak never enters history.
 Over the files git tracks, it fails when:
 
 - a file that looks like installation config or data sits outside
-  `testdata/`: `history.csv`, `*.history.csv`, `forsgren.config.*`,
+  `testdata/`: anything under a top-level `data/`, `deployments.csv`,
+  `history.csv`, `*.history.csv`, `forsgren.config.*`,
   `forsgren-config.*`, `config.yml`/`.yaml`/`.json` at any depth, or a
   `*.jsonl` events file;
 - a fixture under `testdata/` or a test file (`*_test.go`, `test_*.sh`)
@@ -72,6 +73,36 @@ line, never the name it matched.
 
 Untracked files are not checked, so `git add` (or `git add -N`) a new file
 before running the gates.
+
+## History
+
+The deployments `forsgren collect` finds are kept in the installation's data
+repository, in `data/deployments.csv` (the history format v1, package
+`internal/history`). It is plain CSV, one deployment per line, so the daily
+commit of `data/` is a diff of added lines:
+
+```
+# forsgren history v1
+project,repository,kind,name,deployment_id,commit,created_at,state,task
+shop,acme/app,environment,production,1001,<40 hex>,2026-09-01T10:00:00Z,success,
+```
+
+- The first line states the format version, the second names the columns.
+- `kind` is `environment`, `workflow` or `release`; `name` is the environment
+  or workflow file (empty for a release); `deployment_id` is the ID at GitHub;
+  `created_at` is UTC; `state` is the final state, `success`, `failure` or
+  `other` (a deployment still running is stored once it has finished); `task`
+  may be empty.
+
+**History is never overwritten.** forsgren creates `data/` and the file when it
+first stores history, with the version line. After that it only appends: a
+deployment already in the file (same repository, kind and ID) is skipped, so
+the first line stays even if GitHub says something else later, and no line is
+rewritten or removed. The new lines are written in one write and synced, after
+a newline if the last line lacked one. A file whose first line states another
+version, or with a line that is not in the format, is refused before anything
+is written: its bytes and modification time stay as they were, and the error
+names the line.
 
 ## Configuration
 

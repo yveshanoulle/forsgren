@@ -100,6 +100,7 @@ guarded_reason() {
   local why=""
   case "$1" in
     history.csv) why="the metric history an installation accumulates run after run" ;;
+    deployments.csv) why="the deployment history forsgren collect keeps (data/deployments.csv in an installation)" ;;
     *.history.csv) why="a per-service or per-installation history file" ;;
     forsgren.config.*) why="an installation's forsgren configuration, by its own name" ;;
     forsgren-config.*) why="the same configuration, hyphenated" ;;
@@ -111,12 +112,26 @@ guarded_reason() {
   printf '%s' "$why"
 }
 
+# guarded_path_reason <path> — like guarded_reason, but over the whole path:
+# forsgren creates data/ in an installation's data repository when it first
+# stores history (forsgren#9, #12), so ANY tracked file under a top-level
+# data/ is installation data. Only the top level: a data directory deeper in
+# the tree (internal/data/) is code. Same arm shape as guarded_reason.
+guarded_path_reason() {
+  local why=""
+  case "$1" in
+    data/*) why="everything under a top-level data/ is the history forsgren stores in an installation's data repository" ;;
+  esac
+  printf '%s' "$why"
+}
+
 # --- a. installation config or data outside testdata/ ----------------------
 count=0
 while IFS= read -r f; do
   count=$((count + 1))
   in_testdata "$f" && continue
-  reason="$(guarded_reason "$(basename "$f")")"
+  reason="$(guarded_path_reason "$f")"
+  [ -n "$reason" ] || reason="$(guarded_reason "$(basename "$f")")"
   if [ -n "$reason" ]; then
     echo "❌ FAIL: ${f} — looks like installation config or data (${reason}); it belongs in the installation's private data repository, passed to forsgren as a path, or under testdata/ if it is a made-up fixture"
     FAIL=1
