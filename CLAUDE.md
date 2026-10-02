@@ -37,3 +37,13 @@ Adding a gate: write the script and its self-test, give each a row in the order 
 - The plan and Yves's rulings for the bootstrap are on [#1](https://github.com/yveshanoulle/forsgren/issues/1).
 - Tests first: a new behaviour starts with a test seen failing; a ported gate comes with its fixtures, seen green, plus one mutation seen red.
 - Test fixtures use made-up repositories (`acme/app`), never real private ones; the page shows numbers and dates only.
+
+## Code Health (CodeScene MCP), for every Go change
+
+Adopted from MenoPower by Yves on 2026-10-02. An in-session check, deliberately not an sfl or CI gate.
+
+- **Before the FBP of a Go change**, review the changed files with the CodeScene MCP (`code_health_review`, or `analyze_change_set` for several). Report each changed file's score in the hand-off.
+- **Floor 9.0:** every Go file stays at 9.0 or above. Warn the moment a change would drop a file below it, and fix it before the FBP.
+- **Scoreboard and ratchet:** [codescene-scores.json](codescene-scores.json) holds a row per Go file. `minScore` is the score minus 0.1 for a file below 10 (never below 9.0), and exactly 10.0 for a file at 10.0. Never drop a file below its `minScore`; lift it when a score improves. Update the rows of every reviewed file at each hand-off, and add a row for every new Go file.
+- **Rules:** [.codescene/code-health-rules.json](.codescene/code-health-rules.json) puts the cyclomatic-complexity warning at 7 for all Go code, tests included, mirroring `.golangci.yml`'s gocyclo (min-complexity 6, tests included). Change both together.
+- **On a Mac without the CodeScene MCP**, say so in the hand-off instead of a score. Never report a score from memory.

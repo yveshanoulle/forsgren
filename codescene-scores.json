@@ -1,0 +1,168 @@
+{
+ "note": "Code Health scores from the CodeScene MCP, an in-session check at review time, deliberately not an sfl/CI gate (ported from MenoPower, adopted by Yves for forsgren 2026-10-02). Every Go change gets a CodeScene review before its FBP; the changed files' rows are updated at that hand-off. Floor: every file >= 9.0. minScore is a ratchet: a file below 10 floors at score - 0.1 but never below 9.0; a file at 10.0 floors at 10.0. A change must not drop a file below its minScore; lift minScore when a score improves. A row whose score is below its minScore is debt that must be fixed, not a floor to keep. Rules: .codescene/code-health-rules.json (cyclomatic complexity warning at 7, mirroring gocyclo). Sorted ascending by score.",
+ "scoredWith": "CodeScene MCP on babacar, first baseline of all 27 Go files on 2026-10-02 under .codescene/code-health-rules.json. Re-baseline when the rules change, not on an engine bump.",
+ "files": [
+  {
+   "path": "internal/github/client.go",
+   "score": 8.67,
+   "checkedAt": "2026-10-02",
+   "minScore": 9.0
+  },
+  {
+   "path": "cmd/forsgren/init_config_test.go",
+   "score": 9.09,
+   "checkedAt": "2026-10-02",
+   "minScore": 9.0
+  },
+  {
+   "path": "internal/collect/fake_test.go",
+   "score": 9.09,
+   "checkedAt": "2026-10-02",
+   "minScore": 9.0
+  },
+  {
+   "path": "cmd/forsgren/main.go",
+   "score": 9.38,
+   "checkedAt": "2026-10-02",
+   "minScore": 9.28
+  },
+  {
+   "path": "internal/github/endpoints.go",
+   "score": 9.38,
+   "checkedAt": "2026-10-02",
+   "minScore": 9.28
+  },
+  {
+   "path": "cmd/forsgren/collect_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-02",
+   "minScore": 9.58
+  },
+  {
+   "path": "cmd/forsgren/render_config_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-02",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/collect/collect.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-02",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/collect/collect_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-02",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/config/config_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-02",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/config/validate.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-02",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/github/client_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-02",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/github/fake_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-02",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/history/history_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-02",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/config/init_test.go",
+   "score": 9.92,
+   "checkedAt": "2026-10-02",
+   "minScore": 9.82
+  },
+  {
+   "path": "cmd/forsgren/check_config_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-02",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/collect.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-02",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/main_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-02",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/window_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-02",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/config.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-02",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/init.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-02",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/endpoints_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-02",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/append.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-02",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/history.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-02",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/record.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-02",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/page.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-02",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/page_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-02",
+   "minScore": 10.0
+  }
+ ]
+}
