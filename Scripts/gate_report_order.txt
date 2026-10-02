@@ -392,10 +392,11 @@ DCO sign-off self-test|Scripts/test_check_dco.sh|pre|
 # canon: forsgren's own, beside the other workflow rows.
 # .github/workflows/metrics.yml is the reusable workflow an installation's
 # data repository calls daily; nothing in forsgren runs it, so no gate does
-# either, and this pin is what proves it: workflow_call only, a required
-# forsgren-version, the version check executed against release tags and
-# non-tags and run before go install, the input through env: only, and
-# setup-go on go.mod's toolchain. Self-proving on mutants of the real file.
+# either, and this pin is what proves it: workflow_call only and no
+# inputs, forsgren installed from the workflow's own job.workflow_sha and
+# job.workflow_repository, both checked (executed against good and bad
+# values) before go install, through env: only, and setup-go on go.mod's
+# toolchain before it. Self-proving on mutants of the real file.
 # Repository source, so it runs in pre.
 metrics workflow|Scripts/test_metrics_workflow.sh|pre|
 #

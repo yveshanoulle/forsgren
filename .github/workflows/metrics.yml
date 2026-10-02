@@ -1,8 +1,8 @@
 # .github/workflows/metrics.yml
 #
 # The REUSABLE workflow an installation's data repository calls once a day
-# (forsgren#4, walking skeleton step 2 of #3). It installs the forsgren
-# release the caller names, renders the page and publishes it to the
+# (forsgren#4, walking skeleton step 2 of #3). It installs forsgren from the
+# very commit it is called at, renders the page and publishes it to the
 # caller's GitHub Pages. Today the page is the skeleton's placeholder,
 # "Forsgren <version>"; collect and the history file come later.
 #
@@ -12,28 +12,26 @@
 # nothing out: forsgren arrives as a Go module through go install, verified
 # against the Go checksum database, never as this repository's working tree.
 #
-# THE CALLER (see README, Running forsgren) pins this file and the forsgren
-# it installs to the same release:
-#   uses: yveshanoulle/forsgren/.github/workflows/metrics.yml@v0.0.1
-#   with:
-#     forsgren-version: v0.0.1
-# and grants the job's permissions below (a called workflow can only keep or
-# narrow the permissions its caller's job grants, never widen them), and has
-# GitHub Pages set to build from GitHub Actions.
+# THE CALLER (see README, Running forsgren) pins this file with ONE line, by
+# commit, the release named in its comment:
+#   uses: yveshanoulle/forsgren/.github/workflows/metrics.yml@<commit> # vX.Y.Z
+# That line is the only version (ruling on forsgren#4, 2026-10-02): the
+# workflow takes no input naming one, and installs forsgren from the commit
+# and repository the line names, which GitHub hands a called workflow as
+# job.workflow_sha and job.workflow_repository. The caller grants the job's
+# permissions below (a called workflow can only keep or narrow the
+# permissions its caller's job grants, never widen them), and has GitHub
+# Pages set to build from GitHub Actions.
 #
 # Scripts/test_metrics_workflow.sh pins this file's shape in sfl and Quality:
-# workflow_call only, forsgren-version required, the version check run before
-# go install and executed there against release tags and non-tags, the input
-# through env: only, setup-go on go.mod's toolchain.
+# workflow_call only and no inputs, the install step's commit and repository
+# from the job context through env: only, its checks executed there against
+# good and bad commits and repositories, setup-go on go.mod's toolchain
+# before it.
 name: Metrics
 
 on:
   workflow_call:
-    inputs:
-      forsgren-version:
-        description: "The forsgren release to install and run, a tag such as v0.0.1 (never latest or a branch)"
-        type: string
-        required: true
 
 # Nothing at the workflow level; the one job asks for what it uses.
 permissions: {}
@@ -56,26 +54,6 @@ jobs:
       cancel-in-progress: false
 
     steps:
-      # The release tag, and nothing else, reaches go install: latest, a
-      # branch or a commit would install whatever that names on the day of
-      # the run, and the page would show a version nobody pinned. Inline, not
-      # a Scripts/ file: the job checks nothing out, so forsgren's scripts
-      # are not on the runner, and the only forsgren ref it could check one
-      # out at is the version still unchecked. The input arrives through
-      # env:, never as ${{ }} in the script.
-      - name: Check the forsgren version is a release tag
-        shell: bash
-        env:
-          FORSGREN_VERSION: ${{ inputs.forsgren-version }}
-        run: |
-          set -euo pipefail
-          release_tag='^v[0-9]+\.[0-9]+\.[0-9]+$'
-          if [[ ! "$FORSGREN_VERSION" =~ $release_tag ]]; then
-            echo "::error title=forsgren-version::forsgren-version must be a release tag vMAJOR.MINOR.PATCH, such as v0.0.1; latest, a branch, a commit or a pre-release is refused"
-            exit 1
-          fi
-          echo "forsgren ${FORSGREN_VERSION}"
-
       # Exactly the Go of go.mod's toolchain line, the Go sfl, FBP.sh and
       # Quality build with (Scripts/test_metrics_workflow.sh keeps the two
       # equal). setup-go exports GOTOOLCHAIN=local, so go install builds with
@@ -90,14 +68,44 @@ jobs:
           go-version: '1.27.1'
           cache: false
 
-      - name: Install forsgren
+      # forsgren from this workflow's OWN commit and repository, and from
+      # nothing else. The job context gives a called workflow both:
+      # job.workflow_sha, "the commit SHA of the workflow file that defines
+      # the current job", and job.workflow_repository, its owner/repo. The
+      # github context will not do: in a called workflow it "is always
+      # associated with the caller workflow", so github.workflow_sha is the
+      # caller's commit. Commit and repository come from the same context,
+      # so a fork calling its own copy installs the fork (and, while its
+      # go.mod still declares upstream's module path, go install refuses it
+      # by name), never upstream in silence.
+      #
+      # Both are checked before go runs: the commit must be 40 lower-case hex
+      # digits, so a tag or branch (which would install whatever it names on
+      # the day of the run) never reaches the module proxy; the repository
+      # must be one owner/name. Inline, not a Scripts/ file: the job checks
+      # nothing out, so forsgren's scripts are not on the runner, and the
+      # only commit it could check one out at is the one still unchecked.
+      # Both arrive through env:, never as ${{ }} in the script.
+      - name: Install forsgren from this workflow's own commit
         shell: bash
         env:
-          FORSGREN_VERSION: ${{ inputs.forsgren-version }}
+          FORSGREN_SHA: ${{ job.workflow_sha }}
+          FORSGREN_REPOSITORY: ${{ job.workflow_repository }}
         run: |
           set -euo pipefail
+          full_commit='^[0-9a-f]{40}$'
+          owner_name='^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_][A-Za-z0-9_.-]*$'
+          if [[ ! "$FORSGREN_SHA" =~ $full_commit ]]; then
+            echo "::error title=forsgren commit::job.workflow_sha is not a full 40-digit commit; forsgren is installed only from the exact commit this workflow is called at"
+            exit 1
+          fi
+          if [[ ! "$FORSGREN_REPOSITORY" =~ $owner_name ]]; then
+            echo "::error title=forsgren repository::job.workflow_repository is not one owner/name; forsgren is installed only from the repository this workflow lives in"
+            exit 1
+          fi
+          echo "forsgren ${FORSGREN_REPOSITORY}@${FORSGREN_SHA}"
           export GOBIN="${RUNNER_TEMP}/forsgren-bin"
-          go install "github.com/yveshanoulle/forsgren/cmd/forsgren@${FORSGREN_VERSION}"
+          go install "github.com/${FORSGREN_REPOSITORY}/cmd/forsgren@${FORSGREN_SHA}"
           echo "${GOBIN}" >> "$GITHUB_PATH"
 
       - name: Render the page

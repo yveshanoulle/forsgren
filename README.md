@@ -96,8 +96,9 @@ the render failed, 2 on a usage error.
 
 **Daily, from an installation's data repository.** An installation does not
 build forsgren: its data repository calls forsgren's reusable workflow,
-`.github/workflows/metrics.yml`, once a day. That workflow installs the
-release it is given with `go install`, renders the page and publishes it to
+`.github/workflows/metrics.yml`, once a day. That workflow installs
+forsgren from the very commit it is called at with `go install`, renders
+the page and publishes it to
 the data repository's GitHub Pages, on a GitHub-hosted runner, with no server
 and no local Go. The calling workflow, in the data repository:
 
@@ -113,16 +114,21 @@ jobs:
       contents: read
       pages: write
       id-token: write
-    uses: yveshanoulle/forsgren/.github/workflows/metrics.yml@v0.0.1
-    with:
-      forsgren-version: v0.0.1
+    uses: yveshanoulle/forsgren/.github/workflows/metrics.yml@<commit> # vX.Y.Z
 ```
 
-- **Pin both to the same release.** The `@v0.0.1` after `metrics.yml` is
-  the version of the workflow, `forsgren-version` the version of forsgren it
-  installs; raise them together. `forsgren-version` must be a release tag
-  `vMAJOR.MINOR.PATCH`: the workflow refuses `latest`, a branch, a commit or
-  a pre-release before it installs anything.
+- **The `uses:` line is the only version.** Pin it by the full commit of
+  a release, its tag in the comment. The workflow takes no input naming a
+  version: it installs forsgren from its own commit and repository, which
+  GitHub gives a called workflow as `job.workflow_sha` and
+  `job.workflow_repository` (the `github` context would name the
+  caller's). It refuses anything but a 40-digit commit and one
+  `owner/name` before it installs anything. To update, change that one
+  line. A fork calling its own copy installs the fork, never upstream.
+- **`v0.0.1` predates this.** Its `metrics.yml` still requires
+  `with: forsgren-version: v0.0.1` under the `uses:` line; the one-line
+  form starts with the next release, which has no such input: drop the
+  `with:` block when moving to it.
 - **The three permissions are the caller's to grant.** A called workflow
   can only keep or narrow what its caller's job grants: `pages: write` and
   `id-token: write` let `actions/deploy-pages` publish, `contents: read` is
@@ -321,7 +327,13 @@ Seven PRE gates read the repository's own scripts and files:
   `run:` block, and its self-test (`Scripts/test_check_actionlint.sh`) is red
   when that does not happen, since actionlint skips it silently when
   shellcheck is missing. No `-ignore` flag: a suppression needs a finding
-  someone has looked at and Yves's explicit yes. Red on a directory with no
+  someone has looked at and Yves's explicit yes. One exists:
+  `.actionlint.yaml` ignores, for `.github/workflows/metrics.yml` only,
+  actionlint's "not defined" on the documented `job.workflow_sha` and
+  `job.workflow_repository`, which actionlint 1.7.12 does not know yet
+  (rhysd/actionlint#705); approved on
+  [forsgren#4](https://github.com/yveshanoulle/forsgren/issues/4#issuecomment-5952631931),
+  to be removed once an actionlint release knows them. Red on a directory with no
   workflow file, and when actionlint itself is missing.
 - **zizmor** (`Scripts/check_zizmor.sh`, web-infra's gate): the GitHub
   Actions security linter, over `.github` under `.github/zizmor.yml`, every
@@ -562,17 +574,22 @@ repository and no pull request can start it. Its one job runs on
 `ubuntu-latest`, in the caller's repository and with the caller's token,
 checks nothing out, and asks for `pages: write`, `id-token: write` and
 `contents: read` (a top-level `permissions: {}` gives the workflow nothing
-else). Its steps: check `forsgren-version` is a release tag, set up Go
-(`actions/setup-go` on exactly `go.mod`'s toolchain, `cache: false`),
-`go install github.com/yveshanoulle/forsgren/cmd/forsgren@<version>`,
+else). It takes no inputs: the caller's `uses: …/metrics.yml@<commit>`
+line is the only version. Its steps: set up Go (`actions/setup-go` on
+exactly `go.mod`'s toolchain, `cache: false`), check its own
+`job.workflow_sha` is a full 40-digit commit and its own
+`job.workflow_repository` one `owner/name`, then
+`go install github.com/<that repository>/cmd/forsgren@<that commit>`,
 `forsgren render`, then `actions/upload-pages-artifact` and
-`actions/deploy-pages` into the `github-pages` environment. `setup-go`
-exports `GOTOOLCHAIN=local`, so `go install` builds with that Go and never
-switches to another. The version reaches the shell through `env:`, never as
-`${{ }}` inside `run:`. The release-tag check is one regex inside the
-workflow, not a script under `Scripts/`: the job has no checkout of
-forsgren, and the only ref it could fetch one at is the version still
-unchecked. The **metrics workflow** pin below executes that very block.
+`actions/deploy-pages` into the `github-pages` environment. The job
+context, not the `github` context: in a called workflow the `github`
+context is the caller's. `setup-go` exports `GOTOOLCHAIN=local`, so
+`go install` builds with that Go and never switches to another. The commit
+and repository reach the shell through `env:`, never as `${{ }}` inside
+`run:`. The two checks are regexes inside the workflow, not a script under
+`Scripts/`: the job has no checkout of forsgren, and the only commit it
+could fetch one at is the one still unchecked. The **metrics workflow** pin
+below executes that very block.
 Nothing in this repository runs the workflow, so no gate does; the pin and
 actionlint, zizmor, yamllint, checkout pins and workflow triggers, which read
 every workflow, are what check it.
@@ -614,18 +631,21 @@ Five PRE gates keep the CI honest:
   so nothing here installs it, and a parser that depends on it would stop
   gating on the first machine without it.
 - **metrics workflow** (`Scripts/test_metrics_workflow.sh`, forsgren's
-  own): `metrics.yml` triggers on `workflow_call` and nothing else; its
-  `forsgren-version` input is `required: true`; no `run:` block expands a
-  `${{ }}` expression; the step "Check the forsgren version is a release
-  tag" exists, and its `run:` block, executed here, accepts `v0.0.1`,
-  `v1.2.3`, `v10.20.300` and refuses `latest`, `main`, `0.0.1`, `v0.0`,
-  `v1`, a pre-release, build metadata, a capital `V`, a commit hash,
-  surrounding spaces, a trailing `;id` or newline, and the empty string;
-  that step comes before `go install`, which installs
-  `github.com/yveshanoulle/forsgren/cmd/forsgren@${FORSGREN_VERSION}`; and
-  `actions/setup-go` installs exactly `go.mod`'s toolchain, so a toolchain
-  bump in `go.mod` without one here is red. Each pin is shown failing, with
-  its own reason, on a mutant of the real file.
+  own): `metrics.yml` triggers on `workflow_call` and nothing else, and
+  declares no inputs; no `run:` block expands a `${{ }}` expression; the
+  step "Install forsgren from this workflow's own commit" takes
+  `FORSGREN_SHA` from `${{ job.workflow_sha }}` and `FORSGREN_REPOSITORY`
+  from `${{ job.workflow_repository }}`, and its `run:` block, executed
+  here with a stub `go`, runs exactly
+  `go install github.com/yveshanoulle/forsgren/cmd/forsgren@<commit>` for
+  `yveshanoulle/forsgren`, installs `github.com/acme/forsgren` for the fork
+  `acme/forsgren`, and refuses before `go` runs any commit that is not 40
+  lower-case hex digits (a tag, a branch, `latest`, a short or long hash,
+  capitals, surrounding spaces, a trailing `;id` or newline, empty) and any
+  repository that is not one `owner/name`; `actions/setup-go` comes before
+  that step and installs exactly `go.mod`'s toolchain, so a toolchain bump
+  in `go.mod` without one here is red. Each pin is shown failing, with its
+  own reason, on a mutant of the real file.
 - **quality-report render** (`Scripts/test_render_quality_report.sh`): the
   summary renderer (`Scripts/render_quality_report.sh`) keeps the declared
   order, exits 0 on a report it rendered, tells an empty or partial run from

@@ -16,3 +16,16 @@
 # that a label becomes known only through this file.
 self-hosted-runner:
   labels: []
+
+# ONE WAIVER, approved by Yves on forsgren#4:
+# https://github.com/yveshanoulle/forsgren/issues/4#issuecomment-5952631931
+# metrics.yml installs forsgren from its own commit and repository, which
+# GitHub documents on the job context as job.workflow_sha and
+# job.workflow_repository. actionlint 1.7.12, the latest release, does not
+# know those two properties yet (rhysd/actionlint#705, fix open as #707)
+# and reports them as undefined. Ignored for that file and those two names
+# only; remove this block once an actionlint release knows them.
+paths:
+  .github/workflows/metrics.yml:
+    ignore:
+      - 'property "workflow_(sha|repository)" is not defined in object type'
