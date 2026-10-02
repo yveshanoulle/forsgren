@@ -8,6 +8,14 @@
 #   3. a package with no tests  -> red: zero tests found is not a pass
 #   4. a module with no package -> red
 #   5. every test skipped       -> red: nothing was measured
+#   6. Go code under node_modules/ (npm ships some, e.g. flatted/golang,
+#      without its own go.mod), go.mod not ignoring it
+#                               -> red, naming the package: Go counts it as
+#                                  one of the module's own packages
+#   7. the same tree with this repository's own go.mod `ignore` lines
+#                               -> green, and no node_modules package in the
+#                                  output: go.mod is the one place that keeps
+#                                  npm's tree out of every ./... tool
 
 set -euo pipefail
 
@@ -99,6 +107,36 @@ add_test 't.Skip("nothing measured")'
 run_gate
 want_red "a run where every test is skipped is red" "ran no tests"
 
+# add_node_modules_go — Go code under node_modules/ without its own go.mod,
+# as npm's flatted ships it in node_modules/flatted/golang/pkg/flatted.
+add_node_modules_go() {
+  mkdir -p "${MOD}/node_modules/flatted/golang/pkg/flatted"
+  printf 'package flatted\n\n// F is npm-shipped Go.\nfunc F() int { return 1 }\n' \
+    > "${MOD}/node_modules/flatted/golang/pkg/flatted/flatted.go"
+}
+
+new_module "node-modules-not-ignored"
+add_test 'if Two() != 2 { t.Fatal("want 2") }'
+add_node_modules_go
+run_gate
+want_red "Go code under node_modules/ that go.mod does not ignore is red" \
+  "example.com/m/node_modules/flatted/golang/pkg/flatted"
+want_red "and the reason names the go.mod ignore directive" \
+  "go.mod must ignore node_modules"
+
+new_module "node-modules-ignored"
+add_test 'if Two() != 2 { t.Fatal("want 2") }'
+add_node_modules_go
+grep -E '^ignore[[:space:]]' go.mod >> "${MOD}/go.mod" || true
+run_gate
+if [[ "$RC" -ne 0 ]]; then
+  fail "this repository's go.mod ignore lines: the gate exited ${RC}. Output: ${OUT}"
+elif grep -qF "node_modules" <<< "$OUT"; then
+  fail "this repository's go.mod ignore lines: the gate's output still names node_modules. Output: ${OUT}"
+else
+  echo "  ok: this repository's go.mod keeps node_modules out of ./..."
+fi
+
 COMPLETED=1
 
 if [[ "$failed" -ne 0 ]]; then
@@ -107,4 +145,4 @@ if [[ "$failed" -ne 0 ]]; then
   exit 1
 fi
 
-echo "OK: Go-test gate is red on a failing test, on zero tests found and on a skipped-only run, and green on a passing one"
+echo "OK: Go-test gate is red on a failing test, on zero tests found, on a skipped-only run and on Go code under node_modules/, green on a passing one, and this repository's go.mod keeps node_modules out of ./..."
