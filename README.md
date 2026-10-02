@@ -195,13 +195,92 @@ create one, so a mistyped directory is an error. It exits 1 with
 not writable, or the path is a directory), and 2 on a usage error. The
 metrics workflow runs it on every new install (see Running forsgren).
 
+## Collecting deployments (`collect`)
+
+```
+FORSGREN_TOKEN=<token> forsgren collect --config forsgren.config.yml --data data/deployments.csv
+```
+
+`collect` reads, for every repository in the config, that repository's
+deployments from GitHub's REST API by its `deployment` rule, and appends the
+final ones to the history (see History). It prints one line per repository,
+`acme/app: 3 new, 1 skipped (not final)`: `new` is what was appended,
+`skipped (not final)` is what is still running and is stored by a later run.
+A deployment already in the history is skipped without a count.
+
+- **`environment=<name>`** (the default, `production`): the GitHub
+  Deployments to that environment, and each one's statuses. A deployment is
+  a `success` when any of its statuses was `success`: GitHub marks a
+  successful deployment `inactive` once a newer one replaces it, so its
+  latest status says nothing. It is a `failure` when no status was
+  `success` and one was `failure` or `error`. Anything else (no status yet,
+  `pending`, `queued`, `in_progress`, or only `inactive`) is not final. The
+  deployment's ID, `sha`, `task` and `created_at` are stored.
+- **`workflow=<file>.yml`**: the runs of that workflow on the repository's
+  default branch, from the repository itself (a fork's run on a branch of
+  the same name does not count). The conclusion `success` is stored as
+  `success`, `failure` as `failure`, and every other conclusion
+  (`cancelled`, `skipped`, `timed_out`, `action_required`, `neutral`,
+  `stale`, `startup_failure`) as `other`: it is final, it is not a
+  deployment that reached users, and the history keeps that it happened
+  (lines are never rewritten, so what is not stored when it is seen cannot
+  be added later). A run that is not `completed` is not final. The run ID,
+  `head_sha` and `run_started_at` (the start of the attempt whose
+  conclusion is stored) are stored.
+- **`release`**: the published releases, as `success` at their
+  `published_at`. Drafts are not published; prereleases are not shipped to
+  everyone (a release candidate or a beta), so neither is a deployment. The
+  commit is the tag's commit (an annotated tag resolved to its commit), one
+  small request per release not stored yet; the tag is stored as the task.
+
+**How far back.** A repository with nothing in the history for its rule is
+read 90 days back. After that, a run reads from 7 days before the newest
+deployment stored for it, so a deployment that was not final at the last
+run is still found, and never more than 90 days back: the daily run reads
+little more than what is new. Every list is read newest first, 100 per page,
+and stops at the first page that reaches the start; at most 10 pages per
+list (the newest 1000), and when that cut a list stderr says so:
+`collect: acme/app: read the newest 10 page(s) only; older deployments were
+not read`. Re-reading is safe: the history skips what it already holds, and
+a stored deployment's statuses or tag are not asked again.
+
+**Errors.** Each repository is tried, also after another failed; a failing
+one is named on stderr (`collect: acme/app: ...`) and nothing of it is
+stored, because a repository's deployments are appended in one go, after
+all of them are read. The others are stored, and `collect` then exits 1
+with `collect: 1 of 3 repositories failed`. A 401, 403 or 404 says `check
+FORSGREN_TOKEN's access to acme/app`; a rate limit says when it resets (UTC)
+or how many seconds GitHub asks to wait; an answer that is not what GitHub
+documents is refused by the repository's name. A history that cannot be
+read (another version, a malformed line) is refused before GitHub is asked
+anything. With no project configured `collect` does nothing, needs no
+token and exits 0; with at least one repository and no `FORSGREN_TOKEN` it
+exits 1 before anything is read or written. It exits 2 on a usage error.
+
+**The token.** `collect` reads the token from the environment variable
+`FORSGREN_TOKEN` only (never a flag) and sends it only as an
+`Authorization: Bearer` header to `api.github.com`: never in a URL, never in
+a message, and never to another host (a next-page link elsewhere is
+refused). A fine-grained personal access token, read-only, for the measured
+repositories, needs per rule:
+
+| Rule | Repository permissions (read) | Calls |
+|---|---|---|
+| `environment=<name>` | Deployments, Metadata | list deployments, list deployment statuses |
+| `workflow=<file>.yml` | Actions, Metadata | get the repository (its default branch), list a workflow's runs |
+| `release` | Contents, Metadata | list releases, get the tag's commit |
+
+Metadata is in every fine-grained token. A classic token needs `repo` for
+private repositories (no scope for public ones).
+
 ## Running forsgren
 
 Today forsgren renders one placeholder page, which says "Forsgren 0.0.2":
 the version of the forsgren that rendered it. That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
-it with `-ldflags "-X main.version=<version>"`. Reading GitHub (`collect`)
-and the history file come next, after the walking skeleton (#3).
+it with `-ldflags "-X main.version=<version>"`. `forsgren collect` reads
+GitHub into the history file (see Collecting deployments); the daily run
+does not call it yet, and the page does not show its numbers yet (#12).
 
 The first release is `v0.0.1`. Install a release with
 `go install github.com/yveshanoulle/forsgren/cmd/forsgren@v0.0.1`; an

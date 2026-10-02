@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
 	"github.com/yveshanoulle/forsgren/internal/page"
@@ -30,13 +29,6 @@ const usage = `usage: forsgren render --out <dir> [--config <path>]
 // release build can set it with
 // -ldflags "-X main.version=<version>"; the default is the next release.
 var version = "0.0.2"
-
-// githubAPI is the GitHub REST API collect reads, and now its clock: vars so
-// the tests can point them at a test server and a fixed day.
-var (
-	githubAPI = "https://api.github.com"
-	now       = time.Now
-)
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -100,12 +92,6 @@ func initConfig(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-// collectDeployments reads each configured repository's deployments from
-// GitHub and appends the final ones to the history.
-func collectDeployments(args []string, stdout, stderr io.Writer) int {
-	return 0
-}
-
 // render writes the site. With --config it also reads the installation's
 // forsgren.config.yml, so the page can say when no projects are configured
 // yet (forsgren#12); without it (the repository's own build has no
@@ -153,17 +139,39 @@ func renderFlags(args []string, stderr io.Writer) (out, configPath string, ok bo
 // flag, --<name> <arg>: its value and true, or false once the usage error is
 // on stderr (flag's own message, or `<command>: --<name> <arg> is required`).
 func requiredFlag(stderr io.Writer, args []string, command, name, arg, help string) (string, bool) {
+	values, ok := requiredFlags(stderr, args, command, flagSpec{name, arg, help})
+	if !ok {
+		return "", false
+	}
+	return values[0], true
+}
+
+// flagSpec is one required flag, --<name> <arg>, and its help.
+type flagSpec struct{ name, arg, help string }
+
+// requiredFlags parses the arguments of a command whose flags are all
+// required: their values in the order of specs and true, or false once the
+// usage error is on stderr (flag's own message, or the first missing flag's
+// `<command>: --<name> <arg> is required`).
+func requiredFlags(stderr io.Writer, args []string, command string, specs ...flagSpec) ([]string, bool) {
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
 	flags.SetOutput(stderr)
-	value := flags.String(name, "", help)
+	values := make([]*string, len(specs))
+	for i, s := range specs {
+		values[i] = flags.String(s.name, "", s.help)
+	}
 	if err := flags.Parse(args); err != nil {
-		return "", false
+		return nil, false
 	}
-	if *value == "" {
-		_, _ = fmt.Fprintf(stderr, "%s: --%s %s is required\n", command, name, arg)
-		return "", false
+	parsed := make([]string, len(specs))
+	for i, s := range specs {
+		if *values[i] == "" {
+			_, _ = fmt.Fprintf(stderr, "%s: --%s %s is required\n", command, s.name, s.arg)
+			return nil, false
+		}
+		parsed[i] = *values[i]
 	}
-	return *value, true
+	return parsed, true
 }
 
 // failed says why the command's work failed, `<command>: <err>`, on stderr,
