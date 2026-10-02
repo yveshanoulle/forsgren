@@ -6,6 +6,13 @@
 # false clean (no test files, a broken package pattern, every test skipped),
 # and it looks exactly like a pass.
 #
+# Red, too, when ./... matches a package under node_modules/: npm ships Go
+# code without its own go.mod (node_modules/flatted/golang), and Go then
+# counts it as one of the module's own packages, for every ./... tool, not
+# only this one (forsgren#1). The one place that keeps npm's tree out is
+# go.mod's `ignore node_modules` directive, which the go command applies to
+# every package pattern and to `go mod tidy`; this check is its guard.
+#
 # Usage: Scripts/check_go_tests.sh [module-dir]   (default: the repo root)
 # Fixture: Scripts/test_check_go_tests.sh.
 
@@ -18,6 +25,15 @@ cd "$MODULE_DIR" || {
   echo "❌ FAIL: module directory not found: ${MODULE_DIR}"
   exit 1
 }
+
+npm_pkgs="$(go list -e ./... 2>/dev/null | grep -F '/node_modules/' || true)"
+if [ -n "$npm_pkgs" ]; then
+  while IFS= read -r pkg; do
+    echo "❌ ${pkg}"
+  done <<< "$npm_pkgs"
+  echo "❌ FAIL: go.mod must ignore node_modules: ./... matches the package(s) above, npm's Go code, as the module's own (add: ignore node_modules)"
+  exit 1
+fi
 
 LOG="$(mktemp)"
 trap 'rm -f "$LOG"' EXIT
