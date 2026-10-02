@@ -143,6 +143,27 @@ It prints one line, `OK: forsgren.config.yml is a valid forsgren config
 the refusal on stderr when the file is invalid or cannot be read, and 2 on
 a usage error.
 
+Start an installation's config with `init-config`:
+
+```
+forsgren init-config --config forsgren.config.yml
+```
+
+When the file is missing it writes a starter and prints `created
+forsgren.config.yml`. The starter is a comment that explains the file, names
+`forsgren check-config` and the three deployment forms, and shows a commented
+example with made-up `acme` names (the default deployment, `workflow=` and
+`release`), followed by `version: 1` and `projects: []`, so `check-config`
+accepts it as it is: `projects: 0, repositories: 0`. When the file exists,
+whatever it holds (even an invalid or an empty file), it is left byte for
+byte and the command prints `kept forsgren.config.yml`; both exit 0. The file
+is written whole or not at all, and a file that appears while the command
+runs is never replaced. The directory must exist: `init-config` does not
+create one, so a mistyped directory is an error. It exits 1 with
+`init-config: <path>: <reason>` on a real error (the directory is missing or
+not writable, or the path is a directory), and 2 on a usage error. Nothing
+runs it for you yet: the metrics workflow does not call it (#12, step 3).
+
 ## Running forsgren
 
 Today forsgren renders one placeholder page, which says "Forsgren 0.0.2":

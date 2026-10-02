@@ -5,6 +5,7 @@
 //
 //	forsgren render --out <dir>
 //	forsgren check-config --config <path>
+//	forsgren init-config --config <path>
 package main
 
 import (
@@ -18,7 +19,8 @@ import (
 )
 
 const usage = `usage: forsgren render --out <dir>
-       forsgren check-config --config <path>`
+       forsgren check-config --config <path>
+       forsgren init-config --config <path>`
 
 // version is the forsgren release this binary is, shown on every page it
 // renders. It is the one source of the version: a var, not a const, so a
@@ -64,10 +66,25 @@ func checkConfig(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-// initConfig is a RED STUB (forsgren#12 step 2): it does nothing. The green
-// patch writes the starter config.
-func initConfig(_ []string, _, _ io.Writer) int {
-	_, _ = config.Init("")
+// initConfig writes the starter config to a missing forsgren.config.yml and
+// leaves an existing file as it is, whatever it holds: `created <path>` or
+// `kept <path>`, both exit 0. A real error (a directory in place of the file,
+// a directory that is missing or not writable) exits 1.
+func initConfig(args []string, stdout, stderr io.Writer) int {
+	path, ok := requiredFlag(stderr, args, "init-config", "config", "<path>",
+		"the forsgren.config.yml to create when missing")
+	if !ok {
+		return 2
+	}
+	created, err := config.Init(path)
+	if err != nil {
+		return failed(stderr, "init-config", err)
+	}
+	verb := "kept"
+	if created {
+		verb = "created"
+	}
+	_, _ = fmt.Fprintf(stdout, "%s %s\n", verb, path)
 	return 0
 }
 

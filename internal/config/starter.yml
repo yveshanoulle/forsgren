@@ -1,0 +1,40 @@
+# forsgren.config.yml: which repositories this installation measures.
+#
+# forsgren wrote this file because it was missing, and never rewrites a file
+# that exists: from here on it is yours. Edit it and commit it.
+#
+# The file lists projects. A project is a name and the GitHub repositories
+# that ship it (a product can be several repositories); the page shows each
+# project in its own section. Check your edits before a run depends on them:
+#
+#   forsgren check-config --config forsgren.config.yml
+#
+# Each repository says what counts as a deployment of it, with one of three
+# forms:
+#
+#   (left out)            a GitHub Deployment to the environment production
+#                         whose status is success: the default
+#   deployment: environment=<name>
+#                         the same, to another environment
+#   deployment: workflow=<file>.yml
+#                         a successful run on main of that workflow file in
+#                         .github/workflows/ (.yaml works too)
+#   deployment: release   a published GitHub Release
+#
+# Example, with made-up names. To use it, remove the two lines version: 1 and
+# projects: [] below, then remove the "# " in front of the example:
+#
+# version: 1
+# projects:
+#   - name: Acme Shop
+#     repositories:
+#       - name: acme/api
+#       - name: acme/ios-app
+#         deployment: workflow=testflight.yml
+#   - name: Acme Tools
+#     repositories:
+#       - name: acme/cli
+#         deployment: release
+#
+version: 1
+projects: []

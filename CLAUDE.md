@@ -12,7 +12,7 @@ It is written in Go: one module, `github.com/yveshanoulle/forsgren`.
 ## Layout
 
 - `cmd/forsgren/` — the composition root; thin. `forsgren render --out <dir>` writes the site.
-- `internal/config/` — `Load` reads and validates an installation's `forsgren.config.yml` (format version 1, strict YAML via `go.yaml.in/yaml/v3`); `forsgren check-config --config <path>` runs it. Fixture configs only under `internal/config/testdata/`.
+- `internal/config/` — `Load` reads and validates an installation's `forsgren.config.yml` (format version 1, strict YAML via `go.yaml.in/yaml/v3`); `forsgren check-config --config <path>` runs it, and `forsgren init-config --config <path>` writes the embedded starter (`starter.yml`) when the file is missing and keeps an existing one. Fixture configs only under `internal/config/testdata/`.
 - `internal/page/` — the page renderer: `html/template` files embedded with `//go:embed`, shared chrome in `templates/layout/*.html` (one `{{define}}` each), one file per page in `templates/pages/*.html`, `styles.css`, the hand-authored `required-pages.json`, golden files in `testdata/`.
 - `Scripts/` — the gates, their self-tests and the build script; `Scripts/gate_report_order.txt` declares every gate.
 - `.build/` — build output, never committed: `.build/bin/forsgren`, the generated site in `.build/site/`, the counts sinks.
