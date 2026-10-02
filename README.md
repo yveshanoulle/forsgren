@@ -280,7 +280,8 @@ the version of the forsgren that rendered it. That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
 it with `-ldflags "-X main.version=<version>"`. `forsgren collect` reads
 GitHub into the history file (see Collecting deployments); the daily run
-does not call it yet, and the page does not show its numbers yet (#12).
+calls it and commits the history to the data repository, and the page does
+not show its numbers yet (#12).
 
 The first release is `v0.0.1`. Install a release with
 `go install github.com/yveshanoulle/forsgren/cmd/forsgren@v0.0.1`; an
@@ -305,9 +306,10 @@ build forsgren: its data repository calls forsgren's reusable workflow,
 `.github/workflows/metrics.yml`, once a day. That workflow installs
 forsgren from the very commit it is called at with `go install`, checks the
 data repository's `forsgren.config.yml` with `forsgren check-config` (writing
-a starter first when the file is missing), renders the page and publishes it
-to
-the data repository's GitHub Pages, on a GitHub-hosted runner, with no server
+a starter first when the file is missing), collects the configured
+repositories' deployments into `data/deployments.csv` with `forsgren
+collect` and commits that history, renders the page and publishes it to the
+data repository's GitHub Pages, on a GitHub-hosted runner, with no server
 and no local Go. The calling workflow, in the data repository:
 
 ```yaml
@@ -323,6 +325,8 @@ jobs:
       pages: write
       id-token: write
     uses: yveshanoulle/forsgren/.github/workflows/metrics.yml@<commit> # vX.Y.Z
+    secrets:
+      FORSGREN_TOKEN: ${{ secrets.FORSGREN_TOKEN }}
 ```
 
 - **The `uses:` line is the only version.** Pin it by the full commit of
@@ -370,13 +374,45 @@ jobs:
   nothing is published from it. The message can quote the file, so the log
   shows it with workflow commands stopped: a line of it that starts with
   `::` is printed, never run.
+- **The token: a `FORSGREN_TOKEN` secret.** `forsgren collect` reads the
+  measured repositories with a read-only token of the installation's own
+  (the job's token reaches only the data repository). Make one with the
+  permissions its rules need (see Collecting deployments, The token: per
+  rule `environment=` Deployments, `workflow=` Actions, `release`
+  Contents, and Metadata), store it as the data repository's Actions secret
+  `FORSGREN_TOKEN`, and pass it by name as above. By name, not
+  `secrets: inherit`: the called workflow then receives this one secret and
+  none of the repository's others. The workflow declares it
+  `required: false`: a new install's first run, with the starter's zero
+  projects, needs no token and runs before one is made; once
+  `forsgren.config.yml` lists a repository, a missing token fails the run
+  with collect's message naming `FORSGREN_TOKEN`. Inside the workflow only
+  the collect step gets it, in its environment.
+- **The daily run collects and commits the history.** After the check,
+  `forsgren collect --config forsgren.config.yml --data
+  data/deployments.csv` appends the new final deployments (see Collecting
+  deployments). When `data/` changed, it and nothing else is committed to
+  the branch the run is on as `github-actions[bot]`, "forsgren: record
+  deployments", and pushed the way the starter is; a run with nothing new
+  commits nothing, and a run on a tag that has something new fails by
+  name. **A failing repository** does not stop the run: what the others
+  stored is committed and the page is published, and then the job's last
+  step fails it, so the run shows red with collect's message in the step
+  "Collect deployments". **One run at a time:** the job's concurrency
+  group is the data repository's, so the daily run and one started by hand
+  queue rather than race on the push. If the branch still moved under a run
+  (someone pushed meanwhile), its push is refused and the run fails with
+  "… moved since this run checked it out"; nothing is rebased or forced,
+  and the next run collects the same deployments again. The branch
+  protection note on the starter holds for this commit too.
 - **The three permissions are the caller's to grant.** A called workflow
   can only keep or narrow what its caller's job grants: `pages: write` and
   `id-token: write` let `actions/deploy-pages` publish, `contents: write`
-  lets the starter step push the one commit. Without them the deploy step
-  or the starter push fails. **Moving to the release that adds the
-  starter, change `contents: read` to `contents: write`** in the calling
-  workflow (and in the template's copy of it).
+  lets the starter step and the data step each push their one commit.
+  Without them the deploy step or a push fails. **Moving to the release
+  that adds the starter and collect, change `contents: read` to
+  `contents: write` and add the `secrets:` block** in the calling workflow
+  (and in the template's copy of it).
 - **GitHub Pages must build from GitHub Actions** (the data repository's
   Settings → Pages → Source). The run deploys to the repository's
   `github-pages` environment.
@@ -840,9 +876,12 @@ repository and no pull request can start it. Its one job runs on
 `ubuntu-latest`, in the caller's repository and with the caller's token,
 checks out the caller's repository only (never forsgren's), and asks for
 `pages: write`, `id-token: write` and `contents: write` (the starter step
-pushes one commit; a top-level `permissions: {}` gives the workflow nothing
-else). It takes no inputs: the
-caller's `uses: …/metrics.yml@<commit>` line is the only version. Its
+and the data step each push one commit; a top-level `permissions: {}` gives
+the workflow nothing else). Its concurrency group is the caller's
+repository, `cancel-in-progress: false`. It takes no inputs: the
+caller's `uses: …/metrics.yml@<commit>` line is the only version. Its one
+secret, `FORSGREN_TOKEN`, is optional and reaches the collect step's `env:`
+only. Its
 steps: set up Go (`actions/setup-go` on exactly `go.mod`'s toolchain,
 `cache: false`), check its own `job.workflow_sha` is a full 40-digit commit
 and its own `job.workflow_repository` one `owner/name`, then
@@ -856,18 +895,23 @@ checkout still stores nothing), `forsgren check-config --config
 forsgren.config.yml` (its message printed between
 `::stop-commands::<token>` and `::<token>::`, a fresh random token per
 run, so a line of it that starts with `::` never runs as a workflow
-command), `forsgren render --config forsgren.config.yml`, then `actions/upload-pages-artifact` and
-`actions/deploy-pages` into the `github-pages` environment. The job
+command), `forsgren collect --config forsgren.config.yml --data
+data/deployments.csv` (its exit status kept as a step output), a commit of
+`data/` alone when it changed, pushed like the starter (an `::error` naming a
+branch that moved, never a rebase or a force), `forsgren render --config
+forsgren.config.yml`, then `actions/upload-pages-artifact` and
+`actions/deploy-pages` into the `github-pages` environment, and last a step
+that fails the job when collect failed. The job
 context, not the `github` context: in a called workflow the `github`
 context is the caller's. `setup-go` exports `GOTOOLCHAIN=local`, so
 `go install` builds with that Go and never switches to another. The commit
 and repository reach the shell through `env:`, never as `${{ }}` inside
 `run:`. The two checks are regexes inside the workflow, not a script under
 `Scripts/`: the job has no checkout of forsgren, and the only commit it
-could fetch one at is the one still unchecked, and the starter step's logic
-is the commit and the push, which only git can do. The **metrics workflow**
-pin below executes those very blocks, the starter step with a real git
-against a local remote.
+could fetch one at is the one still unchecked, and the starter and data
+steps' logic is the commit and the push, which only git can do. The
+**metrics workflow** pin below executes those very blocks, the starter and
+data steps with a real git against a local remote.
 Nothing in this repository runs the workflow, so no gate does; the pin and
 actionlint, zizmor, yamllint, checkout pins and workflow triggers, which read
 every workflow, are what check it.
@@ -932,8 +976,26 @@ Six PRE gates keep the CI honest:
   workflow command, under a token that differs per run; the same step,
   executed with the real `forsgren` built from the checkout, is refused for
   a missing and an invalid `forsgren.config.yml` and passes a valid one;
-  and install, checkout, config check and render come in that order. Each
-  pin is shown failing, with its own reason, on a mutant of the real file.
+  `workflow_call` declares the one secret `FORSGREN_TOKEN`, `required:
+  false`, and the only `${{ secrets… }}` in the file is the collect step's
+  `env:`; the collect step, executed with a stub and with the real
+  `forsgren`, runs exactly `forsgren collect --config forsgren.config.yml
+  --data data/deployments.csv`, records its exit status as the output
+  `status` and succeeds, keeps the token out of arguments, files, the log
+  and outputs, and with no token passes the starter and records a failure
+  naming `FORSGREN_TOKEN` for a configured repository; the data step,
+  executed with a real git against a local remote, commits nothing when
+  `data/` is unchanged (on a tag too), else one commit of `data/` alone as
+  `github-actions[bot]`, unsigned even under a hostile inherited git
+  environment, pushed to the run's branch with the token as pin 13 has it,
+  refused on a tag, and failing with an `::error` naming a branch that
+  moved, with no rebase and no force; the last step fails the job for any
+  collect status but 0, and collect failing after storing still commits and
+  pushes; the job's concurrency group is keyed on `github.repository` with
+  `cancel-in-progress: false`; and install, checkout, starter, config
+  check, collect, data commit and render come in that order, the fail step
+  after publishing. Each pin is shown failing, with its own reason, on a
+  mutant of the real file.
 - **quality-report render** (`Scripts/test_render_quality_report.sh`): the
   summary renderer (`Scripts/render_quality_report.sh`) keeps the declared
   order, exits 0 on a report it rendered, tells an empty or partial run from

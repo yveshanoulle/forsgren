@@ -7,10 +7,12 @@
 # writes the starter with forsgren init-config and commits that one file to
 # the branch the run is on (forsgren#12). Before it renders, it checks
 # the caller's forsgren.config.yml with forsgren check-config, so an invalid
-# configuration fails the job by name instead of publishing from it. Today
-# the page is the skeleton's placeholder, "Forsgren <version>", with a line
-# saying so while no projects are configured; collect and the history file
-# come later.
+# configuration fails the job by name instead of publishing from it. Then
+# forsgren collect reads the configured repositories' deployments into
+# data/deployments.csv with the caller's FORSGREN_TOKEN, and a changed data/
+# is committed to the run's branch (forsgren#12, step 6). Today the page is
+# the skeleton's placeholder, "Forsgren <version>", with a line saying so
+# while no projects are configured; it does not show the history yet.
 #
 # It runs only when called (workflow_call): never in forsgren's own
 # repository, never on a pull request. Its job runs in the CALLER's
@@ -27,7 +29,8 @@
 # and repository the line names, which GitHub hands a called workflow as
 # job.workflow_sha and job.workflow_repository. The caller grants the job's
 # permissions below (a called workflow can only keep or narrow the
-# permissions its caller's job grants, never widen them), and has GitHub
+# permissions its caller's job grants, never widen them), passes its
+# FORSGREN_TOKEN secret by name (secrets: FORSGREN_TOKEN: ...), and has GitHub
 # Pages set to build from GitHub Actions.
 #
 # Scripts/test_metrics_workflow.sh pins this file's shape in sfl and Quality:
@@ -40,30 +43,49 @@
 # the token in the environment and never in an argument, a file or the log)
 # and with the real forsgren, and the config check, executed there with a
 # stub and with the real forsgren, between install and render, its message
-# never run as a workflow command.
+# never run as a workflow command; and the optional FORSGREN_TOKEN secret,
+# in the collect step's env: and nowhere else, the collect, data and fail
+# steps executed there (a stub forsgren and the real one, a real git against
+# a local remote, a hostile inherited git environment, a branch that moved),
+# their order, and the concurrency group.
 name: Metrics
 
 on:
   workflow_call:
+    # ONE secret, and not required (forsgren#12, step 6). A new install's
+    # first runs carry the starter's zero projects, and forsgren collect
+    # needs no token for them: required: true would refuse those runs before
+    # any step, for a token nothing uses yet. Once forsgren.config.yml lists
+    # a repository, collect itself fails the run naming FORSGREN_TOKEN when
+    # the caller passed none (GitHub hands an unset secret over as empty).
+    # It reaches the collect step's env: only; see that step.
+    secrets:
+      FORSGREN_TOKEN:
+        description: A read-only GitHub token for the measured repositories (README, Collecting deployments); unused while no project is configured.
+        required: false
 
 # Nothing at the workflow level; the one job asks for what it uses.
 permissions: {}
 
 jobs:
   publish:
-    name: Render and publish
+    name: Collect, render and publish
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # checkout reads with it; the starter step pushes ONE commit, a new install's forsgren.config.yml, to the run's branch
+      contents: write   # checkout reads with it; the starter step pushes a new install's forsgren.config.yml and the data step pushes data/, each one commit to the run's branch
       pages: write      # deploy-pages publishes the site to the caller's GitHub Pages
       id-token: write   # deploy-pages proves to Pages, with an OIDC token, which run deploys
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
-    # One Pages deployment at a time per repository; a second run waits
-    # rather than cancelling one in flight, as GitHub's Pages starter does.
+    # One run at a time per installation, keyed on the CALLER's repository
+    # (github.* is the caller's in a called workflow): the daily cron and a
+    # run started by hand would otherwise both commit data/ and race on the
+    # push, and both deploy to Pages. A second run waits rather than
+    # cancelling one in flight, which could stop it between its commit and
+    # its push.
     concurrency:
-      group: pages
+      group: forsgren-metrics-${{ github.repository }}
       cancel-in-progress: false
 
     steps:
@@ -219,6 +241,86 @@ jobs:
             exit 1
           fi
 
+      # forsgren collect reads every configured repository's deployments
+      # from GitHub and appends the final ones to data/deployments.csv
+      # (README, Collecting deployments). It is the ONE step that gets the
+      # caller's FORSGREN_TOKEN, through env: (collect reads it from the
+      # environment only, never a flag); no other step, the job or the
+      # workflow has it. With no project configured collect needs no token
+      # and does nothing.
+      #
+      # A failing repository does not stop the job here. collect stores the
+      # others and exits 1; this step records that exit status as its output
+      # `status` and succeeds, so the data step still commits what the
+      # others stored and the page is still published, and the last step,
+      # "Fail the job when collect failed", then fails the job, so the owner
+      # sees the run red with collect's message in this step's log.
+      # Inline for the install step's reason; Scripts/test_metrics_workflow.sh
+      # executes this block with a stub forsgren and with the real one.
+      - name: Collect deployments
+        id: collect
+        shell: bash
+        env:
+          FORSGREN_TOKEN: ${{ secrets.FORSGREN_TOKEN }}
+        run: |
+          set -euo pipefail
+          status=0
+          forsgren collect --config forsgren.config.yml --data data/deployments.csv || status=$?
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+
+      # What collect stored is committed to the branch the run is on, as the
+      # starter is: only data/, only when it changed (a run with nothing new
+      # commits nothing, and then never looks at branches), as
+      # github-actions[bot] with its identity and GIT_CONFIG_COUNT=0 in the
+      # commit's own environment, pushed with the job's token as an
+      # Authorization header in git's environment for the push alone (see
+      # the starter step for why each). A change on a ref that is not a
+      # branch (a tag) fails by name.
+      #
+      # When the push is refused because the branch moved since this run's
+      # checkout (a push by someone else; two runs of this workflow queue on
+      # the job's concurrency group), the step fails with an ::error that
+      # says so. It neither rebases nor forces: the history is append-only
+      # and keyed, so the next run reads the same deployments again and
+      # commits them on top of what is there. Inline for the install step's
+      # reason; Scripts/test_metrics_workflow.sh executes this block with a
+      # real git against a local remote.
+      - name: Commit the collected deployments
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$(git status --porcelain -- data/)" ]]; then
+            echo "data/ unchanged: nothing to commit"
+            exit 0
+          fi
+          if [[ "$GITHUB_REF" != refs/heads/* ]]; then
+            echo "::error title=forsgren data::collect stored new deployments in data/, which can be committed only on a branch; run this workflow on one"
+            exit 1
+          fi
+          git add -- data/
+          GIT_CONFIG_COUNT=0 \
+          GIT_AUTHOR_NAME='github-actions[bot]' GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com' \
+          GIT_COMMITTER_NAME='github-actions[bot]' GIT_COMMITTER_EMAIL='41898282+github-actions[bot]@users.noreply.github.com' \
+            git commit --quiet -m 'forsgren: record deployments' -- data/
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL}/.extraheader"
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${auth}"
+          status=0
+          push_log="$(git push --quiet origin "HEAD:${GITHUB_REF}" 2>&1)" || status=$?
+          if [[ "$status" -eq 0 ]]; then
+            exit 0
+          fi
+          printf '%s\n' "$push_log"
+          if grep -qE '\[rejected\].*\((fetch first|non-fast-forward)\)' <<< "$push_log"; then
+            echo "::error title=forsgren data::${GITHUB_REF} moved since this run checked it out (another push); data/ is not pushed, rebased or forced: the next run collects it again"
+          else
+            echo "::error title=forsgren data::the push of data/ to ${GITHUB_REF} was refused; git's message is above"
+          fi
+          exit 1
+
       - name: Render the page
         shell: bash
         run: |
@@ -233,3 +335,19 @@ jobs:
       - name: Publish to GitHub Pages
         id: deploy
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346  # v5.0.1
+
+      # The job's last step: when collect failed, the job fails here, after
+      # what the other repositories stored is committed and the page is
+      # published, so the owner sees the run red. collect's exit status comes
+      # from the collect step's output through env:; a missing status (the
+      # collect step never wrote one) fails too.
+      - name: Fail the job when collect failed
+        shell: bash
+        env:
+          COLLECT_STATUS: ${{ steps.collect.outputs.status }}
+        run: |
+          set -euo pipefail
+          if [[ "$COLLECT_STATUS" != 0 ]]; then
+            echo "::error title=forsgren collect::forsgren collect exited ${COLLECT_STATUS:-without a status}; see the step 'Collect deployments'. What the others stored is published."
+            exit 1
+          fi
