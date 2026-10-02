@@ -14,8 +14,9 @@ func (f fileConfig) toConfig() (Config, error) {
 	if err := checkVersion(f.Version); err != nil {
 		return Config{}, err
 	}
-	if len(f.Projects) == 0 {
-		return Config{}, fmt.Errorf("%w: list at least one under the projects key", ErrNoProjects)
+	if f.Projects == nil {
+		return Config{}, fmt.Errorf("%w: list at least one under the projects key, or use projects: [] for none",
+			ErrNoProjects)
 	}
 	cfg := Config{Version: FormatVersion}
 	seen := names{projects: map[string]listedProject{}, repositories: map[string]string{}}

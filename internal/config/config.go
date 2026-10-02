@@ -15,6 +15,10 @@
 //	    repositories:
 //	      - name: acme/app                 # owner/name on GitHub
 //	        deployment: release            # optional, see Deployment
+//
+// An installation that measures nothing yet writes `projects: []`; a file
+// whose projects key is missing or has no value is refused, so a forgotten
+// list is never taken for an empty one (forsgren#12).
 package config
 
 import (
@@ -136,7 +140,8 @@ func parse(data []byte) (Config, error) {
 }
 
 // The file as written, before validation. Version is a pointer so a missing
-// version is told apart from `version: 0`.
+// version is told apart from `version: 0`; Projects is nil for a missing key
+// or a null value and empty but not nil for `projects: []`.
 type fileConfig struct {
 	Version  *int          `yaml:"version"`
 	Projects []fileProject `yaml:"projects"`

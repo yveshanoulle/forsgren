@@ -103,9 +103,13 @@ projects:
 - **`version: 1`** is required: it is the format's version. A file without
   it, or with any other version, is refused, so a forsgren never misreads a
   file written for another format.
-- **`projects`**: at least one. A project is a name and the repositories that
-  ship it (a product can be several repositories). Project names are
-  unique, ignoring case.
+- **`projects`** is required: a list of projects, or `projects: []` for an
+  installation that measures nothing yet (it is valid, and `check-config`
+  reports `projects: 0, repositories: 0`). A file whose `projects` key is
+  missing, or has no value (`projects:`, `projects: null`), is refused with
+  `no projects`, so a forgotten list is never taken for an empty one. A
+  project is a name and the repositories that ship it (a product can be
+  several repositories). Project names are unique, ignoring case.
 - **`repositories`**: at least one per project, each `owner/name`, and each
   listed once in the whole file (ignoring case, as GitHub does).
 - **`deployment`** says what counts as a deployment of that repository (#6):
