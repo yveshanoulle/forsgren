@@ -184,10 +184,19 @@ gofmt|Scripts/check_gofmt.sh|pre|
 #
 # Go lint and Go test duplication (forsgren#1, ladder step 20). Not canon
 # (the sites have no Go): MenoPower's Go gates, beside the other Go rows.
-# Each self-test is forsgren's (Go lint: no repo of the estate has one) or
-# MenoPower's adapted (test duplication), and runs before its gate.
+# Both run the golangci-lint pinned by go.mod's `tool` line (Yves's ruling:
+# Go tools through go.mod and go.sum, never Homebrew). Go lint runs it under
+# .golangci.yml, ported from MenoPower shared/ (its strictest module) without
+# shared/'s blanket gosec G101 exclusion (Yves's ruling). Go test duplication
+# is MenoPower's split: .golangci.yml leaves dupl on _test.go files to it.
+# The Go lint self-test is forsgren's own (no repo of the estate has one);
+# the test-duplication one is MenoPower's, adapted, with forsgren's cases and
+# a mutation proof. Repository source, so all four run in pre, each
+# self-test right before its gate.
 Go lint self-test|Scripts/test_check_go_lint.sh|pre|
+Go lint|Scripts/check_go_lint.sh|pre|
 Go test duplication self-test|Scripts/test_check_test_dupl.sh|pre|
+Go test duplication|Scripts/check_test_dupl.sh|pre|
 #
 # actionlint (forsgren#1, ladder step 18), at its canon position after the
 # gate-wiring row and before shellcheck (the non-canon Go rows above sit

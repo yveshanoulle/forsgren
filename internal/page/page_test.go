@@ -18,9 +18,9 @@ func TestPlaceholderMatchesGolden(t *testing.T) {
 	if err := Render(&got, "index.html", Placeholder()); err != nil {
 		t.Fatalf("Render: %v", err)
 	}
-	golden := filepath.Join("testdata", "index.golden.html")
+	const golden = "testdata/index.golden.html"
 	if *update {
-		if err := os.WriteFile(golden, got.Bytes(), 0o644); err != nil {
+		if err := os.WriteFile(golden, got.Bytes(), 0o600); err != nil {
 			t.Fatalf("update golden: %v", err)
 		}
 	}
@@ -72,7 +72,7 @@ func TestWriteSiteWritesOnePageAndStyles(t *testing.T) {
 
 func TestWriteSiteFailsWhenDirIsAFile(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "not-a-dir")
-	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
+	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if n, err := WriteSite(file, Placeholder()); err == nil {

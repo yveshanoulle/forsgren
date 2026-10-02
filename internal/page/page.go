@@ -78,7 +78,7 @@ func Render(w io.Writer, name string, data Data) error {
 // dir when needed. It returns how many pages it wrote; styles.css is not a
 // page and is not counted.
 func WriteSite(dir string, data Data) (int, error) {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return 0, err
 	}
 	if err := copyStyles(dir); err != nil {
@@ -101,7 +101,7 @@ func writePage(dir, name string, data Data) error {
 	if err := Render(&buf, name, data); err != nil {
 		return fmt.Errorf("render %s: %w", name, err)
 	}
-	return os.WriteFile(filepath.Join(dir, name), buf.Bytes(), 0o644)
+	return os.WriteFile(filepath.Join(dir, name), buf.Bytes(), 0o600)
 }
 
 func copyStyles(dir string) error {
@@ -109,5 +109,5 @@ func copyStyles(dir string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, "styles.css"), css, 0o644)
+	return os.WriteFile(filepath.Join(dir, "styles.css"), css, 0o600)
 }

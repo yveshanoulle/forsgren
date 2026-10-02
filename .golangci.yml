@@ -1,0 +1,92 @@
+# .golangci.yml — forsgren's Go lint config, read by Scripts/check_go_lint.sh.
+#
+# PORTED (forsgren#1, ladder step 20) from MenoPower's shared/.golangci.yml,
+# its strictest module: the same linters at the same thresholds, test code
+# gated by all of them. Config version "2", for the golangci-lint pinned by
+# the `tool` line in go.mod (v2.14.0 when ported). Run it as the gate does:
+#   ./Scripts/check_go_lint.sh
+# or directly: go tool golangci-lint run ./...
+#
+# Adapted from shared/:
+#   - goimports' local prefix is forsgren's module path.
+#   - run.relative-path-mode: gomod, so findings name paths from the linted
+#     module's root, also when the gate's self-test passes this config by an
+#     absolute path to a fixture module elsewhere.
+#   - NO gosec G101 exclusion. shared/ excludes G101 everywhere, with no
+#     stated reason; Yves's ruling on forsgren#1 (decision 4) is that
+#     forsgren does not carry it. Scripts/test_check_go_lint.sh is red when a
+#     hardcoded credential gets through, and proves by mutation that appending
+#     shared/'s exclusion would let it.
+#   - NOT the gosec G104 + G124 test-file exclusion. shared/ carries it, with
+#     zero findings of its own, only to stay in lockstep with MenoPower's api/
+#     and admin/, which forsgren does not have. No exclusion enters here
+#     without Yves's approved issue.
+#
+# Every finding is fixed in the code. Never add an exclusion, a //nolint or a
+# wider threshold without Yves's approved issue that says why.
+
+version: "2"
+
+run:
+  relative-path-mode: gomod
+
+issues:
+  # golangci-lint truncates by default: max-issues-per-linter 50 and
+  # max-same-issues 3. On 2026-08-16 that hid 73 of 86 test-file findings in
+  # MenoPower -- sfl reported `gosec: 5` for a module that actually had 37. A
+  # gate that hides its own findings cannot be trusted to say when work is
+  # done, so both caps are lifted here. Never reinstate them.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/yveshanoulle/forsgren
+
+linters:
+  default: none
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - gosec
+    - revive
+    - dupl
+    - funlen
+    - lll
+    - gocognit
+    - gocyclo
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+    dupl:
+      threshold: 80
+    funlen:
+      lines: 60
+      statements: 40
+    lll:
+      line-length: 120
+    gocognit:
+      # MenoPower's threshold (its API max, 9, plus one). Ratchet down, never
+      # widen.
+      min-complexity: 10
+    gocyclo:
+      # Reports a function whose cyclomatic complexity is ABOVE 6, test code
+      # included (MenoPower's iOS rule, < 6 + 1). Never widen.
+      min-complexity: 6
+  exclusions:
+    rules:
+      # dupl on test code is not judged here but by
+      # Scripts/check_test_dupl.sh, the same linter and rule pointed at
+      # _test.go files only (MenoPower's split, ported with it): enabling
+      # dupl on tests here too would gate them twice.
+      - path: _test\.go
+        linters:
+          - dupl

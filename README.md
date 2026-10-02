@@ -92,6 +92,28 @@ One PRE gate checks the page templates themselves:
   number. Red on a run that scanned zero `.html` files. jscpd is pinned like
   the linters below.
 
+Two PRE gates lint the Go code, beside `go test` and `gofmt`:
+
+- **Go lint** (`Scripts/check_go_lint.sh`, MenoPower's): golangci-lint
+  over the module under `.golangci.yml`, ported from MenoPower `shared/`,
+  its strictest module: govet, errcheck, staticcheck, gosec, revive, dupl
+  (80 tokens), funlen (60 lines, 40 statements), lll (120), gocognit (10)
+  and gocyclo (above 6 is red), plus the gofmt and goimports formatters,
+  test code included. No issue cap, so every finding is listed. Unlike
+  `shared/`, gosec's G101 (a hardcoded credential) is not excluded. A
+  finding is fixed in the code: an exclusion or `//nolint` needs Yves's
+  approved issue. Red on a module with no Go package, and when golangci-lint
+  could not run. Its self-test (`Scripts/test_check_go_lint.sh`) shows
+  complexity 7 red (in a test file too) and 6 green, a credential red under
+  G101, and, by mutation, that the threshold and the missing G101 exclusion
+  in `.golangci.yml` are what decide those cases.
+- **Go test duplication** (`Scripts/check_test_dupl.sh`, MenoPower's): the
+  same `dupl` rule pointed at `_test.go` files only, which `.golangci.yml`
+  leaves to it, so test code is judged once. Red on a module with no test
+  file.
+
+Both run the golangci-lint pinned in `go.mod` (see Installing and updating).
+
 Seven PRE gates read the repository's own scripts and files:
 
 - **actionlint** (`Scripts/check_actionlint.sh`, the estate's gate in
@@ -371,6 +393,21 @@ line.
 nothing else, then run `./FBP.sh`. Go downloads the new toolchain on the first
 run. Do not set the version anywhere else: `go.mod` is the only place it is
 written.
+
+**The Go tools are pinned in `go.mod` too.** golangci-lint is a `tool` line
+in `go.mod`, with every module it pulls in checksummed in `go.sum`, and the
+gates run it as `go tool golangci-lint` (Go builds it once and caches it), so
+CI and every machine run the same version. It is never a Homebrew tool:
+Homebrew has no lockfile. To move it to a new version:
+
+```
+go get -tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
+go mod tidy
+```
+
+then run `./FBP.sh` and commit `go.mod` and `go.sum` together. A new
+golangci-lint can bring new findings; they are fixed in the code like any
+other.
 
 **The npm linters are pinned in `package.json`.** Node itself (and with it
 `npm`) is a Homebrew tool from `Scripts/required_tools.txt`, so like Go it

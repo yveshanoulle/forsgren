@@ -44,7 +44,7 @@ func TestRenderWritesTheSite(t *testing.T) {
 
 func TestRenderFailureExitsOne(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "not-a-dir")
-	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
+	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	var stderr bytes.Buffer
