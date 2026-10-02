@@ -182,10 +182,25 @@ Go tests|Scripts/check_go_tests.sh|pre|
 gofmt self-test|Scripts/test_check_gofmt.sh|pre|
 gofmt|Scripts/check_gofmt.sh|pre|
 #
+# actionlint (forsgren#1, ladder step 18), at its canon position after the
+# gate-wiring row and before shellcheck (the non-canon Go rows above sit
+# where konenki puts its own extras). Valid YAML is not a valid workflow:
+# actionlint knows which contexts exist where, which keys a step takes, and
+# which runner labels exist. The gate is coachretreat-website's,
+# byte-identical (konenki-website's differs only in naming itself as the repo
+# that shipped the motivating bug, coachretreat's names konenki-website).
+# forsgren's two self-hosted labels, host-babacar and runner-forsgren, are
+# declared in .actionlint.yaml, as konenki-website declares its own. The
+# self-test is the estate's fixture (byte-identical in konenki, coachretreat
+# and agilelean) with forsgren's cases at its end: each asserts its reason,
+# a shellcheck finding in a run: block is red (so a missing shellcheck, which
+# actionlint skips silently, is red too), and a mutation proof shows the
+# labels are known only through .actionlint.yaml. Repository source, so both
+# run in pre, self-test first.
+actionlint self-test|Scripts/test_check_actionlint.sh|pre|
+#
 # Shellcheck and yamllint (forsgren#1, ladder step 12), at their canon
-# position after the gate-wiring row and before lint coverage (forsgren has
-# no actionlint rows yet, the canon rows between them; the non-canon Go rows
-# above sit where konenki puts its own extras). Both read
+# position after the actionlint rows and before lint coverage. Both read
 # repository source, so both run in pre.
 # The shellcheck gate and its self-test are web-infra's, the estate canon:
 # targets DERIVED from `git ls-files`, every *.sh plus every extension-less
