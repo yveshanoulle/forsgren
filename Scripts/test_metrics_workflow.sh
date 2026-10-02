@@ -107,8 +107,53 @@
 #      forsgren.config.yml`, so the page can say when no projects are
 #      configured, executed with the stub;
 #  16. the job grants itself `contents: write`, which the push needs;
-#  and pin 9 also orders the starter step: after the install and the checkout,
-#  before the config check.
+#  17. workflow_call declares ONE secret, FORSGREN_TOKEN, with required: false
+#      (forsgren#12, step 6): a new install's first runs, with the starter's
+#      zero projects, start before its owner made a token, and collect itself
+#      names a missing token once there are projects (pin 21); pin 2 lets
+#      secrets through and still refuses inputs;
+#  18. the token reaches the step "Collect deployments" and nothing else: its
+#      env: sets `FORSGREN_TOKEN: ${{ secrets.FORSGREN_TOKEN }}`, and that is
+#      the only ${{ }} expression in the file that reads secrets (no job or
+#      workflow env:, no other step);
+#  19. that step, EXECUTED here with a stub forsgren in the installation's
+#      checkout, runs exactly `forsgren collect --config forsgren.config.yml
+#      --data data/deployments.csv` with FORSGREN_TOKEN in its environment,
+#      exits 0 and records collect's exit status as the step output
+#      `status`: 0 when collect stored, 1 when it stored the others and then
+#      failed, its message still in the log;
+#  20. that token is in no argument of forsgren, no file of the checkout, not
+#      in the step's log and not in its outputs;
+#  21. the same step with the REAL forsgren: the starter configuration and no
+#      token record status=0 and write no data/; a configured repository and
+#      an empty token (a secret not made yet) record status=1 with collect's
+#      message naming FORSGREN_TOKEN;
+#  22. the step "Commit the collected deployments", EXECUTED with the real git
+#      against a local remote: data/ unchanged commits nothing and exits 0,
+#      also on a tag (a non-branch ref is refused only when there is
+#      something to commit); a changed data/ (a new history, an appended one)
+#      is ONE commit of data/ alone (another staged file and an untracked one
+#      stay out), authored and committed by github-actions[bot], "forsgren:
+#      record deployments", pushed to HEAD:${GITHUB_REF}; under a hostile
+#      inherited GIT_AUTHOR_*/GIT_COMMITTER_*/GIT_CONFIG_* environment it is
+#      still the bot's and unsigned; on a tag it refuses and pushes nothing;
+#  23. that push carries the job token as pin 13's does: an Authorization
+#      header in the environment, in no argument, file or log;
+#  24. when the branch moved since the checkout (another push), the data step
+#      fails with an ::error naming that cause, and neither rebases nor
+#      forces: the other commit stays the remote's tip;
+#  25. the step "Fail the job when collect failed" reads COLLECT_STATUS from
+#      ${{ steps.collect.outputs.status }} (the collect step has id: collect)
+#      and, EXECUTED, exits 0 for status 0 and 1 with an ::error for any other
+#      status or none; and the three steps in a row, collect failing after
+#      storing, commit and push the stored data/ and then fail the job;
+#  26. the job's concurrency group is keyed on ${{ github.repository }}, the
+#      caller's repository, with cancel-in-progress: false, so a scheduled
+#      run and a manual one queue instead of racing on the data/ push;
+#  and pin 9 also orders the steps: install, checkout, starter, config check,
+#  collect, data commit, render, and the fail step after "Publish to GitHub
+#  Pages", so what was stored is committed and published before the job
+#  fails.
 #
 # WHY THE SHELL IS INLINE, NOT A Scripts/ FILE (the estate rule puts CI
 # loop bodies in tested scripts). The job runs in the CALLER's repository
@@ -122,7 +167,9 @@
 # and its logic is the commit and the push, which only git can do: moving the
 # result into the forsgren binary would not remove one git line from the
 # YAML. Pins 12 to 14 execute its block with a real git and the real
-# forsgren, so it is tested where it lives, too.
+# forsgren, so it is tested where it lives, too. The collect, data and fail
+# steps (forsgren#12, step 6) stay inline for the same reason, and pins 19 to
+# 25 execute their blocks the same way.
 #
 # Read with awk and grep, not a YAML parser, as
 # Scripts/test_quality_trigger_scope.sh and Scripts/check_workflow_triggers.sh
@@ -133,7 +180,10 @@
 # indented deeper than its key.
 #
 # Self-proving: each pin is shown failing on a mutant of the real metrics.yml,
-# naming its own reason, so a broken matcher cannot pass in silence.
+# naming its own reason, so a broken matcher cannot pass in silence. The
+# mutants of pins 17 to 26 and their order cases are judged by the pin they
+# are aimed at alone (proves_by): judging each by every pin, which executes
+# real steps, would multiply this self-test's run time.
 #
 # Usage: Scripts/test_metrics_workflow.sh
 
@@ -175,6 +225,19 @@ SECRET="s3cretToken-acme-9f2"
 # The opening of a GitHub expression, in double quotes with the dollar
 # escaped, so no reader (shellcheck included) takes it for an expansion.
 EXPR_OPEN="\${{"
+# The collect, data and fail steps (forsgren#12, step 6).
+COLLECT_STEP="Collect deployments"
+DATA_STEP="Commit the collected deployments"
+FAIL_STEP="Fail the job when collect failed"
+PUBLISH_STEP="Publish to GitHub Pages"
+COLLECT_CMD="collect --config forsgren.config.yml --data data/deployments.csv"
+DATA_SUBJECT="forsgren: record deployments"
+# The one line that hands the installation's token to the collect step.
+TOKEN_ENV="FORSGREN_TOKEN: ${EXPR_OPEN} secrets.FORSGREN_TOKEN }}"
+# A made-up FORSGREN_TOKEN that no argument, file, log or output may show.
+COLLECT_SECRET="c0llectToken-acme-4d7"
+# What the data step's ::error says when the branch moved under it.
+MOVED="moved since this run checked it out"
 # v0.0.1's commit: a real one, so the case reads as what a run sees.
 SHA="1997c4ff09aecd32c30fbdd7eef72485f146e865"
 UPSTREAM="yveshanoulle/forsgren"
@@ -198,6 +261,30 @@ call_keys() {
     /^  workflow_call:/ { incall=1; next }
     incall && /^ {0,2}[^[:space:]#]/ { incall=0 }
     incall && /^    [A-Za-z_-]+:/ { s=$0; sub(/^    /, "", s); sub(/:.*$/, "", s); print s }
+  ' "$1"
+}
+
+# secret_names <file>: the secrets `on: workflow_call: secrets:` declares,
+# one per line.
+secret_names() {
+  awk '
+    /^  workflow_call:/ { incall=1; next }
+    incall && /^ {0,2}[^[:space:]#]/ { incall=0 }
+    incall && /^    secrets:/ { insec=1; next }
+    incall && /^    [^[:space:]#]/ { insec=0 }
+    incall && insec && /^      [A-Za-z_][A-Za-z0-9_]*:/ { s=$0; sub(/^ +/, "", s); sub(/:.*$/, "", s); print s }
+  ' "$1"
+}
+
+# secret_required <file>: the `required:` value of the declared secret
+# FORSGREN_TOKEN; nothing when it has none.
+secret_required() {
+  awk '
+    /^  workflow_call:/ { incall=1; next }
+    incall && /^ {0,2}[^[:space:]#]/ { incall=0 }
+    incall && /^      FORSGREN_TOKEN:[[:space:]]*$/ { intok=1; next }
+    intok && /^ {0,6}[^[:space:]#]/ { intok=0 }
+    intok && /^        required:/ { v=$0; sub(/^[^:]*:[[:space:]]*/, "", v); sub(/[[:space:]]*(#.*)?$/, "", v); print v }
   ' "$1"
 }
 
@@ -296,11 +383,32 @@ install_outcome() {
 
 # Stub forsgren: records its arguments, one call per line; init-config
 # writes a starter and says `created <path>` when STUB_INIT is created, else
-# says `kept <path>`; otherwise, with STUB_REFUSAL set, it says that on
-# stderr and exits 1, else it says OK.
+# says `kept <path>`; collect writes to FG_TOKEN_SEEN whether FORSGREN_TOKEN
+# is STUB_TOKEN (yes or no, never the token), and with STUB_COLLECT store
+# appends a line to data/deployments.csv, with store-fail does that and then
+# fails as collect does, with none (the default) stores nothing; otherwise,
+# with STUB_REFUSAL set, it says that on stderr and exits 1, else it says OK.
 cat > "${STUB}/forsgren" <<'STUBFORSGREN'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$FG_CALLS"
+if [[ "${1:-}" == collect ]]; then
+  if [[ -n "${FORSGREN_TOKEN:-}" && "${FORSGREN_TOKEN}" == "${STUB_TOKEN:-}" ]]; then
+    echo yes > "${FG_TOKEN_SEEN:-/dev/null}"
+  else
+    echo no > "${FG_TOKEN_SEEN:-/dev/null}"
+  fi
+  if [[ "${STUB_COLLECT:-none}" != none ]]; then
+    mkdir -p data
+    printf '# forsgren history v1\nacme stored\n' >> data/deployments.csv
+    echo "acme/app: 1 new, 0 skipped (not final)"
+  fi
+  if [[ "${STUB_COLLECT:-none}" == store-fail ]]; then
+    echo "collect: acme/web: check FORSGREN_TOKEN's access to acme/web" >&2
+    echo "collect: 1 of 2 repositories failed" >&2
+    exit 1
+  fi
+  exit 0
+fi
 if [[ "${1:-}" == init-config ]]; then
   if [[ "${STUB_INIT:-kept}" == created ]]; then
     printf 'version: 1\nprojects: []\n' > "$3"
@@ -415,9 +523,16 @@ iso_out() {
 
 # new_install: a made-up installation: a bare remote and a checkout of it,
 # both on the default branch ${TRUNK}, with one commit and no
-# forsgren.config.yml, as a new install's checkout is.
+# forsgren.config.yml, as a new install's checkout is. Built with git once,
+# then copied from that pristine pair: every pin and every mutant starts
+# from many fresh installations, and a copy costs no git process.
 new_install() {
   rm -rf "$ORIGIN" "$INSTALL"
+  if [[ -d "${TMP}/pristine" ]]; then
+    cp -R "${TMP}/pristine/origin.git" "$ORIGIN"
+    cp -R "${TMP}/pristine/install" "$INSTALL"
+    return 0
+  fi
   iso init --bare "$ORIGIN"
   iso -C "$ORIGIN" symbolic-ref HEAD "refs/heads/${TRUNK}"
   iso init "$INSTALL"
@@ -427,15 +542,18 @@ new_install() {
   iso -C "$INSTALL" -c user.name=Setup -c user.email=setup@example.com commit -m "Initial commit"
   iso -C "$INSTALL" remote add origin "$ORIGIN"
   iso -C "$INSTALL" push origin "$TRUNK"
+  mkdir -p "${TMP}/pristine"
+  cp -R "$ORIGIN" "$INSTALL" "${TMP}/pristine/"
 }
 
-# starter_outcome <script> <created|kept|real> <ref> <branch>: runs the
-# starter step in the installation's checkout, GITHUB_REF being <ref>, with
+# git_step_outcome <script> <created|kept|real> <ref> <branch> [hostile]:
+# runs a step that commits and pushes (the starter step, the data step) in
+# the installation's checkout, GITHUB_REF being <ref>, with
 # the stub forsgren saying created or kept, or with the real one, and the
 # token SECRET; as one line: exit=<rc> commits=<commits on the remote's
 # <branch>, 0 when it has none>. The
-# step's log is in ${TMP}/starter.log, forsgren's calls in ${TMP}/fg.calls.
-starter_outcome() {
+# step's log is in ${TMP}/step.log, forsgren's calls in ${TMP}/fg.calls.
+git_step_outcome() {
   local rc=0 commits path="${STUB}:${PATH}"
   [[ "$2" == real ]] && path="${REAL}:${path}"
   : > "${TMP}/fg.calls"
@@ -455,7 +573,7 @@ starter_outcome() {
       GITHUB_REF="$3" GITHUB_SERVER_URL="https://github.com" \
       GIT_ARGV_LOG="$GIT_ARGV_LOG" GIT_ENV_LOG="$GIT_ENV_LOG" REAL_GIT="$REAL_GIT" \
       GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 bash "$1"
-  ) > "${TMP}/starter.log" 2>&1 || rc=$?
+  ) > "${TMP}/step.log" 2>&1 || rc=$?
   commits="$(iso_out -C "$ORIGIN" rev-list --count "$4" || echo 0)"
   echo "exit=${rc} commits=${commits}"
 }
@@ -472,10 +590,10 @@ judge_starter_step() {
     return 0
   fi
   new_install
-  got="$(starter_outcome "$script" kept "$ref" "$TRUNK")"
+  got="$(git_step_outcome "$script" kept "$ref" "$TRUNK")"
   want="exit=0 commits=1"
   [[ "$got" == "$want" ]] || echo "for a kept forsgren.config.yml the starter step gives '${got}', not '${want}' — an existing file is never committed or pushed"
-  got="$(starter_outcome "$script" kept "" "$TRUNK")"
+  got="$(git_step_outcome "$script" kept "" "$TRUNK")"
   [[ "$got" == "$want" ]] || echo "for a kept forsgren.config.yml with no branch ref at all the starter step gives '${got}', not '${want}' — a kept file exits 0 before any branch logic, or every daily run would fail"
   calls="$(paste -sd, - < "${TMP}/fg.calls")"
   [[ "$calls" == "$INIT_CMD" ]] || echo "the starter step runs 'forsgren ${calls}', not 'forsgren ${INIT_CMD}'"
@@ -483,7 +601,7 @@ judge_starter_step() {
   printf 'untracked\n' > "${INSTALL}/other.txt"
   printf 'staged\n' > "${INSTALL}/staged.txt"
   iso -C "$INSTALL" add staged.txt
-  got="$(starter_outcome "$script" created "$ref" "$TRUNK")"
+  got="$(git_step_outcome "$script" created "$ref" "$TRUNK")"
   want="exit=0 commits=2"
   if [[ "$got" != "$want" ]]; then
     echo "for a created forsgren.config.yml on its branch the starter step gives '${got}', not '${want}' — the starter is committed and pushed there"
@@ -498,7 +616,7 @@ judge_starter_step() {
     [[ "$files" == "forsgren.config.yml" ]] || echo "the starter commit holds [${files}], not forsgren.config.yml alone — one file only, never the rest of the checkout"
   fi
   new_install
-  got="$(starter_outcome "$script" created "$ref" "$TRUNK" hostile)"
+  got="$(git_step_outcome "$script" created "$ref" "$TRUNK" hostile)"
   want="exit=0 commits=2"
   if [[ "$got" != "$want" ]]; then
     echo "with an outer identity and a signing config inherited from the environment the starter step gives '${got}', not '${want}' — git's environment outranks git -c, so the commit must set its own identity and config in the environment"
@@ -513,13 +631,13 @@ judge_starter_step() {
   fi
   new_install
   iso -C "$INSTALL" checkout -b feature
-  got="$(starter_outcome "$script" created "refs/heads/feature" feature)"
+  got="$(git_step_outcome "$script" created "refs/heads/feature" feature)"
   want="exit=0 commits=2"
   [[ "$got" == "$want" ]] || echo "for a created forsgren.config.yml on a manual run on feature the starter step gives '${got}', not '${want}' — the starter goes to the branch the run is on"
   got="$(iso_out -C "$ORIGIN" rev-list --count "$TRUNK")"
   [[ "$got" == 1 ]] || echo "a run on feature moved ${TRUNK} to ${got} commits — it must push to the run's own branch only"
   new_install
-  got="$(starter_outcome "$script" created "refs/tags/v1" "$TRUNK")"
+  got="$(git_step_outcome "$script" created "refs/tags/v1" "$TRUNK")"
   want="exit=1 commits=1"
   [[ "$got" == "$want" ]] || echo "for a ref that is not a branch (refs/tags/v1) the starter step gives '${got}', not '${want}' — it must refuse, there is no branch to commit to"
 }
@@ -527,25 +645,34 @@ judge_starter_step() {
 # judge_starter_token <workflow-file>: pin 13, the push carries the token and
 # never stores or shows it.
 judge_starter_token() {
-  local script="${TMP}/starter.sh" b64 got want
+  local script="${TMP}/starter.sh"
   step_block "$1" "$INIT_STEP" run > "$script"
   [[ -s "$script" ]] || return 0
-  b64="$(printf 'x-access-token:%s' "$SECRET" | base64 | tr -d '\n')"
   new_install
-  starter_outcome "$script" created "refs/heads/${TRUNK}" "$TRUNK" > /dev/null
+  git_step_outcome "$script" created "refs/heads/${TRUNK}" "$TRUNK" > /dev/null
+  push_token_findings "the starter step"
+}
+
+# push_token_findings <step label>: after a git_step_outcome that pushed,
+# one line per place the job token SECRET showed up (a git argument, a file
+# of the checkout, the step's log), and when the push did not carry it as
+# an Authorization header in git's environment.
+push_token_findings() {
+  local b64 got want
+  b64="$(printf 'x-access-token:%s' "$SECRET" | base64 | tr -d '\n')"
   if grep -qF -- "$SECRET" "$GIT_ARGV_LOG" || grep -qF -- "$b64" "$GIT_ARGV_LOG"; then
-    echo "the starter step hands the token to git in an argument — ps shows arguments and git's messages quote them; it goes through the environment only"
+    echo "$1 hands the token to git in an argument — ps shows arguments and git's messages quote them; it goes through the environment only"
   fi
   if grep -rqF -- "$SECRET" "$INSTALL" || grep -rqF -- "$b64" "$INSTALL"; then
-    echo "the starter step leaves the token on disk in the checkout — with persist-credentials: false nothing may keep it"
+    echo "$1 leaves the token on disk in the checkout — with persist-credentials: false nothing may keep it"
   fi
-  if grep -qF -- "$SECRET" "${TMP}/starter.log" || grep -qF -- "$b64" "${TMP}/starter.log"; then
-    echo "the starter step shows the token in its log"
+  if grep -qF -- "$SECRET" "${TMP}/step.log" || grep -qF -- "$b64" "${TMP}/step.log"; then
+    echo "$1 shows the token in its log"
   fi
   want="http.https://github.com/.extraheader=AUTHORIZATION: basic ${b64}"
   got="$(awk -F'\t' '$1 ~ /^git push / { print $2 }' "$GIT_ENV_LOG")"
   if [[ "$got" != "$want" ]]; then
-    echo "the starter step's push carries '${got:-nothing}' in the environment, not '${want}' — without it the push has no credential"
+    echo "$1's push carries '${got:-nothing}' in the environment, not '${want}' — without it the push has no credential"
   fi
 }
 
@@ -558,7 +685,7 @@ judge_starter_e2e() {
   step_block "$1" "$CHECK_STEP" run > "$check"
   [[ -s "$script" && -s "$check" ]] || return 0
   new_install
-  got="$(starter_outcome "$script" real "$ref" "$TRUNK")"
+  got="$(git_step_outcome "$script" real "$ref" "$TRUNK")"
   want="exit=0 commits=2"
   [[ "$got" == "$want" ]] || echo "with the real forsgren a new install's starter step gives '${got}', not '${want}'"
   got="$(iso_out -C "$ORIGIN" show "${TRUNK}:forsgren.config.yml")"
@@ -567,7 +694,7 @@ judge_starter_e2e() {
   if [[ "$rc" -ne 0 ]] || ! grep -qF -- "projects: 0, repositories: 0" "${TMP}/real.log"; then
     echo "with the real forsgren a new install's config check after the starter step exits ${rc} and logs '$(paste -sd'|' - < "${TMP}/real.log")' — it must pass on the starter, with projects: 0"
   fi
-  got="$(starter_outcome "$script" real "$ref" "$TRUNK")"
+  got="$(git_step_outcome "$script" real "$ref" "$TRUNK")"
   [[ "$got" == "$want" ]] || echo "with the real forsgren the next run's starter step gives '${got}', not '${want}' — an existing starter is kept, no second commit"
 }
 
@@ -592,6 +719,305 @@ judge_render_config() {
 judge_permissions() {
   if ! grep -qE '^      contents:[[:space:]]+write([[:space:]]|$)' "$1"; then
     echo "the job does not grant itself 'contents: write' — the starter commit cannot be pushed to the caller's repository's branch the run is on"
+  fi
+}
+
+# judge_secret <workflow-file>: pin 17, the one declared secret, not required.
+judge_secret() {
+  local names required
+  names="$(secret_names "$1" | paste -sd, -)"
+  if [[ "$names" != FORSGREN_TOKEN ]]; then
+    echo "workflow_call declares the secrets [${names}], not FORSGREN_TOKEN alone — the one token collect reads"
+  fi
+  required="$(secret_required "$1")"
+  if [[ "$required" != false ]]; then
+    echo "FORSGREN_TOKEN is declared required: ${required:-unset}, not required: false — a new install (no projects yet) must run before its owner made a token, and collect names a missing one itself"
+  fi
+}
+
+# collect_outcome <script> <none|store|store-fail|real> <token>: runs the
+# collect step in the installation's checkout, FORSGREN_TOKEN being <token>
+# as the step's env: hands it, with the stub forsgren storing nothing,
+# storing, or storing and then failing, or with the real one; as one line:
+# exit=<rc> output=<its GITHUB_OUTPUT lines, comma-joined>. Its log in
+# ${TMP}/collect.log, its outputs in ${TMP}/collect.out, forsgren's calls in
+# ${TMP}/fg.calls, whether the stub got the token in ${TMP}/fg.token.
+collect_outcome() {
+  local rc=0 path="${STUB}:${PATH}"
+  [[ "$2" == real ]] && path="${REAL}:${path}"
+  : > "${TMP}/fg.calls"
+  : > "${TMP}/fg.token"
+  : > "${TMP}/collect.out"
+  (
+    cd "$INSTALL"
+    PATH="$path" FG_CALLS="${TMP}/fg.calls" FG_TOKEN_SEEN="${TMP}/fg.token" \
+      STUB_COLLECT="$2" STUB_TOKEN="$3" FORSGREN_TOKEN="$3" \
+      GITHUB_OUTPUT="${TMP}/collect.out" bash "$1"
+  ) > "${TMP}/collect.log" 2>&1 || rc=$?
+  echo "exit=${rc} output=$(paste -sd, - < "${TMP}/collect.out")"
+}
+
+# judge_collect_step <workflow-file>: pin 19, the executed collect step.
+judge_collect_step() {
+  local script="${TMP}/collect.sh" got want calls
+  step_block "$1" "$COLLECT_STEP" run > "$script"
+  if [[ ! -s "$script" ]]; then
+    echo "has no step '${COLLECT_STEP}' with a run: | block — no deployment is ever collected into data/"
+    return 0
+  fi
+  new_install
+  got="$(collect_outcome "$script" store "$COLLECT_SECRET")"
+  want="exit=0 output=status=0"
+  [[ "$got" == "$want" ]] || echo "for a collect that stores the collect step gives '${got}', not '${want}'"
+  calls="$(paste -sd, - < "${TMP}/fg.calls")"
+  [[ "$calls" == "$COLLECT_CMD" ]] || echo "the collect step runs 'forsgren ${calls}', not 'forsgren ${COLLECT_CMD}'"
+  if [[ "$(cat "${TMP}/fg.token")" != yes ]]; then
+    echo "the collect step does not hand collect FORSGREN_TOKEN in its environment — collect cannot read GitHub"
+  fi
+  new_install
+  got="$(collect_outcome "$script" store-fail "$COLLECT_SECRET")"
+  want="exit=0 output=status=1"
+  [[ "$got" == "$want" ]] || echo "for a collect that fails after storing the collect step gives '${got}', not '${want}' — it records collect's exit status and lets the job commit and publish what the other repositories stored"
+  if ! grep -qF -- "collect: 1 of 2 repositories failed" "${TMP}/collect.log"; then
+    echo "for a collect that fails the collect step does not show collect's message in its log"
+  fi
+}
+
+# judge_collect_token <workflow-file>: pins 18 and 20, FORSGREN_TOKEN reaches
+# the collect step's env: only, and never an argument, a file, the log or an
+# output.
+judge_collect_token() {
+  local script="${TMP}/collect.sh" env lines
+  env="$(step_block "$1" "$COLLECT_STEP" env)"
+  if ! grep -qxF -- "$TOKEN_ENV" <<< "$env"; then
+    echo "the collect step's env: does not set ${TOKEN_ENV} — collect has no token"
+  fi
+  lines="$(grep -nF -- "$EXPR_OPEN" "$1" | grep -E '^[0-9]+:[^#]*secrets' | cut -d: -f1 | paste -sd, - || true)"
+  if [[ "$lines" == *,* ]]; then
+    echo "hands a secret to more than the collect step's env: (lines ${lines}) — FORSGREN_TOKEN reaches the one step that needs it, never another step or the job"
+  fi
+  step_block "$1" "$COLLECT_STEP" run > "$script"
+  [[ -s "$script" ]] || return 0
+  new_install
+  collect_outcome "$script" store-fail "$COLLECT_SECRET" > /dev/null
+  if grep -qF -- "$COLLECT_SECRET" "${TMP}/fg.calls"; then
+    echo "the collect step hands FORSGREN_TOKEN to forsgren in an argument — ps shows arguments; collect reads it from the environment only"
+  fi
+  if grep -rqF -- "$COLLECT_SECRET" "$INSTALL"; then
+    echo "the collect step leaves FORSGREN_TOKEN in a file of the checkout — the data step commits what is there"
+  fi
+  if grep -qF -- "$COLLECT_SECRET" "${TMP}/collect.log"; then
+    echo "the collect step shows FORSGREN_TOKEN in its log"
+  fi
+  if grep -qF -- "$COLLECT_SECRET" "${TMP}/collect.out"; then
+    echo "the collect step writes FORSGREN_TOKEN to a step output"
+  fi
+}
+
+# judge_collect_e2e <workflow-file>: pin 21, the collect step with the real
+# forsgren, with no token: fine with no projects, named with one.
+judge_collect_e2e() {
+  local script="${TMP}/collect-e2e.sh" got want
+  step_block "$1" "$COLLECT_STEP" run > "$script"
+  [[ -s "$script" ]] || return 0
+  new_install
+  cp internal/config/starter.yml "${INSTALL}/forsgren.config.yml"
+  got="$(collect_outcome "$script" real "")"
+  want="exit=0 output=status=0"
+  if [[ "$got" != "$want" ]]; then
+    echo "with the real forsgren, the starter configuration (no projects) and no FORSGREN_TOKEN the collect step gives '${got}', not '${want}' — a new install runs before its owner made a token"
+  fi
+  if [[ -e "${INSTALL}/data" ]]; then
+    echo "with the real forsgren and no projects the collect step creates data/ — nothing was collected"
+  fi
+  new_install
+  printf '%s' "$VALID_CONFIG" > "${INSTALL}/forsgren.config.yml"
+  got="$(collect_outcome "$script" real "")"
+  want="exit=0 output=status=1"
+  if [[ "$got" != "$want" ]] || ! grep -qF -- "FORSGREN_TOKEN is not set" "${TMP}/collect.log"; then
+    echo "with the real forsgren, a configured repository and no FORSGREN_TOKEN the collect step gives '${got}' and logs '$(paste -sd'|' - < "${TMP}/collect.log")' — it must record status=1 with collect's message naming FORSGREN_TOKEN"
+  fi
+}
+
+# store_data: what collect leaves in the installation's checkout, a new
+# data/deployments.csv, beside an untracked and a staged file that are not
+# collect's.
+store_data() {
+  mkdir -p "${INSTALL}/data"
+  printf '# forsgren history v1\nacme stored\n' > "${INSTALL}/data/deployments.csv"
+  printf 'untracked\n' > "${INSTALL}/other.txt"
+  printf 'staged\n' > "${INSTALL}/staged.txt"
+  iso -C "$INSTALL" add staged.txt
+}
+
+# bot_findings <what> <commit label> <branch>: the problem, if any, with the
+# remote <branch>'s last commit: its author and committer must be
+# github-actions[bot], and it must be unsigned.
+bot_findings() {
+  local who
+  who="$(iso_out -C "$ORIGIN" log -1 --format='%an <%ae>' "$3")"
+  [[ "$who" == "$BOT_IDENTITY" ]] || echo "$1 the $2's author is '${who}', not '${BOT_IDENTITY}'"
+  who="$(iso_out -C "$ORIGIN" log -1 --format='%cn <%ce>' "$3")"
+  [[ "$who" == "$BOT_IDENTITY" ]] || echo "$1 the $2's committer is '${who}', not '${BOT_IDENTITY}'"
+  if iso_out -C "$ORIGIN" cat-file commit "$3" | grep -q '^gpgsig'; then
+    echo "$1 the $2 is signed — it must be unsigned"
+  fi
+}
+
+# judge_data_step <workflow-file>: pin 22, the executed data step.
+judge_data_step() {
+  local script="${TMP}/data.sh" ref="refs/heads/${TRUNK}" got want files
+  step_block "$1" "$DATA_STEP" run > "$script"
+  if [[ ! -s "$script" ]]; then
+    echo "has no step '${DATA_STEP}' with a run: | block — what collect stores in data/ is never committed"
+    return 0
+  fi
+  new_install
+  got="$(git_step_outcome "$script" kept "$ref" "$TRUNK")"
+  want="exit=0 commits=1"
+  [[ "$got" == "$want" ]] || echo "with data/ unchanged the data step gives '${got}', not '${want}' — nothing to commit, nothing pushed"
+  got="$(git_step_outcome "$script" kept refs/tags/v1 "$TRUNK")"
+  [[ "$got" == "$want" ]] || echo "with data/ unchanged on a tag the data step gives '${got}', not '${want}' — a ref that is not a branch is refused only when there is something to commit"
+  new_install
+  store_data
+  got="$(git_step_outcome "$script" kept "$ref" "$TRUNK")"
+  want="exit=0 commits=2"
+  if [[ "$got" != "$want" ]]; then
+    echo "for changed data/ on its branch the data step gives '${got}', not '${want}' — one commit of data/, pushed there"
+  else
+    bot_findings "for changed data/" "data commit" "$TRUNK"
+    got="$(iso_out -C "$ORIGIN" log -1 --format='%B' "$TRUNK")"
+    [[ "$got" == "$DATA_SUBJECT" ]] || echo "the data commit's message is '${got}', not '${DATA_SUBJECT}'"
+    files="$(iso_out -C "$ORIGIN" diff-tree --no-commit-id --name-only -r "$TRUNK" | paste -sd, -)"
+    [[ "$files" == "data/deployments.csv" ]] || echo "the data commit holds [${files}], not data/ alone — what collect stored, never the rest of the checkout"
+  fi
+  new_install
+  mkdir -p "${INSTALL}/data"
+  printf '# forsgren history v1\nacme old\n' > "${INSTALL}/data/deployments.csv"
+  iso -C "$INSTALL" add data/deployments.csv
+  iso -C "$INSTALL" -c user.name=Setup -c user.email=setup@example.com commit -m "An earlier history"
+  iso -C "$INSTALL" push origin "$TRUNK"
+  printf 'acme new\n' >> "${INSTALL}/data/deployments.csv"
+  got="$(git_step_outcome "$script" kept "$ref" "$TRUNK")"
+  want="exit=0 commits=3"
+  [[ "$got" == "$want" ]] || echo "for an appended data/deployments.csv the data step gives '${got}', not '${want}' — the daily run's change is committed and pushed too"
+  new_install
+  store_data
+  got="$(git_step_outcome "$script" kept "$ref" "$TRUNK" hostile)"
+  want="exit=0 commits=2"
+  if [[ "$got" != "$want" ]]; then
+    echo "with an outer identity and a signing config inherited from the environment the data step gives '${got}', not '${want}' — the commit sets its own identity and config in its environment"
+  else
+    bot_findings "with an inherited outer identity" "data commit" "$TRUNK"
+  fi
+  new_install
+  store_data
+  got="$(git_step_outcome "$script" kept refs/tags/v1 "$TRUNK")"
+  want="exit=1 commits=1"
+  [[ "$got" == "$want" ]] || echo "for changed data/ on a ref that is not a branch (refs/tags/v1) the data step gives '${got}', not '${want}' — it must refuse, there is no branch to commit to"
+}
+
+# judge_data_token <workflow-file>: pin 23, the data push carries the job
+# token and never stores or shows it.
+judge_data_token() {
+  local script="${TMP}/data.sh"
+  step_block "$1" "$DATA_STEP" run > "$script"
+  [[ -s "$script" ]] || return 0
+  new_install
+  store_data
+  git_step_outcome "$script" kept "refs/heads/${TRUNK}" "$TRUNK" > /dev/null
+  push_token_findings "the data step"
+}
+
+# judge_data_moved <workflow-file>: pin 24, a branch that moved since the
+# checkout fails the data step by name, with no rebase and no force.
+judge_data_moved() {
+  local script="${TMP}/data.sh" other="${TMP}/other" got want tip
+  step_block "$1" "$DATA_STEP" run > "$script"
+  [[ -s "$script" ]] || return 0
+  new_install
+  rm -rf "$other"
+  iso clone "$ORIGIN" "$other"
+  printf 'other\n' > "${other}/OTHER.md"
+  iso -C "$other" add OTHER.md
+  iso -C "$other" -c user.name=Other -c user.email=other@example.com commit -m "Another push"
+  iso -C "$other" push origin "$TRUNK"
+  tip="$(iso_out -C "$ORIGIN" rev-parse "$TRUNK")"
+  store_data
+  got="$(git_step_outcome "$script" kept "refs/heads/${TRUNK}" "$TRUNK")"
+  want="exit=1 commits=2"
+  [[ "$got" == "$want" ]] || echo "with the branch moved since the checkout the data step gives '${got}', not '${want}' — it must fail, never rebase or force"
+  if [[ "$(iso_out -C "$ORIGIN" rev-parse "$TRUNK")" != "$tip" ]]; then
+    echo "with the branch moved since the checkout the data step replaced the commit another pushed — it must never force"
+  fi
+  if ! grep -E '^::error' "${TMP}/step.log" | grep -qF -- "$MOVED"; then
+    echo "with the branch moved since the checkout the data step does not name the cause in an ::error saying '${MOVED}' (log: $(paste -sd'|' - < "${TMP}/step.log"))"
+  fi
+}
+
+# fail_outcome <script> <status>: the fail step with COLLECT_STATUS being
+# <status>, as one line: exit=<rc> error=<yes|no>, yes when it logged an
+# ::error.
+fail_outcome() {
+  local rc=0 error=no
+  COLLECT_STATUS="$2" bash "$1" > "${TMP}/fail.log" 2>&1 || rc=$?
+  if grep -q '^::error' "${TMP}/fail.log"; then error=yes; fi
+  echo "exit=${rc} error=${error}"
+}
+
+# judge_fail_step <workflow-file>: pin 25, the job fails at its end when
+# collect failed, and the three steps in a row.
+judge_fail_step() {
+  local script="${TMP}/fail.sh" collect="${TMP}/collect.sh" data="${TMP}/data.sh" env got want v status rc=0
+  step_block "$1" "$FAIL_STEP" run > "$script"
+  if [[ ! -s "$script" ]]; then
+    echo "has no step '${FAIL_STEP}' with a run: | block — a failed collect would leave the job green"
+    return 0
+  fi
+  env="$(step_block "$1" "$FAIL_STEP" env)"
+  if ! grep -qxF -- "COLLECT_STATUS: ${EXPR_OPEN} steps.collect.outputs.status }}" <<< "$env"; then
+    echo "the fail step's COLLECT_STATUS is not ${EXPR_OPEN} steps.collect.outputs.status }} — it cannot know collect's exit status"
+  fi
+  if ! step_text "$1" "$COLLECT_STEP" | grep -qx '        id: collect'; then
+    echo "the collect step has no id: collect — steps.collect.outputs.status would be empty"
+  fi
+  for v in 0 1 2 ''; do
+    got="$(fail_outcome "$script" "$v")"
+    want="exit=1 error=yes"
+    [[ "$v" == 0 ]] && want="exit=0 error=no"
+    [[ "$got" == "$want" ]] || echo "with COLLECT_STATUS=${v} the fail step gives '${got}', not '${want}'"
+  done
+  step_block "$1" "$COLLECT_STEP" run > "$collect"
+  step_block "$1" "$DATA_STEP" run > "$data"
+  [[ -s "$collect" && -s "$data" ]] || return 0
+  new_install
+  collect_outcome "$collect" store-fail "$COLLECT_SECRET" > /dev/null
+  status="$(sed -n 's/^status=//p' "${TMP}/collect.out" | head -1)"
+  got="$(git_step_outcome "$data" kept "refs/heads/${TRUNK}" "$TRUNK")"
+  COLLECT_STATUS="$status" bash "$script" > "${TMP}/fail.log" 2>&1 || rc=$?
+  got="${got} fail-step=${rc}"
+  want="exit=0 commits=2 fail-step=1"
+  [[ "$got" == "$want" ]] || echo "when collect fails after storing, the data and fail steps give '${got}', not '${want}' — what the others stored is committed and pushed, then the job fails at its end"
+}
+
+# judge_concurrency <workflow-file>: pin 26, runs of one installation queue.
+judge_concurrency() {
+  local block group
+  block="$(awk '
+    /^    concurrency:[[:space:]]*$/ { inc=1; next }
+    inc && $0 !~ /^      / && $0 !~ /^[[:space:]]*$/ { inc=0 }
+    inc { print }
+  ' "$1")"
+  if [[ -z "$block" ]]; then
+    echo "the job has no concurrency: block — a scheduled run and a manual one would race on the data/ push"
+    return 0
+  fi
+  group="$(sed -n 's/^      group:[[:space:]]*//p' <<< "$block")"
+  if [[ "$group" != *"${EXPR_OPEN} github.repository }}"* ]]; then
+    echo "the job's concurrency group is '${group}', not keyed on ${EXPR_OPEN} github.repository }}, the caller's repository"
+  fi
+  if ! grep -qxE '      cancel-in-progress:[[:space:]]*false[[:space:]]*' <<< "$block"; then
+    echo "the job's concurrency does not set cancel-in-progress: false — a second run would cancel one mid-push"
   fi
 }
 
@@ -683,12 +1109,28 @@ judge_config_e2e() {
 
 # judge_order <workflow-file>: pin 9.
 judge_order() {
-  local install checkout init check render
+  local install checkout init check render collect data publish failstep
   install="$(line_of "$1" "- name: ${INSTALL_STEP}")"
   checkout="$(line_of "$1" "- name: ${CHECKOUT_STEP}")"
   init="$(line_of "$1" "- name: ${INIT_STEP}")"
   check="$(line_of "$1" "- name: ${CHECK_STEP}")"
   render="$(line_of "$1" "- name: ${RENDER_STEP}")"
+  collect="$(line_of "$1" "- name: ${COLLECT_STEP}")"
+  data="$(line_of "$1" "- name: ${DATA_STEP}")"
+  publish="$(line_of "$1" "- name: ${PUBLISH_STEP}")"
+  failstep="$(line_of "$1" "- name: ${FAIL_STEP}")"
+  if later "$check" "$collect"; then
+    echo "collects (line ${collect}) before the config check (line ${check}) — collect would read a configuration nobody checked"
+  fi
+  if later "$collect" "$data"; then
+    echo "commits data/ (line ${data}) before collect (line ${collect}) — there is nothing to commit yet"
+  fi
+  if later "$data" "$render"; then
+    echo "commits data/ (line ${data}) after it renders (line ${render}) — a failed render or publish would drop what collect stored"
+  fi
+  if later "$publish" "$failstep"; then
+    echo "fails the job for collect (line ${failstep}) before it publishes (line ${publish}) — what the other repositories stored must be published first"
+  fi
   if later "$init" "$check"; then
     echo "writes the starter (line ${init}) after the config check (line ${check}) — a new install would fail the check before it has a file"
   fi
@@ -717,7 +1159,7 @@ judge_trigger() {
   if [[ "$events" != "workflow_call" ]]; then
     echo "triggers on [$(printf '%s' "$events" | paste -sd, -)], not on workflow_call alone — forsgren's own repository must never run it, and no pull request may"
   fi
-  keys="$(call_keys "$1")"
+  keys="$(call_keys "$1" | grep -vx secrets || true)"
   if [[ -n "$keys" ]]; then
     echo "workflow_call declares [$(printf '%s' "$keys" | paste -sd, -)] — the caller's uses: line is the only version source, so it takes no input"
   fi
@@ -809,6 +1251,15 @@ judge() {
   judge_config_commands "$1"
   judge_config_e2e "$1"
   judge_render_config "$1"
+  judge_secret "$1"
+  judge_collect_step "$1"
+  judge_collect_token "$1"
+  judge_collect_e2e "$1"
+  judge_data_step "$1"
+  judge_data_token "$1"
+  judge_data_moved "$1"
+  judge_fail_step "$1"
+  judge_concurrency "$1"
   judge_order "$1"
 }
 
@@ -822,14 +1273,16 @@ if [[ -n "$verdict" ]]; then
     [[ -n "$line" ]] && fail "${WF} ${line}"
   done <<< "$verdict"
 else
-  echo "  ok: ${WF} is a workflow_call with no inputs that installs forsgren from its own job.workflow_repository at its own job.workflow_sha, both checked before go install, through env: only, built with go.mod's Go, after the caller's pinned checkout, a starter step that commits a new install's one file with a token that is never stored or shown, a contents: write job, and a config check that fails the job with check-config's message before render, with the real forsgren too, and never runs that message as a workflow command"
+  echo "  ok: ${WF} is a workflow_call with no inputs that installs forsgren from its own job.workflow_repository at its own job.workflow_sha, both checked before go install, through env: only, built with go.mod's Go, after the caller's pinned checkout, a starter step that commits a new install's one file with a token that is never stored or shown, a contents: write job, a config check that fails the job with check-config's message before render, with the real forsgren too, and never runs that message as a workflow command, a collect step that alone gets FORSGREN_TOKEN (an optional secret) and records collect's status, a data step that commits and pushes data/ alone as github-actions[bot] and fails by name when the branch moved, a fail step after publishing, and one run at a time per caller repository"
 fi
 
 # --- Self-proof: each pin, on a mutant of the real metrics.yml, names its reason.
-# judged <case> <reason> <mutant>: the judge names <reason> for the mutant.
+# judged <case> <reason> <mutant> [<judge>]: the judge names <reason> for the
+# mutant; every pin's judge, or only <judge>, the function of the pin the
+# mutant is aimed at.
 judged() {
   local got
-  got="$(judge "$3")"
+  got="$("${4:-judge}" "$3")"
   if grep -qF -- "$2" <<< "$got"; then
     echo "  ok: $1 is rejected"
   else
@@ -844,8 +1297,19 @@ proves() {
   judged "$1" "$2" "$mutant"
 }
 
-# proves_moved <case> <reason> <step name> [<before step name>]: as proves,
-# on the real metrics.yml with that step moved before the other, or removed.
+# proves_by <judge> <case> <reason> <sed-expression>: as proves, judged by
+# the one pin the mutant is aimed at. Every pin executes real steps, so a
+# mutant judged by all of them costs seconds; the pins of forsgren#12 step 6
+# name their own judge, which keeps this self-test's run short.
+proves_by() {
+  local mutant="${TMP}/mutants/$2.yml"
+  selftest_mutant "$WF" "$mutant" "$4" || return 0
+  judged "$2" "$3" "$mutant" "$1"
+}
+
+# proves_moved <case> <reason> <step name> [<before step name>] [<judge>]:
+# as proves, on the real metrics.yml with that step moved before the other,
+# or removed; judged by every pin, or by <judge> only.
 proves_moved() {
   local mutant="${TMP}/mutants/$1.yml"
   mkdir -p "${TMP}/mutants"
@@ -854,7 +1318,7 @@ proves_moved() {
     fail "moving the step '$3' changed nothing in ${WF}: the proof would be vacuous"
     return 0
   fi
-  judged "$1" "$2" "$mutant"
+  judged "$1" "$2" "$mutant" "${5:-judge}"
 }
 
 proves "a push trigger" "not on workflow_call alone" \
@@ -957,6 +1421,106 @@ proves "a job that only reads contents" "does not grant itself 'contents: write'
 proves "render without the config" "the render step runs 'forsgren render --out" \
   's/ --config forsgren\.config\.yml$//'
 
+# The token (forsgren#12, step 6).
+proves_by judge_secret "a required token" "FORSGREN_TOKEN is declared required: true" \
+  's/^        required: false$/        required: true/'
+proves_by judge_secret "a second secret" "not FORSGREN_TOKEN alone" \
+  's/^    secrets:$/    secrets:\n      OTHER_TOKEN:\n        required: false/'
+proves_by judge_secret "no secret declared" "workflow_call declares the secrets []" \
+  '/^    secrets:$/,/^        required: false$/d'
+proves_by judge_collect_token "the token in the job's env" "hands a secret to more than the collect step's env:" \
+  "s/^    runs-on: ubuntu-latest\$/&\n    env:\n      ${TOKEN_ENV}/"
+proves_by judge_collect_token "the token in the data step" "hands a secret to more than the collect step's env:" \
+  "/- name: ${DATA_STEP}/,/run: |/ s/^          GH_TOKEN: .*\$/&\n          ${TOKEN_ENV}/"
+proves_by judge_collect_token "a collect step without the token" "the collect step's env: does not set" \
+  '/^ *FORSGREN_TOKEN: .*secrets\.FORSGREN_TOKEN/d'
+
+# The collect step.
+proves_by judge_collect_step "no collect step" "has no step '${COLLECT_STEP}'" \
+  "s/- name: ${COLLECT_STEP}\$/- name: Collect something else/"
+proves_by judge_collect_step "collect on another history" "the collect step runs 'forsgren collect --config forsgren.config.yml --data deployments.csv'" \
+  's|--data data/deployments\.csv|--data deployments.csv|'
+proves_by judge_collect_token "the token as an argument" "hands FORSGREN_TOKEN to forsgren in an argument" \
+  "s|forsgren collect --config|forsgren collect --token \"${D}FORSGREN_TOKEN\" --config|"
+proves_by judge_collect_step "the token dropped" "does not hand collect FORSGREN_TOKEN" \
+  "s|^\\( *\\)forsgren collect --config|\\1unset FORSGREN_TOKEN\\n&|"
+proves_by judge_collect_token "the token in a file" "leaves FORSGREN_TOKEN in a file of the checkout" \
+  "s|^\\( *\\)forsgren collect --config|\\1printf '%s' \"${D}FORSGREN_TOKEN\" > .forsgren-token\\n&|"
+proves_by judge_collect_token "the token echoed by collect's step" "the collect step shows FORSGREN_TOKEN in its log" \
+  "s|^\\( *\\)forsgren collect --config|\\1echo \"collecting with ${D}{FORSGREN_TOKEN}\"\\n&|"
+proves_by judge_collect_token "the token in an output" "writes FORSGREN_TOKEN to a step output" \
+  "s|^\\( *\\)echo \"status=|\\1echo \"token=${D}{FORSGREN_TOKEN}\" >> \"${D}GITHUB_OUTPUT\"\\n&|"
+proves_by judge_collect_step "a failing collect that stops the job" "for a collect that fails after storing the collect step gives 'exit=1" \
+  's#\(--data data/deployments\.csv\) || status=.*#\1#'
+proves_by judge_collect_step "collect's status not recorded" "for a collect that fails after storing the collect step gives 'exit=0 output=state=1'" \
+  's/echo "status=/echo "state=/'
+proves_by judge_collect_e2e "a collect step that skips a missing token" "with the real forsgren, a configured repository and no FORSGREN_TOKEN" \
+  "s|^\\( *\\)forsgren collect --config|\\1[[ -n \"${D}{FORSGREN_TOKEN:-}\" ]] \\|\\| exit 0\\n&|"
+proves_by judge_collect_e2e "a collect step that demands a token" "with the real forsgren, the starter configuration (no projects) and no FORSGREN_TOKEN" \
+  "s|^\\( *\\)forsgren collect --config|\\1: \"${D}{FORSGREN_TOKEN:?FORSGREN_TOKEN is not set}\"\\n&|"
+
+# The data step.
+proves_by judge_data_step "no data step" "has no step '${DATA_STEP}'" \
+  "s/- name: ${DATA_STEP}\$/- name: Commit something else/"
+proves_by judge_data_step "data/ committed even when unchanged" "with data/ unchanged the data step gives" \
+  "s|\\[\\[ -z \"${D}(git status --porcelain -- data/)\" \\]\\]|false|"
+proves_by judge_data_step "the whole checkout committed with the data" "the data commit holds [data/deployments.csv,other.txt,staged.txt]" \
+  "s|git add -- data/|git add -A|; s|'forsgren: record deployments' -- data/|'forsgren: record deployments'|"
+proves_by judge_data_step "another data author" "for changed data/ the data commit's author is 'someone <" \
+  "/- name: ${DATA_STEP}/,\$ s/GIT_AUTHOR_NAME='github-actions\\[bot\\]'/GIT_AUTHOR_NAME='someone'/"
+proves_by judge_data_step "another data committer" "for changed data/ the data commit's committer is 'someone <" \
+  "/- name: ${DATA_STEP}/,\$ s/GIT_COMMITTER_NAME='github-actions\\[bot\\]'/GIT_COMMITTER_NAME='someone'/"
+proves_by judge_data_step "a data identity left to -c" "with an inherited outer identity the data commit's author is 'Outer Author <outer-author@example.com>'" \
+  "/- name: ${DATA_STEP}/,\$ { /GIT_AUTHOR_NAME=/d; /GIT_COMMITTER_NAME=/d; s/git commit --quiet/git -c user.name=bot -c user.email=bot@example.com commit --quiet/; }"
+proves_by judge_data_step "the data step's inherited config left alone" "with an outer identity and a signing config inherited from the environment the data step gives 'exit=128" \
+  "/- name: ${DATA_STEP}/,\$ { /^ *GIT_CONFIG_COUNT=0 /d; }"
+proves_by judge_data_step "another data message" "the data commit's message is 'forsgren: data'" \
+  "s/'forsgren: record deployments'/'forsgren: data'/"
+proves_by judge_data_step "no data push" "for changed data/ on its branch the data step gives 'exit=0 commits=1'" \
+  '/push_log=/d'
+proves_by judge_data_step "data pushed to a fixed branch" "for changed data/ on its branch the data step gives 'exit=0 commits=1'" \
+  "/- name: ${DATA_STEP}/,\$ s|\"HEAD:${D}{GITHUB_REF}\"|\"HEAD:refs/heads/main\"|"
+proves_by judge_data_step "data pushed from a tag" "for changed data/ on a ref that is not a branch (refs/tags/v1)" \
+  "/- name: ${DATA_STEP}/,/git add --/ s/exit 1/exit 0/"
+proves_by judge_data_step "the branch guard before the change check" "with data/ unchanged on a tag the data step gives" \
+  "s|^\\( *\\)if \\[\\[ -z \"${D}(git status --porcelain -- data/)\" \\]\\]; then|\\1if [[ \"${D}GITHUB_REF\" != refs/heads/* ]]; then exit 1; fi\\n&|"
+proves_by judge_data_token "the data token in an argument" "the data step hands the token to git in an argument" \
+  "s|push_log=\"${D}(git push|push_log=\"${D}(git -c \"http.extraheader=AUTHORIZATION: basic ${D}{auth}\" push|"
+proves_by judge_data_token "the data token stored in the checkout" "the data step leaves the token on disk in the checkout" \
+  "s|^\\( *\\)push_log=|\\1git config http.extraheader \"AUTHORIZATION: basic ${D}{auth}\"\\n&|"
+proves_by judge_data_token "the data token echoed" "the data step shows the token in its log" \
+  "s|^\\( *\\)push_log=|\\1echo \"pushing with ${D}{GH_TOKEN}\"\\n&|"
+proves_by judge_data_token "a data push without the header" "the data step's push carries" \
+  "/- name: ${DATA_STEP}/,\$ s/\"AUTHORIZATION: basic /\"X-Other: basic /"
+proves_by judge_data_moved "a forced data push" "the data step replaced the commit another pushed" \
+  "s|push_log=\"${D}(git push --quiet|push_log=\"${D}(git push --force --quiet|"
+proves_by judge_data_moved "a rebased data push" "with the branch moved since the checkout the data step gives 'exit=0 commits=3'" \
+  "s|^\\( *\\)push_log=|\\1git -c user.name=x -c user.email=x@example.com pull --rebase --autostash --quiet origin \"${D}{GITHUB_REF}\"\\n&|"
+proves_by judge_data_moved "a refused push without its cause" "does not name the cause in an ::error" \
+  "s/${MOVED}/was refused/"
+
+# The fail step, and the three steps in a row.
+proves_by judge_fail_step "no fail step" "has no step '${FAIL_STEP}'" \
+  "s/- name: ${FAIL_STEP}\$/- name: Fail something else/"
+proves_by judge_fail_step "a fail step that never fails" "with COLLECT_STATUS=1 the fail step gives 'exit=0" \
+  "/- name: ${FAIL_STEP}/,\$ s/exit 1/exit 0/"
+proves_by judge_fail_step "a fail step that lets a missing status pass" "with COLLECT_STATUS= the fail step gives 'exit=0" \
+  "s/if \\[\\[ \"${D}COLLECT_STATUS\" != 0 \\]\\]/if [[ -n \"${D}COLLECT_STATUS\" \\&\\& \"${D}COLLECT_STATUS\" != 0 ]]/"
+proves_by judge_fail_step "the fail step on another status" "the fail step's COLLECT_STATUS is not" \
+  's/steps\.collect\.outputs\.status/steps.collect.outcome/'
+proves_by judge_fail_step "a collect step without its id" "the collect step has no id: collect" \
+  '/^        id: collect$/d'
+proves_by judge_fail_step "a failed collect that throws away what it stored" "when collect fails after storing, the data and fail steps give 'exit=0 commits=1 fail-step=1'" \
+  "s|^\\( *\\)echo \"status=|\\1if [[ \"${D}status\" -ne 0 ]]; then rm -rf data; fi\\n&|"
+
+# Concurrency.
+proves_by judge_concurrency "no concurrency" "the job has no concurrency: block" \
+  '/^    concurrency:$/,/^      cancel-in-progress:/d'
+proves_by judge_concurrency "a concurrency group for every repository" "not keyed on" \
+  's/^\(      group: \).*$/\1forsgren-metrics/'
+proves_by judge_concurrency "a run that cancels the one in flight" "does not set cancel-in-progress: false" \
+  's/cancel-in-progress: false/cancel-in-progress: true/'
+
 # Whole steps removed or moved: the config step gone, the config step after
 # render (just before "Upload the page"), the install step before setup-go.
 proves_moved "a workflow without the config step" "has no step '${CHECK_STEP}'" "$CHECK_STEP"
@@ -964,6 +1528,10 @@ proves_moved "the config check after render" "after it renders" "$CHECK_STEP" "U
 proves_moved "the starter after the config check" "writes the starter (line" "$INIT_STEP" "Render the page"
 proves_moved "the starter before the checkout" "before checking out the caller's repository" "$INIT_STEP" "$CHECKOUT_STEP"
 proves_moved "the install step before setup-go" "after the install step" "$INSTALL_STEP" "Set up Go"
+proves_moved "collect before the config check" "collects (line" "$COLLECT_STEP" "$CHECK_STEP" judge_order
+proves_moved "the data commit before collect" "there is nothing to commit yet" "$DATA_STEP" "$COLLECT_STEP" judge_order
+proves_moved "the data commit after render" "would drop what collect stored" "$DATA_STEP" "Upload the page" judge_order
+proves_moved "the fail step before publishing" "before it publishes" "$FAIL_STEP" "$RENDER_STEP" judge_order
 
 selftest_end "metrics.yml is not the reusable workflow forsgren#4 rules" \
-  "metrics.yml runs on workflow_call only, takes no input, installs forsgren from its own job.workflow_repository at its own job.workflow_sha (each checked before go runs, a fork installing itself), passes both through env: only, builds with go.mod's Go after setup-go, writes a new install's starter config with one commit as github-actions[bot] (token in the environment only) and renders with the config, and checks the caller's config before render, with the real forsgren too, its message never run as a workflow command (and each wrong shape is still detected)"
+  "metrics.yml runs on workflow_call only, takes no input, installs forsgren from its own job.workflow_repository at its own job.workflow_sha (each checked before go runs, a fork installing itself), passes both through env: only, builds with go.mod's Go after setup-go, writes a new install's starter config with one commit as github-actions[bot] (token in the environment only) and renders with the config, and checks the caller's config before render, with the real forsgren too, its message never run as a workflow command, then collects with FORSGREN_TOKEN in that one step's env only, commits and pushes data/ alone (failing by name, never rebasing or forcing, when the branch moved), publishes, and fails the job at its end when collect failed, one run at a time per caller repository (and each wrong shape is still detected)"
