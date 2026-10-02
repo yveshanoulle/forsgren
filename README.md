@@ -92,8 +92,22 @@ One PRE gate checks the page templates themselves:
   number. Red on a run that scanned zero `.html` files. jscpd is pinned like
   the linters below.
 
-Five PRE gates read the repository's own scripts and files:
+Six PRE gates read the repository's own scripts and files:
 
+- **actionlint** (`Scripts/check_actionlint.sh`, the estate's gate in
+  coachretreat-website's copy): every `.github/workflows/*.yml` file under
+  `.actionlint.yaml`. Valid YAML is not a valid workflow: actionlint knows
+  which contexts exist where (a `runner.temp` in a job-level `env:` block
+  once made GitHub reject konenki-website's whole workflow, so not one gate
+  ran), which keys a step takes, and which runner labels exist. forsgren's
+  self-hosted labels, `host-babacar` and `runner-forsgren`, are declared in
+  `.actionlint.yaml`; declaring them is configuration, not a waiver, and a
+  label not declared there is red. actionlint also runs shellcheck over every
+  `run:` block, and its self-test (`Scripts/test_check_actionlint.sh`) is red
+  when that does not happen, since actionlint skips it silently when
+  shellcheck is missing. No `-ignore` flag: a suppression needs a finding
+  someone has looked at and Yves's explicit yes. Red on a directory with no
+  workflow file, and when actionlint itself is missing.
 - **shellcheck** (`Scripts/check_shellcheck.sh`, the estate's gate from
   web-infra): every tracked `*.sh` file, and every tracked file without an
   extension whose first line is a bash or sh shebang, at any depth. The
@@ -154,7 +168,7 @@ Five PRE gates read the repository's own scripts and files:
   row `mutation: checkout pins`) runs first and shows each kind of bad ref
   rejected for its own reason.
 
-shellcheck and yamllint come from Homebrew, through
+actionlint, shellcheck and yamllint come from Homebrew, through
 `Scripts/required_tools.txt` (see Installing and updating). As with the data
 guard, untracked files are not checked: `git add -N` a new script first.
 

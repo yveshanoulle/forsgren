@@ -198,6 +198,7 @@ gofmt|Scripts/check_gofmt.sh|pre|
 # labels are known only through .actionlint.yaml. Repository source, so both
 # run in pre, self-test first.
 actionlint self-test|Scripts/test_check_actionlint.sh|pre|
+actionlint|Scripts/check_actionlint.sh|pre|
 #
 # Shellcheck and yamllint (forsgren#1, ladder step 12), at their canon
 # position after the actionlint rows and before lint coverage. Both read

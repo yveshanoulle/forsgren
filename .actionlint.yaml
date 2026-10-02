@@ -1,0 +1,14 @@
+# Self-hosted runner labels this repo actually uses. Declaring them is
+# CONFIGURATION, not a waiver: actionlint cannot know a label exists unless
+# told, and without this it reports every job as targeting an unknown runner —
+# noise that would push someone toward ignoring the runner-label rule
+# entirely, which is the rule that catches a genuine typo in a label.
+#
+# Ported from coachretreat-website (forsgren#1, ladder step 18), as
+# konenki-website declares its own: the comment unchanged, the repo label
+# forsgren's. Scripts/test_check_actionlint.sh pins that an undeclared label
+# is red and that forsgren's two are known only through this file.
+self-hosted-runner:
+  labels:
+    - host-babacar
+    - runner-forsgren

@@ -7,8 +7,8 @@
 # ONLY WHAT THE GATES USE TODAY. The installer has no notion of a tool "not
 # used yet": every listed tool is installed or upgraded on every sfl run, and
 # a name it cannot make runnable fails the run. So each later step of the
-# forsgren#1 ladder adds its own tool here in the same change as its gate:
-# actionlint is next (step 17).
+# forsgren#1 ladder adds its own tool here in the same change as its gate,
+# as actionlint did in step 18.
 #
 # NOT the Go tools. golangci-lint, deadcode and govulncheck are pinned through
 # `tool` directives in go.mod plus go.sum (Yves's ruling on forsgren#1, step
@@ -45,3 +45,9 @@ shellcheck
 # Scripts/check_yamllint.sh (forsgren#1, ladder step 12): every tracked
 # .yml / .yaml file, under .yamllint.yml.
 yamllint
+
+# Scripts/check_actionlint.sh (forsgren#1, ladder step 18): every
+# .github/workflows/*.yml, under .actionlint.yaml. actionlint also runs
+# shellcheck (listed above) over each run: block, but only when shellcheck
+# is on PATH; Scripts/test_check_actionlint.sh is red when it is not.
+actionlint
