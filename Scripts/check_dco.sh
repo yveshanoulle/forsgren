@@ -9,12 +9,17 @@
 # Quality do not, since a commit on main has no pull request.
 #
 # INPUT, one line per commit, from a file or stdin:
-#   <sha> <base64 of the author email> <base64 of the message>
-# The workflow writes it from the pull request's commit list (gh api, with
-# gh's built-in jq; jq itself is not a listed tool here, see
-# Scripts/check_coverage.sh). base64 keeps a message with any content on
+#   <sha> <author account> <base64 of the author email> <base64 of the message>
+# <author account> is <type>:<login> of the GitHub account GitHub linked the
+# commit to (the commits API's .author: type User, Bot, ...), or - when it
+# linked it to none. The workflow writes it from the pull request's commit
+# list (gh api, with gh's built-in jq; jq itself is not a listed tool here,
+# see Scripts/check_coverage.sh). base64 keeps a message with any content on
 # one line, so no message can forge the start of another commit. The
 # format is plain text so that Scripts/test_check_dco.sh runs offline.
+# The second argument is the account that opened the pull request,
+# <type>:<login> (the event's pull_request.user); with none, no commit is
+# exempt.
 #
 # THE RULE, per commit:
 #   - its trailers are its LAST paragraph (after the last blank line, once
@@ -29,13 +34,28 @@
 # branch signs that merge off too (`git merge --signoff`; `-s` there picks
 # the merge strategy, it does not sign off).
 #
+# THE ONE EXEMPTION, bots (ruled by Yves 2026-10-02: Dependabot's commits
+# carry no Signed-off-by, and a bot certifies nothing). A commit is exempt,
+# and named as exempt, when BOTH hold:
+#   - GitHub linked it to an account of type Bot (dependabot[bot] and other
+#     GitHub Apps; a person's account is a User);
+#   - that Bot account opened the pull request.
+# Never on the author's name or email (`...[bot]@users.noreply.github.com`
+# is a string anyone can put in a commit), and not on the linked account
+# alone: GitHub links a commit to an account by its author email, so a
+# contributor who writes a bot's noreply email gets the bot's account. Who
+# opened the pull request is what GitHub authenticated, and a bot's pull
+# request branch is pushed by the bot and by people with write access only.
+# A human commit in a bot's pull request is held to the rule.
+#
 # Red-on-zero: no commit read is red. Nothing checked is not signed off.
 # The FAIL lines name the short sha, the subject as written, and why; they
 # never print the author's email or the sign-off's.
 #
-# Usage: Scripts/check_dco.sh [commits-file]   (default, or -: stdin)
-# Exit: 0 every commit signed off, 1 a finding, a malformed line or no
-# commit, 2 the input file missing.
+# Usage: Scripts/check_dco.sh [commits-file [opener]]
+#   commits-file: default, or -, stdin; opener: <type>:<login>
+# Exit: 0 every commit signed off or exempt, 1 a finding, a malformed line,
+# a malformed opener or no commit, 2 the input file missing.
 # Fixture: Scripts/test_check_dco.sh.
 
 set -uo pipefail
@@ -43,6 +63,21 @@ set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
 INPUT="${1:--}"
+OPENER="${2:-}"
+
+# An account: <type>:<login>. A login is letters, digits and hyphens; a
+# GitHub App's bot account adds [bot], which no person's login can hold.
+ACCOUNT='^[A-Za-z]+:[A-Za-z0-9-]+(\[bot\])?$'
+
+opener="-"
+if [ -n "$OPENER" ]; then
+  if ! [[ "$OPENER" =~ $ACCOUNT ]]; then
+    echo "❌ FAIL: DCO: the pull request opener is not <type>:<login> — no commit can be judged against it"
+    exit 1
+  fi
+  opener="$OPENER"
+fi
+opener_login="${opener#*:}"
 
 if [ "$INPUT" != "-" ] && [ ! -f "$INPUT" ]; then
   echo "❌ FAIL: DCO: input file not found: ${INPUT}"
@@ -81,29 +116,38 @@ judge() {
     }'
 }
 
-COMMIT_LINE='^([0-9a-f]{7,64}) ([A-Za-z0-9+/=]*) ([A-Za-z0-9+/=]+)$'
+COMMIT_LINE='^([0-9a-f]{7,64}) (-|[A-Za-z]+:[A-Za-z0-9-]+(\[bot\])?) ([A-Za-z0-9+/=]*) ([A-Za-z0-9+/=]+)$'
 
 commits=0
 findings=0
+exempt=0
 lineno=0
 while IFS= read -r row || [ -n "$row" ]; do
   lineno=$((lineno + 1))
   [ -n "$row" ] || continue
   if ! [[ "$row" =~ $COMMIT_LINE ]]; then
-    echo "❌ FAIL: DCO: malformed line ${lineno} — not <sha> <base64 author email> <base64 message>"
+    echo "❌ FAIL: DCO: malformed line ${lineno} — not <sha> <author account> <base64 author email> <base64 message>"
     findings=$((findings + 1))
     continue
   fi
   sha="${BASH_REMATCH[1]}"
+  account="${BASH_REMATCH[2]}"
   short="${sha:0:12}"
   commits=$((commits + 1))
-  if ! email="$(printf '%s' "${BASH_REMATCH[2]}" | base64 -d 2>/dev/null)" \
-     || ! message="$(printf '%s' "${BASH_REMATCH[3]}" | base64 -d 2>/dev/null)"; then
+  if ! email="$(printf '%s' "${BASH_REMATCH[4]}" | base64 -d 2>/dev/null)" \
+     || ! message="$(printf '%s' "${BASH_REMATCH[5]}" | base64 -d 2>/dev/null)"; then
     echo "❌ FAIL: DCO: commit ${short} — its line does not decode as base64"
     findings=$((findings + 1))
     continue
   fi
   subject="$(printf '%s\n' "$message" | head -n 1 | tr -d '\r')"
+  # The exemption. The mutation proofs in Scripts/test_check_dco.sh rewrite
+  # this if line by its exact text: keep it whole, on its own line.
+  if [ "$account" = "Bot:${opener_login}" ] && [ "$opener" = "Bot:${opener_login}" ]; then
+    echo "ℹ️  DCO: commit ${short} (${subject}) is exempt: authored by the bot account ${opener_login}, which opened this pull request"
+    exempt=$((exempt + 1))
+    continue
+  fi
   if [ -z "$email" ]; then
     echo "❌ FAIL: DCO: commit ${short} (${subject}) has no author email — a sign-off cannot be matched to its author"
     findings=$((findings + 1))
@@ -133,5 +177,9 @@ if [ "$findings" -ne 0 ]; then
   exit 1
 fi
 
+if [ "$exempt" -ne 0 ]; then
+  echo "✅ DCO: ${commits} commit(s): $((commits - exempt)) signed off by its author, ${exempt} by the bot account that opened the pull request, exempt"
+  exit 0
+fi
 echo "✅ DCO: ${commits} commit(s), every one signed off by its author"
 exit 0

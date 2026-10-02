@@ -498,7 +498,11 @@ trailer, or with one whose email is not the commit author's, naming the
 commit and its subject. A trailer counts only as a whole line of the
 message's last paragraph, never in the body, mid-line or as the subject;
 the emails are compared without case and never printed. Merge commits get no
-exception. The job never checks out the pull request's code: it reads the
+exception. Bots are (ruled 2026-10-02, for Dependabot's security updates): a
+commit is exempt, named as such, when GitHub links it to an account of type
+`Bot` and that bot opened the pull request (`pull_request.user`, passed
+through `env:`). Never on the commit's author email, which anyone can write,
+nor on the linked account alone, which GitHub derives from that email. The job never checks out the pull request's code: it reads the
 commit list through the API (`gh api`, the pull request number passed
 through `env:`, never as `${{ }}` inside `run:`), and checks out only
 `Scripts/check_dco.sh`, at the pull request's base commit, so a pull
@@ -507,8 +511,8 @@ change `dco.yml` itself, which GitHub reads from the pull request: the
 review of such a change is the guard there. The check does not run in
 `sfl` or Quality, since a commit on `main` has no pull request; its
 self-test does (**DCO sign-off self-test**, `Scripts/test_check_dco.sh`,
-offline, with a mutation proof for the last-paragraph rule and one for the
-email comparison), and **gate wiring** is red when `dco.yml` stops running
+offline, with mutation proofs for the last-paragraph rule, the email
+comparison, the account-type rule and the opener comparison), and **gate wiring** is red when `dco.yml` stops running
 the check or the self-test loses its row.
 
 **No paths filter, on purpose.** The secret scan, the data guard, stray

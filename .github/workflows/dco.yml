@@ -3,7 +3,10 @@
 # The DCO sign-off check (road to public, step 4; the ruling on forsgren#1:
 # EUPL-1.2 plus a Developer Certificate of Origin sign-off on every commit,
 # see CONTRIBUTING.md). On every pull request, every commit in it must carry
-# a Signed-off-by trailer from its author; Scripts/check_dco.sh decides, and
+# a Signed-off-by trailer from its author, except the commits of the Bot
+# account that opened it (Dependabot's, ruled by Yves 2026-10-02: GitHub's
+# account type and the pull request's opener, never a commit's author
+# email); Scripts/check_dco.sh decides, and
 # Scripts/test_check_dco.sh proves it in sfl and Quality on every run.
 #
 # It triggers on pull_request, as quality.yml does, and safely:
@@ -45,8 +48,11 @@ jobs:
           sparse-checkout: Scripts/check_dco.sh
           sparse-checkout-cone-mode: false
 
-      # One line per commit, <sha> <base64 author email> <base64 message>,
-      # the shape Scripts/check_dco.sh reads (see its header). gh is on every
+      # One line per commit, <sha> <author account> <base64 author email>
+      # <base64 message>, the shape Scripts/check_dco.sh reads (see its
+      # header). The account is <type>:<login> of the GitHub account the
+      # commit is linked to (.author, null: -); the opener is the account
+      # that opened the pull request. gh is on every
       # GitHub-hosted runner, and its --jq is gh's own, so the runner needs
       # no jq. The list API returns at most 250 commits; a pull request
       # longer than that is checked on its first 250.
@@ -56,10 +62,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_OPENER: ${{ github.event.pull_request.user.type }}:${{ github.event.pull_request.user.login }}
         run: |
           set -euo pipefail
           commits="${RUNNER_TEMP}/dco_commits.txt"
           gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/commits" \
-            --jq '.[] | "\(.sha) \(.commit.author.email // "" | @base64) \(.commit.message | @base64)"' \
+            --jq '.[] | "\(.sha) \(if .author == null then "-" else "\(.author.type):\(.author.login)" end) \(.commit.author.email // "" | @base64) \(.commit.message | @base64)"' \
             > "$commits"
-          ./Scripts/check_dco.sh "$commits"
+          ./Scripts/check_dco.sh "$commits" "$PR_OPENER"

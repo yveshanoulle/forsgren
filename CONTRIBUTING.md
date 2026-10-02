@@ -89,6 +89,14 @@ It is red, naming the commit, when any commit of the pull request:
   (compared without case). Each author signs off their own commits;
 - has no author email at all.
 
-Merge commits are held to the same rule (`git merge --signoff`). To fix a red check, sign the
+Merge commits are held to the same rule (`git merge --signoff`).
+
+Bots are exempt: a commit with no sign-off passes, and the check names it
+as exempt, when GitHub links it to an account of type Bot (Dependabot and
+other GitHub Apps) and that same bot opened the pull request. The check
+decides on what GitHub reports, the account type and who opened the pull
+request, never on a commit's author name or email: anyone can write a
+bot's address into a commit. Your own commit in a bot's pull request is
+held to the rule. To fix a red check, sign the
 commits off and force-push the branch: `git commit --amend -s` for the
 last commit, `git rebase --signoff main` for all of them.
