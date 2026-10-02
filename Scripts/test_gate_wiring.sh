@@ -57,19 +57,20 @@ cd "$(dirname "$0")/.."
 
 # The runner paths are overridable ONLY so the mutation proofs in part 5 can
 # re-run this whole check against a mutated copy of sfl.sh, FBP.sh,
-# quality.yml or the order file. Nothing else sets them; sfl and CI always
-# run against the real files.
+# quality.yml, dco.yml or the order file. Nothing else sets them; sfl and CI
+# always run against the real files.
 SFL="${GATE_WIRING_SFL_OVERRIDE:-sfl.sh}"
 FBP="${GATE_WIRING_FBP_OVERRIDE:-FBP.sh}"
 CI="${GATE_WIRING_CI_OVERRIDE:-.github/workflows/quality.yml}"
 ORDER="${GATE_WIRING_ORDER_OVERRIDE:-Scripts/gate_report_order.txt}"
+DCO_WF="${GATE_WIRING_DCO_OVERRIDE:-.github/workflows/dco.yml}"
 CI_RUNNER="Scripts/run_ci_phase.sh"
 
 # is_mutation_rerun: this run is a proof re-running the check with one of
 # the files above replaced, so it must not start proofs of its own, nor
 # repeat the runtime cases of part 4, which do not read those files.
 is_mutation_rerun() {
-  [[ -n "${GATE_WIRING_CI_OVERRIDE:-}${GATE_WIRING_FBP_OVERRIDE:-}${GATE_WIRING_SFL_OVERRIDE:-}${GATE_WIRING_ORDER_OVERRIDE:-}" ]]
+  [[ -n "${GATE_WIRING_CI_OVERRIDE:-}${GATE_WIRING_FBP_OVERRIDE:-}${GATE_WIRING_SFL_OVERRIDE:-}${GATE_WIRING_ORDER_OVERRIDE:-}${GATE_WIRING_DCO_OVERRIDE:-}" ]]
 }
 
 COMPLETED=0
@@ -321,6 +322,19 @@ for path in Scripts/*.sh; do
       done
       ;;
 
+    # PULL-REQUEST CHECK, not a gate of sfl or Quality (road to public,
+    # step 4): every commit of a pull request carries a DCO sign-off from its
+    # author. A commit on main has no pull request, so neither runner can
+    # run it; .github/workflows/dco.yml does, on a GitHub-hosted runner, and
+    # its self-test is an order-file row, so sfl and Quality still prove it.
+    check_dco.sh)
+      runs_script "$DCO_WF" "$base" \
+        || fail "${base} checks a pull request's sign-offs and ${DCO_WF} never invokes it — no pull request would be checked"
+      require_fixture "$base" "the sign-off check would wave commits through unproven"
+      order_names "test_${base}" \
+        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the check dco.yml relies on"
+      ;;
+
     # HAND-RUN BY THE LOOP, never by sfl or a workflow: a thin exec wrapper
     # around FBP.sh under the agent-Friend identity. Requiring a runner to
     # invoke it would mean FBP invoking itself. CLAUDE.md declares it.
@@ -563,7 +577,8 @@ runtime_synthetic() {
 #
 # mutation_proof <override-var> <mention> <sed-expr> <expected> <label>
 #   <override-var>  GATE_WIRING_CI_OVERRIDE, GATE_WIRING_FBP_OVERRIDE,
-#                   GATE_WIRING_SFL_OVERRIDE or GATE_WIRING_ORDER_OVERRIDE
+#                   GATE_WIRING_SFL_OVERRIDE, GATE_WIRING_ORDER_OVERRIDE or
+#                   GATE_WIRING_DCO_OVERRIDE
 #   <mention>       text the mutant must still contain (else the proof tests
 #                   a deletion, not a mention)
 #   <sed-expr>      the -E expression that makes the mutant
@@ -588,6 +603,7 @@ mutation_proof() {
     GATE_WIRING_FBP_OVERRIDE) original="$FBP" ;;
     GATE_WIRING_SFL_OVERRIDE) original="$SFL" ;;
     GATE_WIRING_ORDER_OVERRIDE) original="$ORDER" ;;
+    GATE_WIRING_DCO_OVERRIDE) original="$DCO_WF" ;;
     *)
       fail "mutation proof: unknown override variable ${override_var}"
       return 0
@@ -927,6 +943,19 @@ if ! is_mutation_rerun; then
     's#^(repository links\|Scripts/check_repo_links\.sh\|)#\# \1#' \
     "check_repo_links.sh is a script no order-file row names" \
     "an order file whose repository-links row is a comment"
+
+  # dco.yml: the check call becomes a comment; the comments naming it stay.
+  mutation_proof GATE_WIRING_DCO_OVERRIDE "Scripts/check_dco.sh" \
+    's|^([[:space:]]*)(\./Scripts/check_dco\.sh )|\1# \2|' \
+    "check_dco.sh checks a pull request's sign-offs and" \
+    "a dco.yml whose check_dco.sh call is a comment"
+
+  # The order file: the DCO self-test row becomes a comment, so neither sfl
+  # nor Quality proves the check dco.yml runs.
+  mutation_proof GATE_WIRING_ORDER_OVERRIDE "Scripts/test_check_dco.sh" \
+    's#^(DCO sign-off self-test\|)#\# \1#' \
+    "Scripts/test_check_dco.sh is not an order-file row" \
+    "an order file whose DCO sign-off self-test row is a comment"
 
   matcher_self_proof
 fi

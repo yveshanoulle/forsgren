@@ -107,6 +107,13 @@ skips the push.
 A secret-class red (the secret scan or the data guard)
 commits nothing at all. `./FBP.sh --no-commit` runs the gates and the build
 only. 
+Every commit it makes, green or `*** RED ****`, is signed off
+(`git commit --signoff`): git adds a `Signed-off-by:` trailer for the
+committer identity, yours from `user.name` and `user.email`, or
+agent-Friend's under `Scripts/fbp_agent_friend.sh`. That is the Developer
+Certificate of Origin sign-off the DCO check on pull requests asks for (see
+CI and [CONTRIBUTING.md](CONTRIBUTING.md)).
+
 Its closing summary prints the message, one row per phase with the
 gate counts and the page count, and every failure's reason.
 
@@ -466,6 +473,30 @@ push. The rule holds for every workflow, not only Quality: the
 pull-request event while one of its jobs runs anywhere but on a
 GitHub-hosted runner.
 
+**The DCO check, on pull requests.** `.github/workflows/dco.yml` is the
+one workflow that triggers on `pull_request` (never `pull_request_target`),
+and it may because its one job runs on a GitHub-hosted runner
+(`ubuntu-latest`), with a read-only token (`contents: read`,
+`pull-requests: read`). It holds every commit of the pull request to the
+Developer Certificate of Origin (see [CONTRIBUTING.md](CONTRIBUTING.md)):
+`Scripts/check_dco.sh` is red on a commit with no `Signed-off-by:`
+trailer, or with one whose email is not the commit author's, naming the
+commit and its subject. A trailer counts only as a whole line of the
+message's last paragraph, never in the body, mid-line or as the subject;
+the emails are compared without case and never printed. Merge commits get no
+exception. The job never checks out the pull request's code: it reads the
+commit list through the API (`gh api`, the pull request number passed
+through `env:`, never as `${{ }}` inside `run:`), and checks out only
+`Scripts/check_dco.sh`, at the pull request's base commit, so a pull
+request cannot change the check that judges it. A pull request can still
+change `dco.yml` itself, which GitHub reads from the pull request: the
+review of such a change is the guard there. The check does not run in
+`sfl` or Quality, since a commit on `main` has no pull request; its
+self-test does (**DCO sign-off self-test**, `Scripts/test_check_dco.sh`,
+offline, with a mutation proof for the last-paragraph rule and one for the
+email comparison), and **gate wiring** is red when `dco.yml` stops running
+the check or the self-test loses its row.
+
 **No paths filter, on purpose.** The secret scan, the data guard, stray
 tracked files and script references read every tracked file, so a filter
 on paths would leave some change that runs no gate.
@@ -627,7 +658,9 @@ broken runner cannot report green:
   build-site page count** (`Scripts/test_fbp_commit_message.sh`,
   `Scripts/test_fbp_build_pagecount.sh`): the real `FBP.sh`, run in a
   throwaway repository with stub gates, prints its message, reaches PRE,
-  blocks a secret-class commit with the right hint, and fails the build row
+  blocks a secret-class commit with the right hint, signs off its green and
+  `*** RED ****` commits as the identity that ran it (a commit that then
+  passes `Scripts/check_dco.sh`), and fails the build row
   by name on a missing, unreadable, non-numeric or zero page count.
 
 ## Status

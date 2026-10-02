@@ -1,0 +1,65 @@
+# .github/workflows/dco.yml
+#
+# The DCO sign-off check (road to public, step 4; the ruling on forsgren#1:
+# EUPL-1.2 plus a Developer Certificate of Origin sign-off on every commit,
+# see CONTRIBUTING.md). On every pull request, every commit in it must carry
+# a Signed-off-by trailer from its author; Scripts/check_dco.sh decides, and
+# Scripts/test_check_dco.sh proves it in sfl and Quality on every run.
+#
+# The one workflow here that triggers on pull_request, and safe to:
+#   - pull_request, NEVER pull_request_target: a fork's pull request gets a
+#     read-only token and no secrets;
+#   - a GitHub-hosted runner, never babacar: Scripts/check_workflow_triggers.sh
+#     is red on a pull-request trigger with any job it cannot prove
+#     GitHub-hosted;
+#   - the pull request's code is never checked out. The commits are read
+#     through the API, and the one file checked out is Scripts/check_dco.sh
+#     at the BASE commit, so a pull request cannot change the check that
+#     judges it. (It can change this workflow file, which GitHub reads from
+#     the pull request: the review of a change to it is the guard there.)
+#   - the pull request's number and the repository reach the shell through
+#     env:, never as ${{ }} inside run: (template injection; zizmor gates it).
+name: DCO
+
+on:
+  pull_request:
+
+permissions:
+  contents: read        # the checkout of Scripts/check_dco.sh at the base commit
+  pull-requests: read   # the pull request's commit list
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  dco:
+    name: DCO sign-off
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+          sparse-checkout: Scripts/check_dco.sh
+          sparse-checkout-cone-mode: false
+
+      # One line per commit, <sha> <base64 author email> <base64 message>,
+      # the shape Scripts/check_dco.sh reads (see its header). gh is on every
+      # GitHub-hosted runner, and its --jq is gh's own, so the runner needs
+      # no jq. The list API returns at most 250 commits; a pull request
+      # longer than that is checked on its first 250.
+      - name: Check every commit is signed off by its author
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          commits="${RUNNER_TEMP}/dco_commits.txt"
+          gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/commits" \
+            --jq '.[] | "\(.sha) \(.commit.author.email // "" | @base64) \(.commit.message | @base64)"' \
+            > "$commits"
+          ./Scripts/check_dco.sh "$commits"

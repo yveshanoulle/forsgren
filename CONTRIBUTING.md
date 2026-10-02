@@ -68,5 +68,23 @@ Signed-off-by: Name <email>
 ```
 
 `git commit -s` adds that line for you, from your `user.name` and
-`user.email`. A pull request with a commit that is not signed off is not
+`user.email`. `./FBP.sh` signs off for you: every commit it makes, the
+`*** RED ****` one included, is a `git commit --signoff`. A pull request with a commit that is not signed off is not
 merged until it is.
+
+### What the DCO check enforces
+
+Every pull request runs the **DCO** workflow (`.github/workflows/dco.yml`).
+It is red, naming the commit, when any commit of the pull request:
+
+- has no `Signed-off-by: Name <email>` line as a trailer: the line must
+  stand whole, in the last paragraph of the commit message (where
+  `git commit -s` puts it). A `Signed-off-by` in the body text, in the
+  middle of a line, or as the subject line does not count;
+- is signed off with an email that is not the commit's author email
+  (compared without case). Each author signs off their own commits;
+- has no author email at all.
+
+Merge commits are held to the same rule (`git merge --signoff`). To fix a red check, sign the
+commits off and force-push the branch: `git commit --amend -s` for the
+last commit, `git rebase --signoff main` for all of them.

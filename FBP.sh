@@ -66,7 +66,7 @@ fi
 # repo because two FBP runs back to back were otherwise
 # indistinguishable from their first line (Yves, 2026-08-31). Mirrors
 # sfl.sh's banner; editing a Scripts/*.sh does not require a bump.
-FBP_VERSION=1
+FBP_VERSION=2
 
 STARTED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
 START_EPOCH="$(date +%s)"
@@ -478,10 +478,18 @@ else
     else
       git status --short
 
+      # Every commit is signed off (road to public, step 4): forsgren takes
+      # contributions under the Developer Certificate of Origin
+      # (CONTRIBUTING.md), and the DCO check on pull requests
+      # (Scripts/check_dco.sh) wants a Signed-off-by trailer from the author.
+      # git writes it from the committer identity: whoever runs FBP.sh, or
+      # agent-Friend under Scripts/fbp_agent_friend.sh. The RED commit too,
+      # since it is pushed later, under its green successor.
+      # Scripts/test_fbp_commit_message.sh, case 5, pins both.
       if $FAILED; then
-        git commit -m "*** RED ****" -m "$COMMIT_MSG"
+        git commit --signoff -m "*** RED ****" -m "$COMMIT_MSG"
       else
-        git commit -m "$COMMIT_MSG"
+        git commit --signoff -m "$COMMIT_MSG"
       fi
 
       COMMIT_DONE=true
