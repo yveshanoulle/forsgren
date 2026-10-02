@@ -11,8 +11,11 @@
 #
 # The check reads commits from a file (or stdin), one line per commit, in
 # the shape the workflow writes from the pull request's commit list:
-#   <sha> <base64 of the author email> <base64 of the message>
-# so every case here is offline. Every name and address is made up.
+#   <sha> <author account> <base64 of the author email> <base64 of the message>
+# where <author account> is <type>:<login> of the GitHub account the commit
+# is linked to (the commits API's .author), or - when it is linked to none;
+# the pull request's opener, <type>:<login>, is the second argument. So
+# every case here is offline. Every name and address is made up.
 #   1. one commit, signed off by its author        -> green
 #   2. three commits, the middle one unsigned      -> red, naming that commit
 #                                                     and only that one
@@ -31,11 +34,36 @@
 #  11. a line not in the commit shape              -> red, malformed
 #  12. a missing input file                        -> exit 2, never 0
 #  13. the commits on stdin                        -> green
+# The bot exemption (ruled by Yves 2026-10-02: Dependabot's commits carry no
+# Signed-off-by). A commit is exempt only on what GitHub asserts and no
+# contributor writes: its linked account is of type Bot AND is the account
+# that opened the pull request. A commit's author email, name and message
+# are the contributor's to write, and GitHub links a commit to an account by
+# its author email, so the linked account alone is not enough:
+#  14. an unsigned commit by the Bot account that
+#      opened the pull request                     -> green, the commit named
+#                                                     as exempt
+#  15. a bot-looking email, linked to a User       -> red
+#  16. a bot-looking email, linked to no account   -> red
+#  17. linked to a Bot, in a pull request a User
+#      opened                                      -> red
+#  18. linked to a Bot, in a pull request another
+#      Bot opened                                  -> red
+#  19. linked to a Bot, no opener given            -> red
+#  20. the opening bot's unsigned commit and an
+#      unsigned human commit                       -> red, naming the human
+#                                                     commit alone
+#  21. an opener not in the <type>:<login> shape   -> red
+#  22. an author account not in the shape          -> red, malformed
 # Mutation proofs: case 4 against a copy of the check that reads every
 # paragraph after the subject as trailers must turn green, so case 4 is red
 # BECAUSE only the last paragraph counts; case 7 against a copy that skips
 # the email comparison must turn green, so case 7 is red BECAUSE the emails
-# differ.
+# differ; case 15 against a copy that exempts by the author email instead
+# of by the account must turn green, so case 15 is red BECAUSE the account
+# is a User; case 17 against a copy that does not compare the account with
+# the opener must turn green, so case 17 is red BECAUSE a User opened the
+# pull request.
 
 set -euo pipefail
 
@@ -54,9 +82,10 @@ b64() {
   printf '%s' "$1" | base64 | tr -d '\n'
 }
 
-# commit <sha> <author-email> <message>: one input line.
+# commit <sha> <author-email> <message> [account]: one input line; the
+# account defaults to - (linked to no GitHub account).
 commit() {
-  printf '%s %s %s\n' "$1" "$(b64 "$2")" "$(b64 "$3")"
+  printf '%s %s %s %s\n' "$1" "${4:--}" "$(b64 "$2")" "$(b64 "$3")"
 }
 
 SIGNED_A=$'Add the chart\n\nThe chart reads the history file.\n\nSigned-off-by: Ada Example <ada@example.org>'
@@ -127,6 +156,52 @@ want_rc "12. exits 2 on a missing input file, never 0" 2
 capture bash -c "\"$CHECK\" < \"$TMP/one.txt\""
 want_green "13. the commits on stdin" "every one signed off"
 
+# --- The bot exemption.
+DEPENDABOT="Bot:dependabot[bot]"
+BOT_EMAIL="49699333+dependabot[bot]@users.noreply.github.com"
+BUMP=$'Bump example-lib from 1.0.0 to 1.0.1\n\nBumps example-lib from 1.0.0 to 1.0.1.'
+
+commit 141414141414eeee "$BOT_EMAIL" "$BUMP" "$DEPENDABOT" > "$TMP/bot.txt"
+capture "$CHECK" "$TMP/bot.txt" "$DEPENDABOT"
+want_green "14. an unsigned commit by the Bot account that opened the pull request" "commit 141414141414 (Bump example-lib from 1.0.0 to 1.0.1) is exempt: authored by the bot account dependabot[bot], which opened this pull request"
+
+commit 151515151515ffff "$BOT_EMAIL" "$BUMP" "User:mallory-example" > "$TMP/spoof-user.txt"
+capture "$CHECK" "$TMP/spoof-user.txt" "$DEPENDABOT"
+want_red "15. a bot-looking email linked to a User account" "commit 151515151515 (Bump example-lib from 1.0.0 to 1.0.1) has no Signed-off-by trailer"
+
+commit 161616161616aaaa "$BOT_EMAIL" "$BUMP" > "$TMP/spoof-none.txt"
+capture "$CHECK" "$TMP/spoof-none.txt" "$DEPENDABOT"
+want_red "16. a bot-looking email linked to no account" "commit 161616161616 (Bump example-lib from 1.0.0 to 1.0.1) has no Signed-off-by trailer"
+
+commit 171717171717bbbb "$BOT_EMAIL" "$BUMP" "$DEPENDABOT" > "$TMP/spoof-opener.txt"
+capture "$CHECK" "$TMP/spoof-opener.txt" "User:mallory-example"
+want_red "17. linked to a Bot account, in a pull request a User opened" "commit 171717171717 (Bump example-lib from 1.0.0 to 1.0.1) has no Signed-off-by trailer"
+
+capture "$CHECK" "$TMP/spoof-opener.txt" "Bot:renovate[bot]"
+want_red "18. linked to a Bot account, in a pull request another Bot opened" "commit 171717171717 (Bump example-lib from 1.0.0 to 1.0.1) has no Signed-off-by trailer"
+
+capture "$CHECK" "$TMP/spoof-opener.txt"
+want_red "19. linked to a Bot account, no opener given" "commit 171717171717 (Bump example-lib from 1.0.0 to 1.0.1) has no Signed-off-by trailer"
+
+{
+  commit 202020202020cccc "$BOT_EMAIL" "$BUMP" "$DEPENDABOT"
+  commit 212121212121dddd bo@example.org "$UNSIGNED" "User:bo-example"
+} > "$TMP/mixed.txt"
+capture "$CHECK" "$TMP/mixed.txt" "$DEPENDABOT"
+want_red "20. the opening bot's unsigned commit and an unsigned human commit" "commit 212121212121 (Tidy the template) has no Signed-off-by trailer"
+if grep 'FAIL' <<< "$OUT" | grep -q '202020202020'; then
+  fail "20. a FAIL line names the bot's exempt commit too. Output: ${OUT}"
+else
+  echo "  ok: 20. only the human commit is named as a failure"
+fi
+
+capture "$CHECK" "$TMP/bot.txt" "dependabot[bot]"
+want_red "21. an opener not in the <type>:<login> shape" "the pull request opener is not <type>:<login>"
+
+printf '%s %s %s %s\n' 222222222222eeee 'Bot:dependabot[bot]x' "$(b64 "$BOT_EMAIL")" "$(b64 "$BUMP")" > "$TMP/badaccount.txt"
+capture "$CHECK" "$TMP/badaccount.txt" "$DEPENDABOT"
+want_red "22. an author account not in the shape" "malformed line 1"
+
 # Mutation proof for case 4: a copy of the check whose trailer block starts
 # right after the subject, not at the last paragraph, must be green on it.
 # The mutant cds to its own dir's parent; give it the same layout.
@@ -152,5 +227,33 @@ if selftest_mutant "$CHECK" "$MUTANT" 's/if (tolower(email) == tolower(author)) 
   fi
 fi
 
-selftest_end "the DCO check does not hold every commit to a Signed-off-by trailer from its author" \
-  "DCO check is green on commits signed off by their authors (any case, among other trailers, CRLF), red naming the unsigned commit alone, on no commit, on a Signed-off-by in the body, mid-line or as the subject, on a sign-off by someone else (no email printed), on no author email and on a malformed line, exits 2 on a missing file, reads stdin, and its last-paragraph rule and email comparison are what redden cases 4 and 7"
+# Mutation proof for case 15: a copy of the check that exempts a commit by
+# its bot-looking author email, as a check resting on what a contributor
+# writes would, must be green on it. Both proofs rewrite the exemption
+# line of Scripts/check_dco.sh by its exact text; [$] matches its dollar
+# signs, and \2 (the one captured) writes the mutant's, so no expression
+# here reads as a shell expansion.
+MUTANT="$TMP/mutant-byemail/Scripts/check_dco.sh"
+if selftest_mutant "$CHECK" "$MUTANT" 's/^\( *\)if \[ "\([$]\)account" = "Bot:[$]{opener_login}" \] && \[ "[$]opener" = "Bot:[$]{opener_login}" \]; then$/\1if [[ "\2email" == *"[bot]@users.noreply.github.com" ]]; then/'; then
+  capture "$MUTANT" "$TMP/spoof-user.txt" "$DEPENDABOT"
+  if [[ "$RC" -eq 0 ]]; then
+    echo "  ok: mutation proof: exempting by the author email, case 15 is green, so it is red because its account is a User, whatever its email says"
+  else
+    fail "mutation proof: a check that exempts by the author email is still red on case 15 (exit ${RC}) — case 15 is red for another reason. Output: ${OUT}"
+  fi
+fi
+
+# Mutation proof for case 17: a copy of the check that takes any Bot
+# account, whoever opened the pull request, must be green on it.
+MUTANT="$TMP/mutant-opener/Scripts/check_dco.sh"
+if selftest_mutant "$CHECK" "$MUTANT" 's/^\( *\)if \[ "\([$]\)account" = "Bot:[$]{opener_login}" \] && \[ "[$]opener" = "Bot:[$]{opener_login}" \]; then$/\1if [ "\2{account%%:*}" = "Bot" ]; then/'; then
+  capture "$MUTANT" "$TMP/spoof-opener.txt" "User:mallory-example"
+  if [[ "$RC" -eq 0 ]]; then
+    echo "  ok: mutation proof: without the opener comparison, case 17 is green, so it is red because a User opened the pull request"
+  else
+    fail "mutation proof: a check that takes any Bot account is still red on case 17 (exit ${RC}) — case 17 is red for another reason. Output: ${OUT}"
+  fi
+fi
+
+selftest_end "the DCO check does not hold every commit to a Signed-off-by trailer from its author, or exempts a commit on anything but the Bot account that opened the pull request" \
+  "DCO check is green on commits signed off by their authors (any case, among other trailers, CRLF), red naming the unsigned commit alone, on no commit, on a Signed-off-by in the body, mid-line or as the subject, on a sign-off by someone else (no email printed), on no author email and on a malformed line, exits 2 on a missing file, reads stdin, exempts only the unsigned commits of the Bot account that opened the pull request (never by a bot-looking email, for a User or no account, another opener or none), names the human commit alone in a mixed pull request, and its last-paragraph rule, email comparison, account rule and opener comparison are what redden cases 4, 7, 15 and 17"

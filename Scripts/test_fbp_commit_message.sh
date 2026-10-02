@@ -368,7 +368,7 @@ dco_verdict() {
     return 1
   fi
   input="${FBP_SANDBOX_NEW_DIR}/commits.txt"
-  printf '%s %s %s\n' "$COMMIT_SHA" \
+  printf '%s - %s %s\n' "$COMMIT_SHA" \
     "$(printf '%s' "$COMMIT_AUTHOR" | base64 | tr -d '\n')" \
     "$(printf '%s' "$COMMIT_MSG" | base64 | tr -d '\n')" > "$input"
   DCO_RC=0
