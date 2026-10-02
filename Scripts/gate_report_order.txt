@@ -200,6 +200,17 @@ gofmt|Scripts/check_gofmt.sh|pre|
 actionlint self-test|Scripts/test_check_actionlint.sh|pre|
 actionlint|Scripts/check_actionlint.sh|pre|
 #
+# zizmor (forsgren#1, ladder step 19). Not canon: web-infra's gate (its sfl
+# runs it right behind actionlint, as here), so it sits right behind the
+# canon actionlint rows, before shellcheck. actionlint asks whether a
+# workflow is valid, zizmor whether it is safe: template injection, an
+# attacker-controlled ${{ ... }} expanded into a run: block, above all. The
+# self-test is forsgren's own (no repo of the estate has one): each case
+# asserts its reason, a .yaml workflow is read as well as a .yml, a scan over
+# no workflow is red, and two mutation proofs show the severity threshold
+# and the config are what they claim. Repository source, so it runs in pre.
+zizmor self-test|Scripts/test_check_zizmor.sh|pre|
+#
 # Shellcheck and yamllint (forsgren#1, ladder step 12), at their canon
 # position after the actionlint rows and before lint coverage. Both read
 # repository source, so both run in pre.
