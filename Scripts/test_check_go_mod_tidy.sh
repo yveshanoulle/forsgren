@@ -38,30 +38,13 @@ cd "$(dirname "$0")/.." || exit 1
 
 GATE="./Scripts/check_go_mod_tidy.sh"
 
-TMP="$(mktemp -d)"
-COMPLETED=0
-cleanup() {
-  rm -rf "$TMP"
-  if [[ "$COMPLETED" -ne 1 ]]; then
-    echo "❌ FAIL: go mod tidy gate self-test aborted before completing all cases" >&2
-    exit 1
-  fi
-}
-trap cleanup EXIT
+# shellcheck source=Scripts/lib_selftest.sh
+source Scripts/lib_selftest.sh
+selftest_begin "go mod tidy gate self-test"
 
-if [[ ! -x "$GATE" ]]; then
-  echo "❌ FAIL: the go mod tidy gate ${GATE} is missing (or not executable): nothing checks go.mod and go.sum are tidy"
-  COMPLETED=1
-  exit 1
-fi
+[[ -x "$GATE" ]] || selftest_abort "the go mod tidy gate ${GATE} is missing (or not executable): nothing checks go.mod and go.sum are tidy"
 
 export GOPROXY=off
-
-failed=0
-fail() {
-  echo "❌ FAIL: $*"
-  failed=1
-}
 
 mkdir -p "${TMP}/dep"
 printf 'module example.com/dep\n\ngo 1.26.1\n' > "${TMP}/dep/go.mod"
@@ -91,51 +74,21 @@ new_module() {
 
 # run_gate [gate] — runs the gate against $MOD; sets RC and OUT.
 run_gate() {
-  set +e
-  OUT="$("${1:-$GATE}" "$MOD" 2>&1)"
-  RC=$?
-  set -e
-}
-
-want_green() {
-  if [[ "$RC" -ne 0 ]]; then
-    fail "$1: the gate exited ${RC}. Output: ${OUT}"
-  elif ! grep -qF -- "OK:" <<< "$OUT"; then
-    fail "$1: the gate exited 0 without its OK line. Output: ${OUT}"
-  else
-    echo "  ok: $1"
-  fi
-}
-
-# want_red <case> <reason> — the last run failed and said <reason>.
-want_red() {
-  if [[ "$RC" -eq 0 ]]; then
-    fail "$1: the gate exited 0. Output: ${OUT}"
-  elif ! grep -qF -- "$2" <<< "$OUT"; then
-    fail "$1: the gate failed without saying '$2'. Output: ${OUT}"
-  else
-    echo "  ok: $1"
-  fi
+  capture "${1:-$GATE}" "$MOD"
 }
 
 # mutant <name> <sed-expression> — a mutated copy of the gate at
 # $TMP/<name>/Scripts/; sets MUTANT, or fails the case when the edit changed
 # nothing (a vacuous proof).
 mutant() {
-  mkdir -p "${TMP}/$1/Scripts"
   MUTANT="${TMP}/$1/Scripts/check_go_mod_tidy.sh"
-  sed "$2" "$GATE" > "$MUTANT"
-  chmod +x "$MUTANT"
-  if cmp -s "$GATE" "$MUTANT"; then
-    fail "mutation $1 changed nothing in ${GATE}: the proof would be vacuous"
-    return 1
-  fi
+  selftest_mutant "$GATE" "$MUTANT" "$2" || return 1
 }
 
 # --- Case 1: tidy.
 new_module "tidy" yes yes
 run_gate
-want_green "a tidy go.mod is green"
+want_green_ok "a tidy go.mod is green"
 
 # --- Case 2: a needed require missing.
 new_module "missing" yes no
@@ -162,14 +115,14 @@ want_red "  ... the diff removes the require" "-${REQUIRE}"
 new_module "missing-tidied" yes no
 (cd "$MOD" && go mod tidy >/dev/null 2>&1) || fail "go mod tidy failed on the case 5 fixture"
 run_gate
-want_green "mutation: case 2's module after go mod tidy is green"
+want_green_ok "mutation: case 2's module after go mod tidy is green"
 
 # --- Case 6: MUTATION PROOF. The gate without -diff.
 new_module "missing-no-diff" yes no
 cp "${MOD}/go.mod" "${TMP}/no-diff.go.mod"
 if mutant "no-diff" 's/go mod tidy -diff/go mod tidy/'; then
   run_gate "$MUTANT"
-  want_green "mutation: without -diff, case 2 is green"
+  want_green_ok "mutation: without -diff, case 2 is green"
   if cmp -s "${TMP}/no-diff.go.mod" "${MOD}/go.mod"; then
     fail "mutation: without -diff, case 2's go.mod was not rewritten: the proof shows nothing"
   else
@@ -194,12 +147,5 @@ MOD="${TMP}/nope"
 run_gate
 want_red "a missing module directory is red" "module directory not found"
 
-COMPLETED=1
-
-if [[ "$failed" -ne 0 ]]; then
-  echo ""
-  echo "FAIL: the go mod tidy gate does not tell a tidy go.mod from an untidy one (see the FAIL lines above)"
-  exit 1
-fi
-
-echo "OK: go mod tidy gate is red on a missing and on an unneeded require, on an unparsable go.mod, on no go.mod and on a missing module, green on a tidy module, never rewrites go.mod, and -diff is shown to be what makes it red"
+selftest_end "the go mod tidy gate does not tell a tidy go.mod from an untidy one" \
+  "go mod tidy gate is red on a missing and on an unneeded require, on an unparsable go.mod, on no go.mod and on a missing module, green on a tidy module, never rewrites go.mod, and -diff is shown to be what makes it red"

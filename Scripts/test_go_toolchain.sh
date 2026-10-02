@@ -16,22 +16,9 @@ cd "$(dirname "$0")/.." || exit 1
 
 SCRIPT="./Scripts/go_toolchain.sh"
 
-TMP="$(mktemp -d)"
-COMPLETED=0
-cleanup() {
-  rm -rf "$TMP"
-  if [[ "$COMPLETED" -ne 1 ]]; then
-    echo "❌ FAIL: go-toolchain self-test aborted before completing all cases" >&2
-    exit 1
-  fi
-}
-trap cleanup EXIT
-
-failed=0
-fail() {
-  echo "❌ FAIL: $*"
-  failed=1
-}
+# shellcheck source=Scripts/lib_selftest.sh
+source Scripts/lib_selftest.sh
+selftest_begin "go-toolchain self-test"
 
 # run_case <name> <go.mod content> -> sets OUT (stdout), ERR (stderr), RC
 run_case() {
@@ -46,7 +33,7 @@ run_case with $'module m\n\ngo 1.26.1\n\ntoolchain go1.27.1\n'
 if [ "$RC" -ne 0 ] || [ "$OUT" != "go1.27.1" ]; then
   fail "a toolchain line must print exactly its version — rc=${RC}, stdout=${OUT}, stderr=${ERR}"
 else
-  echo "OK:   the toolchain line is read as-is"
+  echo "  ok: the toolchain line is read as-is"
 fi
 
 run_case without $'module m\n\ngo 1.26.1\n'
@@ -57,14 +44,14 @@ elif ! grep -q "no toolchain line" <<<"$ERR"; then
 elif [ -n "$OUT" ]; then
   fail "a failed read must print nothing on stdout, or sfl would export it: ${OUT}"
 else
-  echo "OK:   a missing toolchain line is refused, by name"
+  echo "  ok: a missing toolchain line is refused, by name"
 fi
 
 run_case commented $'module m\n\n// toolchain go1.99.9\ngo 1.26.1\n'
 if [ "$RC" -eq 0 ]; then
   fail "a comment mentioning toolchain was read as the toolchain line: ${OUT}"
 else
-  echo "OK:   a comment is not a toolchain line"
+  echo "  ok: a comment is not a toolchain line"
 fi
 
 RC=0
@@ -72,7 +59,7 @@ RC=0
 if [ "$RC" -eq 0 ]; then
   fail "a missing go.mod reported success"
 else
-  echo "OK:   a missing go.mod is refused"
+  echo "  ok: a missing go.mod is refused"
 fi
 
 RC=0
@@ -80,15 +67,8 @@ OUT="$("$SCRIPT" 2>&1)" || RC=$?
 if [ "$RC" -ne 0 ] || ! grep -qE '^go[0-9]+\.[0-9]+(\.[0-9]+)?$' <<<"$OUT"; then
   fail "the repo's own go.mod must carry a toolchain line — rc=${RC}: ${OUT}"
 else
-  echo "OK:   the repo's go.mod pins ${OUT}"
+  echo "  ok: the repo's go.mod pins ${OUT}"
 fi
 
-COMPLETED=1
-
-if [ "$failed" -ne 0 ]; then
-  echo
-  echo "FAIL: go-toolchain self-test"
-  exit 1
-fi
-
-echo "go-toolchain self-test: all cases passed"
+selftest_end "go-toolchain self-test" \
+  "Go toolchain reader prints exactly the toolchain line, refuses a go.mod without one (a comment does not count) and a missing go.mod, and the repo pins one"

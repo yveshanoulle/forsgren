@@ -40,28 +40,11 @@ cd "$(dirname "$0")/.." || exit 1
 
 GATE="./Scripts/check_govulncheck.sh"
 
-TMP="$(mktemp -d)"
-COMPLETED=0
-cleanup() {
-  rm -rf "$TMP"
-  if [[ "$COMPLETED" -ne 1 ]]; then
-    echo "❌ FAIL: vulnerability gate self-test aborted before completing all cases" >&2
-    exit 1
-  fi
-}
-trap cleanup EXIT
+# shellcheck source=Scripts/lib_selftest.sh
+source Scripts/lib_selftest.sh
+selftest_begin "vulnerability gate self-test"
 
-if [[ ! -x "$GATE" ]]; then
-  echo "❌ FAIL: the vulnerability gate ${GATE} is missing (or not executable): nothing runs govulncheck"
-  COMPLETED=1
-  exit 1
-fi
-
-failed=0
-fail() {
-  echo "❌ FAIL: $*"
-  failed=1
-}
+[[ -x "$GATE" ]] || selftest_abort "the vulnerability gate ${GATE} is missing (or not executable): nothing runs govulncheck"
 
 OFFLINE_DB="http://127.0.0.1:9"
 
@@ -93,31 +76,7 @@ new_module() {
 
 # run_gate <database> [gate] — runs the gate against $MOD; sets RC and OUT.
 run_gate() {
-  set +e
-  OUT="$(FORSGREN_VULN_DB="$1" "${2:-$GATE}" "$MOD" 2>&1)"
-  RC=$?
-  set -e
-}
-
-want_green() {
-  if [[ "$RC" -ne 0 ]]; then
-    fail "$1: the gate exited ${RC}. Output: ${OUT}"
-  elif ! grep -qF -- "OK:" <<< "$OUT"; then
-    fail "$1: the gate exited 0 without its OK line. Output: ${OUT}"
-  else
-    echo "  ok: $1"
-  fi
-}
-
-# want_red <case> <reason> — the last run failed and said <reason>.
-want_red() {
-  if [[ "$RC" -eq 0 ]]; then
-    fail "$1: the gate exited 0. Output: ${OUT}"
-  elif ! grep -qF -- "$2" <<< "$OUT"; then
-    fail "$1: the gate failed without saying '$2'. Output: ${OUT}"
-  else
-    echo "  ok: $1"
-  fi
+  capture env FORSGREN_VULN_DB="$1" "${2:-$GATE}" "$MOD"
 }
 
 # want_skip <case> — the last run exited 0 with the ⚠️ SKIP line naming the
@@ -141,15 +100,9 @@ want_skip() {
 # `go tool -n govulncheck` resolves the same pinned govulncheck there; sets
 # MUTANT, or fails the case when the edit changed nothing (a vacuous proof).
 mutant() {
-  mkdir -p "${TMP}/$1/Scripts"
-  cp go.mod go.sum "${TMP}/$1/"
   MUTANT="${TMP}/$1/Scripts/check_govulncheck.sh"
-  sed "$2" "$GATE" > "$MUTANT"
-  chmod +x "$MUTANT"
-  if cmp -s "$GATE" "$MUTANT"; then
-    fail "mutation $1 changed nothing in ${GATE}: the proof would be vacuous"
-    return 1
-  fi
+  selftest_mutant "$GATE" "$MUTANT" "$2" || return 1
+  cp go.mod go.sum "${TMP}/$1/"
 }
 
 # --- Case 1: a call to the vulnerable symbol.
@@ -162,12 +115,12 @@ CALLS="$MOD"
 # --- Case 2: FIXTURE MUTATION. No entry in the database.
 MOD="$CALLS"
 run_gate "$EMPTY_DB"
-want_green "mutation: case 1 against a database without the entry is green"
+want_green_ok "mutation: case 1 against a database without the entry is green"
 
 # --- Case 3: the package imported, the symbol not called.
 new_module "calls-tolower" "ToLower"
 run_gate "$VULN_DB"
-want_green "importing strings without calling ToUpper is green"
+want_green_ok "importing strings without calling ToUpper is green"
 
 # --- Case 4: offline.
 MOD="$CALLS"
@@ -191,12 +144,5 @@ MOD="${TMP}/nope"
 run_gate "$VULN_DB"
 want_red "a missing module directory is red" "module directory not found"
 
-COMPLETED=1
-
-if [[ "$failed" -ne 0 ]]; then
-  echo ""
-  echo "FAIL: the vulnerability gate does not tell a vulnerable call from a clean one, or offline from a pass (see the FAIL lines above)"
-  exit 1
-fi
-
-echo "OK: vulnerability gate is red on a call to a vulnerable symbol, on no package and on a missing module, green when the symbol is not called or the database has no entry, and an unreachable database is a ⚠️ skip, shown to come from the probe"
+selftest_end "the vulnerability gate does not tell a vulnerable call from a clean one, or offline from a pass" \
+  "vulnerability gate is red on a call to a vulnerable symbol, on no package and on a missing module, green when the symbol is not called or the database has no entry, and an unreachable database is a ⚠️ skip, shown to come from the probe"

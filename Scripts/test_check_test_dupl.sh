@@ -39,40 +39,16 @@ cd "$(dirname "$0")/.." || exit 1
 GATE="./Scripts/check_test_dupl.sh"
 THRESHOLD=20
 
-TMP="$(mktemp -d)"
-COMPLETED=0
-cleanup() {
-  rm -rf "$TMP"
-  if [[ "$COMPLETED" -ne 1 ]]; then
-    echo "❌ FAIL: test-dupl gate self-test aborted before completing all cases" >&2
-    exit 1
-  fi
-}
-trap cleanup EXIT
+# shellcheck source=Scripts/lib_selftest.sh
+source Scripts/lib_selftest.sh
+selftest_begin "test-dupl gate self-test"
 
-if [[ ! -x "$GATE" ]]; then
-  echo "❌ FAIL: the test-dupl gate ${GATE} is missing (or not executable): nothing checks test code for duplication"
-  COMPLETED=1
-  exit 1
-fi
+[[ -x "$GATE" ]] || selftest_abort "the test-dupl gate ${GATE} is missing (or not executable): nothing checks test code for duplication"
 
-failed=0
 # run_gate <gate> <module> — sets RC and OUT (stdout and stderr together).
 run_gate() {
-  set +e
-  OUT="$("$1" "$2" "$THRESHOLD" 2>&1)"
-  RC=$?
-  set -e
+  capture "$1" "$2" "$THRESHOLD"
 }
-check_reason() { # <name> <expected-rc> <fixed-string reason>
-  if [[ "$RC" == "$2" ]] && grep -qF -- "$3" <<< "$OUT"; then
-    echo "  ok: $1"
-  else
-    echo "❌ FAIL: $1 — expected exit $2 with: $3; got exit ${RC}. Output: ${OUT}"
-    failed=1
-  fi
-}
-
 # new_module <name> — a module with one package and no test yet.
 new_module() {
   MOD="${TMP}/$1"
@@ -151,60 +127,45 @@ GO
 new_module "dup"
 write_twins "_test"
 run_gate "$GATE" "$MOD"
-check_reason "duplicated test code is red, naming dupl" 1 "(dupl)"
-check_reason "  ... and counting the findings" 1 "test-code duplication findings:"
+want_exit "duplicated test code is red, naming dupl" 1 "(dupl)"
+want_exit "  ... and counting the findings" 1 "test-code duplication findings:"
 DUP="$MOD"
 
 # --- Case 2: clean test code.
 new_module "clean"
 add_one_test
 run_gate "$GATE" "$MOD"
-check_reason "clean test code is green" 0 "OK:"
+want_exit "clean test code is green" 0 "OK:"
 
 # --- Case 3: the same duplication in production code.
 new_module "prod-dup"
 write_twins ""
 add_one_test
 run_gate "$GATE" "$MOD"
-check_reason "duplication in non-test code is not this gate's red" 0 "OK:"
+want_exit "duplication in non-test code is not this gate's red" 0 "OK:"
 PROD_DUP="$MOD"
 
 # --- Case 4: no test file.
 new_module "no-tests"
 run_gate "$GATE" "$MOD"
-check_reason "a module with no _test.go file is red" 1 "no _test.go file to check"
+want_exit "a module with no _test.go file is red" 1 "no _test.go file to check"
 
 # --- Case 5: a module directory that does not exist.
 run_gate "$GATE" "${TMP}/nope"
-check_reason "a missing module directory is a tooling error" 2 "module directory not found"
+want_exit "a missing module directory is a tooling error" 2 "module directory not found"
 
 # --- Case 6: MUTATION PROOF. path-except turned into path.
 # The mutant finds its root as the gate does, one level above its Scripts/,
 # and the pinned golangci-lint through the go.mod and go.sum it finds there.
-mkdir -p "${TMP}/mutant/Scripts"
-cp go.mod "${TMP}/mutant/"
-if [[ -f go.sum ]]; then cp go.sum "${TMP}/mutant/"; fi
 MUTANT="${TMP}/mutant/Scripts/check_test_dupl.sh"
-sed 's/path-except:/path:/' "$GATE" > "$MUTANT"
-chmod +x "$MUTANT"
-if cmp -s "$GATE" "$MUTANT"; then
-  OUT="the mutation changed nothing: no 'path-except:' in ${GATE}"
-  RC=127
-else
+if selftest_mutant "$GATE" "$MUTANT" 's/path-except:/path:/'; then
+  cp go.mod "${TMP}/mutant/"
+  if [[ -f go.sum ]]; then cp go.sum "${TMP}/mutant/"; fi
   run_gate "$MUTANT" "$DUP"
-fi
-check_reason "mutation: with path instead of path-except, case 1 is green" 0 "OK:"
-if [[ "$RC" != 127 ]]; then
+  want_exit "mutation: with path instead of path-except, case 1 is green" 0 "OK:"
   run_gate "$MUTANT" "$PROD_DUP"
-fi
-check_reason "  ... and case 3 red, naming dupl: case 3's duplication is real" 1 "(dupl)"
-
-COMPLETED=1
-
-if [[ "$failed" -ne 0 ]]; then
-  echo ""
-  echo "FAIL: the test-dupl gate does not tell green from red (see the FAIL lines above)"
-  exit 1
+  want_exit "  ... and case 3 red, naming dupl: case 3's duplication is real" 1 "(dupl)"
 fi
 
-echo "OK: test-dupl gate is red on duplicated test code and on no test file, green on clean test code and on production-only duplication, a tooling error on a missing module, and its path-except filter is what points it at test code"
+selftest_end "the test-dupl gate does not tell green from red" \
+  "test-dupl gate is red on duplicated test code and on no test file, green on clean test code and on production-only duplication, a tooling error on a missing module, and its path-except filter is what points it at test code"

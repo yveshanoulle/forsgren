@@ -52,30 +52,11 @@ cd "$(dirname "$0")/.." || exit 1
 
 GATE="./Scripts/check_workflow_triggers.sh"
 
-if [[ ! -x "$GATE" ]]; then
-  echo "❌ FAIL: ${GATE} not found or not executable — the workflow-trigger gate this self-test validates does not exist, so nothing keeps a pull-request trigger off the self-hosted runner"
-  exit 1
-fi
+# shellcheck source=Scripts/lib_selftest.sh
+source Scripts/lib_selftest.sh
+selftest_begin "workflow-trigger self-test"
 
-TMP="$(mktemp -d)"
-COMPLETED=0
-cleanup() {
-  rm -rf "$TMP"
-  if [[ "$COMPLETED" -ne 1 ]]; then
-    echo "❌ FAIL: workflow-trigger self-test aborted before completing all cases" >&2
-    exit 1
-  fi
-}
-trap cleanup EXIT
-
-failures=0
-check() { # <name> <expected-rc> <actual-rc>
-  if [[ "$2" == "$3" ]]; then echo "  ✅ $1"; else echo "  ❌ $1 — expected exit $2, got $3. Output: $OUT"; failures=$((failures+1)); fi
-}
-says() { # <name> <fixed-string> — the last output must contain it
-  if grep -qF -- "$2" <<<"$OUT"; then echo "  ✅ $1"; else echo "  ❌ $1 — output lacks: $2. Output: $OUT"; failures=$((failures+1)); fi
-}
-run() { set +e; OUT="$("$@" 2>&1)"; RC=$?; set -e; }
+[[ -x "$GATE" ]] || selftest_abort "${GATE} not found or not executable — the workflow-trigger gate this self-test validates does not exist, so nothing keeps a pull-request trigger off the self-hosted runner"
 
 SELF_HOSTED='    runs-on: [self-hosted, macOS, ARM64]'
 HOSTED='    runs-on: ubuntu-latest'
@@ -98,70 +79,68 @@ workflow() {
   } > "$TMP/$1/$2"
 }
 
-echo "test_check_workflow_triggers"
-
 workflow scalar ci.yml 'on: pull_request' "$SELF_HOSTED"
-run "$GATE" "$TMP/scalar"
-check "1. rejects a self-hosted job on \`on: pull_request\`" 1 "$RC"
-says  "1. the finding names the file" "ci.yml"
-says  "1. the finding names the trigger" "pull_request"
-says  "1. the finding names the job" "build"
+capture "$GATE" "$TMP/scalar"
+want_rc "1. rejects a self-hosted job on \`on: pull_request\`" 1
+want_said "1. the finding names the file" "ci.yml"
+want_said "1. the finding names the trigger" "pull_request"
+want_said "1. the finding names the job" "build"
 
 workflow target ci.yml 'on:
   pull_request_target:
     types: [opened]' "$SELF_HOSTED"
-run "$GATE" "$TMP/target"
-check "2. rejects a self-hosted job on pull_request_target" 1 "$RC"
-says  "2. the finding names pull_request_target" "pull_request_target"
+capture "$GATE" "$TMP/target"
+want_rc "2. rejects a self-hosted job on pull_request_target" 1
+want_said "2. the finding names pull_request_target" "pull_request_target"
 
 workflow flowlist ci.yml 'on: [push, pull_request]' "$SELF_HOSTED"
-run "$GATE" "$TMP/flowlist"
-check "3. rejects the list form \`on: [push, pull_request]\`" 1 "$RC"
+capture "$GATE" "$TMP/flowlist"
+want_rc "3. rejects the list form \`on: [push, pull_request]\`" 1
 
 workflow flowmap ci.yml 'on: {pull_request: {branches: [main]}}' "$SELF_HOSTED"
-run "$GATE" "$TMP/flowmap"
-check "4. rejects the map form \`on: {pull_request: ...}\`" 1 "$RC"
+capture "$GATE" "$TMP/flowmap"
+want_rc "4. rejects the map form \`on: {pull_request: ...}\`" 1
 
 workflow blocklist ci.yml 'on:
   - push
   - pull_request' "$SELF_HOSTED"
-run "$GATE" "$TMP/blocklist"
-check "5. rejects the block-list form \`- pull_request\`" 1 "$RC"
+capture "$GATE" "$TMP/blocklist"
+want_rc "5. rejects the block-list form \`- pull_request\`" 1
 
 workflow review ci.yml 'on:
   pull_request_review:
     types: [submitted]' "$SELF_HOSTED"
-run "$GATE" "$TMP/review"
-check "6. rejects pull_request_review (it checks out the pull request's code too)" 1 "$RC"
+capture "$GATE" "$TMP/review"
+want_rc "6. rejects pull_request_review (it checks out the pull request's code too)" 1
 
 workflow hosted ci.yml 'on: [push, pull_request]' "$HOSTED"
-run "$GATE" "$TMP/hosted"
-check "7. a GitHub-hosted job on pull_request is allowed" 0 "$RC"
+capture "$GATE" "$TMP/hosted"
+want_rc "7. a GitHub-hosted job on pull_request is allowed" 0
 
 workflow pushonly ci.yml 'on:
   push:
     branches: ["main"]
   workflow_dispatch:' "$SELF_HOSTED"
-run "$GATE" "$TMP/pushonly"
-check "8. a self-hosted job on push and workflow_dispatch only is allowed" 0 "$RC"
+capture "$GATE" "$TMP/pushonly"
+want_rc "8. a self-hosted job on push and workflow_dispatch only is allowed" 0
 
 workflow comment ci.yml 'on:
   # NO pull_request and NO pull_request_target, ever.
   push:
     branches: ["main"]  # not on pull_request
   workflow_dispatch:' "$SELF_HOSTED"
-run "$GATE" "$TMP/comment"
-check "9. a comment naming pull_request is not a trigger" 0 "$RC"
+capture "$GATE" "$TMP/comment"
+want_rc "9. a comment naming pull_request is not a trigger" 0
 
 workflow runsblock ci.yml 'on: pull_request' '    runs-on:
       - self-hosted
       - macOS'
-run "$GATE" "$TMP/runsblock"
-check "10. rejects runs-on as a block list holding self-hosted" 1 "$RC"
+capture "$GATE" "$TMP/runsblock"
+want_rc "10. rejects runs-on as a block list holding self-hosted" 1
 
 workflow customlabel ci.yml 'on: pull_request' '    runs-on: runner-acme'
-run "$GATE" "$TMP/customlabel"
-check "11. rejects runs-on a custom label without self-hosted" 1 "$RC"
+capture "$GATE" "$TMP/customlabel"
+want_rc "11. rejects runs-on a custom label without self-hosted" 1
 
 mkdir -p "$TMP/matrix"
 cat > "$TMP/matrix/ci.yml" <<'YAML'
@@ -176,8 +155,8 @@ jobs:
     steps:
       - run: echo hi
 YAML
-run "$GATE" "$TMP/matrix"
-check "12. rejects runs-on a matrix expression" 1 "$RC"
+capture "$GATE" "$TMP/matrix"
+want_rc "12. rejects runs-on a matrix expression" 1
 
 mkdir -p "$TMP/reusable"
 cat > "$TMP/reusable/ci.yml" <<'YAML'
@@ -187,8 +166,8 @@ jobs:
   call:
     uses: ./.github/workflows/build.yml
 YAML
-run "$GATE" "$TMP/reusable"
-check "13. rejects a reusable-workflow job on pull_request" 1 "$RC"
+capture "$GATE" "$TMP/reusable"
+want_rc "13. rejects a reusable-workflow job on pull_request" 1
 
 mkdir -p "$TMP/twojobs"
 cat > "$TMP/twojobs/ci.yml" <<'YAML'
@@ -204,19 +183,19 @@ jobs:
     steps:
       - run: echo deploy
 YAML
-run "$GATE" "$TMP/twojobs"
-check "14. rejects a workflow whose second job is self-hosted" 1 "$RC"
-says  "14. the finding names the self-hosted job" "job 'deploy'"
+capture "$GATE" "$TMP/twojobs"
+want_rc "14. rejects a workflow whose second job is self-hosted" 1
+want_said "14. the finding names the self-hosted job" "job 'deploy'"
 if grep -qF "job 'lint'" <<<"$OUT"; then
-  echo "  ❌ 14. the GitHub-hosted job is named as a finding. Output: $OUT"; failures=$((failures+1))
+  fail "14. the GitHub-hosted job is named as a finding. Output: $OUT"
 else
-  echo "  ✅ 14. the GitHub-hosted job is not a finding"
+  echo "  ok: 14. the GitHub-hosted job is not a finding"
 fi
 
 workflow yamlext ci.yaml 'on: pull_request' "$SELF_HOSTED"
-run "$GATE" "$TMP/yamlext"
-check "15. scans a .yaml file like a .yml" 1 "$RC"
-says  "15. the finding names ci.yaml" "ci.yaml"
+capture "$GATE" "$TMP/yamlext"
+want_rc "15. scans a .yaml file like a .yml" 1
+want_said "15. the finding names ci.yaml" "ci.yaml"
 
 mkdir -p "$TMP/noon"
 cat > "$TMP/noon/ci.yml" <<'YAML'
@@ -227,48 +206,34 @@ jobs:
     steps:
       - run: echo hi
 YAML
-run "$GATE" "$TMP/noon"
-check "16. rejects a workflow with no on: key" 1 "$RC"
+capture "$GATE" "$TMP/noon"
+want_rc "16. rejects a workflow with no on: key" 1
 
 mkdir -p "$TMP/empty"
 echo "not a workflow" > "$TMP/empty/README.md"
-run "$GATE" "$TMP/empty"
-check "17. rejects a dir with no workflow file" 1 "$RC"
-says  "17. the finding says it scanned nothing" "scan over nothing"
+capture "$GATE" "$TMP/empty"
+want_rc "17. rejects a dir with no workflow file" 1
+want_said "17. the finding says it scanned nothing" "scan over nothing"
 
-run "$GATE" "$TMP/does-not-exist"
-check "18. exits 2 on a missing dir, never 0" 2 "$RC"
+capture "$GATE" "$TMP/does-not-exist"
+want_rc "18. exits 2 on a missing dir, never 0" 2
 
-run "$GATE"
-check "19. this repository's workflows keep pull-request triggers off the self-hosted runner" 0 "$RC"
+capture "$GATE"
+want_rc "19. this repository's workflows keep pull-request triggers off the self-hosted runner" 0
 [[ "$RC" -eq 0 ]] || printf '%s\n' "$OUT" | sed 's/^/    /'
 
 # Mutation proof for case 1: the same workflow against a copy of the gate
 # whose PR_EVENTS pattern can never match must be green, and must say why.
-MUTANT="$TMP/check_workflow_triggers.mutant.sh"
-sed "s/^PR_EVENTS=.*/PR_EVENTS='NEVER-MATCHES-ANY-EVENT'/" "$GATE" > "$MUTANT"
-chmod +x "$MUTANT"
-if cmp -s "$GATE" "$MUTANT"; then
-  echo "  ❌ mutation proof: replacing the '^PR_EVENTS=' row changed nothing in ${GATE} — the anchor no longer matches, so this proof proves nothing"
-  failures=$((failures+1))
-else
-  # The mutant cds to its own dir's parent; give it the same layout.
-  mkdir -p "$TMP/mutant/Scripts"
-  mv "$MUTANT" "$TMP/mutant/Scripts/check_workflow_triggers.sh"
-  run "$TMP/mutant/Scripts/check_workflow_triggers.sh" "$TMP/scalar"
+# The mutant cds to its own dir's parent; give it the same layout.
+MUTANT="$TMP/mutant/Scripts/check_workflow_triggers.sh"
+if selftest_mutant "$GATE" "$MUTANT" "s/^PR_EVENTS=.*/PR_EVENTS='NEVER-MATCHES-ANY-EVENT'/"; then
+  capture "$MUTANT" "$TMP/scalar"
   if [[ "$RC" -eq 0 ]] && ! grep -qF "pull_request" <<<"$OUT"; then
-    echo "  ✅ mutation proof: without the PR_EVENTS pattern case 1 is green, so it is red because it triggers on pull_request"
+    echo "  ok: mutation proof: without the PR_EVENTS pattern case 1 is green, so it is red because it triggers on pull_request"
   else
-    echo "  ❌ mutation proof: a gate whose PR_EVENTS never matches is still red on case 1, or still names pull_request (exit $RC) — case 1 is red for another reason. Output: $OUT"
-    failures=$((failures+1))
+    fail "mutation proof: a gate whose PR_EVENTS never matches is still red on case 1, or still names pull_request (exit $RC) — case 1 is red for another reason. Output: $OUT"
   fi
 fi
 
-COMPLETED=1
-if [[ "$failures" -ne 0 ]]; then
-  echo ""
-  echo "❌ FAIL: check_workflow_triggers contract (${failures} failed)"
-  exit 1
-fi
-echo ""
-echo "✅ test_check_workflow_triggers"
+selftest_end "the workflow-trigger gate does not keep pull-request triggers off the self-hosted runner" \
+  "workflow-trigger gate is red on a pull-request trigger (every on: form, pull_request_review included) in a workflow with a job not on a GitHub-hosted runner (self-hosted, a custom label, a matrix, a reusable workflow; .yml and .yaml), on no on: key, on no workflow file and on a missing dir, green on a hosted job, on push-only triggers and on a comment, this repository's workflows pass, and its PR_EVENTS pattern is what reddens case 1"

@@ -23,22 +23,9 @@ cd "$(dirname "$0")/.." || exit 1
 
 GATE="./Scripts/check_go_tests.sh"
 
-TMP="$(mktemp -d)"
-COMPLETED=0
-cleanup() {
-  rm -rf "$TMP"
-  if [[ "$COMPLETED" -ne 1 ]]; then
-    echo "❌ FAIL: Go-test gate self-test aborted before completing all cases" >&2
-    exit 1
-  fi
-}
-trap cleanup EXIT
-
-failed=0
-fail() {
-  echo "❌ FAIL: $*"
-  failed=1
-}
+# shellcheck source=Scripts/lib_selftest.sh
+source Scripts/lib_selftest.sh
+selftest_begin "Go-test gate self-test"
 
 # new_module <name> — a module with one package `m` and no test yet.
 new_module() {
@@ -55,21 +42,7 @@ add_test() {
 
 # run_gate — runs the gate against $MOD; sets RC and OUT.
 run_gate() {
-  set +e
-  OUT="$("$GATE" "$MOD" 2>&1)"
-  RC=$?
-  set -e
-}
-
-# want_red <case> <reason> — the last run failed and said <reason>.
-want_red() {
-  if [[ "$RC" -eq 0 ]]; then
-    fail "$1: the gate exited 0. Output: ${OUT}"
-  elif ! grep -qF -- "$2" <<< "$OUT"; then
-    fail "$1: the gate failed without saying '$2'. Output: ${OUT}"
-  else
-    echo "  ok: $1"
-  fi
+  capture "$GATE" "$MOD"
 }
 
 new_module "passing"
@@ -137,12 +110,5 @@ else
   echo "  ok: this repository's go.mod keeps node_modules out of ./..."
 fi
 
-COMPLETED=1
-
-if [[ "$failed" -ne 0 ]]; then
-  echo ""
-  echo "FAIL: the Go-test gate does not tell green from red (see the FAIL lines above)"
-  exit 1
-fi
-
-echo "OK: Go-test gate is red on a failing test, on zero tests found, on a skipped-only run and on Go code under node_modules/, green on a passing one, and this repository's go.mod keeps node_modules out of ./..."
+selftest_end "the Go-test gate does not tell green from red" \
+  "Go-test gate is red on a failing test, on zero tests found, on a skipped-only run and on Go code under node_modules/, green on a passing one, and this repository's go.mod keeps node_modules out of ./..."

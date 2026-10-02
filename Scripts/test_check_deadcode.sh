@@ -32,28 +32,11 @@ cd "$(dirname "$0")/.." || exit 1
 
 GATE="./Scripts/check_deadcode.sh"
 
-TMP="$(mktemp -d)"
-COMPLETED=0
-cleanup() {
-  rm -rf "$TMP"
-  if [[ "$COMPLETED" -ne 1 ]]; then
-    echo "❌ FAIL: dead-code gate self-test aborted before completing all cases" >&2
-    exit 1
-  fi
-}
-trap cleanup EXIT
+# shellcheck source=Scripts/lib_selftest.sh
+source Scripts/lib_selftest.sh
+selftest_begin "dead-code gate self-test"
 
-if [[ ! -x "$GATE" ]]; then
-  echo "❌ FAIL: the dead-code gate ${GATE} is missing (or not executable): nothing runs deadcode"
-  COMPLETED=1
-  exit 1
-fi
-
-failed=0
-fail() {
-  echo "❌ FAIL: $*"
-  failed=1
-}
+[[ -x "$GATE" ]] || selftest_abort "the dead-code gate ${GATE} is missing (or not executable): nothing runs deadcode"
 
 # new_module <name> — a main package calling lib.Used and used(), with
 # nothing unreachable.
@@ -69,31 +52,7 @@ new_module() {
 
 # run_gate [gate] — runs the gate against $MOD; sets RC and OUT.
 run_gate() {
-  set +e
-  OUT="$("${1:-$GATE}" "$MOD" 2>&1)"
-  RC=$?
-  set -e
-}
-
-want_green() {
-  if [[ "$RC" -ne 0 ]]; then
-    fail "$1: the gate exited ${RC}. Output: ${OUT}"
-  elif ! grep -qF -- "OK:" <<< "$OUT"; then
-    fail "$1: the gate exited 0 without its OK line. Output: ${OUT}"
-  else
-    echo "  ok: $1"
-  fi
-}
-
-# want_red <case> <reason> — the last run failed and said <reason>.
-want_red() {
-  if [[ "$RC" -eq 0 ]]; then
-    fail "$1: the gate exited 0. Output: ${OUT}"
-  elif ! grep -qF -- "$2" <<< "$OUT"; then
-    fail "$1: the gate failed without saying '$2'. Output: ${OUT}"
-  else
-    echo "  ok: $1"
-  fi
+  capture "${1:-$GATE}" "$MOD"
 }
 
 # mutant <name> <sed-expression> — a mutated copy of the gate at
@@ -101,21 +60,15 @@ want_red() {
 # `go tool -n deadcode` resolves the same pinned deadcode there; sets
 # MUTANT, or fails the case when the edit changed nothing (a vacuous proof).
 mutant() {
-  mkdir -p "${TMP}/$1/Scripts"
-  cp go.mod go.sum "${TMP}/$1/"
   MUTANT="${TMP}/$1/Scripts/check_deadcode.sh"
-  sed "$2" "$GATE" > "$MUTANT"
-  chmod +x "$MUTANT"
-  if cmp -s "$GATE" "$MUTANT"; then
-    fail "mutation $1 changed nothing in ${GATE}: the proof would be vacuous"
-    return 1
-  fi
+  selftest_mutant "$GATE" "$MUTANT" "$2" || return 1
+  cp go.mod go.sum "${TMP}/$1/"
 }
 
 # --- Case 1: everything reachable.
 new_module "clean"
 run_gate
-want_green "every function reachable from main is green"
+want_green_ok "every function reachable from main is green"
 
 # --- Case 2: an unreachable unexported function.
 new_module "dead-unexported"
@@ -135,7 +88,7 @@ want_red "an unreachable exported function is red, naming it" "unreachable func:
 MOD="$DEAD"
 printf 'package main\n\nfunc dead() {}\n\nfunc init() { dead() }\n' > "${MOD}/dead.go"
 run_gate
-want_green "mutation: case 2's function called from the program is green"
+want_green_ok "mutation: case 2's function called from the program is green"
 
 # --- Case 5: a function only a test calls.
 new_module "test-only"
@@ -143,7 +96,7 @@ printf '\nfunc testOnly() int { return 1 }\n' >> "${MOD}/lib/lib.go"
 printf 'package lib\n\nimport "testing"\n\nfunc TestTestOnly(t *testing.T) {\n\tif testOnly() != 1 {\n\t\tt.Fatal("testOnly")\n\t}\n}\n' \
   > "${MOD}/lib/lib_test.go"
 run_gate
-want_green "a function called only from a test is green (-test: tests are roots)"
+want_green_ok "a function called only from a test is green (-test: tests are roots)"
 
 # --- Case 6: MUTATION PROOF. The gate without -test.
 if mutant "no-test-flag" 's/ -test / /'; then
@@ -168,12 +121,5 @@ MOD="${TMP}/nope"
 run_gate
 want_red "a missing module directory is red" "module directory not found"
 
-COMPLETED=1
-
-if [[ "$failed" -ne 0 ]]; then
-  echo ""
-  echo "FAIL: the dead-code gate does not tell reachable from unreachable (see the FAIL lines above)"
-  exit 1
-fi
-
-echo "OK: dead-code gate is red on an unreachable function (exported or not), on no main package, on a module that does not compile and on a missing module, green when everything is reachable from main or a test, and -test is shown to be what keeps a test-only function green"
+selftest_end "the dead-code gate does not tell reachable from unreachable" \
+  "dead-code gate is red on an unreachable function (exported or not), on no main package, on a module that does not compile and on a missing module, green when everything is reachable from main or a test, and -test is shown to be what keeps a test-only function green"

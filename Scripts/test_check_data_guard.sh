@@ -39,22 +39,9 @@ cd "$(dirname "$0")/.." || exit 1
 
 GATE="$(pwd)/Scripts/check_data_guard.sh"
 
-TMP="$(mktemp -d)"
-COMPLETED=0
-cleanup() {
-  rm -rf "$TMP"
-  if [[ "$COMPLETED" -ne 1 ]]; then
-    echo "❌ FAIL: data-guard gate self-test aborted before completing all cases" >&2
-    exit 1
-  fi
-}
-trap cleanup EXIT
-
-failed=0
-fail() {
-  echo "❌ FAIL: $*"
-  failed=1
-}
+# shellcheck source=Scripts/lib_selftest.sh
+source Scripts/lib_selftest.sh
+selftest_begin "data-guard gate self-test"
 
 # The made-up private names of the fixture owner, in a file outside every
 # fixture repository, as a real installation keeps them outside forsgren.
@@ -86,40 +73,10 @@ write_file() {
 # run_gate [names-file] — runs GATE against $REPO; sets RC and OUT. With no
 # argument FORSGREN_PRIVATE_NAMES_FILE is UNSET, not empty.
 run_gate() {
-  set +e
   if [[ $# -gt 0 ]]; then
-    OUT="$(FORSGREN_PRIVATE_NAMES_FILE="$1" "$GATE" "$REPO" 2>&1)"
+    capture env FORSGREN_PRIVATE_NAMES_FILE="$1" "$GATE" "$REPO"
   else
-    OUT="$(env -u FORSGREN_PRIVATE_NAMES_FILE "$GATE" "$REPO" 2>&1)"
-  fi
-  RC=$?
-  set -e
-}
-
-want_green() {
-  if [[ "$RC" -ne 0 ]]; then
-    fail "$1: the gate exited ${RC}. Output: ${OUT}"
-  else
-    echo "  ok: $1"
-  fi
-}
-
-want_red() {
-  if [[ "$RC" -eq 0 ]]; then
-    fail "$1: the gate exited 0. Output: ${OUT}"
-  elif ! grep -qF -- "$2" <<< "$OUT"; then
-    fail "$1: the gate failed without saying '$2'. Output: ${OUT}"
-  else
-    echo "  ok: $1"
-  fi
-}
-
-# want_said <case> <text> — the last run's output contains <text>.
-want_said() {
-  if ! grep -qF -- "$2" <<< "$OUT"; then
-    fail "$1: the output does not say '$2'. Output: ${OUT}"
-  else
-    echo "  ok: $1"
+    capture env -u FORSGREN_PRIVATE_NAMES_FILE "$GATE" "$REPO"
   fi
 }
 
@@ -205,10 +162,7 @@ want_said "a forsgren.config.yaml is red and named (the forsgren.config.* arm)" 
 # run_mutant <mutant> <repo-name> — runs a mutated gate against a case's
 # repository, names file unset; sets RC and OUT.
 run_mutant() {
-  set +e
-  OUT="$(env -u FORSGREN_PRIVATE_NAMES_FILE "$1" "${TMP}/$2" 2>&1)"
-  RC=$?
-  set -e
+  capture env -u FORSGREN_PRIVATE_NAMES_FILE "$1" "${TMP}/$2"
 }
 
 # ---------------------------------------------------------------------------
@@ -269,12 +223,5 @@ else
   fi
 fi
 
-COMPLETED=1
-
-if [[ "$failed" -ne 0 ]]; then
-  echo ""
-  echo "FAIL: the data-guard gate does not tell fixtures from installation data (see the FAIL lines above)"
-  exit 1
-fi
-
-echo "OK: data-guard gate is red on installation config/data outside testdata/ and on private names in fixtures and tests, skips the name scan with a warning when no names file is given, and is red on a scan over nothing"
+selftest_end "the data-guard gate does not tell fixtures from installation data" \
+  "data-guard gate is red on installation config/data outside testdata/ and on private names in fixtures and tests, skips the name scan with a warning when no names file is given, and is red on a scan over nothing"

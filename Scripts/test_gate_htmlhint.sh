@@ -33,29 +33,12 @@ REPO_ROOT="$(pwd)"
 GATE="${REPO_ROOT}/Scripts/gate_htmlhint.sh"
 CONFIG="${REPO_ROOT}/.htmlhintrc"
 
-TMP="$(mktemp -d)"
-COMPLETED=0
-cleanup() {
-  rm -rf "$TMP"
-  if [[ "$COMPLETED" -ne 1 ]]; then
-    echo "❌ FAIL: HTMLHint self-test aborted before completing all cases" >&2
-    exit 1
-  fi
-}
-trap cleanup EXIT
-
-failed=0
-fail() {
-  echo "❌ FAIL: $*"
-  failed=1
-}
+# shellcheck source=Scripts/lib_selftest.sh
+source Scripts/lib_selftest.sh
+selftest_begin "HTMLHint self-test"
 
 for need in "$GATE" "$CONFIG" "${REPO_ROOT}/node_modules/.bin/htmlhint"; do
-  if [[ ! -e "$need" ]]; then
-    fail "${need} does not exist — the HTMLHint gate cannot be validated (run npm ci)"
-    COMPLETED=1
-    exit 1
-  fi
+  [[ -e "$need" ]] || selftest_abort "${need} does not exist — the HTMLHint gate cannot be validated (run npm ci)"
 done
 
 GOOD_PAGE='<!doctype html>
@@ -109,54 +92,37 @@ new_site() {
 
 # run_gate [site-dir] — runs the root's copy of the gate; sets RC and OUT.
 run_gate() {
-  set +e
-  OUT="$("${ROOT}/Scripts/gate_htmlhint.sh" "${1:-$SITE}" 2>&1)"
-  RC=$?
-  set -e
-}
-
-# expect_rc <case> <rc> <needle> — the gate exited rc and printed needle.
-expect_rc() {
-  if [[ "$RC" -ne "$2" ]]; then
-    fail "$1: the gate exited ${RC} — want ${2}. Output: ${OUT}"
-  elif ! grep -Fq -- "$3" <<< "$OUT"; then
-    fail "$1: the gate exited ${RC}, but its output does not carry '$3'. Output: ${OUT}"
-  else
-    echo "  ok: $1"
-  fi
+  capture "${ROOT}/Scripts/gate_htmlhint.sh" "${1:-$SITE}"
 }
 
 # --- 1. a well-formed page -> green ----------------------------------------
 new_root good
 new_site good "$GOOD_PAGE"
 run_gate
-expect_rc "1. a well-formed page" 0 "Scanned 1 files, no errors found"
+want_exit "1. a well-formed page" 0 "Scanned 1 files, no errors found"
 
 # --- 2. an unpaired tag -> red, naming the rule ----------------------------
 new_root bad
 new_site bad "$BAD_PAGE"
 run_gate
-expect_rc "2. an unpaired tag" 1 "(tag-pair)"
+want_exit "2. an unpaired tag" 1 "(tag-pair)"
 
 # --- 3. no .html under the site -> exit 2 ----------------------------------
 new_root empty
 new_site empty
 printf 'body {\n  margin: 0;\n}\n' > "${SITE}/styles.css"
 run_gate
-expect_rc "3. a site directory with no .html in it" 2 \
+want_exit "3. a site directory with no .html in it" 2 \
   "scanned 0 files under ${SITE} — nothing linted is not clean"
 
 # --- 4. a missing site directory -> exit 2 ---------------------------------
 new_root missing
 run_gate "${TMP}/sites/does-not-exist"
-expect_rc "4. a site directory that does not exist" 2 "htmlhint: site dir not found"
+want_exit "4. a site directory that does not exist" 2 "htmlhint: site dir not found"
 
 # --- Mutation proof A: the config's rule is what reds case 2 ---------------
 MUTANT_CONFIG="${TMP}/htmlhintrc.no-tag-pair"
-sed 's/"tag-pair": true/"tag-pair": false/' "$CONFIG" > "$MUTANT_CONFIG"
-if cmp -s "$CONFIG" "$MUTANT_CONFIG"; then
-  fail "mutation proof A: turning tag-pair off changed nothing in ${CONFIG} — the sed no longer matches, so this proof proves nothing"
-else
+if selftest_mutant "$CONFIG" "$MUTANT_CONFIG" 's/"tag-pair": true/"tag-pair": false/'; then
   new_root mutant-config "$GATE" "$MUTANT_CONFIG"
   new_site mutant-config "$BAD_PAGE"
   run_gate
@@ -169,10 +135,7 @@ fi
 
 # --- Mutation proof B: the zero-files check is what reds case 3 ------------
 MUTANT_GATE="${TMP}/gate_htmlhint.no-zero-check.sh"
-sed "s/'Scanned 0 files'/'no-such-line'/" "$GATE" > "$MUTANT_GATE"
-if cmp -s "$GATE" "$MUTANT_GATE"; then
-  fail "mutation proof B: removing the zero-files check changed nothing in ${GATE} — the sed no longer matches, so this proof proves nothing"
-else
+if selftest_mutant "$GATE" "$MUTANT_GATE" "s/'Scanned 0 files'/'no-such-line'/"; then
   new_root mutant-gate "$MUTANT_GATE"
   new_site mutant-gate
   run_gate
@@ -183,9 +146,5 @@ else
   fi
 fi
 
-COMPLETED=1
-if [[ "$failed" -ne 0 ]]; then
-  echo "❌ FAIL: HTMLHint self-test"
-  exit 1
-fi
-echo "OK: HTMLHint gate passes a well-formed page, reads .htmlhintrc, and is red on a broken page, on zero files linted and on a missing site"
+selftest_end "HTMLHint self-test" \
+  "HTMLHint gate passes a well-formed page, reads .htmlhintrc, and is red on a broken page, on zero files linted and on a missing site"

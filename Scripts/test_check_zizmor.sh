@@ -52,29 +52,10 @@ cd "$(dirname "$0")/.."
 
 CHECK="./Scripts/check_zizmor.sh"
 CONFIG=".github/zizmor.yml"
-TMP="$(mktemp -d)"
 
-COMPLETED=0
-finish() {
-  if [[ "$COMPLETED" -ne 1 ]]; then
-    echo "FAIL: zizmor fixture aborted before completing all cases" >&2
-    exit 1
-  fi
-}
-trap 'rm -rf "$TMP"; finish' EXIT
-
-failures=0
-# run_out <gate> <dir> — sets RC and OUT (stdout and stderr together).
-run_out() { set +e; OUT="$("$1" "$2" 2>&1)"; RC=$?; set -e; }
-check_reason() { # <name> <expected-rc> <fixed-string reason>
-  if [[ "$RC" == "$2" ]] && grep -qF -- "$3" <<<"$OUT"; then
-    echo "  ✅ $1"
-  else
-    echo "  ❌ $1 — expected exit $2 with: $3; got exit $RC"
-    echo "      ${OUT//$'\n'/$'\n'      }"
-    failures=$((failures+1))
-  fi
-}
+# shellcheck source=Scripts/lib_selftest.sh
+source Scripts/lib_selftest.sh
+selftest_begin "zizmor self-test"
 
 # write_injection <file> — an issue title expanded into a run: block.
 write_injection() {
@@ -92,20 +73,18 @@ jobs:
 YML
 }
 
-echo "test_check_zizmor"
-
 # --- Case 1: template injection, .yml.
 inj="$TMP/inj/.github"; mkdir -p "$inj/workflows"
 write_injection "$inj/workflows/wf.yml"
-run_out "$CHECK" "$inj"
-check_reason "rejects template injection in a run: block (.yml), naming the audit" 14 "error[template-injection]"
+capture "$CHECK" "$inj"
+want_exit "rejects template injection in a run: block (.yml), naming the audit" 14 "error[template-injection]"
 
 # --- Case 2: the same in a .yaml file.
 injy="$TMP/injy/.github"; mkdir -p "$injy/workflows"
 write_injection "$injy/workflows/wf.yaml"
-run_out "$CHECK" "$injy"
-check_reason "rejects template injection in a .yaml workflow, naming the audit" 14 "error[template-injection]"
-check_reason "  ... and names the .yaml file" 14 "workflows/wf.yaml"
+capture "$CHECK" "$injy"
+want_exit "rejects template injection in a .yaml workflow, naming the audit" 14 "error[template-injection]"
+want_exit "  ... and names the .yaml file" 14 "workflows/wf.yaml"
 
 # --- Case 3: clean. The same title, read from the environment.
 clean="$TMP/clean/.github"; mkdir -p "$clean/workflows"
@@ -126,8 +105,8 @@ jobs:
           TITLE: ${{ github.event.issue.title }}
         run: echo "$TITLE"
 YML
-run_out "$CHECK" "$clean"
-check_reason "accepts the value passed through env:" 0 "No findings to report"
+capture "$CHECK" "$clean"
+want_exit "accepts the value passed through env:" 0 "No findings to report"
 
 # --- Case 4: a Medium finding only.
 medium="$TMP/medium/.github"; mkdir -p "$medium/workflows"
@@ -144,59 +123,46 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - run: echo hi
 YML
-run_out "$CHECK" "$medium"
-check_reason "a Medium finding (artipacked) is not red at --min-severity high" 0 "No findings to report"
+capture "$CHECK" "$medium"
+want_exit "a Medium finding (artipacked) is not red at --min-severity high" 0 "No findings to report"
 
 # --- Case 5: MUTATION PROOF. The gate without its severity threshold.
-mutant="$TMP/mutant/Scripts"; mkdir -p "$mutant"
-if [[ -f "$CHECK" ]]; then
-  sed 's/ --min-severity high//' "$CHECK" > "$mutant/check_zizmor.sh"
-  chmod +x "$mutant/check_zizmor.sh"
-  if cmp -s "$CHECK" "$mutant/check_zizmor.sh"; then
-    OUT="the mutation changed nothing: no ' --min-severity high' in ${CHECK}"; RC=0
-  else
-    run_out "$mutant/check_zizmor.sh" "$medium"
-  fi
-else
-  OUT="no gate to mutate: ${CHECK}"; RC=127
+mutant="$TMP/mutant/Scripts/check_zizmor.sh"
+if [[ ! -f "$CHECK" ]]; then
+  fail "mutation: no gate to mutate: ${CHECK}"
+elif selftest_mutant "$CHECK" "$mutant" 's/ --min-severity high//'; then
+  capture "$mutant" "$medium"
+  want_exit "mutation: without --min-severity high, case 4 is red, naming artipacked" 13 "warning[artipacked]"
 fi
-check_reason "mutation: without --min-severity high, case 4 is red, naming artipacked" 13 "warning[artipacked]"
 
 # --- Case 6: this repository's own workflows.
-run_out "$CHECK" ".github"
-check_reason "accepts this repo's .github" 0 "No findings to report"
+capture "$CHECK" ".github"
+want_exit "accepts this repo's .github" 0 "No findings to report"
 
 # --- Case 7: no workflow file.
 empty="$TMP/empty/.github"; mkdir -p "$empty"
-run_out "$CHECK" "$empty"
-check_reason "a .github with no workflow file is red, with the reason" 3 "no inputs collected"
+capture "$CHECK" "$empty"
+want_exit "a .github with no workflow file is red, with the reason" 3 "no inputs collected"
 
 # --- Case 8: a directory that does not exist.
-run_out "$CHECK" "$TMP/nope"
-check_reason "a missing directory is red, as an invalid input" 1 "invalid input"
+capture "$CHECK" "$TMP/nope"
+want_exit "a missing directory is red, as an invalid input" 1 "invalid input"
 
 # --- Case 9: this repository's config suppresses no template injection.
 cfg="$TMP/cfg/.github"; mkdir -p "$cfg/workflows"
 write_injection "$cfg/workflows/wf.yml"
 if [[ -f "$CONFIG" ]]; then
   cp "$CONFIG" "$cfg/zizmor.yml"
-  run_out "$CHECK" "$cfg"
+  capture "$CHECK" "$cfg"
+  want_exit "this repo's zizmor.yml lets template injection through as red" 14 "error[template-injection]"
 else
-  OUT="no config: ${CONFIG}"; RC=127
+  fail "this repo's zizmor.yml lets template injection through as red: no config ${CONFIG}"
 fi
-check_reason "this repo's zizmor.yml lets template injection through as red" 14 "error[template-injection]"
 
 # --- Case 10: MUTATION PROOF. A config that disables the audit, same place.
 printf 'rules:\n  template-injection:\n    disable: true\n' > "$cfg/zizmor.yml"
-run_out "$CHECK" "$cfg"
-check_reason "mutation: a zizmor.yml disabling template-injection turns case 9 green" 0 "No findings to report"
+capture "$CHECK" "$cfg"
+want_exit "mutation: a zizmor.yml disabling template-injection turns case 9 green" 0 "No findings to report"
 
-COMPLETED=1
-
-if [[ "$failures" -ne 0 ]]; then
-  echo ""
-  echo "FAIL: check_zizmor contract"
-  exit 1
-fi
-echo ""
-echo "✅ test_check_zizmor"
+selftest_end "the zizmor gate does not tell a safe workflow from an unsafe one" \
+  "zizmor gate is red on template injection (.yml and .yaml), on no workflow and on a missing directory, green on a clean workflow, on a Medium finding and on this repository's .github, its severity threshold is what keeps the Medium out, and this repository's zizmor.yml suppresses no template injection"

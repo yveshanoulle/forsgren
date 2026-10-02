@@ -34,29 +34,12 @@ REPO_ROOT="$(pwd)"
 GATE="${REPO_ROOT}/Scripts/gate_stylelint.sh"
 CONFIG="${REPO_ROOT}/.stylelintrc.json"
 
-TMP="$(mktemp -d)"
-COMPLETED=0
-cleanup() {
-  rm -rf "$TMP"
-  if [[ "$COMPLETED" -ne 1 ]]; then
-    echo "❌ FAIL: Stylelint self-test aborted before completing all cases" >&2
-    exit 1
-  fi
-}
-trap cleanup EXIT
-
-failed=0
-fail() {
-  echo "❌ FAIL: $*"
-  failed=1
-}
+# shellcheck source=Scripts/lib_selftest.sh
+source Scripts/lib_selftest.sh
+selftest_begin "Stylelint self-test"
 
 for need in "$GATE" "$CONFIG" "${REPO_ROOT}/node_modules/.bin/stylelint"; do
-  if [[ ! -e "$need" ]]; then
-    fail "${need} does not exist — the Stylelint gate cannot be validated (run npm ci)"
-    COMPLETED=1
-    exit 1
-  fi
+  [[ -e "$need" ]] || selftest_abort "${need} does not exist — the Stylelint gate cannot be validated (run npm ci)"
 done
 
 GOOD_CSS='body {
@@ -94,66 +77,37 @@ new_site() {
 
 # run_gate [site-dir] — runs the root's copy of the gate; sets RC and OUT.
 run_gate() {
-  set +e
-  OUT="$("${ROOT}/Scripts/gate_stylelint.sh" "${1:-$SITE}" 2>&1)"
-  RC=$?
-  set -e
-}
-
-# expect_green <case>
-expect_green() {
-  if [[ "$RC" -ne 0 ]]; then
-    fail "$1: the gate exited ${RC} — want green. Output: ${OUT}"
-  else
-    echo "  ok: $1"
-  fi
-}
-
-# expect_red <case> <needle> [rc] — the gate failed (with rc, when given) and
-# its output carries needle.
-expect_red() {
-  if [[ "$RC" -eq 0 ]]; then
-    fail "$1: the gate passed — want red. Output: ${OUT}"
-  elif [[ -n "${3:-}" && "$RC" -ne "$3" ]]; then
-    fail "$1: the gate exited ${RC} — want ${3}. Output: ${OUT}"
-  elif ! grep -Fq -- "$2" <<< "$OUT"; then
-    fail "$1: the gate failed, but its output does not carry '$2'. Output: ${OUT}"
-  else
-    echo "  ok: $1"
-  fi
+  capture "${ROOT}/Scripts/gate_stylelint.sh" "${1:-$SITE}"
 }
 
 # --- 1. a clean stylesheet -> green ----------------------------------------
 new_root good
 new_site good "$GOOD_CSS"
 run_gate
-expect_green "1. a clean stylesheet"
+want_green "1. a clean stylesheet"
 
 # --- 2. a standard-config violation -> red, naming the rule ----------------
 new_root bad
 new_site bad "$BAD_CSS"
 run_gate
-expect_red "2. #ffffff where the standard config wants #fff" "color-hex-length"
+want_red "2. #ffffff where the standard config wants #fff" "color-hex-length"
 
 # --- 3. no .css under the site -> red --------------------------------------
 new_root empty
 new_site empty
 printf '<!doctype html>\n<title>acme</title>\n' > "${SITE}/index.html"
 run_gate
-expect_red "3. a site directory with no .css in it" "No files matching the pattern"
+want_red "3. a site directory with no .css in it" "No files matching the pattern"
 
 # --- 4. a missing site directory -> exit 2 ---------------------------------
 new_root missing
 run_gate "${TMP}/sites/does-not-exist"
-expect_red "4. a site directory that does not exist" "stylelint: site dir not found" 2
+want_exit "4. a site directory that does not exist" 2 "stylelint: site dir not found"
 
 # --- Mutation proof: the config's rule is what reds case 2 -----------------
 MUTANT_CONFIG="${TMP}/stylelintrc.no-color-hex-length.json"
-sed 's/"rules": {/"rules": {\
-    "color-hex-length": null,/' "$CONFIG" > "$MUTANT_CONFIG"
-if cmp -s "$CONFIG" "$MUTANT_CONFIG"; then
-  fail "mutation proof: turning color-hex-length off changed nothing in ${CONFIG} — the sed no longer matches, so this proof proves nothing"
-else
+if selftest_mutant "$CONFIG" "$MUTANT_CONFIG" 's/"rules": {/"rules": {\
+    "color-hex-length": null,/'; then
   new_root mutant "$MUTANT_CONFIG"
   new_site mutant "$BAD_CSS"
   run_gate
@@ -164,9 +118,5 @@ else
   fi
 fi
 
-COMPLETED=1
-if [[ "$failed" -ne 0 ]]; then
-  echo "❌ FAIL: Stylelint self-test"
-  exit 1
-fi
-echo "OK: Stylelint gate passes a clean stylesheet, loads .stylelintrc.json, and is red on a violation, on zero files linted and on a missing site"
+selftest_end "Stylelint self-test" \
+  "Stylelint gate passes a clean stylesheet, loads .stylelintrc.json, and is red on a violation, on zero files linted and on a missing site"

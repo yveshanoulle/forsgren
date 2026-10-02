@@ -39,6 +39,10 @@ func Placeholder() Data {
 	return Data{Title: "forsgren", Message: "no data yet"}
 }
 
+// pagesGlob matches one template file per page, named as the page it
+// renders. parsePages and PageNames read the same set through it.
+const pagesGlob = "templates/pages/*.html"
+
 // pages maps a page's file name (index.html) to its parsed template set.
 var pages = parsePages()
 
@@ -48,7 +52,7 @@ func parsePages() map[string]*template.Template {
 	layout := template.Must(template.ParseFS(files, "templates/layout/*.html"))
 	out := map[string]*template.Template{}
 	// fs.Glob only errors on a malformed pattern; this one is constant.
-	names, _ := fs.Glob(files, "templates/pages/*.html")
+	names, _ := fs.Glob(files, pagesGlob)
 	for _, name := range names {
 		set := template.Must(template.Must(layout.Clone()).ParseFS(files, name))
 		out[path.Base(name)] = set
@@ -58,7 +62,7 @@ func parsePages() map[string]*template.Template {
 
 // PageNames returns the pages WriteSite writes, in a fixed (sorted) order.
 func PageNames() []string {
-	names, _ := fs.Glob(files, "templates/pages/*.html")
+	names, _ := fs.Glob(files, pagesGlob)
 	for i, name := range names {
 		names[i] = path.Base(name)
 	}

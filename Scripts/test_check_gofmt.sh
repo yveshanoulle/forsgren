@@ -17,22 +17,9 @@ cd "$(dirname "$0")/.." || exit 1
 
 GATE="$(pwd)/Scripts/check_gofmt.sh"
 
-TMP="$(mktemp -d)"
-COMPLETED=0
-cleanup() {
-  rm -rf "$TMP"
-  if [[ "$COMPLETED" -ne 1 ]]; then
-    echo "❌ FAIL: gofmt gate self-test aborted before completing all cases" >&2
-    exit 1
-  fi
-}
-trap cleanup EXIT
-
-failed=0
-fail() {
-  echo "❌ FAIL: $*"
-  failed=1
-}
+# shellcheck source=Scripts/lib_selftest.sh
+source Scripts/lib_selftest.sh
+selftest_begin "gofmt gate self-test"
 
 FORMATTED=$'package m\n\n// Two returns 2.\nfunc Two() int { return 2 }\n'
 UNFORMATTED=$'package m\nfunc   Two()  int {return 2}\n'
@@ -56,28 +43,7 @@ write_go() {
 
 # run_gate [--fix] — runs the gate against $REPO; sets RC and OUT.
 run_gate() {
-  set +e
-  OUT="$("$GATE" "$@" "$REPO" 2>&1)"
-  RC=$?
-  set -e
-}
-
-want_green() {
-  if [[ "$RC" -ne 0 ]]; then
-    fail "$1: the gate exited ${RC}. Output: ${OUT}"
-  else
-    echo "  ok: $1"
-  fi
-}
-
-want_red() {
-  if [[ "$RC" -eq 0 ]]; then
-    fail "$1: the gate exited 0. Output: ${OUT}"
-  elif ! grep -qF -- "$2" <<< "$OUT"; then
-    fail "$1: the gate failed without saying '$2'. Output: ${OUT}"
-  else
-    echo "  ok: $1"
-  fi
+  capture "$GATE" "$@" "$REPO"
 }
 
 new_repo "formatted"
@@ -124,12 +90,5 @@ write_go "m.go" $'package m\nfunc {\n' track
 run_gate
 want_red "a file gofmt cannot parse is red" "could not parse"
 
-COMPLETED=1
-
-if [[ "$failed" -ne 0 ]]; then
-  echo ""
-  echo "FAIL: the gofmt gate does not tell formatted from unformatted (see the FAIL lines above)"
-  exit 1
-fi
-
-echo "OK: gofmt gate is red on unformatted (tracked or new), unparsable and missing Go files, skips ignored worktrees, and --fix rewrites"
+selftest_end "the gofmt gate does not tell formatted from unformatted" \
+  "gofmt gate is red on unformatted (tracked or new), unparsable and missing Go files, skips ignored worktrees, and --fix rewrites"

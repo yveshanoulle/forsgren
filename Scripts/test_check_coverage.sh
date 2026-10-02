@@ -57,43 +57,19 @@ GATE="./Scripts/check_coverage.sh"
 GO_TESTS="./Scripts/check_go_tests.sh"
 PROFILE_REL=".build/go-coverage.out"
 
-TMP="$(mktemp -d)"
-COMPLETED=0
-cleanup() {
-  rm -rf "$TMP"
-  if [[ "$COMPLETED" -ne 1 ]]; then
-    echo "❌ FAIL: coverage gate self-test aborted before completing all cases" >&2
-    exit 1
-  fi
-}
-trap cleanup EXIT
+# shellcheck source=Scripts/lib_selftest.sh
+source Scripts/lib_selftest.sh
+selftest_begin "coverage gate self-test"
 
-if [[ ! -x "$GATE" ]]; then
-  echo "❌ FAIL: the coverage gate ${GATE} is missing (or not executable): nothing holds a Go function to its coverage floor"
-  COMPLETED=1
-  exit 1
-fi
+[[ -x "$GATE" ]] || selftest_abort "the coverage gate ${GATE} is missing (or not executable): nothing holds a Go function to its coverage floor"
 
-failed=0
 # run_gate <gate> <module> — sets RC and OUT (stdout and stderr together).
 run_gate() {
-  set +e
-  OUT="$("$1" "$2" 2>&1)"
-  RC=$?
-  set -e
-}
-check_reason() { # <name> <expected-rc> <fixed-string reason>
-  if [[ "$RC" == "$2" ]] && grep -qF -- "$3" <<< "$OUT"; then
-    echo "  ok: $1"
-  else
-    echo "❌ FAIL: $1 — expected exit $2 with: $3; got exit ${RC}. Output: ${OUT}"
-    failed=1
-  fi
+  capture "$1" "$2"
 }
 check_absent() { # <name> <fixed-string that must not appear>
   if grep -qF -- "$2" <<< "$OUT"; then
-    echo "❌ FAIL: $1 — the output says: $2. Output: ${OUT}"
-    failed=1
+    fail "$1 — the output says: $2. Output: ${OUT}"
   else
     echo "  ok: $1"
   fi
@@ -124,10 +100,9 @@ GO
 # go_tests <go-tests-gate> — runs the Go-tests gate on $MOD, which writes the
 # profile; its own verdict is checked by the cases that need it.
 go_tests() {
-  set +e
-  GO_OUT="$("$1" "$MOD" 2>&1)"
-  GO_RC=$?
-  set -e
+  capture "$1" "$MOD"
+  GO_OUT="$OUT"
+  GO_RC="$RC"
 }
 
 # thresholds <total> <two> <pick> — writes $MOD/coverage_thresholds.json; a
@@ -149,134 +124,120 @@ PASSING='if Two() != 2 || Pick(true) != 1 { t.Fatal("want 2 and 1") }'
 new_module "measured" "$PASSING"
 go_tests "$GO_TESTS"
 if [[ "$GO_RC" -ne 0 || ! -s "${MOD}/${PROFILE_REL}" ]]; then
-  echo "❌ FAIL: the Go-tests gate did not write ${PROFILE_REL} on a green run (exit ${GO_RC}). Output: ${GO_OUT}"
-  failed=1
+  fail "the Go-tests gate did not write ${PROFILE_REL} on a green run (exit ${GO_RC}). Output: ${GO_OUT}"
 fi
 MEASURED="$MOD"
 
 # --- Case 1: floors at the measured values.
 thresholds 75.0 100.0 66.7
 run_gate "$GATE" "$MEASURED"
-check_reason "floors at the measured values are green" 0 "OK:"
+want_exit "floors at the measured values are green" 0 "OK:"
 check_absent "and nothing is counted to raise" "FLOORWARN"
 
 # --- Case 2: one function below its floor.
 thresholds 75.0 100.0 70.0
 run_gate "$GATE" "$MEASURED"
-check_reason "a function below its floor is red, naming it and both numbers" 1 \
+want_exit "a function below its floor is red, naming it and both numbers" 1 \
   "example.com/m/m.go:Pick: 66.7% is below its floor 70.0%"
 
 # --- Case 3: a measured function that is not registered.
 thresholds 75.0 100.0 -
 run_gate "$GATE" "$MEASURED"
-check_reason "an unregistered function is red, to be registered at 0.0" 1 \
+want_exit "an unregistered function is red, to be registered at 0.0" 1 \
   "example.com/m/m.go:Pick: 66.7% is not registered in coverage_thresholds.json — register it at 0.0"
 
 # --- Case 4: registered at 0.0, tracked, not enforced.
 thresholds 75.0 100.0 0.0
 run_gate "$GATE" "$MEASURED"
-check_reason "a floor of 0.0 is green, and counted to raise" 0 \
+want_exit "a floor of 0.0 is green, and counted to raise" 0 \
   "FLOORWARN: 1 coverage floor(s) should be raised in coverage_thresholds.json"
 
 # --- Case 5: two floors below the ratchet rule.
 thresholds 75.0 99.9 60.0
 run_gate "$GATE" "$MEASURED"
-check_reason "floors below the ratchet rule are green, counted in one FLOORWARN line" 0 \
+want_exit "floors below the ratchet rule are green, counted in one FLOORWARN line" 0 \
   "FLOORWARN: 2 coverage floor(s) should be raised in coverage_thresholds.json"
 
 # --- Case 6: a floor exactly at measured - 0.1 is already ratcheted.
 thresholds 75.0 100.0 66.6
 run_gate "$GATE" "$MEASURED"
-check_reason "a floor at measured - 0.1 is green" 0 "OK:"
+want_exit "a floor at measured - 0.1 is green" 0 "OK:"
 check_absent "and is not counted to raise" "FLOORWARN"
 
 # --- Case 7: the total below its floor.
 thresholds 80.0 100.0 66.7
 run_gate "$GATE" "$MEASURED"
-check_reason "a total below its floor is red, with both numbers" 1 \
+want_exit "a total below its floor is red, with both numbers" 1 \
   "total: 75.0% is below its floor 80.0%"
 
 # --- Case 8: no profile at all.
 new_module "never-tested" "$PASSING"
 thresholds 75.0 100.0 66.7
 run_gate "$GATE" "$MOD"
-check_reason "no profile is red" 1 "no coverage data"
+want_exit "no profile is red" 1 "no coverage data"
 
 # --- Case 9: a profile that holds no function.
 mkdir -p "${MOD}/.build"
 printf 'mode: set\n' > "${MOD}/${PROFILE_REL}"
 run_gate "$GATE" "$MOD"
-check_reason "a profile holding no function is red" 1 "no coverage data"
+want_exit "a profile holding no function is red" 1 "no coverage data"
 
 # --- Case 10: a red go test leaves no profile behind.
 new_module "red-tests" 't.Fatal("deliberately red")'
 thresholds 75.0 100.0 66.7
 go_tests "$GO_TESTS"
 run_gate "$GATE" "$MOD"
-check_reason "after a red Go-tests run, coverage is red with no data" 1 "no coverage data"
+want_exit "after a red Go-tests run, coverage is red with no data" 1 "no coverage data"
 
 # --- Case 11: a thresholds line outside the fixed shape.
 MOD="$MEASURED"
 printf '{"total": 75.0}\n' > "${MOD}/coverage_thresholds.json"
 run_gate "$GATE" "$MOD"
-check_reason "a thresholds line outside the shape is red, naming the line" 1 \
+want_exit "a thresholds line outside the shape is red, naming the line" 1 \
   "coverage_thresholds.json:1: cannot read"
 
 # --- Case 12: no thresholds file.
 rm -f "${MOD}/coverage_thresholds.json"
 run_gate "$GATE" "$MOD"
-check_reason "no thresholds file is red" 1 "no thresholds file"
+want_exit "no thresholds file is red" 1 "no thresholds file"
 
 # mutant <dir> <source> <sed-expression> — a mutated copy of <source> at
-# $TMP/<dir>/<source>; sets MUTANT, or MUTANT="" when the edit changed
-# nothing (then the case reports that, never a vacuous pass).
+# $TMP/<dir>/<source>; sets MUTANT, or fails the case when the edit changed
+# nothing (a vacuous proof), and the proof is not run.
 mutant() {
-  mkdir -p "${TMP}/$1/Scripts"
   MUTANT="${TMP}/$1/$2"
-  sed "$3" "$2" > "$MUTANT"
-  chmod +x "$MUTANT"
-  if cmp -s "$2" "$MUTANT"; then
-    OUT="the mutation changed nothing in $2: $3"
-    RC=127
-    MUTANT=""
-  fi
+  selftest_mutant "$2" "$MUTANT" "$3"
 }
 
 # --- Case 13: MUTATION PROOF. `<` turned into `<=`.
 thresholds 75.0 100.0 66.7
-mutant "mutant-le" "$GATE" 's/actual < floor/actual <= floor/'
-[[ -z "$MUTANT" ]] || run_gate "$MUTANT" "$MEASURED"
-check_reason "mutation: with <= instead of <, case 1 is red, Pick at its floor" 1 \
-  "example.com/m/m.go:Pick: 66.7% is below its floor 66.7%"
+if mutant "mutant-le" "$GATE" 's/actual < floor/actual <= floor/'; then
+  run_gate "$MUTANT" "$MEASURED"
+  want_exit "mutation: with <= instead of <, case 1 is red, Pick at its floor" 1 \
+    "example.com/m/m.go:Pick: 66.7% is below its floor 66.7%"
+fi
 
 # --- Case 14: MUTATION PROOF. No ratchet buffer.
 thresholds 75.0 100.0 66.6
-mutant "mutant-buffer" "$GATE" 's/actual - 0\.1/actual - 0.0/'
-[[ -z "$MUTANT" ]] || run_gate "$MUTANT" "$MEASURED"
-check_reason "mutation: without the 0.1 buffer, case 6's floor is counted" 0 \
-  "FLOORWARN: 1 coverage floor(s) should be raised in coverage_thresholds.json"
+if mutant "mutant-buffer" "$GATE" 's/actual - 0\.1/actual - 0.0/'; then
+  run_gate "$MUTANT" "$MEASURED"
+  want_exit "mutation: without the 0.1 buffer, case 6's floor is counted" 0 \
+    "FLOORWARN: 1 coverage floor(s) should be raised in coverage_thresholds.json"
+fi
 
 # --- Case 15: MUTATION PROOF. The Go-tests gate keeps a red run's profile.
 new_module "red-tests-kept" 't.Fatal("deliberately red")'
 thresholds 75.0 100.0 66.7
-mutant "mutant-keep" "$GO_TESTS" "/rm -f \"\\\$PROFILE\"/d"
-if [[ -n "$MUTANT" ]]; then
+if mutant "mutant-keep" "$GO_TESTS" "/rm -f \"\\\$PROFILE\"/d"; then
   go_tests "$MUTANT"
   run_gate "$GATE" "$MOD"
   if grep -qF "no coverage data" <<< "$OUT"; then
     RC=99
     OUT="the coverage gate still found no data: ${OUT}"
   fi
-fi
-check_reason "mutation: a Go-tests gate that keeps a red run's profile gets it judged" 1 \
-  "example.com/m/m.go:Pick: 0.0% is below its floor 66.7%"
-
-COMPLETED=1
-
-if [[ "$failed" -ne 0 ]]; then
-  echo ""
-  echo "FAIL: the coverage gate does not hold functions and the total to their floors (see the FAIL lines above)"
-  exit 1
+  want_exit "mutation: a Go-tests gate that keeps a red run's profile gets it judged" 1 \
+    "example.com/m/m.go:Pick: 0.0% is below its floor 66.7%"
 fi
 
-echo "OK: the coverage gate is red below a floor, on an unregistered function, on a total below its floor, on no coverage data and on an unreadable thresholds file, green at a floor, and counts floors to raise into one FLOORWARN line"
+selftest_end "the coverage gate does not hold functions and the total to their floors" \
+  "the coverage gate is red below a floor, on an unregistered function, on a total below its floor, on no coverage data and on an unreadable thresholds file, green at a floor, and counts floors to raise into one FLOORWARN line"

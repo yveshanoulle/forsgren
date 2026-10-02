@@ -37,33 +37,12 @@ cd "$(dirname "$0")/.." || exit 1
 GATE="./Scripts/check_go_lint.sh"
 CONFIG=".golangci.yml"
 
-TMP="$(mktemp -d)"
-COMPLETED=0
-cleanup() {
-  rm -rf "$TMP"
-  if [[ "$COMPLETED" -ne 1 ]]; then
-    echo "❌ FAIL: Go lint gate self-test aborted before completing all cases" >&2
-    exit 1
-  fi
-}
-trap cleanup EXIT
+# shellcheck source=Scripts/lib_selftest.sh
+source Scripts/lib_selftest.sh
+selftest_begin "Go lint gate self-test"
 
-if [[ ! -x "$GATE" ]]; then
-  echo "❌ FAIL: the Go lint gate ${GATE} is missing (or not executable): nothing runs golangci-lint"
-  COMPLETED=1
-  exit 1
-fi
-if [[ ! -f "$CONFIG" ]]; then
-  echo "❌ FAIL: no ${CONFIG}: the Go lint gate has no config to judge with"
-  COMPLETED=1
-  exit 1
-fi
-
-failed=0
-fail() {
-  echo "❌ FAIL: $*"
-  failed=1
-}
+[[ -x "$GATE" ]] || selftest_abort "the Go lint gate ${GATE} is missing (or not executable): nothing runs golangci-lint"
+[[ -f "$CONFIG" ]] || selftest_abort "no ${CONFIG}: the Go lint gate has no config to judge with"
 
 # new_module <name> — a module with one clean package `m`.
 new_module() {
@@ -90,31 +69,7 @@ write_branches() {
 
 # run_gate [config] — runs the gate against $MOD; sets RC and OUT.
 run_gate() {
-  set +e
-  OUT="$("$GATE" "$MOD" "${1:-$CONFIG}" 2>&1)"
-  RC=$?
-  set -e
-}
-
-want_green() {
-  if [[ "$RC" -ne 0 ]]; then
-    fail "$1: the gate exited ${RC}. Output: ${OUT}"
-  elif ! grep -qF -- "OK:" <<< "$OUT"; then
-    fail "$1: the gate exited 0 without its OK line. Output: ${OUT}"
-  else
-    echo "  ok: $1"
-  fi
-}
-
-# want_red <case> <reason> — the last run failed and said <reason>.
-want_red() {
-  if [[ "$RC" -eq 0 ]]; then
-    fail "$1: the gate exited 0. Output: ${OUT}"
-  elif ! grep -qF -- "$2" <<< "$OUT"; then
-    fail "$1: the gate failed without saying '$2'. Output: ${OUT}"
-  else
-    echo "  ok: $1"
-  fi
+  capture "$GATE" "$MOD" "${1:-$CONFIG}"
 }
 
 # mutate_config <name> <awk-program> — writes a mutation of .golangci.yml to
@@ -132,7 +87,7 @@ mutate_config() {
 # --- Case 1: a clean module.
 new_module "clean"
 run_gate
-want_green "a clean module is green"
+want_green_ok "a clean module is green"
 
 # --- Case 2: cyclomatic complexity 7.
 new_module "cyclo7"
@@ -152,7 +107,7 @@ want_red "complexity 7 in a _test.go file is red, naming gocyclo" "(gocyclo)"
 new_module "cyclo6"
 write_branches "${MOD}/grade.go" 5
 run_gate
-want_green "complexity 6 is green (gocyclo reports above 6)"
+want_green_ok "complexity 6 is green (gocyclo reports above 6)"
 
 # --- Case 5: a hardcoded credential-looking string.
 new_module "g101"
@@ -177,7 +132,7 @@ if mutate_config "cyclo-raised" '
   { print }'; then
   MOD="$CYCLO7"
   run_gate "$MUTANT"
-  want_green "mutation: gocyclo min-complexity 7 turns case 2 green"
+  want_green_ok "mutation: gocyclo min-complexity 7 turns case 2 green"
 fi
 
 # --- Case 7: MUTATION PROOF. MenoPower shared/'s blanket G101 exclusion.
@@ -186,7 +141,7 @@ if mutate_config "g101-excluded" '
   /^    rules:$/ { print "      - linters: [gosec]"; print "        text: \"G101\"" }'; then
   MOD="$G101"
   run_gate "$MUTANT"
-  want_green "mutation: a blanket G101 exclusion turns case 5 green"
+  want_green_ok "mutation: a blanket G101 exclusion turns case 5 green"
 fi
 
 # --- Case 8: no Go package.
@@ -206,12 +161,5 @@ printf 'version: "999"\n' > "${TMP}/bad.yml"
 run_gate "${TMP}/bad.yml"
 want_red "a config golangci-lint cannot load is red, as a tool error" "golangci-lint could not run"
 
-COMPLETED=1
-
-if [[ "$failed" -ne 0 ]]; then
-  echo ""
-  echo "FAIL: the Go lint gate does not tell green from red (see the FAIL lines above)"
-  exit 1
-fi
-
-echo "OK: Go lint gate is red on complexity 7 (in production and test code), on a hardcoded credential (G101, not excluded), on no package, on a missing module and on a config that cannot load, green on a clean module and at complexity 6, and both mutations of .golangci.yml flip their case"
+selftest_end "the Go lint gate does not tell green from red" \
+  "Go lint gate is red on complexity 7 (in production and test code), on a hardcoded credential (G101, not excluded), on no package, on a missing module and on a config that cannot load, green on a clean module and at complexity 6, and both mutations of .golangci.yml flip their case"

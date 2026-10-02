@@ -306,6 +306,21 @@ for path in Scripts/*.sh; do
         || fail "${base} holds runs_script and Scripts/test_gate_wiring.sh never sources it"
       ;;
 
+    # SOURCED HELPER, not a gate (forsgren#1, ladder step 24): the harness of
+    # forsgren's own self-tests. Every self-test that calls selftest_begin
+    # is its test, and must source it; one that stopped would die at its
+    # first case, so this guards the other way: a lib no self-test uses is a
+    # file, not a harness.
+    lib_selftest.sh)
+      selftest_users="$(grep -l '^selftest_begin ' Scripts/test_*.sh || true)"
+      [[ -n "$selftest_users" ]] \
+        || fail "${base} holds the self-test harness and no Scripts/test_*.sh calls selftest_begin — a harness nobody uses is a file"
+      for consumer in $selftest_users; do
+        runs_script "$consumer" "$base" \
+          || fail "${base} holds selftest_begin and ${consumer} calls it without sourcing ${base}"
+      done
+      ;;
+
     # HAND-RUN BY THE LOOP, never by sfl or a workflow: a thin exec wrapper
     # around FBP.sh under the agent-Friend identity. Requiring a runner to
     # invoke it would mean FBP invoking itself. CLAUDE.md declares it.

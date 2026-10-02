@@ -26,22 +26,9 @@ cd "$(dirname "$0")/.." || exit 1
 
 GATE="./Scripts/check_repo_links.sh"
 
-TMP="$(mktemp -d)"
-COMPLETED=0
-cleanup() {
-  rm -rf "$TMP"
-  if [[ "$COMPLETED" -ne 1 ]]; then
-    echo "❌ FAIL: repository-links self-test aborted before completing all cases" >&2
-    exit 1
-  fi
-}
-trap cleanup EXIT
-
-failures=0
-check() { # <name> <expected-rc> <actual-rc>
-  if [[ "$2" == "$3" ]]; then echo "  ✅ $1"; else echo "  ❌ $1 — expected exit $2, got $3"; failures=$((failures+1)); fi
-}
-run() { set +e; OUT="$("$@" 2>&1)"; RC=$?; set -e; }
+# shellcheck source=Scripts/lib_selftest.sh
+source Scripts/lib_selftest.sh
+selftest_begin "repository-links self-test"
 
 # new_site <name> — a clean one-page site with a local stylesheet.
 new_site() {
@@ -51,48 +38,46 @@ new_site() {
   printf 'body { margin: 0; }\n' > "$SITE/styles.css"
 }
 
-echo "test_check_repo_links"
-
 new_site clean
-run "$GATE" "$SITE"
-check "1. a page with no repository path is clean" 0 "$RC"
+capture "$GATE" "$SITE"
+want_rc "1. a page with no repository path is clean" 0
 
 new_site href
 printf '<a href="https://github.com/acme/app/issues/7">7</a>\n' >> "$SITE/index.html"
-run "$GATE" "$SITE"
-check "2. rejects an href into a repository" 1 "$RC"
+capture "$GATE" "$SITE"
+want_rc "2. rejects an href into a repository" 1
 grep -q "index.html:4" <<<"$OUT" \
-  || { echo "  ❌ 2. the finding does not name index.html:4. Output: $OUT"; failures=$((failures+1)); }
+  || fail "2. the finding does not name index.html:4. Output: $OUT"
 if grep -q "acme/app" <<<"$OUT"; then
-  echo "  ❌ 3. the output prints the repository path it matched"; failures=$((failures+1))
+  fail "3. the output prints the repository path it matched"
 else
-  echo "  ✅ 3. the output never prints the repository path"
+  echo "  ok: 3. the output never prints the repository path"
 fi
 
 new_site text
 printf '<p>source: github.com/acme/app</p>\n' >> "$SITE/index.html"
-run "$GATE" "$SITE"
-check "4. rejects a repository path as plain text" 1 "$RC"
+capture "$GATE" "$SITE"
+want_rc "4. rejects a repository path as plain text" 1
 
 new_site css
 printf '.x { background: url("https://github.com/acme/app/raw/main/a.png"); }\n' >> "$SITE/styles.css"
-run "$GATE" "$SITE"
-check "5. rejects a url() into a repository in a stylesheet" 1 "$RC"
+capture "$GATE" "$SITE"
+want_rc "5. rejects a url() into a repository in a stylesheet" 1
 
 new_site owner
 printf '<a href="https://github.com/acme">acme</a>\n' >> "$SITE/index.html"
-run "$GATE" "$SITE"
-check "6. a link to an owner alone is not a finding" 0 "$RC"
+capture "$GATE" "$SITE"
+want_rc "6. a link to an owner alone is not a finding" 0
 
 SITE="$TMP/empty"; mkdir -p "$SITE"
 printf 'body { margin: 0; }\n' > "$SITE/styles.css"
-run "$GATE" "$SITE"
-check "7. rejects a site with no .html page" 1 "$RC"
+capture "$GATE" "$SITE"
+want_rc "7. rejects a site with no .html page" 1
 grep -q "scan over nothing" <<<"$OUT" \
-  || { echo "  ❌ 7. the finding does not say it scanned nothing. Output: $OUT"; failures=$((failures+1)); }
+  || fail "7. the finding does not say it scanned nothing. Output: $OUT"
 
-run "$GATE" "$TMP/does-not-exist"
-check "8. exits 2 on a missing site dir, never 0" 2 "$RC"
+capture "$GATE" "$TMP/does-not-exist"
+want_rc "8. exits 2 on a missing site dir, never 0" 2
 
 set +e
 SITE_PAGE_COUNT_FILE="$TMP/built.count" FORSGREN_BIN_DIR="$TMP/bin" \
@@ -100,36 +85,22 @@ SITE_PAGE_COUNT_FILE="$TMP/built.count" FORSGREN_BIN_DIR="$TMP/bin" \
 BUILD_RC=$?
 set -e
 [[ "$BUILD_RC" -eq 0 ]] || sed 's/^/    /' "$TMP/built.log"
-run "$GATE" "$TMP/built"
-check "9. the generated site links into no repository" 0 "$RC"
+capture "$GATE" "$TMP/built"
+want_rc "9. the generated site links into no repository" 0
 [[ "$RC" -eq 0 ]] || printf '%s\n' "$OUT" | sed 's/^/    /'
 
 # Mutation proof for case 2: the same site against a copy of the gate whose
 # REPO_PATH pattern can never match must be green.
-MUTANT="$TMP/check_repo_links.mutant.sh"
-sed "s/^REPO_PATH=.*/REPO_PATH='NEVER-MATCHES-ANY-REPOSITORY-PATH'/" "$GATE" > "$MUTANT"
-chmod +x "$MUTANT"
-if cmp -s "$GATE" "$MUTANT"; then
-  echo "  ❌ mutation proof: replacing the '^REPO_PATH=' row changed nothing in ${GATE} — the anchor no longer matches, so this proof proves nothing"
-  failures=$((failures+1))
-else
-  # The mutant cds to its own dir's parent; give it the same layout.
-  mkdir -p "$TMP/mutant/Scripts"
-  mv "$MUTANT" "$TMP/mutant/Scripts/check_repo_links.sh"
-  run "$TMP/mutant/Scripts/check_repo_links.sh" "$TMP/href"
+# The mutant cds to its own dir's parent; give it the same layout.
+MUTANT="$TMP/mutant/Scripts/check_repo_links.sh"
+if selftest_mutant "$GATE" "$MUTANT" "s/^REPO_PATH=.*/REPO_PATH='NEVER-MATCHES-ANY-REPOSITORY-PATH'/"; then
+  capture "$MUTANT" "$TMP/href"
   if [[ "$RC" -eq 0 ]]; then
-    echo "  ✅ mutation proof: without the REPO_PATH pattern case 2 is green, so it is red because of that pattern"
+    echo "  ok: mutation proof: without the REPO_PATH pattern case 2 is green, so it is red because of that pattern"
   else
-    echo "  ❌ mutation proof: a gate whose REPO_PATH never matches is still red on case 2 (exit $RC) — case 2 is red for another reason. Output: $OUT"
-    failures=$((failures+1))
+    fail "mutation proof: a gate whose REPO_PATH never matches is still red on case 2 (exit $RC) — case 2 is red for another reason. Output: $OUT"
   fi
 fi
 
-COMPLETED=1
-if [[ "$failures" -ne 0 ]]; then
-  echo ""
-  echo "❌ FAIL: check_repo_links contract (${failures} failed)"
-  exit 1
-fi
-echo ""
-echo "✅ test_check_repo_links"
+selftest_end "the repository-links gate does not keep repository paths off the page" \
+  "repository-links gate is red on a repository path in an href, in plain text and in a stylesheet url(), naming file:line and never the path, and on a site with no page, exits 2 on a missing site, is green on an owner link and on the generated site, and its REPO_PATH pattern is what reddens case 2"
