@@ -80,7 +80,35 @@
 #      a valid one, and one whose unknown key carries a line break and
 #      `::warning::`: refused with check-config's own message in the log and
 #      after the cross mark in the summary, accepted with its OK line and an
-#      empty summary, and no workflow command left live (forsgren#9, item 3).
+#      empty summary, and no workflow command left live (forsgren#9, item 3);
+#  12. the step "Write the starter configuration on a new install" (forsgren#12,
+#      step 3), whose run: block is EXECUTED here with the real git against a
+#      local remote and a stub forsgren: it runs `forsgren init-config
+#      --config forsgren.config.yml`; when that says `kept` nothing is
+#      committed or pushed; when it says `created` it commits forsgren.config.yml
+#      ALONE (another staged file and an untracked one stay out), authored and
+#      committed by `github-actions[bot]`, with the message "forsgren: add a
+#      starter forsgren.config.yml", and pushes it to the branch the run is
+#      on, HEAD:${GITHUB_REF} from the runner's env (`trunk` here, a manual
+#      run on `feature` gets it there; no default-branch name is read from
+#      any event payload, which a scheduled run may not carry); a kept file
+#      exits 0 BEFORE any branch logic, even with no ref at all, so a daily
+#      run never fails here; a created one on a ref that is not a branch (a
+#      tag) refuses and pushes nothing;
+#  13. that push carries the token as an Authorization header in the
+#      ENVIRONMENT (GIT_CONFIG_COUNT/KEY_0/VALUE_0, scoped to the server URL)
+#      and nowhere else: not in any git argument (ps shows arguments, git's
+#      messages quote them), not in a file of the checkout (persist-credentials:
+#      false stays meaningful), not in the log;
+#  14. the same step with the REAL forsgren: a new install's checkout gets the
+#      embedded starter committed, the config check that follows passes on it
+#      (projects: 0), and the next run keeps it with no second commit;
+#  15. the render step runs `forsgren render --out ... --config
+#      forsgren.config.yml`, so the page can say when no projects are
+#      configured, executed with the stub;
+#  16. the job grants itself `contents: write`, which the push needs;
+#  and pin 9 also orders the starter step: after the install and the checkout,
+#  before the config check.
 #
 # WHY THE SHELL IS INLINE, NOT A Scripts/ FILE (the estate rule puts CI
 # loop bodies in tested scripts). The job runs in the CALLER's repository
@@ -90,7 +118,11 @@
 # two regex tests and the config check is one command, its output between
 # the two lines that stop and resume workflow commands, and one write, and
 # pins 5, 8, 10 and 11 execute those very blocks, so they are tested where
-# they live.
+# they live. The starter step (forsgren#12) stays inline for the same reason,
+# and its logic is the commit and the push, which only git can do: moving the
+# result into the forsgren binary would not remove one git line from the
+# YAML. Pins 12 to 14 execute its block with a real git and the real
+# forsgren, so it is tested where it lives, too.
 #
 # Read with awk and grep, not a YAML parser, as
 # Scripts/test_quality_trigger_scope.sh and Scripts/check_workflow_triggers.sh
@@ -118,8 +150,20 @@ INSTALL_STEP="Install forsgren from this workflow's own commit"
 CHECKOUT_STEP="Check out the caller's repository"
 CHECK_STEP="Check the caller's forsgren configuration"
 RENDER_STEP="Render the page"
+INIT_STEP="Write the starter configuration on a new install"
 CROSS="❌"
 CONFIG_CMD="check-config --config forsgren.config.yml"
+INIT_CMD="init-config --config forsgren.config.yml"
+# A literal dollar, so a sed expression in double quotes can carry ${ } text
+# without a reader taking it for an expansion.
+D='$'
+# The starter commit (forsgren#12): who, and what it says.
+BOT_IDENTITY="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+STARTER_SUBJECT="forsgren: add a starter forsgren.config.yml"
+# The branch of the made-up installation, and a token that no
+# argument, file or log may ever show.
+TRUNK="trunk"
+SECRET="s3cretToken-acme-9f2"
 # The opening of a GitHub expression, in double quotes with the dollar
 # escaped, so no reader (shellcheck included) takes it for an expansion.
 EXPR_OPEN="\${{"
@@ -242,11 +286,22 @@ install_outcome() {
   fi
 }
 
-# Stub forsgren: records its arguments, one call per line; with
-# STUB_REFUSAL set it says that on stderr and exits 1, else it says OK.
+# Stub forsgren: records its arguments, one call per line; init-config
+# writes a starter and says `created <path>` when STUB_INIT is created, else
+# says `kept <path>`; otherwise, with STUB_REFUSAL set, it says that on
+# stderr and exits 1, else it says OK.
 cat > "${STUB}/forsgren" <<'STUBFORSGREN'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$FG_CALLS"
+if [[ "${1:-}" == init-config ]]; then
+  if [[ "${STUB_INIT:-kept}" == created ]]; then
+    printf 'version: 1\nprojects: []\n' > "$3"
+    echo "created $3"
+  else
+    echo "kept $3"
+  fi
+  exit 0
+fi
 if [[ -n "${STUB_REFUSAL:-}" ]]; then
   printf '%s\n' "$STUB_REFUSAL" >&2
   exit 1
@@ -318,6 +373,192 @@ real_refusal() {
   if [[ "$2" -ne 1 ]] || ! grep -qF -- "$3" "${TMP}/real.log" \
     || ! grep -qF -- "${CROSS} $3" "${TMP}/real-summary.md"; then
     echo "with the real forsgren and $1 the config step exits $2, logs '$(paste -sd'|' - < "${TMP}/real.log")' and summarises '$(paste -sd'|' - < "${TMP}/real-summary.md")' — it must fail with '$3' in the log and after the cross mark in the summary"
+  fi
+}
+
+# The starter step runs with a REAL git (pins 12 to 17): this wrapper on PATH
+# records each call's arguments (GIT_ARGV_LOG) and, when the call carries
+# config in the environment, that too (GIT_ENV_LOG), then runs the real git.
+REAL_GIT="$(command -v git)"
+cat > "${STUB}/git" <<'STUBGIT'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$GIT_ARGV_LOG"
+if [[ -n "${GIT_CONFIG_COUNT:-}" ]]; then
+  printf 'git %s\t%s=%s\n' "$*" "${GIT_CONFIG_KEY_0:-}" "${GIT_CONFIG_VALUE_0:-}" >> "$GIT_ENV_LOG"
+fi
+exec "$REAL_GIT" "$@"
+STUBGIT
+chmod +x "${STUB}/git"
+ORIGIN="${TMP}/origin.git"
+INSTALL="${TMP}/install"
+GIT_ARGV_LOG="${TMP}/git.argv"
+GIT_ENV_LOG="${TMP}/git.env"
+
+# iso <git args>: the real git with no user or system config, so neither a
+# signing key nor a hook of whoever runs this reaches a case.
+iso() {
+  GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 "$REAL_GIT" "$@" > /dev/null 2>&1
+}
+
+# iso_out <git args>: as iso, with its output.
+iso_out() {
+  GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 "$REAL_GIT" "$@" 2>/dev/null
+}
+
+# new_install: a made-up installation: a bare remote and a checkout of it,
+# both on the default branch ${TRUNK}, with one commit and no
+# forsgren.config.yml, as a new install's checkout is.
+new_install() {
+  rm -rf "$ORIGIN" "$INSTALL"
+  iso init --bare "$ORIGIN"
+  iso -C "$ORIGIN" symbolic-ref HEAD "refs/heads/${TRUNK}"
+  iso init "$INSTALL"
+  iso -C "$INSTALL" symbolic-ref HEAD "refs/heads/${TRUNK}"
+  printf 'acme app\n' > "${INSTALL}/README.md"
+  iso -C "$INSTALL" add README.md
+  iso -C "$INSTALL" -c user.name=Setup -c user.email=setup@example.com commit -m "Initial commit"
+  iso -C "$INSTALL" remote add origin "$ORIGIN"
+  iso -C "$INSTALL" push origin "$TRUNK"
+}
+
+# starter_outcome <script> <created|kept|real> <ref> <branch>: runs the
+# starter step in the installation's checkout, GITHUB_REF being <ref>, with
+# the stub forsgren saying created or kept, or with the real one, and the
+# token SECRET; as one line: exit=<rc> commits=<commits on the remote's
+# <branch>, 0 when it has none>. The
+# step's log is in ${TMP}/starter.log, forsgren's calls in ${TMP}/fg.calls.
+starter_outcome() {
+  local rc=0 commits path="${STUB}:${PATH}"
+  [[ "$2" == real ]] && path="${REAL}:${path}"
+  : > "${TMP}/fg.calls"
+  : > "$GIT_ARGV_LOG"
+  : > "$GIT_ENV_LOG"
+  (cd "$INSTALL" && PATH="$path" FG_CALLS="${TMP}/fg.calls" STUB_INIT="$2" GH_TOKEN="$SECRET" \
+    GITHUB_REF="$3" GITHUB_SERVER_URL="https://github.com" \
+    GIT_ARGV_LOG="$GIT_ARGV_LOG" GIT_ENV_LOG="$GIT_ENV_LOG" REAL_GIT="$REAL_GIT" \
+    GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 bash "$1") > "${TMP}/starter.log" 2>&1 || rc=$?
+  commits="$(iso_out -C "$ORIGIN" rev-list --count "$4" || echo 0)"
+  echo "exit=${rc} commits=${commits}"
+}
+
+# judge_starter_step <workflow-file>: pin 12, the executed starter step: it
+# runs init-config on forsgren.config.yml; a kept file is never committed; a
+# created one is committed alone, as github-actions[bot], and pushed to the
+# branch the run is on; on a tag it refuses.
+judge_starter_step() {
+  local script="${TMP}/starter.sh" ref="refs/heads/${TRUNK}" got want calls who files
+  step_block "$1" "$INIT_STEP" run > "$script"
+  if [[ ! -s "$script" ]]; then
+    echo "has no step '${INIT_STEP}' with a run: | block — a new install's forsgren.config.yml is never written"
+    return 0
+  fi
+  new_install
+  got="$(starter_outcome "$script" kept "$ref" "$TRUNK")"
+  want="exit=0 commits=1"
+  [[ "$got" == "$want" ]] || echo "for a kept forsgren.config.yml the starter step gives '${got}', not '${want}' — an existing file is never committed or pushed"
+  got="$(starter_outcome "$script" kept "" "$TRUNK")"
+  [[ "$got" == "$want" ]] || echo "for a kept forsgren.config.yml with no branch ref at all the starter step gives '${got}', not '${want}' — a kept file exits 0 before any branch logic, or every daily run would fail"
+  calls="$(paste -sd, - < "${TMP}/fg.calls")"
+  [[ "$calls" == "$INIT_CMD" ]] || echo "the starter step runs 'forsgren ${calls}', not 'forsgren ${INIT_CMD}'"
+  new_install
+  printf 'untracked\n' > "${INSTALL}/other.txt"
+  printf 'staged\n' > "${INSTALL}/staged.txt"
+  iso -C "$INSTALL" add staged.txt
+  got="$(starter_outcome "$script" created "$ref" "$TRUNK")"
+  want="exit=0 commits=2"
+  if [[ "$got" != "$want" ]]; then
+    echo "for a created forsgren.config.yml on its branch the starter step gives '${got}', not '${want}' — the starter is committed and pushed there"
+  else
+    who="$(iso_out -C "$ORIGIN" log -1 --format='%an <%ae>' "$TRUNK")"
+    [[ "$who" == "$BOT_IDENTITY" ]] || echo "the starter commit's author is '${who}', not '${BOT_IDENTITY}'"
+    who="$(iso_out -C "$ORIGIN" log -1 --format='%cn <%ce>' "$TRUNK")"
+    [[ "$who" == "$BOT_IDENTITY" ]] || echo "the starter commit's committer is '${who}', not '${BOT_IDENTITY}'"
+    who="$(iso_out -C "$ORIGIN" log -1 --format='%B' "$TRUNK")"
+    [[ "$who" == "$STARTER_SUBJECT" ]] || echo "the starter commit's message is '${who}', not '${STARTER_SUBJECT}'"
+    files="$(iso_out -C "$ORIGIN" diff-tree --no-commit-id --name-only -r "$TRUNK" | paste -sd, -)"
+    [[ "$files" == "forsgren.config.yml" ]] || echo "the starter commit holds [${files}], not forsgren.config.yml alone — one file only, never the rest of the checkout"
+  fi
+  new_install
+  iso -C "$INSTALL" checkout -b feature
+  got="$(starter_outcome "$script" created "refs/heads/feature" feature)"
+  want="exit=0 commits=2"
+  [[ "$got" == "$want" ]] || echo "for a created forsgren.config.yml on a manual run on feature the starter step gives '${got}', not '${want}' — the starter goes to the branch the run is on"
+  got="$(iso_out -C "$ORIGIN" rev-list --count "$TRUNK")"
+  [[ "$got" == 1 ]] || echo "a run on feature moved ${TRUNK} to ${got} commits — it must push to the run's own branch only"
+  new_install
+  got="$(starter_outcome "$script" created "refs/tags/v1" "$TRUNK")"
+  want="exit=1 commits=1"
+  [[ "$got" == "$want" ]] || echo "for a ref that is not a branch (refs/tags/v1) the starter step gives '${got}', not '${want}' — it must refuse, there is no branch to commit to"
+}
+
+# judge_starter_token <workflow-file>: pin 13, the push carries the token and
+# never stores or shows it.
+judge_starter_token() {
+  local script="${TMP}/starter.sh" b64 got want
+  step_block "$1" "$INIT_STEP" run > "$script"
+  [[ -s "$script" ]] || return 0
+  b64="$(printf 'x-access-token:%s' "$SECRET" | base64 | tr -d '\n')"
+  new_install
+  starter_outcome "$script" created "refs/heads/${TRUNK}" "$TRUNK" > /dev/null
+  if grep -qF -- "$SECRET" "$GIT_ARGV_LOG" || grep -qF -- "$b64" "$GIT_ARGV_LOG"; then
+    echo "the starter step hands the token to git in an argument — ps shows arguments and git's messages quote them; it goes through the environment only"
+  fi
+  if grep -rqF -- "$SECRET" "$INSTALL" || grep -rqF -- "$b64" "$INSTALL"; then
+    echo "the starter step leaves the token on disk in the checkout — with persist-credentials: false nothing may keep it"
+  fi
+  if grep -qF -- "$SECRET" "${TMP}/starter.log" || grep -qF -- "$b64" "${TMP}/starter.log"; then
+    echo "the starter step shows the token in its log"
+  fi
+  want="http.https://github.com/.extraheader=AUTHORIZATION: basic ${b64}"
+  got="$(awk -F'\t' '$1 ~ /^git push / { print $2 }' "$GIT_ENV_LOG")"
+  if [[ "$got" != "$want" ]]; then
+    echo "the starter step's push carries '${got:-nothing}' in the environment, not '${want}' — without it the push has no credential"
+  fi
+}
+
+# judge_starter_e2e <workflow-file>: pin 14, with the real forsgren a new
+# install gets its starter committed, the config check passes on it, and the
+# next run keeps it.
+judge_starter_e2e() {
+  local script="${TMP}/starter.sh" check="${TMP}/starter-check.sh" ref="refs/heads/${TRUNK}" got want rc=0
+  step_block "$1" "$INIT_STEP" run > "$script"
+  step_block "$1" "$CHECK_STEP" run > "$check"
+  [[ -s "$script" && -s "$check" ]] || return 0
+  new_install
+  got="$(starter_outcome "$script" real "$ref" "$TRUNK")"
+  want="exit=0 commits=2"
+  [[ "$got" == "$want" ]] || echo "with the real forsgren a new install's starter step gives '${got}', not '${want}'"
+  got="$(iso_out -C "$ORIGIN" show "${TRUNK}:forsgren.config.yml")"
+  [[ "$got" == "$(cat internal/config/starter.yml)" ]] || echo "with the real forsgren the committed forsgren.config.yml is not internal/config/starter.yml"
+  (cd "$INSTALL" && PATH="${REAL}:${PATH}" GITHUB_STEP_SUMMARY="${TMP}/real-summary.md" bash "$check") > "${TMP}/real.log" 2>&1 || rc=$?
+  if [[ "$rc" -ne 0 ]] || ! grep -qF -- "projects: 0, repositories: 0" "${TMP}/real.log"; then
+    echo "with the real forsgren a new install's config check after the starter step exits ${rc} and logs '$(paste -sd'|' - < "${TMP}/real.log")' — it must pass on the starter, with projects: 0"
+  fi
+  got="$(starter_outcome "$script" real "$ref" "$TRUNK")"
+  [[ "$got" == "$want" ]] || echo "with the real forsgren the next run's starter step gives '${got}', not '${want}' — an existing starter is kept, no second commit"
+}
+
+# judge_render_config <workflow-file>: pin 15, the render step hands render
+# the config, so the page can say when no projects are configured.
+judge_render_config() {
+  local script="${TMP}/render.sh" calls="${TMP}/fg.calls" got want
+  step_block "$1" "$RENDER_STEP" run > "$script"
+  if [[ ! -s "$script" ]]; then
+    echo "has no step '${RENDER_STEP}' with a run: | block"
+    return 0
+  fi
+  : > "$calls"
+  PATH="${STUB}:${PATH}" FG_CALLS="$calls" RUNNER_TEMP="${TMP}/runner" bash "$script" > /dev/null 2>&1 || true
+  got="$(paste -sd, - < "$calls")"
+  want="render --out ${TMP}/runner/site --config forsgren.config.yml"
+  [[ "$got" == "$want" ]] || echo "the render step runs 'forsgren ${got}', not 'forsgren ${want}' — render needs the config to say when no projects are configured"
+}
+
+# judge_permissions <workflow-file>: pin 16, the job grants itself
+# contents: write, which the starter push needs.
+judge_permissions() {
+  if ! grep -qE '^      contents:[[:space:]]+write([[:space:]]|$)' "$1"; then
+    echo "the job does not grant itself 'contents: write' — the starter commit cannot be pushed to the caller's repository's branch the run is on"
   fi
 }
 
@@ -409,11 +650,21 @@ judge_config_e2e() {
 
 # judge_order <workflow-file>: pin 9.
 judge_order() {
-  local install checkout check render
+  local install checkout init check render
   install="$(line_of "$1" "- name: ${INSTALL_STEP}")"
   checkout="$(line_of "$1" "- name: ${CHECKOUT_STEP}")"
+  init="$(line_of "$1" "- name: ${INIT_STEP}")"
   check="$(line_of "$1" "- name: ${CHECK_STEP}")"
   render="$(line_of "$1" "- name: ${RENDER_STEP}")"
+  if later "$init" "$check"; then
+    echo "writes the starter (line ${init}) after the config check (line ${check}) — a new install would fail the check before it has a file"
+  fi
+  if later "$checkout" "$init"; then
+    echo "writes the starter (line ${init}) before checking out the caller's repository (line ${checkout}) — there is no checkout to write it into"
+  fi
+  if later "$install" "$init"; then
+    echo "writes the starter (line ${init}) before installing forsgren (line ${install}) — init-config is not on PATH yet"
+  fi
   if later "$check" "$render"; then
     echo "checks the config (line ${check}) after it renders (line ${render}) — a bad config must stop the job before render"
   fi
@@ -517,9 +768,14 @@ judge() {
   judge_install_run "$1"
   judge_setup_go "$1"
   judge_checkout "$1"
+  judge_permissions "$1"
+  judge_starter_step "$1"
+  judge_starter_token "$1"
+  judge_starter_e2e "$1"
   judge_config_step "$1"
   judge_config_commands "$1"
   judge_config_e2e "$1"
+  judge_render_config "$1"
   judge_order "$1"
 }
 
@@ -533,7 +789,7 @@ if [[ -n "$verdict" ]]; then
     [[ -n "$line" ]] && fail "${WF} ${line}"
   done <<< "$verdict"
 else
-  echo "  ok: ${WF} is a workflow_call with no inputs that installs forsgren from its own job.workflow_repository at its own job.workflow_sha, both checked before go install, through env: only, built with go.mod's Go, after the caller's pinned checkout and a config check that fails the job with check-config's message before render, with the real forsgren too, and never runs that message as a workflow command"
+  echo "  ok: ${WF} is a workflow_call with no inputs that installs forsgren from its own job.workflow_repository at its own job.workflow_sha, both checked before go install, through env: only, built with go.mod's Go, after the caller's pinned checkout, a starter step that commits a new install's one file with a token that is never stored or shown, a contents: write job, and a config check that fails the job with check-config's message before render, with the real forsgren too, and never runs that message as a workflow command"
 fi
 
 # --- Self-proof: each pin, on a mutant of the real metrics.yml, names its reason.
@@ -622,11 +878,53 @@ proves "a real refusal without its cross mark" "with the real forsgren and an in
 proves "a real valid config refused" "with the real forsgren and a valid forsgren.config.yml" \
   's/ -ne 0 \]\]; then/ -ne 99 ]]; then/'
 
+# The starter step (forsgren#12, step 3).
+proves "no starter step" "has no step '${INIT_STEP}'" \
+  "s/- name: ${INIT_STEP}\$/- name: Write something else/"
+proves "init-config on another file" "the starter step runs 'forsgren init-config --config config.yml'" \
+  's/forsgren init-config --config forsgren\.config\.yml/forsgren init-config --config config.yml/'
+proves "a starter committed even when kept" "for a kept forsgren.config.yml the starter step gives" \
+  "s/\\[\\[ \"${D}result\" != \"created forsgren.config.yml\" \\]\\]/false/"
+proves "no starter commit" "for a created forsgren.config.yml on its branch the starter step gives 'exit=0 commits=1'" \
+  '/git -c user.name=/,/commit --quiet/d'
+proves "the whole checkout committed" "the starter commit holds [forsgren.config.yml,other.txt,staged.txt]" \
+  "s/git add -- forsgren.config.yml/git add -A/; s/'forsgren: add a starter forsgren.config.yml' -- forsgren.config.yml/'forsgren: add a starter forsgren.config.yml'/"
+proves "another commit author" "the starter commit's author is 'someone <" \
+  "s/user\\.name='github-actions\\[bot\\]'/user.name='someone'/"
+proves "another author address" "the starter commit's author is 'github-actions[bot] <12345+github-actions" \
+  's/41898282+github-actions/12345+github-actions/'
+proves "another commit message" "the starter commit's message is 'forsgren: add a config'" \
+  "s/add a starter forsgren\\.config\\.yml'/add a config'/"
+proves "no push" "for a created forsgren.config.yml on its branch the starter step gives 'exit=0 commits=1'" \
+  '/git push --quiet origin/d'
+proves "a push to a fixed branch instead of the run's" "for a created forsgren.config.yml on its branch the starter step gives 'exit=0 commits=1'" \
+  "s|\"HEAD:${D}{GITHUB_REF}\"|\"HEAD:refs/heads/main\"|"
+proves "a starter pushed from a tag" "for a ref that is not a branch (refs/tags/v1)" \
+  '/- name: Write the starter/,/git add --/ s/exit 1/exit 0/'
+proves "the branch guard before the kept check" "with no branch ref at all" \
+  's/^\( *\)exit 0$/\1true/'
+proves "the token in an argument" "hands the token to git in an argument" \
+  "s|^\\( *\\)git push --quiet origin|\\1git -c \"http.extraheader=AUTHORIZATION: basic ${D}{auth}\" push --quiet origin|"
+proves "the token stored in the checkout" "leaves the token on disk in the checkout" \
+  "s|^\\( *\\)git push --quiet origin|\\1git config http.extraheader \"AUTHORIZATION: basic ${D}{auth}\"\\n\\1git push --quiet origin|"
+proves "the token echoed" "the starter step shows the token in its log" \
+  "s|^\\( *\\)git push --quiet origin|\\1echo \"pushing with ${D}{GH_TOKEN}\"\\n\\1git push --quiet origin|"
+proves "a push without the header" "the starter step's push carries" \
+  's/"AUTHORIZATION: basic /"X-Other: basic /'
+proves "a starter that leaves no file" "with the real forsgren a new install's config check after the starter step exits" \
+  "s|^\\( *\\)git push --quiet origin.*\$|&\\n\\1rm -f forsgren.config.yml|"
+proves "a job that only reads contents" "does not grant itself 'contents: write'" \
+  's/^      contents: write /      contents: read /'
+proves "render without the config" "the render step runs 'forsgren render --out" \
+  's/ --config forsgren\.config\.yml$//'
+
 # Whole steps removed or moved: the config step gone, the config step after
 # render (just before "Upload the page"), the install step before setup-go.
 proves_moved "a workflow without the config step" "has no step '${CHECK_STEP}'" "$CHECK_STEP"
 proves_moved "the config check after render" "after it renders" "$CHECK_STEP" "Upload the page"
+proves_moved "the starter after the config check" "writes the starter (line" "$INIT_STEP" "Render the page"
+proves_moved "the starter before the checkout" "before checking out the caller's repository" "$INIT_STEP" "$CHECKOUT_STEP"
 proves_moved "the install step before setup-go" "after the install step" "$INSTALL_STEP" "Set up Go"
 
 selftest_end "metrics.yml is not the reusable workflow forsgren#4 rules" \
-  "metrics.yml runs on workflow_call only, takes no input, installs forsgren from its own job.workflow_repository at its own job.workflow_sha (each checked before go runs, a fork installing itself), passes both through env: only, builds with go.mod's Go after setup-go, and checks the caller's config before render, with the real forsgren too, its message never run as a workflow command (and each wrong shape is still detected)"
+  "metrics.yml runs on workflow_call only, takes no input, installs forsgren from its own job.workflow_repository at its own job.workflow_sha (each checked before go runs, a fork installing itself), passes both through env: only, builds with go.mod's Go after setup-go, writes a new install's starter config with one commit as github-actions[bot] (token in the environment only) and renders with the config, and checks the caller's config before render, with the real forsgren too, its message never run as a workflow command (and each wrong shape is still detected)"
