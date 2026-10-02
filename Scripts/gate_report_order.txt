@@ -138,6 +138,7 @@ required-pages manifest|Scripts/validate_required_pages.sh|post|
 # local action, docker://, no workflow file, a mutated gate). Repository
 # source, so both run in pre, the proof first.
 mutation: checkout pins|Scripts/test_workflow_checkout_pins_mutations.sh|pre|
+checkout pins|Scripts/test_workflow_checkout_pins.sh|pre|
 #
 # HTML duplication, a RATCHET (forsgren#1, ladder step 11), at its canon
 # position after the required-pages rows (forsgren has none of the release

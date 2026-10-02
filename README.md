@@ -92,7 +92,7 @@ One PRE gate checks the page templates themselves:
   number. Red on a run that scanned zero `.html` files. jscpd is pinned like
   the linters below.
 
-Four PRE gates read the repository's own scripts and files:
+Five PRE gates read the repository's own scripts and files:
 
 - **shellcheck** (`Scripts/check_shellcheck.sh`, the estate's gate from
   web-infra): every tracked `*.sh` file, and every tracked file without an
@@ -139,6 +139,20 @@ Four PRE gates read the repository's own scripts and files:
   condition the ruling rests on, so a script subfolder means revisiting
   the ruling first. Data files in a subfolder are not scripts and stay
   allowed.
+- **checkout pins** (`Scripts/test_workflow_checkout_pins.sh`, the estate's
+  gate in coachretreat-website's copy): every `uses:` in a
+  `.github/workflows/*.yml` file ends in a full 40-hex commit SHA, never a
+  tag (`@v4`), a branch (`@main`) or a short SHA, because a tag or a branch
+  is resolved when the runner fetches it and its owner can re-point it. The
+  version goes in a comment after the SHA (`# v7.0.1`), by convention: the
+  gate does not check it. A local action
+  (`./...`) is this repository's own code and is skipped; a `docker://`
+  reference has no exception and is red. Every `actions/checkout` must also
+  set `persist-credentials: false`, so the job token is not left in
+  `.git/config` for later steps. Red on a directory with no checkout or no
+  `uses:` at all. Its proof (`Scripts/test_workflow_checkout_pins_mutations.sh`,
+  row `mutation: checkout pins`) runs first and shows each kind of bad ref
+  rejected for its own reason.
 
 shellcheck and yamllint come from Homebrew, through
 `Scripts/required_tools.txt` (see Installing and updating). As with the data
