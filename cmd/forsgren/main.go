@@ -24,7 +24,7 @@ const usage = `usage: forsgren render --out <dir>
 // renders. It is the one source of the version: a var, not a const, so a
 // release build can set it with
 // -ldflags "-X main.version=<version>"; the default is the next release.
-var version = "0.0.1"
+var version = "0.0.2"
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))

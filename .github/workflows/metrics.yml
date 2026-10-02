@@ -3,13 +3,17 @@
 # The REUSABLE workflow an installation's data repository calls once a day
 # (forsgren#4, walking skeleton step 2 of #3). It installs forsgren from the
 # very commit it is called at, renders the page and publishes it to the
-# caller's GitHub Pages. Today the page is the skeleton's placeholder,
-# "Forsgren <version>"; collect and the history file come later.
+# caller's GitHub Pages. Before it renders, it checks the caller's
+# forsgren.config.yml with forsgren check-config, so a missing or invalid
+# configuration fails the job by name instead of publishing from it. Today
+# the page is the skeleton's placeholder, "Forsgren <version>"; collect and
+# the history file come later.
 #
 # It runs only when called (workflow_call): never in forsgren's own
 # repository, never on a pull request. Its job runs in the CALLER's
-# repository, with the caller's token, on a GitHub-hosted runner, and checks
-# nothing out: forsgren arrives as a Go module through go install, verified
+# repository, with the caller's token, on a GitHub-hosted runner. It checks
+# out the CALLER's repository (to read its forsgren.config.yml) and never
+# forsgren's: forsgren arrives as a Go module through go install, verified
 # against the Go checksum database, never as this repository's working tree.
 #
 # THE CALLER (see README, Running forsgren) pins this file with ONE line, by
@@ -27,7 +31,9 @@
 # workflow_call only and no inputs, the install step's commit and repository
 # from the job context through env: only, its checks executed there against
 # good and bad commits and repositories, setup-go on go.mod's toolchain
-# before it.
+# before it, the caller's checkout pinned by commit without persisted
+# credentials, and the config check, executed there, between install and
+# render.
 name: Metrics
 
 on:
@@ -41,7 +47,7 @@ jobs:
     name: Render and publish
     runs-on: ubuntu-latest
     permissions:
-      contents: read    # read-only, as GitHub's Pages starter workflow declares it; nothing is checked out or written
+      contents: read    # read-only: actions/checkout fetches the caller's repository with it, to read forsgren.config.yml; nothing is written
       pages: write      # deploy-pages publishes the site to the caller's GitHub Pages
       id-token: write   # deploy-pages proves to Pages, with an OIDC token, which run deploys
     environment:
@@ -83,8 +89,9 @@ jobs:
       # digits, so a tag or branch (which would install whatever it names on
       # the day of the run) never reaches the module proxy; the repository
       # must be one owner/name. Inline, not a Scripts/ file: the job checks
-      # nothing out, so forsgren's scripts are not on the runner, and the
-      # only commit it could check one out at is the one still unchecked.
+      # out the caller's repository, not forsgren's, so forsgren's scripts
+      # are not on the runner, and the only commit it could check one out at
+      # is the one still unchecked.
       # Both arrive through env:, never as ${{ }} in the script.
       - name: Install forsgren from this workflow's own commit
         shell: bash
@@ -107,6 +114,35 @@ jobs:
           export GOBIN="${RUNNER_TEMP}/forsgren-bin"
           go install "github.com/${FORSGREN_REPOSITORY}/cmd/forsgren@${FORSGREN_SHA}"
           echo "${GOBIN}" >> "$GITHUB_PATH"
+
+      # The CALLER's repository, to read its forsgren.config.yml: the commit
+      # that triggered the run, at the workspace root. Pinned by full commit
+      # like every action here (the very one Quality's checkout uses), and
+      # persist-credentials: false so the token is not left in the checkout's
+      # git config for the steps after it. contents: read, which the job
+      # already holds, is all it needs.
+      - name: Check out the caller's repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      # forsgren check-config reads the caller's forsgren.config.yml and says
+      # in one line whether it is valid. A missing or invalid file fails the
+      # job here, before anything is rendered or published, with
+      # check-config's message in the log and, after a cross mark, in the
+      # run's step summary. Inline: forsgren's scripts are not on the runner,
+      # and Scripts/test_metrics_workflow.sh executes this block.
+      - name: Check the caller's forsgren configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          if message="$(forsgren check-config --config forsgren.config.yml 2>&1)"; then
+            printf '%s\n' "$message"
+          else
+            printf '%s\n' "$message"
+            printf '%s\n' "❌ ${message}" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
 
       - name: Render the page
         shell: bash

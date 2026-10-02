@@ -135,7 +135,7 @@ a usage error.
 
 ## Running forsgren
 
-Today forsgren renders one placeholder page, which says "Forsgren 0.0.1":
+Today forsgren renders one placeholder page, which says "Forsgren 0.0.2":
 the version of the forsgren that rendered it. That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
 it with `-ldflags "-X main.version=<version>"`. Reading GitHub (`collect`)
@@ -157,7 +157,8 @@ the render failed, 2 on a usage error.
 **Daily, from an installation's data repository.** An installation does not
 build forsgren: its data repository calls forsgren's reusable workflow,
 `.github/workflows/metrics.yml`, once a day. That workflow installs
-forsgren from the very commit it is called at with `go install`, renders
+forsgren from the very commit it is called at with `go install`, checks the
+data repository's `forsgren.config.yml` with `forsgren check-config`, renders
 the page and publishes it to
 the data repository's GitHub Pages, on a GitHub-hosted runner, with no server
 and no local Go. The calling workflow, in the data repository:
@@ -189,6 +190,14 @@ jobs:
   `with: forsgren-version: v0.0.1` under the `uses:` line; the one-line
   form starts with the next release, which has no such input: drop the
   `with:` block when moving to it.
+- **The daily run checks the configuration first.** The workflow checks out
+  the data repository (the commit that triggered the run, without leaving
+  its token in the checkout) and runs `forsgren check-config --config
+  forsgren.config.yml` on the file at the repository root, before it renders
+  anything. A missing or invalid file fails the job with check-config's
+  message in the log and in the run's summary, after a cross mark, and
+  nothing is published from it. The checkout needs only the `contents:
+  read` the caller already grants.
 - **The three permissions are the caller's to grant.** A called workflow
   can only keep or narrow what its caller's job grants: `pages: write` and
   `id-token: write` let `actions/deploy-pages` publish, `contents: read` is

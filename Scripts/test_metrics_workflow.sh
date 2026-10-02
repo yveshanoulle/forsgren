@@ -370,7 +370,7 @@ if [[ -n "$verdict" ]]; then
     [[ -n "$line" ]] && fail "${WF} ${line}"
   done <<< "$verdict"
 else
-  echo "  ok: ${WF} is a workflow_call with no inputs that installs forsgren from its own job.workflow_repository at its own job.workflow_sha, both checked before go install, through env: only, built with go.mod's Go"
+  echo "  ok: ${WF} is a workflow_call with no inputs that installs forsgren from its own job.workflow_repository at its own job.workflow_sha, both checked before go install, through env: only, built with go.mod's Go, after the caller's pinned checkout and a config check that fails the job with check-config's message before render"
 fi
 
 # --- Self-proof: each pin, on a mutant of the real metrics.yml, names its reason.
