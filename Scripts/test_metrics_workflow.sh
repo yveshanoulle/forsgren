@@ -173,6 +173,28 @@ line_of() {
   grep -nF -- "$2" "$1" | head -1 | cut -d: -f1
 }
 
+# later <line> <other line>: true when both are known and the first comes
+# after the second.
+later() {
+  [[ -n "$1" && -n "$2" && "$1" -gt "$2" ]]
+}
+
+# move_step <file> <step name> [<before step name>]: the file with that step
+# moved to just before the other step, or removed when no other is named.
+move_step() {
+  awk -v name="$2" -v before="${3:-}" '
+    /^      - / { instep = ($0 == "      - name: " name) }
+    instep { held = held $0 "\n"; next }
+    { lines[++n] = $0 }
+    END {
+      for (i = 1; i <= n; i++) {
+        if (before != "" && lines[i] == "      - name: " before) printf "%s", held
+        print lines[i]
+      }
+    }
+  ' "$1"
+}
+
 # Stub go: records its arguments, one call per line, and succeeds.
 STUB="${TMP}/stub"
 mkdir -p "$STUB"
@@ -277,87 +299,111 @@ judge_order() {
   checkout="$(line_of "$1" "- name: ${CHECKOUT_STEP}")"
   check="$(line_of "$1" "- name: ${CHECK_STEP}")"
   render="$(line_of "$1" "- name: ${RENDER_STEP}")"
-  if [[ -n "$check" && -n "$render" && "$check" -gt "$render" ]]; then
+  if later "$check" "$render"; then
     echo "checks the config (line ${check}) after it renders (line ${render}) — a bad config must stop the job before render"
   fi
-  if [[ -n "$check" && -n "$checkout" && "$checkout" -gt "$check" ]]; then
+  if later "$checkout" "$check"; then
     echo "checks out the caller's repository (line ${checkout}) after the config check (line ${check}) — the file is not there yet"
   fi
-  if [[ -n "$check" && -n "$install" && "$install" -gt "$check" ]]; then
+  if later "$install" "$check"; then
     echo "installs forsgren (line ${install}) after the config check (line ${check}) — check-config is not on PATH yet"
   fi
 }
 
-# judge <workflow-file>: one problem per line; silent when every pin holds.
-judge() {
-  local wf="$1" events keys runs env script got v want setup_line install_line go_version toolchain
-  events="$(on_events "$wf")"
+# judge_trigger <workflow-file>: pins 1 and 2, workflow_call alone and no
+# inputs.
+judge_trigger() {
+  local events keys
+  events="$(on_events "$1")"
   if [[ "$events" != "workflow_call" ]]; then
     echo "triggers on [$(printf '%s' "$events" | paste -sd, -)], not on workflow_call alone — forsgren's own repository must never run it, and no pull request may"
   fi
-
-  keys="$(call_keys "$wf")"
+  keys="$(call_keys "$1")"
   if [[ -n "$keys" ]]; then
     echo "workflow_call declares [$(printf '%s' "$keys" | paste -sd, -)] — the caller's uses: line is the only version source, so it takes no input"
   fi
+}
 
-  runs="$(run_blocks "$wf")"
+# judge_expressions <workflow-file>: pin 3, no ${{ }} inside a run: block.
+judge_expressions() {
+  local runs
+  runs="$(run_blocks "$1")"
   if grep -qF "$EXPR_OPEN" <<< "$runs"; then
     echo "expands a \${{ }} expression inside run: (line $(grep -F "$EXPR_OPEN" <<< "$runs" | head -1 | cut -d: -f1)) — values reach the shell through env: only (template injection)"
   fi
+}
 
-  env="$(step_block "$wf" "$INSTALL_STEP" env)"
+# judge_install_env <workflow-file>: pin 4, the install step's env:.
+judge_install_env() {
+  local env
+  env="$(step_block "$1" "$INSTALL_STEP" env)"
   if ! grep -qxE "FORSGREN_SHA:[[:space:]]*\\$\\{\\{ job\\.workflow_sha \\}\\}" <<< "$env"; then
     echo "the install step's FORSGREN_SHA is not \${{ job.workflow_sha }} — only the job context gives a called workflow its own commit (github.* is the caller's)"
   fi
   if ! grep -qxE "FORSGREN_REPOSITORY:[[:space:]]*\\$\\{\\{ job\\.workflow_repository \\}\\}" <<< "$env"; then
     echo "the install step's FORSGREN_REPOSITORY is not \${{ job.workflow_repository }} — the repository must come from the same context as the commit"
   fi
+}
 
-  script="${TMP}/install.sh"
-  step_block "$wf" "$INSTALL_STEP" run > "$script"
+# judge_install_run <workflow-file>: pin 5, the executed install step.
+judge_install_run() {
+  local script="${TMP}/install.sh" got want v
+  step_block "$1" "$INSTALL_STEP" run > "$script"
   if [[ ! -s "$script" ]]; then
     echo "has no step '${INSTALL_STEP}' with a run: | block — nothing installs forsgren from this workflow's own commit"
-  else
-    got="$(install_outcome "$script" "$SHA" "$UPSTREAM")"
-    want="installed install github.com/${UPSTREAM}/cmd/forsgren@${SHA}"
-    [[ "$got" == "$want" ]] || echo "for ${UPSTREAM} at ${SHA} the install step gives '${got}', not '${want}'"
-    got="$(install_outcome "$script" "$SHA" acme/forsgren)"
-    want="installed install github.com/acme/forsgren/cmd/forsgren@${SHA}"
-    [[ "$got" == "$want" ]] || echo "for the fork acme/forsgren the install step gives '${got}', not '${want}' — a fork must install its own repository, never upstream in silence"
-    for v in v0.0.1 latest main e1b36d2 "${SHA:0:39}" "${SHA}0" \
-             "$(tr 'a-f' 'A-F' <<< "$SHA")" "${SHA:0:39}g" "${SHA} " " ${SHA}" \
-             "${SHA};id" "${SHA}"$'\n'main ''; do
-      got="$(install_outcome "$script" "$v" "$UPSTREAM")"
-      [[ "$got" == refused ]] || echo "the install step gives '${got}' for the commit '$(printf '%q' "$v")', which is not 40 lower-case hex digits — it must refuse before go runs"
-    done
-    for v in yveshanoulle yveshanoulle/forsgren/extra .hidden/forsgren yveshanoulle/.forsgren \
-             '../forsgren' 'yveshanoulle/forsgren ' 'yveshanoulle/forsgren;id' \
-             "yveshanoulle/forsgren"$'\n'x 'evil.example/forsgren' ''; do
-      got="$(install_outcome "$script" "$SHA" "$v")"
-      [[ "$got" == refused ]] || echo "the install step gives '${got}' for the repository '$(printf '%q' "$v")', which is not one owner/name — it must refuse before go runs"
-    done
+    return 0
   fi
+  got="$(install_outcome "$script" "$SHA" "$UPSTREAM")"
+  want="installed install github.com/${UPSTREAM}/cmd/forsgren@${SHA}"
+  [[ "$got" == "$want" ]] || echo "for ${UPSTREAM} at ${SHA} the install step gives '${got}', not '${want}'"
+  got="$(install_outcome "$script" "$SHA" acme/forsgren)"
+  want="installed install github.com/acme/forsgren/cmd/forsgren@${SHA}"
+  [[ "$got" == "$want" ]] || echo "for the fork acme/forsgren the install step gives '${got}', not '${want}' — a fork must install its own repository, never upstream in silence"
+  for v in v0.0.1 latest main e1b36d2 "${SHA:0:39}" "${SHA}0" \
+           "$(tr 'a-f' 'A-F' <<< "$SHA")" "${SHA:0:39}g" "${SHA} " " ${SHA}" \
+           "${SHA};id" "${SHA}"$'\n'main ''; do
+    got="$(install_outcome "$script" "$v" "$UPSTREAM")"
+    [[ "$got" == refused ]] || echo "the install step gives '${got}' for the commit '$(printf '%q' "$v")', which is not 40 lower-case hex digits — it must refuse before go runs"
+  done
+  for v in yveshanoulle yveshanoulle/forsgren/extra .hidden/forsgren yveshanoulle/.forsgren \
+           '../forsgren' 'yveshanoulle/forsgren ' 'yveshanoulle/forsgren;id' \
+           "yveshanoulle/forsgren"$'\n'x 'evil.example/forsgren' ''; do
+    got="$(install_outcome "$script" "$SHA" "$v")"
+    [[ "$got" == refused ]] || echo "the install step gives '${got}' for the repository '$(printf '%q' "$v")', which is not one owner/name — it must refuse before go runs"
+  done
+}
 
-  install_line="$(line_of "$wf" "- name: ${INSTALL_STEP}")"
-  setup_line="$(grep -nE 'uses:[[:space:]]*actions/setup-go@' "$wf" | head -1 | cut -d: -f1)"
-  if [[ -n "$install_line" && -n "$setup_line" ]] && [[ "$setup_line" -gt "$install_line" ]]; then
+# judge_setup_go <workflow-file>: pin 6, setup-go on go.mod's Go, before the
+# install step.
+judge_setup_go() {
+  local install_line setup_line go_version toolchain
+  install_line="$(line_of "$1" "- name: ${INSTALL_STEP}")"
+  setup_line="$(grep -nE 'uses:[[:space:]]*actions/setup-go@' "$1" | head -1 | cut -d: -f1)"
+  if later "$setup_line" "$install_line"; then
     echo "sets up Go (line ${setup_line}) after the install step (line ${install_line}) — go install would run on the runner's own Go"
   fi
-
   go_version="$(awk '
     /uses:[[:space:]]*actions\/setup-go@/ { insg=1; next }
     insg && /^      - / { insg=0 }
     insg && /^[[:space:]]+go-version:/ { v=$0; sub(/^[^:]*:[[:space:]]*/, "", v); gsub(/["\047]/, "", v); print v; exit }
-  ' "$wf")"
+  ' "$1")"
   toolchain="$(./Scripts/go_toolchain.sh)"
   if [[ "$go_version" != "${toolchain#go}" ]]; then
     echo "actions/setup-go installs Go '${go_version:-none}', not ${toolchain#go} from go.mod's toolchain line — the release would be built with another Go than sfl, FBP.sh and Quality use"
   fi
+}
 
-  judge_checkout "$wf"
-  judge_config_step "$wf"
-  judge_order "$wf"
+# judge <workflow-file>: one problem per line, pin by pin; silent when every
+# pin holds.
+judge() {
+  judge_trigger "$1"
+  judge_expressions "$1"
+  judge_install_env "$1"
+  judge_install_run "$1"
+  judge_setup_go "$1"
+  judge_checkout "$1"
+  judge_config_step "$1"
+  judge_order "$1"
 }
 
 if [[ ! -f "$WF" ]]; then
@@ -374,16 +420,35 @@ else
 fi
 
 # --- Self-proof: each pin, on a mutant of the real metrics.yml, names its reason.
-# proves <case> <reason> <sed-expression>
-proves() {
-  local mutant="${TMP}/mutants/$1.yml" got
-  selftest_mutant "$WF" "$mutant" "$3" || return 0
-  got="$(judge "$mutant")"
+# judged <case> <reason> <mutant>: the judge names <reason> for the mutant.
+judged() {
+  local got
+  got="$(judge "$3")"
   if grep -qF -- "$2" <<< "$got"; then
     echo "  ok: $1 is rejected"
   else
     fail "the mutant with $1 was ACCEPTED (verdict: ${got:-none}) — this pin cannot detect the defect it exists for"
   fi
+}
+
+# proves <case> <reason> <sed-expression>
+proves() {
+  local mutant="${TMP}/mutants/$1.yml"
+  selftest_mutant "$WF" "$mutant" "$3" || return 0
+  judged "$1" "$2" "$mutant"
+}
+
+# proves_moved <case> <reason> <step name> [<before step name>]: as proves,
+# on the real metrics.yml with that step moved before the other, or removed.
+proves_moved() {
+  local mutant="${TMP}/mutants/$1.yml"
+  mkdir -p "${TMP}/mutants"
+  move_step "$WF" "$3" "${4:-}" > "$mutant"
+  if cmp -s "$WF" "$mutant"; then
+    fail "moving the step '$3' changed nothing in ${WF}: the proof would be vacuous"
+    return 0
+  fi
+  judged "$1" "$2" "$mutant"
 }
 
 proves "a push trigger" "not on workflow_call alone" \
@@ -428,65 +493,11 @@ proves "a config step that lets a refusal pass" "for a refused config the config
 proves "a refusal without its cross mark" "for a refused config the config step gives 'exit=1 calls=${CONFIG_CMD} log=shown summary=check-config" \
   's/"❌ /"/'
 
-# Removing the config step altogether: the mutant must differ from the real
-# file, and be refused for the missing step.
-removed="${TMP}/mutants/no-config-step.yml"
-mkdir -p "${TMP}/mutants"
-awk -v name="$CHECK_STEP" '
-  /^      - / { instep = ($0 == "      - name: " name) }
-  !instep { print }
-' "$WF" > "$removed"
-if cmp -s "$WF" "$removed"; then
-  fail "removing the step '${CHECK_STEP}' changed nothing in ${WF}: the proof would be vacuous"
-else
-  got="$(judge "$removed")"
-  if grep -qF "has no step '${CHECK_STEP}'" <<< "$got"; then
-    echo "  ok: a workflow without the config step is rejected"
-  else
-    fail "the mutant without the step '${CHECK_STEP}' was ACCEPTED (verdict: ${got:-none}) — a missing config check would pass"
-  fi
-fi
-
-# The order pin for the config step: it moved to just before "Upload the page"
-# (after render).
-late="${TMP}/mutants/config-after-render.yml"
-awk -v name="$CHECK_STEP" '
-  /^      - / { instep = ($0 == "      - name: " name) }
-  instep { held = held $0 "\n"; next }
-  { lines[++n] = $0 }
-  END {
-    for (i = 1; i <= n; i++) {
-      if (lines[i] == "      - name: Upload the page") printf "%s", held
-      print lines[i]
-    }
-  }
-' "$WF" > "$late"
-got="$(judge "$late")"
-if grep -qF "after it renders" <<< "$got"; then
-  echo "  ok: the config check after render is rejected"
-else
-  fail "the mutant with the config check after render was ACCEPTED (verdict: ${got:-none}) — the order pin cannot detect it"
-fi
-
-# The order pin: the install step moved to just before "Set up Go".
-reorder="${TMP}/mutants/reorder.yml"
-awk -v name="$INSTALL_STEP" '
-  /^      - / { instep = ($0 == "      - name: " name) }
-  instep { held = held $0 "\n"; next }
-  { lines[++n] = $0 }
-  END {
-    for (i = 1; i <= n; i++) {
-      if (lines[i] == "      - name: Set up Go") printf "%s", held
-      print lines[i]
-    }
-  }
-' "$WF" > "$reorder"
-got="$(judge "$reorder")"
-if grep -qF "after the install step" <<< "$got"; then
-  echo "  ok: the install step before setup-go is rejected"
-else
-  fail "the mutant with the install step before setup-go was ACCEPTED (verdict: ${got:-none}) — the order pin cannot detect it"
-fi
+# Whole steps removed or moved: the config step gone, the config step after
+# render (just before "Upload the page"), the install step before setup-go.
+proves_moved "a workflow without the config step" "has no step '${CHECK_STEP}'" "$CHECK_STEP"
+proves_moved "the config check after render" "after it renders" "$CHECK_STEP" "Upload the page"
+proves_moved "the install step before setup-go" "after the install step" "$INSTALL_STEP" "Set up Go"
 
 selftest_end "metrics.yml is not the reusable workflow forsgren#4 rules" \
   "metrics.yml runs on workflow_call only, takes no input, installs forsgren from its own job.workflow_repository at its own job.workflow_sha (each checked before go runs, a fork installing itself), passes both through env: only, and builds with go.mod's Go after setup-go (and each wrong shape is still detected)"

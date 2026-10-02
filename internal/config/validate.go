@@ -17,7 +17,7 @@ func (f fileConfig) toConfig() (Config, error) {
 		return Config{}, fmt.Errorf("%w: list at least one under the projects key", ErrNoProjects)
 	}
 	cfg := Config{Version: FormatVersion}
-	seen := names{projects: map[string]int{}, repositories: map[string]string{}}
+	seen := names{projects: map[string]listedProject{}, repositories: map[string]string{}}
 	for i, p := range f.Projects {
 		project, err := p.toProject(i+1, &seen)
 		if err != nil {
@@ -42,9 +42,37 @@ func checkVersion(v *int) error {
 // (GitHub's repository names are case-insensitive, and two projects whose
 // names differ only in case would read as one on the page).
 type names struct {
-	projects     map[string]int    // project name → its 1-based position
-	projectNames []string          // as written, by position - 1
-	repositories map[string]string // owner/name → the project that lists it
+	projects     map[string]listedProject // lower-cased project name → the project first listed under it
+	repositories map[string]string        // lower-cased owner/name → the project that lists it
+}
+
+// listedProject is a project name as written, and its 1-based position.
+type listedProject struct {
+	n    int
+	name string
+}
+
+// claimProject records the name of the project at 1-based position n, or
+// refuses it when an earlier project has it.
+func (seen *names) claimProject(n int, name string) error {
+	key := strings.ToLower(name)
+	if first, ok := seen.projects[key]; ok {
+		return fmt.Errorf("project %d %q: %w, the same as project %d %q (case is ignored)",
+			n, name, ErrDuplicateProject, first.n, first.name)
+	}
+	seen.projects[key] = listedProject{n: n, name: name}
+	return nil
+}
+
+// claimRepository records that the named project lists the repository, or
+// refuses it when a project already does; the caller says where.
+func (seen *names) claimRepository(project, repository string) error {
+	key := strings.ToLower(repository)
+	if first, ok := seen.repositories[key]; ok {
+		return fmt.Errorf("%w, first in project %q (case is ignored)", ErrDuplicateRepository, first)
+	}
+	seen.repositories[key] = project
+	return nil
 }
 
 // toProject checks the project at 1-based position n.
@@ -52,13 +80,9 @@ func (p fileProject) toProject(n int, seen *names) (Project, error) {
 	if strings.TrimSpace(p.Name) == "" {
 		return Project{}, fmt.Errorf("project %d: %w", n, ErrProjectName)
 	}
-	key := strings.ToLower(p.Name)
-	if first, ok := seen.projects[key]; ok {
-		return Project{}, fmt.Errorf("project %d %q: %w, the same as project %d %q (case is ignored)",
-			n, p.Name, ErrDuplicateProject, first, seen.projectNames[first-1])
+	if err := seen.claimProject(n, p.Name); err != nil {
+		return Project{}, err
 	}
-	seen.projects[key] = n
-	seen.projectNames = append(seen.projectNames, p.Name)
 	if len(p.Repositories) == 0 {
 		return Project{}, fmt.Errorf("project %q: %w", p.Name, ErrNoRepositories)
 	}
@@ -77,18 +101,21 @@ func (p fileProject) toProject(n int, seen *names) (Project, error) {
 // hyphens, a repository name of letters, digits, '.', '_' and '-'.
 var repositoryName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9._-]+$`)
 
+// isRepositoryName says whether s is one owner/name; the name . or .. is
+// not a repository.
+func isRepositoryName(s string) bool {
+	return repositoryName.MatchString(s) && !strings.HasSuffix(s, "/.") && !strings.HasSuffix(s, "/..")
+}
+
 // toRepository checks one repository of the named project.
 func (r fileRepository) toRepository(project string, seen *names) (Repository, error) {
 	where := fmt.Sprintf("project %q: repository %q", project, r.Name)
-	if !repositoryName.MatchString(r.Name) || strings.HasSuffix(r.Name, "/.") || strings.HasSuffix(r.Name, "/..") {
+	if !isRepositoryName(r.Name) {
 		return Repository{}, fmt.Errorf("%s: %w such as acme/app", where, ErrRepositoryName)
 	}
-	key := strings.ToLower(r.Name)
-	if first, ok := seen.repositories[key]; ok {
-		return Repository{}, fmt.Errorf("%s: %w, first in project %q (case is ignored)",
-			where, ErrDuplicateRepository, first)
+	if err := seen.claimRepository(project, r.Name); err != nil {
+		return Repository{}, fmt.Errorf("%s: %w", where, err)
 	}
-	seen.repositories[key] = project
 	deployment, err := parseDeployment(r.Deployment)
 	if err != nil {
 		return Repository{}, fmt.Errorf("%s: %w %q: %w", where, ErrDeployment, r.Deployment, err)

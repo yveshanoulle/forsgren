@@ -49,42 +49,52 @@ func run(args []string, stdout, stderr io.Writer) int {
 // says in one line whether it is valid: the cheapest way for an owner, or a
 // workflow, to see a config mistake before a run depends on it.
 func checkConfig(args []string, stdout, stderr io.Writer) int {
-	flags := flag.NewFlagSet("check-config", flag.ContinueOnError)
-	flags.SetOutput(stderr)
-	path := flags.String("config", "", "the forsgren.config.yml to check")
-	if err := flags.Parse(args); err != nil {
+	path, ok := requiredFlag(stderr, args, "check-config", "config", "<path>", "the forsgren.config.yml to check")
+	if !ok {
 		return 2
 	}
-	if *path == "" {
-		_, _ = fmt.Fprintln(stderr, "check-config: --config <path> is required")
-		return 2
-	}
-	cfg, err := config.Load(*path)
+	cfg, err := config.Load(path)
 	if err != nil {
-		_, _ = fmt.Fprintf(stderr, "check-config: %v\n", err)
-		return 1
+		return failed(stderr, "check-config", err)
 	}
 	_, _ = fmt.Fprintf(stdout, "OK: %s is a valid forsgren config (version %d): projects: %d, repositories: %d\n",
-		*path, cfg.Version, len(cfg.Projects), cfg.RepositoryCount())
+		path, cfg.Version, len(cfg.Projects), cfg.RepositoryCount())
 	return 0
 }
 
 func render(args []string, stdout, stderr io.Writer) int {
-	flags := flag.NewFlagSet("render", flag.ContinueOnError)
-	flags.SetOutput(stderr)
-	out := flags.String("out", "", "directory to write the site into")
-	if err := flags.Parse(args); err != nil {
+	out, ok := requiredFlag(stderr, args, "render", "out", "<dir>", "directory to write the site into")
+	if !ok {
 		return 2
 	}
-	if *out == "" {
-		_, _ = fmt.Fprintln(stderr, "render: --out <dir> is required")
-		return 2
-	}
-	n, err := page.WriteSite(*out, page.Placeholder(version))
+	n, err := page.WriteSite(out, page.Placeholder(version))
 	if err != nil {
-		_, _ = fmt.Fprintf(stderr, "render: %v\n", err)
-		return 1
+		return failed(stderr, "render", err)
 	}
-	_, _ = fmt.Fprintf(stdout, "rendered %d page(s) into %s\n", n, *out)
+	_, _ = fmt.Fprintf(stdout, "rendered %d page(s) into %s\n", n, out)
 	return 0
+}
+
+// requiredFlag parses the arguments of a command that takes one required
+// flag, --<name> <arg>: its value and true, or false once the usage error is
+// on stderr (flag's own message, or `<command>: --<name> <arg> is required`).
+func requiredFlag(stderr io.Writer, args []string, command, name, arg, help string) (string, bool) {
+	flags := flag.NewFlagSet(command, flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	value := flags.String(name, "", help)
+	if err := flags.Parse(args); err != nil {
+		return "", false
+	}
+	if *value == "" {
+		_, _ = fmt.Fprintf(stderr, "%s: --%s %s is required\n", command, name, arg)
+		return "", false
+	}
+	return *value, true
+}
+
+// failed says why the command's work failed, `<command>: <err>`, on stderr,
+// and returns its exit status, 1.
+func failed(stderr io.Writer, command string, err error) int {
+	_, _ = fmt.Fprintf(stderr, "%s: %v\n", command, err)
+	return 1
 }
