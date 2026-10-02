@@ -174,8 +174,9 @@ jobs:
       #
       # Two blocks, in this order, appended to one summary page: first the
       # run's key numbers (forsgren#8, Scripts/render_quality_summary.sh):
-      # status and how far the run got, gates per phase, Go tests, coverage
-      # and floors to raise, pages, version, commit, trigger and duration;
+      # status and how far the run got, gates per phase, Go tests, the total
+      # checks, coverage and floors to raise, pages, version, commit, trigger
+      # and duration;
       # then the gate table with each gate's output. One step, so the numbers
       # sit above the table without either renderer knowing about the other.
       # Gates that never ran are named rather than omitted: a short table

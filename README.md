@@ -506,15 +506,23 @@ Gates that did not run are counted as unmeasured, never as passing.
 key numbers (forsgren#8), written by the job's last step, which runs after a
 failure or a cancel too: the status (succeeded, failed or cancelled, and the
 phase it stopped in), the gates passed, failed and skipped in PRE and in
-POST, the Go tests passed, the coverage total with its floor, the floors to
-raise (the coverage gate's FLOORWARN count), the pages generated, the
+POST, the Go tests passed, the total checks (every individual check that
+ran, counted once: each case of every self-test and gate, each Go test, and
+a gate with no case lines as one; passed and failed), the coverage total
+with its floor, the floors to raise (the coverage gate's FLOORWARN count), the pages generated, the
 forsgren version, the commit and trigger (push, pull request with its
 number, or by hand) and the duration. `Scripts/render_quality_summary.sh`
 reads them from what the run already wrote (the gate rows and outputs, the
 page-count sink, `cmd/forsgren/main.go`) and from the job's status and step
 outcomes, passed through `env:`. A number that does not exist, from a phase
 that never ran or an output that is missing, shows as `—` with the reason,
-never as 0.
+never as 0. The total checks read each gate's output with one case-line
+grammar, written out in the renderer: a closing verdict (`OK: …`,
+`✅ test_x`, `FAIL: … contract`) is never a case; a phase that never ran
+makes the total `—` naming it, never a partial sum; a gate that never
+reported is named as skipped, and a gate whose case lines are in a format
+the grammar does not know is named rather than counted silently. Adding a
+self-test or a case raises the number.
 
 **From a red CI row to a local run.** A CI row carries the label sfl prints,
 and the order file names the script and phase behind it:
@@ -670,8 +678,13 @@ Six PRE gates keep the CI honest:
   renders every number of a green run, says where a red, cancelled or
   setup-stopped run stopped, names a pull request's number, exits 0 on
   whatever it is given, and shows `—` with the reason for a phase that
-  never ran or an output that is missing, never 0; shown failing, with that
-  reason, on a mutant that writes 0 instead.
+  never ran or an output that is missing, never 0; its total checks count
+  every case-line format of the real gates once, each Go test once, no
+  verdict line, a red gate's failures, and name a phase they are missing, a
+  gate that never reported and a case-line format they do not know; shown
+  failing, each with its own reason, on mutants that write 0 instead, that
+  sum only the phases they have, that count verdict lines, and that drop
+  the unknown-format guard.
 
 ## Privacy
 

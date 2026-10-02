@@ -40,6 +40,17 @@
 # Gates of a phase that ran but never reported (the run was cancelled
 # mid-phase) are counted as skipped, never as passed.
 #
+# TOTAL CHECKS, directly under Go tests, is the highest honest number: every
+# individual check that ran, counted once. Per gate that reported, its case
+# lines (read with the one case-line grammar below), each Go test once (the
+# Go tests gate's `--- PASS:`/`--- FAIL:` lines, never the gate too), and a
+# gate with no case line counts as one check, itself. A closing verdict is
+# never a case. A phase with no gate that reported makes the cell `—`,
+# naming that phase, never a partial sum that reads as complete; a gate of
+# a phase that ran but never reported is named as skipped; a gate whose
+# case lines are in a format the grammar does not know is named, not
+# counted silently.
+#
 # Usage: Scripts/render_quality_summary.sh <rows-file> <details-dir> [order-file]
 #   Either path may be empty or missing (the job stopped before quality.yml's
 #   Start report step); the block still renders.
@@ -138,9 +149,10 @@ not_run_reason() {
   fi
 }
 
-# phase_cell <phase>: `P passed · F failed · S skipped`, counted from the
-# rows against the order file's declared rows of that phase.
-phase_cell() {
+# phase_counts <phase>: `P F S` (passed, failed, skipped), counted from
+# the rows against the order file's declared rows of that phase; nothing
+# when no gate of the phase reported.
+phase_counts() {
   local counts
   # LC_ALL=C: macOS awk compares strings with strcoll, and in a UTF-8 locale
   # ✅ and ❌ collate EQUAL, so every red row counted as passed. Bytes, here.
@@ -158,16 +170,24 @@ phase_cell() {
   ' "$ORDER" "${rows_file}")"
   local declared passed failed
   read -r declared passed failed <<< "$counts"
-  if [ "$((passed + failed))" -eq 0 ]; then
-    missing "$(not_run_reason "$1")"
-    return
-  fi
-  printf '%d passed · %d failed · %d skipped' "$passed" "$failed" "$((declared - passed - failed))"
+  [ "$((passed + failed))" -eq 0 ] && return
+  printf '%d %d %d' "$passed" "$failed" "$((declared - passed - failed))"
 }
 
 # A missing rows file is read as an empty one.
 rows_file="$ROWS"
 if [ -z "$rows_file" ] || [ ! -f "$rows_file" ]; then rows_file=/dev/null; fi
+
+pre_counts="$(phase_counts pre)"
+post_counts="$(phase_counts post)"
+
+# phase_cell <phase> <counts>: the phase's counts, or — with why it has none.
+phase_cell() {
+  local passed failed skipped
+  if [ -z "$2" ]; then missing "$(not_run_reason "$1")"; return; fi
+  read -r passed failed skipped <<< "$2"
+  printf '%d passed · %d failed · %d skipped' "$passed" "$failed" "$skipped"
+}
 
 # --- Go tests -----------------------------------------------------------------
 go_tests_cell() {
@@ -189,6 +209,132 @@ go_tests_cell() {
     return
   fi
   printf '❌ %d passed · %d failed' "$pass" "$fail"
+}
+
+# --- Total checks -------------------------------------------------------------
+# THE CASE-LINE GRAMMAR: one line of a gate's output is, in this order,
+#   skipped    the details file's own lines: `#### ` header, ``` fence,
+#              `_no output_`
+#   a verdict  never a case: `OK: <claim>` (one space), `PASS`/`FAIL` alone,
+#              `FAIL: …` (no mark), `All N cases passed`, a mark at column 0
+#              that is not `❌ FAIL:` (`✅ test_x`, `❌ check_x fixture
+#              failed`), go test's `ok  <package>` line, and the `❌ FAIL:`
+#              lines that close a run: lib_selftest's `(see the FAIL lines
+#              above)` and `aborted before completing`, and the count lines
+#              of check_coverage, check_file_length, test_build_site,
+#              check_deadcode, check_go_lint, check_test_dupl
+#   passed     `  ok: ` (lib_selftest, and its `  ok:   ... and` follow-ups),
+#              `  ✅ ` (the ported fixtures; check_coverage's floors),
+#              `OK:   ` (two or more spaces: the ported shellcheck, yamllint
+#              and install-tools fixtures), `OK   ` (no colon:
+#              validate_required_pages, check_lint_coverage), `[N/M] `
+#              (test_sfl_pull's steps)
+#   failed     `  ❌ ` (the ported fixtures), `❌ FAIL: ` (every other)
+#   unknown    any other line that starts with a pass or fail mark (✅ ❌ ✓
+#              ✔ ✗ ✘ ok OK PASS FAIL pass fail): a case-line format this
+#              grammar does not know, named in the cell.
+# LC_ALL=C, as for the rows: the marks are compared as bytes.
+#
+# case_counts <label>: `P F U` (passed, failed and unknown case lines) of one
+# gate's output. The Go tests gate counts its tests, each once: its
+# `--- PASS:`/`--- FAIL:` lines, or its OK line's count when it printed
+# none.
+case_counts() {
+  local f n
+  f="$(details_of "$1")"
+  if [ -z "$DETAILS" ] || [ ! -f "$f" ]; then echo "0 0 0"; return; fi
+  if [ "$1" != "Go tests" ]; then
+    LC_ALL=C awk '
+      function verdict(l) {
+        if (l ~ /^OK: [^ ]/ || l ~ /^(PASS|FAIL)$/ || l ~ /^FAIL: /) return 1
+        if (l ~ /^All [0-9]+ cases passed/ || l ~ /^ok[ \t]+[^ \t]+\t/) return 1
+        if (l ~ /^(✅|❌) / && l !~ /^❌ FAIL: /) return 1
+        if (l !~ /^❌ FAIL: /) return 0
+        return l ~ /\(see the FAIL lines above\)$/ || l ~ /aborted before completing/ ||
+          l ~ /[0-9]+ (coverage finding|Go production file|failure|unreachable function)\(s\)/ ||
+          l ~ /issue\(s\) in / || l ~ /findings: [0-9]/
+      }
+      function passed(l) {
+        return l ~ /^  ok: / || l ~ /^  ✅ / || l ~ /^OK:  +[^ ]/ || l ~ /^OK  +[^ ]/ ||
+          l ~ /^\[[0-9]+\/[0-9]+\] /
+      }
+      function failed(l) {
+        return l ~ /^  ❌ / || l ~ /^❌ FAIL: /
+      }
+      function marker(l) {
+        return l ~ /^[ \t]*(✅|❌|✓|✔|✗|✘|ok[: ]|OK|PASS|FAIL|pass[: ]|fail[: ])/
+      }
+      /^#### / || /^```$/ || /^_no output_$/ { next }
+      verdict($0) { next }
+      passed($0) { p++; next }
+      failed($0) { f++; next }
+      marker($0) { u++ }
+      END { printf "%d %d %d\n", p, f, u }
+      ' "$f"
+    return
+  fi
+  n="$(grep -cE '^--- (PASS|FAIL): ' "$f")"
+  if [ "$n" -gt 0 ]; then
+    echo "$(grep -cE '^--- PASS: ' "$f") $(grep -cE '^--- FAIL: ' "$f") 0"
+    return
+  fi
+  n="$(sed -n 's/^OK: go test \.\/\.\.\. — \([0-9][0-9]*\) tests passed$/\1/p' "$f" | tail -1)"
+  echo "${n:-0} 0 0"
+}
+
+# reported_rows: `<label>|<mark>`, once per declared gate that reported.
+reported_rows() {
+  LC_ALL=C awk -F'|' '
+    FNR == NR {
+      if ($0 ~ /^#/ || $1 == "" || $2 == "n/a") next
+      declared[$1] = 1
+      next
+    }
+    ($1 in declared) && !($1 in seen) { seen[$1] = 1; print $1 "|" $2 }
+  ' "$ORDER" "$rows_file"
+}
+
+checks_passed=0
+checks_failed=0
+unknown_gates=0
+unknown_labels=""
+while IFS='|' read -r label mark; do
+  [ -n "$label" ] || continue
+  read -r cp cf cu <<< "$(case_counts "$label")"
+  # A gate with no case line is one check, itself; a red gate with no
+  # failed case line (red for a tree it changed, say) adds itself as failed.
+  if [ "$((cp + cf))" -eq 0 ]; then
+    if [ "$mark" = "✅" ]; then cp=1; else cf=1; fi
+  elif [ "$mark" != "✅" ] && [ "$cf" -eq 0 ]; then
+    cf=1
+  fi
+  if [ "$cu" -gt 0 ]; then
+    unknown_gates=$((unknown_gates + 1))
+    unknown_labels="${unknown_labels:+${unknown_labels}, }${label}"
+  fi
+  checks_passed=$((checks_passed + cp))
+  checks_failed=$((checks_failed + cf))
+done <<< "$(reported_rows)"
+
+total_cell() {
+  local absent="" ps qs skipped
+  [ -n "$pre_counts" ] || absent="the PRE gates"
+  [ -n "$post_counts" ] || absent="${absent:+${absent} and }the POST gates"
+  [ -z "$absent" ] || { missing "no total: ${absent} have no count"; return; }
+  printf '%d passed · %d failed' "$checks_passed" "$checks_failed"
+  read -r _ _ ps <<< "$pre_counts"
+  read -r _ _ qs <<< "$post_counts"
+  skipped=$((ps + qs))
+  if [ "$skipped" -eq 1 ]; then
+    printf ' · 1 gate skipped, its checks not counted'
+  elif [ "$skipped" -gt 1 ]; then
+    printf ' · %d gates skipped, their checks not counted' "$skipped"
+  fi
+  if [ "$unknown_gates" -eq 1 ]; then
+    printf ' · ⚠️ case lines in an unknown format in 1 gate (%s), not counted' "$unknown_labels"
+  elif [ "$unknown_gates" -gt 1 ]; then
+    printf ' · ⚠️ case lines in an unknown format in %d gates (%s), not counted' "$unknown_gates" "$unknown_labels"
+  fi
 }
 
 # --- Go coverage and floors to raise ------------------------------------------
@@ -287,9 +433,10 @@ echo "$status"
 echo ""
 echo "| | |"
 echo "|---|---|"
-echo "| PRE gates | $(phase_cell pre) |"
-echo "| POST gates | $(phase_cell post) |"
+echo "| PRE gates | $(phase_cell pre "$pre_counts") |"
+echo "| POST gates | $(phase_cell post "$post_counts") |"
 echo "| Go tests | $(go_tests_cell) |"
+echo "| Total checks | $(total_cell) |"
 echo "| Go coverage | $(coverage_cell) |"
 echo "| Floors to raise | $(floors_cell) |"
 echo "| Pages generated | $(pages_cell) |"
