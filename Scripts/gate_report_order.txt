@@ -388,6 +388,17 @@ workflow triggers|Scripts/check_workflow_triggers.sh|pre|
 # repository-source rows.
 DCO sign-off self-test|Scripts/test_check_dco.sh|pre|
 #
+# The metrics workflow (forsgren#4, walking skeleton step 2 of #3). Not
+# canon: forsgren's own, beside the other workflow rows.
+# .github/workflows/metrics.yml is the reusable workflow an installation's
+# data repository calls daily; nothing in forsgren runs it, so no gate does
+# either, and this pin is what proves it: workflow_call only, a required
+# forsgren-version, the version check executed against release tags and
+# non-tags and run before go install, the input through env: only, and
+# setup-go on go.mod's toolchain. Self-proving on mutants of the real file.
+# Repository source, so it runs in pre.
+metrics workflow|Scripts/test_metrics_workflow.sh|pre|
+#
 # No stray tracked files (forsgren#1, ladder step 12). Not canon:
 # konenki-website's issue #10 gate, byte-identical, at konenki's position
 # between the quality-trigger-scope row and the report-script fixtures. Red
