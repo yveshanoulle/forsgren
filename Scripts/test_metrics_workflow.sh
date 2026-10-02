@@ -54,14 +54,29 @@
 #      with, and comes before the install step. setup-go exports
 #      GOTOOLCHAIN=local, so go install uses that Go and never switches: the
 #      pin is the whole choice, and a toolchain bump in go.mod without one
-#      here is red.
+#      here is red;
+#   7. the step "Check out the caller's repository" exists: actions/checkout
+#      pinned by a full commit, the very one Quality's own checkout uses
+#      (one version of the action in the repository), with
+#      persist-credentials: false, so the caller's token is not left in the
+#      checkout's git config;
+#   8. the step "Check the caller's forsgren configuration", whose run: block
+#      is EXECUTED here with a stub forsgren on PATH, runs exactly
+#      `forsgren check-config --config forsgren.config.yml`; on success it
+#      exits 0 and writes no failure to $GITHUB_STEP_SUMMARY; on a refusal it
+#      prints check-config's message, writes it to $GITHUB_STEP_SUMMARY with
+#      a cross mark before it, and exits non-zero, so the job fails with the
+#      message and nothing is rendered or published from a bad config;
+#   9. the order: install, then checkout, then the config check, then
+#      "Render the page".
 #
-# WHY THE CHECKS ARE INLINE, NOT A Scripts/ FILE (the estate rule puts CI
+# WHY THE SHELL IS INLINE, NOT A Scripts/ FILE (the estate rule puts CI
 # loop bodies in tested scripts). The job runs in the CALLER's repository
-# and checks nothing out: forsgren's scripts are not on the runner. Fetching
-# one would mean checking out forsgren at the very commit it has not checked
-# yet. The checks are two regex tests, and pin 5 executes that very block,
-# so they are tested where they live.
+# and checks out the CALLER's repository, never forsgren: forsgren's scripts
+# are not on the runner. Fetching one would mean checking out forsgren at the
+# very commit the install step has not checked yet. The install checks are
+# two regex tests and the config check is one command and one write, and
+# pins 5 and 8 execute those very blocks, so they are tested where they live.
 #
 # Read with awk and grep, not a YAML parser, as
 # Scripts/test_quality_trigger_scope.sh and Scripts/check_workflow_triggers.sh
@@ -86,6 +101,11 @@ selftest_begin "the metrics workflow pin"
 
 WF=".github/workflows/metrics.yml"
 INSTALL_STEP="Install forsgren from this workflow's own commit"
+CHECKOUT_STEP="Check out the caller's repository"
+CHECK_STEP="Check the caller's forsgren configuration"
+RENDER_STEP="Render the page"
+CROSS="❌"
+CONFIG_CMD="check-config --config forsgren.config.yml"
 # The opening of a GitHub expression, in double quotes with the dollar
 # escaped, so no reader (shellcheck included) takes it for an expansion.
 EXPR_OPEN="\${{"
@@ -139,6 +159,15 @@ step_block() {
   ' "$1"
 }
 
+# step_text <file> <step name>: every line of that step, the dash line
+# included; nothing when there is no such step.
+step_text() {
+  awk -v name="$2" '
+    /^      - / { instep = ($0 == "      - name: " name) }
+    instep { print }
+  ' "$1"
+}
+
 # line_of <file> <fixed text>: the line number of its first occurrence.
 line_of() {
   grep -nF -- "$2" "$1" | head -1 | cut -d: -f1
@@ -170,6 +199,92 @@ install_outcome() {
     echo "installed $(cat "$calls")"
   else
     echo "broken: exit ${rc}, go ran ${n} time(s)"
+  fi
+}
+
+# Stub forsgren: records its arguments, one call per line; with
+# STUB_REFUSAL set it says that on stderr and exits 1, else it says OK.
+cat > "${STUB}/forsgren" <<'STUBFORSGREN'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$FG_CALLS"
+if [[ -n "${STUB_REFUSAL:-}" ]]; then
+  printf '%s\n' "$STUB_REFUSAL" >&2
+  exit 1
+fi
+echo "OK: stub"
+STUBFORSGREN
+chmod +x "${STUB}/forsgren"
+
+# config_outcome <script> <refusal>: what the config step does when check-config
+# says OK (empty <refusal>) or refuses with <refusal>, as one line:
+# exit=<rc> calls=<forsgren args> log=<shown|hidden> summary=<summary file>.
+# <log> says whether check-config's message reached the job log.
+config_outcome() {
+  local calls="${TMP}/fg.calls" summary="${TMP}/summary.md" log="${TMP}/config.log" rc=0 shown=hidden
+  rm -f "$calls" "$summary" "$log"
+  : > "$calls"
+  : > "$summary"
+  PATH="${STUB}:${PATH}" FG_CALLS="$calls" STUB_REFUSAL="$2" \
+    GITHUB_STEP_SUMMARY="$summary" bash "$1" > "$log" 2>&1 || rc=$?
+  if [[ -n "$2" ]] && grep -qF -- "$2" "$log"; then shown=shown; fi
+  echo "exit=${rc} calls=$(paste -sd, - < "$calls") log=${shown} summary=$(cat "$summary")"
+}
+
+# judge_checkout <workflow-file>: pin 7, the caller's checkout.
+judge_checkout() {
+  local text uses ref want
+  text="$(step_text "$1" "$CHECKOUT_STEP")"
+  if [[ -z "$text" ]]; then
+    echo "has no step '${CHECKOUT_STEP}' — the caller's forsgren.config.yml is not on the runner to check"
+    return 0
+  fi
+  uses="$(grep -E '^[[:space:]]+uses:' <<< "$text" | head -1 || true)"
+  ref="$(sed -n 's/^[[:space:]]*uses:[[:space:]]*actions\/checkout@\([0-9a-f]\{40\}\)\([[:space:]].*\)\{0,1\}$/\1/p' <<< "$uses")"
+  if [[ -z "$ref" ]]; then
+    echo "the checkout step uses '${uses#*uses: }', not actions/checkout pinned by a full 40-digit commit — a tag can be re-pointed, a commit cannot"
+    return 0
+  fi
+  want="$(sed -n 's/^[[:space:]-]*uses:[[:space:]]*actions\/checkout@\([0-9a-f]\{40\}\).*$/\1/p' .github/workflows/quality.yml | head -1)"
+  if [[ "$ref" != "$want" ]]; then
+    echo "the checkout step is pinned at ${ref}, not at ${want} as Quality's own checkout is — one version of actions/checkout in this repository"
+  fi
+  if ! grep -qE '^[[:space:]]+persist-credentials:[[:space:]]*false[[:space:]]*$' <<< "$text"; then
+    echo "the checkout step does not set persist-credentials: false — the caller's token would stay in the checkout's git config for every later step"
+  fi
+}
+
+# judge_config_step <workflow-file>: pin 8, the executed config check.
+judge_config_step() {
+  local script="${TMP}/config.sh" got want refusal
+  step_block "$1" "$CHECK_STEP" run > "$script"
+  if [[ ! -s "$script" ]]; then
+    echo "has no step '${CHECK_STEP}' with a run: | block — a missing or invalid forsgren.config.yml is not caught before render"
+    return 0
+  fi
+  got="$(config_outcome "$script" "")"
+  want="exit=0 calls=${CONFIG_CMD} log=hidden summary="
+  [[ "$got" == "$want" ]] || echo "for a valid config the config step gives '${got}', not '${want}'"
+  refusal="check-config: forsgren.config.yml: cannot read the config file"
+  got="$(config_outcome "$script" "$refusal")"
+  want="exit=1 calls=${CONFIG_CMD} log=shown summary=${CROSS} ${refusal}"
+  [[ "$got" == "$want" ]] || echo "for a refused config the config step gives '${got}', not '${want}' — the job must fail with check-config's message in the log and in the step summary after a cross mark"
+}
+
+# judge_order <workflow-file>: pin 9.
+judge_order() {
+  local install checkout check render
+  install="$(line_of "$1" "- name: ${INSTALL_STEP}")"
+  checkout="$(line_of "$1" "- name: ${CHECKOUT_STEP}")"
+  check="$(line_of "$1" "- name: ${CHECK_STEP}")"
+  render="$(line_of "$1" "- name: ${RENDER_STEP}")"
+  if [[ -n "$check" && -n "$render" && "$check" -gt "$render" ]]; then
+    echo "checks the config (line ${check}) after it renders (line ${render}) — a bad config must stop the job before render"
+  fi
+  if [[ -n "$check" && -n "$checkout" && "$checkout" -gt "$check" ]]; then
+    echo "checks out the caller's repository (line ${checkout}) after the config check (line ${check}) — the file is not there yet"
+  fi
+  if [[ -n "$check" && -n "$install" && "$install" -gt "$check" ]]; then
+    echo "installs forsgren (line ${install}) after the config check (line ${check}) — check-config is not on PATH yet"
   fi
 }
 
@@ -239,6 +354,10 @@ judge() {
   if [[ "$go_version" != "${toolchain#go}" ]]; then
     echo "actions/setup-go installs Go '${go_version:-none}', not ${toolchain#go} from go.mod's toolchain line — the release would be built with another Go than sfl, FBP.sh and Quality use"
   fi
+
+  judge_checkout "$wf"
+  judge_config_step "$wf"
+  judge_order "$wf"
 }
 
 if [[ ! -f "$WF" ]]; then
@@ -291,6 +410,63 @@ proves "go install at another version" "the install step gives 'installed instal
   "s/@\\\${FORSGREN_SHA}\"\$/@v0.0.1\"/"
 proves "setup-go on another Go" "actions/setup-go installs Go '1.0.0'" \
   "s/^\(          go-version: \).*\$/\1'1.0.0'/"
+
+proves "no checkout pin" "not actions/checkout pinned by a full 40-digit commit" \
+  's|actions/checkout@[0-9a-f]\{40\}  # v7.0.1|actions/checkout@v7|'
+proves "another checkout commit" "not at 3d3c42e5aac5ba805825da76410c181273ba90b1 as Quality's own checkout is" \
+  's|actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1|actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b2|'
+proves "persist-credentials true" "does not set persist-credentials: false" \
+  's/persist-credentials: false/persist-credentials: true/'
+proves "no checkout step" "has no step '${CHECKOUT_STEP}'" \
+  "s/- name: ${CHECKOUT_STEP}\$/- name: Check out something else/"
+proves "no config step name" "has no step '${CHECK_STEP}'" \
+  "s/- name: ${CHECK_STEP}\$/- name: Check something else/"
+proves "check-config on another file" "for a valid config the config step gives" \
+  's/--config forsgren\.config\.yml/--config config.yml/'
+proves "a config step that lets a refusal pass" "for a refused config the config step gives 'exit=0" \
+  '/- name: Check the caller/,/- name: Render/ s/exit 1/exit 0/'
+proves "a refusal without its cross mark" "for a refused config the config step gives 'exit=1 calls=${CONFIG_CMD} log=shown summary=check-config" \
+  's/"❌ /"/'
+
+# Removing the config step altogether: the mutant must differ from the real
+# file, and be refused for the missing step.
+removed="${TMP}/mutants/no-config-step.yml"
+mkdir -p "${TMP}/mutants"
+awk -v name="$CHECK_STEP" '
+  /^      - / { instep = ($0 == "      - name: " name) }
+  !instep { print }
+' "$WF" > "$removed"
+if cmp -s "$WF" "$removed"; then
+  fail "removing the step '${CHECK_STEP}' changed nothing in ${WF}: the proof would be vacuous"
+else
+  got="$(judge "$removed")"
+  if grep -qF "has no step '${CHECK_STEP}'" <<< "$got"; then
+    echo "  ok: a workflow without the config step is rejected"
+  else
+    fail "the mutant without the step '${CHECK_STEP}' was ACCEPTED (verdict: ${got:-none}) — a missing config check would pass"
+  fi
+fi
+
+# The order pin for the config step: it moved to just before "Upload the page"
+# (after render).
+late="${TMP}/mutants/config-after-render.yml"
+awk -v name="$CHECK_STEP" '
+  /^      - / { instep = ($0 == "      - name: " name) }
+  instep { held = held $0 "\n"; next }
+  { lines[++n] = $0 }
+  END {
+    for (i = 1; i <= n; i++) {
+      if (lines[i] == "      - name: Upload the page") printf "%s", held
+      print lines[i]
+    }
+  }
+' "$WF" > "$late"
+got="$(judge "$late")"
+if grep -qF "after it renders" <<< "$got"; then
+  echo "  ok: the config check after render is rejected"
+else
+  fail "the mutant with the config check after render was ACCEPTED (verdict: ${got:-none}) — the order pin cannot detect it"
+fi
 
 # The order pin: the install step moved to just before "Set up Go".
 reorder="${TMP}/mutants/reorder.yml"
