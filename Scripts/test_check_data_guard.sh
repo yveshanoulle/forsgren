@@ -21,6 +21,12 @@
 #      root events.jsonl (*.jsonl), x.history.csv
 #      (*.history.csv) and forsgren.config.yaml
 #      (forsgren.config.*)
+#  11. a tracked data/deployments.csv, and any    -> red, each named
+#      other tracked file under a top-level data/
+#  12. a deployments.csv elsewhere                -> red, named
+#  13. controls: testdata/ fixtures (also under   -> green
+#      testdata/data/), a Go test file, and a
+#      deeper internal/data/ code directory
 # Mutation proofs, each against a copy of the gate (the patterns are `case`
 # arms of guarded_reason, one per line):
 #   - case 2: with the history.csv arm deleted, case 2's repository must turn
@@ -159,6 +165,29 @@ want_red "a root events.jsonl is red and named (the *.jsonl arm)" "❌ FAIL: eve
 want_said "an x.history.csv is red and named (the *.history.csv arm)" "❌ FAIL: x.history.csv"
 want_said "a forsgren.config.yaml is red and named (the forsgren.config.* arm)" "❌ FAIL: forsgren.config.yaml"
 
+new_repo "data-dir"
+write_file "data/deployments.csv" $'# forsgren history v1\n' track
+write_file "data/notes.txt" $'x\n' track
+run_gate
+want_red "a tracked data/deployments.csv is red and named" "❌ FAIL: data/deployments.csv"
+want_said "any other file under a top-level data/ is red and named" "❌ FAIL: data/notes.txt"
+
+new_repo "deployments-elsewhere"
+write_file "ops/deployments.csv" $'# forsgren history v1\n' track
+run_gate
+want_red "a deployments.csv outside data/ is red and named" "❌ FAIL: ops/deployments.csv"
+
+new_repo "history-fixtures"
+write_file "internal/history/testdata/deployments.csv" $'# forsgren history v1\n' track
+write_file "internal/history/testdata/data/deployments.csv" $'# forsgren history v1\n' track
+write_file "internal/history/history_test.go" $'package history\n// acme/app is the made-up fixture repository.\n' track
+write_file "internal/data/data.go" $'package data\n' track
+run_gate
+want_green "history fixtures under testdata/, a Go test file and internal/data/ are not installation data"
+
+new_repo "data-dir-notes"
+write_file "data/notes.txt" $'x\n' track
+
 # run_mutant <mutant> <repo-name> — runs a mutated gate against a case's
 # repository, names file unset; sets RC and OUT.
 run_mutant() {
@@ -184,6 +213,26 @@ else
     fail "mutation proof (case 2): a gate without the history.csv arm is still red on case 2's repository — case 2 is red for another reason than the arm it tests. Output: ${OUT}"
   else
     echo "  ok: without the history.csv arm, case 2's repository is green (case 2 is red for that arm)"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Mutation proof for case 11: with the data/* arm deleted, a repository that
+# holds only data/notes.txt must turn green, so case 11 is red BECAUSE of that
+# arm (and not because of the deployments.csv name).
+# ---------------------------------------------------------------------------
+NODIR="${TMP}/check_data_guard_nodir.sh"
+grep -vE '^[[:space:]]*data/\*\) why=' "$GATE" > "$NODIR"
+chmod +x "$NODIR"
+
+if cmp -s "$GATE" "$NODIR"; then
+  fail "mutation proof (case 11): deleting the 'data/*) why=' arm changed nothing in ${GATE} — the anchor no longer matches, so this proof proves nothing"
+else
+  run_mutant "$NODIR" "data-dir-notes"
+  if [[ "$RC" -ne 0 ]]; then
+    fail "mutation proof (case 11): a gate without the data/* arm is still red on a repository holding only data/notes.txt. Output: ${OUT}"
+  else
+    echo "  ok: without the data/* arm, a repository holding only data/notes.txt is green (case 11 is red for that arm)"
   fi
 fi
 
