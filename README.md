@@ -92,7 +92,7 @@ One PRE gate checks the page templates themselves:
   number. Red on a run that scanned zero `.html` files. jscpd is pinned like
   the linters below.
 
-Two PRE gates lint the Go code, beside `go test` and `gofmt`:
+Three PRE gates check the Go code, beside `go test` and `gofmt`:
 
 - **Go lint** (`Scripts/check_go_lint.sh`, MenoPower's): golangci-lint
   over the module under `.golangci.yml`, ported from MenoPower `shared/`,
@@ -111,8 +111,20 @@ Two PRE gates lint the Go code, beside `go test` and `gofmt`:
   same `dupl` rule pointed at `_test.go` files only, which `.golangci.yml`
   leaves to it, so test code is judged once. Red on a module with no test
   file.
+- **Go file length** (`Scripts/check_file_length.sh`, MenoPower's
+  `check_file_length.py` rewritten in bash and awk): red when a Go
+  production file is longer than 600 lines, each such file named with its
+  count, longest first. `_test.go` files are not judged; a generated file
+  is; a last line without a newline counts. The files are the module's own
+  as `go list ./...` sees them, so `node_modules` (ignored in `go.mod`) is
+  never judged and a file only another GOOS builds is. Red on a module with
+  no production `.go` file. Its self-test
+  (`Scripts/test_check_file_length.sh`) shows 601 lines red and 600 green,
+  and, by mutation, that the comparison, `go.mod`'s ignore line and the
+  GOOS-bound file list are what decide those cases.
 
-Both run the golangci-lint pinned in `go.mod` (see Installing and updating).
+The first two run the golangci-lint pinned in `go.mod` (see Installing and
+updating).
 
 Seven PRE gates read the repository's own scripts and files:
 

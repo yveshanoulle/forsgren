@@ -200,10 +200,14 @@ Go test duplication|Scripts/check_test_dupl.sh|pre|
 #
 # Go file length (forsgren#1, ladder step 21). Not canon: MenoPower's
 # 600-line cap on Go production files (CONVENTIONS.md, Code), beside the
-# other Go rows. The self-test is forsgren's own (MenoPower's
-# check_file_length.py has none), with three mutation proofs. Repository
-# source, so both run in pre, self-test first.
+# other Go rows. The gate is MenoPower's check_file_length.py, rewritten in
+# bash and awk (python3 is not a listed tool) and reading the module's files
+# through `go list ./...`, so go.mod's `ignore node_modules` holds for it as
+# for go test. The self-test is forsgren's own (MenoPower's has none), with
+# three mutation proofs. Repository source, so both run in pre, self-test
+# first.
 Go file length self-test|Scripts/test_check_file_length.sh|pre|
+Go file length|Scripts/check_file_length.sh|pre|
 #
 # actionlint (forsgren#1, ladder step 18), at its canon position after the
 # gate-wiring row and before shellcheck (the non-canon Go rows above sit
