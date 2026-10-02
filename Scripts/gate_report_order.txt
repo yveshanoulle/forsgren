@@ -177,6 +177,13 @@ gate wiring|Scripts/test_gate_wiring.sh|pre|
 Go tests self-test|Scripts/test_check_go_tests.sh|pre|
 Go tests|Scripts/check_go_tests.sh|pre|
 #
+# Go coverage (forsgren#1, ladder step 22). Not canon: MenoPower's coverage
+# ratchet, beside the other Go rows. The self-test is forsgren's own, in
+# bash (MenoPower's test_check_coverage.py pins only its total recomputation
+# and its FLOORWARN line), with three mutation proofs. Repository source, so
+# it runs in pre.
+Go coverage self-test|Scripts/test_check_coverage.sh|pre|
+#
 # CHECK-ONLY here (gofmt -l), as CI calls it. FBP.sh runs the same script
 # with --fix before PRE, so locally the check sees an already-formatted tree.
 gofmt self-test|Scripts/test_check_gofmt.sh|pre|
