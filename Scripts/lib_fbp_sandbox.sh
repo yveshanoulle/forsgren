@@ -52,7 +52,11 @@
 #     before Step 1. They are the real reader and the real toolchain line,
 #     not a stub that echoes a constant, so the sandbox exercises the read;
 #   - a copy of the real FBP.sh (or, for the mutation proof
-#     only, of FBP_SANDBOX_FBP_OVERRIDE), run with the caller's arguments.
+#     only, of FBP_SANDBOX_FBP_OVERRIDE), run with the caller's arguments,
+#     under the sandbox's own git identity and with commit signing off (see
+#     FBP_SANDBOX_GIT_NAME below). A run that commits (no --no-commit) has
+#     no remote: its push fails after the commit, and the caller reads the
+#     commit (FBP_SANDBOX_COMMIT_MSG below).
 
 FBP_SANDBOX_FBP="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/FBP.sh"
 
@@ -107,6 +111,20 @@ FBP_SANDBOX_SINK_MODE=""
 FBP_SANDBOX_SFL_PRE_RC=""
 FBP_SANDBOX_SFL_PRE_OUTPUT=""
 
+# Road to public, step 4 (the DCO sign-off FBP.sh adds to its commits): one
+# more seam, for case 5 of Scripts/test_fbp_commit_message.sh, set and reset
+# the same way.
+#   FBP_SANDBOX_GIT_NAME, FBP_SANDBOX_GIT_EMAIL: the identity the run
+#     commits under, exported as GIT_AUTHOR_* and GIT_COMMITTER_*, the way
+#     Scripts/fbp_agent_friend.sh hands FBP.sh agent-Friend's identity.
+#     Empty means the sandbox's own, t <t@t.t>.
+# Every run gets that identity through the environment, and commit signing
+# off, so a sandbox commit neither inherits the identity and signing key of
+# the FBP run that started this fixture (fbp_agent_friend.sh exports both)
+# nor reaches for a key at all.
+FBP_SANDBOX_GIT_NAME=""
+FBP_SANDBOX_GIT_EMAIL=""
+
 # Every sandbox this run created, so an interrupted or failing fixture
 # leaves none behind in the temp directory. fbp_sandbox_run deletes each one
 # itself as soon as it has read its results; the traps remove whatever is
@@ -128,6 +146,16 @@ FBP_SANDBOX_DIR=""
 # fbp_sandbox_output and fbp_sandbox_rc.
 FBP_SANDBOX_OUT=""
 FBP_SANDBOX_RC=-1
+
+# The sandbox's HEAD commit after the run, read out the same way (road to
+# public, step 4): its sha, author email and full message (git log -1
+# --format=%B). All three empty when the run made no commit, which is every
+# --no-commit run, since the sandbox starts with none. Printed by
+# fbp_sandbox_commit_sha, fbp_sandbox_commit_author and
+# fbp_sandbox_commit_msg.
+FBP_SANDBOX_COMMIT_SHA=""
+FBP_SANDBOX_COMMIT_AUTHOR=""
+FBP_SANDBOX_COMMIT_MSG=""
 
 # Why the latest fbp_sandbox_run had no sandbox; empty when it had one. A
 # caller whose fbp_sandbox_run failed fails with this, instead of asserting
@@ -296,6 +324,9 @@ fbp_sandbox_run() {
   FBP_SANDBOX_OUT=""
   FBP_SANDBOX_RC=-1
   FBP_SANDBOX_REASON=""
+  FBP_SANDBOX_COMMIT_SHA=""
+  FBP_SANDBOX_COMMIT_AUTHOR=""
+  FBP_SANDBOX_COMMIT_MSG=""
   if ! fbp_sandbox_new_dir; then
     FBP_SANDBOX_REASON="could not create the FBP sandbox: mktemp -d gave no directory ('${FBP_SANDBOX_NEW_DIR}'), so FullBuildAndPush was not run"
     echo "$FBP_SANDBOX_REASON" >&2
@@ -318,11 +349,25 @@ fbp_sandbox_run() {
     mkdir -p bin
     printf '#!/usr/bin/env bash\nexit 0\n' > bin/say
     chmod +x bin/say
+    export GIT_AUTHOR_NAME="${FBP_SANDBOX_GIT_NAME:-t}"
+    export GIT_AUTHOR_EMAIL="${FBP_SANDBOX_GIT_EMAIL:-t@t.t}"
+    export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
+    export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+    export GIT_CONFIG_COUNT=1
+    export GIT_CONFIG_KEY_0="commit.gpgsign" GIT_CONFIG_VALUE_0="false"
     PATH="$PWD/bin:$PATH" ./FBP.sh "$@" > fbp-out.log 2>&1
     echo "$?" > fbp-rc.log
+    if git rev-parse -q --verify HEAD > /dev/null; then
+      git log -1 --format=%H > fbp-commit-sha.log
+      git log -1 --format=%ae > fbp-commit-author.log
+      git log -1 --format=%B > fbp-commit-msg.log
+    fi
   )
   FBP_SANDBOX_OUT="$(cat "$FBP_SANDBOX_DIR/fbp-out.log" 2>/dev/null || true)"
   FBP_SANDBOX_RC="$(cat "$FBP_SANDBOX_DIR/fbp-rc.log" 2>/dev/null || echo -1)"
+  FBP_SANDBOX_COMMIT_SHA="$(cat "$FBP_SANDBOX_DIR/fbp-commit-sha.log" 2>/dev/null || true)"
+  FBP_SANDBOX_COMMIT_AUTHOR="$(cat "$FBP_SANDBOX_DIR/fbp-commit-author.log" 2>/dev/null || true)"
+  FBP_SANDBOX_COMMIT_MSG="$(cat "$FBP_SANDBOX_DIR/fbp-commit-msg.log" 2>/dev/null || true)"
   # It stays registered; the cleanup trap's second rm -rf of it does nothing.
   rm -rf "$FBP_SANDBOX_DIR"
   return 0
@@ -339,6 +384,23 @@ fbp_sandbox_output() {
 # never got far enough to record one, or had no sandbox at all.
 fbp_sandbox_rc() {
   echo "$FBP_SANDBOX_RC"
+}
+
+# fbp_sandbox_commit_sha, fbp_sandbox_commit_author, fbp_sandbox_commit_msg
+# — road to public, step 4: print the sandbox's HEAD commit after the latest
+# run, its sha, author email and full message; nothing when the run made no
+# commit.
+fbp_sandbox_commit_sha() {
+  [ -n "$FBP_SANDBOX_COMMIT_SHA" ] || return 0
+  printf '%s\n' "$FBP_SANDBOX_COMMIT_SHA"
+}
+fbp_sandbox_commit_author() {
+  [ -n "$FBP_SANDBOX_COMMIT_AUTHOR" ] || return 0
+  printf '%s\n' "$FBP_SANDBOX_COMMIT_AUTHOR"
+}
+fbp_sandbox_commit_msg() {
+  [ -n "$FBP_SANDBOX_COMMIT_MSG" ] || return 0
+  printf '%s\n' "$FBP_SANDBOX_COMMIT_MSG"
 }
 
 # ---------------------------------------------------------------------------

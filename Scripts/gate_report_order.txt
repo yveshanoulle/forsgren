@@ -371,6 +371,18 @@ quality trigger scope|Scripts/test_quality_trigger_scope.sh|pre|
 workflow-triggers self-test|Scripts/test_check_workflow_triggers.sh|pre|
 workflow triggers|Scripts/check_workflow_triggers.sh|pre|
 #
+# DCO sign-off (road to public, step 4; the ruling on forsgren#1: EUPL-1.2
+# plus a Developer Certificate of Origin sign-off on every commit). Not
+# canon: forsgren's own, beside the workflow-triggers rows, since it is the
+# one workflow that does trigger on pull requests. The check,
+# Scripts/check_dco.sh, runs in neither sfl nor Quality: a commit on main
+# has no pull request, so .github/workflows/dco.yml runs it, on every pull
+# request, on a GitHub-hosted runner (Scripts/test_gate_wiring.sh declares
+# it as an exemption with that runner, and requires this self-test). Only
+# its self-test has a row: it is offline, so it runs in pre with the other
+# repository-source rows.
+DCO sign-off self-test|Scripts/test_check_dco.sh|pre|
+#
 # No stray tracked files (forsgren#1, ladder step 12). Not canon:
 # konenki-website's issue #10 gate, byte-identical, at konenki's position
 # between the quality-trigger-scope row and the report-script fixtures. Red

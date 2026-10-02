@@ -84,6 +84,10 @@ run_fbp() {
     return 1
   fi
   OUT="$(fbp_sandbox_output)"
+  # The commit the run made, if any (case 5, road to public step 4).
+  COMMIT_SHA="$(fbp_sandbox_commit_sha)"
+  COMMIT_AUTHOR="$(fbp_sandbox_commit_author)"
+  COMMIT_MSG="$(fbp_sandbox_commit_msg)"
 }
 
 # reached_pre_reason — prints why the last run_fbp's output shows no run
@@ -330,6 +334,108 @@ if run_secret_red "secret scan" "❌ FAIL: gitleaks found a leak"; then
 fi
 
 # ---------------------------------------------------------------------------
+# Case 5: road to public, step 4 — every commit FBP.sh makes carries a DCO
+# sign-off (CONTRIBUTING.md; Yves, 2026-10-02: "we will change fbp to add
+# Signed-off-by:"), the green commit and the *** RED **** one alike, so a
+# commit FBP.sh made passes the pull-request DCO check unedited. git takes
+# the trailer from the committer identity, so it signs as whoever runs it:
+# Yves in his own runs, agent-Friend under Scripts/fbp_agent_friend.sh,
+# which exports that identity as GIT_AUTHOR_* and GIT_COMMITTER_*.
+#   a. a green run under a made-up identity handed over in the environment,
+#      as fbp_agent_friend.sh hands over agent-Friend's -> its commit ends
+#      in Signed-off-by: <that identity>
+#   b. that commit, fed to Scripts/check_dco.sh as the DCO workflow feeds
+#      it                                             -> green
+#   c. a run with a PRE red, under the sandbox's own identity -> its
+#      *** RED **** commit is signed off too
+# These runs commit in the sandbox (no --no-commit); it has no remote, so
+# the push after a green commit fails, and the cases read the commit, not
+# the exit status. Mutation proof: a FBP.sh with --signoff removed must
+# fail case a and case b, each with its own reason.
+# ---------------------------------------------------------------------------
+FRIEND_NAME="Friend Example"
+FRIEND_EMAIL="friend@example.org"
+FRIEND_SIGNOFF="Signed-off-by: ${FRIEND_NAME} <${FRIEND_EMAIL}>"
+
+# dco_verdict — feeds the last sandbox commit to Scripts/check_dco.sh, in
+# the line shape .github/workflows/dco.yml writes, and leaves its output in
+# DCO_OUT and its status in DCO_RC. Returns 1 when it has no directory for
+# the input (and has failed the fixture already).
+dco_verdict() {
+  local input
+  if ! fbp_sandbox_new_dir; then
+    fail "DCO verdict: mktemp -d gave no directory for the check's input"
+    return 1
+  fi
+  input="${FBP_SANDBOX_NEW_DIR}/commits.txt"
+  printf '%s %s %s\n' "$COMMIT_SHA" \
+    "$(printf '%s' "$COMMIT_AUTHOR" | base64 | tr -d '\n')" \
+    "$(printf '%s' "$COMMIT_MSG" | base64 | tr -d '\n')" > "$input"
+  DCO_RC=0
+  DCO_OUT="$("${ROOT}/Scripts/check_dco.sh" "$input" 2>&1)" || DCO_RC=$?
+}
+
+# signed_off_case <label> <signoff-line> — case a or c on the last run: the
+# run committed, and the commit message's last line is <signoff-line>.
+signed_off_case() {
+  if [ -z "$COMMIT_SHA" ]; then
+    fail "$1: the run made no commit, so there is no sign-off to check. Output: ${OUT}"
+  elif [ "$(tail -n 1 <<< "$COMMIT_MSG")" = "$2" ]; then
+    echo "  ok: $1"
+  else
+    fail "$1: the commit does not end in '$2' — FBP.sh commits without a DCO sign-off, and the pull-request DCO check would reject it. Message: ${COMMIT_MSG}"
+  fi
+}
+
+if FBP_SANDBOX_GIT_NAME="$FRIEND_NAME" FBP_SANDBOX_GIT_EMAIL="$FRIEND_EMAIL" \
+    run_fbp "5.a: a green commit"; then
+  signed_off_case "5.a. a green commit is signed off by the identity that ran FBP.sh" "$FRIEND_SIGNOFF"
+  if [ -n "$COMMIT_SHA" ] && dco_verdict; then
+    if [ "$DCO_RC" -eq 0 ] && grep -Fq "every one signed off" <<< "$DCO_OUT"; then
+      echo "  ok: 5.b. the commit FBP.sh made passes the DCO check"
+    else
+      fail "5.b. the commit FBP.sh made fails the DCO check (exit ${DCO_RC}): ${DCO_OUT}"
+    fi
+  fi
+fi
+
+if FBP_SANDBOX_SFL_PRE_RC=1 FBP_SANDBOX_SFL_PRE_OUTPUT=$'Errors:\n  gofmt ❌\n' \
+    run_fbp "5.c: a red commit"; then
+  if [ "$(head -n 1 <<< "$COMMIT_MSG")" != "*** RED ****" ]; then
+    fail "5.c. the PRE red did not make a *** RED **** commit, so its sign-off is not what is checked here. Message: ${COMMIT_MSG}. Output: ${OUT}"
+  else
+    signed_off_case "5.c. a *** RED **** commit is signed off too" "Signed-off-by: t <t@t.t>"
+  fi
+fi
+
+if ! fbp_sandbox_new_dir; then
+  fail "mutation proof (sign-off): mktemp -d gave no directory, so case 5 was not seen failing"
+else
+  signoff_mutant="${FBP_SANDBOX_NEW_DIR}/FBP.sh"
+  sed 's/git commit --signoff /git commit /' "$FBP_SANDBOX_FBP" > "$signoff_mutant"
+  chmod +x "$signoff_mutant"
+  if cmp -s "$FBP_SANDBOX_FBP" "$signoff_mutant"; then
+    fail "mutation proof (sign-off): removing --signoff changed nothing in ${FBP_SANDBOX_FBP} — FBP.sh has no 'git commit --signoff ' to remove, so this proof proves nothing"
+  elif FBP_SANDBOX_FBP_OVERRIDE="$signoff_mutant" FBP_SANDBOX_GIT_NAME="$FRIEND_NAME" FBP_SANDBOX_GIT_EMAIL="$FRIEND_EMAIL" \
+      run_fbp "5.a: a green commit"; then
+    if [ -z "$COMMIT_SHA" ]; then
+      fail "mutation proof (sign-off): the FBP.sh without --signoff made no commit, so nothing was seen failing. Output: ${OUT}"
+    elif grep -Fq "Signed-off-by:" <<< "$COMMIT_MSG"; then
+      fail "mutation proof (sign-off): a FBP.sh without --signoff still made a signed-off commit — the sign-off comes from somewhere else, so case 5 does not prove FBP.sh adds it. Message: ${COMMIT_MSG}"
+    else
+      echo "  ok: mutation proof: without --signoff, FBP.sh's commit carries no Signed-off-by, so case 5.a is green because FBP.sh signs off"
+      if dco_verdict; then
+        if [ "$DCO_RC" -ne 0 ] && grep -Fq "has no Signed-off-by trailer" <<< "$DCO_OUT"; then
+          echo "  ok: mutation proof: the DCO check rejects that commit for its missing Signed-off-by trailer"
+        else
+          fail "mutation proof (sign-off): the DCO check did not reject the unsigned commit for its missing trailer (exit ${DCO_RC}): ${DCO_OUT}"
+        fi
+      fi
+    fi
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # Self-proofs, issue konenki-website#20 step 3 (items 1 to 3 of the #14 review). Each one
 # runs this fixture, a copy of it, or a small driver, from inside ONE
 # directory made here with the real mktemp and registered with the lib, so
@@ -359,9 +465,10 @@ else
   # before its subshell (issue konenki-website#20 step 2), and even a lib that did not would
   # write its stubs into that empty directory, never into this repo.
   #
-  # Wanted: the run fails; exactly 4 FAIL lines carry the reason, one for
+  # Wanted: the run fails; exactly 6 FAIL lines carry the reason, one for
   # each run_fbp call (cases 1 and 2, and case 4's two runs, forsgren#1 step
-  # 12.2d, which skip their checks on it); every other FAIL line names mktemp
+  # 12.2d, and case 5's two runs, road to public step 4, all of which skip
+  # their checks on it); every other FAIL line names mktemp
   # itself (case 3's fake repo and these proofs cannot get a directory
   # either), so no downstream assertion fired. The lib's own stderr line is
   # not a FAIL line and does not count.
@@ -387,8 +494,8 @@ else
       ;;
   esac
 
-  if [ "$callers_reasons" != "4" ]; then
-    fail "callers check the run: with no sandbox, ${callers_reasons:-0} FAIL line(s) carry 'could not create the FBP sandbox', want 4 — one per run_fbp call (cases 1 and 2, case 4's two runs), so case 2's absence check cannot pass vacuously on empty output. Output: ${callers_out}"
+  if [ "$callers_reasons" != "6" ]; then
+    fail "callers check the run: with no sandbox, ${callers_reasons:-0} FAIL line(s) carry 'could not create the FBP sandbox', want 6 — one per run_fbp call (cases 1 and 2, case 4's two runs, case 5's two runs), so case 2's absence check cannot pass vacuously on empty output. Output: ${callers_out}"
   fi
 
   if [ -n "$callers_downstream" ]; then
@@ -497,8 +604,8 @@ COMPLETED=1
 
 if [ "$failed" -ne 0 ]; then
   echo ""
-  echo "FAIL: FullBuildAndPush does not show its commit message in the summary, does not name the secret-class row that blocked the commit, or Scripts/lib_fbp_sandbox.sh carries on without a sandbox (see the FAIL lines above)"
+  echo "FAIL: FullBuildAndPush does not show its commit message in the summary, does not name the secret-class row that blocked the commit, does not sign off its commits, or Scripts/lib_fbp_sandbox.sh carries on without a sandbox (see the FAIL lines above)"
   exit 1
 fi
 
-echo "OK: FullBuildAndPush summary shows the guarded Commit: block, its blocked-commit message names the secret-class row that failed, and Scripts/lib_fbp_sandbox.sh stops when it cannot create a sandbox"
+echo "OK: FullBuildAndPush summary shows the guarded Commit: block, its blocked-commit message names the secret-class row that failed, its green and RED commits carry a DCO sign-off from the identity that ran it and pass the DCO check, and Scripts/lib_fbp_sandbox.sh stops when it cannot create a sandbox"
