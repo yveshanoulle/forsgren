@@ -502,6 +502,20 @@ skipped when the build did not succeed. The job's summary page lists every gate 
 file's order, ✅, ❌ or `n/a`, with each gate's output below the table.
 Gates that did not run are counted as unmeasured, never as passing.
 
+**The run summary.** Above that table, every run page opens with the run's
+key numbers (forsgren#8), written by the job's last step, which runs after a
+failure or a cancel too: the status (succeeded, failed or cancelled, and the
+phase it stopped in), the gates passed, failed and skipped in PRE and in
+POST, the Go tests passed, the coverage total with its floor, the floors to
+raise (the coverage gate's FLOORWARN count), the pages generated, the
+forsgren version, the commit and trigger (push, pull request with its
+number, or by hand) and the duration. `Scripts/render_quality_summary.sh`
+reads them from what the run already wrote (the gate rows and outputs, the
+page-count sink, `cmd/forsgren/main.go`) and from the job's status and step
+outcomes, passed through `env:`. A number that does not exist, from a phase
+that never ran or an output that is missing, shows as `—` with the reason,
+never as 0.
+
 **From a red CI row to a local run.** A CI row carries the label sfl prints,
 and the order file names the script and phase behind it:
 
@@ -598,7 +612,7 @@ every workflow, are what check it.
 tracked files and script references read every tracked file, so a filter
 on paths would leave some change that runs no gate.
 
-Five PRE gates keep the CI honest:
+Six PRE gates keep the CI honest:
 
 - **gate wiring** (`Scripts/test_gate_wiring.sh`, konenki-website's,
   adapted): every runnable row of the order file has phase `pre` or `post`
@@ -651,6 +665,13 @@ Five PRE gates keep the CI honest:
   order, exits 0 on a report it rendered, tells an empty or partial run from
   a clean one, and does not count an `n/a` row as a gate that should have
   reported.
+- **quality-run summary** (`Scripts/test_render_quality_summary.sh`,
+  forsgren's own): the run summary (`Scripts/render_quality_summary.sh`)
+  renders every number of a green run, says where a red, cancelled or
+  setup-stopped run stopped, names a pull request's number, exits 0 on
+  whatever it is given, and shows `—` with the reason for a phase that
+  never ran or an output that is missing, never 0; shown failing, with that
+  reason, on a mutant that writes 0 instead.
 
 ## Privacy
 
