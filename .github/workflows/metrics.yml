@@ -146,6 +146,13 @@ jobs:
       # here. A created one on a ref that is not a branch (a tag) fails by
       # name: there is no branch to commit to.
       #
+      # The commit names its author and committer in git's own environment
+      # variables and sets GIT_CONFIG_COUNT=0 for itself. git's environment
+      # outranks `git -c`, so an identity or a signing configuration inherited
+      # from the caller's job (GIT_AUTHOR_*, GIT_COMMITTER_*, GIT_CONFIG_COUNT
+      # with commit.gpgsign) would otherwise change who the commit is by, or
+      # make it fail; this way it cannot.
+      #
       # The push carries the token without storing it. The checkout keeps no
       # credential (persist-credentials: false, zizmor's artipacked rule), so
       # this step hands git an Authorization header for this one command
@@ -175,8 +182,10 @@ jobs:
             exit 1
           fi
           git add -- forsgren.config.yml
-          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
-            commit --quiet -m 'forsgren: add a starter forsgren.config.yml' -- forsgren.config.yml
+          GIT_CONFIG_COUNT=0 \
+          GIT_AUTHOR_NAME='github-actions[bot]' GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com' \
+          GIT_COMMITTER_NAME='github-actions[bot]' GIT_COMMITTER_EMAIL='41898282+github-actions[bot]@users.noreply.github.com' \
+            git commit --quiet -m 'forsgren: add a starter forsgren.config.yml' -- forsgren.config.yml
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           export GIT_CONFIG_COUNT=1
           export GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL}/.extraheader"
