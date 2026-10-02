@@ -230,6 +230,14 @@ manifest covers site|Scripts/test_required_pages_covers_site.sh|post|
 # runner), a later step's gate. Repository source, so it runs in pre.
 quality trigger scope|Scripts/test_quality_trigger_scope.sh|pre|
 #
+# Workflow triggers (forsgren#1, ladder step 16). Not canon: forsgren's own
+# (no repo of the estate has this gate), right behind the canon row it
+# extends. Yves's ruling: a workflow with a job on a self-hosted runner never
+# triggers on pull_request or pull_request_target, so a pull request from a
+# fork can never run its code on babacar once the repository is public.
+# Repository source, so it runs in pre, self-test first.
+workflow-triggers self-test|Scripts/test_check_workflow_triggers.sh|pre|
+#
 # No stray tracked files (forsgren#1, ladder step 12). Not canon:
 # konenki-website's issue #10 gate, byte-identical, at konenki's position
 # between the quality-trigger-scope row and the report-script fixtures. Red
