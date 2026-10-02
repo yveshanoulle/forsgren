@@ -51,3 +51,7 @@ yamllint
 # shellcheck (listed above) over each run: block, but only when shellcheck
 # is on PATH; Scripts/test_check_actionlint.sh is red when it is not.
 actionlint
+
+# Scripts/check_zizmor.sh (forsgren#1, ladder step 19): the GitHub Actions
+# security linter, over .github, under .github/zizmor.yml.
+zizmor

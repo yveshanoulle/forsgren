@@ -208,8 +208,13 @@ actionlint|Scripts/check_actionlint.sh|pre|
 # self-test is forsgren's own (no repo of the estate has one): each case
 # asserts its reason, a .yaml workflow is read as well as a .yml, a scan over
 # no workflow is red, and two mutation proofs show the severity threshold
-# and the config are what they claim. Repository source, so it runs in pre.
+# and the config are what they claim. The gate is web-infra's, adapted only
+# in its paths (an optional directory argument, default .github), at
+# web-infra's setting: --offline, --min-severity high, the default persona.
+# Its config, .github/zizmor.yml, suppresses nothing. Repository source, so
+# both run in pre, self-test first.
 zizmor self-test|Scripts/test_check_zizmor.sh|pre|
+zizmor|Scripts/check_zizmor.sh|pre|
 #
 # Shellcheck and yamllint (forsgren#1, ladder step 12), at their canon
 # position after the actionlint rows and before lint coverage. Both read

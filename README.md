@@ -92,7 +92,7 @@ One PRE gate checks the page templates themselves:
   number. Red on a run that scanned zero `.html` files. jscpd is pinned like
   the linters below.
 
-Six PRE gates read the repository's own scripts and files:
+Seven PRE gates read the repository's own scripts and files:
 
 - **actionlint** (`Scripts/check_actionlint.sh`, the estate's gate in
   coachretreat-website's copy): every `.github/workflows/*.yml` file under
@@ -108,6 +108,21 @@ Six PRE gates read the repository's own scripts and files:
   shellcheck is missing. No `-ignore` flag: a suppression needs a finding
   someone has looked at and Yves's explicit yes. Red on a directory with no
   workflow file, and when actionlint itself is missing.
+- **zizmor** (`Scripts/check_zizmor.sh`, web-infra's gate): the GitHub
+  Actions security linter, over `.github` under `.github/zizmor.yml`, every
+  `.yml` and `.yaml` workflow. actionlint asks whether a workflow is valid,
+  zizmor whether it is safe; the class it exists for is template injection,
+  an attacker-controlled `${{ ... }}` (an issue title, a branch name)
+  expanded into a `run:` block, where it runs as shell with the job's token
+  on the self-hosted runner. It runs at web-infra's setting: offline, High
+  findings only, the default persona. A Medium finding such as a checkout
+  that keeps its credentials is not its red; checkout pins owns that rule.
+  The config suppresses nothing: a suppression needs a finding someone has
+  looked at and Yves's explicit yes recorded on a GitHub issue. Red on a
+  directory with no workflow file. Its self-test
+  (`Scripts/test_check_zizmor.sh`) shows each of these, with two mutation
+  proofs: the severity threshold is what keeps a Medium out, and the
+  config is read from the scanned directory.
 - **shellcheck** (`Scripts/check_shellcheck.sh`, the estate's gate from
   web-infra): every tracked `*.sh` file, and every tracked file without an
   extension whose first line is a bash or sh shebang, at any depth. The
@@ -168,7 +183,7 @@ Six PRE gates read the repository's own scripts and files:
   row `mutation: checkout pins`) runs first and shows each kind of bad ref
   rejected for its own reason.
 
-actionlint, shellcheck and yamllint come from Homebrew, through
+actionlint, zizmor, shellcheck and yamllint come from Homebrew, through
 `Scripts/required_tools.txt` (see Installing and updating). As with the data
 guard, untracked files are not checked: `git add -N` a new script first.
 
