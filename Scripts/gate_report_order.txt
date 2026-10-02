@@ -125,6 +125,20 @@ Stylelint|Scripts/gate_stylelint.sh|post|
 required-pages self-test|Scripts/test_validate_required_pages.sh|pre|
 required-pages manifest|Scripts/validate_required_pages.sh|post|
 #
+# Action pins (forsgren#1, ladder step 17), at their canon position after
+# the required-pages rows (forsgren has none of the release and deploy-feta
+# rows between them). Every `uses:` in .github/workflows/*.yml that is not a
+# local `./` reference ends in a full 40-hex commit SHA, and every
+# actions/checkout is SHA-pinned and sets persist-credentials: false. The
+# gate is coachretreat-website's test_workflow_checkout_pins.sh, the
+# estate's best-shape copy (konenki-website's lacks the every-action pin),
+# adapted only in its header comments; the canon labels keep its name. Its
+# mutation proof is coachretreat's, adapted: red on a missing gate, each
+# rejection asserts its reason, plus forsgren's cases (branch, short SHA,
+# local action, docker://, no workflow file, a mutated gate). Repository
+# source, so both run in pre, the proof first.
+mutation: checkout pins|Scripts/test_workflow_checkout_pins_mutations.sh|pre|
+#
 # HTML duplication, a RATCHET (forsgren#1, ladder step 11), at its canon
 # position after the required-pages rows (forsgren has none of the release
 # and workflow-pin rows between them). konenki-website runs both rows in
