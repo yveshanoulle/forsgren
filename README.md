@@ -25,9 +25,9 @@ forsgren reads only what is already in GitHub:
   its own comment:
 
   ```
-  failure-start: 2026-01-15T12:18+01:00
-  failed-build: 297.6762
-  fixed-build: 298.6788
+  failure-start: 2030-04-01T09:30+02:00
+  failed-build: 12.345
+  fixed-build: 12.346
   ```
 
   `failure-start` is when users were first hit; the two builds name the
@@ -635,4 +635,5 @@ broken runner cannot report green:
 The bootstrap is done (forsgren#1, 2026-10-02): the build, the gates, CI
 and these docs. forsgren itself renders one placeholder page; reading
 GitHub, the history file and the charts come next, then a template
-repository for installations. Private for now, possibly open source later.
+repository for installations. forsgren is open source; its licence follows
+in its own step.

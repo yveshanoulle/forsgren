@@ -14,9 +14,9 @@ set -euo pipefail
 # ANSWER is checked too. An exemption nothing enforces is a belief.
 #
 # It is NOT konenki's check_privacy_pages.sh, which validates the CONTENT of a
-# privacy page. Different question, different site: konenki has such a page
-# because konenki.be handles health data; this one asserts there is nothing to
-# write a page about.
+# privacy page. Different question, different site: that one is for a site
+# that needs privacy pages; this one asserts there is nothing to write a page
+# about.
 #
 # Deliberately NOT flagged: outbound LINKS. forsgren's page has none today;
 # the cases below borrow konenki-website's (pretix.eu, a social platform) as

@@ -1,14 +1,11 @@
 # forsgren conventions
 
-How work is tracked in this repo. Follows
-[/Users/yveshanoulle/Sources/web-infra/CONVENTIONS.md](/Users/yveshanoulle/Sources/web-infra/CONVENTIONS.md),
-the estate's shared rules; this file only names forsgren's files and what is
-specific to it.
+How work is tracked in this repo: forsgren's files and the rules for them.
 
 ## Files
 
-- [/Users/yveshanoulle/Sources/forsgren/TODO.md](/Users/yveshanoulle/Sources/forsgren/TODO.md) — **open** items only, one line per open GitHub issue, with its link.
-- [/Users/yveshanoulle/Sources/forsgren/SHIPPED.md](/Users/yveshanoulle/Sources/forsgren/SHIPPED.md) — completed work, append-only history.
+- [TODO.md](TODO.md) — **open** items only, one line per open GitHub issue, with its link.
+- [SHIPPED.md](SHIPPED.md) — completed work, append-only history.
 - GitHub issues on [yveshanoulle/forsgren](https://github.com/yveshanoulle/forsgren/issues) — the plan, the step ladder and Yves's rulings for each unit live on its issue.
 
 ## Rules
@@ -17,7 +14,7 @@ specific to it.
 2. **One sentence plus the issue link per TODO entry.** The detail, the ladder and the acceptance criteria live on the issue, so there is one place to edit.
 3. **Every entry has a verifiable done condition or an unblock condition** — on its issue.
 4. **Commits link their issue** (`forsgren#N` or `#N` in the message); a commit on an issue is on `main` (no pull requests).
-5. **File links use full absolute paths** in this file, `TODO.md`, `SHIPPED.md` and `CLAUDE.md`, so Claude Code renders them as clickable.
+5. **File links are relative to the repository root** in this file, `TODO.md`, `SHIPPED.md` and `CLAUDE.md`, so they work in any checkout and on GitHub.
 
 ## Code
 

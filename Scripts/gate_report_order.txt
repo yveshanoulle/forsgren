@@ -437,10 +437,10 @@ privacy posture|Scripts/check_privacy_posture.sh|post|
 repository-links self-test|Scripts/test_check_repo_links.sh|pre|
 repository links|Scripts/check_repo_links.sh|post|
 #
-# The privacy pages are konenki-website's legal obligation: konenki.be serves
-# the privacy policy of an app that handles health data, and its
-# check_privacy_pages.sh pins that policy's content (language, title,
-# approved date, binding-version sentence). forsgren serves no privacy page,
+# The privacy pages belong to a site that needs privacy pages: konenki-website
+# serves a privacy policy, and its check_privacy_pages.sh pins that
+# policy's content (language, title, approved date, binding-version
+# sentence). forsgren serves no privacy page,
 # because its page collects nothing, so neither the gate nor its self-test is
 # ported. Declared n/a, with the reason, so the posture gate above enforces
 # the claim this row makes.

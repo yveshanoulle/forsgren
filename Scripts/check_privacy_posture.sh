@@ -16,7 +16,7 @@ cd "$(dirname "$0")/.." || exit 1
 # other half: the answer is checked. An exemption nothing enforces is a belief.
 #
 # NOT konenki's check_privacy_pages.sh, which validates the CONTENT of a
-# privacy page — konenki.be handles health data and needs one. This asserts
+# privacy page, for a site that needs privacy pages. This asserts
 # there is nothing to write a page about, which is this site's position.
 #
 # WHAT IS DELIBERATELY NOT A FINDING: outbound links. forsgren's page links

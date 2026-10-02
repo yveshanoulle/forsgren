@@ -1,9 +1,9 @@
 # TODO — forsgren
 
 **OPEN items only.** Completed work moves to
-[/Users/yveshanoulle/Sources/forsgren/SHIPPED.md](/Users/yveshanoulle/Sources/forsgren/SHIPPED.md)
+[SHIPPED.md](SHIPPED.md)
 in the same commit — see
-[/Users/yveshanoulle/Sources/forsgren/CONVENTIONS.md](/Users/yveshanoulle/Sources/forsgren/CONVENTIONS.md).
+[CONVENTIONS.md](CONVENTIONS.md).
 
 ## Open
 

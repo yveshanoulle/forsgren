@@ -6,7 +6,7 @@ Guidance for Claude Code in this repository.
 
 forsgren measures the four DORA metrics for a set of GitHub repositories from
 data GitHub already has, and publishes them as a small static page (see
-[/Users/yveshanoulle/Sources/forsgren/README.md](/Users/yveshanoulle/Sources/forsgren/README.md)).
+[README.md](README.md)).
 It is written in Go: one module, `github.com/yveshanoulle/forsgren`.
 
 ## Layout
@@ -28,7 +28,7 @@ Adding a gate: write the script and its self-test, give each a row in the order 
 
 ## Working rules
 
-- Conventions for TODO/SHIPPED and issues: [/Users/yveshanoulle/Sources/forsgren/CONVENTIONS.md](/Users/yveshanoulle/Sources/forsgren/CONVENTIONS.md).
+- Conventions for TODO/SHIPPED and issues: [CONVENTIONS.md](CONVENTIONS.md).
 - The plan and Yves's rulings for the bootstrap are on [#1](https://github.com/yveshanoulle/forsgren/issues/1).
 - Tests first: a new behaviour starts with a test seen failing; a ported gate comes with its fixtures, seen green, plus one mutation seen red.
 - Test fixtures use made-up repositories (`acme/app`), never real private ones; the page shows numbers and dates only.
