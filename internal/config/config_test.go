@@ -136,6 +136,9 @@ type refusal struct {
 	msg  string
 }
 
+// checkRefusals also holds every refusal to one line: check-config prints it
+// into a workflow log, where a line of it that starts with :: would run as
+// a workflow command (forsgren#9).
 func checkRefusals(t *testing.T, cases []refusal) {
 	t.Helper()
 	for _, tc := range cases {
@@ -146,6 +149,9 @@ func checkRefusals(t *testing.T, cases []refusal) {
 			}
 			if !strings.Contains(err.Error(), tc.msg) {
 				t.Errorf("want the message to contain %q, got %q", tc.msg, err)
+			}
+			if strings.ContainsAny(err.Error(), "\r\n") {
+				t.Errorf("want the message on one line, got %q", err)
 			}
 		})
 	}
@@ -162,7 +168,13 @@ func TestParseRefusesTheFileShape(t *testing.T) {
 		{"unknown repository key", edit("deployment:", "deploy:"), ErrSyntax, `line 6: unknown key "deploy"`},
 		{"every unknown key, one per line", "version: 1\nprojects:\n  - name: Acme\n    bogus: 1\n    other: 2\n",
 			ErrSyntax, `line 4: unknown key "bogus"; line 5: unknown key "other"`},
+		{"unknown key with a space and a semicolon", "version: 1\nprojects:\n  - name: Acme\n    \"a b;c\": 1\n",
+			ErrSyntax, `line 4: unknown key "a b;c"`},
+		{"unknown key with a line break", "version: 1\nprojects:\n  - name: Acme\n    \"x\\n::warning::injected\": 1\n",
+			ErrSyntax, `line 4: unknown key "x\n::warning::injected"`},
 		{"wrong type", "version: 1\nprojects: acme\n", ErrSyntax, "line 2: cannot"},
+		{"wrong type with a line break", "version: \"\\n::error::\"\nprojects: []\n",
+			ErrSyntax, "line 1: cannot use !!str `\\n::error::` here"},
 		{"version as text", edit("version: 1", `version: "1"`), ErrSyntax, "line 1: cannot"},
 		{"two documents", valid + "---\n" + valid, ErrSyntax, "more than one YAML document"},
 		{"missing version", edit("version: 1\n", ""), ErrVersionMissing,
@@ -180,6 +192,8 @@ func TestParseRefusesTheFileShape(t *testing.T) {
 func TestParseRefusesProjectsAndRepositories(t *testing.T) {
 	checkRefusals(t, []refusal{
 		{"project without name", edit("  - name: Acme\n", "  - name: \"\"\n"), ErrProjectName,
+			"project 1: a project has no name"},
+		{"project name of blanks", edit("  - name: Acme\n", "  - name: \"  \"\n"), ErrProjectName,
 			"project 1: a project has no name"},
 		{"duplicate project ignoring case", valid + secondProject, ErrDuplicateProject,
 			`project 2 "ACME": duplicate project name, the same as project 1 "Acme" (case is ignored)`},
@@ -203,6 +217,8 @@ func TestParseRefusesProjectsAndRepositories(t *testing.T) {
 			`invalid deployment "Release": use environment=<name>`},
 		{"environment without name", edit("environment=production", "environment="), ErrDeployment,
 			`invalid deployment "environment=": the environment has no name`},
+		{"environment name of blanks", edit("environment=production", "\"environment=  \""), ErrDeployment,
+			`invalid deployment "environment=  ": the environment has no name`},
 		{"workflow without extension", edit("environment=production", "workflow=deploy"), ErrDeployment,
 			`invalid deployment "workflow=deploy": the workflow file must end in .yml or .yaml`},
 		{"workflow extension only", edit("environment=production", "workflow=.yml"), ErrDeployment,

@@ -68,7 +68,19 @@
 #      a cross mark before it, and exits non-zero, so the job fails with the
 #      message and nothing is rendered or published from a bad config;
 #   9. the order: install, then checkout, then the config check, then
-#      "Render the page".
+#      "Render the page";
+#  10. the config step, EXECUTED with the stub forsgren refusing with a
+#      message whose lines start with `::warning::` and `  ::add-mask::`,
+#      leaves no workflow command live in the log: every such line sits
+#      between `::stop-commands::<token>` and `::<token>::`, the token
+#      differs from run to run (a config cannot know it and turn commands
+#      back on), and the message is still shown (forsgren#9, item 1);
+#  11. the config step, EXECUTED with the real forsgren, built here from this
+#      checkout, in a workspace with no forsgren.config.yml, an invalid one,
+#      a valid one, and one whose unknown key carries a line break and
+#      `::warning::`: refused with check-config's own message in the log and
+#      after the cross mark in the summary, accepted with its OK line and an
+#      empty summary, and no workflow command left live (forsgren#9, item 3).
 #
 # WHY THE SHELL IS INLINE, NOT A Scripts/ FILE (the estate rule puts CI
 # loop bodies in tested scripts). The job runs in the CALLER's repository
@@ -76,7 +88,8 @@
 # are not on the runner. Fetching one would mean checking out forsgren at the
 # very commit the install step has not checked yet. The install checks are
 # two regex tests and the config check is one command and one write, and
-# pins 5 and 8 execute those very blocks, so they are tested where they live.
+# pins 5, 8, 10 and 11 execute those very blocks, so they are tested where
+# they live.
 #
 # Read with awk and grep, not a YAML parser, as
 # Scripts/test_quality_trigger_scope.sh and Scripts/check_workflow_triggers.sh
@@ -112,6 +125,10 @@ EXPR_OPEN="\${{"
 # v0.0.1's commit: a real one, so the case reads as what a run sees.
 SHA="1997c4ff09aecd32c30fbdd7eef72485f146e865"
 UPSTREAM="yveshanoulle/forsgren"
+# Made-up configs for pin 11, the config step with the real forsgren.
+VALID_CONFIG=$'version: 1\nprojects:\n  - name: Acme\n    repositories:\n      - name: acme/app\n'
+INVALID_CONFIG="${VALID_CONFIG}"$'        deployment: releases\n'
+INJECTING_CONFIG=$'version: 1\nprojects:\n  - name: Acme\n    "x\\n::warning::injected": 1\n    repositories:\n      - name: acme/app\n'
 
 # on_events <file>: the event names of the column-0 `on:` block, one per line.
 on_events() {
@@ -252,6 +269,57 @@ config_outcome() {
   echo "exit=${rc} calls=$(paste -sd, - < "$calls") log=${shown} summary=$(cat "$summary")"
 }
 
+# live_commands <log>: every line of the log the runner would take for a
+# workflow command (`::` at its start, after any blanks) outside a
+# ::stop-commands::<token> ... ::<token>:: pair, as `line <n>: <text>`, and
+# a pair never closed. Nothing when every workflow command in it is
+# neutralised.
+live_commands() {
+  awk '
+    token == "" && /^::stop-commands::./ { token = substr($0, 18); next }
+    token != "" && $0 == "::" token "::" { token = ""; next }
+    token == "" && /^[[:space:]]*::/ { print "line " NR ": " $0 }
+    END { if (token != "") print "::stop-commands::" token " never ended" }
+  ' "$1"
+}
+
+# stop_token <log>: the token of the first ::stop-commands:: line, if any.
+stop_token() {
+  sed -n 's/^::stop-commands::\(..*\)$/\1/p' "$1" | head -1
+}
+
+# The real forsgren, built once from this checkout for pin 11.
+REAL="${TMP}/real"
+mkdir -p "$REAL"
+if ! go build -o "${REAL}/forsgren" ./cmd/forsgren > "${TMP}/build.log" 2>&1; then
+  selftest_abort "cannot build ./cmd/forsgren for the end-to-end config step: $(cat "${TMP}/build.log")"
+fi
+
+# real_config_step <script> <config>: runs the config step with the real
+# forsgren in a fresh workspace whose forsgren.config.yml is <config>, or
+# that has none when <config> is `-`. Its exit status on stdout; its log in
+# ${TMP}/real.log, its step summary in ${TMP}/real-summary.md.
+real_config_step() {
+  local ws="${TMP}/workspace" rc=0
+  rm -rf "$ws"
+  mkdir -p "$ws"
+  [[ "$2" == - ]] || printf '%s' "$2" > "${ws}/forsgren.config.yml"
+  : > "${TMP}/real-summary.md"
+  (cd "$ws" && PATH="${REAL}:${PATH}" GITHUB_STEP_SUMMARY="${TMP}/real-summary.md" bash "$1") \
+    > "${TMP}/real.log" 2>&1 || rc=$?
+  echo "$rc"
+}
+
+# real_refusal <what> <rc> <message>: the problem, if any, with the last
+# real_config_step refusing <what>: exit 1, <message> in the log, and in the
+# summary after the cross mark.
+real_refusal() {
+  if [[ "$2" -ne 1 ]] || ! grep -qF -- "$3" "${TMP}/real.log" \
+    || ! grep -qF -- "${CROSS} $3" "${TMP}/real-summary.md"; then
+    echo "with the real forsgren and $1 the config step exits $2, logs '$(paste -sd'|' - < "${TMP}/real.log")' and summarises '$(paste -sd'|' - < "${TMP}/real-summary.md")' — it must fail with '$3' in the log and after the cross mark in the summary"
+  fi
+}
+
 # judge_checkout <workflow-file>: pin 7, the caller's checkout.
 judge_checkout() {
   local text uses ref want
@@ -290,6 +358,52 @@ judge_config_step() {
   got="$(config_outcome "$script" "$refusal")"
   want="exit=1 calls=${CONFIG_CMD} log=shown summary=${CROSS} ${refusal}"
   [[ "$got" == "$want" ]] || echo "for a refused config the config step gives '${got}', not '${want}' — the job must fail with check-config's message in the log and in the step summary after a cross mark"
+}
+
+# judge_config_commands <workflow-file>: pin 10, check-config's message
+# never runs as a workflow command.
+judge_config_commands() {
+  local script="${TMP}/config.sh" refusal live first second
+  step_block "$1" "$CHECK_STEP" run > "$script"
+  [[ -s "$script" ]] || return 0
+  refusal="check-config: forsgren.config.yml: line 4: unknown key"$'\n'"::warning::injected"$'\n'"  ::add-mask::secret"
+  config_outcome "$script" "$refusal" > /dev/null
+  live="$(live_commands "${TMP}/config.log")"
+  if [[ -n "$live" ]]; then
+    echo "for a refusal with workflow commands in it the config step leaves them live in the log ($(paste -sd'|' - <<< "$live")) — a line of check-config's message that starts with :: must not run as a workflow command"
+  fi
+  if ! grep -qF -- "::warning::injected" "${TMP}/config.log"; then
+    echo "for a refusal with workflow commands in it the config step does not show check-config's message in the log"
+  fi
+  first="$(stop_token "${TMP}/config.log")"
+  config_outcome "$script" "$refusal" > /dev/null
+  second="$(stop_token "${TMP}/config.log")"
+  if [[ -n "$first" && "$first" == "$second" ]]; then
+    echo "the config step stops workflow commands with the same token on every run (${first}) — a config that knows it can turn them back on"
+  fi
+}
+
+# judge_config_e2e <workflow-file>: pin 11, the config step with the real
+# forsgren.
+judge_config_e2e() {
+  local script="${TMP}/config-e2e.sh" rc live ok
+  step_block "$1" "$CHECK_STEP" run > "$script"
+  [[ -s "$script" ]] || return 0
+  rc="$(real_config_step "$script" -)"
+  real_refusal "no forsgren.config.yml" "$rc" "check-config: forsgren.config.yml: cannot read the config file"
+  rc="$(real_config_step "$script" "$INVALID_CONFIG")"
+  real_refusal "an invalid forsgren.config.yml" "$rc" \
+    'check-config: forsgren.config.yml: project "Acme": repository "acme/app": invalid deployment "releases"'
+  rc="$(real_config_step "$script" "$VALID_CONFIG")"
+  ok="OK: forsgren.config.yml is a valid forsgren config (version 1): projects: 1, repositories: 1"
+  if [[ "$rc" -ne 0 ]] || ! grep -qF -- "$ok" "${TMP}/real.log" || [[ -s "${TMP}/real-summary.md" ]]; then
+    echo "with the real forsgren and a valid forsgren.config.yml the config step exits ${rc}, logs '$(paste -sd'|' - < "${TMP}/real.log")' and summarises '$(paste -sd'|' - < "${TMP}/real-summary.md")' — it must pass with '${ok}' and nothing in the summary"
+  fi
+  rc="$(real_config_step "$script" "$INJECTING_CONFIG")"
+  live="$(live_commands "${TMP}/real.log")"
+  if [[ "$rc" -ne 1 || -n "$live" ]]; then
+    echo "with the real forsgren and an unknown key that carries a line break and ::warning:: the config step exits ${rc} and leaves live in the log: $(paste -sd'|' - <<< "${live:-nothing}") — it must fail with no workflow command live"
+  fi
 }
 
 # judge_order <workflow-file>: pin 9.
@@ -403,6 +517,8 @@ judge() {
   judge_setup_go "$1"
   judge_checkout "$1"
   judge_config_step "$1"
+  judge_config_commands "$1"
+  judge_config_e2e "$1"
   judge_order "$1"
 }
 
