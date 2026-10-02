@@ -75,9 +75,12 @@ before running the gates.
 
 ## Running forsgren
 
-Today forsgren renders one placeholder page; reading GitHub (`collect`) and
-the history file come next, after the bootstrap. There is no release yet,
-so it is built from this repository:
+Today forsgren renders one placeholder page, which says "Forsgren 0.0.1":
+the version of the forsgren that rendered it. That version has one source,
+the `version` variable in `cmd/forsgren/main.go`; a release build can set
+it with `-ldflags "-X main.version=<version>"`. Reading GitHub (`collect`)
+and the history file come next, after the walking skeleton (#3). There is
+no release yet, so it is built from this repository:
 
 ```
 ./Scripts/build_site.sh            # builds .build/bin/forsgren, renders .build/site

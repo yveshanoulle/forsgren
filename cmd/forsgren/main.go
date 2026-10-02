@@ -15,6 +15,12 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/page"
 )
 
+// version is the forsgren release this binary is, shown on every page it
+// renders. It is the one source of the version: a var, not a const, so a
+// release build can set it with
+// -ldflags "-X main.version=<version>"; the default is the next release.
+var version = "0.0.1"
+
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
@@ -40,7 +46,7 @@ func render(args []string, stdout, stderr io.Writer) int {
 		_, _ = fmt.Fprintln(stderr, "render: --out <dir> is required")
 		return 2
 	}
-	n, err := page.WriteSite(*out, page.Placeholder())
+	n, err := page.WriteSite(*out, page.Placeholder(version))
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "render: %v\n", err)
 		return 1

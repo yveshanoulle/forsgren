@@ -15,7 +15,7 @@ var update = flag.Bool("update", false, "rewrite testdata/*.golden.html")
 
 func TestPlaceholderMatchesGolden(t *testing.T) {
 	var got bytes.Buffer
-	if err := Render(&got, "index.html", Placeholder()); err != nil {
+	if err := Render(&got, "index.html", Placeholder("0.0.1")); err != nil {
 		t.Fatalf("Render: %v", err)
 	}
 	const golden = "testdata/index.golden.html"
@@ -48,7 +48,7 @@ func TestRenderEscapesFields(t *testing.T) {
 }
 
 func TestRenderUnknownPage(t *testing.T) {
-	err := Render(&bytes.Buffer{}, "missing.html", Placeholder())
+	err := Render(&bytes.Buffer{}, "missing.html", Placeholder("0.0.1"))
 	if err == nil || !strings.Contains(err.Error(), "missing.html") {
 		t.Errorf("want an error naming missing.html, got %v", err)
 	}
@@ -56,7 +56,7 @@ func TestRenderUnknownPage(t *testing.T) {
 
 func TestWriteSiteWritesOnePageAndStyles(t *testing.T) {
 	dir := t.TempDir()
-	n, err := WriteSite(dir, Placeholder())
+	n, err := WriteSite(dir, Placeholder("0.0.1"))
 	if err != nil {
 		t.Fatalf("WriteSite: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestWriteSiteFailsWhenDirIsAFile(t *testing.T) {
 	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if n, err := WriteSite(file, Placeholder()); err == nil {
+	if n, err := WriteSite(file, Placeholder("0.0.1")); err == nil {
 		t.Errorf("want an error when the output is a regular file, got %d pages", n)
 	}
 }

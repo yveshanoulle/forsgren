@@ -30,13 +30,15 @@ var files embed.FS
 // placeholder value (see Placeholder).
 type Data struct {
 	Title   string
+	Version string
 	Message string
 }
 
 // Placeholder is the data of the page forsgren renders before it has any
-// metrics. It carries no timestamp, so two renders are byte-identical.
-func Placeholder() Data {
-	return Data{Title: "forsgren", Message: "no data yet"}
+// metrics, for the forsgren release version. It carries no timestamp, so
+// two renders are byte-identical.
+func Placeholder(version string) Data {
+	return Data{Title: "forsgren", Version: version, Message: "no data yet"}
 }
 
 // pagesGlob matches one template file per page, named as the page it
