@@ -1,0 +1,7 @@
+# The smallest valid config: one project, one repository, the default
+# deployment (a GitHub Deployment to the environment production).
+version: 1
+projects:
+  - name: Acme
+    repositories:
+      - name: acme/app

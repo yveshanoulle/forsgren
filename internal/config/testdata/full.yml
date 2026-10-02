@@ -1,0 +1,17 @@
+# A made-up installation using every deployment form: two projects, five
+# repositories, one of them on the default.
+version: 1
+projects:
+  - name: Acme Shop
+    repositories:
+      - name: acme/api
+        deployment: environment=production
+      - name: acme/ios-app
+        deployment: workflow=testflight.yml
+      - name: acme/website
+  - name: Acme Tools
+    repositories:
+      - name: acme-labs/cli.tool
+        deployment: release
+      - name: acme/docs
+        deployment: workflow=publish.yaml
