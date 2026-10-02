@@ -261,14 +261,18 @@ for path in Scripts/*.sh; do
       require_fixture "$base" "the pin would be untested"
       ;;
 
-    # PRE-FLIGHT, not a gate (konenki unit 414): it installs the tools sfl's
-    # gates need. sfl only: the CI runner is a shared machine, and CI does
-    # not install or upgrade its tools; a missing tool fails its gate by
-    # name there. Required to carry a fixture: an installer that silently
-    # stops installing leaves every gate reading whatever is on the machine.
+    # PRE-FLIGHT, not a gate (konenki unit 414): it installs the tools the
+    # gates need, in sfl AND in CI. CI runs on GitHub's macos-latest, a
+    # fresh machine per run with none of forsgren's tools (forsgren#1, the
+    # runner swap), so without the installer there every gate needing one
+    # would be red with `command not found`. Required to carry a fixture: an
+    # installer that silently stops installing leaves every gate reading
+    # whatever is on the machine.
     install_tools.sh)
       runs_script "$SFL" "$base" \
         || fail "${base} installs the tools the gates need and sfl never invokes it — the gates then run against whatever this machine happens to have"
+      runs_script "$CI" "$base" \
+        || fail "${base} installs the tools the gates need and ${CI} never invokes it — on a fresh hosted runner every gate needing a Homebrew tool would fail with command not found"
       require_fixture "$base" "an installer with no fixture fails by leaving a machine looking correctly configured"
       ;;
 
@@ -904,6 +908,13 @@ if ! is_mutation_rerun; then
     's|\((\./Scripts/go_toolchain\.sh)\)|(echo \1)|' \
     "go_toolchain.sh pins Go and" \
     "a quality.yml that echoes go_toolchain.sh instead of running it"
+
+  # quality.yml: the tool install call becomes a comment; the comments that
+  # name the installer stay.
+  mutation_proof GATE_WIRING_CI_OVERRIDE "Scripts/install_tools.sh" \
+    's|^([[:space:]]*)(\./Scripts/install_tools\.sh)|\1# \2|' \
+    "install_tools.sh installs the tools the gates need and" \
+    "a quality.yml whose install_tools.sh call is a comment"
 
   # FBP.sh: the POST call becomes a comment.
   mutation_proof GATE_WIRING_FBP_OVERRIDE "sfl.sh post" \

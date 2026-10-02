@@ -17,10 +17,12 @@ cd "$(dirname "$0")/.."
 # byte-identical in konenki-website, coachretreat-website and
 # agilelean-website. Cases 6 to 11 are forsgren's own, and each asserts the
 # REASON, not only the exit code:
-#   6. an undeclared self-hosted runner label                -> exit 1, the
+#   6. a custom runner label .actionlint.yaml does not declare
+#      (runner-forsgren, the label of the self-hosted runner
+#      Quality ran on before forsgren#1's runner swap)          -> exit 1, the
 #      label named as unknown
-#   7. forsgren's own runs-on, its two custom labels declared
-#      in .actionlint.yaml                                     -> exit 0
+#   7. forsgren's own runs-on, as quality.yml writes it
+#      (macos-latest, GitHub-hosted, known to actionlint)       -> exit 0
 #   8. a workflow that is not valid YAML                       -> exit 1, as a
 #      parse error
 #   9. a shellcheck finding in a run: block                    -> exit 1, as
@@ -29,9 +31,11 @@ cd "$(dirname "$0")/.."
 #      case turns that silence into a red.
 #  10. a directory with no workflow file                       -> exit 3, with
 #      the reason
-#  11. MUTATION PROOF: the gate without `-config-file .actionlint.yaml`
-#      rejects case 7, naming forsgren's own label as unknown: the
-#      declaration is what makes the labels known, not a lenient rule.
+#  11. MUTATION PROOF: run from a copy of the repository root whose
+#      .actionlint.yaml declares runner-forsgren, the gate accepts case 6:
+#      it reads the repository's .actionlint.yaml, so the empty label list
+#      there is what keeps every custom label red, and a label becomes
+#      known only by a declaration in that file, never by a lenient rule.
 
 CHECK="./Scripts/check_actionlint.sh"
 TMP="$(mktemp -d)"
@@ -131,7 +135,9 @@ check_reason() { # <name> <expected-rc> <fixed-string reason>
   fi
 }
 
-# --- Case 6: a self-hosted label nobody declared (a typo of runner-forsgren).
+# --- Case 6: a custom label nobody declares: the retired self-hosted
+# runner's own label. .actionlint.yaml declares no custom label since the
+# runner swap (forsgren#1), so a job sent back to that runner is red.
 undeclared="$TMP/undeclared"; mkdir -p "$undeclared"
 cat > "$undeclared/wf.yml" <<'YML'
 name: Undeclared label
@@ -140,28 +146,28 @@ on:
     branches: ["main"]
 jobs:
   build:
-    runs-on: [self-hosted, macOS, ARM64, host-babacar, runner-forsgrem]
+    runs-on: [self-hosted, macOS, ARM64, runner-forsgren]
     steps:
       - run: echo hi
 YML
 run_out "$CHECK" "$undeclared"
-check_reason "rejects an undeclared self-hosted runner label, naming it" 1 'label "runner-forsgrem" is unknown'
+check_reason "rejects a custom runner label .actionlint.yaml does not declare, naming it" 1 'label "runner-forsgren" is unknown'
 
 # --- Case 7: forsgren's own runs-on, as quality.yml writes it.
 declared="$TMP/declared"; mkdir -p "$declared"
 cat > "$declared/wf.yml" <<'YML'
-name: Declared labels
+name: Hosted label
 on:
   push:
     branches: ["main"]
 jobs:
   build:
-    runs-on: [self-hosted, macOS, ARM64, host-babacar, runner-forsgren]
+    runs-on: macos-latest
     steps:
       - run: echo hi
 YML
 run_out "$CHECK" "$declared"
-check_reason "accepts host-babacar and runner-forsgren, declared in .actionlint.yaml" 0 "OK: actionlint (1 workflow(s) validated)"
+check_reason "accepts macos-latest, the GitHub-hosted label quality.yml runs on" 0 "OK: actionlint (1 workflow(s) validated)"
 
 # --- Case 8: not YAML at all (an unclosed flow sequence).
 syntax="$TMP/syntax"; mkdir -p "$syntax"
@@ -203,23 +209,24 @@ none="$TMP/none"; mkdir -p "$none"
 run_out "$CHECK" "$none"
 check_reason "a dir with no workflow file is red, with the reason" 3 "actionlint: no workflows found under"
 
-# --- Case 11: MUTATION PROOF. The gate without its -config-file flag, run
-# from a copy of the repository root holding the same .actionlint.yaml, must
-# reject case 7's workflow BECAUSE runner-forsgren is then unknown.
+# --- Case 11: MUTATION PROOF. The same gate, run from a copy of the
+# repository root whose .actionlint.yaml declares runner-forsgren, must
+# accept case 6's workflow: the gate reads the repository's .actionlint.yaml,
+# so case 6 is red BECAUSE that file declares no custom label.
 mutant_root="$TMP/mutant"; mkdir -p "$mutant_root/Scripts"
 if [[ -f "$CHECK" && -f .actionlint.yaml ]]; then
-  cp .actionlint.yaml "$mutant_root/.actionlint.yaml"
-  sed 's/ -config-file \.actionlint\.yaml//' "$CHECK" > "$mutant_root/Scripts/check_actionlint.sh"
+  cp "$CHECK" "$mutant_root/Scripts/check_actionlint.sh"
   chmod +x "$mutant_root/Scripts/check_actionlint.sh"
-  if cmp -s "$CHECK" "$mutant_root/Scripts/check_actionlint.sh"; then
-    OUT="the mutation changed nothing: no ' -config-file .actionlint.yaml' in ${CHECK}"; RC=0
+  printf 'self-hosted-runner:\n  labels:\n    - runner-forsgren\n' > "$mutant_root/.actionlint.yaml"
+  if cmp -s .actionlint.yaml "$mutant_root/.actionlint.yaml"; then
+    OUT="the mutation changed nothing: .actionlint.yaml already declares runner-forsgren"; RC=1
   else
-    run_out "$mutant_root/Scripts/check_actionlint.sh" "$declared"
+    run_out "$mutant_root/Scripts/check_actionlint.sh" "$undeclared"
   fi
 else
   OUT="no gate or no .actionlint.yaml to mutate"; RC=127
 fi
-check_reason "mutation: without -config-file, runner-forsgren is rejected as unknown" 1 'label "runner-forsgren" is unknown'
+check_reason "mutation: a .actionlint.yaml declaring runner-forsgren makes case 6 green" 0 "OK: actionlint (1 workflow(s) validated)"
 
 COMPLETED=1
 
