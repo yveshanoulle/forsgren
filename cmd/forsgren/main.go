@@ -6,6 +6,7 @@
 //	forsgren render --out <dir> [--config <path>]
 //	forsgren check-config --config <path>
 //	forsgren init-config --config <path>
+//	forsgren collect --config <path> --data <path>
 package main
 
 import (
@@ -13,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
 	"github.com/yveshanoulle/forsgren/internal/page"
@@ -20,13 +22,21 @@ import (
 
 const usage = `usage: forsgren render --out <dir> [--config <path>]
        forsgren check-config --config <path>
-       forsgren init-config --config <path>`
+       forsgren init-config --config <path>
+       forsgren collect --config <path> --data <path>`
 
 // version is the forsgren release this binary is, shown on every page it
 // renders. It is the one source of the version: a var, not a const, so a
 // release build can set it with
 // -ldflags "-X main.version=<version>"; the default is the next release.
 var version = "0.0.2"
+
+// githubAPI is the GitHub REST API collect reads, and now its clock: vars so
+// the tests can point them at a test server and a fixed day.
+var (
+	githubAPI = "https://api.github.com"
+	now       = time.Now
+)
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -43,6 +53,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return checkConfig(args[1:], stdout, stderr)
 		case "init-config":
 			return initConfig(args[1:], stdout, stderr)
+		case "collect":
+			return collectDeployments(args[1:], stdout, stderr)
 		}
 	}
 	_, _ = fmt.Fprintln(stderr, usage)
@@ -85,6 +97,12 @@ func initConfig(args []string, stdout, stderr io.Writer) int {
 		verb = "created"
 	}
 	_, _ = fmt.Fprintf(stdout, "%s %s\n", verb, path)
+	return 0
+}
+
+// collectDeployments reads each configured repository's deployments from
+// GitHub and appends the final ones to the history.
+func collectDeployments(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 

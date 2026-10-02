@@ -1,0 +1,42 @@
+[
+  {
+    "url": "https://api.github.com/repos/acme/app/deployments/1003/statuses/3",
+    "id": 3,
+    "node_id": "DES_acme_3",
+    "state": "inactive",
+    "creator": {
+      "login": "acme-bot",
+      "id": 1,
+      "type": "Bot"
+    },
+    "description": "",
+    "environment": "production",
+    "target_url": "",
+    "log_url": "",
+    "environment_url": "",
+    "created_at": "2026-09-21T09:00:00Z",
+    "updated_at": "2026-09-21T09:00:00Z",
+    "deployment_url": "https://api.github.com/repos/acme/app/deployments/1003",
+    "repository_url": "https://api.github.com/repos/acme/app"
+  },
+  {
+    "url": "https://api.github.com/repos/acme/app/deployments/1003/statuses/2",
+    "id": 2,
+    "node_id": "DES_acme_2",
+    "state": "success",
+    "creator": {
+      "login": "acme-bot",
+      "id": 1,
+      "type": "Bot"
+    },
+    "description": "Deployment finished successfully.",
+    "environment": "production",
+    "target_url": "",
+    "log_url": "",
+    "environment_url": "",
+    "created_at": "2026-09-20T10:05:00Z",
+    "updated_at": "2026-09-20T10:05:00Z",
+    "deployment_url": "https://api.github.com/repos/acme/app/deployments/1003",
+    "repository_url": "https://api.github.com/repos/acme/app"
+  }
+]
