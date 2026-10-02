@@ -77,9 +77,13 @@ before running the gates.
 
 An installation describes what forsgren measures in one file,
 `forsgren.config.yml`, in its data repository. Together with `data/` it is
-all an installation's owner owns: to update, they take a new copy of the
-template and carry those two over (#4). One installation measures every
-project it lists on one page, each project in its own section (#6).
+all an installation's owner owns. A new copy of the template is for a first
+install only; to update, the owner changes the one `uses:` line in place, so
+the configuration, `data/`, secrets and the Pages address stay (ruled
+2026-10-02, #9). The template ships no `data/`: forsgren creates it when it
+first stores history, and never overwrites history that is there. One
+installation measures every project it lists on one page, each project
+in its own section (#6).
 
 ```yaml
 version: 1
@@ -186,7 +190,8 @@ jobs:
   `job.workflow_repository` (the `github` context would name the
   caller's). It refuses anything but a 40-digit commit and one
   `owner/name` before it installs anything. To update, change that one
-  line. A fork calling its own copy installs the fork, never upstream.
+  line in the data repository itself; never re-create the repository from
+  the template, which would lose `data/` and the secrets. A fork calling its own copy installs the fork, never upstream.
 - **`v0.0.1` predates this.** Its `metrics.yml` still requires
   `with: forsgren-version: v0.0.1` under the `uses:` line; the one-line
   form starts with the next release, which has no such input: drop the
