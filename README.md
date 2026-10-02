@@ -635,5 +635,12 @@ broken runner cannot report green:
 The bootstrap is done (forsgren#1, 2026-10-02): the build, the gates, CI
 and these docs. forsgren itself renders one placeholder page; reading
 GitHub, the history file and the charts come next, then a template
-repository for installations. forsgren is open source; its licence follows
-in its own step.
+repository for installations. forsgren is open source, under EUPL-1.2 (see
+Licence).
+
+## Licence
+
+forsgren is licensed under the European Union Public Licence v. 1.2
+(EUPL-1.2): see [LICENSE](LICENSE). Contributions are accepted under the
+same licence, with a Developer Certificate of Origin sign-off on every
+commit and no CLA: see [CONTRIBUTING.md](CONTRIBUTING.md).

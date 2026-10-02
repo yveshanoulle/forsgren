@@ -1,6 +1,7 @@
 {
   "name": "forsgren",
   "private": true,
+  "license": "EUPL-1.2",
   "devDependencies": {
     "htmlhint": "1.9.2",
     "jscpd": "4.2.4",
