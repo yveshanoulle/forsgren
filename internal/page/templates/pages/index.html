@@ -1,5 +1,6 @@
 {{template "header" .}}  <main>
     <h1>Forsgren {{.Version}}</h1>
     <p>{{.Message}}</p>
-  </main>
+{{if .NoProjects}}    <p>No projects configured yet: add them to forsgren.config.yml.</p>
+{{end}}  </main>
 {{template "footer" .}}

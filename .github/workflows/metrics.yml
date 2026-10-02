@@ -3,11 +3,14 @@
 # The REUSABLE workflow an installation's data repository calls once a day
 # (forsgren#4, walking skeleton step 2 of #3). It installs forsgren from the
 # very commit it is called at, renders the page and publishes it to the
-# caller's GitHub Pages. Before it renders, it checks the caller's
-# forsgren.config.yml with forsgren check-config, so a missing or invalid
+# caller's GitHub Pages. A new install has no forsgren.config.yml: the run
+# writes the starter with forsgren init-config and commits that one file to
+# the branch the run is on (forsgren#12). Before it renders, it checks
+# the caller's forsgren.config.yml with forsgren check-config, so an invalid
 # configuration fails the job by name instead of publishing from it. Today
-# the page is the skeleton's placeholder, "Forsgren <version>"; collect and
-# the history file come later.
+# the page is the skeleton's placeholder, "Forsgren <version>", with a line
+# saying so while no projects are configured; collect and the history file
+# come later.
 #
 # It runs only when called (workflow_call): never in forsgren's own
 # repository, never on a pull request. Its job runs in the CALLER's
@@ -32,9 +35,12 @@
 # from the job context through env: only, its checks executed there against
 # good and bad commits and repositories, setup-go on go.mod's toolchain
 # before it, the caller's checkout pinned by commit without persisted
-# credentials, and the config check, executed there with a stub and with the
-# real forsgren, between install and render, its message never run as a
-# workflow command.
+# credentials, the starter step, executed there with a real git against a
+# local remote (one commit of one file, as github-actions[bot], pushed with
+# the token in the environment and never in an argument, a file or the log)
+# and with the real forsgren, and the config check, executed there with a
+# stub and with the real forsgren, between install and render, its message
+# never run as a workflow command.
 name: Metrics
 
 on:
@@ -48,7 +54,7 @@ jobs:
     name: Render and publish
     runs-on: ubuntu-latest
     permissions:
-      contents: read    # read-only: actions/checkout fetches the caller's repository with it, to read forsgren.config.yml; nothing is written
+      contents: write   # checkout reads with it; the starter step pushes ONE commit, a new install's forsgren.config.yml, to the run's branch
       pages: write      # deploy-pages publishes the site to the caller's GitHub Pages
       id-token: write   # deploy-pages proves to Pages, with an OIDC token, which run deploys
     environment:
@@ -120,12 +126,62 @@ jobs:
       # that triggered the run, at the workspace root. Pinned by full commit
       # like every action here (the very one Quality's checkout uses), and
       # persist-credentials: false so the token is not left in the checkout's
-      # git config for the steps after it. contents: read, which the job
-      # already holds, is all it needs.
+      # git config for the steps after it; the one step that pushes brings
+      # its own header for that one command. The checkout itself needs only
+      # the read half of the job's contents: write.
       - name: Check out the caller's repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+
+      # A NEW install has no forsgren.config.yml yet: forsgren init-config
+      # writes the starter (version: 1, projects: [], a commented example)
+      # when the file is missing and keeps an existing one byte for byte
+      # (forsgren#12). Only when it says "created" is the one file committed
+      # to the branch the run is on (GITHUB_REF, from the runner's env: a
+      # scheduled run is always on the default branch, and no event payload
+      # is needed to know it), as github-actions[bot], so the next run finds
+      # it; the check after this step then passes on the starter. A kept
+      # file exits 0 before any branch logic, so a daily run never fails
+      # here. A created one on a ref that is not a branch (a tag) fails by
+      # name: there is no branch to commit to.
+      #
+      # The push carries the token without storing it. The checkout keeps no
+      # credential (persist-credentials: false, zizmor's artipacked rule), so
+      # this step hands git an Authorization header for this one command
+      # through GIT_CONFIG_COUNT / GIT_CONFIG_KEY_0 / GIT_CONFIG_VALUE_0 in
+      # the environment, which is how actions/checkout sends it too. Not
+      # `git -c http.extraheader=...` and not a token in the push URL: both
+      # put the token on the command line, where ps shows it and git's own
+      # error messages quote the URL. Here it is in no argument, in no file
+      # and in no message, and it is never echoed. The token is the caller's
+      # GITHUB_TOKEN (github.token in a called workflow), through env: only.
+      # Inline for the reason the install step is: forsgren's scripts are not
+      # on the runner. Scripts/test_metrics_workflow.sh executes this block
+      # with a real git against a local remote, and with the real forsgren.
+      - name: Write the starter configuration on a new install
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          result="$(forsgren init-config --config forsgren.config.yml)"
+          echo "$result"
+          if [[ "$result" != "created forsgren.config.yml" ]]; then
+            exit 0
+          fi
+          if [[ "$GITHUB_REF" != refs/heads/* ]]; then
+            echo "::error title=forsgren starter::forsgren.config.yml was missing and the starter can be committed only on a branch; run this workflow on one"
+            exit 1
+          fi
+          git add -- forsgren.config.yml
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit --quiet -m 'forsgren: add a starter forsgren.config.yml' -- forsgren.config.yml
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL}/.extraheader"
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${auth}"
+          git push --quiet origin "HEAD:${GITHUB_REF}"
 
       # forsgren check-config reads the caller's forsgren.config.yml and says
       # in one line whether it is valid. A missing or invalid file fails the
@@ -158,7 +214,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          forsgren render --out "${RUNNER_TEMP}/site"
+          forsgren render --out "${RUNNER_TEMP}/site" --config forsgren.config.yml
 
       - name: Upload the page
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0

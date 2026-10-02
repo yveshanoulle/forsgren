@@ -161,8 +161,8 @@ is written whole or not at all, and a file that appears while the command
 runs is never replaced. The directory must exist: `init-config` does not
 create one, so a mistyped directory is an error. It exits 1 with
 `init-config: <path>: <reason>` on a real error (the directory is missing or
-not writable, or the path is a directory), and 2 on a usage error. Nothing
-runs it for you yet: the metrics workflow does not call it (#12, step 3).
+not writable, or the path is a directory), and 2 on a usage error. The
+metrics workflow runs it on every new install (see Running forsgren).
 
 ## Running forsgren
 
@@ -181,16 +181,22 @@ installation pins that version. From a checkout of this repository:
 .build/bin/forsgren render --out <dir>
 ```
 
-`forsgren render --out <dir>` writes the site (every page plus
-`styles.css`) into `<dir>`, creating it when needed, and exits 0; 1 when
-the render failed, 2 on a usage error.
+`forsgren render --out <dir> [--config <path>]` writes the site (every page
+plus `styles.css`) into `<dir>`, creating it when needed, and exits 0; 1 when
+the render failed (or the `--config` file is missing or invalid, with
+check-config's refusal), 2 on a usage error. With `--config`, a config that
+lists no projects makes the page say, besides "Forsgren 0.0.2", "No projects
+configured yet: add them to forsgren.config.yml."; without `--config` (the
+build above has no installation config) or with projects, the page is the
+placeholder, unchanged.
 
 **Daily, from an installation's data repository.** An installation does not
 build forsgren: its data repository calls forsgren's reusable workflow,
 `.github/workflows/metrics.yml`, once a day. That workflow installs
 forsgren from the very commit it is called at with `go install`, checks the
-data repository's `forsgren.config.yml` with `forsgren check-config`, renders
-the page and publishes it to
+data repository's `forsgren.config.yml` with `forsgren check-config` (writing
+a starter first when the file is missing), renders the page and publishes it
+to
 the data repository's GitHub Pages, on a GitHub-hosted runner, with no server
 and no local Go. The calling workflow, in the data repository:
 
@@ -203,7 +209,7 @@ on:
 jobs:
   metrics:
     permissions:
-      contents: read
+      contents: write
       pages: write
       id-token: write
     uses: yveshanoulle/forsgren/.github/workflows/metrics.yml@<commit> # vX.Y.Z
@@ -223,20 +229,44 @@ jobs:
   `with: forsgren-version: v0.0.1` under the `uses:` line; the one-line
   form starts with the next release, which has no such input: drop the
   `with:` block when moving to it.
+- **A new install gets a starter configuration.** After the checkout the
+  workflow runs `forsgren init-config --config forsgren.config.yml`. When
+  the file is missing it is written (`version: 1`, `projects: []`, a
+  commented example) and that one file, nothing else, is committed to the
+  branch the run is on (`GITHUB_REF`; a scheduled run is always on the
+  default branch) as `github-actions[bot]` with the message
+  "forsgren: add a starter forsgren.config.yml"; the run goes on, the check
+  passes on the starter, and the page says "No projects configured yet: add
+  them to forsgren.config.yml." An existing file is never rewritten and
+  nothing is committed, and a run that finds the file never looks at
+  branches. **Branch protection:** the commit is a direct push, so the
+  branch it lands on must accept a push from `github-actions[bot]`; if the
+  default branch is protected against that (required pull requests or
+  reviews, or required status checks with no bypass for the bot), the
+  starter push is refused and the run fails once, on the first run of a new
+  install. Then commit a `forsgren.config.yml` yourself (`forsgren
+  init-config --config forsgren.config.yml` writes the starter) or allow the
+  bot to bypass the rule. A run started by hand on another branch with no
+  config puts the starter on that branch; a run on a tag fails by name,
+  there is no branch to commit to. The push sends the job's token as an HTTP header through git's
+  environment for that one command: not in any argument, not in a file, not
+  in the log, and the checkout still keeps no credential.
 - **The daily run checks the configuration first.** The workflow checks out
   the data repository (the commit that triggered the run, without leaving
   its token in the checkout) and runs `forsgren check-config --config
   forsgren.config.yml` on the file at the repository root, before it renders
-  anything. A missing or invalid file fails the job with check-config's
+  anything. An invalid file (a missing one was just written) fails the job with check-config's
   message in the log and in the run's summary, after a cross mark, and
   nothing is published from it. The message can quote the file, so the log
   shows it with workflow commands stopped: a line of it that starts with
-  `::` is printed, never run. The checkout needs only the `contents:
-  read` the caller already grants.
+  `::` is printed, never run.
 - **The three permissions are the caller's to grant.** A called workflow
   can only keep or narrow what its caller's job grants: `pages: write` and
-  `id-token: write` let `actions/deploy-pages` publish, `contents: read` is
-  read-only. Without them the deploy step fails.
+  `id-token: write` let `actions/deploy-pages` publish, `contents: write`
+  lets the starter step push the one commit. Without them the deploy step
+  or the starter push fails. **Moving to the release that adds the
+  starter, change `contents: read` to `contents: write`** in the calling
+  workflow (and in the template's copy of it).
 - **GitHub Pages must build from GitHub Actions** (the data repository's
   Settings → Pages → Source). The run deploys to the repository's
   `github-pages` environment.
@@ -699,19 +729,24 @@ forsgren). It triggers on `workflow_call` only, so it never runs in this
 repository and no pull request can start it. Its one job runs on
 `ubuntu-latest`, in the caller's repository and with the caller's token,
 checks out the caller's repository only (never forsgren's), and asks for
-`pages: write`, `id-token: write` and `contents: read` (a top-level
-`permissions: {}` gives the workflow nothing else). It takes no inputs: the
+`pages: write`, `id-token: write` and `contents: write` (the starter step
+pushes one commit; a top-level `permissions: {}` gives the workflow nothing
+else). It takes no inputs: the
 caller's `uses: …/metrics.yml@<commit>` line is the only version. Its
 steps: set up Go (`actions/setup-go` on exactly `go.mod`'s toolchain,
 `cache: false`), check its own `job.workflow_sha` is a full 40-digit commit
 and its own `job.workflow_repository` one `owner/name`, then
 `go install github.com/<that repository>/cmd/forsgren@<that commit>`,
 check out the caller's repository (`actions/checkout`, pinned at Quality's
-commit, `persist-credentials: false`), `forsgren check-config --config
+commit, `persist-credentials: false`), `forsgren init-config --config
+forsgren.config.yml` and, when it created the file, one commit of that file
+alone as `github-actions[bot]`, pushed to the branch the run is on with the token
+in git's environment only (so it is in no argument, file or log and the
+checkout still stores nothing), `forsgren check-config --config
 forsgren.config.yml` (its message printed between
 `::stop-commands::<token>` and `::<token>::`, a fresh random token per
 run, so a line of it that starts with `::` never runs as a workflow
-command), `forsgren render`, then `actions/upload-pages-artifact` and
+command), `forsgren render --config forsgren.config.yml`, then `actions/upload-pages-artifact` and
 `actions/deploy-pages` into the `github-pages` environment. The job
 context, not the `github` context: in a called workflow the `github`
 context is the caller's. `setup-go` exports `GOTOOLCHAIN=local`, so
@@ -719,8 +754,10 @@ context is the caller's. `setup-go` exports `GOTOOLCHAIN=local`, so
 and repository reach the shell through `env:`, never as `${{ }}` inside
 `run:`. The two checks are regexes inside the workflow, not a script under
 `Scripts/`: the job has no checkout of forsgren, and the only commit it
-could fetch one at is the one still unchecked. The **metrics workflow** pin
-below executes that very block.
+could fetch one at is the one still unchecked, and the starter step's logic
+is the commit and the push, which only git can do. The **metrics workflow**
+pin below executes those very blocks, the starter step with a real git
+against a local remote.
 Nothing in this repository runs the workflow, so no gate does; the pin and
 actionlint, zizmor, yamllint, checkout pins and workflow triggers, which read
 every workflow, are what check it.

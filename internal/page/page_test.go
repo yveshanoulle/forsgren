@@ -14,17 +14,31 @@ import (
 var update = flag.Bool("update", false, "rewrite testdata/*.golden.html")
 
 func TestPlaceholderMatchesGolden(t *testing.T) {
+	checkGolden(t, "testdata/index.golden.html", Placeholder("0.0.2"))
+}
+
+// TestNoProjectsPageMatchesGolden (forsgren#12): the page of an installation
+// whose config lists no projects says so, besides its version.
+func TestNoProjectsPageMatchesGolden(t *testing.T) {
+	data := Placeholder("0.0.2")
+	data.NoProjects = true
+	checkGolden(t, "testdata/index.no-projects.golden.html", data)
+}
+
+// checkGolden renders index.html with data and compares it with the golden
+// file, rewriting it first under -update.
+func checkGolden(t *testing.T, golden string, data Data) {
+	t.Helper()
 	var got bytes.Buffer
-	if err := Render(&got, "index.html", Placeholder("0.0.2")); err != nil {
+	if err := Render(&got, "index.html", data); err != nil {
 		t.Fatalf("Render: %v", err)
 	}
-	const golden = "testdata/index.golden.html"
 	if *update {
 		if err := os.WriteFile(golden, got.Bytes(), 0o600); err != nil {
 			t.Fatalf("update golden: %v", err)
 		}
 	}
-	want, err := os.ReadFile(golden)
+	want, err := os.ReadFile(filepath.Clean(golden))
 	if err != nil {
 		t.Fatalf("read golden: %v", err)
 	}

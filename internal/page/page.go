@@ -32,6 +32,9 @@ type Data struct {
 	Title   string
 	Version string
 	Message string
+	// NoProjects makes the page say that no projects are configured yet:
+	// the installation's forsgren.config.yml lists none (forsgren#12).
+	NoProjects bool
 }
 
 // Placeholder is the data of the page forsgren renders before it has any
