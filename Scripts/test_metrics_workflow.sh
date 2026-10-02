@@ -64,6 +64,9 @@ selftest_begin "the metrics workflow pin"
 
 WF=".github/workflows/metrics.yml"
 CHECK_STEP="Check the forsgren version is a release tag"
+# The opening of a GitHub expression, in double quotes with the dollar
+# escaped, so no reader (shellcheck included) takes it for an expansion.
+EXPR_OPEN="\${{"
 
 # on_events <file>: the event names of the column-0 `on:` block, one per line.
 on_events() {
@@ -141,8 +144,8 @@ judge() {
   fi
 
   runs="$(run_blocks "$wf")"
-  if grep -qF '${{' <<< "$runs"; then
-    echo "expands a \${{ }} expression inside run: (line $(grep -F '${{' <<< "$runs" | head -1 | cut -d: -f1)) — the input reaches the shell through env: only (template injection)"
+  if grep -qF "$EXPR_OPEN" <<< "$runs"; then
+    echo "expands a \${{ }} expression inside run: (line $(grep -F "$EXPR_OPEN" <<< "$runs" | head -1 | cut -d: -f1)) — the input reaches the shell through env: only (template injection)"
   fi
 
   script="${TMP}/check_version.sh"
@@ -163,14 +166,15 @@ judge() {
   fi
 
   check_line="$(line_of "$wf" "- name: ${CHECK_STEP}")"
-  install_line="$(line_of "$wf" "go install ")"
+  # The command, not a comment naming it: go install at the start of a line.
+  install_line="$(grep -nE '^[[:space:]]+go install ' "$wf" | head -1 | cut -d: -f1)"
   if [[ -z "$install_line" ]]; then
     echo "runs no go install — the job installs no forsgren"
   else
     if [[ -n "$check_line" ]] && [[ "$check_line" -gt "$install_line" ]]; then
       echo "runs go install (line ${install_line}) before the version check (line ${check_line}) — a refused version would already have reached the module proxy"
     fi
-    if ! grep -qF 'go install "github.com/yveshanoulle/forsgren/cmd/forsgren@${FORSGREN_VERSION}"' "$wf"; then
+    if ! grep -qF "go install \"github.com/yveshanoulle/forsgren/cmd/forsgren@\${FORSGREN_VERSION}\"" "$wf"; then
       echo "go install does not install github.com/yveshanoulle/forsgren/cmd/forsgren@\${FORSGREN_VERSION}, the version the check judged"
     fi
   fi
@@ -217,7 +221,7 @@ proves "a push trigger" "not on workflow_call alone" \
 proves "an optional forsgren-version" "is not required: true" \
   's/^        required: true$/        required: false/'
 proves "the input pasted into run:" "expands a \${{ }} expression inside run:" \
-  's/@\${FORSGREN_VERSION}"/@${{ inputs.forsgren-version }}"/'
+  "s/@\\\${FORSGREN_VERSION}\"/@\${{ inputs.forsgren-version }}\"/"
 proves "no version check step" "has no step '${CHECK_STEP}'" \
   "s/- name: ${CHECK_STEP}\$/- name: Check something else/"
 proves "a version check that accepts anything" "the version check accepts 'latest'" \
@@ -227,7 +231,7 @@ proves "a version check without its end anchor" "the version check accepts 'v0.0
 proves "a version check that refuses releases" "refuses the release tag 'v0.0.1'" \
   's/\^v\[0-9\]/^x[0-9]/'
 proves "go install at another version" "does not install github.com/yveshanoulle/forsgren/cmd/forsgren@" \
-  's/@\${FORSGREN_VERSION}"/@${FORSGREN_REF}"/'
+  "s/@\\\${FORSGREN_VERSION}\"/@\${FORSGREN_REF}\"/"
 proves "setup-go on another Go" "actions/setup-go installs Go '1.0.0'" \
   "s/^\(          go-version: \).*\$/\1'1.0.0'/"
 
