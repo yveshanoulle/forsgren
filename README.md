@@ -73,6 +73,66 @@ line, never the name it matched.
 Untracked files are not checked, so `git add` (or `git add -N`) a new file
 before running the gates.
 
+## Configuration
+
+An installation describes what forsgren measures in one file,
+`forsgren.config.yml`, in its data repository. Together with `data/` it is
+all an installation's owner owns: to update, they take a new copy of the
+template and carry those two over (#4). One installation measures every
+project it lists on one page, each project in its own section (#6).
+
+```yaml
+version: 1
+projects:
+  - name: Acme Shop
+    repositories:
+      - name: acme/api                          # owner/name on GitHub
+      - name: acme/ios-app
+        deployment: workflow=testflight.yml
+  - name: Acme Tools
+    repositories:
+      - name: acme/cli
+        deployment: release
+```
+
+- **`version: 1`** is required: it is the format's version. A file without
+  it, or with any other version, is refused, so a forsgren never misreads a
+  file written for another format.
+- **`projects`**: at least one. A project is a name and the repositories that
+  ship it (a product can be several repositories). Project names are
+  unique, ignoring case.
+- **`repositories`**: at least one per project, each `owner/name`, and each
+  listed once in the whole file (ignoring case, as GitHub does).
+- **`deployment`** says what counts as a deployment of that repository (#6):
+  - left out, or `environment=production`: a GitHub Deployment to the
+    environment `production` whose status is success. This is the default
+    and the recommended way: it works in any repository, and carries the
+    commit lead time is measured from. `environment=<name>` names another
+    environment.
+  - `workflow=<file>.yml` (or `.yaml`): a successful run on `main` of that
+    workflow, by its file name in `.github/workflows/` (no directory).
+  - `release`: a published GitHub Release, for App Store apps and tools.
+
+A **failure** is an issue labelled `failure` whose body carries the failure
+record block (see How it gets its data); lead time runs from a change's first
+commit. Neither is configured per repository in version 1.
+
+Any other key is refused, as is a value of the wrong kind or a second YAML
+document in the file, so a typo never silently does nothing. Every refusal
+names the file, the project and repository it is in (or the line, for a
+YAML error) and what to write instead.
+
+Check a config without rendering anything:
+
+```
+forsgren check-config --config forsgren.config.yml
+```
+
+It prints one line, `OK: forsgren.config.yml is a valid forsgren config
+(version 1): projects: 2, repositories: 3`, and exits 0; it exits 1 with
+the refusal on stderr when the file is invalid or cannot be read, and 2 on
+a usage error.
+
 ## Running forsgren
 
 Today forsgren renders one placeholder page, which says "Forsgren 0.0.1":
