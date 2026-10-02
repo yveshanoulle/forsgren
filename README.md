@@ -480,6 +480,14 @@ pull-request event while one of its jobs runs anywhere but on a
 GitHub-hosted runner. A new push to a pull request cancels its run in
 flight; runs on `main` are never cancelled, each commit gets its own.
 
+**Repository settings behind the gates.** On top of that, GitHub holds
+every workflow run of a pull request from an outside contributor until the
+maintainer approves it, and the repository requires every action to be
+pinned to a full commit SHA, the rule **checkout pins** checks in the
+files. Secret scanning with push protection and Dependabot alerts are on
+too, behind the secret scan and npm audit gates. These are settings, not
+files: no gate can see them.
+
 **The DCO check, on pull requests.** `.github/workflows/dco.yml` triggers
 on `pull_request` (never `pull_request_target`), as Quality does, and may
 because its one job runs on a GitHub-hosted runner (`ubuntu-latest`), with
@@ -686,3 +694,8 @@ forsgren is licensed under the European Union Public Licence v. 1.2
 (EUPL-1.2): see [LICENSE](LICENSE). Contributions are accepted under the
 same licence, with a Developer Certificate of Origin sign-off on every
 commit and no CLA: see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Security
+
+Report a vulnerability privately, never in a public issue: see
+[SECURITY.md](SECURITY.md).

@@ -8,8 +8,12 @@ change keeps the gates green: run `./FBP.sh --no-commit` (see README,
 "Working on forsgren") before you push.
 
 A pull request from outside the repository gets CI only after the
-maintainer has approved its workflow run. (That approval rule is set when
-the repository goes public.)
+maintainer has approved its workflow run.
+
+## Reporting a vulnerability
+
+Never in a public issue or pull request: report it privately, as
+[SECURITY.md](SECURITY.md) describes.
 
 ## Licence of contributions
 
