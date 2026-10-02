@@ -77,13 +77,14 @@ before running the gates.
 
 An installation describes what forsgren measures in one file,
 `forsgren.config.yml`, in its data repository. Together with `data/` it is
-all an installation's owner owns. A new copy of the template is for a first
-install only; to update, the owner changes the one `uses:` line in place, so
-the configuration, `data/`, secrets and the Pages address stay (ruled
-2026-10-02, #9). The template ships no `data/`: forsgren creates it when it
-first stores history, and never overwrites history that is there. One
-installation measures every project it lists on one page, each project
-in its own section (#6).
+all an installation's owner owns, so the template contains neither: it holds
+only forsgren's own files. Installing a new version is copying the new
+template's files over the data repository; that replaces every forsgren file
+and never touches `forsgren.config.yml` or `data/`, and the repository keeps
+its secrets and Pages address (ruled 2026-10-02, #9). forsgren creates
+`data/` when it first stores history and never overwrites history that is
+there. One installation measures every project it lists on one page, each
+project in its own section (#6).
 
 ```yaml
 version: 1
@@ -189,9 +190,10 @@ jobs:
   GitHub gives a called workflow as `job.workflow_sha` and
   `job.workflow_repository` (the `github` context would name the
   caller's). It refuses anything but a 40-digit commit and one
-  `owner/name` before it installs anything. To update, change that one
-  line in the data repository itself; never re-create the repository from
-  the template, which would lose `data/` and the secrets. A fork calling its own copy installs the fork, never upstream.
+  `owner/name` before it installs anything. A new template carries the
+  new `uses:` line, so copying its files over the data repository updates
+  it (see Configuration). A fork calling its own copy installs the fork,
+  never upstream.
 - **`v0.0.1` predates this.** Its `metrics.yml` still requires
   `with: forsgren-version: v0.0.1` under the `uses:` line; the one-line
   form starts with the next release, which has no such input: drop the
