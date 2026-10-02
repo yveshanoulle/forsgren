@@ -29,7 +29,8 @@ on:
   # NO pull_request and NO pull_request_target, ever (Yves's ruling on
   # forsgren#1): this job runs on a self-hosted runner, and a pull request
   # from a fork would run its own code there the day the repository is
-  # public. The gate that enforces this is the next step of the ladder.
+  # public. Scripts/check_workflow_triggers.sh enforces this, for every
+  # workflow in this directory.
   push:
     branches: ["main"]
   workflow_dispatch:

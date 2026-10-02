@@ -251,13 +251,16 @@ estate's on the same Mac.
 self-hosted runner such a trigger would let a pull request from a fork run
 its own code on babacar the day the repository is public. Changes reach
 `main` as commits, checked by `./FBP.sh` locally and by this job after the
-push.
+push. The rule holds for every workflow, not only Quality: the
+**workflow triggers** gate below is red on any of them that triggers on a
+pull-request event while one of its jobs runs anywhere but on a
+GitHub-hosted runner.
 
 **No paths filter, on purpose.** The secret scan, the data guard, stray
 tracked files and script references read every tracked file, so a filter
 on paths would leave some change that runs no gate.
 
-Three PRE gates keep the CI honest:
+Four PRE gates keep the CI honest:
 
 - **gate wiring** (`Scripts/test_gate_wiring.sh`, konenki-website's,
   adapted): every runnable row of the order file has phase `pre` or `post`
@@ -272,6 +275,20 @@ Three PRE gates keep the CI honest:
 - **quality trigger scope** (`Scripts/test_quality_trigger_scope.sh`): the
   workflow runs on every push to `main`, with no `paths` or `paths-ignore`
   filter, and on `workflow_dispatch`.
+- **workflow triggers** (`Scripts/check_workflow_triggers.sh`, forsgren's
+  own): no workflow in `.github/workflows` triggers on `pull_request`,
+  `pull_request_target`, `pull_request_review` or
+  `pull_request_review_comment` (the two review events also run a fork's
+  code) while one of its jobs may run on a self-hosted runner. A job counts
+  as GitHub-hosted only when its `runs-on` is a single GitHub image label
+  (`ubuntu-*`, `windows-*`, `macos-*`); the `self-hosted` label, a custom
+  label, a list, a runner group, an expression such as `${{ matrix.os }}`
+  and a reusable-workflow job are all judged as self-hosted, because the
+  gate cannot prove otherwise. Red as well on a workflow whose `on:` it
+  cannot read, and on a run that found no workflow file. It reads the YAML
+  with awk, not a YAML library: Homebrew's python3 has PyYAML on babacar
+  today, but nothing installs it, so a parser that depends on it would stop
+  gating on the next machine.
 - **quality-report render** (`Scripts/test_render_quality_report.sh`): the
   summary renderer (`Scripts/render_quality_report.sh`) keeps the declared
   order, exits 0 on a report it rendered, tells an empty or partial run from

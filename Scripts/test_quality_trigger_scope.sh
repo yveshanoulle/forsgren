@@ -40,8 +40,9 @@ cd "$(dirname "$0")/.."
 # forsgren is the opposite by Yves's ruling on forsgren#1: the job runs on a
 # self-hosted runner, so Quality never triggers on pull_request or
 # pull_request_target (a pull request from a fork would run its code on the
-# runner the day the repository is public). That ban is its own gate, the
-# next step of the forsgren#1 ladder; it is not checked here.
+# runner the day the repository is public). That ban is its own gate,
+# Scripts/check_workflow_triggers.sh (forsgren#1, ladder step 16), over every
+# workflow; it is not checked here.
 #
 # Self-proving: the same judge runs against synthetic workflows at the end,
 # a narrow paths filter, a paths-ignore filter and a missing push trigger,
