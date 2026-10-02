@@ -248,6 +248,15 @@ for path in Scripts/*.sh; do
       require_fixture "$base"
       ;;
 
+    # PRESENTATION, not a gate (forsgren#8): the run's key numbers, rendered
+    # above the gate report in CI's step summary from what the run wrote.
+    # Same two requirements as the report renderer, for the same reason.
+    render_quality_summary.sh)
+      runs_script "$CI" "$base" \
+        || fail "${base} renders the run summary at the top of CI's step summary and CI never invokes it — a renderer nobody calls is a file, not a summary"
+      require_fixture "$base"
+      ;;
+
     # PRE-FLIGHT, not a gate: it prints go.mod's toolchain line, which sfl,
     # FBP and CI each export as GOTOOLCHAIN before any Go runs. A runner
     # that stops calling it runs whatever Go the machine has.
@@ -902,6 +911,12 @@ if ! is_mutation_rerun; then
     's|^([[:space:]]*)(\./Scripts/render_quality_report\.sh)|\1# \2|' \
     "render_quality_report.sh renders CI's step summary and" \
     "a quality.yml whose render_quality_report.sh call is a comment"
+
+  # quality.yml: the summary call becomes a comment (forsgren#8).
+  mutation_proof GATE_WIRING_CI_OVERRIDE "Scripts/render_quality_summary.sh" \
+    's|^([[:space:]]*)(\./Scripts/render_quality_summary\.sh)|\1# \2|' \
+    "render_quality_summary.sh renders the run summary" \
+    "a quality.yml whose render_quality_summary.sh call is a comment"
 
   # quality.yml: the Go pin call becomes an echo of it.
   mutation_proof GATE_WIRING_CI_OVERRIDE "Scripts/go_toolchain.sh" \

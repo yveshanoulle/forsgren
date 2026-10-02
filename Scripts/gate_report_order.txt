@@ -432,6 +432,13 @@ script references|Scripts/check_script_references.sh|pre|
 # forsgren case (an n/a row is not counted as unreported).
 quality-report render|Scripts/test_render_quality_report.sh|pre|
 #
+# forsgren#8, forsgren's own (no estate repository has it yet): the run's key
+# numbers above that report. Scripts/render_quality_summary.sh renders them
+# in quality.yml's last step from what the run wrote (these rows, the Go
+# tests and coverage outputs, the page-count sink) and the job's status;
+# this is its fixture.
+quality-run summary|Scripts/test_render_quality_summary.sh|pre|
+#
 gate-failure summary|Scripts/test_summarize_gate_failure.sh|pre|
 sfl drives from the order file|Scripts/test_sfl_drives_from_order_file.sh|pre|
 step table|Scripts/test_render_step_table.sh|pre|

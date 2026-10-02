@@ -76,6 +76,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # The run summary's duration counts from here (forsgren#8): the
+          # first step that runs a shell, so only the checkout before it is
+          # not counted. First, so a failure below still leaves it set.
+          echo "QS_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
           echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
           echo "/usr/local/bin" >> "$GITHUB_PATH"
           toolchain="$(./Scripts/go_toolchain.sh)"
@@ -157,19 +161,44 @@ jobs:
       # Every post row, on the site just built. Skipped when the build did
       # not succeed: those gates then report as unmeasured, not as passing.
       - name: POST gates
+        id: post
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         shell: bash
         run: |
           set -uo pipefail
           ./Scripts/run_ci_phase.sh post "$ROWS" "$DETAILS"
 
-      # Renders whatever ran. `if: always()` matters: the run that most needs
-      # a report is the one that failed. Gates that never ran are named
-      # rather than omitted: a short table would otherwise read as "fewer
-      # checks exist".
-      - name: Render report
+      # Renders whatever ran, as the job's LAST step. `if: always()`
+      # matters: the run that most needs a report is the one that failed,
+      # or was cancelled.
+      #
+      # Two blocks, in this order, appended to one summary page: first the
+      # run's key numbers (forsgren#8, Scripts/render_quality_summary.sh):
+      # status and how far the run got, gates per phase, Go tests, coverage
+      # and floors to raise, pages, version, commit, trigger and duration;
+      # then the gate table with each gate's output. One step, so the numbers
+      # sit above the table without either renderer knowing about the other.
+      # Gates that never ran are named rather than omitted: a short table
+      # would otherwise read as "fewer checks exist", and a number that does
+      # not exist shows as — with its reason, never as 0.
+      #
+      # Every expression the summary needs comes in through env:, never as
+      # ${{ }} inside run:. job.status is the job's status so far: success,
+      # failure or cancelled. ROWS and DETAILS are unset when the job stopped
+      # before Start report, and the summary then still renders.
+      - name: Render summary and report
         if: always()
         shell: bash
+        env:
+          QS_JOB_STATUS: ${{ job.status }}
+          QS_PRE_OUTCOME: ${{ steps.pre.outcome }}
+          QS_BUILD_OUTCOME: ${{ steps.build.outcome }}
+          QS_POST_OUTCOME: ${{ steps.post.outcome }}
+          QS_SECRET_BLOCK: ${{ steps.pre.outputs.secret_block }}
+          QS_PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -uo pipefail
-          ./Scripts/render_quality_report.sh "$ROWS" "$DETAILS" >> "$GITHUB_STEP_SUMMARY"
+          rc=0
+          ./Scripts/render_quality_summary.sh "${ROWS:-}" "${DETAILS:-}" >> "$GITHUB_STEP_SUMMARY" || rc=$?
+          ./Scripts/render_quality_report.sh "${ROWS:-}" "${DETAILS:-}" >> "$GITHUB_STEP_SUMMARY" || rc=$?
+          exit "$rc"
