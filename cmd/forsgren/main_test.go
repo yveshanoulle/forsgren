@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -39,6 +40,23 @@ func TestRenderWritesTheSite(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "rendered 1 page(s)") {
 		t.Errorf("want the page count on stdout, got %q", stdout.String())
+	}
+}
+
+// TestRenderedPageShowsTheVersion is walking-skeleton step 1 (#3): the page
+// forsgren writes says which forsgren wrote it, from the one version
+// variable in this package.
+func TestRenderedPageShowsTheVersion(t *testing.T) {
+	dir := t.TempDir()
+	if got := run([]string{"render", "--out", dir}, &bytes.Buffer{}, &bytes.Buffer{}); got != 0 {
+		t.Fatalf("want exit 0, got %d", got)
+	}
+	html, err := fs.ReadFile(os.DirFS(dir), "index.html")
+	if err != nil {
+		t.Fatalf("read index.html: %v", err)
+	}
+	if !strings.Contains(string(html), "Forsgren 0.0.1") {
+		t.Errorf("want the page to say Forsgren 0.0.1, got:\n%s", html)
 	}
 }
 
