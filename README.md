@@ -79,8 +79,11 @@ Today forsgren renders one placeholder page, which says "Forsgren 0.0.1":
 the version of the forsgren that rendered it. That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
 it with `-ldflags "-X main.version=<version>"`. Reading GitHub (`collect`)
-and the history file come next, after the walking skeleton (#3). There is
-no release yet, so it is built from this repository:
+and the history file come next, after the walking skeleton (#3).
+
+The first release is `v0.0.1`. Install a release with
+`go install github.com/yveshanoulle/forsgren/cmd/forsgren@v0.0.1`; an
+installation pins that version. From a checkout of this repository:
 
 ```
 ./Scripts/build_site.sh            # builds .build/bin/forsgren, renders .build/site
@@ -89,9 +92,7 @@ no release yet, so it is built from this repository:
 
 `forsgren render --out <dir>` writes the site (every page plus
 `styles.css`) into `<dir>`, creating it when needed, and exits 0; 1 when
-the render failed, 2 on a usage error. Once forsgren is released it is
-installed with `go install github.com/yveshanoulle/forsgren/cmd/forsgren@<version>`
-and an installation pins that version.
+the render failed, 2 on a usage error.
 
 **Daily, from an installation's data repository.** An installation does not
 build forsgren: its data repository calls forsgren's reusable workflow,
