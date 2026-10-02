@@ -13,6 +13,13 @@
 # go.mod's `ignore node_modules` directive, which the go command applies to
 # every package pattern and to `go mod tidy`; this check is its guard.
 #
+# The run writes the coverage profile to <module-dir>/.build/go-coverage.out
+# for Scripts/check_coverage.sh, the next row, so coverage costs no second
+# test run (forsgren#1, ladder step 22). The profile is removed before the
+# run and again whenever this gate is red, so it only ever holds a green run
+# of the current tree: a red run must never leave coverage behind to be
+# judged as if it were green.
+#
 # Usage: Scripts/check_go_tests.sh [module-dir]   (default: the repo root)
 # Fixture: Scripts/test_check_go_tests.sh.
 
@@ -38,10 +45,15 @@ fi
 LOG="$(mktemp)"
 trap 'rm -f "$LOG"' EXIT
 
-go test -v ./... 2>&1 | tee "$LOG"
+PROFILE=".build/go-coverage.out"
+rm -f "$PROFILE"
+mkdir -p .build
+
+go test -v -coverprofile="$PROFILE" ./... 2>&1 | tee "$LOG"
 rc=${PIPESTATUS[0]}
 
 if [ "$rc" -ne 0 ]; then
+  rm -f "$PROFILE"
   echo
   grep -E '^--- FAIL: ' "$LOG" | sed 's/^/❌ /' || true
   echo "❌ FAIL: go test ./... exited ${rc}"
@@ -51,6 +63,7 @@ fi
 # Top-level tests only: a subtest's `--- PASS` is indented.
 passed="$(grep -cE '^--- PASS: ' "$LOG" || true)"
 if [ "$passed" -eq 0 ]; then
+  rm -f "$PROFILE"
   echo
   echo "❌ FAIL: go test ./... ran no tests — a green over zero tests measures nothing"
   exit 1

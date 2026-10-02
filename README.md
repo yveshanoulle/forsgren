@@ -92,7 +92,7 @@ One PRE gate checks the page templates themselves:
   number. Red on a run that scanned zero `.html` files. jscpd is pinned like
   the linters below.
 
-Three PRE gates check the Go code, beside `go test` and `gofmt`:
+Four PRE gates check the Go code, beside `go test` and `gofmt`:
 
 - **Go lint** (`Scripts/check_go_lint.sh`, MenoPower's): golangci-lint
   over the module under `.golangci.yml`, ported from MenoPower `shared/`,
@@ -122,6 +122,24 @@ Three PRE gates check the Go code, beside `go test` and `gofmt`:
   (`Scripts/test_check_file_length.sh`) shows 601 lines red and 600 green,
   and, by mutation, that the comparison, `go.mod`'s ignore line and the
   GOOS-bound file list are what decide those cases.
+- **Go coverage** (`Scripts/check_coverage.sh`, MenoPower's
+  `check_coverage.py` rewritten in bash and awk): the coverage ratchet.
+  Every function `go tool cover -func` measures has a floor in
+  `coverage_thresholds.json`, and the total has one too. Red when a function
+  or the total is below its floor, naming it with both numbers, and when a
+  measured function is not registered: register it at 0.0, never a guessed
+  floor (0.0 is tracked, not enforced). A floor below the ratchet rule,
+  measured − 0.1 or exactly 100.0 at 100 %, stays green and is counted into
+  one `FLOORWARN: N coverage floor(s) should be raised` line, each such
+  function listed with the floor to set. Floors only go up: a red is fixed by
+  testing, never by lowering a number. It reads the profile the Go-tests gate
+  writes (`.build/go-coverage.out`), so the tests run once; that gate removes
+  the profile when it is red, and no profile is red here. The thresholds
+  file is read in one fixed shape, one `"key": number` per line, and a line
+  outside it is red. Its self-test (`Scripts/test_check_coverage.sh`) shows
+  each of those cases and, by mutation, that the floor comparison, the 0.1
+  buffer and the Go-tests gate's removal of a red run's profile are what
+  decide them.
 
 The first two run the golangci-lint pinned in `go.mod` (see Installing and
 updating).

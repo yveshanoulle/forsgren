@@ -173,16 +173,24 @@ gate wiring|Scripts/test_gate_wiring.sh|pre|
 #
 # go test ./... over the module. Red on a failing test AND on zero tests
 # found: a green over nothing measured is the false clean this gate exists
-# to prevent.
+# to prevent. It also writes the coverage profile the Go coverage row reads
+# (.build/go-coverage.out), and removes it when it is red.
 Go tests self-test|Scripts/test_check_go_tests.sh|pre|
 Go tests|Scripts/check_go_tests.sh|pre|
 #
 # Go coverage (forsgren#1, ladder step 22). Not canon: MenoPower's coverage
-# ratchet, beside the other Go rows. The self-test is forsgren's own, in
-# bash (MenoPower's test_check_coverage.py pins only its total recomputation
-# and its FLOORWARN line), with three mutation proofs. Repository source, so
-# it runs in pre.
+# ratchet, beside the other Go rows. The gate is MenoPower's
+# check_coverage.py rewritten in bash and awk (python3 is not a listed tool):
+# every function the profile measures is held to its floor in
+# coverage_thresholds.json, an unregistered one is red, and a floor below
+# measured - 0.1 (100.0 at 100%) is counted into one FLOORWARN line that
+# never gates. It reads the profile the Go tests row wrote, so it runs no
+# test of its own and must stay right behind that row. The self-test is
+# forsgren's own, in bash (MenoPower's test_check_coverage.py pins only its
+# total recomputation and its FLOORWARN line), with three mutation proofs.
+# Repository source, so both run in pre, self-test first.
 Go coverage self-test|Scripts/test_check_coverage.sh|pre|
+Go coverage|Scripts/check_coverage.sh|pre|
 #
 # CHECK-ONLY here (gofmt -l), as CI calls it. FBP.sh runs the same script
 # with --fix before PRE, so locally the check sees an already-formatted tree.
