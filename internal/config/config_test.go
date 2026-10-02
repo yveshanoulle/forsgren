@@ -157,6 +157,44 @@ func checkRefusals(t *testing.T, cases []refusal) {
 	}
 }
 
+// noProjectsMessage is what a file without a projects value is told: an
+// installation that measures nothing yet says so, `projects: []`, and a
+// forgotten or empty key is not taken for it (forsgren#12).
+const noProjectsMessage = "no projects: list at least one under the projects key, or use projects: [] for none"
+
+// TestExplicitEmptyProjectsIsValid: `projects: []` is a config that measures
+// nothing yet, the starter forsgren writes (forsgren#12).
+func TestExplicitEmptyProjectsIsValid(t *testing.T) {
+	cases := map[string]string{
+		"flow list":              "version: 1\nprojects: []\n",
+		"flow list with a space": "version: 1\nprojects: [ ]\n",
+		"projects first":         "projects: []\nversion: 1\n",
+		"with comments":          "# nothing yet\nversion: 1\n# measure later\nprojects: [] # none\n",
+	}
+	for name, yaml := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := parse([]byte(yaml))
+			if err != nil {
+				t.Fatalf("want no error, got %v", err)
+			}
+			if got.Version != 1 || len(got.Projects) != 0 || got.RepositoryCount() != 0 {
+				t.Errorf("want version 1 and no projects, got %+v", got)
+			}
+		})
+	}
+}
+
+// TestLoadFileWithEmptyProjects loads a made-up fixture file.
+func TestLoadFileWithEmptyProjects(t *testing.T) {
+	got, err := Load(filepath.Join("testdata", "no-projects.yml"))
+	if err != nil {
+		t.Fatalf("want no error, got %v", err)
+	}
+	if got.Version != 1 || len(got.Projects) != 0 {
+		t.Errorf("want version 1 and no projects, got %+v", got)
+	}
+}
+
 // TestParseRefusesTheFileShape: the YAML itself, the version and the
 // projects list.
 func TestParseRefusesTheFileShape(t *testing.T) {
@@ -182,8 +220,12 @@ func TestParseRefusesTheFileShape(t *testing.T) {
 		{"version 2", edit("version: 1", "version: 2"), ErrVersionUnsupported,
 			"unsupported version 2: this forsgren reads version 1"},
 		{"version 0", edit("version: 1", "version: 0"), ErrVersionUnsupported, "unsupported version 0"},
-		{"no projects key", "version: 1\n", ErrNoProjects, "no projects: list at least one under the projects key"},
-		{"empty projects", "version: 1\nprojects: []\n", ErrNoProjects, "no projects"},
+		{"no projects key", "version: 1\n", ErrNoProjects, noProjectsMessage},
+		{"projects without a value", "version: 1\nprojects:\n", ErrNoProjects, noProjectsMessage},
+		{"projects null", "version: 1\nprojects: null\n", ErrNoProjects, noProjectsMessage},
+		{"projects tilde", "version: 1\nprojects: ~\n", ErrNoProjects, noProjectsMessage},
+		{"no projects and no version", "projects: []\n", ErrVersionMissing, "version is missing"},
+		{"no projects and version 2", "version: 2\nprojects: []\n", ErrVersionUnsupported, "unsupported version 2"},
 	})
 }
 

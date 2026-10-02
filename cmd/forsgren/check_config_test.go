@@ -39,6 +39,8 @@ func TestCheckConfig(t *testing.T) {
 	valid := writeConfig(t, validConfig)
 	invalid := writeConfig(t, strings.Replace(validConfig, "release", "releases", 1))
 	missing := filepath.Join(t.TempDir(), "forsgren.config.yml")
+	none := writeConfig(t, "version: 1\nprojects: []\n")
+	noKey := writeConfig(t, "version: 1\n")
 	cases := []struct {
 		name   string
 		args   []string
@@ -48,6 +50,11 @@ func TestCheckConfig(t *testing.T) {
 	}{
 		{"valid", []string{"check-config", "--config", valid}, 0,
 			"OK: " + valid + " is a valid forsgren config (version 1): projects: 2, repositories: 3\n", ""},
+		{"no projects yet", []string{"check-config", "--config", none}, 0,
+			"OK: " + none + " is a valid forsgren config (version 1): projects: 0, repositories: 0\n", ""},
+		{"projects key missing", []string{"check-config", "--config", noKey}, 1, "",
+			"check-config: " + noKey + ": no projects: list at least one under the projects key, " +
+				"or use projects: [] for none"},
 		{"invalid", []string{"check-config", "--config", invalid}, 1, "",
 			"check-config: " + invalid + `: project "Acme Tools": repository "acme/cli": invalid deployment "releases"`},
 		{"missing file", []string{"check-config", "--config", missing}, 1, "",
