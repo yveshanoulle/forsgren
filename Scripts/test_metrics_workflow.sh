@@ -141,6 +141,14 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# The cases own their environment for the starter step: an identity or config
+# inherited from whoever runs this (fbp_agent_friend.sh exports both) never
+# reaches one. The hostile case sets its own, inside the subshell that runs it.
+unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_COMMITTER_DATE GIT_CONFIG_PARAMETERS
+while IFS= read -r inherited; do
+  unset "$inherited"
+done < <(compgen -v | grep -E '^GIT_CONFIG_(COUNT|KEY_[0-9]+|VALUE_[0-9]+)$' || true)
+
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
 selftest_begin "the metrics workflow pin"
@@ -433,10 +441,21 @@ starter_outcome() {
   : > "${TMP}/fg.calls"
   : > "$GIT_ARGV_LOG"
   : > "$GIT_ENV_LOG"
-  (cd "$INSTALL" && PATH="$path" FG_CALLS="${TMP}/fg.calls" STUB_INIT="$2" GH_TOKEN="$SECRET" \
-    GITHUB_REF="$3" GITHUB_SERVER_URL="https://github.com" \
-    GIT_ARGV_LOG="$GIT_ARGV_LOG" GIT_ENV_LOG="$GIT_ENV_LOG" REAL_GIT="$REAL_GIT" \
-    GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 bash "$1") > "${TMP}/starter.log" 2>&1 || rc=$?
+  (
+    cd "$INSTALL"
+    if [[ "${5:-}" == hostile ]]; then
+      export GIT_AUTHOR_NAME="Outer Author" GIT_AUTHOR_EMAIL="outer-author@example.com"
+      export GIT_COMMITTER_NAME="Outer Committer" GIT_COMMITTER_EMAIL="outer-committer@example.com"
+      export GIT_CONFIG_COUNT=3
+      export GIT_CONFIG_KEY_0="commit.gpgsign" GIT_CONFIG_VALUE_0="true"
+      export GIT_CONFIG_KEY_1="gpg.format" GIT_CONFIG_VALUE_1="ssh"
+      export GIT_CONFIG_KEY_2="user.signingkey" GIT_CONFIG_VALUE_2="/nonexistent"
+    fi
+    PATH="$path" FG_CALLS="${TMP}/fg.calls" STUB_INIT="$2" GH_TOKEN="$SECRET" \
+      GITHUB_REF="$3" GITHUB_SERVER_URL="https://github.com" \
+      GIT_ARGV_LOG="$GIT_ARGV_LOG" GIT_ENV_LOG="$GIT_ENV_LOG" REAL_GIT="$REAL_GIT" \
+      GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 bash "$1"
+  ) > "${TMP}/starter.log" 2>&1 || rc=$?
   commits="$(iso_out -C "$ORIGIN" rev-list --count "$4" || echo 0)"
   echo "exit=${rc} commits=${commits}"
 }
@@ -477,6 +496,20 @@ judge_starter_step() {
     [[ "$who" == "$STARTER_SUBJECT" ]] || echo "the starter commit's message is '${who}', not '${STARTER_SUBJECT}'"
     files="$(iso_out -C "$ORIGIN" diff-tree --no-commit-id --name-only -r "$TRUNK" | paste -sd, -)"
     [[ "$files" == "forsgren.config.yml" ]] || echo "the starter commit holds [${files}], not forsgren.config.yml alone — one file only, never the rest of the checkout"
+  fi
+  new_install
+  got="$(starter_outcome "$script" created "$ref" "$TRUNK" hostile)"
+  want="exit=0 commits=2"
+  if [[ "$got" != "$want" ]]; then
+    echo "with an outer identity and a signing config inherited from the environment the starter step gives '${got}', not '${want}' — git's environment outranks git -c, so the commit must set its own identity and config in the environment"
+  else
+    who="$(iso_out -C "$ORIGIN" log -1 --format='%an <%ae>' "$TRUNK")"
+    [[ "$who" == "$BOT_IDENTITY" ]] || echo "with an inherited outer identity the starter commit's author is '${who}', not '${BOT_IDENTITY}'"
+    who="$(iso_out -C "$ORIGIN" log -1 --format='%cn <%ce>' "$TRUNK")"
+    [[ "$who" == "$BOT_IDENTITY" ]] || echo "with an inherited outer identity the starter commit's committer is '${who}', not '${BOT_IDENTITY}'"
+    if iso_out -C "$ORIGIN" cat-file commit "$TRUNK" | grep -q '^gpgsig'; then
+      echo "with an inherited signing config the starter commit is signed — it must be unsigned"
+    fi
   fi
   new_install
   iso -C "$INSTALL" checkout -b feature
@@ -886,13 +919,19 @@ proves "init-config on another file" "the starter step runs 'forsgren init-confi
 proves "a starter committed even when kept" "for a kept forsgren.config.yml the starter step gives" \
   "s/\\[\\[ \"${D}result\" != \"created forsgren.config.yml\" \\]\\]/false/"
 proves "no starter commit" "for a created forsgren.config.yml on its branch the starter step gives 'exit=0 commits=1'" \
-  '/git -c user.name=/,/commit --quiet/d'
+  '/^ *GIT_CONFIG_COUNT=0 /,/git commit --quiet/d'
 proves "the whole checkout committed" "the starter commit holds [forsgren.config.yml,other.txt,staged.txt]" \
   "s/git add -- forsgren.config.yml/git add -A/; s/'forsgren: add a starter forsgren.config.yml' -- forsgren.config.yml/'forsgren: add a starter forsgren.config.yml'/"
 proves "another commit author" "the starter commit's author is 'someone <" \
-  "s/user\\.name='github-actions\\[bot\\]'/user.name='someone'/"
+  "s/GIT_AUTHOR_NAME='github-actions\\[bot\\]'/GIT_AUTHOR_NAME='someone'/"
 proves "another author address" "the starter commit's author is 'github-actions[bot] <12345+github-actions" \
-  's/41898282+github-actions/12345+github-actions/'
+  "s/GIT_AUTHOR_EMAIL='41898282+github-actions/GIT_AUTHOR_EMAIL='12345+github-actions/"
+proves "another committer" "the starter commit's committer is 'someone <" \
+  "s/GIT_COMMITTER_NAME='github-actions\\[bot\\]'/GIT_COMMITTER_NAME='someone'/"
+proves "an identity left to -c" "with an inherited outer identity the starter commit's author is 'Outer Author <outer-author@example.com>'" \
+  "/GIT_AUTHOR_NAME=/d; /GIT_COMMITTER_NAME=/d; s/git commit --quiet/git -c user.name=bot -c user.email=bot@example.com commit --quiet/"
+proves "the inherited config left alone" "with an outer identity and a signing config inherited from the environment the starter step gives 'exit=128 commits=1'" \
+  '/^ *GIT_CONFIG_COUNT=0 /d'
 proves "another commit message" "the starter commit's message is 'forsgren: add a config'" \
   "s/add a starter forsgren\\.config\\.yml'/add a config'/"
 proves "no push" "for a created forsgren.config.yml on its branch the starter step gives 'exit=0 commits=1'" \
