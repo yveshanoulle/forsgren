@@ -1,14 +1,18 @@
-# Self-hosted runner labels this repo actually uses. Declaring them is
-# CONFIGURATION, not a waiver: actionlint cannot know a label exists unless
-# told, and without this it reports every job as targeting an unknown runner —
-# noise that would push someone toward ignoring the runner-label rule
-# entirely, which is the rule that catches a genuine typo in a label.
+# actionlint configuration, read by Scripts/check_actionlint.sh
+# (`-config-file .actionlint.yaml`, the estate's gate, byte-identical with
+# coachretreat-website's), so this file must exist.
 #
-# Ported from coachretreat-website (forsgren#1, ladder step 18), as
-# konenki-website declares its own: the comment unchanged, the repo label
-# forsgren's. Scripts/test_check_actionlint.sh pins that an undeclared label
-# is red and that forsgren's two are known only through this file.
+# NO custom runner label. Every job here runs on a GitHub-hosted image
+# (quality.yml on macos-latest since forsgren#1's runner swap, dco.yml on
+# ubuntu-latest), and actionlint knows those labels without being told. The
+# self-hosted runner's labels, host-babacar and runner-forsgren, were
+# declared here until that swap and are gone with it: the empty list below
+# keeps every custom label red, so a job sent to a self-hosted runner again
+# is a decision made in this file first. Declaring a label is CONFIGURATION,
+# not a waiver: actionlint cannot know a label exists unless told.
+#
+# Scripts/test_check_actionlint.sh pins that runner-forsgren is now red as
+# an unknown label, that macos-latest is accepted, and (its mutation proof)
+# that a label becomes known only through this file.
 self-hosted-runner:
-  labels:
-    - host-babacar
-    - runner-forsgren
+  labels: []

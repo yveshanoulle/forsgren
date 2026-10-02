@@ -13,7 +13,7 @@ cd "$(dirname "$0")/.."
 #
 # SECURITY, not tidiness. A tag or a branch is resolved when the runner
 # fetches it, so whoever controls the action's repository decides what runs
-# on forsgren's self-hosted runner. A commit sha cannot be re-pointed.
+# in forsgren's CI, with the job's token. A commit sha cannot be re-pointed.
 #
 # Every actions/checkout in this repo must:
 #

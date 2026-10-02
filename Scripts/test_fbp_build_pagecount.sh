@@ -432,7 +432,7 @@ fi
 # build-site row stayed at its skipped default (build site ⏭️), the run
 # ended Aborted and POST never ran. Only the reason is asserted, not the
 # path printed after it. Run as root, chmod 000 does not stop the read and
-# this case fails; CI runs it on a self-hosted macOS runner as a user.
+# this case fails; CI runs it on GitHub's macos-latest as a user.
 # ---------------------------------------------------------------------------
 if FBP_SANDBOX_SINK_MODE=000 run_case 3; then
   case11_row="$(summary_row "  build site ")"

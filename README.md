@@ -273,10 +273,11 @@ Seven PRE gates read the repository's own scripts and files:
   `.actionlint.yaml`. Valid YAML is not a valid workflow: actionlint knows
   which contexts exist where (a `runner.temp` in a job-level `env:` block
   once made GitHub reject konenki-website's whole workflow, so not one gate
-  ran), which keys a step takes, and which runner labels exist. forsgren's
-  self-hosted labels, `host-babacar` and `runner-forsgren`, are declared in
-  `.actionlint.yaml`; declaring them is configuration, not a waiver, and a
-  label not declared there is red. actionlint also runs shellcheck over every
+  ran), which keys a step takes, and which runner labels exist. Every job
+  here runs on a GitHub-hosted image, so `.actionlint.yaml` declares no
+  custom label: a custom label (a self-hosted runner's) is red until it is
+  declared there, and declaring one is configuration, not a waiver.
+  actionlint also runs shellcheck over every
   `run:` block, and its self-test (`Scripts/test_check_actionlint.sh`) is red
   when that does not happen, since actionlint skips it silently when
   shellcheck is missing. No `-ignore` flag: a suppression needs a finding
@@ -288,7 +289,7 @@ Seven PRE gates read the repository's own scripts and files:
   zizmor whether it is safe; the class it exists for is template injection,
   an attacker-controlled `${{ ... }}` (an issue title, a branch name)
   expanded into a `run:` block, where it runs as shell with the job's token
-  on the self-hosted runner. It runs at web-infra's setting: offline, High
+  on the runner. It runs at web-infra's setting: offline, High
   findings only, the default persona. A Medium finding such as a checkout
   that keeps its credentials is not its red; checkout pins owns that rule.
   The config suppresses nothing: a suppression needs a finding someone has
@@ -416,7 +417,8 @@ A finding in the generated page is fixed in the template under
 ## CI
 
 `.github/workflows/quality.yml` runs the same gates as `./sfl.sh`, on every
-push to `main` and by hand (Actions → Quality → Run workflow).
+push to `main`, on every pull request into `main`, and by hand (Actions →
+Quality → Run workflow).
 
 **What runs where.** Locally, `./FBP.sh` runs `gofmt -w`, `./sfl.sh pre`,
 `Scripts/build_site.sh` and `./sfl.sh post`. CI runs the same three phases
@@ -425,10 +427,12 @@ with nothing fixed: `Scripts/run_ci_phase.sh pre`, then
 post`. Both read `Scripts/gate_report_order.txt` with the same row rules, so
 every gate runs in both, in the same order, under the same label. Before the
 gates, CI checks out the commit, puts Homebrew's directories first on `PATH`
-and exports `GOTOOLCHAIN` from `go.mod` (as `sfl.sh` does), and runs
-`npm ci`. It does not run `Scripts/install_tools.sh`: the runner is a
-shared machine, so CI does not install or upgrade tools there; a missing
-tool turns its gate red by name.
+and exports `GOTOOLCHAIN` from `go.mod` (as `sfl.sh` does), runs
+`Scripts/install_tools.sh` (as `sfl.sh` does) and `npm ci`. The runner is a
+fresh machine on every run with none of the Homebrew tools the gates need,
+so the installer puts them there; installing and upgrading costs nothing
+lasting on a machine that is thrown away after the job. A tool still missing
+after it fails the Install tools step by name.
 
 **Check-only.** CI reports what the commit contains. gofmt runs as
 `gofmt -l` (the `gofmt` row), never with `--fix`, and a gate that changes
@@ -457,27 +461,29 @@ grep '^gofmt|' Scripts/gate_report_order.txt   # gofmt|Scripts/check_gofmt.sh|pr
 
 A POST gate reads `.build/site`, so run `./Scripts/build_site.sh` first.
 
-**The runner.** The job runs on a self-hosted runner on babacar, named
-`babacar-forsgren`, selected by all five of its labels:
-`runs-on: [self-hosted, macOS, ARM64, host-babacar, runner-forsgren]`.
-`runner-forsgren` is the label that picks this repository's runner among the
-estate's on the same Mac.
+**The runner.** The job runs on GitHub's hosted `macos-latest` image
+(`runs-on: macos-latest`), a fresh virtual machine per run, thrown away
+after it (Yves's ruling on forsgren#1, road to public: the runner swap). It
+has Homebrew and a Go to start from; everything else comes from
+`Scripts/install_tools.sh`, `npm ci` and the `go.mod` pins, as locally.
 
-**No pull-request trigger, on purpose.** Quality never triggers on
-`pull_request` or `pull_request_target` (Yves's ruling, forsgren#1). On a
-self-hosted runner such a trigger would let a pull request from a fork run
-its own code on babacar the day the repository is public. Changes reach
-`main` as commits, checked by `./FBP.sh` locally and by this job after the
-push. The rule holds for every workflow, not only Quality: the
+**On pull requests, safely.** Quality triggers on `pull_request` into
+`main`, so a contributor's pull request shows the same gate results as a
+local `./FBP.sh` run, and never on `pull_request_target`. A pull request
+from a fork runs its own code here, which is safe only because of the two
+things the ruling pairs with the trigger: the machine is GitHub's and is
+thrown away after the job, and a fork's `pull_request` run gets a read-only
+token (`contents: read`) and no secrets. The **quality trigger scope** gate
+pins this job to `macos-latest`, and the rule holds for every workflow: the
 **workflow triggers** gate below is red on any of them that triggers on a
 pull-request event while one of its jobs runs anywhere but on a
-GitHub-hosted runner.
+GitHub-hosted runner. A new push to a pull request cancels its run in
+flight; runs on `main` are never cancelled, each commit gets its own.
 
-**The DCO check, on pull requests.** `.github/workflows/dco.yml` is the
-one workflow that triggers on `pull_request` (never `pull_request_target`),
-and it may because its one job runs on a GitHub-hosted runner
-(`ubuntu-latest`), with a read-only token (`contents: read`,
-`pull-requests: read`). It holds every commit of the pull request to the
+**The DCO check, on pull requests.** `.github/workflows/dco.yml` triggers
+on `pull_request` (never `pull_request_target`), as Quality does, and may
+because its one job runs on a GitHub-hosted runner (`ubuntu-latest`), with
+a read-only token (`contents: read`, `pull-requests: read`). It holds every commit of the pull request to the
 Developer Certificate of Origin (see [CONTRIBUTING.md](CONTRIBUTING.md)):
 `Scripts/check_dco.sh` is red on a commit with no `Signed-off-by:`
 trailer, or with one whose email is not the commit author's, naming the
@@ -514,8 +520,11 @@ Four PRE gates keep the CI honest:
   in its own phase, in file order) and over made-up order files (failures,
   the secret-class exit, the tree check, a phase with no row).
 - **quality trigger scope** (`Scripts/test_quality_trigger_scope.sh`): the
-  workflow runs on every push to `main`, with no `paths` or `paths-ignore`
-  filter, and on `workflow_dispatch`.
+  workflow runs on every push to `main` and every `pull_request` into it,
+  neither with a `paths` or `paths-ignore` filter, never on
+  `pull_request_target`, and on `workflow_dispatch`; and its job runs on
+  `macos-latest`, the GitHub-hosted image that makes the pull-request
+  trigger safe.
 - **workflow triggers** (`Scripts/check_workflow_triggers.sh`, forsgren's
   own): no workflow in `.github/workflows` triggers on `pull_request`,
   `pull_request_target`, `pull_request_review` or
@@ -527,9 +536,9 @@ Four PRE gates keep the CI honest:
   and a reusable-workflow job are all judged as self-hosted, because the
   gate cannot prove otherwise. Red as well on a workflow whose `on:` it
   cannot read, and on a run that found no workflow file. It reads the YAML
-  with awk, not a YAML library: Homebrew's python3 has PyYAML on babacar
-  today, but nothing installs it, so a parser that depends on it would stop
-  gating on the next machine.
+  with awk, not a YAML library: PyYAML is a Python module, not a command,
+  so nothing here installs it, and a parser that depends on it would stop
+  gating on the first machine without it.
 - **quality-report render** (`Scripts/test_render_quality_report.sh`): the
   summary renderer (`Scripts/render_quality_report.sh`) keeps the declared
   order, exits 0 on a report it rendered, tells an empty or partial run from

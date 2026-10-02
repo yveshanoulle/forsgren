@@ -6,11 +6,13 @@
 #
 # THE RULE (Yves's ruling on forsgren#1): a workflow with a job on a
 # self-hosted runner never triggers on a pull-request event. On such a
-# trigger a pull request from a fork runs its own code on the runner, which
-# is babacar, the day the repository is public.
+# trigger a pull request from a fork runs its own code on that runner, a
+# machine someone keeps, once the repository is public. On a GitHub-hosted
+# runner it runs on a machine thrown away after the job, which is why
+# quality.yml and dco.yml may trigger on pull_request.
 # Scripts/test_quality_trigger_scope.sh pins the shape quality.yml must have
-# (push to main, by hand); this gate bans the one shape no workflow here may
-# have, whatever the file.
+# (push to and pull_request into main, by hand, on macos-latest); this gate
+# bans the one shape no workflow here may have, whatever the file.
 #
 # Pull-request events: pull_request and pull_request_target, the two the
 # ruling names, plus pull_request_review and pull_request_review_comment.
@@ -31,11 +33,11 @@
 #
 # READ WITH AWK, NOT A YAML PARSER, on purpose, as
 # Scripts/test_quality_trigger_scope.sh and web-infra's lib_workflow_job.sh
-# do. python3 with PyYAML is on babacar today, but no formula provides it:
-# it is a module, so Scripts/required_tools.txt (commands only) cannot
-# declare it and Scripts/install_tools.sh cannot install it, and a gate that
-# dies on a missing module on the other Mac or on a rebuilt runner has
-# stopped gating. The shapes it reads, and its limits:
+# do. PyYAML is a Python module, not a command, so
+# Scripts/required_tools.txt (commands only) cannot declare it and
+# Scripts/install_tools.sh cannot install it, and a gate that dies on a
+# missing module on another Mac or on a fresh hosted runner has stopped
+# gating. The shapes it reads, and its limits:
 #   - `on:` is a top-level key at column 0 (bare, "on" or 'on'); the trigger
 #     section is the rest of that line plus every line after it up to the
 #     next column-0 key. Comments are dropped (a # at line start or after

@@ -14,8 +14,7 @@ cd "$(dirname "$0")/.."
 # valid workflow?"; zizmor asks "is this workflow safe?". The class that
 # matters is template injection: an attacker-controlled `${{ ... }}` value
 # (an issue title, a branch name) expanded straight into a run: block, where
-# it is shell code, run with the job's token on forsgren's self-hosted
-# runner.
+# it is shell code, run with the job's token on the runner.
 #
 # The gate runs at the estate's setting, `--min-severity high`, the default
 # persona: High findings are red, Medium and below are not reported. So a

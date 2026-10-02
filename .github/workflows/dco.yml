@@ -6,12 +6,12 @@
 # a Signed-off-by trailer from its author; Scripts/check_dco.sh decides, and
 # Scripts/test_check_dco.sh proves it in sfl and Quality on every run.
 #
-# The one workflow here that triggers on pull_request, and safe to:
+# It triggers on pull_request, as quality.yml does, and safely:
 #   - pull_request, NEVER pull_request_target: a fork's pull request gets a
 #     read-only token and no secrets;
-#   - a GitHub-hosted runner, never babacar: Scripts/check_workflow_triggers.sh
-#     is red on a pull-request trigger with any job it cannot prove
-#     GitHub-hosted;
+#   - a GitHub-hosted runner, never a self-hosted one:
+#     Scripts/check_workflow_triggers.sh is red on a pull-request trigger
+#     with any job it cannot prove GitHub-hosted;
 #   - the pull request's code is never checked out. The commits are read
 #     through the API, and the one file checked out is Scripts/check_dco.sh
 #     at the BASE commit, so a pull request cannot change the check that

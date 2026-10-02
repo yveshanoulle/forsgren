@@ -269,14 +269,16 @@ Go dead code|Scripts/check_deadcode.sh|pre|
 # which runner labels exist. The gate is coachretreat-website's,
 # byte-identical (konenki-website's differs only in naming itself as the repo
 # that shipped the motivating bug, coachretreat's names konenki-website).
-# forsgren's two self-hosted labels, host-babacar and runner-forsgren, are
-# declared in .actionlint.yaml, as konenki-website declares its own. The
-# self-test is the estate's fixture (byte-identical in konenki, coachretreat
-# and agilelean) with forsgren's cases at its end: each asserts its reason,
-# a shellcheck finding in a run: block is red (so a missing shellcheck, which
-# actionlint skips silently, is red too), and a mutation proof shows the
-# labels are known only through .actionlint.yaml. Repository source, so both
-# run in pre, self-test first.
+# Every forsgren job runs on a GitHub-hosted image since forsgren#1's runner
+# swap, so .actionlint.yaml declares no custom label (konenki-website
+# declares its self-hosted ones). The self-test is the estate's fixture
+# (byte-identical in konenki, coachretreat and agilelean) with forsgren's
+# cases at its end: each asserts its reason, the retired runner-forsgren
+# label is red as unknown, macos-latest is accepted, a shellcheck finding in
+# a run: block is red (so a missing shellcheck, which actionlint skips
+# silently, is red too), and a mutation proof shows a label is known only
+# through .actionlint.yaml. Repository source, so both run in pre,
+# self-test first.
 actionlint self-test|Scripts/test_check_actionlint.sh|pre|
 actionlint|Scripts/check_actionlint.sh|pre|
 #
@@ -351,18 +353,21 @@ manifest covers site|Scripts/test_required_pages_covers_site.sh|post|
 # after manifest covers site. konenki-website's fixture, adapted: its rule is
 # "no paths filter, or one that covers every path the gates read", and
 # forsgren's gates read every tracked file (secret scan, data guard, stray
-# files, script references), so quality.yml must run on every push to main,
-# with no paths or paths-ignore filter, and on workflow_dispatch. konenki's
-# pull_request pin is not ported: forsgren bans that trigger (self-hosted
-# runner), with the workflow-triggers rows below. Repository source, so it
-# runs in pre.
+# files, script references), so quality.yml must run on every push to main
+# and every pull_request into it, with no paths or paths-ignore filter, and
+# on workflow_dispatch. konenki's pull_request pin is ported with the runner
+# swap (forsgren#1, road to public), together with forsgren's own: never
+# pull_request_target, and the job on macos-latest, the GitHub-hosted image
+# that makes the pull_request trigger safe. Repository source, so it runs in
+# pre.
 quality trigger scope|Scripts/test_quality_trigger_scope.sh|pre|
 #
 # Workflow triggers (forsgren#1, ladder step 16). Not canon: forsgren's own
 # (no repo of the estate has this gate), right behind the canon row it
 # extends. Yves's ruling: a workflow with a job on a self-hosted runner never
 # triggers on pull_request or pull_request_target, so a pull request from a
-# fork can never run its code on babacar once the repository is public.
+# fork can never run its code on a machine someone keeps once the repository
+# is public.
 # The gate reads every *.yml/*.yaml directly in .github/workflows; a job
 # counts as GitHub-hosted only on one GitHub image label, anything else is
 # judged as self-hosted (see the gate's header). Red on a workflow with no
