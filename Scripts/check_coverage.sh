@@ -41,8 +41,8 @@
 #         }
 #     one entry per line, a number with an optional fraction. A line outside
 #     that shape is red, named by its line number: the gate never guesses.
-#   - no second test run. Scripts/check_go_tests.sh, the row before this
-#     one, runs `go test -coverprofile=.build/go-coverage.out ./...` and
+#   - no second test run. Scripts/check_go_tests.sh, the Go tests row
+#     (only this gate's self-test sits between them), runs `go test -coverprofile=.build/go-coverage.out ./...` and
 #     removes that profile whenever it is red, so the profile this gate reads
 #     is always from a green run of the current tree. MenoPower's Makefiles
 #     run the tests and the checker in one target instead.

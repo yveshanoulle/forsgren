@@ -62,6 +62,10 @@ linters:
     - gocognit
     - gocyclo
   settings:
+    # NOTE: with this one entry revive runs NO rule. A `rules:` list
+    # replaces revive's default rule set instead of adjusting it, so
+    # disabling `exported` leaves nothing enabled (as in MenoPower shared/,
+    # where the finding was filed too; open point on forsgren#1, step 20).
     revive:
       rules:
         - name: exported

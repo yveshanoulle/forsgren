@@ -6,10 +6,10 @@ cd "$(dirname "$0")/.." || exit 1
 # check_privacy_posture.sh — does this site collect anything?
 #
 # WHY. Scripts/gate_report_order.txt declares `privacy pages|n/a` on the
-# grounds that nothing is collected here: no forms, no analytics, no cookies,
-# no third-party assets, fonts served from this repo. That was true the day it
-# was written. Nothing stopped a Google Fonts link or an analytics snippet
-# arriving the next day and leaving a false exemption on the record.
+# grounds that nothing is collected here: no forms, no analytics or tracking,
+# no cookies or storage, no third-party assets or embeds. That is true the day
+# it is written. Nothing else stops a Google Fonts link or an analytics
+# snippet arriving the next day and leaving a false exemption on the record.
 #
 # Yves ruled privacy into the canon (web-infra unit 394) so every site must
 # ANSWER the question rather than only the site that thought of it. This is the
@@ -19,9 +19,11 @@ cd "$(dirname "$0")/.." || exit 1
 # privacy page — konenki.be handles health data and needs one. This asserts
 # there is nothing to write a page about, which is this site's position.
 #
-# WHAT IS DELIBERATELY NOT A FINDING: outbound links. Ticketing goes to
-# pretix.eu and the footer links to social platforms. A link transmits nothing
-# until someone clicks it, and then they are plainly somewhere else. What
+# WHAT IS DELIBERATELY NOT A FINDING: outbound links. forsgren's page links
+# nowhere off itself today (in coachretreat-website, where this copy is from,
+# ticketing goes to pretix.eu and the footer to social platforms). A link
+# transmits nothing until someone clicks it, and then they are plainly
+# somewhere else; a new one is listed below on the next run. What
 # matters is what the page loads or stores WITHOUT being asked — which is also
 # why a third-party font stylesheet IS a finding: it sends every visitor's IP
 # before anything is clicked, and it looks exactly like a local style link.

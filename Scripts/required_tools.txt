@@ -6,13 +6,13 @@
 #
 # ONLY WHAT THE GATES USE TODAY. The installer has no notion of a tool "not
 # used yet": every listed tool is installed or upgraded on every sfl run, and
-# a name it cannot make runnable fails the run. So each later step of the
-# forsgren#1 ladder adds its own tool here in the same change as its gate,
-# as actionlint did in step 18.
+# a name it cannot make runnable fails the run. So a new gate adds its own
+# tool here in the same change as the gate, as actionlint did in forsgren#1
+# ladder step 18.
 #
 # NOT the Go tools. golangci-lint, deadcode and govulncheck are pinned through
-# `tool` directives in go.mod plus go.sum (Yves's ruling on forsgren#1, step
-# 17), so one version serves CI and here. Do NOT add them to this list:
+# `tool` directives in go.mod plus go.sum (Yves's ruling on forsgren#1,
+# decision 2), so one version serves CI and here. Do NOT add them to this list:
 # Homebrew has no lockfile, and the pinned copy would then be shadowed by
 # whatever the formula publishes today.
 #
@@ -26,7 +26,9 @@
 # turn the strictest gate in the repo into a skipped step.
 gitleaks
 
-# Scripts/check_go_tests.sh, check_gofmt.sh and build_site.sh.
+# Scripts/build_site.sh and every Go gate (Go tests, gofmt, go mod tidy, Go
+# coverage, Go lint, Go test duplication, Go file length, Go
+# vulnerabilities, Go dead code), which also run the go.mod tools through it.
 go
 
 # Node, for npm (forsgren#1, ladder step 7): sfl.sh's `npm ci` pre-flight, the

@@ -14,7 +14,8 @@
 # every package pattern and to `go mod tidy`; this check is its guard.
 #
 # The run writes the coverage profile to <module-dir>/.build/go-coverage.out
-# for Scripts/check_coverage.sh, the next row, so coverage costs no second
+# for Scripts/check_coverage.sh, the Go coverage row right after this one
+# (only its self-test sits between them), so coverage costs no second
 # test run (forsgren#1, ladder step 22). The profile is removed before the
 # run and again whenever this gate is red, so it only ever holds a green run
 # of the current tree: a red run must never leave coverage behind to be

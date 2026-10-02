@@ -3,22 +3,22 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-# gitleaks — secret scanning. Unit 399.
+# gitleaks — secret scanning. Ported from konenki-website 2026-10-01
+# (forsgren#1, ladder step 3); unit numbers are the estate's.
 #
-# WHY THIS REPO NEEDED IT. Every other repo in the estate gates on gitleaks
-# in BOTH runners — web-infra, MenoPower, agileRetroflection. The two site
-# repos had it in neither, which made them the only places a leaked secret
-# could be committed with nothing objecting.
+# WHY. Every repo in the estate gates on gitleaks in BOTH runners. It came
+# to the site repos last (konenki-website, where this copy is from, had it in
+# neither runner until then), and forsgren has had it from its ladder step 3.
 #
 # The realistic exposure is not the HTML. It is someone pasting a token
-# inline into a workflow while debugging a deploy — which is exactly what
-# happened with the fastlane-certs PAT (MenoPower, 2026-07-08). These repos
-# have deploy workflows and SSH keys in secrets, so they have the shape.
+# inline into a workflow or a script while debugging — which is exactly what
+# happened with the fastlane-certs PAT (MenoPower, 2026-07-08). forsgren will
+# read GitHub with a token, so it has the shape.
 #
 # SECRET-CLASS: its row in Scripts/gate_report_order.txt carries the class
 # `secret-class`, and that class, not this script's exit code, is what makes
 # sfl (and Scripts/run_ci_phase.sh) exit 2 on a failure here, so
-# FullBuildAndPush REFUSES TO COMMIT. This script exits 2 rather than 1 too,
+# FBP.sh REFUSES TO COMMIT. This script exits 2 rather than 1 too,
 # as the estate's copies do, but any non-zero exit would block the commit
 # the same way (forsgren#1 step 12.2d). An ordinary red still commits
 # locally to keep the WIP; a secret-class red must not, because committing it

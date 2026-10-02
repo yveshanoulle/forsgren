@@ -5,6 +5,11 @@ cd "$(dirname "$0")/.."
 
 # Self-test for validate_required_pages.sh.
 #
+# The paragraph below, and the release and promotion wording in the cases, are
+# konenki-website's, where this self-test comes from; forsgren has no release
+# or promotion yet, and its manifest is what the manifest-covers-site gate
+# holds the generated site to (forsgren's cases are at the end).
+#
 # internal/page/required-pages.json is part of the release artifact: promotion to live
 # reads it from the promoted release and verifies every declared page over
 # HTTP. A malformed manifest must therefore be caught BEFORE the release is
@@ -133,7 +138,8 @@ fi
 
 # --- forsgren: the zero and missing reds carry their reason --------------
 # Added in forsgren (ported 2026-10-01, forsgren#1 ladder step 9); everything
-# above is konenki-website's, with the manifest path as the only change. The
+# above is konenki-website's, with the manifest path and the note at the top
+# as the only changes. The
 # cases above pin the EXIT CODE of a missing manifest and of an empty list,
 # not why: a validator that crashed on the missing file, or redded an empty
 # list for some other reason, would pass them. These pin the named reason, and

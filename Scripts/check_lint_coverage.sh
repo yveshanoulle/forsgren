@@ -37,7 +37,8 @@ cd "$(dirname "$0")/.." || exit 1
 # at the call site; a caller may still override it, and the fixture does.
 # forsgren (ported 2026-10-01, forsgren#1 ladder step 8): the default is
 # .build/site, where Scripts/build_site.sh renders the site. With the Usage
-# line above, the only change from konenki-website's copy.
+# line above and the gate_htmlhint.sh naming in the --config comment below,
+# the only change from konenki-website's copy.
 SITE="${1:-.build/site}"
 
 # The JSON counter lives in its own file: it has to read two possible streams
@@ -46,8 +47,8 @@ SITE="${1:-.build/site}"
 LINT_JSON_COUNT="Scripts/lint_json_count.py"
 
 HTMLHINT_CMD="${HTMLHINT_CMD:-node_modules/.bin/htmlhint}"
-# konenki passes --config; sfl does the same, and a check that lints under
-# different rules than the gate is measuring a different thing.
+# konenki passes --config; so does Scripts/gate_htmlhint.sh, and a check that
+# lints under different rules than the gate is measuring a different thing.
 # AN ARRAY, not a string. As a string it had to be left unquoted at the call
 # site to split into two arguments, and an unquoted expansion also GLOBS — a
 # caller whose args contained a `*` would have had it expanded against the

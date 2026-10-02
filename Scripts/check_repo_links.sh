@@ -15,9 +15,10 @@
 # lists it among the outbound hosts on a green run.
 #
 # The FAIL line names the file and line, NEVER the path it matched: sfl
-# quotes FAIL lines into its summary and FBP.sh into the commit message, so
-# printing a private repository's name would copy it into git history (the
-# rule Scripts/check_data_guard.sh follows for the same reason).
+# quotes FAIL lines into its summary, FBP.sh into its own, and CI puts every
+# gate's output on the job's summary page, so a printed private repository
+# name would be copied wherever those go (the rule
+# Scripts/check_data_guard.sh follows for the same reason).
 #
 # Red-on-zero: a site with no .html page is red. Nothing scanned is not clean.
 #

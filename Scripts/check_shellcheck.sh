@@ -6,11 +6,13 @@
 #   2. every git-tracked extension-less file whose first line is a bash/sh
 #      shebang — a wrapper script without an extension would otherwise slip
 #      through both the *.sh glob and human memory
-# A named list plus a Scripts/*.sh glob used to live here: the glob kept
-# Scripts/ covered automatically, but every OTHER directory needed a name
-# added by hand, and one such directory (the extracted server/sbin/*.sh
-# wrappers) was simply never added — it shellchecked nothing, in sfl or CI,
-# until Scripts/test_check_shellcheck.sh proved it.
+# In web-infra, where this gate comes from, a named list plus a Scripts/*.sh
+# glob used to live here: the glob kept Scripts/ covered automatically, but
+# every OTHER directory needed a name added by hand, and one such directory
+# (web-infra's extracted server/sbin/*.sh wrappers) was simply never added —
+# it shellchecked nothing, in sfl or CI, until web-infra's copy of
+# Scripts/test_check_shellcheck.sh proved it. forsgren has no server/sbin;
+# the self-test keeps that path as fixture data.
 #
 # EXCLUDE_ALLOWED lists tracked shell scripts deliberately left out of this
 # check, one per line. Empty is the normal state: every tracked shell

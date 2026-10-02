@@ -86,9 +86,12 @@ if ! GOTOOLCHAIN="$(./Scripts/go_toolchain.sh)"; then
 fi
 export GOTOOLCHAIN
 
-# Every gate here is CHECK-ONLY, the way CI will run it. The one local fix,
-# gofmt -w, belongs to FBP.sh, which runs it before calling sfl (Yves's ruling
-# on forsgren#1: auto-fix in FBP, check-only in CI).
+# The gates here are CHECK-ONLY, as CI runs them, with one exception: the npm
+# audit row (Scripts/npm_audit_check.sh) may heal an advisory with one
+# `npm audit fix`, and the lockfile change rides into the commit; CI turns
+# that same heal into a red row. The other local fix, gofmt -w, belongs to
+# FBP.sh, which runs it before calling sfl (Yves's ruling on forsgren#1:
+# auto-fix in FBP, check-only in CI).
 
 FAIL=0
 # Failing gate names, one per line. A plain string, not an array: an empty
@@ -222,7 +225,8 @@ check_step_total() {
 # --- THE GATES ------------------------------------------------------------
 #
 # Every gate is dispatched from Scripts/gate_report_order.txt. The file
-# supplies the ORDER, SCRIPT, PHASE and — for the secret scan — CLASS.
+# supplies the ORDER, SCRIPT, PHASE and — for the secret scan and the data
+# guard — CLASS.
 #
 # Field 3 is the phase:
 #   pre  = repository/source/checker gates before the site build

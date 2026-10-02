@@ -4,11 +4,10 @@ set -euo pipefail
 # Fixture for check_privacy_posture.sh.
 #
 # WHY THIS GATE EXISTS. This repo declares `privacy pages|n/a` on the grounds
-# that the site collects nothing: no forms, no analytics, no cookies, no
-# third-party assets, fonts served from its own directory. That claim was true
-# when it was written on 2026-08-31 — and nothing stopped someone pasting a
-# Google Fonts link or an analytics snippet the next day, at which point the
-# exemption would be false and still on the record.
+# that the page collects nothing: no forms, no analytics or tracking, no
+# cookies or storage, no third-party assets or embeds. Nothing else stops
+# someone pasting a Google Fonts link or an analytics snippet the next day, at
+# which point the exemption would be false and still on the record.
 #
 # Yves ruled privacy into the canon so every site must answer the question
 # rather than only the site that thought of it. This is the other half: the
@@ -19,10 +18,11 @@ set -euo pipefail
 # because konenki.be handles health data; this one asserts there is nothing to
 # write a page about.
 #
-# Deliberately NOT flagged: outbound LINKS. Ticketing goes to pretix.eu and the
-# footer links to social platforms, but a link transmits nothing until someone
-# clicks it and then they are plainly somewhere else. What matters is what the
-# page loads or stores WITHOUT being asked.
+# Deliberately NOT flagged: outbound LINKS. forsgren's page has none today;
+# the cases below borrow konenki-website's (pretix.eu, a social platform) as
+# made-up examples. A link transmits nothing until someone clicks it and then
+# they are plainly somewhere else. What matters is what the page loads or
+# stores WITHOUT being asked.
 #
 # Exit: 0 clean, 1 finding, 2 tooling/target missing.
 #

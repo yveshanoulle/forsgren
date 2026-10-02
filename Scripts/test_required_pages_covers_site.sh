@@ -8,6 +8,10 @@ cd "$(dirname "$0")/.."
 # Does the manifest still describe the site? — unit 392, ported from
 # coachretreat-website where it was written as part of unit 367.
 #
+# The history below is konenki-website's: "this repo" means konenki, and
+# Site/, SiteSource/, the privacy pages and promotion are konenki's.
+# forsgren's changes are listed at the end of this header.
+#
 # This repo's manifest has been correct since it was written — by attention,
 # not by construction. Nothing checked it. And the pages it declares are not
 # ordinary pages: privacy.html and privacy_nl.html are where the App Store

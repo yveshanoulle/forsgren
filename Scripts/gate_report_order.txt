@@ -13,12 +13,21 @@
 #   secret-class = a failure blocks commit as well as push
 #   empty        = ordinary quality failure
 #
-# Ported from konenki-website 2026-10-01 (forsgren#1, ladder steps 1 to 3;
-# the npm rows in step 7; HTMLHint, Stylelint and lint coverage in step 8;
-# the required-pages rows in step 9; the privacy rows in step 10; the HTML
-# duplication rows in step 11; shellcheck, yamllint and stray tracked files
-# in step 12; script references, from MenoPower, in step 13; gate wiring,
-# quality trigger scope and quality-report render with CI in step 14).
+# Ported from konenki-website 2026-10-01 and grown over the forsgren#1
+# bootstrap ladder (25 steps, closed 2026-10-02): the sfl and FBP rows, the
+# build-site and Go-test and gofmt rows in steps 1 and 2; the secret scan in
+# step 3; the tool-install and Go-toolchain-pin self-tests in step 4; the
+# data guard in step 6; the npm rows in step 7; HTMLHint,
+# Stylelint and lint coverage in step 8; the required-pages rows in step 9;
+# privacy posture, the privacy-pages n/a rows and repository links in step
+# 10; the HTML duplication rows in step 11; shellcheck, yamllint and stray
+# tracked files in step 12; script references, from MenoPower, in step 13;
+# gate wiring, quality trigger scope and quality-report render with CI in
+# step 14; workflow triggers in step 16; checkout pins in step 17;
+# actionlint in step 18; zizmor in step 19; Go lint and Go test duplication
+# in step 20; Go file length in step 21; Go coverage in step 22; go mod
+# tidy, Go vulnerabilities and Go dead code in step 23. Each row's comment
+# below names its step.
 # sfl.sh dispatches every gate FROM this file, in file order, filtered by the
 # phase field, so the labels it prints are the labels declared here.
 # CI does the same: .github/workflows/quality.yml runs this file through
@@ -33,12 +42,13 @@
 # canon (web-infra/Scripts/check_site_gate_parity.sh, DEFAULT_CANON), so
 # forsgren's report reads like the other sites'. Only the rows whose scripts
 # exist are here, plus the two privacy-pages rows, declared `n/a` with their
-# reason as coachretreat-website and agilelean-website declare them: each
-# later step of the forsgren#1 ladder adds its own rows at their canon
-# position. Rows that are not canon (build site, Go tests, gofmt, the FBP
-# fixtures, repository links) sit where konenki-website puts its own extras:
-# the build-site self-test after the pull contract, the FBP fixtures after the
-# step table.
+# reason as coachretreat-website and agilelean-website declare them: a new
+# gate adds its rows at their canon position. Rows that are not canon (build
+# site, the data guard, the Go rows, the FBP fixtures, workflow triggers,
+# zizmor, script references, repository links) sit where konenki-website puts
+# its own extras, or right beside the canon row they extend, each saying
+# which: the build-site self-test after the pull contract, the FBP fixtures
+# after the step table.
 #
 # Checker SELF-TESTS run before the gate they validate, and belong in pre
 # even when the checker they exercise belongs in post: a green from a
@@ -195,7 +205,8 @@ Go tests|Scripts/check_go_tests.sh|pre|
 # coverage_thresholds.json, an unregistered one is red, and a floor below
 # measured - 0.1 (100.0 at 100%) is counted into one FLOORWARN line that
 # never gates. It reads the profile the Go tests row wrote, so it runs no
-# test of its own and must stay right behind that row. The self-test is
+# test of its own and must stay behind that row, with only its own
+# self-test between them. The self-test is
 # forsgren's own, in bash (MenoPower's test_check_coverage.py pins only its
 # total recomputation and its FLOORWARN line), with three mutation proofs.
 # Repository source, so both run in pre, self-test first.

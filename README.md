@@ -73,6 +73,56 @@ line, never the name it matched.
 Untracked files are not checked, so `git add` (or `git add -N`) a new file
 before running the gates.
 
+## Running forsgren
+
+Today forsgren renders one placeholder page; reading GitHub (`collect`) and
+the history file come next, after the bootstrap. There is no release yet,
+so it is built from this repository:
+
+```
+./Scripts/build_site.sh            # builds .build/bin/forsgren, renders .build/site
+.build/bin/forsgren render --out <dir>
+```
+
+`forsgren render --out <dir>` writes the site (every page plus
+`styles.css`) into `<dir>`, creating it when needed, and exits 0; 1 when
+the render failed, 2 on a usage error. Once forsgren is released it is
+installed with `go install github.com/yveshanoulle/forsgren/cmd/forsgren@<version>`
+and an installation pins that version.
+
+## Working on forsgren
+
+**`./FBP.sh "<message>"`** (FBP = FullBuildAndPush) is the one command for a
+change: `gofmt -w` over the Go files, `./sfl.sh pre`, `Scripts/build_site.sh`,
+`./sfl.sh post`, then `git add -A`, a commit, and a push only when every
+phase is green. An ordinary red still commits locally, with the subject
+`*** RED ****` and the message in the body, so work is never lost, and
+skips the push. A secret-class red (the secret scan or the data guard)
+commits nothing at all. `./FBP.sh --no-commit` runs the gates and the build
+only. Its closing summary prints the message, one row per phase with the
+gate counts and the page count, and every failure's reason.
+
+**`./sfl.sh pre|post`** runs one phase of the gates. Before PRE it runs
+`git pull --ff-only` and stops (exit 3) when that cannot fast-forward, then
+installs the tools (see Installing and updating), runs `npm ci` when the
+npm linters are missing, and exports the Go pin. It runs every gate of the
+phase even after a failure, prints a step table and an `Errors:` block with
+each failed gate's reason, and exits 0 green, 1 red, 2 on a secret-class
+red.
+
+**`Scripts/gate_report_order.txt`** declares every gate, one row
+`<label>|<script>|<phase>|<class>`: the label sfl and CI print, the script
+that runs, `pre` or `post`, and `secret-class` or nothing. A gate this repo
+does not have is a row `<label>|n/a|<reason>`. sfl and CI both run the
+rows in file order, so the file is the one list.
+
+**Adding a gate:** write the script and its self-test (`Scripts/test_*.sh`,
+red first, plus a mutation proof), give each a row at its position in the
+order file (the self-test in PRE, before its gate), add any Homebrew tool
+it needs to `Scripts/required_tools.txt`, and describe it below.
+`Scripts/test_sfl_drives_from_order_file.sh` is red on a `Scripts/test_*.sh`
+no row declares, and the gate-wiring gate on a script neither runner runs.
+
 ## Quality gates
 
 `./FBP.sh` runs the gates in two phases around the build: `./sfl.sh pre`
@@ -81,6 +131,18 @@ renders the site into `.build/site`, and `./sfl.sh post` checks that
 generated output. `Scripts/gate_report_order.txt` declares every gate, its
 phase and its order; a gate's self-test always runs in PRE, before the gate
 it validates.
+
+Two PRE gates come first and are secret-class, so a finding blocks the
+commit itself:
+
+- **secret scan** (`Scripts/check_secrets.sh`, the estate's gitleaks gate):
+  gitleaks over the working tree, before anything is staged, under `.gitleaks.toml`
+  (the default rules, with `${{ secrets.NAME }}` references allowed, since
+  they are names, not values). Red, never skipped, when gitleaks is
+  missing. Its self-test (`Scripts/test_check_secrets.sh`) plants a key and
+  shows it caught.
+- **data guard** (`Scripts/check_data_guard.sh`): see Where configuration
+  and data live.
 
 One PRE gate checks the page templates themselves:
 
@@ -92,7 +154,19 @@ One PRE gate checks the page templates themselves:
   number. Red on a run that scanned zero `.html` files. jscpd is pinned like
   the linters below.
 
-Seven PRE gates check the Go code, beside `go test` and `gofmt`:
+Two PRE gates run the Go tests and the formatting:
+
+- **Go tests** (`Scripts/check_go_tests.sh`): `go test ./...` over the
+  module. Red on a failing test, on a run that found no test at all, and
+  on a package under `node_modules` (go.mod's `ignore node_modules` is what
+  keeps npm's vendored Go out of `./...`; this is its guard). A green run
+  leaves the coverage profile the Go coverage gate reads.
+- **gofmt** (`Scripts/check_gofmt.sh`): check-only, `gofmt -l` over every
+  Go file git tracks or would add; red naming each unformatted file, and on
+  no Go file found. `./FBP.sh` runs the same script with `--fix` before the
+  gates, so locally it sees a formatted tree; CI never fixes.
+
+Seven more PRE gates check the Go code:
 
 - **go mod tidy** (`Scripts/check_go_mod_tidy.sh`, MenoPower's check made
   check-only): red when `go.mod` or `go.sum` is not what `go mod tidy`
@@ -106,10 +180,12 @@ Seven PRE gates check the Go code, beside `go test` and `gofmt`:
   rewrite.
 - **Go lint** (`Scripts/check_go_lint.sh`, MenoPower's): golangci-lint
   over the module under `.golangci.yml`, ported from MenoPower `shared/`,
-  its strictest module: govet, errcheck, staticcheck, gosec, revive, dupl
+  its strictest module: govet, errcheck, staticcheck, gosec, dupl
   (80 tokens), funlen (60 lines, 40 statements), lll (120), gocognit (10)
   and gocyclo (above 6 is red), plus the gofmt and goimports formatters,
-  test code included. No issue cap, so every finding is listed. Unlike
+  test code included. revive is enabled too but runs no rule: the config's
+  one entry, which disables `exported`, replaces revive's default rule set
+  (as in MenoPower; an open point on forsgren#1). No issue cap, so every finding is listed. Unlike
   `shared/`, gosec's G101 (a hardcoded credential) is not excluded. A
   finding is fixed in the code: an exclusion or `//nolint` needs Yves's
   approved issue. Red on a module with no Go package, and when golangci-lint
@@ -505,10 +581,50 @@ npm install --save-dev --save-exact stylelint@17.15.0
 
 That one command rewrites the pin in `package.json`, re-resolves
 `package-lock.json` and updates `node_modules/` (sfl's `npm ci` runs only when
-`node_modules` has no htmlhint, so it would not pick a bump up on its own).
+`node_modules` has no htmlhint or no jscpd, so it would not pick a bump up on
+its own; forsgren#2 tracks reinstalling on a lockfile change).
 Check that `package.json` still shows an exact version, and commit both files.
+
+## The tooling's own fixtures
+
+The rest of the PRE rows test the build and gate tooling itself, so a
+broken runner cannot report green:
+
+- **sfl pull contract** (`Scripts/test_sfl_pull.sh`): sfl pulls with
+  `--ff-only` and stops with exit 3, naming the recovery command, when it
+  cannot fast-forward.
+- **npm manifest policy self-test**, **npm-audit self-test** and the other
+  `... self-test` rows: each drives its gate on made-up input before the
+  gate runs.
+- **tool install self-test** (`Scripts/test_install_tools.sh`): the
+  installer installs a missing tool, upgrades a present one, and is red when
+  Homebrew reports success but the tool is still not runnable, or the list
+  is empty.
+- **Go toolchain pin self-test** (`Scripts/test_go_toolchain.sh`):
+  `Scripts/go_toolchain.sh` prints go.mod's `toolchain` version and is red
+  without one.
+- **build-site self-test** (`Scripts/test_build_site.sh`): the build
+  compiles the binary, renders the site and writes the page count only on
+  full success.
+- **gate-failure summary**, **step table**
+  (`Scripts/test_summarize_gate_failure.sh`,
+  `Scripts/test_render_step_table.sh`): sfl's end-of-run reason lines and
+  step table, with their counts.
+- **sfl drives from the order file**
+  (`Scripts/test_sfl_drives_from_order_file.sh`): sfl names no gate label
+  itself, every row names an executable script, every `Scripts/test_*.sh`
+  is declared by a row, and the secret scan and the data guard carry
+  `secret-class`.
+- **FullBuildAndPush commit-message block** and **FullBuildAndPush
+  build-site page count** (`Scripts/test_fbp_commit_message.sh`,
+  `Scripts/test_fbp_build_pagecount.sh`): the real `FBP.sh`, run in a
+  throwaway repository with stub gates, prints its message, reaches PRE,
+  blocks a secret-class commit with the right hint, and fails the build row
+  by name on a missing, unreadable, non-numeric or zero page count.
 
 ## Status
 
-Early. Nothing is built yet; the first work is setting up the repository's
-build and quality tooling. Private for now, possibly open source later.
+The bootstrap is done (forsgren#1, 2026-10-02): the build, the gates, CI
+and these docs. forsgren itself renders one placeholder page; reading
+GitHub, the history file and the charts come next, then a template
+repository for installations. Private for now, possibly open source later.

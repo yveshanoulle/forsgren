@@ -4,7 +4,9 @@ set -euo pipefail
 # Validates internal/page/required-pages.json — the release's declaration of which pages
 # it must serve.
 #
-# The manifest ships inside the release artifact, and promotion to live reads it
+# The paragraph below is konenki-website's, where this validator comes from;
+# forsgren has no release or promotion yet (see the forsgren note further
+# down). The manifest ships inside the release artifact, and promotion to live reads it
 # from the promoted release to decide what to verify over HTTP. A malformed
 # manifest would therefore turn promotion into an ambiguous partial check that
 # still reports success, which is the weak verification this arc exists to
@@ -23,7 +25,8 @@ set -euo pipefail
 # internal/page/required-pages.json, where forsgren keeps its hand-authored
 # manifest beside the templates; forsgren commits no generated site, so there
 # is no Site/ to hold it. That path, here and in the first line of this
-# header, is the only change from konenki-website's copy. forsgren has no
+# header, and the note that the release paragraph is konenki's, are the only
+# changes from konenki-website's copy. forsgren has no
 # release or promotion yet: until it does, the manifest is what
 # Scripts/test_required_pages_covers_site.sh holds the generated site to.
 MANIFEST="${1-internal/page/required-pages.json}"

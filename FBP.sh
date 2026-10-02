@@ -305,6 +305,8 @@ PRE_COUNTS="$(sfl_counts)"
 #   0 = green
 #   1 = ordinary quality red
 #   2 = secret-class red
+#   3 = the opening pull could not fast-forward; sfl ran no gate. Not handled
+#       specially here (yet): it reads as an ordinary red below.
 #
 # An ordinary red continues through build and POST. A secret-class red is
 # different: nothing derived from that tree should be generated or committed.
