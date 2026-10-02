@@ -92,8 +92,18 @@ One PRE gate checks the page templates themselves:
   number. Red on a run that scanned zero `.html` files. jscpd is pinned like
   the linters below.
 
-Four PRE gates check the Go code, beside `go test` and `gofmt`:
+Seven PRE gates check the Go code, beside `go test` and `gofmt`:
 
+- **go mod tidy** (`Scripts/check_go_mod_tidy.sh`, MenoPower's check made
+  check-only): red when `go.mod` or `go.sum` is not what `go mod tidy`
+  would write, a require missing or unneeded, a `go.sum` line missing or
+  stale, with the diff tidy would apply. It runs `go mod tidy -diff`, so it
+  never rewrites either file; the fix is `go mod tidy`, committed with the
+  change that needed it. Red, as a tool error, when tidy could not run (a
+  `go.mod` it cannot parse, a module it cannot fetch). Its self-test
+  (`Scripts/test_check_go_mod_tidy.sh`) runs offline and shows, by
+  mutation, that `-diff` is what makes the gate red instead of a silent
+  rewrite.
 - **Go lint** (`Scripts/check_go_lint.sh`, MenoPower's): golangci-lint
   over the module under `.golangci.yml`, ported from MenoPower `shared/`,
   its strictest module: govet, errcheck, staticcheck, gosec, revive, dupl
@@ -140,9 +150,30 @@ Four PRE gates check the Go code, beside `go test` and `gofmt`:
   each of those cases and, by mutation, that the floor comparison, the 0.1
   buffer and the Go-tests gate's removal of a red run's profile are what
   decide them.
+- **Go vulnerabilities** (`Scripts/check_govulncheck.sh`, MenoPower's):
+  govulncheck over the module, red when the code reaches a symbol the Go
+  vulnerability database lists, naming each entry. When the database does
+  not answer (`curl -sf --max-time 5 https://vuln.go.dev/index/db.json`
+  fails: offline, refused, a timeout, an HTTP error) the check is skipped,
+  as in MenoPower: one `⚠️ SKIP: govulncheck did not run` line naming the
+  database, a `::warning::` in GitHub Actions, exit 0, and never the `OK`
+  line of a pass. `FORSGREN_VULN_DB` points it at another database. Its
+  self-test (`Scripts/test_check_govulncheck.sh`) runs offline against a
+  database it writes, with one made-up entry, and shows a call to the listed
+  symbol red, an unreachable database a skip and, by mutation, that the
+  probe is what makes offline a skip rather than a tool error.
+- **Go dead code** (`Scripts/check_deadcode.sh`, MenoPower's): `deadcode
+  -test ./...`, red on any function, exported or not, that neither a main
+  package nor a test reaches, each named with its file and line. The fix is
+  to delete it, never to call it from a test to keep it alive. Red on a
+  module with no main package and when deadcode could not run (a module that
+  does not compile). Its self-test (`Scripts/test_check_deadcode.sh`) shows
+  both kinds of dead function red, a test-only helper green and, by
+  mutation, that `-test` is what keeps it green.
 
-The first two run the golangci-lint pinned in `go.mod` (see Installing and
-updating).
+Go lint, Go test duplication, Go vulnerabilities and Go dead code run the
+golangci-lint, govulncheck and deadcode pinned in `go.mod` (see Installing
+and updating).
 
 Seven PRE gates read the repository's own scripts and files:
 
@@ -424,20 +455,24 @@ nothing else, then run `./FBP.sh`. Go downloads the new toolchain on the first
 run. Do not set the version anywhere else: `go.mod` is the only place it is
 written.
 
-**The Go tools are pinned in `go.mod` too.** golangci-lint is a `tool` line
-in `go.mod`, with every module it pulls in checksummed in `go.sum`, and the
-gates run it as `go tool golangci-lint` (Go builds it once and caches it), so
-CI and every machine run the same version. It is never a Homebrew tool:
-Homebrew has no lockfile. To move it to a new version:
+**The Go tools are pinned in `go.mod` too.** golangci-lint, deadcode
+(`golang.org/x/tools`) and govulncheck (`golang.org/x/vuln`) are `tool`
+lines in `go.mod`, with every module they pull in checksummed in `go.sum`,
+and the gates run them through `go tool` (Go builds each once and caches
+it), so CI and every machine run the same versions. They are never Homebrew
+tools, and never `go install ...@latest`: neither has a lockfile. To move
+one to a new version:
 
 ```
 go get -tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
+go get -tool golang.org/x/tools/cmd/deadcode@v0.50.0
+go get -tool golang.org/x/vuln/cmd/govulncheck@v1.8.0
 go mod tidy
 ```
 
-then run `./FBP.sh` and commit `go.mod` and `go.sum` together. A new
-golangci-lint can bring new findings; they are fixed in the code like any
-other.
+then run `./FBP.sh` and commit `go.mod` and `go.sum` together (the go mod
+tidy gate is red when the `go mod tidy` is forgotten). A new version can
+bring new findings; they are fixed in the code like any other.
 
 **The npm linters are pinned in `package.json`.** Node itself (and with it
 `npm`) is a Homebrew tool from `Scripts/required_tools.txt`, so like Go it

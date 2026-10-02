@@ -172,10 +172,14 @@ html duplication, generated page|Scripts/check_html_dupl_site.sh|post|
 gate wiring|Scripts/test_gate_wiring.sh|pre|
 #
 # go mod tidy (forsgren#1, ladder step 23). Not canon: MenoPower's tidy
-# check, made check-only with `go mod tidy -diff`, first of the Go rows
-# because every later one reads go.mod. The self-test is forsgren's own,
-# offline, with a mutation proof. Repository source, so it runs in pre.
+# check (CI and Makefiles: `go mod tidy`, then git status on go.mod and
+# go.sum), made check-only with `go mod tidy -diff`, so a red is never a
+# silent rewrite that rides into the commit. First of the Go rows, because
+# every later one reads go.mod. The self-test is forsgren's own, offline
+# (GOPROXY=off, a replaced fixture dependency), with a mutation proof.
+# Repository source, so both run in pre, self-test first.
 go mod tidy self-test|Scripts/test_check_go_mod_tidy.sh|pre|
+go mod tidy|Scripts/check_go_mod_tidy.sh|pre|
 #
 # go test ./... over the module. Red on a failing test AND on zero tests
 # found: a green over nothing measured is the false clean this gate exists
@@ -231,13 +235,21 @@ Go file length self-test|Scripts/test_check_file_length.sh|pre|
 Go file length|Scripts/check_file_length.sh|pre|
 #
 # Go vulnerabilities and Go dead code (forsgren#1, ladder step 23). Not
-# canon: MenoPower's govulncheck and `deadcode -test` checks, in MenoPower's
-# order, beside the other Go rows. Each self-test is forsgren's own (no repo
-# of the estate has one), with a mutation proof; the vulnerability one runs
-# offline against a database it writes. Repository source, so they run in
-# pre.
+# canon: MenoPower's govulncheck and `deadcode -test ./...` checks, in
+# MenoPower's order, beside the other Go rows. Both tools are pinned by
+# go.mod's `tool` lines plus go.sum and run through `go tool` (Yves's
+# ruling), where MenoPower installs them `@latest`. govulncheck skips, as in
+# MenoPower, when its database does not answer: a ⚠️ SKIP line and exit 0,
+# never the OK line of a pass (offline = `curl -sf --max-time 5` on
+# <db>/index/db.json fails). deadcode is red on any function neither main
+# nor a test reaches. Each self-test is forsgren's own (no repo of the
+# estate has one), with a mutation proof; the vulnerability one runs
+# offline against a database it writes. Repository source, so all four run
+# in pre, each self-test right before its gate.
 Go vulnerabilities self-test|Scripts/test_check_govulncheck.sh|pre|
+Go vulnerabilities|Scripts/check_govulncheck.sh|pre|
 Go dead code self-test|Scripts/test_check_deadcode.sh|pre|
+Go dead code|Scripts/check_deadcode.sh|pre|
 #
 # actionlint (forsgren#1, ladder step 18), at its canon position after the
 # gate-wiring row and before shellcheck (the non-canon Go rows above sit
