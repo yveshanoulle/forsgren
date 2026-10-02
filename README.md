@@ -93,13 +93,18 @@ and an installation pins that version.
 ## Working on forsgren
 
 **`./FBP.sh "<message>"`** (FBP = FullBuildAndPush) is the one command for a
-change: `gofmt -w` over the Go files, `./sfl.sh pre`, `Scripts/build_site.sh`,
+change: 
+
+`gofmt -w` over the Go files, `./sfl.sh pre`, `Scripts/build_site.sh`,
 `./sfl.sh post`, then `git add -A`, a commit, and a push only when every
-phase is green. An ordinary red still commits locally, with the subject
+phase is green. 
+An ordinary red still commits locally, with the subject
 `*** RED ****` and the message in the body, so work is never lost, and
-skips the push. A secret-class red (the secret scan or the data guard)
+skips the push. 
+A secret-class red (the secret scan or the data guard)
 commits nothing at all. `./FBP.sh --no-commit` runs the gates and the build
-only. Its closing summary prints the message, one row per phase with the
+only. 
+Its closing summary prints the message, one row per phase with the
 gate counts and the page count, and every failure's reason.
 
 **`./sfl.sh pre|post`** runs one phase of the gates. Before PRE it runs
