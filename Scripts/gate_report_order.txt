@@ -171,6 +171,12 @@ html duplication, generated page|Scripts/check_html_dupl_site.sh|post|
 # in its own phase. Repository source, so it runs in pre.
 gate wiring|Scripts/test_gate_wiring.sh|pre|
 #
+# go mod tidy (forsgren#1, ladder step 23). Not canon: MenoPower's tidy
+# check, made check-only with `go mod tidy -diff`, first of the Go rows
+# because every later one reads go.mod. The self-test is forsgren's own,
+# offline, with a mutation proof. Repository source, so it runs in pre.
+go mod tidy self-test|Scripts/test_check_go_mod_tidy.sh|pre|
+#
 # go test ./... over the module. Red on a failing test AND on zero tests
 # found: a green over nothing measured is the false clean this gate exists
 # to prevent. It also writes the coverage profile the Go coverage row reads
@@ -223,6 +229,15 @@ Go test duplication|Scripts/check_test_dupl.sh|pre|
 # first.
 Go file length self-test|Scripts/test_check_file_length.sh|pre|
 Go file length|Scripts/check_file_length.sh|pre|
+#
+# Go vulnerabilities and Go dead code (forsgren#1, ladder step 23). Not
+# canon: MenoPower's govulncheck and `deadcode -test` checks, in MenoPower's
+# order, beside the other Go rows. Each self-test is forsgren's own (no repo
+# of the estate has one), with a mutation proof; the vulnerability one runs
+# offline against a database it writes. Repository source, so they run in
+# pre.
+Go vulnerabilities self-test|Scripts/test_check_govulncheck.sh|pre|
+Go dead code self-test|Scripts/test_check_deadcode.sh|pre|
 #
 # actionlint (forsgren#1, ladder step 18), at its canon position after the
 # gate-wiring row and before shellcheck (the non-canon Go rows above sit
