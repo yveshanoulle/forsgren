@@ -32,8 +32,9 @@
 # from the job context through env: only, its checks executed there against
 # good and bad commits and repositories, setup-go on go.mod's toolchain
 # before it, the caller's checkout pinned by commit without persisted
-# credentials, and the config check, executed there, between install and
-# render.
+# credentials, and the config check, executed there with a stub and with the
+# real forsgren, between install and render, its message never run as a
+# workflow command.
 name: Metrics
 
 on:
@@ -130,16 +131,25 @@ jobs:
       # in one line whether it is valid. A missing or invalid file fails the
       # job here, before anything is rendered or published, with
       # check-config's message in the log and, after a cross mark, in the
-      # run's step summary. Inline: forsgren's scripts are not on the runner,
-      # and Scripts/test_metrics_workflow.sh executes this block.
+      # run's step summary. The message can quote the file, so it reaches
+      # the log with workflow commands stopped (forsgren#9): between
+      # ::stop-commands::<token> and ::<token>::, under a token drawn fresh
+      # from /dev/urandom on every run, a line of it that starts with :: is
+      # shown and never run, and the file cannot know the token to turn
+      # commands back on. Inline: forsgren's scripts are not on the runner,
+      # and Scripts/test_metrics_workflow.sh executes this block, with a stub
+      # forsgren and with the real one.
       - name: Check the caller's forsgren configuration
         shell: bash
         run: |
           set -euo pipefail
-          if message="$(forsgren check-config --config forsgren.config.yml 2>&1)"; then
-            printf '%s\n' "$message"
-          else
-            printf '%s\n' "$message"
+          token="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+          status=0
+          message="$(forsgren check-config --config forsgren.config.yml 2>&1)" || status=$?
+          echo "::stop-commands::${token}"
+          printf '%s\n' "$message"
+          echo "::${token}::"
+          if [[ "$status" -ne 0 ]]; then
             printf '%s\n' "❌ ${message}" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi

@@ -120,7 +120,8 @@ commit. Neither is configured per repository in version 1.
 Any other key is refused, as is a value of the wrong kind or a second YAML
 document in the file, so a typo never silently does nothing. Every refusal
 names the file, the project and repository it is in (or the line, for a
-YAML error) and what to write instead.
+YAML error) and what to write instead, on one line: a line break in a key
+or value it quotes is written as `\n`.
 
 Check a config without rendering anything:
 
@@ -196,7 +197,9 @@ jobs:
   forsgren.config.yml` on the file at the repository root, before it renders
   anything. A missing or invalid file fails the job with check-config's
   message in the log and in the run's summary, after a cross mark, and
-  nothing is published from it. The checkout needs only the `contents:
+  nothing is published from it. The message can quote the file, so the log
+  shows it with workflow commands stopped: a line of it that starts with
+  `::` is printed, never run. The checkout needs only the `contents:
   read` the caller already grants.
 - **The three permissions are the caller's to grant.** A called workflow
   can only keep or narrow what its caller's job grants: `pages: write` and
@@ -663,15 +666,20 @@ is the reusable workflow a data repository calls daily (see Running
 forsgren). It triggers on `workflow_call` only, so it never runs in this
 repository and no pull request can start it. Its one job runs on
 `ubuntu-latest`, in the caller's repository and with the caller's token,
-checks nothing out, and asks for `pages: write`, `id-token: write` and
-`contents: read` (a top-level `permissions: {}` gives the workflow nothing
-else). It takes no inputs: the caller's `uses: …/metrics.yml@<commit>`
-line is the only version. Its steps: set up Go (`actions/setup-go` on
-exactly `go.mod`'s toolchain, `cache: false`), check its own
-`job.workflow_sha` is a full 40-digit commit and its own
-`job.workflow_repository` one `owner/name`, then
+checks out the caller's repository only (never forsgren's), and asks for
+`pages: write`, `id-token: write` and `contents: read` (a top-level
+`permissions: {}` gives the workflow nothing else). It takes no inputs: the
+caller's `uses: …/metrics.yml@<commit>` line is the only version. Its
+steps: set up Go (`actions/setup-go` on exactly `go.mod`'s toolchain,
+`cache: false`), check its own `job.workflow_sha` is a full 40-digit commit
+and its own `job.workflow_repository` one `owner/name`, then
 `go install github.com/<that repository>/cmd/forsgren@<that commit>`,
-`forsgren render`, then `actions/upload-pages-artifact` and
+check out the caller's repository (`actions/checkout`, pinned at Quality's
+commit, `persist-credentials: false`), `forsgren check-config --config
+forsgren.config.yml` (its message printed between
+`::stop-commands::<token>` and `::<token>::`, a fresh random token per
+run, so a line of it that starts with `::` never runs as a workflow
+command), `forsgren render`, then `actions/upload-pages-artifact` and
 `actions/deploy-pages` into the `github-pages` environment. The job
 context, not the `github` context: in a called workflow the `github`
 context is the caller's. `setup-go` exports `GOTOOLCHAIN=local`, so
@@ -735,8 +743,18 @@ Six PRE gates keep the CI honest:
   capitals, surrounding spaces, a trailing `;id` or newline, empty) and any
   repository that is not one `owner/name`; `actions/setup-go` comes before
   that step and installs exactly `go.mod`'s toolchain, so a toolchain bump
-  in `go.mod` without one here is red. Each pin is shown failing, with its
-  own reason, on a mutant of the real file.
+  in `go.mod` without one here is red; the step "Check out the caller's
+  repository" uses `actions/checkout` at the commit Quality's checkout
+  uses, with `persist-credentials: false`; the step "Check the caller's
+  forsgren configuration", executed with a stub `forsgren`, runs exactly
+  `forsgren check-config --config forsgren.config.yml`, fails the job on a
+  refusal with the message in the log and after a cross mark in the step
+  summary, and leaves no line of the message that starts with `::` live as a
+  workflow command, under a token that differs per run; the same step,
+  executed with the real `forsgren` built from the checkout, is refused for
+  a missing and an invalid `forsgren.config.yml` and passes a valid one;
+  and install, checkout, config check and render come in that order. Each
+  pin is shown failing, with its own reason, on a mutant of the real file.
 - **quality-report render** (`Scripts/test_render_quality_report.sh`): the
   summary renderer (`Scripts/render_quality_report.sh`) keeps the declared
   order, exits 0 on a report it rendered, tells an empty or partial run from

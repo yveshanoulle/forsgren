@@ -8,7 +8,8 @@ import (
 )
 
 // toConfig turns the file as written into a Config, or names the first
-// mistake in it, in file order.
+// mistake in it: the version first, wherever it stands in the file, then
+// the projects and their repositories in file order.
 func (f fileConfig) toConfig() (Config, error) {
 	if err := checkVersion(f.Version); err != nil {
 		return Config{}, err

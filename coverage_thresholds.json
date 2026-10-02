@@ -1,6 +1,6 @@
 {
   "_comment": "Minimum coverage per Go function, read by Scripts/check_coverage.sh. Floors never go down: a new function is registered at 0.0, and each floor is raised to its measured value - 0.1, or 100.0 at 100%.",
-  "total": 97.0,
+  "total": 97.1,
   "functions": {
     "github.com/yveshanoulle/forsgren/cmd/forsgren/main.go:main": 0.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/main.go:run": 100.0,
@@ -13,6 +13,7 @@
     "github.com/yveshanoulle/forsgren/internal/config/config.go:parse": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/config.go:decode": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/config.go:syntaxError": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/config.go:ownerWords": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:toConfig": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:checkVersion": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:claimProject": 100.0,

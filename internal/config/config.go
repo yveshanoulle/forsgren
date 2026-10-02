@@ -25,6 +25,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -171,20 +172,38 @@ func decode(data []byte) (fileConfig, error) {
 	return file, nil
 }
 
+// The YAML library's wordings of one reason, matched across line breaks: a
+// key or a value in the file can hold one, a space or a semicolon.
 var (
-	unknownKey = regexp.MustCompile(`field ([^\s;]+) not found in type [^\s;]+`)
-	wrongKind  = regexp.MustCompile(`cannot unmarshal (!!\w+) (.*?) into [^\s;]+`)
+	unknownKey = regexp.MustCompile(`(?s)field (.+) not found in type [^\s;]+`)
+	wrongKind  = regexp.MustCompile(`(?s)cannot unmarshal (!!\w+) (.*) into [^\s;]+`)
 )
 
 // syntaxError words a YAML library error for the owner of the file: its line
-// numbers kept, the Go type names it mentions dropped.
+// numbers kept, the Go type names it mentions dropped, and on one line, a
+// line break the file put in it written as \n. check-config prints it into
+// a workflow log, where a line that starts with :: would run as a workflow
+// command (forsgren#9).
 func syntaxError(err error) error {
-	msg := strings.TrimPrefix(err.Error(), "yaml: ")
+	reasons := []string{strings.TrimPrefix(err.Error(), "yaml: ")}
 	var typeErr *yaml.TypeError
 	if errors.As(err, &typeErr) {
-		msg = strings.Join(typeErr.Errors, "; ")
+		reasons = typeErr.Errors
 	}
-	msg = unknownKey.ReplaceAllString(msg, `unknown key "$1"`)
-	msg = wrongKind.ReplaceAllString(msg, "cannot use $1 $2 here")
+	worded := make([]string, len(reasons))
+	for i, reason := range reasons {
+		worded[i] = ownerWords(reason)
+	}
+	msg := strings.Join(worded, "; ")
+	msg = strings.ReplaceAll(strings.ReplaceAll(msg, "\r", `\r`), "\n", `\n`)
 	return fmt.Errorf("%w: %s", ErrSyntax, msg)
+}
+
+// ownerWords rewords one reason of the YAML library without Go's type names:
+// an unknown key, quoted as Go quotes a string, and a value of the wrong kind.
+func ownerWords(reason string) string {
+	if m := unknownKey.FindStringSubmatch(reason); m != nil {
+		return strings.Replace(reason, m[0], "unknown key "+strconv.Quote(m[1]), 1)
+	}
+	return wrongKind.ReplaceAllString(reason, "cannot use $1 $2 here")
 }

@@ -87,7 +87,8 @@
 # and checks out the CALLER's repository, never forsgren: forsgren's scripts
 # are not on the runner. Fetching one would mean checking out forsgren at the
 # very commit the install step has not checked yet. The install checks are
-# two regex tests and the config check is one command and one write, and
+# two regex tests and the config check is one command, its output between
+# the two lines that stop and resume workflow commands, and one write, and
 # pins 5, 8, 10 and 11 execute those very blocks, so they are tested where
 # they live.
 #
@@ -532,7 +533,7 @@ if [[ -n "$verdict" ]]; then
     [[ -n "$line" ]] && fail "${WF} ${line}"
   done <<< "$verdict"
 else
-  echo "  ok: ${WF} is a workflow_call with no inputs that installs forsgren from its own job.workflow_repository at its own job.workflow_sha, both checked before go install, through env: only, built with go.mod's Go, after the caller's pinned checkout and a config check that fails the job with check-config's message before render"
+  echo "  ok: ${WF} is a workflow_call with no inputs that installs forsgren from its own job.workflow_repository at its own job.workflow_sha, both checked before go install, through env: only, built with go.mod's Go, after the caller's pinned checkout and a config check that fails the job with check-config's message before render, with the real forsgren too, and never runs that message as a workflow command"
 fi
 
 # --- Self-proof: each pin, on a mutant of the real metrics.yml, names its reason.
@@ -608,6 +609,18 @@ proves "a config step that lets a refusal pass" "for a refused config the config
   '/- name: Check the caller/,/- name: Render/ s/exit 1/exit 0/'
 proves "a refusal without its cross mark" "for a refused config the config step gives 'exit=1 calls=${CONFIG_CMD} log=shown summary=check-config" \
   's/"❌ /"/'
+proves "workflow commands left on" "leaves them live in the log (line " \
+  '/::stop-commands::/d'
+proves "commands never resumed" "never ended" \
+  '/echo "::.{token}::"/d'
+proves "the same token on every run" "the same token on every run" \
+  's/^\( *\)token=.*$/\1token=forsgren/'
+proves "the real forsgren on another file" "with the real forsgren and no forsgren.config.yml" \
+  's/--config forsgren\.config\.yml/--config config.yml/'
+proves "a real refusal without its cross mark" "with the real forsgren and an invalid forsgren.config.yml" \
+  's/"❌ /"/'
+proves "a real valid config refused" "with the real forsgren and a valid forsgren.config.yml" \
+  's/ -ne 0 \]\]; then/ -ne 99 ]]; then/'
 
 # Whole steps removed or moved: the config step gone, the config step after
 # render (just before "Upload the page"), the install step before setup-go.
@@ -616,4 +629,4 @@ proves_moved "the config check after render" "after it renders" "$CHECK_STEP" "U
 proves_moved "the install step before setup-go" "after the install step" "$INSTALL_STEP" "Set up Go"
 
 selftest_end "metrics.yml is not the reusable workflow forsgren#4 rules" \
-  "metrics.yml runs on workflow_call only, takes no input, installs forsgren from its own job.workflow_repository at its own job.workflow_sha (each checked before go runs, a fork installing itself), passes both through env: only, and builds with go.mod's Go after setup-go (and each wrong shape is still detected)"
+  "metrics.yml runs on workflow_call only, takes no input, installs forsgren from its own job.workflow_repository at its own job.workflow_sha (each checked before go runs, a fork installing itself), passes both through env: only, builds with go.mod's Go after setup-go, and checks the caller's config before render, with the real forsgren too, its message never run as a workflow command (and each wrong shape is still detected)"
