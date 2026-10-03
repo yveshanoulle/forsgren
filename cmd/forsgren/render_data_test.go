@@ -89,7 +89,9 @@ func wantGolden(t *testing.T, golden string, extra ...string) string {
 }
 
 // TestRenderShowsDeploymentFrequency (forsgren#12, step 7): with --config
-// and --data the page shows each project's numbers, in config order.
+// and --data the page shows each project's numbers, in config order. No
+// commits file next to the history is no commit (forsgren#16, step 5): a
+// project with deployments says "No lead time yet".
 func TestRenderShowsDeploymentFrequency(t *testing.T) {
 	pinNow(t)
 	wantGolden(t, "index.frequency.golden.html",
@@ -140,17 +142,17 @@ func TestRenderRefusesABadHistory(t *testing.T) {
 			if err := os.WriteFile(path, []byte(c.content), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			wantRefused(t, path, c.want)
+			wantRefused(t, path, path, c.want)
 		})
 	}
 }
 
-// wantRefused renders validConfig with the history at path and fails the
+// wantRefused renders validConfig with the history at data and fails the
 // test unless render exits 1, writes no page and says `render: <path>: `
-// with want in the message.
-func wantRefused(t *testing.T, path, want string) {
+// with want in the message, path being the refused file.
+func wantRefused(t *testing.T, data, path, want string) {
 	t.Helper()
-	code, stderr, index := renderWith(t, "--config", writeConfig(t, validConfig), "--data", path)
+	code, stderr, index := renderWith(t, "--config", writeConfig(t, validConfig), "--data", data)
 	if code != 1 || index != "" {
 		t.Errorf("want exit 1 and no page, got %d, %q", code, stderr)
 	}

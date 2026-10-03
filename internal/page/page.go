@@ -41,8 +41,16 @@ type Data struct {
 	// in this order (forsgren#12, step 7). The page shows their project
 	// names, numbers and dates only.
 	Frequencies []metrics.Frequency
+	// Projects is a stub of forsgren#16, step 5: not shown yet.
+	Projects []Project
 	// AsOf is the UTC date the frequencies were counted back from.
 	AsOf string
+}
+
+// Project is one project's section. Stub of forsgren#16, step 5.
+type Project struct {
+	metrics.Frequency
+	LeadTime metrics.LeadTime
 }
 
 // Placeholder is the data of the page forsgren renders before it has any

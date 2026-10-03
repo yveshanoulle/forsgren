@@ -28,18 +28,37 @@ func TestNoProjectsPageMatchesGolden(t *testing.T) {
 	checkGolden(t, "testdata/index.no-projects.golden.html", data)
 }
 
-// TestFrequencyPageMatchesGolden (forsgren#12, step 7): with frequencies
-// the page shows a section per project, in the given order, with its
-// numbers, its latest date and its band, or "No deployments recorded yet".
-func TestFrequencyPageMatchesGolden(t *testing.T) {
+// acmeProjects is the page data of two projects counted back from
+// 2026-10-03: Acme Shop with deployments and the lead time shop, Acme Tools
+// with no deployment.
+func acmeProjects(shop metrics.LeadTime) Data {
 	data := Placeholder("0.0.3")
 	data.AsOf = "2026-10-03"
 	latest := time.Date(2026, 10, 1, 9, 30, 0, 0, time.UTC)
-	data.Frequencies = []metrics.Frequency{
-		{Project: "Acme Shop", Last7: 3, Last30: 12, Latest: latest, Band: metrics.DailyToWeekly},
-		{Project: "Acme Tools"},
+	shop.Project = "Acme Shop"
+	frequency := metrics.Frequency{Project: "Acme Shop", Last7: 3, Last30: 12, Latest: latest, Band: metrics.DailyToWeekly}
+	data.Projects = []Project{
+		{Frequency: frequency, LeadTime: shop},
+		{Frequency: metrics.Frequency{Project: "Acme Tools"}, LeadTime: metrics.LeadTime{Project: "Acme Tools"}},
 	}
-	checkGolden(t, "testdata/index.frequency.golden.html", data)
+	return data
+}
+
+// TestFrequencyPageMatchesGolden (forsgren#12, step 7): with projects the
+// page shows a section per project, in the given order, with its numbers,
+// its latest date and its band, or "No deployments recorded yet"; a project
+// with deployments but no commit in the window says "No lead time yet"
+// (forsgren#16, step 5).
+func TestFrequencyPageMatchesGolden(t *testing.T) {
+	checkGolden(t, "testdata/index.frequency.golden.html", acmeProjects(metrics.LeadTime{}))
+}
+
+// TestLeadTimePageMatchesGolden (forsgren#16, step 5): a project's section
+// shows its lead time for changes, the band with the median, the count and
+// the period, next to its deployment frequency.
+func TestLeadTimePageMatchesGolden(t *testing.T) {
+	shop := metrics.LeadTime{Commits: 3, Median: 17 * time.Minute, Band: metrics.LessThanOneHour}
+	checkGolden(t, "testdata/index.leadtime.golden.html", acmeProjects(shop))
 }
 
 // TestNoDataPageMatchesGolden: projects with no deployment recorded yet
@@ -47,7 +66,10 @@ func TestFrequencyPageMatchesGolden(t *testing.T) {
 func TestNoDataPageMatchesGolden(t *testing.T) {
 	data := Placeholder("0.0.3")
 	data.AsOf = "2026-10-03"
-	data.Frequencies = []metrics.Frequency{{Project: "Acme Shop"}, {Project: "Acme Tools"}}
+	data.Projects = []Project{
+		{Frequency: metrics.Frequency{Project: "Acme Shop"}, LeadTime: metrics.LeadTime{Project: "Acme Shop"}},
+		{Frequency: metrics.Frequency{Project: "Acme Tools"}, LeadTime: metrics.LeadTime{Project: "Acme Tools"}},
+	}
 	checkGolden(t, "testdata/index.no-data.golden.html", data)
 }
 
