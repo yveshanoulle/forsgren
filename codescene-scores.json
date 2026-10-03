@@ -231,6 +231,30 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/metrics/leadband.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/leadband_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/leadtime.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/leadtime_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/page/page.go",
    "score": 10.0,
    "checkedAt": "2026-10-03",
