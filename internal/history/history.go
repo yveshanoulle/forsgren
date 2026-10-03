@@ -1,37 +1,34 @@
-// Package history is the history format v1 (forsgren#12, step 4): the file
-// data/deployments.csv in an installation's data repository, which holds the
-// deployments `forsgren collect` has found.
+// Package history is what `forsgren collect` keeps in an installation's data
+// repository: two append-only CSV files, each with its own format version.
 //
-// The file is CSV, one deployment per line. Its first line states the format
-// version, its second names the columns, and every later line is one record:
+// The deployments, data/deployments.csv (the history format v1, forsgren#12,
+// step 4), one deployment per line:
 //
 //	# forsgren history v1
 //	project,repository,kind,name,deployment_id,commit,created_at,state,task
 //	shop,acme/app,environment,production,1001,<40 hex>,2026-09-01T10:00:00Z,success,
 //
-// The file only grows: a line, once written, is never rewritten or removed.
+// The commits of each successful deployment, data/commits.csv (the commits
+// format v1, forsgren#16, step 1), one line per commit per deployment, for
+// lead time:
+//
+//	# forsgren commits v1
+//	repository,kind,deployment_id,commit,authored_at,deployed_at
+//	acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z
+//
+// In both, the first line states the format version, the second names the
+// columns, and every later line is one record. A file only grows: a line,
+// once written, is never rewritten or removed.
 package history
 
 import (
 	"errors"
 	"fmt"
-	"io/fs"
-	"os"
-	"path/filepath"
-	"strings"
 	"time"
 )
 
-const (
-	// versionLine is the first line of a v1 file; versionPrefix starts the
-	// first line of every version, so another version is told from a stranger.
-	versionLine   = "# forsgren history v1"
-	versionPrefix = "# forsgren history v"
-	// columnLine is the second line of a v1 file.
-	columnLine = "project,repository,kind,name,deployment_id,commit,created_at,state,task"
-	// timeLayout is created_at: RFC 3339, UTC, whole seconds.
-	timeLayout = "2006-01-02T15:04:05Z"
-)
+// timeLayout is every time in the files: RFC 3339, UTC, whole seconds.
+const timeLayout = "2006-01-02T15:04:05Z"
 
 // Kind says how a deployment was found: by the repository's rule.
 type Kind string
@@ -77,7 +74,8 @@ var (
 	// ErrMalformed: a line is not what the format says; the error is a
 	// *MalformedError with the line number.
 	ErrMalformed = errors.New("malformed history")
-	// ErrInvalidRecord: a record given to Append cannot be stored.
+	// ErrInvalidRecord: a record given to Append or AppendCommits cannot be
+	// stored.
 	ErrInvalidRecord = errors.New("invalid history record")
 )
 
@@ -95,54 +93,7 @@ func (e *MalformedError) Error() string {
 // Is makes errors.Is(err, ErrMalformed) true.
 func (e *MalformedError) Is(target error) bool { return target == ErrMalformed }
 
-// Load reads the history at path, in file order. A missing file is an error
-// wrapping fs.ErrNotExist; a first line stating another version is
+// Load reads the deployments at path, in file order. A missing file is an
+// error wrapping fs.ErrNotExist; a first line stating another version is
 // ErrUnknownVersion; a line that is not in the format is a *MalformedError.
-func Load(path string) ([]Record, error) {
-	data, err := os.ReadFile(filepath.Clean(path))
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
-	}
-	return parse(path, data)
-}
-
-// parse reads the content of a history file.
-func parse(path string, data []byte) ([]Record, error) {
-	lines := strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
-	if err := checkHeader(path, lines); err != nil {
-		return nil, err
-	}
-	records := make([]Record, 0, len(lines)-2)
-	for i, line := range lines[2:] {
-		rec, err := decode(line)
-		if err != nil {
-			return nil, &MalformedError{Path: path, Line: i + 3, Reason: err.Error()}
-		}
-		records = append(records, rec)
-	}
-	return records, nil
-}
-
-// checkHeader judges the version line, then the column line.
-func checkHeader(path string, lines []string) error {
-	switch {
-	case lines[0] == versionLine:
-	case isVersionLine(lines[0]):
-		return fmt.Errorf("%s: %w: %q, this forsgren reads %q", path, ErrUnknownVersion, lines[0], versionLine)
-	default:
-		return &MalformedError{Path: path, Line: 1, Reason: fmt.Sprintf("want the version line %q", versionLine)}
-	}
-	if len(lines) < 2 || lines[1] != columnLine {
-		return &MalformedError{Path: path, Line: 2, Reason: fmt.Sprintf("want the column line %q", columnLine)}
-	}
-	return nil
-}
-
-// notExist says whether err is a missing file.
-func notExist(err error) bool { return errors.Is(err, fs.ErrNotExist) }
-
-// isVersionLine says whether s states a version of the format, any number.
-func isVersionLine(s string) bool {
-	number, ok := strings.CutPrefix(s, versionPrefix)
-	return ok && number != "" && strings.Trim(number, "0123456789") == ""
-}
+func Load(path string) ([]Record, error) { return deployments.load(path) }

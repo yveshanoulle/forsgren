@@ -47,7 +47,8 @@ forsgren reads only what is already in GitHub:
 Not in this repository. It holds code only. An installation keeps its
 configuration (which repositories and services, workflow names, labels, the
 health URL) and its data (`data/deployments.csv`, the deployments fetched
-from GitHub) in a separate private data repository, made from a template, and
+from GitHub, and `data/commits.csv`, their commits) in a separate private
+data repository, made from a template, and
 passes them to forsgren as paths. Test fixtures are made up (`acme/app`) and live only
 under `testdata/`.
 
@@ -58,7 +59,7 @@ Over the files git tracks, it fails when:
 
 - a file that looks like installation config or data sits outside
   `testdata/`: anything under a top-level `data/`, `deployments.csv`,
-  `history.csv`, `*.history.csv`, `forsgren.config.*`,
+  `commits.csv`, `history.csv`, `*.history.csv`, `forsgren.config.*`,
   `forsgren-config.*`, `config.yml`/`.yaml`/`.json` at any depth, or a
   `*.jsonl` events file;
 - a fixture under `testdata/` or a test file (`*_test.go`, `test_*.sh`)
@@ -104,6 +105,28 @@ a newline if the last line lacked one. A file whose first line states another
 version, or with a line that is not in the format, is refused before anything
 is written: its bytes and modification time stay as they were, and the error
 names the line.
+
+**The commits of each deployment**, for lead time (forsgren#16), are kept
+next to it in `data/commits.csv`, with its own format version (the commits
+format v1); `data/deployments.csv` does not change:
+
+```
+# forsgren commits v1
+repository,kind,deployment_id,commit,authored_at,deployed_at
+acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z
+```
+
+- One line per commit per deployment. `repository`, `kind` and
+  `deployment_id` are the deployment's key in `deployments.csv`;
+  `authored_at` is the commit's author date and `deployed_at` the
+  deployment's `created_at`, copied so lead time needs no join. Both are UTC.
+- The project and the task are not repeated: the project comes from the
+  config, as for deployment frequency, and the task is the deployment's own.
+- The same rules as `deployments.csv`: created with its version line,
+  appended only, refused untouched when its version is unknown or a line is
+  malformed. A commit already there for the same deployment (repository
+  ignoring case, kind, ID and the same SHA) is skipped; a call with nothing
+  new leaves the file alone.
 
 ## Deployment frequency
 

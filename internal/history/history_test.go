@@ -421,7 +421,7 @@ func TestAppendDoesNotTruncateAFileThatAppearedAfterTheLook(t *testing.T) {
 	if err := os.WriteFile(path, []byte("mine"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := write(path, store{}, []Record{rec(1001, 0)}); err == nil {
+	if err := deployments.write(path, store[Record]{}, []Record{rec(1001, 0)}); err == nil {
 		t.Error("want an error for a file that is there")
 	}
 	if got := readFile(t, path); got != "mine" {

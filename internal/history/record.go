@@ -1,14 +1,24 @@
 package history
 
 import (
-	"bytes"
-	"encoding/csv"
+	"cmp"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 )
+
+// deployments is the format of data/deployments.csv, the history format v1.
+var deployments = format[Record, key]{
+	versionLine: "# forsgren history v1",
+	columnLine:  "project,repository,kind,name,deployment_id,commit,created_at,state,task",
+	decode:      toRecord,
+	encode:      Record.fields,
+	validate:    Record.validate,
+	key:         Record.key,
+	compare:     compareRecords,
+}
 
 // key identifies a deployment: the ID spaces of deployments, workflow runs
 // and releases are separate at GitHub, so the kind is part of it. The
@@ -22,71 +32,66 @@ type key struct {
 
 func (r Record) key() key { return key{strings.ToLower(r.Repository), r.Kind, r.ID} }
 
-// encode is the line of r, with its newline.
-func (r Record) encode() []byte {
-	var buf bytes.Buffer
-	w := csv.NewWriter(&buf)
-	// A csv.Writer on a bytes.Buffer cannot fail.
-	_ = w.Write([]string{
+// compareRecords orders new lines by created-at, then ID (then repository
+// and kind, so the order is total).
+func compareRecords(a, b Record) int {
+	return cmp.Or(a.CreatedAt.Compare(b.CreatedAt), cmp.Compare(a.ID, b.ID),
+		cmp.Compare(a.Repository, b.Repository), cmp.Compare(a.Kind, b.Kind))
+}
+
+// fields are the columns of r's line.
+func (r Record) fields() []string {
+	return []string{
 		r.Project, r.Repository, string(r.Kind), r.Name, strconv.FormatInt(r.ID, 10), r.Commit,
 		r.CreatedAt.UTC().Format(timeLayout), string(r.State), r.Task,
-	})
-	w.Flush()
-	return buf.Bytes()
+	}
 }
 
-// decode reads one line of records, without its newline.
-func decode(line string) (Record, error) {
-	if line == "" {
-		return Record{}, errors.New("the line is empty")
-	}
-	r := csv.NewReader(strings.NewReader(line))
-	r.FieldsPerRecord = 9
-	fields, err := r.Read()
-	if err != nil {
-		return Record{}, fmt.Errorf("want 9 comma-separated fields: %w", err)
-	}
-	return toRecord(fields)
-}
-
-// toRecord reads the nine fields of a line and judges the record.
+// toRecord reads the nine fields of a line.
 func toRecord(f []string) (Record, error) {
-	id, err := strconv.ParseInt(f[4], 10, 64)
-	if err != nil || strconv.FormatInt(id, 10) != f[4] {
-		return Record{}, fmt.Errorf("deployment_id %q is not a whole number", f[4])
-	}
-	at, err := time.Parse(timeLayout, f[6])
+	id, err := parseID(f[4])
 	if err != nil {
-		return Record{}, fmt.Errorf("created_at %q is not RFC 3339 UTC like 2026-09-01T10:00:00Z", f[6])
+		return Record{}, err
 	}
-	rec := Record{
+	at, err := parseTime("created_at", f[6])
+	if err != nil {
+		return Record{}, err
+	}
+	return Record{
 		Project: f[0], Repository: f[1], Kind: Kind(f[2]), Name: f[3], ID: id,
 		Commit: f[5], CreatedAt: at, State: State(f[7]), Task: f[8],
-	}
-	return rec, rec.validate()
+	}, nil
 }
 
-// validate says why r cannot be stored, or nil.
-func (r Record) validate() error {
-	for _, c := range []struct {
-		ok  bool
-		why string
-	}{
-		{r.Project != "", "project is empty"},
-		{isRepository(r.Repository), fmt.Sprintf("repository %q is not owner/name", r.Repository)},
-		{isKind(r.Kind), fmt.Sprintf("kind %q is not environment, workflow or release", r.Kind)},
-		{r.Kind == KindRelease || r.Name != "", "name is empty"},
-		{r.ID > 0, "deployment_id is not positive"},
-		{isSHA(r.Commit), fmt.Sprintf("commit %q is not 40 or 64 lower-case hex digits", r.Commit)},
-		{isWholeSecond(r.CreatedAt), "created_at is empty or has a fraction of a second"},
-		{isState(r.State), fmt.Sprintf("state %q is not success, failure or other", r.State)},
-		{!strings.ContainsAny(r.Project+r.Repository+r.Name+r.Task, "\r\n"), "a field has a line break"},
-	} {
+// check is one rule of a record: whether it holds, and why not.
+type check struct {
+	ok  bool
+	why string
+}
+
+// firstFailure is the reason of the first rule that does not hold, or nil.
+func firstFailure(checks ...check) error {
+	for _, c := range checks {
 		if !c.ok {
 			return errors.New(c.why)
 		}
 	}
 	return nil
+}
+
+// validate says why r cannot be stored, or nil.
+func (r Record) validate() error {
+	return firstFailure(
+		check{r.Project != "", "project is empty"},
+		check{isRepository(r.Repository), fmt.Sprintf("repository %q is not owner/name", r.Repository)},
+		check{isKind(r.Kind), fmt.Sprintf("kind %q is not environment, workflow or release", r.Kind)},
+		check{r.Kind == KindRelease || r.Name != "", "name is empty"},
+		check{r.ID > 0, "deployment_id is not positive"},
+		check{isSHA(r.Commit), fmt.Sprintf("commit %q is not 40 or 64 lower-case hex digits", r.Commit)},
+		check{isWholeSecond(r.CreatedAt), "created_at is empty or has a fraction of a second"},
+		check{isState(r.State), fmt.Sprintf("state %q is not success, failure or other", r.State)},
+		check{!strings.ContainsAny(r.Project+r.Repository+r.Name+r.Task, "\r\n"), "a field has a line break"},
+	)
 }
 
 // isRepository says whether s is owner/name.

@@ -165,9 +165,27 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/history/commits.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/commits_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/file.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/history/history.go",
    "score": 10.0,
-   "checkedAt": "2026-10-02",
+   "checkedAt": "2026-10-03",
    "minScore": 10.0
   },
   {

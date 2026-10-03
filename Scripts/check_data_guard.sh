@@ -97,13 +97,14 @@ in_testdata() {
 #
 # One arm per line, `<pattern>) why="..." ;;`: Scripts/test_check_data_guard.sh
 # mutates this list by that shape (it deletes the history.csv arm, then the
-# deployments.csv arm, and quotes every arm whose pattern holds a `*` so that
-# it matches only literally).
+# deployments.csv arm, then the commits.csv arm, and quotes every arm whose
+# pattern holds a `*` so that it matches only literally).
 guarded_reason() {
   local why=""
   case "$1" in
     history.csv) why="the metric history an installation accumulates run after run" ;;
     deployments.csv) why="the deployment history forsgren collect keeps (data/deployments.csv in an installation)" ;;
+    commits.csv) why="the commits of each deployment forsgren collect keeps for lead time (data/commits.csv in an installation)" ;;
     *.history.csv) why="a per-service or per-installation history file" ;;
     forsgren.config.*) why="an installation's forsgren configuration, by its own name" ;;
     forsgren-config.*) why="the same configuration, hyphenated" ;;

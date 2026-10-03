@@ -2,7 +2,6 @@ package history
 
 import (
 	"bytes"
-	"cmp"
 	"errors"
 	"fmt"
 	"os"
@@ -10,15 +9,15 @@ import (
 	"slices"
 )
 
-// store is what Append found at the path.
-type store struct {
+// store is what an append found at the path.
+type store[R any] struct {
 	exists        bool
-	records       []Record
+	records       []R
 	endsInNewline bool
 }
 
-// Append stores the records that the history at path does not hold yet, and
-// returns how many it stored.
+// Append stores the deployments that the history at path does not hold yet,
+// and returns how many it stored.
 //
 //   - A missing path is created, directory included, with the version and
 //     column lines, also when there is nothing to store.
@@ -33,51 +32,51 @@ type store struct {
 //     format, is refused before anything is written: its bytes and
 //     modification time stay as they were. So is a record that cannot be
 //     stored (ErrInvalidRecord).
-func Append(path string, records []Record) (int, error) {
+func Append(path string, records []Record) (int, error) { return deployments.append(path, records) }
+
+// append stores the records the file at path does not hold yet: Append's
+// rules, by the format's key and order.
+func (f format[R, K]) append(path string, records []R) (int, error) {
 	for i, r := range records {
-		if err := r.validate(); err != nil {
+		if err := f.validate(r); err != nil {
 			return 0, fmt.Errorf("%s: %w: record %d: %w", path, ErrInvalidRecord, i+1, err)
 		}
 	}
-	st, err := read(path)
+	st, err := f.read(path)
 	if err != nil {
 		return 0, err
 	}
-	fresh := newRecords(st.records, records)
+	fresh := f.newRecords(st.records, records)
 	if st.exists && len(fresh) == 0 {
 		return 0, nil
 	}
-	return len(fresh), write(path, st, fresh)
+	return len(fresh), f.write(path, st, fresh)
 }
 
 // read looks at the file at path: a missing file is the empty store.
-func read(path string) (store, error) {
+func (f format[R, K]) read(path string) (store[R], error) {
 	data, err := os.ReadFile(filepath.Clean(path))
 	if notExist(err) {
-		return store{}, nil
+		return store[R]{}, nil
 	}
 	if err != nil {
-		return store{}, fmt.Errorf("%s: %w", path, err)
+		return store[R]{}, fmt.Errorf("%s: %w", path, err)
 	}
-	records, err := parse(path, data)
-	return store{exists: true, records: records, endsInNewline: bytes.HasSuffix(data, []byte("\n"))}, err
+	records, err := f.parse(path, data)
+	return store[R]{exists: true, records: records, endsInNewline: bytes.HasSuffix(data, []byte("\n"))}, err
 }
 
-// newRecords is the records that held does not have, once each, in created-at
-// order, then ID (then repository and kind, so the order is total).
-func newRecords(held, records []Record) []Record {
-	seen := make(map[key]bool, len(held)+len(records))
+// newRecords is the records that held does not have, once each, in the
+// format's order.
+func (f format[R, K]) newRecords(held, records []R) []R {
+	seen := make(map[K]bool, len(held)+len(records))
 	for _, r := range held {
-		seen[r.key()] = true
+		seen[f.key(r)] = true
 	}
-	sorted := slices.SortedStableFunc(slices.Values(records), func(a, b Record) int {
-		return cmp.Or(a.CreatedAt.Compare(b.CreatedAt), cmp.Compare(a.ID, b.ID),
-			cmp.Compare(a.Repository, b.Repository), cmp.Compare(a.Kind, b.Kind))
-	})
-	var fresh []Record
-	for _, r := range sorted {
-		if !seen[r.key()] {
-			seen[r.key()] = true
+	var fresh []R
+	for _, r := range slices.SortedStableFunc(slices.Values(records), f.compare) {
+		if k := f.key(r); !seen[k] {
+			seen[k] = true
 			fresh = append(fresh, r)
 		}
 	}
@@ -85,17 +84,17 @@ func newRecords(held, records []Record) []Record {
 }
 
 // write puts the new lines at the end of the file, or creates it.
-func write(path string, st store, fresh []Record) error {
-	flags, err := prepare(path, st)
+func (f format[R, K]) write(path string, st store[R], fresh []R) error {
+	flags, err := prepare(path, st.exists)
 	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(filepath.Clean(path), flags, 0o600)
+	file, err := os.OpenFile(filepath.Clean(path), flags, 0o600)
 	if err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
-	_, werr := f.Write(payload(st, fresh))
-	if err := errors.Join(werr, f.Sync(), f.Close()); err != nil {
+	_, werr := file.Write(f.payload(st, fresh))
+	if err := errors.Join(werr, file.Sync(), file.Close()); err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
 	return nil
@@ -104,8 +103,8 @@ func write(path string, st store, fresh []Record) error {
 // prepare says how to open the file: for appending when it exists; else
 // after its directory is made, with O_EXCL, so a file that appeared after the
 // look is never truncated.
-func prepare(path string, st store) (int, error) {
-	if st.exists {
+func prepare(path string, exists bool) (int, error) {
+	if exists {
 		return os.O_WRONLY | os.O_APPEND, nil
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
@@ -116,16 +115,16 @@ func prepare(path string, st store) (int, error) {
 
 // payload is what is written, in one piece: the version and column lines of a
 // new file, or the newline a last line lacks, then the lines of fresh.
-func payload(st store, fresh []Record) []byte {
+func (f format[R, K]) payload(st store[R], fresh []R) []byte {
 	var out []byte
 	switch {
 	case !st.exists:
-		out = []byte(versionLine + "\n" + columnLine + "\n")
+		out = []byte(f.versionLine + "\n" + f.columnLine + "\n")
 	case !st.endsInNewline:
 		out = []byte("\n")
 	}
 	for _, r := range fresh {
-		out = append(out, r.encode()...)
+		out = append(out, f.encodeLine(r)...)
 	}
 	return out
 }
