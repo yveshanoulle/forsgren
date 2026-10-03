@@ -72,18 +72,28 @@ func TestRenderShowsLeadTime(t *testing.T) {
 // file fails render with its own message, naming it, and writes nothing.
 func TestRenderRefusesABadCommitsFile(t *testing.T) {
 	head := "# forsgren commits v1\nrepository,kind,deployment_id,commit,authored_at,deployed_at\n"
-	cases := map[string]struct{ content, want string }{
+	wantBadFileRefused(t, "commits.csv", map[string]badFile{
 		"unknown version": {"# forsgren commits v9\n", "unknown history format version"},
 		"malformed line":  {head + "not,a,commit\n", "line 3: malformed history"},
-	}
-	for name, c := range cases {
-		t.Run(name, func(t *testing.T) {
+	})
+}
+
+// badFile is a file next to the history that render must refuse: its
+// content, and what render's error says.
+type badFile struct{ content, want string }
+
+// wantBadFileRefused writes each case's content as the file name next to a
+// history, and fails the test unless render refuses it, naming it.
+func wantBadFileRefused(t *testing.T, name string, cases map[string]badFile) {
+	t.Helper()
+	for caseName, c := range cases {
+		t.Run(caseName, func(t *testing.T) {
 			data := writeHistory(t, acmeHistory())
-			commits := filepath.Join(filepath.Dir(data), "commits.csv")
-			if err := os.WriteFile(commits, []byte(c.content), 0o600); err != nil {
+			file := filepath.Join(filepath.Dir(data), name)
+			if err := os.WriteFile(file, []byte(c.content), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			wantRefused(t, data, commits, c.want)
+			wantRefused(t, data, file, c.want)
 		})
 	}
 }

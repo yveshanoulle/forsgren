@@ -29,16 +29,17 @@ func TestNoProjectsPageMatchesGolden(t *testing.T) {
 }
 
 // acmeProjects is the page data of two projects counted back from
-// 2026-10-03 12:00 UTC: Acme Shop with deployments, the lead time shop and
-// the recovery time recovery, Acme Tools with no deployment.
-func acmeProjects(shop metrics.LeadTime, recovery metrics.Recovery) Data {
+// 2026-10-03 12:00 UTC: Acme Shop with deployments, the lead time shop, the
+// recovery time recovery and the change fail rate changeFail, Acme Tools
+// with no deployment.
+func acmeProjects(shop metrics.LeadTime, recovery metrics.Recovery, changeFail metrics.ChangeFailRate) Data {
 	data := Placeholder("0.0.5")
 	data.AsOf = "2026-10-03 12:00"
 	latest := time.Date(2026, 10, 1, 9, 30, 0, 0, time.UTC)
-	shop.Project, recovery.Project = "Acme Shop", "Acme Shop"
+	shop.Project, recovery.Project, changeFail.Project = "Acme Shop", "Acme Shop", "Acme Shop"
 	frequency := metrics.Frequency{Project: "Acme Shop", Last7: 3, Last30: 12, Latest: latest, Band: metrics.DailyToWeekly}
 	data.Projects = []Project{
-		{Frequency: frequency, LeadTime: shop, Recovery: recovery},
+		{Frequency: frequency, LeadTime: shop, Recovery: recovery, ChangeFail: changeFail},
 		{Frequency: metrics.Frequency{Project: "Acme Tools"}, LeadTime: metrics.LeadTime{Project: "Acme Tools"}},
 	}
 	return data
@@ -48,13 +49,17 @@ func acmeProjects(shop metrics.LeadTime, recovery metrics.Recovery) Data {
 // failure, not recovered yet.
 var unrecovered = metrics.Recovery{Unrecovered: 1}
 
+// oneFailed is Acme Shop's change fail rate in acmeProjects' pages: 1
+// failed deployment of 13 (forsgren#18).
+var oneFailed = metrics.ChangeFailRate{Deployments: 13, FailedDeployments: 1, Failed: 1, Band: metrics.ZeroPercent}
+
 // TestFrequencyPageMatchesGolden (forsgren#12, step 7): with projects the
 // page shows a section per project, in the given order, with its numbers,
 // its latest date and its band, or "No deployments recorded yet"; a project
 // with deployments but no commit in the window says "No lead time yet"
 // (forsgren#16, step 5).
 func TestFrequencyPageMatchesGolden(t *testing.T) {
-	checkGolden(t, "testdata/index.frequency.golden.html", acmeProjects(metrics.LeadTime{}, unrecovered))
+	checkGolden(t, "testdata/index.frequency.golden.html", acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed))
 }
 
 // TestLeadTimePageMatchesGolden (forsgren#16, step 5): a project's section
@@ -62,7 +67,7 @@ func TestFrequencyPageMatchesGolden(t *testing.T) {
 // the period, next to its deployment frequency.
 func TestLeadTimePageMatchesGolden(t *testing.T) {
 	shop := metrics.LeadTime{Commits: 3, Median: 17 * time.Minute, Band: metrics.LessThanOneHour}
-	checkGolden(t, "testdata/index.leadtime.golden.html", acmeProjects(shop, unrecovered))
+	checkGolden(t, "testdata/index.leadtime.golden.html", acmeProjects(shop, unrecovered, oneFailed))
 }
 
 // TestRecoveryPageMatchesGolden (forsgren#17): a project's section shows
@@ -71,7 +76,19 @@ func TestLeadTimePageMatchesGolden(t *testing.T) {
 // bands paragraph covers the recovery bands.
 func TestRecoveryPageMatchesGolden(t *testing.T) {
 	recovery := metrics.Recovery{Recoveries: 2, Median: 3 * time.Hour, Band: metrics.LessThanOneDay, Unrecovered: 1}
-	checkGolden(t, "testdata/index.recovery.golden.html", acmeProjects(metrics.LeadTime{}, recovery))
+	threeFailed := metrics.ChangeFailRate{Deployments: 15, FailedDeployments: 3, Failed: 3, Band: metrics.TwentyPercent}
+	checkGolden(t, "testdata/index.recovery.golden.html", acmeProjects(metrics.LeadTime{}, recovery, threeFailed))
+}
+
+// TestChangeFailPageMatchesGolden (forsgren#18): a project's section shows
+// its change fail rate, the band with the rate, the deployments and both
+// counts, after its recovery time; the bands paragraph covers the change
+// fail rate bands.
+func TestChangeFailPageMatchesGolden(t *testing.T) {
+	changeFail := metrics.ChangeFailRate{
+		Deployments: 13, FailedDeployments: 1, FailureIssues: 2, Failed: 2, Band: metrics.TwentyPercent,
+	}
+	checkGolden(t, "testdata/index.changefail.golden.html", acmeProjects(metrics.LeadTime{}, unrecovered, changeFail))
 }
 
 // TestNoDataPageMatchesGolden: projects with no deployment recorded yet

@@ -103,7 +103,8 @@ func TestRenderShowsDeploymentFrequency(t *testing.T) {
 // recovered by the next success of its stream: acme/api's in 2 hours and
 // acme/ios-app's in 4, so the median is 3 hours; acme/api's newer failure
 // is not recovered yet. Only failures are added, so the other numbers stay
-// those of index.frequency.golden.html.
+// those of index.frequency.golden.html, but for change fail rate: 3 of 15
+// deployments failed (forsgren#18).
 func TestRenderShowsRecoveryTime(t *testing.T) {
 	pinNow(t)
 	records := append(acmeHistory(),

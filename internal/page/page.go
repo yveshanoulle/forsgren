@@ -38,7 +38,8 @@ type Data struct {
 	// the installation's forsgren.config.yml lists none (forsgren#12).
 	NoProjects bool
 	// Projects, when set, replace Message with one section per project, in
-	// this order (forsgren#12, step 7; forsgren#16, step 5; forsgren#17).
+	// this order (forsgren#12, step 7; forsgren#16, step 5; forsgren#17;
+	// forsgren#18).
 	// The page shows
 	// their project names, numbers, durations and dates only.
 	Projects []Project
@@ -49,12 +50,13 @@ type Data struct {
 }
 
 // Project is one project's section: its deployment frequency (whose fields
-// the template reads directly), its lead time for changes and its failed
-// deployment recovery time.
+// the template reads directly), its lead time for changes, its failed
+// deployment recovery time and its change fail rate.
 type Project struct {
 	metrics.Frequency
-	LeadTime metrics.LeadTime
-	Recovery metrics.Recovery
+	LeadTime   metrics.LeadTime
+	Recovery   metrics.Recovery
+	ChangeFail metrics.ChangeFailRate
 }
 
 // Placeholder is the data of the page forsgren renders before it has any
