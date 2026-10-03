@@ -82,9 +82,14 @@ func bandText(band fmt.Stringer, measure string, w window) string {
 }
 
 // plural is n with its unit, singular for one: "1 commit", "2 commits".
-func plural(n int, unit string) string {
+func plural(n int, unit string) string { return counted(n, unit, unit+"s") }
+
+// counted is n with the singular one for 1 and the plural many otherwise,
+// for a unit whose plural is not its singular plus s: "1 recovery", "2
+// recoveries".
+func counted(n int, one, many string) string {
 	if n == 1 {
-		return "1 " + unit
+		return "1 " + one
 	}
-	return fmt.Sprintf("%d %ss", n, unit)
+	return fmt.Sprintf("%d %s", n, many)
 }

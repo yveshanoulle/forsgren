@@ -295,6 +295,18 @@
    "score": 10.0,
    "checkedAt": "2026-10-03",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/recovery.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/recovery_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
   }
  ]
 }
