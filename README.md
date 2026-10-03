@@ -139,8 +139,10 @@ order, with:
 - the successful deployments of the last 7 days;
 - the date of its latest successful deployment;
 - its DORA band, always shown with the count and the period it comes from:
-  "Daily to weekly — 12 production deployments in the last 30 days" (one
-  is "1 production deployment").
+  "Between once per day and once per week — 12 production deployments in
+  the last 30 days" (one is "1 production deployment"); a band decided on
+  the last 180 days shows that count: "Between once per month and once
+  every six months — 3 production deployments in the last 180 days".
 
 **What counts.** A deployment is a history line with the state `success`;
 `failure` and `other` lines do not count. A line belongs to the project
@@ -151,25 +153,33 @@ a split per service is forsgren#11.
 
 **The windows** are counted back from the render time, in UTC, in days of
 24 hours: a deployment counts when it was created at or after the render
-time minus 7 (or 30) days, and not after the render time. A deployment
+time minus 7 (30, 180) days, and not after the render time. A deployment
 exactly 7 days old is in the 7-day count.
 
-**The bands** are the deployment-frequency answers of the DORA State of
-DevOps reports: on demand (multiple deploys per day), between once per day
-and once per week, between once per week and once per month, and less than
-once per month. The reports ask people how often they deploy; forsgren
-counts, and maps the 30-day count by its average rate:
+**The bands** are the six deployment-frequency answers of the current DORA
+Quick Check (forsgren#16, step 6), word for word, as mutually exclusive
+ranges. The Quick Check asks people how often they deploy; forsgren counts,
+and maps a count by its average time between deployments, on the same
+edges as lead time's bands: an hour, a day, 7 days, a month of 30 days and
+six months of 180 days. A band "between once per X and once per Y" holds Y
+and not X, so exactly once a month (1 in 30 days) is between once per week
+and once per month. The 30-day count decides whenever it holds a
+deployment; only with none in 30 days does the 180-day count tell the two
+slowest bands apart:
 
-| Last 30 days | Band |
+| Count | DORA band |
 | --- | --- |
-| more than 30 (more than one a day) | On demand (several per day) |
-| 5 to 30 (at least once a week: 30/7 is about 4.3) | Daily to weekly |
-| 1 to 4 | Weekly to monthly |
-| 0 | Less than monthly |
+| 720 and more in 30 days (once an hour or more often) | On demand (multiple deploys per day) |
+| 30 to 719 in 30 days | Between once per hour and once per day |
+| 5 to 29 in 30 days (once a week is 30/7, about 4.3) | Between once per day and once per week |
+| 1 to 4 in 30 days | Between once per week and once per month |
+| none in 30 days, 1 and more in 180 days | Between once per month and once every six months |
+| none in 180 days | Less than once per six months |
 
 The band describes throughput over the period, not regularity; the count
 makes a burst visible (Yves's ruling on forsgren#12), so the band is never
-shown without it, and the 30-day count has no row of its own.
+shown without it, and neither the 30-day nor the 180-day count has a row of
+its own.
 
 A project with no successful deployment in its history says "No deployments
 recorded yet".

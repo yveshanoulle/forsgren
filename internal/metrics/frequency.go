@@ -34,12 +34,14 @@ type Frequency struct {
 	// last 7 and 30 days: at or after now minus 7 (30) times 24 hours, and
 	// not after now. A deployment exactly 7 days old is in the 7-day count.
 	Last7, Last30 int
-	// Last180 is a stub of forsgren#16, step 6: not counted yet.
+	// Last180 counts them over the last 180 days the same way, for the two
+	// slowest bands (forsgren#16, step 6).
 	Last180 int
 	// Latest is the creation time of the project's newest successful
 	// deployment; zero when it has none.
 	Latest time.Time
-	// Band is the DORA performance band of Last30 (see BandOf).
+	// Band is the DORA band of Last30, or of Last180 when Last30 is 0 (see
+	// BandOf).
 	Band Band
 }
 
@@ -51,15 +53,20 @@ func (f Frequency) HasDeployments() bool { return !f.Latest.IsZero() }
 func (f Frequency) LatestDate() string { return f.Latest.UTC().Format(time.DateOnly) }
 
 // BandText is the band together with the count and the period it comes
-// from, "Daily to weekly — 12 production deployments in the last 30 days"
-// (Yves's ruling on forsgren#12): the band describes throughput over the
-// period, not regularity, and the count makes a burst visible.
+// from, "Between once per day and once per week — 12 production deployments
+// in the last 30 days" (Yves's ruling on forsgren#12): the band describes
+// throughput over the period, not regularity, and the count makes a burst
+// visible. A band decided on the last 180 days shows that count and period.
 func (f Frequency) BandText() string {
+	count, days := f.Last30, 30
+	if count == 0 {
+		count, days = f.Last180, 180
+	}
 	noun := "production deployments"
-	if f.Last30 == 1 {
+	if count == 1 {
 		noun = "production deployment"
 	}
-	return fmt.Sprintf("%s — %d %s in the last 30 days", f.Band, f.Last30, noun)
+	return fmt.Sprintf("%s — %d %s in the last %d days", f.Band, count, noun, days)
 }
 
 // DeploymentFrequency returns the deployment frequency of each project, in
@@ -100,6 +107,7 @@ func (f *Frequency) add(at, now time.Time) {
 	}
 	f.Last7 += within(at, now, 7)
 	f.Last30 += within(at, now, 30)
+	f.Last180 += within(at, now, 180)
 }
 
 // within is 1 when at lies in the last days days before now, both ends
