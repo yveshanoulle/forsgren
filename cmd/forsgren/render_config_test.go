@@ -30,7 +30,7 @@ func TestRenderSaysWhenNoProjectsAreConfigured(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
 	}
-	if !strings.Contains(index, "Forsgren 0.0.6") || !strings.Contains(index, noProjectsLine) {
+	if !strings.Contains(index, "Forsgren 0.0.7") || !strings.Contains(index, noProjectsLine) {
 		t.Errorf("want the version and %q on the page, got:\n%s", noProjectsLine, index)
 	}
 	golden := readFile(t, "../../internal/page/testdata/index.no-projects.golden.html")

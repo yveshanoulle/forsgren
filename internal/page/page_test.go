@@ -17,13 +17,13 @@ import (
 var update = flag.Bool("update", false, "rewrite testdata/*.golden.html")
 
 func TestPlaceholderMatchesGolden(t *testing.T) {
-	checkGolden(t, "testdata/index.golden.html", Placeholder("0.0.6"))
+	checkGolden(t, "testdata/index.golden.html", Placeholder("0.0.7"))
 }
 
 // TestNoProjectsPageMatchesGolden (forsgren#12): the page of an installation
 // whose config lists no projects says so, besides its version.
 func TestNoProjectsPageMatchesGolden(t *testing.T) {
-	data := Placeholder("0.0.6")
+	data := Placeholder("0.0.7")
 	data.NoProjects = true
 	checkGolden(t, "testdata/index.no-projects.golden.html", data)
 }
@@ -35,7 +35,7 @@ func TestNoProjectsPageMatchesGolden(t *testing.T) {
 // deployment and nothing else, the worst case, shown in full (Yves's ruling
 // on decision #35).
 func acmeProjects(shop metrics.LeadTime, recovery metrics.Recovery, changeFail metrics.ChangeFailRate) Data {
-	data := Placeholder("0.0.6")
+	data := Placeholder("0.0.7")
 	data.AsOf = "2026-10-03 12:00"
 	latest := time.Date(2026, 10, 1, 9, 30, 0, 0, time.UTC)
 	frequency := metrics.Frequency{Project: "Acme Shop", Last7: 3, Last30: 12, Latest: latest, Band: metrics.DailyToWeekly}
@@ -96,7 +96,7 @@ func TestChangeFailPageMatchesGolden(t *testing.T) {
 // TestNoDataPageMatchesGolden: projects with no deployment recorded yet,
 // successful or failed, each say so across their row.
 func TestNoDataPageMatchesGolden(t *testing.T) {
-	data := Placeholder("0.0.6")
+	data := Placeholder("0.0.7")
 	data.AsOf = "2026-10-03 12:00"
 	data.Rows = Table([]metrics.Row{
 		{Level: metrics.ProjectRow, Name: "Acme Shop"}, {Level: metrics.ProjectRow, Name: "Acme Tools"},
@@ -140,7 +140,7 @@ func labelledRows() []metrics.Row {
 // headed "(total)", its labels' rows follow it, indented, each with its
 // project's name for a screen reader; a project without labels is one row.
 func TestLabelsPageMatchesGolden(t *testing.T) {
-	data := Placeholder("0.0.6")
+	data := Placeholder("0.0.7")
 	data.AsOf = "2026-10-03 12:00"
 	data.Rows = Table(labelledRows())
 	checkGolden(t, "testdata/index.labels.golden.html", data)
@@ -199,7 +199,7 @@ func TestRenderEscapesFields(t *testing.T) {
 }
 
 func TestRenderUnknownPage(t *testing.T) {
-	err := Render(&bytes.Buffer{}, "missing.html", Placeholder("0.0.6"))
+	err := Render(&bytes.Buffer{}, "missing.html", Placeholder("0.0.7"))
 	if err == nil || !strings.Contains(err.Error(), "missing.html") {
 		t.Errorf("want an error naming missing.html, got %v", err)
 	}
@@ -207,7 +207,7 @@ func TestRenderUnknownPage(t *testing.T) {
 
 func TestWriteSiteWritesOnePageAndStyles(t *testing.T) {
 	dir := t.TempDir()
-	n, err := WriteSite(dir, Placeholder("0.0.6"))
+	n, err := WriteSite(dir, Placeholder("0.0.7"))
 	if err != nil {
 		t.Fatalf("WriteSite: %v", err)
 	}
@@ -226,7 +226,7 @@ func TestWriteSiteFailsWhenDirIsAFile(t *testing.T) {
 	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if n, err := WriteSite(file, Placeholder("0.0.6")); err == nil {
+	if n, err := WriteSite(file, Placeholder("0.0.7")); err == nil {
 		t.Errorf("want an error when the output is a regular file, got %d pages", n)
 	}
 }
