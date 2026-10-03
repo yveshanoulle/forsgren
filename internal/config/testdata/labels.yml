@@ -1,0 +1,19 @@
+# A made-up installation with labelled rows (forsgren#38): acme/app names
+# three of its tasks, acme/web is one row, acme/cli has none; Acme Tools has
+# no labels at all.
+version: 1
+projects:
+  - name: Acme Shop
+    repositories:
+      - name: acme/app
+        services:
+          deploy-api: API
+          deploy-admin: ADMIN
+          deploy-ios: IOS
+      - name: acme/web
+        label: Website
+      - name: acme/cli
+        deployment: release
+  - name: Acme Tools
+    repositories:
+      - name: acme/tool

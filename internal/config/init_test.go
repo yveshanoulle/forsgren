@@ -104,6 +104,19 @@ func TestStarterExampleIsAValidConfig(t *testing.T) {
 	}
 }
 
+// TestStarterExampleLabelsRows (forsgren#38): the example names a
+// repository's row and its services' rows, both label forms.
+func TestStarterExampleLabelsRows(t *testing.T) {
+	example := uncommentedExample(t)
+	cfg, err := parse([]byte(example))
+	if err != nil {
+		t.Fatalf("want the uncommented example valid, got %v", err)
+	}
+	if cfg.LabelCount() < 2 || !strings.Contains(example, "label: ") || !strings.Contains(example, "services:\n") {
+		t.Errorf("want the example to label a repository and its services, got:\n%s", example)
+	}
+}
+
 // wantPrefix fails the test for each of names that lacks prefix.
 func wantPrefix(t *testing.T, names []string, prefix string) {
 	t.Helper()

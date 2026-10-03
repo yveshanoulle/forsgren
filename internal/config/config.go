@@ -74,6 +74,12 @@ type Repository struct {
 	// Name is owner/name, as written in the file.
 	Name       string
 	Deployment Deployment
+	// Label names the repository's row under its project; empty for none
+	// (forsgren#38).
+	Label string
+	// Services maps a deployment task to the label of its row under the
+	// project; nil for none (forsgren#38).
+	Services map[string]string
 }
 
 // Project groups the repositories that ship one product; the page shows
@@ -105,6 +111,7 @@ var (
 	ErrRepositoryName      = errors.New("not an owner/name repository")
 	ErrDuplicateRepository = errors.New("listed twice")
 	ErrDeployment          = errors.New("invalid deployment")
+	ErrLabel               = errors.New("invalid label")
 )
 
 // Load reads and validates the config file at path. Every error names the
@@ -129,6 +136,10 @@ func (c Config) RepositoryCount() int {
 	}
 	return n
 }
+
+// LabelCount is the number of labelled rows over all projects (red stub,
+// forsgren#38).
+func (c Config) LabelCount() int { return 0 }
 
 // parse decodes and validates the content of a config file.
 func parse(data []byte) (Config, error) {

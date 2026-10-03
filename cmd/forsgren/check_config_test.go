@@ -41,6 +41,9 @@ func TestCheckConfig(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "forsgren.config.yml")
 	none := writeConfig(t, "version: 1\nprojects: []\n")
 	noKey := writeConfig(t, "version: 1\n")
+	labelled := writeConfig(t, strings.Replace(validConfig, "      - name: acme/api\n",
+		"      - name: acme/api\n        services:\n          deploy-api: API\n          deploy-admin: ADMIN\n", 1))
+	emptyLabel := writeConfig(t, validConfig+"        label: \"\"\n")
 	cases := []struct {
 		name   string
 		args   []string
@@ -50,6 +53,10 @@ func TestCheckConfig(t *testing.T) {
 	}{
 		{"valid", []string{"check-config", "--config", valid}, 0,
 			"OK: " + valid + " is a valid forsgren config (version 1): projects: 2, repositories: 3\n", ""},
+		{"labelled rows", []string{"check-config", "--config", labelled}, 0,
+			"OK: " + labelled + " is a valid forsgren config (version 1): projects: 2, repositories: 3, labels: 2\n", ""},
+		{"empty label", []string{"check-config", "--config", emptyLabel}, 1, "",
+			"check-config: " + emptyLabel + `: project "Acme Tools": repository "acme/cli": invalid label: a label is empty`},
 		{"no projects yet", []string{"check-config", "--config", none}, 0,
 			"OK: " + none + " is a valid forsgren config (version 1): projects: 0, repositories: 0\n", ""},
 		{"projects key missing", []string{"check-config", "--config", noKey}, 1, "",
