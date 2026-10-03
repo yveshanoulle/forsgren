@@ -283,6 +283,12 @@
    "score": 10.0,
    "checkedAt": "2026-10-03",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/shared.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
   }
  ]
 }

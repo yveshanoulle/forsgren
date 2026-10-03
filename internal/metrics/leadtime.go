@@ -24,9 +24,7 @@ package metrics
 // middle lead times.
 
 import (
-	"fmt"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
@@ -55,18 +53,17 @@ func (l LeadTime) BandText() string {
 	if !l.HasCommits() {
 		return "No lead time yet"
 	}
-	return fmt.Sprintf("%s — median %s over %s in the last 30 days",
-		l.Band, humanDuration(l.Median), plural(l.Commits, "commit"))
+	return bandText(l.Band, "median "+humanDuration(l.Median)+" over "+plural(l.Commits, "commit"), last30)
 }
 
 // LeadTimes returns the lead time for changes of each project, in the order
 // of projects, from the stored commits at the render time now.
 func LeadTimes(projects []config.Project, commits []history.Commit, now time.Time) []LeadTime {
-	owner := owners(projects)
+	index := indexOf(projects)
 	leads := make([][]time.Duration, len(projects))
 	for _, c := range commits {
-		i, ok := owner[strings.ToLower(c.Repository)]
-		if ok && within(c.DeployedAt, now, 30) == 1 {
+		i, ok := index.of(c.Repository)
+		if ok && last30.holds(c.DeployedAt, now) {
 			leads[i] = append(leads[i], leadTimeOf(c))
 		}
 	}
@@ -128,12 +125,4 @@ func twoParts(n int, unit string, m int, smaller string) string {
 		return plural(n, unit)
 	}
 	return plural(n, unit) + " " + plural(m, smaller)
-}
-
-// plural is n with its unit, singular for one: "1 commit", "2 commits".
-func plural(n int, unit string) string {
-	if n == 1 {
-		return "1 " + unit
-	}
-	return fmt.Sprintf("%d %ss", n, unit)
 }

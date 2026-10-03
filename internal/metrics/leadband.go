@@ -61,9 +61,4 @@ var leadTimeBandNames = [...]string{
 }
 
 // String is the band's name as the page shows it.
-func (b LeadTimeBand) String() string {
-	if b < LessThanOneHour || b > MoreThanSixMonths {
-		return leadTimeBandNames[0]
-	}
-	return leadTimeBandNames[b]
-}
+func (b LeadTimeBand) String() string { return bandName(b, leadTimeBandNames[:]) }

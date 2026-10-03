@@ -16,16 +16,11 @@
 package metrics
 
 import (
-	"fmt"
-	"strings"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
-
-// day is one window day: 24 hours, counted back from the render time in UTC.
-const day = 24 * time.Hour
 
 // Frequency is one project's deployment frequency at the render time.
 type Frequency struct {
@@ -58,27 +53,23 @@ func (f Frequency) LatestDate() string { return f.Latest.UTC().Format(time.DateO
 // throughput over the period, not regularity, and the count makes a burst
 // visible. A band decided on the last 180 days shows that count and period.
 func (f Frequency) BandText() string {
-	count, days := f.Last30, 30
+	count, w := f.Last30, last30
 	if count == 0 {
-		count, days = f.Last180, 180
+		count, w = f.Last180, last180
 	}
-	noun := "production deployments"
-	if count == 1 {
-		noun = "production deployment"
-	}
-	return fmt.Sprintf("%s — %d %s in the last %d days", f.Band, count, noun, days)
+	return bandText(f.Band, plural(count, "production deployment"), w)
 }
 
 // DeploymentFrequency returns the deployment frequency of each project, in
 // the order of projects, from the history records at the render time now.
 func DeploymentFrequency(projects []config.Project, records []history.Record, now time.Time) []Frequency {
-	owner := owners(projects)
+	index := indexOf(projects)
 	out := make([]Frequency, len(projects))
 	for i, p := range projects {
 		out[i].Project = p.Name
 	}
 	for _, r := range records {
-		i, ok := owner[strings.ToLower(r.Repository)]
+		i, ok := index.of(r.Repository)
 		if ok && r.State == history.StateSuccess {
 			out[i].add(r.CreatedAt, now)
 		}
@@ -89,33 +80,12 @@ func DeploymentFrequency(projects []config.Project, records []history.Record, no
 	return out
 }
 
-// owners maps each configured repository, lower-case, to its project's index.
-func owners(projects []config.Project) map[string]int {
-	owner := map[string]int{}
-	for i, p := range projects {
-		for _, r := range p.Repositories {
-			owner[strings.ToLower(r.Name)] = i
-		}
-	}
-	return owner
-}
-
 // add counts one successful deployment created at, seen at now.
 func (f *Frequency) add(at, now time.Time) {
 	if at.After(f.Latest) {
 		f.Latest = at
 	}
-	f.Last7 += within(at, now, 7)
-	f.Last30 += within(at, now, 30)
-	f.Last180 += within(at, now, 180)
-}
-
-// within is 1 when at lies in the last days days before now, both ends
-// included, else 0.
-func within(at, now time.Time, days int) int {
-	start := now.Add(-time.Duration(days) * day)
-	if at.Before(start) || at.After(now) {
-		return 0
-	}
-	return 1
+	f.Last7 += last7.count(at, now)
+	f.Last30 += last30.count(at, now)
+	f.Last180 += last180.count(at, now)
 }

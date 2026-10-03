@@ -76,9 +76,4 @@ var bandNames = [...]string{
 }
 
 // String is the band's name as the page shows it.
-func (b Band) String() string {
-	if b < OnDemand || b > LessThanSixMonthly {
-		return bandNames[0]
-	}
-	return bandNames[b]
-}
+func (b Band) String() string { return bandName(b, bandNames[:]) }
