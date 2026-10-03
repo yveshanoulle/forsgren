@@ -330,7 +330,7 @@ private repositories (no scope for public ones).
 
 ## Running forsgren
 
-Today forsgren renders one placeholder page, which says "Forsgren 0.0.2":
+Today forsgren renders one placeholder page, which says "Forsgren 0.0.3":
 the version of the forsgren that rendered it. That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
 it with `-ldflags "-X main.version=<version>"`. `forsgren collect` reads
@@ -351,7 +351,7 @@ installation pins that version. From a checkout of this repository:
 plus `styles.css`) into `<dir>`, creating it when needed, and exits 0; 1 when
 the render failed (or the `--config` file is missing or invalid, with
 check-config's refusal), 2 on a usage error. With `--config`, a config that
-lists no projects makes the page say, besides "Forsgren 0.0.2", "No projects
+lists no projects makes the page say, besides "Forsgren 0.0.3", "No projects
 configured yet: add them to forsgren.config.yml."; without `--config` (the
 build above has no installation config) or with projects, the page is the
 placeholder, unchanged. With `--data` as well (it needs `--config`), the
@@ -1172,8 +1172,37 @@ Two gates keep it that way: **npm manifest policy**
 `package.json`, on a missing or gitignored `package.json` or
 `package-lock.json`, and on a tracked `node_modules/`; **npm audit**
 (`Scripts/npm_audit_check.sh`) is red on a high-severity advisory that one
-`npm audit fix` cannot heal. When that fix does heal it, the changed
-`package-lock.json` rides into the commit.
+`npm audit fix` cannot heal and no ruled exception covers. When that fix does
+heal it, the changed `package-lock.json` rides into the commit.
+
+**Ruled exceptions to npm audit.** An advisory with no fix can be excepted
+in `Scripts/npm_audit_exceptions.txt`, one line per advisory:
+`advisory|package|re-check date|issue|reason`. An exception needs Yves's
+explicit yes recorded on a GitHub issue, which its line names, like every
+suppression (see Quality gates). The gate reads `npm audit --json` (with jq,
+which macOS and GitHub's macOS images ship) and ignores a finding only while
+all of these hold: its GHSA ID and its package are listed; today is on or
+before the re-check date; `npm audit --omit=dev` does not report it, so
+every path to it runs through devDependencies; and npm offers no fix for
+that package without `--force` (its `fixAvailable` is false or SemVer-major).
+Each ignored finding is printed once, as `excepted: GHSA-… (package) until
+<date>, <issue>`. The exception ends by itself: the gate is red again, with
+a ❌ line saying why, once the date has passed ("re-check forsgren#13: is a
+fix out?"), on any other advisory, when the advisory reaches a production
+path, and when a fix without `--force` exists ("a fix exists: remove the
+exception and update"). An exception for an advisory npm no longer reports
+is a warning (remove the stale exception), not a red; a malformed line or an
+advisory listed twice is red before anything is audited.
+
+**Re-checked weekly** (Yves, forsgren#13): a re-check date may be at most 7
+days after today, and the gate is red on one further out, so nobody can set
+an exception a month ahead. A re-check means looking for a fix. When one is
+out, remove the line and update. When there is none, move the date forward
+by at most 7 days and add one line to the entry's history comment in the
+file (or note it on the issue). Today's one exception is
+GHSA-vfj7-8cjw-p6xm (braces `<= 3.0.3`, no patched version), which reaches
+forsgren only through jscpd and stylelint via fast-glob and micromatch
+([forsgren#13](https://github.com/yveshanoulle/forsgren/issues/13)).
 
 **To move a linter to a new version,** change its exact pin and the lockfile
 together, then run `./FBP.sh`:

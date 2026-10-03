@@ -1,0 +1,27 @@
+# Scripts/npm_audit_exceptions.txt — the ruled exceptions of the npm audit
+# gate (Scripts/npm_audit_check.sh, self-test Scripts/test_npm_audit_check.sh).
+#
+# One entry per line: advisory|package|re-check date|issue|reason
+#   advisory      the GHSA ID npm audit reports
+#   package       the npm package the advisory is on
+#   re-check date YYYY-MM-DD; the exception holds up to and including it
+#   issue         where Yves's yes is recorded (repository#number)
+#   reason        one line
+#
+# An entry here needs Yves's explicit yes, recorded on its GitHub issue, like
+# every suppression (README, Quality gates). The gate ignores a finding only while its advisory and package are
+# listed, today is on or before the re-check date, `npm audit --omit=dev`
+# does not report it (dev dependencies only), and npm offers no fix without
+# --force for the package. Otherwise it is red again by itself.
+#
+# WEEKLY: a re-check date may be at most 7 days after today; the gate is red
+# on one further out. A re-check means looking for a fix: when one is out,
+# remove the entry and update; when there is none, move the date forward by
+# at most 7 days and add one line to the entry's history below.
+#
+# GHSA-vfj7-8cjw-p6xm (braces <= 3.0.3, no patched version) reaches forsgren
+# only through jscpd and stylelint, via fast-glob and micromatch.
+# History:
+#   2026-10-03 ruled by Yves on forsgren#13 (option 1, re-checked weekly);
+#              no patched braces; first re-check 2026-10-10.
+GHSA-vfj7-8cjw-p6xm|braces|2026-10-10|forsgren#13|dev tooling only (jscpd, stylelint via fast-glob and micromatch); braces has no patched version

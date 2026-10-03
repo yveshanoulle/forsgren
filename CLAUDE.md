@@ -37,6 +37,7 @@ Adding a gate: write the script and its self-test, give each a row in the order 
 - Conventions for TODO/SHIPPED and issues: [CONVENTIONS.md](CONVENTIONS.md).
 - The plan and Yves's rulings for the bootstrap are on [#1](https://github.com/yveshanoulle/forsgren/issues/1).
 - Tests first: a new behaviour starts with a test seen failing; a ported gate comes with its fixtures, seen green, plus one mutation seen red.
+- Exceptions need Yves's yes, recorded on an issue (#1): a suppression, an exclusion, or an entry in `Scripts/npm_audit_exceptions.txt` (#13, re-checked weekly).
 - Test fixtures use made-up repositories (`acme/app`), never real private ones; the page shows numbers and dates only.
 
 ## Code Health (CodeScene MCP), for every Go change

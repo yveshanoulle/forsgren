@@ -342,7 +342,9 @@ lint-coverage self-test|Scripts/test_check_lint_coverage.sh|pre|
 lint coverage|Scripts/check_lint_coverage.sh|post|
 #
 # Dependency audit belongs before generating deployable output (forsgren#1,
-# ladder step 7). Both scripts are konenki-website's, byte-identical. sfl runs
+# ladder step 7). Both scripts came from konenki-website; forsgren#13 added
+# the ruled, weekly exceptions (Scripts/npm_audit_exceptions.txt), so neither
+# is byte-identical to konenki's any more. sfl runs
 # the self-healing npm_audit_check.sh (one `npm audit fix`, re-verified; the
 # lockfile change rides into the commit). CI runs the same row (forsgren#1,
 # step 14), and must not heal: Scripts/run_ci_phase.sh turns a gate that
