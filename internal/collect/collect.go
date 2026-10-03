@@ -349,7 +349,7 @@ type entry struct {
 type held struct {
 	ids       map[entry]bool
 	newest    map[source]time.Time
-	successes map[stream][]history.Record
+	successes map[history.Stream][]history.Record
 }
 
 // loadHeld reads the history at path; a missing file holds nothing.
@@ -358,7 +358,7 @@ func loadHeld(path string) (held, error) {
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return held{}, err
 	}
-	h := held{ids: map[entry]bool{}, newest: map[source]time.Time{}, successes: map[stream][]history.Record{}}
+	h := held{ids: map[entry]bool{}, newest: map[source]time.Time{}, successes: map[history.Stream][]history.Record{}}
 	for _, r := range records {
 		h.hold(r)
 	}
@@ -373,7 +373,7 @@ func (h held) hold(r history.Record) {
 		h.newest[s] = r.CreatedAt
 	}
 	if r.State == history.StateSuccess {
-		h.successes[streamOf(r)] = append(h.successes[streamOf(r)], r)
+		h.successes[r.Stream()] = append(h.successes[r.Stream()], r)
 	}
 }
 

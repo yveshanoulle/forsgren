@@ -10,7 +10,7 @@ package metrics
 //     intervention; failure issues are change failure rate's source
 //     (forsgren#18), not this one's;
 //   - a failure is recovered by the next successful deployment of its
-//     stream, the stream as collect defines it: the repository ignoring
+//     stream (history.Stream, collect's stream): the repository ignoring
 //     case, the kind, the environment or workflow, and the task, while a
 //     repository's releases are one stream;
 //   - failures one after the other are one recovery, timed from the first
@@ -29,9 +29,7 @@ package metrics
 // six, so a median recovery time is banded by LeadTimeBandOf.
 
 import (
-	"cmp"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
@@ -78,16 +76,16 @@ func (r Recovery) BandText() string {
 // time now.
 func RecoveryTimes(projects []config.Project, records []history.Record, now time.Time) []Recovery {
 	index := indexOf(projects)
-	streams := map[stream][]history.Record{}
+	streams := map[history.Stream][]history.Record{}
 	for _, r := range records {
 		if _, ok := index.of(r.Repository); ok && !r.CreatedAt.After(now) {
-			streams[streamOf(r)] = append(streams[streamOf(r)], r)
+			streams[r.Stream()] = append(streams[r.Stream()], r)
 		}
 	}
 	times := make([][]time.Duration, len(projects))
 	out := make([]Recovery, len(projects))
 	for s, deployments := range streams {
-		i, _ := index.of(s.repository)
+		i, _ := index.of(s.Repository)
 		recovered, open := recoveriesOf(deployments, now)
 		times[i] = append(times[i], recovered...)
 		out[i].Unrecovered += open
@@ -108,31 +106,12 @@ func (r *Recovery) over(times []time.Duration) {
 	}
 }
 
-// stream is one line of deployments that follow each other, as collect's
-// stream is: the repository, lower-case, the kind, the environment or
-// workflow, and the task, empty for a release.
-type stream struct {
-	repository string
-	kind       history.Kind
-	name, task string
-}
-
-// streamOf is the stream r belongs to. A release's task is its tag, a new
-// one with every release, so the releases of a repository are one stream.
-func streamOf(r history.Record) stream {
-	task := r.Task
-	if r.Kind == history.KindRelease {
-		task = ""
-	}
-	return stream{strings.ToLower(r.Repository), r.Kind, r.Name, task}
-}
-
 // recoveriesOf walks one stream's deployments oldest first (by created_at,
 // then ID) and returns the recovery times of the runs of failures recovered
 // in the last 30 days, and 1 when the stream ends in a run of failures not
 // recovered yet, else 0.
 func recoveriesOf(deployments []history.Record, now time.Time) ([]time.Duration, int) {
-	slices.SortStableFunc(deployments, order)
+	slices.SortStableFunc(deployments, history.Chronological)
 	var out []time.Duration
 	var run outage
 	for _, d := range deployments {
@@ -146,11 +125,6 @@ func recoveriesOf(deployments []history.Record, now time.Time) ([]time.Duration,
 		}
 	}
 	return out, run.open
-}
-
-// order orders deployments by created_at, then ID, as collect does.
-func order(a, b history.Record) int {
-	return cmp.Or(a.CreatedAt.Compare(b.CreatedAt), cmp.Compare(a.ID, b.ID))
 }
 
 // outage is a stream's current run of failures: open is 1 from its first

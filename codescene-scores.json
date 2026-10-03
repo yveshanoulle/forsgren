@@ -307,6 +307,18 @@
    "score": 10.0,
    "checkedAt": "2026-10-03",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/history/stream.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/stream_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
   }
  ]
 }

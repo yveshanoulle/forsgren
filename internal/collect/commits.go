@@ -1,7 +1,6 @@
 package collect
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -30,29 +29,6 @@ func checkCommits(path string) error {
 	return nil
 }
 
-// stream is one line of deployments that follow each other: a source's
-// deployments with the same environment or workflow and the same task. A
-// release's task is its tag, a new one with every release, so the releases
-// of a repository are one stream.
-type stream struct {
-	source
-	name, task string
-}
-
-// streamOf is the stream r belongs to.
-func streamOf(r history.Record) stream {
-	task := r.Task
-	if r.Kind == history.KindRelease {
-		task = ""
-	}
-	return stream{sourceOf(r), r.Name, task}
-}
-
-// order orders deployments by created_at, then ID.
-func order(a, b history.Record) int {
-	return cmp.Or(a.CreatedAt.Compare(b.CreatedAt), cmp.Compare(a.ID, b.ID))
-}
-
 // fresh is the records the history does not hold yet, oldest first: the
 // deployments this run stores, and the only ones it compares. A deployment
 // stored by an earlier run had its commits compared then, or was skipped
@@ -64,7 +40,7 @@ func (h held) fresh(records []history.Record) []history.Record {
 			out = append(out, r)
 		}
 	}
-	slices.SortStableFunc(out, order)
+	slices.SortStableFunc(out, history.Chronological)
 	return out
 }
 
@@ -73,7 +49,7 @@ func (h held) fresh(records []history.Record) []history.Record {
 // final state is never a previous, so its commits roll on to the next
 // success.
 func (h held) previous(r history.Record, fresh []history.Record) (history.Record, bool) {
-	s := streamOf(r)
+	s := r.Stream()
 	var best history.Record
 	found := false
 	for _, c := range slices.Concat(h.successes[s], fresh) {
@@ -86,13 +62,13 @@ func (h held) previous(r history.Record, fresh []history.Record) (history.Record
 
 // newerThan says whether c is newer than best, the newest so far, if found.
 func newerThan(c, best history.Record, found bool) bool {
-	return !found || order(best, c) < 0
+	return !found || history.Chronological(best, c) < 0
 }
 
 // precedes says whether c can be the previous of r, of the stream s: a
 // success of s before r.
-func precedes(c, r history.Record, s stream) bool {
-	return c.State == history.StateSuccess && streamOf(c) == s && order(c, r) < 0
+func precedes(c, r history.Record, s history.Stream) bool {
+	return c.State == history.StateSuccess && c.Stream() == s && history.Chronological(c, r) < 0
 }
 
 // commitsOf compares each fresh success with its previous success and
@@ -134,8 +110,8 @@ func (o Options) start(h held, r history.Record, fresh []history.Record) (histor
 // newerSuccess is a success of r's stream, stored by an earlier run, that
 // is newer than r (by created_at, then ID).
 func (h held) newerSuccess(r history.Record) (history.Record, bool) {
-	for _, c := range h.successes[streamOf(r)] {
-		if order(r, c) < 0 {
+	for _, c := range h.successes[r.Stream()] {
+		if history.Chronological(r, c) < 0 {
 			return c, true
 		}
 	}
