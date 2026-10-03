@@ -172,3 +172,41 @@ func TestRenderDataNeedsConfig(t *testing.T) {
 		t.Errorf("want the usage to list render's --data, got %q", stderr)
 	}
 }
+
+// TestRenderShowsTheMinuteOfTheCalculationInUTC (forsgren#28): the page of a
+// render with data says when its numbers were calculated, to the minute, in
+// UTC whatever zone the clock is in, cut off (never rounded up) at the
+// minute.
+func TestRenderShowsTheMinuteOfTheCalculationInUTC(t *testing.T) {
+	old := now
+	zone := time.FixedZone("CEST", 2*60*60)
+	now = func() time.Time { return time.Date(2026, 10, 3, 7, 19, 59, 0, zone) }
+	t.Cleanup(func() { now = old })
+	_, _, index := renderWith(t, "--config", writeConfig(t, validConfig), "--data", writeHistory(t, acmeHistory()))
+	const want = "<p>Calculated 2026-10-03 05:19 UTC, counting back from that moment: "
+	if !strings.Contains(index, want) {
+		t.Errorf("want the line %q on the page, got:\n%s", want, index)
+	}
+}
+
+// TestRenderShowsNoCalculationTimeWithoutNumbers (forsgren#28): a page with
+// no numbers calculated (no --config, no --data, or no projects) shows no
+// time, so the repository's own build stays byte-identical across renders.
+func TestRenderShowsNoCalculationTimeWithoutNumbers(t *testing.T) {
+	pinNow(t)
+	noProjects := writeConfig(t, "version: 1\nprojects: []\n")
+	cases := map[string][]string{
+		"no --config":       nil,
+		"config only":       {"--config", writeConfig(t, validConfig)},
+		"no projects":       {"--config", noProjects},
+		"no projects, data": {"--config", noProjects, "--data", writeHistory(t, acmeHistory())},
+	}
+	for name, extra := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, _, index := renderWith(t, extra...)
+			if strings.Contains(index, "Calculated") || strings.Contains(index, "12:00") {
+				t.Errorf("want no calculation time on the page, got:\n%s", index)
+			}
+		})
+	}
+}

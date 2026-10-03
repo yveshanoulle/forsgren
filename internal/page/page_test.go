@@ -29,11 +29,11 @@ func TestNoProjectsPageMatchesGolden(t *testing.T) {
 }
 
 // acmeProjects is the page data of two projects counted back from
-// 2026-10-03: Acme Shop with deployments and the lead time shop, Acme Tools
+// 2026-10-03 12:00 UTC: Acme Shop with deployments and the lead time shop, Acme Tools
 // with no deployment.
 func acmeProjects(shop metrics.LeadTime) Data {
 	data := Placeholder("0.0.4")
-	data.AsOf = "2026-10-03"
+	data.AsOf = "2026-10-03 12:00"
 	latest := time.Date(2026, 10, 1, 9, 30, 0, 0, time.UTC)
 	shop.Project = "Acme Shop"
 	frequency := metrics.Frequency{Project: "Acme Shop", Last7: 3, Last30: 12, Latest: latest, Band: metrics.DailyToWeekly}
@@ -65,7 +65,7 @@ func TestLeadTimePageMatchesGolden(t *testing.T) {
 // each say so.
 func TestNoDataPageMatchesGolden(t *testing.T) {
 	data := Placeholder("0.0.4")
-	data.AsOf = "2026-10-03"
+	data.AsOf = "2026-10-03 12:00"
 	data.Projects = []Project{
 		{Frequency: metrics.Frequency{Project: "Acme Shop"}, LeadTime: metrics.LeadTime{Project: "Acme Shop"}},
 		{Frequency: metrics.Frequency{Project: "Acme Tools"}, LeadTime: metrics.LeadTime{Project: "Acme Tools"}},
