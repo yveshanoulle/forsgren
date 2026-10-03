@@ -1,0 +1,155 @@
+{
+  "url": "https://api.github.com/repos/acme/app/compare/1111111111111111111111111111111111111111...3333333333333333333333333333333333333333",
+  "html_url": "https://github.com/acme/app/compare/1111111111111111111111111111111111111111...3333333333333333333333333333333333333333",
+  "permalink_url": "https://github.com/acme/app/compare/acme:1111111...acme:3333333",
+  "diff_url": "https://github.com/acme/app/compare/1111111111111111111111111111111111111111...3333333333333333333333333333333333333333.diff",
+  "patch_url": "https://github.com/acme/app/compare/1111111111111111111111111111111111111111...3333333333333333333333333333333333333333.patch",
+  "base_commit": {
+    "sha": "1111111111111111111111111111111111111111",
+    "node_id": "C_acme_1111",
+    "commit": {
+      "author": {
+        "name": "Acme Dev",
+        "email": "dev@acme.example",
+        "date": "2026-08-31T16:00:00Z"
+      },
+      "committer": {
+        "name": "Acme Dev",
+        "email": "dev@acme.example",
+        "date": "2026-08-31T16:00:00Z"
+      },
+      "message": "Base of the comparison",
+      "tree": {
+        "sha": "a111111111111111111111111111111111111111",
+        "url": "https://api.github.com/repos/acme/app/git/trees/a111111111111111111111111111111111111111"
+      },
+      "url": "https://api.github.com/repos/acme/app/git/commits/1111111111111111111111111111111111111111",
+      "comment_count": 0
+    },
+    "url": "https://api.github.com/repos/acme/app/commits/1111111111111111111111111111111111111111",
+    "html_url": "https://github.com/acme/app/commit/1111111111111111111111111111111111111111",
+    "parents": []
+  },
+  "merge_base_commit": {
+    "sha": "1111111111111111111111111111111111111111",
+    "url": "https://api.github.com/repos/acme/app/commits/1111111111111111111111111111111111111111"
+  },
+  "status": "ahead",
+  "ahead_by": 2,
+  "behind_by": 0,
+  "total_commits": 2,
+  "commits": [
+    {
+      "sha": "2222222222222222222222222222222222222222",
+      "node_id": "C_acme_2222",
+      "commit": {
+        "author": {
+          "name": "Acme Dev",
+          "email": "dev@acme.example",
+          "date": "2026-09-01T08:00:00Z"
+        },
+        "committer": {
+          "name": "GitHub",
+          "email": "noreply@github.com",
+          "date": "2026-09-02T12:00:00Z"
+        },
+        "message": "First change",
+        "tree": {
+          "sha": "a222222222222222222222222222222222222222",
+          "url": "https://api.github.com/repos/acme/app/git/trees/a222222222222222222222222222222222222222"
+        },
+        "url": "https://api.github.com/repos/acme/app/git/commits/2222222222222222222222222222222222222222",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unsigned",
+          "signature": null,
+          "payload": null
+        }
+      },
+      "url": "https://api.github.com/repos/acme/app/commits/2222222222222222222222222222222222222222",
+      "html_url": "https://github.com/acme/app/commit/2222222222222222222222222222222222222222",
+      "comments_url": "https://api.github.com/repos/acme/app/commits/2222222222222222222222222222222222222222/comments",
+      "author": {
+        "login": "acme-dev",
+        "id": 2,
+        "type": "User"
+      },
+      "committer": {
+        "login": "web-flow",
+        "id": 3,
+        "type": "User"
+      },
+      "parents": [
+        {
+          "sha": "1111111111111111111111111111111111111111",
+          "url": "https://api.github.com/repos/acme/app/commits/1111111111111111111111111111111111111111",
+          "html_url": "https://github.com/acme/app/commit/1111111111111111111111111111111111111111"
+        }
+      ]
+    },
+    {
+      "sha": "3333333333333333333333333333333333333333",
+      "node_id": "C_acme_3333",
+      "commit": {
+        "author": {
+          "name": "Acme Dev",
+          "email": "dev@acme.example",
+          "date": "2026-09-01T09:30:00Z"
+        },
+        "committer": {
+          "name": "GitHub",
+          "email": "noreply@github.com",
+          "date": "2026-09-02T12:00:05Z"
+        },
+        "message": "Second change",
+        "tree": {
+          "sha": "a333333333333333333333333333333333333333",
+          "url": "https://api.github.com/repos/acme/app/git/trees/a333333333333333333333333333333333333333"
+        },
+        "url": "https://api.github.com/repos/acme/app/git/commits/3333333333333333333333333333333333333333",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unsigned",
+          "signature": null,
+          "payload": null
+        }
+      },
+      "url": "https://api.github.com/repos/acme/app/commits/3333333333333333333333333333333333333333",
+      "html_url": "https://github.com/acme/app/commit/3333333333333333333333333333333333333333",
+      "comments_url": "https://api.github.com/repos/acme/app/commits/3333333333333333333333333333333333333333/comments",
+      "author": {
+        "login": "acme-dev",
+        "id": 2,
+        "type": "User"
+      },
+      "committer": {
+        "login": "web-flow",
+        "id": 3,
+        "type": "User"
+      },
+      "parents": [
+        {
+          "sha": "2222222222222222222222222222222222222222",
+          "url": "https://api.github.com/repos/acme/app/commits/2222222222222222222222222222222222222222",
+          "html_url": "https://github.com/acme/app/commit/2222222222222222222222222222222222222222"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "sha": "a444444444444444444444444444444444444444",
+      "filename": "README.md",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 1,
+      "changes": 3,
+      "blob_url": "https://github.com/acme/app/blob/3333333333333333333333333333333333333333/README.md",
+      "raw_url": "https://github.com/acme/app/raw/3333333333333333333333333333333333333333/README.md",
+      "contents_url": "https://api.github.com/repos/acme/app/contents/README.md?ref=3333333333333333333333333333333333333333",
+      "patch": "@@ -1 +1,2 @@\n-acme\n+acme app\n+made up"
+    }
+  ]
+}

@@ -134,5 +134,9 @@ func calls(repo string) map[string]func(*Client) error {
 			_, err := c.TagCommit(ctx, repo, "v1.2.0")
 			return err
 		},
+		"compare": func(c *Client) error {
+			_, _, err := c.Compare(ctx, repo, shaBase, shaHead)
+			return err
+		},
 	}
 }

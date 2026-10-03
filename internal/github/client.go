@@ -45,6 +45,9 @@ var (
 	ErrForeignLink    = errors.New("the next page is not on the API host")
 	ErrTooManyPages   = errors.New("more pages than forsgren reads")
 	ErrMissingTag     = errors.New("the release's tag is missing")
+	ErrCommitSHA      = errors.New("not a 40-hex commit SHA")
+	ErrNotAncestor    = errors.New("the base is not an ancestor of the head")
+	ErrMissingCommit  = errors.New("a commit of the comparison is missing")
 )
 
 // Client reads GitHub's REST API at one base URL with one token.

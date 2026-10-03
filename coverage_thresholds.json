@@ -72,6 +72,7 @@
     "github.com/yveshanoulle/forsgren/internal/github/client.go:nextPage": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/client.go:onAPIHost": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/client.go:nextLink": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/github/compare.go:Compare": 0.0,
     "github.com/yveshanoulle/forsgren/internal/github/endpoints.go:Deployments": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/endpoints.go:DeploymentStatuses": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/endpoints.go:DefaultBranch": 100.0,

@@ -197,7 +197,8 @@ func TestMalformedJSONNamesTheRepository(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			f := newFake(t)
-			for _, path := range []string{deploymentsPath, statusesPath, "/repos/acme/app", runsPath, releasesPath} {
+			paths := []string{deploymentsPath, statusesPath, "/repos/acme/app", runsPath, releasesPath, comparePath}
+			for _, path := range paths {
 				f.on(path, reply{body: `[{"id": "not a number"`})
 			}
 			wantError(t, call(f.client(t, DefaultMaxPages)), ErrAnswer, "acme/app: ")
@@ -206,14 +207,17 @@ func TestMalformedJSONNamesTheRepository(t *testing.T) {
 }
 
 // TestEveryCallPassesGitHubsRefusalOn: no call takes a 404 for an empty
-// answer. Every call but the tag's says to check the token's access; a 404
-// for a tag's commit is the tag missing (TestAMissingTagIsNamedNotTheToken).
+// answer. Every call but the tag's and the comparison's says to check the
+// token's access; a 404 there is the tag missing
+// (TestAMissingTagIsNamedNotTheToken) or a commit missing
+// (TestCompareNamesAMissingCommitNotTheToken).
 func TestEveryCallPassesGitHubsRefusalOn(t *testing.T) {
+	missingNotAccess := map[string]bool{"tag commit": true, "compare": true}
 	for name, call := range calls("acme/app") {
 		t.Run(name, func(t *testing.T) {
 			f := newFake(t)
 			err := call(f.client(t, DefaultMaxPages))
-			if name == "tag commit" {
+			if missingNotAccess[name] {
 				if err == nil || !strings.HasPrefix(err.Error(), "acme/app: ") {
 					t.Errorf("want an error that names acme/app, got %v", err)
 				}
