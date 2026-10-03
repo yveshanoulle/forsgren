@@ -154,10 +154,14 @@ recorded yet".
 An installation describes what forsgren measures in one file,
 `forsgren.config.yml`, in its data repository. Together with `data/` it is
 all an installation's owner owns, so the template contains neither: it holds
-only forsgren's own files. Installing a new version is copying the new
-template's files over the data repository; that replaces every forsgren file
-and never touches `forsgren.config.yml` or `data/`, and the repository keeps
-its secrets and Pages address (ruled 2026-10-02, #9). forsgren creates
+only forsgren's own files. Installing a new version is one click: the
+template's `.github/dependabot.yml` makes Dependabot open a pull request that
+moves the pinned `uses:` line to each new release, and merging it is the
+update (#14). A release that changes more than that line (a permission, a
+secret) says so in its notes; then the owner copies the new template's files
+over the data repository once, which replaces every forsgren file and never
+touches `forsgren.config.yml` or `data/`, and the repository keeps its secrets
+and Pages address (ruled 2026-10-02, #9). forsgren creates
 `data/` when it first stores history and never overwrites history that is
 there. One installation measures every project it lists on one page, each
 project in its own section (#6).
@@ -395,9 +399,9 @@ jobs:
   GitHub gives a called workflow as `job.workflow_sha` and
   `job.workflow_repository` (the `github` context would name the
   caller's). It refuses anything but a 40-digit commit and one
-  `owner/name` before it installs anything. A new template carries the
-  new `uses:` line, so copying its files over the data repository updates
-  it (see Configuration). A fork calling its own copy installs the fork,
+  `owner/name` before it installs anything. Dependabot, configured by the
+  template, proposes the new `uses:` line of each release as a pull request
+  (see Configuration, #14). A fork calling its own copy installs the fork,
   never upstream.
 - **`v0.0.1` predates this.** Its `metrics.yml` still requires
   `with: forsgren-version: v0.0.1` under the `uses:` line; the one-line
