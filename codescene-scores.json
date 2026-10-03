@@ -3,12 +3,6 @@
  "scoredWith": "CodeScene MCP on babacar, first baseline of all 27 Go files on 2026-10-02 under .codescene/code-health-rules.json. Re-baseline when the rules change, not on an engine bump.",
  "files": [
   {
-   "path": "internal/github/client.go",
-   "score": 8.67,
-   "checkedAt": "2026-10-02",
-   "minScore": 9.0
-  },
-  {
    "path": "cmd/forsgren/init_config_test.go",
    "score": 9.09,
    "checkedAt": "2026-10-02",
@@ -29,7 +23,7 @@
   {
    "path": "internal/github/endpoints.go",
    "score": 9.38,
-   "checkedAt": "2026-10-02",
+   "checkedAt": "2026-10-03",
    "minScore": 9.28
   },
   {
@@ -138,6 +132,12 @@
    "path": "internal/config/init.go",
    "score": 10.0,
    "checkedAt": "2026-10-02",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/client.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
    "minScore": 10.0
   },
   {

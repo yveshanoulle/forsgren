@@ -77,11 +77,11 @@ func (c *Client) DeploymentStatuses(ctx context.Context, repo string, id int64) 
 // DefaultBranch is the repository's default branch (GET
 // /repos/{owner}/{repo}, default_branch).
 func (c *Client) DefaultBranch(ctx context.Context, repo string) (string, error) {
-	u, err := c.endpoint(repo, nil)
+	t, err := c.endpoint(repo, nil)
 	if err != nil {
 		return "", err
 	}
-	body, _, err := c.get(ctx, repo, u, jsonMedia)
+	body, _, err := c.get(ctx, t, jsonMedia)
 	if err != nil {
 		return "", err
 	}
@@ -89,10 +89,10 @@ func (c *Client) DefaultBranch(ctx context.Context, repo string) (string, error)
 		DefaultBranch string `json:"default_branch"`
 	}
 	if err := json.Unmarshal(body, &r); err != nil {
-		return "", fmt.Errorf("%s: %w for %s: %w", repo, ErrAnswer, u.EscapedPath(), err)
+		return "", fmt.Errorf("%s: %w for %s: %w", repo, ErrAnswer, t.path(), err)
 	}
 	if r.DefaultBranch == "" {
-		return "", fmt.Errorf("%s: %w for %s: no default_branch", repo, ErrAnswer, u.EscapedPath())
+		return "", fmt.Errorf("%s: %w for %s: no default_branch", repo, ErrAnswer, t.path())
 	}
 	return r.DefaultBranch, nil
 }
@@ -106,13 +106,13 @@ func (c *Client) Runs(ctx context.Context, repo, workflow, branch string, since 
 		"branch":  {branch},
 		"created": {">=" + since.UTC().AddDate(0, 0, -1).Format(time.DateOnly)},
 	}
-	u, err := c.endpoint(repo, query, "actions", "workflows", workflow, "runs")
+	t, err := c.endpoint(repo, query, "actions", "workflows", workflow, "runs")
 	if err != nil {
 		return nil, false, err
 	}
 	var runs []Run
 	created := func(r Run) time.Time { return r.CreatedAt }
-	truncated, err := c.list(ctx, repo, u, func(body []byte) (bool, error) {
+	truncated, err := c.list(ctx, t, func(body []byte) (bool, error) {
 		var page struct {
 			WorkflowRuns []Run `json:"workflow_runs"`
 		}
@@ -139,11 +139,11 @@ func (c *Client) Releases(ctx context.Context, repo string, since time.Time) ([]
 // resolved to its commit: GET /repos/{owner}/{repo}/commits/tags/{tag} with
 // the sha media type, which answers the SHA alone, as plain text.
 func (c *Client) TagCommit(ctx context.Context, repo, tag string) (string, error) {
-	u, err := c.endpoint(repo, nil, append([]string{"commits", "tags"}, strings.Split(tag, "/")...)...)
+	t, err := c.endpoint(repo, nil, append([]string{"commits", "tags"}, strings.Split(tag, "/")...)...)
 	if err != nil {
 		return "", err
 	}
-	body, _, err := c.get(ctx, repo, u, "application/vnd.github.sha")
+	body, _, err := c.get(ctx, t, "application/vnd.github.sha")
 	if err != nil {
 		return "", err
 	}
@@ -159,12 +159,12 @@ func (c *Client) TagCommit(ctx context.Context, repo, tag string) (string, error
 func listSince[T any](ctx context.Context, c *Client, repo string, query url.Values, since time.Time,
 	at func(T) time.Time, segments ...string,
 ) ([]T, bool, error) {
-	u, err := c.endpoint(repo, query, segments...)
+	t, err := c.endpoint(repo, query, segments...)
 	if err != nil {
 		return nil, false, err
 	}
 	var items []T
-	truncated, err := c.list(ctx, repo, u, func(body []byte) (bool, error) {
+	truncated, err := c.list(ctx, t, func(body []byte) (bool, error) {
 		var page []T
 		if err := json.Unmarshal(body, &page); err != nil {
 			return false, err

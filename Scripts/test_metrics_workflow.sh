@@ -182,10 +182,9 @@
 # indented deeper than its key.
 #
 # Self-proving: each pin is shown failing on a mutant of the real metrics.yml,
-# naming its own reason, so a broken matcher cannot pass in silence. The
-# mutants of pins 17 to 26 and their order cases are judged by the pin they
-# are aimed at alone (proves_by): judging each by every pin, which executes
-# real steps, would multiply this self-test's run time.
+# naming its own reason, so a broken matcher cannot pass in silence. Each
+# mutant is judged by the pin it is aimed at alone: judging each by every
+# pin, which executes real steps, would multiply this self-test's run time.
 #
 # Usage: Scripts/test_metrics_workflow.sh
 
@@ -608,10 +607,7 @@ judge_starter_step() {
   if [[ "$got" != "$want" ]]; then
     echo "for a created forsgren.config.yml on its branch the starter step gives '${got}', not '${want}' — the starter is committed and pushed there"
   else
-    who="$(iso_out -C "$ORIGIN" log -1 --format='%an <%ae>' "$TRUNK")"
-    [[ "$who" == "$BOT_IDENTITY" ]] || echo "the starter commit's author is '${who}', not '${BOT_IDENTITY}'"
-    who="$(iso_out -C "$ORIGIN" log -1 --format='%cn <%ce>' "$TRUNK")"
-    [[ "$who" == "$BOT_IDENTITY" ]] || echo "the starter commit's committer is '${who}', not '${BOT_IDENTITY}'"
+    bot_findings "for a created forsgren.config.yml" "starter commit" "$TRUNK"
     who="$(iso_out -C "$ORIGIN" log -1 --format='%B' "$TRUNK")"
     [[ "$who" == "$STARTER_SUBJECT" ]] || echo "the starter commit's message is '${who}', not '${STARTER_SUBJECT}'"
     files="$(iso_out -C "$ORIGIN" diff-tree --no-commit-id --name-only -r "$TRUNK" | paste -sd, -)"
@@ -623,13 +619,7 @@ judge_starter_step() {
   if [[ "$got" != "$want" ]]; then
     echo "with an outer identity and a signing config inherited from the environment the starter step gives '${got}', not '${want}' — git's environment outranks git -c, so the commit must set its own identity and config in the environment"
   else
-    who="$(iso_out -C "$ORIGIN" log -1 --format='%an <%ae>' "$TRUNK")"
-    [[ "$who" == "$BOT_IDENTITY" ]] || echo "with an inherited outer identity the starter commit's author is '${who}', not '${BOT_IDENTITY}'"
-    who="$(iso_out -C "$ORIGIN" log -1 --format='%cn <%ce>' "$TRUNK")"
-    [[ "$who" == "$BOT_IDENTITY" ]] || echo "with an inherited outer identity the starter commit's committer is '${who}', not '${BOT_IDENTITY}'"
-    if iso_out -C "$ORIGIN" cat-file commit "$TRUNK" | grep -q '^gpgsig'; then
-      echo "with an inherited signing config the starter commit is signed — it must be unsigned"
-    fi
+    bot_findings "with an inherited outer identity" "starter commit" "$TRUNK"
   fi
   new_install
   iso -C "$INSTALL" checkout -b feature
@@ -1280,263 +1270,257 @@ else
 fi
 
 # --- Self-proof: each pin, on a mutant of the real metrics.yml, names its reason.
-# judged <case> <reason> <mutant> [<judge>]: the judge names <reason> for the
-# mutant; every pin's judge, or only <judge>, the function of the pin the
-# mutant is aimed at.
+# Each mutant is judged by the one pin it is aimed at, never by every pin:
+# the pins execute real steps (a real git, the real forsgren), so a mutant
+# judged by all of them costs seconds, and judging by the aimed pin alone
+# also proves that pin, not another, names the reason.
+# judged <judge> <case> <reason> <mutant>: <judge>, the function of the pin
+# the mutant is aimed at, names <reason> for the mutant.
 judged() {
   local got
-  got="$("${4:-judge}" "$3")"
-  if grep -qF -- "$2" <<< "$got"; then
-    echo "  ok: $1 is rejected"
+  got="$("$1" "$4")"
+  if grep -qF -- "$3" <<< "$got"; then
+    echo "  ok: $2 is rejected"
   else
-    fail "the mutant with $1 was ACCEPTED (verdict: ${got:-none}) — this pin cannot detect the defect it exists for"
+    fail "the mutant with $2 was ACCEPTED by ${1} (verdict: ${got:-none}) — this pin cannot detect the defect it exists for"
   fi
 }
 
-# proves <case> <reason> <sed-expression>
+# proves <judge> <case> <reason> <sed-expression>: the real metrics.yml
+# mutated by the sed expression, judged by <judge>.
 proves() {
-  local mutant="${TMP}/mutants/$1.yml"
-  selftest_mutant "$WF" "$mutant" "$3" || return 0
-  judged "$1" "$2" "$mutant"
-}
-
-# proves_by <judge> <case> <reason> <sed-expression>: as proves, judged by
-# the one pin the mutant is aimed at. Every pin executes real steps, so a
-# mutant judged by all of them costs seconds; the pins of forsgren#12 step 6
-# name their own judge, which keeps this self-test's run short.
-proves_by() {
   local mutant="${TMP}/mutants/$2.yml"
   selftest_mutant "$WF" "$mutant" "$4" || return 0
-  judged "$2" "$3" "$mutant" "$1"
+  judged "$1" "$2" "$3" "$mutant"
 }
 
-# proves_moved <case> <reason> <step name> [<before step name>] [<judge>]:
-# as proves, on the real metrics.yml with that step moved before the other,
-# or removed; judged by every pin, or by <judge> only.
+# proves_moved <judge> <case> <reason> <step name> [<before step name>]: as
+# proves, on the real metrics.yml with that step moved before the other, or
+# removed when no other is named.
 proves_moved() {
-  local mutant="${TMP}/mutants/$1.yml"
+  local mutant="${TMP}/mutants/$2.yml"
   mkdir -p "${TMP}/mutants"
-  move_step "$WF" "$3" "${4:-}" > "$mutant"
+  move_step "$WF" "$4" "${5:-}" > "$mutant"
   if cmp -s "$WF" "$mutant"; then
-    fail "moving the step '$3' changed nothing in ${WF}: the proof would be vacuous"
+    fail "moving the step '$4' changed nothing in ${WF}: the proof would be vacuous"
     return 0
   fi
-  judged "$1" "$2" "$mutant" "${5:-judge}"
+  judged "$1" "$2" "$3" "$mutant"
 }
 
-proves "a push trigger" "not on workflow_call alone" \
+proves judge_trigger "a push trigger" "not on workflow_call alone" \
   's/^  workflow_call:$/  push:\n  workflow_call:/'
-proves "a forsgren-version input back" "workflow_call declares [inputs]" \
+proves judge_trigger "a forsgren-version input back" "workflow_call declares [inputs]" \
   's/^  workflow_call:$/  workflow_call:\n    inputs:\n      forsgren-version:\n        type: string\n        required: true/'
-proves "the commit pasted into run:" "expands a \${{ }} expression inside run:" \
+proves judge_expressions "the commit pasted into run:" "expands a \${{ }} expression inside run:" \
   "s/@\\\${FORSGREN_SHA}\"\$/@\${{ job.workflow_sha }}\"/"
-proves "the caller's commit" "FORSGREN_SHA is not" \
+proves judge_install_env "the caller's commit" "FORSGREN_SHA is not" \
   's/job\.workflow_sha }}/github.workflow_sha }}/'
-proves "the caller's repository" "FORSGREN_REPOSITORY is not" \
+proves judge_install_env "the caller's repository" "FORSGREN_REPOSITORY is not" \
   's/job\.workflow_repository }}/github.repository }}/'
-proves "no install step" "has no step '${INSTALL_STEP}'" \
+proves judge_install_run "no install step" "has no step '${INSTALL_STEP}'" \
   "s/- name: ${INSTALL_STEP}\$/- name: Install something else/"
-proves "checks that accept anything" "for the commit 'latest'" \
+proves judge_install_run "checks that accept anything" "for the commit 'latest'" \
   's/^\( *\)exit 1$/\1exit 0/'
-proves "a commit check without its end anchor" "for the commit '${SHA}0'" \
+proves judge_install_run "a commit check without its end anchor" "for the commit '${SHA}0'" \
   's/{40}\$/{40}/'
-proves "a repository check that lets a third element through" "for the repository 'yveshanoulle/forsgren/extra'" \
+proves judge_install_run "a repository check that lets a third element through" "for the repository 'yveshanoulle/forsgren/extra'" \
   's/\[A-Za-z0-9_\.-\]\*\$/[A-Za-z0-9_.\/-]*$/'
-proves "upstream installed for every caller" "for the fork acme/forsgren" \
+proves judge_install_run "upstream installed for every caller" "for the fork acme/forsgren" \
   "s|github.com/\\\${FORSGREN_REPOSITORY}/cmd|github.com/yveshanoulle/forsgren/cmd|"
-proves "go install at another version" "the install step gives 'installed install github.com/${UPSTREAM}/cmd/forsgren@v0.0.1'" \
+proves judge_install_run "go install at another version" "the install step gives 'installed install github.com/${UPSTREAM}/cmd/forsgren@v0.0.1'" \
   "s/@\\\${FORSGREN_SHA}\"\$/@v0.0.1\"/"
-proves "setup-go on another Go" "actions/setup-go installs Go '1.0.0'" \
+proves judge_setup_go "setup-go on another Go" "actions/setup-go installs Go '1.0.0'" \
   "s/^\(          go-version: \).*\$/\1'1.0.0'/"
 
-proves "no checkout pin" "not actions/checkout pinned by a full 40-digit commit" \
+proves judge_checkout "no checkout pin" "not actions/checkout pinned by a full 40-digit commit" \
   's|actions/checkout@[0-9a-f]\{40\}  # v7.0.1|actions/checkout@v7|'
-proves "another checkout commit" "not at 3d3c42e5aac5ba805825da76410c181273ba90b1 as Quality's own checkout is" \
+proves judge_checkout "another checkout commit" "not at 3d3c42e5aac5ba805825da76410c181273ba90b1 as Quality's own checkout is" \
   's|actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1|actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b2|'
-proves "persist-credentials true" "does not set persist-credentials: false" \
+proves judge_checkout "persist-credentials true" "does not set persist-credentials: false" \
   's/persist-credentials: false/persist-credentials: true/'
-proves "no checkout step" "has no step '${CHECKOUT_STEP}'" \
+proves judge_checkout "no checkout step" "has no step '${CHECKOUT_STEP}'" \
   "s/- name: ${CHECKOUT_STEP}\$/- name: Check out something else/"
-proves "no config step name" "has no step '${CHECK_STEP}'" \
+proves judge_config_step "no config step name" "has no step '${CHECK_STEP}'" \
   "s/- name: ${CHECK_STEP}\$/- name: Check something else/"
-proves "check-config on another file" "for a valid config the config step gives" \
+proves judge_config_step "check-config on another file" "for a valid config the config step gives" \
   's/--config forsgren\.config\.yml/--config config.yml/'
-proves "a config step that lets a refusal pass" "for a refused config the config step gives 'exit=0" \
+proves judge_config_step "a config step that lets a refusal pass" "for a refused config the config step gives 'exit=0" \
   '/- name: Check the caller/,/- name: Render/ s/exit 1/exit 0/'
-proves "a refusal without its cross mark" "for a refused config the config step gives 'exit=1 calls=${CONFIG_CMD} log=shown summary=check-config" \
+proves judge_config_step "a refusal without its cross mark" "for a refused config the config step gives 'exit=1 calls=${CONFIG_CMD} log=shown summary=check-config" \
   's/"❌ /"/'
-proves "workflow commands left on" "leaves them live in the log (line " \
+proves judge_config_commands "workflow commands left on" "leaves them live in the log (line " \
   '/::stop-commands::/d'
-proves "commands never resumed" "never ended" \
+proves judge_config_commands "commands never resumed" "never ended" \
   '/echo "::.{token}::"/d'
-proves "the same token on every run" "the same token on every run" \
+proves judge_config_commands "the same token on every run" "the same token on every run" \
   's/^\( *\)token=.*$/\1token=forsgren/'
-proves "the real forsgren on another file" "with the real forsgren and no forsgren.config.yml" \
+proves judge_config_e2e "the real forsgren on another file" "with the real forsgren and no forsgren.config.yml" \
   's/--config forsgren\.config\.yml/--config config.yml/'
-proves "a real refusal without its cross mark" "with the real forsgren and an invalid forsgren.config.yml" \
+proves judge_config_e2e "a real refusal without its cross mark" "with the real forsgren and an invalid forsgren.config.yml" \
   's/"❌ /"/'
-proves "a real valid config refused" "with the real forsgren and a valid forsgren.config.yml" \
+proves judge_config_e2e "a real valid config refused" "with the real forsgren and a valid forsgren.config.yml" \
   's/ -ne 0 \]\]; then/ -ne 99 ]]; then/'
 
 # The starter step (forsgren#12, step 3).
-proves "no starter step" "has no step '${INIT_STEP}'" \
+proves judge_starter_step "no starter step" "has no step '${INIT_STEP}'" \
   "s/- name: ${INIT_STEP}\$/- name: Write something else/"
-proves "init-config on another file" "the starter step runs 'forsgren init-config --config config.yml'" \
+proves judge_starter_step "init-config on another file" "the starter step runs 'forsgren init-config --config config.yml'" \
   's/forsgren init-config --config forsgren\.config\.yml/forsgren init-config --config config.yml/'
-proves "a starter committed even when kept" "for a kept forsgren.config.yml the starter step gives" \
+proves judge_starter_step "a starter committed even when kept" "for a kept forsgren.config.yml the starter step gives" \
   "s/\\[\\[ \"${D}result\" != \"created forsgren.config.yml\" \\]\\]/false/"
-proves "no starter commit" "for a created forsgren.config.yml on its branch the starter step gives 'exit=0 commits=1'" \
+proves judge_starter_step "no starter commit" "for a created forsgren.config.yml on its branch the starter step gives 'exit=0 commits=1'" \
   '/^ *GIT_CONFIG_COUNT=0 /,/git commit --quiet/d'
-proves "the whole checkout committed" "the starter commit holds [forsgren.config.yml,other.txt,staged.txt]" \
+proves judge_starter_step "the whole checkout committed" "the starter commit holds [forsgren.config.yml,other.txt,staged.txt]" \
   "s/git add -- forsgren.config.yml/git add -A/; s/'forsgren: add a starter forsgren.config.yml' -- forsgren.config.yml/'forsgren: add a starter forsgren.config.yml'/"
-proves "another commit author" "the starter commit's author is 'someone <" \
+proves judge_starter_step "another commit author" "the starter commit's author is 'someone <" \
   "s/GIT_AUTHOR_NAME='github-actions\\[bot\\]'/GIT_AUTHOR_NAME='someone'/"
-proves "another author address" "the starter commit's author is 'github-actions[bot] <12345+github-actions" \
+proves judge_starter_step "another author address" "the starter commit's author is 'github-actions[bot] <12345+github-actions" \
   "s/GIT_AUTHOR_EMAIL='41898282+github-actions/GIT_AUTHOR_EMAIL='12345+github-actions/"
-proves "another committer" "the starter commit's committer is 'someone <" \
+proves judge_starter_step "another committer" "the starter commit's committer is 'someone <" \
   "s/GIT_COMMITTER_NAME='github-actions\\[bot\\]'/GIT_COMMITTER_NAME='someone'/"
-proves "an identity left to -c" "with an inherited outer identity the starter commit's author is 'Outer Author <outer-author@example.com>'" \
+proves judge_starter_step "an identity left to -c" "with an inherited outer identity the starter commit's author is 'Outer Author <outer-author@example.com>'" \
   "/GIT_AUTHOR_NAME=/d; /GIT_COMMITTER_NAME=/d; s/git commit --quiet/git -c user.name=bot -c user.email=bot@example.com commit --quiet/"
-proves "the inherited config left alone" "with an outer identity and a signing config inherited from the environment the starter step gives 'exit=128 commits=1'" \
+proves judge_starter_step "the inherited config left alone" "with an outer identity and a signing config inherited from the environment the starter step gives 'exit=128 commits=1'" \
   '/^ *GIT_CONFIG_COUNT=0 /d'
-proves "another commit message" "the starter commit's message is 'forsgren: add a config'" \
+proves judge_starter_step "another commit message" "the starter commit's message is 'forsgren: add a config'" \
   "s/add a starter forsgren\\.config\\.yml'/add a config'/"
-proves "no push" "for a created forsgren.config.yml on its branch the starter step gives 'exit=0 commits=1'" \
+proves judge_starter_step "no push" "for a created forsgren.config.yml on its branch the starter step gives 'exit=0 commits=1'" \
   '/git push --quiet origin/d'
-proves "a push to a fixed branch instead of the run's" "for a created forsgren.config.yml on its branch the starter step gives 'exit=0 commits=1'" \
+proves judge_starter_step "a push to a fixed branch instead of the run's" "for a created forsgren.config.yml on its branch the starter step gives 'exit=0 commits=1'" \
   "s|\"HEAD:${D}{GITHUB_REF}\"|\"HEAD:refs/heads/main\"|"
-proves "a starter pushed from a tag" "for a ref that is not a branch (refs/tags/v1)" \
+proves judge_starter_step "a starter pushed from a tag" "for a ref that is not a branch (refs/tags/v1)" \
   '/- name: Write the starter/,/git add --/ s/exit 1/exit 0/'
-proves "the branch guard before the kept check" "with no branch ref at all" \
+proves judge_starter_step "the branch guard before the kept check" "with no branch ref at all" \
   's/^\( *\)exit 0$/\1true/'
-proves "the token in an argument" "hands the token to git in an argument" \
+proves judge_starter_token "the token in an argument" "hands the token to git in an argument" \
   "s|^\\( *\\)git push --quiet origin|\\1git -c \"http.extraheader=AUTHORIZATION: basic ${D}{auth}\" push --quiet origin|"
-proves "the token stored in the checkout" "leaves the token on disk in the checkout" \
+proves judge_starter_token "the token stored in the checkout" "leaves the token on disk in the checkout" \
   "s|^\\( *\\)git push --quiet origin|\\1git config http.extraheader \"AUTHORIZATION: basic ${D}{auth}\"\\n\\1git push --quiet origin|"
-proves "the token echoed" "the starter step shows the token in its log" \
+proves judge_starter_token "the token echoed" "the starter step shows the token in its log" \
   "s|^\\( *\\)git push --quiet origin|\\1echo \"pushing with ${D}{GH_TOKEN}\"\\n\\1git push --quiet origin|"
-proves "a push without the header" "the starter step's push carries" \
+proves judge_starter_token "a push without the header" "the starter step's push carries" \
   's/"AUTHORIZATION: basic /"X-Other: basic /'
-proves "a starter that leaves no file" "with the real forsgren a new install's config check after the starter step exits" \
+proves judge_starter_e2e "a starter that leaves no file" "with the real forsgren a new install's config check after the starter step exits" \
   "s|^\\( *\\)git push --quiet origin.*\$|&\\n\\1rm -f forsgren.config.yml|"
-proves "a job that only reads contents" "does not grant itself 'contents: write'" \
+proves judge_permissions "a job that only reads contents" "does not grant itself 'contents: write'" \
   's/^      contents: write /      contents: read /'
-proves "render without the config" "the render step runs 'forsgren render --out" \
+proves judge_render_config "render without the config" "the render step runs 'forsgren render --out" \
   '/forsgren render /s/ --config forsgren\.config\.yml//'
-proves_by judge_render_config "render without the history" "the render step runs 'forsgren render --out" \
+proves judge_render_config "render without the history" "the render step runs 'forsgren render --out" \
   '/forsgren render /s/ --data data\/deployments\.csv$//'
 
 # The token (forsgren#12, step 6).
-proves_by judge_secret "a required token" "FORSGREN_TOKEN is declared required: true" \
+proves judge_secret "a required token" "FORSGREN_TOKEN is declared required: true" \
   's/^        required: false$/        required: true/'
-proves_by judge_secret "a second secret" "not FORSGREN_TOKEN alone" \
+proves judge_secret "a second secret" "not FORSGREN_TOKEN alone" \
   's/^    secrets:$/    secrets:\n      OTHER_TOKEN:\n        required: false/'
-proves_by judge_secret "no secret declared" "workflow_call declares the secrets []" \
+proves judge_secret "no secret declared" "workflow_call declares the secrets []" \
   '/^    secrets:$/,/^        required: false$/d'
-proves_by judge_collect_token "the token in the job's env" "hands a secret to more than the collect step's env:" \
+proves judge_collect_token "the token in the job's env" "hands a secret to more than the collect step's env:" \
   "s/^    runs-on: ubuntu-latest\$/&\n    env:\n      ${TOKEN_ENV}/"
-proves_by judge_collect_token "the token in the data step" "hands a secret to more than the collect step's env:" \
+proves judge_collect_token "the token in the data step" "hands a secret to more than the collect step's env:" \
   "/- name: ${DATA_STEP}/,/run: |/ s/^          GH_TOKEN: .*\$/&\n          ${TOKEN_ENV}/"
-proves_by judge_collect_token "a collect step without the token" "the collect step's env: does not set" \
+proves judge_collect_token "a collect step without the token" "the collect step's env: does not set" \
   '/^ *FORSGREN_TOKEN: .*secrets\.FORSGREN_TOKEN/d'
 
 # The collect step.
-proves_by judge_collect_step "no collect step" "has no step '${COLLECT_STEP}'" \
+proves judge_collect_step "no collect step" "has no step '${COLLECT_STEP}'" \
   "s/- name: ${COLLECT_STEP}\$/- name: Collect something else/"
-proves_by judge_collect_step "collect on another history" "the collect step runs 'forsgren collect --config forsgren.config.yml --data deployments.csv'" \
+proves judge_collect_step "collect on another history" "the collect step runs 'forsgren collect --config forsgren.config.yml --data deployments.csv'" \
   's|--data data/deployments\.csv|--data deployments.csv|'
-proves_by judge_collect_token "the token as an argument" "hands FORSGREN_TOKEN to forsgren in an argument" \
+proves judge_collect_token "the token as an argument" "hands FORSGREN_TOKEN to forsgren in an argument" \
   "s|forsgren collect --config|forsgren collect --token \"${D}FORSGREN_TOKEN\" --config|"
-proves_by judge_collect_step "the token dropped" "does not hand collect FORSGREN_TOKEN" \
+proves judge_collect_step "the token dropped" "does not hand collect FORSGREN_TOKEN" \
   "s|^\\( *\\)forsgren collect --config|\\1unset FORSGREN_TOKEN\\n&|"
-proves_by judge_collect_token "the token in a file" "leaves FORSGREN_TOKEN in a file of the checkout" \
+proves judge_collect_token "the token in a file" "leaves FORSGREN_TOKEN in a file of the checkout" \
   "s|^\\( *\\)forsgren collect --config|\\1printf '%s' \"${D}FORSGREN_TOKEN\" > .forsgren-token\\n&|"
-proves_by judge_collect_token "the token echoed by collect's step" "the collect step shows FORSGREN_TOKEN in its log" \
+proves judge_collect_token "the token echoed by collect's step" "the collect step shows FORSGREN_TOKEN in its log" \
   "s|^\\( *\\)forsgren collect --config|\\1echo \"collecting with ${D}{FORSGREN_TOKEN}\"\\n&|"
-proves_by judge_collect_token "the token in an output" "writes FORSGREN_TOKEN to a step output" \
+proves judge_collect_token "the token in an output" "writes FORSGREN_TOKEN to a step output" \
   "s|^\\( *\\)echo \"status=|\\1echo \"token=${D}{FORSGREN_TOKEN}\" >> \"${D}GITHUB_OUTPUT\"\\n&|"
-proves_by judge_collect_step "a failing collect that stops the job" "for a collect that fails after storing the collect step gives 'exit=1" \
+proves judge_collect_step "a failing collect that stops the job" "for a collect that fails after storing the collect step gives 'exit=1" \
   's#\(--data data/deployments\.csv\) || status=.*#\1#'
-proves_by judge_collect_step "collect's status not recorded" "for a collect that fails after storing the collect step gives 'exit=0 output=state=1'" \
+proves judge_collect_step "collect's status not recorded" "for a collect that fails after storing the collect step gives 'exit=0 output=state=1'" \
   's/echo "status=/echo "state=/'
-proves_by judge_collect_e2e "a collect step that skips a missing token" "with the real forsgren, a configured repository and no FORSGREN_TOKEN" \
+proves judge_collect_e2e "a collect step that skips a missing token" "with the real forsgren, a configured repository and no FORSGREN_TOKEN" \
   "s|^\\( *\\)forsgren collect --config|\\1[[ -n \"${D}{FORSGREN_TOKEN:-}\" ]] \\|\\| exit 0\\n&|"
-proves_by judge_collect_e2e "a collect step that demands a token" "with the real forsgren, the starter configuration (no projects) and no FORSGREN_TOKEN" \
+proves judge_collect_e2e "a collect step that demands a token" "with the real forsgren, the starter configuration (no projects) and no FORSGREN_TOKEN" \
   "s|^\\( *\\)forsgren collect --config|\\1: \"${D}{FORSGREN_TOKEN:?FORSGREN_TOKEN is not set}\"\\n&|"
 
 # The data step.
-proves_by judge_data_step "no data step" "has no step '${DATA_STEP}'" \
+proves judge_data_step "no data step" "has no step '${DATA_STEP}'" \
   "s/- name: ${DATA_STEP}\$/- name: Commit something else/"
-proves_by judge_data_step "data/ committed even when unchanged" "with data/ unchanged the data step gives" \
+proves judge_data_step "data/ committed even when unchanged" "with data/ unchanged the data step gives" \
   "s|\\[\\[ -z \"${D}(git status --porcelain -- data/)\" \\]\\]|false|"
-proves_by judge_data_step "the whole checkout committed with the data" "the data commit holds [data/deployments.csv,other.txt,staged.txt]" \
+proves judge_data_step "the whole checkout committed with the data" "the data commit holds [data/deployments.csv,other.txt,staged.txt]" \
   "s|git add -- data/|git add -A|; s|'forsgren: record deployments' -- data/|'forsgren: record deployments'|"
-proves_by judge_data_step "another data author" "for changed data/ the data commit's author is 'someone <" \
+proves judge_data_step "another data author" "for changed data/ the data commit's author is 'someone <" \
   "/- name: ${DATA_STEP}/,\$ s/GIT_AUTHOR_NAME='github-actions\\[bot\\]'/GIT_AUTHOR_NAME='someone'/"
-proves_by judge_data_step "another data committer" "for changed data/ the data commit's committer is 'someone <" \
+proves judge_data_step "another data committer" "for changed data/ the data commit's committer is 'someone <" \
   "/- name: ${DATA_STEP}/,\$ s/GIT_COMMITTER_NAME='github-actions\\[bot\\]'/GIT_COMMITTER_NAME='someone'/"
-proves_by judge_data_step "a data identity left to -c" "with an inherited outer identity the data commit's author is 'Outer Author <outer-author@example.com>'" \
+proves judge_data_step "a data identity left to -c" "with an inherited outer identity the data commit's author is 'Outer Author <outer-author@example.com>'" \
   "/- name: ${DATA_STEP}/,\$ { /GIT_AUTHOR_NAME=/d; /GIT_COMMITTER_NAME=/d; s/git commit --quiet/git -c user.name=bot -c user.email=bot@example.com commit --quiet/; }"
-proves_by judge_data_step "the data step's inherited config left alone" "with an outer identity and a signing config inherited from the environment the data step gives 'exit=128" \
+proves judge_data_step "the data step's inherited config left alone" "with an outer identity and a signing config inherited from the environment the data step gives 'exit=128" \
   "/- name: ${DATA_STEP}/,\$ { /^ *GIT_CONFIG_COUNT=0 /d; }"
-proves_by judge_data_step "another data message" "the data commit's message is 'forsgren: data'" \
+proves judge_data_step "another data message" "the data commit's message is 'forsgren: data'" \
   "s/'forsgren: record deployments'/'forsgren: data'/"
-proves_by judge_data_step "no data push" "for changed data/ on its branch the data step gives 'exit=0 commits=1'" \
+proves judge_data_step "no data push" "for changed data/ on its branch the data step gives 'exit=0 commits=1'" \
   '/push_log=/d'
-proves_by judge_data_step "data pushed to a fixed branch" "for changed data/ on its branch the data step gives 'exit=0 commits=1'" \
+proves judge_data_step "data pushed to a fixed branch" "for changed data/ on its branch the data step gives 'exit=0 commits=1'" \
   "/- name: ${DATA_STEP}/,\$ s|\"HEAD:${D}{GITHUB_REF}\"|\"HEAD:refs/heads/main\"|"
-proves_by judge_data_step "data pushed from a tag" "for changed data/ on a ref that is not a branch (refs/tags/v1)" \
+proves judge_data_step "data pushed from a tag" "for changed data/ on a ref that is not a branch (refs/tags/v1)" \
   "/- name: ${DATA_STEP}/,/git add --/ s/exit 1/exit 0/"
-proves_by judge_data_step "the branch guard before the change check" "with data/ unchanged on a tag the data step gives" \
+proves judge_data_step "the branch guard before the change check" "with data/ unchanged on a tag the data step gives" \
   "s|^\\( *\\)if \\[\\[ -z \"${D}(git status --porcelain -- data/)\" \\]\\]; then|\\1if [[ \"${D}GITHUB_REF\" != refs/heads/* ]]; then exit 1; fi\\n&|"
-proves_by judge_data_token "the data token in an argument" "the data step hands the token to git in an argument" \
+proves judge_data_token "the data token in an argument" "the data step hands the token to git in an argument" \
   "s|push_log=\"${D}(git push|push_log=\"${D}(git -c \"http.extraheader=AUTHORIZATION: basic ${D}{auth}\" push|"
-proves_by judge_data_token "the data token stored in the checkout" "the data step leaves the token on disk in the checkout" \
+proves judge_data_token "the data token stored in the checkout" "the data step leaves the token on disk in the checkout" \
   "s|^\\( *\\)push_log=|\\1git config http.extraheader \"AUTHORIZATION: basic ${D}{auth}\"\\n&|"
-proves_by judge_data_token "the data token echoed" "the data step shows the token in its log" \
+proves judge_data_token "the data token echoed" "the data step shows the token in its log" \
   "s|^\\( *\\)push_log=|\\1echo \"pushing with ${D}{GH_TOKEN}\"\\n&|"
-proves_by judge_data_token "a data push without the header" "the data step's push carries" \
+proves judge_data_token "a data push without the header" "the data step's push carries" \
   "/- name: ${DATA_STEP}/,\$ s/\"AUTHORIZATION: basic /\"X-Other: basic /"
-proves_by judge_data_moved "a forced data push" "the data step replaced the commit another pushed" \
+proves judge_data_moved "a forced data push" "the data step replaced the commit another pushed" \
   "s|push_log=\"${D}(git push --quiet|push_log=\"${D}(git push --force --quiet|"
-proves_by judge_data_moved "a rebased data push" "with the branch moved since the checkout the data step gives 'exit=0 commits=3'" \
+proves judge_data_moved "a rebased data push" "with the branch moved since the checkout the data step gives 'exit=0 commits=3'" \
   "s|^\\( *\\)push_log=|\\1git -c user.name=x -c user.email=x@example.com pull --rebase --autostash --quiet origin \"${D}{GITHUB_REF}\"\\n&|"
-proves_by judge_data_moved "a refused push without its cause" "does not name the cause in an ::error" \
+proves judge_data_moved "a refused push without its cause" "does not name the cause in an ::error" \
   "s/${MOVED}/was refused/"
 
 # The fail step, and the three steps in a row.
-proves_by judge_fail_step "no fail step" "has no step '${FAIL_STEP}'" \
+proves judge_fail_step "no fail step" "has no step '${FAIL_STEP}'" \
   "s/- name: ${FAIL_STEP}\$/- name: Fail something else/"
-proves_by judge_fail_step "a fail step that never fails" "with COLLECT_STATUS=1 the fail step gives 'exit=0" \
+proves judge_fail_step "a fail step that never fails" "with COLLECT_STATUS=1 the fail step gives 'exit=0" \
   "/- name: ${FAIL_STEP}/,\$ s/exit 1/exit 0/"
-proves_by judge_fail_step "a fail step that lets a missing status pass" "with COLLECT_STATUS= the fail step gives 'exit=0" \
+proves judge_fail_step "a fail step that lets a missing status pass" "with COLLECT_STATUS= the fail step gives 'exit=0" \
   "s/if \\[\\[ \"${D}COLLECT_STATUS\" != 0 \\]\\]/if [[ -n \"${D}COLLECT_STATUS\" \\&\\& \"${D}COLLECT_STATUS\" != 0 ]]/"
-proves_by judge_fail_step "the fail step on another status" "the fail step's COLLECT_STATUS is not" \
+proves judge_fail_step "the fail step on another status" "the fail step's COLLECT_STATUS is not" \
   's/steps\.collect\.outputs\.status/steps.collect.outcome/'
-proves_by judge_fail_step "a collect step without its id" "the collect step has no id: collect" \
+proves judge_fail_step "a collect step without its id" "the collect step has no id: collect" \
   '/^        id: collect$/d'
-proves_by judge_fail_step "a failed collect that throws away what it stored" "when collect fails after storing, the data and fail steps give 'exit=0 commits=1 fail-step=1'" \
+proves judge_fail_step "a failed collect that throws away what it stored" "when collect fails after storing, the data and fail steps give 'exit=0 commits=1 fail-step=1'" \
   "s|^\\( *\\)echo \"status=|\\1if [[ \"${D}status\" -ne 0 ]]; then rm -rf data; fi\\n&|"
 
 # Concurrency.
-proves_by judge_concurrency "no concurrency" "the job has no concurrency: block" \
+proves judge_concurrency "no concurrency" "the job has no concurrency: block" \
   '/^    concurrency:$/,/^      cancel-in-progress:/d'
-proves_by judge_concurrency "a concurrency group for every repository" "not keyed on" \
+proves judge_concurrency "a concurrency group for every repository" "not keyed on" \
   's/^\(      group: \).*$/\1forsgren-metrics/'
-proves_by judge_concurrency "a run that cancels the one in flight" "does not set cancel-in-progress: false" \
+proves judge_concurrency "a run that cancels the one in flight" "does not set cancel-in-progress: false" \
   's/cancel-in-progress: false/cancel-in-progress: true/'
 
 # Whole steps removed or moved: the config step gone, the config step after
 # render (just before "Upload the page"), the install step before setup-go.
-proves_moved "a workflow without the config step" "has no step '${CHECK_STEP}'" "$CHECK_STEP"
-proves_moved "the config check after render" "after it renders" "$CHECK_STEP" "Upload the page"
-proves_moved "the starter after the config check" "writes the starter (line" "$INIT_STEP" "Render the page"
-proves_moved "the starter before the checkout" "before checking out the caller's repository" "$INIT_STEP" "$CHECKOUT_STEP"
-proves_moved "the install step before setup-go" "after the install step" "$INSTALL_STEP" "Set up Go"
-proves_moved "collect before the config check" "collects (line" "$COLLECT_STEP" "$CHECK_STEP" judge_order
-proves_moved "the data commit before collect" "there is nothing to commit yet" "$DATA_STEP" "$COLLECT_STEP" judge_order
-proves_moved "the data commit after render" "would drop what collect stored" "$DATA_STEP" "Upload the page" judge_order
-proves_moved "the fail step before publishing" "before it publishes" "$FAIL_STEP" "$RENDER_STEP" judge_order
+proves_moved judge_config_step "a workflow without the config step" "has no step '${CHECK_STEP}'" "$CHECK_STEP"
+proves_moved judge_order "the config check after render" "after it renders" "$CHECK_STEP" "Upload the page"
+proves_moved judge_order "the starter after the config check" "writes the starter (line" "$INIT_STEP" "Render the page"
+proves_moved judge_order "the starter before the checkout" "before checking out the caller's repository" "$INIT_STEP" "$CHECKOUT_STEP"
+proves_moved judge_setup_go "the install step before setup-go" "after the install step" "$INSTALL_STEP" "Set up Go"
+proves_moved judge_order "collect before the config check" "collects (line" "$COLLECT_STEP" "$CHECK_STEP"
+proves_moved judge_order "the data commit before collect" "there is nothing to commit yet" "$DATA_STEP" "$COLLECT_STEP"
+proves_moved judge_order "the data commit after render" "would drop what collect stored" "$DATA_STEP" "Upload the page"
+proves_moved judge_order "the fail step before publishing" "before it publishes" "$FAIL_STEP" "$RENDER_STEP"
 
 selftest_end "metrics.yml is not the reusable workflow forsgren#4 rules" \
   "metrics.yml runs on workflow_call only, takes no input, installs forsgren from its own job.workflow_repository at its own job.workflow_sha (each checked before go runs, a fork installing itself), passes both through env: only, builds with go.mod's Go after setup-go, writes a new install's starter config with one commit as github-actions[bot] (token in the environment only) and renders with the config and the history, and checks the caller's config before render, with the real forsgren too, its message never run as a workflow command, then collects with FORSGREN_TOKEN in that one step's env only, commits and pushes data/ alone (failing by name, never rebasing or forcing, when the branch moved), publishes, and fails the job at its end when collect failed, one run at a time per caller repository (and each wrong shape is still detected)"
