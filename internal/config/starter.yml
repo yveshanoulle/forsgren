@@ -21,6 +21,18 @@
 #                         .github/workflows/ (.yaml works too)
 #   deployment: release   a published GitHub Release
 #
+# The page shows a row per project, its total. A repository can add rows
+# under it, named as you write them here; the page never shows a repository's
+# own name. Either one row for all its deployments:
+#
+#   label: Website
+#
+# or, for a repository that deploys several services, a row per deployment
+# task (a task left out counts in the total only; not for release):
+#
+#   services:
+#     deploy-api: API
+#
 # Example, with made-up names. To use it, remove the two lines version: 1 and
 # projects: [] below, then remove the "# " in front of the example:
 #
@@ -29,8 +41,12 @@
 #   - name: Acme Shop
 #     repositories:
 #       - name: acme/api
+#         services:
+#           deploy-api: API
+#           deploy-admin: Admin
 #       - name: acme/ios-app
 #         deployment: workflow=testflight.yml
+#         label: iOS
 #   - name: Acme Tools
 #     repositories:
 #       - name: acme/cli

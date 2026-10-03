@@ -15,6 +15,7 @@
 //	    repositories:
 //	      - name: acme/app                 # owner/name on GitHub
 //	        deployment: release            # optional, see Deployment
+//	        label: App                     # optional, see labels.go
 //
 // An installation that measures nothing yet writes `projects: []`; a file
 // whose projects key is missing or has no value is refused, so a forgotten
@@ -137,10 +138,6 @@ func (c Config) RepositoryCount() int {
 	return n
 }
 
-// LabelCount is the number of labelled rows over all projects (red stub,
-// forsgren#38).
-func (c Config) LabelCount() int { return 0 }
-
 // parse decodes and validates the content of a config file.
 func parse(data []byte) (Config, error) {
 	file, err := decode(data)
@@ -164,8 +161,10 @@ type fileProject struct {
 }
 
 type fileRepository struct {
-	Name       string `yaml:"name"`
-	Deployment string `yaml:"deployment"`
+	Name       string        `yaml:"name"`
+	Deployment string        `yaml:"deployment"`
+	Label      *text         `yaml:"label"`
+	Services   map[text]text `yaml:"services"`
 }
 
 // decode reads exactly one YAML document strictly: an unknown key or a value

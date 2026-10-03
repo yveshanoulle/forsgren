@@ -75,6 +75,7 @@
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:parseDeployment": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:environment": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:workflow": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/validate.go:toRepositories": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/client.go:New": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/client.go:isWebURL": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/client.go:MaxPages": 100.0,
@@ -215,6 +216,15 @@
     "github.com/yveshanoulle/forsgren/internal/page/page.go:Render": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:WriteSite": 79.9,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:writePage": 74.9,
-    "github.com/yveshanoulle/forsgren/internal/page/page.go:copyStyles": 74.9
+    "github.com/yveshanoulle/forsgren/internal/page/page.go:copyStyles": 74.9,
+    "github.com/yveshanoulle/forsgren/internal/config/labels.go:UnmarshalYAML": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/labels.go:kindOf": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/labels.go:labels": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/labels.go:servicesOf": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/labels.go:checkLabel": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/labels.go:isBlank": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/labels.go:LabelCount": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/labels.go:Labels": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/labels.go:claimLabels": 100.0
   }
 }

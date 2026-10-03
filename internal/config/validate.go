@@ -88,15 +88,26 @@ func (p fileProject) toProject(n int, seen *names) (Project, error) {
 	if len(p.Repositories) == 0 {
 		return Project{}, fmt.Errorf("project %q: %w", p.Name, ErrNoRepositories)
 	}
-	project := Project{Name: p.Name}
+	repositories, err := p.toRepositories(seen)
+	return Project{Name: p.Name, Repositories: repositories}, err
+}
+
+// toRepositories checks the project's repositories in file order, and that
+// no label of the project is used twice (forsgren#38).
+func (p fileProject) toRepositories(seen *names) ([]Repository, error) {
+	var out []Repository
+	labels := map[string]bool{}
 	for _, r := range p.Repositories {
 		repo, err := r.toRepository(p.Name, seen)
 		if err != nil {
-			return Project{}, err
+			return nil, err
 		}
-		project.Repositories = append(project.Repositories, repo)
+		if err := claimLabels(labels, repo); err != nil {
+			return nil, fmt.Errorf("project %q: repository %q: %w", p.Name, repo.Name, err)
+		}
+		out = append(out, repo)
 	}
-	return project, nil
+	return out, nil
 }
 
 // repositoryName is GitHub's owner/name: an owner of letters, digits and
@@ -122,7 +133,11 @@ func (r fileRepository) toRepository(project string, seen *names) (Repository, e
 	if err != nil {
 		return Repository{}, fmt.Errorf("%s: %w %q: %w", where, ErrDeployment, r.Deployment, err)
 	}
-	return Repository{Name: r.Name, Deployment: deployment}, nil
+	label, services, err := r.labels(deployment.Kind)
+	if err != nil {
+		return Repository{}, fmt.Errorf("%s: %w: %w", where, ErrLabel, err)
+	}
+	return Repository{Name: r.Name, Deployment: deployment, Label: label, Services: services}, nil
 }
 
 var (

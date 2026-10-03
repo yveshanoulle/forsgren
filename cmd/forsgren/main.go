@@ -64,8 +64,12 @@ func checkConfig(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return failed(stderr, "check-config", err)
 	}
-	_, _ = fmt.Fprintf(stdout, "OK: %s is a valid forsgren config (version %d): projects: %d, repositories: %d\n",
-		path, cfg.Version, len(cfg.Projects), cfg.RepositoryCount())
+	labels := ""
+	if n := cfg.LabelCount(); n > 0 {
+		labels = fmt.Sprintf(", labels: %d", n)
+	}
+	_, _ = fmt.Fprintf(stdout, "OK: %s is a valid forsgren config (version %d): projects: %d, repositories: %d%s\n",
+		path, cfg.Version, len(cfg.Projects), cfg.RepositoryCount(), labels)
 	return 0
 }
 

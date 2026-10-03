@@ -467,6 +467,43 @@ projects:
     workflow, by its file name in `.github/workflows/` (no directory).
   - `release`: a published GitHub Release, for App Store apps and tools.
 
+- **`label`** and **`services`** are optional, per repository
+  (forsgren#38): they name the rows the page shows under the project's
+  total. The page never shows a repository's or a task's own name, only a
+  label written here, so a public page names nothing its owner did not
+  choose.
+  - `label: Website`: one row for all of the repository's deployments,
+    its commits and its failure issues.
+  - `services:`, a map of deployment task to label: a row per listed
+    task, with that task's deployments and the commits they shipped. A
+    task left out counts in the project's total only.
+  - neither: no row of its own; the repository counts in the total only,
+    as every repository did before.
+
+  ```yaml
+  version: 1
+  projects:
+    - name: Acme Shop
+      repositories:
+        - name: acme/app
+          services:
+            deploy-api: API
+            deploy-admin: ADMIN
+            deploy-ios: IOS
+        - name: acme/web
+          label: Website
+  ```
+
+  The rows under a project are sorted by label, ignoring case (ADMIN, API,
+  IOS, Website); a project without labels shows its total row alone.
+  Refused: an empty label, a label used twice in one project (ignoring
+  case), a label or task that is not text (`label: 5`, `deploy-api: true`),
+  `services: {}` or a task that is empty, `label` and `services` on one
+  repository (a row for the repository and rows for its services would
+  count the same deployments twice beside each other), and `services` on a
+  `release` repository (its task is the tag, new with every release). A
+  `label:` or `services:` without a value is the key left out.
+
 A **failure** is an issue labelled `failure` whose body carries the failure
 record block (see How it gets its data); lead time runs from a change's first
 commit. Neither is configured per repository in version 1.
@@ -484,7 +521,8 @@ forsgren check-config --config forsgren.config.yml
 ```
 
 It prints one line, `OK: forsgren.config.yml is a valid forsgren config
-(version 1): projects: 2, repositories: 3`, and exits 0; it exits 1 with
+(version 1): projects: 2, repositories: 3`, with `, labels: 4` added when
+the file labels rows, and exits 0; it exits 1 with
 the refusal on stderr when the file is invalid or cannot be read, and 2 on
 a usage error.
 
@@ -496,7 +534,8 @@ forsgren init-config --config forsgren.config.yml
 
 When the file is missing it writes a starter and prints `created
 forsgren.config.yml`. The starter is a comment that explains the file, names
-`forsgren check-config` and the three deployment forms, and shows a commented
+`forsgren check-config`, the three deployment forms and the two label
+forms, and shows a commented
 example with made-up `acme` names (the default deployment, `workflow=` and
 `release`), followed by `version: 1` and `projects: []`, so `check-config`
 accepts it as it is: `projects: 0, repositories: 0`. When the file exists,
