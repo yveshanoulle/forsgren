@@ -104,8 +104,10 @@
 #      embedded starter committed, the config check that follows passes on it
 #      (projects: 0), and the next run keeps it with no second commit;
 #  15. the render step runs `forsgren render --out ... --config
-#      forsgren.config.yml`, so the page can say when no projects are
-#      configured, executed with the stub;
+#      forsgren.config.yml --data data/deployments.csv`, so the page can say
+#      when no projects are configured and show each project's deployment
+#      frequency from the history (forsgren#12, step 7), executed with the
+#      stub;
 #  16. the job grants itself `contents: write`, which the push needs;
 #  17. workflow_call declares ONE secret, FORSGREN_TOKEN, with required: false
 #      (forsgren#12, step 6): a new install's first runs, with the starter's
@@ -699,7 +701,8 @@ judge_starter_e2e() {
 }
 
 # judge_render_config <workflow-file>: pin 15, the render step hands render
-# the config, so the page can say when no projects are configured.
+# the config, so the page can say when no projects are configured, and the
+# history, so it shows each project's deployment frequency.
 judge_render_config() {
   local script="${TMP}/render.sh" calls="${TMP}/fg.calls" got want
   step_block "$1" "$RENDER_STEP" run > "$script"
@@ -710,8 +713,8 @@ judge_render_config() {
   : > "$calls"
   PATH="${STUB}:${PATH}" FG_CALLS="$calls" RUNNER_TEMP="${TMP}/runner" bash "$script" > /dev/null 2>&1 || true
   got="$(paste -sd, - < "$calls")"
-  want="render --out ${TMP}/runner/site --config forsgren.config.yml"
-  [[ "$got" == "$want" ]] || echo "the render step runs 'forsgren ${got}', not 'forsgren ${want}' — render needs the config to say when no projects are configured"
+  want="render --out ${TMP}/runner/site --config forsgren.config.yml --data data/deployments.csv"
+  [[ "$got" == "$want" ]] || echo "the render step runs 'forsgren ${got}', not 'forsgren ${want}' — render needs the config to say when no projects are configured, and the history to show the deployment frequency"
 }
 
 # judge_permissions <workflow-file>: pin 16, the job grants itself
@@ -1419,7 +1422,9 @@ proves "a starter that leaves no file" "with the real forsgren a new install's c
 proves "a job that only reads contents" "does not grant itself 'contents: write'" \
   's/^      contents: write /      contents: read /'
 proves "render without the config" "the render step runs 'forsgren render --out" \
-  's/ --config forsgren\.config\.yml$//'
+  '/forsgren render /s/ --config forsgren\.config\.yml//'
+proves_by judge_render_config "render without the history" "the render step runs 'forsgren render --out" \
+  '/forsgren render /s/ --data data\/deployments\.csv$//'
 
 # The token (forsgren#12, step 6).
 proves_by judge_secret "a required token" "FORSGREN_TOKEN is declared required: true" \
@@ -1534,4 +1539,4 @@ proves_moved "the data commit after render" "would drop what collect stored" "$D
 proves_moved "the fail step before publishing" "before it publishes" "$FAIL_STEP" "$RENDER_STEP" judge_order
 
 selftest_end "metrics.yml is not the reusable workflow forsgren#4 rules" \
-  "metrics.yml runs on workflow_call only, takes no input, installs forsgren from its own job.workflow_repository at its own job.workflow_sha (each checked before go runs, a fork installing itself), passes both through env: only, builds with go.mod's Go after setup-go, writes a new install's starter config with one commit as github-actions[bot] (token in the environment only) and renders with the config, and checks the caller's config before render, with the real forsgren too, its message never run as a workflow command, then collects with FORSGREN_TOKEN in that one step's env only, commits and pushes data/ alone (failing by name, never rebasing or forcing, when the branch moved), publishes, and fails the job at its end when collect failed, one run at a time per caller repository (and each wrong shape is still detected)"
+  "metrics.yml runs on workflow_call only, takes no input, installs forsgren from its own job.workflow_repository at its own job.workflow_sha (each checked before go runs, a fork installing itself), passes both through env: only, builds with go.mod's Go after setup-go, writes a new install's starter config with one commit as github-actions[bot] (token in the environment only) and renders with the config and the history, and checks the caller's config before render, with the real forsgren too, its message never run as a workflow command, then collects with FORSGREN_TOKEN in that one step's env only, commits and pushes data/ alone (failing by name, never rebasing or forcing, when the branch moved), publishes, and fails the job at its end when collect failed, one run at a time per caller repository (and each wrong shape is still detected)"

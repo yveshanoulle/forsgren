@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/yveshanoulle/forsgren/internal/metrics"
 )
 
 // -update rewrites the golden files from the current output. Use it only
@@ -23,6 +26,29 @@ func TestNoProjectsPageMatchesGolden(t *testing.T) {
 	data := Placeholder("0.0.2")
 	data.NoProjects = true
 	checkGolden(t, "testdata/index.no-projects.golden.html", data)
+}
+
+// TestFrequencyPageMatchesGolden (forsgren#12, step 7): with frequencies
+// the page shows a section per project, in the given order, with its
+// numbers, its latest date and its band, or "No deployments recorded yet".
+func TestFrequencyPageMatchesGolden(t *testing.T) {
+	data := Placeholder("0.0.2")
+	data.AsOf = "2026-10-03"
+	latest := time.Date(2026, 10, 1, 9, 30, 0, 0, time.UTC)
+	data.Frequencies = []metrics.Frequency{
+		{Project: "Acme Shop", Last7: 3, Last30: 12, Latest: latest, Band: metrics.DailyToWeekly},
+		{Project: "Acme Tools"},
+	}
+	checkGolden(t, "testdata/index.frequency.golden.html", data)
+}
+
+// TestNoDataPageMatchesGolden: projects with no deployment recorded yet
+// each say so.
+func TestNoDataPageMatchesGolden(t *testing.T) {
+	data := Placeholder("0.0.2")
+	data.AsOf = "2026-10-03"
+	data.Frequencies = []metrics.Frequency{{Project: "Acme Shop"}, {Project: "Acme Tools"}}
+	checkGolden(t, "testdata/index.no-data.golden.html", data)
 }
 
 // checkGolden renders index.html with data and compares it with the golden

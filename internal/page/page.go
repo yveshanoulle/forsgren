@@ -21,13 +21,15 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+
+	"github.com/yveshanoulle/forsgren/internal/metrics"
 )
 
 //go:embed templates styles.css
 var files embed.FS
 
-// Data is what a page shows. Until forsgren reads GitHub there is one
-// placeholder value (see Placeholder).
+// Data is what a page shows: the placeholder (see Placeholder), and with an
+// installation's history, each project's deployment frequency.
 type Data struct {
 	Title   string
 	Version string
@@ -35,6 +37,12 @@ type Data struct {
 	// NoProjects makes the page say that no projects are configured yet:
 	// the installation's forsgren.config.yml lists none (forsgren#12).
 	NoProjects bool
+	// Frequencies, when set, replace Message with one section per project,
+	// in this order (forsgren#12, step 7). The page shows their project
+	// names, numbers and dates only.
+	Frequencies []metrics.Frequency
+	// AsOf is the UTC date the frequencies were counted back from.
+	AsOf string
 }
 
 // Placeholder is the data of the page forsgren renders before it has any
