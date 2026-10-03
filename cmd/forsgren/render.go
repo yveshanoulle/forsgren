@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"path/filepath"
 	"time"
 
+	"github.com/yveshanoulle/forsgren/internal/collect"
 	"github.com/yveshanoulle/forsgren/internal/config"
 	"github.com/yveshanoulle/forsgren/internal/history"
 	"github.com/yveshanoulle/forsgren/internal/metrics"
@@ -26,8 +28,9 @@ type renderOptions struct {
 
 // render writes the site. With --config it also reads the installation's
 // forsgren.config.yml, so the page can say when no projects are configured
-// yet (forsgren#12); with --data as well it reads the history and shows each
-// project's deployment frequency, counted back from now. Without --config
+// yet (forsgren#12); with --data as well it reads the history and the
+// commits file next to it, and shows each project's deployment frequency
+// and lead time for changes, counted back from now. Without --config
 // (the repository's own build has no installation config) the page is the
 // placeholder, unchanged.
 func render(args []string, stdout, stderr io.Writer) int {
@@ -61,25 +64,45 @@ func pageData(o renderOptions, at time.Time) (page.Data, error) {
 	if o.data == "" {
 		return data, nil
 	}
-	records, err := loadHistory(o.data)
+	data.Projects, err = projectsOf(cfg.Projects, o.data, at)
 	if err != nil {
 		return data, err
 	}
-	data.Frequencies = metrics.DeploymentFrequency(cfg.Projects, records, at)
 	data.AsOf = at.UTC().Format(time.DateOnly)
 	return data, nil
 }
 
-// loadHistory reads the history at path. A missing file is an empty
-// history: a new installation renders before its first collect has stored
+// projectsOf is each project's section, from the history at path and the
+// commits file next to it (data/commits.csv beside data/deployments.csv,
+// forsgren#16), at the render time at.
+func projectsOf(projects []config.Project, path string, at time.Time) ([]page.Project, error) {
+	records, err := loadOrNone(path, history.Load)
+	if err != nil {
+		return nil, err
+	}
+	commits, err := loadOrNone(filepath.Join(filepath.Dir(path), collect.CommitsFile), history.LoadCommits)
+	if err != nil {
+		return nil, err
+	}
+	frequencies := metrics.DeploymentFrequency(projects, records, at)
+	leadTimes := metrics.LeadTimes(projects, commits, at)
+	out := make([]page.Project, len(projects))
+	for i := range out {
+		out[i] = page.Project{Frequency: frequencies[i], LeadTime: leadTimes[i]}
+	}
+	return out, nil
+}
+
+// loadOrNone reads the file at path with load. A missing file holds
+// nothing: a new installation renders before its first collect has stored
 // anything. Any other refusal (an unknown version, a malformed line) is
-// history's own error.
-func loadHistory(path string) ([]history.Record, error) {
-	records, err := history.Load(path)
+// load's own error, which names the file.
+func loadOrNone[T any](path string, load func(string) ([]T, error)) ([]T, error) {
+	lines, err := load(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
-	return records, err
+	return lines, err
 }
 
 // renderFlags parses render's arguments. It returns false once the usage
@@ -90,7 +113,8 @@ func renderFlags(args []string, stderr io.Writer) (renderOptions, bool) {
 	var o renderOptions
 	flags.StringVar(&o.out, "out", "", "directory to write the site into")
 	flags.StringVar(&o.config, "config", "", "the forsgren.config.yml the page reports on (optional)")
-	flags.StringVar(&o.data, "data", "", "the history the page counts, data/deployments.csv (optional, needs --config)")
+	flags.StringVar(&o.data, "data", "",
+		"the history the page counts, data/deployments.csv, commits.csv beside it (optional, needs --config)")
 	if err := flags.Parse(args); err != nil {
 		return o, false
 	}

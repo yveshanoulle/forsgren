@@ -174,6 +174,63 @@ shown without it, and the 30-day count has no row of its own.
 A project with no successful deployment in its history says "No deployments
 recorded yet".
 
+## Lead time for changes
+
+The second DORA number on the page (forsgren#16, steps 4 and 5, package
+`internal/metrics`): how long a change takes from its commit to running in
+production. Each project's section shows it next to its deployment
+frequency, as a DORA band with the median, the count and the period:
+"Less than one hour — median 17 minutes over 37 commits in the last 30
+days" (one is "1 commit"). A project that has deployments but no commit
+deployed in the last 30 days says "No lead time yet".
+
+**What counts.** `render` reads `data/commits.csv` next to its `--data`
+file, the commits `collect` stored for each successful deployment (see
+History). A missing file is no commit; a file with an unknown version or a
+malformed line fails the render with its own message. Yves's rulings:
+
+- **Per commit**, DORA's definition: each commit's lead time runs from its
+  author date to the creation time of the successful deployment that
+  shipped it.
+- **The commits of a deployment** are those since the previous successful
+  deployment of the same repository and task; the first recorded
+  deployment has none. Failed deployments store none: their commits move
+  on to the next successful one.
+- **The window:** a commit counts when its deployment was created in the
+  last 30 days, counted back from the render time in UTC, both ends
+  included, as for deployment frequency. A commit belongs to the project
+  whose config lists its repository, compared ignoring case. A commit
+  shipped by two deployments (two tasks of one repository) counts once for
+  each.
+- **The median**, as DORA reports it, because lead times are not normally
+  distributed: a few old commits would drag a mean far from the typical
+  change. For an even count it is the mean of the two middle lead times.
+- **A negative lead time** (a commit authored after its deployment: a
+  skewed clock, or an author date set by hand) counts as 0. The commit did
+  ship, so dropping it would lose a real change from the count, and 0 is
+  the nearest possible value.
+
+**The duration** is written in whole minutes below an hour ("17 minutes",
+"less than a minute" below one), hours and minutes below a day ("5 hours
+12 minutes"), days and hours above ("3 days 4 hours"). Each part is cut
+down, never rounded up, so a median never reads as the next band's edge;
+a zero second part is left out.
+
+**The bands** are the six of the current DORA Quick Check, as mutually
+exclusive ranges of the median. A month is 30 days and six months 180
+days, so every edge is a fixed duration (the page says so too):
+
+| Median lead time | DORA band |
+| --- | --- |
+| below 1 hour | Less than one hour |
+| 1 hour to below 24 hours | Less than one day |
+| 24 hours to below 7 days | One day to one week |
+| 7 days to below 30 days | One week to one month |
+| 30 days to below 180 days | One to six months |
+| 180 days and more | More than six months |
+
+The page calls them DORA bands, never Elite, High, Medium or Low.
+
 ## Configuration
 
 An installation describes what forsgren measures in one file,
@@ -1178,9 +1235,11 @@ cookies, uses no browser storage and tracks no one. Two POST gates check the
 generated page on every run, privacy posture for the requests, cookies and
 tracking, and repository links for the links (see Quality gates). No gate
 checks for issue titles yet: that rests on the renderer, which is given
-the project names of the owner's own config, numbers and dates only: no
-repository name, commit, tag, environment, workflow or task reaches the
-page, which `cmd/forsgren/render_data_test.go` pins. A finding is fixed in the template, never by
+the project names of the owner's own config, numbers, durations and dates
+only: no repository name, commit SHA or message, tag, environment,
+workflow or task reaches the page, which `cmd/forsgren/render_data_test.go`
+and, for the commits of lead time, `cmd/forsgren/render_leadtime_test.go`
+pin. A finding is fixed in the template, never by
 loosening the gate.
 
 ## Installing and updating

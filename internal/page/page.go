@@ -29,7 +29,7 @@ import (
 var files embed.FS
 
 // Data is what a page shows: the placeholder (see Placeholder), and with an
-// installation's history, each project's deployment frequency.
+// installation's history, each project's DORA numbers.
 type Data struct {
 	Title   string
 	Version string
@@ -37,17 +37,16 @@ type Data struct {
 	// NoProjects makes the page say that no projects are configured yet:
 	// the installation's forsgren.config.yml lists none (forsgren#12).
 	NoProjects bool
-	// Frequencies, when set, replace Message with one section per project,
-	// in this order (forsgren#12, step 7). The page shows their project
-	// names, numbers and dates only.
-	Frequencies []metrics.Frequency
-	// Projects is a stub of forsgren#16, step 5: not shown yet.
+	// Projects, when set, replace Message with one section per project, in
+	// this order (forsgren#12, step 7; forsgren#16, step 5). The page shows
+	// their project names, numbers, durations and dates only.
 	Projects []Project
-	// AsOf is the UTC date the frequencies were counted back from.
+	// AsOf is the UTC date the numbers were counted back from.
 	AsOf string
 }
 
-// Project is one project's section. Stub of forsgren#16, step 5.
+// Project is one project's section: its deployment frequency (whose fields
+// the template reads directly) and its lead time for changes.
 type Project struct {
 	metrics.Frequency
 	LeadTime metrics.LeadTime
