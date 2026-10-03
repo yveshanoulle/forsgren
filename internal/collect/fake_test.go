@@ -30,7 +30,9 @@ const (
 
 // gitHub is a fake GitHub that answers each path with one body (status 200),
 // or 404 for a path it does not know, and records every request. A path in
-// paged also gets a Link to its page 2.
+// paged also gets a Link to its page 2. A repository's issues it has no body
+// for are an empty list: collect reads every repository's failure issues
+// (forsgren#18), and a test about deployments has none.
 type gitHub struct {
 	srv      *httptest.Server
 	mu       sync.Mutex
@@ -53,6 +55,9 @@ func (g *gitHub) serve(w http.ResponseWriter, r *http.Request) {
 	defer g.mu.Unlock()
 	g.requests = append(g.requests, r.URL.RequestURI())
 	body, ok := g.bodies[r.URL.Path]
+	if !ok && strings.HasSuffix(r.URL.Path, "/issues") {
+		body, ok = "[]", true
+	}
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = io.WriteString(w, `{"message":"Not Found"}`)

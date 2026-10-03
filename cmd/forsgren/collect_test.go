@@ -50,6 +50,7 @@ var acmeApp = map[string]string{
 	"/repos/acme/app/deployments": `[{"id": 1001, "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "task": "deploy",
 	  "environment": "production", "created_at": "2026-09-21T10:00:00Z"}]`,
 	"/repos/acme/app/deployments/1001/statuses": `[{"id": 6, "state": "success", "created_at": "2026-09-21T10:05:00Z"}]`,
+	"/repos/acme/app/issues":                    `[]`,
 }
 
 type outcome struct {
@@ -70,7 +71,8 @@ func dataPath(t *testing.T) string {
 
 // TestCollectStoresDeploymentsAndSaysHowMany: one line per repository, the
 // history written and, next to it, the commits file (forsgren#16, step 3:
-// a first deployment has no commits, so it holds its header only); a
+// a first deployment has no commits, so it holds its header only) and the
+// failures file (forsgren#18, step 3: no failure issue, its header only); a
 // second run finds nothing new.
 func TestCollectStoresDeploymentsAndSaysHowMany(t *testing.T) {
 	t.Setenv("FORSGREN_TOKEN", testToken)
@@ -85,6 +87,7 @@ func TestCollectStoresDeploymentsAndSaysHowMany(t *testing.T) {
 	// One deployment, and no commit: the first deployment has no previous.
 	wantFile(t, data, "# forsgren history v1\n", 3)
 	wantFile(t, filepath.Join(filepath.Dir(data), "commits.csv"), "# forsgren commits v1\n", 2)
+	wantFile(t, filepath.Join(filepath.Dir(data), "failures.csv"), "# forsgren failures v1\n", 2)
 }
 
 // wantFile fails unless the file at path starts with the version line
