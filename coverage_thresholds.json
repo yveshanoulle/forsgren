@@ -88,6 +88,8 @@
     "github.com/yveshanoulle/forsgren/internal/history/append.go:write": 89.9,
     "github.com/yveshanoulle/forsgren/internal/history/append.go:prepare": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/append.go:payload": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/history/commits.go:LoadCommits": 0.0,
+    "github.com/yveshanoulle/forsgren/internal/history/commits.go:AppendCommits": 0.0,
     "github.com/yveshanoulle/forsgren/internal/history/history.go:Error": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/history.go:Is": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/history.go:Load": 100.0,
