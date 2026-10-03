@@ -133,9 +133,10 @@
 #  22. the step "Commit the collected deployments", EXECUTED with the real git
 #      against a local remote: data/ unchanged commits nothing and exits 0,
 #      also on a tag (a non-branch ref is refused only when there is
-#      something to commit); a changed data/ (a new history, an appended one)
-#      is ONE commit of data/ alone (another staged file and an untracked one
-#      stay out), authored and committed by github-actions[bot], "forsgren:
+#      something to commit); a changed data/ (a new history and its commits
+#      file, an appended one) is ONE commit of data/ alone, both files of
+#      collect in it (forsgren#16: data/commits.csv; another staged file and
+#      an untracked one stay out), authored and committed by github-actions[bot], "forsgren:
 #      record deployments", pushed to HEAD:${GITHUB_REF}; under a hostile
 #      inherited GIT_AUTHOR_*/GIT_COMMITTER_*/GIT_CONFIG_* environment it is
 #      still the bot's and unsigned; on a tag it refuses and pushes nothing;
@@ -910,11 +911,12 @@ judge_collect_commands_e2e() {
 }
 
 # store_data: what collect leaves in the installation's checkout, a new
-# data/deployments.csv, beside an untracked and a staged file that are not
-# collect's.
+# data/deployments.csv and data/commits.csv, beside an untracked and a
+# staged file that are not collect's.
 store_data() {
   mkdir -p "${INSTALL}/data"
   printf '# forsgren history v1\nacme stored\n' > "${INSTALL}/data/deployments.csv"
+  printf '# forsgren commits v1\nacme commit\n' > "${INSTALL}/data/commits.csv"
   printf 'untracked\n' > "${INSTALL}/other.txt"
   printf 'staged\n' > "${INSTALL}/staged.txt"
   iso -C "$INSTALL" add staged.txt
@@ -959,7 +961,7 @@ judge_data_step() {
     got="$(iso_out -C "$ORIGIN" log -1 --format='%B' "$TRUNK")"
     [[ "$got" == "$DATA_SUBJECT" ]] || echo "the data commit's message is '${got}', not '${DATA_SUBJECT}'"
     files="$(iso_out -C "$ORIGIN" diff-tree --no-commit-id --name-only -r "$TRUNK" | paste -sd, -)"
-    [[ "$files" == "data/deployments.csv" ]] || echo "the data commit holds [${files}], not data/ alone — what collect stored, never the rest of the checkout"
+    [[ "$files" == "data/commits.csv,data/deployments.csv" ]] || echo "the data commit holds [${files}], not data/ alone with both of collect's files — what collect stored, never the rest of the checkout"
   fi
   new_install
   mkdir -p "${INSTALL}/data"
@@ -1547,7 +1549,7 @@ proves judge_data_step "no data step" "has no step '${DATA_STEP}'" \
   "s/- name: ${DATA_STEP}\$/- name: Commit something else/"
 proves judge_data_step "data/ committed even when unchanged" "with data/ unchanged the data step gives" \
   "s|\\[\\[ -z \"${D}(git status --porcelain -- data/)\" \\]\\]|false|"
-proves judge_data_step "the whole checkout committed with the data" "the data commit holds [data/deployments.csv,other.txt,staged.txt]" \
+proves judge_data_step "the whole checkout committed with the data" "the data commit holds [data/commits.csv,data/deployments.csv,other.txt,staged.txt]" \
   "s|git add -- data/|git add -A|; s|'forsgren: record deployments' -- data/|'forsgren: record deployments'|"
 proves judge_data_step "another data author" "for changed data/ the data commit's author is 'someone <" \
   "/- name: ${DATA_STEP}/,\$ s/GIT_AUTHOR_NAME='github-actions\\[bot\\]'/GIT_AUTHOR_NAME='someone'/"

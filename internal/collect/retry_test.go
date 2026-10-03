@@ -23,21 +23,21 @@ func TestTheNewestStatusDecidesAfterAFailure(t *testing.T) {
 		state    history.State // empty: nothing stored
 	}{
 		"in_progress after a failure": {list(status(3, "failure", "2026-09-20T10:05:00Z"),
-			status(4, "in_progress", "2026-09-20T10:10:00Z")), "acme/app: 0 new, 1 skipped (not final)\n", ""},
+			status(4, "in_progress", "2026-09-20T10:10:00Z")), "acme/app: 0 new, 1 skipped (not final), 0 commits\n", ""},
 		"queued after an error": {list(status(5, "queued", "2026-09-20T10:10:00Z"),
 			status(4, "error", "2026-09-20T10:05:00Z"), status(3, "in_progress", "2026-09-20T10:01:00Z")),
-			"acme/app: 0 new, 1 skipped (not final)\n", ""},
+			"acme/app: 0 new, 1 skipped (not final), 0 commits\n", ""},
 		"in_progress in the same second as the failure, the later ID": {list(
 			status(3, "failure", "2026-09-20T10:05:00Z"), status(4, "in_progress", "2026-09-20T10:05:00Z")),
-			"acme/app: 0 new, 1 skipped (not final)\n", ""},
+			"acme/app: 0 new, 1 skipped (not final), 0 commits\n", ""},
 		"a failure after in_progress, oldest first": {list(status(3, "in_progress", "2026-09-20T10:01:00Z"),
-			status(4, "failure", "2026-09-20T10:05:00Z")), "acme/app: 1 new, 0 skipped (not final)\n",
+			status(4, "failure", "2026-09-20T10:05:00Z")), "acme/app: 1 new, 0 skipped (not final), 0 commits\n",
 			history.StateFailure},
 		"a success after a retry": {list(status(5, "success", "2026-09-20T10:20:00Z"),
 			status(4, "in_progress", "2026-09-20T10:10:00Z"), status(3, "failure", "2026-09-20T10:05:00Z")),
-			"acme/app: 1 new, 0 skipped (not final)\n", history.StateSuccess},
+			"acme/app: 1 new, 0 skipped (not final), 0 commits\n", history.StateSuccess},
 		"inactive after a failure": {list(status(5, "inactive", "2026-09-21T09:00:00Z"),
-			status(4, "failure", "2026-09-20T10:05:00Z")), "acme/app: 1 new, 0 skipped (not final)\n",
+			status(4, "failure", "2026-09-20T10:05:00Z")), "acme/app: 1 new, 0 skipped (not final), 0 commits\n",
 			history.StateFailure},
 	} {
 		t.Run(name, func(t *testing.T) {

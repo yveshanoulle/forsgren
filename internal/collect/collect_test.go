@@ -38,7 +38,8 @@ func TestEnvironmentStoresTheFinalOutcomeOfEachDeployment(t *testing.T) {
 		status(4, "in_progress", "2026-09-10T08:31:00Z"))
 	g.bodies[statusesPath("1001")] = list(status(6, "error", "2026-09-01T07:05:00Z"))
 	path := historyPath(t)
-	wantStdout(t, g.collect(t, shop(production), path, github.DefaultMaxPages), "acme/app: 3 new, 0 skipped (not final)\n")
+	wantStdout(t, g.collect(t, shop(production), path, github.DefaultMaxPages),
+		"acme/app: 3 new, 0 skipped (not final), 0 commits\n")
 	env := history.KindEnvironment
 	wantRecords(t, path,
 		record(env, "production", 1001, shaA, at(1, 7, 0), history.StateFailure, "deploy"),
@@ -58,7 +59,8 @@ func TestInactiveAfterSuccessIsStillASuccess(t *testing.T) {
 	g.bodies[statusesPath("1003")] = list(status(3, "inactive", "2026-09-21T09:00:00Z"),
 		status(2, "success", "2026-09-20T10:05:00Z"))
 	path := historyPath(t)
-	wantStdout(t, g.collect(t, shop(production), path, github.DefaultMaxPages), "acme/app: 1 new, 0 skipped (not final)\n")
+	wantStdout(t, g.collect(t, shop(production), path, github.DefaultMaxPages),
+		"acme/app: 1 new, 0 skipped (not final), 0 commits\n")
 	wantRecords(t, path,
 		record(history.KindEnvironment, "production", 1003, shaC, at(20, 10, 0), history.StateSuccess, "deploy"))
 }
@@ -79,7 +81,8 @@ func TestADeploymentThatIsNotFinalIsSkipped(t *testing.T) {
 	g.bodies[statusesPath("1002")] = list(status(5, "inactive", "2026-09-22T11:00:00Z"))
 	g.bodies[statusesPath("1001")] = list(status(6, "success", "2026-09-21T10:05:00Z"))
 	path := historyPath(t)
-	wantStdout(t, g.collect(t, shop(production), path, github.DefaultMaxPages), "acme/app: 1 new, 3 skipped (not final)\n")
+	wantStdout(t, g.collect(t, shop(production), path, github.DefaultMaxPages),
+		"acme/app: 1 new, 3 skipped (not final), 0 commits\n")
 	wantRecords(t, path,
 		record(history.KindEnvironment, "production", 1001, shaC, at(21, 10, 0), history.StateSuccess, "deploy"))
 }
@@ -92,7 +95,8 @@ func TestTheConfiguredEnvironmentIsRead(t *testing.T) {
 	g.bodies[statusesPath("1001")] = list(status(6, "success", "2026-09-21T10:05:00Z"))
 	path := historyPath(t)
 	staging := repository("acme/app", config.Environment, "staging east")
-	wantStdout(t, g.collect(t, shop(staging), path, github.DefaultMaxPages), "acme/app: 1 new, 0 skipped (not final)\n")
+	wantStdout(t, g.collect(t, shop(staging), path, github.DefaultMaxPages),
+		"acme/app: 1 new, 0 skipped (not final), 0 commits\n")
 	wantRecords(t, path,
 		record(history.KindEnvironment, "staging east", 1001, shaA, at(21, 10, 0), history.StateSuccess, "deploy"))
 	if got := g.seen(deploymentsPath + "?"); len(got) != 1 || !strings.Contains(got[0], "environment=staging+east") {
@@ -117,7 +121,8 @@ func TestWorkflowStoresTheCompletedRunsOnTheDefaultBranch(t *testing.T) {
 		run(5001, shaC, "completed", "success", "2026-09-21T12:00:00Z"))
 	path := historyPath(t)
 	deploy := repository("acme/app", config.Workflow, "deploy.yml")
-	wantStdout(t, g.collect(t, shop(deploy), path, github.DefaultMaxPages), "acme/app: 4 new, 1 skipped (not final)\n")
+	wantStdout(t, g.collect(t, shop(deploy), path, github.DefaultMaxPages),
+		"acme/app: 4 new, 1 skipped (not final), 0 commits\n")
 	wf := history.KindWorkflow
 	wantRecords(t, path,
 		record(wf, "deploy.yml", 5001, shaC, at(21, 12, 0), history.StateSuccess, ""),
@@ -141,7 +146,8 @@ func TestReleaseStoresThePublishedReleasesAtTheirTagsCommit(t *testing.T) {
 	g.bodies["/repos/acme/app/commits/tags/v1.2.0"] = shaB
 	path := historyPath(t)
 	tools := repository("acme/app", config.Release, "")
-	wantStdout(t, g.collect(t, shop(tools), path, github.DefaultMaxPages), "acme/app: 1 new, 0 skipped (not final)\n")
+	wantStdout(t, g.collect(t, shop(tools), path, github.DefaultMaxPages),
+		"acme/app: 1 new, 0 skipped (not final), 0 commits\n")
 	wantRecords(t, path, record(history.KindRelease, "", 9002, shaB, at(18, 9, 30), history.StateSuccess, "v1.2.0"))
 	if got := g.seen("/repos/acme/app/commits/"); len(got) != 1 {
 		t.Errorf("want one tag looked up, got %v", got)
@@ -165,7 +171,7 @@ func TestASecondRunAddsNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantStdout(t, g.collect(t, cfg, path, github.DefaultMaxPages),
-		"acme/app: 0 new, 0 skipped (not final)\nacme/api: 0 new, 0 skipped (not final)\n")
+		"acme/app: 0 new, 0 skipped (not final), 0 commits\nacme/api: 0 new, 0 skipped (not final), 0 commits\n")
 	if after, _ := os.ReadFile(filepath.Clean(path)); string(after) != string(before) {
 		t.Errorf("want the history unchanged, got\n%s", after)
 	}
@@ -187,7 +193,7 @@ func TestAFailingRepositoryDoesNotStopTheOthers(t *testing.T) {
 	if !errors.Is(r.err, ErrFailed) || !strings.Contains(r.err.Error(), "1 of 2") {
 		t.Errorf("want ErrFailed for 1 of 2, got %v", r.err)
 	}
-	if r.stdout != "acme/api: 1 new, 0 skipped (not final)\n" {
+	if r.stdout != "acme/api: 1 new, 0 skipped (not final), 0 commits\n" {
 		t.Errorf("want only acme/api's line on stdout, got %q", r.stdout)
 	}
 	if !strings.Contains(r.stderr, "check FORSGREN_TOKEN's access to acme/app") {
@@ -288,15 +294,17 @@ func TestADeploymentGitHubDescribesBadlyIsRefused(t *testing.T) {
 	wantNothingStored(t, r, path, `acme/app: `+path+`: invalid history record: record 1: commit "main"`)
 }
 
-// wantNothingStored fails unless the run failed, stderr holds want and no
-// history was written.
+// wantNothingStored fails unless the run failed, stderr holds want and
+// neither the history nor the commits file was written.
 func wantNothingStored(t *testing.T, r result, path, want string) {
 	t.Helper()
 	if !errors.Is(r.err, ErrFailed) || r.stdout != "" || !strings.Contains(r.stderr, want) {
 		t.Errorf("want the run to fail with %q on stderr, got %v, stdout %q, stderr %q", want, r.err, r.stdout, r.stderr)
 	}
-	if _, err := os.Stat(path); !errors.Is(err, fs.ErrNotExist) {
-		t.Errorf("want no history written, got %v", err)
+	for _, p := range []string{path, commitsPath(path)} {
+		if _, err := os.Stat(p); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("want no %s written, got %v", filepath.Base(p), err)
+		}
 	}
 }
 

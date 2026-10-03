@@ -32,7 +32,8 @@ func TestTheFirstRunReadsNinetyDaysBack(t *testing.T) {
 	g.bodies[statusesPath("1002")] = list(status(7, "success", "2026-07-04T00:05:00Z"))
 	g.bodies[statusesPath("1001")] = list(status(6, "success", "2026-07-02T00:05:00Z"))
 	path := historyPath(t)
-	wantStdout(t, g.collect(t, shop(production), path, github.DefaultMaxPages), "acme/app: 1 new, 0 skipped (not final)\n")
+	wantStdout(t, g.collect(t, shop(production), path, github.DefaultMaxPages),
+		"acme/app: 1 new, 0 skipped (not final), 0 commits\n")
 	if got := g.seen(statusesPath("1001")); len(got) != 0 {
 		t.Errorf("want the deployment older than 90 days not read, got %v", got)
 	}
@@ -51,7 +52,8 @@ func TestALaterRunReadsFromAWeekBeforeTheNewestStored(t *testing.T) {
 		g.bodies[statusesPath(id)] = list(status(7, "success", "2026-09-12T00:05:00Z"))
 	}
 	path := stored(t, history.KindEnvironment, "production", at(20, 0, 0))
-	wantStdout(t, g.collect(t, shop(production), path, github.DefaultMaxPages), "acme/app: 2 new, 0 skipped (not final)\n")
+	wantStdout(t, g.collect(t, shop(production), path, github.DefaultMaxPages),
+		"acme/app: 2 new, 0 skipped (not final), 0 commits\n")
 	if got := g.seen(statusesPath("1002")); len(got) != 0 {
 		t.Errorf("want the deployment before the week not read, got %v", got)
 	}
@@ -67,7 +69,8 @@ func TestALaterRunNeverReadsMoreThanNinetyDays(t *testing.T) {
 		run(5001, shaA, "completed", "success", "2026-06-01T00:00:00Z"))
 	path := stored(t, history.KindWorkflow, "deploy.yml", time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC))
 	deploy := repository("acme/app", config.Workflow, "deploy.yml")
-	wantStdout(t, g.collect(t, shop(deploy), path, github.DefaultMaxPages), "acme/app: 1 new, 0 skipped (not final)\n")
+	wantStdout(t, g.collect(t, shop(deploy), path, github.DefaultMaxPages),
+		"acme/app: 1 new, 0 skipped (not final), 0 commits\n")
 	if got := g.seen(runsPath + "?"); len(got) != 1 || !strings.Contains(got[0], "created=%3E%3D2026-07-02") {
 		t.Errorf("want the runs created from 2026-07-02 asked, got %v", got)
 	}
@@ -81,7 +84,7 @@ func TestAListCutAtThePageLimitIsReported(t *testing.T) {
 	g.bodies[statusesPath("1001")] = list(status(6, "success", "2026-09-21T10:05:00Z"))
 	g.paged[deploymentsPath] = true
 	r := g.collect(t, shop(production), historyPath(t), 1)
-	wantStdout(t, r, "acme/app: 1 new, 0 skipped (not final)\n")
+	wantStdout(t, r, "acme/app: 1 new, 0 skipped (not final), 0 commits\n")
 	want := "collect: acme/app: read the newest 1 page(s) only; older deployments were not read\n"
 	if r.stderr != want {
 		t.Errorf("want stderr %q, got %q", want, r.stderr)

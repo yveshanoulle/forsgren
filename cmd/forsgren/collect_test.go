@@ -69,19 +69,34 @@ func dataPath(t *testing.T) string {
 }
 
 // TestCollectStoresDeploymentsAndSaysHowMany: one line per repository, the
-// history written; a second run finds nothing new.
+// history written and, next to it, the commits file (forsgren#16, step 3:
+// a first deployment has no commits, so it holds its header only); a
+// second run finds nothing new.
 func TestCollectStoresDeploymentsAndSaysHowMany(t *testing.T) {
 	t.Setenv("FORSGREN_TOKEN", testToken)
 	fakeAPI(t, acmeApp, 0)
 	cfg, data := writeConfig(t, oneRepository), dataPath(t)
-	for _, want := range []string{"acme/app: 1 new, 0 skipped (not final)\n", "acme/app: 0 new, 0 skipped (not final)\n"} {
+	for _, want := range []string{"acme/app: 1 new, 0 skipped (not final), 0 commits\n",
+		"acme/app: 0 new, 0 skipped (not final), 0 commits\n"} {
 		if got := collectRun("--config", cfg, "--data", data); got.code != 0 || got.stdout != want {
 			t.Errorf("want exit 0 and %q, got %+v", want, got)
 		}
 	}
-	content, err := os.ReadFile(filepath.Clean(data))
-	if err != nil || strings.Count(string(content), "\n") != 3 {
-		t.Errorf("want the version line, the columns and one deployment, got %q, %v", content, err)
+	// One deployment, and no commit: the first deployment has no previous.
+	wantFile(t, data, "# forsgren history v1\n", 3)
+	wantFile(t, filepath.Join(filepath.Dir(data), "commits.csv"), "# forsgren commits v1\n", 2)
+}
+
+// wantFile fails unless the file at path starts with the version line
+// version and has lines lines, the column line included.
+func wantFile(t *testing.T, path, version string, lines int) {
+	t.Helper()
+	content, err := os.ReadFile(filepath.Clean(path))
+	if err != nil {
+		t.Fatalf("want %s, got %v", path, err)
+	}
+	if !strings.HasPrefix(string(content), version) || strings.Count(string(content), "\n") != lines {
+		t.Errorf("want %s with %q and %d lines, got %q", path, version, lines, content)
 	}
 }
 
