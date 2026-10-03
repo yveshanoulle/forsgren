@@ -48,10 +48,12 @@ type Data struct {
 }
 
 // Project is one project's section: its deployment frequency (whose fields
-// the template reads directly) and its lead time for changes.
+// the template reads directly), its lead time for changes and its failed
+// deployment recovery time.
 type Project struct {
 	metrics.Frequency
 	LeadTime metrics.LeadTime
+	Recovery metrics.Recovery
 }
 
 // Placeholder is the data of the page forsgren renders before it has any

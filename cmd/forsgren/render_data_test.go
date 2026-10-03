@@ -98,7 +98,22 @@ func TestRenderShowsDeploymentFrequency(t *testing.T) {
 		"--config", writeConfig(t, validConfig), "--data", writeHistory(t, acmeHistory()))
 }
 
-// TestRenderShowsNoRepositoryCommitOrTask: the page names projects, never a
+// TestRenderShowsRecoveryTime (forsgren#17): each project's section shows
+// its failed deployment recovery time. acmeHistory plus two failures, each
+// recovered by the next success of its stream: acme/api's in 2 hours and
+// acme/ios-app's in 4, so the median is 3 hours; acme/api's newer failure
+// is not recovered yet. Only failures are added, so the other numbers stay
+// those of index.frequency.golden.html.
+func TestRenderShowsRecoveryTime(t *testing.T) {
+	pinNow(t)
+	records := append(acmeHistory(),
+		shipped(10, "acme/api", history.StateFailure, "2026-09-26T10:00:00Z"),
+		shipped(11, "acme/ios-app", history.StateFailure, "2026-09-30T04:00:00Z"))
+	wantGolden(t, "index.recovery.golden.html",
+		"--config", writeConfig(t, validConfig), "--data", writeHistory(t, records))
+}
+
+// TestRenderShowsNoRepositoryCommitOrTask:the page names projects, never a
 // repository, an environment or workflow, a commit or a task.
 func TestRenderShowsNoRepositoryCommitOrTask(t *testing.T) {
 	pinNow(t)

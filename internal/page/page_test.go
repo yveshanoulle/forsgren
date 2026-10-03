@@ -29,20 +29,24 @@ func TestNoProjectsPageMatchesGolden(t *testing.T) {
 }
 
 // acmeProjects is the page data of two projects counted back from
-// 2026-10-03 12:00 UTC: Acme Shop with deployments and the lead time shop, Acme Tools
-// with no deployment.
-func acmeProjects(shop metrics.LeadTime) Data {
+// 2026-10-03 12:00 UTC: Acme Shop with deployments, the lead time shop and
+// the recovery time recovery, Acme Tools with no deployment.
+func acmeProjects(shop metrics.LeadTime, recovery metrics.Recovery) Data {
 	data := Placeholder("0.0.4")
 	data.AsOf = "2026-10-03 12:00"
 	latest := time.Date(2026, 10, 1, 9, 30, 0, 0, time.UTC)
-	shop.Project = "Acme Shop"
+	shop.Project, recovery.Project = "Acme Shop", "Acme Shop"
 	frequency := metrics.Frequency{Project: "Acme Shop", Last7: 3, Last30: 12, Latest: latest, Band: metrics.DailyToWeekly}
 	data.Projects = []Project{
-		{Frequency: frequency, LeadTime: shop},
+		{Frequency: frequency, LeadTime: shop, Recovery: recovery},
 		{Frequency: metrics.Frequency{Project: "Acme Tools"}, LeadTime: metrics.LeadTime{Project: "Acme Tools"}},
 	}
 	return data
 }
+
+// unrecovered is Acme Shop's recovery time in acmeProjects' pages: one
+// failure, not recovered yet.
+var unrecovered = metrics.Recovery{Unrecovered: 1}
 
 // TestFrequencyPageMatchesGolden (forsgren#12, step 7): with projects the
 // page shows a section per project, in the given order, with its numbers,
@@ -50,7 +54,7 @@ func acmeProjects(shop metrics.LeadTime) Data {
 // with deployments but no commit in the window says "No lead time yet"
 // (forsgren#16, step 5).
 func TestFrequencyPageMatchesGolden(t *testing.T) {
-	checkGolden(t, "testdata/index.frequency.golden.html", acmeProjects(metrics.LeadTime{}))
+	checkGolden(t, "testdata/index.frequency.golden.html", acmeProjects(metrics.LeadTime{}, unrecovered))
 }
 
 // TestLeadTimePageMatchesGolden (forsgren#16, step 5): a project's section
@@ -58,7 +62,16 @@ func TestFrequencyPageMatchesGolden(t *testing.T) {
 // the period, next to its deployment frequency.
 func TestLeadTimePageMatchesGolden(t *testing.T) {
 	shop := metrics.LeadTime{Commits: 3, Median: 17 * time.Minute, Band: metrics.LessThanOneHour}
-	checkGolden(t, "testdata/index.leadtime.golden.html", acmeProjects(shop))
+	checkGolden(t, "testdata/index.leadtime.golden.html", acmeProjects(shop, unrecovered))
+}
+
+// TestRecoveryPageMatchesGolden (forsgren#17): a project's section shows
+// its failed deployment recovery time, the band with the median, the count,
+// the period and the failures not recovered yet, after its lead time; the
+// bands paragraph covers the recovery bands.
+func TestRecoveryPageMatchesGolden(t *testing.T) {
+	recovery := metrics.Recovery{Recoveries: 2, Median: 3 * time.Hour, Band: metrics.LessThanOneDay, Unrecovered: 1}
+	checkGolden(t, "testdata/index.recovery.golden.html", acmeProjects(metrics.LeadTime{}, recovery))
 }
 
 // TestNoDataPageMatchesGolden: projects with no deployment recorded yet
