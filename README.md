@@ -104,6 +104,50 @@ version, or with a line that is not in the format, is refused before anything
 is written: its bytes and modification time stay as they were, and the error
 names the line.
 
+## Deployment frequency
+
+The first DORA number on the page (forsgren#12, step 7, package
+`internal/metrics`). Each configured project gets a section, in the config's
+order, with:
+
+- the successful deployments of the last 7 days;
+- the date of its latest successful deployment;
+- its DORA band, always shown with the count and the period it comes from:
+  "Daily to weekly — 12 production deployments in the last 30 days" (one
+  is "1 production deployment").
+
+**What counts.** A deployment is a history line with the state `success`;
+`failure` and `other` lines do not count. A line belongs to the project
+whose config lists its repository (names compared ignoring case, as the
+config does); a repository no project lists any more is left out. A
+repository that deploys several services counts every deploy on its own;
+a split per service is forsgren#11.
+
+**The windows** are counted back from the render time, in UTC, in days of
+24 hours: a deployment counts when it was created at or after the render
+time minus 7 (or 30) days, and not after the render time. A deployment
+exactly 7 days old is in the 7-day count.
+
+**The bands** are the deployment-frequency answers of the DORA State of
+DevOps reports: on demand (multiple deploys per day), between once per day
+and once per week, between once per week and once per month, and less than
+once per month. The reports ask people how often they deploy; forsgren
+counts, and maps the 30-day count by its average rate:
+
+| Last 30 days | Band |
+| --- | --- |
+| more than 30 (more than one a day) | On demand (several per day) |
+| 5 to 30 (at least once a week: 30/7 is about 4.3) | Daily to weekly |
+| 1 to 4 | Weekly to monthly |
+| 0 | Less than monthly |
+
+The band describes throughput over the period, not regularity; the count
+makes a burst visible (Yves's ruling on forsgren#12), so the band is never
+shown without it, and the 30-day count has no row of its own.
+
+A project with no successful deployment in its history says "No deployments
+recorded yet".
+
 ## Configuration
 
 An installation describes what forsgren measures in one file,
@@ -280,8 +324,8 @@ the version of the forsgren that rendered it. That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
 it with `-ldflags "-X main.version=<version>"`. `forsgren collect` reads
 GitHub into the history file (see Collecting deployments); the daily run
-calls it and commits the history to the data repository, and the page does
-not show its numbers yet (#12).
+calls it, commits the history to the data repository and renders the page
+with each project's deployment frequency from it (see Deployment frequency).
 
 The first release is `v0.0.1`. Install a release with
 `go install github.com/yveshanoulle/forsgren/cmd/forsgren@v0.0.1`; an
@@ -292,14 +336,19 @@ installation pins that version. From a checkout of this repository:
 .build/bin/forsgren render --out <dir>
 ```
 
-`forsgren render --out <dir> [--config <path>]` writes the site (every page
+`forsgren render --out <dir> [--config <path>] [--data <path>]` writes the site (every page
 plus `styles.css`) into `<dir>`, creating it when needed, and exits 0; 1 when
 the render failed (or the `--config` file is missing or invalid, with
 check-config's refusal), 2 on a usage error. With `--config`, a config that
 lists no projects makes the page say, besides "Forsgren 0.0.2", "No projects
 configured yet: add them to forsgren.config.yml."; without `--config` (the
 build above has no installation config) or with projects, the page is the
-placeholder, unchanged.
+placeholder, unchanged. With `--data` as well (it needs `--config`), the
+page shows each project's deployment frequency from that history, counted
+back from the moment of the render; a missing history file (a new install
+before its first collect) is an empty history, and a history with another
+format version or a malformed line fails the render with the history's
+message (exit 1).
 
 **Daily, from an installation's data repository.** An installation does not
 build forsgren: its data repository calls forsgren's reusable workflow,
@@ -899,7 +948,7 @@ command), `forsgren collect --config forsgren.config.yml --data
 data/deployments.csv` (its exit status kept as a step output), a commit of
 `data/` alone when it changed, pushed like the starter (an `::error` naming a
 branch that moved, never a rebase or a force), `forsgren render --config
-forsgren.config.yml`, then `actions/upload-pages-artifact` and
+forsgren.config.yml --data data/deployments.csv`, then `actions/upload-pages-artifact` and
 `actions/deploy-pages` into the `github-pages` environment, and last a step
 that fails the job when collect failed. The job
 context, not the `github` context: in a called workflow the `github`
@@ -992,7 +1041,9 @@ Six PRE gates keep the CI honest:
   moved, with no rebase and no force; the last step fails the job for any
   collect status but 0, and collect failing after storing still commits and
   pushes; the job's concurrency group is keyed on `github.repository` with
-  `cancel-in-progress: false`; and install, checkout, starter, config
+  `cancel-in-progress: false`; the render step, executed with a stub, runs
+  exactly `forsgren render --out <dir> --config forsgren.config.yml --data
+  data/deployments.csv`; and install, checkout, starter, config
   check, collect, data commit and render come in that order, the fail step
   after publishing. Each pin is shown failing, with its own reason, on a
   mutant of the real file.
@@ -1023,7 +1074,9 @@ cookies, uses no browser storage and tracks no one. Two POST gates check the
 generated page on every run, privacy posture for the requests, cookies and
 tracking, and repository links for the links (see Quality gates). No gate
 checks for issue titles yet: that rests on the renderer, which is given
-numbers and dates only. A finding is fixed in the template, never by
+the project names of the owner's own config, numbers and dates only: no
+repository name, commit, tag, environment, workflow or task reaches the
+page, which `cmd/forsgren/render_data_test.go` pins. A finding is fixed in the template, never by
 loosening the gate.
 
 ## Installing and updating

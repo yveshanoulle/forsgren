@@ -1,6 +1,20 @@
 {{template "header" .}}  <main>
     <h1>Forsgren {{.Version}}</h1>
-    <p>{{.Message}}</p>
-{{if .NoProjects}}    <p>No projects configured yet: add them to forsgren.config.yml.</p>
+{{if .Frequencies}}    <p>Deployment frequency: successful deployments, counted back from {{.AsOf}} (UTC).</p>
+{{range .Frequencies}}    <section>
+      <h2>{{.Project}}</h2>
+{{if .HasDeployments}}      <dl>
+        <dt>Last 7 days</dt>
+        <dd>{{.Last7}}</dd>
+        <dt>Latest deployment</dt>
+        <dd>{{.LatestDate}}</dd>
+        <dt>DORA band</dt>
+        <dd>{{.BandText}}</dd>
+      </dl>
+{{else}}      <p>No deployments recorded yet</p>
+{{end}}    </section>
+{{end}}    <p>DORA bands from the last 30 days: on demand above 30, daily to weekly 5 to 30, weekly to monthly 1 to 4, less than monthly 0.</p>
+{{else}}    <p>{{.Message}}</p>
+{{end}}{{if .NoProjects}}    <p>No projects configured yet: add them to forsgren.config.yml.</p>
 {{end}}  </main>
 {{template "footer" .}}

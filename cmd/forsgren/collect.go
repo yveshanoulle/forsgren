@@ -13,8 +13,9 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/github"
 )
 
-// githubAPI is the GitHub REST API collect reads, and now its clock: vars so
-// the tests can point them at a test server and a fixed day.
+// githubAPI is the GitHub REST API collect reads, and now the clock of
+// collect and render: vars so the tests can point them at a test server and
+// a fixed day.
 var (
 	githubAPI = "https://api.github.com"
 	now       = time.Now

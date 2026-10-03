@@ -3,7 +3,7 @@
 //
 // Usage:
 //
-//	forsgren render --out <dir> [--config <path>]
+//	forsgren render --out <dir> [--config <path>] [--data <path>]
 //	forsgren check-config --config <path>
 //	forsgren init-config --config <path>
 //	forsgren collect --config <path> --data <path>
@@ -16,10 +16,9 @@ import (
 	"os"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
-	"github.com/yveshanoulle/forsgren/internal/page"
 )
 
-const usage = `usage: forsgren render --out <dir> [--config <path>]
+const usage = `usage: forsgren render --out <dir> [--config <path>] [--data <path>]
        forsgren check-config --config <path>
        forsgren init-config --config <path>
        forsgren collect --config <path> --data <path>`
@@ -90,49 +89,6 @@ func initConfig(args []string, stdout, stderr io.Writer) int {
 	}
 	_, _ = fmt.Fprintf(stdout, "%s %s\n", verb, path)
 	return 0
-}
-
-// render writes the site. With --config it also reads the installation's
-// forsgren.config.yml, so the page can say when no projects are configured
-// yet (forsgren#12); without it (the repository's own build has no
-// installation config) the page is the placeholder, unchanged.
-func render(args []string, stdout, stderr io.Writer) int {
-	out, configPath, ok := renderFlags(args, stderr)
-	if !ok {
-		return 2
-	}
-	data := page.Placeholder(version)
-	if configPath != "" {
-		cfg, err := config.Load(configPath)
-		if err != nil {
-			return failed(stderr, "render", err)
-		}
-		data.NoProjects = len(cfg.Projects) == 0
-	}
-	n, err := page.WriteSite(out, data)
-	if err != nil {
-		return failed(stderr, "render", err)
-	}
-	_, _ = fmt.Fprintf(stdout, "rendered %d page(s) into %s\n", n, out)
-	return 0
-}
-
-// renderFlags parses render's arguments: the required --out and the
-// optional --config (empty when absent). It returns false once the usage
-// error is on stderr.
-func renderFlags(args []string, stderr io.Writer) (out, configPath string, ok bool) {
-	flags := flag.NewFlagSet("render", flag.ContinueOnError)
-	flags.SetOutput(stderr)
-	outFlag := flags.String("out", "", "directory to write the site into")
-	configFlag := flags.String("config", "", "the forsgren.config.yml the page reports on (optional)")
-	if err := flags.Parse(args); err != nil {
-		return "", "", false
-	}
-	if *outFlag == "" {
-		_, _ = fmt.Fprintln(stderr, "render: --out <dir> is required")
-		return "", "", false
-	}
-	return *outFlag, *configFlag, true
 }
 
 // requiredFlag parses the arguments of a command that takes one required

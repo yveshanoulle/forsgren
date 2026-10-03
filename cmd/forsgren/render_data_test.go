@@ -35,7 +35,7 @@ func shipped(id int64, repository string, state history.State, at string) histor
 		panic(err)
 	}
 	return history.Record{
-		Project: "Acme Shop", Repository: repository, Kind: history.KindEnvironment, Name: "production",
+		Project: "Acme Shop", Repository: repository, Kind: history.KindEnvironment, Name: "acme-live",
 		ID: id, Commit: fixtureCommit, CreatedAt: created, State: state, Task: fixtureTask,
 	}
 }
@@ -104,7 +104,7 @@ func TestRenderShowsNoRepositoryCommitOrTask(t *testing.T) {
 	if !strings.Contains(index, "Acme Shop") {
 		t.Fatalf("want the frequency page, got:\n%s", index)
 	}
-	for _, private := range []string{"acme/", "production", "testflight", fixtureCommit[:7], fixtureTask} {
+	for _, private := range []string{"acme/", "acme-live", "testflight", fixtureCommit[:7], fixtureTask} {
 		if strings.Contains(index, private) {
 			t.Errorf("the page shows %q:\n%s", private, index)
 		}

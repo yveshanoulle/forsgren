@@ -23,7 +23,7 @@
   {
    "path": "cmd/forsgren/main.go",
    "score": 9.38,
-   "checkedAt": "2026-10-02",
+   "checkedAt": "2026-10-03",
    "minScore": 9.28
   },
   {
@@ -101,13 +101,25 @@
   {
    "path": "cmd/forsgren/collect.go",
    "score": 10.0,
-   "checkedAt": "2026-10-02",
+   "checkedAt": "2026-10-03",
    "minScore": 10.0
   },
   {
    "path": "cmd/forsgren/main_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-02",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_data_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
    "minScore": 10.0
   },
   {
@@ -153,15 +165,39 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/metrics/band.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/band_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/frequency.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/frequency_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/page/page.go",
    "score": 10.0,
-   "checkedAt": "2026-10-02",
+   "checkedAt": "2026-10-03",
    "minScore": 10.0
   },
   {
    "path": "internal/page/page_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-02",
+   "checkedAt": "2026-10-03",
    "minScore": 10.0
   }
  ]

@@ -10,9 +10,9 @@
 # configuration fails the job by name instead of publishing from it. Then
 # forsgren collect reads the configured repositories' deployments into
 # data/deployments.csv with the caller's FORSGREN_TOKEN, and a changed data/
-# is committed to the run's branch (forsgren#12, step 6). Today the page is
-# the skeleton's placeholder, "Forsgren <version>", with a line saying so
-# while no projects are configured; it does not show the history yet.
+# is committed to the run's branch (forsgren#12, step 6). The page shows
+# each project's deployment frequency from that history (forsgren#12, step
+# 7), or a line saying no projects are configured yet.
 #
 # It runs only when called (workflow_call): never in forsgren's own
 # repository, never on a pull request. Its job runs in the CALLER's
@@ -325,7 +325,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          forsgren render --out "${RUNNER_TEMP}/site" --config forsgren.config.yml
+          forsgren render --out "${RUNNER_TEMP}/site" --config forsgren.config.yml --data data/deployments.csv
 
       - name: Upload the page
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0

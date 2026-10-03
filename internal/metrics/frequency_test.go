@@ -141,6 +141,22 @@ func TestEmptyHistory(t *testing.T) {
 	}
 }
 
+// TestBandTextShowsTheCountAndThePeriod (Yves's ruling on forsgren#12): the
+// band is always shown with the 30-day count it comes from, singular for
+// one.
+func TestBandTextShowsTheCountAndThePeriod(t *testing.T) {
+	cases := map[string]Frequency{
+		"On demand (several per day) — 31 production deployments in the last 30 days": {Last30: 31, Band: OnDemand},
+		"Weekly to monthly — 1 production deployment in the last 30 days":             {Last30: 1, Band: WeeklyToMonthly},
+		"Less than monthly — 0 production deployments in the last 30 days":            {Band: LessThanMonthly},
+	}
+	for want, f := range cases {
+		if got := f.BandText(); got != want {
+			t.Errorf("want %q, got %q", want, got)
+		}
+	}
+}
+
 // TestBandFollowsTheThirtyDayCount: the band comes from Last30.
 func TestBandFollowsTheThirtyDayCount(t *testing.T) {
 	records := make([]history.Record, 0, 5)
