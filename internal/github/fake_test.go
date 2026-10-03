@@ -138,5 +138,9 @@ func calls(repo string) map[string]func(*Client) error {
 			_, _, err := c.Compare(ctx, repo, shaBase, shaHead)
 			return err
 		},
+		"failure issues": func(c *Client) error {
+			_, _, err := c.FailureIssues(ctx, repo, since)
+			return err
+		},
 	}
 }

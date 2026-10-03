@@ -197,7 +197,8 @@ func TestMalformedJSONNamesTheRepository(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			f := newFake(t)
-			paths := []string{deploymentsPath, statusesPath, "/repos/acme/app", runsPath, releasesPath, comparePath}
+			paths := []string{deploymentsPath, statusesPath, "/repos/acme/app", runsPath, releasesPath, comparePath,
+				issuesPath}
 			for _, path := range paths {
 				f.on(path, reply{body: `[{"id": "not a number"`})
 			}

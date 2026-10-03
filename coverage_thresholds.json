@@ -104,6 +104,8 @@
     "github.com/yveshanoulle/forsgren/internal/github/endpoints.go:listSince": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/endpoints.go:keep": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/endpoints.go:isSHA": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/github/issues.go:FailureIssues": 0.0,
+    "github.com/yveshanoulle/forsgren/internal/github/issues.go:parseRecord": 0.0,
     "github.com/yveshanoulle/forsgren/internal/history/append.go:Append": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/append.go:Validate": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/append.go:append": 100.0,

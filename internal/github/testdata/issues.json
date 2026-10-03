@@ -1,0 +1,145 @@
+[
+  {
+    "url": "https://api.github.com/repos/acme/app/issues/43",
+    "repository_url": "https://api.github.com/repos/acme/app",
+    "labels_url": "https://api.github.com/repos/acme/app/issues/43/labels{/name}",
+    "comments_url": "https://api.github.com/repos/acme/app/issues/43/comments",
+    "events_url": "https://api.github.com/repos/acme/app/issues/43/events",
+    "html_url": "https://github.com/acme/app/pull/43",
+    "id": 7043,
+    "node_id": "PR_acme_43",
+    "number": 43,
+    "title": "Fix the checkout crash",
+    "user": {
+      "login": "acme-dev",
+      "id": 2,
+      "type": "User"
+    },
+    "labels": [
+      {
+        "id": 501,
+        "node_id": "LA_acme_501",
+        "url": "https://api.github.com/repos/acme/app/labels/failure",
+        "name": "failure",
+        "color": "d73a4a",
+        "default": false,
+        "description": "A failure users hit"
+      }
+    ],
+    "state": "closed",
+    "locked": false,
+    "assignee": null,
+    "assignees": [],
+    "milestone": null,
+    "comments": 0,
+    "created_at": "2026-09-21T08:00:00Z",
+    "updated_at": "2026-09-21T09:00:00Z",
+    "closed_at": "2026-09-21T09:00:00Z",
+    "author_association": "MEMBER",
+    "active_lock_reason": null,
+    "draft": false,
+    "pull_request": {
+      "url": "https://api.github.com/repos/acme/app/pulls/43",
+      "html_url": "https://github.com/acme/app/pull/43",
+      "diff_url": "https://github.com/acme/app/pull/43.diff",
+      "patch_url": "https://github.com/acme/app/pull/43.patch",
+      "merged_at": "2026-09-21T09:00:00Z"
+    },
+    "body": "failure-start: 2026-09-20T09:12+02:00",
+    "state_reason": null
+  },
+  {
+    "url": "https://api.github.com/repos/acme/app/issues/42",
+    "repository_url": "https://api.github.com/repos/acme/app",
+    "labels_url": "https://api.github.com/repos/acme/app/issues/42/labels{/name}",
+    "comments_url": "https://api.github.com/repos/acme/app/issues/42/comments",
+    "events_url": "https://api.github.com/repos/acme/app/issues/42/events",
+    "html_url": "https://github.com/acme/app/issues/42",
+    "id": 7042,
+    "node_id": "I_acme_42",
+    "number": 42,
+    "title": "Checkout crashes after the release",
+    "user": {
+      "login": "acme-dev",
+      "id": 2,
+      "type": "User"
+    },
+    "labels": [
+      {
+        "id": 501,
+        "node_id": "LA_acme_501",
+        "url": "https://api.github.com/repos/acme/app/labels/failure",
+        "name": "failure",
+        "color": "d73a4a",
+        "default": false,
+        "description": "A failure users hit"
+      }
+    ],
+    "state": "closed",
+    "locked": false,
+    "assignee": null,
+    "assignees": [],
+    "milestone": null,
+    "comments": 1,
+    "created_at": "2026-09-20T08:00:00Z",
+    "updated_at": "2026-09-21T09:30:00Z",
+    "closed_at": "2026-09-21T09:30:00Z",
+    "author_association": "MEMBER",
+    "active_lock_reason": null,
+    "body": "Checkout crashes for every user since the release.\r\n\r\nfailure-start: 2026-09-20T09:12+02:00\r\nfailed-build: 12.345\r\nfixed-build: 12.346\r\n",
+    "reactions": {
+      "url": "https://api.github.com/repos/acme/app/issues/42/reactions",
+      "total_count": 0
+    },
+    "timeline_url": "https://api.github.com/repos/acme/app/issues/42/timeline",
+    "performed_via_github_app": null,
+    "state_reason": "completed"
+  },
+  {
+    "url": "https://api.github.com/repos/acme/app/issues/41",
+    "repository_url": "https://api.github.com/repos/acme/app",
+    "labels_url": "https://api.github.com/repos/acme/app/issues/41/labels{/name}",
+    "comments_url": "https://api.github.com/repos/acme/app/issues/41/comments",
+    "events_url": "https://api.github.com/repos/acme/app/issues/41/events",
+    "html_url": "https://github.com/acme/app/issues/41",
+    "id": 7041,
+    "node_id": "I_acme_41",
+    "number": 41,
+    "title": "The status page is down",
+    "user": {
+      "login": "acme-dev",
+      "id": 2,
+      "type": "User"
+    },
+    "labels": [
+      {
+        "id": 501,
+        "node_id": "LA_acme_501",
+        "url": "https://api.github.com/repos/acme/app/labels/failure",
+        "name": "failure",
+        "color": "d73a4a",
+        "default": false,
+        "description": "A failure users hit"
+      }
+    ],
+    "state": "open",
+    "locked": false,
+    "assignee": null,
+    "assignees": [],
+    "milestone": null,
+    "comments": 0,
+    "created_at": "2026-09-15T07:45:10Z",
+    "updated_at": "2026-09-15T07:45:10Z",
+    "closed_at": null,
+    "author_association": "MEMBER",
+    "active_lock_reason": null,
+    "body": null,
+    "reactions": {
+      "url": "https://api.github.com/repos/acme/app/issues/41/reactions",
+      "total_count": 0
+    },
+    "timeline_url": "https://api.github.com/repos/acme/app/issues/41/timeline",
+    "performed_via_github_app": null,
+    "state_reason": null
+  }
+]
