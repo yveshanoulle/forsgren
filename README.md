@@ -13,15 +13,18 @@ Named after Dr. Nicole Forsgren, whose research with DORA (and the book
 | Deployment frequency | How often do we ship to users? |
 | Change lead time | How long from a commit to that commit reaching users? |
 | Change failure rate | What share of deployments causes a failure users hit? |
-| Time to restore | When users hit a failure, how long until it's fixed? |
+| Failed deployment recovery time | When a deployment fails and needs immediate intervention, how long until a successful one recovers it? |
 
 ## How it gets its data
 
 forsgren reads only what is already in GitHub:
 
 - **Deployments:** workflow runs (for example a TestFlight upload) and GitHub
-  Deployments, with their commit and end time.
-- **Failures:** issues labelled `failure`. Each carries a short record block as
+  Deployments, with their commit and end time. Failed deployment recovery
+  time comes from these alone, the failed ones and the successes after them
+  (see Failed deployment recovery time).
+- **Failures**, for change fail rate (forsgren#18): issues labelled
+  `failure`. Each carries a short record block as
   its own comment:
 
   ```
@@ -262,7 +265,9 @@ can be reverted there):
 - **Deployments only.** A failure is a line of `data/deployments.csv`
   whose state is `failure`. The web-infra and TestFlight recorders record
   a failure only once live was touched, which is DORA's "requires
-  immediate intervention". Failure issues (the `failure` label with its
+  immediate intervention". A `workflow=` rule stores every run that
+  concluded `failure` (see Collecting deployments), so for such a
+  repository a run that failed before touching live counts too. Failure issues (the `failure` label with its
   record block, see How it gets its data) are the source of change fail
   rate (forsgren#18), not of this number.
 - **Recovered by the next success of its stream.** The stream is

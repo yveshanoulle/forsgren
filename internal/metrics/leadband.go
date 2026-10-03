@@ -4,7 +4,9 @@ import "time"
 
 // LeadTimeBand is a DORA band for lead time for changes (forsgren#16,
 // ruling 6): the six answers of the current DORA Quick Check, as mutually
-// exclusive ranges of the median lead time.
+// exclusive ranges of the median lead time. The Quick Check gives failure
+// recovery the same six answers, so a median recovery time is banded by it
+// too (forsgren#17).
 //
 // A month is 30 days and six months 180 days, so every edge is a fixed
 // duration and a median falls in the same band whatever the calendar:

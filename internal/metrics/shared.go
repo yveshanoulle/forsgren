@@ -1,8 +1,8 @@
 package metrics
 
-// What deployment frequency and lead time for changes share: the windows
-// counted back from the render time, a repository's project, the band
-// names and the text a band is shown with.
+// What deployment frequency, lead time for changes and failed deployment
+// recovery time share: the windows counted back from the render time, a
+// repository's project, the band names and the text a band is shown with.
 
 import (
 	"fmt"

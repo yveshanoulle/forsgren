@@ -169,6 +169,16 @@ func TestRecoveryWindowEdges(t *testing.T) {
 	}
 }
 
+// TestDeploymentsAfterNowAreNotThereYet: a success created after the render
+// time does not recover a failure, which stays not recovered yet, and a
+// failure created after it is not counted at all.
+func TestDeploymentsAfterNowAreNotThereYet(t *testing.T) {
+	wantOutcome(t, outcome{0, 0, 0, 1, "No recovery in the last 30 days; 1 failure not recovered yet"},
+		failed(time.Hour), fixed(-time.Second))
+	wantOutcome(t, outcome{0, 0, 0, 0, "No failed deployments in the last 30 days"},
+		fixed(time.Hour), failed(-time.Second))
+}
+
 // TestRecoveryBandOfEachEdge (forsgren#17): DORA's Quick Check answers for
 // failure recovery are lead time's six, so a median recovery time falls in
 // lead time's bands, on the same edges; a month is 30 days.

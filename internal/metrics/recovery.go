@@ -5,10 +5,13 @@ package metrics
 // recover from a deployment that fails and requires immediate
 // intervention".
 //
-//   - a failure is a stored deployment whose state is failure. The
-//     recorders store one only once live was touched, so it required
-//     intervention; failure issues are change failure rate's source
-//     (forsgren#18), not this one's;
+//   - a failure is a stored deployment whose state is failure: a GitHub
+//     Deployment whose newest status is failure or error, or a run of a
+//     `workflow=` rule that concluded failure. The web-infra and TestFlight
+//     recorders mark a deployment failed only once live was touched, so it
+//     required intervention; a `workflow=` rule stores any failed run, also
+//     one that failed before live was touched. Failure issues are change
+//     failure rate's source (forsgren#18), not this one's;
 //   - a failure is recovered by the next successful deployment of its
 //     stream (history.Stream, collect's stream): the repository ignoring
 //     case, the kind, the environment or workflow, and the task, while a

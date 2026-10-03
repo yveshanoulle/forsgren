@@ -38,7 +38,8 @@ type Data struct {
 	// the installation's forsgren.config.yml lists none (forsgren#12).
 	NoProjects bool
 	// Projects, when set, replace Message with one section per project, in
-	// this order (forsgren#12, step 7; forsgren#16, step 5). The page shows
+	// this order (forsgren#12, step 7; forsgren#16, step 5; forsgren#17).
+	// The page shows
 	// their project names, numbers, durations and dates only.
 	Projects []Project
 	// AsOf is the UTC minute (2006-01-02 15:04) the numbers were calculated
