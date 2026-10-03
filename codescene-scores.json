@@ -111,6 +111,12 @@
    "minScore": 10.0
   },
   {
+   "path": "cmd/forsgren/render_changefail_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
    "path": "cmd/forsgren/render_data_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-03",

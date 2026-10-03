@@ -24,8 +24,8 @@ forsgren reads only what is already in GitHub:
   time comes from these alone, the failed ones and the successes after them
   (see Failed deployment recovery time).
 - **Failures**, for change fail rate (forsgren#18): issues labelled
-  `failure`. Each carries a short record block as
-  its own comment:
+  `failure`, and the failed deployments. Each issue carries a short record
+  block in its body:
 
   ```
   failure-start: 2030-04-01T09:30+02:00
@@ -34,8 +34,11 @@ forsgren reads only what is already in GitHub:
   ```
 
   `failure-start` is when users were first hit; the two builds name the
-  deployment that caused the failure and the one that fixed it. A failure issue
-  without a complete record is reported as incomplete, never silently skipped.
+  deployment that caused the failure and the one that fixed it. forsgren
+  stores the issue's opening and closing times and its `failure-start`; an
+  issue without a `failure-start` it can read is stored all the same and
+  named on stderr by `collect`, never silently skipped (see Collecting
+  deployments, The failure issues). The builds are not used yet.
 
 ## What it produces
 
@@ -341,6 +344,74 @@ days:
 A project with no successful deployment in its history says "No
 deployments recorded yet", and shows no recovery time either.
 
+## Change fail rate
+
+The fourth DORA number on the page (forsgren#18, package `internal/metrics`):
+DORA's share of deployments that cause a failure in production requiring
+remediation. Each project's section shows it after its recovery time, as a
+DORA band with the rate, the deployments and both kinds of failed change:
+"20% — 15% of 13 deployments failed (1 failed deployment, 2 failure issues)
+in the last 30 days". With no deployment in the window it says "No
+deployments in the last 30 days", followed by "; 1 failure issue" when an
+issue was opened in it.
+
+**What counts.** Rulings on forsgren#18, taken while Yves was away (each
+can be reverted there):
+
+- **The deployments** are the final ones in `data/deployments.csv`,
+  successes and failures, created in the last 30 days, counted back from
+  the render time in UTC, both ends included, as for lead time and
+  recovery time. A deployment in the state `other` (a cancelled run) is
+  neither, and one created after the render time is not there yet.
+- **A failed change** is a deployment whose state is `failure`, as recovery
+  time counts them, or an issue labelled `failure` (forsgren#6) opened in
+  the window, from `data/failures.csv` (see History, Collecting
+  deployments). An issue counts once, open or closed, as its newest line
+  says.
+- **Never twice.** What is stored cannot tell which deployment an issue is
+  about, so an issue filed about a failed deployment would count twice.
+  Per repository, the failed changes are therefore the larger of its failed
+  deployments and its failure issues: issues are taken to be about the
+  repository's failed deployments as long as there are as many of those. A
+  repository whose deployments all succeeded (a crash users hit after a
+  good upload) fails by its issues alone; a repository that files no
+  issues, by its failed deployments alone. The cost: a failed deployment
+  and an unrelated issue of the same repository count as one. The page
+  shows both counts as found, so the reader sees what was taken.
+- **A project** adds up its repositories, compared ignoring case; a
+  repository no project lists is left out. It has at most as many failed
+  changes as deployments, so the rate is at most 100%; its counts still
+  show what was found.
+- **The rate** is the failed changes out of the deployments, shown in
+  whole percent, rounded down, so the percent shown never reaches a band
+  edge the rate has not.
+
+**The bands.** DORA's current Quick Check does not offer answers for change
+fail rate as it does for the other three: it asks for a percentage on a
+slider, and shows it on a scale labelled with six values. The script the
+Quick Check loads, <https://dora.dev/quickcheck/quickcheck.js>, asks
+"Approximately what percentage of changes to production or releases to
+users result in degraded service (for example, leads to service impairment
+or service outage) and subsequently requires remediation (for example,
+requires a hotfix, rollback, fix forward or patch), if at all?", shows the
+answer as "`<n>`% of changes fail", and labels its scale "100%", "80%",
+"60%", "40%", "20%" and "0%". A rate is banded by the nearest label; a rate
+halfway between two is the higher one, as an edge of lead time's bands is
+the slower band. Compared exactly, failed changes times 100 against the
+edge times the deployments:
+
+| Change fail rate | DORA band |
+| --- | --- |
+| below 10% | 0% |
+| 10% to below 30% | 20% |
+| 30% to below 50% | 40% |
+| 50% to below 70% | 60% |
+| 70% to below 90% | 80% |
+| 90% and more | 100% |
+
+A project with no successful deployment in its history says "No
+deployments recorded yet", and shows no change fail rate either.
+
 ## Configuration
 
 An installation describes what forsgren measures in one file,
@@ -623,14 +694,16 @@ private repositories (no scope for public ones).
 
 forsgren renders a static page which says "Forsgren 0.0.5", the version of
 the forsgren that rendered it, and shows each project's deployment frequency,
-lead time for changes and failed deployment recovery time. That version has one source,
+lead time for changes, failed deployment recovery time and change fail
+rate. That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
 it with `-ldflags "-X main.version=<version>"`. `forsgren collect` reads
 GitHub into the history file (see Collecting deployments); the daily run
 calls it, commits the history to the data repository and renders the page
-with each project's deployment frequency, lead time for changes and failed
-deployment recovery time from it (see Deployment frequency, Lead time for
-changes and Failed deployment recovery time).
+with each project's deployment frequency, lead time for changes, failed
+deployment recovery time and change fail rate from it (see Deployment
+frequency, Lead time for changes, Failed deployment recovery time and Change
+fail rate).
 
 The first release is `v0.0.1`. Install a release with
 `go install github.com/yveshanoulle/forsgren/cmd/forsgren@v0.0.1`; an

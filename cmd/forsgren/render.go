@@ -34,9 +34,9 @@ type renderOptions struct {
 // render writes the site. With --config it also reads the installation's
 // forsgren.config.yml, so the page can say when no projects are configured
 // yet (forsgren#12); with --data as well it reads the history and the
-// commits file next to it, and shows each project's deployment frequency,
-// lead time for changes and failed deployment recovery time, counted back
-// from now. Without --config
+// commits and failures files next to it, and shows each project's
+// deployment frequency, lead time for changes, failed deployment recovery
+// time and change fail rate, counted back from now. Without --config
 // (the repository's own build has no installation config) the page is the
 // placeholder, unchanged.
 func render(args []string, stdout, stderr io.Writer) int {
@@ -79,9 +79,11 @@ func pageData(o renderOptions, at time.Time) (page.Data, error) {
 }
 
 // projectsOf is each project's section, from the history at path (its
-// deployment frequency and, forsgren#17, its recovery time) and the commits
+// deployment frequency and, forsgren#17, its recovery time), the commits
 // file next to it (data/commits.csv beside data/deployments.csv, its lead
-// time, forsgren#16), at the render time at.
+// time, forsgren#16) and the failures file next to it (data/failures.csv,
+// with the history its change fail rate, forsgren#18), at the render time
+// at.
 func projectsOf(projects []config.Project, path string, at time.Time) ([]page.Project, error) {
 	records, err := loadOrNone(path, history.Load)
 	if err != nil {
@@ -91,12 +93,19 @@ func projectsOf(projects []config.Project, path string, at time.Time) ([]page.Pr
 	if err != nil {
 		return nil, err
 	}
+	failures, err := loadOrNone(filepath.Join(filepath.Dir(path), collect.FailuresFile), history.LoadFailures)
+	if err != nil {
+		return nil, err
+	}
 	frequencies := metrics.DeploymentFrequency(projects, records, at)
 	leadTimes := metrics.LeadTimes(projects, commits, at)
 	recoveries := metrics.RecoveryTimes(projects, records, at)
+	changeFails := metrics.ChangeFailRates(projects, records, failures, at)
 	out := make([]page.Project, len(projects))
 	for i := range out {
-		out[i] = page.Project{Frequency: frequencies[i], LeadTime: leadTimes[i], Recovery: recoveries[i]}
+		out[i] = page.Project{
+			Frequency: frequencies[i], LeadTime: leadTimes[i], Recovery: recoveries[i], ChangeFail: changeFails[i],
+		}
 	}
 	return out, nil
 }
@@ -122,7 +131,7 @@ func renderFlags(args []string, stderr io.Writer) (renderOptions, bool) {
 	flags.StringVar(&o.out, "out", "", "directory to write the site into")
 	flags.StringVar(&o.config, "config", "", "the forsgren.config.yml the page reports on (optional)")
 	flags.StringVar(&o.data, "data", "",
-		"the history the page counts, data/deployments.csv, commits.csv beside it (optional, needs --config)")
+		"the history the page counts, data/deployments.csv, commits.csv, failures.csv beside it (optional, needs --config)")
 	if err := flags.Parse(args); err != nil {
 		return o, false
 	}
