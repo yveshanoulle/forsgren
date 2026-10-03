@@ -120,6 +120,8 @@
     "github.com/yveshanoulle/forsgren/internal/history/commits.go:fields": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/commits.go:toCommit": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/commits.go:validate": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/history/failures.go:LoadFailures": 0.0,
+    "github.com/yveshanoulle/forsgren/internal/history/failures.go:AppendFailures": 0.0,
     "github.com/yveshanoulle/forsgren/internal/history/file.go:load": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/file.go:parse": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/file.go:checkHeader": 100.0,

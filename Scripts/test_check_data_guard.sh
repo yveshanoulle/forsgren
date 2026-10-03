@@ -28,6 +28,7 @@
 #      testdata/data/), a Go test file, and a
 #      deeper internal/data/ code directory
 #  14. a commits.csv elsewhere (forsgren#16)      -> red, named
+#  15. a failures.csv elsewhere (forsgren#18)     -> red, named
 # Mutation proofs, each against a copy of the gate (the patterns are `case`
 # arms of guarded_reason, one per line):
 #   - case 2: with the history.csv arm deleted, case 2's repository must turn
@@ -39,6 +40,8 @@
 #     only ops/deployments.csv must turn green.
 #   - case 14: with the commits.csv arm deleted, a repository holding only
 #     ops/commits.csv must turn green.
+#   - case 15: with the failures.csv arm deleted, a repository holding only
+#     ops/failures.csv must turn green.
 #   - case 10: with every arm whose pattern holds a `*` quoted (so it matches
 #     only the literal text), case 10's repository must turn green with none
 #     of its three files named, while case 2's repository stays red. Every
@@ -176,10 +179,12 @@ new_repo "data-dir"
 write_file "data/deployments.csv" $'# forsgren history v1\n' track
 write_file "data/notes.txt" $'x\n' track
 write_file "data/commits.csv" $'# forsgren commits v1\n' track
+write_file "data/failures.csv" $'# forsgren failures v1\n' track
 run_gate
 want_red "a tracked data/deployments.csv is red and named" "❌ FAIL: data/deployments.csv"
 want_said "any other file under a top-level data/ is red and named" "❌ FAIL: data/notes.txt"
 want_said "a tracked data/commits.csv is red and named" "❌ FAIL: data/commits.csv"
+want_said "a tracked data/failures.csv is red and named" "❌ FAIL: data/failures.csv"
 
 new_repo "deployments-elsewhere"
 write_file "ops/deployments.csv" $'# forsgren history v1\n' track
@@ -191,9 +196,15 @@ write_file "ops/commits.csv" $'# forsgren commits v1\n' track
 run_gate
 want_red "a commits.csv outside data/ is red and named" "❌ FAIL: ops/commits.csv"
 
+new_repo "failures-elsewhere"
+write_file "ops/failures.csv" $'# forsgren failures v1\n' track
+run_gate
+want_red "a failures.csv outside data/ is red and named" "❌ FAIL: ops/failures.csv"
+
 new_repo "history-fixtures"
 write_file "internal/history/testdata/deployments.csv" $'# forsgren history v1\n' track
 write_file "internal/history/testdata/commits.csv" $'# forsgren commits v1\n' track
+write_file "internal/history/testdata/failures.csv" $'# forsgren failures v1\n' track
 write_file "internal/history/testdata/data/deployments.csv" $'# forsgren history v1\n' track
 write_file "internal/history/history_test.go" $'package history\n// acme/app is the made-up fixture repository.\n' track
 write_file "internal/data/data.go" $'package data\n' track
@@ -288,6 +299,26 @@ else
     fail "mutation proof (case 14): a gate without the commits.csv arm is still red on a repository holding only ops/commits.csv. Output: ${OUT}"
   else
     echo "  ok: without the commits.csv arm, a repository holding only ops/commits.csv is green (case 14 is red for that arm)"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Mutation proof for case 15: with the failures.csv arm deleted, a repository
+# that holds only ops/failures.csv must turn green, so case 15 is red BECAUSE
+# of that arm (forsgren#18, step 1).
+# ---------------------------------------------------------------------------
+NOFAILURES="${TMP}/check_data_guard_nofailures.sh"
+grep -vE '^[[:space:]]*failures\.csv\) why=' "$GATE" > "$NOFAILURES"
+chmod +x "$NOFAILURES"
+
+if cmp -s "$GATE" "$NOFAILURES"; then
+  fail "mutation proof (case 15): deleting the 'failures.csv) why=' arm changed nothing in ${GATE} — the anchor no longer matches, so this proof proves nothing"
+else
+  run_mutant "$NOFAILURES" "failures-elsewhere"
+  if [[ "$RC" -ne 0 ]]; then
+    fail "mutation proof (case 15): a gate without the failures.csv arm is still red on a repository holding only ops/failures.csv. Output: ${OUT}"
+  else
+    echo "  ok: without the failures.csv arm, a repository holding only ops/failures.csv is green (case 15 is red for that arm)"
   fi
 fi
 
