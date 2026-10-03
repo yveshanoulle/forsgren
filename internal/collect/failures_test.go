@@ -106,7 +106,7 @@ func TestAClosedIssueIsStoredAgainAndAnUnchangedOneIsNot(t *testing.T) {
 
 // TestAFailureIssueWithoutAFailureStartIsStoredAndNamed: the issue counts
 // all the same, its failure_start empty, and stderr names it, once, when it
-// is stored.
+// is first stored.
 func TestAFailureIssueWithoutAFailureStartIsStoredAndNamed(t *testing.T) {
 	g := issuesOnly(t, issueJSON(43, "2026-09-22T08:00:00Z", "", "null"))
 	path := historyPath(t)
@@ -119,6 +119,20 @@ func TestAFailureIssueWithoutAFailureStartIsStoredAndNamed(t *testing.T) {
 		}
 	}
 	wantFailures(t, path, failure(43, at(22, 8, 0), time.Time{}, time.Time{}))
+}
+
+// TestAClosedIssueWithoutAFailureStartIsNotNamedAgain (forsgren#18, step
+// 6, review): the issue was named when it was first stored; its closing is
+// stored as a new line without naming it again.
+func TestAClosedIssueWithoutAFailureStartIsNotNamedAgain(t *testing.T) {
+	g := issuesOnly(t, issueJSON(43, "2026-09-22T08:00:00Z", "", "null"))
+	path := historyPath(t)
+	g.collect(t, shop(production), path, github.DefaultMaxPages)
+	g.bodies[issuesPath] = list(issueJSON(43, "2026-09-22T08:00:00Z", "2026-09-23T08:00:00Z", "null"))
+	r := g.collect(t, shop(production), path, github.DefaultMaxPages)
+	wantStdout(t, r, "acme/app: 0 new, 0 skipped (not final), 0 commits, 1 failure issues\n")
+	wantNoStderr(t, r)
+	wantFailures(t, path, failure(43, at(22, 8, 0), at(23, 8, 0), time.Time{}))
 }
 
 // TestARefusedIssueListFailsTheRepositoryWhole: when GitHub refuses the
