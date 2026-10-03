@@ -2,6 +2,7 @@ package history
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -338,7 +339,9 @@ func TestLoadAfterAppendReturnsTheRecords(t *testing.T) {
 	}
 }
 
-// TestAppendRefusesARecordItCannotStoreAndCreatesNothing.
+// TestAppendRefusesARecordItCannotStoreAndCreatesNothing; Validate refuses
+// it with the same error, before anything is read or written (forsgren#16,
+// step 7: collect checks the deployments before it writes their commits).
 func TestAppendRefusesARecordItCannotStoreAndCreatesNothing(t *testing.T) {
 	bad := map[string]func(*Record){
 		"no project":        func(r *Record) { r.Project = "" },
@@ -356,16 +359,39 @@ func TestAppendRefusesARecordItCannotStoreAndCreatesNothing(t *testing.T) {
 	}
 	for name, mutate := range bad {
 		t.Run(name, func(t *testing.T) {
-			path := historyPath(t)
 			r := rec(1001, 0)
 			mutate(&r)
-			if _, err := Append(path, []Record{rec(1002, 1), r}); !errors.Is(err, ErrInvalidRecord) {
-				t.Errorf("want ErrInvalidRecord, got %v", err)
-			}
-			if _, err := os.Stat(filepath.Dir(path)); !errors.Is(err, fs.ErrNotExist) {
-				t.Errorf("want no data/ directory created, got %v", err)
-			}
+			wantRefusedLikeAppend(t, []Record{rec(1002, 1), r})
 		})
+	}
+}
+
+// wantRefusedLikeAppend fails unless Append refuses records as
+// ErrInvalidRecord without creating data/, and Validate with the same error.
+func wantRefusedLikeAppend(t *testing.T, records []Record) {
+	t.Helper()
+	path := historyPath(t)
+	_, err := Append(path, records)
+	if !errors.Is(err, ErrInvalidRecord) {
+		t.Errorf("want ErrInvalidRecord, got %v", err)
+	}
+	if verr := Validate(path, records); fmt.Sprint(verr) != fmt.Sprint(err) {
+		t.Errorf("want Validate's error to be Append's, %v, got %v", err, verr)
+	}
+	if _, err := os.Stat(filepath.Dir(path)); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("want no data/ directory created, got %v", err)
+	}
+}
+
+// TestValidateTakesWhatAppendStores: records Append stores pass Validate,
+// which creates nothing.
+func TestValidateTakesWhatAppendStores(t *testing.T) {
+	path := historyPath(t)
+	if err := Validate(path, []Record{rec(1001, 0), rec(1002, 1)}); err != nil {
+		t.Errorf("want no error, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Dir(path)); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("want no data/ directory created, got %v", err)
 	}
 }
 

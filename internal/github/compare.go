@@ -52,6 +52,10 @@ type comparison struct {
 //     naming both SHAs, never an empty list.
 //   - a 404 or 422 is a commit GitHub does not have (ErrMissingCommit),
 //     naming both SHAs, not the token's access.
+//
+// The status codes, total_commits and the page order are GitHub's REST
+// reference, pinned against made-up answers only, not checked against
+// live GitHub (README, Collecting deployments).
 func (c *Client) Compare(ctx context.Context, repo, base, head string) ([]Commit, bool, error) {
 	s := span{repo: repo, base: base, head: head}
 	if err := s.check(); err != nil || base == head {

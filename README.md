@@ -203,9 +203,12 @@ malformed line fails the render with its own message. Yves's rulings:
   author date to the creation time of the successful deployment that
   shipped it.
 - **The commits of a deployment** are those since the previous successful
-  deployment of the same repository and task; the first recorded
-  deployment has none. Failed deployments store none: their commits move
-  on to the next successful one.
+  deployment of its stream: the same repository, rule, environment or
+  workflow, and task, while a repository's releases are one stream (see
+  Collecting deployments, The commits of each deployment). The first
+  success of a stream has none. Failed deployments, and other final
+  states, store none: their commits move on to the next successful one. A
+  success `collect` skips, with a warning, stores none either.
 - **The window:** a commit counts when its deployment was created in the
   last 30 days, counted back from the render time in UTC, both ends
   included, as for deployment frequency. A commit belongs to the project
@@ -428,17 +431,35 @@ in `data/commits.csv`, each with its author date and the deployment's
   (`...; lead time skips deployment 1002`). These are the history's shape,
   not the token's access. Any other error of a comparison (no access, a
   rate limit) fails the repository like any other call.
+- **Skipped, not compared, with a warning:** a success that finished after
+  a newer success of its stream was stored, say one still running at the
+  last run while a newer one succeeded: `collect: acme/app: deployment
+  1002 finished after the newer deployment 1003 was stored; lead time skips
+  it, so no commit counts twice`. The newer one was compared with the
+  success before both, so its commits already hold this one's.
+- **Not verified against live GitHub.** What `collect` assumes of a
+  comparison comes from GitHub's REST reference and is pinned against
+  made-up answers only: that `total_commits` counts every commit of the
+  comparison (fewer read is taken as a cut list); that a SHA GitHub does
+  not have answers 404 or 422 (both read as a missing commit, so that
+  deployment is skipped, not the repository failed); and that the pages
+  list the commits oldest first, so a cut list keeps the oldest. The first
+  live runs are where to check them.
 
 **Errors.** Each repository is tried, also after another failed; a failing
 one is named on stderr (`collect: acme/app: ...`) and nothing of it is
 stored, neither its deployments nor their commits, because a repository's
-deployments are appended in one go, after all of them are read and
-compared, and then their commits. The others are stored, and `collect` then exits 1
+records are appended in one go, after all of them are read and compared:
+its commits first, then its deployments. A deployment is never stored
+without its commits: when one of the two writes fails, the next run reads
+and compares those deployments again, and the commits already stored are
+skipped. The others are stored, and `collect` then exits 1
 with `collect: 1 of 3 repositories failed`. A 401, 403 or 404 says `check
 FORSGREN_TOKEN's access to acme/app`, except for a release's tag: a 404 or
 422 there says `tag v1.2.0 not found` and asks whether it was deleted after
 the release was published, since the release itself was just read with the
-same token; a rate limit says when it resets (UTC)
+same token; and except for a comparison, where a 404 or 422 is a commit
+GitHub does not have (see above); a rate limit says when it resets (UTC)
 or how many seconds GitHub asks to wait; an answer that is not what GitHub
 documents is refused by the repository's name. A history or a commits
 file that cannot be read (another version, a malformed line) is refused
@@ -461,7 +482,10 @@ repositories, needs per rule:
 
 Comparing two commits, for the commits of each deployment, needs Contents
 with every rule. A token without it fails the repository from its second
-successful deployment on, with `check FORSGREN_TOKEN's access`. Metadata is
+successful deployment on, with `check FORSGREN_TOKEN's access`, when
+GitHub answers 401 or 403; a 404 would read as a commit GitHub does not
+have and skip each deployment with a warning instead (not verified against
+live GitHub, see above). Metadata is
 in every fine-grained token. A classic token needs `repo` for
 private repositories (no scope for public ones).
 

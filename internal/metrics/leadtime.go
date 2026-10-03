@@ -8,7 +8,8 @@ package metrics
 //     the successful deployment that shipped it (DORA's commit to running in
 //     production; Yves's rulings 2 and 4);
 //   - a commit counts when that deployment was created in the last 30 days,
-//     both ends included, the window of deployment frequency's band;
+//     both ends included, the window of deployment frequency's 30-day
+//     count;
 //   - a commit belongs to the project whose config lists its repository,
 //     compared ignoring case, as for deployment frequency;
 //   - each line counts: a commit shipped by two deployments (two tasks of

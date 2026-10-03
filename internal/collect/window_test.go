@@ -41,7 +41,8 @@ func TestTheFirstRunReadsNinetyDaysBack(t *testing.T) {
 
 // TestALaterRunReadsFromAWeekBeforeTheNewestStored: once a repository has
 // stored deployments, a run reads back to 7 days before the newest, so a
-// deployment that was not final at the last run is still found.
+// deployment that was not final at the last run is still found. GitHub
+// answers the one comparison, so stderr stays empty.
 func TestALaterRunReadsFromAWeekBeforeTheNewestStored(t *testing.T) {
 	g := newGitHub(t)
 	g.bodies[deploymentsPath] = list(
@@ -51,9 +52,11 @@ func TestALaterRunReadsFromAWeekBeforeTheNewestStored(t *testing.T) {
 	for _, id := range []string{"1004", "1003", "1002"} {
 		g.bodies[statusesPath(id)] = list(status(7, "success", "2026-09-12T00:05:00Z"))
 	}
+	g.bodies[comparePath(shaB, shaC)] = ahead(authored{shaC, at(24, 0, 0)})
 	path := stored(t, history.KindEnvironment, "production", at(20, 0, 0))
-	wantStdout(t, g.collect(t, shop(production), path, github.DefaultMaxPages),
-		"acme/app: 2 new, 0 skipped (not final), 0 commits\n")
+	r := g.collect(t, shop(production), path, github.DefaultMaxPages)
+	wantStdout(t, r, "acme/app: 2 new, 0 skipped (not final), 1 commits\n")
+	wantNoStderr(t, r)
 	if got := g.seen(statusesPath("1002")); len(got) != 0 {
 		t.Errorf("want the deployment before the week not read, got %v", got)
 	}
@@ -61,18 +64,29 @@ func TestALaterRunReadsFromAWeekBeforeTheNewestStored(t *testing.T) {
 
 // TestALaterRunNeverReadsMoreThanNinetyDays: a newest stored deployment long
 // ago does not widen the window past 90 days. The workflow's runs are asked
-// from a day before the window, so no time zone loses one.
+// from a day before the window, so no time zone loses one. GitHub answers
+// the one comparison, so stderr stays empty.
 func TestALaterRunNeverReadsMoreThanNinetyDays(t *testing.T) {
 	g := newGitHub(t)
 	g.bodies["/repos/acme/app"] = `{"default_branch": "trunk"}`
 	g.bodies[runsPath] = runs(run(5002, shaB, "completed", "success", "2026-07-04T00:00:00Z"),
 		run(5001, shaA, "completed", "success", "2026-06-01T00:00:00Z"))
 	path := stored(t, history.KindWorkflow, "deploy.yml", time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC))
+	g.bodies[comparePath(shaA, shaB)] = ahead(authored{shaB, time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)})
 	deploy := repository("acme/app", config.Workflow, "deploy.yml")
-	wantStdout(t, g.collect(t, shop(deploy), path, github.DefaultMaxPages),
-		"acme/app: 1 new, 0 skipped (not final), 0 commits\n")
+	r := g.collect(t, shop(deploy), path, github.DefaultMaxPages)
+	wantStdout(t, r, "acme/app: 1 new, 0 skipped (not final), 1 commits\n")
+	wantNoStderr(t, r)
 	if got := g.seen(runsPath + "?"); len(got) != 1 || !strings.Contains(got[0], "created=%3E%3D2026-07-02") {
 		t.Errorf("want the runs created from 2026-07-02 asked, got %v", got)
+	}
+}
+
+// wantNoStderr fails unless the run printed nothing on stderr.
+func wantNoStderr(t *testing.T, r result) {
+	t.Helper()
+	if r.stderr != "" {
+		t.Errorf("want nothing on stderr, got %q", r.stderr)
 	}
 }
 

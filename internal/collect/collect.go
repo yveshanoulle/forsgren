@@ -43,12 +43,18 @@
 // deployment is compared once: a skipped one is not tried again. A list
 // GitHub cut, a previous that is not an ancestor and a commit GitHub does
 // not have store no commits for that deployment, with a warning on stderr;
-// any other error of a comparison fails the repository.
+// any other error of a comparison fails the repository. A success that
+// finished after a newer success of its stream was stored is not compared
+// and stores no commits either, with a warning: that newer one was
+// compared with the success before both, so its commits already hold this
+// one's (forsgren#16, step 7).
 //
 // A repository is stored whole or not at all: its records are appended once
-// all of them are read and compared, the deployments first, then their
-// commits. A failure in one repository is printed and the others are still
-// collected; Run then fails.
+// all of them are read and compared, the commits first, then the
+// deployments, so a deployment is never stored without its commits. When a
+// write fails, the next run reads and compares those deployments again, and
+// the commits already stored are skipped by their key. A failure in one
+// repository is printed and the others are still collected; Run then fails.
 package collect
 
 import (
@@ -145,15 +151,21 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	return nil
 }
 
-// store appends one repository's deployments, then their commits, and says
-// how many of each it stored. Deployments the history refuses write no
-// commits either.
+// store appends one repository's commits, then its deployments, and says
+// how many of each it stored. Deployments the history refuses write
+// nothing. The commits go first: when either write fails, the deployments
+// are not stored, so the next run reads them again and compares them
+// again, and the commits already stored are skipped by their key. A
+// deployment is never stored without its commits.
 func (o Options) store(records []history.Record, commits []history.Commit) (int, int, error) {
-	n, err := history.Append(o.History, records)
-	if err != nil {
+	if err := history.Validate(o.History, records); err != nil {
 		return 0, 0, err
 	}
 	c, err := history.AppendCommits(o.commitsFile(), commits)
+	if err != nil {
+		return 0, 0, err
+	}
+	n, err := history.Append(o.History, records)
 	return n, c, err
 }
 

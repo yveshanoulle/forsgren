@@ -34,13 +34,17 @@ type store[R any] struct {
 //     stored (ErrInvalidRecord).
 func Append(path string, records []Record) (int, error) { return deployments.append(path, records) }
 
+// Validate is Append's first check, alone: the ErrInvalidRecord Append
+// would return for records, or nil. It neither reads nor writes path, which
+// only names the file in the error, so a caller can learn that Append will
+// take the records before it writes anything else.
+func Validate(path string, records []Record) error { return deployments.validateAll(path, records) }
+
 // append stores the records the file at path does not hold yet: Append's
 // rules, by the format's key and order.
 func (f format[R, K]) append(path string, records []R) (int, error) {
-	for i, r := range records {
-		if err := f.validate(r); err != nil {
-			return 0, fmt.Errorf("%s: %w: record %d: %w", path, ErrInvalidRecord, i+1, err)
-		}
+	if err := f.validateAll(path, records); err != nil {
+		return 0, err
 	}
 	st, err := f.read(path)
 	if err != nil {
@@ -51,6 +55,17 @@ func (f format[R, K]) append(path string, records []R) (int, error) {
 		return 0, nil
 	}
 	return len(fresh), f.write(path, st, fresh)
+}
+
+// validateAll refuses the first record that cannot be stored, naming path
+// and the record's place in records.
+func (f format[R, K]) validateAll(path string, records []R) error {
+	for i, r := range records {
+		if err := f.validate(r); err != nil {
+			return fmt.Errorf("%s: %w: record %d: %w", path, ErrInvalidRecord, i+1, err)
+		}
+	}
+	return nil
 }
 
 // read looks at the file at path: a missing file is the empty store.

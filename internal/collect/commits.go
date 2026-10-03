@@ -96,13 +96,12 @@ func precedes(c, r history.Record, s stream) bool {
 }
 
 // commitsOf compares each fresh success with its previous success and
-// returns the commits to store; the first success of a stream has no
-// known start, so it gets none.
+// returns the commits to store (see start for the successes that get none).
 func (o Options) commitsOf(ctx context.Context, h held, fresh []history.Record) ([]history.Commit, error) {
 	var out []history.Commit
 	for _, r := range fresh {
-		prev, ok := h.previous(r, fresh)
-		if r.State != history.StateSuccess || !ok {
+		prev, ok := o.start(h, r, fresh)
+		if !ok {
 			continue
 		}
 		commits, err := o.compare(ctx, prev, r)
@@ -112,6 +111,35 @@ func (o Options) commitsOf(ctx context.Context, h held, fresh []history.Record) 
 		out = append(out, commits...)
 	}
 	return out, nil
+}
+
+// start is the previous success r's commits are counted from. There is
+// none for a deployment that is not a success, for the first success of a
+// stream (no known start), and for a success that finished after a newer
+// success of its stream was stored by an earlier run: that one was
+// compared with the success before both, so r's commits are already in its
+// list and would count twice. The last case warns on stderr.
+func (o Options) start(h held, r history.Record, fresh []history.Record) (history.Record, bool) {
+	if r.State != history.StateSuccess {
+		return history.Record{}, false
+	}
+	if newer, ok := h.newerSuccess(r); ok {
+		o.warn("collect: %s: deployment %d finished after the newer deployment %d was stored; "+
+			"lead time skips it, so no commit counts twice\n", r.Repository, r.ID, newer.ID)
+		return history.Record{}, false
+	}
+	return h.previous(r, fresh)
+}
+
+// newerSuccess is a success of r's stream, stored by an earlier run, that
+// is newer than r (by created_at, then ID).
+func (h held) newerSuccess(r history.Record) (history.Record, bool) {
+	for _, c := range h.successes[streamOf(r)] {
+		if order(r, c) < 0 {
+			return c, true
+		}
+	}
+	return history.Record{}, false
 }
 
 // compare is the commits of r since prev. A list GitHub cut, a previous
