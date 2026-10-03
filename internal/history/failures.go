@@ -36,7 +36,7 @@ var failures = format[Failure, issueKey]{
 	validate:    Failure.validate,
 	key:         Failure.key,
 	compare:     compareFailures,
-	revises:     Failure.revises,
+	revises:     Failure.Revises,
 }
 
 // LoadFailures reads the failure issues at path, with Load's errors: one
@@ -69,9 +69,10 @@ type issueKey struct {
 
 func (f Failure) key() issueKey { return issueKey{strings.ToLower(f.Repository), f.Issue} }
 
-// revises says whether f says something else than held, the newest line of
-// its issue: any time, whatever the repository's case.
-func (f Failure) revises(held Failure) bool {
+// Revises says whether f says something else than held, the newest line of
+// its issue: any time, whatever the repository's case. AppendFailures
+// writes f as a new line exactly then.
+func (f Failure) Revises(held Failure) bool {
 	return !f.OpenedAt.Equal(held.OpenedAt) || !f.ClosedAt.Equal(held.ClosedAt) ||
 		!f.FailureStart.Equal(held.FailureStart)
 }

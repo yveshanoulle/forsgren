@@ -87,22 +87,26 @@ var ErrFailed = errors.New("repositories failed")
 // Options is what one collect run works with.
 type Options struct {
 	Client  *github.Client
-	History string // the path of data/deployments.csv; the commits go next to it
+	History string // the path of data/deployments.csv; the commits and the failure issues go next to it
 	Now     time.Time
 	Stdout  io.Writer
 	Stderr  io.Writer
 }
 
 // Run collects every repository of cfg: one line per repository on stdout,
-// `<repo>: <n> new, <m> skipped (not final), <c> commits`, and an error on
-// stderr for each that failed. A history or a commits file that cannot be
-// read is refused before GitHub is asked anything.
+// `<repo>: <n> new, <m> skipped (not final), <c> commits`, followed by
+// `, <f> failure issues` when it stored any, and an error on stderr for
+// each that failed. A history, a commits file or a failures file that
+// cannot be read is refused before GitHub is asked anything.
 func Run(ctx context.Context, cfg config.Config, o Options) error {
 	h, err := loadHeld(o.History)
 	if err != nil {
 		return err
 	}
 	if err := checkCommits(o.commitsFile()); err != nil {
+		return err
+	}
+	if h.failures, err = loadFailures(o.failuresFile()); err != nil {
 		return err
 	}
 	failed := 0
@@ -127,8 +131,8 @@ func (o Options) collectProject(ctx context.Context, h held, p config.Project) i
 	return failed
 }
 
-// collectRepository reads one repository and appends its final deployments
-// and the commits of the new successes.
+// collectRepository reads one repository and appends its final deployments,
+// the commits of the new successes and its new or changed failure issues.
 func (o Options) collectRepository(ctx context.Context, h held, project string, r config.Repository) error {
 	f, err := o.fetch(ctx, h, history.Record{Project: project, Repository: r.Name, Name: r.Deployment.Name},
 		r.Deployment.Kind)
@@ -139,34 +143,63 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	if err != nil {
 		return err
 	}
-	n, c, err := o.store(f.records, commits)
+	failures, err := o.failureIssues(ctx, h, r.Name)
+	if err != nil {
+		return err
+	}
+	stored, err := o.store(batch{f.records, commits, failures})
 	if err != nil {
 		return fmt.Errorf("%s: %w", r.Name, err)
 	}
-	if f.truncated {
-		_, _ = fmt.Fprintf(o.Stderr, "collect: %s: read the newest %d page(s) only; older deployments were not read\n",
-			r.Name, o.Client.MaxPages())
-	}
-	_, _ = fmt.Fprintf(o.Stdout, "%s: %d new, %d skipped (not final), %d commits\n", r.Name, n, f.notFinal, c)
+	o.report(r.Name, f, stored)
 	return nil
 }
 
-// store appends one repository's commits, then its deployments, and says
-// how many of each it stored. Deployments the history refuses write
-// nothing. The commits go first: when either write fails, the deployments
-// are not stored, so the next run reads them again and compares them
-// again, and the commits already stored are skipped by their key. A
-// deployment is never stored without its commits.
-func (o Options) store(records []history.Record, commits []history.Commit) (int, int, error) {
-	if err := history.Validate(o.History, records); err != nil {
-		return 0, 0, err
+// report prints what one repository stored on stdout, after a warning on
+// stderr when its deployments were cut at the page limit.
+func (o Options) report(repo string, f found, stored counts) {
+	if f.truncated {
+		o.warn("collect: %s: read the newest %d page(s) only; older deployments were not read\n",
+			repo, o.Client.MaxPages())
 	}
-	c, err := history.AppendCommits(o.commitsFile(), commits)
-	if err != nil {
-		return 0, 0, err
+	line := fmt.Sprintf("%s: %d new, %d skipped (not final), %d commits", repo, stored.deployments, f.notFinal,
+		stored.commits)
+	if stored.failures > 0 {
+		line += fmt.Sprintf(", %d failure issues", stored.failures)
 	}
-	n, err := history.Append(o.History, records)
-	return n, c, err
+	_, _ = fmt.Fprintln(o.Stdout, line)
+}
+
+// batch is what one repository stores.
+type batch struct {
+	records  []history.Record
+	commits  []history.Commit
+	failures []history.Failure
+}
+
+// counts is how many lines of each file a batch stored.
+type counts struct{ deployments, commits, failures int }
+
+// store appends one repository's commits, then its failure issues, then its
+// deployments, and says how many of each it stored. Deployments the history
+// refuses write nothing. The commits go first: when any write fails, the
+// deployments are not stored, so the next run reads them again and
+// compares them again, and the commits and failure issues already stored
+// are skipped. A deployment is never stored without its commits.
+func (o Options) store(b batch) (counts, error) {
+	var c counts
+	if err := history.Validate(o.History, b.records); err != nil {
+		return c, err
+	}
+	var err error
+	if c.commits, err = history.AppendCommits(o.commitsFile(), b.commits); err != nil {
+		return c, err
+	}
+	if c.failures, err = history.AppendFailures(o.failuresFile(), b.failures); err != nil {
+		return c, err
+	}
+	c.deployments, err = history.Append(o.History, b.records)
+	return c, err
 }
 
 // found is what one repository's rule found.
@@ -345,11 +378,13 @@ type entry struct {
 }
 
 // held is what the history holds: every deployment, the newest created_at
-// of each source, and the successes of each stream.
+// of each source, and the successes of each stream; and each failure issue
+// stored, as its newest line says.
 type held struct {
 	ids       map[entry]bool
 	newest    map[source]time.Time
 	successes map[history.Stream][]history.Record
+	failures  map[issueKey]history.Failure
 }
 
 // loadHeld reads the history at path; a missing file holds nothing.

@@ -444,13 +444,15 @@ FORSGREN_TOKEN=<token> forsgren collect --config forsgren.config.yml --data data
 
 `collect` reads, for every repository in the config, that repository's
 deployments from GitHub's REST API by its `deployment` rule, and appends the
-final ones to the history (see History), and the commits of each new
-successful one to `data/commits.csv` next to it. It prints one line per
+final ones to the history (see History), the commits of each new
+successful one to `data/commits.csv` next to it, and the repository's
+failure issues to `data/failures.csv` next to it. It prints one line per
 repository, `acme/app: 3 new, 1 skipped (not final), 12 commits`: `new` is
 what was appended, `skipped (not final)` is what is still running and is
 stored by a later run, `commits` is the commits stored for the new
 deployments. A deployment already in the history is skipped without a
-count.
+count. When it stored failure issues the line goes on with
+`, 2 failure issues`, the issues new or changed since the last run.
 
 - **`environment=<name>`** (the default, `production`): the GitHub
   Deployments to that environment, and each one's statuses. A deployment is
@@ -543,11 +545,39 @@ in `data/commits.csv`, each with its author date and the deployment's
   list the commits oldest first, so a cut list keeps the oldest. The first
   live runs are where to check them.
 
+**The failure issues** (for change fail rate, forsgren#18). Every
+repository's issues labelled `failure`, open or closed, that GitHub says
+were updated in the last 90 days: `issues?labels=failure&state=all&since=`,
+every page up to the page limit, pull requests left out (GitHub lists them
+as issues, with a `pull_request` field).
+
+- Each issue's number, `created_at`, `closed_at` and the `failure-start:`
+  line of its body are stored (see History). An issue already stored is
+  stored again only when one of them changed: closed, or reopened.
+- **The record block is read from the issue's body**, the lines
+  `failure-start:`, `failed-build:` and `fixed-build:` alone on their
+  line, as forsgren#6 rules. `failure-start` is read as ISO 8601 with an
+  offset, to the minute (`2026-09-20T09:12+02:00`) or the second; a body
+  without one, or with a time in another form, stores the issue with an
+  empty `failure_start` and a warning: `collect: acme/app: failure issue
+  #43 has no failure-start line forsgren can read in its body`, once, when
+  the issue is stored. A block written in a comment instead of the body is
+  not read. The issue counts all the same: change fail rate needs only
+  when it was opened.
+- A list cut at the page limit is stored and named on stderr: `collect:
+  acme/app: read the newest 10 page(s) of failure issues only; older ones
+  were not read`.
+- **Not verified against live GitHub.** That `since` filters by the update
+  time, and that a pull request is any item with a `pull_request` field,
+  come from GitHub's REST reference and are pinned against made-up answers
+  only.
+
 **Errors.** Each repository is tried, also after another failed; a failing
 one is named on stderr (`collect: acme/app: ...`) and nothing of it is
-stored, neither its deployments nor their commits, because a repository's
-records are appended in one go, after all of them are read and compared:
-its commits first, then its deployments. A deployment is never stored
+stored, neither its deployments, nor their commits, nor its failure issues,
+because a repository's records are appended in one go, after all of them
+are read and compared: its commits first, then its failure issues, then its
+deployments. A deployment is never stored
 without its commits: when one of the two writes fails, the next run reads
 and compares those deployments again, and the commits already stored are
 skipped. The others are stored, and `collect` then exits 1
@@ -558,8 +588,8 @@ the release was published, since the release itself was just read with the
 same token; and except for a comparison, where a 404 or 422 is a commit
 GitHub does not have (see above); a rate limit says when it resets (UTC)
 or how many seconds GitHub asks to wait; an answer that is not what GitHub
-documents is refused by the repository's name. A history or a commits
-file that cannot be read (another version, a malformed line) is refused
+documents is refused by the repository's name. A history, a commits file
+or a failures file that cannot be read (another version, a malformed line) is refused
 before GitHub is asked anything. With no project configured `collect` does nothing, needs no
 token and exits 0; with at least one repository and no `FORSGREN_TOKEN` it
 exits 1 before anything is read or written. It exits 2 on a usage error.
@@ -576,6 +606,9 @@ repositories, needs per rule:
 | `environment=<name>` | Deployments, Contents, Metadata | list deployments, list deployment statuses, compare two commits |
 | `workflow=<file>.yml` | Actions, Contents, Metadata | get the repository (its default branch), list a workflow's runs, compare two commits |
 | `release` | Contents, Metadata | list releases, get the tag's commit, compare two commits |
+
+Every rule also lists the repository's issues labelled `failure`, for
+change fail rate, which needs Issues (read) as well.
 
 Comparing two commits, for the commits of each deployment, needs Contents
 with every rule. A token without it fails the repository from its second
