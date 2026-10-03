@@ -175,15 +175,15 @@ func TestRenderDataNeedsConfig(t *testing.T) {
 
 // TestRenderShowsTheMinuteOfTheCalculationInUTC (forsgren#28): the page of a
 // render with data says when its numbers were calculated, to the minute, in
-// UTC whatever zone the clock is in, cut off (never rounded up) at the
-// minute.
+// UTC whatever zone the clock is in (here 01:19 on the 4th is still the 3rd
+// in UTC), cut off (never rounded up) at the minute.
 func TestRenderShowsTheMinuteOfTheCalculationInUTC(t *testing.T) {
 	old := now
 	zone := time.FixedZone("CEST", 2*60*60)
-	now = func() time.Time { return time.Date(2026, 10, 3, 7, 19, 59, 0, zone) }
+	now = func() time.Time { return time.Date(2026, 10, 4, 1, 19, 59, 0, zone) }
 	t.Cleanup(func() { now = old })
 	_, _, index := renderWith(t, "--config", writeConfig(t, validConfig), "--data", writeHistory(t, acmeHistory()))
-	const want = "<p>Calculated 2026-10-03 05:19 UTC, counting back from that moment: "
+	const want = "<p>Calculated 2026-10-03 23:19 UTC, counting back from that moment: "
 	if !strings.Contains(index, want) {
 		t.Errorf("want the line %q on the page, got:\n%s", want, index)
 	}

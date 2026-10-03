@@ -521,8 +521,9 @@ placeholder, unchanged. With `--data` as well (it needs `--config`), the
 page shows each project's deployment frequency from that history, counted
 back from the moment of the render, which the page names in its first line,
 "Calculated 2026-10-03 12:00 UTC" (UTC, to the minute; forsgren#28: the
-render time, not the time `collect` finished, and shown only with `--data`,
-so a page without numbers stays byte-identical between renders); a missing history file (a new install
+render time, not the time `collect` finished, and shown only with `--data`
+and at least one project, so a page without numbers stays byte-identical
+between renders); a missing history file (a new install
 before its first collect) is an empty history, and a history with another
 format version or a malformed line fails the render with the history's
 message (exit 1).
