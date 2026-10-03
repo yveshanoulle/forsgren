@@ -20,6 +20,11 @@ import (
 // grouped by the config's projects, so it has nothing to report on without.
 const dataWithoutConfig = "render: --data <path> needs --config <path>, which lists the projects"
 
+// calculatedLayout is how the page shows the render time: UTC, to the minute
+// (forsgren#28). Format cuts the seconds off, so the minute shown never lies
+// ahead of the moment the numbers were counted back from.
+const calculatedLayout = "2006-01-02 15:04"
+
 // renderOptions are render's flags: the required --out, the optional
 // --config and --data (empty when absent).
 type renderOptions struct {
@@ -68,7 +73,7 @@ func pageData(o renderOptions, at time.Time) (page.Data, error) {
 	if err != nil {
 		return data, err
 	}
-	data.AsOf = at.UTC().Format(time.DateOnly)
+	data.AsOf = at.UTC().Format(calculatedLayout)
 	return data, nil
 }
 

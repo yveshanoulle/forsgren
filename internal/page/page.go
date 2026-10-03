@@ -41,7 +41,9 @@ type Data struct {
 	// this order (forsgren#12, step 7; forsgren#16, step 5). The page shows
 	// their project names, numbers, durations and dates only.
 	Projects []Project
-	// AsOf is the UTC date the numbers were counted back from.
+	// AsOf is the UTC minute (2006-01-02 15:04) the numbers were calculated
+	// at, which is also the moment their windows were counted back from; the
+	// page shows it with Projects only.
 	AsOf string
 }
 

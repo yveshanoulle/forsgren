@@ -1,6 +1,6 @@
 {{template "header" .}}  <main>
     <h1>Forsgren {{.Version}}</h1>
-{{if .Projects}}    <p>Counted back from {{.AsOf}} (UTC): deployment frequency from the successful deployments, lead time for changes from the commits they shipped.</p>
+{{if .Projects}}    <p>Calculated {{.AsOf}} UTC, counting back from that moment: deployment frequency from the successful deployments, lead time for changes from the commits they shipped.</p>
 {{range .Projects}}    <section>
       <h2>{{.Project}}</h2>
 {{if .HasDeployments}}      <dl>
