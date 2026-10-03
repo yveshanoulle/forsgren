@@ -1429,8 +1429,9 @@ and these docs. Since then `collect` reads GitHub into the history file:
 the deployments of the configured projects and the commits they shipped.
 The page shows each project's deployment frequency and lead time for
 changes. The other three DORA metrics are planned: recovery time, change
-fail rate and rework rate. A template repository for installations comes
-after them. forsgren is open source, under EUPL-1.2 (see Licence).
+fail rate and rework rate. Installations start from the forsgren-template
+repository and take each new release as a Dependabot pull request. forsgren
+is open source, under EUPL-1.2 (see Licence).
 
 ## Licence
 
