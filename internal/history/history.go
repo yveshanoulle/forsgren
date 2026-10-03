@@ -1,5 +1,5 @@
 // Package history is what `forsgren collect` keeps in an installation's data
-// repository: two append-only CSV files, each with its own format version.
+// repository: three append-only CSV files, each with its own format version.
 //
 // The deployments, data/deployments.csv (the history format v1, forsgren#12,
 // step 4), one deployment per line:
@@ -16,9 +16,18 @@
 //	repository,kind,deployment_id,commit,authored_at,deployed_at
 //	acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z
 //
-// In both, the first line states the format version, the second names the
-// columns, and every later line is one record. A file only grows: a line,
-// once written, is never rewritten or removed.
+// The failure issues of the configured repositories, data/failures.csv (the
+// failures format v1, forsgren#18, step 1), one line per state of an issue
+// (open, closed, reopened), the newest line of an issue winning, for change
+// fail rate:
+//
+//	# forsgren failures v1
+//	repository,issue,opened_at,closed_at,failure_start
+//	acme/app,42,2026-09-01T10:00:00Z,,2026-09-01T09:30:00Z
+//
+// In all three, the first line states the format version, the second names
+// the columns, and every later line is one record. A file only grows: a
+// line, once written, is never rewritten or removed.
 package history
 
 import (
@@ -74,8 +83,8 @@ var (
 	// ErrMalformed: a line is not what the format says; the error is a
 	// *MalformedError with the line number.
 	ErrMalformed = errors.New("malformed history")
-	// ErrInvalidRecord: a record given to Append or AppendCommits cannot be
-	// stored.
+	// ErrInvalidRecord: a record given to Append, AppendCommits or
+	// AppendFailures cannot be stored.
 	ErrInvalidRecord = errors.New("invalid history record")
 )
 

@@ -16,8 +16,9 @@ import (
 // format is one append-only CSV file of the history, with R its record and
 // K the key that tells two records apart: its version and column lines, and
 // how a record is read from its fields, written as fields, judged, keyed and
-// ordered. The deployments and the commits are the two formats; everything
-// else about reading and appending a file is theirs in common.
+// ordered. The deployments, the commits and the failure issues are the
+// three formats; everything else about reading and appending a file is
+// theirs in common.
 type format[R any, K comparable] struct {
 	versionLine string // "# forsgren <name> v<number>"
 	columnLine  string
@@ -26,6 +27,10 @@ type format[R any, K comparable] struct {
 	validate    func(R) error
 	key         func(R) K
 	compare     func(a, b R) int
+	// revises, when set, says whether a record says something else than
+	// held, the newest line of its key, so it is appended as a new line of
+	// that key; nil means a key, once written, is never written again.
+	revises func(r, held R) bool
 }
 
 // load reads the file at path, in file order.
@@ -127,4 +132,12 @@ func parseTime(column, s string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("%s %q is not RFC 3339 UTC like 2026-09-01T10:00:00Z", column, s)
 	}
 	return at, nil
+}
+
+// parseOptionalTime reads a time column that may be empty, the zero time.
+func parseOptionalTime(column, s string) (time.Time, error) {
+	if s == "" {
+		return time.Time{}, nil
+	}
+	return parseTime(column, s)
 }

@@ -195,6 +195,18 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/history/failures.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/failures_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/history/file.go",
    "score": 10.0,
    "checkedAt": "2026-10-03",

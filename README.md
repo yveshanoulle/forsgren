@@ -50,7 +50,8 @@ forsgren reads only what is already in GitHub:
 Not in this repository. It holds code only. An installation keeps its
 configuration (which repositories and services, workflow names, labels, the
 health URL) and its data (`data/deployments.csv`, the deployments fetched
-from GitHub, and `data/commits.csv`, their commits) in a separate private
+from GitHub, `data/commits.csv`, their commits, and `data/failures.csv`,
+the failure issues) in a separate private
 data repository, made from a template, and
 passes them to forsgren as paths. Test fixtures are made up (`acme/app`) and live only
 under `testdata/`.
@@ -62,7 +63,7 @@ Over the files git tracks, it fails when:
 
 - a file that looks like installation config or data sits outside
   `testdata/`: anything under a top-level `data/`, `deployments.csv`,
-  `commits.csv`, `history.csv`, `*.history.csv`, `forsgren.config.*`,
+  `commits.csv`, `failures.csv`, `history.csv`, `*.history.csv`, `forsgren.config.*`,
   `forsgren-config.*`, `config.yml`/`.yaml`/`.json` at any depth, or a
   `*.jsonl` events file;
 - a fixture under `testdata/` or a test file (`*_test.go`, `test_*.sh`)
@@ -132,6 +133,31 @@ acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z
   malformed. A commit already there for the same deployment (repository
   ignoring case, kind, ID and the same SHA) is skipped; a call with nothing
   new leaves the file alone.
+
+**The failure issues**, for change fail rate (forsgren#18), are kept next to
+it in `data/failures.csv`, with its own format version (the failures format
+v1):
+
+```
+# forsgren failures v1
+repository,issue,opened_at,closed_at,failure_start
+acme/app,42,2026-09-01T10:00:00Z,,2026-09-01T09:30:00Z
+acme/app,42,2026-09-01T10:00:00Z,2026-09-01T15:00:00Z,2026-09-01T09:30:00Z
+```
+
+- One line per state of an issue labelled `failure`: `issue` is its number,
+  `opened_at` and `closed_at` its `created_at` and `closed_at` at GitHub
+  (`closed_at` empty while it is open), `failure_start` its `failure-start:`
+  line (empty when it has none forsgren can read). All are UTC.
+- An issue changes after it is stored: it is closed, or reopened. The file
+  still only grows, so an issue gets a new line whenever it differs from its
+  newest line (key: repository, ignoring case, and issue number), and the
+  newest line of an issue is the issue: above, issue 42 was stored open, then
+  closed. An unchanged issue is not written again, and a call with nothing
+  new leaves the file alone.
+- Otherwise the same rules as `deployments.csv`: created with its version
+  line, refused untouched when its version is unknown or a line is
+  malformed.
 
 ## Deployment frequency
 

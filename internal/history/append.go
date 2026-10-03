@@ -82,18 +82,22 @@ func (f format[R, K]) read(path string) (store[R], error) {
 }
 
 // newRecords is the records that held does not have, once each, in the
-// format's order.
+// format's order: a record whose key held has is new only when the format
+// revises its keys and the record says something else than the newest line
+// of its key, held or new.
 func (f format[R, K]) newRecords(held, records []R) []R {
-	seen := make(map[K]bool, len(held)+len(records))
+	newest := make(map[K]R, len(held)+len(records))
 	for _, r := range held {
-		seen[f.key(r)] = true
+		newest[f.key(r)] = r
 	}
 	var fresh []R
 	for _, r := range slices.SortedStableFunc(slices.Values(records), f.compare) {
-		if k := f.key(r); !seen[k] {
-			seen[k] = true
-			fresh = append(fresh, r)
+		k := f.key(r)
+		if last, ok := newest[k]; ok && (f.revises == nil || !f.revises(r, last)) {
+			continue
 		}
+		newest[k] = r
+		fresh = append(fresh, r)
 	}
 	return fresh
 }
