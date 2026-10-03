@@ -185,6 +185,24 @@ func TestTheSameIDInAnotherRepositoryOrKindIsAnotherDeployment(t *testing.T) {
 	}
 }
 
+// TestTheRepositoryOfTheKeyIgnoresCase: GitHub's repository names ignore
+// case, and so does the config, so Acme/App and acme/app are one repository
+// and the line written first stays (forsgren#12, step 8).
+func TestTheRepositoryOfTheKeyIgnoresCase(t *testing.T) {
+	path := historyPath(t)
+	first := rec(1001, 0)
+	first.Repository = "Acme/App"
+	mustAppend(t, path, first)
+	if n := mustAppend(t, path, rec(1001, 0), rec(1002, 5)); n != 1 {
+		t.Errorf("want 1 new record stored, got %d", n)
+	}
+	got := mustLoad(t, path)
+	want := []Record{first, rec(1002, 5)}
+	if !slices.Equal(got, want) {
+		t.Errorf("want %v, got %v", want, got)
+	}
+}
+
 // TestAppendOfOnlyDuplicatesLeavesTheFileAlone: nothing new, nothing
 // written, not even the modification time.
 func TestAppendOfOnlyDuplicatesLeavesTheFileAlone(t *testing.T) {

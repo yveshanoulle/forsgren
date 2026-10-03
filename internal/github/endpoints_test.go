@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -157,6 +158,35 @@ func TestTagCommitRefusesAnAnswerThatIsNotASHA(t *testing.T) {
 	f.on("/repos/acme/app/commits/tags/v1.2.0", reply{body: `{"sha":"` + shaD + `"}`})
 	_, err := f.client(t, DefaultMaxPages).TagCommit(context.Background(), "acme/app", "v1.2.0")
 	wantError(t, err, ErrAnswer, "acme/app", "tag v1.2.0")
+}
+
+// TestAMissingTagIsNamedNotTheToken: commits/tags/{tag} answers 404 or 422
+// for a tag that is not there (deleted after its release was published);
+// collect reads the releases with the same token just before, so the error
+// names the tag and not the token's access (forsgren#12, step 8). A 403 is
+// still the token's.
+func TestAMissingTagIsNamedNotTheToken(t *testing.T) {
+	tagPath := "/repos/acme/app/commits/tags/v1.2.0"
+	for code, status := range map[int]string{404: "404 Not Found", 422: "422 Unprocessable Entity"} {
+		f := newFake(t)
+		f.on(tagPath, reply{status: code, body: `{"message":"No commit found for SHA: v1.2.0"}`})
+		_, err := f.client(t, DefaultMaxPages).TagCommit(context.Background(), "acme/app", "v1.2.0")
+		if err == nil {
+			t.Fatalf("%d: want an error, got none", code)
+		}
+		for _, part := range []string{"acme/app: ", "tag v1.2.0 not found", status, tagPath, "deleted"} {
+			if !strings.Contains(err.Error(), part) {
+				t.Errorf("%d: want %q in the error %q", code, part, err)
+			}
+		}
+		if strings.Contains(err.Error(), "FORSGREN_TOKEN") {
+			t.Errorf("%d: want the tag named, not the token, got %q", code, err)
+		}
+	}
+	f := newFake(t)
+	f.on(tagPath, reply{status: 403})
+	_, err := f.client(t, DefaultMaxPages).TagCommit(context.Background(), "acme/app", "v1.2.0")
+	wantError(t, err, ErrAccess, "check FORSGREN_TOKEN's access to acme/app")
 }
 
 // TestAnUnknownPathIsGitHubsNotFound: the fake answers a path it does not

@@ -169,6 +169,18 @@ html-duplication self-test|Scripts/test_check_html_dupl.sh|pre|
 html duplication|Scripts/check_html_dupl.sh|pre|
 html duplication, generated page|Scripts/check_html_dupl_site.sh|post|
 #
+# The golden pages (forsgren#12, step 8). Not canon: forsgren's own, right
+# behind the generated-page row it extends. The build renders the page
+# without an installation's config or history, so the HTMLHint,
+# privacy-posture and generated-page duplication rows never see the page
+# WITH data (each project's deployment frequency) or the no-projects line.
+# The golden pages of internal/page/testdata are those pages: the Go tests
+# pin them byte for byte to what forsgren renders. The gate runs those three
+# gates on each golden page alone, as the site's one page is scanned, and is
+# red on a directory with no golden page. Repository source, so it runs in
+# pre, self-test first.
+golden-pages self-test|Scripts/test_check_golden_pages.sh|pre|
+#
 # Gate wiring, the sfl/CI parity guard (forsgren#1, ladder step 14), at its
 # canon position after the html-duplication rows. konenki-website's fixture,
 # adapted: konenki names every gate in its own workflow step and checks the

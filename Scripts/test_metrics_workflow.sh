@@ -152,6 +152,17 @@
 #  26. the job's concurrency group is keyed on ${{ github.repository }}, the
 #      caller's repository, with cancel-in-progress: false, so a scheduled
 #      run and a manual one queue instead of racing on the data/ push;
+#  27. the collect step, EXECUTED with the stub forsgren printing lines that
+#      start with `::warning::` (stdout) and `  ::add-mask::` (stderr) and
+#      failing, leaves no workflow command live in the log: collect's output,
+#      both streams, is shown between `::stop-commands::<token>` and
+#      `::<token>::` under a token that differs from run to run, as pin 10
+#      has it for check-config, and the step still records status=1
+#      (forsgren#12, step 8);
+#  28. the same with the REAL forsgren: collect's message naming a missing
+#      FORSGREN_TOKEN is logged inside that pair, and a configuration whose
+#      unknown key carries a line break and `::warning::` records status=1
+#      with no workflow command live, as pin 11 has it for check-config;
 #  and pin 9 also orders the steps: install, checkout, starter, config check,
 #  collect, data commit, render, and the fail step after "Publish to GitHub
 #  Pages", so what was stored is committed and published before the job
@@ -171,7 +182,7 @@
 # YAML. Pins 12 to 14 execute its block with a real git and the real
 # forsgren, so it is tested where it lives, too. The collect, data and fail
 # steps (forsgren#12, step 6) stay inline for the same reason, and pins 19 to
-# 25 execute their blocks the same way.
+# 25, 27 and 28 execute their blocks the same way.
 #
 # Read with awk and grep, not a YAML parser, as
 # Scripts/test_quality_trigger_scope.sh and Scripts/check_workflow_triggers.sh
@@ -387,7 +398,8 @@ install_outcome() {
 # says `kept <path>`; collect writes to FG_TOKEN_SEEN whether FORSGREN_TOKEN
 # is STUB_TOKEN (yes or no, never the token), and with STUB_COLLECT store
 # appends a line to data/deployments.csv, with store-fail does that and then
-# fails as collect does, with none (the default) stores nothing; otherwise,
+# fails as collect does, with inject prints workflow commands on stdout and
+# stderr and fails, with none (the default) stores nothing; otherwise,
 # with STUB_REFUSAL set, it says that on stderr and exits 1, else it says OK.
 cat > "${STUB}/forsgren" <<'STUBFORSGREN'
 #!/usr/bin/env bash
@@ -397,6 +409,12 @@ if [[ "${1:-}" == collect ]]; then
     echo yes > "${FG_TOKEN_SEEN:-/dev/null}"
   else
     echo no > "${FG_TOKEN_SEEN:-/dev/null}"
+  fi
+  if [[ "${STUB_COLLECT:-none}" == inject ]]; then
+    echo "::warning::injected-by-collect"
+    echo "  ::add-mask::collect-mask" >&2
+    echo "collect: 1 of 1 repositories failed" >&2
+    exit 1
   fi
   if [[ "${STUB_COLLECT:-none}" != none ]]; then
     mkdir -p data
@@ -459,6 +477,17 @@ live_commands() {
 # stop_token <log>: the token of the first ::stop-commands:: line, if any.
 stop_token() {
   sed -n 's/^::stop-commands::\(..*\)$/\1/p' "$1" | head -1
+}
+
+# stopped_text <log> <fixed text>: where the first line holding the text is,
+# `stopped` inside a ::stop-commands::<token> ... ::<token>:: pair or `live`
+# outside one; nothing when no line holds it.
+stopped_text() {
+  awk -v text="$2" '
+    token == "" && /^::stop-commands::./ { token = substr($0, 18); next }
+    token != "" && $0 == "::" token "::" { token = ""; next }
+    index($0, text) { print (token == "" ? "live" : "stopped"); exit }
+  ' "$1"
 }
 
 # The real forsgren, built once from this checkout for pin 11.
@@ -829,6 +858,54 @@ judge_collect_e2e() {
   want="exit=0 output=status=1"
   if [[ "$got" != "$want" ]] || ! grep -qF -- "FORSGREN_TOKEN is not set" "${TMP}/collect.log"; then
     echo "with the real forsgren, a configured repository and no FORSGREN_TOKEN the collect step gives '${got}' and logs '$(paste -sd'|' - < "${TMP}/collect.log")' — it must record status=1 with collect's message naming FORSGREN_TOKEN"
+  fi
+}
+
+# judge_collect_commands <workflow-file>: pin 27, collect's output never
+# runs as a workflow command.
+judge_collect_commands() {
+  local script="${TMP}/collect.sh" got live first second
+  step_block "$1" "$COLLECT_STEP" run > "$script"
+  [[ -s "$script" ]] || return 0
+  new_install
+  got="$(collect_outcome "$script" inject "$COLLECT_SECRET")"
+  live="$(live_commands "${TMP}/collect.log")"
+  if [[ -n "$live" ]]; then
+    echo "for collect output with workflow commands in it the collect step leaves them live in the log ($(paste -sd'|' - <<< "$live")) — a line of collect's output that starts with :: must not run as a workflow command"
+  fi
+  if ! grep -qF -- "::warning::injected-by-collect" "${TMP}/collect.log" \
+    || ! grep -qF -- "collect: 1 of 1 repositories failed" "${TMP}/collect.log"; then
+    echo "for collect output with workflow commands in it the collect step does not show collect's output, stdout and stderr, in the log"
+  fi
+  [[ "$got" == "exit=0 output=status=1" ]] || echo "for collect output with workflow commands in it the collect step gives '${got}', not 'exit=0 output=status=1'"
+  first="$(stop_token "${TMP}/collect.log")"
+  new_install
+  collect_outcome "$script" inject "$COLLECT_SECRET" > /dev/null
+  second="$(stop_token "${TMP}/collect.log")"
+  if [[ -n "$first" && "$first" == "$second" ]]; then
+    echo "the collect step stops workflow commands with the same token on every run (${first}) — output that knows it can turn them back on"
+  fi
+}
+
+# judge_collect_commands_e2e <workflow-file>: pin 28, the collect step with
+# the real forsgren logs collect's message with workflow commands stopped.
+judge_collect_commands_e2e() {
+  local script="${TMP}/collect-commands-e2e.sh" got where live
+  step_block "$1" "$COLLECT_STEP" run > "$script"
+  [[ -s "$script" ]] || return 0
+  new_install
+  printf '%s' "$VALID_CONFIG" > "${INSTALL}/forsgren.config.yml"
+  collect_outcome "$script" real "" > /dev/null
+  where="$(stopped_text "${TMP}/collect.log" "FORSGREN_TOKEN is not set")"
+  if [[ "$where" != stopped ]]; then
+    echo "with the real forsgren and no FORSGREN_TOKEN the collect step logs collect's message ${where:-nowhere}, not between ::stop-commands:: and its end — collect's output must never run as a workflow command"
+  fi
+  new_install
+  printf '%s' "$INJECTING_CONFIG" > "${INSTALL}/forsgren.config.yml"
+  got="$(collect_outcome "$script" real "")"
+  live="$(live_commands "${TMP}/collect.log")"
+  if [[ "$got" != "exit=0 output=status=1" || -n "$live" ]]; then
+    echo "with the real forsgren and an unknown key that carries a line break and ::warning:: the collect step gives '${got}' and leaves live in the log: $(paste -sd'|' - <<< "${live:-nothing}") — it must record status=1 with no workflow command live"
   fi
 }
 
@@ -1248,6 +1325,8 @@ judge() {
   judge_collect_step "$1"
   judge_collect_token "$1"
   judge_collect_e2e "$1"
+  judge_collect_commands "$1"
+  judge_collect_commands_e2e "$1"
   judge_data_step "$1"
   judge_data_token "$1"
   judge_data_moved "$1"
@@ -1266,7 +1345,7 @@ if [[ -n "$verdict" ]]; then
     [[ -n "$line" ]] && fail "${WF} ${line}"
   done <<< "$verdict"
 else
-  echo "  ok: ${WF} is a workflow_call with no inputs that installs forsgren from its own job.workflow_repository at its own job.workflow_sha, both checked before go install, through env: only, built with go.mod's Go, after the caller's pinned checkout, a starter step that commits a new install's one file with a token that is never stored or shown, a contents: write job, a config check that fails the job with check-config's message before render, with the real forsgren too, and never runs that message as a workflow command, a collect step that alone gets FORSGREN_TOKEN (an optional secret) and records collect's status, a data step that commits and pushes data/ alone as github-actions[bot] and fails by name when the branch moved, a fail step after publishing, and one run at a time per caller repository"
+  echo "  ok: ${WF} is a workflow_call with no inputs that installs forsgren from its own job.workflow_repository at its own job.workflow_sha, both checked before go install, through env: only, built with go.mod's Go, after the caller's pinned checkout, a starter step that commits a new install's one file with a token that is never stored or shown, a contents: write job, a config check that fails the job with check-config's message before render, with the real forsgren too, and never runs that message as a workflow command, a collect step that alone gets FORSGREN_TOKEN (an optional secret), records collect's status and never runs collect's output as a workflow command, a data step that commits and pushes data/ alone as github-actions[bot] and fails by name when the branch moved, a fail step after publishing, and one run at a time per caller repository"
 fi
 
 # --- Self-proof: each pin, on a mutant of the real metrics.yml, names its reason.
@@ -1432,21 +1511,21 @@ proves judge_collect_step "collect on another history" "the collect step runs 'f
 proves judge_collect_token "the token as an argument" "hands FORSGREN_TOKEN to forsgren in an argument" \
   "s|forsgren collect --config|forsgren collect --token \"${D}FORSGREN_TOKEN\" --config|"
 proves judge_collect_step "the token dropped" "does not hand collect FORSGREN_TOKEN" \
-  "s|^\\( *\\)forsgren collect --config|\\1unset FORSGREN_TOKEN\\n&|"
+  "/- name: ${COLLECT_STEP}/,/- name: ${DATA_STEP}/ s|^\\( *\\)status=0${D}|\\1unset FORSGREN_TOKEN\\n&|"
 proves judge_collect_token "the token in a file" "leaves FORSGREN_TOKEN in a file of the checkout" \
-  "s|^\\( *\\)forsgren collect --config|\\1printf '%s' \"${D}FORSGREN_TOKEN\" > .forsgren-token\\n&|"
+  "/- name: ${COLLECT_STEP}/,/- name: ${DATA_STEP}/ s|^\\( *\\)status=0${D}|\\1printf '%s' \"${D}FORSGREN_TOKEN\" > .forsgren-token\\n&|"
 proves judge_collect_token "the token echoed by collect's step" "the collect step shows FORSGREN_TOKEN in its log" \
-  "s|^\\( *\\)forsgren collect --config|\\1echo \"collecting with ${D}{FORSGREN_TOKEN}\"\\n&|"
+  "/- name: ${COLLECT_STEP}/,/- name: ${DATA_STEP}/ s|^\\( *\\)status=0${D}|\\1echo \"collecting with ${D}{FORSGREN_TOKEN}\"\\n&|"
 proves judge_collect_token "the token in an output" "writes FORSGREN_TOKEN to a step output" \
   "s|^\\( *\\)echo \"status=|\\1echo \"token=${D}{FORSGREN_TOKEN}\" >> \"${D}GITHUB_OUTPUT\"\\n&|"
 proves judge_collect_step "a failing collect that stops the job" "for a collect that fails after storing the collect step gives 'exit=1" \
-  's#\(--data data/deployments\.csv\) || status=.*#\1#'
+  's#\(--data data/deployments\.csv[^|]*\) || status=.*#\1#'
 proves judge_collect_step "collect's status not recorded" "for a collect that fails after storing the collect step gives 'exit=0 output=state=1'" \
   's/echo "status=/echo "state=/'
 proves judge_collect_e2e "a collect step that skips a missing token" "with the real forsgren, a configured repository and no FORSGREN_TOKEN" \
-  "s|^\\( *\\)forsgren collect --config|\\1[[ -n \"${D}{FORSGREN_TOKEN:-}\" ]] \\|\\| exit 0\\n&|"
+  "/- name: ${COLLECT_STEP}/,/- name: ${DATA_STEP}/ s|^\\( *\\)status=0${D}|\\1[[ -n \"${D}{FORSGREN_TOKEN:-}\" ]] \\|\\| exit 0\\n&|"
 proves judge_collect_e2e "a collect step that demands a token" "with the real forsgren, the starter configuration (no projects) and no FORSGREN_TOKEN" \
-  "s|^\\( *\\)forsgren collect --config|\\1: \"${D}{FORSGREN_TOKEN:?FORSGREN_TOKEN is not set}\"\\n&|"
+  "/- name: ${COLLECT_STEP}/,/- name: ${DATA_STEP}/ s|^\\( *\\)status=0${D}|\\1: \"${D}{FORSGREN_TOKEN:?FORSGREN_TOKEN is not set}\"\\n&|"
 
 # The data step.
 proves judge_data_step "no data step" "has no step '${DATA_STEP}'" \
@@ -1523,4 +1602,4 @@ proves_moved judge_order "the data commit after render" "would drop what collect
 proves_moved judge_order "the fail step before publishing" "before it publishes" "$FAIL_STEP" "$RENDER_STEP"
 
 selftest_end "metrics.yml is not the reusable workflow forsgren#4 rules" \
-  "metrics.yml runs on workflow_call only, takes no input, installs forsgren from its own job.workflow_repository at its own job.workflow_sha (each checked before go runs, a fork installing itself), passes both through env: only, builds with go.mod's Go after setup-go, writes a new install's starter config with one commit as github-actions[bot] (token in the environment only) and renders with the config and the history, and checks the caller's config before render, with the real forsgren too, its message never run as a workflow command, then collects with FORSGREN_TOKEN in that one step's env only, commits and pushes data/ alone (failing by name, never rebasing or forcing, when the branch moved), publishes, and fails the job at its end when collect failed, one run at a time per caller repository (and each wrong shape is still detected)"
+  "metrics.yml runs on workflow_call only, takes no input, installs forsgren from its own job.workflow_repository at its own job.workflow_sha (each checked before go runs, a fork installing itself), passes both through env: only, builds with go.mod's Go after setup-go, writes a new install's starter config with one commit as github-actions[bot] (token in the environment only) and renders with the config and the history, and checks the caller's config before render, with the real forsgren too, its message never run as a workflow command, then collects with FORSGREN_TOKEN in that one step's env only, its output never run as a workflow command, commits and pushes data/ alone (failing by name, never rebasing or forcing, when the branch moved), publishes, and fails the job at its end when collect failed, one run at a time per caller repository (and each wrong shape is still detected)"

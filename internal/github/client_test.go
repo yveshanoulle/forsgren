@@ -134,15 +134,24 @@ func TestStatusesBeyondThePageLimitAreAnError(t *testing.T) {
 	wantError(t, err, ErrTooManyPages, "acme/app", "deployment 1003")
 }
 
-// TestALinkToAnotherHostIsNotFollowed: the token goes to the API host only.
-func TestALinkToAnotherHostIsNotFollowed(t *testing.T) {
-	f := newFake(t)
-	elsewhere := http.Header{"Link": {`<http://elsewhere.invalid/repos/acme/app/deployments?page=2>; rel="next"`}}
-	f.on(deploymentsPath, reply{header: elsewhere, body: fixture(t, "deployments.json")})
-	_, _, err := f.client(t, DefaultMaxPages).Deployments(context.Background(), "acme/app", "production", since)
-	wantError(t, err, ErrForeignLink, "acme/app")
-	if n := len(f.seen()); n != 1 {
-		t.Errorf("want 1 request, got %d", n)
+// TestALinkElsewhereIsNotFollowed: the token goes to the API host only. A
+// next-page link to another host, or to the API's host over another scheme
+// (https when the API is http, or the other way), is refused unread.
+func TestALinkElsewhereIsNotFollowed(t *testing.T) {
+	for name, base := range map[string]func(*fakeGitHub) string{
+		"another host":   func(*fakeGitHub) string { return "http://elsewhere.invalid" },
+		"another scheme": func(f *fakeGitHub) string { return strings.Replace(f.srv.URL, "http://", "https://", 1) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFake(t)
+			link := http.Header{"Link": {`<` + base(f) + deploymentsPath + `?page=2>; rel="next"`}}
+			f.on(deploymentsPath, reply{header: link, body: fixture(t, "deployments.json")})
+			_, _, err := f.client(t, DefaultMaxPages).Deployments(context.Background(), "acme/app", "production", since)
+			wantError(t, err, ErrForeignLink, "acme/app")
+			if n := len(f.seen()); n != 1 {
+				t.Errorf("want 1 request, got %d", n)
+			}
+		})
 	}
 }
 
@@ -197,12 +206,20 @@ func TestMalformedJSONNamesTheRepository(t *testing.T) {
 }
 
 // TestEveryCallPassesGitHubsRefusalOn: no call takes a 404 for an empty
-// answer.
+// answer. Every call but the tag's says to check the token's access; a 404
+// for a tag's commit is the tag missing (TestAMissingTagIsNamedNotTheToken).
 func TestEveryCallPassesGitHubsRefusalOn(t *testing.T) {
 	for name, call := range calls("acme/app") {
 		t.Run(name, func(t *testing.T) {
 			f := newFake(t)
-			wantError(t, call(f.client(t, DefaultMaxPages)), ErrAccess, "check FORSGREN_TOKEN's access to acme/app")
+			err := call(f.client(t, DefaultMaxPages))
+			if name == "tag commit" {
+				if err == nil || !strings.HasPrefix(err.Error(), "acme/app: ") {
+					t.Errorf("want an error that names acme/app, got %v", err)
+				}
+				return
+			}
+			wantError(t, err, ErrAccess, "check FORSGREN_TOKEN's access to acme/app")
 		})
 	}
 }
@@ -249,7 +266,9 @@ func TestAnUnreachableGitHubNamesTheRepositoryNotTheToken(t *testing.T) {
 // TestRepositoryNamesAreCheckedBeforeAnyRequest: a name that is not one
 // owner/name never becomes a URL, in any call.
 func TestRepositoryNamesAreCheckedBeforeAnyRequest(t *testing.T) {
-	for _, repo := range []string{"", "acme", "acme/", "/app", "acme/app/x", "acme/..", "acme/app?x=1", "ac me/app"} {
+	for _, repo := range []string{
+		"", "acme", "acme/", "/app", "acme/app/x", "acme/.", "acme/..", "acme/app?x=1", "ac me/app",
+	} {
 		f := newFake(t)
 		c := f.client(t, DefaultMaxPages)
 		for name, call := range calls(repo) {

@@ -32,6 +32,10 @@
 #   - case 2: with the history.csv arm deleted, case 2's repository must turn
 #     green, so case 2 is red BECAUSE of that arm, not because of something
 #     else in its repository.
+#   - case 11: with the data/* arm of guarded_path_reason deleted, a
+#     repository holding only data/notes.txt must turn green.
+#   - case 12: with the deployments.csv arm deleted, a repository holding
+#     only ops/deployments.csv must turn green.
 #   - case 10: with every arm whose pattern holds a `*` quoted (so it matches
 #     only the literal text), case 10's repository must turn green with none
 #     of its three files named, while case 2's repository stays red. Every
@@ -233,6 +237,26 @@ else
     fail "mutation proof (case 11): a gate without the data/* arm is still red on a repository holding only data/notes.txt. Output: ${OUT}"
   else
     echo "  ok: without the data/* arm, a repository holding only data/notes.txt is green (case 11 is red for that arm)"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Mutation proof for case 12: with the deployments.csv arm deleted, a
+# repository that holds only ops/deployments.csv must turn green, so case 12
+# is red BECAUSE of that arm (forsgren#12, step 8).
+# ---------------------------------------------------------------------------
+NODEPLOY="${TMP}/check_data_guard_nodeploy.sh"
+grep -vE '^[[:space:]]*deployments\.csv\) why=' "$GATE" > "$NODEPLOY"
+chmod +x "$NODEPLOY"
+
+if cmp -s "$GATE" "$NODEPLOY"; then
+  fail "mutation proof (case 12): deleting the 'deployments.csv) why=' arm changed nothing in ${GATE} — the anchor no longer matches, so this proof proves nothing"
+else
+  run_mutant "$NODEPLOY" "deployments-elsewhere"
+  if [[ "$RC" -ne 0 ]]; then
+    fail "mutation proof (case 12): a gate without the deployments.csv arm is still red on a repository holding only ops/deployments.csv. Output: ${OUT}"
+  else
+    echo "  ok: without the deployments.csv arm, a repository holding only ops/deployments.csv is green (case 12 is red for that arm)"
   fi
 fi
 
