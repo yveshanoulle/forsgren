@@ -562,7 +562,7 @@ private repositories (no scope for public ones).
 
 ## Running forsgren
 
-forsgren renders a static page which says "Forsgren 0.0.4", the version of
+forsgren renders a static page which says "Forsgren 0.0.5", the version of
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes and failed deployment recovery time. That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
@@ -586,7 +586,7 @@ installation pins that version. From a checkout of this repository:
 plus `styles.css`) into `<dir>`, creating it when needed, and exits 0; 1 when
 the render failed (or the `--config` file is missing or invalid, with
 check-config's refusal), 2 on a usage error. With `--config`, a config that
-lists no projects makes the page say, besides "Forsgren 0.0.4", "No projects
+lists no projects makes the page say, besides "Forsgren 0.0.5", "No projects
 configured yet: add them to forsgren.config.yml."; without `--config` (the
 build above has no installation config) or with projects, the page is the
 placeholder, unchanged. With `--data` as well (it needs `--config`), the
