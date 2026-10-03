@@ -31,9 +31,24 @@
 // newest first, and stderr says so. A repository's names in the config and
 // the history are compared ignoring case.
 //
+// The commits of each deployment (forsgren#16, step 3), for lead time, go to
+// data/commits.csv next to the history (CommitsFile). Each success this run
+// stores is compared with the previous success of its stream (the same
+// repository, ignoring case, rule, environment or workflow, and task; a
+// release's task is its tag, so a repository's releases are one stream),
+// from the history or from this run, by created_at, then ID. The first
+// success of a stream gets no commits; a failure or another final state is
+// never a previous and gets none, so its commits roll on to the next
+// success. Only the deployments this run stores are compared, so a
+// deployment is compared once: a skipped one is not tried again. A list
+// GitHub cut, a previous that is not an ancestor and a commit GitHub does
+// not have store no commits for that deployment, with a warning on stderr;
+// any other error of a comparison fails the repository.
+//
 // A repository is stored whole or not at all: its records are appended once
-// all of them are read. A failure in one repository is printed and the
-// others are still collected; Run then fails.
+// all of them are read and compared, the deployments first, then their
+// commits. A failure in one repository is printed and the others are still
+// collected; Run then fails.
 package collect
 
 import (
@@ -66,19 +81,22 @@ var ErrFailed = errors.New("repositories failed")
 // Options is what one collect run works with.
 type Options struct {
 	Client  *github.Client
-	History string // the path of data/deployments.csv
+	History string // the path of data/deployments.csv; the commits go next to it
 	Now     time.Time
 	Stdout  io.Writer
 	Stderr  io.Writer
 }
 
 // Run collects every repository of cfg: one line per repository on stdout,
-// `<repo>: <n> new, <m> skipped (not final)`, and an error on stderr for each
-// that failed. A history that cannot be read is refused before GitHub is
-// asked anything.
+// `<repo>: <n> new, <m> skipped (not final), <c> commits`, and an error on
+// stderr for each that failed. A history or a commits file that cannot be
+// read is refused before GitHub is asked anything.
 func Run(ctx context.Context, cfg config.Config, o Options) error {
 	h, err := loadHeld(o.History)
 	if err != nil {
+		return err
+	}
+	if err := checkCommits(o.commitsFile()); err != nil {
 		return err
 	}
 	failed := 0
@@ -103,14 +121,19 @@ func (o Options) collectProject(ctx context.Context, h held, p config.Project) i
 	return failed
 }
 
-// collectRepository reads one repository and appends its final deployments.
+// collectRepository reads one repository and appends its final deployments
+// and the commits of the new successes.
 func (o Options) collectRepository(ctx context.Context, h held, project string, r config.Repository) error {
 	f, err := o.fetch(ctx, h, history.Record{Project: project, Repository: r.Name, Name: r.Deployment.Name},
 		r.Deployment.Kind)
 	if err != nil {
 		return err
 	}
-	n, err := history.Append(o.History, f.records)
+	commits, err := o.commitsOf(ctx, h, h.fresh(f.records))
+	if err != nil {
+		return err
+	}
+	n, c, err := o.store(f.records, commits)
 	if err != nil {
 		return fmt.Errorf("%s: %w", r.Name, err)
 	}
@@ -118,8 +141,20 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 		_, _ = fmt.Fprintf(o.Stderr, "collect: %s: read the newest %d page(s) only; older deployments were not read\n",
 			r.Name, o.Client.MaxPages())
 	}
-	_, _ = fmt.Fprintf(o.Stdout, "%s: %d new, %d skipped (not final)\n", r.Name, n, f.notFinal)
+	_, _ = fmt.Fprintf(o.Stdout, "%s: %d new, %d skipped (not final), %d commits\n", r.Name, n, f.notFinal, c)
 	return nil
+}
+
+// store appends one repository's deployments, then their commits, and says
+// how many of each it stored. Deployments the history refuses write no
+// commits either.
+func (o Options) store(records []history.Record, commits []history.Commit) (int, int, error) {
+	n, err := history.Append(o.History, records)
+	if err != nil {
+		return 0, 0, err
+	}
+	c, err := history.AppendCommits(o.commitsFile(), commits)
+	return n, c, err
 }
 
 // found is what one repository's rule found.
@@ -297,11 +332,12 @@ type entry struct {
 	id int64
 }
 
-// held is what the history holds: every deployment, and the newest
-// created_at of each source.
+// held is what the history holds: every deployment, the newest created_at
+// of each source, and the successes of each stream.
 type held struct {
-	ids    map[entry]bool
-	newest map[source]time.Time
+	ids       map[entry]bool
+	newest    map[source]time.Time
+	successes map[stream][]history.Record
 }
 
 // loadHeld reads the history at path; a missing file holds nothing.
@@ -310,15 +346,23 @@ func loadHeld(path string) (held, error) {
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return held{}, err
 	}
-	h := held{ids: map[entry]bool{}, newest: map[source]time.Time{}}
+	h := held{ids: map[entry]bool{}, newest: map[source]time.Time{}, successes: map[stream][]history.Record{}}
 	for _, r := range records {
-		s := sourceOf(r)
-		h.ids[entry{s, r.ID}] = true
-		if r.CreatedAt.After(h.newest[s]) {
-			h.newest[s] = r.CreatedAt
-		}
+		h.hold(r)
 	}
 	return h, nil
+}
+
+// hold notes one stored deployment.
+func (h held) hold(r history.Record) {
+	s := sourceOf(r)
+	h.ids[entry{s, r.ID}] = true
+	if r.CreatedAt.After(h.newest[s]) {
+		h.newest[s] = r.CreatedAt
+	}
+	if r.State == history.StateSuccess {
+		h.successes[streamOf(r)] = append(h.successes[streamOf(r)], r)
+	}
 }
 
 // has says whether the deployment id of base's source is stored.

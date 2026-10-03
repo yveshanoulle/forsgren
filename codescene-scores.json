@@ -29,7 +29,7 @@
   {
    "path": "cmd/forsgren/collect_test.go",
    "score": 9.68,
-   "checkedAt": "2026-10-02",
+   "checkedAt": "2026-10-03",
    "minScore": 9.58
   },
   {
@@ -47,7 +47,7 @@
   {
    "path": "internal/collect/collect_test.go",
    "score": 9.68,
-   "checkedAt": "2026-10-02",
+   "checkedAt": "2026-10-03",
    "minScore": 9.58
   },
   {
@@ -131,7 +131,7 @@
   {
    "path": "internal/collect/window_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-02",
+   "checkedAt": "2026-10-03",
    "minScore": 10.0
   },
   {
@@ -238,6 +238,18 @@
   },
   {
    "path": "internal/page/page_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/commits.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/commits_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-03",
    "minScore": 10.0

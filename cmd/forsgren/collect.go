@@ -25,14 +25,15 @@ var errNoToken = errors.New("FORSGREN_TOKEN is not set: " +
 	"collect needs a read-only GitHub token for the configured repositories")
 
 // collectDeployments reads each configured repository's deployments from
-// GitHub and appends the final ones to the history: one line per repository
+// GitHub and appends the final ones to the history, and the commits of the
+// new successes to commits.csv next to it: one line per repository
 // on stdout, exit 0; exit 1 when the config, the token, the history or any
 // repository failed (after every repository was tried), 2 on a usage error.
 // With no repository configured it does nothing, and needs no token.
 func collectDeployments(args []string, stdout, stderr io.Writer) int {
 	paths, ok := requiredFlags(stderr, args, "collect",
 		flagSpec{"config", "<path>", "the forsgren.config.yml that lists the repositories"},
-		flagSpec{"data", "<path>", "the history to append to, data/deployments.csv"})
+		flagSpec{"data", "<path>", "the history to append to, data/deployments.csv; the commits go next to it"})
 	if !ok {
 		return 2
 	}

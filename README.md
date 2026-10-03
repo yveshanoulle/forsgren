@@ -108,7 +108,9 @@ names the line.
 
 **The commits of each deployment**, for lead time (forsgren#16), are kept
 next to it in `data/commits.csv`, with its own format version (the commits
-format v1); `data/deployments.csv` does not change:
+format v1); `data/deployments.csv` does not change. `collect` writes it,
+always next to the `--data` file (see Collecting deployments, The commits
+of each deployment):
 
 ```
 # forsgren commits v1
@@ -275,10 +277,13 @@ FORSGREN_TOKEN=<token> forsgren collect --config forsgren.config.yml --data data
 
 `collect` reads, for every repository in the config, that repository's
 deployments from GitHub's REST API by its `deployment` rule, and appends the
-final ones to the history (see History). It prints one line per repository,
-`acme/app: 3 new, 1 skipped (not final)`: `new` is what was appended,
-`skipped (not final)` is what is still running and is stored by a later run.
-A deployment already in the history is skipped without a count.
+final ones to the history (see History), and the commits of each new
+successful one to `data/commits.csv` next to it. It prints one line per
+repository, `acme/app: 3 new, 1 skipped (not final), 12 commits`: `new` is
+what was appended, `skipped (not final)` is what is still running and is
+stored by a later run, `commits` is the commits stored for the new
+deployments. A deployment already in the history is skipped without a
+count.
 
 - **`environment=<name>`** (the default, `production`): the GitHub
   Deployments to that environment, and each one's statuses. A deployment is
@@ -323,19 +328,54 @@ list (the newest 1000), and when that cut a list stderr says so:
 not read`. Re-reading is safe: the history skips what it already holds, and
 a stored deployment's statuses or tag are not asked again.
 
+**The commits of each deployment** (for lead time, forsgren#16). Each
+successful deployment `collect` stores is compared with the previous
+successful one of its stream, `compare/{previous commit}...{its commit}`,
+and the commits after the previous one's commit up to its own are stored
+in `data/commits.csv`, each with its author date and the deployment's
+`created_at`.
+
+- **A stream** is a repository's deployments by one rule with the same
+  environment or workflow and the same `task`: a repository deploying
+  `deploy-api` and `deploy-admin` to production measures each against its
+  own previous deployment. A release's task is its tag, a new one with
+  each release, so a repository's releases are one stream. Repository
+  names are compared ignoring case.
+- **The previous** is the newest success of the stream before the
+  deployment (by `created_at`, then ID), stored by an earlier run or found
+  in the same run: a run takes its new deployments oldest first.
+- **The first success** of a stream has no known start and gets no
+  commits. **A failure**, or another final state, is never a previous and
+  gets no commits: its commits are in the next success's comparison.
+- **Once.** Only the deployments a run stores are compared, so the daily
+  run never asks about a stored one again, and a deployment skipped below
+  is not tried again either: what makes it skip does not change by asking
+  again.
+- **Skipped, with a warning on stderr, the run going on:** a comparison
+  GitHub cut (more commits than forsgren reads, or fewer than GitHub's
+  `total_commits`): `collect: acme/app: deployment 1002: 1000 commits
+  compared, list cut; lead time skips this deployment`, since a cut list
+  keeps the oldest commits and would skew lead time; a previous commit that
+  is not an ancestor of the new one (a force-push, or a rollback to an older
+  commit) and a commit GitHub does not have, both naming the two SHAs
+  (`...; lead time skips deployment 1002`). These are the history's shape,
+  not the token's access. Any other error of a comparison (no access, a
+  rate limit) fails the repository like any other call.
+
 **Errors.** Each repository is tried, also after another failed; a failing
 one is named on stderr (`collect: acme/app: ...`) and nothing of it is
-stored, because a repository's deployments are appended in one go, after
-all of them are read. The others are stored, and `collect` then exits 1
+stored, neither its deployments nor their commits, because a repository's
+deployments are appended in one go, after all of them are read and
+compared, and then their commits. The others are stored, and `collect` then exits 1
 with `collect: 1 of 3 repositories failed`. A 401, 403 or 404 says `check
 FORSGREN_TOKEN's access to acme/app`, except for a release's tag: a 404 or
 422 there says `tag v1.2.0 not found` and asks whether it was deleted after
 the release was published, since the release itself was just read with the
 same token; a rate limit says when it resets (UTC)
 or how many seconds GitHub asks to wait; an answer that is not what GitHub
-documents is refused by the repository's name. A history that cannot be
-read (another version, a malformed line) is refused before GitHub is asked
-anything. With no project configured `collect` does nothing, needs no
+documents is refused by the repository's name. A history or a commits
+file that cannot be read (another version, a malformed line) is refused
+before GitHub is asked anything. With no project configured `collect` does nothing, needs no
 token and exits 0; with at least one repository and no `FORSGREN_TOKEN` it
 exits 1 before anything is read or written. It exits 2 on a usage error.
 
@@ -348,11 +388,14 @@ repositories, needs per rule:
 
 | Rule | Repository permissions (read) | Calls |
 |---|---|---|
-| `environment=<name>` | Deployments, Metadata | list deployments, list deployment statuses |
-| `workflow=<file>.yml` | Actions, Metadata | get the repository (its default branch), list a workflow's runs |
-| `release` | Contents, Metadata | list releases, get the tag's commit |
+| `environment=<name>` | Deployments, Contents, Metadata | list deployments, list deployment statuses, compare two commits |
+| `workflow=<file>.yml` | Actions, Contents, Metadata | get the repository (its default branch), list a workflow's runs, compare two commits |
+| `release` | Contents, Metadata | list releases, get the tag's commit, compare two commits |
 
-Metadata is in every fine-grained token. A classic token needs `repo` for
+Comparing two commits, for the commits of each deployment, needs Contents
+with every rule. A token without it fails the repository from its second
+successful deployment on, with `check FORSGREN_TOKEN's access`. Metadata is
+in every fine-grained token. A classic token needs `repo` for
 private repositories (no scope for public ones).
 
 ## Running forsgren
@@ -465,8 +508,8 @@ jobs:
   measured repositories with a read-only token of the installation's own
   (the job's token reaches only the data repository). Make one with the
   permissions its rules need (see Collecting deployments, The token: per
-  rule `environment=` Deployments, `workflow=` Actions, `release`
-  Contents, and Metadata), store it as the data repository's Actions secret
+  rule `environment=` Deployments, `workflow=` Actions, and for every rule
+  Contents and Metadata), store it as the data repository's Actions secret
   `FORSGREN_TOKEN`, and pass it by name as above. By name, not
   `secrets: inherit`: the called workflow then receives this one secret and
   none of the repository's others. The workflow declares it
@@ -477,8 +520,9 @@ jobs:
   the collect step gets it, in its environment.
 - **The daily run collects and commits the history.** After the check,
   `forsgren collect --config forsgren.config.yml --data
-  data/deployments.csv` appends the new final deployments (see Collecting
-  deployments). When `data/` changed, it and nothing else is committed to
+  data/deployments.csv` appends the new final deployments, and their
+  commits to `data/commits.csv` (see Collecting deployments). When `data/`
+  changed, it and nothing else is committed to
   the branch the run is on as `github-actions[bot]`, "forsgren: record
   deployments", and pushed the way the starter is; a run with nothing new
   commits nothing, and a run on a tag that has something new fails by
