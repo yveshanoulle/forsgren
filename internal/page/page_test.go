@@ -17,13 +17,13 @@ import (
 var update = flag.Bool("update", false, "rewrite testdata/*.golden.html")
 
 func TestPlaceholderMatchesGolden(t *testing.T) {
-	checkGolden(t, "testdata/index.golden.html", Placeholder("0.0.3"))
+	checkGolden(t, "testdata/index.golden.html", Placeholder("0.0.4"))
 }
 
 // TestNoProjectsPageMatchesGolden (forsgren#12): the page of an installation
 // whose config lists no projects says so, besides its version.
 func TestNoProjectsPageMatchesGolden(t *testing.T) {
-	data := Placeholder("0.0.3")
+	data := Placeholder("0.0.4")
 	data.NoProjects = true
 	checkGolden(t, "testdata/index.no-projects.golden.html", data)
 }
@@ -32,7 +32,7 @@ func TestNoProjectsPageMatchesGolden(t *testing.T) {
 // 2026-10-03: Acme Shop with deployments and the lead time shop, Acme Tools
 // with no deployment.
 func acmeProjects(shop metrics.LeadTime) Data {
-	data := Placeholder("0.0.3")
+	data := Placeholder("0.0.4")
 	data.AsOf = "2026-10-03"
 	latest := time.Date(2026, 10, 1, 9, 30, 0, 0, time.UTC)
 	shop.Project = "Acme Shop"
@@ -64,7 +64,7 @@ func TestLeadTimePageMatchesGolden(t *testing.T) {
 // TestNoDataPageMatchesGolden: projects with no deployment recorded yet
 // each say so.
 func TestNoDataPageMatchesGolden(t *testing.T) {
-	data := Placeholder("0.0.3")
+	data := Placeholder("0.0.4")
 	data.AsOf = "2026-10-03"
 	data.Projects = []Project{
 		{Frequency: metrics.Frequency{Project: "Acme Shop"}, LeadTime: metrics.LeadTime{Project: "Acme Shop"}},
@@ -110,7 +110,7 @@ func TestRenderEscapesFields(t *testing.T) {
 }
 
 func TestRenderUnknownPage(t *testing.T) {
-	err := Render(&bytes.Buffer{}, "missing.html", Placeholder("0.0.3"))
+	err := Render(&bytes.Buffer{}, "missing.html", Placeholder("0.0.4"))
 	if err == nil || !strings.Contains(err.Error(), "missing.html") {
 		t.Errorf("want an error naming missing.html, got %v", err)
 	}
@@ -118,7 +118,7 @@ func TestRenderUnknownPage(t *testing.T) {
 
 func TestWriteSiteWritesOnePageAndStyles(t *testing.T) {
 	dir := t.TempDir()
-	n, err := WriteSite(dir, Placeholder("0.0.3"))
+	n, err := WriteSite(dir, Placeholder("0.0.4"))
 	if err != nil {
 		t.Fatalf("WriteSite: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestWriteSiteFailsWhenDirIsAFile(t *testing.T) {
 	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if n, err := WriteSite(file, Placeholder("0.0.3")); err == nil {
+	if n, err := WriteSite(file, Placeholder("0.0.4")); err == nil {
 		t.Errorf("want an error when the output is a regular file, got %d pages", n)
 	}
 }
