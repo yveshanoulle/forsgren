@@ -43,27 +43,29 @@ func shopOf(t *testing.T, records ...history.Record) Frequency {
 
 // counts is what a Frequency counted, to compare in one step.
 type counts struct {
-	last7, last30 int
-	has           bool
+	last7, last30, last180 int
+	has                    bool
 }
 
-func countsOf(f Frequency) counts { return counts{f.Last7, f.Last30, f.HasDeployments()} }
+func countsOf(f Frequency) counts { return counts{f.Last7, f.Last30, f.Last180, f.HasDeployments()} }
 
-// TestWindowEdges pins the windows: at or after now minus 7 (30) days of 24
-// hours, and not after now. Exactly 7 days old is in the 7-day count; one
-// second older is not.
+// TestWindowEdges pins the windows: at or after now minus 7 (30, 180) days
+// of 24 hours, and not after now. Exactly 7 days old is in the 7-day count;
+// one second older is not.
 func TestWindowEdges(t *testing.T) {
 	cases := []struct {
 		name string
 		ago  time.Duration
 		want counts
 	}{
-		{"now", 0, counts{1, 1, true}},
-		{"exactly 7 days", 7 * day, counts{1, 1, true}},
-		{"7 days and a second", 7*day + time.Second, counts{0, 1, true}},
-		{"exactly 30 days", 30 * day, counts{0, 1, true}},
-		{"30 days and a second", 30*day + time.Second, counts{0, 0, true}},
-		{"a second after now", -time.Second, counts{0, 0, true}},
+		{"now", 0, counts{1, 1, 1, true}},
+		{"exactly 7 days", 7 * day, counts{1, 1, 1, true}},
+		{"7 days and a second", 7*day + time.Second, counts{0, 1, 1, true}},
+		{"exactly 30 days", 30 * day, counts{0, 1, 1, true}},
+		{"30 days and a second", 30*day + time.Second, counts{0, 0, 1, true}},
+		{"exactly 180 days", 180 * day, counts{0, 0, 1, true}},
+		{"180 days and a second", 180*day + time.Second, counts{0, 0, 0, true}},
+		{"a second after now", -time.Second, counts{0, 0, 0, true}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -78,9 +80,9 @@ func TestWindowEdges(t *testing.T) {
 // project's repositories counts on its own (forsgren#11 splits later).
 func TestCountsEverySuccessOfEveryRepository(t *testing.T) {
 	f := shopOf(t, success(time.Hour), success(2*day),
-		deployed("acme/api", history.StateSuccess, 3*day), success(10*day), success(40*day))
-	if f.Last7 != 3 || f.Last30 != 4 {
-		t.Errorf("want 3 in 7 days and 4 in 30, got %+v", f)
+		deployed("acme/api", history.StateSuccess, 3*day), success(10*day), success(40*day), success(200*day))
+	if got := countsOf(f); got != (counts{3, 4, 5, true}) {
+		t.Errorf("want 3 in 7 days, 4 in 30 and 5 in 180, got %+v", got)
 	}
 }
 
@@ -132,7 +134,10 @@ func TestProjectsInConfigOrderWithTheirOwnRecords(t *testing.T) {
 // slowest band; no project gives no Frequency.
 func TestEmptyHistory(t *testing.T) {
 	got := DeploymentFrequency(projects, nil, now)
-	want := []Frequency{{Project: "Acme Shop", Band: LessThanMonthly}, {Project: "Acme Tools", Band: LessThanMonthly}}
+	want := []Frequency{
+		{Project: "Acme Shop", Band: LessThanSixMonthly},
+		{Project: "Acme Tools", Band: LessThanSixMonthly},
+	}
 	if !slices.Equal(got, want) {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
@@ -142,13 +147,20 @@ func TestEmptyHistory(t *testing.T) {
 }
 
 // TestBandTextShowsTheCountAndThePeriod (Yves's ruling on forsgren#12): the
-// band is always shown with the 30-day count it comes from, singular for
-// one.
+// band is always shown with the count and the period it comes from,
+// singular for one: the last 30 days, or the last 180 days when the band
+// was decided on them (none in 30 days; forsgren#16, step 6).
 func TestBandTextShowsTheCountAndThePeriod(t *testing.T) {
 	cases := map[string]Frequency{
-		"On demand (several per day) — 31 production deployments in the last 30 days": {Last30: 31, Band: OnDemand},
-		"Weekly to monthly — 1 production deployment in the last 30 days":             {Last30: 1, Band: WeeklyToMonthly},
-		"Less than monthly — 0 production deployments in the last 30 days":            {Band: LessThanMonthly},
+		"On demand (multiple deploys per day) — 720 production deployments in the last 30 days": {
+			Last30: 720, Last180: 900, Band: OnDemand},
+		"Between once per week and once per month — 1 production deployment in the last 30 days": {
+			Last30: 1, Last180: 4, Band: WeeklyToMonthly},
+		"Between once per month and once every six months — 3 production deployments in the last 180 days": {
+			Last180: 3, Band: MonthlyToSixMonthly},
+		"Between once per month and once every six months — 1 production deployment in the last 180 days": {
+			Last180: 1, Band: MonthlyToSixMonthly},
+		"Less than once per six months — 0 production deployments in the last 180 days": {Band: LessThanSixMonthly},
 	}
 	for want, f := range cases {
 		if got := f.BandText(); got != want {
@@ -157,13 +169,52 @@ func TestBandTextShowsTheCountAndThePeriod(t *testing.T) {
 	}
 }
 
-// TestBandFollowsTheThirtyDayCount: the band comes from Last30.
-func TestBandFollowsTheThirtyDayCount(t *testing.T) {
-	records := make([]history.Record, 0, 5)
-	for i := range 5 {
-		records = append(records, success(time.Duration(i)*day))
+// shopWithSuccessesAt is Acme Shop's frequency with one success at each age.
+func shopWithSuccessesAt(t *testing.T, ages ...time.Duration) Frequency {
+	t.Helper()
+	records := make([]history.Record, 0, len(ages))
+	for _, ago := range ages {
+		records = append(records, success(ago))
 	}
-	if f := shopOf(t, records...); f.Band != DailyToWeekly {
-		t.Errorf("want 5 in 30 days daily to weekly, got %+v", f)
+	return shopOf(t, records...)
+}
+
+// daysAgo is one age per day from first to last days ago, both included.
+func daysAgo(first, last int) []time.Duration {
+	ages := make([]time.Duration, 0, last-first+1)
+	for d := first; d <= last; d++ {
+		ages = append(ages, time.Duration(d)*day)
+	}
+	return ages
+}
+
+// TestBandFollowsTheThirtyDayCount: the band comes from Last30 whenever it
+// holds a deployment, whatever else the 180 days hold.
+func TestBandFollowsTheThirtyDayCount(t *testing.T) {
+	cases := []struct {
+		name string
+		ages []time.Duration
+		want Band
+	}{
+		{"30 in 30 days", daysAgo(0, 29), HourlyToDaily},
+		{"5 in 30 days", daysAgo(0, 4), DailyToWeekly},
+		{"1 in 30 days and 10 older", daysAgo(30, 40), WeeklyToMonthly},
+	}
+	for _, c := range cases {
+		if f := shopWithSuccessesAt(t, c.ages...); f.Band != c.want {
+			t.Errorf("%s: want %v, got %+v", c.name, c.want, f)
+		}
+	}
+}
+
+// TestBandFallsBackToTheLast180Days (forsgren#16, step 6): with no
+// deployment in the last 30 days, the 180-day count tells the two slowest
+// bands apart.
+func TestBandFallsBackToTheLast180Days(t *testing.T) {
+	if f := shopWithSuccessesAt(t, 31*day, 100*day, 200*day); f.Band != MonthlyToSixMonthly || f.Last180 != 2 {
+		t.Errorf("want 2 in 180 days between once per month and once every six months, got %+v", f)
+	}
+	if f := shopWithSuccessesAt(t, 181*day); f.Band != LessThanSixMonthly || !f.HasDeployments() {
+		t.Errorf("want a deployment older than 180 days less than once per six months, got %+v", f)
 	}
 }

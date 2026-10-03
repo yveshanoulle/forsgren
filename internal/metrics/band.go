@@ -23,6 +23,10 @@ const (
 	WeeklyToMonthly
 	DailyToWeekly
 	OnDemand
+	// Stubs of forsgren#16, step 6: not banded yet.
+	HourlyToDaily
+	MonthlyToSixMonthly
+	LessThanSixMonthly
 )
 
 // The lowest 30-day count of each band above LessThanMonthly.
@@ -33,8 +37,8 @@ const (
 )
 
 // BandOf is the band of a count of successful deployments in the last 30
-// days.
-func BandOf(last30 int) Band {
+// days. The 180-day count is a stub of forsgren#16, step 6: not read yet.
+func BandOf(last30, _ int) Band {
 	switch {
 	case last30 >= onDemandFrom:
 		return OnDemand

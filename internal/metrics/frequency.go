@@ -34,6 +34,8 @@ type Frequency struct {
 	// last 7 and 30 days: at or after now minus 7 (30) times 24 hours, and
 	// not after now. A deployment exactly 7 days old is in the 7-day count.
 	Last7, Last30 int
+	// Last180 is a stub of forsgren#16, step 6: not counted yet.
+	Last180 int
 	// Latest is the creation time of the project's newest successful
 	// deployment; zero when it has none.
 	Latest time.Time
@@ -75,7 +77,7 @@ func DeploymentFrequency(projects []config.Project, records []history.Record, no
 		}
 	}
 	for i := range out {
-		out[i].Band = BandOf(out[i].Last30)
+		out[i].Band = BandOf(out[i].Last30, out[i].Last180)
 	}
 	return out
 }
