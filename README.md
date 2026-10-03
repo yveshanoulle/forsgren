@@ -491,13 +491,15 @@ private repositories (no scope for public ones).
 
 ## Running forsgren
 
-Today forsgren renders one placeholder page, which says "Forsgren 0.0.3":
-the version of the forsgren that rendered it. That version has one source,
+forsgren renders a static page which says "Forsgren 0.0.4", the version of
+the forsgren that rendered it, and shows each project's deployment frequency
+and lead time for changes. That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
 it with `-ldflags "-X main.version=<version>"`. `forsgren collect` reads
 GitHub into the history file (see Collecting deployments); the daily run
 calls it, commits the history to the data repository and renders the page
-with each project's deployment frequency from it (see Deployment frequency).
+with each project's deployment frequency and lead time for changes from it
+(see Deployment frequency and Lead time for changes).
 
 The first release is `v0.0.1`. Install a release with
 `go install github.com/yveshanoulle/forsgren/cmd/forsgren@v0.0.1`; an
@@ -512,7 +514,7 @@ installation pins that version. From a checkout of this repository:
 plus `styles.css`) into `<dir>`, creating it when needed, and exits 0; 1 when
 the render failed (or the `--config` file is missing or invalid, with
 check-config's refusal), 2 on a usage error. With `--config`, a config that
-lists no projects makes the page say, besides "Forsgren 0.0.3", "No projects
+lists no projects makes the page say, besides "Forsgren 0.0.4", "No projects
 configured yet: add them to forsgren.config.yml."; without `--config` (the
 build above has no installation config) or with projects, the page is the
 placeholder, unchanged. With `--data` as well (it needs `--config`), the
@@ -1423,10 +1425,12 @@ broken runner cannot report green:
 ## Status
 
 The bootstrap is done (forsgren#1, 2026-10-02): the build, the gates, CI
-and these docs. forsgren itself renders one placeholder page; reading
-GitHub, the history file and the charts come next, then a template
-repository for installations. forsgren is open source, under EUPL-1.2 (see
-Licence).
+and these docs. Since then `collect` reads GitHub into the history file:
+the deployments of the configured projects and the commits they shipped.
+The page shows each project's deployment frequency and lead time for
+changes. The other three DORA metrics are planned: recovery time, change
+fail rate and rework rate. A template repository for installations comes
+after them. forsgren is open source, under EUPL-1.2 (see Licence).
 
 ## Licence
 
