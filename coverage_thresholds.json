@@ -1,6 +1,6 @@
 {
   "_comment": "Minimum coverage per Go function, read by Scripts/check_coverage.sh. Floors never go down: a new function is registered at 0.0, and each floor is raised to its measured value - 0.1, or 100.0 at 100%.",
-  "total": 99.2,
+  "total": 99.3,
   "functions": {
     "github.com/yveshanoulle/forsgren/cmd/forsgren/collect.go:collectDeployments": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/collect.go:githubClient": 100.0,

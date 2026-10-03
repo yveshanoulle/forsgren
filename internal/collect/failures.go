@@ -10,10 +10,10 @@ package collect
 // reopened since is written again, as a new line, since the file only
 // grows, and the newest line of an issue is the issue
 // (history.AppendFailures). An issue updated more than 90 days ago is not
-// read again, so a change older than that is never seen. An issue stored
-// without a failure-start its body gives is named on stderr, once, when it
-// is stored: it counts all the same, as change fail rate needs only its
-// opening time.
+// read again, so a change older than that is never seen. An issue without a
+// failure-start its body gives is named on stderr once, when it is first
+// stored, not again when it is closed or reopened: it counts all the same,
+// as change fail rate needs only its opening time.
 
 import (
 	"context"
@@ -63,15 +63,16 @@ func (o Options) failureIssues(ctx context.Context, h held, repo string) ([]hist
 }
 
 // freshFailures is the issues of repo to store: new, or changed since their
-// newest stored line; each without a failure-start is named on stderr.
+// newest stored line; a new one without a failure-start is named on stderr.
 func (o Options) freshFailures(h held, repo string, issues []github.Issue) []history.Failure {
 	var fresh []history.Failure
 	for _, i := range issues {
 		f := failureOf(repo, i)
-		if stored, ok := h.failures[f.Key()]; ok && !f.Revises(stored) {
+		stored, known := h.failures[f.Key()]
+		if known && !f.Revises(stored) {
 			continue
 		}
-		if f.FailureStart.IsZero() {
+		if !known && f.FailureStart.IsZero() {
 			o.warn("collect: %s: failure issue #%d has no failure-start line forsgren can read in its body\n",
 				repo, i.Number)
 		}

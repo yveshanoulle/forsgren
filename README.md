@@ -367,7 +367,9 @@ can be reverted there):
   time counts them, or an issue labelled `failure` (forsgren#6) opened in
   the window, from `data/failures.csv` (see History, Collecting
   deployments). An issue counts once, open or closed, as its newest line
-  says.
+  says, however it was closed: the label is the ruling (forsgren#6), so an
+  issue that turned out not to be a failure needs its label removed before
+  it is stored, since a stored issue is never taken out.
 - **Never twice.** What is stored cannot tell which deployment an issue is
   about, so an issue filed about a failed deployment would count twice.
   Per repository, the failed changes are therefore the larger of its failed
@@ -632,7 +634,7 @@ as issues, with a `pull_request` field).
   without one, or with a time in another form, stores the issue with an
   empty `failure_start` and a warning: `collect: acme/app: failure issue
   #43 has no failure-start line forsgren can read in its body`, once, when
-  the issue is stored. A block written in a comment instead of the body is
+  the issue is first stored (not again when it is closed or reopened). A block written in a comment instead of the body is
   not read. The issue counts all the same: change fail rate needs only
   when it was opened.
 - A list cut at the page limit is stored and named on stderr: `collect:
@@ -679,7 +681,10 @@ repositories, needs per rule:
 | `release` | Contents, Metadata | list releases, get the tag's commit, compare two commits |
 
 Every rule also lists the repository's issues labelled `failure`, for
-change fail rate, which needs Issues (read) as well.
+change fail rate, which needs Issues (read) as well. A token without it
+fails every repository, deployments included, with `check FORSGREN_TOKEN's
+access`: add Issues (read) to the token before updating to a forsgren that
+reads failure issues.
 
 Comparing two commits, for the commits of each deployment, needs Contents
 with every rule. A token without it fails the repository from its second
