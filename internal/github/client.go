@@ -44,6 +44,7 @@ var (
 	ErrAnswer         = errors.New("cannot read GitHub's answer")
 	ErrForeignLink    = errors.New("the next page is not on the API host")
 	ErrTooManyPages   = errors.New("more pages than forsgren reads")
+	ErrMissingTag     = errors.New("the release's tag is missing")
 )
 
 // Client reads GitHub's REST API at one base URL with one token.
@@ -147,22 +148,40 @@ func (c *Client) get(ctx context.Context, t target, accept string) ([]byte, http
 	return body, resp.Header, nil
 }
 
-// statusError is nil for a 2xx answer, else the error that says what to do.
-// It never quotes the answer's body or headers: an answer can echo anything.
+// answerError is GitHub's error answer: its status code, for a caller that
+// knows what a code means for its own call, and the error that says what to
+// do in general.
+type answerError struct {
+	code int
+	err  error
+}
+
+func (e *answerError) Error() string { return e.err.Error() }
+
+func (e *answerError) Unwrap() error { return e.err }
+
+// status is the answer's code and its text, 404 Not Found.
+func (e *answerError) status() string { return fmt.Sprintf("%d %s", e.code, http.StatusText(e.code)) }
+
+// statusError is nil for a 2xx answer, else an *answerError that says what
+// to do. It never quotes the answer's body or headers: an answer can echo
+// anything.
 func statusError(t target, resp *http.Response) error {
 	code := resp.StatusCode
-	status := fmt.Sprintf("%d %s", code, http.StatusText(code))
-	switch {
-	case code >= 200 && code < 300:
+	if code >= 200 && code < 300 {
 		return nil
-	case isRateLimited(resp):
-		return rateLimitError(t, resp.Header)
-	case isRefused(code):
-		return fmt.Errorf("%s: %w: %s for %s; check FORSGREN_TOKEN's access to %s",
-			t.repo, ErrAccess, status, t.path(), t.repo)
-	default:
-		return fmt.Errorf("%s: %w: %s for %s", t.repo, ErrStatus, status, t.path())
 	}
+	e := &answerError{code: code}
+	switch {
+	case isRateLimited(resp):
+		e.err = rateLimitError(t, resp.Header)
+	case isRefused(code):
+		e.err = fmt.Errorf("%s: %w: %s for %s; check FORSGREN_TOKEN's access to %s",
+			t.repo, ErrAccess, e.status(), t.path(), t.repo)
+	default:
+		e.err = fmt.Errorf("%s: %w: %s for %s", t.repo, ErrStatus, e.status(), t.path())
+	}
+	return e
 }
 
 // isRefused says whether code is GitHub refusing the token: 401 (no valid

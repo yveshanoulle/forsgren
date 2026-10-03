@@ -180,6 +180,7 @@ html duplication, generated page|Scripts/check_html_dupl_site.sh|post|
 # red on a directory with no golden page. Repository source, so it runs in
 # pre, self-test first.
 golden-pages self-test|Scripts/test_check_golden_pages.sh|pre|
+golden pages|Scripts/check_golden_pages.sh|pre|
 #
 # Gate wiring, the sfl/CI parity guard (forsgren#1, ladder step 14), at its
 # canon position after the html-duplication rows. konenki-website's fixture,
@@ -408,8 +409,16 @@ DCO sign-off self-test|Scripts/test_check_dco.sh|pre|
 # inputs, forsgren installed from the workflow's own job.workflow_sha and
 # job.workflow_repository, both checked (executed against good and bad
 # values) before go install, through env: only, and setup-go on go.mod's
-# toolchain before it. Self-proving on mutants of the real file.
-# Repository source, so it runs in pre.
+# toolchain before it; the caller's checkout; the starter step (forsgren#12,
+# step 3) and the config check, each executed with a stub and the real
+# forsgren, the starter with a real git against a local remote; the one
+# optional FORSGREN_TOKEN secret, in the collect step's env: only; the
+# collect, data and fail steps (step 6) executed the same way; check-config's
+# and collect's output never run as a workflow command; the job's
+# contents: write, its concurrency group and the order of its steps. The
+# full list is the script's header. Self-proving on mutants of the real
+# file, each judged by the pin it is aimed at. Repository source, so it runs
+# in pre.
 metrics workflow|Scripts/test_metrics_workflow.sh|pre|
 #
 # No stray tracked files (forsgren#1, ladder step 12). Not canon:

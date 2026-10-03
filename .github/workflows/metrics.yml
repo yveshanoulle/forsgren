@@ -47,7 +47,8 @@
 # in the collect step's env: and nowhere else, the collect, data and fail
 # steps executed there (a stub forsgren and the real one, a real git against
 # a local remote, a hostile inherited git environment, a branch that moved),
-# their order, and the concurrency group.
+# collect's output never run as a workflow command, their order, and the
+# concurrency group.
 name: Metrics
 
 on:
@@ -255,6 +256,13 @@ jobs:
       # others stored and the page is still published, and the last step,
       # "Fail the job when collect failed", then fails the job, so the owner
       # sees the run red with collect's message in this step's log.
+      #
+      # collect's output (both streams) reaches the log with workflow
+      # commands stopped, as check-config's does (forsgren#12, step 8):
+      # between ::stop-commands::<token> and ::<token>::, under a token drawn
+      # fresh from /dev/urandom on every run, so a line of it that starts
+      # with :: is shown and never run. Its lines name repositories and
+      # quote errors, and defence in depth costs two lines.
       # Inline for the install step's reason; Scripts/test_metrics_workflow.sh
       # executes this block with a stub forsgren and with the real one.
       - name: Collect deployments
@@ -264,8 +272,12 @@ jobs:
           FORSGREN_TOKEN: ${{ secrets.FORSGREN_TOKEN }}
         run: |
           set -euo pipefail
+          token="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
           status=0
-          forsgren collect --config forsgren.config.yml --data data/deployments.csv || status=$?
+          output="$(forsgren collect --config forsgren.config.yml --data data/deployments.csv 2>&1)" || status=$?
+          echo "::stop-commands::${token}"
+          printf '%s\n' "$output"
+          echo "::${token}::"
           echo "status=${status}" >> "$GITHUB_OUTPUT"
 
       # What collect stored is committed to the branch the run is on, as the

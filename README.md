@@ -96,7 +96,8 @@ shop,acme/app,environment,production,1001,<40 hex>,2026-09-01T10:00:00Z,success,
 
 **History is never overwritten.** forsgren creates `data/` and the file when it
 first stores history, with the version line. After that it only appends: a
-deployment already in the file (same repository, kind and ID) is skipped, so
+deployment already in the file (same repository, compared ignoring case as
+GitHub compares names, same kind and same ID) is skipped, so
 the first line stays even if GitHub says something else later, and no line is
 rewritten or removed. The new lines are written in one write and synced, after
 a newline if the last line lacked one. A file whose first line states another
@@ -257,9 +258,12 @@ A deployment already in the history is skipped without a count.
   a `success` when any of its statuses was `success`: GitHub marks a
   successful deployment `inactive` once a newer one replaces it, so its
   latest status says nothing. It is a `failure` when no status was
-  `success` and one was `failure` or `error`. Anything else (no status yet,
-  `pending`, `queued`, `in_progress`, or only `inactive`) is not final. The
-  deployment's ID, `sha`, `task` and `created_at` are stored.
+  `success` and its newest status other than `inactive` (by time, then ID)
+  is `failure` or `error`. Anything else (no status yet, `pending`,
+  `queued`, `in_progress`, only `inactive`, or a retry: `pending`,
+  `queued` or `in_progress` after a `failure`) is not final, so a retry
+  that succeeds is stored as a `success`. The deployment's ID, `sha`,
+  `task` and `created_at` are stored.
 - **`workflow=<file>.yml`**: the runs of that workflow on the repository's
   default branch, from the repository itself (a fork's run on a branch of
   the same name does not count). The conclusion `success` is stored as
@@ -270,7 +274,9 @@ A deployment already in the history is skipped without a count.
   (lines are never rewritten, so what is not stored when it is seen cannot
   be added later). A run that is not `completed` is not final. The run ID,
   `head_sha` and `run_started_at` (the start of the attempt whose
-  conclusion is stored) are stored.
+  conclusion is stored) are stored. A re-run keeps its run ID, so a run
+  stored after a failed attempt keeps that `failure` when a later attempt
+  succeeds.
 - **`release`**: the published releases, as `success` at their
   `published_at`. Drafts are not published; prereleases are not shipped to
   everyone (a release candidate or a beta), so neither is a deployment. The
@@ -281,7 +287,9 @@ A deployment already in the history is skipped without a count.
 read 90 days back. After that, a run reads from 7 days before the newest
 deployment stored for it, so a deployment that was not final at the last
 run is still found, and never more than 90 days back: the daily run reads
-little more than what is new. Every list is read newest first, 100 per page,
+little more than what is new. A deployment still not final 7 days before
+the newest stored one is not read again, so it is never stored. Every list
+is read newest first, 100 per page,
 and stops at the first page that reaches the start; at most 10 pages per
 list (the newest 1000), and when that cut a list stderr says so:
 `collect: acme/app: read the newest 10 page(s) only; older deployments were
@@ -293,7 +301,10 @@ one is named on stderr (`collect: acme/app: ...`) and nothing of it is
 stored, because a repository's deployments are appended in one go, after
 all of them are read. The others are stored, and `collect` then exits 1
 with `collect: 1 of 3 repositories failed`. A 401, 403 or 404 says `check
-FORSGREN_TOKEN's access to acme/app`; a rate limit says when it resets (UTC)
+FORSGREN_TOKEN's access to acme/app`, except for a release's tag: a 404 or
+422 there says `tag v1.2.0 not found` and asks whether it was deleted after
+the release was published, since the release itself was just read with the
+same token; a rate limit says when it resets (UTC)
 or how many seconds GitHub asks to wait; an answer that is not what GitHub
 documents is refused by the repository's name. A history that cannot be
 read (another version, a malformed line) is refused before GitHub is asked
@@ -447,7 +458,9 @@ jobs:
   name. **A failing repository** does not stop the run: what the others
   stored is committed and the page is published, and then the job's last
   step fails it, so the run shows red with collect's message in the step
-  "Collect deployments". **One run at a time:** the job's concurrency
+  "Collect deployments". That message, and the rest of collect's output,
+  is shown with workflow commands stopped, as check-config's is.
+  **One run at a time:** the job's concurrency
   group is the data repository's, so the daily run and one started by hand
   queue rather than race on the push. If the branch still moved under a run
   (someone pushed meanwhile), its push is refused and the run fails with
@@ -534,7 +547,7 @@ commit itself:
 - **data guard** (`Scripts/check_data_guard.sh`): see Where configuration
   and data live.
 
-One PRE gate checks the page templates themselves:
+Two PRE gates check the page templates and the pages they render:
 
 - **html duplication** (`Scripts/check_html_dupl.sh`, the estate's ratchet
   from konenki-website): jscpd measures the share of duplicated markup in
@@ -543,6 +556,15 @@ One PRE gate checks the page templates themselves:
   down: a red is fixed by removing the duplication, never by raising the
   number. Red on a run that scanned zero `.html` files. jscpd is pinned like
   the linters below.
+- **golden pages** (`Scripts/check_golden_pages.sh`, forsgren's own,
+  forsgren#12 step 8): the build renders the page without an installation's
+  config or history, so the POST gates below never see the page with data
+  or the no-projects line. This gate runs three of them, HTMLHint, privacy
+  posture and html duplication, generated page, on each golden page of
+  `internal/page/testdata` (the pages the Go tests pin byte for byte to what
+  forsgren renders, the page with data from a made-up history), each page
+  alone as the site's one page is. A finding names the page and the gate.
+  Red on a directory with no golden page.
 
 Two PRE gates run the Go tests and the formatting:
 
@@ -945,7 +967,8 @@ forsgren.config.yml` (its message printed between
 `::stop-commands::<token>` and `::<token>::`, a fresh random token per
 run, so a line of it that starts with `::` never runs as a workflow
 command), `forsgren collect --config forsgren.config.yml --data
-data/deployments.csv` (its exit status kept as a step output), a commit of
+data/deployments.csv` (its output shown with workflow commands stopped, its
+exit status kept as a step output), a commit of
 `data/` alone when it changed, pushed like the starter (an `::error` naming a
 branch that moved, never a rebase or a force), `forsgren render --config
 forsgren.config.yml --data data/deployments.csv`, then `actions/upload-pages-artifact` and
@@ -1025,14 +1048,24 @@ Six PRE gates keep the CI honest:
   workflow command, under a token that differs per run; the same step,
   executed with the real `forsgren` built from the checkout, is refused for
   a missing and an invalid `forsgren.config.yml` and passes a valid one;
+  the starter step, executed with a real git against a local remote and
+  with a stub and the real `forsgren`, commits a created
+  `forsgren.config.yml` alone as `github-actions[bot]`, unsigned even under
+  a hostile inherited git environment, pushes it to the run's branch with
+  the token in git's environment only (pin 13), exits 0 for a kept file
+  before any branch logic and refuses on a tag, and the job grants
+  `contents: write`;
   `workflow_call` declares the one secret `FORSGREN_TOKEN`, `required:
   false`, and the only `${{ secrets… }}` in the file is the collect step's
   `env:`; the collect step, executed with a stub and with the real
   `forsgren`, runs exactly `forsgren collect --config forsgren.config.yml
   --data data/deployments.csv`, records its exit status as the output
   `status` and succeeds, keeps the token out of arguments, files, the log
-  and outputs, and with no token passes the starter and records a failure
-  naming `FORSGREN_TOKEN` for a configured repository; the data step,
+  and outputs, with no token passes the starter and records a failure
+  naming `FORSGREN_TOKEN` for a configured repository, and, as the config
+  step does, leaves no line of collect's output (both streams) that starts
+  with `::` live as a workflow command, under a token that differs per run,
+  with the stub and with the real `forsgren`; the data step,
   executed with a real git against a local remote, commits nothing when
   `data/` is unchanged (on a tag too), else one commit of `data/` alone as
   `github-actions[bot]`, unsigned even under a hostile inherited git
@@ -1046,7 +1079,7 @@ Six PRE gates keep the CI honest:
   data/deployments.csv`; and install, checkout, starter, config
   check, collect, data commit and render come in that order, the fail step
   after publishing. Each pin is shown failing, with its own reason, on a
-  mutant of the real file.
+  mutant of the real file, judged by the pin it is aimed at.
 - **quality-report render** (`Scripts/test_render_quality_report.sh`): the
   summary renderer (`Scripts/render_quality_report.sh`) keeps the declared
   order, exits 0 on a report it rendered, tells an empty or partial run from

@@ -12,8 +12,10 @@
 # Two checks, both over the files git TRACKS (git ls-files):
 #
 #   a. Installation config or data outside testdata/. A tracked file whose
-#      name matches an arm of guarded_reason below, anywhere but under a
-#      directory named testdata (at any depth, Go's convention), is red.
+#      name matches an arm of guarded_reason below, or whose path matches an
+#      arm of guarded_path_reason (anything under a top-level data/),
+#      anywhere but under a directory named testdata (at any depth, Go's
+#      convention), is red.
 #      Fixtures under testdata/ are made up and are allowed to look like real
 #      config.
 #
@@ -94,8 +96,9 @@ in_testdata() {
 # with nothing to suppress.
 #
 # One arm per line, `<pattern>) why="..." ;;`: Scripts/test_check_data_guard.sh
-# mutates this list by that shape (it deletes the history.csv arm, and quotes
-# every arm whose pattern holds a `*` so that it matches only literally).
+# mutates this list by that shape (it deletes the history.csv arm, then the
+# deployments.csv arm, and quotes every arm whose pattern holds a `*` so that
+# it matches only literally).
 guarded_reason() {
   local why=""
   case "$1" in
@@ -116,7 +119,8 @@ guarded_reason() {
 # forsgren creates data/ in an installation's data repository when it first
 # stores history (forsgren#9, #12), so ANY tracked file under a top-level
 # data/ is installation data. Only the top level: a data directory deeper in
-# the tree (internal/data/) is code. Same arm shape as guarded_reason.
+# the tree (internal/data/) is code. Same arm shape as guarded_reason, and
+# Scripts/test_check_data_guard.sh deletes the data/* arm by it.
 guarded_path_reason() {
   local why=""
   case "$1" in

@@ -3,7 +3,9 @@ package github
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -137,13 +139,19 @@ func (c *Client) Releases(ctx context.Context, repo string, since time.Time) ([]
 
 // TagCommit is the SHA of the commit tag points to, an annotated tag
 // resolved to its commit: GET /repos/{owner}/{repo}/commits/tags/{tag} with
-// the sha media type, which answers the SHA alone, as plain text.
+// the sha media type, which answers the SHA alone, as plain text. A 404 or
+// 422 is the tag missing (ErrMissingTag), not the token's access: the
+// releases that name the tag were read with the same token.
 func (c *Client) TagCommit(ctx context.Context, repo, tag string) (string, error) {
 	t, err := c.endpoint(repo, nil, append([]string{"commits", "tags"}, strings.Split(tag, "/")...)...)
 	if err != nil {
 		return "", err
 	}
 	body, _, err := c.get(ctx, t, "application/vnd.github.sha")
+	if missing, ok := errors.AsType[*answerError](err); ok && isMissingRef(missing.code) {
+		return "", fmt.Errorf("%s: tag %s not found: %s for %s: %w; was it deleted after the release was published?",
+			repo, tag, missing.status(), t.path(), ErrMissingTag)
+	}
 	if err != nil {
 		return "", err
 	}
@@ -152,6 +160,12 @@ func (c *Client) TagCommit(ctx context.Context, repo, tag string) (string, error
 		return "", fmt.Errorf("%s: %w for tag %s: not a commit SHA", repo, ErrAnswer, tag)
 	}
 	return sha, nil
+}
+
+// isMissingRef says whether code is GitHub's answer for a ref it does not
+// have: 404, or 422 (No commit found for SHA).
+func isMissingRef(code int) bool {
+	return code == http.StatusNotFound || code == http.StatusUnprocessableEntity
 }
 
 // listSince reads a list of items at or after since (by at) under the

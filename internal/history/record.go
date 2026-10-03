@@ -11,14 +11,16 @@ import (
 )
 
 // key identifies a deployment: the ID spaces of deployments, workflow runs
-// and releases are separate at GitHub, so the kind is part of it.
+// and releases are separate at GitHub, so the kind is part of it. The
+// repository is lower-case: GitHub's repository names ignore case, so
+// Acme/App and acme/app are one repository.
 type key struct {
 	repository string
 	kind       Kind
 	id         int64
 }
 
-func (r Record) key() key { return key{r.Repository, r.Kind, r.ID} }
+func (r Record) key() key { return key{strings.ToLower(r.Repository), r.Kind, r.ID} }
 
 // encode is the line of r, with its newline.
 func (r Record) encode() []byte {

@@ -22,9 +22,10 @@ type store struct {
 //
 //   - A missing path is created, directory included, with the version and
 //     column lines, also when there is nothing to store.
-//   - A record is already held when a line has the same repository, kind and
-//     deployment ID, whatever else it says: lines are never rewritten, so the
-//     first one stays. Duplicates inside records count once.
+//   - A record is already held when a line has the same repository (ignoring
+//     case, as GitHub does), kind and deployment ID, whatever else it says:
+//     lines are never rewritten, so the first one stays. Duplicates inside
+//     records count once.
 //   - The new lines are in created-at order, then ID, and go after the last
 //     line in one write that is synced before Append returns. A file whose
 //     last line has no newline gets one first.

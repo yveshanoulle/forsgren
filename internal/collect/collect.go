@@ -7,14 +7,17 @@
 //   - environment=<name>: the GitHub Deployments to that environment. A
 //     deployment is a success when any of its statuses was success (GitHub
 //     marks a superseded deployment inactive, so the latest status says
-//     nothing), a failure when none was and one was failure or error, and
-//     not final otherwise. The task, the sha and the deployment's created_at
-//     are stored.
+//     nothing), a failure when none was and its newest status other than
+//     inactive is failure or error, and not final otherwise: still running,
+//     or retried after a failure. The task, the sha and the deployment's
+//     created_at are stored.
 //   - workflow=<file>: the runs of that workflow on the default branch,
 //     from the repository itself (not a fork). The conclusions success and
 //     failure are stored as they are, any other conclusion (cancelled,
 //     skipped, timed_out, ...) as other; a run not completed is not final.
-//     The run ID, head_sha and run_started_at are stored.
+//     The run ID, head_sha and run_started_at are stored. A re-run keeps
+//     its run ID, so a run stored when its first attempt failed keeps that
+//     outcome: the history's key is the run ID (forsgren#12, step 8).
 //   - release: the published releases, not drafts and not prereleases, as
 //     successes, at their published_at, with their tag's commit and the tag
 //     as the task.
@@ -22,8 +25,11 @@
 // How far back it reads: a repository with nothing stored for its rule is
 // read 90 days back (FirstRun); after that, from 7 days (Lookback) before
 // the newest deployment stored for it, so a deployment that was not final
-// at the last run is still found, but never more than 90 days back. Each
-// list is cut at the client's page limit, newest first, and stderr says so.
+// at the last run is still found, but never more than 90 days back. A
+// deployment still not final more than 7 days before the newest stored one
+// is therefore never stored. Each list is cut at the client's page limit,
+// newest first, and stderr says so. A repository's names in the config and
+// the history are compared ignoring case.
 //
 // A repository is stored whole or not at all: its records are appended once
 // all of them are read. A failure in one repository is printed and the
@@ -181,19 +187,33 @@ func (o Options) environment(ctx context.Context, h held, base history.Record) (
 
 // outcome is a deployment's final state from all its statuses, in any
 // order: success when any was success (an inactive after it is GitHub
-// marking it superseded); else failure when any was failure or error, which
-// is then the latest final one; else not final.
+// marking it superseded); else failure when the newest status that is not
+// inactive is failure or error; else not final, also when that newest
+// status is a retry (in_progress, queued, pending) after a failure.
 func outcome(statuses []github.DeploymentStatus) (history.State, bool) {
-	failed := false
+	var newest github.DeploymentStatus
 	for _, s := range statuses {
-		switch s.State {
-		case "success":
+		switch {
+		case s.State == "success":
 			return history.StateSuccess, true
-		case "failure", "error":
-			failed = true
+		case s.State != "inactive" && newer(s, newest):
+			newest = s
 		}
 	}
-	return history.StateFailure, failed
+	switch newest.State {
+	case "failure", "error":
+		return history.StateFailure, true
+	}
+	return "", false
+}
+
+// newer says whether status a came after b: by its time, and by its ID
+// when two share a second.
+func newer(a, b github.DeploymentStatus) bool {
+	if a.CreatedAt.Equal(b.CreatedAt) {
+		return a.ID > b.ID
+	}
+	return a.CreatedAt.After(b.CreatedAt)
 }
 
 // workflow reads the runs of one workflow on the default branch.
@@ -258,10 +278,17 @@ func published(r github.Release) bool {
 	return !r.Draft && !r.Prerelease && !r.PublishedAt.IsZero()
 }
 
-// source is one repository read by one rule.
+// source is one repository read by one rule. The repository is lower-case:
+// GitHub's repository names ignore case, and so do the config and the
+// history's key, so a line of Acme/App is acme/app's.
 type source struct {
 	repository string
 	kind       history.Kind
+}
+
+// sourceOf is the source of r's repository and kind.
+func sourceOf(r history.Record) source {
+	return source{strings.ToLower(r.Repository), r.Kind}
 }
 
 // entry is one deployment in the history.
@@ -285,7 +312,7 @@ func loadHeld(path string) (held, error) {
 	}
 	h := held{ids: map[entry]bool{}, newest: map[source]time.Time{}}
 	for _, r := range records {
-		s := source{r.Repository, r.Kind}
+		s := sourceOf(r)
 		h.ids[entry{s, r.ID}] = true
 		if r.CreatedAt.After(h.newest[s]) {
 			h.newest[s] = r.CreatedAt
@@ -296,16 +323,17 @@ func loadHeld(path string) (held, error) {
 
 // has says whether the deployment id of base's source is stored.
 func (h held) has(base history.Record, id int64) bool {
-	return h.ids[entry{source{base.Repository, base.Kind}, id}]
+	return h.ids[entry{sourceOf(base), id}]
 }
 
 // since is where a run reads base's source from: Lookback before its newest
 // stored deployment, but never before FirstRun ago.
 func (h held) since(base history.Record, now time.Time) time.Time {
-	from := h.newest[source{base.Repository, base.Kind}].Add(-Lookback)
+	from := h.newest[sourceOf(base)].Add(-Lookback)
 	return later(from, now.Add(-FirstRun))
 }
 
+// later is the later of a and b.
 func later(a, b time.Time) time.Time {
 	if a.After(b) {
 		return a

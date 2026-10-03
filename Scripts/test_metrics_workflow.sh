@@ -1527,6 +1527,21 @@ proves judge_collect_e2e "a collect step that skips a missing token" "with the r
 proves judge_collect_e2e "a collect step that demands a token" "with the real forsgren, the starter configuration (no projects) and no FORSGREN_TOKEN" \
   "/- name: ${COLLECT_STEP}/,/- name: ${DATA_STEP}/ s|^\\( *\\)status=0${D}|\\1: \"${D}{FORSGREN_TOKEN:?FORSGREN_TOKEN is not set}\"\\n&|"
 
+# collect's output with workflow commands stopped (forsgren#12, step 8).
+COLLECT_RANGE="/- name: ${COLLECT_STEP}/,/- name: ${DATA_STEP}/"
+proves judge_collect_commands "collect's workflow commands left on" "for collect output with workflow commands in it the collect step leaves them live in the log (line " \
+  "${COLLECT_RANGE} { /::stop-commands::/d; }"
+proves judge_collect_commands "collect's commands never resumed" "never ended" \
+  "${COLLECT_RANGE} { /echo \"::.{token}::\"/d; }"
+proves judge_collect_commands "the same collect token on every run" "the collect step stops workflow commands with the same token on every run" \
+  "${COLLECT_RANGE} s/^\\( *\\)token=.*${D}/\\1token=forsgren/"
+proves judge_collect_commands "collect's stderr outside the stop" "leaves them live in the log (line 1:   ::add-mask::collect-mask)" \
+  "${COLLECT_RANGE} s/ 2>&1)\" || status/)\" || status/"
+proves judge_collect_commands "collect's output not shown" "does not show collect's output, stdout and stderr, in the log" \
+  "${COLLECT_RANGE} { /printf .*${D}output/d; }"
+proves judge_collect_commands_e2e "the real collect's message with commands on" "with the real forsgren and no FORSGREN_TOKEN the collect step logs collect's message live" \
+  "${COLLECT_RANGE} { /::stop-commands::/d; }"
+
 # The data step.
 proves judge_data_step "no data step" "has no step '${DATA_STEP}'" \
   "s/- name: ${DATA_STEP}\$/- name: Commit something else/"
