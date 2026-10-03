@@ -299,6 +299,32 @@ func TestARefusedComparisonFailsTheRepository(t *testing.T) {
 	wantNothingStored(t, r, path, "check FORSGREN_TOKEN's access to acme/app")
 }
 
+// TestACommitsFileThatCannotBeWrittenLosesNoCommits (forsgren#16, step 7):
+// when commits.csv cannot be written, the repository fails and its
+// deployments are not stored either, so the next run reads them again and
+// stores them with their commits; a deployment is never stored without the
+// commits it was compared for.
+func TestACommitsFileThatCannotBeWrittenLosesNoCommits(t *testing.T) {
+	g := twoDeployments(t)
+	g.bodies[comparePath(shaA, shaB)] = ahead(authored{shaB, at(21, 9, 0)})
+	path := historyPath(t)
+	if _, err := history.AppendCommits(commitsPath(path), nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(commitsPath(path), 0o400); err != nil {
+		t.Fatal(err)
+	}
+	if r := g.collect(t, shop(production), path, github.DefaultMaxPages); !errors.Is(r.err, ErrFailed) {
+		t.Fatalf("want the run to fail on a read-only commits file, got %v (stderr %q)", r.err, r.stderr)
+	}
+	if err := os.Chmod(commitsPath(path), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	wantStdout(t, g.collect(t, shop(production), path, github.DefaultMaxPages),
+		"acme/app: 2 new, 0 skipped (not final), 1 commits\n")
+	wantCommits(t, path, commit(1002, shaB, at(21, 9, 0), at(22, 10, 0)))
+}
+
 // TestASecondRunComparesNothingAgain: a deployment's commits are compared
 // when the deployment is stored, once; the next run neither asks GitHub
 // again nor writes the commits file.
