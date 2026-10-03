@@ -1,6 +1,6 @@
 {{template "header" .}}  <main>
     <h1>Forsgren {{.Version}}</h1>
-{{if .Projects}}    <p>Calculated {{.AsOf}} UTC, counting back from that moment: deployment frequency from the successful deployments, lead time for changes from the commits they shipped.</p>
+{{if .Projects}}    <p>Calculated {{.AsOf}} UTC, counting back from that moment: deployment frequency from the successful deployments, lead time for changes from the commits they shipped, failed deployment recovery time from the failed deployments and the successful ones after them.</p>
 {{range .Projects}}    <section>
       <h2>{{.Project}}</h2>
 {{if .HasDeployments}}      <dl>
@@ -12,11 +12,14 @@
         <dd>{{.BandText}}</dd>
         <dt>Lead time for changes (DORA band)</dt>
         <dd>{{.LeadTime.BandText}}</dd>
+        <dt>Failed deployment recovery time (DORA band)</dt>
+        <dd>{{.Recovery.BandText}}</dd>
       </dl>
 {{else}}      <p>No deployments recorded yet</p>
 {{end}}    </section>
 {{end}}    <p>DORA bands of deployment frequency, from the count of the last 30 days: on demand (multiple deploys per day) 720 and more, between once per hour and once per day 30 to 719, between once per day and once per week 5 to 29, between once per week and once per month 1 to 4; with none in the last 30 days, from the count of the last 180 days: between once per month and once every six months 1 and more, less than once per six months 0.</p>
     <p>DORA bands of lead time for changes, from the median of the commits deployed in the last 30 days: less than one hour below 1 hour, less than one day 1 hour to below 24 hours, one day to one week 24 hours to below 7 days, one week to one month 7 days to below 30 days, one to six months 30 days to below 180 days, more than six months 180 days and more. A month is 30 days.</p>
+    <p>DORA bands of failed deployment recovery time, from the median of the recoveries in the last 30 days, each from the first failed deployment of a run to the next successful deployment of the same stream: the six bands of lead time for changes, on the same edges, as the DORA Quick Check gives the same answers for both. A failure not recovered yet is counted, not timed.</p>
 {{else}}    <p>{{.Message}}</p>
 {{end}}{{if .NoProjects}}    <p>No projects configured yet: add them to forsgren.config.yml.</p>
 {{end}}  </main>

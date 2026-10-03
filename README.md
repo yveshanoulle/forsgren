@@ -244,6 +244,72 @@ days, so every edge is a fixed duration (the page says so too):
 
 The page calls them DORA bands, never Elite, High, Medium or Low.
 
+## Failed deployment recovery time
+
+The third DORA number on the page (forsgren#17, package `internal/metrics`):
+DORA's "time it takes to recover from a deployment that fails and requires
+immediate intervention". Each project's section shows it after its lead
+time, as a DORA band with the median, the count and the period: "Less than
+one day — median 3 hours over 2 recoveries in the last 30 days" (one is "1
+recovery"), followed by "; 1 failure not recovered yet" when a stream's
+latest deployments failed. With none recovered in the window but one not
+recovered yet it says "No recovery in the last 30 days; 1 failure not
+recovered yet"; with neither, "No failed deployments in the last 30 days".
+
+**What counts.** Rulings on forsgren#17, taken while Yves was away (each
+can be reverted there):
+
+- **Deployments only.** A failure is a line of `data/deployments.csv`
+  whose state is `failure`. The web-infra and TestFlight recorders record
+  a failure only once live was touched, which is DORA's "requires
+  immediate intervention". Failure issues (the `failure` label with its
+  record block, see How it gets its data) are the source of change fail
+  rate (forsgren#18), not of this number.
+- **Recovered by the next success of its stream.** The stream is
+  collect's (see Collecting deployments, The commits of each deployment):
+  the same repository, compared ignoring case, the same kind, environment
+  or workflow, and task; a repository's releases are one stream. A
+  success of another stream (deploy-admin after a failed deploy-api)
+  recovers nothing. Deployments are taken oldest first, by `created_at`,
+  then ID.
+- **The time** runs from the failed deployment's `created_at` to the
+  success's `created_at`.
+- **A run of failures** (failures one after the other in a stream, before
+  a success) is one recovery, timed from the first failure of the run,
+  since the service was degraded from then on. A deployment in the state
+  `other` neither starts nor ends a run.
+- **Not recovered yet:** a run with no success after it yet. It is counted
+  ("1 failure not recovered yet", at most one per stream) whatever its
+  age, but it is not in the median: it has no recovery time yet.
+- **The window:** a recovery counts when its success was created in the
+  last 30 days, counted back from the render time in UTC, both ends
+  included, as for lead time. A deployment created after the render time
+  is not there yet. A recovery belongs to the project whose config lists
+  its repository, compared ignoring case.
+- **The median**, as for lead time, with the count; for an even count the
+  mean of the two middle recovery times. The duration is written as lead
+  time's is.
+
+**The bands** are DORA's current Quick Check answers for failure recovery,
+which are word for word lead time's six (the script the Quick Check loads,
+<https://dora.dev/quickcheck/quickcheck.js>, maps both questions to the same
+answers: "Less than one hour", "Less than one day", "One day to one week",
+"One week to one month", "One to six months", "More than six months"). So
+the median recovery time is banded on lead time's edges, a month being 30
+days:
+
+| Median recovery time | DORA band |
+| --- | --- |
+| below 1 hour | Less than one hour |
+| 1 hour to below 24 hours | Less than one day |
+| 24 hours to below 7 days | One day to one week |
+| 7 days to below 30 days | One week to one month |
+| 30 days to below 180 days | One to six months |
+| 180 days and more | More than six months |
+
+A project with no successful deployment in its history says "No
+deployments recorded yet", and shows no recovery time either.
+
 ## Configuration
 
 An installation describes what forsgren measures in one file,
@@ -492,14 +558,15 @@ private repositories (no scope for public ones).
 ## Running forsgren
 
 forsgren renders a static page which says "Forsgren 0.0.4", the version of
-the forsgren that rendered it, and shows each project's deployment frequency
-and lead time for changes. That version has one source,
+the forsgren that rendered it, and shows each project's deployment frequency,
+lead time for changes and failed deployment recovery time. That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
 it with `-ldflags "-X main.version=<version>"`. `forsgren collect` reads
 GitHub into the history file (see Collecting deployments); the daily run
 calls it, commits the history to the data repository and renders the page
-with each project's deployment frequency and lead time for changes from it
-(see Deployment frequency and Lead time for changes).
+with each project's deployment frequency, lead time for changes and failed
+deployment recovery time from it (see Deployment frequency, Lead time for
+changes and Failed deployment recovery time).
 
 The first release is `v0.0.1`. Install a release with
 `go install github.com/yveshanoulle/forsgren/cmd/forsgren@v0.0.1`; an
@@ -1431,9 +1498,9 @@ broken runner cannot report green:
 The bootstrap is done (forsgren#1, 2026-10-02): the build, the gates, CI
 and these docs. Since then `collect` reads GitHub into the history file:
 the deployments of the configured projects and the commits they shipped.
-The page shows each project's deployment frequency and lead time for
-changes. The other three DORA metrics are planned: recovery time, change
-fail rate and rework rate. Installations start from the forsgren-template
+The page shows each project's deployment frequency, lead time for
+changes and failed deployment recovery time. The other DORA metrics are
+planned: change fail rate and rework rate. Installations start from the forsgren-template
 repository and take each new release as a Dependabot pull request. forsgren
 is open source, under EUPL-1.2 (see Licence).
 

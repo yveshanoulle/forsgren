@@ -34,8 +34,9 @@ type renderOptions struct {
 // render writes the site. With --config it also reads the installation's
 // forsgren.config.yml, so the page can say when no projects are configured
 // yet (forsgren#12); with --data as well it reads the history and the
-// commits file next to it, and shows each project's deployment frequency
-// and lead time for changes, counted back from now. Without --config
+// commits file next to it, and shows each project's deployment frequency,
+// lead time for changes and failed deployment recovery time, counted back
+// from now. Without --config
 // (the repository's own build has no installation config) the page is the
 // placeholder, unchanged.
 func render(args []string, stdout, stderr io.Writer) int {
@@ -77,9 +78,10 @@ func pageData(o renderOptions, at time.Time) (page.Data, error) {
 	return data, nil
 }
 
-// projectsOf is each project's section, from the history at path and the
-// commits file next to it (data/commits.csv beside data/deployments.csv,
-// forsgren#16), at the render time at.
+// projectsOf is each project's section, from the history at path (its
+// deployment frequency and, forsgren#17, its recovery time) and the commits
+// file next to it (data/commits.csv beside data/deployments.csv, its lead
+// time, forsgren#16), at the render time at.
 func projectsOf(projects []config.Project, path string, at time.Time) ([]page.Project, error) {
 	records, err := loadOrNone(path, history.Load)
 	if err != nil {
@@ -91,9 +93,10 @@ func projectsOf(projects []config.Project, path string, at time.Time) ([]page.Pr
 	}
 	frequencies := metrics.DeploymentFrequency(projects, records, at)
 	leadTimes := metrics.LeadTimes(projects, commits, at)
+	recoveries := metrics.RecoveryTimes(projects, records, at)
 	out := make([]page.Project, len(projects))
 	for i := range out {
-		out[i] = page.Project{Frequency: frequencies[i], LeadTime: leadTimes[i]}
+		out[i] = page.Project{Frequency: frequencies[i], LeadTime: leadTimes[i], Recovery: recoveries[i]}
 	}
 	return out, nil
 }
