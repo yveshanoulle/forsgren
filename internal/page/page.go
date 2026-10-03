@@ -37,26 +37,46 @@ type Data struct {
 	// NoProjects makes the page say that no projects are configured yet:
 	// the installation's forsgren.config.yml lists none (forsgren#12).
 	NoProjects bool
-	// Projects, when set, replace Message with one section per project, in
-	// this order (forsgren#12, step 7; forsgren#16, step 5; forsgren#17;
-	// forsgren#18).
-	// The page shows
-	// their project names, numbers, durations and dates only.
-	Projects []Project
+	// Rows, when set, replace Message with one table, the four DORA metrics
+	// as columns and these rows, in this order (forsgren#38; see Table).
+	// The page shows project names, the owner's labels and the numbers
+	// only, never a repository's or a task's own name.
+	Rows []Row
 	// AsOf is the UTC minute (2006-01-02 15:04) the numbers were calculated
 	// at, which is also the moment their windows were counted back from; the
-	// page shows it with Projects only.
+	// page shows it with Rows only.
 	AsOf string
 }
 
-// Project is one project's section: its deployment frequency (whose fields
-// the template reads directly), its lead time for changes, its failed
-// deployment recovery time and its change fail rate.
-type Project struct {
-	metrics.Frequency
-	LeadTime   metrics.LeadTime
-	Recovery   metrics.Recovery
-	ChangeFail metrics.ChangeFailRate
+// Row is one row of the table: its numbers, the heading the page gives it,
+// and for a label's row the project it is under.
+type Row struct {
+	metrics.Row
+	Heading string
+	Project string
+}
+
+// IsLabel says whether the row is a label's, under its project's total.
+func (r Row) IsLabel() bool { return r.Level == metrics.LabelRow }
+
+// Table is the page's rows for the metrics' rows, in their order: a
+// project's row is headed by its name, "Acme Shop (total)" when label rows
+// follow it, and a label's row by the label, with its project's name for
+// a screen reader.
+func Table(rows []metrics.Row) []Row {
+	out := make([]Row, len(rows))
+	var total *Row
+	for i, r := range rows {
+		out[i] = Row{Row: r, Heading: r.Name}
+		switch {
+		case r.Level == metrics.ProjectRow:
+			total = &out[i]
+		case total != nil:
+			out[i].Project = total.Name
+			total.Heading = total.Name + " (total)"
+		}
+	}
+	return out
 }
 
 // Placeholder is the data of the page forsgren renders before it has any

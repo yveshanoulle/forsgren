@@ -40,9 +40,6 @@ func (w window) count(at, now time.Time) int {
 	return 0
 }
 
-// String is w as the page says it, "the last 30 days".
-func (w window) String() string { return fmt.Sprintf("the last %d days", int(w)) }
-
 // projectIndex maps each configured repository, lower-case, to its
 // project's index in the config.
 type projectIndex map[string]int
@@ -73,12 +70,6 @@ func bandName[B ~int](b B, names []string) string {
 		return names[0]
 	}
 	return names[b]
-}
-
-// bandText is how the page shows a band: the band, then what it was
-// measured on in the window w, "<band> — <measure> in the last 30 days".
-func bandText(band fmt.Stringer, measure string, w window) string {
-	return fmt.Sprintf("%s — %s in %s", band, measure, w)
 }
 
 // plural is n with its unit, singular for one: "1 commit", "2 commits".

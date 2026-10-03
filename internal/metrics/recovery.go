@@ -55,25 +55,6 @@ type Recovery struct {
 	Unrecovered int
 }
 
-// BandText is the band with the median, the count and the period, "Less
-// than one day — median 3 hours over 2 recoveries in the last 30 days",
-// followed by "; 1 failure not recovered yet" when one is; "No recovery in
-// the last 30 days; ..." when only an unrecovered one is; or "No failed
-// deployments in the last 30 days" with neither.
-func (r Recovery) BandText() string {
-	text := "No failed deployments in " + last30.String()
-	if r.Recoveries > 0 {
-		text = bandText(r.Band, "median "+humanDuration(r.Median)+" over "+
-			counted(r.Recoveries, "recovery", "recoveries"), last30)
-	} else if r.Unrecovered > 0 {
-		text = "No recovery in " + last30.String()
-	}
-	if r.Unrecovered > 0 {
-		text += "; " + plural(r.Unrecovered, "failure") + " not recovered yet"
-	}
-	return text
-}
-
 // RecoveryTimes returns the failed deployment recovery time of each
 // project, in the order of projects, from the history records at the render
 // time now.

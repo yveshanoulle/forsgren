@@ -133,50 +133,30 @@ func TestNoCommits(t *testing.T) {
 	}
 }
 
-// TestLeadTimeBandText (forsgren#16, ruling 6): the band with the median,
-// the count and the period, singular for one commit; "No lead time yet"
-// without a commit in the window.
-func TestLeadTimeBandText(t *testing.T) {
-	cases := map[string]LeadTime{
-		"Less than one hour — median 17 minutes over 37 commits in the last 30 days": {
-			Commits: 37, Median: 17 * time.Minute, Band: LessThanOneHour,
-		},
-		"One to six months — median 45 days over 1 commit in the last 30 days": {
-			Commits: 1, Median: 45 * day, Band: OneToSixMonths,
-		},
-		"No lead time yet": {},
-	}
-	for want, l := range cases {
-		if got := l.BandText(); got != want {
-			t.Errorf("want %q, got %q", want, got)
-		}
-	}
-}
-
-// TestHumanDuration pins the duration format: whole minutes below an hour,
-// hours and minutes below a day, days and hours above; cut down, never
-// rounded up, so a median never reads as the next band's edge; a zero part
-// left out; singular for one.
-func TestHumanDuration(t *testing.T) {
+// TestShortDuration pins the duration format of a cell (forsgren#38):
+// whole minutes below an hour, hours and minutes below a day, days and
+// hours above; cut down, never rounded up, so a median never reads as the
+// next band's edge; a zero part left out.
+func TestShortDuration(t *testing.T) {
 	cases := map[time.Duration]string{
-		0:                                      "less than a minute",
-		59 * time.Second:                       "less than a minute",
-		time.Minute:                            "1 minute",
-		17*time.Minute + 59*time.Second:        "17 minutes",
-		time.Hour - time.Second:                "59 minutes",
-		time.Hour:                              "1 hour",
-		time.Hour + time.Minute:                "1 hour 1 minute",
-		5*time.Hour + 12*time.Minute:           "5 hours 12 minutes",
-		2*time.Hour + 30*time.Second:           "2 hours",
-		24*time.Hour - time.Second:             "23 hours 59 minutes",
-		24 * time.Hour:                         "1 day",
-		25 * time.Hour:                         "1 day 1 hour",
-		7 * day:                                "7 days",
-		200*day + 4*time.Hour + 59*time.Minute: "200 days 4 hours",
+		0:                                      "less than 1 min",
+		59 * time.Second:                       "less than 1 min",
+		time.Minute:                            "1 min",
+		17*time.Minute + 59*time.Second:        "17 min",
+		time.Hour - time.Second:                "59 min",
+		time.Hour:                              "1 h",
+		time.Hour + time.Minute:                "1 h 1 min",
+		5*time.Hour + 12*time.Minute:           "5 h 12 min",
+		2*time.Hour + 30*time.Second:           "2 h",
+		24*time.Hour - time.Second:             "23 h 59 min",
+		24 * time.Hour:                         "1 d",
+		25 * time.Hour:                         "1 d 1 h",
+		7 * day:                                "7 d",
+		200*day + 4*time.Hour + 59*time.Minute: "200 d 4 h",
 	}
 	for d, want := range cases {
-		if got := humanDuration(d); got != want {
-			t.Errorf("humanDuration(%v): want %q, got %q", d, want, got)
+		if got := shortDuration(d); got != want {
+			t.Errorf("shortDuration(%v): want %q, got %q", d, want, got)
 		}
 	}
 }

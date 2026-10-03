@@ -70,21 +70,22 @@ func pageData(o renderOptions, at time.Time) (page.Data, error) {
 	if o.data == "" {
 		return data, nil
 	}
-	data.Projects, err = projectsOf(cfg.Projects, o.data, at)
+	rows, err := rowsOf(cfg.Projects, o.data, at)
 	if err != nil {
 		return data, err
 	}
+	data.Rows = page.Table(rows)
 	data.AsOf = at.UTC().Format(calculatedLayout)
 	return data, nil
 }
 
-// projectsOf is each project's section, from the history at path (its
-// deployment frequency and, forsgren#17, its recovery time), the commits
-// file next to it (data/commits.csv beside data/deployments.csv, its lead
-// time, forsgren#16) and the failures file next to it (data/failures.csv,
-// with the history its change fail rate, forsgren#18), at the render time
-// at.
-func projectsOf(projects []config.Project, path string, at time.Time) ([]page.Project, error) {
+// rowsOf is the table's rows (forsgren#38), each project's total and the
+// rows its labels name, from the history at path (deployment frequency
+// and, forsgren#17, recovery time), the commits file next to it
+// (data/commits.csv beside data/deployments.csv, lead time, forsgren#16)
+// and the failures file next to it (data/failures.csv, with the history
+// change fail rate, forsgren#18), at the render time at.
+func rowsOf(projects []config.Project, path string, at time.Time) ([]metrics.Row, error) {
 	records, err := loadOrNone(path, history.Load)
 	if err != nil {
 		return nil, err
@@ -97,17 +98,7 @@ func projectsOf(projects []config.Project, path string, at time.Time) ([]page.Pr
 	if err != nil {
 		return nil, err
 	}
-	frequencies := metrics.DeploymentFrequency(projects, records, at)
-	leadTimes := metrics.LeadTimes(projects, commits, at)
-	recoveries := metrics.RecoveryTimes(projects, records, at)
-	changeFails := metrics.ChangeFailRates(projects, records, failures, at)
-	out := make([]page.Project, len(projects))
-	for i := range out {
-		out[i] = page.Project{
-			Frequency: frequencies[i], LeadTime: leadTimes[i], Recovery: recoveries[i], ChangeFail: changeFails[i],
-		}
-	}
-	return out, nil
+	return metrics.Rows(projects, metrics.Data{Records: records, Commits: commits, Failures: failures}, at), nil
 }
 
 // loadOrNone reads the file at path with load. A missing file holds

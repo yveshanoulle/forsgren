@@ -25,6 +25,7 @@ package metrics
 // middle lead times.
 
 import (
+	"fmt"
 	"slices"
 	"time"
 
@@ -46,16 +47,6 @@ type LeadTime struct {
 
 // HasCommits says whether any commit was deployed in the window.
 func (l LeadTime) HasCommits() bool { return l.Commits > 0 }
-
-// BandText is the band with the median, the count and the period, "Less
-// than one hour — median 17 minutes over 37 commits in the last 30 days"
-// (forsgren#16, ruling 6), or "No lead time yet" without commits.
-func (l LeadTime) BandText() string {
-	if !l.HasCommits() {
-		return "No lead time yet"
-	}
-	return bandText(l.Band, "median "+humanDuration(l.Median)+" over "+plural(l.Commits, "commit"), last30)
-}
 
 // LeadTimes returns the lead time for changes of each project, in the order
 // of projects, from the stored commits at the render time now.
@@ -102,28 +93,28 @@ func median(leads []time.Duration) time.Duration {
 	return (sorted[mid-1] + sorted[mid]) / 2
 }
 
-// humanDuration writes d for the page: "less than a minute", whole minutes
-// below an hour, hours and minutes below a day, days and hours above. Each
-// part is cut down, never rounded up, so the text never reaches the next
-// band's edge (23 hours 59 minutes, never 24 hours, is less than one day);
-// a zero second part is left out.
-func humanDuration(d time.Duration) string {
+// shortDuration writes d for a table cell (forsgren#38): "less than 1
+// min", whole minutes below an hour, hours and minutes below a day, days
+// and hours above, "5 h 12 min". Each part is cut down, never rounded up,
+// so the text never reaches the next band's edge (23 h 59 min, never 24 h,
+// is less than one day); a zero second part is left out.
+func shortDuration(d time.Duration) string {
 	switch {
 	case d < time.Minute:
-		return "less than a minute"
+		return "less than 1 min"
 	case d < time.Hour:
-		return plural(int(d/time.Minute), "minute")
+		return fmt.Sprintf("%d min", d/time.Minute)
 	case d < day:
-		return twoParts(int(d/time.Hour), "hour", int(d%time.Hour/time.Minute), "minute")
+		return twoParts(int(d/time.Hour), "h", int(d%time.Hour/time.Minute), "min")
 	default:
-		return twoParts(int(d/day), "day", int(d%day/time.Hour), "hour")
+		return twoParts(int(d/day), "d", int(d%day/time.Hour), "h")
 	}
 }
 
 // twoParts is n units and then m smaller units, the latter left out at 0.
 func twoParts(n int, unit string, m int, smaller string) string {
 	if m == 0 {
-		return plural(n, unit)
+		return fmt.Sprintf("%d %s", n, unit)
 	}
-	return plural(n, unit) + " " + plural(m, smaller)
+	return fmt.Sprintf("%d %s %d %s", n, unit, m, smaller)
 }

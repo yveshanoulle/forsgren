@@ -96,13 +96,13 @@ func TestFailureAndOtherDoNotCount(t *testing.T) {
 	}
 }
 
-// TestLatestIsTheNewestSuccess: the latest date is the newest success's,
+// TestLatestIsTheNewestSuccess: the latest is the newest success's,
 // whatever the file order, and a newer failure does not move it.
 func TestLatestIsTheNewestSuccess(t *testing.T) {
 	f := shopOf(t, success(40*day), success(2*day+13*time.Hour), success(9*day),
 		deployed("acme/app", history.StateFailure, time.Hour))
-	if got := f.LatestDate(); got != "2026-09-30" {
-		t.Errorf("want the latest date 2026-09-30, got %q (%+v)", got, f)
+	if want := now.Add(-2*day - 13*time.Hour); !f.Latest.Equal(want) {
+		t.Errorf("want the latest %v, got %v (%+v)", want, f.Latest, f)
 	}
 }
 
@@ -143,29 +143,6 @@ func TestEmptyHistory(t *testing.T) {
 	}
 	if none := DeploymentFrequency(nil, []history.Record{success(time.Hour)}, now); len(none) != 0 {
 		t.Errorf("want no Frequency without projects, got %+v", none)
-	}
-}
-
-// TestBandTextShowsTheCountAndThePeriod (Yves's ruling on forsgren#12): the
-// band is always shown with the count and the period it comes from,
-// singular for one: the last 30 days, or the last 180 days when the band
-// was decided on them (none in 30 days; forsgren#16, step 6).
-func TestBandTextShowsTheCountAndThePeriod(t *testing.T) {
-	cases := map[string]Frequency{
-		"On demand (multiple deploys per day) — 720 production deployments in the last 30 days": {
-			Last30: 720, Last180: 900, Band: OnDemand},
-		"Between once per week and once per month — 1 production deployment in the last 30 days": {
-			Last30: 1, Last180: 4, Band: WeeklyToMonthly},
-		"Between once per month and once every six months — 3 production deployments in the last 180 days": {
-			Last180: 3, Band: MonthlyToSixMonthly},
-		"Between once per month and once every six months — 1 production deployment in the last 180 days": {
-			Last180: 1, Band: MonthlyToSixMonthly},
-		"Less than once per six months — 0 production deployments in the last 180 days": {Band: LessThanSixMonthly},
-	}
-	for want, f := range cases {
-		if got := f.BandText(); got != want {
-			t.Errorf("want %q, got %q", want, got)
-		}
 	}
 }
 

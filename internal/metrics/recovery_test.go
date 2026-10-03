@@ -49,7 +49,7 @@ type outcome struct {
 }
 
 func outcomeOf(r Recovery) outcome {
-	return outcome{r.Recoveries, r.Median, r.Band, r.Unrecovered, r.BandText()}
+	return outcome{r.Recoveries, r.Median, r.Band, r.Unrecovered, r.Cell()}
 }
 
 // wantOutcome fails the test unless Acme Shop's recovery for records is
@@ -66,7 +66,7 @@ func wantOutcome(t *testing.T, want outcome, records ...history.Record) {
 // creation times.
 func TestOneFailureAndItsRecovery(t *testing.T) {
 	wantOutcome(t, outcome{1, 3 * time.Hour, LessThanOneDay, 0,
-		"Less than one day — median 3 hours over 1 recovery in the last 30 days"},
+		"Less than one day · 3 h (1)"},
 		fixed(10*time.Hour), failed(5*time.Hour), fixed(2*time.Hour))
 }
 
@@ -77,7 +77,7 @@ func TestOneFailureAndItsRecovery(t *testing.T) {
 func TestARunOfFailuresIsOneRecovery(t *testing.T) {
 	other := to(deployAPI, history.StateOther, 3*time.Hour)
 	wantOutcome(t, outcome{1, 6 * time.Hour, LessThanOneDay, 0,
-		"Less than one day — median 6 hours over 1 recovery in the last 30 days"},
+		"Less than one day · 6 h (1)"},
 		fixed(12*time.Hour), failed(8*time.Hour), failed(5*time.Hour), other, failed(4*time.Hour), fixed(2*time.Hour))
 }
 
@@ -85,7 +85,7 @@ func TestARunOfFailuresIsOneRecovery(t *testing.T) {
 // for lead time, and the text uses the plural.
 func TestMedianOfTheRecoveries(t *testing.T) {
 	wantOutcome(t, outcome{2, 3 * time.Hour, LessThanOneDay, 0,
-		"Less than one day — median 3 hours over 2 recoveries in the last 30 days"},
+		"Less than one day · 3 h (2)"},
 		failed(20*time.Hour), fixed(18*time.Hour), failed(10*time.Hour), fixed(6*time.Hour))
 }
 
@@ -94,18 +94,17 @@ func TestMedianOfTheRecoveries(t *testing.T) {
 // the median, whatever its age.
 func TestFailureNotRecoveredYet(t *testing.T) {
 	t.Run("alone", func(t *testing.T) {
-		wantOutcome(t, outcome{0, 0, 0, 1, "No recovery in the last 30 days; 1 failure not recovered yet"},
+		wantOutcome(t, outcome{0, 0, 0, 1, "— · 1 recovery not completed yet"},
 			fixed(10*time.Hour), failed(2*time.Hour), failed(time.Hour))
 	})
 	t.Run("old", func(t *testing.T) {
-		wantOutcome(t, outcome{0, 0, 0, 1, "No recovery in the last 30 days; 1 failure not recovered yet"},
+		wantOutcome(t, outcome{0, 0, 0, 1, "— · 1 recovery not completed yet"},
 			failed(90*day))
 	})
 	t.Run("next to a recovery", func(t *testing.T) {
 		admin := to(deployAdmin, history.StateFailure, time.Hour)
 		wantOutcome(t, outcome{1, 30 * time.Minute, LessThanOneHour, 2,
-			"Less than one hour — median 30 minutes over 1 recovery in the last 30 days; " +
-				"2 failures not recovered yet"},
+			"Less than one hour · 30 min (1) · 2 recoveries not completed yet"},
 			failed(5*time.Hour), fixed(270*time.Minute), failed(2*time.Hour), admin)
 	})
 }
@@ -118,20 +117,20 @@ func TestStreamsDoNotMix(t *testing.T) {
 	t.Run("deploy-api versus deploy-admin", func(t *testing.T) {
 		admin := to(deployAdmin, history.StateSuccess, 4*time.Hour)
 		wantOutcome(t, outcome{1, 4 * time.Hour, LessThanOneDay, 0,
-			"Less than one day — median 4 hours over 1 recovery in the last 30 days"},
+			"Less than one day · 4 h (1)"},
 			failed(5*time.Hour), admin, fixed(time.Hour))
 	})
 	t.Run("repository ignoring case", func(t *testing.T) {
 		upper := failed(5 * time.Hour)
 		upper.Repository = "Acme/App"
 		wantOutcome(t, outcome{1, 4 * time.Hour, LessThanOneDay, 0,
-			"Less than one day — median 4 hours over 1 recovery in the last 30 days"},
+			"Less than one day · 4 h (1)"},
 			upper, fixed(time.Hour))
 	})
 	t.Run("kind and task", func(t *testing.T) {
 		workflow, task := fixed(3*time.Hour), fixed(2*time.Hour)
 		workflow.Kind, task.Task = history.KindWorkflow, "migrate"
-		wantOutcome(t, outcome{0, 0, 0, 1, "No recovery in the last 30 days; 1 failure not recovered yet"},
+		wantOutcome(t, outcome{0, 0, 0, 1, "— · 1 recovery not completed yet"},
 			failed(5*time.Hour), workflow, task)
 	})
 	t.Run("releases are one stream", func(t *testing.T) {
@@ -140,7 +139,7 @@ func TestStreamsDoNotMix(t *testing.T) {
 			return r
 		}
 		wantOutcome(t, outcome{1, 4 * time.Hour, LessThanOneDay, 0,
-			"Less than one day — median 4 hours over 1 recovery in the last 30 days"},
+			"Less than one day · 4 h (1)"},
 			tagged(failed(5*time.Hour), "v1.0.0"), tagged(fixed(time.Hour), "v1.0.1"))
 	})
 }
@@ -173,9 +172,9 @@ func TestRecoveryWindowEdges(t *testing.T) {
 // time does not recover a failure, which stays not recovered yet, and a
 // failure created after it is not counted at all.
 func TestDeploymentsAfterNowAreNotThereYet(t *testing.T) {
-	wantOutcome(t, outcome{0, 0, 0, 1, "No recovery in the last 30 days; 1 failure not recovered yet"},
+	wantOutcome(t, outcome{0, 0, 0, 1, "— · 1 recovery not completed yet"},
 		failed(time.Hour), fixed(-time.Second))
-	wantOutcome(t, outcome{0, 0, 0, 0, "No failed deployments in the last 30 days"},
+	wantOutcome(t, outcome{0, 0, 0, 0, "No failed deployments"},
 		fixed(time.Hour), failed(-time.Second))
 }
 
@@ -211,7 +210,7 @@ func TestRecoveryBandOfEachEdge(t *testing.T) {
 func projectTexts(recoveries []Recovery) []string {
 	out := make([]string, 0, len(recoveries))
 	for _, r := range recoveries {
-		out = append(out, r.Project+": "+r.BandText())
+		out = append(out, r.Project+": "+r.Cell())
 	}
 	return out
 }
@@ -221,8 +220,8 @@ func projectTexts(recoveries []Recovery) []string {
 func TestNoFailedDeployments(t *testing.T) {
 	gone := deployed("acme/gone", history.StateFailure, time.Hour)
 	want := []string{
-		"Acme Shop: No failed deployments in the last 30 days",
-		"Acme Tools: No failed deployments in the last 30 days",
+		"Acme Shop: No failed deployments",
+		"Acme Tools: No failed deployments",
 	}
 	for _, records := range [][]history.Record{nil, {fixed(time.Hour), gone}} {
 		if got := projectTexts(RecoveryTimes(projects, records, now)); !slices.Equal(got, want) {
@@ -238,8 +237,8 @@ func TestRecoveryPerProject(t *testing.T) {
 	got := RecoveryTimes(projects, []history.Record{cli(history.StateFailure, 3*time.Hour),
 		cli(history.StateSuccess, time.Hour)}, now)
 	want := []string{
-		"Acme Shop: No failed deployments in the last 30 days",
-		"Acme Tools: Less than one day — median 2 hours over 1 recovery in the last 30 days",
+		"Acme Shop: No failed deployments",
+		"Acme Tools: Less than one day · 2 h (1)",
 	}
 	if texts := projectTexts(got); !slices.Equal(texts, want) {
 		t.Errorf("want the recovery in Acme Tools only, %q, got %q", want, texts)

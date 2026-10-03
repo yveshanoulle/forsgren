@@ -44,22 +44,6 @@ type Frequency struct {
 // recorded, at any time.
 func (f Frequency) HasDeployments() bool { return !f.Latest.IsZero() }
 
-// LatestDate is Latest as a UTC calendar date, 2026-10-01.
-func (f Frequency) LatestDate() string { return f.Latest.UTC().Format(time.DateOnly) }
-
-// BandText is the band together with the count and the period it comes
-// from, "Between once per day and once per week — 12 production deployments
-// in the last 30 days" (Yves's ruling on forsgren#12): the band describes
-// throughput over the period, not regularity, and the count makes a burst
-// visible. A band decided on the last 180 days shows that count and period.
-func (f Frequency) BandText() string {
-	count, w := f.Last30, last30
-	if count == 0 {
-		count, w = f.Last180, last180
-	}
-	return bandText(f.Band, plural(count, "production deployment"), w)
-}
-
 // DeploymentFrequency returns the deployment frequency of each project, in
 // the order of projects, from the history records at the render time now.
 func DeploymentFrequency(projects []config.Project, records []history.Record, now time.Time) []Frequency {

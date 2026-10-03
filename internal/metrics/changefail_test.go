@@ -36,7 +36,7 @@ type rate struct {
 }
 
 func rateOf(r ChangeFailRate) rate {
-	return rate{r.Deployments, r.FailedDeployments, r.FailureIssues, r.Failed, r.Percent(), r.Band, r.BandText()}
+	return rate{r.Deployments, r.FailedDeployments, r.FailureIssues, r.Failed, r.Percent(), r.Band, r.Cell()}
 }
 
 // wantRate fails the test unless Acme Shop's change fail rate for records
@@ -60,7 +60,7 @@ func wantRate(t *testing.T, want rate, records []history.Record, failures ...his
 // failures, that failed; whole percent, rounded down.
 func TestChangeFailRateCountsFailedDeploymentsOfAllFinalOnes(t *testing.T) {
 	wantRate(t, rate{25, 2, 0, 2, 8, ZeroPercent,
-		"0% — 8% of 25 deployments failed (2 failed deployments, 0 failure issues) in the last 30 days"},
+		"0% · 8% (2 of 25)"},
 		mixed("acme/app", 23, 2))
 }
 
@@ -70,7 +70,7 @@ func TestChangeFailRateCountsFailedDeploymentsOfAllFinalOnes(t *testing.T) {
 // not counted twice; both counts are shown.
 func TestAFailureIssueAndAFailedDeploymentOfOneRepositoryCountOnce(t *testing.T) {
 	wantRate(t, rate{25, 2, 1, 2, 8, ZeroPercent,
-		"0% — 8% of 25 deployments failed (2 failed deployments, 1 failure issue) in the last 30 days"},
+		"0% · 8% (2 of 25)"},
 		mixed("acme/app", 23, 2), filed("acme/app", day))
 }
 
@@ -79,7 +79,7 @@ func TestAFailureIssueAndAFailedDeploymentOfOneRepositoryCountOnce(t *testing.T)
 // acme/api are two failed changes.
 func TestTheRepositoriesOfAProjectAddUp(t *testing.T) {
 	wantRate(t, rate{10, 1, 1, 2, 20, TwentyPercent,
-		"20% — 20% of 10 deployments failed (1 failed deployment, 1 failure issue) in the last 30 days"},
+		"20% · 20% (2 of 10)"},
 		append(mixed("acme/app", 4, 1), mixed("acme/api", 5, 0)...), filed("acme/api", day))
 }
 
@@ -88,7 +88,7 @@ func TestTheRepositoriesOfAProjectAddUp(t *testing.T) {
 // its issues.
 func TestFailureIssuesAloneAreTheFailedChanges(t *testing.T) {
 	wantRate(t, rate{10, 0, 3, 3, 30, FortyPercent,
-		"40% — 30% of 10 deployments failed (0 failed deployments, 3 failure issues) in the last 30 days"},
+		"40% · 30% (3 of 10)"},
 		mixed("acme/app", 10, 0), times(3, filed("acme/app", 2*day))...)
 }
 
@@ -96,7 +96,7 @@ func TestFailureIssuesAloneAreTheFailedChanges(t *testing.T) {
 // most 100%; the counts still show what was found.
 func TestMoreFailedChangesThanDeploymentsIsAllOfThem(t *testing.T) {
 	wantRate(t, rate{2, 0, 3, 2, 100, HundredPercent,
-		"100% — 100% of 2 deployments failed (0 failed deployments, 3 failure issues) in the last 30 days"},
+		"100% · 100% (2 of 2)"},
 		mixed("acme/app", 2, 0), times(3, filed("acme/app", day))...)
 }
 
@@ -114,7 +114,7 @@ func TestOnlyTheLast30DaysOfConfiguredRepositoriesCount(t *testing.T) {
 		deployed("stranger/app", history.StateFailure, day),
 	}
 	wantRate(t, rate{2, 1, 1, 1, 50, SixtyPercent,
-		"60% — 50% of 2 deployments failed (1 failed deployment, 1 failure issue) in the last 30 days"},
+		"60% · 50% (1 of 2)"},
 		records, filed("ACME/app", 30*day), filed("acme/app", 30*day+time.Second), filed("acme/app", -time.Second),
 		filed("stranger/app", day))
 }
@@ -122,8 +122,8 @@ func TestOnlyTheLast30DaysOfConfiguredRepositoriesCount(t *testing.T) {
 // TestNoDeploymentsInTheWindowIsNoRate: no band, and a failure issue of
 // the window is still named.
 func TestNoDeploymentsInTheWindowIsNoRate(t *testing.T) {
-	wantRate(t, rate{text: "No deployments in the last 30 days"}, nil)
-	wantRate(t, rate{failureIssues: 1, text: "No deployments in the last 30 days; 1 failure issue"},
+	wantRate(t, rate{text: "No deployments"}, nil)
+	wantRate(t, rate{failureIssues: 1, text: "No deployments · 1 failure issue"},
 		[]history.Record{deployed("acme/app", history.StateSuccess, 40*day)}, filed("acme/app", day))
 }
 

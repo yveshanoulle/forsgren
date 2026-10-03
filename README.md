@@ -165,16 +165,12 @@ acme/app,42,2026-09-01T10:00:00Z,2026-09-01T15:00:00Z,2026-09-01T09:30:00Z
 ## Deployment frequency
 
 The first DORA number on the page (forsgren#12, step 7, package
-`internal/metrics`). Each configured project gets a section, in the config's
-order, with:
-
-- the successful deployments of the last 7 days;
-- the date of its latest successful deployment;
-- its DORA band, always shown with the count and the period it comes from:
-  "Between once per day and once per week — 12 production deployments in
-  the last 30 days" (one is "1 production deployment"); a band decided on
-  the last 180 days shows that count: "Between once per month and once
-  every six months — 3 production deployments in the last 180 days".
+`internal/metrics`), the first column of the page's table (see The page):
+its DORA band, always shown with the count it comes from, "Between once per
+day and once per week · 12", the successful deployments of the last 30
+days, or of the last 180 days for a band decided on them ("Between once per
+month and once every six months · 3"). The legend under the table says
+which.
 
 **What counts.** A deployment is a history line with the state `success`;
 `failure` and `other` lines do not count. A line belongs to the project
@@ -213,18 +209,20 @@ makes a burst visible (Yves's ruling on forsgren#12), so the band is never
 shown without it, and neither the 30-day nor the 180-day count has a row of
 its own.
 
-A project with no successful deployment in its history says "No deployments
-recorded yet".
+A row with no deployment in its history, successful or failed, says "No
+deployments recorded yet" across its four columns. A row whose deployments
+all failed is shown in full, so the worst case never looks like no data
+(Yves's ruling on decision #35): its frequency is "Less than once per six
+months · 0", since it counts successes.
 
 ## Lead time for changes
 
 The second DORA number on the page (forsgren#16, steps 4 and 5, package
 `internal/metrics`): how long a change takes from its commit to running in
-production. Each project's section shows it next to its deployment
-frequency, as a DORA band with the median, the count and the period:
-"Less than one hour — median 17 minutes over 37 commits in the last 30
-days" (one is "1 commit"). A project that has deployments but no commit
-deployed in the last 30 days says "No lead time yet".
+production. The table's second column shows it as a DORA band with the
+median and, in brackets, the commits of the last 30 days: "Less than one
+hour · 17 min (37)". A row that has deployments but no commit deployed in
+the last 30 days says "No lead time yet".
 
 **What counts.** `render` reads `data/commits.csv` next to its `--data`
 file, the commits `collect` stored for each successful deployment (see
@@ -280,13 +278,15 @@ The page calls them DORA bands, never Elite, High, Medium or Low.
 
 The third DORA number on the page (forsgren#17, package `internal/metrics`):
 DORA's "time it takes to recover from a deployment that fails and requires
-immediate intervention". Each project's section shows it after its lead
-time, as a DORA band with the median, the count and the period: "Less than
-one day — median 3 hours over 2 recoveries in the last 30 days" (one is "1
-recovery"), followed by "; 1 failure not recovered yet" when a stream's
-latest deployments failed. With none recovered in the window but one not
-recovered yet it says "No recovery in the last 30 days; 1 failure not
-recovered yet"; with neither, "No failed deployments in the last 30 days".
+immediate intervention". The table's third column shows it as a DORA band
+with the median and, in brackets, the recoveries of the last 30 days: "Less
+than one day · 3 h (2)", followed by " · 1 recovery not completed yet" when a
+stream's latest deployments failed; with none recovered in the window but
+one not completed yet, "— · 1 recovery not completed yet", the dash for the
+band and the median it does not have yet; with neither, "No failed
+deployments". The unit is the recovery, one per run of failures however
+many deployments failed in it (Yves's ruling on decision #35), never a
+failed deployment.
 
 **What counts.** Rulings on forsgren#17, taken while Yves was away (each
 can be reverted there):
@@ -313,7 +313,7 @@ can be reverted there):
   since the service was degraded from then on. A deployment in the state
   `other` neither starts nor ends a run.
 - **Not recovered yet:** a run with no success after it yet. It is counted
-  ("1 failure not recovered yet", at most one per stream) whatever its
+  ("1 recovery not completed yet", at most one per stream) whatever its
   age, but it is not in the median: it has no recovery time yet.
 - **The window:** a recovery counts when its success was created in the
   last 30 days, counted back from the render time in UTC, both ends
@@ -341,19 +341,19 @@ days:
 | 30 days to below 180 days | One to six months |
 | 180 days and more | More than six months |
 
-A project with no successful deployment in its history says "No
-deployments recorded yet", and shows no recovery time either.
+A row whose deployments all failed shows "— · 1 recovery not completed
+yet": the worst case, failed and never recovered, is never shown as no data
+(decision #35).
 
 ## Change fail rate
 
 The fourth DORA number on the page (forsgren#18, package `internal/metrics`):
 DORA's share of deployments that cause a failure in production requiring
-remediation. Each project's section shows it after its recovery time, as a
-DORA band with the rate, the deployments and both kinds of failed change:
-"20% — 15% of 13 deployments failed (1 failed deployment, 2 failure issues)
-in the last 30 days". With no deployment in the window it says "No
-deployments in the last 30 days", followed by "; 1 failure issue" when an
-issue was opened in it.
+remediation. The table's fourth column shows it as a DORA band with the
+rate and, in brackets, the failed changes of the final deployments of the
+last 30 days: "20% · 15% (2 of 13)". With no deployment in the window it
+says "No deployments", followed by " · 1 failure issue" when an issue was
+opened in it.
 
 **What counts.** Rulings on forsgren#18, taken while Yves was away (each
 can be reverted there):
@@ -411,8 +411,49 @@ edge times the deployments:
 | 70% to below 90% | 80% |
 | 90% and more | 100% |
 
-A project with no successful deployment in its history says "No
-deployments recorded yet", and shows no change fail rate either.
+A row whose deployments all failed shows its rate as found, "100% · 100%
+(1 of 1)" (decision #35).
+
+## The page
+
+`render` writes one table (forsgren#38), under the line that says when the
+numbers were calculated, "Calculated 2026-10-03 12:00 UTC, counting back
+from that moment: ...":
+
+- **The columns** are the four metrics: deployment frequency, lead time for
+  changes, failed deployment recovery time and change fail rate. The first
+  column heads each row.
+- **The rows** are, per project in the config's order, its total, then a
+  row per label its repositories give (see Configuration, `label` and
+  `services`), sorted by label ignoring case and indented under it. A
+  project with label rows is headed "Acme Shop (total)"; one without is
+  one row with its name. A label row's header also carries its project's
+  name for a screen reader ("Acme Shop: API"), hidden on screen, and the
+  dash drawn before a label has empty alternative text, so it is not read.
+- **Each row is counted** by the same four metric functions as a project of
+  its own, over its own data: a project's total over all its repositories,
+  the numbers the page showed per project before the table; a repository's
+  label row over all that repository's deployments, commits and failure
+  issues; a service's row over the deployments of its task (written
+  exactly, the repository ignoring case) and the commits they shipped
+  (joined by repository, kind and deployment ID). A failure issue names no
+  task, so it counts on the total and on a repository's label row, never on
+  a service's row, whose change fail rate is its failed deployments of its
+  final deployments.
+- **Each cell is short**: the DORA band, then the number that decided it
+  and the count it is over, "Less than one day · 2 h 7 min (48)". Durations
+  are in min, h and d, each part cut down, never rounded up.
+- **The legend** under the table gives each metric's bands in one compact
+  list (recovery time's are lead time's, so it refers to them), with what
+  each cell counts and its window.
+- **Layout:** the table has a caption and `<th scope>` headers; it scrolls
+  sideways inside its own box on a narrow screen, so the page keeps its
+  1rem (16px) gutter and never scrolls sideways itself. `styles.css` sets
+  no colour but `color-scheme: light dark`, so light and dark mode follow
+  the browser's own colours, the lines drawn in the text colour.
+
+The page shows project names, labels and numbers only: never a repository's
+or a task's own name, a SHA or a commit message.
 
 ## Configuration
 
@@ -429,7 +470,7 @@ touches `forsgren.config.yml` or `data/`, and the repository keeps its secrets
 and Pages address (ruled 2026-10-02, #9). forsgren creates
 `data/` when it first stores history and never overwrites history that is
 there. One installation measures every project it lists on one page, each
-project in its own section (#6).
+project in its own rows of one table (#6, #38).
 
 ```yaml
 version: 1

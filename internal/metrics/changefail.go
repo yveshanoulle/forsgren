@@ -26,7 +26,6 @@ package metrics
 // 60%, 80% and 100%; ChangeFailBandOf bands a rate by those six labels.
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -111,23 +110,6 @@ func (r ChangeFailRate) Percent() int {
 		return 0
 	}
 	return 100 * r.Failed / r.Deployments
-}
-
-// BandText is the band with the rate and both counts, "20% — 12% of 25
-// deployments failed (2 failed deployments, 1 failure issue) in the last 30
-// days", or "No deployments in the last 30 days", followed by "; 1 failure
-// issue" when there is one.
-func (r ChangeFailRate) BandText() string {
-	if r.Deployments == 0 {
-		text := "No deployments in " + last30.String()
-		if r.FailureIssues > 0 {
-			text += "; " + plural(r.FailureIssues, "failure issue")
-		}
-		return text
-	}
-	measure := fmt.Sprintf("%d%% of %s failed (%s, %s)", r.Percent(), plural(r.Deployments, "deployment"),
-		plural(r.FailedDeployments, "failed deployment"), plural(r.FailureIssues, "failure issue"))
-	return bandText(r.Band, measure, last30)
 }
 
 // ChangeFailRates returns the change fail rate of each project, in the

@@ -104,7 +104,7 @@ func TestRenderShowsNoCommitSHA(t *testing.T) {
 	pinNow(t)
 	_, _, index := renderWith(t, "--config", writeConfig(t, validConfig),
 		"--data", writeData(t, acmeHistory(), acmeCommits()))
-	if !strings.Contains(index, "median 17 minutes") {
+	if !strings.Contains(index, "Less than one hour · 17 min (3)") {
 		t.Fatalf("want the lead-time page, got:\n%s", index)
 	}
 	for _, private := range []string{shaPrefix, "acme/", "Acme/API"} {

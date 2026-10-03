@@ -73,7 +73,8 @@ func (r fileRepository) labels(kind DeploymentKind) (string, map[string]string, 
 	return "", nil, nil
 }
 
-// servicesOf checks each task and its label.
+// servicesOf checks each task and its label; an empty label names its
+// task, which the owner looks for in the file.
 func servicesOf(services map[text]text, kind DeploymentKind) (map[string]string, error) {
 	if kind == Release {
 		return nil, errReleaseTasks
@@ -87,7 +88,7 @@ func servicesOf(services map[text]text, kind DeploymentKind) (map[string]string,
 			return nil, errTaskEmpty
 		}
 		if err := checkLabel(label); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("task %q: %w", task, err)
 		}
 		out[string(task)] = string(label)
 	}

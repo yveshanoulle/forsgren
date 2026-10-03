@@ -17,7 +17,7 @@
   {
    "path": "cmd/forsgren/main.go",
    "score": 9.38,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 9.28
   },
   {
@@ -59,7 +59,7 @@
   {
    "path": "internal/config/validate.go",
    "score": 9.68,
-   "checkedAt": "2026-10-02",
+   "checkedAt": "2026-10-04",
    "minScore": 9.58
   },
   {
@@ -83,13 +83,13 @@
   {
    "path": "internal/config/init_test.go",
    "score": 9.92,
-   "checkedAt": "2026-10-02",
+   "checkedAt": "2026-10-04",
    "minScore": 9.82
   },
   {
    "path": "cmd/forsgren/check_config_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-02",
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   },
   {
@@ -107,7 +107,7 @@
   {
    "path": "cmd/forsgren/render.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   },
   {
@@ -125,7 +125,7 @@
   {
    "path": "cmd/forsgren/render_leadtime_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   },
   {
@@ -161,7 +161,7 @@
   {
    "path": "internal/config/config.go",
    "score": 10.0,
-   "checkedAt": "2026-10-02",
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   },
   {
@@ -269,25 +269,25 @@
   {
    "path": "internal/metrics/changefail.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   },
   {
    "path": "internal/metrics/changefail_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   },
   {
    "path": "internal/metrics/frequency.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   },
   {
    "path": "internal/metrics/frequency_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   },
   {
@@ -305,25 +305,25 @@
   {
    "path": "internal/metrics/leadtime.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   },
   {
    "path": "internal/metrics/leadtime_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   },
   {
    "path": "internal/page/page.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   },
   {
    "path": "internal/page/page_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   },
   {
@@ -341,7 +341,7 @@
   {
    "path": "internal/metrics/shared.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   },
   {
@@ -353,13 +353,13 @@
   {
    "path": "internal/metrics/recovery.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   },
   {
    "path": "internal/metrics/recovery_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   },
   {
@@ -372,6 +372,48 @@
    "path": "internal/history/stream_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-03",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_labels_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/labels.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/labels_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/cell.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/cell_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/rows.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/rows_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   }
  ]

@@ -112,8 +112,13 @@ func TestStarterExampleLabelsRows(t *testing.T) {
 	if err != nil {
 		t.Fatalf("want the uncommented example valid, got %v", err)
 	}
-	if cfg.LabelCount() < 2 || !strings.Contains(example, "label: ") || !strings.Contains(example, "services:\n") {
-		t.Errorf("want the example to label a repository and its services, got:\n%s", example)
+	if cfg.LabelCount() < 2 {
+		t.Errorf("want at least two labels in the example, got %d:\n%s", cfg.LabelCount(), example)
+	}
+	for _, form := range []string{"label: ", "services:\n"} {
+		if !strings.Contains(example, form) {
+			t.Errorf("want the example to show %q, got:\n%s", form, example)
+		}
 	}
 }
 
