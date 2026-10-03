@@ -28,13 +28,13 @@ type Failure struct {
 }
 
 // failures is the format of data/failures.csv, the failures format v1.
-var failures = format[Failure, issueKey]{
+var failures = format[Failure, IssueKey]{
 	versionLine: "# forsgren failures v1",
 	columnLine:  "repository,issue,opened_at,closed_at,failure_start",
 	decode:      toFailure,
 	encode:      Failure.fields,
 	validate:    Failure.validate,
-	key:         Failure.key,
+	key:         Failure.Key,
 	compare:     compareFailures,
 	revises:     Failure.Revises,
 }
@@ -61,13 +61,16 @@ func AppendFailures(path string, records []Failure) (int, error) {
 	return failures.append(path, records)
 }
 
-// issueKey identifies an issue.
-type issueKey struct {
-	repository string
-	issue      int64
+// IssueKey identifies an issue: its repository, lower-case, as GitHub's
+// names ignore case, and its number. collect keys the issues it holds by it
+// too, so the two never tell issues apart differently.
+type IssueKey struct {
+	Repository string
+	Number     int64
 }
 
-func (f Failure) key() issueKey { return issueKey{strings.ToLower(f.Repository), f.Issue} }
+// Key is f's issue.
+func (f Failure) Key() IssueKey { return IssueKey{strings.ToLower(f.Repository), f.Issue} }
 
 // Revises says whether f says something else than held, the newest line of
 // its issue: any time, whatever the repository's case. AppendFailures
@@ -80,14 +83,14 @@ func (f Failure) Revises(held Failure) bool {
 // newestLines is one Failure per issue, its newest line, in the order the
 // issues first appear in lines.
 func newestLines(lines []Failure) []Failure {
-	place := map[issueKey]int{}
+	place := map[IssueKey]int{}
 	var out []Failure
 	for _, f := range lines {
-		if i, ok := place[f.key()]; ok {
+		if i, ok := place[f.Key()]; ok {
 			out[i] = f
 			continue
 		}
-		place[f.key()] = len(out)
+		place[f.Key()] = len(out)
 		out = append(out, f)
 	}
 	return out
@@ -118,9 +121,9 @@ func formatTime(t time.Time) string {
 
 // toFailure reads the five fields of a line.
 func toFailure(f []string) (Failure, error) {
-	number, err := strconv.ParseInt(f[1], 10, 64)
-	if err != nil || strconv.FormatInt(number, 10) != f[1] {
-		return Failure{}, fmt.Errorf("issue %q is not a whole number", f[1])
+	number, err := parseNumber("issue", f[1])
+	if err != nil {
+		return Failure{}, err
 	}
 	opened, err := parseTime("opened_at", f[2])
 	if err != nil {

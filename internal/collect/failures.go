@@ -20,7 +20,6 @@ import (
 	"errors"
 	"io/fs"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/github"
@@ -34,25 +33,17 @@ const FailuresFile = "failures.csv"
 // failuresFile is the path of the failures file next to o's history.
 func (o Options) failuresFile() string { return filepath.Join(filepath.Dir(o.History), FailuresFile) }
 
-// issueKey identifies an issue: its repository, lower-case, and number.
-type issueKey struct {
-	repository string
-	number     int64
-}
-
-func keyOf(f history.Failure) issueKey { return issueKey{strings.ToLower(f.Repository), f.Issue} }
-
 // loadFailures reads the failures file at path, each issue as its newest
 // line says; a missing one holds nothing, and is created by the first
 // append.
-func loadFailures(path string) (map[issueKey]history.Failure, error) {
+func loadFailures(path string) (map[history.IssueKey]history.Failure, error) {
 	stored, err := history.LoadFailures(path)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, err
 	}
-	out := make(map[issueKey]history.Failure, len(stored))
+	out := make(map[history.IssueKey]history.Failure, len(stored))
 	for _, f := range stored {
-		out[keyOf(f)] = f
+		out[f.Key()] = f
 	}
 	return out, nil
 }
@@ -77,7 +68,7 @@ func (o Options) freshFailures(h held, repo string, issues []github.Issue) []his
 	var fresh []history.Failure
 	for _, i := range issues {
 		f := failureOf(repo, i)
-		if stored, ok := h.failures[keyOf(f)]; ok && !f.Revises(stored) {
+		if stored, ok := h.failures[f.Key()]; ok && !f.Revises(stored) {
 			continue
 		}
 		if f.FailureStart.IsZero() {

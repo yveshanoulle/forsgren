@@ -76,7 +76,7 @@ func (c Commit) fields() []string {
 
 // toCommit reads the six fields of a line.
 func toCommit(f []string) (Commit, error) {
-	id, err := parseID(f[2])
+	id, err := parseNumber("deployment_id", f[2])
 	if err != nil {
 		return Commit{}, err
 	}

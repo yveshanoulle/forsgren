@@ -384,7 +384,7 @@ type held struct {
 	ids       map[entry]bool
 	newest    map[source]time.Time
 	successes map[history.Stream][]history.Record
-	failures  map[issueKey]history.Failure
+	failures  map[history.IssueKey]history.Failure
 }
 
 // loadHeld reads the history at path; a missing file holds nothing.

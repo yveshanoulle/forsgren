@@ -49,7 +49,7 @@ func (r Record) fields() []string {
 
 // toRecord reads the nine fields of a line.
 func toRecord(f []string) (Record, error) {
-	id, err := parseID(f[4])
+	id, err := parseNumber("deployment_id", f[4])
 	if err != nil {
 		return Record{}, err
 	}

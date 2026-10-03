@@ -115,14 +115,14 @@ func (f format[R, K]) encodeLine(r R) []byte {
 // notExist says whether err is a missing file.
 func notExist(err error) bool { return errors.Is(err, fs.ErrNotExist) }
 
-// parseID reads a deployment_id column: a whole number, written as Go
-// writes it.
-func parseID(s string) (int64, error) {
-	id, err := strconv.ParseInt(s, 10, 64)
-	if err != nil || strconv.FormatInt(id, 10) != s {
-		return 0, fmt.Errorf("deployment_id %q is not a whole number", s)
+// parseNumber reads the number column named column, a deployment_id or an
+// issue: a whole number, written as Go writes it.
+func parseNumber(column, s string) (int64, error) {
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil || strconv.FormatInt(n, 10) != s {
+		return 0, fmt.Errorf("%s %q is not a whole number", column, s)
 	}
-	return id, nil
+	return n, nil
 }
 
 // parseTime reads the time column named column.
