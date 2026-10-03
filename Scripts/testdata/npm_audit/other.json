@@ -1,0 +1,121 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "acme-braces": {
+      "name": "acme-braces",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1000001,
+          "name": "acme-braces",
+          "dependency": "acme-braces",
+          "title": "acme-braces exhausts the stack on deeply nested patterns",
+          "url": "https://github.com/advisories/GHSA-h2h2-j3j3-q4q4",
+          "severity": "high",
+          "cwe": [
+            "CWE-674"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<=3.0.3"
+        }
+      ],
+      "effects": [
+        "acme-match"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/acme-braces"
+      ],
+      "fixAvailable": {
+        "name": "acme-lint",
+        "version": "1.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "acme-match": {
+      "name": "acme-match",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "acme-braces"
+      ],
+      "effects": [
+        "acme-lint"
+      ],
+      "range": ">=0.2.0",
+      "nodes": [
+        "node_modules/acme-match"
+      ],
+      "fixAvailable": true
+    },
+    "acme-lint": {
+      "name": "acme-lint",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        "acme-match"
+      ],
+      "effects": [],
+      "range": ">=1.0.1",
+      "nodes": [
+        "node_modules/acme-lint"
+      ],
+      "fixAvailable": {
+        "name": "acme-lint",
+        "version": "1.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "acme-yaml": {
+      "name": "acme-yaml",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        {
+          "source": 1000002,
+          "name": "acme-yaml",
+          "dependency": "acme-yaml",
+          "title": "acme-yaml runs code from a crafted document",
+          "url": "https://github.com/advisories/GHSA-m5m5-p6p6-r7r7",
+          "severity": "high",
+          "cwe": [
+            "CWE-94"
+          ],
+          "cvss": {
+            "score": 8.1,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "range": "<2.4.0"
+        }
+      ],
+      "effects": [],
+      "range": "<2.4.0",
+      "nodes": [
+        "node_modules/acme-yaml"
+      ],
+      "fixAvailable": false
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 4,
+      "critical": 0,
+      "total": 4
+    },
+    "dependencies": {
+      "prod": 1,
+      "dev": 12,
+      "optional": 0,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 12
+    }
+  }
+}
