@@ -1578,17 +1578,17 @@ proves judge_render_config "render without the history" "the render step runs 'f
 
 # The latest release (forsgren#40).
 proves judge_latest_lookup "a lookup without the job token" "does not set GITHUB_TOKEN to the job's token" \
-  '/GITHUB_TOKEN: \${{ github.token }}/d'
+  "/GITHUB_TOKEN: \\${D}{{ github.token }}/d"
 proves judge_latest_lookup "a lookup with the caller's secret" "hands FORSGREN_TOKEN over" \
-  's|^\( *\)GITHUB_TOKEN: \${{ github.token }}|&\n\1FORSGREN_TOKEN: x|'
+  "s|^\\( *\\)GITHUB_TOKEN: \\${D}{{ github.token }}|&\\n\\1FORSGREN_TOKEN: x|"
 proves judge_latest_lookup "a lookup that fails the job" "for a lookup that fails the lookup step gives" \
   's/forsgren latest-release || true/forsgren latest-release/'
 proves judge_latest_lookup "a lookup output that is not checked" "for an answer that is not a version" \
-  '/if \[\[ ! "\$latest" =~/,/^          fi$/d'
+  "/if \\[\\[ ! \"\\${D}latest\" =~/,/^          fi${D}/d"
 proves judge_render_latest "a render without the latest release" "with LATEST set the render step runs" \
-  's/ \${LATEST:+--latest "\$LATEST"}//'
+  "s/ \\${D}{LATEST:+--latest \"\\${D}LATEST\"}//"
 proves judge_render_latest "a render without LATEST in env" "does not set LATEST from steps.latest.outputs.latest" \
-  '/LATEST: \${{ steps.latest.outputs.latest }}/d'
+  "/LATEST: \\${D}{{ steps.latest.outputs.latest }}/d"
 
 # The token (forsgren#12, step 6).
 proves judge_secret "a required token" "FORSGREN_TOKEN is declared required: true" \
