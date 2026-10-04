@@ -37,7 +37,7 @@ type Data struct {
 	// NoProjects makes the page say that no projects are configured yet:
 	// the installation's forsgren.config.yml lists none (forsgren#12).
 	NoProjects bool
-	// Rows, when set, replace Message with one table, the four DORA metrics
+	// Rows, when set, replace Message with one table, the five DORA metrics
 	// as columns and these rows, in this order (forsgren#38; see Table).
 	// The page shows project names, the owner's labels and the numbers
 	// only, never a repository's or a task's own name.

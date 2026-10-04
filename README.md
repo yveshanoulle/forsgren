@@ -211,7 +211,7 @@ shown without it, and neither the 30-day nor the 180-day count has a row of
 its own.
 
 A row with no deployment in its history, successful or failed, says "No
-deployments recorded yet" across its four columns. A row whose deployments
+deployments recorded yet" across its five columns. A row whose deployments
 all failed is shown in full, so the worst case never looks like no data
 (Yves's ruling on decision #35): its frequency is "Less than once per six
 months · 0", since it counts successes.

@@ -133,7 +133,7 @@ func TestLabelsSortIgnoringCase(t *testing.T) {
 }
 
 // TestProjectRowsKeepTheirNumbers: a project's row holds exactly what the
-// four metric functions give the project over all the data, so the table
+// five metric functions give the project over all the data, so the table
 // changes no project's number.
 func TestProjectRowsKeepTheirNumbers(t *testing.T) {
 	data := tableData()

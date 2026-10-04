@@ -2,7 +2,7 @@ package metrics
 
 // The cells of the page's table (forsgren#38): each metric in short, its
 // DORA band first, then the number that decided it and the count it is
-// over, "Less than one day · 2 h 7 min (48)". The legend under the table
+// over, "Less than one day · 2 h 7 min (48)". The legend page (legend.html)
 // says what each counts and over which window.
 
 import (

@@ -59,7 +59,7 @@ page() {
 $2
   </main>
   <footer>
-    <p>The four DORA metrics, from data GitHub already has.</p>
+    <p>The five DORA metrics, from data GitHub already has.</p>
   </footer>
 </body>
 </html>

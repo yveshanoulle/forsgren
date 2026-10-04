@@ -1,8 +1,8 @@
 package metrics
 
-// The page's table (forsgren#38): the four metrics as columns, and as rows
+// The page's table (forsgren#38): the five metrics as columns, and as rows
 // each project's total, then the rows its config labels. A row's numbers
-// come from the four metric functions over the row's own data, as for a
+// come from the five metric functions over the row's own data, as for a
 // project of one, so a project's total is the number it had before the
 // table, and a labelled row is counted by the very same rules:
 //
@@ -36,7 +36,7 @@ const (
 )
 
 // Row is one row of the page's table: its level, its name (the project's,
-// or the label) and its four numbers.
+// or the label) and its five numbers.
 type Row struct {
 	Level      Level
 	Name       string
