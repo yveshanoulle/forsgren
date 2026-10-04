@@ -20,8 +20,9 @@
 # The names go to gh on stdin, never as an argument, and are never printed:
 # the FAIL and OK lines name the file path and a count, not a name.
 #
-# Exit 0 both secrets set. Exit 1 a gh call failed. Exit 2 no file, or a
-# file with no names (the same "no list" code as check_private_names.sh).
+# Exit 0 both secrets set. Exit 1 a gh call failed. Exit 2 no file, a file
+# that cannot be read, or a file with no names (the same "no list" code as
+# check_private_names.sh); no gh call is made then.
 
 set -euo pipefail
 # Tracing off: the list must never reach a trace (bash -x, or a CI debug run).
@@ -41,7 +42,10 @@ if [[ ! -f "$FILE" ]]; then
   exit 2
 fi
 
-LIST="$(cat "$FILE")"
+if ! private_names_read "$FILE" LIST; then
+  echo "❌ FAIL: the private-names file ${FILE} cannot be read"
+  exit 2
+fi
 private_names_parse "$LIST"
 if [[ "$PRIVATE_NAMES_COUNT" -eq 0 ]]; then
   echo "❌ FAIL: the private-names file ${FILE} has no names in it"

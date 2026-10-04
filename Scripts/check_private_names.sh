@@ -38,13 +38,15 @@
 # hit (exit 1). A message cannot be judged without a list, so no list at all,
 # an env list or a names file with no names all pass (exit 0): locally FBP.sh
 # makes an empty list itself, and CI never commits through FBP.sh. Exit 2 only
-# when <file> cannot be read. FBP.sh hands the message in a temp file, never
-# as an argument, so no trace or process list shows it.
+# when <file> cannot be read, or the names file exists but cannot be read.
+# FBP.sh hands the message in a temp file, never as an argument, so no trace
+# or process list shows it.
 #
 # Exit 0 clean. Exit 1 a name found. Exit 2 when:
 #   - there is no list at all (no env list, no names file);
 #   - the env list FORSGREN_PRIVATE_NAMES has no names (an emptied CI secret);
 #   - the names file FORSGREN_PRIVATE_NAMES_FILE names does not exist;
+#   - the names file exists but cannot be read (one FAIL line, no path of cat);
 #   - there is no tracked or untracked file (the scan read nothing);
 #   - a tracked or untracked path (or the blob of a tracked symlink) could not
 #     be read: `tracked path #N could not be read`, by number only, since
@@ -107,7 +109,10 @@ read_list() {
     fi
     exit 2
   fi
-  LIST="$(cat "$file")"
+  if ! private_names_read "$file" LIST; then
+    echo "❌ FAIL: the private-names file ${file} cannot be read"
+    exit 2
+  fi
   SOURCE="file"
 }
 

@@ -20,6 +20,16 @@ private_names_file() {
   printf '%s' "${FORSGREN_PRIVATE_NAMES_FILE:-${HOME:-/nonexistent}/.config/forsgren/private-names}"
 }
 
+# private_names_read <file> <variable>: the raw text of <file> in the shell
+# variable named <variable>. Returns non-zero, printing nothing (cat's own
+# message would name the path; the callers print their own one FAIL line),
+# when <file> cannot be read.
+private_names_read() {
+  local text
+  text="$(cat "$1" 2>/dev/null)" || return 1
+  printf -v "$2" '%s' "$text"
+}
+
 # private_names_parse <text>: the names in <text>, one per line, each
 # followed by a newline, in PRIVATE_NAMES; their number in
 # PRIVATE_NAMES_COUNT. A trailing \r and surrounding whitespace are stripped;
