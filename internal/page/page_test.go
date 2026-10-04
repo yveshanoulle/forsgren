@@ -561,3 +561,22 @@ func TestFooterNamesNoWaitingPullRequestWithoutANewerRelease(t *testing.T) {
 		t.Errorf("want nothing added when up to date, got:\n%s", got)
 	}
 }
+
+// TestFooterEndsTheReleaseNewsBeforeWhatForsgrenIs (forsgren#40, review of
+// step 7): the news of a newer release, available or waiting in a pull
+// request, is a sentence of its own; it never runs on into "The five DORA
+// metrics" ("0.0.10 is available The five ..."), on every page.
+func TestFooterEndsTheReleaseNewsBeforeWhatForsgrenIs(t *testing.T) {
+	for waiting, want := range map[int]string{
+		0: "0.0.9 · 0.0.10 is available. The five DORA metrics",
+		7: "0.0.9 · 0.0.10 is waiting in pull request #7 (merge it to update). The five DORA metrics",
+	} {
+		data := Placeholder("0.0.9")
+		data.Latest, data.WaitingPR = "0.0.10", waiting
+		for _, name := range PageNames() {
+			if got := rendered(t, name, data); !strings.Contains(got, want) {
+				t.Errorf("%s: want %q in the footer, got:\n%s", name, want, got)
+			}
+		}
+	}
+}
