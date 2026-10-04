@@ -376,6 +376,16 @@ for path in Scripts/*.sh; do
         || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the secret sync"
       ;;
 
+    # LOCAL PRE-FLIGHT, not a gate (forsgren#52): FBP.sh calls it before the
+    # PRE gates to create an empty private-names list when none is given. CI
+    # never runs FBP.sh, so CI stays strict. It must carry a fixture, and that
+    # fixture must be an order-file row.
+    ensure_private_names_file.sh)
+      require_fixture "$base" "the local list creation would be untested"
+      order_names "test_${base}" \
+        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the local list creation"
+      ;;
+
     *)
       fail "${base} is a script no order-file row names and no declared exemption covers — a validator nobody runs is a file, not a gate"
       ;;
