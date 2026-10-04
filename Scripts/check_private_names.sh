@@ -48,8 +48,11 @@
 #     A scan that could not read is not a clean scan. Precedence: when a name
 #     was also found, exit 1 stays (a name found outranks an unreadable file).
 # An EXISTING names file with no names (zero bytes, blanks, comments) is not
-# an error: the scan still runs over every path and file, finds nothing and
-# exits 0 with `0 names searched`. In CI the secret is the only source, so CI
+# an error: the scan still lists every path (so the count and the `scan read
+# nothing` check stay right) but searches nothing, finds nothing and exits 0
+# with `0 names searched`. With no names nothing is searched, so the result does
+# not depend on how a grep treats an empty pattern list (some match every
+# line). Nothing searched also means no unreadable-file report: no file is read. In CI the secret is the only source, so CI
 # always fails without it or with an emptied one (fork pull requests included).
 
 set -euo pipefail
@@ -91,7 +94,7 @@ read_list() {
 # build_patterns <file>: one ERE per name into <file>, regex-escaped, no
 # boundary (a substring match). Sets COUNT to the number of names; exit 2 on none
 # in an env list. An existing file with no names gives an empty pattern file,
-# which grep -f reads as no pattern at all: it matches nothing.
+# which is never handed to grep (judge_path and check_message skip it at 0 names).
 build_patterns() {
   private_names_parse "$LIST"
   COUNT="$PRIVATE_NAMES_COUNT"
@@ -108,6 +111,8 @@ build_patterns() {
 judge_path() {
   local patterns="$1" path="$2" target="$3" islink="$4" shown hits hit lineno rc
   N=$((N + 1))
+  # No names: nothing to search, and grep is not asked (see the header).
+  [[ "$COUNT" -eq 0 ]] && return 0
   shown="$path"
   # A here-string, not a pipe: under pipefail, grep -q closing the pipe early
   # can SIGPIPE the printf and turn a match into a miss.
