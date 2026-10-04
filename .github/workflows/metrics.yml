@@ -384,13 +384,22 @@ jobs:
         run: |
           set -euo pipefail
           waiting=""
+          check="skipped"
           if [[ -n "$LATEST" ]]; then
-            waiting="$(forsgren waiting-pull-request --version "$LATEST" || true)"
+            status_file="${RUNNER_TEMP}/waiting-status"
+            rm -f "$status_file"
+            waiting="$(forsgren waiting-pull-request --version "$LATEST" --status "$status_file" || true)"
+            check="$(cat "$status_file" 2>/dev/null || true)"
           fi
           if [[ ! "$waiting" =~ ^[0-9]+$ ]]; then
             waiting=""
           fi
+          case "$check" in
+            ok | no-access | failed | skipped) ;;
+            *) check="failed" ;;
+          esac
           echo "waiting=${waiting}" >> "$GITHUB_OUTPUT"
+          echo "check=${check}" >> "$GITHUB_OUTPUT"
 
       - name: Render the page
         shell: bash
@@ -400,6 +409,26 @@ jobs:
         run: |
           set -euo pipefail
           forsgren render --out "${RUNNER_TEMP}/site" --config forsgren.config.yml --data data/deployments.csv ${LATEST:+--latest "$LATEST"} ${WAITING:+--waiting-pr "$WAITING"}
+
+      # The run's job summary (forsgren#40): the version that built the page,
+      # the latest release and where the update stands, with a link to the
+      # waiting pull request (the run page is private to the repository,
+      # unlike the page). The waiting step's check says whether the pull
+      # request lookup worked, had no access (grant pull-requests: read in
+      # the caller) or failed. A summary never fails the run: forsgren
+      # run-summary failing appends nothing, and neither does an append that
+      # cannot be written.
+      - name: Write the run summary
+        shell: bash
+        env:
+          LATEST: ${{ steps.latest.outputs.latest }}
+          WAITING: ${{ steps.waiting.outputs.waiting }}
+          PR_CHECK: ${{ steps.waiting.outputs.check }}
+        run: |
+          set -uo pipefail
+          if summary="$(forsgren run-summary --latest "$LATEST" --waiting-pr "${WAITING:-0}" --pr-check "$PR_CHECK" --repository "$GITHUB_REPOSITORY")"; then
+            printf '%s\n' "$summary" >> "$GITHUB_STEP_SUMMARY" || true
+          fi
 
       - name: Upload the page
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0

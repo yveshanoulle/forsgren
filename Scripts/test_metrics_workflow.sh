@@ -1740,7 +1740,7 @@ proves judge_render_config "render without the history" "the render step runs 'f
 proves judge_waiting_lookup "a waiting lookup without the job token" "does not set GITHUB_TOKEN to the job's token" \
   "/GITHUB_TOKEN: \\${D}{{ github.token }}/{x;s/^/x/;/^xx\$/{x;d;};x;}"
 proves judge_waiting_lookup "a waiting lookup that fails the job" "for a lookup that fails the waiting step gives" \
-  "s/forsgren waiting-pull-request --version \"\\${D}LATEST\" || true/forsgren waiting-pull-request --version \"\\${D}LATEST\"/"
+  "s/--status \"\\${D}status_file\" || true/--status \"\\${D}status_file\"/"
 proves judge_waiting_lookup "a waiting output that is not checked" "for an answer that is not a number" \
   "/if \\[\\[ ! \"\\${D}waiting\" =~/,/^          fi${D}/d"
 proves judge_run_summary "a run summary that is not appended" "the run summary step gives" \

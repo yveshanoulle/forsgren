@@ -101,3 +101,26 @@ func TestWaitingPullRequestSaysHowTheLookupWent(t *testing.T) {
 	t.Setenv("GITHUB_REPOSITORY", "")
 	wantStatus(t, "failed")
 }
+
+// TestTheSummaryCommandsRefuseAnUnknownFlag (forsgren#40, step 6): a flag
+// they do not have is a usage error, exit 2, with nothing printed.
+func TestTheSummaryCommandsRefuseAnUnknownFlag(t *testing.T) {
+	for _, command := range []string{"run-summary", "waiting-pull-request"} {
+		if code, stdout, _ := runCommand(command, "--nonsense"); code != 2 || stdout != "" {
+			t.Errorf("%s: want exit 2 and no stdout, got %d, %q", command, code, stdout)
+		}
+	}
+}
+
+// TestAStatusThatCannotBeWrittenIsANoteNotAnError (forsgren#40, step 6): the
+// lookup still exits 0 and prints its number; the workflow reads a missing
+// status as failed.
+func TestAStatusThatCannotBeWrittenIsANoteNotAnError(t *testing.T) {
+	t.Setenv("GITHUB_REPOSITORY", "acme/data")
+	fakeAPI(t, map[string]string{waitingPath: dependabotPulls}, 0)
+	missing := filepath.Join(t.TempDir(), "no", "such", "dir", "status")
+	code, stdout, stderr := runCommand("waiting-pull-request", "--version", "0.0.10", "--status", missing)
+	if code != 0 || stdout != "7\n" || !strings.Contains(stderr, "cannot write the status") {
+		t.Errorf("want exit 0, 7 and a note, got %d, %q, %q", code, stdout, stderr)
+	}
+}

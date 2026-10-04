@@ -10,6 +10,10 @@ import (
 	"strings"
 )
 
+// ErrPullRequestsDenied is the 403 of OpenPullRequests: the token has no
+// pull-requests: read. It comes with ErrAccess, which it narrows.
+var ErrPullRequestsDenied = errors.New("pull requests are not readable")
+
 // PullRequest is one open pull request: its number, its author's login and
 // its head branch. Nothing else is read: no title, no body, no repository
 // name for the page.
@@ -34,7 +38,8 @@ type pullRequest struct {
 // OpenPullRequests lists the open pull requests of repo: GET
 // /repos/{owner}/{repo}/pulls?state=open, every page up to the limit, and
 // says whether it stopped there. A 403 is the token missing
-// pull-requests: read, ErrAccess naming that permission.
+// pull-requests: read, ErrAccess and ErrPullRequestsDenied naming that
+// permission.
 func (c *Client) OpenPullRequests(ctx context.Context, repo string) ([]PullRequest, bool, error) {
 	t, err := c.endpoint(repo, url.Values{"state": {"open"}}, "pulls")
 	if err != nil {
@@ -43,8 +48,8 @@ func (c *Client) OpenPullRequests(ctx context.Context, repo string) ([]PullReque
 	var pulls []PullRequest
 	truncated, err := c.list(ctx, t, readPullRequests(&pulls))
 	if forbidden, ok := errors.AsType[*answerError](err); ok && forbidden.code == http.StatusForbidden {
-		return nil, false, fmt.Errorf("%s: %w: %s for %s; the job's token needs pull-requests: read",
-			repo, ErrAccess, forbidden.status(), t.path())
+		return nil, false, fmt.Errorf("%s: %w: %w: %s for %s; the job's token needs pull-requests: read",
+			repo, ErrAccess, ErrPullRequestsDenied, forbidden.status(), t.path())
 	}
 	if err != nil {
 		return nil, false, err

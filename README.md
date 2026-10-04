@@ -862,7 +862,7 @@ installation pins that version. From a checkout of this repository:
 .build/bin/forsgren render --out <dir>
 ```
 
-`forsgren render --out <dir> [--config <path>] [--data <path>] [--latest <version>]` writes the site (every page
+`forsgren render --out <dir> [--config <path>] [--data <path>] [--latest <version>] [--waiting-pr <number>]` writes the site (every page
 plus `styles.css`) into `<dir>`, creating it when needed, and exits 0; 1 when
 the render failed (or the `--config` file is missing or invalid, with
 check-config's refusal), 2 on a usage error. `--latest` is the newest forsgren
@@ -872,7 +872,22 @@ or not a version adds nothing to the footer. `forsgren latest-release` reads
 forsgren's own public repository's latest release (with `GITHUB_TOKEN` when the
 environment has one, without otherwise) and prints its version without the
 `v`; when the lookup fails it prints nothing, says why on stderr and exits 0,
-since a page without news of a release is not an error. With `--config`, a config that
+since a page without news of a release is not an error. `--waiting-pr <number>`
+is Dependabot's open pull request for it, as `forsgren waiting-pull-request
+--version <x.y.z> [--status <path>]` prints it (the open pull requests of
+`GITHUB_REPOSITORY`, read with `GITHUB_TOKEN`; with `--status` it also writes
+how the lookup went, `ok`, `no-access` for the 403 of a token without
+`pull-requests: read`, or `failed`, and its exit status is 0 either way); the
+footer then names the pull request instead of "is available". `forsgren
+run-summary --latest <version> --waiting-pr <number> --pr-check
+<ok|no-access|failed|skipped> --repository <owner/name>` prints the run's job
+summary as markdown (the version that built the page, the latest release or
+"unknown", and one of "up to date", "0.0.10 is available; no Dependabot pull
+request yet", "0.0.10 is waiting in pull request [#7](link)", "pull-request
+check skipped: grant pull-requests: read in your caller to enable it" and "the
+pull-request check failed"); the link is fine there, because a run page is
+private to the repository, unlike the public page. A flag it cannot use is a
+usage error that prints nothing. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides
 "Forsgren 0.0.8" in its footer, a how-to for filling `forsgren.config.yml`;
 without `--config` (the build above has no installation config) or with
@@ -1015,7 +1030,10 @@ jobs:
   called workflow that asks for more than its caller grants stops the run
   before any step, which would break every install that has not added the
   line. Add it to the calling workflow (and to the template's copy) with the
-  new release.
+  new release. Every run's job summary (its run page, private to the
+  repository) says where the update stands, and when the token lacks the
+  permission it says "pull-request check skipped: grant pull-requests: read
+  in your caller to enable it".
 - **GitHub Pages must build from GitHub Actions** (the data repository's
   Settings → Pages → Source). The run deploys to the repository's
   `github-pages` environment.
@@ -1642,7 +1660,12 @@ Six PRE gates keep the CI honest:
   fails or an answer that is anything else; the step after it, "Look up the
   waiting Dependabot pull request", does the same for a pull request number
   (also with the job's token, and asked only when a latest release was
-  found), and the render step passes `--waiting-pr <number>` when it is set;
+  found) and outputs its `check` (`ok`, `no-access`, `failed`, or `skipped`
+  without a latest release) from the status file the lookup wrote, anything
+  else counting as `failed`, and the render step passes `--waiting-pr
+  <number>` when it is set; the step "Write the run summary" appends
+  `forsgren run-summary`'s markdown to `$GITHUB_STEP_SUMMARY` and never fails
+  the run (a `run-summary` that fails appends nothing);
   and install, checkout, starter, config
   check, collect, data commit and render come in that order, the fail step
   after publishing. Each pin is shown failing, with its own reason, on a
