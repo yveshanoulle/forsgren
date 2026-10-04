@@ -40,6 +40,30 @@ func TestPercentScore(t *testing.T) {
 	})
 }
 
+// TestOverallScoreIsTheMeanToOneDecimal pins the Quick Check's Overall
+// Performance: the plain mean of the scores given, rounded to one decimal.
+// Its own example, 6, 8, 10, 8.6 and 10, is 8.5; a mean of 7.97 rounds up to
+// 8.0; with only some metrics scored the mean is of those.
+func TestOverallScoreIsTheMeanToOneDecimal(t *testing.T) {
+	overall := func(scores ...float64) float64 {
+		got, _ := OverallScore(scores)
+		return got
+	}
+	checkScores(t, []scoreCase{
+		{"the Quick Check example", overall(6, 8, 10, 8.6, 10), 8.5},
+		{"a mean that rounds up", overall(10, 8.6, 5.3), 8.0},
+		{"two scored metrics", overall(10, 8.6), 9.3},
+	})
+}
+
+// TestOverallScoreOfNoScoreIsNone: with no scored metric there is no
+// Overall Performance.
+func TestOverallScoreOfNoScoreIsNone(t *testing.T) {
+	if got, ok := OverallScore(nil); ok {
+		t.Errorf("no scores: want no overall score, got %v", got)
+	}
+}
+
 // scoreCase is a score and the score it has to be.
 type scoreCase struct {
 	name      string

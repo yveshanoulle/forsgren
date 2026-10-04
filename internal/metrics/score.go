@@ -14,3 +14,11 @@ func BandScore[B ~int](b B) float64 { return float64(6-b) * 2 }
 // tenth of the whole percent Percent gives, rounded down: 0% scores 10, 14%
 // scores 8.6, 47% scores 5.3 and 100% scores 0.
 func PercentScore(percent int) float64 { return 10 - float64(percent)/10 }
+
+// OverallScore is the DORA Quick Check's Overall Performance
+// (dora.dev/quickcheck): the mean of the scores it is given, each metric
+// weighing the same, rounded to one decimal, half away from zero. A metric
+// without data has no score and is not passed in, so the mean is of the
+// scored metrics only. ok is false when there is no score at all: then
+// there is no Overall Performance.
+func OverallScore(scores []float64) (overall float64, ok bool) { return 0, true }
