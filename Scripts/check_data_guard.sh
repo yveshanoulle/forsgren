@@ -9,7 +9,7 @@
 # repository is meant to become open source, so anything an installation
 # owns that lands here is a leak waiting for the day it goes public.
 #
-# One structural rule, over the files git TRACKS (git ls-files):
+# One structural rule, over the files git TRACKS (git ls-files -z, read NUL-separated):
 #
 #   Installation config or data outside testdata/. A tracked file whose
 #   name matches an arm of guarded_reason below, or whose path matches an
@@ -49,12 +49,16 @@ cd "$ROOT_DIR" || {
   exit 1
 }
 
-if ! TRACKED="$(git ls-files --cached 2>&1)"; then
-  echo "❌ FAIL: git ls-files failed in ${ROOT_DIR}: ${TRACKED}"
+# The list is read NUL-separated (-z), so a non-ASCII or otherwise unusual path
+# reaches the arms as it is, unquoted, and a FAIL line prints the real path.
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+if ! git ls-files --cached -z > "$TMP/tracked" 2> "$TMP/err"; then
+  echo "❌ FAIL: git ls-files failed in ${ROOT_DIR}: $(cat "$TMP/err")"
   exit 1
 fi
 
-if [ -z "$TRACKED" ]; then
+if [ ! -s "$TMP/tracked" ]; then
   echo "❌ FAIL: no tracked files found — the walk over git ls-files found nothing to check"
   exit 1
 fi
@@ -119,7 +123,7 @@ guarded_path_reason() {
 
 # --- installation config or data outside testdata/ -------------------------
 count=0
-while IFS= read -r f; do
+while IFS= read -r -d '' f; do
   count=$((count + 1))
   in_testdata "$f" && continue
   reason="$(guarded_path_reason "$f")"
@@ -128,7 +132,7 @@ while IFS= read -r f; do
     echo "❌ FAIL: ${f} — looks like installation config or data (${reason}); it belongs in the installation's private data repository, passed to forsgren as a path, or under testdata/ if it is a made-up fixture"
     FAIL=1
   fi
-done <<< "$TRACKED"
+done < "$TMP/tracked"
 
 if [ "$FAIL" -ne 0 ]; then
   exit 1
