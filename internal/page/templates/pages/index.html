@@ -1,6 +1,6 @@
 {{template "header" .}}  <main>
     <h1 class="visually-hidden">Forsgren {{.Version}}: the five DORA metrics</h1>
-{{if .Rows}}{{if .View}}{{template "switch" .}}{{end}}{{template "table" .}}{{else}}    <p>{{.Message}}</p>
+{{if .Rows}}{{template "table" .}}{{else}}    <p>{{.Message}}</p>
 {{end}}{{if .NoProjects}}    <p>No projects are listed yet: forsgren.config.yml lists the projects, for example:</p>
     <pre><code>version: 1
 projects:

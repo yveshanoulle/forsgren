@@ -33,6 +33,13 @@ caption {
   font-size: 1.25rem;
 }
 
+/* The view switch sits in the caption, after its title (forsgren#51), and
+   reads as normal text beside it. */
+.views {
+  font-weight: normal;
+  font-size: 1rem;
+}
+
 th,
 td {
   padding: 0.5rem;

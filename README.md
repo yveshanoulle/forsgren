@@ -515,8 +515,10 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   ("14%"); a `-` where there is no number (no commits, no completed
   recovery, no deployments or successful deployments). A row with no
   deployments recorded is five cells there, `0` and four `-`, never a
-  sentence. Each view's page has a switch above its table, "View: standard
-  · numbers": the current view is plain text marked `aria-current="page"`,
+  sentence. Each view's page has a switch in its table's caption, on one
+  line after the title, "DORA metrics View: standard · numbers"
+  (forsgren#51); the title is its own element, which names the table and
+  its scroll region, so the table's name stays "DORA metrics". The current view is plain text marked `aria-current="page"`,
   the other a link (`../numbers/`, `../standard/`); a page one folder down
   reaches `styles.css` and the legend through `../`. The legend page serves
   all views. The root `index.html` follows the `view:` config key (see

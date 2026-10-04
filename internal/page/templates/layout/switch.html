@@ -1,2 +1,1 @@
-{{define "switch"}}    <p class="views">View: {{range $i, $view := .Views}}{{if $i}} · {{end}}{{if eq $view $.View}}<span aria-current="{{$.Current}}">{{$view}}</span>{{else}}<a href="{{$.Base}}{{$view}}/">{{$view}}</a>{{end}}{{end}}</p>
-{{end}}
+{{define "switch"}}<span class="views">View: {{range $i, $view := .Views}}{{if $i}} · {{end}}{{if eq $view $.View}}<span aria-current="{{$.Current}}">{{$view}}</span>{{else}}<a href="{{$.Base}}{{$view}}/">{{$view}}</a>{{end}}{{end}}</span>{{end}}

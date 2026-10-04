@@ -1,6 +1,6 @@
 {{define "table"}}    <div class="table-scroll" role="region" aria-labelledby="metrics-caption" tabindex="0">
-      <table>
-        <caption id="metrics-caption">DORA metrics</caption>
+      <table{{if .View}} aria-labelledby="metrics-caption"{{end}}>
+        {{if .View}}<caption><span id="metrics-caption">DORA metrics</span> {{template "switch" .}}</caption>{{else}}<caption id="metrics-caption">DORA metrics</caption>{{end}}
         <thead>
           <tr>
             <th scope="col">Project</th>
