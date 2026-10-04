@@ -137,6 +137,16 @@ func (p pageData) Numbers() bool { return p.View == viewNumbers }
 // Views are the views the switch names, in its order.
 func (pageData) Views() []string { return views }
 
+// Current is the switch's aria-current for the current view: "page" on the
+// view's own page, "true" on the root, which shows the view but is not its
+// page (Yves's ruling, forsgren#46).
+func (p pageData) Current() string {
+	if p.Base == viewBase {
+		return "page"
+	}
+	return "true"
+}
+
 // page is a page's parsed template set, the template it executes, the
 // view it shows and the prefix of its links to the root's files.
 type page struct {

@@ -521,8 +521,9 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   reaches `styles.css` and the legend through `../`. The legend page serves
   all views. The root `index.html` follows the `view:` config key (see
   Configuration): that view, with the switch (its links relative to the
-  root, `standard/` and `numbers/`); without the key it is the standard
-  page with no switch. A scoring view comes with forsgren#47.
+  root, `standard/` and `numbers/`, and its view marked
+  `aria-current="true"`, as the root is not that view's page); without the
+  key it is the standard page with no switch. A scoring view comes with forsgren#47.
 - **The legend** (`legend.html`) gives each metric's bands in one compact
   list (recovery time's are lead time's, and rework rate's are change fail
   rate's, so it refers to them), with what each cell counts and its window.

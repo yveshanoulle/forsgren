@@ -242,6 +242,7 @@
     "github.com/yveshanoulle/forsgren/internal/page/page.go:Placeholder": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:Numbers": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:Views": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/page.go:Current": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:parsePages": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:PageNames": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:Render": 100.0,
