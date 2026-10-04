@@ -23,6 +23,8 @@
 #      deeper internal/data/ code directory
 #  10. a commits.csv elsewhere (forsgren#16)      -> red, named
 #  11. a failures.csv elsewhere (forsgren#18)     -> red, named
+#  12. a tracked data/é.csv (non-ASCII name, git  -> red, named
+#      quotepath on: git prints it quoted)
 # Mutation proofs, each against a copy of the gate (the patterns are `case`
 # arms of guarded_reason, one per line):
 #   - case 2: with the history.csv arm deleted, case 2's repository must turn
@@ -175,6 +177,12 @@ write_file "internal/history/history_test.go" $'package history\n// acme/app is 
 write_file "internal/data/data.go" $'package data\n' track
 run_gate
 want_green "history fixtures under testdata/, a Go test file and internal/data/ are not installation data"
+
+new_repo "data-dir-nonascii"
+git -C "$REPO" config core.quotepath true
+write_file "data/é.csv" $'x\n' track
+run_gate
+want_red "a tracked data/é.csv (non-ASCII name, quotepath on) is red and named" "❌ FAIL: data/é.csv"
 
 new_repo "data-dir-notes"
 write_file "data/notes.txt" $'x\n' track
