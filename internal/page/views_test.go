@@ -74,6 +74,18 @@ func TestScoringPageShowsEachMetricsScoreAndOverallPerformance(t *testing.T) {
 	wantAll(t, "scoring/index.html", got, `<th scope="col">Overall Performance</th>`)
 }
 
+// TestScoringPageShowsNoOverallPerformanceWithoutAScore (forsgren#47): a row
+// with no data has no scored metric, so all six cells, Overall Performance
+// included, are -.
+func TestScoringPageShowsNoOverallPerformanceWithoutAScore(t *testing.T) {
+	data := Placeholder("0.1.2")
+	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Empty"}})
+	got := rendered(t, "scoring/index.html", data)
+	if !row("Acme Empty", "-", "-", "-", "-", "-", "-").MatchString(got) {
+		t.Errorf("want the row of Acme Empty to read - in all six cells, got:\n%s", got)
+	}
+}
+
 // TestStandardPageShowsTheStandardCells (forsgren#46): the standard view is
 // the 0.1.0 table, band, number and count.
 func TestStandardPageShowsTheStandardCells(t *testing.T) {
