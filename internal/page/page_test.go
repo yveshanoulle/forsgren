@@ -246,6 +246,21 @@ func TestTablePageLinksToTheLegend(t *testing.T) {
 	}
 }
 
+// TestEveryPageNamesFiveMetrics (forsgren#39): with rework rate as the
+// table's fifth column, every page's footer names five DORA metrics, as the
+// table's caption does.
+func TestEveryPageNamesFiveMetrics(t *testing.T) {
+	for _, name := range PageNames() {
+		var got bytes.Buffer
+		if err := Render(&got, name, acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)); err != nil {
+			t.Fatalf("Render %s: %v", name, err)
+		}
+		if !strings.Contains(got.String(), "<p>The five DORA metrics, from data GitHub already has.</p>") {
+			t.Errorf("%s: want the footer to name the five DORA metrics, got:\n%s", name, got.String())
+		}
+	}
+}
+
 func TestWriteSiteWritesTwoPagesAndStyles(t *testing.T) {
 	dir := t.TempDir()
 	n, err := WriteSite(dir, Placeholder("0.0.7"))
