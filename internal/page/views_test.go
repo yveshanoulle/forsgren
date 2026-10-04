@@ -148,7 +148,7 @@ func TestViewSwitchSitsInTheCaption(t *testing.T) {
 // frequency (a real zero) and - for the other four; the standard page keeps
 // its sentence across the row.
 func TestViewsShowARowWithoutDeploymentsAsTheirOwnCells(t *testing.T) {
-	data := Placeholder("0.1.1")
+	data := Placeholder("0.1.2")
 	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Empty"}})
 	numbers := rendered(t, "numbers/index.html", data)
 	if !row("Acme Empty", "0", "-", "-", "-", "-").MatchString(numbers) {
@@ -179,7 +179,7 @@ func TestViewPagesMatchGolden(t *testing.T) {
 // TestViewPagesWithoutDataMatchGolden (forsgren#46): the views of the
 // placeholder build, which has no rows and so no switch.
 func TestViewPagesWithoutDataMatchGolden(t *testing.T) {
-	data := Placeholder("0.1.1")
+	data := Placeholder("0.1.2")
 	data.AsOf = "2026-10-03 12:00"
 	checkPageGolden(t, "standard/index.html", "testdata/standard.placeholder.golden.html", data)
 	checkPageGolden(t, "numbers/index.html", "testdata/numbers.placeholder.golden.html", data)
@@ -188,7 +188,7 @@ func TestViewPagesWithoutDataMatchGolden(t *testing.T) {
 // TestNumbersPageWithoutDeploymentsMatchesGolden (forsgren#46): a project
 // with no deployment recorded yet is five cells on the numbers page.
 func TestNumbersPageWithoutDeploymentsMatchesGolden(t *testing.T) {
-	data := Placeholder("0.1.1")
+	data := Placeholder("0.1.2")
 	data.AsOf = "2026-10-03 12:00"
 	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Empty"}})
 	checkPageGolden(t, "numbers/index.html", "testdata/numbers.no-data.golden.html", data)
@@ -201,7 +201,7 @@ func TestWriteSiteFailsWhenAViewFolderIsAFile(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "numbers"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if n, err := WriteSite(dir, Placeholder("0.1.1")); err == nil {
+	if n, err := WriteSite(dir, Placeholder("0.1.2")); err == nil {
 		t.Errorf("want an error when a view's folder is a regular file, got %d pages", n)
 	}
 }
@@ -226,7 +226,7 @@ func TestRootPageFollowsItsDataView(t *testing.T) {
 	wantAll(t, "index.html", rendered(t, "index.html", data), "<td>12</td>")
 	data.View = ""
 	wantNone(t, "index.html", rendered(t, "index.html", data), "View:", "aria-current")
-	placeholder := Placeholder("0.1.1")
+	placeholder := Placeholder("0.1.2")
 	placeholder.View = "numbers"
 	wantNone(t, "index.html", rendered(t, "index.html", placeholder), "View:")
 }
