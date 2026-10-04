@@ -91,7 +91,7 @@ const latestPath = "/repos/yveshanoulle/forsgren/releases/latest"
 // command reads forsgren's own latest release, which is public, with no
 // token, and prints its version without the leading v.
 func TestLatestReleasePrintsTheNewestVersion(t *testing.T) {
-	t.Setenv("FORSGREN_TOKEN", "")
+	t.Setenv("GITHUB_TOKEN", "")
 	fakeAPI(t, map[string]string{latestPath: `{"id": 7, "tag_name": "v0.0.10"}`}, 0)
 	wantLookup(t, "0.0.10\n", "", "latest-release")
 }
@@ -111,7 +111,7 @@ func TestALatestReleaseLookupThatFailsIsNotAnError(t *testing.T) {
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
-			t.Setenv("FORSGREN_TOKEN", "")
+			t.Setenv("GITHUB_TOKEN", "")
 			fakeAPI(t, c.bodies, c.code)
 			wantLookup(t, "", "latest release", "latest-release")
 		})
@@ -141,11 +141,11 @@ func TestLatestReleaseTakesNoArgumentsAndSurvivesABadAPI(t *testing.T) {
 
 // TestRenderNamesTheWaitingPullRequestItIsGiven (forsgren#40, step 5): with
 // --latest newer and --waiting-pr, the footer names the pull request's
-// number instead of "is available"; --waiting-pr 0 is none.
+// number instead of "is available"; without --waiting-pr there is none.
 func TestRenderNamesTheWaitingPullRequestItIsGiven(t *testing.T) {
 	waiting := version + " · 0.0.10 is waiting in pull request #7 (merge it to update)"
 	wantPage(t, waiting, " is available", "--latest", "0.0.10", "--waiting-pr", "7")
-	wantPage(t, "0.0.10 is available", "waiting", "--latest", "0.0.10", "--waiting-pr", "0")
+	wantPage(t, "0.0.10 is available", "waiting", "--latest", "0.0.10")
 	wantPage(t, version+" The five", "pull request #", "--latest", version, "--waiting-pr", "7")
 }
 

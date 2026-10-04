@@ -2,6 +2,8 @@ package github
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"slices"
 	"strconv"
 	"testing"
@@ -54,6 +56,21 @@ func TestOpenPullRequestsNamesTheMissingPermission(t *testing.T) {
 	f.on(pullsPath, reply{status: 403, body: `{"message":"Resource not accessible by integration"}`})
 	_, _, err := f.client(t, DefaultMaxPages).OpenPullRequests(context.Background(), "acme/data")
 	wantError(t, err, ErrAccess, "acme/data", "pull-requests: read")
+}
+
+// TestOpenPullRequestsTellsTheRateLimitFromTheMissingPermission
+// (forsgren#40, review of step 7): a 403 with no request left is GitHub's
+// rate limit, ErrRateLimit, never ErrPullRequestsDenied, so nobody is asked
+// to grant a permission the token already has.
+func TestOpenPullRequestsTellsTheRateLimitFromTheMissingPermission(t *testing.T) {
+	f := newFake(t)
+	f.on(pullsPath, reply{status: 403, header: http.Header{"X-Ratelimit-Remaining": {"0"}},
+		body: `{"message":"API rate limit exceeded"}`})
+	_, _, err := f.client(t, DefaultMaxPages).OpenPullRequests(context.Background(), "acme/data")
+	wantError(t, err, ErrRateLimit, "acme/data")
+	if errors.Is(err, ErrPullRequestsDenied) {
+		t.Errorf("want no missing permission for a rate limit, got %v", err)
+	}
 }
 
 // TestForsgrenBumpFindsTheDependabotPullRequestForExactlyThatVersion

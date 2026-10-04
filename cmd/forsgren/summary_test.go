@@ -15,10 +15,11 @@ func summaryOf(latest, update string) string {
 
 // TestRunSummaryTellsWhereTheUpdateStands (forsgren#40, step 6): the
 // markdown a run appends to its job summary names the version that built
-// the page, the latest release, and one of the five states of the update.
+// the page, the latest release, and one of the six states of the update.
 // The run page is private to the repository, so the pull request is linked.
 func TestRunSummaryTellsWhereTheUpdateStands(t *testing.T) {
 	const skipped = "pull-request check skipped: grant pull-requests: read in your caller to enable it"
+	const rateLimited = "the pull-request check hit GitHub's rate limit, the next run tries again"
 	cases := []struct {
 		name string
 		args []string
@@ -34,6 +35,8 @@ func TestRunSummaryTellsWhereTheUpdateStands(t *testing.T) {
 			summaryOf("0.0.10", "0.0.10 is available; "+skipped)},
 		{"check failed", []string{"--latest", "0.0.10", "--pr-check", "failed"},
 			summaryOf("0.0.10", "0.0.10 is available; the pull-request check failed")},
+		{"rate limited", []string{"--latest", "0.0.10", "--pr-check", "rate-limited"},
+			summaryOf("0.0.10", "0.0.10 is available; "+rateLimited)},
 		{"no access, up to date", []string{"--latest", version, "--pr-check", "no-access"},
 			summaryOf(version, "up to date")},
 		{"latest unknown", []string{"--latest", "", "--pr-check", "skipped"},
