@@ -75,6 +75,34 @@ run_gate() {
   capture "$GATE" "$REPO"
 }
 
+# run_mutant <mutant> <repo-name> — runs a mutated gate against a case's
+# repository; sets RC and OUT.
+run_mutant() {
+  capture "$1" "${TMP}/$2"
+}
+
+# arm_deleted_proof <case> <arm> <anchor> <mutant> <repo-name> <holding>: the
+# mutation proof of a case red for one arm. Writes <mutant>, a copy of the
+# gate without the arm lines matching the ERE <anchor>; the copy must differ
+# (else the anchor stopped matching and the proof proves nothing) and must go
+# green on the case's repository <repo-name>, which holds only <holding>: if
+# it stayed red, the case was red for another reason than <arm>.
+arm_deleted_proof() {
+  local case_no="$1" arm="$2" anchor="$3" mutant="$4" repo="$5" holding="$6"
+  grep -vE "$anchor" "$GATE" > "$mutant"
+  chmod +x "$mutant"
+  if cmp -s "$GATE" "$mutant"; then
+    fail "mutation proof (case ${case_no}): deleting the '${arm}) why=' arm changed nothing in ${GATE} — the anchor no longer matches, so this proof proves nothing"
+    return 0
+  fi
+  run_mutant "$mutant" "$repo"
+  if [[ "$RC" -ne 0 ]]; then
+    fail "mutation proof (case ${case_no}): a gate without the ${arm} arm is still red on a repository holding only ${holding}. Output: ${OUT}"
+  else
+    echo "  ok: without the ${arm} arm, a repository holding only ${holding} is green (case ${case_no} is red for that arm)"
+  fi
+}
+
 new_repo "clean"
 write_file "internal/m/m_test.go" $'package m\n// acme/app is the made-up fixture repository.\n' track
 write_file "internal/m/testdata/history.csv" $'date,metric,value\n' track
@@ -151,12 +179,6 @@ want_green "history fixtures under testdata/, a Go test file and internal/data/ 
 new_repo "data-dir-notes"
 write_file "data/notes.txt" $'x\n' track
 
-# run_mutant <mutant> <repo-name> — runs a mutated gate against a case's
-# repository; sets RC and OUT.
-run_mutant() {
-  capture "$1" "${TMP}/$2"
-}
-
 # ---------------------------------------------------------------------------
 # Mutation proof for case 2: the same repository against a copy of the gate
 # with the history.csv arm deleted. The mutant must change the copy (else the
@@ -180,84 +202,21 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Mutation proof for case 7: with the data/* arm deleted, a repository that
-# holds only data/notes.txt must turn green, so case 7 is red BECAUSE of that
-# arm (and not because of the deployments.csv name).
+# Mutation proofs for cases 7, 8, 10 and 11 (arm_deleted_proof): with one arm
+# deleted, a repository holding only the file that arm names must turn
+# green, so each case is red BECAUSE of its arm. Case 7: the data/* arm of
+# guarded_path_reason, and not the deployments.csv name. Case 8: the
+# deployments.csv arm (forsgren#12, step 8). Case 10: the commits.csv arm
+# (forsgren#16, step 1). Case 11: the failures.csv arm (forsgren#18, step 1).
 # ---------------------------------------------------------------------------
-NODIR="${TMP}/check_data_guard_nodir.sh"
-grep -vE '^[[:space:]]*data/\*\) why=' "$GATE" > "$NODIR"
-chmod +x "$NODIR"
-
-if cmp -s "$GATE" "$NODIR"; then
-  fail "mutation proof (case 7): deleting the 'data/*) why=' arm changed nothing in ${GATE} — the anchor no longer matches, so this proof proves nothing"
-else
-  run_mutant "$NODIR" "data-dir-notes"
-  if [[ "$RC" -ne 0 ]]; then
-    fail "mutation proof (case 7): a gate without the data/* arm is still red on a repository holding only data/notes.txt. Output: ${OUT}"
-  else
-    echo "  ok: without the data/* arm, a repository holding only data/notes.txt is green (case 7 is red for that arm)"
-  fi
-fi
-
-# ---------------------------------------------------------------------------
-# Mutation proof for case 8: with the deployments.csv arm deleted, a
-# repository that holds only ops/deployments.csv must turn green, so case 8
-# is red BECAUSE of that arm (forsgren#12, step 8).
-# ---------------------------------------------------------------------------
-NODEPLOY="${TMP}/check_data_guard_nodeploy.sh"
-grep -vE '^[[:space:]]*deployments\.csv\) why=' "$GATE" > "$NODEPLOY"
-chmod +x "$NODEPLOY"
-
-if cmp -s "$GATE" "$NODEPLOY"; then
-  fail "mutation proof (case 8): deleting the 'deployments.csv) why=' arm changed nothing in ${GATE} — the anchor no longer matches, so this proof proves nothing"
-else
-  run_mutant "$NODEPLOY" "deployments-elsewhere"
-  if [[ "$RC" -ne 0 ]]; then
-    fail "mutation proof (case 8): a gate without the deployments.csv arm is still red on a repository holding only ops/deployments.csv. Output: ${OUT}"
-  else
-    echo "  ok: without the deployments.csv arm, a repository holding only ops/deployments.csv is green (case 8 is red for that arm)"
-  fi
-fi
-
-# ---------------------------------------------------------------------------
-# Mutation proof for case 10: with the commits.csv arm deleted, a repository
-# that holds only ops/commits.csv must turn green, so case 10 is red BECAUSE
-# of that arm (forsgren#16, step 1).
-# ---------------------------------------------------------------------------
-NOCOMMITS="${TMP}/check_data_guard_nocommits.sh"
-grep -vE '^[[:space:]]*commits\.csv\) why=' "$GATE" > "$NOCOMMITS"
-chmod +x "$NOCOMMITS"
-
-if cmp -s "$GATE" "$NOCOMMITS"; then
-  fail "mutation proof (case 10): deleting the 'commits.csv) why=' arm changed nothing in ${GATE} — the anchor no longer matches, so this proof proves nothing"
-else
-  run_mutant "$NOCOMMITS" "commits-elsewhere"
-  if [[ "$RC" -ne 0 ]]; then
-    fail "mutation proof (case 10): a gate without the commits.csv arm is still red on a repository holding only ops/commits.csv. Output: ${OUT}"
-  else
-    echo "  ok: without the commits.csv arm, a repository holding only ops/commits.csv is green (case 10 is red for that arm)"
-  fi
-fi
-
-# ---------------------------------------------------------------------------
-# Mutation proof for case 11: with the failures.csv arm deleted, a repository
-# that holds only ops/failures.csv must turn green, so case 11 is red BECAUSE
-# of that arm (forsgren#18, step 1).
-# ---------------------------------------------------------------------------
-NOFAILURES="${TMP}/check_data_guard_nofailures.sh"
-grep -vE '^[[:space:]]*failures\.csv\) why=' "$GATE" > "$NOFAILURES"
-chmod +x "$NOFAILURES"
-
-if cmp -s "$GATE" "$NOFAILURES"; then
-  fail "mutation proof (case 11): deleting the 'failures.csv) why=' arm changed nothing in ${GATE} — the anchor no longer matches, so this proof proves nothing"
-else
-  run_mutant "$NOFAILURES" "failures-elsewhere"
-  if [[ "$RC" -ne 0 ]]; then
-    fail "mutation proof (case 11): a gate without the failures.csv arm is still red on a repository holding only ops/failures.csv. Output: ${OUT}"
-  else
-    echo "  ok: without the failures.csv arm, a repository holding only ops/failures.csv is green (case 11 is red for that arm)"
-  fi
-fi
+arm_deleted_proof 7 "data/*" '^[[:space:]]*data/\*\) why=' \
+  "${TMP}/check_data_guard_nodir.sh" "data-dir-notes" "data/notes.txt"
+arm_deleted_proof 8 "deployments.csv" '^[[:space:]]*deployments\.csv\) why=' \
+  "${TMP}/check_data_guard_nodeploy.sh" "deployments-elsewhere" "ops/deployments.csv"
+arm_deleted_proof 10 "commits.csv" '^[[:space:]]*commits\.csv\) why=' \
+  "${TMP}/check_data_guard_nocommits.sh" "commits-elsewhere" "ops/commits.csv"
+arm_deleted_proof 11 "failures.csv" '^[[:space:]]*failures\.csv\) why=' \
+  "${TMP}/check_data_guard_nofailures.sh" "failures-elsewhere" "ops/failures.csv"
 
 # ---------------------------------------------------------------------------
 # Mutation proof for case 6: a copy of the gate with every arm whose pattern

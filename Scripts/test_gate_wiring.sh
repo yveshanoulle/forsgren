@@ -335,6 +335,16 @@ for path in Scripts/*.sh; do
       done
       ;;
 
+    # SOURCED HELPER, not a gate (forsgren#52, refactor): the private-names
+    # list parsing the gate and the secret sync share. Their self-tests are
+    # its test, and both must still source it.
+    lib_private_names.sh)
+      for consumer in check_private_names.sh sync_private_names_secrets.sh; do
+        runs_script "Scripts/${consumer}" "$base" \
+          || fail "${base} holds the private-names list parsing and Scripts/${consumer} never sources it"
+      done
+      ;;
+
     # PULL-REQUEST CHECK, not a gate of sfl or Quality (road to public,
     # step 4): every commit of a pull request carries a DCO sign-off from its
     # author. A commit on main has no pull request, so neither runner can

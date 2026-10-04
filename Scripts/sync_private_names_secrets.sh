@@ -13,9 +13,9 @@
 #
 # Run it BY HAND after the file changes: it needs the maintainer's gh login.
 # The list source is the file FORSGREN_PRIVATE_NAMES_FILE, else
-# ${HOME}/.config/forsgren/private-names, parsed like check_private_names.sh
-# (surrounding whitespace and \r stripped; blank lines and lines starting
-# with # are not names). The env FORSGREN_PRIVATE_NAMES is NOT a source here.
+# ${HOME}/.config/forsgren/private-names, parsed as check_private_names.sh
+# parses it, by the same Scripts/lib_private_names.sh (surrounding whitespace
+# and \r stripped; blank lines and lines starting with # are not names). The env FORSGREN_PRIVATE_NAMES is NOT a source here.
 #
 # The names go to gh on stdin, never as an argument, and are never printed:
 # the FAIL and OK lines name the file path and a count, not a name.
@@ -27,39 +27,39 @@ set -euo pipefail
 # Tracing off: the list must never reach a trace (bash -x, or a CI debug run).
 set +x
 
+# The list parsing, shared with Scripts/check_private_names.sh.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=Scripts/lib_private_names.sh
+source "${ROOT}/Scripts/lib_private_names.sh"
+
 REPO="yveshanoulle/forsgren"
 SECRET="FORSGREN_PRIVATE_NAMES"
-FILE="${FORSGREN_PRIVATE_NAMES_FILE:-${HOME:-/nonexistent}/.config/forsgren/private-names}"
+FILE="$(private_names_file)"
 
 if [[ ! -f "$FILE" ]]; then
   echo "❌ FAIL: the private-names file ${FILE} does not exist"
   exit 2
 fi
 
-# The names, one per line, in NAMES; their number in COUNT.
-NAMES=""
-COUNT=0
-while IFS= read -r line || [[ -n "$line" ]]; do
-  line="${line%$'\r'}"
-  line="${line#"${line%%[![:space:]]*}"}"
-  line="${line%"${line##*[![:space:]]}"}"
-  [[ -z "$line" || "$line" == \#* ]] && continue
-  NAMES+="${line}"$'\n'
-  COUNT=$((COUNT + 1))
-done < "$FILE"
-
-if [[ "$COUNT" -eq 0 ]]; then
+LIST="$(cat "$FILE")"
+private_names_parse "$LIST"
+if [[ "$PRIVATE_NAMES_COUNT" -eq 0 ]]; then
   echo "❌ FAIL: the private-names file ${FILE} has no names in it"
   exit 2
 fi
 
-if ! printf '%s' "$NAMES" | gh secret set "$SECRET" -R "$REPO" > /dev/null; then
-  echo "❌ FAIL: gh could not set the Actions secret ${SECRET}"
-  exit 1
-fi
-if ! printf '%s' "$NAMES" | gh secret set "$SECRET" --app dependabot -R "$REPO" > /dev/null; then
-  echo "❌ FAIL: gh could not set the Dependabot secret ${SECRET}"
-  exit 1
-fi
+# set_secret <kind> [gh option...]: hands the names on stdin to
+# `gh secret set`; <kind> names the secret in the FAIL line.
+set_secret() {
+  local kind="$1"
+  shift
+  if ! printf '%s' "$PRIVATE_NAMES" | gh secret set "$SECRET" "$@" -R "$REPO" > /dev/null; then
+    echo "❌ FAIL: gh could not set the ${kind} secret ${SECRET}"
+    exit 1
+  fi
+}
 
-echo "OK: synced ${COUNT} names into the Actions and Dependabot secrets"
+set_secret Actions
+set_secret Dependabot --app dependabot
+
+echo "OK: synced ${PRIVATE_NAMES_COUNT} names into the Actions and Dependabot secrets"

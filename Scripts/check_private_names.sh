@@ -31,6 +31,12 @@ set -euo pipefail
 # Tracing off: the list must never reach a trace (bash -x, or a CI debug run).
 set +x
 
+# The list parsing, shared with Scripts/sync_private_names_secrets.sh.
+# Sourced from beside this script, before the cd below into the repository.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=Scripts/lib_private_names.sh
+source "${ROOT}/Scripts/lib_private_names.sh"
+
 REPO="${1:-.}"
 cd "$REPO" || { echo "❌ FAIL: cannot enter ${REPO}"; exit 2; }
 
@@ -40,7 +46,8 @@ read_list() {
     LIST="$FORSGREN_PRIVATE_NAMES"
     return 0
   fi
-  local file="${FORSGREN_PRIVATE_NAMES_FILE:-${HOME:-/nonexistent}/.config/forsgren/private-names}"
+  local file
+  file="$(private_names_file)"
   if [[ ! -f "$file" ]]; then
     if [[ -n "${FORSGREN_PRIVATE_NAMES_FILE:-}" ]]; then
       echo "❌ FAIL: the private-names file ${file} does not exist"
@@ -55,18 +62,9 @@ read_list() {
 # build_patterns <file>: one ERE per name into <file>, regex-escaped, no
 # boundary (a substring match). Sets COUNT to the number of names; exit 2 on none.
 build_patterns() {
-  local out="$1" line escaped
-  COUNT=0
-  : > "$out"
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    line="${line%$'\r'}"
-    line="${line#"${line%%[![:space:]]*}"}"
-    line="${line%"${line##*[![:space:]]}"}"
-    [[ -z "$line" || "$line" == \#* ]] && continue
-    escaped="$(printf '%s' "$line" | sed 's/[][\.*^$+?(){}|/]/\\&/g')"
-    printf '%s\n' "$escaped" >> "$out"
-    COUNT=$((COUNT + 1))
-  done <<< "$LIST"
+  private_names_parse "$LIST"
+  COUNT="$PRIVATE_NAMES_COUNT"
+  printf '%s' "$PRIVATE_NAMES" | sed 's/[][\.*^$+?(){}|/]/\\&/g' > "$1"
   if [[ "$COUNT" -eq 0 ]]; then
     echo "❌ FAIL: the list of private names has no names in it: a scan for nothing is not a clean scan"
     exit 2

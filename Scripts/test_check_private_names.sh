@@ -275,6 +275,8 @@ new_repo "reveal"
 write_file "docs/notes.md" $'see acme-secret-repo for details\n' track
 MUTANT="${TMP}/mutant/Scripts/check_private_names.sh"
 if selftest_mutant "$GATE" "$MUTANT" "s/lineno=\${hit%%:\*}/lineno=\$hit/"; then
+  # The gate sources its list parser from beside itself; so does the mutant.
+  cp Scripts/lib_private_names.sh "$(dirname "$MUTANT")/"
   run_file_with "$MUTANT" "$NAMES_FILE"
   if [[ "$RC" -eq 1 ]] && reveals "$NAME_A"; then
     echo "  ok: mutation proof: a gate that prints the matched line fails the no-name assertion"

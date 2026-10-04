@@ -59,12 +59,12 @@ calls() {
   find "$GH_LOG" -name 'args-*' | wc -l | tr -d ' '
 }
 
-# call_with <flag> <n>: succeeds when gh call <n> had the argument text <flag>.
+# call_has_args <n> <args>: succeeds when gh call <n> had exactly the argument text <args>.
 call_has_args() {
   [[ -f "${GH_LOG}/args-$1" ]] && grep -qxF -- "$2" "${GH_LOG}/args-$1"
 }
 
-# call_stdin_is <n>: succeeds when stdin of call <n> was exactly the two names.
+# call_stdin_is_names <n>: succeeds when stdin of call <n> was exactly the two names.
 call_stdin_is_names() {
   [[ -f "${GH_LOG}/stdin-$1" ]] \
     && [[ "$(cat "${GH_LOG}/stdin-$1")" == "$(printf '%s\n%s' "$NAME_A" "$NAME_B")" ]]
