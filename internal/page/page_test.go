@@ -71,7 +71,8 @@ var noRework = metrics.ReworkRate{Deployments: 12, Band: metrics.ZeroPercent}
 // so across its row, and one with deployments but no commit in the window
 // says "No lead time yet".
 func TestFrequencyPageMatchesGolden(t *testing.T) {
-	checkGolden(t, "testdata/index.frequency.golden.html", acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework))
+	checkGolden(t, "testdata/index.frequency.golden.html",
+		acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework))
 }
 
 // TestLeadTimePageMatchesGolden (forsgren#16, step 5): a project's row shows
