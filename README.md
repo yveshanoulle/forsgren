@@ -524,7 +524,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   (`scoring/index.html`, forsgren#47) shows each metric's DORA Quick Check
   score alone, 0 to 10 (`9.3`, `10`, `0`), `-` where the metric has no data,
   and a sixth column, Overall Performance: the mean of the scored metrics to
-  one decimal. The switch does not name it yet.
+  one decimal, `-` when none is scored. The switch does not name it yet.
 - **The legend** (`legend.html`) gives each metric's bands in one compact
   list (recovery time's are lead time's, and rework rate's are change fail
   rate's, so it refers to them), with what each cell counts and its window.

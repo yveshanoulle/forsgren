@@ -11,7 +11,8 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/metrics"
 )
 
-// noScore is the cell of a metric with no score.
+// noScore is the cell of a metric with no score, and of an Overall
+// Performance with no scored metric.
 const noScore = "-"
 
 // score is a metric's score, which it has only when the metric has data.
@@ -46,7 +47,7 @@ func (r Row) ScoreCells() []string {
 }
 
 // OverallCell is the row's Overall Performance to one decimal, "8.4": the
-// mean of its scored metrics.
+// mean of its scored metrics, "-" when none is scored.
 func (r Row) OverallCell() string {
 	var scored []float64
 	for _, s := range r.scores() {
@@ -54,6 +55,9 @@ func (r Row) OverallCell() string {
 			scored = append(scored, s.value)
 		}
 	}
-	overall, _ := metrics.OverallScore(scored)
+	overall, ok := metrics.OverallScore(scored)
+	if !ok {
+		return noScore
+	}
 	return fmt.Sprintf("%.1f", overall)
 }
