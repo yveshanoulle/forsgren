@@ -6,6 +6,7 @@
 # 2026-10-04); writing them here to keep them out of here would publish them.
 #
 # Usage: Scripts/check_private_names.sh [repo-dir]   (default: the current directory)
+#        Scripts/check_private_names.sh --message <file>
 #
 # The list, the first source that is set and non-empty wins:
 #   1. env FORSGREN_PRIVATE_NAMES, newline-separated (the CI Actions secret)
@@ -25,6 +26,16 @@
 # when the path itself names a private name) and `tracked path #N in
 # git ls-files` for a path hit, NEVER the name and never a matching path:
 # sfl and FBP.sh quote FAIL lines and CI prints them on the job summary.
+#
+# --message <file> (FBP.sh, before anything else): searches only the text of
+# <file>, a commit message, with the same list sources and the same substring,
+# case-insensitive matching, and no repository scan. It prints nothing when
+# the message is clean and ONE FAIL line, never the name nor the message, on a
+# hit (exit 1). A message cannot be judged without a list, so no list at all,
+# an env list or a names file with no names all pass (exit 0): locally FBP.sh
+# makes an empty list itself, and CI never commits through FBP.sh. Exit 2 only
+# when <file> cannot be read. FBP.sh hands the message in a temp file, never
+# as an argument, so no trace or process list shows it.
 #
 # Exit 0 clean. Exit 1 a name found. Exit 2 when:
 #   - there is no list at all (no env list, no names file);
@@ -46,8 +57,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=Scripts/lib_private_names.sh
 source "${ROOT}/Scripts/lib_private_names.sh"
 
-REPO="${1:-.}"
-cd "$REPO" || { echo "❌ FAIL: cannot enter ${REPO}"; exit 2; }
+# 1 in --message mode: a missing or empty list passes (see the header).
+MESSAGE_MODE=0
 
 # read_list: the raw list text in LIST, from the first source that has one;
 # SOURCE is env or file.
@@ -60,6 +71,7 @@ read_list() {
   local file
   file="$(private_names_file)"
   if [[ ! -f "$file" ]]; then
+    [[ "$MESSAGE_MODE" -eq 1 ]] && exit 0
     if [[ -n "${FORSGREN_PRIVATE_NAMES_FILE:-}" ]]; then
       echo "❌ FAIL: the private-names file ${file} does not exist"
     else
@@ -79,7 +91,7 @@ build_patterns() {
   private_names_parse "$LIST"
   COUNT="$PRIVATE_NAMES_COUNT"
   printf '%s' "$PRIVATE_NAMES" | sed 's/[][\.*^$+?(){}|/]/\\&/g' > "$1"
-  if [[ "$COUNT" -eq 0 && "$SOURCE" == env ]]; then
+  if [[ "$COUNT" -eq 0 && "$SOURCE" == env && "$MESSAGE_MODE" -eq 0 ]]; then
     echo "❌ FAIL: the list of private names in FORSGREN_PRIVATE_NAMES has no names in it: an emptied secret is not a clean scan"
     exit 2
   fi
@@ -140,6 +152,30 @@ scan_tracked() {
     fi
   done < <(git ls-files -o --exclude-standard -z)
 }
+
+# check_message <file>: the --message mode; exits, never returns.
+check_message() {
+  local msg="$1"
+  MESSAGE_MODE=1
+  [[ -f "$msg" && -r "$msg" ]] || { echo "❌ FAIL: cannot read the commit message file"; exit 2; }
+  read_list
+  TMP="$(mktemp -d)"
+  trap 'rm -rf "$TMP"' EXIT
+  build_patterns "${TMP}/patterns"
+  [[ "$COUNT" -eq 0 ]] && exit 0
+  if grep -a -q -i -E -f "${TMP}/patterns" -- "$msg"; then
+    echo "❌ FAIL: the commit message names a private name: reword it (Scripts/check_private_names.sh)"
+    exit 1
+  fi
+  exit 0
+}
+
+if [[ "${1:-}" == "--message" ]]; then
+  check_message "${2:-}"
+fi
+
+REPO="${1:-.}"
+cd "$REPO" || { echo "❌ FAIL: cannot enter ${REPO}"; exit 2; }
 
 LIST=""
 SOURCE=""

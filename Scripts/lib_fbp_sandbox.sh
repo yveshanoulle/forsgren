@@ -47,6 +47,10 @@
 #     auto-fix has nothing to rewrite;
 #   - a stub Scripts/ensure_private_names_file.sh that exits 0, so a sandbox
 #     run never creates a private-names list in the real HOME (forsgren#52);
+#   - a copy of the REAL Scripts/check_private_names.sh and
+#     Scripts/lib_private_names.sh: FBP.sh refuses a commit message that names
+#     a private name through the gate's --message mode (forsgren#52), and the
+#     sandbox pins that with the real matcher, not a stub;
 #   - a stub bin/say that exits 0, put first on PATH, so a run is silent;
 #   - a copy of the REAL Scripts/go_toolchain.sh and of the repo's go.mod
 #     (forsgren#1 step 4): FBP.sh exports GOTOOLCHAIN from them before PRE
@@ -65,6 +69,8 @@ FBP_SANDBOX_FBP="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/FBP.sh"
 # forsgren#1 step 4: the real Go toolchain reader and the go.mod it reads,
 # copied into every sandbox beside FBP.sh (see the header). Both are derived
 # from FBP_SANDBOX_FBP's directory, the repo root.
+FBP_SANDBOX_PRIVATE_NAMES_GATE="$(dirname "$FBP_SANDBOX_FBP")/Scripts/check_private_names.sh"
+FBP_SANDBOX_PRIVATE_NAMES_LIB="$(dirname "$FBP_SANDBOX_FBP")/Scripts/lib_private_names.sh"
 FBP_SANDBOX_GO_TOOLCHAIN="$(dirname "$FBP_SANDBOX_FBP")/Scripts/go_toolchain.sh"
 FBP_SANDBOX_GO_MOD="$(dirname "$FBP_SANDBOX_FBP")/go.mod"
 
@@ -348,6 +354,8 @@ fbp_sandbox_run() {
     printf '#!/usr/bin/env bash\nexit 0\n' > Scripts/ensure_private_names_file.sh
     chmod +x Scripts/ensure_private_names_file.sh
     cp "$FBP_SANDBOX_GO_TOOLCHAIN" Scripts/go_toolchain.sh
+    cp "$FBP_SANDBOX_PRIVATE_NAMES_GATE" Scripts/check_private_names.sh
+    cp "$FBP_SANDBOX_PRIVATE_NAMES_LIB" Scripts/lib_private_names.sh
     cp "$FBP_SANDBOX_GO_MOD" go.mod
     cp "${FBP_SANDBOX_FBP_OVERRIDE:-$FBP_SANDBOX_FBP}" ./FBP.sh
     mkdir -p bin

@@ -1166,7 +1166,12 @@ commit itself:
   would stage), case-insensitively, for a substring (a listed name
   inside a longer token is a hit). Its failure line
   names `file:line`, or `tracked path #N in git ls-files`, and never the
-  name, so no log or commit message reveals it. No list, an env list with no
+  name, so the gate's own output reveals none. A commit message is checked too:
+  `FBP.sh` hands it to `Scripts/check_private_names.sh --message <file>` (the
+  same list and matching, a temp file, no repository scan) first of all, and on
+  a hit it makes no commit, runs no gate, prints one `❌` line that never holds
+  the name or the message, and exits non-zero; with no list or an empty one the
+  message check passes. No list, an env list with no
   names, a missing names file, or no tracked file is exit 2 and a red, never a
   silent pass; locally an existing names file with no names passes with
   `0 names searched`. Its
