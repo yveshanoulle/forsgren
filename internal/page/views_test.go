@@ -181,18 +181,20 @@ func TestWriteSiteFailsWhenAViewFolderIsAFile(t *testing.T) {
 }
 
 // TestRootPageFollowsItsDataView (forsgren#46): the root page shows the view
-// of its data with the switch, the links relative to the root; with no view
-// it is the plain root page, and with no rows it has no switch.
+// of its data with the switch, the links relative to the root, its view
+// marked aria-current="true", since the root is not that view's page
+// (Yves's ruling); with no view it is the plain root page, and with no rows
+// it has no switch.
 func TestRootPageFollowsItsDataView(t *testing.T) {
 	data := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
 	for view, want := range map[string]string{
-		"standard": `View: <span aria-current="page">standard</span> · <a href="numbers/">numbers</a>`,
-		"numbers":  `View: <a href="standard/">standard</a> · <span aria-current="page">numbers</span>`,
+		"standard": `View: <span aria-current="true">standard</span> · <a href="numbers/">numbers</a>`,
+		"numbers":  `View: <a href="standard/">standard</a> · <span aria-current="true">numbers</span>`,
 	} {
 		data.View = view
 		got := rendered(t, "index.html", data)
 		wantAll(t, "index.html", got, want, `href="styles.css"`, `<a href="legend.html">What the bands mean</a>`)
-		wantNone(t, "index.html", got, "../")
+		wantNone(t, "index.html", got, "../", `aria-current="page"`)
 	}
 	data.View = "numbers"
 	wantAll(t, "index.html", rendered(t, "index.html", data), "<td>12</td>")
