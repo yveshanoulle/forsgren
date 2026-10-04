@@ -505,6 +505,13 @@ repository links|Scripts/check_repo_links.sh|post|
 community-files self-test|Scripts/test_check_community_files.sh|pre|
 community files|Scripts/check_community_files.sh|pre|
 #
+# PRIVATE NAMES (forsgren#52). Not canon: forsgren's own. The tracked files
+# must not name a private repository. The list of names lives outside the
+# repository (a local file, a CI Actions secret), so this public file holds
+# none. Only the self-test is registered here, in the red step; the gate row
+# joins it once the tree is scrubbed.
+private-names self-test|Scripts/test_check_private_names.sh|pre|
+#
 # The privacy pages belong to a site that needs privacy pages: konenki-website
 # serves a privacy policy, and its check_privacy_pages.sh pins that
 # policy's content (language, title, approved date, binding-version

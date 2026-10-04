@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+# Scripts/test_check_private_names.sh
+#
+# Self-test for Scripts/check_private_names.sh (forsgren#52), run before the
+# gate it validates. The gate keeps the real private repository names out of
+# this public repository's tracked files. The list of names lives OUTSIDE the
+# repository (Yves's ruling, 2026-10-04): locally in a file, in CI in an
+# Actions secret passed through env. Every name below is made up
+# (acme-secret-repo, globex-internal); none is a real repository.
+#
+# The gate's interface, as pinned here:
+#   Scripts/check_private_names.sh [repo-dir]    (default: the current directory)
+#   list source, first that is set and non-empty wins:
+#     1. env FORSGREN_PRIVATE_NAMES, newline-separated (CI secret)
+#     2. the file FORSGREN_PRIVATE_NAMES_FILE, else
+#        $HOME/.config/forsgren/private-names, one name per line
+#   blank lines and lines starting with # are not names.
+#   exit 0 clean (prints an OK: line), 1 a name found, 2 no list available.
+#
+# THE MATCH RULE (decided here): a name matches case-insensitively, as a
+# WHOLE NAME. It must not be directly preceded or followed by a letter, a
+# digit, `_` or `-`; any other character (/, space, `.`, quote, line start or
+# end) is a boundary. So `acme-secret-repo` is found in `github.com/Acme-Secret-Repo`
+# and in `acme-secret-repo.` but NOT in `acme-secret-repository` or in
+# `my-acme-secret-repo`: those are different names, and a fixture or prose may
+# legitimately contain them.
+#
+# The FAIL line names `file:line` and never the matched name, so a CI log
+# never reveals it.
+#
+#   1. a clean tree                                -> exit 0, OK:
+#   2. a tracked file with a listed name           -> exit 1, `file:line`, and
+#                                                     the output has no name
+#   3. the same name in other letter case          -> exit 1
+#   4. the list from the file (FORSGREN_PRIVATE_NAMES_FILE)   -> works
+#   5. the list from the default file under $HOME  -> works
+#   6. the list from env (FORSGREN_PRIVATE_NAMES)  -> works, no name printed
+#   7. no list at all                              -> exit 2, a message
+#   8. a list with only comments and blanks        -> exit 2: a scan for nothing
+#   9. a name only inside a longer word            -> exit 0 (see the rule)
+#  10. a name at a boundary (slash, dot, quote)    -> exit 1
+#  11. an untracked file with a name               -> exit 0 (only tracked
+#                                                     files are judged)
+#  12. a repository with no tracked files          -> exit 2,
+#                                                     the scan read nothing
+#  13. a second listed name, a line-number check   -> exit 1, the right line
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.." || exit 1
+
+GATE="$(pwd)/Scripts/check_private_names.sh"
+
+# shellcheck source=Scripts/lib_selftest.sh
+source Scripts/lib_selftest.sh
+selftest_begin "private-names gate self-test"
+
+if [[ ! -x "$GATE" ]]; then
+  selftest_abort "Scripts/check_private_names.sh is missing or not executable: nothing to test"
+fi
+
+NAME_A="acme-secret-repo"
+NAME_B="globex-internal"
+
+NAMES_FILE="${TMP}/names-file"
+printf '# made-up private names\n%s\n\n%s\n' "$NAME_A" "$NAME_B" > "$NAMES_FILE"
+NAMES_ENV="$(printf '%s\n\n%s' "$NAME_A" "$NAME_B")"
+EMPTY_FILE="${TMP}/empty-names"
+printf '# only a comment\n\n   \n' > "$EMPTY_FILE"
+EMPTY_HOME="${TMP}/empty-home"
+mkdir -p "$EMPTY_HOME"
+
+# new_repo <name>: a git repository with one ordinary tracked file.
+new_repo() {
+  REPO="${TMP}/$1"
+  mkdir -p "$REPO"
+  git -C "$REPO" init -q
+  write_file "main.go" $'package main\n\nfunc main() {}\n' track
+}
+
+# write_file <path> <content> [track]: writes a file; `track` git-adds it.
+write_file() {
+  mkdir -p "$(dirname "${REPO}/$1")"
+  printf '%s' "$2" > "${REPO}/$1"
+  if [[ "${3:-}" == "track" ]]; then
+    git -C "$REPO" add "$1"
+  fi
+}
+
+# run_file <names-file>: the list from the file; env list unset.
+run_file() {
+  capture env -u FORSGREN_PRIVATE_NAMES HOME="$EMPTY_HOME" \
+    FORSGREN_PRIVATE_NAMES_FILE="$1" "$GATE" "$REPO"
+}
+
+# run_env <list>: the list from env; no file anywhere.
+run_env() {
+  capture env -u FORSGREN_PRIVATE_NAMES_FILE HOME="$EMPTY_HOME" \
+    FORSGREN_PRIVATE_NAMES="$1" "$GATE" "$REPO"
+}
+
+# want_not_said <case> <text...>: the output contains none of the texts.
+want_not_said() {
+  local case_name="$1" text
+  shift
+  for text in "$@"; do
+    if grep -qiF -- "$text" <<< "$OUT"; then
+      fail "${case_name}: the output reveals '${text}'. Output: ${OUT}"
+      return
+    fi
+  done
+  echo "  ok: ${case_name}: the output names no private name"
+}
+
+new_repo "clean"
+write_file "README.md" $'# acme-app\nNothing private here.\n' track
+run_file "$NAMES_FILE"
+want_green_ok "a clean tree is green"
+
+new_repo "listed"
+write_file "docs/notes.md" $'line one\nsee acme-secret-repo for details\n' track
+run_file "$NAMES_FILE"
+want_red "a listed name is red, naming file:line" "docs/notes.md:2"
+want_not_said "a listed name" "$NAME_A" "$NAME_B"
+
+new_repo "case"
+write_file "docs/notes.md" $'ACME-Secret-Repo\n' track
+run_file "$NAMES_FILE"
+want_red "matching is case-insensitive" "docs/notes.md:1"
+want_not_said "case-insensitive match" "$NAME_A"
+
+new_repo "default-file"
+write_file "docs/notes.md" $'globex-internal\n' track
+DEFAULT_HOME="${TMP}/home-with-list"
+mkdir -p "${DEFAULT_HOME}/.config/forsgren"
+cp "$NAMES_FILE" "${DEFAULT_HOME}/.config/forsgren/private-names"
+capture env -u FORSGREN_PRIVATE_NAMES -u FORSGREN_PRIVATE_NAMES_FILE \
+  HOME="$DEFAULT_HOME" "$GATE" "$REPO"
+want_red "the default file under HOME is read" "docs/notes.md:1"
+
+new_repo "from-file"
+write_file "a.txt" $'ok\n' track
+write_file "b/c.txt" $'x\ny\nGlobex-Internal\n' track
+run_file "$NAMES_FILE"
+want_red "the list from FORSGREN_PRIVATE_NAMES_FILE, second name, right line" "b/c.txt:3"
+want_not_said "the list from the file" "$NAME_A" "$NAME_B"
+
+new_repo "from-env"
+write_file "docs/notes.md" $'a\nb\nacme-secret-repo\n' track
+run_env "$NAMES_ENV"
+want_red "the list from FORSGREN_PRIVATE_NAMES (CI secret)" "docs/notes.md:3"
+want_not_said "the list from env" "$NAME_A" "$NAME_B"
+
+new_repo "env-second-name"
+write_file "docs/notes.md" $'globex-internal\n' track
+run_env "$NAMES_ENV"
+want_red "every name of a newline-separated env list is searched" "docs/notes.md:1"
+
+new_repo "no-list"
+capture env -u FORSGREN_PRIVATE_NAMES -u FORSGREN_PRIVATE_NAMES_FILE \
+  HOME="$EMPTY_HOME" "$GATE" "$REPO"
+want_exit "no list at all is exit 2, loudly" 2 "FORSGREN_PRIVATE_NAMES"
+want_not_said "no list" "$NAME_A"
+
+new_repo "empty-list"
+run_file "$EMPTY_FILE"
+want_exit "a list with no names is exit 2: a scan for nothing" 2 "no names"
+capture env -u FORSGREN_PRIVATE_NAMES_FILE HOME="$EMPTY_HOME" \
+  FORSGREN_PRIVATE_NAMES=$'\n  \n# c\n' "$GATE" "$REPO"
+want_exit "an env list with no names is exit 2" 2 "no names"
+
+new_repo "missing-file"
+capture env -u FORSGREN_PRIVATE_NAMES HOME="$EMPTY_HOME" \
+  FORSGREN_PRIVATE_NAMES_FILE="${TMP}/does-not-exist" "$GATE" "$REPO"
+want_exit "a names file that does not exist is exit 2" 2 "does-not-exist"
+
+new_repo "substring"
+write_file "docs/notes.md" $'acme-secret-repository\nmy-acme-secret-repo\nacme-secret-repo2\nxacme-secret-repo\nacme-secret-repo_v2\n' track
+run_file "$NAMES_FILE"
+want_green_ok "a name inside a longer word is not a match"
+
+new_repo "boundaries"
+write_file "a.md" $'https://github.com/acme-secret-repo\n' track
+write_file "b.md" $'"globex-internal".\n' track
+write_file "c.md" $'(acme-secret-repo)\n' track
+write_file "d.md" $'acme-secret-repo.\n' track
+run_file "$NAMES_FILE"
+want_red "a name at a boundary is found (a.md)" "a.md:1"
+want_said "a name at a boundary is found (b.md)" "b.md:1"
+want_said "a name at a boundary is found (c.md)" "c.md:1"
+want_said "a name at a boundary is found (d.md)" "d.md:1"
+
+new_repo "untracked"
+write_file "scratch.md" $'acme-secret-repo\n'
+run_file "$NAMES_FILE"
+want_green_ok "an untracked file is not judged"
+
+new_repo "nothing-tracked"
+git -C "$REPO" rm -q --cached main.go
+run_file "$NAMES_FILE"
+want_exit "a repository with no tracked files is exit 2: the scan read nothing" 2 "no tracked files"
+
+selftest_end "the private-names gate does not keep listed names out of tracked files, or passes without a list" \
+  "private-names gate is red with file:line (never the name) on a listed name, case-insensitively and as a whole name, reads its list from a file or from env, and is exit 2 when no list or no tracked file is there"
