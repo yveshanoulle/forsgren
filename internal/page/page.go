@@ -184,7 +184,9 @@ func parsePages() map[string]page {
 	for _, view := range views {
 		out[view+"/index.html"] = page{set: out["index.html"].set, file: "index.html", view: view, base: viewBase}
 	}
-	out[viewScoring+"/index.html"] = page{set: out["index.html"].set, file: "index.html", view: viewScoring, base: viewBase}
+	out[viewScoring+"/index.html"] = page{
+		set: out["index.html"].set, file: "index.html", view: viewScoring, base: viewBase,
+	}
 	return out
 }
 
