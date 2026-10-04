@@ -144,6 +144,12 @@ want_rc "8. exits 2 on a missing root dir, never 0" 2
 capture "$GATE"
 want_green_ok "9. this repository has a code of conduct naming the address, and the README links it"
 
+# forsgren#44: the gate also holds SECURITY.md. A root with a good code of
+# conduct and a README that links it, but no SECURITY.md, is red.
+new_root nosecurity "$GOOD_COC" "$GOOD_README"
+capture "$GATE" "$ROOT"
+want_red "10. rejects a root with no SECURITY.md" "SECURITY.md is missing"
+
 # Mutation proofs. The mutant cds to its own dir's parent, so it gets the
 # same layout.
 mutate() {
