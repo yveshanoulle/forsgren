@@ -10,10 +10,6 @@ body {
   line-height: 1.5;
 }
 
-.site-name {
-  font-weight: 600;
-}
-
 /* The table of the four metrics (forsgren#38) scrolls inside its own box on
    a narrow screen, so the page itself never scrolls sideways. */
 .table-scroll {

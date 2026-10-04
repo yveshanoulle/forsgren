@@ -468,9 +468,10 @@ data GitHub already has." and, when numbers were calculated, "Calculated at
 2026-10-03 12:00 UTC" (left out otherwise); then Install, linked to the
 public forsgren-template repository.
 
-`render` writes one table (forsgren#38), under the line that says when the
-numbers were calculated, "Calculated 2026-10-03 12:00 UTC, counting back
-from that moment: ...":
+`render` writes one table (forsgren#38) first on the table page, with no text
+above it but a visually hidden heading for screen readers, "Forsgren 0.0.8:
+the five DORA metrics"; where each metric comes from is explained on the
+legend page, counting back from the time in the footer:
 
 - **The columns** are the five metrics: deployment frequency, lead time for
   changes, failed deployment recovery time, change fail rate and deployment
@@ -831,7 +832,7 @@ private repositories (no scope for public ones).
 
 ## Running forsgren
 
-forsgren renders a static page which says "Forsgren 0.0.8", the version of
+forsgren renders a static page whose footer says "Forsgren 0.0.8", the version of
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate. That version has one source,
@@ -857,13 +858,12 @@ installation pins that version. From a checkout of this repository:
 plus `styles.css`) into `<dir>`, creating it when needed, and exits 0; 1 when
 the render failed (or the `--config` file is missing or invalid, with
 check-config's refusal), 2 on a usage error. With `--config`, a config that
-lists no projects makes the page say, besides "Forsgren 0.0.8", "No projects
+lists no projects makes the page say, besides "Forsgren 0.0.8" in its footer, "No projects
 configured yet: add them to forsgren.config.yml."; without `--config` (the
 build above has no installation config) or with projects, the page is the
 placeholder, unchanged. With `--data` as well (it needs `--config`), the
 page shows each project's deployment frequency from that history, counted
-back from the moment of the render, which the page names in its first line
-and in its footer, "Calculated 2026-10-03 12:00 UTC" (UTC, to the minute; forsgren#28: the
+back from the moment of the render, which the page names in its footer, "Calculated at 2026-10-03 12:00 UTC" (UTC, to the minute; forsgren#28: the
 render time, not the time `collect` finished, and shown only with `--data`
 and at least one project, so a page without numbers stays byte-identical
 between renders); a missing history file (a new install
