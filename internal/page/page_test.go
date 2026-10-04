@@ -34,14 +34,16 @@ func TestNoProjectsPageMatchesGolden(t *testing.T) {
 // and the change fail rate changeFail; Acme Tools with one failed
 // deployment and nothing else, the worst case, shown in full (Yves's ruling
 // on decision #35).
-func acmeProjects(shop metrics.LeadTime, recovery metrics.Recovery, changeFail metrics.ChangeFailRate) Data {
+func acmeProjects(shop metrics.LeadTime, recovery metrics.Recovery, changeFail metrics.ChangeFailRate,
+	rework metrics.ReworkRate,
+) Data {
 	data := Placeholder("0.0.7")
 	data.AsOf = "2026-10-03 12:00"
 	latest := time.Date(2026, 10, 1, 9, 30, 0, 0, time.UTC)
 	frequency := metrics.Frequency{Project: "Acme Shop", Last7: 3, Last30: 12, Latest: latest, Band: metrics.DailyToWeekly}
 	data.Rows = Table([]metrics.Row{
 		{Level: metrics.ProjectRow, Name: "Acme Shop", Frequency: frequency, LeadTime: shop, Recovery: recovery,
-			ChangeFail: changeFail},
+			ChangeFail: changeFail, Rework: rework},
 		{Level: metrics.ProjectRow, Name: "Acme Tools", Frequency: metrics.Frequency{Band: metrics.LessThanSixMonthly},
 			Recovery: metrics.Recovery{Unrecovered: 1}, ChangeFail: metrics.ChangeFailRate{
 				Deployments: 1, FailedDeployments: 1, Failed: 1, Band: metrics.HundredPercent,
@@ -58,20 +60,25 @@ var unrecovered = metrics.Recovery{Unrecovered: 1}
 // failed deployment of 13 (forsgren#18).
 var oneFailed = metrics.ChangeFailRate{Deployments: 13, FailedDeployments: 1, Failed: 1, Band: metrics.ZeroPercent}
 
+// noRework is Acme Shop's deployment rework rate in acmeProjects' pages
+// unless a test sets another (forsgren#39): none of its 12 successful
+// deployments is rework.
+var noRework = metrics.ReworkRate{Deployments: 12, Band: metrics.ZeroPercent}
+
 // TestFrequencyPageMatchesGolden (forsgren#12, step 7; forsgren#38): with
 // projects the page is one table, a row per project in the given order,
 // each cell short, the legend under it; a project with no deployment says
 // so across its row, and one with deployments but no commit in the window
 // says "No lead time yet".
 func TestFrequencyPageMatchesGolden(t *testing.T) {
-	checkGolden(t, "testdata/index.frequency.golden.html", acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed))
+	checkGolden(t, "testdata/index.frequency.golden.html", acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework))
 }
 
 // TestLeadTimePageMatchesGolden (forsgren#16, step 5): a project's row shows
 // its lead time for changes, the band, the median and the count.
 func TestLeadTimePageMatchesGolden(t *testing.T) {
 	shop := metrics.LeadTime{Commits: 3, Median: 17 * time.Minute, Band: metrics.LessThanOneHour}
-	checkGolden(t, "testdata/index.leadtime.golden.html", acmeProjects(shop, unrecovered, oneFailed))
+	checkGolden(t, "testdata/index.leadtime.golden.html", acmeProjects(shop, unrecovered, oneFailed, noRework))
 }
 
 // TestRecoveryPageMatchesGolden (forsgren#17): a project's row shows its
@@ -80,7 +87,8 @@ func TestLeadTimePageMatchesGolden(t *testing.T) {
 func TestRecoveryPageMatchesGolden(t *testing.T) {
 	recovery := metrics.Recovery{Recoveries: 2, Median: 3 * time.Hour, Band: metrics.LessThanOneDay, Unrecovered: 1}
 	threeFailed := metrics.ChangeFailRate{Deployments: 15, FailedDeployments: 3, Failed: 3, Band: metrics.TwentyPercent}
-	checkGolden(t, "testdata/index.recovery.golden.html", acmeProjects(metrics.LeadTime{}, recovery, threeFailed))
+	checkGolden(t, "testdata/index.recovery.golden.html", acmeProjects(metrics.LeadTime{}, recovery, threeFailed,
+		metrics.ReworkRate{Deployments: 12, Rework: 2, Band: metrics.TwentyPercent}))
 }
 
 // TestChangeFailPageMatchesGolden (forsgren#18): a project's row shows its
@@ -90,7 +98,8 @@ func TestChangeFailPageMatchesGolden(t *testing.T) {
 	changeFail := metrics.ChangeFailRate{
 		Deployments: 13, FailedDeployments: 1, FailureIssues: 2, Failed: 2, Band: metrics.TwentyPercent,
 	}
-	checkGolden(t, "testdata/index.changefail.golden.html", acmeProjects(metrics.LeadTime{}, unrecovered, changeFail))
+	checkGolden(t, "testdata/index.changefail.golden.html", acmeProjects(metrics.LeadTime{}, unrecovered, changeFail,
+		metrics.ReworkRate{Deployments: 12, Rework: 9, Band: metrics.EightyPercent}))
 }
 
 // TestNoDataPageMatchesGolden: projects with no deployment recorded yet,
@@ -124,7 +133,7 @@ func labelledRows() []metrics.Row {
 		return metrics.Row{Level: level, Name: name, Frequency: f, LeadTime: l, Recovery: r, ChangeFail: c}
 	}
 	label := metrics.LabelRow
-	return []metrics.Row{
+	rows := []metrics.Row{
 		row(metrics.ProjectRow, "Acme Shop", often, fast, recovered, cf(18, 1, metrics.ZeroPercent)),
 		row(label, "ADMIN", rarely, slow, metrics.Recovery{}, cf(2, 0, metrics.ZeroPercent)),
 		row(label, "API", often, fast, recovered, cf(7, 1, metrics.TwentyPercent)),
@@ -134,6 +143,9 @@ func labelledRows() []metrics.Row {
 			slow, metrics.Recovery{}, cf(3, 0, metrics.ZeroPercent)),
 		{Level: metrics.ProjectRow, Name: "Acme Docs"},
 	}
+	rows[0].Rework = metrics.ReworkRate{Deployments: 18, Rework: 2, Band: metrics.TwentyPercent}
+	rows[2].Rework = metrics.ReworkRate{Deployments: 7, Rework: 1, Band: metrics.TwentyPercent}
+	return rows
 }
 
 // TestLabelsPageMatchesGolden (forsgren#38): a project with label rows is
@@ -222,7 +234,7 @@ func TestLegendPageMatchesGolden(t *testing.T) {
 // carries a link to legend.html and none of the band explanations.
 func TestTablePageLinksToTheLegend(t *testing.T) {
 	var got bytes.Buffer
-	if err := Render(&got, "index.html", acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed)); err != nil {
+	if err := Render(&got, "index.html", acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)); err != nil {
 		t.Fatalf("Render: %v", err)
 	}
 	if !strings.Contains(got.String(), `<a href="legend.html">What the bands mean</a>`) {

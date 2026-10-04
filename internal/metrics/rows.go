@@ -44,6 +44,8 @@ type Row struct {
 	LeadTime   LeadTime
 	Recovery   Recovery
 	ChangeFail ChangeFailRate
+	// Rework is the row's deployment rework rate (forsgren#39).
+	Rework ReworkRate
 }
 
 // HasDeployments says whether the row has any final deployment, successful

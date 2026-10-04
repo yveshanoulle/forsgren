@@ -141,12 +141,13 @@ func TestProjectRowsKeepTheirNumbers(t *testing.T) {
 	leadTimes := LeadTimes(tableProjects, data.Commits, now)
 	recoveries := RecoveryTimes(tableProjects, data.Records, now)
 	changeFails := ChangeFailRates(tableProjects, data.Records, data.Failures, now)
+	reworks := ReworkRates(tableProjects, data.Records, data.Failures, now)
 	projectRows := projectRowsOf(Rows(tableProjects, data, now))
 	if len(projectRows) != len(tableProjects) {
 		t.Fatalf("want a row per project, got %v", headingsOf(projectRows))
 	}
 	for i, r := range projectRows {
-		want := Row{ProjectRow, tableProjects[i].Name, frequencies[i], leadTimes[i], recoveries[i], changeFails[i]}
+		want := Row{ProjectRow, tableProjects[i].Name, frequencies[i], leadTimes[i], recoveries[i], changeFails[i], reworks[i]}
 		if !reflect.DeepEqual(r, want) {
 			t.Errorf("want\n%+v\ngot\n%+v", want, r)
 		}
@@ -220,6 +221,31 @@ func TestEachRowCountsItsOwnData(t *testing.T) {
 	}
 	if api := rowNamed(t, rows, "API"); api.LeadTime.Median != time.Hour {
 		t.Errorf("API: want the lead time of deployment 1's commit, 1 hour, got %v", api.LeadTime.Median)
+	}
+}
+
+// TestEachRowHasItsReworkCell (forsgren#39): a project's total counts every
+// repository's deployments and failure issues, a repository's label row its
+// repository's, a service's row only its task's deployments, so only the
+// first success after a failed deployment is rework there.
+//
+// Acme Shop's 8 successes: acme/app's deployments 1 and 10 came while its
+// issue was open, 5 recovered deployment 4's failure, and acme/web's 7 came
+// while its issue was open. ADMIN holds 3 and 5, of which 5 recovered; API
+// none; Website's one is rework through its issue.
+func TestEachRowHasItsReworkCell(t *testing.T) {
+	rows := Rows(tableProjects, tableData(), now)
+	for name, want := range map[string]string{
+		"Acme Shop":  "60% · 50% (4 of 8)",
+		"ADMIN":      "60% · 50% (1 of 2)",
+		"API":        "0% · 0% (0 of 2)",
+		"IOS":        "No successful deployments",
+		"Website":    "100% · 100% (1 of 1)",
+		"Acme Tools": "0% · 0% (0 of 2)",
+	} {
+		if got := rowNamed(t, rows, name).Rework.Cell(); got != want {
+			t.Errorf("%s: want %q, got %q", name, want, got)
+		}
 	}
 }
 
