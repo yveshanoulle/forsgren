@@ -3,10 +3,11 @@
 //
 // Usage:
 //
-//	forsgren render --out <dir> [--config <path>] [--data <path>]
+//	forsgren render --out <dir> [--config <path>] [--data <path>] [--latest <version>]
 //	forsgren check-config --config <path>
 //	forsgren init-config --config <path>
 //	forsgren collect --config <path> --data <path>
+//	forsgren latest-release
 package main
 
 import (
@@ -18,10 +19,11 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/config"
 )
 
-const usage = `usage: forsgren render --out <dir> [--config <path>] [--data <path>]
+const usage = `usage: forsgren render --out <dir> [--config <path>] [--data <path>] [--latest <version>]
        forsgren check-config --config <path>
        forsgren init-config --config <path>
-       forsgren collect --config <path> --data <path>`
+       forsgren collect --config <path> --data <path>
+       forsgren latest-release`
 
 // version is the forsgren release this binary is, shown on every page it
 // renders. It is the one source of the version: a var, not a const, so a
@@ -33,19 +35,21 @@ func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
 
+// commands are the subcommands by name.
+var commands = map[string]func(args []string, stdout, stderr io.Writer) int{
+	"render":         render,
+	"check-config":   checkConfig,
+	"init-config":    initConfig,
+	"collect":        collectDeployments,
+	"latest-release": latestRelease,
+}
+
 // run executes one command and returns the process exit status: 0 on
 // success, 1 when the work failed, 2 on a usage error.
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) > 0 {
-		switch args[0] {
-		case "render":
-			return render(args[1:], stdout, stderr)
-		case "check-config":
-			return checkConfig(args[1:], stdout, stderr)
-		case "init-config":
-			return initConfig(args[1:], stdout, stderr)
-		case "collect":
-			return collectDeployments(args[1:], stdout, stderr)
+		if command, ok := commands[args[0]]; ok {
+			return command(args[1:], stdout, stderr)
 		}
 	}
 	_, _ = fmt.Fprintln(stderr, usage)

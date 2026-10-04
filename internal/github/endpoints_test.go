@@ -207,8 +207,12 @@ func TestLatestReleaseAsksForTheLatestOne(t *testing.T) {
 	f.on("/repos/acme/app/releases/latest",
 		reply{body: `{"id": 7, "tag_name": "v1.2.0", "published_at": "2026-10-04T08:00:00Z"}`})
 	got, err := f.client(t, DefaultMaxPages).LatestRelease(context.Background(), "acme/app")
-	if err != nil || got.TagName != "v1.2.0" || got.ID != 7 {
-		t.Fatalf("want release 7, v1.2.0, got %+v, %v", got, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	published := time.Date(2026, 10, 4, 8, 0, 0, 0, time.UTC)
+	if want := (Release{ID: 7, TagName: "v1.2.0", PublishedAt: published}); got != want {
+		t.Errorf("want %+v, got %+v", want, got)
 	}
 }
 

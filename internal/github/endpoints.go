@@ -213,8 +213,20 @@ func isSHA(s string) bool {
 }
 
 // LatestRelease is the repository's latest published release (not a draft,
-// not a prerelease): GET /repos/{owner}/{repo}/releases/latest.
-// STUB (forsgren#40 step 4 red): the green implements it.
+// not a prerelease): GET /repos/{owner}/{repo}/releases/latest. A repository
+// with no release is GitHub's 404, which reaches the caller as an error.
 func (c *Client) LatestRelease(ctx context.Context, repo string) (Release, error) {
-	return Release{}, errors.New("LatestRelease is not implemented")
+	t, err := c.endpoint(repo, nil, "releases", "latest")
+	if err != nil {
+		return Release{}, err
+	}
+	body, _, err := c.get(ctx, t, jsonMedia)
+	if err != nil {
+		return Release{}, err
+	}
+	var r Release
+	if err := json.Unmarshal(body, &r); err != nil {
+		return Release{}, fmt.Errorf("%s: %w for %s: %w", repo, ErrAnswer, t.path(), err)
+	}
+	return r, nil
 }

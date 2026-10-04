@@ -31,9 +31,9 @@ const calculatedLayout = "2006-01-02 15:04"
 const sourceDateEpoch = "SOURCE_DATE_EPOCH"
 
 // renderOptions are render's flags: the required --out, the optional
-// --config and --data (empty when absent).
+// --config, --data and --latest (empty when absent).
 type renderOptions struct {
-	out, config, data string
+	out, config, data, latest string
 }
 
 // render writes the site. With --config it also reads the installation's
@@ -86,6 +86,7 @@ func renderTime() (time.Time, error) {
 func pageData(o renderOptions, at time.Time) (page.Data, error) {
 	data := page.Placeholder(version)
 	data.AsOf = at.UTC().Format(calculatedLayout)
+	data.Latest = o.latest
 	if o.config == "" {
 		return data, nil
 	}
@@ -149,6 +150,8 @@ func renderFlags(args []string, stderr io.Writer) (renderOptions, bool) {
 	flags.StringVar(&o.config, "config", "", "the forsgren.config.yml the page reports on (optional)")
 	flags.StringVar(&o.data, "data", "",
 		"the history the page counts, data/deployments.csv, commits.csv, failures.csv beside it (optional, needs --config)")
+	flags.StringVar(&o.latest, "latest", "",
+		"the newest forsgren release, as latest-release prints it; the footer names it when it is newer (optional)")
 	if err := flags.Parse(args); err != nil {
 		return o, false
 	}

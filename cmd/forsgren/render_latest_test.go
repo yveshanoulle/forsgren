@@ -73,3 +73,20 @@ func TestALatestReleaseLookupThatFailsIsNotAnError(t *testing.T) {
 		})
 	}
 }
+
+// TestLatestReleaseTakesNoArgumentsAndSurvivesABadAPI (forsgren#40, step 4):
+// an argument is a usage error; an API address that is no URL is a lookup
+// that failed, not an error.
+func TestLatestReleaseTakesNoArgumentsAndSurvivesABadAPI(t *testing.T) {
+	code, _, stderr := runCommand("latest-release", "now")
+	if code != 2 || !strings.Contains(stderr, "usage: forsgren latest-release") {
+		t.Errorf("want exit 2 and the usage, got %d, %q", code, stderr)
+	}
+	old := githubAPI
+	githubAPI = "not a url"
+	t.Cleanup(func() { githubAPI = old })
+	code, stdout, stderr := runCommand("latest-release")
+	if code != 0 || stdout != "" || !strings.Contains(stderr, "latest release") {
+		t.Errorf("want exit 0, no stdout and a note, got %d, %q, %q", code, stdout, stderr)
+	}
+}

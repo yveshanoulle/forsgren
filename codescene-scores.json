@@ -23,7 +23,13 @@
   {
    "path": "internal/github/endpoints.go",
    "score": 9.38,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
+   "minScore": 9.28
+  },
+  {
+   "path": "cmd/forsgren/render_latest_test.go",
+   "score": 9.38,
+   "checkedAt": "2026-10-04",
    "minScore": 9.28
   },
   {
@@ -65,13 +71,13 @@
   {
    "path": "internal/github/client_test.go",
    "score": 9.68,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 9.58
   },
   {
    "path": "internal/github/fake_test.go",
    "score": 9.68,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 9.58
   },
   {
@@ -173,7 +179,7 @@
   {
    "path": "internal/github/client.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   },
   {
@@ -191,7 +197,7 @@
   {
    "path": "internal/github/endpoints_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   },
   {
@@ -430,6 +436,18 @@
   },
   {
    "path": "internal/metrics/stream.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/latest.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/release.go",
    "score": 10.0,
    "checkedAt": "2026-10-04",
    "minScore": 10.0

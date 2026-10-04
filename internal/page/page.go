@@ -166,8 +166,3 @@ func copyStyles(dir string) error {
 	}
 	return os.WriteFile(filepath.Join(dir, "styles.css"), css, 0o600)
 }
-
-// newer says whether the release latest is newer than current, comparing
-// their dot-separated numbers as numbers, with or without a leading "v".
-// STUB (forsgren#40 step 4 red): the green implements it.
-func newer(current, latest string) bool { return false }

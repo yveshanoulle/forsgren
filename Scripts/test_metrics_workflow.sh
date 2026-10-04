@@ -164,6 +164,16 @@
 #      FORSGREN_TOKEN is logged inside that pair, and a configuration whose
 #      unknown key carries a line break and `::warning::` records status=1
 #      with no workflow command live, as pin 11 has it for check-config;
+#  29. the step "Look up the latest forsgren release" (forsgren#40) hands
+#      forsgren the job's token as GITHUB_TOKEN (`${{ github.token }}`, never
+#      a secret), and, EXECUTED with the stub, outputs `latest=<version>` for
+#      a plain version, `latest=` for a lookup that exits non-zero or prints
+#      anything else (a failed lookup is never an error, and a line break or
+#      workflow command in the output is never an output);
+#  30. the render step takes that output through env: only (`LATEST:
+#      ${{ steps.latest.outputs.latest }}`) and, EXECUTED with the stub,
+#      passes `--latest <version>` to render when it is set and nothing
+#      when it is empty;
 #  and pin 9 also orders the steps: install, checkout, starter, config check,
 #  collect, data commit, render, and the fail step after "Publish to GitHub
 #  Pages", so what was stored is committed and published before the job
@@ -221,6 +231,7 @@ INSTALL_STEP="Install forsgren from this workflow's own commit"
 CHECKOUT_STEP="Check out the caller's repository"
 CHECK_STEP="Check the caller's forsgren configuration"
 RENDER_STEP="Render the page"
+LATEST_STEP="Look up the latest forsgren release"
 INIT_STEP="Write the starter configuration on a new install"
 CROSS="❌"
 CONFIG_CMD="check-config --config forsgren.config.yml"
@@ -402,6 +413,8 @@ install_outcome() {
 # fails as collect does, with inject prints workflow commands on stdout and
 # stderr and fails, with none (the default) stores nothing; otherwise,
 # with STUB_REFUSAL set, it says that on stderr and exits 1, else it says OK.
+# latest-release prints STUB_LATEST (printf %b: \n is a line break) and exits
+# with STUB_LATEST_RC (0 by default).
 cat > "${STUB}/forsgren" <<'STUBFORSGREN'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$FG_CALLS"
@@ -437,6 +450,10 @@ if [[ "${1:-}" == init-config ]]; then
     echo "kept $3"
   fi
   exit 0
+fi
+if [[ "${1:-}" == latest-release ]]; then
+  printf '%b' "${STUB_LATEST:-}"
+  exit "${STUB_LATEST_RC:-0}"
 fi
 if [[ -n "${STUB_REFUSAL:-}" ]]; then
   printf '%s\n' "$STUB_REFUSAL" >&2
@@ -735,6 +752,65 @@ judge_render_config() {
   got="$(paste -sd, - < "$calls")"
   want="render --out ${TMP}/runner/site --config forsgren.config.yml --data data/deployments.csv"
   [[ "$got" == "$want" ]] || echo "the render step runs 'forsgren ${got}', not 'forsgren ${want}' — render needs the config to say when no projects are configured, and the history to show the deployment frequency"
+}
+
+# lookup_outcome <script> <stub output> <stub exit status>: what the lookup
+# step does with a stub latest-release that prints that and exits with that:
+# `exit=<rc> output=<its GITHUB_OUTPUT lines, joined by |> calls=<forsgren
+# calls>`.
+lookup_outcome() {
+  local rc=0 out="${TMP}/lookup.out" calls="${TMP}/fg.calls"
+  : > "$out"
+  : > "$calls"
+  PATH="${STUB}:${PATH}" FG_CALLS="$calls" GITHUB_OUTPUT="$out" STUB_LATEST="$2" STUB_LATEST_RC="$3" \
+    bash "$1" > /dev/null 2>&1 || rc=$?
+  echo "exit=${rc} output=$(paste -sd'|' - < "$out") calls=$(paste -sd, - < "$calls")"
+}
+
+# judge_latest_lookup <workflow-file>: pin 29, the lookup step.
+judge_latest_lookup() {
+  local script="${TMP}/lookup.sh" env got want
+  env="$(step_block "$1" "$LATEST_STEP" env)"
+  if ! grep -qxF -- "GITHUB_TOKEN: ${EXPR_OPEN} github.token }}" <<< "$env"; then
+    echo "the lookup step's env: does not set GITHUB_TOKEN to the job's token — unauthorized calls from shared runner addresses hit GitHub's limit"
+  fi
+  if grep -qF -- "FORSGREN_TOKEN" <<< "$env"; then
+    echo "the lookup step's env: hands FORSGREN_TOKEN over — it reaches the collect step only"
+  fi
+  step_block "$1" "$LATEST_STEP" run > "$script"
+  if [[ ! -s "$script" ]]; then
+    echo "has no step '${LATEST_STEP}' with a run: | block"
+    return 0
+  fi
+  got="$(lookup_outcome "$script" "0.0.10\n" 0)"
+  want="exit=0 output=latest=0.0.10 calls=latest-release"
+  [[ "$got" == "$want" ]] || echo "the lookup step gives '${got}', not '${want}' — a plain version is the step's output"
+  got="$(lookup_outcome "$script" "" 1)"
+  want="exit=0 output=latest= calls=latest-release"
+  [[ "$got" == "$want" ]] || echo "for a lookup that fails the lookup step gives '${got}', not '${want}' — a failed lookup is not an error and the page says nothing of releases"
+  got="$(lookup_outcome "$script" "nightly" 0)"
+  want="exit=0 output=latest= calls=latest-release"
+  [[ "$got" == "$want" ]] || echo "for an answer that is not a version the lookup step gives '${got}', not '${want}' — only a plain version becomes an output"
+  got="$(lookup_outcome "$script" "0.0.10\nevil=1\n" 0)"
+  want="exit=0 output=latest= calls=latest-release"
+  [[ "$got" == "$want" ]] || echo "for an answer with a second line the lookup step gives '${got}', not '${want}' — a line break must never add an output"
+}
+
+# judge_render_latest <workflow-file>: pin 30, the render step passes the
+# lookup's output on.
+judge_render_latest() {
+  local script="${TMP}/render.sh" calls="${TMP}/fg.calls" env got want
+  env="$(step_block "$1" "$RENDER_STEP" env)"
+  if ! grep -qxF -- "LATEST: ${EXPR_OPEN} steps.latest.outputs.latest }}" <<< "$env"; then
+    echo "the render step's env: does not set LATEST from steps.latest.outputs.latest — render is not told the latest release"
+  fi
+  step_block "$1" "$RENDER_STEP" run > "$script"
+  [[ -s "$script" ]] || return 0
+  : > "$calls"
+  PATH="${STUB}:${PATH}" FG_CALLS="$calls" RUNNER_TEMP="${TMP}/runner" LATEST="0.0.10" bash "$script" > /dev/null 2>&1 || true
+  got="$(paste -sd, - < "$calls")"
+  want="render --out ${TMP}/runner/site --config forsgren.config.yml --data data/deployments.csv --latest 0.0.10"
+  [[ "$got" == "$want" ]] || echo "with LATEST set the render step runs 'forsgren ${got}', not 'forsgren ${want}' — the footer names a newer release only when render is given it"
 }
 
 # judge_permissions <workflow-file>: pin 16, the job grants itself
@@ -1181,7 +1257,8 @@ judge_config_e2e() {
 
 # judge_order <workflow-file>: pin 9.
 judge_order() {
-  local install checkout init check render collect data publish failstep
+  local install checkout init check render collect data publish failstep lookup
+  lookup="$(line_of "$1" "- name: ${LATEST_STEP}")"
   install="$(line_of "$1" "- name: ${INSTALL_STEP}")"
   checkout="$(line_of "$1" "- name: ${CHECKOUT_STEP}")"
   init="$(line_of "$1" "- name: ${INIT_STEP}")"
@@ -1211,6 +1288,12 @@ judge_order() {
   fi
   if later "$install" "$init"; then
     echo "writes the starter (line ${init}) before installing forsgren (line ${install}) — init-config is not on PATH yet"
+  fi
+  if later "$lookup" "$render"; then
+    echo "looks up the latest release (line ${lookup}) after it renders (line ${render}) — render is given the lookup's output"
+  fi
+  if later "$install" "$lookup"; then
+    echo "looks up the latest release (line ${lookup}) before installing forsgren (line ${install}) — latest-release is not on PATH yet"
   fi
   if later "$check" "$render"; then
     echo "checks the config (line ${check}) after it renders (line ${render}) — a bad config must stop the job before render"
@@ -1323,6 +1406,8 @@ judge() {
   judge_config_commands "$1"
   judge_config_e2e "$1"
   judge_render_config "$1"
+  judge_latest_lookup "$1"
+  judge_render_latest "$1"
   judge_secret "$1"
   judge_collect_step "$1"
   judge_collect_token "$1"
@@ -1489,7 +1574,21 @@ proves judge_permissions "a job that only reads contents" "does not grant itself
 proves judge_render_config "render without the config" "the render step runs 'forsgren render --out" \
   '/forsgren render /s/ --config forsgren\.config\.yml//'
 proves judge_render_config "render without the history" "the render step runs 'forsgren render --out" \
-  '/forsgren render /s/ --data data\/deployments\.csv$//'
+  '/forsgren render /s/ --data data\/deployments\.csv//'
+
+# The latest release (forsgren#40).
+proves judge_latest_lookup "a lookup without the job token" "does not set GITHUB_TOKEN to the job's token" \
+  '/GITHUB_TOKEN: \${{ github.token }}/d'
+proves judge_latest_lookup "a lookup with the caller's secret" "hands FORSGREN_TOKEN over" \
+  's|^\( *\)GITHUB_TOKEN: \${{ github.token }}|&\n\1FORSGREN_TOKEN: x|'
+proves judge_latest_lookup "a lookup that fails the job" "for a lookup that fails the lookup step gives" \
+  's/forsgren latest-release || true/forsgren latest-release/'
+proves judge_latest_lookup "a lookup output that is not checked" "for an answer that is not a version" \
+  '/if \[\[ ! "\$latest" =~/,/^          fi$/d'
+proves judge_render_latest "a render without the latest release" "with LATEST set the render step runs" \
+  's/ \${LATEST:+--latest "\$LATEST"}//'
+proves judge_render_latest "a render without LATEST in env" "does not set LATEST from steps.latest.outputs.latest" \
+  '/LATEST: \${{ steps.latest.outputs.latest }}/d'
 
 # The token (forsgren#12, step 6).
 proves judge_secret "a required token" "FORSGREN_TOKEN is declared required: true" \

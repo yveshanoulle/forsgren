@@ -132,7 +132,9 @@ func (c *Client) get(ctx context.Context, t target, accept string) ([]byte, http
 	if err != nil {
 		return nil, nil, fmt.Errorf("%s: %w", t.repo, err)
 	}
-	req.Header.Set("Authorization", "Bearer "+c.token)
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
 	req.Header.Set("Accept", accept)
 	req.Header.Set("X-GitHub-Api-Version", apiVersion)
 	req.Header.Set("User-Agent", "forsgren")

@@ -480,6 +480,7 @@ func TestNewerComparesVersionsAsNumbers(t *testing.T) {
 		{"0.0.9", "banana", false},
 		{"0.0.9", "0.0.10-rc1", false},
 		{"banana", "0.0.10", false},
+		{"0.0.9", "0.0.99999999999999999999", false},
 	}
 	for _, c := range cases {
 		if got := newer(c.current, c.latest); got != c.want {
@@ -512,6 +513,18 @@ func TestFooterNamesNoReleaseThatIsNotNewer(t *testing.T) {
 			if got := rendered(t, name, data); strings.Contains(got, " is available") {
 				t.Errorf("%s, latest %q: want nothing added to the footer, got:\n%s", name, latest, got)
 			}
+		}
+	}
+}
+
+// TestReleaseVersionNamesThePlainVersion (forsgren#40, step 4): a release
+// tag's version is its three numbers without the v; anything else is none.
+func TestReleaseVersionNamesThePlainVersion(t *testing.T) {
+	cases := map[string]string{"v0.0.10": "0.0.10", "0.1.2": "0.1.2", "nightly": "", "v1.2": "", "1.2.3-rc1": ""}
+	for in, want := range cases {
+		got, ok := ReleaseVersion(in)
+		if got != want || ok != (want != "") {
+			t.Errorf("ReleaseVersion(%q) = %q, %v, want %q", in, got, ok, want)
 		}
 	}
 }

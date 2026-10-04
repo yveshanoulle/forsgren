@@ -130,6 +130,10 @@ func calls(repo string) map[string]func(*Client) error {
 			_, _, err := c.Releases(ctx, repo, since)
 			return err
 		},
+		"latest release": func(c *Client) error {
+			_, err := c.LatestRelease(ctx, repo)
+			return err
+		},
 		"tag commit": func(c *Client) error {
 			_, err := c.TagCommit(ctx, repo, "v1.2.0")
 			return err

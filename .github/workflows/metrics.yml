@@ -333,11 +333,34 @@ jobs:
           fi
           exit 1
 
-      - name: Render the page
+      # The page's footer names a newer forsgren release (forsgren#40).
+      # forsgren latest-release reads forsgren's own public repository with
+      # the job's token (the caller's FORSGREN_TOKEN never reaches this
+      # step; unauthorized calls from shared runner addresses hit GitHub's
+      # limit of 60 an hour). A lookup that fails is not an error: the output
+      # is then empty and the page says nothing of releases. Only a plain
+      # version, three numbers, becomes the step's output, whatever the
+      # command printed.
+      - name: Look up the latest forsgren release
+        id: latest
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          forsgren render --out "${RUNNER_TEMP}/site" --config forsgren.config.yml --data data/deployments.csv
+          latest="$(forsgren latest-release || true)"
+          if [[ ! "$latest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            latest=""
+          fi
+          echo "latest=${latest}" >> "$GITHUB_OUTPUT"
+
+      - name: Render the page
+        shell: bash
+        env:
+          LATEST: ${{ steps.latest.outputs.latest }}
+        run: |
+          set -euo pipefail
+          forsgren render --out "${RUNNER_TEMP}/site" --config forsgren.config.yml --data data/deployments.csv ${LATEST:+--latest "$LATEST"}
 
       - name: Upload the page
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0

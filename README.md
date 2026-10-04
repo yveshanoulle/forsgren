@@ -466,8 +466,12 @@ Both pages end with a footer of two paragraphs (forsgren#41): Forsgren,
 linked to its GitHub repository, its version, "The five DORA metrics, from
 data GitHub already has." "Calculated at
 2026-10-03 12:00 UTC", the moment of the run (UTC, to the minute), on every
-run, with rows or without; then Install, linked to the
-public forsgren-template repository.
+run, with rows or without; and, when a newer forsgren release exists than the
+version that built the page, the version line adds it, "Forsgren 0.0.9 ·
+0.0.10 is available" (forsgren#40; nothing is added when the page is up to
+date, and no repository appears); then Install, linked to the public
+forsgren-template repository. The numbers are compared as numbers, so 0.0.10
+is newer than 0.0.9.
 
 `render` writes one table (forsgren#38) first on the table page, with no text
 above it but a visually hidden heading for screen readers, "Forsgren 0.0.8:
@@ -858,10 +862,17 @@ installation pins that version. From a checkout of this repository:
 .build/bin/forsgren render --out <dir>
 ```
 
-`forsgren render --out <dir> [--config <path>] [--data <path>]` writes the site (every page
+`forsgren render --out <dir> [--config <path>] [--data <path>] [--latest <version>]` writes the site (every page
 plus `styles.css`) into `<dir>`, creating it when needed, and exits 0; 1 when
 the render failed (or the `--config` file is missing or invalid, with
-check-config's refusal), 2 on a usage error. With `--config`, a config that
+check-config's refusal), 2 on a usage error. `--latest` is the newest forsgren
+release, as `forsgren latest-release` prints it: render itself never calls
+GitHub, so it stays testable offline, and a value that is missing, equal, older
+or not a version adds nothing to the footer. `forsgren latest-release` reads
+forsgren's own public repository's latest release (with `GITHUB_TOKEN` when the
+environment has one, without otherwise) and prints its version without the
+`v`; when the lookup fails it prints nothing, says why on stderr and exits 0,
+since a page without news of a release is not an error. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides
 "Forsgren 0.0.8" in its footer, a how-to for filling `forsgren.config.yml`;
 without `--config` (the build above has no installation config) or with
@@ -1604,7 +1615,11 @@ Six PRE gates keep the CI honest:
   pushes; the job's concurrency group is keyed on `github.repository` with
   `cancel-in-progress: false`; the render step, executed with a stub, runs
   exactly `forsgren render --out <dir> --config forsgren.config.yml --data
-  data/deployments.csv`; and install, checkout, starter, config
+  data/deployments.csv`, plus `--latest <version>` when the step before it
+  found one; that step, "Look up the latest forsgren release", gets the job's
+  token as `GITHUB_TOKEN` (never the caller's secret), outputs a plain
+  version, and outputs nothing, never failing the job, for a lookup that
+  fails or an answer that is anything else; and install, checkout, starter, config
   check, collect, data commit and render come in that order, the fail step
   after publishing. Each pin is shown failing, with its own reason, on a
   mutant of the real file, judged by the pin it is aimed at.
