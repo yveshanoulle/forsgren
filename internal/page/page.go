@@ -50,6 +50,10 @@ type Data struct {
 	// caller looked it up; empty when unknown. The footer names it when it
 	// is newer than Version (forsgren#40, option 2).
 	Latest string
+	// WaitingPR is the number of the open Dependabot pull request that bumps
+	// the installation's forsgren pin to Latest, 0 when there is none; the
+	// footer names it instead of "is available" (forsgren#40, option 1).
+	WaitingPR int
 }
 
 // Row is one row of the table: its numbers, the heading the page gives it,

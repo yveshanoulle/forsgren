@@ -528,3 +528,36 @@ func TestReleaseVersionNamesThePlainVersion(t *testing.T) {
 		}
 	}
 }
+
+// TestFooterNamesTheWaitingPullRequest (forsgren#40, step 5, option 1): a
+// newer release whose Dependabot pull request is open is named with the
+// pull request's number, instead of "is available"; no repository appears.
+func TestFooterNamesTheWaitingPullRequest(t *testing.T) {
+	data := Placeholder("0.0.9")
+	data.Latest = "0.0.10"
+	data.WaitingPR = 7
+	want := "0.0.9 · 0.0.10 is waiting in pull request #7 (merge it to update)"
+	for _, name := range PageNames() {
+		got := rendered(t, name, data)
+		if !strings.Contains(got, want) || strings.Contains(got, " is available") {
+			t.Errorf("%s: want %q and no \"is available\" in the footer, got:\n%s", name, want, got)
+		}
+	}
+}
+
+// TestFooterNamesNoWaitingPullRequestWithoutANewerRelease (forsgren#40, step
+// 5): with no pull request, "is available" stays; up to date, a pull request
+// number alone adds nothing.
+func TestFooterNamesNoWaitingPullRequestWithoutANewerRelease(t *testing.T) {
+	data := Placeholder("0.0.9")
+	data.Latest = "0.0.10"
+	got := rendered(t, "index.html", data)
+	if !strings.Contains(got, "0.0.10 is available") || strings.Contains(got, "waiting") {
+		t.Errorf("want \"is available\" and no \"waiting\" without a pull request, got:\n%s", got)
+	}
+	data.Latest, data.WaitingPR = "0.0.9", 7
+	got = rendered(t, "index.html", data)
+	if strings.Contains(got, "pull request #") || strings.Contains(got, " is available") {
+		t.Errorf("want nothing added when up to date, got:\n%s", got)
+	}
+}

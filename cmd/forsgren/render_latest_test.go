@@ -90,3 +90,88 @@ func TestLatestReleaseTakesNoArgumentsAndSurvivesABadAPI(t *testing.T) {
 		t.Errorf("want exit 0, no stdout and a note, got %d, %q, %q", code, stdout, stderr)
 	}
 }
+
+// TestRenderNamesTheWaitingPullRequestItIsGiven (forsgren#40, step 5): with
+// --latest newer and --waiting-pr, the footer names the pull request's
+// number instead of "is available"; --waiting-pr 0 is none.
+func TestRenderNamesTheWaitingPullRequestItIsGiven(t *testing.T) {
+	cases := []struct {
+		name, latest, pr string
+		want, notWant    string
+	}{
+		{"waiting", "0.0.10", "7", version + " · 0.0.10 is waiting in pull request #7 (merge it to update)", " is available"},
+		{"none given", "0.0.10", "0", "0.0.10 is available", "waiting"},
+		{"up to date", version, "7", version + " The five", "pull request #"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			code, stderr, index := renderWith(t, "--latest", c.latest, "--waiting-pr", c.pr)
+			if code != 0 || !strings.Contains(index, c.want) || strings.Contains(index, c.notWant) {
+				t.Errorf("want exit 0, %q and not %q, got %d, %q, page:\n%s", c.want, c.notWant, code, stderr, index)
+			}
+		})
+	}
+}
+
+const waitingPath = "/repos/acme/data/pulls"
+
+// dependabotPulls is two open pull requests of acme/data: a person's, and
+// Dependabot's bump of forsgren's pin to 0.0.10.
+const dependabotPulls = `[
+ {"number": 3, "user": {"login": "acme-dev"}, "head": {"ref": "feature/x"}},
+ {"number": 7, "user": {"login": "dependabot[bot]"},
+  "head": {"ref": "dependabot/github_actions/yveshanoulle/forsgren/dot-github/workflows/metrics.yml-0.0.10"}}
+]`
+
+// TestWaitingPullRequestPrintsTheNumber (forsgren#40, step 5): the command
+// reads the open pull requests of GITHUB_REPOSITORY and prints the number of
+// Dependabot's bump to --version, and nothing when there is none.
+func TestWaitingPullRequestPrintsTheNumber(t *testing.T) {
+	t.Setenv("GITHUB_REPOSITORY", "acme/data")
+	t.Setenv("GITHUB_TOKEN", testToken)
+	fakeAPI(t, map[string]string{waitingPath: dependabotPulls}, 0)
+	code, stdout, stderr := runCommand("waiting-pull-request", "--version", "0.0.10")
+	if code != 0 || stdout != "7\n" {
+		t.Errorf("want exit 0 and 7, got %d, %q, stderr %q", code, stdout, stderr)
+	}
+	code, stdout, stderr = runCommand("waiting-pull-request", "--version", "0.0.11")
+	if code != 0 || stdout != "" || stderr != "" {
+		t.Errorf("want exit 0 and silence for a version with no pull request, got %d, %q, %q", code, stdout, stderr)
+	}
+}
+
+// TestAWaitingPullRequestLookupThatFailsIsNotAnError (forsgren#40, step 5):
+// a token without pull-requests: read (403), another failure, or no
+// GITHUB_REPOSITORY: nothing on stdout, why on stderr, exit 0, so the page
+// keeps option 2's "is available"; the 403 names the permission.
+func TestAWaitingPullRequestLookupThatFailsIsNotAnError(t *testing.T) {
+	cases := map[string]struct {
+		repository string
+		code       int
+		note       string
+	}{
+		"no permission": {"acme/data", 403, "pull-requests: read"},
+		"server error":  {"acme/data", 500, "waiting pull request"},
+		"no repository": {"", 0, "GITHUB_REPOSITORY"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("GITHUB_REPOSITORY", c.repository)
+			fakeAPI(t, map[string]string{waitingPath: `{"message":"no"}`}, c.code)
+			code, stdout, stderr := runCommand("waiting-pull-request", "--version", "0.0.10")
+			if code != 0 || stdout != "" || !strings.Contains(stderr, c.note) {
+				t.Errorf("want exit 0, no stdout and %q on stderr, got %d, %q, %q", c.note, code, stdout, stderr)
+			}
+		})
+	}
+}
+
+// TestWaitingPullRequestNeedsAVersion (forsgren#40, step 5): without
+// --version, or with one that is not a version, it is a usage error.
+func TestWaitingPullRequestNeedsAVersion(t *testing.T) {
+	for _, args := range [][]string{{"waiting-pull-request"}, {"waiting-pull-request", "--version", "banana"}} {
+		if code, _, stderr := runCommand(args...); code != 2 || !strings.Contains(stderr, "--version") {
+			t.Errorf("%v: want exit 2 naming --version, got %d, %q", args, code, stderr)
+		}
+	}
+}

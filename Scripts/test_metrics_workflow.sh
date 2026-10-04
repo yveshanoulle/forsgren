@@ -821,6 +821,16 @@ judge_permissions() {
   fi
 }
 
+# judge_pull_requests_permission <workflow-file>: the job grants itself
+# pull-requests: read (forsgren#40, step 5), which the lookup of the waiting
+# Dependabot pull request needs; without it the lookup is a 403, which is
+# unknown, never an error.
+judge_pull_requests_permission() {
+  if ! grep -qE '^      pull-requests:[[:space:]]+read([[:space:]]|$)' "$1"; then
+    echo "the job does not grant itself 'pull-requests: read' — the footer cannot name Dependabot's waiting pull request"
+  fi
+}
+
 # judge_secret <workflow-file>: pin 17, the one declared secret, not required.
 judge_secret() {
   local names required
@@ -1399,6 +1409,7 @@ judge() {
   judge_setup_go "$1"
   judge_checkout "$1"
   judge_permissions "$1"
+  judge_pull_requests_permission "$1"
   judge_starter_step "$1"
   judge_starter_token "$1"
   judge_starter_e2e "$1"
@@ -1577,6 +1588,8 @@ proves judge_render_config "render without the history" "the render step runs 'f
   '/forsgren render /s/ --data data\/deployments\.csv//'
 
 # The latest release (forsgren#40).
+proves judge_pull_requests_permission "a job without pull-requests: read" "does not grant itself 'pull-requests: read'" \
+  "s/^      pull-requests: read /      pull-requests: none /"
 proves judge_latest_lookup "a lookup without the job token" "does not set GITHUB_TOKEN to the job's token" \
   "/GITHUB_TOKEN: \\${D}{{ github.token }}/d"
 proves judge_latest_lookup "a lookup with the caller's secret" "hands FORSGREN_TOKEN over" \
