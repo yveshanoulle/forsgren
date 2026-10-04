@@ -51,6 +51,17 @@
 #     Scripts/lib_private_names.sh: FBP.sh refuses a commit message that names
 #     a private name through the gate's --message mode (forsgren#52), and the
 #     sandbox pins that with the real matcher, not a stub;
+#   - its own HOME, the empty directory .git/fbp-sandbox-home (inside .git, so
+#     git add -A never stages it), exported for the FBP.sh run: the real gate
+#     falls back to ${HOME}/.config/forsgren/private-names, and with the real
+#     HOME a run would read the machine's own list, so a run's result would
+#     depend on the machine. With the sandbox HOME there is no list file
+#     unless the caller sets FORSGREN_PRIVATE_NAMES or
+#     FORSGREN_PRIVATE_NAMES_FILE, which still win, so every machine sees the
+#     same list. Nothing else needs the real HOME: the git identity is the
+#     sandbox's own (local config and the GIT_* variables below) and signing
+#     is off, so the run needs nothing from a global git config (git looks
+#     for one in the sandbox HOME and finds none);
 #   - a stub bin/say that exits 0, put first on PATH, so a run is silent;
 #   - a copy of the REAL Scripts/go_toolchain.sh and of the repo's go.mod
 #     (forsgren#1 step 4): FBP.sh exports GOTOOLCHAIN from them before PRE
@@ -367,6 +378,8 @@ fbp_sandbox_run() {
     export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
     export GIT_CONFIG_COUNT=1
     export GIT_CONFIG_KEY_0="commit.gpgsign" GIT_CONFIG_VALUE_0="false"
+    mkdir -p .git/fbp-sandbox-home
+    export HOME="$PWD/.git/fbp-sandbox-home"
     PATH="$PWD/bin:$PATH" ./FBP.sh "$@" > fbp-out.log 2>&1
     echo "$?" > fbp-rc.log
     if git rev-parse -q --verify HEAD > /dev/null; then

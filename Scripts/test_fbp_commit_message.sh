@@ -268,9 +268,9 @@ fi
 
 # ---------------------------------------------------------------------------
 # Case 4: forsgren#1 step 12.2d — the blocked-commit message names the
-# secret-class row that failed. Two rows are secret-class (the secret scan
-# and, by Yves's ruling of 2026-10-02, the data guard), and FullBuildAndPush
-# refuses to commit on either. Its message used to assume the secret scan
+# secret-class row that failed. Three rows are secret-class (the secret scan,
+# by Yves's ruling of 2026-10-02 the data guard, and since forsgren#52 the
+# private names gate), and FullBuildAndPush refuses to commit on any of them. Its message used to assume the secret scan
 # ("Fix the gitleaks finding above, rotate the value..."), which is wrong
 # advice for a data-guard finding: there is no gitleaks finding and no value
 # to rotate.

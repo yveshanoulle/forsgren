@@ -105,10 +105,11 @@ FAILED_GATES=""
 # still commits locally, deliberately, so work in progress is not lost — but
 # committing a SECRET puts it into git history, where removing it is a
 # rewrite rather than an edit. Tracked separately; sfl exits 2, which
-# FBP.sh reads as "do not commit at all". forsgren has two secret-class
-# rows: the secret scan, and the data guard, whose installation data and
-# private names must not enter history either (Yves's ruling, 2026-10-02,
-# forsgren#1 step 12.2).
+# FBP.sh reads as "do not commit at all". forsgren has three secret-class
+# rows: the secret scan; the data guard, whose installation data must not
+# enter history either (Yves's ruling, 2026-10-02, forsgren#1 step 12.2);
+# and the private names gate (forsgren#52), which alone handles private
+# names: the data guard no longer does.
 SECRET_FAIL=0
 
 run_gate_secret() {

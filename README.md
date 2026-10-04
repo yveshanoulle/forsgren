@@ -1174,7 +1174,11 @@ commit itself:
   message check passes. No list, an env list with no
   names, a missing names file, or no tracked file is exit 2 and a red, never a
   silent pass; locally an existing names file with no names passes with
-  `0 names searched`. Its
+  `0 names searched`. Known limit: names are matched as bytes in each file's
+  own encoding, so a file in an encoding that is not ASCII-compatible (UTF-16
+  or UTF-32, for example) is not searched effectively: a name in it is not
+  found and the file passes. The names never touch the disk: the gate hands
+  them to `grep` through a process substitution, not a temp file. Its
   self-test (`Scripts/test_check_private_names.sh`) uses made-up names and
   proves with a mutant that prints the matched line that the no-name check
   can fail.

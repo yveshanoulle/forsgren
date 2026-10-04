@@ -52,8 +52,24 @@
 # nothing` check stay right) but searches nothing, finds nothing and exits 0
 # with `0 names searched`. With no names nothing is searched, so the result does
 # not depend on how a grep treats an empty pattern list (some match every
-# line). Nothing searched also means no unreadable-file report: no file is read. In CI the secret is the only source, so CI
-# always fails without it or with an emptied one (fork pull requests included).
+# line). No file's content is read then either, so an unreadable FILE is not
+# reported. A symlink is different: its target text is read while the paths
+# are listed, before any name is searched, so a tracked symlink whose blob
+# cannot be read (or an untracked one whose readlink fails) is still reported
+# as `could not be read` and exits 2 at 0 names. In CI the secret is the only
+# source, so CI always fails without it or with an emptied one (fork pull
+# requests included).
+#
+# The names never touch the disk: they are held in a variable and handed to
+# grep through a process substitution (-f /dev/fd/N), so no process list,
+# trace or temp file shows them, and no temp file is left behind when the
+# gate is killed.
+#
+# Known limit: names are matched as BYTES in the file's own encoding. A file
+# in an encoding that is not ASCII-compatible (UTF-16 or UTF-32, with or
+# without a byte-order mark; EBCDIC) stores an ASCII name as other bytes (in
+# UTF-16 a zero byte between the letters), so the gate does not search such a
+# file effectively: a name in it is not found, and the file passes.
 
 set -euo pipefail
 # Tracing off: the list must never reach a trace (bash -x, or a CI debug run).
@@ -91,38 +107,50 @@ read_list() {
   SOURCE="file"
 }
 
-# build_patterns <file>: one ERE per name into <file>, regex-escaped, no
-# boundary (a substring match). Sets COUNT to the number of names; exit 2 on none
-# in an env list. An existing file with no names gives an empty pattern file,
-# which is never handed to grep (judge_path and check_message skip it at 0 names).
+# build_patterns: one ERE per name, newline-separated, in PATTERNS,
+# regex-escaped, no boundary (a substring match). Sets COUNT to the number of
+# names; exit 2 on none in an env list. The patterns stay in this variable and
+# never touch the disk: grep reads them through match_names below. An existing
+# file with no names gives empty PATTERNS, which are never handed to grep
+# (judge_path and check_message skip them at 0 names).
 build_patterns() {
   private_names_parse "$LIST"
   COUNT="$PRIVATE_NAMES_COUNT"
-  printf '%s' "$PRIVATE_NAMES" | sed 's/[][\.*^$+?(){}|/]/\\&/g' > "$1"
+  PATTERNS="$(printf '%s' "$PRIVATE_NAMES" | sed 's/[][\.*^$+?(){}|/]/\\&/g')"
   if [[ "$COUNT" -eq 0 && "$SOURCE" == env && "$MESSAGE_MODE" -eq 0 ]]; then
     echo "❌ FAIL: the list of private names in FORSGREN_PRIVATE_NAMES has no names in it: an emptied secret is not a clean scan"
     exit 2
   fi
 }
 
-# judge_path <patterns> <path> <link-target-or-empty> <is-link 0|1>: judges one
+# match_names <grep options...>: grep -i -E with the escaped names as its
+# pattern list and the caller's options and operands. The list goes in through
+# a process substitution (-f /dev/fd/N), never as an argument and never as a
+# file: a process list shows no name, and a SIGKILL leaves none on disk.
+# PATTERNS holds no trailing newline (command substitution strips it), so the
+# pattern list holds no empty line, which would match every line.
+match_names() {
+  grep -i -E -f <(printf '%s\n' "$PATTERNS") "$@"
+}
+
+# judge_path <path> <link-target-or-empty> <is-link 0|1>: judges one
 # path, its symlink target text and its content; counts it in N (the numbering
 # runs over the tracked list, then the untracked one). Sets FOUND to 1 on a hit.
 judge_path() {
-  local patterns="$1" path="$2" target="$3" islink="$4" shown hits hit lineno rc
+  local path="$1" target="$2" islink="$3" shown hits hit lineno rc
   N=$((N + 1))
   # No names: nothing to search, and grep is not asked (see the header).
   [[ "$COUNT" -eq 0 ]] && return 0
   shown="$path"
   # A here-string, not a pipe: under pipefail, grep -q closing the pipe early
   # can SIGPIPE the printf and turn a match into a miss.
-  if grep -q -i -E -f "$patterns" <<< "$path" 2>/dev/null; then
+  if match_names -q <<< "$path" 2>/dev/null; then
     echo "❌ FAIL: tracked path #${N} in git ls-files names a private name"
     FOUND=1
     shown="tracked path #${N}"
   fi
   # A symlink is judged by its target text, which may dangle.
-  if [[ "$islink" -eq 1 ]] && grep -q -i -E -f "$patterns" <<< "$target" 2>/dev/null; then
+  if [[ "$islink" -eq 1 ]] && match_names -q <<< "$target" 2>/dev/null; then
     echo "❌ FAIL: tracked path #${N} (link target) names a private name"
     FOUND=1
   fi
@@ -130,7 +158,7 @@ judge_path() {
   # grep exits 0 on a hit, 1 on none, above 1 when it could not read the file.
   # Its stderr names the path, so it goes nowhere; the failure is told by number.
   rc=0
-  hits="$(grep -a -n -i -E -f "$patterns" -- "$path" 2>/dev/null)" || rc=$?
+  hits="$(match_names -a -n -- "$path" 2>/dev/null)" || rc=$?
   if [[ "$rc" -gt 1 ]]; then
     echo "❌ FAIL: tracked path #${N} could not be read: a file that cannot be read cannot be judged"
     UNREAD=1
@@ -144,11 +172,11 @@ judge_path() {
   done <<< "$hits"
 }
 
-# scan_tracked <patterns>: judges every tracked file (git ls-files), then every
+# scan_tracked: judges every tracked file (git ls-files), then every
 # untracked, not-ignored one (git ls-files -o --exclude-standard: exactly what
 # git add -A would stage). Sets N to the number of paths and FOUND to 1 on any hit.
 scan_tracked() {
-  local patterns="$1" entry path mode sha target
+  local entry path mode sha target
   FOUND=0
   UNREAD=0
   N=0
@@ -166,7 +194,7 @@ scan_tracked() {
         continue
       }
     fi
-    judge_path "$patterns" "$path" "$target" "$([[ "$mode" == 120000 ]] && echo 1 || echo 0)"
+    judge_path "$path" "$target" "$([[ "$mode" == 120000 ]] && echo 1 || echo 0)"
   done < <(git ls-files -s -z)
   while IFS= read -r -d '' path; do
     target=""
@@ -177,9 +205,9 @@ scan_tracked() {
         UNREAD=1
         continue
       }
-      judge_path "$patterns" "$path" "$target" 1
+      judge_path "$path" "$target" 1
     else
-      judge_path "$patterns" "$path" "" 0
+      judge_path "$path" "" 0
     fi
   done < <(git ls-files -o --exclude-standard -z)
 }
@@ -190,12 +218,10 @@ check_message() {
   MESSAGE_MODE=1
   [[ -f "$msg" && -r "$msg" ]] || { echo "❌ FAIL: cannot read the commit message file"; exit 2; }
   read_list
-  TMP="$(mktemp -d)"
-  trap 'rm -rf "$TMP"' EXIT
-  build_patterns "${TMP}/patterns"
+  build_patterns
   [[ "$COUNT" -eq 0 ]] && exit 0
   local rc=0
-  grep -a -q -i -E -f "${TMP}/patterns" -- "$msg" 2>/dev/null || rc=$?
+  match_names -a -q -- "$msg" 2>/dev/null || rc=$?
   if [[ "$rc" -eq 0 ]]; then
     echo "❌ FAIL: the commit message names a private name: reword it (Scripts/check_private_names.sh)"
     exit 1
@@ -216,12 +242,11 @@ cd "$REPO" || { echo "❌ FAIL: cannot enter ${REPO}"; exit 2; }
 
 LIST=""
 SOURCE=""
+PATTERNS=""
 read_list
 
-TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
-build_patterns "${TMP}/patterns"
-scan_tracked "${TMP}/patterns"
+build_patterns
+scan_tracked
 
 if [[ "$N" -eq 0 ]]; then
   echo "❌ FAIL: no tracked or untracked files: the scan read nothing"
