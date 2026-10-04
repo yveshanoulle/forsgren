@@ -62,6 +62,7 @@ cd "$(dirname "$0")/.."
 # Self-test: Scripts/test_required_pages_covers_site_selftest.sh.
 
 SITE_DIR="${1:-.build/site}"
+SITE_DIR="${SITE_DIR%/}"
 MANIFEST="${2:-internal/page/required-pages.json}"
 
 # basename -> why it is not a required page. Empty today.
