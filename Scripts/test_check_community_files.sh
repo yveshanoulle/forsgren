@@ -16,6 +16,7 @@
 #   9. this repository                               -> green
 #  10. SECURITY.md: missing, without the private route, with a placeholder,
 #      or not linked from the README                 -> red, each reason named
+#  11. a README of several MB, both links first, three runs -> green every time
 # Mutation proofs: the address, security route and link patterns replaced by
 # one that always matches, the placeholder pattern by one that never matches,
 # and the README strip by one that strips nothing, turn their red case green,
@@ -202,6 +203,18 @@ Write \`Report a vulnerability\` to see it.
 "
 capture "$GATE" "$ROOT"
 want_red "10e. rejects a SECURITY.md whose only route is inside a code block, a comment or a code span" "SECURITY.md does not name the private reporting route"
+
+# 11. A README of several MB with both links on its first lines is green, on
+# every run (forsgren#45 flake): `printf big | grep -q` under pipefail let
+# printf die of SIGPIPE when grep -q exited on the first match, so a present
+# link was reported missing, about 1 run in 40 on the real README and every
+# run on a big one. Run a handful of times so one lucky run proves nothing.
+new_root bigreadme "$GOOD_COC" "$GOOD_README"
+awk 'BEGIN { for (i = 0; i < 130000; i++) print "filler line of prose in the readme, long enough to count" }' >> "$ROOT/README.md"
+for run in 1 2 3; do
+  capture "$GATE" "$ROOT"
+  want_rc "11.$run. a README of several MB that links both files is green (run $run of 3)" 0
+done
 
 # Mutation proofs. The mutant cds to its own dir's parent, so it gets the
 # same layout.
