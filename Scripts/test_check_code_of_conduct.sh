@@ -103,6 +103,15 @@ new_root dotlink "$GOOD_COC" "[conduct](./CODE_OF_CONDUCT.md) and [again](CODE_O
 capture "$GATE" "$ROOT"
 want_green_ok "7. a ./ link and an anchor link are links"
 
+new_root fencelink "$GOOD_COC" '# forsgren
+
+```
+[conduct](CODE_OF_CONDUCT.md)
+```
+'
+capture "$GATE" "$ROOT"
+want_red "7b. rejects a README whose only link to the file is inside a code block" "README.md does not link to CODE_OF_CONDUCT.md"
+
 capture "$GATE" "$TMP/does-not-exist"
 want_rc "8. exits 2 on a missing root dir, never 0" 2
 
