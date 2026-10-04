@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -231,18 +232,51 @@ func TestLegendPageMatchesGolden(t *testing.T) {
 	checkPageGolden(t, "legend.html", "testdata/legend.golden.html", Placeholder("0.0.7"))
 }
 
-// TestTablePageLinksToTheLegend (forsgren#39, step 1): the table page
-// carries a link to legend.html and none of the band explanations.
-func TestTablePageLinksToTheLegend(t *testing.T) {
+// TestLegendPageTitleNamesIt (forsgren#39, step 4): the legend page's title
+// is its link's text, then the site's title, which its header still shows.
+func TestLegendPageTitleNamesIt(t *testing.T) {
+	got := rendered(t, "legend.html", acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework))
+	if !strings.Contains(got, "<title>What the bands mean · forsgren</title>") {
+		t.Errorf("want the legend page titled %q, got:\n%s", "What the bands mean · forsgren", got)
+	}
+	if !strings.Contains(got, `<p class="site-name">forsgren</p>`) {
+		t.Errorf("want the site's title in the legend page's header, got:\n%s", got)
+	}
+}
+
+// rendered is the page name rendered with data.
+func rendered(t *testing.T, name string, data Data) string {
+	t.Helper()
 	var got bytes.Buffer
-	if err := Render(&got, "index.html", acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)); err != nil {
-		t.Fatalf("Render: %v", err)
+	if err := Render(&got, name, data); err != nil {
+		t.Fatalf("Render %s: %v", name, err)
 	}
-	if !strings.Contains(got.String(), `<a href="legend.html">What the bands mean</a>`) {
-		t.Errorf("want a link to legend.html on the table page, got:\n%s", got.String())
+	return got.String()
+}
+
+// legendItem is one item of the legend page's band lists.
+var legendItem = regexp.MustCompile(`<li>[^<]*</li>`)
+
+// TestTablePageLinksToTheLegend (forsgren#39, step 1): the table page
+// carries a link to legend.html and none of the band explanations: no item
+// of the legend page's band lists (forsgren#39, step 4).
+func TestTablePageLinksToTheLegend(t *testing.T) {
+	data := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
+	got := rendered(t, "index.html", data)
+	if !strings.Contains(got, `<a href="legend.html">What the bands mean</a>`) {
+		t.Errorf("want a link to legend.html on the table page, got:\n%s", got)
 	}
-	if strings.Contains(got.String(), "<h2>Legend</h2>") {
-		t.Errorf("want the legend off the table page, got:\n%s", got.String())
+	if strings.Contains(got, "<h2>Legend</h2>") {
+		t.Errorf("want the legend off the table page, got:\n%s", got)
+	}
+	items := legendItem.FindAllString(rendered(t, "legend.html", data), -1)
+	if len(items) == 0 {
+		t.Fatal("want band lists on the legend page, found none")
+	}
+	for _, item := range items {
+		if strings.Contains(got, item) {
+			t.Errorf("want the legend's %s off the table page", item)
+		}
 	}
 }
 
