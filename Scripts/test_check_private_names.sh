@@ -42,7 +42,7 @@
 #  11. an untracked, not-ignored file with a name  -> exit 1, `file:line`, no
 #                                                     name (git add -A stages it);
 #                                                     an IGNORED one -> exit 0
-#  12. a repository with no tracked files          -> exit 2,
+#  12. a repository with no files at all           -> exit 2,
 #                                                     the scan read nothing
 #  13. a tracked PATH with a name                  -> exit 1, `tracked path #N`,
 #                                                     never the path or name
@@ -238,9 +238,9 @@ run_file "$NAMES_FILE"
 want_green_ok "an ignored untracked file is not judged (git add -A skips it)"
 
 new_repo "nothing-tracked"
-git -C "$REPO" rm -q --cached main.go
+git -C "$REPO" rm -q -f main.go
 run_file "$NAMES_FILE"
-want_exit "a repository with no tracked files is exit 2: the scan read nothing" 2 "no tracked files"
+want_exit "a repository with no files at all is exit 2: the scan read nothing" 2 "no tracked or untracked files"
 
 new_repo "path"
 write_file "docs/Acme-Secret-Repo.notes.md" $'harmless\n' track

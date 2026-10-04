@@ -72,11 +72,11 @@ Over the files git tracks, it fails when:
   `*.jsonl` events file.
 
 Private names are not this gate's business: the private-names gate
-(`Scripts/check_private_names.sh`, below) searches every tracked path and file
-for them.
+(`Scripts/check_private_names.sh`, below) searches every tracked and every untracked,
+not-ignored path and file for them.
 
-Untracked files are not checked, so `git add` (or `git add -N`) a new file
-before running the gates.
+The data guard does not check untracked files, so `git add` (or `git add -N`) a
+new file before running the gates; the private-names gate does check them.
 
 ## History
 
@@ -1150,7 +1150,7 @@ commit itself:
 - **data guard** (`Scripts/check_data_guard.sh`): see Where configuration
   and data live.
 - **private names** (`Scripts/check_private_names.sh`): this repository is
-  public, so no tracked file and no tracked path may name a private
+  public, so no tracked or untracked (not ignored) file or path may name a private
   repository. The list of names is kept outside the repository: in the file
   `~/.config/forsgren/private-names` (or the file `FORSGREN_PRIVATE_NAMES_FILE`
   points to), one name per line, `#` for comments; that file is the source
@@ -1162,7 +1162,8 @@ commit itself:
   maintainer's `gh` login) and it sets both. An external fork pull request
   receives neither secret, so the gate fails closed there (exit 2, no list);
   that is intended. The gate searches
-  `git ls-files`, case-insensitively, for a substring (a listed name
+  `git ls-files` and `git ls-files -o --exclude-standard` (what `git add -A`
+  would stage), case-insensitively, for a substring (a listed name
   inside a longer token is a hit). Its failure line
   names `file:line`, or `tracked path #N in git ls-files`, and never the
   name, so no log or commit message reveals it. No list, a list with no

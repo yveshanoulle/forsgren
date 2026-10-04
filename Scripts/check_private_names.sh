@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Scripts/check_private_names.sh
 #
-# forsgren#52. This repository is public, so no tracked file may name a
-# private repository. The names live OUTSIDE the repository (Yves's ruling,
+# forsgren#52. This repository is public, so no tracked or untracked file
+# (one git add -A would stage) may name a private repository. The names live OUTSIDE the repository (Yves's ruling,
 # 2026-10-04); writing them here to keep them out of here would publish them.
 #
 # Usage: Scripts/check_private_names.sh [repo-dir]   (default: the current directory)
@@ -13,8 +13,10 @@
 #      ${HOME}/.config/forsgren/private-names; one name per line
 # Blank lines and lines starting with # are not names.
 #
-# It searches the CONTENT and the PATH of every tracked file (git ls-files),
-# case-insensitively, for a SUBSTRING: a listed name anywhere inside a longer
+# It searches the CONTENT and the PATH of every tracked file (git ls-files) and
+# of every untracked, not-ignored file (git ls-files -o --exclude-standard:
+# exactly what git add -A would stage; an untracked symlink is judged by its
+# readlink target, like a tracked one), case-insensitively, for a SUBSTRING: a listed name anywhere inside a longer
 # token is a hit (so `acme-secret-repo` is found inside `acme-secret-repository`,
 # `my-acme-secret-repo` and `apply-acme-secret-repo.yml`). Yves's ruling: the
 # gate takes over the data guard's `grep -iF` matching.
@@ -25,7 +27,7 @@
 # sfl and FBP.sh quote FAIL lines and CI prints them on the job summary.
 #
 # Exit 0 clean. Exit 1 a name found. Exit 2 no list, a list with no names,
-# or no tracked file: a scan for nothing never passes.
+# or no file at all: a scan for nothing never passes.
 
 set -euo pipefail
 # Tracing off: the list must never reach a trace (bash -x, or a CI debug run).
@@ -71,10 +73,40 @@ build_patterns() {
   fi
 }
 
-# scan_tracked <patterns>: judges the path and the content of every tracked
-# file, and the target text of every tracked symlink. Sets N to the number of tracked paths and FOUND to 1 on any hit.
+# judge_path <patterns> <path> <link-target-or-empty> <is-link 0|1>: judges one
+# path, its symlink target text and its content; counts it in N (the numbering
+# runs over the tracked list, then the untracked one). Sets FOUND to 1 on a hit.
+judge_path() {
+  local patterns="$1" path="$2" target="$3" islink="$4" shown hits hit lineno
+  N=$((N + 1))
+  shown="$path"
+  # A here-string, not a pipe: under pipefail, grep -q closing the pipe early
+  # can SIGPIPE the printf and turn a match into a miss.
+  if grep -q -i -E -f "$patterns" <<< "$path"; then
+    echo "❌ FAIL: tracked path #${N} in git ls-files names a private name"
+    FOUND=1
+    shown="tracked path #${N}"
+  fi
+  # A symlink is judged by its target text, which may dangle.
+  if [[ "$islink" -eq 1 ]] && grep -q -i -E -f "$patterns" <<< "$target"; then
+    echo "❌ FAIL: tracked path #${N} (link target) names a private name"
+    FOUND=1
+  fi
+  [[ -f "$path" ]] || return 0
+  hits="$(grep -a -n -i -E -f "$patterns" -- "$path" || true)"
+  [[ -z "$hits" ]] && return 0
+  while IFS= read -r hit; do
+    lineno=${hit%%:*}
+    echo "❌ FAIL: ${shown}:${lineno} names a private name"
+    FOUND=1
+  done <<< "$hits"
+}
+
+# scan_tracked <patterns>: judges every tracked file (git ls-files), then every
+# untracked, not-ignored one (git ls-files -o --exclude-standard: exactly what
+# git add -A would stage). Sets N to the number of paths and FOUND to 1 on any hit.
 scan_tracked() {
-  local patterns="$1" entry path mode sha shown hits hit lineno
+  local patterns="$1" entry path mode sha target
   FOUND=0
   N=0
   while IFS= read -r -d '' entry; do
@@ -82,30 +114,19 @@ scan_tracked() {
     mode="${entry%% *}"
     sha="${entry#* }"
     sha="${sha%% *}"
-    N=$((N + 1))
-    shown="$path"
-    # A here-string, not a pipe: under pipefail, grep -q closing the pipe early
-    # can SIGPIPE the printf and turn a match into a miss.
-    if grep -q -i -E -f "$patterns" <<< "$path"; then
-      echo "❌ FAIL: tracked path #${N} in git ls-files names a private name"
-      FOUND=1
-      shown="tracked path #${N}"
-    fi
-    # A symlink is stored as its target text, which may dangle: judge that text.
-    if [[ "$mode" == 120000 ]] \
-      && grep -q -i -E -f "$patterns" <<< "$(git cat-file blob "$sha")"; then
-      echo "❌ FAIL: tracked path #${N} (link target) names a private name"
-      FOUND=1
-    fi
-    [[ -f "$path" ]] || continue
-    hits="$(grep -a -n -i -E -f "$patterns" -- "$path" || true)"
-    [[ -z "$hits" ]] && continue
-    while IFS= read -r hit; do
-      lineno=${hit%%:*}
-      echo "❌ FAIL: ${shown}:${lineno} names a private name"
-      FOUND=1
-    done <<< "$hits"
+    target=""
+    [[ "$mode" == 120000 ]] && target="$(git cat-file blob "$sha")"
+    judge_path "$patterns" "$path" "$target" "$([[ "$mode" == 120000 ]] && echo 1 || echo 0)"
   done < <(git ls-files -s -z)
+  while IFS= read -r -d '' path; do
+    target=""
+    if [[ -L "$path" ]]; then
+      target="$(readlink -- "$path")"
+      judge_path "$patterns" "$path" "$target" 1
+    else
+      judge_path "$patterns" "$path" "" 0
+    fi
+  done < <(git ls-files -o --exclude-standard -z)
 }
 
 LIST=""
@@ -117,11 +138,11 @@ build_patterns "${TMP}/patterns"
 scan_tracked "${TMP}/patterns"
 
 if [[ "$N" -eq 0 ]]; then
-  echo "❌ FAIL: no tracked files: the scan read nothing"
+  echo "❌ FAIL: no tracked or untracked files: the scan read nothing"
   exit 2
 fi
 
 if [[ "$FOUND" -ne 0 ]]; then
   exit 1
 fi
-echo "OK: no private name in ${N} tracked paths and files (${COUNT} names searched)"
+echo "OK: no private name in ${N} tracked and untracked paths and files (${COUNT} names searched)"
