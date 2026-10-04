@@ -39,8 +39,9 @@
 #   8. a list with only comments and blanks        -> exit 2: a scan for nothing
 #   9. a name inside a longer token                -> exit 1 (see the rule)
 #  10. a name at a boundary (slash, dot, quote)    -> exit 1
-#  11. an untracked file with a name               -> exit 0 (only tracked
-#                                                     files are judged)
+#  11. an untracked, not-ignored file with a name  -> exit 1, `file:line`, no
+#                                                     name (git add -A stages it);
+#                                                     an IGNORED one -> exit 0
 #  12. a repository with no tracked files          -> exit 2,
 #                                                     the scan read nothing
 #  13. a tracked PATH with a name                  -> exit 1, `tracked path #N`,
@@ -227,7 +228,14 @@ want_said "a name at a boundary is found (d.md)" "d.md:1"
 new_repo "untracked"
 write_file "scratch.md" $'acme-secret-repo\n'
 run_file "$NAMES_FILE"
-want_green_ok "an untracked file is not judged"
+want_red "an untracked, not-ignored file is judged (git add -A stages it)" "scratch.md:1"
+want_not_said "an untracked file" "$NAME_A" "$NAME_B"
+
+new_repo "untracked-ignored"
+write_file ".gitignore" $'scratch.md\n' track
+write_file "scratch.md" $'acme-secret-repo\n'
+run_file "$NAMES_FILE"
+want_green_ok "an ignored untracked file is not judged (git add -A skips it)"
 
 new_repo "nothing-tracked"
 git -C "$REPO" rm -q --cached main.go
