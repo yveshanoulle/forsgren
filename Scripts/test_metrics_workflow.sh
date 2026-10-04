@@ -775,19 +775,27 @@ judge_starter_e2e() {
   [[ "$got" == "$want" ]] || echo "with the real forsgren the next run's starter step gives '${got}', not '${want}' — an existing starter is kept, no second commit"
 }
 
+# render_calls <script> [<NAME=value> ...]: the forsgren calls, joined by
+# commas, of the render step's script run with the stub, RUNNER_TEMP and the
+# assignments in its environment.
+render_calls() {
+  local calls="${TMP}/fg.calls"
+  : > "$calls"
+  PATH="${STUB}:${PATH}" FG_CALLS="$calls" RUNNER_TEMP="${TMP}/runner" env "${@:2}" bash "$1" > /dev/null 2>&1 || true
+  paste -sd, - < "$calls"
+}
+
 # judge_render_config <workflow-file>: pin 15, the render step hands render
 # the config, so the page can say when no projects are configured, and the
 # history, so it shows each project's deployment frequency.
 judge_render_config() {
-  local script="${TMP}/render.sh" calls="${TMP}/fg.calls" got want
+  local script="${TMP}/render.sh" got want
   step_block "$1" "$RENDER_STEP" run > "$script"
   if [[ ! -s "$script" ]]; then
     echo "has no step '${RENDER_STEP}' with a run: | block"
     return 0
   fi
-  : > "$calls"
-  PATH="${STUB}:${PATH}" FG_CALLS="$calls" RUNNER_TEMP="${TMP}/runner" bash "$script" > /dev/null 2>&1 || true
-  got="$(paste -sd, - < "$calls")"
+  got="$(render_calls "$script")"
   want="render --out ${TMP}/runner/site --config forsgren.config.yml --data data/deployments.csv"
   [[ "$got" == "$want" ]] || echo "the render step runs 'forsgren ${got}', not 'forsgren ${want}' — render needs the config to say when no projects are configured, and the history to show the deployment frequency"
 }
@@ -805,16 +813,26 @@ lookup_outcome() {
   echo "exit=${rc} output=$(paste -sd'|' - < "$out") calls=$(paste -sd, - < "$calls")"
 }
 
-# judge_latest_lookup <workflow-file>: pin 29, the lookup step.
-judge_latest_lookup() {
-  local script="${TMP}/lookup.sh" env got want
-  env="$(step_block "$1" "$LATEST_STEP" env)"
+# judge_job_token <workflow-file> <step name> <who> <why>: the step's env:
+# hands forsgren the job's token as GITHUB_TOKEN, and never the caller's
+# FORSGREN_TOKEN; <who> names the step in a finding, <why> is the reason the
+# job's token is needed.
+judge_job_token() {
+  local env
+  env="$(step_block "$1" "$2" env)"
   if ! grep -qxF -- "GITHUB_TOKEN: ${EXPR_OPEN} github.token }}" <<< "$env"; then
-    echo "the lookup step's env: does not set GITHUB_TOKEN to the job's token — unauthorized calls from shared runner addresses hit GitHub's limit"
+    echo "${3}'s env: does not set GITHUB_TOKEN to the job's token — ${4}"
   fi
   if grep -qF -- "FORSGREN_TOKEN" <<< "$env"; then
-    echo "the lookup step's env: hands FORSGREN_TOKEN over — it reaches the collect step only"
+    echo "${3}'s env: hands FORSGREN_TOKEN over — it reaches the collect step only"
   fi
+}
+
+# judge_latest_lookup <workflow-file>: pin 29, the lookup step.
+judge_latest_lookup() {
+  local script="${TMP}/lookup.sh" got want
+  judge_job_token "$1" "$LATEST_STEP" "the lookup step" \
+    "unauthorized calls from shared runner addresses hit GitHub's limit"
   step_block "$1" "$LATEST_STEP" run > "$script"
   if [[ ! -s "$script" ]]; then
     echo "has no step '${LATEST_STEP}' with a run: | block"
@@ -850,14 +868,8 @@ waiting_outcome() {
 
 # judge_waiting_lookup <workflow-file>: pin 31, the waiting-pull-request step.
 judge_waiting_lookup() {
-  local script="${TMP}/waiting.sh" env got want
-  env="$(step_block "$1" "$WAITING_STEP" env)"
-  if ! grep -qxF -- "GITHUB_TOKEN: ${EXPR_OPEN} github.token }}" <<< "$env"; then
-    echo "the waiting step's env: does not set GITHUB_TOKEN to the job's token — the pull requests are read with it"
-  fi
-  if grep -qF -- "FORSGREN_TOKEN" <<< "$env"; then
-    echo "the waiting step's env: hands FORSGREN_TOKEN over — it reaches the collect step only"
-  fi
+  local script="${TMP}/waiting.sh" got want
+  judge_job_token "$1" "$WAITING_STEP" "the waiting step" "the pull requests are read with it"
   step_block "$1" "$WAITING_STEP" run > "$script"
   if [[ ! -s "$script" ]]; then
     echo "has no step '${WAITING_STEP}' with a run: | block"
@@ -924,16 +936,14 @@ judge_run_summary() {
 # judge_render_waiting <workflow-file>: pin 32, the render step passes the
 # waiting pull request on.
 judge_render_waiting() {
-  local script="${TMP}/render.sh" calls="${TMP}/fg.calls" env got want
+  local script="${TMP}/render.sh" env got want
   env="$(step_block "$1" "$RENDER_STEP" env)"
   if ! grep -qxF -- "WAITING: ${EXPR_OPEN} steps.waiting.outputs.waiting }}" <<< "$env"; then
     echo "the render step's env: does not set WAITING from steps.waiting.outputs.waiting — render is not told the waiting pull request"
   fi
   step_block "$1" "$RENDER_STEP" run > "$script"
   [[ -s "$script" ]] || return 0
-  : > "$calls"
-  PATH="${STUB}:${PATH}" FG_CALLS="$calls" RUNNER_TEMP="${TMP}/runner" LATEST="0.0.10" WAITING="7" bash "$script" > /dev/null 2>&1 || true
-  got="$(paste -sd, - < "$calls")"
+  got="$(render_calls "$script" LATEST=0.0.10 WAITING=7)"
   want="render --out ${TMP}/runner/site --config forsgren.config.yml --data data/deployments.csv --latest 0.0.10 --waiting-pr 7"
   [[ "$got" == "$want" ]] || echo "with WAITING set the render step runs 'forsgren ${got}', not 'forsgren ${want}' — the footer names the pull request only when render is given it"
 }
@@ -941,16 +951,14 @@ judge_render_waiting() {
 # judge_render_latest <workflow-file>: pin 30, the render step passes the
 # lookup's output on.
 judge_render_latest() {
-  local script="${TMP}/render.sh" calls="${TMP}/fg.calls" env got want
+  local script="${TMP}/render.sh" env got want
   env="$(step_block "$1" "$RENDER_STEP" env)"
   if ! grep -qxF -- "LATEST: ${EXPR_OPEN} steps.latest.outputs.latest }}" <<< "$env"; then
     echo "the render step's env: does not set LATEST from steps.latest.outputs.latest — render is not told the latest release"
   fi
   step_block "$1" "$RENDER_STEP" run > "$script"
   [[ -s "$script" ]] || return 0
-  : > "$calls"
-  PATH="${STUB}:${PATH}" FG_CALLS="$calls" RUNNER_TEMP="${TMP}/runner" LATEST="0.0.10" bash "$script" > /dev/null 2>&1 || true
-  got="$(paste -sd, - < "$calls")"
+  got="$(render_calls "$script" LATEST=0.0.10)"
   want="render --out ${TMP}/runner/site --config forsgren.config.yml --data data/deployments.csv --latest 0.0.10"
   [[ "$got" == "$want" ]] || echo "with LATEST set the render step runs 'forsgren ${got}', not 'forsgren ${want}' — the footer names a newer release only when render is given it"
 }

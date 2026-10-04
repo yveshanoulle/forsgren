@@ -10,15 +10,29 @@ import (
 // empty): the contract of a lookup, which is never an error.
 func wantLookup(t *testing.T, stdout, note string, args ...string) {
 	t.Helper()
-	code, gotOut, gotErr := runCommand(args...)
-	if code != 0 {
-		t.Errorf("%v: want exit 0, got %d, stderr %q", args, code, gotErr)
+	wantExit(t, exit{0, stdout, note}, args...)
+}
+
+// exit is what a command is expected to end with: its exit status, exactly
+// what it prints on stdout, and a note on stderr (nothing at all when note is
+// empty).
+type exit struct {
+	code         int
+	stdout, note string
+}
+
+// wantExit runs args and fails the test unless the command ends as want says.
+func wantExit(t *testing.T, want exit, args ...string) {
+	t.Helper()
+	code, stdout, stderr := runCommand(args...)
+	if code != want.code {
+		t.Errorf("%v: want exit %d, got %d, stderr %q", args, want.code, code, stderr)
 	}
-	if gotOut != stdout {
-		t.Errorf("%v: want stdout %q, got %q", args, stdout, gotOut)
+	if stdout != want.stdout {
+		t.Errorf("%v: want stdout %q, got %q", args, want.stdout, stdout)
 	}
-	if !saysNote(gotErr, note) {
-		t.Errorf("%v: want %q on stderr, got %q", args, note, gotErr)
+	if !saysNote(stderr, want.note) {
+		t.Errorf("%v: want %q on stderr, got %q", args, want.note, stderr)
 	}
 }
 

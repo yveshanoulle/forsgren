@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"io/fs"
@@ -144,8 +143,7 @@ func loadOrNone[T any](path string, load func(string) ([]T, error)) ([]T, error)
 // renderFlags parses render's arguments. It returns false once the usage
 // error is on stderr.
 func renderFlags(args []string, stderr io.Writer) (renderOptions, bool) {
-	flags := flag.NewFlagSet("render", flag.ContinueOnError)
-	flags.SetOutput(stderr)
+	flags := newFlags("render", stderr)
 	var o renderOptions
 	flags.StringVar(&o.out, "out", "", "directory to write the site into")
 	flags.StringVar(&o.config, "config", "", "the forsgren.config.yml the page reports on (optional)")

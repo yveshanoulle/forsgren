@@ -128,8 +128,7 @@ type flagSpec struct{ name, arg, help string }
 // usage error is on stderr (flag's own message, or the first missing flag's
 // `<command>: --<name> <arg> is required`).
 func requiredFlags(stderr io.Writer, args []string, command string, specs ...flagSpec) ([]string, bool) {
-	flags := flag.NewFlagSet(command, flag.ContinueOnError)
-	flags.SetOutput(stderr)
+	flags := newFlags(command, stderr)
 	values := make([]*string, len(specs))
 	for i, s := range specs {
 		values[i] = flags.String(s.name, "", s.help)
@@ -146,6 +145,14 @@ func requiredFlags(stderr io.Writer, args []string, command string, specs ...fla
 		parsed[i] = *values[i]
 	}
 	return parsed, true
+}
+
+// newFlags is the flag set of a command: a parse error is returned, never an
+// exit, and flag's own messages go to stderr.
+func newFlags(command string, stderr io.Writer) *flag.FlagSet {
+	flags := flag.NewFlagSet(command, flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	return flags
 }
 
 // failed says why the command's work failed, `<command>: <err>`, on stderr,

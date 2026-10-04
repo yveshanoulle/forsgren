@@ -13,9 +13,9 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/github"
 )
 
-// githubAPI is the GitHub REST API collect reads, and now the clock of
-// collect and render: vars so the tests can point them at a test server and
-// a fixed day.
+// githubAPI is the GitHub REST API collect and the lookups (latest-release,
+// waiting-pull-request) read, and now the clock of collect and render: vars
+// so the tests can point them at a test server and a fixed day.
 var (
 	githubAPI = "https://api.github.com"
 	now       = time.Now
@@ -64,4 +64,11 @@ func githubClient() (*github.Client, error) {
 		return nil, errNoToken
 	}
 	return github.New(githubAPI, token, github.DefaultMaxPages)
+}
+
+// jobClient is a client of githubAPI with the workflow job's token,
+// GITHUB_TOKEN from the environment, reading up to maxPages pages. No token
+// is allowed: the client then sends no Authorization header.
+func jobClient(maxPages int) (*github.Client, error) {
+	return github.New(githubAPI, strings.TrimSpace(os.Getenv("GITHUB_TOKEN")), maxPages)
 }

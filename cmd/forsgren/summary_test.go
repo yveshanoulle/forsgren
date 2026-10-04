@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -62,10 +61,7 @@ func TestRunSummaryRefusesWhatItCannotTell(t *testing.T) {
 		"--repository": {"run-summary", "--latest", "0.0.10", "--waiting-pr", "7", "--pr-check", "ok"},
 	}
 	for flag, args := range cases {
-		code, stdout, stderr := runCommand(args...)
-		if code != 2 || stdout != "" || !strings.Contains(stderr, flag) {
-			t.Errorf("%v: want exit 2, no stdout and %s named, got %d, %q, %q", args, flag, code, stdout, stderr)
-		}
+		wantExit(t, exit{2, "", flag}, args...)
 	}
 }
 
@@ -119,8 +115,5 @@ func TestAStatusThatCannotBeWrittenIsANoteNotAnError(t *testing.T) {
 	t.Setenv("GITHUB_REPOSITORY", "acme/data")
 	fakeAPI(t, map[string]string{waitingPath: dependabotPulls}, 0)
 	missing := filepath.Join(t.TempDir(), "no", "such", "dir", "status")
-	code, stdout, stderr := runCommand("waiting-pull-request", "--version", "0.0.10", "--status", missing)
-	if code != 0 || stdout != "7\n" || !strings.Contains(stderr, "cannot write the status") {
-		t.Errorf("want exit 0, 7 and a note, got %d, %q, %q", code, stdout, stderr)
-	}
+	wantLookup(t, "7\n", "cannot write the status", "waiting-pull-request", "--version", "0.0.10", "--status", missing)
 }

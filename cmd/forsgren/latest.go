@@ -4,10 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
-	"strings"
 
-	"github.com/yveshanoulle/forsgren/internal/github"
 	"github.com/yveshanoulle/forsgren/internal/page"
 )
 
@@ -38,7 +35,7 @@ func latestRelease(args []string, stdout, stderr io.Writer) int {
 
 // lookUpLatest is the version of forsgren's latest release on githubAPI.
 func lookUpLatest() (string, error) {
-	client, err := github.New(githubAPI, strings.TrimSpace(os.Getenv("GITHUB_TOKEN")), 1)
+	client, err := jobClient(1)
 	if err != nil {
 		return "", err
 	}

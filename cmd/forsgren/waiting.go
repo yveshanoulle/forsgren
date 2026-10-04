@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -47,8 +46,7 @@ func waitingPullRequest(args []string, stdout, stderr io.Writer) int {
 // --version, which must be a version, and the optional --status path. It
 // returns false once the usage error is on stderr.
 func waitingFlags(args []string, stderr io.Writer) (version, statusPath string, ok bool) {
-	flags := flag.NewFlagSet("waiting-pull-request", flag.ContinueOnError)
-	flags.SetOutput(stderr)
+	flags := newFlags("waiting-pull-request", stderr)
 	wanted := flags.String("version", "", "the forsgren release whose Dependabot pull request is looked for, <x.y.z>")
 	status := flags.String("status", "", "a file to write how the lookup went to: ok, no-access or failed (optional)")
 	if err := flags.Parse(args); err != nil {
@@ -91,7 +89,7 @@ func lookUpWaiting(version string) (int64, error) {
 	if repository == "" {
 		return 0, errNoRepository
 	}
-	client, err := github.New(githubAPI, strings.TrimSpace(os.Getenv("GITHUB_TOKEN")), github.DefaultMaxPages)
+	client, err := jobClient(github.DefaultMaxPages)
 	if err != nil {
 		return 0, err
 	}

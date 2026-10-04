@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"slices"
@@ -46,8 +45,7 @@ func runSummary(args []string, stdout, stderr io.Writer) int {
 // summaryFlags parses run-summary's arguments. It returns false once the
 // usage error, naming the flag, is on stderr.
 func summaryFlags(args []string, stderr io.Writer) (summaryInput, bool) {
-	flags := flag.NewFlagSet("run-summary", flag.ContinueOnError)
-	flags.SetOutput(stderr)
+	flags := newFlags("run-summary", stderr)
 	var in summaryInput
 	flags.StringVar(&in.latest, "latest", "", "the newest forsgren release, empty or not a version when unknown")
 	flags.IntVar(&in.waitingPR, "waiting-pr", 0, "the open Dependabot pull request for it, 0 for none")

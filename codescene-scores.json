@@ -28,9 +28,9 @@
   },
   {
    "path": "cmd/forsgren/summary_test.go",
-   "score": 9.38,
+   "score": 10.0,
    "checkedAt": "2026-10-04",
-   "minScore": 9.28
+   "minScore": 10.0
   },
   {
    "path": "cmd/forsgren/collect_test.go",
@@ -101,7 +101,7 @@
   {
    "path": "cmd/forsgren/collect.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-04",
    "minScore": 10.0
   },
   {
