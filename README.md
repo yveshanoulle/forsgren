@@ -466,7 +466,7 @@ Both pages end with a footer of two paragraphs (forsgren#41): Forsgren,
 linked to its GitHub repository, its version, "The five DORA metrics, from
 data GitHub already has." and, when numbers were calculated, "Calculated at
 2026-10-03 12:00 UTC" (left out otherwise); then Install, linked to the
-section Installing and updating of this README.
+public forsgren-template repository.
 
 `render` writes one table (forsgren#38), under the line that says when the
 numbers were calculated, "Calculated 2026-10-03 12:00 UTC, counting back
@@ -1321,10 +1321,13 @@ The POST gates, on the generated site:
   `github.com/<owner>/<repo>` path anywhere in the generated `.html` or
   `.css`, linked or as text. The gate cannot tell a private repository from
   a public one, and the page has no reason to point into either. Red on a
-  site with no `.html` page. One narrow exception (Yves's ruling on
+  site with no `.html` page. Two narrow exceptions (the first is Yves's ruling on
   forsgren#41): an `href` to exactly `https://github.com/yveshanoulle/forsgren`,
-  with an optional `#anchor`, the footer's links to the tool's own public
-  repository; `forsgren-data`, `forsgren/issues`, any other path or owner, and
+  with an optional `#anchor`, the footer's link to the tool's own public
+  repository; a second one (his second ruling): an `href` to exactly
+  `https://github.com/yveshanoulle/forsgren-template`, with no anchor, the
+  footer's Install link; `forsgren-data`, `forsgren-template/issues`,
+  `forsgren-template#x`, `forsgren-templates`, `forsgren/issues`, any other path or owner, and
   the same path as plain text or in a `url()` stay red. The failure line names the file and line, never
   the path it matched, so a private repository's name cannot reach a commit
   message.

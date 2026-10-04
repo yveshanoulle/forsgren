@@ -20,12 +20,18 @@
 # name would be copied wherever those go (the rule
 # Scripts/check_data_guard.sh follows for the same reason).
 #
-# One exception, a narrow one (Yves's ruling on forsgren#41): the tool's own
+# Two narrow exceptions. The first (Yves's ruling on forsgren#41): the tool's own
 # public repository. An href to exactly https://github.com/yveshanoulle/forsgren,
 # with an optional #anchor, is not a finding: the page footer links the tool
 # that made it (and its README section on installing). Nothing else is
 # exempt: forsgren-data, forsgren/issues, forsgren/blob/..., another owner, and
 # the same path as plain text or in a url() all stay findings.
+#
+# A second one (Yves's second ruling on forsgren#41): forsgren-template, now
+# public, which the footer's Install link points to. An href to exactly
+# https://github.com/yveshanoulle/forsgren-template, with no anchor and no
+# path, is not a finding; forsgren-template/issues, forsgren-template#x and
+# forsgren-templates stay findings.
 #
 # Red-on-zero: a site with no .html page is red. Nothing scanned is not clean.
 #
@@ -50,6 +56,11 @@ REPO_PATH='github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+'
 # optional anchor is what keeps forsgren-data and forsgren/issues findings.
 OWN_LINK='s#href="https://github\.com/yveshanoulle/forsgren(\#[A-Za-z0-9_.-]*)?"##g'
 
+# The second exception, the same way: TEMPLATE_LINK at column 0 is replaced by
+# Scripts/test_check_repo_links.sh's mutation proof. No anchor is allowed, so
+# the closing quote must follow the name at once.
+TEMPLATE_LINK='s#href="https://github\.com/yveshanoulle/forsgren-template"##g'
+
 if [ ! -d "$SITE" ]; then
   echo "❌ FAIL: site dir not found: ${SITE}"
   exit 2
@@ -70,7 +81,7 @@ while IFS= read -r hit; do
   findings=$((findings + 1))
 done < <(
   while IFS= read -r file; do
-    sed -E "$OWN_LINK" "$file" | grep -nE "$REPO_PATH" | cut -d: -f1 | sed "s#^#${file}:#"
+    sed -E -e "$OWN_LINK" -e "$TEMPLATE_LINK" "$file" | grep -nE "$REPO_PATH" | cut -d: -f1 | sed "s#^#${file}:#"
   done < <(find "$SITE" -type f \( -name '*.html' -o -name '*.css' \))
 )
 
