@@ -104,10 +104,16 @@ func Placeholder(version string) Data {
 // renders. parsePages and PageNames read the same set through it.
 const pagesGlob = "templates/pages/*.html"
 
-// views are the views of the table page (forsgren#46), each rendered from
-// index.html at its own address, /standard/ and /numbers/, one folder below
-// the root.
-var views = []string{"standard", "numbers"}
+// The views of the table page (forsgren#46).
+const (
+	viewStandard = "standard"
+	viewNumbers  = "numbers"
+)
+
+// views are the views of the table page, in the switch's order, each
+// rendered from index.html at its own address, /standard/ and /numbers/,
+// one folder below the root.
+var views = []string{viewStandard, viewNumbers}
 
 // viewBase is the way back from a view's folder to the root.
 const viewBase = "../"
@@ -126,14 +132,18 @@ type pageData struct {
 
 // Numbers says whether the page is the numbers view, its cells the numbers
 // only.
-func (p pageData) Numbers() bool { return p.View == "numbers" }
+func (p pageData) Numbers() bool { return p.View == viewNumbers }
 
-// page is a page's parsed template set, the template it executes, and the
-// view it shows.
+// Views are the views the switch names, in its order.
+func (pageData) Views() []string { return views }
+
+// page is a page's parsed template set, the template it executes, the
+// view it shows and the prefix of its links to the root's files.
 type page struct {
 	set  *template.Template
 	file string
 	view string
+	base string
 }
 
 // pages maps a page's name (index.html, standard/index.html) to its parsed
@@ -152,7 +162,7 @@ func parsePages() map[string]page {
 		out[path.Base(name)] = page{set: set, file: path.Base(name)}
 	}
 	for _, view := range views {
-		out[view+"/index.html"] = page{set: out["index.html"].set, file: "index.html", view: view}
+		out[view+"/index.html"] = page{set: out["index.html"].set, file: "index.html", view: view, base: viewBase}
 	}
 	return out
 }
@@ -173,10 +183,7 @@ func Render(w io.Writer, name string, data Data) error {
 	if !ok {
 		return fmt.Errorf("page %q not found", name)
 	}
-	shown := pageData{Data: data, View: cmp.Or(p.view, data.View)}
-	if p.view != "" {
-		shown.Base = viewBase
-	}
+	shown := pageData{Data: data, Base: p.base, View: cmp.Or(p.view, data.View)}
 	return p.set.ExecuteTemplate(w, p.file, shown)
 }
 
