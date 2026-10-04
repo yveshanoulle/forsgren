@@ -333,6 +333,22 @@ if run_secret_red "secret scan" "❌ FAIL: gitleaks found a leak"; then
   fi
 fi
 
+# #52 review: the private-names gate is secret-class too, and its red must
+# name the fix, not fall through to the generic "Fix the finding named in the
+# FAIL lines above."
+if run_secret_red "private names" "❌ FAIL: a private name was found"; then
+  if grep -Fq "made-up" <<< "$BLOCKED"; then
+    echo "  ok: a private-names red's blocked-commit message says to use a made-up name"
+  else
+    fail "private-names red: the blocked-commit message does not say to replace the name with a made-up one (acme), so the generic hint is all you get. Message: ${BLOCKED}"
+  fi
+  if grep -Fq "check_private_names.sh" <<< "$BLOCKED"; then
+    echo "  ok: a private-names red's blocked-commit message names check_private_names.sh"
+  else
+    fail "private-names red: the blocked-commit message does not name Scripts/check_private_names.sh, the gate that failed. Message: ${BLOCKED}"
+  fi
+fi
+
 # ---------------------------------------------------------------------------
 # Case 5: road to public, step 4 — every commit FBP.sh makes carries a DCO
 # sign-off (CONTRIBUTING.md; Yves, 2026-10-02: "we will change fbp to add
@@ -465,8 +481,8 @@ else
   # before its subshell (issue source-repo#20 step 2), and even a lib that did not would
   # write its stubs into that empty directory, never into this repo.
   #
-  # Wanted: the run fails; exactly 6 FAIL lines carry the reason, one for
-  # each run_fbp call (cases 1 and 2, and case 4's two runs, forsgren#1 step
+  # Wanted: the run fails; exactly 7 FAIL lines carry the reason, one for
+  # each run_fbp call (cases 1 and 2, and case 4's three runs, #52 and forsgren#1 step
   # 12.2d, and case 5's two runs, road to public step 4, all of which skip
   # their checks on it); every other FAIL line names mktemp
   # itself (case 3's fake repo and these proofs cannot get a directory
@@ -494,8 +510,8 @@ else
       ;;
   esac
 
-  if [ "$callers_reasons" != "6" ]; then
-    fail "callers check the run: with no sandbox, ${callers_reasons:-0} FAIL line(s) carry 'could not create the FBP sandbox', want 6 — one per run_fbp call (cases 1 and 2, case 4's two runs, case 5's two runs), so case 2's absence check cannot pass vacuously on empty output. Output: ${callers_out}"
+  if [ "$callers_reasons" != "7" ]; then
+    fail "callers check the run: with no sandbox, ${callers_reasons:-0} FAIL line(s) carry 'could not create the FBP sandbox', want 7 — one per run_fbp call (cases 1 and 2, case 4's three runs, case 5's two runs), so case 2's absence check cannot pass vacuously on empty output. Output: ${callers_out}"
   fi
 
   if [ -n "$callers_downstream" ]; then
