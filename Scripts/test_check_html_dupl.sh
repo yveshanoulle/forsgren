@@ -36,6 +36,11 @@ cd "$(dirname "$0")/.."
 #     pre, before Scripts/build_site.sh writes .build/site) passes at its
 #     recorded ceiling, the duplicated fixture is red through it, and an empty
 #     site is exit 2 with the zero reason.
+#   - the wrapper measures EVERY page, not only the first: a site whose
+#     clean page comes first in glob order and whose later page duplicates
+#     inside itself is red and names that later page; and it leaves no stage
+#     directory behind, green or red, seen by sending its `mktemp -d` into a
+#     fresh directory that must be empty afterwards (forsgren#39, step 4).
 
 CHECK="./Scripts/check_html_dupl.sh"
 SITE_CHECK="./Scripts/check_html_dupl_site.sh"
@@ -89,6 +94,43 @@ run_site() {
   OUT="$("$SITE_CHECK" "$@" 2>&1)"
   RC=$?
   set -e
+}
+
+# run_site_staged <tmpdir> <args...> — run_site with every `mktemp -d` the
+# wrapper (and the gate under it) makes landing in tmpdir, created fresh.
+# TMPDIR alone does not do it: macOS's mktemp -d without a template ignores
+# TMPDIR. So a mktemp first on PATH turns a bare `mktemp -d` into one with a
+# template under tmpdir, and passes every other call to the real mktemp; the
+# wrapper itself runs unchanged.
+REAL_MKTEMP="$(command -v mktemp)"
+run_site_staged() {
+  local stage_tmp="$1" shim="${TMP}/mktemp-shim"
+  shift
+  mkdir -p "$stage_tmp" "$shim"
+  cat > "${shim}/mktemp" <<'SHIM'
+#!/usr/bin/env bash
+if [[ "$#" -eq 1 && "$1" == "-d" ]]; then
+  exec "$REAL_MKTEMP" -d "${STAGE_TMP}/tmp.XXXXXXXX"
+fi
+exec "$REAL_MKTEMP" "$@"
+SHIM
+  chmod +x "${shim}/mktemp"
+  set +e
+  OUT="$(PATH="${shim}:${PATH}" REAL_MKTEMP="$REAL_MKTEMP" STAGE_TMP="$stage_tmp" "$SITE_CHECK" "$@" 2>&1)"
+  RC=$?
+  set -e
+}
+
+# check_left_nothing <name> <tmpdir> — tmpdir is empty again after the run.
+check_left_nothing() {
+  local left
+  left="$(ls -A "$2")"
+  if [[ -z "$left" ]]; then
+    echo "  ✅ $1"
+  else
+    echo "  ❌ $1 — left behind in $2: $left"
+    failures=$((failures + 1))
+  fi
 }
 
 # run_copy <gate-copy> <args...> — runs a copy of the gate from Scripts/ of a
@@ -186,6 +228,18 @@ make_inside_duplicate_fixture() {
   } > "${dir}/only.html"
 }
 
+# make_later_duplicate_site <dir> — a clean page first in glob order, then a
+# page that duplicates inside itself, so only measuring every page reds it.
+make_later_duplicate_site() {
+  local dir="$1"
+  make_shared_chrome_site "${dir}/chrome"
+  make_inside_duplicate_fixture "${dir}/inside"
+  mkdir -p "$dir"
+  mv "${dir}/chrome/first.html" "${dir}/a-clean.html"
+  mv "${dir}/inside/only.html" "${dir}/b-duplicated.html"
+  rm -rf "${dir}/chrome" "${dir}/inside"
+}
+
 echo "test_check_html_dupl"
 
 # Tooling absence is exit 2 everywhere below; if jscpd cannot be reached at
@@ -262,6 +316,19 @@ make_inside_duplicate_fixture "$INSIDE_DIR"
 run_site "$INSIDE_DIR"
 check "the generated-page wrapper FAILS on duplication inside one page" 1 "$RC"
 check_says "the inside-one-page red names the ceiling it exceeded" "EXCEEDS the 0.00% ceiling"
+
+# forsgren#39, step 4: every page is measured, not only the first, and the
+# stage is removed whether the run is green or red.
+LATER_DIR="${TMP}/later-duplicate"
+make_later_duplicate_site "$LATER_DIR"
+run_site_staged "${TMP}/stage-red" "$LATER_DIR"
+check "the generated-page wrapper FAILS on a later page duplicating inside itself" 1 "$RC"
+check_says "the later-page red names that page" "html-dupl: b-duplicated.html in ${LATER_DIR}"
+check_left_nothing "the generated-page wrapper leaves no stage behind on a red run" "${TMP}/stage-red"
+
+run_site_staged "${TMP}/stage-green" "$SHARED_DIR"
+check "the generated-page wrapper passes the shared-chrome site with its temp dirs moved" 0 "$RC"
+check_left_nothing "the generated-page wrapper leaves no stage behind on a green run" "${TMP}/stage-green"
 
 run_site "$EMPTY_DIR"
 check "the generated-page wrapper exits 2 on a site with no .html" 2 "$RC"
