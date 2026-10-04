@@ -27,12 +27,6 @@
    "minScore": 9.28
   },
   {
-   "path": "cmd/forsgren/render_latest_test.go",
-   "score": 9.38,
-   "checkedAt": "2026-10-04",
-   "minScore": 9.28
-  },
-  {
    "path": "cmd/forsgren/collect_test.go",
    "score": 9.68,
    "checkedAt": "2026-10-03",
@@ -448,6 +442,30 @@
   },
   {
    "path": "internal/page/release.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_latest_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/waiting.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/pulls.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/pulls_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-04",
    "minScore": 10.0

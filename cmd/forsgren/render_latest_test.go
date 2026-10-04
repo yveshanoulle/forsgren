@@ -5,6 +5,47 @@ import (
 	"testing"
 )
 
+// wantLookup runs args and fails the test unless the command exits 0, prints
+// exactly stdout, and says note on stderr (nothing at all when note is
+// empty): the contract of a lookup, which is never an error.
+func wantLookup(t *testing.T, stdout, note string, args ...string) {
+	t.Helper()
+	code, gotOut, gotErr := runCommand(args...)
+	if code != 0 {
+		t.Errorf("%v: want exit 0, got %d, stderr %q", args, code, gotErr)
+	}
+	if gotOut != stdout {
+		t.Errorf("%v: want stdout %q, got %q", args, stdout, gotOut)
+	}
+	if !saysNote(gotErr, note) {
+		t.Errorf("%v: want %q on stderr, got %q", args, note, gotErr)
+	}
+}
+
+// saysNote says whether stderr holds note, or is empty when note is.
+func saysNote(stderr, note string) bool {
+	if note == "" {
+		return stderr == ""
+	}
+	return strings.Contains(stderr, note)
+}
+
+// wantPage renders with args and fails the test unless the render exits 0
+// and the page has want but not notWant.
+func wantPage(t *testing.T, want, notWant string, args ...string) {
+	t.Helper()
+	code, stderr, index := renderWith(t, args...)
+	if code != 0 {
+		t.Errorf("%v: want exit 0, got %d, %q", args, code, stderr)
+	}
+	if !strings.Contains(index, want) {
+		t.Errorf("%v: want %q on the page, got:\n%s", args, want, index)
+	}
+	if notWant != "" && strings.Contains(index, notWant) {
+		t.Errorf("%v: want no %q on the page, got:\n%s", args, notWant, index)
+	}
+}
+
 // TestRenderNamesTheLatestReleaseItIsGiven (forsgren#40, step 4, option 2):
 // render takes the newest forsgren release as --latest, so it needs no
 // network; a newer one is named in the footer of both pages.
@@ -25,14 +66,9 @@ func TestRenderNamesTheLatestReleaseItIsGiven(t *testing.T) {
 // (a lookup that failed): the page renders as before, exit 0, nothing added.
 func TestRenderSaysNothingWhenNoNewerReleaseIsKnown(t *testing.T) {
 	for _, latest := range []string{version, "0.0.1", "banana", ""} {
-		code, stderr, index := renderWith(t, "--latest", latest)
-		if code != 0 || strings.Contains(index, "available") {
-			t.Errorf("latest %q: want exit 0 and no news of a release, got %d, %q, page:\n%s", latest, code, stderr, index)
-		}
+		wantPage(t, "Forsgren</a> "+version+" The five", "available", "--latest", latest)
 	}
-	if code, _, index := renderWith(t); code != 0 || strings.Contains(index, "available") {
-		t.Errorf("no --latest: want exit 0 and no news of a release, got %d, page:\n%s", code, index)
-	}
+	wantPage(t, "Forsgren</a> "+version+" The five", "available")
 }
 
 const latestPath = "/repos/yveshanoulle/forsgren/releases/latest"
@@ -43,10 +79,7 @@ const latestPath = "/repos/yveshanoulle/forsgren/releases/latest"
 func TestLatestReleasePrintsTheNewestVersion(t *testing.T) {
 	t.Setenv("FORSGREN_TOKEN", "")
 	fakeAPI(t, map[string]string{latestPath: `{"id": 7, "tag_name": "v0.0.10"}`}, 0)
-	code, stdout, stderr := runCommand("latest-release")
-	if code != 0 || stdout != "0.0.10\n" {
-		t.Errorf("want exit 0 and 0.0.10, got %d, %q, stderr %q", code, stdout, stderr)
-	}
+	wantLookup(t, "0.0.10\n", "", "latest-release")
 }
 
 // TestALatestReleaseLookupThatFailsIsNotAnError (forsgren#40, step 4): when
@@ -66,12 +99,18 @@ func TestALatestReleaseLookupThatFailsIsNotAnError(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Setenv("FORSGREN_TOKEN", "")
 			fakeAPI(t, c.bodies, c.code)
-			code, stdout, stderr := runCommand("latest-release")
-			if code != 0 || stdout != "" || !strings.Contains(stderr, "latest release") {
-				t.Errorf("want exit 0, no stdout and a note on stderr, got %d, %q, %q", code, stdout, stderr)
-			}
+			wantLookup(t, "", "latest release", "latest-release")
 		})
 	}
+}
+
+// pointAtABadAPI makes the commands' API address something that is no URL,
+// for this test only.
+func pointAtABadAPI(t *testing.T) {
+	t.Helper()
+	old := githubAPI
+	githubAPI = "not a url"
+	t.Cleanup(func() { githubAPI = old })
 }
 
 // TestLatestReleaseTakesNoArgumentsAndSurvivesABadAPI (forsgren#40, step 4):
@@ -82,35 +121,18 @@ func TestLatestReleaseTakesNoArgumentsAndSurvivesABadAPI(t *testing.T) {
 	if code != 2 || !strings.Contains(stderr, "usage: forsgren latest-release") {
 		t.Errorf("want exit 2 and the usage, got %d, %q", code, stderr)
 	}
-	old := githubAPI
-	githubAPI = "not a url"
-	t.Cleanup(func() { githubAPI = old })
-	code, stdout, stderr := runCommand("latest-release")
-	if code != 0 || stdout != "" || !strings.Contains(stderr, "latest release") {
-		t.Errorf("want exit 0, no stdout and a note, got %d, %q, %q", code, stdout, stderr)
-	}
+	pointAtABadAPI(t)
+	wantLookup(t, "", "latest release", "latest-release")
 }
 
 // TestRenderNamesTheWaitingPullRequestItIsGiven (forsgren#40, step 5): with
 // --latest newer and --waiting-pr, the footer names the pull request's
 // number instead of "is available"; --waiting-pr 0 is none.
 func TestRenderNamesTheWaitingPullRequestItIsGiven(t *testing.T) {
-	cases := []struct {
-		name, latest, pr string
-		want, notWant    string
-	}{
-		{"waiting", "0.0.10", "7", version + " · 0.0.10 is waiting in pull request #7 (merge it to update)", " is available"},
-		{"none given", "0.0.10", "0", "0.0.10 is available", "waiting"},
-		{"up to date", version, "7", version + " The five", "pull request #"},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			code, stderr, index := renderWith(t, "--latest", c.latest, "--waiting-pr", c.pr)
-			if code != 0 || !strings.Contains(index, c.want) || strings.Contains(index, c.notWant) {
-				t.Errorf("want exit 0, %q and not %q, got %d, %q, page:\n%s", c.want, c.notWant, code, stderr, index)
-			}
-		})
-	}
+	waiting := version + " · 0.0.10 is waiting in pull request #7 (merge it to update)"
+	wantPage(t, waiting, " is available", "--latest", "0.0.10", "--waiting-pr", "7")
+	wantPage(t, "0.0.10 is available", "waiting", "--latest", "0.0.10", "--waiting-pr", "0")
+	wantPage(t, version+" The five", "pull request #", "--latest", version, "--waiting-pr", "7")
 }
 
 const waitingPath = "/repos/acme/data/pulls"
@@ -130,14 +152,8 @@ func TestWaitingPullRequestPrintsTheNumber(t *testing.T) {
 	t.Setenv("GITHUB_REPOSITORY", "acme/data")
 	t.Setenv("GITHUB_TOKEN", testToken)
 	fakeAPI(t, map[string]string{waitingPath: dependabotPulls}, 0)
-	code, stdout, stderr := runCommand("waiting-pull-request", "--version", "0.0.10")
-	if code != 0 || stdout != "7\n" {
-		t.Errorf("want exit 0 and 7, got %d, %q, stderr %q", code, stdout, stderr)
-	}
-	code, stdout, stderr = runCommand("waiting-pull-request", "--version", "0.0.11")
-	if code != 0 || stdout != "" || stderr != "" {
-		t.Errorf("want exit 0 and silence for a version with no pull request, got %d, %q, %q", code, stdout, stderr)
-	}
+	wantLookup(t, "7\n", "", "waiting-pull-request", "--version", "0.0.10")
+	wantLookup(t, "", "", "waiting-pull-request", "--version", "0.0.11")
 }
 
 // TestAWaitingPullRequestLookupThatFailsIsNotAnError (forsgren#40, step 5):
@@ -158,10 +174,7 @@ func TestAWaitingPullRequestLookupThatFailsIsNotAnError(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Setenv("GITHUB_REPOSITORY", c.repository)
 			fakeAPI(t, map[string]string{waitingPath: `{"message":"no"}`}, c.code)
-			code, stdout, stderr := runCommand("waiting-pull-request", "--version", "0.0.10")
-			if code != 0 || stdout != "" || !strings.Contains(stderr, c.note) {
-				t.Errorf("want exit 0, no stdout and %q on stderr, got %d, %q, %q", c.note, code, stdout, stderr)
-			}
+			wantLookup(t, "", c.note, "waiting-pull-request", "--version", "0.0.10")
 		})
 	}
 }
@@ -170,8 +183,17 @@ func TestAWaitingPullRequestLookupThatFailsIsNotAnError(t *testing.T) {
 // --version, or with one that is not a version, it is a usage error.
 func TestWaitingPullRequestNeedsAVersion(t *testing.T) {
 	for _, args := range [][]string{{"waiting-pull-request"}, {"waiting-pull-request", "--version", "banana"}} {
-		if code, _, stderr := runCommand(args...); code != 2 || !strings.Contains(stderr, "--version") {
+		code, _, stderr := runCommand(args...)
+		if code != 2 || !strings.Contains(stderr, "--version") {
 			t.Errorf("%v: want exit 2 naming --version, got %d, %q", args, code, stderr)
 		}
 	}
+}
+
+// TestWaitingPullRequestSurvivesABadAPI (forsgren#40, step 5): an API
+// address that is no URL is a lookup that failed, not an error.
+func TestWaitingPullRequestSurvivesABadAPI(t *testing.T) {
+	t.Setenv("GITHUB_REPOSITORY", "acme/data")
+	pointAtABadAPI(t)
+	wantLookup(t, "", "waiting pull request", "waiting-pull-request", "--version", "0.0.10")
 }

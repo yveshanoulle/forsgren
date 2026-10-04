@@ -3,11 +3,13 @@
 //
 // Usage:
 //
-//	forsgren render --out <dir> [--config <path>] [--data <path>] [--latest <version>]
+//	forsgren render --out <dir> [--config <path>] [--data <path>]
+//	                [--latest <version>] [--waiting-pr <number>]
 //	forsgren check-config --config <path>
 //	forsgren init-config --config <path>
 //	forsgren collect --config <path> --data <path>
 //	forsgren latest-release
+//	forsgren waiting-pull-request --version <x.y.z>
 package main
 
 import (
@@ -19,11 +21,13 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/config"
 )
 
-const usage = `usage: forsgren render --out <dir> [--config <path>] [--data <path>] [--latest <version>]
+const usage = `usage: forsgren render --out <dir> [--config <path>] [--data <path>]
+                       [--latest <version>] [--waiting-pr <number>]
        forsgren check-config --config <path>
        forsgren init-config --config <path>
        forsgren collect --config <path> --data <path>
-       forsgren latest-release`
+       forsgren latest-release
+       forsgren waiting-pull-request --version <x.y.z>`
 
 // version is the forsgren release this binary is, shown on every page it
 // renders. It is the one source of the version: a var, not a const, so a
@@ -37,11 +41,12 @@ func main() {
 
 // commands are the subcommands by name.
 var commands = map[string]func(args []string, stdout, stderr io.Writer) int{
-	"render":         render,
-	"check-config":   checkConfig,
-	"init-config":    initConfig,
-	"collect":        collectDeployments,
-	"latest-release": latestRelease,
+	"render":               render,
+	"check-config":         checkConfig,
+	"init-config":          initConfig,
+	"collect":              collectDeployments,
+	"latest-release":       latestRelease,
+	"waiting-pull-request": waitingPullRequest,
 }
 
 // run executes one command and returns the process exit status: 0 on

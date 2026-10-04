@@ -65,17 +65,30 @@ on:
         description: A read-only GitHub token for the measured repositories (README, Collecting deployments); unused while no project is configured.
         required: false
 
-# Nothing at the workflow level; the one job asks for what it uses.
-permissions: {}
+# NO permissions block, at the workflow level or on the job, on purpose
+# (forsgren#40, option 1). A called workflow can only keep or narrow what its
+# caller's job grants, and a job that asks for more than the caller grants
+# ("The nested job ... is requesting 'pull-requests: read', but is only
+# allowed 'pull-requests: none'") stops the run before any step: declaring
+# pull-requests: read here would break every install whose caller has not
+# been updated. Without a block the job takes exactly what the caller's job
+# grants, so the caller decides, and the lookup of the waiting Dependabot
+# pull request treats a token without pull-requests: read (a 403) as
+# unknown, never an error. What the steps use, and so what a caller grants:
+#   contents: write      checkout reads with it; the starter step pushes a
+#                        new install's forsgren.config.yml and the data step
+#                        pushes data/, each one commit to the run's branch
+#   pages: write         deploy-pages publishes the site to the caller's Pages
+#   id-token: write      deploy-pages proves to Pages, with an OIDC token,
+#                        which run deploys
+#   pull-requests: read  optional: the footer names Dependabot's waiting
+#                        pull request for a newer forsgren release
+# Scripts/test_metrics_workflow.sh pins that no block comes back.
 
 jobs:
   publish:
     name: Collect, render and publish
     runs-on: ubuntu-latest
-    permissions:
-      contents: write   # checkout reads with it; the starter step pushes a new install's forsgren.config.yml and the data step pushes data/, each one commit to the run's branch
-      pages: write      # deploy-pages publishes the site to the caller's GitHub Pages
-      id-token: write   # deploy-pages proves to Pages, with an OIDC token, which run deploys
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -354,13 +367,39 @@ jobs:
           fi
           echo "latest=${latest}" >> "$GITHUB_OUTPUT"
 
+      # With a newer release, the footer names Dependabot's open pull request
+      # for it in the installation's own repository (forsgren#40, option 1).
+      # forsgren waiting-pull-request lists the open pull requests of
+      # GITHUB_REPOSITORY with the job's token, which has pull-requests: read
+      # only when the caller grants it (see the note on permissions above). A
+      # token without it, or any other failure, is not an error: the output
+      # is then empty and the page keeps saying the release is available.
+      # Only a number becomes the step's output, whatever the command printed.
+      - name: Look up the waiting Dependabot pull request
+        id: waiting
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          LATEST: ${{ steps.latest.outputs.latest }}
+        run: |
+          set -euo pipefail
+          waiting=""
+          if [[ -n "$LATEST" ]]; then
+            waiting="$(forsgren waiting-pull-request --version "$LATEST" || true)"
+          fi
+          if [[ ! "$waiting" =~ ^[0-9]+$ ]]; then
+            waiting=""
+          fi
+          echo "waiting=${waiting}" >> "$GITHUB_OUTPUT"
+
       - name: Render the page
         shell: bash
         env:
           LATEST: ${{ steps.latest.outputs.latest }}
+          WAITING: ${{ steps.waiting.outputs.waiting }}
         run: |
           set -euo pipefail
-          forsgren render --out "${RUNNER_TEMP}/site" --config forsgren.config.yml --data data/deployments.csv ${LATEST:+--latest "$LATEST"}
+          forsgren render --out "${RUNNER_TEMP}/site" --config forsgren.config.yml --data data/deployments.csv ${LATEST:+--latest "$LATEST"} ${WAITING:+--waiting-pr "$WAITING"}
 
       - name: Upload the page
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0

@@ -910,6 +910,7 @@ jobs:
       contents: write
       pages: write
       id-token: write
+      pull-requests: read   # optional, see below
     uses: yveshanoulle/forsgren/.github/workflows/metrics.yml@<commit> # vX.Y.Z
     secrets:
       FORSGREN_TOKEN: ${{ secrets.FORSGREN_TOKEN }}
@@ -1002,6 +1003,19 @@ jobs:
   that adds the starter and collect, change `contents: read` to
   `contents: write` and add the `secrets:` block** in the calling workflow
   (and in the template's copy of it).
+- **`pull-requests: read` is optional, and the caller's to grant too**
+  (forsgren#40). With it, when a newer forsgren release exists and
+  Dependabot has an open pull request in your repository that bumps the
+  `uses:` pin to exactly that release, the page footer says "Forsgren 0.0.9
+  · 0.0.10 is waiting in pull request #7 (merge it to update)", with the
+  number only. Without it the footer still says "0.0.10 is available": the
+  lookup treats the refusal (a 403) as unknown, never as an error, and the
+  run goes on. The workflow itself declares no permissions block, so it
+  takes what your caller grants; it does not ask for this one, because a
+  called workflow that asks for more than its caller grants stops the run
+  before any step, which would break every install that has not added the
+  line. Add it to the calling workflow (and to the template's copy) with the
+  new release.
 - **GitHub Pages must build from GitHub Actions** (the data repository's
   Settings → Pages → Source). The run deploys to the repository's
   `github-pages` environment.
@@ -1486,8 +1500,12 @@ repository and no pull request can start it. Its one job runs on
 `ubuntu-latest`, in the caller's repository and with the caller's token,
 checks out the caller's repository only (never forsgren's), and asks for
 `pages: write`, `id-token: write` and `contents: write` (the starter step
-and the data step each push one commit; a top-level `permissions: {}` gives
-the workflow nothing else). Its concurrency group is the caller's
+and the data step each push one commit) and, optionally, `pull-requests:
+read` (forsgren#40), all as the caller grants them: the workflow has no
+`permissions:` block, so its job takes exactly what the caller's job grants
+and a caller that has not added the optional one still starts (a token
+without it is a 403 the lookup of the waiting Dependabot pull request treats
+as unknown). Its concurrency group is the caller's
 repository, `cancel-in-progress: false`. It takes no inputs: the
 caller's `uses: …/metrics.yml@<commit>` line is the only version. Its one
 secret, `FORSGREN_TOKEN`, is optional and reaches the collect step's `env:`
@@ -1592,8 +1610,10 @@ Six PRE gates keep the CI honest:
   `forsgren.config.yml` alone as `github-actions[bot]`, unsigned even under
   a hostile inherited git environment, pushes it to the run's branch with
   the token in git's environment only (pin 13), exits 0 for a kept file
-  before any branch logic and refuses on a tag, and the job grants
-  `contents: write`;
+  before any branch logic and refuses on a tag, and the workflow has no
+  `permissions:` block and names no `pull-requests:` permission (pin 16: a
+  called workflow that asks for more than its caller grants stops the run,
+  so it takes what the caller grants);
   `workflow_call` declares the one secret `FORSGREN_TOKEN`, `required:
   false`, and the only `${{ secrets… }}` in the file is the collect step's
   `env:`; the collect step, executed with a stub and with the real
@@ -1619,7 +1639,11 @@ Six PRE gates keep the CI honest:
   found one; that step, "Look up the latest forsgren release", gets the job's
   token as `GITHUB_TOKEN` (never the caller's secret), outputs a plain
   version, and outputs nothing, never failing the job, for a lookup that
-  fails or an answer that is anything else; and install, checkout, starter, config
+  fails or an answer that is anything else; the step after it, "Look up the
+  waiting Dependabot pull request", does the same for a pull request number
+  (also with the job's token, and asked only when a latest release was
+  found), and the render step passes `--waiting-pr <number>` when it is set;
+  and install, checkout, starter, config
   check, collect, data commit and render come in that order, the fail step
   after publishing. Each pin is shown failing, with its own reason, on a
   mutant of the real file, judged by the pin it is aimed at.
@@ -1658,6 +1682,14 @@ pin. A finding is fixed in the template, never by
 loosening the gate.
 
 ## Installing and updating
+
+**An installation's page names a newer release** (forsgren#40). The page
+footer says "0.0.10 is available" when forsgren has a newer release than the
+one that built the page, and, when your caller grants `pull-requests: read`
+(see Running forsgren), "0.0.10 is waiting in pull request #N (merge it to
+update)" when Dependabot's pull request for it is open in your repository.
+Updating is merging that pull request; the template's calling workflow
+carries the permission line.
 
 Run `./sfl.sh pre` (or `./FBP.sh`) and the tools install themselves.
 `Scripts/required_tools.txt` lists them, and `Scripts/install_tools.sh` installs

@@ -34,6 +34,7 @@ const sourceDateEpoch = "SOURCE_DATE_EPOCH"
 // --config, --data and --latest (empty when absent).
 type renderOptions struct {
 	out, config, data, latest string
+	waitingPR                 int
 }
 
 // render writes the site. With --config it also reads the installation's
@@ -86,7 +87,7 @@ func renderTime() (time.Time, error) {
 func pageData(o renderOptions, at time.Time) (page.Data, error) {
 	data := page.Placeholder(version)
 	data.AsOf = at.UTC().Format(calculatedLayout)
-	data.Latest = o.latest
+	data.Latest, data.WaitingPR = o.latest, o.waitingPR
 	if o.config == "" {
 		return data, nil
 	}
@@ -152,6 +153,8 @@ func renderFlags(args []string, stderr io.Writer) (renderOptions, bool) {
 		"the history the page counts, data/deployments.csv, commits.csv, failures.csv beside it (optional, needs --config)")
 	flags.StringVar(&o.latest, "latest", "",
 		"the newest forsgren release, as latest-release prints it; the footer names it when it is newer (optional)")
+	flags.IntVar(&o.waitingPR, "waiting-pr", 0,
+		"the open Dependabot pull request for that release, as waiting-pull-request prints it (optional, 0 is none)")
 	if err := flags.Parse(args); err != nil {
 		return o, false
 	}

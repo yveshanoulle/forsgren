@@ -108,7 +108,11 @@
 #      when no projects are configured and show each project's deployment
 #      frequency from the history (forsgren#12, step 7), executed with the
 #      stub;
-#  16. the job grants itself `contents: write`, which the push needs;
+#  16. the workflow has NO permissions block, at the top or on the job, and
+#      names no `pull-requests:` permission (forsgren#40): a called workflow
+#      that asks for more than its caller grants stops the run before any
+#      step, so a block here would break every install whose caller has not
+#      been updated; without one the job takes what the caller's job grants;
 #  17. workflow_call declares ONE secret, FORSGREN_TOKEN, with required: false
 #      (forsgren#12, step 6): a new install's first runs, with the starter's
 #      zero projects, start before its owner made a token, and collect itself
@@ -174,6 +178,14 @@
 #      ${{ steps.latest.outputs.latest }}`) and, EXECUTED with the stub,
 #      passes `--latest <version>` to render when it is set and nothing
 #      when it is empty;
+#  31. the step "Look up the waiting Dependabot pull request" (forsgren#40,
+#      option 1) hands forsgren the job's token as GITHUB_TOKEN, and,
+#      EXECUTED with the stub, outputs `waiting=<number>` for a plain
+#      number, `waiting=` for a failed lookup, a non-number or an answer with
+#      a second line, and never asks when there is no latest release;
+#  32. the render step takes that output through env: only (`WAITING:
+#      ${{ steps.waiting.outputs.waiting }}`) and, EXECUTED with the stub,
+#      passes `--waiting-pr <number>` when it is set;
 #  and pin 9 also orders the steps: install, checkout, starter, config check,
 #  collect, data commit, render, and the fail step after "Publish to GitHub
 #  Pages", so what was stored is committed and published before the job
@@ -232,6 +244,7 @@ CHECKOUT_STEP="Check out the caller's repository"
 CHECK_STEP="Check the caller's forsgren configuration"
 RENDER_STEP="Render the page"
 LATEST_STEP="Look up the latest forsgren release"
+WAITING_STEP="Look up the waiting Dependabot pull request"
 INIT_STEP="Write the starter configuration on a new install"
 CROSS="❌"
 CONFIG_CMD="check-config --config forsgren.config.yml"
@@ -454,6 +467,10 @@ fi
 if [[ "${1:-}" == latest-release ]]; then
   printf '%b' "${STUB_LATEST:-}"
   exit "${STUB_LATEST_RC:-0}"
+fi
+if [[ "${1:-}" == waiting-pull-request ]]; then
+  printf '%b' "${STUB_WAITING:-}"
+  exit "${STUB_WAITING_RC:-0}"
 fi
 if [[ -n "${STUB_REFUSAL:-}" ]]; then
   printf '%s\n' "$STUB_REFUSAL" >&2
@@ -796,6 +813,64 @@ judge_latest_lookup() {
   [[ "$got" == "$want" ]] || echo "for an answer with a second line the lookup step gives '${got}', not '${want}' — a line break must never add an output"
 }
 
+# waiting_outcome <script> <LATEST> <stub output> <stub exit status>: as
+# lookup_outcome, for the waiting step, with LATEST in its environment.
+waiting_outcome() {
+  local rc=0 out="${TMP}/waiting.out" calls="${TMP}/fg.calls"
+  : > "$out"
+  : > "$calls"
+  PATH="${STUB}:${PATH}" FG_CALLS="$calls" GITHUB_OUTPUT="$out" LATEST="$2" STUB_WAITING="$3" STUB_WAITING_RC="$4" \
+    bash "$1" > /dev/null 2>&1 || rc=$?
+  echo "exit=${rc} output=$(paste -sd'|' - < "$out") calls=$(paste -sd, - < "$calls")"
+}
+
+# judge_waiting_lookup <workflow-file>: pin 31, the waiting-pull-request step.
+judge_waiting_lookup() {
+  local script="${TMP}/waiting.sh" env got want
+  env="$(step_block "$1" "$WAITING_STEP" env)"
+  if ! grep -qxF -- "GITHUB_TOKEN: ${EXPR_OPEN} github.token }}" <<< "$env"; then
+    echo "the waiting step's env: does not set GITHUB_TOKEN to the job's token — the pull requests are read with it"
+  fi
+  if grep -qF -- "FORSGREN_TOKEN" <<< "$env"; then
+    echo "the waiting step's env: hands FORSGREN_TOKEN over — it reaches the collect step only"
+  fi
+  step_block "$1" "$WAITING_STEP" run > "$script"
+  if [[ ! -s "$script" ]]; then
+    echo "has no step '${WAITING_STEP}' with a run: | block"
+    return 0
+  fi
+  got="$(waiting_outcome "$script" "0.0.10" "7\n" 0)"
+  want="exit=0 output=waiting=7 calls=waiting-pull-request --version 0.0.10"
+  [[ "$got" == "$want" ]] || echo "the waiting step gives '${got}', not '${want}' — a plain number is the step's output"
+  got="$(waiting_outcome "$script" "0.0.10" "" 1)"
+  want="exit=0 output=waiting= calls=waiting-pull-request --version 0.0.10"
+  [[ "$got" == "$want" ]] || echo "for a lookup that fails the waiting step gives '${got}', not '${want}' — a failed lookup is not an error and the page keeps saying the release is available"
+  got="$(waiting_outcome "$script" "0.0.10" "seven" 0)"
+  [[ "$got" == "$want" ]] || echo "for an answer that is not a number the waiting step gives '${got}', not '${want}' — only a plain number becomes an output"
+  got="$(waiting_outcome "$script" "0.0.10" "7\nevil=1\n" 0)"
+  [[ "$got" == "$want" ]] || echo "for an answer with a second line the waiting step gives '${got}', not '${want}' — a line break must never add an output"
+  got="$(waiting_outcome "$script" "" "7\n" 0)"
+  want="exit=0 output=waiting= calls="
+  [[ "$got" == "$want" ]] || echo "with no latest release the waiting step gives '${got}', not '${want}' — there is no version to look a pull request up for"
+}
+
+# judge_render_waiting <workflow-file>: pin 32, the render step passes the
+# waiting pull request on.
+judge_render_waiting() {
+  local script="${TMP}/render.sh" calls="${TMP}/fg.calls" env got want
+  env="$(step_block "$1" "$RENDER_STEP" env)"
+  if ! grep -qxF -- "WAITING: ${EXPR_OPEN} steps.waiting.outputs.waiting }}" <<< "$env"; then
+    echo "the render step's env: does not set WAITING from steps.waiting.outputs.waiting — render is not told the waiting pull request"
+  fi
+  step_block "$1" "$RENDER_STEP" run > "$script"
+  [[ -s "$script" ]] || return 0
+  : > "$calls"
+  PATH="${STUB}:${PATH}" FG_CALLS="$calls" RUNNER_TEMP="${TMP}/runner" LATEST="0.0.10" WAITING="7" bash "$script" > /dev/null 2>&1 || true
+  got="$(paste -sd, - < "$calls")"
+  want="render --out ${TMP}/runner/site --config forsgren.config.yml --data data/deployments.csv --latest 0.0.10 --waiting-pr 7"
+  [[ "$got" == "$want" ]] || echo "with WAITING set the render step runs 'forsgren ${got}', not 'forsgren ${want}' — the footer names the pull request only when render is given it"
+}
+
 # judge_render_latest <workflow-file>: pin 30, the render step passes the
 # lookup's output on.
 judge_render_latest() {
@@ -813,21 +888,16 @@ judge_render_latest() {
   [[ "$got" == "$want" ]] || echo "with LATEST set the render step runs 'forsgren ${got}', not 'forsgren ${want}' — the footer names a newer release only when render is given it"
 }
 
-# judge_permissions <workflow-file>: pin 16, the job grants itself
-# contents: write, which the starter push needs.
+# judge_permissions <workflow-file>: pin 16, no permissions block and no
+# pull-requests permission: the called workflow takes what its caller's job
+# grants and never asks for more, which would stop the run of a caller that
+# does not grant it.
 judge_permissions() {
-  if ! grep -qE '^      contents:[[:space:]]+write([[:space:]]|$)' "$1"; then
-    echo "the job does not grant itself 'contents: write' — the starter commit cannot be pushed to the caller's repository's branch the run is on"
+  if grep -qE '^(  )?(  )?permissions:' "$1"; then
+    echo "the workflow has a permissions block — a called workflow that asks for more than its caller grants stops the run before any step, and one that asks for less cannot use what a caller adds (pull-requests: read); it takes the caller's"
   fi
-}
-
-# judge_pull_requests_permission <workflow-file>: the job grants itself
-# pull-requests: read (forsgren#40, step 5), which the lookup of the waiting
-# Dependabot pull request needs; without it the lookup is a 403, which is
-# unknown, never an error.
-judge_pull_requests_permission() {
-  if ! grep -qE '^      pull-requests:[[:space:]]+read([[:space:]]|$)' "$1"; then
-    echo "the job does not grant itself 'pull-requests: read' — the footer cannot name Dependabot's waiting pull request"
+  if grep -qE '^[[:space:]]+pull-requests:' "$1"; then
+    echo "the workflow names a pull-requests permission — callers that do not grant it would fail to start; the caller grants it, and the lookup treats a 403 as unknown"
   fi
 }
 
@@ -1299,6 +1369,12 @@ judge_order() {
   if later "$install" "$init"; then
     echo "writes the starter (line ${init}) before installing forsgren (line ${install}) — init-config is not on PATH yet"
   fi
+  if later "$(line_of "$1" "- name: ${WAITING_STEP}")" "$render"; then
+    echo "looks up the waiting pull request after it renders — render is given the lookup's output"
+  fi
+  if later "$lookup" "$(line_of "$1" "- name: ${WAITING_STEP}")"; then
+    echo "looks up the waiting pull request before the latest release (line ${lookup}) — it needs that version"
+  fi
   if later "$lookup" "$render"; then
     echo "looks up the latest release (line ${lookup}) after it renders (line ${render}) — render is given the lookup's output"
   fi
@@ -1409,7 +1485,6 @@ judge() {
   judge_setup_go "$1"
   judge_checkout "$1"
   judge_permissions "$1"
-  judge_pull_requests_permission "$1"
   judge_starter_step "$1"
   judge_starter_token "$1"
   judge_starter_e2e "$1"
@@ -1419,6 +1494,8 @@ judge() {
   judge_render_config "$1"
   judge_latest_lookup "$1"
   judge_render_latest "$1"
+  judge_waiting_lookup "$1"
+  judge_render_waiting "$1"
   judge_secret "$1"
   judge_collect_step "$1"
   judge_collect_token "$1"
@@ -1580,16 +1657,28 @@ proves judge_starter_token "a push without the header" "the starter step's push 
   's/"AUTHORIZATION: basic /"X-Other: basic /'
 proves judge_starter_e2e "a starter that leaves no file" "with the real forsgren a new install's config check after the starter step exits" \
   "s|^\\( *\\)git push --quiet origin.*\$|&\\n\\1rm -f forsgren.config.yml|"
-proves judge_permissions "a job that only reads contents" "does not grant itself 'contents: write'" \
-  's/^      contents: write /      contents: read /'
+proves judge_permissions "a permissions block back on the job" "the workflow has a permissions block" \
+  "s/^    runs-on: ubuntu-latest\$/&\\n    permissions:\\n      contents: write/"
+proves judge_permissions "a top-level permissions block back" "the workflow has a permissions block" \
+  "s/^jobs:\$/permissions: {}\\n\\njobs:/"
+proves judge_permissions "a job demanding pull-requests: read" "the workflow names a pull-requests permission" \
+  "s/^    runs-on: ubuntu-latest\$/&\\n    permissions:\\n      pull-requests: read/"
 proves judge_render_config "render without the config" "the render step runs 'forsgren render --out" \
   '/forsgren render /s/ --config forsgren\.config\.yml//'
 proves judge_render_config "render without the history" "the render step runs 'forsgren render --out" \
   '/forsgren render /s/ --data data\/deployments\.csv//'
 
 # The latest release (forsgren#40).
-proves judge_pull_requests_permission "a job without pull-requests: read" "does not grant itself 'pull-requests: read'" \
-  "s/^      pull-requests: read /      pull-requests: none /"
+proves judge_waiting_lookup "a waiting lookup without the job token" "does not set GITHUB_TOKEN to the job's token" \
+  "/GITHUB_TOKEN: \\${D}{{ github.token }}/{x;s/^/x/;/^xx\$/{x;d;};x;}"
+proves judge_waiting_lookup "a waiting lookup that fails the job" "for a lookup that fails the waiting step gives" \
+  "s/forsgren waiting-pull-request --version \"\\${D}LATEST\" || true/forsgren waiting-pull-request --version \"\\${D}LATEST\"/"
+proves judge_waiting_lookup "a waiting output that is not checked" "for an answer that is not a number" \
+  "/if \\[\\[ ! \"\\${D}waiting\" =~/,/^          fi${D}/d"
+proves judge_render_waiting "a render without the waiting pull request" "with WAITING set the render step runs" \
+  "s/ \\${D}{WAITING:+--waiting-pr \"\\${D}WAITING\"}//"
+proves judge_render_waiting "a render without WAITING in env" "does not set WAITING from steps.waiting.outputs.waiting" \
+  "/WAITING: \\${D}{{ steps.waiting.outputs.waiting }}/d"
 proves judge_latest_lookup "a lookup without the job token" "does not set GITHUB_TOKEN to the job's token" \
   "/GITHUB_TOKEN: \\${D}{{ github.token }}/d"
 proves judge_latest_lookup "a lookup with the caller's secret" "hands FORSGREN_TOKEN over" \
