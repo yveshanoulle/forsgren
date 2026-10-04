@@ -17,7 +17,11 @@
 # It searches the CONTENT and the PATH of every tracked file (git ls-files) and
 # of every untracked, not-ignored file (git ls-files -o --exclude-standard:
 # exactly what git add -A would stage; an untracked symlink is judged by its
-# readlink target, like a tracked one), case-insensitively, for a SUBSTRING: a listed name anywhere inside a longer
+# readlink target; a tracked symlink is judged by the WORKING TREE too, which
+# is what git add -A stages, plus its index entry when that is a link, so a
+# staged link that was changed since is judged both ways; no content is read
+# through a link: git commits the link text, not the target's content),
+# case-insensitively, for a SUBSTRING: a listed name anywhere inside a longer
 # token is a hit (so `acme-secret-repo` is found inside `acme-secret-repository`,
 # `my-acme-secret-repo` and `apply-acme-secret-repo.yml`). Yves's ruling: the
 # gate takes over the data guard's `grep -iF` matching.
@@ -133,8 +137,9 @@ match_names() {
   grep -i -E -f <(printf '%s\n' "$PATTERNS") "$@"
 }
 
-# judge_path <path> <link-target-or-empty> <is-link 0|1>: judges one
-# path, its symlink target text and its content; counts it in N (the numbering
+# judge_path <path> <link-target-or-empty> <is-link 0|1> [index-target]: judges
+# one path, its symlink target text (the working tree's, and the index
+# entry's when given) and its content (not for a link); counts it in N (the numbering
 # runs over the tracked list, then the untracked one). Sets FOUND to 1 on a hit.
 judge_path() {
   local path="$1" target="$2" islink="$3" shown hits hit lineno rc
@@ -153,7 +158,12 @@ judge_path() {
   if [[ "$islink" -eq 1 ]] && match_names -q <<< "$target" 2>/dev/null; then
     echo "❌ FAIL: tracked path #${N} (link target) names a private name"
     FOUND=1
+  elif [[ -n "${4:-}" ]] && match_names -q <<< "$4" 2>/dev/null; then
+    echo "❌ FAIL: tracked path #${N} (link target) names a private name"
+    FOUND=1
   fi
+  # No content through a link: git commits the link text, not the target file.
+  [[ "$islink" -eq 1 ]] && return 0
   [[ -f "$path" ]] || return 0
   # grep exits 0 on a hit, 1 on none, above 1 when it could not read the file.
   # Its stderr names the path, so it goes nowhere; the failure is told by number.
@@ -176,7 +186,7 @@ judge_path() {
 # untracked, not-ignored one (git ls-files -o --exclude-standard: exactly what
 # git add -A would stage). Sets N to the number of paths and FOUND to 1 on any hit.
 scan_tracked() {
-  local entry path mode sha target
+  local entry path mode sha target idx islink
   FOUND=0
   UNREAD=0
   N=0
@@ -186,15 +196,26 @@ scan_tracked() {
     sha="${entry#* }"
     sha="${sha%% *}"
     target=""
-    if [[ "$mode" == 120000 ]]; then
-      target="$(git cat-file blob "$sha" 2>/dev/null)" || {
+    idx=""
+    islink=0
+    if [[ -L "$path" ]]; then
+      islink=1
+      target="$(readlink -- "$path" 2>/dev/null)" || {
         N=$((N + 1))
         echo "❌ FAIL: tracked path #${N} could not be read: a file that cannot be read cannot be judged"
         UNREAD=1
         continue
       }
     fi
-    judge_path "$path" "$target" "$([[ "$mode" == 120000 ]] && echo 1 || echo 0)"
+    if [[ "$mode" == 120000 ]]; then
+      idx="$(git cat-file blob "$sha" 2>/dev/null)" || {
+        N=$((N + 1))
+        echo "❌ FAIL: tracked path #${N} could not be read: a file that cannot be read cannot be judged"
+        UNREAD=1
+        continue
+      }
+    fi
+    judge_path "$path" "$target" "$islink" "$idx"
   done < <(git ls-files -s -z)
   while IFS= read -r -d '' path; do
     target=""
