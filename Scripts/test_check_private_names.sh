@@ -229,6 +229,14 @@ run_file "$NAMES_FILE"
 want_red "a tracked path with a name is red, by its number" "tracked path #"
 want_not_said "a tracked path" "$NAME_A" "docs/Acme" "notes.md"
 
+# A tracked path that names a private name AND whose content does too: the
+# content hit's `file:line` must not print the path, or the name leaks.
+new_repo "path-and-content"
+write_file "docs/acme-secret-repo.md" $'see acme-secret-repo for details\n' track
+run_file "$NAMES_FILE"
+want_red "a path and its content both naming a name is red" "tracked path #"
+want_not_said "a path that names a name, with a content hit" "$NAME_A" "docs/acme"
+
 # Mutation proof: the no-name assertion can fail. A gate that prints the
 # matched line (the mutation turns `file:line` into `file:line:content`) must
 # be caught by the very assertion the cases above use.
