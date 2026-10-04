@@ -32,10 +32,19 @@ func reworkOf(r ReworkRate) reworkWant {
 func shopRework(t *testing.T, records []history.Record, failures []history.Failure) ReworkRate {
 	t.Helper()
 	all := ReworkRates(projects, records, failures, now)
-	if len(all) != 2 || all[0].Project != "Acme Shop" || all[1] != (ReworkRate{Project: "Acme Tools"}) {
+	if !shopThenIdleTools(all) {
 		t.Fatalf("want Acme Shop's rate, then Acme Tools with nothing, got %+v", all)
 	}
 	return all[0]
+}
+
+// shopThenIdleTools says whether all is Acme Shop's rate, then Acme Tools
+// with nothing.
+func shopThenIdleTools(all []ReworkRate) bool {
+	if len(all) != 2 {
+		return false
+	}
+	return all[0].Project == "Acme Shop" && all[1] == (ReworkRate{Project: "Acme Tools"})
 }
 
 // wantRework fails the test unless Acme Shop's rework rate is want.
@@ -151,23 +160,34 @@ func TestNoSuccessfulDeploymentIsNoReworkRate(t *testing.T) {
 // TestReworkBandEdges: rework out of successes is banded on the six labels
 // of the Quick Check, a rate halfway between two by the higher one.
 func TestReworkBandEdges(t *testing.T) {
-	for _, c := range []struct {
-		rework, successes int
-		want              ChangeFailBand
-	}{
+	for _, want := range []reworkBand{
 		{0, 10, ZeroPercent}, {1, 11, ZeroPercent}, {1, 10, TwentyPercent}, {3, 11, TwentyPercent},
 		{3, 10, FortyPercent}, {1, 2, SixtyPercent}, {7, 10, EightyPercent}, {9, 10, HundredPercent},
 	} {
-		var records []history.Record
-		for i := 0; i < c.rework; i++ {
-			name := "env" + strconv.Itoa(i)
-			records = append(records, to(name, history.StateFailure, 3*day), to(name, history.StateSuccess, 2*day))
-		}
-		records = append(records, plain(c.successes-c.rework)...)
-		got := ReworkRates(projects, records, nil, now)[0]
-		if got.Deployments != c.successes || got.Rework != c.rework || got.Band != c.want {
-			t.Errorf("%d of %d: want band %q, got %d of %d, %q", c.rework, c.successes, c.want,
+		got := ReworkRates(projects, reworkOutOf(want.rework, want.successes), nil, now)[0]
+		if bandOf(got) != want {
+			t.Errorf("%d of %d: want band %q, got %d of %d, %q", want.rework, want.successes, want.band,
 				got.Rework, got.Deployments, got.Band)
 		}
 	}
+}
+
+// reworkBand is the rework, the successes and the band a ReworkRate
+// measured, to compare in one step.
+type reworkBand struct {
+	rework, successes int
+	band              ChangeFailBand
+}
+
+func bandOf(r ReworkRate) reworkBand { return reworkBand{r.Rework, r.Deployments, r.Band} }
+
+// reworkOutOf is successes successful deployments of acme/app, rework of
+// them each the first success of its own stream after a failure.
+func reworkOutOf(rework, successes int) []history.Record {
+	var records []history.Record
+	for i := range rework {
+		name := "env" + strconv.Itoa(i)
+		records = append(records, to(name, history.StateFailure, 3*day), to(name, history.StateSuccess, 2*day))
+	}
+	return append(records, plain(successes-rework)...)
 }

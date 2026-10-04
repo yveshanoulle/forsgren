@@ -93,18 +93,6 @@ func ReworkRates(projects []config.Project, records []history.Record, failures [
 	return out
 }
 
-// streamsOf groups the records of listed repositories, not created after
-// now, by stream.
-func streamsOf(index projectIndex, records []history.Record, now time.Time) map[history.Stream][]history.Record {
-	streams := map[history.Stream][]history.Record{}
-	for _, r := range records {
-		if _, ok := index.of(r.Repository); ok && !r.CreatedAt.After(now) {
-			streams[r.Stream()] = append(streams[r.Stream()], r)
-		}
-	}
-	return streams
-}
-
 // issuesByRepository groups the failure issues by repository, lower-case.
 func issuesByRepository(failures []history.Failure) map[string][]history.Failure {
 	issues := map[string][]history.Failure{}
@@ -115,25 +103,16 @@ func issuesByRepository(failures []history.Failure) map[string][]history.Failure
 	return issues
 }
 
-// reworkIn walks one stream's deployments oldest first (by created_at, then
-// ID) and returns how many successes of the last 30 days it holds and how
-// many of them are rework, given the failure issues of its repository.
+// reworkIn walks one stream's deployments oldest first and returns how
+// many successes of the last 30 days it holds and how many of them are
+// rework, given the failure issues of its repository.
 func reworkIn(deployments []history.Record, issues []history.Failure, now time.Time) (successes, rework int) {
-	slices.SortStableFunc(deployments, history.Chronological)
-	var run outage
-	for _, d := range deployments {
-		switch d.State {
-		case history.StateFailure:
-			run.fail(d.CreatedAt)
-		case history.StateSuccess:
-			_, recovered := run.recover(d.CreatedAt)
-			if !last30.holds(d.CreatedAt, now) {
-				continue
-			}
+	eachSuccess(deployments, func(s streamSuccess) {
+		if last30.holds(s.at, now) {
 			successes++
-			rework += reworkCount(recovered, issues, d.CreatedAt)
+			rework += reworkCount(s.recovered, issues, s.at)
 		}
-	}
+	})
 	return successes, rework
 }
 

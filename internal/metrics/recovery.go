@@ -32,7 +32,6 @@ package metrics
 // six, so a median recovery time is banded by LeadTimeBandOf.
 
 import (
-	"slices"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
@@ -60,15 +59,9 @@ type Recovery struct {
 // time now.
 func RecoveryTimes(projects []config.Project, records []history.Record, now time.Time) []Recovery {
 	index := indexOf(projects)
-	streams := map[history.Stream][]history.Record{}
-	for _, r := range records {
-		if _, ok := index.of(r.Repository); ok && !r.CreatedAt.After(now) {
-			streams[r.Stream()] = append(streams[r.Stream()], r)
-		}
-	}
 	times := make([][]time.Duration, len(projects))
 	out := make([]Recovery, len(projects))
-	for s, deployments := range streams {
+	for s, deployments := range streamsOf(index, records, now) {
 		i, _ := index.of(s.Repository)
 		recovered, open := recoveriesOf(deployments, now)
 		times[i] = append(times[i], recovered...)
@@ -90,45 +83,15 @@ func (r *Recovery) over(times []time.Duration) {
 	}
 }
 
-// recoveriesOf walks one stream's deployments oldest first (by created_at,
-// then ID) and returns the recovery times of the runs of failures recovered
-// in the last 30 days, and 1 when the stream ends in a run of failures not
-// recovered yet, else 0.
+// recoveriesOf walks one stream's deployments oldest first and returns the
+// recovery times of the runs of failures recovered in the last 30 days, and
+// 1 when the stream ends in a run of failures not recovered yet, else 0.
 func recoveriesOf(deployments []history.Record, now time.Time) ([]time.Duration, int) {
-	slices.SortStableFunc(deployments, history.Chronological)
 	var out []time.Duration
-	var run outage
-	for _, d := range deployments {
-		switch d.State {
-		case history.StateFailure:
-			run.fail(d.CreatedAt)
-		case history.StateSuccess:
-			if took, ok := run.recover(d.CreatedAt); ok && last30.holds(d.CreatedAt, now) {
-				out = append(out, took)
-			}
+	open := eachSuccess(deployments, func(s streamSuccess) {
+		if s.recovered && last30.holds(s.at, now) {
+			out = append(out, s.took)
 		}
-	}
-	return out, run.open
-}
-
-// outage is a stream's current run of failures: open is 1 from its first
-// failure, at since, until a success recovers it, else 0.
-type outage struct {
-	since time.Time
-	open  int
-}
-
-// fail adds a failure at at to the run, starting it when none is open.
-func (o *outage) fail(at time.Time) {
-	if o.open == 0 {
-		o.since, o.open = at, 1
-	}
-}
-
-// recover ends the run with a success at at, and returns how long it took
-// from its first failure; false when no run was open.
-func (o *outage) recover(at time.Time) (time.Duration, bool) {
-	was := o.open == 1
-	o.open = 0
-	return at.Sub(o.since), was
+	})
+	return out, open
 }
