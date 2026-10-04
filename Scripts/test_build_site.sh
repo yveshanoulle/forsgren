@@ -141,12 +141,13 @@ if [[ "$RC" -ne 0 ]]; then
 fi
 
 check_file 2 "index.html is the golden placeholder page" "$GOLDEN" "${HAPPY_OUTPUT}/index.html"
+check_file 12 "legend.html is the golden legend page" "internal/page/testdata/legend.golden.html" "${HAPPY_OUTPUT}/legend.html"
 check_file 3 "styles.css is copied as authored" "$STYLES" "${HAPPY_OUTPUT}/styles.css"
 
-if [[ -f "$HAPPY_SINK" ]] && [[ "$(cat "$HAPPY_SINK")" == "1" ]]; then
-  pass 4 "writes the page count (1) to SITE_PAGE_COUNT_FILE"
+if [[ -f "$HAPPY_SINK" ]] && [[ "$(cat "$HAPPY_SINK")" == "2" ]]; then
+  pass 4 "writes the page count (2) to SITE_PAGE_COUNT_FILE"
 else
-  fail_check 4 "writes the page count (1) to SITE_PAGE_COUNT_FILE — found: $(cat "$HAPPY_SINK" 2>/dev/null || echo MISSING)"
+  fail_check 4 "writes the page count (2) to SITE_PAGE_COUNT_FILE — found: $(cat "$HAPPY_SINK" 2>/dev/null || echo MISSING)"
 fi
 
 new_case "again"

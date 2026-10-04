@@ -166,8 +166,14 @@ func TestTableHeadsTheRows(t *testing.T) {
 // file, rewriting it first under -update.
 func checkGolden(t *testing.T, golden string, data Data) {
 	t.Helper()
+	checkPageGolden(t, "index.html", golden, data)
+}
+
+// checkPageGolden is checkGolden for the named page.
+func checkPageGolden(t *testing.T, name, golden string, data Data) {
+	t.Helper()
 	var got bytes.Buffer
-	if err := Render(&got, "index.html", data); err != nil {
+	if err := Render(&got, name, data); err != nil {
 		t.Fatalf("Render: %v", err)
 	}
 	if *update {
@@ -180,7 +186,7 @@ func checkGolden(t *testing.T, golden string, data Data) {
 		t.Fatalf("read golden: %v", err)
 	}
 	if !bytes.Equal(got.Bytes(), want) {
-		t.Errorf("index.html differs from %s\n--- got ---\n%s\n--- want ---\n%s", golden, got.String(), want)
+		t.Errorf("%s differs from %s\n--- got ---\n%s\n--- want ---\n%s", name, golden, got.String(), want)
 	}
 }
 
@@ -205,16 +211,38 @@ func TestRenderUnknownPage(t *testing.T) {
 	}
 }
 
-func TestWriteSiteWritesOnePageAndStyles(t *testing.T) {
+// TestLegendPageMatchesGolden (forsgren#39, step 1): the band explanations
+// are the page legend.html, with a link back to the table; the table page
+// holds none of them.
+func TestLegendPageMatchesGolden(t *testing.T) {
+	checkPageGolden(t, "legend.html", "testdata/legend.golden.html", Placeholder("0.0.7"))
+}
+
+// TestTablePageLinksToTheLegend (forsgren#39, step 1): the table page
+// carries a link to legend.html and none of the band explanations.
+func TestTablePageLinksToTheLegend(t *testing.T) {
+	var got bytes.Buffer
+	if err := Render(&got, "index.html", acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed)); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if !strings.Contains(got.String(), `<a href="legend.html">What the bands mean</a>`) {
+		t.Errorf("want a link to legend.html on the table page, got:\n%s", got.String())
+	}
+	if strings.Contains(got.String(), "<h2>Legend</h2>") {
+		t.Errorf("want the legend off the table page, got:\n%s", got.String())
+	}
+}
+
+func TestWriteSiteWritesTwoPagesAndStyles(t *testing.T) {
 	dir := t.TempDir()
 	n, err := WriteSite(dir, Placeholder("0.0.7"))
 	if err != nil {
 		t.Fatalf("WriteSite: %v", err)
 	}
-	if n != 1 {
-		t.Errorf("want 1 page written, got %d", n)
+	if n != 2 {
+		t.Errorf("want 2 pages written, got %d", n)
 	}
-	for _, name := range []string{"index.html", "styles.css"} {
+	for _, name := range []string{"index.html", "legend.html", "styles.css"} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
 			t.Errorf("want %s in the site: %v", name, err)
 		}

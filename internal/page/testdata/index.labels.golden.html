@@ -15,7 +15,7 @@
     <p>Calculated 2026-10-03 12:00 UTC, counting back from that moment: deployment frequency from the successful deployments, lead time for changes from the commits they shipped, failed deployment recovery time from the failed deployments and the successful ones after them, change fail rate from the failed deployments and the issues labelled failure.</p>
     <div class="table-scroll" role="region" aria-labelledby="metrics-caption" tabindex="0">
       <table>
-        <caption id="metrics-caption">The four DORA metrics: the DORA band, then the number and the count it is over (see the legend below)</caption>
+        <caption id="metrics-caption">The four DORA metrics: the DORA band, then the number and the count it is over (see What the bands mean)</caption>
         <thead>
           <tr>
             <th scope="col">Project</th>
@@ -72,40 +72,7 @@
         </tbody>
       </table>
     </div>
-    <h2>Legend</h2>
-    <p>A project's total row counts all its repositories; a row under it counts what its label names in the project's config. Durations: min is minutes, h hours, d days, each cut down, never rounded up.</p>
-    <h3>Deployment frequency</h3>
-    <p>The DORA band, then the successful deployments of the last 30 days, or of the last 180 days when the 30 days hold none:</p>
-    <ul>
-      <li>On demand (multiple deploys per day): 720 and more in 30 days</li>
-      <li>Between once per hour and once per day: 30 to 719 in 30 days</li>
-      <li>Between once per day and once per week: 5 to 29 in 30 days</li>
-      <li>Between once per week and once per month: 1 to 4 in 30 days</li>
-      <li>Between once per month and once every six months: none in 30 days, 1 and more in 180 days</li>
-      <li>Less than once per six months: none in 180 days</li>
-    </ul>
-    <h3>Lead time for changes</h3>
-    <p>The DORA band, then the median time from a commit to the successful deployment that shipped it, and in brackets the commits deployed in the last 30 days. A month is 30 days:</p>
-    <ul>
-      <li>Less than one hour: below 1 hour</li>
-      <li>Less than one day: 1 hour to below 24 hours</li>
-      <li>One day to one week: 24 hours to below 7 days</li>
-      <li>One week to one month: 7 days to below 30 days</li>
-      <li>One to six months: 30 days to below 180 days</li>
-      <li>More than six months: 180 days and more</li>
-    </ul>
-    <h3>Failed deployment recovery time</h3>
-    <p>The DORA band, on the edges of lead time for changes, as the DORA Quick Check gives both the same answers; then the median time from the first failed deployment of a run to the next successful deployment of the same stream, and in brackets the recoveries of the last 30 days; then the recoveries not completed yet, each a run of failed deployments with no success after it, counted, not timed. With none completed, the band and the median are —.</p>
-    <h3>Change fail rate</h3>
-    <p>The DORA band, the nearest label of the DORA Quick Check's scale; then the failed changes out of the final deployments of the last 30 days, in whole percent, rounded down, and in brackets both counts. A failed change is a failed deployment or an issue labelled failure opened in the window, per repository the larger of the two counts, so an issue about a failed deployment is not counted twice. A failure issue names no service, so a service's row counts its failed deployments only.</p>
-    <ul>
-      <li>0%: below 10%</li>
-      <li>20%: 10% to below 30%</li>
-      <li>40%: 30% to below 50%</li>
-      <li>60%: 50% to below 70%</li>
-      <li>80%: 70% to below 90%</li>
-      <li>100%: 90% and more</li>
-    </ul>
+    <p><a href="legend.html">What the bands mean</a></p>
   </main>
   <footer>
     <p>The four DORA metrics, from data GitHub already has.</p>
