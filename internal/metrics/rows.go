@@ -73,7 +73,7 @@ func Rows(projects []config.Project, data Data, now time.Time) []Row {
 	return out
 }
 
-// rowOf is the row at level of the project p over data: its four numbers,
+// rowOf is the row at level of the project p over data: its five numbers,
 // p being the only project.
 func rowOf(level Level, p config.Project, data Data, now time.Time) Row {
 	only := []config.Project{p}
@@ -83,6 +83,7 @@ func rowOf(level Level, p config.Project, data Data, now time.Time) Row {
 		LeadTime:   LeadTimes(only, data.Commits, now)[0],
 		Recovery:   RecoveryTimes(only, data.Records, now)[0],
 		ChangeFail: ChangeFailRates(only, data.Records, data.Failures, now)[0],
+		Rework:     ReworkRates(only, data.Records, data.Failures, now)[0],
 	}
 }
 
@@ -114,20 +115,17 @@ func byLabel(a, b Row) int {
 // ofTask is one service's data: the deployments of repository (ignoring
 // case) with task, the commits they shipped, and no failure issue.
 func (d Data) ofTask(repository, task string) Data {
-	var out Data
+	records := slices.DeleteFunc(slices.Clone(d.Records), func(r history.Record) bool {
+		return !strings.EqualFold(r.Repository, repository) || r.Task != task
+	})
 	shipped := map[deploymentKey]bool{}
-	for _, r := range d.Records {
-		if strings.EqualFold(r.Repository, repository) && r.Task == task {
-			out.Records = append(out.Records, r)
-			shipped[keyOf(r.Repository, r.Kind, r.ID)] = true
-		}
+	for _, r := range records {
+		shipped[keyOf(r.Repository, r.Kind, r.ID)] = true
 	}
-	for _, c := range d.Commits {
-		if shipped[keyOf(c.Repository, c.Kind, c.DeploymentID)] {
-			out.Commits = append(out.Commits, c)
-		}
-	}
-	return out
+	commits := slices.DeleteFunc(slices.Clone(d.Commits), func(c history.Commit) bool {
+		return !shipped[keyOf(c.Repository, c.Kind, c.DeploymentID)]
+	})
+	return Data{Records: records, Commits: commits}
 }
 
 // deploymentKey is the deployment a commit was shipped by: the repository,

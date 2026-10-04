@@ -1,12 +1,12 @@
 # forsgren
 
-Measure the four DORA metrics for a set of GitHub repositories, from the data
+Measure the five DORA metrics for a set of GitHub repositories, from the data
 GitHub already has, and publish them as a small static status page.
 
 Named after Dr. Nicole Forsgren, whose research with DORA (and the book
-*Accelerate*, with Jez Humble and Gene Kim) defined these four metrics.
+*Accelerate*, with Jez Humble and Gene Kim) defined the first four of these metrics.
 
-## The four metrics
+## The five metrics
 
 | Metric | Question it answers |
 |---|---|
@@ -14,6 +14,7 @@ Named after Dr. Nicole Forsgren, whose research with DORA (and the book
 | Change lead time | How long from a commit to that commit reaching users? |
 | Change failure rate | What share of deployments causes a failure users hit? |
 | Failed deployment recovery time | When a deployment fails and needs immediate intervention, how long until a successful one recovers it? |
+| Deployment rework rate | What share of deployments is unplanned, made to fix a problem users hit? |
 
 ## How it gets its data
 
@@ -414,15 +415,60 @@ edge times the deployments:
 A row whose deployments all failed shows its rate as found, "100% · 100%
 (1 of 1)" (decision #35).
 
+## Deployment rework rate
+
+The fifth DORA number on the page (forsgren#39, package `internal/metrics`):
+DORA's share of deployments that were not planned but made to address a
+user-facing bug. The table's fifth column shows it as a DORA band with the
+rate and, in brackets, the rework deployments of the successful deployments
+of the last 30 days: "20% · 14% (1 of 7)". With no successful deployment in
+the window it says "No successful deployments".
+
+**What counts.** Lenka's proposal on forsgren#39 (Yves can revert it
+there):
+
+- **The deployments** are the successful ones in `data/deployments.csv`
+  created in the last 30 days, counted back from the render time in UTC,
+  both ends included, as for the other metrics. A deployment created after
+  the render time is not there yet.
+- **A rework deployment** is a successful deployment that either (a) is the
+  first success of its stream after a failed deployment, the recovery that
+  failed deployment recovery time already finds (the stream is collect's:
+  repository ignoring case, kind, name and task, a repository's releases
+  one stream), however old the failure; or (b) was created while an issue
+  labelled `failure` of the same repository was open, from
+  `data/failures.csv`: opened at or before the deployment, and closed after
+  it or not yet.
+- **Counted once.** A deployment that is both is one rework deployment.
+- **A project** adds up its repositories, compared ignoring case; a
+  repository no project lists is left out. A failure issue names no task,
+  so a service's row has no issues and only (a) applies there, as for
+  change fail rate.
+- **The rate** is the rework deployments out of the successful ones, in
+  whole percent, rounded down, so the percent shown never reaches a band
+  edge the rate has not.
+
+**The bands.** DORA's Quick Check does ask for it. The script it loads,
+<https://dora.dev/quickcheck/quickcheck.js>, asks "Approximately what
+percentage of deployments in the last 6 months were not planned but were
+performed to address a user-facing bug in the application?", shows the
+answer as "`<n>`% of deployments were unplanned" and scales it on the same
+six labels as change fail rate, "100%", "80%", "60%", "40%", "20%" and
+"0%". A rate is banded by the nearest label, a rate halfway between two the
+higher one, on change fail rate's edges (below 10% is 0%, 10% to below 30%
+is 20%, and so on up to 90% and more as 100%). DORA's question says "in the
+last 6 months"; forsgren measures the last 30 days, like its other four
+metrics.
+
 ## The page
 
 `render` writes one table (forsgren#38), under the line that says when the
 numbers were calculated, "Calculated 2026-10-03 12:00 UTC, counting back
 from that moment: ...":
 
-- **The columns** are the four metrics: deployment frequency, lead time for
-  changes, failed deployment recovery time and change fail rate. The first
-  column heads each row.
+- **The columns** are the five metrics: deployment frequency, lead time for
+  changes, failed deployment recovery time, change fail rate and deployment
+  rework rate. The first column heads each row.
 - **The rows** are, per project in the config's order, its total, then a
   row per label its repositories give (see Configuration, `label` and
   `services`), sorted by label ignoring case and indented under it. A
@@ -430,7 +476,7 @@ from that moment: ...":
   one row with its name. A label row's header also carries its project's
   name for a screen reader ("Acme Shop: API"), hidden on screen, and the
   dash drawn before a label has empty alternative text, so it is not read.
-- **Each row is counted** by the same four metric functions as a project of
+- **Each row is counted** by the same five metric functions as a project of
   its own, over its own data: a project's total over all its repositories,
   the numbers the page showed per project before the table; a repository's
   label row over all that repository's deployments, commits and failure
@@ -439,14 +485,15 @@ from that moment: ...":
   (joined by repository, kind and deployment ID). A failure issue names no
   task, so it counts on the total and on a repository's label row, never on
   a service's row, whose change fail rate is its failed deployments of its
-  final deployments.
+  final deployments, and whose rework rate counts only the first success
+  after a failed deployment.
 - **Each cell is short**: the DORA band, then the number that decided it
   and the count it is over, "Less than one day · 2 h 7 min (48)". Durations
   are in min, h and d, each part cut down, never rounded up.
 - **Two pages:** `index.html` holds the table and a link, "What the bands mean", to `legend.html`, which has a link back.
 - **The legend** (`legend.html`) gives each metric's bands in one compact
-  list (recovery time's are lead time's, so it refers to them), with what
-  each cell counts and its window.
+  list (recovery time's are lead time's, and rework rate's are change fail
+  rate's, so it refers to them), with what each cell counts and its window.
 - **Layout:** the table has a caption and `<th scope>` headers; it scrolls
   sideways inside its own box on a narrow screen, so the page keeps its
   1rem (16px) gutter and never scrolls sideways itself. `styles.css` sets
@@ -1724,8 +1771,8 @@ The bootstrap is done (forsgren#1, 2026-10-02): the build, the gates, CI
 and these docs. Since then `collect` reads GitHub into the history file:
 the deployments of the configured projects and the commits they shipped.
 The page shows each project's deployment frequency, lead time for
-changes and failed deployment recovery time. The other DORA metrics are
-planned: change fail rate and rework rate. Installations start from the forsgren-template
+changes, failed deployment recovery time, change fail rate and deployment
+rework rate. Installations start from the forsgren-template
 repository and take each new release as a Dependabot pull request. forsgren
 is open source, under EUPL-1.2 (see Licence).
 

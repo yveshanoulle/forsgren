@@ -1,9 +1,9 @@
 {{template "header" .}}  <main>
     <h1>Forsgren {{.Version}}</h1>
-{{if .Rows}}    <p>Calculated {{.AsOf}} UTC, counting back from that moment: deployment frequency from the successful deployments, lead time for changes from the commits they shipped, failed deployment recovery time from the failed deployments and the successful ones after them, change fail rate from the failed deployments and the issues labelled failure.</p>
+{{if .Rows}}    <p>Calculated {{.AsOf}} UTC, counting back from that moment: deployment frequency from the successful deployments, lead time for changes from the commits they shipped, failed deployment recovery time from the failed deployments and the successful ones after them, change fail rate from the failed deployments and the issues labelled failure, deployment rework rate from the successful deployments that came after a failed deployment or while a failure issue was open.</p>
     <div class="table-scroll" role="region" aria-labelledby="metrics-caption" tabindex="0">
       <table>
-        <caption id="metrics-caption">The four DORA metrics: the DORA band, then the number and the count it is over (see What the bands mean)</caption>
+        <caption id="metrics-caption">The five DORA metrics: the DORA band, then the number and the count it is over (see What the bands mean)</caption>
         <thead>
           <tr>
             <th scope="col">Project</th>
@@ -11,6 +11,7 @@
             <th scope="col">Lead time for changes</th>
             <th scope="col">Failed deployment recovery time</th>
             <th scope="col">Change fail rate</th>
+            <th scope="col">Deployment rework rate</th>
           </tr>
         </thead>
         <tbody>
@@ -20,7 +21,8 @@
             <td>{{.LeadTime.Cell}}</td>
             <td>{{.Recovery.Cell}}</td>
             <td>{{.ChangeFail.Cell}}</td>
-{{else}}            <td colspan="4">No deployments recorded yet</td>
+            <td>{{.Rework.Cell}}</td>
+{{else}}            <td colspan="5">No deployments recorded yet</td>
 {{end}}          </tr>
 {{end}}        </tbody>
       </table>
