@@ -55,6 +55,25 @@ func TestNumbersPageShowsOnlyNumbers(t *testing.T) {
 	wantNone(t, "numbers/index.html", table, "Between once", "Less than", "No lead time yet", "not completed yet", " · ")
 }
 
+// TestScoringPageShowsEachMetricsScoreAndOverallPerformance (forsgren#47):
+// each cell is the metric's DORA Quick Check score alone, "9.3", never its
+// number; a metric without data is - and has no score; the sixth cell is
+// Overall Performance, the mean of the scored metrics to one decimal. Acme
+// Shop scores 6, 9.3 and 10 (8.4), Acme Tools 0 and 0 (0.0).
+func TestScoringPageShowsEachMetricsScoreAndOverallPerformance(t *testing.T) {
+	data := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
+	got := rendered(t, "scoring/index.html", data)
+	for heading, cells := range map[string][]string{
+		"Acme Shop":  {"6", "-", "-", "9.3", "10", "8.4"},
+		"Acme Tools": {"0", "-", "-", "0", "-", "0.0"},
+	} {
+		if !row(heading, cells...).MatchString(got) {
+			t.Errorf("want the row of %s to read %v, got:\n%s", heading, cells, got)
+		}
+	}
+	wantAll(t, "scoring/index.html", got, `<th scope="col">Overall Performance</th>`)
+}
+
 // TestStandardPageShowsTheStandardCells (forsgren#46): the standard view is
 // the 0.1.0 table, band, number and count.
 func TestStandardPageShowsTheStandardCells(t *testing.T) {
