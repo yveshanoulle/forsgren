@@ -90,7 +90,7 @@ data guard|Scripts/check_data_guard.sh|pre|secret-class
 # holds none: locally in ~/.config/forsgren/private-names (or the file that
 # FORSGREN_PRIVATE_NAMES_FILE points to), in CI in the Actions secret
 # FORSGREN_PRIVATE_NAMES, which quality.yml passes to the PRE step through
-# env. Whole-name, case-insensitive. The FAIL line names file:line (or the
+# env. Substring, case-insensitive. The FAIL line names file:line (or the
 # number of a tracked path), never the name. No list is exit 2, never a
 # silent pass. It is a secret-class row, the same tier as the data guard and
 # for the same reason: once committed, a name is in a public history.

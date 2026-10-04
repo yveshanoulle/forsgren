@@ -10,9 +10,9 @@
 # `disable`d and nothing is ignored. forsgren's workflows had no finding to
 # accept when the gate arrived, at any severity under the default persona.
 #
-# Another estate repository's single entry, a line-scoped dangerous-triggers ignore for its
-# own apply-web-infra.yml, names a file forsgren does not have and is not
-# ported. A suppression here, or an inline `# zizmor: ignore[...]` in a
+# Another estate repository's single entry, a line-scoped dangerous-triggers
+# ignore for one of its own workflows, names a file forsgren does not have and
+# is not ported. A suppression here, or an inline `# zizmor: ignore[...]` in a
 # workflow, needs a finding someone has looked at and Yves's explicit yes
 # recorded on a GitHub issue, linked from the entry; scope it to one line of
 # one file, as another estate repository does, so the audit still fires everywhere else.

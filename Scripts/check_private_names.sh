@@ -14,9 +14,10 @@
 # Blank lines and lines starting with # are not names.
 #
 # It searches the CONTENT and the PATH of every tracked file (git ls-files),
-# case-insensitively, for a WHOLE name: the name must not be directly preceded
-# or followed by a letter, a digit, `_` or `-` (so `acme-secret-repo` is not
-# found inside `acme-secret-repository`).
+# case-insensitively, for a SUBSTRING: a listed name anywhere inside a longer
+# token is a hit (so `acme-secret-repo` is found inside `acme-secret-repository`,
+# `my-acme-secret-repo` and `apply-acme-secret-repo.yml`). Yves's ruling: the
+# gate takes over the data guard's `grep -iF` matching.
 #
 # The FAIL lines name `file:line` for a content hit (`tracked path #N:line`
 # when the path itself names a private name) and `tracked path #N in
@@ -51,8 +52,8 @@ read_list() {
   LIST="$(cat "$file")"
 }
 
-# build_patterns <file>: one ERE per name into <file>, regex-escaped, with the
-# whole-name boundaries. Sets COUNT to the number of names; exit 2 on none.
+# build_patterns <file>: one ERE per name into <file>, regex-escaped, no
+# boundary (a substring match). Sets COUNT to the number of names; exit 2 on none.
 build_patterns() {
   local out="$1" line escaped
   COUNT=0
@@ -63,7 +64,7 @@ build_patterns() {
     line="${line%"${line##*[![:space:]]}"}"
     [[ -z "$line" || "$line" == \#* ]] && continue
     escaped="$(printf '%s' "$line" | sed 's/[][\.*^$+?(){}|/]/\\&/g')"
-    printf '(^|[^A-Za-z0-9_-])%s($|[^A-Za-z0-9_-])\n' "$escaped" >> "$out"
+    printf '%s\n' "$escaped" >> "$out"
     COUNT=$((COUNT + 1))
   done <<< "$LIST"
   if [[ "$COUNT" -eq 0 ]]; then

@@ -1167,8 +1167,8 @@ commit itself:
   maintainer's `gh` login) and it sets both. An external fork pull request
   receives neither secret, so the gate fails closed there (exit 2, no list);
   that is intended. The gate searches
-  `git ls-files`, case-insensitively, for a whole name (not directly
-  preceded or followed by a letter, digit, `_` or `-`). Its failure line
+  `git ls-files`, case-insensitively, for a substring (a listed name
+  inside a longer token is a hit). Its failure line
   names `file:line`, or `tracked path #N in git ls-files`, and never the
   name, so no log or commit message reveals it. No list, a list with no
   names, or no tracked file is exit 2 and a red, never a silent pass. Its

@@ -17,13 +17,13 @@
 #   blank lines and lines starting with # are not names.
 #   exit 0 clean (prints an OK: line), 1 a name found, 2 no list available.
 #
-# THE MATCH RULE (decided here): a name matches case-insensitively, as a
-# WHOLE NAME. It must not be directly preceded or followed by a letter, a
-# digit, `_` or `-`; any other character (/, space, `.`, quote, line start or
-# end) is a boundary. So `acme-secret-repo` is found in `github.com/Acme-Secret-Repo`
-# and in `acme-secret-repo.` but NOT in `acme-secret-repository` or in
-# `my-acme-secret-repo`: those are different names, and a fixture or prose may
-# legitimately contain them.
+# THE MATCH RULE (Yves's ruling, #52): a name matches case-insensitively, as a
+# SUBSTRING, the data guard's `grep -iF` matching. A listed name anywhere
+# inside a longer token is a hit: `acme-secret-repo` is found in
+# `github.com/Acme-Secret-Repo`, in `acme-secret-repo.`, and also in
+# `acme-secret-repository`, `my-acme-secret-repo`, `xacme-secret-repo` and
+# `apply-acme-secret-repo.yml`. There is no boundary; a fixture or prose that
+# needs such a string must not contain a listed name.
 #
 # The FAIL line names `file:line` (or `tracked path #N in git ls-files` for a
 # path hit) and never the matched name or path, so a CI log never reveals it.
@@ -37,7 +37,7 @@
 #   6. the list from env (FORSGREN_PRIVATE_NAMES)  -> works, no name printed
 #   7. no list at all                              -> exit 2, a message
 #   8. a list with only comments and blanks        -> exit 2: a scan for nothing
-#   9. a name only inside a longer word            -> exit 0 (see the rule)
+#   9. a name inside a longer token                -> exit 1 (see the rule)
 #  10. a name at a boundary (slash, dot, quote)    -> exit 1
 #  11. an untracked file with a name               -> exit 0 (only tracked
 #                                                     files are judged)
@@ -199,7 +199,11 @@ want_exit "a names file that does not exist is exit 2" 2 "does-not-exist"
 new_repo "substring"
 write_file "docs/notes.md" $'acme-secret-repository\nmy-acme-secret-repo\nacme-secret-repo2\nxacme-secret-repo\nacme-secret-repo_v2\n' track
 run_file "$NAMES_FILE"
-want_green_ok "a name inside a longer word is not a match"
+want_red "a name inside a longer word is a match (line 1)" "docs/notes.md:1"
+for n in 2 3 4 5; do
+  want_said "a name inside a longer word is a match (line ${n})" "docs/notes.md:${n}"
+done
+want_not_said "a name inside a longer word" "$NAME_A" "$NAME_B"
 
 # #52 ruling: the gate takes over the data guard's substring matching, so a
 # name joined to a longer token on both sides (a workflow file name) is a hit.
@@ -286,4 +290,4 @@ if selftest_mutant "$GATE" "$MUTANT" "s/lineno=\${hit%%:\*}/lineno=\$hit/"; then
 fi
 
 selftest_end "the private-names gate does not keep listed names out of tracked files, or passes without a list" \
-  "private-names gate is red with file:line (never the name) on a listed name, case-insensitively and as a whole name, reads its list from a file or from env, and is exit 2 when no list or no tracked file is there"
+  "private-names gate is red with file:line (never the name) on a listed name, case-insensitively and as a substring, reads its list from a file or from env, and is exit 2 when no list or no tracked file is there"
