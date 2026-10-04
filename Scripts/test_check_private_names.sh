@@ -74,6 +74,11 @@
 #      state is a link naming a name (FBP stages
 #      with git add -A, not the index)            -> exit 1, `tracked path #N
 #                                                     (link target)`, no name
+#  16. an existing names file that cannot be read (chmod 000)
+#                                                  -> exit 2, one FAIL line `cannot
+#                                                     be read`, never cat's own
+#                                                     `Permission denied`; the same
+#                                                     in --message mode
 # Mutation proof: a copy of the gate that prints the matched line must reveal
 # the name, so the no-name assertion can fail.
 
@@ -263,6 +268,33 @@ want_exit "an env list with no names is exit 2: an emptied CI secret fails" 2 "n
 new_repo "missing-file"
 run_file "${TMP}/does-not-exist"
 want_exit "a names file that does not exist is exit 2" 2 "does-not-exist"
+
+# 16. an existing names file that cannot be read (chmod 000) is exit 2 with
+# one FAIL line saying so, in gate mode and in --message mode, and never cat's
+# own `Permission denied`. Exit 1 would read as `a name found`. Root reads a
+# mode 000 file, so the case is skipped there.
+new_repo "unreadable-names"
+write_file "notes/plain.md" $'nothing to see\n' track
+printf 'clean message\n' > "${TMP}/unreadable-msg"
+UNREADABLE_NAMES="${TMP}/names-cannot-be-read"
+cp "$NAMES_FILE" "$UNREADABLE_NAMES"
+if [[ "$(id -u)" -eq 0 ]]; then
+  echo "  skip: an unreadable names file is exit 2: running as root, which reads a mode 000 file"
+else
+  chmod 000 "$UNREADABLE_NAMES"
+  run_file "$UNREADABLE_NAMES"
+  chmod 644 "$UNREADABLE_NAMES"
+  want_exit "an unreadable names file is exit 2, saying it cannot be read" 2 "cannot be read"
+  want_said "an unreadable names file gives a FAIL line" "❌ FAIL"
+  want_not_said "an unreadable names file" "Permission denied"
+  chmod 000 "$UNREADABLE_NAMES"
+  capture env -u FORSGREN_PRIVATE_NAMES HOME="$EMPTY_HOME" \
+    FORSGREN_PRIVATE_NAMES_FILE="$UNREADABLE_NAMES" "$GATE" --message "${TMP}/unreadable-msg"
+  chmod 644 "$UNREADABLE_NAMES"
+  want_exit "--message on an unreadable names file is exit 2, saying it cannot be read" 2 "cannot be read"
+  want_said "--message on an unreadable names file gives a FAIL line" "❌ FAIL"
+  want_not_said "--message on an unreadable names file" "Permission denied"
+fi
 
 new_repo "substring"
 write_file "docs/notes.md" $'acme-secret-repository\nmy-acme-secret-repo\nacme-secret-repo2\nxacme-secret-repo\nacme-secret-repo_v2\n' track

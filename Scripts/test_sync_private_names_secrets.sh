@@ -25,6 +25,8 @@
 #      Actions secret, and the Dependabot call is NOT made.
 #   5. Actions succeeds, the Dependabot call fails -> exit 1, a FAIL line
 #      about the Dependabot secret.
+#   5b. an existing names file that cannot be read (chmod 000) -> exit 2, a
+#      FAIL line saying it cannot be read, no `Permission denied`, no gh call.
 #   6. in every case, success included, the output holds no name (checked
 #      case-insensitively).
 #   7. mutation proofs: for each of 2-6 a mutant of the script that breaks
@@ -161,6 +163,28 @@ case_no_names() {
 case_zero_bytes() { case_no_names "$1" ""; }
 case_only_comments() { case_no_names "$1" "$(printf '%s\n# another comment\n\n' "$COMMENT")"; }
 
+# case_unreadable_file <script>: an existing names file that cannot be read.
+# Root reads a mode 000 file, so the case is skipped there (see below).
+case_unreadable_file() {
+  local file="${TMP}/unreadable-names-file"
+  cp "$NAMES_FILE" "$file"
+  chmod 000 "$file"
+  run_sync "$1" "$file"
+  chmod 644 "$file"
+  if [[ "$RC" != "2" ]]; then
+    REASON="an unreadable names file exited ${RC}, not 2. Output: ${OUT}"
+  elif ! grep -qF -- "❌ FAIL" <<< "$OUT" || ! grep -qF -- "cannot be read" <<< "$OUT"; then
+    REASON="an unreadable names file gave no FAIL line saying it cannot be read. Output: ${OUT}"
+  elif grep -qF -- "Permission denied" <<< "$OUT"; then
+    REASON="an unreadable names file leaked cat's own message. Output: ${OUT}"
+  elif [[ "$(calls)" != "0" ]]; then
+    REASON="an unreadable names file still made $(calls) gh call(s)"
+  else
+    return 0
+  fi
+  return 1
+}
+
 # case_actions_fails <script>
 case_actions_fails() {
   run_sync "$1" "$NAMES_FILE" 1
@@ -224,6 +248,11 @@ holds() {
 holds "a missing names file exits 2, names the file, makes no gh call" case_missing_file
 holds "a zero-byte names file exits 2 with no gh call" case_zero_bytes
 holds "a comments-only names file exits 2 with no gh call" case_only_comments
+if [[ "$(id -u)" -eq 0 ]]; then
+  echo "  skip: an unreadable names file exits 2: running as root, which reads a mode 000 file"
+else
+  holds "an unreadable names file exits 2, says it cannot be read, makes no gh call" case_unreadable_file
+fi
 holds "a failing Actions secret exits 1, says so, and skips the Dependabot call" case_actions_fails
 holds "a failing Dependabot secret exits 1 and says so" case_dependabot_fails
 holds "the output never holds a name (success and every failure path)" case_output_has_no_name
