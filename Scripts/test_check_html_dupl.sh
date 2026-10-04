@@ -140,6 +140,52 @@ HTML
   cp "${fixture_dir}/first.html" "${fixture_dir}/second.html"
 }
 
+# make_shared_chrome_site <dir> — two pages that share their chrome (a
+# header and a footer well over jscpd's 50-token minimum) and nothing else:
+# duplication in the OUTPUT of two pages rendered from one layout, none in any
+# one page (forsgren#39, step 1).
+make_shared_chrome_site() {
+  local dir="$1" n
+  mkdir -p "$dir"
+  for n in first second; do
+    cat > "${dir}/${n}.html" <<HTML
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>shared chrome</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <p class="site-name">shared chrome</p>
+  </header>
+  <main>
+    <h1>The ${n} page</h1>
+    <p>Only this paragraph of the ${n} page is its own.</p>
+  </main>
+  <footer>
+    <p>The same footer sentence closes both pages of this synthetic site.</p>
+  </footer>
+</body>
+</html>
+HTML
+  done
+}
+
+# make_inside_duplicate_fixture <dir> — ONE page holding the fixture's block
+# twice, so its duplication is within a page, whichever way pages are measured.
+make_inside_duplicate_fixture() {
+  local dir="$1"
+  mkdir -p "$dir"
+  {
+    sed '/<\/section>/,$d' "${FIXTURE_DIR}/first.html"
+    sed -n '/<section>/,/<\/section>/p' "${FIXTURE_DIR}/first.html"
+    sed -n '/<\/section>/,$p' "${FIXTURE_DIR}/first.html"
+  } > "${dir}/only.html"
+}
+
 echo "test_check_html_dupl"
 
 # Tooling absence is exit 2 everywhere below; if jscpd cannot be reached at
@@ -204,8 +250,18 @@ run_site "${TMP}/built"
 check "the generated page passes at its recorded ceiling" 0 "$RC"
 check_says "the generated-page run measured the built site" "in ${TMP}/built"
 
-run_site "$FIXTURE_DIR"
-check "the generated-page wrapper FAILS on deliberate duplication" 1 "$RC"
+# forsgren#39, step 1: pages rendered from one layout repeat its chrome, which
+# is duplication in the output, not in any page; each page is measured alone.
+SHARED_DIR="${TMP}/shared-chrome"
+make_shared_chrome_site "$SHARED_DIR"
+run_site "$SHARED_DIR"
+check "the generated-page wrapper passes two pages that only share their chrome" 0 "$RC"
+
+INSIDE_DIR="${TMP}/inside-duplicate"
+make_inside_duplicate_fixture "$INSIDE_DIR"
+run_site "$INSIDE_DIR"
+check "the generated-page wrapper FAILS on duplication inside one page" 1 "$RC"
+check_says "the inside-one-page red names the ceiling it exceeded" "EXCEEDS the 0.00% ceiling"
 
 run_site "$EMPTY_DIR"
 check "the generated-page wrapper exits 2 on a site with no .html" 2 "$RC"
