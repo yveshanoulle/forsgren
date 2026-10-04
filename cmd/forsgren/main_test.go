@@ -58,8 +58,8 @@ func TestRenderedPageShowsTheVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read index.html: %v", err)
 	}
-	if !strings.Contains(string(html), "Forsgren 0.0.9") {
-		t.Errorf("want the page to say Forsgren 0.0.9, got:\n%s", html)
+	if !strings.Contains(string(html), "Forsgren 0.1.0") {
+		t.Errorf("want the page to say Forsgren 0.1.0, got:\n%s", html)
 	}
 }
 
