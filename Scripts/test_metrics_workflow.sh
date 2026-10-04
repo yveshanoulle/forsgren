@@ -186,6 +186,15 @@
 #  32. the render step takes that output through env: only (`WAITING:
 #      ${{ steps.waiting.outputs.waiting }}`) and, EXECUTED with the stub,
 #      passes `--waiting-pr <number>` when it is set;
+#  33. the step "Write the run summary" (forsgren#40) takes LATEST, WAITING
+#      and PR_CHECK (the waiting step's `check` output: ok, no-access,
+#      failed or skipped) through env: only and, EXECUTED with the stub,
+#      appends `forsgren run-summary --latest ... --waiting-pr ... --pr-check
+#      ... --repository $GITHUB_REPOSITORY`'s markdown to
+#      $GITHUB_STEP_SUMMARY, and never fails the run: a run-summary that
+#      fails appends nothing and the step exits 0; and pin 31 adds that the
+#      waiting step outputs `check=` from the status file its lookup writes
+#      (`--status`), skipped without a latest release;
 #  and pin 9 also orders the steps: install, checkout, starter, config check,
 #  collect, data commit, render, and the fail step after "Publish to GitHub
 #  Pages", so what was stored is committed and published before the job
@@ -245,6 +254,7 @@ CHECK_STEP="Check the caller's forsgren configuration"
 RENDER_STEP="Render the page"
 LATEST_STEP="Look up the latest forsgren release"
 WAITING_STEP="Look up the waiting Dependabot pull request"
+SUMMARY_STEP="Write the run summary"
 INIT_STEP="Write the starter configuration on a new install"
 CROSS="❌"
 CONFIG_CMD="check-config --config forsgren.config.yml"
@@ -426,6 +436,10 @@ install_outcome() {
 # fails as collect does, with inject prints workflow commands on stdout and
 # stderr and fails, with none (the default) stores nothing; otherwise,
 # with STUB_REFUSAL set, it says that on stderr and exits 1, else it says OK.
+# waiting-pull-request writes STUB_PRSTATUS (printf %b) to the file its last
+# argument names, when set, then prints STUB_WAITING and exits with
+# STUB_WAITING_RC; run-summary prints STUB_SUMMARY and exits with
+# STUB_SUMMARY_RC.
 # latest-release prints STUB_LATEST (printf %b: \n is a line break) and exits
 # with STUB_LATEST_RC (0 by default).
 cat > "${STUB}/forsgren" <<'STUBFORSGREN'
@@ -468,7 +482,14 @@ if [[ "${1:-}" == latest-release ]]; then
   printf '%b' "${STUB_LATEST:-}"
   exit "${STUB_LATEST_RC:-0}"
 fi
+if [[ "${1:-}" == run-summary ]]; then
+  printf '%b' "${STUB_SUMMARY:-}"
+  exit "${STUB_SUMMARY_RC:-0}"
+fi
 if [[ "${1:-}" == waiting-pull-request ]]; then
+  if [[ -n "${STUB_PRSTATUS:-}" && "$#" -ge 2 && "${*:$#-1:1}" == --status ]]; then
+    printf '%b' "$STUB_PRSTATUS" > "${@:$#}"
+  fi
   printf '%b' "${STUB_WAITING:-}"
   exit "${STUB_WAITING_RC:-0}"
 fi
@@ -813,15 +834,18 @@ judge_latest_lookup() {
   [[ "$got" == "$want" ]] || echo "for an answer with a second line the lookup step gives '${got}', not '${want}' — a line break must never add an output"
 }
 
-# waiting_outcome <script> <LATEST> <stub output> <stub exit status>: as
-# lookup_outcome, for the waiting step, with LATEST in its environment.
+# waiting_outcome <script> <LATEST> <stub output> <stub exit status> <stub
+# status file content>: as lookup_outcome, for the waiting step, with LATEST
+# in its environment; the runner's temp directory shows as RUNNER_TEMP.
 waiting_outcome() {
   local rc=0 out="${TMP}/waiting.out" calls="${TMP}/fg.calls"
   : > "$out"
   : > "$calls"
+  rm -rf "${TMP}/runner"
+  mkdir -p "${TMP}/runner"
   PATH="${STUB}:${PATH}" FG_CALLS="$calls" GITHUB_OUTPUT="$out" LATEST="$2" STUB_WAITING="$3" STUB_WAITING_RC="$4" \
-    bash "$1" > /dev/null 2>&1 || rc=$?
-  echo "exit=${rc} output=$(paste -sd'|' - < "$out") calls=$(paste -sd, - < "$calls")"
+    STUB_PRSTATUS="$5" RUNNER_TEMP="${TMP}/runner" bash "$1" > /dev/null 2>&1 || rc=$?
+  echo "exit=${rc} output=$(paste -sd'|' - < "$out") calls=$(paste -sd, - < "$calls" | sed "s|${TMP}/runner/|RUNNER_TEMP/|g")"
 }
 
 # judge_waiting_lookup <workflow-file>: pin 31, the waiting-pull-request step.
@@ -839,19 +863,62 @@ judge_waiting_lookup() {
     echo "has no step '${WAITING_STEP}' with a run: | block"
     return 0
   fi
-  got="$(waiting_outcome "$script" "0.0.10" "7\n" 0)"
-  want="exit=0 output=waiting=7 calls=waiting-pull-request --version 0.0.10"
-  [[ "$got" == "$want" ]] || echo "the waiting step gives '${got}', not '${want}' — a plain number is the step's output"
-  got="$(waiting_outcome "$script" "0.0.10" "" 1)"
-  want="exit=0 output=waiting= calls=waiting-pull-request --version 0.0.10"
-  [[ "$got" == "$want" ]] || echo "for a lookup that fails the waiting step gives '${got}', not '${want}' — a failed lookup is not an error and the page keeps saying the release is available"
-  got="$(waiting_outcome "$script" "0.0.10" "seven" 0)"
+  got="$(waiting_outcome "$script" "0.0.10" "7\n" 0 ok)"
+  want="exit=0 output=waiting=7|check=ok calls=waiting-pull-request --version 0.0.10 --status RUNNER_TEMP/waiting-status"
+  [[ "$got" == "$want" ]] || echo "the waiting step gives '${got}', not '${want}' — a plain number is the step's output, and the status the lookup wrote is its check"
+  got="$(waiting_outcome "$script" "0.0.10" "" 1 "")"
+  want="exit=0 output=waiting=|check=failed calls=waiting-pull-request --version 0.0.10 --status RUNNER_TEMP/waiting-status"
+  [[ "$got" == "$want" ]] || echo "for a lookup that fails the waiting step gives '${got}', not '${want}' — a failed lookup is not an error, and with no status written its check is failed"
+  got="$(waiting_outcome "$script" "0.0.10" "" 0 "no-access")"
+  want="exit=0 output=waiting=|check=no-access calls=waiting-pull-request --version 0.0.10 --status RUNNER_TEMP/waiting-status"
+  [[ "$got" == "$want" ]] || echo "for a token without pull-requests: read the waiting step gives '${got}', not '${want}' — its check says no-access, so the run summary can name the permission"
+  got="$(waiting_outcome "$script" "0.0.10" "seven" 0 ok)"
+  want="exit=0 output=waiting=|check=ok calls=waiting-pull-request --version 0.0.10 --status RUNNER_TEMP/waiting-status"
   [[ "$got" == "$want" ]] || echo "for an answer that is not a number the waiting step gives '${got}', not '${want}' — only a plain number becomes an output"
-  got="$(waiting_outcome "$script" "0.0.10" "7\nevil=1\n" 0)"
+  got="$(waiting_outcome "$script" "0.0.10" "7\nevil=1\n" 0 ok)"
   [[ "$got" == "$want" ]] || echo "for an answer with a second line the waiting step gives '${got}', not '${want}' — a line break must never add an output"
-  got="$(waiting_outcome "$script" "" "7\n" 0)"
-  want="exit=0 output=waiting= calls="
-  [[ "$got" == "$want" ]] || echo "with no latest release the waiting step gives '${got}', not '${want}' — there is no version to look a pull request up for"
+  got="$(waiting_outcome "$script" "0.0.10" "7\n" 0 "ok\nevil=1")"
+  want="exit=0 output=waiting=7|check=failed calls=waiting-pull-request --version 0.0.10 --status RUNNER_TEMP/waiting-status"
+  [[ "$got" == "$want" ]] || echo "for a status file that says anything but ok, no-access or failed the waiting step gives '${got}', not '${want}' — only those three become the check"
+  got="$(waiting_outcome "$script" "" "7\n" 0 ok)"
+  want="exit=0 output=waiting=|check=skipped calls="
+  [[ "$got" == "$want" ]] || echo "with no latest release the waiting step gives '${got}', not '${want}' — there is no version to look a pull request up for, so its check is skipped"
+}
+
+# summary_outcome <script> <stub summary> <stub exit status>: what the run
+# summary step does, with LATEST 0.0.10, WAITING 7 and PR_CHECK ok in its
+# environment and a stub run-summary that prints that and exits with that:
+# `exit=<rc> summary=<what reached the job summary file> calls=<forsgren calls>`.
+summary_outcome() {
+  local rc=0 summary="${TMP}/run-summary.md" calls="${TMP}/fg.calls"
+  : > "$summary"
+  : > "$calls"
+  PATH="${STUB}:${PATH}" FG_CALLS="$calls" GITHUB_STEP_SUMMARY="$summary" GITHUB_REPOSITORY="acme/data" \
+    LATEST="0.0.10" WAITING="7" PR_CHECK="ok" STUB_SUMMARY="$2" STUB_SUMMARY_RC="$3" bash "$1" > /dev/null 2>&1 || rc=$?
+  echo "exit=${rc} summary=$(paste -sd'|' - < "$summary") calls=$(paste -sd, - < "$calls")"
+}
+
+# judge_run_summary <workflow-file>: pin 33, the run summary step.
+judge_run_summary() {
+  local script="${TMP}/summary.sh" env got want
+  env="$(step_block "$1" "$SUMMARY_STEP" env)"
+  for line in "LATEST: ${EXPR_OPEN} steps.latest.outputs.latest }}" "WAITING: ${EXPR_OPEN} steps.waiting.outputs.waiting }}" \
+    "PR_CHECK: ${EXPR_OPEN} steps.waiting.outputs.check }}"; do
+    if ! grep -qxF -- "$line" <<< "$env"; then
+      echo "the run summary step's env: does not set '${line}' — the summary is told what the lookups found through env: only"
+    fi
+  done
+  step_block "$1" "$SUMMARY_STEP" run > "$script"
+  if [[ ! -s "$script" ]]; then
+    echo "has no step '${SUMMARY_STEP}' with a run: | block"
+    return 0
+  fi
+  got="$(summary_outcome "$script" "## forsgren\n- Update: up to date\n" 0)"
+  want="exit=0 summary=## forsgren|- Update: up to date calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --repository acme/data"
+  [[ "$got" == "$want" ]] || echo "the run summary step gives '${got}', not '${want}' — forsgren run-summary's markdown is appended to \$GITHUB_STEP_SUMMARY"
+  got="$(summary_outcome "$script" "half a sum" 1)"
+  want="exit=0 summary= calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --repository acme/data"
+  [[ "$got" == "$want" ]] || echo "for a run-summary that fails the run summary step gives '${got}', not '${want}' — a summary never fails the run, and half of one is never appended"
 }
 
 # judge_render_waiting <workflow-file>: pin 32, the render step passes the
@@ -1496,6 +1563,7 @@ judge() {
   judge_render_latest "$1"
   judge_waiting_lookup "$1"
   judge_render_waiting "$1"
+  judge_run_summary "$1"
   judge_secret "$1"
   judge_collect_step "$1"
   judge_collect_token "$1"
@@ -1675,6 +1743,12 @@ proves judge_waiting_lookup "a waiting lookup that fails the job" "for a lookup 
   "s/forsgren waiting-pull-request --version \"\\${D}LATEST\" || true/forsgren waiting-pull-request --version \"\\${D}LATEST\"/"
 proves judge_waiting_lookup "a waiting output that is not checked" "for an answer that is not a number" \
   "/if \\[\\[ ! \"\\${D}waiting\" =~/,/^          fi${D}/d"
+proves judge_run_summary "a run summary that is not appended" "the run summary step gives" \
+  "s|>> \"\\${D}GITHUB_STEP_SUMMARY\"||"
+proves judge_run_summary "a run summary without the check in env" "does not set 'PR_CHECK" \
+  "/PR_CHECK: \\${D}{{ steps.waiting.outputs.check }}/d"
+proves judge_waiting_lookup "a waiting step without its check" "for a token without pull-requests: read the waiting step gives" \
+  "/echo \"check=/d"
 proves judge_render_waiting "a render without the waiting pull request" "with WAITING set the render step runs" \
   "s/ \\${D}{WAITING:+--waiting-pr \"\\${D}WAITING\"}//"
 proves judge_render_waiting "a render without WAITING in env" "does not set WAITING from steps.waiting.outputs.waiting" \
