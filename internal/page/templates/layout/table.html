@@ -9,12 +9,15 @@
             <th scope="col">Failed deployment recovery time</th>
             <th scope="col">Change fail rate</th>
             <th scope="col">Deployment rework rate</th>
-          </tr>
+{{if .Scoring}}            <th scope="col">Overall Performance</th>
+{{end}}          </tr>
         </thead>
         <tbody>
 {{range .Rows}}          <tr{{if .IsLabel}} class="label"{{end}}>
             <th scope="row">{{if .IsLabel}}<span class="visually-hidden">{{.Project}}: </span>{{end}}{{.Heading}}</th>
-{{if $.Numbers}}            <td>{{.Frequency.NumberCell}}</td>
+{{if $.Scoring}}{{range .ScoreCells}}            <td>{{.}}</td>
+{{end}}            <td>{{.OverallCell}}</td>
+{{else if $.Numbers}}            <td>{{.Frequency.NumberCell}}</td>
             <td>{{.LeadTime.NumberCell}}</td>
             <td>{{.Recovery.NumberCell}}</td>
             <td>{{.ChangeFail.NumberCell}}</td>

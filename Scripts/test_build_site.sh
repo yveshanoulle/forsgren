@@ -151,10 +151,10 @@ check_file 13 "standard/index.html is the golden placeholder standard view" "int
 check_file 14 "numbers/index.html is the golden placeholder numbers view" "internal/page/testdata/numbers.placeholder.golden.html" "${HAPPY_OUTPUT}/numbers/index.html"
 check_file 3 "styles.css is copied as authored" "$STYLES" "${HAPPY_OUTPUT}/styles.css"
 
-if [[ -f "$HAPPY_SINK" ]] && [[ "$(cat "$HAPPY_SINK")" == "4" ]]; then
-  pass 4 "writes the page count (4) to SITE_PAGE_COUNT_FILE"
+if [[ -f "$HAPPY_SINK" ]] && [[ "$(cat "$HAPPY_SINK")" == "5" ]]; then
+  pass 4 "writes the page count (5) to SITE_PAGE_COUNT_FILE"
 else
-  fail_check 4 "writes the page count (4) to SITE_PAGE_COUNT_FILE — found: $(cat "$HAPPY_SINK" 2>/dev/null || echo MISSING)"
+  fail_check 4 "writes the page count (5) to SITE_PAGE_COUNT_FILE — found: $(cat "$HAPPY_SINK" 2>/dev/null || echo MISSING)"
 fi
 
 new_case "again"

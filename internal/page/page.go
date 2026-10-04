@@ -110,6 +110,12 @@ const (
 	viewNumbers  = "numbers"
 )
 
+// viewScoring is the scoring view (forsgren#47): the table's cells are each
+// metric's DORA Quick Check score, with an Overall Performance column. Its
+// page, /scoring/, is rendered like a view's, but the switch does not name
+// it.
+const viewScoring = "scoring"
+
 // views are the views of the table page, in the switch's order, each
 // rendered from index.html at its own address, /standard/ and /numbers/,
 // one folder below the root.
@@ -125,7 +131,7 @@ type pageData struct {
 	// Base prefixes the links to styles.css and legend.html: empty at the
 	// root, viewBase in a view's folder.
 	Base string
-	// View is "standard" or "numbers" on a view's page, and shows the view
+	// View is "standard", "numbers" or "scoring" on a view's page, and shows the view
 	// switch; empty on the root pages.
 	View string
 }
@@ -133,6 +139,10 @@ type pageData struct {
 // Numbers says whether the page is the numbers view, its cells the numbers
 // only.
 func (p pageData) Numbers() bool { return p.View == viewNumbers }
+
+// Scoring says whether the page is the scoring view, its cells the scores
+// and its last column Overall Performance.
+func (p pageData) Scoring() bool { return p.View == viewScoring }
 
 // Views are the views the switch names, in its order.
 func (pageData) Views() []string { return views }
@@ -174,6 +184,7 @@ func parsePages() map[string]page {
 	for _, view := range views {
 		out[view+"/index.html"] = page{set: out["index.html"].set, file: "index.html", view: view, base: viewBase}
 	}
+	out[viewScoring+"/index.html"] = page{set: out["index.html"].set, file: "index.html", view: viewScoring, base: viewBase}
 	return out
 }
 

@@ -520,7 +520,11 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   Configuration): that view, with the switch (its links relative to the
   root, `standard/` and `numbers/`, and its view marked
   `aria-current="true"`, as the root is not that view's page); without the
-  key it is the standard page with no switch. A scoring view comes with forsgren#47.
+  key it is the standard page with no switch. `/scoring/`
+  (`scoring/index.html`, forsgren#47) shows each metric's DORA Quick Check
+  score alone, 0 to 10 (`9.3`, `10`, `0`), `-` where the metric has no data,
+  and a sixth column, Overall Performance: the mean of the scored metrics to
+  one decimal. The switch does not name it yet.
 - **The legend** (`legend.html`) gives each metric's bands in one compact
   list (recovery time's are lead time's, and rework rate's are change fail
   rate's, so it refers to them), with what each cell counts and its window.

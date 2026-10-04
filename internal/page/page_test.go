@@ -302,18 +302,18 @@ func TestEveryPageNamesFiveMetrics(t *testing.T) {
 	}
 }
 
-// TestWriteSiteWritesFourPagesAndStyles (forsgren#46): the root page and the
-// legend, and each view's page in its own folder.
-func TestWriteSiteWritesFourPagesAndStyles(t *testing.T) {
+// TestWriteSiteWritesFivePagesAndStyles (forsgren#46, #47): the root page and
+// the legend, and each view's page and the scoring page in its own folder.
+func TestWriteSiteWritesFivePagesAndStyles(t *testing.T) {
 	dir := t.TempDir()
 	n, err := WriteSite(dir, Placeholder("0.1.2"))
 	if err != nil {
 		t.Fatalf("WriteSite: %v", err)
 	}
-	if n != 4 {
-		t.Errorf("want 4 pages written, got %d", n)
+	if n != 5 {
+		t.Errorf("want 5 pages written, got %d", n)
 	}
-	for _, name := range []string{"index.html", "legend.html", "standard/index.html", "numbers/index.html", "styles.css"} {
+	for _, name := range []string{"index.html", "legend.html", "standard/index.html", "numbers/index.html", "scoring/index.html", "styles.css"} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
 			t.Errorf("want %s in the site: %v", name, err)
 		}
