@@ -18,7 +18,8 @@
 # or followed by a letter, a digit, `_` or `-` (so `acme-secret-repo` is not
 # found inside `acme-secret-repository`).
 #
-# The FAIL lines name `file:line` for a content hit and `tracked path #N in
+# The FAIL lines name `file:line` for a content hit (`tracked path #N:line`
+# when the path itself names a private name) and `tracked path #N in
 # git ls-files` for a path hit, NEVER the name and never a matching path:
 # sfl and FBP.sh quote FAIL lines and CI prints them on the job summary.
 #
@@ -72,21 +73,25 @@ build_patterns() {
 # scan_tracked <patterns>: judges the path and the content of every tracked
 # file. Sets N to the number of tracked paths and FOUND to 1 on any hit.
 scan_tracked() {
-  local patterns="$1" path hits hit lineno
+  local patterns="$1" path shown hits hit lineno
   FOUND=0
   N=0
   while IFS= read -r -d '' path; do
     N=$((N + 1))
-    if printf '%s\n' "$path" | grep -q -i -E -f "$patterns"; then
+    shown="$path"
+    # A here-string, not a pipe: under pipefail, grep -q closing the pipe early
+    # can SIGPIPE the printf and turn a match into a miss.
+    if grep -q -i -E -f "$patterns" <<< "$path"; then
       echo "❌ FAIL: tracked path #${N} in git ls-files names a private name"
       FOUND=1
+      shown="tracked path #${N}"
     fi
     [[ -f "$path" ]] || continue
     hits="$(grep -a -n -i -E -f "$patterns" -- "$path" || true)"
     [[ -z "$hits" ]] && continue
     while IFS= read -r hit; do
       lineno=${hit%%:*}
-      echo "❌ FAIL: ${path}:${lineno} names a private name"
+      echo "❌ FAIL: ${shown}:${lineno} names a private name"
       FOUND=1
     done <<< "$hits"
   done < <(git ls-files -z)
