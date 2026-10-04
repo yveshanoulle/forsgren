@@ -110,7 +110,33 @@ new_root fencelink "$GOOD_COC" '# forsgren
 ```
 '
 capture "$GATE" "$ROOT"
-want_red "7b. rejects a README whose only link to the file is inside a code block" "README.md does not link to CODE_OF_CONDUCT.md"
+want_red "7b. rejects a README whose only link to the file is inside a fenced code block" "README.md does not link to CODE_OF_CONDUCT.md"
+
+new_root spanlink "$GOOD_COC" "# forsgren
+
+Write \`[conduct](CODE_OF_CONDUCT.md)\` to link it.
+"
+capture "$GATE" "$ROOT"
+want_red "7c. rejects a README whose only link to the file is in an inline code span" "README.md does not link to CODE_OF_CONDUCT.md"
+
+new_root commentlink "$GOOD_COC" '# forsgren
+
+<!--
+[conduct](CODE_OF_CONDUCT.md)
+-->
+'
+capture "$GATE" "$ROOT"
+want_red "7d. rejects a README whose only link to the file is in an HTML comment" "README.md does not link to CODE_OF_CONDUCT.md"
+
+new_root strippedok "$GOOD_COC" "# forsgren
+
+\`\`\`
+code
+\`\`\`
+<!-- a note --> and \`code\`, then [conduct](CODE_OF_CONDUCT.md).
+"
+capture "$GATE" "$ROOT"
+want_green_ok "7e. a plain link after a fence, a comment and a code span still counts"
 
 capture "$GATE" "$TMP/does-not-exist"
 want_rc "8. exits 2 on a missing root dir, never 0" 2
@@ -121,9 +147,12 @@ want_green_ok "9. this repository has a code of conduct naming the address, and 
 # Mutation proofs. The mutant cds to its own dir's parent, so it gets the
 # same layout.
 mutate() {
-  # mutate <var> <value> <fixture> <reason> <proof text>
+  # mutate <var> <value> <fixture> <reason> <proof text>; the mutant gets the
+  # real awk program beside it, as the gate finds it at Scripts/.
+  mkdir -p "$TMP/mutant-$1/Scripts"
+  cp Scripts/strip_markdown_code.awk "$TMP/mutant-$1/Scripts/"
   selftest_mutant_green "$GATE" "$TMP/mutant-$1/Scripts/check_code_of_conduct.sh" \
-    "s/^$1=.*/$1='$2'/" "$TMP/$3" "$5" \
+    "s|^$1=.*|$1='$2'|" "$TMP/$3" "$5" \
     "with $1 neutralised the fixture $3 is still red; expected green, it was red for: $4"
 }
 mutate ADDRESS '.' noaddr "does not name the reporting address" \
@@ -132,6 +161,11 @@ mutate PLACEHOLDER 'NEVER-MATCHES-ANY-PLACEHOLDER' ph1 "has a placeholder" \
   "a placeholder pattern that never matches turns case 3.1 green, so it is red because of the pattern"
 mutate README_LINK '.' nolink "does not link to CODE_OF_CONDUCT.md" \
   "a link pattern that matches anything turns case 6a green, so it is red because of the pattern"
+printf '{ print }\n' > "$TMP/strip-nothing.awk"
+for fx in fencelink spanlink commentlink; do
+  mutate README_STRIP "$TMP/strip-nothing.awk" "$fx" "does not link to CODE_OF_CONDUCT.md" \
+    "a README_STRIP that strips nothing turns the $fx case green, so it is red because of the strip"
+done
 
 selftest_end "the code-of-conduct gate does not hold the code of conduct to its four rules" \
   "code-of-conduct gate is red on a missing file, a placeholder of every kind, a missing or other address, a README without the link and a missing README, with each reason named, exits 2 on a missing root, is green on a good file, on Markdown links and on ./ and anchor links, and its three patterns are what redden their cases"
