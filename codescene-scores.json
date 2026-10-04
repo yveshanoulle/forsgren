@@ -81,16 +81,16 @@
    "minScore": 9.58
   },
   {
-   "path": "internal/page/views_test.go",
-   "score": 9.68,
-   "checkedAt": "2026-10-04",
-   "minScore": 9.58
-  },
-  {
    "path": "internal/config/init_test.go",
    "score": 9.92,
    "checkedAt": "2026-10-04",
    "minScore": 9.82
+  },
+  {
+   "path": "internal/page/views_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
+   "minScore": 10.0
   },
   {
    "path": "cmd/forsgren/summary_test.go",
@@ -502,6 +502,18 @@
   },
   {
    "path": "cmd/forsgren/review_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/view_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_view_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-04",
    "minScore": 10.0

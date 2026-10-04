@@ -14,11 +14,15 @@ func (f fileConfig) toConfig() (Config, error) {
 	if err := checkVersion(f.Version); err != nil {
 		return Config{}, err
 	}
+	view, err := checkView(f.View)
+	if err != nil {
+		return Config{}, err
+	}
 	if f.Projects == nil {
 		return Config{}, fmt.Errorf("%w: list at least one under the projects key, or use projects: [] for none",
 			ErrNoProjects)
 	}
-	cfg := Config{Version: FormatVersion}
+	cfg := Config{Version: FormatVersion, View: view}
 	seen := names{projects: map[string]listedProject{}, repositories: map[string]string{}}
 	for i, p := range f.Projects {
 		project, err := p.toProject(i+1, &seen)
@@ -38,6 +42,19 @@ func checkVersion(v *int) error {
 		return fmt.Errorf("%w %d: this forsgren reads version %d", ErrVersionUnsupported, *v, FormatVersion)
 	}
 	return nil
+}
+
+// checkView is the view as written, empty when the file has none (a key
+// without a value is none), or the refusal naming the valid values.
+func checkView(v *string) (string, error) {
+	if v == nil {
+		return "", nil
+	}
+	switch *v {
+	case ViewStandard, ViewNumbers:
+		return *v, nil
+	}
+	return "", fmt.Errorf("%w %q: use %s or %s", ErrView, *v, ViewStandard, ViewNumbers)
 }
 
 // names holds the names already used in the file, compared ignoring case

@@ -33,6 +33,15 @@
 #   services:
 #     deploy-api: API
 #
+# The site's root page shows the standard view of the table, the band, the
+# number and the count, unless you choose another with a line of its own,
+# above projects:
+#
+#   view: numbers
+#
+# standard is the default, and numbers shows the numbers only. Each view is
+# also its own page, at /standard/ and /numbers/, with a switch between them.
+#
 # Example, with made-up names. To use it, remove the two lines version: 1 and
 # projects: [] below, then remove the "# " in front of the example:
 #

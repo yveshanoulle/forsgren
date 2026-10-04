@@ -13,6 +13,7 @@ package page
 
 import (
 	"bytes"
+	"cmp"
 	"embed"
 	"fmt"
 	"html/template"
@@ -172,7 +173,7 @@ func Render(w io.Writer, name string, data Data) error {
 	if !ok {
 		return fmt.Errorf("page %q not found", name)
 	}
-	shown := pageData{Data: data, View: p.view}
+	shown := pageData{Data: data, View: cmp.Or(p.view, data.View)}
 	if p.view != "" {
 		shown.Base = viewBase
 	}

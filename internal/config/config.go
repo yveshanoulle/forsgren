@@ -10,6 +10,7 @@
 // The format, version 1:
 //
 //	version: 1
+//	view: numbers                          # optional, standard or numbers
 //	projects:
 //	  - name: Acme
 //	    repositories:
@@ -40,6 +41,13 @@ import (
 // file of any other version, or of none, is refused: a change to the format
 // gets a new version, so an old forsgren never misreads a newer file.
 const FormatVersion = 1
+
+// The views the root page can show (forsgren#46); `scoring` joins them with
+// forsgren#47.
+const (
+	ViewStandard = "standard"
+	ViewNumbers  = "numbers"
+)
 
 // DefaultEnvironment is the GitHub environment a repository deploys to when
 // its config names no deployment.
@@ -156,6 +164,7 @@ func parse(data []byte) (Config, error) {
 // or a null value and empty but not nil for `projects: []`.
 type fileConfig struct {
 	Version  *int          `yaml:"version"`
+	View     *string       `yaml:"view"`
 	Projects []fileProject `yaml:"projects"`
 }
 

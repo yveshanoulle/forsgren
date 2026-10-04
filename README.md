@@ -519,9 +519,10 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   · numbers": the current view is plain text marked `aria-current="page"`,
   the other a link (`../numbers/`, `../standard/`); a page one folder down
   reaches `styles.css` and the legend through `../`. The legend page serves
-  all views. The root `index.html` is still the standard page, with no
-  switch yet; which view it follows comes with the `view:` config key
-  (0.1.1, later steps), and a scoring view with forsgren#47.
+  all views. The root `index.html` follows the `view:` config key (see
+  Configuration): that view, with the switch (its links relative to the
+  root, `standard/` and `numbers/`); without the key it is the standard
+  page with no switch. A scoring view comes with forsgren#47.
 - **The legend** (`legend.html`) gives each metric's bands in one compact
   list (recovery time's are lead time's, and rework rate's are change fail
   rate's, so it refers to them), with what each cell counts and its window.
@@ -568,6 +569,16 @@ projects:
 - **`version: 1`** is required: it is the format's version. A file without
   it, or with any other version, is refused, so a forsgren never misreads a
   file written for another format.
+- **`view`** is optional (forsgren#46): the view the site's root page shows,
+  `standard` or `numbers` (`scoring` is not valid until forsgren#47), written
+  at the top level, for example `view: numbers`. Left out, or without a value,
+  the root is the standard page with no view switch, as before, so an
+  existing installation sees no change until it opts in; with a `view:`,
+  even `standard`, the root page is that view and carries the switch. Any
+  other value is refused by `check-config` and `render`, naming the key and
+  the valid values: `invalid view "scoring": use standard or numbers`. Each
+  view is also its own page at `/standard/` and `/numbers/`, whatever this
+  key says.
 - **`projects`** is required: a list of projects, or `projects: []` for an
   installation that measures nothing yet (it is valid, and `check-config`
   reports `projects: 0, repositories: 0`). A file whose `projects` key is

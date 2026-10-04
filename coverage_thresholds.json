@@ -93,6 +93,7 @@
     "github.com/yveshanoulle/forsgren/internal/config/init.go:writeTemp": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:toConfig": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:checkVersion": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/validate.go:checkView": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:claimProject": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:claimRepository": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:toProject": 100.0,

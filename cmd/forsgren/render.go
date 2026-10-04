@@ -96,6 +96,7 @@ func pageData(o renderOptions, at time.Time) (page.Data, error) {
 		return data, err
 	}
 	data.NoProjects = len(cfg.Projects) == 0
+	data.View = cfg.View
 	if o.data == "" {
 		return data, nil
 	}
