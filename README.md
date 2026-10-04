@@ -1,7 +1,7 @@
 # forsgren
 
-Measure the five DORA metrics for a set of GitHub repositories, from the data
-GitHub already has, and publish them as a small static status page.
+Measure the five DORA metrics for a set of GitHub repositories, from GitHub
+data, and publish them as a small static status page.
 
 Named after Dr. Nicole Forsgren, whose research with DORA (and the book
 *Accelerate*, with Jez Humble and Gene Kim) defined the first four of these metrics.
@@ -462,15 +462,14 @@ metrics.
 
 ## The page
 
-Both pages end with a footer of two paragraphs (forsgren#41): Forsgren,
+Both pages end with a footer of one paragraph (forsgren#41, #45): Forsgren,
 linked to its GitHub repository, its version, "The five DORA metrics, from
-data GitHub already has." "Calculated at
+GitHub data." "Calculated at
 2026-10-03 12:00 UTC", the moment of the run (UTC, to the minute), on every
 run, with rows or without; and, when a newer forsgren release exists than the
 version that built the page, the version line adds it, "Forsgren 0.0.9 ·
 0.0.10 is available" (forsgren#40; nothing is added when the page is up to
-date, and no repository appears); then Install, linked to the public
-forsgren-template repository. The numbers are compared as numbers, so 0.0.10
+date, and no repository appears). The numbers are compared as numbers, so 0.0.10
 is newer than 0.0.9.
 
 `render` writes one table (forsgren#38) first on the table page, with no text
@@ -1383,13 +1382,11 @@ The POST gates, on the generated site:
   `github.com/<owner>/<repo>` path anywhere in the generated `.html` or
   `.css`, linked or as text. The gate cannot tell a private repository from
   a public one, and the page has no reason to point into either. Red on a
-  site with no `.html` page. Two narrow exceptions (the first is Yves's ruling on
+  site with no `.html` page. One narrow exception (Yves's ruling on
   forsgren#41): an `href` to exactly `https://github.com/yveshanoulle/forsgren`,
   with an optional `#anchor`, the footer's link to the tool's own public
-  repository; a second one (his second ruling): an `href` to exactly
-  `https://github.com/yveshanoulle/forsgren-template`, with no anchor, the
-  footer's Install link; `forsgren-data`, `forsgren-template/issues`,
-  `forsgren-template#x`, `forsgren-templates`, `forsgren/issues`, any other path or owner, and
+  repository; `forsgren-data`, `forsgren-template` (its footer link left in
+  forsgren#45), `forsgren/issues`, any other path or owner, and
   the same path as plain text or in a `url()` stay red. The failure line names the file and line, never
   the path it matched, so a private repository's name cannot reach a commit
   message.
