@@ -27,6 +27,8 @@
 # or no tracked file: a scan for nothing never passes.
 
 set -euo pipefail
+# Tracing off: the list must never reach a trace (bash -x, or a CI debug run).
+set +x
 
 REPO="${1:-.}"
 cd "$REPO" || { echo "❌ FAIL: cannot enter ${REPO}"; exit 2; }
@@ -71,12 +73,16 @@ build_patterns() {
 }
 
 # scan_tracked <patterns>: judges the path and the content of every tracked
-# file. Sets N to the number of tracked paths and FOUND to 1 on any hit.
+# file, and the target text of every tracked symlink. Sets N to the number of tracked paths and FOUND to 1 on any hit.
 scan_tracked() {
-  local patterns="$1" path shown hits hit lineno
+  local patterns="$1" entry path mode sha shown hits hit lineno
   FOUND=0
   N=0
-  while IFS= read -r -d '' path; do
+  while IFS= read -r -d '' entry; do
+    path="${entry#*$'\t'}"
+    mode="${entry%% *}"
+    sha="${entry#* }"
+    sha="${sha%% *}"
     N=$((N + 1))
     shown="$path"
     # A here-string, not a pipe: under pipefail, grep -q closing the pipe early
@@ -86,6 +92,12 @@ scan_tracked() {
       FOUND=1
       shown="tracked path #${N}"
     fi
+    # A symlink is stored as its target text, which may dangle: judge that text.
+    if [[ "$mode" == 120000 ]] \
+      && grep -q -i -E -f "$patterns" <<< "$(git cat-file blob "$sha")"; then
+      echo "❌ FAIL: tracked path #${N} (link target) names a private name"
+      FOUND=1
+    fi
     [[ -f "$path" ]] || continue
     hits="$(grep -a -n -i -E -f "$patterns" -- "$path" || true)"
     [[ -z "$hits" ]] && continue
@@ -94,7 +106,7 @@ scan_tracked() {
       echo "❌ FAIL: ${shown}:${lineno} names a private name"
       FOUND=1
     done <<< "$hits"
-  done < <(git ls-files -z)
+  done < <(git ls-files -s -z)
 }
 
 LIST=""
