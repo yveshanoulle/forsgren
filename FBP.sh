@@ -295,6 +295,11 @@ fi
 # invocation.
 rm -f "$SFL_COUNTS_FILE"
 
+# Local pre-flight (forsgren#52): when no private-names list is given, create
+# an empty one so a contributor without the list can run FBP; the gate then
+# passes with 0 names searched. CI never runs FBP.sh, so CI stays strict.
+./Scripts/ensure_private_names_file.sh
+
 # Capture the exit code without tripping `set -e`. An ordinary PRE red does NOT
 # stop the pipeline: build and POST still run so one invocation collects all
 # failures before preserving the red state in a local commit.

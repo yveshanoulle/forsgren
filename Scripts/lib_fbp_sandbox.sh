@@ -45,6 +45,8 @@
 #     (fbp_sandbox_run below);
 #   - a stub Scripts/check_gofmt.sh that exits 0, so FBP.sh's local gofmt
 #     auto-fix has nothing to rewrite;
+#   - a stub Scripts/ensure_private_names_file.sh that exits 0, so a sandbox
+#     run never creates a private-names list in the real HOME (forsgren#52);
 #   - a stub bin/say that exits 0, put first on PATH, so a run is silent;
 #   - a copy of the REAL Scripts/go_toolchain.sh and of the repo's go.mod
 #     (forsgren#1 step 4): FBP.sh exports GOTOOLCHAIN from them before PRE
@@ -343,6 +345,8 @@ fbp_sandbox_run() {
     fbp_sandbox_write_build_site "$sink"
     printf '#!/usr/bin/env bash\nexit 0\n' > Scripts/check_gofmt.sh
     chmod +x Scripts/check_gofmt.sh
+    printf '#!/usr/bin/env bash\nexit 0\n' > Scripts/ensure_private_names_file.sh
+    chmod +x Scripts/ensure_private_names_file.sh
     cp "$FBP_SANDBOX_GO_TOOLCHAIN" Scripts/go_toolchain.sh
     cp "$FBP_SANDBOX_GO_MOD" go.mod
     cp "${FBP_SANDBOX_FBP_OVERRIDE:-$FBP_SANDBOX_FBP}" ./FBP.sh

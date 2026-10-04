@@ -98,5 +98,5 @@ else
   fail "the env list given must create no default file. Output: ${OUT}"
 fi
 
-selftest_end "the helper does not create an empty private-names list only when none is given" \
+selftest_end "the helper does not create an empty private-names list when none is given, or touches one it should leave alone" \
   "the helper creates an empty default private-names list with a note when none is given, and touches nothing else"

@@ -381,6 +381,8 @@ for path in Scripts/*.sh; do
     # never runs FBP.sh, so CI stays strict. It must carry a fixture, and that
     # fixture must be an order-file row.
     ensure_private_names_file.sh)
+      runs_script "$FBP" "$base" \
+        || fail "${base} exists and FBP.sh never runs it — a contributor without the list could not run FBP"
       require_fixture "$base" "the local list creation would be untested"
       order_names "test_${base}" \
         || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the local list creation"

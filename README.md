@@ -1173,6 +1173,8 @@ commit itself:
   self-test (`Scripts/test_check_private_names.sh`) uses made-up names and
   proves with a mutant that prints the matched line that the no-name check
   can fail.
+  Locally, `FBP.sh` creates an empty list file when none exists, so the gate
+  passes with `0 names searched`; CI never does.
 
 Two PRE gates check the page templates and the pages they render:
 
