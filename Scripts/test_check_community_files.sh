@@ -190,6 +190,19 @@ See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md); SECURITY.md as plain text.
 capture "$GATE" "$ROOT"
 want_red "10d. rejects a README that does not link SECURITY.md" "README.md does not link to SECURITY.md"
 
+new_root routecode "$GOOD_COC" "$GOOD_README" '# Security policy
+
+```
+Report a vulnerability
+```
+
+<!-- security/advisories/new -->
+
+Write `Report a vulnerability` to see it.
+'
+capture "$GATE" "$ROOT"
+want_red "10e. rejects a SECURITY.md whose only route is inside a code block, a comment or a code span" "SECURITY.md does not name the private reporting route"
+
 # Mutation proofs. The mutant cds to its own dir's parent, so it gets the
 # same layout.
 mutate() {
