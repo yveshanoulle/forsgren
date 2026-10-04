@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -15,22 +16,27 @@ func starterLines() []string {
 	return strings.Split(strings.TrimSuffix(Starter, "\n"), "\n")
 }
 
+// starterConfig is the config at the end of the starter: one that measures
+// nothing yet, its root page the standard view with the switch (forsgren#51).
+const starterConfig = "version: 1\nview: standard\nprojects: []\n"
+
 // isStarterLine says whether a line may stand in the starter: blank, a
-// comment, or one of the two lines of a config that measures nothing yet.
+// comment, or one of the lines of starterConfig.
 func isStarterLine(line string) bool {
-	return line == "" || strings.HasPrefix(line, "#") || line == "version: 1" || line == "projects: []"
+	return line == "" || strings.HasPrefix(line, "#") || slices.Contains(strings.Split(starterConfig, "\n"), line)
 }
 
 // TestStarterIsACommentedGuideThenAnEmptyConfig: the starter is a header and
-// an example, all comments, and then exactly the two lines of a config that
-// measures nothing yet (forsgren#12).
+// an example, all comments, and then exactly the lines of a config that
+// measures nothing yet (forsgren#12), view: standard among them
+// (forsgren#51).
 func TestStarterIsACommentedGuideThenAnEmptyConfig(t *testing.T) {
-	if !strings.HasSuffix(Starter, "\nversion: 1\nprojects: []\n") {
-		t.Fatalf("want the starter to end in version: 1 and projects: [], got:\n%s", Starter)
+	if !strings.HasSuffix(Starter, "\n"+starterConfig) {
+		t.Fatalf("want the starter to end in %q, got:\n%s", starterConfig, Starter)
 	}
 	for _, line := range starterLines() {
 		if !isStarterLine(line) {
-			t.Errorf("want only comments and the two config lines, got %q", line)
+			t.Errorf("want only comments and the lines of %q, got %q", starterConfig, line)
 		}
 	}
 }
@@ -207,8 +213,9 @@ func TestInitWritesTheStarterWhenTheFileIsMissing(t *testing.T) {
 	if got := readFile(t, path); got != Starter {
 		t.Errorf("want the starter written, got %q", got)
 	}
-	if _, err := Load(path); err != nil {
-		t.Errorf("want the written file to pass Load, got %v", err)
+	// A new installation starts with the view switch (forsgren#51).
+	if cfg, err := Load(path); err != nil || cfg.View != ViewStandard {
+		t.Errorf("want the written file to pass Load with view standard, got %q, %v", cfg.View, err)
 	}
 	wantEntries(t, dir, 1)
 }

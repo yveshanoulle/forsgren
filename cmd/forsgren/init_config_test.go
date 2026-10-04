@@ -29,8 +29,9 @@ func readFile(t *testing.T, path string) string {
 }
 
 // TestInitConfigWritesTheStarterOnce drives `forsgren init-config`: a missing
-// file is created with the starter, which check-config accepts, and the
-// second run keeps it. Both exit 0.
+// file is created with the starter, which check-config accepts, with
+// view: standard, so a new installation starts with the view switch
+// (forsgren#51), and the second run keeps it. Both exit 0.
 func TestInitConfigWritesTheStarterOnce(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "forsgren.config.yml")
 	wantLookup(t, "created "+path+"\n", "", "init-config", "--config", path)
@@ -39,6 +40,9 @@ func TestInitConfigWritesTheStarterOnce(t *testing.T) {
 	}
 	wantLookup(t, "OK: "+path+" is a valid forsgren config (version 1): projects: 0, repositories: 0\n", "",
 		"check-config", "--config", path)
+	if cfg, err := config.Load(path); err != nil || cfg.View != config.ViewStandard {
+		t.Errorf("want the written file to read view standard, got %q, %v", cfg.View, err)
+	}
 	wantLookup(t, "kept "+path+"\n", "", "init-config", "--config", path)
 }
 
