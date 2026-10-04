@@ -29,6 +29,7 @@ func renderWith(t *testing.T, extra ...string) (int, string, string) {
 // that says where the projects are listed (forsgren#41, step 3: with an
 // example); it is the page of the golden file.
 func TestRenderSaysWhenNoProjectsAreConfigured(t *testing.T) {
+	pinNow(t)
 	code, stderr, index := renderWith(t, "--config", writeConfig(t, "version: 1\nprojects: []\n"))
 	if code != 0 {
 		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
@@ -46,6 +47,7 @@ func TestRenderSaysWhenNoProjectsAreConfigured(t *testing.T) {
 // config at all (the repository's own build), render the page as it was, the
 // golden file of the placeholder, without the line.
 func TestRenderWithProjectsHasNoNoProjectsLine(t *testing.T) {
+	pinNow(t)
 	golden := readFile(t, "../../internal/page/testdata/index.golden.html")
 	cases := map[string][]string{
 		"projects configured": {"--config", writeConfig(t, validConfig)},

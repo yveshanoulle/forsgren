@@ -28,6 +28,15 @@
     </div>
     <p><a href="legend.html">What the bands mean</a></p>
 {{else}}    <p>{{.Message}}</p>
-{{end}}{{if .NoProjects}}    <p>No projects configured yet: add them to forsgren.config.yml.</p>
+{{end}}{{if .NoProjects}}    <p>No projects are listed yet: forsgren.config.yml lists the projects, for example:</p>
+    <pre><code>version: 1
+projects:
+  - name: Acme Shop
+    repositories:
+      - name: acme/api
+      - name: acme/ios-app
+        label: iOS
+</code></pre>
+    <p><a href="https://github.com/yveshanoulle/forsgren#configuration">How to configure forsgren</a></p>
 {{end}}  </main>
 {{template "footer" .}}

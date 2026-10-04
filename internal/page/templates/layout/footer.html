@@ -1,5 +1,5 @@
 {{define "footer"}}  <footer>
-    <p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> {{.Version}} The five DORA metrics, from data GitHub already has.{{if and .AsOf .Rows}} Calculated at {{.AsOf}} UTC{{end}}</p>
+    <p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> {{.Version}} The five DORA metrics, from data GitHub already has.{{if .AsOf}} Calculated at {{.AsOf}} UTC{{end}}</p>
     <p><a href="https://github.com/yveshanoulle/forsgren-template">Install</a></p>
   </footer>
 </body>

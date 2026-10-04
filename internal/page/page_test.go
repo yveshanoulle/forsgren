@@ -18,7 +18,9 @@ import (
 var update = flag.Bool("update", false, "rewrite testdata/*.golden.html")
 
 func TestPlaceholderMatchesGolden(t *testing.T) {
-	checkGolden(t, "testdata/index.golden.html", Placeholder("0.0.8"))
+	data := Placeholder("0.0.8")
+	data.AsOf = "2026-10-03 12:00"
+	checkGolden(t, "testdata/index.golden.html", data)
 }
 
 // TestNoProjectsPageMatchesGolden (forsgren#12): the page of an installation
@@ -26,6 +28,7 @@ func TestPlaceholderMatchesGolden(t *testing.T) {
 func TestNoProjectsPageMatchesGolden(t *testing.T) {
 	data := Placeholder("0.0.8")
 	data.NoProjects = true
+	data.AsOf = "2026-10-03 12:00"
 	checkGolden(t, "testdata/index.no-projects.golden.html", data)
 }
 
@@ -229,7 +232,9 @@ func TestRenderUnknownPage(t *testing.T) {
 // are the page legend.html, with a link back to the table; the table page
 // holds none of them.
 func TestLegendPageMatchesGolden(t *testing.T) {
-	checkPageGolden(t, "legend.html", "testdata/legend.golden.html", Placeholder("0.0.8"))
+	data := Placeholder("0.0.8")
+	data.AsOf = "2026-10-03 12:00"
+	checkPageGolden(t, "legend.html", "testdata/legend.golden.html", data)
 }
 
 // TestLegendPageTitleNamesIt (forsgren#39, step 4): the legend page's title

@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/collect"
@@ -25,6 +27,9 @@ const dataWithoutConfig = "render: --data <path> needs --config <path>, which li
 // ahead of the moment the numbers were counted back from.
 const calculatedLayout = "2006-01-02 15:04"
 
+// sourceDateEpoch is the environment variable that pins renderTime.
+const sourceDateEpoch = "SOURCE_DATE_EPOCH"
+
 // renderOptions are render's flags: the required --out, the optional
 // --config and --data (empty when absent).
 type renderOptions struct {
@@ -38,13 +43,17 @@ type renderOptions struct {
 // deployment frequency, lead time for changes, failed deployment recovery
 // time and change fail rate, counted back from now. Without --config
 // (the repository's own build has no installation config) the page is the
-// placeholder, unchanged.
+// placeholder, with the render time in its footer.
 func render(args []string, stdout, stderr io.Writer) int {
 	o, ok := renderFlags(args, stderr)
 	if !ok {
 		return 2
 	}
-	data, err := pageData(o, now())
+	at, err := renderTime()
+	if err != nil {
+		return failed(stderr, "render", err)
+	}
+	data, err := pageData(o, at)
 	if err != nil {
 		return failed(stderr, "render", err)
 	}
@@ -56,9 +65,27 @@ func render(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
+// renderTime is the moment the page says it was calculated at: the clock,
+// or, when SOURCE_DATE_EPOCH (the reproducible-builds variable, Unix
+// seconds) is set, that second, so Scripts/build_site.sh and its fixture
+// render the same page twice and compare it with the golden file without
+// stripping the time (forsgren#41, step 3).
+func renderTime() (time.Time, error) {
+	epoch := os.Getenv(sourceDateEpoch)
+	if epoch == "" {
+		return now(), nil
+	}
+	seconds, err := strconv.ParseInt(epoch, 10, 64)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("%s must be Unix seconds, got %q", sourceDateEpoch, epoch)
+	}
+	return time.Unix(seconds, 0), nil
+}
+
 // pageData is what the page shows for the options at the render time at.
 func pageData(o renderOptions, at time.Time) (page.Data, error) {
 	data := page.Placeholder(version)
+	data.AsOf = at.UTC().Format(calculatedLayout)
 	if o.config == "" {
 		return data, nil
 	}
@@ -75,7 +102,6 @@ func pageData(o renderOptions, at time.Time) (page.Data, error) {
 		return data, err
 	}
 	data.Rows = page.Table(rows)
-	data.AsOf = at.UTC().Format(calculatedLayout)
 	return data, nil
 }
 

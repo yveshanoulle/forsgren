@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -225,5 +226,22 @@ func TestRenderShowsTheCalculationTimeOnEveryRun(t *testing.T) {
 				t.Errorf("want the calculation time in the footer, got:\n%s", index)
 			}
 		})
+	}
+}
+
+// TestRenderTimeFollowsSourceDateEpoch (forsgren#41, step 3): the build
+// script pins the page's time through SOURCE_DATE_EPOCH, whatever the clock
+// says; a value that is not Unix seconds fails the render.
+func TestRenderTimeFollowsSourceDateEpoch(t *testing.T) {
+	old := now
+	now = func() time.Time { return time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC) }
+	t.Cleanup(func() { now = old })
+	t.Setenv(sourceDateEpoch, strconv.FormatInt(renderNow.Unix(), 10))
+	if _, _, index := renderWith(t); !strings.Contains(index, "Calculated at 2026-10-03 12:00 UTC</p>") {
+		t.Errorf("want the pinned time in the footer, got:\n%s", index)
+	}
+	t.Setenv(sourceDateEpoch, "yesterday")
+	if code, stderr, _ := renderWith(t); code != 1 || !strings.Contains(stderr, sourceDateEpoch) {
+		t.Errorf("want exit 1 naming %s, got %d, %q", sourceDateEpoch, code, stderr)
 	}
 }

@@ -12,6 +12,7 @@
     "github.com/yveshanoulle/forsgren/cmd/forsgren/main.go:requiredFlags": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/main.go:failed": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:render": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:renderTime": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:pageData": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:loadOrNone": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:renderFlags": 100.0,

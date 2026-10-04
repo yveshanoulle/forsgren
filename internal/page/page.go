@@ -44,7 +44,7 @@ type Data struct {
 	Rows []Row
 	// AsOf is the UTC minute (2006-01-02 15:04) the numbers were calculated
 	// at, which is also the moment their windows were counted back from; the
-	// page shows it with Rows only.
+	// page shows it whenever it is set, with Rows or without (forsgren#41).
 	AsOf string
 }
 
@@ -80,8 +80,8 @@ func Table(rows []metrics.Row) []Row {
 }
 
 // Placeholder is the data of the page forsgren renders before it has any
-// metrics, for the forsgren release version. It carries no timestamp, so
-// two renders are byte-identical.
+// metrics, for the forsgren release version. It carries no timestamp (AsOf is
+// the caller's clock), so two renders of it are byte-identical.
 func Placeholder(version string) Data {
 	return Data{Title: "forsgren", Version: version, Message: "no data yet"}
 }

@@ -16,6 +16,12 @@ body {
   overflow-x: auto;
 }
 
+/* The example config of the no-projects page (forsgren#41) scrolls inside its
+   own box on a narrow screen. */
+pre {
+  overflow-x: auto;
+}
+
 table {
   border-collapse: collapse;
   min-width: 44rem;

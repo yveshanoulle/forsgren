@@ -464,14 +464,18 @@ metrics.
 
 Both pages end with a footer of two paragraphs (forsgren#41): Forsgren,
 linked to its GitHub repository, its version, "The five DORA metrics, from
-data GitHub already has." and, when numbers were calculated, "Calculated at
-2026-10-03 12:00 UTC" (left out otherwise); then Install, linked to the
+data GitHub already has." "Calculated at
+2026-10-03 12:00 UTC", the moment of the run (UTC, to the minute), on every
+run, with rows or without; then Install, linked to the
 public forsgren-template repository.
 
 `render` writes one table (forsgren#38) first on the table page, with no text
 above it but a visually hidden heading for screen readers, "Forsgren 0.0.8:
 the five DORA metrics"; where each metric comes from is explained on the
-legend page, counting back from the time in the footer:
+legend page, counting back from the time in the footer. A config that lists
+no projects has no table: the page shows, in its place, a short how-to, that
+`forsgren.config.yml` lists the projects, with a small example (a project, two
+repositories, one with a `label`) and a link to Configuration (forsgren#41):
 
 - **The columns** are the five metrics: deployment frequency, lead time for
   changes, failed deployment recovery time, change fail rate and deployment
@@ -858,15 +862,16 @@ installation pins that version. From a checkout of this repository:
 plus `styles.css`) into `<dir>`, creating it when needed, and exits 0; 1 when
 the render failed (or the `--config` file is missing or invalid, with
 check-config's refusal), 2 on a usage error. With `--config`, a config that
-lists no projects makes the page say, besides "Forsgren 0.0.8" in its footer, "No projects
-configured yet: add them to forsgren.config.yml."; without `--config` (the
-build above has no installation config) or with projects, the page is the
-placeholder, unchanged. With `--data` as well (it needs `--config`), the
+lists no projects makes the page show, in place of the table and besides
+"Forsgren 0.0.8" in its footer, a how-to for filling `forsgren.config.yml`;
+without `--config` (the build above has no installation config) or with
+projects, the page is the placeholder. With `--data` as well (it needs `--config`), the
 page shows each project's deployment frequency from that history, counted
 back from the moment of the render, which the page names in its footer, "Calculated at 2026-10-03 12:00 UTC" (UTC, to the minute; forsgren#28: the
-render time, not the time `collect` finished, and shown only with `--data`
-and at least one project, so a page without numbers stays byte-identical
-between renders); a missing history file (a new install
+render time, not the time `collect` finished; forsgren#41: shown on every
+run, so two renders differ by their time, and `SOURCE_DATE_EPOCH`, Unix
+seconds as in reproducible builds, pins it, which `Scripts/build_site.sh`'s
+fixture uses to compare a build with the golden files); a missing history file (a new install
 before its first collect) is an empty history, and a history with another
 format version or a malformed line fails the render with the history's
 message (exit 1).
@@ -920,8 +925,8 @@ jobs:
   branch the run is on (`GITHUB_REF`; a scheduled run is always on the
   default branch) as `github-actions[bot]` with the message
   "forsgren: add a starter forsgren.config.yml"; the run goes on, the check
-  passes on the starter, and the page says "No projects configured yet: add
-  them to forsgren.config.yml." An existing file is never rewritten and
+  passes on the starter, and the page shows the how-to for filling
+  it An existing file is never rewritten and
   nothing is committed, and a run that finds the file never looks at
   branches. **Branch protection:** the commit is a direct push, so the
   branch it lands on must accept a push from `github-actions[bot]`; if the

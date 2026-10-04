@@ -20,6 +20,11 @@ BUILD="./Scripts/build_site.sh"
 GOLDEN="internal/page/testdata/index.golden.html"
 STYLES="internal/page/styles.css"
 
+# The page's footer shows the render time on every run (forsgren#41), so every
+# build here is pinned to the moment of the golden files, 2026-10-03 12:00 UTC,
+# through render's clock seam (SOURCE_DATE_EPOCH); the time is never stripped.
+PINNED_EPOCH=1791028800
+
 TEMP_ROOT="$(mktemp -d)"
 COMPLETED=0
 FAILURES=0
@@ -74,7 +79,7 @@ new_case() {
 run_build() {
   CASE_LOG="${CASE_OUTPUT}.log"
   set +e
-  PATH="$CASE_PATH" STUB_GO_MODE="$CASE_GO_MODE" \
+  PATH="$CASE_PATH" STUB_GO_MODE="$CASE_GO_MODE" SOURCE_DATE_EPOCH="$PINNED_EPOCH" \
     SITE_PAGE_COUNT_FILE="$CASE_SINK" FORSGREN_BIN_DIR="$CASE_BIN" \
     "$BUILD" "$CASE_OUTPUT" > "$CASE_LOG" 2>&1
   RC=$?
@@ -153,7 +158,7 @@ fi
 new_case "again"
 run_build
 if [[ "$RC" -eq 0 ]] && diff -r "$HAPPY_OUTPUT" "$CASE_OUTPUT" > /dev/null; then
-  pass 5 "two builds are byte-identical (no timestamp in the page)"
+  pass 5 "two builds at the same pinned time are byte-identical"
 else
   fail_check 5 "two builds are byte-identical — the second build (exit ${RC}) differs from the first"
 fi
