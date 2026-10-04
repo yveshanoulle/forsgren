@@ -201,6 +201,14 @@ write_file "docs/notes.md" $'acme-secret-repository\nmy-acme-secret-repo\nacme-s
 run_file "$NAMES_FILE"
 want_green_ok "a name inside a longer word is not a match"
 
+# #52 ruling: the gate takes over the data guard's substring matching, so a
+# name joined to a longer token on both sides (a workflow file name) is a hit.
+new_repo "embedded"
+write_file ".github/workflows/ci.yml" $'name: ci\nuses: apply-acme-secret-repo.yml\n' track
+run_file "$NAMES_FILE"
+want_red "a name embedded in a longer token is red, naming file:line" ".github/workflows/ci.yml:2"
+want_not_said "a name embedded in a longer token" "$NAME_A" "$NAME_B"
+
 new_repo "boundaries"
 write_file "a.md" $'https://github.com/acme-secret-repo\n' track
 write_file "b.md" $'"globex-internal".\n' track
