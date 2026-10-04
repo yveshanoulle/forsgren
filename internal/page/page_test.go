@@ -429,6 +429,17 @@ func TestLegendPageSaysWhereEachMetricComesFrom(t *testing.T) {
 	}
 }
 
+// TestLegendPageCreditsTheDoraQuickCheck (forsgren#47): the legend page says
+// where the scores come from, word for word the credit the Quick Check's
+// licence asks for, with the Quick Check and the licence each linked.
+func TestLegendPageCreditsTheDoraQuickCheck(t *testing.T) {
+	const want = `Scores follow the <a href="https://dora.dev/quickcheck/">DORA Quick Check</a> (dora.dev), ` +
+		`© Google LLC, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.`
+	if got := rendered(t, "legend.html", Placeholder("0.1.2")); !strings.Contains(got, want) {
+		t.Errorf("want %q on the legend page, got:\n%s", want, got)
+	}
+}
+
 // TestNoPageShowsASiteNameLine (forsgren#41, step 2): the header carries no
 // visible text on either page, the footer names Forsgren.
 func TestNoPageShowsASiteNameLine(t *testing.T) {
