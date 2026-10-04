@@ -305,6 +305,23 @@ capture env -u FORSGREN_PRIVATE_NAMES_FILE HOME="$EMPTY_HOME" \
 want_green_ok "a traced run on a clean tree is green"
 want_not_said "a bash -x run" "$NAME_A" "$NAME_B"
 
+# A tracked file that cannot be read cannot be judged: that is not a clean
+# scan. Red, by number only (its path may hold a name, and grep's own
+# `Permission denied` line would print the path). Root reads mode 000 files,
+# so the case is skipped there.
+new_repo "unreadable"
+write_file "notes/widget-plan.md" $'nothing to see\n' track
+chmod 000 "${REPO}/notes/widget-plan.md"
+if [[ "$(id -u)" -eq 0 ]]; then
+  echo "  skip: an unreadable tracked file is red: running as root, which reads a mode 000 file"
+else
+  run_file "$NAMES_FILE"
+  chmod 644 "${REPO}/notes/widget-plan.md"
+  want_red "an unreadable tracked file is red" "tracked path #"
+  want_said "an unreadable file says it could not be read" "could not be read"
+  want_not_said "an unreadable file" "widget-plan" "Permission denied"
+fi
+
 # Mutation proof: the no-name assertion can fail. A gate that prints the
 # matched line (the mutation turns `file:line` into `file:line:content`) must
 # be caught by the very assertion the cases above use.
