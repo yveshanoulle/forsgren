@@ -233,14 +233,14 @@ func TestLegendPageMatchesGolden(t *testing.T) {
 }
 
 // TestLegendPageTitleNamesIt (forsgren#39, step 4): the legend page's title
-// is its link's text, then the site's title, which its header still shows.
+// is its link's text, then the site's title; its header shows no site-name line (forsgren#41).
 func TestLegendPageTitleNamesIt(t *testing.T) {
 	got := rendered(t, "legend.html", acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework))
 	if !strings.Contains(got, "<title>What the bands mean · forsgren</title>") {
 		t.Errorf("want the legend page titled %q, got:\n%s", "What the bands mean · forsgren", got)
 	}
-	if !strings.Contains(got, `<p class="site-name">forsgren</p>`) {
-		t.Errorf("want the site's title in the legend page's header, got:\n%s", got)
+	if strings.Contains(got, `class="site-name"`) {
+		t.Errorf("want no site-name line in the legend page's header, got:\n%s", got)
 	}
 }
 
@@ -361,6 +361,60 @@ func TestEveryPageEndsWithTheFooter(t *testing.T) {
 					t.Errorf("want the footer %q then %q, got:\n%s", c.want, install, got)
 				}
 			})
+		}
+	}
+}
+
+// TestTablePageOpensWithTheTable (forsgren#41, step 1): the table page has no
+// text above its table: no visible heading (the version
+// moves below the table) and no Calculated paragraph. Screen readers keep a
+// heading, a visually hidden h1.
+func TestTablePageOpensWithTheTable(t *testing.T) {
+	got := rendered(t, "index.html", acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework))
+	for _, gone := range []string{"<h1>", "counting back from that moment"} {
+		if strings.Contains(got, gone) {
+			t.Errorf("want %q off the table page, got:\n%s", gone, got)
+		}
+	}
+}
+
+// TestTablePageKeepsAVisuallyHiddenHeading (forsgren#41, step 1): the table
+// page's one h1 is visually hidden, so screen readers still get a heading:
+// the version and what the page is.
+func TestTablePageKeepsAVisuallyHiddenHeading(t *testing.T) {
+	got := rendered(t, "index.html", acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework))
+	const want = `<h1 class="visually-hidden">Forsgren 0.0.8: the five DORA metrics</h1>`
+	if !strings.Contains(got, want) {
+		t.Errorf("want %q on the table page, got:\n%s", want, got)
+	}
+}
+
+// TestLegendPageSaysWhereEachMetricComesFrom (forsgren#41, step 1): the
+// paragraph that left the table page is on the legend page, one source per
+// metric.
+func TestLegendPageSaysWhereEachMetricComesFrom(t *testing.T) {
+	got := rendered(t, "legend.html", Placeholder("0.0.8"))
+	for _, want := range []string{
+		"counting back from that moment",
+		"deployment frequency from the successful deployments",
+		"lead time for changes from the commits they shipped",
+		"failed deployment recovery time from the failed deployments and the successful ones after them",
+		"change fail rate from the failed deployments and the issues labelled failure",
+		"deployment rework rate from the successful deployments that came after a failed deployment",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("want %q on the legend page, got:\n%s", want, got)
+		}
+	}
+}
+
+// TestNoPageShowsASiteNameLine (forsgren#41, step 2): the header carries no
+// visible text on either page, the footer names Forsgren.
+func TestNoPageShowsASiteNameLine(t *testing.T) {
+	for _, name := range PageNames() {
+		got := rendered(t, name, acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework))
+		if strings.Contains(got, `class="site-name"`) {
+			t.Errorf("%s: want no site-name line, got:\n%s", name, got)
 		}
 	}
 }

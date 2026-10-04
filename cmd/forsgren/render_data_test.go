@@ -199,9 +199,9 @@ func TestRenderShowsTheMinuteOfTheCalculationInUTC(t *testing.T) {
 	now = func() time.Time { return time.Date(2026, 10, 4, 1, 19, 59, 0, zone) }
 	t.Cleanup(func() { now = old })
 	_, _, index := renderWith(t, "--config", writeConfig(t, validConfig), "--data", writeHistory(t, acmeHistory()))
-	const want = "<p>Calculated 2026-10-03 23:19 UTC, counting back from that moment: "
+	const want = "Calculated at 2026-10-03 23:19 UTC</p>"
 	if !strings.Contains(index, want) {
-		t.Errorf("want the line %q on the page, got:\n%s", want, index)
+		t.Errorf("want %q in the footer, got:\n%s", want, index)
 	}
 }
 
