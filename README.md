@@ -1232,11 +1232,13 @@ The POST gates, on the generated site:
   `.stylelintrc.json` (stylelint-config-standard plus konenki-website's
   overrides). Red on a finding, and on a glob that matches no file.
 - **html duplication, generated page** (`Scripts/check_html_dupl_site.sh`):
-  the same ratchet over `.build/site`, with its own ceiling, today 0.00%. It
-  catches what the template scan cannot see, such as a page template that
-  pastes the header instead of calling it. The rendered header alone is
-  long enough to count as a clone, so a second page will red this ceiling
-  even with clean templates; what it does then is still to be decided.
+  the same ratchet over `.build/site`, with its own ceiling, today 0.00%,
+  measured one page at a time (each page staged alone, as the golden-pages
+  gate does). It catches what the template scan cannot see, such as a page
+  template that pastes the header instead of calling it. Pages rendered
+  from one layout repeat its chrome, so measuring them as one set would red
+  the ceiling with clean templates; duplication within a page is still held
+  to 0.00%, and a red names the page.
 - **lint coverage** (`Scripts/check_lint_coverage.sh`): each linter opened
   every `.html` and `.css` file the site ships, no fewer and no more. A glob
   that stops matching is a smaller job that still reports success; this is
