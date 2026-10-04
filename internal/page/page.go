@@ -57,8 +57,8 @@ type Data struct {
 	// footer names it instead of "is available" (forsgren#40, option 1).
 	WaitingPR int
 	// View is the view the root page shows, "standard" or "numbers", with
-	// the view switch above its table; empty for the plain root page, with
-	// no switch (forsgren#46).
+	// the view switch in its table's caption (forsgren#51); empty for the
+	// plain root page, with no switch (forsgren#46).
 	View string
 }
 

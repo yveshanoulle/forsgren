@@ -518,8 +518,8 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   sentence. Each view's page has a switch in its table's caption, on one
   line after the title, "DORA metrics View: standard · numbers"
   (forsgren#51); the title is its own element, which names the table and
-  its scroll region, so the table's name stays "DORA metrics". The current view is plain text marked `aria-current="page"`,
-  the other a link (`../numbers/`, `../standard/`); a page one folder down
+  its scroll region, so the table's name stays "DORA metrics". The current
+  view is plain text marked `aria-current="page"`, the other a link (`../numbers/`, `../standard/`); a page one folder down
   reaches `styles.css` and the legend through `../`. The legend page serves
   all views. The root `index.html` follows the `view:` config key (see
   Configuration): that view, with the switch (its links relative to the
@@ -583,7 +583,8 @@ projects:
   view is also its own page at `/standard/` and `/numbers/`, whatever this
   key says. The starter that `init-config` writes for a new installation
   includes `view: standard` (forsgren#51), so a new installation has the
-  switch from its first run; an existing config without `view:` keeps the
+  switch from its first run with projects (a page without data shows no
+  switch); an existing config without `view:` keeps the
   plain root, as `init-config` never rewrites an existing file.
 - **`projects`** is required: a list of projects, or `projects: []` for an
   installation that measures nothing yet (it is valid, and `check-config`
@@ -674,8 +675,8 @@ forsgren.config.yml`. The starter is a comment that explains the file, names
 `forsgren check-config`, the three deployment forms and the two label
 forms, and shows a commented
 example with made-up `acme` names (the default deployment, `workflow=` and
-`release`), followed by `version: 1`, `view: standard` and `projects: []`, so `check-config`
-accepts it as it is: `projects: 0, repositories: 0`. When the file exists,
+`release`), followed by `version: 1`, `view: standard` and `projects: []`, so
+`check-config` accepts it as it is: `projects: 0, repositories: 0`. When the file exists,
 whatever it holds (even an invalid or an empty file), it is left byte for
 byte and the command prints `kept forsgren.config.yml`; both exit 0. The file
 is written whole or not at all, and a file that appears while the command
@@ -986,8 +987,8 @@ jobs:
   `with:` block when moving to it.
 - **A new install gets a starter configuration.** After the checkout the
   workflow runs `forsgren init-config --config forsgren.config.yml`. When
-  the file is missing it is written (`version: 1`, `view: standard`, `projects: []`, a
-  commented example) and that one file, nothing else, is committed to the
+  the file is missing it is written (`version: 1`, `view: standard`,
+  `projects: []`, a commented example) and that one file, nothing else, is committed to the
   branch the run is on (`GITHUB_REF`; a scheduled run is always on the
   default branch) as `github-actions[bot]` with the message
   "forsgren: add a starter forsgren.config.yml"; the run goes on, the check
