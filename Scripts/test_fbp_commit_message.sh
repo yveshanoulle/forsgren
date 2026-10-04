@@ -452,6 +452,36 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Case 6: forsgren#52 review R3 — a commit message that names a private name
+# must not be committed. The gate checks files and paths; FBP.sh used to
+# commit the subject it was given without checking it, so a listed name went
+# into public history. FORSGREN_PRIVATE_NAMES (the list itself, so the run
+# reads no file and never the real HOME's) holds a made-up name; the subject
+# carries it in mixed case, inside a longer token. Wanted: no commit (the
+# sandbox has no HEAD), a non-zero exit, a ❌ line about the commit message,
+# and no occurrence of the name anywhere in the output, in any case.
+# ---------------------------------------------------------------------------
+PRIVATE_NAME="acme-secret-repo"
+if FORSGREN_PRIVATE_NAMES="$PRIVATE_NAME" run_fbp "6.a: touch the Pre-ACME-Secret-Repo-v2 notes"; then
+  if [ -n "$COMMIT_SHA" ]; then
+    fail "6.a. FBP.sh committed a message that names a private name — it goes into public history. Message: ${COMMIT_MSG}"
+  else
+    echo "  ok: 6.a. a commit message naming a private name makes no commit"
+  fi
+  if [ "$(fbp_sandbox_rc)" -eq 0 ]; then
+    fail "6.a. FBP.sh exited 0 on a commit message that names a private name"
+  fi
+  if grep '❌' <<< "$OUT" | grep -Fqi "commit message"; then
+    echo "  ok: 6.a. the output has a ❌ line about the commit message"
+  else
+    fail "6.a. the output has no ❌ line about the commit message. Output: ${OUT}"
+  fi
+  if grep -Fqi "$PRIVATE_NAME" <<< "$OUT"; then
+    fail "6.a. the output contains the private name, so the refusal itself leaks it"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # Self-proofs, issue source-repo#20 step 3 (items 1 to 3 of the #14 review). Each one
 # runs this fixture, a copy of it, or a small driver, from inside ONE
 # directory made here with the real mktemp and registered with the lib, so
@@ -481,9 +511,9 @@ else
   # before its subshell (issue source-repo#20 step 2), and even a lib that did not would
   # write its stubs into that empty directory, never into this repo.
   #
-  # Wanted: the run fails; exactly 7 FAIL lines carry the reason, one for
+  # Wanted: the run fails; exactly 8 FAIL lines carry the reason, one for
   # each run_fbp call (cases 1 and 2, and case 4's three runs, #52 and forsgren#1 step
-  # 12.2d, and case 5's two runs, road to public step 4, all of which skip
+  # 12.2d, case 5's two runs, road to public step 4, and case 6's one run, all of which skip
   # their checks on it); every other FAIL line names mktemp
   # itself (case 3's fake repo and these proofs cannot get a directory
   # either), so no downstream assertion fired. The lib's own stderr line is
@@ -510,8 +540,8 @@ else
       ;;
   esac
 
-  if [ "$callers_reasons" != "7" ]; then
-    fail "callers check the run: with no sandbox, ${callers_reasons:-0} FAIL line(s) carry 'could not create the FBP sandbox', want 7 — one per run_fbp call (cases 1 and 2, case 4's three runs, case 5's two runs), so case 2's absence check cannot pass vacuously on empty output. Output: ${callers_out}"
+  if [ "$callers_reasons" != "8" ]; then
+    fail "callers check the run: with no sandbox, ${callers_reasons:-0} FAIL line(s) carry 'could not create the FBP sandbox', want 8 — one per run_fbp call (cases 1 and 2, case 4's three runs, case 5's two runs, case 6's run), so case 2's absence check cannot pass vacuously on empty output. Output: ${callers_out}"
   fi
 
   if [ -n "$callers_downstream" ]; then
