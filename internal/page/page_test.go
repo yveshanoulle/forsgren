@@ -302,16 +302,18 @@ func TestEveryPageNamesFiveMetrics(t *testing.T) {
 	}
 }
 
-func TestWriteSiteWritesTwoPagesAndStyles(t *testing.T) {
+// TestWriteSiteWritesFourPagesAndStyles (forsgren#46): the root page and the
+// legend, and each view's page in its own folder.
+func TestWriteSiteWritesFourPagesAndStyles(t *testing.T) {
 	dir := t.TempDir()
 	n, err := WriteSite(dir, Placeholder("0.1.0"))
 	if err != nil {
 		t.Fatalf("WriteSite: %v", err)
 	}
-	if n != 2 {
-		t.Errorf("want 2 pages written, got %d", n)
+	if n != 4 {
+		t.Errorf("want 4 pages written, got %d", n)
 	}
-	for _, name := range []string{"index.html", "legend.html", "styles.css"} {
+	for _, name := range []string{"index.html", "legend.html", "standard/index.html", "numbers/index.html", "styles.css"} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
 			t.Errorf("want %s in the site: %v", name, err)
 		}
