@@ -462,6 +462,12 @@ metrics.
 
 ## The page
 
+Both pages end with a footer of two paragraphs (forsgren#41): Forsgren,
+linked to its GitHub repository, its version, "The five DORA metrics, from
+data GitHub already has." and, when numbers were calculated, "Calculated at
+2026-10-03 12:00 UTC" (left out otherwise); then Install, linked to the
+section Installing and updating of this README.
+
 `render` writes one table (forsgren#38), under the line that says when the
 numbers were calculated, "Calculated 2026-10-03 12:00 UTC, counting back
 from that moment: ...":
@@ -856,8 +862,8 @@ configured yet: add them to forsgren.config.yml."; without `--config` (the
 build above has no installation config) or with projects, the page is the
 placeholder, unchanged. With `--data` as well (it needs `--config`), the
 page shows each project's deployment frequency from that history, counted
-back from the moment of the render, which the page names in its first line,
-"Calculated 2026-10-03 12:00 UTC" (UTC, to the minute; forsgren#28: the
+back from the moment of the render, which the page names in its first line
+and in its footer, "Calculated 2026-10-03 12:00 UTC" (UTC, to the minute; forsgren#28: the
 render time, not the time `collect` finished, and shown only with `--data`
 and at least one project, so a page without numbers stays byte-identical
 between renders); a missing history file (a new install
