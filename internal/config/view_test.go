@@ -9,12 +9,14 @@ func TestViewIsRead(t *testing.T) {
 		"absent":   "",
 		"standard": "standard",
 		"numbers":  "numbers",
+		"scoring":  "scoring",
 		"null":     "",
 	}
 	files := map[string]string{
 		"absent":   valid,
 		"standard": "view: standard\n" + valid,
 		"numbers":  valid + "view: numbers\n",
+		"scoring":  "view: scoring\n" + valid,
 		"null":     "view:\n" + valid,
 	}
 	for name, want := range cases {
@@ -26,11 +28,10 @@ func TestViewIsRead(t *testing.T) {
 }
 
 // TestParseRefusesAnInvalidView (forsgren#46): any other value is refused,
-// naming the key and the valid values; scoring waits for forsgren#47.
+// naming the key and the valid values.
 func TestParseRefusesAnInvalidView(t *testing.T) {
 	checkRefusals(t, []refusal{
-		{"scoring", "view: scoring\n" + valid, ErrView, `invalid view "scoring": use standard or numbers`},
-		{"other case", "view: Numbers\n" + valid, ErrView, `invalid view "Numbers": use standard or numbers`},
-		{"empty", "view: \"\"\n" + valid, ErrView, `invalid view "": use standard or numbers`},
+		{"other case", "view: Numbers\n" + valid, ErrView, `invalid view "Numbers": use standard, numbers or scoring`},
+		{"empty", "view: \"\"\n" + valid, ErrView, `invalid view "": use standard, numbers or scoring`},
 	})
 }
