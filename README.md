@@ -579,7 +579,10 @@ projects:
   other value is refused by `check-config` and `render`, naming the key and
   the valid values: `invalid view "scoring": use standard or numbers`. Each
   view is also its own page at `/standard/` and `/numbers/`, whatever this
-  key says.
+  key says. The starter that `init-config` writes for a new installation
+  includes `view: standard` (forsgren#51), so a new installation has the
+  switch from its first run; an existing config without `view:` keeps the
+  plain root, as `init-config` never rewrites an existing file.
 - **`projects`** is required: a list of projects, or `projects: []` for an
   installation that measures nothing yet (it is valid, and `check-config`
   reports `projects: 0, repositories: 0`). A file whose `projects` key is
@@ -669,7 +672,7 @@ forsgren.config.yml`. The starter is a comment that explains the file, names
 `forsgren check-config`, the three deployment forms and the two label
 forms, and shows a commented
 example with made-up `acme` names (the default deployment, `workflow=` and
-`release`), followed by `version: 1` and `projects: []`, so `check-config`
+`release`), followed by `version: 1`, `view: standard` and `projects: []`, so `check-config`
 accepts it as it is: `projects: 0, repositories: 0`. When the file exists,
 whatever it holds (even an invalid or an empty file), it is left byte for
 byte and the command prints `kept forsgren.config.yml`; both exit 0. The file
@@ -981,7 +984,7 @@ jobs:
   `with:` block when moving to it.
 - **A new install gets a starter configuration.** After the checkout the
   workflow runs `forsgren init-config --config forsgren.config.yml`. When
-  the file is missing it is written (`version: 1`, `projects: []`, a
+  the file is missing it is written (`version: 1`, `view: standard`, `projects: []`, a
   commented example) and that one file, nothing else, is committed to the
   branch the run is on (`GITHUB_REF`; a scheduled run is always on the
   default branch) as `github-actions[bot]` with the message
