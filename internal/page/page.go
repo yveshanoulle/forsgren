@@ -46,6 +46,10 @@ type Data struct {
 	// at, which is also the moment their windows were counted back from; the
 	// page shows it whenever it is set, with Rows or without (forsgren#41).
 	AsOf string
+	// Latest is the newest forsgren release, "0.0.10" or "v0.0.10", as the
+	// caller looked it up; empty when unknown. The footer names it when it
+	// is newer than Version (forsgren#40, option 2).
+	Latest string
 }
 
 // Row is one row of the table: its numbers, the heading the page gives it,
@@ -162,3 +166,8 @@ func copyStyles(dir string) error {
 	}
 	return os.WriteFile(filepath.Join(dir, "styles.css"), css, 0o600)
 }
+
+// newer says whether the release latest is newer than current, comparing
+// their dot-separated numbers as numbers, with or without a leading "v".
+// STUB (forsgren#40 step 4 red): the green implements it.
+func newer(current, latest string) bool { return false }

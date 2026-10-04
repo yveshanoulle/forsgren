@@ -459,3 +459,59 @@ func TestNoProjectsPageShowsAHowTo(t *testing.T) {
 		t.Errorf("want the one-line message replaced by the how-to, got:\n%s", got)
 	}
 }
+
+// TestNewerComparesVersionsAsNumbers (forsgren#40, step 4): 0.0.10 is newer
+// than 0.0.9, a leading "v" is ignored, and what is equal, older or not a
+// version is never newer.
+func TestNewerComparesVersionsAsNumbers(t *testing.T) {
+	cases := []struct {
+		current, latest string
+		want            bool
+	}{
+		{"0.0.9", "0.0.10", true},
+		{"0.0.10", "0.0.9", false},
+		{"0.0.10", "0.1.0", true},
+		{"0.9.9", "1.0.0", true},
+		{"0.0.9", "v0.0.10", true},
+		{"v0.0.9", "0.0.10", true},
+		{"0.0.9", "0.0.9", false},
+		{"0.0.9", "0.0.8", false},
+		{"0.0.9", "", false},
+		{"0.0.9", "banana", false},
+		{"0.0.9", "0.0.10-rc1", false},
+		{"banana", "0.0.10", false},
+	}
+	for _, c := range cases {
+		if got := newer(c.current, c.latest); got != c.want {
+			t.Errorf("newer(%q, %q) = %v, want %v", c.current, c.latest, got, c.want)
+		}
+	}
+}
+
+// TestFooterNamesANewerRelease (forsgren#40, step 4, option 2): when a newer
+// forsgren release exists, the version line of the footer says so, on every
+// page, with the numbers compared as numbers.
+func TestFooterNamesANewerRelease(t *testing.T) {
+	data := Placeholder("0.0.9")
+	data.Latest = "0.0.10"
+	for _, name := range PageNames() {
+		if got := rendered(t, name, data); !strings.Contains(got, "0.0.9 · 0.0.10 is available") {
+			t.Errorf("%s: want %q in the footer, got:\n%s", name, "0.0.9 · 0.0.10 is available", got)
+		}
+	}
+}
+
+// TestFooterNamesNoReleaseThatIsNotNewer (forsgren#40, step 4): up to date,
+// ahead of the latest release, or an unknown or unreadable latest release:
+// the footer adds nothing.
+func TestFooterNamesNoReleaseThatIsNotNewer(t *testing.T) {
+	for _, latest := range []string{"", "0.0.9", "0.0.8", "banana"} {
+		data := Placeholder("0.0.9")
+		data.Latest = latest
+		for _, name := range PageNames() {
+			if got := rendered(t, name, data); strings.Contains(got, " is available") {
+				t.Errorf("%s, latest %q: want nothing added to the footer, got:\n%s", name, latest, got)
+			}
+		}
+	}
+}

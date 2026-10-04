@@ -199,3 +199,32 @@ func TestAnUnknownPathIsGitHubsNotFound(t *testing.T) {
 		t.Errorf("want one GET, got %d requests", len(got))
 	}
 }
+
+// TestLatestReleaseAsksForTheLatestOne (forsgren#40, step 4): GET
+// .../releases/latest answers the latest published release.
+func TestLatestReleaseAsksForTheLatestOne(t *testing.T) {
+	f := newFake(t)
+	f.on("/repos/acme/app/releases/latest",
+		reply{body: `{"id": 7, "tag_name": "v1.2.0", "published_at": "2026-10-04T08:00:00Z"}`})
+	got, err := f.client(t, DefaultMaxPages).LatestRelease(context.Background(), "acme/app")
+	if err != nil || got.TagName != "v1.2.0" || got.ID != 7 {
+		t.Fatalf("want release 7, v1.2.0, got %+v, %v", got, err)
+	}
+}
+
+// TestAClientWithoutATokenSendsNoAuthorization (forsgren#40, step 4): a
+// public repository is read with no token, and never with an empty Bearer.
+func TestAClientWithoutATokenSendsNoAuthorization(t *testing.T) {
+	f := newFake(t)
+	f.on("/repos/acme/app/releases/latest", reply{body: `{"id": 7, "tag_name": "v1.2.0"}`})
+	c, err := New(f.srv.URL, "", DefaultMaxPages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.LatestRelease(context.Background(), "acme/app"); err != nil {
+		t.Fatal(err)
+	}
+	if auth := f.seen()[0].Header.Get("Authorization"); auth != "" {
+		t.Errorf("want no Authorization header, got %q", auth)
+	}
+}

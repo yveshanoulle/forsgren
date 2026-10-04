@@ -211,3 +211,10 @@ func keep[T any](items *[]T, page []T, since time.Time, at func(T) time.Time) bo
 func isSHA(s string) bool {
 	return (len(s) == 40 || len(s) == 64) && strings.Trim(s, "0123456789abcdef") == ""
 }
+
+// LatestRelease is the repository's latest published release (not a draft,
+// not a prerelease): GET /repos/{owner}/{repo}/releases/latest.
+// STUB (forsgren#40 step 4 red): the green implements it.
+func (c *Client) LatestRelease(ctx context.Context, repo string) (Release, error) {
+	return Release{}, errors.New("LatestRelease is not implemented")
+}
