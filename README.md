@@ -169,7 +169,7 @@ The first DORA number on the page (forsgren#12, step 7, package
 its DORA band, always shown with the count it comes from, "Between once per
 day and once per week · 12", the successful deployments of the last 30
 days, or of the last 180 days for a band decided on them ("Between once per
-month and once every six months · 3"). The legend under the table says
+month and once every six months · 3"). The legend page says
 which.
 
 **What counts.** A deployment is a history line with the state `success`;
@@ -443,7 +443,8 @@ from that moment: ...":
 - **Each cell is short**: the DORA band, then the number that decided it
   and the count it is over, "Less than one day · 2 h 7 min (48)". Durations
   are in min, h and d, each part cut down, never rounded up.
-- **The legend** under the table gives each metric's bands in one compact
+- **Two pages:** `index.html` holds the table and a link, "What the bands mean", to `legend.html`, which has a link back.
+- **The legend** (`legend.html`) gives each metric's bands in one compact
   list (recovery time's are lead time's, so it refers to them), with what
   each cell counts and its window.
 - **Layout:** the table has a caption and `<th scope>` headers; it scrolls
