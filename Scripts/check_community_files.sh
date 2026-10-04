@@ -75,7 +75,7 @@ check_file() {
   fi
   local prose
   if [ -n "${4-}" ]; then prose="$(awk -f "$4" "$file")"; else prose="$(cat "$file")"; fi
-  if ! printf '%s\n' "$prose" | grep -qE "$2"; then
+  if ! grep -qE "$2" <<<"$prose"; then
     finding "$1 does not name the $3"
   fi
   while IFS= read -r line; do
@@ -87,7 +87,7 @@ check_file() {
 # check_readme_link <name> <link-pattern> <stripped-readme>: the stripped
 # README links <name>.
 check_readme_link() {
-  if ! printf '%s\n' "$3" | grep -qE "$2"; then
+  if ! grep -qE "$2" <<<"$3"; then
     finding "README.md does not link to $1"
   fi
 }

@@ -62,7 +62,8 @@ for f in package.json package-lock.json; do
   fi
 done
 
-if git ls-files | grep -q '^node_modules/'; then
+tracked="$(git ls-files)"
+if grep -q '^node_modules/' <<<"$tracked"; then
   echo "❌ FAIL: node_modules must not be committed — npm ci deletes and recreates it, so a tracked copy is build output masquerading as source."
   failed=1
 fi

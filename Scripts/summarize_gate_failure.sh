@@ -53,7 +53,7 @@ if [ -z "$reasons" ]; then
 fi
 
 total="$(printf '%s\n' "$reasons" | grep -c '')"
-printf '%s\n' "$reasons" | head -n "$MAX" | sed 's/^/    /'
+head -n "$MAX" <<<"$reasons" | sed 's/^/    /'
 if [ "$total" -gt "$MAX" ]; then
   echo "    … ${total} lines in all, $((total - MAX)) more above"
 fi

@@ -50,7 +50,7 @@ if [ "$rc" -eq 0 ]; then
 fi
 
 printf '%s\n' "$out"
-if ! printf '%s\n' "$out" | grep -qE '^diff current/go\.(mod|sum) tidy/go\.(mod|sum)$'; then
+if ! grep -qE '^diff current/go\.(mod|sum) tidy/go\.(mod|sum)$' <<<"$out"; then
   echo "❌ FAIL: go mod tidy could not run (exit ${rc}) — a check that did not run is not a clean result"
   exit 1
 fi

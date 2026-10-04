@@ -100,7 +100,7 @@ if [ -z "$sources" ] || [ "$sources" = "0" ]; then
   exit 2
 fi
 
-if printf '%s\n' "$plain" | grep -q 'Found 0 clones'; then
+if grep -q 'Found 0 clones' <<<"$plain"; then
   pct="0.00"
 else
   pct="$(printf '%s\n' "$plain" | sed -nE 's/.*duplicates \(([0-9]+\.?[0-9]*)%\).*/\1/p' | tail -1)"

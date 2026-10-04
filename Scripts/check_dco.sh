@@ -140,7 +140,7 @@ while IFS= read -r row || [ -n "$row" ]; do
     findings=$((findings + 1))
     continue
   fi
-  subject="$(printf '%s\n' "$message" | head -n 1 | tr -d '\r')"
+  subject="$(head -n 1 <<<"$message" | tr -d '\r')"
   # The exemption. The mutation proofs in Scripts/test_check_dco.sh rewrite
   # this if line by its exact text: keep it whole, on its own line.
   if [ "$account" = "Bot:${opener_login}" ] && [ "$opener" = "Bot:${opener_login}" ]; then
