@@ -152,7 +152,7 @@ func TestViewSwitchMarksTheCurrentView(t *testing.T) {
 }
 
 // captionWithSwitch is the caption of a table with the view switch
-// (forsgren#51): "DORA metrics View: standard · numbers" on one line, the
+// (forsgren#51): "DORA metrics View: standard · numbers · scoring" on one line, the
 // title in its own element, which names the table and its region, the
 // switch beside it, so the table's name is never the switch's text.
 const captionWithSwitch = `<table aria-labelledby="metrics-caption">

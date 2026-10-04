@@ -56,8 +56,8 @@ type Data struct {
 	// the installation's forsgren pin to Latest, 0 when there is none; the
 	// footer names it instead of "is available" (forsgren#40, option 1).
 	WaitingPR int
-	// View is the view the root page shows, "standard" or "numbers", with
-	// the view switch in its table's caption (forsgren#51); empty for the
+	// View is the view the root page shows, "standard", "numbers" or
+	// "scoring", with the view switch in its table's caption (forsgren#51); empty for the
 	// plain root page, with no switch (forsgren#46).
 	View string
 }
@@ -104,22 +104,19 @@ func Placeholder(version string) Data {
 // renders. parsePages and PageNames read the same set through it.
 const pagesGlob = "templates/pages/*.html"
 
-// The views of the table page (forsgren#46).
+// The views of the table page (forsgren#46): the standard cells, the numbers
+// only, and (forsgren#47) each metric's DORA Quick Check score with an
+// Overall Performance column.
 const (
 	viewStandard = "standard"
 	viewNumbers  = "numbers"
+	viewScoring  = "scoring"
 )
 
-// viewScoring is the scoring view (forsgren#47): the table's cells are each
-// metric's DORA Quick Check score, with an Overall Performance column. Its
-// page, /scoring/, is rendered like a view's, but the switch does not name
-// it.
-const viewScoring = "scoring"
-
 // views are the views of the table page, in the switch's order, each
-// rendered from index.html at its own address, /standard/ and /numbers/,
-// one folder below the root.
-var views = []string{viewStandard, viewNumbers}
+// rendered from index.html at its own address, /standard/, /numbers/ and
+// /scoring/, one folder below the root.
+var views = []string{viewStandard, viewNumbers, viewScoring}
 
 // viewBase is the way back from a view's folder to the root.
 const viewBase = "../"
@@ -183,9 +180,6 @@ func parsePages() map[string]page {
 	}
 	for _, view := range views {
 		out[view+"/index.html"] = page{set: out["index.html"].set, file: "index.html", view: view, base: viewBase}
-	}
-	out[viewScoring+"/index.html"] = page{
-		set: out["index.html"].set, file: "index.html", view: viewScoring, base: viewBase,
 	}
 	return out
 }

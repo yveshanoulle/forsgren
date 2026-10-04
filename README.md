@@ -511,20 +511,20 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   recovery, no deployments or successful deployments). A row with no
   deployments recorded is five cells there, `0` and four `-`, never a
   sentence. Each view's page has a switch in its table's caption, on one
-  line after the title, "DORA metrics View: standard · numbers"
+  line after the title, "DORA metrics View: standard · numbers · scoring"
   (forsgren#51); the title is its own element, which names the table and
   its scroll region, so the table's name stays "DORA metrics". The current
-  view is plain text marked `aria-current="page"`, the other a link (`../numbers/`, `../standard/`); a page one folder down
+  view is plain text marked `aria-current="page"`, the others links (`../numbers/`, `../standard/`, `../scoring/`); a page one folder down
   reaches `styles.css` and the legend through `../`. The legend page serves
   all views. The root `index.html` follows the `view:` config key (see
   Configuration): that view, with the switch (its links relative to the
-  root, `standard/` and `numbers/`, and its view marked
+  root, `standard/`, `numbers/` and `scoring/`, and its view marked
   `aria-current="true"`, as the root is not that view's page); without the
   key it is the standard page with no switch. `/scoring/`
   (`scoring/index.html`, forsgren#47) shows each metric's DORA Quick Check
   score alone, 0 to 10 (`9.3`, `10`, `0`), `-` where the metric has no data,
   and a sixth column, Overall Performance: the mean of the scored metrics to
-  one decimal, `-` when none is scored. The switch does not name it yet.
+  one decimal, `-` when none is scored. The switch names it, as it names the other two.
 - **The legend** (`legend.html`) gives each metric's bands in one compact
   list (recovery time's are lead time's, and rework rate's are change fail
   rate's, so it refers to them), with what each cell counts and its window.
@@ -877,7 +877,7 @@ forsgren renders a static page whose footer says "Forsgren 0.1.2", the version o
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
-`/standard/` and `/numbers/` (see The page). That version has one source,
+`/standard/`, `/numbers/` and `/scoring/` (see The page). That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
 it with `-ldflags "-X main.version=<version>"`. `forsgren collect` reads
 GitHub into the history file (see Collecting deployments); the daily run
@@ -1433,7 +1433,7 @@ The POST gates, on the generated site:
 - **required pages** (`Scripts/validate_required_pages.sh` and
   `Scripts/test_required_pages_covers_site.sh`): the pages the site must
   ship are listed, hand-authored, in `internal/page/required-pages.json`
-  (today `/`, `/legend.html`, `/standard/` and `/numbers/`). The first checks that list's shape: valid JSON, a
+  (today `/`, `/legend.html`, `/standard/`, `/numbers/` and `/scoring/`). The first checks that list's shape: valid JSON, a
   non-empty `requiredPages` array of root-relative paths, no scheme or host,
   no `..`, no duplicates. The second checks it against `.build/site`: every
   `.html` file there, in subfolders too, is listed (`standard/index.html` as
