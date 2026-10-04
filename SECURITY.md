@@ -15,12 +15,17 @@ straight to
 Never report a vulnerability in a public issue, a pull request or a
 discussion: that publishes it before there is a fix.
 
+## What to include
+
+The affected version, steps to reproduce, the impact, and a proof of concept
+if you have one.
+
 ## What to expect
 
 forsgren is a one-maintainer project. Your report is acknowledged, and
-looked at and fixed, as soon as possible; there is no promise of a fixed
-response time. The conversation stays in the private advisory until a fix
-is out.
+looked at and fixed, as soon as possible. You get a reply within 7 days,
+telling you what was decided and why. The conversation stays in the private
+advisory until a fix is out, and the advisory credits you if you want it.
 
 ## Scope
 

@@ -496,13 +496,14 @@ privacy posture|Scripts/check_privacy_posture.sh|post|
 repository-links self-test|Scripts/test_check_repo_links.sh|pre|
 repository links|Scripts/check_repo_links.sh|post|
 #
-# THE CODE OF CONDUCT (forsgren#43). Not canon: forsgren's own. Red unless
-# CODE_OF_CONDUCT.md exists at the repository root, names conduct@hanoulle.be,
-# has no Contributor Covenant placeholder left (any bracket that is not a
-# Markdown link), and README.md links to it. It reads repository files, so it
+# THE COMMUNITY FILES (forsgren#43, #44). Not canon: forsgren's own. Red unless
+# CODE_OF_CONDUCT.md exists at the repository root and names conduct@hanoulle.be,
+# SECURITY.md exists and names the private reporting route, neither has a
+# template placeholder left (any bracket that is not a Markdown link), and
+# README.md links to both outside code. It reads repository files, so it
 # is pre. Self-test right before the gate, with a mutation proof per pattern.
-code-of-conduct self-test|Scripts/test_check_code_of_conduct.sh|pre|
-code of conduct|Scripts/check_code_of_conduct.sh|pre|
+community-files self-test|Scripts/test_check_community_files.sh|pre|
+community files|Scripts/check_community_files.sh|pre|
 #
 # The privacy pages belong to a site that needs privacy pages: konenki-website
 # serves a privacy policy, and its check_privacy_pages.sh pins that

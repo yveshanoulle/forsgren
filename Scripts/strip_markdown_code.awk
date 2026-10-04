@@ -1,6 +1,6 @@
 # Scripts/strip_markdown_code.awk
 #
-# The code-of-conduct gate's (forsgren#43) view of a README: the Markdown with
+# The community-files gate's (forsgren#43) view of a README: the Markdown with
 # what is not prose removed, so a link inside it does not count as a link.
 # Removed: a fenced block (the ``` or ~~~ lines and what is between them), an
 # HTML comment (it may span lines) and an inline code span.
