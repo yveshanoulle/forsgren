@@ -16,6 +16,13 @@
 #   9. the generated site                        -> green (built here, since
 #                                                   pre runs before
 #                                                   Scripts/build_site.sh)
+#  10. forsgren's own public repository: an href to its root and to it with
+#      an anchor (Yves's ruling on forsgren#41)               -> green
+#  11. forsgren-data, forsgren/issues, forsgren/blob/..., another owner's
+#      forsgren, and each of them next to an allowed link      -> red
+#  12. the own repository as plain text, or in a stylesheet url(): the
+#      exception is for an href only (chosen: a link is what the page
+#      shows; a bare name or a url() has no reason to be there) -> red
 # Mutation proof: case 2 against a copy of the gate whose REPO_PATH pattern
 # never matches must turn green, so case 2 is red BECAUSE of that pattern,
 # not because of something else in its site.
@@ -89,6 +96,36 @@ capture "$GATE" "$TMP/built"
 want_rc "9. the generated site links into no repository" 0
 [[ "$RC" -eq 0 ]] || printf '%s\n' "$OUT" | sed 's/^/    /'
 
+new_site own
+printf '<p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a></p>\n' >> "$SITE/index.html"
+printf '<p><a href="https://github.com/yveshanoulle/forsgren#installing-and-updating">Install</a></p>\n' >> "$SITE/index.html"
+capture "$GATE" "$SITE"
+want_rc "10. forsgren's own repository, root and anchor, is not a finding" 0
+
+others=(
+  "https://github.com/yveshanoulle/forsgren-data"
+  "https://github.com/yveshanoulle/forsgren/issues"
+  "https://github.com/yveshanoulle/forsgren/blob/main/README.md"
+  "https://github.com/yveshanoulle/forsgren/issues#installing"
+  "https://github.com/acme/forsgren"
+)
+for i in "${!others[@]}"; do
+  new_site "other$i"
+  printf '<p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a></p>\n<a href="%s">x</a>\n' "${others[$i]}" >> "$SITE"/index.html
+  capture "$GATE" "$SITE"
+  want_rc "11.$i. still rejects ${others[$i]##*github.com/} next to an allowed link" 1
+  grep -q "index.html:5" <<<"$OUT" || fail "11.$i. the finding does not name index.html:5 (the allowed line 4 must not be named). Output: $OUT"
+done
+
+new_site owntext
+printf '<p>source: github.com/yveshanoulle/forsgren</p>\n' >> "$SITE/index.html"
+capture "$GATE" "$SITE"
+want_rc "12a. rejects the own repository as plain text" 1
+new_site owncss
+printf '.x { background: url("https://github.com/yveshanoulle/forsgren/raw/main/a.png"); }\n.y { background: url("https://github.com/yveshanoulle/forsgren"); }\n' >> "$SITE/styles.css"
+capture "$GATE" "$SITE"
+want_rc "12b. rejects the own repository in a stylesheet url()" 1
+
 # Mutation proof for case 2: the same site against a copy of the gate whose
 # REPO_PATH pattern can never match must be green.
 # The mutant cds to its own dir's parent; give it the same layout.
@@ -102,5 +139,22 @@ if selftest_mutant "$GATE" "$MUTANT" "s/^REPO_PATH=.*/REPO_PATH='NEVER-MATCHES-A
   fi
 fi
 
+# Mutation proof for the exception: without it case 10 is red (so it is green
+# BECAUSE of the exception), and the 11 cases stay red with and without it.
+MUTANT2="$TMP/mutant2/Scripts/check_repo_links.sh"
+if selftest_mutant "$GATE" "$MUTANT2" "s/^OWN_LINK=.*/OWN_LINK='s#NEVER-MATCHES-ANY-LINK##g'/"; then
+  capture "$MUTANT2" "$TMP/own"
+  if [[ "$RC" -eq 1 ]]; then
+    echo "  ok: mutation proof: without the exception case 10 is red, so it is green because of the exception"
+  else
+    fail "mutation proof: a gate without the exception is not red on case 10 (exit $RC). Output: $OUT"
+  fi
+  for i in "${!others[@]}"; do
+    capture "$MUTANT2" "$TMP/other$i"
+    [[ "$RC" -eq 1 ]] || fail "mutation proof: without the exception case 11.$i is not red (exit $RC)"
+  done
+  echo "  ok: mutation proof: the 11 cases are red with and without the exception"
+fi
+
 selftest_end "the repository-links gate does not keep repository paths off the page" \
-  "repository-links gate is red on a repository path in an href, in plain text and in a stylesheet url(), naming file:line and never the path, and on a site with no page, exits 2 on a missing site, is green on an owner link and on the generated site, and its REPO_PATH pattern is what reddens case 2"
+  "repository-links gate is red on a repository path in an href, in plain text and in a stylesheet url(), naming file:line and never the path, and on a site with no page, exits 2 on a missing site, is green on an owner link, on forsgren's own repository as an href (root and anchor) and on the generated site, still red on every other forsgren path, owner and form, and its REPO_PATH pattern and its exception are what redden case 2 and green case 10"

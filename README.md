@@ -1321,7 +1321,11 @@ The POST gates, on the generated site:
   `github.com/<owner>/<repo>` path anywhere in the generated `.html` or
   `.css`, linked or as text. The gate cannot tell a private repository from
   a public one, and the page has no reason to point into either. Red on a
-  site with no `.html` page. The failure line names the file and line, never
+  site with no `.html` page. One narrow exception (Yves's ruling on
+  forsgren#41): an `href` to exactly `https://github.com/yveshanoulle/forsgren`,
+  with an optional `#anchor`, the footer's links to the tool's own public
+  repository; `forsgren-data`, `forsgren/issues`, any other path or owner, and
+  the same path as plain text or in a `url()` stay red. The failure line names the file and line, never
   the path it matched, so a private repository's name cannot reach a commit
   message.
 
