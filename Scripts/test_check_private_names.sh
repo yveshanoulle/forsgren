@@ -52,6 +52,12 @@
 #                                                     `0 names searched`
 #   8b. FORSGREN_PRIVATE_NAMES set but with no
 #      names (only blanks and comments)            -> exit 2, `no names`
+#   8c. the same empty names file with a grep first on
+#      PATH whose empty -f pattern list matches
+#      everything (ugrep does)                    -> exit 0, OK: with
+#                                                     `0 names searched`: with
+#                                                     no names the gate does not
+#                                                     search at all
 #   9. a name inside a longer token                -> exit 1 (see the rule)
 #  10. a name at a boundary (slash, dot, quote)    -> exit 1
 #  11. an untracked, not-ignored file with a name  -> exit 1, `file:line`, no
@@ -219,6 +225,31 @@ want_green_ok "a zero-byte names file passes with the OK line"
 run_home "$EMPTY_DEFAULT_HOME"
 want_exit "an existing, empty default names file is exit 0, 0 names searched" 0 "0 names searched"
 want_green_ok "an empty default names file passes with the OK line"
+
+# With no names the gate must not search at all: some grep replacements (ugrep)
+# match every line when -f gets an empty pattern file. A fake grep first on PATH
+# does that; it is on PATH for this one gate run only.
+new_repo "empty-list-greedy-grep"
+write_file "docs/notes.md" $'harmless\n' track
+FAKE_BIN="${TMP}/greedy-grep-bin"
+mkdir -p "$FAKE_BIN"
+cat > "${FAKE_BIN}/grep" <<'FAKE'
+#!/usr/bin/env bash
+# A grep whose empty -f pattern list matches every line.
+args=("$@")
+for ((i = 0; i < ${#args[@]} - 1; i++)); do
+  if [[ "${args[$i]}" == "-f" && ! -s "${args[$((i + 1))]}" ]]; then
+    echo "1:match"
+    exit 0
+  fi
+done
+exec /usr/bin/grep "$@"
+FAKE
+chmod +x "${FAKE_BIN}/grep"
+capture env -u FORSGREN_PRIVATE_NAMES PATH="${FAKE_BIN}:${PATH}" HOME="$EMPTY_HOME" \
+  FORSGREN_PRIVATE_NAMES_FILE="$EMPTY_FILE" "$GATE" "$REPO"
+want_exit "a grep that matches everything on an empty pattern list is not asked: exit 0, 0 names searched" 0 "0 names searched"
+want_green_ok "an empty names file passes with the OK line even with a greedy grep first on PATH"
 
 new_repo "env-no-names"
 capture env -u FORSGREN_PRIVATE_NAMES_FILE HOME="$EMPTY_HOME" \
