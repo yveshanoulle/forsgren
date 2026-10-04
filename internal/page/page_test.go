@@ -376,7 +376,7 @@ func TestEveryPageEndsWithTheFooter(t *testing.T) {
 // heading, a visually hidden h1.
 func TestTablePageOpensWithTheTable(t *testing.T) {
 	got := rendered(t, "index.html", acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework))
-	for _, gone := range []string{"<h1>", "counting back from that moment"} {
+	for _, gone := range []string{"<h1>", "counts back from the time in the footer"} {
 		if strings.Contains(got, gone) {
 			t.Errorf("want %q off the table page, got:\n%s", gone, got)
 		}
@@ -400,8 +400,7 @@ func TestTablePageKeepsAVisuallyHiddenHeading(t *testing.T) {
 func TestLegendPageSaysWhereEachMetricComesFrom(t *testing.T) {
 	got := rendered(t, "legend.html", Placeholder("0.0.8"))
 	for _, want := range []string{
-		"counting back from that moment",
-		"deployment frequency from the successful deployments",
+		"Every number counts back from the time in the footer: deployment frequency from the successful deployments",
 		"lead time for changes from the commits they shipped",
 		"failed deployment recovery time from the failed deployments and the successful ones after them",
 		"change fail rate from the failed deployments and the issues labelled failure",

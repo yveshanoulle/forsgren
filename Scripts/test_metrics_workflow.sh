@@ -188,7 +188,7 @@
 #      passes `--waiting-pr <number>` when it is set;
 #  33. the step "Write the run summary" (forsgren#40) takes LATEST, WAITING
 #      and PR_CHECK (the waiting step's `check` output: ok, no-access,
-#      failed or skipped) through env: only and, EXECUTED with the stub,
+#      rate-limited, failed or skipped) through env: only and, EXECUTED with the stub,
 #      appends `forsgren run-summary --latest ... --waiting-pr ... --pr-check
 #      ... --repository $GITHUB_REPOSITORY`'s markdown to
 #      $GITHUB_STEP_SUMMARY, and never fails the run: a run-summary that
@@ -894,7 +894,7 @@ judge_waiting_lookup() {
   [[ "$got" == "$want" ]] || echo "for an answer with a second line the waiting step gives '${got}', not '${want}' — a line break must never add an output"
   got="$(waiting_outcome "$script" "0.0.10" "7\n" 0 "ok\nevil=1")"
   want="exit=0 output=waiting=7|check=failed calls=waiting-pull-request --version 0.0.10 --status RUNNER_TEMP/waiting-status"
-  [[ "$got" == "$want" ]] || echo "for a status file that says anything but ok, no-access or failed the waiting step gives '${got}', not '${want}' — only those three become the check"
+  [[ "$got" == "$want" ]] || echo "for a status file that says anything but ok, no-access, rate-limited or failed the waiting step gives '${got}', not '${want}' — only those four become the check"
   got="$(waiting_outcome "$script" "" "7\n" 0 ok)"
   want="exit=0 output=waiting=|check=skipped calls="
   [[ "$got" == "$want" ]] || echo "with no latest release the waiting step gives '${got}', not '${want}' — there is no version to look a pull request up for, so its check is skipped"

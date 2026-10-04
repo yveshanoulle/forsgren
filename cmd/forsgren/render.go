@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"io/fs"
@@ -67,7 +68,7 @@ func render(args []string, stdout, stderr io.Writer) int {
 
 // renderTime is the moment the page says it was calculated at: the clock,
 // or, when SOURCE_DATE_EPOCH (the reproducible-builds variable, Unix
-// seconds) is set, that second, so Scripts/build_site.sh and its fixture
+// seconds, 0 or more; a negative value is refused) is set, that second, so Scripts/build_site.sh and its fixture
 // render the same page twice and compare it with the golden file without
 // stripping the time (forsgren#41, step 3).
 func renderTime() (time.Time, error) {
@@ -76,8 +77,8 @@ func renderTime() (time.Time, error) {
 		return now(), nil
 	}
 	seconds, err := strconv.ParseInt(epoch, 10, 64)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("%s must be Unix seconds, got %q", sourceDateEpoch, epoch)
+	if err != nil || seconds < 0 {
+		return time.Time{}, fmt.Errorf("%s must be Unix seconds, 0 or more, got %q", sourceDateEpoch, epoch)
 	}
 	return time.Unix(seconds, 0), nil
 }
@@ -152,7 +153,7 @@ func renderFlags(args []string, stderr io.Writer) (renderOptions, bool) {
 	flags.StringVar(&o.latest, "latest", "",
 		"the newest forsgren release, as latest-release prints it; the footer names it when it is newer (optional)")
 	flags.IntVar(&o.waitingPR, "waiting-pr", 0,
-		"the open Dependabot pull request for that release, as waiting-pull-request prints it (optional, 0 is none)")
+		"the open Dependabot pull request for that release, as waiting-pull-request prints it (optional, 1 or more)")
 	if err := flags.Parse(args); err != nil {
 		return o, false
 	}
@@ -163,6 +164,18 @@ func renderFlags(args []string, stderr io.Writer) (renderOptions, bool) {
 	case o.data != "" && o.config == "":
 		_, _ = fmt.Fprintln(stderr, dataWithoutConfig)
 		return o, false
+	case !isPullRequestNumber(flags, o.waitingPR):
+		_, _ = fmt.Fprintf(stderr, "render: --waiting-pr <number> must be a pull request's number, 1 or more, got %d\n",
+			o.waitingPR)
+		return o, false
 	}
 	return o, true
+}
+
+// isPullRequestNumber says whether render's --waiting-pr, when it was given,
+// is a pull request's number, 1 or more; leaving the flag out means none.
+func isPullRequestNumber(flags *flag.FlagSet, number int) bool {
+	given := false
+	flags.Visit(func(f *flag.Flag) { given = given || f.Name == "waiting-pr" })
+	return !given || number >= 1
 }

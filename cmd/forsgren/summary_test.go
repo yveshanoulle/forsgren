@@ -55,7 +55,7 @@ func TestRunSummaryTellsWhereTheUpdateStands(t *testing.T) {
 }
 
 // TestRunSummaryRefusesWhatItCannotTell (forsgren#40, step 6): a pr-check
-// that is none of ok, no-access, failed or skipped, or a waiting pull request
+// that is none of ok, no-access, rate-limited, failed or skipped, or a waiting pull request
 // with no repository to link: a usage error that says which flag and prints
 // nothing (the workflow never lets that fail the run).
 func TestRunSummaryRefusesWhatItCannotTell(t *testing.T) {

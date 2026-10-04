@@ -12,13 +12,18 @@ import (
 
 // The ways the lookup of the waiting pull request went, as waiting-pull-
 // request writes them to --status and run-summary reads them from
-// --pr-check; skipped is a run with no latest release to look one up for.
+// --pr-check; rate-limited is GitHub's rate limit, never a missing
+// permission; skipped is a run with no latest release to look one up for.
 const (
-	statusOK       = "ok"
-	statusNoAccess = "no-access"
-	statusFailed   = "failed"
-	statusSkipped  = "skipped"
+	statusOK          = "ok"
+	statusNoAccess    = "no-access"
+	statusRateLimited = "rate-limited"
+	statusFailed      = "failed"
+	statusSkipped     = "skipped"
 )
+
+// statuses are the values of --pr-check.
+var statuses = []string{statusOK, statusNoAccess, statusRateLimited, statusFailed, statusSkipped}
 
 // summaryInput is what run-summary tells the run's page about.
 type summaryInput struct {
@@ -49,14 +54,15 @@ func summaryFlags(args []string, stderr io.Writer) (summaryInput, bool) {
 	var in summaryInput
 	flags.StringVar(&in.latest, "latest", "", "the newest forsgren release, empty or not a version when unknown")
 	flags.IntVar(&in.waitingPR, "waiting-pr", 0, "the open Dependabot pull request for it, 0 for none")
-	flags.StringVar(&in.check, "pr-check", "", "how the pull request lookup went: ok, no-access, failed or skipped")
+	flags.StringVar(&in.check, "pr-check", "", "how the pull request lookup went: "+strings.Join(statuses, ", "))
 	flags.StringVar(&in.repository, "repository", "", "the installation's owner/name, for the pull request's link")
 	if err := flags.Parse(args); err != nil {
 		return in, false
 	}
 	switch {
-	case !slices.Contains([]string{statusOK, statusNoAccess, statusFailed, statusSkipped}, in.check):
-		_, _ = fmt.Fprintf(stderr, "run-summary: --pr-check must be ok, no-access, failed or skipped, got %q\n", in.check)
+	case !slices.Contains(statuses, in.check):
+		_, _ = fmt.Fprintf(stderr, "run-summary: --pr-check must be one of %s, got %q\n", strings.Join(statuses, ", "),
+			in.check)
 	case in.waitingPR > 0 && in.repository == "":
 		_, _ = fmt.Fprintln(stderr, "run-summary: --repository <owner/name> is required with --waiting-pr, which it links")
 	default:
@@ -95,6 +101,8 @@ func (in summaryInput) pullRequestState() string {
 	switch in.check {
 	case statusNoAccess:
 		return "pull-request check skipped: grant pull-requests: read in your caller to enable it"
+	case statusRateLimited:
+		return "the pull-request check hit GitHub's rate limit, the next run tries again"
 	case statusFailed:
 		return "the pull-request check failed"
 	}

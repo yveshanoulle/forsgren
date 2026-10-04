@@ -39,7 +39,7 @@ type pullRequest struct {
 // /repos/{owner}/{repo}/pulls?state=open, every page up to the limit, and
 // says whether it stopped there. A 403 is the token missing
 // pull-requests: read, ErrAccess and ErrPullRequestsDenied naming that
-// permission.
+// permission, unless it is GitHub's rate limit, which stays ErrRateLimit.
 func (c *Client) OpenPullRequests(ctx context.Context, repo string) ([]PullRequest, bool, error) {
 	t, err := c.endpoint(repo, url.Values{"state": {"open"}}, "pulls")
 	if err != nil {
@@ -47,7 +47,7 @@ func (c *Client) OpenPullRequests(ctx context.Context, repo string) ([]PullReque
 	}
 	var pulls []PullRequest
 	truncated, err := c.list(ctx, t, readPullRequests(&pulls))
-	if forbidden, ok := errors.AsType[*answerError](err); ok && forbidden.code == http.StatusForbidden {
+	if forbidden, ok := errors.AsType[*answerError](err); ok && isDenied(forbidden) {
 		return nil, false, fmt.Errorf("%s: %w: %w: %s for %s; the job's token needs pull-requests: read",
 			repo, ErrAccess, ErrPullRequestsDenied, forbidden.status(), t.path())
 	}
@@ -55,6 +55,13 @@ func (c *Client) OpenPullRequests(ctx context.Context, repo string) ([]PullReque
 		return nil, false, err
 	}
 	return pulls, truncated, nil
+}
+
+// isDenied says whether GitHub's error answer to the pull request list is
+// the token missing pull-requests: read: a 403 that is not a rate limit,
+// which keeps its ErrRateLimit (forsgren#40, review of step 7).
+func isDenied(e *answerError) bool {
+	return e.code == http.StatusForbidden && !errors.Is(e, ErrRateLimit)
 }
 
 // readPullRequests is the page reader of OpenPullRequests: it adds each

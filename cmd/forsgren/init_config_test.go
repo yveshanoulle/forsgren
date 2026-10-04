@@ -18,16 +18,6 @@ func runCommand(args ...string) (int, string, string) {
 	return code, stdout.String(), stderr.String()
 }
 
-// wantRun runs forsgren with args and fails the test unless it exits 0 with
-// exactly stdout and nothing on stderr.
-func wantRun(t *testing.T, stdout string, args ...string) {
-	t.Helper()
-	code, gotOut, gotErr := runCommand(args...)
-	if code != 0 || gotOut != stdout || gotErr != "" {
-		t.Errorf("%v: want exit 0 and stdout %q, got %d, %q, stderr %q", args, stdout, code, gotOut, gotErr)
-	}
-}
-
 // readFile returns the content of path, or fails the test.
 func readFile(t *testing.T, path string) string {
 	t.Helper()
@@ -43,13 +33,13 @@ func readFile(t *testing.T, path string) string {
 // second run keeps it. Both exit 0.
 func TestInitConfigWritesTheStarterOnce(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "forsgren.config.yml")
-	wantRun(t, "created "+path+"\n", "init-config", "--config", path)
+	wantLookup(t, "created "+path+"\n", "", "init-config", "--config", path)
 	if got := readFile(t, path); got != config.Starter {
 		t.Errorf("want the starter written, got %q", got)
 	}
-	wantRun(t, "OK: "+path+" is a valid forsgren config (version 1): projects: 0, repositories: 0\n",
+	wantLookup(t, "OK: "+path+" is a valid forsgren config (version 1): projects: 0, repositories: 0\n", "",
 		"check-config", "--config", path)
-	wantRun(t, "kept "+path+"\n", "init-config", "--config", path)
+	wantLookup(t, "kept "+path+"\n", "", "init-config", "--config", path)
 }
 
 // TestInitConfigKeepsAnExistingFile: whatever it holds, the file is left byte
@@ -63,7 +53,7 @@ func TestInitConfigKeepsAnExistingFile(t *testing.T) {
 	for name, content := range cases {
 		t.Run(name, func(t *testing.T) {
 			path := writeConfig(t, content)
-			wantRun(t, "kept "+path+"\n", "init-config", "--config", path)
+			wantLookup(t, "kept "+path+"\n", "", "init-config", "--config", path)
 			if got := readFile(t, path); got != content {
 				t.Errorf("want the file untouched, got %q", got)
 			}

@@ -7,7 +7,8 @@ import (
 
 // wantLookup runs args and fails the test unless the command exits 0, prints
 // exactly stdout, and says note on stderr (nothing at all when note is
-// empty): the contract of a lookup, which is never an error.
+// empty): the contract of a lookup, which is never an error, and of any
+// command that succeeds.
 func wantLookup(t *testing.T, stdout, note string, args ...string) {
 	t.Helper()
 	wantExit(t, exit{0, stdout, note}, args...)

@@ -24,7 +24,8 @@ var errNoRepository = errors.New("GITHUB_REPOSITORY is not set")
 // that permission included, is not an error: it prints nothing, says why on
 // stderr and exits 0, so the page keeps saying the release is available.
 // With --status <path> it also writes how the lookup went, for the run
-// summary: ok, no-access (the 403) or failed.
+// summary: ok, no-access (the 403), rate-limited (GitHub's rate limit) or
+// failed.
 func waitingPullRequest(args []string, stdout, stderr io.Writer) int {
 	wanted, statusPath, ok := waitingFlags(args, stderr)
 	if !ok {
@@ -48,7 +49,8 @@ func waitingPullRequest(args []string, stdout, stderr io.Writer) int {
 func waitingFlags(args []string, stderr io.Writer) (version, statusPath string, ok bool) {
 	flags := newFlags("waiting-pull-request", stderr)
 	wanted := flags.String("version", "", "the forsgren release whose Dependabot pull request is looked for, <x.y.z>")
-	status := flags.String("status", "", "a file to write how the lookup went to: ok, no-access or failed (optional)")
+	status := flags.String("status", "",
+		"a file to write how the lookup went to: ok, no-access, rate-limited or failed (optional)")
 	if err := flags.Parse(args); err != nil {
 		return "", "", false
 	}
@@ -67,6 +69,8 @@ func lookupStatus(err error) string {
 		return statusOK
 	case errors.Is(err, github.ErrPullRequestsDenied):
 		return statusNoAccess
+	case errors.Is(err, github.ErrRateLimit):
+		return statusRateLimited
 	}
 	return statusFailed
 }

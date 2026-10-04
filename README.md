@@ -873,18 +873,22 @@ forsgren's own public repository's latest release (with `GITHUB_TOKEN` when the
 environment has one, without otherwise) and prints its version without the
 `v`; when the lookup fails it prints nothing, says why on stderr and exits 0,
 since a page without news of a release is not an error. `--waiting-pr <number>`
+(1 or more, anything below is a usage error; leaving it out means none)
 is Dependabot's open pull request for it, as `forsgren waiting-pull-request
 --version <x.y.z> [--status <path>]` prints it (the open pull requests of
 `GITHUB_REPOSITORY`, read with `GITHUB_TOKEN`; with `--status` it also writes
 how the lookup went, `ok`, `no-access` for the 403 of a token without
-`pull-requests: read`, or `failed`, and its exit status is 0 either way); the
+`pull-requests: read`, `rate-limited` when GitHub's rate limit refused it (a
+403 or 429 with no request left, never taken for a missing permission), or
+`failed`, and its exit status is 0 either way); the
 footer then names the pull request instead of "is available". `forsgren
 run-summary --latest <version> --waiting-pr <number> --pr-check
-<ok|no-access|failed|skipped> --repository <owner/name>` prints the run's job
+<ok|no-access|rate-limited|failed|skipped> --repository <owner/name>` prints the run's job
 summary as markdown (the version that built the page, the latest release or
 "unknown", and one of "up to date", "0.0.10 is available; no Dependabot pull
 request yet", "0.0.10 is waiting in pull request [#7](link)", "pull-request
-check skipped: grant pull-requests: read in your caller to enable it" and "the
+check skipped: grant pull-requests: read in your caller to enable it", "the
+pull-request check hit GitHub's rate limit, the next run tries again" and "the
 pull-request check failed"); the link is fine there, because a run page is
 private to the repository, unlike the public page. A flag it cannot use is a
 usage error that prints nothing. With `--config`, a config that
@@ -896,7 +900,8 @@ page shows each project's deployment frequency from that history, counted
 back from the moment of the render, which the page names in its footer, "Calculated at 2026-10-03 12:00 UTC" (UTC, to the minute; forsgren#28: the
 render time, not the time `collect` finished; forsgren#41: shown on every
 run, so two renders differ by their time, and `SOURCE_DATE_EPOCH`, Unix
-seconds as in reproducible builds, pins it, which `Scripts/build_site.sh`'s
+seconds as in reproducible builds, 0 or more (a negative or non-numeric value
+fails the render), pins it, which `Scripts/build_site.sh`'s
 fixture uses to compare a build with the golden files); a missing history file (a new install
 before its first collect) is an empty history, and a history with another
 format version or a malformed line fails the render with the history's
@@ -953,7 +958,7 @@ jobs:
   default branch) as `github-actions[bot]` with the message
   "forsgren: add a starter forsgren.config.yml"; the run goes on, the check
   passes on the starter, and the page shows the how-to for filling
-  it An existing file is never rewritten and
+  it. An existing file is never rewritten and
   nothing is committed, and a run that finds the file never looks at
   branches. **Branch protection:** the commit is a direct push, so the
   branch it lands on must accept a push from `github-actions[bot]`; if the
@@ -1034,6 +1039,15 @@ jobs:
   repository) says where the update stands, and when the token lacks the
   permission it says "pull-request check skipped: grant pull-requests: read
   in your caller to enable it".
+  **The pull request is found by its head branch, a temporary heuristic**
+  ([#42](https://github.com/yveshanoulle/forsgren/issues/42)): its author
+  is `dependabot[bot]` and its branch starts with
+  `dependabot/github_actions/yveshanoulle/forsgren/` and ends with
+  `/metrics.yml-` plus the version, which is Dependabot's naming for a
+  dependabot.yml with `directory: /`, no `groups:` and the default branch
+  separator, as the template has it. A grouped update, another separator or
+  another directory names the branch differently, and the footer then keeps
+  saying "is available".
 - **GitHub Pages must build from GitHub Actions** (the data repository's
   Settings → Pages → Source). The run deploys to the repository's
   `github-pages` environment.
@@ -1660,7 +1674,7 @@ Six PRE gates keep the CI honest:
   fails or an answer that is anything else; the step after it, "Look up the
   waiting Dependabot pull request", does the same for a pull request number
   (also with the job's token, and asked only when a latest release was
-  found) and outputs its `check` (`ok`, `no-access`, `failed`, or `skipped`
+  found) and outputs its `check` (`ok`, `no-access`, `rate-limited`, `failed`, or `skipped`
   without a latest release) from the status file the lookup wrote, anything
   else counting as `failed`, and the render step passes `--waiting-pr
   <number>` when it is set; the step "Write the run summary" appends

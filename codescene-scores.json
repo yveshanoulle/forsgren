@@ -3,16 +3,16 @@
  "scoredWith": "CodeScene MCP on babacar, first baseline of all 27 Go files on 2026-10-02 under .codescene/code-health-rules.json. Re-baseline when the rules change, not on an engine bump.",
  "files": [
   {
-   "path": "cmd/forsgren/init_config_test.go",
-   "score": 9.09,
-   "checkedAt": "2026-10-02",
-   "minScore": 9.0
-  },
-  {
    "path": "internal/collect/fake_test.go",
    "score": 9.09,
    "checkedAt": "2026-10-03",
    "minScore": 9.0
+  },
+  {
+   "path": "cmd/forsgren/init_config_test.go",
+   "score": 9.38,
+   "checkedAt": "2026-10-04",
+   "minScore": 9.28
   },
   {
    "path": "cmd/forsgren/main.go",
@@ -25,12 +25,6 @@
    "score": 9.38,
    "checkedAt": "2026-10-04",
    "minScore": 9.28
-  },
-  {
-   "path": "cmd/forsgren/summary_test.go",
-   "score": 10.0,
-   "checkedAt": "2026-10-04",
-   "minScore": 10.0
   },
   {
    "path": "cmd/forsgren/collect_test.go",
@@ -91,6 +85,12 @@
    "score": 9.92,
    "checkedAt": "2026-10-04",
    "minScore": 9.82
+  },
+  {
+   "path": "cmd/forsgren/summary_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
+   "minScore": 10.0
   },
   {
    "path": "cmd/forsgren/check_config_test.go",
@@ -478,6 +478,12 @@
   },
   {
    "path": "cmd/forsgren/summary.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/review_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-04",
    "minScore": 10.0

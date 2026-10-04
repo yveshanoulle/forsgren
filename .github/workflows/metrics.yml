@@ -372,7 +372,9 @@ jobs:
       # forsgren waiting-pull-request lists the open pull requests of
       # GITHUB_REPOSITORY with the job's token, which has pull-requests: read
       # only when the caller grants it (see the note on permissions above). A
-      # token without it, or any other failure, is not an error: the output
+      # token without it, GitHub's rate limit (its own check, rate-limited,
+      # so the summary never asks for a permission already granted), or any
+      # other failure, is not an error: the output
       # is then empty and the page keeps saying the release is available.
       # Only a number becomes the step's output, whatever the command printed.
       - name: Look up the waiting Dependabot pull request
@@ -395,7 +397,7 @@ jobs:
             waiting=""
           fi
           case "$check" in
-            ok | no-access | failed | skipped) ;;
+            ok | no-access | rate-limited | failed | skipped) ;;
             *) check="failed" ;;
           esac
           echo "waiting=${waiting}" >> "$GITHUB_OUTPUT"
@@ -415,7 +417,7 @@ jobs:
       # waiting pull request (the run page is private to the repository,
       # unlike the page). The waiting step's check says whether the pull
       # request lookup worked, had no access (grant pull-requests: read in
-      # the caller) or failed. A summary never fails the run: forsgren
+      # the caller), hit GitHub's rate limit or failed. A summary never fails the run: forsgren
       # run-summary failing appends nothing, and neither does an append that
       # cannot be written.
       - name: Write the run summary

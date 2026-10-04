@@ -10,8 +10,8 @@
 //	forsgren collect --config <path> --data <path>
 //	forsgren latest-release
 //	forsgren waiting-pull-request --version <x.y.z> [--status <path>]
-//	forsgren run-summary --latest <version> --waiting-pr <number> --pr-check <ok|no-access|failed|skipped>
-//	                     --repository <owner/name>
+//	forsgren run-summary --latest <version> --waiting-pr <number>
+//	                     --pr-check <ok|no-access|rate-limited|failed|skipped> --repository <owner/name>
 package main
 
 import (
@@ -30,8 +30,8 @@ const usage = `usage: forsgren render --out <dir> [--config <path>] [--data <pat
        forsgren collect --config <path> --data <path>
        forsgren latest-release
        forsgren waiting-pull-request --version <x.y.z> [--status <path>]
-       forsgren run-summary --latest <version> --waiting-pr <number> --pr-check <ok|no-access|failed|skipped>
-                            --repository <owner/name>`
+       forsgren run-summary --latest <version> --waiting-pr <number>
+                            --pr-check <ok|no-access|rate-limited|failed|skipped> --repository <owner/name>`
 
 // version is the forsgren release this binary is, shown on every page it
 // renders. It is the one source of the version: a var, not a const, so a
