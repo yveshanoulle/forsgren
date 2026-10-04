@@ -74,8 +74,8 @@ secret scan|Scripts/check_secrets.sh|pre|secret-class
 # THE DATA GUARD (forsgren#1, ladder step 6). Not canon: forsgren's own rule
 # that the repository holds code only, and an installation's config and data
 # live outside it, passed as paths. Red on installation config or data
-# tracked outside testdata/, and on a name from FORSGREN_PRIVATE_NAMES_FILE
-# (a file outside the repo) in a fixture or test file. It sits beside the
+# tracked outside testdata/ (private names are the private-names gate's job,
+# below). It sits beside the
 # secret pair because it guards the same thing, what must never reach a
 # public history. So it is a secret-class row, like the secret scan (Yves's
 # ruling, 2026-10-02, forsgren#1 step 12.2): a finding blocks the commit

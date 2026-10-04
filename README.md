@@ -69,16 +69,11 @@ Over the files git tracks, it fails when:
   `testdata/`: anything under a top-level `data/`, `deployments.csv`,
   `commits.csv`, `failures.csv`, `history.csv`, `*.history.csv`, `forsgren.config.*`,
   `forsgren-config.*`, `config.yml`/`.yaml`/`.json` at any depth, or a
-  `*.jsonl` events file;
-- a fixture under `testdata/` or a test file (`*_test.go`, `test_*.sh`)
-  mentions one of the owner's real repository, organisation or domain names.
+  `*.jsonl` events file.
 
-Those names are not written in this repository, since listing them here would
-publish them. Put them in a file outside it, one per line (`#` starts a
-comment), and point `FORSGREN_PRIVATE_NAMES_FILE` at that file. When the
-variable is unset or the file is missing, the name scan is skipped with a ⚠️
-line and the rest of the gate still runs. The failure line names the file and
-line, never the name it matched.
+Private names are not this gate's business: the private-names gate
+(`Scripts/check_private_names.sh`, below) searches every tracked path and file
+for them.
 
 Untracked files are not checked, so `git add` (or `git add -N`) a new file
 before running the gates.

@@ -138,8 +138,7 @@ secret_class_hints() {
       "data guard")
         echo "   data guard: its FAIL line above names the file. Move installation config"
         echo "   or data to the installation's private data repository (or under testdata/"
-        echo "   if it is a made-up fixture), or replace a private name with a made-up one"
-        echo "   such as acme/app."
+        echo "   if it is a made-up fixture)."
         hinted=true
         ;;
     esac

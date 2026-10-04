@@ -9,31 +9,19 @@
 # repository is meant to become open source, so anything an installation
 # owns that lands here is a leak waiting for the day it goes public.
 #
-# Two checks, both over the files git TRACKS (git ls-files):
+# One structural rule, over the files git TRACKS (git ls-files):
 #
-#   a. Installation config or data outside testdata/. A tracked file whose
-#      name matches an arm of guarded_reason below, or whose path matches an
-#      arm of guarded_path_reason (anything under a top-level data/),
-#      anywhere but under a directory named testdata (at any depth, Go's
-#      convention), is red.
-#      Fixtures under testdata/ are made up and are allowed to look like real
-#      config.
+#   Installation config or data outside testdata/. A tracked file whose
+#   name matches an arm of guarded_reason below, or whose path matches an
+#   arm of guarded_path_reason (anything under a top-level data/),
+#   anywhere but under a directory named testdata (at any depth, Go's
+#   convention), is red.
+#   Fixtures under testdata/ are made up and are allowed to look like real
+#   config.
 #
-#   b. The owner's real names in fixtures and tests. Every tracked file under
-#      testdata/ and every test file (*_test.go, test_*.sh) is searched,
-#      case-insensitively, for the names listed in the file that
-#      FORSGREN_PRIVATE_NAMES_FILE points to: the owner's real repository,
-#      organisation and domain names, one per line, `#` starting a comment.
-#      That list is NOT in this repository: writing the names here to keep
-#      them out of here would publish them. When the variable is unset or the
-#      file does not exist, this part is skipped with a one-line ⚠️ warning
-#      and passes; a names file that exists but lists no names is red (a scan
-#      for nothing is not a clean scan). A relative path is taken from the
-#      directory the gate was invoked from.
-#      The FAIL line names the file and line, NEVER the name it matched: sfl
-#      quotes FAIL lines into its summary and FBP.sh into its own, and CI
-#      puts every gate's output on the job's summary page, so a printed name
-#      would be copied wherever those go.
+# Private names are NOT this gate's business: Scripts/check_private_names.sh
+# owns all private-name detection (forsgren#52), in every tracked path and
+# file.
 #
 # SECRET-CLASS (Yves's ruling, 2026-10-02, forsgren#1 step 12.2): this gate's
 # row in Scripts/gate_report_order.txt carries `secret-class`, like the
@@ -45,16 +33,13 @@
 # judged. The other side of that: a NEW file is invisible to this gate until
 # git knows it, so `git add` it (or `git add -N` it) before running the gates.
 #
-# Red-on-zero: no tracked files at all is red (the walk broke), and with a
-# names file given, no fixture or test file to search is red too.
+# Red-on-zero: no tracked files at all is red (the walk broke).
 #
 # Usage: Scripts/check_data_guard.sh [repo-dir]   (default: the repo root)
 # Exit: 0 clean, 1 a finding or a scan over nothing.
 # Fixture: Scripts/test_check_data_guard.sh.
 
 set -uo pipefail
-
-INVOKED_FROM="$(pwd)"
 
 cd "$(dirname "$0")/.." || exit 1
 
@@ -132,7 +117,7 @@ guarded_path_reason() {
   printf '%s' "$why"
 }
 
-# --- a. installation config or data outside testdata/ ----------------------
+# --- installation config or data outside testdata/ -------------------------
 count=0
 while IFS= read -r f; do
   count=$((count + 1))
@@ -145,59 +130,8 @@ while IFS= read -r f; do
   fi
 done <<< "$TRACKED"
 
-# --- b. the owner's real names in fixtures and tests -----------------------
-NAMES_FILE="${FORSGREN_PRIVATE_NAMES_FILE:-}"
-case "$NAMES_FILE" in
-  ''|/*) ;;
-  *) NAMES_FILE="${INVOKED_FROM}/${NAMES_FILE}" ;;
-esac
-
-scanned=0
-if [ -z "${FORSGREN_PRIVATE_NAMES_FILE:-}" ]; then
-  echo "⚠️ private-name scan skipped: FORSGREN_PRIVATE_NAMES_FILE is not set"
-elif [ ! -f "$NAMES_FILE" ]; then
-  echo "⚠️ private-name scan skipped: FORSGREN_PRIVATE_NAMES_FILE names a file that does not exist"
-else
-  NAMES="$(mktemp)"
-  trap 'rm -f "$NAMES"' EXIT
-  # Comments and blank lines out, surrounding whitespace trimmed.
-  sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' "$NAMES_FILE" \
-    | grep -v '^$' > "$NAMES" || true
-
-  if [ ! -s "$NAMES" ]; then
-    echo "❌ FAIL: no names in FORSGREN_PRIVATE_NAMES_FILE — a scan for nothing is not a clean scan; list the names or unset the variable"
-    FAIL=1
-  else
-    while IFS= read -r f; do
-      [ -f "$f" ] || continue
-      if ! in_testdata "$f"; then
-        case "$(basename "$f")" in
-          *_test.go|test_*.sh) ;;
-          *) continue ;;
-        esac
-      fi
-      scanned=$((scanned + 1))
-      # -I skips binary files; only the line numbers are kept, never the text.
-      lines="$(grep -nIiF -f "$NAMES" -- "$f" | cut -d: -f1 | paste -sd, -)"
-      if [ -n "$lines" ]; then
-        echo "❌ FAIL: ${f}:${lines} — mentions a name listed in FORSGREN_PRIVATE_NAMES_FILE (the name is not printed here, so it cannot reach a commit message); use a made-up one such as acme/app"
-        FAIL=1
-      fi
-    done <<< "$TRACKED"
-
-    if [ "$scanned" -eq 0 ]; then
-      echo "❌ FAIL: no fixture or test files found to search for private names — the walk found nothing under testdata/ and no *_test.go or test_*.sh"
-      FAIL=1
-    fi
-  fi
-fi
-
 if [ "$FAIL" -ne 0 ]; then
   exit 1
 fi
 
-if [ "$scanned" -gt 0 ]; then
-  echo "OK: ${count} tracked files hold no installation config or data outside testdata/, and ${scanned} fixture and test files name no private name"
-else
-  echo "OK: ${count} tracked files hold no installation config or data outside testdata/"
-fi
+echo "OK: ${count} tracked files hold no installation config or data outside testdata/"

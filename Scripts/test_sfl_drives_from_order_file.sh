@@ -153,7 +153,7 @@ fi
 
 # Pin 6: the DATA GUARD carries the same tier (Yves, 2026-10-02, forsgren#1
 # step 12.2: "it works like the secret scan"). What it guards, an
-# installation's config or data and the owner's private names, is what must
+# installation's config or data, is what must
 # never reach a public history, so a finding has to block the COMMIT, not only
 # the push. Losing the tier would be as silent as losing pin 5's: the guard
 # would still run and still be red, and the finding would be committed.
