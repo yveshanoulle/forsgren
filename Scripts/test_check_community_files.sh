@@ -190,16 +190,16 @@ See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md); SECURITY.md as plain text.
 capture "$GATE" "$ROOT"
 want_red "10d. rejects a README that does not link SECURITY.md" "README.md does not link to SECURITY.md"
 
-new_root routecode "$GOOD_COC" "$GOOD_README" '# Security policy
+new_root routecode "$GOOD_COC" "$GOOD_README" "# Security policy
 
-```
+\`\`\`
 Report a vulnerability
-```
+\`\`\`
 
 <!-- security/advisories/new -->
 
-Write `Report a vulnerability` to see it.
-'
+Write \`Report a vulnerability\` to see it.
+"
 capture "$GATE" "$ROOT"
 want_red "10e. rejects a SECURITY.md whose only route is inside a code block, a comment or a code span" "SECURITY.md does not name the private reporting route"
 
@@ -227,6 +227,8 @@ mutate SECURITY_LINK '.' seclink "does not link to SECURITY.md" \
 mutate README_LINK '.' nolink "does not link to CODE_OF_CONDUCT.md" \
   "a link pattern that matches anything turns case 6a green, so it is red because of the pattern"
 printf '{ print }\n' > "$TMP/strip-nothing.awk"
+mutate SECURITY_STRIP "$TMP/strip-nothing.awk" routecode "does not name the private reporting route" \
+  "a SECURITY_STRIP that strips nothing turns the routecode case green, so it is red because of the strip"
 for fx in fencelink spanlink commentlink; do
   mutate README_STRIP "$TMP/strip-nothing.awk" "$fx" "does not link to CODE_OF_CONDUCT.md" \
     "a README_STRIP that strips nothing turns the $fx case green, so it is red because of the strip"

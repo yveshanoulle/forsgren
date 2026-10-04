@@ -25,9 +25,9 @@
 #
 # Usage: Scripts/check_community_files.sh [root-dir]   (default: the repo root)
 # Exit: 0 clean, 1 a finding, 2 root dir missing.
-# Fixture: Scripts/test_check_community_files.sh. The six settings below
+# Fixture: Scripts/test_check_community_files.sh. The seven settings below
 # start at column 0: its mutation proofs replace each by one that never
-# matches (or always matches, or for README_STRIP, by a program that strips
+# matches (or always matches, or for README_STRIP and SECURITY_STRIP, by a program that strips
 # nothing).
 
 set -uo pipefail
@@ -46,6 +46,10 @@ PLACEHOLDER='\[[^]]*\]([^(]|$)|\[[^]]*$'
 # before the link patterns are looked for: fenced blocks, HTML comments,
 # inline code spans (Scripts/strip_markdown_code.awk).
 README_STRIP="Scripts/strip_markdown_code.awk"
+# The same program, applied to SECURITY.md before the route is looked for: a
+# route only inside a code block, a code span or a comment does not tell a
+# reader how to report.
+SECURITY_STRIP="Scripts/strip_markdown_code.awk"
 README_LINK='\]\((\./)?CODE_OF_CONDUCT\.md(#[^)]*)?\)'
 SECURITY_LINK='\]\((\./)?SECURITY\.md(#[^)]*)?\)'
 
@@ -60,15 +64,18 @@ finding() {
   findings=$((findings + 1))
 }
 
-# check_file <name> <route-pattern> <route-words>: <name> exists, matches
-# <route-pattern> and has no placeholder.
+# check_file <name> <route-pattern> <route-words> [strip-program]: <name>
+# exists, matches <route-pattern> (after the strip program, if given) and has
+# no placeholder.
 check_file() {
   local file="$ROOT/$1"
   if [ ! -f "$file" ]; then
     finding "$1 is missing at the repository root"
     return
   fi
-  if ! grep -qE "$2" "$file"; then
+  local prose
+  if [ -n "${4-}" ]; then prose="$(awk -f "$4" "$file")"; else prose="$(cat "$file")"; fi
+  if ! printf '%s\n' "$prose" | grep -qE "$2"; then
     finding "$1 does not name the $3"
   fi
   while IFS= read -r line; do
@@ -86,7 +93,7 @@ check_readme_link() {
 }
 
 check_file CODE_OF_CONDUCT.md "$ADDRESS" "reporting address conduct@hanoulle.be"
-check_file SECURITY.md "$SECURITY_ROUTE" "private reporting route (Report a vulnerability, or the advisories URL)"
+check_file SECURITY.md "$SECURITY_ROUTE" "private reporting route (Report a vulnerability, or the advisories URL)" "$SECURITY_STRIP"
 
 if [ ! -f "$ROOT/README.md" ]; then
   finding "README.md is missing, so it cannot link to CODE_OF_CONDUCT.md or SECURITY.md"
