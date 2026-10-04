@@ -237,6 +237,25 @@ run_file "$NAMES_FILE"
 want_red "a path and its content both naming a name is red" "tracked path #"
 want_not_said "a path that names a name, with a content hit" "$NAME_A" "docs/acme"
 
+# A tracked symlink is stored as its target text. A target that names a name
+# is a hit, even when the link dangles; it is reported by number, never by
+# name or path.
+new_repo "symlink-target"
+ln -s acme-secret-repo "${REPO}/link"
+git -C "$REPO" add link
+run_file "$NAMES_FILE"
+want_red "a symlink whose target names a name is red" "tracked path #"
+want_said "a symlink target hit says so" "(link target)"
+want_not_said "a symlink target" "$NAME_A" "$NAME_B"
+
+# The gate turns tracing off for itself: under bash -x, a trace of the list
+# would print every name.
+new_repo "traced"
+capture env -u FORSGREN_PRIVATE_NAMES_FILE HOME="$EMPTY_HOME" \
+  FORSGREN_PRIVATE_NAMES="$NAMES_ENV" bash -x "$GATE" "$REPO"
+want_green_ok "a traced run on a clean tree is green"
+want_not_said "a bash -x run" "$NAME_A" "$NAME_B"
+
 # Mutation proof: the no-name assertion can fail. A gate that prints the
 # matched line (the mutation turns `file:line` into `file:line:content`) must
 # be caught by the very assertion the cases above use.
