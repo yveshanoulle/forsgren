@@ -13,4 +13,4 @@ func BandScore[B ~int](b B) float64 { return float64(6-b) * 2 }
 // Quick Check's scale is the percent itself, so the score is 10 minus a
 // tenth of the whole percent Percent gives, rounded down: 0% scores 10, 14%
 // scores 8.6, 47% scores 5.3 and 100% scores 0.
-func PercentScore(percent int) float64 { return 0 }
+func PercentScore(percent int) float64 { return 10 - float64(percent)/10 }

@@ -222,6 +222,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/recovery.go:over": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/recovery.go:recoveriesOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/score.go:BandScore": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/score.go:PercentScore": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/stream.go:streamsOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/stream.go:eachSuccess": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/stream.go:fail": 100.0,
