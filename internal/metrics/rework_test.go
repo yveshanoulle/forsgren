@@ -27,19 +27,22 @@ func reworkOf(r ReworkRate) reworkWant {
 	return reworkWant{r.Deployments, r.Rework, r.Percent(), r.Band, r.Cell()}
 }
 
-// wantRework fails the test unless Acme Shop's rework rate for records and
-// failures is want, and Acme Tools has none.
+// shopRework is Acme Shop's rework rate for records and failures; it fails
+// the test unless Acme Tools follows it with none.
+func shopRework(t *testing.T, records []history.Record, failures []history.Failure) ReworkRate {
+	t.Helper()
+	all := ReworkRates(projects, records, failures, now)
+	if len(all) != 2 || all[0].Project != "Acme Shop" || all[1] != (ReworkRate{Project: "Acme Tools"}) {
+		t.Fatalf("want Acme Shop's rate, then Acme Tools with nothing, got %+v", all)
+	}
+	return all[0]
+}
+
+// wantRework fails the test unless Acme Shop's rework rate is want.
 func wantRework(t *testing.T, want reworkWant, records []history.Record, failures ...history.Failure) {
 	t.Helper()
-	got := ReworkRates(projects, records, failures, now)
-	if len(got) != 2 {
-		t.Fatalf("want one ReworkRate per project, 2, got %d", len(got))
-	}
-	if r := reworkOf(got[0]); r != want {
-		t.Errorf("want %+v,\n got %+v", want, r)
-	}
-	if got[0].Project != "Acme Shop" || got[1] != (ReworkRate{Project: "Acme Tools"}) {
-		t.Errorf("want Acme Shop, then Acme Tools with nothing, got %+v", got)
+	if got := reworkOf(shopRework(t, records, failures)); got != want {
+		t.Errorf("want %+v,\n got %+v", want, got)
 	}
 }
 
