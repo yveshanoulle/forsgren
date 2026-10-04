@@ -1,5 +1,7 @@
 package metrics
 
+import "math"
+
 // BandScore is the DORA Quick Check score, 0 to 10, of a categorical band
 // (dora.dev/quickcheck): the Quick Check numbers a metric's six answers 1 to
 // 6 from the slowest up, so the answer is 7 minus the band, and the score
@@ -21,4 +23,13 @@ func PercentScore(percent int) float64 { return 10 - float64(percent)/10 }
 // without data has no score and is not passed in, so the mean is of the
 // scored metrics only. ok is false when there is no score at all: then
 // there is no Overall Performance.
-func OverallScore(scores []float64) (overall float64, ok bool) { return 0, true }
+func OverallScore(scores []float64) (overall float64, ok bool) {
+	if len(scores) == 0 {
+		return 0, false
+	}
+	var sum float64
+	for _, s := range scores {
+		sum += s
+	}
+	return math.Round(sum/float64(len(scores))*10) / 10, true
+}
