@@ -41,6 +41,12 @@ cd "$(dirname "$0")/.."
 #     inside itself is red and names that later page; and it leaves no stage
 #     directory behind, green or red, seen by sending its `mktemp -d` into a
 #     fresh directory that must be empty afterwards (forsgren#39, step 4).
+#   - Yves's rulings on forsgren#39, step 4: the wrapper measures every
+#     .html under the site, subfolders too, and names a red page by its path
+#     relative to the site ("sub/x.html"); an inner exit other than 0 or 1 is
+#     a tooling failure, exit 2 naming that exit, never "over the ceiling";
+#     and a failing `mktemp -d` is exit 2 saying so, before anything is
+#     staged.
 
 CHECK="./Scripts/check_html_dupl.sh"
 SITE_CHECK="./Scripts/check_html_dupl_site.sh"
@@ -131,6 +137,55 @@ check_left_nothing() {
     echo "  ❌ $1 — left behind in $2: $left"
     failures=$((failures + 1))
   fi
+}
+
+# check_not_says <name> <needle> — the last run's output does not carry
+# needle.
+check_not_says() {
+  if grep -Fq -- "$2" <<< "$OUT"; then
+    echo "  ❌ $1 — output carries '$2'"
+    echo "     got: $OUT"
+    failures=$((failures + 1))
+  else
+    echo "  ✅ $1"
+  fi
+}
+
+# run_site_inner_exit <code> <args...> — runs the real wrapper from Scripts/
+# of a throwaway root whose check_html_dupl.sh does nothing but exit code,
+# since the wrapper calls ./Scripts/check_html_dupl.sh from its own root.
+run_site_inner_exit() {
+  local code="$1" root
+  shift
+  root="${TMP}/root-inner-exit-${code}"
+  mkdir -p "${root}/Scripts"
+  cp "$SITE_CHECK" "${root}/Scripts/check_html_dupl_site.sh"
+  printf '#!/usr/bin/env bash\nexit %s\n' "$code" > "${root}/Scripts/check_html_dupl.sh"
+  chmod +x "${root}/Scripts/check_html_dupl_site.sh" "${root}/Scripts/check_html_dupl.sh"
+  set +e
+  OUT="$("${root}/Scripts/check_html_dupl_site.sh" "$@" 2>&1)"
+  RC=$?
+  set -e
+}
+
+# run_site_no_mktemp <args...> — run_site with a mktemp first on PATH whose
+# bare `mktemp -d` fails, silently, so any word about it is the wrapper's;
+# every other call goes to the real mktemp.
+run_site_no_mktemp() {
+  local shim="${TMP}/mktemp-fails"
+  mkdir -p "$shim"
+  cat > "${shim}/mktemp" <<'SHIM'
+#!/usr/bin/env bash
+if [[ "$#" -eq 1 && "$1" == "-d" ]]; then
+  exit 1
+fi
+exec "$REAL_MKTEMP" "$@"
+SHIM
+  chmod +x "${shim}/mktemp"
+  set +e
+  OUT="$(PATH="${shim}:${PATH}" REAL_MKTEMP="$REAL_MKTEMP" "$SITE_CHECK" "$@" 2>&1)"
+  RC=$?
+  set -e
 }
 
 # run_copy <gate-copy> <args...> — runs a copy of the gate from Scripts/ of a
@@ -240,6 +295,17 @@ make_later_duplicate_site() {
   rm -rf "${dir}/chrome" "${dir}/inside"
 }
 
+# make_nested_duplicate_site <dir> — a clean page at the top, and in sub/ a
+# page that duplicates inside itself.
+make_nested_duplicate_site() {
+  local dir="$1"
+  make_shared_chrome_site "${dir}/chrome"
+  make_inside_duplicate_fixture "${dir}/sub"
+  mv "${dir}/chrome/first.html" "${dir}/index.html"
+  mv "${dir}/sub/only.html" "${dir}/sub/x.html"
+  rm -rf "${dir}/chrome"
+}
+
 echo "test_check_html_dupl"
 
 # Tooling absence is exit 2 everywhere below; if jscpd cannot be reached at
@@ -329,6 +395,22 @@ check_left_nothing "the generated-page wrapper leaves no stage behind on a red r
 run_site_staged "${TMP}/stage-green" "$SHARED_DIR"
 check "the generated-page wrapper passes the shared-chrome site with its temp dirs moved" 0 "$RC"
 check_left_nothing "the generated-page wrapper leaves no stage behind on a green run" "${TMP}/stage-green"
+
+# Yves's rulings on forsgren#39, step 4.
+NESTED_DIR="${TMP}/nested-duplicate"
+make_nested_duplicate_site "$NESTED_DIR"
+run_site "$NESTED_DIR"
+check "the generated-page wrapper FAILS on a page in a subfolder duplicating inside itself" 1 "$RC"
+check_says "the subfolder red names the page by its path in the site" "html-dupl: sub/x.html in ${NESTED_DIR}"
+
+run_site_inner_exit 3 "$SHARED_DIR"
+check "the generated-page wrapper exits 2 when the gate under it exits 3" 2 "$RC"
+check_says "the exit-3 red names the exit" "exit 3"
+check_not_says "the exit-3 red is not called over the ceiling" "over the ceiling"
+
+run_site_no_mktemp "$SHARED_DIR"
+check "the generated-page wrapper exits 2 when mktemp -d fails" 2 "$RC"
+check_says "the mktemp red says mktemp failed" "mktemp"
 
 run_site "$EMPTY_DIR"
 check "the generated-page wrapper exits 2 on a site with no .html" 2 "$RC"
