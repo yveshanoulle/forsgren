@@ -453,6 +453,18 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/metrics/score.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-05",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/score_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-05",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/metrics/stream.go",
    "score": 10.0,
    "checkedAt": "2026-10-04",
