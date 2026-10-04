@@ -1158,9 +1158,15 @@ commit itself:
   public, so no tracked file and no tracked path may name a private
   repository. The list of names is kept outside the repository: in the file
   `~/.config/forsgren/private-names` (or the file `FORSGREN_PRIVATE_NAMES_FILE`
-  points to), one name per line, `#` for comments; in CI in the Actions
-  secret `FORSGREN_PRIVATE_NAMES`, the same names newline-separated, which
-  `quality.yml` passes to the PRE step through `env`. The gate searches
+  points to), one name per line, `#` for comments; that file is the source
+  of truth. In CI the Actions secret `FORSGREN_PRIVATE_NAMES`, the same names
+  newline-separated, which `quality.yml` passes to the PRE step through
+  `env`, and the Dependabot secret of the same name are synchronized copies,
+  never edited on their own: after changing the file, run
+  `./Scripts/sync_private_names_secrets.sh` by hand (it needs the
+  maintainer's `gh` login) and it sets both. An external fork pull request
+  receives neither secret, so the gate fails closed there (exit 2, no list);
+  that is intended. The gate searches
   `git ls-files`, case-insensitively, for a whole name (not directly
   preceded or followed by a letter, digit, `_` or `-`). Its failure line
   names `file:line`, or `tracked path #N in git ls-files`, and never the
