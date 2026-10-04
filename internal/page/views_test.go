@@ -50,8 +50,8 @@ func TestNumbersPageShowsOnlyNumbers(t *testing.T) {
 			t.Errorf("want the row of %s to read %v, got:\n%s", heading, cells, got)
 		}
 	}
-	// The switch above the table has its own " · "; the table has none.
-	table := got[strings.Index(got, "<table"):strings.Index(got, "</table>")]
+	// The switch in the caption has its own " · "; the table's body has none.
+	table := got[strings.Index(got, "<tbody"):strings.Index(got, "</tbody>")]
 	wantNone(t, "numbers/index.html", table, "Between once", "Less than", "No lead time yet", "not completed yet", " · ")
 }
 
@@ -114,6 +114,32 @@ func TestViewSwitchMarksTheCurrentView(t *testing.T) {
 			t.Errorf("%s: want one current view, got %d", name, n)
 		}
 		wantNone(t, name, got, "scoring")
+	}
+}
+
+// captionWithSwitch is the caption of a table with the view switch
+// (forsgren#51): "DORA metrics View: standard · numbers" on one line, the
+// title in its own element, which names the table and its region, the
+// switch beside it, so the table's name is never the switch's text.
+const captionWithSwitch = `<table aria-labelledby="metrics-caption">
+        <caption><span id="metrics-caption">DORA metrics</span> <span class="views">View: `
+
+// TestViewSwitchSitsInTheCaption (forsgren#51): on each view's page and on
+// the root with a view, the switch follows the caption's title on its line,
+// never a paragraph above the table; the region and the table are both
+// named by the title alone, and the current view is still marked.
+func TestViewSwitchSitsInTheCaption(t *testing.T) {
+	data := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
+	pages := map[string]string{"standard/index.html": "page", "numbers/index.html": "page", "index.html": "true"}
+	for name, current := range pages {
+		data.View = "numbers"
+		got := rendered(t, name, data)
+		wantAll(t, name, got, captionWithSwitch, `role="region" aria-labelledby="metrics-caption"`,
+			`<span aria-current="`+current+`">`)
+		wantNone(t, name, got, `<p class="views">`, `<caption id=`)
+		if n := strings.Count(got, `id="metrics-caption"`); n != 1 {
+			t.Errorf("%s: want one element with the id metrics-caption, got %d", name, n)
+		}
 	}
 }
 
