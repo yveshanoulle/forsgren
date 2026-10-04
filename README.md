@@ -1918,8 +1918,8 @@ broken runner cannot report green:
 - **sfl drives from the order file**
   (`Scripts/test_sfl_drives_from_order_file.sh`): sfl names no gate label
   itself, every row names an executable script, every `Scripts/test_*.sh`
-  is declared by a row, and the secret scan and the data guard carry
-  `secret-class`. The private-names gate carries it too.
+  is declared by a row, and the secret scan, the data guard and the
+  private-names gate each carry `secret-class`.
 - **FullBuildAndPush commit-message block** and **FullBuildAndPush
   build-site page count** (`Scripts/test_fbp_commit_message.sh`,
   `Scripts/test_fbp_build_pagecount.sh`): the real `FBP.sh`, run in a

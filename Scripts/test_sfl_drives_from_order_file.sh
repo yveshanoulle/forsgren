@@ -6,7 +6,8 @@
 # Pin 5 (the secret-class tier on the secret scan row) came back with the
 # secret scan, ladder step 3. Pin 6 (the same tier on the data guard row) is
 # forsgren's own: Yves's ruling of 2026-10-02 (forsgren#1, step 12.2) that the
-# data guard works like the secret scan.
+# data guard works like the secret scan. Pin 7 (the same tier on the private
+# names row) is #52's: the gate guards what must never reach a public history.
 
 set -euo pipefail
 
@@ -176,6 +177,34 @@ if [ "$ORDER" = "Scripts/gate_report_order.txt" ]; then
     fail "an order file with the data guard's secret-class tier REMOVED was accepted — pin 6 does not actually guard it"
   else
     echo "  ok: stripping the data guard's secret-class tier is rejected"
+  fi
+
+  rm -rf "$_tmp"
+fi
+
+# Pin 7: the PRIVATE NAMES gate carries the same tier (forsgren#52). What it
+# guards, a private repository name in a public file, is what must never reach
+# a public history, so a finding has to block the COMMIT, not only the push.
+# Losing the tier would be as silent as losing pin 5's: the gate would still
+# run and still be red, and the finding would be committed.
+if ! grep -qE '^private names\|[^|]+\|pre\|secret-class$' "$ORDER"; then
+  fail "the private names row does not carry the PRE secret-class tier — the gate would still run, but a finding would be committed locally and only block the push"
+fi
+
+# Non-vacuity for pin 7, as for pins 5 and 6: the same file with the private
+# names row's tier stripped must be rejected.
+if [ "$ORDER" = "Scripts/gate_report_order.txt" ]; then
+  _tmp="$(mktemp -d)"
+  sed \
+    's/^private names|\(.*\)|pre|secret-class$/private names|\1|pre|/' \
+    "$ORDER" > "${_tmp}/order.txt"
+
+  if cmp -s "$ORDER" "${_tmp}/order.txt"; then
+    fail "the private-names tier-stripping mutation changed nothing — pin 7 is matching something other than the row it claims to"
+  elif "$0" "${_tmp}/order.txt" >/dev/null 2>&1; then
+    fail "an order file with the private names row's secret-class tier REMOVED was accepted — pin 7 does not actually guard it"
+  else
+    echo "  ok: stripping the private names row's secret-class tier is rejected"
   fi
 
   rm -rf "$_tmp"
