@@ -27,6 +27,12 @@
    "minScore": 9.28
   },
   {
+   "path": "internal/metrics/rework_test.go",
+   "score": 9.38,
+   "checkedAt": "2026-10-04",
+   "minScore": 9.28
+  },
+  {
    "path": "cmd/forsgren/collect_test.go",
    "score": 9.68,
    "checkedAt": "2026-10-03",
@@ -412,6 +418,12 @@
   },
   {
    "path": "internal/metrics/rows_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-04",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/rework.go",
    "score": 10.0,
    "checkedAt": "2026-10-04",
    "minScore": 10.0
