@@ -1393,6 +1393,11 @@ The POST gates, on the generated site:
   the same path as plain text or in a `url()` stay red. The failure line names the file and line, never
   the path it matched, so a private repository's name cannot reach a commit
   message.
+- **code of conduct** (`Scripts/check_code_of_conduct.sh`, forsgren's own):
+  `CODE_OF_CONDUCT.md` exists at the repository root, names the reporting
+  address `conduct@hanoulle.be`, has no Contributor Covenant placeholder
+  left (any bracket that is not a Markdown link), and this README links to
+  it. Every finding is reported in one run.
 
 forsgren has no privacy-pages gate: that one is konenki-website's, pinning
 the content of a privacy policy forsgren does not serve. The order file
@@ -1892,3 +1897,5 @@ commit and no CLA: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Report a vulnerability privately, never in a public issue: see
 [SECURITY.md](SECURITY.md).
+
+This project follows the [Code of Conduct](CODE_OF_CONDUCT.md).
