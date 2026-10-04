@@ -117,10 +117,11 @@ print_log_errors() {
 }
 
 # secret_class_hints <pre-log> — prints what to do about each secret-class
-# row that failed in PRE (forsgren#1 step 12.2d). Two rows are secret-class,
-# the secret scan and the data guard (Yves's ruling, 2026-10-02), and the fix
-# differs: one is a gitleaks finding whose value may need rotating, the other
-# a file or a private name that belongs outside this repository. The failed
+# row that failed in PRE (forsgren#1 step 12.2d). The secret-class rows are
+# the secret scan, the data guard and the private names gate (Yves's ruling,
+# 2026-10-02), and the fix differs: a gitleaks finding whose value may need
+# rotating, a file that belongs outside this repository, or a private name
+# to replace with a made-up one. The failed
 # rows come from sfl's own Errors: block in <pre-log> (`  <label> ❌`), so
 # this names what sfl reported rather than guessing. A failed row with no
 # hint of its own (an ordinary one, or a future secret-class row) prints
@@ -139,6 +140,12 @@ secret_class_hints() {
         echo "   data guard: its FAIL line above names the file. Move installation config"
         echo "   or data to the installation's private data repository (or under testdata/"
         echo "   if it is a made-up fixture)."
+        hinted=true
+        ;;
+      "private names")
+        echo "   private names: the FAIL line above names the file and line (or tracked path #N)."
+        echo "   Replace the name with a made-up one such as acme (see Scripts/check_private_names.sh)."
+        echo "   If the private-names list itself changed, run Scripts/sync_private_names_secrets.sh."
         hinted=true
         ;;
     esac
