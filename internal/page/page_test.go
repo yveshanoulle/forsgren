@@ -335,3 +335,32 @@ func TestLabelDashIsDecorative(t *testing.T) {
 		t.Errorf("want styles.css to hold\n%s\ngot:\n%s", want, css)
 	}
 }
+
+// TestEveryPageEndsWithTheFooter (forsgren#41, step 1): both pages end with
+// the same two footer paragraphs: Forsgren linked to its repository, its
+// version, what it is and, when numbers were calculated, when (UTC); then
+// the Install link to the README section. Without a calculation time the
+// "Calculated at" sentence is left out.
+func TestEveryPageEndsWithTheFooter(t *testing.T) {
+	const head = `<p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> 0.0.8 ` +
+		`The five DORA metrics, from data GitHub already has.`
+	const install = `<p><a href="https://github.com/yveshanoulle/forsgren#installing-and-updating">Install</a></p>`
+	withData := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
+	cases := map[string]struct {
+		data Data
+		want string
+	}{
+		"with data":    {withData, head + " Calculated at 2026-10-03 12:00 UTC</p>"},
+		"without data": {Placeholder("0.0.8"), head + "</p>"},
+	}
+	for name, c := range cases {
+		for _, page := range PageNames() {
+			t.Run(name+" "+page, func(t *testing.T) {
+				got := rendered(t, page, c.data)
+				if !strings.Contains(got, c.want+"\n    "+install) {
+					t.Errorf("want the footer %q then %q, got:\n%s", c.want, install, got)
+				}
+			})
+		}
+	}
+}
