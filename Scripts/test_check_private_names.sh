@@ -70,6 +70,10 @@
 #  14. a tracked file that cannot be read          -> red (exit 2), `tracked path
 #                                                     #N could not be read`, never
 #                                                     the path nor grep's message
+#  15. a tracked link or file whose WORKING TREE
+#      state is a link naming a name (FBP stages
+#      with git add -A, not the index)            -> exit 1, `tracked path #N
+#                                                     (link target)`, no name
 # Mutation proof: a copy of the gate that prints the matched line must reveal
 # the name, so the no-name assertion can fail.
 
@@ -330,6 +334,28 @@ run_file "$NAMES_FILE"
 want_red "a symlink whose target names a name is red" "tracked path #"
 want_said "a symlink target hit says so" "(link target)"
 want_not_said "a symlink target" "$NAME_A" "$NAME_B"
+
+# FBP stages with `git add -A`, the WORKING TREE, so a link is judged by what
+# the working tree holds, not by its index entry. (a) A tracked link retargeted
+# in the working tree only; (b) a tracked regular file replaced by a dangling
+# link in the working tree only. Neither change is staged here.
+new_repo "symlink-worktree"
+ln -s plain-target "${REPO}/lnk"
+git -C "$REPO" add lnk
+rm "${REPO}/lnk"
+ln -s acme-secret-repo-target "${REPO}/lnk"
+run_file "$NAMES_FILE"
+want_red "a tracked link retargeted in the working tree to a name is red" "tracked path #"
+want_said "a retargeted working tree link says so" "(link target)"
+want_not_said "a retargeted working tree link" "$NAME_A" "$NAME_B"
+new_repo "symlink-worktree-replaces-file"
+write_file "a.txt" $'harmless\n' track
+rm "${REPO}/a.txt"
+ln -s ACME-SECRET-REPO "${REPO}/a.txt"
+run_file "$NAMES_FILE"
+want_red "a tracked file replaced by a link naming a name is red" "tracked path #"
+want_said "a link replacing a tracked file says so" "(link target)"
+want_not_said "a link replacing a tracked file" "$NAME_A" "$NAME_B"
 
 # The gate turns tracing off for itself: under bash -x, a trace of the list
 # would print every name.
