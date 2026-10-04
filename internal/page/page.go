@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 
 	"github.com/yveshanoulle/forsgren/internal/metrics"
 )
@@ -98,39 +99,80 @@ func Placeholder(version string) Data {
 // renders. parsePages and PageNames read the same set through it.
 const pagesGlob = "templates/pages/*.html"
 
-// pages maps a page's file name (index.html) to its parsed template set.
+// views are the views of the table page (forsgren#46), each rendered from
+// index.html at its own address, /standard/ and /numbers/, one folder below
+// the root.
+var views = []string{"standard", "numbers"}
+
+// viewBase is the way back from a view's folder to the root.
+const viewBase = "../"
+
+// pageData is what a template sees: the page's Data, the prefix of its
+// links to the root's files, and its view, empty on the root pages.
+type pageData struct {
+	Data
+	// Base prefixes the links to styles.css and legend.html: empty at the
+	// root, viewBase in a view's folder.
+	Base string
+	// View is "standard" or "numbers" on a view's page, and shows the view
+	// switch; empty on the root pages.
+	View string
+}
+
+// Numbers says whether the page is the numbers view, its cells the numbers
+// only.
+func (p pageData) Numbers() bool { return p.View == "numbers" }
+
+// page is a page's parsed template set, the template it executes, and the
+// view it shows.
+type page struct {
+	set  *template.Template
+	file string
+	view string
+}
+
+// pages maps a page's name (index.html, standard/index.html) to its parsed
+// template set.
 var pages = parsePages()
 
 // parsePages parses the layout once and clones it per page. A malformed
 // template fails at start-up through template.Must, never at render time.
-func parsePages() map[string]*template.Template {
+func parsePages() map[string]page {
 	layout := template.Must(template.ParseFS(files, "templates/layout/*.html"))
-	out := map[string]*template.Template{}
+	out := map[string]page{}
 	// fs.Glob only errors on a malformed pattern; this one is constant.
 	names, _ := fs.Glob(files, pagesGlob)
 	for _, name := range names {
 		set := template.Must(template.Must(layout.Clone()).ParseFS(files, name))
-		out[path.Base(name)] = set
+		out[path.Base(name)] = page{set: set, file: path.Base(name)}
+	}
+	for _, view := range views {
+		out[view+"/index.html"] = page{set: out["index.html"].set, file: "index.html", view: view}
 	}
 	return out
 }
 
 // PageNames returns the pages WriteSite writes, in a fixed (sorted) order.
 func PageNames() []string {
-	names, _ := fs.Glob(files, pagesGlob)
-	for i, name := range names {
-		names[i] = path.Base(name)
+	names := make([]string, 0, len(pages))
+	for name := range pages {
+		names = append(names, name)
 	}
+	slices.Sort(names)
 	return names
 }
 
 // Render writes the named page, filled with data, to w.
 func Render(w io.Writer, name string, data Data) error {
-	set, ok := pages[name]
+	p, ok := pages[name]
 	if !ok {
 		return fmt.Errorf("page %q not found", name)
 	}
-	return set.ExecuteTemplate(w, name, data)
+	shown := pageData{Data: data, View: p.view}
+	if p.view != "" {
+		shown.Base = viewBase
+	}
+	return p.set.ExecuteTemplate(w, p.file, shown)
 }
 
 // WriteSite renders every page and copies styles.css into dir, creating
@@ -160,7 +202,11 @@ func writePage(dir, name string, data Data) error {
 	if err := Render(&buf, name, data); err != nil {
 		return fmt.Errorf("render %s: %w", name, err)
 	}
-	return os.WriteFile(filepath.Join(dir, name), buf.Bytes(), 0o600)
+	file := filepath.Join(dir, name)
+	if err := os.MkdirAll(filepath.Dir(file), 0o750); err != nil {
+		return err
+	}
+	return os.WriteFile(file, buf.Bytes(), 0o600)
 }
 
 func copyStyles(dir string) error {

@@ -1,33 +1,6 @@
 {{template "header" .}}  <main>
     <h1 class="visually-hidden">Forsgren {{.Version}}: the five DORA metrics</h1>
-{{if .Rows}}    <div class="table-scroll" role="region" aria-labelledby="metrics-caption" tabindex="0">
-      <table>
-        <caption id="metrics-caption">DORA metrics</caption>
-        <thead>
-          <tr>
-            <th scope="col">Project</th>
-            <th scope="col">Deployment frequency</th>
-            <th scope="col">Lead time for changes</th>
-            <th scope="col">Failed deployment recovery time</th>
-            <th scope="col">Change fail rate</th>
-            <th scope="col">Deployment rework rate</th>
-          </tr>
-        </thead>
-        <tbody>
-{{range .Rows}}          <tr{{if .IsLabel}} class="label"{{end}}>
-            <th scope="row">{{if .IsLabel}}<span class="visually-hidden">{{.Project}}: </span>{{end}}{{.Heading}}</th>
-{{if .HasDeployments}}            <td>{{.Frequency.Cell}}</td>
-            <td>{{.LeadTime.Cell}}</td>
-            <td>{{.Recovery.Cell}}</td>
-            <td>{{.ChangeFail.Cell}}</td>
-            <td>{{.Rework.Cell}}</td>
-{{else}}            <td colspan="5">No deployments recorded yet</td>
-{{end}}          </tr>
-{{end}}        </tbody>
-      </table>
-    </div>
-    <p><a href="legend.html">What the bands mean</a></p>
-{{else}}    <p>{{.Message}}</p>
+{{if .Rows}}{{if .View}}{{template "switch" .}}{{end}}{{template "table" .}}{{else}}    <p>{{.Message}}</p>
 {{end}}{{if .NoProjects}}    <p>No projects are listed yet: forsgren.config.yml lists the projects, for example:</p>
     <pre><code>version: 1
 projects:

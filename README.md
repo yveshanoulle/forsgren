@@ -504,7 +504,24 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
 - **Each cell is short**: the DORA band, then the number that decided it
   and the count it is over, "Less than one day · 2 h 7 min (48)". Durations
   are in min, h and d, each part cut down, never rounded up.
-- **Two pages:** `index.html` holds the table and a link, "What the bands mean", to `legend.html`, which has a link back.
+- **Pages:** `index.html` holds the table and a link, "What the bands mean", to `legend.html`, which has a link back.
+- **Views** (forsgren#46): the table is built in more than one view, each its
+  own page: `/standard/` (`standard/index.html`) is the table above, band,
+  number and count, and `/numbers/` (`numbers/index.html`) shows only
+  numbers, no band text: the successful deployments of the last 30 days
+  (0 where there are none), the median lead time and the median recovery time
+  as durations ("2 h 7 min", the same text the standard cell shows after its
+  band), and the change fail rate and the rework rate in whole percent
+  ("14%"); a `-` where there is no number (no commits, no completed
+  recovery, no deployments or successful deployments). A row with no
+  deployments recorded is five cells there, `0` and four `-`, never a
+  sentence. Each view's page has a switch above its table, "View: standard
+  · numbers": the current view is plain text marked `aria-current="page"`,
+  the other a link (`../numbers/`, `../standard/`); a page one folder down
+  reaches `styles.css` and the legend through `../`. The legend page serves
+  all views. The root `index.html` is still the standard page, with no
+  switch yet; which view it follows comes with the `view:` config key
+  (0.1.1, later steps), and a scoring view with forsgren#47.
 - **The legend** (`legend.html`) gives each metric's bands in one compact
   list (recovery time's are lead time's, and rework rate's are change fail
   rate's, so it refers to them), with what each cell counts and its window.
@@ -842,7 +859,8 @@ private repositories (no scope for public ones).
 forsgren renders a static page whose footer says "Forsgren 0.1.0", the version of
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
-rate. That version has one source,
+rate (and the deployment rework rate); every run writes the page in each view too, at
+`/standard/` and `/numbers/` (see The page). That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
 it with `-ldflags "-X main.version=<version>"`. `forsgren collect` reads
 GitHub into the history file (see Collecting deployments); the daily run
@@ -1363,10 +1381,11 @@ The POST gates, on the generated site:
 - **required pages** (`Scripts/validate_required_pages.sh` and
   `Scripts/test_required_pages_covers_site.sh`): the pages the site must
   ship are listed, hand-authored, in `internal/page/required-pages.json`
-  (today only `/`). The first checks that list's shape: valid JSON, a
+  (today `/`, `/legend.html`, `/standard/` and `/numbers/`). The first checks that list's shape: valid JSON, a
   non-empty `requiredPages` array of root-relative paths, no scheme or host,
   no `..`, no duplicates. The second checks it against `.build/site`: every
-  `.html` file there is listed, and every listed page was generated. Both
+  `.html` file there, in subfolders too, is listed (`standard/index.html` as
+  `/standard/`), and every listed page was generated. Both
   are red on a missing file or an empty list, and the second on a site with
   no `.html` page at all. A new page means a new line in the list, in the
   same commit as its template.

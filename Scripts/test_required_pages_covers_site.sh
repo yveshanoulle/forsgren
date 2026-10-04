@@ -44,7 +44,7 @@ cd "$(dirname "$0")/.."
 # arguments, this script preserves its original repository check.
 #
 # forsgren (ported 2026-10-01, forsgren#1 ladder step 9). Two changes, both
-# forsgren's own:
+# forsgren's own (a third was added by forsgren#46, below):
 #   1. The defaults: the site is .build/site, where Scripts/build_site.sh
 #      renders it (forsgren commits no generated site), and the manifest is
 #      the hand-authored internal/page/required-pages.json beside the
@@ -56,6 +56,9 @@ cd "$(dirname "$0")/.."
 #      manifest it reds through a declared page it no longer finds, which
 #      names a page, not the cause. Nothing covered is not covered, and the
 #      red names that.
+#   3. (forsgren#46) PAGES IN SUBFOLDERS COUNT. A view's page is served at
+#      its folder, so standard/index.html is /standard/, and a page there
+#      that the manifest does not declare is as red as one at the root.
 # Self-test: Scripts/test_required_pages_covers_site_selftest.sh.
 
 SITE_DIR="${1:-.build/site}"
@@ -104,7 +107,7 @@ PY
 
 # forsgren change 2: zero pages is red, with its reason, before either
 # direction runs.
-html_count="$(find "$SITE_DIR" -maxdepth 1 -type f -name '*.html' | wc -l | tr -d '[:space:]')"
+html_count="$(find "$SITE_DIR" -type f -name '*.html' | wc -l | tr -d '[:space:]')"
 if [[ "$html_count" -eq 0 ]]; then
   COMPLETED=1
   echo "FAIL: no .html page in ${SITE_DIR} — a site with nothing in it covers nothing" >&2
@@ -112,26 +115,28 @@ if [[ "$html_count" -eq 0 ]]; then
 fi
 
 # --- Direction 1: every servable page is declared.
-for f in "$SITE_DIR"/*.html; do
+while IFS= read -r f; do
   [ -f "$f" ] || continue
-  base="$(basename "$f")"
-  if grep -qx "$base" <<< "$EXCLUDED"; then
-    echo "  skip: ${base} (declared exclusion)"
+  rel="${f#"${SITE_DIR}"/}"
+  if grep -qx "$rel" <<< "$EXCLUDED"; then
+    echo "  skip: ${rel} (declared exclusion)"
     continue
   fi
 
-  path="/${base}"
-  [[ "$base" == "index.html" ]] && path="/"
+  # A folder's index.html is served at the folder (forsgren#46):
+  # standard/index.html is /standard/, index.html is /.
+  path="/${rel}"
+  [[ "$rel" == "index.html" || "$rel" == */index.html ]] && path="/${rel%index.html}"
   if ! grep -qx -- "$path" <<< "$listed"; then
     fail "${f} is served but not declared in ${MANIFEST} — promote will not verify it, and will still report success"
   fi
-done
+done < <(find "$SITE_DIR" -type f -name '*.html' | LC_ALL=C sort)
 
 # --- Direction 2: every declared page exists.
 while IFS= read -r path; do
   [[ -n "$path" ]] || continue
-  if [[ "$path" == "/" ]]; then
-    f="${SITE_DIR}/index.html"
+  if [[ "$path" == */ ]]; then
+    f="${SITE_DIR}${path}index.html"
   else
     f="${SITE_DIR}${path}"
   fi

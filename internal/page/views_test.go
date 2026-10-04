@@ -1,10 +1,13 @@
 package page
 
 import (
+	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/metrics"
 )
@@ -47,7 +50,9 @@ func TestNumbersPageShowsOnlyNumbers(t *testing.T) {
 			t.Errorf("want the row of %s to read %v, got:\n%s", heading, cells, got)
 		}
 	}
-	wantNone(t, "numbers/index.html", got, "Between once", "Less than", "No lead time yet", "not completed yet", " · ")
+	// The switch above the table has its own " · "; the table has none.
+	table := got[strings.Index(got, "<table"):strings.Index(got, "</table>")]
+	wantNone(t, "numbers/index.html", table, "Between once", "Less than", "No lead time yet", "not completed yet", " · ")
 }
 
 // TestStandardPageShowsTheStandardCells (forsgren#46): the standard view is
@@ -126,4 +131,51 @@ func TestViewsShowARowWithoutDeploymentsAsTheirOwnCells(t *testing.T) {
 	wantNone(t, "numbers/index.html", numbers, "No deployments recorded yet", "colspan")
 	wantAll(t, "standard/index.html", rendered(t, "standard/index.html", data),
 		`<td colspan="5">No deployments recorded yet</td>`)
+}
+
+// viewData is the page data of the views' golden pages: Acme Shop with all
+// five numbers, Acme Tools with one failed deployment (forsgren#46).
+func viewData() Data {
+	recovery := metrics.Recovery{Recoveries: 2, Median: 3 * time.Hour, Band: metrics.LessThanOneDay, Unrecovered: 1}
+	shop := metrics.LeadTime{Commits: 48, Median: 2*time.Hour + 7*time.Minute, Band: metrics.LessThanOneDay}
+	threeFailed := metrics.ChangeFailRate{Deployments: 15, FailedDeployments: 3, Failed: 3, Band: metrics.TwentyPercent}
+	return acmeProjects(shop, recovery, threeFailed,
+		metrics.ReworkRate{Deployments: 12, Rework: 2, Band: metrics.TwentyPercent})
+}
+
+// TestViewPagesMatchGolden (forsgren#46): each view's page, in its own
+// folder, pinned byte for byte.
+func TestViewPagesMatchGolden(t *testing.T) {
+	checkPageGolden(t, "standard/index.html", "testdata/standard.golden.html", viewData())
+	checkPageGolden(t, "numbers/index.html", "testdata/numbers.golden.html", viewData())
+}
+
+// TestViewPagesWithoutDataMatchGolden (forsgren#46): the views of the
+// placeholder build, which has no rows and so no switch.
+func TestViewPagesWithoutDataMatchGolden(t *testing.T) {
+	data := Placeholder("0.1.0")
+	data.AsOf = "2026-10-03 12:00"
+	checkPageGolden(t, "standard/index.html", "testdata/standard.placeholder.golden.html", data)
+	checkPageGolden(t, "numbers/index.html", "testdata/numbers.placeholder.golden.html", data)
+}
+
+// TestNumbersPageWithoutDeploymentsMatchesGolden (forsgren#46): a project
+// with no deployment recorded yet is five cells on the numbers page.
+func TestNumbersPageWithoutDeploymentsMatchesGolden(t *testing.T) {
+	data := Placeholder("0.1.0")
+	data.AsOf = "2026-10-03 12:00"
+	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Empty"}})
+	checkPageGolden(t, "numbers/index.html", "testdata/numbers.no-data.golden.html", data)
+}
+
+// TestWriteSiteFailsWhenAViewFolderIsAFile (forsgren#46): a view's folder
+// that cannot be created is an error, never a page lost without a word.
+func TestWriteSiteFailsWhenAViewFolderIsAFile(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "numbers"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := WriteSite(dir, Placeholder("0.1.0")); err == nil {
+		t.Errorf("want an error when a view's folder is a regular file, got %d pages", n)
+	}
 }

@@ -81,6 +81,12 @@
    "minScore": 9.58
   },
   {
+   "path": "internal/page/views_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-04",
+   "minScore": 9.58
+  },
+  {
    "path": "internal/config/init_test.go",
    "score": 9.92,
    "checkedAt": "2026-10-04",

@@ -1,6 +1,8 @@
 {
   "requiredPages": [
     "/",
-    "/legend.html"
+    "/legend.html",
+    "/standard/",
+    "/numbers/"
   ]
 }

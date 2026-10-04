@@ -22,6 +22,9 @@
 #   6. a page not named *.golden.html             -> not scanned, green
 #   7. a directory with no golden page            -> red: nothing scanned
 #   8. a directory that does not exist            -> exit 2
+#   9. a view's golden page, linking ../styles.css -> green (forsgren#46):
+#      and ../legend.html, staged alone           none of the page gates
+#                                                    follows a relative link
 #
 # Usage: Scripts/test_check_golden_pages.sh
 
@@ -129,6 +132,14 @@ D="${TMP}/empty"
 mkdir -p "$D"
 capture "$GATE" "$D"
 want_red "a directory with no golden page is red" "no *.golden.html"
+
+D="${TMP}/view"
+page "${D}/standard.golden.html" '    <h1>Forsgren 0.1.1</h1>
+    <p class="views">View: <span aria-current="page">standard</span> · <a href="../numbers/">numbers</a></p>
+    <p><a href="../legend.html">What the bands mean</a></p>'
+sed -i.bak 's|href="styles.css"|href="../styles.css"|' "${D}/standard.golden.html" && rm "${D}/standard.golden.html.bak"
+capture "$GATE" "$D"
+want_green "a view's golden page, linking ../styles.css and ../legend.html" "OK: 1 golden page(s)"
 
 capture "$GATE" "${TMP}/missing"
 want_rc "a directory that does not exist exits 2" 2

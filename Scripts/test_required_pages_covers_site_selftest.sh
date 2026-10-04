@@ -20,6 +20,9 @@
 #   4. a site directory that does not exist         -> red, "not found"
 #   5. a site directory with no .html in it         -> red, "no .html page"
 #   6. a manifest that does not exist               -> red, "not found"
+#   7. pages in subfolders, declared as /dir/       -> green (forsgren#46)
+#   8. a subfolder page that is not declared        -> red, naming the page
+#   9. a subfolder page declared but not generated  -> red, naming the path
 # Mutation proofs:
 #   A. case 5 against a copy of the gate without its zero-pages check must
 #      lose the "no .html page" reason, so that reason comes from that check
@@ -44,6 +47,7 @@ new_site() {
   shift
   local page
   for page in "$@"; do
+    mkdir -p "$(dirname "${SITE}/${page}")"
     printf '<!doctype html>\n<title>acme</title>\n' > "${SITE}/${page}"
   done
 }
@@ -111,6 +115,27 @@ run_gate "$GATE" "$SITE" "${TMP}/does-not-exist.json"
 want_exit "6. a manifest that does not exist" 1 \
   "FAIL: ${TMP}/does-not-exist.json not found"
 
+# --- 7. pages in subfolders -> green ----------------------------------------
+new_site folders index.html standard/index.html numbers/index.html
+new_manifest folders '{"requiredPages":["/","/standard/","/numbers/"]}'
+run_gate "$GATE" "$SITE" "$MANIFEST"
+want_exit "7. pages in subfolders, declared as /dir/" 0 \
+  "OK: manifest matches the site (3 pages declared, all present, none unlisted)"
+
+# --- 8. a subfolder page that is not declared -> red -------------------------
+new_site folder-unlisted index.html numbers/index.html
+new_manifest folder-unlisted '{"requiredPages":["/"]}'
+run_gate "$GATE" "$SITE" "$MANIFEST"
+want_exit "8. a subfolder page that is not declared" 1 \
+  "${SITE}/numbers/index.html is served but not declared"
+
+# --- 9. a subfolder page declared but not generated -> red -------------------
+new_site folder-absent index.html
+new_manifest folder-absent '{"requiredPages":["/","/numbers/"]}'
+run_gate "$GATE" "$SITE" "$MANIFEST"
+want_exit "9. a subfolder page declared but not generated" 1 \
+  "declares /numbers/ but ${SITE}/numbers/index.html does not exist"
+
 # --- Mutation proof A: the zero-pages check names case 5's reason ----------
 if mutant no-zero-check 's/if \[\[ "[$]html_count" -eq 0 \]\]; then/if false; then/'; then
   run_gate "$MUTANT" "$EMPTY_SITE" "$EMPTY_MANIFEST"
@@ -133,4 +158,4 @@ if mutant no-site-check 's/if \[\[ ! -d "[$]SITE_DIR" \]\]; then/if false; then/
 fi
 
 selftest_end "manifest-covers-site self-test" \
-  "manifest-covers-site gate passes a matching site, and is red on an unlisted page, a missing page, a missing site, a site with no pages and a missing manifest"
+  "manifest-covers-site gate passes a matching site, and is red on an unlisted page, a missing page, a subfolder page unlisted or missing, a missing site, a site with no pages and a missing manifest"

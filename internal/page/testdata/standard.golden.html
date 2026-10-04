@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>forsgren</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <main>
+    <h1 class="visually-hidden">Forsgren 0.1.0: the five DORA metrics</h1>
+    <p class="views">View: <span aria-current="page">standard</span> · <a href="../numbers/">numbers</a></p>
+    <div class="table-scroll" role="region" aria-labelledby="metrics-caption" tabindex="0">
+      <table>
+        <caption id="metrics-caption">DORA metrics</caption>
+        <thead>
+          <tr>
+            <th scope="col">Project</th>
+            <th scope="col">Deployment frequency</th>
+            <th scope="col">Lead time for changes</th>
+            <th scope="col">Failed deployment recovery time</th>
+            <th scope="col">Change fail rate</th>
+            <th scope="col">Deployment rework rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Acme Shop</th>
+            <td>Between once per day and once per week · 12</td>
+            <td>Less than one day · 2 h 7 min (48)</td>
+            <td>Less than one day · 3 h (2) · 1 recovery not completed yet</td>
+            <td>20% · 20% (3 of 15)</td>
+            <td>20% · 16% (2 of 12)</td>
+          </tr>
+          <tr>
+            <th scope="row">Acme Tools</th>
+            <td>Less than once per six months · 0</td>
+            <td>No lead time yet</td>
+            <td>— · 1 recovery not completed yet</td>
+            <td>100% · 100% (1 of 1)</td>
+            <td>No successful deployments</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p><a href="../legend.html">What the bands mean</a></p>
+  </main>
+  <footer>
+    <p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> 0.1.0 The five DORA metrics, from GitHub data. Calculated at 2026-10-03 12:00 UTC</p>
+  </footer>
+</body>
+</html>
