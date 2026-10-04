@@ -474,7 +474,7 @@ forsgren-template repository. The numbers are compared as numbers, so 0.0.10
 is newer than 0.0.9.
 
 `render` writes one table (forsgren#38) first on the table page, with no text
-above it but a visually hidden heading for screen readers, "Forsgren 0.0.8:
+above it but a visually hidden heading for screen readers, "Forsgren 0.0.9:
 the five DORA metrics"; where each metric comes from is explained on the
 legend page, counting back from the time in the footer. A config that lists
 no projects has no table: the page shows, in its place, a short how-to, that
@@ -840,7 +840,7 @@ private repositories (no scope for public ones).
 
 ## Running forsgren
 
-forsgren renders a static page whose footer says "Forsgren 0.0.8", the version of
+forsgren renders a static page whose footer says "Forsgren 0.0.9", the version of
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate. That version has one source,
@@ -893,7 +893,7 @@ pull-request check failed"); the link is fine there, because a run page is
 private to the repository, unlike the public page. A flag it cannot use is a
 usage error that prints nothing. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides
-"Forsgren 0.0.8" in its footer, a how-to for filling `forsgren.config.yml`;
+"Forsgren 0.0.9" in its footer, a how-to for filling `forsgren.config.yml`;
 without `--config` (the build above has no installation config) or with
 projects, the page is the placeholder. With `--data` as well (it needs `--config`), the
 page shows each project's deployment frequency from that history, counted
