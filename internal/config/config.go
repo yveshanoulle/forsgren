@@ -92,7 +92,10 @@ type Project struct {
 
 // Config is a validated forsgren.config.yml.
 type Config struct {
-	Version  int
+	Version int
+	// View is the view the site's root page shows, as written: "standard" or
+	// "numbers", empty when the file has no view key (forsgren#46).
+	View     string
 	Projects []Project
 }
 
@@ -113,6 +116,7 @@ var (
 	ErrDuplicateRepository = errors.New("listed twice")
 	ErrDeployment          = errors.New("invalid deployment")
 	ErrLabel               = errors.New("invalid label")
+	ErrView                = errors.New("invalid view")
 )
 
 // Load reads and validates the config file at path. Every error names the

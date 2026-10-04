@@ -179,3 +179,26 @@ func TestWriteSiteFailsWhenAViewFolderIsAFile(t *testing.T) {
 		t.Errorf("want an error when a view's folder is a regular file, got %d pages", n)
 	}
 }
+
+// TestRootPageFollowsItsDataView (forsgren#46): the root page shows the view
+// of its data with the switch, the links relative to the root; with no view
+// it is the plain root page, and with no rows it has no switch.
+func TestRootPageFollowsItsDataView(t *testing.T) {
+	data := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
+	for view, want := range map[string]string{
+		"standard": `View: <span aria-current="page">standard</span> · <a href="numbers/">numbers</a>`,
+		"numbers":  `View: <a href="standard/">standard</a> · <span aria-current="page">numbers</span>`,
+	} {
+		data.View = view
+		got := rendered(t, "index.html", data)
+		wantAll(t, "index.html", got, want, `href="styles.css"`, `<a href="legend.html">What the bands mean</a>`)
+		wantNone(t, "index.html", got, "../")
+	}
+	data.View = "numbers"
+	wantAll(t, "index.html", rendered(t, "index.html", data), "<td>12</td>")
+	data.View = ""
+	wantNone(t, "index.html", rendered(t, "index.html", data), "View:", "aria-current")
+	placeholder := Placeholder("0.1.0")
+	placeholder.View = "numbers"
+	wantNone(t, "index.html", rendered(t, "index.html", placeholder), "View:")
+}

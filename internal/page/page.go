@@ -55,6 +55,10 @@ type Data struct {
 	// the installation's forsgren pin to Latest, 0 when there is none; the
 	// footer names it instead of "is available" (forsgren#40, option 1).
 	WaitingPR int
+	// View is the view the root page shows, "standard" or "numbers", with
+	// the view switch above its table; empty for the plain root page, with
+	// no switch (forsgren#46).
+	View string
 }
 
 // Row is one row of the table: its numbers, the heading the page gives it,
