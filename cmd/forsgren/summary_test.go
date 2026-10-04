@@ -27,16 +27,16 @@ func TestRunSummaryTellsWhereTheUpdateStands(t *testing.T) {
 	}{
 		{"up to date", []string{"--latest", version, "--pr-check", "ok"}, summaryOf(version, "up to date")},
 		{"ahead of the latest", []string{"--latest", "0.0.1", "--pr-check", "ok"}, summaryOf("0.0.1", "up to date")},
-		{"available", []string{"--latest", "0.1.1", "--pr-check", "ok"},
-			summaryOf("0.1.1", "0.1.1 is available; no Dependabot pull request yet")},
-		{"waiting", []string{"--latest", "0.1.1", "--waiting-pr", "7", "--pr-check", "ok", "--repository", "acme/data"},
-			summaryOf("0.1.1", "0.1.1 is waiting in pull request [#7](https://github.com/acme/data/pull/7)")},
-		{"no access", []string{"--latest", "0.1.1", "--pr-check", "no-access"},
-			summaryOf("0.1.1", "0.1.1 is available; "+skipped)},
-		{"check failed", []string{"--latest", "0.1.1", "--pr-check", "failed"},
-			summaryOf("0.1.1", "0.1.1 is available; the pull-request check failed")},
-		{"rate limited", []string{"--latest", "0.1.1", "--pr-check", "rate-limited"},
-			summaryOf("0.1.1", "0.1.1 is available; "+rateLimited)},
+		{"available", []string{"--latest", "0.1.2", "--pr-check", "ok"},
+			summaryOf("0.1.2", "0.1.2 is available; no Dependabot pull request yet")},
+		{"waiting", []string{"--latest", "0.1.2", "--waiting-pr", "7", "--pr-check", "ok", "--repository", "acme/data"},
+			summaryOf("0.1.2", "0.1.2 is waiting in pull request [#7](https://github.com/acme/data/pull/7)")},
+		{"no access", []string{"--latest", "0.1.2", "--pr-check", "no-access"},
+			summaryOf("0.1.2", "0.1.2 is available; "+skipped)},
+		{"check failed", []string{"--latest", "0.1.2", "--pr-check", "failed"},
+			summaryOf("0.1.2", "0.1.2 is available; the pull-request check failed")},
+		{"rate limited", []string{"--latest", "0.1.2", "--pr-check", "rate-limited"},
+			summaryOf("0.1.2", "0.1.2 is available; "+rateLimited)},
 		{"no access, up to date", []string{"--latest", version, "--pr-check", "no-access"},
 			summaryOf(version, "up to date")},
 		{"latest unknown", []string{"--latest", "", "--pr-check", "skipped"},
@@ -60,8 +60,8 @@ func TestRunSummaryTellsWhereTheUpdateStands(t *testing.T) {
 // nothing (the workflow never lets that fail the run).
 func TestRunSummaryRefusesWhatItCannotTell(t *testing.T) {
 	cases := map[string][]string{
-		"--pr-check":   {"run-summary", "--latest", "0.1.1", "--pr-check", "banana"},
-		"--repository": {"run-summary", "--latest", "0.1.1", "--waiting-pr", "7", "--pr-check", "ok"},
+		"--pr-check":   {"run-summary", "--latest", "0.1.2", "--pr-check", "banana"},
+		"--repository": {"run-summary", "--latest", "0.1.2", "--waiting-pr", "7", "--pr-check", "ok"},
 	}
 	for flag, args := range cases {
 		wantExit(t, exit{2, "", flag}, args...)
