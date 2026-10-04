@@ -23,6 +23,11 @@
 #  12. the own repository as plain text, or in a stylesheet url(): the
 #      exception is for an href only (chosen: a link is what the page
 #      shows; a bare name or a url() has no reason to be there) -> red
+#  13. forsgren-template, now public: an href to exactly
+#      https://github.com/yveshanoulle/forsgren-template (no anchor; Yves's
+#      second ruling on forsgren#41)                          -> green
+#  14. forsgren-template/issues, forsgren-template#x and forsgren-templates,
+#      each next to an allowed link                           -> red
 # Mutation proof: case 2 against a copy of the gate whose REPO_PATH pattern
 # never matches must turn green, so case 2 is red BECAUSE of that pattern,
 # not because of something else in its site.
@@ -117,6 +122,24 @@ for i in "${!others[@]}"; do
   grep -q "index.html:5" <<<"$OUT" || fail "11.$i. the finding does not name index.html:5 (the allowed line 4 must not be named). Output: $OUT"
 done
 
+new_site template
+printf '<p><a href="https://github.com/yveshanoulle/forsgren-template">Install</a></p>\n' >> "$SITE/index.html"
+capture "$GATE" "$SITE"
+want_rc "13. forsgren-template's own repository root is not a finding" 0
+
+template_others=(
+  "https://github.com/yveshanoulle/forsgren-template/issues"
+  "https://github.com/yveshanoulle/forsgren-template#x"
+  "https://github.com/yveshanoulle/forsgren-templates"
+)
+for i in "${!template_others[@]}"; do
+  new_site "tother$i"
+  printf '<p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a></p>\n<a href="%s">x</a>\n' "${template_others[$i]}" >> "$SITE"/index.html
+  capture "$GATE" "$SITE"
+  want_rc "14.$i. still rejects ${template_others[$i]##*github.com/} next to an allowed link" 1
+  grep -q "index.html:5" <<<"$OUT" || fail "14.$i. the finding does not name index.html:5. Output: $OUT"
+done
+
 new_site owntext
 printf '<p>source: github.com/yveshanoulle/forsgren</p>\n' >> "$SITE/index.html"
 capture "$GATE" "$SITE"
@@ -154,6 +177,23 @@ if selftest_mutant "$GATE" "$MUTANT2" "s/^OWN_LINK=.*/OWN_LINK='s#NEVER-MATCHES-
     [[ "$RC" -eq 1 ]] || fail "mutation proof: without the exception case 11.$i is not red (exit $RC)"
   done
   echo "  ok: mutation proof: the 11 cases are red with and without the exception"
+fi
+
+# Mutation proof for the template exception: without it case 13 is red, and
+# the 14 cases stay red with and without it.
+MUTANT3="$TMP/mutant3/Scripts/check_repo_links.sh"
+if selftest_mutant "$GATE" "$MUTANT3" "s/^TEMPLATE_LINK=.*/TEMPLATE_LINK='s#NEVER-MATCHES-ANY-LINK##g'/"; then
+  capture "$MUTANT3" "$TMP/template"
+  if [[ "$RC" -eq 1 ]]; then
+    echo "  ok: mutation proof: without the template exception case 13 is red, so it is green because of it"
+  else
+    fail "mutation proof: a gate without the template exception is not red on case 13 (exit $RC). Output: $OUT"
+  fi
+  for i in "${!template_others[@]}"; do
+    capture "$MUTANT3" "$TMP/tother$i"
+    [[ "$RC" -eq 1 ]] || fail "mutation proof: without the template exception case 14.$i is not red (exit $RC)"
+  done
+  echo "  ok: mutation proof: the 14 cases are red with and without the template exception"
 fi
 
 selftest_end "the repository-links gate does not keep repository paths off the page" \

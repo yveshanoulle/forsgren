@@ -339,12 +339,12 @@ func TestLabelDashIsDecorative(t *testing.T) {
 // TestEveryPageEndsWithTheFooter (forsgren#41, step 1): both pages end with
 // the same two footer paragraphs: Forsgren linked to its repository, its
 // version, what it is and, when numbers were calculated, when (UTC); then
-// the Install link to the README section. Without a calculation time the
+// the Install link to the public forsgren-template repository (forsgren#41). Without a calculation time the
 // "Calculated at" sentence is left out.
 func TestEveryPageEndsWithTheFooter(t *testing.T) {
 	const head = `<p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> 0.0.8 ` +
 		`The five DORA metrics, from data GitHub already has.`
-	const install = `<p><a href="https://github.com/yveshanoulle/forsgren#installing-and-updating">Install</a></p>`
+	const install = `<p><a href="https://github.com/yveshanoulle/forsgren-template">Install</a></p>`
 	withData := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
 	cases := map[string]struct {
 		data Data
