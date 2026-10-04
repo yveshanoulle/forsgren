@@ -23,6 +23,8 @@
 #   7. pages in subfolders, declared as /dir/       -> green (forsgren#46)
 #   8. a subfolder page that is not declared        -> red, naming the page
 #   9. a subfolder page declared but not generated  -> red, naming the path
+#  10. the site directory given with a trailing /  -> green (forsgren#46),
+#      as green as without it, as in Scripts/check_html_dupl_site.sh
 # Mutation proofs:
 #   A. case 5 against a copy of the gate without its zero-pages check must
 #      lose the "no .html page" reason, so that reason comes from that check
@@ -135,6 +137,13 @@ new_manifest folder-absent '{"requiredPages":["/","/numbers/"]}'
 run_gate "$GATE" "$SITE" "$MANIFEST"
 want_exit "9. a subfolder page declared but not generated" 1 \
   "declares /numbers/ but ${SITE}/numbers/index.html does not exist"
+
+# --- 10. the site directory given with a trailing / -> green ----------------
+new_site trailing-slash index.html standard/index.html
+new_manifest trailing-slash '{"requiredPages":["/","/standard/"]}'
+run_gate "$GATE" "${SITE}/" "$MANIFEST"
+want_exit "10. the site directory given with a trailing /" 0 \
+  "OK: manifest matches the site (2 pages declared, all present, none unlisted)"
 
 # --- Mutation proof A: the zero-pages check names case 5's reason ----------
 if mutant no-zero-check 's/if \[\[ "[$]html_count" -eq 0 \]\]; then/if false; then/'; then
