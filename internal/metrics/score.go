@@ -6,4 +6,4 @@ package metrics
 // is (answer - 1) x 2, which is 10, 8, 6, 4, 2 and 0 from the fastest band
 // to the slowest. It serves both band types of the three categorical
 // metrics (Band, LeadTimeBand).
-func BandScore[B ~int](b B) float64 { return 0 }
+func BandScore[B ~int](b B) float64 { return float64(6-b) * 2 }
