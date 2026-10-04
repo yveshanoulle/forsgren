@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # Pins for Scripts/render_quality_report.sh — unit 406, ported from
-# coachretreat-website (its unit 401), where web-infra's gate-parity axis has
+# coachretreat-website (its unit 401), where another estate repository's gate-parity axis has
 # been reporting this gate MISSING here since unit 403 put it in the canon.
 #
 # THE ONE THAT MATTERS IS THE EXIT STATUS. The renderer runs with
@@ -30,7 +30,7 @@ cd "$(dirname "$0")/.."
 # no report: it trains you to ignore the one step whose job is to tell you when
 # something is wrong.
 #
-# Ported from konenki-website 2026-10-01 (forsgren#1, ladder step 14); "this
+# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 14); "this
 # repo" above means konenki. forsgren's change: case 6 at the end, for the
 # renderer's forsgren change (n/a rows are not counted as unreported gates,
 # and show as n/a in the table), seen red against konenki's renderer first.
@@ -130,7 +130,7 @@ want "a short run is called unmeasured" "they are unmeasured" "$out5"
 
 # Case 6 (forsgren#1, ladder step 14): an `n/a` row declares a gate this
 # repo does not have, with the reason. It can never report, so it must not be
-# counted as a gate that should have: konenki-website's renderer counts every
+# counted as a gate that should have: another estate repository's renderer counts every
 # declared row, so coachretreat-website, with two n/a rows, reads "N of N+2
 # gates reported" and "unmeasured" on a run where every gate ran. Nor may it
 # vanish from the table: the reader sees the n/a the order file declares.

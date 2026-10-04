@@ -1,7 +1,7 @@
 // Package page renders forsgren's static status page.
 //
 // The templates are html/template files embedded into the binary, laid out
-// as in MenoPower's admin: shared chrome in templates/layout/*.html (each
+// as in another estate repository's admin: shared chrome in templates/layout/*.html (each
 // file one {{define}}), one file per page in templates/pages/*.html. Every
 // page is parsed onto its own clone of the layout set, so two pages can
 // never see each other's definitions.

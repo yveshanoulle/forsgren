@@ -3,11 +3,11 @@
 #
 # The Go lint gate: golangci-lint over a Go module, under .golangci.yml.
 #
-# PORTED (forsgren#1, ladder step 20) from MenoPower, where sfl runs
+# PORTED (forsgren#1, ladder step 20) from another estate repository, where sfl runs
 # `golangci-lint run ./...` in each module (ios-app/sfl.sh,
 # run_go_static_check) and CI does the same. Adapted:
 #   - golangci-lint is the one pinned by go.mod's `tool` line plus go.sum
-#     (Yves's ruling on forsgren#1, decision 2), never Homebrew's: MenoPower
+#     (Yves's ruling on forsgren#1, decision 2), never Homebrew's: another estate repository
 #     `brew install`s it, so its version is whatever the formula published
 #     that day. `go tool -n golangci-lint`, run in this repository, builds the
 #     pinned version once (Go caches it) and prints its path, and the gate
@@ -18,7 +18,7 @@
 #     configs.
 #   - red on a module with no Go package (a lint over nothing is no pass),
 #     and on a golangci-lint that did not run (exit other than 0 or 1, as
-#     MenoPower/Scripts/common/check_test_dupl.sh guards it): a linter that
+#     source-repo/Scripts/common/check_test_dupl.sh guards it): a linter that
 #     never ran is never mistaken for a clean result.
 #
 # Usage: Scripts/check_go_lint.sh [module-dir] [config]

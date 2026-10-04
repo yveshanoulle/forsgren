@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 # Self-test for validate_required_pages.sh.
 #
 # The paragraph below, and the release and promotion wording in the cases, are
-# konenki-website's, where this self-test comes from; forsgren has no release
+# another estate repository's, where this self-test comes from; forsgren has no release
 # or promotion yet, and its manifest is what the manifest-covers-site gate
 # holds the generated site to (forsgren's cases are at the end).
 #
@@ -138,7 +138,7 @@ fi
 
 # --- forsgren: the zero and missing reds carry their reason --------------
 # Added in forsgren (ported 2026-10-01, forsgren#1 ladder step 9); everything
-# above is konenki-website's, with the manifest path and the note at the top
+# above is another estate repository's, with the manifest path and the note at the top
 # as the only changes. The
 # cases above pin the EXIT CODE of a missing manifest and of an empty list,
 # not why: a validator that crashed on the missing file, or redded an empty

@@ -19,7 +19,7 @@ func pullItem(number int, login, branch string) string {
 }
 
 // dependabotBranch is the head branch Dependabot gives forsgren's pin bump
-// to version (seen on forsgren-data's pull requests #1 to #3).
+// to version (seen on a downstream repository's pull requests #1 to #3).
 func dependabotBranch(version string) string {
 	return "dependabot/github_actions/yveshanoulle/forsgren/dot-github/workflows/metrics.yml-" + version
 }

@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.."
 # surviving unexpanded. Here it is just argv, and the estate's own rule already
 # says a command body belongs in a tested script.
 #
-# Ported from konenki-website 2026-10-01 (forsgren#1, ladder step 8). Two
+# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 8). Two
 # changes, both forsgren's own:
 #   1. The default site directory is .build/site, where Scripts/build_site.sh
 #      renders the site; forsgren commits no generated output. The argument

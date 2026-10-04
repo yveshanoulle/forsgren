@@ -24,7 +24,7 @@
 # public repository. An href to exactly https://github.com/yveshanoulle/forsgren,
 # with an optional #anchor, is not a finding: the page footer links the tool
 # that made it. Nothing else is
-# exempt: forsgren-data, forsgren-template (its footer link left in
+# exempt: acme-data, forsgren-template (its footer link left in
 # forsgren#45), forsgren/issues, forsgren/blob/..., another owner, and
 # the same path as plain text or in a url() all stay findings.
 #
@@ -48,7 +48,7 @@ REPO_PATH='github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+'
 # The exception: a sed expression that removes an allowed href before the scan.
 # The row starts at column 0 with OWN_LINK=: Scripts/test_check_repo_links.sh's
 # mutation proof replaces it by that anchor. The closing quote right after the
-# optional anchor is what keeps forsgren-data and forsgren/issues findings.
+# optional anchor is what keeps acme-data and forsgren/issues findings.
 OWN_LINK='s#href="https://github\.com/yveshanoulle/forsgren(\#[A-Za-z0-9_.-]*)?"##g'
 
 if [ ! -d "$SITE" ]; then

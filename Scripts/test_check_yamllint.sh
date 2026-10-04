@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fixture test for Scripts/check_yamllint.sh — forsgren's own (no repo of the
-# estate has one), in the shape of web-infra's Scripts/test_check_shellcheck.sh.
+# estate has one), in the shape of another estate repository's Scripts/test_check_shellcheck.sh.
 #
 # Drives the checker against synthetic git trees (via YAMLLINT_ROOT), with
 # this repository's real .yamllint.yml as the config, so the pins never

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Scripts/test_fbp_commit_message.sh
 #
-# Issue konenki-website#6: FullBuildAndPush's summary must show the commit message it was
-# given — ported from web-infra's guarded `Commit:` block (its
+# Issue source-repo#6: FullBuildAndPush's summary must show the commit message it was
+# given — ported from another estate repository's guarded `Commit:` block (its
 # FBP.sh ~136-142, unit 428): a summary scrolled back to later
 # must say which commit it belongs to, and on a TDD ladder every run prints
 # an identical-looking block of statuses without it.
@@ -13,19 +13,19 @@
 #
 # Drives the REAL FBP.sh inside a throwaway git sandbox with
 # stub sfl.sh / Scripts/build_site.sh / bin/say, the same technique
-# web-infra's test_fullbuildandpush_sfl_counts.sh uses for its own unit 428
+# another estate repository's test_fullbuildandpush_sfl_counts.sh uses for its own unit 428
 # cases, so this pins the CONTRACT rather than the source text. The sandbox
-# is Scripts/lib_fbp_sandbox.sh (issue konenki-website#14), shared with
+# is Scripts/lib_fbp_sandbox.sh (issue source-repo#14), shared with
 # Scripts/test_fbp_build_pagecount.sh.
 #
-# Issue konenki-website#20 (item 1): case 3 tests that sandbox itself. When mktemp -d
+# Issue source-repo#20 (item 1): case 3 tests that sandbox itself. When mktemp -d
 # cannot create the sandbox, fbp_sandbox_run must fail with a named reason
 # and touch nothing in the directory it was called from. Under sfl that
 # directory is the repo root, so a lib that carried on would overwrite the
 # real sfl.sh and Scripts/build_site.sh with its stubs. Case 3 therefore
 # calls it from a disposable fake repo, never from this one.
 #
-# Issue konenki-website#20 (items 1 to 3, step 3): the self-proofs at the end check this
+# Issue source-repo#20 (items 1 to 3, step 3): the self-proofs at the end check this
 # fixture and the lib from the outside — (a) run_fbp fails with the
 # sandbox's own reason when there is no sandbox, (b) the fixture fails when
 # it dies part-way, (c) a fixture whose own EXIT trap replaces the lib's
@@ -54,7 +54,7 @@ source "${ROOT}/Scripts/lib_fbp_sandbox.sh"
 failed=0
 fail() { echo "❌ FAIL: $*"; failed=1; }
 
-# Issue konenki-website#20 (item 3): the completion guard every guarded fixture here
+# Issue source-repo#20 (item 3): the completion guard every guarded fixture here
 # carries. A fixture that dies part-way must fail, never report green: on
 # macOS bash 3.2 a set -u abort inside a function can exit 0. COMPLETED is
 # set only after the last case. finish replaces the lib's EXIT trap, so it
@@ -72,10 +72,10 @@ trap finish EXIT
 # run_fbp <extra args...> — runs the real FBP.sh with <extra
 # args...> in a fresh sandbox (Scripts/lib_fbp_sandbox.sh) and leaves the
 # captured stdout+stderr in $OUT. The stub build_site.sh writes a valid
-# page-count sink (3): since issue konenki-website#8, FullBuildAndPush fails the build step
+# page-count sink (3): since issue source-repo#8, FullBuildAndPush fails the build step
 # when Scripts/build_site.sh leaves no count, and this file checks the
 # summary of an otherwise green run, not a red one.
-# Issue konenki-website#20 (item 1): when there is no sandbox it fails this fixture once,
+# Issue source-repo#20 (item 1): when there is no sandbox it fails this fixture once,
 # with the sandbox's own reason, and returns 1, so the case skips its
 # assertions: case 2's absence check would otherwise pass on empty output.
 run_fbp() {
@@ -202,7 +202,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Case 3: issue konenki-website#20 — a sandbox that cannot be created must stop the run.
+# Case 3: issue source-repo#20 — a sandbox that cannot be created must stop the run.
 # fbp_sandbox_run is called with a mktemp that fails, from inside a fake
 # repo that stands in for the repo root sfl runs fixtures from. The wanted
 # state: the call exits non-zero, names the reason ("could not create the
@@ -220,7 +220,7 @@ fi
 # fake repo, so the stub PATH and any lib state the call changes stay inside
 # it. If the cd fails nothing is called, so a broken setup can never make
 # the lib run in this repo; the missing exit status then fails the case.
-# With the lib as it was before issue konenki-website#20, the subshell does run
+# With the lib as it was before issue source-repo#20, the subshell does run
 # FullBuildAndPush --no-commit, inside the fake repo.
 # ---------------------------------------------------------------------------
 if ! fbp_sandbox_new_dir; then
@@ -436,7 +436,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Self-proofs, issue konenki-website#20 step 3 (items 1 to 3 of the #14 review). Each one
+# Self-proofs, issue source-repo#20 step 3 (items 1 to 3 of the #14 review). Each one
 # runs this fixture, a copy of it, or a small driver, from inside ONE
 # directory made here with the real mktemp and registered with the lib, so
 # nothing they start runs in this repo.
@@ -462,7 +462,7 @@ else
   #
   # Drives THIS file (not a copy) with the failing mktemp of case 3 first on
   # PATH, from an empty directory under proof_dir. The lib then stops
-  # before its subshell (issue konenki-website#20 step 2), and even a lib that did not would
+  # before its subshell (issue source-repo#20 step 2), and even a lib that did not would
   # write its stubs into that empty directory, never into this repo.
   #
   # Wanted: the run fails; exactly 6 FAIL lines carry the reason, one for
@@ -541,7 +541,7 @@ else
   # sandbox behind, and its own trap must still run. Nothing is chained,
   # whatever the fail lines below call it: the fixture's trap replaces the
   # lib's EXIT trap, and what removes the sandbox is fbp_sandbox_run itself
-  # (issue konenki-website#20 step 4). A driver sources the lib, sets
+  # (issue source-repo#20 step 4). A driver sources the lib, sets
   # trap 'echo own-trap-ran' EXIT, runs one sandbox, prints where it is and
   # exits without removing it. Not covered here: a directory the fixture
   # itself registered, which such a trap does lose (see the lib's header).
@@ -568,7 +568,7 @@ STEERED
 
   cat > "${chain_dir}/driver.sh" <<'DRIVER'
 #!/usr/bin/env bash
-# Issue konenki-website#20 proof (c): a fixture that sets its own EXIT trap after sourcing
+# Issue source-repo#20 proof (c): a fixture that sets its own EXIT trap after sourcing
 # the lib, runs one sandbox and exits without removing it.
 set -uo pipefail
 source "$1"

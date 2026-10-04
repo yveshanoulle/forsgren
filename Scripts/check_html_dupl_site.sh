@@ -15,7 +15,7 @@ cd "$(dirname "$0")/.." || exit 1
 # Why the generated page too (Yves's ruling on forsgren#1): the template scan
 # sees each template once, so a page template that pastes the header markup
 # instead of calling {{template "header"}} is a clone only the rendered pages
-# show. konenki-website scans its authored source only, because there the
+# show. Another estate repository scans its authored source only, because there the
 # generated pages repeat the composed chrome by design.
 #
 # EACH PAGE ALONE (forsgren#39, step 1). Pages rendered from one layout repeat

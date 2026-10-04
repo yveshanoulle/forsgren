@@ -5,7 +5,7 @@
 # runs `forsgren render` into the output directory (default .build/site).
 # FBP.sh's BUILD phase, between the pre and post gates.
 #
-# The page-count contract is konenki-website's (its issues #8 and #11): the
+# The page-count contract is another estate repository's (its issues #8 and #11): the
 # count of generated pages goes to SITE_PAGE_COUNT_FILE (default
 # .build/site-page-count.log), written ONLY once everything succeeded, so a
 # failed build leaves no count and FBP.sh fails the build step by name.

@@ -3,11 +3,11 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# Ported unchanged from konenki-website 2026-10-01 (forsgren#1); "here" in
-# the history below means konenki-website.
+# Ported unchanged from another estate repository 2026-10-01 (forsgren#1); "here" in
+# the history below means another estate repository.
 #
 # Pins for Scripts/summarize_gate_failure.sh — unit 404, ported from
-# coachretreat-website (its unit 402), where web-infra's gate-parity axis now
+# coachretreat-website (its unit 402), where another estate repository's gate-parity axis now
 # reports this gate MISSING here until it lands.
 #
 # sfl's end-of-run block prints "Errors:" and then the NAMES of the gates that

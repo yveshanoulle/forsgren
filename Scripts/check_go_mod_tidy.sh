@@ -5,11 +5,11 @@
 # would write: a require missing or unneeded, a go.sum line missing or
 # stale. CHECK-ONLY: it never rewrites either file.
 #
-# PORTED (forsgren#1, ladder step 23) from MenoPower, where CI and the
+# PORTED (forsgren#1, ladder step 23) from another estate repository, where CI and the
 # Makefiles run `go mod tidy` and then fail on
 # `git status --porcelain go.mod go.sum`. Adapted:
 #   - `go mod tidy -diff` (Go 1.23+) instead: it prints the change tidy would
-#     make as a unified diff and exits non-zero, writing nothing. MenoPower's
+#     make as a unified diff and exits non-zero, writing nothing. Another estate repository's
 #     form rewrites the files first, so in a local run the fix would ride
 #     into the commit unseen, and it reads git, so it cannot judge a fixture
 #     module outside a repository.

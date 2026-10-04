@@ -3,16 +3,16 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-# gitleaks — secret scanning. Ported from konenki-website 2026-10-01
+# gitleaks — secret scanning. Ported from another estate repository 2026-10-01
 # (forsgren#1, ladder step 3); unit numbers are the estate's.
 #
 # WHY. Every repo in the estate gates on gitleaks in BOTH runners. It came
-# to the site repos last (konenki-website, where this copy is from, had it in
+# to the site repos last (another estate repository, where this copy is from, had it in
 # neither runner until then), and forsgren has had it from its ladder step 3.
 #
 # The realistic exposure is not the HTML. It is someone pasting a token
 # inline into a workflow or a script while debugging — which is exactly what
-# happened with the fastlane-certs PAT (MenoPower, 2026-07-08). forsgren will
+# happened with the fastlane-certs PAT (another estate repository, 2026-07-08). forsgren will
 # read GitHub with a token, so it has the shape.
 #
 # SECRET-CLASS: its row in Scripts/gate_report_order.txt carries the class
@@ -25,7 +25,7 @@ cd "$(dirname "$0")/.." || exit 1
 # puts the secret into git history where removing it is a rewrite rather than
 # an edit. The distinction is the whole point of the tier.
 #
-# Config is .gitleaks.toml, copied from web-infra: default ruleset plus an
+# Config is .gitleaks.toml, copied from another estate repository: default ruleset plus an
 # allowlist for `${{ secrets.NAME }}` references, which are names not values.
 #
 # Exit: 0 clean, 2 secret found or tooling missing.

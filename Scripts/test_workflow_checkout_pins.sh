@@ -6,10 +6,10 @@ cd "$(dirname "$0")/.."
 # Action pins (forsgren#1, ladder step 17), the canon row `checkout pins`.
 # PORTED from coachretreat-website, the estate's best-shape copy, adapted
 # only in these header comments: the code is coachretreat's, byte for byte.
-# The lineage: web-infra's test_persist_credentials.sh, then konenki-website
+# The lineage: another estate repository's test_persist_credentials.sh, then another estate repository
 # (the sha pin and the step-scoped scan), coachretreat-website (its unit
 # 368), and agilelean-website's every-action pin (its unit 399, coachretreat's
-# unit 400). konenki-website's own copy still checks actions/checkout only.
+# unit 400). Another estate repository's own copy still checks actions/checkout only.
 #
 # SECURITY, not tidiness. A tag or a branch is resolved when the runner
 # fetches it, so whoever controls the action's repository decides what runs

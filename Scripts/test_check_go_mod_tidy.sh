@@ -4,7 +4,7 @@
 # Self-test for Scripts/check_go_mod_tidy.sh, run before the gate it
 # validates.
 #
-# NEW (forsgren#1, ladder step 23). MenoPower checks tidiness in CI and in
+# NEW (forsgren#1, ladder step 23). Another estate repository checks tidiness in CI and in
 # its Makefiles (`go mod tidy`, then `git status --porcelain go.mod go.sum`)
 # with no fixture. forsgren's gate is check-only (`go mod tidy -diff`): it
 # must never rewrite go.mod, so a red here is a red, not a silent fix that

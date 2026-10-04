@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # sfl.sh
-# Ported from konenki-website's sfl.sh 2026-10-01 (forsgren#1, ladder step 1):
+# Ported from another estate repository's sfl.sh 2026-10-01 (forsgren#1, ladder step 1):
 # a pure dispatcher over Scripts/gate_report_order.txt, run in two phases
 # around the Go site build. Unit numbers below are the estate's history
-# (web-infra, konenki-website), kept so the why can be found.
+# (another estate repository, another estate repository), kept so the why can be found.
 #
 # Anchor to the repo regardless of where the script is invoked from — Yves runs
-# ./forsgren/sfl.sh from ~/Sources, same as MenoPower's and web-infra's
+# ./forsgren/sfl.sh from ~/Sources, same as another estate repository's and another estate repository's
 # scripts, which all do this on their first line.
 cd "$(dirname "$0")" || exit 1
 
@@ -14,7 +14,7 @@ cd "$(dirname "$0")" || exit 1
 # check, a changed invocation). The banner below is how you confirm which sfl
 # you actually ran - a stale number hides changed behavior. Editing a
 # Scripts/*.sh that sfl merely calls does not require a bump.
-# Form ported from web-infra 2026-08-31: it names the file, so a pasted log
+# Form ported from another estate repository 2026-08-31: it names the file, so a pasted log
 # says which script produced it, not just "the script".
 VERSION=4
 
@@ -59,7 +59,7 @@ export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
 # only the list differs. Fixture: Scripts/test_install_tools.sh.
 ./Scripts/install_tools.sh
 
-# Tooling mirrors konenki-website (forsgren#1, ladder step 7): the linters are
+# Tooling mirrors another estate repository (forsgren#1, ladder step 7): the linters are
 # pinned devDependencies in package.json + package-lock.json, installed into
 # node_modules and invoked by path — NOT global installs and NOT `npx --yes`,
 # which silently tracks whatever the registry publishes. One pinned version for
@@ -100,7 +100,7 @@ FAILED_GATES=""
 
 # Runs one gate and remembers its name on failure, so the end of the run
 # names WHAT failed — a bare "❌ sfl failed" forces reading the scroll-back
-# (web-infra's FBP prints the same Errors: list).
+# (another estate repository's FBP prints the same Errors: list).
 # Unit 399. A secret-class failure is not an ordinary red. An ordinary red
 # still commits locally, deliberately, so work in progress is not lost — but
 # committing a SECRET puts it into git history, where removing it is a
@@ -155,7 +155,7 @@ STEP_ROWS="${GATE_LOG_DIR}/steps.tsv"
 # Unit 407. Counts sink for FBP.sh's one-line summary, which read
 # `sfl ✅ (11s)` — a glyph and a duration. Written by render_step_table.sh from
 # its own rows, never recounted here: two places counting the same gates is how
-# they start disagreeing. Same path web-infra uses.
+# they start disagreeing. Same path another estate repository uses.
 mkdir -p .build
 SFL_COUNTS_FILE=".build/sfl-counts.log"
 : > "$SFL_COUNTS_FILE"

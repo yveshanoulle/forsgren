@@ -4,7 +4,7 @@
 # Self-test for Scripts/check_govulncheck.sh, run before the gate it
 # validates.
 #
-# NEW (forsgren#1, ladder step 23). MenoPower runs govulncheck in sfl
+# NEW (forsgren#1, ladder step 23). Another estate repository runs govulncheck in sfl
 # (run_go_vuln_check) and in CI with no fixture, behind a reachability probe
 # of vuln.go.dev that turns "offline" into a skip. Nothing there shows the
 # check red on a vulnerable call, nor the offline path a skip rather than a

@@ -1,6 +1,6 @@
 # .golangci.yml — forsgren's Go lint config, read by Scripts/check_go_lint.sh.
 #
-# PORTED (forsgren#1, ladder step 20) from MenoPower's shared/.golangci.yml,
+# PORTED (forsgren#1, ladder step 20) from another estate repository's shared/.golangci.yml,
 # its strictest module: the same linters at the same thresholds, test code
 # gated by all of them. Config version "2", for the golangci-lint pinned by
 # the `tool` line in go.mod (v2.14.0 when ported). Run it as the gate does:
@@ -18,7 +18,7 @@
 #     hardcoded credential gets through, and proves by mutation that appending
 #     shared/'s exclusion would let it.
 #   - NOT the gosec G104 + G124 test-file exclusion. shared/ carries it, with
-#     zero findings of its own, only to stay in lockstep with MenoPower's api/
+#     zero findings of its own, only to stay in lockstep with another estate repository's api/
 #     and admin/, which forsgren does not have. No exclusion enters here
 #     without Yves's approved issue.
 #
@@ -33,7 +33,7 @@ run:
 issues:
   # golangci-lint truncates by default: max-issues-per-linter 50 and
   # max-same-issues 3. On 2026-08-16 that hid 73 of 86 test-file findings in
-  # MenoPower -- sfl reported `gosec: 5` for a module that actually had 37. A
+  # another estate repository -- sfl reported `gosec: 5` for a module that actually had 37. A
   # gate that hides its own findings cannot be trusted to say when work is
   # done, so both caps are lifted here. Never reinstate them.
   max-issues-per-linter: 0
@@ -64,7 +64,7 @@ linters:
   settings:
     # NOTE: with this one entry revive runs NO rule. A `rules:` list
     # replaces revive's default rule set instead of adjusting it, so
-    # disabling `exported` leaves nothing enabled (as in MenoPower shared/,
+    # disabling `exported` leaves nothing enabled (as in another estate repository shared/,
     # where the finding was filed too; open point on forsgren#1, step 20).
     revive:
       rules:
@@ -78,18 +78,18 @@ linters:
     lll:
       line-length: 120
     gocognit:
-      # MenoPower's threshold (its API max, 9, plus one). Ratchet down, never
+      # Another estate repository's threshold (its API max, 9, plus one). Ratchet down, never
       # widen.
       min-complexity: 10
     gocyclo:
       # Reports a function whose cyclomatic complexity is ABOVE 6, test code
-      # included (MenoPower's iOS rule, < 6 + 1). Never widen.
+      # included (another estate repository's iOS rule, < 6 + 1). Never widen.
       min-complexity: 6
   exclusions:
     rules:
       # dupl on test code is not judged here but by
       # Scripts/check_test_dupl.sh, the same linter and rule pointed at
-      # _test.go files only (MenoPower's split, ported with it): enabling
+      # _test.go files only (another estate repository's split, ported with it): enabling
       # dupl on tests here too would gate them twice.
       - path: _test\.go
         linters:

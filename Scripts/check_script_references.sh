@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # check_script_references.sh [repo-root]
 #
-# Ported from MenoPower 2026-10-01 (forsgren#1, ladder step 13), from its
-# lint/ script directory; "this repo" in the history below means MenoPower.
+# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 13), from its
+# lint/ script directory; "this repo" in the history below means another estate repository.
 # forsgren's changes, each for forsgren's layout or file types:
 #   1. Scope widened to forsgren's own files: besides the executable callers
 #      (.sh, .py, .yml, and .yaml, which forsgren's yamllint also covers), the
@@ -15,9 +15,9 @@
 #      files (sfl dispatches every gate from the order file, so that row IS
 #      the caller) and CLAUDE.md, where the scripts an agent runs by hand are
 #      declared (forsgren is flat: there is no standalone directory to put
-#      them in). Other prose is still no caller, as in MenoPower.
+#      them in). Other prose is still no caller, as in another estate repository.
 #   3. Resolution bases: forsgren runs everything from its root, so the
-#      only base is the root; MenoPower's per-module bases do not exist here.
+#      only base is the root; another estate repository's per-module bases do not exist here.
 #      Leading dashes are stripped before resolving, so a default argument
 #      written as a parameter expansion with a fallback is still checked.
 #   4. The CLIMB ban is NOT ported: forsgren is flat, and every script finds
@@ -87,7 +87,7 @@ SCRIPT_DIRS="Scripts"
 # Scripts run by hand, by design. They have no automated caller and are not
 # meant to gain one, so the reverse check would otherwise be red on arrival.
 #
-# The DIRECTORY is the declaration in MenoPower: a hand-run script in
+# The DIRECTORY is the declaration in another estate repository: a hand-run script in
 # Scripts/standalone is exempt from the reverse check. In forsgren that
 # directory is a subfolder, so the FLAT check (change 4) makes any script in
 # it red; the exemption is kept as ported and is dormant until the ruling is
@@ -128,7 +128,7 @@ fi
 # the same spelling in a workflow `paths:` entry matches nothing while looking
 # entirely correct.
 #
-# forsgren: the directory listing is a glob, not MenoPower's ls piped into
+# forsgren: the directory listing is a glob, not another estate repository's ls piped into
 # grep (shellcheck SC2010, a warning forsgren's shellcheck gate is red on). A
 # glob expands to the names as the directory stores them, and the test
 # compares them case-sensitively, so the check is the same.
@@ -272,7 +272,7 @@ fi
 # The climb-ban exception holds only while Scripts/ is flat: every script
 # reaches the root with one fixed step up. A script one folder down would
 # reach a different directory with the same step, which is the relocation
-# risk the ban exists for in MenoPower.
+# risk the ban exists for in another estate repository.
 nested_scripts=""
 if [ -d Scripts ]; then
   nested_scripts="$(find Scripts -mindepth 2 -type f \( -name '*.sh' -o -name '*.py' \) \

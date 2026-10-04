@@ -25,8 +25,8 @@
 # `my-acme-secret-repo`: those are different names, and a fixture or prose may
 # legitimately contain them.
 #
-# The FAIL line names `file:line` and never the matched name, so a CI log
-# never reveals it.
+# The FAIL line names `file:line` (or `tracked path #N in git ls-files` for a
+# path hit) and never the matched name or path, so a CI log never reveals it.
 #
 #   1. a clean tree                                -> exit 0, OK:
 #   2. a tracked file with a listed name           -> exit 1, `file:line`, and
@@ -43,7 +43,10 @@
 #                                                     files are judged)
 #  12. a repository with no tracked files          -> exit 2,
 #                                                     the scan read nothing
-#  13. a second listed name, a line-number check   -> exit 1, the right line
+#  13. a tracked PATH with a name                  -> exit 1, `tracked path #N`,
+#                                                     never the path or name
+# Mutation proof: a copy of the gate that prints the matched line must reveal
+# the name, so the no-name assertion can fail.
 
 set -euo pipefail
 
@@ -99,17 +102,27 @@ run_env() {
     FORSGREN_PRIVATE_NAMES="$1" "$GATE" "$REPO"
 }
 
-# want_not_said <case> <text...>: the output contains none of the texts.
-want_not_said() {
-  local case_name="$1" text
-  shift
+# reveals <text...>: succeeds when OUT contains any of the texts, ignoring case.
+reveals() {
+  local text
   for text in "$@"; do
     if grep -qiF -- "$text" <<< "$OUT"; then
-      fail "${case_name}: the output reveals '${text}'. Output: ${OUT}"
-      return
+      REVEALED="$text"
+      return 0
     fi
   done
-  echo "  ok: ${case_name}: the output names no private name"
+  return 1
+}
+
+# want_not_said <case> <text...>: the output contains none of the texts.
+want_not_said() {
+  local case_name="$1"
+  shift
+  if reveals "$@"; then
+    fail "${case_name}: the output reveals '${REVEALED}'. Output: ${OUT}"
+  else
+    echo "  ok: ${case_name}: the output names no private name"
+  fi
 }
 
 new_repo "clean"
@@ -199,6 +212,36 @@ new_repo "nothing-tracked"
 git -C "$REPO" rm -q --cached main.go
 run_file "$NAMES_FILE"
 want_exit "a repository with no tracked files is exit 2: the scan read nothing" 2 "no tracked files"
+
+new_repo "path"
+write_file "docs/Acme-Secret-Repo.notes.md" $'harmless\n' track
+write_file "docs/other.md" $'harmless\n' track
+run_file "$NAMES_FILE"
+want_red "a tracked path with a name is red, by its number" "tracked path #"
+want_not_said "a tracked path" "$NAME_A" "docs/Acme" "notes.md"
+
+# Mutation proof: the no-name assertion can fail. A gate that prints the
+# matched line (the mutation turns `file:line` into `file:line:content`) must
+# be caught by the very assertion the cases above use.
+new_repo "reveal"
+write_file "docs/notes.md" $'see acme-secret-repo for details\n' track
+MUTANT="${TMP}/mutant/Scripts/check_private_names.sh"
+if selftest_mutant "$GATE" "$MUTANT" "s/lineno=\${hit%%:\*}/lineno=\$hit/"; then
+  capture env -u FORSGREN_PRIVATE_NAMES HOME="$EMPTY_HOME" \
+    FORSGREN_PRIVATE_NAMES_FILE="$NAMES_FILE" "$MUTANT" "$REPO"
+  if [[ "$RC" -eq 1 ]] && reveals "$NAME_A"; then
+    echo "  ok: mutation proof: a gate that prints the matched line fails the no-name assertion"
+  else
+    fail "mutation proof: the mutant gate that prints the matched line was not caught (exit ${RC}). Output: ${OUT}"
+  fi
+  capture env -u FORSGREN_PRIVATE_NAMES HOME="$EMPTY_HOME" \
+    FORSGREN_PRIVATE_NAMES_FILE="$NAMES_FILE" "$GATE" "$REPO"
+  if reveals "$NAME_A"; then
+    fail "the real gate reveals the name on the mutation proof's repository. Output: ${OUT}"
+  else
+    echo "  ok: mutation proof: the real gate, on the same repository, reveals nothing"
+  fi
+fi
 
 selftest_end "the private-names gate does not keep listed names out of tracked files, or passes without a list" \
   "private-names gate is red with file:line (never the name) on a listed name, case-insensitively and as a whole name, reads its list from a file or from env, and is exit 2 when no list or no tracked file is there"

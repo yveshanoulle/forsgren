@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 # Stylelint gate — unit 409 step 3. Wrapper, same reason as gate_htmlhint.sh:
 # the order file names a path, not a command line with a quoted glob in it.
 #
-# Ported from konenki-website 2026-10-01 (forsgren#1, ladder step 8). The one
+# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 8). The one
 # change: the default site directory is .build/site, where
 # Scripts/build_site.sh renders the site; forsgren commits no generated
 # output. The argument stays, so a caller can lint another build.

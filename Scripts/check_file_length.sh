@@ -5,13 +5,13 @@
 # CONVENTIONS.md, Code).
 #
 # PORTED (forsgren#1, ladder step 21) from
-# MenoPower/Scripts/go/check_file_length.py, which MenoPower's sfl and CI run
+# source-repo/Scripts/go/check_file_length.py, which another estate repository's sfl and CI run
 # as `python3 .../check_file_length.py . 600` in each Go module (shared, the
 # API, admin). Its rules, kept:
 #   - Go production files only: _test.go files are not judged (they hold
-#     fixtures and table-driven cases; MenoPower never passes
+#     fixtures and table-driven cases; another estate repository never passes
 #     --include-tests for Go).
-#   - a generated file is judged like any other (MenoPower has no exemption).
+#   - a generated file is judged like any other (another estate repository has no exemption).
 #   - a line is counted as Python iterates a file, which awk's NR matches: a
 #     last line without a newline counts, where `wc -l` would not count it.
 #   - more than the limit is red; the limit itself is green.
@@ -25,15 +25,15 @@
 #     directory walk: go.mod's `ignore node_modules` keeps npm's Go out (as
 #     it does for go test), a nested module (an agent worktree under
 #     .claude/worktrees) and testdata/ are not this module's code, and
-#     IgnoredGoFiles brings in a file only another GOOS builds. MenoPower
+#     IgnoredGoFiles brings in a file only another GOOS builds. Another estate repository
 #     walks the tree, skipping node_modules and vendor by name.
-#   - only the Go mode: MenoPower's --ext (its SQL cap), --exclude and
+#   - only the Go mode: another estate repository's --ext (its SQL cap), --exclude and
 #     --include-tests have no caller here, so they are not ported.
 #   - red on a module with no production .go file: a scan over nothing is no
-#     pass (MenoPower prints its OK line for it).
+#     pass (another estate repository prints its OK line for it).
 #   - forsgren's FAIL and OK lines.
 #
-# Exit codes (MenoPower's):
+# Exit codes (another estate repository's):
 #   0 — every production .go file within the limit
 #   1 — a file over the limit (each named with its count), or no file to check
 #   2 — tooling error (bad arguments, no root directory, go list failed)

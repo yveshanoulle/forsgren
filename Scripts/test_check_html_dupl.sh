@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 # Fixture for check_html_dupl.sh — unit 397.
 #
-# Ported from konenki-website 2026-10-01 (forsgren#1, ladder step 11), adapted
+# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 11), adapted
 # for forsgren's two targets: the html/template files under
 # internal/page/templates (the default, as konenki's default is its authored
 # SiteSource/) and the generated page, through Scripts/check_html_dupl_site.sh.

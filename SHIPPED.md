@@ -13,9 +13,9 @@ Active work lives in
 
 Twenty-five steps, `da7bf40` … this review (step 25), each landed through
 `FBP.sh`. forsgren now builds like the sites and checks like
-MenoPower: konenki-website's PRE → BUILD → POST sfl and FBP, driven from one
+another estate repository's PRE → BUILD → POST sfl and FBP, driven from one
 order file that CI runs phase by phase on forsgren's own runner, plus
-MenoPower's Go gates, around a Go module that renders one placeholder page
+another estate repository's Go gates, around a Go module that renders one placeholder page
 through `html/template`.
 
 **What landed, by step:** 1–2 sfl/FBP with the guarded commit block and

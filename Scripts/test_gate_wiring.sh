@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 # Every gate must be wired into BOTH runners, sfl.sh and CI — the sfl/CI
 # parity guard.
 #
-# Ported from konenki-website 2026-10-01 (forsgren#1, ladder step 14), its
+# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 14), its
 # unit 396 and issues #13, #15 and #18 (issue numbers below are konenki's
 # unless they say forsgren). ADAPTED, because the two repos wire CI the
 # opposite way. konenki names each gate in its own quality.yml step, so its
@@ -650,7 +650,7 @@ mutation_proof() {
 }
 
 # Every line of konenki's matcher self-proof below is byte-identical with
-# konenki-website's Scripts/test_gate_wiring.sh; issue numbers in it are
+# another estate repository's Scripts/test_gate_wiring.sh; issue numbers in it are
 # konenki's. Its "guard" samples include konenki's report_ci_step.sh call
 # shape, which lib_runs_script.sh still models.
 # --- Matcher self-proof: runs_script on sample files — issue #18 ----------

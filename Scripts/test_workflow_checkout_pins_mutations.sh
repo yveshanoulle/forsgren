@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 # `mutation: checkout pins`.
 #
 # PORTED from coachretreat-website (its units 368 and 400), the estate's
-# best-shape copy: konenki-website's has the two checkout pins only, and
+# best-shape copy: another estate repository's has the two checkout pins only, and
 # coachretreat's adds the synthetic second-action case below. Adapted, not
 # byte-identical:
 #   - a missing or non-executable gate is red, with its own FAIL line, before

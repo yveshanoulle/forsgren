@@ -5,8 +5,8 @@
 # is held to its floor in coverage_thresholds.json, and the total to the
 # total floor.
 #
-# PORTED (forsgren#1, ladder step 22) from MenoPower/Scripts/go/check_coverage.py,
-# which MenoPower's sfl and CI run over `go tool cover -func` output in each
+# PORTED (forsgren#1, ladder step 22) from source-repo/Scripts/go/check_coverage.py,
+# which another estate repository's sfl and CI run over `go tool cover -func` output in each
 # Go module (shared, the API, admin). Its rules, kept:
 #   - a function measured below its floor is red, named with both numbers.
 #   - a floor of 0.0 is tracked, not enforced.
@@ -14,7 +14,7 @@
 #     estate rule says how to fix it: register it at 0.0, never a guessed
 #     floor; FLOORWARN then says it can be raised.
 #   - the total measured below the "total" floor is red.
-#   - FLOORWARN (MenoPower #504): a floor below the ratchet rule (100.0 at
+#   - FLOORWARN (source-repo #504): a floor below the ratchet rule (100.0 at
 #     100%, else measured - 0.1, rounded to one decimal; an unregistered
 #     function counts as floor 0.0) is counted into ONE line,
 #     `FLOORWARN: N coverage floor(s) should be raised in <thresholds>`.
@@ -30,7 +30,7 @@
 #     and listing it there would make every sfl run `brew upgrade` a
 #     machine-wide Python. Without Python there is no JSON parser either
 #     (jq is not listed), so the thresholds file is read line by line in ONE
-#     fixed shape, the shape MenoPower's files already have:
+#     fixed shape, the shape another estate repository's files already have:
 #         {
 #           "_comment": "...",
 #           "total": 89.4,
@@ -44,10 +44,10 @@
 #   - no second test run. Scripts/check_go_tests.sh, the Go tests row
 #     (only this gate's self-test sits between them), runs `go test -coverprofile=.build/go-coverage.out ./...` and
 #     removes that profile whenever it is red, so the profile this gate reads
-#     is always from a green run of the current tree. MenoPower's Makefiles
+#     is always from a green run of the current tree. Another estate repository's Makefiles
 #     run the tests and the checker in one target instead.
 #   - no data is red: no profile, or a profile that measures no function.
-#     MenoPower passes a total of None silently.
+#     Another estate repository passes a total of None silently.
 #   - not ported: total_excludes (forsgren has no untestable wiring in its
 #     total that needs it) and the --with-db floors (forsgren has no
 #     database), each with no caller here.

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-# Ported unchanged from konenki-website 2026-10-01 (forsgren#1); "this repo"
-# in the history below means konenki-website.
+# Ported unchanged from another estate repository 2026-10-01 (forsgren#1); "this repo"
+# in the history below means another estate repository.
 #
 # Renders sfl's end-of-run step table — unit 405.
 #
-# Ported in SHAPE from web-infra, which has had one since its unit 352, but not
+# Ported in SHAPE from another estate repository, which has had one since its unit 352, but not
 # in form: there it is thirty lines inline in sfl.sh. Here it is a script with a
 # fixture, per the presentation-script rule this repo adopted in unit 404. A
 # renderer nobody tests is how coachretreat's CI report step exited 1 on every

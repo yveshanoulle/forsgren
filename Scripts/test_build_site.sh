@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Scripts/test_build_site.sh
 #
-# Fixture for Scripts/build_site.sh. Shape ported from konenki-website's
+# Fixture for Scripts/build_site.sh. Shape ported from another estate repository's
 # fixture of the same name (its checks 14 to 16, the page-count sink, are
 # carried over as checks 4, 10 and 11); the build itself is new: the Go
 # generator replaces konenki's include-marker assembly.

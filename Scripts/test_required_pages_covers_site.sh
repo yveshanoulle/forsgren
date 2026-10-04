@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 # Does the manifest still describe the site? — unit 392, ported from
 # coachretreat-website where it was written as part of unit 367.
 #
-# The history below is konenki-website's: "this repo" means konenki, and
+# The history below is another estate repository's: "this repo" means konenki, and
 # Site/, SiteSource/, the privacy pages and promotion are konenki's.
 # forsgren's changes are listed at the end of this header.
 #

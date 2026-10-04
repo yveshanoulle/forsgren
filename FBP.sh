@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # FBP = FullBuildAndPush: runs sfl, commits, and pushes when everything is green.
 #
-# Ported from konenki-website's FullBuildAndPush.sh 2026-10-01 (forsgren#1,
+# Ported from another estate repository's FullBuildAndPush.sh 2026-10-01 (forsgren#1,
 # ladder step 1); named FBP.sh by Yves's ruling on forsgren#1. Issue numbers
-# below are konenki-website's unless they say forsgren.
+# below are another estate repository's unless they say forsgren.
 #
 # Phases: gofmt -w (local auto-fix) -> sfl.sh pre -> Scripts/build_site.sh
 # (the Go generator into .build/site) -> sfl.sh post -> git.
@@ -11,7 +11,7 @@
 set -euo pipefail
 
 # Anchored so `./forsgren/FBP.sh "msg"` works from ~/Sources, the same as
-# MenoPower's and web-infra's. The contract remains: quality gates run first,
+# another estate repository's and another estate repository's. The contract remains: quality gates run first,
 # the commit ALWAYS happens on an ordinary red so work is never lost, and the
 # push happens only when every phase is green.
 cd "$(dirname "$0")"
@@ -53,7 +53,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 # :- guard: on bash 3.2 (macOS system bash) expanding an empty array under
-# `set -u` is an unbound-variable error, which broke --no-commit in web-infra.
+# `set -u` is an unbound-variable error, which broke --no-commit in another estate repository.
 COMMIT_MSG="${POSITIONAL[*]:-}"
 
 if [ -z "$COMMIT_MSG" ] && ! $NO_COMMIT; then
@@ -218,7 +218,7 @@ print_summary() {
   echo "================================"
   echo "  forsgren Summary"
   echo "================================"
-  # Issue #6, ported from web-infra's FullBuildAndPush.sh (~136-142, unit
+  # Issue #6, ported from another estate repository's FullBuildAndPush.sh (~136-142, unit
   # 428): the message this run was given, first. A summary scrolled back to
   # later must say which commit it belongs to, and on a TDD ladder every run
   # prints an identical-looking block of statuses without it.

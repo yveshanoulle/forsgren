@@ -4,9 +4,9 @@
 # Self-test for Scripts/check_coverage.sh, run before the gate it validates.
 #
 # forsgren's own, in bash (forsgren#1, ladder step 22): the gate ports
-# MenoPower's Scripts/go/check_coverage.py, whose test
+# another estate repository's Scripts/go/check_coverage.py, whose test
 # (Scripts/go/test_check_coverage.py) pins only its total recomputation and
-# its FLOORWARN line. The rules pinned here, MenoPower's unless marked:
+# its FLOORWARN line. The rules pinned here, another estate repository's unless marked:
 #   - a function measured below its floor is red, naming it and both numbers.
 #   - a function at or above its floor is green; a floor of 0.0 is tracked,
 #     not enforced.
@@ -16,7 +16,7 @@
 #   - a floor below the ratchet rule (100.0 at 100%, else measured - 0.1)
 #     stays green and is counted into ONE line,
 #     `FLOORWARN: N coverage floor(s) should be raised in <thresholds>`
-#     (MenoPower #504); a floor exactly at measured - 0.1 is not counted.
+#     (source-repo #504); a floor exactly at measured - 0.1 is not counted.
 #   - forsgren: no coverage data is red. The data is the profile the Go-tests
 #     gate writes (no second test run), and that gate removes it when go test
 #     is red, so a red test run never leaves coverage behind to be judged.

@@ -4,12 +4,12 @@
 # Self-test for Scripts/check_file_length.sh, run before the gate it
 # validates.
 #
-# forsgren's own (forsgren#1, ladder step 21): MenoPower's
+# forsgren's own (forsgren#1, ladder step 21): another estate repository's
 # Scripts/go/check_file_length.py, which the gate ports, has no self-test.
 # Its rules, which the cases below pin:
-#   - Go production files only: a _test.go file is not judged (MenoPower's
+#   - Go production files only: a _test.go file is not judged (another estate repository's
 #     default; it never passes --include-tests for Go).
-#   - a generated file is judged like any other: MenoPower has no
+#   - a generated file is judged like any other: another estate repository has no
 #     generated-file exemption.
 #   - a line is counted as Python counts it, so a last line without a
 #     newline counts (wc -l would not count it).
@@ -19,7 +19,7 @@
 #     directory go.mod ignores (node_modules) is never judged, and a file
 #     another GOOS builds is.
 #   - a module with no production .go file is red: a scan over nothing is no
-#     pass (MenoPower prints its OK line for it).
+#     pass (another estate repository prints its OK line for it).
 #
 #   1. a 601-line production file                 -> exit 1, naming it, 601
 #   2. a 600-line production file                 -> exit 0

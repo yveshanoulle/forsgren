@@ -6,11 +6,11 @@
 #   2. every git-tracked extension-less file whose first line is a bash/sh
 #      shebang — a wrapper script without an extension would otherwise slip
 #      through both the *.sh glob and human memory
-# In web-infra, where this gate comes from, a named list plus a Scripts/*.sh
+# In another estate repository, where this gate comes from, a named list plus a Scripts/*.sh
 # glob used to live here: the glob kept Scripts/ covered automatically, but
 # every OTHER directory needed a name added by hand, and one such directory
-# (web-infra's extracted server/sbin/*.sh wrappers) was simply never added —
-# it shellchecked nothing, in sfl or CI, until web-infra's copy of
+# (another estate repository's extracted server/sbin/*.sh wrappers) was simply never added —
+# it shellchecked nothing, in sfl or CI, until another estate repository's copy of
 # Scripts/test_check_shellcheck.sh proved it. forsgren has no server/sbin;
 # the self-test keeps that path as fixture data.
 #
@@ -20,7 +20,7 @@
 # three of:
 #   (a) the entry here;
 #   (b) a sentence in README.md's Quality gates naming the script and the
-#       reason (web-infra, where this gate comes from, asks for a row in its
+#       reason (another estate repository, where this gate comes from, asks for a row in its
 #       documentation/check-parity.md instead; forsgren has no such file);
 #   (c) Yves's explicit yes, recorded on a GitHub issue that the README
 #       sentence links.
@@ -31,11 +31,11 @@
 #
 # Testing seam: SHELLCHECK_ROOT overrides the repo root so
 # Scripts/test_check_shellcheck.sh can drive target collection against a
-# synthetic git tree (same pattern as web-infra's check_sfl_ci_parity.sh
+# synthetic git tree (same pattern as another estate repository's check_sfl_ci_parity.sh
 # SFL_FILE).
 #
-# Ported from web-infra 2026-10-01 (forsgren#1, ladder step 12), the estate
-# canon; adapted only in these comments, which named web-infra's own files.
+# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 12), the estate
+# canon; adapted only in these comments, which named another estate repository's own files.
 # sfl.sh runs it from Scripts/gate_report_order.txt, and so does CI, through
 # Scripts/run_ci_phase.sh.
 #

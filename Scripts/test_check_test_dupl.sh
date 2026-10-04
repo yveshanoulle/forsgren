@@ -4,16 +4,16 @@
 # Self-test for Scripts/check_test_dupl.sh, run before the gate it validates.
 #
 # PORTED (forsgren#1, ladder step 20) from
-# MenoPower/Scripts/common/test_check_test_dupl.sh, whose reason for existing holds
+# source-repo/Scripts/common/test_check_test_dupl.sh, whose reason for existing holds
 # here: that gate once reported "0 findings / clean" for every module while
 # running nothing (a mktemp bug dropped the config's .yml extension, so
 # golangci-lint could not load it and linted nothing). A gate that cannot
 # tell broken from clean is worse than no gate.
 #
-# Adapted: MenoPower finds its root with `git rev-parse --show-toplevel`
+# Adapted: another estate repository finds its root with `git rev-parse --show-toplevel`
 # from Scripts/common/; forsgren's Scripts/ is flat (the climb ruling on
 # forsgren#1), so this one uses the repo's `cd "$(dirname "$0")/.."`.
-# MenoPower's two cases (1 and 2) asserted the exit code only; here every
+# Another estate repository's two cases (1 and 2) asserted the exit code only; here every
 # case asserts the exit code AND the reason, and forsgren adds 3 to 6.
 #
 # dupl's finding list is not deterministic (which clone is "the" duplicate),

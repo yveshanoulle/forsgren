@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Scripts/lib_fbp_sandbox.sh
 #
-# Ported from konenki-website 2026-10-01 (forsgren#1, ladder step 1). Every
-# issue number in this file is konenki-website's: the history of why each
+# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 1). Every
+# issue number in this file is another estate repository's: the history of why each
 # piece exists lives there. forsgren's own changes: the copied script is
 # FBP.sh (Yves's ruling on forsgren#1), and the sandbox also stubs
 # Scripts/check_gofmt.sh, which FBP.sh runs with --fix before PRE.
 #
-# Issue konenki-website#14, ruled option A (Yves, 2026-09-30): the throwaway sandbox that
+# Issue source-repo#14, ruled option A (Yves, 2026-09-30): the throwaway sandbox that
 # both FBP fixtures drive the REAL FBP.sh in —
-# Scripts/test_fbp_commit_message.sh (issue konenki-website#6) and
-# Scripts/test_fbp_build_pagecount.sh (issues konenki-website#8, #12 and
+# Scripts/test_fbp_commit_message.sh (issue source-repo#6) and
+# Scripts/test_fbp_build_pagecount.sh (issues source-repo#8, #12 and
 # #17).
 # Each fixture used to build its own copy of the same setup; this is that
 # setup, once.
@@ -23,7 +23,7 @@
 # sources it must not set its own traps for those signals without calling
 # fbp_sandbox_cleanup from them.
 #
-# Issue konenki-website#20 (item 2): a fixture that sets its own EXIT trap anyway, and never
+# Issue source-repo#20 (item 2): a fixture that sets its own EXIT trap anyway, and never
 # calls fbp_sandbox_cleanup, still leaves no sandbox behind. bash keeps one
 # EXIT trap, so a later trap ... EXIT replaces the lib's and there is nothing
 # to chain onto; instead no sandbox outlives the fbp_sandbox_run that made it
@@ -66,7 +66,7 @@ FBP_SANDBOX_FBP="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/FBP.sh"
 FBP_SANDBOX_GO_TOOLCHAIN="$(dirname "$FBP_SANDBOX_FBP")/Scripts/go_toolchain.sh"
 FBP_SANDBOX_GO_MOD="$(dirname "$FBP_SANDBOX_FBP")/go.mod"
 
-# Issue konenki-website#14 (mutation proof): when non-empty, fbp_sandbox_run copies this
+# Issue source-repo#14 (mutation proof): when non-empty, fbp_sandbox_run copies this
 # file into the sandbox instead of FBP_SANDBOX_FBP. It exists ONLY so the
 # mutation proof in Scripts/test_fbp_build_pagecount.sh can run
 # its case 7 against a mutated copy of FBP.sh; that proof sets
@@ -76,10 +76,10 @@ FBP_SANDBOX_GO_MOD="$(dirname "$FBP_SANDBOX_FBP")/go.mod"
 # drives.
 FBP_SANDBOX_FBP_OVERRIDE=""
 
-# Issue konenki-website#17: four more seams, for cases 8 to 12 of
+# Issue source-repo#17: four more seams, for cases 8 to 12 of
 # Scripts/test_fbp_build_pagecount.sh. Each is read by the
 # stubs below only when non-empty, so a caller that sets none of them gets
-# the same stubs, byte for byte, as before issue konenki-website#17. Each is meant to be
+# the same stubs, byte for byte, as before issue source-repo#17. Each is meant to be
 # set as a prefix assignment on one call, like FBP_SANDBOX_FBP_OVERRIDE, and
 # each is reset here at source time for the same reason.
 #   FBP_SANDBOX_SFL_COUNTS_PRE, FBP_SANDBOX_SFL_COUNTS_POST: the stub sfl.sh
@@ -171,7 +171,7 @@ FBP_SANDBOX_REASON=""
 # Ctrl-C goes to the whole foreground process group: the fixture, the
 # sandbox subshell, FullBuildAndPush and whichever stub is running. The stubs
 # set no traps, so the stub dies with the rest and nothing is left to write
-# into the sandbox once the trap removes it (issue konenki-website#20 item 4, shown on
+# into the sandbox once the trap removes it (issue source-repo#20 item 4, shown on
 # macOS /bin/bash 3.2.57 with a stand-in that sleeps before writing: no
 # stub survived and nothing was written). In the same stand-in, a SIGINT
 # sent to FullBuildAndPush alone did not stop it at once: it waited for the
@@ -198,7 +198,7 @@ fbp_sandbox_register_dir() {
 # whatever mktemp -d printed instead, so a caller can say what it got.
 FBP_SANDBOX_NEW_DIR=""
 
-# fbp_sandbox_new_dir — issue konenki-website#20: makes a directory with mktemp -d, puts it
+# fbp_sandbox_new_dir — issue source-repo#20: makes a directory with mktemp -d, puts it
 # in FBP_SANDBOX_NEW_DIR and registers it for cleanup, with the same catch
 # as fbp_sandbox_register_dir: a fixture's own EXIT trap must call
 # fbp_sandbox_cleanup, or the directory stays. When mktemp -d fails,
@@ -224,7 +224,7 @@ trap 'fbp_sandbox_cleanup; exit 143' TERM
 # writes no sink at all. The stub line is printf '%s\n' with the value
 # quoted by printf %q, so a multi-line <sink-content> such as $'3\n4' lands
 # as two lines, byte for byte.
-# Issue konenki-website#14: the stub reads SITE_PAGE_COUNT_FILE with :? rather than
+# Issue source-repo#14: the stub reads SITE_PAGE_COUNT_FILE with :? rather than
 # defaulting it, so a FullBuildAndPush that stops passing its own path
 # fails the build step instead of the stub quietly writing the default path
 # FullBuildAndPush happens to read. The only directory it creates is
@@ -233,12 +233,12 @@ trap 'fbp_sandbox_cleanup; exit 143' TERM
 # exists outside it. FullBuildAndPush's own path and the case 7 mutation
 # proof's decoy in Scripts/test_fbp_build_pagecount.sh lie in
 # .build; case 7's own decoy lies in a directory that fixture creates, so
-# it can check afterwards that nothing wrote it (issue konenki-website#18), and falls back
+# it can check afterwards that nothing wrote it (issue source-repo#18), and falls back
 # to .build only when mktemp -d gives no directory.
-# Issue konenki-website#17: with FBP_SANDBOX_SINK_PRINTF set, the stub writes that printf
+# Issue source-repo#17: with FBP_SANDBOX_SINK_PRINTF set, the stub writes that printf
 # format to the sink instead and ignores <sink-content>; with
 # FBP_SANDBOX_SINK_MODE set, it then chmods the sink to that mode. With
-# neither set, the stub is the same bytes as before issue konenki-website#17.
+# neither set, the stub is the same bytes as before issue source-repo#17.
 fbp_sandbox_write_build_site() {
   local sink="$1"
   local target="\"\${SITE_PAGE_COUNT_FILE:?}\""
@@ -257,13 +257,13 @@ fbp_sandbox_write_build_site() {
   chmod +x Scripts/build_site.sh
 }
 
-# fbp_sandbox_write_sfl — issue konenki-website#17: writes the stub sfl.sh into the current
+# fbp_sandbox_write_sfl — issue source-repo#17: writes the stub sfl.sh into the current
 # directory. The stub exits 0, unless FBP_SANDBOX_SFL_PRE_RC asks for a PRE
 # red (fbp_sandbox_sfl_pre_red_line, forsgren#1 step 12.2d). For each of FBP_SANDBOX_SFL_COUNTS_PRE and
 # FBP_SANDBOX_SFL_COUNTS_POST that is non-empty, it writes that value plus
 # one trailing newline to .build/sfl-counts.log when its first argument is
 # pre (or post), through the line fbp_sandbox_sfl_counts_line prints. With
-# both empty the stub is the same bytes as before issue konenki-website#17.
+# both empty the stub is the same bytes as before issue source-repo#17.
 fbp_sandbox_write_sfl() {
   {
     printf '#!/usr/bin/env bash\n'
@@ -305,12 +305,12 @@ fbp_sandbox_sfl_counts_line() {
 # registers it for cleanup, and runs FBP.sh there with the
 # remaining arguments. The FullBuildAndPush it copies is FBP_SANDBOX_FBP, or
 # FBP_SANDBOX_FBP_OVERRIDE when that is set (the mutation proof only).
-# Issue konenki-website#20 (item 2): it then reads the run's stdout+stderr and exit status
+# Issue source-repo#20 (item 2): it then reads the run's stdout+stderr and exit status
 # into FBP_SANDBOX_OUT and FBP_SANDBOX_RC (-1 when the run never recorded
 # one) and deletes the sandbox, so no sandbox outlives the call, whatever
 # EXIT trap the sourcing fixture set. It returns 0 whenever it had a
 # sandbox, whatever FullBuildAndPush's own status: that is fbp_sandbox_rc.
-# Issue konenki-website#20: when mktemp -d fails, or hands back no directory, it prints
+# Issue source-repo#20: when mktemp -d fails, or hands back no directory, it prints
 # "could not create the FBP sandbox" to stderr, keeps the same line in
 # FBP_SANDBOX_REASON and returns 1 BEFORE the subshell, registering nothing
 # and leaving FBP_SANDBOX_DIR empty. Without that stop, cd "" leaves the
@@ -404,7 +404,7 @@ fbp_sandbox_commit_msg() {
 }
 
 # ---------------------------------------------------------------------------
-# Issue konenki-website#20: the mechanics of the self-proofs at the end of both fixtures,
+# Issue source-repo#20: the mechanics of the self-proofs at the end of both fixtures,
 # which run a fixture, a copy of it, a driver or fbp_sandbox_run itself
 # from outside and then judge what came back. These only set things up and
 # record; each fixture judges the result itself.
@@ -417,7 +417,7 @@ fbp_sandbox_commit_msg() {
 # not writable, so no TMPDIR value makes it fail there.
 fbp_sandbox_write_failing_mktemp() {
   mkdir -p "$1"
-  printf '#!/usr/bin/env bash\necho "mktemp: stub for issue konenki-website#20, no temp directory can be created" >&2\nexit 1\n' > "$1/mktemp"
+  printf '#!/usr/bin/env bash\necho "mktemp: stub for issue source-repo#20, no temp directory can be created" >&2\nexit 1\n' > "$1/mktemp"
   chmod +x "$1/mktemp"
 }
 

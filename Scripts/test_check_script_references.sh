@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # test_check_script_references.sh — fixture test for check_script_references.sh.
 #
-# Ported from MenoPower 2026-10-01 (forsgren#1, ladder step 13); "this repo"
-# in the history below means MenoPower. forsgren's changes, matching the
+# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 13); "this repo"
+# in the history below means another estate repository. forsgren's changes, matching the
 # gate's (see its header):
 #   - CHECK names the gate in forsgren's flat Scripts/.
 #   - FAIL lines carry the estate's red-cross marker.
@@ -93,7 +93,7 @@ if bash "$CHECK_ABS" "$selfref" >/dev/null 2>&1; then
 fi
 
 # --- Fixture 5 (INVERTED for forsgren): prose is scanned → must FAIL ---
-# MenoPower excludes Markdown, where ten planned, foreign or historical paths
+# another estate repository excludes Markdown, where ten planned, foreign or historical paths
 # lived on 2026-08-17. forsgren scans its docs on purpose: a dangling Scripts
 # path in a doc is the "we will forget later" this guard catches now.
 prose="$tmproot/prose-only"
@@ -109,8 +109,8 @@ fi
 # directory, so the path is not ours to verify.
 foreign="$tmproot/foreign-repo"
 make_tree "$foreign"
-printf '#!/usr/bin/env bash\n# twin of konenki-website/Scripts/twin.sh\nbash Scripts/used.sh\n' > "$foreign/caller.sh"
-printf 'Ported from MenoPower/Scripts/lint/guard.sh and ../web-infra/Scripts/x.sh.\n' > "$foreign/README.md"
+printf '#!/usr/bin/env bash\n# twin of source-repo/Scripts/twin.sh\nbash Scripts/used.sh\n' > "$foreign/caller.sh"
+printf 'Ported from source-repo/Scripts/lint/guard.sh and ../source-repo/Scripts/x.sh.\n' > "$foreign/README.md"
 if ! bash "$CHECK_ABS" "$foreign" >/dev/null 2>&1; then
   fail "another repository's script, named with its repository as the first component, was treated as a broken reference"
 fi
@@ -201,7 +201,7 @@ if bash "$CHECK_ABS" "$subforward" >/dev/null 2>&1; then
 fi
 
 # --- Fixture 13 (INVERTED for forsgren): Scripts/standalone is a subfolder → must FAIL ---
-# MenoPower declares a hand-run script by putting it in Scripts/standalone.
+# another estate repository declares a hand-run script by putting it in Scripts/standalone.
 # forsgren keeps Scripts/ flat (forsgren#1 ruling, see the header), so that
 # directory is a script below Scripts/*/ like any other: red, for the
 # flatness reason, until the ruling is revisited. forsgren declares its

@@ -4,13 +4,13 @@
 # The Go vulnerability gate: govulncheck over a Go module. Red when the code
 # reaches a symbol the Go vulnerability database lists as vulnerable.
 #
-# PORTED (forsgren#1, ladder step 23) from MenoPower, where sfl runs
+# PORTED (forsgren#1, ladder step 23) from another estate repository, where sfl runs
 # `govulncheck ./...` in each Go module (ios-app/sfl.sh, run_go_vuln_check)
 # and CI runs the same, both behind the same probe: when vuln.go.dev does not
 # answer `curl -sf --max-time 5` the check is skipped, not failed. Adapted:
 #   - govulncheck is the one pinned by go.mod's `tool` line plus go.sum
 #     (Yves's ruling on forsgren#1), never `go install ...@latest` as
-#     MenoPower does: `go tool -n govulncheck`, run in this repository, builds
+#     another estate repository does: `go tool -n govulncheck`, run in this repository, builds
 #     the pinned version once and prints its path, and the gate runs that
 #     binary in the module it scans.
 #   - the database is FORSGREN_VULN_DB (default https://vuln.go.dev), passed
@@ -22,7 +22,7 @@
 #     Any failure of it (no route, refused, DNS, a timeout, an HTTP error) is
 #     "offline": the gate prints a ⚠️ SKIP line naming the database and exits
 #     0, so sfl and CI go on, and in GitHub Actions it also prints a
-#     ::warning:: annotation, as MenoPower's CI does. It never prints the OK
+#     ::warning:: annotation, as another estate repository's CI does. It never prints the OK
 #     line: a skip is not a pass, and the report says so. When the probe
 #     answers, govulncheck runs, and anything it cannot do from there is red.
 #   - red on a govulncheck that could not run (an exit other than 0 or 3:

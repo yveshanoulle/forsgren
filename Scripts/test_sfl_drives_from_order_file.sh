@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Scripts/test_sfl_drives_from_order_file.sh
 #
-# Ported from konenki-website 2026-10-01 (forsgren#1). forsgren's change:
+# Ported from another estate repository 2026-10-01 (forsgren#1). forsgren's change:
 # pin 4 has no CI-only exemption (forsgren has no test_check_built_site.sh).
 # Pin 5 (the secret-class tier on the secret scan row) came back with the
 # secret scan, ladder step 3. Pin 6 (the same tier on the data guard row) is
@@ -15,7 +15,7 @@ cd "$(dirname "$0")/.."
 # sfl derives its SEQUENCE AND ITS COMMANDS from Scripts/gate_report_order.txt
 # — unit 409 step 3.
 #
-# THIS IS WHAT CLOSES THE ORDER QUESTION. web-infra's gate-parity axis compares
+# THIS IS WHAT CLOSES THE ORDER QUESTION. Another estate repository's gate-parity axis compares
 # each repo's order FILE against the canon; it cannot compare execution, because
 # execution is a runtime fact and the axis reads files at rest over the API. Of
 # the three ways to bridge that — commit a generated "executed order" file (an

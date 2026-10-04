@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # test_npm_audit_check.sh — fixture test for npm_audit_check.sh.
 #
-# Ported from MenoPower's admin gate — unit 393. This repo ships htmlhint and
+# Ported from another estate repository's admin gate — unit 393. This repo ships htmlhint and
 # stylelint as devDependencies and audited them NOWHERE: not in sfl, not in
 # CI. A linter's own dependency tree is still a dependency tree.
 #

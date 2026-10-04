@@ -8,7 +8,7 @@
 # source of truth for both sfl.sh and quality.yml (one row of
 # Scripts/gate_report_order.txt).
 #
-# PORTED (forsgren#1, ladder step 19) from web-infra/Scripts/check_zizmor.sh,
+# PORTED (forsgren#1, ladder step 19) from source-repo/Scripts/check_zizmor.sh,
 # adapted only in its paths: the directory to scan is an optional argument,
 # default .github, so Scripts/test_check_zizmor.sh can hand it fixtures.
 # zizmor reads the config from that directory (.github/zizmor.yml here) and

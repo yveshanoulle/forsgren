@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.." || exit 1
 # it is written. Nothing else stops a Google Fonts link or an analytics
 # snippet arriving the next day and leaving a false exemption on the record.
 #
-# Yves ruled privacy into the canon (web-infra unit 394) so every site must
+# Yves ruled privacy into the canon (another estate repository unit 394) so every site must
 # ANSWER the question rather than only the site that thought of it. This is the
 # other half: the answer is checked. An exemption nothing enforces is a belief.
 #

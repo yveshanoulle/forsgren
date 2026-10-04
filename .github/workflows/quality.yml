@@ -1,7 +1,7 @@
 # .github/workflows/quality.yml
 #
 # forsgren's CI (forsgren#1, ladder step 14; moved to GitHub's macos-latest
-# in road to public, step 5, the runner swap). Ported from konenki-website's
+# in road to public, step 5, the runner swap). Ported from another estate repository's
 # quality.yml: its checkout pin, `npm ci`, report rows and details, and its
 # Render report step. NEW here: konenki names every gate in its own step;
 # this job runs Scripts/gate_report_order.txt the way sfl.sh does, phase by
@@ -138,6 +138,10 @@ jobs:
       - name: PRE gates
         id: pre
         shell: bash
+        # The private-names gate reads its list from this secret; no list
+        # is exit 2 there, never a silent pass (forsgren#52).
+        env:
+          FORSGREN_PRIVATE_NAMES: ${{ secrets.FORSGREN_PRIVATE_NAMES }}
         run: |
           set -uo pipefail
           ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" && rc=0 || rc=$?

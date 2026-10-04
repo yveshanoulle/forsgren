@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # FBP.sh (FullBuildAndPush) as the subagent loop's own identity (ruled
-# 2026-09-07 in MenoPower, ported to web-infra 2026-09-19 and to
-# konenki-website 2026-09-30, ported here 2026-10-01 (forsgren#1) so Lenka
+# 2026-09-07 in another estate repository, ported to another estate repository 2026-09-19 and to
+# another estate repository 2026-09-30, ported here 2026-10-01 (forsgren#1) so Lenka
 # can run forsgren's own FBP.sh under the loop's identity too).
 #
 # Commits made by Claude's subagent loop are authored AND committed by the
@@ -12,9 +12,9 @@
 # repo's or the machine's git config, so an FBP.sh run by hand keeps the
 # identity of whoever runs it.
 #
-# Twin of web-infra/Scripts/fbp_agent_friend.sh,
-# konenki-website/Scripts/fbp_agent_friend.sh and
-# MenoPower/Scripts/standalone/fbp_agent_friend.sh; they differ only in how
+# Twin of source-repo/Scripts/fbp_agent_friend.sh,
+# source-repo/Scripts/fbp_agent_friend.sh and
+# source-repo/Scripts/standalone/fbp_agent_friend.sh; they differ only in how
 # the repo root is found (each repo's own convention) and in the name of the
 # script they run (here FBP.sh, by Yves's ruling on forsgren#1).
 # Hand-run by the loop, never by sfl or a workflow (Scripts/test_gate_wiring.sh

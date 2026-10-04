@@ -32,7 +32,7 @@
 # workflow that needs one says so here first.
 #
 # READ WITH AWK, NOT A YAML PARSER, on purpose, as
-# Scripts/test_quality_trigger_scope.sh and web-infra's lib_workflow_job.sh
+# Scripts/test_quality_trigger_scope.sh and another estate repository's lib_workflow_job.sh
 # do. PyYAML is a Python module, not a command, so
 # Scripts/required_tools.txt (commands only) cannot declare it and
 # Scripts/install_tools.sh cannot install it, and a gate that dies on a

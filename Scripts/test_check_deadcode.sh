@@ -3,7 +3,7 @@
 #
 # Self-test for Scripts/check_deadcode.sh, run before the gate it validates.
 #
-# NEW (forsgren#1, ladder step 23). MenoPower runs `deadcode -test ./...` in
+# NEW (forsgren#1, ladder step 23). Another estate repository runs `deadcode -test ./...` in
 # sfl (run_go_deadcode_check) and in CI with no fixture: nothing there shows
 # the check red on a dead function, nor that `-test` is what keeps a
 # test-only helper green. A gate that has never been seen red is a hope.
@@ -16,7 +16,7 @@
 #   3. an unreachable exported function lib.Exported  -> red, naming it
 #   4. FIXTURE MUTATION: case 2's `dead` called from main -> green: its
 #      reachability, nothing else in the module, is what reddened case 2
-#   5. a function called only from a _test.go file    -> green: MenoPower's
+#   5. a function called only from a _test.go file    -> green: another estate repository's
 #      `-test` semantics, the tests are roots too
 #   6. MUTATION PROOF: the gate without `-test` is red on case 5, naming the
 #      test-only function: the flag is what keeps it green

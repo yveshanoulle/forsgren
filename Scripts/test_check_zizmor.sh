@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 # Fixture for check_zizmor.sh.
 #
 # NEW (forsgren#1, ladder step 19). No repo of the estate has a self-test for
-# its zizmor gate: web-infra, MenoPower and agileRetroflection run zizmor in
+# its zizmor gate: three other estate repositories run zizmor in
 # sfl and CI with no fixture, so nothing there shows the gate catching what it
 # exists to catch. A gate that has never been seen red is a hope.
 #

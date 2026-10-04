@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Scripts/lib_runs_script.sh
 #
-# Ported from konenki-website 2026-10-01 (forsgren#1, ladder step 14). The
+# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 14). The
 # function is byte-identical; only this header's comments are adapted, for
 # forsgren's script-reference guard (Scripts/check_script_references.sh),
 # which reads every Scripts path a comment names: konenki's own files are
@@ -13,12 +13,12 @@
 # Issue #18: runs_script, the one definition of "this file RUNS
 # Scripts/<script>", extracted from konenki's test_gate_wiring.sh so that
 # its two consumers, the gate-wiring check and Part A of
-# konenki-website/Scripts/test_report_npm_audit_step.sh, judge an invocation
+# source-repo/Scripts/test_report_npm_audit_step.sh, judge an invocation
 # by the same filter (item 8: that Part A used to drop comment lines only, so
 # it accepted an echo that the gate-wiring check rejected). Not every check
 # that asks "is X invoked" uses it yet: Part A of
-# konenki-website/Scripts/test_report_ci_step.sh and the pins in
-# konenki-website/Scripts/test_deploy_feta_workflow.sh still grep on their
+# source-repo/Scripts/test_report_ci_step.sh and the pins in
+# source-repo/Scripts/test_deploy_feta_workflow.sh still grep on their
 # own.
 #
 # SOURCED, never run. It judges nothing on its own. Scripts/test_gate_wiring.sh
@@ -50,7 +50,7 @@
 # while until time. Its first word is the command, after any NAME=value
 # prefixes; bash, sh, source, ., exec, command, env and nohup hand the
 # command position on to their next word that is not an option. One
-# repo-specific rule: konenki-website/Scripts/report_ci_step.sh runs the command that
+# repo-specific rule: source-repo/Scripts/report_ci_step.sh runs the command that
 # follows its `--` (quality.yml's gate steps), so the word after that `--`
 # is a command too. Array elements (`a=(x y)`) and redirection targets are
 # never commands.

@@ -10,15 +10,15 @@
 # so test code is judged once.
 #
 # PORTED (forsgren#1, ladder step 20) from
-# MenoPower/Scripts/common/check_test_dupl.sh. Adapted:
+# source-repo/Scripts/common/check_test_dupl.sh. Adapted:
 #   - golangci-lint is the one pinned by go.mod's `tool` line, found with
 #     `go tool -n golangci-lint` in this repository (see
 #     Scripts/check_go_lint.sh), never Homebrew's.
 #   - forsgren's FAIL lines, and an OK line on green.
 #   - red on a module with no _test.go file: a scan over no test code is no
-#     pass (MenoPower reports that as clean).
+#     pass (another estate repository reports that as clean).
 #
-# Exit codes (MenoPower's):
+# Exit codes (another estate repository's):
 #   0 — no test-code duplication
 #   1 — duplication found (findings printed), or no test file to check
 #   2 — tooling error (no pinned golangci-lint, bad module dir, golangci

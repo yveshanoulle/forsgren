@@ -13,7 +13,7 @@
 #   secret-class = a failure blocks commit as well as push
 #   empty        = ordinary quality failure
 #
-# Ported from konenki-website 2026-10-01 and grown over the forsgren#1
+# Ported from another estate repository 2026-10-01 and grown over the forsgren#1
 # bootstrap ladder (25 steps, closed 2026-10-02): the sfl and FBP rows, the
 # build-site and Go-test and gofmt rows in steps 1 and 2; the secret scan in
 # step 3; the tool-install and Go-toolchain-pin self-tests in step 4; the
@@ -21,7 +21,7 @@
 # Stylelint and lint coverage in step 8; the required-pages rows in step 9;
 # privacy posture, the privacy-pages n/a rows and repository links in step
 # 10; the HTML duplication rows in step 11; shellcheck, yamllint and stray
-# tracked files in step 12; script references, from MenoPower, in step 13;
+# tracked files in step 12; script references, from another estate repository, in step 13;
 # gate wiring, quality trigger scope and quality-report render with CI in
 # step 14; workflow triggers in step 16; checkout pins in step 17;
 # actionlint in step 18; zizmor in step 19; Go lint and Go test duplication
@@ -39,13 +39,13 @@
 # Scripts/test_*.sh is declared by a row.
 #
 # CANON LABELS, CANON ORDER. The labels and their order follow the estate
-# canon (web-infra/Scripts/check_site_gate_parity.sh, DEFAULT_CANON), so
+# canon (source-repo/Scripts/check_site_gate_parity.sh, DEFAULT_CANON), so
 # forsgren's report reads like the other sites'. Only the rows whose scripts
 # exist are here, plus the two privacy-pages rows, declared `n/a` with their
 # reason as coachretreat-website and agilelean-website declare them: a new
 # gate adds its rows at their canon position. Rows that are not canon (build
 # site, the data guard, the Go rows, the FBP fixtures, workflow triggers,
-# zizmor, script references, repository links) sit where konenki-website puts
+# zizmor, script references, repository links) sit where another estate repository puts
 # its own extras, or right beside the canon row they extend, each saying
 # which: the build-site self-test after the pull contract, the FBP fixtures
 # after the step table.
@@ -84,13 +84,27 @@ secret scan|Scripts/check_secrets.sh|pre|secret-class
 data guard self-test|Scripts/test_check_data_guard.sh|pre|
 data guard|Scripts/check_data_guard.sh|pre|secret-class
 #
+# PRIVATE NAMES (forsgren#52). Not canon: forsgren's own. This repository is
+# public, so no tracked file, and no tracked path, may name a private
+# repository. The list of names lives OUTSIDE the repository, so this file
+# holds none: locally in ~/.config/forsgren/private-names (or the file that
+# FORSGREN_PRIVATE_NAMES_FILE points to), in CI in the Actions secret
+# FORSGREN_PRIVATE_NAMES, which quality.yml passes to the PRE step through
+# env. Whole-name, case-insensitive. The FAIL line names file:line (or the
+# number of a tracked path), never the name. No list is exit 2, never a
+# silent pass. It is a secret-class row, the same tier as the data guard and
+# for the same reason: once committed, a name is in a public history.
+# Self-test first; the self-test stays ordinary-class.
+private-names self-test|Scripts/test_check_private_names.sh|pre|
+private names|Scripts/check_private_names.sh|pre|secret-class
+#
 # Remote synchronisation is pre-flight infrastructure in sfl, not itself a
 # gate; its fixture pins the ff-only/no-auto-rebase contract.
 sfl pull contract|Scripts/test_sfl_pull.sh|pre|
 #
 # Repository dependency/tooling policy (forsgren#1, ladder step 7). These
 # govern what subsequent gates execute, so they belong before the build.
-# The gate is konenki-website's, byte-identical: exact devDependency pins in
+# The gate is another estate repository's, byte-identical: exact devDependency pins in
 # package.json, package.json and package-lock.json committed (or on their way
 # into this run's commit) and not gitignored, node_modules never tracked.
 # Its self-test is forsgren's own (no repo of the estate has one) and, being
@@ -111,10 +125,10 @@ Go toolchain pin self-test|Scripts/test_go_toolchain.sh|pre|
 build-site self-test|Scripts/test_build_site.sh|pre|
 #
 # HTMLHint and Stylelint validate the generated site (forsgren#1, ladder step
-# 8), at konenki-website's position, right after the build-site self-test.
+# 8), at another estate repository's position, right after the build-site self-test.
 # Both lint .build/site by default and accept a site-directory argument, so a
 # caller can lint another build. Configs .htmlhintrc and .stylelintrc.json are
-# konenki-website's, byte-identical. Each self-test is forsgren's own (no repo
+# another estate repository's, byte-identical. Each self-test is forsgren's own (no repo
 # of the estate has one), drives the REAL linter, and, being non-canon, sits
 # right before the canon row it validates: it runs in pre, the gate in post.
 HTMLHint self-test|Scripts/test_gate_htmlhint.sh|pre|
@@ -127,7 +141,7 @@ Stylelint|Scripts/gate_stylelint.sh|post|
 # canon row between them). The manifest is internal/page/required-pages.json,
 # hand-authored beside the templates and never generated: build_site.sh
 # renders HTML, it does not write or copy the manifest. Validator and
-# self-test are konenki-website's, adapted only in the manifest path; the
+# self-test are another estate repository's, adapted only in the manifest path; the
 # self-test adds forsgren's own cases at its end, pinning the named reason of
 # a missing manifest and of an empty list, each with a mutation proof. The
 # self-test drives synthetic manifests, so it runs in pre; the validator
@@ -141,7 +155,7 @@ required-pages manifest|Scripts/validate_required_pages.sh|post|
 # local `./` reference ends in a full 40-hex commit SHA, and every
 # actions/checkout is SHA-pinned and sets persist-credentials: false. The
 # gate is coachretreat-website's test_workflow_checkout_pins.sh, the
-# estate's best-shape copy (konenki-website's lacks the every-action pin),
+# estate's best-shape copy (another estate repository's lacks the every-action pin),
 # adapted only in its header comments; the canon labels keep its name. Its
 # mutation proof is coachretreat's, adapted: red on a missing gate, each
 # rejection asserts its reason, plus forsgren's cases (branch, short SHA,
@@ -152,7 +166,7 @@ checkout pins|Scripts/test_workflow_checkout_pins.sh|pre|
 #
 # HTML duplication, a RATCHET (forsgren#1, ladder step 11), at its canon
 # position after the required-pages rows (forsgren has none of the release
-# and workflow-pin rows between them). konenki-website runs both rows in
+# and workflow-pin rows between them). Another estate repository runs both rows in
 # pre, over its authored SiteSource/ only: its generated pages repeat the
 # composed chrome by design. Yves's ruling for forsgren: ported even with one
 # page, measured on the templates AND on the generated page. So the canon
@@ -183,7 +197,7 @@ golden-pages self-test|Scripts/test_check_golden_pages.sh|pre|
 golden pages|Scripts/check_golden_pages.sh|pre|
 #
 # Gate wiring, the sfl/CI parity guard (forsgren#1, ladder step 14), at its
-# canon position after the html-duplication rows. konenki-website's fixture,
+# canon position after the html-duplication rows. Another estate repository's fixture,
 # adapted: konenki names every gate in its own workflow step and checks the
 # two lists agree; forsgren's quality.yml runs this file through
 # Scripts/run_ci_phase.sh, so the fixture checks that every runnable row has
@@ -194,7 +208,7 @@ golden pages|Scripts/check_golden_pages.sh|pre|
 # in its own phase. Repository source, so it runs in pre.
 gate wiring|Scripts/test_gate_wiring.sh|pre|
 #
-# go mod tidy (forsgren#1, ladder step 23). Not canon: MenoPower's tidy
+# go mod tidy (forsgren#1, ladder step 23). Not canon: another estate repository's tidy
 # check (CI and Makefiles: `go mod tidy`, then git status on go.mod and
 # go.sum), made check-only with `go mod tidy -diff`, so a red is never a
 # silent rewrite that rides into the commit. First of the Go rows, because
@@ -211,8 +225,8 @@ go mod tidy|Scripts/check_go_mod_tidy.sh|pre|
 Go tests self-test|Scripts/test_check_go_tests.sh|pre|
 Go tests|Scripts/check_go_tests.sh|pre|
 #
-# Go coverage (forsgren#1, ladder step 22). Not canon: MenoPower's coverage
-# ratchet, beside the other Go rows. The gate is MenoPower's
+# Go coverage (forsgren#1, ladder step 22). Not canon: another estate repository's coverage
+# ratchet, beside the other Go rows. The gate is another estate repository's
 # check_coverage.py rewritten in bash and awk (python3 is not a listed tool):
 # every function the profile measures is held to its floor in
 # coverage_thresholds.json, an unregistered one is red, and a floor below
@@ -220,7 +234,7 @@ Go tests|Scripts/check_go_tests.sh|pre|
 # never gates. It reads the profile the Go tests row wrote, so it runs no
 # test of its own and must stay behind that row, with only its own
 # self-test between them. The self-test is
-# forsgren's own, in bash (MenoPower's test_check_coverage.py pins only its
+# forsgren's own, in bash (another estate repository's test_check_coverage.py pins only its
 # total recomputation and its FLOORWARN line), with three mutation proofs.
 # Repository source, so both run in pre, self-test first.
 Go coverage self-test|Scripts/test_check_coverage.sh|pre|
@@ -232,14 +246,14 @@ gofmt self-test|Scripts/test_check_gofmt.sh|pre|
 gofmt|Scripts/check_gofmt.sh|pre|
 #
 # Go lint and Go test duplication (forsgren#1, ladder step 20). Not canon
-# (the sites have no Go): MenoPower's Go gates, beside the other Go rows.
+# (the sites have no Go): another estate repository's Go gates, beside the other Go rows.
 # Both run the golangci-lint pinned by go.mod's `tool` line (Yves's ruling:
 # Go tools through go.mod and go.sum, never Homebrew). Go lint runs it under
-# .golangci.yml, ported from MenoPower shared/ (its strictest module) without
+# .golangci.yml, ported from another estate repository shared/ (its strictest module) without
 # shared/'s blanket gosec G101 exclusion (Yves's ruling). Go test duplication
-# is MenoPower's split: .golangci.yml leaves dupl on _test.go files to it.
+# is another estate repository's split: .golangci.yml leaves dupl on _test.go files to it.
 # The Go lint self-test is forsgren's own (no repo of the estate has one);
-# the test-duplication one is MenoPower's, adapted, with forsgren's cases and
+# the test-duplication one is another estate repository's, adapted, with forsgren's cases and
 # a mutation proof. Repository source, so all four run in pre, each
 # self-test right before its gate.
 Go lint self-test|Scripts/test_check_go_lint.sh|pre|
@@ -247,23 +261,23 @@ Go lint|Scripts/check_go_lint.sh|pre|
 Go test duplication self-test|Scripts/test_check_test_dupl.sh|pre|
 Go test duplication|Scripts/check_test_dupl.sh|pre|
 #
-# Go file length (forsgren#1, ladder step 21). Not canon: MenoPower's
+# Go file length (forsgren#1, ladder step 21). Not canon: another estate repository's
 # 600-line cap on Go production files (CONVENTIONS.md, Code), beside the
-# other Go rows. The gate is MenoPower's check_file_length.py, rewritten in
+# other Go rows. The gate is another estate repository's check_file_length.py, rewritten in
 # bash and awk (python3 is not a listed tool) and reading the module's files
 # through `go list ./...`, so go.mod's `ignore node_modules` holds for it as
-# for go test. The self-test is forsgren's own (MenoPower's has none), with
+# for go test. The self-test is forsgren's own (another estate repository's has none), with
 # three mutation proofs. Repository source, so both run in pre, self-test
 # first.
 Go file length self-test|Scripts/test_check_file_length.sh|pre|
 Go file length|Scripts/check_file_length.sh|pre|
 #
 # Go vulnerabilities and Go dead code (forsgren#1, ladder step 23). Not
-# canon: MenoPower's govulncheck and `deadcode -test ./...` checks, in
-# MenoPower's order, beside the other Go rows. Both tools are pinned by
+# canon: another estate repository's govulncheck and `deadcode -test ./...` checks, in
+# another estate repository's order, beside the other Go rows. Both tools are pinned by
 # go.mod's `tool` lines plus go.sum and run through `go tool` (Yves's
-# ruling), where MenoPower installs them `@latest`. govulncheck skips, as in
-# MenoPower, when its database does not answer: a ⚠️ SKIP line and exit 0,
+# ruling), where another estate repository installs them `@latest`. govulncheck skips, as in
+# another estate repository, when its database does not answer: a ⚠️ SKIP line and exit 0,
 # never the OK line of a pass (offline = `curl -sf --max-time 5` on
 # <db>/index/db.json fails). deadcode is red on any function neither main
 # nor a test reaches. Each self-test is forsgren's own (no repo of the
@@ -280,10 +294,10 @@ Go dead code|Scripts/check_deadcode.sh|pre|
 # where konenki puts its own extras). Valid YAML is not a valid workflow:
 # actionlint knows which contexts exist where, which keys a step takes, and
 # which runner labels exist. The gate is coachretreat-website's,
-# byte-identical (konenki-website's differs only in naming itself as the repo
-# that shipped the motivating bug, coachretreat's names konenki-website).
+# byte-identical (another estate repository's differs only in naming itself as the repo
+# that shipped the motivating bug, coachretreat's names another estate repository).
 # Every forsgren job runs on a GitHub-hosted image since forsgren#1's runner
-# swap, so .actionlint.yaml declares no custom label (konenki-website
+# swap, so .actionlint.yaml declares no custom label (another estate repository
 # declares its self-hosted ones). The self-test is the estate's fixture
 # (byte-identical in konenki, coachretreat and agilelean) with forsgren's
 # cases at its end: each asserts its reason, the retired runner-forsgren
@@ -295,7 +309,7 @@ Go dead code|Scripts/check_deadcode.sh|pre|
 actionlint self-test|Scripts/test_check_actionlint.sh|pre|
 actionlint|Scripts/check_actionlint.sh|pre|
 #
-# zizmor (forsgren#1, ladder step 19). Not canon: web-infra's gate (its sfl
+# zizmor (forsgren#1, ladder step 19). Not canon: another estate repository's gate (its sfl
 # runs it right behind actionlint, as here), so it sits right behind the
 # canon actionlint rows, before shellcheck. actionlint asks whether a
 # workflow is valid, zizmor whether it is safe: template injection, an
@@ -303,9 +317,9 @@ actionlint|Scripts/check_actionlint.sh|pre|
 # self-test is forsgren's own (no repo of the estate has one): each case
 # asserts its reason, a .yaml workflow is read as well as a .yml, a scan over
 # no workflow is red, and two mutation proofs show the severity threshold
-# and the config are what they claim. The gate is web-infra's, adapted only
+# and the config are what they claim. The gate is another estate repository's, adapted only
 # in its paths (an optional directory argument, default .github), at
-# web-infra's setting: --offline, --min-severity high, the default persona.
+# another estate repository's setting: --offline, --min-severity high, the default persona.
 # Its config, .github/zizmor.yml, suppresses nothing. Repository source, so
 # both run in pre, self-test first.
 zizmor self-test|Scripts/test_check_zizmor.sh|pre|
@@ -314,13 +328,13 @@ zizmor|Scripts/check_zizmor.sh|pre|
 # Shellcheck and yamllint (forsgren#1, ladder step 12), at their canon
 # position after the actionlint rows and before lint coverage. Both read
 # repository source, so both run in pre.
-# The shellcheck gate and its self-test are web-infra's, the estate canon:
+# The shellcheck gate and its self-test are another estate repository's, the estate canon:
 # targets DERIVED from `git ls-files`, every *.sh plus every extension-less
 # file with a bash or sh shebang, so a new script is covered the moment it is
 # tracked. The self-test is byte-identical; the gate is adapted only in
-# comments that named web-infra's own files. konenki-website runs an older,
+# comments that named another estate repository's own files. Another estate repository runs an older,
 # named-list copy without the self-test.
-# The yamllint gate is konenki-website's, adapted in its targets: konenki
+# The yamllint gate is another estate repository's, adapted in its targets: konenki
 # names .github/workflows/; here the targets are derived the shellcheck way,
 # every tracked .yml/.yaml (the workflow and .yamllint.yml included, so the
 # list is never empty, and zero is red). Its self-test is
@@ -334,7 +348,7 @@ yamllint|Scripts/check_yamllint.sh|pre|
 #
 # Lint coverage (forsgren#1, ladder step 8): did each linter OPEN every .html
 # and .css file the generated site ships? A glob that stops matching is a
-# smaller job that reports success. Gate and fixture are konenki-website's;
+# smaller job that reports success. Gate and fixture are another estate repository's;
 # the fixture byte-identical, the gate adapted only in its default site
 # directory (.build/site). Canon position: after the static-analysis rows,
 # before the npm audit.
@@ -342,7 +356,7 @@ lint-coverage self-test|Scripts/test_check_lint_coverage.sh|pre|
 lint coverage|Scripts/check_lint_coverage.sh|post|
 #
 # Dependency audit belongs before generating deployable output (forsgren#1,
-# ladder step 7). Both scripts came from konenki-website; forsgren#13 added
+# ladder step 7). Both scripts came from another estate repository; forsgren#13 added
 # the ruled, weekly exceptions (Scripts/npm_audit_exceptions.txt), so neither
 # is byte-identical to konenki's any more. sfl runs
 # the self-healing npm_audit_check.sh (one `npm audit fix`, re-verified; the
@@ -356,7 +370,7 @@ npm audit|Scripts/npm_audit_check.sh|pre|
 #
 # The manifest must describe exactly the generated servable HTML surface:
 # every .html in .build/site declared, every declared page generated
-# (forsgren#1, ladder step 9). The gate is konenki-website's, adapted in its
+# (forsgren#1, ladder step 9). The gate is another estate repository's, adapted in its
 # defaults (.build/site, internal/page/required-pages.json) and in one
 # forsgren rule: a site with no .html is red and says so. Its self-test is
 # forsgren's own (no repo of the estate has one) and, being non-canon, sits
@@ -365,7 +379,7 @@ manifest-covers-site self-test|Scripts/test_required_pages_covers_site_selftest.
 manifest covers site|Scripts/test_required_pages_covers_site.sh|post|
 #
 # Quality trigger scope (forsgren#1, ladder step 14), at its canon position
-# after manifest covers site. konenki-website's fixture, adapted: its rule is
+# after manifest covers site. Another estate repository's fixture, adapted: its rule is
 # "no paths filter, or one that covers every path the gates read", and
 # forsgren's gates read every tracked file (secret scan, data guard, stray
 # files, script references), so quality.yml must run on every push to main
@@ -424,7 +438,7 @@ DCO sign-off self-test|Scripts/test_check_dco.sh|pre|
 metrics workflow|Scripts/test_metrics_workflow.sh|pre|
 #
 # No stray tracked files (forsgren#1, ladder step 12). Not canon:
-# konenki-website's issue #10 gate, byte-identical, at konenki's position
+# Another estate repository's issue #10 gate, byte-identical, at konenki's position
 # between the quality-trigger-scope row and the report-script fixtures. Red
 # on a tracked .DS_Store at any depth, and on a
 # tracked .yml/.yaml with a top-level jobs: key anywhere GitHub does not run
@@ -433,15 +447,15 @@ metrics workflow|Scripts/test_metrics_workflow.sh|pre|
 # (paths from the index, content from the working tree), so it runs in pre.
 stray tracked files|Scripts/test_no_stray_tracked_files.sh|pre|
 #
-# Script references (forsgren#1, ladder step 13). Not canon: MenoPower's
+# Script references (forsgren#1, ladder step 13). Not canon: another estate repository's
 # guard, ported beside the stray-tracked-files row, the other
 # repository-hygiene check. Red when a script, workflow, doc or order file
 # names a Scripts path that does not exist (case-sensitively), when a script
 # has no caller (an executable file, an order or tool file, or CLAUDE.md), and
 # on a run that scanned nothing. A path that names another repository's
 # script says so with that repository as its first component, and is not
-# checked. The self-test is MenoPower's, adapted for forsgren's scope, with
-# forsgren's cases and two mutation proofs at its end; MenoPower's CLIMB ban
+# checked. The self-test is another estate repository's, adapted for forsgren's scope, with
+# forsgren's cases and two mutation proofs at its end; another estate repository's CLIMB ban
 # is not ported (see the gate's header). Repository source, so both run in
 # pre, self-test first.
 script references self-test|Scripts/test_check_script_references.sh|pre|
@@ -451,7 +465,7 @@ script references|Scripts/check_script_references.sh|pre|
 # the gate-failure summary (konenki puts it right after the stray-files row;
 # the non-canon script-references pair sits between them here).
 # Scripts/render_quality_report.sh renders CI's step summary from these rows,
-# in this file's order; this is its fixture, konenki-website's, with one
+# in this file's order; this is its fixture, another estate repository's, with one
 # forsgren case (an n/a row is not counted as unreported).
 quality-report render|Scripts/test_render_quality_report.sh|pre|
 #
@@ -466,20 +480,20 @@ gate-failure summary|Scripts/test_summarize_gate_failure.sh|pre|
 sfl drives from the order file|Scripts/test_sfl_drives_from_order_file.sh|pre|
 step table|Scripts/test_render_step_table.sh|pre|
 #
-# FBP.sh's own summary and its build-site page count (konenki-website issues
+# FBP.sh's own summary and its build-site page count (another estate repository issues
 # #6 and #8): repository-source presentation, like the report scripts above.
 FullBuildAndPush commit-message block|Scripts/test_fbp_commit_message.sh|pre|
 FullBuildAndPush build-site page count|Scripts/test_fbp_build_pagecount.sh|pre|
 #
 # THE PRIVACY POSTURE (forsgren#1, ladder step 10), at its canon position
-# after the step table, behind the FBP fixtures as in konenki-website. The
+# after the step table, behind the FBP fixtures as in another estate repository. The
 # public page shows numbers and dates only: no forms, no third-party assets
 # (fonts, analytics, CDNs), no cookies or browser storage, no tracking.
-# The gate is coachretreat-website's copy of konenki-website's, adapted only
+# The gate is coachretreat-website's copy of another estate repository's, adapted only
 # in its default site directory (.build/site); coachretreat's is the copy for
 # a site that declares `privacy pages|n/a`, and its failure text says so,
 # where konenki's points at konenki's own privacy pages. Its self-test is
-# konenki-website's, adapted in one case: konenki checks its committed Site/,
+# another estate repository's, adapted in one case: konenki checks its committed Site/,
 # forsgren's site is generated and this self-test runs in pre, before the
 # build, so that case builds its own copy into the temp dir and checks it.
 # Self-test in pre, gate in post.
@@ -505,14 +519,7 @@ repository links|Scripts/check_repo_links.sh|post|
 community-files self-test|Scripts/test_check_community_files.sh|pre|
 community files|Scripts/check_community_files.sh|pre|
 #
-# PRIVATE NAMES (forsgren#52). Not canon: forsgren's own. The tracked files
-# must not name a private repository. The list of names lives outside the
-# repository (a local file, a CI Actions secret), so this public file holds
-# none. Only the self-test is registered here, in the red step; the gate row
-# joins it once the tree is scrubbed.
-private-names self-test|Scripts/test_check_private_names.sh|pre|
-#
-# The privacy pages belong to a site that needs privacy pages: konenki-website
+# The privacy pages belong to a site that needs privacy pages: another estate repository
 # serves a privacy policy, and its check_privacy_pages.sh pins that
 # policy's content (language, title, approved date, binding-version
 # sentence). forsgren serves no privacy page,

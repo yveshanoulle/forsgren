@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-# Ported unchanged from konenki-website 2026-10-01 (forsgren#1); "this repo"
-# in the history below means konenki-website.
+# Ported unchanged from another estate repository 2026-10-01 (forsgren#1); "this repo"
+# in the history below means another estate repository.
 #
 # Prints WHY a gate failed, for sfl's end-of-run block and FullBuildAndPush's
 # summary — unit 404, ported from coachretreat-website (its unit 402).

@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 
 # Fixture for check_lint_coverage.sh — unit 394.
 #
-# Fake linters drive every mode, the way MenoPower's npm-audit fixture does.
+# Fake linters drive every mode, the way another estate repository's npm-audit fixture does.
 # The real binaries are not used: this asserts what the CHECK does with a
 # linter's answer, and an unexercised mode is broken until a fixture drives it.
 #

@@ -1,5 +1,5 @@
 {
-  "usage": "forsgren Code Health override, ported from MenoPower's (Yves's ruling 2026-08-16 there, adopted for forsgren 2026-10-02): CodeScene's in-session review is as strict on complexity as the hard gate. .golangci.yml runs gocyclo at min-complexity 6 on ALL Go code, tests included (unlike MenoPower, which excludes _test.go), so it fails cc >= 7 everywhere; this threshold matches at 7 for every Go file, so a too-complex function shows up at review time instead of at the FBP run. Change it together with .golangci.yml's gocyclo setting, never alone.",
+  "usage": "forsgren Code Health override, ported from another estate repository's (Yves's ruling 2026-08-16 there, adopted for forsgren 2026-10-02): CodeScene's in-session review is as strict on complexity as the hard gate. .golangci.yml runs gocyclo at min-complexity 6 on ALL Go code, tests included (unlike another estate repository, which excludes _test.go), so it fails cc >= 7 everywhere; this threshold matches at 7 for every Go file, so a too-complex function shows up at review time instead of at the FBP run. Change it together with .golangci.yml's gocyclo setting, never alone.",
   "rule_sets": [
     {
       "matching_content_path": "**/*.go",

@@ -3,7 +3,7 @@
 # weekly exceptions.
 #
 # Contract (pinned by test_npm_audit_check.sh):
-# Ported from MenoPower Scripts/admin/ — unit 393.
+# Ported from another estate repository Scripts/admin/ — unit 393.
 #
 #   exit 0 — no high or critical advisory outside a ruled exception, possibly
 #            after ONE `npm audit fix` (re-verified); a heal reports the

@@ -3,7 +3,7 @@
 #
 # Self-test for Scripts/check_go_lint.sh, run before the gate it validates.
 #
-# NEW (forsgren#1, ladder step 20). MenoPower runs golangci-lint in sfl and CI
+# NEW (forsgren#1, ladder step 20). Another estate repository runs golangci-lint in sfl and CI
 # with no fixture, so nothing there shows its config catching what it exists
 # to catch. A gate that has never been seen red is a hope.
 #
@@ -21,7 +21,7 @@
 #      config must let it through as red)
 #   6. MUTATION PROOF: the config with gocyclo's min-complexity raised to 7
 #      turns case 2 green: the threshold in .golangci.yml is what reddens it
-#   7. MUTATION PROOF: the config with MenoPower shared/'s blanket G101
+#   7. MUTATION PROOF: the config with another estate repository shared/'s blanket G101
 #      exclusion appended turns case 5 green: case 5 is not vacuous, the
 #      config is what judges it
 #   8. a module with no Go package                  -> red: a lint over
@@ -135,7 +135,7 @@ if mutate_config "cyclo-raised" '
   want_green_ok "mutation: gocyclo min-complexity 7 turns case 2 green"
 fi
 
-# --- Case 7: MUTATION PROOF. MenoPower shared/'s blanket G101 exclusion.
+# --- Case 7: MUTATION PROOF. Another estate repository shared/'s blanket G101 exclusion.
 if mutate_config "g101-excluded" '
   { print }
   /^    rules:$/ { print "      - linters: [gosec]"; print "        text: \"G101\"" }'; then

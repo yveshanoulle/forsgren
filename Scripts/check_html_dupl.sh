@@ -6,9 +6,9 @@ set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
 # HTML duplication RATCHET — unit 397, adapted from
-# MenoPower/Scripts/admin/check_html_dupl.sh.
+# source-repo/Scripts/admin/check_html_dupl.sh.
 #
-# Ported from konenki-website 2026-10-01 (forsgren#1, ladder step 11). No repo
+# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 11). No repo
 # of the estate keeps this file identical: konenki, coachretreat and agilelean
 # each carry their own target and ceiling. Yves's ruling on forsgren#1: ported
 # even with one page, measured on the templates AND on the generated page, not

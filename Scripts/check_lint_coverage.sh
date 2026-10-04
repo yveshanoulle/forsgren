@@ -4,7 +4,7 @@ set -uo pipefail
 # check_lint_coverage.sh — did the linters actually OPEN every file that ships?
 #
 # Unit 394, ported from coachretreat-website; the site-shaped answer to
-# MenoPower's admin_template_files.sh.
+# another estate repository's admin_template_files.sh.
 #
 # WHY. Both linters are invoked through globs. A glob that stops matching is
 # not an error — it is a smaller job that finishes sooner and reports success.
@@ -38,7 +38,7 @@ cd "$(dirname "$0")/.." || exit 1
 # forsgren (ported 2026-10-01, forsgren#1 ladder step 8): the default is
 # .build/site, where Scripts/build_site.sh renders the site. With the Usage
 # line above and the gate_htmlhint.sh naming in the --config comment below,
-# the only change from konenki-website's copy.
+# the only change from another estate repository's copy.
 SITE="${1:-.build/site}"
 
 # The JSON counter lives in its own file: it has to read two possible streams

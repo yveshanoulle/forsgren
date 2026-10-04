@@ -5,7 +5,7 @@
 # calls it twice, `pre` before Scripts/build_site.sh and `post` after it, the
 # way FBP.sh calls `./sfl.sh pre` and `./sfl.sh post` around the same build.
 #
-# NEW: no repository of the estate has a phase-aware CI loop. konenki-website
+# NEW: no repository of the estate has a phase-aware CI loop. Another estate repository
 # names every gate in its own workflow step (and Scripts/test_gate_wiring.sh
 # there checks the two lists agree); agilelean-website and coachretreat-website
 # loop over the order file in one workflow step, without phases. Here the
@@ -25,7 +25,7 @@
 # gates, and against the real order file.
 #
 # Extracted from the workflow rather than written inline in it: a loop in YAML
-# is a loop nothing outside CI ever runs (estate rule after MenoPower's
+# is a loop nothing outside CI ever runs (estate rule after another estate repository's
 # deploy-i18n.yml, 2026-06-11).
 #
 # THE ONE THING CI DOES THAT sfl DOES NOT: it is check-only, and it checks
@@ -36,7 +36,7 @@
 # and a gate that changed the checked-out tree is a red row, named, even when
 # it exited 0. No gate list is kept for this: any gate that writes is caught.
 #
-# Per gate, the body of konenki-website/Scripts/report_ci_step.sh, which runs one
+# Per gate, the body of source-repo/Scripts/report_ci_step.sh, which runs one
 # workflow step (its issue #9): the output captured guarded, so it survives
 # GitHub's `shell: bash` (`bash --noprofile --norc -e -o pipefail`), echoed to
 # the log, one `<label>|<mark>` line appended to <rows-file>, and

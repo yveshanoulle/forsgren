@@ -4,22 +4,22 @@
 # The Go dead-code gate: `deadcode -test ./...` over a Go module. Red on any
 # function no main package and no test can reach.
 #
-# PORTED (forsgren#1, ladder step 23) from MenoPower, where sfl runs
+# PORTED (forsgren#1, ladder step 23) from another estate repository, where sfl runs
 # `deadcode -test ./...` in each module with a main package
 # (ios-app/sfl.sh, run_go_deadcode_check) and CI runs the same, red on any
 # output (`test ! -s`). `-test` makes the tests roots as well as main, so a
-# helper only a test calls is not reported (MenoPower's choice: its CI runs
+# helper only a test calls is not reported (another estate repository's choice: its CI runs
 # it that way, and sfl matched it). Adapted:
 #   - deadcode is the one pinned by go.mod's `tool` line plus go.sum (Yves's
-#     ruling on forsgren#1), never `go install ...@latest` as MenoPower does:
+#     ruling on forsgren#1), never `go install ...@latest` as another estate repository does:
 #     `go tool -n deadcode`, run in this repository, builds the pinned version
 #     once (Go caches it) and prints its path, and the gate runs that binary
 #     in the module it judges, so a fixture module needs no tool line of its
 #     own. A tool built by go.mod's toolchain is rebuilt when the toolchain
-#     moves, which is what MenoPower's sfl_ensure_go_tool.sh had to add.
+#     moves, which is what another estate repository's sfl_ensure_go_tool.sh had to add.
 #   - the module is an argument, so Scripts/test_check_deadcode.sh can hand
 #     it fixture modules.
-#   - red, not n/a, on a module with no main package: MenoPower marks such a
+#   - red, not n/a, on a module with no main package: another estate repository marks such a
 #     module n/a because its shared/ library has its own dead-exports check;
 #     forsgren has one module, with a main, and a check over no root is no
 #     pass.

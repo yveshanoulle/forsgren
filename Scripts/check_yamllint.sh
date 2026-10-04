@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Yamllint — every tracked YAML file. Config in .yamllint.yml.
 #
-# Ported from konenki-website 2026-10-01 (forsgren#1, ladder step 12), which
-# ported it from web-infra (its unit 411 put it in the canon). konenki lints
-# .github/workflows/ and web-infra adds its compose stacks/, each a NAMED
+# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 12), which
+# ported it from another estate repository (its unit 411 put it in the canon). konenki lints
+# .github/workflows/ and another estate repository adds its compose stacks/, each a NAMED
 # directory. forsgren had no workflow directory when this was ported (CI came
 # in forsgren#1 step 14), and `yamllint .github/workflows/` on a directory
 # that does not exist exits 255. So the targets here are DERIVED, the way Scripts/check_shellcheck.sh

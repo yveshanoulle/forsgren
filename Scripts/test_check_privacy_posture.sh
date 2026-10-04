@@ -19,7 +19,7 @@ set -euo pipefail
 # about.
 #
 # Deliberately NOT flagged: outbound LINKS. forsgren's page has none today;
-# the cases below borrow konenki-website's (pretix.eu, a social platform) as
+# the cases below borrow another estate repository's (pretix.eu, a social platform) as
 # made-up examples. A link transmits nothing until someone clicks it and then
 # they are plainly somewhere else. What matters is what the page loads or
 # stores WITHOUT being asked.

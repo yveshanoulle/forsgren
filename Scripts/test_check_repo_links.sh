@@ -18,7 +18,7 @@
 #                                                   Scripts/build_site.sh)
 #  10. forsgren's own public repository: an href to its root and to it with
 #      an anchor (Yves's ruling on forsgren#41)               -> green
-#  11. forsgren-data, forsgren/issues, forsgren/blob/..., another owner's
+#  11. acme-data, forsgren/issues, forsgren/blob/..., another owner's
 #      forsgren, and each of them next to an allowed link      -> red
 #  12. the own repository as plain text, or in a stylesheet url(): the
 #      exception is for an href only (chosen: a link is what the page
@@ -107,7 +107,7 @@ capture "$GATE" "$SITE"
 want_rc "10. forsgren's own repository, root and anchor, is not a finding" 0
 
 others=(
-  "https://github.com/yveshanoulle/forsgren-data"
+  "https://github.com/yveshanoulle/acme-data"
   "https://github.com/yveshanoulle/forsgren/issues"
   "https://github.com/yveshanoulle/forsgren/blob/main/README.md"
   "https://github.com/yveshanoulle/forsgren/issues#installing"

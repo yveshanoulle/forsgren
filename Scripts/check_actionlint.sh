@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 # actionlint — static analysis for .github/workflows/*.yml.
 #
 # WHY THIS EXISTS. Valid YAML is not a valid workflow. On 2026-08-22
-# konenki-website shipped `${{ runner.temp }}` in a job-level `env:` block:
+# another estate repository shipped `${{ runner.temp }}` in a job-level `env:` block:
 # every local check was green, the file parsed as YAML, and GitHub refused it
 # outright — *Unrecognized named-value: 'runner'*. The whole workflow failed
 # to load, so **not one gate ran**, and the only thing that reported the
@@ -16,7 +16,7 @@ cd "$(dirname "$0")/.."
 # pushing it. actionlint knows which contexts are available where, which is
 # exactly the class of mistake that shipped.
 #
-# NO AUTO-INSTALL, deliberately. web-infra's sfl installs missing tools with
+# NO AUTO-INSTALL, deliberately. Another estate repository's sfl installs missing tools with
 # brew; these repos do not, because installing software is not a thing a lint
 # gate should do behind your back. A missing binary is reported with the
 # remedy and fails.

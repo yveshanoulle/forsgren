@@ -7,7 +7,7 @@ package metrics
 //
 //   - a failure is a stored deployment whose state is failure: a GitHub
 //     Deployment whose newest status is failure or error, or a run of a
-//     `workflow=` rule that concluded failure. The web-infra and TestFlight
+//     `workflow=` rule that concluded failure. The web-hosting and TestFlight
 //     recorders mark a deployment failed only once live was touched, so it
 //     required intervention; a `workflow=` rule stores any failed run, also
 //     one that failed before live was touched. Failure issues are change

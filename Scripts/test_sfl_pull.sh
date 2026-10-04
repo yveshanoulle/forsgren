@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Scripts/test_sfl_pull.sh
 #
-# Ported unchanged from konenki-website 2026-10-01 (forsgren#1): a stub git
+# Ported unchanged from another estate repository 2026-10-01 (forsgren#1): a stub git
 # on PATH pins that sfl pulls with --ff-only and stops with exit 3, naming
 # the recovery command, when it cannot fast-forward.
 

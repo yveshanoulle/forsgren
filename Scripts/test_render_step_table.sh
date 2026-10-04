@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Scripts/test_render_step_table.sh
 #
-# Ported from konenki-website 2026-10-01 (forsgren#1); "this repo" in the
-# history below means konenki-website. forsgren's change: the FBP pin reads
+# Ported from another estate repository 2026-10-01 (forsgren#1); "this repo" in the
+# history below means another estate repository. forsgren's change: the FBP pin reads
 # FBP.sh, and a missing FBP.sh fails the pin instead of skipping it.
 
 set -euo pipefail
@@ -17,7 +17,7 @@ cd "$(dirname "$0")/.."
 # with the BEST shape in every repo, not the first one that happened to land.
 #
 # WHY A TABLE AT ALL (Yves, 2026-09-01): "in web infra we have a nice list at
-# the end … we don't have that for konenki-website / with so many checks that
+# the end … we don't have that for another estate repository / with so many checks that
 # starts to get useful / just like I think we don't have a counter". This repo
 # runs many gates and printed nothing but their names as they went, so a passing
 # run gave no sense of progress and a failed one gave no shape of the whole.

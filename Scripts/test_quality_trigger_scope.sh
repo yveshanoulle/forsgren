@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 # The gates must actually be reachable — unit 391, ported from
 # coachretreat-website's unit 390 the day it was found there.
 #
-# Ported from konenki-website 2026-10-01 (forsgren#1, ladder step 14).
+# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 14).
 # konenki's history, which is why this check exists:
 #
 #   quality.yml was gated behind `paths: ["Site/**", ".github/workflows/

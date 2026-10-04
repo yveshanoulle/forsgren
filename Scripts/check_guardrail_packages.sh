@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.." || exit 1
 # asserted that package.json must NOT exist, because that repo pinned its
 # linters inside the npx invocation. The estate standardised the other way on a
 # reviewer's ruling recorded in
-# web-infra/documentation/decision-linter-pinning.md, and this repo, which had
+# source-repo/documentation/decision-linter-pinning.md, and this repo, which had
 # the manifest all along, had nothing enforcing any of it:
 #
 #   Repository-executed npm tooling is declared as exact-version

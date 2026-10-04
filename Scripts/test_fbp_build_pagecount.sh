@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Scripts/test_fbp_build_pagecount.sh
 #
-# Issue konenki-website#8, ruled fail fast (Yves, 2026-09-30): FullBuildAndPush's summary
+# Issue source-repo#8, ruled fail fast (Yves, 2026-09-30): FullBuildAndPush's summary
 # must show how many pages build_site.sh generated, and a missing,
 # non-numeric or zero count must FAIL the build step with a named reason —
 # never fall back to the plain row.
@@ -9,23 +9,23 @@
 # Drives the REAL FBP.sh inside a throwaway git sandbox with a
 # STUB Scripts/build_site.sh that controls what lands in the page-count
 # sink FullBuildAndPush names (.build/site-page-count.log), the same technique
-# Scripts/test_fbp_commit_message.sh uses for issue konenki-website#6 — this
+# Scripts/test_fbp_commit_message.sh uses for issue source-repo#6 — this
 # pins the CONTRACT between build_site.sh and FBP.sh, not the
 # real builder's own count (Scripts/test_build_site.sh pins that
 # separately). The sandbox and its stub are Scripts/lib_fbp_sandbox.sh
-# (issue konenki-website#14), shared with the commit-message fixture. The stub writes its
+# (issue source-repo#14), shared with the commit-message fixture. The stub writes its
 # sink to SITE_PAGE_COUNT_FILE and has no default for it, so
-# FullBuildAndPush passing its own path to build_site.sh (issue konenki-website#11) is
+# FullBuildAndPush passing its own path to build_site.sh (issue source-repo#11) is
 # pinned here: case 7 exports a decoy path and still expects a green run.
 #
-# Issue konenki-website#20 (items 1 and 3, step 3): the self-proofs at the end check this
+# Issue source-repo#20 (items 1 and 3, step 3): the self-proofs at the end check this
 # fixture from the outside — (a) run_case fails with the sandbox's own
 # reason when there is no sandbox, (b) the fixture fails when it dies
 # part-way. Scripts/test_fbp_commit_message.sh carries the same
 # two for run_fbp, plus (c), no sandbox left behind by a fixture whose own
 # EXIT trap replaces the lib's.
 #
-# Issue konenki-website#17 (cases 8 to 12): the summary rows must not trust raw sink
+# Issue source-repo#17 (cases 8 to 12): the summary rows must not trust raw sink
 # content — the PRE and POST gate counts from .build/sfl-counts.log, a NUL
 # byte, an unreadable sink and a newline-only sink.
 
@@ -38,7 +38,7 @@ source "${ROOT}/Scripts/lib_fbp_sandbox.sh"
 failed=0
 fail() { echo "❌ FAIL: $*"; failed=1; }
 
-# Issue konenki-website#20 (item 3): the completion guard every guarded fixture here
+# Issue source-repo#20 (item 3): the completion guard every guarded fixture here
 # carries. A fixture that dies part-way must fail, never report green: on
 # macOS bash 3.2 a set -u abort inside a function can exit 0. COMPLETED is
 # set only after the last case. finish replaces the lib's EXIT trap, so it
@@ -137,7 +137,7 @@ assert_row_one_line() {
 
 # assert_row_shows_quoted <label> <row> <value>
 # Fails the case when the summary row starting with <row> does not show
-# <value> the way the build-site row shows a bad page count (issue konenki-website#12):
+# <value> the way the build-site row shows a bad page count (issue source-repo#12):
 # through printf %q, so a newline or other control character prints escaped.
 # It also fails when that row holds a raw control character. Meant for a
 # <value> holding a control character: FullBuildAndPush prints any other
@@ -192,12 +192,12 @@ gate_counts_case() {
 # The stub line is printf '%s\n' with the value quoted by printf %q, so a
 # multi-line <sink-content> such as $'3\n4' lands as two lines, byte for
 # byte.
-# Cases 8 to 12 shape the stubs further through the issue konenki-website#17 seams of
+# Cases 8 to 12 shape the stubs further through the issue source-repo#17 seams of
 # Scripts/lib_fbp_sandbox.sh, set as prefix assignments on the run_case call.
 # Sets OUT and RC. No label parameter: each case names itself in its own
 # fail() and assert_* calls below ("valid count", "missing count", ...), so
 # a label passed here would sit unused (shellcheck SC2034).
-# Issue konenki-website#20 (item 1): when there is no sandbox it fails this fixture once,
+# Issue source-repo#20 (item 1): when there is no sandbox it fails this fixture once,
 # with the sandbox's own reason, and returns 1, so the case skips its
 # assertions instead of failing them against empty output and status -1.
 run_case() {
@@ -233,7 +233,7 @@ if run_case abc; then
   assert_shown "non-numeric count" "page count not numeric" "the build step must fail with this named reason"
   assert_run_failed "non-numeric count" "a malformed count must fail fast"
 
-  # A malformed count skips POST like case 2. Added by issue konenki-website#12 as coverage:
+  # A malformed count skips POST like case 2. Added by issue source-repo#12 as coverage:
   # this already held when it was written, so it was never seen red.
   assert_post_skipped "non-numeric count" "a malformed count"
 fi
@@ -243,18 +243,18 @@ fi
 # ---------------------------------------------------------------------------
 if run_case 0; then
   # Matched with its opening parenthesis like case 5, so the named reason is
-  # asserted and not a substring of some other row. Issue konenki-website#12 coverage, never
+  # asserted and not a substring of some other row. Issue source-repo#12 coverage, never
   # seen red.
   assert_shown "zero pages" "(0 pages generated)" "the build step must fail with this named reason"
 
-  assert_run_failed "zero pages" "zero generated pages must fail fast, per Yves's ruling on issue konenki-website#8"
+  assert_run_failed "zero pages" "zero generated pages must fail fast, per Yves's ruling on issue source-repo#8"
 
-  # Issue konenki-website#12 coverage, never seen red.
+  # Issue source-repo#12 coverage, never seen red.
   assert_post_skipped "zero pages" "a zero count"
 fi
 
 # ---------------------------------------------------------------------------
-# Case 5: issue konenki-website#12 — a zero count spelled with more than one digit (00) is
+# Case 5: issue source-repo#12 — a zero count spelled with more than one digit (00) is
 # still zero pages: fail fast with the same named reason as case 4, POST
 # skipped. The reader must not trust the writer: build_site.sh writes
 # $PAGE_COUNT from arithmetic and so never writes 00 itself, but a check
@@ -271,7 +271,7 @@ if run_case 00; then
 fi
 
 # ---------------------------------------------------------------------------
-# Case 6: issue konenki-website#12 — a multi-line sink (3, then 4) is not a page count:
+# Case 6: issue source-repo#12 — a multi-line sink (3, then 4) is not a page count:
 # fail fast with the named "page count not numeric" reason, POST skipped,
 # and the summary's build-site row stays ONE line. The raw sink must not
 # reach the summary, else its second line breaks the table: the row after
@@ -286,7 +286,7 @@ if run_case $'3\n4'; then
 fi
 
 # ---------------------------------------------------------------------------
-# Case 7: issue konenki-website#14 (finding 1 from the #11–#13 review) — a
+# Case 7: issue source-repo#14 (finding 1 from the #11–#13 review) — a
 # SITE_PAGE_COUNT_FILE exported in the calling shell must not move the
 # count. FullBuildAndPush passes its own path to build_site.sh
 # (SITE_PAGE_COUNT_FILE="$PAGE_COUNT_FILE" ./Scripts/build_site.sh), so the
@@ -302,7 +302,7 @@ fi
 # mutation proof right after this case makes exactly that deletion and
 # requires the named reason, so the pin is seen failing on every run.
 #
-# Issue konenki-website#18 (#14 note b): the decoy must also stay UNWRITTEN. A
+# Issue source-repo#18 (#14 note b): the decoy must also stay UNWRITTEN. A
 # FullBuildAndPush that followed the exported path for writing AND reading
 # (PAGE_COUNT_FILE="${SITE_PAGE_COUNT_FILE:-...}") would show 3 pages and
 # pass both checks above, so the decoy lies outside the sandbox, in a
@@ -312,7 +312,7 @@ fi
 # this held when it was written, so it was never seen red here.
 #
 # When mktemp -d gives no directory, case 7 still makes its run_case call
-# (the issue konenki-website#20 self-proof counts one per case) with a decoy relative to
+# (the issue source-repo#20 self-proof counts one per case) with a decoy relative to
 # the sandbox, and fails once, naming mktemp, for the check it cannot make.
 # ---------------------------------------------------------------------------
 case7_decoy=""
@@ -338,7 +338,7 @@ if [ "$case7_ran" -eq 1 ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Mutation proof for case 7 (issue konenki-website#14): case 7 was written against a
+# Mutation proof for case 7 (issue source-repo#14): case 7 was written against a
 # FullBuildAndPush it already passed, so on its own it was never seen red.
 # This re-runs case 7's setup (exported decoy, sink 3) against a copy of
 # FBP.sh with the SITE_PAGE_COUNT_FILE="$PAGE_COUNT_FILE"
@@ -385,7 +385,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Case 8: issue konenki-website#17 (item 1) — the PRE and POST gate counts go into the
+# Case 8: issue source-repo#17 (item 1) — the PRE and POST gate counts go into the
 # summary like the page count does. A multi-line .build/sfl-counts.log
 # (written by the stub sfl.sh through the FBP_SANDBOX_SFL_COUNTS_PRE and
 # FBP_SANDBOX_SFL_COUNTS_POST seams of Scripts/lib_fbp_sandbox.sh) must not
@@ -398,7 +398,7 @@ gate_counts_case "multi-line gate counts" \
   $'post gates 4 passed\npost second line'
 
 # ---------------------------------------------------------------------------
-# Case 9: issue konenki-website#17 (item 1) — a control character in .build/sfl-counts.log
+# Case 9: issue source-repo#17 (item 1) — a control character in .build/sfl-counts.log
 # (a carriage return and an escape sequence, which do not start a new line
 # but do rewrite the terminal line) is shown escaped through printf %q in
 # the pre-gates and post-gates rows, never printed raw.
@@ -408,7 +408,7 @@ gate_counts_case "control-character gate counts" \
   $'post gates 4\r\033[31mred'
 
 # ---------------------------------------------------------------------------
-# Case 10: issue konenki-website#17 (item 2) — a page-count sink of 3, a NUL byte and a
+# Case 10: issue source-repo#17 (item 2) — a page-count sink of 3, a NUL byte and a
 # newline is not a page count. $(cat ...) drops the NUL, so it would read
 # as 3; it must fail fast with the named "page count not numeric" reason,
 # never show "3 pages generated". The sink is written through the
@@ -424,10 +424,10 @@ if FBP_SANDBOX_SINK_PRINTF='3\000\n' run_case ""; then
 fi
 
 # ---------------------------------------------------------------------------
-# Case 11: issue konenki-website#17 (item 3) — a page-count sink that is there and not
+# Case 11: issue source-repo#17 (item 3) — a page-count sink that is there and not
 # empty but cannot be read (the stub chmods it to 000 through the
 # FBP_SANDBOX_SINK_MODE seam) fails the build step with the named
-# "page count unreadable" reason in the build-site row. Before issue konenki-website#17
+# "page count unreadable" reason in the build-site row. Before issue source-repo#17
 # the read ran under set -e and killed FullBuildAndPush part-way: the
 # build-site row stayed at its skipped default (build site ⏭️), the run
 # ended Aborted and POST never ran. Only the reason is asserted, not the
@@ -448,10 +448,10 @@ if FBP_SANDBOX_SINK_MODE=000 run_case 3; then
 fi
 
 # ---------------------------------------------------------------------------
-# Case 12: issue konenki-website#17 (item 4) — a sink that holds one newline and nothing
+# Case 12: issue source-repo#17 (item 4) — a sink that holds one newline and nothing
 # else holds no count: it fails with the named "page count missing"
 # reason, like case 2, not with "page count not numeric: ''" (what it
-# printed before issue konenki-website#17). Written
+# printed before issue source-repo#17). Written
 # through the FBP_SANDBOX_SINK_PRINTF seam so the sink is exactly one byte.
 # ---------------------------------------------------------------------------
 if FBP_SANDBOX_SINK_PRINTF='\n' run_case ""; then
@@ -464,7 +464,7 @@ if FBP_SANDBOX_SINK_PRINTF='\n' run_case ""; then
 fi
 
 # ---------------------------------------------------------------------------
-# Self-proofs, issue konenki-website#20 step 3 (items 1 and 3 of the #14 review). Each one
+# Self-proofs, issue source-repo#20 step 3 (items 1 and 3 of the #14 review). Each one
 # runs this fixture or a copy of it from inside ONE directory made here with
 # the real mktemp and registered with the lib, so nothing they start runs in
 # this repo.
@@ -484,13 +484,13 @@ else
   # sandbox, run_case must fail this fixture with the sandbox's own reason
   # ("could not create the FBP sandbox"), once per run_case call, and no case
   # may go on to assert against the empty output and the -1 status that run
-  # left: before issue konenki-website#20 step 2, every case failed with a downstream
+  # left: before issue source-repo#20 step 2, every case failed with a downstream
   # message about a missing count row or exit status instead.
   #
   # Drives THIS file (not a copy) with the lib's failing mktemp
   # (fbp_sandbox_write_failing_mktemp) first on PATH, from an empty
   # directory under proof_dir. The lib then stops before its subshell
-  # (issue konenki-website#20 step 2), and even a lib that did not would write its stubs into
+  # (issue source-repo#20 step 2), and even a lib that did not would write its stubs into
   # that empty directory, never into this repo.
   #
   # Wanted: the run fails; exactly 12 FAIL lines carry the reason, one for

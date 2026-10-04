@@ -4,7 +4,7 @@
 # Self-test for Scripts/check_guardrail_packages.sh, the npm manifest policy
 # gate (forsgren#1, ladder step 7), run before the gate it validates.
 #
-# NEW IN forsgren. The gate is ported byte-identical from konenki-website
+# NEW IN forsgren. The gate is ported byte-identical from another estate repository
 # (where it is also identical to coachretreat-website's copy), but no repo of
 # the estate has a self-test for it: there it runs unvalidated. forsgren's
 # rule is that a ported gate comes with its fixtures, seen green, plus one

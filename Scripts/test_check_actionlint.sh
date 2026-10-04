@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 # Fixture for check_actionlint.sh.
 #
 # The case that matters is the FIRST one: the exact bug that motivated this
-# gate. On 2026-08-22 konenki-website put `${{ runner.temp }}` in a job-level
+# gate. On 2026-08-22 another estate repository put `${{ runner.temp }}` in a job-level
 # `env:` block — the `runner` context does not exist when job env is
 # evaluated, GitHub rejected the whole file, and NOT ONE GATE RAN. sfl was
 # green, the file was valid YAML, and nothing local said a word.
@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.."
 # A gate written to catch that must be shown catching it, or it is a hope.
 #
 # PORTED (forsgren#1, ladder step 18). Cases 1 to 5 are the estate's fixture,
-# byte-identical in konenki-website, coachretreat-website and
+# byte-identical in another estate repository, coachretreat-website and
 # agilelean-website. Cases 6 to 11 are forsgren's own, and each asserts the
 # REASON, not only the exit code:
 #   6. a custom runner label .actionlint.yaml does not declare

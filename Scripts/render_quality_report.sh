@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.." || exit 1
 # Renders the Quality run report — unit 406, ported from coachretreat-website
 # (its unit 401).
 #
-# Ported from konenki-website 2026-10-01 (forsgren#1, ladder step 14); "HERE"
+# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 14); "HERE"
 # below means konenki. forsgren's changes:
 #   1. An `n/a` row (`<label>|n/a|<reason>`) is not counted in the total: it
 #      declares a gate this repo does not have, so it can never report, and
