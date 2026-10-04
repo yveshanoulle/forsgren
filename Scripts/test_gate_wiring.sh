@@ -356,6 +356,16 @@ for path in Scripts/*.sh; do
         || fail "${base} is run by hand and CLAUDE.md no longer declares it — an undeclared script nobody runs is a file, not a tool"
       ;;
 
+    # HAND-RUN, not a gate (forsgren#52): run by hand to sync the private-names
+    # list into the FORSGREN_PRIVATE_NAMES Actions and Dependabot secrets. No
+    # runner invokes it (it needs the maintainer's gh login), so it must carry
+    # a fixture, and that fixture must be an order-file row.
+    sync_private_names_secrets.sh)
+      require_fixture "$base" "the secret sync would be untested"
+      order_names "test_${base}" \
+        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the secret sync"
+      ;;
+
     *)
       fail "${base} is a script no order-file row names and no declared exemption covers — a validator nobody runs is a file, not a gate"
       ;;
