@@ -41,7 +41,12 @@
 #   - there is no list at all (no env list, no names file);
 #   - the env list FORSGREN_PRIVATE_NAMES has no names (an emptied CI secret);
 #   - the names file FORSGREN_PRIVATE_NAMES_FILE names does not exist;
-#   - there is no tracked or untracked file (the scan read nothing).
+#   - there is no tracked or untracked file (the scan read nothing);
+#   - a tracked or untracked path (or the blob of a tracked symlink) could not
+#     be read: `tracked path #N could not be read`, by number only, since
+#     grep's own message would print the path (its stderr is discarded).
+#     A scan that could not read is not a clean scan. Precedence: when a name
+#     was also found, exit 1 stays (a name found outranks an unreadable file).
 # An EXISTING names file with no names (zero bytes, blanks, comments) is not
 # an error: the scan still runs over every path and file, finds nothing and
 # exits 0 with `0 names searched`. In CI the secret is the only source, so CI
@@ -101,23 +106,31 @@ build_patterns() {
 # path, its symlink target text and its content; counts it in N (the numbering
 # runs over the tracked list, then the untracked one). Sets FOUND to 1 on a hit.
 judge_path() {
-  local patterns="$1" path="$2" target="$3" islink="$4" shown hits hit lineno
+  local patterns="$1" path="$2" target="$3" islink="$4" shown hits hit lineno rc
   N=$((N + 1))
   shown="$path"
   # A here-string, not a pipe: under pipefail, grep -q closing the pipe early
   # can SIGPIPE the printf and turn a match into a miss.
-  if grep -q -i -E -f "$patterns" <<< "$path"; then
+  if grep -q -i -E -f "$patterns" <<< "$path" 2>/dev/null; then
     echo "❌ FAIL: tracked path #${N} in git ls-files names a private name"
     FOUND=1
     shown="tracked path #${N}"
   fi
   # A symlink is judged by its target text, which may dangle.
-  if [[ "$islink" -eq 1 ]] && grep -q -i -E -f "$patterns" <<< "$target"; then
+  if [[ "$islink" -eq 1 ]] && grep -q -i -E -f "$patterns" <<< "$target" 2>/dev/null; then
     echo "❌ FAIL: tracked path #${N} (link target) names a private name"
     FOUND=1
   fi
   [[ -f "$path" ]] || return 0
-  hits="$(grep -a -n -i -E -f "$patterns" -- "$path" || true)"
+  # grep exits 0 on a hit, 1 on none, above 1 when it could not read the file.
+  # Its stderr names the path, so it goes nowhere; the failure is told by number.
+  rc=0
+  hits="$(grep -a -n -i -E -f "$patterns" -- "$path" 2>/dev/null)" || rc=$?
+  if [[ "$rc" -gt 1 ]]; then
+    echo "❌ FAIL: tracked path #${N} could not be read: a file that cannot be read cannot be judged"
+    UNREAD=1
+    return 0
+  fi
   [[ -z "$hits" ]] && return 0
   while IFS= read -r hit; do
     lineno=${hit%%:*}
@@ -132,6 +145,7 @@ judge_path() {
 scan_tracked() {
   local patterns="$1" entry path mode sha target
   FOUND=0
+  UNREAD=0
   N=0
   while IFS= read -r -d '' entry; do
     path="${entry#*$'\t'}"
@@ -139,13 +153,25 @@ scan_tracked() {
     sha="${entry#* }"
     sha="${sha%% *}"
     target=""
-    [[ "$mode" == 120000 ]] && target="$(git cat-file blob "$sha")"
+    if [[ "$mode" == 120000 ]]; then
+      target="$(git cat-file blob "$sha" 2>/dev/null)" || {
+        N=$((N + 1))
+        echo "❌ FAIL: tracked path #${N} could not be read: a file that cannot be read cannot be judged"
+        UNREAD=1
+        continue
+      }
+    fi
     judge_path "$patterns" "$path" "$target" "$([[ "$mode" == 120000 ]] && echo 1 || echo 0)"
   done < <(git ls-files -s -z)
   while IFS= read -r -d '' path; do
     target=""
     if [[ -L "$path" ]]; then
-      target="$(readlink -- "$path")"
+      target="$(readlink -- "$path" 2>/dev/null)" || {
+        N=$((N + 1))
+        echo "❌ FAIL: tracked path #${N} could not be read: a file that cannot be read cannot be judged"
+        UNREAD=1
+        continue
+      }
       judge_path "$patterns" "$path" "$target" 1
     else
       judge_path "$patterns" "$path" "" 0
@@ -163,9 +189,15 @@ check_message() {
   trap 'rm -rf "$TMP"' EXIT
   build_patterns "${TMP}/patterns"
   [[ "$COUNT" -eq 0 ]] && exit 0
-  if grep -a -q -i -E -f "${TMP}/patterns" -- "$msg"; then
+  local rc=0
+  grep -a -q -i -E -f "${TMP}/patterns" -- "$msg" 2>/dev/null || rc=$?
+  if [[ "$rc" -eq 0 ]]; then
     echo "❌ FAIL: the commit message names a private name: reword it (Scripts/check_private_names.sh)"
     exit 1
+  fi
+  if [[ "$rc" -gt 1 ]]; then
+    echo "❌ FAIL: the commit message file could not be read"
+    exit 2
   fi
   exit 0
 }
@@ -193,5 +225,8 @@ fi
 
 if [[ "$FOUND" -ne 0 ]]; then
   exit 1
+fi
+if [[ "$UNREAD" -ne 0 ]]; then
+  exit 2
 fi
 echo "OK: no private name in ${N} tracked and untracked paths and files (${COUNT} names searched)"

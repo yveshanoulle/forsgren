@@ -61,6 +61,9 @@
 #                                                     the scan read nothing
 #  13. a tracked PATH with a name                  -> exit 1, `tracked path #N`,
 #                                                     never the path or name
+#  14. a tracked file that cannot be read          -> red (exit 2), `tracked path
+#                                                     #N could not be read`, never
+#                                                     the path nor grep's message
 # Mutation proof: a copy of the gate that prints the matched line must reveal
 # the name, so the no-name assertion can fail.
 
