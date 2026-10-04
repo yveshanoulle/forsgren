@@ -259,6 +259,8 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/cell.go:Cell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/cell.go:cell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/cell.go:timed": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/numbercell.go:NumberCell": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/numbercell.go:percentCell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:Rows": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:rowOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:labelRows": 100.0,
