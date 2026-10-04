@@ -26,8 +26,15 @@
 # git ls-files` for a path hit, NEVER the name and never a matching path:
 # sfl and FBP.sh quote FAIL lines and CI prints them on the job summary.
 #
-# Exit 0 clean. Exit 1 a name found. Exit 2 no list, a list with no names,
-# or no file at all: a scan for nothing never passes.
+# Exit 0 clean. Exit 1 a name found. Exit 2 when:
+#   - there is no list at all (no env list, no names file);
+#   - the env list FORSGREN_PRIVATE_NAMES has no names (an emptied CI secret);
+#   - the names file FORSGREN_PRIVATE_NAMES_FILE names does not exist;
+#   - there is no tracked or untracked file (the scan read nothing).
+# An EXISTING names file with no names (zero bytes, blanks, comments) is not
+# an error: the scan still runs over every path and file, finds nothing and
+# exits 0 with `0 names searched`. In CI the secret is the only source, so CI
+# always fails without it or with an emptied one (fork pull requests included).
 
 set -euo pipefail
 # Tracing off: the list must never reach a trace (bash -x, or a CI debug run).
@@ -42,10 +49,12 @@ source "${ROOT}/Scripts/lib_private_names.sh"
 REPO="${1:-.}"
 cd "$REPO" || { echo "❌ FAIL: cannot enter ${REPO}"; exit 2; }
 
-# read_list: the raw list text in LIST, from the first source that has one.
+# read_list: the raw list text in LIST, from the first source that has one;
+# SOURCE is env or file.
 read_list() {
   if [[ -n "${FORSGREN_PRIVATE_NAMES:-}" ]]; then
     LIST="$FORSGREN_PRIVATE_NAMES"
+    SOURCE="env"
     return 0
   fi
   local file
@@ -59,16 +68,19 @@ read_list() {
     exit 2
   fi
   LIST="$(cat "$file")"
+  SOURCE="file"
 }
 
 # build_patterns <file>: one ERE per name into <file>, regex-escaped, no
-# boundary (a substring match). Sets COUNT to the number of names; exit 2 on none.
+# boundary (a substring match). Sets COUNT to the number of names; exit 2 on none
+# in an env list. An existing file with no names gives an empty pattern file,
+# which grep -f reads as no pattern at all: it matches nothing.
 build_patterns() {
   private_names_parse "$LIST"
   COUNT="$PRIVATE_NAMES_COUNT"
   printf '%s' "$PRIVATE_NAMES" | sed 's/[][\.*^$+?(){}|/]/\\&/g' > "$1"
-  if [[ "$COUNT" -eq 0 ]]; then
-    echo "❌ FAIL: the list of private names has no names in it: a scan for nothing is not a clean scan"
+  if [[ "$COUNT" -eq 0 && "$SOURCE" == env ]]; then
+    echo "❌ FAIL: the list of private names in FORSGREN_PRIVATE_NAMES has no names in it: an emptied secret is not a clean scan"
     exit 2
   fi
 }
@@ -130,6 +142,7 @@ scan_tracked() {
 }
 
 LIST=""
+SOURCE=""
 read_list
 
 TMP="$(mktemp -d)"

@@ -1160,14 +1160,16 @@ commit itself:
   never edited on their own: after changing the file, run
   `./Scripts/sync_private_names_secrets.sh` by hand (it needs the
   maintainer's `gh` login) and it sets both. An external fork pull request
-  receives neither secret, so the gate fails closed there (exit 2, no list);
-  that is intended. The gate searches
+  receives neither secret, so the gate fails there (exit 2, no list); that
+  is intended: CI always fails without the secret or with an emptied one. The gate searches
   `git ls-files` and `git ls-files -o --exclude-standard` (what `git add -A`
   would stage), case-insensitively, for a substring (a listed name
   inside a longer token is a hit). Its failure line
   names `file:line`, or `tracked path #N in git ls-files`, and never the
-  name, so no log or commit message reveals it. No list, a list with no
-  names, or no tracked file is exit 2 and a red, never a silent pass. Its
+  name, so no log or commit message reveals it. No list, an env list with no
+  names, a missing names file, or no tracked file is exit 2 and a red, never a
+  silent pass; locally an existing names file with no names passes with
+  `0 names searched`. Its
   self-test (`Scripts/test_check_private_names.sh`) uses made-up names and
   proves with a mutant that prints the matched line that the no-name check
   can fail.
