@@ -16,10 +16,13 @@
 #        $HOME/.config/forsgren/private-names, one name per line
 #   blank lines and lines starting with # are not names.
 #   exit 0 clean (prints an OK: line), 1 a name found, 2 the scan read nothing.
-#   A MISSING list counts as an EMPTY list (Yves's ruling, #52: a contributor
-#   without the list is very unlikely to write an owner's name) and passes. An
-#   explicit FORSGREN_PRIVATE_NAMES_FILE naming a file that does not exist is a
-#   misconfiguration, not a contributor without a list: exit 2.
+#   Yves's corrected ruling (#52, 2026-10-04): only an EXISTING names file that
+#   holds no names (empty, or only blanks and comments) passes, with
+#   `0 names searched`; FBP creates such an empty file locally when it is
+#   missing. Everything else without names is exit 2: no list at all (CI always
+#   fails without the secret), FORSGREN_PRIVATE_NAMES set but holding no names
+#   (an emptied CI secret must fail), and FORSGREN_PRIVATE_NAMES_FILE naming a
+#   file that does not exist.
 #
 # THE MATCH RULE (Yves's ruling, #52): a name matches case-insensitively, as a
 # SUBSTRING, the data guard's `grep -iF` matching. A listed name anywhere
@@ -40,12 +43,15 @@
 #   5. the list from the default file under $HOME  -> works
 #   6. the list from env (FORSGREN_PRIVATE_NAMES)  -> works, no name printed
 #   7. no list at all (nothing set, no default file)
-#                                                  -> exit 0, OK: with
-#                                                     `0 names searched`
+#                                                  -> exit 2, a message
 #   7b. FORSGREN_PRIVATE_NAMES_FILE naming a file
 #      that does not exist                         -> exit 2, names the file
-#   8. a list with only comments and blanks (file
-#      or env)                                     -> exit 0, the same OK: line
+#   8. an EXISTING names file (FORSGREN_PRIVATE_NAMES_FILE or the default
+#      file) with no names: empty, or only comments
+#      and blanks                                  -> exit 0, OK: with
+#                                                     `0 names searched`
+#   8b. FORSGREN_PRIVATE_NAMES set but with no
+#      names (only blanks and comments)            -> exit 2, `no names`
 #   9. a name inside a longer token                -> exit 1 (see the rule)
 #  10. a name at a boundary (slash, dot, quote)    -> exit 1
 #  11. an untracked, not-ignored file with a name  -> exit 1, `file:line`, no
@@ -79,6 +85,11 @@ NAMES_FILE="${TMP}/names-file"
 printf '# made-up private names\n%s\n\n%s\n' "$NAME_A" "$NAME_B" > "$NAMES_FILE"
 NAMES_ENV="$(printf '%s\n\n%s' "$NAME_A" "$NAME_B")"
 EMPTY_FILE="${TMP}/empty-names"
+ZERO_FILE="${TMP}/zero-byte-names"
+: > "$ZERO_FILE"
+EMPTY_DEFAULT_HOME="${TMP}/home-with-empty-list"
+mkdir -p "${EMPTY_DEFAULT_HOME}/.config/forsgren"
+: > "${EMPTY_DEFAULT_HOME}/.config/forsgren/private-names"
 printf '# only a comment\n\n   \n' > "$EMPTY_FILE"
 EMPTY_HOME="${TMP}/empty-home"
 mkdir -p "$EMPTY_HOME"
@@ -192,18 +203,24 @@ want_red "every name of a newline-separated env list is searched" "docs/notes.md
 
 new_repo "no-list"
 run_home "$EMPTY_HOME"
-want_exit "no list at all counts as an empty list: exit 0, 0 names searched" 0 "0 names searched"
-want_green_ok "no list at all passes with the OK line"
+want_exit "no list at all is exit 2, loudly" 2 "FORSGREN_PRIVATE_NAMES"
 want_not_said "no list" "$NAME_A"
 
 new_repo "empty-list"
 run_file "$EMPTY_FILE"
-want_exit "a list with no names is exit 0, 0 names searched" 0 "0 names searched"
-want_green_ok "a list with no names passes with the OK line"
+want_exit "an existing names file with only comments and blanks is exit 0, 0 names searched" 0 "0 names searched"
+want_green_ok "a comments-only names file passes with the OK line"
+run_file "$ZERO_FILE"
+want_exit "an existing, zero-byte names file is exit 0, 0 names searched" 0 "0 names searched"
+want_green_ok "a zero-byte names file passes with the OK line"
+run_home "$EMPTY_DEFAULT_HOME"
+want_exit "an existing, empty default names file is exit 0, 0 names searched" 0 "0 names searched"
+want_green_ok "an empty default names file passes with the OK line"
+
+new_repo "env-no-names"
 capture env -u FORSGREN_PRIVATE_NAMES_FILE HOME="$EMPTY_HOME" \
   FORSGREN_PRIVATE_NAMES=$'\n  \n# c\n' "$GATE" "$REPO"
-want_exit "an env list with no names is exit 0, 0 names searched" 0 "0 names searched"
-want_green_ok "an env list with no names passes with the OK line"
+want_exit "an env list with no names is exit 2: an emptied CI secret fails" 2 "no names"
 
 new_repo "missing-file"
 run_file "${TMP}/does-not-exist"
@@ -311,5 +328,5 @@ if selftest_mutant "$GATE" "$MUTANT" "s/lineno=\${hit%%:\*}/lineno=\$hit/"; then
   fi
 fi
 
-selftest_end "the private-names gate does not keep listed names out of tracked files, or passes without a list" \
-  "private-names gate is red with file:line (never the name) on a listed name, case-insensitively and as a substring, reads its list from a file or from env, and is exit 2 when no list or no tracked file is there"
+selftest_end "the private-names gate does not keep listed names out of tracked files, or passes without a list, or fails an emptied secret" \
+  "private-names gate is red with file:line (never the name) on a listed name, case-insensitively and as a substring, reads its list from a file or from env, passes an existing names file with no names, and is exit 2 when no list, an env list with no names, a missing names file or no tracked file is there"
