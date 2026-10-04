@@ -130,21 +130,24 @@ func wantNone(t *testing.T, name, got string, texts ...string) {
 	}
 }
 
-// TestViewSwitchMarksTheCurrentView (forsgren#46): "View: standard ·
-// numbers", the current view plain text marked aria-current="page", the
-// other a link to its folder; scoring is not linked before #47.
+// TestViewSwitchMarksTheCurrentView (forsgren#46, #47): "View: standard ·
+// numbers · scoring", the current view plain text marked aria-current="page",
+// the others links to their folders.
 func TestViewSwitchMarksTheCurrentView(t *testing.T) {
 	data := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
 	for name, want := range map[string]string{
-		"standard/index.html": `View: <span aria-current="page">standard</span> · <a href="../numbers/">numbers</a>`,
-		"numbers/index.html":  `View: <a href="../standard/">standard</a> · <span aria-current="page">numbers</span>`,
+		"standard/index.html": `View: <span aria-current="page">standard</span> · <a href="../numbers/">numbers</a> · ` +
+			`<a href="../scoring/">scoring</a>`,
+		"numbers/index.html": `View: <a href="../standard/">standard</a> · <span aria-current="page">numbers</span> · ` +
+			`<a href="../scoring/">scoring</a>`,
+		"scoring/index.html": `View: <a href="../standard/">standard</a> · <a href="../numbers/">numbers</a> · ` +
+			`<span aria-current="page">scoring</span>`,
 	} {
 		got := rendered(t, name, data)
 		wantAll(t, name, got, want)
 		if n := strings.Count(got, `aria-current="page"`); n != 1 {
 			t.Errorf("%s: want one current view, got %d", name, n)
 		}
-		wantNone(t, name, got, "scoring")
 	}
 }
 
