@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -588,5 +589,41 @@ func TestFooterEndsTheReleaseNewsBeforeWhatForsgrenIs(t *testing.T) {
 				t.Errorf("%s: want %q in the footer, got:\n%s", name, want, got)
 			}
 		}
+	}
+}
+
+// TestTableCaptionIsDORAMetrics (forsgren#45, step 2): the table's caption
+// reads exactly "DORA metrics", and the region around the table is still
+// labelled by it, so the id its aria-labelledby names exists.
+func TestTableCaptionIsDORAMetrics(t *testing.T) {
+	got := rendered(t, "index.html", acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework))
+	const want = `<caption id="metrics-caption">DORA metrics</caption>`
+	if !strings.Contains(got, want) {
+		t.Errorf("want %q on the table page, got:\n%s", want, got)
+	}
+	if !strings.Contains(got, `aria-labelledby="metrics-caption"`) {
+		t.Errorf("want the table's region labelled by metrics-caption, got:\n%s", got)
+	}
+}
+
+// TestCaptionFontIsLargerThanBody (forsgren#45, step 2): the caption rule in
+// styles.css sets a font-size in rem above 1, the body's size (the body sets
+// none, so it is 1rem). Parsed, not matched as one exact string, so the size
+// can be tuned without touching the test.
+func TestCaptionFontIsLargerThanBody(t *testing.T) {
+	css, err := files.ReadFile("styles.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rule := regexp.MustCompile(`(?s)\bcaption\s*\{([^}]*)\}`).FindStringSubmatch(string(css))
+	if rule == nil {
+		t.Fatalf("want a caption rule in styles.css, got:\n%s", css)
+	}
+	size := regexp.MustCompile(`font-size:\s*([0-9.]+)rem`).FindStringSubmatch(rule[1])
+	if size == nil {
+		t.Fatalf("want the caption rule to set a font-size in rem, got:\n%s", rule[1])
+	}
+	if n, err := strconv.ParseFloat(size[1], 64); err != nil || n <= 1 {
+		t.Errorf("want the caption font-size above the body's 1rem, got %s", size[1])
 	}
 }
