@@ -48,55 +48,64 @@ read_list() {
   LIST="$(cat "$file")"
 }
 
+# build_patterns <file>: one ERE per name into <file>, regex-escaped, with the
+# whole-name boundaries. Sets COUNT to the number of names; exit 2 on none.
+build_patterns() {
+  local out="$1" line escaped
+  COUNT=0
+  : > "$out"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -z "$line" || "$line" == \#* ]] && continue
+    escaped="$(printf '%s' "$line" | sed 's/[][\.*^$+?(){}|/]/\\&/g')"
+    printf '(^|[^A-Za-z0-9_-])%s($|[^A-Za-z0-9_-])\n' "$escaped" >> "$out"
+    COUNT=$((COUNT + 1))
+  done <<< "$LIST"
+  if [[ "$COUNT" -eq 0 ]]; then
+    echo "❌ FAIL: the list of private names has no names in it: a scan for nothing is not a clean scan"
+    exit 2
+  fi
+}
+
+# scan_tracked <patterns>: judges the path and the content of every tracked
+# file. Sets N to the number of tracked paths and FOUND to 1 on any hit.
+scan_tracked() {
+  local patterns="$1" path hits hit lineno
+  FOUND=0
+  N=0
+  while IFS= read -r -d '' path; do
+    N=$((N + 1))
+    if printf '%s\n' "$path" | grep -q -i -E -f "$patterns"; then
+      echo "❌ FAIL: tracked path #${N} in git ls-files names a private name"
+      FOUND=1
+    fi
+    [[ -f "$path" ]] || continue
+    hits="$(grep -a -n -i -E -f "$patterns" -- "$path" || true)"
+    [[ -z "$hits" ]] && continue
+    while IFS= read -r hit; do
+      lineno=${hit%%:*}
+      echo "❌ FAIL: ${path}:${lineno} names a private name"
+      FOUND=1
+    done <<< "$hits"
+  done < <(git ls-files -z)
+}
+
 LIST=""
 read_list
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-PATTERNS="${TMP}/patterns"
-: > "$PATTERNS"
+build_patterns "${TMP}/patterns"
+scan_tracked "${TMP}/patterns"
 
-# One ERE per name, regex-escaped, with the whole-name boundaries.
-count=0
-while IFS= read -r line || [[ -n "$line" ]]; do
-  line="${line%$'\r'}"
-  line="${line#"${line%%[![:space:]]*}"}"
-  line="${line%"${line##*[![:space:]]}"}"
-  [[ -z "$line" || "$line" == \#* ]] && continue
-  escaped="$(printf '%s' "$line" | sed 's/[][\.*^$+?(){}|/]/\\&/g')"
-  printf '(^|[^A-Za-z0-9_-])%s($|[^A-Za-z0-9_-])\n' "$escaped" >> "$PATTERNS"
-  count=$((count + 1))
-done <<< "$LIST"
-
-if [[ "$count" -eq 0 ]]; then
-  echo "❌ FAIL: the list of private names has no names in it: a scan for nothing is not a clean scan"
-  exit 2
-fi
-
-found=0
-n=0
-while IFS= read -r -d '' path; do
-  n=$((n + 1))
-  if printf '%s\n' "$path" | grep -q -i -E -f "$PATTERNS"; then
-    echo "❌ FAIL: tracked path #${n} in git ls-files names a private name"
-    found=1
-  fi
-  [[ -f "$path" ]] || continue
-  hits="$(grep -a -n -i -E -f "$PATTERNS" -- "$path" || true)"
-  [[ -z "$hits" ]] && continue
-  while IFS= read -r hit; do
-    lineno=${hit%%:*}
-    echo "❌ FAIL: ${path}:${lineno} names a private name"
-    found=1
-  done <<< "$hits"
-done < <(git ls-files -z)
-
-if [[ "$n" -eq 0 ]]; then
+if [[ "$N" -eq 0 ]]; then
   echo "❌ FAIL: no tracked files: the scan read nothing"
   exit 2
 fi
 
-if [[ "$found" -ne 0 ]]; then
+if [[ "$FOUND" -ne 0 ]]; then
   exit 1
 fi
-echo "OK: no private name in ${n} tracked paths and files (${count} names searched)"
+echo "OK: no private name in ${N} tracked paths and files (${COUNT} names searched)"

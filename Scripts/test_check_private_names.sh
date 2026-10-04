@@ -90,10 +90,22 @@ write_file() {
   fi
 }
 
-# run_file <names-file>: the list from the file; env list unset.
-run_file() {
+# run_file_with <gate> <names-file>: the list from the file; env list unset.
+run_file_with() {
   capture env -u FORSGREN_PRIVATE_NAMES HOME="$EMPTY_HOME" \
-    FORSGREN_PRIVATE_NAMES_FILE="$1" "$GATE" "$REPO"
+    FORSGREN_PRIVATE_NAMES_FILE="$2" "$1" "$REPO"
+}
+
+# run_file <names-file>: run_file_with the gate under test.
+run_file() {
+  run_file_with "$GATE" "$1"
+}
+
+# run_home <home>: no env list, no file variable: only the default file under
+# <home> can supply a list.
+run_home() {
+  capture env -u FORSGREN_PRIVATE_NAMES -u FORSGREN_PRIVATE_NAMES_FILE \
+    HOME="$1" "$GATE" "$REPO"
 }
 
 # run_env <list>: the list from env; no file anywhere.
@@ -147,8 +159,7 @@ write_file "docs/notes.md" $'globex-internal\n' track
 DEFAULT_HOME="${TMP}/home-with-list"
 mkdir -p "${DEFAULT_HOME}/.config/forsgren"
 cp "$NAMES_FILE" "${DEFAULT_HOME}/.config/forsgren/private-names"
-capture env -u FORSGREN_PRIVATE_NAMES -u FORSGREN_PRIVATE_NAMES_FILE \
-  HOME="$DEFAULT_HOME" "$GATE" "$REPO"
+run_home "$DEFAULT_HOME"
 want_red "the default file under HOME is read" "docs/notes.md:1"
 
 new_repo "from-file"
@@ -170,8 +181,7 @@ run_env "$NAMES_ENV"
 want_red "every name of a newline-separated env list is searched" "docs/notes.md:1"
 
 new_repo "no-list"
-capture env -u FORSGREN_PRIVATE_NAMES -u FORSGREN_PRIVATE_NAMES_FILE \
-  HOME="$EMPTY_HOME" "$GATE" "$REPO"
+run_home "$EMPTY_HOME"
 want_exit "no list at all is exit 2, loudly" 2 "FORSGREN_PRIVATE_NAMES"
 want_not_said "no list" "$NAME_A"
 
@@ -183,8 +193,7 @@ capture env -u FORSGREN_PRIVATE_NAMES_FILE HOME="$EMPTY_HOME" \
 want_exit "an env list with no names is exit 2" 2 "no names"
 
 new_repo "missing-file"
-capture env -u FORSGREN_PRIVATE_NAMES HOME="$EMPTY_HOME" \
-  FORSGREN_PRIVATE_NAMES_FILE="${TMP}/does-not-exist" "$GATE" "$REPO"
+run_file "${TMP}/does-not-exist"
 want_exit "a names file that does not exist is exit 2" 2 "does-not-exist"
 
 new_repo "substring"
@@ -227,15 +236,13 @@ new_repo "reveal"
 write_file "docs/notes.md" $'see acme-secret-repo for details\n' track
 MUTANT="${TMP}/mutant/Scripts/check_private_names.sh"
 if selftest_mutant "$GATE" "$MUTANT" "s/lineno=\${hit%%:\*}/lineno=\$hit/"; then
-  capture env -u FORSGREN_PRIVATE_NAMES HOME="$EMPTY_HOME" \
-    FORSGREN_PRIVATE_NAMES_FILE="$NAMES_FILE" "$MUTANT" "$REPO"
+  run_file_with "$MUTANT" "$NAMES_FILE"
   if [[ "$RC" -eq 1 ]] && reveals "$NAME_A"; then
     echo "  ok: mutation proof: a gate that prints the matched line fails the no-name assertion"
   else
     fail "mutation proof: the mutant gate that prints the matched line was not caught (exit ${RC}). Output: ${OUT}"
   fi
-  capture env -u FORSGREN_PRIVATE_NAMES HOME="$EMPTY_HOME" \
-    FORSGREN_PRIVATE_NAMES_FILE="$NAMES_FILE" "$GATE" "$REPO"
+  run_file "$NAMES_FILE"
   if reveals "$NAME_A"; then
     fail "the real gate reveals the name on the mutation proof's repository. Output: ${OUT}"
   else
