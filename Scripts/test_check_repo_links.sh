@@ -152,15 +152,10 @@ want_rc "12b. rejects the own repository in a stylesheet url()" 1
 # Mutation proof for case 2: the same site against a copy of the gate whose
 # REPO_PATH pattern can never match must be green.
 # The mutant cds to its own dir's parent; give it the same layout.
-MUTANT="$TMP/mutant/Scripts/check_repo_links.sh"
-if selftest_mutant "$GATE" "$MUTANT" "s/^REPO_PATH=.*/REPO_PATH='NEVER-MATCHES-ANY-REPOSITORY-PATH'/"; then
-  capture "$MUTANT" "$TMP/href"
-  if [[ "$RC" -eq 0 ]]; then
-    echo "  ok: mutation proof: without the REPO_PATH pattern case 2 is green, so it is red because of that pattern"
-  else
-    fail "mutation proof: a gate whose REPO_PATH never matches is still red on case 2 (exit $RC) — case 2 is red for another reason. Output: $OUT"
-  fi
-fi
+selftest_mutant_green "$GATE" "$TMP/mutant/Scripts/check_repo_links.sh" \
+  "s/^REPO_PATH=.*/REPO_PATH='NEVER-MATCHES-ANY-REPOSITORY-PATH'/" "$TMP/href" \
+  "without the REPO_PATH pattern case 2 is green, so it is red because of that pattern" \
+  "a gate whose REPO_PATH never matches is still red on case 2, so case 2 is red for another reason"
 
 # Mutation proof for the exception: without it case 10 is red (so it is green
 # BECAUSE of the exception), and the 11 cases stay red with and without it.

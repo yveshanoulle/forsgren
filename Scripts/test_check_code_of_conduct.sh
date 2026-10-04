@@ -113,15 +113,9 @@ want_green_ok "9. this repository has a code of conduct naming the address, and 
 # same layout.
 mutate() {
   # mutate <var> <value> <fixture> <reason> <proof text>
-  local mutant="$TMP/mutant-$1/Scripts/check_code_of_conduct.sh"
-  if selftest_mutant "$GATE" "$mutant" "s/^$1=.*/$1='$2'/"; then
-    capture "$mutant" "$TMP/$3"
-    if [[ "$RC" -eq 0 ]]; then
-      echo "  ok: mutation proof: $5"
-    else
-      fail "mutation proof: with $1 neutralised the fixture $3 is still red (exit $RC; expected green, it was red for: $4). Output: $OUT"
-    fi
-  fi
+  selftest_mutant_green "$GATE" "$TMP/mutant-$1/Scripts/check_code_of_conduct.sh" \
+    "s/^$1=.*/$1='$2'/" "$TMP/$3" "$5" \
+    "with $1 neutralised the fixture $3 is still red; expected green, it was red for: $4"
 }
 mutate ADDRESS '.' noaddr "does not name the reporting address" \
   "an address pattern that matches anything turns case 5a green, so it is red because of the address"

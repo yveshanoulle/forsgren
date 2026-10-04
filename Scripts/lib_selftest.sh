@@ -142,6 +142,23 @@ selftest_mutant() {
   fi
 }
 
+# selftest_mutant_green <source> <mutant> <sed-expression> <fixture-dir> <ok text> <fail text>:
+# the mutation proof every pattern-driven gate repeats. Writes the mutant
+# (see selftest_mutant), runs it on <fixture-dir>, and requires exit 0: a
+# fixture that is red for the pattern turns green once the pattern is
+# neutralised, so it was red BECAUSE of it. Prints `  ok: mutation proof:
+# <ok text>`, or fails with `mutation proof: <fail text> (exit N). Output: ...`.
+selftest_mutant_green() {
+  if selftest_mutant "$1" "$2" "$3"; then
+    capture "$2" "$4"
+    if [[ "$RC" -eq 0 ]]; then
+      echo "  ok: mutation proof: $5"
+    else
+      fail "mutation proof: $6 (exit $RC). Output: $OUT"
+    fi
+  fi
+}
+
 # selftest_end <claim not held> <claim>: the closing verdict. Exits 1 with
 # the first after any failed case, else prints the second as the OK line.
 selftest_end() {
