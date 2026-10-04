@@ -1,12 +1,14 @@
 package main
 
 import (
+	"html"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
 
-const noProjectsLine = "No projects configured yet: add them to forsgren.config.yml."
+const noProjectsLine = "forsgren.config.yml lists the projects"
 
 // renderWith renders into a fresh directory with extra arguments after
 // --out and returns the exit status, stderr and the index.html written (empty
@@ -24,7 +26,8 @@ func renderWith(t *testing.T, extra ...string) (int, string, string) {
 
 // TestRenderSaysWhenNoProjectsAreConfigured (forsgren#12, step 3): with a
 // config that lists no projects the page shows, besides its version, the line
-// that says where to add them; it is the page of the golden file.
+// that says where the projects are listed (forsgren#41, step 3: with an
+// example); it is the page of the golden file.
 func TestRenderSaysWhenNoProjectsAreConfigured(t *testing.T) {
 	code, stderr, index := renderWith(t, "--config", writeConfig(t, "version: 1\nprojects: []\n"))
 	if code != 0 {
@@ -87,5 +90,22 @@ func TestRenderUsageNamesTheConfigFlag(t *testing.T) {
 	code, _, stderr := runCommand("render", "--out", t.TempDir(), "--conf", "x")
 	if code != 2 || !strings.Contains(stderr, "flag provided but not defined: -conf") {
 		t.Errorf("want exit 2 for an unknown flag, got %d, %q", code, stderr)
+	}
+}
+
+// howToExample is the example config in the no-projects page's how-to.
+var howToExample = regexp.MustCompile(`(?s)<pre><code>(.*?)</code></pre>`)
+
+// TestRenderedHowToPassesCheckConfig (forsgren#41, step 3): the example in
+// the page's how-to for an empty config is itself a valid config.
+func TestRenderedHowToPassesCheckConfig(t *testing.T) {
+	_, _, index := renderWith(t, "--config", writeConfig(t, "version: 1\nprojects: []\n"))
+	found := howToExample.FindStringSubmatch(index)
+	if found == nil {
+		t.Fatalf("want an example config in a pre block on the page, got:\n%s", index)
+	}
+	path := writeConfig(t, html.UnescapeString(found[1]))
+	if code, _, stderr := runCommand("check-config", "--config", path); code != 0 {
+		t.Errorf("want the example to pass check-config, got exit %d, %q", code, stderr)
 	}
 }

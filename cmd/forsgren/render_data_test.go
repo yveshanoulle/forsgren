@@ -205,10 +205,11 @@ func TestRenderShowsTheMinuteOfTheCalculationInUTC(t *testing.T) {
 	}
 }
 
-// TestRenderShowsNoCalculationTimeWithoutNumbers (forsgren#28): a page with
-// no numbers calculated (no --config, no --data, or no projects) shows no
-// time, so the repository's own build stays byte-identical across renders.
-func TestRenderShowsNoCalculationTimeWithoutNumbers(t *testing.T) {
+// TestRenderShowsTheCalculationTimeOnEveryRun (forsgren#41, step 3; it
+// reverses forsgren#28's "no time without numbers"): the footer says when the
+// run happened whenever a run renders the page, with or without --config,
+// --data or projects.
+func TestRenderShowsTheCalculationTimeOnEveryRun(t *testing.T) {
 	pinNow(t)
 	noProjects := writeConfig(t, "version: 1\nprojects: []\n")
 	cases := map[string][]string{
@@ -220,8 +221,8 @@ func TestRenderShowsNoCalculationTimeWithoutNumbers(t *testing.T) {
 	for name, extra := range cases {
 		t.Run(name, func(t *testing.T) {
 			_, _, index := renderWith(t, extra...)
-			if strings.Contains(index, "Calculated") || strings.Contains(index, "12:00") {
-				t.Errorf("want no calculation time on the page, got:\n%s", index)
+			if !strings.Contains(index, "Calculated at 2026-10-03 12:00 UTC</p>") {
+				t.Errorf("want the calculation time in the footer, got:\n%s", index)
 			}
 		})
 	}

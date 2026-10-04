@@ -418,3 +418,39 @@ func TestNoPageShowsASiteNameLine(t *testing.T) {
 		}
 	}
 }
+
+// TestFooterShowsTheTimeWithoutRows (forsgren#41, step 3; it reverses
+// forsgren#28's "the time with Rows only"): a page with an AsOf and no Rows
+// still says when it was calculated.
+func TestFooterShowsTheTimeWithoutRows(t *testing.T) {
+	data := Placeholder("0.0.8")
+	data.AsOf = "2026-10-03 12:00"
+	for _, name := range PageNames() {
+		if got := rendered(t, name, data); !strings.Contains(got, "Calculated at 2026-10-03 12:00 UTC</p>") {
+			t.Errorf("%s: want the calculation time in the footer, got:\n%s", name, got)
+		}
+	}
+}
+
+// TestNoProjectsPageShowsAHowTo (forsgren#41, step 3): where the table would
+// be, a page with no projects says that forsgren.config.yml lists them, shows
+// a small example with the optional label, and links to the README's
+// Configuration section; the one-line message is gone.
+func TestNoProjectsPageShowsAHowTo(t *testing.T) {
+	data := Placeholder("0.0.8")
+	data.NoProjects = true
+	got := rendered(t, "index.html", data)
+	for _, want := range []string{
+		"forsgren.config.yml lists the projects",
+		"<pre><code>version: 1\nprojects:\n  - name: Acme Shop\n    repositories:\n",
+		"        label: iOS\n",
+		`<a href="https://github.com/yveshanoulle/forsgren#configuration">`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("want %q on the page, got:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "No projects configured yet") {
+		t.Errorf("want the one-line message replaced by the how-to, got:\n%s", got)
+	}
+}
