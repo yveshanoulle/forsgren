@@ -44,14 +44,19 @@ GOOD_README='# forsgren
 See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) and [SECURITY.md](SECURITY.md).
 '
 
+# write_unless_dash <text> <path>: write the text, or nothing for "-".
+write_unless_dash() {
+  if [[ "$1" != "-" ]]; then printf '%s' "$1" > "$2"; fi
+}
+
 # new_root <name> [coc-text] [readme-text] [security-text] — a root with the
 # good files, or the given text; an argument "-" leaves that file out.
 new_root() {
   ROOT="$TMP/$1"
   mkdir -p "$ROOT"
-  if [[ "${2-$GOOD_COC}" != "-" ]]; then printf '%s' "${2-$GOOD_COC}" > "$ROOT/CODE_OF_CONDUCT.md"; fi
-  if [[ "${3-$GOOD_README}" != "-" ]]; then printf '%s' "${3-$GOOD_README}" > "$ROOT/README.md"; fi
-  if [[ "${4-$GOOD_SECURITY}" != "-" ]]; then printf '%s' "${4-$GOOD_SECURITY}" > "$ROOT/SECURITY.md"; fi
+  write_unless_dash "${2-$GOOD_COC}" "$ROOT/CODE_OF_CONDUCT.md"
+  write_unless_dash "${3-$GOOD_README}" "$ROOT/README.md"
+  write_unless_dash "${4-$GOOD_SECURITY}" "$ROOT/SECURITY.md"
 }
 
 new_root good

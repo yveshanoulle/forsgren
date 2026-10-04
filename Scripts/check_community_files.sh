@@ -77,9 +77,10 @@ check_file() {
   done < <(grep -nE "$PLACEHOLDER" "$file" | cut -d: -f1)
 }
 
-# check_readme_link <name> <link-pattern>: README.md, stripped, links <name>.
+# check_readme_link <name> <link-pattern> <stripped-readme>: the stripped
+# README links <name>.
 check_readme_link() {
-  if ! printf '%s\n' "$STRIPPED" | grep -qE "$2"; then
+  if ! printf '%s\n' "$3" | grep -qE "$2"; then
     finding "README.md does not link to $1"
   fi
 }
@@ -90,9 +91,9 @@ check_file SECURITY.md "$SECURITY_ROUTE" "private reporting route (Report a vuln
 if [ ! -f "$ROOT/README.md" ]; then
   finding "README.md is missing, so it cannot link to CODE_OF_CONDUCT.md or SECURITY.md"
 else
-  STRIPPED="$(awk -f "$README_STRIP" "$ROOT/README.md")"
-  check_readme_link CODE_OF_CONDUCT.md "$README_LINK"
-  check_readme_link SECURITY.md "$SECURITY_LINK"
+  stripped="$(awk -f "$README_STRIP" "$ROOT/README.md")"
+  check_readme_link CODE_OF_CONDUCT.md "$README_LINK" "$stripped"
+  check_readme_link SECURITY.md "$SECURITY_LINK" "$stripped"
 fi
 
 if [ "$findings" -ne 0 ]; then
