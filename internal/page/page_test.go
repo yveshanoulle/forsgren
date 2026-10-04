@@ -294,7 +294,7 @@ func TestEveryPageNamesFiveMetrics(t *testing.T) {
 		if err := Render(&got, name, acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)); err != nil {
 			t.Fatalf("Render %s: %v", name, err)
 		}
-		if !strings.Contains(got.String(), " The five DORA metrics, from data GitHub already has.") {
+		if !strings.Contains(got.String(), " The five DORA metrics, from GitHub data.") {
 			t.Errorf("%s: want the footer to name the five DORA metrics, got:\n%s", name, got.String())
 		}
 	}
@@ -342,14 +342,13 @@ func TestLabelDashIsDecorative(t *testing.T) {
 }
 
 // TestEveryPageEndsWithTheFooter (forsgren#41, step 1): both pages end with
-// the same two footer paragraphs: Forsgren linked to its repository, its
-// version, what it is and, when numbers were calculated, when (UTC); then
-// the Install link to the public forsgren-template repository (forsgren#41). Without a calculation time the
+// the same one footer paragraph: Forsgren linked to its repository, its
+// version, what it is and, when numbers were calculated, when (UTC); no
+// Install link follows (forsgren#45). Without a calculation time the
 // "Calculated at" sentence is left out.
 func TestEveryPageEndsWithTheFooter(t *testing.T) {
 	const head = `<p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> 0.0.9 ` +
-		`The five DORA metrics, from data GitHub already has.`
-	const install = `<p><a href="https://github.com/yveshanoulle/forsgren-template">Install</a></p>`
+		`The five DORA metrics, from GitHub data.`
 	withData := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
 	cases := map[string]struct {
 		data Data
@@ -362,10 +361,22 @@ func TestEveryPageEndsWithTheFooter(t *testing.T) {
 		for _, page := range PageNames() {
 			t.Run(name+" "+page, func(t *testing.T) {
 				got := rendered(t, page, c.data)
-				if !strings.Contains(got, c.want+"\n    "+install) {
-					t.Errorf("want the footer %q then %q, got:\n%s", c.want, install, got)
+				if !strings.Contains(got, c.want+"\n  </footer>") {
+					t.Errorf("want the footer %q to end the footer, got:\n%s", c.want, got)
 				}
+				wantNoInstallLink(t, got)
 			})
+		}
+	}
+}
+
+// wantNoInstallLink fails when the page still has the Install link or the
+// forsgren-template repository it pointed to (forsgren#45).
+func wantNoInstallLink(t *testing.T, got string) {
+	t.Helper()
+	for _, gone := range []string{"Install", "forsgren-template"} {
+		if strings.Contains(got, gone) {
+			t.Errorf("want %q off the page, got:\n%s", gone, got)
 		}
 	}
 }
