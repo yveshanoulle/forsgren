@@ -35,10 +35,11 @@
 #
 # The view: line below chooses what the site's root page shows, with a view
 # switch: standard is the band, the number and the count, and numbers the
-# numbers only. Change it to view: numbers for that view. Without a view:
-# line, the root page is the table with the band, the number and the count,
-# and no view switch. Each view is also its own page, at /standard/ and
-# /numbers/, with a switch between them.
+# numbers only, and scoring each metric's DORA Quick Check score. Change it
+# to view: numbers or view: scoring for that view. Without a view: line, the
+# root page is the table with the band, the number and the count, and no view
+# switch. Each view is also its own page, at /standard/, /numbers/ and
+# /scoring/, with a switch between them.
 #
 # Example, with made-up names. To use it, remove the three lines version: 1,
 # view: standard and projects: [] below, then remove the "# " in front of the

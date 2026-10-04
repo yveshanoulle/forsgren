@@ -10,7 +10,7 @@
 // The format, version 1:
 //
 //	version: 1
-//	view: numbers                          # optional, standard or numbers
+//	view: numbers                          # optional, standard, numbers or scoring
 //	projects:
 //	  - name: Acme
 //	    repositories:
@@ -42,11 +42,12 @@ import (
 // gets a new version, so an old forsgren never misreads a newer file.
 const FormatVersion = 1
 
-// The views the root page can show (forsgren#46); `scoring` joins them with
-// forsgren#47.
+// The views the root page can show (forsgren#46, #47): the standard cells,
+// the numbers only, and each metric's DORA Quick Check score.
 const (
 	ViewStandard = "standard"
 	ViewNumbers  = "numbers"
+	ViewScoring  = "scoring"
 )
 
 // DefaultEnvironment is the GitHub environment a repository deploys to when
@@ -101,8 +102,9 @@ type Project struct {
 // Config is a validated forsgren.config.yml.
 type Config struct {
 	Version int
-	// View is the view the site's root page shows, as written: "standard" or
-	// "numbers", empty when the file has no view key (forsgren#46).
+	// View is the view the site's root page shows, as written: "standard",
+	// "numbers" or "scoring", empty when the file has no view key
+	// (forsgren#46).
 	View     string
 	Projects []Project
 }

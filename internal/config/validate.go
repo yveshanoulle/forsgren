@@ -51,10 +51,10 @@ func checkView(v *string) (string, error) {
 		return "", nil
 	}
 	switch *v {
-	case ViewStandard, ViewNumbers:
+	case ViewStandard, ViewNumbers, ViewScoring:
 		return *v, nil
 	}
-	return "", fmt.Errorf("%w %q: use %s or %s", ErrView, *v, ViewStandard, ViewNumbers)
+	return "", fmt.Errorf("%w %q: use %s, %s or %s", ErrView, *v, ViewStandard, ViewNumbers, ViewScoring)
 }
 
 // names holds the names already used in the file, compared ignoring case

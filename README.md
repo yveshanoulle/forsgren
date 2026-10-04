@@ -572,14 +572,14 @@ projects:
   it, or with any other version, is refused, so a forsgren never misreads a
   file written for another format.
 - **`view`** is optional (forsgren#46): the view the site's root page shows,
-  `standard` or `numbers` (`scoring` is not valid until forsgren#47), written
+  `standard`, `numbers` or `scoring` (forsgren#47), written
   at the top level, for example `view: numbers`. Left out, or without a value,
   the root is the standard page with no view switch, as before, so an
   existing installation sees no change until it opts in; with a `view:`,
   even `standard`, the root page is that view and carries the switch. Any
   other value is refused by `check-config` and `render`, naming the key and
-  the valid values: `invalid view "scoring": use standard or numbers`. Each
-  view is also its own page at `/standard/` and `/numbers/`, whatever this
+  the valid values: `invalid view "Numbers": use standard, numbers or scoring`. Each
+  view is also its own page at `/standard/`, `/numbers/` and `/scoring/`, whatever this
   key says. The starter that `init-config` writes for a new installation
   includes `view: standard` (forsgren#51), so a new installation has the
   switch from its first run with projects (a page without data shows no
