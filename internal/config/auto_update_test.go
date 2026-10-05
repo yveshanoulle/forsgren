@@ -13,7 +13,7 @@ func TestAutoUpdateIsRead(t *testing.T) {
 	files := map[string]string{
 		"absent": valid,
 		"off":    "auto_update: false\n" + valid,
-		"on":     valid + "auto_update: true\n",
+		"on":     valid + "auto_update: true\nauto_update_level: patch\n",
 	}
 	for name, want := range cases {
 		got, err := parse([]byte(files[name]))

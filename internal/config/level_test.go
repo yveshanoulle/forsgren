@@ -28,6 +28,17 @@ func TestAutoUpdateLevelIsRead(t *testing.T) {
 	}
 }
 
+// TestParseRefusesAutoUpdateWithoutALevel (forsgren#58): there is no default
+// level, so with auto_update on the level must be written, and a key with no
+// value is not written.
+func TestParseRefusesAutoUpdateWithoutALevel(t *testing.T) {
+	const message = "auto_update is true but auto_update_level is missing: use patch, minor or major"
+	checkRefusals(t, []refusal{
+		{"absent", "auto_update: true\n" + valid, ErrAutoUpdateLevel, message},
+		{"no value", "auto_update: true\nauto_update_level:\n" + valid, ErrAutoUpdateLevel, message},
+	})
+}
+
 // TestParseRefusesAnInvalidAutoUpdateLevel (forsgren#58): any other value is
 // refused, naming the key and the valid values, as for an invalid view.
 func TestParseRefusesAnInvalidAutoUpdateLevel(t *testing.T) {
