@@ -7,7 +7,6 @@ in the same commit — see
 
 ## Open
 
-- The /scoring/ view: each metric's DORA Quick Check score and an Overall Performance column — [#47](https://github.com/yveshanoulle/forsgren/issues/47)
 - A view with the numbers and the DORA Quick Check scores side by side — [#55](https://github.com/yveshanoulle/forsgren/issues/55)
 - A config option for how far back the first collect run reads — [#57](https://github.com/yveshanoulle/forsgren/issues/57)
 - npm: keep `node_modules` in sync with the lockfile (reinstall on a lockfile change) and pin node — [#2](https://github.com/yveshanoulle/forsgren/issues/2)

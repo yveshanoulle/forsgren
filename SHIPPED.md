@@ -50,3 +50,25 @@ folder stays flat; the gate workflow keeps the name Quality.
 
 Open points the steps left are in the step comments on #1; the template repository, its
 workflow and the getting-started doc are in TODO.md.
+
+---
+
+## 2026-10-05 — the /scoring/ view, released as 0.1.3 ([#47](https://github.com/yveshanoulle/forsgren/issues/47))
+
+`0e4d7e1` … the 0.1.3 version step, each step a red and its green through
+`FBP.sh`. /scoring/ is a fourth page beside /standard/ and /numbers/, named
+in every view's switch and selectable as `view: scoring`: each metric's DORA
+Quick Check score alone (categorical bands (6 - band) x 2, percents
+(100 - whole percent) / 10), `-` where a metric has no data, and an Overall
+Performance column, the exact mean of the scored metrics in whole tenths,
+half up, `-` when none is scored. Deployment frequency has data once a
+successful deployment is recorded; an old last success scores 0, the
+lowest band. The legend credits the Quick Check (dora.dev, © Google LLC,
+CC BY 4.0). The page has its golden.
+
+**Yves's rulings (all on #47):** whole percents rounded down; `-` for a
+metric without data, Overall over the scored ones; the legend credit; the
+scoring page shows scores only (numbers and scores side by side is #55);
+`-` means not enough evidence, 0 means observed performance in the lowest
+band, and "ever deployed" is the evidence for deployment frequency. A
+longer first collect run is #57.
