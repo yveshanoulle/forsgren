@@ -31,6 +31,10 @@
 #   19b  then it starts forsgren.yml on the default branch;
 #   19c  a failed merge fails the step and starts nothing;
 #   (the later cycles are listed in forsgren#58 and add their pins here.)
+# forsgren#62 adds pins 13 to 15: check-update exits 3 when a release within
+# the level exists beyond the pull request's version; the guard step records
+# install=true with that release's version and commit, and the install step
+# (id: install) runs forsgren install-update and then starts forsgren.yml.
 #
 # Read with awk, not a YAML parser, as Scripts/test_metrics_workflow.sh is,
 # for its reason: PyYAML is a module, not a command, and nothing here
@@ -562,6 +566,151 @@ if [[ -f "$WF" && -n "$(step_by_id "$WF" guard text)" ]]; then
       echo "  ok: a failed merge fails the step and starts no workflow"
     else
       fail "pin 12: with a failing gh pr merge the merge step exited $(cat "${TMP}/merge.rc") and called '$(paste -sd';' "${TMP}/merge.gh")'; it must exit non-zero and call only the pr merge"
+    fi
+  fi
+fi
+
+# Pins 13 to 15 (forsgren#62): check-update exits 3, "install <old> to <new>
+# at <sha>" and then the left line, when the pull request is only beyond
+# auto_update_level and forsgren has a release within it. STANDING FACTS:
+#   13  the guard step, EXECUTED with the stub forsgren (exit 3, both lines),
+#       succeeds, shows both lines between ::stop-commands:: and its end,
+#       appends both to the step summary, writes exactly merge=false,
+#       install=true, install_version=<new> and install_sha=<sha>, and calls
+#       no gh; the version and the sha are parsed with a strict regexp (vX.Y.Z
+#       and 40 lower-case hex) from the first line;
+#   14  a first line that does not match fails the step with an ::error that
+#       names check-update, and writes no install=true;
+#   15  the install step (id: install), placed after the merge step (the two
+#       never both run), runs only `if: steps.guard.outputs.install ==
+#       'true'`, takes the job's token, the default branch and the guard's
+#       version and sha through env: only, and EXECUTED with the stubs runs
+#       forsgren install-update with the repository, branch, version and sha
+#       and then, as gh's only call, starts forsgren.yml on the default
+#       branch; a failing install-update starts nothing.
+INSTALL_SHA="0123456789abcdef0123456789abcdef01234567"
+INSTALL_LINE="install v0.2.1 to v0.2.2 at ${INSTALL_SHA}"
+INSTALL_LEFT="left for a human: v0.2.1 to v0.3.0 is a minor update; auto_update_level is patch"
+INSTALL_OUT="${INSTALL_LINE}"$'\n'"${INSTALL_LEFT}"
+
+if [[ -f "$WF" && -n "$(step_by_id "$WF" guard text)" ]]; then
+  step_by_id "$WF" guard run > "${TMP}/guard-install.sh"
+  : > "${TMP}/g13.summary"
+  : > "${TMP}/g13.output"
+  : > "${TMP}/g13.gh"
+  g13_rc=0
+  stub_run "${TMP}/guard-install.sh" "${TMP}/g13.stdout" STUB_RC=3 STUB_OUT="$INSTALL_OUT" GH_CALLS="${TMP}/g13.gh" \
+    GITHUB_TOKEN="t0ken" GITHUB_STEP_SUMMARY="${TMP}/g13.summary" GITHUB_OUTPUT="${TMP}/g13.output" \
+    || g13_rc=$?
+  if [[ "$g13_rc" -eq 0 ]]; then
+    echo "  ok: the guard step succeeds when check-update exits 3"
+  else
+    fail "pin 13: the guard step exited ${g13_rc} when check-update exited 3; a release to install is not a failed job"
+  fi
+  want_output="$(printf 'merge=false\ninstall=true\ninstall_version=v0.2.2\ninstall_sha=%s\n' "$INSTALL_SHA")"
+  if [[ "$(cat "${TMP}/g13.output")" == "$want_output" ]]; then
+    echo "  ok: the guard step records merge=false, install=true, the version and the sha"
+  else
+    fail "pin 13: on exit 3 the guard step's output is '$(paste -sd';' "${TMP}/g13.output")', not exactly '$(paste -sd';' - <<< "$want_output")'"
+  fi
+  if grep -qxF -- "$INSTALL_LINE" "${TMP}/g13.summary" && grep -qxF -- "$INSTALL_LEFT" "${TMP}/g13.summary"; then
+    echo "  ok: both lines are in the step summary"
+  else
+    fail "pin 13: the step summary does not hold both lines of check-update's output on exit 3"
+  fi
+  if [[ -n "$(stop_token_around "${TMP}/g13.stdout" "$INSTALL_LEFT")" && -n "$(stop_token_around "${TMP}/g13.stdout" "$INSTALL_LINE")" ]]; then
+    echo "  ok: on exit 3 both lines are between ::stop-commands:: and its end"
+  else
+    fail "pin 13: on exit 3 the guard step's stdout does not hold both lines between ::stop-commands::<token> and ::<token>::"
+  fi
+  if [[ ! -s "${TMP}/g13.gh" ]]; then
+    echo "  ok: the guard step calls no gh on exit 3"
+  else
+    fail "pin 13: the guard step called gh on exit 3: $(paste -sd';' "${TMP}/g13.gh")"
+  fi
+
+  # Pin 14: a first line the regexp does not take.
+  g14_ok=1
+  for bad in "install v0.2.1 to v0.2 at ${INSTALL_SHA}" "install v0.2.1 to v0.2.2 at ${INSTALL_SHA:0:39}" \
+    "install v0.2.1 to v0.2.2 at ${INSTALL_SHA}0" "install v0.2.1 to v0.2.2 at $(tr 'a-f' 'A-F' <<< "$INSTALL_SHA")" \
+    "left for a human: something else" "install v0.2.1 to v0.2.2 at ${INSTALL_SHA} and more"; do
+    : > "${TMP}/g14.output"
+    : > "${TMP}/g14.summary"
+    g14_rc=0
+    stub_run "${TMP}/guard-install.sh" "${TMP}/g14.stdout" STUB_RC=3 STUB_OUT="${bad}"$'\n'"${INSTALL_LEFT}" \
+      GITHUB_TOKEN="t0ken" GITHUB_STEP_SUMMARY="${TMP}/g14.summary" GITHUB_OUTPUT="${TMP}/g14.output" \
+      || g14_rc=$?
+    if [[ "$g14_rc" -eq 0 ]]; then
+      fail "pin 14: the guard step exited 0 for the first line '${bad}', which is no install line"
+      g14_ok=0
+    fi
+    if ! grep -E '^::error' "${TMP}/g14.stdout" | grep -qF 'check-update'; then
+      fail "pin 14: the guard step prints no ::error naming check-update for the first line '${bad}'"
+      g14_ok=0
+    fi
+    if grep -qxF 'install=true' "${TMP}/g14.output"; then
+      fail "pin 14: the guard step records install=true for the first line '${bad}'"
+      g14_ok=0
+    fi
+  done
+  if [[ "$g14_ok" -eq 1 ]]; then
+    echo "  ok: a malformed install line fails the guard step with an ::error naming check-update and records no install=true"
+  fi
+fi
+
+# install_run <forsgren rc>: the install step's block with the stubs, the
+# guard's version and sha in its env; its exit status in ${TMP}/install.rc,
+# forsgren's calls in ${TMP}/install.fg and gh's in ${TMP}/install.gh.
+install_run() {
+  : > "${TMP}/install.fg"
+  : > "${TMP}/install.gh"
+  local rc=0
+  stub_run "${TMP}/install-step.sh" /dev/null STUB_RC="$1" FG_CALLS="${TMP}/install.fg" GH_CALLS="${TMP}/install.gh" \
+    GITHUB_TOKEN="t0ken" GH_TOKEN="t0ken" DEFAULT_BRANCH=main INSTALL_VERSION=v0.2.2 INSTALL_SHA="$INSTALL_SHA" \
+    || rc=$?
+  echo "$rc" > "${TMP}/install.rc"
+}
+
+if [[ -f "$WF" ]]; then
+  install_text="$(step_by_id "$WF" install text)"
+  if [[ -z "$install_text" ]]; then
+    fail "pin 15: ${WF} has no install step (a step with id: install) running forsgren install-update and then starting forsgren.yml"
+  else
+    install_env="$(step_by_id "$WF" install env)"
+    if grep -qxF -- "        if: steps.guard.outputs.install == 'true'" <<< "$install_text"; then
+      echo "  ok: the install step runs only when the guard said install=true"
+    else
+      fail "pin 15: the install step has no line 'if: steps.guard.outputs.install == 'true''"
+    fi
+    for want in "GITHUB_TOKEN: ${EXPR_OPEN} github.token }}" "GH_TOKEN: ${EXPR_OPEN} github.token }}" \
+      "DEFAULT_BRANCH: ${EXPR_OPEN} github.event.repository.default_branch }}" \
+      "INSTALL_VERSION: ${EXPR_OPEN} steps.guard.outputs.install_version }}" \
+      "INSTALL_SHA: ${EXPR_OPEN} steps.guard.outputs.install_sha }}"; do
+      if grep -qxF -- "$want" <<< "$install_env"; then
+        echo "  ok: the install step sets ${want}"
+      else
+        fail "pin 15: the install step does not set '${want}' in its env:"
+      fi
+    done
+    if later "$(line_of "$WF" "id: install")" "$(line_of "$WF" "id: merge")"; then
+      echo "  ok: the install step comes after the merge step"
+    else
+      fail "pin 15: the install step is not after the merge step"
+    fi
+    step_by_id "$WF" install run > "${TMP}/install-step.sh"
+    install_run 0
+    want_fg="install-update --repo owner/name --branch main --version v0.2.2 --sha ${INSTALL_SHA}"
+    want_gh="workflow run forsgren.yml --ref main --repo owner/name"
+    if [[ "$(cat "${TMP}/install.rc")" -eq 0 && "$(cat "${TMP}/install.fg")" == "$want_fg" && "$(cat "${TMP}/install.gh")" == "$want_gh" ]]; then
+      echo "  ok: the install step runs forsgren ${want_fg} and then gh ${want_gh}"
+    else
+      fail "pin 15: the install step exited $(cat "${TMP}/install.rc") and ran forsgren '$(paste -sd';' "${TMP}/install.fg")' and gh '$(paste -sd';' "${TMP}/install.gh")', not forsgren '${want_fg}' and gh '${want_gh}'"
+    fi
+    install_run 2
+    if [[ "$(cat "${TMP}/install.rc")" -ne 0 && ! -s "${TMP}/install.gh" ]]; then
+      echo "  ok: a failing install-update fails the step and starts no workflow"
+    else
+      fail "pin 15: with a failing install-update the install step exited $(cat "${TMP}/install.rc") and called gh '$(paste -sd';' "${TMP}/install.gh")'; it must exit non-zero and start nothing"
     fi
   fi
 fi
