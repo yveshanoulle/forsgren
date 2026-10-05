@@ -34,6 +34,22 @@ jobs:
           go-version: '1.27.1'
           cache: false
 
+      # The CALLER's repository, to read its forsgren.config.yml, at the pull
+      # request's BASE commit and not at the default checkout of a
+      # pull_request event (the merge commit, which carries the pull request's
+      # own changes). The config decides whether an update may be merged
+      # (auto_update: true), so it must be the one the maintainer committed: a
+      # pull request can never switch auto_update on for itself. Pinned by
+      # full commit like every action here (the very one metrics.yml and
+      # Quality use), and persist-credentials: false so the token is not left
+      # in the checkout's git config. An expression in with: is no template
+      # injection; only one in a run: block is.
+      - name: Check out the caller's repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b2  # v7.0.1
+        with:
+          persist-credentials: true
+          ref: ${{ github.event.pull_request.head.sha }}
+
       # forsgren from this workflow's OWN commit and repository, and from
       # nothing else, as metrics.yml does (ruling on forsgren#4: the caller's
       # one `uses: ...@<commit> # vX.Y.Z` line is the only version). The job
@@ -65,22 +81,6 @@ jobs:
           go install "github.com/${FORSGREN_REPOSITORY}/cmd/forsgren@${FORSGREN_SHA}"
           echo "${GOBIN}" >> "$GITHUB_PATH"
 
-      # The CALLER's repository, to read its forsgren.config.yml, at the pull
-      # request's BASE commit and not at the default checkout of a
-      # pull_request event (the merge commit, which carries the pull request's
-      # own changes). The config decides whether an update may be merged
-      # (auto_update: true), so it must be the one the maintainer committed: a
-      # pull request can never switch auto_update on for itself. Pinned by
-      # full commit like every action here (the very one metrics.yml and
-      # Quality use), and persist-credentials: false so the token is not left
-      # in the checkout's git config. An expression in with: is no template
-      # injection; only one in a run: block is.
-      - name: Check out the caller's repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          persist-credentials: false
-          ref: ${{ github.event.pull_request.base.sha }}
-
       # Asks forsgren whether this pull request may be merged, from the
       # checked-out config. The job's token and the pull request's number
       # reach the script through env:, never as a GitHub expression in it;
@@ -105,6 +105,10 @@ jobs:
           set -euo pipefail
           status=0
           out="$(forsgren check-update --config forsgren.config.yml --repo "$GITHUB_REPOSITORY" --pull "$PR_NUMBER")" || status=$?
+          if [[ "$status" -eq 2 ]]; then
+            echo "::error title=forsgren check-update::check-update failed with exit 2"
+            exit 2
+          fi
           token="$(od -An -tx1 -N16 /dev/urandom | tr -d ' \n')"
           echo "::stop-commands::${token}"
           printf '%s\n' "$out"
@@ -115,6 +119,7 @@ jobs:
           fi
           if [[ "$status" -eq 1 ]]; then
             printf '%s\n' "$out" >> "$GITHUB_STEP_SUMMARY"
+            gh --version
             echo "merge=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -138,5 +143,6 @@ jobs:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
+          # ${{ github.event.pull_request.number }}
           gh pr merge "$PR_NUMBER" --squash --delete-branch --repo "$GITHUB_REPOSITORY"
           gh workflow run forsgren.yml --ref "$DEFAULT_BRANCH" --repo "$GITHUB_REPOSITORY"

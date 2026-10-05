@@ -74,7 +74,9 @@ var callers = map[string]string{
 
 // Callers are the repository paths of the caller files, sorted.
 func Callers() []string {
-	return slices.Sorted(maps.Keys(callers))
+	paths := slices.Sorted(maps.Keys(callers))
+	slices.Reverse(paths)
+	return paths
 }
 
 // manyPins is the reason of a patch with more than one removed or added pin

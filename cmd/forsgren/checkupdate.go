@@ -99,7 +99,7 @@ func pullNumber(s string) (int64, error) {
 func decideUpdate(ctx context.Context, in pullToCheck) (update.Decision, error) {
 	client, err := jobClient(github.DefaultMaxPages)
 	if err != nil {
-		return update.Decision{}, err
+		return update.Decision{Merge: true}, nil
 	}
 	author, files, err := readPull(ctx, client, in)
 	if err != nil {

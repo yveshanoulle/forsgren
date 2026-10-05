@@ -445,7 +445,7 @@ stop_token_around() {
 }
 
 # Pin 9 (18c): check-update's output is written to the job log between
-# `::stop-commands::<token>` and `::<token>::`, on exit 0 and on exit 1, under
+# `::stop-commands::<token>` and `::<token>::`, on exit 0, 1 and 2, under
 # a token that differs from run to run: that output carries a pull request's
 # and a configuration's text, which must never run as a workflow command (as
 # metrics.yml does for check-config and collect, forsgren#9). EXECUTED with
@@ -467,9 +467,12 @@ if [[ -f "$WF" && -n "$(step_by_id "$WF" guard text)" ]]; then
   guard_stdout "${TMP}/stop0.log" 0 "$MERGE_LINE"
   guard_stdout "${TMP}/stop1.log" 1 "$LEFT"
   guard_stdout "${TMP}/stop0b.log" 0 "$MERGE_LINE"
+  FAILED_LINE="check-update: the pull request has more files than were read"
+  guard_stdout "${TMP}/stop2.log" 2 "$FAILED_LINE"
   token0="$(stop_token_around "${TMP}/stop0.log" "$MERGE_LINE")"
   token1="$(stop_token_around "${TMP}/stop1.log" "$LEFT")"
   token0b="$(stop_token_around "${TMP}/stop0b.log" "$MERGE_LINE")"
+  token2="$(stop_token_around "${TMP}/stop2.log" "$FAILED_LINE")"
   if [[ -n "$token0" ]]; then
     echo "  ok: on exit 0 check-update's output is between ::stop-commands:: and its end"
   else
@@ -479,6 +482,11 @@ if [[ -f "$WF" && -n "$(step_by_id "$WF" guard text)" ]]; then
     echo "  ok: on exit 1 check-update's output is between ::stop-commands:: and its end"
   else
     fail "pin 9: on exit 1 the guard step's stdout does not hold '${LEFT}' between ::stop-commands::<token> and ::<token>::"
+  fi
+  if [[ -n "$token2" ]]; then
+    echo "  ok: on exit 2 check-update's output is between ::stop-commands:: and its end"
+  else
+    fail "pin 9: on exit 2 the guard step's stdout does not hold '${FAILED_LINE}' between ::stop-commands::<token> and ::<token>::"
   fi
   if [[ -n "$token0" && -n "$token0b" && "$token0" != "$token0b" && "$token0" != "$token1" ]]; then
     echo "  ok: the stop-commands token differs from run to run"
