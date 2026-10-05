@@ -15,6 +15,8 @@
 #   17c  forsgren is installed from this workflow's own commit: the same
 #        setup-go as metrics.yml, then the install step, its commit and
 #        repository from the job context through env: only;
+#   17d  the install step, executed with a stub go: a good commit and
+#        repository install, a bad one is refused before go runs;
 #   (the later cycles are listed in forsgren#58 and add their pins here.)
 #
 # Read with awk, not a YAML parser, as Scripts/test_metrics_workflow.sh is,
@@ -64,6 +66,18 @@ step_text() {
   awk -v name="$2" '
     /^      - / { instep = ($0 == "      - name: " name) }
     instep { print }
+  ' "$1"
+}
+
+# step_block <file> <step name> <key>: the block under that step's key
+# (run or env), its lines dedented; nothing when there is no such step.
+step_block() {
+  awk -v name="$2" -v key="$3" '
+    function indent(s) { match(s, /^ */); return RLENGTH }
+    /^      - / { instep = ($0 == "      - name: " name); inb=0; next }
+    instep && inb && $0 !~ /^[[:space:]]*$/ && indent($0) <= 8 { inb=0 }
+    instep && inb { if (!cut) { match($0, /^ */); cut = RLENGTH } print substr($0, cut + 1); next }
+    instep && $0 ~ ("^        " key ":[[:space:]]*\\|?[[:space:]]*$") { inb=1 }
   ' "$1"
 }
 
@@ -163,6 +177,78 @@ if [[ -f "$WF" ]]; then
     echo "  ok: no run: block expands a GitHub expression"
   else
     fail "pin 3: a run: block of ${WF} expands a GitHub expression, pass it through env: (line ${injected})"
+  fi
+fi
+
+# Pin 4: the install step's run: block, EXECUTED here with a stub go on PATH
+# that records its arguments (the way Scripts/test_metrics_workflow.sh does
+# for metrics.yml; install_outcome is a COPY, for the refactor step). STANDING
+# FACTS: forsgren is installed only from an exact commit, so a commit that is
+# not 40 lower-case hex digits (a tag, a branch, a short or long hash,
+# capitals, empty) never reaches the module proxy, and only from one
+# owner/name repository; both are refused with an ::error BEFORE go runs.
+# A good pair runs exactly `go install
+# github.com/<repository>/cmd/forsgren@<commit>` and puts GOBIN on
+# $GITHUB_PATH, so the later steps find forsgren.
+SHA="1997c4ff09aecd32c30fbdd7eef72485f146e865"
+UPSTREAM="yveshanoulle/forsgren"
+STUB="${TMP}/stub"
+mkdir -p "$STUB"
+cat > "${STUB}/go" <<'STUBGO'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$GO_CALLS"
+STUBGO
+chmod +x "${STUB}/go"
+
+# install_outcome <script> <sha> <repository>: `refused` (non-zero, an
+# ::error, go never ran), `installed <go args>` (zero, go ran once, GOBIN on
+# the path file), or `broken: ...` for any other mix.
+install_outcome() {
+  local calls="${TMP}/go.calls" log="${TMP}/install.log" rc=0 n
+  rm -f "$calls" "${TMP}/github_path"
+  : > "$calls"
+  PATH="${STUB}:${PATH}" GO_CALLS="$calls" RUNNER_TEMP="${TMP}/runner" \
+    GITHUB_PATH="${TMP}/github_path" FORSGREN_SHA="$2" FORSGREN_REPOSITORY="$3" \
+    bash "$1" > "$log" 2>&1 || rc=$?
+  n="$(wc -l < "$calls" | tr -d ' ')"
+  if [[ "$rc" -ne 0 && "$n" -eq 0 ]] && grep -q '^::error' "$log"; then
+    echo refused
+  elif [[ "$rc" -eq 0 && "$n" -eq 1 ]] && grep -qxF "${TMP}/runner/forsgren-bin" "${TMP}/github_path" 2>/dev/null; then
+    echo "installed $(cat "$calls")"
+  else
+    echo "broken: exit ${rc}, go ran ${n} time(s)"
+  fi
+}
+
+if [[ -f "$WF" ]]; then
+  step_block "$WF" "$INSTALL_STEP" run > "${TMP}/install.sh"
+  if [[ ! -s "${TMP}/install.sh" ]]; then
+    fail "pin 4: ${WF} has no step '${INSTALL_STEP}' with a run: | block"
+  else
+    problems=0
+    got="$(install_outcome "${TMP}/install.sh" "$SHA" "$UPSTREAM")"
+    want="installed install github.com/${UPSTREAM}/cmd/forsgren@${SHA}"
+    if [[ "$got" != "$want" ]]; then
+      fail "pin 4: for ${UPSTREAM} at ${SHA} the install step gives '${got}', not '${want}'"
+      problems=1
+    fi
+    for v in v0.0.1 latest main e1b36d2 "${SHA:0:39}" "${SHA}0" "$(tr 'a-f' 'A-F' <<< "$SHA")" "${SHA:0:39}g" ''; do
+      got="$(install_outcome "${TMP}/install.sh" "$v" "$UPSTREAM")"
+      if [[ "$got" != refused ]]; then
+        fail "pin 4: the install step gives '${got}' for the commit '${v}', which is not 40 lower-case hex digits; it must refuse before go runs"
+        problems=1
+      fi
+    done
+    for v in yveshanoulle yveshanoulle/forsgren/extra '../forsgren' 'yveshanoulle/..' 'evil.example/forsgren' ''; do
+      got="$(install_outcome "${TMP}/install.sh" "$SHA" "$v")"
+      if [[ "$got" != refused ]]; then
+        fail "pin 4: the install step gives '${got}' for the repository '${v}', which is not one owner/name; it must refuse before go runs"
+        problems=1
+      fi
+    done
+    if [[ "$problems" -eq 0 ]]; then
+      echo "  ok: the install step installs a good commit and refuses a bad commit or repository before go runs"
+    fi
   fi
 fi
 
