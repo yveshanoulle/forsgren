@@ -58,14 +58,17 @@ func TestNumbersPageShowsOnlyNumbers(t *testing.T) {
 // TestScoringPageShowsEachMetricsScoreAndOverallPerformance (forsgren#47):
 // each cell is the metric's DORA Quick Check score alone, "9.3", never its
 // number; a metric without data is - and has no score; the sixth cell is
-// Overall Performance, the mean of the scored metrics to one decimal. Acme
-// Shop scores 6, 9.3 and 10 (8.4), Acme Tools 0 and 0 (0.0).
+// Overall Performance, the mean of the scored metrics to one decimal. A
+// score of 0 is observed performance in the lowest band, - is not enough
+// data: a project with no deployment in the window has no frequency score.
+// Acme Shop scores 6, 9.3 and 10 (8.4), Acme Tools only its 100% change fail
+// rate, 0 (0.0).
 func TestScoringPageShowsEachMetricsScoreAndOverallPerformance(t *testing.T) {
 	data := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
 	got := rendered(t, "scoring/index.html", data)
 	for heading, cells := range map[string][]string{
 		"Acme Shop":  {"6", "-", "-", "9.3", "10", "8.4"},
-		"Acme Tools": {"0", "-", "-", "0", "-", "0.0"},
+		"Acme Tools": {"-", "-", "-", "0", "-", "0.0"},
 	} {
 		if !row(heading, cells...).MatchString(got) {
 			t.Errorf("want the row of %s to read %v, got:\n%s", heading, cells, got)
@@ -83,6 +86,20 @@ func TestScoringPageShowsNoOverallPerformanceWithoutAScore(t *testing.T) {
 	got := rendered(t, "scoring/index.html", data)
 	if !row("Acme Empty", "-", "-", "-", "-", "-", "-").MatchString(got) {
 		t.Errorf("want the row of Acme Empty to read - in all six cells, got:\n%s", got)
+	}
+}
+
+// TestScoringPageShowsNoScoreForAProjectWithoutDeployments (forsgren#47): a
+// project whose metrics were counted over no deployment has the frequency
+// band metrics gives it, the lowest, but no data: all six cells, Overall
+// Performance included, are -.
+func TestScoringPageShowsNoScoreForAProjectWithoutDeployments(t *testing.T) {
+	data := Placeholder("0.1.2")
+	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Idle",
+		Frequency: metrics.Frequency{Band: metrics.LessThanSixMonthly}}})
+	got := rendered(t, "scoring/index.html", data)
+	if !row("Acme Idle", "-", "-", "-", "-", "-", "-").MatchString(got) {
+		t.Errorf("want the row of Acme Idle to read - in all six cells, got:\n%s", got)
 	}
 }
 
