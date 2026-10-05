@@ -53,7 +53,7 @@ var pinLine = regexp.MustCompile(
 
 // release is a release version of forsgren: v and three numbers, no
 // pre-release or build suffix.
-var release = regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
+var release = regexp.MustCompile(`^v(\d+)\.(\d+)\.(\d+)$`)
 
 // callers are the files of an installation's data repository that pin
 // forsgren, each with the one workflow of forsgren it calls: forsgren.yml
@@ -132,7 +132,8 @@ func readCallers(files []File) (move, string) {
 
 // readCaller reads the pin pair of one changed file. The reason is not empty
 // when the file is no caller, changes more than its pin pair, or pins a
-// workflow other than the one it calls, or has a version that is no release.
+// workflow other than the one it calls, or has versions that are no upgrade
+// between two releases.
 func readCaller(f File) (move, string) {
 	want, ok := callers[f.Filename]
 	if !ok {
@@ -147,11 +148,47 @@ func readCaller(f File) (move, string) {
 		return m, fmt.Sprintf("changed besides the pin line: %s moves %q to %q, want %q",
 			f.Filename, m.from.workflow, m.to.workflow, want)
 	}
+	return m, m.unfit(f.Filename)
+}
+
+// unfit is the reason the versions of m are not those of an upgrade between
+// two releases: one is no release version, or the new one is not newer than
+// the old one. The versions are judged before the release lookup, which only
+// speaks for a version that is a release version and an upgrade. Empty when
+// they are.
+func (m move) unfit(filename string) string {
 	if v := m.unreleased(); v != "" {
-		return m, fmt.Sprintf("changed besides the pin line: %s pins %q, which is no release version",
-			f.Filename, v)
+		return fmt.Sprintf("changed besides the pin line: %s pins %q, which is no release version", filename, v)
 	}
-	return m, ""
+	if !m.upgrade() {
+		return m.String() + " is no upgrade"
+	}
+	return ""
+}
+
+// upgrade says whether the new version of m is newer than the old one, part
+// by part as numbers: v0.1.10 is newer than v0.1.9. Both versions must be
+// release versions.
+func (m move) upgrade() bool {
+	from := release.FindStringSubmatch(m.from.version)[1:]
+	to := release.FindStringSubmatch(m.to.version)[1:]
+	for i := range from {
+		if from[i] != to[i] {
+			return smaller(from[i], to[i])
+		}
+	}
+	return false
+}
+
+// smaller says whether the number a is below the number b, both written as
+// digits: after leading zeros, the shorter is smaller, and of equal length
+// the one that sorts first.
+func smaller(a, b string) bool {
+	a, b = strings.TrimLeft(a, "0"), strings.TrimLeft(b, "0")
+	if len(a) != len(b) {
+		return len(a) < len(b)
+	}
+	return a < b
 }
 
 // pin is one pin line: the workflow file of forsgren, the commit and the
