@@ -336,3 +336,37 @@ func TestNewVersionIsTheVersionOfTheAddedPin(t *testing.T) {
 		t.Errorf("NewVersion() without a pin = %q, %v, want empty, false", got, ok)
 	}
 }
+
+// TestDecideLeavesAPullRequestThatMovesOnlyOneOfTwoCallersForAHuman pins
+// forsgren#61: when the repository has both caller files, a pull request
+// must move both, or it is left for a human with a reason that names the
+// caller it moves and the one it leaves.
+func TestDecideLeavesAPullRequestThatMovesOnlyOneOfTwoCallersForAHuman(t *testing.T) {
+	present := []string{".github/workflows/forsgren.yml", ".github/workflows/forsgren-update.yml"}
+	cases := []struct {
+		name   string
+		files  []File
+		reason string
+	}{
+		{
+			"only forsgren.yml", []File{forsgrenYML(dependabotBump)},
+			"moves .github/workflows/forsgren.yml but not .github/workflows/forsgren-update.yml",
+		},
+		{
+			"only forsgren-update.yml",
+			[]File{forsgrenUpdateYML(pinPair("auto_update.yml", "auto_update.yml", "v0.1.4", newSHA))},
+			"moves .github/workflows/forsgren-update.yml but not .github/workflows/forsgren.yml",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := Decide(Pull{
+				Author: "dependabot[bot]", Files: c.files, Release: published,
+				Level: config.LevelPatch, Present: present,
+			})
+			if got.Merge || got.Reason != c.reason {
+				t.Errorf("Decide() = %+v, want left with the reason %q", got, c.reason)
+			}
+		})
+	}
+}

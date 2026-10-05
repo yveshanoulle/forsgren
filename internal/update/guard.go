@@ -31,12 +31,14 @@ type Release struct {
 // Pull is everything the guard looks at: the author, the changed files, the
 // release of the new version and the installation's auto_update_level, one of
 // the config package's LevelPatch, LevelMinor and LevelMajor, how far an
-// update may go before it merges itself.
+// update may go before it merges itself, and the caller files that exist in
+// the repository at the pull request's base commit, as repository paths.
 type Pull struct {
 	Author  string
 	Files   []File
 	Release Release
 	Level   string
+	Present []string
 }
 
 // Decision is the guard's answer: Merge, or left for a human with one
