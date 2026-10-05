@@ -6,7 +6,7 @@ package update
 func NewVersion(files []File) (string, bool) {
 	for _, f := range files {
 		if c := readChanges(f.Patch); c.nAdded > 0 {
-			return c.added.version, true
+			return c.removed.version, true // MUTATION 16f: the OLD version
 		}
 	}
 	return "", false
