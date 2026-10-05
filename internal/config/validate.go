@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"go.yaml.in/yaml/v3"
 )
 
 // toConfig turns the file as written into a Config, or names the first
@@ -14,7 +16,7 @@ func (f fileConfig) toConfig() (Config, error) {
 	if err := checkVersion(f.Version); err != nil {
 		return Config{}, err
 	}
-	view, err := checkView(f.View)
+	cfg, err := f.settings()
 	if err != nil {
 		return Config{}, err
 	}
@@ -22,7 +24,6 @@ func (f fileConfig) toConfig() (Config, error) {
 		return Config{}, fmt.Errorf("%w: list at least one under the projects key, or use projects: [] for none",
 			ErrNoProjects)
 	}
-	cfg := Config{Version: FormatVersion, View: view, AutoUpdate: switchedOn(f.AutoUpdate)}
 	seen := names{projects: map[string]listedProject{}, repositories: map[string]string{}}
 	for i, p := range f.Projects {
 		project, err := p.toProject(i+1, &seen)
@@ -34,10 +35,35 @@ func (f fileConfig) toConfig() (Config, error) {
 	return cfg, nil
 }
 
-// switchedOn is an optional boolean key as written, off when the file has
-// no such key or no value for it (forsgren#58).
-func switchedOn(v *bool) bool {
-	return v != nil && *v
+// settings is the Config of the file's optional top-level keys, view and
+// auto_update, or the first refusal among them (forsgren#46, #58).
+func (f fileConfig) settings() (Config, error) {
+	view, err := checkView(f.View)
+	if err != nil {
+		return Config{}, err
+	}
+	auto, err := checkAutoUpdate(f.AutoUpdate)
+	if err != nil {
+		return Config{}, err
+	}
+	return Config{Version: FormatVersion, View: view, AutoUpdate: auto}, nil
+}
+
+// booleans are the only spellings of a boolean key (forsgren#58).
+var booleans = map[string]bool{"true": true, "false": false}
+
+// checkAutoUpdate is auto_update as written, off when the file has no such
+// key: only the literals true and false, never a quoted or numeric value,
+// nor yes (forsgren#58).
+func checkAutoUpdate(n yaml.Node) (bool, error) {
+	if n.Kind == 0 {
+		return false, nil
+	}
+	on, literal := booleans[n.Value]
+	if literal && n.ShortTag() == "!!bool" {
+		return on, nil
+	}
+	return false, fmt.Errorf("%w %q: use true or false", ErrAutoUpdate, n.Value)
 }
 
 func checkVersion(v *int) error {

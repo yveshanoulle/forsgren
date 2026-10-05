@@ -172,7 +172,7 @@ func parse(data []byte) (Config, error) {
 type fileConfig struct {
 	Version    *int          `yaml:"version"`
 	View       *string       `yaml:"view"`
-	AutoUpdate *bool         `yaml:"auto_update"`
+	AutoUpdate yaml.Node     `yaml:"auto_update"`
 	Projects   []fileProject `yaml:"projects"`
 }
 
