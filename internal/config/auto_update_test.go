@@ -22,3 +22,14 @@ func TestAutoUpdateIsRead(t *testing.T) {
 		}
 	}
 }
+
+// TestParseRefusesANonBooleanAutoUpdate (forsgren#58): any value that is not
+// the YAML boolean true or false is refused, naming the key and the valid
+// values, as for an invalid view.
+func TestParseRefusesANonBooleanAutoUpdate(t *testing.T) {
+	checkRefusals(t, []refusal{
+		{"yes", "auto_update: yes\n" + valid, ErrAutoUpdate, `invalid auto_update "yes": use true or false`},
+		{"quoted", "auto_update: \"true\"\n" + valid, ErrAutoUpdate, `invalid auto_update "true": use true or false`},
+		{"number", "auto_update: 1\n" + valid, ErrAutoUpdate, `invalid auto_update "1": use true or false`},
+	})
+}

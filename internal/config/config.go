@@ -131,6 +131,7 @@ var (
 	ErrDeployment          = errors.New("invalid deployment")
 	ErrLabel               = errors.New("invalid label")
 	ErrView                = errors.New("invalid view")
+	ErrAutoUpdate          = errors.New("invalid auto_update")
 )
 
 // Load reads and validates the config file at path. Every error names the
