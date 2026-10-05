@@ -96,7 +96,7 @@ func Decide(p Pull) Decision {
 	if len(p.Files) == 0 {
 		return Decision{Reason: noPin}
 	}
-	first, reason := readCallers(p.Files)
+	first, reason := readCallers(p)
 	if reason != "" {
 		return Decision{Reason: reason}
 	}
@@ -124,10 +124,11 @@ func (r Release) refuses(to pin) string {
 
 // readCallers reads the pin pair of every changed file and returns the first
 // one. The reason is not empty when a file is not mergeable (readCaller) or
-// its pins move differently from the first file's.
-func readCallers(files []File) (move, string) {
+// its pins move differently from the first file's, or p leaves a present
+// caller unmoved (unmoved).
+func readCallers(p Pull) (move, string) {
 	var first move
-	for i, f := range files {
+	for i, f := range p.Files {
 		m, reason := readCaller(f)
 		if reason != "" {
 			return m, reason
@@ -138,7 +139,24 @@ func readCallers(files []File) (move, string) {
 			return m, "the pins move differently: " + first.String() + " and " + m.String()
 		}
 	}
-	return first, ""
+	return first, p.unmoved()
+}
+
+// unmoved is the reason a pull request moves one caller but leaves another
+// caller of p.Present unmoved, as forsgren#61 rules: it names the first
+// changed file and the first present caller that is not changed. Empty when
+// every present caller is changed, and when none is present.
+func (p Pull) unmoved() string {
+	changed := make(map[string]bool, len(p.Files))
+	for _, f := range p.Files {
+		changed[f.Filename] = true
+	}
+	for _, path := range p.Present {
+		if !changed[path] {
+			return "moves " + p.Files[0].Filename + " but not " + path
+		}
+	}
+	return ""
 }
 
 // readCaller reads the pin pair of one changed file. The reason is not empty
