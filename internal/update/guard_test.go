@@ -98,6 +98,9 @@ func TestDecideMergesAnUpdateWithinTheLevel(t *testing.T) {
 		{"a patch update at patch", config.LevelPatch, "v0.1.3", "v0.1.4"},
 		{"a minor update at minor", config.LevelMinor, "v0.1.4", "v0.2.0"},
 		{"a major update at major", config.LevelMajor, "v0.4.0", "v1.0.0"},
+		{"a patch update at minor", config.LevelMinor, "v0.2.1", "v0.2.2"},
+		{"a minor update at major", config.LevelMajor, "v0.2.1", "v0.3.0"},
+		{"a patch update at major", config.LevelMajor, "v0.2.1", "v0.2.2"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
