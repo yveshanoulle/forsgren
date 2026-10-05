@@ -83,14 +83,12 @@ func installFlags() []string {
 	return []string{"install-update", "--repo", "acme/data", "--branch", "main", "--version", "v0.1.4", "--sha", newPinSHA}
 }
 
-// TestInstallUpdateMovesBothCallersAtTheHeadInOneCommit (forsgren#62, step
-// 4): the caller files are read at the head of the branch (the commit its ref
-// is at), each pin is moved to v0.1.4 and its sha, all files are written in
-// one commit that follows that head, the ref is moved without force, and the
-// command says what it installed and exits 0.
-func TestInstallUpdateMovesBothCallersAtTheHeadInOneCommit(t *testing.T) {
+// installAnswers are the answers of acme/data's branch main at headCommit,
+// whose two caller files pin v0.1.3, and of the writes that follow.
+func installAnswers(t *testing.T) map[string]answer {
+	t.Helper()
 	git, files := "/repos/acme/data/git/", "/repos/acme/data/contents/.github/workflows/"
-	sent := serveRecorded(t, map[string]answer{
+	return map[string]answer{
 		"GET " + git + "ref/heads/main": {200, `{"object": {"sha": "` + headCommit + `"}}`},
 		"GET " + files + "forsgren.yml": contentsAnswer(t, callerBody(
 			update.Target{Workflow: "metrics.yml", Version: "v0.1.3", SHA: oldPinSHA})),
@@ -100,7 +98,16 @@ func TestInstallUpdateMovesBothCallersAtTheHeadInOneCommit(t *testing.T) {
 		"POST " + git + "trees":                {201, `{"sha": "` + createdTree + `"}`},
 		"POST " + git + "commits":              {201, `{"sha": "` + createdCommit + `"}`},
 		"PATCH " + git + "refs/heads/main":     {200, `{"object": {"sha": "` + createdCommit + `"}}`},
-	})
+	}
+}
+
+// TestInstallUpdateMovesBothCallersAtTheHeadInOneCommit (forsgren#62, step
+// 4): the caller files are read at the head of the branch (the commit its ref
+// is at), each pin is moved to v0.1.4 and its sha, all files are written in
+// one commit that follows that head, the ref is moved without force, and the
+// command says what it installed and exits 0.
+func TestInstallUpdateMovesBothCallersAtTheHeadInOneCommit(t *testing.T) {
+	sent := serveRecorded(t, installAnswers(t))
 	t.Setenv("GITHUB_TOKEN", "sesame-sesame-sesame")
 	got := runOutcome(installFlags())
 	want := outcome{code: 0, stdout: "installed v0.1.4 on main as " + createdCommit + "\n"}

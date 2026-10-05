@@ -5,9 +5,7 @@ package update
 
 import (
 	"fmt"
-	"maps"
 	"regexp"
-	"slices"
 	"strings"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
@@ -66,19 +64,6 @@ var pinLine = regexp.MustCompile(
 // release is a release version of forsgren: v and three numbers, no
 // pre-release or build suffix.
 var release = regexp.MustCompile(`^v(\d+)\.(\d+)\.(\d+)$`)
-
-// callers are the files of an installation's data repository that pin
-// forsgren, each with the one workflow of forsgren it calls: forsgren.yml
-// calls metrics.yml and forsgren-update.yml calls auto_update.yml.
-var callers = map[string]string{
-	".github/workflows/forsgren.yml":        "metrics.yml",
-	".github/workflows/forsgren-update.yml": "auto_update.yml",
-}
-
-// Callers are the repository paths of the caller files, sorted.
-func Callers() []string {
-	return slices.Sorted(maps.Keys(callers))
-}
 
 // manyPins is the reason of a patch with more than one removed or added pin
 // line.

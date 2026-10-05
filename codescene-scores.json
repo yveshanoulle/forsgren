@@ -673,6 +673,60 @@
    "score": 10.0,
    "checkedAt": "2026-10-05",
    "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/installupdate.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-05",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/installupdate_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-05",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/installupdate_errors_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-05",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/contents.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-05",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/contents_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-05",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/tip.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-05",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/tip_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-05",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/update/callers.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-05",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/update/callers_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-05",
+   "minScore": 10.0
   }
  ]
 }

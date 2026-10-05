@@ -23,12 +23,13 @@ type BranchCommit struct {
 
 // CommitFiles writes the files of commit to its branch of repo in one
 // commit through the git data API, and returns the SHA of that commit: GET
-// the branch's ref and its commit, POST a tree with the files over the
-// commit's tree, POST a commit with the old one as its parent, and PATCH the
-// ref to it without force, so a branch that moved or is protected is an error
-// naming the branch and changes nothing.
+// the commit the new one follows, commit.Base or, when that is empty, the
+// commit the branch is at, POST a tree with the files over its tree, POST a
+// commit with it as its parent, and PATCH the ref to the new commit without
+// force, so a branch that moved or is protected is an error naming the branch
+// and changes nothing.
 func (c *Client) CommitFiles(ctx context.Context, repo string, commit BranchCommit) (string, error) {
-	base, err := c.branchHead(ctx, repo, commit)
+	base, err := c.baseOf(ctx, repo, commit)
 	if err != nil {
 		return "", err
 	}
@@ -55,23 +56,25 @@ type shaOf struct {
 	SHA string `json:"sha"`
 }
 
-// branchHead reads the commit the branch of commit is at and its tree.
-func (c *Client) branchHead(ctx context.Context, repo string, commit BranchCommit) (head, error) {
-	var ref struct {
-		Object shaOf `json:"object"`
-	}
-	readRef := step{method: http.MethodGet, segments: branchPath("ref", commit.Branch)}
-	if err := c.exchange(ctx, repo, readRef, &ref); err != nil {
-		return head{}, err
+// baseOf is the commit the new commit of commit follows and its tree: the
+// commit's Base, or the tip of its branch when it has none.
+func (c *Client) baseOf(ctx context.Context, repo string, commit BranchCommit) (head, error) {
+	base := commit.Base
+	if base == "" {
+		tip, err := c.BranchTip(ctx, repo, commit.Branch)
+		if err != nil {
+			return head{}, err
+		}
+		base = tip
 	}
 	var tip struct {
 		Tree shaOf `json:"tree"`
 	}
-	readTip := step{method: http.MethodGet, segments: []string{"git", "commits", ref.Object.SHA}}
+	readTip := step{method: http.MethodGet, segments: []string{"git", "commits", base}}
 	if err := c.exchange(ctx, repo, readTip, &tip); err != nil {
 		return head{}, err
 	}
-	return head{commit: ref.Object.SHA, tree: tip.Tree.SHA}, nil
+	return head{commit: base, tree: tip.Tree.SHA}, nil
 }
 
 // createCommit creates the tree of commit's files over base's tree and a
