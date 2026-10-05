@@ -44,6 +44,8 @@ cd "$(dirname "$0")/.."
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# shellcheck source=Scripts/lib_workflow_steps.sh
+source Scripts/lib_workflow_steps.sh
 selftest_begin "the auto-update workflow pin"
 
 WF=".github/workflows/auto_update.yml"
@@ -53,66 +55,6 @@ INSTALL_STEP="Install forsgren from this workflow's own commit"
 # The opening of a GitHub expression, in double quotes with the dollar
 # escaped, so no reader (shellcheck included) takes it for an expansion.
 EXPR_OPEN="\${{"
-
-# The helpers below are COPIES of Scripts/test_metrics_workflow.sh's, for the
-# refactor step of forsgren#58 to move into one shared library.
-
-# run_blocks <file>: every run: line and the lines of its block, as
-# <lineno>:<text>, so a finding names its line.
-run_blocks() {
-  awk '
-    function indent(s) { match(s, /^ */); return RLENGTH }
-    inrun && $0 !~ /^[[:space:]]*$/ && indent($0) <= runind { inrun=0 }
-    inrun { print NR ":" $0; next }
-    /^[[:space:]]*(- )?run:/ {
-      print NR ":" $0
-      runind = indent($0)
-      if ($0 ~ /- run:/) runind += 2
-      if ($0 ~ /run:[[:space:]]*[|>][-+]?[[:space:]]*$/) inrun=1
-    }
-  ' "$1"
-}
-
-# step_text <file> <step name>: every line of that step, the dash line
-# included; nothing when there is no such step.
-step_text() {
-  awk -v name="$2" '
-    /^      - / { instep = ($0 == "      - name: " name) }
-    instep { print }
-  ' "$1"
-}
-
-# step_block <file> <step name> <key>: the block under that step's key
-# (run or env), its lines dedented; nothing when there is no such step.
-step_block() {
-  awk -v name="$2" -v key="$3" '
-    function indent(s) { match(s, /^ */); return RLENGTH }
-    /^      - / { instep = ($0 == "      - name: " name); inb=0; next }
-    instep && inb && $0 !~ /^[[:space:]]*$/ && indent($0) <= 8 { inb=0 }
-    instep && inb { if (!cut) { match($0, /^ */); cut = RLENGTH } print substr($0, cut + 1); next }
-    instep && $0 ~ ("^        " key ":[[:space:]]*\\|?[[:space:]]*$") { inb=1 }
-  ' "$1"
-}
-
-# line_of <file> <fixed text>: the line number of its first occurrence.
-line_of() {
-  grep -nF -- "$2" "$1" | head -1 | cut -d: -f1
-}
-
-# later <line> <other line>: true when both are known and the first comes
-# after the second.
-later() {
-  [[ -n "$1" && -n "$2" && "$1" -gt "$2" ]]
-}
-
-# on_events <file>: the event names of the column-0 `on:` block, one per line.
-on_events() {
-  awk '
-    /^on:[[:space:]]*$/ { inon=1; next }
-    inon && /^[^[:space:]#]/ { inon=0 }
-    inon && /^  [A-Za-z_]+:/ { s=$0; sub(/^  /, "", s); sub(/:.*$/, "", s); print s }
-  ' "$1"
-}
 
 # Pin 1: the workflow exists and triggers on workflow_call alone.
 if [[ ! -f "$WF" ]]; then
@@ -195,7 +137,8 @@ fi
 
 # Pin 4: the install step's run: block, EXECUTED here with a stub go on PATH
 # that records its arguments (the way Scripts/test_metrics_workflow.sh does
-# for metrics.yml; install_outcome is a COPY, for the refactor step). STANDING
+# for metrics.yml; install_outcome is this pin's own, stricter than that
+# one's, see Scripts/lib_workflow_steps.sh). STANDING
 # FACTS: forsgren is installed only from an exact commit, so a commit that is
 # not 40 lower-case hex digits (a tag, a branch, a short or long hash,
 # capitals, empty) never reaches the module proxy, and only from one
@@ -340,11 +283,42 @@ step_by_id() {
 # "$GITHUB_REPOSITORY" --pull "$PR_NUMBER"`, GITHUB_REPOSITORY being the
 # caller's repository. EXECUTED here with a stub forsgren on PATH that records
 # its arguments. What the step does with the exit status is cycles 18a to 18c.
-cat > "${STUB}/forsgren" <<'STUBFORSGREN'
+
+# One stub directory serves pins 6 to 12; what differs from pin to pin is set
+# per run, in the environment stub_run passes:
+#   forsgren  records its arguments in FG_CALLS (when set), prints STUB_OUT on
+#             stdout and STUB_ERR on stderr (each when set), and exits
+#             STUB_RC (0 by default);
+#   gh        records its arguments in GH_CALLS (when set), and fails a
+#             `pr merge` when STUB_GH_MERGE_FAILS is yes.
+STUB_JOB="${TMP}/stub-job"
+mkdir -p "$STUB_JOB"
+cat > "${STUB_JOB}/forsgren" <<'STUBFORSGREN'
 #!/usr/bin/env bash
-printf '%s\n' "$*" >> "$FG_CALLS"
+if [[ -n "${FG_CALLS:-}" ]]; then printf '%s\n' "$*" >> "$FG_CALLS"; fi
+if [[ -n "${STUB_OUT:-}" ]]; then printf '%s\n' "$STUB_OUT"; fi
+if [[ -n "${STUB_ERR:-}" ]]; then printf '%s\n' "$STUB_ERR" >&2; fi
+exit "${STUB_RC:-0}"
 STUBFORSGREN
-chmod +x "${STUB}/forsgren"
+cat > "${STUB_JOB}/gh" <<'STUBGH'
+#!/usr/bin/env bash
+if [[ -n "${GH_CALLS:-}" ]]; then printf '%s\n' "$*" >> "$GH_CALLS"; fi
+if [[ "${STUB_GH_MERGE_FAILS:-}" == yes && "${1:-} ${2:-}" == "pr merge" ]]; then
+  echo "gh: merge blocked" >&2
+  exit 1
+fi
+STUBGH
+chmod +x "${STUB_JOB}/forsgren" "${STUB_JOB}/gh"
+
+# stub_run <script> <stdout file> [NAME=value ...]: runs a step's block with
+# the stub forsgren and gh first on PATH, the caller's repository owner/name
+# and pull request 42, and the NAME=value pairs (the stubs' parameters, the
+# token, GITHUB_OUTPUT, GITHUB_STEP_SUMMARY ...); its stdout in the file, its
+# stderr dropped. Returns the block's exit status.
+stub_run() {
+  env PATH="${STUB_JOB}:${PATH}" GITHUB_REPOSITORY="owner/name" PR_NUMBER=42 "${@:3}" \
+    bash "$1" > "$2" 2> /dev/null
+}
 
 if [[ -f "$WF" ]]; then
   guard_env="$(step_by_id "$WF" guard env)"
@@ -366,8 +340,7 @@ if [[ -f "$WF" ]]; then
     step_by_id "$WF" guard run > "${TMP}/guard.sh"
     calls="${TMP}/fg.calls"
     : > "$calls"
-    PATH="${STUB}:${PATH}" FG_CALLS="$calls" GITHUB_REPOSITORY="owner/name" PR_NUMBER=42 \
-      GITHUB_TOKEN="t0ken" bash "${TMP}/guard.sh" > /dev/null 2>&1 || true
+    stub_run "${TMP}/guard.sh" /dev/null FG_CALLS="$calls" GITHUB_TOKEN="t0ken" || true
     want="check-update --config forsgren.config.yml --repo owner/name --pull 42"
     if [[ "$(cat "$calls")" == "$want" ]]; then
       echo "  ok: the guard step runs forsgren ${want}"
@@ -383,22 +356,9 @@ fi
 # `merge=false` and calls no gh. STANDING FACT: that output is the contract of
 # the steps after it, which run only `if: steps.guard.outputs.merge ==
 # 'true'` (cycle 19a). Exit 2 (a failure of the job) is cycle 18b. EXECUTED
-# with its own stub directory, so pin 6's stub (which exits 0) is untouched:
-# a stub forsgren printing the reason and exiting 1, and a stub gh recording
+# with the stubs: forsgren printing the reason and exiting 1, gh recording
 # any call.
 LEFT="left for a human: the pull request changes more than the pin line"
-STUB_LEFT="${TMP}/stub-left"
-mkdir -p "$STUB_LEFT"
-cat > "${STUB_LEFT}/forsgren" <<'STUBLEFT'
-#!/usr/bin/env bash
-echo "left for a human: the pull request changes more than the pin line"
-exit 1
-STUBLEFT
-cat > "${STUB_LEFT}/gh" <<'STUBGH'
-#!/usr/bin/env bash
-printf '%s\n' "$*" >> "$GH_CALLS"
-STUBGH
-chmod +x "${STUB_LEFT}/forsgren" "${STUB_LEFT}/gh"
 
 if [[ -f "$WF" && -n "$(step_by_id "$WF" guard text)" ]]; then
   step_by_id "$WF" guard run > "${TMP}/guard-left.sh"
@@ -406,9 +366,9 @@ if [[ -f "$WF" && -n "$(step_by_id "$WF" guard text)" ]]; then
   : > "${TMP}/left.output"
   : > "${TMP}/left.gh"
   left_rc=0
-  PATH="${STUB_LEFT}:${PATH}" GH_CALLS="${TMP}/left.gh" GITHUB_REPOSITORY="owner/name" PR_NUMBER=42 \
+  stub_run "${TMP}/guard-left.sh" /dev/null STUB_OUT="$LEFT" STUB_RC=1 GH_CALLS="${TMP}/left.gh" \
     GITHUB_TOKEN="t0ken" GITHUB_STEP_SUMMARY="${TMP}/left.summary" GITHUB_OUTPUT="${TMP}/left.output" \
-    bash "${TMP}/guard-left.sh" > /dev/null 2>&1 || left_rc=$?
+    || left_rc=$?
   if [[ "$left_rc" -eq 0 ]]; then
     echo "  ok: the guard step succeeds when check-update leaves the pull request for a human"
   else
@@ -436,18 +396,9 @@ fi
 # names check-update and its exit status, so the run page says what failed
 # and the pull request is neither merged nor silently left. It records no
 # `merge=true` and calls no gh. Exit 1 (left for a human) is pin 7. EXECUTED
-# with its own stub directory: a stub forsgren saying why on stderr and
-# exiting 2, and a stub gh recording any call. The wording of the ::error is
-# not pinned, its substance is: the prefix, check-update, and the status 2.
-STUB_FAIL="${TMP}/stub-fail"
-mkdir -p "$STUB_FAIL"
-cat > "${STUB_FAIL}/forsgren" <<'STUBFAIL'
-#!/usr/bin/env bash
-echo "forsgren: reading forsgren.config.yml: no such file" >&2
-exit 2
-STUBFAIL
-cp "${STUB_LEFT}/gh" "${STUB_FAIL}/gh"
-chmod +x "${STUB_FAIL}/forsgren" "${STUB_FAIL}/gh"
+# with the stubs: forsgren saying why on stderr and exiting 2, gh recording
+# any call. The wording of the ::error is not pinned, its substance is: the
+# prefix, check-update, and the status 2.
 
 if [[ -f "$WF" && -n "$(step_by_id "$WF" guard text)" ]]; then
   step_by_id "$WF" guard run > "${TMP}/guard-fail.sh"
@@ -455,9 +406,10 @@ if [[ -f "$WF" && -n "$(step_by_id "$WF" guard text)" ]]; then
   : > "${TMP}/fail.output"
   : > "${TMP}/fail.gh"
   fail_rc=0
-  PATH="${STUB_FAIL}:${PATH}" GH_CALLS="${TMP}/fail.gh" GITHUB_REPOSITORY="owner/name" PR_NUMBER=42 \
+  stub_run "${TMP}/guard-fail.sh" "${TMP}/fail.stdout" \
+    STUB_ERR="forsgren: reading forsgren.config.yml: no such file" STUB_RC=2 GH_CALLS="${TMP}/fail.gh" \
     GITHUB_TOKEN="t0ken" GITHUB_STEP_SUMMARY="${TMP}/fail.summary" GITHUB_OUTPUT="${TMP}/fail.output" \
-    bash "${TMP}/guard-fail.sh" > "${TMP}/fail.stdout" 2> /dev/null || fail_rc=$?
+    || fail_rc=$?
   if [[ "$fail_rc" -ne 0 ]]; then
     echo "  ok: the guard step fails when check-update exits 2"
   else
@@ -496,25 +448,17 @@ stop_token_around() {
 # `::stop-commands::<token>` and `::<token>::`, on exit 0 and on exit 1, under
 # a token that differs from run to run: that output carries a pull request's
 # and a configuration's text, which must never run as a workflow command (as
-# metrics.yml does for check-config and collect, forsgren#9). EXECUTED with a
-# stub forsgren printing STUB_OUT and exiting STUB_RC.
-STUB_STOP="${TMP}/stub-stop"
-mkdir -p "$STUB_STOP"
-cat > "${STUB_STOP}/forsgren" <<'STUBSTOP'
-#!/usr/bin/env bash
-printf '%s\n' "$STUB_OUT"
-exit "${STUB_RC:-0}"
-STUBSTOP
-chmod +x "${STUB_STOP}/forsgren"
+# metrics.yml does for check-config and collect, forsgren#9). EXECUTED with
+# the stub forsgren printing STUB_OUT and exiting STUB_RC.
 
 # guard_stdout <stdout file> <rc> <output line>: runs the guard block with the
 # stub, its stdout in the file, its GITHUB_OUTPUT in ${TMP}/guard.output.
 guard_stdout() {
   : > "${TMP}/guard.output"
   : > "${TMP}/guard.summary"
-  PATH="${STUB_STOP}:${PATH}" STUB_RC="$2" STUB_OUT="$3" GITHUB_REPOSITORY="owner/name" PR_NUMBER=42 \
+  stub_run "${TMP}/guard-stop.sh" "$1" STUB_RC="$2" STUB_OUT="$3" \
     GITHUB_TOKEN="t0ken" GITHUB_STEP_SUMMARY="${TMP}/guard.summary" GITHUB_OUTPUT="${TMP}/guard.output" \
-    bash "${TMP}/guard-stop.sh" > "$1" 2> /dev/null || true
+    || true
 }
 
 if [[ -f "$WF" && -n "$(step_by_id "$WF" guard text)" ]]; then
@@ -547,39 +491,26 @@ fi
 # merge and runs only when the guard said so (`if: steps.guard.outputs.merge
 # == 'true'`); its env is the job's token as GH_TOKEN, the pull request's
 # number and the repository's default branch, never an expression in the
-# script (pin 3). Its block, EXECUTED with a gh recorder stub, merges the pull
+# script (pin 3). Its block, EXECUTED with the stub gh, merges the pull
 # request (squash, the branch deleted) and then, as its second and last call,
 # starts the installation's forsgren.yml on the default branch, so the merged
 # update is measured at once (forsgren#58). A failed merge fails the step and
 # starts nothing.
-STUB_MERGE="${TMP}/stub-merge"
-mkdir -p "$STUB_MERGE"
-cat > "${STUB_MERGE}/gh" <<'STUBMERGE'
-#!/usr/bin/env bash
-printf '%s\n' "$*" >> "$GH_CALLS"
-if [[ "${STUB_GH_MERGE_FAILS:-}" == yes && "${1:-} ${2:-}" == "pr merge" ]]; then
-  echo "gh: merge blocked" >&2
-  exit 1
-fi
-STUBMERGE
-chmod +x "${STUB_MERGE}/gh"
-
 # merge_run <fails yes|no>: the merge step's block with the stub gh; its exit
 # status in ${TMP}/merge.rc, the recorded calls in ${TMP}/merge.gh.
 merge_run() {
   : > "${TMP}/merge.gh"
   local rc=0
-  PATH="${STUB_MERGE}:${PATH}" GH_CALLS="${TMP}/merge.gh" STUB_GH_MERGE_FAILS="$1" \
-    GITHUB_REPOSITORY="owner/name" PR_NUMBER=42 DEFAULT_BRANCH=main GH_TOKEN="t0ken" \
-    bash "${TMP}/merge.sh" > /dev/null 2>&1 || rc=$?
+  stub_run "${TMP}/merge.sh" /dev/null GH_CALLS="${TMP}/merge.gh" STUB_GH_MERGE_FAILS="$1" \
+    DEFAULT_BRANCH=main GH_TOKEN="t0ken" || rc=$?
   echo "$rc" > "${TMP}/merge.rc"
 }
 
 if [[ -f "$WF" && -n "$(step_by_id "$WF" guard text)" ]]; then
   : > "${TMP}/g10.output"
-  PATH="${STUB_STOP}:${PATH}" STUB_RC=0 STUB_OUT="merge v0.1.3 to v0.2.0" GITHUB_REPOSITORY="owner/name" PR_NUMBER=42 \
+  stub_run "${TMP}/guard-stop.sh" /dev/null STUB_RC=0 STUB_OUT="merge v0.1.3 to v0.2.0" \
     GITHUB_TOKEN="t0ken" GITHUB_STEP_SUMMARY="${TMP}/g10.summary" GITHUB_OUTPUT="${TMP}/g10.output" \
-    bash "${TMP}/guard-stop.sh" > /dev/null 2>&1 && g10_rc=0 || g10_rc=$?
+    && g10_rc=0 || g10_rc=$?
   if [[ "$g10_rc" -eq 0 && "$(cat "${TMP}/g10.output")" == "merge=true" ]]; then
     echo "  ok: the guard step records merge=true when check-update exits 0"
   else

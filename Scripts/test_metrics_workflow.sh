@@ -245,6 +245,8 @@ done < <(compgen -v | grep -E '^GIT_CONFIG_(COUNT|KEY_[0-9]+|VALUE_[0-9]+)$' || 
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# shellcheck source=Scripts/lib_workflow_steps.sh
+source Scripts/lib_workflow_steps.sh
 selftest_begin "the metrics workflow pin"
 
 WF=".github/workflows/metrics.yml"
@@ -293,15 +295,6 @@ VALID_CONFIG=$'version: 1\nprojects:\n  - name: Acme\n    repositories:\n      -
 INVALID_CONFIG="${VALID_CONFIG}"$'        deployment: releases\n'
 INJECTING_CONFIG=$'version: 1\nprojects:\n  - name: Acme\n    "x\\n::warning::injected": 1\n    repositories:\n      - name: acme/app\n'
 
-# on_events <file>: the event names of the column-0 `on:` block, one per line.
-on_events() {
-  awk '
-    /^on:[[:space:]]*$/ { inon=1; next }
-    inon && /^[^[:space:]#]/ { inon=0 }
-    inon && /^  [A-Za-z_]+:/ { s=$0; sub(/^  /, "", s); sub(/:.*$/, "", s); print s }
-  ' "$1"
-}
-
 # call_keys <file>: the keys under `on: workflow_call:`, one per line.
 call_keys() {
   awk '
@@ -333,54 +326,6 @@ secret_required() {
     intok && /^ {0,6}[^[:space:]#]/ { intok=0 }
     intok && /^        required:/ { v=$0; sub(/^[^:]*:[[:space:]]*/, "", v); sub(/[[:space:]]*(#.*)?$/, "", v); print v }
   ' "$1"
-}
-
-# run_blocks <file>: every run: line and the lines of its block, as
-# <lineno>:<text>, so a finding names its line.
-run_blocks() {
-  awk '
-    function indent(s) { match(s, /^ */); return RLENGTH }
-    inrun && $0 !~ /^[[:space:]]*$/ && indent($0) <= runind { inrun=0 }
-    inrun { print NR ":" $0; next }
-    /^[[:space:]]*(- )?run:/ {
-      print NR ":" $0
-      runind = indent($0)
-      if ($0 ~ /- run:/) runind += 2
-      if ($0 ~ /run:[[:space:]]*[|>][-+]?[[:space:]]*$/) inrun=1
-    }
-  ' "$1"
-}
-
-# step_block <file> <step name> <key>: the block under that step's key
-# (run or env), its lines dedented; nothing when there is no such step.
-step_block() {
-  awk -v name="$2" -v key="$3" '
-    function indent(s) { match(s, /^ */); return RLENGTH }
-    /^      - / { instep = ($0 == "      - name: " name); inb=0; next }
-    instep && inb && $0 !~ /^[[:space:]]*$/ && indent($0) <= 8 { inb=0 }
-    instep && inb { if (!cut) { match($0, /^ */); cut = RLENGTH } print substr($0, cut + 1); next }
-    instep && $0 ~ ("^        " key ":[[:space:]]*\\|?[[:space:]]*$") { inb=1 }
-  ' "$1"
-}
-
-# step_text <file> <step name>: every line of that step, the dash line
-# included; nothing when there is no such step.
-step_text() {
-  awk -v name="$2" '
-    /^      - / { instep = ($0 == "      - name: " name) }
-    instep { print }
-  ' "$1"
-}
-
-# line_of <file> <fixed text>: the line number of its first occurrence.
-line_of() {
-  grep -nF -- "$2" "$1" | head -1 | cut -d: -f1
-}
-
-# later <line> <other line>: true when both are known and the first comes
-# after the second.
-later() {
-  [[ -n "$1" && -n "$2" && "$1" -gt "$2" ]]
 }
 
 # move_step <file> <step name> [<before step name>]: the file with that step
