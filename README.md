@@ -514,7 +514,8 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   line after the title, "DORA metrics View: standard · numbers · scoring"
   (forsgren#51); the title is its own element, which names the table and
   its scroll region, so the table's name stays "DORA metrics". The current
-  view is plain text marked `aria-current="page"`, the others links (`../numbers/`, `../standard/`, `../scoring/`); a page one folder down
+  view is plain text marked `aria-current="page"`, the others links
+  (`../standard/`, `../numbers/`, `../scoring/`); a page one folder down
   reaches `styles.css` and the legend through `../`. The legend page serves
   all views. The root `index.html` follows the `view:` config key (see
   Configuration): that view, with the switch (its links relative to the
@@ -522,13 +523,18 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   `aria-current="true"`, as the root is not that view's page); without the
   key it is the standard page with no switch. `/scoring/`
   (`scoring/index.html`, forsgren#47) shows each metric's DORA Quick Check
-  score alone, 0 to 10 (`9.3`, `10`, `0`), `-` where the metric has no data (deployment
-  frequency: no deployment in its windows),
-  and a sixth column, Overall Performance: the mean of the scored metrics to
-  one decimal, `-` when none is scored. The switch names it, as it names the other two.
+  score alone, 0 to 10 (`9.3`, `10`, `0`), `-` where the metric has no data
+  (deployment frequency: no successful deployment in the last 180 days, where
+  the numbers view shows its 30-day count, `0`), and a sixth column, Overall
+  Performance: the mean of the scored metrics to one decimal, `-` when none
+  is scored. A `0` score is performance in the lowest band, never missing
+  data. The switch names it, as it names the other two.
 - **The legend** (`legend.html`) gives each metric's bands in one compact
   list (recovery time's are lead time's, and rework rate's are change fail
-  rate's, so it refers to them), with what each cell counts and its window.
+  rate's, so it refers to them), with what each cell counts and its window;
+  its last section, Scores, says what the scoring view shows and credits the
+  DORA Quick Check, linked: "Scores follow the DORA Quick Check (dora.dev),
+  © Google LLC, CC BY 4.0" (forsgren#47).
 - **Layout:** the table has a caption and `<th scope>` headers; it scrolls
   sideways inside its own box on a narrow screen, so the page keeps its
   1rem (16px) gutter and never scrolls sideways itself. `styles.css` sets

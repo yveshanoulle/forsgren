@@ -305,7 +305,8 @@ func TestEveryPageNamesFiveMetrics(t *testing.T) {
 }
 
 // TestWriteSiteWritesFivePagesAndStyles (forsgren#46, #47): the root page and
-// the legend, and each view's page and the scoring page in its own folder.
+// the legend, and each view's page, standard, numbers and scoring, in its own
+// folder.
 func TestWriteSiteWritesFivePagesAndStyles(t *testing.T) {
 	dir := t.TempDir()
 	n, err := WriteSite(dir, Placeholder("0.1.2"))

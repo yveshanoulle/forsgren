@@ -89,7 +89,7 @@
   {
    "path": "internal/page/views_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-05",
    "minScore": 10.0
   },
   {
@@ -329,13 +329,13 @@
   {
    "path": "internal/page/page.go",
    "score": 10.0,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-05",
    "minScore": 10.0
   },
   {
    "path": "internal/page/page_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-05",
    "minScore": 10.0
   },
   {

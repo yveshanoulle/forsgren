@@ -57,8 +57,8 @@ type Data struct {
 	// footer names it instead of "is available" (forsgren#40, option 1).
 	WaitingPR int
 	// View is the view the root page shows, "standard", "numbers" or
-	// "scoring", with the view switch in its table's caption (forsgren#51); empty for the
-	// plain root page, with no switch (forsgren#46).
+	// "scoring", with the view switch in its table's caption (forsgren#51);
+	// empty for the plain root page, with no switch (forsgren#46).
 	View string
 }
 
@@ -128,8 +128,8 @@ type pageData struct {
 	// Base prefixes the links to styles.css and legend.html: empty at the
 	// root, viewBase in a view's folder.
 	Base string
-	// View is "standard", "numbers" or "scoring" on a view's page, and shows the view
-	// switch; empty on the root pages.
+	// View is "standard", "numbers" or "scoring" on a view's page, and shows
+	// the view switch; empty on the root pages.
 	View string
 }
 
