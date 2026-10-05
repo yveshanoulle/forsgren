@@ -54,9 +54,11 @@ jobs:
           owner_name='^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_][A-Za-z0-9_.-]*$'
           if [[ ! "$FORSGREN_SHA" =~ $full_commit ]]; then
             echo "::error title=forsgren commit::job.workflow_sha is not a full 40-digit commit; forsgren is installed only from the exact commit this workflow is called at"
+            exit 1
           fi
           if [[ ! "$FORSGREN_REPOSITORY" =~ $owner_name ]]; then
             echo "::error title=forsgren repository::job.workflow_repository is not one owner/name; forsgren is installed only from the repository this workflow lives in"
+            exit 1
           fi
           echo "forsgren ${FORSGREN_REPOSITORY}@${FORSGREN_SHA}"
           export GOBIN="${RUNNER_TEMP}/forsgren-bin"
