@@ -22,7 +22,7 @@ func (f fileConfig) toConfig() (Config, error) {
 		return Config{}, fmt.Errorf("%w: list at least one under the projects key, or use projects: [] for none",
 			ErrNoProjects)
 	}
-	cfg := Config{Version: FormatVersion, View: view}
+	cfg := Config{Version: FormatVersion, View: view, AutoUpdate: switchedOn(f.AutoUpdate)}
 	seen := names{projects: map[string]listedProject{}, repositories: map[string]string{}}
 	for i, p := range f.Projects {
 		project, err := p.toProject(i+1, &seen)
@@ -32,6 +32,12 @@ func (f fileConfig) toConfig() (Config, error) {
 		cfg.Projects = append(cfg.Projects, project)
 	}
 	return cfg, nil
+}
+
+// switchedOn is an optional boolean key as written, off when the file has
+// no such key or no value for it (forsgren#58).
+func switchedOn(v *bool) bool {
+	return v != nil && *v
 }
 
 func checkVersion(v *int) error {

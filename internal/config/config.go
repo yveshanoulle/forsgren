@@ -11,6 +11,7 @@
 //
 //	version: 1
 //	view: numbers                          # optional, standard, numbers or scoring
+//	auto_update: true                      # optional, true or false, off when absent (forsgren#58)
 //	projects:
 //	  - name: Acme
 //	    repositories:
@@ -168,9 +169,10 @@ func parse(data []byte) (Config, error) {
 // version is told apart from `version: 0`; Projects is nil for a missing key
 // or a null value and empty but not nil for `projects: []`.
 type fileConfig struct {
-	Version  *int          `yaml:"version"`
-	View     *string       `yaml:"view"`
-	Projects []fileProject `yaml:"projects"`
+	Version    *int          `yaml:"version"`
+	View       *string       `yaml:"view"`
+	AutoUpdate *bool         `yaml:"auto_update"`
+	Projects   []fileProject `yaml:"projects"`
 }
 
 type fileProject struct {
