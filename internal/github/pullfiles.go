@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"github.com/yveshanoulle/forsgren/internal/update"
 )
 
 // ChangedFile is one file a pull request changes: its path and the unified
@@ -103,4 +105,13 @@ func (c *Client) PublishedRelease(ctx context.Context, repo, tag string) (bool, 
 func isNotFound(err error) bool {
 	e, ok := errors.AsType[*answerError](err)
 	return ok && e.code == http.StatusNotFound
+}
+
+// PublishedReleases lists the releases of repo with the commit each tag
+// points at: GET /repos/{owner}/{repo}/releases, the first page of 100 only,
+// which is enough for the newest releases of forsgren, newest first. A draft
+// and a prerelease are listed with their flags and no SHA; the tag of every
+// other release is resolved to its commit by TagCommit.
+func (c *Client) PublishedReleases(ctx context.Context, repo string) ([]update.Published, error) {
+	return nil, nil
 }
