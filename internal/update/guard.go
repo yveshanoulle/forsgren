@@ -78,8 +78,9 @@ const dependabot = "dependabot[bot]"
 // and every changed file is a caller, changed by one removed and one added pin
 // line of its workflow and nothing else, and all pins move from the same
 // version to the same version and sha, as Dependabot moves them in one pull
-// request. Otherwise the reason names the author or what else changed. It
-// reports the old and new version and the new sha it saw.
+// request, to a published release of forsgren whose tag points at the pinned
+// sha. Otherwise the reason names the author or what else changed. It reports
+// the old and new version and the new sha it saw.
 func Decide(p Pull) Decision {
 	if p.Author != dependabot {
 		return Decision{Reason: fmt.Sprintf("the author is %q, not %s", p.Author, dependabot)}
@@ -91,7 +92,23 @@ func Decide(p Pull) Decision {
 	if reason != "" {
 		return Decision{Reason: reason}
 	}
+	if reason := p.Release.refuses(first.to); reason != "" {
+		return Decision{Reason: reason}
+	}
 	return Decision{Merge: true, Old: first.from.version, New: first.to.version, NewSHA: first.to.sha}
+}
+
+// refuses is the reason a pin to to is no pin to this release: the version
+// has no published release of forsgren, or its tag points at another commit
+// than the pinned one; empty when it is.
+func (r Release) refuses(to pin) string {
+	if !r.Published {
+		return to.version + " is no published release of forsgren"
+	}
+	if r.SHA != to.sha {
+		return fmt.Sprintf("the tag %s points at %s, not at the pinned %s", to.version, r.SHA, to.sha)
+	}
+	return ""
 }
 
 // readCallers reads the pin pair of every changed file and returns the first
