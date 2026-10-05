@@ -100,3 +100,28 @@ func TestCheckConfigRefusesAnInvalidView(t *testing.T) {
 		}
 	}
 }
+
+// TestCheckConfigReadsAutoUpdate (forsgren#58): check-config exits 0 for a
+// valid auto_update with its level, and exits 1 naming the key for a value
+// that is not a boolean, a level that is not one of the three, and
+// auto_update on with no level.
+func TestCheckConfigReadsAutoUpdate(t *testing.T) {
+	cases := []struct {
+		name, keys string
+		code       int
+		want       string
+	}{
+		{"valid", "auto_update: true\nauto_update_level: patch\n", 0, ""},
+		{"not a boolean", "auto_update: yes\n", 1, `invalid auto_update "yes": use true or false`},
+		{"other level", "auto_update: true\nauto_update_level: Minor\n", 1,
+			`invalid auto_update_level "Minor": use patch, minor or major`},
+		{"no level", "auto_update: true\n", 1,
+			"auto_update is true but auto_update_level is missing: use patch, minor or major"},
+	}
+	for _, tc := range cases {
+		code, _, stderr := runCommand("check-config", "--config", writeConfig(t, tc.keys+validConfig))
+		if code != tc.code || !strings.Contains(stderr, tc.want) {
+			t.Errorf("%s: want exit %d and %q, got %d, %q", tc.name, tc.code, tc.want, code, stderr)
+		}
+	}
+}
