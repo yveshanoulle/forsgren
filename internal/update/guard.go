@@ -45,7 +45,8 @@ type Pull struct {
 
 // Decision is the guard's answer: Merge, or left for a human with one
 // Reason line. Beyond says the one reason it was left is that the update goes
-// further than the level allows. Old, New and NewSHA are the pin the guard
+// further than the level allows, or that there is no level (the release of
+// the new version is not looked up yet then). Old, New and NewSHA are the pin the guard
 // saw, empty when it saw none.
 type Decision struct {
 	Merge  bool
@@ -110,7 +111,9 @@ func Decide(p Pull) Decision {
 		return Decision{Reason: reason}
 	}
 	if reason := first.beyond(p.Level); reason != "" {
-		return Decision{Reason: reason}
+		return Decision{
+			Reason: reason, Beyond: true, Old: first.from.version, New: first.to.version, NewSHA: first.to.sha,
+		}
 	}
 	if reason := p.Release.refuses(first.to); reason != "" {
 		return Decision{Reason: reason}

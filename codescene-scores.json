@@ -643,6 +643,12 @@
    "score": 10.0,
    "checkedAt": "2026-10-05",
    "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/checkupdate_install_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-05",
+   "minScore": 10.0
   }
  ]
 }

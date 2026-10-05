@@ -24,7 +24,9 @@ var errFilesCut = errors.New("the pull request has more files than were read, so
 // the release of the version it moves the pin to (none is looked up when the
 // diff moves no pin), asks the guard, and says `merge <old> to <new>` or `left
 // for a human: <reason>`. Exit 0 is merge, 1 left for a human, 2 a usage,
-// config or network error. An installation whose config has auto_update off
+// config or network error, and 3 a pull request left only for going beyond
+// the level while forsgren has a release within it: `install <old> to <new>
+// at <sha>` and then the left line (forsgren#62). An installation whose config has auto_update off
 // is left for a human without a request to GitHub. It reads with
 // GITHUB_TOKEN, which needs pull-requests: read.
 func checkUpdate(args []string, stdout, stderr io.Writer) int {
@@ -36,17 +38,78 @@ func checkUpdate(args []string, stdout, stderr io.Writer) int {
 		_, _ = fmt.Fprintln(stdout, "left for a human: auto_update is off")
 		return 1
 	}
-	decision, err := decideUpdate(context.Background(), in)
+	return judgeUpdate(context.Background(), in, stdout, stderr)
+}
+
+// updateRun is one run of check-update after its flags are read: what it
+// asks GitHub with and where it says what became of the pull request.
+type updateRun struct {
+	ctx    context.Context
+	client *github.Client
+	in     pullToCheck
+	stdout io.Writer
+	stderr io.Writer
+}
+
+// judgeUpdate asks the guard about the pull request and says what became of
+// it: `merge <old> to <new>` and exit 0, or what leave says. A GitHub client
+// that cannot be made or a lookup that fails is exit 2.
+func judgeUpdate(ctx context.Context, in pullToCheck, stdout, stderr io.Writer) int {
+	r := &updateRun{ctx: ctx, in: in, stdout: stdout, stderr: stderr}
+	var err error
+	if r.client, err = jobClient(github.DefaultMaxPages); err != nil {
+		return r.failUpdate(err)
+	}
+	decision, err := decideUpdate(ctx, r.client, in)
 	if err != nil {
-		_, _ = fmt.Fprintf(stderr, "check-update: %v\n", err)
-		return 2
+		return r.failUpdate(err)
 	}
-	if !decision.Merge {
-		_, _ = fmt.Fprintf(stdout, "left for a human: %s\n", decision.Reason)
-		return 1
+	if decision.Merge {
+		_, _ = fmt.Fprintf(stdout, "merge %s to %s\n", decision.Old, decision.New)
+		return 0
 	}
-	_, _ = fmt.Fprintf(stdout, "merge %s to %s\n", decision.Old, decision.New)
-	return 0
+	return r.leave(decision)
+}
+
+// failUpdate puts err on stderr as check-update's error, and is exit 2.
+func (r *updateRun) failUpdate(err error) int {
+	_, _ = fmt.Fprintf(r.stderr, "check-update: %v\n", err)
+	return 2
+}
+
+// leave says a pull request is left for a human, with the guard's reason:
+// exit 1. When only the level left it, and forsgren has a release within the
+// level that is newer than the installed version, it says `install <old> to
+// <new> at <sha>` before that line and is exit 3 (forsgren#62).
+func (r *updateRun) leave(decision update.Decision) int {
+	newest, found, err := r.newestWithinLevel(decision)
+	if err != nil {
+		return r.failUpdate(err)
+	}
+	if found {
+		_, _ = fmt.Fprintf(r.stdout, "install %s to %s at %s\n", decision.Old, newest.Tag, newest.SHA)
+	}
+	_, _ = fmt.Fprintf(r.stdout, "left for a human: %s\n", decision.Reason)
+	if found {
+		return 3
+	}
+	return 1
+}
+
+// newestWithinLevel is forsgren's newest release within the installation's
+// level that is newer than the version the guard saw installed, when the
+// guard left the pull request only for going beyond that level; found is
+// false when it did not, and no release is asked for then.
+func (r *updateRun) newestWithinLevel(decision update.Decision) (update.Published, bool, error) {
+	if !decision.Beyond {
+		return update.Published{}, false, nil
+	}
+	releases, err := r.client.PublishedReleases(r.ctx, forsgrenRepository)
+	if err != nil {
+		return update.Published{}, false, err
+	}
+	newest, found := update.NewestWithin(decision.Old, r.in.config.AutoUpdateLevel, releases)
+	return newest, found, nil
 }
 
 // pullToCheck is what check-update is asked about: the installation's config
@@ -97,11 +160,7 @@ func pullNumber(s string) (int64, error) {
 
 // decideUpdate reads the pull request and the release of its new version
 // from githubAPI and asks the guard.
-func decideUpdate(ctx context.Context, in pullToCheck) (update.Decision, error) {
-	client, err := jobClient(github.DefaultMaxPages)
-	if err != nil {
-		return update.Decision{}, err
-	}
+func decideUpdate(ctx context.Context, client *github.Client, in pullToCheck) (update.Decision, error) {
 	author, files, err := readPull(ctx, client, in)
 	if err != nil {
 		return update.Decision{}, err

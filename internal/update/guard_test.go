@@ -119,33 +119,36 @@ func TestDecideMergesAnUpdateWithinTheLevel(t *testing.T) {
 // naming the update and the level, and so is an empty level, which the
 // config never allows with auto_update on and the guard never merges on.
 func TestDecideLeavesAnUpdateBeyondTheLevelForAHuman(t *testing.T) {
+	beyond := func(reason, from, to string) Decision {
+		return Decision{Reason: reason, Beyond: true, Old: from, New: to, NewSHA: newSHA}
+	}
 	cases := []struct {
-		name       string
-		level      string
-		oldVersion string
-		newVersion string
-		reason     string
+		name  string
+		level string
+		from  string
+		to    string
+		want  Decision
 	}{
 		{
 			"a minor update at patch", config.LevelPatch, "v0.1.4", "v0.2.0",
-			"v0.1.4 to v0.2.0 is a minor update; auto_update_level is patch",
+			beyond("v0.1.4 to v0.2.0 is a minor update; auto_update_level is patch", "v0.1.4", "v0.2.0"),
 		},
 		{
 			"a major update at patch", config.LevelPatch, "v0.4.0", "v1.0.0",
-			"v0.4.0 to v1.0.0 is a major update; auto_update_level is patch",
+			beyond("v0.4.0 to v1.0.0 is a major update; auto_update_level is patch", "v0.4.0", "v1.0.0"),
 		},
 		{
 			"a major update at minor", config.LevelMinor, "v0.4.0", "v1.0.0",
-			"v0.4.0 to v1.0.0 is a major update; auto_update_level is minor",
+			beyond("v0.4.0 to v1.0.0 is a major update; auto_update_level is minor", "v0.4.0", "v1.0.0"),
 		},
-		{"no level", "", "v0.1.3", "v0.1.4", "no auto_update_level"},
+		{"no level", "", "v0.1.3", "v0.1.4", beyond("no auto_update_level set", "v0.1.3", "v0.1.4")},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			files := []File{forsgrenYML(versionedPin(c.oldVersion, c.newVersion))}
+			files := []File{forsgrenYML(versionedPin(c.from, c.to))}
 			got := Decide(Pull{Author: "dependabot[bot]", Files: files, Release: published, Level: c.level})
-			if got.Merge || !strings.Contains(got.Reason, c.reason) {
-				t.Errorf("Decide() = %+v, want left with a reason containing %q", got, c.reason)
+			if got != c.want {
+				t.Errorf("Decide() = %+v, want %+v", got, c.want)
 			}
 		})
 	}
