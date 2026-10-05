@@ -3,6 +3,8 @@ package update
 import (
 	"strings"
 	"testing"
+
+	"github.com/yveshanoulle/forsgren/internal/config"
 )
 
 // newSHA is the made-up commit of the release v0.1.4 in these fixtures.
@@ -73,9 +75,73 @@ func TestDecideMergesADiffOfOnlyThePinLine(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			want := Decision{Merge: true, Old: c.oldVersion, New: c.newVersion, NewSHA: newSHA}
-			got := Decide(Pull{Author: "dependabot[bot]", Files: c.files, Release: published})
+			got := Decide(Pull{Author: "dependabot[bot]", Files: c.files, Release: published, Level: config.LevelPatch})
 			if got != want {
 				t.Errorf("Decide() = %+v, want %+v", got, want)
+			}
+		})
+	}
+}
+
+// TestDecideMergesAnUpdateWithinTheLevel pins forsgren#58: an update may go
+// as far as auto_update_level allows. At patch only the patch number moves;
+// at minor the minor or the patch number moves with the major unchanged; at
+// major anything moves.
+func TestDecideMergesAnUpdateWithinTheLevel(t *testing.T) {
+	cases := []struct {
+		name       string
+		level      string
+		oldVersion string
+		newVersion string
+	}{
+		{"a patch update at patch", config.LevelPatch, "v0.1.3", "v0.1.4"},
+		{"a minor update at minor", config.LevelMinor, "v0.1.4", "v0.2.0"},
+		{"a major update at major", config.LevelMajor, "v0.4.0", "v1.0.0"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			want := Decision{Merge: true, Old: c.oldVersion, New: c.newVersion, NewSHA: newSHA}
+			files := []File{forsgrenYML(versionedPin(c.oldVersion, c.newVersion))}
+			got := Decide(Pull{Author: "dependabot[bot]", Files: files, Release: published, Level: c.level})
+			if got != want {
+				t.Errorf("Decide() = %+v, want %+v", got, want)
+			}
+		})
+	}
+}
+
+// TestDecideLeavesAnUpdateBeyondTheLevelForAHuman pins forsgren#58: a minor
+// or major update beyond auto_update_level is left for a human with a reason
+// naming the update and the level, and so is an empty level, which the
+// config never allows with auto_update on and the guard never merges on.
+func TestDecideLeavesAnUpdateBeyondTheLevelForAHuman(t *testing.T) {
+	cases := []struct {
+		name       string
+		level      string
+		oldVersion string
+		newVersion string
+		reason     string
+	}{
+		{
+			"a minor update at patch", config.LevelPatch, "v0.1.4", "v0.2.0",
+			"v0.1.4 to v0.2.0 is a minor update; auto_update_level is patch",
+		},
+		{
+			"a major update at patch", config.LevelPatch, "v0.4.0", "v1.0.0",
+			"v0.4.0 to v1.0.0 is a major update; auto_update_level is patch",
+		},
+		{
+			"a major update at minor", config.LevelMinor, "v0.4.0", "v1.0.0",
+			"v0.4.0 to v1.0.0 is a major update; auto_update_level is minor",
+		},
+		{"no level", "", "v0.1.3", "v0.1.4", "no auto_update_level"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			files := []File{forsgrenYML(versionedPin(c.oldVersion, c.newVersion))}
+			got := Decide(Pull{Author: "dependabot[bot]", Files: files, Release: published, Level: c.level})
+			if got.Merge || !strings.Contains(got.Reason, c.reason) {
+				t.Errorf("Decide() = %+v, want left with a reason containing %q", got, c.reason)
 			}
 		})
 	}
@@ -225,7 +291,7 @@ func TestDecideLeavesAVersionWithoutAPublishedReleaseAtThePinForAHuman(t *testin
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			files := []File{forsgrenYML(dependabotBump)}
-			got := Decide(Pull{Author: "dependabot[bot]", Files: files, Release: c.release})
+			got := Decide(Pull{Author: "dependabot[bot]", Files: files, Release: c.release, Level: config.LevelPatch})
 			if got.Merge || !strings.Contains(got.Reason, c.reason) {
 				t.Errorf("Decide() = %+v, want left with a reason containing %q", got, c.reason)
 			}

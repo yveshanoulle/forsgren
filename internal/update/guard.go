@@ -26,12 +26,15 @@ type Release struct {
 	SHA       string
 }
 
-// Pull is everything the guard looks at: the author, the changed files and
-// the release of the new version.
+// Pull is everything the guard looks at: the author, the changed files, the
+// release of the new version and the installation's auto_update_level, one of
+// the config package's LevelPatch, LevelMinor and LevelMajor, how far an
+// update may go before it merges itself.
 type Pull struct {
 	Author  string
 	Files   []File
 	Release Release
+	Level   string
 }
 
 // Decision is the guard's answer: Merge, or left for a human with one
