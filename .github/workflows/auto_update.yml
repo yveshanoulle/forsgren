@@ -64,3 +64,19 @@ jobs:
           export GOBIN="${RUNNER_TEMP}/forsgren-bin"
           go install "github.com/${FORSGREN_REPOSITORY}/cmd/forsgren@${FORSGREN_SHA}"
           echo "${GOBIN}" >> "$GITHUB_PATH"
+
+      # The CALLER's repository, to read its forsgren.config.yml, at the pull
+      # request's BASE commit and not at the default checkout of a
+      # pull_request event (the merge commit, which carries the pull request's
+      # own changes). The config decides whether an update may be merged
+      # (auto_update: true), so it must be the one the maintainer committed: a
+      # pull request can never switch auto_update on for itself. Pinned by
+      # full commit like every action here (the very one metrics.yml and
+      # Quality use), and persist-credentials: false so the token is not left
+      # in the checkout's git config. An expression in with: is no template
+      # injection; only one in a run: block is.
+      - name: Check out the caller's repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.base.sha }}
