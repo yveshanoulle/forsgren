@@ -90,7 +90,11 @@ jobs:
       # the step succeeds. GitHub runs shell: bash with -e whatever the script
       # sets, so the status is captured with || and never left to kill the
       # step. Any other status fails the job as it is, after an ::error that
-      # names check-update and the status.
+      # names check-update and the status. Exit 0 is the go: merge=true. What
+      # check-update printed is shown between ::stop-commands::<token> and
+      # ::<token>::, the token random per run, so text from a pull request or
+      # a configuration can never run as a workflow command and cannot close
+      # the pair it sits in, as metrics.yml does for check-config.
       - name: Ask whether the pull request may be merged
         id: guard
         shell: bash
@@ -101,6 +105,14 @@ jobs:
           set -euo pipefail
           status=0
           out="$(forsgren check-update --config forsgren.config.yml --repo "$GITHUB_REPOSITORY" --pull "$PR_NUMBER")" || status=$?
+          token="$(od -An -tx1 -N16 /dev/urandom | tr -d ' \n')"
+          echo "::stop-commands::${token}"
+          printf '%s\n' "$out"
+          echo "::${token}::"
+          if [[ "$status" -eq 0 ]]; then
+            echo "merge=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [[ "$status" -eq 1 ]]; then
             printf '%s\n' "$out" >> "$GITHUB_STEP_SUMMARY"
             echo "merge=false" >> "$GITHUB_OUTPUT"
@@ -110,3 +122,21 @@ jobs:
             echo "::error title=forsgren check-update::check-update failed with exit ${status}; see the log above"
           fi
           exit "$status"
+
+      # Merges the pull request when the guard said so, and then starts the
+      # installation's forsgren.yml on its default branch by hand: a merge
+      # made with the job's token (GITHUB_TOKEN) triggers no other workflow,
+      # so without this the merged update would wait for the next daily run.
+      # A failed merge fails the step (set -e) before anything is started.
+      - name: Merge the pull request and start forsgren.yml
+        id: merge
+        if: steps.guard.outputs.merge == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          gh pr merge "$PR_NUMBER" --squash --delete-branch --repo "$GITHUB_REPOSITORY"
+          gh workflow run forsgren.yml --ref "$DEFAULT_BRANCH" --repo "$GITHUB_REPOSITORY"
