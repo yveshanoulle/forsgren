@@ -21,6 +21,8 @@
 #        after the install step;
 #   17f  the guard step (id: guard), after the checkout, runs forsgren
 #        check-update with the repository and pull request from env;
+#   18a  check-update exits 1: the guard step succeeds, leaves the reason in
+#        the step summary, outputs merge=false and calls no gh;
 #   (the later cycles are listed in forsgren#58 and add their pins here.)
 #
 # Read with awk, not a YAML parser, as Scripts/test_metrics_workflow.sh is,
@@ -365,6 +367,60 @@ if [[ -f "$WF" ]]; then
     else
       fail "pin 6: the guard step ran forsgren '$(paste -sd';' "$calls")', not '${want}'"
     fi
+  fi
+fi
+
+# Pin 7: check-update exits 1, the pull request is LEFT FOR A HUMAN: the
+# guard step succeeds (the job is green, nothing is wrong), leaves
+# check-update's reason line in the job summary, records the output
+# `merge=false` and calls no gh. STANDING FACT: that output is the contract of
+# the steps after it, which run only `if: steps.guard.outputs.merge ==
+# 'true'` (cycle 19a). Exit 2 (a failure of the job) is cycle 18b. EXECUTED
+# with its own stub directory, so pin 6's stub (which exits 0) is untouched:
+# a stub forsgren printing the reason and exiting 1, and a stub gh recording
+# any call.
+LEFT="left for a human: the pull request changes more than the pin line"
+STUB_LEFT="${TMP}/stub-left"
+mkdir -p "$STUB_LEFT"
+cat > "${STUB_LEFT}/forsgren" <<'STUBLEFT'
+#!/usr/bin/env bash
+echo "left for a human: the pull request changes more than the pin line"
+exit 1
+STUBLEFT
+cat > "${STUB_LEFT}/gh" <<'STUBGH'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$GH_CALLS"
+STUBGH
+chmod +x "${STUB_LEFT}/forsgren" "${STUB_LEFT}/gh"
+
+if [[ -f "$WF" && -n "$(step_by_id "$WF" guard text)" ]]; then
+  step_by_id "$WF" guard run > "${TMP}/guard-left.sh"
+  : > "${TMP}/left.summary"
+  : > "${TMP}/left.output"
+  : > "${TMP}/left.gh"
+  left_rc=0
+  PATH="${STUB_LEFT}:${PATH}" GH_CALLS="${TMP}/left.gh" GITHUB_REPOSITORY="owner/name" PR_NUMBER=42 \
+    GITHUB_TOKEN="t0ken" GITHUB_STEP_SUMMARY="${TMP}/left.summary" GITHUB_OUTPUT="${TMP}/left.output" \
+    bash "${TMP}/guard-left.sh" > /dev/null 2>&1 || left_rc=$?
+  if [[ "$left_rc" -eq 0 ]]; then
+    echo "  ok: the guard step succeeds when check-update leaves the pull request for a human"
+  else
+    fail "pin 7: the guard step exited ${left_rc} when check-update exited 1; a pull request left for a human is not a failed job"
+  fi
+  if grep -qxF -- "$LEFT" "${TMP}/left.summary"; then
+    echo "  ok: the reason is in the step summary"
+  else
+    fail "pin 7: the step summary does not hold the line '${LEFT}'"
+  fi
+  if [[ "$(cat "${TMP}/left.output")" == "merge=false" ]]; then
+    echo "  ok: the guard step records merge=false"
+  else
+    fail "pin 7: the guard step's output is '$(paste -sd';' "${TMP}/left.output")', not exactly the line merge=false"
+  fi
+  if [[ ! -s "${TMP}/left.gh" ]]; then
+    echo "  ok: the guard step calls no gh"
+  else
+    fail "pin 7: the guard step called gh: $(paste -sd';' "${TMP}/left.gh")"
   fi
 fi
 
