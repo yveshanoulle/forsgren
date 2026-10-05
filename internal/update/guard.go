@@ -179,6 +179,9 @@ func readCaller(f File) (move, string) {
 	if reason := c.reason(); reason != "" {
 		return move{}, reason
 	}
+	if c.nRemoved+c.nAdded == 0 {
+		return move{}, f.Filename + " changes no forsgren pin"
+	}
 	m := move{from: c.removed, to: c.added}
 	if m.from.workflow != want || m.to.workflow != want {
 		return m, fmt.Sprintf("changed besides the pin line: %s moves %q to %q, want %q",
