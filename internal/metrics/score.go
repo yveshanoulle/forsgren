@@ -22,17 +22,20 @@ func PercentScore(percent int) float64 { return float64(100-percent) / 10 }
 
 // OverallScore is the DORA Quick Check's Overall Performance
 // (dora.dev/quickcheck): the mean of the scores it is given, each metric
-// weighing the same, rounded to one decimal, half away from zero. A metric
-// without data has no score and is not passed in, so the mean is of the
-// scored metrics only. ok is false when there is no score at all: then
+// weighing the same. Each score is taken as whole tenths and summed as
+// integers, so the mean is exact: rounded to one decimal, an exact half
+// rounds up (scores are never negative), whatever a float sum would carry. A
+// metric without data has no score and is not passed in, so the mean is of
+// the scored metrics only. ok is false when there is no score at all: then
 // there is no Overall Performance.
 func OverallScore(scores []float64) (overall float64, ok bool) {
 	if len(scores) == 0 {
 		return 0, false
 	}
-	var sum float64
+	var sum int
 	for _, s := range scores {
-		sum += s
+		sum += int(math.Round(s * 10))
 	}
-	return math.Round(sum/float64(len(scores))*10) / 10, true
+	n := len(scores)
+	return float64((2*sum+n)/(2*n)) / 10, true
 }
