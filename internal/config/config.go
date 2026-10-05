@@ -51,6 +51,14 @@ const (
 	ViewScoring  = "scoring"
 )
 
+// The levels auto_update_level can name (forsgren#58): the largest step of
+// a forsgren update that merges itself.
+const (
+	LevelPatch = "patch"
+	LevelMinor = "minor"
+	LevelMajor = "major"
+)
+
 // DefaultEnvironment is the GitHub environment a repository deploys to when
 // its config names no deployment.
 const DefaultEnvironment = "production"
@@ -110,7 +118,11 @@ type Config struct {
 	// AutoUpdate is whether the merge workflow for Dependabot's forsgren pin
 	// updates is on (forsgren#58); off when the file has no auto_update key.
 	AutoUpdate bool
-	Projects   []Project
+	// AutoUpdateLevel is how far an update may go before it merges itself,
+	// as written: "patch", "minor" or "major", empty when the file has no
+	// auto_update_level key (forsgren#58).
+	AutoUpdateLevel string
+	Projects        []Project
 }
 
 // The refusals Load names. Each error Load returns wraps exactly one of
