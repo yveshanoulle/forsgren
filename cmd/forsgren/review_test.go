@@ -13,7 +13,7 @@ import (
 // the flag out is how render is told there is none.
 func TestRenderRefusesAWaitingPRThatIsNoPullRequest(t *testing.T) {
 	for _, number := range []string{"0", "-3"} {
-		code, stderr, _ := renderWith(t, "--latest", "0.2.1", "--waiting-pr", number)
+		code, stderr, _ := renderWith(t, "--latest", "0.2.2", "--waiting-pr", number)
 		if code != 2 || !strings.Contains(stderr, "--waiting-pr") {
 			t.Errorf("--waiting-pr %s: want exit 2 naming --waiting-pr, got %d, %q", number, code, stderr)
 		}
