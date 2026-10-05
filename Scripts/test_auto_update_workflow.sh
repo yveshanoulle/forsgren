@@ -19,6 +19,8 @@
 #        repository install, a bad one is refused before go runs;
 #   17e  the caller's checkout, pinned, no credentials, of the base commit,
 #        after the install step;
+#   17f  the guard step (id: guard), after the checkout, runs forsgren
+#        check-update with the repository and pull request from env;
 #   (the later cycles are listed in forsgren#58 and add their pins here.)
 #
 # Read with awk, not a YAML parser, as Scripts/test_metrics_workflow.sh is,
@@ -293,6 +295,75 @@ if [[ -f "$WF" ]]; then
       echo "  ok: the checkout comes after the install step"
     else
       fail "pin 5: the step '${CHECKOUT_STEP}' is not after '${INSTALL_STEP}'"
+    fi
+  fi
+fi
+
+# step_by_id <file> <id> <key>: the block under that key (run or env) of the
+# step whose `id:` is <id>, its lines dedented; with key `text`, every line of
+# that step. Nothing when no step has the id.
+step_by_id() {
+  awk -v id="$2" -v key="$3" '
+    function indent(s) { match(s, /^ */); return RLENGTH }
+    function flush(   i, inb, cut) {
+      if (!matched) return
+      inb = 0; cut = 0
+      for (i = 1; i <= n; i++) {
+        if (key == "text") { print buf[i]; continue }
+        if (inb && buf[i] !~ /^[[:space:]]*$/ && indent(buf[i]) <= 8) inb = 0
+        if (inb) { if (!cut) { match(buf[i], /^ */); cut = RLENGTH } print substr(buf[i], cut + 1); continue }
+        if (buf[i] ~ ("^        " key ":[[:space:]]*\\|?[[:space:]]*$")) inb = 1
+      }
+    }
+    /^      - / { flush(); n = 0; matched = 0 }
+    { buf[++n] = $0 }
+    $0 == "        id: " id { matched = 1 }
+    END { flush() }
+  ' "$1"
+}
+
+# Pin 6: the guard step, `id: guard`, after the checkout, asks forsgren
+# whether the pull request may be merged. STANDING FACTS: the job's token
+# (`${{ github.token }}`, the caller's) and the pull request's number reach
+# the step through env: only, never pasted into the script (pin 3); and the
+# run: block calls exactly
+# `forsgren check-update --config forsgren.config.yml --repo
+# "$GITHUB_REPOSITORY" --pull "$PR_NUMBER"`, GITHUB_REPOSITORY being the
+# caller's repository. EXECUTED here with a stub forsgren on PATH that records
+# its arguments. What the step does with the exit status is cycles 18a to 18c.
+cat > "${STUB}/forsgren" <<'STUBFORSGREN'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$FG_CALLS"
+STUBFORSGREN
+chmod +x "${STUB}/forsgren"
+
+if [[ -f "$WF" ]]; then
+  guard_env="$(step_by_id "$WF" guard env)"
+  if [[ -z "$(step_by_id "$WF" guard text)" ]]; then
+    fail "pin 6: ${WF} has no guard step (a step with id: guard) asking forsgren check-update whether the pull request may be merged"
+  else
+    for want in "GITHUB_TOKEN: ${EXPR_OPEN} github.token }}" "PR_NUMBER: ${EXPR_OPEN} github.event.pull_request.number }}"; do
+      if grep -qxF -- "$want" <<< "$guard_env"; then
+        echo "  ok: the guard step sets ${want}"
+      else
+        fail "pin 6: the guard step does not set '${want}' in its env:"
+      fi
+    done
+    if later "$(line_of "$WF" "id: guard")" "$(line_of "$WF" "- name: Check out the caller's repository")"; then
+      echo "  ok: the guard step comes after the checkout"
+    else
+      fail "pin 6: the guard step is not after the checkout of the caller's repository"
+    fi
+    step_by_id "$WF" guard run > "${TMP}/guard.sh"
+    calls="${TMP}/fg.calls"
+    : > "$calls"
+    PATH="${STUB}:${PATH}" FG_CALLS="$calls" GITHUB_REPOSITORY="owner/name" PR_NUMBER=42 \
+      GITHUB_TOKEN="t0ken" bash "${TMP}/guard.sh" > /dev/null 2>&1 || true
+    want="check-update --config forsgren.config.yml --repo owner/name --pull 42"
+    if [[ "$(cat "$calls")" == "$want" ]]; then
+      echo "  ok: the guard step runs forsgren ${want}"
+    else
+      fail "pin 6: the guard step ran forsgren '$(paste -sd';' "$calls")', not '${want}'"
     fi
   fi
 fi
