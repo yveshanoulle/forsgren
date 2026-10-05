@@ -36,8 +36,8 @@ func (f fileConfig) toConfig() (Config, error) {
 }
 
 // settings is the Config of the file's optional top-level keys, view,
-// auto_update and auto_update_level (as written), or the first refusal among
-// them (forsgren#46, #58).
+// auto_update and auto_update_level (as written, and required when auto_update
+// is true), or the first refusal among them (forsgren#46, #58).
 func (f fileConfig) settings() (Config, error) {
 	view, err := checkView(f.View)
 	if err != nil {
@@ -51,7 +51,20 @@ func (f fileConfig) settings() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	if err := checkLevelWritten(auto, level); err != nil {
+		return Config{}, err
+	}
 	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level}, nil
+}
+
+// checkLevelWritten refuses auto_update on without a level: there is no
+// default, so the level must be written (forsgren#58).
+func checkLevelWritten(auto bool, level string) error {
+	if auto && level == "" {
+		return fmt.Errorf("%w: auto_update is true but auto_update_level is missing: use %s, %s or %s",
+			ErrAutoUpdateLevel, LevelPatch, LevelMinor, LevelMajor)
+	}
+	return nil
 }
 
 // checkAutoUpdateLevel is the level as written, empty when the file has none

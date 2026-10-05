@@ -12,7 +12,7 @@
 //	version: 1
 //	view: numbers                          # optional, standard, numbers or scoring
 //	auto_update: true                      # optional, true or false, off when absent (forsgren#58)
-//	auto_update_level: patch               # optional, patch, minor or major
+//	auto_update_level: patch               # patch, minor or major; required when auto_update is true
 //	projects:
 //	  - name: Acme
 //	    repositories:
