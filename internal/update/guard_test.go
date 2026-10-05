@@ -1,6 +1,7 @@
 package update
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -368,5 +369,14 @@ func TestDecideLeavesAPullRequestThatMovesOnlyOneOfTwoCallersForAHuman(t *testin
 				t.Errorf("Decide() = %+v, want left with the reason %q", got, c.reason)
 			}
 		})
+	}
+}
+
+// TestCallersAreTheTwoCallerPathsSorted: the paths check-update looks for in
+// the repository are the keys of the guard callers, in a fixed order.
+func TestCallersAreTheTwoCallerPathsSorted(t *testing.T) {
+	want := []string{".github/workflows/forsgren-update.yml", ".github/workflows/forsgren.yml"}
+	if got := Callers(); !slices.Equal(got, want) {
+		t.Errorf("Callers() = %q, want %q", got, want)
 	}
 }

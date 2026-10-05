@@ -5,7 +5,9 @@ package update
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
@@ -68,6 +70,11 @@ var release = regexp.MustCompile(`^v(\d+)\.(\d+)\.(\d+)$`)
 var callers = map[string]string{
 	".github/workflows/forsgren.yml":        "metrics.yml",
 	".github/workflows/forsgren-update.yml": "auto_update.yml",
+}
+
+// Callers are the repository paths of the caller files, sorted.
+func Callers() []string {
+	return slices.Sorted(maps.Keys(callers))
 }
 
 // manyPins is the reason of a patch with more than one removed or added pin

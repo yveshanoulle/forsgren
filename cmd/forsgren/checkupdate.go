@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
@@ -50,6 +52,7 @@ func checkUpdate(args []string, stdout, stderr io.Writer) int {
 // and one pull request of its data repository.
 type pullToCheck struct {
 	config config.Config
+	dir    string
 	repo   string
 	number int64
 }
@@ -78,7 +81,7 @@ func updateInput(args []string, stderr io.Writer) (pullToCheck, bool) {
 		_, _ = fmt.Fprintf(stderr, "check-update: %v\n", err)
 		return pullToCheck{}, false
 	}
-	return pullToCheck{config: cfg, repo: values[1], number: number}, true
+	return pullToCheck{config: cfg, dir: filepath.Dir(values[0]), repo: values[1], number: number}, true
 }
 
 // pullNumber is the number of a pull request as --pull writes it: a whole
@@ -108,8 +111,24 @@ func decideUpdate(ctx context.Context, in pullToCheck) (update.Decision, error) 
 			return update.Decision{}, err
 		}
 	}
-	pull := update.Pull{Author: author, Files: files, Release: release, Level: in.config.AutoUpdateLevel}
+	pull := update.Pull{
+		Author: author, Files: files, Release: release, Level: in.config.AutoUpdateLevel,
+		Present: presentCallers(in.dir),
+	}
 	return update.Decide(pull), nil
+}
+
+// presentCallers are the caller files that exist under dir, the checkout of
+// the pull request's base commit, as repository paths. A file that cannot be
+// statted counts as absent.
+func presentCallers(dir string) []string {
+	var present []string
+	for _, path := range update.Callers() {
+		if _, err := os.Stat(filepath.Join(dir, path)); err == nil {
+			present = append(present, path)
+		}
+	}
+	return present
 }
 
 // readPull is the author and the changed files of the pull request, every
