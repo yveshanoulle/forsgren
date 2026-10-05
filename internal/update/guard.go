@@ -239,7 +239,7 @@ func (m move) beyond(level string) string {
 	if !ok {
 		return "no auto_update_level set"
 	}
-	if part, _ := m.change(); part != allowed {
+	if part, _ := m.change(); part < allowed {
 		return fmt.Sprintf("%s is a %s update; auto_update_level is %s", m, kinds[part], level)
 	}
 	return ""
