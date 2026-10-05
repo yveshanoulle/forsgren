@@ -44,10 +44,12 @@ type Pull struct {
 }
 
 // Decision is the guard's answer: Merge, or left for a human with one
-// Reason line. Old, New and NewSHA are the pin the guard saw, empty when it
-// saw none.
+// Reason line. Beyond says the one reason it was left is that the update goes
+// further than the level allows. Old, New and NewSHA are the pin the guard
+// saw, empty when it saw none.
 type Decision struct {
 	Merge  bool
+	Beyond bool
 	Reason string
 	Old    string
 	New    string
