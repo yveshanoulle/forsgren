@@ -1,0 +1,28 @@
+# .github/workflows/auto_update.yml
+#
+# The REUSABLE workflow an installation's caller, forsgren-update.yml, runs
+# on a Dependabot pull request that bumps forsgren's pin (forsgren#58): it
+# asks forsgren check-update whether the pull request may be merged, merges
+# it, and starts the installation's forsgren.yml.
+#
+# It runs only when called (workflow_call): never in forsgren's own
+# repository, never on a pull request of its own. It has no permissions
+# block, on purpose, as metrics.yml explains: the caller's job grants them
+# (contents: write, pull-requests: write, actions: write), and a called
+# workflow can only keep or narrow what its caller grants.
+#
+# Scripts/test_auto_update_workflow.sh pins this file's shape, grown one
+# cycle at a time.
+name: Auto update
+
+on:
+  workflow_call:
+
+jobs:
+  update:
+    name: Merge a safe forsgren update
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder until the steps of forsgren#58 land
+        shell: bash
+        run: echo "auto_update.yml has no steps yet"
