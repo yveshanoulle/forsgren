@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/yveshanoulle/forsgren/internal/config"
 )
 
 // File is one changed file of a pull request as GitHub's GET
@@ -81,9 +83,10 @@ const dependabot = "dependabot[bot]"
 // and every changed file is a caller, changed by one removed and one added pin
 // line of its workflow and nothing else, and all pins move from the same
 // version to the same version and sha, as Dependabot moves them in one pull
-// request, to a published release of forsgren whose tag points at the pinned
-// sha. Otherwise the reason names the author or what else changed. It reports
-// the old and new version and the new sha it saw.
+// request, by no more than p.Level allows, to a published release of forsgren
+// whose tag points at the pinned sha. Otherwise the reason names the author or
+// what else changed. It reports the old and new version and the new sha it
+// saw.
 func Decide(p Pull) Decision {
 	if p.Author != dependabot {
 		return Decision{Reason: fmt.Sprintf("the author is %q, not %s", p.Author, dependabot)}
@@ -93,6 +96,9 @@ func Decide(p Pull) Decision {
 	}
 	first, reason := readCallers(p.Files)
 	if reason != "" {
+		return Decision{Reason: reason}
+	}
+	if reason := first.beyond(p.Level); reason != "" {
 		return Decision{Reason: reason}
 	}
 	if reason := p.Release.refuses(first.to); reason != "" {
@@ -163,24 +169,53 @@ func (m move) unfit(filename string) string {
 	if v := m.unreleased(); v != "" {
 		return fmt.Sprintf("changed besides the pin line: %s pins %q, which is no release version", filename, v)
 	}
-	if !m.upgrade() {
+	if _, newer := m.change(); !newer {
 		return m.String() + " is no upgrade"
 	}
 	return ""
 }
 
-// upgrade says whether the new version of m is newer than the old one, part
-// by part as numbers: v0.1.10 is newer than v0.1.9. Both versions must be
-// release versions.
-func (m move) upgrade() bool {
+// kinds name the parts of a release version, major first, as the kind of an
+// update that first differs in that part.
+var kinds = [...]string{"major", "minor", "patch"}
+
+// levels give, for each auto_update_level, the first part of a version that
+// an update may change: patch only the patch number, minor the minor or the
+// patch number, major any.
+var levels = map[string]int{
+	config.LevelPatch: 2,
+	config.LevelMinor: 1,
+	config.LevelMajor: 0,
+}
+
+// change finds the first part, 0 major, 1 minor, 2 patch, in which the
+// versions of m differ, and says whether the new one is newer there, the
+// parts compared as numbers: v0.1.10 is newer than v0.1.9. Equal versions
+// differ in no part, which is len(kinds), and are not newer. Both versions
+// must be release versions.
+func (m move) change() (int, bool) {
 	from := release.FindStringSubmatch(m.from.version)[1:]
 	to := release.FindStringSubmatch(m.to.version)[1:]
 	for i := range from {
 		if from[i] != to[i] {
-			return smaller(from[i], to[i])
+			return i, smaller(from[i], to[i])
 		}
 	}
-	return false
+	return len(kinds), false
+}
+
+// beyond is the reason the update of m goes further than level allows, naming
+// the kind of update and the level; or that there is no known level. Empty
+// when the update is within the level. m must be an upgrade.
+func (m move) beyond(level string) string {
+	allowed, ok := levels[level]
+	if !ok {
+		return "no auto_update_level set"
+	}
+	if part, _ := m.change(); part < allowed {
+		return fmt.Sprintf("%s is a %s update; auto_update_level is %s", m, kinds[part], level)
+	}
+	return ""
 }
 
 // smaller says whether the number a is below the number b, both written as
