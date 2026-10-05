@@ -9,15 +9,9 @@ import (
 )
 
 // ChangedFile is one file a pull request changes: its path and the unified
-// patch text GitHub answers with, which starts at the first hunk header.
+// patch text GitHub answers with, which starts at the first hunk header; it
+// is the item of GitHub's answer, the fields PullRequestFiles reads.
 type ChangedFile struct {
-	Filename string
-	Patch    string
-}
-
-// changedFile is one item of GitHub's answer, the fields PullRequestFiles
-// reads.
-type changedFile struct {
 	Filename string `json:"filename"`
 	Patch    string `json:"patch"`
 }
@@ -60,13 +54,11 @@ func (c *Client) PullRequestFiles(ctx context.Context, repo string, number int64
 // of a page to files and asks for the next page while pages are not empty.
 func readChangedFiles(files *[]ChangedFile) func([]byte) (bool, error) {
 	return func(body []byte) (bool, error) {
-		var page []changedFile
+		var page []ChangedFile
 		if err := json.Unmarshal(body, &page); err != nil {
 			return false, err
 		}
-		for _, f := range page {
-			*files = append(*files, ChangedFile{Filename: f.Filename, Patch: f.Patch})
-		}
+		*files = append(*files, page...)
 		return len(page) > 0, nil
 	}
 }
