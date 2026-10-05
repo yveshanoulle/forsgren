@@ -3,7 +3,9 @@
 # The REUSABLE workflow an installation's caller, forsgren-update.yml, runs
 # on a Dependabot pull request that bumps forsgren's pin (forsgren#58): it
 # asks forsgren check-update whether the pull request may be merged, merges
-# it, and starts the installation's forsgren.yml.
+# it, and starts the installation's forsgren.yml. A pull request that only
+# the auto_update_level leaves open, while forsgren has a release within the
+# level, is not merged: that release is installed instead (forsgren#62).
 #
 # It runs only when called (workflow_call): never in forsgren's own
 # repository, never on a pull request of its own. It has no permissions
@@ -90,7 +92,15 @@ jobs:
       # the step succeeds. GitHub runs shell: bash with -e whatever the script
       # sets, so the status is captured with || and never left to kill the
       # step. Any other status fails the job as it is, after an ::error that
-      # names check-update and the status. Exit 0 is the go: merge=true. What
+      # names check-update and the status. Exit 3 is neither: the pull request
+      # is only beyond the installation's level, and forsgren has a release
+      # within it, so check-update says `install <old> to <new> at <sha>` and
+      # then why the pull request stays open. The step takes the version and
+      # the commit from that first line with a strict regular expression (a
+      # release version, 40 lower-case hex digits) before anything uses them,
+      # records merge=false, install=true and both values for the install
+      # step, and leaves both lines in the job summary; a first line that does
+      # not match fails the step with an ::error. Exit 0 is the go: merge=true. What
       # check-update printed is shown between ::stop-commands::<token> and
       # ::<token>::, the token random per run, so text from a pull request or
       # a configuration can never run as a workflow command and cannot close
@@ -118,9 +128,23 @@ jobs:
             echo "merge=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if [[ "$status" -ne 0 ]]; then
-            echo "::error title=forsgren check-update::check-update failed with exit ${status}; see the log above"
+          if [[ "$status" -eq 3 ]]; then
+            install_line='^install (v[0-9]+\.[0-9]+\.[0-9]+) to (v[0-9]+\.[0-9]+\.[0-9]+) at ([0-9a-f]{40})$'
+            first="${out%%$'\n'*}"
+            if [[ ! "$first" =~ $install_line ]]; then
+              echo "::error title=forsgren check-update::check-update exited 3 without an install line, so no release is installed; see the log above"
+              exit 1
+            fi
+            printf '%s\n' "$out" >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo "merge=false"
+              echo "install=true"
+              echo "install_version=${BASH_REMATCH[2]}"
+              echo "install_sha=${BASH_REMATCH[3]}"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          echo "::error title=forsgren check-update::check-update failed with exit ${status}; see the log above"
           exit "$status"
 
       # Merges the pull request when the guard said so, and then starts the
@@ -139,4 +163,33 @@ jobs:
         run: |
           set -euo pipefail
           gh pr merge "$PR_NUMBER" --squash --delete-branch --repo "$GITHUB_REPOSITORY"
+          gh workflow run forsgren.yml --ref "$DEFAULT_BRANCH" --repo "$GITHUB_REPOSITORY"
+
+      # Installs the release check-update found within the level, when the
+      # guard said so, and then starts the installation's forsgren.yml. It
+      # runs after the merge step and never together with it: the guard
+      # records either merge=true or install=true. The pins move on the
+      # default branch through forsgren install-update, which writes with the
+      # job's token over the GitHub API in one commit that follows the
+      # branch's head it read the files at, so no credentials are left in the
+      # checkout (persist-credentials: false), which is the pull request's
+      # base commit and not the branch's head anyway. The version and the
+      # commit are the guard's, already checked against a release version and
+      # 40 hex digits, and reach the script through env: only. A commit made
+      # with the job's token triggers no other workflow, so forsgren.yml is
+      # started by hand, as after a merge. A failed install-update fails the
+      # step (set -e) before anything is started.
+      - name: Install the release within the level and start forsgren.yml
+        id: install
+        if: steps.guard.outputs.install == 'true'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          INSTALL_VERSION: ${{ steps.guard.outputs.install_version }}
+          INSTALL_SHA: ${{ steps.guard.outputs.install_sha }}
+        run: |
+          set -euo pipefail
+          forsgren install-update --repo "$GITHUB_REPOSITORY" --branch "$DEFAULT_BRANCH" --version "$INSTALL_VERSION" --sha "$INSTALL_SHA"
           gh workflow run forsgren.yml --ref "$DEFAULT_BRANCH" --repo "$GITHUB_REPOSITORY"
