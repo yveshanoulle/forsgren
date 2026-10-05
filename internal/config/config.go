@@ -105,8 +105,11 @@ type Config struct {
 	// View is the view the site's root page shows, as written: "standard",
 	// "numbers" or "scoring", empty when the file has no view key
 	// (forsgren#46).
-	View     string
-	Projects []Project
+	View string
+	// AutoUpdate is whether the merge workflow for Dependabot's forsgren pin
+	// updates is on (forsgren#58); off when the file has no auto_update key.
+	AutoUpdate bool
+	Projects   []Project
 }
 
 // The refusals Load names. Each error Load returns wraps exactly one of
