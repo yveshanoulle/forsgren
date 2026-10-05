@@ -28,9 +28,9 @@
   },
   {
    "path": "internal/update/guard_test.go",
-   "score": 9.53,
+   "score": 9.68,
    "checkedAt": "2026-10-05",
-   "minScore": 9.43
+   "minScore": 9.58
   },
   {
    "path": "cmd/forsgren/collect_test.go",

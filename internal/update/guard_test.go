@@ -64,8 +64,7 @@ func TestDecideMergesADiffOfOnlyThePinLine(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			got := Decide(Pull{Author: "dependabot[bot]", Files: c.files})
-			if got.Merge != want.Merge || got.Old != want.Old ||
-				got.New != want.New || got.NewSHA != want.NewSHA {
+			if got != want {
 				t.Errorf("Decide() = %+v, want %+v", got, want)
 			}
 		})
@@ -166,6 +165,31 @@ func TestDecideLeavesAPinWhoseVersionIsNoReleaseForAHuman(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			files := []File{forsgrenYML(versionedPin(c.oldVersion, c.newVersion))}
 			got := Decide(Pull{Author: "dependabot[bot]", Files: files})
+			if got.Merge || !strings.Contains(got.Reason, c.reason) {
+				t.Errorf("Decide() = %+v, want left with a reason containing %q", got, c.reason)
+			}
+		})
+	}
+}
+
+// TestDecideLeavesAPullRequestOfAnyOtherAuthorForAHuman pins forsgren#58:
+// only the author dependabot[bot], spelled exactly so, may have its pull
+// request merged; any other author, a person, a login without [bot], another
+// case or none, is left for a human with a reason that names the author.
+func TestDecideLeavesAPullRequestOfAnyOtherAuthorForAHuman(t *testing.T) {
+	cases := []struct {
+		name   string
+		author string
+		reason string
+	}{
+		{"a person", "octo-person", "octo-person"},
+		{"dependabot without [bot]", "dependabot", "dependabot"},
+		{"dependabot in another case", "Dependabot[bot]", "Dependabot[bot]"},
+		{"no author", "", "author"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := Decide(Pull{Author: c.author, Files: []File{forsgrenYML(dependabotBump)}})
 			if got.Merge || !strings.Contains(got.Reason, c.reason) {
 				t.Errorf("Decide() = %+v, want left with a reason containing %q", got, c.reason)
 			}
