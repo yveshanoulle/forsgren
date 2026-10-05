@@ -133,3 +133,42 @@ func TestDecideLeavesAnythingBesidesThePinLineForAHuman(t *testing.T) {
 		})
 	}
 }
+
+// versionedPin is a hunk of a removed pin line of metrics.yml at oldVersion
+// and an added one at newVersion, as they would be written in a patch of
+// forsgren.yml.
+func versionedPin(oldVersion, newVersion string) string {
+	return "@@ -14 +14 @@\n" +
+		"-    uses: yveshanoulle/forsgren/.github/workflows/metrics.yml" +
+		"@437c858abd71d6f33e6f714af7984de3855d8e73 # " + oldVersion + "\n" +
+		"+    uses: yveshanoulle/forsgren/.github/workflows/metrics.yml" +
+		"@" + newSHA + " # " + newVersion + "\n"
+}
+
+// TestDecideLeavesAPinWhoseVersionIsNoReleaseForAHuman pins forsgren#58: the
+// version comment of a pin, removed or added, is a release version, v and
+// three numbers, and any other text is left for a human with a reason that
+// quotes it.
+func TestDecideLeavesAPinWhoseVersionIsNoReleaseForAHuman(t *testing.T) {
+	cases := []struct {
+		name       string
+		oldVersion string
+		newVersion string
+		reason     string
+	}{
+		{"added version with two numbers", "v0.2.3", "v0.4", "v0.4"},
+		{"added version without v", "v0.2.3", "0.4.5", "0.4.5"},
+		{"added pre-release version", "v0.2.3", "v0.4.5-rc1", "v0.4.5-rc1"},
+		{"added branch name", "v0.2.3", "latest", "latest"},
+		{"removed version with two numbers", "v0.2", "v0.4.5", "v0.2"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			files := []File{forsgrenYML(versionedPin(c.oldVersion, c.newVersion))}
+			got := Decide(Pull{Author: "dependabot[bot]", Files: files})
+			if got.Merge || !strings.Contains(got.Reason, c.reason) {
+				t.Errorf("Decide() = %+v, want left with a reason containing %q", got, c.reason)
+			}
+		})
+	}
+}
