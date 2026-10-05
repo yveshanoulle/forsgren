@@ -595,7 +595,7 @@ projects:
   plain root, as `init-config` never rewrites an existing file. The starter
   also writes `auto_update: true` and `auto_update_level: patch` (forsgren#58),
   so a new installation merges forsgren's patch releases by itself; an
-  existing config without `auto_update:` keeps it off.
+  existing config without `auto_update:` keeps it off (see Auto-update).
 - **`projects`** is required: a list of projects, or `projects: []` for an
   installation that measures nothing yet (it is valid, and `check-config`
   reports `projects: 0, repositories: 0`). A file whose `projects` key is
@@ -1099,6 +1099,104 @@ jobs:
   `github-pages` environment.
 - The Go the workflow builds with is the one of forsgren's `go.mod`
   toolchain line for that release; the caller sets up nothing.
+
+## Auto-update (`check-update`)
+
+An installation can let forsgren's own updates merge themselves
+([#58](https://github.com/yveshanoulle/forsgren/issues/58)). It is off until
+the config switches it on, and a new install's starter does (see
+Configuration). The chain, for each forsgren release:
+
+1. Dependabot opens one grouped pull request that moves the pins of both
+   caller files, `.github/workflows/forsgren.yml` (which calls `metrics.yml`)
+   and `.github/workflows/forsgren-update.yml` (which calls `auto_update.yml`),
+   to the new release.
+2. On that pull request the caller `forsgren-update.yml` runs forsgren's
+   reusable `auto_update.yml`, from the new pin the pull request carries. The
+   workflow installs forsgren from its own commit, as `metrics.yml` does, and
+   checks out the caller's repository at the pull request's base commit, so a
+   pull request never switches auto-update on for itself.
+3. `forsgren check-update` decides (below).
+4. When it says merge, the workflow squash-merges the pull request, deletes
+   its branch and starts `forsgren.yml` on the default branch, so the new
+   release publishes the page now and not at the next daily run.
+
+**The two keys** of `forsgren.config.yml` (see Configuration):
+
+- **`auto_update`** is `true` or `false`, and only those literals (a quoted
+  value, `yes` or a number is refused by `check-config`). Absent, or without
+  a value, it is off, so an existing config keeps its behaviour until it opts
+  in.
+- **`auto_update_level`** is `patch`, `minor` or `major`: the largest step
+  an update may take and still merge itself. It has no default: with
+  `auto_update: true` and no level, the config is refused (`check-config`
+  names the three values), and any other value is refused too. At `patch`,
+  v0.2.0 to v0.2.1 merges and v0.3.0 does not; at `minor`, v0.3.0 merges (and
+  every patch) and v1.0.0 does not; at `major`, v1.0.0 merges as well. A
+  level only limits what merges: a pull request beyond it is left for you.
+
+**What the guard checks.** The pull request merges only when every one of
+these holds, and otherwise it is left for a human with one reason line:
+
+- the pull request's author is `dependabot[bot]`;
+- the config at the pull request's base commit has `auto_update: true`;
+- the diff changes nothing but pin lines: every changed file is one of the
+  two callers, each changes one `uses: yveshanoulle/forsgren/.github/workflows/...@<sha> # vX.Y.Z`
+  line to another, and a caller pins the workflow it calls (`metrics.yml` in
+  `forsgren.yml`, `auto_update.yml` in `forsgren-update.yml`);
+- the pins move from the same version to the same version and commit in every
+  file, and when the repository has both caller files at the base commit, the
+  pull request moves both (a pull request that moves only one is left for you,
+  [#61](https://github.com/yveshanoulle/forsgren/issues/61));
+- the new version is a release version (`vX.Y.Z`), an upgrade of the old one,
+  and within `auto_update_level`;
+- forsgren has a published release for the new version, not a draft and not a
+  prerelease, and its tag points at exactly the pinned commit.
+
+**`check-update`** is the command the workflow runs:
+
+```
+forsgren check-update --config forsgren.config.yml --repo <owner/name> --pull <number>
+```
+
+`--config` is the installation's config file (the caller files are looked
+up next to it, which in the workflow is the checkout of the base commit),
+`--repo` the data repository and `--pull` Dependabot's pull request in it
+(1 or more). It reads the pull request, its files and forsgren's release
+with `GITHUB_TOKEN`, which needs `pull-requests: read`, and prints one line:
+
+- exit 0: `merge <old> to <new>`, for example `merge v0.2.0 to v0.2.1`;
+- exit 1: `left for a human: <reason>`, for example `left for a human:
+  v0.2.1 to v0.3.0 is a minor update; auto_update_level is patch`. With
+  `auto_update` off it prints `left for a human: auto_update is off` and asks
+  GitHub for nothing;
+- exit 2: a usage, config or network error, with the message on stderr and
+  nothing on stdout (a flag missing or invalid, a config that is invalid, an
+  answer of GitHub that is an error, or a pull request with more files than
+  forsgren reads).
+
+**What you see.** When the pull request is left for you, the workflow puts
+the reason in the run's job summary, the run stays green and nothing is
+merged: review the pull request and merge it yourself if it is fine. When
+check-update fails (exit 2) or the merge fails, the run fails, and a failed
+merge starts nothing.
+
+**The caller grants three permissions**, all `write`, because a called
+workflow can only keep or narrow what its caller's job grants:
+`contents: write` to merge, `pull-requests: write` to merge the pull request
+and `actions: write` to start `forsgren.yml`. The last is needed because a
+merge made with the job's token triggers no other workflow, so without the
+explicit start the merged update would wait for the next daily run. The
+workflow declares no permissions block of its own.
+
+**The template's Dependabot setup.** The template's `.github/dependabot.yml`
+groups the pins of both caller files into one pull request, checks at 04:00
+UTC and waits 3 days after a release before it proposes it (a cooldown).
+
+**To switch auto-update off**, set `auto_update: false` in
+`forsgren.config.yml` (or remove the key). Dependabot still opens its pull
+request, `forsgren-update.yml` runs and leaves it for you with `auto_update is
+off`, and merging it is the update, as before (see Configuration).
 
 ## Working on forsgren
 
