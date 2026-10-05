@@ -47,11 +47,25 @@ func (f fileConfig) settings() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	cfg := Config{Version: FormatVersion, View: view, AutoUpdate: auto}
-	if f.AutoUpdateLevel != nil {
-		cfg.AutoUpdateLevel = *f.AutoUpdateLevel
+	level, err := checkAutoUpdateLevel(f.AutoUpdateLevel)
+	if err != nil {
+		return Config{}, err
 	}
-	return cfg, nil
+	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level}, nil
+}
+
+// checkAutoUpdateLevel is the level as written, empty when the file has none
+// (a key without a value is none), or the refusal naming the valid values
+// (forsgren#58).
+func checkAutoUpdateLevel(v *string) (string, error) {
+	if v == nil {
+		return "", nil
+	}
+	switch *v {
+	case LevelPatch, LevelMinor, LevelMajor:
+		return *v, nil
+	}
+	return "", fmt.Errorf("%w %q: use %s, %s or %s", ErrAutoUpdateLevel, *v, LevelPatch, LevelMinor, LevelMajor)
 }
 
 // booleans are the only spellings of a boolean key (forsgren#58).
