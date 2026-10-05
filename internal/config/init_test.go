@@ -17,8 +17,10 @@ func starterLines() []string {
 }
 
 // starterConfig is the config at the end of the starter: one that measures
-// nothing yet, its root page the standard view with the switch (forsgren#51).
-const starterConfig = "version: 1\nview: standard\nprojects: []\n"
+// nothing yet, its root page the standard view with the switch (forsgren#51),
+// and auto-merge of forsgren's Dependabot updates on at patch level
+// (forsgren#58).
+const starterConfig = "version: 1\nview: standard\nauto_update: true\nauto_update_level: patch\nprojects: []\n"
 
 // isStarterLine says whether a line may stand in the starter: blank, a
 // comment, or one of the lines of starterConfig.
@@ -190,7 +192,7 @@ func wantEntries(t *testing.T, dir string, n int) {
 }
 
 // TestStarterPassesLoad: the starter is a config Load accepts, with no
-// projects.
+// projects, and with auto-merge on at patch level (forsgren#58).
 func TestStarterPassesLoad(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "forsgren.config.yml")
 	writeFile(t, path, Starter)
@@ -200,6 +202,9 @@ func TestStarterPassesLoad(t *testing.T) {
 	}
 	if cfg.Version != 1 || len(cfg.Projects) != 0 {
 		t.Errorf("want version 1 and no projects, got %+v", cfg)
+	}
+	if !cfg.AutoUpdate || cfg.AutoUpdateLevel != LevelPatch {
+		t.Errorf("want auto_update on at level patch, got %v, %q", cfg.AutoUpdate, cfg.AutoUpdateLevel)
 	}
 }
 
