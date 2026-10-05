@@ -21,11 +21,17 @@ var errFilesCut = errors.New("the pull request has more files than were read, so
 // the release of the version it moves the pin to (none is looked up when the
 // diff moves no pin), asks the guard, and says `merge <old> to <new>` or `left
 // for a human: <reason>`. Exit 0 is merge, 1 left for a human, 2 a usage,
-// config or network error. It reads with GITHUB_TOKEN, which needs pull-requests: read.
+// config or network error. An installation whose config has auto_update off
+// is left for a human without a request to GitHub. It reads with
+// GITHUB_TOKEN, which needs pull-requests: read.
 func checkUpdate(args []string, stdout, stderr io.Writer) int {
 	in, ok := updateInput(args, stderr)
 	if !ok {
 		return 2
+	}
+	if !in.config.AutoUpdate {
+		_, _ = fmt.Fprintln(stdout, "left for a human: auto_update is off")
+		return 1
 	}
 	decision, err := decideUpdate(context.Background(), in)
 	if err != nil {
