@@ -1,6 +1,6 @@
 {
   "_comment": "Minimum coverage per Go function, read by Scripts/check_coverage.sh. Floors never go down: a new function is registered at 0.0, and each floor is raised to its measured value - 0.1, or 100.0 at 100%.",
-  "total": 99.3,
+  "total": 99.5,
   "functions": {
     "github.com/yveshanoulle/forsgren/cmd/forsgren/collect.go:collectDeployments": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/collect.go:githubClient": 100.0,
@@ -296,6 +296,18 @@
     "github.com/yveshanoulle/forsgren/internal/update/guard.go:refuses": 100.0,
     "github.com/yveshanoulle/forsgren/internal/update/guard.go:readChanges": 100.0,
     "github.com/yveshanoulle/forsgren/internal/update/guard.go:add": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/update/guard.go:reason": 100.0
+    "github.com/yveshanoulle/forsgren/internal/update/guard.go:reason": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/checkupdate.go:checkUpdate": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/checkupdate.go:updateInput": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/checkupdate.go:pullNumber": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/checkupdate.go:decideUpdate": 91.6,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/checkupdate.go:readPull": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/checkupdate.go:lookUpTag": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/github/client.go:IsRepositoryName": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/github/pullfiles.go:PullRequestAuthor": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/github/pullfiles.go:PullRequestFiles": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/github/pullfiles.go:readChangedFiles": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/github/pullfiles.go:PublishedRelease": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/update/newversion.go:NewVersion": 100.0
   }
 }

@@ -91,3 +91,36 @@ func TestPullRequestFilesSaysItStoppedAtThePageLimit(t *testing.T) {
 		t.Errorf("want the one file of the first page, got %+v", got)
 	}
 }
+
+// TestPullRequestAuthorReadsTheLoginOfOnePullRequest: GET
+// /repos/{o}/{r}/pulls/{n} answers the pull request, whose user.login is its
+// author.
+func TestPullRequestAuthorReadsTheLoginOfOnePullRequest(t *testing.T) {
+	f := newFake(t)
+	f.on(pullsPath+"/7", reply{body: pullItem(7, "dependabot[bot]", dependabotBranch("0.1.4"))})
+	got, err := f.client(t, DefaultMaxPages).PullRequestAuthor(context.Background(), "acme/data", 7)
+	if err != nil || got != "dependabot[bot]" {
+		t.Errorf("want dependabot[bot], got %q, %v", got, err)
+	}
+}
+
+// TestPublishedReleaseIsTrueForATagWithARelease: GET
+// /repos/{o}/{r}/releases/tags/{tag} answering a release says it is published.
+func TestPublishedReleaseIsTrueForATagWithARelease(t *testing.T) {
+	f := newFake(t)
+	f.on(updatePaths["published release"], reply{body: `{"id": 7, "tag_name": "v1.2.0"}`})
+	got, err := f.client(t, DefaultMaxPages).PublishedRelease(context.Background(), "acme/app", "v1.2.0")
+	if err != nil || !got {
+		t.Errorf("want a published release, got %v, %v", got, err)
+	}
+}
+
+// TestIsRepositoryNameIsTheNameEveryCallRequires: one owner/name, never .. as
+// the name.
+func TestIsRepositoryNameIsTheNameEveryCallRequires(t *testing.T) {
+	for repo, want := range map[string]bool{"acme/app": true, "acme": false, "acme/..": false} {
+		if got := IsRepositoryName(repo); got != want {
+			t.Errorf("IsRepositoryName(%q) = %v, want %v", repo, got, want)
+		}
+	}
+}

@@ -323,3 +323,16 @@ func TestDecideLeavesAPullRequestOfAnyOtherAuthorForAHuman(t *testing.T) {
 		})
 	}
 }
+
+// TestNewVersionIsTheVersionOfTheAddedPin: the version the pull request moves
+// the pin to, read from the first file that adds a pin line; false when no
+// file does.
+func TestNewVersionIsTheVersionOfTheAddedPin(t *testing.T) {
+	got, ok := NewVersion([]File{forsgrenYML("@@ -1 +1 @@\n-x\n+y\n"), forsgrenYML(dependabotBump)})
+	if !ok || got != "v0.1.4" {
+		t.Errorf("NewVersion() = %q, %v, want v0.1.4, true", got, ok)
+	}
+	if got, ok := NewVersion([]File{forsgrenYML("@@ -1 +1 @@\n-x\n+y\n")}); ok || got != "" {
+		t.Errorf("NewVersion() without a pin = %q, %v, want empty, false", got, ok)
+	}
+}

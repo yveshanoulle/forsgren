@@ -84,6 +84,11 @@ func (c *Client) MaxPages() int { return c.maxPages }
 // repositoryName is GitHub's owner/name, as config checks it.
 var repositoryName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9._-]+$`)
 
+// IsRepositoryName says whether repo is one owner/name, which every call of
+// the client requires before it makes a URL of it, for a caller that checks
+// its flag first.
+func IsRepositoryName(repo string) bool { return isRepositoryName(repo) }
+
 // isRepositoryName says whether repo is one owner/name whose name is not .
 // or .., which a URL path would resolve to another place.
 func isRepositoryName(repo string) bool {
