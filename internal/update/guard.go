@@ -4,6 +4,7 @@
 package update
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -37,44 +38,113 @@ type Decision struct {
 // the sign, the uses key, the workflow file, a 40-hex sha and the version
 // comment (forsgren.yml of an installation, README, Running forsgren).
 var pinLine = regexp.MustCompile(
-	`^([-+])\s*uses: yveshanoulle/forsgren/\.github/workflows/[^@\s]+@([0-9a-f]{40}) # (\S+)$`)
+	`^([-+])\s*uses: yveshanoulle/forsgren/\.github/workflows/([^@\s]+)@([0-9a-f]{40}) # (\S+)$`)
 
-// workflowFile is the only file a mergeable pull request changes: the data
-// repository's workflow that holds the pin.
-const workflowFile = ".github/workflows/forsgren.yml"
+// callers are the files of an installation's data repository that pin
+// forsgren, each with the one workflow of forsgren it calls: forsgren.yml
+// calls metrics.yml and forsgren-update.yml calls auto_update.yml.
+var callers = map[string]string{
+	".github/workflows/forsgren.yml":        "metrics.yml",
+	".github/workflows/forsgren-update.yml": "auto_update.yml",
+}
 
 // manyPins is the reason of a patch with more than one removed or added pin
 // line.
 const manyPins = "more than one pin line changed"
 
-// Decide says whether p may be merged: only when it changes the workflow file
-// alone, by one removed and one added pin line and nothing else. Otherwise
-// the reason names what else changed. It reports the old and new version and
-// the new sha it saw.
+// noPin is the reason of a pull request that changes no file.
+const noPin = "no pin line changed"
+
+// Decide says whether p may be merged: only when every changed file is a
+// caller, changed by one removed and one added pin line of its workflow and
+// nothing else, and all pins move from the same version to the same version
+// and sha, as Dependabot moves them in one pull request. Otherwise the reason
+// names what else changed. It reports the old and new version and the new
+// sha it saw.
 func Decide(p Pull) Decision {
-	var patches []string
-	for _, f := range p.Files {
-		if f.Filename != workflowFile {
-			return Decision{Reason: "changed besides the pin line: " + f.Filename}
-		}
-		patches = append(patches, f.Patch)
+	if len(p.Files) == 0 {
+		return Decision{Reason: noPin}
 	}
-	c := readChanges(strings.Join(patches, "\n"))
-	if reason := c.reason(); reason != "" {
+	first, reason := readCallers(p.Files)
+	if reason != "" {
 		return Decision{Reason: reason}
 	}
-	if len(c.removed) == 0 || len(c.added) == 0 {
-		return Decision{Reason: "no pin line changed"}
-	}
-	return Decision{Merge: true, Old: c.removed[0][3], New: c.added[0][3], NewSHA: c.added[0][2]}
+	return Decision{Merge: true, Old: first.from.version, New: first.to.version, NewSHA: first.to.sha}
 }
 
-// changes are the changed lines of a patch: the matches of its removed and
-// of its added pin lines, and the changed lines that are no pin line.
+// readCallers reads the pin pair of every changed file and returns the first
+// one. The reason is not empty when a file is not mergeable (readCaller) or
+// its pins move differently from the first file's.
+func readCallers(files []File) (move, string) {
+	var first move
+	for i, f := range files {
+		m, reason := readCaller(f)
+		if reason != "" {
+			return m, reason
+		}
+		if i == 0 {
+			first = m
+		} else if !m.agrees(first) {
+			return m, "the pins move differently: " + first.String() + " and " + m.String()
+		}
+	}
+	return first, ""
+}
+
+// readCaller reads the pin pair of one changed file. The reason is not empty
+// when the file is no caller, changes more than its pin pair, or pins a
+// workflow other than the one it calls.
+func readCaller(f File) (move, string) {
+	want, ok := callers[f.Filename]
+	if !ok {
+		return move{}, "changed besides the pin line: " + f.Filename
+	}
+	c := readChanges(f.Patch)
+	if reason := c.reason(); reason != "" {
+		return move{}, reason
+	}
+	m := move{from: c.removed, to: c.added}
+	if m.from.workflow != want || m.to.workflow != want {
+		return m, fmt.Sprintf("changed besides the pin line: %s moves %q to %q, want %q",
+			f.Filename, m.from.workflow, m.to.workflow, want)
+	}
+	return m, ""
+}
+
+// pin is one pin line: the workflow file of forsgren, the commit and the
+// version comment.
+type pin struct {
+	workflow string
+	sha      string
+	version  string
+}
+
+// move is a pin line removed and the one added in its place.
+type move struct {
+	from pin
+	to   pin
+}
+
+// String names the versions of m, for a reason line.
+func (m move) String() string {
+	return m.from.version + " to " + m.to.version
+}
+
+// agrees says whether m leaves the same version for the same version and sha
+// as o; the workflow files differ between callers.
+func (m move) agrees(o move) bool {
+	return m.from.version == o.from.version && m.to.version == o.to.version && m.to.sha == o.to.sha
+}
+
+// changes are the changed lines of a patch: the count of its removed and of
+// its added pin lines, the last of each (empty when there is none), and the
+// changed lines that are no pin line.
 type changes struct {
-	removed [][]string
-	added   [][]string
-	others  []string
+	removed  pin
+	added    pin
+	nRemoved int
+	nAdded   int
+	others   []string
 }
 
 // readChanges sorts the lines of a patch into changes. GitHub's patch text
@@ -97,9 +167,9 @@ func (c *changes) add(line string) {
 			c.others = append(c.others, line)
 		}
 	case m[1] == "-":
-		c.removed = append(c.removed, m)
+		c.removed, c.nRemoved = pin{workflow: m[2], sha: m[3], version: m[4]}, c.nRemoved+1
 	default:
-		c.added = append(c.added, m)
+		c.added, c.nAdded = pin{workflow: m[2], sha: m[3], version: m[4]}, c.nAdded+1
 	}
 }
 
@@ -107,7 +177,7 @@ func (c *changes) add(line string) {
 // or the changed lines that are no pin line, quoted; empty when there is
 // neither.
 func (c changes) reason() string {
-	if len(c.removed) > 1 || len(c.added) > 1 {
+	if c.nRemoved > 1 || c.nAdded > 1 {
 		return manyPins
 	}
 	if len(c.others) > 0 {
