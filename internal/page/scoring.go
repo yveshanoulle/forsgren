@@ -21,10 +21,14 @@ type score struct {
 	ok    bool
 }
 
-// scores are the row's five scores, in the table's column order.
+// scores are the row's five scores, in the table's column order. A score of
+// 0 is observed performance in the lowest band, never a lack of data:
+// deployment frequency has a score only when a deployment was counted in
+// its windows (Last180 holds the 30 days' too), as the other four have
+// their own data; a project with none has the lowest band but no score.
 func (r Row) scores() []score {
 	return []score{
-		{metrics.BandScore(r.Frequency.Band), r.Frequency.Band != 0},
+		{metrics.BandScore(r.Frequency.Band), r.Frequency.Last180 > 0},
 		{metrics.BandScore(r.LeadTime.Band), r.LeadTime.HasCommits()},
 		{metrics.BandScore(r.Recovery.Band), r.Recovery.Recoveries > 0},
 		{metrics.PercentScore(r.ChangeFail.Percent()), r.ChangeFail.Deployments > 0},

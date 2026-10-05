@@ -522,7 +522,8 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   `aria-current="true"`, as the root is not that view's page); without the
   key it is the standard page with no switch. `/scoring/`
   (`scoring/index.html`, forsgren#47) shows each metric's DORA Quick Check
-  score alone, 0 to 10 (`9.3`, `10`, `0`), `-` where the metric has no data,
+  score alone, 0 to 10 (`9.3`, `10`, `0`), `-` where the metric has no data (deployment
+  frequency: no deployment in its windows),
   and a sixth column, Overall Performance: the mean of the scored metrics to
   one decimal, `-` when none is scored. The switch names it, as it names the other two.
 - **The legend** (`legend.html`) gives each metric's bands in one compact

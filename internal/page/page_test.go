@@ -45,7 +45,9 @@ func acmeProjects(shop metrics.LeadTime, recovery metrics.Recovery, changeFail m
 	data := Placeholder("0.1.2")
 	data.AsOf = "2026-10-03 12:00"
 	latest := time.Date(2026, 10, 1, 9, 30, 0, 0, time.UTC)
-	frequency := metrics.Frequency{Project: "Acme Shop", Last7: 3, Last30: 12, Latest: latest, Band: metrics.DailyToWeekly}
+	frequency := metrics.Frequency{
+		Project: "Acme Shop", Last7: 3, Last30: 12, Last180: 12, Latest: latest, Band: metrics.DailyToWeekly,
+	}
 	data.Rows = Table([]metrics.Row{
 		{Level: metrics.ProjectRow, Name: "Acme Shop", Frequency: frequency, LeadTime: shop, Recovery: recovery,
 			ChangeFail: changeFail, Rework: rework},
