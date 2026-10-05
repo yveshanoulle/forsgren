@@ -1,6 +1,9 @@
 package metrics
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 // TestBandScoreEachBand pins the DORA Quick Check score of the six bands of
 // the categorical metrics: the fastest band scores 10 and each slower band
@@ -38,6 +41,20 @@ func TestPercentScore(t *testing.T) {
 		{"change fail rate of 14.9 percent", PercentScore(changeFail.Percent()), 8.6},
 		{"rework rate of 14.9 percent", PercentScore(rework.Percent()), 8.6},
 	})
+}
+
+// TestPercentScoreIsExactlyOneDecimal pins that the score of every whole
+// percent is exactly the one-decimal number (100 - percent) / 10, the nearest
+// float to it, so the page prints 3.9 for 61% and 0.4 for 96%.
+func TestPercentScoreIsExactlyOneDecimal(t *testing.T) {
+	cases := []scoreCase{
+		{"61 percent as a literal", PercentScore(61), 3.9},
+		{"96 percent as a literal", PercentScore(96), 0.4},
+	}
+	for p := 0; p <= 100; p++ {
+		cases = append(cases, scoreCase{fmt.Sprintf("%d percent", p), PercentScore(p), float64(100-p) / 10})
+	}
+	checkScores(t, cases)
 }
 
 // TestOverallScoreIsTheMeanToOneDecimal pins the Quick Check's Overall
