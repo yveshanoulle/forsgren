@@ -2,6 +2,8 @@ package main
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -106,4 +108,24 @@ func TestCheckUpdateAsksForNoReleaseWhenThePullRequestMovesNoPin(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestCheckUpdateLeavesAPullRequestThatMovesOnlyOneOfTwoCallersForAHuman
+// (forsgren#61): both caller files exist next to the config, the pull
+// request moves only forsgren.yml, and the reason names the one it leaves.
+func TestCheckUpdateLeavesAPullRequestThatMovesOnlyOneOfTwoCallersForAHuman(t *testing.T) {
+	recordedAPI(t, mergeableAnswers(t))
+	flags := updateFlags(t)
+	workflows := filepath.Join(filepath.Dir(flags["config"]), ".github", "workflows")
+	if err := os.MkdirAll(workflows, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"forsgren.yml", "forsgren-update.yml"} {
+		if err := os.WriteFile(filepath.Join(workflows, name), []byte("name: caller\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := checkUpdateRun(argsOf(flags, "config", "repo", "pull")...)
+	wantLeft(t, got,
+		"moves .github/workflows/forsgren.yml but not .github/workflows/forsgren-update.yml")
 }
