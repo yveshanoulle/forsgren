@@ -139,7 +139,7 @@ func (p pageData) Numbers() bool { return p.View == viewNumbers }
 
 // Scoring says whether the page is the scoring view, its cells the scores
 // and its last column Overall Performance.
-func (p pageData) Scoring() bool { return p.View == viewScoring }
+func (p pageData) Scoring() bool { return p.View == viewScoring && p.Base == viewBase }
 
 // Views are the views the switch names, in its order.
 func (pageData) Views() []string { return views }
@@ -148,7 +148,7 @@ func (pageData) Views() []string { return views }
 // view's own page, "true" on the root, which shows the view but is not its
 // page (Yves's ruling, forsgren#46).
 func (p pageData) Current() string {
-	if p.Base == viewBase {
+	if p.Base == viewBase || p.View == viewScoring {
 		return "page"
 	}
 	return "true"

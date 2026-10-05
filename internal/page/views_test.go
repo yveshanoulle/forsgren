@@ -1,6 +1,7 @@
 package page
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -294,9 +295,14 @@ func TestWriteSiteFailsWhenAViewFolderIsAFile(t *testing.T) {
 // it has no switch.
 func TestRootPageFollowsItsDataView(t *testing.T) {
 	data := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
+	const (
+		std, num, sco = `<a href="standard/">standard</a>`, `<a href="numbers/">numbers</a>`, `<a href="scoring/">scoring</a>`
+		now           = `<span aria-current="true">%s</span>`
+	)
 	for view, want := range map[string]string{
-		"standard": `View: <span aria-current="true">standard</span> · <a href="numbers/">numbers</a>`,
-		"numbers":  `View: <a href="standard/">standard</a> · <span aria-current="true">numbers</span>`,
+		"standard": "View: " + fmt.Sprintf(now, "standard") + " · " + num + " · " + sco,
+		"numbers":  "View: " + std + " · " + fmt.Sprintf(now, "numbers") + " · " + sco,
+		"scoring":  "View: " + std + " · " + num + " · " + fmt.Sprintf(now, "scoring"),
 	} {
 		data.View = view
 		got := rendered(t, "index.html", data)
@@ -305,6 +311,8 @@ func TestRootPageFollowsItsDataView(t *testing.T) {
 	}
 	data.View = "numbers"
 	wantAll(t, "index.html", rendered(t, "index.html", data), "<td>12</td>")
+	data.View = "scoring"
+	wantAll(t, "index.html", rendered(t, "index.html", data), `<th scope="col">Overall Performance</th>`, "<td>8.4</td>")
 	data.View = ""
 	wantNone(t, "index.html", rendered(t, "index.html", data), "View:", "aria-current")
 	placeholder := Placeholder("0.1.2")
