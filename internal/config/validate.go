@@ -52,11 +52,11 @@ func (f fileConfig) settings() (Config, error) {
 // booleans are the only spellings of a boolean key (forsgren#58).
 var booleans = map[string]bool{"true": true, "false": false}
 
-// checkAutoUpdate is auto_update as written, off when the file has no such
-// key: only the literals true and false, never a quoted or numeric value,
-// nor yes (forsgren#58).
+// checkAutoUpdate is auto_update as written, off when the file has none (a
+// key without a value is none): only the literals true and false, never a
+// quoted or numeric value, nor yes (forsgren#58).
 func checkAutoUpdate(n yaml.Node) (bool, error) {
-	if n.Kind == 0 {
+	if n.Kind == 0 || n.ShortTag() == "!!null" {
 		return false, nil
 	}
 	on, literal := booleans[n.Value]
