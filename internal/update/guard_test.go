@@ -213,6 +213,37 @@ func TestDecideLeavesAnythingBesidesThePinLineForAHuman(t *testing.T) {
 	}
 }
 
+// TestDecideNamesTheFileOfACallerThatChangesNoPinForAHuman pins forsgren#59: a
+// caller file whose patch has no changed line at all, an empty patch or only
+// context lines, is left with a reason that names the file and says that it
+// changes no pin, not one that quotes two empty workflow names.
+func TestDecideNamesTheFileOfACallerThatChangesNoPinForAHuman(t *testing.T) {
+	cases := []struct {
+		name string
+		file File
+		want string
+	}{
+		{
+			name: "an empty patch of forsgren.yml",
+			file: forsgrenYML(""),
+			want: ".github/workflows/forsgren.yml changes no forsgren pin",
+		},
+		{
+			name: "a patch of forsgren-update.yml with context lines only",
+			file: forsgrenUpdateYML("@@ -14,2 +14,2 @@ jobs:\n   metrics:\n     secrets: inherit\n"),
+			want: ".github/workflows/forsgren-update.yml changes no forsgren pin",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := Decide(Pull{Author: "dependabot[bot]", Files: []File{c.file}})
+			if got.Merge || got.Reason != c.want {
+				t.Errorf("Decide() = %+v, want left with the reason %q", got, c.want)
+			}
+		})
+	}
+}
+
 // versionedPin is a hunk of a removed pin line of metrics.yml at oldVersion
 // and an added one at newVersion, as they would be written in a patch of
 // forsgren.yml.
