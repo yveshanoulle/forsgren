@@ -25,6 +25,11 @@
 #        the step summary, outputs merge=false and calls no gh;
 #   18b  check-update exits 2: the guard step fails the job with an ::error
 #        naming check-update and its exit status;
+#   18c  check-update's output is shown between ::stop-commands:: and its end;
+#   19a  exit 0: merge=true, and the merge step (id: merge) merges the pull
+#        request, squashed, the branch deleted;
+#   19b  then it starts forsgren.yml on the default branch;
+#   19c  a failed merge fails the step and starts nothing;
 #   (the later cycles are listed in forsgren#58 and add their pins here.)
 #
 # Read with awk, not a YAML parser, as Scripts/test_metrics_workflow.sh is,
@@ -472,6 +477,153 @@ if [[ -f "$WF" && -n "$(step_by_id "$WF" guard text)" ]]; then
     echo "  ok: the guard step calls no gh when check-update exits 2"
   else
     fail "pin 8: the guard step called gh: $(paste -sd';' "${TMP}/fail.gh")"
+  fi
+fi
+
+# stop_token_around <log> <text>: the token of the ::stop-commands::<token> /
+# ::<token>:: pair the first line holding the text sits between; nothing when
+# the text is outside any pair or in no line.
+stop_token_around() {
+  awk -v text="$2" '
+    token == "" && /^::stop-commands::./ { token = substr($0, 18); next }
+    token != "" && $0 == "::" token "::" { token = ""; next }
+    token != "" && index($0, text) && found == "" { found = token }
+    END { print found }
+  ' "$1"
+}
+
+# Pin 9 (18c): check-update's output is written to the job log between
+# `::stop-commands::<token>` and `::<token>::`, on exit 0 and on exit 1, under
+# a token that differs from run to run: that output carries a pull request's
+# and a configuration's text, which must never run as a workflow command (as
+# metrics.yml does for check-config and collect, forsgren#9). EXECUTED with a
+# stub forsgren printing STUB_OUT and exiting STUB_RC.
+STUB_STOP="${TMP}/stub-stop"
+mkdir -p "$STUB_STOP"
+cat > "${STUB_STOP}/forsgren" <<'STUBSTOP'
+#!/usr/bin/env bash
+printf '%s\n' "$STUB_OUT"
+exit "${STUB_RC:-0}"
+STUBSTOP
+chmod +x "${STUB_STOP}/forsgren"
+
+# guard_stdout <stdout file> <rc> <output line>: runs the guard block with the
+# stub, its stdout in the file, its GITHUB_OUTPUT in ${TMP}/guard.output.
+guard_stdout() {
+  : > "${TMP}/guard.output"
+  : > "${TMP}/guard.summary"
+  PATH="${STUB_STOP}:${PATH}" STUB_RC="$2" STUB_OUT="$3" GITHUB_REPOSITORY="owner/name" PR_NUMBER=42 \
+    GITHUB_TOKEN="t0ken" GITHUB_STEP_SUMMARY="${TMP}/guard.summary" GITHUB_OUTPUT="${TMP}/guard.output" \
+    bash "${TMP}/guard-stop.sh" > "$1" 2> /dev/null || true
+}
+
+if [[ -f "$WF" && -n "$(step_by_id "$WF" guard text)" ]]; then
+  step_by_id "$WF" guard run > "${TMP}/guard-stop.sh"
+  MERGE_LINE="merge v0.1.3 to v0.2.0"
+  guard_stdout "${TMP}/stop0.log" 0 "$MERGE_LINE"
+  guard_stdout "${TMP}/stop1.log" 1 "$LEFT"
+  guard_stdout "${TMP}/stop0b.log" 0 "$MERGE_LINE"
+  token0="$(stop_token_around "${TMP}/stop0.log" "$MERGE_LINE")"
+  token1="$(stop_token_around "${TMP}/stop1.log" "$LEFT")"
+  token0b="$(stop_token_around "${TMP}/stop0b.log" "$MERGE_LINE")"
+  if [[ -n "$token0" ]]; then
+    echo "  ok: on exit 0 check-update's output is between ::stop-commands:: and its end"
+  else
+    fail "pin 9: on exit 0 the guard step's stdout does not hold '${MERGE_LINE}' between ::stop-commands::<token> and ::<token>::"
+  fi
+  if [[ -n "$token1" ]]; then
+    echo "  ok: on exit 1 check-update's output is between ::stop-commands:: and its end"
+  else
+    fail "pin 9: on exit 1 the guard step's stdout does not hold '${LEFT}' between ::stop-commands::<token> and ::<token>::"
+  fi
+  if [[ -n "$token0" && -n "$token0b" && "$token0" != "$token0b" && "$token0" != "$token1" ]]; then
+    echo "  ok: the stop-commands token differs from run to run"
+  else
+    fail "pin 9: the stop-commands token is empty or the same in two runs ('${token0}', '${token0b}', '${token1}'); a fixed token can be closed by the text it guards"
+  fi
+fi
+
+# Pins 10 to 12 (19a to 19c): the merge step. STANDING FACTS: it has id:
+# merge and runs only when the guard said so (`if: steps.guard.outputs.merge
+# == 'true'`); its env is the job's token as GH_TOKEN, the pull request's
+# number and the repository's default branch, never an expression in the
+# script (pin 3). Its block, EXECUTED with a gh recorder stub, merges the pull
+# request (squash, the branch deleted) and then, as its second and last call,
+# starts the installation's forsgren.yml on the default branch, so the merged
+# update is measured at once (forsgren#58). A failed merge fails the step and
+# starts nothing.
+STUB_MERGE="${TMP}/stub-merge"
+mkdir -p "$STUB_MERGE"
+cat > "${STUB_MERGE}/gh" <<'STUBMERGE'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$GH_CALLS"
+if [[ "${STUB_GH_MERGE_FAILS:-}" == yes && "${1:-} ${2:-}" == "pr merge" ]]; then
+  echo "gh: merge blocked" >&2
+  exit 1
+fi
+STUBMERGE
+chmod +x "${STUB_MERGE}/gh"
+
+# merge_run <fails yes|no>: the merge step's block with the stub gh; its exit
+# status in ${TMP}/merge.rc, the recorded calls in ${TMP}/merge.gh.
+merge_run() {
+  : > "${TMP}/merge.gh"
+  local rc=0
+  PATH="${STUB_MERGE}:${PATH}" GH_CALLS="${TMP}/merge.gh" STUB_GH_MERGE_FAILS="$1" \
+    GITHUB_REPOSITORY="owner/name" PR_NUMBER=42 DEFAULT_BRANCH=main GH_TOKEN="t0ken" \
+    bash "${TMP}/merge.sh" > /dev/null 2>&1 || rc=$?
+  echo "$rc" > "${TMP}/merge.rc"
+}
+
+if [[ -f "$WF" && -n "$(step_by_id "$WF" guard text)" ]]; then
+  : > "${TMP}/g10.output"
+  PATH="${STUB_STOP}:${PATH}" STUB_RC=0 STUB_OUT="merge v0.1.3 to v0.2.0" GITHUB_REPOSITORY="owner/name" PR_NUMBER=42 \
+    GITHUB_TOKEN="t0ken" GITHUB_STEP_SUMMARY="${TMP}/g10.summary" GITHUB_OUTPUT="${TMP}/g10.output" \
+    bash "${TMP}/guard-stop.sh" > /dev/null 2>&1 && g10_rc=0 || g10_rc=$?
+  if [[ "$g10_rc" -eq 0 && "$(cat "${TMP}/g10.output")" == "merge=true" ]]; then
+    echo "  ok: the guard step records merge=true when check-update exits 0"
+  else
+    fail "pin 10: on exit 0 the guard step exited ${g10_rc} with the output '$(paste -sd';' "${TMP}/g10.output")', not exactly the line merge=true"
+  fi
+  merge_text="$(step_by_id "$WF" merge text)"
+  if [[ -z "$merge_text" ]]; then
+    fail "pin 10: ${WF} has no merge step (a step with id: merge) after the guard"
+    fail "pin 11: ${WF} has no merge step, so nothing starts forsgren.yml after a merge"
+    fail "pin 12: ${WF} has no merge step, so a failed merge cannot be shown to fail the run and start nothing"
+  else
+    merge_env="$(step_by_id "$WF" merge env)"
+    if grep -qxF -- "        if: steps.guard.outputs.merge == 'true'" <<< "$merge_text"; then
+      echo "  ok: the merge step runs only when the guard said merge=true"
+    else
+      fail "pin 10: the merge step has no line 'if: steps.guard.outputs.merge == 'true''"
+    fi
+    for want in "GH_TOKEN: ${EXPR_OPEN} github.token }}" "PR_NUMBER: ${EXPR_OPEN} github.event.pull_request.number }}" "DEFAULT_BRANCH: ${EXPR_OPEN} github.event.repository.default_branch }}"; do
+      if grep -qxF -- "$want" <<< "$merge_env"; then
+        echo "  ok: the merge step sets ${want}"
+      else
+        fail "pin 10: the merge step does not set '${want}' in its env:"
+      fi
+    done
+    step_by_id "$WF" merge run > "${TMP}/merge.sh"
+    merge_run no
+    first="$(sed -n 1p "${TMP}/merge.gh")"
+    second="$(sed -n 2p "${TMP}/merge.gh")"
+    if [[ "$first" == "pr merge 42 --squash --delete-branch --repo owner/name" ]]; then
+      echo "  ok: the merge step's first call is gh ${first}"
+    else
+      fail "pin 10: the merge step's first gh call is '${first}', not 'pr merge 42 --squash --delete-branch --repo owner/name'"
+    fi
+    if [[ "$second" == "workflow run forsgren.yml --ref main --repo owner/name" && "$(wc -l < "${TMP}/merge.gh" | tr -d ' ')" -eq 2 ]]; then
+      echo "  ok: the merge step's second and last call is gh ${second}"
+    else
+      fail "pin 11: the merge step's second gh call is '${second}' (of $(wc -l < "${TMP}/merge.gh" | tr -d ' ') calls), not 'workflow run forsgren.yml --ref main --repo owner/name' as the last"
+    fi
+    merge_run yes
+    if [[ "$(cat "${TMP}/merge.rc")" -ne 0 && "$(cat "${TMP}/merge.gh")" == "pr merge 42 --squash --delete-branch --repo owner/name" ]]; then
+      echo "  ok: a failed merge fails the step and starts no workflow"
+    else
+      fail "pin 12: with a failing gh pr merge the merge step exited $(cat "${TMP}/merge.rc") and called '$(paste -sd';' "${TMP}/merge.gh")'; it must exit non-zero and call only the pr merge"
+    fi
   fi
 fi
 
