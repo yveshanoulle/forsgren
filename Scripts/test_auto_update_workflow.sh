@@ -23,6 +23,8 @@
 #        check-update with the repository and pull request from env;
 #   18a  check-update exits 1: the guard step succeeds, leaves the reason in
 #        the step summary, outputs merge=false and calls no gh;
+#   18b  check-update exits 2: the guard step fails the job with an ::error
+#        naming check-update and its exit status;
 #   (the later cycles are listed in forsgren#58 and add their pins here.)
 #
 # Read with awk, not a YAML parser, as Scripts/test_metrics_workflow.sh is,
@@ -421,6 +423,55 @@ if [[ -f "$WF" && -n "$(step_by_id "$WF" guard text)" ]]; then
     echo "  ok: the guard step calls no gh"
   else
     fail "pin 7: the guard step called gh: $(paste -sd';' "${TMP}/left.gh")"
+  fi
+fi
+
+# Pin 8: check-update exits 2 (usage, configuration or network error): the
+# guard step FAILS the job, with an ::error workflow command, on stdout, that
+# names check-update and its exit status, so the run page says what failed
+# and the pull request is neither merged nor silently left. It records no
+# `merge=true` and calls no gh. Exit 1 (left for a human) is pin 7. EXECUTED
+# with its own stub directory: a stub forsgren saying why on stderr and
+# exiting 2, and a stub gh recording any call. The wording of the ::error is
+# not pinned, its substance is: the prefix, check-update, and the status 2.
+STUB_FAIL="${TMP}/stub-fail"
+mkdir -p "$STUB_FAIL"
+cat > "${STUB_FAIL}/forsgren" <<'STUBFAIL'
+#!/usr/bin/env bash
+echo "forsgren: reading forsgren.config.yml: no such file" >&2
+exit 2
+STUBFAIL
+cp "${STUB_LEFT}/gh" "${STUB_FAIL}/gh"
+chmod +x "${STUB_FAIL}/forsgren" "${STUB_FAIL}/gh"
+
+if [[ -f "$WF" && -n "$(step_by_id "$WF" guard text)" ]]; then
+  step_by_id "$WF" guard run > "${TMP}/guard-fail.sh"
+  : > "${TMP}/fail.summary"
+  : > "${TMP}/fail.output"
+  : > "${TMP}/fail.gh"
+  fail_rc=0
+  PATH="${STUB_FAIL}:${PATH}" GH_CALLS="${TMP}/fail.gh" GITHUB_REPOSITORY="owner/name" PR_NUMBER=42 \
+    GITHUB_TOKEN="t0ken" GITHUB_STEP_SUMMARY="${TMP}/fail.summary" GITHUB_OUTPUT="${TMP}/fail.output" \
+    bash "${TMP}/guard-fail.sh" > "${TMP}/fail.stdout" 2> /dev/null || fail_rc=$?
+  if [[ "$fail_rc" -ne 0 ]]; then
+    echo "  ok: the guard step fails when check-update exits 2"
+  else
+    fail "pin 8: the guard step exited 0 when check-update exited 2; a failed check must fail the job"
+  fi
+  if grep -E '^::error' "${TMP}/fail.stdout" | grep -F 'check-update' | grep -qE '(^|[^0-9])2([^0-9]|$)'; then
+    echo "  ok: the guard step prints an ::error naming check-update and exit 2"
+  else
+    fail "pin 8: the guard step prints no ::error line naming check-update and its exit status 2 (stdout: '$(paste -sd';' "${TMP}/fail.stdout")')"
+  fi
+  if grep -qxF 'merge=true' "${TMP}/fail.output"; then
+    fail "pin 8: the guard step records merge=true after check-update exited 2"
+  else
+    echo "  ok: the guard step does not record merge=true"
+  fi
+  if [[ ! -s "${TMP}/fail.gh" ]]; then
+    echo "  ok: the guard step calls no gh when check-update exits 2"
+  else
+    fail "pin 8: the guard step called gh: $(paste -sd';' "${TMP}/fail.gh")"
   fi
 fi
 
