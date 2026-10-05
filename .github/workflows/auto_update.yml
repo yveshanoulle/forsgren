@@ -80,3 +80,17 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ github.event.pull_request.base.sha }}
+
+      # Asks forsgren whether this pull request may be merged, from the
+      # checked-out config. The job's token and the pull request's number
+      # reach the script through env:, never as a GitHub expression in it;
+      # GITHUB_REPOSITORY is the caller's.
+      - name: Ask whether the pull request may be merged
+        id: guard
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          forsgren check-update --config forsgren.config.yml --repo "$GITHUB_REPOSITORY" --pull "$PR_NUMBER"
