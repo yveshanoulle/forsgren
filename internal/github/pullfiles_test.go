@@ -115,6 +115,24 @@ func TestPublishedReleaseIsTrueForATagWithARelease(t *testing.T) {
 	}
 }
 
+// TestPublishedReleaseIsFalseForATagWithNoPublishedRelease: a 404 is a tag
+// with no release, and a draft (which GitHub answers with 200 to a token that
+// may push) is no published one; neither is an error.
+func TestPublishedReleaseIsFalseForATagWithNoPublishedRelease(t *testing.T) {
+	answers := map[string]reply{
+		"a 404":   {status: http.StatusNotFound, body: `{"message":"Not Found"}`},
+		"a draft": {body: `{"id": 7, "tag_name": "v1.2.0", "draft": true}`},
+	}
+	for name, answer := range answers {
+		f := newFake(t)
+		f.on(updatePaths["published release"], answer)
+		got, err := f.client(t, DefaultMaxPages).PublishedRelease(context.Background(), "acme/app", "v1.2.0")
+		if err != nil || got {
+			t.Errorf("%s: want no published release and no error, got %v, %v", name, got, err)
+		}
+	}
+}
+
 // TestIsRepositoryNameIsTheNameEveryCallRequires: one owner/name, never .. as
 // the name.
 func TestIsRepositoryNameIsTheNameEveryCallRequires(t *testing.T) {
