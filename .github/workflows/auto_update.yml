@@ -84,7 +84,12 @@ jobs:
       # Asks forsgren whether this pull request may be merged, from the
       # checked-out config. The job's token and the pull request's number
       # reach the script through env:, never as a GitHub expression in it;
-      # GITHUB_REPOSITORY is the caller's.
+      # GITHUB_REPOSITORY is the caller's. Exit 1 is not a failure: the pull
+      # request is left for a human, so the reason goes to the job summary,
+      # the output merge=false tells the steps after this one not to run, and
+      # the step succeeds. GitHub runs shell: bash with -e whatever the script
+      # sets, so the status is captured with || and never left to kill the
+      # step. Any other status is kept as it is.
       - name: Ask whether the pull request may be merged
         id: guard
         shell: bash
@@ -93,4 +98,11 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          forsgren check-update --config forsgren.config.yml --repo "$GITHUB_REPOSITORY" --pull "$PR_NUMBER"
+          status=0
+          out="$(forsgren check-update --config forsgren.config.yml --repo "$GITHUB_REPOSITORY" --pull "$PR_NUMBER")" || status=$?
+          if [[ "$status" -eq 1 ]]; then
+            printf '%s\n' "$out" >> "$GITHUB_STEP_SUMMARY"
+            echo "merge=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          exit "$status"
