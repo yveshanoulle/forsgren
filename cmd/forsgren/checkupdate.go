@@ -18,9 +18,10 @@ var errFilesCut = errors.New("the pull request has more files than were read, so
 
 // checkUpdate is the subcommand the update workflow runs on Dependabot's pull
 // request in an installation's data repository: it reads the pull request and
-// the release of the version it moves the pin to, asks the guard, and says
-// `merge <old> to <new>`. Exit 0 is merge, 2 a usage, config or network
-// error. It reads with GITHUB_TOKEN, which needs pull-requests: read.
+// the release of the version it moves the pin to (none is looked up when the
+// diff moves no pin), asks the guard, and says `merge <old> to <new>` or `left
+// for a human: <reason>`. Exit 0 is merge, 1 left for a human, 2 a usage,
+// config or network error. It reads with GITHUB_TOKEN, which needs pull-requests: read.
 func checkUpdate(args []string, stdout, stderr io.Writer) int {
 	in, ok := updateInput(args, stderr)
 	if !ok {
@@ -30,6 +31,10 @@ func checkUpdate(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "check-update: %v\n", err)
 		return 2
+	}
+	if !decision.Merge {
+		_, _ = fmt.Fprintf(stdout, "left for a human: %s\n", decision.Reason)
+		return 1
 	}
 	_, _ = fmt.Fprintf(stdout, "merge %s to %s\n", decision.Old, decision.New)
 	return 0
@@ -91,10 +96,11 @@ func decideUpdate(ctx context.Context, in pullToCheck) (update.Decision, error) 
 	if err != nil {
 		return update.Decision{}, err
 	}
-	version, _ := update.NewVersion(files)
-	release, err := lookUpTag(ctx, client, version)
-	if err != nil {
-		return update.Decision{}, err
+	var release update.Release
+	if version, found := update.NewVersion(files); found {
+		if release, err = lookUpTag(ctx, client, version); err != nil {
+			return update.Decision{}, err
+		}
 	}
 	pull := update.Pull{Author: author, Files: files, Release: release, Level: in.config.AutoUpdateLevel}
 	return update.Decide(pull), nil
