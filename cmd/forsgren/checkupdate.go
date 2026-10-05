@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -99,7 +100,7 @@ func pullNumber(s string) (int64, error) {
 func decideUpdate(ctx context.Context, in pullToCheck) (update.Decision, error) {
 	client, err := jobClient(github.DefaultMaxPages)
 	if err != nil {
-		return update.Decision{Merge: true}, nil
+		return update.Decision{}, err
 	}
 	author, files, err := readPull(ctx, client, in)
 	if err != nil {
@@ -111,24 +112,33 @@ func decideUpdate(ctx context.Context, in pullToCheck) (update.Decision, error) 
 			return update.Decision{}, err
 		}
 	}
+	present, err := presentCallers(in.dir)
+	if err != nil {
+		return update.Decision{}, err
+	}
 	pull := update.Pull{
-		Author: author, Files: files, Release: release, Level: in.config.AutoUpdateLevel,
-		Present: presentCallers(in.dir),
+		Author: author, Files: files, Release: release, Level: in.config.AutoUpdateLevel, Present: present,
 	}
 	return update.Decide(pull), nil
 }
 
 // presentCallers are the caller files that exist under dir, the checkout of
-// the pull request's base commit, as repository paths. A file that cannot be
-// statted counts as absent.
-func presentCallers(dir string) []string {
+// the pull request's base commit, as repository paths. A file that does not
+// exist is absent; a lookup that fails otherwise leaves its state
+// undetermined, so it is an error naming the file (forsgren#59).
+func presentCallers(dir string) ([]string, error) {
 	var present []string
 	for _, path := range update.Callers() {
-		if _, err := os.Stat(filepath.Join(dir, path)); err == nil {
-			present = append(present, path)
+		_, err := os.Stat(filepath.Join(dir, path))
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
 		}
+		if err != nil {
+			return nil, fmt.Errorf("looking up the caller file %s: %w", path, err)
+		}
+		present = append(present, path)
 	}
-	return present
+	return present, nil
 }
 
 // readPull is the author and the changed files of the pull request, every

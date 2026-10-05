@@ -8,21 +8,18 @@ import (
 
 // TestCheckUpdateIsExit2WhenACallerFileCannotBeLookedUp (forsgren#59): a
 // caller file that is absent counts as absent, but one whose lookup fails
-// otherwise (here permission denied, on the folder above it) leaves the state
-// undetermined: exit 2, the file named on stderr, nothing on stdout, so
-// nothing merges, though the pull request moves the one caller it could read.
+// otherwise (here .github/workflows is a regular file, so the lookup under it
+// is not-a-directory, not not-exist) leaves the state undetermined: exit 2,
+// the file named on stderr, nothing on stdout, so nothing merges, though the
+// pull request moves the one caller it could read.
 func TestCheckUpdateIsExit2WhenACallerFileCannotBeLookedUp(t *testing.T) {
-	if os.Geteuid() == 0 {
-		t.Skip("root can look up any file")
-	}
 	recordedAPI(t, mergeableAnswers(t))
 	flags := updateFlags(t)
-	workflows := filepath.Join(filepath.Dir(flags["config"]), ".github", "workflows")
-	if err := os.MkdirAll(workflows, 0o750); err != nil {
+	github := filepath.Join(filepath.Dir(flags["config"]), ".github")
+	if err := os.MkdirAll(github, 0o750); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.Chmod(workflows, 0o750) })
-	if err := os.Chmod(workflows, 0o000); err != nil {
+	if err := os.WriteFile(filepath.Join(github, "workflows"), []byte("not a folder\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	got := checkUpdateRun(argsOf(flags, "config", "repo", "pull")...)
