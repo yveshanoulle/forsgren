@@ -23,6 +23,22 @@ func TestAutoUpdateIsRead(t *testing.T) {
 	}
 }
 
+// TestAutoUpdateWithNoValueIsOff (forsgren#58): a key with no value, null or
+// ~ is none, as for the view key: off, and no error.
+func TestAutoUpdateWithNoValueIsOff(t *testing.T) {
+	keys := map[string]string{
+		"empty": "auto_update:\n",
+		"null":  "auto_update: null\n",
+		"tilde": "auto_update: ~\n",
+	}
+	for name, key := range keys {
+		got, err := parse([]byte(key + valid))
+		if err != nil || got.AutoUpdate {
+			t.Errorf("%s: want auto_update off and no error, got %v, %v", name, got.AutoUpdate, err)
+		}
+	}
+}
+
 // TestParseRefusesANonBooleanAutoUpdate (forsgren#58): any value that is not
 // the YAML boolean true or false is refused, naming the key and the valid
 // values, as for an invalid view.
