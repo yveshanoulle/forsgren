@@ -21,6 +21,10 @@ const dependabotBump = "@@ -14,7 +14,7 @@ jobs:\n" +
 	"@" + newSHA + " # v0.1.4\n" +
 	"     secrets: inherit\n"
 
+// published is the lookup of the release v0.1.4 in these fixtures: published,
+// its tag at newSHA.
+var published = Release{Published: true, SHA: newSHA}
+
 // forsgrenYML is the changed-file entry of the data repository's workflow
 // with the given patch.
 func forsgrenYML(patch string) File {
@@ -63,7 +67,7 @@ func TestDecideMergesADiffOfOnlyThePinLine(t *testing.T) {
 	want := Decision{Merge: true, Old: "v0.1.3", New: "v0.1.4", NewSHA: newSHA}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := Decide(Pull{Author: "dependabot[bot]", Files: c.files})
+			got := Decide(Pull{Author: "dependabot[bot]", Files: c.files, Release: published})
 			if got != want {
 				t.Errorf("Decide() = %+v, want %+v", got, want)
 			}
@@ -165,6 +169,32 @@ func TestDecideLeavesAPinWhoseVersionIsNoReleaseForAHuman(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			files := []File{forsgrenYML(versionedPin(c.oldVersion, c.newVersion))}
 			got := Decide(Pull{Author: "dependabot[bot]", Files: files})
+			if got.Merge || !strings.Contains(got.Reason, c.reason) {
+				t.Errorf("Decide() = %+v, want left with a reason containing %q", got, c.reason)
+			}
+		})
+	}
+}
+
+// TestDecideLeavesAVersionWithoutAPublishedReleaseAtThePinForAHuman pins
+// forsgren#58: the new version must be a published release of forsgren whose
+// tag points at the pinned commit. A version with no published release is
+// left with a reason quoting the version, and a tag that points at another
+// commit with a reason quoting that commit.
+func TestDecideLeavesAVersionWithoutAPublishedReleaseAtThePinForAHuman(t *testing.T) {
+	tagSHA := "fedcba9876543210fedcba9876543210fedcba98"
+	cases := []struct {
+		name    string
+		release Release
+		reason  string
+	}{
+		{"no published release", Release{}, "v0.1.4"},
+		{"a tag of another commit", Release{Published: true, SHA: tagSHA}, tagSHA},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			files := []File{forsgrenYML(dependabotBump)}
+			got := Decide(Pull{Author: "dependabot[bot]", Files: files, Release: c.release})
 			if got.Merge || !strings.Contains(got.Reason, c.reason) {
 				t.Errorf("Decide() = %+v, want left with a reason containing %q", got, c.reason)
 			}

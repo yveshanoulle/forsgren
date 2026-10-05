@@ -17,10 +17,21 @@ type File struct {
 	Patch    string
 }
 
-// Pull is everything the guard looks at: the author and the changed files.
+// Release is what the caller looked up for the new version of the pins, so
+// that the guard reads no network: whether GitHub has a published release of
+// forsgren for it (GET /repos/yveshanoulle/forsgren/releases/tags/{tag}) and
+// the commit its tag points at.
+type Release struct {
+	Published bool
+	SHA       string
+}
+
+// Pull is everything the guard looks at: the author, the changed files and
+// the release of the new version.
 type Pull struct {
-	Author string
-	Files  []File
+	Author  string
+	Files   []File
+	Release Release
 }
 
 // Decision is the guard's answer: Merge, or left for a human with one
