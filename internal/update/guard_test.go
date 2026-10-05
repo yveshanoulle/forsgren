@@ -55,18 +55,24 @@ func pinPair(oldFile, newFile, version, sha string) string {
 func TestDecideMergesADiffOfOnlyThePinLine(t *testing.T) {
 	updatePin := pinPair("auto_update.yml", "auto_update.yml", "v0.1.4", newSHA)
 	cases := []struct {
-		name  string
-		files []File
+		name       string
+		files      []File
+		oldVersion string
+		newVersion string
 	}{
-		{"dependabot bumps the pin of forsgren.yml", []File{forsgrenYML(dependabotBump)}},
+		{"dependabot bumps the pin of forsgren.yml", []File{forsgrenYML(dependabotBump)}, "v0.1.3", "v0.1.4"},
 		{
 			"dependabot bumps both callers to the same release",
-			[]File{forsgrenYML(dependabotBump), forsgrenUpdateYML(updatePin)},
+			[]File{forsgrenYML(dependabotBump), forsgrenUpdateYML(updatePin)}, "v0.1.3", "v0.1.4",
+		},
+		{
+			"v0.1.10 is newer than v0.1.9, the parts compared as numbers",
+			[]File{forsgrenYML(versionedPin("v0.1.9", "v0.1.10"))}, "v0.1.9", "v0.1.10",
 		},
 	}
-	want := Decision{Merge: true, Old: "v0.1.3", New: "v0.1.4", NewSHA: newSHA}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			want := Decision{Merge: true, Old: c.oldVersion, New: c.newVersion, NewSHA: newSHA}
 			got := Decide(Pull{Author: "dependabot[bot]", Files: c.files, Release: published})
 			if got != want {
 				t.Errorf("Decide() = %+v, want %+v", got, want)
@@ -169,6 +175,31 @@ func TestDecideLeavesAPinWhoseVersionIsNoReleaseForAHuman(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			files := []File{forsgrenYML(versionedPin(c.oldVersion, c.newVersion))}
 			got := Decide(Pull{Author: "dependabot[bot]", Files: files})
+			if got.Merge || !strings.Contains(got.Reason, c.reason) {
+				t.Errorf("Decide() = %+v, want left with a reason containing %q", got, c.reason)
+			}
+		})
+	}
+}
+
+// TestDecideLeavesAVersionThatIsNoUpgradeForAHuman pins forsgren#58: the new
+// version must be newer than the old one, so a downgrade and the same version
+// are left for a human with a reason quoting both versions. The release is
+// published and tagged at the pin, so only the versions decide.
+func TestDecideLeavesAVersionThatIsNoUpgradeForAHuman(t *testing.T) {
+	cases := []struct {
+		name       string
+		oldVersion string
+		newVersion string
+		reason     string
+	}{
+		{"a downgrade", "v0.1.4", "v0.1.3", "v0.1.4 to v0.1.3"},
+		{"the same version at another commit", "v0.1.4", "v0.1.4", "v0.1.4 to v0.1.4"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			files := []File{forsgrenYML(versionedPin(c.oldVersion, c.newVersion))}
+			got := Decide(Pull{Author: "dependabot[bot]", Files: files, Release: published})
 			if got.Merge || !strings.Contains(got.Reason, c.reason) {
 				t.Errorf("Decide() = %+v, want left with a reason containing %q", got, c.reason)
 			}
