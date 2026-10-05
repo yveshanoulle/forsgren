@@ -318,6 +318,9 @@
     "github.com/yveshanoulle/forsgren/internal/update/newest.go:NewestWithin": 100.0,
     "github.com/yveshanoulle/forsgren/internal/update/newest.go:within": 100.0,
     "github.com/yveshanoulle/forsgren/internal/update/newest.go:newerThan": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/update/newest.go:installable": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/update/newest.go:unreleasable": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/update/newest.go:beats": 100.0,
     "github.com/yveshanoulle/forsgren/internal/update/newversion.go:NewVersion": 100.0
   }
 }
