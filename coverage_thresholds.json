@@ -282,6 +282,8 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:byLabel": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:ofTask": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:keyOf": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:HasDeployments": 100.0
+    "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:HasDeployments": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/update/guard.go:Decide": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/update/guard.go:readPins": 100.0
   }
 }

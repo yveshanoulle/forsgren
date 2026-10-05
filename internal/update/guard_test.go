@@ -15,7 +15,7 @@ const dependabotBump = "@@ -14,7 +14,7 @@ jobs:\n" +
 	"@0123456789abcdef0123456789abcdef01234567 # v0.1.4\n" +
 	"     secrets: inherit\n"
 
-// TestDecideMergesADiffOfOnlyThePinLine pins forsgren#58 step 8: the pin
+// TestDecideMergesADiffOfOnlyThePinLine pins forsgren#58: the pin
 // line alone, old to new, may be merged, and the guard reports the versions
 // and the sha it saw.
 func TestDecideMergesADiffOfOnlyThePinLine(t *testing.T) {
