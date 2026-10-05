@@ -27,3 +27,18 @@ func TestAutoUpdateLevelIsRead(t *testing.T) {
 		}
 	}
 }
+
+// TestParseRefusesAnInvalidAutoUpdateLevel (forsgren#58): any other value is
+// refused, naming the key and the valid values, as for an invalid view.
+func TestParseRefusesAnInvalidAutoUpdateLevel(t *testing.T) {
+	checkRefusals(t, []refusal{
+		{"other case", "auto_update_level: Minor\n" + valid, ErrAutoUpdateLevel,
+			`invalid auto_update_level "Minor": use patch, minor or major`},
+		{"unknown", "auto_update_level: huge\n" + valid, ErrAutoUpdateLevel,
+			`invalid auto_update_level "huge": use patch, minor or major`},
+		{"number", "auto_update_level: 1\n" + valid, ErrAutoUpdateLevel,
+			`invalid auto_update_level "1": use patch, minor or major`},
+		{"empty", "auto_update_level: \"\"\n" + valid, ErrAutoUpdateLevel,
+			`invalid auto_update_level "": use patch, minor or major`},
+	})
+}
