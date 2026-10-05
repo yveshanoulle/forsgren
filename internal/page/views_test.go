@@ -248,10 +248,13 @@ func viewData() Data {
 }
 
 // TestViewPagesMatchGolden (forsgren#46): each view's page, in its own
-// folder, pinned byte for byte.
+// folder, pinned byte for byte: the scoring page (forsgren#47) shows from the
+// same data each metric's score, "-" where a metric has no data, and Overall
+// Performance.
 func TestViewPagesMatchGolden(t *testing.T) {
 	checkPageGolden(t, "standard/index.html", "testdata/standard.golden.html", viewData())
 	checkPageGolden(t, "numbers/index.html", "testdata/numbers.golden.html", viewData())
+	checkPageGolden(t, "scoring/index.html", "testdata/scoring.golden.html", viewData())
 }
 
 // TestViewPagesWithoutDataMatchGolden (forsgren#46): the views of the
