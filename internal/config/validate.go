@@ -43,7 +43,6 @@ func (f fileConfig) settings() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	return Config{Version: FormatVersion, View: view}, nil // MUTATION 58-6: ignores the auto_update keys
 	auto, err := checkAutoUpdate(f.AutoUpdate)
 	if err != nil {
 		return Config{}, err
