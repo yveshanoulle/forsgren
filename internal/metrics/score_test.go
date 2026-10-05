@@ -73,6 +73,37 @@ func TestOverallScoreIsTheMeanToOneDecimal(t *testing.T) {
 	})
 }
 
+// TestOverallScoreRoundsAnExactHalfUp pins how Overall Performance rounds: the
+// mean of the scores is taken exactly, as whole tenths, and an exact half
+// tenth rounds up, so 4.95 is 5.0 and 2.35 is 2.4, whatever the float sum of
+// the scores carries.
+func TestOverallScoreRoundsAnExactHalfUp(t *testing.T) {
+	overall := func(scores ...float64) float64 {
+		got, _ := OverallScore(scores)
+		return got
+	}
+	checkScores(t, []scoreCase{
+		{"a mean of exactly 4.95", overall(2, 0, PercentScore(3), PercentScore(19)), 5.0},
+		{"a mean of exactly 2.35 from 2.3 and 2.4", overall(2.3, 2.4), 2.4},
+		{"a mean of exactly 2.35 from 0.1 and 4.6", overall(0.1, 4.6), 2.4},
+	})
+}
+
+// TestOverallScoreOfAnyTwoScoresIsTheHalfUpMean pins the same for every pair
+// of one-decimal scores from 0 to 10, against the mean of their tenths as
+// integers: (a + b) / 2 rounded half up is (a + b + 1) / 2.
+func TestOverallScoreOfAnyTwoScoresIsTheHalfUpMean(t *testing.T) {
+	var cases []scoreCase
+	for a := 0; a <= 100; a++ {
+		for b := a; b <= 100; b++ {
+			got, _ := OverallScore([]float64{float64(a) / 10, float64(b) / 10})
+			want := float64((a+b+1)/2) / 10
+			cases = append(cases, scoreCase{fmt.Sprintf("%d and %d tenths", a, b), got, want})
+		}
+	}
+	checkScores(t, cases)
+}
+
 // TestOverallScoreOfNoScoreIsNone: with no scored metric there is no
 // Overall Performance.
 func TestOverallScoreOfNoScoreIsNone(t *testing.T) {
