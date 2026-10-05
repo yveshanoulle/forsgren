@@ -308,6 +308,8 @@
     "github.com/yveshanoulle/forsgren/internal/github/pullfiles.go:PullRequestFiles": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/pullfiles.go:readChangedFiles": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/pullfiles.go:PublishedRelease": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/github/pullfiles.go:published": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/github/pullfiles.go:isNotFound": 100.0,
     "github.com/yveshanoulle/forsgren/internal/update/newversion.go:NewVersion": 100.0
   }
 }

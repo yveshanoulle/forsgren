@@ -63,11 +63,11 @@ func TestUpdateCallsPassAnErrorAnswerOn(t *testing.T) {
 	}
 }
 
-// TestUpdateCallsThatReadJSONNameTheRepositoryForMalformedJSON: the author
-// and the files; the release's answer is not read.
+// TestUpdateCallsThatReadJSONNameTheRepositoryForMalformedJSON: the author,
+// the files and the release.
 func TestUpdateCallsThatReadJSONNameTheRepositoryForMalformedJSON(t *testing.T) {
 	calls := updateCalls("acme/app")
-	for _, name := range []string{"pull request author", "pull request files"} {
+	for _, name := range []string{"pull request author", "pull request files", "published release"} {
 		f := newFake(t)
 		f.on(updatePaths[name], reply{body: `[{"id": "not a number"`})
 		wantError(t, calls[name](f.client(t, DefaultMaxPages)), ErrAnswer, "acme/app: ")
@@ -117,11 +117,12 @@ func TestPublishedReleaseIsTrueForATagWithARelease(t *testing.T) {
 
 // TestPublishedReleaseIsFalseForATagWithNoPublishedRelease: a 404 is a tag
 // with no release, and a draft (which GitHub answers with 200 to a token that
-// may push) is no published one; neither is an error.
+// may push) or a prerelease is no published one; none is an error.
 func TestPublishedReleaseIsFalseForATagWithNoPublishedRelease(t *testing.T) {
 	answers := map[string]reply{
-		"a 404":   {status: http.StatusNotFound, body: `{"message":"Not Found"}`},
-		"a draft": {body: `{"id": 7, "tag_name": "v1.2.0", "draft": true}`},
+		"a 404":        {status: http.StatusNotFound, body: `{"message":"Not Found"}`},
+		"a draft":      {body: `{"id": 7, "tag_name": "v1.2.0", "draft": true}`},
+		"a prerelease": {body: `{"id": 7, "tag_name": "v1.2.0", "prerelease": true}`},
 	}
 	for name, answer := range answers {
 		f := newFake(t)

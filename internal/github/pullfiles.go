@@ -3,7 +3,9 @@ package github
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 )
@@ -63,15 +65,42 @@ func readChangedFiles(files *[]ChangedFile) func([]byte) (bool, error) {
 	}
 }
 
+// releaseState is the part of GitHub's release that says whether it is
+// published: a draft and a prerelease are not.
+type releaseState struct {
+	Draft      bool `json:"draft"`
+	Prerelease bool `json:"prerelease"`
+}
+
+// published says whether the release is neither a draft nor a prerelease.
+func (r releaseState) published() bool { return !r.Draft && !r.Prerelease }
+
 // PublishedRelease says whether repo has a published release for tag: GET
-// /repos/{owner}/{repo}/releases/tags/{tag} answered with a release.
+// /repos/{owner}/{repo}/releases/tags/{tag} answered with a release that is
+// neither a draft nor a prerelease. A 404, which is also how GitHub answers a
+// draft to a token that may not push, is a tag with no published release, not
+// an error; any other error answer is one.
 func (c *Client) PublishedRelease(ctx context.Context, repo, tag string) (bool, error) {
 	t, err := c.endpoint(repo, nil, "releases", "tags", tag)
 	if err != nil {
 		return false, err
 	}
-	if _, _, err := c.get(ctx, t, jsonMedia); err != nil {
+	body, _, err := c.get(ctx, t, jsonMedia)
+	if isNotFound(err) {
+		return false, nil
+	}
+	if err != nil {
 		return false, err
 	}
-	return true, nil
+	var r releaseState
+	if err := json.Unmarshal(body, &r); err != nil {
+		return false, fmt.Errorf("%s: %w for %s: %w", repo, ErrAnswer, t.path(), err)
+	}
+	return r.published(), nil
+}
+
+// isNotFound says whether err is GitHub's 404 answer.
+func isNotFound(err error) bool {
+	e, ok := errors.AsType[*answerError](err)
+	return ok && e.code == http.StatusNotFound
 }

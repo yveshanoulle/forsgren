@@ -133,16 +133,17 @@ func readPull(ctx context.Context, client *github.Client, in pullToCheck) (strin
 	return author, files, nil
 }
 
-// lookUpTag is forsgren's release of tag: whether it is published and the
-// commit the tag points at.
+// lookUpTag is forsgren's release of tag: whether it is published and, only
+// then, the commit the tag points at; a release that is not published has no
+// tag worth asking for.
 func lookUpTag(ctx context.Context, client *github.Client, tag string) (update.Release, error) {
 	published, err := client.PublishedRelease(ctx, forsgrenRepository, tag)
-	if err != nil {
+	if err != nil || !published {
 		return update.Release{}, err
 	}
 	sha, err := client.TagCommit(ctx, forsgrenRepository, tag)
 	if err != nil {
 		return update.Release{}, err
 	}
-	return update.Release{Published: published, SHA: sha}, nil
+	return update.Release{Published: true, SHA: sha}, nil
 }
