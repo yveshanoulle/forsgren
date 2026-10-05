@@ -37,11 +37,12 @@ type fakeGitHub struct {
 	mu       sync.Mutex
 	replies  map[string]reply
 	requests []*http.Request
+	bodies   map[string]string
 }
 
 func newFake(t *testing.T) *fakeGitHub {
 	t.Helper()
-	f := &fakeGitHub{replies: map[string]reply{}}
+	f := &fakeGitHub{replies: map[string]reply{}, bodies: map[string]string{}}
 	f.srv = httptest.NewServer(http.HandlerFunc(f.serve))
 	t.Cleanup(f.srv.Close)
 	return f
@@ -57,8 +58,10 @@ func (f *fakeGitHub) on(path string, r reply) { f.replies[pageKey(path, "")] = r
 func (f *fakeGitHub) onPage(path, page string, r reply) { f.replies[pageKey(path, page)] = r }
 
 func (f *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
+	body, _ := io.ReadAll(r.Body)
 	f.mu.Lock()
 	f.requests = append(f.requests, r.Clone(r.Context()))
+	f.bodies[r.Method+" "+r.URL.Path] = string(body)
 	rep, ok := f.replies[pageKey(r.URL.Path, r.URL.Query().Get("page"))]
 	f.mu.Unlock()
 	if !ok {
@@ -71,6 +74,14 @@ func (f *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(cmp.Or(rep.status, http.StatusOK))
 	_, _ = io.WriteString(w, strings.ReplaceAll(rep.body, "{base}", f.srv.URL))
+}
+
+// bodyOf is the body of the last request with method to path, empty when
+// there was none.
+func (f *fakeGitHub) bodyOf(method, path string) string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.bodies[method+" "+path]
 }
 
 // seen is the requests so far.
