@@ -35,8 +35,9 @@ func (f fileConfig) toConfig() (Config, error) {
 	return cfg, nil
 }
 
-// settings is the Config of the file's optional top-level keys, view and
-// auto_update, or the first refusal among them (forsgren#46, #58).
+// settings is the Config of the file's optional top-level keys, view,
+// auto_update and auto_update_level (as written), or the first refusal among
+// them (forsgren#46, #58).
 func (f fileConfig) settings() (Config, error) {
 	view, err := checkView(f.View)
 	if err != nil {
@@ -46,7 +47,11 @@ func (f fileConfig) settings() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	return Config{Version: FormatVersion, View: view, AutoUpdate: auto}, nil
+	cfg := Config{Version: FormatVersion, View: view, AutoUpdate: auto}
+	if f.AutoUpdateLevel != nil {
+		cfg.AutoUpdateLevel = *f.AutoUpdateLevel
+	}
+	return cfg, nil
 }
 
 // booleans are the only spellings of a boolean key (forsgren#58).
