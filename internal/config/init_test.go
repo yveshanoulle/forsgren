@@ -20,7 +20,9 @@ func starterLines() []string {
 // nothing yet, its root page the standard view with the switch (forsgren#51),
 // and auto-merge of forsgren's Dependabot updates on at patch level
 // (forsgren#58).
-const starterConfig = "version: 1\nview: standard\nauto_update: true\nauto_update_level: patch  # possible options: major, minor, patch\nprojects: []\n"
+const starterConfig = "version: 1\nview: standard\nauto_update: true\n" +
+	"auto_update_level: patch  # possible options: major, minor, patch\n" +
+	"projects: []\n"
 
 // isStarterLine says whether a line may stand in the starter: blank, a
 // comment, or one of the lines of starterConfig.

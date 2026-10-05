@@ -75,5 +75,5 @@
 version: 1
 view: standard
 auto_update: true
-auto_update_level: patch
+auto_update_level: patch  # possible options: major, minor, patch
 projects: []
