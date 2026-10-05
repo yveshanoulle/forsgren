@@ -60,7 +60,8 @@ func TestNumbersPageShowsOnlyNumbers(t *testing.T) {
 // number; a metric without data is - and has no score; the sixth cell is
 // Overall Performance, the mean of the scored metrics to one decimal. A
 // score of 0 is observed performance in the lowest band, - is not enough
-// data: a project with no deployment in the window has no frequency score.
+// data: a project that never had a successful deployment has no frequency
+// score, one whose last success is old has the lowest band's 0.
 // Acme Shop scores 6, 9.3 and 10 (8.4), Acme Tools only its 100% change fail
 // rate, 0 (0.0).
 func TestScoringPageShowsEachMetricsScoreAndOverallPerformance(t *testing.T) {
@@ -90,9 +91,9 @@ func TestScoringPageShowsNoOverallPerformanceWithoutAScore(t *testing.T) {
 }
 
 // TestScoringPageShowsNoScoreForAProjectWithoutDeployments (forsgren#47): a
-// project whose metrics were counted over no deployment has the frequency
-// band metrics gives it, the lowest, but no data: all six cells, Overall
-// Performance included, are -.
+// project that never had a successful deployment in the recorded history has
+// the frequency band metrics gives it, the lowest, but no data: all six
+// cells, Overall Performance included, are -.
 func TestScoringPageShowsNoScoreForAProjectWithoutDeployments(t *testing.T) {
 	data := Placeholder("0.1.2")
 	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Idle",
@@ -100,6 +101,32 @@ func TestScoringPageShowsNoScoreForAProjectWithoutDeployments(t *testing.T) {
 	got := rendered(t, "scoring/index.html", data)
 	if !row("Acme Idle", "-", "-", "-", "-", "-", "-").MatchString(got) {
 		t.Errorf("want the row of Acme Idle to read - in all six cells, got:\n%s", got)
+	}
+}
+
+// TestScoringPageScoresZeroForALastSuccessOlderThanSixMonths (forsgren#47,
+// ruling d): deployment frequency has data when the recorded history holds a
+// successful deployment, however old. A last success more than 180 days ago
+// is observed performance in the lowest band: frequency scores 0 and, with
+// no other metric scored, so does Overall Performance. A project with only a
+// failed deployment, Acme Tools, has no success and keeps -.
+func TestScoringPageScoresZeroForALastSuccessOlderThanSixMonths(t *testing.T) {
+	data := Placeholder("0.1.2")
+	old := metrics.Frequency{Latest: time.Date(2025, 9, 1, 9, 30, 0, 0, time.UTC), Band: metrics.LessThanSixMonthly}
+	failed := metrics.ChangeFailRate{Deployments: 1, FailedDeployments: 1, Failed: 1, Band: metrics.HundredPercent}
+	data.Rows = Table([]metrics.Row{
+		{Level: metrics.ProjectRow, Name: "Acme Old", Frequency: old},
+		{Level: metrics.ProjectRow, Name: "Acme Tools", Frequency: metrics.Frequency{Band: metrics.LessThanSixMonthly},
+			ChangeFail: failed},
+	})
+	got := rendered(t, "scoring/index.html", data)
+	for heading, cells := range map[string][]string{
+		"Acme Old":   {"0", "-", "-", "-", "-", "0.0"},
+		"Acme Tools": {"-", "-", "-", "0", "-", "0.0"},
+	} {
+		if !row(heading, cells...).MatchString(got) {
+			t.Errorf("want the row of %s to read %v, got:\n%s", heading, cells, got)
+		}
 	}
 }
 
