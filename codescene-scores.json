@@ -649,6 +649,30 @@
    "score": 10.0,
    "checkedAt": "2026-10-05",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/github/commit.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-05",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/commit_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-05",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/update/repin.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-05",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/update/repin_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-05",
+   "minScore": 10.0
   }
  ]
 }

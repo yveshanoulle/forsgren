@@ -133,16 +133,45 @@ func (c *Client) endpoint(repo string, query url.Values, segments ...string) (ta
 // get fetches t with the token and the media type accept: the body of a 2xx
 // answer and its headers, or an error that names t's repository.
 func (c *Client) get(ctx context.Context, t target, accept string) ([]byte, http.Header, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, t.url.String(), nil)
+	return c.do(ctx, call{method: http.MethodGet, accept: accept, t: t})
+}
+
+// call is one request of do: the HTTP method, the media type to accept, the
+// target and the JSON body to send, nil for none.
+type call struct {
+	method string
+	accept string
+	t      target
+	body   io.Reader
+}
+
+// request is the HTTP request of k with the token, the media type and, for a
+// body, its content type.
+func (c *Client) request(ctx context.Context, k call) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, k.method, k.t.url.String(), k.body)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%s: %w", t.repo, err)
+		return nil, fmt.Errorf("%s: %w", k.t.repo, err)
 	}
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
-	req.Header.Set("Accept", accept)
+	if k.body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	req.Header.Set("Accept", k.accept)
 	req.Header.Set("X-GitHub-Api-Version", apiVersion)
 	req.Header.Set("User-Agent", "forsgren")
+	return req, nil
+}
+
+// do sends the call with the token: the body of a 2xx answer and its headers,
+// or an error that names the repository of the call's target.
+func (c *Client) do(ctx context.Context, k call) ([]byte, http.Header, error) {
+	t := k.t
+	req, err := c.request(ctx, k)
+	if err != nil {
+		return nil, nil, err
+	}
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%s: cannot reach GitHub: %w", t.repo, err)

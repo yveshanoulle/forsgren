@@ -94,3 +94,33 @@ func TestCommitFilesNamesTheBranchWhenTheRefUpdateIsRefused(t *testing.T) {
 		t.Errorf("want an error naming the branch main, got %v", err)
 	}
 }
+
+// TestCommitFilesStopsAtTheStepThatFails: a 500 on any request before the
+// ref's update is that request's status error, naming the repository and the
+// path, and no later request is made.
+func TestCommitFilesStopsAtTheStepThatFails(t *testing.T) {
+	paths := []string{
+		gitData + "ref/heads/main", gitData + "commits/" + baseCommit, gitData + "trees", gitData + "commits",
+	}
+	for _, path := range paths {
+		f := branchFake(t)
+		f.on(path, reply{status: 500, body: `{"message": "boom"}`})
+		got, err := f.client(t, DefaultMaxPages).CommitFiles(context.Background(), "acme/data", forsgrenUpdate)
+		wantError(t, err, ErrStatus, "acme/data: ", path)
+		if got != "" || f.bodyOf("PATCH", gitData+"refs/heads/main") != "" {
+			t.Errorf("%s: want no SHA and no ref update, got %q", path, got)
+		}
+	}
+}
+
+// TestCommitFilesRefusesAMalformedAnswerAndANonRepository: an answer that is
+// not the JSON asked for is an answer error, and a name that is not one
+// owner/name never becomes a request.
+func TestCommitFilesRefusesAMalformedAnswerAndANonRepository(t *testing.T) {
+	f := branchFake(t)
+	f.on(gitData+"ref/heads/main", reply{body: `{"object": 7}`})
+	_, err := f.client(t, DefaultMaxPages).CommitFiles(context.Background(), "acme/data", forsgrenUpdate)
+	wantError(t, err, ErrAnswer, "acme/data: ", gitData+"ref/heads/main")
+	_, err = f.client(t, DefaultMaxPages).CommitFiles(context.Background(), "acme", forsgrenUpdate)
+	wantError(t, err, ErrRepositoryName)
+}
