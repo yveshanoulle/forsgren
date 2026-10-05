@@ -104,3 +104,13 @@ the reason `moves <file> but not <file>` when it moves one of two existing
 callers and not the other. A repository with one caller, or none, behaves as
 before. The starter config names the possible values of `auto_update_level`
 in a comment.
+
+## 2026-10-05 — auto-update fails closed on a caller lookup error, released as 0.2.2 ([#59](https://github.com/yveshanoulle/forsgren/issues/59))
+
+`forsgren check-update` now exits 2 when looking up a caller file fails with
+anything other than does-not-exist, instead of treating the file as absent and
+letting the guard decide on a partial picture; the update stays unmerged until
+the lookup works. A caller file that exists but has no pin change now gets a
+readable reason in the guard's output. The level tests cover `auto_update_level`
+with v0.2.1 to v0.2.2, the review pins were seen failing before they went
+green, and the tests share their helpers instead of each building its own.
