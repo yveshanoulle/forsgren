@@ -40,6 +40,10 @@ type Decision struct {
 var pinLine = regexp.MustCompile(
 	`^([-+])\s*uses: yveshanoulle/forsgren/\.github/workflows/([^@\s]+)@([0-9a-f]{40}) # (\S+)$`)
 
+// release is a release version of forsgren: v and three numbers, no
+// pre-release or build suffix.
+var release = regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
+
 // callers are the files of an installation's data repository that pin
 // forsgren, each with the one workflow of forsgren it calls: forsgren.yml
 // calls metrics.yml and forsgren-update.yml calls auto_update.yml.
@@ -93,7 +97,7 @@ func readCallers(files []File) (move, string) {
 
 // readCaller reads the pin pair of one changed file. The reason is not empty
 // when the file is no caller, changes more than its pin pair, or pins a
-// workflow other than the one it calls.
+// workflow other than the one it calls, or has a version that is no release.
 func readCaller(f File) (move, string) {
 	want, ok := callers[f.Filename]
 	if !ok {
@@ -107,6 +111,10 @@ func readCaller(f File) (move, string) {
 	if m.from.workflow != want || m.to.workflow != want {
 		return m, fmt.Sprintf("changed besides the pin line: %s moves %q to %q, want %q",
 			f.Filename, m.from.workflow, m.to.workflow, want)
+	}
+	if v := m.unreleased(); v != "" {
+		return m, fmt.Sprintf("changed besides the pin line: %s pins %q, which is no release version",
+			f.Filename, v)
 	}
 	return m, ""
 }
@@ -123,6 +131,17 @@ type pin struct {
 type move struct {
 	from pin
 	to   pin
+}
+
+// unreleased is the first version of m, the removed pin's before the added
+// one's, that is no release version; empty when both are.
+func (m move) unreleased() string {
+	for _, v := range []string{m.from.version, m.to.version} {
+		if !release.MatchString(v) {
+			return v
+		}
+	}
+	return ""
 }
 
 // String names the versions of m, for a reason line.

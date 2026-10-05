@@ -286,6 +286,7 @@
     "github.com/yveshanoulle/forsgren/internal/update/guard.go:Decide": 100.0,
     "github.com/yveshanoulle/forsgren/internal/update/guard.go:readCallers": 100.0,
     "github.com/yveshanoulle/forsgren/internal/update/guard.go:readCaller": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/update/guard.go:unreleased": 100.0,
     "github.com/yveshanoulle/forsgren/internal/update/guard.go:String": 100.0,
     "github.com/yveshanoulle/forsgren/internal/update/guard.go:agrees": 100.0,
     "github.com/yveshanoulle/forsgren/internal/update/guard.go:readChanges": 100.0,
