@@ -23,6 +23,44 @@ jobs:
     name: Merge a safe forsgren update
     runs-on: ubuntu-latest
     steps:
-      - name: Placeholder until the steps of forsgren#58 land
+      # Exactly the Go of go.mod's toolchain line, and exactly metrics.yml's
+      # step (Scripts/test_auto_update_workflow.sh keeps the two identical).
+      # setup-go exports GOTOOLCHAIN=local, so go install builds with this Go
+      # and never switches to another. No cache: the caller's repository has
+      # no go.sum to key it on.
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version: '1.27.1'
+          cache: false
+
+      # forsgren from this workflow's OWN commit and repository, and from
+      # nothing else, as metrics.yml does (ruling on forsgren#4: the caller's
+      # one `uses: ...@<commit> # vX.Y.Z` line is the only version). The job
+      # context gives a called workflow both, job.workflow_sha and
+      # job.workflow_repository; the github context would be the CALLER's.
+      # Both are checked before go runs: 40 lower-case hex digits, and one
+      # owner/name. Inline, not a Scripts/ file: forsgren's scripts are not on
+      # the runner of the caller's repository. Both arrive through env:, never
+      # as a GitHub expression in the script.
+      - name: Install forsgren from this workflow's own commit
         shell: bash
-        run: echo "auto_update.yml has no steps yet"
+        env:
+          FORSGREN_SHA: ${{ job.workflow_sha }}
+          FORSGREN_REPOSITORY: ${{ job.workflow_repository }}
+        run: |
+          set -euo pipefail
+          full_commit='^[0-9a-f]{40}$'
+          owner_name='^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_][A-Za-z0-9_.-]*$'
+          if [[ ! "$FORSGREN_SHA" =~ $full_commit ]]; then
+            echo "::error title=forsgren commit::job.workflow_sha is not a full 40-digit commit; forsgren is installed only from the exact commit this workflow is called at"
+            exit 1
+          fi
+          if [[ ! "$FORSGREN_REPOSITORY" =~ $owner_name ]]; then
+            echo "::error title=forsgren repository::job.workflow_repository is not one owner/name; forsgren is installed only from the repository this workflow lives in"
+            exit 1
+          fi
+          echo "forsgren ${FORSGREN_REPOSITORY}@${FORSGREN_SHA}"
+          export GOBIN="${RUNNER_TEMP}/forsgren-bin"
+          go install "github.com/${FORSGREN_REPOSITORY}/cmd/forsgren@${FORSGREN_SHA}"
+          echo "${GOBIN}" >> "$GITHUB_PATH"

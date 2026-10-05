@@ -29,3 +29,10 @@ paths:
   .github/workflows/metrics.yml:
     ignore:
       - 'property "workflow_(sha|repository)" is not defined in object type'
+  # The same waiver, approved by Yves on forsgren#58 (auto_update.yml installs
+  # forsgren from its own commit and repository exactly as metrics.yml does).
+  # Remove both blocks together once an actionlint release knows the two
+  # properties.
+  .github/workflows/auto_update.yml:
+    ignore:
+      - 'property "workflow_(sha|repository)" is not defined in object type'

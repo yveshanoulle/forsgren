@@ -130,8 +130,10 @@ fi
 #     through env: only, never as text pasted into the script (template
 #     injection, zizmor).
 if [[ -f "$WF" ]]; then
-  want_go="$(step_text "$METRICS" "$GO_STEP")"
-  have_go="$(step_text "$WF" "$GO_STEP")"
+  # Comment and blank lines are left out of the comparison: the lines after
+  # a step, up to the next one, are the next step's own header comment.
+  want_go="$(step_text "$METRICS" "$GO_STEP" | grep -vE '^[[:space:]]*(#|$)' || true)"
+  have_go="$(step_text "$WF" "$GO_STEP" | grep -vE '^[[:space:]]*(#|$)' || true)"
   install="$(step_text "$WF" "$INSTALL_STEP")"
   if [[ -z "$have_go" ]]; then
     fail "pin 3: ${WF} has no step '${GO_STEP}'"
