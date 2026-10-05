@@ -41,12 +41,22 @@
 # switch. Each view is also its own page, at /standard/, /numbers/ and
 # /scoring/, with a switch between them.
 #
-# Example, with made-up names. To use it, remove the three lines version: 1,
-# view: standard and projects: [] below, then remove the "# " in front of the
-# example:
+# The auto_update: lines below switch on the merging of forsgren's own
+# updates. It is on at patch level: once the caller workflow of
+# forsgren-template is in this repository, Dependabot's pull request for a new
+# patch release of forsgren (2.7.3 to 2.7.4) merges itself. A minor or major
+# update waits for you until you raise auto_update_level: to minor or to major.
+# auto_update: false switches it off, and auto_update_level: is required
+# whenever auto_update: is true.
+#
+# Example, with made-up names. To use it, remove the five lines version: 1,
+# view: standard, auto_update: true, auto_update_level: patch and projects: []
+# below, then remove the "# " in front of the example:
 #
 # version: 1
 # view: standard
+# auto_update: true
+# auto_update_level: patch
 # projects:
 #   - name: Acme Shop
 #     repositories:
@@ -64,4 +74,6 @@
 #
 version: 1
 view: standard
+auto_update: true
+auto_update_level: patch
 projects: []
