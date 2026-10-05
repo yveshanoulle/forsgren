@@ -524,8 +524,9 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   key it is the standard page with no switch. `/scoring/`
   (`scoring/index.html`, forsgren#47) shows each metric's DORA Quick Check
   score alone, 0 to 10 (`9.3`, `10`, `0`), `-` where the metric has no data
-  (deployment frequency: no successful deployment in the last 180 days, where
-  the numbers view shows its 30-day count, `0`), and a sixth column, Overall
+  (deployment frequency: never a successful deployment in the recorded
+  history, where the numbers view shows `0`; a last success older than six
+  months scores `0`, the lowest band), and a sixth column, Overall
   Performance: the mean of the scored metrics to one decimal, `-` when none
   is scored. A `0` score is performance in the lowest band, never missing
   data. The switch names it, as it names the other two.

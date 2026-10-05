@@ -25,13 +25,14 @@ type score struct {
 // scored only when its metric has data. A score of 0 is observed
 // performance in the lowest band, never a lack of data. Lead time, recovery
 // time, change fail rate and rework rate have data exactly where their
-// NumberCell is not "-". Deployment frequency has data when a successful
-// deployment was counted in the last 180 days (Last180 holds the 30 days'
-// too): a project with none has the lowest band but no score, while the
-// numbers view shows its 30-day count, 0.
+// NumberCell is not "-". Deployment frequency has data when the recorded
+// history holds a successful deployment, however old: a last success older
+// than six months is observed performance in the lowest band and scores 0,
+// while a project that never had one has the lowest band but no score, and
+// the numbers view shows its 30-day count, 0.
 func (r Row) scores() []score {
 	return []score{
-		{metrics.BandScore(r.Frequency.Band), r.Frequency.Last180 > 0},
+		{metrics.BandScore(r.Frequency.Band), r.Frequency.HasDeployments()},
 		{metrics.BandScore(r.LeadTime.Band), r.LeadTime.HasCommits()},
 		{metrics.BandScore(r.Recovery.Band), r.Recovery.Recoveries > 0},
 		{metrics.PercentScore(r.ChangeFail.Percent()), r.ChangeFail.Deployments > 0},
