@@ -313,6 +313,8 @@
     "github.com/yveshanoulle/forsgren/internal/github/pullfiles.go:PublishedRelease": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/pullfiles.go:published": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/pullfiles.go:isNotFound": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/github/releases.go:PublishedReleases": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/github/releases.go:withCommits": 100.0,
     "github.com/yveshanoulle/forsgren/internal/update/newest.go:NewestWithin": 100.0,
     "github.com/yveshanoulle/forsgren/internal/update/newest.go:within": 100.0,
     "github.com/yveshanoulle/forsgren/internal/update/newest.go:newerThan": 100.0,

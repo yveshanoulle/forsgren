@@ -4,13 +4,10 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"slices"
 	"testing"
-
-	"github.com/yveshanoulle/forsgren/internal/update"
 )
 
-// updateCalls are the three calls the update guard reads a pull request and
+// updateCalls are the four calls the update guard reads a pull request and
 // a release with, on repo, by name.
 func updateCalls(repo string) map[string]func(*Client) error {
 	ctx := context.Background()
@@ -27,6 +24,10 @@ func updateCalls(repo string) map[string]func(*Client) error {
 			_, err := c.PublishedRelease(ctx, repo, "v1.2.0")
 			return err
 		},
+		"published releases": func(c *Client) error {
+			_, err := c.PublishedReleases(ctx, repo)
+			return err
+		},
 	}
 }
 
@@ -35,6 +36,7 @@ var updatePaths = map[string]string{
 	"pull request author": "/repos/acme/app/pulls/7",
 	"pull request files":  "/repos/acme/app/pulls/7/files",
 	"published release":   "/repos/acme/app/releases/tags/v1.2.0",
+	"published releases":  releasesPath,
 }
 
 // TestUpdateCallsRefuseARepositoryThatIsNoName: a name that is not one
@@ -70,7 +72,7 @@ func TestUpdateCallsPassAnErrorAnswerOn(t *testing.T) {
 // the files and the release.
 func TestUpdateCallsThatReadJSONNameTheRepositoryForMalformedJSON(t *testing.T) {
 	calls := updateCalls("acme/app")
-	for _, name := range []string{"pull request author", "pull request files", "published release"} {
+	for _, name := range []string{"pull request author", "pull request files", "published release", "published releases"} {
 		f := newFake(t)
 		f.on(updatePaths[name], reply{body: `[{"id": "not a number"`})
 		wantError(t, calls[name](f.client(t, DefaultMaxPages)), ErrAnswer, "acme/app: ")
@@ -144,31 +146,5 @@ func TestIsRepositoryNameIsTheNameEveryCallRequires(t *testing.T) {
 		if got := IsRepositoryName(repo); got != want {
 			t.Errorf("IsRepositoryName(%q) = %v, want %v", repo, got, want)
 		}
-	}
-}
-
-// TestPublishedReleasesListsTagsWithTheirCommits: GET /repos/{o}/{r}/releases
-// answers the releases; each published one comes with the commit its tag
-// points at, a draft with its flag and no commit (the fake has no commit for
-// its tag, so asking for it would be a missing tag).
-func TestPublishedReleasesListsTagsWithTheirCommits(t *testing.T) {
-	f := newFake(t)
-	f.on(releasesPath, reply{body: `[` +
-		`{"id": 3, "tag_name": "v0.3.0", "draft": true, "prerelease": false},` +
-		`{"id": 2, "tag_name": "v0.2.2", "draft": false, "prerelease": false},` +
-		`{"id": 1, "tag_name": "v0.2.1", "draft": false, "prerelease": false}]`})
-	f.on("/repos/acme/app/commits/tags/v0.2.2", reply{body: shaD})
-	f.on("/repos/acme/app/commits/tags/v0.2.1", reply{body: shaBase})
-	got, err := f.client(t, DefaultMaxPages).PublishedReleases(context.Background(), "acme/app")
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := []update.Published{
-		{Tag: "v0.3.0", Draft: true},
-		{Tag: "v0.2.2", SHA: shaD},
-		{Tag: "v0.2.1", SHA: shaBase},
-	}
-	if !slices.Equal(got, want) {
-		t.Errorf("want %+v, got %+v", want, got)
 	}
 }
