@@ -59,13 +59,20 @@ const manyPins = "more than one pin line changed"
 // noPin is the reason of a pull request that changes no file.
 const noPin = "no pin line changed"
 
-// Decide says whether p may be merged: only when every changed file is a
-// caller, changed by one removed and one added pin line of its workflow and
-// nothing else, and all pins move from the same version to the same version
-// and sha, as Dependabot moves them in one pull request. Otherwise the reason
-// names what else changed. It reports the old and new version and the new
-// sha it saw.
+// dependabot is the login of the only author whose pull request may be
+// merged, spelled exactly so.
+const dependabot = "dependabot[bot]"
+
+// Decide says whether p may be merged: only when its author is dependabot[bot]
+// and every changed file is a caller, changed by one removed and one added pin
+// line of its workflow and nothing else, and all pins move from the same
+// version to the same version and sha, as Dependabot moves them in one pull
+// request. Otherwise the reason names the author or what else changed. It
+// reports the old and new version and the new sha it saw.
 func Decide(p Pull) Decision {
+	if p.Author != dependabot {
+		return Decision{Reason: fmt.Sprintf("the author is %q, not %s", p.Author, dependabot)}
+	}
 	if len(p.Files) == 0 {
 		return Decision{Reason: noPin}
 	}
