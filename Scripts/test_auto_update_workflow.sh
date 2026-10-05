@@ -17,6 +17,8 @@
 #        repository from the job context through env: only;
 #   17d  the install step, executed with a stub go: a good commit and
 #        repository install, a bad one is refused before go runs;
+#   17e  the caller's checkout, pinned, no credentials, of the base commit,
+#        after the install step;
 #   (the later cycles are listed in forsgren#58 and add their pins here.)
 #
 # Read with awk, not a YAML parser, as Scripts/test_metrics_workflow.sh is,
@@ -248,6 +250,49 @@ if [[ -f "$WF" ]]; then
     done
     if [[ "$problems" -eq 0 ]]; then
       echo "  ok: the install step installs a good commit and refuses a bad commit or repository before go runs"
+    fi
+  fi
+fi
+
+# Pin 5: the step "Check out the caller's repository", after the install
+# step (setup-go, install, checkout). STANDING FACTS:
+#   - actions/checkout is pinned by the very commit metrics.yml uses (one
+#     version of the action in the repository), with persist-credentials:
+#     false, so the caller's token is not left in the checkout's git config;
+#   - it checks out the pull request's BASE commit,
+#     `ref: ${{ github.event.pull_request.base.sha }}`, never the default
+#     (the merge commit of a pull_request event, which carries the pull
+#     request's own changes) and never its head. forsgren.config.yml is what
+#     decides whether the update may be merged (auto_update: true), so it
+#     must be the config the maintainer committed: a pull request can then
+#     never switch auto_update on for itself. An expression in `with:` is
+#     not a template injection, only one in a run: block is (pin 3).
+if [[ -f "$WF" ]]; then
+  CHECKOUT_STEP="Check out the caller's repository"
+  want_uses="$(step_text "$METRICS" "$CHECKOUT_STEP" | grep -E '^        uses: ' || true)"
+  have="$(step_text "$WF" "$CHECKOUT_STEP")"
+  if [[ -z "$have" ]]; then
+    fail "pin 5: ${WF} has no step '${CHECKOUT_STEP}'"
+  else
+    if grep -qxF -- "$want_uses" <<< "$have"; then
+      echo "  ok: the checkout is pinned as ${METRICS}'s is"
+    else
+      fail "pin 5: the checkout is not '${want_uses#        }' (the commit ${METRICS} pins)"
+    fi
+    if grep -qE '^          persist-credentials: false[[:space:]]*$' <<< "$have"; then
+      echo "  ok: the checkout persists no credentials"
+    else
+      fail "pin 5: the checkout does not set persist-credentials: false"
+    fi
+    if grep -qxF -- "          ref: ${EXPR_OPEN} github.event.pull_request.base.sha }}" <<< "$have"; then
+      echo "  ok: the checkout is of the pull request's base commit"
+    else
+      fail "pin 5: the checkout is not of the base commit, ref: ${EXPR_OPEN} github.event.pull_request.base.sha }}; a pull request could change the config that rules its own merge"
+    fi
+    if later "$(line_of "$WF" "- name: ${CHECKOUT_STEP}")" "$(line_of "$WF" "- name: ${INSTALL_STEP}")"; then
+      echo "  ok: the checkout comes after the install step"
+    else
+      fail "pin 5: the step '${CHECKOUT_STEP}' is not after '${INSTALL_STEP}'"
     fi
   fi
 fi
