@@ -72,3 +72,23 @@ scoring page shows scores only (numbers and scores side by side is #55);
 `-` means not enough evidence, 0 means observed performance in the lowest
 band, and "ever deployed" is the evidence for deployment frequency. A
 longer first collect run is #57.
+
+---
+
+## 2026-10-05 — auto-update for Dependabot's forsgren bumps, released as 0.2.0 ([#58](https://github.com/yveshanoulle/forsgren/issues/58))
+
+`f4c761a` … the 0.2.0 version step, each step a red and its green through
+`FBP.sh`. Two config keys, `auto_update` (off when absent) and
+`auto_update_level`, say whether and how far an installation lets a
+Dependabot pull request that bumps forsgren's pin merge itself. The command
+`forsgren check-update --config <path> --repo <owner/name> --pull <n>` decides:
+exit 0 merges (printing `merge <old> to <new>`), exit 1 leaves the pull
+request for a human with one reason line, exit 2 is a usage, configuration or
+network error. The reusable `auto_update.yml` (workflow_call only, no
+permissions of its own: the caller grants contents, pull-requests and actions
+write) installs forsgren from its own commit, checks out the caller at the
+pull request's base commit, runs the guard, merges (squash, branch deleted)
+and then starts the installation's `forsgren.yml` on the default branch; a
+failed merge fails the run and starts nothing. The docs, the refactor and the
+review continue in [#60](https://github.com/yveshanoulle/forsgren/issues/60)
+and [#59](https://github.com/yveshanoulle/forsgren/issues/59).
