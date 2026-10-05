@@ -14,8 +14,9 @@ func BandScore[B ~int](b B) float64 { return float64(6-b) * 2 }
 // (dora.dev/quickcheck), change fail rate or deployment rework rate: the
 // Quick Check's scale is the percent itself, so the score is 10 minus a
 // tenth of the whole percent Percent gives, rounded down: 0% scores 10, 14%
-// scores 8.6, 47% scores 5.3 and 100% scores 0.
-func PercentScore(percent int) float64 { return 10 - float64(percent)/10 }
+// scores 8.6, 47% scores 5.3 and 100% scores 0, each exactly its one-decimal
+// score, since one division rounds once.
+func PercentScore(percent int) float64 { return float64(100-percent) / 10 }
 
 // OverallScore is the DORA Quick Check's Overall Performance
 // (dora.dev/quickcheck): the mean of the scores it is given, each metric
