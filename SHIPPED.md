@@ -114,3 +114,17 @@ the lookup works. A caller file that exists but has no pin change now gets a
 readable reason in the guard's output. The level tests cover `auto_update_level`
 with v0.2.1 to v0.2.2, the review pins were seen failing before they went
 green, and the tests share their helpers instead of each building its own.
+
+## 2026-10-05 — the newest release within the level installs by itself, released as 0.2.3 ([#62](https://github.com/yveshanoulle/forsgren/issues/62))
+
+Dependabot proposes only the newest release, so a pull request beyond
+`auto_update_level` used to leave a safe release within the level uninstalled.
+`forsgren check-update` now exits 3 with `install <old> to <new> at <sha>` when
+only the level leaves a pull request and forsgren has a published release
+within it; `auto_update.yml` then runs the new `forsgren install-update`, which
+moves both pins on the default branch in one commit through the API, based on
+the branch head it read the files at and without force, and starts
+`forsgren.yml`. The bigger pull request stays open for a human. The release
+list (`PublishedReleases`), the newest-within-level pick, the pin rewrite and
+the commit through the git data API are each tested, and the workflow's new
+steps are pinned by `Scripts/test_auto_update_workflow.sh`.

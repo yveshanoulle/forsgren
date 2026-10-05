@@ -462,13 +462,13 @@ linked to its GitHub repository, its version, "The five DORA metrics, from
 GitHub data." "Calculated at
 2026-10-03 12:00 UTC", the moment of the run (UTC, to the minute), on every
 run, with rows or without; and, when a newer forsgren release exists than the
-version that built the page, the version line adds it, "Forsgren 0.2.2 ·
-0.2.3 is available" (forsgren#40; nothing is added when the page is up to
+version that built the page, the version line adds it, "Forsgren 0.2.3 ·
+0.2.4 is available" (forsgren#40; nothing is added when the page is up to
 date, and no repository appears). The numbers are compared as numbers, so 0.0.10
 is newer than 0.0.9.
 
 `render` writes one table (forsgren#38) first on the table page, with no text
-above it but a visually hidden heading for screen readers, "Forsgren 0.2.2:
+above it but a visually hidden heading for screen readers, "Forsgren 0.2.3:
 the five DORA metrics"; where each metric comes from is explained on the
 legend page, counting back from the time in the footer. A config that lists
 no projects has no table: the page shows, in its place, a short how-to, that
@@ -885,7 +885,7 @@ private repositories (no scope for public ones).
 
 ## Running forsgren
 
-forsgren renders a static page whose footer says "Forsgren 0.2.2", the version of
+forsgren renders a static page whose footer says "Forsgren 0.2.3", the version of
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
@@ -939,7 +939,7 @@ pull-request check failed"); the link is fine there, because a run page is
 private to the repository, unlike the public page. A flag it cannot use is a
 usage error that prints nothing. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides
-"Forsgren 0.2.2" in its footer, a how-to for filling `forsgren.config.yml`;
+"Forsgren 0.2.3" in its footer, a how-to for filling `forsgren.config.yml`;
 without `--config` (the build above has no installation config) or with
 projects, the page is the placeholder. With `--data` as well (it needs `--config`), the
 page shows each project's deployment frequency from that history, counted
@@ -1072,9 +1072,9 @@ jobs:
 - **`pull-requests: read` is optional, and the caller's to grant too**
   (forsgren#40). With it, when a newer forsgren release exists and
   Dependabot has an open pull request in your repository that bumps the
-  `uses:` pin to exactly that release, the page footer says "Forsgren 0.2.2
-  · 0.2.3 is waiting in pull request #7 (merge it to update)", with the
-  number only. Without it the footer still says "0.2.3 is available": the
+  `uses:` pin to exactly that release, the page footer says "Forsgren 0.2.3
+  · 0.2.4 is waiting in pull request #7 (merge it to update)", with the
+  number only. Without it the footer still says "0.2.4 is available": the
   lookup treats the refusal (a 403) as unknown, never as an error, and the
   run goes on. The workflow itself declares no permissions block, so it
   takes what your caller grants; it does not ask for this one, because a
@@ -1120,6 +1120,9 @@ Configuration). The chain, for each forsgren release:
 4. When it says merge, the workflow squash-merges the pull request, deletes
    its branch and starts `forsgren.yml` on the default branch, so the new
    release publishes the page now and not at the next daily run.
+5. When it says install (exit 3, below), the workflow installs the newest
+   release within the level itself and starts `forsgren.yml`; the pull request
+   stays open ([#62](https://github.com/yveshanoulle/forsgren/issues/62)).
 
 **The two keys** of `forsgren.config.yml` (see Configuration):
 
@@ -1133,7 +1136,8 @@ Configuration). The chain, for each forsgren release:
   names the three values), and any other value is refused too. At `patch`,
   v0.2.0 to v0.2.1 merges and v0.3.0 does not; at `minor`, v0.3.0 merges (and
   every patch) and v1.0.0 does not; at `major`, v1.0.0 merges as well. A
-  level only limits what merges: a pull request beyond it is left for you.
+  level only limits what merges: a pull request beyond it is left for you,
+  and a release within the level is installed meanwhile (see below).
 
 **What the guard checks.** The pull request merges only when every one of
 these holds, and otherwise it is left for a human with one reason line:
@@ -1163,28 +1167,76 @@ forsgren check-update --config forsgren.config.yml --repo <owner/name> --pull <n
 up next to it, which in the workflow is the checkout of the base commit),
 `--repo` the data repository and `--pull` Dependabot's pull request in it
 (1 or more). It reads the pull request, its files and forsgren's release
-with `GITHUB_TOKEN`, which needs `pull-requests: read`, and prints one line:
+with `GITHUB_TOKEN`, which needs `pull-requests: read`, and prints one line,
+or two for exit 3:
 
 - exit 0: `merge <old> to <new>`, for example `merge v0.2.0 to v0.2.1`;
 - exit 1: `left for a human: <reason>`, for example `left for a human:
   v0.2.1 to v0.3.0 is a minor update; auto_update_level is patch`. With
   `auto_update` off it prints `left for a human: auto_update is off` and asks
   GitHub for nothing;
+- exit 3: `install <old> to <new> at <sha>`, then the exit 1 line, for
+  example `install v0.2.1 to v0.2.2 at 0123456789abcdef0123456789abcdef01234567`
+  and `left for a human: v0.2.1 to v0.3.0 is a minor update;
+  auto_update_level is patch`. It is given only when every check passed but
+  the level (the pull request goes further than `auto_update_level` allows)
+  and forsgren has a release that is newer than the installed version, within
+  the level, published (not a draft, not a prerelease) and a release version;
+  `<new>` is the newest such release and `<sha>` the commit its tag points at.
+  With no such release it is exit 1, as before; any other reason to leave the
+  pull request never looks at the releases;
 - exit 2: a usage, config or network error, with the message on stderr and
   nothing on stdout (a flag missing or invalid, a config that is invalid, an
   answer of GitHub that is an error, or a pull request with more files than
   forsgren reads).
 
+**A release within the level (`install-update`).** Dependabot proposes only
+the newest release, so with `auto_update_level: patch` and v0.2.1 installed,
+v0.3.0 is left for you while the patch release v0.2.2 would have been safe.
+On exit 3 the workflow installs v0.2.2 itself, with `forsgren install-update`:
+
+```
+forsgren install-update --repo <owner/name> --branch <branch> --version <vX.Y.Z> --sha <40-hex>
+```
+
+`--repo` is the data repository, `--branch` its default branch, `--version`
+the release to install and `--sha` the commit its tag points at (both taken
+from check-update's first line, which the workflow checks against a release
+version and 40 lower-case hex digits first). It reads each caller file as it
+is at the head of the branch, through the API, because the branch moves daily
+with data commits and the pull request's base commit may be stale; moves the
+pin of each caller file that exists there to the release; and writes all of
+them in one commit, `forsgren: install <version> within auto_update_level
+(forsgren#62)`, that follows the head it read the files at. The branch is
+moved without force, so a branch that moved meanwhile, or is protected
+against the job's token, fails the command with the branch unchanged. It
+reads `GITHUB_TOKEN`, which needs `contents: write`, and prints `installed
+<version> on <branch> as <commit>`:
+
+- exit 0: installed;
+- exit 2: a usage error (a flag missing or invalid, named on stderr), an
+  answer of GitHub that is an error, a caller file without exactly one pin
+  line of its workflow, or no caller file at the head of the branch. A caller
+  file that is not there is skipped.
+
+Then the workflow starts `forsgren.yml`, as it does after a merge (a commit
+made with the job's token triggers no other workflow), and the bigger pull
+request stays open: Dependabot refreshes it, and merging it is yours. The
+job summary holds both lines of check-update's output. A failing
+`install-update` fails the run and starts nothing.
+
 **What you see.** When the pull request is left for you, the workflow puts
 the reason in the run's job summary, the run stays green and nothing is
 merged: review the pull request and merge it yourself if it is fine. When
 check-update fails (exit 2) or the merge fails, the run fails, and a failed
-merge starts nothing.
+merge starts nothing. When a release within the level is installed instead,
+the summary says so and why the pull request stays open, and the run is green.
 
 **The caller grants three permissions**, all `write`, because a called
 workflow can only keep or narrow what its caller's job grants:
-`contents: write` to merge, `pull-requests: write` to merge the pull request
-and `actions: write` to start `forsgren.yml`. The last is needed because a
+`contents: write` to merge or to write the install commit,
+`pull-requests: write` to merge the pull request and `actions: write` to start
+`forsgren.yml`. The last is needed because a
 merge made with the job's token triggers no other workflow, so without the
 explicit start the merged update would wait for the next daily run. The
 workflow declares no permissions block of its own.
