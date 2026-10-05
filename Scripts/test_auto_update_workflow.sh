@@ -11,6 +11,7 @@
 # Grown one behaviour per cycle, each its own red then green:
 #   17a  the file exists and triggers on workflow_call and on nothing else
 #        (forsgren's own repository never runs it, no pull request can);
+#   17b  no permissions block at workflow or job level (the caller grants);
 #   (the later cycles are listed in forsgren#58 and add their pins here.)
 #
 # Read with awk, not a YAML parser, as Scripts/test_metrics_workflow.sh is,
@@ -47,6 +48,22 @@ else
     echo "  ok: ${WF} triggers on workflow_call only"
   else
     fail "pin 1: ${WF} triggers on '${events:-nothing}', not on workflow_call only"
+  fi
+fi
+
+# Pin 2: no `permissions:` key, at workflow level (column 0) or on a job
+# (four spaces in). A STANDING FACT, as metrics.yml's header explains: a
+# called workflow can only keep or narrow the permissions its caller's job
+# grants, never widen them, so any block here would cut what the caller
+# grants (contents: write, pull-requests: write, actions: write) to what the
+# block names, and the merge or the dispatch would fail with a 403. Without
+# a block the job takes exactly what the caller grants.
+if [[ -f "$WF" ]]; then
+  found="$(grep -nE '^( {0,4})permissions:' "$WF" | paste -sd' ' - || true)"
+  if [[ -z "$found" ]]; then
+    echo "  ok: ${WF} has no permissions block"
+  else
+    fail "pin 2: ${WF} has a permissions block (line ${found}); the caller grants them, and a block here would cut them"
   fi
 fi
 
