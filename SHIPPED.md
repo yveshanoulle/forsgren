@@ -92,3 +92,15 @@ and then starts the installation's `forsgren.yml` on the default branch; a
 failed merge fails the run and starts nothing. The docs, the refactor and the
 review continue in [#60](https://github.com/yveshanoulle/forsgren/issues/60)
 and [#59](https://github.com/yveshanoulle/forsgren/issues/59).
+
+## 2026-10-05 — Dependabot's forsgren pull request comes as one, released as 0.2.1 ([#61](https://github.com/yveshanoulle/forsgren/issues/61))
+
+An installation has two caller workflows that pin forsgren, `forsgren.yml`
+and `forsgren-update.yml`. The guard now takes the caller files that exist in
+the repository at the pull request's base commit (`Pull.Present`, filled by
+`forsgren check-update` from the directory of `--config` and the guard's own
+list of callers, `update.Callers`), and leaves a pull request for a human with
+the reason `moves <file> but not <file>` when it moves one of two existing
+callers and not the other. A repository with one caller, or none, behaves as
+before. The starter config names the possible values of `auto_update_level`
+in a comment.
