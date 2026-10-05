@@ -89,7 +89,8 @@ jobs:
       # the output merge=false tells the steps after this one not to run, and
       # the step succeeds. GitHub runs shell: bash with -e whatever the script
       # sets, so the status is captured with || and never left to kill the
-      # step. Any other status is kept as it is.
+      # step. Any other status fails the job as it is, after an ::error that
+      # names check-update and the status.
       - name: Ask whether the pull request may be merged
         id: guard
         shell: bash
@@ -104,5 +105,8 @@ jobs:
             printf '%s\n' "$out" >> "$GITHUB_STEP_SUMMARY"
             echo "merge=false" >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+          if [[ "$status" -ne 0 ]]; then
+            echo "::error title=forsgren check-update::check-update failed with exit ${status}; see the log above"
           fi
           exit "$status"
