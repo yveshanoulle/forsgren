@@ -53,6 +53,7 @@ var commands = map[string]func(args []string, stdout, stderr io.Writer) int{
 	"waiting-pull-request": waitingPullRequest,
 	"run-summary":          runSummary,
 	"check-update":         checkUpdate,
+	"install-update":       installUpdate,
 }
 
 // run executes one command and returns the process exit status: 0 on

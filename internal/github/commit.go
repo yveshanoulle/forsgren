@@ -11,10 +11,12 @@ import (
 	"strings"
 )
 
-// BranchCommit is what CommitFiles writes: the branch to move, the message
-// and the new content of each file, by repository path.
+// BranchCommit is what CommitFiles writes: the branch to move, the commit the
+// files were read at and so the one the new commit follows (Base), the
+// message and the new content of each file, by repository path.
 type BranchCommit struct {
 	Branch  string
+	Base    string
 	Message string
 	Files   map[string]string
 }

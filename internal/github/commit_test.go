@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -123,4 +124,47 @@ func TestCommitFilesRefusesAMalformedAnswerAndANonRepository(t *testing.T) {
 	wantError(t, err, ErrAnswer, "acme/data: ", gitData+"ref/heads/main")
 	_, err = f.client(t, DefaultMaxPages).CommitFiles(context.Background(), "acme", forsgrenUpdate)
 	wantError(t, err, ErrRepositoryName)
+}
+
+// TestCommitFilesFollowsTheBaseItIsGivenNotTheBranchsHead: with Base set, the
+// branch's ref is not read, the commit's tree is the one of Base's commit and
+// its parent is Base, so files read at Base are never written over a commit
+// that landed since; the ref update, which is no fast-forward then, is the
+// server's to refuse. Here the branch has moved on to another commit.
+func TestCommitFilesFollowsTheBaseItIsGivenNotTheBranchsHead(t *testing.T) {
+	const moved = "9999999999999999999999999999999999999999"
+	f := branchFake(t)
+	f.on(gitData+"ref/heads/main", reply{body: `{"object": {"sha": "` + moved + `"}}`})
+	f.on(gitData+"refs/heads/main", reply{body: `{"object": {"sha": "` + newCommit + `"}}`})
+	based := forsgrenUpdate
+	based.Base = baseCommit
+	got, err := f.client(t, DefaultMaxPages).CommitFiles(context.Background(), "acme/data", based)
+	if err != nil || got != newCommit {
+		t.Fatalf("want %s, got %q, %v", newCommit, got, err)
+	}
+	if asked := pathsAsked(f); slices.Contains(asked, gitData+"ref/heads/main") {
+		t.Errorf("want the branch's ref not read, got %v", asked)
+	}
+	if tree := bodyOfRequest(t, f, "POST", gitData+"trees"); tree["base_tree"] != baseTree {
+		t.Errorf("want the tree over %s, got %v", baseTree, tree)
+	}
+	wantOnlyParent(t, bodyOfRequest(t, f, "POST", gitData+"commits"), baseCommit)
+}
+
+// wantOnlyParent fails unless commit, a request body, has exactly the one
+// parent.
+func wantOnlyParent(t *testing.T, commit map[string]any, parent string) {
+	t.Helper()
+	if parents, _ := commit["parents"].([]any); !reflect.DeepEqual(parents, []any{parent}) {
+		t.Errorf("want the one parent %s, got %v", parent, commit["parents"])
+	}
+}
+
+// pathsAsked are the paths of the requests the fake has seen.
+func pathsAsked(f *fakeGitHub) []string {
+	var paths []string
+	for _, r := range f.seen() {
+		paths = append(paths, r.URL.Path)
+	}
+	return paths
 }
