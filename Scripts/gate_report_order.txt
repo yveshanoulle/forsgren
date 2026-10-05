@@ -439,6 +439,14 @@ DCO sign-off self-test|Scripts/test_check_dco.sh|pre|
 # in pre.
 metrics workflow|Scripts/test_metrics_workflow.sh|pre|
 #
+# The auto-update workflow (forsgren#58, ladder steps 17 to 19). Not canon:
+# forsgren's own, beside the metrics workflow.
+# .github/workflows/auto_update.yml is the reusable workflow an installation's
+# caller runs on a Dependabot pull request: check-update, the merge, then
+# forsgren.yml. Nothing in forsgren runs it, so this pin proves it, grown one
+# pin per cycle. Repository source, so it runs in pre.
+auto-update workflow|Scripts/test_auto_update_workflow.sh|pre|
+#
 # No stray tracked files (forsgren#1, ladder step 12). Not canon:
 # Another estate repository's issue #10 gate, byte-identical, at konenki's position
 # between the quality-trigger-scope row and the report-script fixtures. Red
