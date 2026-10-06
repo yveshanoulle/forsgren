@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,12 +20,23 @@ func ago(days int) time.Time { return now.Add(-time.Duration(days) * 24 * time.H
 // with the ID 1000 plus its age and a successful status.
 var chunkDeployments = []int{5, 150, 250, 320, 400}
 
-// chunkGitHub is a fake GitHub that lists chunkDeployments.
-func chunkGitHub(t *testing.T) *gitHub {
+// cutDeployments are the deployments of the case whose read is cut off at
+// the page limit: the list ends at 250 days, as the one page it reads does.
+var cutDeployments = []int{5, 150, 250}
+
+// chunkGitHub is a fake GitHub that lists the deployments of tc: the five of
+// chunkDeployments, or, for a read cut off, cutDeployments on a list GitHub
+// says goes on.
+func chunkGitHub(t *testing.T, tc chunkCase) *gitHub {
 	t.Helper()
 	g := newGitHub(t)
+	ages := chunkDeployments
+	if tc.cut {
+		ages = cutDeployments
+		g.paged[deploymentsPath] = true
+	}
 	var listed []string
-	for _, age := range chunkDeployments {
+	for _, age := range ages {
 		id := int64(1000 + age)
 		created := ago(age).Format(time.RFC3339)
 		listed = append(listed, deployment(id, shaA, "deploy", created))
@@ -42,14 +54,16 @@ type chunkCase struct {
 	reachAge  int   // 0: no reach.csv
 	wantAges  []int // ages of the stored deployments after the run
 	wantReach int   // age of the reach after the run
+	cut       bool  // the read of the older chunk stops at the page limit (one page)
 }
 
 var chunkCases = []chunkCase{
-	{"first run reads one chunk", nil, 0, []int{5}, 100},
-	{"a later run adds the next older chunk", []int{5}, 100, []int{5, 150}, 200},
-	{"a fully read history reads no older chunk", []int{5}, 365, []int{5}, 365},
-	{"the last chunk stops at history_days", []int{5}, 300, []int{5, 320}, 365},
-	{"history without reach.csv starts at its oldest deployment", []int{5, 150}, 0, []int{5, 150, 250}, 250},
+	{"first run reads one chunk", nil, 0, []int{5}, 100, false},
+	{"a later run adds the next older chunk", []int{5}, 100, []int{5, 150}, 200, false},
+	{"a fully read history reads no older chunk", []int{5}, 365, []int{5}, 365, false},
+	{"the last chunk stops at history_days", []int{5}, 300, []int{5, 320}, 365, false},
+	{"history without reach.csv starts at its oldest deployment", []int{5, 150}, 0, []int{5, 150, 250}, 250, false},
+	{"a read cut off at the page limit moves reach to the oldest date read", []int{5}, 200, []int{5, 250}, 250, true},
 }
 
 // storeAges writes the deployments of the given ages to the history at path.
@@ -89,18 +103,34 @@ func TestEachRunReadsOneChunkOfHistory(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			path := historyPath(t)
 			reachFile := filepath.Join(filepath.Dir(path), "reach.csv")
-			storeAges(t, path, tc.stored)
-			if tc.reachAge != 0 {
-				if err := history.SaveReach(reachFile, history.Reach{"acme/app": ago(tc.reachAge)}); err != nil {
-					t.Fatal(err)
-				}
-			}
+			seedChunk(t, path, reachFile, tc)
 			cfg := shop(production)
 			cfg.HistoryDays, cfg.HistoryChunkDays = 365, 100
-			chunkGitHub(t).collect(t, cfg, path, github.DefaultMaxPages)
+			r := chunkGitHub(t, tc).collect(t, cfg, path, tc.maxPages())
 			wantChunk(t, path, reachFile, tc)
+			wantCutWarning(t, r, tc.cut)
 		})
 	}
+}
+
+// seedChunk writes the history and reach.csv that tc starts from.
+func seedChunk(t *testing.T, path, reachFile string, tc chunkCase) {
+	t.Helper()
+	storeAges(t, path, tc.stored)
+	if tc.reachAge == 0 {
+		return
+	}
+	if err := history.SaveReach(reachFile, history.Reach{"acme/app": ago(tc.reachAge)}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// maxPages is the page limit of tc's run: one page when its read is cut off.
+func (tc chunkCase) maxPages() int {
+	if tc.cut {
+		return 1
+	}
+	return github.DefaultMaxPages
 }
 
 // wantChunk fails unless the history and reach.csv are what tc wants.
@@ -112,5 +142,14 @@ func wantChunk(t *testing.T, path, reachFile string, tc chunkCase) {
 	reach, err := history.LoadReach(reachFile)
 	if want := ago(tc.wantReach); err != nil || !reach["acme/app"].Equal(want) {
 		t.Errorf("want the reach of acme/app at %s, got %v, %v", want, reach, err)
+	}
+}
+
+// wantCutWarning fails unless stderr says that older deployments were not
+// read exactly when the read was cut off at the page limit.
+func wantCutWarning(t *testing.T, r result, cut bool) {
+	t.Helper()
+	if got := strings.Contains(r.stderr, "older deployments were not read"); got != cut {
+		t.Errorf("want the page-limit warning %v, got %v (stderr %q)", cut, got, r.stderr)
 	}
 }
