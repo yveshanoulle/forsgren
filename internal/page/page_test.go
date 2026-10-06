@@ -601,8 +601,8 @@ func TestFooterNamesNoWaitingPullRequestWithoutANewerRelease(t *testing.T) {
 // metrics" ("0.3.7 is available The five ..."), on every page.
 func TestFooterEndsTheReleaseNewsBeforeWhatForsgrenIs(t *testing.T) {
 	for waiting, want := range map[int]string{
-		0: "0.3.6 · 0.3.7 is available. The five DORA metrics",
-		7: "0.3.6 · 0.3.7 is waiting in pull request #7 (merge it to update). The five DORA metrics",
+		0: "0.3.6 · 0.3.7 is available. Metrics from GitHub data",
+		7: "0.3.6 · 0.3.7 is waiting in pull request #7 (merge it to update). Metrics from GitHub data",
 	} {
 		data := Placeholder("0.3.6")
 		data.Latest, data.WaitingPR = "0.3.7", waiting

@@ -81,9 +81,9 @@ func TestRenderNamesTheLatestReleaseItIsGiven(t *testing.T) {
 // (a lookup that failed): the page renders as before, exit 0, nothing added.
 func TestRenderSaysNothingWhenNoNewerReleaseIsKnown(t *testing.T) {
 	for _, latest := range []string{version, "0.0.1", "banana", ""} {
-		wantPage(t, "Forsgren</a> "+version+" The five", "available", "--latest", latest)
+		wantPage(t, "Forsgren</a> "+version+" Metrics", "available", "--latest", latest)
 	}
-	wantPage(t, "Forsgren</a> "+version+" The five", "available")
+	wantPage(t, "Forsgren</a> "+version+" Metrics", "available")
 }
 
 const latestPath = "/repos/yveshanoulle/forsgren/releases/latest"
@@ -147,7 +147,7 @@ func TestRenderNamesTheWaitingPullRequestItIsGiven(t *testing.T) {
 	waiting := version + " · 0.3.7 is waiting in pull request #7 (merge it to update)"
 	wantPage(t, waiting, " is available", "--latest", "0.3.7", "--waiting-pr", "7")
 	wantPage(t, "0.3.7 is available", "waiting", "--latest", "0.3.7")
-	wantPage(t, version+" The five", "pull request #", "--latest", version, "--waiting-pr", "7")
+	wantPage(t, version+" Metrics", "pull request #", "--latest", version, "--waiting-pr", "7")
 }
 
 const waitingPath = "/repos/acme/data/pulls"
