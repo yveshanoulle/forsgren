@@ -128,3 +128,23 @@ func TestRenderLegendFollowsWorkingHours(t *testing.T) {
 		}
 	}
 }
+
+// TestRenderLegendListsTheSettings (forsgren#74): a config with only
+// history_days: 30 reaches the legend, the other keys marked as defaults.
+func TestRenderLegendListsTheSettings(t *testing.T) {
+	pinNow(t)
+	dir := filepath.Join(t.TempDir(), "site")
+	cfg := writeConfig(t, "version: 1\nhistory_days: 30\nprojects: []\n")
+	if code, _, stderr := runCommand("render", "--out", dir, "--config", cfg); code != 0 {
+		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
+	}
+	legend := readFile(t, filepath.Join(dir, "legend.html"))
+	for _, want := range []string{
+		"<li>history_days: 30</li>",
+		"<li>view: standard (default, not set in forsgren.config.yml)</li>",
+	} {
+		if !strings.Contains(legend, want) {
+			t.Errorf("want the legend to say %q, got:\n%s", want, legend)
+		}
+	}
+}

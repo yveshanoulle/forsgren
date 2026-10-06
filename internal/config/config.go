@@ -302,3 +302,16 @@ func ownerWords(reason string) string {
 	}
 	return wrongKind.ReplaceAllString(reason, "cannot use $1 $2 here")
 }
+
+// Setting is one optional key of the file with the value forsgren uses
+// (forsgren#74): Set says whether the file writes the key, Value is its
+// default when it does not.
+type Setting struct {
+	Key, Value string
+	Set        bool
+}
+
+// Settings lists every optional key in a fixed order: view, auto_update,
+// auto_update_level, history_days, history_chunk_days, working_hours
+// (forsgren#74).
+func (c Config) Settings() []Setting { return nil }

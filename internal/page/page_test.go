@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yveshanoulle/forsgren/internal/config"
 	"github.com/yveshanoulle/forsgren/internal/metrics"
 )
 
@@ -238,6 +239,7 @@ func TestLegendPageMatchesGolden(t *testing.T) {
 	data := Placeholder("0.3.5")
 	data.AsOf = "2026-10-03 12:00"
 	data.WorkingHours = 8
+	data.Settings = config.Config{}.Settings()
 	checkPageGolden(t, "legend.html", "testdata/legend.golden.html", data)
 }
 
@@ -673,6 +675,23 @@ func TestLegendStatesTheWorkingDay(t *testing.T) {
 			if !strings.Contains(got, want) {
 				t.Errorf("%s: want the legend to say %q, got:\n%s", c.name, want, got)
 			}
+		}
+	}
+}
+
+// TestLegendListsTheSettings (forsgren#74): the legend has a Settings section
+// with each setting as key: value, and the unset ones marked as defaults.
+func TestLegendListsTheSettings(t *testing.T) {
+	data := Placeholder("0.3.5")
+	data.Settings = []config.Setting{{Key: "view", Value: "numbers", Set: true}, {Key: "history_days", Value: "365"}}
+	got := rendered(t, "legend.html", data)
+	for _, want := range []string{
+		"<h2>Settings</h2>",
+		"<li>view: numbers</li>",
+		"<li>history_days: 365 (default, not set in forsgren.config.yml)</li>",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("want the legend to say %q, got:\n%s", want, got)
 		}
 	}
 }

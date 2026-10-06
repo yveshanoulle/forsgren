@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"slices"
 
+	"github.com/yveshanoulle/forsgren/internal/config"
 	"github.com/yveshanoulle/forsgren/internal/metrics"
 )
 
@@ -61,6 +62,9 @@ type Data struct {
 	// on-demand threshold from it (forsgren#71).
 	WorkingHours    int
 	WorkingHoursSet bool
+	// Settings are the config's optional keys with the values in use; the
+	// legend lists them, marking those the file does not set (forsgren#74).
+	Settings []config.Setting
 	// View is the view the root page shows, "standard", "numbers" or
 	// "scoring", with the view switch in its table's caption (forsgren#51);
 	// empty for the plain root page, with no switch (forsgren#46).
