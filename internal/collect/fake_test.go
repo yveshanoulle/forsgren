@@ -133,9 +133,10 @@ func repository(name string, kind config.DeploymentKind, deploymentName string) 
 
 func shop(repos ...config.Repository) config.Config {
 	return config.Config{
-		Version:     1,
-		HistoryDays: config.DefaultHistoryDays,
-		Projects:    []config.Project{{Name: "Shop", Repositories: repos}},
+		Version:          1,
+		HistoryDays:      config.DefaultHistoryDays,
+		HistoryChunkDays: config.DefaultHistoryChunkDays,
+		Projects:         []config.Project{{Name: "Shop", Repositories: repos}},
 	}
 }
 
