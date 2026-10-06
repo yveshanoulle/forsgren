@@ -20,6 +20,7 @@ func TestARepositoryStoredInAnotherCaseIsTheSameRepository(t *testing.T) {
 	if _, err := history.Append(path, []history.Record{held}); err != nil {
 		t.Fatal(err)
 	}
+	fullyRead(t, path)
 	g := newGitHub(t)
 	g.bodies[deploymentsPath] = list(
 		deployment(1002, shaB, "deploy", "2026-09-22T10:00:00Z"),

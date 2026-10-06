@@ -65,6 +65,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"strings"
 	"time"
 
@@ -90,10 +91,11 @@ type Options struct {
 	Stdout  io.Writer
 	Stderr  io.Writer
 
-	// earliest is how far back a repository is read when nothing is stored
-	// for it yet, and the most any run reads back: history_days before
-	// Now, set by Run (forsgren#57).
+	// earliest is the most any run reads back: history_days before Now; and
+	// chunk is history_chunk_days, how much a run reads of a repository's
+	// history at once. Both are set by Run (forsgren#57).
 	earliest time.Time
+	chunk    time.Duration
 }
 
 // Run collects every repository of cfg: one line per repository on stdout,
@@ -102,7 +104,7 @@ type Options struct {
 // each that failed. A history, a commits file or a failures file that
 // cannot be read is refused before GitHub is asked anything.
 func Run(ctx context.Context, cfg config.Config, o Options) error {
-	o.earliest = o.Now.Add(-time.Duration(cfg.HistoryDays) * 24 * time.Hour)
+	o = o.windowOf(cfg)
 	h, err := loadHeld(o.History)
 	if err != nil {
 		return err
@@ -113,14 +115,15 @@ func Run(ctx context.Context, cfg config.Config, o Options) error {
 	if h.failures, err = loadFailures(o.failuresFile()); err != nil {
 		return err
 	}
+	if h.reach, err = history.LoadReach(o.reachFile()); err != nil {
+		return err
+	}
+	before := maps.Clone(h.reach)
 	failed := 0
 	for _, p := range cfg.Projects {
 		failed += o.collectProject(ctx, h, p)
 	}
-	if failed > 0 {
-		return fmt.Errorf("%d of %d %w", failed, cfg.RepositoryCount(), ErrFailed)
-	}
-	return nil
+	return o.finish(h.reach, before, failed, cfg.RepositoryCount())
 }
 
 // collectProject collects the repositories of p and returns how many failed.
@@ -138,7 +141,7 @@ func (o Options) collectProject(ctx context.Context, h held, p config.Project) i
 // collectRepository reads one repository and appends its final deployments,
 // the commits of the new successes and its new or changed failure issues.
 func (o Options) collectRepository(ctx context.Context, h held, project string, r config.Repository) error {
-	f, err := o.fetch(ctx, h, history.Record{Project: project, Repository: r.Name, Name: r.Deployment.Name},
+	f, err := o.read(ctx, h, history.Record{Project: project, Repository: r.Name, Name: r.Deployment.Name},
 		r.Deployment.Kind)
 	if err != nil {
 		return err
@@ -155,6 +158,7 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	if err != nil {
 		return fmt.Errorf("%s: %w", r.Name, err)
 	}
+	h.noteReach(r.Name, f.reach)
 	o.report(r.Name, f, stored)
 	return nil
 }
@@ -211,6 +215,9 @@ type found struct {
 	records   []history.Record
 	notFinal  int
 	truncated bool
+	// oldest is the creation time of the oldest item read, and reach where
+	// the repository's reach moves to (zero: it stays), see chunk.go.
+	oldest, reach time.Time
 }
 
 // add counts a deployment that is not final, or keeps the record of one
@@ -231,31 +238,30 @@ func with(base history.Record, id int64, commit string, at time.Time, state hist
 	return base
 }
 
-// fetch reads one repository by its rule; base holds the project, the
-// repository and the environment or workflow name.
-func (o Options) fetch(ctx context.Context, h held, base history.Record, kind config.DeploymentKind) (found, error) {
-	switch kind {
-	case config.Workflow:
-		base.Kind = history.KindWorkflow
-		return o.workflow(ctx, h, base)
-	case config.Release:
-		base.Kind = history.KindRelease
-		return o.releases(ctx, h, base)
+// fetch reads one repository by its rule, the part of its list in span; base
+// holds the project, the repository, the kind and the environment or
+// workflow name.
+func (o Options) fetch(ctx context.Context, h held, base history.Record, span github.Span) (found, error) {
+	switch base.Kind {
+	case history.KindWorkflow:
+		return o.workflow(ctx, h, base, span)
+	case history.KindRelease:
+		return o.releases(ctx, h, base, span)
 	default:
-		base.Kind = history.KindEnvironment
-		return o.environment(ctx, h, base)
+		return o.environment(ctx, h, base, span)
 	}
 }
 
 // environment reads the deployments to one environment and judges each one
 // not stored yet by its statuses.
-func (o Options) environment(ctx context.Context, h held, base history.Record) (found, error) {
-	deployments, truncated, err := o.Client.Deployments(ctx, base.Repository, base.Name, h.since(base, o.earliest))
+func (o Options) environment(ctx context.Context, h held, base history.Record, span github.Span) (found, error) {
+	deployments, truncated, err := o.Client.Deployments(ctx, base.Repository, base.Name, span)
 	if err != nil {
 		return found{}, err
 	}
 	f := found{truncated: truncated}
 	for _, d := range deployments {
+		f.see(d.CreatedAt)
 		if h.has(base, d.ID) {
 			continue
 		}
@@ -301,17 +307,18 @@ func newer(a, b github.DeploymentStatus) bool {
 }
 
 // workflow reads the runs of one workflow on the default branch.
-func (o Options) workflow(ctx context.Context, h held, base history.Record) (found, error) {
+func (o Options) workflow(ctx context.Context, h held, base history.Record, span github.Span) (found, error) {
 	branch, err := o.Client.DefaultBranch(ctx, base.Repository)
 	if err != nil {
 		return found{}, err
 	}
-	runs, truncated, err := o.Client.Runs(ctx, base.Repository, base.Name, branch, h.since(base, o.earliest))
+	runs, truncated, err := o.Client.Runs(ctx, base.Repository, base.Name, branch, span)
 	if err != nil {
 		return found{}, err
 	}
 	f := found{truncated: truncated}
 	for _, r := range runs {
+		f.see(r.CreatedAt)
 		if !strings.EqualFold(r.HeadRepository.FullName, base.Repository) {
 			continue // a fork's run whose branch has the same name
 		}
@@ -337,13 +344,14 @@ func conclusion(r github.Run) (history.State, bool) {
 
 // releases reads the published releases and looks up the commit of each one
 // not stored yet.
-func (o Options) releases(ctx context.Context, h held, base history.Record) (found, error) {
-	releases, truncated, err := o.Client.Releases(ctx, base.Repository, h.since(base, o.earliest))
+func (o Options) releases(ctx context.Context, h held, base history.Record, span github.Span) (found, error) {
+	releases, truncated, err := o.Client.Releases(ctx, base.Repository, span)
 	if err != nil {
 		return found{}, err
 	}
 	f := found{truncated: truncated}
 	for _, r := range releases {
+		f.see(r.PublishedAt)
 		if !published(r) || h.has(base, r.ID) {
 			continue
 		}
@@ -387,8 +395,10 @@ type entry struct {
 type held struct {
 	ids       map[entry]bool
 	newest    map[source]time.Time
+	oldest    map[source]time.Time // the oldest stored deployment of each source
 	successes map[history.Stream][]history.Record
 	failures  map[history.IssueKey]history.Failure
+	reach     history.Reach // see chunk.go
 }
 
 // loadHeld reads the history at path; a missing file holds nothing.
@@ -397,7 +407,8 @@ func loadHeld(path string) (held, error) {
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return held{}, err
 	}
-	h := held{ids: map[entry]bool{}, newest: map[source]time.Time{}, successes: map[history.Stream][]history.Record{}}
+	h := held{ids: map[entry]bool{}, newest: map[source]time.Time{}, oldest: map[source]time.Time{},
+		successes: map[history.Stream][]history.Record{}}
 	for _, r := range records {
 		h.hold(r)
 	}
@@ -411,6 +422,9 @@ func (h held) hold(r history.Record) {
 	if r.CreatedAt.After(h.newest[s]) {
 		h.newest[s] = r.CreatedAt
 	}
+	if old, ok := h.oldest[s]; !ok || r.CreatedAt.Before(old) {
+		h.oldest[s] = r.CreatedAt
+	}
 	if r.State == history.StateSuccess {
 		h.successes[r.Stream()] = append(h.successes[r.Stream()], r)
 	}
@@ -419,13 +433,6 @@ func (h held) hold(r history.Record) {
 // has says whether the deployment id of base's source is stored.
 func (h held) has(base history.Record, id int64) bool {
 	return h.ids[entry{sourceOf(base), id}]
-}
-
-// since is where a run reads base's source from: Lookback before its newest
-// stored deployment, but never before earliest.
-func (h held) since(base history.Record, earliest time.Time) time.Time {
-	from := h.newest[sourceOf(base)].Add(-Lookback)
-	return later(from, earliest)
 }
 
 // later is the later of a and b.

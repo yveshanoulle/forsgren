@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yveshanoulle/forsgren/internal/config"
 	"github.com/yveshanoulle/forsgren/internal/github"
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
@@ -64,6 +65,16 @@ var chunkCases = []chunkCase{
 	{"the last chunk stops at history_days", []int{5}, 300, []int{5, 320}, 365, false},
 	{"history without reach.csv starts at its oldest deployment", []int{5, 150}, 0, []int{5, 150, 250}, 250, false},
 	{"a read cut off at the page limit moves reach to the oldest date read", []int{5}, 200, []int{5, 250}, 250, true},
+}
+
+// fullyRead notes in reach.csv next to the history at path that acme/app was
+// read back to history_days, so a run reads no older chunk of it.
+func fullyRead(t *testing.T, path string) {
+	t.Helper()
+	reach := history.Reach{"acme/app": ago(config.DefaultHistoryDays)}
+	if err := history.SaveReach(filepath.Join(filepath.Dir(path), "reach.csv"), reach); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // storeAges writes the deployments of the given ages to the history at path.

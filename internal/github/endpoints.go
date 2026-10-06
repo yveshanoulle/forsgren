@@ -52,20 +52,29 @@ type Release struct {
 	PublishedAt time.Time `json:"published_at"`
 }
 
-// Deployments lists the deployments of repo to environment created at or
-// after since, newest first, and says whether it stopped at the page limit.
-func (c *Client) Deployments(ctx context.Context, repo, environment string, since time.Time) (
+// Span is the part of a newest-first list a read keeps: the items created at
+// or after Since and before Until; no Until (the zero time) reaches to the
+// newest item (forsgren#57).
+type Span struct {
+	Since, Until time.Time
+}
+
+// Deployments lists the deployments of repo to environment created in span,
+// newest first, and says whether it stopped at the page limit. GitHub lists
+// them with no date filter, so a span with an Until still pages from the
+// newest, and keeps only what is in it.
+func (c *Client) Deployments(ctx context.Context, repo, environment string, span Span) (
 	[]Deployment, bool, error,
 ) {
 	created := func(d Deployment) time.Time { return d.CreatedAt }
-	return listSince(ctx, c, repo, url.Values{"environment": {environment}}, since, created, "deployments")
+	return listSince(ctx, c, repo, url.Values{"environment": {environment}}, span, created, "deployments")
 }
 
 // DeploymentStatuses lists every status of one deployment. A list longer
 // than the page limit is an error: an outcome is never judged on part of it.
 func (c *Client) DeploymentStatuses(ctx context.Context, repo string, id int64) ([]DeploymentStatus, error) {
 	created := func(s DeploymentStatus) time.Time { return s.CreatedAt }
-	statuses, truncated, err := listSince(ctx, c, repo, url.Values{}, time.Time{}, created,
+	statuses, truncated, err := listSince(ctx, c, repo, url.Values{}, Span{}, created,
 		"deployments", strconv.FormatInt(id, 10), "statuses")
 	if err == nil && truncated {
 		err = fmt.Errorf("%s: deployment %d: %w: %d pages of statuses", repo, id, ErrTooManyPages, c.maxPages)
@@ -99,15 +108,13 @@ func (c *Client) DefaultBranch(ctx context.Context, repo string) (string, error)
 	return r.DefaultBranch, nil
 }
 
-// Runs lists the runs of one workflow file on branch created at or after
-// since, newest first, and says whether it stopped at the page limit.
-// GitHub is asked for runs created from the day before since, so no time
+// Runs lists the runs of one workflow file on branch created in span, newest
+// first, and says whether it stopped at the page limit. GitHub is asked for
+// runs created from the day before Since, and to the day after Until when
+// there is one (its created filter takes the range from..to), so no time
 // zone of its date filter loses one; the exact cut is made here.
-func (c *Client) Runs(ctx context.Context, repo, workflow, branch string, since time.Time) ([]Run, bool, error) {
-	query := url.Values{
-		"branch":  {branch},
-		"created": {">=" + since.UTC().AddDate(0, 0, -1).Format(time.DateOnly)},
-	}
+func (c *Client) Runs(ctx context.Context, repo, workflow, branch string, span Span) ([]Run, bool, error) {
+	query := url.Values{"branch": {branch}, "created": {createdFilter(span)}}
 	t, err := c.endpoint(repo, query, "actions", "workflows", workflow, "runs")
 	if err != nil {
 		return nil, false, err
@@ -121,7 +128,7 @@ func (c *Client) Runs(ctx context.Context, repo, workflow, branch string, since 
 		if err := json.Unmarshal(body, &page); err != nil {
 			return false, err
 		}
-		return keep(&runs, page.WorkflowRuns, since, created), nil
+		return keep(&runs, page.WorkflowRuns, span, created), nil
 	})
 	if err != nil {
 		return nil, false, err
@@ -129,12 +136,22 @@ func (c *Client) Runs(ctx context.Context, repo, workflow, branch string, since 
 	return runs, truncated, nil
 }
 
-// Releases lists the releases published at or after since, newest first,
-// drafts included (they have no publication time), and says whether it
-// stopped at the page limit.
-func (c *Client) Releases(ctx context.Context, repo string, since time.Time) ([]Release, bool, error) {
+// createdFilter is GitHub's created filter for span: from the day before
+// Since, on to the day after Until when there is one.
+func createdFilter(span Span) string {
+	from := span.Since.UTC().AddDate(0, 0, -1).Format(time.DateOnly)
+	if span.Until.IsZero() {
+		return ">=" + from
+	}
+	return from + ".." + span.Until.UTC().AddDate(0, 0, 1).Format(time.DateOnly)
+}
+
+// Releases lists the releases published in span, newest first, drafts
+// included (they have no publication time), and says whether it stopped at
+// the page limit. Like deployments, an Until does not skip the newest pages.
+func (c *Client) Releases(ctx context.Context, repo string, span Span) ([]Release, bool, error) {
 	published := func(r Release) time.Time { return r.PublishedAt }
-	return listSince(ctx, c, repo, url.Values{}, since, published, "releases")
+	return listSince(ctx, c, repo, url.Values{}, span, published, "releases")
 }
 
 // TagCommit is the SHA of the commit tag points to, an annotated tag
@@ -170,7 +187,7 @@ func isMissingRef(code int) bool {
 
 // listSince reads a list of items at or after since (by at) under the
 // repository's path segments.
-func listSince[T any](ctx context.Context, c *Client, repo string, query url.Values, since time.Time,
+func listSince[T any](ctx context.Context, c *Client, repo string, query url.Values, span Span,
 	at func(T) time.Time, segments ...string,
 ) ([]T, bool, error) {
 	t, err := c.endpoint(repo, query, segments...)
@@ -183,7 +200,7 @@ func listSince[T any](ctx context.Context, c *Client, repo string, query url.Val
 		if err := json.Unmarshal(body, &page); err != nil {
 			return false, err
 		}
-		return keep(&items, page, since, at), nil
+		return keep(&items, page, span, at), nil
 	})
 	if err != nil {
 		return nil, false, err
@@ -191,20 +208,43 @@ func listSince[T any](ctx context.Context, c *Client, repo string, query url.Val
 	return items, truncated, nil
 }
 
-// keep adds the items of one newest-first page at or after since to items,
-// and an item without a time (a draft release) too. It says whether the next
-// page may still hold such items: not when this one was empty or reached an
-// item older than since.
-func keep[T any](items *[]T, page []T, since time.Time, at func(T) time.Time) bool {
+// keep adds the items of one newest-first page in span to items, and an item
+// without a time (a draft release) too. It says whether the next page may
+// still hold such items: not when this one was empty or reached an item older
+// than Since. An item from Until on is passed over, and the next page is read.
+func keep[T any](items *[]T, page []T, span Span, at func(T) time.Time) bool {
 	more := len(page) > 0
 	for _, item := range page {
-		if t := at(item); !t.IsZero() && t.Before(since) {
+		switch span.place(at(item)) {
+		case tooOld:
 			more = false
-			continue
+		case tooNew:
+		default:
+			*items = append(*items, item)
 		}
-		*items = append(*items, item)
 	}
 	return more
+}
+
+// Where an item stands to a Span.
+const (
+	inside = iota
+	tooOld
+	tooNew
+)
+
+// place says where t stands to span: an item without a time (a draft
+// release) is inside.
+func (span Span) place(t time.Time) int {
+	switch {
+	case t.IsZero():
+		return inside
+	case t.Before(span.Since):
+		return tooOld
+	case !span.Until.IsZero() && !t.Before(span.Until):
+		return tooNew
+	}
+	return inside
 }
 
 // isSHA says whether s is a git object name in lower-case hex.

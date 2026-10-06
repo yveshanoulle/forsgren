@@ -31,7 +31,7 @@ func wantError(t *testing.T, err, target error, parts ...string) {
 // returns their IDs.
 func deploymentIDs(t *testing.T, c *Client, from time.Time) ([]int64, bool) {
 	t.Helper()
-	got, truncated, err := c.Deployments(context.Background(), "acme/app", "production", from)
+	got, truncated, err := c.Deployments(context.Background(), "acme/app", "production", Span{Since: from})
 	if err != nil {
 		t.Fatalf("want the deployments, got %v", err)
 	}
@@ -146,7 +146,7 @@ func TestALinkElsewhereIsNotFollowed(t *testing.T) {
 			f := newFake(t)
 			link := http.Header{"Link": {`<` + base(f) + deploymentsPath + `?page=2>; rel="next"`}}
 			f.on(deploymentsPath, reply{header: link, body: fixture(t, "deployments.json")})
-			_, _, err := f.client(t, DefaultMaxPages).Deployments(context.Background(), "acme/app", "production", since)
+			_, _, err := f.client(t, DefaultMaxPages).Deployments(context.Background(), "acme/app", "production", sinceOnly)
 			wantError(t, err, ErrForeignLink, "acme/app")
 			if n := len(f.seen()); n != 1 {
 				t.Errorf("want 1 request, got %d", n)
@@ -180,7 +180,7 @@ func TestHTTPErrorsNameTheRepository(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			f := newFake(t)
 			f.on(deploymentsPath, c.reply)
-			_, _, err := f.client(t, DefaultMaxPages).Deployments(context.Background(), "acme/app", "production", since)
+			_, _, err := f.client(t, DefaultMaxPages).Deployments(context.Background(), "acme/app", "production", sinceOnly)
 			wantError(t, err, c.target, append([]string{"acme/app: "}, c.parts...)...)
 			if strings.Contains(err.Error(), token) {
 				t.Errorf("the token is in the error %q", err)
@@ -235,7 +235,7 @@ func TestEveryCallPassesGitHubsRefusalOn(t *testing.T) {
 func TestACutAnswerNamesTheRepository(t *testing.T) {
 	f := newFake(t)
 	f.on(deploymentsPath, reply{header: http.Header{"Content-Length": {"5000"}}, body: `[]`})
-	_, _, err := f.client(t, DefaultMaxPages).Deployments(context.Background(), "acme/app", "production", since)
+	_, _, err := f.client(t, DefaultMaxPages).Deployments(context.Background(), "acme/app", "production", sinceOnly)
 	wantError(t, err, ErrAnswer, "acme/app: ", deploymentsPath, "unexpected EOF")
 }
 
@@ -250,7 +250,7 @@ func TestTheTokenIsNeverInAnError(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			f := newFake(t)
 			f.on(deploymentsPath, r)
-			_, _, err := f.client(t, DefaultMaxPages).Deployments(context.Background(), "acme/app", "production", since)
+			_, _, err := f.client(t, DefaultMaxPages).Deployments(context.Background(), "acme/app", "production", sinceOnly)
 			if err == nil || strings.Contains(err.Error(), token) {
 				t.Errorf("want an error without the token, got %v", err)
 			}
@@ -263,7 +263,7 @@ func TestAnUnreachableGitHubNamesTheRepositoryNotTheToken(t *testing.T) {
 	f := newFake(t)
 	c := f.client(t, DefaultMaxPages)
 	f.srv.Close()
-	_, _, err := c.Deployments(context.Background(), "acme/app", "production", since)
+	_, _, err := c.Deployments(context.Background(), "acme/app", "production", sinceOnly)
 	if err == nil || !strings.HasPrefix(err.Error(), "acme/app: ") || strings.Contains(err.Error(), token) {
 		t.Errorf("want an error that names acme/app and not the token, got %v", err)
 	}

@@ -622,8 +622,10 @@ projects:
   else (zero, a negative number, more than 365, a quoted value, a decimal or
   text) is refused by `check-config` and `render`, naming the key and the
   limit: `invalid history_chunk_days "366": use a whole number of days from 1
-  to 365`. Today the key is read and checked only: collect does not use it
-  yet. The starter that `init-config` writes includes
+  to 365`. A repository's first run reads this many days back, and each
+  later run adds one older chunk of this size until `history_days` is
+  reached; the collect section is rewritten for this at the next step. The
+  starter that `init-config` writes includes
   `history_chunk_days: 100`.
 - **`projects`** is required: a list of projects, or `projects: []` for an
   installation that measures nothing yet (it is valid, and `check-config`

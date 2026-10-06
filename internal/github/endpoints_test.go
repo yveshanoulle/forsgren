@@ -22,6 +22,9 @@ func at(day, hour, minute, second int) time.Time {
 	return time.Date(2026, 9, day, hour, minute, second, 0, time.UTC)
 }
 
+// sinceOnly is the span of everything since the test's cut-off.
+var sinceOnly = Span{Since: since}
+
 // wantQuery fails unless the one request the fake saw has every key of want
 // with that value.
 func wantQuery(t *testing.T, f *fakeGitHub, want url.Values) {
@@ -43,7 +46,8 @@ func wantQuery(t *testing.T, f *fakeGitHub, want url.Values) {
 func TestDeploymentsReadsOneEnvironment(t *testing.T) {
 	f := newFake(t)
 	f.on(deploymentsPath, reply{body: fixture(t, "deployments.json")})
-	got, truncated, err := f.client(t, DefaultMaxPages).Deployments(context.Background(), "acme/app", "prod east", since)
+	c := f.client(t, DefaultMaxPages)
+	got, truncated, err := c.Deployments(context.Background(), "acme/app", "prod east", sinceOnly)
 	if err != nil || truncated {
 		t.Fatalf("want the deployments, got truncated=%v, %v", truncated, err)
 	}
@@ -102,7 +106,7 @@ func TestRunsReadsOneWorkflowOnOneBranch(t *testing.T) {
 	f := newFake(t)
 	f.on(runsPath, reply{body: fixture(t, "workflow-runs.json")})
 	c := f.client(t, DefaultMaxPages)
-	got, truncated, err := c.Runs(context.Background(), "acme/app", "deploy.yml", "trunk", since)
+	got, truncated, err := c.Runs(context.Background(), "acme/app", "deploy.yml", "trunk", sinceOnly)
 	if err != nil || truncated {
 		t.Fatalf("want the runs, got truncated=%v, %v", truncated, err)
 	}
@@ -122,7 +126,7 @@ func TestRunsReadsOneWorkflowOnOneBranch(t *testing.T) {
 func TestReleasesKeepsADraftWithoutATime(t *testing.T) {
 	f := newFake(t)
 	f.on(releasesPath, reply{body: fixture(t, "releases.json")})
-	got, truncated, err := f.client(t, DefaultMaxPages).Releases(context.Background(), "acme/app", since)
+	got, truncated, err := f.client(t, DefaultMaxPages).Releases(context.Background(), "acme/app", sinceOnly)
 	if err != nil || truncated {
 		t.Fatalf("want the releases, got truncated=%v, %v", truncated, err)
 	}
@@ -193,7 +197,7 @@ func TestAMissingTagIsNamedNotTheToken(t *testing.T) {
 // know as GitHub does, 404, which reaches the caller as an access error.
 func TestAnUnknownPathIsGitHubsNotFound(t *testing.T) {
 	f := newFake(t)
-	_, _, err := f.client(t, DefaultMaxPages).Releases(context.Background(), "acme/app", since)
+	_, _, err := f.client(t, DefaultMaxPages).Releases(context.Background(), "acme/app", sinceOnly)
 	wantError(t, err, ErrAccess, "404 Not Found", releasesPath)
 	if got := f.seen(); len(got) != 1 || got[0].Method != http.MethodGet {
 		t.Errorf("want one GET, got %d requests", len(got))

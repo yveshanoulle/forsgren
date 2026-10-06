@@ -122,7 +122,7 @@ func calls(repo string) map[string]func(*Client) error {
 	ctx := context.Background()
 	return map[string]func(*Client) error{
 		"deployments": func(c *Client) error {
-			_, _, err := c.Deployments(ctx, repo, "production", since)
+			_, _, err := c.Deployments(ctx, repo, "production", sinceOnly)
 			return err
 		},
 		"statuses": func(c *Client) error {
@@ -134,11 +134,11 @@ func calls(repo string) map[string]func(*Client) error {
 			return err
 		},
 		"runs": func(c *Client) error {
-			_, _, err := c.Runs(ctx, repo, "deploy.yml", "trunk", since)
+			_, _, err := c.Runs(ctx, repo, "deploy.yml", "trunk", sinceOnly)
 			return err
 		},
 		"releases": func(c *Client) error {
-			_, _, err := c.Releases(ctx, repo, since)
+			_, _, err := c.Releases(ctx, repo, sinceOnly)
 			return err
 		},
 		"pull requests": func(c *Client) error {

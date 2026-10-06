@@ -69,6 +69,7 @@ func TestALaterRunReadsFromAWeekBeforeTheNewestStored(t *testing.T) {
 	}
 	g.bodies[comparePath(shaB, shaC)] = ahead(authored{shaC, at(24, 0, 0)})
 	path := stored(t, history.KindEnvironment, "production", at(20, 0, 0))
+	fullyRead(t, path)
 	r := g.collect(t, shop(production), path, github.DefaultMaxPages)
 	wantStdout(t, r, "acme/app: 2 new, 0 skipped (not final), 1 commits\n")
 	wantNoStderr(t, r)
@@ -138,8 +139,9 @@ func TestAListCutAtThePageLimitIsReported(t *testing.T) {
 	}
 }
 
-// withHistoryDays is cfg with history_days set (forsgren#57).
+// withHistoryDays is cfg with history_days set, and history_chunk_days the
+// same, so a first run reads all of it at once (forsgren#57).
 func withHistoryDays(cfg config.Config, days int) config.Config {
-	cfg.HistoryDays = days
+	cfg.HistoryDays, cfg.HistoryChunkDays = days, days
 	return cfg
 }
