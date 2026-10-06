@@ -301,7 +301,7 @@ func TestEveryPageNamesFiveMetrics(t *testing.T) {
 		if err := Render(&got, name, acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)); err != nil {
 			t.Fatalf("Render %s: %v", name, err)
 		}
-		if !strings.Contains(got.String(), " The five DORA metrics, from GitHub data.") {
+		if !strings.Contains(got.String(), " Metrics from GitHub data.") {
 			t.Errorf("%s: want the footer to name the five DORA metrics, got:\n%s", name, got.String())
 		}
 	}
@@ -360,7 +360,7 @@ func TestLabelDashIsDecorative(t *testing.T) {
 // "Calculated at" sentence is left out.
 func TestEveryPageEndsWithTheFooter(t *testing.T) {
 	const head = `<p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> 0.3.6 ` +
-		`The five DORA metrics, from GitHub data.`
+		`Metrics from GitHub data.`
 	withData := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
 	cases := map[string]struct {
 		data Data
