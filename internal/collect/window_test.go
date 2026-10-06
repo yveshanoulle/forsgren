@@ -22,20 +22,35 @@ func stored(t *testing.T, kind history.Kind, name string, created time.Time) str
 	return path
 }
 
-// TestTheFirstRunReadsNinetyDaysBack: with nothing stored for a repository,
-// a deployment older than 90 days before now is not read.
-func TestTheFirstRunReadsNinetyDaysBack(t *testing.T) {
-	g := newGitHub(t)
-	g.bodies[deploymentsPath] = list(
-		deployment(1002, shaB, "deploy", "2026-07-04T00:00:00Z"),
-		deployment(1001, shaA, "deploy", "2026-07-02T00:00:00Z"))
-	g.bodies[statusesPath("1002")] = list(status(7, "success", "2026-07-04T00:05:00Z"))
-	g.bodies[statusesPath("1001")] = list(status(6, "success", "2026-07-02T00:05:00Z"))
-	path := historyPath(t)
-	wantStdout(t, g.collect(t, shop(production), path, github.DefaultMaxPages),
-		"acme/app: 1 new, 0 skipped (not final), 0 commits\n")
-	if got := g.seen(statusesPath("1001")); len(got) != 0 {
-		t.Errorf("want the deployment older than 90 days not read, got %v", got)
+// TestTheFirstRunReadsFirstRunDaysBack (forsgren#57): with nothing stored for
+// a repository, a deployment older than first_run_days before now is not
+// read, and one inside it is.
+func TestTheFirstRunReadsFirstRunDaysBack(t *testing.T) {
+	cases := []struct {
+		name       string
+		days       int
+		created    string // deployment 1001, as GitHub says; 1002 is 2026-07-04
+		wantStdout string
+		wantRead   bool
+	}{
+		{"older than 90 days", 90, "2026-07-02T00:00:00Z", "acme/app: 1 new, 0 skipped (not final), 0 commits\n", false},
+		{"300 days inside 365", 365, "2025-12-05T00:00:00Z", "acme/app: 2 new, 0 skipped (not final), 1 commits\n", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			g := newGitHub(t)
+			g.bodies[deploymentsPath] = list(
+				deployment(1002, shaB, "deploy", "2026-07-04T00:00:00Z"),
+				deployment(1001, shaA, "deploy", tc.created))
+			g.bodies[statusesPath("1002")] = list(status(7, "success", "2026-07-04T00:05:00Z"))
+			g.bodies[statusesPath("1001")] = list(status(6, "success", tc.created))
+			g.bodies[comparePath(shaA, shaB)] = ahead(authored{shaB, time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)})
+			cfg := withFirstRunDays(shop(production), tc.days)
+			wantStdout(t, g.collect(t, cfg, historyPath(t), github.DefaultMaxPages), tc.wantStdout)
+			if got := g.seen(statusesPath("1001")); (len(got) != 0) != tc.wantRead {
+				t.Errorf("want the deployment read: %v, got %v", tc.wantRead, got)
+			}
+		})
 	}
 }
 
@@ -62,23 +77,41 @@ func TestALaterRunReadsFromAWeekBeforeTheNewestStored(t *testing.T) {
 	}
 }
 
-// TestALaterRunNeverReadsMoreThanNinetyDays: a newest stored deployment long
-// ago does not widen the window past 90 days. The workflow's runs are asked
-// from a day before the window, so no time zone loses one. GitHub answers
-// the one comparison, so stderr stays empty.
-func TestALaterRunNeverReadsMoreThanNinetyDays(t *testing.T) {
-	g := newGitHub(t)
-	g.bodies["/repos/acme/app"] = `{"default_branch": "trunk"}`
-	g.bodies[runsPath] = runs(run(5002, shaB, "completed", "success", "2026-07-04T00:00:00Z"),
-		run(5001, shaA, "completed", "success", "2026-06-01T00:00:00Z"))
-	path := stored(t, history.KindWorkflow, "deploy.yml", time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC))
-	g.bodies[comparePath(shaA, shaB)] = ahead(authored{shaB, time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)})
-	deploy := repository("acme/app", config.Workflow, "deploy.yml")
-	r := g.collect(t, shop(deploy), path, github.DefaultMaxPages)
-	wantStdout(t, r, "acme/app: 1 new, 0 skipped (not final), 1 commits\n")
-	wantNoStderr(t, r)
-	if got := g.seen(runsPath + "?"); len(got) != 1 || !strings.Contains(got[0], "created=%3E%3D2026-07-02") {
-		t.Errorf("want the runs created from 2026-07-02 asked, got %v", got)
+// TestALaterRunNeverReadsMoreThanFirstRunDays (forsgren#57): a newest stored
+// deployment long ago does not widen the window past first_run_days. The
+// workflow's runs are asked from a day before the window, so no time zone
+// loses one. GitHub answers the one comparison, so stderr stays empty.
+func TestALaterRunNeverReadsMoreThanFirstRunDays(t *testing.T) {
+	cases := []struct {
+		name      string
+		days      int
+		storedAt  time.Time
+		runAt     string // run 5001, after the stored deployment
+		wantSince string
+		wantOut   string
+	}{
+		{"90 days", 90, time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC), "2026-06-01T00:00:00Z", "2026-07-02",
+			"acme/app: 1 new, 0 skipped (not final), 1 commits\n"},
+		{"365 days", 365, time.Date(2025, 8, 28, 0, 0, 0, 0, time.UTC), "2025-11-01T00:00:00Z", "2025-09-30",
+			"acme/app: 2 new, 0 skipped (not final), 1 commits\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			g := newGitHub(t)
+			g.bodies["/repos/acme/app"] = `{"default_branch": "trunk"}`
+			g.bodies[runsPath] = runs(run(5002, shaB, "completed", "success", "2026-07-04T00:00:00Z"),
+				run(5001, shaA, "completed", "success", tc.runAt))
+			path := stored(t, history.KindWorkflow, "deploy.yml", tc.storedAt)
+			g.bodies[comparePath(shaA, shaB)] = ahead(authored{shaB, time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)})
+			deploy := repository("acme/app", config.Workflow, "deploy.yml")
+			r := g.collect(t, withFirstRunDays(shop(deploy), tc.days), path, github.DefaultMaxPages)
+			wantStdout(t, r, tc.wantOut)
+			wantNoStderr(t, r)
+			want := "created=%3E%3D" + tc.wantSince
+			if got := g.seen(runsPath + "?"); len(got) != 1 || !strings.Contains(got[0], want) {
+				t.Errorf("want the runs created from %s asked, got %v", tc.wantSince, got)
+			}
+		})
 	}
 }
 
@@ -109,35 +142,4 @@ func TestAListCutAtThePageLimitIsReported(t *testing.T) {
 func withFirstRunDays(cfg config.Config, days int) config.Config {
 	cfg.FirstRunDays = days
 	return cfg
-}
-
-// TestTheFirstRunReadsFirstRunDaysBack (forsgren#57): with nothing stored for
-// a repository and first_run_days 365, a deployment 300 days old is read.
-func TestTheFirstRunReadsFirstRunDaysBack(t *testing.T) {
-	g := newGitHub(t)
-	g.bodies[deploymentsPath] = list(deployment(1001, shaA, "deploy", "2025-12-05T00:00:00Z"))
-	g.bodies[statusesPath("1001")] = list(status(6, "success", "2025-12-05T00:05:00Z"))
-	cfg := withFirstRunDays(shop(production), 365)
-	wantStdout(t, g.collect(t, cfg, historyPath(t), github.DefaultMaxPages),
-		"acme/app: 1 new, 0 skipped (not final), 0 commits\n")
-	if got := g.seen(statusesPath("1001")); len(got) == 0 {
-		t.Error("want the deployment 300 days old read at first_run_days 365, got none")
-	}
-}
-
-// TestALaterRunNeverReadsMoreThanFirstRunDays (forsgren#57): a newest stored
-// deployment 400 days old, at first_run_days 365, reads from 365 days back
-// (the runs are asked from a day before that).
-func TestALaterRunNeverReadsMoreThanFirstRunDays(t *testing.T) {
-	g := newGitHub(t)
-	g.bodies["/repos/acme/app"] = `{"default_branch": "trunk"}`
-	g.bodies[runsPath] = runs(run(5002, shaB, "completed", "success", "2026-07-04T00:00:00Z"),
-		run(5001, shaA, "completed", "success", "2025-11-01T00:00:00Z"))
-	path := stored(t, history.KindWorkflow, "deploy.yml", time.Date(2025, 8, 28, 0, 0, 0, 0, time.UTC))
-	g.bodies[comparePath(shaA, shaB)] = ahead(authored{shaB, time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)})
-	cfg := withFirstRunDays(shop(repository("acme/app", config.Workflow, "deploy.yml")), 365)
-	wantNoStderr(t, g.collect(t, cfg, path, github.DefaultMaxPages))
-	if got := g.seen(runsPath + "?"); len(got) != 1 || !strings.Contains(got[0], "created=%3E%3D2025-09-30") {
-		t.Errorf("want the runs created from 2025-09-30 asked, got %v", got)
-	}
 }

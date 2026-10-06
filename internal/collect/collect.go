@@ -23,9 +23,10 @@
 //     as the task.
 //
 // How far back it reads: a repository with nothing stored for its rule is
-// read 90 days back (FirstRun); after that, from 7 days (Lookback) before
-// the newest deployment stored for it, so a deployment that was not final
-// at the last run is still found, but never more than 90 days back. A
+// read first_run_days back (365 by default, forsgren#57); after that, from 7
+// days (Lookback) before the newest deployment stored for it, so a
+// deployment that was not final at the last run is still found, but never
+// more than first_run_days back. A
 // deployment still not final more than 7 days before the newest stored one
 // is therefore never stored. Each list is cut at the client's page limit,
 // newest first, and stderr says so. A repository's names in the config and
@@ -73,9 +74,6 @@ import (
 )
 
 const (
-	// FirstRun is how far back a repository is read when nothing is stored
-	// for it yet, and the most any run reads back.
-	FirstRun = 90 * 24 * time.Hour
 	// Lookback is how far before its newest stored deployment a repository
 	// is read again.
 	Lookback = 7 * 24 * time.Hour
@@ -91,6 +89,11 @@ type Options struct {
 	Now     time.Time
 	Stdout  io.Writer
 	Stderr  io.Writer
+
+	// earliest is how far back a repository is read when nothing is stored
+	// for it yet, and the most any run reads back: first_run_days before
+	// Now, set by Run (forsgren#57).
+	earliest time.Time
 }
 
 // Run collects every repository of cfg: one line per repository on stdout,
@@ -99,6 +102,7 @@ type Options struct {
 // each that failed. A history, a commits file or a failures file that
 // cannot be read is refused before GitHub is asked anything.
 func Run(ctx context.Context, cfg config.Config, o Options) error {
+	o.earliest = o.Now.Add(-time.Duration(cfg.FirstRunDays) * 24 * time.Hour)
 	h, err := loadHeld(o.History)
 	if err != nil {
 		return err
@@ -246,7 +250,7 @@ func (o Options) fetch(ctx context.Context, h held, base history.Record, kind co
 // environment reads the deployments to one environment and judges each one
 // not stored yet by its statuses.
 func (o Options) environment(ctx context.Context, h held, base history.Record) (found, error) {
-	deployments, truncated, err := o.Client.Deployments(ctx, base.Repository, base.Name, h.since(base, o.Now))
+	deployments, truncated, err := o.Client.Deployments(ctx, base.Repository, base.Name, h.since(base, o.earliest))
 	if err != nil {
 		return found{}, err
 	}
@@ -302,7 +306,7 @@ func (o Options) workflow(ctx context.Context, h held, base history.Record) (fou
 	if err != nil {
 		return found{}, err
 	}
-	runs, truncated, err := o.Client.Runs(ctx, base.Repository, base.Name, branch, h.since(base, o.Now))
+	runs, truncated, err := o.Client.Runs(ctx, base.Repository, base.Name, branch, h.since(base, o.earliest))
 	if err != nil {
 		return found{}, err
 	}
@@ -334,7 +338,7 @@ func conclusion(r github.Run) (history.State, bool) {
 // releases reads the published releases and looks up the commit of each one
 // not stored yet.
 func (o Options) releases(ctx context.Context, h held, base history.Record) (found, error) {
-	releases, truncated, err := o.Client.Releases(ctx, base.Repository, h.since(base, o.Now))
+	releases, truncated, err := o.Client.Releases(ctx, base.Repository, h.since(base, o.earliest))
 	if err != nil {
 		return found{}, err
 	}
@@ -418,10 +422,10 @@ func (h held) has(base history.Record, id int64) bool {
 }
 
 // since is where a run reads base's source from: Lookback before its newest
-// stored deployment, but never before FirstRun ago.
-func (h held) since(base history.Record, now time.Time) time.Time {
+// stored deployment, but never before earliest.
+func (h held) since(base history.Record, earliest time.Time) time.Time {
 	from := h.newest[sourceOf(base)].Add(-Lookback)
-	return later(from, now.Add(-FirstRun))
+	return later(from, earliest)
 }
 
 // later is the later of a and b.

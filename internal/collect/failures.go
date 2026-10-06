@@ -4,12 +4,12 @@ package collect
 // fail rate: the issues labelled failure (forsgren#6), open or closed, go
 // to data/failures.csv next to the history (FailuresFile).
 //
-// Each run reads the issues GitHub says were updated in the last 90 days
-// (FirstRun), every page up to the client's limit, and stores each one that
+// Each run reads the issues GitHub says were updated in the last first_run_days
+// (365 by default, forsgren#57), every page up to the client's limit, and stores each one that
 // is new or that differs from its newest stored line: one closed or
 // reopened since is written again, as a new line, since the file only
 // grows, and the newest line of an issue is the issue
-// (history.AppendFailures). An issue updated more than 90 days ago is not
+// (history.AppendFailures). An issue updated more than first_run_days ago is not
 // read again, so a change older than that is never seen. An issue without a
 // failure-start its body gives is named on stderr once, when it is first
 // stored, not again when it is closed or reopened: it counts all the same,
@@ -48,10 +48,10 @@ func loadFailures(path string) (map[history.IssueKey]history.Failure, error) {
 	return out, nil
 }
 
-// failureIssues reads repo's failure issues updated in the last 90 days and
+// failureIssues reads repo's failure issues updated in the last first_run_days and
 // returns those to store: new, or changed since their newest stored line.
 func (o Options) failureIssues(ctx context.Context, h held, repo string) ([]history.Failure, error) {
-	issues, truncated, err := o.Client.FailureIssues(ctx, repo, o.Now.Add(-FirstRun))
+	issues, truncated, err := o.Client.FailureIssues(ctx, repo, o.earliest)
 	if err != nil {
 		return nil, err
 	}

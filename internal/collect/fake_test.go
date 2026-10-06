@@ -132,7 +132,11 @@ func repository(name string, kind config.DeploymentKind, deploymentName string) 
 }
 
 func shop(repos ...config.Repository) config.Config {
-	return config.Config{Version: 1, Projects: []config.Project{{Name: "Shop", Repositories: repos}}}
+	return config.Config{
+		Version:      1,
+		FirstRunDays: config.DefaultFirstRunDays,
+		Projects:     []config.Project{{Name: "Shop", Repositories: repos}},
+	}
 }
 
 // result is what one collect run printed and returned.

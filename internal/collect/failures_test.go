@@ -71,7 +71,7 @@ func TestCollectStoresTheFailureIssuesOfEachRepository(t *testing.T) {
 	g := issuesOnly(t, issueJSON(42, "2026-09-20T08:00:00Z", "2026-09-21T09:30:00Z", recordBlock),
 		issueJSON(41, "2026-09-15T07:45:00Z", "", recordBlock))
 	path := historyPath(t)
-	wantStdout(t, g.collect(t, shop(production), path, github.DefaultMaxPages),
+	wantStdout(t, g.collect(t, withFirstRunDays(shop(production), 90), path, github.DefaultMaxPages),
 		"acme/app: 0 new, 0 skipped (not final), 0 commits, 2 failure issues\n")
 	start := at(20, 7, 12)
 	wantFailures(t, path, failure(41, at(15, 7, 45), time.Time{}, start), failure(42, at(20, 8, 0), at(21, 9, 30), start))
