@@ -787,6 +787,30 @@
    "score": 10.0,
    "checkedAt": "2026-10-06",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/failuresread.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-06",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/failures_read_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-06",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/readat.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-06",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/readat_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-06",
+   "minScore": 10.0
   }
  ]
 }

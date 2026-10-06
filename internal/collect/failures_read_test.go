@@ -1,10 +1,12 @@
 package collect
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -83,4 +85,38 @@ func collectFailuresRead(t *testing.T, stored string, code int) (string, string)
 	}
 	q, _ := url.ParseQuery(asked[0][len(issuesPath)+1:])
 	return q.Get("since"), file
+}
+
+// TestAFailuresReadFileThatCannotBeReadRefusesTheRun (forsgren#67): a
+// failures_read.csv not in the format is an error naming it, before GitHub is
+// asked anything.
+func TestAFailuresReadFileThatCannotBeReadRefusesTheRun(t *testing.T) {
+	g := issuesOnly(t)
+	path := historyPath(t)
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(filepath.Dir(path), "failures_read.csv"), []byte("nope\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r := g.collect(t, shop(production), path, github.DefaultMaxPages)
+	if !errors.Is(r.err, history.ErrMalformed) || !strings.Contains(r.err.Error(), "failures_read.csv") {
+		t.Errorf("want ErrMalformed naming failures_read.csv, got %v", r.err)
+	}
+	if got := g.seen("/"); len(got) != 0 {
+		t.Errorf("want GitHub asked nothing, got %v", got)
+	}
+}
+
+// TestAFailuresReadThatCannotBeSavedFailsTheRun (forsgren#67): the run's
+// error names failures_read.csv.
+func TestAFailuresReadThatCannotBeSavedFailsTheRun(t *testing.T) {
+	path := historyPath(t)
+	if err := os.MkdirAll(filepath.Join(filepath.Dir(path), "failures_read.csv.tmp"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	r := issuesOnly(t).collect(t, shop(production), path, github.DefaultMaxPages)
+	if r.err == nil || !strings.Contains(r.err.Error(), "failures_read.csv") {
+		t.Errorf("want an error naming failures_read.csv, got %v", r.err)
+	}
 }

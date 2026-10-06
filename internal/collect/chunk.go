@@ -11,7 +11,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"path/filepath"
 	"strings"
 	"time"
@@ -142,15 +141,12 @@ func (h held) noteReach(repository string, reach time.Time) {
 }
 
 // finish is the end of a run: the failed repositories as ErrFailed, joined
-// with the error of saving the reach, which is saved when it moved. The
-// reach of the repositories that were read is kept even when others failed.
-func (o Options) finish(reach, before history.Reach, failed, total int) error {
+// with the errors of saving the marks, each saved when it moved. The marks of
+// the repositories that were read are kept even when others failed.
+func (o Options) finish(h held, before marks, failed, total int) error {
 	var err error
 	if failed > 0 {
 		err = fmt.Errorf("%d of %d %w", failed, total, ErrFailed)
 	}
-	if maps.Equal(reach, before) {
-		return err
-	}
-	return errors.Join(err, history.SaveReach(o.reachFile(), reach))
+	return errors.Join(err, o.saveMarks(h, before))
 }

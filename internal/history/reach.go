@@ -64,8 +64,11 @@ func (r reachRow) validate() error {
 // error; a first line stating another version is ErrUnknownVersion; a line
 // that is not in the format is a *MalformedError naming the file and the
 // line.
-func LoadReach(path string) (Reach, error) {
-	rows, err := reachFile.load(path)
+func LoadReach(path string) (Reach, error) { return loadReach(path, reachFile) }
+
+// loadReach is LoadReach for the file format f.
+func loadReach(path string, f format[reachRow, string]) (Reach, error) {
+	rows, err := f.load(path)
 	if notExist(err) {
 		return Reach{}, nil
 	}
@@ -83,7 +86,10 @@ func LoadReach(path string) (Reach, error) {
 // directory when it is missing, and replacing a file that is there. The
 // content goes to a temporary file next to it, synced, and is then renamed
 // over path, so a crash never leaves half a file.
-func SaveReach(path string, r Reach) error {
+func SaveReach(path string, r Reach) error { return saveReach(path, r, reachFile) }
+
+// saveReach is SaveReach for the file format f.
+func saveReach(path string, r Reach, f format[reachRow, string]) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
@@ -91,9 +97,9 @@ func SaveReach(path string, r Reach) error {
 	for repository, at := range r {
 		rows = append(rows, reachRow{repository, at})
 	}
-	slices.SortFunc(rows, reachFile.compare)
+	slices.SortFunc(rows, f.compare)
 	temporary := path + ".tmp"
-	if err := writeSynced(temporary, reachFile.payload(store[reachRow]{}, rows)); err != nil {
+	if err := writeSynced(temporary, f.payload(store[reachRow]{}, rows)); err != nil {
 		return err
 	}
 	if err := os.Rename(temporary, path); err != nil {

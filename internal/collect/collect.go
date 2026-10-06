@@ -65,7 +65,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"maps"
 	"strings"
 	"time"
 
@@ -115,15 +114,15 @@ func Run(ctx context.Context, cfg config.Config, o Options) error {
 	if h.failures, err = loadFailures(o.failuresFile()); err != nil {
 		return err
 	}
-	if h.reach, err = history.LoadReach(o.reachFile()); err != nil {
+	if h, err = o.loadMarks(h); err != nil {
 		return err
 	}
-	before := maps.Clone(h.reach)
+	before := h.marks()
 	failed := 0
 	for _, p := range cfg.Projects {
 		failed += o.collectProject(ctx, h, p)
 	}
-	return o.finish(h.reach, before, failed, cfg.RepositoryCount())
+	return o.finish(h, before, failed, cfg.RepositoryCount())
 }
 
 // collectProject collects the repositories of p and returns how many failed.
@@ -159,6 +158,7 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 		return fmt.Errorf("%s: %w", r.Name, err)
 	}
 	h.noteReach(r.Name, f.reach)
+	h.noteRead(r.Name, o.Now)
 	o.report(r.Name, f, stored)
 	return nil
 }
@@ -399,6 +399,7 @@ type held struct {
 	successes map[history.Stream][]history.Record
 	failures  map[history.IssueKey]history.Failure
 	reach     history.Reach // see chunk.go
+	read      history.Reach // see failuresread.go
 }
 
 // loadHeld reads the history at path; a missing file holds nothing.

@@ -51,7 +51,7 @@ func loadFailures(path string) (map[history.IssueKey]history.Failure, error) {
 // failureIssues reads repo's failure issues updated in the last history_days and
 // returns those to store: new, or changed since their newest stored line.
 func (o Options) failureIssues(ctx context.Context, h held, repo string) ([]history.Failure, error) {
-	issues, truncated, err := o.Client.FailureIssues(ctx, repo, o.earliest)
+	issues, truncated, err := o.Client.FailureIssues(ctx, repo, o.failuresSince(h, repo))
 	if err != nil {
 		return nil, err
 	}
