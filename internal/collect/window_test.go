@@ -104,3 +104,40 @@ func TestAListCutAtThePageLimitIsReported(t *testing.T) {
 		t.Errorf("want stderr %q, got %q", want, r.stderr)
 	}
 }
+
+// withFirstRunDays is cfg with first_run_days set (forsgren#57).
+func withFirstRunDays(cfg config.Config, days int) config.Config {
+	cfg.FirstRunDays = days
+	return cfg
+}
+
+// TestTheFirstRunReadsFirstRunDaysBack (forsgren#57): with nothing stored for
+// a repository and first_run_days 365, a deployment 300 days old is read.
+func TestTheFirstRunReadsFirstRunDaysBack(t *testing.T) {
+	g := newGitHub(t)
+	g.bodies[deploymentsPath] = list(deployment(1001, shaA, "deploy", "2025-12-05T00:00:00Z"))
+	g.bodies[statusesPath("1001")] = list(status(6, "success", "2025-12-05T00:05:00Z"))
+	cfg := withFirstRunDays(shop(production), 365)
+	wantStdout(t, g.collect(t, cfg, historyPath(t), github.DefaultMaxPages),
+		"acme/app: 1 new, 0 skipped (not final), 0 commits\n")
+	if got := g.seen(statusesPath("1001")); len(got) == 0 {
+		t.Error("want the deployment 300 days old read at first_run_days 365, got none")
+	}
+}
+
+// TestALaterRunNeverReadsMoreThanFirstRunDays (forsgren#57): a newest stored
+// deployment 400 days old, at first_run_days 365, reads from 365 days back
+// (the runs are asked from a day before that).
+func TestALaterRunNeverReadsMoreThanFirstRunDays(t *testing.T) {
+	g := newGitHub(t)
+	g.bodies["/repos/acme/app"] = `{"default_branch": "trunk"}`
+	g.bodies[runsPath] = runs(run(5002, shaB, "completed", "success", "2026-07-04T00:00:00Z"),
+		run(5001, shaA, "completed", "success", "2025-11-01T00:00:00Z"))
+	path := stored(t, history.KindWorkflow, "deploy.yml", time.Date(2025, 8, 28, 0, 0, 0, 0, time.UTC))
+	g.bodies[comparePath(shaA, shaB)] = ahead(authored{shaB, time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)})
+	cfg := withFirstRunDays(shop(repository("acme/app", config.Workflow, "deploy.yml")), 365)
+	wantNoStderr(t, g.collect(t, cfg, path, github.DefaultMaxPages))
+	if got := g.seen(runsPath + "?"); len(got) != 1 || !strings.Contains(got[0], "created=%3E%3D2025-09-30") {
+		t.Errorf("want the runs created from 2025-09-30 asked, got %v", got)
+	}
+}
