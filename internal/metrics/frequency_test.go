@@ -195,3 +195,32 @@ func TestBandFallsBackToTheLast180Days(t *testing.T) {
 		t.Errorf("want a deployment older than 180 days less than once per six months, got %+v", f)
 	}
 }
+
+// youngAges is one success first ago before now, and n-1 more an hour ago.
+func youngAges(n int, first time.Duration) []time.Duration {
+	ages := []time.Duration{first}
+	for len(ages) < n {
+		ages = append(ages, time.Hour)
+	}
+	return ages
+}
+
+// TestBandScalesAProjectYoungerThanThirtyDays (forsgren#69): when the first
+// success is less than 30 days old, the band uses Last30 times 30 over the
+// age in whole days, at least 1; an older project is not scaled.
+func TestBandScalesAProjectYoungerThanThirtyDays(t *testing.T) {
+	cases := []struct {
+		name string
+		ages []time.Duration
+		want Band
+	}{
+		{"19 in 9 days is 63 in 30", youngAges(19, 9*day), HourlyToDaily},
+		{"19 first 40 days ago is not scaled", youngAges(19, 40*day), DailyToWeekly},
+		{"1 today is age 1, so 30", youngAges(1, 0), HourlyToDaily},
+	}
+	for _, c := range cases {
+		if f := shopWithSuccessesAt(t, c.ages...); f.Band != c.want {
+			t.Errorf("%s: want %v, got %+v", c.name, c.want, f)
+		}
+	}
+}
