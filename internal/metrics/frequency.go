@@ -36,7 +36,8 @@ type Frequency struct {
 	// deployment; zero when it has none.
 	Latest time.Time
 	// Band is the DORA band of Last30, or of Last180 when Last30 is 0 (see
-	// BandOf).
+	// BandOf); a project younger than 30 days scales Last30 to 30 days
+	// first (see bandOfAge, forsgren#69).
 	Band Band
 }
 
