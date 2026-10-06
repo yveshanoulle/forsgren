@@ -67,6 +67,13 @@ const (
 	MaxHistoryDays     = 1825
 )
 
+// The days each run adds until history_days is reached (forsgren#57): the
+// default, and the most history_chunk_days can name.
+const (
+	DefaultHistoryChunkDays = 100
+	MaxHistoryChunkDays     = 365
+)
+
 // DefaultEnvironment is the GitHub environment a repository deploys to when
 // its config names no deployment.
 const DefaultEnvironment = "production"
@@ -133,7 +140,11 @@ type Config struct {
 	// HistoryDays is how many days of history are collected, 365 when the
 	// file has no history_days key (forsgren#57).
 	HistoryDays int
-	Projects    []Project
+	// HistoryChunkDays is how many days back each run adds until HistoryDays
+	// is reached, 100 when the file has no history_chunk_days key
+	// (forsgren#57).
+	HistoryChunkDays int
+	Projects         []Project
 }
 
 // The refusals Load names. Each error Load returns wraps exactly one of
@@ -157,6 +168,7 @@ var (
 	ErrAutoUpdate          = errors.New("invalid auto_update")
 	ErrAutoUpdateLevel     = errors.New("invalid auto_update_level")
 	ErrHistoryDays         = errors.New("invalid history_days")
+	ErrHistoryChunkDays    = errors.New("invalid history_chunk_days")
 )
 
 // Load reads and validates the config file at path. Every error names the

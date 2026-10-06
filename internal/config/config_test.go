@@ -19,27 +19,29 @@ func TestLoadValid(t *testing.T) {
 	}{
 		{
 			file: "minimal.yml",
-			want: Config{Version: 1, HistoryDays: DefaultHistoryDays, Projects: []Project{{
-				Name: "Acme",
-				Repositories: []Repository{
-					{Name: "acme/app", Deployment: Deployment{Kind: Environment, Name: "production"}},
-				},
-			}}},
+			want: Config{Version: 1, HistoryDays: DefaultHistoryDays,
+				HistoryChunkDays: DefaultHistoryChunkDays, Projects: []Project{{
+					Name: "Acme",
+					Repositories: []Repository{
+						{Name: "acme/app", Deployment: Deployment{Kind: Environment, Name: "production"}},
+					},
+				}}},
 			repos: 1,
 		},
 		{
 			file: "full.yml",
-			want: Config{Version: 1, HistoryDays: DefaultHistoryDays, Projects: []Project{
-				{Name: "Acme Shop", Repositories: []Repository{
-					{Name: "acme/api", Deployment: Deployment{Kind: Environment, Name: "production"}},
-					{Name: "acme/ios-app", Deployment: Deployment{Kind: Workflow, Name: "testflight.yml"}},
-					{Name: "acme/website", Deployment: Deployment{Kind: Environment, Name: "production"}},
+			want: Config{Version: 1, HistoryDays: DefaultHistoryDays,
+				HistoryChunkDays: DefaultHistoryChunkDays, Projects: []Project{
+					{Name: "Acme Shop", Repositories: []Repository{
+						{Name: "acme/api", Deployment: Deployment{Kind: Environment, Name: "production"}},
+						{Name: "acme/ios-app", Deployment: Deployment{Kind: Workflow, Name: "testflight.yml"}},
+						{Name: "acme/website", Deployment: Deployment{Kind: Environment, Name: "production"}},
+					}},
+					{Name: "Acme Tools", Repositories: []Repository{
+						{Name: "acme-labs/cli.tool", Deployment: Deployment{Kind: Release}},
+						{Name: "acme/docs", Deployment: Deployment{Kind: Workflow, Name: "publish.yaml"}},
+					}},
 				}},
-				{Name: "Acme Tools", Repositories: []Repository{
-					{Name: "acme-labs/cli.tool", Deployment: Deployment{Kind: Release}},
-					{Name: "acme/docs", Deployment: Deployment{Kind: Workflow, Name: "publish.yaml"}},
-				}},
-			}},
 			repos: 5,
 		},
 	}
