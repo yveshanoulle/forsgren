@@ -615,6 +615,16 @@ projects:
   (see Collecting deployments) are read from the same date on every run, so
   raising the key widens their next read too. The starter that `init-config`
   writes includes `history_days: 365`.
+- **`history_chunk_days`** is optional (forsgren#57): how many days back each
+  run adds until `history_days` is reached, a whole number from 1 to 365,
+  written at the top level, for example `history_chunk_days: 30`. Left out,
+  or without a value, it is 100; it is not tied to `history_days`. Anything
+  else (zero, a negative number, more than 365, a quoted value, a decimal or
+  text) is refused by `check-config` and `render`, naming the key and the
+  limit: `invalid history_chunk_days "366": use a whole number of days from 1
+  to 365`. Today the key is read and checked only: collect does not use it
+  yet. The starter that `init-config` writes includes
+  `history_chunk_days: 100`.
 - **`projects`** is required: a list of projects, or `projects: []` for an
   installation that measures nothing yet (it is valid, and `check-config`
   reports `projects: 0, repositories: 0`). A file whose `projects` key is
@@ -705,7 +715,8 @@ forsgren.config.yml`. The starter is a comment that explains the file, names
 forms, and shows a commented
 example with made-up `acme` names (the default deployment, `workflow=` and
 `release`), followed by `version: 1`, `view: standard`, `auto_update: true`,
-`auto_update_level: patch`, `history_days: 365` and `projects: []`, so
+`auto_update_level: patch`, `history_days: 365`,
+`history_chunk_days: 100` and `projects: []`, so
 `check-config` accepts it as it is: `projects: 0, repositories: 0`. When the file exists,
 whatever it holds (even an invalid or an empty file), it is left byte for
 byte and the command prints `kept forsgren.config.yml`; both exit 0. The file

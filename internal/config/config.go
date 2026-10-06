@@ -213,8 +213,10 @@ type fileConfig struct {
 	// AutoUpdateLevel is nil for a missing key or no value.
 	AutoUpdateLevel *string `yaml:"auto_update_level"`
 	// HistoryDays is the node as written, so a non-integer is refused by name.
-	HistoryDays yaml.Node     `yaml:"history_days"`
-	Projects    []fileProject `yaml:"projects"`
+	HistoryDays yaml.Node `yaml:"history_days"`
+	// HistoryChunkDays is the node as written, like HistoryDays.
+	HistoryChunkDays yaml.Node     `yaml:"history_chunk_days"`
+	Projects         []fileProject `yaml:"projects"`
 }
 
 type fileProject struct {

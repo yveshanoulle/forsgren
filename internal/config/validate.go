@@ -55,32 +55,62 @@ func (f fileConfig) settings() (Config, error) {
 	if err := checkLevelWritten(auto, level); err != nil {
 		return Config{}, err
 	}
-	days, err := checkHistoryDays(f.HistoryDays)
+	days, chunk, err := f.history()
 	if err != nil {
 		return Config{}, err
 	}
 	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level,
-		HistoryDays: days}, nil
+		HistoryDays: days, HistoryChunkDays: chunk}, nil
 }
 
-// wholeDays is the node's integer, when it is one from 1 to MaxHistoryDays.
-func wholeDays(n yaml.Node) (int, bool) {
-	days, err := strconv.Atoi(n.Value)
-	return days, err == nil && n.ShortTag() == "!!int" && days >= 1 && days <= MaxHistoryDays
-}
-
-// checkHistoryDays is history_days as written, DefaultHistoryDays when
-// the file has none (a key without a value is none): a whole number from 1
-// to MaxHistoryDays, never a quoted value (forsgren#57).
-func checkHistoryDays(n yaml.Node) (int, error) {
-	if n.Kind == 0 || n.ShortTag() == "!!null" {
-		return DefaultHistoryDays, nil
+// history is history_days and history_chunk_days, or the first refusal of
+// the two (forsgren#57).
+func (f fileConfig) history() (days, chunk int, err error) {
+	if days, err = checkHistoryDays(f.HistoryDays); err != nil {
+		return 0, 0, err
 	}
-	if days, ok := wholeDays(n); ok {
+	chunk, err = checkHistoryChunkDays(f.HistoryChunkDays)
+	return days, chunk, err
+}
+
+// daysKey is a key that is a whole number of days (forsgren#57): its
+// refusal, its default and its upper limit.
+type daysKey struct {
+	sentinel error
+	def, max int
+}
+
+var (
+	historyDays      = daysKey{ErrHistoryDays, DefaultHistoryDays, MaxHistoryDays}
+	historyChunkDays = daysKey{ErrHistoryChunkDays, DefaultHistoryChunkDays, MaxHistoryChunkDays}
+)
+
+// whole is the node's integer, when it is one from 1 to the key's limit.
+func (k daysKey) whole(n yaml.Node) (int, bool) {
+	days, err := strconv.Atoi(n.Value)
+	return days, err == nil && n.ShortTag() == "!!int" && days >= 1 && days <= k.max
+}
+
+// check is the key as written, its default when the file has none (a key
+// without a value is none): a whole number from 1 to its limit, never a
+// quoted value.
+func (k daysKey) check(n yaml.Node) (int, error) {
+	if n.Kind == 0 || n.ShortTag() == "!!null" {
+		return k.def, nil
+	}
+	if days, ok := k.whole(n); ok {
 		return days, nil
 	}
-	return 0, fmt.Errorf("%w %q: use a whole number of days from 1 to %d", ErrHistoryDays, n.Value, MaxHistoryDays)
+	return 0, fmt.Errorf("%w %q: use a whole number of days from 1 to %d", k.sentinel, n.Value, k.max)
 }
+
+// checkHistoryDays is history_days as written, DefaultHistoryDays when the
+// file has none (forsgren#57).
+func checkHistoryDays(n yaml.Node) (int, error) { return historyDays.check(n) }
+
+// checkHistoryChunkDays is history_chunk_days as written,
+// DefaultHistoryChunkDays when the file has none (forsgren#57).
+func checkHistoryChunkDays(n yaml.Node) (int, error) { return historyChunkDays.check(n) }
 
 // checkLevelWritten refuses auto_update on without a level: there is no
 // default, so the level must be written (forsgren#58).
