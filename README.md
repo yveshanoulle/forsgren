@@ -462,13 +462,13 @@ linked to its GitHub repository, its version, "The five DORA metrics, from
 GitHub data." "Calculated at
 2026-10-03 12:00 UTC", the moment of the run (UTC, to the minute), on every
 run, with rows or without; and, when a newer forsgren release exists than the
-version that built the page, the version line adds it, "Forsgren 0.2.3 ·
-0.2.4 is available" (forsgren#40; nothing is added when the page is up to
+version that built the page, the version line adds it, "Forsgren 0.3.0 ·
+0.3.1 is available" (forsgren#40; nothing is added when the page is up to
 date, and no repository appears). The numbers are compared as numbers, so 0.0.10
 is newer than 0.0.9.
 
 `render` writes one table (forsgren#38) first on the table page, with no text
-above it but a visually hidden heading for screen readers, "Forsgren 0.2.3:
+above it but a visually hidden heading for screen readers, "Forsgren 0.3.0:
 the five DORA metrics"; where each metric comes from is explained on the
 legend page, counting back from the time in the footer. A config that lists
 no projects has no table: the page shows, in its place, a short how-to, that
@@ -596,6 +596,25 @@ projects:
   also writes `auto_update: true` and `auto_update_level: patch` (forsgren#58),
   so a new installation merges forsgren's patch releases by itself; an
   existing config without `auto_update:` keeps it off (see Auto-update).
+- **`first_run_days`** is optional (forsgren#57): how far back, in days,
+  forsgren reads a repository that has nothing stored yet, a whole number
+  from 1 to 1825 (5 years), written at the top level, for example
+  `first_run_days: 730`. Left out, or without a value, it is 365. Anything
+  else (zero, a negative number, more than 1825, a quoted value, a decimal or
+  text) is refused by `check-config` and `render`, naming the key and the
+  limit: `invalid first_run_days "1826": use a whole number of days from 1 to
+  1825`. It applies to each repository that has nothing stored for its rule
+  yet; a repository added later gets its own first run then. It is also the
+  most any later run reads back, however old the newest stored deployment is.
+  Raising it does not re-read a repository that already has history: its
+  next run still starts 7 days before its newest stored deployment. To read
+  one again further back, remove that repository's rows from
+  `data/deployments.csv` and `data/commits.csv`, or remove `data/`, and the
+  next run is its first run again. What GitHub no longer returns (a deleted
+  deployment, a run past its retention) cannot come back. The failure issues
+  (see Collecting deployments) are read from the same date on every run, so
+  raising the key widens their next read too. The starter that `init-config`
+  writes includes `first_run_days: 365`.
 - **`projects`** is required: a list of projects, or `projects: []` for an
   installation that measures nothing yet (it is valid, and `check-config`
   reports `projects: 0, repositories: 0`). A file whose `projects` key is
@@ -686,7 +705,7 @@ forsgren.config.yml`. The starter is a comment that explains the file, names
 forms, and shows a commented
 example with made-up `acme` names (the default deployment, `workflow=` and
 `release`), followed by `version: 1`, `view: standard`, `auto_update: true`,
-`auto_update_level: patch` and `projects: []`, so
+`auto_update_level: patch`, `first_run_days: 365` and `projects: []`, so
 `check-config` accepts it as it is: `projects: 0, repositories: 0`. When the file exists,
 whatever it holds (even an invalid or an empty file), it is left byte for
 byte and the command prints `kept forsgren.config.yml`; both exit 0. The file
@@ -746,9 +765,10 @@ count. When it stored failure issues the line goes on with
   small request per release not stored yet; the tag is stored as the task.
 
 **How far back.** A repository with nothing in the history for its rule is
-read 90 days back. After that, a run reads from 7 days before the newest
+read `first_run_days` back (365 unless the config says otherwise, see
+Configuration). After that, a run reads from 7 days before the newest
 deployment stored for it, so a deployment that was not final at the last
-run is still found, and never more than 90 days back: the daily run reads
+run is still found, and never more than `first_run_days` back: the daily run reads
 little more than what is new. A deployment still not final 7 days before
 the newest stored one is not read again, so it is never stored. Every list
 is read newest first, 100 per page,
@@ -808,7 +828,7 @@ in `data/commits.csv`, each with its author date and the deployment's
 
 **The failure issues** (for change fail rate, forsgren#18). Every
 repository's issues labelled `failure`, open or closed, that GitHub says
-were updated in the last 90 days: `issues?labels=failure&state=all&since=`,
+were updated in the last `first_run_days` days: `issues?labels=failure&state=all&since=`,
 every page up to the page limit, pull requests left out (GitHub lists them
 as issues, with a `pull_request` field).
 
@@ -885,7 +905,7 @@ private repositories (no scope for public ones).
 
 ## Running forsgren
 
-forsgren renders a static page whose footer says "Forsgren 0.2.3", the version of
+forsgren renders a static page whose footer says "Forsgren 0.3.0", the version of
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
@@ -939,7 +959,7 @@ pull-request check failed"); the link is fine there, because a run page is
 private to the repository, unlike the public page. A flag it cannot use is a
 usage error that prints nothing. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides
-"Forsgren 0.2.3" in its footer, a how-to for filling `forsgren.config.yml`;
+"Forsgren 0.3.0" in its footer, a how-to for filling `forsgren.config.yml`;
 without `--config` (the build above has no installation config) or with
 projects, the page is the placeholder. With `--data` as well (it needs `--config`), the
 page shows each project's deployment frequency from that history, counted
@@ -1072,9 +1092,9 @@ jobs:
 - **`pull-requests: read` is optional, and the caller's to grant too**
   (forsgren#40). With it, when a newer forsgren release exists and
   Dependabot has an open pull request in your repository that bumps the
-  `uses:` pin to exactly that release, the page footer says "Forsgren 0.2.3
-  · 0.2.4 is waiting in pull request #7 (merge it to update)", with the
-  number only. Without it the footer still says "0.2.4 is available": the
+  `uses:` pin to exactly that release, the page footer says "Forsgren 0.3.0
+  · 0.3.1 is waiting in pull request #7 (merge it to update)", with the
+  number only. Without it the footer still says "0.3.1 is available": the
   lookup treats the refusal (a 403) as unknown, never as an error, and the
   run goes on. The workflow itself declares no permissions block, so it
   takes what your caller grants; it does not ask for this one, because a
