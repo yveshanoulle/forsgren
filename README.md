@@ -200,8 +200,10 @@ slowest bands apart:
 | none in 30 days, 1 and more in 180 days | Between once per month and once every six months |
 | none in 180 days | Less than once per six months |
 
-Once an hour over an 8-hour working day is 8 × 30 = 240 deployments in 30
-days, so on demand is more than that (forsgren#69). A row whose first
+Once an hour over a working day is `working_hours` × 30 deployments in 30
+days (8 × 30 = 240 with the default 8), so on demand is more than that
+(forsgren#69, #71); the legend page states the configured day and the numbers
+that follow from it. A row whose first
 successful deployment is less than 30 days old (the project total: its
 earliest) has not had a whole window to deploy in, so its band uses its
 30-day count scaled to 30 days: the count × 30 over its age in whole days, at

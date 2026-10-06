@@ -105,6 +105,16 @@ func Placeholder(version string) Data {
 	return Data{Title: "forsgren", Version: version, Message: "no data yet"}
 }
 
+// WorkingDay is the hours of a working day, 8 when Data holds none.
+func (d Data) WorkingDay() int { return metrics.WorkingDay(d.WorkingHours) }
+
+// OnDemandFrom is the lowest 30-day count on demand for the working day.
+func (d Data) OnDemandFrom() int { return metrics.OnDemandFrom(d.WorkingHours) }
+
+// HourlyToDailyTo is the highest 30-day count between once per hour and once
+// per day, one below OnDemandFrom.
+func (d Data) HourlyToDailyTo() int { return d.OnDemandFrom() - 1 }
+
 // pagesGlob matches one template file per page, named as the page it
 // renders. parsePages and PageNames read the same set through it.
 const pagesGlob = "templates/pages/*.html"

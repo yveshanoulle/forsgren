@@ -60,7 +60,8 @@ func (f fileConfig) settings() (Config, error) {
 		return Config{}, err
 	}
 	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level,
-		HistoryDays: days, HistoryChunkDays: chunk, WorkingHours: hours}, nil
+		HistoryDays: days, HistoryChunkDays: chunk, WorkingHours: hours,
+		WorkingHoursSet: workingHours.set(f.WorkingHours)}, nil
 }
 
 // numbers is history_days, history_chunk_days and working_hours, or the
@@ -90,6 +91,10 @@ var (
 	workingHours     = numberKey{ErrWorkingHours, "hours", DefaultWorkingHours, MaxWorkingHours}
 )
 
+// set says whether the key has a value: a key left out, or written without
+// one, is none.
+func (numberKey) set(n yaml.Node) bool { return n.Kind != 0 && n.ShortTag() != "!!null" }
+
 // whole is the node's integer, when it is one from 1 to the key's limit.
 func (k numberKey) whole(n yaml.Node) (int, bool) {
 	n2, err := strconv.Atoi(n.Value)
@@ -100,7 +105,7 @@ func (k numberKey) whole(n yaml.Node) (int, bool) {
 // without a value is none): a whole number from 1 to its limit, never a
 // quoted value.
 func (k numberKey) check(n yaml.Node) (int, error) {
-	if n.Kind == 0 || n.ShortTag() == "!!null" {
+	if !k.set(n) {
 		return k.def, nil
 	}
 	if v, ok := k.whole(n); ok {

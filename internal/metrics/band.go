@@ -1,5 +1,7 @@
 package metrics
 
+import "github.com/yveshanoulle/forsgren/internal/config"
+
 // Band is a DORA band for deployment frequency (forsgren#16, step 6): the
 // six answers of the current DORA Quick Check (dora.dev/quickcheck), word
 // for word, as mutually exclusive ranges of a count.
@@ -12,9 +14,11 @@ package metrics
 // once per Y (one deployment in 30 days is once per month) reads as the
 // answer that names it last:
 //
-//   - On demand (multiple deploys per day): 241 and more in 30 days, more
-//     than once an hour over an 8-hour working day (8 × 30 = 240).
-//   - Between once per hour and once per day: 30 to 240 in 30 days.
+//   - On demand (multiple deploys per day): more than once an hour over a
+//     working day of working_hours (8 unless configured), so more than
+//     working_hours × 30 in 30 days: 241 and more at 8 (forsgren#71).
+//   - Between once per hour and once per day: 30 up to that threshold, 30 to
+//     240 at 8.
 //   - Between once per day and once per week: 5 to 29 in 30 days. Once a
 //     week is 30/7, about 4.3 in 30 days, so 5 is the first count at or
 //     above it.
@@ -42,16 +46,27 @@ const (
 	weeklyToMonthlyFrom = 1
 	dailyToWeeklyFrom   = 5
 	hourlyToDailyFrom   = 30
-	// onDemandFrom: once an hour over an 8-hour working day is 8 × 30 = 240
-	// deployments in 30 days, so on demand is more than that, 241 (forsgren#69).
-	onDemandFrom = 241
 )
+
+// WorkingDay is the hours of a working day: hours itself, or the default 8
+// when it is not set (below 1).
+func WorkingDay(hours int) int {
+	if hours < 1 {
+		return config.DefaultWorkingHours
+	}
+	return hours
+}
+
+// OnDemandFrom is the lowest 30-day count that is on demand: once an hour
+// over a working day of the given hours is hours × 30 deployments in 30
+// days, so on demand is more than that (forsgren#69, #71): 241 at 8.
+func OnDemandFrom(hours int) int { return WorkingDay(hours)*last30Days + 1 }
 
 // BandOf is the band of the counts of successful deployments in the last 30
 // and the last 180 days, for a working day of the given hours (forsgren#71).
-func BandOf(last30, last180, _ int) Band {
+func BandOf(last30, last180, workingHours int) Band {
 	switch {
-	case last30 >= onDemandFrom:
+	case last30 >= OnDemandFrom(workingHours):
 		return OnDemand
 	case last30 >= hourlyToDailyFrom:
 		return HourlyToDaily

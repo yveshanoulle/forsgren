@@ -97,10 +97,11 @@ func pageData(o renderOptions, at time.Time) (page.Data, error) {
 	}
 	data.NoProjects = len(cfg.Projects) == 0
 	data.View = cfg.View
+	data.WorkingHours, data.WorkingHoursSet = cfg.WorkingHours, cfg.WorkingHoursSet
 	if o.data == "" {
 		return data, nil
 	}
-	rows, err := rowsOf(cfg.Projects, o.data, at)
+	rows, err := rowsOf(cfg, o.data, at)
 	if err != nil {
 		return data, err
 	}
@@ -114,7 +115,7 @@ func pageData(o renderOptions, at time.Time) (page.Data, error) {
 // (data/commits.csv beside data/deployments.csv, lead time, forsgren#16)
 // and the failures file next to it (data/failures.csv, with the history
 // change fail rate, forsgren#18), at the render time at.
-func rowsOf(projects []config.Project, path string, at time.Time) ([]metrics.Row, error) {
+func rowsOf(cfg config.Config, path string, at time.Time) ([]metrics.Row, error) {
 	records, err := loadOrNone(path, history.Load)
 	if err != nil {
 		return nil, err
@@ -127,7 +128,8 @@ func rowsOf(projects []config.Project, path string, at time.Time) ([]metrics.Row
 	if err != nil {
 		return nil, err
 	}
-	return metrics.Rows(projects, metrics.Data{Records: records, Commits: commits, Failures: failures}, at), nil
+	data := metrics.Data{Records: records, Commits: commits, Failures: failures, WorkingHours: cfg.WorkingHours}
+	return metrics.Rows(cfg.Projects, data, at), nil
 }
 
 // loadOrNone reads the file at path with load. A missing file holds
