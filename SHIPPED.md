@@ -172,3 +172,7 @@ The optional top-level `working_hours` key (a whole number from 1 to 24, default
 ## 2026-10-06 — the legend lists every setting, marking the ones not set, released as 0.3.6 ([#74](https://github.com/yveshanoulle/forsgren/issues/74))
 
 The legend page has a Settings section that lists every optional key of `forsgren.config.yml` with the value forsgren uses, and marks each key the file does not set as a default. The README says so.
+
+## 2026-10-06 — the footer says "Metrics from GitHub data.", released as 0.3.7 ([#75](https://github.com/yveshanoulle/forsgren/issues/75))
+
+The page footer's "The five DORA metrics, from GitHub data." now reads "Metrics from GitHub data.".
