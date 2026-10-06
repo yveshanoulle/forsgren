@@ -23,10 +23,10 @@
 //     as the task.
 //
 // How far back it reads: a repository with nothing stored for its rule is
-// read first_run_days back (365 by default, forsgren#57); after that, from 7
+// read history_days back (365 by default, forsgren#57); after that, from 7
 // days (Lookback) before the newest deployment stored for it, so a
 // deployment that was not final at the last run is still found, but never
-// more than first_run_days back. A
+// more than history_days back. A
 // deployment still not final more than 7 days before the newest stored one
 // is therefore never stored. Each list is cut at the client's page limit,
 // newest first, and stderr says so. A repository's names in the config and
@@ -91,7 +91,7 @@ type Options struct {
 	Stderr  io.Writer
 
 	// earliest is how far back a repository is read when nothing is stored
-	// for it yet, and the most any run reads back: first_run_days before
+	// for it yet, and the most any run reads back: history_days before
 	// Now, set by Run (forsgren#57).
 	earliest time.Time
 }
@@ -102,7 +102,7 @@ type Options struct {
 // each that failed. A history, a commits file or a failures file that
 // cannot be read is refused before GitHub is asked anything.
 func Run(ctx context.Context, cfg config.Config, o Options) error {
-	o.earliest = o.Now.Add(-time.Duration(cfg.FirstRunDays) * 24 * time.Hour)
+	o.earliest = o.Now.Add(-time.Duration(cfg.HistoryDays) * 24 * time.Hour)
 	h, err := loadHeld(o.History)
 	if err != nil {
 		return err

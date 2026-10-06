@@ -129,13 +129,13 @@ list (`PublishedReleases`), the newest-within-level pick, the pin rewrite and
 the commit through the git data API are each tested, and the workflow's new
 steps are pinned by `Scripts/test_auto_update_workflow.sh`.
 
-## 2026-10-06 — first_run_days: how far back the first run reads, released as 0.3.0 ([#57](https://github.com/yveshanoulle/forsgren/issues/57))
+## 2026-10-06 — history_days: how far back the first run reads, released as 0.3.0 ([#57](https://github.com/yveshanoulle/forsgren/issues/57))
 
-A new key in `forsgren.config.yml`, `first_run_days`, sets how far back a
+A new key in `forsgren.config.yml`, `history_days`, sets how far back a
 repository with nothing stored is read, and the most any later run reads back.
 It is a whole number of days from 1 to 1825, 365 when left out, and
 `check-config` refuses anything else naming the key and the limit. The first
 run used to be 90 days; collect's repository window and the failure issues'
-window both follow the key now, and the starter writes `first_run_days: 365`.
+window both follow the key now, and the starter writes `history_days: 365`.
 The README documents the key, including how to read a repository again further
 back.

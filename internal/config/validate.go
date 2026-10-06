@@ -55,31 +55,31 @@ func (f fileConfig) settings() (Config, error) {
 	if err := checkLevelWritten(auto, level); err != nil {
 		return Config{}, err
 	}
-	days, err := checkFirstRunDays(f.FirstRunDays)
+	days, err := checkHistoryDays(f.HistoryDays)
 	if err != nil {
 		return Config{}, err
 	}
 	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level,
-		FirstRunDays: days}, nil
+		HistoryDays: days}, nil
 }
 
-// wholeDays is the node's integer, when it is one from 1 to MaxFirstRunDays.
+// wholeDays is the node's integer, when it is one from 1 to MaxHistoryDays.
 func wholeDays(n yaml.Node) (int, bool) {
 	days, err := strconv.Atoi(n.Value)
-	return days, err == nil && n.ShortTag() == "!!int" && days >= 1 && days <= MaxFirstRunDays
+	return days, err == nil && n.ShortTag() == "!!int" && days >= 1 && days <= MaxHistoryDays
 }
 
-// checkFirstRunDays is first_run_days as written, DefaultFirstRunDays when
+// checkHistoryDays is history_days as written, DefaultHistoryDays when
 // the file has none (a key without a value is none): a whole number from 1
-// to MaxFirstRunDays, never a quoted value (forsgren#57).
-func checkFirstRunDays(n yaml.Node) (int, error) {
+// to MaxHistoryDays, never a quoted value (forsgren#57).
+func checkHistoryDays(n yaml.Node) (int, error) {
 	if n.Kind == 0 || n.ShortTag() == "!!null" {
-		return DefaultFirstRunDays, nil
+		return DefaultHistoryDays, nil
 	}
 	if days, ok := wholeDays(n); ok {
 		return days, nil
 	}
-	return 0, fmt.Errorf("%w %q: use a whole number of days from 1 to %d", ErrFirstRunDays, n.Value, MaxFirstRunDays)
+	return 0, fmt.Errorf("%w %q: use a whole number of days from 1 to %d", ErrHistoryDays, n.Value, MaxHistoryDays)
 }
 
 // checkLevelWritten refuses auto_update on without a level: there is no

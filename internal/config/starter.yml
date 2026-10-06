@@ -76,5 +76,5 @@ version: 1
 view: standard
 auto_update: true
 auto_update_level: patch  # possible options: major, minor, patch
-first_run_days: 365  # how far back the first run reads, 1 to 1825 days (5 years)
+history_days: 365  # how far back history goes, 1 to 1825 days (5 years)
 projects: []

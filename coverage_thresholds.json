@@ -97,7 +97,7 @@
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:settings": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:checkAutoUpdate": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:checkAutoUpdateLevel": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/config/validate.go:checkFirstRunDays": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/validate.go:checkHistoryDays": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:wholeDays": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:checkLevelWritten": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:claimProject": 100.0,

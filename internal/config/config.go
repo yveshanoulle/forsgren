@@ -61,10 +61,10 @@ const (
 )
 
 // The days the first run collects (forsgren#57): the default, and the most
-// first_run_days can name (five years).
+// history_days can name (five years).
 const (
-	DefaultFirstRunDays = 365
-	MaxFirstRunDays     = 1825
+	DefaultHistoryDays = 365
+	MaxHistoryDays     = 1825
 )
 
 // DefaultEnvironment is the GitHub environment a repository deploys to when
@@ -130,10 +130,8 @@ type Config struct {
 	// as written: "patch", "minor" or "major", empty when the file has no
 	// auto_update_level key (forsgren#58).
 	AutoUpdateLevel string
-	// FirstRunDays is how many days of history the first run collects, 365
-	// when the file has no first_run_days key (forsgren#57).
-	FirstRunDays int
-	// HistoryDays replaces FirstRunDays: the key is renamed history_days (forsgren#57).
+	// HistoryDays is how many days of history are collected, 365 when the
+	// file has no history_days key (forsgren#57).
 	HistoryDays int
 	Projects    []Project
 }
@@ -158,7 +156,6 @@ var (
 	ErrView                = errors.New("invalid view")
 	ErrAutoUpdate          = errors.New("invalid auto_update")
 	ErrAutoUpdateLevel     = errors.New("invalid auto_update_level")
-	ErrFirstRunDays        = errors.New("invalid first_run_days")
 	ErrHistoryDays         = errors.New("invalid history_days")
 )
 
@@ -203,9 +200,9 @@ type fileConfig struct {
 	AutoUpdate yaml.Node `yaml:"auto_update"`
 	// AutoUpdateLevel is nil for a missing key or no value.
 	AutoUpdateLevel *string `yaml:"auto_update_level"`
-	// FirstRunDays is the node as written, so a non-integer is refused by name.
-	FirstRunDays yaml.Node     `yaml:"first_run_days"`
-	Projects     []fileProject `yaml:"projects"`
+	// HistoryDays is the node as written, so a non-integer is refused by name.
+	HistoryDays yaml.Node     `yaml:"history_days"`
+	Projects    []fileProject `yaml:"projects"`
 }
 
 type fileProject struct {
