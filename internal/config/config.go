@@ -133,7 +133,9 @@ type Config struct {
 	// FirstRunDays is how many days of history the first run collects, 365
 	// when the file has no first_run_days key (forsgren#57).
 	FirstRunDays int
-	Projects     []Project
+	// HistoryDays replaces FirstRunDays: the key is renamed history_days (forsgren#57).
+	HistoryDays int
+	Projects    []Project
 }
 
 // The refusals Load names. Each error Load returns wraps exactly one of
@@ -157,6 +159,7 @@ var (
 	ErrAutoUpdate          = errors.New("invalid auto_update")
 	ErrAutoUpdateLevel     = errors.New("invalid auto_update_level")
 	ErrFirstRunDays        = errors.New("invalid first_run_days")
+	ErrHistoryDays         = errors.New("invalid history_days")
 )
 
 // Load reads and validates the config file at path. Every error names the

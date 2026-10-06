@@ -22,7 +22,7 @@ func starterLines() []string {
 // (forsgren#58).
 const starterConfig = "version: 1\nview: standard\nauto_update: true\n" +
 	"auto_update_level: patch  # possible options: major, minor, patch\n" +
-	"first_run_days: 365  # how far back the first run reads, 1 to 1825 days (5 years)\n" +
+	"history_days: 365  # how far back history goes, 1 to 1825 days (5 years)\n" +
 	"projects: []\n"
 
 // isStarterLine says whether a line may stand in the starter: blank, a

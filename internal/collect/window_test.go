@@ -22,10 +22,10 @@ func stored(t *testing.T, kind history.Kind, name string, created time.Time) str
 	return path
 }
 
-// TestTheFirstRunReadsFirstRunDaysBack (forsgren#57): with nothing stored for
-// a repository, a deployment older than first_run_days before now is not
+// TestTheFirstRunReadsHistoryDaysBack (forsgren#57): with nothing stored for
+// a repository, a deployment older than history_days before now is not
 // read, and one inside it is.
-func TestTheFirstRunReadsFirstRunDaysBack(t *testing.T) {
+func TestTheFirstRunReadsHistoryDaysBack(t *testing.T) {
 	cases := []struct {
 		name       string
 		days       int
@@ -45,7 +45,7 @@ func TestTheFirstRunReadsFirstRunDaysBack(t *testing.T) {
 			g.bodies[statusesPath("1002")] = list(status(7, "success", "2026-07-04T00:05:00Z"))
 			g.bodies[statusesPath("1001")] = list(status(6, "success", tc.created))
 			g.bodies[comparePath(shaA, shaB)] = ahead(authored{shaB, time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)})
-			cfg := withFirstRunDays(shop(production), tc.days)
+			cfg := withHistoryDays(shop(production), tc.days)
 			wantStdout(t, g.collect(t, cfg, historyPath(t), github.DefaultMaxPages), tc.wantStdout)
 			if got := g.seen(statusesPath("1001")); (len(got) != 0) != tc.wantRead {
 				t.Errorf("want the deployment read: %v, got %v", tc.wantRead, got)
@@ -77,11 +77,11 @@ func TestALaterRunReadsFromAWeekBeforeTheNewestStored(t *testing.T) {
 	}
 }
 
-// TestALaterRunNeverReadsMoreThanFirstRunDays (forsgren#57): a newest stored
-// deployment long ago does not widen the window past first_run_days. The
+// TestALaterRunNeverReadsMoreThanHistoryDays (forsgren#57): a newest stored
+// deployment long ago does not widen the window past history_days. The
 // workflow's runs are asked from a day before the window, so no time zone
 // loses one. GitHub answers the one comparison, so stderr stays empty.
-func TestALaterRunNeverReadsMoreThanFirstRunDays(t *testing.T) {
+func TestALaterRunNeverReadsMoreThanHistoryDays(t *testing.T) {
 	cases := []struct {
 		name      string
 		days      int
@@ -104,7 +104,7 @@ func TestALaterRunNeverReadsMoreThanFirstRunDays(t *testing.T) {
 			path := stored(t, history.KindWorkflow, "deploy.yml", tc.storedAt)
 			g.bodies[comparePath(shaA, shaB)] = ahead(authored{shaB, time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)})
 			deploy := repository("acme/app", config.Workflow, "deploy.yml")
-			r := g.collect(t, withFirstRunDays(shop(deploy), tc.days), path, github.DefaultMaxPages)
+			r := g.collect(t, withHistoryDays(shop(deploy), tc.days), path, github.DefaultMaxPages)
 			wantStdout(t, r, tc.wantOut)
 			wantNoStderr(t, r)
 			want := "created=%3E%3D" + tc.wantSince
@@ -138,8 +138,8 @@ func TestAListCutAtThePageLimitIsReported(t *testing.T) {
 	}
 }
 
-// withFirstRunDays is cfg with first_run_days set (forsgren#57).
-func withFirstRunDays(cfg config.Config, days int) config.Config {
-	cfg.FirstRunDays = days
+// withHistoryDays is cfg with history_days set (forsgren#57).
+func withHistoryDays(cfg config.Config, days int) config.Config {
+	cfg.HistoryDays = days
 	return cfg
 }
