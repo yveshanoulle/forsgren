@@ -111,3 +111,20 @@ func TestRenderedHowToPassesCheckConfig(t *testing.T) {
 		t.Errorf("want the example to pass check-config, got exit %d, %q", code, stderr)
 	}
 }
+
+// TestRenderLegendFollowsWorkingHours (forsgren#71): a config with
+// working_hours: 12 reaches the legend page, its thresholds included.
+func TestRenderLegendFollowsWorkingHours(t *testing.T) {
+	pinNow(t)
+	dir := filepath.Join(t.TempDir(), "site")
+	cfg := writeConfig(t, "version: 1\nworking_hours: 12\nprojects: []\n")
+	if code, _, stderr := runCommand("render", "--out", dir, "--config", cfg); code != 0 {
+		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
+	}
+	legend := readFile(t, filepath.Join(dir, "legend.html"))
+	for _, want := range []string{"A working day is configured as 12 hours.", "361 and more", "30 to 360"} {
+		if !strings.Contains(legend, want) {
+			t.Errorf("want the legend to say %q, got:\n%s", want, legend)
+		}
+	}
+}

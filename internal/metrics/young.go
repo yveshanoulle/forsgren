@@ -10,13 +10,13 @@ const last30Days = int(last30)
 // had a whole window to deploy in, so its band uses its 30-day count scaled
 // to 30 days: count30 times 30 over its age in whole days, at least 1. An
 // older row's band is BandOf's. Last30 itself stays the unscaled count.
-func bandOfAge(count30, count180 int, first, now time.Time) Band {
+func bandOfAge(count30, count180, workingHours int, first, now time.Time) Band {
 	age := now.Sub(first)
 	if age >= time.Duration(last30Days)*day {
-		return BandOf(count30, count180)
+		return BandOf(count30, count180, workingHours)
 	}
 	ageDays := max(1, int(age/day))
-	return BandOf(count30*last30Days/ageDays, count180)
+	return BandOf(count30*last30Days/ageDays, count180, workingHours)
 }
 
 // earlier is the earlier of the two times, the zero time counting as none.

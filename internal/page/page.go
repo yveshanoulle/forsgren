@@ -56,6 +56,11 @@ type Data struct {
 	// the installation's forsgren pin to Latest, 0 when there is none; the
 	// footer names it instead of "is available" (forsgren#40, option 1).
 	WaitingPR int
+	// WorkingHours is the hours of a working day and WorkingHoursSet says
+	// whether the config sets it; the legend states both and derives the
+	// on-demand threshold from it (forsgren#71).
+	WorkingHours    int
+	WorkingHoursSet bool
 	// View is the view the root page shows, "standard", "numbers" or
 	// "scoring", with the view switch in its table's caption (forsgren#51);
 	// empty for the plain root page, with no switch (forsgren#46).

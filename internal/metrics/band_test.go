@@ -1,6 +1,10 @@
 package metrics
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/yveshanoulle/forsgren/internal/config"
+)
 
 // TestBandOfEachEdge pins the six bands at their edges (forsgren#16, step
 // 6). The 30-day count decides when it has any deployment: 241 and more
@@ -28,7 +32,7 @@ func TestBandOfEachEdge(t *testing.T) {
 		{0, 0, LessThanSixMonthly},
 	}
 	for _, c := range cases {
-		if got := BandOf(c.last30, c.last180); got != c.want {
+		if got := BandOf(c.last30, c.last180, config.DefaultWorkingHours); got != c.want {
 			t.Errorf("BandOf(%d, %d): want band %d (%v), got %d (%v)",
 				c.last30, c.last180, c.want, c.want, got, got)
 		}
@@ -51,6 +55,28 @@ func TestBandNames(t *testing.T) {
 	for b, name := range want {
 		if got := b.String(); got != name {
 			t.Errorf("Band(%d): want %q, got %q", int(b), name, got)
+		}
+	}
+}
+
+// TestBandOfFollowsWorkingHours (forsgren#71): on demand is more than the
+// working day's hours times 30 days, so 24 hours starts it at 721 and 1 hour
+// at 31; the default 8 is unchanged at 241. Hourly to daily stays from 30.
+func TestBandOfFollowsWorkingHours(t *testing.T) {
+	cases := []struct {
+		hours, last30 int
+		want          Band
+	}{
+		{24, 721, OnDemand},
+		{24, 720, HourlyToDaily},
+		{1, 31, OnDemand},
+		{1, 30, HourlyToDaily},
+		{8, 241, OnDemand},
+		{8, 240, HourlyToDaily},
+	}
+	for _, c := range cases {
+		if got := BandOf(c.last30, c.last30, c.hours); got != c.want {
+			t.Errorf("BandOf(%d, %d, %d hours): want %v, got %v", c.last30, c.last30, c.hours, c.want, got)
 		}
 	}
 }

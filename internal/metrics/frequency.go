@@ -47,7 +47,9 @@ func (f Frequency) HasDeployments() bool { return !f.Latest.IsZero() }
 
 // DeploymentFrequency returns the deployment frequency of each project, in
 // the order of projects, from the history records at the render time now.
-func DeploymentFrequency(projects []config.Project, records []history.Record, now time.Time) []Frequency {
+func DeploymentFrequency(
+	projects []config.Project, records []history.Record, workingHours int, now time.Time,
+) []Frequency {
 	index := indexOf(projects)
 	out := make([]Frequency, len(projects))
 	for i, p := range projects {
@@ -62,7 +64,7 @@ func DeploymentFrequency(projects []config.Project, records []history.Record, no
 		}
 	}
 	for i := range out {
-		out[i].Band = bandOfAge(out[i].Last30, out[i].Last180, firsts[i], now)
+		out[i].Band = bandOfAge(out[i].Last30, out[i].Last180, workingHours, firsts[i], now)
 	}
 	return out
 }

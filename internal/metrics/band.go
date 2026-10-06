@@ -48,8 +48,8 @@ const (
 )
 
 // BandOf is the band of the counts of successful deployments in the last 30
-// and the last 180 days.
-func BandOf(last30, last180 int) Band {
+// and the last 180 days, for a working day of the given hours (forsgren#71).
+func BandOf(last30, last180, _ int) Band {
 	switch {
 	case last30 >= onDemandFrom:
 		return OnDemand

@@ -41,3 +41,14 @@ func TestParseRefusesInvalidWorkingHours(t *testing.T) {
 			"not number": `"eight"`,
 		})
 }
+
+// TestWorkingHoursSetSaysWhetherTheKeyIsWritten (forsgren#71): true when the
+// file has a working_hours key, false when it is left out.
+func TestWorkingHoursSetSaysWhetherTheKeyIsWritten(t *testing.T) {
+	for yaml, want := range map[string]bool{valid: false, "working_hours: 8\n" + valid: true} {
+		got, err := parse([]byte(yaml))
+		if err != nil || got.WorkingHoursSet != want {
+			t.Errorf("want WorkingHoursSet %v and no error, got %v, %v", want, got.WorkingHoursSet, err)
+		}
+	}
+}

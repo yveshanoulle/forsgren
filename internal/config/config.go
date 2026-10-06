@@ -154,7 +154,10 @@ type Config struct {
 	// WorkingHours is how many hours a working day is, 8 when the file has
 	// no working_hours key (forsgren#71).
 	WorkingHours int
-	Projects     []Project
+	// WorkingHoursSet says whether the file has a working_hours key, so the
+	// legend can tell a configured day from the default (forsgren#71).
+	WorkingHoursSet bool
+	Projects        []Project
 }
 
 // The refusals Load names. Each error Load returns wraps exactly one of

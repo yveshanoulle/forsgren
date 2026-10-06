@@ -34,7 +34,7 @@ func success(ago time.Duration) history.Record {
 // shopOf returns Acme Shop's frequency for records.
 func shopOf(t *testing.T, records ...history.Record) Frequency {
 	t.Helper()
-	got := DeploymentFrequency(projects, records, now)
+	got := DeploymentFrequency(projects, records, config.DefaultWorkingHours, now)
 	if len(got) != 2 {
 		t.Fatalf("want one Frequency per project, 2, got %d", len(got))
 	}
@@ -115,7 +115,7 @@ func TestProjectsInConfigOrderWithTheirOwnRecords(t *testing.T) {
 		deployed("Acme/CLI", history.StateSuccess, time.Hour),
 		deployed("acme/gone", history.StateSuccess, time.Hour),
 		success(time.Hour), success(2 * time.Hour),
-	}, now)
+	}, config.DefaultWorkingHours, now)
 	want := []struct {
 		project string
 		last30  int
@@ -133,7 +133,7 @@ func TestProjectsInConfigOrderWithTheirOwnRecords(t *testing.T) {
 // TestEmptyHistory: every project is there, with no deployment and the
 // slowest band; no project gives no Frequency.
 func TestEmptyHistory(t *testing.T) {
-	got := DeploymentFrequency(projects, nil, now)
+	got := DeploymentFrequency(projects, nil, config.DefaultWorkingHours, now)
 	want := []Frequency{
 		{Project: "Acme Shop", Band: LessThanSixMonthly},
 		{Project: "Acme Tools", Band: LessThanSixMonthly},
@@ -141,7 +141,8 @@ func TestEmptyHistory(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
-	if none := DeploymentFrequency(nil, []history.Record{success(time.Hour)}, now); len(none) != 0 {
+	recorded := []history.Record{success(time.Hour)}
+	if none := DeploymentFrequency(nil, recorded, config.DefaultWorkingHours, now); len(none) != 0 {
 		t.Errorf("want no Frequency without projects, got %+v", none)
 	}
 }
@@ -222,6 +223,34 @@ func TestBandScalesAProjectYoungerThanThirtyDays(t *testing.T) {
 	for _, c := range cases {
 		if f := shopWithSuccessesAt(t, c.ages...); f.Band != c.want {
 			t.Errorf("%s: want %v, got %+v", c.name, c.want, f)
+		}
+	}
+}
+
+// TestFrequencyBandFollowsWorkingHours (forsgren#71): the working hours given
+// to DeploymentFrequency reach the band, through Rows as well. A project
+// first deployed 40 days ago is not scaled, so its 30-day count is as stored.
+func TestFrequencyBandFollowsWorkingHours(t *testing.T) {
+	cases := []struct {
+		hours, count int
+		want         Band
+	}{
+		{24, 720, HourlyToDaily},
+		{24, 721, OnDemand},
+		{1, 31, OnDemand},
+		{config.DefaultWorkingHours, 240, HourlyToDaily},
+	}
+	for _, c := range cases {
+		records := []history.Record{success(40 * day)}
+		for range c.count {
+			records = append(records, success(2*day))
+		}
+		if got := DeploymentFrequency(projects, records, c.hours, now)[0].Band; got != c.want {
+			t.Errorf("%d hours, %d in 30 days: want %v, got %v", c.hours, c.count, c.want, got)
+		}
+		rows := Rows(projects[:1], Data{Records: records, WorkingHours: c.hours}, now)
+		if got := rows[0].Frequency.Band; got != c.want {
+			t.Errorf("Rows, %d hours, %d in 30 days: want %v, got %v", c.hours, c.count, c.want, got)
 		}
 	}
 }

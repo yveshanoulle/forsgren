@@ -137,7 +137,7 @@ func TestLabelsSortIgnoringCase(t *testing.T) {
 // changes no project's number.
 func TestProjectRowsKeepTheirNumbers(t *testing.T) {
 	data := tableData()
-	frequencies := DeploymentFrequency(tableProjects, data.Records, now)
+	frequencies := DeploymentFrequency(tableProjects, data.Records, config.DefaultWorkingHours, now)
 	leadTimes := LeadTimes(tableProjects, data.Commits, now)
 	recoveries := RecoveryTimes(tableProjects, data.Records, now)
 	changeFails := ChangeFailRates(tableProjects, data.Records, data.Failures, now)

@@ -59,6 +59,9 @@ type Data struct {
 	Records  []history.Record
 	Commits  []history.Commit
 	Failures []history.Failure
+	// WorkingHours is the hours of a working day, which sets where the
+	// deployment frequency bands begin (forsgren#71).
+	WorkingHours int
 }
 
 // Rows is the page's table at the render time now: for each project, in
@@ -79,7 +82,7 @@ func rowOf(level Level, p config.Project, data Data, now time.Time) Row {
 	only := []config.Project{p}
 	return Row{
 		Level: level, Name: p.Name,
-		Frequency:  DeploymentFrequency(only, data.Records, now)[0],
+		Frequency:  DeploymentFrequency(only, data.Records, data.WorkingHours, now)[0],
 		LeadTime:   LeadTimes(only, data.Commits, now)[0],
 		Recovery:   RecoveryTimes(only, data.Records, now)[0],
 		ChangeFail: ChangeFailRates(only, data.Records, data.Failures, now)[0],

@@ -237,6 +237,7 @@ func TestRenderUnknownPage(t *testing.T) {
 func TestLegendPageMatchesGolden(t *testing.T) {
 	data := Placeholder("0.3.4")
 	data.AsOf = "2026-10-03 12:00"
+	data.WorkingHours = 8
 	checkPageGolden(t, "legend.html", "testdata/legend.golden.html", data)
 }
 
@@ -644,5 +645,34 @@ func TestCaptionFontIsLargerThanBody(t *testing.T) {
 	}
 	if n, err := strconv.ParseFloat(size[1], 64); err != nil || n <= 1 {
 		t.Errorf("want the caption font-size above the body's 1rem, got %s", size[1])
+	}
+}
+
+// TestLegendStatesTheWorkingDay (forsgren#71): the legend says how a working
+// day is configured, and its on-demand and hourly-to-daily numbers follow:
+// a set 12 gives more than 12 x 30 = 360, so 361 and more; unset says it is
+// the default 8.
+func TestLegendStatesTheWorkingDay(t *testing.T) {
+	cases := []struct {
+		name  string
+		hours int
+		set   bool
+		want  []string
+	}{
+		{"set", 12, true, []string{"A working day is configured as 12 hours.", "361 and more", "30 to 360"}},
+		{"unset", 8, false, []string{
+			"A working day is configured as 8 hours (the default; working_hours is not set in forsgren.config.yml).",
+			"241 and more", "30 to 240",
+		}},
+	}
+	for _, c := range cases {
+		data := Placeholder("0.3.4")
+		data.WorkingHours, data.WorkingHoursSet = c.hours, c.set
+		got := rendered(t, "legend.html", data)
+		for _, want := range c.want {
+			if !strings.Contains(got, want) {
+				t.Errorf("%s: want the legend to say %q, got:\n%s", c.name, want, got)
+			}
+		}
 	}
 }
