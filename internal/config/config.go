@@ -123,7 +123,10 @@ type Config struct {
 	// as written: "patch", "minor" or "major", empty when the file has no
 	// auto_update_level key (forsgren#58).
 	AutoUpdateLevel string
-	Projects        []Project
+	// FirstRunDays is how many days of history the first run collects, 365
+	// when the file has no first_run_days key (forsgren#57).
+	FirstRunDays int
+	Projects     []Project
 }
 
 // The refusals Load names. Each error Load returns wraps exactly one of
@@ -146,6 +149,7 @@ var (
 	ErrView                = errors.New("invalid view")
 	ErrAutoUpdate          = errors.New("invalid auto_update")
 	ErrAutoUpdateLevel     = errors.New("invalid auto_update_level")
+	ErrFirstRunDays        = errors.New("invalid first_run_days")
 )
 
 // Load reads and validates the config file at path. Every error names the
@@ -188,8 +192,10 @@ type fileConfig struct {
 	View       *string   `yaml:"view"`
 	AutoUpdate yaml.Node `yaml:"auto_update"`
 	// AutoUpdateLevel is nil for a missing key or no value.
-	AutoUpdateLevel *string       `yaml:"auto_update_level"`
-	Projects        []fileProject `yaml:"projects"`
+	AutoUpdateLevel *string `yaml:"auto_update_level"`
+	// FirstRunDays is the node as written, so a non-integer is refused by name.
+	FirstRunDays yaml.Node     `yaml:"first_run_days"`
+	Projects     []fileProject `yaml:"projects"`
 }
 
 type fileProject struct {
