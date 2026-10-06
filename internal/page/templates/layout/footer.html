@@ -1,5 +1,5 @@
 {{define "footer"}}  <footer>
-    <p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> {{.Version}}{{with .Update}} · {{.}} {{if $.WaitingPR}}is waiting in pull request #{{$.WaitingPR}} (merge it to update){{else}}is available{{end}}.{{end}} The five DORA metrics, from GitHub data.{{if .AsOf}} Calculated at {{.AsOf}} UTC{{end}}</p>
+    <p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> {{.Version}}{{with .Update}} · {{.}} {{if $.WaitingPR}}is waiting in pull request #{{$.WaitingPR}} (merge it to update){{else}}is available{{end}}.{{end}} Metrics from GitHub data.{{if .AsOf}} Calculated at {{.AsOf}} UTC{{end}}</p>
   </footer>
 </body>
 </html>{{end}}
