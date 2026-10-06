@@ -104,3 +104,55 @@ func TestLoadReachRefusesAMalformedRow(t *testing.T) {
 		t.Errorf("want ErrMalformed naming reach.csv, got %v", err)
 	}
 }
+
+// reachBlockedBy is a path for reach.csv whose way to a write is blocked: a
+// file where the directory should be, a directory where the temporary file
+// or reach.csv itself should be.
+var reachBlockedBy = map[string]func(t *testing.T, dir string) string{
+	"a file for the directory": func(t *testing.T, dir string) string {
+		blocker := filepath.Join(dir, "data")
+		mustWrite(t, blocker)
+		return filepath.Join(blocker, "reach.csv")
+	},
+	"a directory for the temporary file": func(t *testing.T, dir string) string {
+		path := filepath.Join(dir, "reach.csv")
+		mustMkdir(t, path+".tmp")
+		return path
+	},
+	"a directory for the file": func(t *testing.T, dir string) string {
+		path := filepath.Join(dir, "reach.csv")
+		mustMkdir(t, path)
+		return path
+	},
+}
+
+func mustWrite(t *testing.T, path string) {
+	t.Helper()
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func mustMkdir(t *testing.T, path string) {
+	t.Helper()
+	if err := os.Mkdir(path, 0o750); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestSaveReachFailsWithoutLeavingAHalfFile: each way the write can fail is
+// an error naming the path, and no temporary file is left behind.
+func TestSaveReachFailsWithoutLeavingAHalfFile(t *testing.T) {
+	for name, blocked := range reachBlockedBy {
+		t.Run(name, func(t *testing.T) {
+			path := blocked(t, t.TempDir())
+			err := SaveReach(path, someReach())
+			if err == nil || !strings.Contains(err.Error(), "reach.csv") {
+				t.Errorf("want an error naming reach.csv, got %v", err)
+			}
+			if info, statErr := os.Stat(path + ".tmp"); statErr == nil && !info.IsDir() {
+				t.Errorf("want no temporary file left, found %s.tmp", path)
+			}
+		})
+	}
+}

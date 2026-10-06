@@ -733,6 +733,30 @@
    "score": 10.0,
    "checkedAt": "2026-10-06",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/history/reach.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-06",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/reach_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-06",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/config/days_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-06",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/history_chunk_days_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-06",
+   "minScore": 10.0
   }
  ]
 }
