@@ -88,6 +88,7 @@ func pageData(o renderOptions, at time.Time) (page.Data, error) {
 	data := page.Placeholder(version)
 	data.AsOf = at.UTC().Format(calculatedLayout)
 	data.Latest, data.WaitingPR = o.latest, o.waitingPR
+	data.Settings = config.Config{}.Settings()
 	if o.config == "" {
 		return data, nil
 	}
@@ -98,6 +99,7 @@ func pageData(o renderOptions, at time.Time) (page.Data, error) {
 	data.NoProjects = len(cfg.Projects) == 0
 	data.View = cfg.View
 	data.WorkingHours, data.WorkingHoursSet = cfg.WorkingHours, cfg.WorkingHoursSet
+	data.Settings = cfg.Settings()
 	if o.data == "" {
 		return data, nil
 	}

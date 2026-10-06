@@ -61,7 +61,31 @@ func (f fileConfig) settings() (Config, error) {
 	}
 	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level,
 		HistoryDays: days, HistoryChunkDays: chunk, WorkingHours: hours,
-		WorkingHoursSet: workingHours.set(f.WorkingHours)}, nil
+		WorkingHoursSet: workingHours.set(f.WorkingHours), written: f.written()}, nil
+}
+
+// written is the optional keys the file gives a value, by key, nil when it
+// gives none: a key without a value is none, as for the numbers (forsgren#74).
+func (f fileConfig) written() map[string]bool {
+	var keys map[string]bool
+	for key, node := range map[string]yaml.Node{"auto_update": f.AutoUpdate, "history_days": f.HistoryDays,
+		"history_chunk_days": f.HistoryChunkDays, "working_hours": f.WorkingHours} {
+		keys = mark(keys, key, workingHours.set(node))
+	}
+	keys = mark(keys, "view", f.View != nil)
+	return mark(keys, "auto_update_level", f.AutoUpdateLevel != nil)
+}
+
+// mark adds key to keys when on, making the map on the first one.
+func mark(keys map[string]bool, key string, on bool) map[string]bool {
+	if !on {
+		return keys
+	}
+	if keys == nil {
+		keys = map[string]bool{}
+	}
+	keys[key] = true
+	return keys
 }
 
 // numbers is history_days, history_chunk_days and working_hours, or the

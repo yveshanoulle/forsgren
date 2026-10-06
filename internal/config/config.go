@@ -157,7 +157,9 @@ type Config struct {
 	// WorkingHoursSet says whether the file has a working_hours key, so the
 	// legend can tell a configured day from the default (forsgren#71).
 	WorkingHoursSet bool
-	Projects        []Project
+	// written is the optional keys the file writes, by key (forsgren#74).
+	written  map[string]bool
+	Projects []Project
 }
 
 // The refusals Load names. Each error Load returns wraps exactly one of
@@ -311,7 +313,34 @@ type Setting struct {
 	Set        bool
 }
 
-// Settings lists every optional key in a fixed order: view, auto_update,
-// auto_update_level, history_days, history_chunk_days, working_hours
-// (forsgren#74).
-func (c Config) Settings() []Setting { return nil }
+// settingKey is one optional key: its name, its default as written in the
+// legend and the value of a Config as written (forsgren#74).
+type settingKey struct {
+	key, def string
+	value    func(Config) string
+}
+
+// settingKeys is the one list of optional keys, in the order Settings gives
+// them, so a new key is listed by adding it here.
+var settingKeys = []settingKey{
+	{"view", ViewStandard, func(c Config) string { return c.View }},
+	{"auto_update", "false", func(c Config) string { return strconv.FormatBool(c.AutoUpdate) }},
+	{"auto_update_level", "none", func(c Config) string { return c.AutoUpdateLevel }},
+	{"history_days", strconv.Itoa(DefaultHistoryDays), func(c Config) string { return strconv.Itoa(c.HistoryDays) }},
+	{"history_chunk_days", strconv.Itoa(DefaultHistoryChunkDays),
+		func(c Config) string { return strconv.Itoa(c.HistoryChunkDays) }},
+	{"working_hours", strconv.Itoa(DefaultWorkingHours), func(c Config) string { return strconv.Itoa(c.WorkingHours) }},
+}
+
+// Settings lists every optional key in the order of settingKeys: the value
+// the file writes, or the default for a key it leaves out (forsgren#74).
+func (c Config) Settings() []Setting {
+	list := make([]Setting, len(settingKeys))
+	for i, k := range settingKeys {
+		list[i] = Setting{Key: k.key, Value: k.def, Set: c.written[k.key]}
+		if list[i].Set {
+			list[i].Value = k.value(c)
+		}
+	}
+	return list
+}
