@@ -470,13 +470,13 @@ linked to its GitHub repository, its version, "The five DORA metrics, from
 GitHub data." "Calculated at
 2026-10-03 12:00 UTC", the moment of the run (UTC, to the minute), on every
 run, with rows or without; and, when a newer forsgren release exists than the
-version that built the page, the version line adds it, "Forsgren 0.3.2 ·
-0.3.3 is available" (forsgren#40; nothing is added when the page is up to
+version that built the page, the version line adds it, "Forsgren 0.3.3 ·
+0.3.4 is available" (forsgren#40; nothing is added when the page is up to
 date, and no repository appears). The numbers are compared as numbers, so 0.0.10
 is newer than 0.0.9.
 
 `render` writes one table (forsgren#38) first on the table page, with no text
-above it but a visually hidden heading for screen readers, "Forsgren 0.3.2:
+above it but a visually hidden heading for screen readers, "Forsgren 0.3.3:
 the five DORA metrics"; where each metric comes from is explained on the
 legend page, counting back from the time in the footer. A config that lists
 no projects has no table: the page shows, in its place, a short how-to, that
@@ -615,7 +615,7 @@ projects:
   later run reads what is new plus one older chunk, until the history reaches
   `history_days` back (see Collecting deployments). It is also the most any
   run reads back, however old the newest stored deployment is, and how far
-  back the failure issues are read on every run. Raising it later fills in
+  back the first read of a repository's failure issues goes. Raising it later fills in
   the extra range, chunk by chunk, from where each repository's history ends
   now; lowering it stops the older chunks sooner and removes nothing. To read
   a range again that was already read, remove that repository's rows from
@@ -819,8 +819,9 @@ count. When it stored failure issues the line goes on with
   the read actually reached, so the next run continues from there. A chunk
   that lies behind more than 1000 newer deployments can never be reached: the
   run warns, and the reach stays.
-- The failure issues are not chunked: they are read from `history_days` back
-  on every run.
+- The failure issues are not chunked: a repository's first read goes from
+  `history_days` back, and each later run reads from where the last one ended
+  (see The failure issues below).
 - Deployments found by an older chunk have no commits yet, so they add
   nothing to lead time: collect skips them with a warning on stderr, so no
   commit counts twice ([#66](https://github.com/yveshanoulle/forsgren/issues/66)).
@@ -877,9 +878,20 @@ in `data/commits.csv`, each with its author date and the deployment's
 
 **The failure issues** (for change fail rate, forsgren#18). Every
 repository's issues labelled `failure`, open or closed, that GitHub says
-were updated in the last `history_days` days: `issues?labels=failure&state=all&since=`,
+were updated since a time: `issues?labels=failure&state=all&since=`,
 every page up to the page limit, pull requests left out (GitHub lists them
 as issues, with a `pull_request` field).
+
+- **Where a run starts reading.** `data/failures_read.csv`, next to the
+  history, records per repository when its failure issues were last read:
+  a version line `# forsgren failures read v1`, the column line
+  `repository,read_at`, then one line per repository. A run asks for the
+  issues updated since that time minus 1 day. A repository with no time yet
+  is read for the first time, from `history_days` back. The time moves to
+  the run's start only after the repository's issues were read and stored; a
+  failed read leaves it, so the next run asks again from the old time. A
+  `failures_read.csv` that is not in the format refuses the run, like
+  `reach.csv`.
 
 - Each issue's number, `created_at`, `closed_at` and the `failure-start:`
   line of its body are stored (see History). An issue already stored is
@@ -954,7 +966,7 @@ private repositories (no scope for public ones).
 
 ## Running forsgren
 
-forsgren renders a static page whose footer says "Forsgren 0.3.2", the version of
+forsgren renders a static page whose footer says "Forsgren 0.3.3", the version of
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
@@ -1008,7 +1020,7 @@ pull-request check failed"); the link is fine there, because a run page is
 private to the repository, unlike the public page. A flag it cannot use is a
 usage error that prints nothing. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides
-"Forsgren 0.3.2" in its footer, a how-to for filling `forsgren.config.yml`;
+"Forsgren 0.3.3" in its footer, a how-to for filling `forsgren.config.yml`;
 without `--config` (the build above has no installation config) or with
 projects, the page is the placeholder. With `--data` as well (it needs `--config`), the
 page shows each project's deployment frequency from that history, counted
@@ -1141,9 +1153,9 @@ jobs:
 - **`pull-requests: read` is optional, and the caller's to grant too**
   (forsgren#40). With it, when a newer forsgren release exists and
   Dependabot has an open pull request in your repository that bumps the
-  `uses:` pin to exactly that release, the page footer says "Forsgren 0.3.2
-  · 0.3.3 is waiting in pull request #7 (merge it to update)", with the
-  number only. Without it the footer still says "0.3.3 is available": the
+  `uses:` pin to exactly that release, the page footer says "Forsgren 0.3.3
+  · 0.3.4 is waiting in pull request #7 (merge it to update)", with the
+  number only. Without it the footer still says "0.3.4 is available": the
   lookup treats the refusal (a 403) as unknown, never as an error, and the
   run goes on. The workflow itself declares no permissions block, so it
   takes what your caller grants; it does not ask for this one, because a
