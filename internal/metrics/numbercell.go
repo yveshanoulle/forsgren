@@ -12,7 +12,7 @@ import (
 const noNumber = "-"
 
 // NumberCell is the successful deployments of the last 30 days, 0 if none.
-func (f Frequency) NumberCell() string { return strconv.Itoa(f.Last30) }
+func (f Frequency) NumberCell() string { return strconv.Itoa(f.Last30 + f.scaledExtra) }
 
 // NumberCell is the median as the standard cell shows it, "2 h 7 min", "-"
 // without commits.

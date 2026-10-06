@@ -65,3 +65,12 @@ func TestReworkNumberCell(t *testing.T) {
 		"none rework":  {ReworkRate{Deployments: 3, Band: ZeroPercent}.NumberCell(), "0%"},
 	})
 }
+
+// TestYoungProjectNumberCellIsThePlainCount (forsgren#70): a project younger
+// than 30 days shows its plain 30-day count, never the count its band scales
+// to (19 in 9 days is banded as 63).
+func TestYoungProjectNumberCellIsThePlainCount(t *testing.T) {
+	if got := shopWithSuccessesAt(t, youngAges(19, 9*day)...).NumberCell(); got != "19" {
+		t.Errorf("want the plain count 19, got %q", got)
+	}
+}

@@ -217,6 +217,7 @@ func TestBandScalesAProjectYoungerThanThirtyDays(t *testing.T) {
 		{"19 in 9 days is 63 in 30", youngAges(19, 9*day), HourlyToDaily},
 		{"19 first 40 days ago is not scaled", youngAges(19, 40*day), DailyToWeekly},
 		{"1 today is age 1, so 30", youngAges(1, 0), HourlyToDaily},
+		{"5 in 5.5 days is age 5, so 30", youngAges(5, 5*day+12*time.Hour), HourlyToDaily},
 	}
 	for _, c := range cases {
 		if f := shopWithSuccessesAt(t, c.ages...); f.Band != c.want {

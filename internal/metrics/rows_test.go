@@ -294,3 +294,21 @@ func TestARowOfFailuresOnlyIsShown(t *testing.T) {
 		t.Errorf("want a row with no deployment to have none, got %+v", shop)
 	}
 }
+
+// TestProjectTotalIsAsOldAsItsEarliestService (forsgren#70): the total row's
+// age is its project's earliest success across its services. Website first
+// deployed 40 days ago, API 5 times since 5 days ago: the total's 5 in 30
+// days are not scaled, while API's own row is.
+func TestProjectTotalIsAsOldAsItsEarliestService(t *testing.T) {
+	records := []history.Record{deployed("acme/web", history.StateSuccess, 40*day)}
+	for id := range int64(5) {
+		records = append(records, appDeployment(id+1, "deploy-api", history.StateSuccess, 5*day-time.Duration(id)*time.Hour))
+	}
+	rows := Rows(tableProjects, Data{Records: records}, now)
+	if got := rowNamed(t, rows, "Acme Shop").Frequency.Band; got != DailyToWeekly {
+		t.Errorf("want the total, 40 days old, unscaled: %v, got %v", DailyToWeekly, got)
+	}
+	if got := rowNamed(t, rows, "API").Frequency.Band; got != HourlyToDaily {
+		t.Errorf("want API, 5 days old, scaled: %v, got %v", HourlyToDaily, got)
+	}
+}
