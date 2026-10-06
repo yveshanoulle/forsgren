@@ -15,7 +15,7 @@ func bandOfAge(count30, count180 int, first, now time.Time) Band {
 	if age >= time.Duration(last30Days)*day {
 		return BandOf(count30, count180)
 	}
-	ageDays := max(1, int((age+day-1)/day))
+	ageDays := max(1, int(age/day))
 	return BandOf(count30*last30Days/ageDays, count180)
 }
 

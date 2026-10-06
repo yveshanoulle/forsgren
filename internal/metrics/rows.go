@@ -77,7 +77,7 @@ func Rows(projects []config.Project, data Data, now time.Time) []Row {
 // p being the only project.
 func rowOf(level Level, p config.Project, data Data, now time.Time) Row {
 	only := []config.Project{p}
-	row := Row{
+	return Row{
 		Level: level, Name: p.Name,
 		Frequency:  DeploymentFrequency(only, data.Records, now)[0],
 		LeadTime:   LeadTimes(only, data.Commits, now)[0],
@@ -85,33 +85,6 @@ func rowOf(level Level, p config.Project, data Data, now time.Time) Row {
 		ChangeFail: ChangeFailRates(only, data.Records, data.Failures, now)[0],
 		Rework:     ReworkRates(only, data.Records, data.Failures, now)[0],
 	}
-	if level == ProjectRow {
-		f := &row.Frequency
-		f.Band = bandOfAge(f.Last30, f.Last180, newestFirst(p, data.Records), now)
-	}
-	return row
-}
-
-// newestFirst is the newest of p's repositories' first successes.
-func newestFirst(p config.Project, records []history.Record) time.Time {
-	var newest time.Time
-	for _, repo := range p.Repositories {
-		if first := firstOf(repo.Name, records); first.After(newest) {
-			newest = first
-		}
-	}
-	return newest
-}
-
-// firstOf is repository's first success, zero when none.
-func firstOf(repository string, records []history.Record) time.Time {
-	var first time.Time
-	for _, r := range records {
-		if strings.EqualFold(r.Repository, repository) && r.State == history.StateSuccess {
-			first = earlier(first, r.CreatedAt)
-		}
-	}
-	return first
 }
 
 // labelRows are the rows of p's labels, sorted: each labelled repository as

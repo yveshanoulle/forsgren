@@ -39,18 +39,6 @@ type Frequency struct {
 	// BandOf); a project younger than 30 days scales Last30 to 30 days
 	// first (see bandOfAge, forsgren#69).
 	Band Band
-	// scaledExtra is what scaling a young project adds to Last30.
-	scaledExtra int
-}
-
-// scaledExtraOf is what scaling count30 to 30 days adds for a project
-// first deployed at first, 0 for one 30 days or older.
-func scaledExtraOf(count30 int, first, now time.Time) int {
-	age := now.Sub(first)
-	if age >= time.Duration(last30Days)*day {
-		return 0
-	}
-	return count30*last30Days/max(1, int(age/day)) - count30
 }
 
 // HasDeployments says whether the project has any successful deployment
@@ -75,7 +63,6 @@ func DeploymentFrequency(projects []config.Project, records []history.Record, no
 	}
 	for i := range out {
 		out[i].Band = bandOfAge(out[i].Last30, out[i].Last180, firsts[i], now)
-		out[i].scaledExtra = scaledExtraOf(out[i].Last30, firsts[i], now)
 	}
 	return out
 }
