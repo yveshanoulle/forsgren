@@ -74,6 +74,13 @@ const (
 	MaxHistoryChunkDays     = 365
 )
 
+// The hours of a working day (forsgren#71): the default, and the most
+// working_hours can name.
+const (
+	DefaultWorkingHours = 8
+	MaxWorkingHours     = 24
+)
+
 // DefaultEnvironment is the GitHub environment a repository deploys to when
 // its config names no deployment.
 const DefaultEnvironment = "production"
@@ -144,7 +151,10 @@ type Config struct {
 	// is reached, 100 when the file has no history_chunk_days key
 	// (forsgren#57).
 	HistoryChunkDays int
-	Projects         []Project
+	// WorkingHours is how many hours a working day is, 8 when the file has
+	// no working_hours key (forsgren#71).
+	WorkingHours int
+	Projects     []Project
 }
 
 // The refusals Load names. Each error Load returns wraps exactly one of
@@ -169,6 +179,7 @@ var (
 	ErrAutoUpdateLevel     = errors.New("invalid auto_update_level")
 	ErrHistoryDays         = errors.New("invalid history_days")
 	ErrHistoryChunkDays    = errors.New("invalid history_chunk_days")
+	ErrWorkingHours        = errors.New("invalid working_hours")
 )
 
 // Load reads and validates the config file at path. Every error names the
