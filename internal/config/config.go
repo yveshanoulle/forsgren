@@ -226,8 +226,10 @@ type fileConfig struct {
 	// HistoryDays is the node as written, so a non-integer is refused by name.
 	HistoryDays yaml.Node `yaml:"history_days"`
 	// HistoryChunkDays is the node as written, like HistoryDays.
-	HistoryChunkDays yaml.Node     `yaml:"history_chunk_days"`
-	Projects         []fileProject `yaml:"projects"`
+	HistoryChunkDays yaml.Node `yaml:"history_chunk_days"`
+	// WorkingHours is the node as written, like HistoryDays (forsgren#71).
+	WorkingHours yaml.Node     `yaml:"working_hours"`
+	Projects     []fileProject `yaml:"projects"`
 }
 
 type fileProject struct {

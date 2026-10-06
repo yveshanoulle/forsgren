@@ -116,7 +116,7 @@
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:checkAutoUpdate": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:checkAutoUpdateLevel": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:checkHistoryDays": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/config/validate.go:history": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/validate.go:numbers": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:whole": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:check": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:checkHistoryChunkDays": 100.0,

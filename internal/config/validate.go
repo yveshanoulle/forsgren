@@ -55,53 +55,58 @@ func (f fileConfig) settings() (Config, error) {
 	if err := checkLevelWritten(auto, level); err != nil {
 		return Config{}, err
 	}
-	days, chunk, err := f.history()
+	days, chunk, hours, err := f.numbers()
 	if err != nil {
 		return Config{}, err
 	}
 	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level,
-		HistoryDays: days, HistoryChunkDays: chunk}, nil
+		HistoryDays: days, HistoryChunkDays: chunk, WorkingHours: hours}, nil
 }
 
-// history is history_days and history_chunk_days, or the first refusal of
-// the two (forsgren#57).
-func (f fileConfig) history() (days, chunk int, err error) {
+// numbers is history_days, history_chunk_days and working_hours, or the
+// first refusal of the three (forsgren#57, #71).
+func (f fileConfig) numbers() (days, chunk, hours int, err error) {
 	if days, err = checkHistoryDays(f.HistoryDays); err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
-	chunk, err = checkHistoryChunkDays(f.HistoryChunkDays)
-	return days, chunk, err
+	if chunk, err = checkHistoryChunkDays(f.HistoryChunkDays); err != nil {
+		return 0, 0, 0, err
+	}
+	hours, err = workingHours.check(f.WorkingHours)
+	return days, chunk, hours, err
 }
 
-// daysKey is a key that is a whole number of days (forsgren#57): its
-// refusal, its default and its upper limit.
-type daysKey struct {
+// numberKey is a key that is a whole number of a unit, days or hours
+// (forsgren#57, #71): its refusal, its unit, its default and its upper limit.
+type numberKey struct {
 	sentinel error
+	unit     string
 	def, max int
 }
 
 var (
-	historyDays      = daysKey{ErrHistoryDays, DefaultHistoryDays, MaxHistoryDays}
-	historyChunkDays = daysKey{ErrHistoryChunkDays, DefaultHistoryChunkDays, MaxHistoryChunkDays}
+	historyDays      = numberKey{ErrHistoryDays, "days", DefaultHistoryDays, MaxHistoryDays}
+	historyChunkDays = numberKey{ErrHistoryChunkDays, "days", DefaultHistoryChunkDays, MaxHistoryChunkDays}
+	workingHours     = numberKey{ErrWorkingHours, "hours", DefaultWorkingHours, MaxWorkingHours}
 )
 
 // whole is the node's integer, when it is one from 1 to the key's limit.
-func (k daysKey) whole(n yaml.Node) (int, bool) {
-	days, err := strconv.Atoi(n.Value)
-	return days, err == nil && n.ShortTag() == "!!int" && days >= 1 && days <= k.max
+func (k numberKey) whole(n yaml.Node) (int, bool) {
+	n2, err := strconv.Atoi(n.Value)
+	return n2, err == nil && n.ShortTag() == "!!int" && n2 >= 1 && n2 <= k.max
 }
 
 // check is the key as written, its default when the file has none (a key
 // without a value is none): a whole number from 1 to its limit, never a
 // quoted value.
-func (k daysKey) check(n yaml.Node) (int, error) {
+func (k numberKey) check(n yaml.Node) (int, error) {
 	if n.Kind == 0 || n.ShortTag() == "!!null" {
 		return k.def, nil
 	}
-	if days, ok := k.whole(n); ok {
-		return days, nil
+	if v, ok := k.whole(n); ok {
+		return v, nil
 	}
-	return 0, fmt.Errorf("%w %q: use a whole number of days from 1 to %d", k.sentinel, n.Value, k.max)
+	return 0, fmt.Errorf("%w %q: use a whole number of %s from 1 to %d", k.sentinel, n.Value, k.unit, k.max)
 }
 
 // checkHistoryDays is history_days as written, DefaultHistoryDays when the

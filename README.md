@@ -635,6 +635,15 @@ projects:
   reached; a chunk larger than `history_days` is allowed and covers all of it
   in one read. The starter that `init-config` writes includes
   `history_chunk_days: 100`.
+- **`working_hours`** is optional (forsgren#71): how many hours a working day
+  is, a whole number from 1 to 24, written at the top level, for example
+  `working_hours: 8`. Left out, or without a value, it is 8. Anything else
+  (zero, a negative number, more than 24, a quoted value, a decimal such as
+  `8.5` or `8.0`, or text) is refused by `check-config` and `render`, naming
+  the key and the limit: `invalid working_hours "25": use a whole number of
+  hours from 1 to 24`. It is read and checked now; the on-demand threshold
+  uses it in the next step. The starter that `init-config` writes includes
+  `working_hours: 8`.
 - **`projects`** is required: a list of projects, or `projects: []` for an
   installation that measures nothing yet (it is valid, and `check-config`
   reports `projects: 0, repositories: 0`). A file whose `projects` key is
