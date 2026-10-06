@@ -152,3 +152,7 @@ limit moves the reach to the oldest date it reached and warns. Raising
 `history_days` later fills in the extra range chunk by chunk. The failure
 issues are still read from `history_days` back on every run, and deployments
 found by an older chunk add no lead time yet. The README documents it all.
+
+## 2026-10-06 — deployment frequency: on demand above 240 in 30 days, young projects by their age, released as 0.3.2 ([#69](https://github.com/yveshanoulle/forsgren/issues/69))
+
+On demand is now more than 240 deployments in 30 days (once an hour over an 8-hour day, 8 × 30), and a row whose first successful deployment is less than 30 days old is banded by its count scaled to 30 days of its age. The README and the legend say so.

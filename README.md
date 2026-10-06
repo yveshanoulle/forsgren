@@ -193,12 +193,20 @@ slowest bands apart:
 
 | Count | DORA band |
 | --- | --- |
-| 720 and more in 30 days (once an hour or more often) | On demand (multiple deploys per day) |
-| 30 to 719 in 30 days | Between once per hour and once per day |
+| 241 and more in 30 days (more than once an hour over an 8-hour day) | On demand (multiple deploys per day) |
+| 30 to 240 in 30 days | Between once per hour and once per day |
 | 5 to 29 in 30 days (once a week is 30/7, about 4.3) | Between once per day and once per week |
 | 1 to 4 in 30 days | Between once per week and once per month |
 | none in 30 days, 1 and more in 180 days | Between once per month and once every six months |
 | none in 180 days | Less than once per six months |
+
+Once an hour over an 8-hour working day is 8 × 30 = 240 deployments in 30
+days, so on demand is more than that (forsgren#69). A row whose first
+successful deployment is less than 30 days old (the project total: its
+earliest) has not had a whole window to deploy in, so its band uses its
+30-day count scaled to 30 days: the count × 30 over its age in whole days, at
+least 1 (19 in 9 days count as 63). The count shown, and the numbers view,
+stay the plain count.
 
 The band describes throughput over the period, not regularity; the count
 makes a burst visible (Yves's ruling on forsgren#12), so the band is never
@@ -462,13 +470,13 @@ linked to its GitHub repository, its version, "The five DORA metrics, from
 GitHub data." "Calculated at
 2026-10-03 12:00 UTC", the moment of the run (UTC, to the minute), on every
 run, with rows or without; and, when a newer forsgren release exists than the
-version that built the page, the version line adds it, "Forsgren 0.3.1 ·
-0.3.2 is available" (forsgren#40; nothing is added when the page is up to
+version that built the page, the version line adds it, "Forsgren 0.3.2 ·
+0.3.3 is available" (forsgren#40; nothing is added when the page is up to
 date, and no repository appears). The numbers are compared as numbers, so 0.0.10
 is newer than 0.0.9.
 
 `render` writes one table (forsgren#38) first on the table page, with no text
-above it but a visually hidden heading for screen readers, "Forsgren 0.3.1:
+above it but a visually hidden heading for screen readers, "Forsgren 0.3.2:
 the five DORA metrics"; where each metric comes from is explained on the
 legend page, counting back from the time in the footer. A config that lists
 no projects has no table: the page shows, in its place, a short how-to, that
@@ -946,7 +954,7 @@ private repositories (no scope for public ones).
 
 ## Running forsgren
 
-forsgren renders a static page whose footer says "Forsgren 0.3.1", the version of
+forsgren renders a static page whose footer says "Forsgren 0.3.2", the version of
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
@@ -1000,7 +1008,7 @@ pull-request check failed"); the link is fine there, because a run page is
 private to the repository, unlike the public page. A flag it cannot use is a
 usage error that prints nothing. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides
-"Forsgren 0.3.1" in its footer, a how-to for filling `forsgren.config.yml`;
+"Forsgren 0.3.2" in its footer, a how-to for filling `forsgren.config.yml`;
 without `--config` (the build above has no installation config) or with
 projects, the page is the placeholder. With `--data` as well (it needs `--config`), the
 page shows each project's deployment frequency from that history, counted
@@ -1133,9 +1141,9 @@ jobs:
 - **`pull-requests: read` is optional, and the caller's to grant too**
   (forsgren#40). With it, when a newer forsgren release exists and
   Dependabot has an open pull request in your repository that bumps the
-  `uses:` pin to exactly that release, the page footer says "Forsgren 0.3.1
-  · 0.3.2 is waiting in pull request #7 (merge it to update)", with the
-  number only. Without it the footer still says "0.3.2 is available": the
+  `uses:` pin to exactly that release, the page footer says "Forsgren 0.3.2
+  · 0.3.3 is waiting in pull request #7 (merge it to update)", with the
+  number only. Without it the footer still says "0.3.3 is available": the
   lookup treats the refusal (a 403) as unknown, never as an error, and the
   run goes on. The workflow itself declares no permissions block, so it
   takes what your caller grants; it does not ask for this one, because a
