@@ -60,6 +60,13 @@ const (
 	LevelMajor = "major"
 )
 
+// The days the first run collects (forsgren#57): the default, and the most
+// first_run_days can name (five years).
+const (
+	DefaultFirstRunDays = 365
+	MaxFirstRunDays     = 1825
+)
+
 // DefaultEnvironment is the GitHub environment a repository deploys to when
 // its config names no deployment.
 const DefaultEnvironment = "production"

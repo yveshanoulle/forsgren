@@ -727,6 +727,12 @@
    "score": 10.0,
    "checkedAt": "2026-10-05",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/config/first_run_days_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-06",
+   "minScore": 10.0
   }
  ]
 }
