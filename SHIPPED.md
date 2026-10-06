@@ -139,3 +139,16 @@ run used to be 90 days; collect's repository window and the failure issues'
 window both follow the key now, and the starter writes `history_days: 365`.
 The README documents the key, including how to read a repository again further
 back.
+
+## 2026-10-06 — history in chunks: history_chunk_days and data/reach.csv, released as 0.3.1 ([#57](https://github.com/yveshanoulle/forsgren/issues/57))
+
+A first run of a repository now reads one chunk of history, `history_chunk_days`
+(1 to 365, 100 by default), and every later run reads what is new plus one
+older chunk, until the history reaches `history_days` (renamed from
+`first_run_days` before it was released). `data/reach.csv` records, per
+repository, the date down to which it was read; an installation without it
+starts each repository at its oldest stored deployment. A read cut at the page
+limit moves the reach to the oldest date it reached and warns. Raising
+`history_days` later fills in the extra range chunk by chunk. The failure
+issues are still read from `history_days` back on every run, and deployments
+found by an older chunk add no lead time yet. The README documents it all.

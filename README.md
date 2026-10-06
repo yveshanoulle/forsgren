@@ -462,13 +462,13 @@ linked to its GitHub repository, its version, "The five DORA metrics, from
 GitHub data." "Calculated at
 2026-10-03 12:00 UTC", the moment of the run (UTC, to the minute), on every
 run, with rows or without; and, when a newer forsgren release exists than the
-version that built the page, the version line adds it, "Forsgren 0.3.0 ·
-0.3.1 is available" (forsgren#40; nothing is added when the page is up to
+version that built the page, the version line adds it, "Forsgren 0.3.1 ·
+0.3.2 is available" (forsgren#40; nothing is added when the page is up to
 date, and no repository appears). The numbers are compared as numbers, so 0.0.10
 is newer than 0.0.9.
 
 `render` writes one table (forsgren#38) first on the table page, with no text
-above it but a visually hidden heading for screen readers, "Forsgren 0.3.0:
+above it but a visually hidden heading for screen readers, "Forsgren 0.3.1:
 the five DORA metrics"; where each metric comes from is explained on the
 legend page, counting back from the time in the footer. A config that lists
 no projects has no table: the page shows, in its place, a short how-to, that
@@ -596,25 +596,25 @@ projects:
   also writes `auto_update: true` and `auto_update_level: patch` (forsgren#58),
   so a new installation merges forsgren's patch releases by itself; an
   existing config without `auto_update:` keeps it off (see Auto-update).
-- **`history_days`** is optional (forsgren#57): how far back, in days,
-  forsgren reads a repository that has nothing stored yet, a whole number
-  from 1 to 1825 (5 years), written at the top level, for example
-  `history_days: 730`. Left out, or without a value, it is 365. Anything
-  else (zero, a negative number, more than 1825, a quoted value, a decimal or
-  text) is refused by `check-config` and `render`, naming the key and the
-  limit: `invalid history_days "1826": use a whole number of days from 1 to
-  1825`. It applies to each repository that has nothing stored for its rule
-  yet; a repository added later gets its own first run then. It is also the
-  most any later run reads back, however old the newest stored deployment is.
-  Raising it does not re-read a repository that already has history: its
-  next run still starts 7 days before its newest stored deployment. To read
-  one again further back, remove that repository's rows from
-  `data/deployments.csv` and `data/commits.csv`, or remove `data/`, and the
-  next run is its first run again. What GitHub no longer returns (a deleted
-  deployment, a run past its retention) cannot come back. The failure issues
-  (see Collecting deployments) are read from the same date on every run, so
-  raising the key widens their next read too. The starter that `init-config`
-  writes includes `history_days: 365`.
+- **`history_days`** is optional (forsgren#57): how deep a repository's
+  history goes, in days, a whole number from 1 to 1825 (5 years), written at
+  the top level, for example `history_days: 730`. Left out, or without a
+  value, it is 365. Anything else (zero, a negative number, more than 1825, a
+  quoted value, a decimal or text) is refused by `check-config` and `render`,
+  naming the key and the limit: `invalid history_days "1826": use a whole
+  number of days from 1 to 1825`. forsgren does not read that far at once:
+  a repository's first run reads one chunk (`history_chunk_days`), and each
+  later run reads what is new plus one older chunk, until the history reaches
+  `history_days` back (see Collecting deployments). It is also the most any
+  run reads back, however old the newest stored deployment is, and how far
+  back the failure issues are read on every run. Raising it later fills in
+  the extra range, chunk by chunk, from where each repository's history ends
+  now; lowering it stops the older chunks sooner and removes nothing. To read
+  a range again that was already read, remove that repository's rows from
+  `data/deployments.csv`, `data/commits.csv` and `data/reach.csv`, or remove
+  `data/`, and the next run is its first run again. What GitHub no longer
+  returns (a deleted deployment, a run past its retention) cannot come back.
+  The starter that `init-config` writes includes `history_days: 365`.
 - **`history_chunk_days`** is optional (forsgren#57): how many days back each
   run adds until `history_days` is reached, a whole number from 1 to 365,
   written at the top level, for example `history_chunk_days: 30`. Left out,
@@ -624,8 +624,8 @@ projects:
   limit: `invalid history_chunk_days "366": use a whole number of days from 1
   to 365`. A repository's first run reads this many days back, and each
   later run adds one older chunk of this size until `history_days` is
-  reached; the collect section is rewritten for this at the next step. The
-  starter that `init-config` writes includes
+  reached; a chunk larger than `history_days` is allowed and covers all of it
+  in one read. The starter that `init-config` writes includes
   `history_chunk_days: 100`.
 - **`projects`** is required: a list of projects, or `projects: []` for an
   installation that measures nothing yet (it is valid, and `check-config`
@@ -777,19 +777,47 @@ count. When it stored failure issues the line goes on with
   commit is the tag's commit (an annotated tag resolved to its commit), one
   small request per release not stored yet; the tag is stored as the task.
 
-**How far back.** A repository with nothing in the history for its rule is
-read `history_days` back (365 unless the config says otherwise, see
-Configuration). After that, a run reads from 7 days before the newest
-deployment stored for it, so a deployment that was not final at the last
-run is still found, and never more than `history_days` back: the daily run reads
-little more than what is new. A deployment still not final 7 days before
-the newest stored one is not read again, so it is never stored. Every list
-is read newest first, 100 per page,
-and stops at the first page that reaches the start; at most 10 pages per
-list (the newest 1000), and when that cut a list stderr says so:
-`collect: acme/app: read the newest 10 page(s) only; older deployments were
-not read`. Re-reading is safe: the history skips what it already holds, and
-a stored deployment's statuses or tag are not asked again.
+**How far back.** A repository's history is read in chunks of
+`history_chunk_days` (100 unless the config says otherwise), down to
+`history_days` (365), see Configuration (forsgren#57).
+
+- A repository with nothing in the history for its rule and no row in
+  `data/reach.csv` is on its first run: it reads one chunk back from now, and
+  its reach (the date down to which its history was read) is set to the start
+  of that chunk.
+- Every later run reads what is new, from 7 days before the newest
+  deployment stored for it (so a deployment that was not final at the last
+  run is still found, and never more than `history_days` back), plus one
+  older chunk: from its reach back by one chunk, but not past `history_days`.
+  Its reach then moves to the start of that chunk. Once the reach is at or
+  past `history_days` back, no older chunk is read and the reach stays.
+- **`data/reach.csv`** holds the reach, one row per repository, sorted by
+  name (`# forsgren reach v1`, then `repository,reach`, the date as RFC 3339
+  UTC). It is written next to `deployments.csv` whole, through a temporary
+  file that is renamed over it, and only when a reach moved. It is needed
+  because the oldest stored deployment cannot tell a quiet stretch from one
+  that was not read yet. An installation that has none starts each repository
+  with stored deployments at its oldest stored deployment: everything since
+  was read by the runs so far.
+- A deployment still not final 7 days before the newest stored one is not
+  read again, so it is never stored.
+- Every list is read newest first, 100 per page, and stops at the first page
+  that reaches the start of its range; at most 10 pages per list (the newest
+  1000). GitHub's list of deployments and releases has no date filter, so an
+  older chunk pages again past everything newer; a workflow's runs are asked
+  for the range of the chunk and skip it. When a read is cut at the page
+  limit, stderr says so: `collect: acme/app: read the newest 10 page(s) only;
+  older deployments were not read`, and the reach moves to the oldest date
+  the read actually reached, so the next run continues from there. A chunk
+  that lies behind more than 1000 newer deployments can never be reached: the
+  run warns, and the reach stays.
+- The failure issues are not chunked: they are read from `history_days` back
+  on every run.
+- Deployments found by an older chunk have no commits yet, so they add
+  nothing to lead time: collect skips them with a warning on stderr, so no
+  commit counts twice ([#66](https://github.com/yveshanoulle/forsgren/issues/66)).
+- Re-reading is safe: the history skips what it already holds, and a stored
+  deployment's statuses or tag are not asked again.
 
 **The commits of each deployment** (for lead time, forsgren#16). Each
 successful deployment `collect` stores is compared with the previous
@@ -918,7 +946,7 @@ private repositories (no scope for public ones).
 
 ## Running forsgren
 
-forsgren renders a static page whose footer says "Forsgren 0.3.0", the version of
+forsgren renders a static page whose footer says "Forsgren 0.3.1", the version of
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
@@ -972,7 +1000,7 @@ pull-request check failed"); the link is fine there, because a run page is
 private to the repository, unlike the public page. A flag it cannot use is a
 usage error that prints nothing. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides
-"Forsgren 0.3.0" in its footer, a how-to for filling `forsgren.config.yml`;
+"Forsgren 0.3.1" in its footer, a how-to for filling `forsgren.config.yml`;
 without `--config` (the build above has no installation config) or with
 projects, the page is the placeholder. With `--data` as well (it needs `--config`), the
 page shows each project's deployment frequency from that history, counted
@@ -1105,9 +1133,9 @@ jobs:
 - **`pull-requests: read` is optional, and the caller's to grant too**
   (forsgren#40). With it, when a newer forsgren release exists and
   Dependabot has an open pull request in your repository that bumps the
-  `uses:` pin to exactly that release, the page footer says "Forsgren 0.3.0
-  · 0.3.1 is waiting in pull request #7 (merge it to update)", with the
-  number only. Without it the footer still says "0.3.1 is available": the
+  `uses:` pin to exactly that release, the page footer says "Forsgren 0.3.1
+  · 0.3.2 is waiting in pull request #7 (merge it to update)", with the
+  number only. Without it the footer still says "0.3.2 is available": the
   lookup treats the refusal (a 403) as unknown, never as an error, and the
   run goes on. The workflow itself declares no permissions block, so it
   takes what your caller grants; it does not ask for this one, because a
