@@ -168,3 +168,7 @@ A success stored by an older chunk is compared with the success before it in its
 ## 2026-10-06 — working_hours sets the on-demand threshold, released as 0.3.5 ([#71](https://github.com/yveshanoulle/forsgren/issues/71))
 
 The optional top-level `working_hours` key (a whole number from 1 to 24, default 8) is read and checked by `check-config`, and on demand is now more than `working_hours` × 30 deployments in 30 days; the legend page states the configured working day and the thresholds that follow from it. The README says so.
+
+## 2026-10-06 — the legend lists every setting, marking the ones not set, released as 0.3.6 ([#74](https://github.com/yveshanoulle/forsgren/issues/74))
+
+The legend page has a Settings section that lists every optional key of `forsgren.config.yml` with the value forsgren uses, and marks each key the file does not set as a default. The README says so.
