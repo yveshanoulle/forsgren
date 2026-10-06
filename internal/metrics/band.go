@@ -12,9 +12,9 @@ package metrics
 // once per Y (one deployment in 30 days is once per month) reads as the
 // answer that names it last:
 //
-//   - On demand (multiple deploys per day): 720 and more in 30 days, once
-//     an hour or more often.
-//   - Between once per hour and once per day: 30 to 719 in 30 days.
+//   - On demand (multiple deploys per day): 241 and more in 30 days, more
+//     than once an hour over an 8-hour working day (8 × 30 = 240).
+//   - Between once per hour and once per day: 30 to 240 in 30 days.
 //   - Between once per day and once per week: 5 to 29 in 30 days. Once a
 //     week is 30/7, about 4.3 in 30 days, so 5 is the first count at or
 //     above it.
@@ -42,7 +42,9 @@ const (
 	weeklyToMonthlyFrom = 1
 	dailyToWeeklyFrom   = 5
 	hourlyToDailyFrom   = 30
-	onDemandFrom        = 720
+	// onDemandFrom: once an hour over an 8-hour working day is 8 × 30 = 240
+	// deployments in 30 days, so on demand is more than that, 241 (forsgren#69).
+	onDemandFrom = 241
 )
 
 // BandOf is the band of the counts of successful deployments in the last 30

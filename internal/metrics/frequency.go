@@ -52,14 +52,16 @@ func DeploymentFrequency(projects []config.Project, records []history.Record, no
 	for i, p := range projects {
 		out[i].Project = p.Name
 	}
+	firsts := make([]time.Time, len(projects))
 	for _, r := range records {
 		i, ok := index.of(r.Repository)
 		if ok && r.State == history.StateSuccess {
 			out[i].add(r.CreatedAt, now)
+			firsts[i] = earlier(firsts[i], r.CreatedAt)
 		}
 	}
 	for i := range out {
-		out[i].Band = BandOf(out[i].Last30, out[i].Last180)
+		out[i].Band = bandOfAge(out[i].Last30, out[i].Last180, firsts[i], now)
 	}
 	return out
 }

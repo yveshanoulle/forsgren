@@ -781,6 +781,12 @@
    "score": 9.24,
    "checkedAt": "2026-10-06",
    "minScore": 9.14
+  },
+  {
+   "path": "internal/metrics/young.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-06",
+   "minScore": 10.0
   }
  ]
 }

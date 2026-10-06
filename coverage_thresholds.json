@@ -235,6 +235,8 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/changefail.go:deployed": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/changefail.go:ratesOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/changefail.go:add": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/young.go:bandOfAge": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/young.go:earlier": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/frequency.go:HasDeployments": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/frequency.go:DeploymentFrequency": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/frequency.go:add": 100.0,

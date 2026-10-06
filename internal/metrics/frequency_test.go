@@ -174,7 +174,7 @@ func TestBandFollowsTheThirtyDayCount(t *testing.T) {
 		want Band
 	}{
 		{"30 in 30 days", daysAgo(0, 29), HourlyToDaily},
-		{"5 in 30 days", daysAgo(0, 4), DailyToWeekly},
+		{"5 in 30 days", append(daysAgo(0, 4), 40*day), DailyToWeekly},
 		{"1 in 30 days and 10 older", daysAgo(30, 40), WeeklyToMonthly},
 	}
 	for _, c := range cases {
