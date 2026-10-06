@@ -43,7 +43,10 @@ func backfillGitHub(t *testing.T) *gitHub {
 func backfillRuns(t *testing.T, g *gitHub, runs int) string {
 	t.Helper()
 	path := historyPath(t)
-	storeAges(t, path, []int{5})
+	p := record(history.KindEnvironment, "production", 1005, shaD, ago(5), history.StateSuccess, "deploy")
+	if _, err := history.Append(path, []history.Record{p}); err != nil {
+		t.Fatal(err)
+	}
 	reach := history.Reach{"acme/app": ago(100)}
 	if err := history.SaveReach(filepath.Join(filepath.Dir(path), "reach.csv"), reach); err != nil {
 		t.Fatal(err)

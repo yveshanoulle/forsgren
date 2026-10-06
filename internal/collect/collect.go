@@ -45,10 +45,13 @@
 // GitHub cut, a previous that is not an ancestor and a commit GitHub does
 // not have store no commits for that deployment, with a warning on stderr;
 // any other error of a comparison fails the repository. A success that
-// finished after a newer success of its stream was stored is not compared
-// and stores no commits either, with a warning: that newer one was
-// compared with the success before both, so its commits already hold this
-// one's (forsgren#16, step 7).
+// finished between two successes of its stream stored by earlier runs is
+// not compared and stores no commits either, with a warning: the newer one
+// was compared with the success before both, so its commits already hold
+// this one's (forsgren#16, step 7). A success older than the oldest stored
+// one is backfilled and compared with the success before it; the oldest
+// stored success waits for a previous, and is compared on the run that
+// reads one (backfill.go, forsgren#66).
 //
 // A repository is stored whole or not at all: its records are appended once
 // all of them are read and compared, the commits first, then the

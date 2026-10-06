@@ -72,10 +72,11 @@ func precedes(c, r history.Record, s history.Stream) bool {
 }
 
 // commitsOf compares each fresh success with its previous success and
-// returns the commits to store (see start for the successes that get none).
+// returns the commits to store (see start for the successes that get none),
+// with those of the stored successes that waited for them (forsgren#66).
 func (o Options) commitsOf(ctx context.Context, h held, fresh []history.Record) ([]history.Commit, error) {
 	var out []history.Commit
-	for _, r := range fresh {
+	for _, r := range slices.Concat(h.waiting(fresh), fresh) {
 		prev, ok := o.start(h, r, fresh)
 		if !ok {
 			continue
@@ -90,11 +91,14 @@ func (o Options) commitsOf(ctx context.Context, h held, fresh []history.Record) 
 }
 
 // start is the previous success r's commits are counted from. There is
-// none for a deployment that is not a success, for the first success of a
-// stream (no known start), and for a success that finished after a newer
-// success of its stream was stored by an earlier run: that one was
-// compared with the success before both, so r's commits are already in its
-// list and would count twice. The last case warns on stderr.
+// none for a deployment that is not a success, for a success with no
+// earlier success of its stream known yet (the first of the stream, or one
+// that waits for an older chunk, see waiting), and for a success that
+// finished between two successes of its stream stored by earlier runs: the
+// newer one was compared with the success before both, so r's commits are
+// already in its list and would count twice. The last case warns on
+// stderr. A success newer than the stream's newest stored one, or older
+// than its oldest, is no such case (backfill, forsgren#66).
 func (o Options) start(h held, r history.Record, fresh []history.Record) (history.Record, bool) {
 	if r.State != history.StateSuccess {
 		return history.Record{}, false
@@ -108,14 +112,19 @@ func (o Options) start(h held, r history.Record, fresh []history.Record) (histor
 }
 
 // newerSuccess is a success of r's stream, stored by an earlier run, that
-// is newer than r (by created_at, then ID).
+// is newer than r (by created_at, then ID), when r also has an older one
+// stored: r lies between two stored successes.
 func (h held) newerSuccess(r history.Record) (history.Record, bool) {
+	var newer history.Record
+	hasNewer, hasOlder := false, false
 	for _, c := range h.successes[r.Stream()] {
 		if history.Chronological(r, c) < 0 {
-			return c, true
+			newer, hasNewer = c, true
+		} else if history.Chronological(c, r) < 0 {
+			hasOlder = true
 		}
 	}
-	return history.Record{}, false
+	return newer, hasNewer && hasOlder
 }
 
 // compare is the commits of r since prev. A list GitHub cut, a previous

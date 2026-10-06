@@ -861,12 +861,17 @@ in `data/commits.csv`, each with its author date and the deployment's
   (`...; lead time skips deployment 1002`). These are the history's shape,
   not the token's access. Any other error of a comparison (no access, a
   rate limit) fails the repository like any other call.
-- **Skipped, not compared, with a warning:** a success that finished after
-  a newer success of its stream was stored, say one still running at the
-  last run while a newer one succeeded: `collect: acme/app: deployment
-  1002 finished after the newer deployment 1003 was stored; lead time skips
-  it, so no commit counts twice`. The newer one was compared with the
-  success before both, so its commits already hold this one's.
+- **Skipped, not compared, with a warning:** a success that finished
+  between two successes of its stream stored by earlier runs, say one still
+  running at the last run while a newer one succeeded: `collect:
+  acme/app: deployment 1002 finished after the newer deployment 1003 was
+  stored; lead time skips it, so no commit counts twice`. The newer one was
+  compared with the success before both, so its commits already hold this
+  one's.
+- **Backfilled deployments:** a success older than the oldest stored one of
+  its stream (an older chunk) is compared with the success before it. The
+  oldest stored success has no previous yet and waits; the run that reads
+  an older success of the stream compares it. No commit is stored twice.
 - **Not verified against live GitHub.** What `collect` assumes of a
   comparison comes from GitHub's REST reference and is pinned against
   made-up answers only: that `total_commits` counts every commit of the
