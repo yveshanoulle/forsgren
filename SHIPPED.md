@@ -160,3 +160,7 @@ On demand is now more than 240 deployments in 30 days (once an hour over an 8-ho
 ## 2026-10-06 — failure issues read only what changed since the last run, released as 0.3.3 ([#67](https://github.com/yveshanoulle/forsgren/issues/67))
 
 `data/failures_read.csv` (header `repository,read_at`) records per repository when its failure issues were last read. A run asks for the issues updated since then minus 1 day, a first read goes from `history_days` back, and the time moves only after a successful read and store. The README says so.
+
+## 2026-10-06 — backfilled deployments get their commits, released as 0.3.4 ([#66](https://github.com/yveshanoulle/forsgren/issues/66))
+
+A success stored by an older chunk is compared with the success before it in its stream, and the oldest stored success of a stream, which waits for a previous, is compared on the run that reads one. A success between two stored ones is still skipped with a warning. The README says so.

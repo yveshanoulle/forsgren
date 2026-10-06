@@ -470,13 +470,13 @@ linked to its GitHub repository, its version, "The five DORA metrics, from
 GitHub data." "Calculated at
 2026-10-03 12:00 UTC", the moment of the run (UTC, to the minute), on every
 run, with rows or without; and, when a newer forsgren release exists than the
-version that built the page, the version line adds it, "Forsgren 0.3.3 ·
-0.3.4 is available" (forsgren#40; nothing is added when the page is up to
+version that built the page, the version line adds it, "Forsgren 0.3.4 ·
+0.3.5 is available" (forsgren#40; nothing is added when the page is up to
 date, and no repository appears). The numbers are compared as numbers, so 0.0.10
 is newer than 0.0.9.
 
 `render` writes one table (forsgren#38) first on the table page, with no text
-above it but a visually hidden heading for screen readers, "Forsgren 0.3.3:
+above it but a visually hidden heading for screen readers, "Forsgren 0.3.4:
 the five DORA metrics"; where each metric comes from is explained on the
 legend page, counting back from the time in the footer. A config that lists
 no projects has no table: the page shows, in its place, a short how-to, that
@@ -822,9 +822,6 @@ count. When it stored failure issues the line goes on with
 - The failure issues are not chunked: a repository's first read goes from
   `history_days` back, and each later run reads from where the last one ended
   (see The failure issues below).
-- Deployments found by an older chunk have no commits yet, so they add
-  nothing to lead time: collect skips them with a warning on stderr, so no
-  commit counts twice ([#66](https://github.com/yveshanoulle/forsgren/issues/66)).
 - Re-reading is safe: the history skips what it already holds, and a stored
   deployment's statuses or tag are not asked again.
 
@@ -971,7 +968,7 @@ private repositories (no scope for public ones).
 
 ## Running forsgren
 
-forsgren renders a static page whose footer says "Forsgren 0.3.3", the version of
+forsgren renders a static page whose footer says "Forsgren 0.3.4", the version of
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
@@ -1025,7 +1022,7 @@ pull-request check failed"); the link is fine there, because a run page is
 private to the repository, unlike the public page. A flag it cannot use is a
 usage error that prints nothing. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides
-"Forsgren 0.3.3" in its footer, a how-to for filling `forsgren.config.yml`;
+"Forsgren 0.3.4" in its footer, a how-to for filling `forsgren.config.yml`;
 without `--config` (the build above has no installation config) or with
 projects, the page is the placeholder. With `--data` as well (it needs `--config`), the
 page shows each project's deployment frequency from that history, counted
@@ -1158,9 +1155,9 @@ jobs:
 - **`pull-requests: read` is optional, and the caller's to grant too**
   (forsgren#40). With it, when a newer forsgren release exists and
   Dependabot has an open pull request in your repository that bumps the
-  `uses:` pin to exactly that release, the page footer says "Forsgren 0.3.3
-  · 0.3.4 is waiting in pull request #7 (merge it to update)", with the
-  number only. Without it the footer still says "0.3.4 is available": the
+  `uses:` pin to exactly that release, the page footer says "Forsgren 0.3.4
+  · 0.3.5 is waiting in pull request #7 (merge it to update)", with the
+  number only. Without it the footer still says "0.3.5 is available": the
   lookup treats the refusal (a 403) as unknown, never as an error, and the
   run goes on. The workflow itself declares no permissions block, so it
   takes what your caller grants; it does not ask for this one, because a
