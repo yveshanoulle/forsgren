@@ -171,60 +171,62 @@ func TestCreateIssuePassesOnItsErrors(t *testing.T) {
 	}
 }
 
-// TestUpdateIssuePatchesTitleAndBodyOnly (forsgren#73, step 10): one PATCH
-// to the issue's own path with the title and the body as JSON, and no state:
-// reopening is not this call's job.
-func TestUpdateIssuePatchesTitleAndBodyOnly(t *testing.T) {
-	f := newFake(t)
-	f.on(issuesPath+"/7", reply{body: `{"number": 7}`})
-	err := f.client(t, DefaultMaxPages).UpdateIssue(
-		context.Background(), "acme/app", 7, "Set up forsgren again", "Hello again")
-	if err != nil {
-		t.Errorf("want no error, got %v", err)
-	}
-	want := map[string]any{"title": "Set up forsgren again", "body": "Hello again"}
-	if sent := bodyOfRequest(t, f, "PATCH", issuesPath+"/7"); !reflect.DeepEqual(sent, want) {
-		t.Errorf("want the body %v, got %v", want, sent)
-	}
+// patchCall is one of the two calls that PATCH an issue's title and body:
+// UpdateIssue (no state) and ReopenIssue (state open), on repo, issue 7,
+// with the title "Set up forsgren again" and the body "Hello again".
+type patchCall func(c *Client, repo string) error
+
+var patchCalls = map[string]patchCall{
+	"UpdateIssue": func(c *Client, repo string) error {
+		return c.UpdateIssue(context.Background(), repo, 7, "Set up forsgren again", "Hello again")
+	},
+	"ReopenIssue": func(c *Client, repo string) error {
+		return c.ReopenIssue(context.Background(), repo, 7, "Set up forsgren again", "Hello again")
+	},
 }
 
-// TestReopenIssuePatchesTitleBodyAndStateOpen (forsgren#73, step 11): one
-// PATCH to the issue's own path with the title, the body and state open, so
+// TestPatchIssueSendsTitleAndBody (forsgren#73, steps 10 and 11): one PATCH
+// to the issue's own path with the title and the body as JSON; UpdateIssue
+// sends no state (reopening is not its job), ReopenIssue sends state open, so
 // the one setup issue is reopened and updated together.
-func TestReopenIssuePatchesTitleBodyAndStateOpen(t *testing.T) {
-	f := newFake(t)
-	f.on(issuesPath+"/9", reply{body: `{"number": 9}`})
-	err := f.client(t, DefaultMaxPages).ReopenIssue(
-		context.Background(), "acme/app", 9, "Set up forsgren again", "Hello again")
-	if err != nil {
-		t.Errorf("want no error, got %v", err)
-	}
-	want := map[string]any{"title": "Set up forsgren again", "body": "Hello again", "state": "open"}
-	if sent := bodyOfRequest(t, f, "PATCH", issuesPath+"/9"); !reflect.DeepEqual(sent, want) {
-		t.Errorf("want the body %v, got %v", want, sent)
-	}
-}
-
-// TestUpdateIssuePassesOnItsErrors (forsgren#73): an error comes back as it
-// is: a repository name that is not owner/name (ErrRepositoryName) and an
-// HTTP error status (ErrStatus).
-func TestUpdateIssuePassesOnItsErrors(t *testing.T) {
-	for name, c := range map[string]struct {
-		repo  string
-		reply reply
-		is    func(error) bool
-	}{
-		"invalid repository name": {"acme", reply{body: `{"number": 7}`}, isError(ErrRepositoryName)},
-		"http error status":       {"acme/app", reply{status: 500, body: `{"number": 7}`}, isError(ErrStatus)},
+func TestPatchIssueSendsTitleAndBody(t *testing.T) {
+	for name, want := range map[string]map[string]any{
+		"UpdateIssue": {"title": "Set up forsgren again", "body": "Hello again"},
+		"ReopenIssue": {"title": "Set up forsgren again", "body": "Hello again", "state": "open"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			f := newFake(t)
-			f.on(issuesPath+"/7", c.reply)
-			err := f.client(t, DefaultMaxPages).UpdateIssue(
-				context.Background(), c.repo, 7, "Set up forsgren again", "Hello again")
-			if err == nil || !c.is(err) {
-				t.Errorf("want the error's reason, got %v", err)
+			f.on(issuesPath+"/7", reply{body: `{"number": 7}`})
+			if err := patchCalls[name](f.client(t, DefaultMaxPages), "acme/app"); err != nil {
+				t.Errorf("want no error, got %v", err)
+			}
+			if sent := bodyOfRequest(t, f, "PATCH", issuesPath+"/7"); !reflect.DeepEqual(sent, want) {
+				t.Errorf("want the body %v, got %v", want, sent)
 			}
 		})
+	}
+}
+
+// TestPatchIssuePassesOnItsErrors (forsgren#73): for UpdateIssue and
+// ReopenIssue alike, an error comes back as it is: a repository name that is
+// not owner/name (ErrRepositoryName) and an HTTP error status (ErrStatus).
+func TestPatchIssuePassesOnItsErrors(t *testing.T) {
+	for call, patch := range patchCalls {
+		for name, c := range map[string]struct {
+			repo  string
+			reply reply
+			is    func(error) bool
+		}{
+			"invalid repository name": {"acme", reply{body: `{"number": 7}`}, isError(ErrRepositoryName)},
+			"http error status":       {"acme/app", reply{status: 500, body: `{"number": 7}`}, isError(ErrStatus)},
+		} {
+			t.Run(call+"/"+name, func(t *testing.T) {
+				f := newFake(t)
+				f.on(issuesPath+"/7", c.reply)
+				if err := patch(f.client(t, DefaultMaxPages), c.repo); err == nil || !c.is(err) {
+					t.Errorf("want the error's reason, got %v", err)
+				}
+			})
+		}
 	}
 }

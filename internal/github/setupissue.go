@@ -115,9 +115,7 @@ type newIssue struct {
 // {issue_number}: it answers 200 with the updated issue, and a field left
 // out of the body is left as it is.
 func (c *Client) UpdateIssue(ctx context.Context, repo string, number int64, title, body string) error {
-	payload := updatedIssue{Title: title, Body: body}
-	_, _, err := c.sendJSON(ctx, http.MethodPatch, repo, payload, "issues", strconv.FormatInt(number, 10))
-	return err
+	return c.patchIssue(ctx, repo, number, updatedIssue{Title: title, Body: body})
 }
 
 // updatedIssue is the JSON body of PATCH /repos/{owner}/{repo}/issues/{number}:
@@ -133,7 +131,22 @@ type updatedIssue struct {
 // body and the state change together: the one setup issue of an installation
 // is reopened and updated, never replaced (forsgren#73).
 func (c *Client) ReopenIssue(ctx context.Context, repo string, number int64, title, body string) error {
-	return nil
+	return c.patchIssue(ctx, repo, number, reopenedIssue{Title: title, Body: body, State: "open"})
+}
+
+// reopenedIssue is the JSON body of PATCH /repos/{owner}/{repo}/issues/{number}
+// that reopens the issue: the title and the body, and the state "open".
+type reopenedIssue struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
+	State string `json:"state"`
+}
+
+// patchIssue sends payload as PATCH /repos/{owner}/{repo}/issues/{number}
+// and drops the answer; both UpdateIssue and ReopenIssue go through it.
+func (c *Client) patchIssue(ctx context.Context, repo string, number int64, payload any) error {
+	_, _, err := c.sendJSON(ctx, http.MethodPatch, repo, payload, "issues", strconv.FormatInt(number, 10))
+	return err
 }
 
 // sendJSON sends payload as JSON with method to the endpoint of repo under
