@@ -29,6 +29,7 @@ type Need struct {
 	Workflow   string `yaml:"workflow"`
 	Permission string `yaml:"permission"`
 	Access     string `yaml:"access"`
+	File       string `yaml:"file"`
 	Steps      string `yaml:"steps"`
 }
 
