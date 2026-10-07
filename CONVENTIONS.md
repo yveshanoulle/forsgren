@@ -25,3 +25,13 @@ How work is tracked in this repo: forsgren's files and the rules for them.
 - `gofmt`: auto-fix (`gofmt -w`) in `FBP.sh`'s local run, check-only (`gofmt -l`) in `sfl.sh` and CI.
 - The generated site goes to `.build/site/` and is not committed.
 - Every gate is a script named by a row of `Scripts/gate_report_order.txt`; every `Scripts/test_*.sh` is named by a row.
+
+## Versions
+
+What a forsgren release is, by what it asks of an installation (forsgren#78):
+
+- **Patch:** fixes only. Nothing new for the installation to do or see.
+- **Minor:** new behaviour, or anything that asks the installation for something (a permission, a secret, a file, a config key).
+- **Major:** an installation that does nothing would stop working.
+
+A release that declares a new need in `internal/needs/needs.yml` therefore cannot be a patch: every entry's version has patch number 0 (x.y.0). `TestEveryNeedIsIntroducedInAMinorOrMajor` pins that part.

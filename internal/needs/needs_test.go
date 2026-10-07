@@ -58,3 +58,19 @@ func TestForRefusesWhatItCannotRead(t *testing.T) {
 		}
 	}
 }
+
+// TestEveryNeedIsIntroducedInAMinorOrMajor (forsgren#78): a release that
+// declares a new need asks the installation for something, so it is a minor
+// or a major, never a patch. Every embedded entry's version has patch 0.
+func TestEveryNeedIsIntroducedInAMinorOrMajor(t *testing.T) {
+	all, err := For("999.999.999")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range all {
+		if !strings.HasSuffix(n.Version, ".0") {
+			t.Errorf("need %s %s: version %s has a patch number; a release that declares a need is a minor or a major (x.y.0)",
+				n.Kind, n.Permission+n.File+n.Key+n.Secret, n.Version)
+		}
+	}
+}
