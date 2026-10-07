@@ -58,3 +58,11 @@ func openSetup(ctx context.Context, issues setupIssues, repo, version string, mi
 		return issues.ReopenIssue(ctx, repo, found.Number, title, body)
 	}
 }
+
+// setupStatus is how the write of the setup issue went, from its error
+// (forsgren#73): a failed write never turns the run red, it is reported as
+// a status. Scaffold: it reuses the pull request lookup's mapping, which
+// does not yet know a 403 from POST /issues.
+func setupStatus(err error) string {
+	return lookupStatus(err)
+}
