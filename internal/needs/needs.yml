@@ -1,4 +1,4 @@
-- version: 0.3.7
+- version: 0.3.8
   kind: permission
   workflow: .github/workflows/forsgren.yml
   permission: issues
