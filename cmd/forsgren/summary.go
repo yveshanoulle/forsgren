@@ -109,7 +109,7 @@ func (in summaryInput) setup(stderr io.Writer) string {
 		return ""
 	}
 	line := "- Setup: the setup issue could not be written" + reason + "; this version needs:\n"
-	missing, err := missingNeeds(setupConfig, stderr)
+	missing, err := missingNeeds("run-summary", setupConfig, stderr)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "run-summary: the needs could not be checked: %v\n", err)
 	}

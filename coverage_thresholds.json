@@ -17,6 +17,7 @@
     "github.com/yveshanoulle/forsgren/cmd/forsgren/checkneeds.go:checkNeeds": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/checkneeds.go:checkNeedsFlags": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/checkneeds.go:reportNeeds": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/checkneeds.go:writeOutcome": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/checkneeds.go:missingNeeds": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/checkneeds.go:noteFailed": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/checkneeds.go:configKeys": 100.0,
