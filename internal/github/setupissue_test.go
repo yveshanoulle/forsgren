@@ -258,6 +258,43 @@ func TestCloseIssueCommentsThenCloses(t *testing.T) {
 	}
 }
 
+// TestCloseIssuePassesOnItsErrors (forsgren#73): CloseIssue's errors come
+// back as they are, whichever call fails: an invalid repository name
+// (ErrRepositoryName), an HTTP error on the comment POST (ErrStatus, and no
+// PATCH is sent: the issue stays open) and an HTTP error on the PATCH after
+// a comment that went through (ErrStatus, the comment POST sent first).
+func TestCloseIssuePassesOnItsErrors(t *testing.T) {
+	comments, patch := issuesPath+"/7/comments", issuesPath+"/7"
+	ok, bad := reply{status: 201, body: `{"id": 1}`}, reply{status: 500, body: `{}`}
+	for name, c := range map[string]struct {
+		repo           string
+		comment, issue reply
+		is             func(error) bool
+		wantRequests   []string
+	}{
+		"invalid repository name": {"acme", ok, ok, isError(ErrRepositoryName), nil},
+		"comment http error": {
+			"acme/app", bad, ok, isError(ErrStatus), []string{"POST " + comments},
+		},
+		"close http error": {
+			"acme/app", ok, bad, isError(ErrStatus), []string{"POST " + comments, "PATCH " + patch},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFake(t)
+			f.on(comments, c.comment)
+			f.on(patch, c.issue)
+			err := f.client(t, DefaultMaxPages).CloseIssue(context.Background(), c.repo, 7, "Done.")
+			if err == nil || !c.is(err) {
+				t.Errorf("want the error's reason, got %v", err)
+			}
+			if got := requestLines(f); !reflect.DeepEqual(got, c.wantRequests) {
+				t.Errorf("want the requests %v, got %v", c.wantRequests, got)
+			}
+		})
+	}
+}
+
 // requestLines is the requests the fake got, in order, as "METHOD path".
 func requestLines(f *fakeGitHub) []string {
 	var lines []string

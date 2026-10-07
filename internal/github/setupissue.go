@@ -171,5 +171,21 @@ func (c *Client) sendJSON(
 // the issue was closed; when the comment fails the issue stays open
 // (forsgren#73).
 func (c *Client) CloseIssue(ctx context.Context, repo string, number int64, comment string) error {
-	return nil
+	n := strconv.FormatInt(number, 10)
+	payload := commentBody{Body: comment}
+	if _, _, err := c.sendJSON(ctx, http.MethodPost, repo, payload, "issues", n, "comments"); err != nil {
+		return err
+	}
+	return c.patchIssue(ctx, repo, number, closedIssue{State: "closed"})
+}
+
+// commentBody is the JSON body of POST /repos/{owner}/{repo}/issues/{number}/comments.
+type commentBody struct {
+	Body string `json:"body"`
+}
+
+// closedIssue is the JSON body of PATCH /repos/{owner}/{repo}/issues/{number}
+// that closes the issue: the state "closed" alone.
+type closedIssue struct {
+	State string `json:"state"`
 }

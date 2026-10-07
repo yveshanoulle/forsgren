@@ -195,6 +195,7 @@
     "github.com/yveshanoulle/forsgren/internal/github/setupissue.go:UpdateIssue": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/setupissue.go:ReopenIssue": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/setupissue.go:patchIssue": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/github/setupissue.go:CloseIssue": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/setupissue.go:sendJSON": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/issues.go:parseRecord": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/issues.go:keepIssues": 100.0,
