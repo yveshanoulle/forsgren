@@ -872,7 +872,7 @@ needs_outcome() {
   : > "$calls"
   rm -rf "${TMP}/runner"
   mkdir -p "${TMP}/runner"
-  PATH="${STUB}:${PATH}" FG_CALLS="$calls" GITHUB_REPOSITORY="acme/data" STUB_NEEDS_RC="$2" STUB_NEEDSSTATUS="ok" \
+  PATH="${STUB}:${PATH}" FG_CALLS="$calls" GITHUB_REPOSITORY="acme/data" GITHUB_OUTPUT="${TMP}/needs.out" STUB_NEEDS_RC="$2" STUB_NEEDSSTATUS="ok" \
     RUNNER_TEMP="${TMP}/runner" bash "$1" > /dev/null 2>&1 || rc=$?
   echo "exit=${rc} calls=$(paste -sd, - < "$calls" | sed "s|${TMP}/runner/|RUNNER_TEMP/|g")"
 }
@@ -1793,6 +1793,22 @@ proves judge_render_latest "a render without the latest release" "with LATEST se
 proves judge_render_latest "a render without LATEST in env" "does not set LATEST from steps.latest.outputs.latest" \
   "/LATEST: \\${D}{{ steps.latest.outputs.latest }}/d"
 
+# What this version needs (forsgren#73).
+proves judge_needs_check "a needs step without the job token" "the needs step's env: does not set GITHUB_TOKEN to the job's token" \
+  "/GITHUB_TOKEN: \\${D}{{ github.token }}/{x;s/^/x/;/^xxx\$/{x;d;};x;}"
+proves judge_needs_check "a needs step with the caller's secret" "the needs step's env: hands FORSGREN_TOKEN over" \
+  "/- name: Check what this forsgren version needs/,/run: |/s|^\\( *\\)GITHUB_TOKEN: \\${D}{{ github.token }}|&\\n\\1FORSGREN_TOKEN: x|"
+proves judge_needs_check "a needs step on another config file" "the needs step gives" \
+  "s/check-needs --config forsgren\\.config\\.yml/check-needs --config config.yml/"
+proves judge_needs_check "a needs step without its status file" "the needs step gives" \
+  "/check-needs/s| --status \"\\${D}status_file\"||"
+proves judge_needs_check "a needs step that fails the job" "for a check-needs that fails the needs step gives" \
+  "/check-needs/s/ || true\$//"
+proves judge_permissions "no issues: write in the documented permissions" "do not list 'issues: write'" \
+  "/^#   issues: write/d"
+proves judge_permissions "an issues: write without its reason" "does not give its reason, the setup issue" \
+  "s/its setup issue/its repair/;s/^#   issues: write .*/#   issues: write        for something/"
+
 # The token (forsgren#12, step 6).
 proves judge_secret "a required token" "FORSGREN_TOKEN is declared required: true" \
   's/^        required: false$/        required: true/'
@@ -1919,6 +1935,9 @@ proves_moved judge_order "collect before the config check" "collects (line" "$CO
 proves_moved judge_order "the data commit before collect" "there is nothing to commit yet" "$DATA_STEP" "$COLLECT_STEP"
 proves_moved judge_order "the data commit after render" "would drop what collect stored" "$DATA_STEP" "Upload the page"
 proves_moved judge_order "the fail step before publishing" "before it publishes" "$FAIL_STEP" "$RENDER_STEP"
+proves_moved judge_order "the needs step before the checkout" "before checking out the caller's repository" "$NEEDS_STEP" "$CHECKOUT_STEP"
+proves_moved judge_order "the needs step before the config check" "before the config check" "$NEEDS_STEP" "$CHECK_STEP"
+proves_moved judge_order "the needs step after the run summary" "after the run summary" "$NEEDS_STEP" "Upload the page"
 
 selftest_end "metrics.yml is not the reusable workflow forsgren#4 rules" \
   "metrics.yml runs on workflow_call only, takes no input, installs forsgren from its own job.workflow_repository at its own job.workflow_sha (each checked before go runs, a fork installing itself), passes both through env: only, builds with go.mod's Go after setup-go, writes a new install's starter config with one commit as github-actions[bot] (token in the environment only) and renders with the config and the history, and checks the caller's config before render, with the real forsgren too, its message never run as a workflow command, then collects with FORSGREN_TOKEN in that one step's env only, its output never run as a workflow command, commits and pushes data/ alone (failing by name, never rebasing or forcing, when the branch moved), publishes, and fails the job at its end when collect failed, one run at a time per caller repository (and each wrong shape is still detected)"

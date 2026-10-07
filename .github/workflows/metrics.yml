@@ -83,6 +83,9 @@ on:
 #                        which run deploys
 #   pull-requests: read  optional: the footer names Dependabot's waiting
 #                        pull request for a newer forsgren release
+#   issues: write        lets forsgren open its setup issue when this version
+#                        needs more configuration; without it, the job
+#                        summary and page footer say so
 # Scripts/test_metrics_workflow.sh pins that no block comes back.
 
 jobs:
@@ -401,6 +404,30 @@ jobs:
             *) check="failed" ;;
           esac
           echo "waiting=${waiting}" >> "$GITHUB_OUTPUT"
+          echo "check=${check}" >> "$GITHUB_OUTPUT"
+
+      # What this forsgren version needs (forsgren#73): forsgren check-needs
+      # reads the checked-out forsgren.config.yml and, when this version needs
+      # more configuration, opens its setup issue in the installation's own
+      # repository with the job's token (issues: write, see the note on
+      # permissions above). Like the waiting lookup, it never fails the job:
+      # a token without the permission, GitHub's rate limit or any other
+      # failure is only a check of no-access, rate-limited or failed.
+      - name: Check what this forsgren version needs
+        id: needs
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          status_file="${RUNNER_TEMP}/needs-status"
+          rm -f "$status_file"
+          forsgren check-needs --config forsgren.config.yml --repository "$GITHUB_REPOSITORY" --status "$status_file" || true
+          check="$(cat "$status_file" 2>/dev/null || true)"
+          case "$check" in
+            ok | no-access | rate-limited | failed) ;;
+            *) check="failed" ;;
+          esac
           echo "check=${check}" >> "$GITHUB_OUTPUT"
 
       - name: Render the page
