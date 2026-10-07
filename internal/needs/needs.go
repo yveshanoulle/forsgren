@@ -61,18 +61,29 @@ func forVersion(text, version string) ([]Need, error) {
 	}
 	var applying []Need
 	for _, n := range all {
-		introduced, err := numbers(n.Version)
+		introduced, err := introducedOf(n)
 		if err != nil {
-			return nil, fmt.Errorf("needs.yml: %w", err)
-		}
-		if _, known := checks[n.Kind]; !known {
-			return nil, fmt.Errorf("needs.yml: kind %q has no check", n.Kind)
+			return nil, err
 		}
 		if slices.Compare(introduced[:], running[:]) <= 0 {
 			applying = append(applying, n)
 		}
 	}
 	return applying, nil
+}
+
+// introducedOf is the version a declared entry was introduced in, after the
+// entry is checked: its version must be readable (an error wrapped as
+// needs.yml's, reported before any other) and its kind must have a check.
+func introducedOf(n Need) ([3]int, error) {
+	introduced, err := numbers(n.Version)
+	if err != nil {
+		return introduced, fmt.Errorf("needs.yml: %w", err)
+	}
+	if _, known := checks[n.Kind]; !known {
+		return introduced, fmt.Errorf("needs.yml: kind %q has no check", n.Kind)
+	}
+	return introduced, nil
 }
 
 // numbers is the three numbers of a version, with or without a leading "v".
