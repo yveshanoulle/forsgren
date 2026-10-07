@@ -16,8 +16,11 @@ func TestForReturnsTheNeedsAppliedFromTheirVersionOn(t *testing.T) {
 		Workflow:   ".github/workflows/forsgren.yml",
 		Permission: "issues",
 		Access:     "write",
-		Steps: "Add `issues: write` to the `permissions:` of the job in " +
-			".github/workflows/forsgren.yml, so forsgren can open its setup issue.",
+		Steps: "Add `issues: write` to the `permissions:` of the forsgren job in " +
+			".github/workflows/forsgren.yml, so forsgren can open its setup issue. " +
+			"forsgren requires permissions to be declared explicitly on that job: " +
+			"`write-all` and `read-all` are intentionally unsupported, because " +
+			"forsgren follows least-privilege security practice.",
 	}
 	cases := []struct {
 		version string
