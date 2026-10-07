@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -85,14 +86,8 @@ func isMarkedIssue(i issue, marker string) bool {
 // it answers 201 with the created issue, whose number is its number in the
 // repository.
 func (c *Client) CreateIssue(ctx context.Context, repo, title, body string, labels []string) (int64, error) {
-	t, err := c.endpoint(repo, nil, "issues")
-	if err != nil {
-		return 0, err
-	}
-	// A struct of strings always marshals, so the error is dropped, as exchange does.
-	raw, _ := json.Marshal(newIssue{Title: title, Body: body, Labels: labels})
-	k := call{method: http.MethodPost, accept: jsonMedia, t: t, body: bytes.NewReader(raw)}
-	answer, _, err := c.do(ctx, k)
+	payload := newIssue{Title: title, Body: body, Labels: labels}
+	answer, t, err := c.sendJSON(ctx, http.MethodPost, repo, payload, "issues")
 	if err != nil {
 		return 0, err
 	}
@@ -120,5 +115,29 @@ type newIssue struct {
 // {issue_number}: it answers 200 with the updated issue, and a field left
 // out of the body is left as it is.
 func (c *Client) UpdateIssue(ctx context.Context, repo string, number int64, title, body string) error {
-	return nil
+	payload := updatedIssue{Title: title, Body: body}
+	_, _, err := c.sendJSON(ctx, http.MethodPatch, repo, payload, "issues", strconv.FormatInt(number, 10))
+	return err
+}
+
+// updatedIssue is the JSON body of PATCH /repos/{owner}/{repo}/issues/{number}:
+// no state, so the issue stays open or closed as it is.
+type updatedIssue struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
+}
+
+// sendJSON sends payload as JSON with method to the endpoint of repo under
+// segments, and returns the answer's body and the target it went to.
+func (c *Client) sendJSON(
+	ctx context.Context, method, repo string, payload any, segments ...string,
+) ([]byte, target, error) {
+	t, err := c.endpoint(repo, nil, segments...)
+	if err != nil {
+		return nil, target{}, err
+	}
+	// A struct of strings always marshals, so the error is dropped, as exchange does.
+	raw, _ := json.Marshal(payload)
+	answer, _, err := c.do(ctx, call{method: method, accept: jsonMedia, t: t, body: bytes.NewReader(raw)})
+	return answer, t, err
 }

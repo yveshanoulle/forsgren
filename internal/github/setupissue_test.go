@@ -187,3 +187,27 @@ func TestUpdateIssuePatchesTitleAndBodyOnly(t *testing.T) {
 		t.Errorf("want the body %v, got %v", want, sent)
 	}
 }
+
+// TestUpdateIssuePassesOnItsErrors (forsgren#73): an error comes back as it
+// is: a repository name that is not owner/name (ErrRepositoryName) and an
+// HTTP error status (ErrStatus).
+func TestUpdateIssuePassesOnItsErrors(t *testing.T) {
+	for name, c := range map[string]struct {
+		repo  string
+		reply reply
+		is    func(error) bool
+	}{
+		"invalid repository name": {"acme", reply{body: `{"number": 7}`}, isError(ErrRepositoryName)},
+		"http error status":       {"acme/app", reply{status: 500, body: `{"number": 7}`}, isError(ErrStatus)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFake(t)
+			f.on(issuesPath+"/7", c.reply)
+			err := f.client(t, DefaultMaxPages).UpdateIssue(
+				context.Background(), c.repo, 7, "Set up forsgren again", "Hello again")
+			if err == nil || !c.is(err) {
+				t.Errorf("want the error's reason, got %v", err)
+			}
+		})
+	}
+}
