@@ -57,6 +57,10 @@ type Data struct {
 	// the installation's forsgren pin to Latest, 0 when there is none; the
 	// footer names it instead of "is available" (forsgren#40, option 1).
 	WaitingPR int
+	// NeedsCheck is how the check of what this version needs went (ok,
+	// no-access, rate-limited or failed), empty when unknown; the footer says
+	// so when the setup issue could not be written (forsgren#73).
+	NeedsCheck string
 	// WorkingHours is the hours of a working day and WorkingHoursSet says
 	// whether the config sets it; the legend states both and derives the
 	// on-demand threshold from it (forsgren#71).

@@ -212,3 +212,16 @@ func TestWaitingPullRequestSurvivesABadAPI(t *testing.T) {
 	pointAtABadAPI(t)
 	wantLookup(t, "", "waiting pull request", "waiting-pull-request", "--version", "0.0.10")
 }
+
+// TestRenderSaysWhenThisVersionNeedsMoreConfiguration (forsgren#73, step 18):
+// with --needs-check no-access, rate-limited or failed (the setup issue could
+// not be written) the footer sends the reader to the run's job summary, as
+// it names a newer release; with ok, or without the flag, it says nothing.
+func TestRenderSaysWhenThisVersionNeedsMoreConfiguration(t *testing.T) {
+	line := " · needs more configuration: see the job summary of this run."
+	for _, check := range []string{"no-access", "rate-limited", "failed"} {
+		wantPage(t, "Forsgren</a> "+version+line, "", "--needs-check", check)
+	}
+	wantPage(t, version+" Metrics", "needs more configuration", "--needs-check", "ok")
+	wantPage(t, version+" Metrics", "needs more configuration")
+}
