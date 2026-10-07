@@ -33,6 +33,27 @@ func TestMissingReportsAFileNeedThatIsNotInTheCheckout(t *testing.T) {
 	}
 }
 
+// TestMissingReportsAConfigKeyNeedThatTheConfigLacks (forsgren#73): a need of
+// kind config_key is in place when its key is among the installation's config
+// keys, and missing when it is not.
+func TestMissingReportsAConfigKeyNeedThatTheConfigLacks(t *testing.T) {
+	need := Need{Version: "0.3.8", Kind: "config_key", Key: "auto_update"}
+	cases := []struct {
+		name string
+		keys []string
+		want []Need
+	}{
+		{"absent", []string{"version", "projects"}, []Need{need}},
+		{"present", []string{"version", "auto_update", "projects"}, nil},
+	}
+	for _, c := range cases {
+		got := Missing([]Need{need}, Installation{ConfigKeys: c.keys})
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%s: want missing %v, got %v", c.name, c.want, got)
+		}
+	}
+}
+
 // writeFile writes a small file at the relative path rel under root, with its
 // directories.
 func writeFile(t *testing.T, root, rel string) {

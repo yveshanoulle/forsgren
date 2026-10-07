@@ -30,7 +30,10 @@ type Need struct {
 	Permission string `yaml:"permission"`
 	Access     string `yaml:"access"`
 	File       string `yaml:"file"`
-	Steps      string `yaml:"steps"`
+	// Key is the top-level key of forsgren.config.yml that a need of kind
+	// config_key asks for.
+	Key   string `yaml:"key"`
+	Steps string `yaml:"steps"`
 }
 
 // For returns the needs that apply to the running version: those introduced

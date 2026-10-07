@@ -9,6 +9,10 @@ import (
 // of its repository, which is the working directory of a metrics run.
 type Installation struct {
 	Root string
+	// ConfigKeys are the top-level keys present in the installation's
+	// forsgren.config.yml, read by the caller: this package does not parse
+	// the config.
+	ConfigKeys []string
 }
 
 // Missing returns the needs of all that are not in place in the
