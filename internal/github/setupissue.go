@@ -58,7 +58,7 @@ func (c *Client) FindIssueByMarker(ctx context.Context, repo, label, marker stri
 // (a zero best has none yet).
 func lowestMarked(best SetupIssue, page []issue, marker string) SetupIssue {
 	for _, i := range page {
-		if isPullRequest(i) || i.Body == nil || !strings.Contains(*i.Body, marker) {
+		if !isMarkedIssue(i, marker) {
 			continue
 		}
 		if best.Number == 0 || i.Number < best.Number {
@@ -66,4 +66,10 @@ func lowestMarked(best SetupIssue, page []issue, marker string) SetupIssue {
 		}
 	}
 	return best
+}
+
+// isMarkedIssue says whether i is an issue, not a pull request, whose body
+// holds marker; a null body (nil) holds none.
+func isMarkedIssue(i issue, marker string) bool {
+	return !isPullRequest(i) && i.Body != nil && strings.Contains(*i.Body, marker)
 }

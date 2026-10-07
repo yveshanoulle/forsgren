@@ -2,6 +2,8 @@ package github
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"net/url"
 	"strconv"
 	"strings"
@@ -86,4 +88,41 @@ func assertQuery(t *testing.T, got, want url.Values) {
 			t.Errorf("want query %s=%q, got %q", name, want.Get(name), got.Get(name))
 		}
 	}
+}
+
+// TestFindIssueByMarkerPassesOnItsErrors (forsgren#73): an error comes back
+// as it is, with nothing found: a repository name that is not owner/name
+// (ErrRepositoryName), a body that is not JSON (the decoder's
+// *json.SyntaxError) and an HTTP error status (ErrStatus).
+func TestFindIssueByMarkerPassesOnItsErrors(t *testing.T) {
+	for name, c := range map[string]struct {
+		repo  string
+		reply reply
+		is    func(error) bool
+	}{
+		"invalid repository name": {"acme", reply{body: "[]"}, isError(ErrRepositoryName)},
+		"malformed body":          {"acme/app", reply{body: "{not json"}, isSyntaxError},
+		"http error status":       {"acme/app", reply{status: 500, body: "[]"}, isError(ErrStatus)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFake(t)
+			f.on(issuesPath, c.reply)
+			got, ok, err := f.client(t, DefaultMaxPages).FindIssueByMarker(
+				context.Background(), c.repo, "forsgren-setup", setupMarker)
+			if ok || got != (SetupIssue{}) || err == nil || !c.is(err) {
+				t.Errorf("want nothing found and the error's reason, got %+v found=%v, %v", got, ok, err)
+			}
+		})
+	}
+}
+
+// isError is the check that an error is target, by errors.Is.
+func isError(target error) func(error) bool {
+	return func(err error) bool { return errors.Is(err, target) }
+}
+
+// isSyntaxError says whether err is the JSON decoder's syntax error.
+func isSyntaxError(err error) bool {
+	var syntax *json.SyntaxError
+	return errors.As(err, &syntax)
 }
