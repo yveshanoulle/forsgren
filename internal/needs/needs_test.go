@@ -50,8 +50,11 @@ func TestForRefusesWhatItCannotRead(t *testing.T) {
 	}
 	for _, c := range cases {
 		got, err := forVersion(c.text, c.version)
-		if got != nil || err == nil || !strings.Contains(err.Error(), c.want) {
-			t.Errorf("%s: want no needs and an error naming %s, got %v, %v", c.name, c.want, got, err)
+		if got != nil {
+			t.Errorf("%s: want no needs, got %v", c.name, got)
+		}
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: want an error naming %s, got %v", c.name, c.want, err)
 		}
 	}
 }

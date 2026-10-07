@@ -26,19 +26,21 @@ func (r *recordingIssues) FindIssueByMarker(_ context.Context, _, _, _ string) (
 	return r.found, r.ok, r.err
 }
 
-func (r *recordingIssues) CreateIssue(_ context.Context, _, title, body string, labels []string) (int64, error) {
-	r.calls = append(r.calls, fmt.Sprintf("create %s %v", title, labels))
-	r.body = body
+func (r *recordingIssues) CreateIssue(
+	_ context.Context, _ string, text github.IssueText, labels []string,
+) (int64, error) {
+	r.calls = append(r.calls, fmt.Sprintf("create %s %v", text.Title, labels))
+	r.body = text.Body
 	return 1, nil
 }
 
-func (r *recordingIssues) UpdateIssue(_ context.Context, _ string, n int64, title, _ string) error {
-	r.calls = append(r.calls, fmt.Sprintf("update %d %s", n, title))
+func (r *recordingIssues) UpdateIssue(_ context.Context, _ string, n int64, text github.IssueText) error {
+	r.calls = append(r.calls, fmt.Sprintf("update %d %s", n, text.Title))
 	return nil
 }
 
-func (r *recordingIssues) ReopenIssue(_ context.Context, _ string, n int64, title, _ string) error {
-	r.calls = append(r.calls, fmt.Sprintf("reopen %d %s", n, title))
+func (r *recordingIssues) ReopenIssue(_ context.Context, _ string, n int64, text github.IssueText) error {
+	r.calls = append(r.calls, fmt.Sprintf("reopen %d %s", n, text.Title))
 	return nil
 }
 
@@ -74,8 +76,9 @@ func TestReportSetupMakesTheCallTheStateCallsFor(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			fake := &recordingIssues{found: c.found, ok: c.ok}
-			if err := reportSetup(context.Background(), fake, "acme/app", v, c.missing); err != nil {
-				t.Fatalf("reportSetup: %v", err)
+			report := setupReport{issues: fake, repo: "acme/app", version: v}
+			if err := report.report(context.Background(), c.missing); err != nil {
+				t.Fatalf("report: %v", err)
 			}
 			checkSetupCalls(t, fake, c.want)
 		})
@@ -89,9 +92,14 @@ func checkSetupCalls(t *testing.T, fake *recordingIssues, want []string) {
 	if !reflect.DeepEqual(fake.calls, want) {
 		t.Fatalf("calls = %q, want %q", fake.calls, want)
 	}
-	if len(want) > 0 && strings.HasPrefix(want[0], "create") && !strings.HasPrefix(fake.body, needs.Marker) {
+	if createsIssue(want) && !strings.HasPrefix(fake.body, needs.Marker) {
 		t.Fatalf("created body = %q, want it to start with the marker", fake.body)
 	}
+}
+
+// createsIssue says whether the first of the calls is a create.
+func createsIssue(calls []string) bool {
+	return len(calls) > 0 && strings.HasPrefix(calls[0], "create")
 }
 
 // TestReportSetupPassesOnALookupError (forsgren#73, step 13): a failed lookup
@@ -109,9 +117,9 @@ func TestReportSetupPassesOnALookupError(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			fake := &recordingIssues{found: open, ok: true, err: lookup}
-			err := reportSetup(context.Background(), fake, "acme/app", "0.4.0", c.missing)
+			err := setupReport{issues: fake, repo: "acme/app", version: "0.4.0"}.report(context.Background(), c.missing)
 			if !errors.Is(err, lookup) {
-				t.Fatalf("reportSetup = %v, want the lookup error", err)
+				t.Fatalf("report = %v, want the lookup error", err)
 			}
 			checkSetupCalls(t, fake, nil)
 		})

@@ -10,52 +10,60 @@ import (
 // setupLabel is the label of forsgren's one setup issue.
 const setupLabel = "forsgren-setup"
 
-// setupIssues is the part of the GitHub client that reporting setup needs.
+// setupIssues is the part of the GitHub client that reporting the setup needs.
 type setupIssues interface {
 	FindIssueByMarker(ctx context.Context, repo, label, marker string) (github.SetupIssue, bool, error)
-	CreateIssue(ctx context.Context, repo, title, body string, labels []string) (int64, error)
-	UpdateIssue(ctx context.Context, repo string, number int64, title, body string) error
-	ReopenIssue(ctx context.Context, repo string, number int64, title, body string) error
+	CreateIssue(ctx context.Context, repo string, text github.IssueText, labels []string) (int64, error)
+	UpdateIssue(ctx context.Context, repo string, number int64, text github.IssueText) error
+	ReopenIssue(ctx context.Context, repo string, number int64, text github.IssueText) error
 	CloseIssue(ctx context.Context, repo string, number int64, comment string) error
 }
 
 var _ setupIssues = (*github.Client)(nil)
 
-// reportSetup makes the one call the run's missing needs call for on the
-// setup issue (forsgren#73): create, update, reopen or close it, or none.
-func reportSetup(ctx context.Context, issues setupIssues, repo, version string, missing []needs.Need) error {
-	found, ok, err := issues.FindIssueByMarker(ctx, repo, setupLabel, needs.Marker)
+// setupReport is one run's report on the setup issue: the client it writes
+// with, the installation's repository the issue lives in and the running
+// forsgren version.
+type setupReport struct {
+	issues  setupIssues
+	repo    string
+	version string
+}
+
+// report makes the one call the run's missing needs call for on the setup
+// issue (forsgren#73): create, update, reopen or close it, or none.
+func (s setupReport) report(ctx context.Context, missing []needs.Need) error {
+	found, ok, err := s.issues.FindIssueByMarker(ctx, s.repo, setupLabel, needs.Marker)
 	if err != nil {
 		return err
 	}
 	if len(missing) == 0 {
-		return closeSetup(ctx, issues, repo, version, found, ok)
+		return s.closeIssue(ctx, found, ok)
 	}
-	return openSetup(ctx, issues, repo, version, missing, found, ok)
+	return s.openIssue(ctx, missing, found, ok)
 }
 
-// closeSetup closes the setup issue when it is open: nothing is missing, and a
-// closed or absent issue needs no write.
-func closeSetup(ctx context.Context, issues setupIssues, repo, version string, found github.SetupIssue, ok bool) error {
+// closeIssue closes the setup issue when it is open: nothing is missing, and
+// a closed or absent issue needs no write.
+func (s setupReport) closeIssue(ctx context.Context, found github.SetupIssue, ok bool) error {
 	if !ok || found.State != "open" {
 		return nil
 	}
-	return issues.CloseIssue(ctx, repo, found.Number, "All items are in place as of forsgren "+version+".")
+	return s.issues.CloseIssue(ctx, s.repo, found.Number, "All items are in place as of forsgren "+s.version+".")
 }
 
-// openSetup creates the setup issue when there is none, updates it when it is
-// open and reopens it when it is closed: something is missing.
-func openSetup(ctx context.Context, issues setupIssues, repo, version string, missing []needs.Need,
-	found github.SetupIssue, ok bool) error {
-	title, body := needs.Title(version), needs.Body(version, missing)
+// openIssue creates the setup issue when there is none, updates it when it
+// is open and reopens it when it is closed: something is missing.
+func (s setupReport) openIssue(ctx context.Context, missing []needs.Need, found github.SetupIssue, ok bool) error {
+	text := github.IssueText{Title: needs.Title(s.version), Body: needs.Body(s.version, missing)}
 	switch {
 	case !ok:
-		_, err := issues.CreateIssue(ctx, repo, title, body, []string{setupLabel})
+		_, err := s.issues.CreateIssue(ctx, s.repo, text, []string{setupLabel})
 		return err
 	case found.State == "open":
-		return issues.UpdateIssue(ctx, repo, found.Number, title, body)
+		return s.issues.UpdateIssue(ctx, s.repo, found.Number, text)
 	default:
-		return issues.ReopenIssue(ctx, repo, found.Number, title, body)
+		return s.issues.ReopenIssue(ctx, s.repo, found.Number, text)
 	}
 }
 

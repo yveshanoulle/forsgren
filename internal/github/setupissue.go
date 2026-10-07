@@ -1,10 +1,8 @@
 package github
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -15,10 +13,10 @@ import (
 // issue, open or closed, whose body holds the machine-owned marker.
 // Issue has no State, Title or Body, so it is not reused.
 //
-// Sure, from GitHub's REST reference for GET /repos/{owner}/{repo}/issues:
-// number, state ("open" or "closed"), title and body (null when empty,
-// read as ""), and that the list holds pull requests too, each with a
-// pull_request field.
+// From GitHub's REST reference for GET /repos/{owner}/{repo}/issues (read
+// 2026-10-07): each item has a number, a state ("open" or "closed"), a title
+// and a body that is a string or null (null is read as ""), and the list
+// holds pull requests too, each with a pull_request key.
 type SetupIssue struct {
 	Number int64
 	// State is "open" or "closed", as GitHub names it.
@@ -78,90 +76,70 @@ func isMarkedIssue(i issue, marker string) bool {
 	return !isPullRequest(i) && i.Body != nil && strings.Contains(*i.Body, marker)
 }
 
-// CreateIssue creates an issue in repo with title, body and labels:
+// IssueText is the text of an issue that forsgren writes: its title and its
+// body.
+type IssueText struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
+}
+
+// CreateIssue creates an issue in repo with text and labels:
 // POST /repos/{owner}/{repo}/issues with the JSON body {title, body,
 // labels}, and returns the number of the new issue.
 //
-// Sure, from GitHub's REST reference for POST /repos/{owner}/{repo}/issues:
-// it answers 201 with the created issue, whose number is its number in the
-// repository.
-func (c *Client) CreateIssue(ctx context.Context, repo, title, body string, labels []string) (int64, error) {
-	payload := newIssue{Title: title, Body: body, Labels: labels}
-	answer, t, err := c.sendJSON(ctx, http.MethodPost, repo, payload, "issues")
-	if err != nil {
-		return 0, err
-	}
+// From GitHub's REST reference for POST /repos/{owner}/{repo}/issues (read
+// 2026-10-07): it answers 201 Created with the created issue, whose number is
+// its number in the repository.
+func (c *Client) CreateIssue(ctx context.Context, repo string, text IssueText, labels []string) (int64, error) {
 	var created struct {
 		Number int64 `json:"number"`
 	}
-	if err := json.Unmarshal(answer, &created); err != nil {
-		return 0, fmt.Errorf("%s: %w for %s: %w", repo, ErrAnswer, t.path(), err)
+	posted := step{http.MethodPost, []string{"issues"}, newIssue{IssueText: text, Labels: labels}}
+	if err := c.exchange(ctx, repo, posted, &created); err != nil {
+		return 0, err
 	}
 	return created.Number, nil
 }
 
 // newIssue is the JSON body of POST /repos/{owner}/{repo}/issues.
 type newIssue struct {
-	Title  string   `json:"title"`
-	Body   string   `json:"body"`
+	IssueText
 	Labels []string `json:"labels"`
 }
 
-// UpdateIssue sets the title and the body of issue number of repo:
+// UpdateIssue sets the title and the body of issue number of repo to text:
 // PATCH /repos/{owner}/{repo}/issues/{number} with the JSON body {title,
 // body}. It does not send the state; reopening is a step of its own.
 //
-// Sure, from GitHub's REST reference for PATCH /repos/{owner}/{repo}/issues/
-// {issue_number}: it answers 200 with the updated issue, and a field left
-// out of the body is left as it is.
-func (c *Client) UpdateIssue(ctx context.Context, repo string, number int64, title, body string) error {
-	return c.patchIssue(ctx, repo, number, updatedIssue{Title: title, Body: body})
+// From GitHub's REST reference for PATCH /repos/{owner}/{repo}/issues/
+// {issue_number} (read 2026-10-07): it answers 200 OK with the updated
+// issue. That a field left out of the body is left as it is, the state here,
+// is PATCH's usual meaning; the reference does not say it in words.
+func (c *Client) UpdateIssue(ctx context.Context, repo string, number int64, text IssueText) error {
+	return c.patchIssue(ctx, repo, number, text)
 }
 
-// updatedIssue is the JSON body of PATCH /repos/{owner}/{repo}/issues/{number}:
-// no state, so the issue stays open or closed as it is.
-type updatedIssue struct {
-	Title string `json:"title"`
-	Body  string `json:"body"`
-}
-
-// ReopenIssue reopens issue number of repo and sets its title and body in
-// the same call: PATCH /repos/{owner}/{repo}/issues/{number} with the JSON
-// body {title, body, state: "open"}. It is one call because the title, the
-// body and the state change together: the one setup issue of an installation
-// is reopened and updated, never replaced (forsgren#73).
-func (c *Client) ReopenIssue(ctx context.Context, repo string, number int64, title, body string) error {
-	return c.patchIssue(ctx, repo, number, reopenedIssue{Title: title, Body: body, State: "open"})
+// ReopenIssue reopens issue number of repo and sets its title and body to
+// text in the same call: PATCH /repos/{owner}/{repo}/issues/{number} with
+// the JSON body {title, body, state: "open"}. It is one call because the
+// title, the body and the state change together: the one setup issue of an
+// installation is reopened and updated, never replaced (forsgren#73).
+func (c *Client) ReopenIssue(ctx context.Context, repo string, number int64, text IssueText) error {
+	return c.patchIssue(ctx, repo, number, reopenedIssue{IssueText: text, State: "open"})
 }
 
 // reopenedIssue is the JSON body of PATCH /repos/{owner}/{repo}/issues/{number}
 // that reopens the issue: the title and the body, and the state "open".
 type reopenedIssue struct {
-	Title string `json:"title"`
-	Body  string `json:"body"`
+	IssueText
 	State string `json:"state"`
 }
 
 // patchIssue sends payload as PATCH /repos/{owner}/{repo}/issues/{number}
-// and drops the answer; both UpdateIssue and ReopenIssue go through it.
+// and drops the answer; UpdateIssue, ReopenIssue and CloseIssue go through it.
 func (c *Client) patchIssue(ctx context.Context, repo string, number int64, payload any) error {
-	_, _, err := c.sendJSON(ctx, http.MethodPatch, repo, payload, "issues", strconv.FormatInt(number, 10))
-	return err
-}
-
-// sendJSON sends payload as JSON with method to the endpoint of repo under
-// segments, and returns the answer's body and the target it went to.
-func (c *Client) sendJSON(
-	ctx context.Context, method, repo string, payload any, segments ...string,
-) ([]byte, target, error) {
-	t, err := c.endpoint(repo, nil, segments...)
-	if err != nil {
-		return nil, target{}, err
-	}
-	// A struct of strings always marshals, so the error is dropped, as exchange does.
-	raw, _ := json.Marshal(payload)
-	answer, _, err := c.do(ctx, call{method: method, accept: jsonMedia, t: t, body: bytes.NewReader(raw)})
-	return answer, t, err
+	patched := step{http.MethodPatch, []string{"issues", strconv.FormatInt(number, 10)}, payload}
+	return c.exchange(ctx, repo, patched, nil)
 }
 
 // CloseIssue closes issue number of repo with comment: first POST
@@ -171,9 +149,9 @@ func (c *Client) sendJSON(
 // the issue was closed; when the comment fails the issue stays open
 // (forsgren#73).
 func (c *Client) CloseIssue(ctx context.Context, repo string, number int64, comment string) error {
-	n := strconv.FormatInt(number, 10)
-	payload := commentBody{Body: comment}
-	if _, _, err := c.sendJSON(ctx, http.MethodPost, repo, payload, "issues", n, "comments"); err != nil {
+	posted := step{http.MethodPost, []string{"issues", strconv.FormatInt(number, 10), "comments"},
+		commentBody{Body: comment}}
+	if err := c.exchange(ctx, repo, posted, nil); err != nil {
 		return err
 	}
 	return c.patchIssue(ctx, repo, number, closedIssue{State: "closed"})

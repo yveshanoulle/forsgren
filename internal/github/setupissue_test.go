@@ -60,8 +60,11 @@ func assertFindsSetup(t *testing.T, items []string, want SetupIssue, found bool)
 	f.on(issuesPath, reply{body: "[" + strings.Join(items, ",") + "]"})
 	got, ok, err := f.client(t, DefaultMaxPages).FindIssueByMarker(
 		context.Background(), "acme/app", "forsgren-setup", setupMarker)
-	if err != nil || ok != found || got != want {
-		t.Errorf("want %+v found=%v, got %+v found=%v, %v", want, found, got, ok, err)
+	if err != nil {
+		t.Errorf("want no error, got %v", err)
+	}
+	if ok != found || got != want {
+		t.Errorf("want %+v found=%v, got %+v found=%v", want, found, got, ok)
 	}
 	if found {
 		wantQuery(t, f, setupQuery())
@@ -110,14 +113,18 @@ func TestFindIssueByMarkerPassesOnItsErrors(t *testing.T) {
 			f.on(issuesPath, c.reply)
 			got, ok, err := f.client(t, DefaultMaxPages).FindIssueByMarker(
 				context.Background(), c.repo, "forsgren-setup", setupMarker)
-			if ok || got != (SetupIssue{}) || err == nil || !c.is(err) {
-				t.Errorf("want nothing found and the error's reason, got %+v found=%v, %v", got, ok, err)
+			if ok || got != (SetupIssue{}) {
+				t.Errorf("want nothing found, got %+v found=%v", got, ok)
+			}
+			if !c.is(err) {
+				t.Errorf("want the error's reason, got %v", err)
 			}
 		})
 	}
 }
 
-// isError is the check that an error is target, by errors.Is.
+// isError is the check that an error is target, by errors.Is; a nil error
+// never is.
 func isError(target error) func(error) bool {
 	return func(err error) bool { return errors.Is(err, target) }
 }
@@ -128,6 +135,9 @@ func isSyntaxError(err error) bool {
 	return errors.As(err, &syntax)
 }
 
+// setupText is the text the create tests post.
+var setupText = IssueText{Title: "Set up forsgren", Body: "Hello"}
+
 // TestCreateIssuePostsTheIssueAndReturnsItsNumber (forsgren#73, step 9): one
 // POST to the repository's issues with the title, the body and the labels as
 // JSON, and the number of the issue GitHub answers with.
@@ -135,7 +145,7 @@ func TestCreateIssuePostsTheIssueAndReturnsItsNumber(t *testing.T) {
 	f := newFake(t)
 	f.on(issuesPath, reply{status: 201, body: `{"number": 7}`})
 	got, err := f.client(t, DefaultMaxPages).CreateIssue(
-		context.Background(), "acme/app", "Set up forsgren", "Hello", []string{"forsgren-setup"})
+		context.Background(), "acme/app", setupText, []string{"forsgren-setup"})
 	if err != nil || got != 7 {
 		t.Errorf("want number 7, got %d, %v", got, err)
 	}
@@ -163,8 +173,8 @@ func TestCreateIssuePassesOnItsErrors(t *testing.T) {
 			f := newFake(t)
 			f.on(issuesPath, c.reply)
 			got, err := f.client(t, DefaultMaxPages).CreateIssue(
-				context.Background(), c.repo, "Set up forsgren", "Hello", []string{"forsgren-setup"})
-			if got != 0 || err == nil || !c.is(err) {
+				context.Background(), c.repo, setupText, []string{"forsgren-setup"})
+			if got != 0 || !c.is(err) {
 				t.Errorf("want number 0 and the error's reason, got %d, %v", got, err)
 			}
 		})
@@ -178,12 +188,15 @@ type patchCall func(c *Client, repo string) error
 
 var patchCalls = map[string]patchCall{
 	"UpdateIssue": func(c *Client, repo string) error {
-		return c.UpdateIssue(context.Background(), repo, 7, "Set up forsgren again", "Hello again")
+		return c.UpdateIssue(context.Background(), repo, 7, againText)
 	},
 	"ReopenIssue": func(c *Client, repo string) error {
-		return c.ReopenIssue(context.Background(), repo, 7, "Set up forsgren again", "Hello again")
+		return c.ReopenIssue(context.Background(), repo, 7, againText)
 	},
 }
+
+// againText is the text the patch calls send.
+var againText = IssueText{Title: "Set up forsgren again", Body: "Hello again"}
 
 // TestPatchIssueSendsTitleAndBody (forsgren#73, steps 10 and 11): one PATCH
 // to the issue's own path with the title and the body as JSON; UpdateIssue

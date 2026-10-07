@@ -23,8 +23,8 @@ type checkNeedsOptions struct {
 
 // checkNeeds checks the needs of the running version against the
 // installation's checkout (the working directory) and its config, writes the
-// setup issue through reportSetup with the job's token, and records
-// setupStatus in --status (forsgren#73, step 15). It prints each missing
+// setup issue through setupReport with the job's token, and records
+// setupStatus in --status (forsgren#73). It prints each missing
 // need's steps and the status on stdout. It exits 0 once its flags are valid,
 // whatever the check or the write did (a note on stderr, a status that is not
 // ok), and 2 on a usage error.
@@ -65,7 +65,8 @@ func checkNeedsFlags(args []string, stderr io.Writer) (checkNeedsOptions, bool) 
 
 // reportNeeds finds the needs missing from the checkout, prints their steps,
 // writes the setup issue and returns how that went: failed, with a note on
-// stderr, when the running version has no needs or the client cannot be made.
+// stderr, when the running version's needs cannot be read or the client
+// cannot be made.
 func reportNeeds(o checkNeedsOptions, stdout, stderr io.Writer) string {
 	missing, err := missingNeeds(o.config, stderr)
 	if err != nil {
@@ -78,7 +79,7 @@ func reportNeeds(o checkNeedsOptions, stdout, stderr io.Writer) string {
 	if err != nil {
 		return noteFailed(stderr, err)
 	}
-	err = reportSetup(context.Background(), client, o.repository, version, missing)
+	err = setupReport{issues: client, repo: o.repository, version: version}.report(context.Background(), missing)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "check-needs: the setup issue could not be written: %v\n", err)
 	}
@@ -87,8 +88,8 @@ func reportNeeds(o checkNeedsOptions, stdout, stderr io.Writer) string {
 
 // missingNeeds are the needs of the running version that are not in place in
 // the checkout (the working directory), given the config file at config:
-// what check-needs writes the setup issue about and run-summary lists. A
-// version with no needs is the error.
+// what check-needs writes the setup issue about and run-summary lists. The
+// error is For's: a version or a declaration that cannot be read.
 func missingNeeds(config string, stderr io.Writer) ([]needs.Need, error) {
 	all, err := needs.For(version)
 	if err != nil {

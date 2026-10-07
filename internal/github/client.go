@@ -56,17 +56,35 @@ type Client struct {
 	token    string
 	maxPages int
 	http     *http.Client
+	// tokenName is the environment variable the token came from, which a
+	// refusal tells the caller to check.
+	tokenName string
 }
 
+// defaultTokenName is the token a refusal names unless WithTokenName says
+// otherwise: the installation's own, the one collect reads with.
+const defaultTokenName = "FORSGREN_TOKEN"
+
 // New is a client of the API at baseURL (https://api.github.com, or a test
-// server) that reads at most maxPages pages per list, and at least one.
+// server) that reads at most maxPages pages per list, and at least one. A
+// refusal names FORSGREN_TOKEN as the token to check; WithTokenName names
+// another.
 func New(baseURL, token string, maxPages int) (*Client, error) {
 	u, err := url.Parse(baseURL)
 	if err != nil || !isWebURL(u) {
 		return nil, fmt.Errorf("%w: %q", ErrBaseURL, baseURL)
 	}
 	u.Path = "/" + strings.TrimPrefix(u.Path, "/")
-	return &Client{base: u, token: token, maxPages: max(maxPages, 1), http: &http.Client{Timeout: time.Minute}}, nil
+	return &Client{base: u, token: token, maxPages: max(maxPages, 1), http: &http.Client{Timeout: time.Minute},
+		tokenName: defaultTokenName}, nil
+}
+
+// WithTokenName makes a refusal name name, the environment variable the
+// token came from (GITHUB_TOKEN for the workflow job's token), as the token
+// to check, and returns c.
+func (c *Client) WithTokenName(name string) *Client {
+	c.tokenName = name
+	return c
 }
 
 // isWebURL says whether u is an absolute http or https URL with a host.
@@ -177,7 +195,7 @@ func (c *Client) do(ctx context.Context, k call) ([]byte, http.Header, error) {
 		return nil, nil, fmt.Errorf("%s: cannot reach GitHub: %w", t.repo, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if err := statusError(t, resp); err != nil {
+	if err := statusError(t, resp, c.tokenName); err != nil {
 		return nil, nil, err
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBody))
@@ -203,9 +221,9 @@ func (e *answerError) Unwrap() error { return e.err }
 func (e *answerError) status() string { return fmt.Sprintf("%d %s", e.code, http.StatusText(e.code)) }
 
 // statusError is nil for a 2xx answer, else an *answerError that says what
-// to do. It never quotes the answer's body or headers: an answer can echo
-// anything.
-func statusError(t target, resp *http.Response) error {
+// to do; a refusal names tokenName as the token to check. It never quotes
+// the answer's body or headers: an answer can echo anything.
+func statusError(t target, resp *http.Response, tokenName string) error {
 	code := resp.StatusCode
 	if code >= 200 && code < 300 {
 		return nil
@@ -215,8 +233,8 @@ func statusError(t target, resp *http.Response) error {
 	case isRateLimited(resp):
 		e.err = rateLimitError(t, resp.Header)
 	case isRefused(code):
-		e.err = fmt.Errorf("%s: %w: %s for %s; check FORSGREN_TOKEN's access to %s",
-			t.repo, ErrAccess, e.status(), t.path(), t.repo)
+		e.err = fmt.Errorf("%s: %w: %s for %s; check %s's access to %s",
+			t.repo, ErrAccess, e.status(), t.path(), tokenName, t.repo)
 	default:
 		e.err = fmt.Errorf("%s: %w: %s for %s", t.repo, ErrStatus, e.status(), t.path())
 	}

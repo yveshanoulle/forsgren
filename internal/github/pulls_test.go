@@ -90,7 +90,8 @@ func TestIsRefusedIsTrueOnlyForAForbiddenThatIsNotTheRateLimit(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			f := newFake(t)
 			f.on("/repos/acme/data/issues", reply{status: c.status, header: c.header, body: `{"message":"no"}`})
-			_, err := f.client(t, DefaultMaxPages).CreateIssue(context.Background(), "acme/data", "t", "b", nil)
+			text := IssueText{Title: "t", Body: "b"}
+			_, err := f.client(t, DefaultMaxPages).CreateIssue(context.Background(), "acme/data", text, nil)
 			if got := IsRefused(err); got != c.want {
 				t.Errorf("IsRefused(%v) = %v, want %v", err, got, c.want)
 			}

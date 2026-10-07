@@ -17,7 +17,7 @@
   {
    "path": "cmd/forsgren/main.go",
    "score": 9.38,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-07",
    "minScore": 9.28
   },
   {
@@ -71,7 +71,7 @@
   {
    "path": "internal/github/client_test.go",
    "score": 9.68,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-07",
    "minScore": 9.58
   },
   {
@@ -101,7 +101,7 @@
   {
    "path": "cmd/forsgren/summary_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-07",
    "minScore": 10.0
   },
   {
@@ -113,7 +113,7 @@
   {
    "path": "cmd/forsgren/collect.go",
    "score": 10.0,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-07",
    "minScore": 10.0
   },
   {
@@ -125,7 +125,7 @@
   {
    "path": "cmd/forsgren/render.go",
    "score": 10.0,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-07",
    "minScore": 10.0
   },
   {
@@ -191,7 +191,7 @@
   {
    "path": "internal/github/client.go",
    "score": 10.0,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-07",
    "minScore": 10.0
   },
   {
@@ -215,7 +215,7 @@
   {
    "path": "internal/github/issues.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-07",
    "minScore": 10.0
   },
   {
@@ -335,13 +335,13 @@
   {
    "path": "internal/page/page.go",
    "score": 10.0,
-   "checkedAt": "2026-10-05",
+   "checkedAt": "2026-10-07",
    "minScore": 10.0
   },
   {
    "path": "internal/page/page_test.go",
-   "score": 10.0,
-   "checkedAt": "2026-10-05",
+   "score": 8.54,
+   "checkedAt": "2026-10-07",
    "minScore": 10.0
   },
   {
@@ -485,7 +485,7 @@
   {
    "path": "internal/page/release.go",
    "score": 10.0,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-07",
    "minScore": 10.0
   },
   {
@@ -497,7 +497,7 @@
   {
    "path": "cmd/forsgren/render_latest_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-07",
    "minScore": 10.0
   },
   {
@@ -509,19 +509,19 @@
   {
    "path": "internal/github/pulls.go",
    "score": 10.0,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-07",
    "minScore": 10.0
   },
   {
    "path": "internal/github/pulls_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-07",
    "minScore": 10.0
   },
   {
    "path": "cmd/forsgren/summary.go",
    "score": 10.0,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-07",
    "minScore": 10.0
   },
   {
@@ -653,7 +653,7 @@
   {
    "path": "internal/github/commit.go",
    "score": 10.0,
-   "checkedAt": "2026-10-05",
+   "checkedAt": "2026-10-07",
    "minScore": 10.0
   },
   {
@@ -828,6 +828,90 @@
    "path": "internal/config/working_hours_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-06",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/needs/needs.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-07",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/needs/check.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-07",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/needs/issue.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-07",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/needs/needs_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-07",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/needs/check_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-07",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/needs/issue_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-07",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/setupissue.go",
+   "score": 9.38,
+   "checkedAt": "2026-10-07",
+   "minScore": 9.28
+  },
+  {
+   "path": "internal/github/setupissue_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-07",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/setupissue.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-07",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/setupissue_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-07",
+   "minScore": 9.58
+  },
+  {
+   "path": "cmd/forsgren/setupstatus_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-07",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/checkneeds.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-07",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/checkneeds_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-07",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/release_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-07",
    "minScore": 10.0
   }
  ]

@@ -147,8 +147,9 @@ type step struct {
 	in       any
 }
 
-// exchange sends the step to repo and decodes the JSON answer into out. A
-// malformed answer names the repository and the path.
+// exchange sends the step to repo and decodes the JSON answer into out, or
+// drops the answer when out is nil. A malformed answer names the repository
+// and the path.
 func (c *Client) exchange(ctx context.Context, repo string, s step, out any) error {
 	t, err := c.endpoint(repo, nil, s.segments...)
 	if err != nil {
@@ -160,7 +161,7 @@ func (c *Client) exchange(ctx context.Context, repo string, s step, out any) err
 		k.body = bytes.NewReader(raw)
 	}
 	body, _, err := c.do(ctx, k)
-	if err != nil {
+	if err != nil || out == nil {
 		return err
 	}
 	if err := json.Unmarshal(body, out); err != nil {

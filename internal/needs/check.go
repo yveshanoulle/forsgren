@@ -98,10 +98,18 @@ func permissionInPlace(n Need, at Installation) bool {
 // the need n at its access, or write when the access is read.
 func grantsPermission(wf workflowFile, n Need) bool {
 	for _, job := range wf.Jobs {
-		level := job.Permissions[n.Permission]
-		if level == n.Access || (n.Access == "read" && level == "write") {
+		if grants(job.Permissions[n.Permission], n.Access) {
 			return true
 		}
 	}
 	return false
+}
+
+// grants reports whether a grant at level gives access: the same level, or
+// write for read.
+func grants(level, access string) bool {
+	if level == access {
+		return true
+	}
+	return access == "read" && level == "write"
 }

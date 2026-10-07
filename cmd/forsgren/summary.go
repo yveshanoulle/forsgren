@@ -96,9 +96,10 @@ var setupFailures = map[string]string{
 	statusFailed:      "",
 }
 
-// setup says where the setup issue stands: nothing without --needs-check,
-// and, when the issue could not be written, what this version needs, which
-// it computes from the checkout the way check-needs does (forsgren#73).
+// setup says where the setup issue stands: nothing without --needs-check or
+// with a value it does not know, and, when the issue could not be written,
+// what this version needs, which it computes from the checkout the way
+// check-needs does (forsgren#73).
 func (in summaryInput) setup(stderr io.Writer) string {
 	if in.needsCheck == statusOK {
 		return "- Setup: in place, or the setup issue says what is missing\n"

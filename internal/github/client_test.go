@@ -189,6 +189,17 @@ func TestHTTPErrorsNameTheRepository(t *testing.T) {
 	}
 }
 
+// TestARefusalNamesTheTokenTheClientWasBuiltFrom (forsgren#73): a client of
+// the workflow job's token tells a refused caller to check GITHUB_TOKEN, not
+// FORSGREN_TOKEN, which it never read.
+func TestARefusalNamesTheTokenTheClientWasBuiltFrom(t *testing.T) {
+	f := newFake(t)
+	f.on(deploymentsPath, reply{status: 403})
+	client := f.client(t, DefaultMaxPages).WithTokenName("GITHUB_TOKEN")
+	_, _, err := client.Deployments(context.Background(), "acme/app", "production", sinceOnly)
+	wantError(t, err, ErrAccess, "check GITHUB_TOKEN's access to acme/app")
+}
+
 // TestMalformedJSONNamesTheRepository, for each call that reads JSON.
 func TestMalformedJSONNamesTheRepository(t *testing.T) {
 	for name, call := range calls("acme/app") {

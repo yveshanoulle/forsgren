@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -25,7 +24,7 @@ func TestMissingReportsAFileNeedThatIsNotInTheCheckout(t *testing.T) {
 	for _, c := range cases {
 		root := t.TempDir()
 		if c.present {
-			writeFile(t, root, path, "name: update\n")
+			writeFile(t, filepath.Join(root, path), "name: update\n")
 		}
 		got := Missing([]Need{need}, Installation{Root: root})
 		if !reflect.DeepEqual(got, c.want) {
@@ -79,25 +78,32 @@ func TestMissingReportsASecretNeedThatTheRunDoesNotReceive(t *testing.T) {
 
 const callerWorkflow = ".github/workflows/forsgren.yml"
 
-// templateWorkflow is the caller workflow of forsgren-template: the grants of
-// its job, none of them for issues.
-const templateWorkflow = `permissions: {}
+// templateHead and templateTail are the caller workflow of
+// forsgren-template, cut after the grant of pages: the grants of its job,
+// none of them for issues.
+const (
+	templateHead = `permissions: {}
 jobs:
   metrics:
     permissions:
       contents: write
       pages: write
-      id-token: write
+`
+	templateTail = `      id-token: write
       pull-requests: read
     uses: yveshanoulle/forsgren/.github/workflows/metrics.yml@0123456789abcdef0123456789abcdef01234567 # v0.3.6
 `
+)
 
-// withIssues is templateWorkflow with one more grant for the job, issues at
-// the access given.
-func withIssues(access string) string {
-	return strings.Replace(templateWorkflow, "      pages: write\n",
-		"      pages: write\n      issues: "+access+"\n", 1)
-}
+// templateWorkflow is the template's caller workflow, and the two after it
+// the same with one more grant for the job: issues at write, and at read.
+const (
+	templateWorkflow = templateHead + templateTail
+	withIssuesWrite  = templateHead + "      issues: write\n" + templateTail
+	withIssuesRead   = templateHead + "      issues: read\n" + templateTail
+	noWorkflow       = ""
+	notYAMLWorkflow  = "jobs: [unclosed\n\t: : -\n"
+)
 
 // permissionNeed is a need of kind permission for issues at the access given,
 // in the caller workflow.
@@ -112,53 +118,53 @@ func permissionNeed(access string) Need {
 // read, and missing when the grant is absent or lower, or the file cannot be
 // read or parsed.
 func TestMissingReportsAPermissionNeedThatTheWorkflowDoesNotGrant(t *testing.T) {
-	cases := []struct {
-		name    string
-		need    Need
-		content *string
-		inPlace bool
-	}{
-		{"no workflow file", permissionNeed("write"), nil, false},
-		{"template shape, no issues", permissionNeed("write"), ptr(templateWorkflow), false},
-		{"issues write", permissionNeed("write"), ptr(withIssues("write")), true},
-		{"issues read only", permissionNeed("write"), ptr(withIssues("read")), false},
-		{"not YAML", permissionNeed("write"), ptr("jobs: [unclosed\n\t: : -\n"), false},
-		{"write satisfies read", permissionNeed("read"), ptr(withIssues("write")), true},
+	cases := []permissionCase{
+		{"no workflow file", permissionNeed("write"), noWorkflow, false},
+		{"template shape, no issues", permissionNeed("write"), templateWorkflow, false},
+		{"issues write", permissionNeed("write"), withIssuesWrite, true},
+		{"issues read only", permissionNeed("write"), withIssuesRead, false},
+		{"not YAML", permissionNeed("write"), notYAMLWorkflow, false},
+		{"write satisfies read", permissionNeed("read"), withIssuesWrite, true},
 	}
 	for _, c := range cases {
-		assertPermissionNeed(t, c.name, c.need, c.content, c.inPlace)
+		c.assert(t)
 	}
 }
 
-// assertPermissionNeed checks the need against a checkout holding the caller
-// workflow with the content, or no workflow when content is nil.
-func assertPermissionNeed(t *testing.T, name string, need Need, content *string, inPlace bool) {
+// permissionCase is a row of the permission test: the need, the caller
+// workflow's content (noWorkflow for no file) and whether the need is in
+// place.
+type permissionCase struct {
+	name     string
+	need     Need
+	workflow string
+	inPlace  bool
+}
+
+// assert checks the need against a checkout holding the caller workflow.
+func (c permissionCase) assert(t *testing.T) {
 	t.Helper()
 	root := t.TempDir()
-	if content != nil {
-		writeFile(t, root, callerWorkflow, *content)
+	if c.workflow != noWorkflow {
+		writeFile(t, filepath.Join(root, callerWorkflow), c.workflow)
 	}
 	var want []Need
-	if !inPlace {
-		want = []Need{need}
+	if !c.inPlace {
+		want = []Need{c.need}
 	}
-	got := Missing([]Need{need}, Installation{Root: root})
+	got := Missing([]Need{c.need}, Installation{Root: root})
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("%s: want missing %v, got %v", name, want, got)
+		t.Errorf("%s: want missing %v, got %v", c.name, want, got)
 	}
 }
 
-func ptr(s string) *string { return &s }
-
-// writeFile writes the file at the relative path rel under root with the
-// content, with its directories.
-func writeFile(t *testing.T, root, rel, content string) {
+// writeFile writes the file at path with the content, with its directories.
+func writeFile(t *testing.T, path, content string) {
 	t.Helper()
-	full := filepath.Join(root, rel)
-	if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(full, []byte(content), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 }

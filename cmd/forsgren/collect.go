@@ -67,8 +67,13 @@ func githubClient() (*github.Client, error) {
 }
 
 // jobClient is a client of githubAPI with the workflow job's token,
-// GITHUB_TOKEN from the environment, reading up to maxPages pages. No token
-// is allowed: the client then sends no Authorization header.
+// GITHUB_TOKEN from the environment, reading up to maxPages pages; a refusal
+// names GITHUB_TOKEN. No token is allowed: the client then sends no
+// Authorization header.
 func jobClient(maxPages int) (*github.Client, error) {
-	return github.New(githubAPI, strings.TrimSpace(os.Getenv("GITHUB_TOKEN")), maxPages)
+	client, err := github.New(githubAPI, strings.TrimSpace(os.Getenv("GITHUB_TOKEN")), maxPages)
+	if err != nil {
+		return nil, err
+	}
+	return client.WithTokenName("GITHUB_TOKEN"), nil
 }

@@ -48,9 +48,7 @@ func newSetupServer(t *testing.T, createCode int) *setupServer {
 		_, _ = io.WriteString(w, `[]`)
 	}))
 	t.Cleanup(srv.Close)
-	old := githubAPI
-	githubAPI = srv.URL
-	t.Cleanup(func() { githubAPI = old })
+	setGithubAPI(t, srv.URL)
 	return fake
 }
 
@@ -75,22 +73,22 @@ func installationWithoutIssuesWrite(t *testing.T) {
 
 // TestCheckNeedsWritesTheSetupIssueAndRecordsHowItWent (forsgren#73, step
 // 15): with issues: write missing, check-needs creates the setup issue and
-// records ok; a refused write is the status no-access, never a red run.
+// records ok; a refused write is the status no-access, never a red run, and
+// its note names GITHUB_TOKEN, the token check-needs writes with.
 // The binary's version is 0.3.7, before the need, so the test runs as 0.3.8.
 func TestCheckNeedsWritesTheSetupIssueAndRecordsHowItWent(t *testing.T) {
 	cases := []struct {
 		name       string
 		createCode int
 		wantStatus string
+		wantStderr string
 	}{
-		{"written", http.StatusCreated, statusOK},
-		{"refused", http.StatusForbidden, statusNoAccess},
+		{"written", http.StatusCreated, statusOK, ""},
+		{"refused", http.StatusForbidden, statusNoAccess, "check GITHUB_TOKEN's access to acme/data"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			oldVersion := version
-			version = "0.3.8"
-			t.Cleanup(func() { version = oldVersion })
+			setVersion(t, "0.3.8")
 			t.Setenv("GITHUB_TOKEN", testToken)
 			fake := newSetupServer(t, c.createCode)
 			installationWithoutIssuesWrite(t)
@@ -98,6 +96,9 @@ func TestCheckNeedsWritesTheSetupIssueAndRecordsHowItWent(t *testing.T) {
 				"--repository", "acme/data", "--status", "needs-status.txt")
 			if code != 0 {
 				t.Errorf("want exit 0, got %d, stderr %q", code, stderr)
+			}
+			if !strings.Contains(stderr, c.wantStderr) {
+				t.Errorf("stderr %q, want it to contain %q", stderr, c.wantStderr)
 			}
 			wantCreatedWithMarker(t, fake)
 			if got := readFile(t, "needs-status.txt"); got != c.wantStatus {
@@ -200,6 +201,7 @@ func wantStatusLine(t *testing.T, stdout, status string) {
 	}
 }
 
+// setVersion runs the test as forsgren version v, restored afterwards.
 func setVersion(t *testing.T, v string) {
 	t.Helper()
 	old := version
@@ -207,6 +209,7 @@ func setVersion(t *testing.T, v string) {
 	t.Cleanup(func() { version = old })
 }
 
+// setGithubAPI points the GitHub client at url, restored afterwards.
 func setGithubAPI(t *testing.T, url string) {
 	t.Helper()
 	old := githubAPI

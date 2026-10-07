@@ -57,6 +57,7 @@ func createIssueAnswered(t *testing.T, status int, header http.Header) error {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	_, err = client.CreateIssue(context.Background(), "acme/app", "Set up forsgren", "body", []string{setupLabel})
+	text := github.IssueText{Title: "Set up forsgren", Body: "body"}
+	_, err = client.CreateIssue(context.Background(), "acme/app", text, []string{setupLabel})
 	return err
 }

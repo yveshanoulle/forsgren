@@ -64,14 +64,6 @@ type setupCase struct {
 	wantNot     []string
 }
 
-// asVersion runs the test as forsgren version v, restored afterwards.
-func asVersion(t *testing.T, v string) {
-	t.Helper()
-	old := version
-	version = v
-	t.Cleanup(func() { version = old })
-}
-
 // wantParts fails the test for each part of parts that got holds when it
 // should not, or lacks when it should.
 func wantParts(t *testing.T, got string, parts []string, holds bool) {
@@ -86,7 +78,7 @@ func wantParts(t *testing.T, got string, parts []string, holds bool) {
 // run runs run-summary for the row and checks its summary.
 func (c setupCase) run(t *testing.T) {
 	t.Helper()
-	asVersion(t, "0.3.8")
+	setVersion(t, "0.3.8")
 	installationWithoutIssuesWrite(t)
 	code, stdout, stderr := runCommand("run-summary", "--latest", version, "--pr-check", "ok",
 		"--needs-check", c.check)
@@ -125,13 +117,16 @@ func TestRunSummaryReportsTheSetupIssue(t *testing.T) {
 // whose needs cannot be read lists none, with a note on stderr, and the
 // summary still says the setup issue could not be written.
 func TestRunSummaryNamesAVersionWithNoNeeds(t *testing.T) {
-	asVersion(t, "banana")
+	setVersion(t, "banana")
 	installationWithoutIssuesWrite(t)
 	code, stdout, stderr := runCommand("run-summary", "--latest", "", "--pr-check", "skipped",
 		"--needs-check", "failed")
-	if code != 0 || !strings.Contains(stdout, "- Setup: the setup issue could not be written;") ||
-		!strings.Contains(stderr, "the needs could not be checked") {
-		t.Errorf("want exit 0, the setup line and a note, got %d, %q, %q", code, stdout, stderr)
+	if code != 0 {
+		t.Errorf("want exit 0, got %d", code)
+	}
+	wantParts(t, stdout, []string{"- Setup: the setup issue could not be written;"}, true)
+	if !strings.Contains(stderr, "the needs could not be checked") {
+		t.Errorf("stderr %q, want a note that the needs could not be checked", stderr)
 	}
 }
 
