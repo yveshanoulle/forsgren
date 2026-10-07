@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -18,10 +19,11 @@ type recordingIssues struct {
 	ok    bool
 	calls []string
 	body  string
+	err   error
 }
 
 func (r *recordingIssues) FindIssueByMarker(_ context.Context, _, _, _ string) (github.SetupIssue, bool, error) {
-	return r.found, r.ok, nil
+	return r.found, r.ok, r.err
 }
 
 func (r *recordingIssues) CreateIssue(_ context.Context, _, title, body string, labels []string) (int64, error) {
@@ -75,13 +77,43 @@ func TestReportSetupMakesTheCallTheStateCallsFor(t *testing.T) {
 			if err := reportSetup(context.Background(), fake, "acme/app", v, c.missing); err != nil {
 				t.Fatalf("reportSetup: %v", err)
 			}
-			if !reflect.DeepEqual(fake.calls, c.want) {
-				t.Fatalf("calls = %q, want %q", fake.calls, c.want)
+			checkSetupCalls(t, fake, c.want)
+		})
+	}
+}
+
+// checkSetupCalls asserts the calls a run made, and that a created issue's
+// body starts with the marker.
+func checkSetupCalls(t *testing.T, fake *recordingIssues, want []string) {
+	t.Helper()
+	if !reflect.DeepEqual(fake.calls, want) {
+		t.Fatalf("calls = %q, want %q", fake.calls, want)
+	}
+	if len(want) > 0 && strings.HasPrefix(want[0], "create") && !strings.HasPrefix(fake.body, needs.Marker) {
+		t.Fatalf("created body = %q, want it to start with the marker", fake.body)
+	}
+}
+
+// TestReportSetupPassesOnALookupError (forsgren#73, step 13): a failed lookup
+// comes back as it is, and nothing is written, missing needs or not.
+func TestReportSetupPassesOnALookupError(t *testing.T) {
+	lookup := errors.New("lookup failed")
+	open := github.SetupIssue{Number: 7, State: "open"}
+	cases := []struct {
+		name    string
+		missing []needs.Need
+	}{
+		{"something missing", []needs.Need{{Steps: "grant the permission"}}},
+		{"nothing missing", nil},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			fake := &recordingIssues{found: open, ok: true, err: lookup}
+			err := reportSetup(context.Background(), fake, "acme/app", "0.4.0", c.missing)
+			if !errors.Is(err, lookup) {
+				t.Fatalf("reportSetup = %v, want the lookup error", err)
 			}
-			if len(c.want) > 0 && strings.HasPrefix(c.want[0], "create") &&
-				!strings.HasPrefix(fake.body, needs.Marker) {
-				t.Fatalf("created body = %q, want it to start with the marker", fake.body)
-			}
+			checkSetupCalls(t, fake, nil)
 		})
 	}
 }

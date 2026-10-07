@@ -24,5 +24,37 @@ var _ setupIssues = (*github.Client)(nil)
 // reportSetup makes the one call the run's missing needs call for on the
 // setup issue (forsgren#73): create, update, reopen or close it, or none.
 func reportSetup(ctx context.Context, issues setupIssues, repo, version string, missing []needs.Need) error {
-	return nil
+	found, ok, err := issues.FindIssueByMarker(ctx, repo, setupLabel, needs.Marker)
+	if err != nil {
+		return err
+	}
+	if len(missing) == 0 {
+		return closeSetup(ctx, issues, repo, version, found, ok)
+	}
+	return openSetup(ctx, issues, repo, version, missing, found, ok)
+}
+
+// closeSetup closes the setup issue when it is open: nothing is missing, and a
+// closed or absent issue needs no write.
+func closeSetup(ctx context.Context, issues setupIssues, repo, version string, found github.SetupIssue, ok bool) error {
+	if !ok || found.State != "open" {
+		return nil
+	}
+	return issues.CloseIssue(ctx, repo, found.Number, "All items are in place as of forsgren "+version+".")
+}
+
+// openSetup creates the setup issue when there is none, updates it when it is
+// open and reopens it when it is closed: something is missing.
+func openSetup(ctx context.Context, issues setupIssues, repo, version string, missing []needs.Need,
+	found github.SetupIssue, ok bool) error {
+	title, body := needs.Title(version), needs.Body(version, missing)
+	switch {
+	case !ok:
+		_, err := issues.CreateIssue(ctx, repo, title, body, []string{setupLabel})
+		return err
+	case found.State == "open":
+		return issues.UpdateIssue(ctx, repo, found.Number, title, body)
+	default:
+		return issues.ReopenIssue(ctx, repo, found.Number, title, body)
+	}
 }
