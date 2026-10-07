@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 
 	"go.yaml.in/yaml/v3"
@@ -98,7 +99,7 @@ func noteFailed(stderr io.Writer, err error) string {
 // needs for config keys then count as missing.
 func configKeys(path string, stderr io.Writer) []string {
 	var doc map[string]any
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(filepath.Clean(path))
 	if err == nil {
 		err = yaml.Unmarshal(raw, &doc)
 	}

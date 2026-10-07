@@ -128,14 +128,7 @@ func wantCreatedWithMarker(t *testing.T, fake *setupServer) {
 // unreadable config only a note, a missing flag a usage error, and an
 // unwritable status file a note: exit 0 once the flags are valid.
 func TestCheckNeedsFailuresAreStatusesNeverARedRun(t *testing.T) {
-	cases := []struct {
-		name       string
-		setup      func(t *testing.T)
-		args       []string
-		wantCode   int
-		wantStderr string
-		wantStatus string
-	}{
+	cases := []failureCase{
 		{"no repository", nil, []string{"--config", "forsgren.config.yml"}, 2,
 			"--repository <owner/name> is required", ""},
 		{"unknown flag", nil, []string{"--nope"}, 2, "flag provided but not defined", ""},
@@ -152,25 +145,46 @@ func TestCheckNeedsFailuresAreStatusesNeverARedRun(t *testing.T) {
 			"--status", "no-such-dir/status.txt"}, 0, "cannot write the status", ""},
 	}
 	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			setVersion(t, "0.3.8")
-			t.Setenv("GITHUB_TOKEN", testToken)
-			newSetupServer(t, http.StatusCreated)
-			installationWithoutIssuesWrite(t)
-			if c.setup != nil {
-				c.setup(t)
-			}
-			code, stdout, stderr := runCommand(append([]string{"check-needs"}, c.args...)...)
-			if code != c.wantCode {
-				t.Errorf("want exit %d, got %d", c.wantCode, code)
-			}
-			if !strings.Contains(stderr, c.wantStderr) {
-				t.Errorf("stderr %q, want it to contain %q", stderr, c.wantStderr)
-			}
-			if c.wantStatus != "" {
-				wantStatusLine(t, stdout, c.wantStatus)
-			}
-		})
+		t.Run(c.name, c.run)
+	}
+}
+
+// failureCase is one row of the failure table: the setup it needs, the
+// arguments of check-needs and what the run must show.
+type failureCase struct {
+	name       string
+	setup      func(t *testing.T)
+	args       []string
+	wantCode   int
+	wantStderr string
+	wantStatus string
+}
+
+// run sets the row up and runs check-needs with its arguments.
+func (c failureCase) run(t *testing.T) {
+	t.Helper()
+	setVersion(t, "0.3.8")
+	t.Setenv("GITHUB_TOKEN", testToken)
+	newSetupServer(t, http.StatusCreated)
+	installationWithoutIssuesWrite(t)
+	if c.setup != nil {
+		c.setup(t)
+	}
+	code, stdout, stderr := runCommand(append([]string{"check-needs"}, c.args...)...)
+	c.want(t, code, stdout, stderr)
+}
+
+// want fails the test unless the run ended as the row says.
+func (c failureCase) want(t *testing.T, code int, stdout, stderr string) {
+	t.Helper()
+	if code != c.wantCode {
+		t.Errorf("want exit %d, got %d", c.wantCode, code)
+	}
+	if !strings.Contains(stderr, c.wantStderr) {
+		t.Errorf("stderr %q, want it to contain %q", stderr, c.wantStderr)
+	}
+	if c.wantStatus != "" {
+		wantStatusLine(t, stdout, c.wantStatus)
 	}
 }
 
