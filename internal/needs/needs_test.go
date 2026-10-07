@@ -47,6 +47,7 @@ func TestForRefusesWhatItCannotRead(t *testing.T) {
 		{"non-numeric part", declared, "0.x.7", `version "0.x.7"`},
 		{"bad YAML", "- version: [", "0.3.7", "needs.yml"},
 		{"declared version unreadable", "- version: soon\n", "0.3.7", `needs.yml: version "soon"`},
+		{"kind with no check", "- version: 0.3.8\n  kind: permision\n", "0.3.8", `kind "permision"`},
 	}
 	for _, c := range cases {
 		got, err := forVersion(c.text, c.version)
