@@ -7,11 +7,11 @@ import (
 )
 
 // TestForReturnsTheNeedsAppliedFromTheirVersionOn (forsgren#73): a need
-// introduced in 0.3.7 applies to 0.3.7 and every later version, and to none
-// before it; versions compare as numbers, so 0.3.10 is later than 0.3.7.
+// introduced in 0.3.8 applies to 0.3.8 and every later version, and to none
+// before it; versions compare as numbers, so 0.3.10 is later than 0.3.8.
 func TestForReturnsTheNeedsAppliedFromTheirVersionOn(t *testing.T) {
 	issuesWrite := Need{
-		Version:    "0.3.7",
+		Version:    "0.3.8",
 		Kind:       "permission",
 		Workflow:   ".github/workflows/forsgren.yml",
 		Permission: "issues",
@@ -23,8 +23,8 @@ func TestForReturnsTheNeedsAppliedFromTheirVersionOn(t *testing.T) {
 		version string
 		want    []Need
 	}{
-		{"0.3.6", nil},
-		{"0.3.7", []Need{issuesWrite}},
+		{"0.3.7", nil},
+		{"0.3.8", []Need{issuesWrite}},
 		{"0.3.10", []Need{issuesWrite}},
 		{"0.4.0", []Need{issuesWrite}},
 	}
