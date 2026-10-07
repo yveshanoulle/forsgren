@@ -73,6 +73,34 @@ func TestOpenPullRequestsTellsTheRateLimitFromTheMissingPermission(t *testing.T)
 	}
 }
 
+// TestIsRefusedIsTrueOnlyForAForbiddenThatIsNotTheRateLimit (forsgren#73,
+// step 14): the 403 of an issue write that is not the rate limit.
+func TestIsRefusedIsTrueOnlyForAForbiddenThatIsNotTheRateLimit(t *testing.T) {
+	cases := []struct {
+		name   string
+		status int
+		header http.Header
+		want   bool
+	}{
+		{"refused 403", 403, nil, true},
+		{"rate-limited 403", 403, http.Header{"X-Ratelimit-Remaining": {"0"}}, false},
+		{"500", 500, nil, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			f := newFake(t)
+			f.on("/repos/acme/data/issues", reply{status: c.status, header: c.header, body: `{"message":"no"}`})
+			_, err := f.client(t, DefaultMaxPages).CreateIssue(context.Background(), "acme/data", "t", "b", nil)
+			if got := IsRefused(err); got != c.want {
+				t.Errorf("IsRefused(%v) = %v, want %v", err, got, c.want)
+			}
+		})
+	}
+	if IsRefused(nil) {
+		t.Error("IsRefused(nil) = true, want false")
+	}
+}
+
 // TestForsgrenBumpFindsTheDependabotPullRequestForExactlyThatVersion
 // (forsgren#40, step 5). The rule: an open pull request by dependabot[bot]
 // whose head branch is dependabot/github_actions/yveshanoulle/forsgren/ plus

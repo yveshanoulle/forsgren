@@ -61,8 +61,11 @@ func openSetup(ctx context.Context, issues setupIssues, repo, version string, mi
 
 // setupStatus is how the write of the setup issue went, from its error
 // (forsgren#73): a failed write never turns the run red, it is reported as
-// a status. Scaffold: it reuses the pull request lookup's mapping, which
-// does not yet know a 403 from POST /issues.
+// a status. A refused 403 (no issues: write) is no-access; the rest is the
+// pull request lookup's mapping.
 func setupStatus(err error) string {
+	if github.IsRefused(err) {
+		return statusNoAccess
+	}
 	return lookupStatus(err)
 }

@@ -28,21 +28,7 @@ func TestSetupStatusSaysHowTheIssueWriteWent(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				for k, v := range c.header {
-					w.Header()[k] = v
-				}
-				w.WriteHeader(c.status)
-				if c.status == http.StatusCreated {
-					_, _ = w.Write([]byte(`{"number": 7}`))
-				}
-			}))
-			t.Cleanup(srv.Close)
-			client, err := github.New(srv.URL, "sesame-sesame-sesame", github.DefaultMaxPages)
-			if err != nil {
-				t.Fatalf("New: %v", err)
-			}
-			_, err = client.CreateIssue(context.Background(), "acme/app", "Set up forsgren", "body", []string{setupLabel})
+			err := createIssueAnswered(t, c.status, c.header)
 			if got := setupStatus(err); got != c.want {
 				t.Errorf("setupStatus(%v) = %q, want %q", err, got, c.want)
 			}
@@ -51,4 +37,26 @@ func TestSetupStatusSaysHowTheIssueWriteWent(t *testing.T) {
 	if got := setupStatus(nil); got != statusOK {
 		t.Errorf("setupStatus(nil) = %q, want %q", got, statusOK)
 	}
+}
+
+// createIssueAnswered is the error of a real CreateIssue call against a
+// server that answers status with header (and the new issue on a 201).
+func createIssueAnswered(t *testing.T, status int, header http.Header) error {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		for k, v := range header {
+			w.Header()[k] = v
+		}
+		w.WriteHeader(status)
+		if status == http.StatusCreated {
+			_, _ = w.Write([]byte(`{"number": 7}`))
+		}
+	}))
+	t.Cleanup(srv.Close)
+	client, err := github.New(srv.URL, "sesame-sesame-sesame", github.DefaultMaxPages)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	_, err = client.CreateIssue(context.Background(), "acme/app", "Set up forsgren", "body", []string{setupLabel})
+	return err
 }

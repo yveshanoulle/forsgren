@@ -64,6 +64,15 @@ func isDenied(e *answerError) bool {
 	return e.code == http.StatusForbidden && !errors.Is(e, ErrRateLimit)
 }
 
+// IsRefused says whether err is GitHub refusing the token with a 403 that is
+// not its rate limit (an answerError, however wrapped): the token lacks a
+// permission, whichever call it was (forsgren#73). A rate limit, any other
+// status and a nil error are not.
+func IsRefused(err error) bool {
+	refused, ok := errors.AsType[*answerError](err)
+	return ok && isDenied(refused)
+}
+
 // readPullRequests is the page reader of OpenPullRequests: it adds each
 // item of a page to pulls and asks for the next page while pages are not
 // empty.
