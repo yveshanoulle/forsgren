@@ -42,9 +42,11 @@ type FailureRecord struct {
 	FailedBuild, FixedBuild string
 }
 
-// issue is one item of GitHub's answer, the fields FailureIssues reads.
+// issue is one item of GitHub's answer, the fields FailureIssues and FindIssueByMarker read.
 type issue struct {
 	Number      int64           `json:"number"`
+	State       string          `json:"state"`
+	Title       string          `json:"title"`
 	CreatedAt   time.Time       `json:"created_at"`
 	ClosedAt    *time.Time      `json:"closed_at"`
 	Body        *string         `json:"body"`

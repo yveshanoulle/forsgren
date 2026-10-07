@@ -188,6 +188,8 @@
     "github.com/yveshanoulle/forsgren/internal/github/endpoints.go:place": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/endpoints.go:isSHA": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/issues.go:FailureIssues": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/github/setupissue.go:FindIssueByMarker": 78.5,
+    "github.com/yveshanoulle/forsgren/internal/github/setupissue.go:lowestMarked": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/issues.go:parseRecord": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/issues.go:keepIssues": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/issues.go:isPullRequest": 100.0,

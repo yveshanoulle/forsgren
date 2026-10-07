@@ -44,20 +44,27 @@ func TestFindIssueByMarkerPicksTheMarkedLabelledIssue(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			f := newFake(t)
-			f.on(issuesPath, reply{body: "[" + strings.Join(c.items, ",") + "]"})
-			got, found, err := f.client(t, DefaultMaxPages).FindIssueByMarker(
-				context.Background(), "acme/app", "forsgren-setup", setupMarker)
-			if err != nil || found != c.found || got != c.want {
-				t.Errorf("want %+v found=%v, got %+v found=%v, %v", c.want, c.found, got, found, err)
-			}
-			if c.found {
-				wantQuery(t, f, setupQuery())
-			}
-			for _, r := range f.seen() {
-				assertQuery(t, r.URL.Query(), setupQuery())
-			}
+			assertFindsSetup(t, c.items, c.want, c.found)
 		})
+	}
+}
+
+// assertFindsSetup serves items as the one page of issues and fails unless
+// FindIssueByMarker answers want and found, asking with setupQuery.
+func assertFindsSetup(t *testing.T, items []string, want SetupIssue, found bool) {
+	t.Helper()
+	f := newFake(t)
+	f.on(issuesPath, reply{body: "[" + strings.Join(items, ",") + "]"})
+	got, ok, err := f.client(t, DefaultMaxPages).FindIssueByMarker(
+		context.Background(), "acme/app", "forsgren-setup", setupMarker)
+	if err != nil || ok != found || got != want {
+		t.Errorf("want %+v found=%v, got %+v found=%v, %v", want, found, got, ok, err)
+	}
+	if found {
+		wantQuery(t, f, setupQuery())
+	}
+	for _, r := range f.seen() {
+		assertQuery(t, r.URL.Query(), setupQuery())
 	}
 }
 
