@@ -7,6 +7,7 @@ in the same commit — see
 
 ## Open
 
+- IN PROGRESS: after an update, open one setup issue in the installation when the running version needs more configuration; 19-step ladder on the issue — [#73](https://github.com/yveshanoulle/forsgren/issues/73)
 - A view with the numbers and the DORA Quick Check scores side by side — [#55](https://github.com/yveshanoulle/forsgren/issues/55)
 - A config option for how far back the first collect run reads — [#57](https://github.com/yveshanoulle/forsgren/issues/57)
 - Auto-update docs: the README section and the check-update command line, from #58 — [#60](https://github.com/yveshanoulle/forsgren/issues/60)

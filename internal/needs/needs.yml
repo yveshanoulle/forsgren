@@ -1,0 +1,6 @@
+- version: 0.3.7
+  kind: permission
+  workflow: .github/workflows/forsgren.yml
+  permission: issues
+  access: write
+  steps: "Add `issues: write` to the `permissions:` of the job in .github/workflows/forsgren.yml, so forsgren can open its setup issue."
