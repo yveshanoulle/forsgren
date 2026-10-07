@@ -44,7 +44,7 @@ func runSummary(args []string, stdout, stderr io.Writer) int {
 	if !ok {
 		return 2
 	}
-	_, _ = fmt.Fprint(stdout, in.markdown())
+	_, _ = fmt.Fprint(stdout, in.markdown(stderr))
 	return 0
 }
 
@@ -75,13 +75,47 @@ func summaryFlags(args []string, stderr io.Writer) (summaryInput, bool) {
 }
 
 // markdown is the summary.
-func (in summaryInput) markdown() string {
+func (in summaryInput) markdown(stderr io.Writer) string {
 	latest, known := page.ReleaseVersion(in.latest)
 	if !known {
 		latest = "unknown"
 	}
 	return "## forsgren\n\n- Built with: forsgren " + version + "\n- Latest release: " + latest +
-		"\n- Update: " + in.update(latest, known) + "\n"
+		"\n- Update: " + in.update(latest, known) + "\n" + in.setup(stderr)
+}
+
+// setupConfig is the config run-summary reads the config keys of, where the
+// workflow checks it out.
+const setupConfig = "forsgren.config.yml"
+
+// setupFailures say why the setup issue could not be written, by how
+// check-needs' write went (the values of --needs-check, ok aside).
+var setupFailures = map[string]string{
+	statusNoAccess:    " for lack of `issues: write`",
+	statusRateLimited: " because of GitHub's rate limit",
+	statusFailed:      "",
+}
+
+// setup says where the setup issue stands: nothing without --needs-check,
+// and, when the issue could not be written, what this version needs, which
+// it computes from the checkout the way check-needs does (forsgren#73).
+func (in summaryInput) setup(stderr io.Writer) string {
+	if in.needsCheck == statusOK {
+		return "- Setup: in place, or the setup issue says what is missing\n"
+	}
+	reason, known := setupFailures[in.needsCheck]
+	if !known {
+		return ""
+	}
+	line := "- Setup: the setup issue could not be written" + reason + "; this version needs:\n"
+	missing, err := missingNeeds(setupConfig, stderr)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "run-summary: the needs could not be checked: %v\n", err)
+	}
+	for _, n := range missing {
+		line += "  - " + n.Steps + "\n"
+	}
+	return line
 }
 
 // update says where the update stands.

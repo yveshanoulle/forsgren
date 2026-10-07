@@ -67,12 +67,10 @@ func checkNeedsFlags(args []string, stderr io.Writer) (checkNeedsOptions, bool) 
 // writes the setup issue and returns how that went: failed, with a note on
 // stderr, when the running version has no needs or the client cannot be made.
 func reportNeeds(o checkNeedsOptions, stdout, stderr io.Writer) string {
-	all, err := needs.For(version)
+	missing, err := missingNeeds(o.config, stderr)
 	if err != nil {
 		return noteFailed(stderr, err)
 	}
-	at := needs.Installation{Root: ".", ConfigKeys: configKeys(o.config, stderr), Getenv: os.Getenv}
-	missing := needs.Missing(all, at)
 	for _, n := range missing {
 		_, _ = fmt.Fprintln(stdout, n.Steps)
 	}
@@ -85,6 +83,19 @@ func reportNeeds(o checkNeedsOptions, stdout, stderr io.Writer) string {
 		_, _ = fmt.Fprintf(stderr, "check-needs: the setup issue could not be written: %v\n", err)
 	}
 	return setupStatus(err)
+}
+
+// missingNeeds are the needs of the running version that are not in place in
+// the checkout (the working directory), given the config file at config:
+// what check-needs writes the setup issue about and run-summary lists. A
+// version with no needs is the error.
+func missingNeeds(config string, stderr io.Writer) ([]needs.Need, error) {
+	all, err := needs.For(version)
+	if err != nil {
+		return nil, err
+	}
+	at := needs.Installation{Root: ".", ConfigKeys: configKeys(config, stderr), Getenv: os.Getenv}
+	return needs.Missing(all, at), nil
 }
 
 // noteFailed says on stderr why the check could not run and returns the

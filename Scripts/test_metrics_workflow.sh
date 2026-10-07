@@ -186,11 +186,12 @@
 #  32. the render step takes that output through env: only (`WAITING:
 #      ${{ steps.waiting.outputs.waiting }}`) and, EXECUTED with the stub,
 #      passes `--waiting-pr <number>` when it is set;
-#  33. the step "Write the run summary" (forsgren#40) takes LATEST, WAITING
-#      and PR_CHECK (the waiting step's `check` output: ok, no-access,
-#      rate-limited, failed or skipped) through env: only and, EXECUTED with the stub,
-#      appends `forsgren run-summary --latest ... --waiting-pr ... --pr-check
-#      ... --repository $GITHUB_REPOSITORY`'s markdown to
+#  33. the step "Write the run summary" (forsgren#40) takes LATEST, WAITING,
+#      PR_CHECK (the waiting step's `check` output: ok, no-access,
+#      rate-limited, failed or skipped) and NEEDS_CHECK (the needs step's
+#      `check` output, forsgren#73) through env: only and, EXECUTED with the
+#      stub, appends `forsgren run-summary --latest ... --waiting-pr ...
+#      --pr-check ... --needs-check ... --repository $GITHUB_REPOSITORY`'s markdown to
 #      $GITHUB_STEP_SUMMARY, and never fails the run: a run-summary that
 #      fails appends nothing and the step exits 0; and pin 31 adds that the
 #      waiting step outputs `check=` from the status file its lookup writes
@@ -901,7 +902,7 @@ judge_needs_check() {
 }
 
 # summary_outcome <script> <stub summary> <stub exit status>: what the run
-# summary step does, with LATEST 0.0.10, WAITING 7 and PR_CHECK ok in its
+# summary step does, with LATEST 0.0.10, WAITING 7, PR_CHECK ok and NEEDS_CHECK no-access in its
 # environment and a stub run-summary that prints that and exits with that:
 # `exit=<rc> summary=<what reached the job summary file> calls=<forsgren calls>`.
 summary_outcome() {
@@ -909,7 +910,7 @@ summary_outcome() {
   : > "$summary"
   : > "$calls"
   PATH="${STUB}:${PATH}" FG_CALLS="$calls" GITHUB_STEP_SUMMARY="$summary" GITHUB_REPOSITORY="acme/data" \
-    LATEST="0.0.10" WAITING="7" PR_CHECK="ok" STUB_SUMMARY="$2" STUB_SUMMARY_RC="$3" bash "$1" > /dev/null 2>&1 || rc=$?
+    LATEST="0.0.10" WAITING="7" PR_CHECK="ok" NEEDS_CHECK="no-access" STUB_SUMMARY="$2" STUB_SUMMARY_RC="$3" bash "$1" > /dev/null 2>&1 || rc=$?
   echo "exit=${rc} summary=$(paste -sd'|' - < "$summary") calls=$(paste -sd, - < "$calls")"
 }
 
@@ -918,7 +919,7 @@ judge_run_summary() {
   local script="${TMP}/summary.sh" env got want
   env="$(step_block "$1" "$SUMMARY_STEP" env)"
   for line in "LATEST: ${EXPR_OPEN} steps.latest.outputs.latest }}" "WAITING: ${EXPR_OPEN} steps.waiting.outputs.waiting }}" \
-    "PR_CHECK: ${EXPR_OPEN} steps.waiting.outputs.check }}"; do
+    "PR_CHECK: ${EXPR_OPEN} steps.waiting.outputs.check }}" "NEEDS_CHECK: ${EXPR_OPEN} steps.needs.outputs.check }}"; do
     if ! grep -qxF -- "$line" <<< "$env"; then
       echo "the run summary step's env: does not set '${line}' — the summary is told what the lookups found through env: only"
     fi
@@ -929,10 +930,10 @@ judge_run_summary() {
     return 0
   fi
   got="$(summary_outcome "$script" "## forsgren\n- Update: up to date\n" 0)"
-  want="exit=0 summary=## forsgren|- Update: up to date calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --repository acme/data"
+  want="exit=0 summary=## forsgren|- Update: up to date calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --needs-check no-access --repository acme/data"
   [[ "$got" == "$want" ]] || echo "the run summary step gives '${got}', not '${want}' — forsgren run-summary's markdown is appended to \$GITHUB_STEP_SUMMARY"
   got="$(summary_outcome "$script" "half a sum" 1)"
-  want="exit=0 summary= calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --repository acme/data"
+  want="exit=0 summary= calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --needs-check no-access --repository acme/data"
   [[ "$got" == "$want" ]] || echo "for a run-summary that fails the run summary step gives '${got}', not '${want}' — a summary never fails the run, and half of one is never appended"
 }
 
@@ -1774,6 +1775,10 @@ proves judge_run_summary "a run summary that is not appended" "the run summary s
   "s|>> \"\\${D}GITHUB_STEP_SUMMARY\"||"
 proves judge_run_summary "a run summary without the check in env" "does not set 'PR_CHECK" \
   "/PR_CHECK: \\${D}{{ steps.waiting.outputs.check }}/d"
+proves judge_run_summary "a run summary without the needs check in env" "does not set 'NEEDS_CHECK" \
+  "/NEEDS_CHECK: \\${D}{{ steps.needs.outputs.check }}/d"
+proves judge_run_summary "a run summary without the needs check passed" "the run summary step gives" \
+  "s| --needs-check \"\\${D}NEEDS_CHECK\"||"
 proves judge_waiting_lookup "a waiting step without its check" "for a token without pull-requests: read the waiting step gives" \
   "/echo \"check=/d"
 proves judge_render_waiting "a render without the waiting pull request" "with WAITING set the render step runs" \

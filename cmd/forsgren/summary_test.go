@@ -55,46 +55,83 @@ func TestRunSummaryTellsWhereTheUpdateStands(t *testing.T) {
 	}
 }
 
+// setupCase is a row of TestRunSummaryReportsTheSetupIssue: the summary of an
+// installation without issues: write, run with --needs-check check, holds
+// every part of want and none of wantNot.
+type setupCase struct {
+	name, check string
+	want        []string
+	wantNot     []string
+}
+
+// asVersion runs the test as forsgren version v, restored afterwards.
+func asVersion(t *testing.T, v string) {
+	t.Helper()
+	old := version
+	version = v
+	t.Cleanup(func() { version = old })
+}
+
+// wantParts fails the test for each part of parts that got holds when it
+// should not, or lacks when it should.
+func wantParts(t *testing.T, got string, parts []string, holds bool) {
+	t.Helper()
+	for _, part := range parts {
+		if strings.Contains(got, part) != holds {
+			t.Errorf("want the summary to hold %q: %t, got %q", part, holds, got)
+		}
+	}
+}
+
+// run runs run-summary for the row and checks its summary.
+func (c setupCase) run(t *testing.T) {
+	t.Helper()
+	asVersion(t, "0.3.8")
+	installationWithoutIssuesWrite(t)
+	code, stdout, stderr := runCommand("run-summary", "--latest", version, "--pr-check", "ok",
+		"--needs-check", c.check)
+	if code != 0 {
+		t.Fatalf("want exit 0, got %d, stderr %q", code, stderr)
+	}
+	wantParts(t, stdout, c.want, true)
+	wantParts(t, stdout, c.wantNot, false)
+}
+
 // TestRunSummaryReportsTheSetupIssue (forsgren#73, step 17): with
 // --needs-check ok the summary says the setup is in place or the setup issue
-// says what is missing, and lists nothing; with no-access it says the setup
-// issue could not be written for lack of issues: write and lists the Steps of
-// every need missing from the checkout, which run-summary computes itself.
+// says what is missing, and lists nothing; with no-access, rate-limited or
+// failed it says why the setup issue could not be written and lists the Steps
+// of every need missing from the checkout, which run-summary computes itself.
 // The binary's version is 0.3.7, before the need, so the test runs as 0.3.8.
 func TestRunSummaryReportsTheSetupIssue(t *testing.T) {
 	const ok = "- Setup: in place, or the setup issue says what is missing"
 	const noAccess = "- Setup: the setup issue could not be written for lack of `issues: write`; this version needs:"
+	const rateLimited = "- Setup: the setup issue could not be written because of GitHub's rate limit; this version needs:"
+	const failed = "- Setup: the setup issue could not be written; this version needs:"
 	const steps = "Add `issues: write` to the `permissions:` of the forsgren job in .github/workflows/forsgren.yml"
-	cases := []struct {
-		name, check string
-		want        []string
-		wantNot     []string
-	}{
+	cases := []setupCase{
 		{"no access", "no-access", []string{noAccess, steps}, []string{ok}},
 		{"ok", "ok", []string{ok}, []string{steps, noAccess}},
+		{"rate limited", "rate-limited", []string{rateLimited, steps}, []string{ok, noAccess}},
+		{"failed", "failed", []string{failed, steps}, []string{ok, noAccess}},
+		{"not given", "", nil, []string{"- Setup:", steps}},
 	}
 	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			oldVersion := version
-			version = "0.3.8"
-			t.Cleanup(func() { version = oldVersion })
-			installationWithoutIssuesWrite(t)
-			code, stdout, stderr := runCommand("run-summary", "--latest", version, "--pr-check", "ok",
-				"--needs-check", c.check)
-			if code != 0 {
-				t.Fatalf("want exit 0, got %d, stderr %q", code, stderr)
-			}
-			for _, w := range c.want {
-				if !strings.Contains(stdout, w) {
-					t.Errorf("want the summary to contain %q, got %q", w, stdout)
-				}
-			}
-			for _, w := range c.wantNot {
-				if strings.Contains(stdout, w) {
-					t.Errorf("want the summary not to contain %q, got %q", w, stdout)
-				}
-			}
-		})
+		t.Run(c.name, c.run)
+	}
+}
+
+// TestRunSummaryNamesAVersionWithNoNeeds (forsgren#73, step 17): a version
+// whose needs cannot be read lists none, with a note on stderr, and the
+// summary still says the setup issue could not be written.
+func TestRunSummaryNamesAVersionWithNoNeeds(t *testing.T) {
+	asVersion(t, "banana")
+	installationWithoutIssuesWrite(t)
+	code, stdout, stderr := runCommand("run-summary", "--latest", "", "--pr-check", "skipped",
+		"--needs-check", "failed")
+	if code != 0 || !strings.Contains(stdout, "- Setup: the setup issue could not be written;") ||
+		!strings.Contains(stderr, "the needs could not be checked") {
+		t.Errorf("want exit 0, the setup line and a note, got %d, %q, %q", code, stdout, stderr)
 	}
 }
 
