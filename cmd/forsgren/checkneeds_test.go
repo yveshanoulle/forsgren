@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -113,7 +114,88 @@ func wantCreatedWithMarker(t *testing.T, fake *setupServer) {
 	if len(fake.posts) != 1 {
 		t.Fatalf("want one POST of the setup issue, got %d", len(fake.posts))
 	}
-	if !strings.Contains(fake.posts[0], `"body":"`+needs.Marker) {
-		t.Errorf("posted %q, want a body that starts with the marker", fake.posts[0])
+	var posted struct{ Body string }
+	if err := json.Unmarshal([]byte(fake.posts[0]), &posted); err != nil {
+		t.Fatal(err)
 	}
+	if !strings.HasPrefix(posted.Body, needs.Marker) {
+		t.Errorf("posted body %q, want it to start with the marker", posted.Body)
+	}
+}
+
+// TestCheckNeedsFailuresAreStatusesNeverARedRun (forsgren#73, step 15): a
+// check that cannot run is the status failed and a note on stderr, an
+// unreadable config only a note, a missing flag a usage error, and an
+// unwritable status file a note: exit 0 once the flags are valid.
+func TestCheckNeedsFailuresAreStatusesNeverARedRun(t *testing.T) {
+	cases := []struct {
+		name       string
+		setup      func(t *testing.T)
+		args       []string
+		wantCode   int
+		wantStderr string
+		wantStatus string
+	}{
+		{"no repository", nil, []string{"--config", "forsgren.config.yml"}, 2,
+			"--repository <owner/name> is required", ""},
+		{"unknown flag", nil, []string{"--nope"}, 2, "flag provided but not defined", ""},
+		{"no config", nil, []string{"--repository", "acme/data"}, 2, "--config <path> is required", ""},
+		{"unreadable config", nil, []string{"--config", "nope.yml", "--repository", "acme/data",
+			"--status", "needs-status.txt"}, 0, "the config keys are unknown", statusOK},
+		{"unknown version", func(t *testing.T) { setVersion(t, "dev") },
+			[]string{"--config", "forsgren.config.yml", "--repository", "acme/data", "--status", "needs-status.txt"}, 0,
+			"is not three dot-separated numbers", statusFailed},
+		{"bad api address", func(t *testing.T) { setGithubAPI(t, "not a url") },
+			[]string{"--config", "forsgren.config.yml", "--repository", "acme/data", "--status", "needs-status.txt"}, 0,
+			"not a url", statusFailed},
+		{"unwritable status", nil, []string{"--config", "forsgren.config.yml", "--repository", "acme/data",
+			"--status", "no-such-dir/status.txt"}, 0, "cannot write the status", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			setVersion(t, "0.3.8")
+			t.Setenv("GITHUB_TOKEN", testToken)
+			newSetupServer(t, http.StatusCreated)
+			installationWithoutIssuesWrite(t)
+			if c.setup != nil {
+				c.setup(t)
+			}
+			code, stdout, stderr := runCommand(append([]string{"check-needs"}, c.args...)...)
+			if code != c.wantCode {
+				t.Errorf("want exit %d, got %d", c.wantCode, code)
+			}
+			if !strings.Contains(stderr, c.wantStderr) {
+				t.Errorf("stderr %q, want it to contain %q", stderr, c.wantStderr)
+			}
+			if c.wantStatus != "" {
+				wantStatusLine(t, stdout, c.wantStatus)
+			}
+		})
+	}
+}
+
+// wantStatusLine fails the test unless stdout names the status and the file
+// holds it.
+func wantStatusLine(t *testing.T, stdout, status string) {
+	t.Helper()
+	if !strings.Contains(stdout, "check-needs: "+status+"\n") {
+		t.Errorf("stdout %q, want the status %q", stdout, status)
+	}
+	if got := readFile(t, "needs-status.txt"); got != status {
+		t.Errorf("status file = %q, want %q", got, status)
+	}
+}
+
+func setVersion(t *testing.T, v string) {
+	t.Helper()
+	old := version
+	version = v
+	t.Cleanup(func() { version = old })
+}
+
+func setGithubAPI(t *testing.T, url string) {
+	t.Helper()
+	old := githubAPI
+	githubAPI = url
+	t.Cleanup(func() { githubAPI = old })
 }
