@@ -42,8 +42,9 @@ type Need struct {
 
 // For returns the needs that apply to the running version: those introduced
 // in it or in an earlier one, versions compared as numbers (0.3.10 is later
-// than 0.3.7). A version that is not three dot-separated numbers, or a
-// declaration that cannot be read, is an error.
+// than 0.3.7). A version that is not three dot-separated numbers, a
+// declaration that cannot be read, and a declaration of a kind that has no
+// check, whatever its version, are errors.
 func For(version string) ([]Need, error) {
 	return forVersion(declared, version)
 }
@@ -63,6 +64,9 @@ func forVersion(text, version string) ([]Need, error) {
 		introduced, err := numbers(n.Version)
 		if err != nil {
 			return nil, fmt.Errorf("needs.yml: %w", err)
+		}
+		if _, known := checks[n.Kind]; !known {
+			return nil, fmt.Errorf("needs.yml: kind %q has no check", n.Kind)
 		}
 		if slices.Compare(introduced[:], running[:]) <= 0 {
 			applying = append(applying, n)

@@ -34,7 +34,8 @@ func Missing(all []Need, at Installation) []Need {
 }
 
 // checks maps each kind this version checks to the check that decides whether
-// a need of that kind is in place. A kind absent from it is not checked.
+// a need of that kind is in place. It is the one list of known kinds: For
+// refuses a declaration of a kind absent from it.
 var checks = map[string]func(n Need, at Installation) bool{
 	"file":       fileInPlace,
 	"config_key": configKeyInPlace,
@@ -43,8 +44,9 @@ var checks = map[string]func(n Need, at Installation) bool{
 }
 
 // inPlace reports whether the need n is in place in the installation at,
-// by the check for its kind. A kind this version does not check is not in
-// place, so that no need passes unchecked.
+// by the check for its kind. A kind with no check is not in place, a safety
+// net behind For, which refuses such a declaration, so that no need passes
+// unchecked.
 func inPlace(n Need, at Installation) bool {
 	check, ok := checks[n.Kind]
 	return ok && check(n, at)
