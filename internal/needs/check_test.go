@@ -24,17 +24,24 @@ func TestMissingReportsAFileNeedThatIsNotInTheCheckout(t *testing.T) {
 	for _, c := range cases {
 		root := t.TempDir()
 		if c.present {
-			full := filepath.Join(root, path)
-			if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(full, []byte("name: update\n"), 0o600); err != nil {
-				t.Fatal(err)
-			}
+			writeFile(t, root, path)
 		}
 		got := Missing([]Need{need}, Installation{Root: root})
 		if !reflect.DeepEqual(got, c.want) {
 			t.Errorf("%s: want missing %v, got %v", c.name, c.want, got)
 		}
+	}
+}
+
+// writeFile writes a small file at the relative path rel under root, with its
+// directories.
+func writeFile(t *testing.T, root, rel string) {
+	t.Helper()
+	full := filepath.Join(root, rel)
+	if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(full, []byte("name: update\n"), 0o600); err != nil {
+		t.Fatal(err)
 	}
 }
