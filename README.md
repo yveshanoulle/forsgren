@@ -1006,7 +1006,7 @@ installation pins that version. From a checkout of this repository:
 .build/bin/forsgren render --out <dir>
 ```
 
-`forsgren render --out <dir> [--config <path>] [--data <path>] [--latest <version>] [--waiting-pr <number>]` writes the site (every page
+`forsgren render --out <dir> [--config <path>] [--data <path>] [--latest <version>] [--waiting-pr <number>] [--needs-check <status>]` writes the site (every page
 plus `styles.css`) into `<dir>`, creating it when needed, and exits 0; 1 when
 the render failed (or the `--config` file is missing or invalid, with
 check-config's refusal), 2 on a usage error. `--latest` is the newest forsgren
@@ -1025,15 +1025,20 @@ how the lookup went, `ok`, `no-access` for the 403 of a token without
 `pull-requests: read`, `rate-limited` when GitHub's rate limit refused it (a
 403 or 429 with no request left, never taken for a missing permission), or
 `failed`, and its exit status is 0 either way); the
-footer then names the pull request instead of "is available". `forsgren
+footer then names the pull request instead of "is available".
+`--needs-check <ok|no-access|rate-limited|failed>` is how `forsgren
+check-needs` went (see The setup issue): anything but `ok` adds "needs more
+configuration: see the job summary of this run" to the footer, and leaving it
+out or `ok` adds nothing. `forsgren
 run-summary --latest <version> --waiting-pr <number> --pr-check
-<ok|no-access|rate-limited|failed|skipped> --repository <owner/name>` prints the run's job
+<ok|no-access|rate-limited|failed|skipped> [--needs-check
+<ok|no-access|rate-limited|failed>] --repository <owner/name>` prints the run's job
 summary as markdown (the version that built the page, the latest release or
 "unknown", and one of "up to date", "0.0.10 is available; no Dependabot pull
 request yet", "0.0.10 is waiting in pull request [#7](link)", "pull-request
 check skipped: grant pull-requests: read in your caller to enable it", "the
 pull-request check hit GitHub's rate limit, the next run tries again" and "the
-pull-request check failed"); the link is fine there, because a run page is
+pull-request check failed", and a Setup line, see The setup issue); the link is fine there, because a run page is
 private to the repository, unlike the public page. A flag it cannot use is a
 usage error that prints nothing. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides
@@ -1075,6 +1080,7 @@ jobs:
       pages: write
       id-token: write
       pull-requests: read   # optional, see below
+      issues: write         # lets forsgren open its setup issue, see below
     uses: yveshanoulle/forsgren/.github/workflows/metrics.yml@<commit> # vX.Y.Z
     secrets:
       FORSGREN_TOKEN: ${{ secrets.FORSGREN_TOKEN }}
@@ -1192,11 +1198,82 @@ jobs:
   separator, as the template has it. A grouped update, another separator or
   another directory names the branch differently, and the footer then keeps
   saying "is available".
+- **`issues: write` lets forsgren open its setup issue** (forsgren#73). When
+  the running version needs more configuration, `forsgren check-needs` writes
+  one issue in the data repository with the job's token. Without the
+  permission the run does not fail: the job summary and the page footer say
+  what is needed instead (see The setup issue). The workflow declares no
+  permissions block, so it takes what your caller grants.
 - **GitHub Pages must build from GitHub Actions** (the data repository's
   Settings → Pages → Source). The run deploys to the repository's
   `github-pages` environment.
 - The Go the workflow builds with is the one of forsgren's `go.mod`
   toolchain line for that release; the caller sets up nothing.
+
+## The setup issue (`check-needs`)
+
+Each forsgren release declares what an installation needs: a permission, a
+secret, a file or a config key. The declarations are `internal/needs/needs.yml`,
+built into the binary, each from the release that introduced it on, so an
+entry applies to that release and every later one. Every metrics run checks the
+needs of the running version, so this is configuration compliance, not only a
+step of moving to a release: a need that is fixed stays fixed, and one that is
+removed again later is found again. Its command line, which `metrics.yml` runs
+in the step "Check what this forsgren version needs":
+
+```
+forsgren check-needs --config <path> --repository <owner/name> [--status <path>]
+```
+
+`--config` is the installation's `forsgren.config.yml` (the config keys a need
+asks for are its top-level keys), `--repository` is the installation's own
+repository, where the issue lives, and `--status` writes how the issue's write
+went (`ok`, `no-access`, `rate-limited` or `failed`). The job's token is
+`GITHUB_TOKEN`. It prints the steps of each missing need and exits 0 once its
+flags are valid, whatever the check or the write did; 2 is a usage error. The
+workflow passes the status on as `render --needs-check` and
+`run-summary --needs-check`.
+
+- **One setup issue per installation, not per version.** It carries the label
+  `forsgren-setup`, but its identity is a hidden marker, an HTML comment on the
+  first line of its body; the label only narrows the lookup. An issue with
+  the label and no marker is never touched, and if you remove the label from
+  the managed issue, the next run opens a new one. Its title is "forsgren
+  0.3.8 needs more configuration" (the running version) and its body lists the
+  steps of each missing need; title and body are presentation, and a run
+  rewrites them.
+- **What a run does with it.** Something missing and no issue: it opens one.
+  Missing and the issue open: it updates it. Missing and the issue closed:
+  it reopens and updates it, since the same issue is the installation's. Nothing
+  missing and the issue open: it closes it with the comment "All items are in
+  place as of forsgren <version>.". Nothing missing and no issue, or a closed
+  one: nothing.
+- **Without `issues: write`** the write is refused, and the run does not fail:
+  the job summary of the run says "the setup issue could not be written" and
+  lists what this version needs, and the page footer says "needs more
+  configuration: see the job summary of this run". A rate limit or any other
+  failure does the same, with its own words. The summary and the footer speak
+  only when something is really missing.
+- **Nothing missing is `ok`**, even if closing the old issue failed: the failed
+  close goes to the job log only.
+
+**Known limits.** A check that cannot see something reports it as missing, so
+a false alarm is possible but never a silent pass.
+
+- **Permissions** are read from the installation's
+  `.github/workflows/forsgren.yml` (a renamed caller file reads as missing).
+  forsgren requires permissions to be declared explicitly on the forsgren job in
+  that file. `write-all` and `read-all` are intentionally unsupported, because
+  forsgren follows least-privilege security practice. Workflow-level
+  (top-of-file) `permissions:` are not supported by the check, even though the
+  job inherits them, and with no `permissions:` at all the repository's default
+  token permissions cannot be seen, so an explicit declaration is required. A
+  successful issue write does not count as proof: it shows the capability, not
+  the supported configuration.
+- **A secret** is only seen when the workflow passes it in, so only secrets
+  that `metrics.yml` passes to forsgren can be declared.
+- **A file** is checked in the run's checkout, so `check-needs` runs at the
+  checkout root; the `metrics.yml` step pins it.
 
 ## Auto-update (`check-update`)
 
