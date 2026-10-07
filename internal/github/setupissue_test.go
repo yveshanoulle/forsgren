@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -125,4 +126,21 @@ func isError(target error) func(error) bool {
 func isSyntaxError(err error) bool {
 	var syntax *json.SyntaxError
 	return errors.As(err, &syntax)
+}
+
+// TestCreateIssuePostsTheIssueAndReturnsItsNumber (forsgren#73, step 9): one
+// POST to the repository's issues with the title, the body and the labels as
+// JSON, and the number of the issue GitHub answers with.
+func TestCreateIssuePostsTheIssueAndReturnsItsNumber(t *testing.T) {
+	f := newFake(t)
+	f.on(issuesPath, reply{status: 201, body: `{"number": 7}`})
+	got, err := f.client(t, DefaultMaxPages).CreateIssue(
+		context.Background(), "acme/app", "Set up forsgren", "Hello", []string{"forsgren-setup"})
+	if err != nil || got != 7 {
+		t.Errorf("want number 7, got %d, %v", got, err)
+	}
+	want := map[string]any{"title": "Set up forsgren", "body": "Hello", "labels": []any{"forsgren-setup"}}
+	if sent := bodyOfRequest(t, f, "POST", issuesPath); !reflect.DeepEqual(sent, want) {
+		t.Errorf("want the body %v, got %v", want, sent)
+	}
 }

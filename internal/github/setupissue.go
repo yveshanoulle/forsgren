@@ -73,3 +73,14 @@ func lowestMarked(best SetupIssue, page []issue, marker string) SetupIssue {
 func isMarkedIssue(i issue, marker string) bool {
 	return !isPullRequest(i) && i.Body != nil && strings.Contains(*i.Body, marker)
 }
+
+// CreateIssue creates an issue in repo with title, body and labels:
+// POST /repos/{owner}/{repo}/issues with the JSON body {title, body,
+// labels}, and returns the number of the new issue.
+//
+// Sure, from GitHub's REST reference for POST /repos/{owner}/{repo}/issues:
+// it answers 201 with the created issue, whose number is its number in the
+// repository.
+func (c *Client) CreateIssue(ctx context.Context, repo, title, body string, labels []string) (int64, error) {
+	return 0, nil
+}
