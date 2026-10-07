@@ -170,3 +170,20 @@ func TestCreateIssuePassesOnItsErrors(t *testing.T) {
 		})
 	}
 }
+
+// TestUpdateIssuePatchesTitleAndBodyOnly (forsgren#73, step 10): one PATCH
+// to the issue's own path with the title and the body as JSON, and no state:
+// reopening is not this call's job.
+func TestUpdateIssuePatchesTitleAndBodyOnly(t *testing.T) {
+	f := newFake(t)
+	f.on(issuesPath+"/7", reply{body: `{"number": 7}`})
+	err := f.client(t, DefaultMaxPages).UpdateIssue(
+		context.Background(), "acme/app", 7, "Set up forsgren again", "Hello again")
+	if err != nil {
+		t.Errorf("want no error, got %v", err)
+	}
+	want := map[string]any{"title": "Set up forsgren again", "body": "Hello again"}
+	if sent := bodyOfRequest(t, f, "PATCH", issuesPath+"/7"); !reflect.DeepEqual(sent, want) {
+		t.Errorf("want the body %v, got %v", want, sent)
+	}
+}

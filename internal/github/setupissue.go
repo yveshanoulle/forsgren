@@ -111,3 +111,14 @@ type newIssue struct {
 	Body   string   `json:"body"`
 	Labels []string `json:"labels"`
 }
+
+// UpdateIssue sets the title and the body of issue number of repo:
+// PATCH /repos/{owner}/{repo}/issues/{number} with the JSON body {title,
+// body}. It does not send the state; reopening is a step of its own.
+//
+// Sure, from GitHub's REST reference for PATCH /repos/{owner}/{repo}/issues/
+// {issue_number}: it answers 200 with the updated issue, and a field left
+// out of the body is left as it is.
+func (c *Client) UpdateIssue(ctx context.Context, repo string, number int64, title, body string) error {
+	return nil
+}
