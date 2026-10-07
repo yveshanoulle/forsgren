@@ -7,7 +7,6 @@ in the same commit — see
 
 ## Open
 
-- IN PROGRESS: release 0.4.0 instead of 0.3.8, and codify when a release is a patch, a minor or a major — [#78](https://github.com/yveshanoulle/forsgren/issues/78)
 - A view with the numbers and the DORA Quick Check scores side by side — [#55](https://github.com/yveshanoulle/forsgren/issues/55)
 - A config option for how far back the first collect run reads — [#57](https://github.com/yveshanoulle/forsgren/issues/57)
 - Auto-update docs: the README section and the check-update command line, from #58 — [#60](https://github.com/yveshanoulle/forsgren/issues/60)
