@@ -78,7 +78,7 @@ func wantParts(t *testing.T, got string, parts []string, holds bool) {
 // run runs run-summary for the row and checks its summary.
 func (c setupCase) run(t *testing.T) {
 	t.Helper()
-	setVersion(t, "0.3.8")
+	setVersion(t, "0.4.0")
 	installationWithoutIssuesWrite(t)
 	code, stdout, stderr := runCommand("run-summary", "--latest", version, "--pr-check", "ok",
 		"--needs-check", c.check)
@@ -94,7 +94,7 @@ func (c setupCase) run(t *testing.T) {
 // says what is missing, and lists nothing; with no-access, rate-limited or
 // failed it says why the setup issue could not be written and lists the Steps
 // of every need missing from the checkout, which run-summary computes itself.
-// The test pins the version at 0.3.8, the release that introduced the need.
+// The test pins the version at 0.4.0, the release that introduced the need.
 func TestRunSummaryReportsTheSetupIssue(t *testing.T) {
 	const ok = "- Setup: in place, or the setup issue says what is missing"
 	const noAccess = "- Setup: the setup issue could not be written for lack of `issues: write`; this version needs:"
@@ -134,7 +134,7 @@ func TestRunSummaryNamesAVersionWithNoNeeds(t *testing.T) {
 // run-summary computes the needs and the config cannot be read, its note on
 // stderr starts with run-summary:, never with check-needs:.
 func TestRunSummaryNotesAnUnreadableConfigAsItsOwn(t *testing.T) {
-	setVersion(t, "0.3.8")
+	setVersion(t, "0.4.0")
 	installationWithoutIssuesWrite(t)
 	if err := os.Remove("forsgren.config.yml"); err != nil {
 		t.Fatal(err)

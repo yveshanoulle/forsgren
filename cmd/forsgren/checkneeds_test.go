@@ -60,7 +60,7 @@ func installationWithoutIssuesWrite(t *testing.T) {
 }
 
 // installationWithIssuesWrite is the same checkout with issues: write on the
-// job: every need of 0.3.8 is in place.
+// job: every need of 0.4.0 is in place.
 func installationWithIssuesWrite(t *testing.T) {
 	t.Helper()
 	installationWithWorkflow(t, strings.Replace(workflowWithoutIssuesWrite,
@@ -90,7 +90,7 @@ func installationWithWorkflow(t *testing.T, workflow string) {
 // 15): with issues: write missing, check-needs creates the setup issue and
 // records ok; a refused write is the status no-access, never a red run, and
 // its note names GITHUB_TOKEN, the token check-needs writes with.
-// The test pins the version at 0.3.8, the release that introduced the need.
+// The test pins the version at 0.4.0, the release that introduced the need.
 func TestCheckNeedsWritesTheSetupIssueAndRecordsHowItWent(t *testing.T) {
 	cases := []struct {
 		name       string
@@ -103,7 +103,7 @@ func TestCheckNeedsWritesTheSetupIssueAndRecordsHowItWent(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			setVersion(t, "0.3.8")
+			setVersion(t, "0.4.0")
 			t.Setenv("GITHUB_TOKEN", testToken)
 			fake := newSetupServer(t, c.createCode)
 			installationWithoutIssuesWrite(t)
@@ -159,7 +159,7 @@ func newOpenIssueServer(t *testing.T) {
 // 19, Yves's ruling): with every need in place the status is ok even when
 // closing the open setup issue fails; the failed close is a note on stderr.
 func TestCheckNeedsNothingMissingIsOkWhateverTheCloseDid(t *testing.T) {
-	setVersion(t, "0.3.8")
+	setVersion(t, "0.4.0")
 	t.Setenv("GITHUB_TOKEN", testToken)
 	newOpenIssueServer(t)
 	installationWithIssuesWrite(t)
@@ -216,7 +216,7 @@ type failureCase struct {
 // run sets the row up and runs check-needs with its arguments.
 func (c failureCase) run(t *testing.T) {
 	t.Helper()
-	setVersion(t, "0.3.8")
+	setVersion(t, "0.4.0")
 	t.Setenv("GITHUB_TOKEN", testToken)
 	newSetupServer(t, http.StatusCreated)
 	installationWithoutIssuesWrite(t)

@@ -7,11 +7,11 @@ import (
 )
 
 // TestForReturnsTheNeedsAppliedFromTheirVersionOn (forsgren#73): a need
-// introduced in 0.3.8 applies to 0.3.8 and every later version, and to none
-// before it; versions compare as numbers, so 0.3.10 is later than 0.3.8.
+// introduced in 0.4.0 applies to 0.4.0 and every later version, and to none
+// before it; versions compare as numbers, so 0.4.10 is later than 0.4.9.
 func TestForReturnsTheNeedsAppliedFromTheirVersionOn(t *testing.T) {
 	issuesWrite := Need{
-		Version:    "0.3.8",
+		Version:    "0.4.0",
 		Kind:       "permission",
 		Workflow:   ".github/workflows/forsgren.yml",
 		Permission: "issues",
@@ -22,10 +22,10 @@ func TestForReturnsTheNeedsAppliedFromTheirVersionOn(t *testing.T) {
 		version string
 		want    []Need
 	}{
-		{"0.3.7", nil},
-		{"0.3.8", []Need{issuesWrite}},
-		{"0.3.10", []Need{issuesWrite}},
+		{"0.3.9", nil},
 		{"0.4.0", []Need{issuesWrite}},
+		{"0.4.10", []Need{issuesWrite}},
+		{"0.10.0", []Need{issuesWrite}},
 	}
 	for _, c := range cases {
 		got, err := For(c.version)
@@ -46,7 +46,7 @@ func TestForRefusesWhatItCannotRead(t *testing.T) {
 		{"non-numeric part", declared, "0.x.7", `version "0.x.7"`},
 		{"bad YAML", "- version: [", "0.3.7", "needs.yml"},
 		{"declared version unreadable", "- version: soon\n", "0.3.7", `needs.yml: version "soon"`},
-		{"kind with no check", "- version: 0.3.8\n  kind: permision\n", "0.3.8", `kind "permision"`},
+		{"kind with no check", "- version: 0.4.0\n  kind: permision\n", "0.4.0", `kind "permision"`},
 	}
 	for _, c := range cases {
 		got, err := forVersion(c.text, c.version)
