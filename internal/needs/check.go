@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+
+	"go.yaml.in/yaml/v3"
 )
 
 // Installation is the installation a need is checked against: the checkout
@@ -33,6 +35,7 @@ func Missing(all []Need, at Installation) []Need {
 var checks = map[string]func(n Need, at Installation) bool{
 	"file":       fileInPlace,
 	"config_key": configKeyInPlace,
+	"permission": permissionInPlace,
 }
 
 // inPlace reports whether the need n is in place in the installation at,
@@ -60,4 +63,33 @@ func configKeyInPlace(n Need, at Installation) bool {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// workflowFile is the part of a workflow that a permission need reads: the
+// permissions of each job, as written at job level.
+type workflowFile struct {
+	Jobs map[string]struct {
+		Permissions map[string]string `yaml:"permissions"`
+	} `yaml:"jobs"`
+}
+
+// permissionInPlace reports whether a job of the workflow of the need n
+// grants its permission at its access, or write for a need of read. A
+// workflow that cannot be read or parsed is not in place.
+func permissionInPlace(n Need, at Installation) bool {
+	data, err := os.ReadFile(filepath.Join(at.Root, n.Workflow))
+	var wf workflowFile
+	return err == nil && yaml.Unmarshal(data, &wf) == nil && grantsPermission(wf, n)
+}
+
+// grantsPermission reports whether some job of wf grants the permission of
+// the need n at its access, or write when the access is read.
+func grantsPermission(wf workflowFile, n Need) bool {
+	for _, job := range wf.Jobs {
+		level := job.Permissions[n.Permission]
+		if level == n.Access || (n.Access == "read" && level == "write") {
+			return true
+		}
+	}
+	return false
 }
