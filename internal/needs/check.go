@@ -39,6 +39,7 @@ var checks = map[string]func(n Need, at Installation) bool{
 	"file":       fileInPlace,
 	"config_key": configKeyInPlace,
 	"permission": permissionInPlace,
+	"secret":     secretInPlace,
 }
 
 // inPlace reports whether the need n is in place in the installation at,
@@ -60,6 +61,12 @@ func fileInPlace(n Need, at Installation) bool {
 // top-level keys of the installation's config.
 func configKeyInPlace(n Need, at Installation) bool {
 	return slices.Contains(at.ConfigKeys, n.Key)
+}
+
+// secretInPlace reports whether the environment variable of the need n is
+// set and non-empty in the metrics run. Getenv must be set.
+func secretInPlace(n Need, at Installation) bool {
+	return at.Getenv(n.Secret) != ""
 }
 
 // fileExists reports whether path can be stat-ed.

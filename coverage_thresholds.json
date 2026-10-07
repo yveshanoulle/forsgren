@@ -46,6 +46,7 @@
     "github.com/yveshanoulle/forsgren/internal/needs/check.go:configKeyInPlace": 100.0,
     "github.com/yveshanoulle/forsgren/internal/needs/check.go:permissionInPlace": 100.0,
     "github.com/yveshanoulle/forsgren/internal/needs/check.go:grantsPermission": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/needs/check.go:secretInPlace": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:renderTime": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:pageData": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:loadOrNone": 100.0,
