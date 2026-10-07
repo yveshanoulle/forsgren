@@ -32,8 +32,12 @@ type Need struct {
 	File       string `yaml:"file"`
 	// Key is the top-level key of forsgren.config.yml that a need of kind
 	// config_key asks for.
-	Key   string `yaml:"key"`
-	Steps string `yaml:"steps"`
+	Key string `yaml:"key"`
+	// Secret is the name of the environment variable through which the
+	// workflow passes a secret to forsgren, which a need of kind secret asks
+	// for: forsgren can only see a secret that arrives that way.
+	Secret string `yaml:"secret"`
+	Steps  string `yaml:"steps"`
 }
 
 // For returns the needs that apply to the running version: those introduced

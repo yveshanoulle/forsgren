@@ -55,6 +55,28 @@ func TestMissingReportsAConfigKeyNeedThatTheConfigLacks(t *testing.T) {
 	}
 }
 
+// TestMissingReportsASecretNeedThatTheRunDoesNotReceive (forsgren#73): a need
+// of kind secret is in place when the environment variable it names is
+// non-empty in the run, and missing when it is unset.
+func TestMissingReportsASecretNeedThatTheRunDoesNotReceive(t *testing.T) {
+	need := Need{Version: "0.3.8", Kind: "secret", Secret: "FORSGREN_TOKEN"}
+	cases := []struct {
+		name string
+		env  map[string]string
+		want []Need
+	}{
+		{"unset", map[string]string{}, []Need{need}},
+		{"set", map[string]string{"FORSGREN_TOKEN": "token-value"}, nil},
+	}
+	for _, c := range cases {
+		env := c.env
+		got := Missing([]Need{need}, Installation{Getenv: func(k string) string { return env[k] }})
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%s: want missing %v, got %v", c.name, c.want, got)
+		}
+	}
+}
+
 const callerWorkflow = ".github/workflows/forsgren.yml"
 
 // templateWorkflow is the caller workflow of forsgren-template: the grants of

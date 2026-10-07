@@ -16,6 +16,9 @@ type Installation struct {
 	// forsgren.config.yml, read by the caller: this package does not parse
 	// the config.
 	ConfigKeys []string
+	// Getenv reads an environment variable of the metrics run, for a need of
+	// kind secret: the caller passes os.Getenv.
+	Getenv func(string) string
 }
 
 // Missing returns the needs of all that are not in place in the
