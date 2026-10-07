@@ -10,6 +10,7 @@
 //	forsgren collect --config <path> --data <path>
 //	forsgren latest-release
 //	forsgren waiting-pull-request --version <x.y.z> [--status <path>]
+//	forsgren check-needs --config <path> --repository <owner/name> [--status <path>]
 //	forsgren run-summary --latest <version> --waiting-pr <number>
 //	                     --pr-check <ok|no-access|rate-limited|failed|skipped> --repository <owner/name>
 package main
@@ -30,6 +31,7 @@ const usage = `usage: forsgren render --out <dir> [--config <path>] [--data <pat
        forsgren collect --config <path> --data <path>
        forsgren latest-release
        forsgren waiting-pull-request --version <x.y.z> [--status <path>]
+       forsgren check-needs --config <path> --repository <owner/name> [--status <path>]
        forsgren run-summary --latest <version> --waiting-pr <number>
                             --pr-check <ok|no-access|rate-limited|failed|skipped> --repository <owner/name>`
 
@@ -52,6 +54,7 @@ var commands = map[string]func(args []string, stdout, stderr io.Writer) int{
 	"latest-release":       latestRelease,
 	"waiting-pull-request": waitingPullRequest,
 	"run-summary":          runSummary,
+	"check-needs":          checkNeeds,
 	"check-update":         checkUpdate,
 	"install-update":       installUpdate,
 }
