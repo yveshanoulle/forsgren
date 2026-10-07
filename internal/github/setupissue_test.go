@@ -230,3 +230,39 @@ func TestPatchIssuePassesOnItsErrors(t *testing.T) {
 		}
 	}
 }
+
+// TestCloseIssueCommentsThenCloses (forsgren#73, step 12): one POST of the
+// comment to the issue's comments, then one PATCH of the issue with only the
+// state closed, in that order: the reader sees why it was closed, and a
+// failed comment leaves the issue open.
+func TestCloseIssueCommentsThenCloses(t *testing.T) {
+	f := newFake(t)
+	f.on(issuesPath+"/7/comments", reply{status: 201, body: `{"id": 1}`})
+	f.on(issuesPath+"/7", reply{body: `{"number": 7}`})
+	comment := "All items are in place."
+	err := f.client(t, DefaultMaxPages).CloseIssue(context.Background(), "acme/app", 7, comment)
+	if err != nil {
+		t.Errorf("want no error, got %v", err)
+	}
+	wantComment := map[string]any{"body": comment}
+	if sent := bodyOfRequest(t, f, "POST", issuesPath+"/7/comments"); !reflect.DeepEqual(sent, wantComment) {
+		t.Errorf("want the comment body %v, got %v", wantComment, sent)
+	}
+	wantClose := map[string]any{"state": "closed"}
+	if sent := bodyOfRequest(t, f, "PATCH", issuesPath+"/7"); !reflect.DeepEqual(sent, wantClose) {
+		t.Errorf("want the close body %v, got %v", wantClose, sent)
+	}
+	wantOrder := []string{"POST " + issuesPath + "/7/comments", "PATCH " + issuesPath + "/7"}
+	if got := requestLines(f); !reflect.DeepEqual(got, wantOrder) {
+		t.Errorf("want the requests in order %v, got %v", wantOrder, got)
+	}
+}
+
+// requestLines is the requests the fake got, in order, as "METHOD path".
+func requestLines(f *fakeGitHub) []string {
+	var lines []string
+	for _, r := range f.seen() {
+		lines = append(lines, r.Method+" "+r.URL.Path)
+	}
+	return lines
+}
