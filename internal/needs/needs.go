@@ -37,12 +37,17 @@ type Need struct {
 // than 0.3.7). A version that is not three dot-separated numbers, or a
 // declaration that cannot be read, is an error.
 func For(version string) ([]Need, error) {
+	return forVersion(declared, version)
+}
+
+// forVersion is For over the declarations in text.
+func forVersion(text, version string) ([]Need, error) {
 	running, err := numbers(version)
 	if err != nil {
 		return nil, err
 	}
 	var all []Need
-	if err := yaml.Unmarshal([]byte(declared), &all); err != nil {
+	if err := yaml.Unmarshal([]byte(text), &all); err != nil {
 		return nil, fmt.Errorf("needs.yml: %w", err)
 	}
 	var applying []Need
