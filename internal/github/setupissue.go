@@ -1,8 +1,11 @@
 package github
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 )
@@ -82,5 +85,29 @@ func isMarkedIssue(i issue, marker string) bool {
 // it answers 201 with the created issue, whose number is its number in the
 // repository.
 func (c *Client) CreateIssue(ctx context.Context, repo, title, body string, labels []string) (int64, error) {
-	return 0, nil
+	t, err := c.endpoint(repo, nil, "issues")
+	if err != nil {
+		return 0, err
+	}
+	// A struct of strings always marshals, so the error is dropped, as exchange does.
+	raw, _ := json.Marshal(newIssue{Title: title, Body: body, Labels: labels})
+	k := call{method: http.MethodPost, accept: jsonMedia, t: t, body: bytes.NewReader(raw)}
+	answer, _, err := c.do(ctx, k)
+	if err != nil {
+		return 0, err
+	}
+	var created struct {
+		Number int64 `json:"number"`
+	}
+	if err := json.Unmarshal(answer, &created); err != nil {
+		return 0, fmt.Errorf("%s: %w for %s: %w", repo, ErrAnswer, t.path(), err)
+	}
+	return created.Number, nil
+}
+
+// newIssue is the JSON body of POST /repos/{owner}/{repo}/issues.
+type newIssue struct {
+	Title  string   `json:"title"`
+	Body   string   `json:"body"`
+	Labels []string `json:"labels"`
 }

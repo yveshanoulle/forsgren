@@ -144,3 +144,29 @@ func TestCreateIssuePostsTheIssueAndReturnsItsNumber(t *testing.T) {
 		t.Errorf("want the body %v, got %v", want, sent)
 	}
 }
+
+// TestCreateIssuePassesOnItsErrors (forsgren#73): an error comes back as it
+// is, with number 0: a repository name that is not owner/name
+// (ErrRepositoryName), an HTTP error status (ErrStatus) and an answer that
+// is not JSON (the decoder's *json.SyntaxError).
+func TestCreateIssuePassesOnItsErrors(t *testing.T) {
+	for name, c := range map[string]struct {
+		repo  string
+		reply reply
+		is    func(error) bool
+	}{
+		"invalid repository name": {"acme", reply{status: 201, body: `{"number": 7}`}, isError(ErrRepositoryName)},
+		"http error status":       {"acme/app", reply{status: 500, body: `{"number": 7}`}, isError(ErrStatus)},
+		"malformed body":          {"acme/app", reply{status: 201, body: "{not json"}, isSyntaxError},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFake(t)
+			f.on(issuesPath, c.reply)
+			got, err := f.client(t, DefaultMaxPages).CreateIssue(
+				context.Background(), c.repo, "Set up forsgren", "Hello", []string{"forsgren-setup"})
+			if got != 0 || err == nil || !c.is(err) {
+				t.Errorf("want number 0 and the error's reason, got %d, %v", got, err)
+			}
+		})
+	}
+}
