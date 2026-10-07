@@ -30,6 +30,7 @@ type summaryInput struct {
 	latest     string
 	waitingPR  int
 	check      string
+	needsCheck string
 	repository string
 }
 
@@ -55,6 +56,8 @@ func summaryFlags(args []string, stderr io.Writer) (summaryInput, bool) {
 	flags.StringVar(&in.latest, "latest", "", "the newest forsgren release, empty or not a version when unknown")
 	flags.IntVar(&in.waitingPR, "waiting-pr", 0, "the open Dependabot pull request for it, 0 for none")
 	flags.StringVar(&in.check, "pr-check", "", "how the pull request lookup went: "+strings.Join(statuses, ", "))
+	flags.StringVar(&in.needsCheck, "needs-check", "",
+		"how the setup issue went: ok, no-access, rate-limited or failed (optional)")
 	flags.StringVar(&in.repository, "repository", "", "the installation's owner/name, for the pull request's link")
 	if err := flags.Parse(args); err != nil {
 		return in, false

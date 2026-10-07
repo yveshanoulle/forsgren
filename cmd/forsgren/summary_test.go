@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -49,6 +50,49 @@ func TestRunSummaryTellsWhereTheUpdateStands(t *testing.T) {
 			code, stdout, stderr := runCommand(append([]string{"run-summary"}, c.args...)...)
 			if code != 0 || stdout != c.want {
 				t.Errorf("want exit 0 and:\n%s\ngot %d, %q, stderr %q", c.want, code, stdout, stderr)
+			}
+		})
+	}
+}
+
+// TestRunSummaryReportsTheSetupIssue (forsgren#73, step 17): with
+// --needs-check ok the summary says the setup is in place or the setup issue
+// says what is missing, and lists nothing; with no-access it says the setup
+// issue could not be written for lack of issues: write and lists the Steps of
+// every need missing from the checkout, which run-summary computes itself.
+// The binary's version is 0.3.7, before the need, so the test runs as 0.3.8.
+func TestRunSummaryReportsTheSetupIssue(t *testing.T) {
+	const ok = "- Setup: in place, or the setup issue says what is missing"
+	const noAccess = "- Setup: the setup issue could not be written for lack of `issues: write`; this version needs:"
+	const steps = "Add `issues: write` to the `permissions:` of the forsgren job in .github/workflows/forsgren.yml"
+	cases := []struct {
+		name, check string
+		want        []string
+		wantNot     []string
+	}{
+		{"no access", "no-access", []string{noAccess, steps}, []string{ok}},
+		{"ok", "ok", []string{ok}, []string{steps, noAccess}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			oldVersion := version
+			version = "0.3.8"
+			t.Cleanup(func() { version = oldVersion })
+			installationWithoutIssuesWrite(t)
+			code, stdout, stderr := runCommand("run-summary", "--latest", version, "--pr-check", "ok",
+				"--needs-check", c.check)
+			if code != 0 {
+				t.Fatalf("want exit 0, got %d, stderr %q", code, stderr)
+			}
+			for _, w := range c.want {
+				if !strings.Contains(stdout, w) {
+					t.Errorf("want the summary to contain %q, got %q", w, stdout)
+				}
+			}
+			for _, w := range c.wantNot {
+				if strings.Contains(stdout, w) {
+					t.Errorf("want the summary not to contain %q, got %q", w, stdout)
+				}
 			}
 		})
 	}
