@@ -56,13 +56,28 @@ func newSetupServer(t *testing.T, createCode int) *setupServer {
 // the test: the workflow without issues: write and a minimal config.
 func installationWithoutIssuesWrite(t *testing.T) {
 	t.Helper()
+	installationWithWorkflow(t, workflowWithoutIssuesWrite)
+}
+
+// installationWithIssuesWrite is the same checkout with issues: write on the
+// job: every need of 0.3.8 is in place.
+func installationWithIssuesWrite(t *testing.T) {
+	t.Helper()
+	installationWithWorkflow(t, strings.Replace(workflowWithoutIssuesWrite,
+		"      pages: write\n", "      issues: write\n      pages: write\n", 1))
+}
+
+// installationWithWorkflow makes a checkout the working directory of the
+// test: the workflow and a minimal config.
+func installationWithWorkflow(t *testing.T, workflow string) {
+	t.Helper()
 	dir := t.TempDir()
 	t.Chdir(dir)
 	if err := os.MkdirAll(filepath.Join(dir, ".github", "workflows"), 0o750); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, ".github", "workflows", "forsgren.yml"),
-		[]byte(workflowWithoutIssuesWrite), 0o600); err != nil {
+		[]byte(workflow), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	config := []byte("version: 1\nprojects: []\n")
@@ -121,6 +136,43 @@ func wantCreatedWithMarker(t *testing.T, fake *setupServer) {
 	}
 	if !strings.HasPrefix(posted.Body, needs.Marker) {
 		t.Errorf("posted body %q, want it to start with the marker", posted.Body)
+	}
+}
+
+// newOpenIssueServer answers the setup issue lookup with the open, marked
+// issue 7 and every write to it, the comment of its close first, with 500.
+func newOpenIssueServer(t *testing.T) {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		_, _ = io.WriteString(w, `[{"number": 7, "state": "open", "title": "Setup", "created_at": "2026-10-01T00:00:00Z", `+
+			`"body": "`+needs.Marker+`\nsomething"}]`)
+	}))
+	t.Cleanup(srv.Close)
+	setGithubAPI(t, srv.URL)
+}
+
+// TestCheckNeedsNothingMissingIsOkWhateverTheCloseDid (forsgren#73, step
+// 19, Yves's ruling): with every need in place the status is ok even when
+// closing the open setup issue fails; the failed close is a note on stderr.
+func TestCheckNeedsNothingMissingIsOkWhateverTheCloseDid(t *testing.T) {
+	setVersion(t, "0.3.8")
+	t.Setenv("GITHUB_TOKEN", testToken)
+	newOpenIssueServer(t)
+	installationWithIssuesWrite(t)
+	code, _, stderr := runCommand("check-needs", "--config", "forsgren.config.yml",
+		"--repository", "acme/data", "--status", "needs-status.txt")
+	if code != 0 {
+		t.Errorf("want exit 0, got %d, stderr %q", code, stderr)
+	}
+	if !strings.Contains(stderr, "the setup issue could not be closed") {
+		t.Errorf("stderr %q, want a note that the setup issue could not be closed", stderr)
+	}
+	if got := readFile(t, "needs-status.txt"); got != statusOK {
+		t.Errorf("status = %q, want %q", got, statusOK)
 	}
 }
 

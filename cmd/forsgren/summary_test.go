@@ -130,6 +130,25 @@ func TestRunSummaryNamesAVersionWithNoNeeds(t *testing.T) {
 	}
 }
 
+// TestRunSummaryNotesAnUnreadableConfigAsItsOwn (forsgren#73, step 19): when
+// run-summary computes the needs and the config cannot be read, its note on
+// stderr starts with run-summary:, never with check-needs:.
+func TestRunSummaryNotesAnUnreadableConfigAsItsOwn(t *testing.T) {
+	setVersion(t, "0.3.8")
+	installationWithoutIssuesWrite(t)
+	if err := os.Remove("forsgren.config.yml"); err != nil {
+		t.Fatal(err)
+	}
+	code, _, stderr := runCommand("run-summary", "--latest", version, "--pr-check", "ok",
+		"--needs-check", "failed")
+	if code != 0 {
+		t.Errorf("want exit 0, got %d", code)
+	}
+	if !strings.HasPrefix(stderr, "run-summary:") || strings.Contains(stderr, "check-needs:") {
+		t.Errorf("stderr %q, want it to start with run-summary: and not name check-needs:", stderr)
+	}
+}
+
 // TestRunSummaryRefusesWhatItCannotTell (forsgren#40, step 6): a pr-check
 // that is none of ok, no-access, rate-limited, failed or skipped, or a waiting pull request
 // with no repository to link: a usage error that says which flag and prints
