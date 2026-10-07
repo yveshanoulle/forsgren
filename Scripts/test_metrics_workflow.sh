@@ -195,6 +195,17 @@
 #      fails appends nothing and the step exits 0; and pin 31 adds that the
 #      waiting step outputs `check=` from the status file its lookup writes
 #      (`--status`), skipped without a latest release;
+#  34. the step "Check what this forsgren version needs" (forsgren#73) hands
+#      forsgren the job's token as GITHUB_TOKEN, runs from the checkout root
+#      (no working-directory) and, EXECUTED with the stub, runs exactly
+#      `forsgren check-needs --config forsgren.config.yml --repository
+#      $GITHUB_REPOSITORY --status ${RUNNER_TEMP}/needs-status` (the
+#      repository through the environment, as pin 3 demands: no expression in
+#      a run: block), next to the waiting step's status file, and never
+#      fails the run, whatever check-needs does; pin 9 puts it after the
+#      checkout and the config check and before "Write the run summary",
+#      which reads its status; and pin 16 adds that the documented caller
+#      permissions name `issues: write`, with its reason: the setup issue;
 #  and pin 9 also orders the steps: install, checkout, starter, config check,
 #  collect, data commit, render, and the fail step after "Publish to GitHub
 #  Pages", so what was stored is committed and published before the job
@@ -257,6 +268,7 @@ RENDER_STEP="Render the page"
 LATEST_STEP="Look up the latest forsgren release"
 WAITING_STEP="Look up the waiting Dependabot pull request"
 SUMMARY_STEP="Write the run summary"
+NEEDS_STEP="Check what this forsgren version needs"
 INIT_STEP="Write the starter configuration on a new install"
 CROSS="❌"
 CONFIG_CMD="check-config --config forsgren.config.yml"
@@ -383,7 +395,8 @@ install_outcome() {
 # with STUB_REFUSAL set, it says that on stderr and exits 1, else it says OK.
 # waiting-pull-request writes STUB_PRSTATUS (printf %b) to the file its last
 # argument names, when set, then prints STUB_WAITING and exits with
-# STUB_WAITING_RC; run-summary prints STUB_SUMMARY and exits with
+# STUB_WAITING_RC; check-needs writes STUB_NEEDSSTATUS the same way and exits
+# with STUB_NEEDS_RC; run-summary prints STUB_SUMMARY and exits with
 # STUB_SUMMARY_RC.
 # latest-release prints STUB_LATEST (printf %b: \n is a line break) and exits
 # with STUB_LATEST_RC (0 by default).
@@ -430,6 +443,12 @@ fi
 if [[ "${1:-}" == run-summary ]]; then
   printf '%b' "${STUB_SUMMARY:-}"
   exit "${STUB_SUMMARY_RC:-0}"
+fi
+if [[ "${1:-}" == check-needs ]]; then
+  if [[ -n "${STUB_NEEDSSTATUS:-}" && "$#" -ge 2 && "${*:$#-1:1}" == --status ]]; then
+    printf '%b' "$STUB_NEEDSSTATUS" > "${@:$#}"
+  fi
+  exit "${STUB_NEEDS_RC:-0}"
 fi
 if [[ "${1:-}" == waiting-pull-request ]]; then
   if [[ -n "${STUB_PRSTATUS:-}" && "$#" -ge 2 && "${*:$#-1:1}" == --status ]]; then
@@ -845,6 +864,42 @@ judge_waiting_lookup() {
   [[ "$got" == "$want" ]] || echo "with no latest release the waiting step gives '${got}', not '${want}' — there is no version to look a pull request up for, so its check is skipped"
 }
 
+# needs_outcome <script> <stub exit status>: what the needs step does, in a
+# workspace with GITHUB_REPOSITORY acme/data, as `exit=<rc> calls=<forsgren
+# calls>`; the runner's temp directory shows as RUNNER_TEMP.
+needs_outcome() {
+  local rc=0 calls="${TMP}/fg.calls"
+  : > "$calls"
+  rm -rf "${TMP}/runner"
+  mkdir -p "${TMP}/runner"
+  PATH="${STUB}:${PATH}" FG_CALLS="$calls" GITHUB_REPOSITORY="acme/data" STUB_NEEDS_RC="$2" STUB_NEEDSSTATUS="ok" \
+    RUNNER_TEMP="${TMP}/runner" bash "$1" > /dev/null 2>&1 || rc=$?
+  echo "exit=${rc} calls=$(paste -sd, - < "$calls" | sed "s|${TMP}/runner/|RUNNER_TEMP/|g")"
+}
+
+# judge_needs_check <workflow-file>: pin 34, the needs step.
+judge_needs_check() {
+  local script="${TMP}/needs.sh" got want
+  if [[ -z "$(step_text "$1" "$NEEDS_STEP")" ]]; then
+    echo "has no step '${NEEDS_STEP}' — nothing opens forsgren's setup issue when this version needs more configuration"
+    return 0
+  fi
+  judge_job_token "$1" "$NEEDS_STEP" "the needs step" "the setup issue is opened with it"
+  if step_text "$1" "$NEEDS_STEP" | grep -qE '^        working-directory:'; then
+    echo "the needs step sets a working-directory — check-needs checks the checkout root"
+  fi
+  step_block "$1" "$NEEDS_STEP" run > "$script"
+  if [[ ! -s "$script" ]]; then
+    echo "has no step '${NEEDS_STEP}' with a run: | block"
+    return 0
+  fi
+  want="exit=0 calls=check-needs --config forsgren.config.yml --repository acme/data --status RUNNER_TEMP/needs-status"
+  got="$(needs_outcome "$script" 0)"
+  [[ "$got" == "$want" ]] || echo "the needs step gives '${got}', not '${want}' — the status file sits next to the waiting step's"
+  got="$(needs_outcome "$script" 1)"
+  [[ "$got" == "$want" ]] || echo "for a check-needs that fails the needs step gives '${got}', not '${want}' — checking the needs never fails the run"
+}
+
 # summary_outcome <script> <stub summary> <stub exit status>: what the run
 # summary step does, with LATEST 0.0.10, WAITING 7 and PR_CHECK ok in its
 # environment and a stub run-summary that prints that and exits with that:
@@ -911,7 +966,7 @@ judge_render_latest() {
   [[ "$got" == "$want" ]] || echo "with LATEST set the render step runs 'forsgren ${got}', not 'forsgren ${want}' — the footer names a newer release only when render is given it"
 }
 
-# judge_permissions <workflow-file>: pin 16, no permissions block and no
+# judge_permissions <workflow-file>: pin 16 (and pin 34's issues: write), no permissions block and no
 # pull-requests permission: the called workflow takes what its caller's job
 # grants and never asks for more, which would stop the run of a caller that
 # does not grant it.
@@ -921,6 +976,11 @@ judge_permissions() {
   fi
   if grep -qE '^[[:space:]]+pull-requests:' "$1"; then
     echo "the workflow names a pull-requests permission — callers that do not grant it would fail to start; the caller grants it, and the lookup treats a 403 as unknown"
+  fi
+  if ! grep -qE '^#[[:space:]]+issues: write[[:space:]]' "$1"; then
+    echo "the documented caller permissions do not list 'issues: write' — a caller must grant it for forsgren to open its setup issue"
+  elif ! grep -A3 -E '^#[[:space:]]+issues: write[[:space:]]' "$1" | grep -qF 'setup issue'; then
+    echo "the documented 'issues: write' does not give its reason, the setup issue — it lets forsgren open it when this version needs more configuration; without it, the job summary and page footer say so"
   fi
 }
 
@@ -1360,7 +1420,7 @@ judge_config_e2e() {
 
 # judge_order <workflow-file>: pin 9.
 judge_order() {
-  local install checkout init check render collect data publish failstep lookup
+  local install checkout init check render collect data publish failstep lookup needs
   lookup="$(line_of "$1" "- name: ${LATEST_STEP}")"
   install="$(line_of "$1" "- name: ${INSTALL_STEP}")"
   checkout="$(line_of "$1" "- name: ${CHECKOUT_STEP}")"
@@ -1391,6 +1451,16 @@ judge_order() {
   fi
   if later "$install" "$init"; then
     echo "writes the starter (line ${init}) before installing forsgren (line ${install}) — init-config is not on PATH yet"
+  fi
+  needs="$(line_of "$1" "- name: ${NEEDS_STEP}")"
+  if later "$checkout" "$needs"; then
+    echo "checks the needs (line ${needs}) before checking out the caller's repository (line ${checkout}) — there is no checkout to check"
+  fi
+  if later "$check" "$needs"; then
+    echo "checks the needs (line ${needs}) before the config check (line ${check}) — it would read a configuration nobody checked"
+  fi
+  if later "$needs" "$(line_of "$1" "- name: ${SUMMARY_STEP}")"; then
+    echo "checks the needs (line ${needs}) after the run summary — the summary reads its status"
   fi
   if later "$(line_of "$1" "- name: ${WAITING_STEP}")" "$render"; then
     echo "looks up the waiting pull request after it renders — render is given the lookup's output"
@@ -1520,6 +1590,7 @@ judge() {
   judge_waiting_lookup "$1"
   judge_render_waiting "$1"
   judge_run_summary "$1"
+  judge_needs_check "$1"
   judge_secret "$1"
   judge_collect_step "$1"
   judge_collect_token "$1"
