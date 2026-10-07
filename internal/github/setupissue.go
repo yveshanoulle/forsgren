@@ -127,6 +127,15 @@ type updatedIssue struct {
 	Body  string `json:"body"`
 }
 
+// ReopenIssue reopens issue number of repo and sets its title and body in
+// the same call: PATCH /repos/{owner}/{repo}/issues/{number} with the JSON
+// body {title, body, state: "open"}. It is one call because the title, the
+// body and the state change together: the one setup issue of an installation
+// is reopened and updated, never replaced (forsgren#73).
+func (c *Client) ReopenIssue(ctx context.Context, repo string, number int64, title, body string) error {
+	return nil
+}
+
 // sendJSON sends payload as JSON with method to the endpoint of repo under
 // segments, and returns the answer's body and the target it went to.
 func (c *Client) sendJSON(

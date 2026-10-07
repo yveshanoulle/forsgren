@@ -188,6 +188,23 @@ func TestUpdateIssuePatchesTitleAndBodyOnly(t *testing.T) {
 	}
 }
 
+// TestReopenIssuePatchesTitleBodyAndStateOpen (forsgren#73, step 11): one
+// PATCH to the issue's own path with the title, the body and state open, so
+// the one setup issue is reopened and updated together.
+func TestReopenIssuePatchesTitleBodyAndStateOpen(t *testing.T) {
+	f := newFake(t)
+	f.on(issuesPath+"/9", reply{body: `{"number": 9}`})
+	err := f.client(t, DefaultMaxPages).ReopenIssue(
+		context.Background(), "acme/app", 9, "Set up forsgren again", "Hello again")
+	if err != nil {
+		t.Errorf("want no error, got %v", err)
+	}
+	want := map[string]any{"title": "Set up forsgren again", "body": "Hello again", "state": "open"}
+	if sent := bodyOfRequest(t, f, "PATCH", issuesPath+"/9"); !reflect.DeepEqual(sent, want) {
+		t.Errorf("want the body %v, got %v", want, sent)
+	}
+}
+
 // TestUpdateIssuePassesOnItsErrors (forsgren#73): an error comes back as it
 // is: a repository name that is not owner/name (ErrRepositoryName) and an
 // HTTP error status (ErrStatus).
