@@ -185,7 +185,9 @@
 #      a second line, and never asks when there is no latest release;
 #  32. the render step takes that output through env: only (`WAITING:
 #      ${{ steps.waiting.outputs.waiting }}`) and, EXECUTED with the stub,
-#      passes `--waiting-pr <number>` when it is set;
+#      passes `--waiting-pr <number>` when it is set, and likewise
+#      `NEEDS_CHECK: ${{ steps.needs.outputs.check }}` for `--needs-check
+#      <check>` (forsgren#73);
 #  33. the step "Write the run summary" (forsgren#40) takes LATEST, WAITING,
 #      PR_CHECK (the waiting step's `check` output: ok, no-access,
 #      rate-limited, failed or skipped) and NEEDS_CHECK (the needs step's
@@ -952,6 +954,21 @@ judge_render_waiting() {
   [[ "$got" == "$want" ]] || echo "with WAITING set the render step runs 'forsgren ${got}', not 'forsgren ${want}' — the footer names the pull request only when render is given it"
 }
 
+# judge_render_needs <workflow-file>: pin 32, the render step passes the
+# needs step's check on (forsgren#73), and nothing when it is empty.
+judge_render_needs() {
+  local script="${TMP}/render.sh" env got want
+  env="$(step_block "$1" "$RENDER_STEP" env)"
+  if ! grep -qxF -- "NEEDS_CHECK: ${EXPR_OPEN} steps.needs.outputs.check }}" <<< "$env"; then
+    echo "the render step's env: does not set NEEDS_CHECK from steps.needs.outputs.check — render is not told what this version needs"
+  fi
+  step_block "$1" "$RENDER_STEP" run > "$script"
+  [[ -s "$script" ]] || return 0
+  got="$(render_calls "$script" NEEDS_CHECK=no-access)"
+  want="render --out ${TMP}/runner/site --config forsgren.config.yml --data data/deployments.csv --needs-check no-access"
+  [[ "$got" == "$want" ]] || echo "with NEEDS_CHECK set the render step runs 'forsgren ${got}', not 'forsgren ${want}' — the footer sends the reader to the job summary only when render is given the check"
+}
+
 # judge_render_latest <workflow-file>: pin 30, the render step passes the
 # lookup's output on.
 judge_render_latest() {
@@ -1590,6 +1607,7 @@ judge() {
   judge_render_latest "$1"
   judge_waiting_lookup "$1"
   judge_render_waiting "$1"
+  judge_render_needs "$1"
   judge_run_summary "$1"
   judge_needs_check "$1"
   judge_secret "$1"
@@ -1793,6 +1811,10 @@ proves judge_latest_lookup "a lookup that fails the job" "for a lookup that fail
   's/forsgren latest-release || true/forsgren latest-release/'
 proves judge_latest_lookup "a lookup output that is not checked" "for an answer that is not a version" \
   "/if \\[\\[ ! \"\\${D}latest\" =~/,/^          fi${D}/d"
+proves judge_render_needs "a render without the needs check" "with NEEDS_CHECK set the render step runs" \
+  "s/ \\${D}{NEEDS_CHECK:+--needs-check \"\\${D}NEEDS_CHECK\"}//"
+proves judge_render_needs "a render without NEEDS_CHECK in env" "does not set NEEDS_CHECK from steps.needs.outputs.check" \
+  "0,/NEEDS_CHECK: \\${D}{{ steps.needs.outputs.check }}/{/NEEDS_CHECK: \\${D}{{ steps.needs.outputs.check }}/d}"
 proves judge_render_latest "a render without the latest release" "with LATEST set the render step runs" \
   "s/ \\${D}{LATEST:+--latest \"\\${D}LATEST\"}//"
 proves judge_render_latest "a render without LATEST in env" "does not set LATEST from steps.latest.outputs.latest" \

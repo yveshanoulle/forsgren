@@ -58,3 +58,14 @@ func (d Data) Update() string {
 	version, _ := ReleaseVersion(d.Latest)
 	return version
 }
+
+// NeedsMore reports whether the check of what this version needs could not
+// settle it (forsgren#73): no access, a rate limit or a failure, so the
+// footer sends the reader to the run's job summary. ok and empty say nothing.
+func (d Data) NeedsMore() bool {
+	switch d.NeedsCheck {
+	case "no-access", "rate-limited", "failed":
+		return true
+	}
+	return false
+}

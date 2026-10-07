@@ -48,6 +48,7 @@
     "github.com/yveshanoulle/forsgren/internal/page/release.go:numbers": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/release.go:newer": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/release.go:Update": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/release.go:NeedsMore": 100.0,
     "github.com/yveshanoulle/forsgren/internal/needs/needs.go:For": 100.0,
     "github.com/yveshanoulle/forsgren/internal/needs/needs.go:forVersion": 100.0,
     "github.com/yveshanoulle/forsgren/internal/needs/needs.go:introducedOf": 100.0,

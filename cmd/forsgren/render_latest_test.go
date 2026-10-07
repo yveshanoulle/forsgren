@@ -225,3 +225,11 @@ func TestRenderSaysWhenThisVersionNeedsMoreConfiguration(t *testing.T) {
 	wantPage(t, version+" Metrics", "needs more configuration", "--needs-check", "ok")
 	wantPage(t, version+" Metrics", "needs more configuration")
 }
+
+// TestRenderJoinsTheUpdateAndWhatThisVersionNeeds (forsgren#73, step 18): when
+// the footer names a newer release and the version needs more configuration,
+// both clauses show, the update's sentence first.
+func TestRenderJoinsTheUpdateAndWhatThisVersionNeeds(t *testing.T) {
+	wantPage(t, "Forsgren</a> "+version+" · 99.0.0 is available. · needs more configuration: see the job summary of this run. Metrics",
+		"", "--latest", "99.0.0", "--needs-check", "failed")
+}
