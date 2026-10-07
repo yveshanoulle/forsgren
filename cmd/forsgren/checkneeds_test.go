@@ -90,7 +90,7 @@ func installationWithWorkflow(t *testing.T, workflow string) {
 // 15): with issues: write missing, check-needs creates the setup issue and
 // records ok; a refused write is the status no-access, never a red run, and
 // its note names GITHUB_TOKEN, the token check-needs writes with.
-// The binary's version is 0.3.7, before the need, so the test runs as 0.3.8.
+// The test pins the version at 0.3.8, the release that introduced the need.
 func TestCheckNeedsWritesTheSetupIssueAndRecordsHowItWent(t *testing.T) {
 	cases := []struct {
 		name       string

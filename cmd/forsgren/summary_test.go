@@ -94,7 +94,7 @@ func (c setupCase) run(t *testing.T) {
 // says what is missing, and lists nothing; with no-access, rate-limited or
 // failed it says why the setup issue could not be written and lists the Steps
 // of every need missing from the checkout, which run-summary computes itself.
-// The binary's version is 0.3.7, before the need, so the test runs as 0.3.8.
+// The test pins the version at 0.3.8, the release that introduced the need.
 func TestRunSummaryReportsTheSetupIssue(t *testing.T) {
 	const ok = "- Setup: in place, or the setup issue says what is missing"
 	const noAccess = "- Setup: the setup issue could not be written for lack of `issues: write`; this version needs:"
