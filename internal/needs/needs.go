@@ -7,6 +7,12 @@ package needs
 
 import (
 	_ "embed" // The declarations are embedded.
+	"fmt"
+	"slices"
+	"strconv"
+	"strings"
+
+	"go.yaml.in/yaml/v3"
 )
 
 // declared is needs.yml, the one text of what the releases need.
@@ -26,7 +32,45 @@ type Need struct {
 	Steps      string `yaml:"steps"`
 }
 
-// For returns the needs that apply to the running version.
+// For returns the needs that apply to the running version: those introduced
+// in it or in an earlier one, versions compared as numbers (0.3.10 is later
+// than 0.3.7). A version that is not three dot-separated numbers, or a
+// declaration that cannot be read, is an error.
 func For(version string) ([]Need, error) {
-	return nil, nil
+	running, err := numbers(version)
+	if err != nil {
+		return nil, err
+	}
+	var all []Need
+	if err := yaml.Unmarshal([]byte(declared), &all); err != nil {
+		return nil, fmt.Errorf("needs.yml: %w", err)
+	}
+	var applying []Need
+	for _, n := range all {
+		introduced, err := numbers(n.Version)
+		if err != nil {
+			return nil, fmt.Errorf("needs.yml: %w", err)
+		}
+		if slices.Compare(introduced[:], running[:]) <= 0 {
+			applying = append(applying, n)
+		}
+	}
+	return applying, nil
+}
+
+// numbers is the three numbers of a version, with or without a leading "v".
+func numbers(version string) ([3]int, error) {
+	var n [3]int
+	parts := strings.Split(strings.TrimPrefix(version, "v"), ".")
+	if len(parts) != len(n) {
+		return n, fmt.Errorf("version %q is not three dot-separated numbers", version)
+	}
+	for i, part := range parts {
+		v, err := strconv.Atoi(part)
+		if err != nil {
+			return n, fmt.Errorf("version %q is not three dot-separated numbers", version)
+		}
+		n[i] = v
+	}
+	return n, nil
 }

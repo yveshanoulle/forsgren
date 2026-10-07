@@ -15,7 +15,8 @@ func TestForReturnsTheNeedsAppliedFromTheirVersionOn(t *testing.T) {
 		Workflow:   ".github/workflows/forsgren.yml",
 		Permission: "issues",
 		Access:     "write",
-		Steps:      "Add `issues: write` to the `permissions:` of the job in .github/workflows/forsgren.yml, so forsgren can open its setup issue.",
+		Steps: "Add `issues: write` to the `permissions:` of the job in " +
+			".github/workflows/forsgren.yml, so forsgren can open its setup issue.",
 	}
 	cases := []struct {
 		version string
