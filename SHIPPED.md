@@ -188,3 +188,7 @@ forsgren 0.4.0 re-releases what was 0.3.8, the setup issue ([#73](https://github
 ## 2026-10-10 — the footer opens with the Forsgren line, the legend link follows it, released as 0.4.1 ([#83](https://github.com/yveshanoulle/forsgren/issues/83))
 
 The footer now opens with "Forsgren <version> … Metrics from GitHub data. Calculated at … UTC", and on the table pages the "What the bands mean" link follows it, inside the footer, instead of standing above it at the end of the page. The legend page and the placeholder pages have no such link, as before. Pages fill a `footerlinks` block in the shared footer with their own links; the Settings link of [#84](https://github.com/yveshanoulle/forsgren/issues/84) goes there next.
+
+## 2026-10-10 — the README quotes the footer's own words, released as 0.4.2 ([#90](https://github.com/yveshanoulle/forsgren/issues/90))
+
+The README's description of the footer quoted "The five DORA metrics, from GitHub data."; the footer says "Metrics from GitHub data." The README and CLAUDE.md now quote what the template says. The release moves the running version to 0.4.2 in the code, the README, and the tests and goldens that pin it.
