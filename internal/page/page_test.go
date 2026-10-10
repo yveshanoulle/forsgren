@@ -21,7 +21,7 @@ var update = flag.Bool("update", false, "rewrite testdata/*.golden.html")
 // calculated is the placeholder page data, calculated at 2026-10-03 12:00
 // UTC, that the golden pages start from.
 func calculated() Data {
-	data := Placeholder("0.5.0")
+	data := Placeholder("0.6.0")
 	data.AsOf = "2026-10-03 12:00"
 	return data
 }
@@ -232,7 +232,7 @@ func TestRenderEscapesFields(t *testing.T) {
 }
 
 func TestRenderUnknownPage(t *testing.T) {
-	err := Render(&bytes.Buffer{}, "missing.html", Placeholder("0.5.0"))
+	err := Render(&bytes.Buffer{}, "missing.html", Placeholder("0.6.0"))
 	if err == nil || !strings.Contains(err.Error(), "missing.html") {
 		t.Errorf("want an error naming missing.html, got %v", err)
 	}
@@ -338,7 +338,7 @@ func wantOnNoPage(t *testing.T, data Data, texts ...string) {
 // released is the placeholder page data with latest as forsgren's latest
 // release and waitingPR as the pull request that bumps to it, 0 for none.
 func released(latest string, waitingPR int) Data {
-	data := Placeholder("0.5.0")
+	data := Placeholder("0.6.0")
 	data.Latest, data.WaitingPR = latest, waitingPR
 	return data
 }
@@ -382,7 +382,7 @@ func TestEveryPageNamesFiveMetrics(t *testing.T) {
 // view's page, standard, numbers and scoring, in its own folder.
 func TestWriteSiteWritesSevenPagesAndStyles(t *testing.T) {
 	dir := t.TempDir()
-	n, err := WriteSite(dir, Placeholder("0.5.0"))
+	n, err := WriteSite(dir, Placeholder("0.6.0"))
 	if err != nil {
 		t.Fatalf("WriteSite: %v", err)
 	}
@@ -404,7 +404,7 @@ func TestWriteSiteFailsWhenDirIsAFile(t *testing.T) {
 	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if n, err := WriteSite(file, Placeholder("0.5.0")); err == nil {
+	if n, err := WriteSite(file, Placeholder("0.6.0")); err == nil {
 		t.Errorf("want an error when the output is a regular file, got %d pages", n)
 	}
 }
@@ -417,14 +417,14 @@ func TestWriteSiteFailsWhenDirIsAFile(t *testing.T) {
 // paragraph (the footerlinks block, forsgren#83), each page's pinned by its
 // golden.
 func TestEveryPageEndsWithTheFooter(t *testing.T) {
-	const head = `<p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> 0.5.0 ` +
+	const head = `<p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> 0.6.0 ` +
 		`Metrics from GitHub data.`
 	cases := map[string]struct {
 		data Data
 		want string
 	}{
 		"with data":    {acmeTable(), head + " Calculated at 2026-10-03 12:00 UTC</p>"},
-		"without data": {Placeholder("0.5.0"), head + "</p>"},
+		"without data": {Placeholder("0.6.0"), head + "</p>"},
 	}
 	for name, c := range cases {
 		for _, page := range PageNames() {
@@ -459,14 +459,14 @@ func TestTablePageOpensWithTheTable(t *testing.T) {
 // the version and what the page is.
 func TestTablePageKeepsAVisuallyHiddenHeading(t *testing.T) {
 	wantAll(t, "index.html", rendered(t, "index.html", acmeTable()),
-		`<h1 class="visually-hidden">Forsgren 0.5.0: the five DORA metrics</h1>`)
+		`<h1 class="visually-hidden">Forsgren 0.6.0: the five DORA metrics</h1>`)
 }
 
 // TestLegendPageSaysWhereEachMetricComesFrom (forsgren#41, step 1): the
 // paragraph that left the table page is on the legend page, one source per
 // metric.
 func TestLegendPageSaysWhereEachMetricComesFrom(t *testing.T) {
-	wantAll(t, "legend.html", rendered(t, "legend.html", Placeholder("0.5.0")),
+	wantAll(t, "legend.html", rendered(t, "legend.html", Placeholder("0.6.0")),
 		"Every number counts back from the time in the footer: deployment frequency from the successful deployments",
 		"lead time for changes from the commits they shipped",
 		"failed deployment recovery time from the failed deployments and the successful ones after them",
@@ -481,7 +481,7 @@ func TestLegendPageSaysWhereEachMetricComesFrom(t *testing.T) {
 func TestLegendPageCreditsTheDoraQuickCheck(t *testing.T) {
 	const want = `Scores follow the <a href="https://dora.dev/quickcheck/">DORA Quick Check</a> (dora.dev), ` +
 		`© Google LLC, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.`
-	wantAll(t, "legend.html", rendered(t, "legend.html", Placeholder("0.5.0")), want)
+	wantAll(t, "legend.html", rendered(t, "legend.html", Placeholder("0.6.0")), want)
 }
 
 // TestNoPageShowsASiteNameLine (forsgren#41, step 2): the header carries no
@@ -502,7 +502,7 @@ func TestFooterShowsTheTimeWithoutRows(t *testing.T) {
 // a small example with the optional label, and links to the README's
 // Configuration section; the one-line message is gone.
 func TestNoProjectsPageShowsAHowTo(t *testing.T) {
-	data := Placeholder("0.5.0")
+	data := Placeholder("0.6.0")
 	data.NoProjects = true
 	got := rendered(t, "index.html", data)
 	wantAll(t, "index.html", got,
@@ -518,14 +518,14 @@ func TestNoProjectsPageShowsAHowTo(t *testing.T) {
 // forsgren release exists, the version line of the footer says so, on every
 // page, with the numbers compared as numbers.
 func TestFooterNamesANewerRelease(t *testing.T) {
-	wantOnEveryPage(t, released("0.5.1", 0), "0.5.0 · 0.5.1 is available")
+	wantOnEveryPage(t, released("0.6.1", 0), "0.6.0 · 0.6.1 is available")
 }
 
 // TestFooterNamesNoReleaseThatIsNotNewer (forsgren#40, step 4): up to date,
 // ahead of the latest release, or an unknown or unreadable latest release:
 // the footer adds nothing.
 func TestFooterNamesNoReleaseThatIsNotNewer(t *testing.T) {
-	for _, latest := range []string{"", "0.5.0", "0.1.2", "0.0.10", "banana"} {
+	for _, latest := range []string{"", "0.6.0", "0.1.2", "0.0.10", "banana"} {
 		t.Run("latest "+latest, func(t *testing.T) {
 			wantOnNoPage(t, released(latest, 0), " is available")
 		})
@@ -536,8 +536,8 @@ func TestFooterNamesNoReleaseThatIsNotNewer(t *testing.T) {
 // newer release whose Dependabot pull request is open is named with the
 // pull request's number, instead of "is available"; no repository appears.
 func TestFooterNamesTheWaitingPullRequest(t *testing.T) {
-	data := released("0.5.1", 7)
-	wantOnEveryPage(t, data, "0.5.0 · 0.5.1 is waiting in pull request #7 (merge it to update)")
+	data := released("0.6.1", 7)
+	wantOnEveryPage(t, data, "0.6.0 · 0.6.1 is waiting in pull request #7 (merge it to update)")
 	wantOnNoPage(t, data, " is available")
 }
 
@@ -545,22 +545,22 @@ func TestFooterNamesTheWaitingPullRequest(t *testing.T) {
 // 5): with no pull request, "is available" stays; up to date, a pull request
 // number alone adds nothing.
 func TestFooterNamesNoWaitingPullRequestWithoutANewerRelease(t *testing.T) {
-	available := rendered(t, "index.html", released("0.5.1", 0))
-	wantAll(t, "without a pull request", available, "0.5.1 is available")
+	available := rendered(t, "index.html", released("0.6.1", 0))
+	wantAll(t, "without a pull request", available, "0.6.1 is available")
 	wantNone(t, "without a pull request", available, "waiting")
-	wantNone(t, "up to date", rendered(t, "index.html", released("0.5.0", 7)), "pull request #", " is available")
+	wantNone(t, "up to date", rendered(t, "index.html", released("0.6.0", 7)), "pull request #", " is available")
 }
 
 // TestFooterEndsTheReleaseNewsBeforeWhatForsgrenIs (forsgren#40, review of
 // step 7): the news of a newer release, available or waiting in a pull
 // request, is a sentence of its own; it never runs on into "The five DORA
-// metrics" ("0.5.1 is available The five ..."), on every page.
+// metrics" ("0.6.1 is available The five ..."), on every page.
 func TestFooterEndsTheReleaseNewsBeforeWhatForsgrenIs(t *testing.T) {
 	for waiting, want := range map[int]string{
-		0: "0.5.0 · 0.5.1 is available. Metrics from GitHub data",
-		7: "0.5.0 · 0.5.1 is waiting in pull request #7 (merge it to update). Metrics from GitHub data",
+		0: "0.6.0 · 0.6.1 is available. Metrics from GitHub data",
+		7: "0.6.0 · 0.6.1 is waiting in pull request #7 (merge it to update). Metrics from GitHub data",
 	} {
-		wantOnEveryPage(t, released("0.5.1", waiting), want)
+		wantOnEveryPage(t, released("0.6.1", waiting), want)
 	}
 }
 
@@ -590,7 +590,7 @@ func TestLegendStatesTheWorkingDay(t *testing.T) {
 		}},
 	}
 	for _, c := range cases {
-		data := Placeholder("0.5.0")
+		data := Placeholder("0.6.0")
 		data.WorkingHours, data.WorkingHoursSet = c.hours, c.set
 		wantAll(t, c.name, rendered(t, "legend.html", data), c.want...)
 	}
@@ -599,7 +599,7 @@ func TestLegendStatesTheWorkingDay(t *testing.T) {
 // withTwoSettings is the placeholder with one setting the config sets, view:
 // numbers, and one it leaves at its default, history_days: 365.
 func withTwoSettings() Data {
-	data := Placeholder("0.5.0")
+	data := Placeholder("0.6.0")
 	data.Settings = []config.Setting{{Key: "view", Value: "numbers", Set: true}, {Key: "history_days", Value: "365"}}
 	return data
 }
