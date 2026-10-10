@@ -105,11 +105,27 @@ func pageData(o renderOptions, at time.Time) (page.Data, error) {
 	if o.data == "" {
 		return data, nil
 	}
-	rows, err := rowsOf(cfg, o.data, at)
+	return withHistory(data, cfg, o.data, at)
+}
+
+// issueDays is how many UTC days the issues page shows, ending yesterday
+// (forsgren#76).
+const issueDays = 30
+
+// withHistory is data with what the history at path shows: the table's rows
+// and the issues page's days, from the issues file next to the history
+// (data/issues.csv beside data/deployments.csv), at the render time at.
+func withHistory(data page.Data, cfg config.Config, path string, at time.Time) (page.Data, error) {
+	rows, err := rowsOf(cfg, path, at)
 	if err != nil {
 		return data, err
 	}
 	data.Rows = page.Table(rows)
+	events, err := loadOrNone(filepath.Join(filepath.Dir(path), collect.IssuesFile), history.LoadIssueEvents)
+	if err != nil {
+		return data, err
+	}
+	data.IssueDays = metrics.IssueDays(events, at, issueDays)
 	return data, nil
 }
 
@@ -156,7 +172,8 @@ func renderFlags(args []string, stderr io.Writer) (renderOptions, bool) {
 	flags.StringVar(&o.out, "out", "", "directory to write the site into")
 	flags.StringVar(&o.config, "config", "", "the forsgren.config.yml the page reports on (optional)")
 	flags.StringVar(&o.data, "data", "",
-		"the history the page counts, data/deployments.csv, commits.csv, failures.csv beside it (optional, needs --config)")
+		"the history the page counts, data/deployments.csv, commits.csv, failures.csv, issues.csv beside it "+
+			"(optional, needs --config)")
 	flags.StringVar(&o.latest, "latest", "",
 		"the newest forsgren release, as latest-release prints it; the footer names it when it is newer (optional)")
 	flags.IntVar(&o.waitingPR, "waiting-pr", 0,

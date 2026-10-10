@@ -70,6 +70,7 @@
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:loadOrNone": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:renderFlags": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:isPullRequestNumber": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:withHistory": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:rowsOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/collect.go:Run": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/collect.go:collectProject": 100.0,

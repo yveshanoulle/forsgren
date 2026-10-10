@@ -43,3 +43,13 @@ func TestRenderShowsTheIssuesOfEachDay(t *testing.T) {
 		t.Errorf("want the page to hold the row %q, got:\n%s", want, issues)
 	}
 }
+
+// TestRenderRefusesABadIssuesFile: a malformed or unknown-version issues
+// file fails render with its own message, naming it, and writes nothing.
+func TestRenderRefusesABadIssuesFile(t *testing.T) {
+	head := "# forsgren issues v1\nrepository,issue,event,reason,at\n"
+	wantBadFileRefused(t, "issues.csv", map[string]badFile{
+		"unknown version": {"# forsgren issues v2\n", "unknown history format version"},
+		"malformed line":  {head + "acme/api,7\n", "line 3: malformed history"},
+	})
+}
