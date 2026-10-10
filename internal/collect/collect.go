@@ -156,7 +156,11 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	if err != nil {
 		return err
 	}
-	stored, err := o.store(batch{f.records, commits, failures})
+	events, err := o.issueEvents(ctx, r.Name)
+	if err != nil {
+		return err
+	}
+	stored, err := o.store(batch{f.records, commits, failures, events})
 	if err != nil {
 		return fmt.Errorf("%s: %w", r.Name, err)
 	}
@@ -186,6 +190,7 @@ type batch struct {
 	records  []history.Record
 	commits  []history.Commit
 	failures []history.Failure
+	events   []history.IssueEvent
 }
 
 // counts is how many lines of each file a batch stored.
@@ -207,6 +212,9 @@ func (o Options) store(b batch) (counts, error) {
 		return c, err
 	}
 	if c.failures, err = history.AppendFailures(o.failuresFile(), b.failures); err != nil {
+		return c, err
+	}
+	if _, err = history.AppendIssueEvents(o.issuesFile(), b.events); err != nil {
 		return c, err
 	}
 	c.deployments, err = history.Append(o.History, b.records)

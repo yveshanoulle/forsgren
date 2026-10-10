@@ -116,6 +116,8 @@
     "github.com/yveshanoulle/forsgren/internal/collect/commits.go:compare": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/commits.go:warn": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/commits.go:deployed": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/issueevents.go:issuesFile": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/issueevents.go:issueEvents": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/failures.go:failuresFile": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/failures.go:loadFailures": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/failures.go:failureIssues": 100.0,
