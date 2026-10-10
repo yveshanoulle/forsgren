@@ -26,7 +26,11 @@ func TestIssuesReadsEveryIssueWithoutPullRequests(t *testing.T) {
 		{Number: 55, CreatedAt: day(23, 9, 0), ClosedAt: day(24, 12, 30), State: "closed", StateReason: "completed"},
 		{Number: 54, CreatedAt: day(22, 9, 0), ClosedAt: day(22, 18, 0), State: "closed", StateReason: "not_planned"},
 		{Number: 53, CreatedAt: day(21, 9, 0), ClosedAt: day(21, 10, 15), State: "closed", StateReason: "duplicate"},
-		{Number: 12, CreatedAt: time.Date(2024, 3, 1, 8, 0, 0, 0, time.UTC), ClosedAt: time.Date(2024, 3, 5, 8, 0, 0, 0, time.UTC), State: "closed"},
+		{
+			Number: 12, State: "closed",
+			CreatedAt: time.Date(2024, 3, 1, 8, 0, 0, 0, time.UTC),
+			ClosedAt:  time.Date(2024, 3, 5, 8, 0, 0, 0, time.UTC),
+		},
 		{Number: 40, CreatedAt: day(10, 8, 0), State: "open", StateReason: "reopened"},
 	}
 	if !slices.Equal(got, want) {
@@ -35,5 +39,15 @@ func TestIssuesReadsEveryIssueWithoutPullRequests(t *testing.T) {
 	wantQuery(t, f, url.Values{"state": {"all"}, "since": {"2026-08-01T00:00:00Z"}, "per_page": {"100"}})
 	if _, has := f.seen()[0].URL.Query()["labels"]; has {
 		t.Errorf("want no labels parameter, got %q", f.seen()[0].URL.RawQuery)
+	}
+}
+
+// TestIssuesFailsWhenGitHubDoes: an error answer is an error, no issues.
+func TestIssuesFailsWhenGitHubDoes(t *testing.T) {
+	f := newFake(t)
+	f.on(issuesPath, reply{status: 500, body: "{}"})
+	got, _, err := f.client(t, DefaultMaxPages).Issues(context.Background(), "acme/app", since)
+	if err == nil || got != nil {
+		t.Errorf("want an error and no issues, got %v, %v", got, err)
 	}
 }

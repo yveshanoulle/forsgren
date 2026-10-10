@@ -49,6 +49,7 @@ type issue struct {
 	Title       string          `json:"title"`
 	CreatedAt   time.Time       `json:"created_at"`
 	ClosedAt    *time.Time      `json:"closed_at"`
+	StateReason *string         `json:"state_reason"`
 	Body        *string         `json:"body"`
 	PullRequest json.RawMessage `json:"pull_request"`
 }
@@ -65,26 +66,42 @@ var errIssueFields = errors.New("an issue has no number or no created_at")
 // created_at is ErrAnswer.
 func (c *Client) FailureIssues(ctx context.Context, repo string, since time.Time) ([]Issue, bool, error) {
 	query := url.Values{"labels": {"failure"}, "state": {"all"}, "since": {since.UTC().Format(time.RFC3339)}}
+	items, truncated, err := c.issueItems(ctx, repo, query)
+	if err != nil {
+		return nil, false, err
+	}
+	issues := make([]Issue, 0, len(items))
+	for _, i := range items {
+		issues = append(issues, i.toIssue())
+	}
+	return issues, truncated, nil
+}
+
+// issueItems reads the pages of repo's issues list for query, 100 per page
+// up to the page limit, and returns the items that are issues, pull requests
+// left out; truncated says it stopped at the limit. An item without a number
+// or a created_at is ErrAnswer.
+func (c *Client) issueItems(ctx context.Context, repo string, query url.Values) ([]issue, bool, error) {
 	t, err := c.endpoint(repo, query, "issues")
 	if err != nil {
 		return nil, false, err
 	}
-	var issues []Issue
+	var items []issue
 	truncated, err := c.list(ctx, t, func(body []byte) (bool, error) {
 		var page []issue
 		if err := json.Unmarshal(body, &page); err != nil {
 			return false, err
 		}
-		return len(page) > 0, keepIssues(&issues, page)
+		return len(page) > 0, keepIssues(&items, page)
 	})
 	if err != nil {
 		return nil, false, err
 	}
-	return issues, truncated, nil
+	return items, truncated, nil
 }
 
-// keepIssues adds the issues of one page to issues, pull requests left out.
-func keepIssues(issues *[]Issue, page []issue) error {
+// keepIssues adds the issues of one page to items, pull requests left out.
+func keepIssues(items *[]issue, page []issue) error {
 	for _, i := range page {
 		if isPullRequest(i) {
 			continue
@@ -92,7 +109,7 @@ func keepIssues(issues *[]Issue, page []issue) error {
 		if i.Number <= 0 || i.CreatedAt.IsZero() {
 			return errIssueFields
 		}
-		*issues = append(*issues, i.toIssue())
+		*items = append(*items, i)
 	}
 	return nil
 }
