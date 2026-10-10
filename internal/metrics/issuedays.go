@@ -32,8 +32,15 @@ func IssueDays(events []history.IssueEvent, now time.Time, days int) []IssueDay 
 		rows[i].Date = today.Add(-time.Duration(i+1) * day)
 	}
 	for _, e := range events {
-		if i, ok := newIssueRow(e, today, len(rows)); ok {
+		i, ok := dayRow(e.At, today, len(rows))
+		if !ok {
+			continue
+		}
+		switch {
+		case e.Event == "created":
 			rows[i].New++
+		case e.Event == "closed" && e.Reason == "completed":
+			rows[i].Completed++
 		}
 	}
 	return rows
@@ -42,10 +49,10 @@ func IssueDays(events []history.IssueEvent, now time.Time, days int) []IssueDay 
 // utcDay is the midnight, UTC, that starts the calendar day t is in.
 func utcDay(t time.Time) time.Time { return t.UTC().Truncate(day) }
 
-// newIssueRow is the index, in rows days long and newest first, of the row
-// that e counts as a new issue in; false for any event but a creation, and
-// for one before the rows or on or after today.
-func newIssueRow(e history.IssueEvent, today time.Time, rows int) (int, bool) {
-	back := int(today.Sub(utcDay(e.At)) / day)
-	return back - 1, e.Event == "created" && back >= 1 && back <= rows
+// dayRow is the index, in rows days long and newest first, of the row of
+// the day at is in, today being the midnight that starts today; false for a
+// time before the rows or on or after today.
+func dayRow(at, today time.Time, rows int) (int, bool) {
+	back := int(today.Sub(utcDay(at)) / day)
+	return back - 1, back >= 1 && back <= rows
 }
