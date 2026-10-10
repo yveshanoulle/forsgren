@@ -13,5 +13,5 @@ projects:
     <p><a href="https://github.com/yveshanoulle/forsgren#configuration">How to configure forsgren</a></p>
 {{end}}  </main>
 {{template "footer" .}}
-{{define "footerlinks"}}{{/* The legend explains the table's bands, so only a page with a table links to it. */}}{{if .Rows}}    <p><a href="{{.Base}}legend.html">What the bands mean</a></p>
+{{define "footerlinks"}}{{/* The legend explains the table's bands and the settings page its configuration, so only a page with a table links to them. */}}{{if .Rows}}    <p><a href="{{.Base}}settings.html">Settings</a> <a href="{{.Base}}legend.html">What the bands mean</a></p>
 {{end}}{{end}}
