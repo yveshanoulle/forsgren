@@ -1,0 +1,9 @@
+{{define "title"}}Settings · {{.Title}}{{end -}}
+{{template "header" .}}  <main>
+    <h1>Settings</h1>
+    <p><a href="index.html">Back to the table</a></p>
+    <ul>
+{{range .Settings}}      <li>{{.Key}}: {{.Value}}{{if not .Set}} (default, not set in forsgren.config.yml){{end}}</li>
+{{end}}    </ul>
+  </main>
+{{template "footer" .}}
