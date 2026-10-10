@@ -17,6 +17,9 @@ type IssueDay struct {
 	Date time.Time
 	// New is the issues created on that day. A reopened issue is not new.
 	New int
+	// Completed is the issues closed as completed on that day. Other close
+	// reasons are not completed.
+	Completed int
 }
 
 // IssueDays is the last days UTC calendar days before the day of now, today

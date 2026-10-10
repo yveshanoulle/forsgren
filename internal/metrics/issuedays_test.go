@@ -41,3 +41,38 @@ func TestIssueDaysCountsNewIssuesPerUTCDayEndingYesterday(t *testing.T) {
 		t.Errorf("want the days\n%v\ngot\n%v", want, got)
 	}
 }
+
+// closedAs is a closed event of acme/app at at, with reason.
+func closedAs(reason string, at time.Time) history.IssueEvent {
+	e := issueEvent("acme/app", "closed", at)
+	e.Reason = reason
+	return e
+}
+
+// TestIssueDaysCountsCompletedClosesPerUTCDay (forsgren#76, step 8): with now
+// on 3 October at noon and 3 days, only a closed event with the reason
+// completed is completed. 23:59:59 and the next 00:00:00 land in different
+// rows, both repositories count, a close as not_planned, duplicate or with no
+// reason is not completed, a reopened or created event is not, and a close
+// today is out.
+func TestIssueDaysCountsCompletedClosesPerUTCDay(t *testing.T) {
+	other := closedAs("completed", oct(2, 6, 0, 0))
+	other.Repository = "acme/cli"
+	events := []history.IssueEvent{
+		closedAs("completed", oct(1, 23, 59, 59)),
+		closedAs("completed", oct(2, 0, 0, 0)),
+		other,
+		closedAs("not_planned", oct(2, 7, 0, 0)),
+		closedAs("duplicate", oct(2, 8, 0, 0)),
+		closedAs("", oct(2, 9, 0, 0)),
+		issueEvent("acme/app", "reopened", oct(2, 10, 0, 0)),
+		closedAs("completed", oct(3, 1, 0, 0)),
+	}
+	var got []int
+	for _, d := range IssueDays(events, now, 3) {
+		got = append(got, d.Completed)
+	}
+	if want := []int{2, 1, 0}; !slices.Equal(got, want) {
+		t.Errorf("want Completed per day, newest first, %v, got %v", want, got)
+	}
+}
