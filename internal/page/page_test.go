@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -19,18 +18,23 @@ import (
 // after reading the diff the failing golden test printed.
 var update = flag.Bool("update", false, "rewrite testdata/*.golden.html")
 
-func TestPlaceholderMatchesGolden(t *testing.T) {
+// calculated is the placeholder page data, calculated at 2026-10-03 12:00
+// UTC, that the golden pages start from.
+func calculated() Data {
 	data := Placeholder("0.4.0")
 	data.AsOf = "2026-10-03 12:00"
-	checkGolden(t, "testdata/index.golden.html", data)
+	return data
+}
+
+func TestPlaceholderMatchesGolden(t *testing.T) {
+	checkGolden(t, "testdata/index.golden.html", calculated())
 }
 
 // TestNoProjectsPageMatchesGolden (forsgren#12): the page of an installation
 // whose config lists no projects says so, besides its version.
 func TestNoProjectsPageMatchesGolden(t *testing.T) {
-	data := Placeholder("0.4.0")
+	data := calculated()
 	data.NoProjects = true
-	data.AsOf = "2026-10-03 12:00"
 	checkGolden(t, "testdata/index.no-projects.golden.html", data)
 }
 
@@ -43,8 +47,7 @@ func TestNoProjectsPageMatchesGolden(t *testing.T) {
 func acmeProjects(shop metrics.LeadTime, recovery metrics.Recovery, changeFail metrics.ChangeFailRate,
 	rework metrics.ReworkRate,
 ) Data {
-	data := Placeholder("0.4.0")
-	data.AsOf = "2026-10-03 12:00"
+	data := calculated()
 	latest := time.Date(2026, 10, 1, 9, 30, 0, 0, time.UTC)
 	frequency := metrics.Frequency{
 		Project: "Acme Shop", Last7: 3, Last30: 12, Last180: 12, Latest: latest, Band: metrics.DailyToWeekly,
@@ -73,14 +76,19 @@ var oneFailed = metrics.ChangeFailRate{Deployments: 13, FailedDeployments: 1, Fa
 // deployments is rework.
 var noRework = metrics.ReworkRate{Deployments: 12, Band: metrics.ZeroPercent}
 
+// acmeTable is acmeProjects with Acme Shop's usual numbers: no lead time,
+// unrecovered, oneFailed and noRework.
+func acmeTable() Data {
+	return acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
+}
+
 // TestFrequencyPageMatchesGolden (forsgren#12, step 7; forsgren#38): with
 // projects the page is one table, a row per project in the given order,
 // each cell short, a link to the legend under it; a project with no
 // deployment says so across its row, and one with deployments but no commit
 // in the window says "No lead time yet".
 func TestFrequencyPageMatchesGolden(t *testing.T) {
-	checkGolden(t, "testdata/index.frequency.golden.html",
-		acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework))
+	checkGolden(t, "testdata/index.frequency.golden.html", acmeTable())
 }
 
 // TestLeadTimePageMatchesGolden (forsgren#16, step 5): a project's row shows
@@ -114,8 +122,7 @@ func TestChangeFailPageMatchesGolden(t *testing.T) {
 // TestNoDataPageMatchesGolden: projects with no deployment recorded yet,
 // successful or failed, each say so across their row.
 func TestNoDataPageMatchesGolden(t *testing.T) {
-	data := Placeholder("0.4.0")
-	data.AsOf = "2026-10-03 12:00"
+	data := calculated()
 	data.Rows = Table([]metrics.Row{
 		{Level: metrics.ProjectRow, Name: "Acme Shop"}, {Level: metrics.ProjectRow, Name: "Acme Tools"},
 	})
@@ -161,8 +168,7 @@ func labelledRows() []metrics.Row {
 // headed "(total)", its labels' rows follow it, indented, each with its
 // project's name for a screen reader; a project without labels is one row.
 func TestLabelsPageMatchesGolden(t *testing.T) {
-	data := Placeholder("0.4.0")
-	data.AsOf = "2026-10-03 12:00"
+	data := calculated()
 	data.Rows = Table(labelledRows())
 	checkGolden(t, "testdata/index.labels.golden.html", data)
 }
@@ -236,8 +242,7 @@ func TestRenderUnknownPage(t *testing.T) {
 // are the page legend.html, with a link back to the table; the table page
 // holds none of them.
 func TestLegendPageMatchesGolden(t *testing.T) {
-	data := Placeholder("0.4.0")
-	data.AsOf = "2026-10-03 12:00"
+	data := calculated()
 	data.WorkingHours = 8
 	data.Settings = config.Config{}.Settings()
 	checkPageGolden(t, "legend.html", "testdata/legend.golden.html", data)
@@ -246,13 +251,9 @@ func TestLegendPageMatchesGolden(t *testing.T) {
 // TestLegendPageTitleNamesIt (forsgren#39, step 4): the legend page's title
 // is its link's text, then the site's title; its header shows no site-name line (forsgren#41).
 func TestLegendPageTitleNamesIt(t *testing.T) {
-	got := rendered(t, "legend.html", acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework))
-	if !strings.Contains(got, "<title>What the bands mean · forsgren</title>") {
-		t.Errorf("want the legend page titled %q, got:\n%s", "What the bands mean · forsgren", got)
-	}
-	if strings.Contains(got, `class="site-name"`) {
-		t.Errorf("want no site-name line in the legend page's header, got:\n%s", got)
-	}
+	got := rendered(t, "legend.html", acmeTable())
+	wantAll(t, "legend.html", got, "<title>What the bands mean · forsgren</title>")
+	wantNone(t, "legend.html", got, `class="site-name"`)
 }
 
 // rendered is the page name rendered with data.
@@ -265,6 +266,32 @@ func rendered(t *testing.T, name string, data Data) string {
 	return got.String()
 }
 
+// wantOnEveryPage fails for each page of PageNames, rendered with data, that
+// lacks one of texts.
+func wantOnEveryPage(t *testing.T, data Data, texts ...string) {
+	t.Helper()
+	for _, name := range PageNames() {
+		wantAll(t, name, rendered(t, name, data), texts...)
+	}
+}
+
+// wantOnNoPage fails for each page of PageNames, rendered with data, that
+// holds one of texts.
+func wantOnNoPage(t *testing.T, data Data, texts ...string) {
+	t.Helper()
+	for _, name := range PageNames() {
+		wantNone(t, name, rendered(t, name, data), texts...)
+	}
+}
+
+// released is the placeholder page data with latest as forsgren's latest
+// release and waitingPR as the pull request that bumps to it, 0 for none.
+func released(latest string, waitingPR int) Data {
+	data := Placeholder("0.4.0")
+	data.Latest, data.WaitingPR = latest, waitingPR
+	return data
+}
+
 // legendItem is one item of the legend page's band lists.
 var legendItem = regexp.MustCompile(`<li>[^<]*</li>`)
 
@@ -272,7 +299,7 @@ var legendItem = regexp.MustCompile(`<li>[^<]*</li>`)
 // carries a link to legend.html and none of the band explanations: no item
 // of the legend page's band lists (forsgren#39, step 4).
 func TestTablePageLinksToTheLegend(t *testing.T) {
-	data := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
+	data := acmeTable()
 	got := rendered(t, "index.html", data)
 	if !strings.Contains(got, `<a href="legend.html">What the bands mean</a>`) {
 		t.Errorf("want a link to legend.html on the table page, got:\n%s", got)
@@ -296,15 +323,7 @@ func TestTablePageLinksToTheLegend(t *testing.T) {
 // (forsgren#41: in the footer's paragraph; the table's caption says "DORA
 // metrics", forsgren#45).
 func TestEveryPageNamesFiveMetrics(t *testing.T) {
-	for _, name := range PageNames() {
-		var got bytes.Buffer
-		if err := Render(&got, name, acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)); err != nil {
-			t.Fatalf("Render %s: %v", name, err)
-		}
-		if !strings.Contains(got.String(), " Metrics from GitHub data.") {
-			t.Errorf("%s: want the footer to name the five DORA metrics, got:\n%s", name, got.String())
-		}
-	}
+	wantOnEveryPage(t, acmeTable(), " Metrics from GitHub data.")
 }
 
 // TestWriteSiteWritesFivePagesAndStyles (forsgren#46, #47): the root page and
@@ -338,47 +357,29 @@ func TestWriteSiteFailsWhenDirIsAFile(t *testing.T) {
 	}
 }
 
-// TestLabelDashIsDecorative (forsgren#38, review): the dash before a label
-// row's heading is drawn for the eye only, with empty alternative text, so
-// a screen reader reads "Acme Shop: API", never "en dash API".
-func TestLabelDashIsDecorative(t *testing.T) {
-	css, err := files.ReadFile("styles.css")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := `.label th::before {
-  content: "– " / "";
-}`; !strings.Contains(string(css), want) {
-		t.Errorf("want styles.css to hold\n%s\ngot:\n%s", want, css)
-	}
-}
-
-// legendLinkLine is the legend link's own line in the footer (forsgren#83),
-// which follows the footer paragraph on the table pages.
-var legendLinkLine = regexp.MustCompile(`    <p><a href="[./]*legend\.html">What the bands mean</a></p>\n`)
-
-// TestEveryPageEndsWithTheFooter (forsgren#41, step 1): both pages end with
-// the same one footer paragraph: Forsgren linked to its repository, its
+// TestEveryPageEndsWithTheFooter (forsgren#41, step 1): every page's footer
+// opens with the same one paragraph: Forsgren linked to its repository, its
 // version, what it is and, when numbers were calculated, when (UTC); no
-// Install link follows (forsgren#45). Without a calculation time the
-// "Calculated at" sentence is left out.
+// Install link anywhere (forsgren#45). Without a calculation time the
+// "Calculated at" sentence is left out. The page's own links follow the
+// paragraph (the footerlinks block, forsgren#83), each page's pinned by its
+// golden.
 func TestEveryPageEndsWithTheFooter(t *testing.T) {
 	const head = `<p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> 0.4.0 ` +
 		`Metrics from GitHub data.`
-	withData := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
 	cases := map[string]struct {
 		data Data
 		want string
 	}{
-		"with data":    {withData, head + " Calculated at 2026-10-03 12:00 UTC</p>"},
+		"with data":    {acmeTable(), head + " Calculated at 2026-10-03 12:00 UTC</p>"},
 		"without data": {Placeholder("0.4.0"), head + "</p>"},
 	}
 	for name, c := range cases {
 		for _, page := range PageNames() {
 			t.Run(name+" "+page, func(t *testing.T) {
-				got := legendLinkLine.ReplaceAllString(rendered(t, page, c.data), "")
-				if !strings.Contains(got, c.want+"\n  </footer>") {
-					t.Errorf("want the footer %q to end the footer, got:\n%s", c.want, got)
+				got := rendered(t, page, c.data)
+				if !strings.Contains(got, "  <footer>\n    "+c.want+"\n") {
+					t.Errorf("want the footer %q to open the footer, got:\n%s", c.want, got)
 				}
 				wantNoInstallLink(t, got)
 			})
@@ -390,11 +391,7 @@ func TestEveryPageEndsWithTheFooter(t *testing.T) {
 // forsgren-template repository it pointed to (forsgren#45).
 func wantNoInstallLink(t *testing.T, got string) {
 	t.Helper()
-	for _, gone := range []string{"Install", "forsgren-template"} {
-		if strings.Contains(got, gone) {
-			t.Errorf("want %q off the page, got:\n%s", gone, got)
-		}
-	}
+	wantNone(t, "the page", got, "Install", "forsgren-template")
 }
 
 // TestTablePageOpensWithTheTable (forsgren#41, step 1): the table page has no
@@ -402,41 +399,28 @@ func wantNoInstallLink(t *testing.T, got string) {
 // moves below the table) and no Calculated paragraph. Screen readers keep a
 // heading, a visually hidden h1.
 func TestTablePageOpensWithTheTable(t *testing.T) {
-	got := rendered(t, "index.html", acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework))
-	for _, gone := range []string{"<h1>", "counts back from the time in the footer"} {
-		if strings.Contains(got, gone) {
-			t.Errorf("want %q off the table page, got:\n%s", gone, got)
-		}
-	}
+	wantNone(t, "index.html", rendered(t, "index.html", acmeTable()), "<h1>", "counts back from the time in the footer")
 }
 
 // TestTablePageKeepsAVisuallyHiddenHeading (forsgren#41, step 1): the table
 // page's one h1 is visually hidden, so screen readers still get a heading:
 // the version and what the page is.
 func TestTablePageKeepsAVisuallyHiddenHeading(t *testing.T) {
-	got := rendered(t, "index.html", acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework))
-	const want = `<h1 class="visually-hidden">Forsgren 0.4.0: the five DORA metrics</h1>`
-	if !strings.Contains(got, want) {
-		t.Errorf("want %q on the table page, got:\n%s", want, got)
-	}
+	wantAll(t, "index.html", rendered(t, "index.html", acmeTable()),
+		`<h1 class="visually-hidden">Forsgren 0.4.0: the five DORA metrics</h1>`)
 }
 
 // TestLegendPageSaysWhereEachMetricComesFrom (forsgren#41, step 1): the
 // paragraph that left the table page is on the legend page, one source per
 // metric.
 func TestLegendPageSaysWhereEachMetricComesFrom(t *testing.T) {
-	got := rendered(t, "legend.html", Placeholder("0.4.0"))
-	for _, want := range []string{
+	wantAll(t, "legend.html", rendered(t, "legend.html", Placeholder("0.4.0")),
 		"Every number counts back from the time in the footer: deployment frequency from the successful deployments",
 		"lead time for changes from the commits they shipped",
 		"failed deployment recovery time from the failed deployments and the successful ones after them",
 		"change fail rate from the failed deployments and the issues labelled failure",
 		"deployment rework rate from the successful deployments that came after a failed deployment",
-	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("want %q on the legend page, got:\n%s", want, got)
-		}
-	}
+	)
 }
 
 // TestLegendPageCreditsTheDoraQuickCheck (forsgren#47): the legend page says
@@ -445,33 +429,20 @@ func TestLegendPageSaysWhereEachMetricComesFrom(t *testing.T) {
 func TestLegendPageCreditsTheDoraQuickCheck(t *testing.T) {
 	const want = `Scores follow the <a href="https://dora.dev/quickcheck/">DORA Quick Check</a> (dora.dev), ` +
 		`© Google LLC, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.`
-	if got := rendered(t, "legend.html", Placeholder("0.4.0")); !strings.Contains(got, want) {
-		t.Errorf("want %q on the legend page, got:\n%s", want, got)
-	}
+	wantAll(t, "legend.html", rendered(t, "legend.html", Placeholder("0.4.0")), want)
 }
 
 // TestNoPageShowsASiteNameLine (forsgren#41, step 2): the header carries no
 // visible text on either page, the footer names Forsgren.
 func TestNoPageShowsASiteNameLine(t *testing.T) {
-	for _, name := range PageNames() {
-		got := rendered(t, name, acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework))
-		if strings.Contains(got, `class="site-name"`) {
-			t.Errorf("%s: want no site-name line, got:\n%s", name, got)
-		}
-	}
+	wantOnNoPage(t, acmeTable(), `class="site-name"`)
 }
 
 // TestFooterShowsTheTimeWithoutRows (forsgren#41, step 3; it reverses
 // forsgren#28's "the time with Rows only"): a page with an AsOf and no Rows
 // still says when it was calculated.
 func TestFooterShowsTheTimeWithoutRows(t *testing.T) {
-	data := Placeholder("0.4.0")
-	data.AsOf = "2026-10-03 12:00"
-	for _, name := range PageNames() {
-		if got := rendered(t, name, data); !strings.Contains(got, "Calculated at 2026-10-03 12:00 UTC</p>") {
-			t.Errorf("%s: want the calculation time in the footer, got:\n%s", name, got)
-		}
-	}
+	wantOnEveryPage(t, calculated(), "Calculated at 2026-10-03 12:00 UTC</p>")
 }
 
 // TestNoProjectsPageShowsAHowTo (forsgren#41, step 3): where the table would
@@ -482,61 +453,20 @@ func TestNoProjectsPageShowsAHowTo(t *testing.T) {
 	data := Placeholder("0.4.0")
 	data.NoProjects = true
 	got := rendered(t, "index.html", data)
-	for _, want := range []string{
+	wantAll(t, "index.html", got,
 		"forsgren.config.yml lists the projects",
 		"<pre><code>version: 1\nprojects:\n  - name: Acme Shop\n    repositories:\n",
 		"        label: iOS\n",
 		`<a href="https://github.com/yveshanoulle/forsgren#configuration">`,
-	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("want %q on the page, got:\n%s", want, got)
-		}
-	}
-	if strings.Contains(got, "No projects configured yet") {
-		t.Errorf("want the one-line message replaced by the how-to, got:\n%s", got)
-	}
-}
-
-// TestNewerComparesVersionsAsNumbers (forsgren#40, step 4): 0.0.10 is newer
-// than 0.0.9, a leading "v" is ignored, and what is equal, older or not a
-// version is never newer.
-func TestNewerComparesVersionsAsNumbers(t *testing.T) {
-	cases := []struct {
-		current, latest string
-		want            bool
-	}{
-		{"0.0.9", "0.0.10", true},
-		{"0.0.10", "0.0.9", false},
-		{"0.0.10", "0.1.0", true},
-		{"0.9.9", "1.0.0", true},
-		{"0.0.9", "v0.0.10", true},
-		{"v0.0.9", "0.0.10", true},
-		{"0.0.9", "0.0.9", false},
-		{"0.0.9", "0.0.8", false},
-		{"0.0.9", "", false},
-		{"0.0.9", "banana", false},
-		{"0.0.9", "0.0.10-rc1", false},
-		{"banana", "0.0.10", false},
-		{"0.0.9", "0.0.99999999999999999999", false},
-	}
-	for _, c := range cases {
-		if got := newer(c.current, c.latest); got != c.want {
-			t.Errorf("newer(%q, %q) = %v, want %v", c.current, c.latest, got, c.want)
-		}
-	}
+	)
+	wantNone(t, "index.html", got, "No projects configured yet")
 }
 
 // TestFooterNamesANewerRelease (forsgren#40, step 4, option 2): when a newer
 // forsgren release exists, the version line of the footer says so, on every
 // page, with the numbers compared as numbers.
 func TestFooterNamesANewerRelease(t *testing.T) {
-	data := Placeholder("0.4.0")
-	data.Latest = "0.4.1"
-	for _, name := range PageNames() {
-		if got := rendered(t, name, data); !strings.Contains(got, "0.4.0 · 0.4.1 is available") {
-			t.Errorf("%s: want %q in the footer, got:\n%s", name, "0.4.0 · 0.4.1 is available", got)
-		}
-	}
+	wantOnEveryPage(t, released("0.4.1", 0), "0.4.0 · 0.4.1 is available")
 }
 
 // TestFooterNamesNoReleaseThatIsNotNewer (forsgren#40, step 4): up to date,
@@ -544,25 +474,9 @@ func TestFooterNamesANewerRelease(t *testing.T) {
 // the footer adds nothing.
 func TestFooterNamesNoReleaseThatIsNotNewer(t *testing.T) {
 	for _, latest := range []string{"", "0.4.0", "0.1.2", "0.0.10", "banana"} {
-		data := Placeholder("0.4.0")
-		data.Latest = latest
-		for _, name := range PageNames() {
-			if got := rendered(t, name, data); strings.Contains(got, " is available") {
-				t.Errorf("%s, latest %q: want nothing added to the footer, got:\n%s", name, latest, got)
-			}
-		}
-	}
-}
-
-// TestReleaseVersionNamesThePlainVersion (forsgren#40, step 4): a release
-// tag's version is its three numbers without the v; anything else is none.
-func TestReleaseVersionNamesThePlainVersion(t *testing.T) {
-	cases := map[string]string{"v0.0.10": "0.0.10", "0.1.2": "0.1.2", "nightly": "", "v1.2": "", "1.2.3-rc1": ""}
-	for in, want := range cases {
-		got, ok := ReleaseVersion(in)
-		if got != want || ok != (want != "") {
-			t.Errorf("ReleaseVersion(%q) = %q, %v, want %q", in, got, ok, want)
-		}
+		t.Run("latest "+latest, func(t *testing.T) {
+			wantOnNoPage(t, released(latest, 0), " is available")
+		})
 	}
 }
 
@@ -570,33 +484,19 @@ func TestReleaseVersionNamesThePlainVersion(t *testing.T) {
 // newer release whose Dependabot pull request is open is named with the
 // pull request's number, instead of "is available"; no repository appears.
 func TestFooterNamesTheWaitingPullRequest(t *testing.T) {
-	data := Placeholder("0.4.0")
-	data.Latest = "0.4.1"
-	data.WaitingPR = 7
-	want := "0.4.0 · 0.4.1 is waiting in pull request #7 (merge it to update)"
-	for _, name := range PageNames() {
-		got := rendered(t, name, data)
-		if !strings.Contains(got, want) || strings.Contains(got, " is available") {
-			t.Errorf("%s: want %q and no \"is available\" in the footer, got:\n%s", name, want, got)
-		}
-	}
+	data := released("0.4.1", 7)
+	wantOnEveryPage(t, data, "0.4.0 · 0.4.1 is waiting in pull request #7 (merge it to update)")
+	wantOnNoPage(t, data, " is available")
 }
 
 // TestFooterNamesNoWaitingPullRequestWithoutANewerRelease (forsgren#40, step
 // 5): with no pull request, "is available" stays; up to date, a pull request
 // number alone adds nothing.
 func TestFooterNamesNoWaitingPullRequestWithoutANewerRelease(t *testing.T) {
-	data := Placeholder("0.4.0")
-	data.Latest = "0.4.1"
-	got := rendered(t, "index.html", data)
-	if !strings.Contains(got, "0.4.1 is available") || strings.Contains(got, "waiting") {
-		t.Errorf("want \"is available\" and no \"waiting\" without a pull request, got:\n%s", got)
-	}
-	data.Latest, data.WaitingPR = "0.4.0", 7
-	got = rendered(t, "index.html", data)
-	if strings.Contains(got, "pull request #") || strings.Contains(got, " is available") {
-		t.Errorf("want nothing added when up to date, got:\n%s", got)
-	}
+	available := rendered(t, "index.html", released("0.4.1", 0))
+	wantAll(t, "without a pull request", available, "0.4.1 is available")
+	wantNone(t, "without a pull request", available, "waiting")
+	wantNone(t, "up to date", rendered(t, "index.html", released("0.4.0", 7)), "pull request #", " is available")
 }
 
 // TestFooterEndsTheReleaseNewsBeforeWhatForsgrenIs (forsgren#40, review of
@@ -608,13 +508,7 @@ func TestFooterEndsTheReleaseNewsBeforeWhatForsgrenIs(t *testing.T) {
 		0: "0.4.0 · 0.4.1 is available. Metrics from GitHub data",
 		7: "0.4.0 · 0.4.1 is waiting in pull request #7 (merge it to update). Metrics from GitHub data",
 	} {
-		data := Placeholder("0.4.0")
-		data.Latest, data.WaitingPR = "0.4.1", waiting
-		for _, name := range PageNames() {
-			if got := rendered(t, name, data); !strings.Contains(got, want) {
-				t.Errorf("%s: want %q in the footer, got:\n%s", name, want, got)
-			}
-		}
+		wantOnEveryPage(t, released("0.4.1", waiting), want)
 	}
 }
 
@@ -622,36 +516,8 @@ func TestFooterEndsTheReleaseNewsBeforeWhatForsgrenIs(t *testing.T) {
 // reads exactly "DORA metrics", and the region around the table is still
 // labelled by it, so the id its aria-labelledby names exists.
 func TestTableCaptionIsDORAMetrics(t *testing.T) {
-	got := rendered(t, "index.html", acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework))
-	const want = `<caption id="metrics-caption">DORA metrics</caption>`
-	if !strings.Contains(got, want) {
-		t.Errorf("want %q on the table page, got:\n%s", want, got)
-	}
-	if !strings.Contains(got, `aria-labelledby="metrics-caption"`) {
-		t.Errorf("want the table's region labelled by metrics-caption, got:\n%s", got)
-	}
-}
-
-// TestCaptionFontIsLargerThanBody (forsgren#45, step 2): the caption rule in
-// styles.css sets a font-size in rem above 1, the body's size (the body sets
-// none, so it is 1rem). Parsed, not matched as one exact string, so the size
-// can be tuned without touching the test.
-func TestCaptionFontIsLargerThanBody(t *testing.T) {
-	css, err := files.ReadFile("styles.css")
-	if err != nil {
-		t.Fatal(err)
-	}
-	rule := regexp.MustCompile(`(?s)\bcaption\s*\{([^}]*)\}`).FindStringSubmatch(string(css))
-	if rule == nil {
-		t.Fatalf("want a caption rule in styles.css, got:\n%s", css)
-	}
-	size := regexp.MustCompile(`font-size:\s*([0-9.]+)rem`).FindStringSubmatch(rule[1])
-	if size == nil {
-		t.Fatalf("want the caption rule to set a font-size in rem, got:\n%s", rule[1])
-	}
-	if n, err := strconv.ParseFloat(size[1], 64); err != nil || n <= 1 {
-		t.Errorf("want the caption font-size above the body's 1rem, got %s", size[1])
-	}
+	wantAll(t, "index.html", rendered(t, "index.html", acmeTable()),
+		`<caption id="metrics-caption">DORA metrics</caption>`, `aria-labelledby="metrics-caption"`)
 }
 
 // TestLegendStatesTheWorkingDay (forsgren#71): the legend says how a working
@@ -674,12 +540,7 @@ func TestLegendStatesTheWorkingDay(t *testing.T) {
 	for _, c := range cases {
 		data := Placeholder("0.4.0")
 		data.WorkingHours, data.WorkingHoursSet = c.hours, c.set
-		got := rendered(t, "legend.html", data)
-		for _, want := range c.want {
-			if !strings.Contains(got, want) {
-				t.Errorf("%s: want the legend to say %q, got:\n%s", c.name, want, got)
-			}
-		}
+		wantAll(t, c.name, rendered(t, "legend.html", data), c.want...)
 	}
 }
 
@@ -688,14 +549,9 @@ func TestLegendStatesTheWorkingDay(t *testing.T) {
 func TestLegendListsTheSettings(t *testing.T) {
 	data := Placeholder("0.4.0")
 	data.Settings = []config.Setting{{Key: "view", Value: "numbers", Set: true}, {Key: "history_days", Value: "365"}}
-	got := rendered(t, "legend.html", data)
-	for _, want := range []string{
+	wantAll(t, "legend.html", rendered(t, "legend.html", data),
 		"<h2>Settings</h2>",
 		"<li>view: numbers</li>",
 		"<li>history_days: 365 (default, not set in forsgren.config.yml)</li>",
-	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("want the legend to say %q, got:\n%s", want, got)
-		}
-	}
+	)
 }

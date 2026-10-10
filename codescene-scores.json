@@ -340,8 +340,8 @@
   },
   {
    "path": "internal/page/page_test.go",
-   "score": 8.54,
-   "checkedAt": "2026-10-07",
+   "score": 10.0,
+   "checkedAt": "2026-10-10",
    "minScore": 10.0
   },
   {
@@ -911,7 +911,13 @@
   {
    "path": "internal/page/release_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-07",
+   "checkedAt": "2026-10-10",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/styles_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-10",
    "minScore": 10.0
   }
  ]

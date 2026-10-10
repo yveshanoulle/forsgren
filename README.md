@@ -467,7 +467,7 @@ metrics.
 
 ## The page
 
-Both pages end with a footer of one paragraph (forsgren#41, #45): Forsgren,
+Every page's footer opens with one paragraph (forsgren#41, #45): Forsgren,
 linked to its GitHub repository, its version, "The five DORA metrics, from
 GitHub data." "Calculated at
 2026-10-03 12:00 UTC", the moment of the run (UTC, to the minute), on every
@@ -475,7 +475,8 @@ run, with rows or without; and, when a newer forsgren release exists than the
 version that built the page, the version line adds it, "Forsgren 0.4.0 ·
 0.3.9 is available" (forsgren#40; nothing is added when the page is up to
 date, and no repository appears). The numbers are compared as numbers, so 0.0.10
-is newer than 0.0.9.
+is newer than 0.0.9. On a table page the footer's paragraph is followed by
+a link to the legend, "What the bands mean" (forsgren#83).
 
 `render` writes one table (forsgren#38) first on the table page, with no text
 above it but a visually hidden heading for screen readers, "Forsgren 0.4.0:
@@ -509,7 +510,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
 - **Each cell is short**: the DORA band, then the number that decided it
   and the count it is over, "Less than one day · 2 h 7 min (48)". Durations
   are in min, h and d, each part cut down, never rounded up.
-- **Pages:** `index.html` holds the table and a link, "What the bands mean", to `legend.html`, which has a link back.
+- **Pages:** `index.html` holds the table and, in its footer, a link, "What the bands mean", to `legend.html`, which has a link back.
 - **Views** (forsgren#46): the table is built in more than one view, each its
   own page: `/standard/` (`standard/index.html`) is the table above, band,
   number and count, and `/numbers/` (`numbers/index.html`) shows only
