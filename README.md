@@ -476,7 +476,7 @@ version that built the page, the version line adds it, "Forsgren 0.4.2 ·
 0.3.9 is available" (forsgren#40; nothing is added when the page is up to
 date, and no repository appears). The numbers are compared as numbers, so 0.0.10
 is newer than 0.0.9. On a table page the footer's paragraph is followed by
-a link to the legend, "What the bands mean" (forsgren#83).
+two links on one line, "Settings" and "What the bands mean", to the settings page and the legend (forsgren#83, #84). The legend page's footer links to Settings, the settings page's to the legend, no page to itself; a page with no table, such as the no-projects how-to, has none.
 
 `render` writes one table (forsgren#38) first on the table page, with no text
 above it but a visually hidden heading for screen readers, "Forsgren 0.4.2:
@@ -510,7 +510,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
 - **Each cell is short**: the DORA band, then the number that decided it
   and the count it is over, "Less than one day · 2 h 7 min (48)". Durations
   are in min, h and d, each part cut down, never rounded up.
-- **Pages:** `index.html` holds the table and, in its footer, a link, "What the bands mean", to `legend.html`, which has a link back.
+- **Pages:** `index.html` holds the table and, in its footer, two links, "Settings" to `settings.html` and "What the bands mean" to `legend.html`; both have a link back to the table, and each links in its footer to the other kind of page (the legend to Settings, the settings page to the legend; forsgren#84).
 - **Views** (forsgren#46): the table is built in more than one view, each its
   own page: `/standard/` (`standard/index.html`) is the table above, band,
   number and count, and `/numbers/` (`numbers/index.html`) shows only
@@ -546,7 +546,11 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   rate's, so it refers to them), with what each cell counts and its window;
   its last section, Scores, says what the scoring view shows and credits the
   DORA Quick Check, linked: "Scores follow the DORA Quick Check (dora.dev),
-  © Google LLC, CC BY 4.0" (forsgren#47).
+  © Google LLC, CC BY 4.0" (forsgren#47). It no longer lists the settings
+  (forsgren#84).
+- **The settings page** (`settings.html`, forsgren#84) lists each optional
+  config key with the value in use, see Configuration; it has a link back to
+  the table.
 - **Layout:** the table has a caption and `<th scope>` headers; it scrolls
   sideways inside its own box on a narrow screen, so the page keeps its
   1rem (16px) gutter and never scrolls sideways itself. `styles.css` sets
@@ -647,7 +651,8 @@ projects:
   hours from 1 to 24`. It is read and checked now; the on-demand threshold
   uses it in the next step. The starter that `init-config` writes includes
   `working_hours: 8`.
-- **The legend page** lists every optional key with its value (forsgren#74),
+- **The settings page** (`settings.html`, forsgren#74, moved out of the legend
+  in forsgren#84) lists every optional key with its value,
   `view`, `auto_update`, `auto_update_level`, `history_days`,
   `history_chunk_days` and `working_hours`, and marks each key the file does
   not set with "(default, not set in forsgren.config.yml)".
@@ -1771,7 +1776,7 @@ The POST gates, on the generated site:
 - **required pages** (`Scripts/validate_required_pages.sh` and
   `Scripts/test_required_pages_covers_site.sh`): the pages the site must
   ship are listed, hand-authored, in `internal/page/required-pages.json`
-  (today `/`, `/legend.html`, `/standard/`, `/numbers/` and `/scoring/`). The first checks that list's shape: valid JSON, a
+  (today `/`, `/legend.html`, `/settings.html`, `/standard/`, `/numbers/` and `/scoring/`). The first checks that list's shape: valid JSON, a
   non-empty `requiredPages` array of root-relative paths, no scheme or host,
   no `..`, no duplicates. The second checks it against `.build/site`: every
   `.html` file there, in subfolders too, is listed (`standard/index.html` as
