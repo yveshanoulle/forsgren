@@ -41,9 +41,5 @@
     <p>The DORA band, on the six points and edges of change fail rate, as the DORA Quick Check scales both the same; then the rework deployments out of the successful deployments of the last 30 days, in whole percent, rounded down, and in brackets both counts. A rework deployment is a successful deployment that is the first success of its stream after a failed deployment, or that happened while an issue labelled failure of its repository was open; it is counted once. A failure issue names no service, so a service's row counts the first kind only. DORA's question is "Approximately what percentage of deployments in the last 6 months were not planned but were performed to address a user-facing bug in the application?", but forsgren measures the last 30 days, like its other four metrics.</p>
     <h2>Scores</h2>
     <p>The scoring view shows each metric's score, 0 to 10, and Overall Performance, the mean of the scored metrics, to one decimal. Scores follow the <a href="https://dora.dev/quickcheck/">DORA Quick Check</a> (dora.dev), © Google LLC, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.</p>
-    <h2>Settings</h2>
-    <ul>
-{{range .Settings}}      <li>{{.Key}}: {{.Value}}{{if not .Set}} (default, not set in forsgren.config.yml){{end}}</li>
-{{end}}    </ul>
   </main>
 {{template "footer" .}}
