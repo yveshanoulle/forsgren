@@ -45,9 +45,9 @@ func IssueDays(events []history.IssueEvent, now time.Time, days int) []IssueDay 
 // the reason completed a completed one, anything else nothing.
 func (d *IssueDay) count(e history.IssueEvent) {
 	switch {
-	case e.Event == "created":
+	case e.Event == history.EventCreated:
 		d.New++
-	case e.Event == "closed" && e.Reason == "completed":
+	case e.Event == history.EventClosed && e.Reason == history.ReasonCompleted:
 		d.Completed++
 	}
 }

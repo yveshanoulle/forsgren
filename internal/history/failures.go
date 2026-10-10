@@ -69,8 +69,15 @@ type IssueKey struct {
 	Number     int64
 }
 
+// IssueKeyOf is the key of issue number of repository: the one place the
+// repository's case is dropped, for the failures file, the issues file and
+// collect alike.
+func IssueKeyOf(repository string, number int64) IssueKey {
+	return IssueKey{strings.ToLower(repository), number}
+}
+
 // Key is f's issue.
-func (f Failure) Key() IssueKey { return IssueKey{strings.ToLower(f.Repository), f.Issue} }
+func (f Failure) Key() IssueKey { return IssueKeyOf(f.Repository, f.Issue) }
 
 // Revises says whether f says something else than held, the newest line of
 // its issue: any time, whatever the repository's case. AppendFailures

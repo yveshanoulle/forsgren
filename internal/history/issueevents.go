@@ -27,6 +27,20 @@ type IssueEvent struct {
 	At         time.Time
 }
 
+// The events an IssueEvent can be.
+const (
+	EventCreated  = "created"
+	EventClosed   = "closed"
+	EventReopened = "reopened"
+)
+
+// The reasons a closed event can give, GitHub's state_reason.
+const (
+	ReasonCompleted  = "completed"
+	ReasonNotPlanned = "not_planned"
+	ReasonDuplicate  = "duplicate"
+)
+
 // issueEvents is the format of data/issues.csv, the issues format v1.
 var issueEvents = format[IssueEvent, issueEventKey]{
 	versionLine: "# forsgren issues v1",
@@ -58,9 +72,11 @@ type issueEventKey struct {
 	at    time.Time
 }
 
-func (e IssueEvent) key() issueEventKey {
-	return issueEventKey{IssueKey{strings.ToLower(e.Repository), e.Issue}, e.Event, e.At}
-}
+// key is e's issue, event and time.
+func (e IssueEvent) key() issueEventKey { return issueEventKey{e.IssueKey(), e.Event, e.At} }
+
+// IssueKey is e's issue.
+func (e IssueEvent) IssueKey() IssueKey { return IssueKeyOf(e.Repository, e.Issue) }
 
 // compareIssueEvents orders new lines by time, then repository, issue
 // number and event.
@@ -89,7 +105,7 @@ func toIssueEvent(f []string) (IssueEvent, error) {
 
 // closeReasons are the reasons a closed event can give; "" is a close whose
 // reason GitHub does not state.
-var closeReasons = []string{"", "completed", "not_planned", "duplicate"}
+var closeReasons = []string{"", ReasonCompleted, ReasonNotPlanned, ReasonDuplicate}
 
 // validate says why e cannot be stored, or nil.
 func (e IssueEvent) validate() error {
@@ -97,9 +113,9 @@ func (e IssueEvent) validate() error {
 		check{isRepository(e.Repository), fmt.Sprintf("repository %q is not owner/name", e.Repository)},
 		check{!strings.ContainsAny(e.Repository, "\r\n"), "the repository has a line break"},
 		check{e.Issue > 0, "issue is not positive"},
-		check{slices.Contains([]string{"created", "closed", "reopened"}, e.Event),
+		check{slices.Contains([]string{EventCreated, EventClosed, EventReopened}, e.Event),
 			fmt.Sprintf("event %q is not created, closed or reopened", e.Event)},
-		check{e.Event == "closed" && slices.Contains(closeReasons, e.Reason) || e.Event != "closed" && e.Reason == "",
+		check{e.Event == EventClosed && slices.Contains(closeReasons, e.Reason) || e.Event != EventClosed && e.Reason == "",
 			fmt.Sprintf("reason %q does not fit a %s event", e.Reason, e.Event)},
 		check{isWholeSecond(e.At), "at is empty or has a fraction of a second"},
 	)

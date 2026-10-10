@@ -35,6 +35,9 @@ func (i listed) json() string {
 		7000+i.number, i.number, i.state, i.created, i.created, quoted(i.closed), quoted(i.reason))
 }
 
+// issuesFileBeside is data/issues.csv next to the history at path.
+func issuesFileBeside(path string) string { return filepath.Join(filepath.Dir(path), "issues.csv") }
+
 // TestCollectStoresTheEventsOfEveryIssue (forsgren#76, step 4): every issue
 // of the repository, whatever its labels, gives a created event at its
 // creation and, when closed, a closed event at its closing with GitHub's
@@ -49,7 +52,7 @@ func TestCollectStoresTheEventsOfEveryIssue(t *testing.T) {
 	if r := g.collect(t, shop(production), path, 1); r.err != nil {
 		t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
 	}
-	got, err := history.LoadIssueEvents(filepath.Join(filepath.Dir(path), "issues.csv"))
+	got, err := history.LoadIssueEvents(issuesFileBeside(path))
 	if err != nil {
 		t.Fatalf("want an issues file, got %v", err)
 	}
@@ -91,7 +94,7 @@ func TestAnIssuesFileThatCannotBeWrittenStoresNoDeployment(t *testing.T) {
 	g.bodies[statusesPath("1001")] = list(status(6, "success", "2026-09-21T10:05:00Z"))
 	g.bodies[allIssuesPath] = list(listed{number: 3, state: "open", created: "2026-09-20T08:00:00Z"}.json())
 	path := historyPath(t)
-	issues := filepath.Join(filepath.Dir(path), "issues.csv")
+	issues := issuesFileBeside(path)
 	if _, err := history.AppendIssueEvents(issues, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +119,7 @@ func TestAReopenedIssueGetsOneReopenedEventAtTheRunTime(t *testing.T) {
 	g.bodies[allIssuesPath] = list(
 		listed{number: 2, state: "open", created: "2026-09-15T07:45:00Z", reason: "reopened"}.json())
 	path := historyPath(t)
-	issues := filepath.Join(filepath.Dir(path), "issues.csv")
+	issues := issuesFileBeside(path)
 	stored := []history.IssueEvent{
 		{Repository: "acme/app", Issue: 2, Event: "created", At: at(15, 7, 45)},
 		{Repository: "acme/app", Issue: 2, Event: "closed", Reason: "completed", At: at(21, 9, 30)},
@@ -142,7 +145,7 @@ func TestAReopenedIssueGetsOneReopenedEventAtTheRunTime(t *testing.T) {
 func TestAnIssuesFileItCannotReadIsRefusedFirst(t *testing.T) {
 	g := newGitHub(t)
 	path := historyPath(t)
-	issues := filepath.Join(filepath.Dir(path), "issues.csv")
+	issues := issuesFileBeside(path)
 	if err := os.MkdirAll(filepath.Dir(issues), 0o750); err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +173,7 @@ func TestACloseAfterAReopenIsStoredOnceAtItsOwnTime(t *testing.T) {
 		number: 2, state: "closed", created: "2026-09-15T07:45:00Z", closed: "2026-09-28T16:00:00Z", reason: "not_planned",
 	}.json())
 	path := historyPath(t)
-	issues := filepath.Join(filepath.Dir(path), "issues.csv")
+	issues := issuesFileBeside(path)
 	stored := []history.IssueEvent{
 		{Repository: "acme/app", Issue: 2, Event: "created", At: at(15, 7, 45)},
 		{Repository: "acme/app", Issue: 2, Event: "closed", Reason: "completed", At: at(21, 9, 30)},

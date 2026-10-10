@@ -20,7 +20,6 @@ import (
 	"errors"
 	"io/fs"
 	"path/filepath"
-	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/github"
 	"github.com/yveshanoulle/forsgren/internal/history"
@@ -51,7 +50,7 @@ func loadFailures(path string) (map[history.IssueKey]history.Failure, error) {
 // failureIssues reads repo's failure issues updated in the last history_days and
 // returns those to store: new, or changed since their newest stored line.
 func (o Options) failureIssues(ctx context.Context, h held, repo string) ([]history.Failure, error) {
-	issues, truncated, err := o.Client.FailureIssues(ctx, repo, o.failuresSince(h, repo))
+	issues, truncated, err := o.Client.FailureIssues(ctx, repo, o.issuesSince(h, repo))
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +84,7 @@ func (o Options) freshFailures(h held, repo string, issues []github.Issue) []his
 // seconds.
 func failureOf(repo string, i github.Issue) history.Failure {
 	return history.Failure{
-		Repository: repo, Issue: i.Number, OpenedAt: i.CreatedAt.UTC().Truncate(time.Second),
-		ClosedAt: i.ClosedAt.UTC().Truncate(time.Second), FailureStart: i.Record.FailureStart,
+		Repository: repo, Issue: i.Number, OpenedAt: wholeSecond(i.CreatedAt), ClosedAt: wholeSecond(i.ClosedAt),
+		FailureStart: i.Record.FailureStart,
 	}
 }

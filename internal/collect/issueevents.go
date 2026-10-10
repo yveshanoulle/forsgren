@@ -10,8 +10,6 @@ import (
 	"errors"
 	"io/fs"
 	"path/filepath"
-	"strings"
-	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/github"
 	"github.com/yveshanoulle/forsgren/internal/history"
@@ -24,19 +22,23 @@ const IssuesFile = "issues.csv"
 // issuesFile is the path of the issue events file next to o's history.
 func (o Options) issuesFile() string { return filepath.Join(filepath.Dir(o.History), IssuesFile) }
 
-// issueEvents reads repo's issues updated since the repository's read mark
-// (failuresSince) and returns the events to store.
+// issueEvents reads repo's issues updated since the repository's read mark,
+// the one the failure issues use (issuesSince, decision #101), and returns
+// the events their snapshots show (decision #100): each issue's created and
+// closed events, which history.AppendIssueEvents skips when already held,
+// and a reopened event at the run's time when the issue is open and its
+// last stored event is a close.
 func (o Options) issueEvents(ctx context.Context, h held, repo string) ([]history.IssueEvent, error) {
-	issues, _, err := o.Client.Issues(ctx, repo, o.failuresSince(h, repo))
+	issues, _, err := o.Client.Issues(ctx, repo, o.issuesSince(h, repo))
 	if err != nil {
 		return nil, err
 	}
 	var events []history.IssueEvent
 	for _, i := range issues {
 		events = append(events, eventsOf(repo, i)...)
-		if i.State == "open" && h.lastEvent(repo, i.Number) == "closed" {
+		if i.State == "open" && h.lastEvent(repo, i.Number) == history.EventClosed {
 			events = append(events, history.IssueEvent{
-				Repository: repo, Issue: i.Number, Event: "reopened", At: wholeSecond(o.Now),
+				Repository: repo, Issue: i.Number, Event: history.EventReopened, At: wholeSecond(o.Now),
 			})
 		}
 	}
@@ -46,7 +48,7 @@ func (o Options) issueEvents(ctx context.Context, h held, repo string) ([]histor
 // lastEvent is the event, "created", "closed" or "reopened", that the last
 // stored line of issue number of repo says; "" for an issue not stored.
 func (h held) lastEvent(repo string, number int64) string {
-	return h.events[history.IssueKey{Repository: strings.ToLower(repo), Number: number}]
+	return h.lastEvents[history.IssueKeyOf(repo, number)]
 }
 
 // loadIssueFiles is h with what the failures file and the issues file hold:
@@ -62,9 +64,9 @@ func (o Options) loadIssueFiles(h held) (held, error) {
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return h, err
 	}
-	h.events = make(map[history.IssueKey]string, len(stored))
+	h.lastEvents = make(map[history.IssueKey]string, len(stored))
 	for _, e := range stored {
-		h.events[history.IssueKey{Repository: strings.ToLower(e.Repository), Number: e.Issue}] = e.Event
+		h.lastEvents[e.IssueKey()] = e.Event
 	}
 	return h, nil
 }
@@ -72,14 +74,13 @@ func (o Options) loadIssueFiles(h held) (held, error) {
 // eventsOf is the events one issue of repo shows: created at its creation
 // and, when closed, closed at its closing with GitHub's reason.
 func eventsOf(repo string, i github.RepoIssue) []history.IssueEvent {
-	events := []history.IssueEvent{{Repository: repo, Issue: i.Number, Event: "created", At: wholeSecond(i.CreatedAt)}}
+	events := []history.IssueEvent{
+		{Repository: repo, Issue: i.Number, Event: history.EventCreated, At: wholeSecond(i.CreatedAt)},
+	}
 	if !i.ClosedAt.IsZero() {
 		events = append(events, history.IssueEvent{
-			Repository: repo, Issue: i.Number, Event: "closed", Reason: i.StateReason, At: wholeSecond(i.ClosedAt),
+			Repository: repo, Issue: i.Number, Event: history.EventClosed, Reason: i.StateReason, At: wholeSecond(i.ClosedAt),
 		})
 	}
 	return events
 }
-
-// wholeSecond is t in UTC, whole seconds.
-func wholeSecond(t time.Time) time.Time { return t.UTC().Truncate(time.Second) }

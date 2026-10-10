@@ -54,7 +54,7 @@ func (g *gitHub) serve(w http.ResponseWriter, r *http.Request) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.requests = append(g.requests, r.URL.RequestURI())
-	key := g.keyOf(r)
+	key := keyOf(r)
 	body, ok := g.bodies[key]
 	if !ok && strings.HasSuffix(r.URL.Path, "/issues") {
 		body, ok = "[]", true
@@ -73,16 +73,20 @@ func (g *gitHub) serve(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.WriteString(w, body)
 }
 
-// allIssuesPath is the key of the fake's answers to a repository's issues
-// listed without a labels filter (forsgren#76); the issues of one label,
-// the failure issues, keep the plain path.
-const allIssuesPath = issuesPath + "#all"
+// allIssues marks the fake's answers to a repository's issues listed
+// without a labels filter (forsgren#76); the issues of one label, the
+// failure issues, keep the plain path. allIssuesPath is acme/app's key.
+const (
+	allIssues     = "#all"
+	allIssuesPath = issuesPath + allIssues
+)
 
 // keyOf is the key in bodies, status and paged of the answer to r: its path,
-// and for a list of issues without a labels parameter that path with "#all".
-func (g *gitHub) keyOf(r *http.Request) string {
+// and for a list of issues without a labels parameter that path with
+// allIssues.
+func keyOf(r *http.Request) string {
 	if strings.HasSuffix(r.URL.Path, "/issues") && !r.URL.Query().Has("labels") {
-		return r.URL.Path + "#all"
+		return r.URL.Path + allIssues
 	}
 	return r.URL.Path
 }

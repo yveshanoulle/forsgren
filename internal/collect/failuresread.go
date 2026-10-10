@@ -1,10 +1,13 @@
 package collect
 
-// When the failure issues of each repository were last read (forsgren#67):
+// When the issues of each repository were last read (forsgren#67):
 // data/failures_read.csv, next to the history, one time per repository. A run
 // asks for the issues updated since that time less a day; with none, since
 // history_days before Now. The time moves to Now when the repository's
-// issues were read and stored, and stays when they were not.
+// issues were read and stored, and stays when they were not. The failure
+// issues and, since forsgren#76 (decision #101), the issue events share it:
+// both are read in the same repository step and the mark moves only once
+// both are stored.
 
 import (
 	"errors"
@@ -58,15 +61,19 @@ func (o Options) saveMarks(h held, before marks) error {
 	return errors.Join(errs...)
 }
 
-// failuresSince is where the read of repo's failure issues starts.
-func (o Options) failuresSince(h held, repo string) time.Time {
+// issuesSince is where the reads of repo's issues start, the failure issues
+// and every issue for its events alike.
+func (o Options) issuesSince(h held, repo string) time.Time {
 	if last, ok := h.read[strings.ToLower(repo)]; ok {
 		return last.Add(-failuresReadOverlap)
 	}
 	return o.earliest
 }
 
-// noteRead moves repo's failures read to at, whole seconds, UTC.
+// noteRead moves repo's issues read to at, whole seconds, UTC.
 func (h held) noteRead(repo string, at time.Time) {
-	h.read[strings.ToLower(repo)] = at.UTC().Truncate(time.Second)
+	h.read[strings.ToLower(repo)] = wholeSecond(at)
 }
+
+// wholeSecond is t in UTC, whole seconds, as the files store times.
+func wholeSecond(t time.Time) time.Time { return t.UTC().Truncate(time.Second) }

@@ -41,9 +41,10 @@ type renderOptions struct {
 // render writes the site. With --config it also reads the installation's
 // forsgren.config.yml, so the page can say when no projects are configured
 // yet (forsgren#12); with --data as well it reads the history and the
-// commits and failures files next to it, and shows each project's
+// commits, failures and issues files next to it, and shows each project's
 // deployment frequency, lead time for changes, failed deployment recovery
-// time and change fail rate, counted back from now. Without --config
+// time, change fail rate and deployment rework rate, counted back from now,
+// and the issues page's days (forsgren#76). Without --config
 // (the repository's own build has no installation config) the page is the
 // placeholder, with the render time in its footer.
 func render(args []string, stdout, stderr io.Writer) int {
@@ -121,7 +122,7 @@ func withHistory(data page.Data, cfg config.Config, path string, at time.Time) (
 		return data, err
 	}
 	data.Rows = page.Table(rows)
-	events, err := loadOrNone(filepath.Join(filepath.Dir(path), collect.IssuesFile), history.LoadIssueEvents)
+	events, err := loadOrNone(beside(path, collect.IssuesFile), history.LoadIssueEvents)
 	if err != nil {
 		return data, err
 	}
@@ -140,17 +141,21 @@ func rowsOf(cfg config.Config, path string, at time.Time) ([]metrics.Row, error)
 	if err != nil {
 		return nil, err
 	}
-	commits, err := loadOrNone(filepath.Join(filepath.Dir(path), collect.CommitsFile), history.LoadCommits)
+	commits, err := loadOrNone(beside(path, collect.CommitsFile), history.LoadCommits)
 	if err != nil {
 		return nil, err
 	}
-	failures, err := loadOrNone(filepath.Join(filepath.Dir(path), collect.FailuresFile), history.LoadFailures)
+	failures, err := loadOrNone(beside(path, collect.FailuresFile), history.LoadFailures)
 	if err != nil {
 		return nil, err
 	}
 	data := metrics.Data{Records: records, Commits: commits, Failures: failures, WorkingHours: cfg.WorkingHours}
 	return metrics.Rows(cfg.Projects, data, at), nil
 }
+
+// beside is the path of the file name in the folder of the history at path:
+// data/<name> beside data/deployments.csv.
+func beside(path, name string) string { return filepath.Join(filepath.Dir(path), name) }
 
 // loadOrNone reads the file at path with load. A missing file holds
 // nothing: a new installation renders before its first collect has stored

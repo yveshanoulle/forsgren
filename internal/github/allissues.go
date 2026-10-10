@@ -22,8 +22,8 @@ type RepoIssue struct {
 
 // Issues lists every issue of repo, open or closed, updated at or after
 // since, pull requests left out: GET
-// /repos/{owner}/{repo}/issues?state=all&since=... with no labels filter, 100 per page, up to the page limit; it says
-// whether it stopped there.
+// /repos/{owner}/{repo}/issues?state=all&since=... with no labels filter,
+// 100 per page, up to the page limit; it says whether it stopped there.
 func (c *Client) Issues(ctx context.Context, repo string, since time.Time) ([]RepoIssue, bool, error) {
 	query := url.Values{"state": {"all"}, "since": {since.UTC().Format(time.RFC3339)}}
 	items, truncated, err := c.issueItems(ctx, repo, query)
