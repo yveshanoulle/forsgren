@@ -304,8 +304,7 @@ print_summary() {
 
 trap print_summary EXIT
 trap 'on_signal TERM 143' TERM
-trap 'on_signal INT 130' INT
-trap 'on_signal HUP 129' HUP
+# MUTATION 85-2a: removed in 85-2b
 
 echo "forsgren FBP.sh v${FBP_VERSION} — Started at ${STARTED_AT}"
 echo

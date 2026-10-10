@@ -14,8 +14,9 @@
 # stub sfl.sh signals its parent, the FBP.sh run, with
 # FBP_SANDBOX_SFL_PRE_SIGNAL: deterministic, no pid looked up.
 #
-# Case 1: a TERM to the run -> "Aborted ❌" in the summary, never "All checks
-#         passed", and a non-zero exit status.
+# Table over TERM, INT and HUP (143, 130, 129): a signal to the run ->
+# "Aborted ❌ (<SIG>, exit <n>)" in the summary, never "All checks passed",
+# and exactly that exit status.
 
 set -uo pipefail
 
@@ -32,7 +33,7 @@ trap 'fbp_sandbox_cleanup; selftest_cleanup' EXIT
 
 # aborted_case <signal> — a run whose PRE is ended by <signal> sent to FBP.sh.
 aborted_case() {
-  local sig="$1" out rc held=true
+  local sig="$1" want="$2" out rc held=true
   if ! FBP_SANDBOX_SFL_PRE_SIGNAL="$sig" fbp_sandbox_run 3 --no-commit "85: a run ended by ${sig}"; then
     fail "${sig}: ${FBP_SANDBOX_REASON}"
     return
@@ -50,20 +51,22 @@ aborted_case() {
     fail "${sig}: a run ended by ${sig} printed 'All checks passed' — a reader or an agent takes it as green. Output: ${out}"
     held=false
   fi
-  if ! grep -Fq "Aborted ❌" <<< "$out"; then
-    fail "${sig}: a run ended by ${sig} printed no 'Aborted ❌' line. Output: ${out}"
+  if ! grep -Fq "Aborted ❌ (${sig}, exit ${want})" <<< "$out"; then
+    fail "${sig}: a run ended by ${sig} printed no 'Aborted ❌ (${sig}, exit ${want})' line. Output: ${out}"
     held=false
   fi
-  if [ "$rc" = "0" ]; then
-    fail "${sig}: a run ended by ${sig} exited 0"
+  if [ "$rc" != "$want" ]; then
+    fail "${sig}: a run ended by ${sig} exited ${rc}, not ${want}"
     held=false
   fi
   if $held; then
-    echo "  ok: a run ended by ${sig} prints Aborted ❌ and exits non-zero (exit ${rc})"
+    echo "  ok: a run ended by ${sig} prints Aborted ❌ (${sig}, exit ${want}) and exits ${want}"
   fi
 }
 
-aborted_case TERM
+aborted_case TERM 143
+aborted_case INT 130
+aborted_case HUP 129
 
 selftest_end "FBP.sh prints All checks passed, or exits 0, on a run a signal ended" \
-  "a run ended by a signal prints Aborted ❌, never All checks passed, and exits non-zero"
+  "a run ended by TERM, INT or HUP prints Aborted ❌ with the signal, never All checks passed, and exits 143, 130 or 129"
