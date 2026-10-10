@@ -230,25 +230,22 @@ holds_nul_byte() {
   [ "$(( $(wc -c < "$1") ))" -ne "$(( $(tr -d '\000' < "$1" | wc -c) ))" ]
 }
 
-# Issue #85: a run ended by TERM, INT or HUP. bash 3.2 (macOS /bin/bash)
-# leaves $? at 0 in the EXIT trap of a script a signal ended, so the summary
-# printed "All checks passed" on a killed run. The signal traps below set
-# ABORT_SIGNAL and exit 128+n; print_summary reads the flag, never trusting $?
-# for a signalled run.
+# Issue #85: a run ended by TERM, INT or HUP. When a signal the script does
+# not trap ends it, bash 3.2 (macOS /bin/bash) still runs the EXIT trap, with
+# $? at 0, so the summary printed "All checks passed" on a killed run. The
+# traps below catch those signals instead: on_signal records the signal name
+# in ABORT_SIGNAL and exits 128+n (143, 130, 129), and that explicit exit is
+# the $? print_summary sees. ABORT_SIGNAL is what names the abort.
 ABORT_SIGNAL=""
-ABORT_CODE=0
 
+# on_signal <SIG> — record <SIG> and exit 128 + its number.
 on_signal() {
   ABORT_SIGNAL="$1"
-  ABORT_CODE="$2"
-  exit "$2"
+  exit "$(( 128 + $(kill -l "$1") ))"
 }
 
 print_summary() {
   local exit_code=$?
-  if [ -n "$ABORT_SIGNAL" ]; then
-    exit_code="$ABORT_CODE"
-  fi
   local finished_at elapsed
   local pre_tail post_tail
 
@@ -303,9 +300,9 @@ print_summary() {
 }
 
 trap print_summary EXIT
-trap 'on_signal TERM 143' TERM
-trap 'on_signal INT 130' INT
-trap 'on_signal HUP 129' HUP
+trap 'on_signal TERM' TERM
+trap 'on_signal INT' INT
+trap 'on_signal HUP' HUP
 
 echo "forsgren FBP.sh v${FBP_VERSION} — Started at ${STARTED_AT}"
 echo

@@ -402,10 +402,11 @@ fbp_sandbox_run() {
     export GIT_CONFIG_KEY_0="commit.gpgsign" GIT_CONFIG_VALUE_0="false"
     mkdir -p .git/fbp-sandbox-home
     export HOME="$PWD/.git/fbp-sandbox-home"
-    # forsgren#85: perl resets SIGINT to its default before exec. A bash
-    # started as a background job inherits SIGINT ignored, and bash cannot
-    # trap a signal that was ignored on entry, so without this an INT to
-    # FBP.sh would depend on how the fixture was launched.
+    # forsgren#85: perl resets SIGINT to its default before exec. A shell
+    # without job control starts its background jobs with SIGINT ignored,
+    # and a non-interactive bash silently does not set a trap for a signal
+    # that was ignored on entry, so without this an INT to FBP.sh would
+    # depend on how the fixture was launched.
     PATH="$PWD/bin:$PATH" perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV or die "exec: $!"' ./FBP.sh "$@" > fbp-out.log 2>&1
     echo "$?" > fbp-rc.log
     if git rev-parse -q --verify HEAD > /dev/null; then

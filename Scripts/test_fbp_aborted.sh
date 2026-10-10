@@ -7,8 +7,8 @@
 # partway through ./sfl.sh pre, every summary row stayed skipped, nothing was
 # committed, and the summary still ended in "All checks passed ✅". The EXIT
 # trap (print_summary) reads $? and prints the pass line when it is 0, and
-# bash 3.2 (macOS /bin/bash) leaves $? at 0 in the EXIT trap of a script that
-# a signal ended.
+# when a signal the script does not trap ends it, bash 3.2 (macOS /bin/bash)
+# runs the EXIT trap with $? at 0.
 #
 # Drives the REAL FBP.sh in the sandbox of Scripts/lib_fbp_sandbox.sh. The
 # stub sfl.sh signals its parent, the FBP.sh run, with
@@ -31,7 +31,8 @@ source "${ROOT}/Scripts/lib_selftest.sh"
 selftest_begin "FBP aborted-run fixture"
 trap 'fbp_sandbox_cleanup; selftest_cleanup' EXIT
 
-# aborted_case <signal> — a run whose PRE is ended by <signal> sent to FBP.sh.
+# aborted_case <signal> <want> — a run whose PRE is ended by <signal> sent to
+# FBP.sh must print Aborted ❌ (<signal>, exit <want>) and exit <want>.
 aborted_case() {
   local sig="$1" want="$2" out rc held=true
   if ! FBP_SANDBOX_SFL_PRE_SIGNAL="$sig" fbp_sandbox_run 3 --no-commit "85: a run ended by ${sig}"; then
