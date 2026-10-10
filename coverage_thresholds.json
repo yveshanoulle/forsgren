@@ -118,6 +118,8 @@
     "github.com/yveshanoulle/forsgren/internal/collect/commits.go:deployed": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/issueevents.go:issuesFile": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/issueevents.go:issueEvents": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/issueevents.go:lastEvent": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/issueevents.go:loadIssueFiles": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/issueevents.go:eventsOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/issueevents.go:wholeSecond": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/failures.go:failuresFile": 100.0,

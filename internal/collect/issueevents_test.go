@@ -136,3 +136,25 @@ func TestAReopenedIssueGetsOneReopenedEventAtTheRunTime(t *testing.T) {
 		t.Errorf("want the events\n%v\ngot\n%v", want, got)
 	}
 }
+
+// TestAnIssuesFileItCannotReadIsRefusedFirst: a malformed issues file fails
+// the run before GitHub is asked anything, and stays as it was.
+func TestAnIssuesFileItCannotReadIsRefusedFirst(t *testing.T) {
+	g := newGitHub(t)
+	path := historyPath(t)
+	issues := filepath.Join(filepath.Dir(path), "issues.csv")
+	if err := os.MkdirAll(filepath.Dir(issues), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	content := "# forsgren issues v9\n"
+	if err := os.WriteFile(issues, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r := g.collect(t, shop(production), path, 1)
+	if !errors.Is(r.err, history.ErrUnknownVersion) || len(g.seen("/")) != 0 {
+		t.Errorf("want ErrUnknownVersion before any request, got %v after %v", r.err, g.seen("/"))
+	}
+	if got, _ := os.ReadFile(filepath.Clean(issues)); string(got) != content {
+		t.Errorf("want the issues file untouched, got %q", got)
+	}
+}

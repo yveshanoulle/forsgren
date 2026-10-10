@@ -114,7 +114,7 @@ func Run(ctx context.Context, cfg config.Config, o Options) error {
 	if err := checkCommits(o.commitsFile()); err != nil {
 		return err
 	}
-	if h.failures, err = loadFailures(o.failuresFile()); err != nil {
+	if h, err = o.loadIssueFiles(h); err != nil {
 		return err
 	}
 	if h, err = o.loadMarks(h); err != nil {
@@ -401,14 +401,16 @@ type entry struct {
 }
 
 // held is what the history holds: every deployment, the newest created_at
-// of each source, and the successes of each stream; and each failure issue
-// stored, as its newest line says.
+// of each source, and the successes of each stream; each failure issue
+// stored, as its newest line says; and the last stored event of each issue
+// (events, see issueevents.go).
 type held struct {
 	ids       map[entry]bool
 	newest    map[source]time.Time
 	oldest    map[source]time.Time // the oldest stored deployment of each source
 	successes map[history.Stream][]history.Record
 	failures  map[history.IssueKey]history.Failure
+	events    map[history.IssueKey]string
 	reach     history.Reach // see chunk.go
 	read      history.Reach // see failuresread.go
 }
