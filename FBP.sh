@@ -87,7 +87,7 @@ fi
 # repo because two FBP runs back to back were otherwise
 # indistinguishable from their first line (Yves, 2026-08-31). Mirrors
 # sfl.sh's banner; editing a Scripts/*.sh does not require a bump.
-FBP_VERSION=3
+FBP_VERSION=4
 
 STARTED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
 START_EPOCH="$(date +%s)"
@@ -230,8 +230,25 @@ holds_nul_byte() {
   [ "$(( $(wc -c < "$1") ))" -ne "$(( $(tr -d '\000' < "$1" | wc -c) ))" ]
 }
 
+# Issue #85: a run ended by TERM, INT or HUP. bash 3.2 (macOS /bin/bash)
+# leaves $? at 0 in the EXIT trap of a script a signal ended, so the summary
+# printed "All checks passed" on a killed run. The signal traps below set
+# ABORT_SIGNAL and exit 128+n; print_summary reads the flag, never trusting $?
+# for a signalled run.
+ABORT_SIGNAL=""
+ABORT_CODE=0
+
+on_signal() {
+  ABORT_SIGNAL="$1"
+  ABORT_CODE="$2"
+  exit "$2"
+}
+
 print_summary() {
   local exit_code=$?
+  if [ -n "$ABORT_SIGNAL" ]; then
+    exit_code="$ABORT_CODE"
+  fi
   local finished_at elapsed
   local pre_tail post_tail
 
@@ -272,7 +289,9 @@ print_summary() {
 
   echo
 
-  if [ "$exit_code" -eq 0 ]; then
+  if [ -n "$ABORT_SIGNAL" ]; then
+    echo "Aborted ❌ (${ABORT_SIGNAL}, exit $exit_code)"
+  elif [ "$exit_code" -eq 0 ]; then
     echo "All checks passed ✅"
   else
     echo "Aborted ❌ (exit $exit_code)"
@@ -284,6 +303,9 @@ print_summary() {
 }
 
 trap print_summary EXIT
+trap 'on_signal TERM 143' TERM
+trap 'on_signal INT 130' INT
+trap 'on_signal HUP 129' HUP
 
 echo "forsgren FBP.sh v${FBP_VERSION} — Started at ${STARTED_AT}"
 echo

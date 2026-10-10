@@ -306,7 +306,7 @@ for path in Scripts/*.sh; do
     # sandbox both FBP fixtures drive. They are its test, and both must
     # still source it.
     lib_fbp_sandbox.sh)
-      for consumer in test_fbp_commit_message.sh test_fbp_build_pagecount.sh; do
+      for consumer in test_fbp_commit_message.sh test_fbp_build_pagecount.sh test_fbp_aborted.sh; do
         runs_script "Scripts/${consumer}" "$base" \
           || fail "${base} holds the shared FBP sandbox and Scripts/${consumer} never sources it"
       done

@@ -323,7 +323,7 @@ fbp_sandbox_sfl_pre_red_line() {
 fbp_sandbox_sfl_pre_signal_line() {
   local phase_arg="\"\$1\""
   if [ -n "$FBP_SANDBOX_SFL_PRE_SIGNAL" ]; then
-    printf 'if [ %s = pre ]; then kill -%s "$PPID"; sleep 1; fi\n' "$phase_arg" "$FBP_SANDBOX_SFL_PRE_SIGNAL"
+    printf "if [ %s = pre ]; then kill -%s \"\$PPID\"; sleep 1; fi\n" "$phase_arg" "$FBP_SANDBOX_SFL_PRE_SIGNAL"
   fi
 }
 

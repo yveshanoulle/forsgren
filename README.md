@@ -1453,7 +1453,9 @@ Certificate of Origin sign-off the DCO check on pull requests asks for (see
 CI and [CONTRIBUTING.md](CONTRIBUTING.md)).
 
 Its closing summary prints the message, one row per phase with the
-gate counts and the page count, and every failure's reason.
+gate counts and the page count, and every failure's reason. A run ended by
+TERM, INT or HUP ends with `Aborted ❌ (<signal>, exit <n>)` (143, 130, 129),
+never `All checks passed`.
 
 **`./sfl.sh pre|post`** runs one phase of the gates. Before PRE it runs
 `git pull --ff-only` and stops (exit 3) when that cannot fast-forward, then
