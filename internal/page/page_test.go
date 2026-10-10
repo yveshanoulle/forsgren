@@ -277,6 +277,28 @@ func TestIssuesPageWithoutDaysMatchesGolden(t *testing.T) {
 	checkPageGolden(t, "issues.html", "testdata/issues.placeholder.golden.html", calculated())
 }
 
+// TestIssuesPageSwitchIgnoresTheConfiguredView (forsgren#76, decision #102):
+// the config's view: decides which view the root page shows, not what the
+// issues page marks. Whatever Data.View is, the issues page's switch links all
+// three views and only issues is current.
+func TestIssuesPageSwitchIgnoresTheConfiguredView(t *testing.T) {
+	const switchLine = `<span class="views">View: <a href="standard/">standard</a> · <a href="numbers/">numbers</a> · ` +
+		`<a href="scoring/">scoring</a> · <span aria-current="page">issues</span></span>`
+	for _, view := range []string{viewStandard, viewNumbers, viewScoring} {
+		t.Run(view, func(t *testing.T) {
+			data := calculated()
+			data.View = view
+			var got bytes.Buffer
+			if err := Render(&got, "issues.html", data); err != nil {
+				t.Fatalf("Render: %v", err)
+			}
+			if !strings.Contains(got.String(), switchLine) || strings.Count(got.String(), "aria-current") != 1 {
+				t.Errorf("want the switch %q with the only aria-current, got:\n%s", switchLine, got.String())
+			}
+		})
+	}
+}
+
 // TestLegendPageTitleNamesIt (forsgren#39, step 4): the legend page's title
 // is its link's text, then the site's title; its header shows no site-name line (forsgren#41).
 func TestLegendPageTitleNamesIt(t *testing.T) {
