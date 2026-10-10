@@ -25,6 +25,7 @@
 #  11. a failures.csv elsewhere (forsgren#18)     -> red, named
 #  12. a tracked data/é.csv (non-ASCII name, git  -> red, named
 #      quotepath on: git prints it quoted)
+#  13. an issues.csv elsewhere (forsgren#76)      -> red, named
 # Mutation proofs, each against a copy of the gate (the patterns are `case`
 # arms of guarded_reason, one per line):
 #   - case 2: with the history.csv arm deleted, case 2's repository must turn
@@ -38,6 +39,8 @@
 #     ops/commits.csv must turn green.
 #   - case 11: with the failures.csv arm deleted, a repository holding only
 #     ops/failures.csv must turn green.
+#   - case 13: with the issues.csv arm deleted, a repository holding only
+#     ops/issues.csv must turn green.
 #   - case 6: with every arm whose pattern holds a `*` quoted (so it matches
 #     only the literal text), case 6's repository must turn green with none
 #     of its three files named, while case 2's repository stays red. Every
@@ -168,10 +171,16 @@ write_file "ops/failures.csv" $'# forsgren failures v1\n' track
 run_gate
 want_red "a failures.csv outside data/ is red and named" "❌ FAIL: ops/failures.csv"
 
+new_repo "issues-elsewhere"
+write_file "ops/issues.csv" $'# forsgren issues v1\n' track
+run_gate
+want_red "an issues.csv outside data/ is red and named" "❌ FAIL: ops/issues.csv"
+
 new_repo "history-fixtures"
 write_file "internal/history/testdata/deployments.csv" $'# forsgren history v1\n' track
 write_file "internal/history/testdata/commits.csv" $'# forsgren commits v1\n' track
 write_file "internal/history/testdata/failures.csv" $'# forsgren failures v1\n' track
+write_file "internal/history/testdata/issues.csv" $'# forsgren issues v1\n' track
 write_file "internal/history/testdata/data/deployments.csv" $'# forsgren history v1\n' track
 write_file "internal/history/history_test.go" $'package history\n// acme/app is the made-up fixture repository.\n' track
 write_file "internal/data/data.go" $'package data\n' track
@@ -216,6 +225,7 @@ fi
 # guarded_path_reason, and not the deployments.csv name. Case 8: the
 # deployments.csv arm (forsgren#12, step 8). Case 10: the commits.csv arm
 # (forsgren#16, step 1). Case 11: the failures.csv arm (forsgren#18, step 1).
+# Case 13: the issues.csv arm (forsgren#76).
 # ---------------------------------------------------------------------------
 arm_deleted_proof 7 "data/*" '^[[:space:]]*data/\*\) why=' \
   "${TMP}/check_data_guard_nodir.sh" "data-dir-notes" "data/notes.txt"
@@ -225,6 +235,8 @@ arm_deleted_proof 10 "commits.csv" '^[[:space:]]*commits\.csv\) why=' \
   "${TMP}/check_data_guard_nocommits.sh" "commits-elsewhere" "ops/commits.csv"
 arm_deleted_proof 11 "failures.csv" '^[[:space:]]*failures\.csv\) why=' \
   "${TMP}/check_data_guard_nofailures.sh" "failures-elsewhere" "ops/failures.csv"
+arm_deleted_proof 13 "issues.csv" '^[[:space:]]*issues\.csv\) why=' \
+  "${TMP}/check_data_guard_noissues.sh" "issues-elsewhere" "ops/issues.csv"
 
 # ---------------------------------------------------------------------------
 # Mutation proof for case 6: a copy of the gate with every arm whose pattern
