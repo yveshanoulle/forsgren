@@ -236,6 +236,8 @@
     "github.com/yveshanoulle/forsgren/internal/history/commits.go:fields": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/commits.go:toCommit": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/commits.go:validate": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/history/issueevents.go:LoadIssueEvents": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/history/issueevents.go:AppendIssueEvents": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/failures.go:LoadFailures": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/failures.go:AppendFailures": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/failures.go:Key": 100.0,
