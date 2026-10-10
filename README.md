@@ -67,7 +67,7 @@ Over the files git tracks, it fails when:
 
 - a file that looks like installation config or data sits outside
   `testdata/`: anything under a top-level `data/`, `deployments.csv`,
-  `commits.csv`, `failures.csv`, `history.csv`, `*.history.csv`, `forsgren.config.*`,
+  `commits.csv`, `failures.csv`, `issues.csv`, `history.csv`, `*.history.csv`, `forsgren.config.*`,
   `forsgren-config.*`, `config.yml`/`.yaml`/`.json` at any depth, or a
   `*.jsonl` events file.
 
