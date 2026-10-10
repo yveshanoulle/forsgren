@@ -130,6 +130,16 @@ FBP_SANDBOX_SINK_MODE=""
 FBP_SANDBOX_SFL_PRE_RC=""
 FBP_SANDBOX_SFL_PRE_OUTPUT=""
 
+# forsgren#85: one more seam, for Scripts/test_fbp_aborted.sh, set and reset
+# the same way.
+#   FBP_SANDBOX_SFL_PRE_SIGNAL: a signal name (TERM). When non-empty, the stub
+#     sfl.sh, run as sfl.sh pre, sends that signal to its parent, the FBP.sh
+#     run (the stub is the first command of FBP.sh's `sfl.sh pre | tee`
+#     pipeline, so $PPID is FBP.sh itself), then waits a second and exits 0.
+#     That is what ending the session that started FBP does to a real run:
+#     the signal reaches FBP.sh, not only sfl.sh. No pid is looked up.
+FBP_SANDBOX_SFL_PRE_SIGNAL=""
+
 # Road to public, step 4 (the DCO sign-off FBP.sh adds to its commits): one
 # more seam, for case 5 of Scripts/test_fbp_commit_message.sh, set and reset
 # the same way.
@@ -289,6 +299,7 @@ fbp_sandbox_write_sfl() {
     fbp_sandbox_sfl_counts_line pre "$FBP_SANDBOX_SFL_COUNTS_PRE"
     fbp_sandbox_sfl_counts_line post "$FBP_SANDBOX_SFL_COUNTS_POST"
     fbp_sandbox_sfl_pre_red_line
+    fbp_sandbox_sfl_pre_signal_line
     printf 'exit 0\n'
   } > sfl.sh
   chmod +x sfl.sh
@@ -302,6 +313,17 @@ fbp_sandbox_sfl_pre_red_line() {
   local phase_arg="\"\$1\""
   if [ -n "$FBP_SANDBOX_SFL_PRE_RC" ]; then
     printf 'if [ %s = pre ]; then printf %%s %q; exit %s; fi\n' "$phase_arg" "$FBP_SANDBOX_SFL_PRE_OUTPUT" "$FBP_SANDBOX_SFL_PRE_RC"
+  fi
+}
+
+# fbp_sandbox_sfl_pre_signal_line — forsgren#85: prints the stub sfl.sh line
+# that, when the stub runs as sfl.sh pre, signals its parent (FBP.sh) with
+# FBP_SANDBOX_SFL_PRE_SIGNAL and waits a second; prints nothing when that is
+# empty.
+fbp_sandbox_sfl_pre_signal_line() {
+  local phase_arg="\"\$1\""
+  if [ -n "$FBP_SANDBOX_SFL_PRE_SIGNAL" ]; then
+    printf 'if [ %s = pre ]; then kill -%s "$PPID"; sleep 1; fi\n' "$phase_arg" "$FBP_SANDBOX_SFL_PRE_SIGNAL"
   fi
 }
 

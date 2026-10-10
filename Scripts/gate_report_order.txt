@@ -494,6 +494,7 @@ step table|Scripts/test_render_step_table.sh|pre|
 # #6 and #8): repository-source presentation, like the report scripts above.
 FullBuildAndPush commit-message block|Scripts/test_fbp_commit_message.sh|pre|
 FullBuildAndPush build-site page count|Scripts/test_fbp_build_pagecount.sh|pre|
+FullBuildAndPush aborted run|Scripts/test_fbp_aborted.sh|pre|
 #
 # THE PRIVACY POSTURE (forsgren#1, ladder step 10), at its canon position
 # after the step table, behind the FBP fixtures as in another estate repository. The
