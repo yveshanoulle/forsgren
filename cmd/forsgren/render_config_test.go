@@ -129,22 +129,26 @@ func TestRenderLegendFollowsWorkingHours(t *testing.T) {
 	}
 }
 
-// TestRenderLegendListsTheSettings (forsgren#74): a config with only
-// history_days: 30 reaches the legend, the other keys marked as defaults.
-func TestRenderLegendListsTheSettings(t *testing.T) {
+// TestRenderSettingsPageListsTheSettings (forsgren#74, #84): a config with
+// only history_days: 30 reaches the settings page, the other keys marked as
+// defaults; the legend lists none.
+func TestRenderSettingsPageListsTheSettings(t *testing.T) {
 	pinNow(t)
 	dir := filepath.Join(t.TempDir(), "site")
 	cfg := writeConfig(t, "version: 1\nhistory_days: 30\nprojects: []\n")
 	if code, _, stderr := runCommand("render", "--out", dir, "--config", cfg); code != 0 {
 		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
 	}
-	legend := readFile(t, filepath.Join(dir, "legend.html"))
+	settings := readFile(t, filepath.Join(dir, "settings.html"))
 	for _, want := range []string{
 		"<li>history_days: 30</li>",
 		"<li>view: standard (default, not set in forsgren.config.yml)</li>",
 	} {
-		if !strings.Contains(legend, want) {
-			t.Errorf("want the legend to say %q, got:\n%s", want, legend)
+		if !strings.Contains(settings, want) {
+			t.Errorf("want the settings page to say %q, got:\n%s", want, settings)
 		}
+	}
+	if legend := readFile(t, filepath.Join(dir, "legend.html")); strings.Contains(legend, "<li>history_days: 30</li>") {
+		t.Errorf("want no setting on the legend, got:\n%s", legend)
 	}
 }

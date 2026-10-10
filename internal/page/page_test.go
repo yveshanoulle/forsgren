@@ -554,14 +554,25 @@ func TestLegendStatesTheWorkingDay(t *testing.T) {
 	}
 }
 
-// TestLegendListsTheSettings (forsgren#74): the legend has a Settings section
-// with each setting as key: value, and the unset ones marked as defaults.
-func TestLegendListsTheSettings(t *testing.T) {
+// TestSettingsPageListsTheSettings (forsgren#74, #84): the settings page lists
+// each setting as key: value, and the unset ones marked as defaults.
+func TestSettingsPageListsTheSettings(t *testing.T) {
 	data := Placeholder("0.4.2")
 	data.Settings = []config.Setting{{Key: "view", Value: "numbers", Set: true}, {Key: "history_days", Value: "365"}}
-	wantAll(t, "legend.html", rendered(t, "legend.html", data),
-		"<h2>Settings</h2>",
+	wantAll(t, "settings.html", rendered(t, "settings.html", data),
 		"<li>view: numbers</li>",
 		"<li>history_days: 365 (default, not set in forsgren.config.yml)</li>",
+	)
+}
+
+// TestLegendHasNoSettings (forsgren#84, step 2): the settings moved to their
+// own page; the legend has no Settings section and no setting.
+func TestLegendHasNoSettings(t *testing.T) {
+	data := Placeholder("0.4.2")
+	data.Settings = []config.Setting{{Key: "view", Value: "numbers", Set: true}, {Key: "history_days", Value: "365"}}
+	wantNone(t, "legend.html", rendered(t, "legend.html", data),
+		"<h2>Settings</h2>",
+		"<li>view: numbers</li>",
+		"<li>history_days: 365",
 	)
 }
