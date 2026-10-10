@@ -248,6 +248,15 @@ func TestLegendPageMatchesGolden(t *testing.T) {
 	checkPageGolden(t, "legend.html", "testdata/legend.golden.html", data)
 }
 
+// TestSettingsPageMatchesGolden (forsgren#84, step 1): the settings are the
+// page settings.html, with a link back to the table.
+func TestSettingsPageMatchesGolden(t *testing.T) {
+	data := calculated()
+	data.WorkingHours = 8
+	data.Settings = config.Config{}.Settings()
+	checkPageGolden(t, "settings.html", "testdata/settings.golden.html", data)
+}
+
 // TestLegendPageTitleNamesIt (forsgren#39, step 4): the legend page's title
 // is its link's text, then the site's title; its header shows no site-name line (forsgren#41).
 func TestLegendPageTitleNamesIt(t *testing.T) {

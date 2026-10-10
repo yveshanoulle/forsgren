@@ -2,6 +2,7 @@
   "requiredPages": [
     "/",
     "/legend.html",
+    "/settings.html",
     "/standard/",
     "/numbers/",
     "/scoring/"
