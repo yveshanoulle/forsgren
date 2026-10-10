@@ -28,7 +28,7 @@ func TestAppendIssueEventsStoresThemInTimeOrderAndLoadReadsThemBack(t *testing.T
 		"acme/app,7,created,,2026-09-01T10:00:00Z\n" +
 		"acme/app,7,closed,not_planned,2026-09-01T13:00:00Z\n" +
 		"acme/app,7,reopened,,2026-09-02T12:00:00Z\n"
-	if got, _ := os.ReadFile(path); string(got) != want {
+	if got, _ := os.ReadFile(filepath.Clean(path)); string(got) != want {
 		t.Errorf("want the file\n%s\ngot\n%s", want, got)
 	}
 	got, err := LoadIssueEvents(path)
