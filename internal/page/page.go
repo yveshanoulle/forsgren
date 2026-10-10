@@ -67,7 +67,8 @@ type Data struct {
 	WorkingHours    int
 	WorkingHoursSet bool
 	// Settings are the config's optional keys with the values in use; the
-	// legend lists them, marking those the file does not set (forsgren#74).
+	// settings page lists them, marking those the file does not set
+	// (forsgren#74, #84).
 	Settings []config.Setting
 	// View is the view the root page shows, "standard", "numbers" or
 	// "scoring", with the view switch in its table's caption (forsgren#51);
@@ -148,8 +149,8 @@ const viewBase = "../"
 // links to the root's files, and its view, empty on the root pages.
 type pageData struct {
 	Data
-	// Base prefixes the links to styles.css and legend.html: empty at the
-	// root, viewBase in a view's folder.
+	// Base prefixes the links to styles.css, settings.html and legend.html:
+	// empty at the root, viewBase in a view's folder.
 	Base string
 	// View is "standard", "numbers" or "scoring" on a view's page, and shows
 	// the view switch; empty on the root pages.

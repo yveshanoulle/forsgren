@@ -1,5 +1,5 @@
 {{define "footer"}}  <footer>
     <p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> {{.Version}}{{with .Update}} · {{.}} {{if $.WaitingPR}}is waiting in pull request #{{$.WaitingPR}} (merge it to update){{else}}is available{{end}}.{{end}}{{if .NeedsMore}} · needs more configuration: see the job summary of this run.{{end}} Metrics from GitHub data.{{if .AsOf}} Calculated at {{.AsOf}} UTC{{end}}</p>
-{{/* footerlinks: the page's own links, a paragraph each, under the footer's paragraph (forsgren#83); empty unless the page defines it. The legend page links to Settings and the settings page to the legend, no page to itself (forsgren#84); the placeholder pages define none. */}}{{block "footerlinks" .}}{{end}}  </footer>
+{{/* footerlinks: the page's own links, under the footer's paragraph (forsgren#83); empty unless the page defines it. The table page links to Settings and the legend in one paragraph, with rows only; the legend links to Settings and the settings page to the legend, no page to itself (forsgren#84). */}}{{block "footerlinks" .}}{{end}}  </footer>
 </body>
 </html>{{end}}

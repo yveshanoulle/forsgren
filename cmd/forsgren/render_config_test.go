@@ -66,6 +66,12 @@ func TestRenderWithProjectsHasNoNoProjectsLine(t *testing.T) {
 	}
 }
 
+// refusedConfig says whether render refused the config at path: exit 1,
+// no index.html written, and stderr starting with `render: <path>: `.
+func refusedConfig(code int, stderr, index, path string) bool {
+	return code == 1 && index == "" && strings.HasPrefix(stderr, "render: "+path+": ")
+}
+
 // TestRenderRefusesAnInvalidOrMissingConfig: render never publishes from a
 // config check-config would refuse; it exits 1 with the same refusal, and
 // writes nothing.
@@ -75,7 +81,7 @@ func TestRenderRefusesAnInvalidOrMissingConfig(t *testing.T) {
 	for name, path := range map[string]string{"missing": missing, "invalid": invalid} {
 		t.Run(name, func(t *testing.T) {
 			code, stderr, index := renderWith(t, "--config", path)
-			if code != 1 || index != "" || !strings.HasPrefix(stderr, "render: "+path+": ") {
+			if !refusedConfig(code, stderr, index, path) {
 				t.Errorf("want exit 1 and `render: <path>: ...`, got %d, %q", code, stderr)
 			}
 		})

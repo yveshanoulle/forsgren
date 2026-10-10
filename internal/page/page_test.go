@@ -244,15 +244,14 @@ func TestRenderUnknownPage(t *testing.T) {
 func TestLegendPageMatchesGolden(t *testing.T) {
 	data := calculated()
 	data.WorkingHours = 8
-	data.Settings = config.Config{}.Settings()
 	checkPageGolden(t, "legend.html", "testdata/legend.golden.html", data)
 }
 
-// TestSettingsPageMatchesGolden (forsgren#84, step 1): the settings are the
-// page settings.html, with a link back to the table.
+// TestSettingsPageMatchesGolden (forsgren#84, step 1): settings.html lists
+// the settings of an empty config, every one a default, with a link back to
+// the table.
 func TestSettingsPageMatchesGolden(t *testing.T) {
 	data := calculated()
-	data.WorkingHours = 8
 	data.Settings = config.Config{}.Settings()
 	checkPageGolden(t, "settings.html", "testdata/settings.golden.html", data)
 }
@@ -335,9 +334,9 @@ func TestEveryPageNamesFiveMetrics(t *testing.T) {
 	wantOnEveryPage(t, acmeTable(), " Metrics from GitHub data.")
 }
 
-// TestWriteSiteWritesSixPagesAndStyles (forsgren#46, #47, #84): the root page, the settings and
-// the legend, and each view's page, standard, numbers and scoring, in its own
-// folder.
+// TestWriteSiteWritesSixPagesAndStyles (forsgren#46, #47, #84): the root
+// page, the legend and the settings page, and each view's page, standard,
+// numbers and scoring, in its own folder.
 func TestWriteSiteWritesSixPagesAndStyles(t *testing.T) {
 	dir := t.TempDir()
 	n, err := WriteSite(dir, Placeholder("0.4.2"))
@@ -554,11 +553,18 @@ func TestLegendStatesTheWorkingDay(t *testing.T) {
 	}
 }
 
+// withTwoSettings is the placeholder with one setting the config sets, view:
+// numbers, and one it leaves at its default, history_days: 365.
+func withTwoSettings() Data {
+	data := Placeholder("0.4.2")
+	data.Settings = []config.Setting{{Key: "view", Value: "numbers", Set: true}, {Key: "history_days", Value: "365"}}
+	return data
+}
+
 // TestSettingsPageListsTheSettings (forsgren#74, #84): the settings page lists
 // each setting as key: value, and the unset ones marked as defaults.
 func TestSettingsPageListsTheSettings(t *testing.T) {
-	data := Placeholder("0.4.2")
-	data.Settings = []config.Setting{{Key: "view", Value: "numbers", Set: true}, {Key: "history_days", Value: "365"}}
+	data := withTwoSettings()
 	wantAll(t, "settings.html", rendered(t, "settings.html", data),
 		"<li>view: numbers</li>",
 		"<li>history_days: 365 (default, not set in forsgren.config.yml)</li>",
@@ -568,8 +574,7 @@ func TestSettingsPageListsTheSettings(t *testing.T) {
 // TestLegendHasNoSettings (forsgren#84, step 2): the settings moved to their
 // own page; the legend has no Settings section and no setting.
 func TestLegendHasNoSettings(t *testing.T) {
-	data := Placeholder("0.4.2")
-	data.Settings = []config.Setting{{Key: "view", Value: "numbers", Set: true}, {Key: "history_days", Value: "365"}}
+	data := withTwoSettings()
 	wantNone(t, "legend.html", rendered(t, "legend.html", data),
 		"<h2>Settings</h2>",
 		"<li>view: numbers</li>",

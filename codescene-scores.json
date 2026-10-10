@@ -40,9 +40,9 @@
   },
   {
    "path": "cmd/forsgren/render_config_test.go",
-   "score": 9.68,
-   "checkedAt": "2026-10-04",
-   "minScore": 9.58
+   "score": 10.0,
+   "checkedAt": "2026-10-10",
+   "minScore": 10.0
   },
   {
    "path": "internal/collect/collect.go",
@@ -335,7 +335,7 @@
   {
    "path": "internal/page/page.go",
    "score": 10.0,
-   "checkedAt": "2026-10-07",
+   "checkedAt": "2026-10-10",
    "minScore": 10.0
   },
   {
