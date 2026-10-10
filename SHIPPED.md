@@ -184,3 +184,7 @@ Each release declares what an installation needs in `internal/needs/needs.yml` (
 ## 2026-10-07 — forsgren 0.4.0 re-releases what was 0.3.8, as a minor ([#78](https://github.com/yveshanoulle/forsgren/issues/78))
 
 forsgren 0.4.0 re-releases what was 0.3.8, the setup issue ([#73](https://github.com/yveshanoulle/forsgren/issues/73)), as a minor because it asks every installation for `issues: write`. 0.3.8 is withdrawn: it is marked as a pre-release, so `install-update` never offers it, and 0.3.7 stayed Latest until 0.4.0. CONVENTIONS "Versions" now says when a release is a patch, a minor or a major.
+
+## 2026-10-10 — the footer opens with the Forsgren line, the legend link follows it, released as 0.4.1 ([#83](https://github.com/yveshanoulle/forsgren/issues/83))
+
+The footer now opens with "Forsgren <version> … Metrics from GitHub data. Calculated at … UTC", and on the table pages the "What the bands mean" link follows it, inside the footer, instead of standing above it at the end of the page. The legend page and the placeholder pages have no such link, as before. Pages fill a `footerlinks` block in the shared footer with their own links; the Settings link of [#84](https://github.com/yveshanoulle/forsgren/issues/84) goes there next.
