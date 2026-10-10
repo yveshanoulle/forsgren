@@ -66,12 +66,12 @@ func wantPage(t *testing.T, want, notWant string, args ...string) {
 // network; a newer one is named in the footer of both pages.
 func TestRenderNamesTheLatestReleaseItIsGiven(t *testing.T) {
 	dir := t.TempDir()
-	if code, _, stderr := runCommand("render", "--out", dir, "--latest", "0.4.3"); code != 0 {
+	if code, _, stderr := runCommand("render", "--out", dir, "--latest", "0.5.1"); code != 0 {
 		t.Fatalf("want exit 0, got %d, %q", code, stderr)
 	}
 	for _, name := range []string{"index.html", "legend.html"} {
-		if got := readFile(t, dir+"/"+name); !strings.Contains(got, version+" · 0.4.3 is available") {
-			t.Errorf("%s: want %q in the footer, got:\n%s", name, version+" · 0.4.3 is available", got)
+		if got := readFile(t, dir+"/"+name); !strings.Contains(got, version+" · 0.5.1 is available") {
+			t.Errorf("%s: want %q in the footer, got:\n%s", name, version+" · 0.5.1 is available", got)
 		}
 	}
 }
@@ -144,9 +144,9 @@ func TestLatestReleaseTakesNoArgumentsAndSurvivesABadAPI(t *testing.T) {
 // --latest newer and --waiting-pr, the footer names the pull request's
 // number instead of "is available"; without --waiting-pr there is none.
 func TestRenderNamesTheWaitingPullRequestItIsGiven(t *testing.T) {
-	waiting := version + " · 0.4.3 is waiting in pull request #7 (merge it to update)"
-	wantPage(t, waiting, " is available", "--latest", "0.4.3", "--waiting-pr", "7")
-	wantPage(t, "0.4.3 is available", "waiting", "--latest", "0.4.3")
+	waiting := version + " · 0.5.1 is waiting in pull request #7 (merge it to update)"
+	wantPage(t, waiting, " is available", "--latest", "0.5.1", "--waiting-pr", "7")
+	wantPage(t, "0.5.1 is available", "waiting", "--latest", "0.5.1")
 	wantPage(t, version+" Metrics", "pull request #", "--latest", version, "--waiting-pr", "7")
 }
 

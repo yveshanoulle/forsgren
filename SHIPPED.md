@@ -192,3 +192,7 @@ The footer now opens with "Forsgren <version> … Metrics from GitHub data. Calc
 ## 2026-10-10 — the README quotes the footer's own words, released as 0.4.2 ([#90](https://github.com/yveshanoulle/forsgren/issues/90))
 
 The README's description of the footer quoted "The five DORA metrics, from GitHub data."; the footer says "Metrics from GitHub data." The README and CLAUDE.md now quote what the template says. The release moves the running version to 0.4.2 in the code, the README, and the tests and goldens that pin it.
+
+## 2026-10-10 — a settings page, released as 0.5.0 ([#84](https://github.com/yveshanoulle/forsgren/issues/84))
+
+The settings left the legend for their own page, `settings.html`: it lists each config key with the value in use, and marks the keys the file does not set as defaults. The legend no longer lists them. The footer links follow: the table pages show "Settings" and "What the bands mean", the legend page links to Settings, the settings page links to What the bands mean, and no page links to itself. The release moves the running version to 0.5.0 in the code, the README, and the tests and goldens that pin it, and the newer-release examples to 0.5.1.
