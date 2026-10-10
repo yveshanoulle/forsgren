@@ -256,6 +256,20 @@ func TestSettingsPageMatchesGolden(t *testing.T) {
 	checkPageGolden(t, "settings.html", "testdata/settings.golden.html", data)
 }
 
+// TestIssuesPageMatchesGolden (forsgren#76, step 9): the issues page is the
+// page issues.html, a table of the days newest first with the issues
+// opened (New) and completed, the days in UTC, with a link back to the table.
+func TestIssuesPageMatchesGolden(t *testing.T) {
+	day := func(d int) time.Time { return time.Date(2026, time.October, d, 0, 0, 0, 0, time.UTC) }
+	data := calculated()
+	data.IssueDays = []metrics.IssueDay{
+		{Date: day(2), New: 3, Completed: 1},
+		{Date: day(1), New: 0, Completed: 0},
+		{Date: time.Date(2026, time.September, 30, 0, 0, 0, 0, time.UTC), New: 2, Completed: 4},
+	}
+	checkPageGolden(t, "issues.html", "testdata/issues.golden.html", data)
+}
+
 // TestLegendPageTitleNamesIt (forsgren#39, step 4): the legend page's title
 // is its link's text, then the site's title; its header shows no site-name line (forsgren#41).
 func TestLegendPageTitleNamesIt(t *testing.T) {

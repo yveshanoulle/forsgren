@@ -70,6 +70,9 @@ type Data struct {
 	// settings page lists them, marking those the file does not set
 	// (forsgren#74, #84).
 	Settings []config.Setting
+	// IssueDays are the issue counts per UTC day, newest first, that the
+	// issues page tabulates (forsgren#76).
+	IssueDays []metrics.IssueDay
 	// View is the view the root page shows, "standard", "numbers" or
 	// "scoring", with the view switch in its table's caption (forsgren#51);
 	// empty for the plain root page, with no switch (forsgren#46).
