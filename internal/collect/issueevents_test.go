@@ -105,3 +105,34 @@ func TestAnIssuesFileThatCannotBeWrittenStoresNoDeployment(t *testing.T) {
 		t.Errorf("want no history written, got %v", err)
 	}
 }
+
+// TestAReopenedIssueGetsOneReopenedEventAtTheRunTime (forsgren#76, decision
+// #100): GitHub gives no reopen time, so an issue that is open while its
+// last stored event is a close gets a reopened event at the run's time, and
+// its created and closed events are not written again.
+func TestAReopenedIssueGetsOneReopenedEventAtTheRunTime(t *testing.T) {
+	g := newGitHub(t)
+	g.bodies[deploymentsPath] = list()
+	g.bodies[allIssuesPath] = list(
+		listed{number: 2, state: "open", created: "2026-09-15T07:45:00Z", reason: "reopened"}.json())
+	path := historyPath(t)
+	issues := filepath.Join(filepath.Dir(path), "issues.csv")
+	stored := []history.IssueEvent{
+		{Repository: "acme/app", Issue: 2, Event: "created", At: at(15, 7, 45)},
+		{Repository: "acme/app", Issue: 2, Event: "closed", Reason: "completed", At: at(21, 9, 30)},
+	}
+	if _, err := history.AppendIssueEvents(issues, stored); err != nil {
+		t.Fatal(err)
+	}
+	if r := g.collect(t, shop(production), path, 1); r.err != nil {
+		t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
+	}
+	got, err := history.LoadIssueEvents(issues)
+	if err != nil {
+		t.Fatalf("want an issues file, got %v", err)
+	}
+	want := append(stored, history.IssueEvent{Repository: "acme/app", Issue: 2, Event: "reopened", At: now})
+	if !slices.Equal(got, want) {
+		t.Errorf("want the events\n%v\ngot\n%v", want, got)
+	}
+}
