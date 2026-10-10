@@ -156,7 +156,7 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	if err != nil {
 		return err
 	}
-	events, err := o.issueEvents(ctx, r.Name)
+	events, err := o.issueEvents(ctx, h, r.Name)
 	if err != nil {
 		return err
 	}

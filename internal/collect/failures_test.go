@@ -75,7 +75,7 @@ func TestCollectStoresTheFailureIssuesOfEachRepository(t *testing.T) {
 		"acme/app: 0 new, 0 skipped (not final), 0 commits, 2 failure issues\n")
 	start := at(20, 7, 12)
 	wantFailures(t, path, failure(41, at(15, 7, 45), time.Time{}, start), failure(42, at(20, 8, 0), at(21, 9, 30), start))
-	asked := g.seen(issuesPath + "?")
+	asked := g.seen(issuesPath + "?labels=failure")
 	if len(asked) != 1 {
 		t.Fatalf("want the failure issues asked once, got %v", asked)
 	}

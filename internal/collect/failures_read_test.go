@@ -79,7 +79,7 @@ func collectFailuresRead(t *testing.T, stored string, code int) (string, string)
 		}
 	}
 	g.collect(t, shop(production), path, github.DefaultMaxPages)
-	asked := g.seen(issuesPath + "?")
+	asked := g.seen(issuesPath + "?labels=failure")
 	if len(asked) == 0 {
 		t.Fatal("want the failure issues asked, got no request")
 	}

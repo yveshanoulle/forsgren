@@ -919,6 +919,30 @@
    "score": 10.0,
    "checkedAt": "2026-10-10",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/issueevents.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-10",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/issueevents_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-10",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/issueevents.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-10",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/issueevents_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-10",
+   "minScore": 10.0
   }
  ]
 }
