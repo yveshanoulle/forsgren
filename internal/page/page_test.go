@@ -348,7 +348,8 @@ func TestWriteSiteWritesSixPagesAndStyles(t *testing.T) {
 		t.Errorf("want 6 pages written, got %d", n)
 	}
 	for _, name := range []string{
-		"index.html", "legend.html", "settings.html", "standard/index.html", "numbers/index.html", "scoring/index.html", "styles.css",
+		"index.html", "legend.html", "settings.html", "standard/index.html", "numbers/index.html",
+		"scoring/index.html", "styles.css",
 	} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
 			t.Errorf("want %s in the site: %v", name, err)
