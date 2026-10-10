@@ -353,6 +353,10 @@ func TestLabelDashIsDecorative(t *testing.T) {
 	}
 }
 
+// legendLinkLine is the legend link's own line in the footer (forsgren#83),
+// which follows the footer paragraph on the table pages.
+var legendLinkLine = regexp.MustCompile(`    <p><a href="[./]*legend\.html">What the bands mean</a></p>\n`)
+
 // TestEveryPageEndsWithTheFooter (forsgren#41, step 1): both pages end with
 // the same one footer paragraph: Forsgren linked to its repository, its
 // version, what it is and, when numbers were calculated, when (UTC); no
@@ -372,7 +376,7 @@ func TestEveryPageEndsWithTheFooter(t *testing.T) {
 	for name, c := range cases {
 		for _, page := range PageNames() {
 			t.Run(name+" "+page, func(t *testing.T) {
-				got := rendered(t, page, c.data)
+				got := legendLinkLine.ReplaceAllString(rendered(t, page, c.data), "")
 				if !strings.Contains(got, c.want+"\n  </footer>") {
 					t.Errorf("want the footer %q to end the footer, got:\n%s", c.want, got)
 				}
