@@ -33,6 +33,11 @@ func (o Options) issueEvents(ctx context.Context, h held, repo string) ([]histor
 	}
 	var events []history.IssueEvent
 	for _, i := range issues {
+		// MUTATION 76-6a: removed in 76-6b
+		if h.lastEvent(repo, i.Number) == "reopened" {
+			events = append(events, eventsOf(repo, i)[0])
+			continue
+		}
 		events = append(events, eventsOf(repo, i)...)
 		if i.State == "open" && h.lastEvent(repo, i.Number) == "closed" {
 			events = append(events, history.IssueEvent{
