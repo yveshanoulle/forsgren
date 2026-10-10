@@ -241,7 +241,7 @@
     "github.com/yveshanoulle/forsgren/internal/history/issueevents.go:key": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/issueevents.go:compareIssueEvents": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/issueevents.go:fields": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/history/issueevents.go:toIssueEvent": 71.4,
+    "github.com/yveshanoulle/forsgren/internal/history/issueevents.go:toIssueEvent": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/issueevents.go:validate": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/failures.go:LoadFailures": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/failures.go:AppendFailures": 100.0,

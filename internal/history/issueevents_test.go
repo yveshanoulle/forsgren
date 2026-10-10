@@ -73,12 +73,18 @@ func TestAMalformedIssuesFileIsRefusedWithItsLineNumberAndReason(t *testing.T) {
 				Repository: "acme/app", Issue: 8, Event: "created", At: day,
 			}})
 			for call, err := range map[string]error{"LoadIssueEvents": loadErr, "AppendIssueEvents": appendErr} {
-				var m *MalformedError
-				if !errors.As(err, &m) || m.Line != c.line || !strings.Contains(m.Reason, c.reason) {
+				if !isMalformedAt(err, c.line, c.reason) {
 					t.Errorf("%s: want ErrMalformed at line %d saying %q, got %v", call, c.line, c.reason, err)
 				}
 			}
 			assertUntouched(t, path, c.content)
 		})
 	}
+}
+
+// isMalformedAt says whether err is a *MalformedError at line whose reason
+// contains reason.
+func isMalformedAt(err error, line int, reason string) bool {
+	var m *MalformedError
+	return errors.As(err, &m) && m.Line == line && strings.Contains(m.Reason, reason)
 }
