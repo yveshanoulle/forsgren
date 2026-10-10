@@ -81,3 +81,27 @@ func TestARefusedListOfAllIssuesFailsTheRepositoryWhole(t *testing.T) {
 		t.Errorf("want no history written, got %v", err)
 	}
 }
+
+// TestAnIssuesFileThatCannotBeWrittenStoresNoDeployment: when issues.csv
+// cannot be written, the repository fails and its deployments are not stored
+// either, so the next run reads them, and the issues, again.
+func TestAnIssuesFileThatCannotBeWrittenStoresNoDeployment(t *testing.T) {
+	g := newGitHub(t)
+	g.bodies[deploymentsPath] = list(deployment(1001, shaA, "deploy", "2026-09-21T10:00:00Z"))
+	g.bodies[statusesPath("1001")] = list(status(6, "success", "2026-09-21T10:05:00Z"))
+	g.bodies[allIssuesPath] = list(listed{number: 3, state: "open", created: "2026-09-20T08:00:00Z"}.json())
+	path := historyPath(t)
+	issues := filepath.Join(filepath.Dir(path), "issues.csv")
+	if _, err := history.AppendIssueEvents(issues, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(issues, 0o400); err != nil {
+		t.Fatal(err)
+	}
+	if r := g.collect(t, shop(production), path, 1); !errors.Is(r.err, ErrFailed) {
+		t.Fatalf("want the run to fail on a read-only issues file, got %v (stderr %q)", r.err, r.stderr)
+	}
+	if _, err := os.Stat(path); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("want no history written, got %v", err)
+	}
+}
