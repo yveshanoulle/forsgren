@@ -228,13 +228,23 @@ func PageNames() []string {
 	return names
 }
 
+// viewShown is the view the page marks: a view's page its own, the root the
+// configured one, and the issues page none, so its switch links all three
+// views and marks only issues (forsgren#76, decision #102).
+func (p page) viewShown(data Data) string {
+	if p.file == issuesPage {
+		return ""
+	}
+	return cmp.Or(p.view, data.View)
+}
+
 // Render writes the named page, filled with data, to w.
 func Render(w io.Writer, name string, data Data) error {
 	p, ok := pages[name]
 	if !ok {
 		return fmt.Errorf("page %q not found", name)
 	}
-	shown := pageData{Data: data, Base: p.base, View: cmp.Or(p.view, data.View), Issues: p.file == issuesPage}
+	shown := pageData{Data: data, Base: p.base, View: p.viewShown(data), Issues: p.file == issuesPage}
 	return p.set.ExecuteTemplate(w, p.file, shown)
 }
 

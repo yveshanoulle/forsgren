@@ -366,6 +366,7 @@
     "github.com/yveshanoulle/forsgren/internal/page/scoring.go:OverallCell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:parsePages": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:PageNames": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/page.go:viewShown": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:Render": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:WriteSite": 89.9,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:writePage": 85.6,
