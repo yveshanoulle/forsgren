@@ -54,8 +54,8 @@ forsgren reads only what is already in GitHub:
 Not in this repository. It holds code only. An installation keeps its
 configuration (which repositories and services, workflow names, labels, the
 health URL) and its data (`data/deployments.csv`, the deployments fetched
-from GitHub, `data/commits.csv`, their commits, and `data/failures.csv`,
-the failure issues) in a separate private
+from GitHub, `data/commits.csv`, their commits, `data/failures.csv`,
+the failure issues, and `data/issues.csv`, what happened to every issue) in a separate private
 data repository, made from a template, and
 passes them to forsgren as paths. Test fixtures are made up (`acme/app`) and live only
 under `testdata/`.
@@ -157,6 +157,32 @@ acme/app,42,2026-09-01T10:00:00Z,2026-09-01T15:00:00Z,2026-09-01T09:30:00Z
 - Otherwise the same rules as `deployments.csv`: created with its version
   line, refused untouched when its version is unknown or a line is
   malformed.
+
+**The issue events**, for the issues page (forsgren#76), are kept in
+`data/issues.csv`, with its own format version (the issues format v1). It
+holds every issue of a configured repository, whatever its labels, as one
+line per event:
+
+```
+# forsgren issues v1
+repository,issue,event,reason,at
+acme/app,7,created,,2026-09-01T10:00:00Z
+acme/app,7,closed,not_planned,2026-09-01T13:00:00Z
+acme/app,7,reopened,,2026-09-02T12:00:00Z
+```
+
+- `event` is `created`, `closed` or `reopened`. `reason` is GitHub's
+  `state_reason` on a `closed` event, `completed`, `not_planned` or
+  `duplicate`, and empty when GitHub gives none (an old issue) and on the
+  other two events. `at` is UTC, to the second.
+- Events, not states: a line is never revised, so a past day's counts never
+  change after the fact. The file only grows; an event already there
+  (repository ignoring case, issue number, event and time) is not written
+  again, and a call with nothing new leaves the file alone. Lines are
+  appended in time order within a call.
+- Otherwise the same rules as `deployments.csv`: created with its version
+  line, refused untouched when its version is unknown or a line is
+  malformed, naming the line.
 
 ## Deployment frequency
 
@@ -510,7 +536,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
 - **Each cell is short**: the DORA band, then the number that decided it
   and the count it is over, "Less than one day · 2 h 7 min (48)". Durations
   are in min, h and d, each part cut down, never rounded up.
-- **Pages:** `index.html` holds the table and, in its footer, two links, "Settings" to `settings.html` and "What the bands mean" to `legend.html`; both have a link back to the table, and each links in its footer to the other kind of page (the legend to Settings, the settings page to the legend; forsgren#84).
+- **Pages:** `index.html` holds the table and, in its footer, two links, "Settings" to `settings.html` and "What the bands mean" to `legend.html`; both have a link back to the table, and each links in its footer to the other kind of page (the legend to Settings, the settings page to the legend; forsgren#84). The issues page, `issues.html`, has no footer links (forsgren#76, decisions #102 and #103).
 - **Views** (forsgren#46): the table is built in more than one view, each its
   own page: `/standard/` (`standard/index.html`) is the table above, band,
   number and count, and `/numbers/` (`numbers/index.html`) shows only
@@ -522,8 +548,9 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   recovery, no deployments or successful deployments). A row with no
   deployments recorded is five cells there, `0` and four `-`, never a
   sentence. Each view's page has a switch in its table's caption, on one
-  line after the title, "DORA metrics View: standard · numbers · scoring"
-  (forsgren#51); the title is its own element, which names the table and
+  line after the title, "DORA metrics View: standard · numbers · scoring ·
+  issues" (forsgren#51, #76: `issues` is not a view of the table but links
+  to the issues page, `issues.html`, or `../issues.html` one folder down); the title is its own element, which names the table and
   its scroll region, so the table's name stays "DORA metrics". The current
   view is plain text marked `aria-current="page"`, the others links
   (`../standard/`, `../numbers/`, `../scoring/`); a page one folder down
@@ -548,6 +575,19 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   DORA Quick Check, linked: "Scores follow the DORA Quick Check (dora.dev),
   © Google LLC, CC BY 4.0" (forsgren#47). It no longer lists the settings
   (forsgren#84).
+- **The issues page** (`issues.html`, forsgren#76) is a table, Date | New |
+  Completed, one row per UTC calendar day, the last 30 complete days
+  (`issueDays`), yesterday on top and going down; today is left out, so a
+  row never changes once it is shown (apart from the known limits below). All
+  tracked repositories are counted together. A day with no events is a row
+  of zeros. **New** counts the `created` events of the day; a reopened issue
+  is not new. **Completed** counts the `closed` events with the reason
+  `completed`. The caption holds the same view switch as the table pages,
+  with `issues` as the current entry (`aria-current="page"`), and says the days
+  are UTC. `render` reads `data/issues.csv` next to its `--data` file like
+  `failures.csv`: a missing file is no events (a table of zero rows, a new
+  installation), an unknown version or a malformed line fails the render
+  with its own message.
 - **The settings page** (`settings.html`, forsgren#84) lists each optional
   config key with the value in use, see Configuration; it has a link back to
   the table.
@@ -767,8 +807,9 @@ FORSGREN_TOKEN=<token> forsgren collect --config forsgren.config.yml --data data
 `collect` reads, for every repository in the config, that repository's
 deployments from GitHub's REST API by its `deployment` rule, and appends the
 final ones to the history (see History), the commits of each new
-successful one to `data/commits.csv` next to it, and the repository's
-failure issues to `data/failures.csv` next to it. It prints one line per
+successful one to `data/commits.csv` next to it, the repository's
+failure issues to `data/failures.csv` next to it, and the events of all its
+issues to `data/issues.csv` next to it (see Issue events below). It prints one line per
 repository, `acme/app: 3 new, 1 skipped (not final), 12 commits`: `new` is
 what was appended, `skipped (not final)` is what is still running and is
 stored by a later run, `commits` is the commits stored for the new
@@ -986,6 +1027,49 @@ have and skip each deployment with a warning instead (not verified against
 live GitHub, see above). Metadata is
 in every fine-grained token. A classic token needs `repo` for
 private repositories (no scope for public ones).
+
+### Issue events (forsgren#76)
+
+Besides the failure issues, each run reads every issue of the repository,
+whatever its labels (`Client.Issues`: `issues?state=all&since=`, 100 per
+page, pull requests left out, up to the page limit), and appends their
+events to `data/issues.csv` (see History). It asks since the same time as
+the failure issues, the repository's entry in `failures_read.csv` minus one
+day, and the read time moves only after the deployments, failure issues and
+issue events of the repository were all stored (decision #101). A
+`issues.csv` that is not in the format refuses the run before GitHub is
+asked anything, like the other data files; if it cannot be written, the
+repository fails and its deployments are not stored, so the next run reads
+them again. The events are worked out from what GitHub says now, and
+from the last event stored for the issue (decision #100):
+
+- **created**, at the issue's `created_at`, for every issue read;
+- **closed**, at its `closed_at`, with its `state_reason`, when it is closed.
+  A close after a reopen has a new `closed_at`, so it is a second `closed`
+  event;
+- **reopened**, when the issue is open and the last event stored for it is a
+  close. GitHub gives no reopen time, so it is dated when collect sees it:
+  the run's time, to the second. Once stored, it is not written again,
+  because the last event is then the reopen, not a close.
+
+An event already stored is skipped (see History), so reading the same issues
+again writes nothing.
+
+**Known limits of the issue events** (forsgren#76):
+
+- Deleted or transferred issues drift: GitHub no longer lists them, so their
+  events stay in the file but nothing marks them as gone.
+- A close and a reopen that both happen between two collect runs are never
+  seen: the issue looks as if nothing happened (or, when it was closed
+  before, closed again at a new time).
+- A reopen is dated when collect sees it, up to a day late (the
+  runs are daily), not when it happened; its day on the issues page can be
+  the next one.
+- An issue not touched for longer than `history_days` is not read, so one
+  that was opened before and stays open and untouched is never counted. A
+  total of open issues comes with a later release (v0.6.2).
+- The reasons `not_planned`, `duplicate` and the empty one are stored but the
+  page shows only `completed` until v0.6.1.
 
 ## Running forsgren
 
@@ -1778,7 +1862,8 @@ The POST gates, on the generated site:
 - **required pages** (`Scripts/validate_required_pages.sh` and
   `Scripts/test_required_pages_covers_site.sh`): the pages the site must
   ship are listed, hand-authored, in `internal/page/required-pages.json`
-  (today `/`, `/legend.html`, `/settings.html`, `/standard/`, `/numbers/` and `/scoring/`). The first checks that list's shape: valid JSON, a
+  (today `/`, `/legend.html`, `/settings.html`, `/issues.html`, `/standard/`,
+  `/numbers/` and `/scoring/`). The first checks that list's shape: valid JSON, a
   non-empty `requiredPages` array of root-relative paths, no scheme or host,
   no `..`, no duplicates. The second checks it against `.build/site`: every
   `.html` file there, in subfolders too, is listed (`standard/index.html` as
