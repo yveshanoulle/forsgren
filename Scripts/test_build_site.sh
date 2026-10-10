@@ -150,12 +150,13 @@ check_file 12 "legend.html is the golden legend page" "internal/page/testdata/le
 check_file 13 "standard/index.html is the golden placeholder standard view" "internal/page/testdata/standard.placeholder.golden.html" "${HAPPY_OUTPUT}/standard/index.html"
 check_file 14 "numbers/index.html is the golden placeholder numbers view" "internal/page/testdata/numbers.placeholder.golden.html" "${HAPPY_OUTPUT}/numbers/index.html"
 check_file 15 "settings.html is the golden settings page" "internal/page/testdata/settings.golden.html" "${HAPPY_OUTPUT}/settings.html"
+check_file 16 "issues.html is the golden placeholder issues page" "internal/page/testdata/issues.placeholder.golden.html" "${HAPPY_OUTPUT}/issues.html"
 check_file 3 "styles.css is copied as authored" "$STYLES" "${HAPPY_OUTPUT}/styles.css"
 
-if [[ -f "$HAPPY_SINK" ]] && [[ "$(cat "$HAPPY_SINK")" == "6" ]]; then
-  pass 4 "writes the page count (6) to SITE_PAGE_COUNT_FILE"
+if [[ -f "$HAPPY_SINK" ]] && [[ "$(cat "$HAPPY_SINK")" == "7" ]]; then
+  pass 4 "writes the page count (7) to SITE_PAGE_COUNT_FILE"
 else
-  fail_check 4 "writes the page count (6) to SITE_PAGE_COUNT_FILE — found: $(cat "$HAPPY_SINK" 2>/dev/null || echo MISSING)"
+  fail_check 4 "writes the page count (7) to SITE_PAGE_COUNT_FILE — found: $(cat "$HAPPY_SINK" 2>/dev/null || echo MISSING)"
 fi
 
 new_case "again"

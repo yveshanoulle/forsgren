@@ -270,6 +270,13 @@ func TestIssuesPageMatchesGolden(t *testing.T) {
 	checkPageGolden(t, "issues.html", "testdata/issues.golden.html", data)
 }
 
+// TestIssuesPageWithoutDaysMatchesGolden (forsgren#76): the page of a site
+// with no issue events yet, which Scripts/test_build_site.sh renders, has the
+// table's head and no rows.
+func TestIssuesPageWithoutDaysMatchesGolden(t *testing.T) {
+	checkPageGolden(t, "issues.html", "testdata/issues.placeholder.golden.html", calculated())
+}
+
 // TestLegendPageTitleNamesIt (forsgren#39, step 4): the legend page's title
 // is its link's text, then the site's title; its header shows no site-name line (forsgren#41).
 func TestLegendPageTitleNamesIt(t *testing.T) {
@@ -348,21 +355,21 @@ func TestEveryPageNamesFiveMetrics(t *testing.T) {
 	wantOnEveryPage(t, acmeTable(), " Metrics from GitHub data.")
 }
 
-// TestWriteSiteWritesSixPagesAndStyles (forsgren#46, #47, #84): the root
-// page, the legend and the settings page, and each view's page, standard,
-// numbers and scoring, in its own folder.
-func TestWriteSiteWritesSixPagesAndStyles(t *testing.T) {
+// TestWriteSiteWritesSevenPagesAndStyles (forsgren#46, #47, #84, #76): the
+// root page, the legend, the settings page and the issues page, and each
+// view's page, standard, numbers and scoring, in its own folder.
+func TestWriteSiteWritesSevenPagesAndStyles(t *testing.T) {
 	dir := t.TempDir()
 	n, err := WriteSite(dir, Placeholder("0.5.0"))
 	if err != nil {
 		t.Fatalf("WriteSite: %v", err)
 	}
-	if n != 6 {
-		t.Errorf("want 6 pages written, got %d", n)
+	if n != 7 {
+		t.Errorf("want 7 pages written, got %d", n)
 	}
 	for _, name := range []string{
-		"index.html", "legend.html", "settings.html", "standard/index.html", "numbers/index.html",
-		"scoring/index.html", "styles.css",
+		"index.html", "legend.html", "settings.html", "issues.html", "standard/index.html",
+		"numbers/index.html", "scoring/index.html", "styles.css",
 	} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
 			t.Errorf("want %s in the site: %v", name, err)

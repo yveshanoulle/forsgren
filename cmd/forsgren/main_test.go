@@ -41,7 +41,7 @@ func TestRenderWritesTheSite(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, "legend.html")); err != nil {
 		t.Errorf("want legend.html written: %v", err)
 	}
-	if !strings.Contains(stdout.String(), "rendered 6 page(s)") {
+	if !strings.Contains(stdout.String(), "rendered 7 page(s)") {
 		t.Errorf("want the page count on stdout, got %q", stdout.String())
 	}
 }
