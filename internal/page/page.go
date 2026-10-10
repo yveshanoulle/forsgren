@@ -131,6 +131,10 @@ func (d Data) HourlyToDailyTo() int { return d.OnDemandFrom() - 1 }
 // renders. parsePages and PageNames read the same set through it.
 const pagesGlob = "templates/pages/*.html"
 
+// issuesPage is the file of the issues page, the one page that is not a
+// table and shows the view switch (forsgren#76).
+const issuesPage = "issues.html"
+
 // The views of the table page (forsgren#46): the standard cells, the numbers
 // only, and (forsgren#47) each metric's DORA Quick Check score with an
 // Overall Performance column.
@@ -158,6 +162,9 @@ type pageData struct {
 	// View is "standard", "numbers" or "scoring" on a view's page, and shows
 	// the view switch; empty on the root pages.
 	View string
+	// Issues says whether the page is the issues page, which the view
+	// switch names as its current entry (forsgren#76).
+	Issues bool
 }
 
 // Numbers says whether the page is the numbers view, its cells the numbers
@@ -227,7 +234,7 @@ func Render(w io.Writer, name string, data Data) error {
 	if !ok {
 		return fmt.Errorf("page %q not found", name)
 	}
-	shown := pageData{Data: data, Base: p.base, View: cmp.Or(p.view, data.View)}
+	shown := pageData{Data: data, Base: p.base, View: cmp.Or(p.view, data.View), Issues: p.file == issuesPage}
 	return p.set.ExecuteTemplate(w, p.file, shown)
 }
 
