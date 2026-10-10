@@ -1,9 +1,11 @@
 package history
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -34,5 +36,49 @@ func TestAppendIssueEventsStoresThemInTimeOrderAndLoadReadsThemBack(t *testing.T
 	got, err := LoadIssueEvents(path)
 	if err != nil || !slices.Equal(got, []IssueEvent{created, closed, reopened}) {
 		t.Errorf("want the three events in time order, got %v, %v", got, err)
+	}
+}
+
+// issuesHead is the first two lines of an issues file; issueLine its good
+// line, a closed event.
+const (
+	issuesHead = "# forsgren issues v1\nrepository,issue,event,reason,at\n"
+	issueLine  = "acme/app,7,closed,completed,2026-09-01T10:00:00Z\n"
+)
+
+// TestAMalformedIssuesFileIsRefusedWithItsLineNumberAndReason: both calls
+// name the line and say why (the reason is the line's own, not another
+// rule's), and AppendIssueEvents leaves the file untouched.
+func TestAMalformedIssuesFileIsRefusedWithItsLineNumberAndReason(t *testing.T) {
+	edit := func(old, replacement string) string {
+		return issuesHead + strings.Replace(issueLine, old, replacement, 1)
+	}
+	for name, c := range map[string]struct {
+		content string
+		line    int
+		reason  string
+	}{
+		"bad issue number": {edit(",7,", ",7x,"), 3, `issue "7x" is not a whole number`},
+		"bad time":         {edit("T10:00:00Z", "T10:00:00+02:00"), 3, `at "2026-09-01T10:00:00+02:00" is not RFC`},
+		"unknown event":    {edit("closed", "deleted"), 3, `event "deleted" is not created, closed or reopened`},
+		"reason on create": {
+			edit("closed,completed", "created,completed"), 3, `reason "completed" does not fit a created event`,
+		},
+		"unknown reason": {edit("completed", "wontfix"), 3, `reason "wontfix" does not fit a closed event`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := writeFile(t, c.content)
+			_, loadErr := LoadIssueEvents(path)
+			_, appendErr := AppendIssueEvents(path, []IssueEvent{{
+				Repository: "acme/app", Issue: 8, Event: "created", At: day,
+			}})
+			for call, err := range map[string]error{"LoadIssueEvents": loadErr, "AppendIssueEvents": appendErr} {
+				var m *MalformedError
+				if !errors.As(err, &m) || m.Line != c.line || !strings.Contains(m.Reason, c.reason) {
+					t.Errorf("%s: want ErrMalformed at line %d saying %q, got %v", call, c.line, c.reason, err)
+				}
+			}
+			assertUntouched(t, path, c.content)
+		})
 	}
 }

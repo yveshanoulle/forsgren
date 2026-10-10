@@ -76,14 +76,9 @@ func (e IssueEvent) fields() []string {
 
 // toIssueEvent reads the five fields of a line.
 func toIssueEvent(f []string) (IssueEvent, error) {
-	number, err := parseNumber("issue", f[1])
-	if err != nil {
-		return IssueEvent{}, err
-	}
-	at, err := parseTime("at", f[4])
-	if err != nil {
-		return IssueEvent{}, err
-	}
+	// MUTATION 76-3a: removed in 76-3b
+	number, _ := parseNumber("issue", f[1])
+	at, _ := parseTime("at", f[4])
 	return IssueEvent{Repository: f[0], Issue: number, Event: f[2], Reason: f[3], At: at}, nil
 }
 
@@ -97,9 +92,10 @@ func (e IssueEvent) validate() error {
 		check{isRepository(e.Repository), fmt.Sprintf("repository %q is not owner/name", e.Repository)},
 		check{!strings.ContainsAny(e.Repository, "\r\n"), "the repository has a line break"},
 		check{e.Issue > 0, "issue is not positive"},
-		check{slices.Contains([]string{"created", "closed", "reopened"}, e.Event),
+		// MUTATION 76-3a: removed in 76-3b (the `true ||` of the event and reason rules)
+		check{true || slices.Contains([]string{"created", "closed", "reopened"}, e.Event),
 			fmt.Sprintf("event %q is not created, closed or reopened", e.Event)},
-		check{e.Event == "closed" && slices.Contains(closeReasons, e.Reason) || e.Event != "closed" && e.Reason == "",
+		check{true || e.Event == "closed" && slices.Contains(closeReasons, e.Reason) || e.Event != "closed" && e.Reason == "",
 			fmt.Sprintf("reason %q does not fit a %s event", e.Reason, e.Event)},
 		check{isWholeSecond(e.At), "at is empty or has a fraction of a second"},
 	)
