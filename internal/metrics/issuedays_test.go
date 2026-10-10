@@ -8,13 +8,13 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
-// issueEvent is an event of issue 1 of repository, at the given UTC time of
-// September or October 2026.
-func issueEvent(repository, event string, month time.Month, d, h, m, s int) history.IssueEvent {
-	return history.IssueEvent{
-		Repository: repository, Issue: 1, Event: event, At: time.Date(2026, month, d, h, m, s, 0, time.UTC),
-	}
+// issueEvent is an event of issue 1 of repository at at.
+func issueEvent(repository, event string, at time.Time) history.IssueEvent {
+	return history.IssueEvent{Repository: repository, Issue: 1, Event: event, At: at}
 }
+
+// oct is the given day, hour, minute and second of October 2026, UTC.
+func oct(d, h, m, s int) time.Time { return time.Date(2026, time.October, d, h, m, s, 0, time.UTC) }
 
 // TestIssueDaysCountsNewIssuesPerUTCDayEndingYesterday (forsgren#76, step 7):
 // with now on 3 October at noon and 3 days, the rows are 2 October, 1 October
@@ -23,13 +23,13 @@ func issueEvent(repository, event string, month time.Month, d, h, m, s int) hist
 // row, and neither a reopened nor a closed event, nor anything today, is new.
 func TestIssueDaysCountsNewIssuesPerUTCDayEndingYesterday(t *testing.T) {
 	events := []history.IssueEvent{
-		issueEvent("acme/app", "created", time.October, 1, 23, 59, 59),
-		issueEvent("acme/app", "created", time.October, 2, 0, 0, 0),
-		issueEvent("acme/cli", "created", time.October, 2, 5, 0, 0),
-		issueEvent("acme/app", "reopened", time.October, 2, 10, 0, 0),
-		issueEvent("acme/app", "closed", time.October, 2, 11, 0, 0),
-		issueEvent("acme/app", "created", time.October, 3, 0, 0, 0),
-		issueEvent("acme/app", "created", time.October, 3, 11, 0, 0),
+		issueEvent("acme/app", "created", oct(1, 23, 59, 59)),
+		issueEvent("acme/app", "created", oct(2, 0, 0, 0)),
+		issueEvent("acme/cli", "created", oct(2, 5, 0, 0)),
+		issueEvent("acme/app", "reopened", oct(2, 10, 0, 0)),
+		issueEvent("acme/app", "closed", oct(2, 11, 0, 0)),
+		issueEvent("acme/app", "created", oct(3, 0, 0, 0)),
+		issueEvent("acme/app", "created", oct(3, 11, 0, 0)),
 	}
 	midnight := func(month time.Month, d int) time.Time { return time.Date(2026, month, d, 0, 0, 0, 0, time.UTC) }
 	want := []IssueDay{

@@ -297,6 +297,8 @@
     "github.com/yveshanoulle/forsgren/internal/history/stream.go:Stream": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/stream.go:Chronological": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:IssueDays": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:utcDay": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:newIssueRow": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/band.go:BandOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/band.go:WorkingDay": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/band.go:OnDemandFrom": 100.0,
