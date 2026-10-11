@@ -576,17 +576,18 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   © Google LLC, CC BY 4.0" (forsgren#47). It no longer lists the settings
   (forsgren#84).
 - **The issues page** (`issues.html`, forsgren#76) is a table, Date | New |
-  Completed | Not planned | Duplicate | Other, one row per UTC calendar day, the last 30 complete days
-  (`issueDays`), yesterday on top and going down; today is left out, so a
-  row never changes once it is shown (apart from the known limits below). All
-  tracked repositories are counted together. A day with no events is a row
-  of zeros. **New** counts the `created` events of the day; a reopened issue
-  is not new. Every `closed` event of the day is counted in exactly one of the
-  other four columns, by its reason (decision #107): **Completed** is the
-  reason `completed`, **Not planned** `not_planned` and **Duplicate**
-  `duplicate`; **Other** is a close with no reason (an old issue, closed
-  before GitHub gave reasons) or a reason forsgren does not know. The caption holds the same view switch as the table pages,
-  with `issues` as the current entry (`aria-current="page"`), and says the days
+  Completed | Not planned | Duplicate | Other, one row per UTC calendar day,
+  the last 30 complete days (`issueDays`), yesterday on top and going down;
+  today is left out, so a row never changes once it is shown (apart from the
+  known limits below). All tracked repositories are counted together. A day
+  with no events is a row of zeros. **New** counts the `created` events of
+  the day; a reopened issue is not new. Every `closed` event of the day is
+  counted in exactly one of the other four columns, by its reason
+  (decision #107): **Completed** is the reason `completed`, **Not planned**
+  `not_planned` and **Duplicate** `duplicate`; **Other** is a close with no
+  reason (an old issue, closed before GitHub gave reasons) or a reason
+  forsgren does not know. The caption holds the same view switch as the table
+  pages, with `issues` as the current entry (`aria-current="page"`), and says the days
   are UTC. `render` reads `data/issues.csv` next to its `--data` file like
   `failures.csv`: a missing file is no events (a table of zero rows, a new
   installation), an unknown version or a malformed line fails the render

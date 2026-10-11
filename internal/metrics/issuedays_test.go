@@ -50,6 +50,17 @@ func closedAs(reason string, at time.Time) history.IssueEvent {
 	return e
 }
 
+// closesWithReason are the closes of reason that every close column test
+// uses: 1 October 23:59:59 and the next 00:00:00 land in different rows, a
+// second repository counts on the second day, and a close today is out.
+func closesWithReason(reason string) []history.IssueEvent {
+	other := closedAs(reason, oct(2, 6, 0, 0))
+	other.Repository = "acme/cli"
+	return []history.IssueEvent{
+		closedAs(reason, oct(1, 23, 59, 59)), closedAs(reason, oct(2, 0, 0, 0)), other, closedAs(reason, oct(3, 1, 0, 0)),
+	}
+}
+
 // TestIssueDaysCountsCompletedClosesPerUTCDay (forsgren#76, step 8): with now
 // on 3 October at noon and 3 days, only a closed event with the reason
 // completed is completed. 23:59:59 and the next 00:00:00 land in different
@@ -57,18 +68,12 @@ func closedAs(reason string, at time.Time) history.IssueEvent {
 // reason is not completed, a reopened or created event is not, and a close
 // today is out.
 func TestIssueDaysCountsCompletedClosesPerUTCDay(t *testing.T) {
-	other := closedAs("completed", oct(2, 6, 0, 0))
-	other.Repository = "acme/cli"
-	events := []history.IssueEvent{
-		closedAs("completed", oct(1, 23, 59, 59)),
-		closedAs("completed", oct(2, 0, 0, 0)),
-		other,
+	events := append(closesWithReason("completed"),
 		closedAs("not_planned", oct(2, 7, 0, 0)),
 		closedAs("duplicate", oct(2, 8, 0, 0)),
 		closedAs("", oct(2, 9, 0, 0)),
 		issueEvent("acme/app", "reopened", oct(2, 10, 0, 0)),
-		closedAs("completed", oct(3, 1, 0, 0)),
-	}
+	)
 	var got []int
 	for _, d := range IssueDays(events, now, 3) {
 		got = append(got, d.Completed)
@@ -81,24 +86,16 @@ func TestIssueDaysCountsCompletedClosesPerUTCDay(t *testing.T) {
 // closeCounts are the close columns of one day.
 type closeCounts struct{ completed, notPlanned, duplicate, other int }
 
-// closeCountsOf is the close columns of IssueDays over events, with now on 3
-// October at noon and 3 days, newest first.
-func closeCountsOf(events []history.IssueEvent) []closeCounts {
+// checkCloseCounts fails t unless the close columns of IssueDays over events,
+// with now on 3 October at noon and 3 days, newest first, are want.
+func checkCloseCounts(t *testing.T, events []history.IssueEvent, want []closeCounts) {
+	t.Helper()
 	var got []closeCounts
 	for _, d := range IssueDays(events, now, 3) {
 		got = append(got, closeCounts{d.Completed, d.NotPlanned, d.Duplicate, d.Other})
 	}
-	return got
-}
-
-// closesWithReason are the closes of reason that every close column test
-// uses: 1 October 23:59:59 and the next 00:00:00 land in different rows, a
-// second repository counts on the second day, and a close today is out.
-func closesWithReason(reason string) []history.IssueEvent {
-	other := closedAs(reason, oct(2, 6, 0, 0))
-	other.Repository = "acme/cli"
-	return []history.IssueEvent{
-		closedAs(reason, oct(1, 23, 59, 59)), closedAs(reason, oct(2, 0, 0, 0)), other, closedAs(reason, oct(3, 1, 0, 0)),
+	if !slices.Equal(got, want) {
+		t.Errorf("want the close columns per day, newest first, %v, got %v", want, got)
 	}
 }
 
@@ -107,9 +104,7 @@ func closesWithReason(reason string) []history.IssueEvent {
 // column, while a completed close counts as Completed only.
 func TestIssueDaysCountsNotPlannedClosesPerUTCDay(t *testing.T) {
 	events := append(closesWithReason("not_planned"), closedAs("completed", oct(2, 8, 0, 0)))
-	if got, want := closeCountsOf(events), []closeCounts{{1, 2, 0, 0}, {0, 1, 0, 0}, {}}; !slices.Equal(got, want) {
-		t.Errorf("want the close columns per day, newest first, %v, got %v", want, got)
-	}
+	checkCloseCounts(t, events, []closeCounts{{1, 2, 0, 0}, {0, 1, 0, 0}, {}})
 }
 
 // TestIssueDaysCountsDuplicateClosesPerUTCDay (forsgren#76, v0.6.1): a close
@@ -117,9 +112,7 @@ func TestIssueDaysCountsNotPlannedClosesPerUTCDay(t *testing.T) {
 // column, while a not planned close counts as NotPlanned only.
 func TestIssueDaysCountsDuplicateClosesPerUTCDay(t *testing.T) {
 	events := append(closesWithReason("duplicate"), closedAs("not_planned", oct(2, 9, 0, 0)))
-	if got, want := closeCountsOf(events), []closeCounts{{0, 1, 2, 0}, {0, 0, 1, 0}, {}}; !slices.Equal(got, want) {
-		t.Errorf("want the close columns per day, newest first, %v, got %v", want, got)
-	}
+	checkCloseCounts(t, events, []closeCounts{{0, 1, 2, 0}, {0, 0, 1, 0}, {}})
 }
 
 // TestIssueDaysCountsClosesWithoutAKnownReasonAsOther (forsgren#76, v0.6.1,
@@ -130,9 +123,7 @@ func TestIssueDaysCountsClosesWithoutAKnownReasonAsOther(t *testing.T) {
 	for _, reason := range []string{"", "something_new"} {
 		t.Run("reason "+reason, func(t *testing.T) {
 			events := append(closesWithReason(reason), closedAs("duplicate", oct(2, 9, 0, 0)))
-			if got, want := closeCountsOf(events), []closeCounts{{0, 0, 1, 2}, {0, 0, 0, 1}, {}}; !slices.Equal(got, want) {
-				t.Errorf("want the close columns per day, newest first, %v, got %v", want, got)
-			}
+			checkCloseCounts(t, events, []closeCounts{{0, 0, 1, 2}, {0, 0, 0, 1}, {}})
 		})
 	}
 }

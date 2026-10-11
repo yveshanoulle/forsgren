@@ -1,9 +1,9 @@
 package metrics
 
 // The issue counts of the page's daily table (forsgren#76): per UTC calendar
-// day, how many issues were opened and how many were closed, by the reason
-// of the close, of all the tracked repositories together, from the events collect stored
-// (history.IssueEvent).
+// day, how many issues were opened and how many were closed, by the reason of
+// the close, of all the tracked repositories together, from the events
+// collect stored (history.IssueEvent).
 
 import (
 	"time"
@@ -11,14 +11,15 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
-// IssueDay is one UTC calendar day of the table.
+// IssueDay is one UTC calendar day of the table, its fields in the order of
+// the issues page's columns. Every close lands in exactly one of Completed,
+// NotPlanned, Duplicate and Other (closedColumn).
 type IssueDay struct {
 	// Date is the day's midnight, UTC.
 	Date time.Time
 	// New is the issues created on that day. A reopened issue is not new.
 	New int
-	// Completed is the issues closed as completed on that day. Every close
-	// lands in exactly one of Completed, NotPlanned, Duplicate and Other.
+	// Completed is the issues closed as completed on that day.
 	Completed int
 	// NotPlanned is the issues closed as not planned on that day.
 	NotPlanned int
