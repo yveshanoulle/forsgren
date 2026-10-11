@@ -215,3 +215,32 @@ func TestACutListOfAllIssuesIsReported(t *testing.T) {
 		t.Errorf("want the one issue read stored, got %v, %v", got, err)
 	}
 }
+
+// TestTheLastEventOfAnIssueIsTheNewestNotTheLastLine (forsgren#76, decision
+// #109): a later append can put an older event after a newer one in the file
+// (an older created line after the closed line), and the issue's last event is
+// still the newest by time, so an issue that is open again gets its reopened
+// event.
+func TestTheLastEventOfAnIssueIsTheNewestNotTheLastLine(t *testing.T) {
+	g := newGitHub(t)
+	g.bodies[deploymentsPath] = list()
+	g.bodies[allIssuesPath] = list(
+		listed{number: 2, state: "open", created: "2026-09-15T07:45:00Z", reason: "reopened"}.json())
+	path := historyPath(t)
+	issues := filepath.Join(filepath.Dir(path), "issues.csv")
+	closed := history.IssueEvent{Repository: "acme/app", Issue: 2, Event: "closed", Reason: "completed", At: at(21, 9, 30)}
+	created := history.IssueEvent{Repository: "acme/app", Issue: 2, Event: "created", At: at(15, 7, 45)}
+	for _, event := range []history.IssueEvent{closed, created} {
+		if _, err := history.AppendIssueEvents(issues, []history.IssueEvent{event}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if r := g.collect(t, shop(production), path, 1); r.err != nil {
+		t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
+	}
+	got, err := history.LoadIssueEvents(issues)
+	want := []history.IssueEvent{closed, created, {Repository: "acme/app", Issue: 2, Event: "reopened", At: now}}
+	if err != nil || !slices.Equal(got, want) {
+		t.Errorf("want the events\n%v\ngot\n%v (%v)", want, got, err)
+	}
+}
