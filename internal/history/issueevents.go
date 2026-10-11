@@ -10,7 +10,7 @@ import (
 )
 
 // IssueEvent is one thing that happened to one issue (forsgren#76, step 2):
-// a line of data/issues.csv, from which the daily table of new and completed
+// a line of data/issues.csv, from which the daily table of new and closed
 // issues is a fold. The file holds every issue of a configured repository,
 // whatever its labels, one line per event as collect observed it.
 //
