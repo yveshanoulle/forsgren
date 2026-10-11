@@ -37,6 +37,20 @@ func (c *Client) Issues(ctx context.Context, repo string, since time.Time) ([]Re
 	return issues, truncated, nil
 }
 
+// FullReadMaxPages is how many pages of 100 the one full read of a repository's
+// issues reads at most, apart from the client's limit for the daily reads:
+// 10,000 issues (forsgren#76, decision #109).
+const FullReadMaxPages = 100
+
+// AllIssues lists every issue of repo, open or closed, without a time cut,
+// pull requests left out: GET /repos/{owner}/{repo}/issues?state=all, no
+// since and no labels filter, 100 per page, up to FullReadMaxPages pages; it
+// says whether it stopped there. It is the one read of a repository's whole
+// history.
+func (c *Client) AllIssues(ctx context.Context, repo string) ([]RepoIssue, bool, error) {
+	return nil, false, nil
+}
+
 // toRepoIssue is the RepoIssue of one item.
 func (i issue) toRepoIssue() RepoIssue {
 	out := RepoIssue{Number: i.Number, CreatedAt: i.CreatedAt.UTC(), State: i.State}

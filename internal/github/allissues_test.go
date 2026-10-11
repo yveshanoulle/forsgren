@@ -51,3 +51,21 @@ func TestIssuesFailsWhenGitHubDoes(t *testing.T) {
 		t.Errorf("want an error and no issues, got %v, %v", got, err)
 	}
 }
+
+// TestAllIssuesAsksForEveryIssueWithoutSince (forsgren#76, decision #109):
+// the one full read is GET /repos/{o}/{r}/issues with state=all and 100 per
+// page, no since and no labels filter.
+func TestAllIssuesAsksForEveryIssueWithoutSince(t *testing.T) {
+	f := newFake(t)
+	f.on(issuesPath, reply{body: fixture(t, "all-issues.json")})
+	if _, _, err := f.client(t, DefaultMaxPages).AllIssues(context.Background(), "acme/app"); err != nil {
+		t.Fatalf("want the issues, got %v", err)
+	}
+	wantQuery(t, f, url.Values{"state": {"all"}, "per_page": {"100"}})
+	query := f.seen()[0].URL.Query()
+	for _, name := range []string{"since", "labels"} {
+		if query.Has(name) {
+			t.Errorf("want no %s parameter, got %q", name, f.seen()[0].URL.RawQuery)
+		}
+	}
+}

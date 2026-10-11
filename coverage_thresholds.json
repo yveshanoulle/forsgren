@@ -216,6 +216,7 @@
     "github.com/yveshanoulle/forsgren/internal/github/endpoints.go:isSHA": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/issues.go:FailureIssues": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/allissues.go:Issues": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/github/allissues.go:AllIssues": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/allissues.go:toRepoIssue": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/issues.go:issueItems": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/setupissue.go:FindIssueByMarker": 100.0,
