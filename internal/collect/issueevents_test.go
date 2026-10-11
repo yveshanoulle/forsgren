@@ -195,3 +195,23 @@ func TestACloseAfterAReopenIsStoredOnceAtItsOwnTime(t *testing.T) {
 		}
 	}
 }
+
+// TestACutListOfAllIssuesIsReported (forsgren#104): when the page limit cuts
+// the list of every issue, the newest pages are stored and stderr says older
+// issues were not read, as it does for the failure issues.
+func TestACutListOfAllIssuesIsReported(t *testing.T) {
+	g := newGitHub(t)
+	g.bodies[deploymentsPath] = list()
+	g.bodies[allIssuesPath] = list(listed{number: 3, state: "open", created: "2026-09-20T08:00:00Z"}.json())
+	g.paged[allIssuesPath] = true
+	path := historyPath(t)
+	r := g.collect(t, shop(production), path, 1)
+	want := "collect: acme/app: read the newest 1 page(s) of issues only; older ones were not read\n"
+	if r.err != nil || r.stderr != want {
+		t.Errorf("want stderr %q and no error, got %q, %v", want, r.stderr, r.err)
+	}
+	got, err := history.LoadIssueEvents(filepath.Join(filepath.Dir(path), "issues.csv"))
+	if err != nil || len(got) != 1 {
+		t.Errorf("want the one issue read stored, got %v, %v", got, err)
+	}
+}
