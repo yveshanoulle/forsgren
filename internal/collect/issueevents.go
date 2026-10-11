@@ -23,15 +23,19 @@ const IssuesFile = "issues.csv"
 // issuesFile is the path of the issue events file next to o's history.
 func (o Options) issuesFile() string { return filepath.Join(filepath.Dir(o.History), IssuesFile) }
 
-// issueEvents reads repo's issues updated since the repository's read mark,
-// the one the failure issues use (issuesSince, decision #101), and returns
-// the events their snapshots show (decision #100): each issue's created and
-// closed events, which history.AppendIssueEvents skips when already held,
-// and a reopened event at the run's time when the issue is open and its
-// last stored event is a close. A list cut at the page limit is said on
-// stderr, and what was read is kept (forsgren#104).
+// issueEvents returns the events of repo's issues to store (decision #100):
+// first those of the full read, every issue ever, without a since (decision
+// #109), then those of the daily read, the issues updated since the
+// repository's read mark, the one the failure issues use (issuesSince,
+// decision #101). Until the mark of the full read exists, every run does the
+// full read; what is already stored is skipped by history.AppendIssueEvents,
+// so the two reads and every run add only what is new.
 func (o Options) issueEvents(ctx context.Context, h held, repo string) ([]history.IssueEvent, error) {
-	issues, truncated, err := o.Client.Issues(ctx, repo, o.issuesSince(h, repo))
+	all, _, err := o.Client.AllIssues(ctx, repo)
+	if err != nil {
+		return nil, err
+	}
+	daily, truncated, err := o.Client.Issues(ctx, repo, o.issuesSince(h, repo))
 	if err != nil {
 		return nil, err
 	}
@@ -39,6 +43,13 @@ func (o Options) issueEvents(ctx context.Context, h held, repo string) ([]histor
 		o.warn("collect: %s: read the newest %d page(s) of issues only; older ones were not read\n",
 			repo, o.Client.MaxPages())
 	}
+	return append(o.eventsFrom(h, repo, all), o.eventsFrom(h, repo, daily)...), nil
+}
+
+// eventsFrom is the events the snapshots of repo's issues show: each issue's
+// created and closed events, and a reopened event at the run's time when the
+// issue is open and its last stored event is a close.
+func (o Options) eventsFrom(h held, repo string, issues []github.RepoIssue) []history.IssueEvent {
 	var events []history.IssueEvent
 	for _, i := range issues {
 		events = append(events, eventsOf(repo, i)...)
@@ -48,7 +59,7 @@ func (o Options) issueEvents(ctx context.Context, h held, repo string) ([]histor
 			})
 		}
 	}
-	return events, nil
+	return events
 }
 
 // lastEvent is the event, "created", "closed" or "reopened", that the newest
