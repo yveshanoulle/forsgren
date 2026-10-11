@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -302,4 +303,60 @@ func TestTheFullReadStoresTheHistoryTheDailyReadNeverSees(t *testing.T) {
 	if err != nil || !slices.Equal(got, want) {
 		t.Errorf("want the events\n%v\ngot\n%v (%v)", want, got, err)
 	}
+}
+
+// issuesFullFile is the content of issues_full.csv holding acme/app at when:
+// per repository, when the one full read of its issues was done (forsgren#76,
+// decision #109).
+func issuesFullFile(when string) string {
+	return "# forsgren issues full v1\nrepository,full_at\nacme/app," + when + "\n"
+}
+
+// writeBesideHistory writes content as the file name next to the history at
+// path, creating the folder.
+func writeBesideHistory(t *testing.T, path, name, content string) {
+	t.Helper()
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// wantNoListWithoutSince fails when the fake saw a list of issues asked for
+// without a since, which only the one full read does.
+func wantNoListWithoutSince(t *testing.T, g *gitHub) {
+	t.Helper()
+	for _, request := range g.seen(issuesPath + "?") {
+		if !strings.Contains(request, "since=") && !strings.Contains(request, "labels=") {
+			t.Errorf("want no list of issues without a since, got %s", request)
+		}
+	}
+}
+
+// TestARepositoryWithAFullReadMarkIsNotReadInFullAgain (forsgren#76, decision
+// #109): data/issues_full.csv holding acme/app says its whole history was
+// read, so the run reads only the issues updated since its read mark: the
+// old issue the full answer would add is not stored, and no list without a
+// since is asked for.
+func TestARepositoryWithAFullReadMarkIsNotReadInFullAgain(t *testing.T) {
+	recent := listed{2, "closed", "2026-09-20T08:00:00Z", "2026-09-21T09:30:00Z", "completed"}.json()
+	old := listed{1, "closed", "2025-01-10T08:00:00Z", "2025-02-01T09:00:00Z", "completed"}.json()
+	g := newGitHub(t)
+	g.bodies[deploymentsPath] = list()
+	g.bodies[allIssuesPath] = list(recent)
+	g.bodies[fullIssuesPath] = list(recent, old)
+	path := historyPath(t)
+	writeBesideHistory(t, path, "issues_full.csv", issuesFullFile("2026-09-25T00:00:00Z"))
+	if r := g.collect(t, shop(production), path, 1); r.err != nil {
+		t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
+	}
+	got, err := history.LoadIssueEvents(filepath.Join(filepath.Dir(path), "issues.csv"))
+	want := []history.IssueEvent{eventOfTwo("created", "", at(20, 8, 0)), eventOfTwo("closed", "completed", at(21, 9, 30))}
+	if err != nil || !slices.Equal(got, want) {
+		t.Errorf("want only the recent issue's events\n%v\ngot\n%v (%v)", want, got, err)
+	}
+	wantNoListWithoutSince(t, g)
 }
