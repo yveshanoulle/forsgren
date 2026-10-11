@@ -360,3 +360,20 @@ func TestARepositoryWithAFullReadMarkIsNotReadInFullAgain(t *testing.T) {
 	}
 	wantNoListWithoutSince(t, g)
 }
+
+// TestACompleteFullReadLeavesItsMark (forsgren#76, decision #109): a run for a
+// repository with no mark reads its issues in full and then notes it in
+// data/issues_full.csv at the run's time, whole seconds, UTC.
+func TestACompleteFullReadLeavesItsMark(t *testing.T) {
+	g := newGitHub(t)
+	g.bodies[deploymentsPath] = list()
+	g.bodies[fullIssuesPath] = list(listed{number: 3, state: "open", created: "2026-09-20T08:00:00Z"}.json())
+	path := historyPath(t)
+	if r := g.collect(t, shop(production), path, 1); r.err != nil {
+		t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
+	}
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(path), "issues_full.csv"))
+	if want := issuesFullFile("2026-10-01T00:00:00Z"); err != nil || string(raw) != want {
+		t.Errorf("want issues_full.csv\n%q\ngot\n%q (%v)", want, raw, err)
+	}
+}
