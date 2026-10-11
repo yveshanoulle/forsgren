@@ -34,7 +34,7 @@ func TestIssueDaysCountsNewIssuesPerUTCDayEndingYesterday(t *testing.T) {
 	}
 	midnight := func(month time.Month, d int) time.Time { return time.Date(2026, month, d, 0, 0, 0, 0, time.UTC) }
 	want := []IssueDay{
-		{Date: midnight(time.October, 2), New: 2, Other: 1, Total: 2},
+		{Date: midnight(time.October, 2), New: 2, Other: 1, Total: 3},
 		{Date: midnight(time.October, 1), New: 1, Total: 1},
 		{Date: midnight(time.September, 30), New: 0},
 	}

@@ -42,24 +42,28 @@ func IssueDays(events []history.IssueEvent, now time.Time, days int) []IssueDay 
 	for i := range rows {
 		rows[i].Date = today.Add(-time.Duration(i+1) * day)
 	}
+	reopened := make([]int, len(rows))
 	for _, e := range events {
 		i, ok := dayRow(e.At, today, len(rows))
 		if !ok {
 			continue
 		}
 		rows[i].count(e)
+		if e.Event == history.EventReopened {
+			reopened[i]++
+		}
 	}
-	addUpTotals(rows)
+	addUpTotals(rows, reopened)
 	return rows
 }
 
 // addUpTotals sets each row's Total, the issues open at the end of its day:
-// created, less closed, on its own day and the older rows. rows are newest
-// first.
-func addUpTotals(rows []IssueDay) {
+// created, less closed, plus reopened, on its own day and the older rows.
+// rows are newest first, reopened is how many reopens each row's day has.
+func addUpTotals(rows []IssueDay, reopened []int) {
 	total := 0
 	for i := len(rows) - 1; i >= 0; i-- {
-		total += rows[i].New - rows[i].closed()
+		total += rows[i].New - rows[i].closed() + reopened[i]
 		rows[i].Total = total
 	}
 }
