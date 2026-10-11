@@ -53,15 +53,40 @@ func IssueDays(events []history.IssueEvent, now time.Time, days int) []IssueDay 
 			reopened[i]++
 		}
 	}
-	addUpTotals(rows, reopened)
+	addUpTotals(rows, reopened, openedBefore(events, today.Add(-time.Duration(len(rows))*day)))
 	return rows
+}
+
+// openedBefore is how many issues the events before start leave open: created
+// and reopened, less closed. It is the base of the oldest row's Total.
+func openedBefore(events []history.IssueEvent, start time.Time) int {
+	open := 0
+	for _, e := range events {
+		if e.At.Before(start) {
+			open += openDelta(e)
+		}
+	}
+	return open
+}
+
+// openDelta is what e adds to the issues open: one for a created or a
+// reopened event, minus one for a closed one.
+func openDelta(e history.IssueEvent) int {
+	switch e.Event {
+	case history.EventCreated, history.EventReopened:
+		return 1
+	case history.EventClosed:
+		return -1
+	}
+	return 0
 }
 
 // addUpTotals sets each row's Total, the issues open at the end of its day:
 // created, less closed, plus reopened, on its own day and the older rows.
-// rows are newest first, reopened is how many reopens each row's day has.
-func addUpTotals(rows []IssueDay, reopened []int) {
-	total := 0
+// rows are newest first, reopened is how many reopens each row's day has, and
+// open is how many issues are open when the oldest row's day begins.
+func addUpTotals(rows []IssueDay, reopened []int, open int) {
+	total := open
 	for i := len(rows) - 1; i >= 0; i-- {
 		total += rows[i].New - rows[i].closed() + reopened[i]
 		rows[i].Total = total
