@@ -14,3 +14,7 @@ var fullAtFile = func() format[reachRow, string] {
 // LoadFullAt reads data/issues_full.csv at path: per repository, when the one
 // full read of its issues was done. Missing is empty, like LoadReach.
 func LoadFullAt(path string) (Reach, error) { return loadReach(path, fullAtFile) }
+
+// SaveFullAt writes r to path whole, in the issues full format v1, like
+// SaveReach.
+func SaveFullAt(path string, r Reach) error { return saveReach(path, r, fullAtFile) }

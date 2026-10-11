@@ -169,6 +169,7 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	}
 	h.noteReach(r.Name, f.reach)
 	h.noteRead(r.Name, o.Now)
+	h.noteFull(r.Name, o.Now)
 	o.report(r.Name, f, stored)
 	return nil
 }

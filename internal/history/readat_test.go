@@ -38,3 +38,21 @@ func TestLoadFullAtReadsItsOwnHeader(t *testing.T) {
 		t.Errorf("want acme/app at %v, got %v, %v", at, got, err)
 	}
 }
+
+// TestSaveFullAtRoundTrips (forsgren#76, decision #109): issues_full.csv is
+// written in its own format and read back as written.
+func TestSaveFullAtRoundTrips(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "issues_full.csv")
+	at := time.Date(2026, 9, 20, 8, 0, 0, 0, time.UTC)
+	if err := SaveFullAt(path, Reach{"acme/app": at}); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := os.ReadFile(filepath.Clean(path))
+	want := "# forsgren issues full v1\nrepository,full_at\nacme/app,2026-09-20T08:00:00Z\n"
+	if string(raw) != want {
+		t.Errorf("want %q, got %q", want, raw)
+	}
+	if got, err := LoadFullAt(path); err != nil || !got["acme/app"].Equal(at) {
+		t.Errorf("want acme/app at %v, got %v, %v", at, got, err)
+	}
+}

@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/github"
 	"github.com/yveshanoulle/forsgren/internal/history"
@@ -66,6 +67,16 @@ func (o Options) fullRead(ctx context.Context, h held, repo string) ([]github.Re
 	}
 	all, _, err := o.Client.AllIssues(ctx, repo)
 	return all, err
+}
+
+// noteFull notes that repo's issues were read in full at at, whole seconds,
+// UTC, unless an earlier run did. It is called after the repository's events
+// were stored, so a failed store leaves no mark. A full read cut at its page
+// limit is noted all the same for now.
+func (h held) noteFull(repo string, at time.Time) {
+	if _, done := h.full[strings.ToLower(repo)]; !done {
+		h.full[strings.ToLower(repo)] = wholeSecond(at)
+	}
 }
 
 // eventsFrom is the events the snapshots of repo's issues show: each issue's

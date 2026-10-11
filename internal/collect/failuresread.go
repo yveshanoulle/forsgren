@@ -27,11 +27,13 @@ const FailuresReadFile = "failures_read.csv"
 // an issue updated while the last run was reading is not missed.
 const failuresReadOverlap = 24 * time.Hour
 
-// marks are the two files that note how far each repository was read.
-type marks struct{ reach, read history.Reach }
+// marks are the three files that note how far each repository was read.
+type marks struct{ reach, read, full history.Reach }
 
 // marks is a copy of h's marks, to tell later whether they moved.
-func (h held) marks() marks { return marks{maps.Clone(h.reach), maps.Clone(h.read)} }
+func (h held) marks() marks {
+	return marks{maps.Clone(h.reach), maps.Clone(h.read), maps.Clone(h.full)}
+}
 
 // failuresReadFile is the path of the failures read file next to the history.
 func (o Options) failuresReadFile() string {
@@ -56,6 +58,9 @@ func (o Options) saveMarks(h held, before marks) error {
 	}
 	if !maps.Equal(h.read, before.read) {
 		errs = append(errs, history.SaveReadAt(o.failuresReadFile(), h.read))
+	}
+	if !maps.Equal(h.full, before.full) {
+		errs = append(errs, history.SaveFullAt(o.issuesFullFile(), h.full))
 	}
 	return errors.Join(errs...)
 }
