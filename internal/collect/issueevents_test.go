@@ -91,10 +91,11 @@ func TestARefusedListOfAllIssuesFailsTheRepositoryWhole(t *testing.T) {
 	}
 }
 
-// TestAnIssuesFileThatCannotBeWrittenStoresNoDeployment: when issues.csv
-// cannot be written, the repository fails and its deployments are not stored
-// either, so the next run reads them, and the issues, again.
-func TestAnIssuesFileThatCannotBeWrittenStoresNoDeployment(t *testing.T) {
+// collectWithAnIssuesFileThatCannotBeWritten runs collect on acme/app, whose
+// deployment and one open issue GitHub lists, with issues.csv read-only, and
+// returns the history path. The run must fail.
+func collectWithAnIssuesFileThatCannotBeWritten(t *testing.T) string {
+	t.Helper()
 	g := newGitHub(t)
 	g.bodies[deploymentsPath] = list(deployment(1001, shaA, "deploy", "2026-09-21T10:00:00Z"))
 	g.bodies[statusesPath("1001")] = list(status(6, "success", "2026-09-21T10:05:00Z"))
@@ -110,8 +111,27 @@ func TestAnIssuesFileThatCannotBeWrittenStoresNoDeployment(t *testing.T) {
 	if r := g.collect(t, shop(production), path, 1); !errors.Is(r.err, ErrFailed) {
 		t.Fatalf("want the run to fail on a read-only issues file, got %v (stderr %q)", r.err, r.stderr)
 	}
+	return path
+}
+
+// TestAnIssuesFileThatCannotBeWrittenStoresNoDeployment: when issues.csv
+// cannot be written, the repository fails and its deployments are not stored
+// either, so the next run reads them, and the issues, again.
+func TestAnIssuesFileThatCannotBeWrittenStoresNoDeployment(t *testing.T) {
+	path := collectWithAnIssuesFileThatCannotBeWritten(t)
 	if _, err := os.Stat(path); !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("want no history written, got %v", err)
+	}
+}
+
+// TestAFailedStoreLeavesNoFullReadMark (forsgren#76, decision #109): when the
+// events cannot be stored, the full read is not noted, so the next run does
+// it again.
+func TestAFailedStoreLeavesNoFullReadMark(t *testing.T) {
+	path := collectWithAnIssuesFileThatCannotBeWritten(t)
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(path), "issues_full.csv"))
+	if strings.Contains(string(raw), "acme/app") {
+		t.Errorf("want acme/app not in issues_full.csv, got %q (%v)", raw, err)
 	}
 }
 
