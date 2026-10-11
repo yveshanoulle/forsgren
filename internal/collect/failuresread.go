@@ -38,15 +38,14 @@ func (o Options) failuresReadFile() string {
 	return filepath.Join(filepath.Dir(o.History), FailuresReadFile)
 }
 
-// loadMarks is h with the reach and the failures read files loaded; a file
-// that cannot be read refuses the run.
+// loadMarks is h with the reach, the failures read and the issues full
+// files loaded; a file that cannot be read refuses the run.
 func (o Options) loadMarks(h held) (held, error) {
-	var err error
-	if h.reach, err = history.LoadReach(o.reachFile()); err != nil {
-		return h, err
-	}
-	h.read, err = history.LoadReadAt(o.failuresReadFile())
-	return h, err
+	var reachErr, readErr, fullErr error
+	h.reach, reachErr = history.LoadReach(o.reachFile())
+	h.read, readErr = history.LoadReadAt(o.failuresReadFile())
+	h.full, fullErr = history.LoadFullAt(o.issuesFullFile())
+	return h, errors.Join(reachErr, readErr, fullErr)
 }
 
 // saveMarks saves each of h's marks that differs from before.

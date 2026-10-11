@@ -11,6 +11,7 @@ import (
 	"errors"
 	"io/fs"
 	"path/filepath"
+	"strings"
 
 	"github.com/yveshanoulle/forsgren/internal/github"
 	"github.com/yveshanoulle/forsgren/internal/history"
@@ -23,15 +24,26 @@ const IssuesFile = "issues.csv"
 // issuesFile is the path of the issue events file next to o's history.
 func (o Options) issuesFile() string { return filepath.Join(filepath.Dir(o.History), IssuesFile) }
 
+// IssuesFullFile is the name, next to the history, of the file that notes
+// when each repository's issues were read in full (decision #109).
+const IssuesFullFile = "issues_full.csv"
+
+// issuesFullFile is the path of the issues full file next to o's history.
+func (o Options) issuesFullFile() string {
+	return filepath.Join(filepath.Dir(o.History), IssuesFullFile)
+}
+
 // issueEvents returns the events of repo's issues to store (decision #100):
 // first those of the full read, every issue ever, without a since (decision
 // #109), then those of the daily read, the issues updated since the
 // repository's read mark, the one the failure issues use (issuesSince,
-// decision #101). Until the mark of the full read exists, every run does the
-// full read; what is already stored is skipped by history.AppendIssueEvents,
-// so the two reads and every run add only what is new.
+// decision #101). A repository in the issues full file (h.full) was read in
+// full before and is not again; until a run writes that mark, every run does
+// the full read. What is already stored is skipped by
+// history.AppendIssueEvents, so the two reads and every run add only what is
+// new.
 func (o Options) issueEvents(ctx context.Context, h held, repo string) ([]history.IssueEvent, error) {
-	all, _, err := o.Client.AllIssues(ctx, repo)
+	all, err := o.fullRead(ctx, h, repo)
 	if err != nil {
 		return nil, err
 	}
@@ -44,6 +56,16 @@ func (o Options) issueEvents(ctx context.Context, h held, repo string) ([]histor
 			repo, o.Client.MaxPages())
 	}
 	return append(o.eventsFrom(h, repo, all), o.eventsFrom(h, repo, daily)...), nil
+}
+
+// fullRead is every issue of repo, the one full read (decision #109), or none
+// for a repository the issues full file already holds.
+func (o Options) fullRead(ctx context.Context, h held, repo string) ([]github.RepoIssue, error) {
+	if _, done := h.full[strings.ToLower(repo)]; done {
+		return nil, nil
+	}
+	all, _, err := o.Client.AllIssues(ctx, repo)
+	return all, err
 }
 
 // eventsFrom is the events the snapshots of repo's issues show: each issue's

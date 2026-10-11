@@ -417,6 +417,7 @@ type held struct {
 	lastEvents map[history.IssueKey]history.IssueEvent
 	reach      history.Reach // see chunk.go
 	read       history.Reach // see failuresread.go
+	full       history.Reach // see issueevents.go
 }
 
 // loadHeld reads the history at path; a missing file holds nothing.
