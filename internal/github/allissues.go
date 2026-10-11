@@ -26,20 +26,21 @@ type RepoIssue struct {
 // 100 per page, up to the page limit; it says whether it stopped there.
 func (c *Client) Issues(ctx context.Context, repo string, since time.Time) ([]RepoIssue, bool, error) {
 	query := url.Values{"state": {"all"}, "since": {since.UTC().Format(time.RFC3339)}}
-	items, truncated, err := c.issueItems(ctx, repo, query, c.maxPages)
+	return c.repoIssues(ctx, repo, query, c.maxPages)
+}
+
+// repoIssues is the RepoIssue of each issue that issueItems lists for query,
+// up to pages pages; it says whether it stopped there.
+func (c *Client) repoIssues(ctx context.Context, repo string, query url.Values, pages int) ([]RepoIssue, bool, error) {
+	items, truncated, err := c.issueItems(ctx, repo, query, pages)
 	if err != nil {
 		return nil, false, err
 	}
-	return repoIssues(items), truncated, nil
-}
-
-// repoIssues is the RepoIssue of each item.
-func repoIssues(items []issue) []RepoIssue {
 	issues := make([]RepoIssue, 0, len(items))
 	for _, i := range items {
 		issues = append(issues, i.toRepoIssue())
 	}
-	return issues
+	return issues, truncated, nil
 }
 
 // FullReadMaxPages is how many pages of 100 the one full read of a repository's
@@ -53,11 +54,7 @@ const FullReadMaxPages = 100
 // says whether it stopped there. It is the one read of a repository's whole
 // history.
 func (c *Client) AllIssues(ctx context.Context, repo string) ([]RepoIssue, bool, error) {
-	items, truncated, err := c.issueItems(ctx, repo, url.Values{"state": {"all"}}, FullReadMaxPages)
-	if err != nil {
-		return nil, false, err
-	}
-	return repoIssues(items), truncated, nil
+	return c.repoIssues(ctx, repo, url.Values{"state": {"all"}}, FullReadMaxPages)
 }
 
 // toRepoIssue is the RepoIssue of one item.

@@ -44,7 +44,25 @@ func (o Options) issuesFullFile() string {
 // history.AppendIssueEvents, so the two reads and every run add only what is
 // new.
 func (o Options) issueEvents(ctx context.Context, h held, repo string) ([]history.IssueEvent, error) {
-	all, cut, err := o.fullRead(ctx, h, repo)
+	all, err := o.fullRead(ctx, h, repo)
+	if err != nil {
+		return nil, err
+	}
+	daily, err := o.dailyRead(ctx, h, repo)
+	if err != nil {
+		return nil, err
+	}
+	return append(o.eventsFrom(h, repo, all), o.eventsFrom(h, repo, daily)...), nil
+}
+
+// fullRead is every issue of repo, the one full read (decision #109), or none
+// for a repository the issues full file already holds. A read that stopped at
+// its page cap is reported on stderr and noted in h.partial.
+func (o Options) fullRead(ctx context.Context, h held, repo string) ([]github.RepoIssue, error) {
+	if h.readInFull(repo) {
+		return nil, nil
+	}
+	issues, cut, err := o.Client.AllIssues(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +72,13 @@ func (o Options) issueEvents(ctx context.Context, h held, repo string) ([]histor
 			repo, github.FullReadMaxPages)
 		h.partial[strings.ToLower(repo)] = true
 	}
-	daily, truncated, err := o.Client.Issues(ctx, repo, o.issuesSince(h, repo))
+	return issues, nil
+}
+
+// dailyRead is repo's issues updated since its read mark (issuesSince); a read
+// that stopped at the client's page limit is reported on stderr.
+func (o Options) dailyRead(ctx context.Context, h held, repo string) ([]github.RepoIssue, error) {
+	issues, truncated, err := o.Client.Issues(ctx, repo, o.issuesSince(h, repo))
 	if err != nil {
 		return nil, err
 	}
@@ -62,17 +86,14 @@ func (o Options) issueEvents(ctx context.Context, h held, repo string) ([]histor
 		o.warn("collect: %s: read the newest %d page(s) of issues only; older ones were not read\n",
 			repo, o.Client.MaxPages())
 	}
-	return append(o.eventsFrom(h, repo, all), o.eventsFrom(h, repo, daily)...), nil
+	return issues, nil
 }
 
-// fullRead is every issue of repo, the one full read (decision #109), or none
-// for a repository the issues full file already holds; it says whether the
-// read stopped at its page cap.
-func (o Options) fullRead(ctx context.Context, h held, repo string) ([]github.RepoIssue, bool, error) {
-	if _, done := h.full[strings.ToLower(repo)]; done {
-		return nil, false, nil
-	}
-	return o.Client.AllIssues(ctx, repo)
+// readInFull says whether the issues full file holds repo: its issues were
+// read in full by an earlier run.
+func (h held) readInFull(repo string) bool {
+	_, done := h.full[strings.ToLower(repo)]
+	return done
 }
 
 // noteFull notes that repo's issues were read in full at at, whole seconds,
@@ -82,7 +103,7 @@ func (o Options) fullRead(ctx context.Context, h held, repo string) ([]github.Re
 // no mark.
 func (h held) noteFull(repo string, at time.Time) {
 	key := strings.ToLower(repo)
-	if _, done := h.full[key]; !done && !h.partial[key] {
+	if !h.readInFull(repo) && !h.partial[key] {
 		h.full[key] = wholeSecond(at)
 	}
 }
@@ -112,8 +133,8 @@ func (h held) lastEvent(repo string, number int64) string {
 // loadIssueFiles is h with what the failures file and the issues file hold:
 // the failure issues as their newest lines say, and the newest event of each
 // issue by time, not by its place in the file, which a later append can put
-// an older event after a newer one in. A missing file holds nothing; one that cannot be read refuses the
-// run.
+// an older event after a newer one in. A missing file holds nothing; one that
+// cannot be read refuses the run.
 func (o Options) loadIssueFiles(h held) (held, error) {
 	var err error
 	if h.failures, err = loadFailures(o.failuresFile()); err != nil {

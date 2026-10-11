@@ -87,15 +87,20 @@ func TestIssueDaysCountsCompletedClosesPerUTCDay(t *testing.T) {
 // closeCounts are the close columns of one day.
 type closeCounts struct{ completed, notPlanned, duplicate, other int }
 
-// checkColumn fails t unless column of each day of IssueDays over events, with
-// now on 3 October at noon and 3 days, newest first, is want.
-func checkColumn[T comparable](t *testing.T, events []history.IssueEvent, column func(IssueDay) T, want []T) {
-	t.Helper()
+// columnOf is column of each day of IssueDays over events, with now on 3
+// October at noon and 3 days, newest first.
+func columnOf[T any](events []history.IssueEvent, column func(IssueDay) T) []T {
 	var got []T
 	for _, d := range IssueDays(events, now, 3) {
 		got = append(got, column(d))
 	}
-	if !slices.Equal(got, want) {
+	return got
+}
+
+// checkColumn fails t unless columnOf(events, column) is want.
+func checkColumn[T comparable](t *testing.T, events []history.IssueEvent, column func(IssueDay) T, want []T) {
+	t.Helper()
+	if got := columnOf(events, column); !slices.Equal(got, want) {
 		t.Errorf("want per day, newest first, %v, got %v", want, got)
 	}
 }
@@ -140,10 +145,13 @@ func TestIssueDaysCountsClosesWithoutAKnownReasonAsOther(t *testing.T) {
 // sep30 is 10:00 on 30 September 2026, UTC, the oldest row's day.
 var sep30 = time.Date(2026, time.September, 30, 10, 0, 0, 0, time.UTC)
 
+// total is the Total column of d.
+func total(d IssueDay) int { return d.Total }
+
 // checkTotals fails t unless the Total of each day is want.
 func checkTotals(t *testing.T, events []history.IssueEvent, want []int) {
 	t.Helper()
-	checkColumn(t, events, func(d IssueDay) int { return d.Total }, want)
+	checkColumn(t, events, total, want)
 }
 
 // TestIssueDaysTotalCountsTheIssuesCreatedUpToTheEndOfTheDay (forsgren#76,
@@ -237,15 +245,5 @@ func TestIssueDaysTotalDoesNotDependOnTheOrderOfTheLines(t *testing.T) {
 		order := []string{"created", "closed", "reopened"}
 		return cmp.Or(a.At.Compare(b.At), slices.Index(order, a.Event)-slices.Index(order, b.Event))
 	})
-	checkColumn(t, sorted, func(d IssueDay) int { return d.Total }, totalsOfDays(fileOrder))
-}
-
-// totalsOfDays are the Total of each day of IssueDays over events, with now on
-// 3 October at noon and 3 days, newest first.
-func totalsOfDays(events []history.IssueEvent) []int {
-	var totals []int
-	for _, d := range IssueDays(events, now, 3) {
-		totals = append(totals, d.Total)
-	}
-	return totals
+	checkTotals(t, sorted, columnOf(fileOrder, total))
 }

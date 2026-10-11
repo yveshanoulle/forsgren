@@ -40,6 +40,13 @@ func (i listed) json() string {
 // issuesFileBeside is data/issues.csv next to the history at path.
 func issuesFileBeside(path string) string { return filepath.Join(filepath.Dir(path), "issues.csv") }
 
+// fullMarksBeside is the content of data/issues_full.csv next to the history
+// at path, "" when there is none.
+func fullMarksBeside(path string) string {
+	raw, _ := os.ReadFile(filepath.Join(filepath.Dir(path), "issues_full.csv"))
+	return string(raw)
+}
+
 // TestCollectStoresTheEventsOfEveryIssue (forsgren#76, step 4): every issue
 // of the repository, whatever its labels, gives a created event at its
 // creation and, when closed, a closed event at its closing with GitHub's
@@ -129,9 +136,8 @@ func TestAnIssuesFileThatCannotBeWrittenStoresNoDeployment(t *testing.T) {
 // it again.
 func TestAFailedStoreLeavesNoFullReadMark(t *testing.T) {
 	path := collectWithAnIssuesFileThatCannotBeWritten(t)
-	raw, err := os.ReadFile(filepath.Join(filepath.Dir(path), "issues_full.csv"))
-	if strings.Contains(string(raw), "acme/app") {
-		t.Errorf("want acme/app not in issues_full.csv, got %q (%v)", raw, err)
+	if got := fullMarksBeside(path); strings.Contains(got, "acme/app") {
+		t.Errorf("want acme/app not in issues_full.csv, got %q", got)
 	}
 }
 
@@ -279,7 +285,7 @@ func TestACutListOfAllIssuesIsReported(t *testing.T) {
 			if r.err != nil || r.stderr != c.want {
 				t.Errorf("want stderr %q and no error, got %q, %v", c.want, r.stderr, r.err)
 			}
-			got, err := history.LoadIssueEvents(filepath.Join(filepath.Dir(path), "issues.csv"))
+			got, err := history.LoadIssueEvents(issuesFileBeside(path))
 			if err != nil || len(got) != 1 {
 				t.Errorf("want the one issue read stored, got %v, %v", got, err)
 			}
@@ -298,7 +304,7 @@ func wantReopenedAfter(t *testing.T, stored ...history.IssueEvent) {
 	g.bodies[allIssuesPath] = list(
 		listed{number: 2, state: "open", created: "2026-09-15T07:45:00Z", reason: "reopened"}.json())
 	path := historyPath(t)
-	issues := filepath.Join(filepath.Dir(path), "issues.csv")
+	issues := issuesFileBeside(path)
 	for _, event := range stored {
 		if _, err := history.AppendIssueEvents(issues, []history.IssueEvent{event}); err != nil {
 			t.Fatal(err)
@@ -336,23 +342,32 @@ func TestTheLastEventAtTheSameSecondFollowsTheEventOrder(t *testing.T) {
 	wantReopenedAfter(t, eventOfTwo("closed", "completed", at(15, 7, 45)), eventOfTwo("created", "", at(15, 7, 45)))
 }
 
-// TestTheFullReadStoresTheHistoryTheDailyReadNeverSees (forsgren#76, decision
-// #109): a repository with no full-read mark is read once without a since, so
-// an old issue the daily read does not list gets its events, and the events
-// already stored are not written again.
-func TestTheFullReadStoresTheHistoryTheDailyReadNeverSees(t *testing.T) {
+// gitHubWithAnOldIssue is a GitHub where acme/app has no deployment and two
+// closed issues: #2, recent, which the daily read lists, and #1, from 2025,
+// which only the full read lists.
+func gitHubWithAnOldIssue(t *testing.T) *gitHub {
+	t.Helper()
 	recent := listed{2, "closed", "2026-09-20T08:00:00Z", "2026-09-21T09:30:00Z", "completed"}.json()
 	old := listed{1, "closed", "2025-01-10T08:00:00Z", "2025-02-01T09:00:00Z", "completed"}.json()
 	g := newGitHub(t)
 	g.bodies[deploymentsPath] = list()
 	g.bodies[allIssuesPath] = list(recent)
 	g.bodies[fullIssuesPath] = list(recent, old)
+	return g
+}
+
+// TestTheFullReadStoresTheHistoryTheDailyReadNeverSees (forsgren#76, decision
+// #109): a repository with no full-read mark is read once without a since, so
+// an old issue the daily read does not list gets its events, and the events
+// already stored are not written again.
+func TestTheFullReadStoresTheHistoryTheDailyReadNeverSees(t *testing.T) {
+	g := gitHubWithAnOldIssue(t)
 	path := historyPath(t)
-	issues := filepath.Join(filepath.Dir(path), "issues.csv")
-	held := []history.IssueEvent{
+	issues := issuesFileBeside(path)
+	stored := []history.IssueEvent{
 		eventOfTwo("created", "", at(20, 8, 0)), eventOfTwo("closed", "completed", at(21, 9, 30)),
 	}
-	if _, err := history.AppendIssueEvents(issues, held); err != nil {
+	if _, err := history.AppendIssueEvents(issues, stored); err != nil {
 		t.Fatal(err)
 	}
 	if r := g.collect(t, shop(production), path, 1); r.err != nil {
@@ -362,7 +377,7 @@ func TestTheFullReadStoresTheHistoryTheDailyReadNeverSees(t *testing.T) {
 		return history.IssueEvent{Repository: "acme/app", Issue: 1, Event: event, Reason: reason, At: created}
 	}
 	got, err := history.LoadIssueEvents(issues)
-	want := append(held,
+	want := append(stored,
 		eventOfOne("created", "", time.Date(2025, time.January, 10, 8, 0, 0, 0, time.UTC)),
 		eventOfOne("closed", "completed", time.Date(2025, time.February, 1, 9, 0, 0, 0, time.UTC)))
 	if err != nil || !slices.Equal(got, want) {
@@ -407,18 +422,13 @@ func wantNoListWithoutSince(t *testing.T, g *gitHub) {
 // old issue the full answer would add is not stored, and no list without a
 // since is asked for.
 func TestARepositoryWithAFullReadMarkIsNotReadInFullAgain(t *testing.T) {
-	recent := listed{2, "closed", "2026-09-20T08:00:00Z", "2026-09-21T09:30:00Z", "completed"}.json()
-	old := listed{1, "closed", "2025-01-10T08:00:00Z", "2025-02-01T09:00:00Z", "completed"}.json()
-	g := newGitHub(t)
-	g.bodies[deploymentsPath] = list()
-	g.bodies[allIssuesPath] = list(recent)
-	g.bodies[fullIssuesPath] = list(recent, old)
+	g := gitHubWithAnOldIssue(t)
 	path := historyPath(t)
 	writeBesideHistory(t, path, "issues_full.csv", issuesFullFile("2026-09-25T00:00:00Z"))
 	if r := g.collect(t, shop(production), path, 1); r.err != nil {
 		t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
 	}
-	got, err := history.LoadIssueEvents(filepath.Join(filepath.Dir(path), "issues.csv"))
+	got, err := history.LoadIssueEvents(issuesFileBeside(path))
 	want := []history.IssueEvent{eventOfTwo("created", "", at(20, 8, 0)), eventOfTwo("closed", "completed", at(21, 9, 30))}
 	if err != nil || !slices.Equal(got, want) {
 		t.Errorf("want only the recent issue's events\n%v\ngot\n%v (%v)", want, got, err)
@@ -439,8 +449,7 @@ func fullMarkAfterAFullRead(t *testing.T, cut bool) string {
 	if r := g.collect(t, shop(production), path, 1); r.err != nil {
 		t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
 	}
-	raw, _ := os.ReadFile(filepath.Join(filepath.Dir(path), "issues_full.csv"))
-	return string(raw)
+	return fullMarksBeside(path)
 }
 
 // TestACompleteFullReadLeavesItsMark (forsgren#76, decision #109): a run for a
