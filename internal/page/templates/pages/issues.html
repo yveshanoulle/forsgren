@@ -10,6 +10,9 @@
             <th scope="col">Date</th>
             <th scope="col">New</th>
             <th scope="col">Completed</th>
+            <th scope="col">Not planned</th>
+            <th scope="col">Duplicate</th>
+            <th scope="col">Other</th>
           </tr>
         </thead>
         <tbody>
@@ -17,6 +20,9 @@
             <th scope="row">{{.Date.Format "2006-01-02"}}</th>
             <td>{{.New}}</td>
             <td>{{.Completed}}</td>
+            <td>{{.NotPlanned}}</td>
+            <td>{{.Duplicate}}</td>
+            <td>{{.Other}}</td>
           </tr>
 {{end}}        </tbody>
       </table>
