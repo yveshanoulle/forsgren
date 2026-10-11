@@ -55,14 +55,12 @@ func (d *IssueDay) count(e history.IssueEvent) {
 	case history.EventCreated:
 		d.New++
 	case history.EventClosed:
-		if column := d.closedColumn(e.Reason); column != nil {
-			*column++
-		}
+		*d.closedColumn(e.Reason)++
 	}
 }
 
-// closedColumn is the count that a close with reason adds to, nil for a
-// reason with no column yet.
+// closedColumn is the count that a close with reason adds to: the column of
+// a reason forsgren knows, else Other, so every close lands in exactly one.
 func (d *IssueDay) closedColumn(reason string) *int {
 	switch reason {
 	case history.ReasonCompleted:
@@ -72,7 +70,7 @@ func (d *IssueDay) closedColumn(reason string) *int {
 	case history.ReasonDuplicate:
 		return &d.Duplicate
 	}
-	return nil
+	return &d.Other
 }
 
 // utcDay is the midnight, UTC, that starts the calendar day t is in.

@@ -20,7 +20,8 @@ func oct(d, h, m, s int) time.Time { return time.Date(2026, time.October, d, h, 
 // with now on 3 October at noon and 3 days, the rows are 2 October, 1 October
 // and 30 September, newest first. 23:59:59 and the next 00:00:00 land in
 // different rows, both repositories count, a day without events is a zero
-// row, and neither a reopened nor a closed event, nor anything today, is new.
+// row, and neither a reopened nor a closed event (this one has no reason, so it
+// is Other, decision #107), nor anything today, is new.
 func TestIssueDaysCountsNewIssuesPerUTCDayEndingYesterday(t *testing.T) {
 	events := []history.IssueEvent{
 		issueEvent("acme/app", "created", oct(1, 23, 59, 59)),
@@ -33,7 +34,7 @@ func TestIssueDaysCountsNewIssuesPerUTCDayEndingYesterday(t *testing.T) {
 	}
 	midnight := func(month time.Month, d int) time.Time { return time.Date(2026, month, d, 0, 0, 0, 0, time.UTC) }
 	want := []IssueDay{
-		{Date: midnight(time.October, 2), New: 2},
+		{Date: midnight(time.October, 2), New: 2, Other: 1},
 		{Date: midnight(time.October, 1), New: 1},
 		{Date: midnight(time.September, 30), New: 0},
 	}
