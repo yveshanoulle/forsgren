@@ -417,19 +417,36 @@ func TestARepositoryWithAFullReadMarkIsNotReadInFullAgain(t *testing.T) {
 	wantNoListWithoutSince(t, g)
 }
 
-// TestACompleteFullReadLeavesItsMark (forsgren#76, decision #109): a run for a
-// repository with no mark reads its issues in full and then notes it in
-// data/issues_full.csv at the run's time, whole seconds, UTC.
-func TestACompleteFullReadLeavesItsMark(t *testing.T) {
+// fullMarkAfterAFullRead runs collect on acme/app, whose full read lists one
+// open issue, with a next page every time when cut is set, and returns the
+// content of issues_full.csv afterwards, "" when there is none.
+func fullMarkAfterAFullRead(t *testing.T, cut bool) string {
+	t.Helper()
 	g := newGitHub(t)
 	g.bodies[deploymentsPath] = list()
 	g.bodies[fullIssuesPath] = list(listed{number: 3, state: "open", created: "2026-09-20T08:00:00Z"}.json())
+	g.paged[fullIssuesPath] = cut
 	path := historyPath(t)
 	if r := g.collect(t, shop(production), path, 1); r.err != nil {
 		t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
 	}
-	raw, err := os.ReadFile(filepath.Join(filepath.Dir(path), "issues_full.csv"))
-	if want := issuesFullFile("2026-10-01T00:00:00Z"); err != nil || string(raw) != want {
-		t.Errorf("want issues_full.csv\n%q\ngot\n%q (%v)", want, raw, err)
+	raw, _ := os.ReadFile(filepath.Join(filepath.Dir(path), "issues_full.csv"))
+	return string(raw)
+}
+
+// TestACompleteFullReadLeavesItsMark (forsgren#76, decision #109): a run for a
+// repository with no mark reads its issues in full and then notes it in
+// data/issues_full.csv at the run's time, whole seconds, UTC.
+func TestACompleteFullReadLeavesItsMark(t *testing.T) {
+	if got, want := fullMarkAfterAFullRead(t, false), issuesFullFile("2026-10-01T00:00:00Z"); got != want {
+		t.Errorf("want issues_full.csv\n%q\ngot\n%q", want, got)
+	}
+}
+
+// TestACutFullReadLeavesNoMark (forsgren#76, decision #109): a full read that
+// stopped at its page cap is not noted, so the next run reads in full again.
+func TestACutFullReadLeavesNoMark(t *testing.T) {
+	if got := fullMarkAfterAFullRead(t, true); strings.Contains(got, "acme/app") {
+		t.Errorf("want acme/app not in issues_full.csv, got %q", got)
 	}
 }
