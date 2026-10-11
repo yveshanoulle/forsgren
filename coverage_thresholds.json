@@ -123,6 +123,8 @@
     "github.com/yveshanoulle/forsgren/internal/collect/issueevents.go:lastEvent": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/issueevents.go:loadIssueFiles": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/issueevents.go:newestEvents": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/issueevents.go:isOlder": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/issueevents.go:eventRank": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/issueevents.go:eventsOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/failuresread.go:wholeSecond": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/failures.go:failuresFile": 100.0,

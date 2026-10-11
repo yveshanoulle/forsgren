@@ -6,6 +6,7 @@ package collect
 // (IssuesFile).
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"io/fs"
@@ -74,16 +75,35 @@ func (o Options) loadIssueFiles(h held) (held, error) {
 	return h, nil
 }
 
-// newestEvents is the newest event of each issue of events by time; of two at
-// the same time, the one later in events.
+// newestEvents is the newest event of each issue of events: by time, and of
+// two at the same second by the order of an issue's life, created, closed,
+// reopened; of two the same in both, the one later in events.
 func newestEvents(events []history.IssueEvent) map[history.IssueKey]history.IssueEvent {
 	newest := make(map[history.IssueKey]history.IssueEvent, len(events))
 	for _, e := range events {
-		if last, ok := newest[e.IssueKey()]; !ok || !e.At.Before(last.At) {
+		if last, ok := newest[e.IssueKey()]; !ok || !isOlder(e, last) {
 			newest[e.IssueKey()] = e
 		}
 	}
 	return newest
+}
+
+// isOlder says whether event a comes before b in an issue's life: earlier, or
+// in the same second and earlier in created, closed, reopened.
+func isOlder(a, b history.IssueEvent) bool {
+	return cmp.Or(a.At.Compare(b.At), eventRank(a.Event)-eventRank(b.Event)) < 0
+}
+
+// eventRank is where an event comes in an issue's life: created, then closed,
+// then reopened.
+func eventRank(event string) int {
+	switch event {
+	case history.EventCreated:
+		return 0
+	case history.EventClosed:
+		return 1
+	}
+	return 2
 }
 
 // eventsOf is the events one issue of repo shows: created at its creation
