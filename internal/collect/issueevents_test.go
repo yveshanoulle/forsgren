@@ -265,3 +265,37 @@ func TestTheLastEventOfAnIssueIsTheNewestNotTheLastLine(t *testing.T) {
 func TestTheLastEventAtTheSameSecondFollowsTheEventOrder(t *testing.T) {
 	wantReopenedAfter(t, eventOfTwo("closed", "completed", at(15, 7, 45)), eventOfTwo("created", "", at(15, 7, 45)))
 }
+
+// TestTheFullReadStoresTheHistoryTheDailyReadNeverSees (forsgren#76, decision
+// #109): a repository with no full-read mark is read once without a since, so
+// an old issue the daily read does not list gets its events, and the events
+// already stored are not written again.
+func TestTheFullReadStoresTheHistoryTheDailyReadNeverSees(t *testing.T) {
+	recent := listed{2, "closed", "2026-09-20T08:00:00Z", "2026-09-21T09:30:00Z", "completed"}.json()
+	old := listed{1, "closed", "2025-01-10T08:00:00Z", "2025-02-01T09:00:00Z", "completed"}.json()
+	g := newGitHub(t)
+	g.bodies[deploymentsPath] = list()
+	g.bodies[allIssuesPath] = list(recent)
+	g.bodies[fullIssuesPath] = list(recent, old)
+	path := historyPath(t)
+	issues := filepath.Join(filepath.Dir(path), "issues.csv")
+	held := []history.IssueEvent{
+		eventOfTwo("created", "", at(20, 8, 0)), eventOfTwo("closed", "completed", at(21, 9, 30)),
+	}
+	if _, err := history.AppendIssueEvents(issues, held); err != nil {
+		t.Fatal(err)
+	}
+	if r := g.collect(t, shop(production), path, 1); r.err != nil {
+		t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
+	}
+	eventOfOne := func(event, reason string, created time.Time) history.IssueEvent {
+		return history.IssueEvent{Repository: "acme/app", Issue: 1, Event: event, Reason: reason, At: created}
+	}
+	got, err := history.LoadIssueEvents(issues)
+	want := append(held,
+		eventOfOne("created", "", time.Date(2025, time.January, 10, 8, 0, 0, 0, time.UTC)),
+		eventOfOne("closed", "completed", time.Date(2025, time.February, 1, 9, 0, 0, 0, time.UTC)))
+	if err != nil || !slices.Equal(got, want) {
+		t.Errorf("want the events\n%v\ngot\n%v (%v)", want, got, err)
+	}
+}

@@ -79,16 +79,24 @@ func (g *gitHub) serve(w http.ResponseWriter, r *http.Request) {
 const (
 	allIssues     = "#all"
 	allIssuesPath = issuesPath + allIssues
+	// fullIssues marks the answers to the one full read, which asks for no
+	// since (forsgren#76, decision #109).
+	fullIssues     = "#full"
+	fullIssuesPath = issuesPath + fullIssues
 )
 
 // keyOf is the key in bodies, status and paged of the answer to r: its path,
 // and for a list of issues without a labels parameter that path with
-// allIssues.
+// allIssues, or with fullIssues when it asks for no since.
 func keyOf(r *http.Request) string {
-	if strings.HasSuffix(r.URL.Path, "/issues") && !r.URL.Query().Has("labels") {
+	query := r.URL.Query()
+	switch {
+	case !strings.HasSuffix(r.URL.Path, "/issues") || query.Has("labels"):
+		return r.URL.Path
+	case query.Has("since"):
 		return r.URL.Path + allIssues
 	}
-	return r.URL.Path
+	return r.URL.Path + fullIssues
 }
 
 // seen is the requests so far whose path?query starts with prefix.
