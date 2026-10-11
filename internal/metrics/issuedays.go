@@ -43,7 +43,6 @@ func IssueDays(events []history.IssueEvent, now time.Time, days int) []IssueDay 
 		rows[i].Date = today.Add(-time.Duration(i+1) * day)
 	}
 	created := createdIssues(events)
-	seen := map[history.IssueKey]bool{} // MUTATION 76-38a: removed in 76-38b
 	opened := make([]int, len(rows))
 	for _, e := range events {
 		i, ok := dayRow(e.At, today, len(rows))
@@ -51,8 +50,7 @@ func IssueDays(events []history.IssueEvent, now time.Time, days int) []IssueDay 
 			continue
 		}
 		rows[i].count(e)
-		seen[e.IssueKey()] = seen[e.IssueKey()] || e.Event == history.EventCreated
-		opened[i] += openDelta(e, seen)
+		opened[i] += openDelta(e, created)
 	}
 	start := today.Add(-time.Duration(len(rows)) * day)
 	addUpTotals(rows, opened, openedBefore(events, created, start))
