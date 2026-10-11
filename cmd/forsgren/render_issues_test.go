@@ -21,14 +21,17 @@ func issueEventAt(event, reason, at string) history.IssueEvent {
 
 // TestRenderShowsTheIssuesOfEachDay (forsgren#76, step 10): with
 // data/issues.csv next to --data, issues.html shows the UTC day before the
-// render time, 2 October, with the issue created and the issue completed on
-// it, 1 New and 1 Completed.
+// render time, 2 October, with one issue created and one closed for each
+// reason, completed, not planned, duplicate and none: 1 in each column.
 func TestRenderShowsTheIssuesOfEachDay(t *testing.T) {
 	pinNow(t)
 	data := writeHistory(t, acmeHistory())
 	events := []history.IssueEvent{
 		issueEventAt("created", "", "2026-10-02T09:00:00Z"),
 		issueEventAt("closed", "completed", "2026-10-02T15:00:00Z"),
+		issueEventAt("closed", "not_planned", "2026-10-02T16:00:00Z"),
+		issueEventAt("closed", "duplicate", "2026-10-02T17:00:00Z"),
+		issueEventAt("closed", "", "2026-10-02T18:00:00Z"),
 	}
 	if _, err := history.AppendIssueEvents(filepath.Join(filepath.Dir(data), "issues.csv"), events); err != nil {
 		t.Fatal(err)
@@ -38,7 +41,7 @@ func TestRenderShowsTheIssuesOfEachDay(t *testing.T) {
 		"--data", data); code != 0 {
 		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
 	}
-	want := "<th scope=\"row\">2026-10-02</th>\n            <td>1</td>\n            <td>1</td>\n"
+	want := "<th scope=\"row\">2026-10-02</th>\n" + strings.Repeat("            <td>1</td>\n", 5)
 	if issues := readFile(t, filepath.Join(dir, "issues.html")); !strings.Contains(issues, want) {
 		t.Errorf("want the page to hold the row %q, got:\n%s", want, issues)
 	}
