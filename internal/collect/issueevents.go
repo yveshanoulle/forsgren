@@ -44,9 +44,14 @@ func (o Options) issuesFullFile() string {
 // history.AppendIssueEvents, so the two reads and every run add only what is
 // new.
 func (o Options) issueEvents(ctx context.Context, h held, repo string) ([]history.IssueEvent, error) {
-	all, err := o.fullRead(ctx, h, repo)
+	all, cut, err := o.fullRead(ctx, h, repo)
 	if err != nil {
 		return nil, err
+	}
+	if cut {
+		o.warn("collect: %s: the full read stopped at %d page(s) of issues; "+
+			"the daily collection continues, but older issues and so the historical total stay incomplete\n",
+			repo, github.FullReadMaxPages)
 	}
 	daily, truncated, err := o.Client.Issues(ctx, repo, o.issuesSince(h, repo))
 	if err != nil {
@@ -60,13 +65,13 @@ func (o Options) issueEvents(ctx context.Context, h held, repo string) ([]histor
 }
 
 // fullRead is every issue of repo, the one full read (decision #109), or none
-// for a repository the issues full file already holds.
-func (o Options) fullRead(ctx context.Context, h held, repo string) ([]github.RepoIssue, error) {
+// for a repository the issues full file already holds; it says whether the
+// read stopped at its page cap.
+func (o Options) fullRead(ctx context.Context, h held, repo string) ([]github.RepoIssue, bool, error) {
 	if _, done := h.full[strings.ToLower(repo)]; done {
-		return nil, nil
+		return nil, false, nil
 	}
-	all, _, err := o.Client.AllIssues(ctx, repo)
-	return all, err
+	return o.Client.AllIssues(ctx, repo)
 }
 
 // noteFull notes that repo's issues were read in full at at, whole seconds,
