@@ -167,3 +167,14 @@ func TestIssueDaysTotalDropsFromTheDayAnIssueIsClosed(t *testing.T) {
 		closedAs("not_planned", oct(2, 9, 0, 0)),
 	}, []int{1, 2, 1})
 }
+
+// TestIssueDaysTotalRisesAgainFromTheDayAnIssueIsReopened (forsgren#76,
+// v0.6.2): an issue closed and then reopened is open again from the day of the
+// reopen on, and counts in the Total once more.
+func TestIssueDaysTotalRisesAgainFromTheDayAnIssueIsReopened(t *testing.T) {
+	checkTotals(t, []history.IssueEvent{
+		issueEvent("acme/app", "created", sep30),
+		closedAs("completed", oct(1, 9, 0, 0)),
+		issueEvent("acme/app", "reopened", oct(2, 9, 0, 0)),
+	}, []int{1, 0, 1})
+}
