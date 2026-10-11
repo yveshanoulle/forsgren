@@ -28,6 +28,9 @@ type IssueDay struct {
 	// Other is the issues closed on that day with no reason, or a reason
 	// forsgren does not know.
 	Other int
+	// Total is the issues open at the end of that day, of all the tracked
+	// repositories: created up to then and not closed since.
+	Total int
 }
 
 // IssueDays is the last days UTC calendar days before the day of now, today

@@ -127,3 +127,28 @@ func TestIssueDaysCountsClosesWithoutAKnownReasonAsOther(t *testing.T) {
 		})
 	}
 }
+
+// totalsOf are the Total of each day of IssueDays over events, with now on 3
+// October at noon and 3 days, newest first.
+func totalsOf(events []history.IssueEvent) []int {
+	var totals []int
+	for _, d := range IssueDays(events, now, 3) {
+		totals = append(totals, d.Total)
+	}
+	return totals
+}
+
+// TestIssueDaysTotalCountsTheIssuesCreatedUpToTheEndOfTheDay (forsgren#76,
+// v0.6.2): the Total of a day is how many issues were created by its last
+// second, all repositories together; an issue created today is in no row.
+func TestIssueDaysTotalCountsTheIssuesCreatedUpToTheEndOfTheDay(t *testing.T) {
+	events := []history.IssueEvent{
+		issueEvent("acme/app", "created", time.Date(2026, time.September, 30, 10, 0, 0, 0, time.UTC)),
+		issueEvent("acme/cli", "created", oct(1, 8, 0, 0)),
+		issueEvent("acme/app", "created", oct(2, 9, 0, 0)),
+		issueEvent("acme/app", "created", oct(3, 1, 0, 0)),
+	}
+	if got, want := totalsOf(events), []int{3, 2, 1}; !slices.Equal(got, want) {
+		t.Errorf("want the Total per day, newest first, %v, got %v", want, got)
+	}
+}
