@@ -281,8 +281,13 @@ func rateLimitError(t target, h http.Header) error {
 // when there is no next page, when page says so, or after maxPages pages;
 // it returns true only in that last case with a next page left.
 func (c *Client) list(ctx context.Context, first target, page func([]byte) (bool, error)) (bool, error) {
+	return c.listUpTo(ctx, first, c.maxPages, page)
+}
+
+// listUpTo is list with its own page limit.
+func (c *Client) listUpTo(ctx context.Context, first target, pages int, page func([]byte) (bool, error)) (bool, error) {
 	t := first
-	for range c.maxPages {
+	for range pages {
 		body, header, err := c.get(ctx, t, jsonMedia)
 		if err != nil {
 			return false, err

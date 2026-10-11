@@ -191,7 +191,7 @@
   {
    "path": "internal/github/client.go",
    "score": 10.0,
-   "checkedAt": "2026-10-07",
+   "checkedAt": "2026-10-11",
    "minScore": 10.0
   },
   {
@@ -215,7 +215,7 @@
   {
    "path": "internal/github/issues.go",
    "score": 10.0,
-   "checkedAt": "2026-10-07",
+   "checkedAt": "2026-10-11",
    "minScore": 10.0
   },
   {

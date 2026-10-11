@@ -66,7 +66,7 @@ var errIssueFields = errors.New("an issue has no number or no created_at")
 // created_at is ErrAnswer.
 func (c *Client) FailureIssues(ctx context.Context, repo string, since time.Time) ([]Issue, bool, error) {
 	query := url.Values{"labels": {"failure"}, "state": {"all"}, "since": {since.UTC().Format(time.RFC3339)}}
-	items, truncated, err := c.issueItems(ctx, repo, query)
+	items, truncated, err := c.issueItems(ctx, repo, query, c.maxPages)
 	if err != nil {
 		return nil, false, err
 	}
@@ -81,13 +81,13 @@ func (c *Client) FailureIssues(ctx context.Context, repo string, since time.Time
 // up to the page limit, and returns the items that are issues, pull requests
 // left out; truncated says it stopped at the limit. An item without a number
 // or a created_at is ErrAnswer.
-func (c *Client) issueItems(ctx context.Context, repo string, query url.Values) ([]issue, bool, error) {
+func (c *Client) issueItems(ctx context.Context, repo string, query url.Values, pages int) ([]issue, bool, error) {
 	t, err := c.endpoint(repo, query, "issues")
 	if err != nil {
 		return nil, false, err
 	}
 	var items []issue
-	truncated, err := c.list(ctx, t, func(body []byte) (bool, error) {
+	truncated, err := c.listUpTo(ctx, t, pages, func(body []byte) (bool, error) {
 		var page []issue
 		if err := json.Unmarshal(body, &page); err != nil {
 			return false, err

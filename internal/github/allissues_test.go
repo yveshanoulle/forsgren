@@ -52,20 +52,49 @@ func TestIssuesFailsWhenGitHubDoes(t *testing.T) {
 	}
 }
 
+// numbersOf are the issue numbers of issues, in order.
+func numbersOf(issues []RepoIssue) []int64 {
+	var numbers []int64
+	for _, i := range issues {
+		numbers = append(numbers, i.Number)
+	}
+	return numbers
+}
+
+// wantNoParameter fails unless the one request the fake saw has none of names.
+func wantNoParameter(t *testing.T, f *fakeGitHub, names ...string) {
+	t.Helper()
+	request := f.seen()[0].URL
+	for _, name := range names {
+		if request.Query().Has(name) {
+			t.Errorf("want no %s parameter, got %q", name, request.RawQuery)
+		}
+	}
+}
+
 // TestAllIssuesAsksForEveryIssueWithoutSince (forsgren#76, decision #109):
 // the one full read is GET /repos/{o}/{r}/issues with state=all and 100 per
-// page, no since and no labels filter.
+// page, no since and no labels filter; the pull request is left out.
 func TestAllIssuesAsksForEveryIssueWithoutSince(t *testing.T) {
 	f := newFake(t)
 	f.on(issuesPath, reply{body: fixture(t, "all-issues.json")})
-	if _, _, err := f.client(t, DefaultMaxPages).AllIssues(context.Background(), "acme/app"); err != nil {
-		t.Fatalf("want the issues, got %v", err)
+	got, truncated, err := f.client(t, DefaultMaxPages).AllIssues(context.Background(), "acme/app")
+	if err != nil || truncated {
+		t.Fatalf("want the issues, got truncated=%v, %v", truncated, err)
+	}
+	if want := []int64{56, 55, 54, 53, 12, 40}; !slices.Equal(numbersOf(got), want) {
+		t.Errorf("want the issues %v, the pull request left out, got %v", want, numbersOf(got))
 	}
 	wantQuery(t, f, url.Values{"state": {"all"}, "per_page": {"100"}})
-	query := f.seen()[0].URL.Query()
-	for _, name := range []string{"since", "labels"} {
-		if query.Has(name) {
-			t.Errorf("want no %s parameter, got %q", name, f.seen()[0].URL.RawQuery)
-		}
+	wantNoParameter(t, f, "since", "labels")
+}
+
+// TestAllIssuesFailsWhenGitHubDoes: an error answer is an error, no issues.
+func TestAllIssuesFailsWhenGitHubDoes(t *testing.T) {
+	f := newFake(t)
+	f.on(issuesPath, reply{status: 500, body: "{}"})
+	got, _, err := f.client(t, DefaultMaxPages).AllIssues(context.Background(), "acme/app")
+	if err == nil || got != nil {
+		t.Errorf("want an error and no issues, got %v, %v", got, err)
 	}
 }
