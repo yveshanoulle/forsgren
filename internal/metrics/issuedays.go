@@ -78,7 +78,7 @@ func openDelta(e history.IssueEvent) int {
 	case history.EventClosed:
 		return -1
 	}
-	return 1 // MUTATION 76-36a: removed in 76-36b
+	return 0
 }
 
 // addUpTotals sets each row's Total, the issues open at the end of its day:
