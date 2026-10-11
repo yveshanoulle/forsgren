@@ -27,11 +27,16 @@ func (o Options) issuesFile() string { return filepath.Join(filepath.Dir(o.Histo
 // the events their snapshots show (decision #100): each issue's created and
 // closed events, which history.AppendIssueEvents skips when already held,
 // and a reopened event at the run's time when the issue is open and its
-// last stored event is a close.
+// last stored event is a close. A list cut at the page limit is said on
+// stderr, and what was read is kept (forsgren#104).
 func (o Options) issueEvents(ctx context.Context, h held, repo string) ([]history.IssueEvent, error) {
-	issues, _, err := o.Client.Issues(ctx, repo, o.issuesSince(h, repo))
+	issues, truncated, err := o.Client.Issues(ctx, repo, o.issuesSince(h, repo))
 	if err != nil {
 		return nil, err
+	}
+	if truncated {
+		o.warn("collect: %s: read the newest %d page(s) of issues only; older ones were not read\n",
+			repo, o.Client.MaxPages())
 	}
 	var events []history.IssueEvent
 	for _, i := range issues {
