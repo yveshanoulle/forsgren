@@ -200,3 +200,22 @@ func TestIssueDaysTotalIgnoresAnEventItDoesNotKnow(t *testing.T) {
 		issueEvent("acme/app", "labeled", oct(1, 8, 0, 0)),
 	}, []int{1, 1, 1})
 }
+
+// closeOfIssue is a close of acme/app's issue number at at, completed.
+func closeOfIssue(number int64, at time.Time) history.IssueEvent {
+	e := closedAs("completed", at)
+	e.Issue = number
+	return e
+}
+
+// TestIssueDaysTotalIgnoresACloseOfAnIssueItNeverSawCreated (forsgren#76,
+// v0.6.2): a close whose issue has no created event in the list, before the
+// window or in it, lowers no Total, which never counts an issue it did not see
+// opened and so never goes below the open issues it knows.
+func TestIssueDaysTotalIgnoresACloseOfAnIssueItNeverSawCreated(t *testing.T) {
+	checkTotals(t, []history.IssueEvent{
+		closeOfIssue(7, sep30.AddDate(0, 0, -3)),
+		issueEvent("acme/app", "created", sep30),
+		closeOfIssue(8, oct(1, 8, 0, 0)),
+	}, []int{1, 1, 1})
+}
