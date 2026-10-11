@@ -407,8 +407,9 @@ type entry struct {
 
 // held is what the history holds: every deployment, the newest created_at
 // of each source, and the successes of each stream; each failure issue
-// stored, as its newest line says; and the last stored event of each issue
-// (see issueevents.go).
+// stored, as its newest line says; the last stored event of each issue (see
+// issueevents.go); and the repositories whose full read stopped at its page
+// cap this run (partial).
 type held struct {
 	ids        map[entry]bool
 	newest     map[source]time.Time
@@ -419,6 +420,7 @@ type held struct {
 	reach      history.Reach // see chunk.go
 	read       history.Reach // see failuresread.go
 	full       history.Reach // see issueevents.go
+	partial    map[string]bool
 }
 
 // loadHeld reads the history at path; a missing file holds nothing.
@@ -428,7 +430,7 @@ func loadHeld(path string) (held, error) {
 		return held{}, err
 	}
 	h := held{ids: map[entry]bool{}, newest: map[source]time.Time{}, oldest: map[source]time.Time{},
-		successes: map[history.Stream][]history.Record{}}
+		successes: map[history.Stream][]history.Record{}, partial: map[string]bool{}}
 	for _, r := range records {
 		h.hold(r)
 	}

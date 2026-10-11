@@ -52,6 +52,7 @@ func (o Options) issueEvents(ctx context.Context, h held, repo string) ([]histor
 		o.warn("collect: %s: the full read stopped at %d page(s) of issues; "+
 			"the daily collection continues, but older issues and so the historical total stay incomplete\n",
 			repo, github.FullReadMaxPages)
+		h.partial[strings.ToLower(repo)] = true
 	}
 	daily, truncated, err := o.Client.Issues(ctx, repo, o.issuesSince(h, repo))
 	if err != nil {
@@ -75,12 +76,14 @@ func (o Options) fullRead(ctx context.Context, h held, repo string) ([]github.Re
 }
 
 // noteFull notes that repo's issues were read in full at at, whole seconds,
-// UTC, unless an earlier run did. It is called after the repository's events
-// were stored, so a failed store leaves no mark. A full read cut at its page
-// limit is noted all the same for now.
+// UTC, unless an earlier run did or this run's full read stopped at its page
+// cap (h.partial), which leaves the next run to read in full again. It is
+// called after the repository's events were stored, so a failed store leaves
+// no mark.
 func (h held) noteFull(repo string, at time.Time) {
-	if _, done := h.full[strings.ToLower(repo)]; !done {
-		h.full[strings.ToLower(repo)] = wholeSecond(at)
+	key := strings.ToLower(repo)
+	if _, done := h.full[key]; !done && !h.partial[key] {
+		h.full[key] = wholeSecond(at)
 	}
 }
 
