@@ -78,14 +78,14 @@ func TestIssueDaysCountsCompletedClosesPerUTCDay(t *testing.T) {
 }
 
 // closeCounts are the close columns of one day.
-type closeCounts struct{ completed, notPlanned, duplicate int }
+type closeCounts struct{ completed, notPlanned, duplicate, other int }
 
 // closeCountsOf is the close columns of IssueDays over events, with now on 3
 // October at noon and 3 days, newest first.
 func closeCountsOf(events []history.IssueEvent) []closeCounts {
 	var got []closeCounts
 	for _, d := range IssueDays(events, now, 3) {
-		got = append(got, closeCounts{d.Completed, d.NotPlanned, d.Duplicate})
+		got = append(got, closeCounts{d.Completed, d.NotPlanned, d.Duplicate, d.Other})
 	}
 	return got
 }
@@ -106,7 +106,7 @@ func closesWithReason(reason string) []history.IssueEvent {
 // column, while a completed close counts as Completed only.
 func TestIssueDaysCountsNotPlannedClosesPerUTCDay(t *testing.T) {
 	events := append(closesWithReason("not_planned"), closedAs("completed", oct(2, 8, 0, 0)))
-	if got, want := closeCountsOf(events), []closeCounts{{1, 2, 0}, {0, 1, 0}, {}}; !slices.Equal(got, want) {
+	if got, want := closeCountsOf(events), []closeCounts{{1, 2, 0, 0}, {0, 1, 0, 0}, {}}; !slices.Equal(got, want) {
 		t.Errorf("want the close columns per day, newest first, %v, got %v", want, got)
 	}
 }
@@ -116,7 +116,22 @@ func TestIssueDaysCountsNotPlannedClosesPerUTCDay(t *testing.T) {
 // column, while a not planned close counts as NotPlanned only.
 func TestIssueDaysCountsDuplicateClosesPerUTCDay(t *testing.T) {
 	events := append(closesWithReason("duplicate"), closedAs("not_planned", oct(2, 9, 0, 0)))
-	if got, want := closeCountsOf(events), []closeCounts{{0, 1, 2}, {0, 0, 1}, {}}; !slices.Equal(got, want) {
+	if got, want := closeCountsOf(events), []closeCounts{{0, 1, 2, 0}, {0, 0, 1, 0}, {}}; !slices.Equal(got, want) {
 		t.Errorf("want the close columns per day, newest first, %v, got %v", want, got)
+	}
+}
+
+// TestIssueDaysCountsClosesWithoutAKnownReasonAsOther (forsgren#76, v0.6.1,
+// decision #107): a close with no reason (an old issue) or a reason forsgren
+// does not know is counted in Other on its day, in no other column, so every
+// close lands in exactly one column.
+func TestIssueDaysCountsClosesWithoutAKnownReasonAsOther(t *testing.T) {
+	for _, reason := range []string{"", "something_new"} {
+		t.Run("reason "+reason, func(t *testing.T) {
+			events := append(closesWithReason(reason), closedAs("duplicate", oct(2, 9, 0, 0)))
+			if got, want := closeCountsOf(events), []closeCounts{{0, 0, 1, 2}, {0, 0, 0, 1}, {}}; !slices.Equal(got, want) {
+				t.Errorf("want the close columns per day, newest first, %v, got %v", want, got)
+			}
+		})
 	}
 }
