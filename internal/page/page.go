@@ -255,12 +255,13 @@ func WriteSite(dir string, data Data) (int, error) {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return 0, err
 	}
-	if err := copyStyles(dir); err != nil {
+	site := siteDir(dir)
+	if err := copyStyles(site); err != nil {
 		return 0, err
 	}
 	written := 0
 	for _, name := range PageNames() {
-		if err := writePage(dir, name, data); err != nil {
+		if err := writePage(site, name, data); err != nil {
 			return written, err
 		}
 		written++
@@ -268,24 +269,27 @@ func WriteSite(dir string, data Data) (int, error) {
 	return written, nil
 }
 
+// siteDir is the folder WriteSite writes the site into.
+type siteDir string
+
 // writePage renders one page into memory first, so a failing template never
 // leaves a half-written file behind.
-func writePage(dir, name string, data Data) error {
+func writePage(dir siteDir, name string, data Data) error {
 	var buf bytes.Buffer
 	if err := Render(&buf, name, data); err != nil {
 		return fmt.Errorf("render %s: %w", name, err)
 	}
-	file := filepath.Join(dir, name)
+	file := filepath.Join(string(dir), name)
 	if err := os.MkdirAll(filepath.Dir(file), 0o750); err != nil {
 		return err
 	}
 	return os.WriteFile(file, buf.Bytes(), 0o600)
 }
 
-func copyStyles(dir string) error {
+func copyStyles(dir siteDir) error {
 	css, err := files.ReadFile("styles.css")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, "styles.css"), css, 0o600)
+	return os.WriteFile(filepath.Join(string(dir), "styles.css"), css, 0o600)
 }
