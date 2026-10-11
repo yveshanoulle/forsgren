@@ -215,11 +215,11 @@ func TestAnIssuesFullFileItCannotReadRefusesTheRun(t *testing.T) {
 	}
 }
 
-// TestACloseAfterAReopenIsStoredOnceAtItsOwnTime (forsgren#76): #2 was
-// closed, reopened, and is closed again with a new closing time and reason:
-// that is one more closed event at the new time and nothing else, and a
-// second run over the same answer writes nothing.
-func TestACloseAfterAReopenIsStoredOnceAtItsOwnTime(t *testing.T) {
+// wantClosedAgainOnce stores the events of #2, collects twice while GitHub
+// says #2 is closed again at 28 Sep 16:00 as not planned, and fails unless
+// each run leaves the stored events and exactly that one more closed event.
+func wantClosedAgainOnce(t *testing.T, stored []history.IssueEvent) {
+	t.Helper()
 	g := newGitHub(t)
 	g.bodies[deploymentsPath] = list()
 	g.bodies[allIssuesPath] = list(listed{
@@ -227,17 +227,10 @@ func TestACloseAfterAReopenIsStoredOnceAtItsOwnTime(t *testing.T) {
 	}.json())
 	path := historyPath(t)
 	issues := issuesFileBeside(path)
-	stored := []history.IssueEvent{
-		{Repository: "acme/app", Issue: 2, Event: "created", At: at(15, 7, 45)},
-		{Repository: "acme/app", Issue: 2, Event: "closed", Reason: "completed", At: at(21, 9, 30)},
-		{Repository: "acme/app", Issue: 2, Event: "reopened", At: at(25, 0, 0)},
-	}
 	if _, err := history.AppendIssueEvents(issues, stored); err != nil {
 		t.Fatal(err)
 	}
-	want := append(stored, history.IssueEvent{
-		Repository: "acme/app", Issue: 2, Event: "closed", Reason: "not_planned", At: at(28, 16, 0),
-	})
+	want := append(stored, eventOfTwo("closed", "not_planned", at(28, 16, 0)))
 	for run := 1; run <= 2; run++ {
 		if r := g.collect(t, shop(production), path, 1); r.err != nil {
 			t.Fatalf("run %d: want it to succeed, got %v (stderr %q)", run, r.err, r.stderr)
@@ -247,6 +240,22 @@ func TestACloseAfterAReopenIsStoredOnceAtItsOwnTime(t *testing.T) {
 			t.Errorf("run %d: want the events\n%v\ngot\n%v (%v)", run, want, got, err)
 		}
 	}
+}
+
+// TestACloseAfterAReopenIsStoredOnceAtItsOwnTime (forsgren#76, decision
+// #100): #2 was closed, reopened, and is closed again with a new closing time
+// and reason: that is one more closed event at the new time and nothing else
+// (no reopened event when the reopen fell between two runs and was never
+// seen), and a second run over the same answer writes nothing.
+func TestACloseAfterAReopenIsStoredOnceAtItsOwnTime(t *testing.T) {
+	created := eventOfTwo("created", "", at(15, 7, 45))
+	closed := eventOfTwo("closed", "completed", at(21, 9, 30))
+	t.Run("the reopen was seen", func(t *testing.T) {
+		wantClosedAgainOnce(t, []history.IssueEvent{created, closed, eventOfTwo("reopened", "", at(25, 0, 0))})
+	})
+	t.Run("the reopen was missed", func(t *testing.T) {
+		wantClosedAgainOnce(t, []history.IssueEvent{created, closed})
+	})
 }
 
 // TestACutListOfAllIssuesIsReported (forsgren#104, #76): when a page limit cuts

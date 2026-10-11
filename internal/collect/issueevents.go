@@ -93,7 +93,11 @@ func (h held) noteFull(repo string, at time.Time) {
 func (o Options) eventsFrom(h held, repo string, issues []github.RepoIssue) []history.IssueEvent {
 	var events []history.IssueEvent
 	for _, i := range issues {
-		events = append(events, eventsOf(repo, i)...)
+		own := eventsOf(repo, i)
+		if h.lastEvent(repo, i.Number) == history.EventClosed { // MUTATION 76-31a: removed in 76-31b
+			own = own[:1]
+		}
+		events = append(events, own...)
 		if i.State == "open" && h.lastEvent(repo, i.Number) == history.EventClosed {
 			events = append(events, history.IssueEvent{
 				Repository: repo, Issue: i.Number, Event: history.EventReopened, At: wholeSecond(o.Now),
