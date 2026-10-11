@@ -77,27 +77,46 @@ func TestIssueDaysCountsCompletedClosesPerUTCDay(t *testing.T) {
 	}
 }
 
+// closeCounts are the close columns of one day.
+type closeCounts struct{ completed, notPlanned, duplicate int }
+
+// closeCountsOf is the close columns of IssueDays over events, with now on 3
+// October at noon and 3 days, newest first.
+func closeCountsOf(events []history.IssueEvent) []closeCounts {
+	var got []closeCounts
+	for _, d := range IssueDays(events, now, 3) {
+		got = append(got, closeCounts{d.Completed, d.NotPlanned, d.Duplicate})
+	}
+	return got
+}
+
+// closesWithReason are the closes of reason that every close column test
+// uses: 1 October 23:59:59 and the next 00:00:00 land in different rows, a
+// second repository counts on the second day, and a close today is out.
+func closesWithReason(reason string) []history.IssueEvent {
+	other := closedAs(reason, oct(2, 6, 0, 0))
+	other.Repository = "acme/cli"
+	return []history.IssueEvent{
+		closedAs(reason, oct(1, 23, 59, 59)), closedAs(reason, oct(2, 0, 0, 0)), other, closedAs(reason, oct(3, 1, 0, 0)),
+	}
+}
+
 // TestIssueDaysCountsNotPlannedClosesPerUTCDay (forsgren#76, v0.6.1): a close
 // with the reason not_planned is counted in NotPlanned on its day, in no other
-// column. With now on 3 October at noon and 3 days, 1 October 23:59:59 and the
-// next 00:00:00 land in different rows, both repositories count, a completed
-// close counts as Completed only, and a close today is out.
+// column, while a completed close counts as Completed only.
 func TestIssueDaysCountsNotPlannedClosesPerUTCDay(t *testing.T) {
-	other := closedAs("not_planned", oct(2, 6, 0, 0))
-	other.Repository = "acme/cli"
-	events := []history.IssueEvent{
-		closedAs("not_planned", oct(1, 23, 59, 59)),
-		closedAs("not_planned", oct(2, 0, 0, 0)),
-		other,
-		closedAs("completed", oct(2, 8, 0, 0)),
-		closedAs("not_planned", oct(3, 1, 0, 0)),
+	events := append(closesWithReason("not_planned"), closedAs("completed", oct(2, 8, 0, 0)))
+	if got, want := closeCountsOf(events), []closeCounts{{1, 2, 0}, {0, 1, 0}, {}}; !slices.Equal(got, want) {
+		t.Errorf("want the close columns per day, newest first, %v, got %v", want, got)
 	}
-	type counts struct{ completed, notPlanned int }
-	var got []counts
-	for _, d := range IssueDays(events, now, 3) {
-		got = append(got, counts{d.Completed, d.NotPlanned})
-	}
-	if want := []counts{{1, 2}, {0, 1}, {0, 0}}; !slices.Equal(got, want) {
-		t.Errorf("want Completed and NotPlanned per day, newest first, %v, got %v", want, got)
+}
+
+// TestIssueDaysCountsDuplicateClosesPerUTCDay (forsgren#76, v0.6.1): a close
+// with the reason duplicate is counted in Duplicate on its day, in no other
+// column, while a not planned close counts as NotPlanned only.
+func TestIssueDaysCountsDuplicateClosesPerUTCDay(t *testing.T) {
+	events := append(closesWithReason("duplicate"), closedAs("not_planned", oct(2, 9, 0, 0)))
+	if got, want := closeCountsOf(events), []closeCounts{{0, 1, 2}, {0, 0, 1}, {}}; !slices.Equal(got, want) {
+		t.Errorf("want the close columns per day, newest first, %v, got %v", want, got)
 	}
 }
