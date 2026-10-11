@@ -76,3 +76,28 @@ func TestIssueDaysCountsCompletedClosesPerUTCDay(t *testing.T) {
 		t.Errorf("want Completed per day, newest first, %v, got %v", want, got)
 	}
 }
+
+// TestIssueDaysCountsNotPlannedClosesPerUTCDay (forsgren#76, v0.6.1): a close
+// with the reason not_planned is counted in NotPlanned on its day, in no other
+// column. With now on 3 October at noon and 3 days, 1 October 23:59:59 and the
+// next 00:00:00 land in different rows, both repositories count, a completed
+// close counts as Completed only, and a close today is out.
+func TestIssueDaysCountsNotPlannedClosesPerUTCDay(t *testing.T) {
+	other := closedAs("not_planned", oct(2, 6, 0, 0))
+	other.Repository = "acme/cli"
+	events := []history.IssueEvent{
+		closedAs("not_planned", oct(1, 23, 59, 59)),
+		closedAs("not_planned", oct(2, 0, 0, 0)),
+		other,
+		closedAs("completed", oct(2, 8, 0, 0)),
+		closedAs("not_planned", oct(3, 1, 0, 0)),
+	}
+	type counts struct{ completed, notPlanned int }
+	var got []counts
+	for _, d := range IssueDays(events, now, 3) {
+		got = append(got, counts{d.Completed, d.NotPlanned})
+	}
+	if want := []counts{{1, 2}, {0, 1}, {0, 0}}; !slices.Equal(got, want) {
+		t.Errorf("want Completed and NotPlanned per day, newest first, %v, got %v", want, got)
+	}
+}

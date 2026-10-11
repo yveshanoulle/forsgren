@@ -20,6 +20,8 @@ type IssueDay struct {
 	// Completed is the issues closed as completed on that day. Other close
 	// reasons are not completed.
 	Completed int
+	// NotPlanned is the issues closed as not planned on that day.
+	NotPlanned int
 }
 
 // IssueDays is the last days UTC calendar days before the day of now, today
