@@ -1507,8 +1507,10 @@ explicit start the merged update would wait for the next daily run. The
 workflow declares no permissions block of its own.
 
 **The template's Dependabot setup.** The template's `.github/dependabot.yml`
-groups the pins of both caller files into one pull request, checks at 04:00
-UTC and waits 3 days after a release before it proposes it (a cooldown).
+groups the pins of both caller files into one pull request, checks every day
+at 04:00 UTC, weekends included (`interval: cron`, `cronjob: "0 4 * * *"`;
+`interval: daily` runs Monday to Friday only), and waits 3 days after a
+release before it proposes it (a cooldown).
 
 **To switch auto-update off**, set `auto_update: false` in
 `forsgren.config.yml` (or remove the key). Dependabot still opens its pull
