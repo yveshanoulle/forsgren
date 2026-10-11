@@ -576,7 +576,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   © Google LLC, CC BY 4.0" (forsgren#47). It no longer lists the settings
   (forsgren#84).
 - **The issues page** (`issues.html`, forsgren#76) is a table, Date | New |
-  Completed | Not planned | Duplicate | Other, one row per UTC calendar day,
+  Completed | Not planned | Duplicate | Other | Total, one row per UTC calendar day,
   the last 30 complete days (`issueDays`), yesterday on top and going down;
   today is left out, so a row never changes once it is shown (apart from the
   known limits below). All tracked repositories are counted together. A day
@@ -586,8 +586,16 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   (decision #107): **Completed** is the reason `completed`, **Not planned**
   `not_planned` and **Duplicate** `duplicate`; **Other** is a close with no
   reason (an old issue, closed before GitHub gave reasons) or a reason
-  forsgren does not know. The caption holds the same view switch as the table
-  pages, with `issues` as the current entry (`aria-current="page"`), and says the days
+  forsgren does not know. **Total** is the issues open at the end of that
+  day, across all repositories: the issues created, minus those closed, plus
+  those reopened, counted from the oldest stored event. A close of an issue
+  with no created event is ignored, and the order of the lines in
+  `issues.csv` does not matter. The Total is shown as calculated: a negative
+  Total means the collected data is inconsistent (missing events, a partial
+  read, or a bug), and it is shown rather than hidden. Reopen times are the
+  times `collect` saw them (see Issue events), so a Total from before a
+  reopen was seen is an estimate. The caption holds the same view switch as
+  the table pages, with `issues` as the current entry (`aria-current="page"`), and says the days
   are UTC. `render` reads `data/issues.csv` next to its `--data` file like
   `failures.csv`: a missing file is no events (a table of zero rows, a new
   installation), an unknown version or a malformed line fails the render
@@ -1034,8 +1042,8 @@ private repositories (no scope for public ones).
 
 ### Issue events (forsgren#76)
 
-Besides the failure issues, each run reads every issue of the repository,
-whatever its labels (`Client.Issues`: `issues?state=all&since=`, 100 per
+Besides the failure issues, each run reads the issues of the repository,
+whatever their labels (`Client.Issues`: `issues?state=all&since=`, 100 per
 page, pull requests left out, up to the page limit), and appends their
 events to `data/issues.csv` (see History). It asks since the same time as
 the failure issues, the repository's entry in `failures_read.csv` minus one
@@ -1045,7 +1053,8 @@ issue events of the repository were all stored (decision #101). A
 asked anything, like the other data files; if it cannot be written, the
 repository fails and its deployments are not stored, so the next run reads
 them again. The events are worked out from what GitHub says now, and
-from the last event stored for the issue (decision #100):
+from the newest event stored for the issue, by time (at the same second,
+created comes before closed, and closed before reopened; decision #100):
 
 - **created**, at the issue's `created_at`, for every issue read;
 - **closed**, at its `closed_at`, with its `state_reason`, when it is closed.
@@ -1059,6 +1068,25 @@ from the last event stored for the issue (decision #100):
 An event already stored is skipped (see History), so reading the same issues
 again writes nothing.
 
+**The full read** (decision #109) gives the issues page its history back to
+the first issue, including the open issues nothing has touched for a long
+time, which the Total counts.
+The first run for a repository with no line in `data/issues_full.csv`
+(`repository,full_at`, the time the full read was done) reads every issue of
+it, open or closed, without a time cut: `issues?state=all`, 100 per page, up
+to 100 pages (10,000 issues), pull requests left out. Its events are
+appended like any others, so an installation that already has events from
+the daily reads gets only the missing ones. The repository is noted in
+`issues_full.csv` only after its events were stored, and later runs skip the
+full read. If the full read stopped at the 10,000 issues cap, stderr says so
+(`the full read stopped at 100 page(s) of issues; the daily collection
+continues, but older issues and so the historical total stay incomplete`),
+what was read is kept, the repository is not noted, and the next run tries
+again. Daily collection is not capped this way: it continues past the cap,
+but for a repository with more than 10,000 issues the back history, and so
+the historical Total, stays incomplete. An `issues_full.csv` that is not in
+the format refuses the run before GitHub is asked anything.
+
 **Known limits of the issue events** (forsgren#76):
 
 - Deleted or transferred issues drift: GitHub no longer lists them, so their
@@ -1067,11 +1095,12 @@ again writes nothing.
   seen: the issue looks as if nothing happened (or, when it was closed
   before, closed again at a new time).
 - A reopen is dated when collect sees it, up to a day late (the
-  runs are daily), not when it happened; its day on the issues page can be
-  the next one.
-- An issue not touched for longer than `history_days` is not read, so one
-  that was opened before and stays open and untouched is never counted. A
-  total of open issues comes with a later release (v0.6.2).
+  runs are daily), not when it happened on GitHub; its day on the issues
+  page can be the next one, and a Total from before a reopen was seen is an
+  estimate.
+- The full read stops at 10,000 issues: for a repository above that, the
+  daily collection continues, but the back history and the historical Total
+  are incomplete (the warning above).
 
 ## Running forsgren
 
