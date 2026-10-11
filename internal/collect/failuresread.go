@@ -43,11 +43,11 @@ func (o Options) failuresReadFile() string {
 // loadMarks is h with the reach, the failures read and the issues full
 // files loaded; a file that cannot be read refuses the run.
 func (o Options) loadMarks(h held) (held, error) {
-	var reachErr, readErr, fullErr error
+	var reachErr, readErr error
 	h.reach, reachErr = history.LoadReach(o.reachFile())
 	h.read, readErr = history.LoadReadAt(o.failuresReadFile())
-	h.full, fullErr = history.LoadFullAt(o.issuesFullFile())
-	return h, errors.Join(reachErr, readErr, fullErr)
+	h.full, _ = history.LoadFullAt(o.issuesFullFile()) // MUTATION 76-29g: removed in 76-29h
+	return h, errors.Join(reachErr, readErr)
 }
 
 // saveMarks saves each of h's marks that differs from before.

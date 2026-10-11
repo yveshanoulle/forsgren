@@ -188,6 +188,33 @@ func TestAnIssuesFileItCannotReadIsRefusedFirst(t *testing.T) {
 	}
 }
 
+// TestAnIssuesFullFileItCannotReadRefusesTheRun (forsgren#76, decision #109):
+// an issues_full.csv with an unknown version or a malformed row is an error
+// naming it, before GitHub is asked anything.
+func TestAnIssuesFullFileItCannotReadRefusesTheRun(t *testing.T) {
+	head := "# forsgren issues full v1\nrepository,full_at\n"
+	for name, c := range map[string]struct {
+		content string
+		is      error
+	}{
+		"unknown version": {"# forsgren issues full v9\n", history.ErrUnknownVersion},
+		"malformed row":   {head + "acme/app\n", history.ErrMalformed},
+	} {
+		t.Run(name, func(t *testing.T) {
+			g := newGitHub(t)
+			path := historyPath(t)
+			writeBesideHistory(t, path, "issues_full.csv", c.content)
+			r := g.collect(t, shop(production), path, 1)
+			if !errors.Is(r.err, c.is) || !strings.Contains(r.err.Error(), "issues_full.csv") {
+				t.Errorf("want %v naming issues_full.csv, got %v", c.is, r.err)
+			}
+			if got := g.seen("/"); len(got) != 0 {
+				t.Errorf("want GitHub asked nothing, got %v", got)
+			}
+		})
+	}
+}
+
 // TestACloseAfterAReopenIsStoredOnceAtItsOwnTime (forsgren#76): #2 was
 // closed, reopened, and is closed again with a new closing time and reason:
 // that is one more closed event at the new time and nothing else, and a
