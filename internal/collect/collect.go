@@ -163,13 +163,13 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	if err != nil {
 		return err
 	}
-	h.noteFull(r.Name, o.Now) // MUTATION 76-29e: removed in 76-29f
 	stored, err := o.store(batch{f.records, commits, failures, events})
 	if err != nil {
 		return fmt.Errorf("%s: %w", r.Name, err)
 	}
 	h.noteReach(r.Name, f.reach)
 	h.noteRead(r.Name, o.Now)
+	h.noteFull(r.Name, o.Now)
 	o.report(r.Name, f, stored)
 	return nil
 }
