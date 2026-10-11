@@ -49,7 +49,19 @@ func IssueDays(events []history.IssueEvent, now time.Time, days int) []IssueDay 
 		}
 		rows[i].count(e)
 	}
+	addUpTotals(rows)
 	return rows
+}
+
+// addUpTotals sets each row's Total, the issues created up to the end of its
+// day: for now the New of its own day and of the older rows. rows are newest
+// first.
+func addUpTotals(rows []IssueDay) {
+	total := 0
+	for i := len(rows) - 1; i >= 0; i-- {
+		total += rows[i].New
+		rows[i].Total = total
+	}
 }
 
 // count adds e to d: a created event is a new issue, a closed event one in

@@ -313,6 +313,7 @@
     "github.com/yveshanoulle/forsgren/internal/history/stream.go:Stream": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/stream.go:Chronological": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:IssueDays": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:addUpTotals": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:count": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:closedColumn": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:utcDay": 100.0,
