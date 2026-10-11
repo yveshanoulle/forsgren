@@ -43,15 +43,29 @@ func IssueDays(events []history.IssueEvent, now time.Time, days int) []IssueDay 
 	return rows
 }
 
-// count adds e to d: a created event is a new issue, a closed event with
-// the reason completed a completed one, anything else nothing.
+// count adds e to d: a created event is a new issue, a closed event one in
+// the column of its reason, anything else nothing.
 func (d *IssueDay) count(e history.IssueEvent) {
-	switch {
-	case e.Event == history.EventCreated:
+	switch e.Event {
+	case history.EventCreated:
 		d.New++
-	case e.Event == history.EventClosed && e.Reason == history.ReasonCompleted:
-		d.Completed++
+	case history.EventClosed:
+		if column := d.closedColumn(e.Reason); column != nil {
+			*column++
+		}
 	}
+}
+
+// closedColumn is the count that a close with reason adds to, nil for a
+// reason with no column yet.
+func (d *IssueDay) closedColumn(reason string) *int {
+	switch reason {
+	case history.ReasonCompleted:
+		return &d.Completed
+	case history.ReasonNotPlanned:
+		return &d.NotPlanned
+	}
+	return nil
 }
 
 // utcDay is the midnight, UTC, that starts the calendar day t is in.
