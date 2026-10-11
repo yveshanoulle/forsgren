@@ -66,6 +66,8 @@ func (d *IssueDay) closedColumn(reason string) *int {
 		return &d.Completed
 	case history.ReasonNotPlanned:
 		return &d.NotPlanned
+	case history.ReasonDuplicate:
+		return &d.Duplicate
 	}
 	return nil
 }
