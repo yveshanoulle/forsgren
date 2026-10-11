@@ -414,7 +414,7 @@ type held struct {
 	oldest     map[source]time.Time // the oldest stored deployment of each source
 	successes  map[history.Stream][]history.Record
 	failures   map[history.IssueKey]history.Failure
-	lastEvents map[history.IssueKey]string
+	lastEvents map[history.IssueKey]history.IssueEvent
 	reach      history.Reach // see chunk.go
 	read       history.Reach // see failuresread.go
 }

@@ -50,15 +50,16 @@ func (o Options) issueEvents(ctx context.Context, h held, repo string) ([]histor
 	return events, nil
 }
 
-// lastEvent is the event, "created", "closed" or "reopened", that the last
+// lastEvent is the event, "created", "closed" or "reopened", that the newest
 // stored line of issue number of repo says; "" for an issue not stored.
 func (h held) lastEvent(repo string, number int64) string {
-	return h.lastEvents[history.IssueKeyOf(repo, number)]
+	return h.lastEvents[history.IssueKeyOf(repo, number)].Event
 }
 
 // loadIssueFiles is h with what the failures file and the issues file hold:
-// the failure issues as their newest lines say, and the last event of each
-// issue. A missing file holds nothing; one that cannot be read refuses the
+// the failure issues as their newest lines say, and the newest event of each
+// issue by time, not by its place in the file, which a later append can put
+// an older event after a newer one in. A missing file holds nothing; one that cannot be read refuses the
 // run.
 func (o Options) loadIssueFiles(h held) (held, error) {
 	var err error
@@ -69,11 +70,20 @@ func (o Options) loadIssueFiles(h held) (held, error) {
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return h, err
 	}
-	h.lastEvents = make(map[history.IssueKey]string, len(stored))
-	for _, e := range stored {
-		h.lastEvents[e.IssueKey()] = e.Event
-	}
+	h.lastEvents = newestEvents(stored)
 	return h, nil
+}
+
+// newestEvents is the newest event of each issue of events by time; of two at
+// the same time, the one later in events.
+func newestEvents(events []history.IssueEvent) map[history.IssueKey]history.IssueEvent {
+	newest := make(map[history.IssueKey]history.IssueEvent, len(events))
+	for _, e := range events {
+		if last, ok := newest[e.IssueKey()]; !ok || !e.At.Before(last.At) {
+			newest[e.IssueKey()] = e
+		}
+	}
+	return newest
 }
 
 // eventsOf is the events one issue of repo shows: created at its creation
