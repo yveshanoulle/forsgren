@@ -178,3 +178,15 @@ func TestIssueDaysTotalRisesAgainFromTheDayAnIssueIsReopened(t *testing.T) {
 		issueEvent("acme/app", "reopened", oct(2, 9, 0, 0)),
 	}, []int{1, 0, 1})
 }
+
+// TestIssueDaysTotalStartsFromTheIssuesOpenBeforeTheWindow (forsgren#76,
+// v0.6.2): the issues created before the oldest row's day and not closed
+// before it are open on every row, so the Total starts from them, not from 0.
+func TestIssueDaysTotalStartsFromTheIssuesOpenBeforeTheWindow(t *testing.T) {
+	checkTotals(t, []history.IssueEvent{
+		issueEvent("acme/app", "created", sep30.AddDate(0, 0, -10)),
+		issueEvent("acme/cli", "created", sep30.AddDate(0, 0, -5)),
+		closedAs("completed", sep30.AddDate(0, 0, -2)),
+		issueEvent("acme/app", "created", oct(1, 8, 0, 0)),
+	}, []int{2, 2, 1})
+}
