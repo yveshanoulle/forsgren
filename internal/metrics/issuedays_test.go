@@ -190,3 +190,13 @@ func TestIssueDaysTotalStartsFromTheIssuesOpenBeforeTheWindow(t *testing.T) {
 		issueEvent("acme/app", "created", oct(1, 8, 0, 0)),
 	}, []int{2, 2, 1})
 }
+
+// TestIssueDaysTotalIgnoresAnEventItDoesNotKnow: an event that is not created,
+// closed or reopened, before the window or in it, leaves the Total as it was.
+func TestIssueDaysTotalIgnoresAnEventItDoesNotKnow(t *testing.T) {
+	checkTotals(t, []history.IssueEvent{
+		issueEvent("acme/app", "labeled", sep30.AddDate(0, 0, -3)),
+		issueEvent("acme/app", "created", sep30),
+		issueEvent("acme/app", "labeled", oct(1, 8, 0, 0)),
+	}, []int{1, 1, 1})
+}
