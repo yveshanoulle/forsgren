@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"cmp"
 	"slices"
 	"testing"
 	"time"
@@ -218,4 +219,33 @@ func TestIssueDaysTotalIgnoresACloseOfAnIssueItNeverSawCreated(t *testing.T) {
 		issueEvent("acme/app", "created", sep30),
 		closeOfIssue(8, oct(1, 8, 0, 0)),
 	}, []int{1, 1, 1})
+}
+
+// TestIssueDaysTotalDoesNotDependOnTheOrderOfTheLines (forsgren#76, v0.6.2):
+// issues.csv can hold an event after a later one (a backfill appends older
+// events at the end), so a close can come before its own created line, even
+// within one second. Reordering the events must not change any Total: the
+// list in file order and the same events sorted by time give the same days.
+func TestIssueDaysTotalDoesNotDependOnTheOrderOfTheLines(t *testing.T) {
+	fileOrder := []history.IssueEvent{
+		closedAs("completed", oct(1, 8, 0, 0)),
+		issueEvent("acme/app", "created", oct(1, 8, 0, 0)),
+		issueEvent("acme/cli", "created", sep30),
+	}
+	sorted := slices.Clone(fileOrder)
+	slices.SortStableFunc(sorted, func(a, b history.IssueEvent) int {
+		order := []string{"created", "closed", "reopened"}
+		return cmp.Or(a.At.Compare(b.At), slices.Index(order, a.Event)-slices.Index(order, b.Event))
+	})
+	checkColumn(t, sorted, func(d IssueDay) int { return d.Total }, totalsOfDays(fileOrder))
+}
+
+// totalsOfDays are the Total of each day of IssueDays over events, with now on
+// 3 October at noon and 3 days, newest first.
+func totalsOfDays(events []history.IssueEvent) []int {
+	var totals []int
+	for _, d := range IssueDays(events, now, 3) {
+		totals = append(totals, d.Total)
+	}
+	return totals
 }
