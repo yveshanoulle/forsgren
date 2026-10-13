@@ -381,3 +381,20 @@ func TestIssueDaysOpenTrendIsUpByTheIssuesAddedWhenTheOpenRose(t *testing.T) {
 		t.Errorf("want 1 October Up by 2, got trend %v by %d", oct1.OpenTrend(), oct1.OpenChange)
 	}
 }
+
+// TestIssueDaysOpenTrendIsDownByTheIssuesClosedWhenTheOpenFell (forsgren#126,
+// forsgren#114): a day whose Open is lower than the day before's has the trend
+// Down and, as its change, minus how many fewer issues are open. Proven by
+// mutation.
+func TestIssueDaysOpenTrendIsDownByTheIssuesClosedWhenTheOpenFell(t *testing.T) {
+	days := IssueDays([]history.IssueEvent{
+		appEvent(1, "created", sep30),
+		appEvent(2, "created", sep30),
+		appEvent(3, "created", sep30),
+		closeOfIssue(1, oct(1, 8, 0, 0)),
+		closeOfIssue(2, oct(1, 9, 0, 0)),
+	}, now, 3)
+	if oct1 := days[1]; oct1.OpenTrend() != TrendDown || oct1.OpenChange != -2 {
+		t.Errorf("want 1 October Down by 2, got trend %v by %d", oct1.OpenTrend(), oct1.OpenChange)
+	}
+}

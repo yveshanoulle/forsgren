@@ -336,7 +336,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:createdDelta": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:bugDelta": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:OpenTrend": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:trendOf": 49.9,
+    "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:trendOf": 74.9,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:openDelta": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:count": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:closedColumn": 100.0,
