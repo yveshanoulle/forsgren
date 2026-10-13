@@ -317,3 +317,28 @@ func TestIssueDaysTotalCountsTheIssuesCreatedUpToTheEndOfTheDay(t *testing.T) {
 	checkColumn(t, events, openOf, []int{2, 2, 1})
 	checkColumn(t, events, totalOf, []int{3, 3, 2})
 }
+
+// TestIssueDayOpenShareIsOpenOutOfTotalInWholePercentRoundedDown (forsgren#134,
+// step 4): 2 open out of 3 created is 66%, not 67%, the rounding of change fail
+// rate; all open is 100%.
+func TestIssueDayOpenShareIsOpenOutOfTotalInWholePercentRoundedDown(t *testing.T) {
+	for _, c := range []struct {
+		open, total int
+		want        string
+	}{{2, 3, "66%"}, {3, 3, "100%"}} {
+		if got := (IssueDay{Open: c.open, Total: c.total}).OpenShare(); got != c.want {
+			t.Errorf("Open %d of Total %d: want %q, got %q", c.open, c.total, c.want, got)
+		}
+	}
+}
+
+// TestIssueDayOpenShareIsADashWhenNoIssueWasCreated (forsgren#134, step 5): with
+// a Total of 0 there is nothing to take a share of, so the share is the dash the
+// page shows for a missing number, whatever Open is.
+func TestIssueDayOpenShareIsADashWhenNoIssueWasCreated(t *testing.T) {
+	for _, open := range []int{0, -1} {
+		if got := (IssueDay{Open: open}).OpenShare(); got != "—" {
+			t.Errorf("Open %d of Total 0: want %q, got %q", open, "—", got)
+		}
+	}
+}

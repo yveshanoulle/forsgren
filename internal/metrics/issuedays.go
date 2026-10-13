@@ -6,6 +6,7 @@ package metrics
 // collect stored (history.IssueEvent).
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/history"
@@ -194,4 +195,13 @@ func oldestAt(events []history.IssueEvent) (time.Time, bool) {
 		}
 	}
 	return oldest, true
+}
+
+// OpenShare is the issues open out of the issues created, Open out of Total
+// (forsgren#134), as a whole percent rounded down, "—" when Total is 0.
+func (d IssueDay) OpenShare() string {
+	if d.Total == 0 {
+		return "—"
+	}
+	return fmt.Sprintf("%d%%", d.Open*100/d.Total)
 }

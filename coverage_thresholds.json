@@ -326,6 +326,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:dayRow": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:rowBack": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:oldestAt": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:OpenShare": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuemonths.go:IssueMonths": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuemonths.go:monthStart": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuemonths.go:monthRow": 100.0,
