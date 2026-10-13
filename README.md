@@ -2364,6 +2364,11 @@ loosening the gate.
 
 ## Installing and updating
 
+**To install forsgren with an AI coding agent,** point the agent at
+[agent-installer.md](agent-installer.md): it asks what only you can decide
+and creates your data repository from the template step by step
+(forsgren#142).
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`

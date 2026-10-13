@@ -1,0 +1,748 @@
+# Installing forsgren: instructions for an AI coding agent
+
+You are an AI coding agent. A person pointed you at this file because they
+want their own forsgren installation: a GitHub repository of their own (the
+**data repository**) that measures the DORA metrics of their repositories once
+a day and publishes them as a page on GitHub Pages.
+
+Follow **only this file**, from the top, in order. Do not use other guides,
+your memory of forsgren, or other installations as a source. The full
+reference is forsgren's [README](README.md); this file names the parts of it
+you need.
+
+## How to work through this file
+
+- **Do every step in order.** Each step says what to do, the exact command,
+  how to check that it worked, and what to do when it fails.
+- **When a step fails, stop.** Show the person the step number, the exact
+  command and its exact output, and say which check failed. Do not retry
+  with another command, do not work around it, do not guess a fix. The rule
+  of this file is: when a step fails, the install is deleted (see Starting
+  over), this file is fixed, and the install starts again from the top.
+- **A wait is not a failure.** Some steps wait for GitHub or DNS. They say how
+  long to wait and what to do when the wait runs out.
+- **Placeholders.** Commands use these words in capitals. Replace each with
+  its value before you run the command, everywhere, every time:
+  - `OWNER`: the account or organisation that owns the data repository.
+  - `REPO`: the data repository's name. `OWNER/REPO` is the two together.
+  - `VERSION`: the forsgren release the data repository pins, such as
+    `vX.Y.Z` (step 8).
+  - `SITE`: the page's address, ending with `/` (step 7).
+  - `DOMAIN`: the custom domain, when the person wants one.
+  - `PARENT`: the domain verified for GitHub Pages (step 13).
+  - `acme/app`: a repository to measure.
+- **Write values into each command.** Do not rely on shell variables or a
+  changed directory carrying over from one command to the next; use the
+  absolute paths given here.
+- **The person does some steps themselves.** They are marked **Person**.
+  Hand the person the text or command as written, wait until they say it is
+  done, then do the check yourself.
+
+## What you must never do
+
+- Never name a private repository in a public place: not in a public
+  repository's files, commits or issues, and not on the page. The page shows
+  project names and labels, so a project name must not be a private
+  repository's name either.
+- Never print, log, store, commit or ask to see a token. Never run
+  `gh auth token`. The person creates the token and sets the secret
+  themselves (step 10B).
+- Never push, commit or open anything in `yveshanoulle/forsgren` or in
+  `yveshanoulle/forsgren-template`. You only read them.
+- Never force-push, and never rewrite history in any repository.
+- Never delete anything, except the install the person asked to start over
+  (see Starting over), and the local folder `/tmp/forsgren-REPO` this file
+  creates.
+- Never install tools. When a tool is missing, stop and tell the person.
+- Never let a DNS record point at GitHub Pages for a domain that is not
+  verified (steps 13 and 15), and never ask anyone to delete the
+  verification TXT record.
+- Never change the person's git or gh configuration. When a step needs it,
+  the person runs the command.
+
+## Step 1. Check the prerequisites
+
+Run each command and check its output.
+
+1. `gh --version`
+   - Works: it prints `gh version` and a number.
+   - Fails (command not found): stop. Ask the person to install the GitHub
+     CLI from https://cli.github.com and to start again.
+2. `gh auth status`
+   - Works: it prints `Logged in to github.com account LOGIN`, and the line
+     `Token scopes:` contains `'repo'` and `'workflow'`. The token itself is
+     shown masked; never try to show it unmasked.
+   - Not logged in: stop. **Person:** run `gh auth login` in their own
+     terminal, then start again at step 1.
+   - `'workflow'` or `'repo'` missing: stop. **Person:** run
+     `gh auth refresh -h github.com -s repo,workflow` in their own terminal,
+     then start again at step 1. (`workflow` is needed because step 10A
+     changes a file under `.github/workflows/`.)
+3. `gh api user --jq .login`
+   - Works: it prints the login. That login is the default `OWNER`.
+4. `command -v curl`
+   - Works: it prints a path. `curl` checks the published page (step 12).
+   - Fails: stop and tell the person.
+5. `go version` (optional)
+   - Prints `go version go1.N...`: Go is there; step 9 checks the config
+     with it. Go 1.21 or later is needed (it fetches the Go version forsgren
+     asks for by itself).
+   - Not found or older: note it. Do not install Go. Step 9 then leaves the
+     check to the first run.
+
+git is not needed: every change this file makes goes through `gh api`, so
+there is no clone, no push and no git credential to set up.
+
+## Step 2. Ask the person every question, in one message
+
+Ask all of these together, before anything is created. Give each default and
+why. Wait for the answers.
+
+1. **Owner of the data repository.** Default: the login from step 1.3. It
+   can be an organisation where the person may create repositories.
+2. **Repository name.** Default: `dora-metrics`, because it says
+   what the repository and its page hold. Any free name works; it must not
+   exist yet under the owner.
+3. **The repositories to measure, grouped in projects.** No default. A
+   project is a name and the repositories that ship it, each as
+   `owner/name`, for example project `Acme Shop` with `acme/api` and
+   `acme/ios-app`. Project names are shown on the public page, so choose
+   names that may be public. Each repository is listed once in the whole
+   file.
+4. **What counts as a deployment, per repository.** Default: "find out"
+   (you check in step 3 and propose). The three kinds:
+   - `environment=production` (the default kind): a GitHub Deployment to
+     the environment `production` with a success status. Use it when the
+     repository's deploy jobs create GitHub Deployments, which show on the
+     repository's front page under "Deployments". `environment=<name>` names
+     another environment.
+   - `workflow=<file>.yml`: a successful run on the default branch of that
+     workflow, by its file name in `.github/workflows/`. Use it when a
+     workflow deploys (for example uploads to TestFlight) without GitHub
+     Deployments.
+   - `release`: a published GitHub Release (not a draft, not a
+     prerelease). Use it for apps and tools that ship as releases.
+5. **Public or private data repository.** Default: public when every
+   measured repository is public; private otherwise. Why:
+   - The data repository's `forsgren.config.yml` and `data/` name every
+     measured repository, so **it must be private when any measured
+     repository is private**. This is not a choice.
+   - A public data repository lets the daily run read the measured
+     repositories with its own token, so the person makes no token
+     (step 10A).
+   - GitHub Pages on a private repository needs a paid GitHub plan, and its
+     page is still public.
+6. **View**, the page the site's root shows. Default: `standard`, the DORA
+   bands, the easiest to read. `numbers` shows the raw values and `scoring`
+   the DORA Quick Check scores. Every view is also its own page.
+7. **Auto-update.** Default: `auto_update: true` with
+   `auto_update_level: patch`, as forsgren's own starter has it, because a
+   patch release only fixes things and asks nothing of an installation.
+   `minor` also takes new behaviour, `major` takes everything. With
+   `auto_update: false` the person merges each update by hand.
+8. **history_days**, how far back the history goes. Default: `365`. A whole
+   number from 1 to 1825. forsgren reads it in chunks of 100 days, one more
+   chunk per daily run, so a deeper history fills in over several days.
+9. **Custom domain or the github.io address.** Default: no custom domain;
+   the page is at `https://OWNER.github.io/REPO/`, works at once and has
+   HTTPS from the start. A custom domain (for example `dora.example.com`)
+   needs the person to verify its parent domain for GitHub Pages first (a
+   TXT record), then a DNS record they add at their DNS provider, and HTTPS
+   can take up to a day after that.
+
+## Step 3. Look at every measured repository (read only)
+
+For every repository the person named, replacing `acme/app`:
+
+1. `gh repo view acme/app --json visibility --jq .visibility`
+   - Works: `PUBLIC`, `PRIVATE` or `INTERNAL`. Write it down. Treat
+     `INTERNAL` as private.
+   - `Could not resolve to a Repository`: stop. The name is wrong or the
+     person's login cannot see it; ask the person to check it, then start
+     again at step 2.
+2. When the person said "find out", collect the evidence:
+   - GitHub Deployments, per environment:
+     `gh api repos/acme/app/deployments --jq '.[].environment'`
+   - Workflows:
+
+     ```
+     gh api repos/acme/app/actions/workflows \
+       --jq '.workflows[].path'
+     ```
+   - Releases:
+
+     ```
+     gh release list -R acme/app -L 5 \
+       --exclude-drafts --exclude-pre-releases
+     ```
+3. Propose the kind, in this order:
+   - Deployments to an environment exist: `environment=<that name>`
+     (`production` when it is there).
+   - Otherwise a workflow whose name or file says it deploys or publishes:
+     `workflow=<its file name>`, without the `.github/workflows/` folder.
+     Ask the person which workflow it is when more than one could be.
+   - Otherwise published releases exist: `release`.
+   - None of these: tell the person forsgren will find nothing to count for
+     that repository, and ask whether to keep it.
+
+Then decide the token route:
+
+- **Route A**: every measured repository is `PUBLIC`. The data repository is
+  public (unless the person chose private) and the daily run uses its own
+  token. No personal token.
+- **Route B**: at least one measured repository is private. The data
+  repository is private, and the person makes a fine-grained token.
+  - All private measured repositories must have **one owner**: a
+    fine-grained token reads the repositories of one user or organisation
+    (it reads every public repository besides). When they have more than
+    one owner, stop: this file does not cover that case.
+
+If the person chose public while a measured repository is private, tell them
+the data repository must be private, and ask again.
+
+## Step 4. Show the plan and wait for the go
+
+Show the person, in one message:
+
+- `OWNER/REPO`, public or private, and the token route (A or B).
+- The full `forsgren.config.yml` you will write (step 9 shows its shape).
+- The page address: `https://OWNER.github.io/REPO/`, or `DOMAIN`.
+- What they will do themselves: on route B the token and its secret
+  (step 10B); with a custom domain the domain verification (step 13) and
+  the DNS record (step 15).
+
+Wait for an explicit go. Any change to an answer: show the plan again.
+Nothing is created before the go.
+
+## Step 5. Check the name is free and the template is there
+
+1. `gh repo view OWNER/REPO`
+   - Works (for this check): it prints `Could not resolve to a Repository`.
+   - It shows a repository: stop. The name is taken; ask for another name
+     and go back to step 4.
+2. Run:
+
+   ```
+   gh repo view yveshanoulle/forsgren-template \
+     --json isTemplate --jq .isTemplate
+   ```
+
+   - Works: `true`.
+   - Anything else: stop and report.
+
+## Step 6. Create the data repository from the template
+
+For a public data repository:
+
+```
+gh repo create OWNER/REPO --public \
+  --template yveshanoulle/forsgren-template
+```
+
+For a private one, the same with `--private` instead of `--public`.
+
+Check:
+
+1. It prints the new repository's URL, `https://github.com/OWNER/REPO`.
+2. `gh api repos/OWNER/REPO/contents/.github/workflows --jq '.[].name'`
+   prints `forsgren-update.yml` and `forsgren.yml`. GitHub copies the
+   template's files a few seconds after the repository exists: on a 404 or an
+   empty answer, wait 10 seconds and run it again, at most 6 times.
+3. `gh repo view OWNER/REPO --json visibility --jq .visibility` prints the
+   visibility from the plan.
+4. `gh api repos/OWNER/REPO/actions/permissions --jq .enabled` prints
+   `true`.
+
+Fails: stop and report. The repository may exist now; the person decides
+whether to start over.
+
+## Step 7. Switch on GitHub Pages, built by GitHub Actions
+
+```
+gh api -X POST repos/OWNER/REPO/pages -f build_type=workflow
+```
+
+Check: `gh api repos/OWNER/REPO/pages --jq .build_type` prints `workflow`.
+Then `gh api repos/OWNER/REPO/pages --jq .html_url` prints the page address,
+`https://OWNER.github.io/REPO/` (the owner in lower case). That is `SITE`
+until a custom domain is set.
+
+Fails: stop and report. A private repository on a free GitHub plan is
+refused here (Pages on private repositories needs a paid plan).
+
+## Step 8. Read the pinned forsgren version and make a work folder
+
+```
+mkdir -p /tmp/forsgren-REPO
+gh api -H 'Accept: application/vnd.github.raw' \
+  repos/OWNER/REPO/contents/.github/workflows/forsgren.yml \
+  > /tmp/forsgren-REPO/forsgren.yml
+grep -n 'uses:' /tmp/forsgren-REPO/forsgren.yml
+```
+
+Check: one line, ending in `# vX.Y.Z`. That `vX.Y.Z` is `VERSION`.
+
+Fails (no line, or more than one): stop and report.
+
+## Step 9. Write forsgren.config.yml and check it
+
+Write `/tmp/forsgren-REPO/forsgren.config.yml` with your file tool, from the
+answers. Shape (the `acme` names stand for the person's):
+
+```yaml
+# forsgren configuration: what this installation measures.
+# Reference: https://github.com/yveshanoulle/forsgren#configuration
+version: 1
+view: standard
+auto_update: true
+auto_update_level: patch
+history_days: 365
+projects:
+  - name: Acme Shop
+    repositories:
+      - name: acme/api
+        deployment: environment=production
+      - name: acme/ios-app
+        deployment: workflow=testflight.yml
+  - name: Acme Tools
+    repositories:
+      - name: acme/cli
+        deployment: release
+```
+
+- Write every repository's `deployment:` line, also for
+  `environment=production`, so the file says what was chosen.
+- Indent with spaces only, as shown.
+- On a public data repository, check once more that every repository in
+  the file was `PUBLIC` in step 3.
+
+Check the file, when step 1.5 found Go:
+
+```
+go run github.com/yveshanoulle/forsgren/cmd/forsgren@VERSION \
+  check-config --config /tmp/forsgren-REPO/forsgren.config.yml
+```
+
+- Works: one line, `OK: ... is a valid forsgren config (version 1):
+  projects: N, repositories: M`, with N and M the counts of the plan.
+- Fails: it prints one line saying what is wrong and where. You wrote the
+  file in this step, so fix the file to what the line asks, show the person
+  the change, and run the check again. Any other error (a download or Go
+  error): stop and report.
+
+Without Go: tell the person the file is checked by the first run (step 12),
+which fails before it reads or publishes anything when the file is invalid.
+
+## Step 10. The token
+
+Do 10A on route A, 10B on route B. Never both.
+
+### 10A. Route A: the run's own token (every measured repository public)
+
+The daily run passes the secret `FORSGREN_TOKEN` to forsgren. On route A it
+passes the run's own token instead, which reads public repositories. This
+is a change to this one installation's `forsgren.yml`, not to the template.
+It is to be confirmed by forsgren#131, the first install made with this
+file: until then, the first run (step 12) is the proof.
+
+1. In `/tmp/forsgren-REPO/forsgren.yml`, replace this line exactly:
+
+   ```
+         FORSGREN_TOKEN: ${{ secrets.FORSGREN_TOKEN }}  # read-only token for the measured repositories
+   ```
+
+   with these three lines (same indentation, six spaces):
+
+   ```
+         # Every measured repository is public: the run's own token reads
+         # them. Copying the template's files over this one undoes it.
+         FORSGREN_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+   ```
+
+   Check: `grep -c 'secrets.GITHUB_TOKEN' /tmp/forsgren-REPO/forsgren.yml`
+   prints `1`, and
+   `grep -c 'secrets.FORSGREN_TOKEN' /tmp/forsgren-REPO/forsgren.yml`
+   prints `0`. The line not found as written: stop and report.
+2. Upload it as one commit:
+
+   ```
+   base64 < /tmp/forsgren-REPO/forsgren.yml | tr -d '\n' \
+     > /tmp/forsgren-REPO/forsgren.yml.b64
+   gh api repos/OWNER/REPO/contents/.github/workflows/forsgren.yml \
+     --jq .sha
+   ```
+
+   The second command prints the file's current sha; use it as `SHA`:
+
+   ```
+   gh api -X PUT \
+     repos/OWNER/REPO/contents/.github/workflows/forsgren.yml \
+     -f message='Read the public repositories with the run token' \
+     -F content=@/tmp/forsgren-REPO/forsgren.yml.b64 \
+     -f sha=SHA --jq .commit.sha
+   ```
+
+   Works: it prints a commit sha. Then check the file on GitHub:
+
+   ```
+   gh api -H 'Accept: application/vnd.github.raw' \
+     repos/OWNER/REPO/contents/.github/workflows/forsgren.yml \
+     | diff - /tmp/forsgren-REPO/forsgren.yml
+   ```
+
+   Works: no output. Fails (an error, or a diff): stop and report.
+
+The run's own token has a limit of 1,000 GitHub API requests an hour. A
+first run reads every issue of every measured repository once, so a very
+large set can reach it. When the first run's collect step names a rate
+limit, stop and report: the fix is route B.
+
+### 10B. Route B: a fine-grained token, made by the person
+
+You never see this token. Hand the person this text, with the values filled
+in:
+
+> **Person:** create a read-only token for forsgren.
+>
+> 1. On github.com: your profile picture → **Settings** → **Developer
+>    settings** → **Personal access tokens** → **Fine-grained tokens** →
+>    **Generate new token**.
+> 2. **Token name:** `forsgren OWNER/REPO`.
+> 3. **Expiration:** **Custom**, a date less than one year from today.
+>    Never more than a year, and never "No expiration". Put the date in your
+>    calendar: when it passes, the daily run fails until you make a new
+>    token and set it again (step 3 below).
+> 4. **Resource owner:** the owner of the private repositories to measure.
+>    If that is an organisation that reviews tokens, the token reads only
+>    public repositories until an organisation owner approves it.
+> 5. **Repository access:** **Only select repositories**, and select exactly
+>    the measured repositories of that owner. (The token reads every public
+>    repository by itself.)
+> 6. **Permissions → Repository permissions**, every one **Read-only**:
+>    - **Contents** and **Issues**: always.
+>    - **Deployments**: when a repository uses `environment=`.
+>    - **Actions**: when a repository uses `workflow=`.
+>    - **Metadata** is added by itself.
+>    Nothing else, and nothing with write access.
+> 7. **Generate token**, and copy it. Do not paste it to me.
+> 8. In your own terminal (not through me), run:
+>
+>    ```
+>    gh secret set FORSGREN_TOKEN -R OWNER/REPO
+>    ```
+>
+>    paste the token when it asks, press Enter, and tell me when it is done.
+
+The permissions per deployment kind are README's table (Collecting
+deployments, The token).
+
+Check, after the person says it is done:
+`gh secret list -R OWNER/REPO` shows a line starting with `FORSGREN_TOKEN`.
+It shows the name and a date, never the value. Missing: stop and report.
+
+On route B, `forsgren.yml` stays as the template has it.
+
+## Step 11. Commit forsgren.config.yml, before the first run
+
+The first run writes a starter configuration when the file is missing.
+Committing the real file first means the starter is never written.
+
+```
+base64 < /tmp/forsgren-REPO/forsgren.config.yml | tr -d '\n' \
+  > /tmp/forsgren-REPO/config.b64
+gh api -X PUT repos/OWNER/REPO/contents/forsgren.config.yml \
+  -f message='Add forsgren.config.yml' \
+  -F content=@/tmp/forsgren-REPO/config.b64 --jq .commit.sha
+```
+
+Works: it prints a commit sha. Then:
+
+```
+gh api -H 'Accept: application/vnd.github.raw' \
+  repos/OWNER/REPO/contents/forsgren.config.yml \
+  | diff - /tmp/forsgren-REPO/forsgren.config.yml
+```
+
+Works: no output. Fails: stop and report.
+
+## Step 12. The first run
+
+1. Start it:
+   `gh workflow run forsgren.yml -R OWNER/REPO`
+   Works: it says it created a `workflow_dispatch` event.
+2. Wait 10 seconds, then find the run:
+
+   ```
+   gh run list -R OWNER/REPO -w forsgren.yml -L 1 \
+     --json databaseId,event,status
+   ```
+
+   It shows one run with `"event":"workflow_dispatch"`. Its `databaseId` is
+   `RUN`. No run yet: wait 10 seconds and look again, at most 6 times.
+3. Watch it to the end (a few minutes; forsgren is built first):
+   `gh run watch RUN -R OWNER/REPO --exit-status`
+   Works: it ends with exit status 0.
+   Fails: run `gh run view RUN -R OWNER/REPO --log-failed`, stop, and report
+   that output. When it says `check FORSGREN_TOKEN's access` on route A,
+   the run's own token was not enough: report it, it is the open question
+   of forsgren#131.
+
+Then check what the run did:
+
+4. `gh run view RUN -R OWNER/REPO --json conclusion --jq .conclusion`
+   prints `success`.
+5. The run kept the configuration:
+
+   ```
+   gh api 'repos/OWNER/REPO/commits?per_page=5' \
+     --jq '.[].commit.message'
+   ```
+
+   No line says `forsgren: add a starter forsgren.config.yml`. A line
+   `forsgren: record deployments` is there when the run found deployments.
+6. Every measured repository was read:
+   `gh run view RUN -R OWNER/REPO --log | grep -E ': [0-9]+ new'`
+   prints one line per measured repository, such as
+   `acme/app: 3 new, 0 skipped (not final), 12 commits`. A repository
+   without a line: stop and report.
+7. The page shows each project:
+   `curl -fsS SITE | grep -o 'scope="row">[^<]*'`
+   prints `scope="row">` and each project name of the config, once each (an
+   `&` in a name shows as `&amp;`). Empty answer or a 404: wait 1 minute
+   and try again, at most 5 times; then stop and report.
+8. The settings page shows the answers:
+   `curl -fsS SITEsettings.html | grep '<li>'`
+   - `view`, `auto_update`, `auto_update_level` and `history_days` show the
+     values of the config, with nothing after them.
+   - `history_chunk_days: 100` and `working_hours: 8` end with
+     `(default, not set in forsgren.config.yml)`.
+9. The footer names the pinned version:
+   `curl -fsS SITE | grep -o 'Forsgren</a> [0-9.]*'`
+   prints `Forsgren</a>` and `VERSION` without its `v`.
+10. No setup issue: `gh issue list -R OWNER/REPO -l forsgren-setup`
+    lists no issue. An issue there: show the person its title and body
+    (`gh issue view NUMBER -R OWNER/REPO`), stop and report.
+
+Numbers such as "No deployments" or "No failed deployments" are not a
+failure: they show what GitHub holds for the first chunk of history.
+
+Without a custom domain, go to step 17.
+
+## Step 13. Custom domain: verify the parent domain first (Person)
+
+GitHub serves a custom domain only to the account that claims it. A DNS
+record that points at GitHub Pages for a domain nobody has verified lets
+someone else's repository take it over. So the domain is verified first,
+and nothing else about the domain is done until it is.
+
+`PARENT` is the domain to verify: `DOMAIN` itself for an apex domain
+(`example.com`), or the domain one level up for a subdomain
+(`dora.example.com` gives `example.com`). Verifying a domain covers its
+immediate subdomains.
+
+There is no GitHub REST endpoint, and no gh command, that tells whether a
+user account's Pages domain is verified. So this step has two parts: the
+DNS record is checked by you, and the verified state is the person's
+confirmation. Both are needed.
+
+1. Hand the person this, with the values filled in:
+
+   > **Person:** verify `PARENT` for GitHub Pages.
+   >
+   > 1. On github.com: your profile picture → **Settings** → **Pages**
+   >    (under "Code, planning, and automation"). For an organisation that
+   >    owns the data repository: the organisation's **Settings** →
+   >    **Pages** instead.
+   > 2. **Add a domain**, enter `PARENT`, and **Add domain**.
+   > 3. GitHub shows a TXT record: its name,
+   >    `_github-pages-challenge-OWNER.PARENT`, and its value. Add that TXT
+   >    record at your DNS provider. Keep it for as long as you use the
+   >    domain: removing it can lose the verification.
+   > 4. Send me the record's name and value as GitHub shows them (they are
+   >    not secret), and tell me when the record is added.
+
+2. You check the TXT record (machine-checked):
+   `dig +short TXT _github-pages-challenge-OWNER.PARENT`
+   with the name exactly as the person sent it.
+   - Works: it prints the value the person sent, in double quotes.
+   - Empty or another value: wait 5 minutes and check again, at most 12
+     times (an hour). Still not: a wait, not a failure. Tell the person,
+     and to ask you to resume at step 13 later. DNS can take up to 24
+     hours.
+   - `dig` not found: stop and tell the person.
+3. **Person:** once your check works, ask the person to click **Verify**
+   on that page (under the domain's **...** menu: **Continue verifying**),
+   and to tell you whether GitHub now shows `PARENT` as verified.
+   - The person confirms it is verified: go on to step 14.
+   - Not verified, or no answer: stop. Nothing about the domain is done
+     without both checks.
+
+Tell the person which part you checked (the TXT record is in DNS with the
+value they sent) and which part rests on their confirmation (GitHub shows
+the domain verified).
+
+## Step 14. Custom domain: set it on the repository
+
+Only after step 13 worked:
+
+```
+gh api -X PUT repos/OWNER/REPO/pages -f cname=DOMAIN
+```
+
+Check: `gh api repos/OWNER/REPO/pages --jq .cname` prints `DOMAIN`. Do not
+add a `CNAME` file to the repository: a site built by GitHub Actions does not
+use one. From now on `SITE` is `https://DOMAIN/`.
+
+Fails: stop and report.
+
+## Step 15. Custom domain: the DNS record (Person)
+
+First check, again, that the verification record is still there (the
+safeguard before any record points at GitHub Pages):
+`dig +short TXT _github-pages-challenge-OWNER.PARENT`
+prints the value from step 13. Empty or another value: stop. Do not hand
+over the DNS record.
+
+Then hand the person this, with the values filled in:
+
+> **Person:** at your DNS provider, add the record for `DOMAIN`:
+>
+> - A subdomain such as `dora.example.com`: a **CNAME** record from
+>   `dora.example.com` to `OWNER.github.io` (the owner in lower case, with
+>   no repository name).
+> - An apex domain such as `example.com`: four **A** records, to
+>   `185.199.108.153`, `185.199.109.153`, `185.199.110.153` and
+>   `185.199.111.153`.
+>
+> Never a wildcard record (`*.example.com`). Keep the TXT record from
+> before. Tell me when it is added.
+
+Then check: `dig +short DOMAIN`
+
+- A subdomain works when the first line is `OWNER.github.io.` (lower case)
+  and the next lines are `185.199.` addresses.
+- An apex domain works when it prints the four addresses above.
+- Not yet: wait 5 minutes and check again, at most 12 times (an hour).
+  Still not: this is a wait, not a failure. Tell the person DNS has not
+  reached you yet, and to ask you to resume at step 15 later. DNS can take
+  up to 24 hours.
+
+## Step 16. HTTPS, after the certificate is approved
+
+1. `gh api repos/OWNER/REPO/pages --jq .https_certificate.state`
+   - `approved`: go on to 2.
+   - `errored` or `bad_authz`: stop and report.
+   - Anything else, or nothing: wait 5 minutes and check again, at most 12
+     times. Still not `approved`: a wait, not a failure. Tell the person,
+     and to ask you to resume at step 16 later; GitHub can take up to 24
+     hours.
+2. `gh api -X PUT repos/OWNER/REPO/pages -F https_enforced=true`
+3. Check: `gh api repos/OWNER/REPO/pages --jq .https_enforced` prints
+   `true`.
+4. Start a run so the page is published at the new address, then check it:
+   do step 12's items 1 to 4 again, then
+   `curl -fsS https://DOMAIN/ | grep -o 'scope="row">[^<]*'`
+   prints each project name, as in step 12 item 7.
+
+Fails: stop and report.
+
+## Step 17. Tell the person it is done
+
+Tell them, in one message:
+
+- the page address (`SITE`), and that it runs every day at 05:17 UTC by
+  itself;
+- on route B: the token's expiry date, and that a new token is set with the
+  same `gh secret set FORSGREN_TOKEN -R OWNER/REPO`;
+- on route A: that copying the template's files over this repository (which
+  a release's notes can ask for) brings back the `secrets.FORSGREN_TOKEN`
+  line, and step 10A must then be done again;
+- the auto-update check below, for when the next forsgren release lands.
+
+Then remove the work folder: `rm -r /tmp/forsgren-REPO`.
+
+## Later: the first auto-update
+
+This is checked once the next forsgren release after `VERSION` is out, not in
+the install session. The template's Dependabot checks every day at 04:00 UTC
+and proposes a release once it is 3 days old.
+
+1. A newer release exists:
+   `gh release list -R yveshanoulle/forsgren -L 1`
+   shows a tag newer than `VERSION`.
+2. Dependabot proposed it:
+   `gh pr list -R OWNER/REPO --app dependabot --state all`
+   lists a pull request that moves the forsgren pins. None 4 days after the
+   release: report it.
+3. The update workflow ran on it:
+   `gh run list -R OWNER/REPO -w forsgren-update.yml -L 3`
+   shows a run for that pull request, with conclusion `success`.
+4. Within `auto_update_level`, the pull request is merged and a
+   `forsgren.yml` run follows:
+   `gh run list -R OWNER/REPO -w forsgren.yml -L 3`.
+   Beyond the level, it stays open and that run's job summary names the
+   reason; the person merges it when they are fine with it. With
+   `auto_update: false` it always stays open.
+5. The pin moved:
+
+   ```
+   gh api -H 'Accept: application/vnd.github.raw' \
+     repos/OWNER/REPO/contents/.github/workflows/forsgren.yml \
+     | grep -E 'uses:|FORSGREN_TOKEN:'
+   ```
+
+   The `uses:` line ends with the new `# vX.Y.Z`. On route A the
+   `FORSGREN_TOKEN:` line still reads `secrets.GITHUB_TOKEN`.
+6. The page footer names the new version (step 12 item 9).
+
+Anything else: report it to the person.
+
+## Starting over
+
+When a step failed and the person wants to start again, or asks to start
+over:
+
+1. Show the person what will be deleted: the repository `OWNER/REPO`, with
+   its configuration, its collected history, its page and, on route B, its
+   `FORSGREN_TOKEN` secret. Ask them to confirm by typing the repository's
+   full name. Delete nothing else.
+2. **Custom domain only** (the install got as far as step 13, or the person
+   added a record for `DOMAIN`): before anything is deleted, check the
+   domain is still verified, the same two ways as step 13:
+   - you: `dig +short TXT _github-pages-challenge-OWNER.PARENT` prints the
+     value from step 13;
+   - **Person:** confirms GitHub still shows `PARENT` as verified in
+     Settings → Pages.
+
+   Both hold: the `DOMAIN` record may stay for the next attempt. Either one
+   fails, or you cannot tell: hand the person this before anything else,
+
+   > **Person:** at your DNS provider, remove the CNAME (or the four A
+   > records) for `DOMAIN`. Keep the `_github-pages-challenge` TXT record.
+   > Tell me when it is removed.
+
+   and check that `dig +short DOMAIN` no longer prints `OWNER.github.io.`
+   or `185.199.` addresses (wait 5 minutes and check again, at most 12
+   times; still there: a wait, resume at this item later). Delete nothing
+   before that check passes.
+3. **Person**, in their own terminal (deleting needs a scope the login does
+   not have by default):
+
+   ```
+   gh auth refresh -h github.com -s delete_repo
+   gh repo delete OWNER/REPO
+   ```
+
+   `gh repo delete` asks them to type the name again.
+4. Check: `gh repo view OWNER/REPO` prints
+   `Could not resolve to a Repository`.
+5. Remove the work folder: `rm -r /tmp/forsgren-REPO`.
+6. What stays:
+   - the verification TXT record and the verified domain: deleting the
+     repository never removes them, and the person keeps the TXT record;
+   - the `DOMAIN` record, only when item 2 found the domain verified;
+   - on route B, the person's fine-grained token: it can be set again on
+     the new repository in step 10B, or deleted in the same settings page.
+7. Start again at step 1 of this file. With a custom domain, steps 13 and
+   15 check the verification and the record again; a record that is
+   already there is checked, not added twice.
