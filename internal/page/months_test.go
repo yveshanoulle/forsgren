@@ -72,3 +72,27 @@ func TestMonthsPageWithNoActiveRowShowsAMessage(t *testing.T) {
 	wantAll(t, "months.html", got, "<p>No issues were opened, closed or reopened before today.</p>")
 	wantNone(t, "months.html", got, "<table>", "2026-10-13", "Week 41", "September 2026")
 }
+
+// TestMonthsPageSwitchMarksOnlyMonths (forsgren#123, step 7): the view switch
+// ends with issues and then months. The months page marks months current and
+// links issues, the issues page marks issues and links months, and a table
+// page, at the root or one folder down, links both after the views.
+func TestMonthsPageSwitchMarksOnlyMonths(t *testing.T) {
+	const views = `<span class="views">View: <a href="standard/">standard</a> · <a href="numbers/">numbers</a> · ` +
+		`<a href="scoring/">scoring</a> · `
+	data := calculated()
+	data.View = viewNumbers
+	wantAll(t, "months.html", rendered(t, "months.html", data), views+
+		`<a href="issues.html">issues</a> · <span aria-current="page">months</span></span>`)
+	wantAll(t, "issues.html", rendered(t, "issues.html", data), views+
+		`<span aria-current="page">issues</span> · <a href="months.html">months</a></span>`)
+	data = viewData()
+	data.View = viewNumbers
+	wantAll(t, "index.html", rendered(t, "index.html", data),
+		`<a href="issues.html">issues</a> · <a href="months.html">months</a></span>`)
+	for _, view := range []string{viewStandard, viewNumbers, viewScoring} {
+		page := view + "/index.html"
+		wantAll(t, page, rendered(t, page, data),
+			`<a href="../issues.html">issues</a> · <a href="../months.html">months</a></span>`)
+	}
+}
