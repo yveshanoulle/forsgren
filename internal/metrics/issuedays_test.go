@@ -37,7 +37,7 @@ func TestIssueDaysCountsNewIssuesPerUTCDayEndingYesterday(t *testing.T) {
 	want := []IssueDay{
 		{Date: midnight(time.October, 2), New: 2, Other: 1, Total: 3, Active: true},
 		{Date: midnight(time.October, 1), New: 1, Total: 1, Active: true},
-		{Date: midnight(time.September, 30), New: 0, Active: true},
+		{Date: midnight(time.September, 30), New: 0},
 	}
 	if got := IssueDays(events, now, 3); !slices.Equal(got, want) {
 		t.Errorf("want the days\n%v\ngot\n%v", want, got)

@@ -44,7 +44,6 @@ func IssueDays(events []history.IssueEvent, now time.Time, days int) []IssueDay 
 	rows := make([]IssueDay, max(days, 0))
 	for i := range rows {
 		rows[i].Date = today.Add(-time.Duration(i+1) * day)
-		rows[i].Active = true // stub (forsgren#108 step 1): every day active until step 2
 	}
 	for _, e := range events {
 		if i, ok := dayRow(e.At, today, len(rows)); ok {
@@ -111,13 +110,15 @@ func addUpTotals(rows []IssueDay, perDay []int, openAtStart int) {
 }
 
 // count adds e to d: a created event is a new issue, a closed event one in
-// the column of its reason, anything else nothing.
+// the column of its reason, anything else nothing. Both make the day Active.
 func (d *IssueDay) count(e history.IssueEvent) {
 	switch e.Event {
 	case history.EventCreated:
 		d.New++
+		d.Active = true
 	case history.EventClosed:
 		*d.closedColumn(e.Reason)++
+		d.Active = true
 	}
 }
 
