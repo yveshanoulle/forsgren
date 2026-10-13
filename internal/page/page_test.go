@@ -289,6 +289,18 @@ func TestIssuesPageSkipsInactiveDays(t *testing.T) {
 	wantNone(t, "issues.html", got, "2026-10-02")
 }
 
+// TestIssuesPageWithNoActiveDayShowsAMessage (forsgren#108, step 7, rule 4):
+// when no day of the window is Active, the issues page says so in one line
+// and has no table, not even its head.
+func TestIssuesPageWithNoActiveDayShowsAMessage(t *testing.T) {
+	day := func(d int) time.Time { return time.Date(2026, time.October, d, 0, 0, 0, 0, time.UTC) }
+	data := calculated()
+	data.IssueDays = []metrics.IssueDay{{Date: day(2), Total: 5}, {Date: day(1), Total: 5}}
+	got := rendered(t, "issues.html", data)
+	wantAll(t, "issues.html", got, "<p>No issues were opened, closed or reopened in the last 30 days.</p>")
+	wantNone(t, "issues.html", got, "<table>", "2026-10-02", "2026-10-01")
+}
+
 // TestIssuesPageWithoutDaysMatchesGolden (forsgren#76): the page of a site
 // with no issue events yet, which Scripts/test_build_site.sh renders, has the
 // table's head and no rows.
