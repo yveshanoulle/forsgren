@@ -9,8 +9,8 @@ import (
 // the root, the current view plain text marked aria-current="true", as the
 // root is not that view's page (Yves's ruling, forsgren#46).
 var rootSwitch = map[string]string{
-	"standard": `View: <span aria-current="true">standard</span> · <a href="numbers/">numbers</a>`,
-	"numbers":  `View: <a href="standard/">standard</a> · <span aria-current="true">numbers</span>`,
+	"standard": `View: <span aria-current="true">Standard</span> · <a href="numbers/">Numbers</a>`,
+	"numbers":  `View: <a href="standard/">Standard</a> · <span aria-current="true">Numbers</span>`,
 }
 
 // renderRoot renders the config with view (none when empty) over the

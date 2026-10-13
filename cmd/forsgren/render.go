@@ -44,7 +44,7 @@ type renderOptions struct {
 // commits, failures and issues files next to it, and shows each project's
 // deployment frequency, lead time for changes, failed deployment recovery
 // time, change fail rate and deployment rework rate, counted back from now,
-// and the rows of the issues and months pages (forsgren#76, #89, #123).
+// and the rows of the days and issues pages (forsgren#76, #89, #123).
 // Without --config (the repository's own build has no installation config)
 // the page is the placeholder, with the render time in its footer.
 func render(args []string, stdout, stderr io.Writer) int {
@@ -114,7 +114,7 @@ func pageData(o renderOptions, at time.Time) (page.Data, error) {
 const issueDays = 30
 
 // withHistory is data with what the history at path shows: the table's rows
-// and the rows of the issues and months pages (forsgren#89, forsgren#123),
+// and the rows of the days and issues pages (forsgren#89, forsgren#123),
 // from the issues file next to the history (data/issues.csv beside
 // data/deployments.csv), at the render time at.
 func withHistory(data page.Data, cfg config.Config, path string, at time.Time) (page.Data, error) {

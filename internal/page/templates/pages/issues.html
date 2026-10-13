@@ -2,10 +2,11 @@
 {{template "header" .}}  <main>
     <h1>Issues</h1>
     <p><a href="index.html">Back to the table</a></p>
-{{if .AnyIssueDayActive}}{{template "issuestable" .}}{{else}}    <p>No issues were opened, closed or reopened in the last 30 days.</p>
+{{if .AnyIssueRowActive}}{{template "issuestable" .}}    <p>Days are in UTC, weeks run Monday to Sunday, months and years follow the calendar, and a week that spans two months is in both.</p>
+{{else}}    <p>No issues were opened, closed or reopened before today.</p>
     <p>{{template "switch" .}}</p>
 {{end}}  </main>
 {{template "footer" .}}
-{{define "issuescaptionid"}}issues-caption{{end}}{{define "issuescaption"}}Issues per day, all projects, days in UTC{{end}}{{define "issuesfirst"}}Date{{end}}{{define "issuesrows"}}{{range .IssueDays}}{{if .Active}}          <tr>
-            <th scope="row">{{.Date.Format "2006-01-02"}}</th>
+{{define "issuescaptionid"}}issues-caption{{end}}{{define "issuescaption"}}Issues per day, week, month and year, all projects{{end}}{{define "issuesfirst"}}Period{{end}}{{define "issuesrows"}}{{range .IssueTableRows}}{{if .Active}}          <tr>
+            <th scope="row">{{.Label}}</th>
 {{template "issuecells" .}}{{end}}{{end}}{{end}}

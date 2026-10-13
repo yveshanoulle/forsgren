@@ -3,19 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Months · forsgren</title>
+  <title>Daily · forsgren</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <main>
-    <h1>Months</h1>
+    <h1>Daily</h1>
     <p><a href="index.html">Back to the table</a></p>
-    <div class="table-scroll" role="region" aria-labelledby="months-caption" tabindex="0">
+    <div class="table-scroll" role="region" aria-labelledby="days-caption" tabindex="0">
       <table>
-        <caption><span id="months-caption">Issues per day, week, month and year, all projects</span> <span class="views">View: <a href="standard/">standard</a> · <a href="numbers/">numbers</a> · <a href="scoring/">scoring</a> · <a href="issues.html">issues</a> · <span aria-current="page">months</span></span></caption>
+        <caption><span id="days-caption">Issues per day, all projects, days in UTC</span> <span class="views">View: <a href="standard/">Standard</a> · <a href="numbers/">Numbers</a> · <a href="scoring/">Scoring</a> · <a href="issues.html">Issues</a> · <span aria-current="page">Daily</span></span></caption>
         <thead>
           <tr>
-            <th scope="col">Period</th>
+            <th scope="col">Date</th>
             <th scope="col">New</th>
             <th scope="col">Completed</th>
             <th scope="col">Not planned</th>
@@ -35,7 +35,16 @@
             <td>7</td>
           </tr>
           <tr>
-            <th scope="row">Week 40</th>
+            <th scope="row">2026-10-01</th>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>5</td>
+          </tr>
+          <tr>
+            <th scope="row">2026-09-30</th>
             <td>2</td>
             <td>4</td>
             <td>0</td>
@@ -43,28 +52,9 @@
             <td>5</td>
             <td>6</td>
           </tr>
-          <tr>
-            <th scope="row">August 2026</th>
-            <td>1</td>
-            <td>0</td>
-            <td>0</td>
-            <td>0</td>
-            <td>0</td>
-            <td>5</td>
-          </tr>
-          <tr>
-            <th scope="row">2025</th>
-            <td>6</td>
-            <td>3</td>
-            <td>1</td>
-            <td>1</td>
-            <td>0</td>
-            <td>4</td>
-          </tr>
         </tbody>
       </table>
     </div>
-    <p>Days are in UTC, weeks run Monday to Sunday, months and years follow the calendar, and a week that spans two months is in both.</p>
   </main>
   <footer>
     <p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> 0.8.3 Metrics from GitHub data. Calculated at 2026-10-03 12:00 UTC</p>

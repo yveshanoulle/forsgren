@@ -20,8 +20,8 @@ func issueEventAt(number int64, event, reason, at string) history.IssueEvent {
 	return history.IssueEvent{Repository: "acme/api", Issue: number, Event: event, Reason: reason, At: when}
 }
 
-// TestRenderShowsTheIssuesOfEachDay (forsgren#76, step 10): with
-// data/issues.csv next to --data, issues.html shows the UTC day before the
+// TestRenderShowsTheIssuesOfEachDay (forsgren#76, step 10; forsgren#128): with
+// data/issues.csv next to --data, days.html shows the UTC day before the
 // render time, 2 October. Issue 7 is created that day; issues 8 to 11, created
 // earlier, are closed that day, one for each reason, completed, not planned,
 // duplicate and none: 1 in each column, and 1 issue still open, the Total.
@@ -42,18 +42,18 @@ func TestRenderShowsTheIssuesOfEachDay(t *testing.T) {
 		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
 	}
 	want := "<th scope=\"row\">2026-10-02</th>\n" + strings.Repeat("            <td>1</td>\n", 6)
-	if issues := readFile(t, filepath.Join(dir, "issues.html")); !strings.Contains(issues, want) {
+	if issues := readFile(t, filepath.Join(dir, "days.html")); !strings.Contains(issues, want) {
 		t.Errorf("want the page to hold the row %q, got:\n%s", want, issues)
 	}
 }
 
-// TestRenderShowsTheIssuesOfWeeksAndMonthsOnTheMonthsPage (forsgren#89, step
+// TestRenderShowsTheIssuesOfWeeksAndMonthsOnTheIssuesPage (forsgren#89, step
 // 17; forsgren#123, step 10): rendered on Wednesday 14 October 2026,
-// months.html holds the day before (13 October), then the complete weeks of
+// issues.html holds the day before (13 October), then the complete weeks of
 // the month, 41 and 40 (40 begins in September), then the months, September
-// and August, each with an issue created in it. issues.html holds no week or
+// and August, each with an issue created in it. days.html holds no week or
 // month row.
-func TestRenderShowsTheIssuesOfWeeksAndMonthsOnTheMonthsPage(t *testing.T) {
+func TestRenderShowsTheIssuesOfWeeksAndMonthsOnTheIssuesPage(t *testing.T) {
 	old := now
 	now = func() time.Time { return time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC) }
 	t.Cleanup(func() { now = old })
@@ -70,17 +70,17 @@ func TestRenderShowsTheIssuesOfWeeksAndMonthsOnTheMonthsPage(t *testing.T) {
 		"--data", data); code != 0 {
 		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
 	}
-	wantRowLabels(t, filepath.Join(dir, "months.html"), true,
+	wantRowLabels(t, filepath.Join(dir, "issues.html"), true,
 		"Period", "2026-10-13", "Week 41", "Week 40", "September 2026", "August 2026")
-	wantRowLabels(t, filepath.Join(dir, "issues.html"), false,
+	wantRowLabels(t, filepath.Join(dir, "days.html"), false,
 		"Week 41", "Week 40", "September 2026", "August 2026")
 }
 
-// TestRenderShowsTheYearRowsOnTheMonthsPage (forsgren#125, step 9): rendered
-// on Wednesday 14 October 2026, months.html holds the months of 2026 as month
+// TestRenderShowsTheYearRowsOnTheIssuesPage (forsgren#125, step 9): rendered
+// on Wednesday 14 October 2026, issues.html holds the months of 2026 as month
 // rows (September, the month with an issue created in it) and every earlier
 // year as one row, 2025 and 2024, and no month row of those years.
-func TestRenderShowsTheYearRowsOnTheMonthsPage(t *testing.T) {
+func TestRenderShowsTheYearRowsOnTheIssuesPage(t *testing.T) {
 	old := now
 	now = func() time.Time { return time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC) }
 	t.Cleanup(func() { now = old })
@@ -97,9 +97,9 @@ func TestRenderShowsTheYearRowsOnTheMonthsPage(t *testing.T) {
 		"--data", data); code != 0 {
 		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
 	}
-	months := filepath.Join(dir, "months.html")
-	wantRowLabels(t, months, true, "September 2026", "2025", "2024")
-	wantRowLabels(t, months, false, "November 2025", "March 2024")
+	issuesPage := filepath.Join(dir, "issues.html")
+	wantRowLabels(t, issuesPage, true, "September 2026", "2025", "2024")
+	wantRowLabels(t, issuesPage, false, "November 2025", "March 2024")
 }
 
 // wantRowLabels fails for each label the page at path lacks as a cell when

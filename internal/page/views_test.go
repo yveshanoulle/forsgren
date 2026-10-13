@@ -181,12 +181,12 @@ func wantNone(t *testing.T, name, got string, texts ...string) {
 func TestViewSwitchMarksTheCurrentView(t *testing.T) {
 	data := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
 	for name, want := range map[string]string{
-		"standard/index.html": `View: <span aria-current="page">standard</span> · <a href="../numbers/">numbers</a> · ` +
-			`<a href="../scoring/">scoring</a>`,
-		"numbers/index.html": `View: <a href="../standard/">standard</a> · <span aria-current="page">numbers</span> · ` +
-			`<a href="../scoring/">scoring</a>`,
-		"scoring/index.html": `View: <a href="../standard/">standard</a> · <a href="../numbers/">numbers</a> · ` +
-			`<span aria-current="page">scoring</span>`,
+		"standard/index.html": `View: <span aria-current="page">Standard</span> · <a href="../numbers/">Numbers</a> · ` +
+			`<a href="../scoring/">Scoring</a>`,
+		"numbers/index.html": `View: <a href="../standard/">Standard</a> · <span aria-current="page">Numbers</span> · ` +
+			`<a href="../scoring/">Scoring</a>`,
+		"scoring/index.html": `View: <a href="../standard/">Standard</a> · <a href="../numbers/">Numbers</a> · ` +
+			`<span aria-current="page">Scoring</span>`,
 	} {
 		got := rendered(t, name, data)
 		wantAll(t, name, got, want)
@@ -296,13 +296,13 @@ func TestWriteSiteFailsWhenAViewFolderIsAFile(t *testing.T) {
 func TestRootPageFollowsItsDataView(t *testing.T) {
 	data := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
 	const (
-		std, num, sco = `<a href="standard/">standard</a>`, `<a href="numbers/">numbers</a>`, `<a href="scoring/">scoring</a>`
+		std, num, sco = `<a href="standard/">Standard</a>`, `<a href="numbers/">Numbers</a>`, `<a href="scoring/">Scoring</a>`
 		now           = `<span aria-current="true">%s</span>`
 	)
 	for view, want := range map[string]string{
-		"standard": "View: " + fmt.Sprintf(now, "standard") + " · " + num + " · " + sco,
-		"numbers":  "View: " + std + " · " + fmt.Sprintf(now, "numbers") + " · " + sco,
-		"scoring":  "View: " + std + " · " + num + " · " + fmt.Sprintf(now, "scoring"),
+		"standard": "View: " + fmt.Sprintf(now, "Standard") + " · " + num + " · " + sco,
+		"numbers":  "View: " + std + " · " + fmt.Sprintf(now, "Numbers") + " · " + sco,
+		"scoring":  "View: " + std + " · " + num + " · " + fmt.Sprintf(now, "Scoring"),
 	} {
 		data.View = view
 		got := rendered(t, "index.html", data)
@@ -318,4 +318,20 @@ func TestRootPageFollowsItsDataView(t *testing.T) {
 	placeholder := Placeholder("0.8.3")
 	placeholder.View = "numbers"
 	wantNone(t, "index.html", rendered(t, "index.html", placeholder), "View:")
+}
+
+// TestMenuEndsWithIssuesAndDaily (forsgren#128, step 6): the menu of the table
+// pages ends with the issues page and the days page, labelled Daily, linked
+// from the root and, one folder down, through ../.
+func TestMenuEndsWithIssuesAndDaily(t *testing.T) {
+	data := viewData()
+	data.View = viewNumbers
+	for name, want := range map[string]string{
+		"index.html":          `<a href="issues.html">Issues</a> · <a href="days.html">Daily</a></span>`,
+		"standard/index.html": `<a href="../issues.html">Issues</a> · <a href="../days.html">Daily</a></span>`,
+		"numbers/index.html":  `<a href="../issues.html">Issues</a> · <a href="../days.html">Daily</a></span>`,
+		"scoring/index.html":  `<a href="../issues.html">Issues</a> · <a href="../days.html">Daily</a></span>`,
+	} {
+		wantAll(t, name, rendered(t, name, data), want)
+	}
 }

@@ -72,9 +72,9 @@ type Data struct {
 	// (forsgren#74, #84).
 	Settings []config.Setting
 	// IssueDays are the issue counts per UTC day, newest first, that the
-	// issues page tabulates (forsgren#76, forsgren#123).
+	// days page tabulates (forsgren#76, forsgren#123, forsgren#128).
 	IssueDays []metrics.IssueDay
-	// IssueRows are the rows of the months page by kind, days, weeks and
+	// IssueRows are the rows of the issues page by kind, days, weeks and
 	// months, newest first in that order (forsgren#76, forsgren#89,
 	// decision #118, forsgren#123).
 	IssueRows []metrics.IssueRow
@@ -122,14 +122,14 @@ func Placeholder(version string) Data {
 	return Data{Title: "forsgren", Version: version, Message: "no data yet"}
 }
 
-// IssueTableRow is a row of the months page: the counts of an IssueDay under
+// IssueTableRow is a row of the issues page: the counts of an IssueDay under
 // the Label of its kind.
 type IssueTableRow struct {
 	Label string
 	metrics.IssueDay
 }
 
-// IssueTableRows are the rows of the months page, IssueRows labelled: a day
+// IssueTableRows are the rows of the issues page, IssueRows labelled: a day
 // by its date, a week by the ISO number of its Monday ("Week 41"), a month by
 // its name and year, a year by the year.
 func (d Data) IssueTableRows() []IssueTableRow {
@@ -156,12 +156,12 @@ func issueRowLabel(r metrics.IssueRow) string {
 }
 
 // AnyIssueDayActive says whether some day of IssueDays is Active, that is
-// whether the issues page has a row to show (forsgren#108).
+// whether the days page has a row to show (forsgren#108).
 func (d Data) AnyIssueDayActive() bool {
 	return slices.ContainsFunc(d.IssueDays, func(day metrics.IssueDay) bool { return day.Active })
 }
 
-// AnyIssueRowActive says whether some row of the months page, of any kind, is
+// AnyIssueRowActive says whether some row of the issues page, of any kind, is
 // Active, that is whether it has a row to show (forsgren#108, forsgren#123).
 func (d Data) AnyIssueRowActive() bool {
 	return slices.ContainsFunc(d.IssueRows, func(r metrics.IssueRow) bool { return r.Active })
@@ -181,10 +181,15 @@ func (d Data) HourlyToDailyTo() int { return d.OnDemandFrom() - 1 }
 // renders. parsePages and PageNames read the same set through it.
 const pagesGlob = "templates/pages/*.html"
 
-// issuePages are the pages that tabulate issues, not metrics, each at
-// <name>.html: the issues page (forsgren#76) and the months page
-// (forsgren#123), in the order the view switch names them after the views.
-var issuePages = []string{"issues", "months"}
+// issuePage is a page that tabulates issues, not metrics: its file is
+// <Name>.html and the menu calls it Label.
+type issuePage struct{ Name, Label string }
+
+// issuePages are the pages that tabulate issues, in the order the menu names
+// them after the views: the issues page (forsgren#123, forsgren#128: the
+// weeks, months and years) and the days page (forsgren#76, forsgren#128: the
+// last 30 days, labelled Daily).
+var issuePages = []issuePage{{"issues", "Issues"}, {"days", "Daily"}}
 
 // The views of the table page (forsgren#46): the standard cells, the numbers
 // only, and (forsgren#47) each metric's DORA Quick Check score with an
@@ -213,9 +218,9 @@ type pageData struct {
 	// View is "standard", "numbers" or "scoring" on a view's page, and shows
 	// the view switch; empty on the root pages.
 	View string
-	// Page is the page's name, its file without ".html": the view switch
-	// marks the one of issuePages it names as current (forsgren#76,
-	// forsgren#123).
+	// Page is the page's name, its file without ".html": the menu marks
+	// the one of issuePages it names as current (forsgren#76, forsgren#123,
+	// forsgren#128).
 	Page string
 }
 
@@ -230,8 +235,12 @@ func (p pageData) Scoring() bool { return p.View == viewScoring }
 // Views are the views the switch names, in its order.
 func (pageData) Views() []string { return views }
 
-// IssuePages are the pages the switch names after the views, in its order.
-func (pageData) IssuePages() []string { return issuePages }
+// ViewLabel is what the menu calls a view: its name with a capital, Standard
+// (forsgren#128, decision #133); its address stays lower case.
+func (pageData) ViewLabel(view string) string { return strings.ToUpper(view[:1]) + view[1:] }
+
+// IssuePages are the pages the menu names after the views, in its order.
+func (pageData) IssuePages() []issuePage { return issuePages }
 
 // Current is the switch's aria-current for the current view: "page" on the
 // view's own page, "true" on the root, which shows the view but is not its
@@ -291,7 +300,7 @@ func (p page) name() string { return strings.TrimSuffix(p.file, ".html") }
 // configured one, and each of issuePages none, so its switch links all three
 // views and marks only itself (forsgren#76, decision #102, forsgren#123).
 func (p page) viewShown(data Data) string {
-	if slices.Contains(issuePages, p.name()) {
+	if slices.ContainsFunc(issuePages, func(ip issuePage) bool { return ip.Name == p.name() }) {
 		return ""
 	}
 	return cmp.Or(p.view, data.View)

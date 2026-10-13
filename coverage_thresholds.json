@@ -395,6 +395,7 @@
     "github.com/yveshanoulle/forsgren/internal/page/page.go:AnyIssueDayActive": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:AnyIssueRowActive": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:IssuePages": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/page.go:ViewLabel": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:name": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:IssueTableRows": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:issueRowLabel": 100.0,

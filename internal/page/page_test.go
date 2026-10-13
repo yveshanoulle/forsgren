@@ -259,33 +259,17 @@ func TestSettingsPageMatchesGolden(t *testing.T) {
 }
 
 // on2026 is midnight UTC on day d of month m of 2026, the Date of a row of the
-// issues or months page.
+// days or issues page.
 func on2026(m time.Month, d int) time.Time { return time.Date(2026, m, d, 0, 0, 0, 0, time.UTC) }
 
 // october is on2026 in October.
 func october(d int) time.Time { return on2026(time.October, d) }
 
-// TestIssuesPageMatchesGolden (forsgren#76, step 9): the issues page is the
-// page issues.html, a table of the days newest first with the issues
-// opened (New) and completed, the days in UTC, with a link back to the table.
-func TestIssuesPageMatchesGolden(t *testing.T) {
-	data := calculated()
-	data.IssueDays = []metrics.IssueDay{
-		{Date: october(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Total: 7, Active: true},
-		{Date: october(1), New: 0, Completed: 0, Total: 5, Active: true},
-		{
-			Date: on2026(time.September, 30),
-			New:  2, Completed: 4, Duplicate: 3, Other: 5, Total: 6, Active: true,
-		},
-	}
-	checkPageGolden(t, "issues.html", "testdata/issues.golden.html", data)
-}
-
-// TestIssuesPageShowsTheLastThirtyDays (forsgren#123, step 1): the issues page
+// TestDaysPageShowsTheLastThirtyDays (forsgren#123, step 1): the days page
 // is back to 0.6.3: it tabulates Data.IssueDays under the header "Date", with
 // the caption "Issues per day, all projects, days in UTC" and no note, and
 // shows no week or month row even when Data.IssueRows holds some.
-func TestIssuesPageShowsTheLastThirtyDays(t *testing.T) {
+func TestDaysPageShowsTheLastThirtyDays(t *testing.T) {
 	data := calculated()
 	data.IssueDays = []metrics.IssueDay{
 		{Date: october(13), New: 2, Total: 4, Active: true},
@@ -297,17 +281,17 @@ func TestIssuesPageShowsTheLastThirtyDays(t *testing.T) {
 			Date: on2026(time.September, 1), New: 1, Total: 1, Active: true,
 		}},
 	}
-	got := rendered(t, "issues.html", data)
-	wantAll(t, "issues.html", got, "2026-10-13", "2026-10-12", `<th scope="col">Date</th>`,
+	got := rendered(t, "days.html", data)
+	wantAll(t, "days.html", got, "2026-10-13", "2026-10-12", `<th scope="col">Date</th>`,
 		"Issues per day, all projects, days in UTC")
-	wantNone(t, "issues.html", got, "Week 41", "September 2026", `<th scope="col">Period</th>`,
+	wantNone(t, "days.html", got, "Week 41", "September 2026", `<th scope="col">Period</th>`,
 		"a week that spans two months")
 }
 
 // TestIssueTableRowsLabelsDayWeekAndMonthRows (forsgren#89, step 13;
 // forsgren#123): the rows of Data.IssueRows are labelled by their kind: a day
 // by its date, a week by the ISO number of its Monday (5 October 2026 is in
-// week 41), a month by its name and year. The months page shows them.
+// week 41), a month by its name and year. The issues page shows them.
 func TestIssueTableRowsLabelsDayWeekAndMonthRows(t *testing.T) {
 	row := func(kind string, date time.Time) metrics.IssueRow {
 		return metrics.IssueRow{Kind: kind, IssueDay: metrics.IssueDay{Date: date, New: 1, Total: 1, Active: true}}
@@ -327,53 +311,46 @@ func TestIssueTableRowsLabelsDayWeekAndMonthRows(t *testing.T) {
 	}
 }
 
-// TestIssuesPageSkipsInactiveDays (forsgren#108, step 5): a day that is not
-// Active (nothing new, closed or reopened) has no row on the issues page, the
+// TestDaysPageSkipsInactiveDays (forsgren#108, step 5): a day that is not
+// Active (nothing new, closed or reopened) has no row on the days page, the
 // days around it do. The calculation keeps the day (rule 3); only the page hides it.
-func TestIssuesPageSkipsInactiveDays(t *testing.T) {
+func TestDaysPageSkipsInactiveDays(t *testing.T) {
 	data := calculated()
 	data.IssueDays = []metrics.IssueDay{
 		{Date: october(3), New: 1, Total: 5, Active: true},
 		{Date: october(2), Total: 5},
 		{Date: october(1), Completed: 1, Total: 5, Active: true},
 	}
-	got := rendered(t, "issues.html", data)
-	wantAll(t, "issues.html", got, "2026-10-03", "2026-10-01")
-	wantNone(t, "issues.html", got, "2026-10-02")
+	got := rendered(t, "days.html", data)
+	wantAll(t, "days.html", got, "2026-10-03", "2026-10-01")
+	wantNone(t, "days.html", got, "2026-10-02")
 }
 
-// TestIssuesPageWithNoActiveDayShowsAMessage (forsgren#108, step 7, rule 4):
-// when no day of the window is Active, the issues page says so in one line
+// TestDaysPageWithNoActiveDayShowsAMessage (forsgren#108, step 7, rule 4):
+// when no day of the window is Active, the days page says so in one line
 // and has no table, not even its head.
-func TestIssuesPageWithNoActiveDayShowsAMessage(t *testing.T) {
+func TestDaysPageWithNoActiveDayShowsAMessage(t *testing.T) {
 	data := calculated()
 	data.IssueDays = []metrics.IssueDay{{Date: october(13), Total: 5}, {Date: october(12), Total: 5}}
-	got := rendered(t, "issues.html", data)
-	wantAll(t, "issues.html", got, "<p>No issues were opened, closed or reopened in the last 30 days.</p>")
-	wantNone(t, "issues.html", got, "<table>", "2026-10-13")
+	got := rendered(t, "days.html", data)
+	wantAll(t, "days.html", got, "<p>No issues were opened, closed or reopened in the last 30 days.</p>")
+	wantNone(t, "days.html", got, "<table>", "2026-10-13")
 }
 
-// TestIssuesPageWithoutDaysMatchesGolden (forsgren#76): the page of a site
-// with no issue events yet, which Scripts/test_build_site.sh renders, has no
-// Active day, so it shows the no-activity message and no table (forsgren#108).
-func TestIssuesPageWithoutDaysMatchesGolden(t *testing.T) {
-	checkPageGolden(t, "issues.html", "testdata/issues.placeholder.golden.html", calculated())
-}
-
-// TestIssuesPageSwitchIgnoresTheConfiguredView (forsgren#76, decision #102):
+// TestDaysPageSwitchIgnoresTheConfiguredView (forsgren#76, decision #102):
 // the config's view: decides which view the root page shows, not what the
-// issues page marks. Whatever Data.View is, the issues page's switch links all
-// three views and only issues is current.
-func TestIssuesPageSwitchIgnoresTheConfiguredView(t *testing.T) {
-	const switchLine = `<span class="views">View: <a href="standard/">standard</a> · <a href="numbers/">numbers</a> · ` +
-		`<a href="scoring/">scoring</a> · <span aria-current="page">issues</span> · ` +
-		`<a href="months.html">months</a></span>`
+// days page marks. Whatever Data.View is, the days page's switch links all
+// three views and only Daily is current.
+func TestDaysPageSwitchIgnoresTheConfiguredView(t *testing.T) {
+	const switchLine = `<span class="views">View: <a href="standard/">Standard</a> · <a href="numbers/">Numbers</a> · ` +
+		`<a href="scoring/">Scoring</a> · <a href="issues.html">Issues</a> · ` +
+		`<span aria-current="page">Daily</span></span>`
 	for _, view := range []string{viewStandard, viewNumbers, viewScoring} {
 		t.Run(view, func(t *testing.T) {
 			data := calculated()
 			data.View = view
 			var got bytes.Buffer
-			if err := Render(&got, "issues.html", data); err != nil {
+			if err := Render(&got, "days.html", data); err != nil {
 				t.Fatalf("Render: %v", err)
 			}
 			if !strings.Contains(got.String(), switchLine) || strings.Count(got.String(), "aria-current") != 1 {
@@ -461,7 +438,7 @@ func TestEveryPageNamesFiveMetrics(t *testing.T) {
 	wantOnEveryPage(t, acmeTable(), " Metrics from GitHub data.")
 }
 
-// TestWriteSiteWritesEightPagesAndStyles (forsgren#46, #47, #84, #76, #123): the
+// TestWriteSiteWritesEightPagesAndStyles (forsgren#46, #47, #84, #76, #123, #128): the
 // root page, the legend, the settings page, the issues page and the months page, and each
 // view's page, standard, numbers and scoring, in its own folder.
 func TestWriteSiteWritesEightPagesAndStyles(t *testing.T) {
@@ -474,12 +451,15 @@ func TestWriteSiteWritesEightPagesAndStyles(t *testing.T) {
 		t.Errorf("want 8 pages written, got %d", n)
 	}
 	for _, name := range []string{
-		"index.html", "legend.html", "settings.html", "issues.html", "months.html", "standard/index.html",
+		"index.html", "legend.html", "settings.html", "days.html", "issues.html", "standard/index.html",
 		"numbers/index.html", "scoring/index.html", "styles.css",
 	} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
 			t.Errorf("want %s in the site: %v", name, err)
 		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "months.html")); err == nil {
+		t.Error("want no months.html in the site: it is issues.html now (forsgren#128)")
 	}
 }
 
@@ -707,4 +687,27 @@ func TestLegendHasNoSettings(t *testing.T) {
 		"<li>view: numbers</li>",
 		"<li>history_days: 365",
 	)
+}
+
+// TestDaysPageMatchesGolden (forsgren#128, step 2): the page of the days is
+// days.html, what issues.html showed before: a table of the last 30 days, newest
+// first, titled Daily, with the menu that ends issues, Daily.
+func TestDaysPageMatchesGolden(t *testing.T) {
+	data := calculated()
+	data.IssueDays = []metrics.IssueDay{
+		{Date: october(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Total: 7, Active: true},
+		{Date: october(1), New: 0, Completed: 0, Total: 5, Active: true},
+		{
+			Date: on2026(time.September, 30),
+			New:  2, Completed: 4, Duplicate: 3, Other: 5, Total: 6, Active: true,
+		},
+	}
+	checkPageGolden(t, "days.html", "testdata/days.golden.html", data)
+}
+
+// TestDaysPageWithoutDaysMatchesGolden (forsgren#128, step 3): the days page of a
+// site with no issue events yet has no Active day, so it shows the no-activity
+// message and no table.
+func TestDaysPageWithoutDaysMatchesGolden(t *testing.T) {
+	checkPageGolden(t, "days.html", "testdata/days.placeholder.golden.html", calculated())
 }
