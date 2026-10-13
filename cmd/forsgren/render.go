@@ -109,8 +109,8 @@ func pageData(o renderOptions, at time.Time) (page.Data, error) {
 	return withHistory(data, cfg, o.data, at)
 }
 
-// issueDays is how many UTC days the issues page shows, ending yesterday
-// (forsgren#76, forsgren#123).
+// issueDays is how many UTC days the days page shows, ending yesterday
+// (forsgren#76, forsgren#123, forsgren#128).
 const issueDays = 30
 
 // withHistory is data with what the history at path shows: the table's rows

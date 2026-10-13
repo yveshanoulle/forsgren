@@ -158,7 +158,7 @@ acme/app,42,2026-09-01T10:00:00Z,2026-09-01T15:00:00Z,2026-09-01T09:30:00Z
   line, refused untouched when its version is unknown or a line is
   malformed.
 
-**The issue events**, for the issues and months pages (forsgren#76, #123), are kept in
+**The issue events**, for the days and issues pages (forsgren#76, #123, #128), are kept in
 `data/issues.csv`, with its own format version (the issues format v1). It
 holds every issue of a configured repository, whatever its labels, as one
 line per event:
@@ -520,14 +520,14 @@ linked to its GitHub repository, its version, "Metrics from GitHub data."
 "Calculated at
 2026-10-03 12:00 UTC", the moment of the run (UTC, to the minute), on every
 run, with rows or without; and, when a newer forsgren release exists than the
-version that built the page, the version line adds it, "Forsgren 0.8.3 ·
+version that built the page, the version line adds it, "Forsgren 0.8.4 ·
 0.3.9 is available" (forsgren#40; nothing is added when the page is up to
 date, and no repository appears). The numbers are compared as numbers, so 0.0.10
-is newer than 0.0.9. On a table page the footer's paragraph is followed by
-two links on one line, "Settings" and "What the bands mean", to the settings page and the legend (forsgren#83, #84). The legend page's footer links to Settings, the settings page's to the legend, no page to itself; a page with no table, such as the no-projects how-to, has none.
+is newer than 0.0.9. On every page the footer's paragraph is followed by
+two links on one line, "Settings" and "Legend", to the settings page and the legend (forsgren#83, #84, #128). The footer is the same on all eight pages, so the settings page and the legend link to themselves too (Yves's ruling on decision #133).
 
 `render` writes one table (forsgren#38) first on the table page, with no text
-above it but a visually hidden heading for screen readers, "Forsgren 0.8.3:
+above it but a visually hidden heading for screen readers, "Forsgren 0.8.4:
 the five DORA metrics"; where each metric comes from is explained on the
 legend page, counting back from the time in the footer. A config that lists
 no projects has no table: the page shows, in its place, a short how-to, that
@@ -560,7 +560,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   and the count it is over, "Less than one day · 2 h 7 min (48)"; the
   weekend deployments have their own column. Durations are in min, h and d,
   each part cut down, never rounded up.
-- **Pages:** `index.html` holds the table and, in its footer, two links, "Settings" to `settings.html` and "What the bands mean" to `legend.html`; both have a link back to the table, and each links in its footer to the other kind of page (the legend to Settings, the settings page to the legend; forsgren#84). The issues page, `issues.html`, and the months page, `months.html`, have no footer links (forsgren#76, #123, decisions #102 and #103). Eight pages are written in all: `index.html`, `legend.html`, `settings.html`, `issues.html`, `months.html` and the three views.
+- **Pages:** eight pages are written: `index.html`, `legend.html`, `settings.html`, `issues.html`, `days.html` and the three views. Every page opens with one menu, "View: Standard · Numbers · Scoring · Issues · Daily" (forsgren#128, decision #133): the three views, then the issues page, `issues.html`, and the days page, `days.html`, labelled Daily; one folder down its links go through `../`. The current page is plain text marked `aria-current="page"`; the root marks the view it shows `aria-current="true"` (see Views), and the settings and legend pages mark none. No page has a link back to the table, since the menu reaches it, and every page ends with the same footer, the version line and then Settings and Legend. Up to 0.8.3 the days page was `issues.html` and the issues page `months.html`; 0.8.4 renamed them with no redirect (decision #133), and `months.html` is gone.
 - **Views** (forsgren#46): the table is built in more than one view, each its
   own page: `/standard/` (`standard/index.html`) is the table above, band,
   number and count, and `/numbers/` (`numbers/index.html`) shows only
@@ -572,20 +572,16 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   ("14%"); a `-` where there is no number (no commits, no completed
   recovery, no deployments or successful deployments). A row with no
   deployments recorded is six cells there, two `0` and four `-`, never a
-  sentence. Each view's page has a switch in its table's caption, on one
-  line after the title, "DORA metrics View: standard · numbers · scoring ·
-  issues · months" (forsgren#51, #76, #123: `issues` and `months` are not views of
-  the table but link to the issues page, `issues.html`, and the months page,
-  `months.html`, or `../issues.html` and `../months.html` one folder down); the title is its own element, which names the table and
-  its scroll region, so the table's name stays "DORA metrics". The current
-  view is plain text marked `aria-current="page"`, the others links
-  (`../standard/`, `../numbers/`, `../scoring/`); a page one folder down
-  reaches `styles.css` and the legend through `../`. The legend page serves
-  all views. The root `index.html` follows the `view:` config key (see
-  Configuration): that view, with the switch (its links relative to the
-  root, `standard/`, `numbers/` and `scoring/`, and its view marked
-  `aria-current="true"`, as the root is not that view's page); without the
-  key it is the standard page with no switch. `/scoring/`
+  sentence. The table's caption reads "DORA metrics" and names the table and
+  its scroll region; the menu at the top of the page marks the view, plain
+  text with `aria-current="page"`, and links the others (`../standard/`,
+  `../numbers/`, `../scoring/`). Up to 0.8.3 the view switch sat in the caption
+  (forsgren#51); 0.8.4 moved it to the menu (forsgren#128). A page one folder
+  down reaches `styles.css`, the settings and the legend through `../`. The
+  legend page serves all views. The root `index.html` follows the `view:`
+  config key (see Configuration): that view, which its menu marks
+  `aria-current="true"`, as the root is not that view's page; without the
+  key it is the standard page and its menu marks no view. `/scoring/`
   (`scoring/index.html`, forsgren#47) shows each metric's DORA Quick Check
   score alone, 0 to 10 (`9.3`, `10`, `0`), `-` where the metric has no data
   (deployment frequency: never a successful deployment in the recorded
@@ -593,20 +589,23 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   months scores `0`, the lowest band), and a sixth column, Overall
   Performance: the mean of the scored metrics to one decimal, `-` when none
   is scored. A `0` score is performance in the lowest band, never missing
-  data. The switch names it, as it names the other two.
-- **The legend** (`legend.html`) gives each metric's bands in one compact
+  data. The menu names it, as it names the other two.
+- **The legend** (`legend.html`, titled "Legend", forsgren#128) gives each metric's bands in one compact
   list (recovery time's are lead time's, and rework rate's are change fail
   rate's, so it refers to them), with what each cell counts and its window;
   its last section, Scores, says what the scoring view shows and credits the
   DORA Quick Check, linked: "Scores follow the DORA Quick Check (dora.dev),
-  © Google LLC, CC BY 4.0" (forsgren#47). It no longer lists the settings
-  (forsgren#84).
-- **The issues page** (`issues.html`, forsgren#76) is a table, Date | New |
+  © Google LLC, CC BY 4.0" (forsgren#47). A last section, Issues pages,
+  explains the periods of the issues and days pages: "Days are in UTC, weeks
+  run Monday to Sunday, months and years follow the calendar, and a week that
+  spans two months is in both." (forsgren#128, decision #133). It no longer
+  lists the settings (forsgren#84).
+- **The days page** (`days.html`, titled "Daily"; `issues.html` up to 0.8.3; forsgren#76, #128) is a table, Date | New |
   Completed | Not planned | Duplicate | Other | Total, one row per UTC calendar day,
   the last 30 complete days (`issueDays`), yesterday on top and going down;
   today is left out, so a row never changes once it is shown (apart from the
-  known limits below). It has no week or month row: those are on the months
-  page (forsgren#123). All tracked repositories are counted together. **Inactive days are hidden** (forsgren#108, decisions
+  known limits below). It has no week or month row: those are on the issues
+  page (forsgren#123, #128). All tracked repositories are counted together. **Inactive days are hidden** (forsgren#108, decisions
   #116 and #117): a day is active when it has a new issue, a close of any kind
   or a reopen, and a day with none of these has no row. A reopen keeps a day
   visible because it changes the Total. The window stays 30 calendar days, so
@@ -615,8 +614,8 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   `Active`): the Total is computed over all of them, so a hidden day's Total
   equals that of the shown day before it. When no day of the window is
   active, and when there are no issue events yet, the page shows one line,
-  "No issues were opened, closed or reopened in the last 30 days.", and the
-  view switch, instead of the table. **New** counts the `created` events of
+  "No issues were opened, closed or reopened in the last 30 days.", instead
+  of the table. **New** counts the `created` events of
   the day; a reopened issue is not new. Every `closed` event of the day is
   counted in exactly one of the other four columns, by its reason
   (decision #107): **Completed** is the reason `completed`, **Not planned**
@@ -633,16 +632,17 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   is inconsistent (missing events, a partial read, or a bug), and it is
   shown rather than hidden. Reopen times are the
   times `collect` saw them (see Issue events), so a Total from before a
-  reopen was seen is an estimate. The caption holds the same view switch as
-  the table pages, with `issues` as the current entry (`aria-current="page"`),
-  and says the days are UTC. `render` reads `data/issues.csv` next to its
+  reopen was seen is an estimate. The table has no caption: the page's
+  heading, Daily, names it and its scroll region, and the legend says the days
+  are UTC (forsgren#128). `render` reads `data/issues.csv` next to its
   `--data` file like `failures.csv`: a missing file is no events (the
   one-line message, a new installation), an unknown version or a malformed
   line fails the render with its own message.
-- **The months page** (`months.html`, forsgren#123, from #89, decisions #118
-  and #119) is the issues page's table over longer periods: Period | New |
+- **The issues page** (`issues.html`, titled "Issues"; `months.html` up to
+  0.8.3; forsgren#123, #128, from #89, decisions #118 and #119) is the days
+  page's table over longer periods: Period | New |
   Completed | Not planned | Duplicate | Other | Total, the columns counted as
-  on the issues page, with four kinds of row, newest first within each.
+  on the days page, with four kinds of row, newest first within each.
   First the **days of the current week**, Monday up to yesterday (none on a
   Monday), labelled by their UTC date; then the **complete weeks** that touch
   the current month, Monday to Sunday, labelled "Week 41" (the ISO week
@@ -660,7 +660,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   the end of 31 December; the oldest year may be partial, as the oldest month
   is. Today is left out, so
   a row never changes once it is shown. **Inactive rows are hidden** as on
-  the issues page (forsgren#108, decisions #116 and #117, for weeks and
+  the days page (forsgren#108, decisions #116 and #117, for weeks and
   months too). The calculation keeps every row (`metrics.IssueRows`, built
   from `metrics.IssueWeekDays`, `IssueWeeks`, `IssueYearMonths` and
   `IssueYearRows`, each marking its rows with `Active`): the Total is computed over all of them, so
@@ -669,18 +669,18 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   When no row is active, and when there are no issue events yet, the page
   shows one line, "No issues were opened, closed or reopened before today."
   (decision #119: the rows reach back months, so the line names no period),
-  and the view switch, instead of the table. Under the table a note says days
-  are UTC, weeks run Monday to Sunday, months and years follow the calendar, and a week
-  that spans two months is in both. The caption holds the same view switch,
-  with `months` as the current entry (`aria-current="page"`), and names the
-  table "Issues per day, week, month and year, all projects". The page reads the
-  same `data/issues.csv` as the issues page, with the same failures for a
+  instead of the table. The table has no caption: the page's heading,
+  Issues, names it and its scroll region, and the note on the periods (days
+  are UTC, weeks run Monday to Sunday, months and years follow the calendar,
+  and a week that spans two months is in both) is on the legend page
+  (forsgren#128). The page reads the
+  same `data/issues.csv` as the days page, with the same failures for a
   missing, unknown or malformed file. The two pages share one table template
   (`templates/layout/issuestable.html`).
 - **The settings page** (`settings.html`, forsgren#84) lists each optional
-  config key with the value in use, see Configuration; it has a link back to
-  the table.
-- **Layout:** the table has a caption and `<th scope>` headers; it scrolls
+  config key with the value in use, see Configuration.
+- **Layout:** the DORA table has a caption, an issue table is named by its
+  page's heading, and every table has `<th scope>` headers; it scrolls
   sideways inside its own box on a narrow screen, so the page keeps its
   1rem (16px) gutter and never scrolls sideways itself. `styles.css` sets
   no colour but `color-scheme: light dark`, so light and dark mode follow
@@ -726,17 +726,16 @@ projects:
 - **`view`** is optional (forsgren#46): the view the site's root page shows,
   `standard`, `numbers` or `scoring` (forsgren#47), written
   at the top level, for example `view: numbers`. Left out, or without a value,
-  the root is the standard page with no view switch, as before, so an
-  existing installation sees no change until it opts in; with a `view:`,
-  even `standard`, the root page is that view and carries the switch. Any
+  the root is the standard page and the menu marks no view, so an
+  existing installation sees the standard table until it opts in; with a
+  `view:`, even `standard`, the root page is that view and the menu marks it. Any
   other value is refused by `check-config` and `render`, naming the key and
   the valid values: `invalid view "Numbers": use standard, numbers or scoring`. Each
   view is also its own page at `/standard/`, `/numbers/` and `/scoring/`, whatever this
   key says. The starter that `init-config` writes for a new installation
-  includes `view: standard` (forsgren#51), so a new installation has the
-  switch from its first run with projects (a page without data shows no
-  switch); an existing config without `view:` keeps the
-  plain root, as `init-config` never rewrites an existing file. The starter
+  includes `view: standard` (forsgren#51), so a new installation's menu
+  marks its view from its first run; an existing config without `view:` keeps
+  the plain root, as `init-config` never rewrites an existing file. The starter
   also writes `auto_update: true` and `auto_update_level: patch` (forsgren#58),
   so a new installation merges forsgren's patch releases by itself; an
   existing config without `auto_update:` keeps it off (see Auto-update).
@@ -1145,7 +1144,7 @@ created comes before closed, and closed before reopened; decision #100):
 An event already stored is skipped (see History), so reading the same issues
 again writes nothing.
 
-**The full read** (decision #109) gives the issues and months pages their history back to
+**The full read** (decision #109) gives the days and issues pages their history back to
 the first issue, including the open issues nothing has touched for a long
 time, which the Total counts.
 The first run for a repository with no line in `data/issues_full.csv`
@@ -1181,7 +1180,7 @@ the format refuses the run before GitHub is asked anything.
 
 ## Running forsgren
 
-forsgren renders a static page whose footer says "Forsgren 0.8.3", the version of
+forsgren renders a static page whose footer says "Forsgren 0.8.4", the version of
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
@@ -1240,7 +1239,7 @@ pull-request check failed", and a Setup line, see The setup issue); the link is 
 private to the repository, unlike the public page. A flag it cannot use is a
 usage error that prints nothing. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides
-"Forsgren 0.8.3" in its footer, a how-to for filling `forsgren.config.yml`;
+"Forsgren 0.8.4" in its footer, a how-to for filling `forsgren.config.yml`;
 without `--config` (the build above has no installation config) or with
 projects, the page is the placeholder. With `--data` as well (it needs `--config`), the
 page shows each project's deployment frequency from that history, counted
@@ -1374,7 +1373,7 @@ jobs:
 - **`pull-requests: read` is optional, and the caller's to grant too**
   (forsgren#40). With it, when a newer forsgren release exists and
   Dependabot has an open pull request in your repository that bumps the
-  `uses:` pin to exactly that release, the page footer says "Forsgren 0.8.3
+  `uses:` pin to exactly that release, the page footer says "Forsgren 0.8.4
   · 0.3.9 is waiting in pull request #7 (merge it to update)", with the
   number only. Without it the footer still says "0.3.9 is available": the
   lookup treats the refusal (a 403) as unknown, never as an error, and the
@@ -1437,7 +1436,7 @@ workflow passes the status on as `render --needs-check` and
   first line of its body; the label only narrows the lookup. An issue with
   the label and no marker is never touched, and if you remove the label from
   the managed issue, the next run opens a new one. Its title is "forsgren
-  0.8.3 needs more configuration" (the running version) and its body lists the
+  0.8.4 needs more configuration" (the running version) and its body lists the
   steps of each missing need; title and body are presentation, and a run
   rewrites them.
 - **What a run does with it.** Something missing and no issue: it opens one.
@@ -1972,7 +1971,7 @@ The POST gates, on the generated site:
 - **required pages** (`Scripts/validate_required_pages.sh` and
   `Scripts/test_required_pages_covers_site.sh`): the pages the site must
   ship are listed, hand-authored, in `internal/page/required-pages.json`
-  (today `/`, `/legend.html`, `/settings.html`, `/issues.html`, `/months.html`,
+  (today `/`, `/legend.html`, `/settings.html`, `/days.html`, `/issues.html`,
   `/standard/`, `/numbers/` and `/scoring/`). The first checks that list's shape: valid JSON, a
   non-empty `requiredPages` array of root-relative paths, no scheme or host,
   no `..`, no duplicates. The second checks it against `.build/site`: every

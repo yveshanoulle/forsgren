@@ -1,6 +1,6 @@
 package metrics
 
-// The months page's yearly rows (forsgren#125): per UTC calendar year, the
+// The issues page's yearly rows (forsgren#125, #128): per UTC calendar year, the
 // same counts as IssueDays gives per day.
 
 import (

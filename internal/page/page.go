@@ -200,7 +200,7 @@ const (
 	viewScoring  = "scoring"
 )
 
-// views are the views of the table page, in the switch's order, each
+// views are the views of the table page, in the menu's order, each
 // rendered from index.html at its own address, /standard/, /numbers/ and
 // /scoring/, one folder below the root.
 var views = []string{viewStandard, viewNumbers, viewScoring}
@@ -233,20 +233,39 @@ func (p pageData) Numbers() bool { return p.View == viewNumbers }
 // and its last column Overall Performance.
 func (p pageData) Scoring() bool { return p.View == viewScoring }
 
-// Views are the views the menu names, in its order.
-func (pageData) Views() []string { return views }
+// menuItem is one entry of the menu: its address from the root, its label,
+// and its aria-current, empty for an entry that is a link.
+type menuItem struct{ Href, Label, Current string }
 
-// ViewLabel is what the menu calls a view: its name with a capital, Standard
-// (forsgren#128, decision #133); its address stays lower case.
-func (pageData) ViewLabel(view string) string { return strings.ToUpper(view[:1]) + view[1:] }
+// Menu is the menu at the top of the page (forsgren#128, decision #133): the
+// views, each labelled by its name with a capital (its address stays lower
+// case), then issuePages. The view the page shows is marked current, and the
+// issue page the page is marked "page"; every other entry is a link.
+func (p pageData) Menu() []menuItem {
+	menu := make([]menuItem, 0, len(views)+len(issuePages))
+	for _, view := range views {
+		label := strings.ToUpper(view[:1]) + view[1:]
+		menu = append(menu, menuItem{view + "/", label, markIf(view == p.View, p.viewCurrent())})
+	}
+	for _, issues := range issuePages {
+		menu = append(menu, menuItem{issues.Name + ".html", issues.Label, markIf(issues.Name == p.Page, "page")})
+	}
+	return menu
+}
 
-// IssuePages are the pages the menu names after the views, in its order.
-func (pageData) IssuePages() []issuePage { return issuePages }
+// markIf is the aria-current mark of the entry the page is on, empty for the
+// others.
+func markIf(on bool, mark string) string {
+	if on {
+		return mark
+	}
+	return ""
+}
 
-// Current is the menu's aria-current for the current view: "page" on the
-// view's own page, "true" on the root, which shows the view but is not its
-// page (Yves's ruling, forsgren#46).
-func (p pageData) Current() string {
+// viewCurrent is the menu's aria-current for the view the page shows: "page"
+// on the view's own page, "true" on the root, which shows the view but is not
+// its page (Yves's ruling, forsgren#46).
+func (p pageData) viewCurrent() string {
 	if p.Base == viewBase {
 		return "page"
 	}

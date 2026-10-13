@@ -30,8 +30,8 @@ func readFile(t *testing.T, path string) string {
 
 // TestInitConfigWritesTheStarterOnce drives `forsgren init-config`: a missing
 // file is created with the starter, which check-config accepts, with
-// view: standard, so a new installation starts with the view switch
-// (forsgren#51), and the second run keeps it. Both exit 0.
+// view: standard, so a new installation starts with its view marked in the
+// menu (forsgren#51, #128), and the second run keeps it. Both exit 0.
 func TestInitConfigWritesTheStarterOnce(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "forsgren.config.yml")
 	wantLookup(t, "created "+path+"\n", "", "init-config", "--config", path)

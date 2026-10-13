@@ -17,7 +17,7 @@ func starterLines() []string {
 }
 
 // starterConfig is the config at the end of the starter: one that measures
-// nothing yet, its root page the standard view with the switch (forsgren#51),
+// nothing yet, its root page the standard view marked in the menu (forsgren#51, #128),
 // and auto-merge of forsgren's Dependabot updates on at patch level
 // (forsgren#58).
 const starterConfig = "version: 1\nview: standard\nauto_update: true\n" +
@@ -224,7 +224,7 @@ func TestInitWritesTheStarterWhenTheFileIsMissing(t *testing.T) {
 	if got := readFile(t, path); got != Starter {
 		t.Errorf("want the starter written, got %q", got)
 	}
-	// A new installation starts with the view switch (forsgren#51).
+	// A new installation starts with its view marked in the menu (forsgren#51, #128).
 	if cfg, err := Load(path); err != nil || cfg.View != ViewStandard {
 		t.Errorf("want the written file to pass Load with view standard, got %q, %v", cfg.View, err)
 	}

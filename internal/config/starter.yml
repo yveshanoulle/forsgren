@@ -33,13 +33,13 @@
 #   services:
 #     deploy-api: API
 #
-# The view: line below chooses what the site's root page shows, with a view
-# switch: standard is the band, the number and the count, and numbers the
-# numbers only, and scoring each metric's DORA Quick Check score. Change it
-# to view: numbers or view: scoring for that view. Without a view: line, the
-# root page is the table with the band, the number and the count, and no view
-# switch. Each view is also its own page, at /standard/, /numbers/ and
-# /scoring/, with a switch between them.
+# The view: line below chooses what the site's root page shows, marked in the
+# menu at the top of every page: standard is the band, the number and the
+# count, and numbers the numbers only, and scoring each metric's DORA Quick
+# Check score. Change it to view: numbers or view: scoring for that view.
+# Without a view: line, the root page is the table with the band, the number
+# and the count, and the menu marks no view. Each view is also its own page,
+# at /standard/, /numbers/ and /scoring/, and the menu links them all.
 #
 # The auto_update: lines below switch on the merging of forsgren's own
 # updates. It is on at patch level: once the caller workflow of

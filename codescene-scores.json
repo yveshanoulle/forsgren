@@ -927,10 +927,16 @@
    "minScore": 10.0
   },
   {
-   "path": "internal/page/months_test.go",
+   "path": "internal/page/issues_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-13",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/page/menu_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-13",
+   "minScore": 9.58
   },
   {
    "path": "internal/collect/issueevents.go",

@@ -22,7 +22,7 @@ var update = flag.Bool("update", false, "rewrite testdata/*.golden.html")
 // calculated is the placeholder page data, calculated at 2026-10-03 12:00
 // UTC, that the golden pages start from.
 func calculated() Data {
-	data := Placeholder("0.8.3")
+	data := Placeholder("0.8.4")
 	data.AsOf = "2026-10-03 12:00"
 	return data
 }
@@ -234,15 +234,14 @@ func TestRenderEscapesFields(t *testing.T) {
 }
 
 func TestRenderUnknownPage(t *testing.T) {
-	err := Render(&bytes.Buffer{}, "missing.html", Placeholder("0.8.3"))
+	err := Render(&bytes.Buffer{}, "missing.html", Placeholder("0.8.4"))
 	if err == nil || !strings.Contains(err.Error(), "missing.html") {
 		t.Errorf("want an error naming missing.html, got %v", err)
 	}
 }
 
 // TestLegendPageMatchesGolden (forsgren#39, step 1): the band explanations
-// are the page legend.html, with a link back to the table; the table page
-// holds none of them.
+// are the page legend.html; the table page holds none of them.
 func TestLegendPageMatchesGolden(t *testing.T) {
 	data := calculated()
 	data.WorkingHours = 8
@@ -250,8 +249,7 @@ func TestLegendPageMatchesGolden(t *testing.T) {
 }
 
 // TestSettingsPageMatchesGolden (forsgren#84, step 1): settings.html lists
-// the settings of an empty config, every one a default, with a link back to
-// the table.
+// the settings of an empty config, every one a default.
 func TestSettingsPageMatchesGolden(t *testing.T) {
 	data := calculated()
 	data.Settings = config.Config{}.Settings()
@@ -336,36 +334,22 @@ func TestDaysPageWithNoActiveDayShowsAMessage(t *testing.T) {
 	wantNone(t, "days.html", got, "<table>", "2026-10-13")
 }
 
-// TestDaysPageSwitchIgnoresTheConfiguredView (forsgren#76, decision #102):
+// TestDaysPageMenuIgnoresTheConfiguredView (forsgren#76, decision #102):
 // the config's view: decides which view the root page shows, not what the
-// days page marks. Whatever Data.View is, the days page's switch links all
+// days page marks. Whatever Data.View is, the days page's menu links all
 // three views and only Daily is current.
-func TestDaysPageSwitchIgnoresTheConfiguredView(t *testing.T) {
-	const switchLine = `<nav class="views">View: <a href="standard/">Standard</a> · <a href="numbers/">Numbers</a> · ` +
-		`<a href="scoring/">Scoring</a> · <a href="issues.html">Issues</a> · ` +
-		`<span aria-current="page">Daily</span></nav>`
+func TestDaysPageMenuIgnoresTheConfiguredView(t *testing.T) {
+	menu := wantMenu("", "Daily", "page")
 	for _, view := range []string{viewStandard, viewNumbers, viewScoring} {
 		t.Run(view, func(t *testing.T) {
 			data := calculated()
 			data.View = view
-			var got bytes.Buffer
-			if err := Render(&got, "days.html", data); err != nil {
-				t.Fatalf("Render: %v", err)
-			}
-			if !strings.Contains(got.String(), switchLine) || strings.Count(got.String(), "aria-current") != 1 {
-				t.Errorf("want the switch %q with the only aria-current, got:\n%s", switchLine, got.String())
+			got := rendered(t, "days.html", data)
+			if !strings.Contains(got, menu) || strings.Count(got, "aria-current") != 1 {
+				t.Errorf("want the menu %q with the only aria-current, got:\n%s", menu, got)
 			}
 		})
 	}
-}
-
-// TestLegendPageTitleNamesIt (forsgren#39, step 4): the legend page's title
-// is its heading, What the bands mean, though its link reads Legend (decision
-// #133), then the site's title; its header shows no site-name line (forsgren#41).
-func TestLegendPageTitleNamesIt(t *testing.T) {
-	got := rendered(t, "legend.html", acmeTable())
-	wantAll(t, "legend.html", got, "<title>What the bands mean · forsgren</title>")
-	wantNone(t, "legend.html", got, `class="site-name"`)
 }
 
 // rendered is the page name rendered with data.
@@ -399,7 +383,7 @@ func wantOnNoPage(t *testing.T, data Data, texts ...string) {
 // released is the placeholder page data with latest as forsgren's latest
 // release and waitingPR as the pull request that bumps to it, 0 for none.
 func released(latest string, waitingPR int) Data {
-	data := Placeholder("0.8.3")
+	data := Placeholder("0.8.4")
 	data.Latest, data.WaitingPR = latest, waitingPR
 	return data
 }
@@ -439,11 +423,11 @@ func TestEveryPageNamesFiveMetrics(t *testing.T) {
 }
 
 // TestWriteSiteWritesEightPagesAndStyles (forsgren#46, #47, #84, #76, #123, #128): the
-// root page, the legend, the settings page, the issues page and the months page, and each
+// root page, the legend, the settings page, the days page and the issues page, and each
 // view's page, standard, numbers and scoring, in its own folder.
 func TestWriteSiteWritesEightPagesAndStyles(t *testing.T) {
 	dir := t.TempDir()
-	n, err := WriteSite(dir, Placeholder("0.8.3"))
+	n, err := WriteSite(dir, Placeholder("0.8.4"))
 	if err != nil {
 		t.Fatalf("WriteSite: %v", err)
 	}
@@ -468,7 +452,7 @@ func TestWriteSiteFailsWhenDirIsAFile(t *testing.T) {
 	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if n, err := WriteSite(file, Placeholder("0.8.3")); err == nil {
+	if n, err := WriteSite(file, Placeholder("0.8.4")); err == nil {
 		t.Errorf("want an error when the output is a regular file, got %d pages", n)
 	}
 }
@@ -480,14 +464,14 @@ func TestWriteSiteFailsWhenDirIsAFile(t *testing.T) {
 // "Calculated at" sentence is left out. Settings and Legend follow the
 // paragraph on every page (forsgren#128).
 func TestEveryPageEndsWithTheFooter(t *testing.T) {
-	const head = `<p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> 0.8.3 ` +
+	const head = `<p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> 0.8.4 ` +
 		`Metrics from GitHub data.`
 	cases := map[string]struct {
 		data Data
 		want string
 	}{
 		"with data":    {acmeTable(), head + " Calculated at 2026-10-03 12:00 UTC</p>"},
-		"without data": {Placeholder("0.8.3"), head + "</p>"},
+		"without data": {Placeholder("0.8.4"), head + "</p>"},
 	}
 	for name, c := range cases {
 		for _, page := range PageNames() {
@@ -522,14 +506,14 @@ func TestTablePageOpensWithTheTable(t *testing.T) {
 // the version and what the page is.
 func TestTablePageKeepsAVisuallyHiddenHeading(t *testing.T) {
 	wantAll(t, "index.html", rendered(t, "index.html", acmeTable()),
-		`<h1 class="visually-hidden">Forsgren 0.8.3: the five DORA metrics</h1>`)
+		`<h1 class="visually-hidden">Forsgren 0.8.4: the five DORA metrics</h1>`)
 }
 
 // TestLegendPageSaysWhereEachMetricComesFrom (forsgren#41, step 1): the
 // paragraph that left the table page is on the legend page, one source per
 // metric.
 func TestLegendPageSaysWhereEachMetricComesFrom(t *testing.T) {
-	wantAll(t, "legend.html", rendered(t, "legend.html", Placeholder("0.8.3")),
+	wantAll(t, "legend.html", rendered(t, "legend.html", Placeholder("0.8.4")),
 		"Every number counts back from the time in the footer: deployment frequency from the successful deployments",
 		"lead time for changes from the commits they shipped",
 		"failed deployment recovery time from the failed deployments and the successful ones after them",
@@ -544,7 +528,7 @@ func TestLegendPageSaysWhereEachMetricComesFrom(t *testing.T) {
 func TestLegendPageCreditsTheDoraQuickCheck(t *testing.T) {
 	const want = `Scores follow the <a href="https://dora.dev/quickcheck/">DORA Quick Check</a> (dora.dev), ` +
 		`© Google LLC, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.`
-	wantAll(t, "legend.html", rendered(t, "legend.html", Placeholder("0.8.3")), want)
+	wantAll(t, "legend.html", rendered(t, "legend.html", Placeholder("0.8.4")), want)
 }
 
 // TestNoPageShowsASiteNameLine (forsgren#41, step 2): the header carries no
@@ -565,7 +549,7 @@ func TestFooterShowsTheTimeWithoutRows(t *testing.T) {
 // a small example with the optional label, and links to the README's
 // Configuration section; the one-line message is gone.
 func TestNoProjectsPageShowsAHowTo(t *testing.T) {
-	data := Placeholder("0.8.3")
+	data := Placeholder("0.8.4")
 	data.NoProjects = true
 	got := rendered(t, "index.html", data)
 	wantAll(t, "index.html", got,
@@ -581,14 +565,14 @@ func TestNoProjectsPageShowsAHowTo(t *testing.T) {
 // forsgren release exists, the version line of the footer says so, on every
 // page, with the numbers compared as numbers.
 func TestFooterNamesANewerRelease(t *testing.T) {
-	wantOnEveryPage(t, released("0.8.4", 0), "0.8.3 · 0.8.4 is available")
+	wantOnEveryPage(t, released("0.8.5", 0), "0.8.4 · 0.8.5 is available")
 }
 
 // TestFooterNamesNoReleaseThatIsNotNewer (forsgren#40, step 4): up to date,
 // ahead of the latest release, or an unknown or unreadable latest release:
 // the footer adds nothing.
 func TestFooterNamesNoReleaseThatIsNotNewer(t *testing.T) {
-	for _, latest := range []string{"", "0.8.3", "0.1.2", "0.0.10", "banana"} {
+	for _, latest := range []string{"", "0.8.4", "0.1.2", "0.0.10", "banana"} {
 		t.Run("latest "+latest, func(t *testing.T) {
 			wantOnNoPage(t, released(latest, 0), " is available")
 		})
@@ -599,8 +583,8 @@ func TestFooterNamesNoReleaseThatIsNotNewer(t *testing.T) {
 // newer release whose Dependabot pull request is open is named with the
 // pull request's number, instead of "is available"; no repository appears.
 func TestFooterNamesTheWaitingPullRequest(t *testing.T) {
-	data := released("0.8.4", 7)
-	wantOnEveryPage(t, data, "0.8.3 · 0.8.4 is waiting in pull request #7 (merge it to update)")
+	data := released("0.8.5", 7)
+	wantOnEveryPage(t, data, "0.8.4 · 0.8.5 is waiting in pull request #7 (merge it to update)")
 	wantOnNoPage(t, data, " is available")
 }
 
@@ -608,22 +592,22 @@ func TestFooterNamesTheWaitingPullRequest(t *testing.T) {
 // 5): with no pull request, "is available" stays; up to date, a pull request
 // number alone adds nothing.
 func TestFooterNamesNoWaitingPullRequestWithoutANewerRelease(t *testing.T) {
-	available := rendered(t, "index.html", released("0.8.4", 0))
-	wantAll(t, "without a pull request", available, "0.8.4 is available")
+	available := rendered(t, "index.html", released("0.8.5", 0))
+	wantAll(t, "without a pull request", available, "0.8.5 is available")
 	wantNone(t, "without a pull request", available, "waiting")
-	wantNone(t, "up to date", rendered(t, "index.html", released("0.8.3", 7)), "pull request #", " is available")
+	wantNone(t, "up to date", rendered(t, "index.html", released("0.8.4", 7)), "pull request #", " is available")
 }
 
 // TestFooterEndsTheReleaseNewsBeforeWhatForsgrenIs (forsgren#40, review of
 // step 7): the news of a newer release, available or waiting in a pull
 // request, is a sentence of its own; it never runs on into "The five DORA
-// metrics" ("0.8.4 is available The five ..."), on every page.
+// metrics" ("0.8.5 is available The five ..."), on every page.
 func TestFooterEndsTheReleaseNewsBeforeWhatForsgrenIs(t *testing.T) {
 	for waiting, want := range map[int]string{
-		0: "0.8.3 · 0.8.4 is available. Metrics from GitHub data",
-		7: "0.8.3 · 0.8.4 is waiting in pull request #7 (merge it to update). Metrics from GitHub data",
+		0: "0.8.4 · 0.8.5 is available. Metrics from GitHub data",
+		7: "0.8.4 · 0.8.5 is waiting in pull request #7 (merge it to update). Metrics from GitHub data",
 	} {
-		wantOnEveryPage(t, released("0.8.4", waiting), want)
+		wantOnEveryPage(t, released("0.8.5", waiting), want)
 	}
 }
 
@@ -653,7 +637,7 @@ func TestLegendStatesTheWorkingDay(t *testing.T) {
 		}},
 	}
 	for _, c := range cases {
-		data := Placeholder("0.8.3")
+		data := Placeholder("0.8.4")
 		data.WorkingHours, data.WorkingHoursSet = c.hours, c.set
 		wantAll(t, c.name, rendered(t, "legend.html", data), c.want...)
 	}
@@ -662,7 +646,7 @@ func TestLegendStatesTheWorkingDay(t *testing.T) {
 // withTwoSettings is the placeholder with one setting the config sets, view:
 // numbers, and one it leaves at its default, history_days: 365.
 func withTwoSettings() Data {
-	data := Placeholder("0.8.3")
+	data := Placeholder("0.8.4")
 	data.Settings = []config.Setting{{Key: "view", Value: "numbers", Set: true}, {Key: "history_days", Value: "365"}}
 	return data
 }

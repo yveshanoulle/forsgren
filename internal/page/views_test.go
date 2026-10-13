@@ -1,7 +1,6 @@
 package page
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -83,7 +82,7 @@ func TestScoringPageShowsEachMetricsScoreAndOverallPerformance(t *testing.T) {
 // with no data has no scored metric, so all six cells, Overall Performance
 // included, are -.
 func TestScoringPageShowsNoOverallPerformanceWithoutAScore(t *testing.T) {
-	data := Placeholder("0.8.3")
+	data := Placeholder("0.8.4")
 	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Empty"}})
 	got := rendered(t, "scoring/index.html", data)
 	if !row("Acme Empty", "-", "-", "-", "-", "-", "-").MatchString(got) {
@@ -96,7 +95,7 @@ func TestScoringPageShowsNoOverallPerformanceWithoutAScore(t *testing.T) {
 // the frequency band metrics gives it, the lowest, but no data: all six
 // cells, Overall Performance included, are -.
 func TestScoringPageShowsNoScoreForAProjectWithoutDeployments(t *testing.T) {
-	data := Placeholder("0.8.3")
+	data := Placeholder("0.8.4")
 	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Idle",
 		Frequency: metrics.Frequency{Band: metrics.LessThanSixMonthly}}})
 	got := rendered(t, "scoring/index.html", data)
@@ -112,7 +111,7 @@ func TestScoringPageShowsNoScoreForAProjectWithoutDeployments(t *testing.T) {
 // no other metric scored, so does Overall Performance. A project with only a
 // failed deployment, Acme Tools, has no success and keeps -.
 func TestScoringPageScoresZeroForALastSuccessOlderThanSixMonths(t *testing.T) {
-	data := Placeholder("0.8.3")
+	data := Placeholder("0.8.4")
 	old := metrics.Frequency{Latest: time.Date(2025, 9, 1, 9, 30, 0, 0, time.UTC), Band: metrics.LessThanSixMonthly}
 	failed := metrics.ChangeFailRate{Deployments: 1, FailedDeployments: 1, Failed: 1, Band: metrics.HundredPercent}
 	data.Rows = Table([]metrics.Row{
@@ -175,21 +174,16 @@ func wantNone(t *testing.T, name, got string, texts ...string) {
 	}
 }
 
-// TestViewSwitchMarksTheCurrentView (forsgren#46, #47): "View: standard ·
-// numbers · scoring", the current view plain text marked aria-current="page",
-// the others links to their folders.
-func TestViewSwitchMarksTheCurrentView(t *testing.T) {
+// TestMenuMarksTheCurrentView (forsgren#46, #47): "View: Standard · Numbers ·
+// Scoring", the current view plain text marked aria-current="page", the
+// others links to their folders.
+func TestMenuMarksTheCurrentView(t *testing.T) {
 	data := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
-	for name, want := range map[string]string{
-		"standard/index.html": `View: <span aria-current="page">Standard</span> · <a href="../numbers/">Numbers</a> · ` +
-			`<a href="../scoring/">Scoring</a>`,
-		"numbers/index.html": `View: <a href="../standard/">Standard</a> · <span aria-current="page">Numbers</span> · ` +
-			`<a href="../scoring/">Scoring</a>`,
-		"scoring/index.html": `View: <a href="../standard/">Standard</a> · <a href="../numbers/">Numbers</a> · ` +
-			`<span aria-current="page">Scoring</span>`,
+	for name, current := range map[string]string{
+		"standard/index.html": "Standard", "numbers/index.html": "Numbers", "scoring/index.html": "Scoring",
 	} {
 		got := rendered(t, name, data)
-		wantAll(t, name, got, want)
+		wantAll(t, name, got, wantMenu("../", current, "page"))
 		if n := strings.Count(got, `aria-current="page"`); n != 1 {
 			t.Errorf("%s: want one current view, got %d", name, n)
 		}
@@ -201,7 +195,7 @@ func TestViewSwitchMarksTheCurrentView(t *testing.T) {
 // frequency (a real zero) and - for the other four; the standard page keeps
 // its sentence across the row.
 func TestViewsShowARowWithoutDeploymentsAsTheirOwnCells(t *testing.T) {
-	data := Placeholder("0.8.3")
+	data := Placeholder("0.8.4")
 	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Empty"}})
 	numbers := rendered(t, "numbers/index.html", data)
 	if !row("Acme Empty", "0", "0", "-", "-", "-", "-").MatchString(numbers) {
@@ -235,7 +229,7 @@ func TestViewPagesMatchGolden(t *testing.T) {
 // TestViewPagesWithoutDataMatchGolden (forsgren#46): the views of the
 // placeholder build, which has no rows, with the menu (forsgren#128).
 func TestViewPagesWithoutDataMatchGolden(t *testing.T) {
-	data := Placeholder("0.8.3")
+	data := Placeholder("0.8.4")
 	data.AsOf = "2026-10-03 12:00"
 	checkPageGolden(t, "standard/index.html", "testdata/standard.placeholder.golden.html", data)
 	checkPageGolden(t, "numbers/index.html", "testdata/numbers.placeholder.golden.html", data)
@@ -244,7 +238,7 @@ func TestViewPagesWithoutDataMatchGolden(t *testing.T) {
 // TestNumbersPageWithoutDeploymentsMatchesGolden (forsgren#46): a project
 // with no deployment recorded yet is five cells on the numbers page.
 func TestNumbersPageWithoutDeploymentsMatchesGolden(t *testing.T) {
-	data := Placeholder("0.8.3")
+	data := Placeholder("0.8.4")
 	data.AsOf = "2026-10-03 12:00"
 	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Empty"}})
 	checkPageGolden(t, "numbers/index.html", "testdata/numbers.no-data.golden.html", data)
@@ -257,30 +251,22 @@ func TestWriteSiteFailsWhenAViewFolderIsAFile(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "numbers"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if n, err := WriteSite(dir, Placeholder("0.8.3")); err == nil {
+	if n, err := WriteSite(dir, Placeholder("0.8.4")); err == nil {
 		t.Errorf("want an error when a view's folder is a regular file, got %d pages", n)
 	}
 }
 
 // TestRootPageFollowsItsDataView (forsgren#46): the root page shows the view
-// of its data with the switch, the links relative to the root, its view
+// of its data with the menu, the links relative to the root, its view
 // marked aria-current="true", since the root is not that view's page
 // (Yves's ruling); with no view its menu marks none, and with no rows it
 // still marks its view (forsgren#128).
 func TestRootPageFollowsItsDataView(t *testing.T) {
 	data := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
-	const (
-		std, num, sco = `<a href="standard/">Standard</a>`, `<a href="numbers/">Numbers</a>`, `<a href="scoring/">Scoring</a>`
-		now           = `<span aria-current="true">%s</span>`
-	)
-	for view, want := range map[string]string{
-		"standard": "View: " + fmt.Sprintf(now, "Standard") + " · " + num + " · " + sco,
-		"numbers":  "View: " + std + " · " + fmt.Sprintf(now, "Numbers") + " · " + sco,
-		"scoring":  "View: " + std + " · " + num + " · " + fmt.Sprintf(now, "Scoring"),
-	} {
+	for view, current := range map[string]string{"standard": "Standard", "numbers": "Numbers", "scoring": "Scoring"} {
 		data.View = view
 		got := rendered(t, "index.html", data)
-		wantAll(t, "index.html", got, want, `href="styles.css"`, `<a href="legend.html">Legend</a>`)
+		wantAll(t, "index.html", got, wantMenu("", current, "true"), `href="styles.css"`, `<a href="legend.html">Legend</a>`)
 		wantNone(t, "index.html", got, "../", `aria-current="page"`)
 	}
 	data.View = "numbers"
@@ -289,9 +275,9 @@ func TestRootPageFollowsItsDataView(t *testing.T) {
 	wantAll(t, "index.html", rendered(t, "index.html", data), `<th scope="col">Overall Performance</th>`, "<td>8.4</td>")
 	data.View = ""
 	wantNone(t, "index.html", rendered(t, "index.html", data), "aria-current")
-	placeholder := Placeholder("0.8.3")
+	placeholder := Placeholder("0.8.4")
 	placeholder.View = "numbers"
-	wantAll(t, "index.html", rendered(t, "index.html", placeholder), fmt.Sprintf(now, "Numbers"))
+	wantAll(t, "index.html", rendered(t, "index.html", placeholder), wantMenu("", "Numbers", "true"))
 }
 
 // TestMenuEndsWithIssuesAndDaily (forsgren#128, step 6): the menu of the table

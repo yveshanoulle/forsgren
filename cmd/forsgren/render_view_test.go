@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-// rootSwitch is the view switch on the root page: its links are relative to
+// rootMenu is the menu on the root page: its links are relative to
 // the root, the current view plain text marked aria-current="true", as the
 // root is not that view's page (Yves's ruling, forsgren#46).
-var rootSwitch = map[string]string{
+var rootMenu = map[string]string{
 	"standard": `View: <span aria-current="true">Standard</span> · <a href="numbers/">Numbers</a>`,
 	"numbers":  `View: <a href="standard/">Standard</a> · <span aria-current="true">Numbers</span>`,
 }
@@ -30,9 +30,9 @@ func renderRoot(t *testing.T, view string) string {
 }
 
 // TestRenderRootFollowsTheConfigView (forsgren#46): with view: the root page
-// is that view, with the switch and the root's own links.
+// is that view, with the menu and the root's own links.
 func TestRenderRootFollowsTheConfigView(t *testing.T) {
-	for view, want := range rootSwitch {
+	for view, want := range rootMenu {
 		index := renderRoot(t, view)
 		for _, text := range []string{want, `href="styles.css"`, `href="legend.html"`} {
 			if !strings.Contains(index, text) {
@@ -60,10 +60,8 @@ func TestRenderRootOfTheNumbersViewShowsNumbers(t *testing.T) {
 // view (forsgren#128).
 func TestRenderRootWithoutAViewIsUnchanged(t *testing.T) {
 	index := renderRoot(t, "")
-	for _, text := range []string{"aria-current"} {
-		if strings.Contains(index, text) {
-			t.Errorf("want no %q on the root page without view:, got:\n%s", text, index)
-		}
+	if strings.Contains(index, "aria-current") {
+		t.Errorf("want no aria-current on the root page without view:, got:\n%s", index)
 	}
 	if !strings.Contains(index, "Between once") {
 		t.Errorf("want the standard cells on the root page without view:, got:\n%s", index)

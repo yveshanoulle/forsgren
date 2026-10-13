@@ -10,7 +10,7 @@ body {
   line-height: 1.5;
 }
 
-/* The table of the four metrics (forsgren#38) scrolls inside its own box on
+/* The table of the five metrics (forsgren#38) scrolls inside its own box on
    a narrow screen, so the page itself never scrolls sideways. */
 .table-scroll {
   overflow-x: auto;
@@ -31,12 +31,6 @@ caption {
   text-align: start;
   font-weight: 600;
   font-size: 1.25rem;
-}
-
-/* The menu at the top of every page (forsgren#128) reads as normal text. */
-.views {
-  font-weight: normal;
-  font-size: 1rem;
 }
 
 th,

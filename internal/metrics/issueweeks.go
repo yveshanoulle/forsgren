@@ -1,6 +1,6 @@
 package metrics
 
-// The months page's weekly rows (forsgren#89, #123, decision #118): per Monday to
+// The issues page's weekly rows (forsgren#89, #123, #128, decision #118): per Monday to
 // Sunday week, UTC, the same counts as IssueDays gives per day.
 
 import (

@@ -110,3 +110,13 @@ func TestEveryPageEndsWithTheSameFooter(t *testing.T) {
 		}
 	}
 }
+
+// TestLegendPageIsTitledLegend (forsgren#39, step 4; forsgren#128, step 13;
+// Yves's ruling on decision #133): the legend page's title is its heading,
+// Legend, as its footer link reads, then the site's title; "What the bands
+// mean" is gone from it, and its header shows no site-name line (forsgren#41).
+func TestLegendPageIsTitledLegend(t *testing.T) {
+	got := rendered(t, "legend.html", viewData())
+	wantAll(t, "legend.html", got, "<title>Legend · forsgren</title>", "<h1>Legend</h1>")
+	wantNone(t, "legend.html", got, "What the bands mean", `class="site-name"`)
+}

@@ -53,14 +53,10 @@ func TestIssuesPageWithNoActiveRowShowsAMessage(t *testing.T) {
 // step 6): the menu ends with issues and then Daily. The issues page marks
 // issues current and links Daily, the days page marks Daily and links issues.
 func TestIssuesAndDaysPagesMarkOnlyThemselves(t *testing.T) {
-	const views = `<nav class="views">View: <a href="standard/">Standard</a> · <a href="numbers/">Numbers</a> · ` +
-		`<a href="scoring/">Scoring</a> · `
 	data := calculated()
 	data.View = viewNumbers
-	wantAll(t, "issues.html", rendered(t, "issues.html", data), views+
-		`<span aria-current="page">Issues</span> · <a href="days.html">Daily</a></nav>`)
-	wantAll(t, "days.html", rendered(t, "days.html", data), views+
-		`<a href="issues.html">Issues</a> · <span aria-current="page">Daily</span></nav>`)
+	wantAll(t, "issues.html", rendered(t, "issues.html", data), wantMenu("", "Issues", "page"))
+	wantAll(t, "days.html", rendered(t, "days.html", data), wantMenu("", "Daily", "page"))
 }
 
 // TestIssuesPageMatchesGolden (forsgren#123, step 8; forsgren#128): the issues page is the
