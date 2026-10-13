@@ -50,21 +50,24 @@ func IssueDays(events []history.IssueEvent, now time.Time, days int) []IssueDay 
 			rows[i].count(e)
 		}
 	}
-	perDay, openAtStart := openChanges(events, today, len(rows))
+	start := today.Add(-time.Duration(len(rows)) * day)
+	perDay, openAtStart := openChanges(events, start, len(rows), func(at time.Time) (int, bool) {
+		return dayRow(at, today, len(rows))
+	})
 	addUpTotals(rows, perDay, openAtStart)
 	return rows
 }
 
-// openChanges is what the events do to the issues open, by openDelta: per row
-// of a table rows days long ending the day before today, newest first, the
-// net change on that row's day, and the issues open when the oldest row's day
-// begins, from the events before it. Events today or later change nothing.
-func openChanges(events []history.IssueEvent, today time.Time, rows int) (perDay []int, openAtStart int) {
+// openChanges is what the events do to the issues open, by openDelta: per
+// row of a table rows long, newest first, the net change on that row's
+// period (rowOf gives an event time's row), and the issues open when the
+// oldest row's period begins at start, from the events before it. Events after
+// the newest row change nothing.
+func openChanges(events []history.IssueEvent, start time.Time, rows int, rowOf func(time.Time) (int, bool)) (perDay []int, openAtStart int) {
 	created := createdIssues(events)
 	perDay = make([]int, rows)
-	start := today.Add(-time.Duration(rows) * day)
 	for _, e := range events {
-		if i, ok := dayRow(e.At, today, rows); ok {
+		if i, ok := rowOf(e.At); ok {
 			perDay[i] += openDelta(e, created)
 		} else if e.At.Before(start) {
 			openAtStart += openDelta(e, created)
