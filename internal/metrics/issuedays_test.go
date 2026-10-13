@@ -237,6 +237,24 @@ func TestIssueDaysTotalIgnoresACloseOfAnIssueItNeverSawCreated(t *testing.T) {
 	}, []int{1, 1, 1})
 }
 
+// reopenOfIssue is a reopen of acme/app's issue number at at.
+func reopenOfIssue(number int64, at time.Time) history.IssueEvent {
+	return appEvent(number, "reopened", at)
+}
+
+// TestIssueDaysTotalIgnoresAReopenOfAnIssueItNeverSawCreated (forsgren#113):
+// like its close, a reopen whose issue has no created event in the list lowers
+// and raises no Total, so closed, reopened, closed of such an issue leaves
+// every Total as it was.
+func TestIssueDaysTotalIgnoresAReopenOfAnIssueItNeverSawCreated(t *testing.T) {
+	checkTotals(t, []history.IssueEvent{
+		closeOfIssue(7, sep30.AddDate(0, 0, -3)),
+		issueEvent("acme/app", "created", sep30),
+		reopenOfIssue(7, oct(1, 8, 0, 0)),
+		closeOfIssue(7, oct(2, 8, 0, 0)),
+	}, []int{1, 1, 1})
+}
+
 // TestIssueDaysTotalDoesNotDependOnTheOrderOfTheLines (forsgren#76, v0.6.2):
 // issues.csv can hold an event after a later one (a backfill appends older
 // events at the end), so a close can come before its own created line, even
