@@ -110,7 +110,8 @@ func addUpTotals(rows []IssueDay, perDay []int, openAtStart int) {
 }
 
 // count adds e to d: a created event is a new issue, a closed event one in
-// the column of its reason, anything else nothing. Both make the day Active.
+// the column of its reason, anything else nothing. A created, a closed and a
+// reopened event all make the day Active (a reopen changes the Total).
 func (d *IssueDay) count(e history.IssueEvent) {
 	switch e.Event {
 	case history.EventCreated:
@@ -118,6 +119,8 @@ func (d *IssueDay) count(e history.IssueEvent) {
 		d.Active = true
 	case history.EventClosed:
 		*d.closedColumn(e.Reason)++
+		d.Active = true
+	case history.EventReopened:
 		d.Active = true
 	}
 }
