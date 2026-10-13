@@ -184,6 +184,22 @@ new_case "output-is-a-file"
 printf 'not a directory\n' > "$CASE_OUTPUT"
 expect_build_failure 9 "fails when the output directory is a regular file" "cannot create the output directory"
 
+# Check 18: a page an earlier build left, and no page now renders, is not in
+# the new site: the build empties what it owns (the site's .html pages and
+# styles.css, and the folders they leave empty) and nothing else.
+new_case "stale-pages"
+mkdir -p "${CASE_OUTPUT}/old-view"
+printf 'left by an earlier build\n' > "${CASE_OUTPUT}/months.html"
+printf 'left by an earlier build\n' > "${CASE_OUTPUT}/old-view/index.html"
+printf 'not the build'"'"'s\n' > "${CASE_OUTPUT}/notes.txt"
+run_build
+if [[ "$RC" -eq 0 && ! -e "${CASE_OUTPUT}/months.html" && ! -e "${CASE_OUTPUT}/old-view" ]] \
+  && [[ -f "${CASE_OUTPUT}/notes.txt" ]] && diff -r -x notes.txt "$HAPPY_OUTPUT" "$CASE_OUTPUT" > /dev/null; then
+  pass 18 "a page left by an earlier build is not in the new site, a file the build does not own is kept"
+else
+  fail_check 18 "a page left by an earlier build is not in the new site (exit ${RC}) — found: $(cd "$CASE_OUTPUT" && find . -type f | LC_ALL=C sort | tr '\n' ' ')"
+fi
+
 FOUND_FAILED_SINKS=""
 for failed_sink in $FAILED_SINKS; do
   if [[ -e "$failed_sink" ]]; then

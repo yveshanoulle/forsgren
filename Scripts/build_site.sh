@@ -49,6 +49,15 @@ PAGE_COUNT="$(find "$STAGE" -type f -name '*.html' | wc -l | tr -d '[:space:]')"
 [ "$PAGE_COUNT" -gt 0 ] || fail "forsgren render wrote no pages"
 
 mkdir -p "$OUTPUT_DIR" 2>/dev/null || fail "cannot create the output directory ${OUTPUT_DIR}"
+
+# A page an earlier build wrote and this one does not (a renamed page's old
+# file) must not stay in the site: the build deletes what it owns, the .html
+# pages and styles.css that STAGE does not hold, and the folders they leave
+# empty. Any other file in OUTPUT_DIR is not the build's and stays.
+while IFS= read -r stale; do
+  [ -e "${STAGE}/${stale}" ] || rm -f "${OUTPUT_DIR}/${stale}"
+done < <(cd "$OUTPUT_DIR" && find . -type f \( -name '*.html' -o -name styles.css \) | sed 's|^\./||')
+find "$OUTPUT_DIR" -mindepth 1 -type d -empty -delete
 cp -R "$STAGE"/. "$OUTPUT_DIR"/ || fail "cannot copy the site into ${OUTPUT_DIR}"
 
 echo ""
