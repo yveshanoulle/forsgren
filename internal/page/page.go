@@ -70,13 +70,9 @@ type Data struct {
 	// settings page lists them, marking those the file does not set
 	// (forsgren#74, #84).
 	Settings []config.Setting
-	// IssueDays are the issue counts per UTC day, newest first, that the
-	// issues page tabulates (forsgren#76).
-	IssueDays []metrics.IssueDay
 	// IssueRows are the rows of the issues page by kind, days, weeks and
-	// months, newest first in that order (forsgren#89, decision #118); when
-	// empty the page falls back to IssueDays as day rows, until render
-	// sets IssueRows.
+	// months, newest first in that order (forsgren#76, forsgren#89,
+	// decision #118).
 	IssueRows []metrics.IssueRow
 	// View is the view the root page shows, "standard", "numbers" or
 	// "scoring", with the view switch in its table's caption (forsgren#51);
@@ -129,18 +125,12 @@ type IssueTableRow struct {
 	metrics.IssueDay
 }
 
-// IssueTableRows are the rows of the issues page: IssueRows, or, while it is
-// empty, IssueDays as day rows. A day is labelled by its date, a week by the
-// ISO number of its Monday ("Week 41"), a month by its name and year.
+// IssueTableRows are the rows of the issues page, IssueRows labelled: a day
+// by its date, a week by the ISO number of its Monday ("Week 41"), a month by
+// its name and year.
 func (d Data) IssueTableRows() []IssueTableRow {
-	rows := d.IssueRows
-	if len(rows) == 0 {
-		for _, day := range d.IssueDays {
-			rows = append(rows, metrics.IssueRow{Kind: metrics.KindDay, IssueDay: day})
-		}
-	}
-	table := make([]IssueTableRow, len(rows))
-	for i, r := range rows {
+	table := make([]IssueTableRow, len(d.IssueRows))
+	for i, r := range d.IssueRows {
 		table[i] = IssueTableRow{Label: issueRowLabel(r), IssueDay: r.IssueDay}
 	}
 	return table

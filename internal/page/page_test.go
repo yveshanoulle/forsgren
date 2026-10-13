@@ -259,19 +259,28 @@ func TestSettingsPageMatchesGolden(t *testing.T) {
 // october is midnight UTC on day d of October 2026, an issues page row's Date.
 func october(d int) time.Time { return time.Date(2026, time.October, d, 0, 0, 0, 0, time.UTC) }
 
+// dayRows is days as the issues page's day rows.
+func dayRows(days ...metrics.IssueDay) []metrics.IssueRow {
+	rows := make([]metrics.IssueRow, len(days))
+	for i, d := range days {
+		rows[i] = metrics.IssueRow{Kind: metrics.KindDay, IssueDay: d}
+	}
+	return rows
+}
+
 // TestIssuesPageMatchesGolden (forsgren#76, step 9): the issues page is the
 // page issues.html, a table of the days newest first with the issues
 // opened (New) and completed, the days in UTC, with a link back to the table.
 func TestIssuesPageMatchesGolden(t *testing.T) {
 	data := calculated()
-	data.IssueDays = []metrics.IssueDay{
-		{Date: october(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Total: 7, Active: true},
-		{Date: october(1), New: 0, Completed: 0, Total: 5, Active: true},
-		{
+	data.IssueRows = dayRows(
+		metrics.IssueDay{Date: october(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Total: 7, Active: true},
+		metrics.IssueDay{Date: october(1), New: 0, Completed: 0, Total: 5, Active: true},
+		metrics.IssueDay{
 			Date: time.Date(2026, time.September, 30, 0, 0, 0, 0, time.UTC),
 			New:  2, Completed: 4, Duplicate: 3, Other: 5, Total: 6, Active: true,
 		},
-	}
+	)
 	checkPageGolden(t, "issues.html", "testdata/issues.golden.html", data)
 }
 
@@ -299,11 +308,11 @@ func TestIssuesPageLabelsDayWeekAndMonthRows(t *testing.T) {
 // days around it do. The calculation keeps the day (rule 3); only the page hides it.
 func TestIssuesPageSkipsInactiveDays(t *testing.T) {
 	data := calculated()
-	data.IssueDays = []metrics.IssueDay{
-		{Date: october(3), New: 1, Total: 5, Active: true},
-		{Date: october(2), Total: 5},
-		{Date: october(1), Completed: 1, Total: 5, Active: true},
-	}
+	data.IssueRows = dayRows(
+		metrics.IssueDay{Date: october(3), New: 1, Total: 5, Active: true},
+		metrics.IssueDay{Date: october(2), Total: 5},
+		metrics.IssueDay{Date: october(1), Completed: 1, Total: 5, Active: true},
+	)
 	got := rendered(t, "issues.html", data)
 	wantAll(t, "issues.html", got, "2026-10-03", "2026-10-01")
 	wantNone(t, "issues.html", got, "2026-10-02")

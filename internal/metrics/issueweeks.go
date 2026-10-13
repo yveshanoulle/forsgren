@@ -15,19 +15,9 @@ import (
 func IssueWeeks(events []history.IssueEvent, now time.Time) []IssueDay {
 	monday := weekStart(now)
 	weeks := int(monday.Sub(weekStart(monthStart(now))) / week)
-	rows := make([]IssueDay, weeks)
-	for i := range rows {
-		rows[i].Date = monday.Add(-time.Duration(i+1) * week)
-	}
-	rowOf := func(at time.Time) (int, bool) { return weekRow(at, monday, weeks) }
-	for _, e := range events {
-		if i, ok := rowOf(e.At); ok {
-			rows[i].count(e)
-		}
-	}
-	perWeek, openAtStart := openChanges(events, monday.Add(-time.Duration(weeks)*week), weeks, rowOf)
-	addUpTotals(rows, perWeek, openAtStart)
-	return rows
+	return periodRows(events, weeks,
+		func(i int) time.Time { return monday.Add(-time.Duration(i+1) * week) },
+		func(at time.Time) (int, bool) { return weekRow(at, monday, weeks) })
 }
 
 // week is the length of a Monday to Sunday week.

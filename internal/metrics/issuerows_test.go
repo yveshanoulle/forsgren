@@ -21,7 +21,7 @@ func TestIssueRowsListDaysThenWeeksThenMonths(t *testing.T) {
 		at(time.October, 13), at(time.October, 6), at(time.September, 29),
 		at(time.September, 10), at(time.August, 20),
 	} {
-		events = append(events, history.IssueEvent{Repository: "acme/app", Issue: int64(i + 1), Event: "created", At: when})
+		events = append(events, appEvent(int64(i+1), "created", when))
 	}
 	type row struct {
 		kind  string
@@ -47,7 +47,7 @@ func TestIssueRowsListDaysThenWeeksThenMonths(t *testing.T) {
 // Monday 12, and they come before the weeks.
 func TestIssueRowsShowSixDaysOnASunday(t *testing.T) {
 	created := time.Date(2026, time.October, 6, 12, 0, 0, 0, time.UTC)
-	events := []history.IssueEvent{{Repository: "acme/app", Issue: 1, Event: "created", At: created}}
+	events := []history.IssueEvent{issueEvent("acme/app", "created", created)}
 	var days []int
 	for _, r := range IssueRows(events, time.Date(2026, time.October, 18, 12, 0, 0, 0, time.UTC)) {
 		if r.Kind == KindDay {

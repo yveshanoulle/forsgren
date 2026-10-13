@@ -14,21 +14,9 @@ import (
 // month's first day at midnight, UTC.
 func IssueMonths(events []history.IssueEvent, now time.Time, months int) []IssueDay {
 	current := monthStart(now)
-	rows := make([]IssueDay, max(months, 0))
-	for i := range rows {
-		rows[i].Date = current.AddDate(0, -(i + 1), 0)
-	}
-	for _, e := range events {
-		if i, ok := monthRow(e.At, current, len(rows)); ok {
-			rows[i].count(e)
-		}
-	}
-	start := current.AddDate(0, -len(rows), 0)
-	perMonth, openAtStart := openChanges(events, start, len(rows), func(at time.Time) (int, bool) {
-		return monthRow(at, current, len(rows))
-	})
-	addUpTotals(rows, perMonth, openAtStart)
-	return rows
+	return periodRows(events, months,
+		func(i int) time.Time { return current.AddDate(0, -(i + 1), 0) },
+		func(at time.Time) (int, bool) { return monthRow(at, current, months) })
 }
 
 // monthStart is the midnight, UTC, that starts the calendar month t is in.

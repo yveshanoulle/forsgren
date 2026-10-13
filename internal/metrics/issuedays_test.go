@@ -14,6 +14,11 @@ func issueEvent(repository, event string, at time.Time) history.IssueEvent {
 	return history.IssueEvent{Repository: repository, Issue: 1, Event: event, At: at}
 }
 
+// appEvent is an event of issue number of acme/app at at.
+func appEvent(number int64, event string, at time.Time) history.IssueEvent {
+	return history.IssueEvent{Repository: "acme/app", Issue: number, Event: event, At: at}
+}
+
 // oct is the given day, hour, minute and second of October 2026, UTC.
 func oct(d, h, m, s int) time.Time { return time.Date(2026, time.October, d, h, m, s, 0, time.UTC) }
 

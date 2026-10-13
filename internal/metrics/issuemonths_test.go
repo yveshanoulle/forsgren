@@ -55,19 +55,16 @@ func TestIssueMonthsTotalIsTheIssuesOpenAtTheMonthsLastDay(t *testing.T) {
 	at := func(month time.Month, d int) time.Time {
 		return time.Date(2026, month, d, 12, 0, 0, 0, time.UTC)
 	}
-	event := func(issue int64, name string, when time.Time) history.IssueEvent {
-		return history.IssueEvent{Repository: "acme/app", Issue: issue, Event: name, At: when}
-	}
 	events := []history.IssueEvent{
-		event(1, "created", at(time.July, 3)),
-		event(2, "created", at(time.July, 20)),
-		event(3, "created", at(time.August, 10)),
-		event(6, "created", at(time.August, 15)),
-		event(1, "closed", at(time.August, 20)),
-		event(4, "created", at(time.September, 2)),
-		event(3, "closed", at(time.September, 5)),
-		event(6, "closed", at(time.September, 9)),
-		event(5, "created", at(time.October, 1)),
+		appEvent(1, "created", at(time.July, 3)),
+		appEvent(2, "created", at(time.July, 20)),
+		appEvent(3, "created", at(time.August, 10)),
+		appEvent(6, "created", at(time.August, 15)),
+		appEvent(1, "closed", at(time.August, 20)),
+		appEvent(4, "created", at(time.September, 2)),
+		appEvent(3, "closed", at(time.September, 5)),
+		appEvent(6, "closed", at(time.September, 9)),
+		appEvent(5, "created", at(time.October, 1)),
 	}
 	var got []int
 	for _, m := range IssueMonths(events, at(time.October, 14), 2) {
@@ -88,9 +85,9 @@ func TestIssueMonthRowsGoBackToTheMonthOfTheOldestEvent(t *testing.T) {
 		return time.Date(2026, month, d, 12, 0, 0, 0, time.UTC)
 	}
 	events := []history.IssueEvent{
-		{Repository: "acme/app", Issue: 1, Event: "created", At: at(time.July, 3)},
-		{Repository: "acme/app", Issue: 2, Event: "created", At: at(time.September, 2)},
-		{Repository: "acme/app", Issue: 3, Event: "created", At: at(time.October, 1)},
+		appEvent(1, "created", at(time.July, 3)),
+		appEvent(2, "created", at(time.September, 2)),
+		appEvent(3, "created", at(time.October, 1)),
 	}
 	type row struct {
 		month      time.Month
@@ -112,8 +109,8 @@ func TestIssueMonthRowsGoBackToTheMonthOfTheOldestEvent(t *testing.T) {
 func TestIssueMonthRowsHaveNoRowsWithoutAnEventOrBeforeTheCurrentMonth(t *testing.T) {
 	now := time.Date(2026, time.October, 14, 12, 0, 0, 0, time.UTC)
 	inOctober := []history.IssueEvent{
-		{Repository: "acme/app", Issue: 1, Event: "created", At: now.AddDate(0, 0, -3)},
-		{Repository: "acme/app", Issue: 2, Event: "created", At: now.AddDate(0, 0, -13)},
+		appEvent(1, "created", now.AddDate(0, 0, -3)),
+		appEvent(2, "created", now.AddDate(0, 0, -13)),
 	}
 	if got := IssueMonthRows(nil, now); len(got) != 0 {
 		t.Errorf("want no rows without events, got %v", got)
@@ -129,7 +126,7 @@ func TestIssueMonthRowsHaveNoRowsWithoutAnEventOrBeforeTheCurrentMonth(t *testin
 func TestIssueMonthRowsAreActiveOnlyWhenSomethingHappened(t *testing.T) {
 	now := time.Date(2026, time.October, 14, 12, 0, 0, 0, time.UTC)
 	events := []history.IssueEvent{
-		{Repository: "acme/app", Issue: 1, Event: "reopened", At: time.Date(2026, time.August, 3, 9, 0, 0, 0, time.UTC)},
+		appEvent(1, "reopened", time.Date(2026, time.August, 3, 9, 0, 0, 0, time.UTC)),
 	}
 	var got []bool
 	for _, m := range IssueMonthRows(events, now) {

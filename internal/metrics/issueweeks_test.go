@@ -80,7 +80,7 @@ func TestIssueWeekDaysAreTheDaysOfTheCurrentWeekUpToYesterday(t *testing.T) {
 // whatever the events.
 func TestIssueWeekDaysAreNoneOnAMonday(t *testing.T) {
 	created := time.Date(2026, time.October, 11, 12, 0, 0, 0, time.UTC)
-	events := []history.IssueEvent{{Repository: "acme/app", Issue: 1, Event: "created", At: created}}
+	events := []history.IssueEvent{issueEvent("acme/app", "created", created)}
 	monday := time.Date(2026, time.October, 12, 12, 0, 0, 0, time.UTC)
 	if got := IssueWeekDays(events, monday); len(got) != 0 {
 		t.Errorf("want no days on a Monday, got %v", got)

@@ -12,7 +12,8 @@ import (
 )
 
 // IssueDay is one UTC calendar day of the table, its fields in the order of
-// the issues page's columns. Every close lands in exactly one of Completed,
+// the issues page's columns; a week's or a month's row (forsgren#89) has the
+// same counts over its period, "that day" below meaning that period. Every close lands in exactly one of Completed,
 // NotPlanned, Duplicate and Other (closedColumn).
 type IssueDay struct {
 	// Date is the day's midnight, UTC.
@@ -41,20 +42,29 @@ type IssueDay struct {
 // day without events is a row of zeros. Every repository in events counts.
 func IssueDays(events []history.IssueEvent, now time.Time, days int) []IssueDay {
 	today := utcDay(now)
-	rows := make([]IssueDay, max(days, 0))
+	return periodRows(events, days,
+		func(i int) time.Time { return today.Add(-time.Duration(i+1) * day) },
+		func(at time.Time) (int, bool) { return dayRow(at, today, days) })
+}
+
+// periodRows is n rows of back-to-back periods (days, weeks or months),
+// newest first, row i dated dateOf(i), the start of its period; none for n 0
+// or less. Each event counts on the row rowOf gives its time, and each row's
+// Total is the issues open at the end of its period.
+func periodRows(
+	events []history.IssueEvent, n int, dateOf func(int) time.Time, rowOf func(time.Time) (int, bool),
+) []IssueDay {
+	rows := make([]IssueDay, max(n, 0))
 	for i := range rows {
-		rows[i].Date = today.Add(-time.Duration(i+1) * day)
+		rows[i].Date = dateOf(i)
 	}
 	for _, e := range events {
-		if i, ok := dayRow(e.At, today, len(rows)); ok {
+		if i, ok := rowOf(e.At); ok {
 			rows[i].count(e)
 		}
 	}
-	start := today.Add(-time.Duration(len(rows)) * day)
-	perDay, openAtStart := openChanges(events, start, len(rows), func(at time.Time) (int, bool) {
-		return dayRow(at, today, len(rows))
-	})
-	addUpTotals(rows, perDay, openAtStart)
+	perRow, openAtStart := openChanges(events, dateOf(len(rows)-1), len(rows), rowOf)
+	addUpTotals(rows, perRow, openAtStart)
 	return rows
 }
 
@@ -65,17 +75,17 @@ func IssueDays(events []history.IssueEvent, now time.Time, days int) []IssueDay 
 // the newest row change nothing.
 func openChanges(
 	events []history.IssueEvent, start time.Time, rows int, rowOf func(time.Time) (int, bool),
-) (perDay []int, openAtStart int) {
+) (perRow []int, openAtStart int) {
 	created := createdIssues(events)
-	perDay = make([]int, rows)
+	perRow = make([]int, rows)
 	for _, e := range events {
 		if i, ok := rowOf(e.At); ok {
-			perDay[i] += openDelta(e, created)
+			perRow[i] += openDelta(e, created)
 		} else if e.At.Before(start) {
 			openAtStart += openDelta(e, created)
 		}
 	}
-	return perDay, openAtStart
+	return perRow, openAtStart
 }
 
 // createdIssues are the issues with a created event in events.
@@ -102,14 +112,14 @@ func openDelta(e history.IssueEvent, created map[history.IssueKey]bool) int {
 	return 0
 }
 
-// addUpTotals sets each row's Total, the issues open at the end of its day:
-// openAtStart, open when the oldest row's day begins, plus the perDay change
-// of each day up to it, from the oldest row on. rows are newest first, as is
-// perDay.
-func addUpTotals(rows []IssueDay, perDay []int, openAtStart int) {
+// addUpTotals sets each row's Total, the issues open at the end of its
+// period: openAtStart, open when the oldest row's period begins, plus the
+// perRow change of each period up to it, from the oldest row on. rows are
+// newest first, as is perRow.
+func addUpTotals(rows []IssueDay, perRow []int, openAtStart int) {
 	total := openAtStart
 	for i := len(rows) - 1; i >= 0; i-- {
-		total += perDay[i]
+		total += perRow[i]
 		rows[i].Total = total
 	}
 }
