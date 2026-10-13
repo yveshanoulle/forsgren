@@ -330,6 +330,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/issuemonths.go:IssueMonthRows": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuemonths.go:monthsBefore": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issueyears.go:IssueYears": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/issueyears.go:yearRow": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issueweeks.go:IssueWeeks": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issueweeks.go:weekStart": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issueweeks.go:weekRow": 100.0,
