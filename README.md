@@ -191,8 +191,10 @@ The first DORA number on the page (forsgren#12, step 7, package
 its DORA band, always shown with the count it comes from, "Between once per
 day and once per week · 12", the successful deployments of the last 30
 days, or of the last 180 days for a band decided on them ("Between once per
-month and once every six months · 3"). The legend page says
-which.
+month and once every six months · 3"). When some of those deployments were
+made at a weekend, the cell ends with how many, "Between once per day and
+once per week · 12 · 3 at weekends" (forsgren#115, decision #121). The legend
+page says which.
 
 **What counts.** A deployment is a history line with the state `success`;
 `failure` and `other` lines do not count. A line belongs to the project
@@ -240,6 +242,22 @@ The band describes throughput over the period, not regularity; the count
 makes a burst visible (Yves's ruling on forsgren#12), so the band is never
 shown without it, and neither the 30-day nor the 180-day count has a row of
 its own.
+
+**Weekend deployments** (forsgren#115). "N at weekends" is how many of the
+successful deployments the cell counts were created on a Saturday or a
+Sunday, UTC (the day of `created_at`, the same UTC the windows use; which days
+are the weekend is not configurable yet, forsgren#72). It takes its window
+from the count it follows: the last 30 days, or the last 180 days when the
+30 days hold none, so it is never more than that count. It is left out when
+it is 0, and the numbers and scoring views do not show it. It never changes
+the band:
+
+| Situation | Cell ends with |
+| --- | --- |
+| 12 in 30 days, 3 on weekends | `· 12 · 3 at weekends` |
+| 0 in 30 days, 3 in 180 days, 1 on a weekend | `· 3 · 1 at weekends` |
+| 0 in 30 days, 3 in 180 days, none on weekends | `· 3` |
+| 0 in 180 days | `· 0` |
 
 A row with no deployment in its history, successful or failed, says "No
 deployments recorded yet" across its five columns. A row whose deployments
@@ -534,7 +552,8 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   final deployments, and whose rework rate counts only the first success
   after a failed deployment.
 - **Each cell is short**: the DORA band, then the number that decided it
-  and the count it is over, "Less than one day · 2 h 7 min (48)". Durations
+  and the count it is over, "Less than one day · 2 h 7 min (48)"; only
+  deployment frequency's may add a last part, "· 3 at weekends". Durations
   are in min, h and d, each part cut down, never rounded up.
 - **Pages:** `index.html` holds the table and, in its footer, two links, "Settings" to `settings.html` and "What the bands mean" to `legend.html`; both have a link back to the table, and each links in its footer to the other kind of page (the legend to Settings, the settings page to the legend; forsgren#84). The issues page, `issues.html`, has no footer links (forsgren#76, decisions #102 and #103).
 - **Views** (forsgren#46): the table is built in more than one view, each its
