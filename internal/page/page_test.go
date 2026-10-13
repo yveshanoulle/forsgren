@@ -284,6 +284,29 @@ func TestIssuesPageMatchesGolden(t *testing.T) {
 	checkPageGolden(t, "issues.html", "testdata/issues.golden.html", data)
 }
 
+// TestIssuesPageShowsTheLastThirtyDays (forsgren#123, step 1): the issues page
+// is back to 0.6.3: it tabulates Data.IssueDays under the header "Date", with
+// the caption "Issues per day, all projects, days in UTC" and no note, and
+// shows no week or month row even when Data.IssueRows holds some.
+func TestIssuesPageShowsTheLastThirtyDays(t *testing.T) {
+	data := calculated()
+	data.IssueDays = []metrics.IssueDay{
+		{Date: october(13), New: 2, Total: 4, Active: true},
+		{Date: october(12), Completed: 1, Total: 3, Active: true},
+	}
+	data.IssueRows = []metrics.IssueRow{
+		{Kind: metrics.KindWeek, IssueDay: metrics.IssueDay{Date: october(5), New: 1, Total: 1, Active: true}},
+		{Kind: metrics.KindMonth, IssueDay: metrics.IssueDay{
+			Date: time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC), New: 1, Total: 1, Active: true,
+		}},
+	}
+	got := rendered(t, "issues.html", data)
+	wantAll(t, "issues.html", got, "2026-10-13", "2026-10-12", `<th scope="col">Date</th>`,
+		"Issues per day, all projects, days in UTC")
+	wantNone(t, "issues.html", got, "Week 41", "September 2026", `<th scope="col">Period</th>`,
+		"a week that spans two months")
+}
+
 // TestIssuesPageLabelsDayWeekAndMonthRows (forsgren#89, step 13): the rows of
 // Data.IssueRows are labelled by their kind: a day by its date, a week by the
 // ISO number of its Monday (5 October 2026 is in week 41), a month by its

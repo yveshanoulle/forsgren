@@ -70,6 +70,9 @@ type Data struct {
 	// settings page lists them, marking those the file does not set
 	// (forsgren#74, #84).
 	Settings []config.Setting
+	// IssueDays are the issue counts per UTC day, newest first, that the
+	// issues page tabulates (forsgren#76, forsgren#123).
+	IssueDays []metrics.IssueDay
 	// IssueRows are the rows of the issues page by kind, days, weeks and
 	// months, newest first in that order (forsgren#76, forsgren#89,
 	// decision #118).
