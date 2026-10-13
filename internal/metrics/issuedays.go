@@ -41,9 +41,40 @@ type IssueDay struct {
 	// OpenBugs is the issues open at the end of that day that carry the bug
 	// label: the Open of the events whose issue is a bug (forsgren#126).
 	OpenBugs int
+	// OpenChange is how much Open moved over that period: Open at its end less
+	// Open at the end of the period before, negative when it fell. Its
+	// direction is OpenTrend (forsgren#126).
+	OpenChange int
 	// Active is whether anything happened on that day: a new issue, a close
 	// of any kind, or a reopen (forsgren#108).
 	Active bool
+}
+
+// Trend is which way a count of open issues moved from the end of one period
+// to the end of the next: Flat when it did not change, Up when it rose, Down
+// when it fell. It says only whether the count rose or fell, not whether that
+// is better (forsgren#126, forsgren#114).
+type Trend int
+
+// The directions of a Trend; Flat is the zero value.
+const (
+	TrendFlat Trend = iota
+	TrendUp
+	TrendDown
+)
+
+// OpenTrend is the direction of d's Open from the end of the period before.
+func (d IssueDay) OpenTrend() Trend { return trendOf(d.OpenChange) }
+
+// trendOf is Up for a change above zero, Down for one below, else Flat.
+func trendOf(change int) Trend {
+	switch {
+	case change > 0:
+		return TrendUp
+	case change < 0:
+		return TrendDown
+	}
+	return TrendFlat
 }
 
 // IssueDays is the last days UTC calendar days before the day of now, today
@@ -76,25 +107,28 @@ func periodRows(
 	start := dateOf(len(rows) - 1)
 	for _, c := range runningCounts {
 		perRow, atStart := periodChanges(events, start, len(rows), rowOf, c.delta)
-		addUp(rows, perRow, atStart, c.column)
+		addUp(rows, perRow, atStart, c)
 	}
 	return rows
 }
 
 // runningCount is a column that counts up over time rather than per period:
-// what each event adds to it (delta) and where a row keeps it (column).
+// what each event adds to it (delta), where a row keeps it (column) and, when
+// the column has a trend, where it keeps how much the count moved over the
+// row's period (change, nil for none).
 type runningCount struct {
 	delta  func(history.IssueEvent) int
 	column func(*IssueDay) *int
+	change func(*IssueDay) *int
 }
 
 // runningCounts are the columns periodRows adds up from the oldest row on, each
 // at the end of its row's period: Open by openDelta (forsgren#122), Total by
 // createdDelta (forsgren#134) and OpenBugs by bugDelta (forsgren#126).
 var runningCounts = []runningCount{
-	{openDelta, func(d *IssueDay) *int { return &d.Open }},
-	{createdDelta, func(d *IssueDay) *int { return &d.Total }},
-	{bugDelta, func(d *IssueDay) *int { return &d.OpenBugs }},
+	{openDelta, func(d *IssueDay) *int { return &d.Open }, func(d *IssueDay) *int { return &d.OpenChange }},
+	{createdDelta, func(d *IssueDay) *int { return &d.Total }, nil},
+	{bugDelta, func(d *IssueDay) *int { return &d.OpenBugs }, nil},
 }
 
 // periodChanges is what the events do to a count, by delta: per row of a
@@ -152,12 +186,17 @@ func createdDelta(e history.IssueEvent) int {
 // addUp sets the count that column picks in each row, at the end of its
 // period: atStart, the count when the oldest row's period begins, plus the
 // perRow change of each period up to it, from the oldest row on. rows are
-// newest first, as is perRow.
-func addUp(rows []IssueDay, perRow []int, atStart int, column func(*IssueDay) *int) {
+// newest first, as is perRow. When c has a change, each row also keeps its own
+// perRow change there: the move from the end of the period before, the oldest
+// row's from atStart.
+func addUp(rows []IssueDay, perRow []int, atStart int, c runningCount) {
 	running := atStart
 	for i := len(rows) - 1; i >= 0; i-- {
 		running += perRow[i]
-		*column(&rows[i]) = running
+		*c.column(&rows[i]) = running
+		if c.change != nil {
+			*c.change(&rows[i]) = perRow[i]
+		}
 	}
 }
 

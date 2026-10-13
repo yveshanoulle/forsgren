@@ -40,8 +40,8 @@ func TestIssueDaysCountsNewIssuesPerUTCDayEndingYesterday(t *testing.T) {
 	}
 	midnight := func(month time.Month, d int) time.Time { return time.Date(2026, month, d, 0, 0, 0, 0, time.UTC) }
 	want := []IssueDay{
-		{Date: midnight(time.October, 2), New: 2, Other: 1, Open: 3, Total: 3, Active: true},
-		{Date: midnight(time.October, 1), New: 1, Open: 1, Total: 1, Active: true},
+		{Date: midnight(time.October, 2), New: 2, Other: 1, Open: 3, OpenChange: 2, Total: 3, Active: true},
+		{Date: midnight(time.October, 1), New: 1, Open: 1, OpenChange: 1, Total: 1, Active: true},
 		{Date: midnight(time.September, 30), New: 0},
 	}
 	if got := IssueDays(events, now, 3); !slices.Equal(got, want) {
@@ -366,4 +366,18 @@ func TestIssueDaysOpenBugsCountsTheOpenIssuesThatAreBugs(t *testing.T) {
 	}
 	checkColumn(t, events, openBugsOf, []int{1, 2, 1})
 	checkOpen(t, events, []int{2, 3, 1})
+}
+
+// TestIssueDaysOpenTrendIsUpByTheIssuesAddedWhenTheOpenRose (forsgren#126,
+// forsgren#114): a day whose Open is higher than the day before's has the
+// trend Up and, as its change, how many more issues are open.
+func TestIssueDaysOpenTrendIsUpByTheIssuesAddedWhenTheOpenRose(t *testing.T) {
+	days := IssueDays([]history.IssueEvent{
+		appEvent(1, "created", sep30),
+		appEvent(2, "created", oct(1, 8, 0, 0)),
+		appEvent(3, "created", oct(1, 9, 0, 0)),
+	}, now, 3)
+	if oct1 := days[1]; oct1.OpenTrend() != TrendUp || oct1.OpenChange != 2 {
+		t.Errorf("want 1 October Up by 2, got trend %v by %d", oct1.OpenTrend(), oct1.OpenChange)
+	}
 }

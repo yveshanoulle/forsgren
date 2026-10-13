@@ -5,7 +5,7 @@
   {
    "path": "internal/collect/fake_test.go",
    "score": 9.09,
-   "checkedAt": "2026-10-11",
+   "checkedAt": "2026-10-14",
    "minScore": 9.0
   },
   {
@@ -39,6 +39,12 @@
    "minScore": 9.58
   },
   {
+   "path": "internal/collect/bugflags.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-14",
+   "minScore": 9.58
+  },
+  {
    "path": "cmd/forsgren/render_config_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-10",
@@ -47,7 +53,7 @@
   {
    "path": "internal/collect/collect.go",
    "score": 9.68,
-   "checkedAt": "2026-10-11",
+   "checkedAt": "2026-10-14",
    "minScore": 9.58
   },
   {
@@ -125,7 +131,7 @@
   {
    "path": "cmd/forsgren/render.go",
    "score": 10.0,
-   "checkedAt": "2026-10-13",
+   "checkedAt": "2026-10-14",
    "minScore": 10.0
   },
   {
@@ -929,7 +935,7 @@
   {
    "path": "internal/page/issues_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-13",
+   "checkedAt": "2026-10-14",
    "minScore": 10.0
   },
   {
@@ -947,13 +953,13 @@
   {
    "path": "internal/collect/issueevents_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-11",
+   "checkedAt": "2026-10-14",
    "minScore": 10.0
   },
   {
    "path": "internal/history/issueevents.go",
    "score": 10.0,
-   "checkedAt": "2026-10-10",
+   "checkedAt": "2026-10-14",
    "minScore": 10.0
   },
   {
@@ -965,7 +971,7 @@
   {
    "path": "internal/metrics/issuedays.go",
    "score": 10.0,
-   "checkedAt": "2026-10-13",
+   "checkedAt": "2026-10-14",
    "minScore": 10.0
   },
   {
@@ -995,13 +1001,13 @@
   {
    "path": "internal/metrics/issuedays_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-11",
+   "checkedAt": "2026-10-14",
    "minScore": 10.0
   },
   {
    "path": "cmd/forsgren/render_issues_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-13",
+   "checkedAt": "2026-10-14",
    "minScore": 10.0
   },
   {
@@ -1014,6 +1020,36 @@
    "path": "internal/history/fullat.go",
    "score": 10.0,
    "checkedAt": "2026-10-11",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/bugflags_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-14",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/bugissues.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-14",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/bugissues_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-14",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/issuebugs.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-14",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/issuebugs_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-14",
    "minScore": 10.0
   }
  ]
