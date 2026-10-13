@@ -341,7 +341,8 @@ func TestMonthsPageHoldsDayWeekAndMonthRows(t *testing.T) {
 	got := rendered(t, "months.html", data)
 	wantAll(t, "months.html", got, "<title>Months · forsgren</title>", "<h1>Months</h1>", `<th scope="col">Period</th>`,
 		"2026-10-13", "Week 41", "Week 40", "September 2026",
-		"Days are in UTC, weeks run Monday to Sunday, months follow the calendar, and a week that spans two months is in both.")
+		"Days are in UTC, weeks run Monday to Sunday, months follow the calendar, "+
+			"and a week that spans two months is in both.")
 	wantNone(t, "months.html", got, "2026-10-11", `<th scope="col">Date</th>`, "<p>No issues were opened")
 }
 
