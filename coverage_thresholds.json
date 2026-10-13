@@ -351,6 +351,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/frequency.go:HasDeployments": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/frequency.go:DeploymentFrequency": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/frequency.go:add": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/frequency.go:isWeekend": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/leadband.go:LeadTimeBandOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/leadband.go:String": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/leadtime.go:HasCommits": 100.0,
