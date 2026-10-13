@@ -123,13 +123,42 @@ func withHistory(data page.Data, cfg config.Config, path string, at time.Time) (
 		return data, err
 	}
 	data.Rows = page.Table(rows)
-	events, err := loadOrNone(beside(path, collect.IssuesFile), history.LoadIssueEvents)
+	events, err := issueEventsOf(path)
 	if err != nil {
 		return data, err
 	}
 	data.IssueDays = metrics.IssueDays(events, at, issueDays)
 	data.IssueRows = metrics.IssueRows(events, at)
 	return data, nil
+}
+
+// issueEventsOf is the issue events beside the history at path, each marked as
+// a bug when the bug flags file beside it (data/issue_bugs.csv) says its issue
+// is one (forsgren#126). A missing bug flags file marks none.
+func issueEventsOf(path string) ([]history.IssueEvent, error) {
+	events, err := loadOrNone(beside(path, collect.IssuesFile), history.LoadIssueEvents)
+	if err != nil {
+		return nil, err
+	}
+	bugs, err := loadOrNone(beside(path, collect.IssueBugsFile), history.LoadIssueBugs)
+	if err != nil {
+		return nil, err
+	}
+	return markBugs(events, bugs), nil
+}
+
+// markBugs is events with Bug set on those of an issue that bugs says is a bug.
+func markBugs(events []history.IssueEvent, bugs []history.IssueBug) []history.IssueEvent {
+	isBug := make(map[history.IssueKey]bool, len(bugs))
+	for _, b := range bugs {
+		isBug[b.Key()] = b.Bug
+	}
+	marked := make([]history.IssueEvent, len(events))
+	for i, e := range events {
+		e.Bug = isBug[e.IssueKey()]
+		marked[i] = e
+	}
+	return marked
 }
 
 // rowsOf is the table's rows (forsgren#38), each project's total and the

@@ -7,7 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yveshanoulle/forsgren/internal/config"
 	"github.com/yveshanoulle/forsgren/internal/history"
+	"github.com/yveshanoulle/forsgren/internal/page"
 )
 
 // issueEventAt is an event of issue number of acme/api at the UTC time at
@@ -122,4 +124,30 @@ func TestRenderRefusesABadIssuesFile(t *testing.T) {
 		"unknown version": {"# forsgren issues v2\n", "unknown history format version"},
 		"malformed line":  {head + "acme/api,7\n", "line 3: malformed history"},
 	})
+}
+
+// TestRenderCountsTheOpenBugsFromTheBugFlagsFile (forsgren#126): with
+// data/issue_bugs.csv next to the history, the rows of the issues carry the
+// OpenBugs of the issues that file says are bugs: issue 7 is a bug and issue 8
+// is not, both created on 2 October, so the day has 2 open and 1 open bug.
+func TestRenderCountsTheOpenBugsFromTheBugFlagsFile(t *testing.T) {
+	data := writeHistory(t, acmeHistory())
+	events := []history.IssueEvent{
+		issueEventAt(7, "created", "", "2026-10-02T09:00:00Z"),
+		issueEventAt(8, "created", "", "2026-10-02T10:00:00Z"),
+	}
+	if _, err := history.AppendIssueEvents(filepath.Join(filepath.Dir(data), "issues.csv"), events); err != nil {
+		t.Fatal(err)
+	}
+	bugs := []history.IssueBug{{Repository: "acme/api", Issue: 7, Bug: true}, {Repository: "acme/api", Issue: 8}}
+	if _, err := history.AppendIssueBugs(filepath.Join(filepath.Dir(data), "issue_bugs.csv"), bugs); err != nil {
+		t.Fatal(err)
+	}
+	got, err := withHistory(page.Data{}, config.Config{}, data, time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if day := got.IssueDays[0]; day.Open != 2 || day.OpenBugs != 1 {
+		t.Errorf("want 2 open and 1 open bug on 2 October, got %d open and %d open bugs", day.Open, day.OpenBugs)
+	}
 }
