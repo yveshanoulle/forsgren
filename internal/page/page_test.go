@@ -683,3 +683,23 @@ func TestLegendHasNoSettings(t *testing.T) {
 		"<li>history_days: 365",
 	)
 }
+
+// TestIssuesPageSkipsInactiveWeeksAndMonths (forsgren#89, step 16): as for
+// days (forsgren#108), a week or a month that is not Active has no row, the
+// ones around it do. The calculation keeps them; only the page hides them.
+func TestIssuesPageSkipsInactiveWeeksAndMonths(t *testing.T) {
+	data := calculated()
+	row := func(kind string, date time.Time, active bool) metrics.IssueRow {
+		return metrics.IssueRow{Kind: kind, IssueDay: metrics.IssueDay{Date: date, New: 1, Total: 5, Active: active}}
+	}
+	month := func(m time.Month) time.Time { return time.Date(2026, m, 1, 0, 0, 0, 0, time.UTC) }
+	data.IssueRows = []metrics.IssueRow{
+		row(metrics.KindWeek, october(5), true),
+		row(metrics.KindWeek, time.Date(2026, time.September, 28, 0, 0, 0, 0, time.UTC), false),
+		row(metrics.KindMonth, month(time.September), false),
+		row(metrics.KindMonth, month(time.August), true),
+	}
+	got := rendered(t, "issues.html", data)
+	wantAll(t, "issues.html", got, "Week 41", "August 2026")
+	wantNone(t, "issues.html", got, "Week 40", "September 2026")
+}
