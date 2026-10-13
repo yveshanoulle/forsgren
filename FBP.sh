@@ -87,7 +87,7 @@ fi
 # repo because two FBP runs back to back were otherwise
 # indistinguishable from their first line (Yves, 2026-08-31). Mirrors
 # sfl.sh's banner; editing a Scripts/*.sh does not require a bump.
-FBP_VERSION=4
+FBP_VERSION=5
 
 STARTED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
 START_EPOCH="$(date +%s)"
@@ -246,8 +246,19 @@ on_signal() {
 
 print_summary() {
   local exit_code=$?
+  local lost_abort=false
   local finished_at elapsed
   local pre_tail post_tail
+
+  # Issue forsgren#136. On bash 3.2 an unbound variable under set -eu ends the
+  # script with status 0 and $? above is 0 too: the abort is invisible except
+  # through COMPLETED, which only the very last statement sets. An exit of 0
+  # without it is an abort: report it as one and fail the script. Fixture:
+  # Scripts/test_fbp_abort_exit.sh.
+  if [ "$exit_code" -eq 0 ] && [ "$COMPLETED" -ne 1 ]; then
+    exit_code=1
+    lost_abort=true
+  fi
 
   finished_at="$(date '+%Y-%m-%d %H:%M:%S')"
   elapsed="$(( $(date +%s) - START_EPOCH ))"
@@ -297,8 +308,14 @@ print_summary() {
   echo "Started:  ${STARTED_AT}"
   echo "Finished: ${finished_at}  (${elapsed}s total)"
   command -v say >/dev/null 2>&1 && say "done" || true
+
+  if $lost_abort; then
+    echo "FAIL: aborted before completing (COMPLETED was never set)" >&2
+    exit 1
+  fi
 }
 
+COMPLETED=0
 trap print_summary EXIT
 trap 'on_signal TERM' TERM
 trap 'on_signal INT' INT
@@ -587,3 +604,4 @@ fi
 if $FAILED; then
   exit 1
 fi
+COMPLETED=1
