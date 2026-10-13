@@ -15,6 +15,20 @@ you need.
 Tested with: forsgren v0.8.5, Claude Code, model claude-sonnet-5-5.
 Start your agent with that model (in Claude Code: `claude --model sonnet`).
 
+### Before you start (for the person)
+
+1. Open a new terminal in an empty folder, for example
+   `mkdir -p /tmp/forsgren-install && cd /tmp/forsgren-install`. An empty
+   folder means no other project's instructions are loaded.
+2. Start the agent with the tested model: `claude --model sonnet`.
+3. If Claude Code asks "Teach auto mode about your environment?", choose
+   "Not now". This file gives the agent everything it needs, and extra
+   knowledge about your machine can hide a missing step and make the
+   install harder to repeat. Do not choose "Don't show again", which
+   changes your settings for every session.
+4. Then tell the agent: "Install forsgren for me by following
+   https://github.com/yveshanoulle/forsgren/blob/main/agent-installer.md".
+
 ## How to work through this file
 
 - **Do every step in order.** Each step says what to do, the exact command,
