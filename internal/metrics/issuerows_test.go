@@ -41,3 +41,20 @@ func TestIssueRowsListDaysThenWeeksThenMonths(t *testing.T) {
 		t.Errorf("want the rows\n%v\ngot\n%v", want, got)
 	}
 }
+
+// TestIssueRowsShowSixDaysOnASunday (forsgren#89, step 12): on Sunday 18
+// October 2026 the current week has six days before today, Saturday 17 back to
+// Monday 12, and they come before the weeks.
+func TestIssueRowsShowSixDaysOnASunday(t *testing.T) {
+	created := time.Date(2026, time.October, 6, 12, 0, 0, 0, time.UTC)
+	events := []history.IssueEvent{{Repository: "acme/app", Issue: 1, Event: "created", At: created}}
+	var days []int
+	for _, r := range IssueRows(events, time.Date(2026, time.October, 18, 12, 0, 0, 0, time.UTC)) {
+		if r.Kind == KindDay {
+			days = append(days, r.Date.Day())
+		}
+	}
+	if want := []int{17, 16, 15, 14, 13, 12}; !slices.Equal(days, want) {
+		t.Errorf("want the days %v, got %v", want, days)
+	}
+}

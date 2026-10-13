@@ -30,5 +30,16 @@ type IssueRow struct {
 // the oldest event, each newest first (IssueWeekDays, IssueWeeks and
 // IssueMonthRows).
 func IssueRows(events []history.IssueEvent, now time.Time) []IssueRow {
-	return nil
+	rows := kindRows(KindDay, IssueWeekDays(events, now))
+	rows = append(rows, kindRows(KindWeek, IssueWeeks(events, now))...)
+	return append(rows, kindRows(KindMonth, IssueMonthRows(events, now))...)
+}
+
+// kindRows is days as rows of kind.
+func kindRows(kind string, days []IssueDay) []IssueRow {
+	rows := make([]IssueRow, len(days))
+	for i, d := range days {
+		rows[i] = IssueRow{Kind: kind, IssueDay: d}
+	}
+	return rows
 }
