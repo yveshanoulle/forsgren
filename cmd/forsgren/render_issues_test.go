@@ -76,6 +76,32 @@ func TestRenderShowsTheIssuesOfWeeksAndMonthsOnTheMonthsPage(t *testing.T) {
 		"Week 41", "Week 40", "September 2026", "August 2026")
 }
 
+// TestRenderShowsTheYearRowsOnTheMonthsPage (forsgren#125, step 9): rendered
+// on Wednesday 14 October 2026, months.html holds the months of 2026 as month
+// rows (September, the month with an issue created in it) and every earlier
+// year as one row, 2025 and 2024, and no month row of those years.
+func TestRenderShowsTheYearRowsOnTheMonthsPage(t *testing.T) {
+	old := now
+	now = func() time.Time { return time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC) }
+	t.Cleanup(func() { now = old })
+	data := writeHistory(t, acmeHistory())
+	var events []history.IssueEvent
+	for i, at := range []string{"2026-09-10", "2025-11-20", "2024-03-05"} {
+		events = append(events, issueEventAt(int64(i+1), "created", "", at+"T09:00:00Z"))
+	}
+	if _, err := history.AppendIssueEvents(filepath.Join(filepath.Dir(data), "issues.csv"), events); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(t.TempDir(), "site")
+	if code, _, stderr := runCommand("render", "--out", dir, "--config", writeConfig(t, validConfig),
+		"--data", data); code != 0 {
+		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
+	}
+	months := filepath.Join(dir, "months.html")
+	wantRowLabels(t, months, true, "September 2026", "2025", "2024")
+	wantRowLabels(t, months, false, "November 2025", "March 2024")
+}
+
 // wantRowLabels fails for each label the page at path lacks as a cell when
 // present is true, or holds as a cell when present is false.
 func wantRowLabels(t *testing.T, path string, present bool, labels ...string) {

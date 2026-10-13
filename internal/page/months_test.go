@@ -26,7 +26,7 @@ func TestMonthsPageHoldsDayWeekAndMonthRows(t *testing.T) {
 	got := rendered(t, "months.html", data)
 	wantAll(t, "months.html", got, "<title>Months · forsgren</title>", "<h1>Months</h1>", `<th scope="col">Period</th>`,
 		"2026-10-13", "Week 41", "Week 40", "September 2026",
-		"Days are in UTC, weeks run Monday to Sunday, months follow the calendar, "+
+		"Days are in UTC, weeks run Monday to Sunday, months and years follow the calendar, "+
 			"and a week that spans two months is in both.")
 	wantNone(t, "months.html", got, "2026-10-11", `<th scope="col">Date</th>`, "<p>No issues were opened")
 }
@@ -98,7 +98,8 @@ func TestMonthsPageSwitchMarksOnlyMonths(t *testing.T) {
 
 // TestMonthsPageMatchesGolden (forsgren#123, step 8): the months page is the
 // page months.html, a table of the days of the current week, the weeks and the
-// months, newest first, one row of each kind here, under the header Period.
+// months and the years, newest first, one row of each kind here, under the
+// header Period (forsgren#125, step 8: the caption and the note name years).
 func TestMonthsPageMatchesGolden(t *testing.T) {
 	data := calculated()
 	data.IssueRows = []metrics.IssueRow{
@@ -111,6 +112,10 @@ func TestMonthsPageMatchesGolden(t *testing.T) {
 		}},
 		{Kind: metrics.KindMonth, IssueDay: metrics.IssueDay{
 			Date: on2026(time.August, 1), New: 1, Total: 5, Active: true,
+		}},
+		{Kind: metrics.KindYear, IssueDay: metrics.IssueDay{
+			Date: on2026(time.January, 1).AddDate(-1, 0, 0),
+			New:  6, Completed: 3, NotPlanned: 1, Duplicate: 1, Total: 4, Active: true,
 		}},
 	}
 	checkPageGolden(t, "months.html", "testdata/months.golden.html", data)
