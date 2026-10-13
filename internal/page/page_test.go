@@ -322,6 +322,29 @@ func TestIssueTableRowsLabelsDayWeekAndMonthRows(t *testing.T) {
 	}
 }
 
+// TestMonthsPageHoldsDayWeekAndMonthRows (forsgren#123, step 4): the months
+// page, months.html, is the table forsgren 0.6.4 put on the issues page: the
+// rows of Data.IssueRows under the header "Period", labelled by their kind,
+// with the note that explains the periods. It holds no 30-day IssueDays row.
+func TestMonthsPageHoldsDayWeekAndMonthRows(t *testing.T) {
+	data := calculated()
+	row := func(kind string, date time.Time) metrics.IssueRow {
+		return metrics.IssueRow{Kind: kind, IssueDay: metrics.IssueDay{Date: date, New: 1, Total: 1, Active: true}}
+	}
+	data.IssueRows = []metrics.IssueRow{
+		row(metrics.KindDay, october(13)),
+		row(metrics.KindWeek, october(5)),
+		row(metrics.KindWeek, time.Date(2026, time.September, 28, 0, 0, 0, 0, time.UTC)),
+		row(metrics.KindMonth, time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC)),
+	}
+	data.IssueDays = []metrics.IssueDay{{Date: october(11), New: 9, Total: 9, Active: true}}
+	got := rendered(t, "months.html", data)
+	wantAll(t, "months.html", got, "<title>Months · forsgren</title>", "<h1>Months</h1>", `<th scope="col">Period</th>`,
+		"2026-10-13", "Week 41", "Week 40", "September 2026",
+		"Days are in UTC, weeks run Monday to Sunday, months follow the calendar, and a week that spans two months is in both.")
+	wantNone(t, "months.html", got, "2026-10-11", `<th scope="col">Date</th>`, "<p>No issues were opened")
+}
+
 // TestIssuesPageSkipsInactiveDays (forsgren#108, step 5): a day that is not
 // Active (nothing new, closed or reopened) has no row on the issues page, the
 // days around it do. The calculation keeps the day (rule 3); only the page hides it.
