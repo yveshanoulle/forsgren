@@ -398,3 +398,20 @@ func TestIssueDaysOpenTrendIsDownByTheIssuesClosedWhenTheOpenFell(t *testing.T) 
 		t.Errorf("want 1 October Down by 2, got trend %v by %d", oct1.OpenTrend(), oct1.OpenChange)
 	}
 }
+
+// TestIssueDaysOpenTrendIsFlatWhenTheOpenDidNotChange (forsgren#126,
+// forsgren#114): a day whose Open equals the day before's has the trend Flat
+// and the change 0, also a day that nets to zero: one issue created and one
+// closed. Proven by mutation, because Flat is the zero value.
+func TestIssueDaysOpenTrendIsFlatWhenTheOpenDidNotChange(t *testing.T) {
+	days := IssueDays([]history.IssueEvent{
+		appEvent(1, "created", sep30),
+		appEvent(2, "created", oct(1, 8, 0, 0)),
+		closeOfIssue(1, oct(1, 9, 0, 0)),
+	}, now, 3)
+	for _, day := range days[:2] {
+		if day.OpenTrend() != TrendFlat || day.OpenChange != 0 {
+			t.Errorf("want %v Flat by 0, got trend %v by %d", day.Date, day.OpenTrend(), day.OpenChange)
+		}
+	}
+}
