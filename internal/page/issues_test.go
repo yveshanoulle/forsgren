@@ -176,18 +176,35 @@ func TestIssuesTableHeadsTheOpenIssuesColumnOpen(t *testing.T) {
             <th scope="col">Open</th>`)
 }
 
-// TestIssuesTableShowsTheIssuesCreatedInATotalColumnNextToOpen (forsgren#134,
-// step 3): next to Open, a column headed Total shows the issues created up to
-// the end of the period, open or closed, from IssueDay.Total.
-func TestIssuesTableShowsTheIssuesCreatedInATotalColumnNextToOpen(t *testing.T) {
+// TestIssuesTableShowsTheIssuesCreatedInATotalColumnAfterOpenBugs (forsgren#134,
+// step 3; forsgren#126): after Open and Open bugs, a column headed Total shows
+// the issues created up to the end of the period, open or closed, from
+// IssueDay.Total.
+func TestIssuesTableShowsTheIssuesCreatedInATotalColumnAfterOpenBugs(t *testing.T) {
 	data := calculated()
 	data.IssueRows = []metrics.IssueRow{
-		{Kind: metrics.KindDay, IssueDay: metrics.IssueDay{Date: october(2), New: 1, Open: 5, Total: 9, Active: true}},
+		{Kind: metrics.KindDay, IssueDay: metrics.IssueDay{
+			Date: october(2), New: 1, Open: 5, OpenBugs: 2, Total: 9, Active: true,
+		}},
 	}
 	got := rendered(t, "issues.html", data)
-	wantAll(t, "issues.html", got, `<th scope="col">Open</th>
-            <th scope="col">Total</th>`, `<td>5</td>
+	wantAll(t, "issues.html", got, `<th scope="col">Open bugs</th>
+            <th scope="col">Total</th>`, `<td>2</td>
             <td>9</td>`)
+}
+
+// TestIssuesTableShowsTheOpenBugsInAColumnRightAfterOpen (forsgren#126): the
+// column headed Open bugs comes right after Open and shows IssueDay.OpenBugs.
+func TestIssuesTableShowsTheOpenBugsInAColumnRightAfterOpen(t *testing.T) {
+	data := calculated()
+	data.IssueRows = []metrics.IssueRow{
+		{Kind: metrics.KindDay, IssueDay: metrics.IssueDay{
+			Date: october(2), New: 1, Open: 5, OpenBugs: 2, Total: 9, Active: true,
+		}},
+	}
+	wantAll(t, "issues.html", rendered(t, "issues.html", data), `<th scope="col">Open</th>
+            <th scope="col">Open bugs</th>`, `<td>5</td>
+            <td>2</td>`)
 }
 
 // TestIssuesTableShowsOpenOutOfTotalInAColumnNextToTotal (forsgren#134, step
