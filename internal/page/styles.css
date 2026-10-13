@@ -27,8 +27,9 @@ table {
   min-width: 44rem;
 }
 
-caption {
-  text-align: start;
+/* The one rule for the heading of every page (forsgren#135): the look the
+   metrics table's caption had. */
+h1 {
   font-weight: 600;
   font-size: 1.25rem;
 }

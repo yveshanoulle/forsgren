@@ -295,3 +295,27 @@ func TestMenuEndsWithIssuesAndDaily(t *testing.T) {
 		wantAll(t, name, rendered(t, name, data), want)
 	}
 }
+
+// TestViewPagesAndTheRootOpenWithTheDORAMetricsHeading (forsgren#135, step 8):
+// the standard, numbers and scoring pages and the root, a view too, show a
+// visible h1, DORA metrics, right after the menu, where the issues page shows
+// Issues; it replaces the visually hidden h1 that named the version.
+func TestViewPagesAndTheRootOpenWithTheDORAMetricsHeading(t *testing.T) {
+	for _, name := range []string{"index.html", "standard/index.html", "numbers/index.html", "scoring/index.html"} {
+		got := rendered(t, name, viewData())
+		wantAll(t, name, got, "</nav>\n  <main>\n    <h1 id=\"metrics-heading\">DORA metrics</h1>\n")
+		wantNone(t, name, got, "visually-hidden")
+	}
+}
+
+// TestMetricsTableHasNoCaptionAndIsLabelledByTheHeading (forsgren#135, step 9):
+// as the issue tables since forsgren#128, the metrics table has no caption of
+// its own; the page's heading, DORA metrics, labels the region around it, so
+// the id its aria-labelledby names exists.
+func TestMetricsTableHasNoCaptionAndIsLabelledByTheHeading(t *testing.T) {
+	for _, name := range []string{"index.html", "standard/index.html", "numbers/index.html", "scoring/index.html"} {
+		got := rendered(t, name, viewData())
+		wantAll(t, name, got, `<h1 id="metrics-heading">`, `aria-labelledby="metrics-heading"`)
+		wantNone(t, name, got, "<caption", "metrics-caption")
+	}
+}

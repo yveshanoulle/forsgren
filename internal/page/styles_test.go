@@ -29,21 +29,27 @@ func TestLabelDashIsDecorative(t *testing.T) {
 	}
 }
 
-// TestCaptionFontIsLargerThanBody (forsgren#45, step 2): the caption rule in
-// styles.css sets a font-size in rem above 1, the body's size (the body sets
-// none, so it is 1rem). Parsed, not matched as one exact string, so the size
-// can be tuned without touching the test.
-func TestCaptionFontIsLargerThanBody(t *testing.T) {
+// TestOneH1RuleStylesEveryPagesHeading (forsgren#135, step 10): styles.css has
+// one h1 rule, which every page's heading uses, so changing it in one place
+// changes all: bold and a font-size in rem above the body's 1rem, the look the
+// caption had. No caption rule is left, as no table has a caption.
+func TestOneH1RuleStylesEveryPagesHeading(t *testing.T) {
 	css := stylesCSS(t)
-	rule := regexp.MustCompile(`(?s)\bcaption\s*\{([^}]*)\}`).FindStringSubmatch(css)
-	if rule == nil {
-		t.Fatalf("want a caption rule in styles.css, got:\n%s", css)
+	rules := regexp.MustCompile(`(?s)(?:^|\n)h1\s*\{([^}]*)\}`).FindAllStringSubmatch(css, -1)
+	if len(rules) != 1 {
+		t.Fatalf("want one h1 rule in styles.css, got %d in:\n%s", len(rules), css)
 	}
-	size := regexp.MustCompile(`font-size:\s*([0-9.]+)rem`).FindStringSubmatch(rule[1])
+	if !strings.Contains(rules[0][1], "font-weight: 600;") {
+		t.Errorf("want the h1 rule to be bold (600), got:\n%s", rules[0][1])
+	}
+	size := regexp.MustCompile(`font-size:\s*([0-9.]+)rem`).FindStringSubmatch(rules[0][1])
 	if size == nil {
-		t.Fatalf("want the caption rule to set a font-size in rem, got:\n%s", rule[1])
+		t.Fatalf("want the h1 rule to set a font-size in rem, got:\n%s", rules[0][1])
 	}
 	if n, err := strconv.ParseFloat(size[1], 64); err != nil || n <= 1 {
-		t.Errorf("want the caption font-size above the body's 1rem, got %s", size[1])
+		t.Errorf("want the h1 font-size above the body's 1rem, got %s", size[1])
+	}
+	if regexp.MustCompile(`\bcaption\s*\{`).MatchString(css) {
+		t.Errorf("want no caption rule in styles.css, got:\n%s", css)
 	}
 }

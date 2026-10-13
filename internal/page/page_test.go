@@ -493,20 +493,11 @@ func wantNoInstallLink(t *testing.T, got string) {
 	wantNone(t, "the page", got, "Install", "forsgren-template")
 }
 
-// TestTablePageOpensWithTheTable (forsgren#41, step 1): the table page has no
-// text above its table: no visible heading (the version
-// moves below the table) and no Calculated paragraph. Screen readers keep a
-// heading, a visually hidden h1.
+// TestTablePageOpensWithTheTable (forsgren#41, step 1; forsgren#135): the table
+// page has no Calculated paragraph above its table, only the heading (the
+// version is in the footer).
 func TestTablePageOpensWithTheTable(t *testing.T) {
-	wantNone(t, "index.html", rendered(t, "index.html", acmeTable()), "<h1>", "counts back from the time in the footer")
-}
-
-// TestTablePageKeepsAVisuallyHiddenHeading (forsgren#41, step 1): the table
-// page's one h1 is visually hidden, so screen readers still get a heading:
-// the version and what the page is.
-func TestTablePageKeepsAVisuallyHiddenHeading(t *testing.T) {
-	wantAll(t, "index.html", rendered(t, "index.html", acmeTable()),
-		`<h1 class="visually-hidden">Forsgren 0.8.4: the five DORA metrics</h1>`)
+	wantNone(t, "index.html", rendered(t, "index.html", acmeTable()), "counts back from the time in the footer")
 }
 
 // TestLegendPageSaysWhereEachMetricComesFrom (forsgren#41, step 1): the
@@ -609,14 +600,6 @@ func TestFooterEndsTheReleaseNewsBeforeWhatForsgrenIs(t *testing.T) {
 	} {
 		wantOnEveryPage(t, released("0.8.5", waiting), want)
 	}
-}
-
-// TestTableCaptionIsDORAMetrics (forsgren#45, step 2): the table's caption
-// reads exactly "DORA metrics", and the region around the table is still
-// labelled by it, so the id its aria-labelledby names exists.
-func TestTableCaptionIsDORAMetrics(t *testing.T) {
-	wantAll(t, "index.html", rendered(t, "index.html", acmeTable()),
-		`<caption id="metrics-caption">DORA metrics</caption>`, `aria-labelledby="metrics-caption"`)
 }
 
 // TestLegendStatesTheWorkingDay (forsgren#71): the legend says how a working
