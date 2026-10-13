@@ -45,6 +45,9 @@ type IssueDay struct {
 	// Open at the end of the period before, negative when it fell. Its
 	// direction is OpenTrend (forsgren#126).
 	OpenChange int
+	// OpenBugsChange is how much OpenBugs moved over that period, as OpenChange
+	// does for Open; its direction is OpenBugsTrend (forsgren#126).
+	OpenBugsChange int
 	// Active is whether anything happened on that day: a new issue, a close
 	// of any kind, or a reopen (forsgren#108).
 	Active bool
@@ -65,6 +68,10 @@ const (
 
 // OpenTrend is the direction of d's Open from the end of the period before.
 func (d IssueDay) OpenTrend() Trend { return trendOf(d.OpenChange) }
+
+// OpenBugsTrend is the direction of d's OpenBugs from the end of the period
+// before.
+func (d IssueDay) OpenBugsTrend() Trend { return trendOf(d.OpenBugsChange) }
 
 // trendOf is Up for a change above zero, Down for one below, else Flat.
 func trendOf(change int) Trend {
@@ -128,7 +135,7 @@ type runningCount struct {
 var runningCounts = []runningCount{
 	{openDelta, func(d *IssueDay) *int { return &d.Open }, func(d *IssueDay) *int { return &d.OpenChange }},
 	{createdDelta, func(d *IssueDay) *int { return &d.Total }, nil},
-	{bugDelta, func(d *IssueDay) *int { return &d.OpenBugs }, nil},
+	{bugDelta, func(d *IssueDay) *int { return &d.OpenBugs }, func(d *IssueDay) *int { return &d.OpenBugsChange }},
 }
 
 // periodChanges is what the events do to a count, by delta: per row of a

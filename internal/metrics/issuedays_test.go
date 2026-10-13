@@ -440,3 +440,31 @@ type openMove struct {
 	trend  Trend
 	change int
 }
+
+// bugMove is which way a day's open bugs moved from the day before, and by how
+// much.
+type bugMove struct {
+	trend  Trend
+	change int
+}
+
+// TestIssueDaysOpenBugsTrendFollowsTheOpenBugsAlone (forsgren#126): the open
+// bugs of a day have their own trend and change: 30 September gains two bugs
+// (Up by 2), 1 October closes one (Down by 1), 2 October closes only an issue
+// that is not a bug (Flat by 0), so the Open falls while the open bugs do not.
+func TestIssueDaysOpenBugsTrendFollowsTheOpenBugsAlone(t *testing.T) {
+	days := IssueDays([]history.IssueEvent{
+		bugEvent(appEvent(2, "created", sep30)),
+		bugEvent(appEvent(3, "created", sep30)),
+		appEvent(4, "created", sep30),
+		bugEvent(closeOfIssue(2, oct(1, 8, 0, 0))),
+		closeOfIssue(4, oct(2, 8, 0, 0)),
+	}, now, 3)
+	var got []bugMove
+	for _, d := range days {
+		got = append(got, bugMove{d.OpenBugsTrend(), d.OpenBugsChange})
+	}
+	if want := []bugMove{{TrendFlat, 0}, {TrendDown, -1}, {TrendUp, 2}}; !slices.Equal(got, want) {
+		t.Errorf("want the open bugs per day, newest first, %v, got %v", want, got)
+	}
+}
