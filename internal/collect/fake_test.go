@@ -83,14 +83,20 @@ const (
 	// since (forsgren#76, decision #109).
 	fullIssues     = "#full"
 	fullIssuesPath = issuesPath + fullIssues
+	// bugIssues marks the answers to the read of the issues labelled bug
+	// (forsgren#126); an unset one is an empty list.
+	bugIssues     = "#bug"
+	bugIssuesPath = issuesPath + bugIssues
 )
 
 // keyOf is the key in bodies, status and paged of the answer to r: its path,
-// and for a list of issues without a labels parameter that path with
+// with bugIssues for the list of the bug label, and for a list of issues without a labels parameter that path with
 // allIssues, or with fullIssues when it asks for no since.
 func keyOf(r *http.Request) string {
 	query := r.URL.Query()
 	switch {
+	case strings.HasSuffix(r.URL.Path, "/issues") && query.Get("labels") == "bug":
+		return r.URL.Path + bugIssues
 	case !strings.HasSuffix(r.URL.Path, "/issues") || query.Has("labels"):
 		return r.URL.Path
 	case query.Has("since"):

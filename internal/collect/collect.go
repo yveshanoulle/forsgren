@@ -155,15 +155,11 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	if err != nil {
 		return err
 	}
-	failures, err := o.failureIssues(ctx, h, r.Name)
+	lines, err := o.readIssues(ctx, h, r.Name)
 	if err != nil {
 		return err
 	}
-	events, err := o.issueEvents(ctx, h, r.Name)
-	if err != nil {
-		return err
-	}
-	stored, err := o.store(batch{f.records, commits, failures, events})
+	stored, err := o.store(batch{f.records, commits, lines.failures, lines.events, lines.bugs})
 	if err != nil {
 		return fmt.Errorf("%s: %w", r.Name, err)
 	}
@@ -172,6 +168,29 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	h.noteFull(r.Name, o.Now)
 	o.report(r.Name, f, stored)
 	return nil
+}
+
+// issueLines is what one repository's issues give to store: its failure
+// issues, the events of all its issues and their bug flags.
+type issueLines struct {
+	failures []history.Failure
+	events   []history.IssueEvent
+	bugs     []history.IssueBug
+}
+
+// readIssues reads repo's failure issues, the events of its issues and their
+// bug flags.
+func (o Options) readIssues(ctx context.Context, h held, repo string) (issueLines, error) {
+	var l issueLines
+	var err error
+	if l.failures, err = o.failureIssues(ctx, h, repo); err != nil {
+		return l, err
+	}
+	if l.events, err = o.issueEvents(ctx, h, repo); err != nil {
+		return l, err
+	}
+	l.bugs, err = o.bugFlags(ctx, h, repo)
+	return l, err
 }
 
 // report prints what one repository stored on stdout, after a warning on
@@ -195,14 +214,15 @@ type batch struct {
 	commits  []history.Commit
 	failures []history.Failure
 	events   []history.IssueEvent
+	bugs     []history.IssueBug
 }
 
 // counts is how many lines of each file a batch stored.
 type counts struct{ deployments, commits, failures int }
 
 // store appends one repository's commits, then its failure issues, then its
-// issue events, then its deployments, and says how many commits, failure
-// issues and deployments it stored. Deployments the history
+// issue events, then their bug flags, then its deployments, and says how many
+// commits, failure issues and deployments it stored. Deployments the history
 // refuses write nothing. The commits go first: when any write fails, the
 // deployments are not stored, so the next run reads them again and
 // compares them again, and the commits, failure issues and issue events
@@ -220,6 +240,9 @@ func (o Options) store(b batch) (counts, error) {
 		return c, err
 	}
 	if _, err = history.AppendIssueEvents(o.issuesFile(), b.events); err != nil {
+		return c, err
+	}
+	if _, err = history.AppendIssueBugs(o.bugsFile(), b.bugs); err != nil {
 		return c, err
 	}
 	c.deployments, err = history.Append(o.History, b.records)
