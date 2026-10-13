@@ -105,3 +105,37 @@ func TestIssueMonthRowsGoBackToTheMonthOfTheOldestEvent(t *testing.T) {
 		t.Errorf("want the months %v, got %v", want, got)
 	}
 }
+
+// TestIssueMonthRowsHaveNoRowsWithoutAnEventOrBeforeTheCurrentMonth
+// (forsgren#89, step 6): no events give no rows, and neither do events that
+// are all in the current month.
+func TestIssueMonthRowsHaveNoRowsWithoutAnEventOrBeforeTheCurrentMonth(t *testing.T) {
+	now := time.Date(2026, time.October, 14, 12, 0, 0, 0, time.UTC)
+	inOctober := []history.IssueEvent{
+		{Repository: "acme/app", Issue: 1, Event: "created", At: now.AddDate(0, 0, -3)},
+		{Repository: "acme/app", Issue: 2, Event: "created", At: now.AddDate(0, 0, -13)},
+	}
+	if got := IssueMonthRows(nil, now); len(got) != 0 {
+		t.Errorf("want no rows without events, got %v", got)
+	}
+	if got := IssueMonthRows(inOctober, now); len(got) != 0 {
+		t.Errorf("want no rows when the oldest event is in the current month, got %v", got)
+	}
+}
+
+// TestIssueMonthRowsAreActiveOnlyWhenSomethingHappened (forsgren#89, step 6):
+// a reopened event alone makes its month Active (August), and a month with
+// no event (September) is not. The Active flag comes from IssueDay.count.
+func TestIssueMonthRowsAreActiveOnlyWhenSomethingHappened(t *testing.T) {
+	now := time.Date(2026, time.October, 14, 12, 0, 0, 0, time.UTC)
+	events := []history.IssueEvent{
+		{Repository: "acme/app", Issue: 1, Event: "reopened", At: time.Date(2026, time.August, 3, 9, 0, 0, 0, time.UTC)},
+	}
+	var got []bool
+	for _, m := range IssueMonthRows(events, now) {
+		got = append(got, m.Active)
+	}
+	if want := []bool{false, true}; !slices.Equal(got, want) {
+		t.Errorf("want Active %v (September, August), got %v", want, got)
+	}
+}
