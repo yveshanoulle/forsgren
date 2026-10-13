@@ -3,7 +3,9 @@
 You are an AI coding agent. A person pointed you at this file because they
 want their own forsgren installation: a GitHub repository of their own (the
 **data repository**) that measures the DORA metrics of their repositories once
-a day and publishes them as a page on GitHub Pages.
+a day and publishes them as a page on GitHub Pages. forsgren's own
+install, which measures forsgren itself, is such a page:
+https://forsgren.forsgren.be.
 
 Follow **only this file**, from the top, in order. Do not use other guides,
 your memory of forsgren, or other installations as a source. The full
@@ -145,10 +147,14 @@ why. Wait for the answers.
    chunk per daily run, so a deeper history fills in over several days.
 9. **Custom domain or the github.io address.** Default: no custom domain;
    the page is at `https://OWNER.github.io/REPO/`, works at once and has
-   HTTPS from the start. A custom domain (for example `dora.example.com`)
-   needs the person to verify its parent domain for GitHub Pages first (a
-   TXT record), then a DNS record they add at their DNS provider, and HTTPS
-   can take up to a day after that.
+   HTTPS from the start. For a custom domain, recommend the conventional
+   name `forsgren.<your domain>`, for example `forsgren.example.com`: like
+   `www` for a website, a `forsgren.` subdomain tells anyone where the DORA
+   page lives. forsgren's own install is at `forsgren.forsgren.be`. Other
+   names work as well. A custom domain needs the person to verify the
+   parent domain (`example.com`) for GitHub Pages first (a TXT record),
+   unless it is verified already, then a DNS record they add at their DNS
+   provider, and HTTPS can take up to a day after that.
 
 ## Step 3. Look at every measured repository (read only)
 
@@ -537,8 +543,15 @@ and nothing else about the domain is done until it is.
 
 `PARENT` is the domain to verify: `DOMAIN` itself for an apex domain
 (`example.com`), or the domain one level up for a subdomain
-(`dora.example.com` gives `example.com`). Verifying a domain covers its
-immediate subdomains.
+(`forsgren.example.com` gives `example.com`). Verifying a domain covers
+its immediate subdomains.
+
+A person who has already verified `PARENT` (for another subdomain, say) is
+not asked to verify it again: it is checked, the same two ways. In item 1
+they skip **Add domain** and adding the TXT record, and only send you the
+record's name and value, from that Pages settings page or their DNS
+provider; in item 3 they only confirm GitHub shows `PARENT` as verified,
+without clicking **Verify** again.
 
 There is no GitHub REST endpoint, and no gh command, that tells whether a
 user account's Pages domain is verified. So this step has two parts: the
@@ -607,8 +620,8 @@ Then hand the person this, with the values filled in:
 
 > **Person:** at your DNS provider, add the record for `DOMAIN`:
 >
-> - A subdomain such as `dora.example.com`: a **CNAME** record from
->   `dora.example.com` to `OWNER.github.io` (the owner in lower case, with
+> - A subdomain such as `forsgren.example.com`: a **CNAME** record from
+>   `forsgren.example.com` to `OWNER.github.io` (the owner in lower case, with
 >   no repository name).
 > - An apex domain such as `example.com`: four **A** records, to
 >   `185.199.108.153`, `185.199.109.153`, `185.199.110.153` and
