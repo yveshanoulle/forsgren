@@ -70,3 +70,31 @@ func TestABugFlagsFileThatCannotBeWrittenStoresNoDeployment(t *testing.T) {
 		t.Errorf("want no history written, got %v", err)
 	}
 }
+
+// TestCollectStoresNoBugForAnIssueThatLostItsLabel (forsgren#126): an issue
+// stored as a bug that GitHub no longer lists under the bug label is stored
+// again, as not a bug, and one still listed is left as it is.
+func TestCollectStoresNoBugForAnIssueThatLostItsLabel(t *testing.T) {
+	g := newGitHub(t)
+	g.bodies[deploymentsPath] = list()
+	g.bodies[bugIssuesPath] = list(listed{number: 4, state: "open", created: "2026-09-20T08:00:00Z"}.json())
+	path := historyPath(t)
+	stored := []history.IssueBug{
+		{Repository: "acme/app", Issue: 3, Bug: true},
+		{Repository: "acme/app", Issue: 4, Bug: true},
+	}
+	if _, err := history.AppendIssueBugs(bugsFileBeside(path), stored); err != nil {
+		t.Fatal(err)
+	}
+	if r := g.collect(t, shop(production), path, 1); r.err != nil {
+		t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
+	}
+	got, err := history.LoadIssueBugs(bugsFileBeside(path))
+	if err != nil {
+		t.Fatalf("want a bug flags file, got %v", err)
+	}
+	want := []history.IssueBug{{Repository: "acme/app", Issue: 3}, {Repository: "acme/app", Issue: 4, Bug: true}}
+	if !slices.Equal(got, want) {
+		t.Errorf("want the bug flags\n%v\ngot\n%v", want, got)
+	}
+}
