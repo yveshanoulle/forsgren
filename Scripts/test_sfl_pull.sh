@@ -10,7 +10,21 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+# Issue forsgren#137. On bash 3.2 an abort (an unbound variable under set -eu)
+# ends a script with an EXIT trap with status 0, and $? in the trap is 0 too.
+# COMPLETED, set as the very last statement, is the only way out with 0: an
+# exit of 0 without it is an abort and becomes exit 1. Gate:
+# Scripts/check_exit_trap_completion.sh.
+COMPLETED=0
+finish() {
+  local rc=$?
+  rm -rf "$$TMP"
+  if [ "$rc" -eq 0 ] && [ "$COMPLETED" -ne 1 ]; then
+    echo "FAIL: test_sfl_pull.sh aborted before completing (COMPLETED was never set)" >&2
+    exit 1
+  fi
+}
+trap finish EXIT
 
 mkdir -p "$TMP/bin"
 
@@ -83,3 +97,4 @@ fi
 
 echo
 echo "OK: sfl pull uses ff-only and stops with exit 3 when it cannot fast-forward"
+COMPLETED=1

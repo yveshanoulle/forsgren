@@ -40,7 +40,21 @@ fi
 # Not exec: the scanned-file count has to be read after htmlhint exits. Its
 # output is shown as it runs and kept for that read.
 OUT="$(mktemp)"
-trap 'rm -f "$OUT"' EXIT
+# Issue forsgren#137. On bash 3.2 an abort (an unbound variable under set -eu)
+# ends a script with an EXIT trap with status 0, and $? in the trap is 0 too.
+# COMPLETED, set as the very last statement, is the only way out with 0: an
+# exit of 0 without it is an abort and becomes exit 1. Gate:
+# Scripts/check_exit_trap_completion.sh.
+COMPLETED=0
+finish() {
+  local rc=$?
+  rm -rf "$$OUT"
+  if [ "$rc" -eq 0 ] && [ "$COMPLETED" -ne 1 ]; then
+    echo "FAIL: gate_htmlhint.sh aborted before completing (COMPLETED was never set)" >&2
+    exit 1
+  fi
+}
+trap finish EXIT
 
 set +e
 node_modules/.bin/htmlhint \
@@ -57,3 +71,4 @@ if grep -qE 'Scanned 0 files' "$OUT"; then
   echo "htmlhint: scanned 0 files under ${SITE_DIR} — nothing linted is not clean" >&2
   exit 2
 fi
+COMPLETED=1

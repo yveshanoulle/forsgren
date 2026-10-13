@@ -41,7 +41,21 @@ go build -o "$BIN" ./cmd/forsgren || fail "go build ./cmd/forsgren failed"
 # Rendered into a fresh staging directory first, so the count is this run's
 # pages and never a stale file already in OUTPUT_DIR.
 STAGE="$(mktemp -d)"
-trap 'rm -rf "$STAGE"' EXIT
+# Issue forsgren#137. On bash 3.2 an abort (an unbound variable under set -eu)
+# ends a script with an EXIT trap with status 0, and $? in the trap is 0 too.
+# COMPLETED, set as the very last statement, is the only way out with 0: an
+# exit of 0 without it is an abort and becomes exit 1. Gate:
+# Scripts/check_exit_trap_completion.sh.
+COMPLETED=0
+finish() {
+  local rc=$?
+  rm -rf "$$STAGE"
+  if [ "$rc" -eq 0 ] && [ "$COMPLETED" -ne 1 ]; then
+    echo "FAIL: build_site.sh aborted before completing (COMPLETED was never set)" >&2
+    exit 1
+  fi
+}
+trap finish EXIT
 
 "$BIN" render --out "$STAGE" > /dev/null || fail "forsgren render failed"
 
@@ -70,3 +84,4 @@ echo "$PAGE_COUNT" > "$PAGE_COUNT_SINK"
 
 echo ""
 echo "✅ build_site v${VERSION} — ${PAGE_COUNT} pages generated"
+COMPLETED=1

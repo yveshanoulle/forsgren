@@ -531,6 +531,14 @@ repository links|Scripts/check_repo_links.sh|post|
 community-files self-test|Scripts/test_check_community_files.sh|pre|
 community files|Scripts/check_community_files.sh|pre|
 #
+# THE EXIT-TRAP COMPLETION RULE (forsgren#137, found by #136). Not canon: forsgren's own.
+# Red when a script runs under set -e with a top-level EXIT trap and no COMPLETED
+# flag: on bash 3.2 an abort after the trap then exits 0. It reads repository
+# files, so it is pre. Self-test right before the gate, with a mutation proof
+# per pattern.
+exit-trap completion self-test|Scripts/test_check_exit_trap_completion.sh|pre|
+exit-trap completion|Scripts/check_exit_trap_completion.sh|pre|
+#
 # The privacy pages belong to a site that needs privacy pages: another estate repository
 # serves a privacy policy, and its check_privacy_pages.sh pins that
 # policy's content (language, title, approved date, binding-version
