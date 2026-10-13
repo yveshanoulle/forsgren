@@ -1,0 +1,26 @@
+{{define "issuestable"}}    <div class="table-scroll" role="region" aria-labelledby="{{template "issuescaptionid"}}" tabindex="0">
+      <table>
+        <caption><span id="{{template "issuescaptionid"}}">{{template "issuescaption"}}</span> {{template "switch" .}}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{{template "issuesfirst"}}</th>
+            <th scope="col">New</th>
+            <th scope="col">Completed</th>
+            <th scope="col">Not planned</th>
+            <th scope="col">Duplicate</th>
+            <th scope="col">Other</th>
+            <th scope="col">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+{{template "issuesrows" .}}        </tbody>
+      </table>
+    </div>
+{{end}}{{define "issuecells"}}            <td>{{.New}}</td>
+            <td>{{.Completed}}</td>
+            <td>{{.NotPlanned}}</td>
+            <td>{{.Duplicate}}</td>
+            <td>{{.Other}}</td>
+            <td>{{.Total}}</td>
+          </tr>
+{{end}}

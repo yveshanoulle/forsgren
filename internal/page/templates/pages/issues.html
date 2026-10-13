@@ -2,34 +2,10 @@
 {{template "header" .}}  <main>
     <h1>Issues</h1>
     <p><a href="index.html">Back to the table</a></p>
-{{if .AnyIssueDayActive}}    <div class="table-scroll" role="region" aria-labelledby="issues-caption" tabindex="0">
-      <table>
-        <caption><span id="issues-caption">Issues per day, all projects, days in UTC</span> {{template "switch" .}}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Date</th>
-            <th scope="col">New</th>
-            <th scope="col">Completed</th>
-            <th scope="col">Not planned</th>
-            <th scope="col">Duplicate</th>
-            <th scope="col">Other</th>
-            <th scope="col">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-{{range .IssueDays}}{{if .Active}}          <tr>
-            <th scope="row">{{.Date.Format "2006-01-02"}}</th>
-            <td>{{.New}}</td>
-            <td>{{.Completed}}</td>
-            <td>{{.NotPlanned}}</td>
-            <td>{{.Duplicate}}</td>
-            <td>{{.Other}}</td>
-            <td>{{.Total}}</td>
-          </tr>
-{{end}}{{end}}        </tbody>
-      </table>
-    </div>
-{{else}}    <p>No issues were opened, closed or reopened in the last 30 days.</p>
+{{if .AnyIssueDayActive}}{{template "issuestable" .}}{{else}}    <p>No issues were opened, closed or reopened in the last 30 days.</p>
     <p>{{template "switch" .}}</p>
 {{end}}  </main>
 {{template "footer" .}}
+{{define "issuescaptionid"}}issues-caption{{end}}{{define "issuescaption"}}Issues per day, all projects, days in UTC{{end}}{{define "issuesfirst"}}Date{{end}}{{define "issuesrows"}}{{range .IssueDays}}{{if .Active}}          <tr>
+            <th scope="row">{{.Date.Format "2006-01-02"}}</th>
+{{template "issuecells" .}}{{end}}{{end}}{{end}}
