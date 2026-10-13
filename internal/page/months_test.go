@@ -96,3 +96,30 @@ func TestMonthsPageSwitchMarksOnlyMonths(t *testing.T) {
 			`<a href="../issues.html">issues</a> · <a href="../months.html">months</a></span>`)
 	}
 }
+
+// TestMonthsPageMatchesGolden (forsgren#123, step 8): the months page is the
+// page months.html, a table of the days of the current week, the weeks and the
+// months, newest first, one row of each kind here, under the header Period.
+func TestMonthsPageMatchesGolden(t *testing.T) {
+	data := calculated()
+	data.IssueRows = []metrics.IssueRow{
+		{Kind: metrics.KindDay, IssueDay: metrics.IssueDay{
+			Date: october(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Total: 7, Active: true,
+		}},
+		{Kind: metrics.KindWeek, IssueDay: metrics.IssueDay{
+			Date: time.Date(2026, time.September, 28, 0, 0, 0, 0, time.UTC),
+			New:  2, Completed: 4, Duplicate: 3, Other: 5, Total: 6, Active: true,
+		}},
+		{Kind: metrics.KindMonth, IssueDay: metrics.IssueDay{
+			Date: time.Date(2026, time.August, 1, 0, 0, 0, 0, time.UTC), New: 1, Total: 5, Active: true,
+		}},
+	}
+	checkPageGolden(t, "months.html", "testdata/months.golden.html", data)
+}
+
+// TestMonthsPageWithoutRowsMatchesGolden (forsgren#123, step 8): the page of a
+// site with no issue events yet, which Scripts/test_build_site.sh renders, has
+// no Active row, so it shows the no-activity message and no table.
+func TestMonthsPageWithoutRowsMatchesGolden(t *testing.T) {
+	checkPageGolden(t, "months.html", "testdata/months.no-rows.golden.html", calculated())
+}
