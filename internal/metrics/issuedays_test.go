@@ -415,3 +415,28 @@ func TestIssueDaysOpenTrendIsFlatWhenTheOpenDidNotChange(t *testing.T) {
 		}
 	}
 }
+
+// TestIssueDaysOpenTrendOfTheOldestRowIsAgainstTheDayBeforeTheRange
+// (forsgren#126, forsgren#114): the oldest row is compared with the issues open
+// at the end of the day before it, though that day is outside the rows. 30
+// September has 2 open, one of them created before the rows and one on the day,
+// so it is Up by 1, not by 2. Proven by mutation.
+func TestIssueDaysOpenTrendOfTheOldestRowIsAgainstTheDayBeforeTheRange(t *testing.T) {
+	days := IssueDays([]history.IssueEvent{
+		appEvent(1, "created", sep30.AddDate(0, 0, -10)),
+		appEvent(2, "created", sep30),
+	}, now, 3)
+	oldest := days[2]
+	got := openMove{oldest.Open, oldest.OpenTrend(), oldest.OpenChange}
+	if want := (openMove{2, TrendUp, 1}); got != want {
+		t.Errorf("want 30 September with %+v, got %+v", want, got)
+	}
+}
+
+// openMove is how many issues a day has open, and which way and by how much
+// that moved from the day before.
+type openMove struct {
+	open   int
+	trend  Trend
+	change int
+}
