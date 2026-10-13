@@ -38,6 +38,9 @@ type IssueDay struct {
 	// repositories, open or closed: the created events up to then (forsgren#134).
 	// A reopen adds none, the issue already counts.
 	Total int
+	// OpenBugs is the issues open at the end of that day that carry the bug
+	// label: the Open of the events whose issue is a bug (forsgren#126).
+	OpenBugs int
 	// Active is whether anything happened on that day: a new issue, a close
 	// of any kind, or a reopen (forsgren#108).
 	Active bool
@@ -86,11 +89,12 @@ type runningCount struct {
 }
 
 // runningCounts are the columns periodRows adds up from the oldest row on, each
-// at the end of its row's period: Open by openDelta (forsgren#122) and Total by
-// createdDelta (forsgren#134).
+// at the end of its row's period: Open by openDelta (forsgren#122), Total by
+// createdDelta (forsgren#134) and OpenBugs by bugDelta (forsgren#126).
 var runningCounts = []runningCount{
 	{openDelta, func(d *IssueDay) *int { return &d.Open }},
 	{createdDelta, func(d *IssueDay) *int { return &d.Total }},
+	{bugDelta, func(d *IssueDay) *int { return &d.OpenBugs }},
 }
 
 // periodChanges is what the events do to a count, by delta: per row of a
@@ -124,6 +128,15 @@ func openDelta(e history.IssueEvent) int {
 		return -1
 	}
 	return 0
+}
+
+// bugDelta is what e adds to the open bugs: what openDelta gives for an event
+// of an issue that carries the bug label, nothing for any other (forsgren#126).
+func bugDelta(e history.IssueEvent) int {
+	if !e.Bug {
+		return 0
+	}
+	return openDelta(e)
 }
 
 // createdDelta is what e adds to the issues created: one for a created event,

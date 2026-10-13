@@ -343,3 +343,27 @@ func TestIssueDayOpenShareIsADashWhenNoIssueWasCreated(t *testing.T) {
 		}
 	}
 }
+
+// openBugsOf is the OpenBugs of d.
+func openBugsOf(d IssueDay) int { return d.OpenBugs }
+
+// bugEvent is e of an issue that carries the bug label.
+func bugEvent(e history.IssueEvent) history.IssueEvent {
+	e.Bug = true
+	return e
+}
+
+// TestIssueDaysOpenBugsCountsTheOpenIssuesThatAreBugs (forsgren#126): the
+// OpenBugs of a day is its Open counted over the events of bug issues alone:
+// +1 for a created or reopened event, -1 for a closed one, an issue that is
+// not a bug adds nothing, and the Open column is the same as without bugs.
+func TestIssueDaysOpenBugsCountsTheOpenIssuesThatAreBugs(t *testing.T) {
+	events := []history.IssueEvent{
+		bugEvent(appEvent(2, "created", sep30)),
+		bugEvent(appEvent(4, "created", oct(1, 8, 0, 0))),
+		appEvent(5, "created", oct(1, 9, 0, 0)),
+		bugEvent(closeOfIssue(2, oct(2, 8, 0, 0))),
+	}
+	checkColumn(t, events, openBugsOf, []int{1, 2, 1})
+	checkOpen(t, events, []int{2, 3, 1})
+}

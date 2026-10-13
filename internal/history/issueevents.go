@@ -25,6 +25,9 @@ type IssueEvent struct {
 	Event      string
 	Reason     string
 	At         time.Time
+	// Bug says whether the issue carries the bug label (forsgren#126). It is
+	// not a column of issues.csv: the page sets it from data/issue_bugs.csv.
+	Bug bool
 }
 
 // The events an IssueEvent can be.
