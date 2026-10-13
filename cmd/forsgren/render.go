@@ -127,6 +127,7 @@ func withHistory(data page.Data, cfg config.Config, path string, at time.Time) (
 		return data, err
 	}
 	data.IssueDays = metrics.IssueDays(events, at, issueDays)
+	data.IssueRows = metrics.IssueRows(events, at)
 	return data, nil
 }
 
