@@ -1,6 +1,6 @@
 package metrics
 
-// The issues page's rows of every kind (forsgren#89, decision #118): the
+// The months page's rows of every kind (forsgren#89, #123, decision #118): the
 // days of the current week, then the complete weeks of the month, then the
 // complete months.
 

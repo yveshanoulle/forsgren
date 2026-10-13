@@ -96,7 +96,7 @@ guarded_reason() {
     deployments.csv) why="the deployment history forsgren collect keeps (data/deployments.csv in an installation)" ;;
     commits.csv) why="the commits of each deployment forsgren collect keeps for lead time (data/commits.csv in an installation)" ;;
     failures.csv) why="the failure issues forsgren collect keeps for change fail rate (data/failures.csv in an installation)" ;;
-    issues.csv) why="the issue events forsgren collect keeps for the issues page (data/issues.csv in an installation)" ;;
+    issues.csv) why="the issue events forsgren collect keeps for the issues and months pages (data/issues.csv in an installation)" ;;
     *.history.csv) why="a per-service or per-installation history file" ;;
     forsgren.config.*) why="an installation's forsgren configuration, by its own name" ;;
     forsgren-config.*) why="the same configuration, hyphenated" ;;

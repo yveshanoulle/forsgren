@@ -12,7 +12,7 @@ import (
 )
 
 // IssueDay is one UTC calendar day of the table, its fields in the order of
-// the issues page's columns; a week's or a month's row (forsgren#89) has the
+// the columns of the issues and months pages; a week's or a month's row (forsgren#89) has the
 // same counts over its period, "that day" below meaning that period. Every close lands in exactly one of Completed,
 // NotPlanned, Duplicate and Other (closedColumn).
 type IssueDay struct {

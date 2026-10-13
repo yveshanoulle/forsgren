@@ -1,6 +1,6 @@
 package metrics
 
-// The issues page's monthly rows (forsgren#89, decision #118): per UTC
+// The months page's monthly rows (forsgren#89, #123, decision #118): per UTC
 // calendar month, the same counts as IssueDays gives per day.
 
 import (

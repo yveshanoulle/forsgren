@@ -158,7 +158,7 @@ acme/app,42,2026-09-01T10:00:00Z,2026-09-01T15:00:00Z,2026-09-01T09:30:00Z
   line, refused untouched when its version is unknown or a line is
   malformed.
 
-**The issue events**, for the issues page (forsgren#76), are kept in
+**The issue events**, for the issues and months pages (forsgren#76, #123), are kept in
 `data/issues.csv`, with its own format version (the issues format v1). It
 holds every issue of a configured repository, whatever its labels, as one
 line per event:
@@ -555,7 +555,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   and the count it is over, "Less than one day · 2 h 7 min (48)"; only
   deployment frequency's may add a last part, "· 3 at weekends". Durations
   are in min, h and d, each part cut down, never rounded up.
-- **Pages:** `index.html` holds the table and, in its footer, two links, "Settings" to `settings.html` and "What the bands mean" to `legend.html`; both have a link back to the table, and each links in its footer to the other kind of page (the legend to Settings, the settings page to the legend; forsgren#84). The issues page, `issues.html`, has no footer links (forsgren#76, decisions #102 and #103).
+- **Pages:** `index.html` holds the table and, in its footer, two links, "Settings" to `settings.html` and "What the bands mean" to `legend.html`; both have a link back to the table, and each links in its footer to the other kind of page (the legend to Settings, the settings page to the legend; forsgren#84). The issues page, `issues.html`, and the months page, `months.html`, have no footer links (forsgren#76, #123, decisions #102 and #103). Eight pages are written in all: `index.html`, `legend.html`, `settings.html`, `issues.html`, `months.html` and the three views.
 - **Views** (forsgren#46): the table is built in more than one view, each its
   own page: `/standard/` (`standard/index.html`) is the table above, band,
   number and count, and `/numbers/` (`numbers/index.html`) shows only
@@ -568,8 +568,9 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   deployments recorded is five cells there, `0` and four `-`, never a
   sentence. Each view's page has a switch in its table's caption, on one
   line after the title, "DORA metrics View: standard · numbers · scoring ·
-  issues" (forsgren#51, #76: `issues` is not a view of the table but links
-  to the issues page, `issues.html`, or `../issues.html` one folder down); the title is its own element, which names the table and
+  issues · months" (forsgren#51, #76, #123: `issues` and `months` are not views of
+  the table but link to the issues page, `issues.html`, and the months page,
+  `months.html`, or `../issues.html` and `../months.html` one folder down); the title is its own element, which names the table and
   its scroll region, so the table's name stays "DORA metrics". The current
   view is plain text marked `aria-current="page"`, the others links
   (`../standard/`, `../numbers/`, `../scoring/`); a page one folder down
@@ -594,35 +595,22 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   DORA Quick Check, linked: "Scores follow the DORA Quick Check (dora.dev),
   © Google LLC, CC BY 4.0" (forsgren#47). It no longer lists the settings
   (forsgren#84).
-- **The issues page** (`issues.html`, forsgren#76, #89) is a table, Period |
-  New | Completed | Not planned | Duplicate | Other | Total, with three kinds of
-  row, newest first within each (decisions #118 and #119). First the **days of
-  the current week**, Monday up to yesterday (none on a Monday), labelled by
-  their UTC date; then the **complete weeks** that touch the current month,
-  Monday to Sunday, labelled "Week 41" (the ISO week number); then **every
-  complete calendar month** back to the month of the oldest stored event,
-  labelled "September 2026". The current week appears only as its days and the
-  current month only as its weeks and days. A week that spans two months is in
-  both: on Wednesday 14 October 2026 the page lists Tuesday 13 and Monday 12,
-  then weeks 41 and 40 (week 40 begins on 28 September), then September and
-  the months before it. Today is left out, so a row never changes once it is
-  shown (apart from the known limits below). All tracked repositories are
-  counted together. **Inactive rows are hidden** (forsgren#108, decisions #116
-  and #117, for weeks and months too): a row is active when its period has a
-  new issue, a close of any kind or a reopen, and a row with none of these is
-  no row. A reopen keeps a row visible because it changes the Total. The
-  calculation keeps every row (`metrics.IssueRows`, built from
-  `metrics.IssueWeekDays`, `IssueWeeks` and `IssueMonthRows`, each marking its
-  rows with `Active`): the Total is computed over all of them, so a hidden
-  row's Total equals that of the shown row before it. When no row is active,
-  and when there are no issue events yet, the page shows one line, "No issues
-  were opened, closed or reopened before today." (decision #119: the rows
-  reach back months, so the line names no period), and the view switch,
-  instead of the table. Under the table a note says days are UTC, weeks run
-  Monday to Sunday, months follow the calendar, and a week that spans two
-  months is in both. In a week or
-  a month row, **Total** is the issues open at the end of the row's last day.
-  **New** counts the `created` events of
+- **The issues page** (`issues.html`, forsgren#76) is a table, Date | New |
+  Completed | Not planned | Duplicate | Other | Total, one row per UTC calendar day,
+  the last 30 complete days (`issueDays`), yesterday on top and going down;
+  today is left out, so a row never changes once it is shown (apart from the
+  known limits below). It has no week or month row: those are on the months
+  page (forsgren#123). All tracked repositories are counted together. **Inactive days are hidden** (forsgren#108, decisions
+  #116 and #117): a day is active when it has a new issue, a close of any kind
+  or a reopen, and a day with none of these has no row. A reopen keeps a day
+  visible because it changes the Total. The window stays 30 calendar days, so
+  hiding days gives fewer rows; the page does not reach further back to fill
+  30. The calculation keeps every day (`metrics.IssueDays` marks each with
+  `Active`): the Total is computed over all of them, so a hidden day's Total
+  equals that of the shown day before it. When no day of the window is
+  active, and when there are no issue events yet, the page shows one line,
+  "No issues were opened, closed or reopened in the last 30 days.", and the
+  view switch, instead of the table. **New** counts the `created` events of
   the day; a reopened issue is not new. Every `closed` event of the day is
   counted in exactly one of the other four columns, by its reason
   (decision #107): **Completed** is the reason `completed`, **Not planned**
@@ -637,10 +625,42 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   read, or a bug), and it is shown rather than hidden. Reopen times are the
   times `collect` saw them (see Issue events), so a Total from before a
   reopen was seen is an estimate. The caption holds the same view switch as
-  the table pages, with `issues` as the current entry (`aria-current="page"`), and names the table "Issues per day, week and month, all projects". `render` reads `data/issues.csv` next to its `--data` file like
-  `failures.csv`: a missing file is no events (the one-line message, a new
-  installation), an unknown version or a malformed line fails the render
-  with its own message.
+  the table pages, with `issues` as the current entry (`aria-current="page"`),
+  and says the days are UTC. `render` reads `data/issues.csv` next to its
+  `--data` file like `failures.csv`: a missing file is no events (the
+  one-line message, a new installation), an unknown version or a malformed
+  line fails the render with its own message.
+- **The months page** (`months.html`, forsgren#123, from #89, decisions #118
+  and #119) is the issues page's table over longer periods: Period | New |
+  Completed | Not planned | Duplicate | Other | Total, the columns counted as
+  on the issues page, with three kinds of row, newest first within each.
+  First the **days of the current week**, Monday up to yesterday (none on a
+  Monday), labelled by their UTC date; then the **complete weeks** that touch
+  the current month, Monday to Sunday, labelled "Week 41" (the ISO week
+  number); then **every complete calendar month** back to the month of the
+  oldest stored event, labelled "September 2026". The current week appears
+  only as its days and the current month only as its weeks and days. A week
+  that spans two months is in both: on Wednesday 14 October 2026 the page
+  lists Tuesday 13 and Monday 12, then weeks 41 and 40 (week 40 begins on 28
+  September), then September and the months before it. Today is left out, so
+  a row never changes once it is shown. **Inactive rows are hidden** as on
+  the issues page (forsgren#108, decisions #116 and #117, for weeks and
+  months too). The calculation keeps every row (`metrics.IssueRows`, built
+  from `metrics.IssueWeekDays`, `IssueWeeks` and `IssueMonthRows`, each
+  marking its rows with `Active`): the Total is computed over all of them, so
+  a hidden row's Total equals that of the shown row before it. In a week or a
+  month row, **Total** is the issues open at the end of the row's last day.
+  When no row is active, and when there are no issue events yet, the page
+  shows one line, "No issues were opened, closed or reopened before today."
+  (decision #119: the rows reach back months, so the line names no period),
+  and the view switch, instead of the table. Under the table a note says days
+  are UTC, weeks run Monday to Sunday, months follow the calendar, and a week
+  that spans two months is in both. The caption holds the same view switch,
+  with `months` as the current entry (`aria-current="page"`), and names the
+  table "Issues per day, week and month, all projects". The page reads the
+  same `data/issues.csv` as the issues page, with the same failures for a
+  missing, unknown or malformed file. The two pages share one table template
+  (`templates/layout/issuestable.html`).
 - **The settings page** (`settings.html`, forsgren#84) lists each optional
   config key with the value in use, see Configuration; it has a link back to
   the table.
@@ -1109,7 +1129,7 @@ created comes before closed, and closed before reopened; decision #100):
 An event already stored is skipped (see History), so reading the same issues
 again writes nothing.
 
-**The full read** (decision #109) gives the issues page its history back to
+**The full read** (decision #109) gives the issues and months pages their history back to
 the first issue, including the open issues nothing has touched for a long
 time, which the Total counts.
 The first run for a repository with no line in `data/issues_full.csv`
@@ -1936,8 +1956,8 @@ The POST gates, on the generated site:
 - **required pages** (`Scripts/validate_required_pages.sh` and
   `Scripts/test_required_pages_covers_site.sh`): the pages the site must
   ship are listed, hand-authored, in `internal/page/required-pages.json`
-  (today `/`, `/legend.html`, `/settings.html`, `/issues.html`, `/standard/`,
-  `/numbers/` and `/scoring/`). The first checks that list's shape: valid JSON, a
+  (today `/`, `/legend.html`, `/settings.html`, `/issues.html`, `/months.html`,
+  `/standard/`, `/numbers/` and `/scoring/`). The first checks that list's shape: valid JSON, a
   non-empty `requiredPages` array of root-relative paths, no scheme or host,
   no `..`, no duplicates. The second checks it against `.build/site`: every
   `.html` file there, in subfolders too, is listed (`standard/index.html` as
