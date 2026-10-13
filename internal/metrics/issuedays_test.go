@@ -35,9 +35,9 @@ func TestIssueDaysCountsNewIssuesPerUTCDayEndingYesterday(t *testing.T) {
 	}
 	midnight := func(month time.Month, d int) time.Time { return time.Date(2026, month, d, 0, 0, 0, 0, time.UTC) }
 	want := []IssueDay{
-		{Date: midnight(time.October, 2), New: 2, Other: 1, Total: 3},
-		{Date: midnight(time.October, 1), New: 1, Total: 1},
-		{Date: midnight(time.September, 30), New: 0},
+		{Date: midnight(time.October, 2), New: 2, Other: 1, Total: 3, Active: true},
+		{Date: midnight(time.October, 1), New: 1, Total: 1, Active: true},
+		{Date: midnight(time.September, 30), New: 0, Active: true},
 	}
 	if got := IssueDays(events, now, 3); !slices.Equal(got, want) {
 		t.Errorf("want the days\n%v\ngot\n%v", want, got)
@@ -246,4 +246,13 @@ func TestIssueDaysTotalDoesNotDependOnTheOrderOfTheLines(t *testing.T) {
 		return cmp.Or(a.At.Compare(b.At), slices.Index(order, a.Event)-slices.Index(order, b.Event))
 	})
 	checkTotals(t, sorted, columnOf(fileOrder, total))
+}
+
+// TestIssueDaysMarksADayWithoutEventsInactive (forsgren#108, step 1): with
+// now on 3 October at noon and 3 days, only 1 October has an event, so 2
+// October and 30 September, with nothing new, closed or reopened, are not
+// Active, and 1 October is.
+func TestIssueDaysMarksADayWithoutEventsInactive(t *testing.T) {
+	events := []history.IssueEvent{issueEvent("acme/app", "created", oct(1, 8, 0, 0))}
+	checkColumn(t, events, func(d IssueDay) bool { return d.Active }, []bool{false, true, false})
 }

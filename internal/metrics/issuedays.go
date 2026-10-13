@@ -31,6 +31,9 @@ type IssueDay struct {
 	// Total is the issues open at the end of that day, of all the tracked
 	// repositories: created up to then and not closed since.
 	Total int
+	// Active is whether anything happened on that day: a new issue, a close
+	// of any kind, or a reopen (forsgren#108).
+	Active bool
 }
 
 // IssueDays is the last days UTC calendar days before the day of now, today
@@ -41,6 +44,7 @@ func IssueDays(events []history.IssueEvent, now time.Time, days int) []IssueDay 
 	rows := make([]IssueDay, max(days, 0))
 	for i := range rows {
 		rows[i].Date = today.Add(-time.Duration(i+1) * day)
+		rows[i].Active = true // stub (forsgren#108 step 1): every day active until step 2
 	}
 	for _, e := range events {
 		if i, ok := dayRow(e.At, today, len(rows)); ok {
