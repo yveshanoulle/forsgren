@@ -3,6 +3,8 @@ package metrics
 import (
 	"testing"
 	"time"
+
+	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
 // wantCells fails the test for each text that is not the cell it wants.
@@ -77,4 +79,22 @@ func TestChangeFailCell(t *testing.T) {
 		"one of seven": {ChangeFailRate{Deployments: 7, Failed: 1, Band: TwentyPercent}.Cell(), "20% · 14% (1 of 7)"},
 		"none failed":  {ChangeFailRate{Deployments: 3, Band: ZeroPercent}.Cell(), "0% · 0% (0 of 3)"},
 	})
+}
+
+// TestFrequencyCellOfTheFallbackNamesItsWeekendDeployments (forsgren#115):
+// from real records, a project with no success in the last 30 days and 3 in
+// the last 180, one of them on a Saturday, shows the 180-day count with the
+// weekend count of the same 180 days.
+func TestFrequencyCellOfTheFallbackNamesItsWeekendDeployments(t *testing.T) {
+	at := func(month time.Month, day int) history.Record {
+		r := success(0)
+		r.CreatedAt = time.Date(2026, month, day, 12, 0, 0, 0, time.UTC)
+		return r
+	}
+	// 27 June is a Saturday, 4 August a Tuesday, 2 September a Wednesday.
+	got := shopOf(t, at(time.June, 27), at(time.August, 4), at(time.September, 2)).Cell()
+	want := "Between once per month and once every six months · 3 · 1 at weekends"
+	if got != want {
+		t.Errorf("want %q, got %q", want, got)
+	}
 }
