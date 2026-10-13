@@ -35,6 +35,9 @@ type Frequency struct {
 	// Weekend30 counts the Last30 successes created on a Saturday or a
 	// Sunday, UTC (forsgren#115).
 	Weekend30 int
+	// Weekend180 counts the Last180 successes created on a Saturday or a
+	// Sunday, UTC (forsgren#115).
+	Weekend180 int
 	// Latest is the creation time of the project's newest successful
 	// deployment; zero when it has none.
 	Latest time.Time

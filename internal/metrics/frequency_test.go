@@ -281,3 +281,22 @@ func TestWeekendDeploymentsCountOnlySaturdayAndSundayUTC(t *testing.T) {
 		t.Errorf("want 2 weekend successes in the last 30 days, got %d", got.Weekend30)
 	}
 }
+
+// TestWeekendDeploymentsAlsoCountedOverTheLast180Days pins forsgren#115:
+// with no success in the last 30 days, Weekend180 counts the successes of
+// the last 180 days created on a UTC Saturday or Sunday: a Saturday 98 days
+// ago counts, a Tuesday 60 days ago and a Saturday 196 days ago do not.
+func TestWeekendDeploymentsAlsoCountedOverTheLast180Days(t *testing.T) {
+	at := func(month time.Month, day int) history.Record {
+		r := success(0)
+		r.CreatedAt = time.Date(2026, month, day, 12, 0, 0, 0, time.UTC)
+		return r
+	}
+	got := shopOf(t, at(time.June, 27), at(time.August, 4), at(time.March, 21))
+	if got.Last30 != 0 || got.Last180 != 2 {
+		t.Fatalf("want 0 successes in 30 days and 2 in 180, got %d and %d", got.Last30, got.Last180)
+	}
+	if got.Weekend180 != 1 {
+		t.Errorf("want 1 weekend success in the last 180 days, got %d", got.Weekend180)
+	}
+}
