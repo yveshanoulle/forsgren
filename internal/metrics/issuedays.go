@@ -99,14 +99,19 @@ func createdIssues(events []history.IssueEvent) map[history.IssueKey]bool {
 	return created
 }
 
-// openDelta is what e adds to the issues open: one for a created or a
-// reopened event, minus one for the close of an issue that has a created
-// event; a close of an issue never seen created lowers nothing.
+// openDelta is what e adds to the issues open: one for a created event; for
+// an issue that has a created event, one more for a reopened event and one
+// less for a closed one. A reopen or a close of an issue never seen created
+// changes nothing (forsgren#113).
 func openDelta(e history.IssueEvent, created map[history.IssueKey]bool) int {
 	switch {
-	case e.Event == history.EventCreated, e.Event == history.EventReopened:
+	case e.Event == history.EventCreated:
 		return 1
-	case e.Event == history.EventClosed && created[e.IssueKey()]:
+	case !created[e.IssueKey()]:
+		return 0
+	case e.Event == history.EventReopened:
+		return 1
+	case e.Event == history.EventClosed:
 		return -1
 	}
 	return 0
