@@ -19,13 +19,13 @@ const cellSeparator = " · "
 // week · 7"; a row whose deployments all failed shows its band of none,
 // "Less than once per six months · 0" (decision #35).
 func (f Frequency) Cell() string {
-	count := f.Last30
+	count, weekends := f.Last30, f.Weekend30
 	if count == 0 {
-		count = f.Last180
+		count, weekends = f.Last180, f.Weekend180
 	}
 	measure := strconv.Itoa(count)
-	if f.Weekend30 > 0 {
-		measure += cellSeparator + strconv.Itoa(f.Weekend30) + " at weekends"
+	if weekends > 0 {
+		measure += cellSeparator + strconv.Itoa(weekends) + " at weekends"
 	}
 	return cell(f.Band, measure)
 }
