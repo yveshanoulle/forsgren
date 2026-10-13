@@ -309,15 +309,24 @@ func TestIssuesPageSkipsInactiveDays(t *testing.T) {
 	wantNone(t, "issues.html", got, "2026-10-02")
 }
 
-// TestIssuesPageWithNoActiveDayShowsAMessage (forsgren#108, step 7, rule 4):
-// when no day of the window is Active, the issues page says so in one line
-// and has no table, not even its head.
-func TestIssuesPageWithNoActiveDayShowsAMessage(t *testing.T) {
+// TestIssuesPageWithNoActiveRowShowsAMessage (forsgren#108, step 7, rule 4;
+// forsgren#89, step 15): when no row of any kind, day, week or month, is
+// Active, the issues page says so in one line and has no table, not even its
+// head. The rows reach back months, so the line names no period: it says
+// that nothing happened before today.
+func TestIssuesPageWithNoActiveRowShowsAMessage(t *testing.T) {
 	data := calculated()
-	data.IssueDays = []metrics.IssueDay{{Date: october(2), Total: 5}, {Date: october(1), Total: 5}}
+	row := func(kind string, date time.Time) metrics.IssueRow {
+		return metrics.IssueRow{Kind: kind, IssueDay: metrics.IssueDay{Date: date, Total: 5}}
+	}
+	data.IssueRows = []metrics.IssueRow{
+		row(metrics.KindDay, october(13)),
+		row(metrics.KindWeek, october(5)),
+		row(metrics.KindMonth, time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC)),
+	}
 	got := rendered(t, "issues.html", data)
-	wantAll(t, "issues.html", got, "<p>No issues were opened, closed or reopened in the last 30 days.</p>")
-	wantNone(t, "issues.html", got, "<table>", "2026-10-02", "2026-10-01")
+	wantAll(t, "issues.html", got, "<p>No issues were opened, closed or reopened before today.</p>")
+	wantNone(t, "issues.html", got, "<table>", "2026-10-13", "Week 41", "September 2026")
 }
 
 // TestIssuesPageWithoutDaysMatchesGolden (forsgren#76): the page of a site
