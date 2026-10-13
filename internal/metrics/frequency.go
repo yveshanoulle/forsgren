@@ -85,6 +85,7 @@ func (f *Frequency) add(at, now time.Time) {
 	f.Last180 += last180.count(at, now)
 	if isWeekend(at) {
 		f.Weekend30 += last30.count(at, now)
+		f.Weekend180 += last180.count(at, now)
 	}
 }
 
