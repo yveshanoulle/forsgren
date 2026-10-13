@@ -386,6 +386,8 @@
     "github.com/yveshanoulle/forsgren/internal/page/page.go:Placeholder": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:Numbers": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:AnyIssueDayActive": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/page.go:IssueTableRows": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/page.go:issueRowLabel": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:WorkingDay": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:OnDemandFrom": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:HourlyToDailyTo": 100.0,

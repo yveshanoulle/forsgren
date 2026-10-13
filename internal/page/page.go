@@ -122,10 +122,47 @@ func Placeholder(version string) Data {
 	return Data{Title: "forsgren", Version: version, Message: "no data yet"}
 }
 
-// AnyIssueDayActive says whether some day of IssueDays is Active, that is
-// whether the issues page has a row to show (forsgren#108).
+// IssueTableRow is a row of the issues page: the counts of an IssueDay under
+// the Label of its kind.
+type IssueTableRow struct {
+	Label string
+	metrics.IssueDay
+}
+
+// IssueTableRows are the rows of the issues page: IssueRows, or, while it is
+// empty, IssueDays as day rows. A day is labelled by its date, a week by the
+// ISO number of its Monday ("Week 41"), a month by its name and year.
+func (d Data) IssueTableRows() []IssueTableRow {
+	rows := d.IssueRows
+	if len(rows) == 0 {
+		for _, day := range d.IssueDays {
+			rows = append(rows, metrics.IssueRow{Kind: metrics.KindDay, IssueDay: day})
+		}
+	}
+	table := make([]IssueTableRow, len(rows))
+	for i, r := range rows {
+		table[i] = IssueTableRow{Label: issueRowLabel(r), IssueDay: r.IssueDay}
+	}
+	return table
+}
+
+// issueRowLabel is the label of r's kind: the date of a day, "Week 41" for a
+// week, "September 2026" for a month.
+func issueRowLabel(r metrics.IssueRow) string {
+	switch r.Kind {
+	case metrics.KindWeek:
+		_, week := r.Date.ISOWeek()
+		return fmt.Sprintf("Week %d", week)
+	case metrics.KindMonth:
+		return r.Date.Format("January 2006")
+	}
+	return r.Date.Format("2006-01-02")
+}
+
+// AnyIssueDayActive says whether some row of the issues page is Active, that
+// is whether it has a row to show (forsgren#108).
 func (d Data) AnyIssueDayActive() bool {
-	return slices.ContainsFunc(d.IssueDays, func(day metrics.IssueDay) bool { return day.Active })
+	return slices.ContainsFunc(d.IssueTableRows(), func(r IssueTableRow) bool { return r.Active })
 }
 
 // WorkingDay is the hours of a working day, 8 when Data holds none.

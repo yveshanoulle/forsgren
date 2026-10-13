@@ -17,8 +17,8 @@
           </tr>
         </thead>
         <tbody>
-{{range .IssueDays}}{{if .Active}}          <tr>
-            <th scope="row">{{.Date.Format "2006-01-02"}}</th>
+{{range .IssueTableRows}}{{if .Active}}          <tr>
+            <th scope="row">{{.Label}}</th>
             <td>{{.New}}</td>
             <td>{{.Completed}}</td>
             <td>{{.NotPlanned}}</td>
