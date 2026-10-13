@@ -3,7 +3,6 @@ package collect
 import (
 	"errors"
 	"io/fs"
-	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -45,19 +44,7 @@ func TestCollectStoresABugFlagForEveryIssueWithTheBugLabel(t *testing.T) {
 // GitHub refuses the list of the issues labelled bug, the repository is stored
 // not at all, its deployments neither. Proven by mutation.
 func TestARefusedListOfBugIssuesFailsTheRepositoryWhole(t *testing.T) {
-	g := newGitHub(t)
-	g.bodies[deploymentsPath] = list(deployment(1001, shaA, "deploy", "2026-09-21T10:00:00Z"))
-	g.bodies[statusesPath("1001")] = list(status(6, "success", "2026-09-21T10:05:00Z"))
-	g.bodies[bugIssuesPath] = `{"message": "Server Error"}`
-	g.status[bugIssuesPath] = http.StatusInternalServerError
-	path := historyPath(t)
-	r := g.collect(t, shop(production), path, 1)
-	if !errors.Is(r.err, ErrFailed) {
-		t.Errorf("want the repository failed, got %v, %q", r.err, r.stderr)
-	}
-	if _, err := os.Stat(path); !errors.Is(err, fs.ErrNotExist) {
-		t.Errorf("want no history written, got %v", err)
-	}
+	wantARefusedListToFailTheRepositoryWhole(t, bugIssuesPath)
 }
 
 // TestABugFlagsFileThatCannotBeWrittenStoresNoDeployment (forsgren#126): when

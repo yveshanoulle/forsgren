@@ -80,21 +80,27 @@ func TestCollectStoresTheEventsOfEveryIssue(t *testing.T) {
 // fine), the repository is stored not at all, its deployments neither.
 func TestARefusedListOfAllIssuesFailsTheRepositoryWhole(t *testing.T) {
 	for name, key := range map[string]string{"daily read": allIssuesPath, "full read": fullIssuesPath} {
-		t.Run(name, func(t *testing.T) {
-			g := newGitHub(t)
-			g.bodies[deploymentsPath] = list(deployment(1001, shaA, "deploy", "2026-09-21T10:00:00Z"))
-			g.bodies[statusesPath("1001")] = list(status(6, "success", "2026-09-21T10:05:00Z"))
-			g.bodies[key] = `{"message": "Server Error"}`
-			g.status[key] = http.StatusInternalServerError
-			path := historyPath(t)
-			r := g.collect(t, shop(production), path, 1)
-			if !errors.Is(r.err, ErrFailed) {
-				t.Errorf("want the repository failed, got %v, %q", r.err, r.stderr)
-			}
-			if _, err := os.Stat(path); !errors.Is(err, fs.ErrNotExist) {
-				t.Errorf("want no history written, got %v", err)
-			}
-		})
+		t.Run(name, func(t *testing.T) { wantARefusedListToFailTheRepositoryWhole(t, key) })
+	}
+}
+
+// wantARefusedListToFailTheRepositoryWhole collects acme/app, whose deployment
+// GitHub lists, while GitHub refuses the list that key names (a key of the
+// fake's bodies): the run must fail and write no history.
+func wantARefusedListToFailTheRepositoryWhole(t *testing.T, key string) {
+	t.Helper()
+	g := newGitHub(t)
+	g.bodies[deploymentsPath] = list(deployment(1001, shaA, "deploy", "2026-09-21T10:00:00Z"))
+	g.bodies[statusesPath("1001")] = list(status(6, "success", "2026-09-21T10:05:00Z"))
+	g.bodies[key] = `{"message": "Server Error"}`
+	g.status[key] = http.StatusInternalServerError
+	path := historyPath(t)
+	r := g.collect(t, shop(production), path, 1)
+	if !errors.Is(r.err, ErrFailed) {
+		t.Errorf("want the repository failed, got %v, %q", r.err, r.stderr)
+	}
+	if _, err := os.Stat(path); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("want no history written, got %v", err)
 	}
 }
 
