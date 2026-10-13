@@ -68,18 +68,18 @@ func TestIssuesPageMatchesGolden(t *testing.T) {
 	data := calculated()
 	data.IssueRows = []metrics.IssueRow{
 		{Kind: metrics.KindDay, IssueDay: metrics.IssueDay{
-			Date: october(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Open: 7, Active: true,
+			Date: october(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Open: 7, Total: 10, Active: true,
 		}},
 		{Kind: metrics.KindWeek, IssueDay: metrics.IssueDay{
 			Date: on2026(time.September, 28),
-			New:  2, Completed: 4, Duplicate: 3, Other: 5, Open: 6, Active: true,
+			New:  2, Completed: 4, Duplicate: 3, Other: 5, Open: 6, Total: 8, Active: true,
 		}},
 		{Kind: metrics.KindMonth, IssueDay: metrics.IssueDay{
-			Date: on2026(time.August, 1), New: 1, Open: 5, Active: true,
+			Date: on2026(time.August, 1), New: 1, Open: 5, Total: 5, Active: true,
 		}},
 		{Kind: metrics.KindYear, IssueDay: metrics.IssueDay{
 			Date: on2026(time.January, 1).AddDate(-1, 0, 0),
-			New:  6, Completed: 3, NotPlanned: 1, Duplicate: 1, Open: 4, Active: true,
+			New:  6, Completed: 3, NotPlanned: 1, Duplicate: 1, Open: 4, Total: 9, Active: true,
 		}},
 	}
 	checkPageGolden(t, "issues.html", "testdata/issues.golden.html", data)
@@ -188,4 +188,33 @@ func TestIssuesTableShowsTheIssuesCreatedInATotalColumnNextToOpen(t *testing.T) 
 	wantAll(t, "issues.html", got, `<th scope="col">Open</th>
             <th scope="col">Total</th>`, `<td>5</td>
             <td>9</td>`)
+}
+
+// TestIssuesTableShowsOpenOutOfTotalInAColumnNextToTotal (forsgren#134, step
+// 6): the last column, headed Open / Total, shows IssueDay.OpenShare: 5 open of
+// 9 created is 55%, and a row that created none shows the dash.
+func TestIssuesTableShowsOpenOutOfTotalInAColumnNextToTotal(t *testing.T) {
+	data := calculated()
+	data.IssueRows = []metrics.IssueRow{
+		{Kind: metrics.KindDay, IssueDay: metrics.IssueDay{Date: october(2), New: 1, Open: 5, Total: 9, Active: true}},
+		{Kind: metrics.KindDay, IssueDay: metrics.IssueDay{Date: october(1), Completed: 1, Active: true}},
+	}
+	wantAll(t, "issues.html", rendered(t, "issues.html", data), `<th scope="col">Total</th>
+            <th scope="col">Open / Total</th>`, `<td>9</td>
+            <td>55%</td>`, `<td>0</td>
+            <td>—</td>`)
+}
+
+// columnsNote explains the last three columns of the issues tables
+// (forsgren#134).
+const columnsNote = "Open is the issues open at the end of the period. Total is the issues created up to the end " +
+	"of the period, open or closed; a reopened issue is not created again. Open / Total is Open out of Total, " +
+	"in whole percent, rounded down, and a dash when Total is 0."
+
+// TestLegendExplainsTheOpenTotalAndOpenOutOfTotalColumns (forsgren#134, step
+// 7): the legend's Issues pages section, after the note on the periods, says
+// what Open, Total and Open / Total count, and how the percent is cut.
+func TestLegendExplainsTheOpenTotalAndOpenOutOfTotalColumns(t *testing.T) {
+	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()),
+		"<p>"+periodsNote+"</p>\n    <p>"+columnsNote+"</p>\n")
 }

@@ -678,8 +678,8 @@ func TestLegendHasNoSettings(t *testing.T) {
 func TestDaysPageMatchesGolden(t *testing.T) {
 	data := calculated()
 	data.IssueDays = []metrics.IssueDay{
-		{Date: october(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Open: 7, Active: true},
-		{Date: october(1), New: 0, Completed: 0, Open: 5, Active: true},
+		{Date: october(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Open: 7, Total: 10, Active: true},
+		{Date: october(1), New: 0, Completed: 0, Open: 5, Total: 8, Active: true},
 		{
 			Date: on2026(time.September, 30),
 			New:  2, Completed: 4, Duplicate: 3, Other: 5, Open: 6, Active: true,
