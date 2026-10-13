@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -42,5 +43,33 @@ func TestIssueYearsCountsEachCompleteYearBeforeTheCurrentOne(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("row %d: want %v, got %v", i, want[i], got[i])
 		}
+	}
+}
+
+// TestIssueYearsTotalIsTheIssuesOpenAtTheYearsLastDay (forsgren#125, step 2):
+// with now on 14 October 2026 and 2 years, the issues created in 2023 are in
+// the base: open when 2024 begins. 2024 ends with issues 2 and 3 open (1 was
+// closed), 2025 ends with 2, 4 and 6 (3 was closed), and issue 5, created in
+// 2026, changes nothing.
+func TestIssueYearsTotalIsTheIssuesOpenAtTheYearsLastDay(t *testing.T) {
+	at := func(year int, month time.Month, d int) time.Time {
+		return time.Date(year, month, d, 12, 0, 0, 0, time.UTC)
+	}
+	events := []history.IssueEvent{
+		appEvent(1, "created", at(2023, time.July, 3)),
+		appEvent(2, "created", at(2023, time.July, 20)),
+		appEvent(3, "created", at(2024, time.March, 10)),
+		appEvent(1, "closed", at(2024, time.December, 31)),
+		appEvent(4, "created", at(2025, time.February, 2)),
+		appEvent(3, "closed", at(2025, time.June, 5)),
+		appEvent(6, "created", at(2025, time.December, 31)),
+		appEvent(5, "created", at(2026, time.January, 1)),
+	}
+	var got []int
+	for _, y := range IssueYears(events, at(2026, time.October, 14), 2) {
+		got = append(got, y.Total)
+	}
+	if want := []int{3, 2}; !slices.Equal(got, want) {
+		t.Errorf("want the totals %v (2025, 2024), got %v", want, got)
 	}
 }
