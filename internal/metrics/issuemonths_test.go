@@ -136,3 +136,37 @@ func TestIssueMonthRowsAreActiveOnlyWhenSomethingHappened(t *testing.T) {
 		t.Errorf("want Active %v (September, August), got %v", want, got)
 	}
 }
+
+// TestIssueYearMonthsStopAtTheCurrentYear (forsgren#125, step 5): with now on
+// 14 October 2026 and events from December 2025 on, the month rows are
+// September back to January 2026, newest first, and the event in December
+// 2025 is no row. With the oldest event in July 2026 they stop at July, and
+// in January the current year holds no complete month.
+func TestIssueYearMonthsStopAtTheCurrentYear(t *testing.T) {
+	at := func(year int, month time.Month, d int) time.Time {
+		return time.Date(year, month, d, 12, 0, 0, 0, time.UTC)
+	}
+	months := func(events []history.IssueEvent, now time.Time) []time.Month {
+		var got []time.Month
+		for _, m := range IssueYearMonths(events, now) {
+			got = append(got, m.Date.Month())
+		}
+		return got
+	}
+	october := at(2026, time.October, 14)
+	fromDecember := []history.IssueEvent{
+		appEvent(1, "created", at(2025, time.December, 3)),
+		appEvent(2, "created", at(2026, time.February, 2)),
+	}
+	want := []time.Month{9, 8, 7, 6, 5, 4, 3, 2, 1}
+	if got := months(fromDecember, october); !slices.Equal(got, want) {
+		t.Errorf("want the months %v, got %v", want, got)
+	}
+	fromJuly := []history.IssueEvent{appEvent(1, "created", at(2026, time.July, 3))}
+	if got, want := months(fromJuly, october), []time.Month{9, 8, 7}; !slices.Equal(got, want) {
+		t.Errorf("want the months %v, got %v", want, got)
+	}
+	if got := months(fromDecember, at(2026, time.January, 5)); len(got) != 0 {
+		t.Errorf("want no months in January, got %v", got)
+	}
+}

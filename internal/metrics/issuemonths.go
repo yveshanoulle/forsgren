@@ -57,3 +57,8 @@ func IssueMonthRows(events []history.IssueEvent, now time.Time) []IssueDay {
 	current := monthStart(now)
 	return IssueMonths(events, now, monthsBefore(oldest, current))
 }
+
+// IssueYearMonths is IssueMonthRows cut at the start of the year of now.
+func IssueYearMonths(events []history.IssueEvent, now time.Time) []IssueDay {
+	return nil
+}
