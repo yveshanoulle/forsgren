@@ -520,15 +520,15 @@ linked to its GitHub repository, its version, "Metrics from GitHub data."
 "Calculated at
 2026-10-03 12:00 UTC", the moment of the run (UTC, to the minute), on every
 run, with rows or without; and, when a newer forsgren release exists than the
-version that built the page, the version line adds it, "Forsgren 0.8.4 ·
+version that built the page, the version line adds it, "Forsgren 0.8.5 ·
 0.3.9 is available" (forsgren#40; nothing is added when the page is up to
 date, and no repository appears). The numbers are compared as numbers, so 0.0.10
 is newer than 0.0.9. On every page the footer's paragraph is followed by
 two links on one line, "Settings" and "Legend", to the settings page and the legend (forsgren#83, #84, #128). The footer is the same on all eight pages, so the settings page and the legend link to themselves too (Yves's ruling on decision #133).
 
 `render` writes one table (forsgren#38) first on the table page, with no text
-above it but a visually hidden heading for screen readers, "Forsgren 0.8.4:
-the five DORA metrics"; where each metric comes from is explained on the
+above it but the page's heading, "DORA metrics" (forsgren#135; the version is
+in the footer); where each metric comes from is explained on the
 legend page, counting back from the time in the footer. A config that lists
 no projects has no table: the page shows, in its place, a short how-to, that
 `forsgren.config.yml` lists the projects, with a small example (a project, two
@@ -572,8 +572,8 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   ("14%"); a `-` where there is no number (no commits, no completed
   recovery, no deployments or successful deployments). A row with no
   deployments recorded is six cells there, two `0` and four `-`, never a
-  sentence. The table's caption reads "DORA metrics" and names the table and
-  its scroll region; the menu at the top of the page marks the view, plain
+  sentence. The table has no caption: the page's heading, "DORA metrics",
+  names it and its scroll region (forsgren#135); the menu at the top of the page marks the view, plain
   text with `aria-current="page"`, and links the others (`../standard/`,
   `../numbers/`, `../scoring/`). Up to 0.8.3 the view switch sat in the caption
   (forsgren#51); 0.8.4 moved it to the menu (forsgren#128). A page one folder
@@ -601,18 +601,18 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   spans two months is in both." (forsgren#128, decision #133). It no longer
   lists the settings (forsgren#84).
 - **The days page** (`days.html`, titled "Daily"; `issues.html` up to 0.8.3; forsgren#76, #128) is a table, Date | New |
-  Completed | Not planned | Duplicate | Other | Total, one row per UTC calendar day,
+  Completed | Not planned | Duplicate | Other | Open | Total | Open / Total, one row per UTC calendar day,
   the last 30 complete days (`issueDays`), yesterday on top and going down;
   today is left out, so a row never changes once it is shown (apart from the
   known limits below). It has no week or month row: those are on the issues
   page (forsgren#123, #128). All tracked repositories are counted together. **Inactive days are hidden** (forsgren#108, decisions
   #116 and #117): a day is active when it has a new issue, a close of any kind
   or a reopen, and a day with none of these has no row. A reopen keeps a day
-  visible because it changes the Total. The window stays 30 calendar days, so
+  visible because it changes the Open. The window stays 30 calendar days, so
   hiding days gives fewer rows; the page does not reach further back to fill
   30. The calculation keeps every day (`metrics.IssueDays` marks each with
-  `Active`): the Total is computed over all of them, so a hidden day's Total
-  equals that of the shown day before it. When no day of the window is
+  `Active`): Open and Total are computed over all of them, so a hidden day's
+  Open and Total equal those of the shown day before it. When no day of the window is
   active, and when there are no issue events yet, the page shows one line,
   "No issues were opened, closed or reopened in the last 30 days.", instead
   of the table. **New** counts the `created` events of
@@ -621,18 +621,27 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   (decision #107): **Completed** is the reason `completed`, **Not planned**
   `not_planned` and **Duplicate** `duplicate`; **Other** is a close with no
   reason (an old issue, closed before GitHub gave reasons) or a reason
-  forsgren does not know. **Total** is the issues open at the end of that
+  forsgren does not know. **Open** (headed Total up to 0.8.4, forsgren#134) is the issues open at the end of that
   day, across all repositories: the issues created, minus those closed, plus
   those reopened, counted from the oldest stored event. Every close counts
   -1 and every reopen +1, also for an issue with no created event
   (forsgren#122), and the order of the lines in `issues.csv` does not
   matter. A file `collect` wrote always holds the created event with the
-  first close, so only a hand-edited `issues.csv` can show such a Total. The
-  Total is shown as calculated: a negative Total means the collected data
+  first close, so only a hand-edited `issues.csv` can show such an Open. The
+  Open is shown as calculated: a negative Open means the collected data
   is inconsistent (missing events, a partial read, or a bug), and it is
   shown rather than hidden. Reopen times are the
-  times `collect` saw them (see Issue events), so a Total from before a
-  reopen was seen is an estimate. The table has no caption: the page's
+  times `collect` saw them (see Issue events), so an Open from before a
+  reopen was seen is an estimate. **Total** is the issues created up to the
+  end of that day, across all repositories, open or closed: the `created`
+  events from the oldest stored one on, each counted once, so a close never
+  lowers it and a reopen adds nothing, the issue already counts. An issue
+  whose created event is not stored is not counted (Yves's ruling,
+  forsgren#134), while a close or a reopen of it still moves Open (forsgren#122).
+  **Open / Total** is Open out of Total, in whole percent, rounded down, as the
+  change fail rate is ("55%"), and a dash when Total is 0. It is shown as
+  calculated: where the stored history is incomplete, Open can exceed
+  Total and the percent then exceeds 100%. The table has no caption: the page's
   heading, Daily, names it and its scroll region, and the legend says the days
   are UTC (forsgren#128). `render` reads `data/issues.csv` next to its
   `--data` file like `failures.csv`: a missing file is no events (the
@@ -641,7 +650,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
 - **The issues page** (`issues.html`, titled "Issues"; `months.html` up to
   0.8.3; forsgren#123, #128, from #89, decisions #118 and #119) is the days
   page's table over longer periods: Period | New |
-  Completed | Not planned | Duplicate | Other | Total, the columns counted as
+  Completed | Not planned | Duplicate | Other | Open | Total | Open / Total, the columns counted as
   on the days page, with four kinds of row, newest first within each.
   First the **days of the current week**, Monday up to yesterday (none on a
   Monday), labelled by their UTC date; then the **complete weeks** that touch
@@ -656,16 +665,17 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   40 (week 40 begins on 28 September), then September back to January 2026,
   then 2025, 2024 and the years before it. In January the current year has no
   complete month, so the years follow the weeks directly. A year row counts
-  the events of its UTC calendar year, and its **Total** is the issues open at
-  the end of 31 December; the oldest year may be partial, as the oldest month
+  the events of its UTC calendar year, and its **Open** is the issues open at
+  the end of 31 December, its **Total** the issues created up to then; the oldest year may be partial, as the oldest month
   is. Today is left out, so
   a row never changes once it is shown. **Inactive rows are hidden** as on
   the days page (forsgren#108, decisions #116 and #117, for weeks and
   months too). The calculation keeps every row (`metrics.IssueRows`, built
   from `metrics.IssueWeekDays`, `IssueWeeks`, `IssueYearMonths` and
-  `IssueYearRows`, each marking its rows with `Active`): the Total is computed over all of them, so
-  a hidden row's Total equals that of the shown row before it. In a week, month
-  or year row, **Total** is the issues open at the end of the row's last day.
+  `IssueYearRows`, each marking its rows with `Active`): Open and Total are computed over all of them, so
+  a hidden row's Open and Total equal those of the shown row before it. In a week, month
+  or year row, **Open** is the issues open at the end of the row's last day, **Total**
+  the issues created up to the end of it, and **Open / Total** their share.
   When no row is active, and when there are no issue events yet, the page
   shows one line, "No issues were opened, closed or reopened before today."
   (decision #119: the rows reach back months, so the line names no period),
@@ -679,8 +689,9 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   (`templates/layout/issuestable.html`).
 - **The settings page** (`settings.html`, forsgren#84) lists each optional
   config key with the value in use, see Configuration.
-- **Layout:** the DORA table has a caption, an issue table is named by its
-  page's heading, and every table has `<th scope>` headers; it scrolls
+- **Layout:** no table has a caption: each is named by its page's heading
+  ("DORA metrics" on the three views and the root, Issues, Daily), and one `h1`
+  rule in `styles.css` sets the look of every page's heading (forsgren#135), and every table has `<th scope>` headers; it scrolls
   sideways inside its own box on a narrow screen, so the page keeps its
   1rem (16px) gutter and never scrolls sideways itself. `styles.css` sets
   no colour but `color-scheme: light dark`, so light and dark mode follow
@@ -1146,7 +1157,7 @@ again writes nothing.
 
 **The full read** (decision #109) gives the days and issues pages their history back to
 the first issue, including the open issues nothing has touched for a long
-time, which the Total counts.
+time, which Open counts.
 The first run for a repository with no line in `data/issues_full.csv`
 (`repository,full_at`, the time the full read was done) reads every issue of
 it, open or closed, without a time cut: `issues?state=all`, 100 per page, up
@@ -1160,7 +1171,7 @@ continues, but older issues and so the historical total stay incomplete`),
 what was read is kept, the repository is not noted, and the next run tries
 again. Daily collection is not capped this way: it continues past the cap,
 but for a repository with more than 10,000 issues the back history, and so
-the historical Total, stays incomplete. An `issues_full.csv` that is not in
+the historical Open and Total, stays incomplete. An `issues_full.csv` that is not in
 the format refuses the run before GitHub is asked anything.
 
 **Known limits of the issue events** (forsgren#76):
@@ -1172,15 +1183,15 @@ the format refuses the run before GitHub is asked anything.
   before, closed again at a new time).
 - A reopen is dated when collect sees it, up to a day late (the
   runs are daily), not when it happened on GitHub; its day on the issues
-  page can be the next one, and a Total from before a reopen was seen is an
+  page can be the next one, and an Open from before a reopen was seen is an
   estimate.
 - The full read stops at 10,000 issues: for a repository above that, the
-  daily collection continues, but the back history and the historical Total
+  daily collection continues, but the back history and the historical Open and Total
   are incomplete (the warning above).
 
 ## Running forsgren
 
-forsgren renders a static page whose footer says "Forsgren 0.8.4", the version of
+forsgren renders a static page whose footer says "Forsgren 0.8.5", the version of
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
@@ -1239,7 +1250,7 @@ pull-request check failed", and a Setup line, see The setup issue); the link is 
 private to the repository, unlike the public page. A flag it cannot use is a
 usage error that prints nothing. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides
-"Forsgren 0.8.4" in its footer, a how-to for filling `forsgren.config.yml`;
+"Forsgren 0.8.5" in its footer, a how-to for filling `forsgren.config.yml`;
 without `--config` (the build above has no installation config) or with
 projects, the page is the placeholder. With `--data` as well (it needs `--config`), the
 page shows each project's deployment frequency from that history, counted
@@ -1373,7 +1384,7 @@ jobs:
 - **`pull-requests: read` is optional, and the caller's to grant too**
   (forsgren#40). With it, when a newer forsgren release exists and
   Dependabot has an open pull request in your repository that bumps the
-  `uses:` pin to exactly that release, the page footer says "Forsgren 0.8.4
+  `uses:` pin to exactly that release, the page footer says "Forsgren 0.8.5
   · 0.3.9 is waiting in pull request #7 (merge it to update)", with the
   number only. Without it the footer still says "0.3.9 is available": the
   lookup treats the refusal (a 403) as unknown, never as an error, and the
@@ -1436,7 +1447,7 @@ workflow passes the status on as `render --needs-check` and
   first line of its body; the label only narrows the lookup. An issue with
   the label and no marker is never touched, and if you remove the label from
   the managed issue, the next run opens a new one. Its title is "forsgren
-  0.8.4 needs more configuration" (the running version) and its body lists the
+  0.8.5 needs more configuration" (the running version) and its body lists the
   steps of each missing need; title and body are presentation, and a run
   rewrites them.
 - **What a run does with it.** Something missing and no issue: it opens one.
@@ -1648,7 +1659,10 @@ CI and [CONTRIBUTING.md](CONTRIBUTING.md)).
 Its closing summary prints the message, one row per phase with the
 gate counts and the page count, and every failure's reason. A run ended by
 TERM, INT or HUP ends with `Aborted ❌ (<signal>, exit <n>)` (143, 130, 129),
-never `All checks passed`.
+never `All checks passed`. A run that ends with exit 0 but never reached its
+last statement, as when bash 3.2 ends the script on an unbound variable under
+`set -u`, is an abort too: the summary says `Aborted ❌` and FBP.sh exits 1
+(forsgren#136; `Scripts/test_fbp_abort_exit.sh`).
 
 **`./sfl.sh pre|post`** runs one phase of the gates. Before PRE it runs
 `git pull --ff-only` and stops (exit 3) when that cannot fast-forward, then
@@ -2008,6 +2022,21 @@ The POST gates, on the generated site:
   is not a Markdown link); and this README links both in plain Markdown, not
   inside a code block, a code span or a comment. Every finding is reported in
   one run.
+- **exit-trap completion** (`Scripts/check_exit_trap_completion.sh`, forsgren's
+  own, forsgren#137, found by #136): a shell script, at the repository root or
+  directly in `Scripts/`, that has a top-level `set -e` before a top-level
+  `trap ... EXIT` is red unless it carries the completion idiom (a `COMPLETED`
+  flag set as its last statement, `selftest_begin` or `lib_selftest.sh`). On
+  bash 3.2 an unbound variable after such a trap ends the script with exit 0,
+  so a caller reads an abort as a pass; the idiom turns an exit of 0 without
+  the flag into exit 1. The rule reads source only (its limits are in the
+  script's header); `Scripts/test_exit_trap_completion_behaviour.sh` is the
+  other half, which copies each real script (`build_site.sh`,
+  `gate_htmlhint.sh`, `test_sfl_pull.sh`, `test_validate_required_pages.sh`)
+  into a sandbox, injects an unbound variable right after its trap and
+  requires a non-zero exit, the probe named, the "aborted before completing"
+  line and no temporary directory left behind. Its self-test is
+  `Scripts/test_check_exit_trap_completion.sh`.
 
 forsgren has no privacy-pages gate: that one is another estate repository's, pinning
 the content of a privacy policy forsgren does not serve. The order file

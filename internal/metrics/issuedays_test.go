@@ -162,10 +162,11 @@ func checkOpen(t *testing.T, events []history.IssueEvent, want []int) {
 	checkColumn(t, events, openOf, want)
 }
 
-// TestIssueDaysOpenCountsTheIssuesCreatedUpToTheEndOfTheDay (forsgren#76,
-// v0.6.2): the Open of a day is how many issues were created by its last
-// second, all repositories together; an issue created today is in no row.
-func TestIssueDaysOpenCountsTheIssuesCreatedUpToTheEndOfTheDay(t *testing.T) {
+// TestIssueDaysOpenCountsTheIssuesCreatedWhileNoneIsClosed (forsgren#76,
+// v0.6.2): with no close, the Open of a day is how many issues were created by
+// its last second, all repositories together; an issue created today is in no
+// row.
+func TestIssueDaysOpenCountsTheIssuesCreatedWhileNoneIsClosed(t *testing.T) {
 	checkOpen(t, []history.IssueEvent{
 		issueEvent("acme/app", "created", sep30),
 		issueEvent("acme/cli", "created", oct(1, 8, 0, 0)),
@@ -314,7 +315,7 @@ func TestIssueDaysTotalCountsTheIssuesCreatedUpToTheEndOfTheDay(t *testing.T) {
 		reopenOfIssue(2, oct(2, 9, 0, 0)),
 		appEvent(3, "created", oct(3, 1, 0, 0)),
 	}
-	checkColumn(t, events, openOf, []int{2, 2, 1})
+	checkOpen(t, events, []int{2, 2, 1})
 	checkColumn(t, events, totalOf, []int{3, 3, 2})
 }
 

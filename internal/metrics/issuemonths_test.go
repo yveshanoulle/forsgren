@@ -71,7 +71,7 @@ func TestIssueMonthsOpenIsTheIssuesOpenAtTheMonthsLastDay(t *testing.T) {
 		got = append(got, m.Open)
 	}
 	if want := []int{2, 3}; !slices.Equal(got, want) {
-		t.Errorf("want the totals %v (September, August), got %v", want, got)
+		t.Errorf("want the open counts %v (September, August), got %v", want, got)
 	}
 }
 

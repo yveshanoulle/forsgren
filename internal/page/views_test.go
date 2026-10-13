@@ -82,7 +82,7 @@ func TestScoringPageShowsEachMetricsScoreAndOverallPerformance(t *testing.T) {
 // with no data has no scored metric, so all six cells, Overall Performance
 // included, are -.
 func TestScoringPageShowsNoOverallPerformanceWithoutAScore(t *testing.T) {
-	data := Placeholder("0.8.4")
+	data := Placeholder("0.8.5")
 	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Empty"}})
 	got := rendered(t, "scoring/index.html", data)
 	if !row("Acme Empty", "-", "-", "-", "-", "-", "-").MatchString(got) {
@@ -95,7 +95,7 @@ func TestScoringPageShowsNoOverallPerformanceWithoutAScore(t *testing.T) {
 // the frequency band metrics gives it, the lowest, but no data: all six
 // cells, Overall Performance included, are -.
 func TestScoringPageShowsNoScoreForAProjectWithoutDeployments(t *testing.T) {
-	data := Placeholder("0.8.4")
+	data := Placeholder("0.8.5")
 	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Idle",
 		Frequency: metrics.Frequency{Band: metrics.LessThanSixMonthly}}})
 	got := rendered(t, "scoring/index.html", data)
@@ -111,7 +111,7 @@ func TestScoringPageShowsNoScoreForAProjectWithoutDeployments(t *testing.T) {
 // no other metric scored, so does Overall Performance. A project with only a
 // failed deployment, Acme Tools, has no success and keeps -.
 func TestScoringPageScoresZeroForALastSuccessOlderThanSixMonths(t *testing.T) {
-	data := Placeholder("0.8.4")
+	data := Placeholder("0.8.5")
 	old := metrics.Frequency{Latest: time.Date(2025, 9, 1, 9, 30, 0, 0, time.UTC), Band: metrics.LessThanSixMonthly}
 	failed := metrics.ChangeFailRate{Deployments: 1, FailedDeployments: 1, Failed: 1, Band: metrics.HundredPercent}
 	data.Rows = Table([]metrics.Row{
@@ -195,7 +195,7 @@ func TestMenuMarksTheCurrentView(t *testing.T) {
 // frequency (a real zero) and - for the other four; the standard page keeps
 // its sentence across the row.
 func TestViewsShowARowWithoutDeploymentsAsTheirOwnCells(t *testing.T) {
-	data := Placeholder("0.8.4")
+	data := Placeholder("0.8.5")
 	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Empty"}})
 	numbers := rendered(t, "numbers/index.html", data)
 	if !row("Acme Empty", "0", "0", "-", "-", "-", "-").MatchString(numbers) {
@@ -229,7 +229,7 @@ func TestViewPagesMatchGolden(t *testing.T) {
 // TestViewPagesWithoutDataMatchGolden (forsgren#46): the views of the
 // placeholder build, which has no rows, with the menu (forsgren#128).
 func TestViewPagesWithoutDataMatchGolden(t *testing.T) {
-	data := Placeholder("0.8.4")
+	data := Placeholder("0.8.5")
 	data.AsOf = "2026-10-03 12:00"
 	checkPageGolden(t, "standard/index.html", "testdata/standard.placeholder.golden.html", data)
 	checkPageGolden(t, "numbers/index.html", "testdata/numbers.placeholder.golden.html", data)
@@ -238,7 +238,7 @@ func TestViewPagesWithoutDataMatchGolden(t *testing.T) {
 // TestNumbersPageWithoutDeploymentsMatchesGolden (forsgren#46): a project
 // with no deployment recorded yet is five cells on the numbers page.
 func TestNumbersPageWithoutDeploymentsMatchesGolden(t *testing.T) {
-	data := Placeholder("0.8.4")
+	data := Placeholder("0.8.5")
 	data.AsOf = "2026-10-03 12:00"
 	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Empty"}})
 	checkPageGolden(t, "numbers/index.html", "testdata/numbers.no-data.golden.html", data)
@@ -251,7 +251,7 @@ func TestWriteSiteFailsWhenAViewFolderIsAFile(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "numbers"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if n, err := WriteSite(dir, Placeholder("0.8.4")); err == nil {
+	if n, err := WriteSite(dir, Placeholder("0.8.5")); err == nil {
 		t.Errorf("want an error when a view's folder is a regular file, got %d pages", n)
 	}
 }
@@ -275,7 +275,7 @@ func TestRootPageFollowsItsDataView(t *testing.T) {
 	wantAll(t, "index.html", rendered(t, "index.html", data), `<th scope="col">Overall Performance</th>`, "<td>8.4</td>")
 	data.View = ""
 	wantNone(t, "index.html", rendered(t, "index.html", data), "aria-current")
-	placeholder := Placeholder("0.8.4")
+	placeholder := Placeholder("0.8.5")
 	placeholder.View = "numbers"
 	wantAll(t, "index.html", rendered(t, "index.html", placeholder), wantMenu("", "Numbers", "true"))
 }
@@ -296,12 +296,16 @@ func TestMenuEndsWithIssuesAndDaily(t *testing.T) {
 	}
 }
 
+// metricsPages are the pages that show the metrics table: the three views and
+// the root, which shows the configured one (forsgren#135).
+var metricsPages = []string{"index.html", "standard/index.html", "numbers/index.html", "scoring/index.html"}
+
 // TestViewPagesAndTheRootOpenWithTheDORAMetricsHeading (forsgren#135, step 8):
 // the standard, numbers and scoring pages and the root, a view too, show a
 // visible h1, DORA metrics, right after the menu, where the issues page shows
 // Issues; it replaces the visually hidden h1 that named the version.
 func TestViewPagesAndTheRootOpenWithTheDORAMetricsHeading(t *testing.T) {
-	for _, name := range []string{"index.html", "standard/index.html", "numbers/index.html", "scoring/index.html"} {
+	for _, name := range metricsPages {
 		got := rendered(t, name, viewData())
 		wantAll(t, name, got, "</nav>\n  <main>\n    <h1 id=\"metrics-heading\">DORA metrics</h1>\n")
 		wantNone(t, name, got, "visually-hidden")
@@ -313,7 +317,7 @@ func TestViewPagesAndTheRootOpenWithTheDORAMetricsHeading(t *testing.T) {
 // its own; the page's heading, DORA metrics, labels the region around it, so
 // the id its aria-labelledby names exists.
 func TestMetricsTableHasNoCaptionAndIsLabelledByTheHeading(t *testing.T) {
-	for _, name := range []string{"index.html", "standard/index.html", "numbers/index.html", "scoring/index.html"} {
+	for _, name := range metricsPages {
 		got := rendered(t, name, viewData())
 		wantAll(t, name, got, `<h1 id="metrics-heading">`, `aria-labelledby="metrics-heading"`)
 		wantNone(t, name, got, "<caption", "metrics-caption")

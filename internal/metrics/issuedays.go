@@ -53,7 +53,7 @@ func IssueDays(events []history.IssueEvent, now time.Time, days int) []IssueDay 
 		func(at time.Time) (int, bool) { return dayRow(at, today, days) })
 }
 
-// periodRows is n rows of back-to-back periods (days, weeks or months),
+// periodRows is n rows of back-to-back periods (days, weeks, months or years),
 // newest first, row i dated dateOf(i), the start of its period; none for n 0
 // or less. Each event counts on the row rowOf gives its time, each row's
 // Open is the issues open at the end of its period, and its Total the issues
@@ -71,11 +71,26 @@ func periodRows(
 		}
 	}
 	start := dateOf(len(rows) - 1)
-	perRow, atStart := periodChanges(events, start, len(rows), rowOf, openDelta)
-	addUp(rows, perRow, atStart, func(d *IssueDay) *int { return &d.Open })
-	perRow, atStart = periodChanges(events, start, len(rows), rowOf, createdDelta)
-	addUp(rows, perRow, atStart, func(d *IssueDay) *int { return &d.Total })
+	for _, c := range runningCounts {
+		perRow, atStart := periodChanges(events, start, len(rows), rowOf, c.delta)
+		addUp(rows, perRow, atStart, c.column)
+	}
 	return rows
+}
+
+// runningCount is a column that counts up over time rather than per period:
+// what each event adds to it (delta) and where a row keeps it (column).
+type runningCount struct {
+	delta  func(history.IssueEvent) int
+	column func(*IssueDay) *int
+}
+
+// runningCounts are the columns periodRows adds up from the oldest row on, each
+// at the end of its row's period: Open by openDelta (forsgren#122) and Total by
+// createdDelta (forsgren#134).
+var runningCounts = []runningCount{
+	{openDelta, func(d *IssueDay) *int { return &d.Open }},
+	{createdDelta, func(d *IssueDay) *int { return &d.Total }},
 }
 
 // periodChanges is what the events do to a count, by delta: per row of a
@@ -126,10 +141,10 @@ func createdDelta(e history.IssueEvent) int {
 // perRow change of each period up to it, from the oldest row on. rows are
 // newest first, as is perRow.
 func addUp(rows []IssueDay, perRow []int, atStart int, column func(*IssueDay) *int) {
-	total := atStart
+	running := atStart
 	for i := len(rows) - 1; i >= 0; i-- {
-		total += perRow[i]
-		*column(&rows[i]) = total
+		running += perRow[i]
+		*column(&rows[i]) = running
 	}
 }
 

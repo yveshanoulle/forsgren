@@ -70,7 +70,7 @@ func TestIssueYearsOpenIsTheIssuesOpenAtTheYearsLastDay(t *testing.T) {
 		got = append(got, y.Open)
 	}
 	if want := []int{3, 2}; !slices.Equal(got, want) {
-		t.Errorf("want the totals %v (2025, 2024), got %v", want, got)
+		t.Errorf("want the open counts %v (2025, 2024), got %v", want, got)
 	}
 }
 

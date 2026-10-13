@@ -27,19 +27,15 @@ selftest_begin "exit-trap completion behaviour self-test"
 
 PROBE_VAR="G_PROBE"
 
-# probe_case <name> <script> <setup-function> [script args...] — the sandbox
-# $TMP/<name> holds Scripts/<script> with the probe injected, bin/, tmp/ (where its
-# mktemp stub puts every temp path) and whatever <setup-function> adds.
-probe_case() {
-  local name="$1" script="$2" setup="$3" dir inject out err rc left
-  shift 3
-  dir="$TMP/$name"
+# probe_sandbox <dir> <script> — <dir> holds Scripts/<script> with the probe
+# injected right after its top-level EXIT trap (the line is found by grep, so it
+# follows edits), bin/ with a mktemp stub, and tmp/, where that stub puts every
+# temp path. Returns 1 when the script has no such trap to probe.
+probe_sandbox() {
+  local dir="$1" script="$2" inject
   mkdir -p "$dir/Scripts" "$dir/bin" "$dir/tmp"
   inject="$(grep -nE -m 1 '^trap .* EXIT' "$ROOT/Scripts/$script" | cut -d: -f1)"
-  if [[ -z "$inject" ]]; then
-    fail "${name}: Scripts/${script} has no top-level EXIT trap to probe, so nothing was tested"
-    return
-  fi
+  [[ -n "$inject" ]] || return 1
   awk -v n="$inject" -v v="$PROBE_VAR" '{ print } NR == n { print ": \"${" v "}\"" }' \
     "$ROOT/Scripts/$script" > "$dir/Scripts/$script"
   chmod +x "$dir/Scripts/$script"
@@ -51,10 +47,13 @@ if [ "\${1:-}" = "-d" ]; then exec /usr/bin/mktemp -d "$dir/tmp/tmp.XXXXXXXX"; f
 exec /usr/bin/mktemp "$dir/tmp/tmp.XXXXXXXX"
 EOF
   chmod +x "$dir/bin/mktemp"
-  "$setup" "$dir"
-  rc=0
-  (cd "$dir" && PATH="$dir/bin:$PATH" /bin/bash "./Scripts/$script" "$@" \
-    > "$dir/out.log" 2> "$dir/err.log" < /dev/null) || rc=$?
+}
+
+# probe_verdict <name> <script> <dir> <rc> — judges the run in <dir>, which
+# exited <rc>: the probe aborted it, and it exited non-zero, said 'aborted
+# before completing' and left nothing in <dir>/tmp.
+probe_verdict() {
+  local name="$1" script="$2" dir="$3" rc="$4" out err left held=true
   out="$(cat "$dir/out.log")"
   err="$(cat "$dir/err.log")"
   left="$(find "$dir/tmp" -mindepth 1 | head -n 3)"
@@ -62,7 +61,6 @@ EOF
     fail "${name}: the probe never aborted the run (exit ${rc}), so nothing was tested. stderr: ${err}"
     return
   fi
-  local held=true
   if [[ "$rc" -eq 0 ]]; then
     fail "${name}: an abort after ${script}'s EXIT trap exits 0 — a caller takes that as a pass. stdout: ${out}"
     held=false
@@ -78,6 +76,24 @@ EOF
   if $held; then
     echo "  ok: ${name}: an abort after ${script}'s EXIT trap exits ${rc}, says 'aborted before completing' and leaves no temp directory"
   fi
+}
+
+# probe_case <name> <script> <setup-function> [script args...] — runs
+# Scripts/<script> with the probe in the sandbox $TMP/<name> (probe_sandbox)
+# plus whatever <setup-function> adds, with the script args, and judges the
+# run (probe_verdict).
+probe_case() {
+  local name="$1" script="$2" setup="$3" dir rc=0
+  shift 3
+  dir="$TMP/$name"
+  if ! probe_sandbox "$dir" "$script"; then
+    fail "${name}: Scripts/${script} has no top-level EXIT trap to probe, so nothing was tested"
+    return
+  fi
+  "$setup" "$dir"
+  (cd "$dir" && PATH="$dir/bin:$PATH" /bin/bash "./Scripts/$script" "$@" \
+    > "$dir/out.log" 2> "$dir/err.log" < /dev/null) || rc=$?
+  probe_verdict "$name" "$script" "$dir" "$rc"
 }
 
 # 1. build_site.sh: a stub go (the probe is hit before anything is rendered).
