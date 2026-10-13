@@ -45,3 +45,11 @@ func monthRow(at, current time.Time, rows int) (int, bool) {
 	back := (current.Year()-at.Year())*12 + int(current.Month()-at.Month())
 	return back - 1, back >= 1 && back <= rows
 }
+
+// IssueMonthRows is every complete calendar month from the month of the
+// oldest event to the month before the one of now, newest first, a month
+// without events a zero row (carrying the Total); none when there are no
+// events or the oldest is in the current month.
+func IssueMonthRows(events []history.IssueEvent, now time.Time) []IssueDay {
+	return nil
+}
