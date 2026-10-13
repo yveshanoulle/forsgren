@@ -76,42 +76,25 @@ func periodRows(
 func openChanges(
 	events []history.IssueEvent, start time.Time, rows int, rowOf func(time.Time) (int, bool),
 ) (perRow []int, openAtStart int) {
-	created := createdIssues(events)
 	perRow = make([]int, rows)
 	for _, e := range events {
 		if i, ok := rowOf(e.At); ok {
-			perRow[i] += openDelta(e, created)
+			perRow[i] += openDelta(e)
 		} else if e.At.Before(start) {
-			openAtStart += openDelta(e, created)
+			openAtStart += openDelta(e)
 		}
 	}
 	return perRow, openAtStart
 }
 
-// createdIssues are the issues with a created event in events.
-func createdIssues(events []history.IssueEvent) map[history.IssueKey]bool {
-	created := map[history.IssueKey]bool{}
-	for _, e := range events {
-		if e.Event == history.EventCreated {
-			created[e.IssueKey()] = true
-		}
-	}
-	return created
-}
-
-// openDelta is what e adds to the issues open: one for a created event; for
-// an issue that has a created event, one more for a reopened event and one
-// less for a closed one. A reopen or a close of an issue never seen created
-// changes nothing (forsgren#113).
-func openDelta(e history.IssueEvent, created map[history.IssueKey]bool) int {
-	switch {
-	case e.Event == history.EventCreated:
+// openDelta is what e adds to the issues open: one for a created event and
+// for a reopened one, one less for a closed one, whether or not the issue has
+// a created event in the list (forsgren#122, overruling #113 and #120).
+func openDelta(e history.IssueEvent) int {
+	switch e.Event {
+	case history.EventCreated, history.EventReopened:
 		return 1
-	case !created[e.IssueKey()]:
-		return 0
-	case e.Event == history.EventReopened:
-		return 1
-	case e.Event == history.EventClosed:
+	case history.EventClosed:
 		return -1
 	}
 	return 0

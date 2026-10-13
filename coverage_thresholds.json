@@ -317,7 +317,6 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:IssueDays": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:periodRows": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:addUpTotals": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:createdIssues": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:openChanges": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:openDelta": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:count": 100.0,

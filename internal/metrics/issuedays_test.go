@@ -225,16 +225,16 @@ func closeOfIssue(number int64, at time.Time) history.IssueEvent {
 	return e
 }
 
-// TestIssueDaysTotalIgnoresACloseOfAnIssueItNeverSawCreated (forsgren#76,
-// v0.6.2): a close whose issue has no created event in the list, before the
-// window or in it, lowers no Total, which never counts an issue it did not see
-// opened and so never goes below the open issues it knows.
-func TestIssueDaysTotalIgnoresACloseOfAnIssueItNeverSawCreated(t *testing.T) {
+// TestIssueDaysTotalCountsACloseOfAnIssueItNeverSawCreated (forsgren#122,
+// overruling #120): a close counts -1 whether or not its issue has a created
+// event in the list, before the window or in it, so the Total goes below the
+// open issues it knows.
+func TestIssueDaysTotalCountsACloseOfAnIssueItNeverSawCreated(t *testing.T) {
 	checkTotals(t, []history.IssueEvent{
 		closeOfIssue(7, sep30.AddDate(0, 0, -3)),
 		issueEvent("acme/app", "created", sep30),
 		closeOfIssue(8, oct(1, 8, 0, 0)),
-	}, []int{1, 1, 1})
+	}, []int{-1, -1, 0})
 }
 
 // reopenOfIssue is a reopen of acme/app's issue number at at.
@@ -242,17 +242,17 @@ func reopenOfIssue(number int64, at time.Time) history.IssueEvent {
 	return appEvent(number, "reopened", at)
 }
 
-// TestIssueDaysTotalIgnoresAReopenOfAnIssueItNeverSawCreated (forsgren#113):
-// like its close, a reopen whose issue has no created event in the list lowers
-// and raises no Total, so closed, reopened, closed of such an issue leaves
-// every Total as it was.
-func TestIssueDaysTotalIgnoresAReopenOfAnIssueItNeverSawCreated(t *testing.T) {
+// TestIssueDaysTotalCountsAReopenOfAnIssueItNeverSawCreated (forsgren#122,
+// overruling #113): a reopen counts +1 whether or not its issue has a created
+// event in the list, so closed, reopened, closed of such an issue is -1, +1,
+// -1 on the Total.
+func TestIssueDaysTotalCountsAReopenOfAnIssueItNeverSawCreated(t *testing.T) {
 	checkTotals(t, []history.IssueEvent{
 		closeOfIssue(7, sep30.AddDate(0, 0, -3)),
 		issueEvent("acme/app", "created", sep30),
 		reopenOfIssue(7, oct(1, 8, 0, 0)),
 		closeOfIssue(7, oct(2, 8, 0, 0)),
-	}, []int{1, 1, 1})
+	}, []int{0, 1, 0})
 }
 
 // TestIssueDaysTotalDoesNotDependOnTheOrderOfTheLines (forsgren#76, v0.6.2):
