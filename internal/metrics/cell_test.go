@@ -25,6 +25,8 @@ func TestFrequencyCell(t *testing.T) {
 		"no success": {Frequency{Band: LessThanSixMonthly}.Cell(), "Less than once per six months · 0"},
 		"30 days": {Frequency{Last30: 7, Last180: 9, Latest: latest, Band: DailyToWeekly}.Cell(),
 			"Between once per day and once per week · 7"},
+		"weekends": {Frequency{Last30: 12, Last180: 12, Weekend30: 3, Latest: latest, Band: DailyToWeekly}.Cell(),
+			"Between once per day and once per week · 12 · 3 at weekends"},
 		"180 days": {Frequency{Last180: 3, Latest: latest, Band: MonthlyToSixMonthly}.Cell(),
 			"Between once per month and once every six months · 3"},
 		"older": {Frequency{Latest: latest, Band: LessThanSixMonthly}.Cell(), "Less than once per six months · 0"},
