@@ -275,6 +275,25 @@ func TestIssuesPageMatchesGolden(t *testing.T) {
 	checkPageGolden(t, "issues.html", "testdata/issues.golden.html", data)
 }
 
+// TestIssuesPageLabelsDayWeekAndMonthRows (forsgren#89, step 13): the rows of
+// Data.IssueRows are labelled by their kind: a day by its date, a week by the
+// ISO number of its Monday (5 October 2026 is in week 41), a month by its
+// name and year.
+func TestIssuesPageLabelsDayWeekAndMonthRows(t *testing.T) {
+	data := calculated()
+	row := func(kind string, date time.Time) metrics.IssueRow {
+		return metrics.IssueRow{Kind: kind, IssueDay: metrics.IssueDay{Date: date, New: 1, Total: 1, Active: true}}
+	}
+	data.IssueRows = []metrics.IssueRow{
+		row(metrics.KindDay, october(13)),
+		row(metrics.KindWeek, october(5)),
+		row(metrics.KindMonth, time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC)),
+	}
+	got := rendered(t, "issues.html", data)
+	wantAll(t, "issues.html", got, "2026-10-13", "Week 41", "September 2026")
+	wantNone(t, "issues.html", got, "<p>No issues were opened")
+}
+
 // TestIssuesPageSkipsInactiveDays (forsgren#108, step 5): a day that is not
 // Active (nothing new, closed or reopened) has no row on the issues page, the
 // days around it do. The calculation keeps the day (rule 3); only the page hides it.

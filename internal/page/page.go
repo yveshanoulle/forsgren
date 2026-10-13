@@ -73,6 +73,11 @@ type Data struct {
 	// IssueDays are the issue counts per UTC day, newest first, that the
 	// issues page tabulates (forsgren#76).
 	IssueDays []metrics.IssueDay
+	// IssueRows are the rows of the issues page by kind, days, weeks and
+	// months, newest first in that order (forsgren#89, decision #118); when
+	// empty the page falls back to IssueDays as day rows, until render
+	// sets IssueRows.
+	IssueRows []metrics.IssueRow
 	// View is the view the root page shows, "standard", "numbers" or
 	// "scoring", with the view switch in its table's caption (forsgren#51);
 	// empty for the plain root page, with no switch (forsgren#46).
