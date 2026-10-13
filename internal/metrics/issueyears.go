@@ -26,3 +26,8 @@ func yearRow(at time.Time, current, rows int) (int, bool) {
 	back := current - at.UTC().Year()
 	return back - 1, back >= 1 && back <= rows
 }
+
+// IssueYearRows is IssueYears for every complete calendar year.
+func IssueYearRows(events []history.IssueEvent, now time.Time) []IssueDay {
+	return nil
+}
