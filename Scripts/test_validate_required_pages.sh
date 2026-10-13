@@ -28,7 +28,7 @@ TMP="$(mktemp -d)"
 COMPLETED=0
 finish() {
   local rc=$?
-  rm -rf "$$TMP"
+  rm -rf "$TMP"
   if [ "$rc" -eq 0 ] && [ "$COMPLETED" -ne 1 ]; then
     echo "FAIL: test_validate_required_pages.sh aborted before completing (COMPLETED was never set)" >&2
     exit 1

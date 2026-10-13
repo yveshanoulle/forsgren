@@ -538,6 +538,7 @@ community files|Scripts/check_community_files.sh|pre|
 # per pattern.
 exit-trap completion self-test|Scripts/test_check_exit_trap_completion.sh|pre|
 exit-trap completion|Scripts/check_exit_trap_completion.sh|pre|
+exit-trap completion behaviour|Scripts/test_exit_trap_completion_behaviour.sh|pre|
 #
 # The privacy pages belong to a site that needs privacy pages: another estate repository
 # serves a privacy policy, and its check_privacy_pages.sh pins that

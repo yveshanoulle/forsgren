@@ -49,7 +49,7 @@ STAGE="$(mktemp -d)"
 COMPLETED=0
 finish() {
   local rc=$?
-  rm -rf "$$STAGE"
+  rm -rf "$STAGE"
   if [ "$rc" -eq 0 ] && [ "$COMPLETED" -ne 1 ]; then
     echo "FAIL: build_site.sh aborted before completing (COMPLETED was never set)" >&2
     exit 1

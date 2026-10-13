@@ -48,7 +48,7 @@ OUT="$(mktemp)"
 COMPLETED=0
 finish() {
   local rc=$?
-  rm -rf "$$OUT"
+  rm -f "$OUT"
   if [ "$rc" -eq 0 ] && [ "$COMPLETED" -ne 1 ]; then
     echo "FAIL: gate_htmlhint.sh aborted before completing (COMPLETED was never set)" >&2
     exit 1
