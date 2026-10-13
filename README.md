@@ -611,8 +611,8 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   reason (an old issue, closed before GitHub gave reasons) or a reason
   forsgren does not know. **Total** is the issues open at the end of that
   day, across all repositories: the issues created, minus those closed, plus
-  those reopened, counted from the oldest stored event. A close of an issue
-  with no created event is ignored, and the order of the lines in
+  those reopened, counted from the oldest stored event. A close or a reopen
+  of an issue with no created event is ignored, and the order of the lines in
   `issues.csv` does not matter. The Total is shown as calculated: a negative
   Total means the collected data is inconsistent (missing events, a partial
   read, or a bug), and it is shown rather than hidden. Reopen times are the
