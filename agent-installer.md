@@ -102,8 +102,9 @@ why. Wait for the answers.
 
 1. **Owner of the data repository.** Default: the login from step 1.3. It
    can be an organisation where the person may create repositories.
-2. **Repository name.** Default: `dora-metrics`, because it says
-   what the repository and its page hold. Any free name works; it must not
+2. **Repository name.** Default: `forsgren-metrics`, because it names
+   the tool first, as `forsgren.<your domain>` does, and says what the
+   repository and its page hold. Any free name works; it must not
    exist yet under the owner.
 3. **The repositories to measure, grouped in projects.** No default. A
    project is a name and the repositories that ship it, each as
@@ -146,7 +147,8 @@ why. Wait for the answers.
    number from 1 to 1825. forsgren reads it in chunks of 100 days, one more
    chunk per daily run, so a deeper history fills in over several days.
 9. **Custom domain or the github.io address.** Default: no custom domain;
-   the page is at `https://OWNER.github.io/REPO/`, works at once and has
+   the page is at `https://OWNER.github.io/REPO/` (with the default name,
+   `https://OWNER.github.io/forsgren-metrics/`), works at once and has
    HTTPS from the start. For a custom domain, recommend the conventional
    name `forsgren.<your domain>`, for example `forsgren.example.com`: like
    `www` for a website, a `forsgren.` subdomain tells anyone where the DORA
