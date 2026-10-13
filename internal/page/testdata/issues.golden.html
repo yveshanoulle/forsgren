@@ -7,12 +7,11 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <nav class="views">View: <a href="standard/">Standard</a> · <a href="numbers/">Numbers</a> · <a href="scoring/">Scoring</a> · <span aria-current="page">Issues</span> · <a href="days.html">Daily</a></nav>
   <main>
-    <h1>Issues</h1>
-    <p><a href="index.html">Back to the table</a></p>
-    <div class="table-scroll" role="region" aria-labelledby="issues-caption" tabindex="0">
-      <table>
-        <caption><span id="issues-caption">Issues per day, week, month and year, all projects</span> <span class="views">View: <a href="standard/">Standard</a> · <a href="numbers/">Numbers</a> · <a href="scoring/">Scoring</a> · <span aria-current="page">Issues</span> · <a href="days.html">Daily</a></span></caption>
+    <h1 id="issues-heading">Issues</h1>
+    <div class="table-scroll" role="region" aria-labelledby="issues-heading" tabindex="0">
+      <table aria-labelledby="issues-heading">
         <thead>
           <tr>
             <th scope="col">Period</th>
@@ -64,10 +63,10 @@
         </tbody>
       </table>
     </div>
-    <p>Days are in UTC, weeks run Monday to Sunday, months and years follow the calendar, and a week that spans two months is in both.</p>
   </main>
   <footer>
     <p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> 0.8.3 Metrics from GitHub data. Calculated at 2026-10-03 12:00 UTC</p>
+    <p><a href="settings.html">Settings</a> <a href="legend.html">Legend</a></p>
   </footer>
 </body>
 </html>

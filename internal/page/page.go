@@ -79,8 +79,8 @@ type Data struct {
 	// decision #118, forsgren#123).
 	IssueRows []metrics.IssueRow
 	// View is the view the root page shows, "standard", "numbers" or
-	// "scoring", with the view switch in its table's caption (forsgren#51);
-	// empty for the plain root page, with no switch (forsgren#46).
+	// "scoring", marked in the menu (forsgren#46, forsgren#128); empty for the
+	// plain root page, whose menu marks no view.
 	View string
 }
 
@@ -215,8 +215,9 @@ type pageData struct {
 	// Base prefixes the links to styles.css, settings.html and legend.html:
 	// empty at the root, viewBase in a view's folder.
 	Base string
-	// View is "standard", "numbers" or "scoring" on a view's page, and shows
-	// the view switch; empty on the root pages.
+	// View is the view the page shows and its menu marks, "standard",
+	// "numbers" or "scoring" on a view's page and the root's; empty on the
+	// other pages (forsgren#128).
 	View string
 	// Page is the page's name, its file without ".html": the menu marks
 	// the one of issuePages it names as current (forsgren#76, forsgren#123,
@@ -232,7 +233,7 @@ func (p pageData) Numbers() bool { return p.View == viewNumbers }
 // and its last column Overall Performance.
 func (p pageData) Scoring() bool { return p.View == viewScoring }
 
-// Views are the views the switch names, in its order.
+// Views are the views the menu names, in its order.
 func (pageData) Views() []string { return views }
 
 // ViewLabel is what the menu calls a view: its name with a capital, Standard
@@ -242,7 +243,7 @@ func (pageData) ViewLabel(view string) string { return strings.ToUpper(view[:1])
 // IssuePages are the pages the menu names after the views, in its order.
 func (pageData) IssuePages() []issuePage { return issuePages }
 
-// Current is the switch's aria-current for the current view: "page" on the
+// Current is the menu's aria-current for the current view: "page" on the
 // view's own page, "true" on the root, which shows the view but is not its
 // page (Yves's ruling, forsgren#46).
 func (p pageData) Current() string {
@@ -296,11 +297,11 @@ func PageNames() []string {
 // and each view's page.
 func (p page) name() string { return strings.TrimSuffix(p.file, ".html") }
 
-// viewShown is the view the page marks: a view's page its own, the root the
-// configured one, and each of issuePages none, so its switch links all three
-// views and marks only itself (forsgren#76, decision #102, forsgren#123).
+// viewShown is the view the page shows and its menu marks: a view's page its
+// own, the root the configured one, and every other page none, so its menu
+// links all three views (forsgren#76, decision #102, forsgren#128).
 func (p page) viewShown(data Data) string {
-	if slices.ContainsFunc(issuePages, func(ip issuePage) bool { return ip.Name == p.name() }) {
+	if p.file != "index.html" {
 		return ""
 	}
 	return cmp.Or(p.view, data.View)

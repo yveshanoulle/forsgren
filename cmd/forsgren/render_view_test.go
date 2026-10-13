@@ -56,11 +56,11 @@ func TestRenderRootOfTheNumbersViewShowsNumbers(t *testing.T) {
 }
 
 // TestRenderRootWithoutAViewIsUnchanged (forsgren#46): no view key, no
-// switch and no aria-current: an existing installation sees no change until
-// it opts in.
+// aria-current: the root shows the standard cells, and its menu marks no
+// view (forsgren#128).
 func TestRenderRootWithoutAViewIsUnchanged(t *testing.T) {
 	index := renderRoot(t, "")
-	for _, text := range []string{"View:", "aria-current"} {
+	for _, text := range []string{"aria-current"} {
 		if strings.Contains(index, text) {
 			t.Errorf("want no %q on the root page without view:, got:\n%s", text, index)
 		}

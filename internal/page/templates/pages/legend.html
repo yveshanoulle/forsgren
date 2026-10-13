@@ -1,7 +1,6 @@
 {{define "title"}}What the bands mean · {{.Title}}{{end -}}
 {{template "header" .}}  <main>
     <h1>What the bands mean</h1>
-    <p><a href="index.html">Back to the table</a></p>
     <p>Every number counts back from the time in the footer: deployment frequency from the successful deployments, lead time for changes from the commits they shipped, failed deployment recovery time from the failed deployments and the successful ones after them, change fail rate from the failed deployments and the issues labelled failure, deployment rework rate from the successful deployments that came after a failed deployment or while a failure issue was open.</p>
     <p>A project's total row counts all its repositories; a row under it counts what its label names in the project's config. Durations: min is minutes, h hours, d days, each cut down, never rounded up.</p>
     <h2>Deployment frequency</h2>
@@ -42,7 +41,7 @@
     <p>The DORA band, on the six points and edges of change fail rate, as the DORA Quick Check scales both the same; then the rework deployments out of the successful deployments of the last 30 days, in whole percent, rounded down, and in brackets both counts. A rework deployment is a successful deployment that is the first success of its stream after a failed deployment, or that happened while an issue labelled failure of its repository was open; it is counted once. A failure issue names no service, so a service's row counts the first kind only. DORA's question is "Approximately what percentage of deployments in the last 6 months were not planned but were performed to address a user-facing bug in the application?", but forsgren measures the last 30 days, like its other four metrics.</p>
     <h2>Scores</h2>
     <p>The scoring view shows each metric's score, 0 to 10, and Overall Performance, the mean of the scored metrics, to one decimal. Scores follow the <a href="https://dora.dev/quickcheck/">DORA Quick Check</a> (dora.dev), © Google LLC, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.</p>
+    <h2>Issues pages</h2>
+    <p>Days are in UTC, weeks run Monday to Sunday, months and years follow the calendar, and a week that spans two months is in both.</p>
   </main>
 {{template "footer" .}}
-{{define "footerlinks"}}    <p><a href="{{.Base}}settings.html">Settings</a></p>
-{{end}}

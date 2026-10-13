@@ -267,7 +267,7 @@ func october(d int) time.Time { return on2026(time.October, d) }
 
 // TestDaysPageShowsTheLastThirtyDays (forsgren#123, step 1): the days page
 // is back to 0.6.3: it tabulates Data.IssueDays under the header "Date", with
-// the caption "Issues per day, all projects, days in UTC" and no note, and
+// no caption (forsgren#128) and no note, and
 // shows no week or month row even when Data.IssueRows holds some.
 func TestDaysPageShowsTheLastThirtyDays(t *testing.T) {
 	data := calculated()
@@ -282,8 +282,7 @@ func TestDaysPageShowsTheLastThirtyDays(t *testing.T) {
 		}},
 	}
 	got := rendered(t, "days.html", data)
-	wantAll(t, "days.html", got, "2026-10-13", "2026-10-12", `<th scope="col">Date</th>`,
-		"Issues per day, all projects, days in UTC")
+	wantAll(t, "days.html", got, "2026-10-13", "2026-10-12", `<th scope="col">Date</th>`)
 	wantNone(t, "days.html", got, "Week 41", "September 2026", `<th scope="col">Period</th>`,
 		"a week that spans two months")
 }
@@ -342,9 +341,9 @@ func TestDaysPageWithNoActiveDayShowsAMessage(t *testing.T) {
 // days page marks. Whatever Data.View is, the days page's switch links all
 // three views and only Daily is current.
 func TestDaysPageSwitchIgnoresTheConfiguredView(t *testing.T) {
-	const switchLine = `<span class="views">View: <a href="standard/">Standard</a> · <a href="numbers/">Numbers</a> · ` +
+	const switchLine = `<nav class="views">View: <a href="standard/">Standard</a> · <a href="numbers/">Numbers</a> · ` +
 		`<a href="scoring/">Scoring</a> · <a href="issues.html">Issues</a> · ` +
-		`<span aria-current="page">Daily</span></span>`
+		`<span aria-current="page">Daily</span></nav>`
 	for _, view := range []string{viewStandard, viewNumbers, viewScoring} {
 		t.Run(view, func(t *testing.T) {
 			data := calculated()
@@ -361,7 +360,8 @@ func TestDaysPageSwitchIgnoresTheConfiguredView(t *testing.T) {
 }
 
 // TestLegendPageTitleNamesIt (forsgren#39, step 4): the legend page's title
-// is its link's text, then the site's title; its header shows no site-name line (forsgren#41).
+// is its heading, What the bands mean, though its link reads Legend (decision
+// #133), then the site's title; its header shows no site-name line (forsgren#41).
 func TestLegendPageTitleNamesIt(t *testing.T) {
 	got := rendered(t, "legend.html", acmeTable())
 	wantAll(t, "legend.html", got, "<title>What the bands mean · forsgren</title>")
@@ -413,7 +413,7 @@ var legendItem = regexp.MustCompile(`<li>[^<]*</li>`)
 func TestTablePageLinksToTheLegend(t *testing.T) {
 	data := acmeTable()
 	got := rendered(t, "index.html", data)
-	if !strings.Contains(got, `<a href="legend.html">What the bands mean</a>`) {
+	if !strings.Contains(got, `<a href="legend.html">Legend</a>`) {
 		t.Errorf("want a link to legend.html on the table page, got:\n%s", got)
 	}
 	if strings.Contains(got, "<h2>Legend</h2>") {
@@ -477,9 +477,8 @@ func TestWriteSiteFailsWhenDirIsAFile(t *testing.T) {
 // opens with the same one paragraph: Forsgren linked to its repository, its
 // version, what it is and, when numbers were calculated, when (UTC); no
 // Install link anywhere (forsgren#45). Without a calculation time the
-// "Calculated at" sentence is left out. The page's own links follow the
-// paragraph (the footerlinks block, forsgren#83), each page's pinned by its
-// golden.
+// "Calculated at" sentence is left out. Settings and Legend follow the
+// paragraph on every page (forsgren#128).
 func TestEveryPageEndsWithTheFooter(t *testing.T) {
 	const head = `<p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> 0.8.3 ` +
 		`Metrics from GitHub data.`

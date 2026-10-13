@@ -1,12 +1,9 @@
 {{define "title"}}Issues · {{.Title}}{{end -}}
 {{template "header" .}}  <main>
-    <h1>Issues</h1>
-    <p><a href="index.html">Back to the table</a></p>
-{{if .AnyIssueRowActive}}{{template "issuestable" .}}    <p>Days are in UTC, weeks run Monday to Sunday, months and years follow the calendar, and a week that spans two months is in both.</p>
-{{else}}    <p>No issues were opened, closed or reopened before today.</p>
-    <p>{{template "switch" .}}</p>
+    <h1 id="{{.Page}}-heading">Issues</h1>
+{{if .AnyIssueRowActive}}{{template "issuestable" .}}{{else}}    <p>No issues were opened, closed or reopened before today.</p>
 {{end}}  </main>
 {{template "footer" .}}
-{{define "issuescaptionid"}}issues-caption{{end}}{{define "issuescaption"}}Issues per day, week, month and year, all projects{{end}}{{define "issuesfirst"}}Period{{end}}{{define "issuesrows"}}{{range .IssueTableRows}}{{if .Active}}          <tr>
+{{define "issuesfirst"}}Period{{end}}{{define "issuesrows"}}{{range .IssueTableRows}}{{if .Active}}          <tr>
             <th scope="row">{{.Label}}</th>
 {{template "issuecells" .}}{{end}}{{end}}{{end}}

@@ -1,11 +1,9 @@
 {{define "title"}}Daily · {{.Title}}{{end -}}
 {{template "header" .}}  <main>
-    <h1>Daily</h1>
-    <p><a href="index.html">Back to the table</a></p>
+    <h1 id="{{.Page}}-heading">Daily</h1>
 {{if .AnyIssueDayActive}}{{template "issuestable" .}}{{else}}    <p>No issues were opened, closed or reopened in the last 30 days.</p>
-    <p>{{template "switch" .}}</p>
 {{end}}  </main>
 {{template "footer" .}}
-{{define "issuescaptionid"}}days-caption{{end}}{{define "issuescaption"}}Issues per day, all projects, days in UTC{{end}}{{define "issuesfirst"}}Date{{end}}{{define "issuesrows"}}{{range .IssueDays}}{{if .Active}}          <tr>
+{{define "issuesfirst"}}Date{{end}}{{define "issuesrows"}}{{range .IssueDays}}{{if .Active}}          <tr>
             <th scope="row">{{.Date.Format "2006-01-02"}}</th>
 {{template "issuecells" .}}{{end}}{{end}}{{end}}

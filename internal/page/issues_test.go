@@ -1,6 +1,7 @@
 package page
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -52,20 +53,21 @@ func TestIssuesPageWithNoActiveRowShowsAMessage(t *testing.T) {
 // step 6): the menu ends with issues and then Daily. The issues page marks
 // issues current and links Daily, the days page marks Daily and links issues.
 func TestIssuesAndDaysPagesMarkOnlyThemselves(t *testing.T) {
-	const views = `<span class="views">View: <a href="standard/">Standard</a> · <a href="numbers/">Numbers</a> · ` +
+	const views = `<nav class="views">View: <a href="standard/">Standard</a> · <a href="numbers/">Numbers</a> · ` +
 		`<a href="scoring/">Scoring</a> · `
 	data := calculated()
 	data.View = viewNumbers
 	wantAll(t, "issues.html", rendered(t, "issues.html", data), views+
-		`<span aria-current="page">Issues</span> · <a href="days.html">Daily</a></span>`)
+		`<span aria-current="page">Issues</span> · <a href="days.html">Daily</a></nav>`)
 	wantAll(t, "days.html", rendered(t, "days.html", data), views+
-		`<a href="issues.html">Issues</a> · <span aria-current="page">Daily</span></span>`)
+		`<a href="issues.html">Issues</a> · <span aria-current="page">Daily</span></nav>`)
 }
 
 // TestIssuesPageMatchesGolden (forsgren#123, step 8; forsgren#128): the issues page is the
 // page issues.html, a table of the days of the current week, the weeks and the
 // months and the years, newest first, one row of each kind here, under the
-// header Period (forsgren#125, step 8: the caption and the note name years).
+// header Period (forsgren#125, step 8: the note names years; forsgren#128: no
+// caption).
 func TestIssuesPageMatchesGolden(t *testing.T) {
 	data := calculated()
 	data.IssueRows = []metrics.IssueRow{
@@ -119,10 +121,8 @@ func TestIssuesPageHoldsDayWeekMonthAndYearRows(t *testing.T) {
 	}
 	data.IssueDays = []metrics.IssueDay{{Date: october(11), New: 9, Total: 9, Active: true}}
 	got := rendered(t, "issues.html", data)
-	wantAll(t, "issues.html", got, "<title>Issues · forsgren</title>", "<h1>Issues</h1>", `<th scope="col">Period</th>`,
-		"2026-10-13", "Week 41", "September 2026", `<th scope="row">2025</th>`,
-		"Days are in UTC, weeks run Monday to Sunday, months and years follow the calendar, "+
-			"and a week that spans two months is in both.")
+	wantAll(t, "issues.html", got, "<title>Issues · forsgren</title>", `<h1 id="issues-heading">Issues</h1>`,
+		`<th scope="col">Period</th>`, "2026-10-13", "Week 41", "September 2026", `<th scope="row">2025</th>`)
 	wantNone(t, "issues.html", got, "2026-10-11", `<th scope="col">Date</th>`)
 }
 
@@ -131,4 +131,39 @@ func TestIssuesPageHoldsDayWeekMonthAndYearRows(t *testing.T) {
 // no-activity message and no table.
 func TestIssuesPageWithoutRowsMatchesGolden(t *testing.T) {
 	checkPageGolden(t, "issues.html", "testdata/issues.no-rows.golden.html", calculated())
+}
+
+// TestIssueTablesHaveNoCaption (forsgren#128, step 9; decision #133): the
+// tables of the issues and days pages have no caption; the page's heading
+// names each table and its scrolling region.
+func TestIssueTablesHaveNoCaption(t *testing.T) {
+	data := calculated()
+	data.IssueDays = []metrics.IssueDay{{Date: october(2), New: 1, Total: 1, Active: true}}
+	data.IssueRows = []metrics.IssueRow{{Kind: metrics.KindMonth, IssueDay: metrics.IssueDay{
+		Date: on2026(time.September, 1), New: 1, Total: 1, Active: true,
+	}}}
+	for name, heading := range map[string]string{"issues.html": "Issues", "days.html": "Daily"} {
+		id := strings.TrimSuffix(name, ".html") + "-heading"
+		got := rendered(t, name, data)
+		wantAll(t, name, got, `<h1 id="`+id+`">`+heading+`</h1>`,
+			`role="region" aria-labelledby="`+id+`"`, `<table aria-labelledby="`+id+`">`)
+		wantNone(t, name, got, "<caption")
+	}
+}
+
+// periodsNote explains the periods of the issues pages (forsgren#125).
+const periodsNote = "Days are in UTC, weeks run Monday to Sunday, months and years follow the calendar, " +
+	"and a week that spans two months is in both."
+
+// TestPeriodsNoteIsInTheLegend (forsgren#128, step 12; decision #133): the
+// note on the periods moves from under the issues table to the legend, in its
+// own section, Issues pages.
+func TestPeriodsNoteIsInTheLegend(t *testing.T) {
+	data := calculated()
+	data.IssueRows = []metrics.IssueRow{{Kind: metrics.KindDay, IssueDay: metrics.IssueDay{
+		Date: october(2), New: 1, Total: 1, Active: true,
+	}}}
+	wantAll(t, "legend.html", rendered(t, "legend.html", data),
+		"<h2>Issues pages</h2>\n    <p>"+periodsNote+"</p>\n")
+	wantNone(t, "issues.html", rendered(t, "issues.html", data), "Days are in UTC")
 }

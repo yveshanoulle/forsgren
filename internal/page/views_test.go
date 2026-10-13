@@ -51,7 +51,7 @@ func TestNumbersPageShowsOnlyNumbers(t *testing.T) {
 			t.Errorf("want the row of %s to read %v, got:\n%s", heading, cells, got)
 		}
 	}
-	// The switch in the caption has its own " · "; the table's body has none.
+	// The menu has its own " · "; the table's body has none.
 	table := got[strings.Index(got, "<tbody"):strings.Index(got, "</tbody>")]
 	wantNone(t, "numbers/index.html", table, "Between once", "Less than", "No lead time yet", "not completed yet", " · ")
 }
@@ -150,7 +150,7 @@ func TestViewPagesLinkRelativelyFromTheirFolder(t *testing.T) {
 	data := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
 	for _, name := range viewPages {
 		got := rendered(t, name, data)
-		wantAll(t, name, got, `href="../styles.css"`, `<a href="../legend.html">What the bands mean</a>`)
+		wantAll(t, name, got, `href="../styles.css"`, `<a href="../legend.html">Legend</a>`)
 		wantNone(t, name, got, `href="styles.css"`, `href="legend.html"`)
 	}
 }
@@ -196,32 +196,6 @@ func TestViewSwitchMarksTheCurrentView(t *testing.T) {
 	}
 }
 
-// captionWithSwitch is the caption of a table with the view switch
-// (forsgren#51): "DORA metrics View: standard · numbers · scoring" on one
-// line, the title in its own element, which names the table and its region,
-// the switch beside it, so the table's name is never the switch's text.
-const captionWithSwitch = `<table aria-labelledby="metrics-caption">
-        <caption><span id="metrics-caption">DORA metrics</span> <span class="views">View: `
-
-// TestViewSwitchSitsInTheCaption (forsgren#51): on each view's page and on
-// the root with a view, the switch follows the caption's title on its line,
-// never a paragraph above the table; the region and the table are both
-// named by the title alone, and the current view is still marked.
-func TestViewSwitchSitsInTheCaption(t *testing.T) {
-	data := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
-	pages := map[string]string{"standard/index.html": "page", "numbers/index.html": "page", "index.html": "true"}
-	for name, current := range pages {
-		data.View = "numbers"
-		got := rendered(t, name, data)
-		wantAll(t, name, got, captionWithSwitch, `role="region" aria-labelledby="metrics-caption"`,
-			`<span aria-current="`+current+`">`)
-		wantNone(t, name, got, `<p class="views">`, `<caption id=`)
-		if n := strings.Count(got, `id="metrics-caption"`); n != 1 {
-			t.Errorf("%s: want one element with the id metrics-caption, got %d", name, n)
-		}
-	}
-}
-
 // TestViewsShowARowWithoutDeploymentsAsTheirOwnCells (forsgren#46): the
 // numbers page says no sentence for it, five cells, 0 for the deployment
 // frequency (a real zero) and - for the other four; the standard page keeps
@@ -259,7 +233,7 @@ func TestViewPagesMatchGolden(t *testing.T) {
 }
 
 // TestViewPagesWithoutDataMatchGolden (forsgren#46): the views of the
-// placeholder build, which has no rows and so no switch.
+// placeholder build, which has no rows, with the menu (forsgren#128).
 func TestViewPagesWithoutDataMatchGolden(t *testing.T) {
 	data := Placeholder("0.8.3")
 	data.AsOf = "2026-10-03 12:00"
@@ -291,8 +265,8 @@ func TestWriteSiteFailsWhenAViewFolderIsAFile(t *testing.T) {
 // TestRootPageFollowsItsDataView (forsgren#46): the root page shows the view
 // of its data with the switch, the links relative to the root, its view
 // marked aria-current="true", since the root is not that view's page
-// (Yves's ruling); with no view it is the plain root page, and with no rows
-// it has no switch.
+// (Yves's ruling); with no view its menu marks none, and with no rows it
+// still marks its view (forsgren#128).
 func TestRootPageFollowsItsDataView(t *testing.T) {
 	data := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
 	const (
@@ -306,7 +280,7 @@ func TestRootPageFollowsItsDataView(t *testing.T) {
 	} {
 		data.View = view
 		got := rendered(t, "index.html", data)
-		wantAll(t, "index.html", got, want, `href="styles.css"`, `<a href="legend.html">What the bands mean</a>`)
+		wantAll(t, "index.html", got, want, `href="styles.css"`, `<a href="legend.html">Legend</a>`)
 		wantNone(t, "index.html", got, "../", `aria-current="page"`)
 	}
 	data.View = "numbers"
@@ -314,10 +288,10 @@ func TestRootPageFollowsItsDataView(t *testing.T) {
 	data.View = "scoring"
 	wantAll(t, "index.html", rendered(t, "index.html", data), `<th scope="col">Overall Performance</th>`, "<td>8.4</td>")
 	data.View = ""
-	wantNone(t, "index.html", rendered(t, "index.html", data), "View:", "aria-current")
+	wantNone(t, "index.html", rendered(t, "index.html", data), "aria-current")
 	placeholder := Placeholder("0.8.3")
 	placeholder.View = "numbers"
-	wantNone(t, "index.html", rendered(t, "index.html", placeholder), "View:")
+	wantAll(t, "index.html", rendered(t, "index.html", placeholder), fmt.Sprintf(now, "Numbers"))
 }
 
 // TestMenuEndsWithIssuesAndDaily (forsgren#128, step 6): the menu of the table
@@ -327,10 +301,10 @@ func TestMenuEndsWithIssuesAndDaily(t *testing.T) {
 	data := viewData()
 	data.View = viewNumbers
 	for name, want := range map[string]string{
-		"index.html":          `<a href="issues.html">Issues</a> · <a href="days.html">Daily</a></span>`,
-		"standard/index.html": `<a href="../issues.html">Issues</a> · <a href="../days.html">Daily</a></span>`,
-		"numbers/index.html":  `<a href="../issues.html">Issues</a> · <a href="../days.html">Daily</a></span>`,
-		"scoring/index.html":  `<a href="../issues.html">Issues</a> · <a href="../days.html">Daily</a></span>`,
+		"index.html":          `<a href="issues.html">Issues</a> · <a href="days.html">Daily</a></nav>`,
+		"standard/index.html": `<a href="../issues.html">Issues</a> · <a href="../days.html">Daily</a></nav>`,
+		"numbers/index.html":  `<a href="../issues.html">Issues</a> · <a href="../days.html">Daily</a></nav>`,
+		"scoring/index.html":  `<a href="../issues.html">Issues</a> · <a href="../days.html">Daily</a></nav>`,
 	} {
 		wantAll(t, name, rendered(t, name, data), want)
 	}

@@ -33,8 +33,7 @@ caption {
   font-size: 1.25rem;
 }
 
-/* The view switch sits in the caption, after its title (forsgren#51), and
-   reads as normal text beside it. */
+/* The menu at the top of every page (forsgren#128) reads as normal text. */
 .views {
   font-weight: normal;
   font-size: 1rem;
