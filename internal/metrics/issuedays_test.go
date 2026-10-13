@@ -40,8 +40,8 @@ func TestIssueDaysCountsNewIssuesPerUTCDayEndingYesterday(t *testing.T) {
 	}
 	midnight := func(month time.Month, d int) time.Time { return time.Date(2026, month, d, 0, 0, 0, 0, time.UTC) }
 	want := []IssueDay{
-		{Date: midnight(time.October, 2), New: 2, Other: 1, Total: 3, Active: true},
-		{Date: midnight(time.October, 1), New: 1, Total: 1, Active: true},
+		{Date: midnight(time.October, 2), New: 2, Other: 1, Open: 3, Total: 3, Active: true},
+		{Date: midnight(time.October, 1), New: 1, Open: 1, Total: 1, Active: true},
 		{Date: midnight(time.September, 30), New: 0},
 	}
 	if got := IssueDays(events, now, 3); !slices.Equal(got, want) {
@@ -150,23 +150,23 @@ func TestIssueDaysCountsClosesWithoutAKnownReasonAsOther(t *testing.T) {
 // sep30 is 10:00 on 30 September 2026, UTC, the oldest row's day.
 var sep30 = time.Date(2026, time.September, 30, 10, 0, 0, 0, time.UTC)
 
-// total is the Total column of d.
-func total(d IssueDay) int { return d.Total }
+// openOf is the Open column of d.
+func openOf(d IssueDay) int { return d.Open }
 
 // active is whether d is Active (forsgren#108).
 func active(d IssueDay) bool { return d.Active }
 
-// checkTotals fails t unless the Total of each day is want.
-func checkTotals(t *testing.T, events []history.IssueEvent, want []int) {
+// checkOpen fails t unless the Open of each day is want.
+func checkOpen(t *testing.T, events []history.IssueEvent, want []int) {
 	t.Helper()
-	checkColumn(t, events, total, want)
+	checkColumn(t, events, openOf, want)
 }
 
-// TestIssueDaysTotalCountsTheIssuesCreatedUpToTheEndOfTheDay (forsgren#76,
-// v0.6.2): the Total of a day is how many issues were created by its last
+// TestIssueDaysOpenCountsTheIssuesCreatedUpToTheEndOfTheDay (forsgren#76,
+// v0.6.2): the Open of a day is how many issues were created by its last
 // second, all repositories together; an issue created today is in no row.
-func TestIssueDaysTotalCountsTheIssuesCreatedUpToTheEndOfTheDay(t *testing.T) {
-	checkTotals(t, []history.IssueEvent{
+func TestIssueDaysOpenCountsTheIssuesCreatedUpToTheEndOfTheDay(t *testing.T) {
+	checkOpen(t, []history.IssueEvent{
 		issueEvent("acme/app", "created", sep30),
 		issueEvent("acme/cli", "created", oct(1, 8, 0, 0)),
 		issueEvent("acme/app", "created", oct(2, 9, 0, 0)),
@@ -174,33 +174,33 @@ func TestIssueDaysTotalCountsTheIssuesCreatedUpToTheEndOfTheDay(t *testing.T) {
 	}, []int{3, 2, 1})
 }
 
-// TestIssueDaysTotalDropsFromTheDayAnIssueIsClosed (forsgren#76, v0.6.2): an
+// TestIssueDaysOpenDropsFromTheDayAnIssueIsClosed (forsgren#76, v0.6.2): an
 // issue created and then closed, whatever the reason, is open until the day of
 // its close and no longer from then on.
-func TestIssueDaysTotalDropsFromTheDayAnIssueIsClosed(t *testing.T) {
-	checkTotals(t, []history.IssueEvent{
+func TestIssueDaysOpenDropsFromTheDayAnIssueIsClosed(t *testing.T) {
+	checkOpen(t, []history.IssueEvent{
 		issueEvent("acme/app", "created", sep30),
 		issueEvent("acme/cli", "created", oct(1, 8, 0, 0)),
 		closedAs("not_planned", oct(2, 9, 0, 0)),
 	}, []int{1, 2, 1})
 }
 
-// TestIssueDaysTotalRisesAgainFromTheDayAnIssueIsReopened (forsgren#76,
+// TestIssueDaysOpenRisesAgainFromTheDayAnIssueIsReopened (forsgren#76,
 // v0.6.2): an issue closed and then reopened is open again from the day of the
-// reopen on, and counts in the Total once more.
-func TestIssueDaysTotalRisesAgainFromTheDayAnIssueIsReopened(t *testing.T) {
-	checkTotals(t, []history.IssueEvent{
+// reopen on, and counts in the Open once more.
+func TestIssueDaysOpenRisesAgainFromTheDayAnIssueIsReopened(t *testing.T) {
+	checkOpen(t, []history.IssueEvent{
 		issueEvent("acme/app", "created", sep30),
 		closedAs("completed", oct(1, 9, 0, 0)),
 		issueEvent("acme/app", "reopened", oct(2, 9, 0, 0)),
 	}, []int{1, 0, 1})
 }
 
-// TestIssueDaysTotalStartsFromTheIssuesOpenBeforeTheWindow (forsgren#76,
+// TestIssueDaysOpenStartsFromTheIssuesOpenBeforeTheWindow (forsgren#76,
 // v0.6.2): the issues created before the oldest row's day and not closed
-// before it are open on every row, so the Total starts from them, not from 0.
-func TestIssueDaysTotalStartsFromTheIssuesOpenBeforeTheWindow(t *testing.T) {
-	checkTotals(t, []history.IssueEvent{
+// before it are open on every row, so the Open starts from them, not from 0.
+func TestIssueDaysOpenStartsFromTheIssuesOpenBeforeTheWindow(t *testing.T) {
+	checkOpen(t, []history.IssueEvent{
 		issueEvent("acme/app", "created", sep30.AddDate(0, 0, -10)),
 		issueEvent("acme/cli", "created", sep30.AddDate(0, 0, -5)),
 		closedAs("completed", sep30.AddDate(0, 0, -2)),
@@ -208,10 +208,10 @@ func TestIssueDaysTotalStartsFromTheIssuesOpenBeforeTheWindow(t *testing.T) {
 	}, []int{2, 2, 1})
 }
 
-// TestIssueDaysTotalIgnoresAnEventItDoesNotKnow: an event that is not created,
-// closed or reopened, before the window or in it, leaves the Total as it was.
-func TestIssueDaysTotalIgnoresAnEventItDoesNotKnow(t *testing.T) {
-	checkTotals(t, []history.IssueEvent{
+// TestIssueDaysOpenIgnoresAnEventItDoesNotKnow: an event that is not created,
+// closed or reopened, before the window or in it, leaves the Open as it was.
+func TestIssueDaysOpenIgnoresAnEventItDoesNotKnow(t *testing.T) {
+	checkOpen(t, []history.IssueEvent{
 		issueEvent("acme/app", "labeled", sep30.AddDate(0, 0, -3)),
 		issueEvent("acme/app", "created", sep30),
 		issueEvent("acme/app", "labeled", oct(1, 8, 0, 0)),
@@ -225,12 +225,12 @@ func closeOfIssue(number int64, at time.Time) history.IssueEvent {
 	return e
 }
 
-// TestIssueDaysTotalCountsACloseOfAnIssueItNeverSawCreated (forsgren#122,
+// TestIssueDaysOpenCountsACloseOfAnIssueItNeverSawCreated (forsgren#122,
 // overruling #120): a close counts -1 whether or not its issue has a created
-// event in the list, before the window or in it, so the Total goes below the
+// event in the list, before the window or in it, so the Open goes below the
 // open issues it knows.
-func TestIssueDaysTotalCountsACloseOfAnIssueItNeverSawCreated(t *testing.T) {
-	checkTotals(t, []history.IssueEvent{
+func TestIssueDaysOpenCountsACloseOfAnIssueItNeverSawCreated(t *testing.T) {
+	checkOpen(t, []history.IssueEvent{
 		closeOfIssue(7, sep30.AddDate(0, 0, -3)),
 		issueEvent("acme/app", "created", sep30),
 		closeOfIssue(8, oct(1, 8, 0, 0)),
@@ -242,12 +242,12 @@ func reopenOfIssue(number int64, at time.Time) history.IssueEvent {
 	return appEvent(number, "reopened", at)
 }
 
-// TestIssueDaysTotalCountsAReopenOfAnIssueItNeverSawCreated (forsgren#122,
+// TestIssueDaysOpenCountsAReopenOfAnIssueItNeverSawCreated (forsgren#122,
 // overruling #113): a reopen counts +1 whether or not its issue has a created
 // event in the list, so closed, reopened, closed of such an issue is -1, +1,
-// -1 on the Total.
-func TestIssueDaysTotalCountsAReopenOfAnIssueItNeverSawCreated(t *testing.T) {
-	checkTotals(t, []history.IssueEvent{
+// -1 on the Open.
+func TestIssueDaysOpenCountsAReopenOfAnIssueItNeverSawCreated(t *testing.T) {
+	checkOpen(t, []history.IssueEvent{
 		closeOfIssue(7, sep30.AddDate(0, 0, -3)),
 		issueEvent("acme/app", "created", sep30),
 		reopenOfIssue(7, oct(1, 8, 0, 0)),
@@ -255,12 +255,12 @@ func TestIssueDaysTotalCountsAReopenOfAnIssueItNeverSawCreated(t *testing.T) {
 	}, []int{0, 1, 0})
 }
 
-// TestIssueDaysTotalDoesNotDependOnTheOrderOfTheLines (forsgren#76, v0.6.2):
+// TestIssueDaysOpenDoesNotDependOnTheOrderOfTheLines (forsgren#76, v0.6.2):
 // issues.csv can hold an event after a later one (a backfill appends older
 // events at the end), so a close can come before its own created line, even
-// within one second. Reordering the events must not change any Total: the
+// within one second. Reordering the events must not change any Open: the
 // list in file order and the same events sorted by time give the same days.
-func TestIssueDaysTotalDoesNotDependOnTheOrderOfTheLines(t *testing.T) {
+func TestIssueDaysOpenDoesNotDependOnTheOrderOfTheLines(t *testing.T) {
 	fileOrder := []history.IssueEvent{
 		closedAs("completed", oct(1, 8, 0, 0)),
 		issueEvent("acme/app", "created", oct(1, 8, 0, 0)),
@@ -271,7 +271,7 @@ func TestIssueDaysTotalDoesNotDependOnTheOrderOfTheLines(t *testing.T) {
 		order := []string{"created", "closed", "reopened"}
 		return cmp.Or(a.At.Compare(b.At), slices.Index(order, a.Event)-slices.Index(order, b.Event))
 	})
-	checkTotals(t, sorted, columnOf(fileOrder, total))
+	checkOpen(t, sorted, columnOf(fileOrder, openOf))
 }
 
 // TestIssueDaysMarksADayWithoutEventsInactive (forsgren#108, step 1): with
@@ -284,7 +284,7 @@ func TestIssueDaysMarksADayWithoutEventsInactive(t *testing.T) {
 }
 
 // TestIssueDaysKeepsADayWithOnlyAReopenActive (forsgren#108, step 3): a
-// reopen changes the Total, so a day with nothing new and no close but a
+// reopen changes the Open, so a day with nothing new and no close but a
 // reopen is Active (rule 1). Only 2 October has the reopen; 1 October has the
 // issue created, 30 September nothing.
 func TestIssueDaysKeepsADayWithOnlyAReopenActive(t *testing.T) {
@@ -293,4 +293,27 @@ func TestIssueDaysKeepsADayWithOnlyAReopenActive(t *testing.T) {
 		issueEvent("acme/app", "reopened", oct(2, 8, 0, 0)),
 	}
 	checkColumn(t, events, active, []bool{true, true, false})
+}
+
+// totalOf is the Total column of d.
+func totalOf(d IssueDay) int { return d.Total }
+
+// TestIssueDaysTotalCountsTheIssuesCreatedUpToTheEndOfTheDay (forsgren#134,
+// step 2): the Total of a day is the created events up to its last second,
+// open or closed, before the window or in it, all repositories together, so it
+// never drops at a close and a reopen adds none; a close of an issue whose
+// created event is not in the list adds none either, and nothing today counts.
+// The Open column of the same events is 2, 2, 1.
+func TestIssueDaysTotalCountsTheIssuesCreatedUpToTheEndOfTheDay(t *testing.T) {
+	events := []history.IssueEvent{
+		issueEvent("acme/app", "created", sep30.AddDate(0, 0, -10)),
+		closeOfIssue(7, sep30.AddDate(0, 0, -5)),
+		appEvent(2, "created", sep30),
+		issueEvent("acme/cli", "created", oct(1, 8, 0, 0)),
+		closedAs("completed", oct(2, 8, 0, 0)),
+		reopenOfIssue(2, oct(2, 9, 0, 0)),
+		appEvent(3, "created", oct(3, 1, 0, 0)),
+	}
+	checkColumn(t, events, openOf, []int{2, 2, 1})
+	checkColumn(t, events, totalOf, []int{3, 3, 2})
 }

@@ -46,12 +46,12 @@ func TestIssueMonthsCountsEachCompleteCalendarMonth(t *testing.T) {
 	}
 }
 
-// TestIssueMonthsTotalIsTheIssuesOpenAtTheMonthsLastDay (forsgren#89, step 3):
+// TestIssueMonthsOpenIsTheIssuesOpenAtTheMonthsLastDay (forsgren#89, step 3):
 // with now on 14 October and 2 months, the issues created in July are in the
 // base: open when August begins. August ends with issues 2, 3 and 6 open (1 was
 // closed), September ends with 2 and 4 (3 and 6 were closed), and issue 5, created
 // in October, changes nothing.
-func TestIssueMonthsTotalIsTheIssuesOpenAtTheMonthsLastDay(t *testing.T) {
+func TestIssueMonthsOpenIsTheIssuesOpenAtTheMonthsLastDay(t *testing.T) {
 	at := func(month time.Month, d int) time.Time {
 		return time.Date(2026, month, d, 12, 0, 0, 0, time.UTC)
 	}
@@ -68,7 +68,7 @@ func TestIssueMonthsTotalIsTheIssuesOpenAtTheMonthsLastDay(t *testing.T) {
 	}
 	var got []int
 	for _, m := range IssueMonths(events, at(time.October, 14), 2) {
-		got = append(got, m.Total)
+		got = append(got, m.Open)
 	}
 	if want := []int{2, 3}; !slices.Equal(got, want) {
 		t.Errorf("want the totals %v (September, August), got %v", want, got)
@@ -78,7 +78,7 @@ func TestIssueMonthsTotalIsTheIssuesOpenAtTheMonthsLastDay(t *testing.T) {
 // TestIssueMonthRowsGoBackToTheMonthOfTheOldestEvent (forsgren#89, step 5):
 // with now on 14 October and the oldest event in July, the rows are
 // September, August and July, newest first. August has no events, so it is a
-// zero row that still carries the Total of 1, and the event in October, the
+// zero row that still carries the Open of 1, and the event in October, the
 // current month, is no row.
 func TestIssueMonthRowsGoBackToTheMonthOfTheOldestEvent(t *testing.T) {
 	at := func(month time.Month, d int) time.Time {
@@ -96,7 +96,7 @@ func TestIssueMonthRowsGoBackToTheMonthOfTheOldestEvent(t *testing.T) {
 	want := []row{{time.September, 1, 2}, {time.August, 0, 1}, {time.July, 1, 1}}
 	var got []row
 	for _, m := range IssueMonthRows(events, at(time.October, 14)) {
-		got = append(got, row{m.Date.Month(), m.New, m.Total})
+		got = append(got, row{m.Date.Month(), m.New, m.Open})
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("want the months %v, got %v", want, got)

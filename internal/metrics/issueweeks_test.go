@@ -12,7 +12,7 @@ import (
 // step 7): with now on Wednesday 14 October 2026, the rows are week 41 (Monday
 // 5 October) and week 40 (Monday 28 September, which reaches into
 // September), newest first. Sunday 27 September, week 39, is no row but is in
-// the base of the Totals, 23:59:59 on Sunday 4 October is in week 40, and
+// the base of the Open counts, 23:59:59 on Sunday 4 October is in week 40, and
 // the event of the current week (12 October) is no row.
 func TestIssueWeeksAreTheCompleteWeeksTouchingTheCurrentMonth(t *testing.T) {
 	at := func(month time.Month, d, h, m, s int) time.Time {
@@ -39,7 +39,7 @@ func TestIssueWeeksAreTheCompleteWeeksTouchingTheCurrentMonth(t *testing.T) {
 	}
 	var got []row
 	for _, w := range IssueWeeks(events, at(time.October, 14, 12, 0, 0)) {
-		got = append(got, row{w.Date, w.New, w.Completed, w.Total})
+		got = append(got, row{w.Date, w.New, w.Completed, w.Open})
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("want the weeks\n%v\ngot\n%v", want, got)
@@ -49,7 +49,7 @@ func TestIssueWeeksAreTheCompleteWeeksTouchingTheCurrentMonth(t *testing.T) {
 // TestIssueWeekDaysAreTheDaysOfTheCurrentWeekUpToYesterday (forsgren#89,
 // step 9): with now on Wednesday 14 October 2026, the rows are Tuesday 13 and
 // Monday 12, newest first, as IssueDays counts them. Sunday 11 October, last
-// week, is in the base of the Totals but no row, and nothing today is a row.
+// week, is in the base of the Open counts but no row, and nothing today is a row.
 func TestIssueWeekDaysAreTheDaysOfTheCurrentWeekUpToYesterday(t *testing.T) {
 	event := func(issue int64, name, reason string, d, h int) history.IssueEvent {
 		at := time.Date(2026, time.October, d, h, 0, 0, 0, time.UTC)
@@ -68,7 +68,7 @@ func TestIssueWeekDaysAreTheDaysOfTheCurrentWeekUpToYesterday(t *testing.T) {
 	want := []row{{13, 0, 1, 1}, {12, 1, 0, 2}}
 	var got []row
 	for _, d := range IssueWeekDays(events, time.Date(2026, time.October, 14, 12, 0, 0, 0, time.UTC)) {
-		got = append(got, row{d.Date.Day(), d.New, d.NotPlanned, d.Total})
+		got = append(got, row{d.Date.Day(), d.New, d.NotPlanned, d.Open})
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("want the days %v, got %v", want, got)

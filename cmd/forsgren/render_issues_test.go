@@ -24,7 +24,7 @@ func issueEventAt(number int64, event, reason, at string) history.IssueEvent {
 // data/issues.csv next to --data, days.html shows the UTC day before the
 // render time, 2 October. Issue 7 is created that day; issues 8 to 11, created
 // earlier, are closed that day, one for each reason, completed, not planned,
-// duplicate and none: 1 in each column, and 1 issue still open, the Total.
+// duplicate and none: 1 in each column, and 1 issue still open, the Open.
 func TestRenderShowsTheIssuesOfEachDay(t *testing.T) {
 	pinNow(t)
 	data := writeHistory(t, acmeHistory())

@@ -15,7 +15,7 @@ import (
 func TestIssuesPageSkipsInactiveRows(t *testing.T) {
 	data := calculated()
 	row := func(kind string, date time.Time, active bool) metrics.IssueRow {
-		return metrics.IssueRow{Kind: kind, IssueDay: metrics.IssueDay{Date: date, New: 1, Total: 5, Active: active}}
+		return metrics.IssueRow{Kind: kind, IssueDay: metrics.IssueDay{Date: date, New: 1, Open: 5, Active: active}}
 	}
 	data.IssueRows = []metrics.IssueRow{
 		row(metrics.KindDay, october(12), false),
@@ -37,7 +37,7 @@ func TestIssuesPageSkipsInactiveRows(t *testing.T) {
 func TestIssuesPageWithNoActiveRowShowsAMessage(t *testing.T) {
 	data := calculated()
 	row := func(kind string, date time.Time) metrics.IssueRow {
-		return metrics.IssueRow{Kind: kind, IssueDay: metrics.IssueDay{Date: date, Total: 5}}
+		return metrics.IssueRow{Kind: kind, IssueDay: metrics.IssueDay{Date: date, Open: 5}}
 	}
 	data.IssueRows = []metrics.IssueRow{
 		row(metrics.KindDay, october(13)),
@@ -68,18 +68,18 @@ func TestIssuesPageMatchesGolden(t *testing.T) {
 	data := calculated()
 	data.IssueRows = []metrics.IssueRow{
 		{Kind: metrics.KindDay, IssueDay: metrics.IssueDay{
-			Date: october(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Total: 7, Active: true,
+			Date: october(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Open: 7, Active: true,
 		}},
 		{Kind: metrics.KindWeek, IssueDay: metrics.IssueDay{
 			Date: on2026(time.September, 28),
-			New:  2, Completed: 4, Duplicate: 3, Other: 5, Total: 6, Active: true,
+			New:  2, Completed: 4, Duplicate: 3, Other: 5, Open: 6, Active: true,
 		}},
 		{Kind: metrics.KindMonth, IssueDay: metrics.IssueDay{
-			Date: on2026(time.August, 1), New: 1, Total: 5, Active: true,
+			Date: on2026(time.August, 1), New: 1, Open: 5, Active: true,
 		}},
 		{Kind: metrics.KindYear, IssueDay: metrics.IssueDay{
 			Date: on2026(time.January, 1).AddDate(-1, 0, 0),
-			New:  6, Completed: 3, NotPlanned: 1, Duplicate: 1, Total: 4, Active: true,
+			New:  6, Completed: 3, NotPlanned: 1, Duplicate: 1, Open: 4, Active: true,
 		}},
 	}
 	checkPageGolden(t, "issues.html", "testdata/issues.golden.html", data)
@@ -92,7 +92,7 @@ func TestIssueRowLabelOfAYearIsTheBareYear(t *testing.T) {
 	data := calculated()
 	data.IssueRows = []metrics.IssueRow{{
 		Kind:     metrics.KindYear,
-		IssueDay: metrics.IssueDay{Date: on2026(time.January, 1).AddDate(-1, 0, 0), New: 1, Total: 1, Active: true},
+		IssueDay: metrics.IssueDay{Date: on2026(time.January, 1).AddDate(-1, 0, 0), New: 1, Open: 1, Active: true},
 	}}
 	rows := data.IssueTableRows()
 	if len(rows) != 1 || rows[0].Label != "2025" {
@@ -107,7 +107,7 @@ func TestIssueRowLabelOfAYearIsTheBareYear(t *testing.T) {
 func TestIssuesPageHoldsDayWeekMonthAndYearRows(t *testing.T) {
 	data := calculated()
 	row := func(kind string, date time.Time) metrics.IssueRow {
-		return metrics.IssueRow{Kind: kind, IssueDay: metrics.IssueDay{Date: date, New: 1, Total: 1, Active: true}}
+		return metrics.IssueRow{Kind: kind, IssueDay: metrics.IssueDay{Date: date, New: 1, Open: 1, Active: true}}
 	}
 	data.IssueRows = []metrics.IssueRow{
 		row(metrics.KindDay, october(13)),
@@ -115,7 +115,7 @@ func TestIssuesPageHoldsDayWeekMonthAndYearRows(t *testing.T) {
 		row(metrics.KindMonth, on2026(time.September, 1)),
 		row(metrics.KindYear, on2026(time.January, 1).AddDate(-1, 0, 0)),
 	}
-	data.IssueDays = []metrics.IssueDay{{Date: october(11), New: 9, Total: 9, Active: true}}
+	data.IssueDays = []metrics.IssueDay{{Date: october(11), New: 9, Open: 9, Active: true}}
 	got := rendered(t, "issues.html", data)
 	wantAll(t, "issues.html", got, "<title>Issues · forsgren</title>", `<h1 id="issues-heading">Issues</h1>`,
 		`<th scope="col">Period</th>`, "2026-10-13", "Week 41", "September 2026", `<th scope="row">2025</th>`)
@@ -134,9 +134,9 @@ func TestIssuesPageWithoutRowsMatchesGolden(t *testing.T) {
 // names each table and its scrolling region.
 func TestIssueTablesHaveNoCaption(t *testing.T) {
 	data := calculated()
-	data.IssueDays = []metrics.IssueDay{{Date: october(2), New: 1, Total: 1, Active: true}}
+	data.IssueDays = []metrics.IssueDay{{Date: october(2), New: 1, Open: 1, Active: true}}
 	data.IssueRows = []metrics.IssueRow{{Kind: metrics.KindMonth, IssueDay: metrics.IssueDay{
-		Date: on2026(time.September, 1), New: 1, Total: 1, Active: true,
+		Date: on2026(time.September, 1), New: 1, Open: 1, Active: true,
 	}}}
 	for name, heading := range map[string]string{"issues.html": "Issues", "days.html": "Daily"} {
 		id := strings.TrimSuffix(name, ".html") + "-heading"
@@ -157,9 +157,21 @@ const periodsNote = "Days are in UTC, weeks run Monday to Sunday, months and yea
 func TestPeriodsNoteIsInTheLegend(t *testing.T) {
 	data := calculated()
 	data.IssueRows = []metrics.IssueRow{{Kind: metrics.KindDay, IssueDay: metrics.IssueDay{
-		Date: october(2), New: 1, Total: 1, Active: true,
+		Date: october(2), New: 1, Open: 1, Active: true,
 	}}}
 	wantAll(t, "legend.html", rendered(t, "legend.html", data),
 		"<h2>Issues pages</h2>\n    <p>"+periodsNote+"</p>\n")
 	wantNone(t, "issues.html", rendered(t, "issues.html", data), "Days are in UTC")
+}
+
+// TestIssuesTableHeadsTheOpenIssuesColumnOpen (forsgren#134, step 1): the
+// column that counts the issues open at the end of each period is headed
+// Open, not Total, which the next steps give to the issues ever created.
+func TestIssuesTableHeadsTheOpenIssuesColumnOpen(t *testing.T) {
+	data := calculated()
+	data.IssueRows = []metrics.IssueRow{
+		{Kind: metrics.KindDay, IssueDay: metrics.IssueDay{Date: october(2), New: 1, Open: 5, Active: true}},
+	}
+	wantAll(t, "issues.html", rendered(t, "issues.html", data), `<th scope="col">Other</th>
+            <th scope="col">Open</th>`)
 }

@@ -28,7 +28,7 @@ func yearRow(at time.Time, current, rows int) (int, bool) {
 
 // IssueYearRows is every complete calendar year from the year of the oldest
 // event to the year before the one of now, newest first, a year without
-// events a zero row (carrying the Total); none when there are no events or the
+// events a zero row (carrying the Open); none when there are no events or the
 // oldest is in the current year.
 func IssueYearRows(events []history.IssueEvent, now time.Time) []IssueDay {
 	oldest, ok := oldestAt(events)

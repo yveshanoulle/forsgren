@@ -29,9 +29,13 @@ type IssueDay struct {
 	// Other is the issues closed on that day with no reason, or a reason
 	// forsgren does not know.
 	Other int
-	// Total is the issues open at the end of that day, of all the tracked
+	// Open is the issues open at the end of that day, of all the tracked
 	// repositories: the created and reopened events up to then less the
 	// closed ones, each counted by openDelta (forsgren#122).
+	Open int
+	// Total is the issues created up to the end of that day, of all the tracked
+	// repositories, open or closed: the created events up to then (forsgren#134).
+	// A reopen adds none, the issue already counts.
 	Total int
 	// Active is whether anything happened on that day: a new issue, a close
 	// of any kind, or a reopen (forsgren#108).
@@ -50,8 +54,9 @@ func IssueDays(events []history.IssueEvent, now time.Time, days int) []IssueDay 
 
 // periodRows is n rows of back-to-back periods (days, weeks or months),
 // newest first, row i dated dateOf(i), the start of its period; none for n 0
-// or less. Each event counts on the row rowOf gives its time, and each row's
-// Total is the issues open at the end of its period.
+// or less. Each event counts on the row rowOf gives its time, each row's
+// Open is the issues open at the end of its period, and its Total the issues
+// created up to the end of it (forsgren#134).
 func periodRows(
 	events []history.IssueEvent, n int, dateOf func(int) time.Time, rowOf func(time.Time) (int, bool),
 ) []IssueDay {
@@ -64,28 +69,32 @@ func periodRows(
 			rows[i].count(e)
 		}
 	}
-	perRow, openAtStart := openChanges(events, dateOf(len(rows)-1), len(rows), rowOf)
-	addUpTotals(rows, perRow, openAtStart)
+	start := dateOf(len(rows) - 1)
+	perRow, atStart := periodChanges(events, start, len(rows), rowOf, openDelta)
+	addUp(rows, perRow, atStart, func(d *IssueDay) *int { return &d.Open })
+	perRow, atStart = periodChanges(events, start, len(rows), rowOf, createdDelta)
+	addUp(rows, perRow, atStart, func(d *IssueDay) *int { return &d.Total })
 	return rows
 }
 
-// openChanges is what the events do to the issues open, by openDelta: per
-// row of a table rows long, newest first, the net change on that row's
-// period (rowOf gives an event time's row), and the issues open when the
-// oldest row's period begins at start, from the events before it. Events after
-// the newest row change nothing.
-func openChanges(
+// periodChanges is what the events do to a count, by delta: per row of a
+// table rows long, newest first, the net change on that row's period (rowOf
+// gives an event time's row), and the count when the oldest row's period
+// begins at start, from the events before it. Events after the newest row
+// change nothing.
+func periodChanges(
 	events []history.IssueEvent, start time.Time, rows int, rowOf func(time.Time) (int, bool),
-) (perRow []int, openAtStart int) {
+	delta func(history.IssueEvent) int,
+) (perRow []int, atStart int) {
 	perRow = make([]int, rows)
 	for _, e := range events {
 		if i, ok := rowOf(e.At); ok {
-			perRow[i] += openDelta(e)
+			perRow[i] += delta(e)
 		} else if e.At.Before(start) {
-			openAtStart += openDelta(e)
+			atStart += delta(e)
 		}
 	}
-	return perRow, openAtStart
+	return perRow, atStart
 }
 
 // openDelta is what e adds to the issues open: one for a created event and
@@ -101,21 +110,31 @@ func openDelta(e history.IssueEvent) int {
 	return 0
 }
 
-// addUpTotals sets each row's Total, the issues open at the end of its
-// period: openAtStart, open when the oldest row's period begins, plus the
+// createdDelta is what e adds to the issues created: one for a created event,
+// nothing for any other, so a reopen adds none and a close of an issue with no
+// created event in the list adds none (forsgren#134).
+func createdDelta(e history.IssueEvent) int {
+	if e.Event == history.EventCreated {
+		return 1
+	}
+	return 0
+}
+
+// addUp sets the count that column picks in each row, at the end of its
+// period: atStart, the count when the oldest row's period begins, plus the
 // perRow change of each period up to it, from the oldest row on. rows are
 // newest first, as is perRow.
-func addUpTotals(rows []IssueDay, perRow []int, openAtStart int) {
-	total := openAtStart
+func addUp(rows []IssueDay, perRow []int, atStart int, column func(*IssueDay) *int) {
+	total := atStart
 	for i := len(rows) - 1; i >= 0; i-- {
 		total += perRow[i]
-		rows[i].Total = total
+		*column(&rows[i]) = total
 	}
 }
 
 // count adds e to d: a created event is a new issue, a closed event one in
 // the column of its reason, anything else nothing. A created, a closed and a
-// reopened event all make the day Active (a reopen changes the Total).
+// reopened event all make the day Active (a reopen changes the Open).
 func (d *IssueDay) count(e history.IssueEvent) {
 	switch e.Event {
 	case history.EventCreated:

@@ -46,12 +46,12 @@ func TestIssueYearsCountsEachCompleteYearBeforeTheCurrentOne(t *testing.T) {
 	}
 }
 
-// TestIssueYearsTotalIsTheIssuesOpenAtTheYearsLastDay (forsgren#125, step 2):
+// TestIssueYearsOpenIsTheIssuesOpenAtTheYearsLastDay (forsgren#125, step 2):
 // with now on 14 October 2026 and 2 years, the issues created in 2023 are in
 // the base: open when 2024 begins. 2024 ends with issues 2 and 3 open (1 was
 // closed), 2025 ends with 2, 4 and 6 (3 was closed), and issue 5, created in
 // 2026, changes nothing.
-func TestIssueYearsTotalIsTheIssuesOpenAtTheYearsLastDay(t *testing.T) {
+func TestIssueYearsOpenIsTheIssuesOpenAtTheYearsLastDay(t *testing.T) {
 	at := func(year int, month time.Month, d int) time.Time {
 		return time.Date(year, month, d, 12, 0, 0, 0, time.UTC)
 	}
@@ -67,7 +67,7 @@ func TestIssueYearsTotalIsTheIssuesOpenAtTheYearsLastDay(t *testing.T) {
 	}
 	var got []int
 	for _, y := range IssueYears(events, at(2026, time.October, 14), 2) {
-		got = append(got, y.Total)
+		got = append(got, y.Open)
 	}
 	if want := []int{3, 2}; !slices.Equal(got, want) {
 		t.Errorf("want the totals %v (2025, 2024), got %v", want, got)
@@ -77,7 +77,7 @@ func TestIssueYearsTotalIsTheIssuesOpenAtTheYearsLastDay(t *testing.T) {
 // TestIssueYearRowsGoBackToTheYearOfTheOldestEventAndSkipTheCurrentYear
 // (forsgren#125, step 3): with now on 14 October 2026 and the oldest event in
 // 2023, the rows are 2025, 2024 and 2023, newest first. 2024 has no events, so
-// it is a zero row that still carries the Total of 1, and the event in 2026,
+// it is a zero row that still carries the Open of 1, and the event in 2026,
 // the current year, is no row. No events give no rows, and neither do events
 // that are all in the current year.
 func TestIssueYearRowsGoBackToTheYearOfTheOldestEventAndSkipTheCurrentYear(t *testing.T) {
@@ -97,7 +97,7 @@ func TestIssueYearRowsGoBackToTheYearOfTheOldestEventAndSkipTheCurrentYear(t *te
 	want := []row{{2025, 1, 2}, {2024, 0, 1}, {2023, 1, 1}}
 	var got []row
 	for _, y := range IssueYearRows(events, now) {
-		got = append(got, row{y.Date.Year(), y.New, y.Total})
+		got = append(got, row{y.Date.Year(), y.New, y.Open})
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("want the years %v, got %v", want, got)

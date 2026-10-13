@@ -41,7 +41,7 @@ func monthsBefore(at, current time.Time) int {
 
 // IssueMonthRows is every complete calendar month from the month of the
 // oldest event to the month before the one of now, newest first, a month
-// without events a zero row (carrying the Total); none when there are no
+// without events a zero row (carrying the Open); none when there are no
 // events or the oldest is in the current month.
 func IssueMonthRows(events []history.IssueEvent, now time.Time) []IssueDay {
 	oldest, ok := oldestAt(events)
