@@ -192,9 +192,10 @@ its DORA band, always shown with the count it comes from, "Between once per
 day and once per week · 12", the successful deployments of the last 30
 days, or of the last 180 days for a band decided on them ("Between once per
 month and once every six months · 3"). When some of those deployments were
-made at a weekend, the cell ends with how many, "Between once per day and
-once per week · 12 · 3 at weekends" (forsgren#115, decision #121). The legend
-page says which.
+made at a weekend, the next column, Weekend deployments, says how many
+(forsgren#115, #124; decision #121's rule of no sixth column is overruled).
+The cell itself ends with the count, "Between once per day and once per week
+· 12". The legend page says which.
 
 **What counts.** A deployment is a history line with the state `success`;
 `failure` and `other` lines do not count. A line belongs to the project
@@ -243,24 +244,27 @@ makes a burst visible (Yves's ruling on forsgren#12), so the band is never
 shown without it, and neither the 30-day nor the 180-day count has a row of
 its own.
 
-**Weekend deployments** (forsgren#115). "N at weekends" is how many of the
-successful deployments the cell counts were created on a Saturday or a
+**Weekend deployments** (forsgren#115, #124). The column of that name,
+next to Deployment frequency on the standard and numbers views, is how many
+of the successful deployments the frequency cell counts were created on a Saturday or a
 Sunday, UTC (the day of `created_at`, the same UTC the windows use; which days
 are the weekend is not configurable yet, forsgren#72). It takes its window
 from the count it follows: the last 30 days, or the last 180 days when the
-30 days hold none, so it is never more than that count. It is left out when
-it is 0, and the numbers and scoring views do not show it. It never changes
-the band:
+30 days hold none, so it is never more than that count. It is `0`, never
+blank, when there are none (decision #129). The numbers view shows the
+weekend deployments of the last 30 days beside its 30-day count; the scoring
+view does not show the column, as the count is no DORA metric and has no
+score. It never changes the band:
 
-| Situation | Cell ends with |
-| --- | --- |
-| 12 in 30 days, 3 on weekends | `· 12 · 3 at weekends` |
-| 0 in 30 days, 3 in 180 days, 1 on a weekend | `· 3 · 1 at weekends` |
-| 0 in 30 days, 3 in 180 days, none on weekends | `· 3` |
-| 0 in 180 days | `· 0` |
+| Situation | Frequency cell | Weekend deployments |
+| --- | --- | --- |
+| 12 in 30 days, 3 on weekends | `· 12` | `3` |
+| 0 in 30 days, 3 in 180 days, 1 on a weekend | `· 3` | `1` |
+| 0 in 30 days, 3 in 180 days, none on weekends | `· 3` | `0` |
+| 0 in 180 days | `· 0` | `0` |
 
 A row with no deployment in its history, successful or failed, says "No
-deployments recorded yet" across its five columns. A row whose deployments
+deployments recorded yet" across its six columns. A row whose deployments
 all failed is shown in full, so the worst case never looks like no data
 (Yves's ruling on decision #35): its frequency is "Less than once per six
 months · 0", since it counts successes.
@@ -516,14 +520,14 @@ linked to its GitHub repository, its version, "Metrics from GitHub data."
 "Calculated at
 2026-10-03 12:00 UTC", the moment of the run (UTC, to the minute), on every
 run, with rows or without; and, when a newer forsgren release exists than the
-version that built the page, the version line adds it, "Forsgren 0.8.1 ·
+version that built the page, the version line adds it, "Forsgren 0.8.2 ·
 0.3.9 is available" (forsgren#40; nothing is added when the page is up to
 date, and no repository appears). The numbers are compared as numbers, so 0.0.10
 is newer than 0.0.9. On a table page the footer's paragraph is followed by
 two links on one line, "Settings" and "What the bands mean", to the settings page and the legend (forsgren#83, #84). The legend page's footer links to Settings, the settings page's to the legend, no page to itself; a page with no table, such as the no-projects how-to, has none.
 
 `render` writes one table (forsgren#38) first on the table page, with no text
-above it but a visually hidden heading for screen readers, "Forsgren 0.8.1:
+above it but a visually hidden heading for screen readers, "Forsgren 0.8.2:
 the five DORA metrics"; where each metric comes from is explained on the
 legend page, counting back from the time in the footer. A config that lists
 no projects has no table: the page shows, in its place, a short how-to, that
@@ -532,7 +536,8 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
 
 - **The columns** are the five metrics: deployment frequency, lead time for
   changes, failed deployment recovery time, change fail rate and deployment
-  rework rate. The first column heads each row.
+  rework rate, with Weekend deployments after deployment frequency on the
+  standard and numbers views (forsgren#124). The first column heads each row.
 - **The rows** are, per project in the config's order, its total, then a
   row per label its repositories give (see Configuration, `label` and
   `services`), sorted by label ignoring case and indented under it. A
@@ -552,20 +557,21 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   final deployments, and whose rework rate counts only the first success
   after a failed deployment.
 - **Each cell is short**: the DORA band, then the number that decided it
-  and the count it is over, "Less than one day · 2 h 7 min (48)"; only
-  deployment frequency's may add a last part, "· 3 at weekends". Durations
-  are in min, h and d, each part cut down, never rounded up.
+  and the count it is over, "Less than one day · 2 h 7 min (48)"; the
+  weekend deployments have their own column. Durations are in min, h and d,
+  each part cut down, never rounded up.
 - **Pages:** `index.html` holds the table and, in its footer, two links, "Settings" to `settings.html` and "What the bands mean" to `legend.html`; both have a link back to the table, and each links in its footer to the other kind of page (the legend to Settings, the settings page to the legend; forsgren#84). The issues page, `issues.html`, and the months page, `months.html`, have no footer links (forsgren#76, #123, decisions #102 and #103). Eight pages are written in all: `index.html`, `legend.html`, `settings.html`, `issues.html`, `months.html` and the three views.
 - **Views** (forsgren#46): the table is built in more than one view, each its
   own page: `/standard/` (`standard/index.html`) is the table above, band,
   number and count, and `/numbers/` (`numbers/index.html`) shows only
   numbers, no band text: the successful deployments of the last 30 days
+  (0 where there are none), the weekend ones among them in the next column
   (0 where there are none), the median lead time and the median recovery time
   as durations ("2 h 7 min", the same text the standard cell shows after its
   band), and the change fail rate and the rework rate in whole percent
   ("14%"); a `-` where there is no number (no commits, no completed
   recovery, no deployments or successful deployments). A row with no
-  deployments recorded is five cells there, `0` and four `-`, never a
+  deployments recorded is six cells there, two `0` and four `-`, never a
   sentence. Each view's page has a switch in its table's caption, on one
   line after the title, "DORA metrics View: standard · numbers · scoring ·
   issues · months" (forsgren#51, #76, #123: `issues` and `months` are not views of
@@ -1172,7 +1178,7 @@ the format refuses the run before GitHub is asked anything.
 
 ## Running forsgren
 
-forsgren renders a static page whose footer says "Forsgren 0.8.1", the version of
+forsgren renders a static page whose footer says "Forsgren 0.8.2", the version of
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
@@ -1231,7 +1237,7 @@ pull-request check failed", and a Setup line, see The setup issue); the link is 
 private to the repository, unlike the public page. A flag it cannot use is a
 usage error that prints nothing. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides
-"Forsgren 0.8.1" in its footer, a how-to for filling `forsgren.config.yml`;
+"Forsgren 0.8.2" in its footer, a how-to for filling `forsgren.config.yml`;
 without `--config` (the build above has no installation config) or with
 projects, the page is the placeholder. With `--data` as well (it needs `--config`), the
 page shows each project's deployment frequency from that history, counted
@@ -1365,7 +1371,7 @@ jobs:
 - **`pull-requests: read` is optional, and the caller's to grant too**
   (forsgren#40). With it, when a newer forsgren release exists and
   Dependabot has an open pull request in your repository that bumps the
-  `uses:` pin to exactly that release, the page footer says "Forsgren 0.8.1
+  `uses:` pin to exactly that release, the page footer says "Forsgren 0.8.2
   · 0.3.9 is waiting in pull request #7 (merge it to update)", with the
   number only. Without it the footer still says "0.3.9 is available": the
   lookup treats the refusal (a 403) as unknown, never as an error, and the
@@ -1428,7 +1434,7 @@ workflow passes the status on as `render --needs-check` and
   first line of its body; the label only narrows the lookup. An issue with
   the label and no marker is never touched, and if you remove the label from
   the managed issue, the next run opens a new one. Its title is "forsgren
-  0.8.1 needs more configuration" (the running version) and its body lists the
+  0.8.2 needs more configuration" (the running version) and its body lists the
   steps of each missing need; title and body are presentation, and a run
   rewrites them.
 - **What a run does with it.** Something missing and no issue: it opens one.

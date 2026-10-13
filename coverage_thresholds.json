@@ -429,6 +429,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/cell.go:Cell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/cell.go:WeekendCell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/cell.go:cell": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/cell.go:last30Counts": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/cell.go:shown": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/cell.go:timed": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/numbercell.go:NumberCell": 100.0,

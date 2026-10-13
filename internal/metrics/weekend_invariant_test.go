@@ -13,9 +13,8 @@ import (
 // shownCounts reads the two numbers the frequency row shows: the
 // deployments after the band in the frequency cell and the weekend ones in
 // the weekend deployments cell.
-func shownCounts(t *testing.T, f Frequency) (deployments, weekends int) {
+func shownCounts(t *testing.T, cell, weekendCell string) (deployments, weekends int) {
 	t.Helper()
-	cell, weekendCell := f.Cell(), f.WeekendCell()
 	parts := strings.Split(cell, cellSeparator)
 	if len(parts) != 2 {
 		t.Fatalf("want a band and a count, got %q", cell)
@@ -71,16 +70,17 @@ var weekendCases = []weekendCase{
 }
 
 // TestWeekendCountStaysWithinTheCountShown (forsgren#115, decision #121,
-// forsgren#124): whatever the history, the weekend deployments cell lies between 0 and the
-// count the cell shows, both over the window the cell shows, the last 30
-// days or, with none in them, the last 180. Real records go through
-// DeploymentFrequency.
+// forsgren#124): whatever the history, the weekend deployments cell lies
+// between 0 and the count the frequency cell shows, both over the window
+// the frequency cell shows, the last 30 days or, with none in them, the
+// last 180. Real records go through DeploymentFrequency.
 func TestWeekendCountStaysWithinTheCountShown(t *testing.T) {
 	for _, c := range weekendCases {
 		t.Run(c.name, func(t *testing.T) {
 			f := shopOf(t, c.records...)
-			cell := f.Cell() + " | " + f.WeekendCell()
-			deployments, weekend := shownCounts(t, f)
+			frequencyCell, weekendCell := f.Cell(), f.WeekendCell()
+			deployments, weekend := shownCounts(t, frequencyCell, weekendCell)
+			cell := frequencyCell + " | " + weekendCell
 			if weekend < 0 || weekend > deployments {
 				t.Errorf("want 0 <= weekend count <= count, got %q", cell)
 			}

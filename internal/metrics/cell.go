@@ -19,26 +19,30 @@ const cellSeparator = " · "
 // week · 7"; a row whose deployments all failed shows its band of none,
 // "Less than once per six months · 0" (decision #35).
 func (f Frequency) Cell() string {
-	count, _ := f.shown()
-	return cell(f.Band, strconv.Itoa(count))
+	return cell(f.Band, strconv.Itoa(f.shown().deployments))
 }
 
 // WeekendCell is how many of the deployments Cell counts were created on a
 // Saturday or a Sunday, UTC, over the same window (forsgren#124).
-func (f Frequency) WeekendCell() string {
-	_, weekends := f.shown()
-	return strconv.Itoa(weekends)
+func (f Frequency) WeekendCell() string { return strconv.Itoa(f.shown().weekends) }
+
+// windowCounts are the successful deployments over one window and the
+// weekend ones among them, the two numbers a view shows side by side
+// (forsgren#124).
+type windowCounts struct{ deployments, weekends int }
+
+// shown are the counts of the window the frequency cell shows: the last 30
+// days', or, with none in them, the last 180 days'.
+func (f Frequency) shown() windowCounts {
+	if f.Last30 == 0 {
+		return windowCounts{f.Last180, f.Weekend180}
+	}
+	return f.last30Counts()
 }
 
-// shown are the count of successful deployments the frequency cell shows
-// and the weekend ones among them: the last 30 days', or, with none in
-// them, the last 180 days'.
-func (f Frequency) shown() (count, weekends int) {
-	if f.Last30 == 0 {
-		return f.Last180, f.Weekend180
-	}
-	return f.Last30, f.Weekend30
-}
+// last30Counts are the counts of the last 30 days, the window the numbers
+// view shows.
+func (f Frequency) last30Counts() windowCounts { return windowCounts{f.Last30, f.Weekend30} }
 
 // Cell is the band, the median and the count of commits, "Less than one
 // day · 2 h 7 min (48)"; "No lead time yet" without commits.
