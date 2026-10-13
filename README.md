@@ -575,22 +575,35 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   DORA Quick Check, linked: "Scores follow the DORA Quick Check (dora.dev),
   © Google LLC, CC BY 4.0" (forsgren#47). It no longer lists the settings
   (forsgren#84).
-- **The issues page** (`issues.html`, forsgren#76) is a table, Date | New |
-  Completed | Not planned | Duplicate | Other | Total, one row per UTC calendar day,
-  the last 30 complete days (`issueDays`), yesterday on top and going down;
-  today is left out, so a row never changes once it is shown (apart from the
-  known limits below). All tracked repositories are counted together. **Inactive
-  days are hidden** (forsgren#108, decisions #116 and #117): a day is active
-  when it has a new issue, a close of any kind or a reopen, and a day with
-  none of these has no row. A reopen keeps a day visible because it changes
-  the Total. The window stays 30 calendar days, so hiding days gives fewer
-  rows; the page does not reach further back to fill 30. The calculation
-  keeps every day (`metrics.IssueDays` marks each with `Active`): the Total
-  is computed over all of them, so a hidden day's Total equals that of the
-  shown day before it. When no day of the window is active, and when there
-  are no issue events yet, the page shows one line, "No issues were opened,
-  closed or reopened in the last 30 days.", and the view switch, instead of
-  the table. **New** counts the `created` events of
+- **The issues page** (`issues.html`, forsgren#76, #89) is a table, Period |
+  New | Completed | Not planned | Duplicate | Other | Total, with three kinds of
+  row, newest first within each (decisions #118 and #119). First the **days of
+  the current week**, Monday up to yesterday (none on a Monday), labelled by
+  their UTC date; then the **complete weeks** that touch the current month,
+  Monday to Sunday, labelled "Week 41" (the ISO week number); then **every
+  complete calendar month** back to the month of the oldest stored event,
+  labelled "September 2026". The current week appears only as its days and the
+  current month only as its weeks and days. A week that spans two months is in
+  both: on Wednesday 14 October 2026 the page lists Tuesday 13 and Monday 12,
+  then weeks 41 and 40 (week 40 begins on 28 September), then September and
+  the months before it. Today is left out, so a row never changes once it is
+  shown (apart from the known limits below). All tracked repositories are
+  counted together. **Inactive rows are hidden** (forsgren#108, decisions #116
+  and #117, for weeks and months too): a row is active when its period has a
+  new issue, a close of any kind or a reopen, and a row with none of these is
+  no row. A reopen keeps a row visible because it changes the Total. The
+  calculation keeps every row (`metrics.IssueRows`, built from
+  `metrics.IssueWeekDays`, `IssueWeeks` and `IssueMonthRows`, each marking its
+  rows with `Active`): the Total is computed over all of them, so a hidden
+  row's Total equals that of the shown row before it. When no row is active,
+  and when there are no issue events yet, the page shows one line, "No issues
+  were opened, closed or reopened before today." (decision #119: the rows
+  reach back months, so the line names no period), and the view switch,
+  instead of the table. Under the table a note says days are UTC, weeks run
+  Monday to Sunday, months follow the calendar, and a week that spans two
+  months is in both. In a week or
+  a month row, **Total** is the issues open at the end of the row's last day.
+  **New** counts the `created` events of
   the day; a reopened issue is not new. Every `closed` event of the day is
   counted in exactly one of the other four columns, by its reason
   (decision #107): **Completed** is the reason `completed`, **Not planned**
@@ -605,8 +618,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   read, or a bug), and it is shown rather than hidden. Reopen times are the
   times `collect` saw them (see Issue events), so a Total from before a
   reopen was seen is an estimate. The caption holds the same view switch as
-  the table pages, with `issues` as the current entry (`aria-current="page"`), and says the days
-  are UTC. `render` reads `data/issues.csv` next to its `--data` file like
+  the table pages, with `issues` as the current entry (`aria-current="page"`), and names the table "Issues per day, week and month, all projects". `render` reads `data/issues.csv` next to its `--data` file like
   `failures.csv`: a missing file is no events (the one-line message, a new
   installation), an unknown version or a malformed line fails the render
   with its own message.
