@@ -579,8 +579,18 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   Completed | Not planned | Duplicate | Other | Total, one row per UTC calendar day,
   the last 30 complete days (`issueDays`), yesterday on top and going down;
   today is left out, so a row never changes once it is shown (apart from the
-  known limits below). All tracked repositories are counted together. A day
-  with no events is a row of zeros. **New** counts the `created` events of
+  known limits below). All tracked repositories are counted together. **Inactive
+  days are hidden** (forsgren#108, decisions #116 and #117): a day is active
+  when it has a new issue, a close of any kind or a reopen, and a day with
+  none of these has no row. A reopen keeps a day visible because it changes
+  the Total. The window stays 30 calendar days, so hiding days gives fewer
+  rows; the page does not reach further back to fill 30. The calculation
+  keeps every day (`metrics.IssueDays` marks each with `Active`): the Total
+  is computed over all of them, so a hidden day's Total equals that of the
+  shown day before it. When no day of the window is active, and when there
+  are no issue events yet, the page shows one line, "No issues were opened,
+  closed or reopened in the last 30 days.", and the view switch, instead of
+  the table. **New** counts the `created` events of
   the day; a reopened issue is not new. Every `closed` event of the day is
   counted in exactly one of the other four columns, by its reason
   (decision #107): **Completed** is the reason `completed`, **Not planned**
@@ -597,7 +607,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   reopen was seen is an estimate. The caption holds the same view switch as
   the table pages, with `issues` as the current entry (`aria-current="page"`), and says the days
   are UTC. `render` reads `data/issues.csv` next to its `--data` file like
-  `failures.csv`: a missing file is no events (a table of zero rows, a new
+  `failures.csv`: a missing file is no events (the one-line message, a new
   installation), an unknown version or a malformed line fails the render
   with its own message.
 - **The settings page** (`settings.html`, forsgren#84) lists each optional
