@@ -256,15 +256,17 @@ func TestSettingsPageMatchesGolden(t *testing.T) {
 	checkPageGolden(t, "settings.html", "testdata/settings.golden.html", data)
 }
 
+// october is midnight UTC on day d of October 2026, an issues page row's Date.
+func october(d int) time.Time { return time.Date(2026, time.October, d, 0, 0, 0, 0, time.UTC) }
+
 // TestIssuesPageMatchesGolden (forsgren#76, step 9): the issues page is the
 // page issues.html, a table of the days newest first with the issues
 // opened (New) and completed, the days in UTC, with a link back to the table.
 func TestIssuesPageMatchesGolden(t *testing.T) {
-	day := func(d int) time.Time { return time.Date(2026, time.October, d, 0, 0, 0, 0, time.UTC) }
 	data := calculated()
 	data.IssueDays = []metrics.IssueDay{
-		{Date: day(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Total: 7, Active: true},
-		{Date: day(1), New: 0, Completed: 0, Total: 5, Active: true},
+		{Date: october(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Total: 7, Active: true},
+		{Date: october(1), New: 0, Completed: 0, Total: 5, Active: true},
 		{
 			Date: time.Date(2026, time.September, 30, 0, 0, 0, 0, time.UTC),
 			New:  2, Completed: 4, Duplicate: 3, Other: 5, Total: 6, Active: true,
@@ -277,12 +279,11 @@ func TestIssuesPageMatchesGolden(t *testing.T) {
 // Active (nothing new, closed or reopened) has no row on the issues page, the
 // days around it do. The calculation keeps the day (rule 3); only the page hides it.
 func TestIssuesPageSkipsInactiveDays(t *testing.T) {
-	day := func(d int) time.Time { return time.Date(2026, time.October, d, 0, 0, 0, 0, time.UTC) }
 	data := calculated()
 	data.IssueDays = []metrics.IssueDay{
-		{Date: day(3), New: 1, Total: 5, Active: true},
-		{Date: day(2), Total: 5},
-		{Date: day(1), Completed: 1, Total: 5, Active: true},
+		{Date: october(3), New: 1, Total: 5, Active: true},
+		{Date: october(2), Total: 5},
+		{Date: october(1), Completed: 1, Total: 5, Active: true},
 	}
 	got := rendered(t, "issues.html", data)
 	wantAll(t, "issues.html", got, "2026-10-03", "2026-10-01")
@@ -293,17 +294,16 @@ func TestIssuesPageSkipsInactiveDays(t *testing.T) {
 // when no day of the window is Active, the issues page says so in one line
 // and has no table, not even its head.
 func TestIssuesPageWithNoActiveDayShowsAMessage(t *testing.T) {
-	day := func(d int) time.Time { return time.Date(2026, time.October, d, 0, 0, 0, 0, time.UTC) }
 	data := calculated()
-	data.IssueDays = []metrics.IssueDay{{Date: day(2), Total: 5}, {Date: day(1), Total: 5}}
+	data.IssueDays = []metrics.IssueDay{{Date: october(2), Total: 5}, {Date: october(1), Total: 5}}
 	got := rendered(t, "issues.html", data)
 	wantAll(t, "issues.html", got, "<p>No issues were opened, closed or reopened in the last 30 days.</p>")
 	wantNone(t, "issues.html", got, "<table>", "2026-10-02", "2026-10-01")
 }
 
 // TestIssuesPageWithoutDaysMatchesGolden (forsgren#76): the page of a site
-// with no issue events yet, which Scripts/test_build_site.sh renders, has the
-// table's head and no rows.
+// with no issue events yet, which Scripts/test_build_site.sh renders, has no
+// Active day, so it shows the no-activity message and no table (forsgren#108).
 func TestIssuesPageWithoutDaysMatchesGolden(t *testing.T) {
 	checkPageGolden(t, "issues.html", "testdata/issues.placeholder.golden.html", calculated())
 }

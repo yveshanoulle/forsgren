@@ -148,6 +148,9 @@ var sep30 = time.Date(2026, time.September, 30, 10, 0, 0, 0, time.UTC)
 // total is the Total column of d.
 func total(d IssueDay) int { return d.Total }
 
+// active is whether d is Active (forsgren#108).
+func active(d IssueDay) bool { return d.Active }
+
 // checkTotals fails t unless the Total of each day is want.
 func checkTotals(t *testing.T, events []history.IssueEvent, want []int) {
 	t.Helper()
@@ -254,7 +257,7 @@ func TestIssueDaysTotalDoesNotDependOnTheOrderOfTheLines(t *testing.T) {
 // Active, and 1 October is.
 func TestIssueDaysMarksADayWithoutEventsInactive(t *testing.T) {
 	events := []history.IssueEvent{issueEvent("acme/app", "created", oct(1, 8, 0, 0))}
-	checkColumn(t, events, func(d IssueDay) bool { return d.Active }, []bool{false, true, false})
+	checkColumn(t, events, active, []bool{false, true, false})
 }
 
 // TestIssueDaysKeepsADayWithOnlyAReopenActive (forsgren#108, step 3): a
@@ -266,5 +269,5 @@ func TestIssueDaysKeepsADayWithOnlyAReopenActive(t *testing.T) {
 		issueEvent("acme/app", "created", oct(1, 8, 0, 0)),
 		issueEvent("acme/app", "reopened", oct(2, 8, 0, 0)),
 	}
-	checkColumn(t, events, func(d IssueDay) bool { return d.Active }, []bool{true, true, false})
+	checkColumn(t, events, active, []bool{true, true, false})
 }
