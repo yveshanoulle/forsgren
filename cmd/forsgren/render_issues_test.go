@@ -47,35 +47,6 @@ func TestRenderShowsTheIssuesOfEachDay(t *testing.T) {
 	}
 }
 
-// TestRenderShowsTheIssuesOfWeeksAndMonths (forsgren#89, step 17): rendered on
-// Wednesday 14 October 2026, issues.html holds the day before (13 October),
-// then the complete weeks of the month, 41 and 40 (40 begins in September),
-// then the months, September and August, each with an issue created in it.
-func TestRenderShowsTheIssuesOfWeeksAndMonths(t *testing.T) {
-	old := now
-	now = func() time.Time { return time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC) }
-	t.Cleanup(func() { now = old })
-	data := writeHistory(t, acmeHistory())
-	var events []history.IssueEvent
-	for i, at := range []string{"2026-10-13", "2026-10-06", "2026-09-29", "2026-09-10", "2026-08-20"} {
-		events = append(events, issueEventAt(int64(i+1), "created", "", at+"T09:00:00Z"))
-	}
-	if _, err := history.AppendIssueEvents(filepath.Join(filepath.Dir(data), "issues.csv"), events); err != nil {
-		t.Fatal(err)
-	}
-	dir := filepath.Join(t.TempDir(), "site")
-	if code, _, stderr := runCommand("render", "--out", dir, "--config", writeConfig(t, validConfig),
-		"--data", data); code != 0 {
-		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
-	}
-	issues := readFile(t, filepath.Join(dir, "issues.html"))
-	for _, label := range []string{"Period", "2026-10-13", "Week 41", "Week 40", "September 2026", "August 2026"} {
-		if !strings.Contains(issues, ">"+label+"<") {
-			t.Errorf("want the page to hold the row %q, got:\n%s", label, issues)
-		}
-	}
-}
-
 // TestRenderRefusesABadIssuesFile: a malformed or unknown-version issues
 // file fails render with its own message, naming it, and writes nothing.
 func TestRenderRefusesABadIssuesFile(t *testing.T) {

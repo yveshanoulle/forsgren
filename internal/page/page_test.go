@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -259,28 +260,19 @@ func TestSettingsPageMatchesGolden(t *testing.T) {
 // october is midnight UTC on day d of October 2026, an issues page row's Date.
 func october(d int) time.Time { return time.Date(2026, time.October, d, 0, 0, 0, 0, time.UTC) }
 
-// dayRows is days as the issues page's day rows.
-func dayRows(days ...metrics.IssueDay) []metrics.IssueRow {
-	rows := make([]metrics.IssueRow, len(days))
-	for i, d := range days {
-		rows[i] = metrics.IssueRow{Kind: metrics.KindDay, IssueDay: d}
-	}
-	return rows
-}
-
 // TestIssuesPageMatchesGolden (forsgren#76, step 9): the issues page is the
 // page issues.html, a table of the days newest first with the issues
 // opened (New) and completed, the days in UTC, with a link back to the table.
 func TestIssuesPageMatchesGolden(t *testing.T) {
 	data := calculated()
-	data.IssueRows = dayRows(
-		metrics.IssueDay{Date: october(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Total: 7, Active: true},
-		metrics.IssueDay{Date: october(1), New: 0, Completed: 0, Total: 5, Active: true},
-		metrics.IssueDay{
+	data.IssueDays = []metrics.IssueDay{
+		{Date: october(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Total: 7, Active: true},
+		{Date: october(1), New: 0, Completed: 0, Total: 5, Active: true},
+		{
 			Date: time.Date(2026, time.September, 30, 0, 0, 0, 0, time.UTC),
 			New:  2, Completed: 4, Duplicate: 3, Other: 5, Total: 6, Active: true,
 		},
-	)
+	}
 	checkPageGolden(t, "issues.html", "testdata/issues.golden.html", data)
 }
 
@@ -307,23 +299,27 @@ func TestIssuesPageShowsTheLastThirtyDays(t *testing.T) {
 		"a week that spans two months")
 }
 
-// TestIssuesPageLabelsDayWeekAndMonthRows (forsgren#89, step 13): the rows of
-// Data.IssueRows are labelled by their kind: a day by its date, a week by the
-// ISO number of its Monday (5 October 2026 is in week 41), a month by its
-// name and year.
-func TestIssuesPageLabelsDayWeekAndMonthRows(t *testing.T) {
-	data := calculated()
+// TestIssueTableRowsLabelsDayWeekAndMonthRows (forsgren#89, step 13;
+// forsgren#123): the rows of Data.IssueRows are labelled by their kind: a day
+// by its date, a week by the ISO number of its Monday (5 October 2026 is in
+// week 41), a month by its name and year. The months page shows them.
+func TestIssueTableRowsLabelsDayWeekAndMonthRows(t *testing.T) {
 	row := func(kind string, date time.Time) metrics.IssueRow {
 		return metrics.IssueRow{Kind: kind, IssueDay: metrics.IssueDay{Date: date, New: 1, Total: 1, Active: true}}
 	}
+	data := calculated()
 	data.IssueRows = []metrics.IssueRow{
 		row(metrics.KindDay, october(13)),
 		row(metrics.KindWeek, october(5)),
 		row(metrics.KindMonth, time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC)),
 	}
-	got := rendered(t, "issues.html", data)
-	wantAll(t, "issues.html", got, "2026-10-13", "Week 41", "September 2026")
-	wantNone(t, "issues.html", got, "<p>No issues were opened")
+	var got []string
+	for _, r := range data.IssueTableRows() {
+		got = append(got, r.Label)
+	}
+	if want := []string{"2026-10-13", "Week 41", "September 2026"}; !slices.Equal(got, want) {
+		t.Errorf("want the labels %q, got %q", want, got)
+	}
 }
 
 // TestIssuesPageSkipsInactiveDays (forsgren#108, step 5): a day that is not
@@ -331,34 +327,25 @@ func TestIssuesPageLabelsDayWeekAndMonthRows(t *testing.T) {
 // days around it do. The calculation keeps the day (rule 3); only the page hides it.
 func TestIssuesPageSkipsInactiveDays(t *testing.T) {
 	data := calculated()
-	data.IssueRows = dayRows(
-		metrics.IssueDay{Date: october(3), New: 1, Total: 5, Active: true},
-		metrics.IssueDay{Date: october(2), Total: 5},
-		metrics.IssueDay{Date: october(1), Completed: 1, Total: 5, Active: true},
-	)
+	data.IssueDays = []metrics.IssueDay{
+		{Date: october(3), New: 1, Total: 5, Active: true},
+		{Date: october(2), Total: 5},
+		{Date: october(1), Completed: 1, Total: 5, Active: true},
+	}
 	got := rendered(t, "issues.html", data)
 	wantAll(t, "issues.html", got, "2026-10-03", "2026-10-01")
 	wantNone(t, "issues.html", got, "2026-10-02")
 }
 
-// TestIssuesPageWithNoActiveRowShowsAMessage (forsgren#108, step 7, rule 4;
-// forsgren#89, step 15): when no row of any kind, day, week or month, is
-// Active, the issues page says so in one line and has no table, not even its
-// head. The rows reach back months, so the line names no period: it says
-// that nothing happened before today.
-func TestIssuesPageWithNoActiveRowShowsAMessage(t *testing.T) {
+// TestIssuesPageWithNoActiveDayShowsAMessage (forsgren#108, step 7, rule 4):
+// when no day of the window is Active, the issues page says so in one line
+// and has no table, not even its head.
+func TestIssuesPageWithNoActiveDayShowsAMessage(t *testing.T) {
 	data := calculated()
-	row := func(kind string, date time.Time) metrics.IssueRow {
-		return metrics.IssueRow{Kind: kind, IssueDay: metrics.IssueDay{Date: date, Total: 5}}
-	}
-	data.IssueRows = []metrics.IssueRow{
-		row(metrics.KindDay, october(13)),
-		row(metrics.KindWeek, october(5)),
-		row(metrics.KindMonth, time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC)),
-	}
+	data.IssueDays = []metrics.IssueDay{{Date: october(13), Total: 5}, {Date: october(12), Total: 5}}
 	got := rendered(t, "issues.html", data)
-	wantAll(t, "issues.html", got, "<p>No issues were opened, closed or reopened before today.</p>")
-	wantNone(t, "issues.html", got, "<table>", "2026-10-13", "Week 41", "September 2026")
+	wantAll(t, "issues.html", got, "<p>No issues were opened, closed or reopened in the last 30 days.</p>")
+	wantNone(t, "issues.html", got, "<table>", "2026-10-13")
 }
 
 // TestIssuesPageWithoutDaysMatchesGolden (forsgren#76): the page of a site
@@ -714,24 +701,4 @@ func TestLegendHasNoSettings(t *testing.T) {
 		"<li>view: numbers</li>",
 		"<li>history_days: 365",
 	)
-}
-
-// TestIssuesPageSkipsInactiveWeeksAndMonths (forsgren#89, step 16): as for
-// days (forsgren#108), a week or a month that is not Active has no row, the
-// ones around it do. The calculation keeps them; only the page hides them.
-func TestIssuesPageSkipsInactiveWeeksAndMonths(t *testing.T) {
-	data := calculated()
-	row := func(kind string, date time.Time, active bool) metrics.IssueRow {
-		return metrics.IssueRow{Kind: kind, IssueDay: metrics.IssueDay{Date: date, New: 1, Total: 5, Active: active}}
-	}
-	month := func(m time.Month) time.Time { return time.Date(2026, m, 1, 0, 0, 0, 0, time.UTC) }
-	data.IssueRows = []metrics.IssueRow{
-		row(metrics.KindWeek, october(5), true),
-		row(metrics.KindWeek, time.Date(2026, time.September, 28, 0, 0, 0, 0, time.UTC), false),
-		row(metrics.KindMonth, month(time.September), false),
-		row(metrics.KindMonth, month(time.August), true),
-	}
-	got := rendered(t, "issues.html", data)
-	wantAll(t, "issues.html", got, "Week 41", "August 2026")
-	wantNone(t, "issues.html", got, "Week 40", "September 2026")
 }

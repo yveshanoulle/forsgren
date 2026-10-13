@@ -152,10 +152,10 @@ func issueRowLabel(r metrics.IssueRow) string {
 	return r.Date.Format("2006-01-02")
 }
 
-// AnyIssueDayActive says whether some row of the issues page is Active, that
-// is whether it has a row to show (forsgren#108).
+// AnyIssueDayActive says whether some day of IssueDays is Active, that is
+// whether the issues page has a row to show (forsgren#108).
 func (d Data) AnyIssueDayActive() bool {
-	return slices.ContainsFunc(d.IssueTableRows(), func(r IssueTableRow) bool { return r.Active })
+	return slices.ContainsFunc(d.IssueDays, func(day metrics.IssueDay) bool { return day.Active })
 }
 
 // WorkingDay is the hours of a working day, 8 when Data holds none.

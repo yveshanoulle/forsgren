@@ -109,6 +109,10 @@ func pageData(o renderOptions, at time.Time) (page.Data, error) {
 	return withHistory(data, cfg, o.data, at)
 }
 
+// issueDays is how many UTC days the issues page shows, ending yesterday
+// (forsgren#76, forsgren#123).
+const issueDays = 30
+
 // withHistory is data with what the history at path shows: the table's rows
 // and the issues page's rows (forsgren#89), from the issues file next to the
 // history (data/issues.csv beside data/deployments.csv), at the render time
@@ -123,6 +127,7 @@ func withHistory(data page.Data, cfg config.Config, path string, at time.Time) (
 	if err != nil {
 		return data, err
 	}
+	data.IssueDays = metrics.IssueDays(events, at, issueDays)
 	data.IssueRows = metrics.IssueRows(events, at)
 	return data, nil
 }
