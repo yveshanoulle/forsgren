@@ -106,3 +106,32 @@ func TestIssueRowsEndWithYearRowsAfterTheCurrentYearsMonths(t *testing.T) {
 		t.Errorf("want the periods\n%v\ngot\n%v", wantJanuary, got)
 	}
 }
+
+// TestIssueRowsOpenChangeIsAgainstThePreviousPeriodOfTheSameKind (forsgren#126,
+// forsgren#114): with now on Wednesday 14 October 2026, a day row moves from
+// the day before, a week row from the week before and a month row from the
+// month before, never from the row below in the list, which can be of another
+// kind: Tuesday -1 and Monday +1, week 41 0 and week 40 +2 (the week before
+// holds one issue, 39 begins the base) and September +2, the one month row.
+// Proven by mutation.
+func TestIssueRowsOpenChangeIsAgainstThePreviousPeriodOfTheSameKind(t *testing.T) {
+	at := func(month time.Month, d, h, m, s int) time.Time {
+		return time.Date(2026, month, d, h, m, s, 0, time.UTC)
+	}
+	events := []history.IssueEvent{
+		appEvent(1, "created", at(time.September, 27, 12, 0, 0)),
+		appEvent(2, "created", at(time.September, 28, 0, 0, 0)),
+		appEvent(3, "created", at(time.October, 4, 23, 59, 59)),
+		appEvent(4, "created", at(time.October, 5, 0, 0, 0)),
+		closeOfIssue(2, at(time.October, 11, 8, 0, 0)),
+		appEvent(5, "created", at(time.October, 12, 9, 0, 0)),
+		closeOfIssue(1, at(time.October, 13, 9, 0, 0)),
+	}
+	var got []int
+	for _, r := range IssueRows(events, at(time.October, 14, 12, 0, 0)) {
+		got = append(got, r.OpenChange)
+	}
+	if want := []int{-1, 1, 0, 2, 2}; !slices.Equal(got, want) {
+		t.Errorf("want the Open change per row, newest first, %v, got %v", want, got)
+	}
+}
