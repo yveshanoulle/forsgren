@@ -122,3 +122,19 @@ func TestMonthsPageMatchesGolden(t *testing.T) {
 func TestMonthsPageWithoutRowsMatchesGolden(t *testing.T) {
 	checkPageGolden(t, "months.html", "testdata/months.no-rows.golden.html", calculated())
 }
+
+// TestIssueRowLabelOfAYearIsTheBareYear (forsgren#125, step 7): a year row is
+// labelled by its year alone, "2025", not by its first day, and the page shows
+// that label in its row.
+func TestIssueRowLabelOfAYearIsTheBareYear(t *testing.T) {
+	data := calculated()
+	data.IssueRows = []metrics.IssueRow{{
+		Kind:     metrics.KindYear,
+		IssueDay: metrics.IssueDay{Date: on2026(time.January, 1).AddDate(-1, 0, 0), New: 1, Total: 1, Active: true},
+	}}
+	rows := data.IssueTableRows()
+	if len(rows) != 1 || rows[0].Label != "2025" {
+		t.Errorf("want the label 2025, got %v", rows)
+	}
+	wantAll(t, "months.html", rendered(t, "months.html", data), `<th scope="row">2025</th>`)
+}

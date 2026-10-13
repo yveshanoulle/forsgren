@@ -58,3 +58,51 @@ func TestIssueRowsShowSixDaysOnASunday(t *testing.T) {
 		t.Errorf("want the days %v, got %v", want, days)
 	}
 }
+
+// TestIssueRowsEndWithYearRowsAfterTheCurrentYearsMonths (forsgren#125, step
+// 6): with now on Wednesday 14 October 2026 and events back to 2024, the
+// month rows are September back to January 2026 and one year row each for
+// 2025 and 2024 follows, newest first. On Tuesday 5 January 2027 the current
+// year has no complete month, so the year rows follow the weeks directly.
+func TestIssueRowsEndWithYearRowsAfterTheCurrentYearsMonths(t *testing.T) {
+	at := func(year int, month time.Month, d int) time.Time {
+		return time.Date(year, month, d, 12, 0, 0, 0, time.UTC)
+	}
+	type row struct {
+		kind  string
+		year  int
+		month time.Month
+	}
+	periods := func(events []history.IssueEvent, now time.Time) []row {
+		var got []row
+		for _, r := range IssueRows(events, now) {
+			if r.Kind == KindMonth || r.Kind == KindYear {
+				got = append(got, row{r.Kind, r.Date.Year(), r.Date.Month()})
+			}
+		}
+		return got
+	}
+	events := []history.IssueEvent{
+		appEvent(1, "created", at(2024, time.March, 3)),
+		appEvent(2, "created", at(2025, time.November, 3)),
+		appEvent(3, "created", at(2026, time.February, 3)),
+		appEvent(4, "created", at(2026, time.September, 10)),
+	}
+	want := []row{
+		{KindMonth, 2026, time.September}, {KindMonth, 2026, time.August}, {KindMonth, 2026, time.July},
+		{KindMonth, 2026, time.June}, {KindMonth, 2026, time.May}, {KindMonth, 2026, time.April},
+		{KindMonth, 2026, time.March}, {KindMonth, 2026, time.February}, {KindMonth, 2026, time.January},
+		{KindYear, 2025, time.January}, {KindYear, 2024, time.January},
+	}
+	if got := periods(events, at(2026, time.October, 14)); !slices.Equal(got, want) {
+		t.Errorf("want the periods\n%v\ngot\n%v", want, got)
+	}
+	january := []history.IssueEvent{
+		appEvent(1, "created", at(2025, time.June, 3)),
+		appEvent(2, "created", at(2026, time.December, 10)),
+	}
+	wantJanuary := []row{{KindYear, 2026, time.January}, {KindYear, 2025, time.January}}
+	if got := periods(january, at(2027, time.January, 5)); !slices.Equal(got, wantJanuary) {
+		t.Errorf("want the periods\n%v\ngot\n%v", wantJanuary, got)
+	}
+}

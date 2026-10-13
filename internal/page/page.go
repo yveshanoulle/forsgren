@@ -131,7 +131,7 @@ type IssueTableRow struct {
 
 // IssueTableRows are the rows of the months page, IssueRows labelled: a day
 // by its date, a week by the ISO number of its Monday ("Week 41"), a month by
-// its name and year.
+// its name and year, a year by the year.
 func (d Data) IssueTableRows() []IssueTableRow {
 	table := make([]IssueTableRow, len(d.IssueRows))
 	for i, r := range d.IssueRows {
@@ -141,7 +141,7 @@ func (d Data) IssueTableRows() []IssueTableRow {
 }
 
 // issueRowLabel is the label of r's kind: the date of a day, "Week 41" for a
-// week, "September 2026" for a month.
+// week, "September 2026" for a month, "2025" for a year.
 func issueRowLabel(r metrics.IssueRow) string {
 	switch r.Kind {
 	case metrics.KindWeek:
@@ -149,6 +149,8 @@ func issueRowLabel(r metrics.IssueRow) string {
 		return fmt.Sprintf("Week %d", week)
 	case metrics.KindMonth:
 		return r.Date.Format("January 2006")
+	case metrics.KindYear:
+		return r.Date.Format("2006")
 	}
 	return r.Date.Format("2006-01-02")
 }
