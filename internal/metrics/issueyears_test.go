@@ -110,3 +110,22 @@ func TestIssueYearRowsGoBackToTheYearOfTheOldestEventAndSkipTheCurrentYear(t *te
 		t.Errorf("want no rows when the oldest event is in the current year, got %v", got)
 	}
 }
+
+// TestIssueYearRowsAreActiveOnlyWhenSomethingHappened (forsgren#125, step 4):
+// a reopened event alone makes its year Active (2024), a created event makes
+// the oldest year Active (2023), and a year with no event (2025) is not. The
+// Active flag comes from IssueDay.count.
+func TestIssueYearRowsAreActiveOnlyWhenSomethingHappened(t *testing.T) {
+	now := time.Date(2026, time.October, 14, 12, 0, 0, 0, time.UTC)
+	events := []history.IssueEvent{
+		appEvent(1, "created", time.Date(2023, time.May, 3, 9, 0, 0, 0, time.UTC)),
+		appEvent(1, "reopened", time.Date(2024, time.August, 3, 9, 0, 0, 0, time.UTC)),
+	}
+	var got []bool
+	for _, y := range IssueYearRows(events, now) {
+		got = append(got, y.Active)
+	}
+	if want := []bool{false, true, true}; !slices.Equal(got, want) {
+		t.Errorf("want Active %v (2025, 2024, 2023), got %v", want, got)
+	}
+}
