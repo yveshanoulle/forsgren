@@ -520,14 +520,14 @@ linked to its GitHub repository, its version, "Metrics from GitHub data."
 "Calculated at
 2026-10-03 12:00 UTC", the moment of the run (UTC, to the minute), on every
 run, with rows or without; and, when a newer forsgren release exists than the
-version that built the page, the version line adds it, "Forsgren 0.8.2 ·
+version that built the page, the version line adds it, "Forsgren 0.8.3 ·
 0.3.9 is available" (forsgren#40; nothing is added when the page is up to
 date, and no repository appears). The numbers are compared as numbers, so 0.0.10
 is newer than 0.0.9. On a table page the footer's paragraph is followed by
 two links on one line, "Settings" and "What the bands mean", to the settings page and the legend (forsgren#83, #84). The legend page's footer links to Settings, the settings page's to the legend, no page to itself; a page with no table, such as the no-projects how-to, has none.
 
 `render` writes one table (forsgren#38) first on the table page, with no text
-above it but a visually hidden heading for screen readers, "Forsgren 0.8.2:
+above it but a visually hidden heading for screen readers, "Forsgren 0.8.3:
 the five DORA metrics"; where each metric comes from is explained on the
 legend page, counting back from the time in the footer. A config that lists
 no projects has no table: the page shows, in its place, a short how-to, that
@@ -624,11 +624,14 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   reason (an old issue, closed before GitHub gave reasons) or a reason
   forsgren does not know. **Total** is the issues open at the end of that
   day, across all repositories: the issues created, minus those closed, plus
-  those reopened, counted from the oldest stored event. A close or a reopen
-  of an issue with no created event is ignored, and the order of the lines in
-  `issues.csv` does not matter. The Total is shown as calculated: a negative
-  Total means the collected data is inconsistent (missing events, a partial
-  read, or a bug), and it is shown rather than hidden. Reopen times are the
+  those reopened, counted from the oldest stored event. Every close counts
+  -1 and every reopen +1, also for an issue with no created event
+  (forsgren#122), and the order of the lines in `issues.csv` does not
+  matter. A file `collect` wrote always holds the created event with the
+  first close, so only a hand-edited `issues.csv` can show such a Total. The
+  Total is shown as calculated: a negative Total means the collected data
+  is inconsistent (missing events, a partial read, or a bug), and it is
+  shown rather than hidden. Reopen times are the
   times `collect` saw them (see Issue events), so a Total from before a
   reopen was seen is an estimate. The caption holds the same view switch as
   the table pages, with `issues` as the current entry (`aria-current="page"`),
@@ -1178,7 +1181,7 @@ the format refuses the run before GitHub is asked anything.
 
 ## Running forsgren
 
-forsgren renders a static page whose footer says "Forsgren 0.8.2", the version of
+forsgren renders a static page whose footer says "Forsgren 0.8.3", the version of
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
@@ -1237,7 +1240,7 @@ pull-request check failed", and a Setup line, see The setup issue); the link is 
 private to the repository, unlike the public page. A flag it cannot use is a
 usage error that prints nothing. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides
-"Forsgren 0.8.2" in its footer, a how-to for filling `forsgren.config.yml`;
+"Forsgren 0.8.3" in its footer, a how-to for filling `forsgren.config.yml`;
 without `--config` (the build above has no installation config) or with
 projects, the page is the placeholder. With `--data` as well (it needs `--config`), the
 page shows each project's deployment frequency from that history, counted
@@ -1371,7 +1374,7 @@ jobs:
 - **`pull-requests: read` is optional, and the caller's to grant too**
   (forsgren#40). With it, when a newer forsgren release exists and
   Dependabot has an open pull request in your repository that bumps the
-  `uses:` pin to exactly that release, the page footer says "Forsgren 0.8.2
+  `uses:` pin to exactly that release, the page footer says "Forsgren 0.8.3
   · 0.3.9 is waiting in pull request #7 (merge it to update)", with the
   number only. Without it the footer still says "0.3.9 is available": the
   lookup treats the refusal (a 403) as unknown, never as an error, and the
@@ -1434,7 +1437,7 @@ workflow passes the status on as `render --needs-check` and
   first line of its body; the label only narrows the lookup. An issue with
   the label and no marker is never touched, and if you remove the label from
   the managed issue, the next run opens a new one. Its title is "forsgren
-  0.8.2 needs more configuration" (the running version) and its body lists the
+  0.8.3 needs more configuration" (the running version) and its body lists the
   steps of each missing need; title and body are presentation, and a run
   rewrites them.
 - **What a run does with it.** Something missing and no issue: it opens one.

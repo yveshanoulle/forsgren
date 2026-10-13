@@ -30,7 +30,8 @@ type IssueDay struct {
 	// forsgren does not know.
 	Other int
 	// Total is the issues open at the end of that day, of all the tracked
-	// repositories: created up to then and not closed since.
+	// repositories: the created and reopened events up to then less the
+	// closed ones, each counted by openDelta (forsgren#122).
 	Total int
 	// Active is whether anything happened on that day: a new issue, a close
 	// of any kind, or a reopen (forsgren#108).
