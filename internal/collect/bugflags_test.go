@@ -129,3 +129,38 @@ func TestACutListOfBugIssuesKeepsTheStoredFlagsAndSaysSo(t *testing.T) {
 		t.Errorf("want stderr to say the bug read stopped at 100 pages, got %q", r.stderr)
 	}
 }
+
+// TestABugFlagsFileItCannotReadFailsTheRepositoryBeforeTheBugRead
+// (forsgren#126): an issue_bugs.csv with an unknown version fails the
+// repository before GitHub is asked for the bug issues, stores no deployment
+// and stays as it was. Proven by mutation.
+func TestABugFlagsFileItCannotReadFailsTheRepositoryBeforeTheBugRead(t *testing.T) {
+	g := newGitHub(t)
+	g.bodies[deploymentsPath] = list(deployment(1001, shaA, "deploy", "2026-09-21T10:00:00Z"))
+	g.bodies[statusesPath("1001")] = list(status(6, "success", "2026-09-21T10:05:00Z"))
+	path := historyPath(t)
+	bugs := bugsFileBeside(path)
+	const content = "# forsgren issue bugs v9\n"
+	writeFileAt(t, bugs, content)
+	r := g.collect(t, shop(production), path, 1)
+	if !errors.Is(r.err, ErrFailed) || len(g.seen(issuesPath+"?labels=bug")) != 0 {
+		t.Errorf("want the repository failed before the bug read, got %v after %v", r.err, g.seen(issuesPath))
+	}
+	if got, _ := os.ReadFile(filepath.Clean(bugs)); string(got) != content {
+		t.Errorf("want the bug flags file untouched, got %q", got)
+	}
+	if _, err := os.Stat(path); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("want no history written, got %v", err)
+	}
+}
+
+// writeFileAt writes content to path, its folder made.
+func writeFileAt(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
