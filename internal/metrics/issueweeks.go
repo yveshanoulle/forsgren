@@ -33,8 +33,7 @@ func weekStart(t time.Time) time.Time {
 // week at is in, monday being the Monday that starts the current week; false
 // for a time before the rows or in the current week or later.
 func weekRow(at, monday time.Time, rows int) (int, bool) {
-	back := int(monday.Sub(weekStart(at)) / week)
-	return back - 1, back >= 1 && back <= rows
+	return rowBack(int(monday.Sub(weekStart(at))/week), rows)
 }
 
 // IssueWeekDays is the days of the current week, Monday to yesterday, newest

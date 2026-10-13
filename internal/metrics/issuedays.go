@@ -166,6 +166,29 @@ func utcDay(t time.Time) time.Time { return t.UTC().Truncate(day) }
 // the day at is in, today being the midnight that starts today; false for a
 // time before the rows or on or after today.
 func dayRow(at, today time.Time, rows int) (int, bool) {
-	back := int(today.Sub(utcDay(at)) / day)
+	return rowBack(int(today.Sub(utcDay(at))/day), rows)
+}
+
+// rowBack is the index, in rows periods long and newest first, of the row of
+// the period back periods before the current one (one being the newest row);
+// false for the current period or later (back below one) or a period before
+// the rows (back above rows). Every period's row function (dayRow, weekRow,
+// monthRow, yearRow) counts back and leaves the bounds to it.
+func rowBack(back, rows int) (int, bool) {
 	return back - 1, back >= 1 && back <= rows
+}
+
+// oldestAt is the time of the oldest of events; false when there are none.
+// IssueMonthRows and IssueYearRows reach back to it.
+func oldestAt(events []history.IssueEvent) (time.Time, bool) {
+	if len(events) == 0 {
+		return time.Time{}, false
+	}
+	oldest := events[0].At
+	for _, e := range events {
+		if e.At.Before(oldest) {
+			oldest = e.At
+		}
+	}
+	return oldest, true
 }

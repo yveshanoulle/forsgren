@@ -29,8 +29,7 @@ func monthStart(t time.Time) time.Time {
 // the month at is in, current being the first day of the current month; false
 // for a time before the rows or in the current month or later.
 func monthRow(at, current time.Time, rows int) (int, bool) {
-	back := monthsBefore(at, current)
-	return back - 1, back >= 1 && back <= rows
+	return rowBack(monthsBefore(at, current), rows)
 }
 
 // monthsBefore is how many calendar months the month at is in lies before
@@ -45,17 +44,11 @@ func monthsBefore(at, current time.Time) int {
 // without events a zero row (carrying the Total); none when there are no
 // events or the oldest is in the current month.
 func IssueMonthRows(events []history.IssueEvent, now time.Time) []IssueDay {
-	if len(events) == 0 {
+	oldest, ok := oldestAt(events)
+	if !ok {
 		return nil
 	}
-	oldest := events[0].At
-	for _, e := range events {
-		if e.At.Before(oldest) {
-			oldest = e.At
-		}
-	}
-	current := monthStart(now)
-	return IssueMonths(events, now, monthsBefore(oldest, current))
+	return IssueMonths(events, now, monthsBefore(oldest, monthStart(now)))
 }
 
 // IssueYearMonths is the complete months of the year of now, newest first:

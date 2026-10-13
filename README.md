@@ -516,14 +516,14 @@ linked to its GitHub repository, its version, "Metrics from GitHub data."
 "Calculated at
 2026-10-03 12:00 UTC", the moment of the run (UTC, to the minute), on every
 run, with rows or without; and, when a newer forsgren release exists than the
-version that built the page, the version line adds it, "Forsgren 0.8.0 ·
+version that built the page, the version line adds it, "Forsgren 0.8.1 ·
 0.3.9 is available" (forsgren#40; nothing is added when the page is up to
 date, and no repository appears). The numbers are compared as numbers, so 0.0.10
 is newer than 0.0.9. On a table page the footer's paragraph is followed by
 two links on one line, "Settings" and "What the bands mean", to the settings page and the legend (forsgren#83, #84). The legend page's footer links to Settings, the settings page's to the legend, no page to itself; a page with no table, such as the no-projects how-to, has none.
 
 `render` writes one table (forsgren#38) first on the table page, with no text
-above it but a visually hidden heading for screen readers, "Forsgren 0.8.0:
+above it but a visually hidden heading for screen readers, "Forsgren 0.8.1:
 the five DORA metrics"; where each metric comes from is explained on the
 legend page, counting back from the time in the footer. A config that lists
 no projects has no table: the page shows, in its place, a short how-to, that
@@ -633,31 +633,38 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
 - **The months page** (`months.html`, forsgren#123, from #89, decisions #118
   and #119) is the issues page's table over longer periods: Period | New |
   Completed | Not planned | Duplicate | Other | Total, the columns counted as
-  on the issues page, with three kinds of row, newest first within each.
+  on the issues page, with four kinds of row, newest first within each.
   First the **days of the current week**, Monday up to yesterday (none on a
   Monday), labelled by their UTC date; then the **complete weeks** that touch
   the current month, Monday to Sunday, labelled "Week 41" (the ISO week
-  number); then **every complete calendar month** back to the month of the
-  oldest stored event, labelled "September 2026". The current week appears
-  only as its days and the current month only as its weeks and days. A week
-  that spans two months is in both: on Wednesday 14 October 2026 the page
-  lists Tuesday 13 and Monday 12, then weeks 41 and 40 (week 40 begins on 28
-  September), then September and the months before it. Today is left out, so
+  number); then **the complete calendar months of the current year**, January
+  up to last month, labelled "September 2026"; then **one row per earlier
+  calendar year**, back to the year of the oldest stored event, labelled with
+  the year alone, "2025" (forsgren#125). The current week appears only as its
+  days, the current month only as its weeks and days, and the current year
+  only as its months. A week that spans two months is in both: on Wednesday
+  14 October 2026 the page lists Tuesday 13 and Monday 12, then weeks 41 and
+  40 (week 40 begins on 28 September), then September back to January 2026,
+  then 2025, 2024 and the years before it. In January the current year has no
+  complete month, so the years follow the weeks directly. A year row counts
+  the events of its UTC calendar year, and its **Total** is the issues open at
+  the end of 31 December; the oldest year may be partial, as the oldest month
+  is. Today is left out, so
   a row never changes once it is shown. **Inactive rows are hidden** as on
   the issues page (forsgren#108, decisions #116 and #117, for weeks and
   months too). The calculation keeps every row (`metrics.IssueRows`, built
-  from `metrics.IssueWeekDays`, `IssueWeeks` and `IssueMonthRows`, each
-  marking its rows with `Active`): the Total is computed over all of them, so
-  a hidden row's Total equals that of the shown row before it. In a week or a
-  month row, **Total** is the issues open at the end of the row's last day.
+  from `metrics.IssueWeekDays`, `IssueWeeks`, `IssueYearMonths` and
+  `IssueYearRows`, each marking its rows with `Active`): the Total is computed over all of them, so
+  a hidden row's Total equals that of the shown row before it. In a week, month
+  or year row, **Total** is the issues open at the end of the row's last day.
   When no row is active, and when there are no issue events yet, the page
   shows one line, "No issues were opened, closed or reopened before today."
   (decision #119: the rows reach back months, so the line names no period),
   and the view switch, instead of the table. Under the table a note says days
-  are UTC, weeks run Monday to Sunday, months follow the calendar, and a week
+  are UTC, weeks run Monday to Sunday, months and years follow the calendar, and a week
   that spans two months is in both. The caption holds the same view switch,
   with `months` as the current entry (`aria-current="page"`), and names the
-  table "Issues per day, week and month, all projects". The page reads the
+  table "Issues per day, week, month and year, all projects". The page reads the
   same `data/issues.csv` as the issues page, with the same failures for a
   missing, unknown or malformed file. The two pages share one table template
   (`templates/layout/issuestable.html`).
@@ -1165,7 +1172,7 @@ the format refuses the run before GitHub is asked anything.
 
 ## Running forsgren
 
-forsgren renders a static page whose footer says "Forsgren 0.8.0", the version of
+forsgren renders a static page whose footer says "Forsgren 0.8.1", the version of
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
@@ -1224,7 +1231,7 @@ pull-request check failed", and a Setup line, see The setup issue); the link is 
 private to the repository, unlike the public page. A flag it cannot use is a
 usage error that prints nothing. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides
-"Forsgren 0.8.0" in its footer, a how-to for filling `forsgren.config.yml`;
+"Forsgren 0.8.1" in its footer, a how-to for filling `forsgren.config.yml`;
 without `--config` (the build above has no installation config) or with
 projects, the page is the placeholder. With `--data` as well (it needs `--config`), the
 page shows each project's deployment frequency from that history, counted
@@ -1358,7 +1365,7 @@ jobs:
 - **`pull-requests: read` is optional, and the caller's to grant too**
   (forsgren#40). With it, when a newer forsgren release exists and
   Dependabot has an open pull request in your repository that bumps the
-  `uses:` pin to exactly that release, the page footer says "Forsgren 0.8.0
+  `uses:` pin to exactly that release, the page footer says "Forsgren 0.8.1
   · 0.3.9 is waiting in pull request #7 (merge it to update)", with the
   number only. Without it the footer still says "0.3.9 is available": the
   lookup treats the refusal (a 403) as unknown, never as an error, and the
@@ -1421,7 +1428,7 @@ workflow passes the status on as `render --needs-check` and
   first line of its body; the label only narrows the lookup. An issue with
   the label and no marker is never touched, and if you remove the label from
   the managed issue, the next run opens a new one. Its title is "forsgren
-  0.8.0 needs more configuration" (the running version) and its body lists the
+  0.8.1 needs more configuration" (the running version) and its body lists the
   steps of each missing need; title and body are presentation, and a run
   rewrites them.
 - **What a run does with it.** Something missing and no issue: it opens one.

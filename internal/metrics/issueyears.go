@@ -23,8 +23,7 @@ func IssueYears(events []history.IssueEvent, now time.Time, years int) []IssueDa
 // the year at is in, current being the current year; false for a time before
 // the rows or in the current year or later.
 func yearRow(at time.Time, current, rows int) (int, bool) {
-	back := current - at.UTC().Year()
-	return back - 1, back >= 1 && back <= rows
+	return rowBack(current-at.UTC().Year(), rows)
 }
 
 // IssueYearRows is every complete calendar year from the year of the oldest
@@ -32,14 +31,9 @@ func yearRow(at time.Time, current, rows int) (int, bool) {
 // events a zero row (carrying the Total); none when there are no events or the
 // oldest is in the current year.
 func IssueYearRows(events []history.IssueEvent, now time.Time) []IssueDay {
-	if len(events) == 0 {
+	oldest, ok := oldestAt(events)
+	if !ok {
 		return nil
-	}
-	oldest := events[0].At
-	for _, e := range events {
-		if e.At.Before(oldest) {
-			oldest = e.At
-		}
 	}
 	return IssueYears(events, now, now.UTC().Year()-oldest.UTC().Year())
 }
