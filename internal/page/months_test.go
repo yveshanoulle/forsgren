@@ -19,8 +19,8 @@ func TestMonthsPageHoldsDayWeekAndMonthRows(t *testing.T) {
 	data.IssueRows = []metrics.IssueRow{
 		row(metrics.KindDay, october(13)),
 		row(metrics.KindWeek, october(5)),
-		row(metrics.KindWeek, time.Date(2026, time.September, 28, 0, 0, 0, 0, time.UTC)),
-		row(metrics.KindMonth, time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC)),
+		row(metrics.KindWeek, on2026(time.September, 28)),
+		row(metrics.KindMonth, on2026(time.September, 1)),
 	}
 	data.IssueDays = []metrics.IssueDay{{Date: october(11), New: 9, Total: 9, Active: true}}
 	got := rendered(t, "months.html", data)
@@ -40,13 +40,12 @@ func TestMonthsPageSkipsInactiveRows(t *testing.T) {
 	row := func(kind string, date time.Time, active bool) metrics.IssueRow {
 		return metrics.IssueRow{Kind: kind, IssueDay: metrics.IssueDay{Date: date, New: 1, Total: 5, Active: active}}
 	}
-	month := func(m time.Month) time.Time { return time.Date(2026, m, 1, 0, 0, 0, 0, time.UTC) }
 	data.IssueRows = []metrics.IssueRow{
 		row(metrics.KindDay, october(12), false),
 		row(metrics.KindWeek, october(5), true),
-		row(metrics.KindWeek, time.Date(2026, time.September, 28, 0, 0, 0, 0, time.UTC), false),
-		row(metrics.KindMonth, month(time.September), false),
-		row(metrics.KindMonth, month(time.August), true),
+		row(metrics.KindWeek, on2026(time.September, 28), false),
+		row(metrics.KindMonth, on2026(time.September, 1), false),
+		row(metrics.KindMonth, on2026(time.August, 1), true),
 	}
 	got := rendered(t, "months.html", data)
 	wantAll(t, "months.html", got, "Week 41", "August 2026")
@@ -66,7 +65,7 @@ func TestMonthsPageWithNoActiveRowShowsAMessage(t *testing.T) {
 	data.IssueRows = []metrics.IssueRow{
 		row(metrics.KindDay, october(13)),
 		row(metrics.KindWeek, october(5)),
-		row(metrics.KindMonth, time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC)),
+		row(metrics.KindMonth, on2026(time.September, 1)),
 	}
 	got := rendered(t, "months.html", data)
 	wantAll(t, "months.html", got, "<p>No issues were opened, closed or reopened before today.</p>")
@@ -107,11 +106,11 @@ func TestMonthsPageMatchesGolden(t *testing.T) {
 			Date: october(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Total: 7, Active: true,
 		}},
 		{Kind: metrics.KindWeek, IssueDay: metrics.IssueDay{
-			Date: time.Date(2026, time.September, 28, 0, 0, 0, 0, time.UTC),
+			Date: on2026(time.September, 28),
 			New:  2, Completed: 4, Duplicate: 3, Other: 5, Total: 6, Active: true,
 		}},
 		{Kind: metrics.KindMonth, IssueDay: metrics.IssueDay{
-			Date: time.Date(2026, time.August, 1, 0, 0, 0, 0, time.UTC), New: 1, Total: 5, Active: true,
+			Date: on2026(time.August, 1), New: 1, Total: 5, Active: true,
 		}},
 	}
 	checkPageGolden(t, "months.html", "testdata/months.golden.html", data)

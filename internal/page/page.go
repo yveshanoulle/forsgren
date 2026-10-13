@@ -23,6 +23,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
 	"github.com/yveshanoulle/forsgren/internal/metrics"
@@ -73,9 +74,9 @@ type Data struct {
 	// IssueDays are the issue counts per UTC day, newest first, that the
 	// issues page tabulates (forsgren#76, forsgren#123).
 	IssueDays []metrics.IssueDay
-	// IssueRows are the rows of the issues page by kind, days, weeks and
+	// IssueRows are the rows of the months page by kind, days, weeks and
 	// months, newest first in that order (forsgren#76, forsgren#89,
-	// decision #118).
+	// decision #118, forsgren#123).
 	IssueRows []metrics.IssueRow
 	// View is the view the root page shows, "standard", "numbers" or
 	// "scoring", with the view switch in its table's caption (forsgren#51);
@@ -121,14 +122,14 @@ func Placeholder(version string) Data {
 	return Data{Title: "forsgren", Version: version, Message: "no data yet"}
 }
 
-// IssueTableRow is a row of the issues page: the counts of an IssueDay under
+// IssueTableRow is a row of the months page: the counts of an IssueDay under
 // the Label of its kind.
 type IssueTableRow struct {
 	Label string
 	metrics.IssueDay
 }
 
-// IssueTableRows are the rows of the issues page, IssueRows labelled: a day
+// IssueTableRows are the rows of the months page, IssueRows labelled: a day
 // by its date, a week by the ISO number of its Monday ("Week 41"), a month by
 // its name and year.
 func (d Data) IssueTableRows() []IssueTableRow {
@@ -161,7 +162,7 @@ func (d Data) AnyIssueDayActive() bool {
 // AnyIssueRowActive says whether some row of the months page, of any kind, is
 // Active, that is whether it has a row to show (forsgren#108, forsgren#123).
 func (d Data) AnyIssueRowActive() bool {
-	return slices.ContainsFunc(d.IssueTableRows(), func(r IssueTableRow) bool { return r.Active })
+	return slices.ContainsFunc(d.IssueRows, func(r metrics.IssueRow) bool { return r.Active })
 }
 
 // WorkingDay is the hours of a working day, 8 when Data holds none.
@@ -178,13 +179,10 @@ func (d Data) HourlyToDailyTo() int { return d.OnDemandFrom() - 1 }
 // renders. parsePages and PageNames read the same set through it.
 const pagesGlob = "templates/pages/*.html"
 
-// issuesPage is the file of the issues page, the one page that is not a
-// table and shows the view switch (forsgren#76).
-const issuesPage = "issues.html"
-
-// monthsPage is the file of the months page, the second page that shows the
-// view switch (forsgren#123).
-const monthsPage = "months.html"
+// issuePages are the pages that tabulate issues, not metrics, each at
+// <name>.html: the issues page (forsgren#76) and the months page
+// (forsgren#123), in the order the view switch names them after the views.
+var issuePages = []string{"issues", "months"}
 
 // The views of the table page (forsgren#46): the standard cells, the numbers
 // only, and (forsgren#47) each metric's DORA Quick Check score with an
@@ -213,12 +211,10 @@ type pageData struct {
 	// View is "standard", "numbers" or "scoring" on a view's page, and shows
 	// the view switch; empty on the root pages.
 	View string
-	// Issues says whether the page is the issues page, which the view
-	// switch names as its current entry (forsgren#76).
-	Issues bool
-	// Months says whether the page is the months page, which the view
-	// switch names as its current entry (forsgren#123).
-	Months bool
+	// Page is the page's name, its file without ".html": the view switch
+	// marks the one of issuePages it names as current (forsgren#76,
+	// forsgren#123).
+	Page string
 }
 
 // Numbers says whether the page is the numbers view, its cells the numbers
@@ -231,6 +227,9 @@ func (p pageData) Scoring() bool { return p.View == viewScoring }
 
 // Views are the views the switch names, in its order.
 func (pageData) Views() []string { return views }
+
+// IssuePages are the pages the switch names after the views, in its order.
+func (pageData) IssuePages() []string { return issuePages }
 
 // Current is the switch's aria-current for the current view: "page" on the
 // view's own page, "true" on the root, which shows the view but is not its
@@ -282,12 +281,15 @@ func PageNames() []string {
 	return names
 }
 
+// name is the page's name, its file without ".html": "index" for the root
+// and each view's page.
+func (p page) name() string { return strings.TrimSuffix(p.file, ".html") }
+
 // viewShown is the view the page marks: a view's page its own, the root the
-// configured one, and the issues and months pages none, so their switch
-// links all three views and marks only issues or months (forsgren#76,
-// decision #102, forsgren#123).
+// configured one, and each of issuePages none, so its switch links all three
+// views and marks only itself (forsgren#76, decision #102, forsgren#123).
 func (p page) viewShown(data Data) string {
-	if p.file == issuesPage || p.file == monthsPage {
+	if slices.Contains(issuePages, p.name()) {
 		return ""
 	}
 	return cmp.Or(p.view, data.View)
@@ -299,10 +301,7 @@ func Render(w io.Writer, name string, data Data) error {
 	if !ok {
 		return fmt.Errorf("page %q not found", name)
 	}
-	shown := pageData{
-		Data: data, Base: p.base, View: p.viewShown(data),
-		Issues: p.file == issuesPage, Months: p.file == monthsPage,
-	}
+	shown := pageData{Data: data, Base: p.base, View: p.viewShown(data), Page: p.name()}
 	return p.set.ExecuteTemplate(w, p.file, shown)
 }
 

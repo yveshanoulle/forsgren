@@ -257,8 +257,12 @@ func TestSettingsPageMatchesGolden(t *testing.T) {
 	checkPageGolden(t, "settings.html", "testdata/settings.golden.html", data)
 }
 
-// october is midnight UTC on day d of October 2026, an issues page row's Date.
-func october(d int) time.Time { return time.Date(2026, time.October, d, 0, 0, 0, 0, time.UTC) }
+// on2026 is midnight UTC on day d of month m of 2026, the Date of a row of the
+// issues or months page.
+func on2026(m time.Month, d int) time.Time { return time.Date(2026, m, d, 0, 0, 0, 0, time.UTC) }
+
+// october is on2026 in October.
+func october(d int) time.Time { return on2026(time.October, d) }
 
 // TestIssuesPageMatchesGolden (forsgren#76, step 9): the issues page is the
 // page issues.html, a table of the days newest first with the issues
@@ -269,7 +273,7 @@ func TestIssuesPageMatchesGolden(t *testing.T) {
 		{Date: october(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Total: 7, Active: true},
 		{Date: october(1), New: 0, Completed: 0, Total: 5, Active: true},
 		{
-			Date: time.Date(2026, time.September, 30, 0, 0, 0, 0, time.UTC),
+			Date: on2026(time.September, 30),
 			New:  2, Completed: 4, Duplicate: 3, Other: 5, Total: 6, Active: true,
 		},
 	}
@@ -289,7 +293,7 @@ func TestIssuesPageShowsTheLastThirtyDays(t *testing.T) {
 	data.IssueRows = []metrics.IssueRow{
 		{Kind: metrics.KindWeek, IssueDay: metrics.IssueDay{Date: october(5), New: 1, Total: 1, Active: true}},
 		{Kind: metrics.KindMonth, IssueDay: metrics.IssueDay{
-			Date: time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC), New: 1, Total: 1, Active: true,
+			Date: on2026(time.September, 1), New: 1, Total: 1, Active: true,
 		}},
 	}
 	got := rendered(t, "issues.html", data)
@@ -311,7 +315,7 @@ func TestIssueTableRowsLabelsDayWeekAndMonthRows(t *testing.T) {
 	data.IssueRows = []metrics.IssueRow{
 		row(metrics.KindDay, october(13)),
 		row(metrics.KindWeek, october(5)),
-		row(metrics.KindMonth, time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC)),
+		row(metrics.KindMonth, on2026(time.September, 1)),
 	}
 	var got []string
 	for _, r := range data.IssueTableRows() {

@@ -76,9 +76,8 @@ func TestRenderShowsTheIssuesOfWeeksAndMonthsOnTheMonthsPage(t *testing.T) {
 		"Week 41", "Week 40", "September 2026", "August 2026")
 }
 
-// wantRowLabels fails for each label that the page at path holds as a cell
-// (or, with present false, does not hold as a cell) while it should not (or
-// should).
+// wantRowLabels fails for each label the page at path lacks as a cell when
+// present is true, or holds as a cell when present is false.
 func wantRowLabels(t *testing.T, path string, present bool, labels ...string) {
 	t.Helper()
 	page := readFile(t, path)
