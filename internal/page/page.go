@@ -182,6 +182,10 @@ const pagesGlob = "templates/pages/*.html"
 // table and shows the view switch (forsgren#76).
 const issuesPage = "issues.html"
 
+// monthsPage is the file of the months page, the second page that shows the
+// view switch (forsgren#123).
+const monthsPage = "months.html"
+
 // The views of the table page (forsgren#46): the standard cells, the numbers
 // only, and (forsgren#47) each metric's DORA Quick Check score with an
 // Overall Performance column.
@@ -212,6 +216,9 @@ type pageData struct {
 	// Issues says whether the page is the issues page, which the view
 	// switch names as its current entry (forsgren#76).
 	Issues bool
+	// Months says whether the page is the months page, which the view
+	// switch names as its current entry (forsgren#123).
+	Months bool
 }
 
 // Numbers says whether the page is the numbers view, its cells the numbers
@@ -276,10 +283,11 @@ func PageNames() []string {
 }
 
 // viewShown is the view the page marks: a view's page its own, the root the
-// configured one, and the issues page none, so its switch links all three
-// views and marks only issues (forsgren#76, decision #102).
+// configured one, and the issues and months pages none, so their switch
+// links all three views and marks only issues or months (forsgren#76,
+// decision #102, forsgren#123).
 func (p page) viewShown(data Data) string {
-	if p.file == issuesPage {
+	if p.file == issuesPage || p.file == monthsPage {
 		return ""
 	}
 	return cmp.Or(p.view, data.View)
@@ -291,7 +299,10 @@ func Render(w io.Writer, name string, data Data) error {
 	if !ok {
 		return fmt.Errorf("page %q not found", name)
 	}
-	shown := pageData{Data: data, Base: p.base, View: p.viewShown(data), Issues: p.file == issuesPage}
+	shown := pageData{
+		Data: data, Base: p.base, View: p.viewShown(data),
+		Issues: p.file == issuesPage, Months: p.file == monthsPage,
+	}
 	return p.set.ExecuteTemplate(w, p.file, shown)
 }
 

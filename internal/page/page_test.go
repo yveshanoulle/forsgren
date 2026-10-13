@@ -361,7 +361,8 @@ func TestIssuesPageWithoutDaysMatchesGolden(t *testing.T) {
 // three views and only issues is current.
 func TestIssuesPageSwitchIgnoresTheConfiguredView(t *testing.T) {
 	const switchLine = `<span class="views">View: <a href="standard/">standard</a> · <a href="numbers/">numbers</a> · ` +
-		`<a href="scoring/">scoring</a> · <span aria-current="page">issues</span></span>`
+		`<a href="scoring/">scoring</a> · <span aria-current="page">issues</span> · ` +
+		`<a href="months.html">months</a></span>`
 	for _, view := range []string{viewStandard, viewNumbers, viewScoring} {
 		t.Run(view, func(t *testing.T) {
 			data := calculated()
