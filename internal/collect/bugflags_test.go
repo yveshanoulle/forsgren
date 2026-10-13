@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/yveshanoulle/forsgren/internal/history"
@@ -96,5 +97,35 @@ func TestCollectStoresNoBugForAnIssueThatLostItsLabel(t *testing.T) {
 	want := []history.IssueBug{{Repository: "acme/app", Issue: 3}, {Repository: "acme/app", Issue: 4, Bug: true}}
 	if !slices.Equal(got, want) {
 		t.Errorf("want the bug flags\n%v\ngot\n%v", want, got)
+	}
+}
+
+// TestACutListOfBugIssuesKeepsTheStoredFlagsAndSaysSo (forsgren#126): when the
+// read of the issues labelled bug stopped at its page cap, an issue it did not
+// list may still carry the label, so no stored bug is stored again as not a
+// bug, and stderr says the read stopped.
+func TestACutListOfBugIssuesKeepsTheStoredFlagsAndSaysSo(t *testing.T) {
+	g := newGitHub(t)
+	g.bodies[deploymentsPath] = list()
+	g.bodies[bugIssuesPath] = list(listed{number: 4, state: "open", created: "2026-09-20T08:00:00Z"}.json())
+	g.paged[bugIssuesPath] = true
+	path := historyPath(t)
+	stored := []history.IssueBug{
+		{Repository: "acme/app", Issue: 3, Bug: true},
+		{Repository: "acme/app", Issue: 4, Bug: true},
+	}
+	if _, err := history.AppendIssueBugs(bugsFileBeside(path), stored); err != nil {
+		t.Fatal(err)
+	}
+	r := g.collect(t, shop(production), path, 1)
+	if r.err != nil {
+		t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
+	}
+	got, err := history.LoadIssueBugs(bugsFileBeside(path))
+	if err != nil || !slices.Equal(got, stored) {
+		t.Errorf("want the stored bug flags kept\n%v\ngot\n%v, %v", stored, got, err)
+	}
+	if !strings.Contains(r.stderr, "the bug read stopped at 100 page(s)") {
+		t.Errorf("want stderr to say the bug read stopped at 100 pages, got %q", r.stderr)
 	}
 }

@@ -23,10 +23,12 @@ func (o Options) bugsFile() string { return filepath.Join(filepath.Dir(o.History
 
 // bugFlags returns the bug flags of repo's issues to store: every issue GitHub
 // lists for the bug label, open or closed, as a bug, and every issue stored as
-// a bug that it no longer lists, as not a bug. What is already stored is
+// a bug that it no longer lists, as not a bug, unless its read stopped at the
+// page cap, when an issue it did not list may still carry the label and the
+// stored flags are kept, with a warning on stderr. What is already stored is
 // skipped by history.AppendIssueBugs, so every run adds only what changed.
 func (o Options) bugFlags(ctx context.Context, _ held, repo string) ([]history.IssueBug, error) {
-	issues, stored, err := o.readBugs(ctx, repo)
+	issues, stored, cut, err := o.readBugs(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
@@ -35,6 +37,11 @@ func (o Options) bugFlags(ctx context.Context, _ held, repo string) ([]history.I
 	for _, i := range issues {
 		listed[i.Number] = true
 		flags = append(flags, history.IssueBug{Repository: repo, Issue: i.Number, Bug: true})
+	}
+	if cut {
+		o.warn("collect: %s: the bug read stopped at %d page(s) of issues; "+
+			"the stored bug flags are kept\n", repo, github.FullReadMaxPages)
+		return flags, nil
 	}
 	return append(flags, lostLabel(stored, repo, listed)...), nil
 }
@@ -51,14 +58,15 @@ func lostLabel(stored []history.IssueBug, repo string, listed map[int64]bool) []
 	return lost
 }
 
-// readBugs is the issues GitHub lists for repo under the bug label and the bug
-// flags stored so far, as their newest lines say; a missing file holds none,
-// one that cannot be read refuses the repository before GitHub is asked.
-func (o Options) readBugs(ctx context.Context, repo string) ([]github.RepoIssue, []history.IssueBug, error) {
+// readBugs is the issues GitHub lists for repo under the bug label, the bug
+// flags stored so far, as their newest lines say, and whether the list stopped
+// at the page cap; a missing file holds none, one that cannot be read refuses
+// the repository before GitHub is asked.
+func (o Options) readBugs(ctx context.Context, repo string) ([]github.RepoIssue, []history.IssueBug, bool, error) {
 	stored, err := history.LoadIssueBugs(o.bugsFile())
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return nil, nil, err
+		return nil, nil, false, err
 	}
-	issues, _, err := o.Client.BugIssues(ctx, repo)
-	return issues, stored, err
+	issues, cut, err := o.Client.BugIssues(ctx, repo)
+	return issues, stored, cut, err
 }

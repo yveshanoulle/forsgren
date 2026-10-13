@@ -65,7 +65,9 @@ func (g *gitHub) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if g.paged[key] {
-		w.Header().Set("Link", "<"+g.srv.URL+r.URL.Path+`?page=2>; rel="next"`)
+		next := r.URL.Query()
+		next.Set("page", "2")
+		w.Header().Set("Link", "<"+g.srv.URL+r.URL.Path+"?"+next.Encode()+`>; rel="next"`)
 	}
 	if code := g.status[key]; code != 0 {
 		w.WriteHeader(code)
