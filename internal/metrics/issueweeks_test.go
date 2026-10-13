@@ -74,3 +74,15 @@ func TestIssueWeekDaysAreTheDaysOfTheCurrentWeekUpToYesterday(t *testing.T) {
 		t.Errorf("want the days %v, got %v", want, got)
 	}
 }
+
+// TestIssueWeekDaysAreNoneOnAMonday (forsgren#89, step 10): on Monday 12
+// October 2026 the current week has no day before today, so there is no row,
+// whatever the events.
+func TestIssueWeekDaysAreNoneOnAMonday(t *testing.T) {
+	created := time.Date(2026, time.October, 11, 12, 0, 0, 0, time.UTC)
+	events := []history.IssueEvent{{Repository: "acme/app", Issue: 1, Event: "created", At: created}}
+	monday := time.Date(2026, time.October, 12, 12, 0, 0, 0, time.UTC)
+	if got := IssueWeekDays(events, monday); len(got) != 0 {
+		t.Errorf("want no days on a Monday, got %v", got)
+	}
+}

@@ -331,7 +331,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/issueweeks.go:IssueWeeks": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issueweeks.go:weekStart": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issueweeks.go:weekRow": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/metrics/issueweeks.go:IssueWeekDays": 0.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/issueweeks.go:IssueWeekDays": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/band.go:BandOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/band.go:WorkingDay": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/band.go:OnDemandFrom": 100.0,

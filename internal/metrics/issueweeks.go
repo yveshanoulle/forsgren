@@ -50,5 +50,5 @@ func weekRow(at, monday time.Time, rows int) (int, bool) {
 // IssueWeekDays is the days of the current week, Monday to yesterday, newest
 // first, as IssueDays gives them: none on a Monday, today never a row.
 func IssueWeekDays(events []history.IssueEvent, now time.Time) []IssueDay {
-	return nil
+	return IssueDays(events, now, int(utcDay(now).Sub(weekStart(now))/day))
 }
