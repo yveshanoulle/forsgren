@@ -151,3 +151,14 @@ func TestRenderCountsTheOpenBugsFromTheBugFlagsFile(t *testing.T) {
 		t.Errorf("want 2 open and 1 open bug on 2 October, got %d open and %d open bugs", day.Open, day.OpenBugs)
 	}
 }
+
+// TestRenderRefusesABadBugFlagsFile (forsgren#126): a malformed or
+// unknown-version issue_bugs.csv fails render with its own message, naming it,
+// and writes nothing. Proven by mutation.
+func TestRenderRefusesABadBugFlagsFile(t *testing.T) {
+	head := "# forsgren issue bugs v1\nrepository,issue,bug\n"
+	wantBadFileRefused(t, "issue_bugs.csv", map[string]badFile{
+		"unknown version": {"# forsgren issue bugs v2\n", "unknown history format version"},
+		"malformed line":  {head + "acme/api,7\n", "line 3: malformed history"},
+	})
+}

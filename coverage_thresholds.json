@@ -71,7 +71,7 @@
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:renderFlags": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:isPullRequestNumber": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:withHistory": 100.0,
-    "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:issueEventsOf": 85.6,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:issueEventsOf": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:markBugs": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:beside": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:rowsOf": 100.0,
