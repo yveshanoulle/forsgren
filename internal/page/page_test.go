@@ -273,6 +273,22 @@ func TestIssuesPageMatchesGolden(t *testing.T) {
 	checkPageGolden(t, "issues.html", "testdata/issues.golden.html", data)
 }
 
+// TestIssuesPageSkipsInactiveDays (forsgren#108, step 5): a day that is not
+// Active (nothing new, closed or reopened) has no row on the issues page, the
+// days around it do. The calculation keeps the day (rule 3); only the page hides it.
+func TestIssuesPageSkipsInactiveDays(t *testing.T) {
+	day := func(d int) time.Time { return time.Date(2026, time.October, d, 0, 0, 0, 0, time.UTC) }
+	data := calculated()
+	data.IssueDays = []metrics.IssueDay{
+		{Date: day(3), New: 1, Total: 5, Active: true},
+		{Date: day(2), Total: 5},
+		{Date: day(1), Completed: 1, Total: 5, Active: true},
+	}
+	got := rendered(t, "issues.html", data)
+	wantAll(t, "issues.html", got, "2026-10-03", "2026-10-01")
+	wantNone(t, "issues.html", got, "2026-10-02")
+}
+
 // TestIssuesPageWithoutDaysMatchesGolden (forsgren#76): the page of a site
 // with no issue events yet, which Scripts/test_build_site.sh renders, has the
 // table's head and no rows.
