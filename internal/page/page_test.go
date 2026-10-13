@@ -136,7 +136,8 @@ func TestNoDataPageMatchesGolden(t *testing.T) {
 // labels.
 func labelledRows() []metrics.Row {
 	latest := time.Date(2026, 10, 2, 8, 0, 0, 0, time.UTC)
-	often := metrics.Frequency{Last7: 4, Last30: 16, Last180: 40, Latest: latest, Band: metrics.DailyToWeekly}
+	often := metrics.Frequency{Last30: 16, Last180: 40, Weekend30: 5, Latest: latest, Band: metrics.DailyToWeekly}
+	apiOften := metrics.Frequency{Last30: 12, Last180: 30, Weekend30: 3, Latest: latest, Band: metrics.DailyToWeekly}
 	rarely := metrics.Frequency{Last30: 2, Last180: 5, Latest: latest, Band: metrics.WeeklyToMonthly}
 	fast := metrics.LeadTime{Commits: 48, Median: 2*time.Hour + 7*time.Minute, Band: metrics.LessThanOneDay}
 	slow := metrics.LeadTime{Commits: 5, Median: 3*24*time.Hour + 4*time.Hour, Band: metrics.OneDayToOneWeek}
@@ -153,7 +154,7 @@ func labelledRows() []metrics.Row {
 	rows := []metrics.Row{
 		row(metrics.ProjectRow, "Acme Shop", often, fast, recovered, cf(18, 1, metrics.ZeroPercent)),
 		row(label, "ADMIN", rarely, slow, metrics.Recovery{}, cf(2, 0, metrics.ZeroPercent)),
-		row(label, "API", often, fast, recovered, cf(7, 1, metrics.TwentyPercent)),
+		row(label, "API", apiOften, fast, recovered, cf(7, 1, metrics.TwentyPercent)),
 		{Level: label, Name: "IOS"},
 		row(label, "Website", rarely, metrics.LeadTime{}, metrics.Recovery{Unrecovered: 1}, cf(3, 1, metrics.FortyPercent)),
 		row(metrics.ProjectRow, "Acme Tools", metrics.Frequency{Last30: 3, Latest: latest, Band: metrics.WeeklyToMonthly},

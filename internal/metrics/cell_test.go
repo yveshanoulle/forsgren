@@ -28,7 +28,7 @@ func TestFrequencyCell(t *testing.T) {
 		"30 days": {Frequency{Last30: 7, Last180: 9, Latest: latest, Band: DailyToWeekly}.Cell(),
 			"Between once per day and once per week · 7"},
 		"weekends": {Frequency{Last30: 12, Last180: 12, Weekend30: 3, Latest: latest, Band: DailyToWeekly}.Cell(),
-			"Between once per day and once per week · 12 · 3 at weekends"},
+			"Between once per day and once per week · 12"},
 		"180 days": {Frequency{Last180: 3, Latest: latest, Band: MonthlyToSixMonthly}.Cell(),
 			"Between once per month and once every six months · 3"},
 		"older": {Frequency{Latest: latest, Band: LessThanSixMonthly}.Cell(), "Less than once per six months · 0"},
@@ -81,11 +81,11 @@ func TestChangeFailCell(t *testing.T) {
 	})
 }
 
-// TestFrequencyCellOfTheFallbackNamesItsWeekendDeployments (forsgren#115):
-// from real records, a project with no success in the last 30 days and 3 in
-// the last 180, one of them on a Saturday, shows the 180-day count with the
-// weekend count of the same 180 days.
-func TestFrequencyCellOfTheFallbackNamesItsWeekendDeployments(t *testing.T) {
+// TestFrequencyCellOfTheFallbackEndsWithItsCount (forsgren#115, #124): from
+// real records, a project with no success in the last 30 days and 3 in the
+// last 180, one of them on a Saturday, shows the 180-day count and nothing
+// after it; the weekend count has its own column.
+func TestFrequencyCellOfTheFallbackEndsWithItsCount(t *testing.T) {
 	at := func(month time.Month, day int) history.Record {
 		r := success(0)
 		r.CreatedAt = time.Date(2026, month, day, 12, 0, 0, 0, time.UTC)
@@ -93,8 +93,21 @@ func TestFrequencyCellOfTheFallbackNamesItsWeekendDeployments(t *testing.T) {
 	}
 	// 27 June is a Saturday, 4 August a Tuesday, 2 September a Wednesday.
 	got := shopOf(t, at(time.June, 27), at(time.August, 4), at(time.September, 2)).Cell()
-	want := "Between once per month and once every six months · 3 · 1 at weekends"
+	want := "Between once per month and once every six months · 3"
 	if got != want {
 		t.Errorf("want %q, got %q", want, got)
 	}
+}
+
+// TestFrequencyWeekendCell (forsgren#124): the weekend deployments column
+// takes its window from the count the frequency cell shows, the last 30
+// days or, with none in them, the last 180; 0 when there are none.
+func TestFrequencyWeekendCell(t *testing.T) {
+	wantCells(t, map[string][2]string{
+		"30 days":             {Frequency{Last30: 12, Last180: 12, Weekend30: 3, Weekend180: 3}.WeekendCell(), "3"},
+		"30 days not 180":     {Frequency{Last30: 12, Last180: 20, Weekend30: 3, Weekend180: 7}.WeekendCell(), "3"},
+		"180 days fallback":   {Frequency{Last180: 3, Weekend180: 1}.WeekendCell(), "1"},
+		"fallback no weekend": {Frequency{Last180: 3}.WeekendCell(), "0"},
+		"no success":          {Frequency{}.WeekendCell(), "0"},
+	})
 }

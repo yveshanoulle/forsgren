@@ -44,8 +44,8 @@ func TestNumbersPageShowsOnlyNumbers(t *testing.T) {
 	data := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
 	got := rendered(t, "numbers/index.html", data)
 	for heading, cells := range map[string][]string{
-		"Acme Shop":  {"12", "-", "-", "7%", "0%"},
-		"Acme Tools": {"0", "-", "-", "100%", "-"},
+		"Acme Shop":  {"12", "3", "-", "-", "7%", "0%"},
+		"Acme Tools": {"0", "0", "-", "-", "100%", "-"},
 	} {
 		if !row(heading, cells...).MatchString(got) {
 			t.Errorf("want the row of %s to read %v, got:\n%s", heading, cells, got)
@@ -136,8 +136,8 @@ func TestScoringPageScoresZeroForALastSuccessOlderThanSixMonths(t *testing.T) {
 func TestStandardPageShowsTheStandardCells(t *testing.T) {
 	data := acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework)
 	shop := data.Rows[0]
-	want := row("Acme Shop", shop.Frequency.Cell(), shop.LeadTime.Cell(), shop.Recovery.Cell(),
-		shop.ChangeFail.Cell(), shop.Rework.Cell())
+	want := row("Acme Shop", shop.Frequency.Cell(), shop.Frequency.WeekendCell(), shop.LeadTime.Cell(),
+		shop.Recovery.Cell(), shop.ChangeFail.Cell(), shop.Rework.Cell())
 	if got := rendered(t, "standard/index.html", data); !want.MatchString(got) {
 		t.Errorf("want the standard cells on the standard page, got:\n%s", got)
 	}
@@ -230,12 +230,12 @@ func TestViewsShowARowWithoutDeploymentsAsTheirOwnCells(t *testing.T) {
 	data := Placeholder("0.8.1")
 	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Empty"}})
 	numbers := rendered(t, "numbers/index.html", data)
-	if !row("Acme Empty", "0", "-", "-", "-", "-").MatchString(numbers) {
-		t.Errorf("want the row of Acme Empty to read 0, -, -, -, -, got:\n%s", numbers)
+	if !row("Acme Empty", "0", "0", "-", "-", "-", "-").MatchString(numbers) {
+		t.Errorf("want the row of Acme Empty to read 0, 0, -, -, -, -, got:\n%s", numbers)
 	}
 	wantNone(t, "numbers/index.html", numbers, "No deployments recorded yet", "colspan")
 	wantAll(t, "standard/index.html", rendered(t, "standard/index.html", data),
-		`<td colspan="5">No deployments recorded yet</td>`)
+		`<td colspan="6">No deployments recorded yet</td>`)
 }
 
 // viewData is the page data of the views' golden pages: Acme Shop with all

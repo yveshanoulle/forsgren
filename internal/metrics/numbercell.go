@@ -14,6 +14,11 @@ const noNumber = "-"
 // NumberCell is the successful deployments of the last 30 days, 0 if none.
 func (f Frequency) NumberCell() string { return strconv.Itoa(f.Last30) }
 
+// WeekendNumberCell is how many of the successful deployments of the last
+// 30 days, the window NumberCell counts, were created on a Saturday or a
+// Sunday, UTC; 0 if none (forsgren#124).
+func (f Frequency) WeekendNumberCell() string { return strconv.Itoa(f.Weekend30) }
+
 // NumberCell is the median as the standard cell shows it, "2 h 7 min", "-"
 // without commits.
 func (l LeadTime) NumberCell() string {

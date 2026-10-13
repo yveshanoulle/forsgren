@@ -15,6 +15,17 @@ func TestFrequencyNumberCell(t *testing.T) {
 	})
 }
 
+// TestFrequencyWeekendNumberCell (forsgren#124): the weekend deployments of
+// the last 30 days, the window the numbers view counts; 0 where there are
+// none in them, even with weekend ones in the last 180.
+func TestFrequencyWeekendNumberCell(t *testing.T) {
+	wantCells(t, map[string][2]string{
+		"none":          {Frequency{}.WeekendNumberCell(), "0"},
+		"30 days":       {Frequency{Last30: 7, Last180: 9, Weekend30: 2, Weekend180: 4}.WeekendNumberCell(), "2"},
+		"only 180 days": {Frequency{Last180: 3, Weekend180: 1}.WeekendNumberCell(), "0"},
+	})
+}
+
 // TestLeadTimeNumberCell (forsgren#46): the median in the standard cell's
 // short units, no band and no count; "-" without commits.
 func TestLeadTimeNumberCell(t *testing.T) {

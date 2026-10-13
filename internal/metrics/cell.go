@@ -19,15 +19,25 @@ const cellSeparator = " · "
 // week · 7"; a row whose deployments all failed shows its band of none,
 // "Less than once per six months · 0" (decision #35).
 func (f Frequency) Cell() string {
-	count, weekends := f.Last30, f.Weekend30
-	if count == 0 {
-		count, weekends = f.Last180, f.Weekend180
+	count, _ := f.shown()
+	return cell(f.Band, strconv.Itoa(count))
+}
+
+// WeekendCell is how many of the deployments Cell counts were created on a
+// Saturday or a Sunday, UTC, over the same window (forsgren#124).
+func (f Frequency) WeekendCell() string {
+	_, weekends := f.shown()
+	return strconv.Itoa(weekends)
+}
+
+// shown are the count of successful deployments the frequency cell shows
+// and the weekend ones among them: the last 30 days', or, with none in
+// them, the last 180 days'.
+func (f Frequency) shown() (count, weekends int) {
+	if f.Last30 == 0 {
+		return f.Last180, f.Weekend180
 	}
-	measure := strconv.Itoa(count)
-	if weekends > 0 {
-		measure += cellSeparator + strconv.Itoa(weekends) + " at weekends"
-	}
-	return cell(f.Band, measure)
+	return f.Last30, f.Weekend30
 }
 
 // Cell is the band, the median and the count of commits, "Less than one

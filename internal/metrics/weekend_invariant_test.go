@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -11,23 +10,23 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
-// shownCounts reads the two numbers a frequency cell shows: the deployments
-// and, after "at weekends", the weekend ones (0 when the cell has no
-// suffix).
-func shownCounts(t *testing.T, cell string) (deployments, weekends int) {
+// shownCounts reads the two numbers the frequency row shows: the
+// deployments after the band in the frequency cell and the weekend ones in
+// the weekend deployments cell.
+func shownCounts(t *testing.T, f Frequency) (deployments, weekends int) {
 	t.Helper()
+	cell, weekendCell := f.Cell(), f.WeekendCell()
 	parts := strings.Split(cell, cellSeparator)
-	if len(parts) < 2 || len(parts) > 3 {
-		t.Fatalf("want a band, a count and maybe a weekend count, got %q", cell)
+	if len(parts) != 2 {
+		t.Fatalf("want a band and a count, got %q", cell)
 	}
 	deployments, err := strconv.Atoi(parts[1])
 	if err != nil {
 		t.Fatalf("want a count in %q: %v", cell, err)
 	}
-	if len(parts) == 3 {
-		if _, err := fmt.Sscanf(parts[2], "%d at weekends", &weekends); err != nil {
-			t.Fatalf("want N at weekends in %q: %v", cell, err)
-		}
+	weekends, err = strconv.Atoi(weekendCell)
+	if err != nil {
+		t.Fatalf("want a number as the weekend cell, got %q: %v", weekendCell, err)
 	}
 	return deployments, weekends
 }
@@ -71,21 +70,22 @@ var weekendCases = []weekendCase{
 	{"empty", nil, 0, 0},
 }
 
-// TestWeekendCountStaysWithinTheCountShown (forsgren#115, decision #121):
-// whatever the history, the cell's weekend count lies between 0 and the
+// TestWeekendCountStaysWithinTheCountShown (forsgren#115, decision #121,
+// forsgren#124): whatever the history, the weekend deployments cell lies between 0 and the
 // count the cell shows, both over the window the cell shows, the last 30
 // days or, with none in them, the last 180. Real records go through
 // DeploymentFrequency.
 func TestWeekendCountStaysWithinTheCountShown(t *testing.T) {
 	for _, c := range weekendCases {
 		t.Run(c.name, func(t *testing.T) {
-			cell := shopOf(t, c.records...).Cell()
-			deployments, weekend := shownCounts(t, cell)
+			f := shopOf(t, c.records...)
+			cell := f.Cell() + " | " + f.WeekendCell()
+			deployments, weekend := shownCounts(t, f)
 			if weekend < 0 || weekend > deployments {
 				t.Errorf("want 0 <= weekend count <= count, got %q", cell)
 			}
 			if deployments != c.wantDeployments || weekend != c.wantWeekend {
-				t.Errorf("want %d deployments, %d at weekends, got %q", c.wantDeployments, c.wantWeekend, cell)
+				t.Errorf("want %d deployments, %d on weekends, got %q", c.wantDeployments, c.wantWeekend, cell)
 			}
 		})
 	}

@@ -35,10 +35,12 @@ func TestRenderShowsLabelRows(t *testing.T) {
 		`<th scope="row">Acme Shop (total)</th>`,
 		`<tr class="label">
             <th scope="row"><span class="visually-hidden">Acme Shop: </span>API</th>
-            <td>Between once per week and once per month · 3 · 1 at weekends</td>`,
+            <td>Between once per week and once per month · 3</td>
+            <td>1</td>`,
 		`<tr class="label">
             <th scope="row"><span class="visually-hidden">Acme Shop: </span>iOS</th>
-            <td>Between once per day and once per week · 9 · 2 at weekends</td>`,
+            <td>Between once per day and once per week · 9</td>
+            <td>2</td>`,
 		`<th scope="row">Acme Tools</th>`,
 	} {
 		if !strings.Contains(index, want) {
