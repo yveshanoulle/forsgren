@@ -263,11 +263,11 @@ func TestIssuesPageMatchesGolden(t *testing.T) {
 	day := func(d int) time.Time { return time.Date(2026, time.October, d, 0, 0, 0, 0, time.UTC) }
 	data := calculated()
 	data.IssueDays = []metrics.IssueDay{
-		{Date: day(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Total: 7},
-		{Date: day(1), New: 0, Completed: 0, Total: 5},
+		{Date: day(2), New: 3, Completed: 1, NotPlanned: 2, Duplicate: 1, Total: 7, Active: true},
+		{Date: day(1), New: 0, Completed: 0, Total: 5, Active: true},
 		{
 			Date: time.Date(2026, time.September, 30, 0, 0, 0, 0, time.UTC),
-			New:  2, Completed: 4, Duplicate: 3, Other: 5, Total: 6,
+			New:  2, Completed: 4, Duplicate: 3, Other: 5, Total: 6, Active: true,
 		},
 	}
 	checkPageGolden(t, "issues.html", "testdata/issues.golden.html", data)
