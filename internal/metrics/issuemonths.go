@@ -23,7 +23,8 @@ func IssueMonths(events []history.IssueEvent, now time.Time, months int) []Issue
 			rows[i].count(e)
 		}
 	}
-	perMonth, openAtStart := openChanges(events, current.AddDate(0, -len(rows), 0), len(rows), func(at time.Time) (int, bool) {
+	start := current.AddDate(0, -len(rows), 0)
+	perMonth, openAtStart := openChanges(events, start, len(rows), func(at time.Time) (int, bool) {
 		return monthRow(at, current, len(rows))
 	})
 	addUpTotals(rows, perMonth, openAtStart)

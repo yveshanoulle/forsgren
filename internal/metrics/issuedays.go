@@ -63,7 +63,9 @@ func IssueDays(events []history.IssueEvent, now time.Time, days int) []IssueDay 
 // period (rowOf gives an event time's row), and the issues open when the
 // oldest row's period begins at start, from the events before it. Events after
 // the newest row change nothing.
-func openChanges(events []history.IssueEvent, start time.Time, rows int, rowOf func(time.Time) (int, bool)) (perDay []int, openAtStart int) {
+func openChanges(
+	events []history.IssueEvent, start time.Time, rows int, rowOf func(time.Time) (int, bool),
+) (perDay []int, openAtStart int) {
 	created := createdIssues(events)
 	perDay = make([]int, rows)
 	for _, e := range events {
