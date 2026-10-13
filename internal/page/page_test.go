@@ -479,20 +479,20 @@ func TestEveryPageNamesFiveMetrics(t *testing.T) {
 	wantOnEveryPage(t, acmeTable(), " Metrics from GitHub data.")
 }
 
-// TestWriteSiteWritesSevenPagesAndStyles (forsgren#46, #47, #84, #76): the
-// root page, the legend, the settings page and the issues page, and each
+// TestWriteSiteWritesEightPagesAndStyles (forsgren#46, #47, #84, #76, #123): the
+// root page, the legend, the settings page, the issues page and the months page, and each
 // view's page, standard, numbers and scoring, in its own folder.
-func TestWriteSiteWritesSevenPagesAndStyles(t *testing.T) {
+func TestWriteSiteWritesEightPagesAndStyles(t *testing.T) {
 	dir := t.TempDir()
 	n, err := WriteSite(dir, Placeholder("0.7.0"))
 	if err != nil {
 		t.Fatalf("WriteSite: %v", err)
 	}
-	if n != 7 {
-		t.Errorf("want 7 pages written, got %d", n)
+	if n != 8 {
+		t.Errorf("want 8 pages written, got %d", n)
 	}
 	for _, name := range []string{
-		"index.html", "legend.html", "settings.html", "issues.html", "standard/index.html",
+		"index.html", "legend.html", "settings.html", "issues.html", "months.html", "standard/index.html",
 		"numbers/index.html", "scoring/index.html", "styles.css",
 	} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {

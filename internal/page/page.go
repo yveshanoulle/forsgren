@@ -158,6 +158,12 @@ func (d Data) AnyIssueDayActive() bool {
 	return slices.ContainsFunc(d.IssueDays, func(day metrics.IssueDay) bool { return day.Active })
 }
 
+// AnyIssueRowActive says whether some row of the months page, of any kind, is
+// Active, that is whether it has a row to show (forsgren#108, forsgren#123).
+func (d Data) AnyIssueRowActive() bool {
+	return slices.ContainsFunc(d.IssueTableRows(), func(r IssueTableRow) bool { return r.Active })
+}
+
 // WorkingDay is the hours of a working day, 8 when Data holds none.
 func (d Data) WorkingDay() int { return metrics.WorkingDay(d.WorkingHours) }
 
