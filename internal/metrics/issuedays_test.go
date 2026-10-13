@@ -256,3 +256,15 @@ func TestIssueDaysMarksADayWithoutEventsInactive(t *testing.T) {
 	events := []history.IssueEvent{issueEvent("acme/app", "created", oct(1, 8, 0, 0))}
 	checkColumn(t, events, func(d IssueDay) bool { return d.Active }, []bool{false, true, false})
 }
+
+// TestIssueDaysKeepsADayWithOnlyAReopenActive (forsgren#108, step 3): a
+// reopen changes the Total, so a day with nothing new and no close but a
+// reopen is Active (rule 1). Only 2 October has the reopen; 1 October has the
+// issue created, 30 September nothing.
+func TestIssueDaysKeepsADayWithOnlyAReopenActive(t *testing.T) {
+	events := []history.IssueEvent{
+		issueEvent("acme/app", "created", oct(1, 8, 0, 0)),
+		issueEvent("acme/app", "reopened", oct(2, 8, 0, 0)),
+	}
+	checkColumn(t, events, func(d IssueDay) bool { return d.Active }, []bool{true, true, false})
+}
