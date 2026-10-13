@@ -23,7 +23,11 @@ func (f Frequency) Cell() string {
 	if count == 0 {
 		count = f.Last180
 	}
-	return cell(f.Band, strconv.Itoa(count))
+	measure := strconv.Itoa(count)
+	if f.Weekend30 > 0 {
+		measure += cellSeparator + strconv.Itoa(f.Weekend30) + " at weekends"
+	}
+	return cell(f.Band, measure)
 }
 
 // Cell is the band, the median and the count of commits, "Less than one

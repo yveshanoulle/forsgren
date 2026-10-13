@@ -50,7 +50,7 @@ func acmeProjects(shop metrics.LeadTime, recovery metrics.Recovery, changeFail m
 	data := calculated()
 	latest := time.Date(2026, 10, 1, 9, 30, 0, 0, time.UTC)
 	frequency := metrics.Frequency{
-		Project: "Acme Shop", Last7: 3, Last30: 12, Last180: 12, Latest: latest, Band: metrics.DailyToWeekly,
+		Project: "Acme Shop", Last7: 3, Last30: 12, Last180: 12, Weekend30: 3, Latest: latest, Band: metrics.DailyToWeekly,
 	}
 	data.Rows = Table([]metrics.Row{
 		{Level: metrics.ProjectRow, Name: "Acme Shop", Frequency: frequency, LeadTime: shop, Recovery: recovery,

@@ -26,7 +26,7 @@ projects:
 // TestRenderShowsLabelRows (forsgren#38): the labels of the config add rows
 // under their project's total, sorted, each counted from its own
 // deployments: acme/api's task has 3 successes in the last 30 days,
-// acme/ios-app 9. The page shows the labels, never a repository's or a
+// acme/ios-app 9, 1 and 2 of them on a weekend (forsgren#115). The page shows the labels, never a repository's or a
 // task's own name.
 func TestRenderShowsLabelRows(t *testing.T) {
 	pinNow(t)
@@ -35,10 +35,10 @@ func TestRenderShowsLabelRows(t *testing.T) {
 		`<th scope="row">Acme Shop (total)</th>`,
 		`<tr class="label">
             <th scope="row"><span class="visually-hidden">Acme Shop: </span>API</th>
-            <td>Between once per week and once per month · 3</td>`,
+            <td>Between once per week and once per month · 3 · 1 at weekends</td>`,
 		`<tr class="label">
             <th scope="row"><span class="visually-hidden">Acme Shop: </span>iOS</th>
-            <td>Between once per day and once per week · 9</td>`,
+            <td>Between once per day and once per week · 9 · 2 at weekends</td>`,
 		`<th scope="row">Acme Tools</th>`,
 	} {
 		if !strings.Contains(index, want) {
