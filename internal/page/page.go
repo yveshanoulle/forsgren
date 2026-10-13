@@ -117,6 +117,12 @@ func Placeholder(version string) Data {
 	return Data{Title: "forsgren", Version: version, Message: "no data yet"}
 }
 
+// AnyIssueDayActive says whether some day of IssueDays is Active, that is
+// whether the issues page has a row to show (forsgren#108).
+func (d Data) AnyIssueDayActive() bool {
+	return slices.ContainsFunc(d.IssueDays, func(day metrics.IssueDay) bool { return day.Active })
+}
+
 // WorkingDay is the hours of a working day, 8 when Data holds none.
 func (d Data) WorkingDay() int { return metrics.WorkingDay(d.WorkingHours) }
 
