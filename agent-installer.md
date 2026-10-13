@@ -12,6 +12,9 @@ your memory of forsgren, or other installations as a source. The full
 reference is forsgren's [README](README.md); this file names the parts of it
 you need.
 
+Tested with: forsgren v0.8.5, Claude Code, model claude-sonnet-5-5.
+Start your agent with that model (in Claude Code: `claude --model sonnet`).
+
 ## How to work through this file
 
 - **Do every step in order.** Each step says what to do, the exact command,
