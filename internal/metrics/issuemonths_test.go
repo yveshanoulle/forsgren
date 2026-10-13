@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -42,5 +43,37 @@ func TestIssueMonthsCountsEachCompleteCalendarMonth(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("row %d: want %v, got %v", i, want[i], got[i])
 		}
+	}
+}
+
+// TestIssueMonthsTotalIsTheIssuesOpenAtTheMonthsLastDay (forsgren#89, step 3):
+// with now on 14 October and 2 months, the issues created in July are in the
+// base: open when August begins. August ends with issues 2, 3 and 6 open (1 was
+// closed), September ends with 2 and 4 (3 and 6 were closed), and issue 5, created
+// in October, changes nothing.
+func TestIssueMonthsTotalIsTheIssuesOpenAtTheMonthsLastDay(t *testing.T) {
+	at := func(month time.Month, d int) time.Time {
+		return time.Date(2026, month, d, 12, 0, 0, 0, time.UTC)
+	}
+	event := func(issue int64, name string, when time.Time) history.IssueEvent {
+		return history.IssueEvent{Repository: "acme/app", Issue: issue, Event: name, At: when}
+	}
+	events := []history.IssueEvent{
+		event(1, "created", at(time.July, 3)),
+		event(2, "created", at(time.July, 20)),
+		event(3, "created", at(time.August, 10)),
+		event(6, "created", at(time.August, 15)),
+		event(1, "closed", at(time.August, 20)),
+		event(4, "created", at(time.September, 2)),
+		event(3, "closed", at(time.September, 5)),
+		event(6, "closed", at(time.September, 9)),
+		event(5, "created", at(time.October, 1)),
+	}
+	var got []int
+	for _, m := range IssueMonths(events, at(time.October, 14), 2) {
+		got = append(got, m.Total)
+	}
+	if want := []int{2, 3}; !slices.Equal(got, want) {
+		t.Errorf("want the totals %v (September, August), got %v", want, got)
 	}
 }
