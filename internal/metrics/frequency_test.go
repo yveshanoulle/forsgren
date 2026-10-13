@@ -254,3 +254,30 @@ func TestFrequencyBandFollowsWorkingHours(t *testing.T) {
 		}
 	}
 }
+
+// TestWeekendDeploymentsCountOnlySaturdayAndSundayUTC pins forsgren#115:
+// Weekend30 counts the successes of the last 30 days created on a UTC
+// Saturday or Sunday, at the edges of both days; a failure, an other and a
+// success older than 30 days do not count.
+func TestWeekendDeploymentsCountOnlySaturdayAndSundayUTC(t *testing.T) {
+	at := func(day, hour, min, sec int) time.Time { return time.Date(2026, 9, day, hour, min, sec, 0, time.UTC) }
+	record := func(state history.State, created time.Time) history.Record {
+		r := success(0)
+		r.State, r.CreatedAt = state, created
+		return r
+	}
+	// 2026-09-25 is a Friday, 26 a Saturday, 27 a Sunday, 28 a Monday.
+	saturday := at(26, 12, 0, 0)
+	got := shopOf(t,
+		record(history.StateSuccess, at(25, 23, 59, 59)),
+		record(history.StateSuccess, at(26, 0, 0, 0)),
+		record(history.StateSuccess, at(27, 23, 59, 59)),
+		record(history.StateSuccess, at(28, 0, 0, 0)),
+		record(history.StateFailure, saturday),
+		record(history.StateOther, saturday),
+		record(history.StateSuccess, time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)), // a Saturday, 35 days ago
+	)
+	if got.Weekend30 != 2 {
+		t.Errorf("want 2 weekend successes in the last 30 days, got %d", got.Weekend30)
+	}
+}
