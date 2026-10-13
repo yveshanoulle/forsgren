@@ -45,3 +45,32 @@ func TestIssueWeeksAreTheCompleteWeeksTouchingTheCurrentMonth(t *testing.T) {
 		t.Errorf("want the weeks\n%v\ngot\n%v", want, got)
 	}
 }
+
+// TestIssueWeekDaysAreTheDaysOfTheCurrentWeekUpToYesterday (forsgren#89,
+// step 9): with now on Wednesday 14 October 2026, the rows are Tuesday 13 and
+// Monday 12, newest first, as IssueDays counts them. Sunday 11 October, last
+// week, is in the base of the Totals but no row, and nothing today is a row.
+func TestIssueWeekDaysAreTheDaysOfTheCurrentWeekUpToYesterday(t *testing.T) {
+	event := func(issue int64, name, reason string, d, h int) history.IssueEvent {
+		at := time.Date(2026, time.October, d, h, 0, 0, 0, time.UTC)
+		return history.IssueEvent{Repository: "acme/app", Issue: issue, Event: name, Reason: reason, At: at}
+	}
+	events := []history.IssueEvent{
+		event(1, "created", "", 11, 12),
+		event(2, "created", "", 12, 9),
+		event(1, "closed", "not_planned", 13, 9),
+		event(3, "created", "", 14, 9),
+	}
+	type row struct {
+		day                    int
+		new, notPlanned, total int
+	}
+	want := []row{{13, 0, 1, 1}, {12, 1, 0, 2}}
+	var got []row
+	for _, d := range IssueWeekDays(events, time.Date(2026, time.October, 14, 12, 0, 0, 0, time.UTC)) {
+		got = append(got, row{d.Date.Day(), d.New, d.NotPlanned, d.Total})
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("want the days %v, got %v", want, got)
+	}
+}
