@@ -80,4 +80,14 @@ func (f *Frequency) add(at, now time.Time) {
 	f.Last7 += last7.count(at, now)
 	f.Last30 += last30.count(at, now)
 	f.Last180 += last180.count(at, now)
+	if isWeekend(at) {
+		f.Weekend30 += last30.count(at, now)
+	}
+}
+
+// isWeekend says whether t falls on a Saturday or a Sunday, UTC. The days
+// are fixed until forsgren#72 makes them configurable.
+func isWeekend(t time.Time) bool {
+	day := t.UTC().Weekday()
+	return day == time.Saturday || day == time.Sunday
 }
