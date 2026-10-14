@@ -288,7 +288,7 @@ var pages = parsePages()
 // parsePages parses the layout once and clones it per page. A malformed
 // template fails at start-up through template.Must, never at render time.
 func parsePages() map[string]page {
-	layout := template.Must(template.ParseFS(files, "templates/layout/*.html"))
+	layout := template.Must(template.New("layout").Funcs(templateFuncs).ParseFS(files, "templates/layout/*.html"))
 	out := map[string]page{}
 	// fs.Glob only errors on a malformed pattern; this one is constant.
 	names, _ := fs.Glob(files, pagesGlob)

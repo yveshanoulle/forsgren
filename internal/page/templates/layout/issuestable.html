@@ -23,9 +23,9 @@
             <td>{{.NotPlanned}}</td>
             <td>{{.Duplicate}}</td>
             <td>{{.Other}}</td>
-            <td>{{.Open}}</td>
+            <td>{{.Open}} {{template "trend" (trend "open issues" .OpenTrend .OpenChange)}}</td>
             <td>{{.OpenBugs}}</td>
             <td>{{.Total}}</td>
             <td>{{.OpenShare}}</td>
           </tr>
-{{end}}
+{{end}}{{define "trend"}}<span class="{{.Class}}" role="img" aria-label="{{.Label}}">{{.Arrow}}{{if gt .Sign 0}} +{{.Change}}{{else if lt .Sign 0}} −{{.Change}}{{end}}</span>{{end}}

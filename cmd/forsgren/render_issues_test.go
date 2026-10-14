@@ -43,7 +43,9 @@ func TestRenderShowsTheIssuesOfEachDay(t *testing.T) {
 		"--data", data); code != 0 {
 		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
 	}
-	want := "<th scope=\"row\">2026-10-02</th>\n" + strings.Repeat("            <td>1</td>\n", 6)
+	want := "<th scope=\"row\">2026-10-02</th>\n" + strings.Repeat("            <td>1</td>\n", 5) +
+		"            <td>1 <span class=\"trend-down\" role=\"img\" " +
+		"aria-label=\"open issues decreased by 3\">▼ −3</span></td>\n"
 	if issues := readFile(t, filepath.Join(dir, "days.html")); !strings.Contains(issues, want) {
 		t.Errorf("want the page to hold the row %q, got:\n%s", want, issues)
 	}

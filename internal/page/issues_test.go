@@ -201,7 +201,7 @@ func TestIssuesTableShowsTheIssuesCreatedInATotalColumnAfterOpenBugs(t *testing.
 // column headed Open bugs comes right after Open and shows IssueDay.OpenBugs.
 func TestIssuesTableShowsTheOpenBugsInAColumnRightAfterOpen(t *testing.T) {
 	wantAll(t, "issues.html", issuesPageOf(t, openBugsDay), `<th scope="col">Open</th>
-            <th scope="col">Open bugs</th>`, `<td>5</td>
+            <th scope="col">Open bugs</th>`, `–</span></td>
             <td>2</td>`)
 }
 
@@ -232,4 +232,20 @@ const columnsNote = "Open is the issues open at the end of the period. Total is 
 func TestLegendExplainsTheOpenTotalAndOpenOutOfTotalColumns(t *testing.T) {
 	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()),
 		"<p>"+periodsNote+"</p>\n    <p>"+columnsNote+"</p>\n")
+}
+
+// TestIssuesTableShowsAnArrowForTheDirectionOfTheOpenColumn (forsgren#126,
+// forsgren#114): after the Open count of each row, a span with role img and an
+// aria-label in words says which way it moved from the period before, with the
+// class the colours hang on: an arrow up and the change when it rose, an arrow
+// down and the change when it fell, a dash when it did not change.
+func TestIssuesTableShowsAnArrowForTheDirectionOfTheOpenColumn(t *testing.T) {
+	got := issuesPageOf(t,
+		metrics.IssueDay{Date: october(3), Open: 5, OpenChange: 3, Active: true},
+		metrics.IssueDay{Date: october(2), Open: 2, OpenChange: -2, Active: true},
+		metrics.IssueDay{Date: october(1), Open: 4, Active: true})
+	wantAll(t, "issues.html", got,
+		`<td>5 <span class="trend-up" role="img" aria-label="open issues increased by 3">▲ +3</span></td>`,
+		`<td>2 <span class="trend-down" role="img" aria-label="open issues decreased by 2">▼ −2</span></td>`,
+		`<td>4 <span class="trend-flat" role="img" aria-label="open issues unchanged">–</span></td>`)
 }
