@@ -3,11 +3,13 @@ package collect
 import (
 	"errors"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
@@ -184,5 +186,53 @@ func TestACutListOfBugIssuesIsNotedPerRepository(t *testing.T) {
 	got, err := history.LoadBugsCut(bugsCutFileBeside(path))
 	if err != nil || len(got) != 1 || got["acme/app"].IsZero() {
 		t.Errorf("want acme/app noted as cut, got %v, %v", got, err)
+	}
+}
+
+// saveCutNotes stores acme/app and other/repo as cut in a mark file beside the
+// history at path.
+func saveCutNotes(t *testing.T, path string) {
+	t.Helper()
+	at := time.Date(2026, 9, 1, 8, 0, 0, 0, time.UTC)
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := history.SaveBugsCut(bugsCutFileBeside(path), history.Reach{"acme/app": at, "other/repo": at}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestACompleteListOfBugIssuesRemovesTheCutNote (forsgren#140): a repository
+// noted as cut whose bug read now ends before the cap is removed from
+// issue_bugs_cut.csv, so its Open bugs shows a number again; another
+// repository's note stays.
+func TestACompleteListOfBugIssuesRemovesTheCutNote(t *testing.T) {
+	g := newGitHub(t)
+	path, _ := listFourOverStoredThreeAndFour(t, g)
+	saveCutNotes(t, path)
+	if r := g.collect(t, shop(production), path, 1); r.err != nil {
+		t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
+	}
+	got, err := history.LoadBugsCut(bugsCutFileBeside(path))
+	if _, ok := got["other/repo"]; err != nil || len(got) != 1 || !ok {
+		t.Errorf("want only other/repo noted as cut, got %v, %v", got, err)
+	}
+}
+
+// TestAFailedRepositoryKeepsItsCutNote (forsgren#140): when the bug list is
+// refused, the repository fails and its note stays as it was.
+func TestAFailedRepositoryKeepsItsCutNote(t *testing.T) {
+	g := newGitHub(t)
+	g.bodies[deploymentsPath] = list()
+	g.bodies[bugIssuesPath] = `{"message": "Server Error"}`
+	g.status[bugIssuesPath] = http.StatusInternalServerError
+	path := historyPath(t)
+	saveCutNotes(t, path)
+	if r := g.collect(t, shop(production), path, 1); !errors.Is(r.err, ErrFailed) {
+		t.Fatalf("want the repository failed, got %v (stderr %q)", r.err, r.stderr)
+	}
+	got, err := history.LoadBugsCut(bugsCutFileBeside(path))
+	if _, ok := got["acme/app"]; err != nil || len(got) != 2 || !ok {
+		t.Errorf("want both notes kept, got %v, %v", got, err)
 	}
 }

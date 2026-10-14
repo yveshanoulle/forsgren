@@ -57,11 +57,14 @@ const BugsCutFile = "issue_bugs_cut.csv"
 func (o Options) bugsCutFile() string { return filepath.Join(filepath.Dir(o.History), BugsCutFile) }
 
 // noteBugsCut notes that repo's bug read stopped at the page cap at at, whole
-// seconds, UTC, when cut says it did.
+// seconds, UTC, when cut says it did, and removes its note when the read was
+// complete, so its Open bugs shows a number again.
 func (h held) noteBugsCut(repo string, cut bool, at time.Time) {
 	if cut {
 		h.cut[strings.ToLower(repo)] = wholeSecond(at)
+		return
 	}
+	delete(h.cut, strings.ToLower(repo))
 }
 
 // lostLabel is the issues of repo that stored says are bugs and listed, the
