@@ -634,13 +634,26 @@ func withTwoSettings() Data {
 	return data
 }
 
-// TestSettingsPageListsTheSettings (forsgren#74, #84): the settings page lists
-// each setting as key: value, and the unset ones marked as defaults.
-func TestSettingsPageListsTheSettings(t *testing.T) {
+// TestSettingsPageIsATableOfParameterValuePossibleValuesAndDefault
+// (forsgren#74, #84, #141): the settings page tabulates each setting under
+// Parameter, Current value, Possible values and Default. Default is False for
+// a key the file sets, even to the default's value, and True for one it leaves
+// out, whose current value is the default.
+func TestSettingsPageIsATableOfParameterValuePossibleValuesAndDefault(t *testing.T) {
 	data := withTwoSettings()
 	wantAll(t, "settings.html", rendered(t, "settings.html", data),
-		"<li>view: numbers</li>",
-		"<li>history_days: 365 (default, not set in forsgren.config.yml)</li>",
+		`<th scope="col">Parameter</th>
+            <th scope="col">Current value</th>
+            <th scope="col">Possible values</th>
+            <th scope="col">Default</th>`,
+		`<th scope="row">view</th>
+            <td>numbers</td>
+            <td>standard, numbers, scoring</td>
+            <td>False</td>`,
+		`<th scope="row">history_days</th>
+            <td>365</td>
+            <td>1 to 1825</td>
+            <td>True</td>`,
 	)
 }
 
@@ -653,6 +666,20 @@ func TestLegendHasNoSettings(t *testing.T) {
 		"<li>view: numbers</li>",
 		"<li>history_days: 365",
 	)
+}
+
+// defaultNote is the legend's explanation of the settings page's Default
+// column (forsgren#141).
+const defaultNote = "The Default column of the settings page says whether the default applies: True when " +
+	"forsgren.config.yml does not set the key, so the current value is the default, and False when the file sets " +
+	"it, even to the default's value."
+
+// TestLegendExplainsTheDefaultColumnOfTheSettingsPage (forsgren#141): the
+// legend ends with a section on the settings page that says what True and
+// False mean in its Default column.
+func TestLegendExplainsTheDefaultColumnOfTheSettingsPage(t *testing.T) {
+	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()),
+		"<h2>Settings page</h2>\n    <p>"+defaultNote+"</p>\n")
 }
 
 // TestDaysPageMatchesGolden (forsgren#128, step 2): the page of the days is

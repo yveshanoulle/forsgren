@@ -1,8 +1,25 @@
 {{define "title"}}Settings · {{.Title}}{{end -}}
 {{template "header" .}}  <main>
-    <h1>Settings</h1>
-    <ul>
-{{range .Settings}}      <li>{{.Key}}: {{.Value}}{{if not .Set}} (default, not set in forsgren.config.yml){{end}}</li>
-{{end}}    </ul>
+    <h1 id="settings-heading">Settings</h1>
+    <div class="table-scroll" role="region" aria-labelledby="settings-heading" tabindex="0">
+      <table aria-labelledby="settings-heading">
+        <thead>
+          <tr>
+            <th scope="col">Parameter</th>
+            <th scope="col">Current value</th>
+            <th scope="col">Possible values</th>
+            <th scope="col">Default</th>
+          </tr>
+        </thead>
+        <tbody>
+{{range .Settings}}          <tr>
+            <th scope="row">{{.Key}}</th>
+            <td>{{.Value}}</td>
+            <td>{{possible .Key}}</td>
+            <td>{{if .Set}}False{{else}}True{{end}}</td>
+          </tr>
+{{end}}        </tbody>
+      </table>
+    </div>
   </main>
 {{template "footer" .}}

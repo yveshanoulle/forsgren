@@ -9,15 +9,57 @@
 <body>
   <nav class="views">View: <a href="standard/">Standard</a> · <a href="numbers/">Numbers</a> · <a href="scoring/">Scoring</a> · <a href="issues.html">Issues</a> · <a href="days.html">Daily</a></nav>
   <main>
-    <h1>Settings</h1>
-    <ul>
-      <li>view: standard (default, not set in forsgren.config.yml)</li>
-      <li>auto_update: false (default, not set in forsgren.config.yml)</li>
-      <li>auto_update_level: none (default, not set in forsgren.config.yml)</li>
-      <li>history_days: 365 (default, not set in forsgren.config.yml)</li>
-      <li>history_chunk_days: 100 (default, not set in forsgren.config.yml)</li>
-      <li>working_hours: 8 (default, not set in forsgren.config.yml)</li>
-    </ul>
+    <h1 id="settings-heading">Settings</h1>
+    <div class="table-scroll" role="region" aria-labelledby="settings-heading" tabindex="0">
+      <table aria-labelledby="settings-heading">
+        <thead>
+          <tr>
+            <th scope="col">Parameter</th>
+            <th scope="col">Current value</th>
+            <th scope="col">Possible values</th>
+            <th scope="col">Default</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">view</th>
+            <td>standard</td>
+            <td>standard, numbers, scoring</td>
+            <td>True</td>
+          </tr>
+          <tr>
+            <th scope="row">auto_update</th>
+            <td>false</td>
+            <td>true, false</td>
+            <td>True</td>
+          </tr>
+          <tr>
+            <th scope="row">auto_update_level</th>
+            <td>none</td>
+            <td>patch, minor, major</td>
+            <td>True</td>
+          </tr>
+          <tr>
+            <th scope="row">history_days</th>
+            <td>365</td>
+            <td>1 to 1825</td>
+            <td>True</td>
+          </tr>
+          <tr>
+            <th scope="row">history_chunk_days</th>
+            <td>100</td>
+            <td>1 to 365</td>
+            <td>True</td>
+          </tr>
+          <tr>
+            <th scope="row">working_hours</th>
+            <td>8</td>
+            <td>1 to 24</td>
+            <td>True</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </main>
   <footer>
     <p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> 0.8.5 Metrics from GitHub data. Calculated at 2026-10-03 12:00 UTC</p>

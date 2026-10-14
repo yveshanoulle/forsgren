@@ -47,7 +47,7 @@
   {
    "path": "cmd/forsgren/render_config_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-10",
+   "checkedAt": "2026-10-14",
    "minScore": 10.0
   },
   {
@@ -347,7 +347,7 @@
   {
    "path": "internal/page/page_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-13",
+   "checkedAt": "2026-10-14",
    "minScore": 10.0
   },
   {
@@ -1072,6 +1072,12 @@
   },
   {
    "path": "internal/page/trendcolours_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-14",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/settings.go",
    "score": 10.0,
    "checkedAt": "2026-10-14",
    "minScore": 10.0

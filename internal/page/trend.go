@@ -13,7 +13,7 @@ import (
 )
 
 // templateFuncs are the functions the templates call.
-var templateFuncs = template.FuncMap{"trend": trendOf}
+var templateFuncs = template.FuncMap{"trend": trendOf, "possible": possibleOf}
 
 // trendView is what the "trend" template shows: the class the colours hang on,
 // the arrow, how much the count moved (Change, always zero or more) with Sign

@@ -147,14 +147,16 @@ func TestRenderSettingsPageListsTheSettings(t *testing.T) {
 	}
 	settings := readFile(t, filepath.Join(dir, "settings.html"))
 	for _, want := range []string{
-		"<li>history_days: 30</li>",
-		"<li>view: standard (default, not set in forsgren.config.yml)</li>",
+		"<th scope=\"row\">history_days</th>\n            <td>30</td>\n            <td>1 to 1825</td>\n" +
+			"            <td>False</td>",
+		"<th scope=\"row\">view</th>\n            <td>standard</td>\n            <td>standard, numbers, scoring</td>\n" +
+			"            <td>True</td>",
 	} {
 		if !strings.Contains(settings, want) {
 			t.Errorf("want the settings page to say %q, got:\n%s", want, settings)
 		}
 	}
-	if legend := readFile(t, filepath.Join(dir, "legend.html")); strings.Contains(legend, "<li>history_days: 30</li>") {
+	if legend := readFile(t, filepath.Join(dir, "legend.html")); strings.Contains(legend, "<td>30</td>") {
 		t.Errorf("want no setting on the legend, got:\n%s", legend)
 	}
 }
