@@ -99,3 +99,24 @@ func TestRenderRefusesWhatIsOutsideTheSubset(t *testing.T) {
 		}
 	}
 }
+
+// TestRenderEscapesAndLeavesUnclosedMarkersAlone (forsgren#132): text is
+// HTML-escaped, a code span is not read as Markdown, and a marker with no
+// closing partner is plain text.
+func TestRenderEscapesAndLeavesUnclosedMarkersAlone(t *testing.T) {
+	src := "# A <b> & B\n\nx < y, `**not bold** <i>`, a * b, a ` c, [open and [b](x.md), <https://unclosed, [no close\n"
+	got, err := Render(src, fixtureBase)
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	for _, want := range []string{
+		"<title>A &lt;b&gt; &amp; B</title>",
+		`<h1 id="a-b-b">A &lt;b&gt; &amp; B</h1>`,
+		"x &lt; y, <code>**not bold** &lt;i&gt;</code>, a * b, a ` c,",
+		`[open and <a href="https://github.com/acme/widget/blob/main/x.md">b</a>, `,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the page lacks %q:\n%s", want, got)
+		}
+	}
+}
