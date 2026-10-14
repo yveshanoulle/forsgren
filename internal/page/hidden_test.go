@@ -134,3 +134,29 @@ func wantMenuWithout(t *testing.T, name, html string, gone []string) {
 		t.Errorf("%s: want the views in the menu", name)
 	}
 }
+
+// legendPagesText is the legend's explanation of the two keys (forsgren#159).
+const legendPagesText = "<p>The Issues page and the Daily page are shown or hidden with issues_page and days_page " +
+	"in forsgren.config.yml. By default the Issues page is shown (issues_page: true) and the Daily page is hidden " +
+	"(days_page: false); days_page: true brings the Daily page back. A hidden page is not generated and has no " +
+	"entry in the menu. To add the Daily page, set days_page: true and run forsgren again to regenerate the report.</p>"
+
+// TestLegendExplainsTheTwoPageKeysWhateverIsHidden (forsgren#159, Yves's
+// ruling on decision #165): the legend keeps its Issues pages section and says
+// how issues_page and days_page show or hide the two pages, the same text
+// whether they are shown or hidden.
+func TestLegendExplainsTheTwoPageKeysWhateverIsHidden(t *testing.T) {
+	hidden := map[string]map[string]bool{
+		"none": nil, "days": {"days": true}, "both": {"days": true, "issues": true},
+	}
+	for name, hide := range hidden {
+		data := calculated()
+		data.Hidden = hide
+		html := rendered(t, "legend.html", data)
+		for _, want := range []string{"<h2>Issues pages</h2>", legendPagesText} {
+			if !strings.Contains(html, want) {
+				t.Errorf("%s hidden: want %q in the legend", name, want)
+			}
+		}
+	}
+}
