@@ -39,6 +39,7 @@ pre {
 
 table {
   border-collapse: collapse;
+  width: 100%;
   min-width: 44rem;
 }
 

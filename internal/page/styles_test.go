@@ -87,3 +87,38 @@ func TestBodyWidthGrowsWithTheScreenUpToAWideCap(t *testing.T) {
 		t.Errorf("want the body max-width at least %vrem (a 1800px screen), got %srem", screen1800px, width[1])
 	}
 }
+
+// TestEveryTableFillsTheBodyAndNoOtherRuleSetsItsWidth (forsgren#153, step 3):
+// the table rule sets width: 100%, so a table fills the body, whatever its
+// page or column count, and the tables of all pages are equally wide. No other
+// rule sets a width on a table or on its scroll box, so no page can differ.
+func TestEveryTableFillsTheBodyAndNoOtherRuleSetsItsWidth(t *testing.T) {
+	tables, others := tableWidthRules(stylesCSS(t))
+	if len(tables) != 1 {
+		t.Fatalf("want one table rule in styles.css, got %d", len(tables))
+	}
+	if !strings.Contains(tables[0], "width: 100%;") {
+		t.Errorf("want the table rule to set width: 100%%, got:\n%s", tables[0])
+	}
+	for _, selector := range others {
+		t.Errorf("want no width on %q (the table rule is the one source)", selector)
+	}
+}
+
+// tableWidthRules are the bodies of the rules of css whose selector is table,
+// and the selectors of the other rules on a table or .table-scroll that set a
+// width or a max-width.
+func tableWidthRules(css string) (tables, others []string) {
+	onTable := regexp.MustCompile(`(^|[\s,])(table|\.table-scroll)\b`)
+	setsWidth := regexp.MustCompile(`(?:^|[\s;])(?:max-)?width\s*:`)
+	for _, r := range regexp.MustCompile(`(?s)([^{}]+)\{([^}]*)\}`).FindAllStringSubmatch(css, -1) {
+		selector := strings.TrimSpace(r[1])
+		switch {
+		case selector == "table":
+			tables = append(tables, r[2])
+		case onTable.MatchString(selector) && setsWidth.MatchString(r[2]):
+			others = append(others, selector)
+		}
+	}
+	return tables, others
+}
