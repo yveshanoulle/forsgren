@@ -55,7 +55,7 @@ type comparison struct {
 //
 // The status codes, total_commits and the page order are GitHub's REST
 // reference, pinned against made-up answers only, not checked against
-// live GitHub (README, Collecting deployments).
+// live GitHub (docs/data-files.md, Collecting deployments).
 func (c *Client) Compare(ctx context.Context, repo, base, head string) ([]Commit, bool, error) {
 	s := span{repo: repo, base: base, head: head}
 	if err := s.check(); err != nil || base == head {

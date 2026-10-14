@@ -506,8 +506,8 @@ in:
 >
 >    paste the token when it asks, press Enter, and tell me when it is done.
 
-The permissions per deployment kind are README's table (Collecting
-deployments, The token).
+The permissions per deployment kind are the table in
+[docs/data-files.md](docs/data-files.md) (Collecting deployments, The token).
 
 Check, after the person says it is done:
 `gh secret list -R OWNER/REPO` shows a line starting with `FORSGREN_TOKEN`.

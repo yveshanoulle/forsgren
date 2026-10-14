@@ -62,7 +62,7 @@ on:
     # It reaches the collect step's env: only; see that step.
     secrets:
       FORSGREN_TOKEN:
-        description: A read-only GitHub token for the measured repositories (README, Collecting deployments); unused while no project is configured.
+        description: A read-only GitHub token for the measured repositories (docs/data-files.md, Collecting deployments); unused while no project is configured.
         required: false
 
 # NO permissions block, at the workflow level or on the job, on purpose
@@ -260,7 +260,7 @@ jobs:
 
       # forsgren collect reads every configured repository's deployments
       # from GitHub and appends the final ones to data/deployments.csv
-      # (README, Collecting deployments). It is the ONE step that gets the
+      # (docs/data-files.md, Collecting deployments). It is the ONE step that gets the
       # caller's FORSGREN_TOKEN, through env: (collect reads it from the
       # environment only, never a flag); no other step, the job or the
       # workflow has it. With no project configured collect needs no token
