@@ -48,6 +48,10 @@ type IssueDay struct {
 	// OpenBugsChange is how much OpenBugs moved over that period, as OpenChange
 	// does for Open; its direction is OpenBugsTrend (forsgren#126).
 	OpenBugsChange int
+	// BugsIncomplete is whether OpenBugs cannot be trusted: the bug read of some
+	// tracked repository stopped at its page cap, so the page does not show the
+	// number (forsgren#140). Render sets it on every row.
+	BugsIncomplete bool
 	// Active is whether anything happened on that day: a new issue, a close
 	// of any kind, or a reopen (forsgren#108).
 	Active bool

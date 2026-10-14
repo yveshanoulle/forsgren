@@ -157,3 +157,74 @@ func TestRenderRefusesABadBugFlagsFile(t *testing.T) {
 		"malformed line":  {head + "acme/api,7\n", "line 3: malformed history"},
 	})
 }
+
+// renderWithBugsCut renders the history at data at 3 October 2026 with the issue
+// events of acme/api and, when cut is not empty, issue_bugs_cut.csv noting
+// those repositories.
+func renderWithBugsCut(t *testing.T, cut ...string) page.Data {
+	t.Helper()
+	data := writeHistory(t, acmeHistory())
+	events := []history.IssueEvent{issueEventAt(7, "created", "", "2026-10-02T09:00:00Z")}
+	if _, err := history.AppendIssueEvents(filepath.Join(filepath.Dir(data), "issues.csv"), events); err != nil {
+		t.Fatal(err)
+	}
+	if len(cut) > 0 {
+		notes := history.Reach{}
+		for _, repo := range cut {
+			notes[repo] = time.Date(2026, 10, 1, 8, 0, 0, 0, time.UTC)
+		}
+		if err := history.SaveBugsCut(filepath.Join(filepath.Dir(data), "issue_bugs_cut.csv"), notes); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := withHistory(page.Data{}, config.Config{}, data, time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return got
+}
+
+// TestRenderMarksEveryRowBugsIncompleteWhenARepositoryIsCut (forsgren#140):
+// with a repository in data/issue_bugs_cut.csv, every row of the days page and
+// of the issues page has BugsIncomplete; without the file, none has.
+func TestRenderMarksEveryRowBugsIncompleteWhenARepositoryIsCut(t *testing.T) {
+	for name, c := range map[string]struct {
+		cut  []string
+		want bool
+	}{"a cut repository": {[]string{"acme/api"}, true}, "no file": {nil, false}} {
+		t.Run(name, func(t *testing.T) {
+			got := renderWithBugsCut(t, c.cut...)
+			if len(got.IssueDays) == 0 || len(got.IssueRows) == 0 {
+				t.Fatalf("want rows, got %d days and %d issue rows", len(got.IssueDays), len(got.IssueRows))
+			}
+			wantBugsIncomplete(t, got, c.want)
+		})
+	}
+}
+
+// TestRenderRefusesABadBugsCutFile (forsgren#140): a malformed or
+// unknown-version issue_bugs_cut.csv fails render with its own message, naming
+// it, and writes nothing. Proven by mutation.
+func TestRenderRefusesABadBugsCutFile(t *testing.T) {
+	head := "# forsgren bugs cut v1\nrepository,cut_at\n"
+	wantBadFileRefused(t, "issue_bugs_cut.csv", map[string]badFile{
+		"unknown version": {"# forsgren bugs cut v2\n", "unknown history format version"},
+		"malformed line":  {head + "acme/api\n", "line 3: malformed history"},
+	})
+}
+
+// wantBugsIncomplete fails for each row of the days and issues pages of data
+// whose BugsIncomplete is not want.
+func wantBugsIncomplete(t *testing.T, data page.Data, want bool) {
+	t.Helper()
+	for _, d := range data.IssueDays {
+		if d.BugsIncomplete != want {
+			t.Errorf("want BugsIncomplete %v on day %v", want, d.Date)
+		}
+	}
+	for _, r := range data.IssueRows {
+		if r.BugsIncomplete != want {
+			t.Errorf("want BugsIncomplete %v on %s row %v", want, r.Kind, r.Date)
+		}
+	}
+}

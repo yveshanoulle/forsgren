@@ -136,6 +136,24 @@ func withHistory(data page.Data, cfg config.Config, path string, at time.Time) (
 	}
 	data.IssueDays = metrics.IssueDays(events, at, issueDays)
 	data.IssueRows = metrics.IssueRows(events, at)
+	return withBugsCut(data, path)
+}
+
+// withBugsCut is data with BugsIncomplete set on every issue row when the bugs
+// cut file beside the history at path (data/issue_bugs_cut.csv) names a
+// repository whose bug read stopped at its page cap (forsgren#140). A missing
+// file names none; any other refusal fails the render, naming the file.
+func withBugsCut(data page.Data, path string) (page.Data, error) {
+	cut, err := history.LoadBugsCut(beside(path, collect.BugsCutFile))
+	if err != nil || len(cut) == 0 {
+		return data, err
+	}
+	for i := range data.IssueDays {
+		data.IssueDays[i].BugsIncomplete = true
+	}
+	for i := range data.IssueRows {
+		data.IssueRows[i].BugsIncomplete = true
+	}
 	return data, nil
 }
 

@@ -14,6 +14,7 @@
     "github.com/yveshanoulle/forsgren/cmd/forsgren/main.go:newFlags": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/main.go:failed": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:render": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:withBugsCut": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/checkneeds.go:checkNeeds": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/checkneeds.go:checkNeedsFlags": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/checkneeds.go:reportNeeds": 100.0,
