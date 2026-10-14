@@ -63,8 +63,11 @@ request.
   - `LATEST`: forsgren's latest release, such as `vX.Y.Z` (step 3).
   - `LATESTSHA`: the commit of `LATEST`, 40 hex digits (step 3).
   - `PR`: the number of a waiting Dependabot pull request (step 3).
+  - `BRANCH`: the data repository's default branch (step 6).
   - `WORK`: your work folder, the absolute path of `forsgren-work` inside
     the folder the person started you in (step 1).
+- **Names made by a command.** A name such as `HEADSHA` or `BLOB1` stands for
+  the value the command before it printed; the step that prints it names it.
 - **Write values into each command.** Do not rely on shell variables or a
   changed directory carrying over from one command to the next; use the
   absolute paths given here.
@@ -406,3 +409,148 @@ Any change to an answer: show the plan again. Nothing is committed before that
 reply.
 
 Then go on to step 6.
+
+## Step 6. Move the pins, in one commit
+
+Only after the go of step 5. Both pins move to `LATEST` and `LATESTSHA`, and
+nothing else changes in this step. Pick the way from step 5's answer and
+step 3's pull request:
+
+- **Route 6a: merge the waiting pull request.** Step 5's answer was "merge it
+  once" or "raise the level", and step 3 found a pull request (`PR`) that
+  moves exactly both pins to `LATEST`.
+- **Route 6b: move the pins yourself.** Every other case.
+
+### Route 6a
+
+```
+gh pr merge PR -R OWNER/REPO --squash
+```
+
+Works: it says the pull request is merged. Never `--admin`, and never
+`--auto`: a pull request that cannot merge now (a failed check, a required
+review, a conflict) is not forced. Fails: stop and report its output.
+
+Then go to the read back below.
+
+### Route 6b
+
+1. The branch and its head:
+
+   ```
+   gh api repos/OWNER/REPO --jq .default_branch
+   ```
+
+   That is `BRANCH`. Then:
+
+   ```
+   gh api repos/OWNER/REPO/git/ref/heads/BRANCH --jq .object.sha
+   gh api repos/OWNER/REPO/git/commits/HEADSHA --jq .tree.sha
+   ```
+
+   The first prints `HEADSHA`, the head commit; use it in the second, which
+   prints `TREESHA`. The branch moves daily with data commits, so read the
+   head now and not from earlier.
+2. Read both caller files at that head into `WORK/new/`, with the person's
+   files as they are now:
+
+   ```
+   mkdir -p WORK/new
+   gh api -H 'Accept: application/vnd.github.raw' \
+     'repos/OWNER/REPO/contents/.github/workflows/forsgren.yml?ref=HEADSHA' \
+     > WORK/new/forsgren.yml
+   gh api -H 'Accept: application/vnd.github.raw' \
+     'repos/OWNER/REPO/contents/.github/workflows/forsgren-update.yml?ref=HEADSHA' \
+     > WORK/new/forsgren-update.yml
+   ```
+
+   `forsgren-update.yml` may be missing (a 404): then this step moves
+   `forsgren.yml` alone, and step 7 brings the other file over.
+3. For each file in `WORK/new/`: first keep a copy of it as read,
+   `cp WORK/new/NAME WORK/new/NAME.orig`; then change its one `uses:` line
+   with your file tool: its commit (40 hex digits) to `LATESTSHA` and its
+   comment to `# LATEST`, and nothing else. Check:
+   `diff WORK/new/NAME.orig WORK/new/NAME` prints exactly one changed line (a
+   `<` line and a `>` line), and
+   `grep -c 'uses: yveshanoulle/forsgren/.github/workflows/.*@LATESTSHA # LATEST' WORK/new/NAME`
+   prints `1`. Anything else: stop and report.
+4. Make a blob of each file:
+
+   ```
+   gh api -X POST repos/OWNER/REPO/git/blobs -F content=@WORK/new/forsgren.yml -f encoding=utf-8 --jq .sha
+   gh api -X POST repos/OWNER/REPO/git/blobs -F content=@WORK/new/forsgren-update.yml -f encoding=utf-8 --jq .sha
+   ```
+
+   They print `BLOB1` and `BLOB2`.
+5. Make one tree from both. Write `WORK/tree.json` with your file tool (leave
+   out the second entry when there is no `forsgren-update.yml`):
+
+   ```
+   {"base_tree": "TREESHA", "tree": [
+     {"path": ".github/workflows/forsgren.yml", "mode": "100644", "type": "blob", "sha": "BLOB1"},
+     {"path": ".github/workflows/forsgren-update.yml", "mode": "100644", "type": "blob", "sha": "BLOB2"}
+   ]}
+   ```
+
+   then:
+
+   ```
+   gh api -X POST repos/OWNER/REPO/git/trees --input WORK/tree.json --jq .sha
+   ```
+
+   It prints `NEWTREE`.
+6. Make the commit, in one commit for both files, on top of `HEADSHA`, in the
+   way Dependabot's would read, with no `Co-Authored-By` and no other trailer:
+
+   ```
+   gh api -X POST repos/OWNER/REPO/git/commits \
+     -f message='forsgren: bump yveshanoulle/forsgren from VERSION to LATEST' \
+     -f tree=NEWTREE -f 'parents[]=HEADSHA' --jq .sha
+   ```
+
+   It prints `NEWCOMMIT`.
+7. Move the branch to it, never forced:
+
+   ```
+   gh api -X PATCH repos/OWNER/REPO/git/refs/heads/BRANCH -f sha=NEWCOMMIT -F force=false --jq .object.sha
+   ```
+
+   Works: it prints `NEWCOMMIT`. Fails (the answer says it is not a
+   fast-forward, because the branch moved meanwhile, or a branch protection
+   refused it): stop and report. Do not run it again with another commit and
+   do not force it: nothing has changed on the branch.
+
+### The read back (both routes)
+
+Do not trust the answer of the command; read the branch again.
+
+1. `gh api repos/OWNER/REPO/commits/BRANCH --jq .sha` prints the head. Route
+   6b: it is `NEWCOMMIT`. Route 6a: it is a newer commit than `HEADSHA` or
+   than the one step 2 saw, whose message starts with the pull request's
+   title.
+2. For each caller file that exists:
+
+   ```
+   gh api -H 'Accept: application/vnd.github.raw' \
+     repos/OWNER/REPO/contents/.github/workflows/NAME \
+     | grep -n 'uses:'
+   ```
+
+   Works: one line, ending `@LATESTSHA # LATEST`. Another version or commit,
+   or a file that still shows `VERSION`: stop and report.
+3. Route 6b only: the commit changed exactly the caller files and has no
+   trailer:
+
+   ```
+   gh api repos/OWNER/REPO/commits/NEWCOMMIT --jq '[.files[].filename]'
+   gh api repos/OWNER/REPO/commits/NEWCOMMIT --jq .commit.message
+   ```
+
+   The first lists only `.github/workflows/forsgren.yml` and, when it exists,
+   `.github/workflows/forsgren-update.yml`. The second is the one line you
+   wrote.
+
+The installation's pins are now at `LATEST`. The page still shows `VERSION`
+until a run publishes it: step 9 starts one.
+
+Then go on to step 7.

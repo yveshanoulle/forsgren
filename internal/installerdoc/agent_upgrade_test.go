@@ -129,3 +129,28 @@ func TestUpgraderStep5AsksOnlyWhatIsTheirs(t *testing.T) {
 		"A bare \"go\"",
 		"Nothing is committed before that reply")
 }
+
+// TestUpgraderStep6MovesThePinsInOneCommit (forsgren#166, step 166-6):
+// step 6 merges the waiting pull request without --admin, or moves both pins
+// in one commit through the Git Data API (blobs, tree, commit, ref), never
+// forced, with no trailer in the message, and reads the ref and both files
+// back.
+func TestUpgraderStep6MovesThePinsInOneCommit(t *testing.T) {
+	step := section(t, readRepoFile(t, upgraderFile), "Step 6.")
+	wantAll(t, "step 6", asOneLine(step),
+		"gh pr merge PR -R OWNER/REPO --squash",
+		"Never `--admin`",
+		"repos/OWNER/REPO/git/blobs",
+		"repos/OWNER/REPO/git/trees",
+		"repos/OWNER/REPO/git/commits",
+		"repos/OWNER/REPO/git/refs/heads/BRANCH",
+		"-F force=false",
+		"no `Co-Authored-By`",
+		"in one commit",
+		"read back")
+	for _, banned := range []string{"force=true", "--force", "-f force"} {
+		if strings.Contains(step, banned) {
+			t.Errorf("step 6 contains %q", banned)
+		}
+	}
+}
