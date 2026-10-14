@@ -1,6 +1,7 @@
 package readmepage
 
 import (
+	"errors"
 	"regexp"
 	"strings"
 	"testing"
@@ -99,6 +100,30 @@ func TestRenderRefusesWhatIsOutsideTheSubset(t *testing.T) {
 		got, err := Render(c.src, fixtureBase)
 		if err == nil || !strings.Contains(err.Error(), c.reason) {
 			t.Errorf("%s: want an error with %q, got %v and the page:\n%s", c.name, c.reason, err, got)
+		}
+	}
+}
+
+// TestRenderNamesTheLineOfWhatIsRefused (forsgren#158): a refusal says on
+// which line of the README it is, whatever blank lines or CRLF come before.
+func TestRenderNamesTheLineOfWhatIsRefused(t *testing.T) {
+	cases := []struct {
+		name, src string
+		line      int
+	}{
+		{"a fence after a heading", "# T\n\n```\ncode\n```\n", 3},
+		{"a quote in a later block", "# T\n\ntext\nmore\n\n> quoted\n", 6},
+		{"the second line of a block", "# T\n\nfine\n| a | b |\n", 4},
+		{"after a run of blank lines", "# T\n\n\n\n<div>x</div>\n", 5},
+		{"CRLF line ends", "# T\r\n\r\n- a\r\n    - b\r\n", 4},
+		{"a list line", "# T\n\n- a\n- b\nc\n", 3},
+		{"a bad link", "# T\n\ntext\n\n[x](ftp://a)\n", 5},
+	}
+	for _, c := range cases {
+		_, err := Render(c.src, fixtureBase)
+		var refused *LineError
+		if !errors.As(err, &refused) || refused.Line != c.line {
+			t.Errorf("%s: want a LineError at line %d, got %v", c.name, c.line, err)
 		}
 	}
 }

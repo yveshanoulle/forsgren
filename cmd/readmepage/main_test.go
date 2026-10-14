@@ -68,14 +68,15 @@ func wantedFromTheReadme() []string {
 // stderr, and none leaves a page behind.
 func TestRunFailsLoudOnBadInput(t *testing.T) {
 	dir := t.TempDir()
-	fence := filepath.Join(dir, "fence.md")
-	if err := os.WriteFile(fence, []byte("# T\n\n```\ncode\n```\n"), 0o600); err != nil {
-		t.Fatal(err)
+	path := map[string]string{}
+	sources := map[string]string{"fence": "# T\n\n```\ncode\n```\n", "headless": "just words\n", "good": "# T\n"}
+	for name, src := range sources {
+		path[name] = filepath.Join(dir, name+".md")
+		if err := os.WriteFile(path[name], []byte(src), 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
-	good := filepath.Join(dir, "good.md")
-	if err := os.WriteFile(good, []byte("# T\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	fence, headless, good := path["fence"], path["headless"], path["good"]
 	cases := []struct {
 		name   string
 		args   []string
@@ -85,7 +86,8 @@ func TestRunFailsLoudOnBadInput(t *testing.T) {
 		{"no --out", []string{"--readme", good}, 2, "--out <dir> is required"},
 		{"an unknown flag", []string{"--nope"}, 2, "flag provided but not defined"},
 		{"a missing README", []string{"--readme", filepath.Join(dir, "gone.md"), "--out", dir}, 1, "gone.md"},
-		{"a construct outside the subset", []string{"--readme", fence, "--out", dir}, 1, "fence.md: unsupported Markdown"},
+		{"a construct outside the subset", []string{"--readme", fence, "--out", dir}, 1, "fence.md:3: unsupported Markdown"},
+		{"a README with no heading", []string{"--readme", headless, "--out", dir}, 1, "headless.md: the README has no"},
 		{"an --out that is a file", []string{"--readme", good, "--out", good}, 1, "good.md"},
 	}
 	for _, c := range cases {

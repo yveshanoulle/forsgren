@@ -8,6 +8,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -57,6 +58,10 @@ func write(readme, base, out string) error {
 	}
 	html, err := readmepage.Render(string(src), base)
 	if err != nil {
+		var refused *readmepage.LineError
+		if errors.As(err, &refused) {
+			return fmt.Errorf("%s:%d: %s", readme, refused.Line, refused.Msg)
+		}
 		return fmt.Errorf("%s: %w", readme, err)
 	}
 	return publish(out, map[string][]byte{"styles.css": page.Styles(), "index.html": []byte(html)})

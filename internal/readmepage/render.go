@@ -26,9 +26,9 @@ func Render(src, base string) (string, error) {
 	var body []string
 	title := ""
 	for _, block := range splitBlocks(src) {
-		out, heading, err := r.block(block)
+		out, heading, err := r.block(block.text)
 		if err != nil {
-			return "", err
+			return "", atLine(err, block.line)
 		}
 		if title == "" && heading != "" {
 			title = heading
@@ -41,6 +41,15 @@ func Render(src, base string) (string, error) {
 	return page(title, strings.Join(body, "\n")), nil
 }
 
+// LineError is a refusal of the README at a line, 1-based: within the block
+// while a block is rendered, within the README once Render returns it.
+type LineError struct {
+	Line int
+	Msg  string
+}
+
+func (e *LineError) Error() string { return fmt.Sprintf("line %d: %s", e.Line, e.Msg) }
+
 // page wraps the rendered body in the page's document.
 func page(title, body string) string {
 	return "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n" +
@@ -50,13 +59,31 @@ func page(title, body string) string {
 		body + "\n</main>\n</body>\n</html>\n"
 }
 
+// atLine tells where err is: a LineError holds its line within the block and
+// is moved to the block's first line, any other error is put at that line.
+func atLine(err error, first int) error {
+	var inBlock *LineError
+	if errors.As(err, &inBlock) {
+		return &LineError{Line: first + inBlock.Line - 1, Msg: inBlock.Msg}
+	}
+	return &LineError{Line: first, Msg: err.Error()}
+}
+
+// textBlock is a block of lines, and the line of the README it starts at (1-based).
+type textBlock struct {
+	text string
+	line int
+}
+
 // splitBlocks cuts src into blocks of lines, separated by blank lines.
-func splitBlocks(src string) []string {
-	var blocks []string
+func splitBlocks(src string) []textBlock {
+	var blocks []textBlock
+	line := 1
 	for _, block := range strings.Split(strings.ReplaceAll(src, "\r\n", "\n"), "\n\n") {
 		if strings.TrimSpace(block) != "" {
-			blocks = append(blocks, strings.TrimRight(block, "\n"))
+			blocks = append(blocks, textBlock{strings.TrimRight(block, "\n"), line})
 		}
+		line += strings.Count(block, "\n") + 2
 	}
 	return blocks
 }
@@ -68,9 +95,10 @@ var unsupportedStarts = []string{"```", "~~~", ">", "|", "---", "***", "1.", "* 
 
 // block renders one block, and returns the heading's text when it is one.
 func (r renderer) block(block string) (out, heading string, err error) {
-	for _, line := range strings.Split(block, "\n") {
+	for i, line := range strings.Split(block, "\n") {
 		if start, bad := unsupported(line); bad {
-			return "", "", fmt.Errorf("unsupported Markdown, a line starting with %q: %s", start, line)
+			msg := fmt.Sprintf("unsupported Markdown, a line starting with %q: %s", start, line)
+			return "", "", &LineError{Line: i + 1, Msg: msg}
 		}
 	}
 	switch {

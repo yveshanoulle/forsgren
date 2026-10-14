@@ -533,6 +533,8 @@
     "github.com/yveshanoulle/forsgren/internal/update/newest.go:beats": 100.0,
     "github.com/yveshanoulle/forsgren/internal/update/newversion.go:NewVersion": 100.0,
     "github.com/yveshanoulle/forsgren/internal/readmepage/render.go:Render": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/readmepage/render.go:Error": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/readmepage/render.go:atLine": 100.0,
     "github.com/yveshanoulle/forsgren/internal/readmepage/inline.go:autolink": 100.0,
     "github.com/yveshanoulle/forsgren/internal/readmepage/inline.go:anchor": 100.0,
     "github.com/yveshanoulle/forsgren/internal/readmepage/inline.go:bold": 100.0,
