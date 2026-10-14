@@ -15,8 +15,8 @@ names the parts of it you need. What each release asks of an installation is
 in that release's notes: you read them in step 4, and you never rely on what
 you remember of them.
 
-Tested with: not yet tested. The line is filled in when a fresh agent has
-upgraded a real installation by this file alone.
+Tested with: forsgren v0.8.5 → v1.3.0, Claude Code, model claude-sonnet-5-5.
+Start your agent with that model (in Claude Code: `claude --model sonnet`).
 
 ## Before you start (for the person)
 
@@ -67,7 +67,7 @@ request.
   - `FILE`: a file's name, such as `forsgren.yml` (steps 6 to 8).
   - `PATH`: a file's path in the repository, such as
     `.github/workflows/forsgren.yml` (steps 7 and 8).
-  - `NAMES`: the config keys a commit message names (step 8).
+  - `NAMES`: the settings a commit message names (step 8).
   - `WORK`: your work folder, the absolute path of `forsgren-work` inside
     the folder the person started you in (step 1).
 - **Names made by a command.** `HEADSHA`, `TREESHA`, `BLOB1`, `BLOB2`,
@@ -371,18 +371,19 @@ question with the current value or the default filled in, from step 2 and
 `LATEST`. Ask only what is the person's to decide; what the files already say,
 you do not ask again.
 
+Before the questions, say in a sentence that the installation is on `VERSION`
+and goes to `LATEST`, and if the footer's version differed from the pin in
+step 2, say so. It needs no answer, so it is not a numbered question.
+
 End the message with this line, word for word:
 
-> Reply with your answers by number, for example '2: raise the level to
+> Reply with your answers by number, for example '1: raise the level to
 > minor'. Reply 'defaults' to take every default.
 
 Then wait for the answers. The questions, in this order, each only when it
 applies:
 
-1. **The release.** Say the installation is on `VERSION` and goes to `LATEST`,
-   and if the footer's version differed from the pin in step 2, say so. No
-   answer is needed.
-2. **A waiting pull request.** Only when step 3 found a Dependabot pull request
+1. **A waiting pull request.** Only when step 3 found a Dependabot pull request
    that moves the pins to `LATEST`. Name it (`#PR`) and explain why it waits.
    The size of the step decides: from `VERSION` to `LATEST` it is a major
    update when the major number differs, a minor update when only the minor
@@ -396,11 +397,11 @@ applies:
    - merge it once: step 6 merges the pull request, and the level stays as
      it is;
    - move the pins in step 6 yourself, and leave the pull request as it is.
-3. **Each ask of `WORK/asks.md`** that needs the person: one question per
+2. **Each ask of `WORK/asks.md`** that needs the person: one question per
    line, in the words of the release's notes, with the default that keeps the
    installation as it behaves today when that is possible, or the one the
    notes recommend. A line that says `nothing` is not asked.
-4. **Auto-update**, showing the current value: `auto_update` true or false
+3. **Auto-update**, showing the current value: `auto_update` true or false
    (default: what it is now), `auto_update_level` (default: what it is now, or
    `major` when the file has none), and the update wait in days (default: what
    `default-days` says now, or `3` when `dependabot.yml` is missing; `0` means
@@ -704,9 +705,11 @@ step 9 (every answer was to keep what is there).
 5. Commit it as route 6b of step 6 does, in one commit for the files that
    changed: items 1 and 4 to 7 with `WORK/new/` as the source (the tree holds
    `forsgren.config.yml` and `.github/dependabot.yml`, only the ones that
-   changed), the message `forsgren: set NAMES for LATEST` with `NAMES` the
-   keys changed (for example `days_page and auto_update_level`), no
-   `Co-Authored-By` and no other trailer, and the branch moved without force.
+   changed), the message `forsgren: set NAMES for LATEST` with `NAMES` every
+   setting the commit changes, the update wait included (for example
+   `forsgren: set auto_update, auto_update_level, days_page and the update wait for LATEST`),
+   no `Co-Authored-By` and no other trailer, and the branch moved without
+   force.
 6. The read back: the head is `NEWCOMMIT`; for each changed file,
 
    ```

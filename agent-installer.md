@@ -15,7 +15,7 @@ you need.
 Tested with: forsgren v0.8.5, Claude Code, model claude-sonnet-5-5.
 Start your agent with that model (in Claude Code: `claude --model sonnet`).
 
-### Before you start (for the person)
+## Before you start (for the person)
 
 1. Open a new terminal in an empty folder, for example
    `mkdir -p /tmp/forsgren-install && cd /tmp/forsgren-install`. An empty

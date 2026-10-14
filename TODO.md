@@ -7,7 +7,6 @@ in the same commit — see
 
 ## Open
 
-- agent-upgrade.md: a file an AI agent follows to upgrade an existing installation — [#166](https://github.com/yveshanoulle/forsgren/issues/166)
 - Starter page renderer: name the line of unsupported Markdown, and pin a quote in a link target — [#158](https://github.com/yveshanoulle/forsgren/issues/158)
 - The legend page explains patch, minor and major — [#156](https://github.com/yveshanoulle/forsgren/issues/156)
 - Open bugs: the dash for no change is blue — [#152](https://github.com/yveshanoulle/forsgren/issues/152)

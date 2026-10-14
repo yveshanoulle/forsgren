@@ -315,3 +315,53 @@ func TestEveryPlaceholderOfACommandIsListed(t *testing.T) {
 		}
 	}
 }
+
+// testedWith is the shape of both files' Tested-with line: the forsgren
+// version, or the version moved from and to, the agent and the model.
+var testedWith = regexp.MustCompile(
+	`(?m)^Tested with: forsgren v\d+\.\d+\.\d+( → v\d+\.\d+\.\d+)?, Claude Code, model claude-sonnet-5-5\.$`)
+
+// TestBothFilesNameWhatTheyWereTestedWith (forsgren#166, step 166-14): the
+// upgrader's Tested-with line has the installer's shape, now that a fresh
+// agent upgraded a real installation by it, and the installer's "Before you
+// start" is a section of the same level as the upgrader's.
+func TestBothFilesNameWhatTheyWereTestedWith(t *testing.T) {
+	for _, path := range []repoFile{installerFile, upgraderFile} {
+		doc := readRepoFile(t, path)
+		if !testedWith.MatchString(doc) {
+			t.Errorf("%s has no Tested-with line of the usual shape", path)
+		}
+		if strings.Contains(doc, "not yet tested") {
+			t.Errorf("%s still says it is not yet tested", path)
+		}
+		if !strings.Contains(doc, "\n## Before you start (for the person)") {
+			t.Errorf("%s: Before you start is not a ## section", path)
+		}
+	}
+	wantAll(t, string(upgraderFile), readRepoFileAsOneLine(t, upgraderFile),
+		"Tested with: forsgren v0.8.5 → v1.3.0, Claude Code, model claude-sonnet-5-5.")
+}
+
+// TestUpgraderStep5SaysTheReleaseBeforeTheQuestions (forsgren#166, step
+// 166-14): a fact that needs no answer is a statement before the numbered
+// questions, not a question.
+func TestUpgraderStep5SaysTheReleaseBeforeTheQuestions(t *testing.T) {
+	step := upgraderSection(t, "Step 5.")
+	statement := strings.Index(step, "Before the questions, say")
+	questions := strings.Index(step, "The questions, in this order")
+	if statement < 0 || questions < 0 || statement > questions {
+		t.Error("step 5 does not say the release before the questions")
+	}
+	if strings.Contains(step, "**The release.**") || strings.Contains(step, "No answer is needed") {
+		t.Error("step 5 still asks the release as a numbered question")
+	}
+}
+
+// TestUpgraderStep8NamesEverySettingInTheCommitMessage (forsgren#166, step
+// 166-14): the commit message names every setting the commit changes, the
+// update wait included.
+func TestUpgraderStep8NamesEverySettingInTheCommitMessage(t *testing.T) {
+	wantAll(t, "step 8", upgraderSection(t, "Step 8."),
+		"every setting the commit changes, the update wait included",
+		"forsgren: set auto_update, auto_update_level, days_page and the update wait for LATEST")
+}
