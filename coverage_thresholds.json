@@ -551,6 +551,9 @@
     "github.com/yveshanoulle/forsgren/internal/readmepage/render.go:page": 100.0,
     "github.com/yveshanoulle/forsgren/internal/readmepage/render.go:slug": 100.0,
     "github.com/yveshanoulle/forsgren/internal/readmepage/render.go:splitBlocks": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/readmepage/render.go:unsupported": 100.0
+    "github.com/yveshanoulle/forsgren/internal/readmepage/render.go:unsupported": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/readmepage/main.go:main": 0.0,
+    "github.com/yveshanoulle/forsgren/cmd/readmepage/main.go:run": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/readmepage/main.go:write": 92.8
   }
 }
