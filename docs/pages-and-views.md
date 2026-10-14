@@ -415,7 +415,11 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   explains the periods of the issues and days pages: "Days are in UTC, weeks
   run Monday to Sunday, months and years follow the calendar, and a week that
   spans two months is in both." (forsgren#128, decision #133). It no longer
-  lists the settings (forsgren#84).
+  lists the settings (forsgren#84). Its Settings page section explains the
+  values of `auto_update_level` (forsgren#156): `patch` merges patch updates
+  only, `minor` merges minor and patch updates, and `major` merges major, minor
+  and patch updates, which does not mean a major release is safe, as nothing
+  checks a release against the installation's own data.
 - **The days page** (`days.html`, titled "Daily"; `issues.html` up to 0.8.3; forsgren#76, #128) is a table, Date | New |
   Completed | Not planned | Duplicate | Other | Open | Open bugs | Total | Open / Total, one row per UTC calendar day,
   the last 30 complete days (`issueDays`), yesterday on top and going down;

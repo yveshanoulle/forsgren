@@ -50,7 +50,7 @@ projects:
   also writes `auto_update: true` and `auto_update_level: major` (forsgren#58,
   #150), so a new installation merges forsgren's releases by itself, a major
   one included. `auto_update_level` is optional: left out, it defaults to
-  `major` (forsgren#157); an existing config without `auto_update:` keeps it off (see [Auto-update](updating-and-releases.md)).
+  `major` (forsgren#157), and the legend explains each level (forsgren#156); an existing config without `auto_update:` keeps it off (see [Auto-update](updating-and-releases.md)).
 - **`history_days`** is optional (forsgren#57): how deep a repository's
   history goes, in days, a whole number from 1 to 1825 (5 years), written at
   the top level, for example `history_days: 730`. Left out, or without a

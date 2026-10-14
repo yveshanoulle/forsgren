@@ -7,7 +7,6 @@ in the same commit — see
 
 ## Open
 
-- The legend page explains patch, minor and major — [#156](https://github.com/yveshanoulle/forsgren/issues/156)
 - The footer links to forsgren.be — [#162](https://github.com/yveshanoulle/forsgren/issues/162)
 - Open bugs: mark the cell incomplete when the bug read hit its page cap — [#140](https://github.com/yveshanoulle/forsgren/issues/140)
 - A failure issue that loses its failure label, or is closed as not planned, stops counting in change failure rate — [#155](https://github.com/yveshanoulle/forsgren/issues/155)
