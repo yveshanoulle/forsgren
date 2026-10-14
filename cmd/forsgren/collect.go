@@ -63,6 +63,7 @@ func collectAndNoteExpiry(cfg config.Config, o collect.Options, expiryPath strin
 		return err
 	}
 	warnTokenExpiry(o.Stderr, o.Now, client)
+	noteUnreadableExpiry(o.Stderr, client)
 	return runErr
 }
 

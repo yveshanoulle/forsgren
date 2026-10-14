@@ -63,6 +63,8 @@ type Client struct {
 	// expiry is the token's expiry date from the last answer that had one,
 	// zero for none (tokenexpiry.go).
 	expiry time.Time
+	// unreadable is the first expiry header value that was no date, "" for none.
+	unreadable string
 }
 
 // defaultTokenName is the token a refusal names unless WithTokenName says

@@ -19,13 +19,31 @@ var tokenExpiryLayouts = []string{"2006-01-02 15:04:05 UTC", "2006-01-02 15:04:0
 // header that is not a date and no answer yet all say false, never an error.
 func (c *Client) TokenExpiry() (time.Time, bool) { return c.expiry, !c.expiry.IsZero() }
 
-// noteExpiry keeps the expiry date h names, when it names one.
+// noteExpiry keeps the expiry date h names when it names one. An answer
+// without the header, or with one that is not a date, leaves the date as it
+// was; the first value that is not a date is kept for UnreadableTokenExpiry.
+// Only the installation's own token feeds it: the job's GITHUB_TOKEN, which
+// expires after an hour, has the header too and is not the token to warn about.
 func (c *Client) noteExpiry(h http.Header) {
+	if c.tokenName != defaultTokenName {
+		return
+	}
 	value := strings.TrimSpace(h.Get(tokenExpiryHeader))
+	if value == "" {
+		return
+	}
 	for _, layout := range tokenExpiryLayouts {
 		if at, err := time.Parse(layout, value); err == nil {
 			c.expiry = at
 			return
 		}
 	}
+	if c.unreadable == "" {
+		c.unreadable = value
+	}
 }
+
+// UnreadableTokenExpiry is the first value of the expiry header, in the
+// answers so far, that was not a date, and whether there was one; what a run
+// notes once.
+func (c *Client) UnreadableTokenExpiry() (string, bool) { return c.unreadable, c.unreadable != "" }

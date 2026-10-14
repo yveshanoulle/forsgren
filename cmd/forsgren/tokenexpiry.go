@@ -98,3 +98,15 @@ func warnTokenExpiry(stderr io.Writer, at time.Time, client *github.Client) {
 		_, _ = fmt.Fprintf(stderr, "collect: warning: %s\n", message)
 	}
 }
+
+// noteUnreadableExpiry says once on stderr that GitHub sent an expiry header
+// that is not a date, naming its first value (at most 64 bytes, quoted); the
+// date kept from earlier answers, if any, stands (forsgren#177).
+func noteUnreadableExpiry(stderr io.Writer, client *github.Client) {
+	value, unreadable := client.UnreadableTokenExpiry()
+	if !unreadable {
+		return
+	}
+	_, _ = fmt.Fprintf(stderr, "collect: note: GitHub sent an expiry header forsgren cannot read: %q\n",
+		value[:min(len(value), 64)])
+}

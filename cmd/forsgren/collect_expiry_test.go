@@ -130,3 +130,21 @@ func TestTheTokenExpiryWarningNamesTheRepositoryTheWorkflowRunsIn(t *testing.T) 
 		t.Errorf("want the repository in the command, got %q", got.stderr)
 	}
 }
+
+// TestCollectNotesAnUnreadableExpiryHeaderOnce (forsgren#177): a header that
+// is not a date is one note on stderr naming the first value, however many
+// answers carried it; the run's exit code and the expiry file are not
+// touched (no file without a valid date).
+func TestCollectNotesAnUnreadableExpiryHeaderOnce(t *testing.T) {
+	t.Setenv("FORSGREN_TOKEN", testToken)
+	fakeAPIWithHeader(t, acmeApp, 0, expiryHeader("soon"))
+	file := expiryFile(t)
+	got := collectOneRepository(t, "--token-expiry", file)
+	const note = "collect: note: GitHub sent an expiry header forsgren cannot read: \"soon\"\n"
+	if got.code != 0 || got.stderr != note {
+		t.Errorf("want exit 0 and exactly one note %q, got %+v", note, got)
+	}
+	if _, err := os.Stat(file); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("want no expiry file, got %v", err)
+	}
+}
