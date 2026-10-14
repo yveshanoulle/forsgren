@@ -132,3 +132,31 @@ func TestTheScrollbarSpaceIsAlwaysReserved(t *testing.T) {
 		t.Errorf("want an html rule with scrollbar-gutter: stable in styles.css, got:\n%s", css)
 	}
 }
+
+// TestNoWrapCellsAreScopedByClass (forsgren#153): a table with class no-wrap
+// keeps each cell on one line (a date, a number with its trend), while a table
+// without it, such as the settings table with its long cells, still wraps. So
+// the rule is on .no-wrap th and .no-wrap td, never on every th, td or table.
+func TestNoWrapCellsAreScopedByClass(t *testing.T) {
+	css := stylesCSS(t)
+	scoped := regexp.MustCompile(`(?s)(?:^|\n)\.no-wrap th,\s*\.no-wrap td\s*\{[^}]*white-space:\s*nowrap;`)
+	if !scoped.MatchString(css) {
+		t.Errorf("want a .no-wrap th, .no-wrap td rule with white-space: nowrap in styles.css, got:\n%s", css)
+	}
+	for _, selector := range nowrapSelectors(css) {
+		if !strings.Contains(selector, "no-wrap") && !strings.Contains(selector, "visually-hidden") {
+			t.Errorf("want white-space: nowrap only under .no-wrap, got it on %q", selector)
+		}
+	}
+}
+
+// nowrapSelectors are the selectors of the rules of css that set
+// white-space: nowrap.
+func nowrapSelectors(css string) (selectors []string) {
+	for _, r := range regexp.MustCompile(`(?s)([^{}]+)\{([^}]*)\}`).FindAllStringSubmatch(css, -1) {
+		if strings.Contains(r[2], "white-space: nowrap") {
+			selectors = append(selectors, strings.TrimSpace(r[1]))
+		}
+	}
+	return selectors
+}

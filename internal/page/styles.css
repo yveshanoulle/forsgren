@@ -64,6 +64,14 @@ td {
   border-bottom: 1px solid currentcolor;
 }
 
+/* A table with class no-wrap keeps every cell on one line (forsgren#153): a
+   date and a count with its trend do not break. Only by class, so a table with
+   long cells still wraps. */
+.no-wrap th,
+.no-wrap td {
+  white-space: nowrap;
+}
+
 .label th {
   padding-inline-start: 1.5rem;
   font-weight: normal;
