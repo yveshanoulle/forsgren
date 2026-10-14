@@ -2,9 +2,11 @@ package github
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"reflect"
 	"slices"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -113,5 +115,56 @@ func TestIssuesKeepTheNamesOfTheirLabels(t *testing.T) {
 	}
 	if want := []string{"failure", "bug"}; !reflect.DeepEqual(got[0].Labels, want) || got[1].Labels != nil {
 		t.Errorf("want the labels %v and none, got %v and %v", want, got[0].Labels, got[1].Labels)
+	}
+}
+
+// TestIssueByNumberReadsOneIssue (forsgren#155): GET .../issues/{number}, the
+// issue with its labels and state_reason; an answer without a number is
+// ErrAnswer and a refused one an error.
+func TestIssueByNumberReadsOneIssue(t *testing.T) {
+	f := newFake(t)
+	f.on(issuesPath+"/7", reply{body: `{"number": 7, "state": "closed", "created_at": "2026-09-20T08:00:00Z", ` +
+		`"closed_at": "2026-09-21T08:00:00Z", "state_reason": "not_planned", "labels": [{"name": "failure"}]}`})
+	f.on(issuesPath+"/8", reply{body: `{"state": "open"}`})
+	f.on(issuesPath+"/9", reply{body: `not json`})
+	f.on(issuesPath+"/10", reply{status: 500, body: "{}"})
+	c := f.client(t, DefaultMaxPages)
+	got, err := c.IssueByNumber(context.Background(), "acme/app", 7)
+	want := RepoIssue{Number: 7, CreatedAt: at(20, 8, 0, 0), ClosedAt: at(21, 8, 0, 0), State: "closed",
+		StateReason: "not_planned", Labels: []string{"failure"}}
+	if err != nil || !reflect.DeepEqual(got, want) {
+		t.Errorf("want %+v, got %+v (%v)", want, got, err)
+	}
+	for _, n := range []int64{8, 9} {
+		wantIssueByNumberError(t, c, n, ErrAnswer)
+	}
+	wantIssueByNumberError(t, c, 10, ErrStatus)
+	if _, err := c.IssueByNumber(context.Background(), "bad", 1); !errors.Is(err, ErrRepositoryName) {
+		t.Errorf("want ErrRepositoryName, got %v", err)
+	}
+}
+
+// wantIssueByNumberError fails unless reading issue number of acme/app fails
+// with target.
+func wantIssueByNumberError(t *testing.T, c *Client, number int64, target error) {
+	t.Helper()
+	if _, err := c.IssueByNumber(context.Background(), "acme/app", number); !errors.Is(err, target) {
+		t.Errorf("issue %d: want %v, got %v", number, target, err)
+	}
+}
+
+// TestIssueByNumberTellsAGoneIssueFromARefusedOne (forsgren#155): 410 and 404
+// for the issue are ErrIssueGone; 403 stays an access error.
+func TestIssueByNumberTellsAGoneIssueFromARefusedOne(t *testing.T) {
+	f := newFake(t)
+	c := f.client(t, DefaultMaxPages)
+	for number, status := range map[int64]int{11: 410, 12: 404, 13: 403} {
+		f.on(issuesPath+"/"+strconv.FormatInt(number, 10), reply{status: status, body: "{}"})
+	}
+	wantIssueByNumberError(t, c, 11, ErrIssueGone)
+	wantIssueByNumberError(t, c, 12, ErrIssueGone)
+	if _, err := c.IssueByNumber(context.Background(), "acme/app", 13); errors.Is(err, ErrIssueGone) ||
+		!errors.Is(err, ErrAccess) {
+		t.Errorf("want a 403 to stay an access error, got %v", err)
 	}
 }

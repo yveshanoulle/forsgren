@@ -2,7 +2,12 @@ package github
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 )
 
@@ -72,4 +77,44 @@ func (i issue) toRepoIssue() RepoIssue {
 		out.Labels = append(out.Labels, l.Name)
 	}
 	return out
+}
+
+// goneIssue is err as ErrIssueGone when GitHub answered 410 (deleted) or 404
+// (deleted or transferred) for one issue. A 404 is also GitHub's answer for a
+// repository the token cannot see, so the caller must have read the
+// repository's issues in the same run before it takes a 404 for a gone issue.
+// Any other error, a 403 and the rate limit among them, is returned as it is.
+func goneIssue(err error, repo string, number int64) error {
+	var answer *answerError
+	if errors.As(err, &answer) && isGone(answer.code) {
+		return fmt.Errorf("%s: issue #%d: %w: %w", repo, number, ErrIssueGone, err)
+	}
+	return err
+}
+
+// isGone says whether code is GitHub's answer for an issue that is not there:
+// 410 Gone or 404 Not Found.
+func isGone(code int) bool { return code == http.StatusGone || code == http.StatusNotFound }
+
+// IssueByNumber reads one issue of repo as it is now, labels and state_reason
+// included: GET /repos/{owner}/{repo}/issues/{number}, one request
+// (forsgren#155). A 410 or 404 for the issue is ErrIssueGone (goneIssue); an
+// answer without a number or a created_at is ErrAnswer.
+func (c *Client) IssueByNumber(ctx context.Context, repo string, number int64) (RepoIssue, error) {
+	t, err := c.endpoint(repo, nil, "issues", strconv.FormatInt(number, 10))
+	if err != nil {
+		return RepoIssue{}, err
+	}
+	body, _, err := c.get(ctx, t, jsonMedia)
+	if err != nil {
+		return RepoIssue{}, goneIssue(err, repo, number)
+	}
+	var i issue
+	if err := json.Unmarshal(body, &i); err != nil {
+		return RepoIssue{}, fmt.Errorf("%s: %w for %s: %w", repo, ErrAnswer, t.path(), err)
+	}
+	if i.Number <= 0 || i.CreatedAt.IsZero() {
+		return RepoIssue{}, fmt.Errorf("%s: %w for %s: %w", repo, ErrAnswer, t.path(), errIssueFields)
+	}
+	return i.toRepoIssue(), nil
 }

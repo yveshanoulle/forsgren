@@ -3,6 +3,7 @@ package history
 import (
 	"cmp"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +13,14 @@ import (
 // the failure label; ReasonNotPlanned (issueevents.go) is the other, an issue
 // closed as not planned.
 const ReasonLabelRemoved = "label_removed"
+
+// ReasonIssueGone is the reason of a withdrawal of an issue GitHub no longer
+// has: deleted or transferred (forsgren#155).
+const ReasonIssueGone = "issue_gone"
+
+// withdrawalReasons are the reasons a line may give, "" for a reinstatement
+// first.
+var withdrawalReasons = []string{"", ReasonLabelRemoved, ReasonNotPlanned, ReasonIssueGone}
 
 // Withdrawal says whether one failure issue was taken back (forsgren#155): a
 // line of data/failures_withdrawn.csv, beside data/failures.csv, for change
@@ -26,7 +35,7 @@ type Withdrawal struct {
 	Repository string // owner/name
 	Issue      int64  // the issue number
 	Withdrawn  bool
-	// Reason is ReasonLabelRemoved or ReasonNotPlanned while Withdrawn, else "".
+	// Reason is ReasonLabelRemoved, ReasonNotPlanned or ReasonIssueGone while Withdrawn, else "".
 	Reason string
 	// At is when collect saw it, UTC, whole seconds: the audit trail.
 	At time.Time
@@ -102,7 +111,7 @@ func (w Withdrawal) validate() error {
 		check{w.Issue > 0, "issue is not positive"},
 		check{isWholeSecond(w.At), "at is empty or has a fraction of a second"},
 		check{w.Withdrawn == (w.Reason != ""), "a withdrawal has a reason and a reinstatement has none"},
-		check{w.Reason == "" || w.Reason == ReasonLabelRemoved || w.Reason == ReasonNotPlanned,
-			fmt.Sprintf("reason %q is not %s or %s", w.Reason, ReasonLabelRemoved, ReasonNotPlanned)},
+		check{slices.Contains(withdrawalReasons, w.Reason),
+			fmt.Sprintf("reason %q is not one of %v", w.Reason, withdrawalReasons[1:])},
 	)
 }

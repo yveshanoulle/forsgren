@@ -39,15 +39,30 @@ type gitHub struct {
 	bodies   map[string]string
 	status   map[string]int
 	paged    map[string]bool
-	requests []string // path?query
+	limited  map[string]bool // paths answered with Retry-After: 60, GitHub's secondary rate limit
+	requests []string        // path?query
 }
 
 func newGitHub(t *testing.T) *gitHub {
 	t.Helper()
-	g := &gitHub{bodies: map[string]string{}, status: map[string]int{}, paged: map[string]bool{}}
+	g := &gitHub{bodies: map[string]string{}, status: map[string]int{}, paged: map[string]bool{},
+		limited: map[string]bool{}}
 	g.srv = httptest.NewServer(http.HandlerFunc(g.serve))
 	t.Cleanup(g.srv.Close)
 	return g
+}
+
+// setHeaders sets the Link to page 2 of a path in paged and the Retry-After of
+// a path in limited.
+func (g *gitHub) setHeaders(w http.ResponseWriter, r *http.Request, key string) {
+	if g.paged[key] {
+		next := r.URL.Query()
+		next.Set("page", "2")
+		w.Header().Set("Link", "<"+g.srv.URL+r.URL.Path+"?"+next.Encode()+`>; rel="next"`)
+	}
+	if g.limited[key] {
+		w.Header().Set("Retry-After", "60")
+	}
 }
 
 func (g *gitHub) serve(w http.ResponseWriter, r *http.Request) {
@@ -64,11 +79,7 @@ func (g *gitHub) serve(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `{"message":"Not Found"}`)
 		return
 	}
-	if g.paged[key] {
-		next := r.URL.Query()
-		next.Set("page", "2")
-		w.Header().Set("Link", "<"+g.srv.URL+r.URL.Path+"?"+next.Encode()+`>; rel="next"`)
-	}
+	g.setHeaders(w, r, key)
 	if code := g.status[key]; code != 0 {
 		w.WriteHeader(code)
 	}

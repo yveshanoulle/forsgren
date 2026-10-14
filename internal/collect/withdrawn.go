@@ -14,11 +14,13 @@ package collect
 // request is added.
 
 import (
+	"context"
 	"errors"
 	"io/fs"
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/github"
 	"github.com/yveshanoulle/forsgren/internal/history"
@@ -36,17 +38,17 @@ func (o Options) withdrawnFile() string { return filepath.Join(filepath.Dir(o.Hi
 
 // loadWithdrawn reads the withdrawn file at path: the issues that their newest
 // line withdraws. A missing file holds none; one that cannot be read refuses
-// the run.
-func loadWithdrawn(path string) (map[history.IssueKey]bool, error) {
+// the run. It also says whether the file was there.
+func loadWithdrawn(path string) (map[history.IssueKey]bool, bool, error) {
 	stored, err := history.LoadWithdrawals(path)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return nil, err
+		return nil, false, err
 	}
 	out := map[history.IssueKey]bool{}
 	for _, w := range stored {
 		out[w.Key()] = w.Withdrawn
 	}
-	return out, nil
+	return out, err == nil, nil
 }
 
 // withdrawals returns the withdrawals to store from repo's issues of the daily
@@ -85,4 +87,98 @@ func withdrawalReason(i github.RepoIssue) string {
 // hasLabel says whether i carries label, GitHub's names compared ignoring case.
 func hasLabel(i github.RepoIssue, label string) bool {
 	return slices.ContainsFunc(i.Labels, func(l string) bool { return strings.EqualFold(l, label) })
+}
+
+// catchUp is the one-time catch-up of an installation from before
+// forsgren#155, whose stored failures may have lost their label long ago: a
+// run that finds no failures_withdrawn.csv re-reads each stored failure that
+// can still count (withdrawalsOf), one GET per issue (one GitHub says is gone is
+// withdrawn as issue_gone), and holds what it finds here instead of storing it
+// per repository. finishCatchUp writes it, and so creates the file, only when
+// every repository succeeded; a run that failed anywhere, a rate limit
+// included, writes nothing, so the next one does the catch-up again.
+type catchUp struct{ found []history.Withdrawal }
+
+// hold takes *w from a repository's batch into the catch-up, leaving the
+// batch none; it does nothing when there is no catch-up (c nil).
+func (c *catchUp) hold(w *[]history.Withdrawal) {
+	if c != nil {
+		c.found = append(c.found, *w...)
+		*w = nil
+	}
+}
+
+// finishCatchUp writes the catch-up's withdrawals, creating the file even when
+// there are none so it is not done again, unless a repository failed.
+func (o Options) finishCatchUp(h held, failed int) error {
+	if h.late == nil || failed > 0 {
+		return nil
+	}
+	_, err := history.AppendWithdrawals(o.withdrawnFile(), h.late.found)
+	return err
+}
+
+// countingWindow is how far back an issue was opened to be counted by change
+// fail rate, the window of the metrics.
+const countingWindow = 30 * 24 * time.Hour
+
+// withdrawalsOf is repo's withdrawals: those of the daily read, and in a
+// catch-up run (h.late) also those of the stored failures that can still count
+// and the daily read did not list, each read with IssueByNumber: for N such
+// failures, N requests, once per installation. An issue GitHub says is gone
+// (410, or 404 once the repository's own issue list was read in this run) is
+// withdrawn as issue_gone; any other error, 403 and rate limit included, fails
+// the repository.
+func (o Options) withdrawalsOf(ctx context.Context, h held, repo string, daily []github.RepoIssue,
+) ([]history.Withdrawal, error) {
+	if h.late == nil {
+		return o.withdrawals(h, repo, daily), nil
+	}
+	issues := slices.Clone(daily)
+	var gone []history.Withdrawal
+	for _, n := range o.countingFailures(h, repo, daily) {
+		i, err := o.Client.IssueByNumber(ctx, repo, n)
+		switch {
+		case errors.Is(err, github.ErrIssueGone):
+			gone = append(gone, history.Withdrawal{Repository: repo, Issue: n, Withdrawn: true,
+				Reason: history.ReasonIssueGone, At: wholeSecond(o.Now)})
+		case err != nil:
+			return nil, err
+		default:
+			issues = append(issues, i)
+		}
+	}
+	return append(o.withdrawals(h, repo, issues), gone...), nil
+}
+
+// needsReread says whether the stored failure f is repo's, can still count and
+// is not among the numbers listed.
+func (o Options) needsReread(f history.Failure, repo string, listed map[int64]bool) bool {
+	if !strings.EqualFold(f.Repository, repo) {
+		return false
+	}
+	return o.canStillCount(f) && !listed[f.Issue]
+}
+
+// canStillCount says whether the stored failure f is open or was opened in the
+// last 30 days, the window of change fail rate.
+func (o Options) canStillCount(f history.Failure) bool {
+	return f.ClosedAt.IsZero() || !f.OpenedAt.Before(o.Now.Add(-countingWindow))
+}
+
+// countingFailures is the numbers of repo's stored failures that are open or
+// were opened in the last 30 days and that daily does not list, oldest first.
+func (o Options) countingFailures(h held, repo string, daily []github.RepoIssue) []int64 {
+	listed := map[int64]bool{}
+	for _, i := range daily {
+		listed[i.Number] = true
+	}
+	var out []int64
+	for _, f := range h.failures {
+		if o.needsReread(f, repo, listed) {
+			out = append(out, f.Issue)
+		}
+	}
+	slices.Sort(out)
+	return out
 }

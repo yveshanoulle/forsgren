@@ -148,5 +148,5 @@ func (o Options) finish(h held, before marks, failed, total int) error {
 	if failed > 0 {
 		err = fmt.Errorf("%d of %d %w", failed, total, ErrFailed)
 	}
-	return errors.Join(err, o.saveMarks(h, before))
+	return errors.Join(err, o.finishCatchUp(h, failed), o.saveMarks(h, before))
 }

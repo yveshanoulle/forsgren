@@ -39,6 +39,7 @@ var (
 	ErrBaseURL        = errors.New("not an http or https API URL")
 	ErrRepositoryName = errors.New("not an owner/name repository")
 	ErrAccess         = errors.New("no access")
+	ErrIssueGone      = errors.New("the issue is gone")
 	ErrRateLimit      = errors.New("GitHub's rate limit is reached")
 	ErrStatus         = errors.New("GitHub answered with an error")
 	ErrAnswer         = errors.New("cannot read GitHub's answer")

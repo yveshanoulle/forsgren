@@ -150,7 +150,10 @@ func (o Options) loadIssueFiles(h held) (held, error) {
 		return h, err
 	}
 	h.lastEvents = newestEvents(stored)
-	h.withdrawn, err = loadWithdrawn(o.withdrawnFile())
+	var found bool
+	if h.withdrawn, found, err = loadWithdrawn(o.withdrawnFile()); err == nil && !found {
+		h.late = &catchUp{}
+	}
 	return h, err
 }
 
