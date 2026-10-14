@@ -7,16 +7,15 @@ import (
 
 // TestDeleterStartsWithOneQuestion (forsgren#174): agent-delete.md checks
 // the login's scopes, notes whether it may delete a repository, and asks the
-// person one thing, the address of the report; README.md and the docs link
-// it, and it says it is not yet tested until a proof run names its versions.
+// person one thing, the address of the report, unless their first message
+// already gave it (step 174-2, from the proof run); README.md and the docs
+// link it.
 func TestDeleterStartsWithOneQuestion(t *testing.T) {
 	wantAll(t, "step 1", deleterSection(t, "Step 1."),
 		"gh auth status", "'repo'", "'delete_repo'",
-		"**Ask the person one thing:**", "address of your forsgren report", "Ask nothing else")
-	doc := readRepoFile(t, deleterFile)
-	wantAll(t, string(deleterFile), doc,
-		"\nTested with: not yet tested",
-		"\n## Before you start (for the person)")
+		"**Ask the person one thing:**", "address of your forsgren report", "Ask nothing else",
+		"already gave the address of their report in their first message",
+		"use it and do not ask again")
 	for _, path := range []repoFile{"README.md", "docs/updating-and-releases.md"} {
 		if !strings.Contains(readRepoFile(t, path), string(deleterFile)) {
 			t.Errorf("%s does not link %s", path, deleterFile)

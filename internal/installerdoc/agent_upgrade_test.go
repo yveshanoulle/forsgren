@@ -323,12 +323,12 @@ func TestEveryPlaceholderOfACommandIsListed(t *testing.T) {
 var testedWith = regexp.MustCompile(
 	`(?m)^Tested with: forsgren v\d+\.\d+\.\d+( → v\d+\.\d+\.\d+)?, Claude Code, model claude-sonnet-5-5\.$`)
 
-// TestBothFilesNameWhatTheyWereTestedWith (forsgren#166, step 166-14): the
-// upgrader's Tested-with line has the installer's shape, now that a fresh
-// agent upgraded a real installation by it, and the installer's "Before you
-// start" is a section of the same level as the upgrader's.
+// TestBothFilesNameWhatTheyWereTestedWith (forsgren#166, step 166-14;
+// forsgren#174, step 174-2): the upgrader's and the deleter's Tested-with
+// lines have the installer's shape, now that a fresh agent followed each on a
+// real installation, and every file's "Before you start" is a ## section.
 func TestBothFilesNameWhatTheyWereTestedWith(t *testing.T) {
-	for _, path := range []repoFile{installerFile, upgraderFile} {
+	for _, path := range []repoFile{installerFile, upgraderFile, deleterFile} {
 		doc := readRepoFile(t, path)
 		if !testedWith.MatchString(doc) {
 			t.Errorf("%s has no Tested-with line of the usual shape", path)
@@ -342,6 +342,9 @@ func TestBothFilesNameWhatTheyWereTestedWith(t *testing.T) {
 	}
 	wantAll(t, string(upgraderFile), readRepoFileAsOneLine(t, upgraderFile),
 		"Tested with: forsgren v0.8.5 → v1.3.0, Claude Code, model claude-sonnet-5-5.")
+	wantAll(t, string(deleterFile), readRepoFileAsOneLine(t, deleterFile),
+		"Tested with: forsgren v1.3.2, Claude Code, model claude-sonnet-5-5. "+
+			"Start your agent with that model (in Claude Code: `claude --model sonnet`).")
 }
 
 // TestUpgraderStep5SaysTheReleaseBeforeTheQuestions (forsgren#166, step

@@ -14,9 +14,8 @@ one job of the three that cannot be undone: a deleted repository and its
 history are gone. So every step reads first, and nothing is changed before the
 person has replied with the go-sentence of step 3.
 
-Tested with: not yet tested. The first proof run follows (forsgren#174).
-Start your agent with the model the other two files name (in Claude Code:
-`claude --model sonnet`).
+Tested with: forsgren v1.3.2, Claude Code, model claude-sonnet-5-5.
+Start your agent with that model (in Claude Code: `claude --model sonnet`).
 
 ## Before you start (for the person)
 
@@ -28,7 +27,7 @@ Start your agent with the model the other two files name (in Claude Code:
    check: Is this a project you created or one you trust?" for this new
    folder, the empty folder you just made is safe: choose "Yes, I trust this
    folder".
-2. Start the agent: `claude --model sonnet`.
+2. Start the agent with the tested model: `claude --model sonnet`.
 3. If Claude Code asks "Teach auto mode about your environment?", choose
    "Not now". Do not choose "Don't show again", which changes your settings
    for every session.
@@ -140,7 +139,8 @@ Run each command and check its output.
    `https://acme.github.io/forsgren-metrics/` or `https://forsgren.example.com/`.
    That address is `REPORT`; write it with a final `/`. Ask nothing else yet:
    step 2 finds the rest out, and step 3 asks only what is the person's to
-   decide.
+   decide. When the person already gave the address of their report in their
+   first message, use it and do not ask again: that address is `REPORT`.
 
 git is not needed: this file changes nothing through git, so there is no
 clone and no git credential to set up.
