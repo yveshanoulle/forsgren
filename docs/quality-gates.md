@@ -271,7 +271,7 @@ Seven PRE gates read the repository's own scripts and files:
   rejected for its own reason.
 
 actionlint, zizmor, shellcheck and yamllint come from Homebrew, through
-`Scripts/required_tools.txt` (see Installing and updating). As with the data
+`Scripts/required_tools.txt` (see [The tools](development.md)). As with the data
 guard, untracked files are not checked: `git add -N` a new script first.
 
 The POST gates, on the generated site:

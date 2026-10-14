@@ -49,7 +49,7 @@ projects:
   the plain root, as `init-config` never rewrites an existing file. The starter
   also writes `auto_update: true` and `auto_update_level: patch` (forsgren#58),
   so a new installation merges forsgren's patch releases by itself; an
-  existing config without `auto_update:` keeps it off (see Auto-update).
+  existing config without `auto_update:` keeps it off (see [Auto-update](updating-and-releases.md)).
 - **`history_days`** is optional (forsgren#57): how deep a repository's
   history goes, in days, a whole number from 1 to 1825 (5 years), written at
   the top level, for example `history_days: 730`. Left out, or without a
@@ -251,7 +251,7 @@ how the lookup went, `ok`, `no-access` for the 403 of a token without
 `failed`, and its exit status is 0 either way); the
 footer then names the pull request instead of "is available".
 `--needs-check <ok|no-access|rate-limited|failed>` is how `forsgren
-check-needs` went (see The setup issue): anything but `ok` adds "needs more
+check-needs` went (see [The setup issue](updating-and-releases.md)): anything but `ok` adds "needs more
 configuration: see the job summary of this run" to the footer, and leaving it
 out or `ok` adds nothing. `forsgren
 run-summary --latest <version> --waiting-pr <number> --pr-check
@@ -262,7 +262,7 @@ summary as markdown (the version that built the page, the latest release or
 request yet", "0.0.10 is waiting in pull request [#7](link)", "pull-request
 check skipped: grant pull-requests: read in your caller to enable it", "the
 pull-request check hit GitHub's rate limit, the next run tries again" and "the
-pull-request check failed", and a Setup line, see The setup issue); the link is fine there, because a run page is
+pull-request check failed", and a Setup line, see [The setup issue](updating-and-releases.md)); the link is fine there, because a run page is
 private to the repository, unlike the public page. A flag it cannot use is a
 usage error that prints nothing. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides
@@ -426,7 +426,7 @@ jobs:
   the running version needs more configuration, `forsgren check-needs` writes
   one issue in the data repository with the job's token. Without the
   permission the run does not fail: the job summary and the page footer say
-  what is needed instead (see The setup issue). The workflow declares no
+  what is needed instead (see [The setup issue](updating-and-releases.md)). The workflow declares no
   permissions block, so it takes what your caller grants.
 - **GitHub Pages must build from GitHub Actions** (the data repository's
   Settings → Pages → Source). The run deploys to the repository's
