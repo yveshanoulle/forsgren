@@ -135,7 +135,7 @@ func (h held) lastEvent(repo string, number int64) string {
 	return h.lastEvents[history.IssueKeyOf(repo, number)].Event
 }
 
-// loadIssueFiles is h with what the failures file and the issues file hold:
+// loadIssueFiles is h with what the failures file, the withdrawn file and the issues file hold:
 // the failure issues as their newest lines say, and the newest event of each
 // issue by time, not by its place in the file, which a later append can put
 // an older event after a newer one in. A missing file holds nothing; one that
@@ -150,7 +150,8 @@ func (o Options) loadIssueFiles(h held) (held, error) {
 		return h, err
 	}
 	h.lastEvents = newestEvents(stored)
-	return h, nil
+	h.withdrawn, err = loadWithdrawn(o.withdrawnFile())
+	return h, err
 }
 
 // newestEvents is the newest event of each issue of events: by time, and of

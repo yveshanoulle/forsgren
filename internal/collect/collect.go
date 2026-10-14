@@ -457,10 +457,11 @@ type held struct {
 	successes  map[history.Stream][]history.Record
 	failures   map[history.IssueKey]history.Failure
 	lastEvents map[history.IssueKey]history.IssueEvent
-	reach      history.Reach // see chunk.go
-	read       history.Reach // see failuresread.go
-	full       history.Reach // see issueevents.go
-	cut        history.Reach // see bugflags.go
+	withdrawn  map[history.IssueKey]bool // the failure issues their newest withdrawal line withdraws
+	reach      history.Reach             // see chunk.go
+	read       history.Reach             // see failuresread.go
+	full       history.Reach             // see issueevents.go
+	cut        history.Reach             // see bugflags.go
 	partial    map[string]bool
 }
 

@@ -9,9 +9,13 @@ package collect
 // GitHub's since filter extends to an issue whose labels changed, since that
 // updates it: a stored failure issue listed without the failure label is
 // withdrawn, for the reason label_removed; one closed as not planned
-// (state_reason) is withdrawn for the reason not_planned. No request is added.
+// (state_reason) is withdrawn for the reason not_planned. A withdrawn issue
+// listed again as a failure is reinstated by a line with withdrawn false. No
+// request is added.
 
 import (
+	"errors"
+	"io/fs"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -30,17 +34,35 @@ const failureLabel = "failure"
 // withdrawnFile is the path of the withdrawn failures file next to o's history.
 func (o Options) withdrawnFile() string { return filepath.Join(filepath.Dir(o.History), WithdrawnFile) }
 
+// loadWithdrawn reads the withdrawn file at path: the issues that their newest
+// line withdraws. A missing file holds none; one that cannot be read refuses
+// the run.
+func loadWithdrawn(path string) (map[history.IssueKey]bool, error) {
+	stored, err := history.LoadWithdrawals(path)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+	out := map[history.IssueKey]bool{}
+	for _, w := range stored {
+		out[w.Key()] = w.Withdrawn
+	}
+	return out, nil
+}
+
 // withdrawals returns the withdrawals to store from repo's issues of the daily
 // read: each issue stored as a failure that withdrawalReason says is taken
-// back. What is already stored is skipped by history.AppendWithdrawals.
+// back, and each that is withdrawn but counts again, as a reinstatement (no
+// reason). What is already stored is skipped by history.AppendWithdrawals.
 func (o Options) withdrawals(h held, repo string, issues []github.RepoIssue) []history.Withdrawal {
 	var out []history.Withdrawal
 	for _, i := range issues {
-		if _, stored := h.failures[history.IssueKeyOf(repo, i.Number)]; !stored {
+		key := history.IssueKeyOf(repo, i.Number)
+		if _, stored := h.failures[key]; !stored {
 			continue
 		}
-		if reason := withdrawalReason(i); reason != "" {
-			out = append(out, history.Withdrawal{Repository: repo, Issue: i.Number, Withdrawn: true,
+		reason := withdrawalReason(i)
+		if reason != "" || h.withdrawn[key] {
+			out = append(out, history.Withdrawal{Repository: repo, Issue: i.Number, Withdrawn: reason != "",
 				Reason: reason, At: wholeSecond(o.Now)})
 		}
 	}

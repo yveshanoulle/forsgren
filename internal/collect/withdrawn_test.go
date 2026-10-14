@@ -109,3 +109,55 @@ func TestAFailureIssueClosedAsNotPlannedIsWithdrawn(t *testing.T) {
 		t.Errorf("want the withdrawals\n%v\ngot\n%v (%v)", want, got, err)
 	}
 }
+
+// TestAWithdrawnFailureThatGetsItsLabelBackIsReinstated (forsgren#155, step 3):
+// issue 42 is stored, loses its label (withdrawn), gets it back (a
+// withdrawn=false line), and a run that finds nothing new writes no line: not
+// a second withdrawal while the label is off, not a second reinstatement.
+func TestAWithdrawnFailureThatGetsItsLabelBackIsReinstated(t *testing.T) {
+	g := issuesOnly(t, issueJSON(42, "2026-09-20T08:00:00Z", "", recordBlock))
+	path := historyPath(t)
+	g.collect(t, shop(production), path, 1)
+	bare := listed{number: 42, state: "open", created: "2026-09-20T08:00:00Z"}.json()
+	labelled := strings.Replace(bare, `"labels": []`, `"labels": [{"name": "failure"}]`, 1)
+	linesAfter := func(body string) string {
+		g.bodies[allIssuesPath] = list(body)
+		if r := g.collect(t, shop(production), path, 1); r.err != nil {
+			t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
+		}
+		raw, _ := os.ReadFile(filepath.Clean(withdrawnFileBeside(path)))
+		return string(raw)
+	}
+	head := "# forsgren failures withdrawn v1\nrepository,issue,withdrawn,reason,at\n"
+	out := head + "acme/app,42,true,label_removed,2026-10-01T00:00:00Z\n"
+	back := out + "acme/app,42,false,,2026-10-01T00:00:00Z\n"
+	for i, step := range []struct{ body, want string }{
+		{bare, out}, {bare, out}, {labelled, back}, {labelled, back},
+	} {
+		if got := linesAfter(step.body); got != step.want {
+			t.Fatalf("run %d: want the file\n%q\ngot\n%q", i+1, step.want, got)
+		}
+	}
+}
+
+// TestAWithdrawnFileItCannotReadIsRefusedFirst: a withdrawn file of an unknown
+// version fails the run before GitHub is asked anything, and stays as it was.
+func TestAWithdrawnFileItCannotReadIsRefusedFirst(t *testing.T) {
+	g := newGitHub(t)
+	path := historyPath(t)
+	withdrawn := withdrawnFileBeside(path)
+	if err := os.MkdirAll(filepath.Dir(withdrawn), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	content := "# forsgren failures withdrawn v9\n"
+	if err := os.WriteFile(withdrawn, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r := g.collect(t, shop(production), path, 1)
+	if !errors.Is(r.err, history.ErrUnknownVersion) || len(g.seen("/")) != 0 {
+		t.Errorf("want ErrUnknownVersion before any request, got %v after %v", r.err, g.seen("/"))
+	}
+	if got, _ := os.ReadFile(filepath.Clean(withdrawn)); string(got) != content {
+		t.Errorf("want the withdrawn file untouched, got %q", got)
+	}
+}

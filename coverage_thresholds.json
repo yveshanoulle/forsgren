@@ -145,6 +145,7 @@
     "github.com/yveshanoulle/forsgren/internal/collect/bugflags.go:readBugs": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/failuresread.go:wholeSecond": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/withdrawn.go:withdrawnFile": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/withdrawn.go:loadWithdrawn": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/withdrawn.go:withdrawals": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/withdrawn.go:withdrawalReason": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/withdrawn.go:hasLabel": 100.0,
