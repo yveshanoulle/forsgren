@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -10,6 +11,12 @@ import (
 
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
+
+// -update rewrites the golden file of each wantGolden from the current
+// output, as -update does in internal/page. Use it only after reading the
+// diff the failing golden test printed. (The name updateGoldens: update is
+// the internal/update package in this test package.)
+var updateGoldens = flag.Bool("update", false, "rewrite the goldens wantGolden compares")
 
 // renderNow is the pinned render time of these tests.
 var renderNow = time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC)
@@ -76,14 +83,21 @@ func writeHistory(t *testing.T, records []history.Record) string {
 }
 
 // wantGolden renders with extra arguments and fails the test unless it
-// exits 0 with the page of the golden file name.
+// exits 0 with the page of the golden file name, rewriting the golden first
+// under -update.
 func wantGolden(t *testing.T, golden string, extra ...string) string {
 	t.Helper()
 	code, stderr, index := renderWith(t, extra...)
 	if code != 0 {
 		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
 	}
-	if want := readFile(t, "../../internal/page/testdata/"+golden); index != want {
+	path := "../../internal/page/testdata/" + golden
+	if *updateGoldens {
+		if err := os.WriteFile(path, []byte(index), 0o600); err != nil {
+			t.Fatalf("update golden: %v", err)
+		}
+	}
+	if want := readFile(t, path); index != want {
 		t.Errorf("the page differs from %s\n--- got ---\n%s\n--- want ---\n%s", golden, index, want)
 	}
 	return index

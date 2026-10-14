@@ -10,7 +10,7 @@
 #
 # It is a NEW check, not an exemption of Scripts/check_repo_links.sh: that
 # gate keeps its rule for the metrics site (no github.com/<owner>/<repo> path
-# at all, but the tool's own root) and is never run on the starter page.
+# at all) and is never run on the starter page.
 #
 # Every href and src of every .html file under the directory must be an
 # #anchor, the page's own stylesheet (exactly styles.css), or an https link to

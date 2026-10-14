@@ -332,7 +332,8 @@ metrics.
 ## The page
 
 Every page's footer opens with one paragraph (forsgren#41, #45): Forsgren,
-linked to its GitHub repository, its version, "Metrics from GitHub data."
+linked to https://forsgren.be/, the project page, which links its GitHub
+repository (forsgren#162), its version, "Metrics from GitHub data."
 "Calculated at
 2026-10-03 12:00 UTC", the moment of the run (UTC, to the minute), on every
 run, with rows or without; and, when a newer forsgren release exists than the

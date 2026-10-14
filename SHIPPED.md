@@ -356,3 +356,9 @@ Yves's ruling on decision #149 asked that unsupported Markdown fail with the sou
 ## 2026-10-14 — the legend explains patch, minor and major, released as 1.3.2 ([#156](https://github.com/yveshanoulle/forsgren/issues/156))
 
 Yves (#156): the settings page lists `auto_update_level` with the values patch, minor and major, but nothing on the site said what they mean. The legend's Settings page section now explains them in forsgren's approved wording: what a patch, a minor and a major release are (CONVENTIONS.md), what each level merges by itself, and that `major` does not mean a major release is safe, because nothing checks a release against the installation's own data. Steps: 1 the legend text and its test, tied to the config's level constants (9fa6c92); 2 the test's text as a constant like its neighbour, docs/pages-and-views.md and docs/configuration.md (this commit). page_test.go keeps its CodeScene score of 10.
+
+---
+
+## 2026-10-14 — the footer links forsgren.be, released as 1.3.3 ([#162](https://github.com/yveshanoulle/forsgren/issues/162))
+
+Yves (#162): now forsgren.be is live, the footer of every page should link to it instead of the GitHub repository. Steps: 1 the footer's "Forsgren" links https://forsgren.be/, the project page, which links GitHub itself; the footer text "Forsgren X.Y.Z" is unchanged, so the agent files and the docs version test still read the version (1df38d2); 2 the link gate's exception for forsgren's own GitHub link, now dead, is removed (a link to forsgren's repository is judged like any other, and a self-test pins it), cmd/forsgren's goldens regenerate with -update like the page package's, and the docs (pages-and-views.md, quality-gates.md, CLAUDE.md) follow (this commit). Decisions on #162. Found on the way: the no-projects page links a github.com blob path the link gate refuses (#172).

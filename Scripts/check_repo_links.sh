@@ -20,13 +20,11 @@
 # name would be copied wherever those go (the rule
 # Scripts/check_data_guard.sh follows for the same reason).
 #
-# One narrow exception (Yves's ruling on forsgren#41): the tool's own
-# public repository. An href to exactly https://github.com/yveshanoulle/forsgren,
-# with an optional #anchor, is not a finding: the page footer links the tool
-# that made it. Nothing else is
-# exempt: acme-data, forsgren-template (its footer link left in
-# forsgren#45), forsgren/issues, forsgren/blob/..., another owner, and
-# the same path as plain text or in a url() all stay findings.
+# No exception: forsgren's own repository is a repository path like any
+# other. The footer links the project page, https://forsgren.be/, which
+# links GitHub itself (forsgren#162); until then an href to exactly
+# https://github.com/yveshanoulle/forsgren was exempt (Yves's ruling on
+# forsgren#41), and forsgren-template's footer link left in forsgren#45.
 #
 # Red-on-zero: a site with no .html page is red. Nothing scanned is not clean.
 #
@@ -45,12 +43,6 @@ SITE="${1:-.build/site}"
 # replaces it by that anchor.
 REPO_PATH='github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+'
 
-# The exception: a sed expression that removes an allowed href before the scan.
-# The row starts at column 0 with OWN_LINK=: Scripts/test_check_repo_links.sh's
-# mutation proof replaces it by that anchor. The closing quote right after the
-# optional anchor is what keeps acme-data and forsgren/issues findings.
-OWN_LINK='s#href="https://github\.com/yveshanoulle/forsgren(\#[A-Za-z0-9_.-]*)?"##g'
-
 if [ ! -d "$SITE" ]; then
   echo "❌ FAIL: site dir not found: ${SITE}"
   exit 2
@@ -63,15 +55,14 @@ if [ "$PAGES" -eq 0 ]; then
 fi
 
 findings=0
-# file:line only; the matched path never reaches stdout. The allowed href is
-# cut out of each line first.
+# file:line only; the matched path never reaches stdout.
 while IFS= read -r hit; do
   [ -n "$hit" ] || continue
   echo "❌ FAIL: ${hit} — a github.com/<owner>/<repo> path on the public page (the path is not printed here, so it cannot reach a commit message); the page shows numbers and dates only, never links into repositories"
   findings=$((findings + 1))
 done < <(
   while IFS= read -r file; do
-    sed -E -e "$OWN_LINK" "$file" | grep -nE "$REPO_PATH" | cut -d: -f1 | sed "s#^#${file}:#"
+    grep -nE "$REPO_PATH" "$file" | cut -d: -f1 | sed "s#^#${file}:#"
   done < <(find "$SITE" -type f \( -name '*.html' -o -name '*.css' \))
 )
 
