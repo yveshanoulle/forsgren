@@ -78,3 +78,43 @@ func nonEmptyDir(t *testing.T) string {
 	}
 	return dir
 }
+
+// TestCollectWarnsOnStderrWhenTheTokenExpiresWithin14Days (forsgren#177): the
+// fake clock is 2026-10-01. An expiry up to 14 days away, or already past,
+// is a warning with the date and the command to set a new token, and the
+// exit code stays 0; a date further away, or none, is no warning.
+func TestCollectWarnsOnStderrWhenTheTokenExpiresWithin14Days(t *testing.T) {
+	t.Setenv("FORSGREN_TOKEN", testToken)
+	t.Setenv("GITHUB_REPOSITORY", "")
+	const tail = " Make a new fine-grained token and set it with " +
+		"`gh secret set FORSGREN_TOKEN -R this installation's repository` in a separate terminal.\n"
+	cases := []struct{ name, value, want string }{
+		{"near", "2026-10-10 08:35:47 UTC", "collect: warning: FORSGREN_TOKEN expires on 2026-10-10." + tail},
+		{"edge", "2026-10-15 00:00:00 UTC", "collect: warning: FORSGREN_TOKEN expires on 2026-10-15." + tail},
+		{"past", "2026-09-30 08:35:47 UTC", "collect: warning: FORSGREN_TOKEN has expired on 2026-09-30." + tail},
+		{"far", "2026-10-15 00:00:01 UTC", ""},
+		{"none", "", ""},
+	}
+	for _, c := range cases {
+		header := http.Header{}
+		if c.value != "" {
+			header.Set("GitHub-Authentication-Token-Expiration", c.value)
+		}
+		fakeAPIWithHeader(t, acmeApp, 0, header)
+		got := collectRun("--config", writeConfig(t, oneRepository), "--data", dataPath(t), "--token-expiry", expiryFile(t))
+		if got.code != 0 || got.stderr != c.want {
+			t.Errorf("%s: want exit 0 and stderr %q, got %+v", c.name, c.want, got)
+		}
+	}
+}
+
+// TestTheTokenExpiryWarningNamesTheRepositoryTheWorkflowRunsIn (forsgren#177).
+func TestTheTokenExpiryWarningNamesTheRepositoryTheWorkflowRunsIn(t *testing.T) {
+	t.Setenv("FORSGREN_TOKEN", testToken)
+	t.Setenv("GITHUB_REPOSITORY", "acme/shop")
+	fakeAPIWithHeader(t, acmeApp, 0, http.Header{"Github-Authentication-Token-Expiration": {"2026-10-10 00:00:00 UTC"}})
+	got := collectRun("--config", writeConfig(t, oneRepository), "--data", dataPath(t))
+	if !strings.Contains(got.stderr, "-R acme/shop`") {
+		t.Errorf("want the repository in the command, got %q", got.stderr)
+	}
+}
