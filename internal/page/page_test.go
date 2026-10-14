@@ -657,14 +657,15 @@ func TestSettingsPageIsATableOfParameterValuePossibleValuesAndDefault(t *testing
 	)
 }
 
-// TestSettingsPageStatesWhenTheAutoUpdateLevelIsRequired (forsgren#141): the
-// possible values of auto_update_level are patch, minor and major, and the
-// cell adds the rule check-config enforces: required when auto_update is true.
-func TestSettingsPageStatesWhenTheAutoUpdateLevelIsRequired(t *testing.T) {
+// TestSettingsPageHasNoNoteOnTheAutoUpdateLevel (forsgren#157): the possible
+// values of auto_update_level are exactly patch, minor and major; the level is
+// optional, so the cell carries no rule.
+func TestSettingsPageHasNoNoteOnTheAutoUpdateLevel(t *testing.T) {
 	data := calculated()
 	data.Settings = config.Config{}.Settings()
-	wantAll(t, "settings.html", rendered(t, "settings.html", data),
-		"<td>patch, minor, major (required when auto_update is true)</td>")
+	html := rendered(t, "settings.html", data)
+	wantAll(t, "settings.html", html, "<td>patch, minor, major</td>")
+	wantNone(t, "settings.html", html, "required when auto_update")
 }
 
 // TestLegendHasNoSettings (forsgren#84, step 2): the settings moved to their

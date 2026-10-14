@@ -441,7 +441,6 @@
     "github.com/yveshanoulle/forsgren/internal/page/settings.go:list": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/settings.go:upTo": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/settings.go:possibleListOf": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/page/settings.go:possibleOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/labels.go:UnmarshalYAML": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/labels.go:kindOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/labels.go:labels": 100.0,
