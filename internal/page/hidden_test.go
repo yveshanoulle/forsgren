@@ -25,9 +25,7 @@ func TestWriteSiteLeavesOutHiddenPagesAndRemovesStaleOnes(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			dir := t.TempDir()
 			writeStale(t, dir)
-			data := Placeholder("1.2.0")
-			data.Hidden = tc.hidden
-			n, err := WriteSite(dir, data)
+			n, err := WriteSite(dir, placeholderHiding(tc.hidden))
 			if err != nil || n != tc.pages {
 				t.Fatalf("want %d pages and no error, got %d, %v", tc.pages, n, err)
 			}
@@ -49,9 +47,7 @@ func TestWriteSiteFailsWhenAHiddenPageCannotBeRemoved(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(folder, "x"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	data := Placeholder("1.2.0")
-	data.Hidden = map[string]bool{"days": true}
-	if n, err := WriteSite(dir, data); err == nil {
+	if n, err := WriteSite(dir, placeholderHiding(map[string]bool{"days": true})); err == nil {
 		t.Errorf("want an error when days.html cannot be removed, got %d pages", n)
 	}
 }
@@ -59,11 +55,17 @@ func TestWriteSiteFailsWhenAHiddenPageCannotBeRemoved(t *testing.T) {
 // TestWriteSiteHidesAPageThatWasNeverWritten (forsgren#159): a hidden page
 // with no file in a fresh out dir is no error.
 func TestWriteSiteHidesAPageThatWasNeverWritten(t *testing.T) {
-	data := Placeholder("1.2.0")
-	data.Hidden = map[string]bool{"days": true}
-	if n, err := WriteSite(t.TempDir(), data); err != nil || n != 7 {
+	if n, err := WriteSite(t.TempDir(), placeholderHiding(map[string]bool{"days": true})); err != nil || n != 7 {
 		t.Errorf("want 7 pages and no error, got %d, %v", n, err)
 	}
+}
+
+// placeholderHiding is the placeholder page data with hidden as its hidden
+// pages.
+func placeholderHiding(hidden map[string]bool) Data {
+	data := Placeholder("1.2.0")
+	data.Hidden = hidden
+	return data
 }
 
 // writeStale leaves an old days.html and issues.html in dir.

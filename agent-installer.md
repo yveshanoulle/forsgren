@@ -218,6 +218,12 @@ Then wait for the answers.
    (`example.com`) for GitHub Pages first (a TXT record), unless it is
    verified already, then a DNS record they add at their DNS provider, and
    HTTPS can take up to a day after that.
+10. **The Issues page and the Daily page**, which of the two the site
+    shows. Default: `issues_page: true` (the Issues page is shown) and
+    `days_page: false` (the Daily page is hidden). Each is `true` or
+    `false`. A page that is off is not generated and has no entry in the
+    menu. The person can show the Daily page later by setting
+    `days_page: true`; the legend of the published site says so.
 
 ## Step 3. Look at every measured repository (read only)
 
@@ -377,6 +383,8 @@ view: standard
 auto_update: true
 auto_update_level: major
 history_days: 365
+issues_page: true
+days_page: false
 projects:
   - name: Acme Shop
     repositories:
@@ -390,6 +398,8 @@ projects:
         deployment: release
 ```
 
+- Write `issues_page` and `days_page` with the answers to question 10
+  (the defaults are `true` and `false`).
 - Write every repository's `deployment:` line, also for
   `environment=production`, so the file says what was chosen.
 - Indent with spaces only, as shown.
@@ -645,12 +655,13 @@ Then check what the run did:
    ```
 
    For example `;view;numbers;standard, numbers, scoring;False;`.
-   - The rows `view`, `auto_update`, `auto_update_level` and
-     `history_days` show the values of the config, and end with `False`
-     (set in forsgren.config.yml, not the default).
+   - The rows `view`, `auto_update`, `auto_update_level`,
+     `history_days`, `issues_page` and `days_page` show the values of the
+     config, and end with `False` (set in forsgren.config.yml, not the
+     default).
    - The rows `history_chunk_days` (`100`) and `working_hours` (`8`) end
      with `True` (the default).
-   - Six rows in all. A row missing or different: stop and report.
+   - Eight rows in all. A row missing or different: stop and report.
 9. The footer names the pinned version:
    `curl -fsS SITE | grep -o 'Forsgren</a> [0-9.]*'`
    prints `Forsgren</a>` and `VERSION` without its `v`.
@@ -888,7 +899,8 @@ Anything else: report it to the person.
 
 For an install that exists, you can change one setting: a top-level key of
 `forsgren.config.yml` (`view`, `auto_update`, `auto_update_level`,
-`history_days`, `history_chunk_days`, `working_hours`), or the update wait
+`history_days`, `history_chunk_days`, `working_hours`, `issues_page`,
+`days_page`), or the update wait
 (`default-days` in `.github/dependabot.yml`, in days). Changes to the
 projects and repositories are not covered here. Follow these steps alone;
 the install steps above do not apply.

@@ -65,7 +65,7 @@ func writeData(t *testing.T, records []history.Record, commits []history.Commit)
 func TestRenderShowsLeadTime(t *testing.T) {
 	pinNow(t)
 	wantGolden(t, "index.leadtime.golden.html",
-		"--config", writeConfig(t, validConfig+daysOn), "--data", writeData(t, acmeHistory(), acmeCommits()))
+		"--config", writeAllPagesConfig(t, validConfig), "--data", writeData(t, acmeHistory(), acmeCommits()))
 }
 
 // TestRenderRefusesABadCommitsFile: a malformed or unknown-version commits
@@ -102,7 +102,7 @@ func wantBadFileRefused(t *testing.T, name string, cases map[string]badFile) {
 // page, nor its repository.
 func TestRenderShowsNoCommitSHA(t *testing.T) {
 	pinNow(t)
-	_, _, index := renderWith(t, "--config", writeConfig(t, validConfig+daysOn),
+	_, _, index := renderWith(t, "--config", writeAllPagesConfig(t, validConfig),
 		"--data", writeData(t, acmeHistory(), acmeCommits()))
 	if !strings.Contains(index, "Less than one hour · 17 min (3)") {
 		t.Fatalf("want the lead-time page, got:\n%s", index)

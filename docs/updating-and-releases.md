@@ -237,6 +237,14 @@ off`, and merging it is the update, as before (see [Configuration](configuration
 and creates your data repository from the template step by step
 (forsgren#142).
 
+**Upgrading to 1.3.0 hides the Daily page** (forsgren#159). From 1.3.0 an
+installation that does not set days_page loses its Daily page until it sets
+days_page: true. The Issues page stays (issues_page: true is the default; the
+starter writes issues_page: true and days_page: false). With auto-update on,
+the merged update removes `days.html` from the site at the next run. To keep
+the Daily page, add `days_page: true` to `forsgren.config.yml` before or
+after the update, and the next run generates it again.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`

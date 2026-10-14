@@ -11,6 +11,13 @@ import (
 // its menu with the golden pages keep all eight pages (forsgren#159).
 const daysOn = "days_page: true\n"
 
+// writeAllPagesConfig writes the config content with daysOn added, so every
+// page is written, and returns its path.
+func writeAllPagesConfig(t *testing.T, content string) string {
+	t.Helper()
+	return writeConfig(t, content+daysOn)
+}
+
 // TestRenderLeavesOutThePagesTheConfigHides (forsgren#159): with --config the
 // issues page is written unless issues_page is false, and the days page only
 // when days_page is true, so a config that sets nothing writes no days page;

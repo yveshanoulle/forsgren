@@ -30,7 +30,7 @@ func renderWith(t *testing.T, extra ...string) (int, string, string) {
 // example); it is the page of the golden file.
 func TestRenderSaysWhenNoProjectsAreConfigured(t *testing.T) {
 	pinNow(t)
-	code, stderr, index := renderWith(t, "--config", writeConfig(t, "version: 1\nprojects: []\n"+daysOn))
+	code, stderr, index := renderWith(t, "--config", writeAllPagesConfig(t, "version: 1\nprojects: []\n"))
 	if code != 0 {
 		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
 	}
@@ -50,7 +50,7 @@ func TestRenderWithProjectsHasNoNoProjectsLine(t *testing.T) {
 	pinNow(t)
 	golden := readFile(t, "../../internal/page/testdata/index.golden.html")
 	cases := map[string][]string{
-		"projects configured": {"--config", writeConfig(t, validConfig+daysOn)},
+		"projects configured": {"--config", writeAllPagesConfig(t, validConfig)},
 		"no --config":         nil,
 	}
 	for name, extra := range cases {
@@ -107,7 +107,7 @@ var howToExample = regexp.MustCompile(`(?s)<pre><code>(.*?)</code></pre>`)
 // TestRenderedHowToPassesCheckConfig (forsgren#41, step 3): the example in
 // the page's how-to for an empty config is itself a valid config.
 func TestRenderedHowToPassesCheckConfig(t *testing.T) {
-	_, _, index := renderWith(t, "--config", writeConfig(t, "version: 1\nprojects: []\n"+daysOn))
+	_, _, index := renderWith(t, "--config", writeAllPagesConfig(t, "version: 1\nprojects: []\n"))
 	found := howToExample.FindStringSubmatch(index)
 	if found == nil {
 		t.Fatalf("want an example config in a pre block on the page, got:\n%s", index)

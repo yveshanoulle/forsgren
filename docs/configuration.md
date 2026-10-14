@@ -91,14 +91,27 @@ projects:
   hours from 1 to 24`. It is read and checked now; the on-demand threshold
   uses it in the next step. The starter that `init-config` writes includes
   `working_hours: 8`.
+- **`issues_page`** and **`days_page`** are optional (forsgren#159): whether
+  the Issues page (`issues.html`) and the Daily page (`days.html`) are
+  generated, each `true` or `false`, written at the top level, for example
+  `issues_page: true` and `days_page: false`. Left out, or without a value,
+  `issues_page` is `true` (the page is shown) and `days_page` is `false` (the
+  page is hidden). Only the literals `true` and `false` are accepted; a quoted
+  value, `yes`, a number or text is refused by `check-config` and `render`,
+  naming the key: `invalid days_page "yes": use true or false`. A page that
+  is `false` is not generated, is removed from the site if an earlier run
+  wrote it, and has no entry in the menu. From 1.3.0 an installation that
+  does not set `days_page` has no Daily page until it sets `days_page: true`.
+  The legend says how to show or hide the two pages. The starter that
+  `init-config` writes includes `issues_page: true` and `days_page: false`.
 - **The settings page** (`settings.html`, forsgren#74, moved out of the legend
   in forsgren#84, a table since forsgren#141) tabulates every optional key,
   `view`, `auto_update`, `auto_update_level`, `history_days`,
-  `history_chunk_days` and `working_hours`, in four columns: **Parameter**;
+  `history_chunk_days`, `working_hours`, `issues_page` and `days_page`, in four columns: **Parameter**;
   **Current value**, the value in use (`major` for an unset
   `auto_update_level`); **Possible values**, built from the config package's
   own constants and limits so the page cannot drift from what `check-config`
-  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `1 to 1825`; `1 to 365`; `1 to 24`),
+  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `1 to 1825`; `1 to 365`; `1 to 24`; `true, false` for each of the two page keys),
   a test holds the lists to the config loader; and **Default**: True when
   `forsgren.config.yml` does not set the key, so the current value is the
   default, False when the file sets it, even to the default's value. The legend

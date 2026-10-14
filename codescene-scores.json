@@ -71,7 +71,7 @@
   {
    "path": "internal/config/validate.go",
    "score": 9.68,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-14",
    "minScore": 9.58
   },
   {
@@ -137,19 +137,19 @@
   {
    "path": "cmd/forsgren/render_changefail_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-14",
    "minScore": 10.0
   },
   {
    "path": "cmd/forsgren/render_data_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-14",
    "minScore": 10.0
   },
   {
    "path": "cmd/forsgren/render_leadtime_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-14",
    "minScore": 10.0
   },
   {
@@ -401,7 +401,7 @@
   {
    "path": "cmd/forsgren/render_labels_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-14",
    "minScore": 10.0
   },
   {

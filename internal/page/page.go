@@ -83,8 +83,8 @@ type Data struct {
 	// "scoring", marked in the menu (forsgren#46, forsgren#128); empty for the
 	// plain root page, whose menu marks no view.
 	View string
-	// Hidden are the pages the site leaves out, by page name ("issues",
-	// "days"); the zero value hides none (forsgren#159).
+	// Hidden are the pages the site leaves out, by page name (IssuesPage,
+	// DaysPage); the zero value hides none (forsgren#159).
 	Hidden map[string]bool
 }
 
@@ -193,7 +193,14 @@ type issuePage struct{ Name, Label string }
 // them after the views: the issues page (forsgren#123, forsgren#128: the
 // weeks, months and years) and the days page (forsgren#76, forsgren#128: the
 // last 30 days, labelled Daily).
-var issuePages = []issuePage{{"issues", "Issues"}, {"days", "Daily"}}
+var issuePages = []issuePage{{IssuesPage, "Issues"}, {DaysPage, "Daily"}}
+
+// IssuesPage and DaysPage are the names of the two issue pages, the keys of
+// Data.Hidden (forsgren#159).
+const (
+	IssuesPage = "issues"
+	DaysPage   = "days"
+)
 
 // The views of the table page (forsgren#46): the standard cells, the numbers
 // only, and (forsgren#47) each metric's DORA Quick Check score with an
@@ -243,8 +250,9 @@ type menuItem struct{ Href, Label, Current string }
 
 // Menu is the menu at the top of the page (forsgren#128, decision #133): the
 // views, each labelled by its name with a capital (its address stays lower
-// case), then the issuePages the site shows (forsgren#159). The view the page shows is marked current, and the
-// issue page the page is marked "page"; every other entry is a link.
+// case), then the issuePages the site shows (forsgren#159). The view the
+// page shows is marked current, and the issue page the page is marked "page";
+// every other entry is a link.
 func (p pageData) Menu() []menuItem {
 	menu := make([]menuItem, 0, len(views)+len(issuePages))
 	for _, view := range views {

@@ -17,14 +17,17 @@ import (
 // possibleValues are the values each key accepts, by key name.
 var possibleValues = map[string]string{
 	"view":               list(config.ViewStandard, config.ViewNumbers, config.ViewScoring),
-	"auto_update":        list(strconv.FormatBool(true), strconv.FormatBool(false)),
+	"auto_update":        booleanValues,
 	"auto_update_level":  list(config.LevelPatch, config.LevelMinor, config.LevelMajor),
 	"history_days":       upTo(config.MaxHistoryDays),
 	"history_chunk_days": upTo(config.MaxHistoryChunkDays),
 	"working_hours":      upTo(config.MaxWorkingHours),
-	"issues_page":        list(strconv.FormatBool(true), strconv.FormatBool(false)),
-	"days_page":          list(strconv.FormatBool(true), strconv.FormatBool(false)),
+	"issues_page":        booleanValues,
+	"days_page":          booleanValues,
 }
+
+// booleanValues are the values of a boolean key, as the page lists them.
+var booleanValues = list(strconv.FormatBool(true), strconv.FormatBool(false))
 
 // list is names written as the page lists them.
 func list(names ...string) string { return strings.Join(names, ", ") }

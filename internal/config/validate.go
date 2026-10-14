@@ -37,8 +37,9 @@ func (f fileConfig) toConfig() (Config, error) {
 }
 
 // settings is the Config of the file's optional top-level keys, view,
-// auto_update, auto_update_level, issues_page and days_page (as written, the level DefaultLevel when
-// the file has none), or the first refusal among them (forsgren#46, #58, #157).
+// auto_update, auto_update_level, issues_page and days_page (as written, the
+// level DefaultLevel when the file has none), or the first refusal among them
+// (forsgren#46, #58, #157, #159).
 func (f fileConfig) settings() (Config, error) {
 	view, err := checkView(f.View)
 	if err != nil {
@@ -62,17 +63,17 @@ func (f fileConfig) settings() (Config, error) {
 	}
 	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level,
 		HistoryDays: days, HistoryChunkDays: chunk, WorkingHours: hours,
-		WorkingHoursSet: workingHours.set(f.WorkingHours), IssuesPage: issuesPage, DaysPage: daysPage,
+		WorkingHoursSet: hasValue(f.WorkingHours), IssuesPage: issuesPage, DaysPage: daysPage,
 		written: f.written()}, nil
 }
 
 // pages is issues_page and days_page, or the first refusal of the two: the
 // issues page on and the days page off when the file has none (forsgren#159).
 func (f fileConfig) pages() (issues, days bool, err error) {
-	if issues, err = checkBoolean(f.IssuesPage, true, ErrIssuesPage); err != nil {
+	if issues, err = issuesPage.value(f.IssuesPage); err != nil {
 		return false, false, err
 	}
-	days, err = checkBoolean(f.DaysPage, false, ErrDaysPage)
+	days, err = daysPage.value(f.DaysPage)
 	return issues, days, err
 }
 
@@ -81,11 +82,10 @@ func (f fileConfig) pages() (issues, days bool, err error) {
 func (f fileConfig) written() map[string]bool {
 	var keys map[string]bool
 	for key, node := range map[string]yaml.Node{"auto_update": f.AutoUpdate, "history_days": f.HistoryDays,
-		"history_chunk_days": f.HistoryChunkDays, "working_hours": f.WorkingHours} {
-		keys = mark(keys, key, workingHours.set(node))
+		"history_chunk_days": f.HistoryChunkDays, "working_hours": f.WorkingHours,
+		"issues_page": f.IssuesPage, "days_page": f.DaysPage} {
+		keys = mark(keys, key, hasValue(node))
 	}
-	keys = mark(keys, "issues_page", workingHours.set(f.IssuesPage))
-	keys = mark(keys, "days_page", workingHours.set(f.DaysPage))
 	keys = mark(keys, "view", f.View != nil)
 	return mark(keys, "auto_update_level", f.AutoUpdateLevel != nil)
 }
@@ -129,9 +129,9 @@ var (
 	workingHours     = numberKey{ErrWorkingHours, "hours", DefaultWorkingHours, MaxWorkingHours}
 )
 
-// set says whether the key has a value: a key left out, or written without
+// hasValue says whether a key has a value: a key left out, or written without
 // one, is none.
-func (numberKey) set(n yaml.Node) bool { return n.Kind != 0 && n.ShortTag() != "!!null" }
+func hasValue(n yaml.Node) bool { return n.Kind != 0 && n.ShortTag() != "!!null" }
 
 // whole is the node's integer, when it is one from 1 to the key's limit.
 func (k numberKey) whole(n yaml.Node) (int, bool) {
@@ -143,7 +143,7 @@ func (k numberKey) whole(n yaml.Node) (int, bool) {
 // without a value is none): a whole number from 1 to its limit, never a
 // quoted value.
 func (k numberKey) check(n yaml.Node) (int, error) {
-	if !k.set(n) {
+	if !hasValue(n) {
 		return k.def, nil
 	}
 	if v, ok := k.whole(n); ok {
@@ -180,22 +180,33 @@ var booleans = map[string]bool{"true": true, "false": false}
 // checkAutoUpdate is auto_update as written, off when the file has none (a
 // key without a value is none): only the literals true and false, never a
 // quoted or numeric value, nor yes (forsgren#58).
-func checkAutoUpdate(n yaml.Node) (bool, error) {
-	return checkBoolean(n, false, ErrAutoUpdate)
+func checkAutoUpdate(n yaml.Node) (bool, error) { return autoUpdate.value(n) }
+
+// booleanKey is a key that is true or false (forsgren#58, #159): its refusal
+// and its default.
+type booleanKey struct {
+	sentinel error
+	def      bool
 }
 
-// checkBoolean is the key as written, def when the file has none (a key
+var (
+	autoUpdate = booleanKey{ErrAutoUpdate, false}
+	issuesPage = booleanKey{ErrIssuesPage, true}
+	daysPage   = booleanKey{ErrDaysPage, false}
+)
+
+// value is the key as written, its default when the file has none (a key
 // without a value is none): only the literals true and false, never a quoted
-// or numeric value, nor yes; the refusal wraps sentinel (forsgren#58, #159).
-func checkBoolean(n yaml.Node, def bool, sentinel error) (bool, error) {
-	if n.Kind == 0 || n.ShortTag() == "!!null" {
-		return def, nil
+// or numeric value, nor yes; the refusal wraps the key's sentinel.
+func (k booleanKey) value(n yaml.Node) (bool, error) {
+	if !hasValue(n) {
+		return k.def, nil
 	}
 	on, literal := booleans[n.Value]
 	if literal && n.ShortTag() == "!!bool" {
 		return on, nil
 	}
-	return def, fmt.Errorf("%w %q: use true or false", sentinel, n.Value)
+	return k.def, fmt.Errorf("%w %q: use true or false", k.sentinel, n.Value)
 }
 
 func checkVersion(v *int) error {

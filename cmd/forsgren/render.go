@@ -113,7 +113,7 @@ func pageData(o renderOptions, at time.Time) (page.Data, error) {
 // hiddenPages are the pages the config leaves out: the issues page when
 // issues_page is false and the days page unless days_page is true (forsgren#159).
 func hiddenPages(cfg config.Config) map[string]bool {
-	return map[string]bool{"issues": !cfg.IssuesPage, "days": !cfg.DaysPage}
+	return map[string]bool{page.IssuesPage: !cfg.IssuesPage, page.DaysPage: !cfg.DaysPage}
 }
 
 // issueDays is how many UTC days the days page shows, ending yesterday
