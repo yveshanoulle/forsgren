@@ -42,21 +42,27 @@
 # at /standard/, /numbers/ and /scoring/, and the menu links them all.
 #
 # The auto_update: lines below switch on the merging of forsgren's own
-# updates. It is on at patch level: once the caller workflow of
+# updates. They are on at major level: once the caller workflow of
 # forsgren-template is in this repository, Dependabot's pull request for a new
-# patch release of forsgren (2.7.3 to 2.7.4) merges itself. A minor or major
-# update waits for you until you raise auto_update_level: to minor or to major.
-# auto_update: false switches it off, and auto_update_level: is required
-# whenever auto_update: is true.
+# release of forsgren merges itself, unless the update fails or is blocked.
+# major permits major, minor and patch updates; it does not mean a major
+# release is safe. Patch updates are intended for fixes, and minor updates can
+# bring new behaviour. A release is only cut when forsgren's Quality checks
+# are green, Dependabot proposes it only after the update wait, and the merge
+# goes through only when the pull request changes nothing but the forsgren pin
+# to a published release. Nothing checks a release against this installation's
+# own data. To take fewer updates, set auto_update_level: to minor or to patch.
+# auto_update: false switches it off, and you merge each update by hand.
+# auto_update_level: is required whenever auto_update: is true.
 #
 # Example, with made-up names. To use it, remove the five lines version: 1,
-# view: standard, auto_update: true, auto_update_level: patch and projects: []
+# view: standard, auto_update: true, auto_update_level: major and projects: []
 # below, then remove the "# " in front of the example:
 #
 # version: 1
 # view: standard
 # auto_update: true
-# auto_update_level: patch
+# auto_update_level: major
 # projects:
 #   - name: Acme Shop
 #     repositories:

@@ -421,3 +421,14 @@ func TestInitRefusesAParentThatIsAFile(t *testing.T) {
 		t.Fatalf("want ErrWrite, got created %v, %v", created, err)
 	}
 }
+
+// TestStarterSaysNothingChecksAReleaseAgainstTheInstallationsData: the
+// comment on the major default states the limit of the safeguards, so a
+// person who keeps the default knows what is not checked (forsgren#150).
+func TestStarterSaysNothingChecksAReleaseAgainstTheInstallationsData(t *testing.T) {
+	text := strings.Join(strings.Fields(strings.ReplaceAll(Starter, "\n# ", " ")), " ")
+	const want = "Nothing checks a release against this installation's own data."
+	if !strings.Contains(text, want) {
+		t.Errorf("want the starter to say %q", want)
+	}
+}
