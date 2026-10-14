@@ -38,6 +38,9 @@ type Need struct {
 	// for: forsgren can only see a secret that arrives that way.
 	Secret string `yaml:"secret"`
 	Steps  string `yaml:"steps"`
+	// Hidden is invisible text the setup issue's body carries after Steps (an
+	// HTML comment) for forsgren to read back; not declared in needs.yml.
+	Hidden string `yaml:"-"`
 }
 
 // For returns the needs that apply to the running version: those introduced
