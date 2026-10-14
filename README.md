@@ -69,7 +69,10 @@ For an existing installation that is behind the latest release, or has
 automatic updates switched off, point a coding agent at
 [agent-upgrade.md](agent-upgrade.md): you give it the address of your current
 report, and it finds the rest, reads what each release asks of you, and asks
-only what is yours to decide.
+only what is yours to decide. To remove an installation, its page, its custom
+domain and its history, point a coding agent at
+[agent-delete.md](agent-delete.md): it shows you what will go and deletes
+nothing before you reply with the go it asks for.
 
 ## Configuration
 

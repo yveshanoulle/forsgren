@@ -256,7 +256,7 @@ func TestUpgraderKeepsTheInstallersFixedRules(t *testing.T) {
 		"**The person does some steps themselves.** They are marked **Person**. Hand the person the text or command " +
 			"as written, wait until they say it is done, then do the check yourself.",
 	}
-	for _, path := range []repoFile{installerFile, upgraderFile} {
+	for _, path := range []repoFile{installerFile, upgraderFile, deleterFile} {
 		wantAll(t, string(path), readRepoFileAsOneLine(t, path), shared...)
 	}
 }
@@ -303,15 +303,17 @@ func placeholdersUsed(doc string) map[string]bool {
 	return used
 }
 
-// TestEveryPlaceholderOfACommandIsListed (forsgren#166, 166-w): each
-// capitalised word used in a command of agent-upgrade.md is named in "How to
-// work through this file", either as a placeholder or as a name a command
-// makes.
+// TestEveryPlaceholderOfACommandIsListed (forsgren#166, 166-w; forsgren#174):
+// each capitalised word used in a command of agent-upgrade.md and of
+// agent-delete.md is named in that file's "How to work through this file",
+// either as a placeholder or as a name a command makes.
 func TestEveryPlaceholderOfACommandIsListed(t *testing.T) {
-	listed := section(t, upgraderFile, "How to work")
-	for word := range placeholdersUsed(readUpgrader(t)) {
-		if !strings.Contains(listed, "`"+word+"`") {
-			t.Errorf("%s is used in a command but not listed under How to work", word)
+	for _, path := range []repoFile{upgraderFile, deleterFile} {
+		listed := section(t, path, "How to work")
+		for word := range placeholdersUsed(readRepoFile(t, path)) {
+			if !strings.Contains(listed, "`"+word+"`") {
+				t.Errorf("%s: %s is used in a command but not listed under How to work", path, word)
+			}
 		}
 	}
 }

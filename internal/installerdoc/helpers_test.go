@@ -19,6 +19,9 @@ const installerFile repoFile = "agent-installer.md"
 // upgraderFile is the agent upgrader.
 const upgraderFile repoFile = "agent-upgrade.md"
 
+// deleterFile is the agent file that removes an installation.
+const deleterFile repoFile = "agent-delete.md"
+
 // readRepoFile returns a file named from the repository root. Reading
 // through os.DirFS keeps every read inside the repository (gosec G304).
 func readRepoFile(t *testing.T, path repoFile) string {
@@ -81,6 +84,12 @@ func section(t *testing.T, path repoFile, heading string) string {
 func upgraderSection(t *testing.T, heading string) string {
 	t.Helper()
 	return asOneLine(section(t, upgraderFile, heading))
+}
+
+// deleterSection is section of the agent deleter, as one line.
+func deleterSection(t *testing.T, heading string) string {
+	t.Helper()
+	return asOneLine(section(t, deleterFile, heading))
 }
 
 // wantAll reports each of wants that text does not contain.

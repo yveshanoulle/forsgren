@@ -244,6 +244,15 @@ is yours to decide, then moves the pins and checks the run. Use it when an
 installation is behind, when automatic updates are off, or when a release asks
 you for a choice, as the next paragraph does (forsgren#166).
 
+**To remove an installation with an AI coding agent,** point the agent at
+[agent-delete.md](../agent-delete.md): from the address of your report it
+finds the data repository, shows you what will go (the repository and all its
+history in `data/`, which cannot be recovered after a delete), offers to
+archive it instead or to download it first, and changes nothing before your
+go. It removes the custom domain and the page first, then deletes or archives
+the repository, and hands you what only you can do: the DNS record, the
+verification record and, on route B, the fine-grained token (forsgren#174).
+
 **Upgrading to 1.3.0 hides the Daily page** (forsgren#159). From 1.3.0 an
 installation that does not set days_page loses its Daily page until it sets
 days_page: true. The Issues page stays (issues_page: true is the default; the
