@@ -104,7 +104,9 @@
 #      embedded starter committed, the config check that follows passes on it
 #      (projects: 0), and the next run keeps it with no second commit;
 #  15. the render step runs `forsgren render --out ... --config
-#      forsgren.config.yml --data data/deployments.csv`, so the page can say
+#      forsgren.config.yml --data data/deployments.csv --token-expiry
+#      ${RUNNER_TEMP}/token-expiry` (the settings page's Token expires row,
+#      forsgren#177), so the page can say
 #      when no projects are configured and show each project's deployment
 #      frequency from the history (forsgren#12, step 7), executed with the
 #      stub;
@@ -766,7 +768,7 @@ judge_render_config() {
     return 0
   fi
   got="$(render_calls "$script")"
-  want="render --out ${TMP}/runner/site --config forsgren.config.yml --data data/deployments.csv"
+  want="render --out ${TMP}/runner/site --config forsgren.config.yml --data data/deployments.csv --token-expiry ${TMP}/runner/token-expiry"
   [[ "$got" == "$want" ]] || echo "the render step runs 'forsgren ${got}', not 'forsgren ${want}' — render needs the config to say when no projects are configured, and the history to show the deployment frequency"
 }
 
@@ -953,7 +955,7 @@ judge_render_waiting() {
   step_block "$1" "$RENDER_STEP" run > "$script"
   [[ -s "$script" ]] || return 0
   got="$(render_calls "$script" LATEST=0.0.10 WAITING=7)"
-  want="render --out ${TMP}/runner/site --config forsgren.config.yml --data data/deployments.csv --latest 0.0.10 --waiting-pr 7"
+  want="render --out ${TMP}/runner/site --config forsgren.config.yml --data data/deployments.csv --token-expiry ${TMP}/runner/token-expiry --latest 0.0.10 --waiting-pr 7"
   [[ "$got" == "$want" ]] || echo "with WAITING set the render step runs 'forsgren ${got}', not 'forsgren ${want}' — the footer names the pull request only when render is given it"
 }
 
@@ -968,7 +970,7 @@ judge_render_needs() {
   step_block "$1" "$RENDER_STEP" run > "$script"
   [[ -s "$script" ]] || return 0
   got="$(render_calls "$script" NEEDS_CHECK=no-access)"
-  want="render --out ${TMP}/runner/site --config forsgren.config.yml --data data/deployments.csv --needs-check no-access"
+  want="render --out ${TMP}/runner/site --config forsgren.config.yml --data data/deployments.csv --token-expiry ${TMP}/runner/token-expiry --needs-check no-access"
   [[ "$got" == "$want" ]] || echo "with NEEDS_CHECK set the render step runs 'forsgren ${got}', not 'forsgren ${want}' — the footer sends the reader to the job summary only when render is given the check"
 }
 
@@ -983,7 +985,7 @@ judge_render_latest() {
   step_block "$1" "$RENDER_STEP" run > "$script"
   [[ -s "$script" ]] || return 0
   got="$(render_calls "$script" LATEST=0.0.10)"
-  want="render --out ${TMP}/runner/site --config forsgren.config.yml --data data/deployments.csv --latest 0.0.10"
+  want="render --out ${TMP}/runner/site --config forsgren.config.yml --data data/deployments.csv --token-expiry ${TMP}/runner/token-expiry --latest 0.0.10"
   [[ "$got" == "$want" ]] || echo "with LATEST set the render step runs 'forsgren ${got}', not 'forsgren ${want}' — the footer names a newer release only when render is given it"
 }
 
@@ -1783,6 +1785,8 @@ proves judge_permissions "a job demanding pull-requests: read" "the workflow nam
   "s/^    runs-on: ubuntu-latest\$/&\\n    permissions:\\n      pull-requests: read/"
 proves judge_render_config "render without the config" "the render step runs 'forsgren render --out" \
   '/forsgren render /s/ --config forsgren\.config\.yml//'
+proves judge_render_config "render without the token expiry file" "the render step runs 'forsgren render --out" \
+  '/^ *--token-expiry .*\\$/d'
 proves judge_render_config "render without the history" "the render step runs 'forsgren render --out" \
   '/forsgren render /s/ --data data\/deployments\.csv//'
 

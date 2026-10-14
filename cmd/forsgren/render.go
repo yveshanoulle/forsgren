@@ -35,6 +35,7 @@ const sourceDateEpoch = "SOURCE_DATE_EPOCH"
 type renderOptions struct {
 	out, config, data, latest string
 	needsCheck                string
+	tokenExpiry               string
 	waitingPR                 int
 }
 
@@ -91,6 +92,9 @@ func pageData(o renderOptions, at time.Time) (page.Data, error) {
 	data.AsOf = at.UTC().Format(calculatedLayout)
 	data.Latest, data.WaitingPR = o.latest, o.waitingPR
 	data.NeedsCheck = o.needsCheck
+	if expiry, known := readTokenExpiry(o.tokenExpiry); known {
+		data.TokenExpires = expiry.UTC().Format(time.DateOnly)
+	}
 	data.Settings = config.Config{}.Settings()
 	if o.config == "" {
 		return data, nil
@@ -258,6 +262,8 @@ func renderFlags(args []string, stderr io.Writer) (renderOptions, bool) {
 		"the open Dependabot pull request for that release, as waiting-pull-request prints it (optional, 1 or more)")
 	flags.StringVar(&o.needsCheck, "needs-check", "",
 		"how the check of what this version needs went: ok, no-access, rate-limited or failed (optional)")
+	flags.StringVar(&o.tokenExpiry, "token-expiry", "",
+		"the file collect --token-expiry wrote the token's expiry date to; the settings page shows it (optional)")
 	if err := flags.Parse(args); err != nil {
 		return o, false
 	}

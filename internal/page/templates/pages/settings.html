@@ -18,6 +18,11 @@
             <td>{{possible .Key}}</td>
             <td>{{if .Set}}False{{else}}True{{end}}</td>
           </tr>
+{{end}}{{if .TokenExpires}}          <tr>
+            <th scope="row">Token expires</th>
+            <td>{{.TokenExpires}}</td>
+            <td colspan="2">FORSGREN_TOKEN, as GitHub reports it</td>
+          </tr>
 {{end}}        </tbody>
       </table>
     </div>

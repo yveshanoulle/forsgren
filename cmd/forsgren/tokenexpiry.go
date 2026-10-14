@@ -33,21 +33,30 @@ func tokenExpiryMessage(expiry, at time.Time) (string, bool) {
 		"with `gh secret set FORSGREN_TOKEN -R " + repo + "` in a separate terminal.", true
 }
 
-// tokenExpiryNeed is the setup issue's item for the token whose expiry date
-// collect wrote to path (--token-expiry), and whether there is one: not when
-// there is no path, the file is missing or unreadable or holds no RFC 3339
-// date, or the date is further away than expiryWarningDays from at. Then
-// nothing is missing and the setup issue closes again (forsgren#177).
-func tokenExpiryNeed(path string, at time.Time) (needs.Need, bool) {
+// readTokenExpiry is the expiry date in the file at path, which collect
+// --token-expiry wrote: one RFC 3339 line. It says false for no path, a
+// file that is missing or unreadable and one that holds no such date; the
+// one reader of that file (forsgren#177).
+func readTokenExpiry(path string) (time.Time, bool) {
 	if path == "" {
-		return needs.Need{}, false
+		return time.Time{}, false
 	}
 	raw, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
-		return needs.Need{}, false
+		return time.Time{}, false
 	}
 	expiry, err := time.Parse(time.RFC3339, strings.TrimSpace(string(raw)))
-	if err != nil {
+	return expiry, err == nil
+}
+
+// tokenExpiryNeed is the setup issue's item for the token whose expiry date
+// collect wrote to path (--token-expiry), and whether there is one: not when
+// readTokenExpiry finds no date, or the date is further away than
+// expiryWarningDays from at. Then nothing is missing and the setup issue
+// closes again (forsgren#177).
+func tokenExpiryNeed(path string, at time.Time) (needs.Need, bool) {
+	expiry, known := readTokenExpiry(path)
+	if !known {
 		return needs.Need{}, false
 	}
 	message, near := tokenExpiryMessage(expiry, at)
