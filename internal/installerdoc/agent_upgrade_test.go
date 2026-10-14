@@ -347,6 +347,32 @@ func TestBothFilesNameWhatTheyWereTestedWith(t *testing.T) {
 			"Start your agent with that model (in Claude Code: `claude --model sonnet`).")
 }
 
+// testedMajor captures the major of the version a file was tested with: the
+// last one on the line, so "v0.8.5 → v1.3.0" gives 1.
+var testedMajor = regexp.MustCompile(`(?m)^Tested with: forsgren (?:v\d+\.\d+\.\d+ → )?v(\d+)\.`)
+
+// runningMajor captures the major of `version` in cmd/forsgren/main.go.
+var runningMajor = regexp.MustCompile(`(?m)^var version = "(\d+)\.`)
+
+// TestEveryAgentFileWasTestedOnTheRunningMajor (forsgren#148, decision
+// #170): a release that starts a new major fails until the agent files have
+// a new proof run behind them; within a major the line passes.
+func TestEveryAgentFileWasTestedOnTheRunningMajor(t *testing.T) {
+	running := runningMajor.FindStringSubmatch(readRepoFile(t, "cmd/forsgren/main.go"))
+	if running == nil {
+		t.Fatal("cmd/forsgren/main.go has no var version line")
+	}
+	for _, path := range []repoFile{installerFile, upgraderFile, deleterFile} {
+		tested := testedMajor.FindStringSubmatch(readRepoFile(t, path))
+		if tested == nil {
+			t.Errorf("%s has no Tested-with line to read a major from", path)
+		} else if tested[1] != running[1] {
+			t.Errorf("%s was tested on forsgren major %s, but the running version is major %s: "+
+				"run a new proof and update its Tested-with line", path, tested[1], running[1])
+		}
+	}
+}
+
 // TestUpgraderStep5SaysTheReleaseBeforeTheQuestions (forsgren#166, step
 // 166-14): a fact that needs no answer is a statement before the numbered
 // questions, not a question.
