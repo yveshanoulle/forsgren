@@ -1,6 +1,7 @@
 package page
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -193,7 +194,7 @@ func TestIssuesTableHeadsTheOpenIssuesColumnOpen(t *testing.T) {
 func TestIssuesTableShowsTheIssuesCreatedInATotalColumnAfterOpenBugs(t *testing.T) {
 	got := issuesPageOf(t, openBugsDay)
 	wantAll(t, "issues.html", got, `<th scope="col">Open bugs</th>
-            <th scope="col">Total</th>`, `<td>2</td>
+            <th scope="col">Total</th>`, `open bugs unchanged">–</span></td>
             <td>9</td>`)
 }
 
@@ -202,7 +203,7 @@ func TestIssuesTableShowsTheIssuesCreatedInATotalColumnAfterOpenBugs(t *testing.
 func TestIssuesTableShowsTheOpenBugsInAColumnRightAfterOpen(t *testing.T) {
 	wantAll(t, "issues.html", issuesPageOf(t, openBugsDay), `<th scope="col">Open</th>
             <th scope="col">Open bugs</th>`, `–</span></td>
-            <td>2</td>`)
+            <td>2 <span class="trend-flat" role="img" aria-label="open bugs unchanged">–</span></td>`)
 }
 
 // TestIssuesTableShowsOpenOutOfTotalInAColumnNextToTotal (forsgren#134, step
@@ -240,12 +241,37 @@ func TestLegendExplainsTheOpenTotalAndOpenOutOfTotalColumns(t *testing.T) {
 // class the colours hang on: an arrow up and the change when it rose, an arrow
 // down and the change when it fell, a dash when it did not change.
 func TestIssuesTableShowsAnArrowForTheDirectionOfTheOpenColumn(t *testing.T) {
+	wantArrows(t, "open issues", func(day metrics.IssueDay, count, change int) metrics.IssueDay {
+		day.Open, day.OpenChange = count, change
+		return day
+	})
+}
+
+// TestIssuesTableShowsAnArrowForTheDirectionOfTheOpenBugsColumn (forsgren#126):
+// after the open bugs of each row the same arrow as after Open, from
+// OpenBugsTrend and OpenBugsChange, its label naming open bugs.
+func TestIssuesTableShowsAnArrowForTheDirectionOfTheOpenBugsColumn(t *testing.T) {
+	wantArrows(t, "open bugs", func(day metrics.IssueDay, count, change int) metrics.IssueDay {
+		day.OpenBugs, day.OpenBugsChange = count, change
+		return day
+	})
+}
+
+// wantArrows renders three days whose count of what ("open issues" or "open
+// bugs"), set by set, is 5 up by 3, 2 down by 2 and 4 unchanged, and fails
+// unless each count has its arrow, class and aria-label in words.
+func wantArrows(t *testing.T, what string, set func(day metrics.IssueDay, count, change int) metrics.IssueDay) {
+	t.Helper()
 	got := issuesPageOf(t,
-		metrics.IssueDay{Date: october(3), Open: 5, OpenChange: 3, Active: true},
-		metrics.IssueDay{Date: october(2), Open: 2, OpenChange: -2, Active: true},
-		metrics.IssueDay{Date: october(1), Open: 4, Active: true})
+		set(metrics.IssueDay{Date: october(3), Active: true}, 5, 3),
+		set(metrics.IssueDay{Date: october(2), Active: true}, 2, -2),
+		set(metrics.IssueDay{Date: october(1), Active: true}, 4, 0))
+	span := func(count int, class, change, symbol string) string {
+		return fmt.Sprintf(`<td>%d <span class="%s" role="img" aria-label="%s %s">%s</span></td>`,
+			count, class, what, change, symbol)
+	}
 	wantAll(t, "issues.html", got,
-		`<td>5 <span class="trend-up" role="img" aria-label="open issues increased by 3">▲ +3</span></td>`,
-		`<td>2 <span class="trend-down" role="img" aria-label="open issues decreased by 2">▼ −2</span></td>`,
-		`<td>4 <span class="trend-flat" role="img" aria-label="open issues unchanged">–</span></td>`)
+		span(5, "trend-up", "increased by 3", "▲ +3"),
+		span(2, "trend-down", "decreased by 2", "▼ −2"),
+		span(4, "trend-flat", "unchanged", "–"))
 }
