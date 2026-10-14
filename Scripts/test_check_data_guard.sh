@@ -26,8 +26,9 @@
 #  12. a tracked data/é.csv (non-ASCII name, git  -> red, named
 #      quotepath on: git prints it quoted)
 #  13. an issues.csv elsewhere (forsgren#76)      -> red, named
-#  14. an issues_full.csv, a failures_read.csv    -> red, each named
-#      and an issue_bugs.csv elsewhere (forsgren#143)
+#  14. an issues_full.csv, a failures_read.csv,   -> red, each named
+#      an issue_bugs.csv and an issue_bugs_cut.csv
+#      elsewhere (forsgren#143, forsgren#140)
 #  15. drift check: every data file the Go code   -> red, each named
 #      names (const <Name>File = "<name>.csv" in
 #      internal/collect) elsewhere
@@ -46,7 +47,8 @@
 #     ops/failures.csv must turn green.
 #   - case 13: with the issues.csv arm deleted, a repository holding only
 #     ops/issues.csv must turn green.
-#   - case 14: with the issues_full.csv, failures_read.csv or issue_bugs.csv
+#   - case 14: with the issues_full.csv, failures_read.csv, issue_bugs.csv or
+#     issue_bugs_cut.csv
 #     arm deleted, a repository holding only ops/ of that file must turn
 #     green.
 #   - case 15: with the reach.csv arm deleted, a repository holding only
@@ -193,10 +195,12 @@ new_repo "other-data-elsewhere"
 write_file "ops/issues_full.csv" $'# forsgren issues full v1\n' track
 write_file "ops/failures_read.csv" $'# forsgren failures read v1\n' track
 write_file "ops/issue_bugs.csv" $'# forsgren issue bugs v1\n' track
+write_file "ops/issue_bugs_cut.csv" $'# forsgren bugs cut v1\n' track
 run_gate
 want_red "an issues_full.csv outside data/ is red and named (forsgren#143)" "❌ FAIL: ops/issues_full.csv"
 want_said "a failures_read.csv outside data/ is red and named (forsgren#143)" "❌ FAIL: ops/failures_read.csv"
 want_said "an issue_bugs.csv outside data/ is red and named (forsgren#143)" "❌ FAIL: ops/issue_bugs.csv"
+want_said "an issue_bugs_cut.csv outside data/ is red and named (forsgren#140)" "❌ FAIL: ops/issue_bugs_cut.csv"
 
 # Drift check (forsgren#143): every data file the Go code names, a constant
 # `const <Name>File = "<name>.csv"` in internal/collect, is guarded, so a data
@@ -225,6 +229,8 @@ new_repo "other-data-elsewhere-read"
 write_file "ops/failures_read.csv" $'# forsgren failures read v1\n' track
 new_repo "other-data-elsewhere-bugs"
 write_file "ops/issue_bugs.csv" $'# forsgren issue bugs v1\n' track
+new_repo "other-data-elsewhere-bugscut"
+write_file "ops/issue_bugs_cut.csv" $'# forsgren bugs cut v1\n' track
 new_repo "other-data-elsewhere-reach"
 write_file "ops/reach.csv" $'# forsgren reach v1\n' track
 
@@ -296,6 +302,8 @@ arm_deleted_proof 14 "failures_read.csv" '^[[:space:]]*failures_read\.csv\) why=
   "${TMP}/check_data_guard_nofailuresread.sh" "other-data-elsewhere-read" "ops/failures_read.csv"
 arm_deleted_proof 14 "issue_bugs.csv" '^[[:space:]]*issue_bugs\.csv\) why=' \
   "${TMP}/check_data_guard_noissuebugs.sh" "other-data-elsewhere-bugs" "ops/issue_bugs.csv"
+arm_deleted_proof 14 "issue_bugs_cut.csv" '^[[:space:]]*issue_bugs_cut\.csv\) why=' \
+  "${TMP}/check_data_guard_noissuebugscut.sh" "other-data-elsewhere-bugscut" "ops/issue_bugs_cut.csv"
 arm_deleted_proof 15 "reach.csv" '^[[:space:]]*reach\.csv\) why=' \
   "${TMP}/check_data_guard_noreach.sh" "other-data-elsewhere-reach" "ops/reach.csv"
 

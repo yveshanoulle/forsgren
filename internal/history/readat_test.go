@@ -40,6 +40,7 @@ func TestMarkFilesKeepTheirOwnHeaderAndRoundTrip(t *testing.T) {
 	for _, f := range []markFile{
 		{"failures_read.csv", "# forsgren failures read v1\nrepository,read_at\n", SaveReadAt, LoadReadAt},
 		{"issues_full.csv", "# forsgren issues full v1\nrepository,full_at\n", SaveFullAt, LoadFullAt},
+		{"issue_bugs_cut.csv", "# forsgren bugs cut v1\nrepository,cut_at\n", SaveBugsCut, LoadBugsCut},
 	} {
 		t.Run(f.name, f.checkRoundTrip)
 	}

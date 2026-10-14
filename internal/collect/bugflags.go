@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/github"
 	"github.com/yveshanoulle/forsgren/internal/history"
@@ -26,11 +27,13 @@ func (o Options) bugsFile() string { return filepath.Join(filepath.Dir(o.History
 // a bug that it no longer lists, as not a bug, unless its read stopped at the
 // page cap, when an issue it did not list may still carry the label and the
 // stored flags are kept, with a warning on stderr. What is already stored is
-// skipped by history.AppendIssueBugs, so every run adds only what changed.
-func (o Options) bugFlags(ctx context.Context, repo string) ([]history.IssueBug, error) {
+// skipped by history.AppendIssueBugs, so every run adds only what changed. It
+// also says whether the read stopped at the page cap, for the cut note
+// (forsgren#140).
+func (o Options) bugFlags(ctx context.Context, repo string) ([]history.IssueBug, bool, error) {
 	issues, stored, cut, err := o.readBugs(ctx, repo)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	listed := make(map[int64]bool, len(issues))
 	flags := make([]history.IssueBug, 0, len(issues))
@@ -41,9 +44,24 @@ func (o Options) bugFlags(ctx context.Context, repo string) ([]history.IssueBug,
 	if cut {
 		o.warn("collect: %s: the bug read stopped at %d page(s) of issues; "+
 			"the stored bug flags are kept\n", repo, github.FullReadMaxPages)
-		return flags, nil
+		return flags, true, nil
 	}
-	return append(flags, lostLabel(stored, repo, listed)...), nil
+	return append(flags, lostLabel(stored, repo, listed)...), false, nil
+}
+
+// BugsCutFile is the name, next to the history, of the file that notes which
+// repositories' bug reads stopped at the page cap (forsgren#140).
+const BugsCutFile = "issue_bugs_cut.csv"
+
+// bugsCutFile is the path of the bugs cut file next to o's history.
+func (o Options) bugsCutFile() string { return filepath.Join(filepath.Dir(o.History), BugsCutFile) }
+
+// noteBugsCut notes that repo's bug read stopped at the page cap at at, whole
+// seconds, UTC, when cut says it did.
+func (h held) noteBugsCut(repo string, cut bool, at time.Time) {
+	if cut {
+		h.cut[strings.ToLower(repo)] = wholeSecond(at)
+	}
 }
 
 // lostLabel is the issues of repo that stored says are bugs and listed, the

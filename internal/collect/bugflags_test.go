@@ -164,3 +164,25 @@ func writeFileAt(t *testing.T, path, content string) {
 		t.Fatal(err)
 	}
 }
+
+// bugsCutFileBeside is data/issue_bugs_cut.csv next to the history at path.
+func bugsCutFileBeside(path string) string {
+	return filepath.Join(filepath.Dir(path), "issue_bugs_cut.csv")
+}
+
+// TestACutListOfBugIssuesIsNotedPerRepository (forsgren#140): when the read
+// of the issues labelled bug stopped at its page cap, the repository is
+// written to data/issue_bugs_cut.csv with the run's time, so the page can say
+// its Open bugs are incomplete.
+func TestACutListOfBugIssuesIsNotedPerRepository(t *testing.T) {
+	g := newGitHub(t)
+	path, _ := listFourOverStoredThreeAndFour(t, g)
+	g.paged[bugIssuesPath] = true
+	if r := g.collect(t, shop(production), path, 1); r.err != nil {
+		t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
+	}
+	got, err := history.LoadBugsCut(bugsCutFileBeside(path))
+	if err != nil || len(got) != 1 || got["acme/app"].IsZero() {
+		t.Errorf("want acme/app noted as cut, got %v, %v", got, err)
+	}
+}

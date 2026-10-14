@@ -166,6 +166,7 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	h.noteReach(r.Name, f.reach)
 	h.noteRead(r.Name, o.Now)
 	h.noteFull(r.Name, o.Now)
+	h.noteBugsCut(r.Name, lines.bugsCut, o.Now)
 	o.report(r.Name, f, stored)
 	return nil
 }
@@ -176,6 +177,8 @@ type issueLines struct {
 	failures []history.Failure
 	events   []history.IssueEvent
 	bugs     []history.IssueBug
+	// bugsCut is whether the bug read stopped at the page cap (forsgren#140).
+	bugsCut bool
 }
 
 // readIssues reads repo's failure issues, the events of its issues and their
@@ -189,7 +192,7 @@ func (o Options) readIssues(ctx context.Context, h held, repo string) (issueLine
 	if l.events, err = o.issueEvents(ctx, h, repo); err != nil {
 		return l, err
 	}
-	l.bugs, err = o.bugFlags(ctx, repo)
+	l.bugs, l.bugsCut, err = o.bugFlags(ctx, repo)
 	return l, err
 }
 
@@ -443,6 +446,7 @@ type held struct {
 	reach      history.Reach // see chunk.go
 	read       history.Reach // see failuresread.go
 	full       history.Reach // see issueevents.go
+	cut        history.Reach // see bugflags.go
 	partial    map[string]bool
 }
 
