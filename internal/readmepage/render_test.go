@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	site "github.com/yveshanoulle/forsgren/internal/page"
 )
 
 const fixtureBase = "https://github.com/acme/widget/blob/main/"
@@ -119,5 +121,28 @@ func TestRenderEscapesAndLeavesUnclosedMarkersAlone(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("the page lacks %q:\n%s", want, got)
 		}
+	}
+}
+
+// TestStarterPageIsSeventyTwoRemWideWhileTheMetricsPagesKeepTheirCap
+// (forsgren#153, step 2; decision #160): forsgren.be is 150% of the 48rem it
+// had, 72rem, through a class on its body that the shared stylesheet styles,
+// while the plain body rule (the metrics pages) keeps its own, wider cap.
+func TestStarterPageIsSeventyTwoRemWideWhileTheMetricsPagesKeepTheirCap(t *testing.T) {
+	got, err := Render(fixtureReadme, fixtureBase)
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if !strings.Contains(got, `<body class="starter">`) {
+		t.Errorf("want the starter page's body to carry class starter, got:\n%s", got)
+	}
+	css := string(site.Styles())
+	rule := regexp.MustCompile(`(?s)(?:^|\n)body\.starter\s*\{[^}]*max-width:\s*72rem;`)
+	if !rule.MatchString(css) {
+		t.Errorf("want a body.starter rule with max-width: 72rem in styles.css, got:\n%s", css)
+	}
+	plain := regexp.MustCompile(`(?s)(?:^|\n)body\s*\{[^}]*max-width:\s*120rem;`)
+	if !plain.MatchString(css) {
+		t.Errorf("want the plain body rule to keep max-width: 120rem, got:\n%s", css)
 	}
 }

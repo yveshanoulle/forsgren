@@ -46,7 +46,7 @@ func page(title, body string) string {
 	return "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n" +
 		"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n" +
 		"<title>" + html.EscapeString(title) + "</title>\n" +
-		"<link rel=\"stylesheet\" href=\"styles.css\">\n</head>\n<body>\n<main>\n" +
+		"<link rel=\"stylesheet\" href=\"styles.css\">\n</head>\n<body class=\"starter\">\n<main>\n" +
 		body + "\n</main>\n</body>\n</html>\n"
 }
 

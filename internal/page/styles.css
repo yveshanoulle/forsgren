@@ -10,6 +10,12 @@ body {
   line-height: 1.5;
 }
 
+/* The starter page (forsgren.be, forsgren#153, decision #160) is 150% of the
+   48rem it had; the metrics pages keep the body's wider cap. */
+body.starter {
+  max-width: 72rem;
+}
+
 /* The table of the five metrics (forsgren#38) scrolls inside its own box on
    a narrow screen, so the page itself never scrolls sideways. */
 .table-scroll {
