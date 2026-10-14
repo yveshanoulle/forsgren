@@ -57,7 +57,7 @@ type Decision struct {
 
 // pinLine is a pin of forsgren's reusable workflow as a diff line shows it:
 // the sign, the uses key, the workflow file, a 40-hex sha and the version
-// comment (forsgren.yml of an installation, README, Running forsgren).
+// comment (forsgren.yml of an installation, docs/configuration.md, Running forsgren).
 var pinLine = regexp.MustCompile(
 	`^([-+])\s*uses: yveshanoulle/forsgren/\.github/workflows/([^@\s]+)@([0-9a-f]{40}) # (\S+)$`)
 

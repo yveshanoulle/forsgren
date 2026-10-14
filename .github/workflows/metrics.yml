@@ -21,7 +21,7 @@
 # forsgren's: forsgren arrives as a Go module through go install, verified
 # against the Go checksum database, never as this repository's working tree.
 #
-# THE CALLER (see README, Running forsgren) pins this file with ONE line, by
+# THE CALLER (see docs/configuration.md, Running forsgren) pins this file with ONE line, by
 # commit, the release named in its comment:
 #   uses: yveshanoulle/forsgren/.github/workflows/metrics.yml@<commit> # vX.Y.Z
 # That line is the only version (ruling on forsgren#4, 2026-10-02): the
