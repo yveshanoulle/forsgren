@@ -289,6 +289,19 @@ The POST gates, on the generated site:
   `Scripts/test_build_starter_page.sh`, with a mutation proof for the
   `CNAME` line; `STARTER_README` points the script at another file so the
   self-test can feed it a README the renderer refuses.
+- **starter page links** (`Scripts/check_starter_links.sh`, forsgren's own,
+  forsgren#132, decision forsgren#149): every `href` and `src` of the page in
+  `.build/starter` is an `#anchor` or an https link into
+  `github.com/yveshanoulle/forsgren`, `github.com/yveshanoulle/forsgren-template`
+  or `forsgren.forsgren.be`, and nothing else. The names end where they end:
+  `forsgren-templates` and `forsgren.forsgren.be.example.org` are findings,
+  as are an http link, a relative link and a `src` off the list. It is a new
+  check, not an exemption of **repository links**, which keeps its rule for
+  the metrics site. The FAIL line names `file:line` and the host, never the
+  link, so a private repository path cannot reach an sfl or CI summary. Red
+  on a directory with no page (a scan over nothing). Its self-test is
+  `Scripts/test_check_starter_links.sh`, with a mutation proof that the
+  allowlist is what turns a foreign link red.
 - **Stylelint** (`Scripts/gate_stylelint.sh`): every `.css` file under
   `.stylelintrc.json` (stylelint-config-standard plus another estate repository's
   overrides). Red on a finding, and on a glob that matches no file.
