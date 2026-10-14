@@ -7,7 +7,6 @@ in the same commit — see
 
 ## Open
 
-- Settings to hide the Issues page (default shown) and the daily page (default hidden), also from the menu — [#159](https://github.com/yveshanoulle/forsgren/issues/159)
 - agent-upgrade.md: a file an AI agent follows to upgrade an existing installation — [#166](https://github.com/yveshanoulle/forsgren/issues/166)
 - Starter page renderer: name the line of unsupported Markdown, and pin a quote in a link target — [#158](https://github.com/yveshanoulle/forsgren/issues/158)
 - The legend page explains patch, minor and major — [#156](https://github.com/yveshanoulle/forsgren/issues/156)
