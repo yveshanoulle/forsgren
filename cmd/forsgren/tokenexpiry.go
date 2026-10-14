@@ -98,22 +98,42 @@ func (s setupReport) withKeptToken(
 	return missing, nil
 }
 
-// writeTokenExpiry writes the expiry date client's token has to path, one
-// UTC RFC 3339 line, or removes path when the client knows none (a token
-// without an expiry date, or the job's own). No path is nothing to do
-// (forsgren#177).
-func writeTokenExpiry(path string, client *github.Client) error {
+// removeTokenExpiry removes the expiry file of an earlier run at path, the
+// first thing collect does: whatever then fails leaves no file, which
+// check-needs reads as unknown, never as an old run's date. No path, or no
+// file, is nothing to do; a file that cannot be removed is an error.
+func removeTokenExpiry(path string) error {
 	if path == "" {
 		return nil
 	}
+	if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return nil
+}
+
+// writeTokenExpiry writes the expiry date client's token has to path, one
+// UTC RFC 3339 line, whole or not at all: it is written to path+".tmp" and
+// renamed over path, and the temporary file is removed when that fails. A
+// token without an expiry date (or the job's own) leaves no file; the file of
+// an earlier run was removed at the start (removeTokenExpiry). The date of
+// this run's own answers is written even when a repository failed after the
+// token answered: it is this run's observation, not an old one. No path is
+// nothing to do (forsgren#177).
+func writeTokenExpiry(path string, client *github.Client) error {
 	at, known := client.TokenExpiry()
-	if !known {
-		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
+	if path == "" || !known {
 		return nil
 	}
-	return os.WriteFile(path, []byte(at.UTC().Format(time.RFC3339)+"\n"), 0o600)
+	temp := path + ".tmp"
+	err := os.WriteFile(temp, []byte(at.UTC().Format(time.RFC3339)+"\n"), 0o600)
+	if err == nil {
+		err = os.Rename(temp, path)
+	}
+	if err != nil {
+		_ = os.Remove(temp)
+	}
+	return err
 }
 
 // warnTokenExpiry says on stderr that the token expires on its date, and how

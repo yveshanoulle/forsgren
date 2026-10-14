@@ -497,9 +497,12 @@ private repositories (no scope for public ones).
 **The token's expiry date** (forsgren#177). GitHub names a token's expiry
 date in every answer. With `--token-expiry <path>`, `collect` writes that
 date to the file, as one UTC RFC 3339 line such as `2027-01-12T08:35:47Z`.
-`check-needs` and `render` read it from there. A token without an expiry
-date removes the file. A file that cannot be written or removed fails the
-run. From 14 days before the date, and once it has passed, `collect` also
+`check-needs` reads it from there. `collect` removes the file of an earlier
+run before anything else, so a run that fails (no token, a refused token, a
+bad config) leaves none and `check-needs` sees an unknown date, never an old
+one; a token without an expiry date leaves none either. The file is written
+whole (beside it, then renamed over it). A file that cannot be written or
+removed fails the run. From 14 days before the date, and once it has passed, `collect` also
 warns on stderr: a `collect: warning:` line that names the date and the
 command `gh secret set FORSGREN_TOKEN -R <owner/name>` to set a new token.
 The warning never changes the exit code.

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/yveshanoulle/forsgren/internal/github"
 )
 
 // expiryFile is the file --token-expiry names, in a fresh directory.
@@ -146,5 +148,100 @@ func TestCollectNotesAnUnreadableExpiryHeaderOnce(t *testing.T) {
 	}
 	if _, err := os.Stat(file); !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("want no expiry file, got %v", err)
+	}
+}
+
+// staleExpiry writes an expiry line from an earlier run and returns its path.
+func staleExpiry(t *testing.T) string {
+	t.Helper()
+	file := expiryFile(t)
+	if err := os.WriteFile(file, []byte("2026-10-10T08:35:47Z\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return file
+}
+
+// TestAFailedCollectLeavesNoTokenExpiryFile (forsgren#177): the file is
+// removed before anything else, so a collect that fails early (no token, an
+// unreadable config) or whose requests are refused leaves none: check-needs
+// then reads unknown, never an old run's date.
+func TestAFailedCollectLeavesNoTokenExpiryFile(t *testing.T) {
+	cases := map[string]func(t *testing.T) []string{
+		"no token": func(t *testing.T) []string {
+			t.Setenv("FORSGREN_TOKEN", "")
+			return nil
+		},
+		"unreadable config": func(t *testing.T) []string {
+			t.Setenv("FORSGREN_TOKEN", testToken)
+			return []string{"--config", "no-such-config.yml", "--data", dataPath(t)}
+		},
+		"token refused": func(t *testing.T) []string {
+			t.Setenv("FORSGREN_TOKEN", testToken)
+			fakeAPI(t, acmeApp, http.StatusUnauthorized)
+			return nil
+		},
+	}
+	for name, setup := range cases {
+		t.Run(name, func(t *testing.T) {
+			file := staleExpiry(t)
+			args := setup(t)
+			if args == nil {
+				args = []string{"--config", writeConfig(t, oneRepository), "--data", dataPath(t)}
+			}
+			got := collectRun(append(args, "--token-expiry", file)...)
+			if _, err := os.Stat(file); got.code != 1 || !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("want exit 1 and no file, got %+v and %v", got, err)
+			}
+		})
+	}
+}
+
+// clientWithExpiry is the installation's client after one answer that named
+// the expiry 2027-01-12 08:35:47 UTC.
+func clientWithExpiry(t *testing.T) *github.Client {
+	t.Helper()
+	t.Setenv("FORSGREN_TOKEN", testToken)
+	fakeAPIWithHeader(t, map[string]string{"/repos/acme/app": `{"default_branch":"main"}`}, 0,
+		expiryHeader("2027-01-12 08:35:47 UTC"))
+	client, err := githubClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.DefaultBranch(t.Context(), "acme/app"); err != nil {
+		t.Fatal(err)
+	}
+	return client
+}
+
+// TestTheTokenExpiryFileIsWrittenWhole (forsgren#177): the line is written
+// beside the file and renamed over it: what is seen is the whole line, and no
+// temporary file stays behind.
+func TestTheTokenExpiryFileIsWrittenWhole(t *testing.T) {
+	client := clientWithExpiry(t)
+	file := expiryFile(t)
+	if err := writeTokenExpiry(file, client); err != nil {
+		t.Fatal(err)
+	}
+	if content, err := os.ReadFile(filepath.Clean(file)); err != nil || string(content) != "2027-01-12T08:35:47Z\n" {
+		t.Errorf("want the expiry line, got %q (%v)", content, err)
+	}
+	if _, err := os.Stat(file + ".tmp"); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("want no temporary file after the write, got %v", err)
+	}
+}
+
+// TestAFailedRenameLeavesNoTemporaryFile (forsgren#177): when the line cannot
+// be renamed over the path (it is a directory with something in it), the
+// error is returned, no temporary file stays behind and the path is as it was.
+func TestAFailedRenameLeavesNoTemporaryFile(t *testing.T) {
+	dir := nonEmptyDir(t)
+	if err := writeTokenExpiry(dir, clientWithExpiry(t)); err == nil {
+		t.Error("want an error for a path that is a directory")
+	}
+	if _, err := os.Stat(dir + ".tmp"); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("want no temporary file after the failed rename, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "x")); err != nil {
+		t.Errorf("want the directory as it was, got %v", err)
 	}
 }

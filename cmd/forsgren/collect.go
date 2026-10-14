@@ -31,12 +31,14 @@ var errNoToken = errors.New("FORSGREN_TOKEN is not set: " +
 // on stdout, exit 0; exit 1 when the config, the token, the history or any
 // repository failed (after every repository was tried), 2 on a usage error.
 // With no repository configured it does nothing, and needs no token.
+// The --token-expiry file of an earlier run is removed before anything else,
+// so a run that fails leaves none.
 func collectDeployments(args []string, stdout, stderr io.Writer) int {
 	opts, ok := collectFlags(stderr, args)
 	if !ok {
 		return 2
 	}
-	cfg, err := config.Load(opts.config)
+	cfg, err := loadForCollect(opts)
 	if err != nil {
 		return failed(stderr, "collect", err)
 	}
@@ -52,6 +54,15 @@ func collectDeployments(args []string, stdout, stderr io.Writer) int {
 		return failed(stderr, "collect", err)
 	}
 	return 0
+}
+
+// loadForCollect removes the expiry file of an earlier run (removeTokenExpiry),
+// before anything can fail, then loads the config.
+func loadForCollect(opts collectOptions) (config.Config, error) {
+	if err := removeTokenExpiry(opts.tokenExpiry); err != nil {
+		return config.Config{}, err
+	}
+	return config.Load(opts.config)
 }
 
 // collectAndNoteExpiry runs collect, then writes the token's expiry to
@@ -83,7 +94,7 @@ func collectFlags(stderr io.Writer, args []string) (collectOptions, bool) {
 	flags.StringVar(&o.data, "data", "",
 		"the history to append to, data/deployments.csv; commits.csv, failures.csv beside it, <path>")
 	flags.StringVar(&o.tokenExpiry, "token-expiry", "",
-		"a file to write the token's expiry date to, one UTC RFC 3339 line; removed when the token has none (optional)")
+		"a file to write the token's expiry date to, one UTC RFC 3339 line; a failed run leaves none (optional)")
 	if err := flags.Parse(args); err != nil {
 		return o, false
 	}
