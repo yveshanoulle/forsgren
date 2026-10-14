@@ -226,3 +226,45 @@ func TestUpgraderStep9StartsARunAndChecksThePublishedPage(t *testing.T) {
 		"HTTPS",
 		"gh issue list -R OWNER/REPO -l forsgren-setup")
 }
+
+// TestUpgraderEndsWithTheReportCleanupLaterAndGoingBack (forsgren#166, step
+// 166-10): step 10 tells the person what changed in one message and removes
+// WORK after leaving it (every `rm -r WORK` directly follows `cd WORK/..`);
+// Later says what the next release does for the person's auto-update choice
+// and that the file can be run again; Going back, which step 9 points to,
+// undoes the upgrade with a new commit, never forced, and names what it
+// undoes, with its own go.
+func TestUpgraderEndsWithTheReportCleanupLaterAndGoingBack(t *testing.T) {
+	doc := readRepoFile(t, upgraderFile)
+	wantAll(t, "step 10", asOneLine(section(t, doc, "Step 10.")),
+		"in one message", "the page address", "`VERSION` to `LATEST`")
+	wantAll(t, "Later", asOneLine(section(t, doc, "Later")),
+		"04:00 UTC", "auto_update_level", "run again", "agent-installer.md")
+	back := asOneLine(section(t, doc, "Going back"))
+	wantAll(t, "Going back", back,
+		"a new commit", "route 6b", "BEFORE", "unknown key", "Reply \"go: restore", "no `Co-Authored-By`")
+	if strings.Contains(back, "force=true") || strings.Contains(back, "--force") {
+		t.Error("Going back forces a push")
+	}
+	everyWorkRemovalLeavesTheFolderFirst(t, doc)
+}
+
+// everyWorkRemovalLeavesTheFolderFirst fails unless each `rm -r WORK` of doc
+// directly follows `cd WORK/..`, and there is at least one.
+func everyWorkRemovalLeavesTheFolderFirst(t *testing.T, doc string) {
+	t.Helper()
+	lines := strings.Split(doc, "\n")
+	found := 0
+	for i, l := range lines {
+		if !strings.Contains(l, "rm -r WORK") {
+			continue
+		}
+		found++
+		if i == 0 || strings.TrimSpace(lines[i-1]) != "cd WORK/.." {
+			t.Errorf("line %d is not directly preceded by `cd WORK/..`", i+1)
+		}
+	}
+	if found == 0 {
+		t.Error("no `rm -r WORK` found")
+	}
+}

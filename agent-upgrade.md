@@ -92,7 +92,9 @@ request.
   commit message you write.
 - Never change the person's data: not `data/`, and not `forsgren.config.yml`
   beyond the keys the person chose in step 5.
-- Never lower a pin: you only move it to a newer release.
+- Never lower a pin: you only move it to a newer release. The one exception
+  is Going back, which the person asks for and confirms with its own
+  go-sentence.
 - Never delete anything, except the work folder `WORK` this file creates.
 - Never install tools. When a tool is missing, stop and tell the person.
 - Never change the person's git or gh configuration. When a step needs it,
@@ -766,3 +768,76 @@ Numbers such as "No deployments" are not a failure: they show what GitHub
 holds for the history.
 
 Then go on to step 10.
+
+## Step 10. Tell the person it is done
+
+Tell them, in one message:
+
+- what changed: the installation `OWNER/REPO` went from `VERSION` to
+  `LATEST` (or: it was already at `LATEST`), the commits you made (each with
+  its short sha and what it changed) or the pull request you merged, and the
+  settings that changed with their old and new values;
+- what they can check themselves: the page address (`REPORT`), whose footer
+  names `LATEST` without its `v`, and its settings page (`REPORTsettings.html`);
+- what their auto-update choice means now: with `auto_update: true`, the next
+  release within `auto_update_level` merges by itself (see Later); with
+  `auto_update: false`, or beyond the level, Dependabot's pull request waits
+  for them to merge it;
+- that `agent-upgrade.md` can be run again for the next release, and that
+  Going back undoes this upgrade.
+
+Then leave the work folder and remove it, so you do not delete the folder
+you are working in:
+
+```
+cd WORK/..
+rm -r WORK
+```
+
+## Later: the next release
+
+Nothing runs by itself at once. When the next forsgren release after `LATEST`
+is out, Dependabot checks every day at 04:00 UTC and proposes it once it is as
+old as the update wait (`default-days`, 3 by default). With `auto_update:
+true` the pull request merges by itself when the step is within
+`auto_update_level` (patch, minor or major), and `forsgren.yml` runs at once;
+otherwise it waits for a person. The section "Later: the first auto-update"
+of [agent-installer.md](agent-installer.md) lists the commands that check that
+chain. An installation that kept its pins by hand, or whose level kept a
+release waiting, is brought up to date by running this file again from the
+top: run again whenever the page's footer says a newer release is available.
+
+## Going back
+
+Use this only when the person asks to undo the upgrade, for example after a
+failed run in step 9. It undoes the files the upgrade changed, and nothing
+else: the history `data/` the daily runs added since stays as it is. Never
+force a branch back and never rewrite history; going back is a new commit.
+
+1. What was changed: the commits of this upgrade are the ones you made in
+   steps 6, 7 and 8 (or the merge of step 6, route 6a). `BEFORE` is the head
+   of the branch just before the first of them:
+   `gh api repos/OWNER/REPO/commits/FIRSTCOMMIT --jq .parents[0].sha`
+   (with `FIRSTCOMMIT` the oldest of the upgrade's commits). The files to
+   restore are those the upgrade's commits list: the two caller files, and
+   `.github/dependabot.yml` and `forsgren.config.yml` when steps 7 and 8
+   changed them. Restore `forsgren.config.yml` too whenever it gained a key:
+   the older forsgren stops on an unknown key, and the run would fail again.
+2. Ask the person, naming the files and the versions:
+
+   > Reply "go: restore the files of OWNER/REPO to BEFORE, which moves
+   > the pins from LATEST back to VERSION" to let me commit it.
+
+   A bare "go": show the sentence again and wait.
+3. Read each file at `BEFORE` and commit it as route 6b of step 6 does, in
+   one commit: items 1 and 4 to 7, with the contents read with
+   `?ref=BEFORE` as the source (not `WORK/new/`), the message
+   `forsgren: go back from LATEST to VERSION`, no `Co-Authored-By` and no
+   other trailer, and the branch moved without force. A branch that moved:
+   stop and report.
+4. The read back as in step 6: the head is the new commit, each restored file
+   equals its content at `BEFORE`, and both pins read the `VERSION` commit.
+   Then run step 9's items 1 to 5 once, to see the older version publish.
+
+A pull request of Dependabot that the upgrade merged is not reopened; the
+next daily check proposes the release again when the person wants it.
