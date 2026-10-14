@@ -60,16 +60,18 @@ func checkNeedsFlags(args []string, stderr io.Writer) (checkNeedsOptions, bool) 
 		requiredValue{"config", "<path>", o.config}, requiredValue{"repository", "<owner/name>", o.repository})
 }
 
-// reportNeeds finds the needs missing from the checkout, prints their steps,
-// writes the setup issue and returns how that went: failed, with a note on
-// stderr, when the running version's needs cannot be read or the client
-// cannot be made.
+// reportNeeds finds the needs missing from the checkout, with the token's
+// renewal item when the expiry date collect wrote is near (renewalNeed),
+// prints their steps, writes the setup issue and returns how that went:
+// failed, with a note on stderr, when the running version's needs cannot be
+// read or the client cannot be made.
 func reportNeeds(o checkNeedsOptions, stdout, stderr io.Writer) string {
 	missing, err := missingNeeds("check-needs", o.config, stderr)
 	if err != nil {
 		return noteFailed(stderr, err)
 	}
-	if n, near := tokenExpiryNeed(o.tokenExpiry, now()); near {
+	expiry, known := readTokenExpiry(o.tokenExpiry)
+	if n, near := renewalNeed(expiry, now()); known && near {
 		missing = append(missing, n)
 	}
 	for _, n := range missing {
@@ -79,15 +81,18 @@ func reportNeeds(o checkNeedsOptions, stdout, stderr io.Writer) string {
 	if err != nil {
 		return noteFailed(stderr, err)
 	}
-	return writeSetup(o, setupReport{issues: client, repo: o.repository, version: version}, missing, stderr)
+	return writeSetup(setupReport{issues: client, repo: o.repository, version: version}, missing, known, stderr)
 }
 
 // writeSetup writes the setup issue for the missing needs, with the renewal
-// item the open issue already carries when the token's expiry is unknown
+// item the open issue already carries when the token's expiry is not known
 // (withKeptToken), and returns how that went (writeOutcome).
-func writeSetup(o checkNeedsOptions, s setupReport, missing []needs.Need, stderr io.Writer) string {
+func writeSetup(s setupReport, missing []needs.Need, expiryKnown bool, stderr io.Writer) string {
 	ctx := context.Background()
-	missing, err := s.withKeptToken(ctx, missing, o.tokenExpiry, now())
+	var err error
+	if !expiryKnown {
+		missing, err = s.withKeptToken(ctx, missing, now())
+	}
 	if err == nil {
 		err = s.report(ctx, missing)
 	}

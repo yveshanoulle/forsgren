@@ -507,7 +507,8 @@ in:
 >    calendar: when it passes, the daily run fails until you make a new
 >    token and set it again (step 3 below). forsgren reminds you as well:
 >    from 14 days before the date the log warns and the
->    setup issue lists the token.
+>    setup issue lists the token, but only while GitHub still accepts the
+>    token: a token revoked or deleted early gives no warning.
 > 4. **Resource owner:** the owner of the private repositories to measure.
 >    If that is an organisation that reviews tokens, the token reads only
 >    public repositories until an organisation owner approves it.

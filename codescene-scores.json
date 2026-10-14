@@ -857,7 +857,7 @@
   {
    "path": "internal/needs/issue.go",
    "score": 10.0,
-   "checkedAt": "2026-10-07",
+   "checkedAt": "2026-10-15",
    "minScore": 10.0
   },
   {
@@ -1174,6 +1174,12 @@
   },
   {
    "path": "cmd/forsgren/tokenexpiry.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-15",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/tokenrenewal.go",
    "score": 10.0,
    "checkedAt": "2026-10-15",
    "minScore": 10.0

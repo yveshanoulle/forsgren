@@ -24,12 +24,25 @@ flags are valid, whatever the check or the write did; 2 is a usage error. The
 workflow passes the status on as `render --needs-check` and
 `run-summary --needs-check`.
 
-`--token-expiry` is the file that `collect --token-expiry` wrote (forsgren#177).
-When `FORSGREN_TOKEN` expires within 14 days, or has expired, the setup
-issue gets one more item: the date, and the `gh secret set FORSGREN_TOKEN`
-command to set a new token. A file that is missing or holds no date adds
-nothing. Once a new token is set, the item is gone, and with nothing else
-missing the issue closes.
+`--token-expiry` is the file that `collect --token-expiry` wrote (forsgren#177):
+the expiry date GitHub named in its answers to `FORSGREN_TOKEN`, and only to
+that token. A run knows one of three things:
+
+- **The token expires within 14 days, or has expired.** The setup issue gets
+  one more item: the date, and the `gh secret set FORSGREN_TOKEN` command to
+  set a new token.
+- **The token expires later than that.** The item is gone, and with nothing
+  else missing the issue closes. So once a new token is set, the next run
+  that sees its date removes the item.
+- **The date is unknown**: no file, or one that holds no date (collect failed,
+  GitHub refused the token, or its answers named no valid date). An item the
+  open issue already carries stays, with its date; no item is ever added. An
+  unknown date never adds the item and never removes it.
+
+The warning works only while GitHub still accepts the token and sends a valid
+expiry date with its answers: it is not a promise of 14 days' notice. A token
+that is revoked or deleted before its date gives no warning; the first sign
+is then the failed run.
 
 - **One setup issue per installation, not per version.** It carries the label
   `forsgren-setup`, but its identity is a hidden marker, an HTML comment on the

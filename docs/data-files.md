@@ -495,7 +495,10 @@ in every fine-grained token. A classic token needs `repo` for
 private repositories (no scope for public ones).
 
 **The token's expiry date** (forsgren#177). GitHub names a token's expiry
-date in every answer. With `--token-expiry <path>`, `collect` writes that
+date in every answer. Only the answers to `FORSGREN_TOKEN` count. An answer
+without the date keeps the one an earlier answer of the run named, and a
+date forsgren cannot read is ignored, with one `collect: note:` line on
+stderr per run. With `--token-expiry <path>`, `collect` writes that
 date to the file, as one UTC RFC 3339 line such as `2027-01-12T08:35:47Z`.
 `check-needs` reads it from there. `collect` removes the file of an earlier
 run before anything else, so a run that fails (no token, a refused token, a

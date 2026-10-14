@@ -34,8 +34,8 @@ func Body(version string, missing []Need) string {
 	return b.String()
 }
 
-// tokenExpiryMark finds the token expiry mark in a setup issue's body.
-var tokenExpiryMark = regexp.MustCompile(`<!-- forsgren:token_expiry (\S+) -->`)
+// tokenExpiryMarkPattern finds the token expiry mark in a setup issue's body.
+var tokenExpiryMarkPattern = regexp.MustCompile(`<!-- forsgren:token_expiry (\S+) -->`)
 
 // TokenExpiryMark is the hidden HTML comment the token renewal item carries
 // in the setup issue's body, naming the expiry date it was written for
@@ -48,7 +48,7 @@ func TokenExpiryMark(expiry time.Time) string {
 // TokenExpiryIn is the expiry date the first token expiry mark in body
 // names, and whether body has one that names a date.
 func TokenExpiryIn(body string) (time.Time, bool) {
-	m := tokenExpiryMark.FindStringSubmatch(body)
+	m := tokenExpiryMarkPattern.FindStringSubmatch(body)
 	if m == nil {
 		return time.Time{}, false
 	}

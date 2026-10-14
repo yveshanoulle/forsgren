@@ -384,7 +384,11 @@ jobs:
   the collect step gets it, in its environment. Give the token an expiry
   date less than a year away. From 14 days before that date the log warns and
   the setup issue lists the token (see [The setup
-  issue](updating-and-releases.md), forsgren#177).
+  issue](updating-and-releases.md), forsgren#177). That warning works only
+  while GitHub still accepts the token and sends a valid expiry date with its
+  answers: it is not a promise of 14 days' notice. A token that is revoked or
+  deleted before its date gives no warning; the first sign is then the
+  failed run.
 - **The daily run collects and commits the history.** After the check,
   `forsgren collect --config forsgren.config.yml --data
   data/deployments.csv` appends the new final deployments, and their

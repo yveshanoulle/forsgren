@@ -2,19 +2,20 @@ package main
 
 import (
 	"cmp"
-	"context"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/github"
-	"github.com/yveshanoulle/forsgren/internal/needs"
 )
+
+// The token expiry warning (forsgren#177), collect's side: the message, the
+// --token-expiry file collect clears and writes, and the run log's warning
+// and note. check-needs' side, the setup issue's renewal item, is in
+// tokenrenewal.go.
 
 // expiryWarningDays is how many days before its expiry date the token starts
 // to be warned about (forsgren#177).
@@ -37,65 +38,6 @@ func tokenExpiryMessage(expiry, at time.Time) (string, bool) {
 	repo := cmp.Or(os.Getenv("GITHUB_REPOSITORY"), "this installation's repository")
 	return "FORSGREN_TOKEN " + when + ". Make a new fine-grained token and set it " +
 		"with `gh secret set FORSGREN_TOKEN -R " + repo + "` in a separate terminal.", true
-}
-
-// readTokenExpiry is the expiry date in the file at path, which collect
-// --token-expiry wrote: one RFC 3339 line. It says false for no path, a
-// file that is missing or unreadable and one that holds no such date; the
-// one reader of that file (forsgren#177).
-func readTokenExpiry(path string) (time.Time, bool) {
-	if path == "" {
-		return time.Time{}, false
-	}
-	raw, err := os.ReadFile(filepath.Clean(path))
-	if err != nil {
-		return time.Time{}, false
-	}
-	expiry, err := time.Parse(time.RFC3339, strings.TrimSpace(string(raw)))
-	return expiry, err == nil
-}
-
-// tokenExpiryNeed is the setup issue's item for the token whose expiry date
-// collect wrote to path (--token-expiry), and whether there is one: not when
-// readTokenExpiry finds no date, or the date is further away than
-// expiryWarningDays from at. Then nothing is missing and the setup issue
-// closes again (forsgren#177).
-func tokenExpiryNeed(path string, at time.Time) (needs.Need, bool) {
-	expiry, known := readTokenExpiry(path)
-	if !known {
-		return needs.Need{}, false
-	}
-	message, near := tokenExpiryMessage(expiry, at)
-	return tokenNeed(expiry, message), near
-}
-
-// tokenNeed is the setup issue's renewal item with text message, marked with
-// the expiry date it is about.
-func tokenNeed(expiry time.Time, message string) needs.Need {
-	return needs.Need{Kind: "token_expiry", Steps: message, Hidden: needs.TokenExpiryMark(expiry)}
-}
-
-// withKeptToken is missing, plus the renewal item the OPEN setup issue
-// already carries (by its mark, with the date it names) when the run does not
-// know the token's expiry: no readable date in the file at path. The issue is
-// then neither closed nor given up on, and an issue that carries no item, a
-// closed one or none gets nothing added. A date that is known, near or far,
-// is tokenExpiryNeed's to say. A collect that failed leaves no file, so it is
-// unknown too (forsgren#177).
-func (s setupReport) withKeptToken(
-	ctx context.Context, missing []needs.Need, path string, at time.Time,
-) ([]needs.Need, error) {
-	if _, known := readTokenExpiry(path); known {
-		return missing, nil
-	}
-	found, ok, err := s.issues.FindIssueByMarker(ctx, s.repo, setupLabel, needs.Marker)
-	if err != nil || !ok || found.State != "open" {
-		return missing, err
-	}
-	if kept, carries := keptTokenNeed(found.Body, at); carries {
-		missing = append(missing, kept)
-	}
-	return missing, nil
 }
 
 // removeTokenExpiry removes the expiry file of an earlier run at path, the
@@ -159,13 +101,4 @@ func noteUnreadableExpiry(stderr io.Writer, client *github.Client) {
 	}
 	_, _ = fmt.Fprintf(stderr, "collect: note: GitHub sent an expiry header forsgren cannot read: %q\n",
 		value[:min(len(value), 64)])
-}
-
-// keptTokenNeed is the renewal item the setup issue body carries, rebuilt
-// from the date of its mark at at, and whether it carries one that is still
-// near (the clock only moves on, so a marked item is).
-func keptTokenNeed(body string, at time.Time) (needs.Need, bool) {
-	expiry, marked := needs.TokenExpiryIn(body)
-	message, near := tokenExpiryMessage(expiry, at)
-	return tokenNeed(expiry, message), marked && near
 }
