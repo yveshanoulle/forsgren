@@ -65,6 +65,11 @@ Create it from the template and follow the template's own README, or point an AI
 coding agent at [agent-installer.md](agent-installer.md): it asks what only you
 can decide and creates your data repository from the template step by step.
 Each new forsgren release then arrives as a Dependabot pull request.
+For an existing installation that is behind the latest release, or has
+automatic updates switched off, point a coding agent at
+[agent-upgrade.md](agent-upgrade.md): you give it the address of your current
+report, and it finds the rest, reads what each release asks of you, and asks
+only what is yours to decide.
 
 ## Configuration
 

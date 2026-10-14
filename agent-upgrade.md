@@ -1,7 +1,5 @@
 # Upgrading forsgren: instructions for an AI coding agent
 
-Work in progress (forsgren#166): not ready to follow yet.
-
 You are an AI coding agent. A person pointed you at this file because they
 already have a forsgren installation (a GitHub repository of their own, the
 **data repository**, that publishes the DORA metrics of their repositories as

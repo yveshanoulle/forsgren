@@ -863,7 +863,9 @@ rm -r WORK
 
 This is checked once the next forsgren release after `VERSION` is out, not in
 the install session. The template's Dependabot checks every day at 04:00 UTC
-and proposes a release once it is 3 days old.
+and proposes a release once it is 3 days old. An installation that is behind
+(a release that waited for a person, or `auto_update: false`) is brought up to
+date with [agent-upgrade.md](agent-upgrade.md), not with this file.
 
 1. A newer release exists:
    `gh release list -R yveshanoulle/forsgren -L 1`

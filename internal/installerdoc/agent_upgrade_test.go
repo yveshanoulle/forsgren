@@ -25,17 +25,21 @@ func wantAll(t *testing.T, where, text string, wants ...string) {
 // the login's repo and workflow scopes, asks the person for one thing, the
 // address of their current report, reads that report's footer and
 // settings.html, and falls back to forsgren.config.yml when the settings
-// page is missing. Until 166-11 the file says it is a work in progress and
-// README.md does not link it (166-11 removes the line and adds the link).
+// page is missing. Since 166-11 the file no longer says it is a work in
+// progress, README.md links it, and so do the docs and the installer.
 func TestUpgraderStarts(t *testing.T) {
 	doc := readRepoFile(t, upgraderFile)
 	wantAll(t, "step 1", asOneLine(section(t, doc, "Step 1.")),
 		"gh auth status", "'repo'", "'workflow'", "address of your current forsgren report")
 	wantAll(t, "step 2", asOneLine(section(t, doc, "Step 2.")),
 		"settings.html", "Forsgren</a>", "exists from forsgren 0.5.0", "forsgren.config.yml")
-	wantAll(t, upgraderFile, doc, upgraderWIP)
-	if strings.Contains(readRepoFile(t, "README.md"), upgraderFile) {
-		t.Errorf("README.md links %s before 166-11", upgraderFile)
+	if strings.Contains(doc, upgraderWIP) {
+		t.Error("the work-in-progress line is still there")
+	}
+	for _, path := range []string{"README.md", "docs/updating-and-releases.md", installerFile} {
+		if !strings.Contains(readRepoFile(t, path), upgraderFile) {
+			t.Errorf("%s does not link %s", path, upgraderFile)
+		}
 	}
 }
 
@@ -266,5 +270,23 @@ func everyWorkRemovalLeavesTheFolderFirst(t *testing.T, doc string) {
 	}
 	if found == 0 {
 		t.Error("no `rm -r WORK` found")
+	}
+}
+
+// TestUpgraderKeepsTheInstallersFixedRules (forsgren#166, step 166-11): the
+// rules both files give a fresh agent in the same words stay equal, so the
+// two cannot drift apart.
+func TestUpgraderKeepsTheInstallersFixedRules(t *testing.T) {
+	shared := []string{
+		"Never force-push, and never rewrite history in any repository.",
+		"Never install tools. When a tool is missing, stop and tell the person.",
+		"Never change the person's git or gh configuration. When a step needs it, the person runs the command.",
+		"**A wait is not a failure.**",
+		"Do not rely on shell variables or a changed directory carrying over from one command to the next;",
+		"**The person does some steps themselves.** They are marked **Person**. Hand the person the text or command " +
+			"as written, wait until they say it is done, then do the check yourself.",
+	}
+	for _, path := range []string{installerFile, upgraderFile} {
+		wantAll(t, path, readRepoFileAsOneLine(t, path), shared...)
 	}
 }
