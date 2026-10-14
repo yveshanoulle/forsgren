@@ -87,6 +87,10 @@ request.
   repository's files, commits or issues, and not on the page.
 - Never print, log, store, commit or ask to see a token. Never run
   `gh auth token`.
+- Never offer to run a command that sets a secret or token inside your own
+  session: no `!` shortcut, and never ask for the token to be pasted to you.
+  The person runs it in a separate terminal window, because the token would
+  land in the conversation.
 - Never push, commit or open anything in `yveshanoulle/forsgren` or in
   `yveshanoulle/forsgren-template`. You only read them. These are two exact
   names: a repository named `forsgren` under another owner is an

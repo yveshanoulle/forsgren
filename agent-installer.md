@@ -76,6 +76,10 @@ for in step 4 is that request.
 - Never print, log, store, commit or ask to see a token. Never run
   `gh auth token`. The person creates the token and sets the secret
   themselves (step 10B).
+- Never offer to run a command that sets a secret or token inside your own
+  session: no `!` shortcut, and never ask for the token to be pasted to you.
+  The person runs it in a separate terminal window, because the token would
+  land in the conversation.
 - Never push, commit or open anything in `yveshanoulle/forsgren` or in
   `yveshanoulle/forsgren-template`. You only read them.
 - Never force-push, and never rewrite history in any repository.
@@ -523,6 +527,10 @@ in:
 >
 >    paste the token when it asks, press Enter, and tell me when it is done.
 
+Never offer to run that command in your own session (no `!` shortcut) and
+never take the token pasted to you: it is a separate terminal window only,
+because the token would land in the conversation.
+
 The permissions per deployment kind are the table in
 [docs/data-files.md](docs/data-files.md#collecting-deployments-collect) (Collecting deployments, The token).
 
@@ -687,11 +695,13 @@ and nothing else about the domain is done until it is.
 its immediate subdomains.
 
 A person who has already verified `PARENT` (for another subdomain, say) is
-not asked to verify it again: it is checked, the same two ways. In item 1
-they skip **Add domain** and adding the TXT record, and only send you the
-record's name and value, from that Pages settings page or their DNS
-provider; in item 3 they only confirm GitHub shows `PARENT` as verified,
-without clicking **Verify** again.
+not asked to verify it again, and do not ask the person to copy GitHub's
+value: you check the TXT record is in DNS with dig yourself,
+`dig +short TXT _github-pages-challenge-OWNER.PARENT`, and it is there when
+it prints a value. Empty: this is not the verified domain the person
+described, so hand them item 1 as for a new domain. Tell the person that
+"verified" rests on the person's word (there is no command that reads it),
+and go on to step 14 without items 1 to 3.
 
 There is no GitHub REST endpoint, and no gh command, that tells whether a
 user account's Pages domain is verified. So this step has two parts: the
@@ -742,7 +752,20 @@ safeguard before any record points at GitHub Pages):
 prints the value from step 13. Empty or another value: stop. Do not hand
 over the DNS record.
 
-Then hand the person this, with the values filled in:
+Check first whether the record already exists, through the local resolver
+and through a public one:
+
+```
+dig +short DOMAIN
+dig +short @1.1.1.1 DOMAIN
+```
+
+A subdomain is right when, in both answers, the first line is exactly
+`OWNER.github.io.` (lower case) and the next lines are `185.199.`
+addresses; an apex domain, when both print the four addresses below. Right
+in both: tell the person the record is already in place and go on to step
+15. Ask the person to add or fix the record only when it is missing or
+wrong. Then hand the person this, with the values filled in:
 
 > **Person:** at your DNS provider, add the record for `DOMAIN`:
 >
@@ -758,12 +781,8 @@ Then hand the person this, with the values filled in:
 > Never a wildcard record (`*.example.com`). Keep the TXT record from
 > before. Tell me when it is added.
 
-Then check it twice, through the local resolver and through a public one:
-
-```
-dig +short DOMAIN
-dig +short @1.1.1.1 DOMAIN
-```
+After they say it is added, check it twice, through the local resolver and
+through a public one, with the same two commands:
 
 - A subdomain works when, in both answers, the first line is exactly
   `OWNER.github.io.` (lower case) and the next lines are `185.199.`

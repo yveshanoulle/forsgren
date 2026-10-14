@@ -251,6 +251,9 @@ func TestUpgraderKeepsTheInstallersFixedRules(t *testing.T) {
 		"Never force-push, and never rewrite history in any repository.",
 		"Never install tools. When a tool is missing, stop and tell the person.",
 		"Never change the person's git or gh configuration. When a step needs it, the person runs the command.",
+		"Never offer to run a command that sets a secret or token inside your own session: no `!` shortcut, and never " +
+			"ask for the token to be pasted to you. The person runs it in a separate terminal window, because the token " +
+			"would land in the conversation.",
 		"**A wait is not a failure.**",
 		"Do not rely on shell variables or a changed directory carrying over from one command to the next;",
 		"**The person does some steps themselves.** They are marked **Person**. Hand the person the text or command " +

@@ -65,3 +65,39 @@ func TestCustomDomainIsSetAfterTheCNAMEStep(t *testing.T) {
 		t.Errorf("step 15 does not check the CNAME through a public resolver first:\n%s", step)
 	}
 }
+
+// TestStep10BKeepsTheSecretCommandOutOfTheSession (forsgren#175): the
+// command that sets the secret is run by the person in a separate terminal
+// window, never offered inside the agent's session (no `!` shortcut).
+func TestStep10BKeepsTheSecretCommandOutOfTheSession(t *testing.T) {
+	step := asOneLine(section(t, installerFile, "Step 10."))
+	wantAll(t, "step 10", step, "separate terminal window", "no `!` shortcut")
+}
+
+// TestStep14ChecksTheCNAMEBeforeAskingForIt (forsgren#175): the DNS record
+// may already exist, so step 14 runs the dig first and asks the person to
+// add or fix the record only when it is missing or wrong.
+func TestStep14ChecksTheCNAMEBeforeAskingForIt(t *testing.T) {
+	step := asOneLine(section(t, installerFile, "Step 14."))
+	check := strings.Index(step, "Check first whether the record already exists")
+	ask := strings.Index(step, "hand the person this")
+	if check < 0 || ask < 0 || check > ask {
+		t.Fatalf("step 14 must check the record (at %d) before it hands the person the ask (at %d):\n%s", check, ask, step)
+	}
+	wantAll(t, "step 14", step, "only when it is missing or wrong")
+}
+
+// TestStep13DoesNotAskForTheValueOfAVerifiedDomain (forsgren#175): for a
+// domain the person says is already verified, the agent reads the TXT record
+// with dig itself, records that "verified" rests on the person's word, and
+// goes on, without asking for GitHub's value.
+func TestStep13DoesNotAskForTheValueOfAVerifiedDomain(t *testing.T) {
+	step := asOneLine(section(t, installerFile, "Step 13."))
+	wantAll(t, "step 13", step,
+		"you check the TXT record is in DNS with dig yourself",
+		"that \"verified\" rests on the person's word",
+		"do not ask the person to copy GitHub's value")
+	if strings.Contains(step, "only send you the record's name and value") {
+		t.Error("step 13 still has an already verified person send the record's name and value")
+	}
+}
