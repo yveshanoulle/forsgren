@@ -279,3 +279,58 @@ Then go on to step 3.
      the diff is what merges.
 
 Then go on to step 4.
+
+## Step 4. Read what each release asks of an installation
+
+Read each release's notes for what it asks of an installation. A release's
+notes are the only source of that; do not decide from the version numbers.
+
+1. List the releases after `VERSION` up to `LATEST`, oldest first:
+
+   ```
+   gh release list -R yveshanoulle/forsgren --exclude-drafts --exclude-pre-releases -L 100
+   ```
+
+   The rows are newest first: take the tags newer than `VERSION` (compare as in
+   step 3), up to and including `LATEST`, and read them from the oldest. A
+   `VERSION` older than the list reaches (more than 100 releases back): stop
+   and report.
+2. Read the notes of each, one at a time:
+
+   ```
+   gh release view TAG -R yveshanoulle/forsgren --json body --jq .body
+   ```
+
+   with `TAG` each release in turn. Fails: stop and report.
+3. For each release, ask these questions of its notes and write down the
+   answer in `WORK/asks.md`, one line per release (`TAG: nothing` when it
+   asks nothing):
+   - A new permission in `.github/workflows/forsgren.yml` or
+     `forsgren-update.yml`?
+   - A new secret?
+   - A new config key in `forsgren.config.yml`, or a key whose default
+     changes?
+   - A template file to copy or change (`dependabot.yml`, a workflow)?
+   - A page that appears, disappears or is hidden?
+   - A consequence for `auto_update_level` or the update wait, such as a
+     release that an installation at a lower level has to merge by hand?
+
+   Notes that say "No new permission, secret or config key" ask nothing about
+   those three; read the rest of the notes for the other questions. A note
+   you cannot answer: write down the question as it stands. Step 5 asks the
+   person.
+4. The installation's own setup issue is a second source, never the first:
+   `gh issue list -R OWNER/REPO -l forsgren-setup`. An open issue lists what
+   the running version found missing. Add each item to `WORK/asks.md`.
+   forsgren only fills it for the version that runs, so an upgrade can need
+   more than it says.
+
+Worked example. From 1.3.0 an installation without `days_page` in its
+`forsgren.config.yml` loses its Daily page until it sets `days_page: true`.
+The 1.3.0 notes ask a question about a page that disappears; `WORK/asks.md`
+gets `v1.3.0: the Daily page is hidden unless days_page: true`. Step 5 asks
+the person whether to keep the Daily page, and step 8 writes
+`days_page: true` only when they say yes. Another release asks something else,
+and the same four items work: read, write down, ask, apply the chosen answers.
+
+Then go on to step 5.

@@ -70,3 +70,27 @@ func TestUpgraderStep3FindsTheLatestRelease(t *testing.T) {
 		"gh pr diff PR -R OWNER/REPO",
 		"`LATESTSHA`")
 }
+
+// TestUpgraderStep4ReadsEveryReleaseNote (forsgren#166, step 166-4): step 4
+// reads the notes of every release after VERSION up to LATEST, oldest first,
+// states the general rule, and keeps the 1.3.0 Daily page change in its
+// worked example alone, so the rule is not a 1.3.0 special case.
+func TestUpgraderStep4ReadsEveryReleaseNote(t *testing.T) {
+	step := section(t, readRepoFile(t, upgraderFile), "Step 4.")
+	rule, example, found := strings.Cut(step, "Worked example")
+	if !found {
+		t.Fatal("step 4 has no Worked example")
+	}
+	wantAll(t, "step 4", asOneLine(rule),
+		"gh release list -R yveshanoulle/forsgren --exclude-drafts --exclude-pre-releases -L 100",
+		"gh release view TAG -R yveshanoulle/forsgren --json body --jq .body",
+		"oldest first",
+		"Read each release's notes for what it asks of an installation",
+		"No new permission, secret or config key",
+		"forsgren-setup")
+	wantAll(t, "the worked example", asOneLine(example),
+		"1.3.0", "days_page: true", "loses its Daily page")
+	if strings.Contains(rule, "1.3.0") || strings.Contains(rule, "days_page") {
+		t.Error("step 4 names 1.3.0 or days_page outside its worked example")
+	}
+}
