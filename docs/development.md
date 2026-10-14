@@ -54,6 +54,12 @@ last statement, as when bash 3.2 ends the script on an unbound variable under
 `set -u`, is an abort too: the summary says `Aborted ❌` and FBP.sh exits 1
 (forsgren#136; `Scripts/test_fbp_abort_exit.sh`).
 
+**`Scripts/build_starter_page.sh [out-dir]`** renders `README.md` into
+`.build/starter` (the page forsgren.be shows; see [CI](ci.md)), the way
+`Scripts/build_site.sh` renders the metrics site into `.build/site`. It is a
+POST gate row of its own, so a README the renderer refuses is red in FBP and CI
+before it is ever published.
+
 **`./sfl.sh pre|post`** runs one phase of the gates. Before PRE it runs
 `git pull --ff-only` and stops (exit 3) when that cannot fast-forward, then
 installs the tools (see [The tools](#the-tools)), runs `npm ci` when the

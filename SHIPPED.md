@@ -286,3 +286,15 @@ What changed: 1 the starter writes `auto_update_level: major` (2186387); 2 the s
 What does not change: an existing installation keeps the level its own forsgren.config.yml says (`init-config` never rewrites it), the update wait default stays 3 days, and `auto_update_level` stays required while `auto_update` is true (#157 is about that). For an installation at `patch` or `minor`, v0.8.7 to v1.0.0 is a major update, so its Dependabot pull request waits for a person.
 
 Tests: the starter's level and its limitation sentence (internal/config), and internal/installerdoc reads agent-installer.md and the docs and requires every stated default to equal the starter's level, so a future default change cannot leave a document behind.
+
+---
+
+## 2026-10-14 — forsgren.be: the README is the project page ([#132](https://github.com/yveshanoulle/forsgren/issues/132))
+
+Yves wanted forsgren.be to tell a visitor what forsgren is, without a second copy of the text to keep up to date: the README itself is rendered to one page and published there. Decisions in #149 (approved): a small Go renderer for the README's own Markdown subset instead of a dependency, relative links turned into links into `main`, its own link check, the metrics site's stylesheet reused.
+
+Steps: 1-2 the renderer with its link test and its refusal of anything outside the subset (a24e756), 3 escaping and unclosed markers (ac52cc9), 4-5 `cmd/readmepage` renders the real README and fails loud on bad input (67a96e1), 6 `Scripts/build_starter_page.sh` builds `.build/starter` with its CNAME (2ab5ceb), 7 the starter link check allows only its three destinations (664f8b5), 8 HTMLHint and the privacy posture on the page (df602c1), 9 the stylesheet (c3e87b2), 10 `starter_page.yml` deploys on a push to `main`, on a release and by hand, and a release run skips with a notice while Pages is not enabled (18fd633), 11 the docs (docs/ci.md, the README, CLAUDE.md, docs/development.md), 12 a refactor of the inline renderer (two shared helpers, the built page byte-identical), both in this commit. Steps 1 and 2 rode one FBP so the coverage total never dropped below its 99.6 floor (decision #149).
+
+Live since 2026-10-14: https://forsgren.be/ (HTTPS enforced, `www` redirects), deployed by the push run 38545347984 and redeployed by the v1.0.0 release run 38549004390. What it took on the GitHub side, done by Yves: Pages switched on with GitHub Actions as its source; DNS for the apex (four A, four AAAA) and `www` (CNAME); the custom domain; a `v*` tag rule on the `github-pages` environment so a release run may deploy. Twice today the certificate stayed at `new` because the domain had been set before DNS was complete; removing and re-adding the domain fixed it at once (written into docs/ci.md and agent-installer.md).
+
+Not done here: the renderer names the file of unsupported Markdown and quotes the line, but not its line number, and no test pins a quote inside a link target (#158).

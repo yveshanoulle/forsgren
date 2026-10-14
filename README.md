@@ -50,6 +50,9 @@ The page shows its band with the rate and the rework deployments:
 forsgren measures itself, and publishes the page at
 <https://forsgren.forsgren.be>.
 
+This README is also the project page, forsgren.be: it is rendered to one page
+and published on every change to it; see [CI](docs/ci.md).
+
 ## Installing
 
 An installation is a data repository of your own (private when it measures

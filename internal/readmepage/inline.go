@@ -50,30 +50,38 @@ func (r renderer) firstRule(s string) (out string, used int, err error) {
 	return "", 0, nil
 }
 
-// delimited renders s = open + inner + close, where inner is not empty, with
-// wrap around the inner text rendered as inline Markdown.
-func (r renderer) delimited(s, open, closing, tag string) (string, int, error) {
+// span cuts open + inner + closing off the start of s, where inner is not
+// empty, and returns inner and how many bytes the span takes; zero means s
+// does not start with such a span.
+func span(s, open, closing string) (inner string, used int) {
 	if !strings.HasPrefix(s, open) {
-		return "", 0, nil
+		return "", 0
 	}
 	end := strings.Index(s[len(open):], closing)
 	if end <= 0 {
+		return "", 0
+	}
+	return s[len(open) : len(open)+end], len(open) + end + len(closing)
+}
+
+// delimited renders s = open + inner + closing, where inner is not empty,
+// with tag around the inner text rendered as inline Markdown.
+func (r renderer) delimited(s, open, closing, tag string) (string, int, error) {
+	text, used := span(s, open, closing)
+	if used == 0 {
 		return "", 0, nil
 	}
-	inner, err := r.inline(s[len(open) : len(open)+end])
-	return "<" + tag + ">" + inner + "</" + tag + ">", len(open) + end + len(closing), err
+	inner, err := r.inline(text)
+	return "<" + tag + ">" + inner + "</" + tag + ">", used, err
 }
 
 // code renders a code span, whose text is never read as Markdown.
 func (r renderer) code(s string) (string, int, error) {
-	if !strings.HasPrefix(s, "`") {
+	text, used := span(s, "`", "`")
+	if used == 0 {
 		return "", 0, nil
 	}
-	end := strings.Index(s[1:], "`")
-	if end <= 0 {
-		return "", 0, nil
-	}
-	return "<code>" + html.EscapeString(s[1:1+end]) + "</code>", end + 2, nil
+	return "<code>" + html.EscapeString(text) + "</code>", used, nil
 }
 
 // bold renders **text**.
@@ -88,8 +96,8 @@ func (r renderer) italic(s string) (string, int, error) {
 
 // link renders [text](target), the target made absolute.
 func (r renderer) link(s string) (string, int, error) {
-	text, target, ok := linkParts(s)
-	if !ok {
+	text, target, used := linkParts(s)
+	if used == 0 {
 		return "", 0, nil
 	}
 	href, err := r.resolve(target)
@@ -97,21 +105,25 @@ func (r renderer) link(s string) (string, int, error) {
 		return "", 0, err
 	}
 	inner, err := r.inline(text)
-	return "<a href=\"" + html.EscapeString(href) + "\">" + inner + "</a>", 1 + len(text) + 2 + len(target) + 1, err
+	return anchor(href, inner), used, err
 }
 
-// linkParts cuts [text](target) off the start of s. Text with a bracket in
-// it, and a target with a space, are not a link.
-func linkParts(s string) (text, target string, ok bool) {
+// linkParts cuts [text](target) off the start of s, and returns how many
+// bytes the link takes; zero means s does not start with a link. Text with a
+// bracket in it, and a target with a space, are not a link.
+func linkParts(s string) (text, target string, used int) {
 	if !strings.HasPrefix(s, "[") {
-		return "", "", false
+		return "", "", 0
 	}
 	text, rest, found := strings.Cut(s[1:], "](")
 	target, _, closed := strings.Cut(rest, ")")
 	if !found || !closed {
-		return "", "", false
+		return "", "", 0
 	}
-	return text, target, plainLink(text, target)
+	if !plainLink(text, target) {
+		return "", "", 0
+	}
+	return text, target, len("[") + len(text) + len("](") + len(target) + len(")")
 }
 
 // plainLink is true for link text with no bracket and a target with no space.
@@ -128,7 +140,12 @@ func (r renderer) autolink(s string) (string, int, error) {
 	if !closed {
 		return "", 0, nil
 	}
-	return "<a href=\"" + html.EscapeString(target) + "\">" + html.EscapeString(target) + "</a>", len(target) + 2, nil
+	return anchor(target, html.EscapeString(target)), len("<") + len(target) + len(">"), nil
+}
+
+// anchor is a link to href around the rendered inner HTML.
+func anchor(href, inner string) string {
+	return "<a href=\"" + html.EscapeString(href) + "\">" + inner + "</a>"
 }
 
 // image refuses ![alt](src): the starter page has no images.

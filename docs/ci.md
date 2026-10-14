@@ -175,6 +175,43 @@ Nothing in this repository runs the workflow, so no gate does; the pin and
 actionlint, zizmor, yamllint, checkout pins and workflow triggers, which read
 every workflow, are what check it.
 
+**The starter page, forsgren.be.** The project's own page is `README.md`
+rendered to one HTML page and published to GitHub Pages at
+<https://forsgren.be>. `.github/workflows/starter_page.yml` builds it on a
+push to `main` that touches the README, the renderer (`cmd/readmepage`,
+`internal/readmepage`), the stylesheet it ships (`internal/page/styles.css`),
+the build script or the workflow itself, on a published release, and by hand.
+A release redeploys the page, so it is always rebuilt from the README of the
+release's day. The build job runs `Scripts/build_starter_page.sh` into
+`.build/starter` (`index.html`, `styles.css`, the same stylesheet the metrics
+site uses, and a `CNAME` holding `forsgren.be`) and uploads that folder; the
+deploy job, the only one holding `pages: write` and `id-token: write`,
+publishes it to the `github-pages` environment. The renderer reads a small
+subset of Markdown and refuses everything else, naming the offending line, so
+a README that grows a table or a raw HTML block fails the build instead of
+publishing a wrong page; every relative link in it becomes a link into the
+repository on `main`. The gates that read the page (HTMLHint, the privacy
+posture, and the starter-page links, which allow only this repository,
+forsgren-template and the live example) are in [Quality gates](quality-gates.md).
+To build it locally: `./Scripts/build_starter_page.sh`, then open
+`.build/starter/index.html`.
+
+What had to be set up once, on the repository and not in a file:
+
+- **GitHub Pages** enabled with the source "GitHub Actions" (Settings, Pages).
+  Until it is, a release-triggered run skips the deploy with a notice saying
+  so, and a push or a manual run fails at the deploy step by name.
+- **The `github-pages` environment** limits deployments to chosen refs: a
+  branch rule for `main` and a tag rule for `v*`. Without the `v*` tag rule a
+  release run builds, then is refused at the deploy job, because a release
+  runs on its tag, not on `main`.
+- **The custom domain** `forsgren.be`, set in Settings, Pages, only after the
+  DNS is complete (the apex A and AAAA records and a `www` CNAME to GitHub
+  Pages). Set earlier, GitHub's check fails and leaves the site without a
+  certificate; a domain whose certificate stays empty or new is fixed by
+  removing the custom domain and adding it again. HTTPS is enforced and
+  `www.forsgren.be` redirects to the apex.
+
 **No paths filter, on purpose.** The secret scan, the data guard, stray
 tracked files and script references read every tracked file, so a filter
 on paths would leave some change that runs no gate.
