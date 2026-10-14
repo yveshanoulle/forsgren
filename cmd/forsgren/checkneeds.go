@@ -19,6 +19,8 @@ import (
 // that records how the write went.
 type checkNeedsOptions struct {
 	config, repository, status string
+	// tokenExpiry is the file collect wrote the token's expiry date to, "" for none.
+	tokenExpiry string
 }
 
 // checkNeeds checks the needs of the running version against the
@@ -49,6 +51,8 @@ func checkNeedsFlags(args []string, stderr io.Writer) (checkNeedsOptions, bool) 
 	flags.StringVar(&o.repository, "repository", "", "the installation's repository, <owner/name>")
 	flags.StringVar(&o.status, "status", "",
 		"a file to write how the setup issue went to: ok, no-access, rate-limited or failed (optional)")
+	flags.StringVar(&o.tokenExpiry, "token-expiry", "",
+		"the file collect --token-expiry wrote the token's expiry date to; a date near makes a setup issue item (optional)")
 	if err := flags.Parse(args); err != nil {
 		return o, false
 	}
@@ -71,6 +75,9 @@ func reportNeeds(o checkNeedsOptions, stdout, stderr io.Writer) string {
 	missing, err := missingNeeds("check-needs", o.config, stderr)
 	if err != nil {
 		return noteFailed(stderr, err)
+	}
+	if n, near := tokenExpiryNeed(o.tokenExpiry, now()); near {
+		missing = append(missing, n)
 	}
 	for _, n := range missing {
 		_, _ = fmt.Fprintln(stdout, n.Steps)

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -132,24 +131,15 @@ func jobClient(maxPages int) (*github.Client, error) {
 	return client.WithTokenName("GITHUB_TOKEN"), nil
 }
 
-// expiryWarningDays is how many days before its expiry date the token starts
-// to be warned about (forsgren#177).
-const expiryWarningDays = 14
-
 // warnTokenExpiry says on stderr that the token expires on its date, and how
-// to make a new one, when the date is at most expiryWarningDays after now
-// or already past; nothing for a date further away or none known. The run's
-// outcome is not touched.
+// to make a new one, when tokenExpiryMessage has something to say; nothing
+// for a date further away or none known. The run's outcome is not touched.
 func warnTokenExpiry(stderr io.Writer, at time.Time, client *github.Client) {
 	expiry, known := client.TokenExpiry()
-	if !known || expiry.After(at.AddDate(0, 0, expiryWarningDays)) {
+	if !known {
 		return
 	}
-	when := "expires on " + expiry.UTC().Format(time.DateOnly)
-	if expiry.Before(at) {
-		when = "has expired on " + expiry.UTC().Format(time.DateOnly)
+	if message, near := tokenExpiryMessage(expiry, at); near {
+		_, _ = fmt.Fprintf(stderr, "collect: warning: %s\n", message)
 	}
-	repo := cmp.Or(os.Getenv("GITHUB_REPOSITORY"), "this installation's repository")
-	_, _ = fmt.Fprintf(stderr, "collect: warning: FORSGREN_TOKEN %s. Make a new fine-grained token and set it "+
-		"with `gh secret set FORSGREN_TOKEN -R %s` in a separate terminal.\n", when, repo)
 }
