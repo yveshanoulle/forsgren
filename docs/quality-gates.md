@@ -279,6 +279,16 @@ The POST gates, on the generated site:
 - **HTMLHint** (`Scripts/gate_htmlhint.sh`): every `.html` file under the
   rules in `.htmlhintrc`. Red on a finding, and on a run that scanned zero
   files, since nothing linted is not clean.
+- **starter page build** (`Scripts/build_starter_page.sh`, forsgren's own,
+  forsgren#132): renders `README.md` with `./cmd/readmepage` into
+  `.build/starter` (`index.html`, and `CNAME` holding `forsgren.be`, which
+  GitHub Pages reads for the custom domain). Red when the renderer refuses
+  the README (a construct outside its subset, a link that is neither https,
+  an anchor nor a path in the repository) or the page cannot be written, and
+  a failed build writes nothing into the output directory. Its self-test is
+  `Scripts/test_build_starter_page.sh`, with a mutation proof for the
+  `CNAME` line; `STARTER_README` points the script at another file so the
+  self-test can feed it a README the renderer refuses.
 - **Stylelint** (`Scripts/gate_stylelint.sh`): every `.css` file under
   `.stylelintrc.json` (stylelint-config-standard plus another estate repository's
   overrides). Red on a finding, and on a glob that matches no file.

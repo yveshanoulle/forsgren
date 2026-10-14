@@ -126,6 +126,14 @@ Go toolchain pin self-test|Scripts/test_go_toolchain.sh|pre|
 # The Go generator (cmd/forsgren render) and the site build around it.
 build-site self-test|Scripts/test_build_site.sh|pre|
 #
+# The starter page (forsgren#132): README.md rendered by ./cmd/readmepage to
+# .build/starter, the page forsgren.be shows. Not canon: forsgren's own. The
+# self-test runs in pre, the build in post, so the rows that lint the page
+# (HTMLHint, privacy posture and the starter-page links, below) read a page
+# this run built. A README the renderer refuses is a red here, never a
+# page published wrong.
+starter page build self-test|Scripts/test_build_starter_page.sh|pre|
+#
 # HTMLHint and Stylelint validate the generated site (forsgren#1, ladder step
 # 8), at another estate repository's position, right after the build-site self-test.
 # Both lint .build/site by default and accept a site-directory argument, so a
@@ -137,6 +145,7 @@ HTMLHint self-test|Scripts/test_gate_htmlhint.sh|pre|
 HTMLHint|Scripts/gate_htmlhint.sh|post|
 Stylelint self-test|Scripts/test_gate_stylelint.sh|pre|
 Stylelint|Scripts/gate_stylelint.sh|post|
+starter page build|Scripts/build_starter_page.sh|post|
 #
 # The required-pages manifest (forsgren#1, ladder step 9), at its canon
 # position after Stylelint (forsgren has no deployed-pages self-test, the
