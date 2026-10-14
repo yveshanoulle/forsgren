@@ -149,6 +149,47 @@ func TestRenderEscapesAndLeavesUnclosedMarkersAlone(t *testing.T) {
 	}
 }
 
+// TestRenderKeepsAQuoteInALinkTargetInsideTheHref (forsgren#158): a quote, a
+// less-than or a greater-than sign in a link target, relative or absolute or
+// in an autolink, comes out escaped, so the href attribute is never left and
+// no attribute or tag is added to the page.
+func TestRenderKeepsAQuoteInALinkTargetInsideTheHref(t *testing.T) {
+	src := "# T\n\n[a](x\".md), [b](https://example.org/p\"onmouseover=\"x), " +
+		"[c](https://example.org/<script>), <https://example.org/\"q>\n"
+	got, err := Render(src, fixtureBase)
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	for _, want := range []string{
+		`<a href="https://github.com/acme/widget/blob/main/x&#34;.md">a</a>`,
+		`<a href="https://example.org/p&#34;onmouseover=&#34;x">b</a>`,
+		`<a href="https://example.org/&lt;script&gt;">c</a>`,
+		`<a href="https://example.org/&#34;q">https://example.org/&#34;q</a>`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the page lacks %q:\n%s", want, got)
+		}
+	}
+	for _, bad := range anchorsHoldingMoreThanHref(got) {
+		t.Errorf("an anchor tag holds more than its href: %s", bad)
+	}
+}
+
+// anchorsHoldingMoreThanHref are the opening anchor tags of page that are not
+// exactly an href without a quote or angle bracket inside, and a script tag.
+func anchorsHoldingMoreThanHref(page string) (bad []string) {
+	tag := regexp.MustCompile(`^<a href="[^"<>]*">$`)
+	for _, open := range regexp.MustCompile(`<a [^>]*>`).FindAllString(page, -1) {
+		if !tag.MatchString(open) {
+			bad = append(bad, open)
+		}
+	}
+	if strings.Contains(page, "<script") {
+		bad = append(bad, "a script tag")
+	}
+	return bad
+}
+
 // ruleBodies are the bodies of the rules of css whose selector, at the start
 // of a line, is selector.
 func ruleBodies(css, selector string) (bodies []string) {
