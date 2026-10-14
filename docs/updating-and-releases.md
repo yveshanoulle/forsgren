@@ -96,9 +96,10 @@ the config switches it on, and a new install's starter does, at `major` (see
   a value, it is off, so an existing config keeps its behaviour until it opts
   in.
 - **`auto_update_level`** is `patch`, `minor` or `major`: the largest step
-  an update may take and still merge itself. It has no default: with
-  `auto_update: true` and no level, the config is refused (`check-config`
-  names the three values), and any other value is refused too. At `patch`,
+  an update may take and still merge itself. It is optional and
+  defaults to `major`: with `auto_update: true` and no level, the level is
+  `major`, and any value other than the three is refused (`check-config`
+  names them). At `patch`,
   v0.2.0 to v0.2.1 merges and v0.3.0 does not; at `minor`, v0.3.0 merges (and
   every patch) and v1.0.0 does not; at `major`, v1.0.0 merges as well. A
   level only limits what merges: a pull request beyond it is left for you,

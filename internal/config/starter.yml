@@ -53,7 +53,7 @@
 # to a published release. Nothing checks a release against this installation's
 # own data. To take fewer updates, set auto_update_level: to minor or to patch.
 # auto_update: false switches it off, and you merge each update by hand.
-# auto_update_level: is required whenever auto_update: is true.
+# auto_update_level: is optional and is major when left out.
 #
 # Example, with made-up names. To use it, remove the five lines version: 1,
 # view: standard, auto_update: true, auto_update_level: major and projects: []

@@ -49,7 +49,8 @@ projects:
   the plain root, as `init-config` never rewrites an existing file. The starter
   also writes `auto_update: true` and `auto_update_level: major` (forsgren#58,
   #150), so a new installation merges forsgren's releases by itself, a major
-  one included; an existing config without `auto_update:` keeps it off (see [Auto-update](updating-and-releases.md)).
+  one included. `auto_update_level` is optional: left out, it defaults to
+  `major` (forsgren#157); an existing config without `auto_update:` keeps it off (see [Auto-update](updating-and-releases.md)).
 - **`history_days`** is optional (forsgren#57): how deep a repository's
   history goes, in days, a whole number from 1 to 1825 (5 years), written at
   the top level, for example `history_days: 730`. Left out, or without a
@@ -94,11 +95,10 @@ projects:
   in forsgren#84, a table since forsgren#141) tabulates every optional key,
   `view`, `auto_update`, `auto_update_level`, `history_days`,
   `history_chunk_days` and `working_hours`, in four columns: **Parameter**;
-  **Current value**, the value in use (`none` for an unset
+  **Current value**, the value in use (`major` for an unset
   `auto_update_level`); **Possible values**, built from the config package's
   own constants and limits so the page cannot drift from what `check-config`
-  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major
-  (required when auto_update is true)`; `1 to 1825`; `1 to 365`; `1 to 24`),
+  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `1 to 1825`; `1 to 365`; `1 to 24`),
   a test holds the lists to the config loader; and **Default**: True when
   `forsgren.config.yml` does not set the key, so the current value is the
   default, False when the file sets it, even to the default's value. The legend
