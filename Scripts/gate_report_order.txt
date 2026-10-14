@@ -134,6 +134,7 @@ build-site self-test|Scripts/test_build_site.sh|pre|
 # page published wrong.
 starter page build self-test|Scripts/test_build_starter_page.sh|pre|
 starter page links self-test|Scripts/test_check_starter_links.sh|pre|
+starter page gates self-test|Scripts/test_starter_page_gates.sh|pre|
 #
 # HTMLHint and Stylelint validate the generated site (forsgren#1, ladder step
 # 8), at another estate repository's position, right after the build-site self-test.
@@ -147,6 +148,12 @@ HTMLHint|Scripts/gate_htmlhint.sh|post|
 Stylelint self-test|Scripts/test_gate_stylelint.sh|pre|
 Stylelint|Scripts/gate_stylelint.sh|post|
 starter page build|Scripts/build_starter_page.sh|post|
+#
+# HTMLHint and the privacy posture on the starter page: the site's own gates,
+# the same scripts and config, pointed at .build/starter by a wrapper each
+# (a row names a script, not a command line).
+starter page HTMLHint|Scripts/gate_htmlhint_starter.sh|post|
+starter page privacy posture|Scripts/check_privacy_posture_starter.sh|post|
 #
 # The starter page may link to three destinations only (decision forsgren#149):
 # forsgren's own repository, forsgren-template and the live example. A NEW

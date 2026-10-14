@@ -289,6 +289,15 @@ The POST gates, on the generated site:
   `Scripts/test_build_starter_page.sh`, with a mutation proof for the
   `CNAME` line; `STARTER_README` points the script at another file so the
   self-test can feed it a README the renderer refuses.
+- **starter page HTMLHint** and **starter page privacy posture**
+  (`Scripts/gate_htmlhint_starter.sh` and
+  `Scripts/check_privacy_posture_starter.sh`, forsgren#132): the two gates
+  above, unchanged, run on `.build/starter`; each wrapper only names the
+  directory, because a row of the order file names a script, not a command
+  line. Both take a directory argument too. `Scripts/test_starter_page_gates.sh`
+  runs copies of them in a throwaway root with the real `htmlhint`, and
+  proves by mutation that the default directory is what makes an unpaired
+  tag red.
 - **starter page links** (`Scripts/check_starter_links.sh`, forsgren's own,
   forsgren#132, decision forsgren#149): every `href` and `src` of the page in
   `.build/starter` is an `#anchor` or an https link into
