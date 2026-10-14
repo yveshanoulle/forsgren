@@ -243,7 +243,7 @@ type menuItem struct{ Href, Label, Current string }
 
 // Menu is the menu at the top of the page (forsgren#128, decision #133): the
 // views, each labelled by its name with a capital (its address stays lower
-// case), then issuePages. The view the page shows is marked current, and the
+// case), then the issuePages the site shows (forsgren#159). The view the page shows is marked current, and the
 // issue page the page is marked "page"; every other entry is a link.
 func (p pageData) Menu() []menuItem {
 	menu := make([]menuItem, 0, len(views)+len(issuePages))
@@ -252,6 +252,9 @@ func (p pageData) Menu() []menuItem {
 		menu = append(menu, menuItem{view + "/", label, markIf(view == p.View, p.viewCurrent())})
 	}
 	for _, issues := range issuePages {
+		if p.Hidden[issues.Name] {
+			continue
+		}
 		menu = append(menu, menuItem{issues.Name + ".html", issues.Label, markIf(issues.Name == p.Page, "page")})
 	}
 	return menu

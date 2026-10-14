@@ -3,6 +3,7 @@ package page
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -94,5 +95,42 @@ func wantGone(t *testing.T, dir string, files []string) {
 		if _, err := os.Stat(filepath.Join(dir, f)); !os.IsNotExist(err) {
 			t.Errorf("want %s gone from the site, got %v", f, err)
 		}
+	}
+}
+
+// TestMenuLeavesOutHiddenPages (forsgren#159): the menu of every page written
+// leaves out the entry and the link of a hidden issues or days page, and still
+// holds the three views and the page that is shown.
+func TestMenuLeavesOutHiddenPages(t *testing.T) {
+	cases := map[string]struct {
+		hidden map[string]bool
+		gone   []string
+	}{
+		"days":   {map[string]bool{"days": true}, []string{"days.html", "Daily</a>"}},
+		"issues": {map[string]bool{"issues": true}, []string{"issues.html", "Issues</a>"}},
+		"both": {map[string]bool{"days": true, "issues": true},
+			[]string{"issues.html", "days.html", "Issues</a>", "Daily</a>"}},
+	}
+	for name, tc := range cases {
+		data := calculated()
+		data.Hidden = tc.hidden
+		for _, page := range PageNames() {
+			if !data.hides(page) {
+				wantMenuWithout(t, name+" "+page, rendered(t, page, data), tc.gone)
+			}
+		}
+	}
+}
+
+// wantMenuWithout fails t when html holds one of gone, or lacks the views.
+func wantMenuWithout(t *testing.T, name, html string, gone []string) {
+	t.Helper()
+	for _, g := range gone {
+		if strings.Contains(html, g) {
+			t.Errorf("%s: want no %q on the page", name, g)
+		}
+	}
+	if !strings.Contains(html, "Scoring") {
+		t.Errorf("%s: want the views in the menu", name)
 	}
 }
