@@ -37,7 +37,7 @@ func (f fileConfig) toConfig() (Config, error) {
 }
 
 // settings is the Config of the file's optional top-level keys, view,
-// auto_update and auto_update_level (as written, the level DefaultLevel when
+// auto_update, auto_update_level, issues_page and days_page (as written, the level DefaultLevel when
 // the file has none), or the first refusal among them (forsgren#46, #58, #157).
 func (f fileConfig) settings() (Config, error) {
 	view, err := checkView(f.View)
@@ -56,9 +56,24 @@ func (f fileConfig) settings() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	issuesPage, daysPage, err := f.pages()
+	if err != nil {
+		return Config{}, err
+	}
 	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level,
 		HistoryDays: days, HistoryChunkDays: chunk, WorkingHours: hours,
-		WorkingHoursSet: workingHours.set(f.WorkingHours), written: f.written()}, nil
+		WorkingHoursSet: workingHours.set(f.WorkingHours), IssuesPage: issuesPage, DaysPage: daysPage,
+		written: f.written()}, nil
+}
+
+// pages is issues_page and days_page, or the first refusal of the two: the
+// issues page on and the days page off when the file has none (forsgren#159).
+func (f fileConfig) pages() (issues, days bool, err error) {
+	if issues, err = checkBoolean(f.IssuesPage, true, ErrIssuesPage); err != nil {
+		return false, false, err
+	}
+	days, err = checkBoolean(f.DaysPage, false, ErrDaysPage)
+	return issues, days, err
 }
 
 // written is the optional keys the file gives a value, by key, nil when it
@@ -164,14 +179,21 @@ var booleans = map[string]bool{"true": true, "false": false}
 // key without a value is none): only the literals true and false, never a
 // quoted or numeric value, nor yes (forsgren#58).
 func checkAutoUpdate(n yaml.Node) (bool, error) {
+	return checkBoolean(n, false, ErrAutoUpdate)
+}
+
+// checkBoolean is the key as written, def when the file has none (a key
+// without a value is none): only the literals true and false, never a quoted
+// or numeric value, nor yes; the refusal wraps sentinel (forsgren#58, #159).
+func checkBoolean(n yaml.Node, def bool, sentinel error) (bool, error) {
 	if n.Kind == 0 || n.ShortTag() == "!!null" {
-		return false, nil
+		return def, nil
 	}
 	on, literal := booleans[n.Value]
 	if literal && n.ShortTag() == "!!bool" {
 		return on, nil
 	}
-	return false, fmt.Errorf("%w %q: use true or false", ErrAutoUpdate, n.Value)
+	return def, fmt.Errorf("%w %q: use true or false", sentinel, n.Value)
 }
 
 func checkVersion(v *int) error {

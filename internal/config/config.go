@@ -160,6 +160,12 @@ type Config struct {
 	// WorkingHoursSet says whether the file has a working_hours key, so the
 	// legend can tell a configured day from the default (forsgren#71).
 	WorkingHoursSet bool
+	// IssuesPage is whether the issues page is generated, true when the file
+	// has no issues_page key (forsgren#159).
+	IssuesPage bool
+	// DaysPage is whether the days page (Daily) is generated, false when the
+	// file has no days_page key (forsgren#159).
+	DaysPage bool
 	// written is the optional keys the file writes, by key (forsgren#74).
 	written  map[string]bool
 	Projects []Project
@@ -188,6 +194,8 @@ var (
 	ErrHistoryDays         = errors.New("invalid history_days")
 	ErrHistoryChunkDays    = errors.New("invalid history_chunk_days")
 	ErrWorkingHours        = errors.New("invalid working_hours")
+	ErrIssuesPage          = errors.New("invalid issues_page")
+	ErrDaysPage            = errors.New("invalid days_page")
 )
 
 // Load reads and validates the config file at path. Every error names the
@@ -236,8 +244,12 @@ type fileConfig struct {
 	// HistoryChunkDays is the node as written, like HistoryDays.
 	HistoryChunkDays yaml.Node `yaml:"history_chunk_days"`
 	// WorkingHours is the node as written, like HistoryDays (forsgren#71).
-	WorkingHours yaml.Node     `yaml:"working_hours"`
-	Projects     []fileProject `yaml:"projects"`
+	WorkingHours yaml.Node `yaml:"working_hours"`
+	// IssuesPage and DaysPage are the nodes as written, so a non-boolean is
+	// refused by name (forsgren#159).
+	IssuesPage yaml.Node     `yaml:"issues_page"`
+	DaysPage   yaml.Node     `yaml:"days_page"`
+	Projects   []fileProject `yaml:"projects"`
 }
 
 type fileProject struct {
