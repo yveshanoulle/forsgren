@@ -24,7 +24,7 @@
             <td>{{.Duplicate}}</td>
             <td>{{.Other}}</td>
             <td>{{.Open}} {{template "trend" (trend "open issues" .OpenTrend .OpenChange)}}</td>
-            <td>{{.OpenBugs}} {{template "trend" (trend "open bugs" .OpenBugsTrend .OpenBugsChange)}}</td>
+            <td>{{if .BugsIncomplete}}<span role="img" aria-label="Open bugs incomplete: a repository's bug list was too long to read in full" title="A repository's bug list was too long to read in full, so the number of open bugs is not shown">— (incomplete)</span>{{else}}{{.OpenBugs}} {{template "trend" (trend "open bugs" .OpenBugsTrend .OpenBugsChange)}}{{end}}</td>
             <td>{{.Total}}</td>
             <td>{{.OpenShare}}</td>
           </tr>

@@ -322,3 +322,35 @@ func TestNoWrapTablesAreTheIssuesNumbersAndScoringTables(t *testing.T) {
 		wantNone(t, name, rendered(t, name, data), marked)
 	}
 }
+
+// bugsIncompleteCell is the Open bugs cell of a row whose bug count cannot be
+// trusted (forsgren#140, decision #171): a dash and a word instead of a number
+// and an arrow, explained to the eye by title and to a screen reader by label.
+const bugsIncompleteCell = `<td><span role="img" ` +
+	`aria-label="Open bugs incomplete: a repository's bug list was too long to read in full" ` +
+	`title="A repository's bug list was too long to read in full, so the number of open bugs is not shown">` +
+	`— (incomplete)</span></td>`
+
+// TestAnIncompleteOpenBugsCellShowsADashAndNoArrow (forsgren#140): a row with
+// BugsIncomplete shows bugsIncompleteCell instead of the number and the arrow,
+// on the issues page and on the days page; a row without it keeps both.
+func TestAnIncompleteOpenBugsCellShowsADashAndNoArrow(t *testing.T) {
+	incomplete := openBugsDay
+	incomplete.BugsIncomplete, incomplete.OpenBugsChange = true, 3
+	got := issuesPageOf(t, incomplete)
+	wantAll(t, "issues.html", got, bugsIncompleteCell)
+	wantNone(t, "issues.html", got, "open bugs increased", "open bugs unchanged", "<td>2 ")
+	data := calculated()
+	data.IssueDays = []metrics.IssueDay{incomplete}
+	wantAll(t, "days.html", rendered(t, "days.html", data), bugsIncompleteCell)
+	wantNone(t, "issues.html", issuesPageOf(t, openBugsDay), "incomplete")
+}
+
+// TestIssuesPageWithAnIncompleteOpenBugsCellMatchesGolden (forsgren#140).
+func TestIssuesPageWithAnIncompleteOpenBugsCellMatchesGolden(t *testing.T) {
+	day := openBugsDay
+	day.BugsIncomplete = true
+	data := calculated()
+	data.IssueRows = []metrics.IssueRow{{Kind: metrics.KindDay, IssueDay: day}}
+	checkPageGolden(t, "issues.html", "testdata/issues.incomplete.golden.html", data)
+}
