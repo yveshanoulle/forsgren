@@ -143,7 +143,7 @@ func TestIssueTablesHaveNoCaption(t *testing.T) {
 		id := strings.TrimSuffix(name, ".html") + "-heading"
 		got := rendered(t, name, data)
 		wantAll(t, name, got, `<h1 id="`+id+`">`+heading+`</h1>`,
-			`role="region" aria-labelledby="`+id+`"`, `<table aria-labelledby="`+id+`">`)
+			`role="region" aria-labelledby="`+id+`"`, `<table aria-labelledby="`+id+`" class="no-wrap">`)
 		wantNone(t, name, got, "<caption")
 	}
 }
@@ -299,4 +299,26 @@ func TestLegendExplainsTheTrendArrows(t *testing.T) {
 // Open bugs counts and that the label is the one at the latest collection.
 func TestLegendExplainsTheOpenBugsColumn(t *testing.T) {
 	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()), "<p>"+bugsNote+"</p>\n")
+}
+
+// TestNoWrapTablesAreTheIssuesNumbersAndScoringTables (forsgren#153, step 7;
+// decision #160 point 4): the tables whose cells are a date, a number or a
+// number with its trend carry class no-wrap, so none of their cells breaks
+// onto a second line. The standard view's band text and the settings table
+// have long cells and still wrap.
+func TestNoWrapTablesAreTheIssuesNumbersAndScoringTables(t *testing.T) {
+	data := acmeTable()
+	data.IssueDays = []metrics.IssueDay{{Date: october(2), New: 1, Open: 1, Active: true}}
+	data.IssueRows = []metrics.IssueRow{{Kind: metrics.KindMonth, IssueDay: metrics.IssueDay{
+		Date: on2026(time.September, 1), New: 1, Open: 1, Active: true,
+	}}}
+	const marked = `class="no-wrap"`
+	for _, name := range []string{"issues.html", "days.html", "numbers/index.html", "scoring/index.html"} {
+		if got := rendered(t, name, data); !strings.Contains(got, marked) {
+			t.Errorf("want the table of %s to carry %s, got:\n%s", name, marked, got)
+		}
+	}
+	for _, name := range []string{"standard/index.html", "index.html", "settings.html"} {
+		wantNone(t, name, rendered(t, name, data), marked)
+	}
 }

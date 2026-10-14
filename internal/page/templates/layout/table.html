@@ -1,5 +1,5 @@
 {{define "table"}}    <div class="table-scroll" role="region" aria-labelledby="metrics-heading" tabindex="0">
-      <table>
+      <table{{if or .Numbers .Scoring}} class="no-wrap"{{end}}>
         <thead>
           <tr>
             <th scope="col">Project</th>
