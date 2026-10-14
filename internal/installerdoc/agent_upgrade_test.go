@@ -1,6 +1,7 @@
 package installerdoc
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -257,5 +258,60 @@ func TestUpgraderKeepsTheInstallersFixedRules(t *testing.T) {
 	}
 	for _, path := range []repoFile{installerFile, upgraderFile} {
 		wantAll(t, string(path), readRepoFileAsOneLine(t, path), shared...)
+	}
+}
+
+// codeWords matches a capitalised word of a command: a placeholder.
+var codeWords = regexp.MustCompile(`[A-Z][A-Z0-9]+`)
+
+// fencedOrInlineCode returns the text of every fenced block and every code
+// span of doc.
+func fencedOrInlineCode(doc string) []string {
+	fenced := regexp.MustCompile("(?s)```.*?```")
+	spans := regexp.MustCompile("`([^`\n]+)`")
+	code := fenced.FindAllString(doc, -1)
+	for _, m := range spans.FindAllStringSubmatch(fenced.ReplaceAllString(doc, ""), -1) {
+		code = append(code, m[1])
+	}
+	return code
+}
+
+// placeholderWords returns the capitalised words of one piece of code that
+// stand for a value: not part of a longer name (FORSGREN_TOKEN) and not a
+// word of an HTTP method or of a command's own output.
+func placeholderWords(code string) []string {
+	literal := map[string]bool{"POST": true, "PATCH": true, "LOGIN": true, "OK": true}
+	var words []string
+	for _, at := range codeWords.FindAllStringIndex(code, -1) {
+		word := code[at[0]:at[1]]
+		inName := strings.HasPrefix(code[at[1]:], "_") || (at[0] > 0 && code[at[0]-1] == '_')
+		if !literal[word] && !inName {
+			words = append(words, word)
+		}
+	}
+	return words
+}
+
+// placeholdersUsed returns the placeholder words of all the code of doc.
+func placeholdersUsed(doc string) map[string]bool {
+	used := map[string]bool{}
+	for _, code := range fencedOrInlineCode(doc) {
+		for _, word := range placeholderWords(code) {
+			used[word] = true
+		}
+	}
+	return used
+}
+
+// TestEveryPlaceholderOfACommandIsListed (forsgren#166, 166-w): each
+// capitalised word used in a command of agent-upgrade.md is named in "How to
+// work through this file", either as a placeholder or as a name a command
+// makes.
+func TestEveryPlaceholderOfACommandIsListed(t *testing.T) {
+	listed := section(t, upgraderFile, "How to work")
+	for word := range placeholdersUsed(readUpgrader(t)) {
+		if !strings.Contains(listed, "`"+word+"`") {
+			t.Errorf("%s is used in a command but not listed under How to work", word)
+		}
 	}
 }

@@ -18,7 +18,7 @@ you remember of them.
 Tested with: not yet tested. The line is filled in when a fresh agent has
 upgraded a real installation by this file alone.
 
-### Before you start (for the person)
+## Before you start (for the person)
 
 1. Open a new terminal in an empty folder, for example
    `mkdir -p /tmp/forsgren-upgrade && cd /tmp/forsgren-upgrade`. An empty
@@ -62,10 +62,18 @@ request.
   - `LATESTSHA`: the commit of `LATEST`, 40 hex digits (step 3).
   - `PR`: the number of a waiting Dependabot pull request (step 3).
   - `BRANCH`: the data repository's default branch (step 6).
+  - `TAG`: a release's tag, such as `v1.2.0` (step 4).
+  - `CANDIDATE`: a repository's full name, `owner/name` (step 2).
+  - `FILE`: a file's name, such as `forsgren.yml` (steps 6 to 8).
+  - `PATH`: a file's path in the repository, such as
+    `.github/workflows/forsgren.yml` (steps 7 and 8).
+  - `NAMES`: the config keys a commit message names (step 8).
   - `WORK`: your work folder, the absolute path of `forsgren-work` inside
     the folder the person started you in (step 1).
-- **Names made by a command.** A name such as `HEADSHA` or `BLOB1` stands for
-  the value the command before it printed; the step that prints it names it.
+- **Names made by a command.** `HEADSHA`, `TREESHA`, `BLOB1`, `BLOB2`,
+  `NEWTREE`, `NEWCOMMIT`, `MERGECOMMIT`, `RUN`, `NUMBER`, `FIRSTCOMMIT` and
+  `BEFORE` stand for the value a command printed; the step that prints it
+  names it, and the later commands of that step use it.
 - **Write values into each command.** Do not rely on shell variables or a
   changed directory carrying over from one command to the next; use the
   absolute paths given here.
@@ -173,8 +181,8 @@ Read the report first, then the repository it comes from.
    - A custom domain (any other host): search the person's repositories for
      the one whose Pages custom domain is that host:
      `gh api 'user/repos?per_page=100' --paginate --jq '.[].full_name'`
-     then, for each name,
-     `gh api repos/NAME/pages --jq .cname` until one prints the host. Also
+     then, for each full name as `CANDIDATE`,
+     `gh api repos/CANDIDATE/pages --jq .cname` until one prints the host. Also
      search the organisations the login belongs to
      (`gh api user/orgs --jq '.[].login'`). More than one match, or none:
      stop and ask the person for `OWNER/REPO`.
@@ -350,7 +358,8 @@ The 1.3.0 notes ask a question about a page that disappears; `WORK/asks.md`
 gets `v1.3.0: the Daily page is hidden unless days_page: true`. Step 5 asks
 the person whether to keep the Daily page, and step 8 writes
 `days_page: true` only when they say yes. Another release asks something else,
-and the same four items work: read, write down, ask, apply the chosen answers.
+and you handle it the same way: read its notes, write the answer down, ask the
+person in step 5, and apply the answer they chose.
 
 Then go on to step 5.
 
@@ -472,12 +481,12 @@ Then go to the read back below.
    `forsgren-update.yml` may be missing (a 404): then this step moves
    `forsgren.yml` alone, and step 7 brings the other file over.
 3. For each file in `WORK/new/`: first keep a copy of it as read,
-   `cp WORK/new/NAME WORK/new/NAME.orig`; then change its one `uses:` line
+   `cp WORK/new/FILE WORK/new/FILE.orig`; then change its one `uses:` line
    with your file tool: its commit (40 hex digits) to `LATESTSHA` and its
    comment to `# LATEST`, and nothing else. Check:
-   `diff WORK/new/NAME.orig WORK/new/NAME` prints exactly one changed line (a
+   `diff WORK/new/FILE.orig WORK/new/FILE` prints exactly one changed line (a
    `<` line and a `>` line), and
-   `grep -c 'uses: yveshanoulle/forsgren/.github/workflows/.*@LATESTSHA # LATEST' WORK/new/NAME`
+   `grep -c 'uses: yveshanoulle/forsgren/.github/workflows/.*@LATESTSHA # LATEST' WORK/new/FILE`
    prints `1`. Anything else: stop and report.
 4. Make a blob of each file:
 
@@ -530,14 +539,17 @@ Then go to the read back below.
 Do not trust the answer of the command; read the branch again.
 
 1. `gh api repos/OWNER/REPO/commits/BRANCH --jq .sha` prints the head. Route
-   6b: it is `NEWCOMMIT`. Route 6a: it is a newer commit than `HEADSHA` or
-   than the one step 2 saw, whose message starts with the pull request's
-   title.
+   6b: it is `NEWCOMMIT`. Route 6a: the pull request's merge commit,
+   `gh pr view PR -R OWNER/REPO --json mergeCommit --jq .mergeCommit.oid`
+   (`MERGECOMMIT`), is the head or lies before it:
+   `gh api repos/OWNER/REPO/compare/MERGECOMMIT...BRANCH --jq .status` prints
+   `identical` or `ahead` (a data commit of a daily run may follow the merge).
+   Anything else, or no merge commit: stop and report.
 2. For each caller file that exists:
 
    ```
    gh api -H 'Accept: application/vnd.github.raw' \
-     repos/OWNER/REPO/contents/.github/workflows/NAME \
+     repos/OWNER/REPO/contents/.github/workflows/FILE \
      | grep -n 'uses:'
    ```
 
@@ -595,20 +607,20 @@ installation's: it would undo those choices (on the public-only route, the
    `.github/workflows/forsgren-update.yml` has the path
    `repos/yveshanoulle/forsgren-template/contents/.github/workflows/forsgren-update.yml`).
    The installation's copy of a missing file is not there (a 404): that is
-   expected, and `WORK/cur/NAME` stays absent.
+   expected, and `WORK/cur/FILE` stays absent.
 3. The template must be at `LATEST`: in `WORK/tpl/forsgren.yml` (read it too),
    the `uses:` line ends in `# LATEST`. Another version: the template has not
    caught up with the release. Stop and report; do not copy an older template.
-4. Compare: `diff WORK/cur/NAME WORK/tpl/NAME`. The diff shows more than the
+4. Compare: `diff WORK/cur/FILE WORK/tpl/FILE`. The diff shows more than the
    notes ask for: the person's choices (the token line, `default-days`) and
    comments. Leave all of that. Make the installation's copy
-   `WORK/new/NAME`: start from `WORK/cur/NAME` and change, with your file
+   `WORK/new/FILE`: start from `WORK/cur/FILE` and change, with your file
    tool, only the lines the notes name, in the template's words (a permission
    line with the template's comment, for example). A file the installation
    does not have: the template's file, changed to the installation's choices
    (its `default-days` is the update wait of step 5, and the
    `FORSGREN_TOKEN:` line is the one step 2 item 6 wrote down).
-   Check, for each file: `diff WORK/cur/NAME WORK/new/NAME` shows only the
+   Check, for each file: `diff WORK/cur/FILE WORK/new/FILE` shows only the
    lines you meant, the `FORSGREN_TOKEN:` line is the same as in step 2, and
    the `default-days` line is the same as in step 2 unless step 5 changed it.
 5. Inside the go of step 5: the plan named the files and lines. A line that
@@ -625,7 +637,7 @@ installation's: it would undo those choices (on the public-only route, the
 
    ```
    gh api -H 'Accept: application/vnd.github.raw' \
-     repos/OWNER/REPO/contents/PATH | diff - WORK/new/NAME
+     repos/OWNER/REPO/contents/PATH | diff - WORK/new/FILE
    ```
 
    prints nothing; the commit lists exactly those files
@@ -699,7 +711,7 @@ step 9 (every answer was to keep what is there).
 
    ```
    gh api -H 'Accept: application/vnd.github.raw' \
-     repos/OWNER/REPO/contents/PATH | diff - WORK/new/NAME
+     repos/OWNER/REPO/contents/PATH | diff - WORK/new/FILE
    ```
 
    prints nothing, the commit lists exactly those files, and the pins in the
@@ -749,9 +761,10 @@ minute and run that check again, at most 5 times, before you report it.
    release that they did not set ends with `True` (the default) and shows the
    default. A row missing or different: stop and report.
 7. A page that a release hides or shows (`WORK/asks.md`, step 4): ask for it
-   by its address, `curl -sS -o /dev/null -w '%{http_code}' REPORTNAME.html`.
+   by its address, `curl -sS -o /dev/null -w '%{http_code}' REPORTdays.html`
+   (for another page, its file name in place of `days.html`).
    A page the person chose to hide answers `404`; one they chose to show
-   answers `200`. For example `days.html` for the Daily page. Another
+   answers `200`; `days.html` is the Daily page. Another
    answer after the retries: stop and report.
 8. A custom domain, when `REPORT` is not a `github.io` address: it must start
    with `https://`, and `curl -fsS -o /dev/null -w '%{http_code}' REPORT`
@@ -760,7 +773,8 @@ minute and run that check again, at most 5 times, before you report it.
 9. No setup issue stays open: `gh issue list -R OWNER/REPO -l forsgren-setup`
    lists no open issue. The run closes it by itself when nothing is missing
    any more. An issue still there: show the person its title and body
-   (`gh issue view NUMBER -R OWNER/REPO`), say what it asks, stop and report.
+   (`gh issue view NUMBER -R OWNER/REPO`, with the number the list shows),
+   say what it asks, stop and report.
 
 Numbers such as "No deployments" are not a failure: they show what GitHub
 holds for the history.
