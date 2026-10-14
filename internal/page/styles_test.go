@@ -122,3 +122,13 @@ func tableWidthRules(css string) (tables, others []string) {
 	}
 	return tables, others
 }
+
+// TestTheScrollbarSpaceIsAlwaysReserved (forsgren#153): the html rule sets
+// scrollbar-gutter: stable, so a page with a vertical scrollbar and one
+// without have the same width and the centred page does not jump between them.
+func TestTheScrollbarSpaceIsAlwaysReserved(t *testing.T) {
+	css := stylesCSS(t)
+	if !regexp.MustCompile(`(?s)(?:^|\n)html\s*\{[^}]*scrollbar-gutter:\s*stable;`).MatchString(css) {
+		t.Errorf("want an html rule with scrollbar-gutter: stable in styles.css, got:\n%s", css)
+	}
+}

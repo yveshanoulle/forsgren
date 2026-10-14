@@ -2,6 +2,12 @@
   color-scheme: light dark;
 }
 
+/* The scrollbar's space is always reserved (forsgren#153), so a page with a
+   vertical scrollbar and one without are equally wide. */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0 auto;
   max-width: 120rem;
