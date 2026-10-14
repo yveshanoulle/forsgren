@@ -67,3 +67,23 @@ func checkHeadingLook(t *testing.T, rule string) {
 		t.Errorf("want the h1 font-size above the body's 1rem, got %s", size[1])
 	}
 }
+
+// TestBodyWidthGrowsWithTheScreenUpToAWideCap (forsgren#153, step 1): every
+// page shares one body, and its max-width is a cap in rem wide enough for a
+// 1800px screen (112.5rem), so below the cap the page and its tables follow
+// the screen. The old 48rem held the tables to 768px.
+func TestBodyWidthGrowsWithTheScreenUpToAWideCap(t *testing.T) {
+	css := stylesCSS(t)
+	rule := regexp.MustCompile(`(?s)(?:^|\n)body\s*\{([^}]*)\}`).FindStringSubmatch(css)
+	if rule == nil {
+		t.Fatalf("want a body rule in styles.css, got:\n%s", css)
+	}
+	width := regexp.MustCompile(`max-width:\s*([0-9.]+)rem`).FindStringSubmatch(rule[1])
+	if width == nil {
+		t.Fatalf("want the body rule to set a max-width in rem, got:\n%s", rule[1])
+	}
+	const screen1800px = 112.5
+	if n, err := strconv.ParseFloat(width[1], 64); err != nil || n < screen1800px {
+		t.Errorf("want the body max-width at least %vrem (a 1800px screen), got %srem", screen1800px, width[1])
+	}
+}
