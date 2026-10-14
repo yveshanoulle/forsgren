@@ -1101,6 +1101,18 @@
    "minScore": 9.28
   },
   {
+   "path": "internal/installerdoc/agent_upgrade_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-14",
+   "minScore": 9.58
+  },
+  {
+   "path": "cmd/forsgren/docs_version_test.go",
+   "score": 9.92,
+   "checkedAt": "2026-10-14",
+   "minScore": 9.82
+  },
+  {
    "path": "internal/readmepage/render_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-14",
@@ -1144,6 +1156,12 @@
   },
   {
    "path": "internal/history/withdrawals_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-14",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/helpers_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-14",
    "minScore": 10.0

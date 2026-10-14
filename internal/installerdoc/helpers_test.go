@@ -22,6 +22,10 @@ const upgraderFile repoFile = "agent-upgrade.md"
 // deleterFile is the agent file that removes an installation.
 const deleterFile repoFile = "agent-delete.md"
 
+// agentFiles are the three agent files: the installer, the upgrader and the
+// deleter.
+var agentFiles = []repoFile{installerFile, upgraderFile, deleterFile}
+
 // readRepoFile returns a file named from the repository root. Reading
 // through os.DirFS keeps every read inside the repository (gosec G304).
 func readRepoFile(t *testing.T, path repoFile) string {

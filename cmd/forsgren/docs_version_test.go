@@ -1,8 +1,10 @@
 package main
 
 import (
+	"maps"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -54,20 +56,34 @@ func docFiles(t *testing.T) []string {
 	return append(files, "../../README.md")
 }
 
-func TestDocsNameTheRunningVersion(t *testing.T) {
-	seen := map[string]int{}
+// runningVersionsInDocs is every running-version string of each doc file, by
+// its name from the repository root.
+func runningVersionsInDocs(t *testing.T) map[string][]string {
+	t.Helper()
+	found := map[string][]string{}
 	for _, file := range docFiles(t) {
 		name := strings.TrimPrefix(file, "../../")
-		for _, v := range runningVersionsIn(readFile(t, file)) {
-			seen[name]++
+		found[name] = append(found[name], runningVersionsIn(readFile(t, file))...)
+	}
+	return found
+}
+
+// TestDocsNameTheRunningVersion (forsgren#148, decision #170): every
+// running-version string in the docs is `version`, the one source of the
+// running version, and each file of docsNamingTheRunningVersion still holds
+// its strings.
+func TestDocsNameTheRunningVersion(t *testing.T) {
+	found := runningVersionsInDocs(t)
+	for _, name := range slices.Sorted(maps.Keys(found)) {
+		for _, v := range found[name] {
 			if v != version {
 				t.Errorf("%s says Forsgren %s, but version is %s: a release bump forgot it", name, v, version)
 			}
 		}
 	}
 	for name, want := range docsNamingTheRunningVersion {
-		if seen[name] < want {
-			t.Errorf("%s holds %d running-version strings, want at least %d", name, seen[name], want)
+		if got := len(found[name]); got < want {
+			t.Errorf("%s holds %d running-version strings, want at least %d", name, got, want)
 		}
 	}
 }

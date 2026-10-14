@@ -259,7 +259,7 @@ func TestUpgraderKeepsTheInstallersFixedRules(t *testing.T) {
 		"**The person does some steps themselves.** They are marked **Person**. Hand the person the text or command " +
 			"as written, wait until they say it is done, then do the check yourself.",
 	}
-	for _, path := range []repoFile{installerFile, upgraderFile, deleterFile} {
+	for _, path := range agentFiles {
 		wantAll(t, string(path), readRepoFileAsOneLine(t, path), shared...)
 	}
 }
@@ -331,7 +331,7 @@ var testedWith = regexp.MustCompile(
 // lines have the installer's shape, now that a fresh agent followed each on a
 // real installation, and every file's "Before you start" is a ## section.
 func TestBothFilesNameWhatTheyWereTestedWith(t *testing.T) {
-	for _, path := range []repoFile{installerFile, upgraderFile, deleterFile} {
+	for _, path := range agentFiles {
 		doc := readRepoFile(t, path)
 		if !testedWith.MatchString(doc) {
 			t.Errorf("%s has no Tested-with line of the usual shape", path)
@@ -354,24 +354,36 @@ func TestBothFilesNameWhatTheyWereTestedWith(t *testing.T) {
 // last one on the line, so "v0.8.5 → v1.3.0" gives 1.
 var testedMajor = regexp.MustCompile(`(?m)^Tested with: forsgren (?:v\d+\.\d+\.\d+ → )?v(\d+)\.`)
 
-// runningMajor captures the major of `version` in cmd/forsgren/main.go.
-var runningMajor = regexp.MustCompile(`(?m)^var version = "(\d+)\.`)
+// versionLineMajor captures the major of `var version` in
+// cmd/forsgren/main.go, the one source of the running version.
+var versionLineMajor = regexp.MustCompile(`(?m)^var version = "(\d+)\.`)
+
+// mainGo is the file that holds the running version. This package cannot
+// import package main, so it reads the `var version` line as text.
+const mainGo repoFile = "cmd/forsgren/main.go"
+
+// runningMajor returns the major of the running version.
+func runningMajor(t *testing.T) string {
+	t.Helper()
+	m := versionLineMajor.FindStringSubmatch(readRepoFile(t, mainGo))
+	if m == nil {
+		t.Fatal("cmd/forsgren/main.go has no var version line")
+	}
+	return m[1]
+}
 
 // TestEveryAgentFileWasTestedOnTheRunningMajor (forsgren#148, decision
 // #170): a release that starts a new major fails until the agent files have
 // a new proof run behind them; within a major the line passes.
 func TestEveryAgentFileWasTestedOnTheRunningMajor(t *testing.T) {
-	running := runningMajor.FindStringSubmatch(readRepoFile(t, "cmd/forsgren/main.go"))
-	if running == nil {
-		t.Fatal("cmd/forsgren/main.go has no var version line")
-	}
-	for _, path := range []repoFile{installerFile, upgraderFile, deleterFile} {
+	running := runningMajor(t)
+	for _, path := range agentFiles {
 		tested := testedMajor.FindStringSubmatch(readRepoFile(t, path))
 		if tested == nil {
 			t.Errorf("%s has no Tested-with line to read a major from", path)
-		} else if tested[1] != running[1] {
+		} else if tested[1] != running {
 			t.Errorf("%s was tested on forsgren major %s, but the running version is major %s: "+
-				"run a new proof and update its Tested-with line", path, tested[1], running[1])
+				"run a new proof and update its Tested-with line", path, tested[1], running)
 		}
 	}
 }

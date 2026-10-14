@@ -270,3 +270,9 @@ one that built the page, and, when your caller grants `pull-requests: read`
 update)" when Dependabot's pull request for it is open in your repository.
 Updating is merging that pull request; the template's calling workflow
 carries the permission line.
+
+**Cutting a release** (forsgren#148, decision #170). A release bump of
+`version` in `cmd/forsgren/main.go` must update the version strings in
+`README.md` and `docs/` in the same change, or the docs version pin fails; a
+new MAJOR also needs a new proof run of each agent file, recorded in its
+Tested-with line, or the Tested-with major test fails.
