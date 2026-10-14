@@ -84,3 +84,28 @@ func TestAWithdrawnFileThatCannotBeWrittenStoresNoDeployment(t *testing.T) {
 	}
 	wantRecords(t, path)
 }
+
+// TestAFailureIssueClosedAsNotPlannedIsWithdrawn (forsgren#155, step 2): issue
+// 42 was stored open; the next run's daily read lists it still labelled
+// failure, closed with state_reason not_planned. It is withdrawn, for the
+// reason not_planned; a failure closed as completed is not.
+func TestAFailureIssueClosedAsNotPlannedIsWithdrawn(t *testing.T) {
+	g := issuesOnly(t, issueJSON(42, "2026-09-20T08:00:00Z", "", recordBlock),
+		issueJSON(43, "2026-09-20T09:00:00Z", "", recordBlock))
+	path := historyPath(t)
+	g.collect(t, shop(production), path, 1)
+	labelled := func(l listed) string {
+		return strings.Replace(l.json(), `"labels": []`, `"labels": [{"name": "failure"}]`, 1)
+	}
+	g.bodies[allIssuesPath] = list(
+		labelled(listed{42, "closed", "2026-09-20T08:00:00Z", "2026-09-21T09:30:00Z", "not_planned"}),
+		labelled(listed{43, "closed", "2026-09-20T09:00:00Z", "2026-09-21T09:30:00Z", "completed"}))
+	if r := g.collect(t, shop(production), path, 1); r.err != nil {
+		t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
+	}
+	got, err := history.LoadWithdrawals(withdrawnFileBeside(path))
+	want := []history.Withdrawal{{Repository: "acme/app", Issue: 42, Withdrawn: true, Reason: "not_planned", At: now}}
+	if err != nil || !slices.Equal(got, want) {
+		t.Errorf("want the withdrawals\n%v\ngot\n%v (%v)", want, got, err)
+	}
+}
