@@ -1,0 +1,215 @@
+# Development
+
+## The data guard
+
+The data guard (`Scripts/check_data_guard.sh`, a PRE gate) keeps it that way.
+Like the secret scan it is secret-class: a finding blocks the commit itself,
+not only the push, so the leak never enters history.
+Over the files git tracks, it fails when:
+
+- a file that looks like installation config or data sits outside
+  `testdata/`: anything under a top-level `data/`, `deployments.csv`,
+  `commits.csv`, `failures.csv`, `failures_read.csv`, `issues.csv`, `issues_full.csv`,
+  `issue_bugs.csv`, `reach.csv`, `history.csv`, `*.history.csv`, `forsgren.config.*`,
+  `forsgren-config.*`, `config.yml`/`.yaml`/`.json` at any depth, or a
+  `*.jsonl` events file.
+  Every data file the Go code names (a constant `<Name>File = "<name>.csv"` in
+  `internal/collect`) must be on that list: the gate's self-test reads those
+  constants and fails when one is not guarded, so a data file added later
+  cannot be forgotten (forsgren#143).
+
+Private names are not this gate's business: the private-names gate
+(`Scripts/check_private_names.sh`, below) searches every tracked and every untracked,
+not-ignored path and file for them.
+
+The data guard does not check untracked files, so `git add` (or `git add -N`) a
+new file before running the gates; the private-names gate does check them.
+
+## Working on forsgren
+
+**`./FBP.sh "<message>"`** (FBP = FullBuildAndPush) is the one command for a
+change: 
+
+`gofmt -w` over the Go files, `./sfl.sh pre`, `Scripts/build_site.sh`,
+`./sfl.sh post`, then `git add -A`, a commit, and a push only when every
+phase is green. 
+An ordinary red still commits locally, with the subject
+`*** RED ****` and the message in the body, so work is never lost, and
+skips the push. 
+A secret-class red (the secret scan, the data guard or the private-names gate)
+commits nothing at all. `./FBP.sh --no-commit` runs the gates and the build
+only. 
+Every commit it makes, green or `*** RED ****`, is signed off
+(`git commit --signoff`): git adds a `Signed-off-by:` trailer for the
+committer identity, yours from `user.name` and `user.email`, or
+agent-Friend's under `Scripts/fbp_agent_friend.sh`. That is the Developer
+Certificate of Origin sign-off the DCO check on pull requests asks for (see
+CI and [CONTRIBUTING.md](../CONTRIBUTING.md)).
+
+Its closing summary prints the message, one row per phase with the
+gate counts and the page count, and every failure's reason. A run ended by
+TERM, INT or HUP ends with `Aborted ❌ (<signal>, exit <n>)` (143, 130, 129),
+never `All checks passed`. A run that ends with exit 0 but never reached its
+last statement, as when bash 3.2 ends the script on an unbound variable under
+`set -u`, is an abort too: the summary says `Aborted ❌` and FBP.sh exits 1
+(forsgren#136; `Scripts/test_fbp_abort_exit.sh`).
+
+**`./sfl.sh pre|post`** runs one phase of the gates. Before PRE it runs
+`git pull --ff-only` and stops (exit 3) when that cannot fast-forward, then
+installs the tools (see Installing and updating), runs `npm ci` when the
+npm linters are missing, and exports the Go pin. It runs every gate of the
+phase even after a failure, prints a step table and an `Errors:` block with
+each failed gate's reason, and exits 0 green, 1 red, 2 on a secret-class
+red.
+
+**`Scripts/gate_report_order.txt`** declares every gate, one row
+`<label>|<script>|<phase>|<class>`: the label sfl and CI print, the script
+that runs, `pre` or `post`, and `secret-class` or nothing. A gate this repo
+does not have is a row `<label>|n/a|<reason>`. sfl and CI both run the
+rows in file order, so the file is the one list.
+
+**Adding a gate:** write the script and its self-test (`Scripts/test_*.sh`,
+red first, plus a mutation proof), give each a row at its position in the
+order file (the self-test in PRE, before its gate), add any Homebrew tool
+it needs to `Scripts/required_tools.txt`, and describe it below.
+`Scripts/test_sfl_drives_from_order_file.sh` is red on a `Scripts/test_*.sh`
+no row declares, and the gate-wiring gate on a script neither runner runs.
+
+## The tools
+
+**Go is pinned separately.** `brew install go` also upgrades an outdated Go for
+the whole machine, which would be a surprise if forsgren followed it. So
+forsgren does not: `go.mod` carries a `toolchain` line (for example
+`toolchain go1.27.1`), and `sfl.sh` and `FBP.sh` export it as `GOTOOLCHAIN`.
+Go then downloads that exact toolchain on first use and runs it, whatever
+version Homebrew installed. (The `toolchain` line alone is only a minimum, so
+the export is what makes the pin exact. Nothing is written to your global Go
+config.) Both scripts stop with a clear error if `go.mod` has no `toolchain`
+line.
+
+**To move to a new Go version,** edit the `toolchain` line in `go.mod`, and
+nothing else, then run `./FBP.sh`. Go downloads the new toolchain on the first
+run. Do not set the version anywhere else: `go.mod` is the only place it is
+written.
+
+**The Go tools are pinned in `go.mod` too.** golangci-lint, deadcode
+(`golang.org/x/tools`) and govulncheck (`golang.org/x/vuln`) are `tool`
+lines in `go.mod`, with every module they pull in checksummed in `go.sum`,
+and the gates run them through `go tool` (Go builds each once and caches
+it), so CI and every machine run the same versions. They are never Homebrew
+tools, and never `go install ...@latest`: neither has a lockfile. To move
+one to a new version:
+
+```
+go get -tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
+go get -tool golang.org/x/tools/cmd/deadcode@v0.50.0
+go get -tool golang.org/x/vuln/cmd/govulncheck@v1.8.0
+go mod tidy
+```
+
+then run `./FBP.sh` and commit `go.mod` and `go.sum` together (the go mod
+tidy gate is red when the `go mod tidy` is forgotten). A new version can
+bring new findings; they are fixed in the code like any other.
+
+**The npm linters are pinned in `package.json`.** Node itself (and with it
+`npm`) is a Homebrew tool from `Scripts/required_tools.txt`, so like Go it
+follows whatever the formula publishes. The npm tools the gates use,
+htmlhint, stylelint and stylelint-config-standard, and jscpd for the html
+duplication ratchet, are not: they are `devDependencies` in `package.json`
+at an exact version (no `^` or `~`), and `package-lock.json` pins every
+package they pull in. Both files are committed. `./sfl.sh` runs `npm ci`
+when `node_modules/.bin/htmlhint` or `node_modules/.bin/jscpd` is missing:
+`npm ci` installs exactly what the lockfile says into `node_modules/`
+(gitignored, never committed) and fails when `package.json` and the
+lockfile disagree.
+Never use `npm install` in a gate or a workflow, and never install the linters
+globally or run them through `npx --yes`.
+
+Two gates keep it that way: **npm manifest policy**
+(`Scripts/check_guardrail_packages.sh`) is red on a version range in
+`package.json`, on a missing or gitignored `package.json` or
+`package-lock.json`, and on a tracked `node_modules/`; **npm audit**
+(`Scripts/npm_audit_check.sh`) is red on a high-severity advisory that one
+`npm audit fix` cannot heal and no ruled exception covers. When that fix does
+heal it, the changed `package-lock.json` rides into the commit.
+
+**Ruled exceptions to npm audit.** An advisory with no fix can be excepted
+in `Scripts/npm_audit_exceptions.txt`, one line per advisory:
+`advisory|package|re-check date|issue|reason`. An exception needs Yves's
+explicit yes recorded on a GitHub issue, which its line names, like every
+suppression (see Quality gates). The gate reads `npm audit --json` (with jq,
+which macOS and GitHub's macOS images ship) and ignores a finding only while
+all of these hold: its GHSA ID and its package are listed; today is on or
+before the re-check date; `npm audit --omit=dev` does not report it, so
+every path to it runs through devDependencies; and npm offers no fix for
+that package without `--force` (its `fixAvailable` is false or SemVer-major).
+Each ignored finding is printed once, as `excepted: GHSA-… (package) until
+<date>, <issue>`. The exception ends by itself: the gate is red again, with
+a ❌ line saying why, once the date has passed ("re-check forsgren#13: is a
+fix out?"), on any other advisory, when the advisory reaches a production
+path, and when a fix without `--force` exists ("a fix exists: remove the
+exception and update"). An exception for an advisory npm no longer reports
+is a warning (remove the stale exception), not a red; a malformed line or an
+advisory listed twice is red before anything is audited.
+
+**Re-checked weekly** (Yves, forsgren#13): a re-check date may be at most 7
+days after today, and the gate is red on one further out, so nobody can set
+an exception a month ahead. A re-check means looking for a fix. When one is
+out, remove the line and update. When there is none, move the date forward
+by at most 7 days and add one line to the entry's history comment in the
+file (or note it on the issue). Today's one exception is
+GHSA-vfj7-8cjw-p6xm (braces `<= 3.0.3`, no patched version), which reaches
+forsgren only through jscpd and stylelint via fast-glob and micromatch
+([forsgren#13](https://github.com/yveshanoulle/forsgren/issues/13)).
+
+**To move a linter to a new version,** change its exact pin and the lockfile
+together, then run `./FBP.sh`:
+
+```
+npm install --save-dev --save-exact stylelint@17.15.0
+```
+
+That one command rewrites the pin in `package.json`, re-resolves
+`package-lock.json` and updates `node_modules/` (sfl's `npm ci` runs only when
+`node_modules` has no htmlhint or no jscpd, so it would not pick a bump up on
+its own; forsgren#2 tracks reinstalling on a lockfile change).
+Check that `package.json` still shows an exact version, and commit both files.
+
+## The tooling's own fixtures
+
+The rest of the PRE rows test the build and gate tooling itself, so a
+broken runner cannot report green:
+
+- **sfl pull contract** (`Scripts/test_sfl_pull.sh`): sfl pulls with
+  `--ff-only` and stops with exit 3, naming the recovery command, when it
+  cannot fast-forward.
+- **npm manifest policy self-test**, **npm-audit self-test** and the other
+  `... self-test` rows: each drives its gate on made-up input before the
+  gate runs.
+- **tool install self-test** (`Scripts/test_install_tools.sh`): the
+  installer installs a missing tool, upgrades a present one, and is red when
+  Homebrew reports success but the tool is still not runnable, or the list
+  is empty.
+- **Go toolchain pin self-test** (`Scripts/test_go_toolchain.sh`):
+  `Scripts/go_toolchain.sh` prints go.mod's `toolchain` version and is red
+  without one.
+- **build-site self-test** (`Scripts/test_build_site.sh`): the build
+  compiles the binary, renders the site and writes the page count only on
+  full success.
+- **gate-failure summary**, **step table**
+  (`Scripts/test_summarize_gate_failure.sh`,
+  `Scripts/test_render_step_table.sh`): sfl's end-of-run reason lines and
+  step table, with their counts.
+- **sfl drives from the order file**
+  (`Scripts/test_sfl_drives_from_order_file.sh`): sfl names no gate label
+  itself, every row names an executable script, every `Scripts/test_*.sh`
+  is declared by a row, and the secret scan, the data guard and the
+  private-names gate each carry `secret-class`.
+- **FullBuildAndPush commit-message block** and **FullBuildAndPush
+  build-site page count** (`Scripts/test_fbp_commit_message.sh`,
+  `Scripts/test_fbp_build_pagecount.sh`): the real `FBP.sh`, run in a
+  throwaway repository with stub gates, prints its message, reaches PRE,
+  blocks a secret-class commit with the right hint, signs off its green and
+  `*** RED ****` commits as the identity that ran it (a commit that then
+  passes `Scripts/check_dco.sh`), and fails the build row
+  by name on a missing, unreadable, non-numeric or zero page count.

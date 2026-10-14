@@ -20,7 +20,7 @@
 # floor, and `brew install go` also upgrades an outdated Go machine-wide. What
 # pins forsgren's Go is go.mod's `toolchain` line, exported as GOTOOLCHAIN by
 # sfl.sh and FBP.sh (Scripts/go_toolchain.sh); Go downloads that toolchain on
-# first use. See "Installing and updating" in README.md.
+# first use. See "The tools" in docs/development.md.
 
 # Secret scanning. sfl exits 2 on a finding, so this one being absent would
 # turn the strictest gate in the repo into a skipped step.

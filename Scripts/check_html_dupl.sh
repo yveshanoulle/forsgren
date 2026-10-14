@@ -22,7 +22,7 @@ cd "$(dirname "$0")/.." || exit 1
 #      page template pasting the chrome instead of calling it) shows there.
 #   2. jscpd is a pinned devDependency in package.json + package-lock.json,
 #      invoked by path from node_modules/.bin, never `npx --yes`: forsgren's
-#      rule for every npm tool (README, Installing and updating). Same version
+#      rule for every npm tool (docs/development.md, The tools). Same version
 #      as konenki's npx pin, 4.2.4, so the numbers compare across the estate.
 #   3. ZERO FILES SCANNED IS RED (exit 2), with that reason. jscpd 4.2.4 over a
 #      directory with no .html prints neither a percentage nor "Found 0
