@@ -201,9 +201,18 @@ Read the report first, then the repository it comes from.
    - `forsgren-update.yml` and `dependabot.yml` may be missing in an
      installation made before auto-update existed: a 404 there is not a
      failure. Note which are missing; step 7 brings them over.
-   - When `forsgren-update.yml` exists, its `uses:` line must end in the same
-     `# vX.Y.Z` as `forsgren.yml`. Different: stop and report (a half-moved
-     pin).
+   - When `forsgren-update.yml` exists, its `uses:` line calls
+     `yveshanoulle/forsgren/.github/workflows/auto_update.yml@` a 40-hex
+     commit and ends in `# vX.Y.Z`. The two files must carry the same version
+     and the same commit. Different: stop and report (a half-moved pin).
+   - The pinned commit is the one `VERSION` really is:
+     `gh api repos/yveshanoulle/forsgren/commits/VERSION --jq .sha` prints the
+     commit in `forsgren.yml`. Another commit: stop and report; the pin was
+     edited by hand.
+   - The footer's version (item 1) differs from the pin (`VERSION` without
+     its `v`): not a failure. The page was built by an earlier run than the
+     pin (a pin that moved and has not run yet), or the daily run is failing.
+     Tell the person in step 5 and let step 9 prove the new version.
    - `forsgren.config.yml` missing: stop and report.
 6. Which token the installation uses: in `WORK/forsgren.yml`, the line
    `FORSGREN_TOKEN:` reads `secrets.FORSGREN_TOKEN` (a token the person made)

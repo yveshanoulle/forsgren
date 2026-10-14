@@ -38,3 +38,18 @@ func TestUpgraderStarts(t *testing.T) {
 		t.Errorf("README.md links %s before 166-11", upgraderFile)
 	}
 }
+
+// TestUpgraderStep2ComparesTheTwoPins (forsgren#166, step 166-2): step 2
+// reads the version and the commit of both caller pins (metrics.yml in
+// forsgren.yml, auto_update.yml in forsgren-update.yml), stops when they
+// differ, checks the pinned commit is the one VERSION's release points at,
+// and compares the footer's version with the pin without stopping on it.
+func TestUpgraderStep2ComparesTheTwoPins(t *testing.T) {
+	step := asOneLine(section(t, readRepoFile(t, upgraderFile), "Step 2."))
+	wantAll(t, "step 2", step,
+		"auto_update.yml@",
+		"the same version and the same commit",
+		"gh api repos/yveshanoulle/forsgren/commits/VERSION --jq .sha",
+		"differs from the pin",
+		"stop and report (a half-moved pin)")
+}
