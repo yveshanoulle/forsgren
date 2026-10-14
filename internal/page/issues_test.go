@@ -354,3 +354,16 @@ func TestIssuesPageWithAnIncompleteOpenBugsCellMatchesGolden(t *testing.T) {
 	data.IssueRows = []metrics.IssueRow{{Kind: metrics.KindDay, IssueDay: day}}
 	checkPageGolden(t, "issues.html", "testdata/issues.incomplete.golden.html", data)
 }
+
+// incompleteNote explains the incomplete Open bugs cell (forsgren#140).
+const incompleteNote = "When the bug list of a repository is too long to read in full (the read stops at 10,000 " +
+	"issues), Open bugs shows — (incomplete) instead of a number in every row, because a partial count would " +
+	"look complete. The number returns by itself after a complete read."
+
+// TestLegendExplainsTheIncompleteOpenBugsCell (forsgren#140): the legend says,
+// right after the note on Open bugs, why the cell can show — (incomplete) and
+// that it clears after a complete read.
+func TestLegendExplainsTheIncompleteOpenBugsCell(t *testing.T) {
+	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()),
+		"<p>"+bugsNote+"</p>\n    <p>"+incompleteNote+"</p>\n    <p>"+trendNote+"</p>\n")
+}
