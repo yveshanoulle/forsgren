@@ -10,7 +10,7 @@ Over the files git tracks, it fails when:
 - a file that looks like installation config or data sits outside
   `testdata/`: anything under a top-level `data/`, `deployments.csv`,
   `commits.csv`, `failures.csv`, `failures_read.csv`, `issues.csv`, `issues_full.csv`,
-  `issue_bugs.csv`, `reach.csv`, `history.csv`, `*.history.csv`, `forsgren.config.*`,
+  `issue_bugs.csv`, `issue_bugs_cut.csv`, `reach.csv`, `history.csv`, `*.history.csv`, `forsgren.config.*`,
   `forsgren-config.*`, `config.yml`/`.yaml`/`.json` at any depth, or a
   `*.jsonl` events file.
   Every data file the Go code names (a constant `<Name>File = "<name>.csv"` in

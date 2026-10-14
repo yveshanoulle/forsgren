@@ -471,7 +471,20 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   not only from the day it was changed. The flags come from
   `data/issue_bugs.csv` (see [History](data-files.md#history), Bug flags); a missing file marks no
   issue, and an unknown version or a malformed line fails the render with its
-  own message. **The arrows** (forsgren#126, forsgren#114) follow the Open and
+  own message. **An incomplete Open bugs cell** (forsgren#140, decision #171):
+  when the bug read of any tracked repository stopped at the 10,000 issues
+  cap, `data/issue_bugs_cut.csv` notes it (see
+  [History](data-files.md#history), The bugs cut note), and the Open bugs cell
+  of every row, on the days page and on the issues page, shows
+  `— (incomplete)` with no arrow instead of the number, because a partial
+  count would look complete. The cell is a `<span>` with `role="img"`, the
+  `aria-label` "Open bugs incomplete: a repository's bug list was too long to
+  read in full" and the `title` "A repository's bug list was too long to read
+  in full, so the number of open bugs is not shown"; the legend explains it
+  after its note on Open bugs. The number comes back by itself once a run
+  reads the bug list in full. A missing file marks no cell, and an unknown
+  version or a malformed line fails the render with its own message.
+  **The arrows** (forsgren#126, forsgren#114) follow the Open and
   Open bugs counts: a red up arrow and the change (`▲ +3`) when the count
   rose, a green down arrow and the change (`▼ −2`) when it fell, a grey dash
   when it did not change, also a day that nets to zero. Red and green mean a

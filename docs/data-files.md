@@ -167,6 +167,34 @@ acme/app,7,false
   line, refused untouched when its version is unknown or a line is
   malformed, naming the line.
 
+**The bugs cut note** (forsgren#140) is kept in `data/issue_bugs_cut.csv`,
+next to the history, with its own format version (the bugs cut format v1):
+one line per repository whose last bug read stopped at the 10,000 issues cap,
+so its bug flags, and the Open bugs column, may be incomplete.
+
+```
+# forsgren bugs cut v1
+repository,cut_at
+acme/app,2026-10-14T06:00:00Z
+```
+
+- `cut_at` is the start of the run whose bug read of the repository stopped
+  at the cap, in UTC, to the second. Lines are sorted by repository.
+- A run writes the line when the repository's bug read stopped at the cap,
+  moving its time when it is already there, and removes the line when the
+  bug read was complete. A repository that failed keeps its line as it was.
+- Unlike the files above it is rewritten whole, like `data/reach.csv`: through
+  a temporary file that is renamed over it, and only when a line changed. A
+  missing file notes no repository.
+- An unknown version or a malformed line refuses the collect run before
+  GitHub is asked anything, and fails the render with its own message,
+  naming the file.
+- While it notes any repository, every row of the Open bugs column shows
+  `— (incomplete)` instead of a number (see
+  [Pages and views](pages-and-views.md)).
+- The data guard knows its name: an `issue_bugs_cut.csv` that git tracks
+  outside `testdata/` blocks the commit, like the other data files.
+
 ## Collecting deployments (`collect`)
 
 ```
@@ -456,7 +484,10 @@ stored is skipped (see [History](#history), Bug flags). If the list stopped at t
 10,000 issues cap, stderr says so (`the bug read stopped at 100 page(s) of
 issues; the stored bug flags are kept`), what was read is stored and no flag is
 removed, because an issue it did not reach may still carry the label; the run
-goes on. A refused list (GitHub errors) fails the repository, like a refused
+goes on, and the repository is noted in `data/issue_bugs_cut.csv` (see
+[History](#history), The bugs cut note), so the Open bugs column shows
+`— (incomplete)` until a later run reads its bug list in full and removes the
+note (forsgren#140). A refused list (GitHub errors) fails the repository, like a refused
 issue list, and so does an `issue_bugs.csv` that cannot be written; an
 `issue_bugs.csv` that is not in the format refuses the repository before
 GitHub is asked for the bug issues. The label is the one at the latest
@@ -478,5 +509,5 @@ no label history, which would take one call per issue.
   daily collection continues, but the back history and the historical Open and Total
   are incomplete (the warning above).
 - The Open bugs of a repository above 10,000 bug-labelled issues is incomplete
-  too: a warning, but its cell is not marked as incomplete (a known limit,
-  forsgren#140).
+  too: a warning, and every Open bugs cell shows `— (incomplete)` instead of a
+  number until a complete bug read (forsgren#140).

@@ -169,19 +169,26 @@ func renderWithBugsCut(t *testing.T, cut ...string) page.Data {
 		t.Fatal(err)
 	}
 	if len(cut) > 0 {
-		notes := history.Reach{}
-		for _, repo := range cut {
-			notes[repo] = time.Date(2026, 10, 1, 8, 0, 0, 0, time.UTC)
-		}
-		if err := history.SaveBugsCut(filepath.Join(filepath.Dir(data), "issue_bugs_cut.csv"), notes); err != nil {
-			t.Fatal(err)
-		}
+		saveBugsCut(t, data, cut)
 	}
 	got, err := withHistory(page.Data{}, config.Config{}, data, time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatal(err)
 	}
 	return got
+}
+
+// saveBugsCut writes issue_bugs_cut.csv beside the history at data, noting
+// each repository of cut as cut on 1 October 2026.
+func saveBugsCut(t *testing.T, data string, cut []string) {
+	t.Helper()
+	notes := history.Reach{}
+	for _, repo := range cut {
+		notes[repo] = time.Date(2026, 10, 1, 8, 0, 0, 0, time.UTC)
+	}
+	if err := history.SaveBugsCut(beside(data, "issue_bugs_cut.csv"), notes); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // TestRenderMarksEveryRowBugsIncompleteWhenARepositoryIsCut (forsgren#140):
@@ -218,13 +225,18 @@ func TestRenderRefusesABadBugsCutFile(t *testing.T) {
 func wantBugsIncomplete(t *testing.T, data page.Data, want bool) {
 	t.Helper()
 	for _, d := range data.IssueDays {
-		if d.BugsIncomplete != want {
-			t.Errorf("want BugsIncomplete %v on day %v", want, d.Date)
-		}
+		wantBugsIncompleteOn(t, fmt.Sprintf("day %v", d.Date), d.BugsIncomplete, want)
 	}
 	for _, r := range data.IssueRows {
-		if r.BugsIncomplete != want {
-			t.Errorf("want BugsIncomplete %v on %s row %v", want, r.Kind, r.Date)
-		}
+		wantBugsIncompleteOn(t, fmt.Sprintf("%s row %v", r.Kind, r.Date), r.BugsIncomplete, want)
+	}
+}
+
+// wantBugsIncompleteOn fails when the row named row has a BugsIncomplete,
+// got, that is not want.
+func wantBugsIncompleteOn(t *testing.T, row string, got, want bool) {
+	t.Helper()
+	if got != want {
+		t.Errorf("want BugsIncomplete %v on %s", want, row)
 	}
 }

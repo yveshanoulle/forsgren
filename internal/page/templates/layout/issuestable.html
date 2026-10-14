@@ -24,8 +24,8 @@
             <td>{{.Duplicate}}</td>
             <td>{{.Other}}</td>
             <td>{{.Open}} {{template "trend" (trend "open issues" .OpenTrend .OpenChange)}}</td>
-            <td>{{if .BugsIncomplete}}<span role="img" aria-label="Open bugs incomplete: a repository's bug list was too long to read in full" title="A repository's bug list was too long to read in full, so the number of open bugs is not shown">— (incomplete)</span>{{else}}{{.OpenBugs}} {{template "trend" (trend "open bugs" .OpenBugsTrend .OpenBugsChange)}}{{end}}</td>
+            <td>{{if .BugsIncomplete}}{{template "bugsincomplete"}}{{else}}{{.OpenBugs}} {{template "trend" (trend "open bugs" .OpenBugsTrend .OpenBugsChange)}}{{end}}</td>
             <td>{{.Total}}</td>
             <td>{{.OpenShare}}</td>
           </tr>
-{{end}}{{define "trend"}}<span class="{{.Class}}" role="img" aria-label="{{.Label}}">{{.Arrow}}{{if gt .Sign 0}} +{{.Change}}{{else if lt .Sign 0}} −{{.Change}}{{end}}</span>{{end}}
+{{end}}{{define "trend"}}<span class="{{.Class}}" role="img" aria-label="{{.Label}}">{{.Arrow}}{{if gt .Sign 0}} +{{.Change}}{{else if lt .Sign 0}} −{{.Change}}{{end}}</span>{{end}}{{define "bugsincomplete"}}<span role="img" aria-label="Open bugs incomplete: a repository's bug list was too long to read in full" title="A repository's bug list was too long to read in full, so the number of open bugs is not shown">— (incomplete)</span>{{end}}

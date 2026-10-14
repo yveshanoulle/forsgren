@@ -60,11 +60,12 @@ func (o Options) bugsCutFile() string { return filepath.Join(filepath.Dir(o.Hist
 // seconds, UTC, when cut says it did, and removes its note when the read was
 // complete, so its Open bugs shows a number again.
 func (h held) noteBugsCut(repo string, cut bool, at time.Time) {
-	if cut {
-		h.cut[strings.ToLower(repo)] = wholeSecond(at)
+	key := strings.ToLower(repo)
+	if !cut {
+		delete(h.cut, key)
 		return
 	}
-	delete(h.cut, strings.ToLower(repo))
+	h.cut[key] = wholeSecond(at)
 }
 
 // lostLabel is the issues of repo that stored says are bugs and listed, the

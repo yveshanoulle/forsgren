@@ -27,13 +27,40 @@ const FailuresReadFile = "failures_read.csv"
 // an issue updated while the last run was reading is not missed.
 const failuresReadOverlap = 24 * time.Hour
 
-// marks are the four files that note how far each repository was read, and
-// where its bug read was cut.
-type marks struct{ reach, read, full, cut history.Reach }
+// markFile is one of the files next to the history that keep a time per
+// repository (history.Reach): where held keeps it during the run, its path,
+// and how it is read and written.
+type markFile struct {
+	held *history.Reach
+	path string
+	load func(path string) (history.Reach, error)
+	save func(path string, r history.Reach) error
+}
+
+// markFiles are h's four marks, in the order they are loaded and saved: how
+// far each repository was read (reach, chunk.go), when its issues were last
+// read (read), whether they were read in full (full, issueevents.go) and
+// where its bug read was cut (cut, bugflags.go).
+func (o Options) markFiles(h *held) []markFile {
+	return []markFile{
+		{&h.reach, o.reachFile(), history.LoadReach, history.SaveReach},
+		{&h.read, o.failuresReadFile(), history.LoadReadAt, history.SaveReadAt},
+		{&h.full, o.issuesFullFile(), history.LoadFullAt, history.SaveFullAt},
+		{&h.cut, o.bugsCutFile(), history.LoadBugsCut, history.SaveBugsCut},
+	}
+}
+
+// marks are copies of h's marks, in markFiles' order.
+type marks []history.Reach
 
 // marks is a copy of h's marks, to tell later whether they moved.
-func (h held) marks() marks {
-	return marks{maps.Clone(h.reach), maps.Clone(h.read), maps.Clone(h.full), maps.Clone(h.cut)}
+func (o Options) marks(h held) marks {
+	files := o.markFiles(&h)
+	copies := make(marks, len(files))
+	for i, f := range files {
+		copies[i] = maps.Clone(*f.held)
+	}
+	return copies
 }
 
 // failuresReadFile is the path of the failures read file next to the history.
@@ -41,31 +68,25 @@ func (o Options) failuresReadFile() string {
 	return filepath.Join(filepath.Dir(o.History), FailuresReadFile)
 }
 
-// loadMarks is h with the reach, the failures read and the issues full
-// files loaded; a file that cannot be read refuses the run.
+// loadMarks is h with each of its mark files loaded; a file that cannot be
+// read refuses the run.
 func (o Options) loadMarks(h held) (held, error) {
-	var reachErr, readErr, fullErr, cutErr error
-	h.reach, reachErr = history.LoadReach(o.reachFile())
-	h.read, readErr = history.LoadReadAt(o.failuresReadFile())
-	h.full, fullErr = history.LoadFullAt(o.issuesFullFile())
-	h.cut, cutErr = history.LoadBugsCut(o.bugsCutFile())
-	return h, errors.Join(reachErr, readErr, fullErr, cutErr)
+	var errs []error
+	for _, f := range o.markFiles(&h) {
+		var err error
+		*f.held, err = f.load(f.path)
+		errs = append(errs, err)
+	}
+	return h, errors.Join(errs...)
 }
 
 // saveMarks saves each of h's marks that differs from before.
 func (o Options) saveMarks(h held, before marks) error {
 	var errs []error
-	if !maps.Equal(h.reach, before.reach) {
-		errs = append(errs, history.SaveReach(o.reachFile(), h.reach))
-	}
-	if !maps.Equal(h.read, before.read) {
-		errs = append(errs, history.SaveReadAt(o.failuresReadFile(), h.read))
-	}
-	if !maps.Equal(h.full, before.full) {
-		errs = append(errs, history.SaveFullAt(o.issuesFullFile(), h.full))
-	}
-	if !maps.Equal(h.cut, before.cut) {
-		errs = append(errs, history.SaveBugsCut(o.bugsCutFile(), h.cut))
+	for i, f := range o.markFiles(&h) {
+		if !maps.Equal(*f.held, before[i]) {
+			errs = append(errs, f.save(f.path, *f.held))
+		}
 	}
 	return errors.Join(errs...)
 }

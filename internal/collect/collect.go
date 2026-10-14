@@ -122,7 +122,7 @@ func Run(ctx context.Context, cfg config.Config, o Options) error {
 	if h, err = o.loadMarks(h); err != nil {
 		return err
 	}
-	before := h.marks()
+	before := o.marks(h)
 	failed := 0
 	for _, p := range cfg.Projects {
 		failed += o.collectProject(ctx, h, p)

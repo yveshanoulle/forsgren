@@ -180,13 +180,24 @@ func TestACutListOfBugIssuesIsNotedPerRepository(t *testing.T) {
 	g := newGitHub(t)
 	path, _ := listFourOverStoredThreeAndFour(t, g)
 	g.paged[bugIssuesPath] = true
+	if got, err := cutNotesAfterARun(t, g, path); !notedAsCut(got, err, 1, "acme/app") {
+		t.Errorf("want acme/app noted as cut, got %v, %v", got, err)
+	}
+}
+
+// cutNotesAfterARun runs collect over the history at path against g, which
+// must succeed, and reads the bugs cut file beside it.
+func cutNotesAfterARun(t *testing.T, g *gitHub, path string) (history.Reach, error) {
+	t.Helper()
 	if r := g.collect(t, shop(production), path, 1); r.err != nil {
 		t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
 	}
-	got, err := history.LoadBugsCut(bugsCutFileBeside(path))
-	if err != nil || len(got) != 1 || got["acme/app"].IsZero() {
-		t.Errorf("want acme/app noted as cut, got %v, %v", got, err)
-	}
+	return history.LoadBugsCut(bugsCutFileBeside(path))
+}
+
+// notedAsCut is whether got, read with err, holds n notes, repo's among them.
+func notedAsCut(got history.Reach, err error, n int, repo string) bool {
+	return err == nil && len(got) == n && !got[repo].IsZero()
 }
 
 // saveCutNotes stores acme/app and other/repo as cut in a mark file beside the
@@ -194,9 +205,6 @@ func TestACutListOfBugIssuesIsNotedPerRepository(t *testing.T) {
 func saveCutNotes(t *testing.T, path string) {
 	t.Helper()
 	at := time.Date(2026, 9, 1, 8, 0, 0, 0, time.UTC)
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		t.Fatal(err)
-	}
 	if err := history.SaveBugsCut(bugsCutFileBeside(path), history.Reach{"acme/app": at, "other/repo": at}); err != nil {
 		t.Fatal(err)
 	}
@@ -210,11 +218,7 @@ func TestACompleteListOfBugIssuesRemovesTheCutNote(t *testing.T) {
 	g := newGitHub(t)
 	path, _ := listFourOverStoredThreeAndFour(t, g)
 	saveCutNotes(t, path)
-	if r := g.collect(t, shop(production), path, 1); r.err != nil {
-		t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
-	}
-	got, err := history.LoadBugsCut(bugsCutFileBeside(path))
-	if _, ok := got["other/repo"]; err != nil || len(got) != 1 || !ok {
+	if got, err := cutNotesAfterARun(t, g, path); !notedAsCut(got, err, 1, "other/repo") {
 		t.Errorf("want only other/repo noted as cut, got %v, %v", got, err)
 	}
 }
@@ -232,7 +236,7 @@ func TestAFailedRepositoryKeepsItsCutNote(t *testing.T) {
 		t.Fatalf("want the repository failed, got %v (stderr %q)", r.err, r.stderr)
 	}
 	got, err := history.LoadBugsCut(bugsCutFileBeside(path))
-	if _, ok := got["acme/app"]; err != nil || len(got) != 2 || !ok {
+	if !notedAsCut(got, err, 2, "acme/app") {
 		t.Errorf("want both notes kept, got %v, %v", got, err)
 	}
 }

@@ -41,6 +41,16 @@ var reachFile = format[reachRow, string]{
 	compare:     func(a, b reachRow) int { return cmp.Compare(a.Repository, b.Repository) },
 }
 
+// markFormat is the reach format under its own version line and column line:
+// each mark file (failures_read.csv, issues_full.csv, issue_bugs_cut.csv)
+// keeps one time per repository as data/reach.csv does, rewritten whole, and
+// says in its header what that time is.
+func markFormat(versionLine, columnLine string) format[reachRow, string] {
+	f := reachFile
+	f.versionLine, f.columnLine = versionLine, columnLine
+	return f
+}
+
 // toReachRow reads the two fields of a line.
 func toReachRow(f []string) (reachRow, error) {
 	at, err := parseTime("reach", f[1])

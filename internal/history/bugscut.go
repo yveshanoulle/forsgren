@@ -5,12 +5,7 @@ package history
 // column that say what the time is, when the read of a repository's bug
 // issues last stopped at its page cap. A repository in it has bug flags that
 // may be incomplete, so the Open bugs it adds to are not shown as a number.
-var bugsCutFile = func() format[reachRow, string] {
-	f := reachFile
-	f.versionLine = "# forsgren bugs cut v1"
-	f.columnLine = "repository,cut_at"
-	return f
-}()
+var bugsCutFile = markFormat("# forsgren bugs cut v1", "repository,cut_at")
 
 // LoadBugsCut reads data/issue_bugs_cut.csv at path: per repository, when its
 // bug read last stopped at the page cap. Missing is empty, like LoadReach.
