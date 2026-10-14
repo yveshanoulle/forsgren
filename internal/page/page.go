@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"cmp"
 	"embed"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -82,6 +83,9 @@ type Data struct {
 	// "scoring", marked in the menu (forsgren#46, forsgren#128); empty for the
 	// plain root page, whose menu marks no view.
 	View string
+	// Hidden are the pages the site leaves out, by page name ("issues",
+	// "days"); the zero value hides none (forsgren#159).
+	Hidden map[string]bool
 }
 
 // Row is one row of the table: its numbers, the heading the page gives it,
@@ -354,12 +358,38 @@ func WriteSite(dir string, data Data) (int, error) {
 	}
 	written := 0
 	for _, name := range PageNames() {
-		if err := writePage(site, name, data); err != nil {
+		wrote, err := writeOrRemovePage(site, name, data)
+		if err != nil {
 			return written, err
 		}
-		written++
+		if wrote {
+			written++
+		}
 	}
 	return written, nil
+}
+
+// writeOrRemovePage writes the page, or removes its file when the site hides
+// it; it says whether it wrote the page (forsgren#159).
+func writeOrRemovePage(dir siteDir, name string, data Data) (bool, error) {
+	if data.hides(name) {
+		return false, removePage(dir, name)
+	}
+	return true, writePage(dir, name, data)
+}
+
+// hides says whether the site leaves out the page called name (its file
+// without ".html"), forsgren#159.
+func (d Data) hides(name string) bool { return d.Hidden[strings.TrimSuffix(name, ".html")] }
+
+// removePage deletes the file of a hidden page from a reused out dir; a page
+// that was never written is not an error.
+func removePage(dir siteDir, name string) error {
+	err := os.Remove(filepath.Join(string(dir), name))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	return err
 }
 
 // siteDir is the folder WriteSite writes the site into.
