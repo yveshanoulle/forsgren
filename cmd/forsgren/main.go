@@ -4,7 +4,7 @@
 // Usage:
 //
 //	forsgren render --out <dir> [--config <path>] [--data <path>]
-//	                [--latest <version>] [--waiting-pr <number>] [--token-expiry <path>]
+//	                [--latest <version>] [--waiting-pr <number>]
 //	forsgren check-config --config <path>
 //	forsgren init-config --config <path>
 //	forsgren collect --config <path> --data <path> [--token-expiry <path>]

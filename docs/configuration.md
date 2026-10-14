@@ -115,9 +115,7 @@ projects:
   a test holds the lists to the config loader; and **Default**: True when
   `forsgren.config.yml` does not set the key, so the current value is the
   default, False when the file sets it, even to the default's value. The legend
-  explains the Default column. Below the keys, a **Token expires** row shows
-  the day `FORSGREN_TOKEN` expires, in UTC, as GitHub reports it. Without a
-  known date the row is left out (forsgren#177).
+  explains the Default column.
 - **`projects`** is required: a list of projects, or `projects: []` for an
   installation that measures nothing yet (it is valid, and `check-config`
   reports `projects: 0, repositories: 0`). A file whose `projects` key is
@@ -384,8 +382,8 @@ jobs:
   `forsgren.config.yml` lists a repository, a missing token fails the run
   with collect's message naming `FORSGREN_TOKEN`. Inside the workflow only
   the collect step gets it, in its environment. Give the token an expiry
-  date less than a year away. The settings page shows that date, and from
-  14 days before it the setup issue lists the token (see [The setup
+  date less than a year away. From 14 days before that date the log warns and
+  the setup issue lists the token (see [The setup
   issue](updating-and-releases.md), forsgren#177).
 - **The daily run collects and commits the history.** After the check,
   `forsgren collect --config forsgren.config.yml --data

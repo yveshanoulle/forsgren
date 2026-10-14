@@ -72,10 +72,6 @@ type Data struct {
 	// settings page lists them, marking those the file does not set
 	// (forsgren#74, #84).
 	Settings []config.Setting
-	// TokenExpires is the day the installation's token expires, YYYY-MM-DD in
-	// UTC, empty when unknown; the settings page has a row for it only then
-	// (forsgren#177).
-	TokenExpires string
 	// IssueDays are the issue counts per UTC day, newest first, that the
 	// days page tabulates (forsgren#76, forsgren#123, forsgren#128).
 	IssueDays []metrics.IssueDay

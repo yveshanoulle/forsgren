@@ -439,7 +439,6 @@ jobs:
         run: |
           set -euo pipefail
           forsgren render --out "${RUNNER_TEMP}/site" --config forsgren.config.yml --data data/deployments.csv \
-            --token-expiry "${RUNNER_TEMP}/token-expiry" \
             ${LATEST:+--latest "$LATEST"} \
             ${WAITING:+--waiting-pr "$WAITING"} \
             ${NEEDS_CHECK:+--needs-check "$NEEDS_CHECK"}

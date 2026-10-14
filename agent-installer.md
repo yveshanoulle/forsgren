@@ -506,7 +506,7 @@ in:
 >    Never more than a year, and never "No expiration". Put the date in your
 >    calendar: when it passes, the daily run fails until you make a new
 >    token and set it again (step 3 below). forsgren reminds you as well:
->    the settings page shows the date, and from 14 days before it the
+>    from 14 days before the date the log warns and the
 >    setup issue lists the token.
 > 4. **Resource owner:** the owner of the private repositories to measure.
 >    If that is an organisation that reviews tokens, the token reads only

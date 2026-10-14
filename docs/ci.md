@@ -158,7 +158,7 @@ data/deployments.csv --token-expiry "${RUNNER_TEMP}/token-expiry"` (its output s
 exit status kept as a step output), a commit of
 `data/` alone when it changed, pushed like the starter (an `::error` naming a
 branch that moved, never a rebase or a force), `forsgren render --config
-forsgren.config.yml --data data/deployments.csv --token-expiry "${RUNNER_TEMP}/token-expiry"`, then `actions/upload-pages-artifact` and
+forsgren.config.yml --data data/deployments.csv`, then `actions/upload-pages-artifact` and
 `actions/deploy-pages` into the `github-pages` environment, and last a step
 that fails the job when collect failed. The job
 context, not the `github` context: in a called workflow the `github`
@@ -321,7 +321,7 @@ Six PRE gates keep the CI honest:
   pushes; the job's concurrency group is keyed on `github.repository` with
   `cancel-in-progress: false`; the render step, executed with a stub, runs
   exactly `forsgren render --out <dir> --config forsgren.config.yml --data
-  data/deployments.csv --token-expiry <runner temp>/token-expiry`, plus `--latest <version>` when the step before it
+  data/deployments.csv`, plus `--latest <version>` when the step before it
   found one; that step, "Look up the latest forsgren release", gets the job's
   token as `GITHUB_TOKEN` (never the caller's secret), outputs a plain
   version, and outputs nothing, never failing the job, for a lookup that
