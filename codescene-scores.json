@@ -17,7 +17,7 @@
   {
    "path": "cmd/forsgren/main.go",
    "score": 9.38,
-   "checkedAt": "2026-10-07",
+   "checkedAt": "2026-10-15",
    "minScore": 9.28
   },
   {
@@ -119,7 +119,7 @@
   {
    "path": "cmd/forsgren/collect.go",
    "score": 10.0,
-   "checkedAt": "2026-10-07",
+   "checkedAt": "2026-10-15",
    "minScore": 10.0
   },
   {
@@ -911,7 +911,7 @@
   {
    "path": "cmd/forsgren/checkneeds.go",
    "score": 10.0,
-   "checkedAt": "2026-10-07",
+   "checkedAt": "2026-10-15",
    "minScore": 10.0
   },
   {
@@ -1170,6 +1170,42 @@
    "path": "cmd/forsgren/render_withdrawn_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-14",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/tokenexpiry.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-15",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/collect_expiry_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-15",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/checkneeds_expiry_test.go",
+   "score": 9.53,
+   "checkedAt": "2026-10-15",
+   "minScore": 9.43
+  },
+  {
+   "path": "cmd/forsgren/render_expiry_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-15",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/tokenexpiry.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-15",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/tokenexpiry_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-15",
    "minScore": 10.0
   }
  ]

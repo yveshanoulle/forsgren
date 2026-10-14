@@ -12,7 +12,7 @@ removed again later is found again. Its command line, which `metrics.yml` runs
 in the step "Check what this forsgren version needs":
 
 ```
-forsgren check-needs --config <path> --repository <owner/name> [--status <path>]
+forsgren check-needs --config <path> --repository <owner/name> [--status <path>] [--token-expiry <path>]
 ```
 
 `--config` is the installation's `forsgren.config.yml` (the config keys a need
@@ -23,6 +23,13 @@ went (`ok`, `no-access`, `rate-limited` or `failed`). The job's token is
 flags are valid, whatever the check or the write did; 2 is a usage error. The
 workflow passes the status on as `render --needs-check` and
 `run-summary --needs-check`.
+
+`--token-expiry` is the file that `collect --token-expiry` wrote (forsgren#177).
+When `FORSGREN_TOKEN` expires within 14 days, or has expired, the setup
+issue gets one more item: the date, and the `gh secret set FORSGREN_TOKEN`
+command to set a new token. A file that is missing or holds no date adds
+nothing. Once a new token is set, the item is gone, and with nothing else
+missing the issue closes.
 
 - **One setup issue per installation, not per version.** It carries the label
   `forsgren-setup`, but its identity is a hidden marker, an HTML comment on the

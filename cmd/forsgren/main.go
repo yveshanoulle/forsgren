@@ -4,13 +4,14 @@
 // Usage:
 //
 //	forsgren render --out <dir> [--config <path>] [--data <path>]
-//	                [--latest <version>] [--waiting-pr <number>]
+//	                [--latest <version>] [--waiting-pr <number>] [--token-expiry <path>]
 //	forsgren check-config --config <path>
 //	forsgren init-config --config <path>
-//	forsgren collect --config <path> --data <path>
+//	forsgren collect --config <path> --data <path> [--token-expiry <path>]
 //	forsgren latest-release
 //	forsgren waiting-pull-request --version <x.y.z> [--status <path>]
 //	forsgren check-needs --config <path> --repository <owner/name> [--status <path>]
+//	                     [--token-expiry <path>]
 //	forsgren run-summary --latest <version> --waiting-pr <number>
 //	                     --pr-check <ok|no-access|rate-limited|failed|skipped> --repository <owner/name>
 package main
@@ -142,14 +143,30 @@ func requiredFlags(stderr io.Writer, args []string, command string, specs ...fla
 		return nil, false
 	}
 	parsed := make([]string, len(specs))
+	required := make([]requiredValue, len(specs))
 	for i, s := range specs {
-		if *values[i] == "" {
-			_, _ = fmt.Fprintf(stderr, "%s: --%s %s is required\n", command, s.name, s.arg)
-			return nil, false
-		}
 		parsed[i] = *values[i]
+		required[i] = requiredValue{s.name, s.arg, parsed[i]}
+	}
+	if missingRequired(stderr, command, required...) {
+		return nil, false
 	}
 	return parsed, true
+}
+
+// requiredValue is a required flag, --<name> <arg>, and the value parsed for it.
+type requiredValue struct{ name, arg, value string }
+
+// missingRequired says `<command>: --<name> <arg> is required` on stderr for
+// the first of required that has no value, and whether one had none.
+func missingRequired(stderr io.Writer, command string, required ...requiredValue) bool {
+	for _, r := range required {
+		if r.value == "" {
+			_, _ = fmt.Fprintf(stderr, "%s: --%s %s is required\n", command, r.name, r.arg)
+			return true
+		}
+	}
+	return false
 }
 
 // newFlags is the flag set of a command: a parse error is returned, never an

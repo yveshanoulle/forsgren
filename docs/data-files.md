@@ -236,7 +236,7 @@ acme/app,2026-10-14T06:00:00Z
 ## Collecting deployments (`collect`)
 
 ```
-FORSGREN_TOKEN=<token> forsgren collect --config forsgren.config.yml --data data/deployments.csv
+FORSGREN_TOKEN=<token> forsgren collect --config forsgren.config.yml --data data/deployments.csv [--token-expiry <path>]
 ```
 
 `collect` reads, for every repository in the config, that repository's
@@ -493,6 +493,16 @@ have and skip each deployment with a warning instead (not verified against
 live GitHub, see above). Metadata is
 in every fine-grained token. A classic token needs `repo` for
 private repositories (no scope for public ones).
+
+**The token's expiry date** (forsgren#177). GitHub names a token's expiry
+date in every answer. With `--token-expiry <path>`, `collect` writes that
+date to the file, as one UTC RFC 3339 line such as `2027-01-12T08:35:47Z`.
+`check-needs` and `render` read it from there. A token without an expiry
+date removes the file. A file that cannot be written or removed fails the
+run. From 14 days before the date, and once it has passed, `collect` also
+warns on stderr: a `collect: warning:` line that names the date and the
+command `gh secret set FORSGREN_TOKEN -R <owner/name>` to set a new token.
+The warning never changes the exit code.
 
 ### Issue events (forsgren#76)
 

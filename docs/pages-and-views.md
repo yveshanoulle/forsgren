@@ -555,6 +555,8 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
 - **The settings page** (`settings.html`, forsgren#84, a table since forsgren#141)
   tabulates each optional config key under Parameter, Current value, Possible
   values and Default, see [Configuration](configuration.md#configuration).
+  When the token's expiry date is known, a last row, Token expires, shows
+  that day (forsgren#177).
 - **Layout:** no table has a caption: each is named by its page's heading
   ("DORA metrics" on the three views and the root, Issues, Daily), and one `h1`
   rule in `styles.css` sets the look of every page's heading (forsgren#135), and every table has `<th scope>` headers; it scrolls

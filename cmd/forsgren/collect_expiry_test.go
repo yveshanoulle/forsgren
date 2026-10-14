@@ -13,15 +13,32 @@ import (
 // expiryFile is the file --token-expiry names, in a fresh directory.
 func expiryFile(t *testing.T) string { return filepath.Join(t.TempDir(), "token-expiry") }
 
+// expiryHeader is an answer header that names value as the token's expiry
+// date, as GitHub writes it; no header at all for "".
+func expiryHeader(value string) http.Header {
+	header := http.Header{}
+	if value != "" {
+		header.Set("GitHub-Authentication-Token-Expiration", value)
+	}
+	return header
+}
+
+// collectOneRepository runs collect on oneRepository with a fresh history,
+// and the extra arguments.
+func collectOneRepository(t *testing.T, extra ...string) outcome {
+	t.Helper()
+	args := []string{"--config", writeConfig(t, oneRepository), "--data", dataPath(t)}
+	return collectRun(append(args, extra...)...)
+}
+
 // TestCollectWritesTheTokenExpiryToTheFile (forsgren#177): with
 // --token-expiry, the date GitHub's header names is written to the file as
 // one UTC RFC 3339 line, for the check-needs step to read.
 func TestCollectWritesTheTokenExpiryToTheFile(t *testing.T) {
 	t.Setenv("FORSGREN_TOKEN", testToken)
-	header := http.Header{"Github-Authentication-Token-Expiration": {"2027-01-12 08:35:47 UTC"}}
-	fakeAPIWithHeader(t, acmeApp, 0, header)
+	fakeAPIWithHeader(t, acmeApp, 0, expiryHeader("2027-01-12 08:35:47 UTC"))
 	file := expiryFile(t)
-	got := collectRun("--config", writeConfig(t, oneRepository), "--data", dataPath(t), "--token-expiry", file)
+	got := collectOneRepository(t, "--token-expiry", file)
 	if got.code != 0 {
 		t.Fatalf("want exit 0, got %+v", got)
 	}
@@ -41,7 +58,7 @@ func TestCollectRemovesTheTokenExpiryFileWhenNoExpiryIsKnown(t *testing.T) {
 	if err := os.WriteFile(file, []byte("2020-01-01T00:00:00Z\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	got := collectRun("--config", writeConfig(t, oneRepository), "--data", dataPath(t), "--token-expiry", file)
+	got := collectOneRepository(t, "--token-expiry", file)
 	if _, err := os.Stat(file); got.code != 0 || !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("want exit 0 and no file, got %+v and %v", got, err)
 	}
@@ -52,17 +69,16 @@ func TestCollectRemovesTheTokenExpiryFileWhenNoExpiryIsKnown(t *testing.T) {
 // exit 1 with collect's own message, not silence.
 func TestCollectFailsWhenTheTokenExpiryFileCannotBeWritten(t *testing.T) {
 	t.Setenv("FORSGREN_TOKEN", testToken)
-	header := http.Header{"Github-Authentication-Token-Expiration": {"2027-01-12 08:35:47 UTC"}}
 	cases := map[string]struct {
 		header http.Header
 		path   string
 	}{
-		"write":  {header, filepath.Join(t.TempDir(), "missing", "token-expiry")},
+		"write":  {expiryHeader("2027-01-12 08:35:47 UTC"), filepath.Join(t.TempDir(), "missing", "token-expiry")},
 		"remove": {nil, nonEmptyDir(t)},
 	}
 	for name, c := range cases {
 		fakeAPIWithHeader(t, acmeApp, 0, c.header)
-		got := collectRun("--config", writeConfig(t, oneRepository), "--data", dataPath(t), "--token-expiry", c.path)
+		got := collectOneRepository(t, "--token-expiry", c.path)
 		if got.code != 1 || !strings.HasPrefix(got.stderr, "collect: ") {
 			t.Errorf("%s: want exit 1 and collect's message, got %+v", name, got)
 		}
@@ -96,12 +112,8 @@ func TestCollectWarnsOnStderrWhenTheTokenExpiresWithin14Days(t *testing.T) {
 		{"none", "", ""},
 	}
 	for _, c := range cases {
-		header := http.Header{}
-		if c.value != "" {
-			header.Set("GitHub-Authentication-Token-Expiration", c.value)
-		}
-		fakeAPIWithHeader(t, acmeApp, 0, header)
-		got := collectRun("--config", writeConfig(t, oneRepository), "--data", dataPath(t), "--token-expiry", expiryFile(t))
+		fakeAPIWithHeader(t, acmeApp, 0, expiryHeader(c.value))
+		got := collectOneRepository(t, "--token-expiry", expiryFile(t))
 		if got.code != 0 || got.stderr != c.want {
 			t.Errorf("%s: want exit 0 and stderr %q, got %+v", c.name, c.want, got)
 		}
@@ -112,8 +124,8 @@ func TestCollectWarnsOnStderrWhenTheTokenExpiresWithin14Days(t *testing.T) {
 func TestTheTokenExpiryWarningNamesTheRepositoryTheWorkflowRunsIn(t *testing.T) {
 	t.Setenv("FORSGREN_TOKEN", testToken)
 	t.Setenv("GITHUB_REPOSITORY", "acme/shop")
-	fakeAPIWithHeader(t, acmeApp, 0, http.Header{"Github-Authentication-Token-Expiration": {"2026-10-10 00:00:00 UTC"}})
-	got := collectRun("--config", writeConfig(t, oneRepository), "--data", dataPath(t))
+	fakeAPIWithHeader(t, acmeApp, 0, expiryHeader("2026-10-10 00:00:00 UTC"))
+	got := collectOneRepository(t)
 	if !strings.Contains(got.stderr, "-R acme/shop`") {
 		t.Errorf("want the repository in the command, got %q", got.stderr)
 	}

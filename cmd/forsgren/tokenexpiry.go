@@ -2,11 +2,16 @@ package main
 
 import (
 	"cmp"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/yveshanoulle/forsgren/internal/github"
 	"github.com/yveshanoulle/forsgren/internal/needs"
 )
 
@@ -61,4 +66,35 @@ func tokenExpiryNeed(path string, at time.Time) (needs.Need, bool) {
 	}
 	message, near := tokenExpiryMessage(expiry, at)
 	return needs.Need{Kind: "token_expiry", Steps: message}, near
+}
+
+// writeTokenExpiry writes the expiry date client's token has to path, one
+// UTC RFC 3339 line, or removes path when the client knows none (a token
+// without an expiry date, or the job's own). No path is nothing to do
+// (forsgren#177).
+func writeTokenExpiry(path string, client *github.Client) error {
+	if path == "" {
+		return nil
+	}
+	at, known := client.TokenExpiry()
+	if !known {
+		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+		return nil
+	}
+	return os.WriteFile(path, []byte(at.UTC().Format(time.RFC3339)+"\n"), 0o600)
+}
+
+// warnTokenExpiry says on stderr that the token expires on its date, and how
+// to make a new one, when tokenExpiryMessage has something to say; nothing
+// for a date further away or none known. The run's outcome is not touched.
+func warnTokenExpiry(stderr io.Writer, at time.Time, client *github.Client) {
+	expiry, known := client.TokenExpiry()
+	if !known {
+		return
+	}
+	if message, near := tokenExpiryMessage(expiry, at); near {
+		_, _ = fmt.Fprintf(stderr, "collect: warning: %s\n", message)
+	}
 }

@@ -56,15 +56,8 @@ func checkNeedsFlags(args []string, stderr io.Writer) (checkNeedsOptions, bool) 
 	if err := flags.Parse(args); err != nil {
 		return o, false
 	}
-	for _, missing := range []struct{ name, arg, value string }{
-		{"config", "<path>", o.config}, {"repository", "<owner/name>", o.repository},
-	} {
-		if missing.value == "" {
-			_, _ = fmt.Fprintf(stderr, "check-needs: --%s %s is required\n", missing.name, missing.arg)
-			return o, false
-		}
-	}
-	return o, true
+	return o, !missingRequired(stderr, "check-needs",
+		requiredValue{"config", "<path>", o.config}, requiredValue{"repository", "<owner/name>", o.repository})
 }
 
 // reportNeeds finds the needs missing from the checkout, prints their steps,
