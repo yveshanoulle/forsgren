@@ -93,7 +93,7 @@ in_testdata() {
 # mutates this list by that shape (it deletes the history.csv arm, then the
 # deployments.csv arm, then the commits.csv arm, then the failures.csv arm,
 # then the issues.csv arm, then the issues_full.csv, failures_read.csv,
-# issue_bugs.csv, issue_bugs_cut.csv and reach.csv arms, and quotes every arm whose pattern holds a
+# failures_withdrawn.csv, issue_bugs.csv, issue_bugs_cut.csv and reach.csv arms, and quotes every arm whose pattern holds a
 # `*` so that it matches only literally).
 guarded_reason() {
   local why=""
@@ -105,6 +105,7 @@ guarded_reason() {
     issues.csv) why="the issue events forsgren collect keeps for the days and issues pages (data/issues.csv in an installation)" ;;
     issues_full.csv) why="the note of each repository whose issues were read in full, which forsgren collect keeps (data/issues_full.csv in an installation)" ;;
     failures_read.csv) why="when each repository's failure and issue lists were last read, which forsgren collect keeps (data/failures_read.csv in an installation)" ;;
+    failures_withdrawn.csv) why="which failure issues were withdrawn, which forsgren collect keeps for change fail rate (data/failures_withdrawn.csv in an installation)" ;;
     issue_bugs.csv) why="which issues carry the bug label, which forsgren collect keeps for the Open bugs column (data/issue_bugs.csv in an installation)" ;;
     issue_bugs_cut.csv) why="which repositories' bug reads stopped at the page cap, which forsgren collect keeps for the Open bugs column (data/issue_bugs_cut.csv in an installation)" ;;
     reach.csv) why="how far back each repository's deployments were read, which forsgren collect keeps (data/reach.csv in an installation)" ;;

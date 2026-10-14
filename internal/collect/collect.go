@@ -159,7 +159,7 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	if err != nil {
 		return err
 	}
-	stored, err := o.store(batch{f.records, commits, lines.failures, lines.events, lines.bugs})
+	stored, err := o.store(batch{f.records, commits, lines.failures, lines.withdrawals, lines.events, lines.bugs})
 	if err != nil {
 		return fmt.Errorf("%s: %w", r.Name, err)
 	}
@@ -174,9 +174,10 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 // issueLines is what one repository's issues give to store: its failure
 // issues, the events of all its issues and their bug flags.
 type issueLines struct {
-	failures []history.Failure
-	events   []history.IssueEvent
-	bugs     []history.IssueBug
+	failures    []history.Failure
+	withdrawals []history.Withdrawal
+	events      []history.IssueEvent
+	bugs        []history.IssueBug
 	// bugsCut is whether the bug read stopped at the page cap (forsgren#140).
 	bugsCut bool
 }
@@ -189,9 +190,11 @@ func (o Options) readIssues(ctx context.Context, h held, repo string) (issueLine
 	if l.failures, err = o.failureIssues(ctx, h, repo); err != nil {
 		return l, err
 	}
-	if l.events, err = o.issueEvents(ctx, h, repo); err != nil {
+	var daily []github.RepoIssue
+	if l.events, daily, err = o.issueEvents(ctx, h, repo); err != nil {
 		return l, err
 	}
+	l.withdrawals = o.withdrawals(h, repo, daily)
 	l.bugs, l.bugsCut, err = o.bugFlags(ctx, repo)
 	return l, err
 }
@@ -213,11 +216,12 @@ func (o Options) report(repo string, f found, stored counts) {
 
 // batch is what one repository stores.
 type batch struct {
-	records  []history.Record
-	commits  []history.Commit
-	failures []history.Failure
-	events   []history.IssueEvent
-	bugs     []history.IssueBug
+	records     []history.Record
+	commits     []history.Commit
+	failures    []history.Failure
+	withdrawals []history.Withdrawal
+	events      []history.IssueEvent
+	bugs        []history.IssueBug
 }
 
 // counts is how many lines of each file a batch stored.
@@ -242,14 +246,24 @@ func (o Options) store(b batch) (counts, error) {
 	if c.failures, err = history.AppendFailures(o.failuresFile(), b.failures); err != nil {
 		return c, err
 	}
-	if _, err = history.AppendIssueEvents(o.issuesFile(), b.events); err != nil {
-		return c, err
-	}
-	if _, err = history.AppendIssueBugs(o.bugsFile(), b.bugs); err != nil {
+	if err = o.appendIssueLines(b); err != nil {
 		return c, err
 	}
 	c.deployments, err = history.Append(o.History, b.records)
 	return c, err
+}
+
+// appendIssueLines appends a batch's withdrawals, then its issue events, then
+// its bug flags.
+func (o Options) appendIssueLines(b batch) error {
+	if _, err := history.AppendWithdrawals(o.withdrawnFile(), b.withdrawals); err != nil {
+		return err
+	}
+	if _, err := history.AppendIssueEvents(o.issuesFile(), b.events); err != nil {
+		return err
+	}
+	_, err := history.AppendIssueBugs(o.bugsFile(), b.bugs)
+	return err
 }
 
 // found is what one repository's rule found.

@@ -1123,6 +1123,30 @@
    "score": 10.0,
    "checkedAt": "2026-10-14",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/withdrawn.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-14",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/withdrawn_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-14",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/withdrawals.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-14",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/withdrawals_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-14",
+   "minScore": 10.0
   }
  ]
 }

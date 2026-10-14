@@ -27,7 +27,8 @@
 #      quotepath on: git prints it quoted)
 #  13. an issues.csv elsewhere (forsgren#76)      -> red, named
 #  14. an issues_full.csv, a failures_read.csv,   -> red, each named
-#      an issue_bugs.csv and an issue_bugs_cut.csv
+#      a failures_withdrawn.csv, an issue_bugs.csv
+#      and an issue_bugs_cut.csv
 #      elsewhere (forsgren#143, forsgren#140)
 #  15. drift check: every data file the Go code   -> red, each named
 #      names (const <Name>File = "<name>.csv" in
@@ -194,24 +195,26 @@ want_red "an issues.csv outside data/ is red and named" "❌ FAIL: ops/issues.cs
 new_repo "other-data-elsewhere"
 write_file "ops/issues_full.csv" $'# forsgren issues full v1\n' track
 write_file "ops/failures_read.csv" $'# forsgren failures read v1\n' track
+write_file "ops/failures_withdrawn.csv" $'# forsgren failures withdrawn v1\n' track
 write_file "ops/issue_bugs.csv" $'# forsgren issue bugs v1\n' track
 write_file "ops/issue_bugs_cut.csv" $'# forsgren bugs cut v1\n' track
 run_gate
 want_red "an issues_full.csv outside data/ is red and named (forsgren#143)" "❌ FAIL: ops/issues_full.csv"
 want_said "a failures_read.csv outside data/ is red and named (forsgren#143)" "❌ FAIL: ops/failures_read.csv"
+want_said "a failures_withdrawn.csv outside data/ is red and named (forsgren#155)" "❌ FAIL: ops/failures_withdrawn.csv"
 want_said "an issue_bugs.csv outside data/ is red and named (forsgren#143)" "❌ FAIL: ops/issue_bugs.csv"
 want_said "an issue_bugs_cut.csv outside data/ is red and named (forsgren#140)" "❌ FAIL: ops/issue_bugs_cut.csv"
 
 # Drift check (forsgren#143): every data file the Go code names, a constant
 # `const <Name>File = "<name>.csv"` in internal/collect, is guarded, so a data
 # file added later cannot be forgotten. The names are read from the source, one
-# source of truth; a read that finds fewer than the seven there are is itself
+# source of truth; a read that finds fewer than the eight there are is itself
 # red, so a changed constant shape cannot make this case pass over nothing.
 GO_DATA_FILES="$(grep -rhoE --exclude='*_test.go' '^const [A-Za-z]+File += "[a-z_]+\.csv"' internal/collect \
   | sed -E 's/.*"([a-z_]+\.csv)"/\1/' | sort -u)"
 go_data_count="$(grep -c . <<< "$GO_DATA_FILES" || true)"
-if [[ "$go_data_count" -lt 7 ]]; then
-  fail "drift check (forsgren#143): found ${go_data_count} data file constant(s) in internal/collect, want at least 7 — the constant shape changed, so this check proves nothing"
+if [[ "$go_data_count" -lt 8 ]]; then
+  fail "drift check (forsgren#143): found ${go_data_count} data file constant(s) in internal/collect, want at least 8 — the constant shape changed, so this check proves nothing"
 else
   new_repo "go-data-files"
   while IFS= read -r name; do
@@ -227,6 +230,8 @@ new_repo "other-data-elsewhere-full"
 write_file "ops/issues_full.csv" $'# forsgren issues full v1\n' track
 new_repo "other-data-elsewhere-read"
 write_file "ops/failures_read.csv" $'# forsgren failures read v1\n' track
+new_repo "other-data-elsewhere-withdrawn"
+write_file "ops/failures_withdrawn.csv" $'# forsgren failures withdrawn v1\n' track
 new_repo "other-data-elsewhere-bugs"
 write_file "ops/issue_bugs.csv" $'# forsgren issue bugs v1\n' track
 new_repo "other-data-elsewhere-bugscut"
@@ -300,6 +305,8 @@ arm_deleted_proof 14 "issues_full.csv" '^[[:space:]]*issues_full\.csv\) why=' \
   "${TMP}/check_data_guard_noissuesfull.sh" "other-data-elsewhere-full" "ops/issues_full.csv"
 arm_deleted_proof 14 "failures_read.csv" '^[[:space:]]*failures_read\.csv\) why=' \
   "${TMP}/check_data_guard_nofailuresread.sh" "other-data-elsewhere-read" "ops/failures_read.csv"
+arm_deleted_proof 14 "failures_withdrawn.csv" '^[[:space:]]*failures_withdrawn\.csv\) why=' \
+  "${TMP}/check_data_guard_nowithdrawn.sh" "other-data-elsewhere-withdrawn" "ops/failures_withdrawn.csv"
 arm_deleted_proof 14 "issue_bugs.csv" '^[[:space:]]*issue_bugs\.csv\) why=' \
   "${TMP}/check_data_guard_noissuebugs.sh" "other-data-elsewhere-bugs" "ops/issue_bugs.csv"
 arm_deleted_proof 14 "issue_bugs_cut.csv" '^[[:space:]]*issue_bugs_cut\.csv\) why=' \

@@ -50,8 +50,14 @@ type issue struct {
 	CreatedAt   time.Time       `json:"created_at"`
 	ClosedAt    *time.Time      `json:"closed_at"`
 	StateReason *string         `json:"state_reason"`
+	Labels      []issueLabel    `json:"labels"`
 	Body        *string         `json:"body"`
 	PullRequest json.RawMessage `json:"pull_request"`
+}
+
+// issueLabel is one label of an item of GitHub's answer.
+type issueLabel struct {
+	Name string `json:"name"`
 }
 
 // errIssueFields: an issue without a number or a creation time.

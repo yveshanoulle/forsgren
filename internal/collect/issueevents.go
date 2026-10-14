@@ -43,16 +43,21 @@ func (o Options) issuesFullFile() string {
 // the full read. What is already stored is skipped by
 // history.AppendIssueEvents, so the two reads and every run add only what is
 // new.
-func (o Options) issueEvents(ctx context.Context, h held, repo string) ([]history.IssueEvent, error) {
+//
+// It also returns the daily read's issues, which the withdrawals read too
+// (withdrawn.go).
+func (o Options) issueEvents(ctx context.Context, h held, repo string) ([]history.IssueEvent,
+	[]github.RepoIssue, error,
+) {
 	all, err := o.fullRead(ctx, h, repo)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	daily, err := o.dailyRead(ctx, h, repo)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return append(o.eventsFrom(h, repo, all), o.eventsFrom(h, repo, daily)...), nil
+	return append(o.eventsFrom(h, repo, all), o.eventsFrom(h, repo, daily)...), daily, nil
 }
 
 // fullRead is every issue of repo, the one full read (decision #109), or none

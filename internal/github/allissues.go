@@ -18,6 +18,8 @@ type RepoIssue struct {
 	// StateReason is GitHub's state_reason: "completed", "not_planned",
 	// "duplicate", "reopened", or "" when GitHub sends null or none.
 	StateReason string
+	// Labels are the names of the issue's labels (forsgren#155).
+	Labels []string
 }
 
 // Issues lists every issue of repo, open or closed, updated at or after
@@ -65,6 +67,9 @@ func (i issue) toRepoIssue() RepoIssue {
 	}
 	if i.StateReason != nil {
 		out.StateReason = *i.StateReason
+	}
+	for _, l := range i.Labels {
+		out.Labels = append(out.Labels, l.Name)
 	}
 	return out
 }

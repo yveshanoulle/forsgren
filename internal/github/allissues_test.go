@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"net/url"
+	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -33,7 +34,7 @@ func TestIssuesReadsEveryIssueWithoutPullRequests(t *testing.T) {
 		},
 		{Number: 40, CreatedAt: day(10, 8, 0), State: "open", StateReason: "reopened"},
 	}
-	if !slices.Equal(got, want) {
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("want %+v,\n got %+v", want, got)
 	}
 	wantQuery(t, f, url.Values{"state": {"all"}, "since": {"2026-08-01T00:00:00Z"}, "per_page": {"100"}})
@@ -96,5 +97,21 @@ func TestAllIssuesFailsWhenGitHubDoes(t *testing.T) {
 	got, _, err := f.client(t, DefaultMaxPages).AllIssues(context.Background(), "acme/app")
 	if err == nil || got != nil {
 		t.Errorf("want an error and no issues, got %v, %v", got, err)
+	}
+}
+
+// TestIssuesKeepTheNamesOfTheirLabels (forsgren#155): each issue lists its
+// labels' names, none for an issue without labels.
+func TestIssuesKeepTheNamesOfTheirLabels(t *testing.T) {
+	f := newFake(t)
+	f.on(issuesPath, reply{body: `[{"number": 7, "state": "open", "created_at": "2026-09-20T08:00:00Z", ` +
+		`"labels": [{"name": "failure"}, {"name": "bug"}]}, ` +
+		`{"number": 8, "state": "open", "created_at": "2026-09-20T09:00:00Z", "labels": []}]`})
+	got, _, err := f.client(t, DefaultMaxPages).Issues(context.Background(), "acme/app", since)
+	if err != nil || len(got) != 2 {
+		t.Fatalf("want two issues, got %v, %v", got, err)
+	}
+	if want := []string{"failure", "bug"}; !reflect.DeepEqual(got[0].Labels, want) || got[1].Labels != nil {
+		t.Errorf("want the labels %v and none, got %v and %v", want, got[0].Labels, got[1].Labels)
 	}
 }
