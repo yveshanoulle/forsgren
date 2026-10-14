@@ -198,6 +198,11 @@ Read the report first, then the repository it comes from.
    `yveshanoulle/forsgren/.github/workflows/metrics.yml@` a 40-hex commit and
    ends in `# vX.Y.Z`. That `vX.Y.Z` is `VERSION`. Anything else: stop and
    report; this repository is not a forsgren installation.
+
+   This file supports installations pinned to forsgren 0.2.0 or later. Print
+   `0.2.0` and `VERSION` without its `v`, one per line, through `sort -V`
+   (as in step 3): when the first line is not `0.2.0`, `VERSION` is
+   older than v0.2.0: stop and report (not supported).
 5. The update caller, the Dependabot setup and the configuration:
 
    ```
@@ -629,3 +634,75 @@ installation's: it would undo those choices (on the public-only route, the
    Fails: stop and report.
 
 Then go on to step 8.
+
+## Step 8. Write the settings the person chose
+
+Write only the settings the person chose in step 5, and nothing else: a key of
+`forsgren.config.yml` (a new key a release introduced, `auto_update`,
+`auto_update_level`), and the update wait, `default-days` in
+`.github/dependabot.yml`. Every other line, key and comment stays as it is,
+`projects:` and `data/` included. Nothing chosen: skip this step and go on to
+step 9 (every answer was to keep what is there).
+
+1. Read both files as the branch has them now (after steps 6 and 7), with
+   `BRANCH` and `HEADSHA` read again as in route 6b item 1 of step 6:
+
+   ```
+   mkdir -p WORK/cur WORK/new
+   gh api -H 'Accept: application/vnd.github.raw' \
+     'repos/OWNER/REPO/contents/forsgren.config.yml?ref=HEADSHA' \
+     > WORK/cur/forsgren.config.yml
+   gh api -H 'Accept: application/vnd.github.raw' \
+     'repos/OWNER/REPO/contents/.github/dependabot.yml?ref=HEADSHA' \
+     > WORK/cur/dependabot.yml
+   cp WORK/cur/forsgren.config.yml WORK/new/forsgren.config.yml
+   cp WORK/cur/dependabot.yml WORK/new/dependabot.yml
+   ```
+
+   `dependabot.yml` missing (a 404): the update wait cannot be set; if the
+   person chose one, stop and report (step 7 should have brought the file).
+2. Change `WORK/new/` with your file tool, one setting at a time:
+   - A config key that is in the file: change its value on its line.
+   - A config key that is not in the file yet: add it as a new top-level
+     line above `projects:`, with the value the person chose, and a comment
+     line above it that names the key (taken from the release's notes) when
+     the file's other keys have one.
+   - `auto_update` and `auto_update_level`: `true` or `false`, and `patch`,
+     `minor` or `major`, as literals, never in quotes.
+   - The update wait: the number on the line `default-days:` of
+     `WORK/new/dependabot.yml`, and nothing else in that file.
+3. Show the person the change, the same lines the plan of step 5 named:
+   `diff WORK/cur/forsgren.config.yml WORK/new/forsgren.config.yml` and
+   `diff WORK/cur/dependabot.yml WORK/new/dependabot.yml`. A line that the
+   plan did not name is not covered by the go: show the plan again and wait
+   for a new go, as in step 7 item 5.
+4. Check the configuration at the new version, when Go is there (step 1 item
+   5):
+
+   ```
+   go run github.com/yveshanoulle/forsgren/cmd/forsgren@LATEST check-config --config WORK/new/forsgren.config.yml
+   ```
+
+   - Works: one line, `OK: ... is a valid forsgren config (version 1): ...`.
+   - It names what is wrong: you wrote the file in this step, so fix the file
+     to what the line asks, show the person the change, and run the check
+     again. Any other error (a download or Go error): stop and report.
+   - Without Go: tell the person the first run (step 9) checks the file and
+     fails before it publishes anything when it is invalid.
+5. Commit it as route 6b of step 6 does, in one commit for the files that
+   changed: items 1 and 4 to 7 with `WORK/new/` as the source (the tree holds
+   `forsgren.config.yml` and `.github/dependabot.yml`, only the ones that
+   changed), the message `forsgren: set NAMES for LATEST` with `NAMES` the
+   keys changed (for example `days_page and auto_update_level`), no
+   `Co-Authored-By` and no other trailer, and the branch moved without force.
+6. The read back: the head is `NEWCOMMIT`; for each changed file,
+
+   ```
+   gh api -H 'Accept: application/vnd.github.raw' \
+     repos/OWNER/REPO/contents/PATH | diff - WORK/new/NAME
+   ```
+
+   prints nothing, the commit lists exactly those files, and the pins in the
+   two caller files still read `@LATESTSHA # LATEST`. Fails: stop and report.
+
+Then go on to step 9.

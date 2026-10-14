@@ -176,3 +176,31 @@ func TestUpgraderStep7BringsOverOnlyWhatTheNotesName(t *testing.T) {
 		"read back",
 		"Nothing named: skip this step")
 }
+
+// TestUpgraderSupportsFromV020AndStep8WritesTheChosenSettings (forsgren#166,
+// step 166-8): step 2 states once that the file supports installations
+// pinned to forsgren 0.2.0 or later and stops on an older pin, without tying
+// a missing forsgren-update.yml to a version; step 8 writes only the
+// settings the person chose (keys above projects:, auto_update, the level,
+// default-days), checks the config with check-config at LATEST, commits like
+// route 6b without a trailer, and reads the files back.
+func TestUpgraderSupportsFromV020AndStep8WritesTheChosenSettings(t *testing.T) {
+	doc := readRepoFile(t, upgraderFile)
+	step2 := asOneLine(section(t, doc, "Step 2."))
+	wantAll(t, "step 2", step2,
+		"supports installations pinned to forsgren 0.2.0 or later",
+		"older than v0.2.0: stop and report (not supported)")
+	step7 := asOneLine(section(t, doc, "Step 7."))
+	if strings.Contains(step2, "before forsgren 0.2.0") || strings.Contains(step7, "before forsgren 0.2.0") {
+		t.Error("a missing forsgren-update.yml is tied to a version")
+	}
+	wantAll(t, "step 8", asOneLine(section(t, doc, "Step 8.")),
+		"above `projects:`",
+		"go run github.com/yveshanoulle/forsgren/cmd/forsgren@LATEST check-config --config WORK/new/forsgren.config.yml",
+		"default-days",
+		"only the settings the person chose",
+		"route 6b",
+		"no `Co-Authored-By`",
+		"read back",
+		"Nothing chosen: skip this step")
+}
