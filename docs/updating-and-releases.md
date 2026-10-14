@@ -69,7 +69,7 @@ a false alarm is possible but never a silent pass.
 
 An installation can let forsgren's own updates merge themselves
 ([#58](https://github.com/yveshanoulle/forsgren/issues/58)). It is off until
-the config switches it on, and a new install's starter does (see
+the config switches it on, and a new install's starter does, at `major` (see
 [Configuration](configuration.md#configuration)). The chain, for each forsgren release:
 
 1. Dependabot opens one grouped pull request that moves the pins of both
@@ -103,6 +103,18 @@ the config switches it on, and a new install's starter does (see
   every patch) and v1.0.0 does not; at `major`, v1.0.0 merges as well. A
   level only limits what merges: a pull request beyond it is left for you,
   and a release within the level is installed meanwhile (see below).
+
+  A new installation's starter writes `major`; an existing file keeps the
+  level it has, as `init-config` never rewrites it. `major` permits major,
+  minor and patch updates; it does not mean a major release is safe. Patch
+  updates are intended for fixes, and minor updates can introduce new
+  behaviour. A release is only cut when forsgren's Quality checks are green,
+  Dependabot proposes it only after the update wait, and the merge goes
+  through only when the pull request changes nothing but the forsgren pin to
+  a published release (the guard, below). Nothing checks a release against
+  this installation's own data. The starter wrote `patch` before 1.0.0, so an
+  installation made then may still be at `patch` or `minor`; for it, v0.8.7
+  to v1.0.0 is a major update that waits for you.
 
 **What the guard checks.** The pull request merges only when every one of
 these holds, and otherwise it is left for a human with one reason line:

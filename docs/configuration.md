@@ -47,9 +47,9 @@ projects:
   includes `view: standard` (forsgren#51), so a new installation's menu
   marks its view from its first run; an existing config without `view:` keeps
   the plain root, as `init-config` never rewrites an existing file. The starter
-  also writes `auto_update: true` and `auto_update_level: patch` (forsgren#58),
-  so a new installation merges forsgren's patch releases by itself; an
-  existing config without `auto_update:` keeps it off (see [Auto-update](updating-and-releases.md)).
+  also writes `auto_update: true` and `auto_update_level: major` (forsgren#58,
+  #150), so a new installation merges forsgren's releases by itself, a major
+  one included; an existing config without `auto_update:` keeps it off (see [Auto-update](updating-and-releases.md)).
 - **`history_days`** is optional (forsgren#57): how deep a repository's
   history goes, in days, a whole number from 1 to 1825 (5 years), written at
   the top level, for example `history_days: 730`. Left out, or without a
@@ -193,7 +193,7 @@ forsgren.config.yml`. The starter is a comment that explains the file, names
 forms, and shows a commented
 example with made-up `acme` names (the default deployment, `workflow=` and
 `release`), followed by `version: 1`, `view: standard`, `auto_update: true`,
-`auto_update_level: patch`, `history_days: 365`,
+`auto_update_level: major`, `history_days: 365`,
 `history_chunk_days: 100` and `projects: []`, so
 `check-config` accepts it as it is: `projects: 0, repositories: 0`. When the file exists,
 whatever it holds (even an invalid or an empty file), it is left byte for
@@ -327,7 +327,7 @@ jobs:
 - **A new install gets a starter configuration.** After the checkout the
   workflow runs `forsgren init-config --config forsgren.config.yml`. When
   the file is missing it is written (`version: 1`, `view: standard`,
-  `auto_update: true`, `auto_update_level: patch`, `projects: []`, a commented example) and that one file, nothing else, is committed to the
+  `auto_update: true`, `auto_update_level: major`, `projects: []`, a commented example) and that one file, nothing else, is committed to the
   branch the run is on (`GITHUB_REF`; a scheduled run is always on the
   default branch) as `github-actions[bot]` with the message
   "forsgren: add a starter forsgren.config.yml"; the run goes on, the check
