@@ -191,6 +191,9 @@ Then wait for the answers.
    patch release only fixes things and asks nothing of an installation.
    `minor` also takes new behaviour, `major` takes everything. With
    `auto_update: false` the person merges each update by hand.
+   Also ask for the **update wait**: how many days old a forsgren release
+   must be before Dependabot proposes it. Default: `3`; `0` means as soon
+   as it is released. A few days lets a broken release be noticed first.
 8. **history_days**, how far back the history goes. Default: `365`. A whole
    number from 1 to 1825. forsgren reads it in chunks of 100 days, one more
    chunk per daily run, so a deeper history fills in over several days.
@@ -266,16 +269,18 @@ Show the person, in one message:
 - `OWNER/REPO`, public or private, and the token route (A or B).
 - The full `forsgren.config.yml` you will write (step 9 shows its shape).
 - The page address: `https://OWNER.github.io/REPO/`, or `DOMAIN`.
+- The update wait, when it is not 3 (step 11 changes it).
 - What they will do themselves: on route B the token and its secret
   (step 10B); with a custom domain the domain verification (step 13) and
   the DNS record (step 15).
 
-End the plan with this go-question, with `OWNER/REPO` filled in, and with
-"and the forsgren.yml change" only on route A:
+End the plan with this go-question, with `OWNER/REPO` filled in, with
+"and the forsgren.yml change" only on route A, and with "and the
+dependabot.yml change" only when the update wait is not 3:
 
 > Reply "go: create OWNER/REPO, switch on its Pages, and commit its
-> forsgren.config.yml and the forsgren.yml change" to let me create the
-> repository and commit to it.
+> forsgren.config.yml and the forsgren.yml change and the dependabot.yml
+> change" to let me create the repository and commit to it.
 
 Wait for that reply, the sentence as shown, filled in. A bare "go", or any
 other reply that does not name these writes: show the sentence again and
@@ -533,6 +538,50 @@ gh api -H 'Accept: application/vnd.github.raw' \
 
 Works: no output. Fails: stop and report.
 
+**The update wait**, only when the person's answer is not 3 (`N` is their
+number of days):
+
+1. Read the file:
+
+   ```
+   gh api -H 'Accept: application/vnd.github.raw' \
+     repos/OWNER/REPO/contents/.github/dependabot.yml \
+     > WORK/dependabot.yml
+   grep -n '^ *default-days:' WORK/dependabot.yml
+   ```
+
+   Check: one line, `default-days: 3`. Anything else: stop and report.
+2. In `WORK/dependabot.yml`, change that line's `3` to `N`, with your file
+   tool, and nothing else. Check:
+   `grep -n '^ *default-days:' WORK/dependabot.yml` prints one line,
+   `default-days: N`.
+3. Upload it as one commit:
+
+   ```
+   base64 < WORK/dependabot.yml | tr -d '\n' \
+     > WORK/dependabot.yml.b64
+   gh api repos/OWNER/REPO/contents/.github/dependabot.yml --jq .sha
+   ```
+
+   The second command prints the file's sha; use it as `SHA`:
+
+   ```
+   gh api -X PUT repos/OWNER/REPO/contents/.github/dependabot.yml \
+     -f message='Propose forsgren releases after N days' \
+     -F content=@WORK/dependabot.yml.b64 \
+     -f sha=SHA --jq .commit.sha
+   ```
+
+   Works: it prints a commit sha. Then:
+
+   ```
+   gh api -H 'Accept: application/vnd.github.raw' \
+     repos/OWNER/REPO/contents/.github/dependabot.yml \
+     | diff - WORK/dependabot.yml
+   ```
+
+   Works: no output. Fails: stop and report.
+
 ## Step 12. The first run
 
 1. Start it:
@@ -578,12 +627,23 @@ Then check what the run did:
    prints `scope="row">` and each project name of the config, once each (an
    `&` in a name shows as `&amp;`). Empty answer or a 404: wait 1 minute
    and try again, at most 5 times; then stop and report.
-8. The settings page shows the answers:
-   `curl -fsS SITEsettings.html | grep '<li>'`
-   - `view`, `auto_update`, `auto_update_level` and `history_days` show the
-     values of the config, with nothing after them.
-   - `history_chunk_days: 100` and `working_hours: 8` end with
-     `(default, not set in forsgren.config.yml)`.
+8. The settings page shows the answers. It is a table, Parameter |
+   Current value | Possible values | Default, one row per setting. This
+   prints each row on one line, separated by `;`:
+
+   ```
+   curl -fsS SITEsettings.html | tr -d '\n' \
+     | grep -oE '<th scope="row">[a-z_]+</th>([^<]*<td>[^<]*</td>){3}' \
+     | sed -E 's/<[^>]+>/;/g; s/; *;/;/g'
+   ```
+
+   For example `;view;numbers;standard, numbers, scoring;False;`.
+   - The rows `view`, `auto_update`, `auto_update_level` and
+     `history_days` show the values of the config, and end with `False`
+     (set in forsgren.config.yml, not the default).
+   - The rows `history_chunk_days` (`100`) and `working_hours` (`8`) end
+     with `True` (the default).
+   - Six rows in all. A row missing or different: stop and report.
 9. The footer names the pinned version:
    `curl -fsS SITE | grep -o 'Forsgren</a> [0-9.]*'`
    prints `Forsgren</a>` and `VERSION` without its `v`.
@@ -683,8 +743,10 @@ Then hand the person this, with the values filled in:
 > **Person:** at your DNS provider, add the record for `DOMAIN`:
 >
 > - A subdomain such as `forsgren.example.com`: a **CNAME** record from
->   `forsgren.example.com` to `OWNER.github.io` (the owner in lower case, with
->   no repository name).
+>   `forsgren.example.com` to `OWNER.github.io.`, written exactly so: the
+>   owner in lower case, no repository name, and **with the dot at the
+>   end**. Without that dot, many DNS providers add your own domain to it
+>   (`OWNER.github.io.example.com.`).
 > - An apex domain such as `example.com`: four **A** records, to
 >   `185.199.108.153`, `185.199.109.153`, `185.199.110.153` and
 >   `185.199.111.153`.
@@ -692,11 +754,24 @@ Then hand the person this, with the values filled in:
 > Never a wildcard record (`*.example.com`). Keep the TXT record from
 > before. Tell me when it is added.
 
-Then check: `dig +short DOMAIN`
+Then check it twice, through the local resolver and through a public one:
 
-- A subdomain works when the first line is `OWNER.github.io.` (lower case)
-  and the next lines are `185.199.` addresses.
-- An apex domain works when it prints the four addresses above.
+```
+dig +short DOMAIN
+dig +short @1.1.1.1 DOMAIN
+```
+
+- A subdomain works when, in both answers, the first line is exactly
+  `OWNER.github.io.` (lower case) and the next lines are `185.199.`
+  addresses.
+- An apex domain works when both print the four addresses above.
+- The first line ends in the person's own domain (for example
+  `OWNER.github.io.example.com.`): the likely cause is the CNAME target
+  entered without its final dot. Tell the person, ask them to correct the
+  record to `OWNER.github.io.`, and check again.
+- The public resolver is right and the local one is not: the local one
+  still holds the old answer for the record's time to live (TTL). Wait,
+  as below, until both agree.
 - Not yet: wait 5 minutes and check again, at most 12 times (an hour).
   Still not: this is a wait, not a failure. Tell the person DNS has not
   reached you yet, and to ask you to resume at step 15 later. DNS can take
@@ -711,6 +786,10 @@ Then check: `dig +short DOMAIN`
      times. Still not `approved`: a wait, not a failure. Tell the person,
      and to ask you to resume at step 16 later; GitHub can take up to 24
      hours.
+   - No state at all (an empty answer) through the whole wait: the likely
+     cause is that GitHub checked DNS while it was still wrong. Set the
+     custom domain once more (the step-14 call), then wait again as
+     above. (To be confirmed by the attempt-3 proof run.)
 2. `gh api -X PUT repos/OWNER/REPO/pages -F https_enforced=true`
 3. Check: `gh api repos/OWNER/REPO/pages --jq .https_enforced` prints
    `true`.
@@ -771,6 +850,71 @@ and proposes a release once it is 3 days old.
 6. The page footer names the new version (step 12 item 9).
 
 Anything else: report it to the person.
+
+## Changing a setting later
+
+For an install that exists, you can change one setting: a top-level key of
+`forsgren.config.yml` (`view`, `auto_update`, `auto_update_level`,
+`history_days`, `history_chunk_days`, `working_hours`), or the update wait
+(`default-days` in `.github/dependabot.yml`, in days). Changes to the
+projects and repositories are not covered here. Follow these steps alone;
+the install steps above do not apply.
+
+1. Do step 1 (the prerequisites). `WORK` comes from its last item.
+2. Ask the person for the repository (`OWNER/REPO`), the setting and its
+   new value. `FILE` is `forsgren.config.yml` for a config key, or
+   `.github/dependabot.yml` for the update wait; `NAME` is the file's last
+   part (`forsgren.config.yml` or `dependabot.yml`).
+3. Read the file:
+
+   ```
+   mkdir -p WORK
+   gh api -H 'Accept: application/vnd.github.raw' \
+     repos/OWNER/REPO/contents/FILE > WORK/NAME
+   cp WORK/NAME WORK/NAME.orig
+   ```
+
+   Fails: stop and report.
+4. Change the one line of that setting in `WORK/NAME` with your file tool,
+   and nothing else. A config key that is not in the file yet: add it as a
+   new top-level line above `projects:`. Show the person the change:
+   `diff WORK/NAME.orig WORK/NAME`
+5. For a config key, when Go is there (step 1 item 5), check the file with
+   step 9's `go run ... check-config --config WORK/forsgren.config.yml`,
+   `VERSION` taken from the repository's `forsgren.yml` as in step 8.
+   Not `OK`: stop and report.
+6. Ask for the go, with the values filled in:
+
+   > Reply "go: commit the NAME change in OWNER/REPO" to let me commit it.
+
+   Wait for that sentence. A bare "go": show the sentence again.
+7. Commit it:
+
+   ```
+   base64 < WORK/NAME | tr -d '\n' > WORK/NAME.b64
+   gh api repos/OWNER/REPO/contents/FILE --jq .sha
+   ```
+
+   The second command prints the file's sha; use it as `SHA`:
+
+   ```
+   gh api -X PUT repos/OWNER/REPO/contents/FILE \
+     -f message='Change SETTING to VALUE' \
+     -F content=@WORK/NAME.b64 -f sha=SHA --jq .commit.sha
+   ```
+
+   with `SETTING` and `VALUE` filled in. Works: it prints a commit sha.
+8. Check it:
+
+   ```
+   gh api -H 'Accept: application/vnd.github.raw' \
+     repos/OWNER/REPO/contents/FILE | diff - WORK/NAME
+   ```
+
+   Works: no output. Fails: stop and report.
+9. Remove the work folder: `rm -r WORK`. Tell the person when it takes
+   effect: a config key at the next daily run (05:17 UTC), the update
+   wait at Dependabot's next daily check (04:00 UTC).
 
 ## Starting over
 
