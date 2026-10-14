@@ -61,3 +61,24 @@ td {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* The one place styles.css sets colours besides color-scheme (forsgren#126,
+   forsgren#114; Yves's ruling, a narrow exception for these semantic trend
+   arrows only, not a general permission): red for a count that rose, green
+   for one that fell, grey for one that did not change. Red and green say
+   rising and falling, not worse and better. Each is light-dark(light, dark)
+   and reads at 4.5:1 or more on the page background in its mode, which
+   TestTrendColoursHaveAContrastOfAtLeast4Point5InLightAndDark measures. The
+   arrow and the aria-label carry the meaning too, so colour is never the
+   only signal. */
+.trend-up {
+  color: light-dark(#b3261e, #ff8a80);
+}
+
+.trend-down {
+  color: light-dark(#1b6e2f, #7fd98f);
+}
+
+.trend-flat {
+  color: light-dark(#595959, #b0b0b0);
+}
