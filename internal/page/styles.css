@@ -16,6 +16,15 @@ body.starter {
   max-width: 72rem;
 }
 
+/* The starter page's text sits in a framed card (forsgren#153, decision #161):
+   the text colour's thin line, as the tables use, so no new colour; the
+   body's 1rem padding is the gutter outside it. */
+body.starter main {
+  padding: 2rem;
+  border: 1px solid currentcolor;
+  border-radius: 0.5rem;
+}
+
 /* The table of the five metrics (forsgren#38) scrolls inside its own box on
    a narrow screen, so the page itself never scrolls sideways. */
 .table-scroll {

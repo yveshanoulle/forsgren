@@ -146,3 +146,26 @@ func TestStarterPageIsSeventyTwoRemWideWhileTheMetricsPagesKeepTheirCap(t *testi
 		t.Errorf("want the plain body rule to keep max-width: 120rem, got:\n%s", css)
 	}
 }
+
+// TestStarterPageIsAFramedCard (forsgren#153, step 2b; decision #161): under
+// body.starter the main is a card: a thin border in the text colour (the
+// colour every table line already uses, so no new colour), rounded corners and
+// 2rem of inner padding; the body's 1rem padding is the gutter outside it.
+func TestStarterPageIsAFramedCard(t *testing.T) {
+	css := string(site.Styles())
+	rule := regexp.MustCompile(`(?s)(?:^|\n)body\.starter main\s*\{([^}]*)\}`).FindStringSubmatch(css)
+	if rule == nil {
+		t.Fatalf("want a body.starter main rule in styles.css, got:\n%s", css)
+	}
+	for _, want := range []string{"border: 1px solid currentcolor;", "border-radius:", "padding: 2rem;"} {
+		if !strings.Contains(rule[1], want) {
+			t.Errorf("want the body.starter main rule to hold %q, got:\n%s", want, rule[1])
+		}
+	}
+	if regexp.MustCompile(`#[0-9a-fA-F]{3,6}|rgb|hsl`).MatchString(rule[1]) {
+		t.Errorf("want no new colour in the frame, got:\n%s", rule[1])
+	}
+	if !regexp.MustCompile(`(?s)(?:^|\n)body\s*\{[^}]*padding:\s*1rem;`).MatchString(css) {
+		t.Errorf("want the body to keep its 1rem padding as the gutter around the frame, got:\n%s", css)
+	}
+}
