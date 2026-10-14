@@ -94,3 +94,38 @@ func TestUpgraderStep4ReadsEveryReleaseNote(t *testing.T) {
 		t.Error("step 4 names 1.3.0 or days_page outside its worked example")
 	}
 }
+
+// TestUpgraderTellsForsgrenItselfFromAnInstallation (forsgren#166, step
+// 166-5): an installation may be named forsgren, so the never-do list means
+// yveshanoulle/forsgren exactly, step 2 refuses only that exact name and the
+// template's, and a 404 on settings.html reads as older than 0.5.0.
+func TestUpgraderTellsForsgrenItselfFromAnInstallation(t *testing.T) {
+	doc := readRepoFile(t, upgraderFile)
+	wantAll(t, "the never-do list", asOneLine(section(t, doc, "What you must never do")),
+		"a repository named `forsgren` under another owner is an installation, not forsgren itself")
+	wantAll(t, "step 2", asOneLine(section(t, doc, "Step 2.")),
+		"`OWNER/REPO` may be `OWNER/forsgren`",
+		"exactly `yveshanoulle/forsgren` or `yveshanoulle/forsgren-template`",
+		"A 404 means the installation is older than forsgren 0.5.0")
+}
+
+// TestUpgraderStep5AsksOnlyWhatIsTheirs (forsgren#166, step 166-5): step 5
+// asks every question in one message with the current values filled in,
+// handles a waiting Dependabot pull request that its level keeps open, and
+// asks for a go-sentence naming every write before anything is committed.
+func TestUpgraderStep5AsksOnlyWhatIsTheirs(t *testing.T) {
+	step := asOneLine(section(t, readRepoFile(t, upgraderFile), "Step 5."))
+	wantAll(t, "step 5", step,
+		"in one message",
+		"Never show the person a placeholder",
+		"auto_update_level",
+		"the update wait",
+		"WORK/asks.md",
+		"its level kept it from merging",
+		"raise the level",
+		"merge it once",
+		"move the pins in step 6",
+		"Reply \"go: upgrade OWNER/REPO from VERSION to LATEST",
+		"A bare \"go\"",
+		"Nothing is committed before that reply")
+}

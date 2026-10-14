@@ -79,7 +79,9 @@ request.
 - Never print, log, store, commit or ask to see a token. Never run
   `gh auth token`.
 - Never push, commit or open anything in `yveshanoulle/forsgren` or in
-  `yveshanoulle/forsgren-template`. You only read them.
+  `yveshanoulle/forsgren-template`. You only read them. These are two exact
+  names: a repository named `forsgren` under another owner is an
+  installation, not forsgren itself, and it is the one you upgrade.
 - Never commit anything before the person has replied with the go-sentence of
   step 5. A commit made without it is a failure of this file.
 - Never force-push, and never rewrite history in any repository.
@@ -153,13 +155,18 @@ Read the report first, then the repository it comes from.
    - Works: one line per setting, such as `;auto_update;true;true, false;False;`:
      the key, its current value, the possible values and, from forsgren 0.8.6
      on, whether it is the default (`True`) or set in the file (`False`).
-   - The settings page exists from forsgren 0.5.0. A 404, or an answer that
-     is not that table (an installation older than 0.8.6 shows a different
-     layout), is not a failure: the repository's `forsgren.config.yml` (item
-     4) is then the source of the current settings.
+   - The settings page exists from forsgren 0.5.0. A 404 means the
+     installation is older than forsgren 0.5.0 (`curl -f` then ends with an
+     error: that is the answer, not a failure of this file; the issues and
+     days pages are missing too). An answer that is not that table (an
+     installation older than 0.8.6 shows a different layout) is not a
+     failure either. In both cases the repository's `forsgren.config.yml`
+     (item 5) is the source of the current settings.
 3. The page address gives the repository:
    - `https://OWNER.github.io/REPO/`: `OWNER` is the host's first part and
-     `REPO` the first path part.
+     `REPO` the first path part. `OWNER/REPO` may be `OWNER/forsgren`: an
+     installation can carry the tool's name. That is the installation, not
+     forsgren itself.
    - A custom domain (any other host): search the person's repositories for
      the one whose Pages custom domain is that host:
      `gh api 'user/repos?per_page=100' --paginate --jq '.[].full_name'`
@@ -170,6 +177,10 @@ Read the report first, then the repository it comes from.
      stop and ask the person for `OWNER/REPO`.
    - Check: `gh api repos/OWNER/REPO/pages --jq '.html_url,.cname'` prints
      `REPORT` (the address, with or without the custom domain).
+   - Refuse only these two names, exactly `yveshanoulle/forsgren` or
+     `yveshanoulle/forsgren-template`: they are the tool and its template,
+     never an installation. Stop and report; the address is not the
+     person's report. Any other name, whatever it contains, goes on.
 4. The repository gives the pins and the files:
 
    ```
@@ -334,3 +345,64 @@ the person whether to keep the Daily page, and step 8 writes
 and the same four items work: read, write down, ask, apply the chosen answers.
 
 Then go on to step 5.
+
+## Step 5. Ask the person what is theirs, then wait for the go
+
+Ask all of it together, in one message, before anything is written. Show every
+question with the current value or the default filled in, from step 2 and
+`WORK/asks.md`. Never show the person a placeholder such as `OWNER` or
+`LATEST`. Ask only what is the person's to decide; what the files already say,
+you do not ask again.
+
+End the message with this line, word for word:
+
+> Reply with your answers by number, for example '2: raise the level to
+> minor'. Reply 'defaults' to take every default.
+
+Then wait for the answers. The questions, in this order, each only when it
+applies:
+
+1. **The release.** Say the installation is on `VERSION` and goes to `LATEST`,
+   and if the footer's version differed from the pin in step 2, say so. No
+   answer is needed.
+2. **A waiting pull request.** Only when step 3 found a Dependabot pull request
+   that moves the pins to `LATEST`. Name it (`#PR`) and explain why it waits.
+   The size of the step decides: from `VERSION` to `LATEST` it is a major
+   update when the major number differs, a minor update when only the minor
+   number differs, a patch update otherwise. With `auto_update: true` the
+   pull request merges by itself only within `auto_update_level`, so its level
+   kept it from merging; with `auto_update: false` nothing merges by itself.
+   Offer three ways, and name the default, which is the second:
+   - raise the level to the smallest one that permits this step (`minor` for
+     a minor update, `major` for a major one), so this and later updates
+     merge by themselves; this changes `forsgren.config.yml`;
+   - merge it once: step 6 merges the pull request, and the level stays as
+     it is;
+   - move the pins in step 6 yourself, and leave the pull request as it is.
+3. **Each ask of `WORK/asks.md`** that needs the person: one question per
+   line, in the words of the release's notes, with the default that keeps the
+   installation as it behaves today when that is possible, or the one the
+   notes recommend. A line that says `nothing` is not asked.
+4. **Auto-update**, showing the current value: `auto_update` true or false
+   (default: what it is now), `auto_update_level` (default: what it is now, or
+   `major` when the file has none), and the update wait in days (default: what
+   `default-days` says now, or `3` when `dependabot.yml` is missing; `0` means
+   as soon as a release is out). Offer the starter's setting, `auto_update:
+   true` with `major`, only as information.
+
+Then show the plan, in one message: `OWNER/REPO`, `VERSION` to `LATEST`, how
+step 6 moves the pins, each file you will write and each line that changes in
+it (from the answers), and what the person does themselves. End with this
+go-question, with the values filled in, and each "and ..." part only when it
+applies:
+
+> Reply "go: upgrade OWNER/REPO from VERSION to LATEST and commit the pin
+> change and the dependabot.yml change and the forsgren.config.yml change" to
+> let me commit.
+
+Wait for that reply, the sentence as shown, filled in. A bare "go", or any
+other reply that does not name these writes: show the sentence again and wait.
+Any change to an answer: show the plan again. Nothing is committed before that
+reply.
+
+Then go on to step 6.
