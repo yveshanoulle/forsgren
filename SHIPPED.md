@@ -344,3 +344,9 @@ Lessons folded in from a real older installation (unnamed): a 404 on settings.ht
 The proof (Yves's rule from #142): a fresh Claude Code session (claude-sonnet-5-5), given only the file and the report address, upgraded a throwaway installation from v0.8.5 to v1.3.0 with nothing done by hand: both pins moved in one commit, the chosen settings (auto-update on at minor, no update wait, the Daily page kept) in a second, a run started and the page checked. Three small fixes it showed are in this commit, with the Tested-with line. The installerdoc tests grew a shared helper set along the way (a refactor step), and every placeholder a command uses must be listed.
 
 agent-upgrade.md is documentation only: no forsgren release; an agent reads it from main.
+
+---
+
+## 2026-10-14 — forsgren.be's renderer names the file and the line of what it refuses, released as 1.3.1 ([#158](https://github.com/yveshanoulle/forsgren/issues/158))
+
+Yves's ruling on decision #149 asked that unsupported Markdown fail with the source file and line. The renderer named the file and quoted the line, but not its number. Steps, each its own FBP: 1 the block split carries each block's start line, the renderer returns a `LineError{Line, Msg}`, and cmd/readmepage prints `readmepage: README.md:3: unsupported Markdown, a line starting with ">": > quoted` (b7d7501); 2 a test that a `"`, `<` or `>` in a link target cannot leave the escaped href, proven by a mutation that drops the escaping (72e4cea); 3 a refactor that brought two test files back to their CodeScene score of 10 (9469ab8); 4 a pin on the error text itself (a mutation dropping the line number had failed no test), docs/ci.md and CLAUDE.md (this commit). Decisions: #168 (an error found inside a block's inline text, such as a bad link or an image, names the block's first line).

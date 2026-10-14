@@ -128,6 +128,16 @@ func TestRenderNamesTheLineOfWhatIsRefused(t *testing.T) {
 	}
 }
 
+// TestLineErrorSaysTheLineThenTheReason (forsgren#158): a LineError reads
+// "line N: reason", for a caller that has no file name to put before it.
+func TestLineErrorSaysTheLineThenTheReason(t *testing.T) {
+	_, err := Render("# T\n\n> quoted\n", fixtureBase)
+	want := `line 3: unsupported Markdown, a line starting with ">": > quoted`
+	if err == nil || err.Error() != want {
+		t.Errorf("want the error %q, got %v", want, err)
+	}
+}
+
 // TestRenderEscapesAndLeavesUnclosedMarkersAlone (forsgren#132): text is
 // HTML-escaped, a code span is not read as Markdown, and a marker with no
 // closing partner is plain text.

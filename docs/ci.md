@@ -187,9 +187,11 @@ release's day. The build job runs `Scripts/build_starter_page.sh` into
 site uses, and a `CNAME` holding `forsgren.be`) and uploads that folder; the
 deploy job, the only one holding `pages: write` and `id-token: write`,
 publishes it to the `github-pages` environment. The renderer reads a small
-subset of Markdown and refuses everything else, naming the offending line, so
-a README that grows a table or a raw HTML block fails the build instead of
-publishing a wrong page; every relative link in it becomes a link into the
+subset of Markdown and refuses everything else, naming the file and the line
+(`README.md:3: unsupported Markdown, a line starting with ">": > quoted`; an
+error found inside a line, such as a bad link or an image, names the first
+line of its block), so a README that grows a table or a raw HTML block fails
+the build instead of publishing a wrong page; every relative link in it becomes a link into the
 repository on `main`. The gates that read the page (HTMLHint, the privacy
 posture, and the starter-page links, which allow only this repository,
 forsgren-template and the live example) are in [Quality gates](quality-gates.md).
