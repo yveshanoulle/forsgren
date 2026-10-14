@@ -1087,6 +1087,24 @@
    "score": 10.0,
    "checkedAt": "2026-10-14",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/readmepage/render.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-14",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/readmepage/inline.go",
+   "score": 9.38,
+   "checkedAt": "2026-10-14",
+   "minScore": 9.28
+  },
+  {
+   "path": "internal/readmepage/render_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-14",
+   "minScore": 10.0
   }
  ]
 }
