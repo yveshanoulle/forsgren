@@ -1,0 +1,362 @@
+# Quality gates
+
+## Quality gates
+
+`./FBP.sh` runs the gates in two phases around the build: `./sfl.sh pre`
+checks the repository before the site is generated, `Scripts/build_site.sh`
+renders the site into `.build/site`, and `./sfl.sh post` checks that
+generated output. `Scripts/gate_report_order.txt` declares every gate, its
+phase and its order; a gate's self-test always runs in PRE, before the gate
+it validates.
+
+Three PRE gates come first and are secret-class, so a finding blocks the
+commit itself:
+
+- **secret scan** (`Scripts/check_secrets.sh`, the estate's gitleaks gate):
+  gitleaks over the working tree, before anything is staged, under `.gitleaks.toml`
+  (the default rules, with `${{ secrets.NAME }}` references allowed, since
+  they are names, not values). Red, never skipped, when gitleaks is
+  missing. Its self-test (`Scripts/test_check_secrets.sh`) plants a key and
+  shows it caught.
+- **data guard** (`Scripts/check_data_guard.sh`): see Where configuration
+  and data live.
+- **private names** (`Scripts/check_private_names.sh`): this repository is
+  public, so no tracked or untracked (not ignored) file or path may name a private
+  repository. The list of names is kept outside the repository: in the file
+  `~/.config/forsgren/private-names` (or the file `FORSGREN_PRIVATE_NAMES_FILE`
+  points to), one name per line, `#` for comments; that file is the source
+  of truth. In CI the Actions secret `FORSGREN_PRIVATE_NAMES`, the same names
+  newline-separated, which `quality.yml` passes to the PRE step through
+  `env`, and the Dependabot secret of the same name are synchronized copies,
+  never edited on their own: after changing the file, run
+  `./Scripts/sync_private_names_secrets.sh` by hand (it needs the
+  maintainer's `gh` login) and it sets both. An external fork pull request
+  receives neither secret, so the gate fails there (exit 2, no list); that
+  is intended: CI always fails without the secret or with an emptied one. The gate searches
+  `git ls-files` and `git ls-files -o --exclude-standard` (what `git add -A`
+  would stage), case-insensitively, for a substring (a listed name
+  inside a longer token is a hit). Its failure line
+  names `file:line`, or `tracked path #N in git ls-files`, and never the
+  name, so the gate's own output reveals none. A commit message is checked too:
+  `FBP.sh` hands it to `Scripts/check_private_names.sh --message <file>` (the
+  same list and matching, a temp file, no repository scan) first of all, and on
+  a hit it makes no commit, runs no gate, prints one `❌` line that never holds
+  the name or the message, and exits non-zero; with no list or an empty one the
+  message check passes. No list, an env list with no
+  names, a missing names file, or no tracked file is exit 2 and a red, never a
+  silent pass; locally an existing names file with no names passes with
+  `0 names searched`. Known limit: names are matched as bytes in each file's
+  own encoding, so a file in an encoding that is not ASCII-compatible (UTF-16
+  or UTF-32, for example) is not searched effectively: a name in it is not
+  found and the file passes. The names never touch the disk: the gate hands
+  them to `grep` through a process substitution, not a temp file. Its
+  self-test (`Scripts/test_check_private_names.sh`) uses made-up names and
+  proves with a mutant that prints the matched line that the no-name check
+  can fail.
+  Locally, `FBP.sh` creates an empty list file when none exists, so the gate
+  passes with `0 names searched`; CI never does.
+
+Two PRE gates check the page templates and the pages they render:
+
+- **html duplication** (`Scripts/check_html_dupl.sh`, the estate's ratchet
+  from another estate repository): jscpd measures the share of duplicated markup in
+  the `html/template` files under `internal/page/templates` and the gate
+  compares it to a recorded ceiling, today 0.00%. The ceiling only moves
+  down: a red is fixed by removing the duplication, never by raising the
+  number. Red on a run that scanned zero `.html` files. jscpd is pinned like
+  the linters below.
+- **golden pages** (`Scripts/check_golden_pages.sh`, forsgren's own,
+  forsgren#12 step 8): the build renders the page without an installation's
+  config or history, so the POST gates below never see the page with data
+  or the no-projects line. This gate runs three of them, HTMLHint, privacy
+  posture and html duplication, generated page, on each golden page of
+  `internal/page/testdata` (the pages the Go tests pin byte for byte to what
+  forsgren renders, the page with data from a made-up history), each page
+  alone as the site's one page is. A finding names the page and the gate.
+  Red on a directory with no golden page.
+
+Two PRE gates run the Go tests and the formatting:
+
+- **Go tests** (`Scripts/check_go_tests.sh`): `go test ./...` over the
+  module. Red on a failing test, on a run that found no test at all, and
+  on a package under `node_modules` (go.mod's `ignore node_modules` is what
+  keeps npm's vendored Go out of `./...`; this is its guard). A green run
+  leaves the coverage profile the Go coverage gate reads.
+- **gofmt** (`Scripts/check_gofmt.sh`): check-only, `gofmt -l` over every
+  Go file git tracks or would add; red naming each unformatted file, and on
+  no Go file found. `./FBP.sh` runs the same script with `--fix` before the
+  gates, so locally it sees a formatted tree; CI never fixes.
+
+Seven more PRE gates check the Go code:
+
+- **go mod tidy** (`Scripts/check_go_mod_tidy.sh`, another estate repository's check made
+  check-only): red when `go.mod` or `go.sum` is not what `go mod tidy`
+  would write, a require missing or unneeded, a `go.sum` line missing or
+  stale, with the diff tidy would apply. It runs `go mod tidy -diff`, so it
+  never rewrites either file; the fix is `go mod tidy`, committed with the
+  change that needed it. Red, as a tool error, when tidy could not run (a
+  `go.mod` it cannot parse, a module it cannot fetch). Its self-test
+  (`Scripts/test_check_go_mod_tidy.sh`) runs offline and shows, by
+  mutation, that `-diff` is what makes the gate red instead of a silent
+  rewrite.
+- **Go lint** (`Scripts/check_go_lint.sh`, another estate repository's): golangci-lint
+  over the module under `.golangci.yml`, ported from another estate repository `shared/`,
+  its strictest module: govet, errcheck, staticcheck, gosec, dupl
+  (80 tokens), funlen (60 lines, 40 statements), lll (120), gocognit (10)
+  and gocyclo (above 6 is red), plus the gofmt and goimports formatters,
+  test code included. revive is enabled too but runs no rule: the config's
+  one entry, which disables `exported`, replaces revive's default rule set
+  (as in another estate repository; an open point on forsgren#1). No issue cap, so every finding is listed. Unlike
+  `shared/`, gosec's G101 (a hardcoded credential) is not excluded. A
+  finding is fixed in the code: an exclusion or `//nolint` needs Yves's
+  approved issue. Red on a module with no Go package, and when golangci-lint
+  could not run. Its self-test (`Scripts/test_check_go_lint.sh`) shows
+  complexity 7 red (in a test file too) and 6 green, a credential red under
+  G101, and, by mutation, that the threshold and the missing G101 exclusion
+  in `.golangci.yml` are what decide those cases.
+- **Go test duplication** (`Scripts/check_test_dupl.sh`, another estate repository's): the
+  same `dupl` rule pointed at `_test.go` files only, which `.golangci.yml`
+  leaves to it, so test code is judged once. Red on a module with no test
+  file.
+- **Go file length** (`Scripts/check_file_length.sh`, another estate repository's
+  `check_file_length.py` rewritten in bash and awk): red when a Go
+  production file is longer than 600 lines, each such file named with its
+  count, longest first. `_test.go` files are not judged; a generated file
+  is; a last line without a newline counts. The files are the module's own
+  as `go list ./...` sees them, so `node_modules` (ignored in `go.mod`) is
+  never judged and a file only another GOOS builds is. Red on a module with
+  no production `.go` file. Its self-test
+  (`Scripts/test_check_file_length.sh`) shows 601 lines red and 600 green,
+  and, by mutation, that the comparison, `go.mod`'s ignore line and the
+  GOOS-bound file list are what decide those cases.
+- **Go coverage** (`Scripts/check_coverage.sh`, another estate repository's
+  `check_coverage.py` rewritten in bash and awk): the coverage ratchet.
+  Every function `go tool cover -func` measures has a floor in
+  `coverage_thresholds.json`, and the total has one too. Red when a function
+  or the total is below its floor, naming it with both numbers, and when a
+  measured function is not registered: register it at 0.0, never a guessed
+  floor (0.0 is tracked, not enforced). A floor below the ratchet rule,
+  measured − 0.1 or exactly 100.0 at 100 %, stays green and is counted into
+  one `FLOORWARN: N coverage floor(s) should be raised` line, each such
+  function listed with the floor to set. Floors only go up: a red is fixed by
+  testing, never by lowering a number. It reads the profile the Go-tests gate
+  writes (`.build/go-coverage.out`), so the tests run once; that gate removes
+  the profile when it is red, and no profile is red here. The thresholds
+  file is read in one fixed shape, one `"key": number` per line, and a line
+  outside it is red. Its self-test (`Scripts/test_check_coverage.sh`) shows
+  each of those cases and, by mutation, that the floor comparison, the 0.1
+  buffer and the Go-tests gate's removal of a red run's profile are what
+  decide them.
+- **Go vulnerabilities** (`Scripts/check_govulncheck.sh`, another estate repository's):
+  govulncheck over the module, red when the code reaches a symbol the Go
+  vulnerability database lists, naming each entry. When the database does
+  not answer (`curl -sf --max-time 5 https://vuln.go.dev/index/db.json`
+  fails: offline, refused, a timeout, an HTTP error) the check is skipped,
+  as in another estate repository: one `⚠️ SKIP: govulncheck did not run` line naming the
+  database, a `::warning::` in GitHub Actions, exit 0, and never the `OK`
+  line of a pass. `FORSGREN_VULN_DB` points it at another database. Its
+  self-test (`Scripts/test_check_govulncheck.sh`) runs offline against a
+  database it writes, with one made-up entry, and shows a call to the listed
+  symbol red, an unreachable database a skip and, by mutation, that the
+  probe is what makes offline a skip rather than a tool error.
+- **Go dead code** (`Scripts/check_deadcode.sh`, another estate repository's): `deadcode
+  -test ./...`, red on any function, exported or not, that neither a main
+  package nor a test reaches, each named with its file and line. The fix is
+  to delete it, never to call it from a test to keep it alive. Red on a
+  module with no main package and when deadcode could not run (a module that
+  does not compile). Its self-test (`Scripts/test_check_deadcode.sh`) shows
+  both kinds of dead function red, a test-only helper green and, by
+  mutation, that `-test` is what keeps it green.
+
+Go lint, Go test duplication, Go vulnerabilities and Go dead code run the
+golangci-lint, govulncheck and deadcode pinned in `go.mod` (see Installing
+and updating).
+
+Seven PRE gates read the repository's own scripts and files:
+
+- **actionlint** (`Scripts/check_actionlint.sh`, the estate's gate in
+  coachretreat-website's copy): every `.github/workflows/*.yml` file under
+  `.actionlint.yaml`. Valid YAML is not a valid workflow: actionlint knows
+  which contexts exist where (a `runner.temp` in a job-level `env:` block
+  once made GitHub reject another estate repository's whole workflow, so not one gate
+  ran), which keys a step takes, and which runner labels exist. Every job
+  here runs on a GitHub-hosted image, so `.actionlint.yaml` declares no
+  custom label: a custom label (a self-hosted runner's) is red until it is
+  declared there, and declaring one is configuration, not a waiver.
+  actionlint also runs shellcheck over every
+  `run:` block, and its self-test (`Scripts/test_check_actionlint.sh`) is red
+  when that does not happen, since actionlint skips it silently when
+  shellcheck is missing. No `-ignore` flag: a suppression needs a finding
+  someone has looked at and Yves's explicit yes. One exists:
+  `.actionlint.yaml` ignores, for `.github/workflows/metrics.yml` only,
+  actionlint's "not defined" on the documented `job.workflow_sha` and
+  `job.workflow_repository`, which actionlint 1.7.12 does not know yet
+  (rhysd/actionlint#705); approved on
+  [forsgren#4](https://github.com/yveshanoulle/forsgren/issues/4#issuecomment-5952631931),
+  to be removed once an actionlint release knows them. Red on a directory with no
+  workflow file, and when actionlint itself is missing.
+- **zizmor** (`Scripts/check_zizmor.sh`, another estate repository's gate): the GitHub
+  Actions security linter, over `.github` under `.github/zizmor.yml`, every
+  `.yml` and `.yaml` workflow. actionlint asks whether a workflow is valid,
+  zizmor whether it is safe; the class it exists for is template injection,
+  an attacker-controlled `${{ ... }}` (an issue title, a branch name)
+  expanded into a `run:` block, where it runs as shell with the job's token
+  on the runner. It runs at another estate repository's setting: offline, High
+  findings only, the default persona. A Medium finding such as a checkout
+  that keeps its credentials is not its red; checkout pins owns that rule.
+  The config suppresses nothing: a suppression needs a finding someone has
+  looked at and Yves's explicit yes recorded on a GitHub issue. Red on a
+  directory with no workflow file. Its self-test
+  (`Scripts/test_check_zizmor.sh`) shows each of these, with two mutation
+  proofs: the severity threshold is what keeps a Medium out, and the
+  config is read from the scanned directory.
+- **shellcheck** (`Scripts/check_shellcheck.sh`, the estate's gate from
+  another estate repository): every tracked `*.sh` file, and every tracked file without an
+  extension whose first line is a bash or sh shebang, at any depth. The
+  targets come from `git ls-files`, so a new script is checked the moment it
+  is tracked, with no list to keep up to date. Red on any finding, and on a
+  run that found no script. No script is excluded, and an empty
+  `EXCLUDE_ALLOWED` is the normal state. An exclusion needs three things:
+  the entry in the gate's `EXCLUDE_ALLOWED`, a sentence here naming the
+  script and the reason, and Yves's explicit yes recorded on a GitHub issue,
+  which that sentence links.
+  A finding is fixed in the script. The same rule holds for a single line:
+  it may carry a `# shellcheck disable=SCxxxx` only with a comment giving the
+  reason, and with Yves's explicit yes recorded on a GitHub issue, which
+  that comment links.
+- **yamllint** (`Scripts/check_yamllint.sh`, from another estate repository): every
+  tracked `.yml` and `.yaml` file under the rules in `.yamllint.yml`
+  (another estate repository's). konenki lints its workflow directory by name;
+  here the targets come from `git ls-files`, as for shellcheck, so the
+  workflow and any other YAML are covered the moment they are tracked.
+  `.yamllint.yml` is itself tracked YAML and is linted too, so the list is
+  never empty, and a run that found none is red.
+- **stray tracked files** (`Scripts/test_no_stray_tracked_files.sh`,
+  another estate repository's): red on a tracked `.DS_Store` at any depth, and on a
+  tracked `.yml`/`.yaml` with a top-level `jobs:` key anywhere GitHub would
+  not run it (outside `.github/workflows/`, or in a subdirectory of it): a
+  workflow copy nobody lints and nothing runs. It first proves its matcher
+  on a scratch repository holding one offender of each kind.
+- **script references** (`Scripts/check_script_references.sh`, another estate repository's
+  guard): red when a script, workflow, order or tool file, or doc names a
+  `Scripts/` path that does not exist, checked case-sensitively, so a path
+  that macOS forgives but GitHub does not is caught too. Red as well on a
+  script that nothing calls: no script, workflow or order-file row mentions
+  it, and CLAUDE.md does not list it as run by hand. Red on a run that
+  scanned no file or found no `Scripts/` path at all. Another repository's
+  script is written with that repository as the first part of its path
+  (`source-repo/Scripts/...`) and is not checked; a bare `Scripts/` path is
+  read as forsgren's own. Unlike the gates above, it reads the working tree,
+  untracked files included. It also keeps `Scripts/` flat: a script (`.sh`
+  or `.py`) in any subfolder of `Scripts/` is red. Another estate repository bans scripts
+  that climb to the root with `..`; Yves ruled that ban N/A for forsgren
+  while `Scripts/` is flat, because every script then reaches the root with
+  the same single step (forsgren#1, 2026-10-01). This gate enforces the
+  condition the ruling rests on, so a script subfolder means revisiting
+  the ruling first. Data files in a subfolder are not scripts and stay
+  allowed.
+- **checkout pins** (`Scripts/test_workflow_checkout_pins.sh`, the estate's
+  gate in coachretreat-website's copy): every `uses:` in a
+  `.github/workflows/*.yml` file ends in a full 40-hex commit SHA, never a
+  tag (`@v4`), a branch (`@main`) or a short SHA, because a tag or a branch
+  is resolved when the runner fetches it and its owner can re-point it. The
+  version goes in a comment after the SHA (`# v7.0.1`), by convention: the
+  gate does not check it. A local action
+  (`./...`) is this repository's own code and is skipped; a `docker://`
+  reference has no exception and is red. Every `actions/checkout` must also
+  set `persist-credentials: false`, so the job token is not left in
+  `.git/config` for later steps. Red on a directory with no checkout or no
+  `uses:` at all. Its proof (`Scripts/test_workflow_checkout_pins_mutations.sh`,
+  row `mutation: checkout pins`) runs first and shows each kind of bad ref
+  rejected for its own reason.
+
+actionlint, zizmor, shellcheck and yamllint come from Homebrew, through
+`Scripts/required_tools.txt` (see Installing and updating). As with the data
+guard, untracked files are not checked: `git add -N` a new script first.
+
+The POST gates, on the generated site:
+
+- **HTMLHint** (`Scripts/gate_htmlhint.sh`): every `.html` file under the
+  rules in `.htmlhintrc`. Red on a finding, and on a run that scanned zero
+  files, since nothing linted is not clean.
+- **Stylelint** (`Scripts/gate_stylelint.sh`): every `.css` file under
+  `.stylelintrc.json` (stylelint-config-standard plus another estate repository's
+  overrides). Red on a finding, and on a glob that matches no file.
+- **html duplication, generated page** (`Scripts/check_html_dupl_site.sh`):
+  the same ratchet over `.build/site`, with its own ceiling, today 0.00%,
+  measured one page at a time (every `.html` under the site, subfolders
+  too, each staged alone, as the golden-pages gate does). It catches what
+  the template scan cannot see, such as a page template that pastes the
+  header instead of calling it. Pages rendered from one layout repeat its
+  chrome, so measuring them as one set would red the ceiling with clean
+  templates; duplication within a page is still held to 0.00%, and a red
+  names the page by its path in the site. A tooling failure (the measuring
+  script ending other than 0 or 1, or `mktemp -d` failing) is exit 2, never
+  a red over the ceiling.
+- **lint coverage** (`Scripts/check_lint_coverage.sh`): each linter opened
+  every `.html` and `.css` file the site ships, no fewer and no more. A glob
+  that stops matching is a smaller job that still reports success; this is
+  the gate that notices.
+- **required pages** (`Scripts/validate_required_pages.sh` and
+  `Scripts/test_required_pages_covers_site.sh`): the pages the site must
+  ship are listed, hand-authored, in `internal/page/required-pages.json`
+  (today `/`, `/legend.html`, `/settings.html`, `/days.html`, `/issues.html`,
+  `/standard/`, `/numbers/` and `/scoring/`). The first checks that list's shape: valid JSON, a
+  non-empty `requiredPages` array of root-relative paths, no scheme or host,
+  no `..`, no duplicates. The second checks it against `.build/site`: every
+  `.html` file there, in subfolders too, is listed (`standard/index.html` as
+  `/standard/`), and every listed page was generated. Both
+  are red on a missing file or an empty list, and the second on a site with
+  no `.html` page at all. A new page means a new line in the list, in the
+  same commit as its template.
+- **privacy posture** (`Scripts/check_privacy_posture.sh`, the estate's gate
+  from another estate repository): the page collects nothing. Red on a form, an
+  iframe, a script or stylesheet loaded from another host, a CSS `url()`
+  pointing off-site, `document.cookie`, `localStorage` or `sessionStorage`,
+  and a known analytics snippet. A green run lists what the page does load
+  (self-hosted fonts) and the hosts it links to, so the verdict can be read
+  rather than trusted. An outbound link is not a finding: it sends nothing
+  until someone clicks it.
+- **repository links** (`Scripts/check_repo_links.sh`, forsgren's own): no
+  `github.com/<owner>/<repo>` path anywhere in the generated `.html` or
+  `.css`, linked or as text. The gate cannot tell a private repository from
+  a public one, and the page has no reason to point into either. Red on a
+  site with no `.html` page. One narrow exception (Yves's ruling on
+  forsgren#41): an `href` to exactly `https://github.com/yveshanoulle/forsgren`,
+  with an optional `#anchor`, the footer's link to the tool's own public
+  repository; `acme-data`, `forsgren-template` (its footer link left in
+  forsgren#45), `forsgren/issues`, any other path or owner, and
+  the same path as plain text or in a `url()` stay red. The failure line names the file and line, never
+  the path it matched, so a private repository's name cannot reach a commit
+  message.
+- **community files** (`Scripts/check_community_files.sh`, forsgren's own):
+  `CODE_OF_CONDUCT.md` exists at the repository root and names the reporting
+  address `conduct@hanoulle.be`; `SECURITY.md` exists and names the private
+  reporting route (the Security tab's "Report a vulnerability", or the
+  advisories URL); neither has a template placeholder left (any bracket that
+  is not a Markdown link); and this README links both in plain Markdown, not
+  inside a code block, a code span or a comment. Every finding is reported in
+  one run.
+- **exit-trap completion** (`Scripts/check_exit_trap_completion.sh`, forsgren's
+  own, forsgren#137, found by #136): a shell script, at the repository root or
+  directly in `Scripts/`, that has a top-level `set -e` before a top-level
+  `trap ... EXIT` is red unless it carries the completion idiom (a `COMPLETED`
+  flag set as its last statement, `selftest_begin` or `lib_selftest.sh`). On
+  bash 3.2 an unbound variable after such a trap ends the script with exit 0,
+  so a caller reads an abort as a pass; the idiom turns an exit of 0 without
+  the flag into exit 1. The rule reads source only (its limits are in the
+  script's header); `Scripts/test_exit_trap_completion_behaviour.sh` is the
+  other half, which copies each real script (`build_site.sh`,
+  `gate_htmlhint.sh`, `test_sfl_pull.sh`, `test_validate_required_pages.sh`)
+  into a sandbox, injects an unbound variable right after its trap and
+  requires a non-zero exit, the probe named, the "aborted before completing"
+  line and no temporary directory left behind. Its self-test is
+  `Scripts/test_check_exit_trap_completion.sh`.
+
+forsgren has no privacy-pages gate: that one is another estate repository's, pinning
+the content of a privacy policy forsgren does not serve. The order file
+declares it `n/a` with its reason, and the privacy posture gate keeps that
+reason true.
+
+A finding in the generated page is fixed in the template under
+`internal/page/`, never by loosening a rule in the config.

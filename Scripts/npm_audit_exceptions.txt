@@ -9,7 +9,7 @@
 #   reason        one line
 #
 # An entry here needs Yves's explicit yes, recorded on its GitHub issue, like
-# every suppression (README, Quality gates). The gate ignores a finding only while its advisory and package are
+# every suppression (docs/quality-gates.md). The gate ignores a finding only while its advisory and package are
 # listed, today is on or before the re-check date, `npm audit --omit=dev`
 # does not report it (dev dependencies only), and npm offers no fix without
 # --force for the package. Otherwise it is red again by itself.

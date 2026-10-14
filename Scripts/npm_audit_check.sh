@@ -36,8 +36,8 @@
 # 7 days after today: an exception is re-checked WEEKLY, and nobody can set
 # it a month out. An entry whose advisory npm no longer reports is a warning
 # (remove the stale exception), not a red. An exception needs Yves's
-# explicit yes recorded on a GitHub issue, like every suppression (README,
-# Quality gates).
+# explicit yes recorded on a GitHub issue, like every suppression
+# (docs/quality-gates.md).
 #
 # jq is not in Scripts/required_tools.txt: it ships with macOS (/usr/bin/jq
 # since macOS 15) and on GitHub's macOS images, like awk. A missing jq is a

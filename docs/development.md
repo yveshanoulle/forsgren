@@ -19,7 +19,7 @@ Over the files git tracks, it fails when:
   cannot be forgotten (forsgren#143).
 
 Private names are not this gate's business: the private-names gate
-(`Scripts/check_private_names.sh`, below) searches every tracked and every untracked,
+(`Scripts/check_private_names.sh`, in [Quality gates](quality-gates.md)) searches every tracked and every untracked,
 not-ignored path and file for them.
 
 The data guard does not check untracked files, so `git add` (or `git add -N`) a
@@ -71,7 +71,7 @@ rows in file order, so the file is the one list.
 **Adding a gate:** write the script and its self-test (`Scripts/test_*.sh`,
 red first, plus a mutation proof), give each a row at its position in the
 order file (the self-test in PRE, before its gate), add any Homebrew tool
-it needs to `Scripts/required_tools.txt`, and describe it below.
+it needs to `Scripts/required_tools.txt`, and describe it in [Quality gates](quality-gates.md).
 `Scripts/test_sfl_drives_from_order_file.sh` is red on a `Scripts/test_*.sh`
 no row declares, and the gate-wiring gate on a script neither runner runs.
 
@@ -137,7 +137,7 @@ heal it, the changed `package-lock.json` rides into the commit.
 in `Scripts/npm_audit_exceptions.txt`, one line per advisory:
 `advisory|package|re-check date|issue|reason`. An exception needs Yves's
 explicit yes recorded on a GitHub issue, which its line names, like every
-suppression (see Quality gates). The gate reads `npm audit --json` (with jq,
+suppression (see [Quality gates](quality-gates.md)). The gate reads `npm audit --json` (with jq,
 which macOS and GitHub's macOS images ship) and ignores a finding only while
 all of these hold: its GHSA ID and its package are listed; today is on or
 before the re-check date; `npm audit --omit=dev` does not report it, so

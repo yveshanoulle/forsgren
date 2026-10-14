@@ -19,7 +19,7 @@
 # script is expected to pass shellcheck as-is. An exclusion needs all
 # three of:
 #   (a) the entry here;
-#   (b) a sentence in README.md's Quality gates naming the script and the
+#   (b) a sentence in docs/quality-gates.md naming the script and the
 #       reason (another estate repository, where this gate comes from, asks for a row in its
 #       documentation/check-parity.md instead; forsgren has no such file);
 #   (c) Yves's explicit yes, recorded on a GitHub issue that the README
