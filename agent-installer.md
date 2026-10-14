@@ -29,6 +29,10 @@ Start your agent with that model (in Claude Code: `claude --model sonnet`).
 4. Then tell the agent: "Install forsgren for me by following
    https://github.com/yveshanoulle/forsgren/blob/main/agent-installer.md".
 
+In Claude Code's auto mode, a commit or a repository creation can be blocked
+when it was not asked for in so many words; the go-sentence the agent asks
+for in step 4 is that request.
+
 ## How to work through this file
 
 - **Do every step in order.** Each step says what to do, the exact command,
@@ -78,6 +82,11 @@ Start your agent with that model (in Claude Code: `claude --model sonnet`).
   verification TXT record.
 - Never change the person's git or gh configuration. When a step needs it,
   the person runs the command.
+- When a permission check blocks a command (for example Claude Code's auto
+  mode denies a commit), stop and report the command and the reason it
+  gave. Never suggest a permission rule or a settings change, and never ask
+  the person to run the command by hand: both bypass what this file tests.
+  The way forward is Starting over, so this file can be fixed.
 
 ## Step 1. Check the prerequisites
 
@@ -115,7 +124,18 @@ there is no clone, no push and no git credential to set up.
 ## Step 2. Ask the person every question, in one message
 
 Ask all of these together, before anything is created. Give each default and
-why. Wait for the answers.
+why. Show every default with the values you already know filled in: the
+login from step 1.3 for `OWNER`, and `forsgren-metrics` for `REPO` (for
+example `https://acme.github.io/forsgren-metrics/` for the login `acme`).
+Never show the person a placeholder such as `OWNER` or `REPO`.
+
+End the message with this line, word for word:
+
+> Reply with your answers by number, for example '3: project Acme Shop
+> with acme/api'. Reply 'defaults' to take every default; question 3 has
+> no default, so add your repositories: 'defaults, and 3: …'.
+
+Then wait for the answers.
 
 1. **Owner of the data repository.** Default: the login from step 1.3. It
    can be an organisation where the person may create repositories.
@@ -164,16 +184,19 @@ why. Wait for the answers.
    number from 1 to 1825. forsgren reads it in chunks of 100 days, one more
    chunk per daily run, so a deeper history fills in over several days.
 9. **Custom domain or the github.io address.** Default: no custom domain;
-   the page is at `https://OWNER.github.io/REPO/` (with the default name,
-   `https://OWNER.github.io/forsgren-metrics/`), works at once and has
-   HTTPS from the start. For a custom domain, recommend the conventional
-   name `forsgren.<your domain>`, for example `forsgren.example.com`: like
-   `www` for a website, a `forsgren.` subdomain tells anyone where the DORA
-   page lives. forsgren's own install is at `forsgren.forsgren.be`. Other
-   names work as well. A custom domain needs the person to verify the
-   parent domain (`example.com`) for GitHub Pages first (a TXT record),
-   unless it is verified already, then a DNS record they add at their DNS
-   provider, and HTTPS can take up to a day after that.
+   the page is at `https://OWNER.github.io/REPO/` (fill in the owner and
+   the name, with the default name for example
+   `https://acme.github.io/forsgren-metrics/`), works at once and has
+   HTTPS from the start. Show the person this recommendation as part of the
+   question, not only the default: for a custom domain, use the
+   conventional name `forsgren.<your domain>`, for example
+   `forsgren.example.com`: like `www` for a website, a `forsgren.`
+   subdomain tells anyone where the DORA page lives. forsgren's own
+   install is at `forsgren.forsgren.be`. Other names work as well. A
+   custom domain needs the person to verify the parent domain
+   (`example.com`) for GitHub Pages first (a TXT record), unless it is
+   verified already, then a DNS record they add at their DNS provider, and
+   HTTPS can take up to a day after that.
 
 ## Step 3. Look at every measured repository (read only)
 
@@ -236,8 +259,17 @@ Show the person, in one message:
   (step 10B); with a custom domain the domain verification (step 13) and
   the DNS record (step 15).
 
-Wait for an explicit go. Any change to an answer: show the plan again.
-Nothing is created before the go.
+End the plan with this go-question, with `OWNER/REPO` filled in, and with
+"and the forsgren.yml change" only on route A:
+
+> Reply "go: create OWNER/REPO, switch on its Pages, and commit its
+> forsgren.config.yml and the forsgren.yml change" to let me create the
+> repository and commit to it.
+
+Wait for that reply, the sentence as shown, filled in. A bare "go", or any
+other reply that does not name these writes: show the sentence again and
+wait. Any change to an answer: show the plan again. Nothing is created
+before that reply.
 
 ## Step 5. Check the name is free and the template is there
 
