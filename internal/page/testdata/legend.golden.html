@@ -58,6 +58,12 @@
     <p>The Issues page and the Daily page are shown or hidden with issues_page and days_page in forsgren.config.yml. By default the Issues page is shown (issues_page: true) and the Daily page is hidden (days_page: false); days_page: true brings the Daily page back. A hidden page is not generated and has no entry in the menu. To add the Daily page, set days_page: true and run forsgren again to regenerate the report.</p>
     <h2>Settings page</h2>
     <p>The Default column of the settings page says whether the default applies: True when forsgren.config.yml does not set the key, so the current value is the default, and False when the file sets it, even to the default's value.</p>
+    <p>auto_update_level is the largest step of a forsgren update that merges itself; a larger one is left for you. By what a release asks of an installation, a patch release is fixes only, with nothing new for the installation to do or see; a minor release is new behaviour, or anything that asks the installation for something (a permission, a secret, a file, a config key); a major release is one where an installation that does nothing would stop working.</p>
+    <ul>
+      <li>patch: merges patch updates only</li>
+      <li>minor: merges minor and patch updates</li>
+      <li>major: merges major, minor and patch updates. It does not mean a major release is safe: nothing checks a release against this installation's own data.</li>
+    </ul>
   </main>
   <footer>
     <p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> 1.3.1 Metrics from GitHub data. Calculated at 2026-10-03 12:00 UTC</p>

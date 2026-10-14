@@ -693,6 +693,24 @@ func TestLegendExplainsTheDefaultColumnOfTheSettingsPage(t *testing.T) {
 		"<h2>Settings page</h2>\n    <p>"+defaultNote+"</p>\n")
 }
 
+// TestLegendExplainsAutoUpdateLevels (forsgren#156): the legend's settings
+// section says what a patch, a minor and a major release are, and what each
+// auto_update_level merges by itself; the levels come from the config's
+// constants, so a renamed level fails here.
+func TestLegendExplainsAutoUpdateLevels(t *testing.T) {
+	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()),
+		"<p>auto_update_level is the largest step of a forsgren update that merges itself; a larger one is left for you. "+
+			"By what a release asks of an installation, a patch release is fixes only, with nothing new for the "+
+			"installation to do or see; a minor release is new behaviour, or anything that asks the installation for "+
+			"something (a permission, a secret, a file, a config key); a major release is one where an installation "+
+			"that does nothing would stop working.</p>",
+		"<li>"+config.LevelPatch+": merges patch updates only</li>",
+		"<li>"+config.LevelMinor+": merges "+config.LevelMinor+" and "+config.LevelPatch+" updates</li>",
+		"<li>"+config.LevelMajor+": merges "+config.LevelMajor+", "+config.LevelMinor+" and "+config.LevelPatch+
+			" updates. It does not mean a major release is safe: nothing checks a release against this "+
+			"installation's own data.</li>")
+}
+
 // TestDaysPageMatchesGolden (forsgren#128, step 2): the page of the days is
 // days.html, what issues.html showed before: a table of the last 30 days, newest
 // first, titled Daily, with the menu that ends issues, Daily.
