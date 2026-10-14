@@ -4,8 +4,7 @@
 
 Open an issue first for anything larger than a typo, so the change can be
 agreed before it is built. Then send a pull request against `main`. Every
-change keeps the gates green: run `./FBP.sh --no-commit` (see docs/development.md,
-"Working on forsgren") before you push.
+change keeps the gates green: run `./FBP.sh --no-commit` (see [Working on forsgren](docs/development.md#working-on-forsgren)) before you push.
 
 A pull request from outside the repository gets CI only after the
 maintainer has approved its workflow run.

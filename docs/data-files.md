@@ -7,7 +7,7 @@ forsgren reads only what is already in GitHub:
 - **Deployments:** workflow runs (for example a TestFlight upload) and GitHub
   Deployments, with their commit and end time. Failed deployment recovery
   time comes from these alone, the failed ones and the successes after them
-  (see Failed deployment recovery time).
+  (see [Failed deployment recovery time](pages-and-views.md#failed-deployment-recovery-time)).
 - **Failures**, for change fail rate (forsgren#18): issues labelled
   `failure`, and the failed deployments. Each issue carries a short record
   block in its body:
@@ -22,8 +22,8 @@ forsgren reads only what is already in GitHub:
   deployment that caused the failure and the one that fixed it. forsgren
   stores the issue's opening and closing times and its `failure-start`; an
   issue without a `failure-start` it can read is stored all the same and
-  named on stderr by `collect`, never silently skipped (see Collecting
-  deployments, The failure issues). The builds are not used yet.
+  named on stderr by `collect`, never silently skipped (see [Collecting
+  deployments](#collecting-deployments-collect), The failure issues). The builds are not used yet.
 
 ## Where configuration and data live
 
@@ -71,7 +71,7 @@ names the line.
 **The commits of each deployment**, for lead time (forsgren#16), are kept
 next to it in `data/commits.csv`, with its own format version (the commits
 format v1); `data/deployments.csv` does not change. `collect` writes it,
-always next to the `--data` file (see Collecting deployments, The commits
+always next to the `--data` file (see [Collecting deployments](#collecting-deployments-collect), The commits
 of each deployment):
 
 ```
@@ -175,11 +175,11 @@ FORSGREN_TOKEN=<token> forsgren collect --config forsgren.config.yml --data data
 
 `collect` reads, for every repository in the config, that repository's
 deployments from GitHub's REST API by its `deployment` rule, and appends the
-final ones to the history (see History), the commits of each new
+final ones to the history (see [History](#history)), the commits of each new
 successful one to `data/commits.csv` next to it, the repository's
 failure issues to `data/failures.csv` next to it, and the events of all its
 issues to `data/issues.csv` next to it and which of them carry the `bug` label to
-`data/issue_bugs.csv` (see Issue events below). It prints one line per
+`data/issue_bugs.csv` (see [Issue events](#issue-events-forsgren76) below). It prints one line per
 repository, `acme/app: 3 new, 1 skipped (not final), 12 commits`: `new` is
 what was appended, `skipped (not final)` is what is still running and is
 stored by a later run, `commits` is the commits stored for the new
@@ -219,7 +219,7 @@ count. When it stored failure issues the line goes on with
 
 **How far back.** A repository's history is read in chunks of
 `history_chunk_days` (100 unless the config says otherwise), down to
-`history_days` (365), see Configuration (forsgren#57).
+`history_days` (365), see [Configuration](configuration.md#configuration) (forsgren#57).
 
 - A repository with nothing in the history for its rule and no row in
   `data/reach.csv` is on its first run: it reads one chunk back from now, and
@@ -328,7 +328,7 @@ as issues, with a `pull_request` field).
   `reach.csv`.
 
 - Each issue's number, `created_at`, `closed_at` and the `failure-start:`
-  line of its body are stored (see History). An issue already stored is
+  line of its body are stored (see [History](#history)). An issue already stored is
   stored again only when one of them changed: closed, or reopened.
 - **The record block is read from the issue's body**, the lines
   `failure-start:`, `failed-build:` and `fixed-build:` alone on their
@@ -403,7 +403,7 @@ private repositories (no scope for public ones).
 Besides the failure issues, each run reads the issues of the repository,
 whatever their labels (`Client.Issues`: `issues?state=all&since=`, 100 per
 page, pull requests left out, up to the page limit), and appends their
-events to `data/issues.csv` (see History). It asks since the same time as
+events to `data/issues.csv` (see [History](#history)). It asks since the same time as
 the failure issues, the repository's entry in `failures_read.csv` minus one
 day, and the read time moves only after the deployments, failure issues and
 issue events of the repository were all stored (decision #101). A
@@ -423,7 +423,7 @@ created comes before closed, and closed before reopened; decision #100):
   the run's time, to the second. Once stored, it is not written again,
   because the last event is then the reopen, not a close.
 
-An event already stored is skipped (see History), so reading the same issues
+An event already stored is skipped (see [History](#history)), so reading the same issues
 again writes nothing.
 
 **The full read** (decision #109) gives the days and issues pages their history back to
@@ -452,7 +452,7 @@ installation that upgrades gets the whole history of its bugs on the first
 run, with no full re-read. Every issue listed is stored as `bug=true`, and
 every issue stored as a bug that is no longer listed is stored again as
 `bug=false`, so a removed label is seen on the next run. What is already
-stored is skipped (see History, Bug flags). If the list stopped at the
+stored is skipped (see [History](#history), Bug flags). If the list stopped at the
 10,000 issues cap, stderr says so (`the bug read stopped at 100 page(s) of
 issues; the stored bug flags are kept`), what was read is stored and no flag is
 removed, because an issue it did not reach may still carry the label; the run

@@ -56,7 +56,7 @@ last statement, as when bash 3.2 ends the script on an unbound variable under
 
 **`./sfl.sh pre|post`** runs one phase of the gates. Before PRE it runs
 `git pull --ff-only` and stops (exit 3) when that cannot fast-forward, then
-installs the tools (see The tools), runs `npm ci` when the
+installs the tools (see [The tools](#the-tools)), runs `npm ci` when the
 npm linters are missing, and exports the Go pin. It runs every gate of the
 phase even after a failure, prints a step table and an `Errors:` block with
 each failed gate's reason, and exits 0 green, 1 red, 2 on a secret-class

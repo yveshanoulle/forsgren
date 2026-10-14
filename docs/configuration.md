@@ -59,7 +59,7 @@ projects:
   number of days from 1 to 1825`. forsgren does not read that far at once:
   a repository's first run reads one chunk (`history_chunk_days`), and each
   later run reads what is new plus one older chunk, until the history reaches
-  `history_days` back (see Collecting deployments). It is also the most any
+  `history_days` back (see [Collecting deployments](data-files.md#collecting-deployments-collect)). It is also the most any
   run reads back, however old the newest stored deployment is, and how far
   back the first read of a repository's failure issues goes. Raising it later fills in
   the extra range, chunk by chunk, from where each repository's history ends
@@ -160,7 +160,7 @@ projects:
   `label:` or `services:` without a value is the key left out.
 
 A **failure** is an issue labelled `failure` whose body carries the failure
-record block (see How it gets its data); lead time runs from a change's first
+record block (see [How it gets its data](data-files.md#how-it-gets-its-data)); lead time runs from a change's first
 commit. Neither is configured per repository in version 1.
 
 Any other key is refused, as is a value of the wrong kind or a second YAML
@@ -203,7 +203,7 @@ runs is never replaced. The directory must exist: `init-config` does not
 create one, so a mistyped directory is an error. It exits 1 with
 `init-config: <path>: <reason>` on a real error (the directory is missing or
 not writable, or the path is a directory), and 2 on a usage error. The
-metrics workflow runs it on every new install (see Running forsgren).
+metrics workflow runs it on every new install (see [Running forsgren](#running-forsgren)).
 
 ## Running forsgren
 
@@ -211,15 +211,15 @@ forsgren renders a static page whose footer says "Forsgren 0.8.6", the version o
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
-`/standard/`, `/numbers/` and `/scoring/` (see The page). That version has one source,
+`/standard/`, `/numbers/` and `/scoring/` (see [The page](pages-and-views.md#the-page)). That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
 it with `-ldflags "-X main.version=<version>"`. `forsgren collect` reads
-GitHub into the history file (see Collecting deployments); the daily run
+GitHub into the history file (see [Collecting deployments](data-files.md#collecting-deployments-collect)); the daily run
 calls it, commits the history to the data repository and renders the page
 with each project's deployment frequency, lead time for changes, failed
-deployment recovery time and change fail rate from it (see Deployment
-frequency, Lead time for changes, Failed deployment recovery time and Change
-fail rate).
+deployment recovery time and change fail rate from it (see [Deployment
+frequency](pages-and-views.md#deployment-frequency), [Lead time for changes](pages-and-views.md#lead-time-for-changes), [Failed deployment recovery time](pages-and-views.md#failed-deployment-recovery-time) and [Change
+fail rate](pages-and-views.md#change-fail-rate)).
 
 The first release is `v0.0.1`. Install a release with
 `go install github.com/yveshanoulle/forsgren/cmd/forsgren@v0.0.1`; an
@@ -318,7 +318,7 @@ jobs:
   caller's). It refuses anything but a 40-digit commit and one
   `owner/name` before it installs anything. Dependabot, configured by the
   template, proposes the new `uses:` line of each release as a pull request
-  (see Configuration, #14). A fork calling its own copy installs the fork,
+  (see [Configuration](#configuration), #14). A fork calling its own copy installs the fork,
   never upstream.
 - **`v0.0.1` predates this.** Its `metrics.yml` still requires
   `with: forsgren-version: v0.0.1` under the `uses:` line; the one-line
@@ -358,7 +358,7 @@ jobs:
 - **The token: a `FORSGREN_TOKEN` secret.** `forsgren collect` reads the
   measured repositories with a read-only token of the installation's own
   (the job's token reaches only the data repository). Make one with the
-  permissions its rules need (see Collecting deployments, The token: per
+  permissions its rules need (see [Collecting deployments](data-files.md#collecting-deployments-collect), The token: per
   rule `environment=` Deployments, `workflow=` Actions, and for every rule
   Contents and Metadata), store it as the data repository's Actions secret
   `FORSGREN_TOKEN`, and pass it by name as above. By name, not
@@ -372,7 +372,7 @@ jobs:
 - **The daily run collects and commits the history.** After the check,
   `forsgren collect --config forsgren.config.yml --data
   data/deployments.csv` appends the new final deployments, and their
-  commits to `data/commits.csv` (see Collecting deployments). When `data/`
+  commits to `data/commits.csv` (see [Collecting deployments](data-files.md#collecting-deployments-collect)). When `data/`
   changed, it and nothing else is committed to
   the branch the run is on as `github-actions[bot]`, "forsgren: record
   deployments", and pushed the way the starter is; a run with nothing new

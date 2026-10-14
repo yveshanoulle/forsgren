@@ -70,7 +70,7 @@ a false alarm is possible but never a silent pass.
 An installation can let forsgren's own updates merge themselves
 ([#58](https://github.com/yveshanoulle/forsgren/issues/58)). It is off until
 the config switches it on, and a new install's starter does (see
-Configuration). The chain, for each forsgren release:
+[Configuration](configuration.md#configuration)). The chain, for each forsgren release:
 
 1. Dependabot opens one grouped pull request that moves the pins of both
    caller files, `.github/workflows/forsgren.yml` (which calls `metrics.yml`)
@@ -89,7 +89,7 @@ Configuration). The chain, for each forsgren release:
    release within the level itself and starts `forsgren.yml`; the pull request
    stays open ([#62](https://github.com/yveshanoulle/forsgren/issues/62)).
 
-**The two keys** of `forsgren.config.yml` (see Configuration):
+**The two keys** of `forsgren.config.yml` (see [Configuration](configuration.md#configuration)):
 
 - **`auto_update`** is `true` or `false`, and only those literals (a quoted
   value, `yes` or a number is refused by `check-config`). Absent, or without
@@ -215,7 +215,7 @@ release before it proposes it (a cooldown).
 **To switch auto-update off**, set `auto_update: false` in
 `forsgren.config.yml` (or remove the key). Dependabot still opens its pull
 request, `forsgren-update.yml` runs and leaves it for you with `auto_update is
-off`, and merging it is the update, as before (see Configuration).
+off`, and merging it is the update, as before (see [Configuration](configuration.md#configuration)).
 
 ## Installing and updating
 
@@ -227,7 +227,7 @@ and creates your data repository from the template step by step
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`
-(see Running forsgren), "0.0.10 is waiting in pull request #N (merge it to
+(see [Running forsgren](configuration.md#running-forsgren)), "0.0.10 is waiting in pull request #N (merge it to
 update)" when Dependabot's pull request for it is open in your repository.
 Updating is merging that pull request; the template's calling workflow
 carries the permission line.

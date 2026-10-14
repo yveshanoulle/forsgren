@@ -18,8 +18,8 @@ commit itself:
   they are names, not values). Red, never skipped, when gitleaks is
   missing. Its self-test (`Scripts/test_check_secrets.sh`) plants a key and
   shows it caught.
-- **data guard** (`Scripts/check_data_guard.sh`): see Where configuration
-  and data live.
+- **data guard** (`Scripts/check_data_guard.sh`): see [The data
+  guard](development.md#the-data-guard).
 - **private names** (`Scripts/check_private_names.sh`): this repository is
   public, so no tracked or untracked (not ignored) file or path may name a private
   repository. The list of names is kept outside the repository: in the file
@@ -169,8 +169,8 @@ Seven more PRE gates check the Go code:
   mutation, that `-test` is what keeps it green.
 
 Go lint, Go test duplication, Go vulnerabilities and Go dead code run the
-golangci-lint, govulncheck and deadcode pinned in `go.mod` (see Installing
-and updating).
+golangci-lint, govulncheck and deadcode pinned in `go.mod` (see [The
+tools](development.md#the-tools)).
 
 Seven PRE gates read the repository's own scripts and files:
 

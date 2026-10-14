@@ -3,7 +3,7 @@
 ## Deployment frequency
 
 The first DORA number on the page (forsgren#12, step 7, package
-`internal/metrics`), the first column of the page's table (see The page):
+`internal/metrics`), the first column of the page's table (see [The page](#the-page)):
 its DORA band, always shown with the count it comes from, "Between once per
 day and once per week · 12", the successful deployments of the last 30
 days, or of the last 180 days for a band decided on them ("Between once per
@@ -96,7 +96,7 @@ the last 30 days says "No lead time yet".
 
 **What counts.** `render` reads `data/commits.csv` next to its `--data`
 file, the commits `collect` stored for each successful deployment (see
-History). A missing file is no commit; a file with an unknown version or a
+[History](data-files.md#history)). A missing file is no commit; a file with an unknown version or a
 malformed line fails the render with its own message. Yves's rulings:
 
 - **Per commit**, DORA's definition: each commit's lead time runs from its
@@ -105,7 +105,7 @@ malformed line fails the render with its own message. Yves's rulings:
 - **The commits of a deployment** are those since the previous successful
   deployment of its stream: the same repository, rule, environment or
   workflow, and task, while a repository's releases are one stream (see
-  Collecting deployments, The commits of each deployment). The first
+  [Collecting deployments](data-files.md#collecting-deployments-collect), The commits of each deployment). The first
   success of a stream has none. Failed deployments, and other final
   states, store none: their commits move on to the next successful one. A
   success `collect` skips, with a warning, stores none either.
@@ -165,12 +165,12 @@ can be reverted there):
   whose state is `failure`. The web-hosting and TestFlight recorders record
   a failure only once live was touched, which is DORA's "requires
   immediate intervention". A `workflow=` rule stores every run that
-  concluded `failure` (see Collecting deployments), so for such a
+  concluded `failure` (see [Collecting deployments](data-files.md#collecting-deployments-collect)), so for such a
   repository a run that failed before touching live counts too. Failure issues (the `failure` label with its
-  record block, see How it gets its data) are the source of change fail
+  record block, see [How it gets its data](data-files.md#how-it-gets-its-data)) are the source of change fail
   rate (forsgren#18), not of this number.
 - **Recovered by the next success of its stream.** The stream is
-  collect's (see Collecting deployments, The commits of each deployment):
+  collect's (see [Collecting deployments](data-files.md#collecting-deployments-collect), The commits of each deployment):
   the same repository, compared ignoring case, the same kind, environment
   or workflow, and task; a repository's releases are one stream. A
   success of another stream (deploy-admin after a failed deploy-api)
@@ -235,8 +235,8 @@ can be reverted there):
   neither, and one created after the render time is not there yet.
 - **A failed change** is a deployment whose state is `failure`, as recovery
   time counts them, or an issue labelled `failure` (forsgren#6) opened in
-  the window, from `data/failures.csv` (see History, Collecting
-  deployments). An issue counts once, open or closed, as its newest line
+  the window, from `data/failures.csv` (see [History](data-files.md#history), [Collecting
+  deployments](data-files.md#collecting-deployments-collect)). An issue counts once, open or closed, as its newest line
   says, however it was closed: the label is the ruling (forsgren#6), so an
   issue that turned out not to be a failure needs its label removed before
   it is stored, since a stored issue is never taken out.
@@ -355,7 +355,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   rework rate, with Weekend deployments after deployment frequency on the
   standard and numbers views (forsgren#124). The first column heads each row.
 - **The rows** are, per project in the config's order, its total, then a
-  row per label its repositories give (see Configuration, `label` and
+  row per label its repositories give (see [Configuration](configuration.md#configuration), `label` and
   `services`), sorted by label ignoring case and indented under it. A
   project with label rows is headed "Acme Shop (total)"; one without is
   one row with its name. A label row's header also carries its project's
@@ -395,7 +395,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   (forsgren#51); 0.8.4 moved it to the menu (forsgren#128). A page one folder
   down reaches `styles.css`, the settings and the legend through `../`. The
   legend page serves all views. The root `index.html` follows the `view:`
-  config key (see Configuration): that view, which its menu marks
+  config key (see [Configuration](configuration.md#configuration)): that view, which its menu marks
   `aria-current="true"`, as the root is not that view's page; without the
   key it is the standard page and its menu marks no view. `/scoring/`
   (`scoring/index.html`, forsgren#47) shows each metric's DORA Quick Check
@@ -420,7 +420,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   Completed | Not planned | Duplicate | Other | Open | Open bugs | Total | Open / Total, one row per UTC calendar day,
   the last 30 complete days (`issueDays`), yesterday on top and going down;
   today is left out, so a row never changes once it is shown (apart from the
-  known limits below). It has no week or month row: those are on the issues
+  [known limits](data-files.md#issue-events-forsgren76)). It has no week or month row: those are on the issues
   page (forsgren#123, #128). All tracked repositories are counted together. **Inactive days are hidden** (forsgren#108, decisions
   #116 and #117): a day is active when it has a new issue, a close of any kind
   or a reopen, and a day with none of these has no row. A reopen keeps a day
@@ -447,7 +447,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   Open is shown as calculated: a negative Open means the collected data
   is inconsistent (missing events, a partial read, or a bug), and it is
   shown rather than hidden. Reopen times are the
-  times `collect` saw them (see Issue events), so an Open from before a
+  times `collect` saw them (see [Issue events](data-files.md#issue-events-forsgren76)), so an Open from before a
   reopen was seen is an estimate. **Total** is the issues created up to the
   end of that day, across all repositories, open or closed: the `created`
   events from the oldest stored one on, each counted once, so a close never
@@ -464,7 +464,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   at the latest collection, applied to the issue's whole history (Yves's
   ruling): adding or removing the label moves the issue in every past row,
   not only from the day it was changed. The flags come from
-  `data/issue_bugs.csv` (see History, Bug flags); a missing file marks no
+  `data/issue_bugs.csv` (see [History](data-files.md#history), Bug flags); a missing file marks no
   issue, and an unknown version or a malformed line fails the render with its
   own message. **The arrows** (forsgren#126, forsgren#114) follow the Open and
   Open bugs counts: a red up arrow and the change (`▲ +3`) when the count
@@ -530,7 +530,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   (`templates/layout/issuestable.html`).
 - **The settings page** (`settings.html`, forsgren#84, a table since forsgren#141)
   tabulates each optional config key under Parameter, Current value, Possible
-  values and Default, see Configuration.
+  values and Default, see [Configuration](configuration.md#configuration).
 - **Layout:** no table has a caption: each is named by its page's heading
   ("DORA metrics" on the three views and the root, Issues, Daily), and one `h1`
   rule in `styles.css` sets the look of every page's heading (forsgren#135), and every table has `<th scope>` headers; it scrolls

@@ -124,8 +124,8 @@ comparison, the account-type rule and the opener comparison), and **gate wiring*
 the check or the self-test loses its row.
 
 **The metrics workflow, for installations.** `.github/workflows/metrics.yml`
-is the reusable workflow a data repository calls daily (see Running
-forsgren). It triggers on `workflow_call` only, so it never runs in this
+is the reusable workflow a data repository calls daily (see [Running
+forsgren](configuration.md#running-forsgren)). It triggers on `workflow_call` only, so it never runs in this
 repository and no pull request can start it. Its one job runs on
 `ubuntu-latest`, in the caller's repository and with the caller's token,
 checks out the caller's repository only (never forsgren's), and asks for
