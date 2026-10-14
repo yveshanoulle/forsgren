@@ -285,7 +285,7 @@ Show the person, in one message:
 - The update wait, when it is not 3 (step 11 changes it).
 - What they will do themselves: on route B the token and its secret
   (step 10B); with a custom domain the domain verification (step 13) and
-  the DNS record (step 15).
+  the DNS record (step 14).
 
 End the plan with this go-question, with `OWNER/REPO` filled in, with
 "and the forsgren.yml change" only on route A, and with "and the
@@ -734,21 +734,7 @@ Tell the person which part you checked (the TXT record is in DNS with the
 value they sent) and which part rests on their confirmation (GitHub shows
 the domain verified).
 
-## Step 14. Custom domain: set it on the repository
-
-Only after step 13 worked:
-
-```
-gh api -X PUT repos/OWNER/REPO/pages -f cname=DOMAIN
-```
-
-Check: `gh api repos/OWNER/REPO/pages --jq .cname` prints `DOMAIN`. Do not
-add a `CNAME` file to the repository: a site built by GitHub Actions does not
-use one. From now on `SITE` is `https://DOMAIN/`.
-
-Fails: stop and report.
-
-## Step 15. Custom domain: the DNS record (Person)
+## Step 14. Custom domain: the DNS record (Person)
 
 First check, again, that the verification record is still there (the
 safeguard before any record points at GitHub Pages):
@@ -792,8 +778,36 @@ dig +short @1.1.1.1 DOMAIN
   as below, until both agree.
 - Not yet: wait 5 minutes and check again, at most 12 times (an hour).
   Still not: this is a wait, not a failure. Tell the person DNS has not
-  reached you yet, and to ask you to resume at step 15 later. DNS can take
+  reached you yet, and to ask you to resume at step 14 later. DNS can take
   up to 24 hours.
+
+Both answers work: go on to step 15, which sets the custom domain.
+
+## Step 15. Custom domain: set it on the repository
+
+Only after steps 13 and 14 worked. GitHub checks DNS when the custom
+domain is set; set too early, before the CNAME record exists, the
+certificate request does not start (forsgren#173). So first check again,
+through a public resolver, that the record resolves:
+
+```
+dig +short @1.1.1.1 DOMAIN
+```
+
+A subdomain works when the first line is exactly `OWNER.github.io.` (lower
+case) and the next lines are `185.199.` addresses; an apex domain works when
+it prints the four addresses of step 14. Anything else: stop, and go back to
+step 14. Do not set the domain. Then set it:
+
+```
+gh api -X PUT repos/OWNER/REPO/pages -f cname=DOMAIN
+```
+
+Check: `gh api repos/OWNER/REPO/pages --jq .cname` prints `DOMAIN`. Do not
+add a `CNAME` file to the repository: a site built by GitHub Actions does not
+use one. From now on `SITE` is `https://DOMAIN/`.
+
+Fails: stop and report.
 
 ## Step 16. HTTPS, after the certificate is approved
 
@@ -808,7 +822,7 @@ dig +short @1.1.1.1 DOMAIN
      cause is that GitHub checked DNS while it was still wrong. Setting the
      same custom domain again starts no new certificate request, so remove
      it first: `gh api -X PUT repos/OWNER/REPO/pages -F cname=null`, wait a
-     minute, then set it again with the step-14 call. Do this at most once,
+     minute, then set it again with the step-15 call. Do this at most once,
      then wait again as above. If the removal call fails, or the state is
      still empty after that one retry, do not just stop: give the person
      the tip below, and when they are done they ask you to resume at

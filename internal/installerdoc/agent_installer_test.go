@@ -44,3 +44,24 @@ func TestStep16GivesThePersonTheSettingsPagesTip(t *testing.T) {
 		t.Error("Starting over does not point to the step-16 tip")
 	}
 }
+
+// TestCustomDomainIsSetAfterTheCNAMEStep (forsgren#173): GitHub checks DNS
+// when the custom domain is set, so the step that sets it (the
+// `pages -f cname=DOMAIN` call) must come after the step that has the person
+// add the CNAME record, and must check that record through a public resolver.
+func TestCustomDomainIsSetAfterTheCNAMEStep(t *testing.T) {
+	text := readInstaller(t)
+	dns := strings.Index(text, "## Step 14. Custom domain: the DNS record")
+	set := strings.Index(text, "## Step 15. Custom domain: set it on the repository")
+	if dns < 0 || set < 0 || dns > set {
+		t.Fatalf("the DNS record step (at %d) must come before the set-the-domain step (at %d)", dns, set)
+	}
+	call := strings.Index(text, "-f cname=DOMAIN")
+	if call < set {
+		t.Errorf("the call that sets the custom domain (at %d) is before the set-the-domain step (at %d)", call, set)
+	}
+	step := section(t, installerFile, "Step 15.")
+	if !strings.Contains(step, "dig +short @1.1.1.1 DOMAIN") {
+		t.Errorf("step 15 does not check the CNAME through a public resolver first:\n%s", step)
+	}
+}
