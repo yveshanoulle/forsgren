@@ -53,3 +53,20 @@ func TestUpgraderStep2ComparesTheTwoPins(t *testing.T) {
 		"differs from the pin",
 		"stop and report (a half-moved pin)")
 }
+
+// TestUpgraderStep3FindsTheLatestRelease (forsgren#166, step 166-3): step 3
+// takes the latest release from the release list (not tags), its commit
+// from the API, compares versions as numbers, stops when the pin is not
+// older, and reads a waiting Dependabot pull request from its diff.
+func TestUpgraderStep3FindsTheLatestRelease(t *testing.T) {
+	step := asOneLine(section(t, readRepoFile(t, upgraderFile), "Step 3."))
+	wantAll(t, "step 3", step,
+		"gh release list -R yveshanoulle/forsgren --exclude-drafts --exclude-pre-releases",
+		"not the tags",
+		"gh api repos/yveshanoulle/forsgren/commits/LATEST --jq .sha",
+		"sort -V",
+		"already the latest release",
+		"gh pr list -R OWNER/REPO --app dependabot --state open",
+		"gh pr diff PR -R OWNER/REPO",
+		"`LATESTSHA`")
+}

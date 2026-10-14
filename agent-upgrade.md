@@ -61,6 +61,8 @@ request.
   - `VERSION`: the forsgren release the data repository pins today, such as
     `vX.Y.Z` (step 2).
   - `LATEST`: forsgren's latest release, such as `vX.Y.Z` (step 3).
+  - `LATESTSHA`: the commit of `LATEST`, 40 hex digits (step 3).
+  - `PR`: the number of a waiting Dependabot pull request (step 3).
   - `WORK`: your work folder, the absolute path of `forsgren-work` inside
     the folder the person started you in (step 1).
 - **Write values into each command.** Do not rely on shell variables or a
@@ -225,3 +227,55 @@ Read the report first, then the repository it comes from.
    `default-days` in `WORK/dependabot.yml`.
 
 Then go on to step 3.
+
+## Step 3. Find the latest release and a waiting pull request
+
+1. The latest release is the one GitHub marks Latest in the release list, not
+   the tags and not a version written in a file:
+
+   ```
+   gh release list -R yveshanoulle/forsgren --exclude-drafts --exclude-pre-releases -L 5
+   ```
+
+   - Works: one row has the word `Latest`; its tag, such as `v1.2.0`, is
+     `LATEST`.
+   - No row says `Latest`: stop and report.
+2. Its commit:
+   `gh api repos/yveshanoulle/forsgren/commits/LATEST --jq .sha`
+   - Works: 40 hex digits. That is `LATESTSHA`.
+   - Fails: stop and report.
+3. Compare `VERSION` with `LATEST` as numbers, never as text (`v1.10.0` is
+   newer than `v1.9.0`): print both without their `v`, one per line, and sort
+   them with `sort -V`; the last line is the newer one.
+   - `VERSION` is the same as `LATEST`: the installation is already the
+     latest release. Tell the person so, and do not stop yet: go to step 9,
+     whose checks show whether the installation really runs it, and skip
+     steps 4 to 8.
+   - `VERSION` is newer than `LATEST`: stop and report. A pin must never be
+     lowered, and a release newer than the latest is not published.
+   - `VERSION` is older: go on.
+4. A waiting Dependabot pull request, if there is one:
+
+   ```
+   gh pr list -R OWNER/REPO --app dependabot --state open --json number,headRefName
+   ```
+
+   - An empty list: no pull request is waiting. Step 6 moves the pins itself.
+   - One or more: for each `number`, as `PR`, read what it changes:
+
+     ```
+     gh pr diff PR -R OWNER/REPO --name-only
+     gh pr diff PR -R OWNER/REPO | grep -E '^[+-].*uses:'
+     ```
+
+     It is the pull request step 6 may merge when the file names are exactly
+     `.github/workflows/forsgren.yml` and
+     `.github/workflows/forsgren-update.yml` (or the first alone, when the
+     installation has no second caller), and the `+` lines end in `# LATEST`
+     with `LATESTSHA`. Write down its number. Any other file, or another
+     version or commit: do not use it; step 6 moves the pins itself, and the
+     pull request is left as it is.
+   - Never take the version from a pull request's title: it is a label, and
+     the diff is what merges.
+
+Then go on to step 4.
