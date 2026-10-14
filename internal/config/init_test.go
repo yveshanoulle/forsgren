@@ -18,10 +18,10 @@ func starterLines() []string {
 
 // starterConfig is the config at the end of the starter: one that measures
 // nothing yet, its root page the standard view marked in the menu (forsgren#51, #128),
-// and auto-merge of forsgren's Dependabot updates on at patch level
-// (forsgren#58).
+// and auto-merge of forsgren's Dependabot updates on at major level
+// (forsgren#58, #150).
 const starterConfig = "version: 1\nview: standard\nauto_update: true\n" +
-	"auto_update_level: patch  # possible options: major, minor, patch\n" +
+	"auto_update_level: major  # possible options: major, minor, patch\n" +
 	"history_days: 365  # how far back history goes, 1 to 1825 days (5 years)\n" +
 	"history_chunk_days: 100  # how many days back each run adds until history_days is reached, " +
 	"1 to 365\n" +
@@ -198,7 +198,7 @@ func wantEntries(t *testing.T, dir string, n int) {
 }
 
 // TestStarterPassesLoad: the starter is a config Load accepts, with no
-// projects, and with auto-merge on at patch level (forsgren#58).
+// projects, and with auto-merge on at major level (forsgren#58, #150).
 func TestStarterPassesLoad(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "forsgren.config.yml")
 	writeFile(t, path, Starter)
@@ -209,8 +209,8 @@ func TestStarterPassesLoad(t *testing.T) {
 	if cfg.Version != 1 || len(cfg.Projects) != 0 {
 		t.Errorf("want version 1 and no projects, got %+v", cfg)
 	}
-	if !cfg.AutoUpdate || cfg.AutoUpdateLevel != LevelPatch {
-		t.Errorf("want auto_update on at level patch, got %v, %q", cfg.AutoUpdate, cfg.AutoUpdateLevel)
+	if !cfg.AutoUpdate || cfg.AutoUpdateLevel != LevelMajor {
+		t.Errorf("want auto_update on at level major, got %v, %q", cfg.AutoUpdate, cfg.AutoUpdateLevel)
 	}
 }
 
