@@ -9,7 +9,7 @@ https://forsgren.forsgren.be.
 
 Follow **only this file**, from the top, in order. Do not use other guides,
 your memory of forsgren, or other installations as a source. The full
-reference is forsgren's [README](README.md); this file names the parts of it
+reference is forsgren's [README](README.md) and the docs it lists; this file names the parts of it
 you need.
 
 Tested with: forsgren v0.8.5, Claude Code, model claude-sonnet-5-5.
@@ -364,7 +364,7 @@ answers. Shape (the `acme` names stand for the person's):
 
 ```yaml
 # forsgren configuration: what this installation measures.
-# Reference: https://github.com/yveshanoulle/forsgren#configuration
+# Reference: https://github.com/yveshanoulle/forsgren/blob/main/docs/configuration.md
 version: 1
 view: standard
 auto_update: true

@@ -537,9 +537,8 @@ func TestFooterShowsTheTimeWithoutRows(t *testing.T) {
 
 // TestNoProjectsPageShowsAHowTo (forsgren#41, step 3): where the table would
 // be, a page with no projects says that forsgren.config.yml lists them, shows
-// a small example with the optional label, and links to the README's
-// Configuration stub, which points at docs/configuration.md; the one-line
-// message is gone.
+// a small example with the optional label, and links straight to
+// docs/configuration.md; the one-line message is gone.
 func TestNoProjectsPageShowsAHowTo(t *testing.T) {
 	data := Placeholder("0.8.6")
 	data.NoProjects = true
@@ -548,7 +547,7 @@ func TestNoProjectsPageShowsAHowTo(t *testing.T) {
 		"forsgren.config.yml lists the projects",
 		"<pre><code>version: 1\nprojects:\n  - name: Acme Shop\n    repositories:\n",
 		"        label: iOS\n",
-		`<a href="https://github.com/yveshanoulle/forsgren#configuration">`,
+		`<a href="https://github.com/yveshanoulle/forsgren/blob/main/docs/configuration.md">`,
 	)
 	wantNone(t, "index.html", got, "No projects configured yet")
 }
