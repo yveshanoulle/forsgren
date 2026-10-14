@@ -24,5 +24,5 @@ func TestRenderShowsWeekendDeployments(t *testing.T) {
 		shipped(6, "acme/ios-app", ok, "2026-09-30T08:00:00Z"),
 	}
 	wantGolden(t, "index.weekend.golden.html",
-		"--config", writeConfig(t, validConfig), "--data", writeHistory(t, records))
+		"--config", writeConfig(t, validConfig+daysOn), "--data", writeHistory(t, records))
 }

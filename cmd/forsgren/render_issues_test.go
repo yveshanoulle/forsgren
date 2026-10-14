@@ -39,7 +39,7 @@ func TestRenderShowsTheIssuesOfEachDay(t *testing.T) {
 		t.Fatal(err)
 	}
 	dir := filepath.Join(t.TempDir(), "site")
-	if code, _, stderr := runCommand("render", "--out", dir, "--config", writeConfig(t, validConfig),
+	if code, _, stderr := runCommand("render", "--out", dir, "--config", writeConfig(t, validConfig+daysOn),
 		"--data", data); code != 0 {
 		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
 	}
@@ -92,7 +92,7 @@ func renderOn14October(t *testing.T, days ...string) string {
 		t.Fatal(err)
 	}
 	dir := filepath.Join(t.TempDir(), "site")
-	if code, _, stderr := runCommand("render", "--out", dir, "--config", writeConfig(t, validConfig),
+	if code, _, stderr := runCommand("render", "--out", dir, "--config", writeConfig(t, validConfig+daysOn),
 		"--data", data); code != 0 {
 		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
 	}

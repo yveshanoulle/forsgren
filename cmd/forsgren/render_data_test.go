@@ -96,7 +96,7 @@ func wantGolden(t *testing.T, golden string, extra ...string) string {
 func TestRenderShowsDeploymentFrequency(t *testing.T) {
 	pinNow(t)
 	wantGolden(t, "index.frequency.golden.html",
-		"--config", writeConfig(t, validConfig), "--data", writeHistory(t, acmeHistory()))
+		"--config", writeConfig(t, validConfig+daysOn), "--data", writeHistory(t, acmeHistory()))
 }
 
 // TestRenderShowsRecoveryTime (forsgren#17): each project's section shows
@@ -112,14 +112,14 @@ func TestRenderShowsRecoveryTime(t *testing.T) {
 		shipped(10, "acme/api", history.StateFailure, "2026-09-26T10:00:00Z"),
 		shipped(11, "acme/ios-app", history.StateFailure, "2026-09-30T04:00:00Z"))
 	wantGolden(t, "index.recovery.golden.html",
-		"--config", writeConfig(t, validConfig), "--data", writeHistory(t, records))
+		"--config", writeConfig(t, validConfig+daysOn), "--data", writeHistory(t, records))
 }
 
 // TestRenderShowsNoRepositoryCommitOrTask:the page names projects, never a
 // repository, an environment or workflow, a commit or a task.
 func TestRenderShowsNoRepositoryCommitOrTask(t *testing.T) {
 	pinNow(t)
-	_, _, index := renderWith(t, "--config", writeConfig(t, validConfig), "--data", writeHistory(t, acmeHistory()))
+	_, _, index := renderWith(t, "--config", writeConfig(t, validConfig+daysOn), "--data", writeHistory(t, acmeHistory()))
 	if !strings.Contains(index, "Acme Shop") {
 		t.Fatalf("want the frequency page, got:\n%s", index)
 	}
@@ -135,14 +135,14 @@ func TestRenderShowsNoRepositoryCommitOrTask(t *testing.T) {
 func TestRenderWithoutHistoryYet(t *testing.T) {
 	pinNow(t)
 	missing := filepath.Join(t.TempDir(), "data", "deployments.csv")
-	wantGolden(t, "index.no-data.golden.html", "--config", writeConfig(t, validConfig), "--data", missing)
+	wantGolden(t, "index.no-data.golden.html", "--config", writeConfig(t, validConfig+daysOn), "--data", missing)
 }
 
 // TestRenderWithNoProjectsAndData: zero projects keep the no-projects page.
 func TestRenderWithNoProjectsAndData(t *testing.T) {
 	pinNow(t)
 	wantGolden(t, "index.no-projects.golden.html",
-		"--config", writeConfig(t, "version: 1\nprojects: []\n"), "--data", writeHistory(t, acmeHistory()))
+		"--config", writeConfig(t, "version: 1\nprojects: []\n"+daysOn), "--data", writeHistory(t, acmeHistory()))
 }
 
 // TestRenderRefusesABadHistory: a malformed or unknown-version history fails
@@ -169,7 +169,7 @@ func TestRenderRefusesABadHistory(t *testing.T) {
 // with want in the message, path being the refused file.
 func wantRefused(t *testing.T, data, path, want string) {
 	t.Helper()
-	code, stderr, index := renderWith(t, "--config", writeConfig(t, validConfig), "--data", data)
+	code, stderr, index := renderWith(t, "--config", writeConfig(t, validConfig+daysOn), "--data", data)
 	if code != 1 || index != "" {
 		t.Errorf("want exit 1 and no page, got %d, %q", code, stderr)
 	}
@@ -199,7 +199,7 @@ func TestRenderShowsTheMinuteOfTheCalculationInUTC(t *testing.T) {
 	zone := time.FixedZone("CEST", 2*60*60)
 	now = func() time.Time { return time.Date(2026, 10, 4, 1, 19, 59, 0, zone) }
 	t.Cleanup(func() { now = old })
-	_, _, index := renderWith(t, "--config", writeConfig(t, validConfig), "--data", writeHistory(t, acmeHistory()))
+	_, _, index := renderWith(t, "--config", writeConfig(t, validConfig+daysOn), "--data", writeHistory(t, acmeHistory()))
 	const want = "Calculated at 2026-10-03 23:19 UTC</p>"
 	if !strings.Contains(index, want) {
 		t.Errorf("want %q in the footer, got:\n%s", want, index)
@@ -212,10 +212,10 @@ func TestRenderShowsTheMinuteOfTheCalculationInUTC(t *testing.T) {
 // --data or projects.
 func TestRenderShowsTheCalculationTimeOnEveryRun(t *testing.T) {
 	pinNow(t)
-	noProjects := writeConfig(t, "version: 1\nprojects: []\n")
+	noProjects := writeConfig(t, "version: 1\nprojects: []\n"+daysOn)
 	cases := map[string][]string{
 		"no --config":       nil,
-		"config only":       {"--config", writeConfig(t, validConfig)},
+		"config only":       {"--config", writeConfig(t, validConfig+daysOn)},
 		"no projects":       {"--config", noProjects},
 		"no projects, data": {"--config", noProjects, "--data", writeHistory(t, acmeHistory())},
 	}

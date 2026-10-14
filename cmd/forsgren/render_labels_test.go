@@ -30,7 +30,8 @@ projects:
 // task's own name.
 func TestRenderShowsLabelRows(t *testing.T) {
 	pinNow(t)
-	_, _, index := renderWith(t, "--config", writeConfig(t, labelledConfig), "--data", writeHistory(t, acmeHistory()))
+	_, _, index := renderWith(t, "--config", writeConfig(t, labelledConfig+daysOn),
+		"--data", writeHistory(t, acmeHistory()))
 	for _, want := range []string{
 		`<th scope="row">Acme Shop (total)</th>`,
 		`<tr class="label">

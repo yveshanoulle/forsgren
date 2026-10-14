@@ -50,7 +50,7 @@ func TestRenderShowsChangeFailRate(t *testing.T) {
 	pinNow(t)
 	data := writeHistory(t, acmeHistory())
 	writeFailures(t, data, acmeFailures())
-	wantGolden(t, "index.changefail.golden.html", "--config", writeConfig(t, validConfig), "--data", data)
+	wantGolden(t, "index.changefail.golden.html", "--config", writeConfig(t, validConfig+daysOn), "--data", data)
 }
 
 // TestRenderRefusesABadFailuresFile: a malformed or unknown-version
