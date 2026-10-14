@@ -554,3 +554,78 @@ The installation's pins are now at `LATEST`. The page still shows `VERSION`
 until a run publishes it: step 9 starts one.
 
 Then go on to step 7.
+
+## Step 7. Bring over the template's changes the notes name
+
+forsgren-template is the starting point of every installation, and a release
+sometimes asks for a change in the files an installation took from it: a
+permission line in a workflow, a change in `dependabot.yml`, a workflow file
+that an old installation does not have. The installation's own copies carry
+choices of the person (the token line, the update wait), so you change only
+the lines a release's notes name. Never copy a whole template file over the
+installation's: it would undo those choices (on the public-only route, the
+`FORSGREN_TOKEN:` line).
+
+1. What is named: read `WORK/asks.md` (step 4) for lines about a permission, a
+   workflow, `dependabot.yml` or a template file. Add a file that is missing
+   in the installation (step 2 item 5) when the person chose `auto_update:
+   true` in step 5, or when the notes name it. Nothing named: skip this step
+   and go on to step 8.
+2. Read the template's file and the installation's, as the branch has them
+   now (after step 6), for each file that is named. The paths are
+   `.github/workflows/forsgren.yml`, `.github/workflows/forsgren-update.yml`
+   and `.github/dependabot.yml`:
+
+   ```
+   mkdir -p WORK/cur WORK/tpl
+   gh api -H 'Accept: application/vnd.github.raw' \
+     repos/yveshanoulle/forsgren-template/contents/.github/dependabot.yml \
+     > WORK/tpl/dependabot.yml
+   gh api -H 'Accept: application/vnd.github.raw' \
+     'repos/OWNER/REPO/contents/.github/dependabot.yml?ref=BRANCH' \
+     > WORK/cur/dependabot.yml
+   ```
+
+   with the other names the same way (the template's
+   `.github/workflows/forsgren-update.yml` has the path
+   `repos/yveshanoulle/forsgren-template/contents/.github/workflows/forsgren-update.yml`).
+   The installation's copy of a missing file is not there (a 404): that is
+   expected, and `WORK/cur/NAME` stays absent.
+3. The template must be at `LATEST`: in `WORK/tpl/forsgren.yml` (read it too),
+   the `uses:` line ends in `# LATEST`. Another version: the template has not
+   caught up with the release. Stop and report; do not copy an older template.
+4. Compare: `diff WORK/cur/NAME WORK/tpl/NAME`. The diff shows more than the
+   notes ask for: the person's choices (the token line, `default-days`) and
+   comments. Leave all of that. Make the installation's copy
+   `WORK/new/NAME`: start from `WORK/cur/NAME` and change, with your file
+   tool, only the lines the notes name, in the template's words (a permission
+   line with the template's comment, for example). A file the installation
+   does not have: the template's file, changed to the installation's choices
+   (its `default-days` is the update wait of step 5, and the
+   `FORSGREN_TOKEN:` line is the one step 2 item 6 wrote down).
+   Check, for each file: `diff WORK/cur/NAME WORK/new/NAME` shows only the
+   lines you meant, the `FORSGREN_TOKEN:` line is the same as in step 2, and
+   the `default-days` line is the same as in step 2 unless step 5 changed it.
+5. Inside the go of step 5: the plan named the files and lines. A line that
+   the plan did not name, or a file it did not name, is not covered. Show the
+   person that diff, say what differs from the plan, show the plan again and
+   wait for a new go, as in step 5. Nothing is committed before it.
+6. Commit it as route 6b of step 6 does, in one commit for all the changed
+   files: items 1 and 4 to 7 with `WORK/new/` as the source and the changed
+   files in the tree (`mode` `100644`), the message
+   `forsgren: bring the template's changes of LATEST into the workflow files`
+   (or `...into .github/dependabot.yml`, naming what changed), no
+   `Co-Authored-By` and no other trailer, and the branch moved without force.
+7. The read back: the head is `NEWCOMMIT`; for each changed file,
+
+   ```
+   gh api -H 'Accept: application/vnd.github.raw' \
+     repos/OWNER/REPO/contents/PATH | diff - WORK/new/NAME
+   ```
+
+   prints nothing; the commit lists exactly those files
+   (`gh api repos/OWNER/REPO/commits/NEWCOMMIT --jq '[.files[].filename]'`),
+   and the pins in the two caller files still read `@LATESTSHA # LATEST`.
+   Fails: stop and report.
+
+Then go on to step 8.

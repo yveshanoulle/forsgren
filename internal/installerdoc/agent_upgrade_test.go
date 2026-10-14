@@ -154,3 +154,25 @@ func TestUpgraderStep6MovesThePinsInOneCommit(t *testing.T) {
 		}
 	}
 }
+
+// TestUpgraderStep7BringsOverOnlyWhatTheNotesName (forsgren#166, step
+// 166-7): step 7 reads the template's current files, changes the
+// installation's own copies only where the release notes ask, never copies a
+// whole template file, keeps the token line, stays inside the go of step 5
+// (a line the plan did not name shows the plan again), commits like route 6b
+// without a trailer, and reads the files back.
+func TestUpgraderStep7BringsOverOnlyWhatTheNotesName(t *testing.T) {
+	step := asOneLine(section(t, readRepoFile(t, upgraderFile), "Step 7."))
+	wantAll(t, "step 7", step,
+		"repos/yveshanoulle/forsgren-template/contents/.github/dependabot.yml",
+		"repos/yveshanoulle/forsgren-template/contents/.github/workflows/forsgren-update.yml",
+		"Never copy a whole template file over the installation's",
+		"WORK/asks.md",
+		"`FORSGREN_TOKEN:` line",
+		"default-days",
+		"show the plan again and wait for a new go",
+		"route 6b",
+		"no `Co-Authored-By`",
+		"read back",
+		"Nothing named: skip this step")
+}
