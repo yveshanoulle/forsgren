@@ -160,3 +160,19 @@ func nowrapSelectors(css string) (selectors []string) {
 	}
 	return selectors
 }
+
+// TestRunningTextHasAReadableMeasureWhileTablesKeepTheFullWidth (forsgren#153,
+// decision #160 point 3): paragraphs and list items are capped at 72rem, so a
+// line of the Legend stays readable on a wide screen, while the table rule
+// has no max-width and so each table keeps the full width of the page.
+func TestRunningTextHasAReadableMeasureWhileTablesKeepTheFullWidth(t *testing.T) {
+	css := stylesCSS(t)
+	prose := regexp.MustCompile(`(?s)(?:^|\n)p,\s*li\s*\{[^}]*max-width:\s*72rem;`)
+	if !prose.MatchString(css) {
+		t.Errorf("want a p, li rule with max-width: 72rem in styles.css, got:\n%s", css)
+	}
+	tables, _ := tableWidthRules(css)
+	if len(tables) == 1 && strings.Contains(tables[0], "max-width") {
+		t.Errorf("want no max-width on the table rule, got:\n%s", tables[0])
+	}
+}

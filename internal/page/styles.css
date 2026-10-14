@@ -64,6 +64,14 @@ td {
   border-bottom: 1px solid currentcolor;
 }
 
+/* Running text keeps a readable measure on a wide screen (forsgren#153,
+   decision #160); tables and headings keep the page's full width. On
+   forsgren.be the card inside 72rem is narrower, so this changes nothing. */
+p,
+li {
+  max-width: 72rem;
+}
+
 /* A table with class no-wrap keeps every cell on one line (forsgren#153): a
    date and a count with its trend do not break. Only by class, so a table with
    long cells still wraps. */
