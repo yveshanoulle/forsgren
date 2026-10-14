@@ -3,6 +3,9 @@
   "total": 99.6,
   "functions": {
     "github.com/yveshanoulle/forsgren/cmd/forsgren/collect.go:collectDeployments": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/collect.go:collectFlags": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/collect.go:writeTokenExpiry": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/collect.go:collectAndNoteExpiry": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/collect.go:githubClient": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/collect.go:jobClient": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/main.go:main": 0.0,

@@ -29,7 +29,16 @@ projects:
 // its body, and at a fixed now, for this test only.
 func fakeAPI(t *testing.T, bodies map[string]string, code int) {
 	t.Helper()
+	fakeAPIWithHeader(t, bodies, code, nil)
+}
+
+// fakeAPIWithHeader is fakeAPI whose every answer carries header.
+func fakeAPIWithHeader(t *testing.T, bodies map[string]string, code int, header http.Header) {
+	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for name, values := range header {
+			w.Header()[name] = values
+		}
 		body, ok := bodies[r.URL.Path]
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)

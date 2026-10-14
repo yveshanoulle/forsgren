@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"strings"
 	"time"
@@ -32,9 +34,7 @@ var errNoToken = errors.New("FORSGREN_TOKEN is not set: " +
 // repository failed (after every repository was tried), 2 on a usage error.
 // With no repository configured it does nothing, and needs no token.
 func collectDeployments(args []string, stdout, stderr io.Writer) int {
-	paths, ok := requiredFlags(stderr, args, "collect",
-		flagSpec{"config", "<path>", "the forsgren.config.yml that lists the repositories"},
-		flagSpec{"data", "<path>", "the history to append to, data/deployments.csv; commits.csv, failures.csv beside it"})
+	paths, ok := collectFlags(stderr, args)
 	if !ok {
 		return 2
 	}
@@ -50,10 +50,62 @@ func collectDeployments(args []string, stdout, stderr io.Writer) int {
 		return failed(stderr, "collect", err)
 	}
 	o := collect.Options{Client: client, History: paths[1], Now: now(), Stdout: stdout, Stderr: stderr}
-	if err := collect.Run(context.Background(), cfg, o); err != nil {
+	if err := collectAndNoteExpiry(cfg, o, paths[2], client); err != nil {
 		return failed(stderr, "collect", err)
 	}
 	return 0
+}
+
+// collectAndNoteExpiry runs collect, then writes the token's expiry to
+// expiryPath (writeTokenExpiry), whether or not a repository failed; a write
+// that failed is the error, else collect's own.
+func collectAndNoteExpiry(cfg config.Config, o collect.Options, expiryPath string, client *github.Client) error {
+	runErr := collect.Run(context.Background(), cfg, o)
+	if err := writeTokenExpiry(expiryPath, client); err != nil {
+		return err
+	}
+	return runErr
+}
+
+// collectFlags parses collect's arguments: the required --config and --data,
+// in that order, and the optional --token-expiry, "" when not given. It
+// returns false once the usage error is on stderr.
+func collectFlags(stderr io.Writer, args []string) ([3]string, bool) {
+	flags := newFlags("collect", stderr)
+	var p [3]string
+	flags.StringVar(&p[0], "config", "", "the forsgren.config.yml that lists the repositories, <path>")
+	flags.StringVar(&p[1], "data", "",
+		"the history to append to, data/deployments.csv; commits.csv, failures.csv beside it, <path>")
+	flags.StringVar(&p[2], "token-expiry", "",
+		"a file to write the token's expiry date to, one UTC RFC 3339 line; removed when the token has none (optional)")
+	if err := flags.Parse(args); err != nil {
+		return p, false
+	}
+	for i, m := range []struct{ name, arg string }{{"config", "<path>"}, {"data", "<path>"}} {
+		if p[i] == "" {
+			_, _ = fmt.Fprintf(stderr, "collect: --%s %s is required\n", m.name, m.arg)
+			return p, false
+		}
+	}
+	return p, true
+}
+
+// writeTokenExpiry writes the expiry date client's token has to path, one
+// UTC RFC 3339 line, or removes path when the client knows none (a token
+// without an expiry date, or the job's own). No path is nothing to do
+// (forsgren#177).
+func writeTokenExpiry(path string, client *github.Client) error {
+	if path == "" {
+		return nil
+	}
+	at, known := client.TokenExpiry()
+	if !known {
+		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+		return nil
+	}
+	return os.WriteFile(path, []byte(at.UTC().Format(time.RFC3339)+"\n"), 0o600)
 }
 
 // githubClient is a client of githubAPI with the installation's token, from
