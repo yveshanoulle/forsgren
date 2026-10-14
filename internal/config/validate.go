@@ -84,6 +84,8 @@ func (f fileConfig) written() map[string]bool {
 		"history_chunk_days": f.HistoryChunkDays, "working_hours": f.WorkingHours} {
 		keys = mark(keys, key, workingHours.set(node))
 	}
+	keys = mark(keys, "issues_page", workingHours.set(f.IssuesPage))
+	keys = mark(keys, "days_page", workingHours.set(f.DaysPage))
 	keys = mark(keys, "view", f.View != nil)
 	return mark(keys, "auto_update_level", f.AutoUpdateLevel != nil)
 }

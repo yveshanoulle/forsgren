@@ -22,6 +22,8 @@ var possibleValues = map[string]string{
 	"history_days":       upTo(config.MaxHistoryDays),
 	"history_chunk_days": upTo(config.MaxHistoryChunkDays),
 	"working_hours":      upTo(config.MaxWorkingHours),
+	"issues_page":        list(strconv.FormatBool(true), strconv.FormatBool(false)),
+	"days_page":          list(strconv.FormatBool(true), strconv.FormatBool(false)),
 }
 
 // list is names written as the page lists them.

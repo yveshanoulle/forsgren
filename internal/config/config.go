@@ -345,6 +345,8 @@ var settingKeys = []settingKey{
 	{"history_chunk_days", strconv.Itoa(DefaultHistoryChunkDays),
 		func(c Config) string { return strconv.Itoa(c.HistoryChunkDays) }},
 	{"working_hours", strconv.Itoa(DefaultWorkingHours), func(c Config) string { return strconv.Itoa(c.WorkingHours) }},
+	{"issues_page", "true", func(c Config) string { return strconv.FormatBool(c.IssuesPage) }},
+	{"days_page", "false", func(c Config) string { return strconv.FormatBool(c.DaysPage) }},
 }
 
 // Settings lists every optional key in the order of settingKeys: the value

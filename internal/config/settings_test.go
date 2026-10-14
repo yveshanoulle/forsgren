@@ -20,6 +20,8 @@ func TestSettingsListsEveryKeyWithItsDefault(t *testing.T) {
 		{"history_days", "30", true},
 		{"history_chunk_days", "100", false},
 		{"working_hours", "8", false},
+		{"issues_page", "true", false},
+		{"days_page", "false", false},
 	}
 	if s := got.Settings(); !slices.Equal(s, want) {
 		t.Errorf("want settings %v, got %v", want, s)
@@ -27,10 +29,10 @@ func TestSettingsListsEveryKeyWithItsDefault(t *testing.T) {
 }
 
 // TestSettingsMarksEveryWrittenKeySet (forsgren#74): a file that writes all
-// six keys has all of them Set, with the written values.
+// eight keys has all of them Set, with the written values.
 func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 	all := "view: numbers\nauto_update: true\nauto_update_level: minor\n" +
-		"history_days: 30\nhistory_chunk_days: 10\nworking_hours: 6\n"
+		"history_days: 30\nhistory_chunk_days: 10\nworking_hours: 6\nissues_page: false\ndays_page: true\n"
 	got, err := parse([]byte(all + valid))
 	if err != nil {
 		t.Fatal(err)
@@ -42,6 +44,8 @@ func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 		{"history_days", "30", true},
 		{"history_chunk_days", "10", true},
 		{"working_hours", "6", true},
+		{"issues_page", "false", true},
+		{"days_page", "true", true},
 	}
 	if s := got.Settings(); !slices.Equal(s, want) {
 		t.Errorf("want settings %v, got %v", want, s)
