@@ -26,6 +26,11 @@
 #  12. a tracked data/é.csv (non-ASCII name, git  -> red, named
 #      quotepath on: git prints it quoted)
 #  13. an issues.csv elsewhere (forsgren#76)      -> red, named
+#  14. an issues_full.csv, a failures_read.csv    -> red, each named
+#      and an issue_bugs.csv elsewhere (forsgren#143)
+#  15. drift check: every data file the Go code   -> red, each named
+#      names (const <Name>File = "<name>.csv" in
+#      internal/collect) elsewhere
 # Mutation proofs, each against a copy of the gate (the patterns are `case`
 # arms of guarded_reason, one per line):
 #   - case 2: with the history.csv arm deleted, case 2's repository must turn
@@ -41,6 +46,10 @@
 #     ops/failures.csv must turn green.
 #   - case 13: with the issues.csv arm deleted, a repository holding only
 #     ops/issues.csv must turn green.
+#   - case 14: with the issues_full.csv, failures_read.csv or issue_bugs.csv
+#     arm deleted, a repository holding only ops/ of that file must turn
+#     green. The drift check (case 15) needs no proof of its own: it reads the
+#     Go constants, and a deleted arm turns it red, as case 14 shows.
 #   - case 6: with every arm whose pattern holds a `*` quoted (so it matches
 #     only the literal text), case 6's repository must turn green with none
 #     of its three files named, while case 2's repository stays red. Every
@@ -176,6 +185,45 @@ write_file "ops/issues.csv" $'# forsgren issues v1\n' track
 run_gate
 want_red "an issues.csv outside data/ is red and named" "❌ FAIL: ops/issues.csv"
 
+new_repo "other-data-elsewhere"
+write_file "ops/issues_full.csv" $'# forsgren issues full v1\n' track
+write_file "ops/failures_read.csv" $'# forsgren failures read v1\n' track
+write_file "ops/issue_bugs.csv" $'# forsgren issue bugs v1\n' track
+run_gate
+want_red "an issues_full.csv outside data/ is red and named (forsgren#143)" "❌ FAIL: ops/issues_full.csv"
+want_said "a failures_read.csv outside data/ is red and named (forsgren#143)" "❌ FAIL: ops/failures_read.csv"
+want_said "an issue_bugs.csv outside data/ is red and named (forsgren#143)" "❌ FAIL: ops/issue_bugs.csv"
+
+# Drift check (forsgren#143): every data file the Go code names, a constant
+# `const <Name>File = "<name>.csv"` in internal/collect, is guarded, so a data
+# file added later cannot be forgotten. The names are read from the source, one
+# source of truth; a read that finds fewer than the seven there are is itself
+# red, so a changed constant shape cannot make this case pass over nothing.
+GO_DATA_FILES="$(grep -rhoE --exclude='*_test.go' '^const [A-Za-z]+File += "[a-z_]+\.csv"' internal/collect \
+  | sed -E 's/.*"([a-z_]+\.csv)"/\1/' | sort -u)"
+go_data_count="$(grep -c . <<< "$GO_DATA_FILES" || true)"
+if [[ "$go_data_count" -lt 7 ]]; then
+  fail "drift check (forsgren#143): found ${go_data_count} data file constant(s) in internal/collect, want at least 7 — the constant shape changed, so this check proves nothing"
+else
+  new_repo "go-data-files"
+  while IFS= read -r name; do
+    write_file "ops/${name}" $'x\n' track
+  done <<< "$GO_DATA_FILES"
+  run_gate
+  while IFS= read -r name; do
+    want_said "drift check: ${name}, a data file the Go code names, is guarded" "❌ FAIL: ops/${name}"
+  done <<< "$GO_DATA_FILES"
+fi
+
+new_repo "other-data-elsewhere-full"
+write_file "ops/issues_full.csv" $'# forsgren issues full v1\n' track
+new_repo "other-data-elsewhere-read"
+write_file "ops/failures_read.csv" $'# forsgren failures read v1\n' track
+new_repo "other-data-elsewhere-bugs"
+write_file "ops/issue_bugs.csv" $'# forsgren issue bugs v1\n' track
+new_repo "other-data-elsewhere-reach"
+write_file "ops/reach.csv" $'# forsgren reach v1\n' track
+
 new_repo "history-fixtures"
 write_file "internal/history/testdata/deployments.csv" $'# forsgren history v1\n' track
 write_file "internal/history/testdata/commits.csv" $'# forsgren commits v1\n' track
@@ -237,6 +285,15 @@ arm_deleted_proof 11 "failures.csv" '^[[:space:]]*failures\.csv\) why=' \
   "${TMP}/check_data_guard_nofailures.sh" "failures-elsewhere" "ops/failures.csv"
 arm_deleted_proof 13 "issues.csv" '^[[:space:]]*issues\.csv\) why=' \
   "${TMP}/check_data_guard_noissues.sh" "issues-elsewhere" "ops/issues.csv"
+
+arm_deleted_proof 14 "issues_full.csv" '^[[:space:]]*issues_full\.csv\) why=' \
+  "${TMP}/check_data_guard_noissuesfull.sh" "other-data-elsewhere-full" "ops/issues_full.csv"
+arm_deleted_proof 14 "failures_read.csv" '^[[:space:]]*failures_read\.csv\) why=' \
+  "${TMP}/check_data_guard_nofailuresread.sh" "other-data-elsewhere-read" "ops/failures_read.csv"
+arm_deleted_proof 14 "issue_bugs.csv" '^[[:space:]]*issue_bugs\.csv\) why=' \
+  "${TMP}/check_data_guard_noissuebugs.sh" "other-data-elsewhere-bugs" "ops/issue_bugs.csv"
+arm_deleted_proof 15 "reach.csv" '^[[:space:]]*reach\.csv\) why=' \
+  "${TMP}/check_data_guard_noreach.sh" "other-data-elsewhere-reach" "ops/reach.csv"
 
 # ---------------------------------------------------------------------------
 # Mutation proof for case 6: a copy of the gate with every arm whose pattern

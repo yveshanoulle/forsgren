@@ -68,9 +68,14 @@ Over the files git tracks, it fails when:
 
 - a file that looks like installation config or data sits outside
   `testdata/`: anything under a top-level `data/`, `deployments.csv`,
-  `commits.csv`, `failures.csv`, `issues.csv`, `history.csv`, `*.history.csv`, `forsgren.config.*`,
+  `commits.csv`, `failures.csv`, `failures_read.csv`, `issues.csv`, `issues_full.csv`,
+  `issue_bugs.csv`, `reach.csv`, `history.csv`, `*.history.csv`, `forsgren.config.*`,
   `forsgren-config.*`, `config.yml`/`.yaml`/`.json` at any depth, or a
   `*.jsonl` events file.
+  Every data file the Go code names (a constant `<Name>File = "<name>.csv"` in
+  `internal/collect`) must be on that list: the gate's self-test reads those
+  constants and fails when one is not guarded, so a data file added later
+  cannot be forgotten (forsgren#143).
 
 Private names are not this gate's business: the private-names gate
 (`Scripts/check_private_names.sh`, below) searches every tracked and every untracked,

@@ -84,6 +84,11 @@ in_testdata() {
 # SC2254 suppression; a pattern written as an arm is a glob as it stands,
 # with nothing to suppress.
 #
+# Every data file the Go code names (a `const <Name>File = "<name>.csv"` in
+# internal/collect) has an arm here: Scripts/test_check_data_guard.sh reads
+# those constants and fails when one is not guarded (forsgren#143), so a data
+# file added later cannot be forgotten.
+#
 # One arm per line, `<pattern>) why="..." ;;`: Scripts/test_check_data_guard.sh
 # mutates this list by that shape (it deletes the history.csv arm, then the
 # deployments.csv arm, then the commits.csv arm, then the failures.csv arm,
@@ -97,6 +102,10 @@ guarded_reason() {
     commits.csv) why="the commits of each deployment forsgren collect keeps for lead time (data/commits.csv in an installation)" ;;
     failures.csv) why="the failure issues forsgren collect keeps for change fail rate (data/failures.csv in an installation)" ;;
     issues.csv) why="the issue events forsgren collect keeps for the days and issues pages (data/issues.csv in an installation)" ;;
+    issues_full.csv) why="the note of each repository whose issues were read in full, which forsgren collect keeps (data/issues_full.csv in an installation)" ;;
+    failures_read.csv) why="when each repository's failure and issue lists were last read, which forsgren collect keeps (data/failures_read.csv in an installation)" ;;
+    issue_bugs.csv) why="which issues carry the bug label, which forsgren collect keeps for the Open bugs column (data/issue_bugs.csv in an installation)" ;;
+    reach.csv) why="how far back each repository's deployments were read, which forsgren collect keeps (data/reach.csv in an installation)" ;;
     *.history.csv) why="a per-service or per-installation history file" ;;
     forsgren.config.*) why="an installation's forsgren configuration, by its own name" ;;
     forsgren-config.*) why="the same configuration, hyphenated" ;;
