@@ -32,10 +32,9 @@ func starterPages(t *testing.T) (issues, days string) {
 // reference says the pages can be hidden.
 func TestDocsAndInstallerStateTheStartersPageKeys(t *testing.T) {
 	issues, days := starterPages(t)
-	installer := readInstaller(t)
 	cases := map[string]string{
-		"agent-installer.md step 2":     section(t, installer, "Step 2."),
-		"agent-installer.md step 9":     section(t, installer, "Step 9."),
+		"agent-installer.md step 2":     section(t, installerFile, "Step 2."),
+		"agent-installer.md step 9":     section(t, installerFile, "Step 9."),
 		"docs/configuration.md":         readRepoFileAsOneLine(t, "docs/configuration.md"),
 		"docs/pages-and-views.md":       readRepoFileAsOneLine(t, "docs/pages-and-views.md"),
 		"docs/updating-and-releases.md": readRepoFileAsOneLine(t, "docs/updating-and-releases.md"),

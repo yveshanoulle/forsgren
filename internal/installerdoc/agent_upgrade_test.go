@@ -5,21 +5,8 @@ import (
 	"testing"
 )
 
-// upgraderFile is the agent upgrader, named from the repository root.
-const upgraderFile = "agent-upgrade.md"
-
 // upgraderWIP is the line the upgrader carries until 166-11.
 const upgraderWIP = "Work in progress (forsgren#166): not ready to follow yet."
-
-// wantAll reports each of wants that text does not contain.
-func wantAll(t *testing.T, where, text string, wants ...string) {
-	t.Helper()
-	for _, want := range wants {
-		if !strings.Contains(text, want) {
-			t.Errorf("%s does not contain %q", where, want)
-		}
-	}
-}
 
 // TestUpgraderStarts (forsgren#166, step 166-1): agent-upgrade.md checks
 // the login's repo and workflow scopes, asks the person for one thing, the
@@ -28,16 +15,15 @@ func wantAll(t *testing.T, where, text string, wants ...string) {
 // page is missing. Since 166-11 the file no longer says it is a work in
 // progress, README.md links it, and so do the docs and the installer.
 func TestUpgraderStarts(t *testing.T) {
-	doc := readRepoFile(t, upgraderFile)
-	wantAll(t, "step 1", asOneLine(section(t, doc, "Step 1.")),
+	wantAll(t, "step 1", upgraderSection(t, "Step 1."),
 		"gh auth status", "'repo'", "'workflow'", "address of your current forsgren report")
-	wantAll(t, "step 2", asOneLine(section(t, doc, "Step 2.")),
+	wantAll(t, "step 2", upgraderSection(t, "Step 2."),
 		"settings.html", "Forsgren</a>", "exists from forsgren 0.5.0", "forsgren.config.yml")
-	if strings.Contains(doc, upgraderWIP) {
+	if strings.Contains(readUpgrader(t), upgraderWIP) {
 		t.Error("the work-in-progress line is still there")
 	}
-	for _, path := range []string{"README.md", "docs/updating-and-releases.md", installerFile} {
-		if !strings.Contains(readRepoFile(t, path), upgraderFile) {
+	for _, path := range []repoFile{"README.md", "docs/updating-and-releases.md", installerFile} {
+		if !strings.Contains(readRepoFile(t, path), string(upgraderFile)) {
 			t.Errorf("%s does not link %s", path, upgraderFile)
 		}
 	}
@@ -49,7 +35,7 @@ func TestUpgraderStarts(t *testing.T) {
 // differ, checks the pinned commit is the one VERSION's release points at,
 // and compares the footer's version with the pin without stopping on it.
 func TestUpgraderStep2ComparesTheTwoPins(t *testing.T) {
-	step := asOneLine(section(t, readRepoFile(t, upgraderFile), "Step 2."))
+	step := upgraderSection(t, "Step 2.")
 	wantAll(t, "step 2", step,
 		"auto_update.yml@",
 		"the same version and the same commit",
@@ -63,7 +49,7 @@ func TestUpgraderStep2ComparesTheTwoPins(t *testing.T) {
 // from the API, compares versions as numbers, stops when the pin is not
 // older, and reads a waiting Dependabot pull request from its diff.
 func TestUpgraderStep3FindsTheLatestRelease(t *testing.T) {
-	step := asOneLine(section(t, readRepoFile(t, upgraderFile), "Step 3."))
+	step := upgraderSection(t, "Step 3.")
 	wantAll(t, "step 3", step,
 		"gh release list -R yveshanoulle/forsgren --exclude-drafts --exclude-pre-releases",
 		"not the tags",
@@ -80,7 +66,7 @@ func TestUpgraderStep3FindsTheLatestRelease(t *testing.T) {
 // states the general rule, and keeps the 1.3.0 Daily page change in its
 // worked example alone, so the rule is not a 1.3.0 special case.
 func TestUpgraderStep4ReadsEveryReleaseNote(t *testing.T) {
-	step := section(t, readRepoFile(t, upgraderFile), "Step 4.")
+	step := section(t, upgraderFile, "Step 4.")
 	rule, example, found := strings.Cut(step, "Worked example")
 	if !found {
 		t.Fatal("step 4 has no Worked example")
@@ -104,10 +90,9 @@ func TestUpgraderStep4ReadsEveryReleaseNote(t *testing.T) {
 // yveshanoulle/forsgren exactly, step 2 refuses only that exact name and the
 // template's, and a 404 on settings.html reads as older than 0.5.0.
 func TestUpgraderTellsForsgrenItselfFromAnInstallation(t *testing.T) {
-	doc := readRepoFile(t, upgraderFile)
-	wantAll(t, "the never-do list", asOneLine(section(t, doc, "What you must never do")),
+	wantAll(t, "the never-do list", upgraderSection(t, "What you must never do"),
 		"a repository named `forsgren` under another owner is an installation, not forsgren itself")
-	wantAll(t, "step 2", asOneLine(section(t, doc, "Step 2.")),
+	wantAll(t, "step 2", upgraderSection(t, "Step 2."),
 		"`OWNER/REPO` may be `OWNER/forsgren`",
 		"exactly `yveshanoulle/forsgren` or `yveshanoulle/forsgren-template`",
 		"A 404 means the installation is older than forsgren 0.5.0")
@@ -118,7 +103,7 @@ func TestUpgraderTellsForsgrenItselfFromAnInstallation(t *testing.T) {
 // handles a waiting Dependabot pull request that its level keeps open, and
 // asks for a go-sentence naming every write before anything is committed.
 func TestUpgraderStep5AsksOnlyWhatIsTheirs(t *testing.T) {
-	step := asOneLine(section(t, readRepoFile(t, upgraderFile), "Step 5."))
+	step := upgraderSection(t, "Step 5.")
 	wantAll(t, "step 5", step,
 		"in one message",
 		"Never show the person a placeholder",
@@ -140,7 +125,7 @@ func TestUpgraderStep5AsksOnlyWhatIsTheirs(t *testing.T) {
 // forced, with no trailer in the message, and reads the ref and both files
 // back.
 func TestUpgraderStep6MovesThePinsInOneCommit(t *testing.T) {
-	step := section(t, readRepoFile(t, upgraderFile), "Step 6.")
+	step := section(t, upgraderFile, "Step 6.")
 	wantAll(t, "step 6", asOneLine(step),
 		"gh pr merge PR -R OWNER/REPO --squash",
 		"Never `--admin`",
@@ -166,7 +151,7 @@ func TestUpgraderStep6MovesThePinsInOneCommit(t *testing.T) {
 // (a line the plan did not name shows the plan again), commits like route 6b
 // without a trailer, and reads the files back.
 func TestUpgraderStep7BringsOverOnlyWhatTheNotesName(t *testing.T) {
-	step := asOneLine(section(t, readRepoFile(t, upgraderFile), "Step 7."))
+	step := upgraderSection(t, "Step 7.")
 	wantAll(t, "step 7", step,
 		"repos/yveshanoulle/forsgren-template/contents/.github/dependabot.yml",
 		"repos/yveshanoulle/forsgren-template/contents/.github/workflows/forsgren-update.yml",
@@ -189,16 +174,15 @@ func TestUpgraderStep7BringsOverOnlyWhatTheNotesName(t *testing.T) {
 // default-days), checks the config with check-config at LATEST, commits like
 // route 6b without a trailer, and reads the files back.
 func TestUpgraderSupportsFromV020AndStep8WritesTheChosenSettings(t *testing.T) {
-	doc := readRepoFile(t, upgraderFile)
-	step2 := asOneLine(section(t, doc, "Step 2."))
+	step2 := upgraderSection(t, "Step 2.")
 	wantAll(t, "step 2", step2,
 		"supports installations pinned to forsgren 0.2.0 or later",
 		"older than v0.2.0: stop and report (not supported)")
-	step7 := asOneLine(section(t, doc, "Step 7."))
+	step7 := upgraderSection(t, "Step 7.")
 	if strings.Contains(step2, "before forsgren 0.2.0") || strings.Contains(step7, "before forsgren 0.2.0") {
 		t.Error("a missing forsgren-update.yml is tied to a version")
 	}
-	wantAll(t, "step 8", asOneLine(section(t, doc, "Step 8.")),
+	wantAll(t, "step 8", upgraderSection(t, "Step 8."),
 		"above `projects:`",
 		"go run github.com/yveshanoulle/forsgren/cmd/forsgren@LATEST check-config --config WORK/new/forsgren.config.yml",
 		"default-days",
@@ -217,7 +201,7 @@ func TestUpgraderSupportsFromV020AndStep8WritesTheChosenSettings(t *testing.T) {
 // 404 and a shown one 200, a custom domain answers over HTTPS, and no setup
 // issue stays open.
 func TestUpgraderStep9StartsARunAndChecksThePublishedPage(t *testing.T) {
-	wantAll(t, "step 9", asOneLine(section(t, readRepoFile(t, upgraderFile), "Step 9.")),
+	wantAll(t, "step 9", upgraderSection(t, "Step 9."),
 		"gh workflow run forsgren.yml -R OWNER/REPO",
 		"the schedule can run hours late",
 		"gh run watch RUN -R OWNER/REPO --exit-status",
@@ -239,34 +223,19 @@ func TestUpgraderStep9StartsARunAndChecksThePublishedPage(t *testing.T) {
 // undoes the upgrade with a new commit, never forced, and names what it
 // undoes, with its own go.
 func TestUpgraderEndsWithTheReportCleanupLaterAndGoingBack(t *testing.T) {
-	doc := readRepoFile(t, upgraderFile)
-	wantAll(t, "step 10", asOneLine(section(t, doc, "Step 10.")),
+	wantAll(t, "step 10", upgraderSection(t, "Step 10."),
 		"in one message", "the page address", "`VERSION` to `LATEST`")
-	wantAll(t, "Later", asOneLine(section(t, doc, "Later")),
+	wantAll(t, "Later", upgraderSection(t, "Later"),
 		"04:00 UTC", "auto_update_level", "run again", "agent-installer.md")
-	back := asOneLine(section(t, doc, "Going back"))
+	back := upgraderSection(t, "Going back")
 	wantAll(t, "Going back", back,
 		"a new commit", "route 6b", "BEFORE", "unknown key", "Reply \"go: restore", "no `Co-Authored-By`")
 	if strings.Contains(back, "force=true") || strings.Contains(back, "--force") {
 		t.Error("Going back forces a push")
 	}
-	everyWorkRemovalLeavesTheFolderFirst(t, doc)
-}
-
-// everyWorkRemovalLeavesTheFolderFirst fails unless each `rm -r WORK` of doc
-// directly follows `cd WORK/..`, and there is at least one.
-func everyWorkRemovalLeavesTheFolderFirst(t *testing.T, doc string) {
-	t.Helper()
-	lines := strings.Split(doc, "\n")
-	found := 0
-	for i, l := range lines {
-		if !strings.Contains(l, "rm -r WORK") {
-			continue
-		}
-		found++
-		if i == 0 || strings.TrimSpace(lines[i-1]) != "cd WORK/.." {
-			t.Errorf("line %d is not directly preceded by `cd WORK/..`", i+1)
-		}
+	found, notLeavingFirst := workRemovals(t, upgraderFile)
+	for _, r := range notLeavingFirst {
+		t.Errorf("line %d is not directly preceded by `cd WORK/..`", r.line)
 	}
 	if found == 0 {
 		t.Error("no `rm -r WORK` found")
@@ -286,7 +255,7 @@ func TestUpgraderKeepsTheInstallersFixedRules(t *testing.T) {
 		"**The person does some steps themselves.** They are marked **Person**. Hand the person the text or command " +
 			"as written, wait until they say it is done, then do the check yourself.",
 	}
-	for _, path := range []string{installerFile, upgraderFile} {
-		wantAll(t, path, readRepoFileAsOneLine(t, path), shared...)
+	for _, path := range []repoFile{installerFile, upgraderFile} {
+		wantAll(t, string(path), readRepoFileAsOneLine(t, path), shared...)
 	}
 }

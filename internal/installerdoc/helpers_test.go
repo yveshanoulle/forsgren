@@ -10,14 +10,20 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/config"
 )
 
-// installerFile is the agent installer, named from the repository root.
-const installerFile = "agent-installer.md"
+// repoFile is a file named from the repository root.
+type repoFile string
+
+// installerFile is the agent installer.
+const installerFile repoFile = "agent-installer.md"
+
+// upgraderFile is the agent upgrader.
+const upgraderFile repoFile = "agent-upgrade.md"
 
 // readRepoFile returns a file named from the repository root. Reading
 // through os.DirFS keeps every read inside the repository (gosec G304).
-func readRepoFile(t *testing.T, path string) string {
+func readRepoFile(t *testing.T, path repoFile) string {
 	t.Helper()
-	b, err := fs.ReadFile(os.DirFS("../.."), path)
+	b, err := fs.ReadFile(os.DirFS("../.."), string(path))
 	if err != nil {
 		t.Fatalf("read %s: %v", path, err)
 	}
@@ -30,9 +36,15 @@ func readInstaller(t *testing.T) string {
 	return readRepoFile(t, installerFile)
 }
 
+// readUpgrader returns the agent upgrader.
+func readUpgrader(t *testing.T) string {
+	t.Helper()
+	return readRepoFile(t, upgraderFile)
+}
+
 // readRepoFileAsOneLine returns a file named from the repository root with
 // its wrapped lines joined into one, every run of whitespace a single space.
-func readRepoFileAsOneLine(t *testing.T, path string) string {
+func readRepoFileAsOneLine(t *testing.T, path repoFile) string {
 	t.Helper()
 	return asOneLine(readRepoFile(t, path))
 }
@@ -41,11 +53,12 @@ func readRepoFileAsOneLine(t *testing.T, path string) string {
 // whitespace a single space.
 func asOneLine(text string) string { return strings.Join(strings.Fields(text), " ") }
 
-// section returns the text of the "## " section whose heading starts with
-// heading, from the heading line up to the next "## " heading (or the end).
-func section(t *testing.T, doc, heading string) string {
+// section returns the text of the "## " section of the file at path whose
+// heading starts with heading, from the heading line up to the next "## "
+// heading (or the end).
+func section(t *testing.T, path repoFile, heading string) string {
 	t.Helper()
-	lines := strings.Split(doc, "\n")
+	lines := strings.Split(readRepoFile(t, path), "\n")
 	start := -1
 	for i, l := range lines {
 		if start < 0 {
@@ -59,9 +72,50 @@ func section(t *testing.T, doc, heading string) string {
 		}
 	}
 	if start < 0 {
-		t.Fatalf("no section %q in %s", heading, installerFile)
+		t.Fatalf("no section %q in %s", heading, path)
 	}
 	return strings.Join(lines[start:], "\n")
+}
+
+// upgraderSection is section of the agent upgrader, as one line.
+func upgraderSection(t *testing.T, heading string) string {
+	t.Helper()
+	return asOneLine(section(t, upgraderFile, heading))
+}
+
+// wantAll reports each of wants that text does not contain.
+func wantAll(t *testing.T, where, text string, wants ...string) {
+	t.Helper()
+	for _, want := range wants {
+		if !strings.Contains(text, want) {
+			t.Errorf("%s does not contain %q", where, want)
+		}
+	}
+}
+
+// workRemoval is a line of a file that runs `rm -r WORK`: its 1-based number
+// and its text without surrounding space.
+type workRemoval struct {
+	line int
+	text string
+}
+
+// workRemovals returns how many lines of the file at path run `rm -r WORK`,
+// and those of them not directly preceded by `cd WORK/..`. An agent that
+// removes the folder it works in raises Claude Code's dangerous-rm prompt.
+func workRemovals(t *testing.T, path repoFile) (found int, notLeavingFirst []workRemoval) {
+	t.Helper()
+	lines := strings.Split(readRepoFile(t, path), "\n")
+	for i, l := range lines {
+		if !strings.Contains(l, "rm -r WORK") {
+			continue
+		}
+		found++
+		if i == 0 || strings.TrimSpace(lines[i-1]) != "cd WORK/.." {
+			notLeavingFirst = append(notLeavingFirst, workRemoval{line: i + 1, text: strings.TrimSpace(l)})
+		}
+	}
+	return found, notLeavingFirst
 }
 
 // starterLevel is the auto_update_level forsgren's own starter loads with.

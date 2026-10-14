@@ -11,8 +11,8 @@ import (
 func levelTexts(t *testing.T) map[string]string {
 	t.Helper()
 	texts := map[string]string{"internal/config/starter.yml": asOneLine(config.Starter)}
-	for _, path := range []string{installerFile, "README.md", "docs/configuration.md", "docs/updating-and-releases.md"} {
-		texts[path] = readRepoFileAsOneLine(t, path)
+	for _, path := range []repoFile{installerFile, "README.md", "docs/configuration.md", "docs/updating-and-releases.md"} {
+		texts[string(path)] = readRepoFileAsOneLine(t, path)
 	}
 	return texts
 }
