@@ -44,7 +44,7 @@ Every commit it makes, green or `*** RED ****`, is signed off
 committer identity, yours from `user.name` and `user.email`, or
 agent-Friend's under `Scripts/fbp_agent_friend.sh`. That is the Developer
 Certificate of Origin sign-off the DCO check on pull requests asks for (see
-CI and [CONTRIBUTING.md](../CONTRIBUTING.md)).
+[CI](ci.md) and [CONTRIBUTING.md](../CONTRIBUTING.md)).
 
 Its closing summary prints the message, one row per phase with the
 gate counts and the page count, and every failure's reason. A run ended by
