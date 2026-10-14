@@ -159,7 +159,6 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	if err != nil {
 		return err
 	}
-	h.late.hold(&lines.withdrawals)
 	stored, err := o.store(batch{f.records, commits, lines.failures, lines.withdrawals, lines.events, lines.bugs})
 	if err != nil {
 		return fmt.Errorf("%s: %w", r.Name, err)
@@ -256,8 +255,8 @@ func (o Options) store(b batch) (counts, error) {
 	return c, err
 }
 
-// appendIssueLines appends a batch's withdrawals, then its issue events, then
-// its bug flags.
+// appendIssueLines appends a batch's withdrawals, none writing nothing (a
+// catch-up holds them until finishCatchUp), then its events, then its bug flags.
 func (o Options) appendIssueLines(b batch) error {
 	if len(b.withdrawals) > 0 {
 		if _, err := history.AppendWithdrawals(o.withdrawnFile(), b.withdrawals); err != nil {
@@ -463,7 +462,7 @@ type held struct {
 	failures   map[history.IssueKey]history.Failure
 	lastEvents map[history.IssueKey]history.IssueEvent
 	withdrawn  map[history.IssueKey]bool // the failure issues their newest withdrawal line withdraws
-	late       *catchUp                  // nil, or the catch-up of a run that found no withdrawn file
+	catchUp    *catchUp                  // nil, or the catch-up of a run that found no withdrawn file
 	reach      history.Reach             // see chunk.go
 	read       history.Reach             // see failuresread.go
 	full       history.Reach             // see issueevents.go

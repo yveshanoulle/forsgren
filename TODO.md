@@ -7,7 +7,6 @@ in the same commit — see
 
 ## Open
 
-- A failure issue that loses its failure label, or is closed as not planned, stops counting in change failure rate — [#155](https://github.com/yveshanoulle/forsgren/issues/155)
 - Open bugs: the dash for no change is blue — [#152](https://github.com/yveshanoulle/forsgren/issues/152)
 - A view with the numbers and the DORA Quick Check scores side by side — [#55](https://github.com/yveshanoulle/forsgren/issues/55)
 - Open bugs: a 0 is green — [#151](https://github.com/yveshanoulle/forsgren/issues/151)

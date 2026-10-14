@@ -135,11 +135,12 @@ func (h held) lastEvent(repo string, number int64) string {
 	return h.lastEvents[history.IssueKeyOf(repo, number)].Event
 }
 
-// loadIssueFiles is h with what the failures file, the withdrawn file and the issues file hold:
-// the failure issues as their newest lines say, and the newest event of each
-// issue by time, not by its place in the file, which a later append can put
-// an older event after a newer one in. A missing file holds nothing; one that
-// cannot be read refuses the run.
+// loadIssueFiles is h with what the failures file, the withdrawn file and the
+// issues file hold: the failure issues as their newest lines say, the issues
+// withdrawn, and the newest event of each issue by time, not by its place in
+// the file, which a later append can put an older event after a newer one
+// in. A missing file holds nothing, and a missing withdrawn file starts the
+// catch-up (catchUp); one that cannot be read refuses the run.
 func (o Options) loadIssueFiles(h held) (held, error) {
 	var err error
 	if h.failures, err = loadFailures(o.failuresFile()); err != nil {
@@ -152,7 +153,7 @@ func (o Options) loadIssueFiles(h held) (held, error) {
 	h.lastEvents = newestEvents(stored)
 	var found bool
 	if h.withdrawn, found, err = loadWithdrawn(o.withdrawnFile()); err == nil && !found {
-		h.late = &catchUp{}
+		h.catchUp = &catchUp{}
 	}
 	return h, err
 }

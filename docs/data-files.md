@@ -117,6 +117,44 @@ acme/app,42,2026-09-01T10:00:00Z,2026-09-01T15:00:00Z,2026-09-01T09:30:00Z
   line, refused untouched when its version is unknown or a line is
   malformed.
 
+**The withdrawn failures** (forsgren#155) are kept next to it in
+`data/failures_withdrawn.csv`, with its own format version (the failures
+withdrawn format v1): one line each time a stored failure issue stops
+counting, or counts again.
+
+```
+# forsgren failures withdrawn v1
+repository,issue,withdrawn,reason,at
+acme/app,42,true,label_removed,2026-10-01T06:00:00Z
+acme/app,43,true,not_planned,2026-10-01T06:00:00Z
+acme/app,44,true,issue_gone,2026-10-01T06:00:00Z
+acme/app,42,false,,2026-10-03T06:00:00Z
+```
+
+- `failures.csv` only grows, so an issue that turns out not to be a failure
+  cannot leave it; this file takes it back instead. `withdrawn` is `true` or
+  `false`; `at` is when `collect` saw it, UTC, to the second.
+- `reason` says why a line with `withdrawn` `true` takes the issue back:
+  `label_removed`, the issue no longer carries the `failure` label (the label
+  is the ruling, forsgren#6); `not_planned`, it was closed as not planned;
+  `issue_gone`, GitHub no longer has it (deleted or transferred). A line with
+  `withdrawn` `false` reinstates the issue and has no reason. Any other
+  reason, or a reason on a reinstatement, is refused.
+- The newest line of an issue wins (key: repository, ignoring case, and issue
+  number): above, issue 42 lost its label, then got it back, and counts
+  again. An issue gets a new line only when its `withdrawn` or `reason`
+  differs from its newest line; an issue no line names counts.
+- A withdrawn issue is left out of change fail rate and rework rate when the
+  page is rendered, as if it were not in `failures.csv` (see [Pages and
+  views](pages-and-views.md#change-fail-rate)); its lines in `failures.csv`
+  stay as they are.
+- Otherwise the same rules as `deployments.csv`: created with its version
+  line, refused untouched when its version is unknown or a line is
+  malformed, naming the line; a refused file stops the collect run before
+  GitHub is asked anything and fails the render with its own message.
+- The data guard knows its name: a `failures_withdrawn.csv` that git tracks
+  outside `testdata/` blocks the commit, like the other data files.
+
 **The issue events**, for the days and issues pages (forsgren#76, #123, #128), are kept in
 `data/issues.csv`, with its own format version (the issues format v1). It
 holds every issue of a configured repository, whatever its labels, as one
@@ -375,6 +413,36 @@ as issues, with a `pull_request` field).
   time, and that a pull request is any item with a `pull_request` field,
   come from GitHub's REST reference and are pinned against made-up answers
   only.
+
+**Withdrawn failure issues** (forsgren#155). The daily read of every issue
+(see [Issue events](#issue-events-forsgren76)) also lists an issue whose
+labels changed, since that updates it. A stored failure issue it lists
+without the `failure` label (compared ignoring case) is withdrawn as
+`label_removed`; one it lists closed as not planned is withdrawn as
+`not_planned`; a withdrawn issue it lists again as a failure is reinstated.
+This adds no request. The lines are written with the repository's other
+issue lines, after its failure issues, and a `failures_withdrawn.csv` that
+cannot be written fails the repository, so its deployments are not stored
+either.
+
+- **The one-time catch-up.** An installation from before forsgren#155 has
+  stored failures that may have lost their label long ago, which no `since`
+  list shows again. The first run that finds no `failures_withdrawn.csv`
+  therefore re-reads each stored failure issue that can still count, open or
+  opened in the last 30 days, and not already in that run's daily read:
+  `issues/{number}`, one request per issue, once per installation. Its
+  cost is one request per such issue (an older closed failure no longer
+  counts and is not asked). An issue GitHub answers 410 for, or 404 once the
+  repository's own issue list was read in the same run, is withdrawn as
+  `issue_gone`; any other error, a 403 or the rate limit among them, fails
+  the repository. What the catch-up finds is held until the end of the run
+  and written only when every repository succeeded, which creates the file,
+  even with no line, so the catch-up is not done again; a run that failed
+  anywhere writes no withdrawals at all, and the next run does the catch-up
+  again.
+- Outside the catch-up, an issue that is deleted or transferred is not seen
+  as gone: GitHub no longer lists it, so it keeps counting as its stored
+  lines say (see the known limits of the issue events).
 
 **Errors.** Each repository is tried, also after another failed; a failing
 one is named on stderr (`collect: acme/app: ...`) and nothing of it is

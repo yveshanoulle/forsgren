@@ -164,9 +164,9 @@ func closed44(reason string) string {
 func singleIssuePath(number int) string { return fmt.Sprintf("%s/%d", issuesPath, number) }
 
 // preCatchUp stores three failure issues of acme/app, 42 open, 44 closed
-// within the last 30 days and 43 closed long before them, and 45 of another repository, then removes
-// failures_withdrawn.csv: the data repository of an installation from before
-// forsgren#155. It returns the history path.
+// within the last 30 days and 43 closed long before them, and 45 of another
+// repository, then removes failures_withdrawn.csv: the data repository of an
+// installation from before forsgren#155. It returns the history path.
 func preCatchUp(t *testing.T, g *gitHub) string {
 	t.Helper()
 	g.bodies[issuesPath] = list(

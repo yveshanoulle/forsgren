@@ -190,9 +190,8 @@ func markBugs(events []history.IssueEvent, bugs []history.IssueBug) []history.Is
 // rows its labels name, from the history at path (deployment frequency
 // and, forsgren#17, recovery time), the commits file next to it
 // (data/commits.csv beside data/deployments.csv, lead time, forsgren#16)
-// and the failures file next to it (data/failures.csv, with the history
-// change fail rate, forsgren#18) less the issues the withdrawn file beside it
-// takes back (forsgren#155), at the render time at.
+// and the failure issues that count (failuresOf; with the history change
+// fail rate, forsgren#18, and rework rate, forsgren#39), at the render time at.
 func rowsOf(cfg config.Config, path string, at time.Time) ([]metrics.Row, error) {
 	records, err := loadOrNone(path, history.Load)
 	if err != nil {
@@ -202,6 +201,20 @@ func rowsOf(cfg config.Config, path string, at time.Time) ([]metrics.Row, error)
 	if err != nil {
 		return nil, err
 	}
+	failures, err := failuresOf(path)
+	if err != nil {
+		return nil, err
+	}
+	data := metrics.Data{Records: records, Commits: commits, Failures: failures, WorkingHours: cfg.WorkingHours}
+	return metrics.Rows(cfg.Projects, data, at), nil
+}
+
+// failuresOf is the failure issues beside the history at path
+// (data/failures.csv) less those the withdrawn file beside it
+// (data/failures_withdrawn.csv) takes back (forsgren#155), as issueEventsOf
+// joins the bug flags to the issue events. A missing withdrawn file takes
+// back none.
+func failuresOf(path string) ([]history.Failure, error) {
 	failures, err := loadOrNone(beside(path, collect.FailuresFile), history.LoadFailures)
 	if err != nil {
 		return nil, err
@@ -210,9 +223,7 @@ func rowsOf(cfg config.Config, path string, at time.Time) ([]metrics.Row, error)
 	if err != nil {
 		return nil, err
 	}
-	failures = history.WithoutWithdrawn(failures, withdrawn)
-	data := metrics.Data{Records: records, Commits: commits, Failures: failures, WorkingHours: cfg.WorkingHours}
-	return metrics.Rows(cfg.Projects, data, at), nil
+	return history.WithoutWithdrawn(failures, withdrawn), nil
 }
 
 // beside is the path of the file name in the folder of the history at path:

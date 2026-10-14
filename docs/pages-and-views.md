@@ -156,7 +156,8 @@ one not completed yet, "— · 1 recovery not completed yet", the dash for the
 band and the median it does not have yet; with neither, "No failed
 deployments". The unit is the recovery, one per run of failures however
 many deployments failed in it (Yves's ruling on decision #35), never a
-failed deployment.
+failed deployment. It reads the deployments only, so a withdrawn failure
+issue (forsgren#155) does not change it.
 
 **What counts.** Rulings on forsgren#17, taken while Yves was away (each
 can be reverted there):
@@ -237,9 +238,12 @@ can be reverted there):
   time counts them, or an issue labelled `failure` (forsgren#6) opened in
   the window, from `data/failures.csv` (see [History](data-files.md#history), [Collecting
   deployments](data-files.md#collecting-deployments-collect)). An issue counts once, open or closed, as its newest line
-  says, however it was closed: the label is the ruling (forsgren#6), so an
-  issue that turned out not to be a failure needs its label removed before
-  it is stored, since a stored issue is never taken out.
+  says, however it was closed, unless it is withdrawn: the label is the
+  ruling (forsgren#6), so a stored issue that loses its `failure` label, is
+  closed as not planned, or is gone is taken back by a line in
+  `data/failures_withdrawn.csv` and no longer counts, as if it were not in
+  `failures.csv`; one that gets its label back counts again (forsgren#155,
+  see [History](data-files.md#history), The withdrawn failures).
 - **Never twice.** What is stored cannot tell which deployment an issue is
   about, so an issue filed about a failed deployment would count twice.
   Per repository, the failed changes are therefore the larger of its failed
@@ -307,7 +311,9 @@ there):
   one stream), however old the failure; or (b) was created while an issue
   labelled `failure` of the same repository was open, from
   `data/failures.csv`: opened at or before the deployment, and closed after
-  it or not yet.
+  it or not yet. A withdrawn issue (`data/failures_withdrawn.csv`, as for
+  change fail rate, forsgren#155) makes no rework; (a) does not read issues,
+  so a withdrawal never changes it.
 - **Counted once.** A deployment that is both is one rework deployment.
 - **A project** adds up its repositories, compared ignoring case; a
   repository no project lists is left out. A failure issue names no task,

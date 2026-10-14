@@ -24,10 +24,10 @@ var withdrawalReasons = []string{"", ReasonLabelRemoved, ReasonNotPlanned, Reaso
 
 // Withdrawal says whether one failure issue was taken back (forsgren#155): a
 // line of data/failures_withdrawn.csv, beside data/failures.csv, for change
-// fail rate. An issue that lost its failure label, or was closed as not
-// planned, gets a line with Withdrawn true and no longer counts; the file
-// only grows, so a later line with Withdrawn false reinstates it. The newest
-// line of an issue is the issue (LoadWithdrawals).
+// fail rate and rework rate. An issue that lost its failure label, was closed
+// as not planned, or is gone gets a line with Withdrawn true and no longer
+// counts; the file only grows, so a later line with Withdrawn false
+// reinstates it. The newest line of an issue is the issue (LoadWithdrawals).
 //
 // The format is "# forsgren failures withdrawn v1", the column line
 // "repository,issue,withdrawn,reason,at", Withdrawn "true" or "false".
@@ -116,14 +116,22 @@ func (w Withdrawal) validate() error {
 	)
 }
 
-// WithoutWithdrawn is failures less the issues that withdrawals, as their
-// newest lines say (LoadWithdrawals), withdraw, in the order of failures
-// (forsgren#155). A reinstated issue stays; an issue no line names stays.
-func WithoutWithdrawn(failures []Failure, withdrawals []Withdrawal) []Failure {
+// WithdrawnIssues is the issues that withdrawals, as their newest lines say
+// (LoadWithdrawals), withdraw: true for a withdrawn issue, false for a
+// reinstated one, and no entry for an issue no line names (forsgren#155).
+func WithdrawnIssues(withdrawals []Withdrawal) map[IssueKey]bool {
 	withdrawn := make(map[IssueKey]bool, len(withdrawals))
 	for _, w := range withdrawals {
 		withdrawn[w.Key()] = w.Withdrawn
 	}
+	return withdrawn
+}
+
+// WithoutWithdrawn is failures less the issues that withdrawals withdraw
+// (WithdrawnIssues), in the order of failures (forsgren#155). A reinstated
+// issue stays; an issue no line names stays.
+func WithoutWithdrawn(failures []Failure, withdrawals []Withdrawal) []Failure {
+	withdrawn := WithdrawnIssues(withdrawals)
 	kept := make([]Failure, 0, len(failures))
 	for _, f := range failures {
 		if !withdrawn[f.Key()] {
