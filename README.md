@@ -8,106 +8,73 @@ Named after Dr. Nicole Forsgren, whose research with DORA (and the book
 
 ## The five metrics
 
-| Metric | Question it answers |
-|---|---|
-| Deployment frequency | How often do we ship to users? |
-| Change lead time | How long from a commit to that commit reaching users? |
-| Change failure rate | What share of deployments causes a failure users hit? |
-| Failed deployment recovery time | When a deployment fails and needs immediate intervention, how long until a successful one recovers it? |
-| Deployment rework rate | What share of deployments is unplanned, made to fix a problem users hit? |
+forsgren shows each metric as its DORA band next to the figures it comes from,
+for every project. The definitions, with the rulings behind them, are in
+[Pages and views](docs/pages-and-views.md).
 
-## How it gets its data
+**[Deployment frequency](docs/pages-and-views.md#deployment-frequency)** answers
+how often you ship to users. The page shows its band with the number of
+successful deployments of the last 30 days: "Between once per day and once per
+week · 12".
 
-Moved to [docs/data-files.md](docs/data-files.md).
+**[Lead time for changes](docs/pages-and-views.md#lead-time-for-changes)** answers
+how long a commit takes to reach users. The page shows its band with the median
+and the number of commits of the last 30 days: "Less than one hour · 17 min (37)".
+
+**[Failed deployment recovery time](docs/pages-and-views.md#failed-deployment-recovery-time)**
+answers how long it takes, when a deployment fails and needs immediate
+intervention, until a successful one recovers it. The page shows its band with
+the median and the number of recoveries: "Less than one day · 3 h (2)".
+
+**[Change fail rate](docs/pages-and-views.md#change-fail-rate)** answers what
+share of deployments causes a failure users hit. The page shows its band with
+the rate and the failed changes: "20% · 15% (2 of 13)".
+
+**[Deployment rework rate](docs/pages-and-views.md#deployment-rework-rate)**
+answers what share of deployments is unplanned, made to fix a problem users hit.
+The page shows its band with the rate and the rework deployments:
+"20% · 14% (1 of 7)".
 
 ## What it produces
 
 - the current value of each metric, per service
-- a history file, so each metric can be shown as a trend
-- a static page with the current numbers and a trend chart per metric, safe to
-  publish: numbers and dates only, no issue titles, no links into private
-  repositories
+- the history in `data/` (deployments, commits, failure issues and issue
+  events), which the metrics are calculated from
+- a static page with the metrics table in three views (standard, numbers,
+  scoring), the Issues and Daily pages with their Open and Open bugs columns and
+  trend arrows, and the Settings and Legend pages, safe to publish: numbers and
+  dates only, no issue titles, no links into private repositories
 
-## Where configuration and data live
+## A live example
 
-Moved to [docs/data-files.md](docs/data-files.md).
+forsgren measures itself, and publishes the page at
+<https://forsgren.forsgren.be>.
 
-The data guard that keeps it that way is described in [docs/development.md](docs/development.md).
+## Installing
 
-## History
-
-Moved to [docs/data-files.md](docs/data-files.md).
-
-## Deployment frequency
-
-Moved to [docs/pages-and-views.md](docs/pages-and-views.md).
-
-## Lead time for changes
-
-Moved to [docs/pages-and-views.md](docs/pages-and-views.md).
-
-## Failed deployment recovery time
-
-Moved to [docs/pages-and-views.md](docs/pages-and-views.md).
-
-## Change fail rate
-
-Moved to [docs/pages-and-views.md](docs/pages-and-views.md).
-
-## Deployment rework rate
-
-Moved to [docs/pages-and-views.md](docs/pages-and-views.md).
-
-## The page
-
-Moved to [docs/pages-and-views.md](docs/pages-and-views.md).
+An installation is a data repository of your own (private when it measures
+private repositories), made from the
+[forsgren-template](https://github.com/yveshanoulle/forsgren-template)
+repository. It keeps your `forsgren.config.yml` and its `data/`, runs forsgren
+once a day from a one-line workflow pin, and publishes the page on GitHub Pages.
+Create it from the template and follow the template's own README, or point an AI
+coding agent at [agent-installer.md](agent-installer.md): it asks what only you
+can decide and creates your data repository from the template step by step.
+Each new forsgren release then arrives as a Dependabot pull request.
 
 ## Configuration
 
-Moved to [docs/configuration.md](docs/configuration.md).
+Every `forsgren.config.yml` key is described in [docs/configuration.md](docs/configuration.md).
 
-## Collecting deployments (`collect`)
+## Documentation
 
-Moved to [docs/data-files.md](docs/data-files.md).
-
-## Running forsgren
-
-Moved to [docs/configuration.md](docs/configuration.md).
-
-## The setup issue (`check-needs`)
-
-Moved to [docs/updating-and-releases.md](docs/updating-and-releases.md).
-
-## Auto-update (`check-update`)
-
-Moved to [docs/updating-and-releases.md](docs/updating-and-releases.md).
-
-## Working on forsgren
-
-Moved to [docs/development.md](docs/development.md).
-
-## Quality gates
-
-Moved to [docs/quality-gates.md](docs/quality-gates.md).
-
-## CI
-
-Moved to [docs/ci.md](docs/ci.md).
-
-## Privacy
-
-Moved to [docs/pages-and-views.md](docs/pages-and-views.md).
-
-## Installing and updating
-
-The agent install and the newer-release footer: moved to [docs/updating-and-releases.md](docs/updating-and-releases.md).
-
-Run `./sfl.sh pre` (or `./FBP.sh`) and the tools install themselves.
-`Scripts/required_tools.txt` lists them, and `Scripts/install_tools.sh` installs
-each missing one with Homebrew and upgrades the ones already there. Homebrew
-must already be installed. Only the tools the quality gates use are listed.
-
-The tools, the Go and npm pins and the tooling's own fixtures are described in [docs/development.md](docs/development.md).
+- [Configuration](docs/configuration.md): every `forsgren.config.yml` key, and running forsgren from an installation's workflow.
+- [Pages and views](docs/pages-and-views.md): the five metrics in full, the page and its views, what each cell means, and privacy.
+- [Data files](docs/data-files.md): how forsgren gets its data, the `data/*.csv` formats, and collecting deployments.
+- [Updating and releases](docs/updating-and-releases.md): the setup issue, auto-update, Dependabot and installing a new version.
+- [Development](docs/development.md): working on forsgren, the tools and their pins, the data guard.
+- [Quality gates](docs/quality-gates.md): every gate FBP and CI run, and what each one checks.
+- [CI](docs/ci.md): what runs on GitHub, the metrics workflow for installations, and how a red row maps to a local run.
 
 ## Status
 

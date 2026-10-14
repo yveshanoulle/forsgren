@@ -77,6 +77,11 @@ no row declares, and the gate-wiring gate on a script neither runner runs.
 
 ## The tools
 
+Run `./sfl.sh pre` (or `./FBP.sh`) and the tools install themselves.
+`Scripts/required_tools.txt` lists them, and `Scripts/install_tools.sh` installs
+each missing one with Homebrew and upgrades the ones already there. Homebrew
+must already be installed. Only the tools the quality gates use are listed.
+
 **Go is pinned separately.** `brew install go` also upgrades an outdated Go for
 the whole machine, which would be a surprise if forsgren followed it. So
 forsgren does not: `go.mod` carries a `toolchain` line (for example
