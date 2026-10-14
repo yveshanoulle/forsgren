@@ -470,6 +470,18 @@ metrics workflow|Scripts/test_metrics_workflow.sh|pre|
 # pin per cycle. Repository source, so it runs in pre.
 auto-update workflow|Scripts/test_auto_update_workflow.sh|pre|
 #
+# The starter page workflow (forsgren#132, decision forsgren#149). Not canon:
+# forsgren's own, beside the other workflow rows.
+# .github/workflows/starter_page.yml renders README.md and publishes it to
+# GitHub Pages as forsgren.be. Nothing in forsgren runs it, so this pin proves
+# it: its triggers (push to main with a paths filter, release published,
+# workflow_dispatch, never a pull request), contents: read with pages: write
+# and id-token: write on the deploy job only, hosted runners, every action
+# pinned at metrics.yml's commit, the build command and the upload path; each
+# pin proved by a mutant of the real file. Repository source, so it runs in
+# pre.
+starter page workflow|Scripts/test_starter_page_workflow.sh|pre|
+#
 # No stray tracked files (forsgren#1, ladder step 12). Not canon:
 # Another estate repository's issue #10 gate, byte-identical, at konenki's position
 # between the quality-trigger-scope row and the report-script fixtures. Red

@@ -211,6 +211,22 @@ Six PRE gates keep the CI honest:
   with awk, not a YAML library: PyYAML is a Python module, not a command,
   so nothing here installs it, and a parser that depends on it would stop
   gating on the first machine without it.
+- **starter page workflow** (`Scripts/test_starter_page_workflow.sh`,
+  forsgren's own, forsgren#132): `starter_page.yml` renders `README.md` and
+  publishes it to GitHub Pages (forsgren.be). It triggers on a push to `main`
+  filtered to the README, the renderer, the stylesheet, the build script and
+  itself, on a published release, and by hand, never on a pull request; the
+  workflow has `contents: read` and only the deploy job adds `pages: write`
+  and `id-token: write`; both jobs run on `ubuntu-latest`; every action is
+  pinned at the very commit `metrics.yml` pins; the build step runs exactly
+  `./Scripts/build_starter_page.sh` and uploads `.build/starter`; no `run:`
+  block expands a `${{ }}` expression. A release-triggered run first asks
+  `gh api repos/<repository>/pages`: a 404 skips the deploy with a notice
+  naming the cause (Pages is not enabled), any other failure fails the step,
+  and a push or a manual run is not checked. The check is executed in the
+  test with a stub `gh`. The real file must hold every pin and each pin is
+  proved by a mutant that breaks it. GitHub Pages must be enabled on the
+  repository with the source "GitHub Actions" for the deploy to succeed.
 - **metrics workflow** (`Scripts/test_metrics_workflow.sh`, forsgren's
   own): `metrics.yml` triggers on `workflow_call` and nothing else, and
   declares no inputs; no `run:` block expands a `${{ }}` expression; the
