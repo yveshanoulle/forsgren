@@ -40,9 +40,9 @@
   },
   {
    "path": "internal/collect/bugflags.go",
-   "score": 9.68,
+   "score": 10.0,
    "checkedAt": "2026-10-14",
-   "minScore": 9.58
+   "minScore": 10.0
   },
   {
    "path": "cmd/forsgren/render_config_test.go",
@@ -251,7 +251,7 @@
   {
    "path": "internal/history/failures.go",
    "score": 10.0,
-   "checkedAt": "2026-10-10",
+   "checkedAt": "2026-10-14",
    "minScore": 10.0
   },
   {

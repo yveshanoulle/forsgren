@@ -87,11 +87,12 @@ func (f Failure) Revises(held Failure) bool {
 		!f.FailureStart.Equal(held.FailureStart)
 }
 
-// newestLines is one Failure per issue, its newest line, in the order the
-// issues first appear in lines.
-func newestLines(lines []Failure) []Failure {
+// newestLines is one line per issue, its newest, in the order the issues first
+// appear in lines: the failures file's and the issue bugs file's reading
+// (LoadFailures, LoadIssueBugs).
+func newestLines[L interface{ Key() IssueKey }](lines []L) []L {
 	place := map[IssueKey]int{}
-	var out []Failure
+	var out []L
 	for _, f := range lines {
 		if i, ok := place[f.Key()]; ok {
 			out[i] = f

@@ -48,8 +48,12 @@
 #     ops/issues.csv must turn green.
 #   - case 14: with the issues_full.csv, failures_read.csv or issue_bugs.csv
 #     arm deleted, a repository holding only ops/ of that file must turn
-#     green. The drift check (case 15) needs no proof of its own: it reads the
-#     Go constants, and a deleted arm turns it red, as case 14 shows.
+#     green.
+#   - case 15: with the reach.csv arm deleted, a repository holding only
+#     ops/reach.csv must turn green; reach.csv has no case of its own, so the
+#     drift check is the case that holds its arm. The drift check needs no
+#     other proof: it reads the Go constants, and a deleted arm turns it red,
+#     as case 14 shows.
 #   - case 6: with every arm whose pattern holds a `*` quoted (so it matches
 #     only the literal text), case 6's repository must turn green with none
 #     of its three files named, while case 2's repository stays red. Every

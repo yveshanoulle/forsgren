@@ -285,6 +285,11 @@ type page struct {
 // template set.
 var pages = parsePages()
 
+// templateFuncs are the functions the templates call: "trend", the arrow of
+// the issues tables (trend.go), and "possible", the settings page's Possible
+// values cell (settings.go).
+var templateFuncs = template.FuncMap{"trend": trendViewOf, "possible": possibleOf}
+
 // parsePages parses the layout once and clones it per page. A malformed
 // template fails at start-up through template.Must, never at render time.
 func parsePages() map[string]page {

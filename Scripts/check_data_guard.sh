@@ -92,8 +92,9 @@ in_testdata() {
 # One arm per line, `<pattern>) why="..." ;;`: Scripts/test_check_data_guard.sh
 # mutates this list by that shape (it deletes the history.csv arm, then the
 # deployments.csv arm, then the commits.csv arm, then the failures.csv arm,
-# then the issues.csv arm, and quotes every arm whose pattern holds a `*` so that it matches only
-# literally).
+# then the issues.csv arm, then the issues_full.csv, failures_read.csv,
+# issue_bugs.csv and reach.csv arms, and quotes every arm whose pattern holds a
+# `*` so that it matches only literally).
 guarded_reason() {
   local why=""
   case "$1" in

@@ -27,7 +27,7 @@ func (o Options) bugsFile() string { return filepath.Join(filepath.Dir(o.History
 // page cap, when an issue it did not list may still carry the label and the
 // stored flags are kept, with a warning on stderr. What is already stored is
 // skipped by history.AppendIssueBugs, so every run adds only what changed.
-func (o Options) bugFlags(ctx context.Context, _ held, repo string) ([]history.IssueBug, error) {
+func (o Options) bugFlags(ctx context.Context, repo string) ([]history.IssueBug, error) {
 	issues, stored, cut, err := o.readBugs(ctx, repo)
 	if err != nil {
 		return nil, err
@@ -51,11 +51,17 @@ func (o Options) bugFlags(ctx context.Context, _ held, repo string) ([]history.I
 func lostLabel(stored []history.IssueBug, repo string, listed map[int64]bool) []history.IssueBug {
 	var lost []history.IssueBug
 	for _, b := range stored {
-		if b.Bug && strings.EqualFold(b.Repository, repo) && !listed[b.Issue] {
+		if lostItsLabel(b, repo, listed) {
 			lost = append(lost, history.IssueBug{Repository: repo, Issue: b.Issue})
 		}
 	}
 	return lost
+}
+
+// lostItsLabel is whether the stored flag b is a bug of repo, its repository
+// compared ignoring case, whose number listed does not hold.
+func lostItsLabel(b history.IssueBug, repo string, listed map[int64]bool) bool {
+	return b.Bug && strings.EqualFold(b.Repository, repo) && !listed[b.Issue]
 }
 
 // readBugs is the issues GitHub lists for repo under the bug label, the bug

@@ -29,17 +29,7 @@ func LoadIssueBugs(path string) ([]IssueBug, error) {
 	if err != nil {
 		return nil, err
 	}
-	place := map[IssueKey]int{}
-	var out []IssueBug
-	for _, b := range lines {
-		if i, ok := place[b.Key()]; ok {
-			out[i] = b
-			continue
-		}
-		place[b.Key()] = len(out)
-		out = append(out, b)
-	}
-	return out, nil
+	return newestLines(lines), nil
 }
 
 // AppendIssueBugs stores the bug states that the file at path does not end on

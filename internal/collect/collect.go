@@ -189,7 +189,7 @@ func (o Options) readIssues(ctx context.Context, h held, repo string) (issueLine
 	if l.events, err = o.issueEvents(ctx, h, repo); err != nil {
 		return l, err
 	}
-	l.bugs, err = o.bugFlags(ctx, h, repo)
+	l.bugs, err = o.bugFlags(ctx, repo)
 	return l, err
 }
 

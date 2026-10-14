@@ -7,13 +7,9 @@ package page
 
 import (
 	"fmt"
-	"html/template"
 
 	"github.com/yveshanoulle/forsgren/internal/metrics"
 )
-
-// templateFuncs are the functions the templates call.
-var templateFuncs = template.FuncMap{"trend": trendOf, "possible": possibleOf}
 
 // trendView is what the "trend" template shows: the class the colours hang on,
 // the arrow, how much the count moved (Change, always zero or more) with Sign
@@ -24,9 +20,9 @@ type trendView struct {
 	Sign, Change        int
 }
 
-// trendOf is the view of a count called what ("open issues") that moved the
-// way t says, by change (negative for Down).
-func trendOf(what string, t metrics.Trend, change int) trendView {
+// trendViewOf is the view of a count called what ("open issues") that moved
+// the way t says, by change (negative for Down): the template function "trend".
+func trendViewOf(what string, t metrics.Trend, change int) trendView {
 	switch t {
 	case metrics.TrendUp:
 		return trendView{"trend-up", "▲", fmt.Sprintf("%s increased by %d", what, change), 1, change}

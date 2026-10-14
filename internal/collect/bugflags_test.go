@@ -77,16 +77,7 @@ func TestABugFlagsFileThatCannotBeWrittenStoresNoDeployment(t *testing.T) {
 // again, as not a bug, and one still listed is left as it is.
 func TestCollectStoresNoBugForAnIssueThatLostItsLabel(t *testing.T) {
 	g := newGitHub(t)
-	g.bodies[deploymentsPath] = list()
-	g.bodies[bugIssuesPath] = list(listed{number: 4, state: "open", created: "2026-09-20T08:00:00Z"}.json())
-	path := historyPath(t)
-	stored := []history.IssueBug{
-		{Repository: "acme/app", Issue: 3, Bug: true},
-		{Repository: "acme/app", Issue: 4, Bug: true},
-	}
-	if _, err := history.AppendIssueBugs(bugsFileBeside(path), stored); err != nil {
-		t.Fatal(err)
-	}
+	path, _ := listFourOverStoredThreeAndFour(t, g)
 	if r := g.collect(t, shop(production), path, 1); r.err != nil {
 		t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
 	}
@@ -106,17 +97,8 @@ func TestCollectStoresNoBugForAnIssueThatLostItsLabel(t *testing.T) {
 // bug, and stderr says the read stopped.
 func TestACutListOfBugIssuesKeepsTheStoredFlagsAndSaysSo(t *testing.T) {
 	g := newGitHub(t)
-	g.bodies[deploymentsPath] = list()
-	g.bodies[bugIssuesPath] = list(listed{number: 4, state: "open", created: "2026-09-20T08:00:00Z"}.json())
+	path, stored := listFourOverStoredThreeAndFour(t, g)
 	g.paged[bugIssuesPath] = true
-	path := historyPath(t)
-	stored := []history.IssueBug{
-		{Repository: "acme/app", Issue: 3, Bug: true},
-		{Repository: "acme/app", Issue: 4, Bug: true},
-	}
-	if _, err := history.AppendIssueBugs(bugsFileBeside(path), stored); err != nil {
-		t.Fatal(err)
-	}
 	r := g.collect(t, shop(production), path, 1)
 	if r.err != nil {
 		t.Fatalf("want the run to succeed, got %v (stderr %q)", r.err, r.stderr)
@@ -128,6 +110,24 @@ func TestACutListOfBugIssuesKeepsTheStoredFlagsAndSaysSo(t *testing.T) {
 	if !strings.Contains(r.stderr, "the bug read stopped at 100 page(s)") {
 		t.Errorf("want stderr to say the bug read stopped at 100 pages, got %q", r.stderr)
 	}
+}
+
+// listFourOverStoredThreeAndFour has g list acme/app with no deployments and
+// issue 4 alone under the bug label, and stores issues 3 and 4 of acme/app as
+// bugs beside a new history; it returns the history path and the stored flags.
+func listFourOverStoredThreeAndFour(t *testing.T, g *gitHub) (string, []history.IssueBug) {
+	t.Helper()
+	g.bodies[deploymentsPath] = list()
+	g.bodies[bugIssuesPath] = list(listed{number: 4, state: "open", created: "2026-09-20T08:00:00Z"}.json())
+	path := historyPath(t)
+	stored := []history.IssueBug{
+		{Repository: "acme/app", Issue: 3, Bug: true},
+		{Repository: "acme/app", Issue: 4, Bug: true},
+	}
+	if _, err := history.AppendIssueBugs(bugsFileBeside(path), stored); err != nil {
+		t.Fatal(err)
+	}
+	return path, stored
 }
 
 // TestABugFlagsFileItCannotReadFailsTheRepositoryBeforeTheBugRead
