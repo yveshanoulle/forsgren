@@ -19,7 +19,11 @@ Start your agent with that model (in Claude Code: `claude --model sonnet`).
 
 1. Open a new terminal in an empty folder, for example
    `mkdir -p /tmp/forsgren-install && cd /tmp/forsgren-install`. An empty
-   folder means no other project's instructions are loaded.
+   folder means no other project's instructions are loaded. The agent
+   keeps its work files in a folder inside it. When Claude Code asks
+   "Quick safety check: Is this a project you created or one you trust?"
+   for this new folder, the empty folder you just made is safe: choose
+   "Yes, I trust this folder".
 2. Start the agent with the tested model: `claude --model sonnet`.
 3. If Claude Code asks "Teach auto mode about your environment?", choose
    "Not now". This file gives the agent everything it needs, and extra
@@ -53,6 +57,8 @@ for in step 4 is that request.
   - `SITE`: the page's address, ending with `/` (step 7).
   - `DOMAIN`: the custom domain, when the person wants one.
   - `PARENT`: the domain verified for GitHub Pages (step 13).
+  - `WORK`: your work folder, the absolute path of `forsgren-work` inside
+    the folder the person started you in (step 1).
   - `acme/app`: a repository to measure.
 - **Write values into each command.** Do not rely on shell variables or a
   changed directory carrying over from one command to the next; use the
@@ -74,8 +80,7 @@ for in step 4 is that request.
   `yveshanoulle/forsgren-template`. You only read them.
 - Never force-push, and never rewrite history in any repository.
 - Never delete anything, except the install the person asked to start over
-  (see Starting over), and the local folder `/tmp/forsgren-REPO` this file
-  creates.
+  (see Starting over), and the work folder `WORK` this file creates.
 - Never install tools. When a tool is missing, stop and tell the person.
 - Never let a DNS record point at GitHub Pages for a domain that is not
   verified (steps 13 and 15), and never ask anyone to delete the
@@ -117,6 +122,12 @@ Run each command and check its output.
      asks for by itself).
    - Not found or older: note it. Do not install Go. Step 9 then leaves the
      check to the first run.
+6. `pwd`
+   - Works: it prints the folder the person started you in, an absolute
+     path. The person made it empty for this install ("Before you start"),
+     so your work files can live inside it, where Claude Code reads and
+     writes without asking. `WORK` is that path followed by
+     `/forsgren-work`, for example `/tmp/forsgren-install/forsgren-work`.
 
 git is not needed: every change this file makes goes through `gh api`, so
 there is no clone, no push and no git credential to set up.
@@ -330,11 +341,11 @@ refused here (Pages on private repositories needs a paid plan).
 ## Step 8. Read the pinned forsgren version and make a work folder
 
 ```
-mkdir -p /tmp/forsgren-REPO
+mkdir -p WORK
 gh api -H 'Accept: application/vnd.github.raw' \
   repos/OWNER/REPO/contents/.github/workflows/forsgren.yml \
-  > /tmp/forsgren-REPO/forsgren.yml
-grep -n 'uses:' /tmp/forsgren-REPO/forsgren.yml
+  > WORK/forsgren.yml
+grep -n 'uses:' WORK/forsgren.yml
 ```
 
 Check: one line, ending in `# vX.Y.Z`. That `vX.Y.Z` is `VERSION`.
@@ -343,7 +354,7 @@ Fails (no line, or more than one): stop and report.
 
 ## Step 9. Write forsgren.config.yml and check it
 
-Write `/tmp/forsgren-REPO/forsgren.config.yml` with your file tool, from the
+Write `WORK/forsgren.config.yml` with your file tool, from the
 answers. Shape (the `acme` names stand for the person's):
 
 ```yaml
@@ -377,7 +388,7 @@ Check the file, when step 1.5 found Go:
 
 ```
 go run github.com/yveshanoulle/forsgren/cmd/forsgren@VERSION \
-  check-config --config /tmp/forsgren-REPO/forsgren.config.yml
+  check-config --config WORK/forsgren.config.yml
 ```
 
 - Works: one line, `OK: ... is a valid forsgren config (version 1):
@@ -402,7 +413,7 @@ is a change to this one installation's `forsgren.yml`, not to the template.
 It is to be confirmed by forsgren#131, the first install made with this
 file: until then, the first run (step 12) is the proof.
 
-1. In `/tmp/forsgren-REPO/forsgren.yml`, replace this line exactly:
+1. In `WORK/forsgren.yml`, replace this line exactly:
 
    ```
          FORSGREN_TOKEN: ${{ secrets.FORSGREN_TOKEN }}  # read-only token for the measured repositories
@@ -416,15 +427,15 @@ file: until then, the first run (step 12) is the proof.
          FORSGREN_TOKEN: ${{ secrets.GITHUB_TOKEN }}
    ```
 
-   Check: `grep -c 'secrets.GITHUB_TOKEN' /tmp/forsgren-REPO/forsgren.yml`
+   Check: `grep -c 'secrets.GITHUB_TOKEN' WORK/forsgren.yml`
    prints `1`, and
-   `grep -c 'secrets.FORSGREN_TOKEN' /tmp/forsgren-REPO/forsgren.yml`
+   `grep -c 'secrets.FORSGREN_TOKEN' WORK/forsgren.yml`
    prints `0`. The line not found as written: stop and report.
 2. Upload it as one commit:
 
    ```
-   base64 < /tmp/forsgren-REPO/forsgren.yml | tr -d '\n' \
-     > /tmp/forsgren-REPO/forsgren.yml.b64
+   base64 < WORK/forsgren.yml | tr -d '\n' \
+     > WORK/forsgren.yml.b64
    gh api repos/OWNER/REPO/contents/.github/workflows/forsgren.yml \
      --jq .sha
    ```
@@ -435,7 +446,7 @@ file: until then, the first run (step 12) is the proof.
    gh api -X PUT \
      repos/OWNER/REPO/contents/.github/workflows/forsgren.yml \
      -f message='Read the public repositories with the run token' \
-     -F content=@/tmp/forsgren-REPO/forsgren.yml.b64 \
+     -F content=@WORK/forsgren.yml.b64 \
      -f sha=SHA --jq .commit.sha
    ```
 
@@ -444,7 +455,7 @@ file: until then, the first run (step 12) is the proof.
    ```
    gh api -H 'Accept: application/vnd.github.raw' \
      repos/OWNER/REPO/contents/.github/workflows/forsgren.yml \
-     | diff - /tmp/forsgren-REPO/forsgren.yml
+     | diff - WORK/forsgren.yml
    ```
 
    Works: no output. Fails (an error, or a diff): stop and report.
@@ -505,11 +516,11 @@ The first run writes a starter configuration when the file is missing.
 Committing the real file first means the starter is never written.
 
 ```
-base64 < /tmp/forsgren-REPO/forsgren.config.yml | tr -d '\n' \
-  > /tmp/forsgren-REPO/config.b64
+base64 < WORK/forsgren.config.yml | tr -d '\n' \
+  > WORK/config.b64
 gh api -X PUT repos/OWNER/REPO/contents/forsgren.config.yml \
   -f message='Add forsgren.config.yml' \
-  -F content=@/tmp/forsgren-REPO/config.b64 --jq .commit.sha
+  -F content=@WORK/config.b64 --jq .commit.sha
 ```
 
 Works: it prints a commit sha. Then:
@@ -517,7 +528,7 @@ Works: it prints a commit sha. Then:
 ```
 gh api -H 'Accept: application/vnd.github.raw' \
   repos/OWNER/REPO/contents/forsgren.config.yml \
-  | diff - /tmp/forsgren-REPO/forsgren.config.yml
+  | diff - WORK/forsgren.config.yml
 ```
 
 Works: no output. Fails: stop and report.
@@ -723,7 +734,7 @@ Tell them, in one message:
   line, and step 10A must then be done again;
 - the auto-update check below, for when the next forsgren release lands.
 
-Then remove the work folder: `rm -r /tmp/forsgren-REPO`.
+Then remove the work folder: `rm -r WORK`.
 
 ## Later: the first auto-update
 
@@ -800,7 +811,7 @@ over:
    `gh repo delete` asks them to type the name again.
 4. Check: `gh repo view OWNER/REPO` prints
    `Could not resolve to a Repository`.
-5. Remove the work folder: `rm -r /tmp/forsgren-REPO`.
+5. Remove the work folder: `rm -r WORK`.
 6. What stays:
    - the verification TXT record and the verified domain: deleting the
      repository never removes them, and the person keeps the TXT record;
