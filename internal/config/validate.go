@@ -37,8 +37,8 @@ func (f fileConfig) toConfig() (Config, error) {
 }
 
 // settings is the Config of the file's optional top-level keys, view,
-// auto_update and auto_update_level (as written, and required when auto_update
-// is true), or the first refusal among them (forsgren#46, #58).
+// auto_update and auto_update_level (as written, the level DefaultLevel when
+// the file has none), or the first refusal among them (forsgren#46, #58, #157).
 func (f fileConfig) settings() (Config, error) {
 	view, err := checkView(f.View)
 	if err != nil {
@@ -50,9 +50,6 @@ func (f fileConfig) settings() (Config, error) {
 	}
 	level, err := checkAutoUpdateLevel(f.AutoUpdateLevel)
 	if err != nil {
-		return Config{}, err
-	}
-	if err := checkLevelWritten(auto, level); err != nil {
 		return Config{}, err
 	}
 	days, chunk, hours, err := f.numbers()
@@ -146,22 +143,12 @@ func checkHistoryDays(n yaml.Node) (int, error) { return historyDays.check(n) }
 // DefaultHistoryChunkDays when the file has none (forsgren#57).
 func checkHistoryChunkDays(n yaml.Node) (int, error) { return historyChunkDays.check(n) }
 
-// checkLevelWritten refuses auto_update on without a level: there is no
-// default, so the level must be written (forsgren#58).
-func checkLevelWritten(auto bool, level string) error {
-	if auto && level == "" {
-		return fmt.Errorf("%w: auto_update is true but auto_update_level is missing: use %s, %s or %s",
-			ErrAutoUpdateLevel, LevelPatch, LevelMinor, LevelMajor)
-	}
-	return nil
-}
-
-// checkAutoUpdateLevel is the level as written, empty when the file has none
-// (a key without a value is none), or the refusal naming the valid values
-// (forsgren#58).
+// checkAutoUpdateLevel is the level as written, DefaultLevel when the file has
+// none (a key without a value is none), or the refusal naming the valid values
+// (forsgren#58, #157).
 func checkAutoUpdateLevel(v *string) (string, error) {
 	if v == nil {
-		return "", nil
+		return DefaultLevel, nil
 	}
 	switch *v {
 	case LevelPatch, LevelMinor, LevelMajor:

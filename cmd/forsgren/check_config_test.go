@@ -115,8 +115,7 @@ func TestCheckConfigReadsAutoUpdate(t *testing.T) {
 		{"not a boolean", "auto_update: yes\n", 1, `invalid auto_update "yes": use true or false`},
 		{"other level", "auto_update: true\nauto_update_level: Minor\n", 1,
 			`invalid auto_update_level "Minor": use patch, minor or major`},
-		{"no level", "auto_update: true\n", 1,
-			"auto_update is true but auto_update_level is missing: use patch, minor or major"},
+		{"no level", "auto_update: true\n", 0, ""},
 	}
 	for _, tc := range cases {
 		code, _, stderr := runCommand("check-config", "--config", writeConfig(t, tc.keys+validConfig))

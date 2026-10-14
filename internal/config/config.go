@@ -12,7 +12,7 @@
 //	version: 1
 //	view: numbers                          # optional, standard, numbers or scoring
 //	auto_update: true                      # optional, true or false, off when absent (forsgren#58)
-//	auto_update_level: patch               # patch, minor or major; required when auto_update is true
+//	auto_update_level: patch               # optional, patch, minor or major, major when absent (forsgren#157)
 //	projects:
 //	  - name: Acme
 //	    repositories:
@@ -58,6 +58,9 @@ const (
 	LevelPatch = "patch"
 	LevelMinor = "minor"
 	LevelMajor = "major"
+
+	// DefaultLevel is the level used when the file writes none (forsgren#157).
+	DefaultLevel = LevelMajor
 )
 
 // The days the first run collects (forsgren#57): the default, and the most
@@ -325,7 +328,7 @@ type settingKey struct {
 var settingKeys = []settingKey{
 	{"view", ViewStandard, func(c Config) string { return c.View }},
 	{"auto_update", "false", func(c Config) string { return strconv.FormatBool(c.AutoUpdate) }},
-	{"auto_update_level", "none", func(c Config) string { return c.AutoUpdateLevel }},
+	{"auto_update_level", DefaultLevel, func(c Config) string { return c.AutoUpdateLevel }},
 	{"history_days", strconv.Itoa(DefaultHistoryDays), func(c Config) string { return strconv.Itoa(c.HistoryDays) }},
 	{"history_chunk_days", strconv.Itoa(DefaultHistoryChunkDays),
 		func(c Config) string { return strconv.Itoa(c.HistoryChunkDays) }},

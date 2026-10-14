@@ -178,7 +178,6 @@
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:set": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:check": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:checkHistoryChunkDays": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/config/validate.go:checkLevelWritten": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:claimProject": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:claimRepository": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:toProject": 100.0,

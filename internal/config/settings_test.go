@@ -16,7 +16,7 @@ func TestSettingsListsEveryKeyWithItsDefault(t *testing.T) {
 	want := []Setting{
 		{"view", "standard", false},
 		{"auto_update", "false", false},
-		{"auto_update_level", "none", false},
+		{"auto_update_level", "major", false},
 		{"history_days", "30", true},
 		{"history_chunk_days", "100", false},
 		{"working_hours", "8", false},
