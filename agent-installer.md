@@ -787,9 +787,16 @@ dig +short @1.1.1.1 DOMAIN
      and to ask you to resume at step 16 later; GitHub can take up to 24
      hours.
    - No state at all (an empty answer) through the whole wait: the likely
-     cause is that GitHub checked DNS while it was still wrong. Set the
-     custom domain once more (the step-14 call), then wait again as
-     above. (To be confirmed by the attempt-3 proof run.)
+     cause is that GitHub checked DNS while it was still wrong. Setting the
+     same custom domain again starts no new certificate request, so remove
+     it first: `gh api -X PUT repos/OWNER/REPO/pages -F cname=null`, wait a
+     minute, then set it again with the step-14 call. Do this at most once,
+     then wait again as above. If the removal call fails, or the state is
+     still empty after that one retry, do not just stop: give the person
+     the tip below, and when they are done they ask you to resume at
+     step 16. (To be confirmed: removing and re-adding the custom domain was proven by hand
+     in Settings > Pages on 2026-10-14; the API form of the removal has not
+     been run yet.)
 2. `gh api -X PUT repos/OWNER/REPO/pages -F https_enforced=true`
 3. Check: `gh api repos/OWNER/REPO/pages --jq .https_enforced` prints
    `true`.
@@ -797,6 +804,19 @@ dig +short @1.1.1.1 DOMAIN
    do step 12's items 1 to 4 again, then
    `curl -fsS https://DOMAIN/ | grep -o 'scope="row">[^<]*'`
    prints each project name, as in step 12 item 7.
+
+The tip for the person, when the state stays empty (this worked on
+2026-10-14). Tell them to do it themselves:
+
+1. Open `https://github.com/OWNER/REPO/settings/pages`.
+2. Under Custom domain, click Remove.
+3. Wait about a minute, until the page shows the github.io address again.
+4. Type `DOMAIN` and click Save.
+5. Wait for "DNS check successful". Within 15 to 60 minutes "Enforce HTTPS"
+   becomes available.
+
+Meanwhile the page stays up at the github.io address, and no DNS change is
+needed.
 
 Fails: stop and report.
 
@@ -813,7 +833,13 @@ Tell them, in one message:
   line, and step 10A must then be done again;
 - the auto-update check below, for when the next forsgren release lands.
 
-Then remove the work folder: `rm -r WORK`.
+Then leave the work folder and remove it, so you do not delete the folder
+you are working in:
+
+```
+cd WORK/..
+rm -r WORK
+```
 
 ## Later: the first auto-update
 
@@ -912,14 +938,23 @@ the install steps above do not apply.
    ```
 
    Works: no output. Fails: stop and report.
-9. Remove the work folder: `rm -r WORK`. Tell the person when it takes
-   effect: a config key at the next daily run (05:17 UTC), the update
-   wait at Dependabot's next daily check (04:00 UTC).
+9. Leave the work folder and remove it, so you do not delete the folder
+   you are working in:
+
+   ```
+   cd WORK/..
+   rm -r WORK
+   ```
+
+   Tell the person when it takes effect: a config key at the next daily
+   run (05:17 UTC), the update wait at Dependabot's next daily check
+   (04:00 UTC).
 
 ## Starting over
 
 When a step failed and the person wants to start again, or asks to start
-over:
+over (a certificate that never starts is not a reason: see the tip in
+step 16):
 
 1. Show the person what will be deleted: the repository `OWNER/REPO`, with
    its configuration, its collected history, its page and, on route B, its
@@ -955,7 +990,13 @@ over:
    `gh repo delete` asks them to type the name again.
 4. Check: `gh repo view OWNER/REPO` prints
    `Could not resolve to a Repository`.
-5. Remove the work folder: `rm -r WORK`.
+5. Leave the work folder and remove it, so you do not delete the folder
+   you are working in:
+
+   ```
+   cd WORK/..
+   rm -r WORK
+   ```
 6. What stays:
    - the verification TXT record and the verified domain: deleting the
      repository never removes them, and the person keeps the TXT record;
