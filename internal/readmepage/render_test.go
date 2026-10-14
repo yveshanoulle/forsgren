@@ -124,6 +124,29 @@ func TestRenderEscapesAndLeavesUnclosedMarkersAlone(t *testing.T) {
 	}
 }
 
+// ruleBodies are the bodies of the rules of css whose selector, at the start
+// of a line, is selector.
+func ruleBodies(css, selector string) (bodies []string) {
+	rule := regexp.MustCompile(`(?s)(?:^|\n)` + regexp.QuoteMeta(selector) + `\s*\{([^}]*)\}`)
+	for _, r := range rule.FindAllStringSubmatch(css, -1) {
+		bodies = append(bodies, r[1])
+	}
+	return bodies
+}
+
+// holds tells whether one of bodies holds declaration, "property: value",
+// with any space after the colon.
+func holds(bodies []string, declaration string) bool {
+	property, value, _ := strings.Cut(declaration, ": ")
+	pattern := regexp.MustCompile(regexp.QuoteMeta(property) + `:\s*` + regexp.QuoteMeta(value) + `;`)
+	for _, body := range bodies {
+		if pattern.MatchString(body) {
+			return true
+		}
+	}
+	return false
+}
+
 // TestStarterPageIsSeventyTwoRemWideWhileTheMetricsPagesKeepTheirCap
 // (forsgren#153, step 2; decision #160): forsgren.be is 150% of the 48rem it
 // had, 72rem, through a class on its body that the shared stylesheet styles,
@@ -137,12 +160,10 @@ func TestStarterPageIsSeventyTwoRemWideWhileTheMetricsPagesKeepTheirCap(t *testi
 		t.Errorf("want the starter page's body to carry class starter, got:\n%s", got)
 	}
 	css := string(site.Styles())
-	rule := regexp.MustCompile(`(?s)(?:^|\n)body\.starter\s*\{[^}]*max-width:\s*72rem;`)
-	if !rule.MatchString(css) {
+	if !holds(ruleBodies(css, "body.starter"), "max-width: 72rem") {
 		t.Errorf("want a body.starter rule with max-width: 72rem in styles.css, got:\n%s", css)
 	}
-	plain := regexp.MustCompile(`(?s)(?:^|\n)body\s*\{[^}]*max-width:\s*120rem;`)
-	if !plain.MatchString(css) {
+	if !holds(ruleBodies(css, "body"), "max-width: 120rem") {
 		t.Errorf("want the plain body rule to keep max-width: 120rem, got:\n%s", css)
 	}
 }
@@ -153,19 +174,19 @@ func TestStarterPageIsSeventyTwoRemWideWhileTheMetricsPagesKeepTheirCap(t *testi
 // 2rem of inner padding; the body's 1rem padding is the gutter outside it.
 func TestStarterPageIsAFramedCard(t *testing.T) {
 	css := string(site.Styles())
-	rule := regexp.MustCompile(`(?s)(?:^|\n)body\.starter main\s*\{([^}]*)\}`).FindStringSubmatch(css)
-	if rule == nil {
+	cards := ruleBodies(css, "body.starter main")
+	if len(cards) == 0 {
 		t.Fatalf("want a body.starter main rule in styles.css, got:\n%s", css)
 	}
 	for _, want := range []string{"border: 1px solid currentcolor;", "border-radius:", "padding: 2rem;"} {
-		if !strings.Contains(rule[1], want) {
-			t.Errorf("want the body.starter main rule to hold %q, got:\n%s", want, rule[1])
+		if !strings.Contains(cards[0], want) {
+			t.Errorf("want the body.starter main rule to hold %q, got:\n%s", want, cards[0])
 		}
 	}
-	if regexp.MustCompile(`#[0-9a-fA-F]{3,6}|rgb|hsl`).MatchString(rule[1]) {
-		t.Errorf("want no new colour in the frame, got:\n%s", rule[1])
+	if regexp.MustCompile(`#[0-9a-fA-F]{3,6}|rgb|hsl`).MatchString(cards[0]) {
+		t.Errorf("want no new colour in the frame, got:\n%s", cards[0])
 	}
-	if !regexp.MustCompile(`(?s)(?:^|\n)body\s*\{[^}]*padding:\s*1rem;`).MatchString(css) {
+	if !holds(ruleBodies(css, "body"), "padding: 1rem") {
 		t.Errorf("want the body to keep its 1rem padding as the gutter around the frame, got:\n%s", css)
 	}
 }

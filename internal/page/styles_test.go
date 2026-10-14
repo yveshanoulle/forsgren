@@ -17,6 +17,79 @@ func stylesCSS(t *testing.T) string {
 	return string(css)
 }
 
+// cssSheet is a stylesheet read into its rules, so a test finds a rule by its
+// selector instead of matching the file's text; text is the file as written,
+// for the failure messages.
+type cssSheet struct {
+	text  string
+	rules []cssRule
+}
+
+// cssRule is one rule of a stylesheet: its selector list, joined by ", ",
+// and its declarations as written between the braces.
+type cssRule struct {
+	selector, body string
+}
+
+// stylesSheet is the embedded styles.css read into its rules.
+func stylesSheet(t *testing.T) cssSheet {
+	t.Helper()
+	return parseCSS(stylesCSS(t))
+}
+
+// parseCSS reads css into its rules in their order, comments left out.
+func parseCSS(css string) cssSheet {
+	sheet := cssSheet{text: css}
+	bare := regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(css, "")
+	for _, r := range regexp.MustCompile(`([^{}]+)\{([^}]*)\}`).FindAllStringSubmatch(bare, -1) {
+		parts := strings.Split(r[1], ",")
+		for i, part := range parts {
+			parts[i] = strings.TrimSpace(part)
+		}
+		sheet.rules = append(sheet.rules, cssRule{selector: strings.Join(parts, ", "), body: r[2]})
+	}
+	return sheet
+}
+
+// bodies are the bodies of the rules whose selector is selector.
+func (s cssSheet) bodies(selector string) (bodies []string) {
+	for _, r := range s.rules {
+		if r.selector == selector {
+			bodies = append(bodies, r.body)
+		}
+	}
+	return bodies
+}
+
+// declares tells whether a rule whose selector is selector holds declaration,
+// written as "property: value".
+func (s cssSheet) declares(selector, declaration string) bool {
+	for _, body := range s.bodies(selector) {
+		if declares(body, declaration) {
+			return true
+		}
+	}
+	return false
+}
+
+// selectorsDeclaring are the selectors of the rules that hold declaration.
+func (s cssSheet) selectorsDeclaring(declaration string) (selectors []string) {
+	for _, r := range s.rules {
+		if declares(r.body, declaration) {
+			selectors = append(selectors, r.selector)
+		}
+	}
+	return selectors
+}
+
+// declares tells whether body holds declaration, "property: value", with any
+// space after the colon.
+func declares(body, declaration string) bool {
+	property, value, _ := strings.Cut(declaration, ": ")
+	pattern := `(?:^|[\s;])` + regexp.QuoteMeta(property) + `:\s*` + regexp.QuoteMeta(value) + `;`
+	return regexp.MustCompile(pattern).MatchString(body)
+}
+
 // TestLabelDashIsDecorative (forsgren#38, review): the dash before a label
 // row's heading is drawn for the eye only, with empty alternative text, so
 // a screen reader reads "Acme Shop: API", never "en dash API".
@@ -34,22 +107,22 @@ func TestLabelDashIsDecorative(t *testing.T) {
 // changes all: bold and a font-size in rem above the body's 1rem, the look the
 // caption had. No caption rule is left, as no table has a caption.
 func TestOneH1RuleStylesEveryPagesHeading(t *testing.T) {
-	css := stylesCSS(t)
-	checkHeadingLook(t, h1Rule(t, css))
-	if regexp.MustCompile(`\bcaption\s*\{`).MatchString(css) {
-		t.Errorf("want no caption rule in styles.css, got:\n%s", css)
+	sheet := stylesSheet(t)
+	checkHeadingLook(t, h1Rule(t, sheet))
+	if regexp.MustCompile(`\bcaption\s*\{`).MatchString(sheet.text) {
+		t.Errorf("want no caption rule in styles.css, got:\n%s", sheet.text)
 	}
 }
 
-// h1Rule is the body of the one h1 rule of css; it stops t when there is not
-// exactly one.
-func h1Rule(t *testing.T, css string) string {
+// h1Rule is the body of the one h1 rule of sheet; it stops t when there is
+// not exactly one.
+func h1Rule(t *testing.T, sheet cssSheet) string {
 	t.Helper()
-	rules := regexp.MustCompile(`(?s)(?:^|\n)h1\s*\{([^}]*)\}`).FindAllStringSubmatch(css, -1)
+	rules := sheet.bodies("h1")
 	if len(rules) != 1 {
-		t.Fatalf("want one h1 rule in styles.css, got %d in:\n%s", len(rules), css)
+		t.Fatalf("want one h1 rule in styles.css, got %d in:\n%s", len(rules), sheet.text)
 	}
-	return rules[0][1]
+	return rules[0]
 }
 
 // checkHeadingLook fails t unless rule is bold (600) and sets a font-size in
@@ -73,14 +146,14 @@ func checkHeadingLook(t *testing.T, rule string) {
 // 1800px screen (112.5rem), so below the cap the page and its tables follow
 // the screen. The old 48rem held the tables to 768px.
 func TestBodyWidthGrowsWithTheScreenUpToAWideCap(t *testing.T) {
-	css := stylesCSS(t)
-	rule := regexp.MustCompile(`(?s)(?:^|\n)body\s*\{([^}]*)\}`).FindStringSubmatch(css)
-	if rule == nil {
-		t.Fatalf("want a body rule in styles.css, got:\n%s", css)
+	sheet := stylesSheet(t)
+	rules := sheet.bodies("body")
+	if len(rules) == 0 {
+		t.Fatalf("want a body rule in styles.css, got:\n%s", sheet.text)
 	}
-	width := regexp.MustCompile(`max-width:\s*([0-9.]+)rem`).FindStringSubmatch(rule[1])
+	width := regexp.MustCompile(`max-width:\s*([0-9.]+)rem`).FindStringSubmatch(rules[0])
 	if width == nil {
-		t.Fatalf("want the body rule to set a max-width in rem, got:\n%s", rule[1])
+		t.Fatalf("want the body rule to set a max-width in rem, got:\n%s", rules[0])
 	}
 	const screen1800px = 112.5
 	if n, err := strconv.ParseFloat(width[1], 64); err != nil || n < screen1800px {
@@ -93,43 +166,43 @@ func TestBodyWidthGrowsWithTheScreenUpToAWideCap(t *testing.T) {
 // page or column count, and the tables of all pages are equally wide. No other
 // rule sets a width on a table or on its scroll box, so no page can differ.
 func TestEveryTableFillsTheBodyAndNoOtherRuleSetsItsWidth(t *testing.T) {
-	tables, others := tableWidthRules(stylesCSS(t))
+	sheet := stylesSheet(t)
+	tables := sheet.bodies("table")
 	if len(tables) != 1 {
 		t.Fatalf("want one table rule in styles.css, got %d", len(tables))
 	}
-	if !strings.Contains(tables[0], "width: 100%;") {
+	if !declares(tables[0], "width: 100%") {
 		t.Errorf("want the table rule to set width: 100%%, got:\n%s", tables[0])
 	}
-	for _, selector := range others {
+	for _, selector := range otherTableWidthSelectors(sheet) {
 		t.Errorf("want no width on %q (the table rule is the one source)", selector)
 	}
 }
 
-// tableWidthRules are the bodies of the rules of css whose selector is table,
-// and the selectors of the other rules on a table or .table-scroll that set a
-// width or a max-width.
-func tableWidthRules(css string) (tables, others []string) {
+// otherTableWidthSelectors are the selectors of the rules of sheet, other
+// than the table rule, on a table or .table-scroll that set a width or a
+// max-width.
+func otherTableWidthSelectors(sheet cssSheet) (selectors []string) {
 	onTable := regexp.MustCompile(`(^|[\s,])(table|\.table-scroll)\b`)
 	setsWidth := regexp.MustCompile(`(?:^|[\s;])(?:max-)?width\s*:`)
-	for _, r := range regexp.MustCompile(`(?s)([^{}]+)\{([^}]*)\}`).FindAllStringSubmatch(css, -1) {
-		selector := strings.TrimSpace(r[1])
-		switch {
-		case selector == "table":
-			tables = append(tables, r[2])
-		case onTable.MatchString(selector) && setsWidth.MatchString(r[2]):
-			others = append(others, selector)
+	for _, r := range sheet.rules {
+		if r.selector == "table" {
+			continue
+		}
+		if onTable.MatchString(r.selector) && setsWidth.MatchString(r.body) {
+			selectors = append(selectors, r.selector)
 		}
 	}
-	return tables, others
+	return selectors
 }
 
 // TestTheScrollbarSpaceIsAlwaysReserved (forsgren#153): the html rule sets
 // scrollbar-gutter: stable, so a page with a vertical scrollbar and one
 // without have the same width and the centred page does not jump between them.
 func TestTheScrollbarSpaceIsAlwaysReserved(t *testing.T) {
-	css := stylesCSS(t)
-	if !regexp.MustCompile(`(?s)(?:^|\n)html\s*\{[^}]*scrollbar-gutter:\s*stable;`).MatchString(css) {
-		t.Errorf("want an html rule with scrollbar-gutter: stable in styles.css, got:\n%s", css)
+	sheet := stylesSheet(t)
+	if !sheet.declares("html", "scrollbar-gutter: stable") {
+		t.Errorf("want an html rule with scrollbar-gutter: stable in styles.css, got:\n%s", sheet.text)
 	}
 }
 
@@ -138,27 +211,15 @@ func TestTheScrollbarSpaceIsAlwaysReserved(t *testing.T) {
 // without it, such as the settings table with its long cells, still wraps. So
 // the rule is on .no-wrap th and .no-wrap td, never on every th, td or table.
 func TestNoWrapCellsAreScopedByClass(t *testing.T) {
-	css := stylesCSS(t)
-	scoped := regexp.MustCompile(`(?s)(?:^|\n)\.no-wrap th,\s*\.no-wrap td\s*\{[^}]*white-space:\s*nowrap;`)
-	if !scoped.MatchString(css) {
-		t.Errorf("want a .no-wrap th, .no-wrap td rule with white-space: nowrap in styles.css, got:\n%s", css)
+	sheet := stylesSheet(t)
+	if !sheet.declares(".no-wrap th, .no-wrap td", "white-space: nowrap") {
+		t.Errorf("want a .no-wrap th, .no-wrap td rule with white-space: nowrap in styles.css, got:\n%s", sheet.text)
 	}
-	for _, selector := range nowrapSelectors(css) {
+	for _, selector := range sheet.selectorsDeclaring("white-space: nowrap") {
 		if !strings.Contains(selector, "no-wrap") && !strings.Contains(selector, "visually-hidden") {
 			t.Errorf("want white-space: nowrap only under .no-wrap, got it on %q", selector)
 		}
 	}
-}
-
-// nowrapSelectors are the selectors of the rules of css that set
-// white-space: nowrap.
-func nowrapSelectors(css string) (selectors []string) {
-	for _, r := range regexp.MustCompile(`(?s)([^{}]+)\{([^}]*)\}`).FindAllStringSubmatch(css, -1) {
-		if strings.Contains(r[2], "white-space: nowrap") {
-			selectors = append(selectors, strings.TrimSpace(r[1]))
-		}
-	}
-	return selectors
 }
 
 // TestRunningTextHasAReadableMeasureWhileTablesKeepTheFullWidth (forsgren#153,
@@ -166,12 +227,11 @@ func nowrapSelectors(css string) (selectors []string) {
 // line of the Legend stays readable on a wide screen, while the table rule
 // has no max-width and so each table keeps the full width of the page.
 func TestRunningTextHasAReadableMeasureWhileTablesKeepTheFullWidth(t *testing.T) {
-	css := stylesCSS(t)
-	prose := regexp.MustCompile(`(?s)(?:^|\n)p,\s*li\s*\{[^}]*max-width:\s*72rem;`)
-	if !prose.MatchString(css) {
-		t.Errorf("want a p, li rule with max-width: 72rem in styles.css, got:\n%s", css)
+	sheet := stylesSheet(t)
+	if !sheet.declares("p, li", "max-width: 72rem") {
+		t.Errorf("want a p, li rule with max-width: 72rem in styles.css, got:\n%s", sheet.text)
 	}
-	tables, _ := tableWidthRules(css)
+	tables := sheet.bodies("table")
 	if len(tables) == 1 && strings.Contains(tables[0], "max-width") {
 		t.Errorf("want no max-width on the table rule, got:\n%s", tables[0])
 	}

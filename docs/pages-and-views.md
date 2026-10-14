@@ -535,7 +535,16 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   ("DORA metrics" on the three views and the root, Issues, Daily), and one `h1`
   rule in `styles.css` sets the look of every page's heading (forsgren#135), and every table has `<th scope>` headers; it scrolls
   sideways inside its own box on a narrow screen, so the page keeps its
-  1rem (16px) gutter and never scrolls sideways itself. `styles.css` sets
+  1rem (16px) gutter and never scrolls sideways itself. A page grows with
+  the screen up to 120rem (1920px) and is centred on a wider one; every page
+  has the same width, since `styles.css` reserves the scrollbar's space
+  whether or not the page scrolls, and every table fills that width, while
+  running text (paragraphs and list items) stops at 72rem (forsgren#153,
+  decision #160). The tables of the issues and days pages and of the numbers
+  and scoring views keep each cell on one line (class `no-wrap`); the
+  standard view's band text and the settings table wrap. The starter page,
+  forsgren.be, is 72rem wide, its text in a framed card (decision #161).
+  `styles.css` sets
   no colour but `color-scheme: light dark`, so light and dark mode follow
   the browser's own colours, the lines drawn in the text colour, with one
   narrow exception (Yves's ruling on forsgren#114 and forsgren#126): the

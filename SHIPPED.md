@@ -298,3 +298,15 @@ Steps: 1-2 the renderer with its link test and its refusal of anything outside t
 Live since 2026-10-14: https://forsgren.be/ (HTTPS enforced, `www` redirects), deployed by the push run 38545347984 and redeployed by the v1.0.0 release run 38549004390. What it took on the GitHub side, done by Yves: Pages switched on with GitHub Actions as its source; DNS for the apex (four A, four AAAA) and `www` (CNAME); the custom domain; a `v*` tag rule on the `github-pages` environment so a release run may deploy. Twice today the certificate stayed at `new` because the domain had been set before DNS was complete; removing and re-adding the domain fixed it at once (written into docs/ci.md and agent-installer.md).
 
 Not done here: the renderer names the file of unsupported Markdown and quotes the line, but not its line number, and no test pins a quote inside a link target (#158).
+
+---
+
+## 2026-10-14 — the pages use the screen: up to 120rem wide, tables on one line, released as 1.1.0 ([#153](https://github.com/yveshanoulle/forsgren/issues/153))
+
+Yves (#153): at 1800px the tables used a narrow strip of the screen and the dates and the trend ("5 ▲ +6") wrapped to a second line; he wanted one line, a table that scales with the screen, and the same width on every page so nothing jumps. The cause was a 48rem (768px) cap on every page, cells free to wrap at hyphens and spaces, and pages with a scrollbar narrower than pages without.
+
+Steps, each its own FBP: 1 pages grow to 120rem, centred beyond (5b612bd); 2 forsgren.be stays at 72rem (135e303); 2b forsgren.be's text in a framed card (ead8669); 3 every table fills the page width (6c7ee3c); 4 the scrollbar's space is always reserved (d796063); 5 a no-wrap rule scoped by class (f84869d); 6 the issues, days, numbers and scoring tables never wrap, the standard view's band text and the settings table still do (c1c61ca); 7 running text stops at 72rem (2f17282); 8 the stylesheet tests share one CSS parser and the layout is in docs/pages-and-views.md (this commit). Decisions: #160 (Yves's answers: 120rem, forsgren.be 72rem, text 72rem, which cells never wrap) and #161 (the framed card).
+
+A lesson recorded on #161: step 1 widened every page including forsgren.be, and its push redeployed forsgren.be at 120rem before step 2 narrowed it again; a shared-stylesheet change that widens everything should land with the rule that narrows the exception.
+
+Not tested by a gate: how it looks in a browser at a given width (the repository has no headless browser); the rules that cause it are pinned by tests, and Yves checks it by eye at 1800px.
