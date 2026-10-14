@@ -10,7 +10,6 @@ in the same commit — see
 - A view with the numbers and the DORA Quick Check scores side by side — [#55](https://github.com/yveshanoulle/forsgren/issues/55)
 - A config option for how far back the first collect run reads — [#57](https://github.com/yveshanoulle/forsgren/issues/57)
 - Auto-update docs: the README section and the check-update command line, from #58 — [#60](https://github.com/yveshanoulle/forsgren/issues/60)
-- `auto_update_level` is no longer required when `auto_update` is true — [#157](https://github.com/yveshanoulle/forsgren/issues/157)
 - Settings to hide the Issues page (default shown) and the daily page (default hidden), also from the menu — [#159](https://github.com/yveshanoulle/forsgren/issues/159)
 - Starter page renderer: name the line of unsupported Markdown, and pin a quote in a link target — [#158](https://github.com/yveshanoulle/forsgren/issues/158)
 - The legend page explains patch, minor and major — [#156](https://github.com/yveshanoulle/forsgren/issues/156)
