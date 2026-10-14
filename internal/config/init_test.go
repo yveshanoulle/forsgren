@@ -26,6 +26,8 @@ const starterConfig = "version: 1\nview: standard\nauto_update: true\n" +
 	"history_chunk_days: 100  # how many days back each run adds until history_days is reached, " +
 	"1 to 365\n" +
 	"working_hours: 8  # a working day is configured as this many hours, 1 to 24\n" +
+	"issues_page: true  # the Issues page and its menu entry: true shows them, false leaves them out\n" +
+	"days_page: false  # the Daily page and its menu entry: false leaves them out, true brings them back\n" +
 	"projects: []\n"
 
 // isStarterLine says whether a line may stand in the starter: blank, a
@@ -211,6 +213,17 @@ func TestStarterPassesLoad(t *testing.T) {
 	}
 	if !cfg.AutoUpdate || cfg.AutoUpdateLevel != LevelMajor {
 		t.Errorf("want auto_update on at level major, got %v, %q", cfg.AutoUpdate, cfg.AutoUpdateLevel)
+	}
+	wantPageKeysWritten(t, cfg)
+}
+
+// wantPageKeysWritten (forsgren#159): the starter writes issues_page: true and
+// days_page: false itself, so the settings page marks both as set.
+func wantPageKeysWritten(t *testing.T, cfg Config) {
+	t.Helper()
+	if !cfg.IssuesPage || cfg.DaysPage || !cfg.written["issues_page"] || !cfg.written["days_page"] {
+		t.Errorf("want issues_page true and days_page false, both written, got %v, %v, %v",
+			cfg.IssuesPage, cfg.DaysPage, cfg.written)
 	}
 }
 
