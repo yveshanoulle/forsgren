@@ -82,3 +82,24 @@ func TestNewWithdrawalsAreWrittenByRepositoryThenIssue(t *testing.T) {
 		t.Errorf("want %v, got %v, %v", want, got, err)
 	}
 }
+
+// TestWithoutWithdrawnDropsOnlyTheWithdrawnIssues (forsgren#155): a withdrawn
+// issue goes, a reinstated one and one no line names stay, the repository
+// compared ignoring case, the order kept.
+func TestWithoutWithdrawnDropsOnlyTheWithdrawnIssues(t *testing.T) {
+	failures := []Failure{
+		{Repository: "acme/app", Issue: 1, OpenedAt: withdrawnAt},
+		{Repository: "acme/app", Issue: 2, OpenedAt: withdrawnAt},
+		{Repository: "acme/app", Issue: 3, OpenedAt: withdrawnAt},
+	}
+	got := WithoutWithdrawn(failures, []Withdrawal{
+		{Repository: "ACME/app", Issue: 1, Withdrawn: true, Reason: ReasonLabelRemoved, At: withdrawnAt},
+		{Repository: "acme/app", Issue: 2, At: withdrawnAt},
+	})
+	if want := failures[1:]; !slices.Equal(got, want) {
+		t.Errorf("want %v, got %v", want, got)
+	}
+	if got := WithoutWithdrawn(failures, nil); !slices.Equal(got, failures) {
+		t.Errorf("want nothing dropped without withdrawals, got %v", got)
+	}
+}

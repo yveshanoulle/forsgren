@@ -191,7 +191,8 @@ func markBugs(events []history.IssueEvent, bugs []history.IssueBug) []history.Is
 // and, forsgren#17, recovery time), the commits file next to it
 // (data/commits.csv beside data/deployments.csv, lead time, forsgren#16)
 // and the failures file next to it (data/failures.csv, with the history
-// change fail rate, forsgren#18), at the render time at.
+// change fail rate, forsgren#18) less the issues the withdrawn file beside it
+// takes back (forsgren#155), at the render time at.
 func rowsOf(cfg config.Config, path string, at time.Time) ([]metrics.Row, error) {
 	records, err := loadOrNone(path, history.Load)
 	if err != nil {
@@ -205,6 +206,11 @@ func rowsOf(cfg config.Config, path string, at time.Time) ([]metrics.Row, error)
 	if err != nil {
 		return nil, err
 	}
+	withdrawn, err := loadOrNone(beside(path, collect.WithdrawnFile), history.LoadWithdrawals)
+	if err != nil {
+		return nil, err
+	}
+	failures = history.WithoutWithdrawn(failures, withdrawn)
 	data := metrics.Data{Records: records, Commits: commits, Failures: failures, WorkingHours: cfg.WorkingHours}
 	return metrics.Rows(cfg.Projects, data, at), nil
 }

@@ -115,3 +115,20 @@ func (w Withdrawal) validate() error {
 			fmt.Sprintf("reason %q is not one of %v", w.Reason, withdrawalReasons[1:])},
 	)
 }
+
+// WithoutWithdrawn is failures less the issues that withdrawals, as their
+// newest lines say (LoadWithdrawals), withdraw, in the order of failures
+// (forsgren#155). A reinstated issue stays; an issue no line names stays.
+func WithoutWithdrawn(failures []Failure, withdrawals []Withdrawal) []Failure {
+	withdrawn := make(map[IssueKey]bool, len(withdrawals))
+	for _, w := range withdrawals {
+		withdrawn[w.Key()] = w.Withdrawn
+	}
+	kept := make([]Failure, 0, len(failures))
+	for _, f := range failures {
+		if !withdrawn[f.Key()] {
+			kept = append(kept, f)
+		}
+	}
+	return kept
+}

@@ -1165,6 +1165,12 @@
    "score": 10.0,
    "checkedAt": "2026-10-14",
    "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_withdrawn_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-14",
+   "minScore": 10.0
   }
  ]
 }

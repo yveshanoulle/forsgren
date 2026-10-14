@@ -299,6 +299,7 @@
     "github.com/yveshanoulle/forsgren/internal/history/withdrawals.go:fields": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/withdrawals.go:toWithdrawal": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/withdrawals.go:validate": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/history/withdrawals.go:WithoutWithdrawn": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/failures.go:LoadFailures": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/failures.go:AppendFailures": 100.0,
     "github.com/yveshanoulle/forsgren/internal/history/failures.go:IssueKeyOf": 100.0,
