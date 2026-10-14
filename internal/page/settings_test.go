@@ -18,7 +18,7 @@ import (
 // mutation: a limit of the page that drifted by one.
 func TestPossibleValuesAreExactlyWhatCheckConfigAccepts(t *testing.T) {
 	for _, setting := range (config.Config{}).Settings() {
-		possible := possibleOf(setting.Key)
+		possible := possibleListOf(setting.Key)
 		if possible == "" {
 			t.Fatalf("want possible values for %s on the settings page, got none", setting.Key)
 		}

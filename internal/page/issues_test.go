@@ -275,3 +275,28 @@ func wantArrows(t *testing.T, what string, set func(day metrics.IssueDay, count,
 		span(2, "trend-down", "decreased by 2", "▼ −2"),
 		span(4, "trend-flat", "unchanged", "–"))
 }
+
+// trendNote explains the arrows after Open and Open bugs (forsgren#126).
+const trendNote = "An arrow after Open and after Open bugs shows which way the count moved from the end of " +
+	"the period before: red when it rose, green when it fell, grey when it did not change. Red and green mean " +
+	"rose and fell, not worse and better. A day is compared with the day before, a week with the week before, " +
+	"a month with the month before and a year with the year before; the oldest row of each kind is compared " +
+	"with the count just before its period, even when that period is outside the rows shown."
+
+// bugsNote explains the Open bugs column (forsgren#126).
+const bugsNote = "Open bugs is Open counted over the issues that carry the GitHub label bug, as the label is at " +
+	"the latest collection, so adding or removing the label moves the issue's whole history."
+
+// TestLegendExplainsTheTrendArrows (forsgren#126, forsgren#114): the legend's
+// Issues pages section says what the red, green and grey arrows mean, that red
+// and green are not worse and better, and what the oldest row of each kind is
+// compared with.
+func TestLegendExplainsTheTrendArrows(t *testing.T) {
+	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()), "<p>"+trendNote+"</p>\n")
+}
+
+// TestLegendExplainsTheOpenBugsColumn (forsgren#126): the legend says what
+// Open bugs counts and that the label is the one at the latest collection.
+func TestLegendExplainsTheOpenBugsColumn(t *testing.T) {
+	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()), "<p>"+bugsNote+"</p>\n")
+}

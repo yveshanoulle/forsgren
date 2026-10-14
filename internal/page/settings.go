@@ -30,6 +30,21 @@ func list(names ...string) string { return strings.Join(names, ", ") }
 // upTo is the whole numbers from 1 to most.
 func upTo(most int) string { return fmt.Sprintf("1 to %d", most) }
 
-// possibleOf is the values the key accepts, empty for a key the page does not
-// know.
-func possibleOf(key string) string { return possibleValues[key] }
+// possibleNotes are the rule a key's values come with, by key name: what
+// check-config enforces beside the list.
+var possibleNotes = map[string]string{
+	"auto_update_level": "required when auto_update is true",
+}
+
+// possibleListOf is the values the key accepts, empty for a key the page does
+// not know; the drift test holds exactly this list to the config loader.
+func possibleListOf(key string) string { return possibleValues[key] }
+
+// possibleOf is what the Possible values cell says: the list, and in brackets
+// the rule of the key when it has one.
+func possibleOf(key string) string {
+	if note, ok := possibleNotes[key]; ok {
+		return fmt.Sprintf("%s (%s)", possibleListOf(key), note)
+	}
+	return possibleListOf(key)
+}

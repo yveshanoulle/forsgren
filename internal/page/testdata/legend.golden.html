@@ -53,6 +53,8 @@
     <h2>Issues pages</h2>
     <p>Days are in UTC, weeks run Monday to Sunday, months and years follow the calendar, and a week that spans two months is in both.</p>
     <p>Open is the issues open at the end of the period. Total is the issues created up to the end of the period, open or closed; a reopened issue is not created again. Open / Total is Open out of Total, in whole percent, rounded down, and a dash when Total is 0.</p>
+    <p>Open bugs is Open counted over the issues that carry the GitHub label bug, as the label is at the latest collection, so adding or removing the label moves the issue's whole history.</p>
+    <p>An arrow after Open and after Open bugs shows which way the count moved from the end of the period before: red when it rose, green when it fell, grey when it did not change. Red and green mean rose and fell, not worse and better. A day is compared with the day before, a week with the week before, a month with the month before and a year with the year before; the oldest row of each kind is compared with the count just before its period, even when that period is outside the rows shown.</p>
     <h2>Settings page</h2>
     <p>The Default column of the settings page says whether the default applies: True when forsgren.config.yml does not set the key, so the current value is the default, and False when the file sets it, even to the default's value.</p>
   </main>
