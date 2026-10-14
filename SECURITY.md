@@ -33,5 +33,5 @@ forsgren reads GitHub data (workflow runs, deployments, issues) with the
 token an installation gives it. Reports about how forsgren handles that
 token, for example leaking it into output, logs or the published page, or
 using it for more than reading, are in scope, as are reports about the
-static page publishing anything beyond numbers and dates (see README,
+static page publishing anything beyond numbers and dates (see docs/pages-and-views.md,
 Privacy).

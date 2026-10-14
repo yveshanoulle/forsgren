@@ -480,4 +480,3 @@ no label history, which would take one call per issue.
 - The Open bugs of a repository above 10,000 bug-labelled issues is incomplete
   too: a warning, but its cell is not marked as incomplete (a known limit,
   forsgren#140).
-
