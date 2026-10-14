@@ -1,44 +1,9 @@
 package installerdoc
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
-
-const installerFile = "../../agent-installer.md"
-
-func readInstaller(t *testing.T) string {
-	t.Helper()
-	b, err := os.ReadFile(installerFile)
-	if err != nil {
-		t.Fatalf("read %s: %v", installerFile, err)
-	}
-	return string(b)
-}
-
-// section returns the text of the "## " section whose heading starts with
-// heading, from the heading line up to the next "## " heading (or the end).
-func section(t *testing.T, doc, heading string) string {
-	t.Helper()
-	lines := strings.Split(doc, "\n")
-	start := -1
-	for i, l := range lines {
-		if start < 0 {
-			if strings.HasPrefix(l, "## "+heading) {
-				start = i
-			}
-			continue
-		}
-		if strings.HasPrefix(l, "## ") {
-			return strings.Join(lines[start:i], "\n")
-		}
-	}
-	if start < 0 {
-		t.Fatalf("no section %q in %s", heading, installerFile)
-	}
-	return strings.Join(lines[start:], "\n")
-}
 
 // TestStep16RemovesCustomDomainBeforeReSetting (forsgren#142, step 142-9):
 // setting the same custom domain again starts no certificate request, so

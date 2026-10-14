@@ -274,3 +274,15 @@ The proof (Yves's rule): #131, forsgren.forsgren.be, installed by a fresh Sonnet
 What attempt 3 taught, now in the file (step 9): GitHub starts no new certificate request when the same custom domain is saved again, so step 16 removes it first (`-F cname=null`, not yet run in a real install) and sets it again, at most once, and otherwise gives the person the Settings > Pages click path that worked; every `rm -r WORK` first leaves the folder, so the agent never deletes its own working directory. The new package `internal/installerdoc` holds the first tests that read the file (three: the removal call, the click-path tip, and the cd before each rm).
 
 Not covered here: a scheduled update arriving with nobody starting it (#154), the domain-verification click path (Yves installs 1.x on a new domain once #150 is done), and a gate on the "Tested with" version (#148).
+
+---
+
+## 2026-10-14 — new installations update at major level, released as 1.0.0 ([#150](https://github.com/yveshanoulle/forsgren/issues/150))
+
+Yves asked (2026-10-14) that a new installation takes every forsgren release by default, now that the update path is robust and there is an agent installer, and ruled that this ships as forsgren 1.0.0. CONVENTIONS.md keeps its definition of a major release (an installation that does nothing would stop working), which this change does not meet; 1.0.0 is a major anyway because forsgren stayed on 0.x too long, and with the update guard, the quality gates and the agent installer in place, now is the time: 1.0.0 marks the defaults as stable.
+
+What changed: 1 the starter writes `auto_update_level: major` (2186387); 2 the starter's comment says what that means (c9bbe00); 3 agent-installer.md step 7 and its step 9 example (6f2265a); 4 docs/configuration.md and docs/updating-and-releases.md (80e50f3); 5 the documentation tests share one helper (this commit). The wording, approved on #150 with Yves's four adjustments: `major` permits major, minor and patch updates and does not mean a major release is safe; eligible releases merge automatically unless the update fails or is blocked; what the safeguards check (a release is cut only when Quality is green, Dependabot proposes it only after the update wait, the merge goes through only for a clean pin change to a published release); and, said out loud, nothing checks a release against the installation's own data.
+
+What does not change: an existing installation keeps the level its own forsgren.config.yml says (`init-config` never rewrites it), the update wait default stays 3 days, and `auto_update_level` stays required while `auto_update` is true (#157 is about that). For an installation at `patch` or `minor`, v0.8.7 to v1.0.0 is a major update, so its Dependabot pull request waits for a person.
+
+Tests: the starter's level and its limitation sentence (internal/config), and internal/installerdoc reads agent-installer.md and the docs and requires every stated default to equal the starter's level, so a future default change cannot leave a document behind.

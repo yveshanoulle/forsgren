@@ -1,27 +1,9 @@
 package installerdoc
 
 import (
-	"os"
-	"path/filepath"
 	"regexp"
 	"testing"
-
-	"github.com/yveshanoulle/forsgren/internal/config"
 )
-
-// starterLevel is the auto_update_level forsgren's own starter loads with.
-func starterLevel(t *testing.T) string {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), "forsgren.config.yml")
-	if err := os.WriteFile(path, []byte(config.Starter), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	cfg, err := config.Load(path)
-	if err != nil {
-		t.Fatalf("want the starter to load, got %v", err)
-	}
-	return cfg.AutoUpdateLevel
-}
 
 // TestInstallerDefaultLevelIsTheStartersLevel (forsgren#150): the level the
 // installer names as the default in the auto-update question, and the one in
