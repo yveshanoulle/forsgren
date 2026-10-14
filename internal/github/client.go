@@ -60,6 +60,9 @@ type Client struct {
 	// tokenName is the environment variable the token came from, which a
 	// refusal tells the caller to check.
 	tokenName string
+	// expiry is the token's expiry date from the last answer that had one,
+	// zero for none (tokenexpiry.go).
+	expiry time.Time
 }
 
 // defaultTokenName is the token a refusal names unless WithTokenName says
@@ -196,6 +199,7 @@ func (c *Client) do(ctx context.Context, k call) ([]byte, http.Header, error) {
 		return nil, nil, fmt.Errorf("%s: cannot reach GitHub: %w", t.repo, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+	c.noteExpiry(resp.Header)
 	if err := statusError(t, resp, c.tokenName); err != nil {
 		return nil, nil, err
 	}
