@@ -2,7 +2,8 @@
 # Scripts/build_starter_page.sh
 #
 # Builds forsgren's starter page (forsgren#132): README.md rendered to one
-# HTML page by ./cmd/readmepage, with the CNAME file GitHub Pages reads for
+# HTML page by ./cmd/readmepage, with styles.css (the metrics site's own
+# stylesheet) next to it and the CNAME file GitHub Pages reads for
 # the custom domain. The page is forsgren.be.
 #
 # Usage: Scripts/build_starter_page.sh [out-dir]   (default: .build/starter)

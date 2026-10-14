@@ -55,10 +55,11 @@ func TestRenderMakesEveryLinkAbsoluteAndKeepsTheContent(t *testing.T) {
 	}
 }
 
-// relativeHrefs are the hrefs of page that are neither https nor an anchor.
+// relativeHrefs are the links of page that are neither https nor an anchor:
+// the stylesheet link is a file of the page, not a link.
 func relativeHrefs(page string) []string {
 	var relative []string
-	for _, href := range regexp.MustCompile(`href="([^"]*)"`).FindAllStringSubmatch(page, -1) {
+	for _, href := range regexp.MustCompile(`<a href="([^"]*)"`).FindAllStringSubmatch(page, -1) {
 		if !strings.HasPrefix(href[1], "https://") && !strings.HasPrefix(href[1], "#") {
 			relative = append(relative, href[1])
 		}

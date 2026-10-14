@@ -435,7 +435,7 @@
     "github.com/yveshanoulle/forsgren/internal/page/page.go:Render": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:WriteSite": 90.8,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:writePage": 85.6,
-    "github.com/yveshanoulle/forsgren/internal/page/page.go:copyStyles": 74.9,
+    "github.com/yveshanoulle/forsgren/internal/page/page.go:copyStyles": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:IsLabel": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:Table": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/trend.go:trendViewOf": 100.0,
@@ -554,6 +554,8 @@
     "github.com/yveshanoulle/forsgren/internal/readmepage/render.go:unsupported": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/readmepage/main.go:main": 0.0,
     "github.com/yveshanoulle/forsgren/cmd/readmepage/main.go:run": 100.0,
-    "github.com/yveshanoulle/forsgren/cmd/readmepage/main.go:write": 92.8
+    "github.com/yveshanoulle/forsgren/cmd/readmepage/main.go:write": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/readmepage/main.go:publish": 81.7,
+    "github.com/yveshanoulle/forsgren/internal/page/page.go:Styles": 100.0
   }
 }

@@ -379,10 +379,17 @@ func writePage(dir siteDir, name string, data Data) error {
 	return os.WriteFile(file, buf.Bytes(), 0o600)
 }
 
+// stylesheet is styles.css as authored, for Styles.
+//
+//go:embed styles.css
+var stylesheet []byte
+
+// Styles is the one stylesheet every page of the site links, as authored.
+// The starter page (forsgren#132) is styled with it too.
+func Styles() []byte {
+	return stylesheet
+}
+
 func copyStyles(dir siteDir) error {
-	css, err := files.ReadFile("styles.css")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Join(string(dir), "styles.css"), css, 0o600)
+	return os.WriteFile(filepath.Join(string(dir), "styles.css"), Styles(), 0o600)
 }

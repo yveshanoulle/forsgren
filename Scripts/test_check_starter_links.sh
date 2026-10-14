@@ -4,12 +4,12 @@
 # Self-test for Scripts/check_starter_links.sh (forsgren#132), run in pre
 # before the gate it validates. forsgren's own. Every repository and host
 # name here is made up (acme/app, example.org).
-#   1. anchors, forsgren (root, a blob path, an anchor), forsgren-template
-#      and forsgren.forsgren.be                       -> green
+#   1. the stylesheet styles.css, anchors, forsgren (root, a blob path, an
+#      anchor), forsgren-template and forsgren.forsgren.be -> green
 #   2. a link into another repository                  -> red, naming file:line
 #      and the host, and never printing the path
 #   3. another host                                    -> red
-#   4. lookalikes: forsgren-templates, forsgrenx and
+#   4. lookalikes: styles.css.evil, forsgren-templates, forsgrenx and
 #      forsgren.forsgren.be.example.org                -> red, each
 #   5. an http link to an allowed host                 -> red
 #   6. a relative link                                 -> red
@@ -40,12 +40,13 @@ new_page() {
   printf '<!DOCTYPE html>\n<html lang="en">\n<head><title>t</title></head>\n<body>\n%s\n</body>\n</html>\n' "$2" > "${PAGE}/index.html"
 }
 
-new_page clean '<a href="#usage">a</a> <a href="https://github.com/yveshanoulle/forsgren">b</a>
+new_page clean '<link rel="stylesheet" href="styles.css">
+<a href="#usage">a</a> <a href="https://github.com/yveshanoulle/forsgren">b</a>
 <a href="https://github.com/yveshanoulle/forsgren/blob/main/docs/ci.md#x">c</a>
 <a href="https://github.com/yveshanoulle/forsgren-template">d</a>
 <a href="https://forsgren.forsgren.be">e</a> <a href="https://forsgren.forsgren.be/standard/">f</a>'
 capture "$GATE" "$PAGE"
-want_green "1. the three destinations and anchors are clean" "6 link(s)"
+want_green "1. the three destinations and anchors are clean" "7 link(s)"
 
 new_page repo '<a href="https://github.com/acme/app/issues/7">x</a>'
 capture "$GATE" "$PAGE"
@@ -62,6 +63,7 @@ capture "$GATE" "$PAGE"
 want_exit "3. another host is red" 1 "a link to example.org"
 
 for lookalike in \
+  'styles.css.evil' \
   'https://github.com/yveshanoulle/forsgren-templates' \
   'https://github.com/yveshanoulle/forsgrenx' \
   'https://forsgren.forsgren.be.example.org/'; do

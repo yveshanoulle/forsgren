@@ -13,7 +13,7 @@
 # at all, but the tool's own root) and is never run on the starter page.
 #
 # Every href and src of every .html file under the directory must be an
-# #anchor, or an https link to
+# #anchor, the page's own stylesheet (exactly styles.css), or an https link to
 #   github.com/yveshanoulle/forsgren           (and any path or anchor in it)
 #   github.com/yveshanoulle/forsgren-template  (the same)
 #   forsgren.forsgren.be                       (the same)
@@ -44,7 +44,7 @@ DIR="${1:-.build/starter}"
 # The one pattern: an allowed link. The row starts at column 0 with ALLOWED=:
 # Scripts/test_check_starter_links.sh's mutation proof replaces it by a
 # pattern that matches everything.
-ALLOWED='^(#.*|https://(github\.com/yveshanoulle/(forsgren|forsgren-template)|forsgren\.forsgren\.be)([/#?].*)?)$'
+ALLOWED='^(#.*|styles\.css|https://(github\.com/yveshanoulle/(forsgren|forsgren-template)|forsgren\.forsgren\.be)([/#?].*)?)$'
 
 if [ ! -d "$DIR" ]; then
   echo "❌ FAIL: starter page dir not found: ${DIR}"

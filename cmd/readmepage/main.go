@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/yveshanoulle/forsgren/internal/page"
 	"github.com/yveshanoulle/forsgren/internal/readmepage"
 )
 
@@ -47,16 +48,22 @@ func run(args []string, stderr io.Writer) int {
 	return 0
 }
 
-// write renders the Markdown file readme into out/index.html.
+// write renders the Markdown file readme into out/index.html, with the
+// site's stylesheet next to it as out/styles.css.
 func write(readme, base, out string) error {
 	src, err := os.ReadFile(filepath.Clean(readme))
 	if err != nil {
 		return err
 	}
-	page, err := readmepage.Render(string(src), base)
+	html, err := readmepage.Render(string(src), base)
 	if err != nil {
 		return fmt.Errorf("%s: %w", readme, err)
 	}
+	return publish(out, map[string][]byte{"styles.css": page.Styles(), "index.html": []byte(html)})
+}
+
+// publish writes the files, by name, into the directory out, creating it.
+func publish(out string, files map[string][]byte) error {
 	if err := os.MkdirAll(out, 0o750); err != nil {
 		return err
 	}
@@ -65,5 +72,10 @@ func write(readme, base, out string) error {
 		return err
 	}
 	defer func() { _ = root.Close() }()
-	return root.WriteFile("index.html", []byte(page), 0o600)
+	for name, data := range files {
+		if err := root.WriteFile(name, data, 0o600); err != nil {
+			return err
+		}
+	}
+	return nil
 }

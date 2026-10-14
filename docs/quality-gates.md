@@ -281,8 +281,9 @@ The POST gates, on the generated site:
   files, since nothing linted is not clean.
 - **starter page build** (`Scripts/build_starter_page.sh`, forsgren's own,
   forsgren#132): renders `README.md` with `./cmd/readmepage` into
-  `.build/starter` (`index.html`, and `CNAME` holding `forsgren.be`, which
-  GitHub Pages reads for the custom domain). Red when the renderer refuses
+  `.build/starter` (`index.html`, `styles.css`, the same stylesheet the
+  metrics site links, and `CNAME` holding `forsgren.be`, which GitHub Pages
+  reads for the custom domain). Red when the renderer refuses
   the README (a construct outside its subset, a link that is neither https,
   an anchor nor a path in the repository) or the page cannot be written, and
   a failed build writes nothing into the output directory. Its self-test is
@@ -300,7 +301,7 @@ The POST gates, on the generated site:
   tag red.
 - **starter page links** (`Scripts/check_starter_links.sh`, forsgren's own,
   forsgren#132, decision forsgren#149): every `href` and `src` of the page in
-  `.build/starter` is an `#anchor` or an https link into
+  `.build/starter` is an `#anchor`, the page's own `styles.css`, or an https link into
   `github.com/yveshanoulle/forsgren`, `github.com/yveshanoulle/forsgren-template`
   or `forsgren.forsgren.be`, and nothing else. The names end where they end:
   `forsgren-templates` and `forsgren.forsgren.be.example.org` are findings,

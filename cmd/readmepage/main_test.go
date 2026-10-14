@@ -36,7 +36,7 @@ func TestRunRendersTheRealReadmeToTheStarterPage(t *testing.T) {
 // notAbsolute are the hrefs of page that do not start with https://.
 func notAbsolute(page string) []string {
 	var bad []string
-	for _, href := range regexp.MustCompile(`href="([^"]*)"`).FindAllStringSubmatch(page, -1) {
+	for _, href := range regexp.MustCompile(`<a href="([^"]*)"`).FindAllStringSubmatch(page, -1) {
 		if !strings.HasPrefix(href[1], "https://") {
 			bad = append(bad, href[1])
 		}
@@ -94,4 +94,35 @@ func TestRunFailsLoudOnBadInput(t *testing.T) {
 			t.Errorf("%s: want exit %d with %q on stderr, got exit %d and %q", c.name, c.code, c.stderr, code, stderr.String())
 		}
 	}
+}
+
+// TestRunStylesTheStarterPageWithTheSitesStylesheet (forsgren#132): the page
+// links styles.css, and styles.css next to it is the one stylesheet the
+// metrics site is styled with, so the project page looks like the page it
+// describes (colour scheme, width, phone layout) with no stylesheet of its
+// own.
+func TestRunStylesTheStarterPageWithTheSitesStylesheet(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "starter")
+	var stderr bytes.Buffer
+	if code := run([]string{"--readme", "../../README.md", "--out", out}, &stderr); code != 0 {
+		t.Fatalf("want exit 0, got %d: %s", code, stderr.String())
+	}
+	page := mustRead(t, filepath.Join(out, "index.html"))
+	if !bytes.Contains(page, []byte(`<link rel="stylesheet" href="styles.css">`)) {
+		t.Errorf("the page does not link styles.css:\n%s", page)
+	}
+	got := mustRead(t, filepath.Join(out, "styles.css"))
+	if want := mustRead(t, "../../internal/page/styles.css"); !bytes.Equal(got, want) {
+		t.Errorf("styles.css is not the site's stylesheet (%d bytes, want %d)", len(got), len(want))
+	}
+}
+
+// mustRead is the file at path, or a fatal test failure naming it.
+func mustRead(t *testing.T, path string) []byte {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Clean(path))
+	if err != nil {
+		t.Fatalf("cannot read %s: %v", path, err)
+	}
+	return raw
 }
