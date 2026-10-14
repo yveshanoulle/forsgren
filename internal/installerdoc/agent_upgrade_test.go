@@ -204,3 +204,25 @@ func TestUpgraderSupportsFromV020AndStep8WritesTheChosenSettings(t *testing.T) {
 		"read back",
 		"Nothing chosen: skip this step")
 }
+
+// TestUpgraderStep9StartsARunAndChecksThePublishedPage (forsgren#166, step
+// 166-9): step 9 starts the run itself (the schedule can be hours late),
+// watches it to its end, then reads the published page with retries (Pages
+// can serve the old page for minutes): the footer names LATEST, the
+// settings page shows the chosen settings, a page that is hidden answers
+// 404 and a shown one 200, a custom domain answers over HTTPS, and no setup
+// issue stays open.
+func TestUpgraderStep9StartsARunAndChecksThePublishedPage(t *testing.T) {
+	wantAll(t, "step 9", asOneLine(section(t, readRepoFile(t, upgraderFile), "Step 9.")),
+		"gh workflow run forsgren.yml -R OWNER/REPO",
+		"the schedule can run hours late",
+		"gh run watch RUN -R OWNER/REPO --exit-status",
+		"gh run view RUN -R OWNER/REPO --log-failed",
+		"Forsgren</a>",
+		"at most 5 times",
+		"settings.html",
+		"ends with `False`",
+		"404",
+		"HTTPS",
+		"gh issue list -R OWNER/REPO -l forsgren-setup")
+}

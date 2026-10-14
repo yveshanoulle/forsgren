@@ -706,3 +706,63 @@ step 9 (every answer was to keep what is there).
    two caller files still read `@LATESTSHA # LATEST`. Fails: stop and report.
 
 Then go on to step 9.
+
+## Step 9. Run it and check the published page
+
+Reached from step 8, or from step 3 when the installation was already at the
+latest release (steps 4 to 8 skipped). Start the run yourself: the schedule
+can run hours late, and the person should see the result now.
+
+1. Start it:
+   `gh workflow run forsgren.yml -R OWNER/REPO`
+   Works: it says it created a `workflow_dispatch` event.
+2. Wait 10 seconds, then find the run:
+
+   ```
+   gh run list -R OWNER/REPO -w forsgren.yml -L 3 --json databaseId,event,status,createdAt
+   ```
+
+   Take the newest run with `"event":"workflow_dispatch"` made after you
+   started it. Its `databaseId` is `RUN`. No such run yet: wait 10 seconds and
+   look again, at most 6 times.
+3. Watch it to the end (a few minutes; forsgren is built first):
+   `gh run watch RUN -R OWNER/REPO --exit-status`
+   Works: it ends with exit status 0.
+   Fails: run `gh run view RUN -R OWNER/REPO --log-failed`, stop, and report
+   that output. The pins are at `LATEST` now; the person decides whether to
+   go back (see Going back).
+4. `gh run view RUN -R OWNER/REPO --json conclusion --jq .conclusion`
+   prints `success`.
+
+Then check what the run published. GitHub Pages can serve the old page for a
+minute or two after a deploy: when a check below shows the old state, wait 1
+minute and run that check again, at most 5 times, before you report it.
+
+5. The footer names the new version:
+   `curl -fsS REPORT | grep -o 'Forsgren</a> [0-9.]*'`
+   prints `Forsgren</a>` and `LATEST` without its `v`. An older version after
+   all the retries: stop and report.
+6. The settings page shows the chosen settings. Run step 2 item 2's command
+   again (`curl ... REPORTsettings.html ...`). Every row the person set in
+   step 8 shows their value and ends with `False` (set in the file); every
+   key they left alone shows the same value as before; a key new in this
+   release that they did not set ends with `True` (the default) and shows the
+   default. A row missing or different: stop and report.
+7. A page that a release hides or shows (`WORK/asks.md`, step 4): ask for it
+   by its address, `curl -sS -o /dev/null -w '%{http_code}' REPORTNAME.html`.
+   A page the person chose to hide answers `404`; one they chose to show
+   answers `200`. For example `days.html` for the Daily page. Another
+   answer after the retries: stop and report.
+8. A custom domain, when `REPORT` is not a `github.io` address: it must start
+   with `https://`, and `curl -fsS -o /dev/null -w '%{http_code}' REPORT`
+   prints `200`. The HTTPS enforcement itself is the person's, not part of
+   this upgrade; an `http://` address: tell the person.
+9. No setup issue stays open: `gh issue list -R OWNER/REPO -l forsgren-setup`
+   lists no open issue. The run closes it by itself when nothing is missing
+   any more. An issue still there: show the person its title and body
+   (`gh issue view NUMBER -R OWNER/REPO`), say what it asks, stop and report.
+
+Numbers such as "No deployments" are not a failure: they show what GitHub
+holds for the history.
+
+Then go on to step 10.
