@@ -154,7 +154,7 @@ forsgren.config.yml` (its message printed between
 `::stop-commands::<token>` and `::<token>::`, a fresh random token per
 run, so a line of it that starts with `::` never runs as a workflow
 command), `forsgren collect --config forsgren.config.yml --data
-data/deployments.csv` (its output shown with workflow commands stopped, its
+data/deployments.csv --token-expiry "${RUNNER_TEMP}/token-expiry"` (its output shown with workflow commands stopped, its
 exit status kept as a step output), a commit of
 `data/` alone when it changed, pushed like the starter (an `::error` naming a
 branch that moved, never a rebase or a force), `forsgren render --config
@@ -303,7 +303,8 @@ Six PRE gates keep the CI honest:
   false`, and the only `${{ secrets… }}` in the file is the collect step's
   `env:`; the collect step, executed with a stub and with the real
   `forsgren`, runs exactly `forsgren collect --config forsgren.config.yml
-  --data data/deployments.csv`, records its exit status as the output
+  --data data/deployments.csv --token-expiry ${RUNNER_TEMP}/token-expiry`
+  (the file the needs step reads), records its exit status as the output
   `status` and succeeds, keeps the token out of arguments, files, the log
   and outputs, with no token passes the starter and records a failure
   naming `FORSGREN_TOKEN` for a configured repository, and, as the config

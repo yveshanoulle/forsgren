@@ -124,7 +124,8 @@
 #      workflow env:, no other step);
 #  19. that step, EXECUTED here with a stub forsgren in the installation's
 #      checkout, runs exactly `forsgren collect --config forsgren.config.yml
-#      --data data/deployments.csv` with FORSGREN_TOKEN in its environment,
+#      --data data/deployments.csv --token-expiry ${RUNNER_TEMP}/token-expiry`
+#      (the file the needs step reads, forsgren#177) with FORSGREN_TOKEN in its environment,
 #      exits 0 and records collect's exit status as the step output
 #      `status`: 0 when collect stored, 1 when it stored the others and then
 #      failed, its message still in the log;
@@ -202,7 +203,9 @@
 #      forsgren the job's token as GITHUB_TOKEN, runs from the checkout root
 #      (no working-directory) and, EXECUTED with the stub, runs exactly
 #      `forsgren check-needs --config forsgren.config.yml --repository
-#      $GITHUB_REPOSITORY --status ${RUNNER_TEMP}/needs-status` (the
+#      $GITHUB_REPOSITORY --token-expiry ${RUNNER_TEMP}/token-expiry
+#      --status ${RUNNER_TEMP}/needs-status` (the same file collect writes,
+#      forsgren#177; the
 #      repository through the environment, as pin 3 demands: no expression in
 #      a run: block), next to the waiting step's status file, and never
 #      fails the run, whatever check-needs does; pin 9 puts it after the
@@ -294,7 +297,7 @@ COLLECT_STEP="Collect deployments"
 DATA_STEP="Commit the collected deployments"
 FAIL_STEP="Fail the job when collect failed"
 PUBLISH_STEP="Publish to GitHub Pages"
-COLLECT_CMD="collect --config forsgren.config.yml --data data/deployments.csv"
+COLLECT_CMD="collect --config forsgren.config.yml --data data/deployments.csv --token-expiry RUNNER_TEMP/token-expiry"
 DATA_SUBJECT="forsgren: record deployments"
 # The one line that hands the installation's token to the collect step.
 TOKEN_ENV="FORSGREN_TOKEN: ${EXPR_OPEN} secrets.FORSGREN_TOKEN }}"
@@ -896,7 +899,7 @@ judge_needs_check() {
     echo "has no step '${NEEDS_STEP}' with a run: | block"
     return 0
   fi
-  want="exit=0 calls=check-needs --config forsgren.config.yml --repository acme/data --status RUNNER_TEMP/needs-status"
+  want="exit=0 calls=check-needs --config forsgren.config.yml --repository acme/data --token-expiry RUNNER_TEMP/token-expiry --status RUNNER_TEMP/needs-status"
   got="$(needs_outcome "$script" 0)"
   [[ "$got" == "$want" ]] || echo "the needs step gives '${got}', not '${want}' — the status file sits next to the waiting step's"
   got="$(needs_outcome "$script" 1)"
@@ -1025,13 +1028,14 @@ judge_secret() {
 collect_outcome() {
   local rc=0 path="${STUB}:${PATH}"
   [[ "$2" == real ]] && path="${REAL}:${path}"
+  mkdir -p "${TMP}/runner"
   : > "${TMP}/fg.calls"
   : > "${TMP}/fg.token"
   : > "${TMP}/collect.out"
   (
     cd "$INSTALL"
     PATH="$path" FG_CALLS="${TMP}/fg.calls" FG_TOKEN_SEEN="${TMP}/fg.token" \
-      STUB_COLLECT="$2" STUB_TOKEN="$3" FORSGREN_TOKEN="$3" \
+      STUB_COLLECT="$2" STUB_TOKEN="$3" FORSGREN_TOKEN="$3" RUNNER_TEMP="${TMP}/runner" \
       GITHUB_OUTPUT="${TMP}/collect.out" bash "$1"
   ) > "${TMP}/collect.log" 2>&1 || rc=$?
   echo "exit=${rc} output=$(paste -sd, - < "${TMP}/collect.out")"
@@ -1049,7 +1053,7 @@ judge_collect_step() {
   got="$(collect_outcome "$script" store "$COLLECT_SECRET")"
   want="exit=0 output=status=0"
   [[ "$got" == "$want" ]] || echo "for a collect that stores the collect step gives '${got}', not '${want}'"
-  calls="$(paste -sd, - < "${TMP}/fg.calls")"
+  calls="$(paste -sd, - < "${TMP}/fg.calls" | sed "s|${TMP}/runner/|RUNNER_TEMP/|g")"
   [[ "$calls" == "$COLLECT_CMD" ]] || echo "the collect step runs 'forsgren ${calls}', not 'forsgren ${COLLECT_CMD}'"
   if [[ "$(cat "${TMP}/fg.token")" != yes ]]; then
     echo "the collect step does not hand collect FORSGREN_TOKEN in its environment — collect cannot read GitHub"
@@ -1829,6 +1833,8 @@ proves judge_needs_check "a needs step on another config file" "the needs step g
   "s/check-needs --config forsgren\\.config\\.yml/check-needs --config config.yml/"
 proves judge_needs_check "a needs step without its status file" "the needs step gives" \
   "/check-needs/s| --status \"\\${D}status_file\"||"
+proves judge_needs_check "a needs step without the token expiry file" "the needs step gives" \
+  's| --token-expiry "[^"]*"||'
 proves judge_needs_check "a needs step that fails the job" "for a check-needs that fails the needs step gives" \
   "/check-needs/s/ || true\$//"
 proves judge_permissions "no issues: write in the documented permissions" "do not list 'issues: write'" \
@@ -1853,8 +1859,10 @@ proves judge_collect_token "a collect step without the token" "the collect step'
 # The collect step.
 proves judge_collect_step "no collect step" "has no step '${COLLECT_STEP}'" \
   "s/- name: ${COLLECT_STEP}\$/- name: Collect something else/"
-proves judge_collect_step "collect on another history" "the collect step runs 'forsgren collect --config forsgren.config.yml --data deployments.csv'" \
+proves judge_collect_step "collect on another history" "the collect step runs 'forsgren collect --config forsgren.config.yml --data deployments.csv --token-expiry RUNNER_TEMP/token-expiry'" \
   's|--data data/deployments\.csv|--data deployments.csv|'
+proves judge_collect_step "collect without the token expiry file" "the collect step runs 'forsgren collect --config forsgren.config.yml --data data/deployments.csv'," \
+  's| --token-expiry "[^"]*"||'
 proves judge_collect_token "the token as an argument" "hands FORSGREN_TOKEN to forsgren in an argument" \
   "s|forsgren collect --config|forsgren collect --token \"${D}FORSGREN_TOKEN\" --config|"
 proves judge_collect_step "the token dropped" "does not hand collect FORSGREN_TOKEN" \
