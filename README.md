@@ -55,7 +55,8 @@ Not in this repository. It holds code only. An installation keeps its
 configuration (which repositories and services, workflow names, labels, the
 health URL) and its data (`data/deployments.csv`, the deployments fetched
 from GitHub, `data/commits.csv`, their commits, `data/failures.csv`,
-the failure issues, and `data/issues.csv`, what happened to every issue) in a separate private
+the failure issues, `data/issues.csv`, what happened to every issue, and
+`data/issue_bugs.csv`, which issues carry the `bug` label) in a separate private
 data repository, made from a template, and
 passes them to forsgren as paths. Test fixtures are made up (`acme/app`) and live only
 under `testdata/`.
@@ -180,6 +181,30 @@ acme/app,7,reopened,,2026-09-02T12:00:00Z
   (repository ignoring case, issue number, event and time) is not written
   again, and a call with nothing new leaves the file alone. Lines are
   appended in time order within a call.
+- Otherwise the same rules as `deployments.csv`: created with its version
+  line, refused untouched when its version is unknown or a line is
+  malformed, naming the line.
+
+**The bug flags**, for the Open bugs column (forsgren#126), are kept in
+`data/issue_bugs.csv`, with its own format version (the issue bugs format v1):
+one line per state of an issue that carries, or carried, the GitHub label
+`bug`.
+
+```
+# forsgren issue bugs v1
+repository,issue,bug
+acme/app,7,true
+acme/app,8,true
+acme/app,7,false
+```
+
+- `bug` is `true` or `false`. The file only grows, yet a label can be removed,
+  so an issue gets a new line when its flag changes, like a failure issue
+  (key: repository ignoring case and issue number); the newest line of an
+  issue is the issue. Above, issue 7 had the label and lost it, and issue 8
+  still has it. An unchanged flag is not written again.
+- It is not part of `issues.csv`: those events stay as they are, and the
+  flag is joined to them when the page is rendered.
 - Otherwise the same rules as `deployments.csv`: created with its version
   line, refused untouched when its version is unknown or a line is
   malformed, naming the line.
@@ -601,7 +626,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   spans two months is in both." (forsgren#128, decision #133). It no longer
   lists the settings (forsgren#84).
 - **The days page** (`days.html`, titled "Daily"; `issues.html` up to 0.8.3; forsgren#76, #128) is a table, Date | New |
-  Completed | Not planned | Duplicate | Other | Open | Total | Open / Total, one row per UTC calendar day,
+  Completed | Not planned | Duplicate | Other | Open | Open bugs | Total | Open / Total, one row per UTC calendar day,
   the last 30 complete days (`issueDays`), yesterday on top and going down;
   today is left out, so a row never changes once it is shown (apart from the
   known limits below). It has no week or month row: those are on the issues
@@ -641,7 +666,29 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   **Open / Total** is Open out of Total, in whole percent, rounded down, as the
   change fail rate is ("55%"), and a dash when Total is 0. It is shown as
   calculated: where the stored history is incomplete, Open can exceed
-  Total and the percent then exceeds 100%. The table has no caption: the page's
+  Total and the percent then exceeds 100%. **Open bugs** (forsgren#126), right
+  after Open, is Open counted over the issues that carry the GitHub label
+  `bug` (not configurable): +1 for a `created` or `reopened` event of such an
+  issue and -1 for a `closed` one, at the end of the day. The label is the one
+  at the latest collection, applied to the issue's whole history (Yves's
+  ruling): adding or removing the label moves the issue in every past row,
+  not only from the day it was changed. The flags come from
+  `data/issue_bugs.csv` (see History, Bug flags); a missing file marks no
+  issue, and an unknown version or a malformed line fails the render with its
+  own message. **The arrows** (forsgren#126, forsgren#114) follow the Open and
+  Open bugs counts: a red up arrow and the change (`▲ +3`) when the count
+  rose, a green down arrow and the change (`▼ −2`) when it fell, a grey dash
+  when it did not change, also a day that nets to zero. Red and green mean a
+  count that rose and one that fell, not worse and better. Each row is
+  compared with the end of the period before it of the same kind: a day with
+  the day before, a week with the week before, a month with the month before
+  and a year with the year before, never with the row below it in the list;
+  the oldest row of each kind is compared with the count just before its
+  period, even when that period is outside the rows shown. Each arrow is a
+  `<span>` with `role="img"` and an `aria-label` in words ("open issues
+  increased by 3", "open bugs decreased by 2", "open issues unchanged"), so
+  colour is never the only signal, and a class (`trend-up`, `trend-down`,
+  `trend-flat`) that `styles.css` colours. The table has no caption: the page's
   heading, Daily, names it and its scroll region, and the legend says the days
   are UTC (forsgren#128). `render` reads `data/issues.csv` next to its
   `--data` file like `failures.csv`: a missing file is no events (the
@@ -650,7 +697,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
 - **The issues page** (`issues.html`, titled "Issues"; `months.html` up to
   0.8.3; forsgren#123, #128, from #89, decisions #118 and #119) is the days
   page's table over longer periods: Period | New |
-  Completed | Not planned | Duplicate | Other | Open | Total | Open / Total, the columns counted as
+  Completed | Not planned | Duplicate | Other | Open | Open bugs | Total | Open / Total, the columns counted as
   on the days page, with four kinds of row, newest first within each.
   First the **days of the current week**, Monday up to yesterday (none on a
   Monday), labelled by their UTC date; then the **complete weeks** that touch
@@ -674,8 +721,11 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   from `metrics.IssueWeekDays`, `IssueWeeks`, `IssueYearMonths` and
   `IssueYearRows`, each marking its rows with `Active`): Open and Total are computed over all of them, so
   a hidden row's Open and Total equal those of the shown row before it. In a week, month
-  or year row, **Open** is the issues open at the end of the row's last day, **Total**
-  the issues created up to the end of it, and **Open / Total** their share.
+  or year row, **Open** is the issues open at the end of the row's last day, **Open bugs**
+  the open ones that carry the `bug` label, **Total**
+  the issues created up to the end of it, and **Open / Total** their share; the arrows
+  compare a week with the week before, a month with the month before and a year
+  with the year before.
   When no row is active, and when there are no issue events yet, the page
   shows one line, "No issues were opened, closed or reopened before today."
   (decision #119: the rows reach back months, so the line names no period),
@@ -687,15 +737,21 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   same `data/issues.csv` as the days page, with the same failures for a
   missing, unknown or malformed file. The two pages share one table template
   (`templates/layout/issuestable.html`).
-- **The settings page** (`settings.html`, forsgren#84) lists each optional
-  config key with the value in use, see Configuration.
+- **The settings page** (`settings.html`, forsgren#84, a table since forsgren#141)
+  tabulates each optional config key under Parameter, Current value, Possible
+  values and Default, see Configuration.
 - **Layout:** no table has a caption: each is named by its page's heading
   ("DORA metrics" on the three views and the root, Issues, Daily), and one `h1`
   rule in `styles.css` sets the look of every page's heading (forsgren#135), and every table has `<th scope>` headers; it scrolls
   sideways inside its own box on a narrow screen, so the page keeps its
   1rem (16px) gutter and never scrolls sideways itself. `styles.css` sets
   no colour but `color-scheme: light dark`, so light and dark mode follow
-  the browser's own colours, the lines drawn in the text colour.
+  the browser's own colours, the lines drawn in the text colour, with one
+  narrow exception (Yves's ruling on forsgren#114 and forsgren#126): the
+  trend arrows of the issues tables, `.trend-up` red, `.trend-down` green and
+  `.trend-flat` grey, each `light-dark(light, dark)` and at 4.5:1 contrast or
+  more against the page background in its mode, which a test measures. It is
+  not a general permission for colours elsewhere.
 
 The page shows project names, labels and numbers only: never a repository's
 or a task's own name, a SHA or a commit message.
@@ -791,10 +847,18 @@ projects:
   uses it in the next step. The starter that `init-config` writes includes
   `working_hours: 8`.
 - **The settings page** (`settings.html`, forsgren#74, moved out of the legend
-  in forsgren#84) lists every optional key with its value,
+  in forsgren#84, a table since forsgren#141) tabulates every optional key,
   `view`, `auto_update`, `auto_update_level`, `history_days`,
-  `history_chunk_days` and `working_hours`, and marks each key the file does
-  not set with "(default, not set in forsgren.config.yml)".
+  `history_chunk_days` and `working_hours`, in four columns: **Parameter**;
+  **Current value**, the value in use (`none` for an unset
+  `auto_update_level`); **Possible values**, built from the config package's
+  own constants and limits so the page cannot drift from what `check-config`
+  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major
+  (required when auto_update is true)`; `1 to 1825`; `1 to 365`; `1 to 24`),
+  a test holds the lists to the config loader; and **Default**: True when
+  `forsgren.config.yml` does not set the key, so the current value is the
+  default, False when the file sets it, even to the default's value. The legend
+  explains the Default column.
 - **`projects`** is required: a list of projects, or `projects: []` for an
   installation that measures nothing yet (it is valid, and `check-config`
   reports `projects: 0, repositories: 0`). A file whose `projects` key is
@@ -908,7 +972,8 @@ deployments from GitHub's REST API by its `deployment` rule, and appends the
 final ones to the history (see History), the commits of each new
 successful one to `data/commits.csv` next to it, the repository's
 failure issues to `data/failures.csv` next to it, and the events of all its
-issues to `data/issues.csv` next to it (see Issue events below). It prints one line per
+issues to `data/issues.csv` next to it and which of them carry the `bug` label to
+`data/issue_bugs.csv` (see Issue events below). It prints one line per
 repository, `acme/app: 3 new, 1 skipped (not final), 12 commits`: `new` is
 what was appended, `skipped (not final)` is what is still running and is
 stored by a later run, `commits` is the commits stored for the new
@@ -1174,6 +1239,24 @@ but for a repository with more than 10,000 issues the back history, and so
 the historical Open and Total, stays incomplete. An `issues_full.csv` that is not in
 the format refuses the run before GitHub is asked anything.
 
+**The bug flags** (forsgren#126) are read in the same run, after the issue
+events of the repository: `issues?labels=bug&state=all`, 100 per page, up to
+100 pages (10,000 issues), pull requests left out, no `since`, so an
+installation that upgrades gets the whole history of its bugs on the first
+run, with no full re-read. Every issue listed is stored as `bug=true`, and
+every issue stored as a bug that is no longer listed is stored again as
+`bug=false`, so a removed label is seen on the next run. What is already
+stored is skipped (see History, Bug flags). If the list stopped at the
+10,000 issues cap, stderr says so (`the bug read stopped at 100 page(s) of
+issues; the stored bug flags are kept`), what was read is stored and no flag is
+removed, because an issue it did not reach may still carry the label; the run
+goes on. A refused list (GitHub errors) fails the repository, like a refused
+issue list, and so does an `issue_bugs.csv` that cannot be written; an
+`issue_bugs.csv` that is not in the format refuses the repository before
+GitHub is asked for the bug issues. The label is the one at the latest
+collection, not the label at the time of each event (Yves's ruling): there is
+no label history, which would take one call per issue.
+
 **Known limits of the issue events** (forsgren#76):
 
 - Deleted or transferred issues drift: GitHub no longer lists them, so their
@@ -1188,6 +1271,9 @@ the format refuses the run before GitHub is asked anything.
 - The full read stops at 10,000 issues: for a repository above that, the
   daily collection continues, but the back history and the historical Open and Total
   are incomplete (the warning above).
+- The Open bugs of a repository above 10,000 bug-labelled issues is incomplete
+  too: a warning, but its cell is not marked as incomplete (a known limit,
+  forsgren#140).
 
 ## Running forsgren
 
