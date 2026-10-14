@@ -310,3 +310,13 @@ Steps, each its own FBP: 1 pages grow to 120rem, centred beyond (5b612bd); 2 for
 A lesson recorded on #161: step 1 widened every page including forsgren.be, and its push redeployed forsgren.be at 120rem before step 2 narrowed it again; a shared-stylesheet change that widens everything should land with the rule that narrows the exception.
 
 Not tested by a gate: how it looks in a browser at a given width (the repository has no headless browser); the rules that cause it are pinned by tests, and Yves checks it by eye at 1800px.
+
+---
+
+## 2026-10-14 — auto_update_level is optional and defaults to major, released as 1.2.0 ([#157](https://github.com/yveshanoulle/forsgren/issues/157))
+
+Yves (#157): "just use the default when auto_update is set, and remove the warning in the settings page". Until now a forsgren.config.yml with `auto_update: true` and no `auto_update_level` was refused at load, which stopped check-config, collect, render and check-update alike, and the settings page carried a "required when auto_update is true" note.
+
+Steps, each its own FBP: 1 a missing or empty level reads as `config.DefaultLevel`, which is `major`, the #150 default, for every config; the settings page shows `major` for an unset level instead of "none" (99243fd); 2 the settings page drops the note, so Possible values reads "patch, minor, major" (e0d27fd); 3 the starter comment and docs say the level is optional and defaults to `major`, and a test fails any document that calls it required (aae097a); 4 a refactor: the possible-values function gets its plain name back, the doc tests share one whitespace helper, CLAUDE.md's stale sentence is fixed (this commit). Decisions: #164 (one default everywhere; the guard keeps its defensive branch for an empty level).
+
+What an installation sees: one that wrote a level keeps it; one with `auto_update: true` and no level used to fail and now updates at `major`. The starter still writes `auto_update_level: major` explicitly, so a new installation sees the setting. The auto-update workflow never read the level itself (forsgren check-update decides), so it needed no change.

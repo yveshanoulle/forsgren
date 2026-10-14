@@ -34,8 +34,12 @@ func readInstaller(t *testing.T) string {
 // its wrapped lines joined into one, every run of whitespace a single space.
 func readRepoFileAsOneLine(t *testing.T, path string) string {
 	t.Helper()
-	return strings.Join(strings.Fields(readRepoFile(t, path)), " ")
+	return asOneLine(readRepoFile(t, path))
 }
+
+// asOneLine is text with its wrapped lines joined into one, every run of
+// whitespace a single space.
+func asOneLine(text string) string { return strings.Join(strings.Fields(text), " ") }
 
 // section returns the text of the "## " section whose heading starts with
 // heading, from the heading line up to the next "## " heading (or the end).

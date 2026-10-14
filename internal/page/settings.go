@@ -30,6 +30,6 @@ func list(names ...string) string { return strings.Join(names, ", ") }
 // upTo is the whole numbers from 1 to most.
 func upTo(most int) string { return fmt.Sprintf("1 to %d", most) }
 
-// possibleListOf is the values the key accepts, empty for a key the page does
+// possibleOf is the values the key accepts, empty for a key the page does
 // not know; the drift test holds exactly this list to the config loader.
-func possibleListOf(key string) string { return possibleValues[key] }
+func possibleOf(key string) string { return possibleValues[key] }

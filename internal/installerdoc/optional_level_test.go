@@ -10,7 +10,7 @@ import (
 // levelTexts are the texts that talk about auto_update_level, by name.
 func levelTexts(t *testing.T) map[string]string {
 	t.Helper()
-	texts := map[string]string{"internal/config/starter.yml": strings.Join(strings.Fields(config.Starter), " ")}
+	texts := map[string]string{"internal/config/starter.yml": asOneLine(config.Starter)}
 	for _, path := range []string{installerFile, "README.md", "docs/configuration.md", "docs/updating-and-releases.md"} {
 		texts[path] = readRepoFileAsOneLine(t, path)
 	}
@@ -42,8 +42,8 @@ func TestNoTextSaysTheAutoUpdateLevelIsRequired(t *testing.T) {
 func TestDocsStateThatTheAutoUpdateLevelDefaultsToTheStartersLevel(t *testing.T) {
 	want := "defaults to `" + config.DefaultLevel + "`"
 	texts := levelTexts(t)
-	if config.DefaultLevel != starterLevel(t) {
-		t.Fatalf("want the default level to be the starter's %q", starterLevel(t))
+	if level := starterLevel(t); config.DefaultLevel != level {
+		t.Fatalf("want the default level to be the starter's %q", level)
 	}
 	for _, path := range []string{"docs/updating-and-releases.md", "docs/configuration.md"} {
 		if !strings.Contains(texts[path], want) {
