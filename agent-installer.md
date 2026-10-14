@@ -187,10 +187,17 @@ Then wait for the answers.
    bands, the easiest to read. `numbers` shows the raw values and `scoring`
    the DORA Quick Check scores. Every view is also its own page.
 7. **Auto-update.** Default: `auto_update: true` with
-   `auto_update_level: patch`, as forsgren's own starter has it, because a
-   patch release only fixes things and asks nothing of an installation.
-   `minor` also takes new behaviour, `major` takes everything. With
-   `auto_update: false` the person merges each update by hand.
+   `auto_update_level: major`, as forsgren's own starter has it. `major`
+   permits major, minor and patch updates; it does not mean a major release
+   is safe. Eligible releases are merged automatically, unless the update
+   fails or is blocked. What the safeguards check: a release is only cut
+   when forsgren's Quality checks are green, Dependabot proposes it only
+   after the update wait, and the merge goes through only when the pull
+   request changes nothing but the forsgren pin to a published release.
+   Nothing checks a release against this installation's own data. Patch
+   updates are intended for fixes; minor updates can introduce new
+   behaviour. With `auto_update: false` the person merges each update by
+   hand.
    Also ask for the **update wait**: how many days old a forsgren release
    must be before Dependabot proposes it. Default: `3`; `0` means as soon
    as it is released. A few days lets a broken release be noticed first.
@@ -368,7 +375,7 @@ answers. Shape (the `acme` names stand for the person's):
 version: 1
 view: standard
 auto_update: true
-auto_update_level: patch
+auto_update_level: major
 history_days: 365
 projects:
   - name: Acme Shop
