@@ -68,14 +68,8 @@ func wantedFromTheReadme() []string {
 // stderr, and none leaves a page behind.
 func TestRunFailsLoudOnBadInput(t *testing.T) {
 	dir := t.TempDir()
-	path := map[string]string{}
 	sources := map[string]string{"fence": "# T\n\n```\ncode\n```\n", "headless": "just words\n", "good": "# T\n"}
-	for name, src := range sources {
-		path[name] = filepath.Join(dir, name+".md")
-		if err := os.WriteFile(path[name], []byte(src), 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
+	path := writeReadmes(t, dir, sources)
 	fence, headless, good := path["fence"], path["headless"], path["good"]
 	cases := []struct {
 		name   string
@@ -96,6 +90,20 @@ func TestRunFailsLoudOnBadInput(t *testing.T) {
 			t.Errorf("%s: want exit %d with %q on stderr, got exit %d and %q", c.name, c.code, c.stderr, code, stderr.String())
 		}
 	}
+}
+
+// writeReadmes writes each source, by name, to <dir>/<name>.md, and returns
+// the paths by name.
+func writeReadmes(t *testing.T, dir string, sources map[string]string) map[string]string {
+	t.Helper()
+	path := map[string]string{}
+	for name, src := range sources {
+		path[name] = filepath.Join(dir, name+".md")
+		if err := os.WriteFile(path[name], []byte(src), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return path
 }
 
 // TestRunStylesTheStarterPageWithTheSitesStylesheet (forsgren#132): the page

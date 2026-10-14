@@ -53,16 +53,16 @@ func TestRenderMakesEveryLinkAbsoluteAndKeepsTheContent(t *testing.T) {
 			t.Errorf("the page lacks %q:\n%s", want, got)
 		}
 	}
-	for _, href := range relativeHrefs(got) {
+	for _, href := range renderedPage(got).relativeHrefs() {
 		t.Errorf("a relative href is left on the page: %q", href)
 	}
 }
 
-// relativeHrefs are the links of page that are neither https nor an anchor:
-// the stylesheet link is a file of the page, not a link.
-func relativeHrefs(page string) []string {
+// relativeHrefs are the links of the page that are neither https nor an
+// anchor: the stylesheet link is a file of the page, not a link.
+func (page renderedPage) relativeHrefs() []string {
 	var relative []string
-	for _, href := range regexp.MustCompile(`<a href="([^"]*)"`).FindAllStringSubmatch(page, -1) {
+	for _, href := range regexp.MustCompile(`<a href="([^"]*)"`).FindAllStringSubmatch(string(page), -1) {
 		if !strings.HasPrefix(href[1], "https://") && !strings.HasPrefix(href[1], "#") {
 			relative = append(relative, href[1])
 		}
@@ -170,21 +170,21 @@ func TestRenderKeepsAQuoteInALinkTargetInsideTheHref(t *testing.T) {
 			t.Errorf("the page lacks %q:\n%s", want, got)
 		}
 	}
-	for _, bad := range anchorsHoldingMoreThanHref(got) {
+	for _, bad := range renderedPage(got).anchorsHoldingMoreThanHref() {
 		t.Errorf("an anchor tag holds more than its href: %s", bad)
 	}
 }
 
-// anchorsHoldingMoreThanHref are the opening anchor tags of page that are not
-// exactly an href without a quote or angle bracket inside, and a script tag.
-func anchorsHoldingMoreThanHref(page string) (bad []string) {
+// anchorsHoldingMoreThanHref are the opening anchor tags of the page that are
+// not exactly an href without a quote or angle bracket inside, and a script tag.
+func (page renderedPage) anchorsHoldingMoreThanHref() (bad []string) {
 	tag := regexp.MustCompile(`^<a href="[^"<>]*">$`)
-	for _, open := range regexp.MustCompile(`<a [^>]*>`).FindAllString(page, -1) {
+	for _, open := range regexp.MustCompile(`<a [^>]*>`).FindAllString(string(page), -1) {
 		if !tag.MatchString(open) {
 			bad = append(bad, open)
 		}
 	}
-	if strings.Contains(page, "<script") {
+	if strings.Contains(string(page), "<script") {
 		bad = append(bad, "a script tag")
 	}
 	return bad
@@ -256,3 +256,6 @@ func TestStarterPageIsAFramedCard(t *testing.T) {
 		t.Errorf("want the body to keep its 1rem padding as the gutter around the frame, got:\n%s", css)
 	}
 }
+
+// renderedPage is the HTML page Render returns.
+type renderedPage string

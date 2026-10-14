@@ -50,15 +50,6 @@ type LineError struct {
 
 func (e *LineError) Error() string { return fmt.Sprintf("line %d: %s", e.Line, e.Msg) }
 
-// page wraps the rendered body in the page's document.
-func page(title, body string) string {
-	return "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n" +
-		"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n" +
-		"<title>" + html.EscapeString(title) + "</title>\n" +
-		"<link rel=\"stylesheet\" href=\"styles.css\">\n</head>\n<body class=\"starter\">\n<main>\n" +
-		body + "\n</main>\n</body>\n</html>\n"
-}
-
 // atLine tells where err is: a LineError holds its line within the block and
 // is moved to the block's first line, any other error is put at that line.
 func atLine(err error, first int) error {
@@ -69,21 +60,34 @@ func atLine(err error, first int) error {
 	return &LineError{Line: first, Msg: err.Error()}
 }
 
+// page wraps the rendered body in the page's document.
+func page(title, body string) string {
+	return "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n" +
+		"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n" +
+		"<title>" + html.EscapeString(title) + "</title>\n" +
+		"<link rel=\"stylesheet\" href=\"styles.css\">\n</head>\n<body class=\"starter\">\n<main>\n" +
+		body + "\n</main>\n</body>\n</html>\n"
+}
+
 // textBlock is a block of lines, and the line of the README it starts at (1-based).
 type textBlock struct {
 	text string
 	line int
 }
 
-// splitBlocks cuts src into blocks of lines, separated by blank lines.
+// blankLine separates two blocks: the end of one line and an empty line.
+const blankLine = "\n\n"
+
+// splitBlocks cuts src into blocks of lines, separated by blank lines. The
+// next block starts below this one's lines and the blank line after it.
 func splitBlocks(src string) []textBlock {
 	var blocks []textBlock
 	line := 1
-	for _, block := range strings.Split(strings.ReplaceAll(src, "\r\n", "\n"), "\n\n") {
+	for _, block := range strings.Split(strings.ReplaceAll(src, "\r\n", "\n"), blankLine) {
 		if strings.TrimSpace(block) != "" {
 			blocks = append(blocks, textBlock{strings.TrimRight(block, "\n"), line})
 		}
-		line += strings.Count(block, "\n") + 2
+		line += strings.Count(block+blankLine, "\n")
 	}
 	return blocks
 }
