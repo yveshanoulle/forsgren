@@ -27,6 +27,7 @@
 #      exactly https://github.com/yveshanoulle/forsgren-template -> red
 #  14. forsgren-template/issues, forsgren-template#x and forsgren-templates,
 #      each next to an allowed link                           -> red
+#  15. the footer link https://forsgren.be/ (forsgren#162)    -> green
 # Mutation proof: case 2 against a copy of the gate whose REPO_PATH pattern
 # never matches must turn green, so case 2 is red BECAUSE of that pattern,
 # not because of something else in its site.
@@ -147,6 +148,11 @@ new_site owncss
 printf '.x { background: url("https://github.com/yveshanoulle/forsgren/raw/main/a.png"); }\n.y { background: url("https://github.com/yveshanoulle/forsgren"); }\n' >> "$SITE/styles.css"
 capture "$GATE" "$SITE"
 want_rc "12b. rejects the own repository in a stylesheet url()" 1
+
+new_site footer
+printf '<p><a href="https://forsgren.be/">Forsgren</a> 1.3.2</p>\n' >> "$SITE/index.html"
+capture "$GATE" "$SITE"
+want_rc "15. the footer link to forsgren.be is no repository path (forsgren#162)" 0
 
 # Mutation proof for case 2: the same site against a copy of the gate whose
 # REPO_PATH pattern can never match must be green.

@@ -458,13 +458,13 @@ func TestWriteSiteFailsWhenDirIsAFile(t *testing.T) {
 }
 
 // TestEveryPageEndsWithTheFooter (forsgren#41, step 1): every page's footer
-// opens with the same one paragraph: Forsgren linked to its repository, its
+// opens with the same one paragraph: Forsgren linked to forsgren.be (forsgren#162), its
 // version, what it is and, when numbers were calculated, when (UTC); no
 // Install link anywhere (forsgren#45). Without a calculation time the
 // "Calculated at" sentence is left out. Settings and Legend follow the
 // paragraph on every page (forsgren#128).
 func TestEveryPageEndsWithTheFooter(t *testing.T) {
-	const head = `<p><a href="https://github.com/yveshanoulle/forsgren">Forsgren</a> 1.3.2 ` +
+	const head = `<p><a href="https://forsgren.be/">Forsgren</a> 1.3.2 ` +
 		`Metrics from GitHub data.`
 	cases := map[string]struct {
 		data Data
