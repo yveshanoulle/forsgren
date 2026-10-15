@@ -660,6 +660,7 @@
     "github.com/yveshanoulle/forsgren/internal/update/newest.go:unreleasable": 100.0,
     "github.com/yveshanoulle/forsgren/internal/update/newest.go:beats": 100.0,
     "github.com/yveshanoulle/forsgren/internal/update/newversion.go:NewVersion": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/update/newversion.go:MovesPinTo": 100.0,
     "github.com/yveshanoulle/forsgren/internal/readmepage/render.go:Render": 100.0,
     "github.com/yveshanoulle/forsgren/internal/readmepage/render.go:Error": 100.0,
     "github.com/yveshanoulle/forsgren/internal/readmepage/render.go:atLine": 100.0,

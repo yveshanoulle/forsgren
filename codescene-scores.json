@@ -659,7 +659,7 @@
   {
    "path": "internal/update/newversion.go",
    "score": 10.0,
-   "checkedAt": "2026-10-05",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
@@ -1396,6 +1396,12 @@
   },
   {
    "path": "internal/page/historynotice.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-16",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/update/movespin_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-16",
    "minScore": 10.0
