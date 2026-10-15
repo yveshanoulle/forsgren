@@ -386,6 +386,14 @@ for path in Scripts/*.sh; do
         || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the check dco.yml relies on"
       ;;
 
+    # HELPER OF THE DCO CHECK, not a gate (forsgren#81): lists the commits of
+    # a push in check_dco.sh's input shape. Scripts/test_check_dco.sh, an
+    # order-file row, is its test and must still run it.
+    dco_push_commits.sh)
+      runs_script "Scripts/test_check_dco.sh" "$base" \
+        || fail "${base} lists a push's commits for the DCO check and Scripts/test_check_dco.sh never runs it — the listing would be unproven"
+      ;;
+
     # HAND-RUN BY THE LOOP, never by sfl or a workflow: a thin exec wrapper
     # around FBP.sh under the agent-Friend identity. Requiring a runner to
     # invoke it would mean FBP invoking itself. CLAUDE.md declares it.

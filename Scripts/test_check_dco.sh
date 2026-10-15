@@ -202,6 +202,41 @@ printf '%s %s %s %s\n' 222222222222eeee 'Bot:dependabot[bot]x' "$(b64 "$BOT_EMAI
 capture "$CHECK" "$TMP/badaccount.txt" "$DEPENDABOT"
 want_red "22. an author account not in the shape" "malformed line 1"
 
+# --- The commits of a push (Scripts/dco_push_commits.sh, forsgren#81): the
+# same input lines, built from git for the range before..after, so the check
+# can judge a push to main as it judges a pull request. A throwaway
+# repository with made-up people; the account is - (a push names none).
+PUSH_REPO="$TMP/push-repo"
+git init -q -b main "$PUSH_REPO"
+push_commit() {
+  GIT_AUTHOR_NAME="$2" GIT_AUTHOR_EMAIL="$3" GIT_COMMITTER_NAME="$2" GIT_COMMITTER_EMAIL="$3" \
+    git -C "$PUSH_REPO" -c commit.gpgsign=false commit -q --allow-empty -m "$1" -m "${4:-}"
+}
+push_commit "Start the repository" "Ada Example" "ada@example.org" "Signed-off-by: Ada Example <ada@example.org>"
+PUSH_BEFORE="$(git -C "$PUSH_REPO" rev-parse HEAD)"
+push_commit "Add the chart" "Ada Example" "ada@example.org" "Signed-off-by: Ada Example <ada@example.org>"
+push_commit "Tidy the template" "Bo Example" "bo@example.org" "No sign-off here."
+PUSH_AFTER="$(git -C "$PUSH_REPO" rev-parse HEAD)"
+
+# Run as a command substitution (capture's own words are not a command word
+# to Scripts/test_gate_wiring.sh, which looks for the helper being run here).
+OUT="$(./Scripts/dco_push_commits.sh "$PUSH_BEFORE" "$PUSH_AFTER" "$PUSH_REPO" 2>&1)" && RC=0 || RC=$?
+want_green "23. the push lists the two commits after before, oldest first, in the check's line shape" ""
+if [[ "$(grep -cE '^[0-9a-f]{40} - [A-Za-z0-9+/=]* [A-Za-z0-9+/=]+$' <<< "$OUT")" -eq 2 ]] \
+   && ! grep -q "${PUSH_BEFORE}" <<< "$OUT"; then
+  echo "  ok: 23. two lines, none for the commit before the range"
+else
+  fail "23. want two commit lines and none for the commit before the range. Output: ${OUT}"
+fi
+printf '%s\n' "$OUT" > "$TMP/push.txt"
+capture "$CHECK" "$TMP/push.txt"
+want_red "24. the check on a push's commits names the unsigned one" "commit $(git -C "$PUSH_REPO" rev-parse --short=12 HEAD) (Tidy the template) has no Signed-off-by trailer"
+if grep -q 'Add the chart' <<< "$OUT"; then
+  fail "24. the output names the signed commit too. Output: ${OUT}"
+else
+  echo "  ok: 24. only the unsigned commit is named"
+fi
+
 # Mutation proof for case 4: a copy of the check whose trailer block starts
 # right after the subject, not at the last paragraph, must be green on it.
 # The mutant cds to its own dir's parent; give it the same layout.
