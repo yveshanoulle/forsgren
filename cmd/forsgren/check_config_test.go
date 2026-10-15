@@ -124,3 +124,25 @@ func TestCheckConfigReadsAutoUpdate(t *testing.T) {
 		}
 	}
 }
+
+// TestCheckConfigReportsARejectedSettingAndExitsZero (forsgren#183): a setting
+// that is not accepted is no reason to stop: check-config exits 0, its OK line
+// counts them after the labels, and stderr holds one warning line for each;
+// a file error is still exit 1.
+func TestCheckConfigReportsARejectedSettingAndExitsZero(t *testing.T) {
+	path := writeConfig(t, "view: Numbers\nhistory_days: 0\n"+validConfig)
+	code, stdout, stderr := runCommand("check-config", "--config", path)
+	wantOut := "OK: " + path + " is a valid forsgren config (version 1): projects: 2, repositories: 3, " +
+		"settings not accepted: 2\n"
+	wantErr := "config: warning: " + path + `: invalid view "Numbers": use standard, numbers or scoring; ` +
+		"using the default standard\n" +
+		"config: warning: " + path + `: invalid history_days "0": use a whole number of days from 1 to 1825; ` +
+		"using the default 365\n"
+	if code != 0 || stdout != wantOut || stderr != wantErr {
+		t.Errorf("want exit 0, stdout %q and stderr %q, got %d, %q, %q", wantOut, wantErr, code, stdout, stderr)
+	}
+	broken := writeConfig(t, "view: Numbers\n"+strings.Replace(validConfig, "release", "releases", 1))
+	if code, _, _ := runCommand("check-config", "--config", broken); code != 1 {
+		t.Errorf("want exit 1 for a file error beside a rejected setting, got %d", code)
+	}
+}

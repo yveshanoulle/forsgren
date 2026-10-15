@@ -74,22 +74,27 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 // checkConfig loads and validates an installation's forsgren.config.yml and
 // says in one line whether it is valid: the cheapest way for an owner, or a
-// workflow, to see a config mistake before a run depends on it.
+// workflow, to see a config mistake before a run depends on it. A setting
+// that is not accepted falls back to its default: a warning on stderr for each,
+// a count in the OK line, and exit 0 (forsgren#183).
 func checkConfig(args []string, stdout, stderr io.Writer) int {
 	path, ok := requiredFlag(stderr, args, "check-config", "config", "<path>", "the forsgren.config.yml to check")
 	if !ok {
 		return 2
 	}
-	cfg, err := config.Load(path)
+	cfg, err := loadConfig(path, stderr)
 	if err != nil {
 		return failed(stderr, "check-config", err)
 	}
-	labels := ""
+	counts := ""
 	if n := cfg.LabelCount(); n > 0 {
-		labels = fmt.Sprintf(", labels: %d", n)
+		counts = fmt.Sprintf(", labels: %d", n)
+	}
+	if n := len(cfg.Rejected); n > 0 {
+		counts += fmt.Sprintf(", settings not accepted: %d", n)
 	}
 	_, _ = fmt.Fprintf(stdout, "OK: %s is a valid forsgren config (version %d): projects: %d, repositories: %d%s\n",
-		path, cfg.Version, len(cfg.Projects), cfg.RepositoryCount(), labels)
+		path, cfg.Version, len(cfg.Projects), cfg.RepositoryCount(), counts)
 	return 0
 }
 
