@@ -31,3 +31,14 @@ func trendViewOf(what string, t metrics.Trend, change int) trendView {
 	}
 	return trendView{"trend-flat", "–", what + " unchanged", 0, 0}
 }
+
+// bugTrendViewOf is the view of the open bugs: trendViewOf's, except that a
+// count that did not change hangs on the blue class (forsgren#152), the template
+// function "bugtrend".
+func bugTrendViewOf(t metrics.Trend, change int) trendView {
+	view := trendViewOf("open bugs", t, change)
+	if view.Sign == 0 {
+		view.Class = "trend-flat-bugs"
+	}
+	return view
+}

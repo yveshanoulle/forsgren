@@ -28,7 +28,7 @@ const minContrast = 4.5
 // and the aria-label say the same.
 func TestTrendColoursHaveAContrastOfAtLeast4Point5InLightAndDark(t *testing.T) {
 	css := stylesCSS(t)
-	for _, class := range []string{"trend-up", "trend-down", "trend-flat"} {
+	for _, class := range []string{"trend-up", "trend-down", "trend-flat", "trend-flat-bugs"} {
 		light, dark := trendColours(t, css, class)
 		wantContrast(t, swatch{class, "light", light}, lightCanvases)
 		wantContrast(t, swatch{class, "dark", dark}, darkCanvases)

@@ -103,7 +103,7 @@ li {
 /* The one place styles.css sets colours besides color-scheme (forsgren#126,
    forsgren#114; Yves's ruling, a narrow exception for these semantic trend
    arrows only, not a general permission): red for a count that rose, green
-   for one that fell, grey for one that did not change. Red and green say
+   for one that fell, grey for one that did not change (blue for open bugs). Red and green say
    rising and falling, not worse and better. Each is light-dark(light, dark)
    and reads at 4.5:1 or more on the page background in its mode, which
    TestTrendColoursHaveAContrastOfAtLeast4Point5InLightAndDark measures. The
@@ -119,4 +119,9 @@ li {
 
 .trend-flat {
   color: light-dark(#595959, #b0b0b0);
+}
+
+/* The dash of Open bugs when the count did not change is blue (forsgren#152). */
+.trend-flat-bugs {
+  color: light-dark(#0b57d0, #8ab4f8);
 }

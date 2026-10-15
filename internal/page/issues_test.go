@@ -203,7 +203,7 @@ func TestIssuesTableShowsTheIssuesCreatedInATotalColumnAfterOpenBugs(t *testing.
 func TestIssuesTableShowsTheOpenBugsInAColumnRightAfterOpen(t *testing.T) {
 	wantAll(t, "issues.html", issuesPageOf(t, openBugsDay), `<th scope="col">Open</th>
             <th scope="col">Open bugs</th>`, `–</span></td>
-            <td>2 <span class="trend-flat" role="img" aria-label="open bugs unchanged">–</span></td>`)
+            <td>2 <span class="trend-flat-bugs" role="img" aria-label="open bugs unchanged">–</span></td>`)
 }
 
 // TestIssuesTableShowsOpenOutOfTotalInAColumnNextToTotal (forsgren#134, step
@@ -241,7 +241,7 @@ func TestLegendExplainsTheOpenTotalAndOpenOutOfTotalColumns(t *testing.T) {
 // class the colours hang on: an arrow up and the change when it rose, an arrow
 // down and the change when it fell, a dash when it did not change.
 func TestIssuesTableShowsAnArrowForTheDirectionOfTheOpenColumn(t *testing.T) {
-	wantArrows(t, "open issues", func(day metrics.IssueDay, count, change int) metrics.IssueDay {
+	wantArrows(t, "open issues", "trend-flat", func(day metrics.IssueDay, count, change int) metrics.IssueDay {
 		day.Open, day.OpenChange = count, change
 		return day
 	})
@@ -251,7 +251,7 @@ func TestIssuesTableShowsAnArrowForTheDirectionOfTheOpenColumn(t *testing.T) {
 // after the open bugs of each row the same arrow as after Open, from
 // OpenBugsTrend and OpenBugsChange, its label naming open bugs.
 func TestIssuesTableShowsAnArrowForTheDirectionOfTheOpenBugsColumn(t *testing.T) {
-	wantArrows(t, "open bugs", func(day metrics.IssueDay, count, change int) metrics.IssueDay {
+	wantArrows(t, "open bugs", "trend-flat-bugs", func(day metrics.IssueDay, count, change int) metrics.IssueDay {
 		day.OpenBugs, day.OpenBugsChange = count, change
 		return day
 	})
@@ -259,8 +259,9 @@ func TestIssuesTableShowsAnArrowForTheDirectionOfTheOpenBugsColumn(t *testing.T)
 
 // wantArrows renders three days whose count of what ("open issues" or "open
 // bugs"), set by set, is 5 up by 3, 2 down by 2 and 4 unchanged, and fails
-// unless each count has its arrow, class and aria-label in words.
-func wantArrows(t *testing.T, what string, set func(day metrics.IssueDay, count, change int) metrics.IssueDay) {
+// unless each count has its arrow, class (flat for the unchanged one, blue for
+// open bugs, forsgren#152) and aria-label in words.
+func wantArrows(t *testing.T, what, flat string, set func(day metrics.IssueDay, count, change int) metrics.IssueDay) {
 	t.Helper()
 	got := issuesPageOf(t,
 		set(metrics.IssueDay{Date: october(3), Active: true}, 5, 3),
@@ -273,15 +274,16 @@ func wantArrows(t *testing.T, what string, set func(day metrics.IssueDay, count,
 	wantAll(t, "issues.html", got,
 		span(5, "trend-up", "increased by 3", "▲ +3"),
 		span(2, "trend-down", "decreased by 2", "▼ −2"),
-		span(4, "trend-flat", "unchanged", "–"))
+		span(4, flat, "unchanged", "–"))
 }
 
 // trendNote explains the arrows after Open and Open bugs (forsgren#126).
 const trendNote = "An arrow after Open and after Open bugs shows which way the count moved from the end of " +
-	"the period before: red when it rose, green when it fell, grey when it did not change. Red and green mean " +
-	"rose and fell, not worse and better. A day is compared with the day before, a week with the week before, " +
-	"a month with the month before and a year with the year before; the oldest row of each kind is compared " +
-	"with the count just before its period, even when that period is outside the rows shown."
+	"the period before: red when it rose, green when it fell, and grey when it did not change (blue after " +
+	"Open bugs). Red and green mean rose and fell, not worse and better. A day is compared with the day " +
+	"before, a week with the week before, a month with the month before and a year with the year before; " +
+	"the oldest row of each kind is compared with the count just before its period, even when that period " +
+	"is outside the rows shown."
 
 // bugsNote explains the Open bugs column (forsgren#126).
 const bugsNote = "Open bugs is Open counted over the issues that carry the GitHub label bug, as the label is at " +

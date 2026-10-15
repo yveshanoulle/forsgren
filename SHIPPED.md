@@ -428,3 +428,9 @@ What an installation sees: nothing until `dora_days` is set; then every DORA num
 ## 2026-10-15 — the run summary says how long FORSGREN_TOKEN is still valid, released as 1.6.1 ([#185](https://github.com/yveshanoulle/forsgren/issues/185))
 
 Yves (2026-10-15), on the run summary each workflow run writes: add the days the token is still valid, and say so when that is unknown. The summary gets one line between "Update" and "Setup", read from the same `${RUNNER_TEMP}/token-expiry` file collect writes (#177): `valid for N more days (until …)`, under a day `valid for N more hours (until … UTC)`, under an hour `valid for less than an hour (until … UTC)`, singular for 1, and without a readable date `days left unknown: …` with a pointer to a failed collect step. No "expired on" line: an expired token fails collect with a 401, which names no date, so that run reads "unknown". Steps, each its own FBP: 1 run-summary `--token-expiry` and the line (21121ff); 2 metrics.yml passes the file, pinned in test_metrics_workflow.sh, and the docs (this commit). Only the run summary shows it; the published pages do not (decision #179). Decisions: #186.
+
+---
+
+## 2026-10-15 — the no-change dash after Open bugs is blue, released as 1.6.2 ([#152](https://github.com/yveshanoulle/forsgren/issues/152))
+
+Yves: the – shown when the open bug count did not change should be blue. The Open and Open bugs columns shared one grey class for it, so Open bugs gets its own, `trend-flat-bugs`, in the stylesheet's light/dark pattern (`#0b57d0` light, 6.39:1 on white; `#8ab4f8` dark, at least 7.91:1), and Open stays grey. The dash keeps its "open bugs unchanged" label, so colour is not the only signal; the legend says "grey when it did not change (blue after Open bugs)". One step: the cell, the legend, the contrast test and the Days, Issues and legend goldens (this commit).

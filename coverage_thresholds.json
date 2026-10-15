@@ -512,6 +512,7 @@
     "github.com/yveshanoulle/forsgren/internal/page/page.go:copyStyles": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:IsLabel": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:Table": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/trend.go:bugTrendViewOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/trend.go:trendViewOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/settings.go:list": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/settings.go:upTo": 100.0,

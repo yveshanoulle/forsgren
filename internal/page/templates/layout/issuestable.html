@@ -24,7 +24,7 @@
             <td>{{.Duplicate}}</td>
             <td>{{.Other}}</td>
             <td>{{.Open}} {{template "trend" (trend "open issues" .OpenTrend .OpenChange)}}</td>
-            <td>{{if .BugsIncomplete}}{{template "bugsincomplete"}}{{else}}{{.OpenBugs}} {{template "trend" (trend "open bugs" .OpenBugsTrend .OpenBugsChange)}}{{end}}</td>
+            <td>{{if .BugsIncomplete}}{{template "bugsincomplete"}}{{else}}{{.OpenBugs}} {{template "trend" (bugtrend .OpenBugsTrend .OpenBugsChange)}}{{end}}</td>
             <td>{{.Total}}</td>
             <td>{{.OpenShare}}</td>
           </tr>
