@@ -84,74 +84,74 @@ func summaryFlags(args []string, stderr io.Writer) (summaryInput, bool) {
 }
 
 // runLayout is the moment the summary names, to the minute in UTC
-// (forsgren#194).
+// (forsgren#194), and the end of a token valid for less than a day.
 const runLayout = "2006-01-02 15:04 UTC"
 
 // markdown is the summary: the moment it is written, so a summary pasted
 // somewhere says when it is from (forsgren#194), then the versions and the rest.
 func (in summaryInput) markdown(stderr io.Writer) string {
-	latest, known := page.ReleaseVersion(in.latest)
-	if !known {
-		latest = "unknown"
+	latest, _ := in.latestRelease()
+	lines := []string{
+		"Run: " + now().UTC().Format(runLayout),
+		"Built with: forsgren " + version,
+		"Latest release: " + latest,
+		"Update: " + in.update(),
 	}
-	return "## forsgren\n\n- Run: " + now().UTC().Format(runLayout) + "\n- Built with: forsgren " + version +
-		"\n- Latest release: " + latest +
-		"\n- Update: " + in.update(latest, known) + "\n" +
-		in.token() + in.setup(stderr)
+	return "## forsgren\n\n- " + strings.Join(lines, "\n- ") + "\n" + in.token() + in.setup(stderr)
 }
 
-// The Token lines of a token with no date to count from (forsgren#194): one
-// that collect could not ask about, the run's own token, one that answered
-// without an expiry date, and one whose header forsgren cannot read.
-const (
-	unknownLine    = "- Token: unknown: collect could not ask GitHub: see the failed collect step\n"
-	unreadableLine = "- Token: unknown: GitHub sent an expiry date forsgren cannot read; " +
-		"see the note in the collect step\n"
-	ownLine    = "- Token: the run's own token (GITHUB_TOKEN), renewed every run; nothing expires\n"
-	noDateLine = "- Token: no expiry date: a personal token set to no expiration (or more than a year); " +
-		"a date under a year makes forsgren warn before it runs out\n"
-)
+// latestRelease is the newest release as --latest names it, and whether it is
+// known: "unknown" when --latest is empty or not a version.
+func (in summaryInput) latestRelease() (string, bool) {
+	latest, known := page.ReleaseVersion(in.latest)
+	if !known {
+		return "unknown", false
+	}
+	return latest, true
+}
 
-// token says how long FORSGREN_TOKEN is still valid, from the line collect
-// wrote to --token-expiry (forsgren#185, decision #186, forsgren#194): whole
-// days from one day left, whole hours under a day, "less than an hour" under
-// an hour or once the date has passed mid-run; for no date, whether the token
-// is the run's own (renewed every run) or has none; and that collect could not
-// ask when the file is missing or unreadable. Nothing without --token-expiry.
+// tokenWords say what the Token line tells of a token with no date to count
+// from (forsgren#194), by what the --token-expiry file holds: the run's own
+// token, one that answered without an expiry date, one whose header forsgren
+// cannot read, and, for no word, one collect could not ask about.
+var tokenWords = map[string]string{
+	expiryNoneRunOwn: "the run's own token (GITHUB_TOKEN), renewed every run; nothing expires",
+	expiryNone: "no expiry date: a personal token set to no expiration (or more than a year); " +
+		"a date under a year makes forsgren warn before it runs out",
+	expiryUnreadable: "unknown: GitHub sent an expiry date forsgren cannot read; see the note in the collect step",
+	"":               "unknown: collect could not ask GitHub: see the failed collect step",
+}
+
+// token is the Token line, how long FORSGREN_TOKEN is still valid, from what
+// collect wrote to --token-expiry (forsgren#185, decision #186, forsgren#194):
+// validFor a date, and tokenWords for the rest, a missing or unreadable file
+// being one collect could not ask about. Nothing without --token-expiry.
 func (in summaryInput) token() string {
 	if in.tokenFile == "" {
 		return ""
 	}
-	return tokenLine(in.tokenFile)
+	expiry := readExpiryFile(in.tokenFile)
+	state := tokenWords[expiry.word]
+	if expiry.dated {
+		state = validFor(expiry.date)
+	}
+	return "- Token: " + state + "\n"
 }
 
-// tokenLines are the Token lines of the lines collect leaves in the file
-// besides a date.
-var tokenLines = map[string]string{
-	expiryNoneRunOwn: ownLine,
-	expiryNone:       noDateLine,
-	expiryUnreadable: unreadableLine,
-}
-
-// tokenLine is the Token line for the file at path (see token).
-func tokenLine(path string) string {
-	if line, fixed := tokenLines[tokenFileLine(path)]; fixed {
-		return line
-	}
-	expiry, known := readTokenExpiry(path)
-	if !known {
-		return unknownLine
-	}
-	until := expiry.UTC().Format("2006-01-02 15:04 UTC")
+// validFor is how long a token that expires on expiry is still valid: whole
+// days, to the date, from one day left; whole hours under a day and "less than
+// an hour" under an hour or once the date has passed mid-run, both to the
+// minute.
+func validFor(expiry time.Time) string {
 	left := expiry.Sub(now())
+	span, until := "less than an hour", expiry.UTC().Format(runLayout)
 	switch {
 	case left >= 24*time.Hour:
-		return "- Token: valid for " + more(int(left/(24*time.Hour)), "day") + " (until " +
-			expiry.UTC().Format(time.DateOnly) + ")\n"
+		span, until = more(int(left/(24*time.Hour)), "day"), expiry.UTC().Format(time.DateOnly)
 	case left >= time.Hour:
-		return "- Token: valid for " + more(int(left/time.Hour), "hour") + " (until " + until + ")\n"
+		span = more(int(left/time.Hour), "hour")
 	}
-	return "- Token: valid for less than an hour (until " + until + ")\n"
+	return "valid for " + span + " (until " + until + ")"
 }
 
 // more is "N more unit", the unit in the plural unless N is 1.
@@ -198,7 +198,8 @@ func (in summaryInput) setup(stderr io.Writer) string {
 }
 
 // update says where the update stands.
-func (in summaryInput) update(latest string, known bool) string {
+func (in summaryInput) update() string {
+	latest, known := in.latestRelease()
 	if !known {
 		return "unknown (the latest release could not be read)"
 	}
@@ -218,7 +219,7 @@ func (in summaryInput) update(latest string, known bool) string {
 // publish time is unknown or the cooldown is over (forsgren#194).
 func (in summaryInput) cooldownNote() (string, bool) {
 	days := cooldownDays(dependabotFile)
-	published, err := time.Parse(time.RFC3339, strings.TrimSpace(tokenFileText(in.published)))
+	published, err := time.Parse(time.RFC3339, fileLine(in.published))
 	if days == 0 || err != nil {
 		return "", false
 	}

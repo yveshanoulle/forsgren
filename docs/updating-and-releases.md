@@ -311,6 +311,31 @@ until you set `numbers_scoring_page: true` (see
 the key as its tenth row. An agent following
 [agent-upgrade.md](../agent-upgrade.md) asks you nothing about it.
 
+**Upgrading to 1.8.0** (forsgren#68, #194). A History page appears by
+default: `history.html`, the last entry of the menu, "History", with the five
+metrics and Overall Performance per calendar half-year and for the last 6
+months, each cell its number and score, and a small Trend chart per row (see
+[The History page](pages-and-views.md#the-history-page)). A new optional
+key, `history_page` (`true` or `false`), switches it; it defaults to `true`,
+so to turn the page off set `history_page: false` (see
+[Configuration](configuration.md#configuration)); the settings page lists the
+key as its eleventh row. The page fills over several daily runs: it shows a
+period only once the history is read back to the period's start, and
+`history_days` decides how far back it reads (365 by default, so the last 6
+months and about one half-year; up to 1825, five years), each run reading one
+more `history_chunk_days` chunk back until it gets there. Until then the page
+says in one line that the periods fill as the history is collected. The
+run's job summary gains a Run line, the moment of the run in UTC; its Token
+line now tells apart the run's own token (`GITHUB_TOKEN`, renewed every run),
+a token with no expiry date, an expiry date forsgren cannot read and a
+`collect` that could not ask GitHub; and its Update line names Dependabot's
+cooldown, "waiting for the 3-day cooldown until 2026-10-18", while the
+cooldown in your `.github/dependabot.yml` runs (see
+[Running forsgren](configuration.md#running-forsgren)). No new permission or
+secret is needed. An agent following [agent-upgrade.md](../agent-upgrade.md)
+reads the History page in the release notes as a page that appears, and asks
+you whether to keep it.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`

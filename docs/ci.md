@@ -348,7 +348,9 @@ Six PRE gates keep the CI honest:
   exactly `forsgren render --out <dir> --config forsgren.config.yml --data
   data/deployments.csv`, plus `--latest <version>` when the step before it
   found one; that step, "Look up the latest forsgren release", gets the job's
-  token as `GITHUB_TOKEN` (never the caller's secret), outputs a plain
+  token as `GITHUB_TOKEN` (never the caller's secret), runs `forsgren
+  latest-release --published "${RUNNER_TEMP}/latest-published"` (the publish
+  time, for the summary's cooldown, forsgren#194), outputs a plain
   version, and outputs nothing, never failing the job, for a lookup that
   fails or an answer that is anything else; the step after it, "Look up the
   waiting Dependabot pull request", does the same for a pull request number
@@ -360,7 +362,10 @@ Six PRE gates keep the CI honest:
   `forsgren run-summary`'s markdown to `$GITHUB_STEP_SUMMARY` and never fails
   the run (a `run-summary` that fails appends nothing); it passes `--token-expiry
   "${RUNNER_TEMP}/token-expiry"`, the file collect writes, for the summary's
-  Token line (days or hours left, or unknown);
+  Token line (days or hours left, the run's own token, no expiry date, an
+  unreadable date, or unknown), and `--latest-published
+  "${RUNNER_TEMP}/latest-published"`, the file the lookup step writes, for
+  the Update line's Dependabot cooldown;
   and install, checkout, starter, config
   check, collect, data commit and render come in that order, the fail step
   after publishing. Each pin is shown failing, with its own reason, on a

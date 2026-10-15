@@ -1,9 +1,6 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/github"
@@ -11,43 +8,11 @@ import (
 )
 
 // The token expiry warning (forsgren#177, decision #179), check-needs' side:
-// the setup issue's renewal item from what collect wrote to --token-expiry.
+// the setup issue's renewal item from what collect wrote to --token-expiry
+// (readTokenExpiry, expiryfile.go).
 // A known date decides alone: near is the item, far is none. An unknown one
 // (no readable date) keeps the item the open setup issue carries and never
 // makes one.
-
-// tokenFileLine is the one line of the file at path, "" when it cannot be read.
-func tokenFileLine(path string) string { return strings.TrimSpace(tokenFileText(path)) }
-
-// tokenFileText is the content of the small file at path, "" for no path and
-// when it cannot be read.
-func tokenFileText(path string) string {
-	if path == "" {
-		return ""
-	}
-	raw, err := os.ReadFile(filepath.Clean(path))
-	if err != nil {
-		return ""
-	}
-	return string(raw)
-}
-
-// readTokenExpiry is the expiry date in the file at path, which collect
-// --token-expiry wrote (writeTokenExpiry): one RFC 3339 line. It says false
-// for no path, a file that is missing or unreadable and one that holds no
-// such date, the lines expiryNone and expiryNoneRunOwn among them: the
-// expiry is then unknown.
-func readTokenExpiry(path string) (time.Time, bool) {
-	if path == "" {
-		return time.Time{}, false
-	}
-	raw, err := os.ReadFile(filepath.Clean(path))
-	if err != nil {
-		return time.Time{}, false
-	}
-	expiry, err := time.Parse(time.RFC3339, strings.TrimSpace(string(raw)))
-	return expiry, err == nil
-}
 
 // renewalNeed is the setup issue's renewal item for a token that expires on
 // expiry, seen at at, marked with that date (needs.TokenExpiryMark), and

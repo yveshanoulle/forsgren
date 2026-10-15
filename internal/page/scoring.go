@@ -54,20 +54,27 @@ func (r Row) ScoreCells() []string {
 	return cells
 }
 
-// OverallCell is the row's Overall Performance to one decimal, "8.4": the
-// mean of its scored metrics, "-" when none is scored.
-func (r Row) OverallCell() string {
+// overall is the row's Overall Performance: the mean of its scored metrics,
+// none when no metric is scored.
+func (r Row) overall() score {
 	var scored []float64
 	for _, s := range r.scores() {
 		if s.ok {
 			scored = append(scored, s.value)
 		}
 	}
-	overall, ok := metrics.OverallScore(scored)
-	if !ok {
+	value, ok := metrics.OverallScore(scored)
+	return score{value, ok}
+}
+
+// OverallCell is the row's Overall Performance to one decimal, "8.4", "-"
+// when no metric is scored.
+func (r Row) OverallCell() string {
+	overall := r.overall()
+	if !overall.ok {
 		return noScore
 	}
-	return fmt.Sprintf("%.1f", overall)
+	return fmt.Sprintf("%.1f", overall.value)
 }
 
 // separator joins a number and its score in a cell of the numbers and

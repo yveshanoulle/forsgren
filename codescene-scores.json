@@ -545,7 +545,7 @@
   {
    "path": "cmd/forsgren/summary.go",
    "score": 10.0,
-   "checkedAt": "2026-10-07",
+   "checkedAt": "2026-10-15",
    "minScore": 10.0
   },
   {
@@ -1240,6 +1240,36 @@
   },
   {
    "path": "cmd/forsgren/loadconfig.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-15",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/expiryfile.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-15",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/history.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-15",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/historychart.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-15",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/history.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-15",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/dependabot.go",
    "score": 10.0,
    "checkedAt": "2026-10-15",
    "minScore": 10.0

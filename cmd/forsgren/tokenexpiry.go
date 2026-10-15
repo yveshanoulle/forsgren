@@ -54,41 +54,8 @@ func removeTokenExpiry(path string) error {
 	return nil
 }
 
-// The lines the --token-expiry file holds besides a date (forsgren#194): the
-// token answered GitHub and has no expiry date, and, when it is the job's own
-// token (GITHUB_TOKEN, route A), that it is renewed every run; or GitHub sent
-// an expiry header that is no date forsgren can read, which the file does not
-// repeat (the note on stderr shows it).
-const (
-	expiryNone       = "no-expiry"
-	expiryNoneRunOwn = "no-expiry run-token"
-	expiryUnreadable = "unreadable"
-)
-
-// tokenExpiryLine is the one line client's token has to leave in the file: its
-// UTC RFC 3339 expiry date, else, once GitHub answered it without a date,
-// expiryNone or expiryNoneRunOwn; none for a token that never got an
-// answer; a header that is no date, from a token that was answered, is
-// expiryUnreadable.
-// Of the token itself nothing is read but whether it is a run token.
-func tokenExpiryLine(client *github.Client) (string, bool) {
-	if at, known := client.TokenExpiry(); known {
-		return at.UTC().Format(time.RFC3339), true
-	}
-	if _, unreadable := client.UnreadableTokenExpiry(); unreadable {
-		return expiryUnreadable, client.Answered()
-	}
-	switch {
-	case client.IsRunToken() && client.Answered():
-		return expiryNoneRunOwn, true
-	case client.Answered():
-		return expiryNone, true
-	}
-	return "", false
-}
-
 // writeTokenExpiry writes what client's token has to say about its expiry to
-// path, one line (tokenExpiryLine), whole or not at all: it is written to
+// path, one line (tokenExpiryOf, expiryfile.go), whole or not at all: it is written to
 // path+".tmp" and renamed over path, and the temporary file is removed when
 // that fails. A collect whose token never got an answer leaves no file; the
 // file of an earlier run was removed at the start (removeTokenExpiry). What
@@ -96,12 +63,12 @@ func tokenExpiryLine(client *github.Client) (string, bool) {
 // the token answered: it is this run's observation, not an old one. No path is
 // nothing to do (forsgren#177, #194).
 func writeTokenExpiry(path string, client *github.Client) error {
-	line, known := tokenExpiryLine(client)
+	expiry, known := tokenExpiryOf(client)
 	if path == "" || !known {
 		return nil
 	}
 	temp := path + ".tmp"
-	err := os.WriteFile(temp, []byte(line+"\n"), 0o600)
+	err := os.WriteFile(temp, []byte(expiry.line()+"\n"), 0o600)
 	if err == nil {
 		err = os.Rename(temp, path)
 	}

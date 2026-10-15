@@ -39,14 +39,10 @@ func Periods(now time.Time, historyDays int) []Period {
 	}
 	earliest := now.Add(-time.Duration(min(historyDays, config.MaxHistoryDays)) * day)
 	var periods []Period
-	for end := currentHalfYearStart(now); ; {
-		start := end.AddDate(0, -6, 0)
-		if start.Before(earliest) {
-			break
-		}
-		periods = append([]Period{{Label: halfYearLabel(start), Start: start, End: end}}, periods...)
-		end = start
+	for start := halfYearBefore(currentHalfYearStart(now)); !start.Before(earliest); start = halfYearBefore(start) {
+		periods = append(periods, Period{Label: halfYearLabel(start), Start: start, End: start.AddDate(0, 6, 0)})
 	}
+	slices.Reverse(periods)
 	return append(periods, Period{Label: rollingLabel, Start: now.Add(-RollingDays * day), End: now, Rolling: true})
 }
 
@@ -60,6 +56,10 @@ func currentHalfYearStart(now time.Time) time.Time {
 	}
 	return time.Date(now.Year(), month, 1, 0, 0, 0, 0, time.UTC)
 }
+
+// halfYearBefore is the start of the half-year before the one that starts at
+// start.
+func halfYearBefore(start time.Time) time.Time { return start.AddDate(0, -6, 0) }
 
 // halfYearLabel is "2025 H2" for the half-year starting at start.
 func halfYearLabel(start time.Time) string {
@@ -110,13 +110,13 @@ func History(projects []config.Project, data Data, now time.Time, historyDays in
 	var columns []Column
 	for _, period := range Periods(now, historyDays) {
 		rows := PeriodRows(projects, data, period)
-		if slices.ContainsFunc(rows, Row.hasData) {
+		if slices.ContainsFunc(rows, Row.HasData) {
 			columns = append(columns, Column{Period: period, Rows: rows})
 		}
 	}
 	return columns
 }
 
-// hasData says whether the row is read and has a deployment, as the page
-// shows a row in full (HasDeployments).
-func (r Row) hasData() bool { return !r.Unread && r.HasDeployments() }
+// HasData says whether the row is read and has a deployment, so the history
+// page shows its numbers; a row without them shows a dash in every cell.
+func (r Row) HasData() bool { return !r.Unread && r.HasDeployments() }

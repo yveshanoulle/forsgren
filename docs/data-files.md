@@ -305,6 +305,14 @@ count. When it stored failure issues the line goes on with
   that was not read yet. An installation that has none starts each repository
   with stored deployments at its oldest stored deployment: everything since
   was read by the runs so far.
+- `render` reads `data/reach.csv` too, for the History page (forsgren#68,
+  from 1.8.0): a period shows a row's numbers only when every repository of
+  the row was read back to the period's start; a repository with a later
+  reach, or with no row in the file, makes that row a dash in that period,
+  and a period no row has data for is left out. A missing file is no reach
+  at all, so the History page says it has no history to show yet; a file
+  with another format version or a malformed line fails the render with
+  its message (exit 1), like the other files `render` reads.
 - A deployment still not final 7 days before the newest stored one is not
   read again, so it is never stored.
 - Every list is read newest first, 100 per page, and stops at the first page
@@ -506,12 +514,18 @@ without the date keeps the one an earlier answer of the run named, and a
 date forsgren cannot read is ignored, with one `collect: note:` line on
 stderr per run. With `--token-expiry <path>`, `collect` writes that
 date to the file, as one UTC RFC 3339 line such as `2027-01-12T08:35:47Z`.
-`check-needs` reads it from there. `collect` removes the file of an earlier
+`check-needs` and `run-summary` read it from there. `collect` removes the file of an earlier
 run before anything else, so a run that fails (no token, a refused token, a
 bad config) leaves none and `check-needs` sees an unknown date, never an old
-one. A token that answered without an expiry date makes the file say `no-expiry`, or `no-expiry run-token` when it is the job's own token (it starts with `ghs_`, and
-nothing else of the token is looked at or written); `check-needs` reads both as an unknown
-date. The file is written
+one. Without a date the file holds one word instead (forsgren#194):
+`no-expiry` for a token that answered without an expiry date,
+`no-expiry run-token` when that token is the job's own (it starts with
+`ghs_`, and nothing else of the token is looked at or written), and
+`unreadable` for a token that answered with an expiry header forsgren cannot
+read and no date it can (the `collect: note:` line shows it; the file does not repeat it). A
+token that never got an answer leaves no file. `check-needs` reads every
+word, and no file, as an unknown date; `run-summary`'s Token line tells the
+four apart (see [Running forsgren](configuration.md#running-forsgren)). The file is written
 whole (beside it, then renamed over it). A file that cannot be written or
 removed fails the run. From 14 days before the date, and once it has passed, `collect` also
 warns on stderr: a `collect: warning:` line that names the date and the

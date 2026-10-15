@@ -151,16 +151,34 @@ projects:
   if an earlier run wrote it, and has no entry in the menu. The legend says
   how to show it. The starter that `init-config` writes includes
   `numbers_scoring_page: false`.
+- **`history_page`** is optional (forsgren#68, from 1.8.0): whether the
+  History page (`history.html`) is generated, `true` or `false`, written at
+  the top level, for example `history_page: false`. Left out, or without a
+  value, it is `true`: the page is shown, so an installation that updates to
+  1.8.0 gets it without changing its config. The page shows the five metrics
+  and Overall Performance per period, the calendar half-years that
+  `history_days` reaches back and the last 6 months (see
+  [The History page](pages-and-views.md#the-history-page)); `dora_days` does
+  not change it. Only the literals `true` and `false` are accepted; any other
+  value is not accepted: forsgren uses the default `true` instead and says so
+  (see [A setting that is not accepted](#a-setting-that-is-not-accepted)),
+  naming the key: `invalid history_page "yes": use true or false`. `false`
+  hides the page and its menu entry: the page is not generated, is removed
+  from the site if an earlier run wrote it, and has no entry in the menu. The
+  legend says how to hide it. The starter that `init-config` writes includes
+  `history_page: true`.
 - **The settings page** (`settings.html`, forsgren#74, moved out of the legend
   in forsgren#84, a table since forsgren#141) tabulates every optional key,
   `view`, `auto_update`, `auto_update_level`, `history_days`,
-  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page` and `numbers_scoring_page`, ten rows in four columns: **Parameter**;
+  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page`, `numbers_scoring_page` and `history_page`, eleven rows in four columns: **Parameter**;
   **Current value**, the value in use (`major` for an unset
   `auto_update_level`); **Possible values**, built from the config package's
   own constants and limits so the page cannot drift from what `check-config`
-  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `30 to 1825`; `1 to 365`; `1 to 24`; `30, 90, 180`; `true, false` for each of the three page keys),
+  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `30 to 1825`; `1 to 365`; `1 to 24`; `30, 90, 180`; `true, false` for each of the four page keys),
   a test holds the lists to the config loader; and **Default**, the value
-  used when `forsgren.config.yml` does not set the key (forsgren#169). A
+  used when `forsgren.config.yml` does not set the key (forsgren#169):
+  `standard`, `false`, `major`, `365`, `100`, `8`, `30`, `true`, `false`,
+  `false` and `true`, in the order of the rows. A
   Current value followed by `(not set)` means the file does not set the key,
   so the default applies; a Current value without it is set in the file, even
   to the default's value. For a value that is not accepted the Current value
@@ -231,7 +249,7 @@ commit. Neither is configured per repository in version 1.
 
 A setting with a default (`view`, `auto_update`, `auto_update_level`,
 `history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
-`issues_page`, `days_page` and `numbers_scoring_page`) whose value forsgren
+`issues_page`, `days_page`, `numbers_scoring_page` and `history_page`) whose value forsgren
 does not accept, a list or
 a mapping included, does not stop the run (forsgren#183): forsgren uses that
 key's default instead, and says so in three places. The settings page's row
@@ -279,8 +297,8 @@ example with made-up `acme` names (the default deployment, `workflow=` and
 `release`), followed by `version: 1`, `view: standard`, `auto_update: true`,
 `auto_update_level: major`, `history_days: 365`,
 `history_chunk_days: 100`, `working_hours: 8`, `dora_days: 30`,
-`issues_page: true`, `days_page: false`, `numbers_scoring_page: false` and
-`projects: []`, so
+`issues_page: true`, `days_page: false`, `numbers_scoring_page: false`,
+`history_page: true` and `projects: []`, so
 `check-config` accepts it as it is: `projects: 0, repositories: 0`. When the file exists,
 whatever it holds (even an invalid or an empty file), it is left byte for
 byte and the command prints `kept forsgren.config.yml`; both exit 0. The file
@@ -297,8 +315,9 @@ forsgren renders a static page whose footer says "Forsgren 1.7.3", the version o
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
-`/standard/`, `/numbers/` and `/scoring/`, and with `numbers_scoring_page: true` the Numbers and scoring page at
-`/numbers-scoring/` (see [The page](pages-and-views.md#the-page)). That version has one source,
+`/standard/`, `/numbers/` and `/scoring/`, with `numbers_scoring_page: true` the Numbers and scoring page at
+`/numbers-scoring/`, and unless `history_page: false` the History page at
+`history.html` (see [The page](pages-and-views.md#the-page)). That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
 it with `-ldflags "-X main.version=<version>"`. `forsgren collect` reads
 GitHub into the history file (see [Collecting deployments](data-files.md#collecting-deployments-collect)); the daily run
@@ -350,7 +369,12 @@ or not a version adds nothing to the footer. `forsgren latest-release` reads
 forsgren's own public repository's latest release (with `GITHUB_TOKEN` when the
 environment has one, without otherwise) and prints its version without the
 `v`; when the lookup fails it prints nothing, says why on stderr and exits 0,
-since a page without news of a release is not an error. `--waiting-pr <number>`
+since a page without news of a release is not an error. With `--published
+<path>` (forsgren#194) it also writes the time the release was published to
+`<path>`, one UTC RFC 3339 line such as `2026-10-15T09:00:00Z`, for the run
+summary's Update line; a release without a publish time writes nothing, and a
+file that cannot be written is one line on stderr, the version still printed
+and the exit still 0. `--waiting-pr <number>`
 (1 or more, anything below is a usage error; leaving it out means none)
 is Dependabot's open pull request for it, as `forsgren waiting-pull-request
 --version <x.y.z> [--status <path>]` prints it (the open pull requests of
@@ -366,14 +390,48 @@ configuration: see the job summary of this run" to the footer, and leaving it
 out or `ok` adds nothing. `forsgren
 run-summary --latest <version> --waiting-pr <number> --pr-check
 <ok|no-access|rate-limited|failed|skipped> [--needs-check
-<ok|no-access|rate-limited|failed>] [--token-expiry <path>] --repository <owner/name>` prints the run's job
-summary as markdown (the version that built the page, the latest release or
-"unknown", and one of "up to date", "0.0.10 is available; no Dependabot pull
-request yet", "0.0.10 is waiting in pull request `[#7](link)`", "pull-request
-check skipped: grant pull-requests: read in your caller to enable it", "the
-pull-request check hit GitHub's rate limit, the next run tries again" and "the
-pull-request check failed", a Token line when `--token-expiry` names the file `collect` wrote, and a Setup line, see [The setup issue](updating-and-releases.md)). The Token line
-says "valid for N more days (until YYYY-MM-DD)" from one day left, "valid for N more hours (until YYYY-MM-DD HH:MM UTC)" under a day, "valid for less than an hour (until ...)" under an hour (or once the date has passed during the run), and, for a token with no date to count from, whether it is the run's own token ("renewed every run; nothing expires"), has no expiry date (a personal token set to no expiration), or could not be asked ("unknown: collect could not ask GitHub: see the failed collect step"). The link is fine there, because a run page is
+<ok|no-access|rate-limited|failed>] [--token-expiry <path>]
+[--latest-published <path>] --repository <owner/name>` prints the run's job
+summary as markdown, a `## forsgren` heading and then one line each:
+
+- `Run:` the moment the summary was written, in UTC to the minute,
+  "2026-10-15 15:10 UTC" (forsgren#194), so a summary pasted somewhere says
+  when it is from.
+- `Built with:` the version that built the page, "forsgren 1.7.3".
+- `Latest release:` the newest release, or "unknown" when `--latest` is
+  empty or not a version.
+- `Update:` where the update stands: "up to date", "0.0.10 is waiting in
+  pull request `[#7](link)`", or "0.0.10 is available; " followed by
+  "pull-request check skipped: grant pull-requests: read in your caller to
+  enable it", "the pull-request check hit GitHub's rate limit, the next run
+  tries again", "the pull-request check failed", "waiting for the 3-day
+  cooldown until 2026-10-18" or "no Dependabot pull request yet"; "unknown
+  (the latest release could not be read)" when the latest release is
+  unknown. The cooldown (forsgren#194) is the `cooldown: default-days` of the
+  first `github-actions` update in the checkout's `.github/dependabot.yml`
+  that names one, counted from the publish time in the file `--latest-published`
+  names (the one `latest-release --published` wrote), and it ends on the
+  UTC date shown; with no such file, no such cooldown, a time that cannot be
+  read or a cooldown that is over, the line says "no Dependabot pull request
+  yet".
+- `Token:`, only with `--token-expiry`, from the file `collect` wrote (see
+  [Collecting deployments](data-files.md#collecting-deployments-collect)): "valid
+  for N more days (until YYYY-MM-DD)" from one day left, "valid for N more
+  hours (until YYYY-MM-DD HH:MM UTC)" under a day, "valid for less than an
+  hour (until YYYY-MM-DD HH:MM UTC)" under an hour (or once the date has
+  passed during the run); for a token with no date to count from, "the
+  run's own token (GITHUB_TOKEN), renewed every run; nothing expires", "no
+  expiry date: a personal token set to no expiration (or more than a year); a
+  date under a year makes forsgren warn before it runs out", "unknown: GitHub
+  sent an expiry date forsgren cannot read; see the note in the collect step",
+  and, when the file is missing or holds anything else, "unknown: collect
+  could not ask GitHub: see the failed collect step".
+- `Setup:`, only with `--needs-check`: "in place, or the setup issue says
+  what is missing" for `ok`, else "the setup issue could not be written"
+  with the reason and the steps this version needs (see
+  [The setup issue](updating-and-releases.md)).
+
+The pull request is linked: the link is fine there, because a run page is
 private to the repository, unlike the public page. A flag it cannot use is a
 usage error that prints nothing. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides

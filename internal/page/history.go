@@ -69,8 +69,9 @@ func (d Data) historyRows(headings []Row, m int) []HistoryRow {
 		rows[r] = HistoryRow{Row: heading, Cells: make([]string, len(d.History))}
 		scores := make([]score, len(d.History))
 		for c, column := range d.History {
-			rows[r].Cells[c] = historyCells(Row{Row: column.Rows[r]})[m]
-			scores[c] = chartScore(Row{Row: column.Rows[r]}, m)
+			row := Row{Row: column.Rows[r]}
+			rows[r].Cells[c] = historyCells(row)[m]
+			scores[c] = chartScore(row, m)
 		}
 		rows[r].Chart = historyChart(chartTitle(m, heading.Heading, d.History), scores)
 	}
@@ -78,10 +79,10 @@ func (d Data) historyRows(headings []Row, m int) []HistoryRow {
 }
 
 // historyCells are the row's cells in the order of historyMeasures: Overall
-// Performance, then each metric as number and score. A row that is unread or
-// has no deployment yet has none: a dash each.
+// Performance, then each metric as number and score. A row without data, unread
+// or with no deployment yet, has none: a dash each.
 func historyCells(r Row) []string {
-	if r.Unread || !r.HasDeployments() {
+	if !r.HasData() {
 		cells := make([]string, len(historyMeasures))
 		for i := range cells {
 			cells[i] = noScore
@@ -98,6 +99,16 @@ func periodHeader(p metrics.Period) string {
 		return p.Label + " to " + p.End.Format("2006-01-02")
 	}
 	return p.Label
+}
+
+// HistoryEdges are the band edges of the history page's 180 days
+// (forsgren#68).
+func (d Data) HistoryEdges() metrics.Edges { return metrics.EdgesOf(metrics.RollingDays) }
+
+// HistoryOnDemandFrom is the lowest count over the 180 days of a history
+// period that is on demand for the working day (forsgren#68).
+func (d Data) HistoryOnDemandFrom() int {
+	return metrics.OnDemandFrom(d.WorkingHours, metrics.RollingDays)
 }
 
 // HistoryMessage is the one line the history page shows in place of its table

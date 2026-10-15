@@ -7,7 +7,8 @@ package page
 // breaks there, and a period alone between gaps is a dot. The table beside it
 // carries the same numbers, so the chart has a title and nothing else for a
 // reader of the page; it is drawn in the text colour. The "chart" template
-// (templates/layout/historychart.html) draws it at chartWidth by chartHeight.
+// (templates/layout/historychart.html) draws it; its size, margin and dot
+// are the constants below, the one place of the chart's geometry.
 
 import (
 	"fmt"
@@ -16,11 +17,13 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/metrics"
 )
 
-// The chart's size and the margin around its lines, in the SVG's own units.
+// The chart's size, the margin around its lines and the radius of a dot, in
+// the SVG's own units.
 const (
 	chartWidth  = 120
 	chartHeight = 32
 	chartMargin = 4
+	chartDot    = 2
 )
 
 // HistoryChart is what the "chart" template draws: the title of the chart and
@@ -29,6 +32,15 @@ type HistoryChart struct {
 	Title string
 	Runs  []ChartRun
 }
+
+// Width is the chart's width, for the template.
+func (HistoryChart) Width() int { return chartWidth }
+
+// Height is the chart's height, for the template.
+func (HistoryChart) Height() int { return chartHeight }
+
+// DotRadius is the radius of a period alone, for the template.
+func (HistoryChart) DotRadius() int { return chartDot }
 
 // ChartRun is a run of consecutive periods that have a score: a dot at X, Y
 // for a period alone, else the Points of a polyline, both in the SVG's units.
@@ -100,24 +112,16 @@ func place(p point, periods int) (x, y float64) {
 }
 
 // chartScore is the score of the row for measure m of historyMeasures, 0 being
-// the Overall Performance: none for a row that is unread or has no deployment
-// yet, as its cells are dashes.
+// the Overall Performance: none for a row without data, as its cells are
+// dashes.
 func chartScore(r Row, m int) score {
-	if r.Unread || !r.HasDeployments() {
+	switch {
+	case !r.HasData():
 		return score{}
+	case m == 0:
+		return r.overall()
 	}
-	scores := r.scores()
-	if m > 0 {
-		return scores[m-1]
-	}
-	var scored []float64
-	for _, s := range scores {
-		if s.ok {
-			scored = append(scored, s.value)
-		}
-	}
-	overall, ok := metrics.OverallScore(scored)
-	return score{overall, ok}
+	return r.scores()[m-1]
 }
 
 // chartTitle is the title of the chart of measure m for the row headed

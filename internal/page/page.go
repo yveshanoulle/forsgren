@@ -220,31 +220,21 @@ func (d Data) WeeklyToMonthlyFrom() int { return d.edges().WeeklyToMonthly }
 // month, one below DailyToWeeklyFrom.
 func (d Data) WeeklyToMonthlyTo() int { return d.DailyToWeeklyFrom() - 1 }
 
-// HistoryEdges are the band edges of the history page's 180 days
-// (forsgren#68).
-func (d Data) HistoryEdges() metrics.Edges { return metrics.EdgesOf(metrics.RollingDays) }
-
-// HistoryOnDemandFrom is the lowest count over the 180 days of a history
-// period that is on demand for the working day (forsgren#68).
-func (d Data) HistoryOnDemandFrom() int {
-	return metrics.OnDemandFrom(d.WorkingHours, metrics.RollingDays)
-}
-
 // pagesGlob matches one template file per page, named as the page it
 // renders. parsePages and PageNames read the same set through it.
 const pagesGlob = "templates/pages/*.html"
 
-// issuePage is a page of its own at the root, not a view: its file is
+// rootPage is a page of its own at the root, not a view: its file is
 // <Name>.html and the menu calls it Label.
-type issuePage struct{ Name, Label string }
+type rootPage struct{ Name, Label string }
 
-// issuePages are the pages at the root, in the order the menu names them
+// rootPages are the pages at the root, in the order the menu names them
 // after the folderPages: the issues page (forsgren#123, forsgren#128: the
 // weeks, months and years), the days page (forsgren#76, forsgren#128: the
 // last 30 days, labelled Daily) and the history page (forsgren#68).
-var issuePages = []issuePage{{IssuesPage, "Issues"}, {DaysPage, "Daily"}, {HistoryPage, "History"}}
+var rootPages = []rootPage{{IssuesPage, "Issues"}, {DaysPage, "Daily"}, {HistoryPage, "History"}}
 
-// IssuesPage and DaysPage are the names of the two issue pages, the keys of
+// IssuesPage and DaysPage are the names of the two issue pages, keys of
 // Data.Hidden (forsgren#159).
 const (
 	IssuesPage = "issues"
@@ -301,7 +291,7 @@ type pageData struct {
 	// on the other pages (forsgren#128).
 	View string
 	// Page is the page's name, its file without ".html": the menu marks
-	// the one of issuePages it names as current (forsgren#76, forsgren#123,
+	// the one of rootPages it names as current (forsgren#76, forsgren#123,
 	// forsgren#128).
 	Page string
 }
@@ -337,17 +327,17 @@ func (p pageData) ScoredCells(row Row) []string {
 type menuItem struct{ Href, Label, Current string }
 
 // Menu is the menu at the top of the page (forsgren#128, decision #133): the
-// folderPages, then the issuePages, each one the site shows (forsgren#159,
-// forsgren#55). The view the page shows is marked current, and the issue page
+// folderPages, then the rootPages, each one the site shows (forsgren#159,
+// forsgren#55). The view the page shows is marked current, and the root page
 // the page is marked "page"; every other entry is a link.
 func (p pageData) Menu() []menuItem {
-	return append(p.folderEntries(), p.issueEntries()...)
+	return append(p.folderEntries(), p.rootEntries()...)
 }
 
 // folderEntries are the menu's entries of the folderPages the site shows,
 // the one the page shows marked as viewCurrent says.
 func (p pageData) folderEntries() []menuItem {
-	menu := make([]menuItem, 0, len(folderPages)+len(issuePages))
+	menu := make([]menuItem, 0, len(folderPages)+len(rootPages))
 	for _, folder := range folderPages {
 		if !p.Hidden[folder.Name] {
 			menu = append(menu, menuItem{folder.Name + "/", folder.Label, markIf(folder.Name == p.View, p.viewCurrent())})
@@ -356,13 +346,13 @@ func (p pageData) folderEntries() []menuItem {
 	return menu
 }
 
-// issueEntries are the menu's entries of the issuePages the site shows, the
+// rootEntries are the menu's entries of the rootPages the site shows, the
 // page's own marked "page".
-func (p pageData) issueEntries() []menuItem {
-	menu := make([]menuItem, 0, len(issuePages))
-	for _, issues := range issuePages {
-		if !p.Hidden[issues.Name] {
-			menu = append(menu, menuItem{issues.Name + ".html", issues.Label, markIf(issues.Name == p.Page, "page")})
+func (p pageData) rootEntries() []menuItem {
+	menu := make([]menuItem, 0, len(rootPages))
+	for _, root := range rootPages {
+		if !p.Hidden[root.Name] {
+			menu = append(menu, menuItem{root.Name + ".html", root.Label, markIf(root.Name == p.Page, "page")})
 		}
 	}
 	return menu
