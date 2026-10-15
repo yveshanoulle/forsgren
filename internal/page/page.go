@@ -441,16 +441,29 @@ func writeOrRemovePage(dir siteDir, name string, data Data) (bool, error) {
 	return true, writePage(dir, name, data)
 }
 
-// hides says whether the site leaves out the page called name (its file
-// without ".html"), forsgren#159.
-func (d Data) hides(name string) bool { return d.Hidden[strings.TrimSuffix(name, ".html")] }
+// hides says whether the site leaves out the page called name: a root page by
+// its file without ".html", a page in a folder by the folder's name
+// (forsgren#159, forsgren#55).
+func (d Data) hides(name string) bool {
+	if folder := path.Dir(name); folder != "." {
+		return d.Hidden[folder]
+	}
+	return d.Hidden[strings.TrimSuffix(name, ".html")]
+}
 
 // removePage deletes the file of a hidden page from a reused out dir; a page
-// that was never written is not an error.
+// that was never written is not an error. The folder of a page in a folder
+// goes with it once empty, and stays when something else is in it.
 func removePage(dir siteDir, name string) error {
-	err := os.Remove(filepath.Join(string(dir), name))
+	file := filepath.Join(string(dir), name)
+	err := os.Remove(file)
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil
+		err = nil
+	}
+	if err == nil && path.Dir(name) != "." {
+		// A folder that is not empty is not ours to remove: the error says
+		// only that, and is left out.
+		_ = os.Remove(filepath.Dir(file))
 	}
 	return err
 }

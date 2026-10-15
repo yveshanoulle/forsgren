@@ -162,3 +162,55 @@ func TestLegendExplainsTheTwoPageKeysWhateverIsHidden(t *testing.T) {
 		}
 	}
 }
+
+// TestWriteSiteLeavesOutAHiddenNumbersAndScoringPage (forsgren#55): a hidden
+// numbers and scoring page is not written and not counted, a stale file of it
+// in a reused out dir is removed with its folder once empty, and a folder
+// that holds something else keeps it; the other eight pages are written.
+func TestWriteSiteLeavesOutAHiddenNumbersAndScoringPage(t *testing.T) {
+	hidden := placeholderHiding(map[string]bool{viewNumbersScoring: true})
+	for name, other := range map[string]string{"empty folder": "", "folder with another file": "keep.txt"} {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			folder := writeStaleFolder(t, dir, other)
+			n, err := WriteSite(dir, hidden)
+			if err != nil || n != 8 {
+				t.Fatalf("want 8 pages and no error, got %d, %v", n, err)
+			}
+			wantGone(t, dir, []string{"numbers-scoring/index.html"})
+			if _, err := os.Stat(folder); (other == "") != os.IsNotExist(err) {
+				t.Errorf("want the folder gone only when empty (other file %q), got %v", other, err)
+			}
+			wantRendered(t, dir, []string{"index.html", "numbers/index.html", "scoring/index.html", "days.html"})
+		})
+	}
+}
+
+// writeStaleFolder leaves an old numbers-scoring/index.html in dir, and the
+// file other beside it when named; it returns the folder.
+func writeStaleFolder(t *testing.T, dir, other string) string {
+	t.Helper()
+	folder := filepath.Join(dir, viewNumbersScoring)
+	if err := os.MkdirAll(folder, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"index.html", other} {
+		if f == "" {
+			continue
+		}
+		if err := os.WriteFile(filepath.Join(folder, f), []byte("old"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return folder
+}
+
+// TestWriteSiteHidesANumbersAndScoringPageThatWasNeverWritten (forsgren#55): no
+// file and no folder in a fresh out dir is no error, and none is made.
+func TestWriteSiteHidesANumbersAndScoringPageThatWasNeverWritten(t *testing.T) {
+	dir := t.TempDir()
+	if n, err := WriteSite(dir, placeholderHiding(map[string]bool{viewNumbersScoring: true})); err != nil || n != 8 {
+		t.Errorf("want 8 pages and no error, got %d, %v", n, err)
+	}
+	wantGone(t, dir, []string{viewNumbersScoring})
+}
