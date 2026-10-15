@@ -566,6 +566,14 @@ repository links|Scripts/check_repo_links.sh|post|
 community-files self-test|Scripts/test_check_community_files.sh|pre|
 community files|Scripts/check_community_files.sh|pre|
 #
+# THE MARKDOWN LINKS (forsgren#147). Not canon: forsgren's own. Red when a
+# relative link in a tracked Markdown file (inline or reference definition,
+# outside code) names no tracked file or directory. It reads repository
+# files, so it is pre. Self-test right before the gate, with a mutation proof
+# per setting.
+markdown-links self-test|Scripts/test_check_markdown_links.sh|pre|
+markdown links|Scripts/check_markdown_links.sh|pre|
+#
 # THE EXIT-TRAP COMPLETION RULE (forsgren#137, found by #136). Not canon: forsgren's own.
 # Red when a script runs under set -e with a top-level EXIT trap and no COMPLETED
 # flag: on bash 3.2 an abort after the trap then exits 0. It reads repository

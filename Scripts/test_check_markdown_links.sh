@@ -18,6 +18,7 @@
 #  10. every finding in one run                                  -> two lines
 #  11. no Markdown file, or no relative link                     -> red (zero)
 #  12. a missing root, a root that is no git work tree           -> exit 2
+#  13. this repository                                           -> green
 # Mutation proofs: the link reader replaced by one that strips nothing turns
 # the fence, comment and code-span fixture red; the not-relative pattern
 # replaced by one that never matches turns the http fixture red.
@@ -170,6 +171,9 @@ want_rc "12a. exits 2 on a missing root, never 0" 2
 mkdir -p "$TMP/nogit"
 capture "$GATE" "$TMP/nogit"
 want_exit "12b. exits 2 on a root that is no git work tree" 2 "is not a git work tree"
+
+capture "$GATE"
+want_green_ok "13. this repository's Markdown links all resolve"
 
 # Mutation proofs. The mutant sits in its own Scripts/, and gets the real
 # reader beside it unless the mutation replaces the reader.

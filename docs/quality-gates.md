@@ -381,6 +381,16 @@ The POST gates, on the generated site:
   is not a Markdown link); and this README links both in plain Markdown, not
   inside a code block, a code span or a comment. Every finding is reported in
   one run.
+- **markdown links** (`Scripts/check_markdown_links.sh`, forsgren's own,
+  forsgren#147): every relative link in a tracked Markdown file (an inline
+  `[text](path)` or a reference definition `[label]: path`, outside a fenced
+  block, an HTML comment and an inline code span) resolves, from the file's
+  own directory, to a tracked file or a directory that holds one, spelled
+  with the right case. A link with a scheme, a `//host` link and a pure
+  `#anchor` are not checked, and the `#anchor` of a file link is cut before
+  resolving. Red on a root with no Markdown file or no relative link. The
+  failure line names `file:line` and the link as written; every finding is
+  reported in one run.
 - **exit-trap completion** (`Scripts/check_exit_trap_completion.sh`, forsgren's
   own, forsgren#137, found by #136): a shell script, at the repository root or
   directly in `Scripts/`, that has a top-level `set -e` before a top-level

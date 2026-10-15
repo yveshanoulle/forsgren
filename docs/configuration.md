@@ -346,7 +346,7 @@ run-summary --latest <version> --waiting-pr <number> --pr-check
 <ok|no-access|rate-limited|failed>] [--token-expiry <path>] --repository <owner/name>` prints the run's job
 summary as markdown (the version that built the page, the latest release or
 "unknown", and one of "up to date", "0.0.10 is available; no Dependabot pull
-request yet", "0.0.10 is waiting in pull request [#7](link)", "pull-request
+request yet", "0.0.10 is waiting in pull request `[#7](link)`", "pull-request
 check skipped: grant pull-requests: read in your caller to enable it", "the
 pull-request check hit GitHub's rate limit, the next run tries again" and "the
 pull-request check failed", a Token line when `--token-expiry` names the file `collect` wrote, and a Setup line, see [The setup issue](updating-and-releases.md)). The Token line
