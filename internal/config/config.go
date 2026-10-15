@@ -364,10 +364,14 @@ func ownerWords(reason string) string {
 
 // Setting is one optional key of the file with the value forsgren uses
 // (forsgren#74): Set says whether the file writes the key, Value is its
-// default when it does not.
+// default when it does not. A key the file writes with a value forsgren does
+// not accept is not Set: Value is the default in force, Written is the value
+// as written and Reason says why it is not accepted (forsgren#183); both are
+// empty for any other key.
 type Setting struct {
-	Key, Value string
-	Set        bool
+	Key, Value      string
+	Set             bool
+	Written, Reason string
 }
 
 // settingKey is one optional key: its name, its default as written in the
@@ -392,13 +396,22 @@ var settingKeys = []settingKey{
 }
 
 // Settings lists every optional key in the order of settingKeys: the value
-// the file writes, or the default for a key it leaves out (forsgren#74).
+// the file writes, or the default for a key it leaves out or does not accept;
+// a rejected key also carries the value as written and the reason
+// (forsgren#74, #183).
 func (c Config) Settings() []Setting {
 	list := make([]Setting, len(settingKeys))
 	for i, k := range settingKeys {
 		list[i] = Setting{Key: k.key, Value: k.def, Set: c.written[k.key]}
 		if list[i].Set {
 			list[i].Value = k.value(c)
+		}
+	}
+	for _, r := range c.Rejected {
+		for i := range list {
+			if list[i].Key == r.Key {
+				list[i].Written, list[i].Reason = r.Written, r.Reason
+			}
 		}
 	}
 	return list

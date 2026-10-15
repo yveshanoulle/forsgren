@@ -10,23 +10,16 @@ import (
 // only history_days has that key Set with its value, every other key unset
 // with its default, in the fixed order.
 func TestSettingsListsEveryKeyWithItsDefault(t *testing.T) {
-	got, err := parse([]byte("history_days: 30\n" + valid))
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := []Setting{
-		{"view", "standard", false},
-		{"auto_update", "false", false},
-		{"auto_update_level", "major", false},
-		{"history_days", "30", true},
-		{"history_chunk_days", "100", false},
-		{"working_hours", "8", false},
-		{"issues_page", "true", false},
-		{"days_page", "false", false},
-	}
-	if s := got.Settings(); !slices.Equal(s, want) {
-		t.Errorf("want settings %v, got %v", want, s)
-	}
+	wantSettings(t, "history_days: 30\n", []Setting{
+		{Key: "view", Value: "standard"},
+		{Key: "auto_update", Value: "false"},
+		{Key: "auto_update_level", Value: "major"},
+		{Key: "history_days", Value: "30", Set: true},
+		{Key: "history_chunk_days", Value: "100"},
+		{Key: "working_hours", Value: "8"},
+		{Key: "issues_page", Value: "true"},
+		{Key: "days_page", Value: "false"},
+	})
 }
 
 // TestSettingsMarksEveryWrittenKeySet (forsgren#74): a file that writes all
@@ -34,23 +27,16 @@ func TestSettingsListsEveryKeyWithItsDefault(t *testing.T) {
 func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 	all := "view: numbers\nauto_update: true\nauto_update_level: minor\n" +
 		"history_days: 30\nhistory_chunk_days: 10\nworking_hours: 6\nissues_page: false\ndays_page: true\n"
-	got, err := parse([]byte(all + valid))
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := []Setting{
-		{"view", "numbers", true},
-		{"auto_update", "true", true},
-		{"auto_update_level", "minor", true},
-		{"history_days", "30", true},
-		{"history_chunk_days", "10", true},
-		{"working_hours", "6", true},
-		{"issues_page", "false", true},
-		{"days_page", "true", true},
-	}
-	if s := got.Settings(); !slices.Equal(s, want) {
-		t.Errorf("want settings %v, got %v", want, s)
-	}
+	wantSettings(t, all, []Setting{
+		{Key: "view", Value: "numbers", Set: true},
+		{Key: "auto_update", Value: "true", Set: true},
+		{Key: "auto_update_level", Value: "minor", Set: true},
+		{Key: "history_days", Value: "30", Set: true},
+		{Key: "history_chunk_days", Value: "10", Set: true},
+		{Key: "working_hours", Value: "6", Set: true},
+		{Key: "issues_page", Value: "false", Set: true},
+		{Key: "days_page", Value: "true", Set: true},
+	})
 }
 
 // TestEveryRejectedSettingIsListedInOrder (forsgren#183): a file with several
@@ -130,5 +116,34 @@ func TestAnAliasInsideAValueShowsItsName(t *testing.T) {
 	}
 	if want := "[one, *x, {k: [v]}]"; got.Rejected[0].Written != want {
 		t.Errorf("want %q, got %q", want, got.Rejected[0].Written)
+	}
+}
+
+// TestSettingsCarriesEachRejection (forsgren#183): a setting that is not
+// accepted lists the default in force, as not written, with the value as
+// written and the reason; the other settings carry neither.
+func TestSettingsCarriesEachRejection(t *testing.T) {
+	wantSettings(t, "view: weekly\nhistory_days: 0\nworking_hours: 6\n", []Setting{
+		{Key: "view", Value: "standard", Written: "weekly", Reason: "use standard, numbers or scoring"},
+		{Key: "auto_update", Value: "false"},
+		{Key: "auto_update_level", Value: "major"},
+		{Key: "history_days", Value: "365", Written: "0", Reason: "use a whole number of days from 1 to 1825"},
+		{Key: "history_chunk_days", Value: "100"},
+		{Key: "working_hours", Value: "6", Set: true},
+		{Key: "issues_page", Value: "true"},
+		{Key: "days_page", Value: "false"},
+	})
+}
+
+// wantSettings wants the settings of the config the keys, then a valid
+// projects list, make to be exactly want.
+func wantSettings(t *testing.T, keys string, want []Setting) {
+	t.Helper()
+	got, err := parse([]byte(keys + valid))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := got.Settings(); !slices.Equal(s, want) {
+		t.Errorf("want settings %v, got %v", want, s)
 	}
 }
