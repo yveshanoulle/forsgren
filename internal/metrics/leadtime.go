@@ -36,7 +36,8 @@ import (
 // LeadTime is one project's lead time for changes at the render time.
 type LeadTime struct {
 	Project string
-	// Commits counts the commits deployed in the last 30 days.
+	// Commits counts the commits deployed in the window: the last 30 days, or
+	// the last 90 or 180 with LeadTimesOver (forsgren#178).
 	Commits int
 	// Median is their median lead time; zero without commits.
 	Median time.Duration
@@ -51,11 +52,17 @@ func (l LeadTime) HasCommits() bool { return l.Commits > 0 }
 // LeadTimes returns the lead time for changes of each project, in the order
 // of projects, from the stored commits at the render time now.
 func LeadTimes(projects []config.Project, commits []history.Commit, now time.Time) []LeadTime {
+	return LeadTimesOver(projects, commits, last30Days, now)
+}
+
+// LeadTimesOver is LeadTimes over a window of days (30, 90 or 180): a commit
+// counts when its deployment was created in the last days days (forsgren#178).
+func LeadTimesOver(projects []config.Project, commits []history.Commit, days int, now time.Time) []LeadTime {
 	index := indexOf(projects)
 	leads := make([][]time.Duration, len(projects))
 	for _, c := range commits {
 		i, ok := index.of(c.Repository)
-		if ok && last30.holds(c.DeployedAt, now) {
+		if ok && window(days).holds(c.DeployedAt, now) {
 			leads[i] = append(leads[i], leadTimeOf(c))
 		}
 	}

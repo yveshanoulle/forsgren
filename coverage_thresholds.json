@@ -448,6 +448,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/leadband.go:String": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/leadtime.go:HasCommits": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/leadtime.go:LeadTimes": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/leadtime.go:LeadTimesOver": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/leadtime.go:leadTimeOver": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/leadtime.go:leadTimeOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/leadtime.go:median": 100.0,
