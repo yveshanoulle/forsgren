@@ -1,9 +1,12 @@
 package metrics
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
 // at is the UTC time of a date and a clock time.
@@ -71,5 +74,27 @@ func TestPeriodsHaveTheirSpans(t *testing.T) {
 		return a.Label == b.Label && a.Start.Equal(b.Start) && a.End.Equal(b.End) && a.Rolling == b.Rolling
 	}) {
 		t.Errorf("Periods(now, 500) = %+v, want %+v", got, want)
+	}
+}
+
+// TestRollingPeriodEqualsTheNumbersAt180Days (forsgren#68): the newest column
+// is the table's rows over the last 180 days, as dora_days: 180 gives them,
+// for deployments, commits and failure issues up to six months old; what is
+// older is not in it.
+func TestRollingPeriodEqualsTheNumbersAt180Days(t *testing.T) {
+	data := tableData()
+	data.Records = append(data.Records,
+		appDeployment(20, "deploy-api", history.StateFailure, 100*day),
+		appDeployment(21, "deploy-api", history.StateSuccess, 100*day-time.Hour),
+		appDeployment(22, "deploy-api", history.StateSuccess, 170*day),
+		appDeployment(23, "deploy-api", history.StateSuccess, 200*day))
+	data.Commits = append(data.Commits, shippedBy("acme/app", 21, 100*day-time.Hour, 3*day))
+	data.Failures = append(data.Failures, history.Failure{Repository: "acme/app", Issue: 3, OpenedAt: now.Add(-150 * day)})
+	rolling := Periods(now, 365)[1]
+	got := PeriodRows(tableProjects, data, rolling)
+	data.DoraDays = 180
+	want := Rows(tableProjects, data, now)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("rolling column = %+v, want the rows at 180 days %+v", got, want)
 	}
 }

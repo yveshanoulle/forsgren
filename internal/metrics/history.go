@@ -63,3 +63,11 @@ func currentHalfYearStart(now time.Time) time.Time {
 func halfYearLabel(start time.Time) string {
 	return fmt.Sprintf("%d H%d", start.Year(), (int(start.Month())-1)/6+1)
 }
+
+// PeriodRows are the history page's rows for one period (forsgren#68): the
+// table's rows, as Rows gives them, counted over the period's own days ending
+// at its end.
+func PeriodRows(projects []config.Project, data Data, p Period) []Row {
+	data.DoraDays = int(p.End.Sub(p.Start) / day)
+	return Rows(projects, data, p.End)
+}
