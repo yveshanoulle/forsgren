@@ -300,15 +300,19 @@ count. When it stored failure issues the line goes on with
 - **`data/reach.csv`** holds the reach, one row per repository, sorted by
   name (`# forsgren reach v1`, then `repository,reach`, the date as RFC 3339
   UTC). It is written next to `deployments.csv` whole, through a temporary
-  file that is renamed over it, and only when a reach moved. It is needed
+  file that is renamed over it, and only when a reach moved or a row is added. It is needed
   because the oldest stored deployment cannot tell a quiet stretch from one
   that was not read yet. An installation that has none starts each repository
   with stored deployments at its oldest stored deployment: everything since
-  was read by the runs so far.
+  was read by the runs so far. When that deployment is already as far back as
+  `history_days` there is no older chunk to read, and the run still notes it
+  as the repository's reach (forsgren#196, from 1.8.0), so the History page
+  has a row for every repository after one run. `render` and `collect` compare
+  repository names ignoring case.
 - `render` reads `data/reach.csv` too, for the History page (forsgren#68,
   from 1.8.0): a period shows a row's numbers only when every repository of
   the row was read back to the period's start; a repository with a later
-  reach, or with no row in the file, makes that row a dash in that period,
+  reach, or with no row in the file yet, makes that row a dash in that period,
   and a period no row has data for is left out. A missing file is no reach
   at all, so the History page says it has no history to show yet; a file
   with another format version or a malformed line fails the render with

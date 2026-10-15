@@ -65,6 +65,8 @@ var chunkCases = []chunkCase{
 	{"the last chunk stops at history_days", []int{5}, 300, []int{5, 320}, 365, false},
 	{"history without reach.csv starts at its oldest deployment", []int{5, 150}, 0, []int{5, 150, 250}, 250, false},
 	{"a read cut off at the page limit moves reach to the oldest date read", []int{5}, 200, []int{5, 250}, 250, true},
+	{"history older than history_days without reach.csv notes its oldest deployment", []int{400}, 0,
+		[]int{5, 150, 250, 320, 400}, 400, false},
 }
 
 // fullyRead notes in reach.csv next to the history at path that acme/app was

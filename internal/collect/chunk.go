@@ -43,12 +43,18 @@ type windows struct {
 	normal github.Span
 	older  github.Span
 	first  bool // nothing stored and no reach: the normal read is the first chunk
+	// stored is the oldest stored deployment of a repository that has history
+	// but no reach row, zero for the others: the reach the run takes for it
+	// (forsgren#196).
+	stored time.Time
 }
 
 // windows plans the read of base's source. The normal read starts 7 days
 // (Lookback) before the newest stored deployment, never before earliest, or,
 // with nothing stored, one chunk back. The older chunk ends at the reach, or
-// at the oldest stored deployment when no reach is noted.
+// at the oldest stored deployment when no reach is noted; when that is already
+// as far back as history_days there is no older chunk, and the oldest stored
+// deployment is the reach the run notes (forsgren#196).
 func (o Options) windows(h held, base history.Record) windows {
 	s := sourceOf(base)
 	newest, stored := h.newest[s]
@@ -59,6 +65,9 @@ func (o Options) windows(h held, base history.Record) windows {
 	}
 	if !noted {
 		reach = h.oldest[s]
+		if stored {
+			w.stored = reach
+		}
 	}
 	w.older = o.olderChunk(reach)
 	return w
@@ -87,6 +96,9 @@ func (o Options) read(ctx context.Context, h held, base history.Record, kind con
 		f.reach = advance(w.normal, f)
 	}
 	if w.older.Until.IsZero() {
+		if f.reach.IsZero() {
+			f.reach = w.stored
+		}
 		return f, nil
 	}
 	g, err := o.fetch(ctx, h, base, w.older)

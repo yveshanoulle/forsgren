@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/collect"
@@ -215,12 +216,26 @@ func metricsDataOf(cfg config.Config, path string) (metrics.Data, error) {
 	if err != nil {
 		return metrics.Data{}, err
 	}
-	reach, err := history.LoadReach(beside(path, collect.ReachFile))
+	reach, err := loadReach(beside(path, collect.ReachFile))
 	if err != nil {
 		return metrics.Data{}, err
 	}
 	return metrics.Data{Records: records, Commits: commits, Failures: failures, WorkingHours: cfg.WorkingHours,
 		DoraDays: cfg.DoraDays, Reach: reach}, nil
+}
+
+// loadReach is the reach at path with each repository lower-case, as collect
+// keeps and compares them (forsgren#196).
+func loadReach(path string) (history.Reach, error) {
+	reach, err := history.LoadReach(path)
+	if err != nil {
+		return nil, err
+	}
+	folded := make(history.Reach, len(reach))
+	for repository, at := range reach {
+		folded[strings.ToLower(repository)] = at
+	}
+	return folded, nil
 }
 
 // failuresOf is the failure issues beside the history at path

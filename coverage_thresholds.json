@@ -101,6 +101,7 @@
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:markBugs": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:beside": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:metricsDataOf": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:loadReach": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:failuresOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/collect.go:Run": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/collect.go:collectProject": 100.0,

@@ -117,3 +117,21 @@ func TestRenderRefusesABadReach(t *testing.T) {
 	}
 	wantRefused(t, data, reach, "unknown")
 }
+
+// TestRenderMatchesTheReachWhateverTheCase (forsgren#196): a repository is the
+// same whichever way its name is written, in the config or in reach.csv, as
+// collect compares them; a reach row written Acme/API reads the config's
+// acme/api, and the History page shows the period it was read back to.
+func TestRenderMatchesTheReachWhateverTheCase(t *testing.T) {
+	pinNow(t)
+	data := writeHistory(t, olderHistory())
+	at := time.Date(2025, time.October, 1, 0, 0, 0, 0, time.UTC)
+	reach := history.Reach{"Acme/API": at, "ACME/ios-app": at, "acme/CLI": at}
+	if err := history.SaveReach(filepath.Join(filepath.Dir(data), "reach.csv"), reach); err != nil {
+		t.Fatal(err)
+	}
+	got := readSite(t, renderInto(t, "--config", writeConfig(t, validConfig), "--data", data), "history.html")
+	if !strings.Contains(got, `<th scope="col">2026 H1</th>`) {
+		t.Errorf("want the half-year the repositories were read back to, got:\n%s", got)
+	}
+}
