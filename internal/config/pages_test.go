@@ -22,7 +22,7 @@ func TestIssuesAndDaysPagesAreRead(t *testing.T) {
 	}
 	for _, tc := range cases {
 		got, err := parse([]byte(tc.file))
-		if err != nil || got.IssuesPage != tc.wantIssues || got.DaysPage != tc.wantDays {
+		if err != nil || issuesAndDays(got) != [2]bool{tc.wantIssues, tc.wantDays} {
 			t.Errorf("%s: want issues_page %v, days_page %v and no error, got %v, %v, %v",
 				tc.name, tc.wantIssues, tc.wantDays, got.IssuesPage, got.DaysPage, err)
 		}
@@ -50,6 +50,9 @@ func TestNumbersScoringPageIsRead(t *testing.T) {
 	}
 }
 
+// issuesAndDays are the config's issues_page and days_page, in that order.
+func issuesAndDays(cfg Config) [2]bool { return [2]bool{cfg.IssuesPage, cfg.DaysPage} }
+
 // TestRejectedPageKeyFallsBack (forsgren#159, #183): any value that is not the
 // YAML boolean true or false is not accepted: the key's default is in force
 // (issues page on, days page off) and the key counts as not written; the other
@@ -74,9 +77,12 @@ func TestRejectedPageKeyFallsBack(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := parse([]byte(tc.file))
-			if err != nil || got.IssuesPage != tc.wantIssues || got.DaysPage != tc.wantDays || got.written[tc.want[0]] {
-				t.Fatalf("want issues_page %v, days_page %v, %s not written and no error, got %v, %v, %v, %v",
-					tc.wantIssues, tc.wantDays, tc.want[0], got.IssuesPage, got.DaysPage, got.written, err)
+			if err != nil || got.written[tc.want[0]] {
+				t.Fatalf("want %s not written and no error, got %v, %v", tc.want[0], got.written, err)
+			}
+			if issuesAndDays(got) != [2]bool{tc.wantIssues, tc.wantDays} {
+				t.Fatalf("want issues_page %v, days_page %v, got %v, %v",
+					tc.wantIssues, tc.wantDays, got.IssuesPage, got.DaysPage)
 			}
 			wantRejection(t, got.Rejected, tc.sentinel, tc.want)
 		})
@@ -90,9 +96,12 @@ func TestRejectedPageKeyFallsBack(t *testing.T) {
 func TestRejectedNumbersScoringPageFallsBack(t *testing.T) {
 	for written, line := range map[string]string{"yes": "yes", "true": "\"true\"", "1": "1"} {
 		got, err := parse([]byte("numbers_scoring_page: " + line + "\n" + valid))
-		if err != nil || got.NumbersScoringPage || got.written["numbers_scoring_page"] {
-			t.Errorf("%s: want the page off and the key not written, got %v, %v, %v", written,
-				got.NumbersScoringPage, got.written, err)
+		if err != nil {
+			t.Fatalf("%s: %v", written, err)
+		}
+		if got.NumbersScoringPage || got.written["numbers_scoring_page"] {
+			t.Errorf("%s: want the page off and the key not written, got %v, %v", written,
+				got.NumbersScoringPage, got.written)
 		}
 		wantRejection(t, got.Rejected, ErrNumbersScoringPage,
 			[4]string{"numbers_scoring_page", written, "use true or false", "false"})

@@ -404,7 +404,7 @@ a path on github.com (forsgren#172):
   and the count it is over, "Less than one day · 2 h 7 min (48)"; the
   weekend deployments have their own column. Durations are in min, h and d,
   each part cut down, never rounded up.
-- **Pages:** up to ten pages are written: `index.html`, `legend.html`, `settings.html`, `issues.html`, `days.html`, `history.html`, the three views and the Numbers and scoring page. Every page opens with one menu, "View: Standard · Numbers · Scoring · Numbers and scoring · Issues · Daily · History" (forsgren#128, decision #133, forsgren#55, forsgren#68): the three views, then the Numbers and scoring page, `numbers-scoring/`, then the issues page, `issues.html`, the days page, `days.html`, labelled Daily, and the History page, `history.html`; one folder down its links go through `../`. The current page is plain text marked `aria-current="page"`; the root marks the view it shows `aria-current="true"` (see Views), and the settings and legend pages mark none. No page has a link back to the table, since the menu reaches it, and every page ends with the same footer, the version line and then Settings and Legend. The Issues and Daily pages can be hidden (forsgren#159): `issues_page: false` leaves out `issues.html` and `days_page: false` leaves out `days.html`; a hidden page is not generated, is removed from the site if an earlier run wrote it, and has no entry in the menu. The defaults are `issues_page: true` and `days_page: false`, so the Daily page appears only with `days_page: true`. The Numbers and scoring page is hidden the same way unless `numbers_scoring_page: true` (forsgren#55): by default it is not generated, its folder is removed once empty, and the menu has no entry for it. The History page is shown by default and hidden with `history_page: false` (forsgren#68), the same way. A render without a config, as forsgren's own build, writes all ten. The legend explains the four keys on every page set, shown or hidden. Up to 0.8.3 the days page was `issues.html` and the issues page `months.html`; 0.8.4 renamed them with no redirect (decision #133), and `months.html` is gone.
+- **Pages:** up to ten pages are written: `index.html`, `legend.html`, `settings.html`, `issues.html`, `days.html`, `history.html`, the three views and the Numbers and scoring page. Every page opens with one menu, "View: Standard · Numbers · Scoring · Numbers and scoring · Issues · Daily · History" (forsgren#128, decision #133, forsgren#55, forsgren#68): the three views, then the Numbers and scoring page, `numbers-scoring/`, then the issues page, `issues.html`, the days page, `days.html`, labelled Daily, and the History page, `history.html`; one folder down its links go through `../`. The current page is plain text marked `aria-current="page"`; the root marks the view it shows `aria-current="true"` (see Views), and the settings and legend pages mark none. No page has a link back to the table, since the menu reaches it, and every page ends with the same footer, the version line and then Settings and Legend. The Issues and Daily pages can be hidden (forsgren#159): `issues_page: false` leaves out `issues.html` and `days_page: false` leaves out `days.html`; a hidden page is not generated, is removed from the site if an earlier run wrote it, and has no entry in the menu. The defaults are `issues_page: true` and `days_page: false`, so the Daily page appears only with `days_page: true`. The Numbers and scoring page is hidden the same way unless `numbers_scoring_page: true` (forsgren#55): by default it is not generated, its folder is removed once empty, and the menu has no entry for it. The History page is hidden the same way unless `history_page: true` (forsgren#68, #199): from 1.8.1 it is off by default, not generated, and the menu has no entry for it. A render without a config, as forsgren's own build, writes all ten. The legend explains the four keys on every page set, shown or hidden. Up to 0.8.3 the days page was `issues.html` and the issues page `months.html`; 0.8.4 renamed them with no redirect (decision #133), and `months.html` is gone.
 - **Views** (forsgren#46): the table is built in more than one view, each its
   own page: `/standard/` (`standard/index.html`) is the table above, band,
   number and count, and `/numbers/` (`numbers/index.html`) shows only
@@ -453,13 +453,22 @@ a path on github.com (forsgren#172):
   menu entry. It is not a view: `view:` cannot name it, so the root never
   shows it.
 - **The legend** (`legend.html`, titled "Legend", forsgren#128) gives each metric's bands in one compact
-  list (recovery time's are lead time's, and rework rate's are change fail
-  rate's, so it refers to them), with what each cell counts and its window;
-  its last section, Scores, says what the scoring view shows, that "The
+  list, with what each cell counts and its window. Each level ends with the
+  score the scoring view gives it (forsgren#79), from the same functions
+  the scoring view scores with: "Less than one day: 1 hour to below 24 hours,
+  score 8". Recovery time lists lead time's six levels, worded as a
+  recovery, as it is banded and scored on them. Change fail rate and
+  deployment rework rate are scored per whole percent, so each of their
+  levels shows the range of scores its percentages give (decision #197):
+  "20%: 10% to below 30%, score 9 to 7.1", and rework rate lists the same
+  six levels worded as a rework, "Rework of 20%: 10% to below 30% of the
+  deployments, score 9 to 7.1". Its Scores section says what the scoring
+  view shows, that "The
   Numbers and scoring page, when it is shown, has the number and the score of
-  each metric in one cell." (forsgren#55), and credits the
+  each metric in one cell." (forsgren#55), credits the
   DORA Quick Check, linked: "Scores follow the DORA Quick Check (dora.dev),
-  © Google LLC, CC BY 4.0" (forsgren#47). A last section, Issues pages,
+  © Google LLC, CC BY 4.0" (forsgren#47), and points at the level scores
+  above, with their ranges for the two percent metrics. A last section, Issues pages,
   explains the periods of the issues and days pages: "Days are in UTC, weeks
   run Monday to Sunday, months and years follow the calendar, and a week that
   spans two months is in both." (forsgren#128, decision #133). It no longer
@@ -639,8 +648,9 @@ or a task's own name, a SHA or a commit message.
 
 The History page (`history.html`, titled "History", forsgren#68, from 1.8.0)
 shows how the five metrics and Overall Performance moved over time. It is
-shown unless the config sets `history_page: false` (see
-[Configuration](configuration.md#configuration)), and the menu names it
+off by default (forsgren#199, from 1.8.1) and shown only with
+`history_page: true` (see
+[Configuration](configuration.md#configuration)); the menu then names it
 last, "History".
 
 - **Periods.** The columns are periods, the oldest on the left: the calendar

@@ -153,20 +153,22 @@ projects:
   `numbers_scoring_page: false`.
 - **`history_page`** is optional (forsgren#68, from 1.8.0): whether the
   History page (`history.html`) is generated, `true` or `false`, written at
-  the top level, for example `history_page: false`. Left out, or without a
-  value, it is `true`: the page is shown, so an installation that updates to
-  1.8.0 gets it without changing its config. The page shows the five metrics
+  the top level, for example `history_page: true`. Left out, or without a
+  value, it is `false` (forsgren#199, from 1.8.1): the page is hidden, and
+  shown only with `history_page: true`. In 1.8.0 the default was `true`, so
+  an installation that leaves the key out loses the page when it updates to
+  1.8.1 (see [Installing and updating](updating-and-releases.md#installing-and-updating)). The page shows the five metrics
   and Overall Performance per period, the calendar half-years that
   `history_days` reaches back and the last 6 months (see
   [The History page](pages-and-views.md#the-history-page)); `dora_days` does
   not change it. Only the literals `true` and `false` are accepted; any other
-  value is not accepted: forsgren uses the default `true` instead and says so
+  value is not accepted: forsgren uses the default `false` instead and says so
   (see [A setting that is not accepted](#a-setting-that-is-not-accepted)),
   naming the key: `invalid history_page "yes": use true or false`. `false`
   hides the page and its menu entry: the page is not generated, is removed
   from the site if an earlier run wrote it, and has no entry in the menu. The
-  legend says how to hide it. The starter that `init-config` writes includes
-  `history_page: true`.
+  legend says how to show it. The starter that `init-config` writes includes
+  `history_page: false`.
 - **The settings page** (`settings.html`, forsgren#74, moved out of the legend
   in forsgren#84, a table since forsgren#141) tabulates every optional key,
   `view`, `auto_update`, `auto_update_level`, `history_days`,
@@ -178,7 +180,7 @@ projects:
   a test holds the lists to the config loader; and **Default**, the value
   used when `forsgren.config.yml` does not set the key (forsgren#169):
   `standard`, `false`, `major`, `365`, `100`, `8`, `30`, `true`, `false`,
-  `false` and `true`, in the order of the rows. A
+  `false` and `false`, in the order of the rows. A
   Current value followed by `(not set)` means the file does not set the key,
   so the default applies; a Current value without it is set in the file, even
   to the default's value. For a value that is not accepted the Current value
@@ -298,7 +300,7 @@ example with made-up `acme` names (the default deployment, `workflow=` and
 `auto_update_level: major`, `history_days: 365`,
 `history_chunk_days: 100`, `working_hours: 8`, `dora_days: 30`,
 `issues_page: true`, `days_page: false`, `numbers_scoring_page: false`,
-`history_page: true` and `projects: []`, so
+`history_page: false` and `projects: []`, so
 `check-config` accepts it as it is: `projects: 0, repositories: 0`. When the file exists,
 whatever it holds (even an invalid or an empty file), it is left byte for
 byte and the command prints `kept forsgren.config.yml`; both exit 0. The file
@@ -316,7 +318,7 @@ the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
 `/standard/`, `/numbers/` and `/scoring/`, with `numbers_scoring_page: true` the Numbers and scoring page at
-`/numbers-scoring/`, and unless `history_page: false` the History page at
+`/numbers-scoring/`, and with `history_page: true` the History page at
 `history.html` (see [The page](pages-and-views.md#the-page)). That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
 it with `-ldflags "-X main.version=<version>"`. `forsgren collect` reads

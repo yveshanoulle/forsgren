@@ -504,3 +504,19 @@ Yves grouped both into one minor release, with one refactor and the docs at the 
 - **The bump to 1.8.0** (this commit): main.go, the docs, the tests and the 29 goldens that name the version.
 
 What an installation sees: a History page after the update (switch it off with `history_page: false`), filling in over the next daily runs, and a run summary that says when it ran, what kind of token it has and why an available update waits. No new permission or secret.
+
+---
+
+## 2026-10-15 — the legend shows the score of each level, and the History page is off by default, released as 1.8.1 ([#79](https://github.com/yveshanoulle/forsgren/issues/79), [#199](https://github.com/yveshanoulle/forsgren/issues/199))
+
+Decisions: #197 (a percent level shows its score range).
+
+- **#79, the score of each level.** The legend shows next to each level the score the scoring view gives it. These scores come from `metrics.BandScore` through `scoreCell`, the scoring view's own helper: lead time (1ad051b) and deployment frequency (f8ea659). Change fail rate is scored per whole percent, so each of its levels shows its range from `ChangeFailBand.Percents` and `PercentScore`, for example `20%: 10% to below 30%, score 9 to 7.1` (dcef25d). Recovery time gets its own list on lead time's levels (db34094). Rework rate gets its own list on change fail's ranges (9378ae3). The two lists are worded for their metric, because a shared define put two identical lists on the page and the golden duplication gate refused them. The Scores section points at the level scores (71481be). The other half of #79, every possible value next to the chosen one, was already done by the settings page (#84, #141, #169).
+- **#199, the History page off by default.** Yves, after seeing an installation's History page with one period and a one-dot trend: "lets turn of history on fosgren metrics and turn it of by default, tilll we get this better" (#198). `history_page` now defaults to `false`, so a hidden page is not written and a stale one is removed (40a8bf0). The starter and agent-installer.md question 13 follow (acffff6).
+- **One refactor and the docs** (this commit):
+  - `legendscores.go` is one generic `levelScores` with `bandScore` and `percentRange`.
+  - `Percents` reads its band starts without branches.
+  - `init_test.go` (9.16) and `pages_test.go` (8.95) are back at CodeScene 10.0.
+  - Docs: configuration.md, pages-and-views.md, updating-and-releases.md ("Upgrading to 1.8.1"), README.md and CLAUDE.md.
+
+What an installation sees: the History page is gone after the update unless the config sets `history_page: true`, and the legend's levels carry their scores. No new permission, secret or key.

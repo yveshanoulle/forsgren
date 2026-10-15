@@ -5,6 +5,18 @@ import (
 	"testing"
 )
 
+// legendSection is the section of the legend under the heading, up to the
+// next heading.
+func legendSection(t *testing.T, heading string) string {
+	t.Helper()
+	_, section, found := strings.Cut(rendered(t, "legend.html", viewData()), "<h2>"+heading+"</h2>")
+	if !found {
+		t.Fatalf("want a %s section in the legend", heading)
+	}
+	section, _, _ = strings.Cut(section, "<h2>")
+	return section
+}
+
 // TestLegendLeadTimeLevelsShowTheirScore (forsgren#79): each level of lead
 // time for changes in the legend ends with the score the scoring view gives
 // that level, 10 for the fastest down to 0.
@@ -48,12 +60,7 @@ func TestLegendChangeFailLevelsShowTheirScoreRange(t *testing.T) {
 // is banded and scored on lead time's six answers, so its section of the
 // legend lists the same six levels, each with its score.
 func TestLegendRecoveryListsLeadTimesLevelsWithScore(t *testing.T) {
-	_, section, found := strings.Cut(rendered(t, "legend.html", viewData()), "<h2>Failed deployment recovery time</h2>")
-	if !found {
-		t.Fatal("want a recovery time section in the legend")
-	}
-	section, _, _ = strings.Cut(section, "<h2>")
-	wantAll(t, "recovery time section", section,
+	wantAll(t, "recovery time section", legendSection(t, "Failed deployment recovery time"),
 		"<li>Recovered in less than one hour: below 1 hour, score 10</li>",
 		"<li>Recovered in less than one day: 1 hour to below 24 hours, score 8</li>",
 		"<li>Recovered in one day to one week: 24 hours to below 7 days, score 6</li>",
@@ -68,12 +75,7 @@ func TestLegendRecoveryListsLeadTimesLevelsWithScore(t *testing.T) {
 // the six levels with the same score ranges, worded as a rework so that the
 // rendered page repeats no text (the html duplication ceiling is 0.00%).
 func TestLegendReworkListsTheSixLevelsWithScore(t *testing.T) {
-	_, section, found := strings.Cut(rendered(t, "legend.html", viewData()), "<h2>Deployment rework rate</h2>")
-	if !found {
-		t.Fatal("want a rework rate section in the legend")
-	}
-	section, _, _ = strings.Cut(section, "<h2>")
-	wantAll(t, "rework rate section", section,
+	wantAll(t, "rework rate section", legendSection(t, "Deployment rework rate"),
 		"<li>Rework of 0%: below 10% of the deployments, score 10 to 9.1</li>",
 		"<li>Rework of 20%: 10% to below 30% of the deployments, score 9 to 7.1</li>",
 		"<li>Rework of 40%: 30% to below 50% of the deployments, score 7 to 5.1</li>",
@@ -92,10 +94,5 @@ const legendLevelScoresText = "Each metric's levels above show the score they gi
 // section says that the levels listed above carry their score, and that a
 // percent metric's level carries a range.
 func TestLegendScoresSectionPointsAtTheLevelScores(t *testing.T) {
-	_, section, found := strings.Cut(rendered(t, "legend.html", viewData()), "<h2>Scores</h2>")
-	if !found {
-		t.Fatal("want a Scores section in the legend")
-	}
-	section, _, _ = strings.Cut(section, "<h2>")
-	wantAll(t, "scores section", section, legendLevelScoresText)
+	wantAll(t, "scores section", legendSection(t, "Scores"), legendLevelScoresText)
 }

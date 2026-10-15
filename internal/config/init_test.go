@@ -73,21 +73,16 @@ func TestStarterExplainsItself(t *testing.T) {
 func uncommentedExample(t *testing.T) string {
 	t.Helper()
 	lines := starterLines()
-	start := -1
-	for i, line := range lines {
-		if line == "# version: 1" {
-			start = i
-			break
-		}
-	}
+	start := slices.Index(lines, "# version: 1")
 	if start < 0 {
 		t.Fatalf("want an example in the starter that starts at a line `# version: 1`, got:\n%s", Starter)
 	}
+	block := lines[start:]
+	if end := slices.IndexFunc(block, func(l string) bool { return !strings.HasPrefix(l, "#") }); end >= 0 {
+		block = block[:end]
+	}
 	var example []string
-	for _, line := range lines[start:] {
-		if !strings.HasPrefix(line, "#") {
-			break
-		}
+	for _, line := range block {
 		example = append(example, strings.TrimPrefix(strings.TrimPrefix(line, "#"), " "))
 	}
 	return strings.Join(example, "\n") + "\n"
@@ -477,7 +472,7 @@ const historyPageLine = "history_page: false  # the History page and its menu en
 func TestStarterWritesHistoryPage(t *testing.T) {
 	lines := starterLines()
 	i := slices.IndexFunc(lines, func(l string) bool { return strings.HasPrefix(l, "numbers_scoring_page:") })
-	if i < 0 || i+1 >= len(lines) || lines[i+1] != historyPageLine {
+	if i < 0 || slices.Index(lines, historyPageLine) != i+1 {
 		t.Errorf("want the line %q right after numbers_scoring_page in the starter", historyPageLine)
 	}
 }
@@ -487,8 +482,10 @@ func TestStarterWritesHistoryPage(t *testing.T) {
 // rejected.
 func TestStarterLoadsWithTheHistoryPageWrittenOff(t *testing.T) {
 	cfg, err := parse([]byte(Starter))
-	if err != nil || cfg.HistoryPage || !cfg.written["history_page"] || len(cfg.Rejected) != 0 {
-		t.Errorf("want history_page false, written and nothing rejected, got %v, %v, %v, %v", cfg.HistoryPage,
-			cfg.written["history_page"], cfg.Rejected, err)
+	if err != nil || len(cfg.Rejected) != 0 {
+		t.Fatalf("want nothing rejected, got %v, %v", cfg.Rejected, err)
+	}
+	if cfg.HistoryPage || !cfg.written["history_page"] {
+		t.Errorf("want history_page false and written, got %v, %v", cfg.HistoryPage, cfg.written["history_page"])
 	}
 }

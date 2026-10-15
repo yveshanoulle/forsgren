@@ -45,9 +45,9 @@ The page shows its band with the rate and the rework deployments:
   scoring), an optional Numbers and scoring page (each metric's number and
   score in one cell, shown with `numbers_scoring_page: true`), the Issues and Daily pages (each can be hidden with `issues_page` and
   `days_page`; Daily is hidden by default) with their Open and Open bugs
-  columns and trend arrows, a History page (each metric's number and score
-  per half-year and for the last 6 months, with a trend chart per row; hide
-  it with `history_page: false`), and the Settings and Legend pages, safe to publish: numbers and
+  columns and trend arrows, an optional History page (each metric's number
+  and score per half-year and for the last 6 months, with a trend chart per
+  row; shown with `history_page: true`), and the Settings and Legend pages, safe to publish: numbers and
   dates only, no issue titles, no links into private repositories
 
 ## A live example

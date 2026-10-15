@@ -334,7 +334,21 @@ cooldown in your `.github/dependabot.yml` runs (see
 [Running forsgren](configuration.md#running-forsgren)). No new permission or
 secret is needed. An agent following [agent-upgrade.md](../agent-upgrade.md)
 reads the History page in the release notes as a page that appears, and asks
-you whether to keep it.
+you whether to keep it. 1.8.1 turned the default to `false`; see below.
+
+**Upgrading to 1.8.1** (forsgren#199, #79). The History page is off by
+default: `history_page` now defaults to `false`, so an installation that
+leaves the key out loses the History page and its menu entry with this
+update, and the page is removed from the site. To keep it, set
+`history_page: true` (see [Configuration](configuration.md#configuration)).
+It comes back on by default once a later release makes the page easier to
+read (forsgren#198). The starter that `init-config` writes includes
+`history_page: false`, and the settings page's Default column for the key
+shows `false`. The legend now shows each level's score, the score the
+scoring view gives that level; change fail rate and deployment rework rate
+are scored per whole percent, so each of their levels shows the range of
+its scores, for example `20%: 10% to below 30%, score 9 to 7.1`. No new
+permission, secret or config key is needed.
 
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
