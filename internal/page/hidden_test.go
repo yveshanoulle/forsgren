@@ -258,3 +258,24 @@ func TestRemoveEmptyFolderFailsOnAnyOtherError(t *testing.T) {
 		t.Errorf("want the failed removal as the error, got %v", err)
 	}
 }
+
+// TestHiddenHistoryPageIsNotWrittenAndAStaleOneIsRemoved (forsgren#68): a
+// hidden history page is not written and not counted, a history.html left in
+// a reused out dir is removed, and every other page is written; a site that
+// hides nothing writes it.
+func TestHiddenHistoryPageIsNotWrittenAndAStaleOneIsRemoved(t *testing.T) {
+	dir := t.TempDir()
+	if n, err := WriteSite(dir, placeholderHiding(nil)); err != nil || n != 10 {
+		t.Fatalf("want 10 pages and no error with nothing hidden, got %d, %v", n, err)
+	}
+	wantRendered(t, dir, []string{"history.html"})
+	n, err := WriteSite(dir, placeholderHiding(map[string]bool{HistoryPage: true}))
+	if err != nil || n != 9 {
+		t.Fatalf("want 9 pages and no error with the history page hidden, got %d, %v", n, err)
+	}
+	wantGone(t, dir, []string{"history.html"})
+	wantRendered(t, dir, []string{"index.html", "legend.html", "settings.html", "days.html", "issues.html"})
+	if got := HistoryPage; got != "history" {
+		t.Errorf("HistoryPage = %q, want the name history.html is hidden by", got)
+	}
+}

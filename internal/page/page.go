@@ -245,6 +245,10 @@ const (
 // Data.Hidden (forsgren#55).
 const NumbersScoringPage = viewNumbersScoring
 
+// HistoryPage is the name of the history page, history.html, a key of Data.Hidden
+// (forsgren#68).
+const HistoryPage = "history"
+
 // The views of the table page (forsgren#46): the standard cells, the numbers
 // only, and (forsgren#47) each metric's DORA Quick Check score with an
 // Overall Performance column.
