@@ -14,7 +14,7 @@
         </thead>
         <tbody>
 {{range .Rows}}          <tr{{if .IsLabel}} class="label"{{end}}>
-            <th scope="row">{{if .IsLabel}}<span class="visually-hidden">{{.Project}}: </span>{{end}}{{.Heading}}</th>
+{{template "rowheader" .}}
 {{if $.Scored}}{{range $.ScoredCells .}}            <td>{{.}}</td>
 {{end}}            <td>{{.OverallCell}}</td>
 {{else if $.Numbers}}            <td>{{.Frequency.NumberCell}}</td>
@@ -35,3 +35,4 @@
       </table>
     </div>
 {{end}}
+{{define "rowheader"}}            <th scope="row">{{if .IsLabel}}<span class="visually-hidden">{{.Project}}: </span>{{end}}{{.Heading}}</th>{{end}}

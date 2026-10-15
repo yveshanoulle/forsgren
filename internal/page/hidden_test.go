@@ -19,9 +19,9 @@ func TestWriteSiteLeavesOutHiddenPagesAndRemovesStaleOnes(t *testing.T) {
 		kept   []string
 		pages  int
 	}{
-		"days":   {map[string]bool{"days": true}, []string{"days.html"}, []string{"issues.html"}, 8},
-		"issues": {map[string]bool{"issues": true}, []string{"issues.html"}, []string{"days.html"}, 8},
-		"both":   {map[string]bool{"days": true, "issues": true}, []string{"days.html", "issues.html"}, nil, 7},
+		"days":   {map[string]bool{"days": true}, []string{"days.html"}, []string{"issues.html"}, 9},
+		"issues": {map[string]bool{"issues": true}, []string{"issues.html"}, []string{"days.html"}, 9},
+		"both":   {map[string]bool{"days": true, "issues": true}, []string{"days.html", "issues.html"}, nil, 8},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -57,8 +57,8 @@ func TestWriteSiteFailsWhenAHiddenPageCannotBeRemoved(t *testing.T) {
 // TestWriteSiteHidesAPageThatWasNeverWritten (forsgren#159): a hidden page
 // with no file in a fresh out dir is no error.
 func TestWriteSiteHidesAPageThatWasNeverWritten(t *testing.T) {
-	if n, err := WriteSite(t.TempDir(), placeholderHiding(map[string]bool{"days": true})); err != nil || n != 8 {
-		t.Errorf("want 8 pages and no error, got %d, %v", n, err)
+	if n, err := WriteSite(t.TempDir(), placeholderHiding(map[string]bool{"days": true})); err != nil || n != 9 {
+		t.Errorf("want 9 pages and no error, got %d, %v", n, err)
 	}
 }
 
@@ -199,7 +199,7 @@ func TestLegendExplainsTheNumbersAndScoringPageWhateverIsHidden(t *testing.T) {
 // TestWriteSiteLeavesOutAHiddenNumbersAndScoringPage (forsgren#55): a hidden
 // numbers and scoring page is not written and not counted, a stale file of it
 // in a reused out dir is removed with its folder once empty, and a folder
-// that holds something else keeps it; the other eight pages are written.
+// that holds something else keeps it; the other nine pages are written.
 func TestWriteSiteLeavesOutAHiddenNumbersAndScoringPage(t *testing.T) {
 	hidden := placeholderHiding(hideNumbersScoring())
 	for name, other := range map[string]string{"empty folder": "", "folder with another file": "keep.txt"} {
@@ -207,8 +207,8 @@ func TestWriteSiteLeavesOutAHiddenNumbersAndScoringPage(t *testing.T) {
 			dir := t.TempDir()
 			folder := writeStaleFolder(t, dir, other)
 			n, err := WriteSite(dir, hidden)
-			if err != nil || n != 8 {
-				t.Fatalf("want 8 pages and no error, got %d, %v", n, err)
+			if err != nil || n != 9 {
+				t.Fatalf("want 9 pages and no error, got %d, %v", n, err)
 			}
 			wantGone(t, dir, []string{"numbers-scoring/index.html"})
 			if _, err := os.Stat(folder); (other == "") != os.IsNotExist(err) {
@@ -242,8 +242,8 @@ func writeStaleFolder(t *testing.T, dir, other string) string {
 // file and no folder in a fresh out dir is no error, and none is made.
 func TestWriteSiteHidesANumbersAndScoringPageThatWasNeverWritten(t *testing.T) {
 	dir := t.TempDir()
-	if n, err := WriteSite(dir, placeholderHiding(hideNumbersScoring())); err != nil || n != 8 {
-		t.Errorf("want 8 pages and no error, got %d, %v", n, err)
+	if n, err := WriteSite(dir, placeholderHiding(hideNumbersScoring())); err != nil || n != 9 {
+		t.Errorf("want 9 pages and no error, got %d, %v", n, err)
 	}
 	wantGone(t, dir, []string{viewNumbersScoring})
 }

@@ -1,0 +1,25 @@
+{{define "title"}}History · {{.Title}}{{end -}}
+{{template "header" .}}  <main>
+    <h1 id="history-heading">History</h1>
+{{if .HistorySections}}    <div class="table-scroll" role="region" aria-labelledby="history-heading" tabindex="0">
+      <table class="no-wrap">
+        <thead>
+          <tr>
+            <th scope="col">Project</th>
+{{range .HistoryPeriods}}            <th scope="col">{{.}}</th>
+{{end}}          </tr>
+        </thead>
+{{range .HistorySections}}        <tbody>
+          <tr>
+            <th scope="rowgroup" colspan="{{.Span}}">{{.Title}}</th>
+          </tr>
+{{range .Rows}}          <tr{{if .IsLabel}} class="label"{{end}}>
+{{template "rowheader" .}}
+{{range .Cells}}            <td>{{.}}</td>
+{{end}}          </tr>
+{{end}}        </tbody>
+{{end}}      </table>
+    </div>
+{{else}}    <p>{{.Message}}</p>
+{{end}}  </main>
+{{template "footer" .}}

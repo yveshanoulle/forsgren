@@ -660,5 +660,10 @@
     "github.com/yveshanoulle/forsgren/cmd/readmepage/main.go:located": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/readmepage/main.go:publish": 81.7,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:Styles": 100.0
+    "github.com/yveshanoulle/forsgren/internal/page/history.go:HistorySections": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/history.go:HistoryPeriods": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/history.go:historyRows": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/history.go:historyCells": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/history.go:periodHeader": 100.0,
   }
 }
