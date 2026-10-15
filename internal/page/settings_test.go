@@ -75,3 +75,22 @@ func wantLoads(t *testing.T, key, value string, ok bool) {
 			key, value, ok, accepted, err, cfg.Rejected)
 	}
 }
+
+// TestSettingsPageDefaultColumnShowsTheDefaultValue (forsgren#169): the
+// Default column holds the key's default value, not whether the file sets the
+// key: a key the file sets to another value and one it leaves out both show
+// their default.
+func TestSettingsPageDefaultColumnShowsTheDefaultValue(t *testing.T) {
+	data := withTwoSettings()
+	wantAll(t, "settings.html", rendered(t, "settings.html", data),
+		`<th scope="row">view</th>
+            <td>numbers</td>
+            <td>standard, numbers, scoring</td>
+            <td>standard</td>`,
+		`<th scope="row">history_days</th>
+            <td>365</td>
+            <td>30 to 1825</td>
+            <td>365</td>`,
+	)
+	wantNone(t, "settings.html", rendered(t, "settings.html", data), "<td>True</td>", "<td>False</td>")
+}

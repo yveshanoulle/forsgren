@@ -26,7 +26,7 @@ func withRejected(view string) Data {
 
 // TestSettingsPageSaysARejectedValue (forsgren#183): the row of a setting
 // that is not accepted says, in plain text, the value as written, that it is
-// not accepted and why, and the default in use; the Default column stays True.
+// not accepted and why, and the default in use; the Default column shows that default.
 func TestSettingsPageSaysARejectedValue(t *testing.T) {
 	wantAll(t, "settings.html", rendered(t, "settings.html", withRejected("weekly")),
 		`<tr class="not-accepted">
@@ -34,7 +34,7 @@ func TestSettingsPageSaysARejectedValue(t *testing.T) {
             <td><span class="written">0</span> is not accepted: use a whole number of days from 30 to 1825. `+
 			`Using the default <span class="default-in-force">365</span>.</td>
             <td>30 to 1825</td>
-            <td>True</td>
+            <td>365</td>
           </tr>`,
 		`<tr>
             <th scope="row">auto_update</th>`)

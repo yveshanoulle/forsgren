@@ -633,15 +633,15 @@ func TestLegendStatesTheWorkingDay(t *testing.T) {
 // numbers, and one it leaves at its default, history_days: 365.
 func withTwoSettings() Data {
 	data := Placeholder("1.7.1")
-	data.Settings = []config.Setting{{Key: "view", Value: "numbers", Set: true}, {Key: "history_days", Value: "365"}}
+	data.Settings = []config.Setting{{Key: "view", Value: "numbers", Default: "standard", Set: true},
+		{Key: "history_days", Value: "365", Default: "365"}}
 	return data
 }
 
 // TestSettingsPageIsATableOfParameterValuePossibleValuesAndDefault
 // (forsgren#74, #84, #141): the settings page tabulates each setting under
-// Parameter, Current value, Possible values and Default. Default is False for
-// a key the file sets, even to the default's value, and True for one it leaves
-// out, whose current value is the default.
+// Parameter, Current value, Possible values and Default; Default is the key's
+// default value (forsgren#169).
 func TestSettingsPageIsATableOfParameterValuePossibleValuesAndDefault(t *testing.T) {
 	data := withTwoSettings()
 	wantAll(t, "settings.html", rendered(t, "settings.html", data),
@@ -652,11 +652,11 @@ func TestSettingsPageIsATableOfParameterValuePossibleValuesAndDefault(t *testing
 		`<th scope="row">view</th>
             <td>numbers</td>
             <td>standard, numbers, scoring</td>
-            <td>False</td>`,
+            <td>standard</td>`,
 		`<th scope="row">history_days</th>
             <td>365</td>
             <td>30 to 1825</td>
-            <td>True</td>`,
+            <td>365</td>`,
 	)
 }
 

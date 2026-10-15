@@ -136,8 +136,8 @@ func TestRenderLegendFollowsWorkingHours(t *testing.T) {
 }
 
 // TestRenderSettingsPageListsTheSettings (forsgren#74, #84): a config with
-// only history_days: 30 reaches the settings page, the other keys marked as
-// defaults; the legend lists none.
+// only history_days: 30 reaches the settings page, each key with its
+// default; the legend lists none.
 func TestRenderSettingsPageListsTheSettings(t *testing.T) {
 	pinNow(t)
 	dir := filepath.Join(t.TempDir(), "site")
@@ -148,9 +148,9 @@ func TestRenderSettingsPageListsTheSettings(t *testing.T) {
 	settings := readFile(t, filepath.Join(dir, "settings.html"))
 	for _, want := range []string{
 		"<th scope=\"row\">history_days</th>\n            <td>30</td>\n            <td>30 to 1825</td>\n" +
-			"            <td>False</td>",
+			"            <td>365</td>",
 		"<th scope=\"row\">view</th>\n            <td>standard</td>\n            <td>standard, numbers, scoring</td>\n" +
-			"            <td>True</td>",
+			"            <td>standard</td>",
 	} {
 		if !strings.Contains(settings, want) {
 			t.Errorf("want the settings page to say %q, got:\n%s", want, settings)
