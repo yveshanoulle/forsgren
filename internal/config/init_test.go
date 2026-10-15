@@ -29,6 +29,8 @@ const starterConfig = "version: 1\nview: standard\nauto_update: true\n" +
 	"dora_days: 30  # the window of the DORA numbers in days: 30, 90 or 180\n" +
 	"issues_page: true  # the Issues page and its menu entry: true shows them, false leaves them out\n" +
 	"days_page: false  # the Daily page and its menu entry: false leaves them out, true brings them back\n" +
+	"numbers_scoring_page: false  # the Numbers and scoring page and its menu entry: false leaves them out, " +
+	"true shows them\n" +
 	"projects: []\n"
 
 // isStarterLine says whether a line may stand in the starter: blank, a
@@ -219,12 +221,16 @@ func TestStarterPassesLoad(t *testing.T) {
 }
 
 // wantPageKeysWritten (forsgren#159): the starter writes issues_page: true and
-// days_page: false itself, so the settings page marks both as set.
+// days_page: false itself, and numbers_scoring_page: false (forsgren#55), so
+// the settings page marks all three as set.
 func wantPageKeysWritten(t *testing.T, cfg Config) {
 	t.Helper()
-	if !cfg.IssuesPage || cfg.DaysPage || !cfg.written["issues_page"] || !cfg.written["days_page"] {
-		t.Errorf("want issues_page true and days_page false, both written, got %v, %v, %v",
-			cfg.IssuesPage, cfg.DaysPage, cfg.written)
+	got := map[string]bool{"issues_page": cfg.IssuesPage, "days_page": cfg.DaysPage,
+		"numbers_scoring_page": cfg.NumbersScoringPage}
+	for key, want := range map[string]bool{"issues_page": true, "days_page": false, "numbers_scoring_page": false} {
+		if got[key] != want || !cfg.written[key] {
+			t.Errorf("want %s %v and written, got %v, written %v", key, want, got[key], cfg.written[key])
+		}
 	}
 }
 
