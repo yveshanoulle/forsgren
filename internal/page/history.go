@@ -4,7 +4,11 @@ package page
 // table, a group of rows per measure, a row per table row in it and a column
 // per period, oldest first.
 
-import "github.com/yveshanoulle/forsgren/internal/metrics"
+import (
+	"fmt"
+
+	"github.com/yveshanoulle/forsgren/internal/metrics"
+)
 
 // historyMeasures are the history page's row groups in order: the Overall
 // Performance first, then the five metrics in the table's order.
@@ -90,4 +94,18 @@ func periodHeader(p metrics.Period) string {
 		return p.Label + " to " + p.End.Format("2006-01-02")
 	}
 	return p.Label
+}
+
+// HistoryMessage is the one line the history page shows in place of its table
+// (forsgren#68): there are no projects, history_days is too short for the
+// last 6 months, or there is nothing to show yet.
+func (d Data) HistoryMessage() string {
+	switch {
+	case d.NoProjects:
+		return "No projects are listed yet, so there is no history to show."
+	case d.HistoryDays > 0 && d.HistoryDays < metrics.RollingDays:
+		return fmt.Sprintf("history_days is %d, too short for the last 6 months: set history_days to at least %d "+
+			"in forsgren.config.yml, and this page fills over the next runs.", d.HistoryDays, metrics.RollingDays)
+	}
+	return "No history to show yet: the periods fill as the history is collected, over the next runs."
 }

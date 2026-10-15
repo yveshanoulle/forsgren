@@ -665,5 +665,6 @@
     "github.com/yveshanoulle/forsgren/internal/page/history.go:historyRows": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/history.go:historyCells": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/history.go:periodHeader": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/history.go:HistoryMessage": 100.0,
   }
 }

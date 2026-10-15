@@ -89,6 +89,10 @@ type Data struct {
 	// "scoring", marked in the menu (forsgren#46, forsgren#128); empty for the
 	// plain root page, whose menu marks no view.
 	View string
+	// HistoryDays is the config's history_days, 0 when unknown; the history
+	// page names it when it is under the 180 days the last 6 months need
+	// (forsgren#68).
+	HistoryDays int
 	// History are the columns of the history page, oldest first (forsgren#68).
 	History []metrics.Column
 	// Hidden are the pages the site leaves out, by page name (IssuesPage,

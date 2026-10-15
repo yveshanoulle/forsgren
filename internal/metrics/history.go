@@ -11,9 +11,9 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
-// rollingDays is the length of the newest column and the days every period
+// RollingDays is the length of the newest column and the days every period
 // is banded as, DORA's 180 (forsgren#68).
-const rollingDays = 180
+const RollingDays = 180
 
 // rollingLabel is the label of the newest column.
 const rollingLabel = "Last 6 months"
@@ -34,7 +34,7 @@ type Period struct {
 // the rolling last 180 days up to now. There are none when historyDays is
 // under 180, as the rolling column would not be fully read.
 func Periods(now time.Time, historyDays int) []Period {
-	if historyDays < rollingDays {
+	if historyDays < RollingDays {
 		return nil
 	}
 	earliest := now.Add(-time.Duration(min(historyDays, config.MaxHistoryDays)) * day)
@@ -47,7 +47,7 @@ func Periods(now time.Time, historyDays int) []Period {
 		periods = append([]Period{{Label: halfYearLabel(start), Start: start, End: end}}, periods...)
 		end = start
 	}
-	return append(periods, Period{Label: rollingLabel, Start: now.Add(-rollingDays * day), End: now, Rolling: true})
+	return append(periods, Period{Label: rollingLabel, Start: now.Add(-RollingDays * day), End: now, Rolling: true})
 }
 
 // currentHalfYearStart is the first day of the half-year now is in: January 1
@@ -71,7 +71,7 @@ func halfYearLabel(start time.Time) string {
 // at its end, from what was created before it: the start is counted, the end
 // is not (the rolling column's end, now, is), and nothing later is seen.
 func PeriodRows(projects []config.Project, data Data, p Period) []Row {
-	data.DoraDays, data.BandDays, data.UnreadBefore = int(p.End.Sub(p.Start)/day), rollingDays, p.Start
+	data.DoraDays, data.BandDays, data.UnreadBefore = int(p.End.Sub(p.Start)/day), RollingDays, p.Start
 	data.Records = seen(p, data.Records, func(r history.Record) time.Time { return r.CreatedAt })
 	data.Commits = seen(p, data.Commits, func(c history.Commit) time.Time { return c.DeployedAt })
 	data.Failures = seen(p, data.Failures, func(f history.Failure) time.Time { return f.OpenedAt })

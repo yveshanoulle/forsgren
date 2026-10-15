@@ -79,3 +79,15 @@ func TestHistoryPageCellsAreNumbersAndScores(t *testing.T) {
 		}
 	}
 }
+
+// TestHistoryPageWithoutHistoryGolden (forsgren#68): with no table to show the
+// history page says why in one line: no projects, a history_days under 180
+// (naming the fix), or no history collected yet.
+func TestHistoryPageWithoutHistoryGolden(t *testing.T) {
+	noProjects, tooShort, nothingYet := calculated(), calculated(), calculated()
+	noProjects.NoProjects = true
+	tooShort.HistoryDays = 90
+	checkPageGolden(t, "history.html", "testdata/history.no-projects.golden.html", noProjects)
+	checkPageGolden(t, "history.html", "testdata/history.short.golden.html", tooShort)
+	checkPageGolden(t, "history.html", "testdata/history.no-data.golden.html", nothingYet)
+}
