@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 // TestIssuesAndDaysPagesAreRead (forsgren#159): the optional issues_page and
 // days_page keys, as written; the issues page is on and the days page off
@@ -77,5 +80,37 @@ func TestRejectedPageKeyFallsBack(t *testing.T) {
 			}
 			wantRejection(t, got.Rejected, tc.sentinel, tc.want)
 		})
+	}
+}
+
+// TestRejectedNumbersScoringPageFallsBack (forsgren#55, #183): a value that is
+// not the YAML boolean true or false is not accepted: the page stays off, the
+// key counts as not written, and the rejection names the key and the valid
+// values.
+func TestRejectedNumbersScoringPageFallsBack(t *testing.T) {
+	for written, line := range map[string]string{"yes": "yes", "true": "\"true\"", "1": "1"} {
+		got, err := parse([]byte("numbers_scoring_page: " + line + "\n" + valid))
+		if err != nil || got.NumbersScoringPage || got.written["numbers_scoring_page"] {
+			t.Errorf("%s: want the page off and the key not written, got %v, %v, %v", written,
+				got.NumbersScoringPage, got.written, err)
+		}
+		wantRejection(t, got.Rejected, ErrNumbersScoringPage,
+			[4]string{"numbers_scoring_page", written, "use true or false", "false"})
+	}
+}
+
+// TestRejectedNumbersScoringPageIsListedLast (forsgren#55, #183): its
+// rejection comes after the other settings' in the order of the settings page.
+func TestRejectedNumbersScoringPageIsListedLast(t *testing.T) {
+	got, err := parse([]byte("numbers_scoring_page: yes\ndays_page: yes\nview: weekly\n" + valid))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var keys []string
+	for _, r := range got.Rejected {
+		keys = append(keys, r.Key)
+	}
+	if want := []string{"view", "days_page", "numbers_scoring_page"}; !slices.Equal(keys, want) {
+		t.Errorf("want rejections %v, got %v", want, keys)
 	}
 }

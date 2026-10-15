@@ -84,6 +84,7 @@ func TestAListOrMappingForASettingIsRejectedNotSyntax(t *testing.T) {
 		{"dora_days", "use 30, 90 or 180", "30", ErrDoraDays},
 		{"issues_page", "use true or false", "true", ErrIssuesPage},
 		{"days_page", "use true or false", "false", ErrDaysPage},
+		{"numbers_scoring_page", "use true or false", "false", ErrNumbersScoringPage},
 	}
 	for _, k := range keys {
 		for written, yaml := range map[string]string{"[a, b]": "\n  - a\n  - b", "{a: b}": "\n  a: b"} {
