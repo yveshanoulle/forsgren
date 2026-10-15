@@ -140,7 +140,7 @@ func updateInput(args []string, stderr io.Writer) (pullToCheck, bool) {
 		_, _ = fmt.Fprintf(stderr, "check-update: --repo <owner/name> must be one owner/name, got %q\n", values[1])
 		return pullToCheck{}, false
 	}
-	cfg, err := config.Load(values[0])
+	cfg, err := loadConfig(values[0], stderr)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "check-update: %v\n", err)
 		return pullToCheck{}, false
