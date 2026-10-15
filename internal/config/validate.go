@@ -40,9 +40,9 @@ func (f fileConfig) toConfig() (Config, error) {
 // auto_update, auto_update_level, issues_page and days_page (as written, the
 // level DefaultLevel when the file has none); view, auto_update and
 // auto_update_level are a Rejection when not accepted, the default in force
-// (forsgren#183), and so are history_days, history_chunk_days and
-// working_hours; the first refusal among the others (forsgren#46, #58, #157,
-// #159).
+// (forsgren#183), and so are history_days, history_chunk_days, working_hours,
+// issues_page and days_page; dora_days is still the first refusal
+// (forsgren#46, #58, #157, #159).
 func (f fileConfig) settings() (Config, error) {
 	view, viewRejection := checkView(f.View)
 	auto, autoRejection := checkAutoUpdate(f.AutoUpdate)
@@ -50,19 +50,18 @@ func (f fileConfig) settings() (Config, error) {
 	days, daysRejection := checkHistoryDays(f.HistoryDays)
 	chunk, chunkRejection := checkHistoryChunkDays(f.HistoryChunkDays)
 	hours, hoursRejection := workingHours.check(f.WorkingHours)
-	rejected := rejections(viewRejection, autoRejection, levelRejection, daysRejection, chunkRejection, hoursRejection)
+	issues, issuesRejection := issuesPage.value(f.IssuesPage)
+	daysOn, daysOnRejection := daysPage.value(f.DaysPage)
+	rejected := rejections(viewRejection, autoRejection, levelRejection, daysRejection, chunkRejection, hoursRejection,
+		issuesRejection, daysOnRejection)
 	doraDays, err := checkDoraDays(f.DoraDays, days)
-	if err != nil {
-		return Config{}, err
-	}
-	issuesPage, daysPage, err := f.pages()
 	if err != nil {
 		return Config{}, err
 	}
 	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level,
 		HistoryDays: days, HistoryChunkDays: chunk, WorkingHours: hours,
 		DoraDays:        doraDays,
-		WorkingHoursSet: hasValue(f.WorkingHours) && hoursRejection == nil, IssuesPage: issuesPage, DaysPage: daysPage,
+		WorkingHoursSet: hasValue(f.WorkingHours) && hoursRejection == nil, IssuesPage: issues, DaysPage: daysOn,
 		written: f.written(rejected), Rejected: rejected}, nil
 }
 
@@ -75,20 +74,6 @@ func rejections(all ...*Rejection) []Rejection {
 		}
 	}
 	return rejected
-}
-
-// pages is issues_page and days_page, or the first refusal of the two: the
-// issues page on and the days page off when the file has none (forsgren#159).
-func (f fileConfig) pages() (issues, days bool, err error) {
-	issues, rejection := issuesPage.value(f.IssuesPage)
-	if rejection != nil {
-		return false, false, rejection
-	}
-	days, rejection = daysPage.value(f.DaysPage)
-	if rejection != nil {
-		return false, false, rejection
-	}
-	return issues, days, nil
 }
 
 // written is the optional keys the file gives a value, by key, nil when it
