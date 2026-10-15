@@ -479,6 +479,13 @@ if FORSGREN_PRIVATE_NAMES="$PRIVATE_NAME" run_fbp "6.a: touch the Pre-ACME-Secre
   if grep -Fqi "$PRIVATE_NAME" <<< "$OUT"; then
     fail "6.a. the output contains the private name, so the refusal itself leaks it"
   fi
+  # forsgren#54 S5: the refusal comes FIRST. FBP.sh says "no gate ran", so no
+  # step banner and no gate row of the summary may be in the output.
+  if grep -Eq 'Step [1-4]/4|^  (pre|post) gates ' <<< "$OUT"; then
+    fail "6.a. a gate step ran (a step banner or a gate row is in the output) although the message was refused before any. Output: ${OUT}"
+  else
+    echo "  ok: 6.a. no gate ran: no step banner, no gate row"
+  fi
 fi
 
 # ---------------------------------------------------------------------------

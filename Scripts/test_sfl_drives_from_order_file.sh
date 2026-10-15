@@ -143,10 +143,12 @@ if [ "$ORDER" = "Scripts/gate_report_order.txt" ]; then
 
   if cmp -s "$ORDER" "${_tmp}/order.txt"; then
     fail "the tier-stripping mutation changed nothing — pin 5 is matching something other than the row it claims to"
-  elif "$0" "${_tmp}/order.txt" >/dev/null 2>&1; then
+  elif _out="$("$0" "${_tmp}/order.txt" 2>&1)"; then
     fail "an order file with the secret-class tier REMOVED was accepted — pin 5 does not actually guard it"
+  elif ! grep -qF "the secret scan row does not carry the PRE secret-class tier" <<< "$_out"; then
+    fail "an order file with the secret-class tier REMOVED was rejected, but not by pin 5 (its own FAIL text is missing) — the rejection is for another reason. Output: ${_out}"
   else
-    echo "  ok: stripping the secret-class tier is rejected"
+    echo "  ok: stripping the secret-class tier is rejected by pin 5's own FAIL"
   fi
 
   rm -rf "$_tmp"
@@ -173,10 +175,12 @@ if [ "$ORDER" = "Scripts/gate_report_order.txt" ]; then
 
   if cmp -s "$ORDER" "${_tmp}/order.txt"; then
     fail "the data-guard tier-stripping mutation changed nothing — pin 6 is matching something other than the row it claims to"
-  elif "$0" "${_tmp}/order.txt" >/dev/null 2>&1; then
+  elif _out="$("$0" "${_tmp}/order.txt" 2>&1)"; then
     fail "an order file with the data guard's secret-class tier REMOVED was accepted — pin 6 does not actually guard it"
+  elif ! grep -qF "the data guard row does not carry the PRE secret-class tier" <<< "$_out"; then
+    fail "an order file with the data guard's secret-class tier REMOVED was rejected, but not by pin 6 (its own FAIL text is missing) — the rejection is for another reason. Output: ${_out}"
   else
-    echo "  ok: stripping the data guard's secret-class tier is rejected"
+    echo "  ok: stripping the data guard's secret-class tier is rejected by pin 6's own FAIL"
   fi
 
   rm -rf "$_tmp"
@@ -201,10 +205,12 @@ if [ "$ORDER" = "Scripts/gate_report_order.txt" ]; then
 
   if cmp -s "$ORDER" "${_tmp}/order.txt"; then
     fail "the private-names tier-stripping mutation changed nothing — pin 7 is matching something other than the row it claims to"
-  elif "$0" "${_tmp}/order.txt" >/dev/null 2>&1; then
+  elif _out="$("$0" "${_tmp}/order.txt" 2>&1)"; then
     fail "an order file with the private names row's secret-class tier REMOVED was accepted — pin 7 does not actually guard it"
+  elif ! grep -qF "the private names row does not carry the PRE secret-class tier" <<< "$_out"; then
+    fail "an order file with the private names row's secret-class tier REMOVED was rejected, but not by pin 7 (its own FAIL text is missing) — the rejection is for another reason. Output: ${_out}"
   else
-    echo "  ok: stripping the private names row's secret-class tier is rejected"
+    echo "  ok: stripping the private names row's secret-class tier is rejected by pin 7's own FAIL"
   fi
 
   rm -rf "$_tmp"
