@@ -160,3 +160,39 @@ func TestHalfYearIsBandedAs180DaysWhateverItsLength(t *testing.T) {
 			got.InWindow, got.Band, MonthlyToSixMonthly)
 	}
 }
+
+// TestRecoveryAndReworkInAPastPeriod (forsgren#68): recovery time and
+// rework rate of a half-year that ended in the past. A failure from before
+// the period recovered inside it counts, as a rework deployment; a failure
+// still open at the end is not recovered, though a success followed at the
+// end or later; a success while a failure issue was open is rework, one after
+// it was closed is not.
+func TestRecoveryAndReworkInAPastPeriod(t *testing.T) {
+	end := now.Add(-10 * day)
+	start := end.Add(-184 * day)
+	ago := func(offset time.Duration) time.Duration { return now.Sub(start.Add(offset)) }
+	ok, failure := history.StateSuccess, history.StateFailure
+	data := Data{
+		Records: []history.Record{
+			appDeployment(1, "deploy-admin", failure, ago(-6*day)),
+			appDeployment(2, "deploy-admin", ok, ago(day)),
+			appDeployment(3, "deploy-api", ok, ago(5*day)),
+			appDeployment(4, "deploy-api", failure, ago(183*day)),
+			appDeployment(5, "deploy-api", ok, ago(184*day)),
+			appDeployment(6, "deploy-api", ok, ago(190*day)),
+			appDeployment(7, "deploy-web", ok, ago(20*day)),
+			appDeployment(8, "deploy-web", ok, ago(50*day)),
+		},
+		Failures: []history.Failure{
+			{Repository: "acme/app", Issue: 1, OpenedAt: start.Add(10 * day), ClosedAt: start.Add(30 * day)},
+		},
+	}
+	shop := PeriodRows(tableProjects, data, Period{Label: "past", Start: start, End: end})[0]
+	if r := shop.Recovery; r.Recoveries != 1 || r.Median != 7*day || r.Unrecovered != 1 {
+		t.Errorf("recoveries = %d, median %v, unrecovered = %d, want 1, %v and 1", r.Recoveries, r.Median,
+			r.Unrecovered, 7*day)
+	}
+	if r := shop.Rework; r.Deployments != 4 || r.Rework != 2 {
+		t.Errorf("rework %d of %d successes, want 2 of 4", r.Rework, r.Deployments)
+	}
+}
