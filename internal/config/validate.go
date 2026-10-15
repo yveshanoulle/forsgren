@@ -38,10 +38,16 @@ func (f fileConfig) toConfig() (Config, error) {
 
 // settings is the Config of the file's optional top-level keys, view,
 // auto_update, auto_update_level, issues_page and days_page (as written, the
-// level DefaultLevel when the file has none), or the first refusal among them
+// level DefaultLevel when the file has none), the view a Rejection when it is
+// not accepted (forsgren#183), or the first refusal among the others
 // (forsgren#46, #58, #157, #159).
 func (f fileConfig) settings() (Config, error) {
-	view, auto, level, err := f.choices()
+	view, rejection := checkView(f.View)
+	var rejected []Rejection
+	if rejection != nil {
+		rejected = append(rejected, *rejection)
+	}
+	auto, level, err := f.updates()
 	if err != nil {
 		return Config{}, err
 	}
@@ -61,20 +67,17 @@ func (f fileConfig) settings() (Config, error) {
 		HistoryDays: days, HistoryChunkDays: chunk, WorkingHours: hours,
 		DoraDays:        doraDays,
 		WorkingHoursSet: hasValue(f.WorkingHours), IssuesPage: issuesPage, DaysPage: daysPage,
-		written: f.written()}, nil
+		written: f.written(rejected), Rejected: rejected}, nil
 }
 
-// choices is view, auto_update and auto_update_level, or the first refusal of
-// the three (forsgren#46, #58, #157).
-func (f fileConfig) choices() (view string, auto bool, level string, err error) {
-	if view, err = checkView(f.View); err != nil {
-		return "", false, "", err
-	}
+// updates is auto_update and auto_update_level, or the first refusal of the
+// two (forsgren#58, #157).
+func (f fileConfig) updates() (auto bool, level string, err error) {
 	if auto, err = checkAutoUpdate(f.AutoUpdate); err != nil {
-		return "", false, "", err
+		return false, "", err
 	}
 	level, err = checkAutoUpdateLevel(f.AutoUpdateLevel)
-	return view, auto, level, err
+	return auto, level, err
 }
 
 // pages is issues_page and days_page, or the first refusal of the two: the
@@ -88,8 +91,9 @@ func (f fileConfig) pages() (issues, days bool, err error) {
 }
 
 // written is the optional keys the file gives a value, by key, nil when it
-// gives none: a key without a value is none, as for the numbers (forsgren#74).
-func (f fileConfig) written() map[string]bool {
+// gives none: a key without a value is none, as for the numbers, and so is a
+// key that is rejected, whose default is in force (forsgren#74, #183).
+func (f fileConfig) written(rejected []Rejection) map[string]bool {
 	var keys map[string]bool
 	for key, node := range map[string]yaml.Node{"auto_update": f.AutoUpdate, "history_days": f.HistoryDays,
 		"history_chunk_days": f.HistoryChunkDays, "working_hours": f.WorkingHours,
@@ -97,7 +101,11 @@ func (f fileConfig) written() map[string]bool {
 		keys = mark(keys, key, hasValue(node))
 	}
 	keys = mark(keys, "view", f.View != nil)
-	return mark(keys, "auto_update_level", f.AutoUpdateLevel != nil)
+	keys = mark(keys, "auto_update_level", f.AutoUpdateLevel != nil)
+	for _, r := range rejected {
+		delete(keys, r.Key)
+	}
+	return keys
 }
 
 // mark adds key to keys when on, making the map on the first one.
@@ -255,8 +263,9 @@ func checkVersion(v *int) error {
 }
 
 // checkView is the view as written, empty when the file has none (a key
-// without a value is none), or the refusal naming the valid values.
-func checkView(v *string) (string, error) {
+// without a value is none), or empty and the Rejection naming the valid
+// values (forsgren#183).
+func checkView(v *string) (string, *Rejection) {
 	if v == nil {
 		return "", nil
 	}
@@ -264,7 +273,8 @@ func checkView(v *string) (string, error) {
 	case ViewStandard, ViewNumbers, ViewScoring:
 		return *v, nil
 	}
-	return "", fmt.Errorf("%w %q: use %s, %s or %s", ErrView, *v, ViewStandard, ViewNumbers, ViewScoring)
+	return "", reject(ErrView, "view", *v,
+		fmt.Sprintf("use %s, %s or %s", ViewStandard, ViewNumbers, ViewScoring), ViewStandard)
 }
 
 // names holds the names already used in the file, compared ignoring case

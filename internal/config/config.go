@@ -180,7 +180,34 @@ type Config struct {
 	// written is the optional keys the file writes, by key (forsgren#74).
 	written  map[string]bool
 	Projects []Project
+	// Rejected are the settings the file writes that are not accepted, in the
+	// order of the file's settings; the default is in force for each
+	// (forsgren#183).
+	Rejected []Rejection
 }
+
+// Rejection is one setting the file writes that forsgren does not accept: its
+// key, the value as written, why not, and the default used instead. Its
+// message is the refusal's it was before forsgren#183, and it unwraps to the
+// key's Err sentinel.
+type Rejection struct {
+	Key, Written, Reason, Default string
+	sentinel                      error
+}
+
+// Error is `invalid <key> "<written>": <reason>`.
+func (r *Rejection) Error() string {
+	return fmt.Sprintf("%v %q: %s", r.sentinel, r.Written, r.Reason)
+}
+
+// reject is the rejection of key written as written, for the reason, with the
+// default in force instead; sentinel is the key's Err value.
+func reject(sentinel error, key, written, reason, def string) *Rejection {
+	return &Rejection{Key: key, Written: written, Reason: reason, Default: def, sentinel: sentinel}
+}
+
+// Unwrap is the key's Err sentinel.
+func (r *Rejection) Unwrap() error { return r.sentinel }
 
 // The refusals Load names. Each error Load returns wraps exactly one of
 // them, so a caller can tell them apart with errors.Is; the message adds

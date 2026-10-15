@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,8 +15,9 @@ import (
 // TestPossibleValuesAreExactlyWhatCheckConfigAccepts (forsgren#141): for every
 // optional key, each value the settings page lists is accepted by the config
 // loader, which check-config runs, and the values just outside the list are
-// refused, so the page cannot drift from what the loader accepts. Proven by
-// mutation: a limit of the page that drifted by one.
+// refused or, for a key with a default, rejected (forsgren#183), so the page
+// cannot drift from what the loader accepts. Proven by mutation: a limit of
+// the page that drifted by one.
 func TestPossibleValuesAreExactlyWhatCheckConfigAccepts(t *testing.T) {
 	for _, setting := range (config.Config{}).Settings() {
 		possible := possibleOf(setting.Key)
@@ -66,7 +68,10 @@ func wantLoads(t *testing.T, key, value string, ok bool) {
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := config.Load(path); (err == nil) != ok {
-		t.Errorf("%s: %s: want the config loader to accept it: %v, got %v", key, value, ok, err)
+	cfg, err := config.Load(path)
+	accepted := err == nil && !slices.ContainsFunc(cfg.Rejected, func(r config.Rejection) bool { return r.Key == key })
+	if accepted != ok {
+		t.Errorf("%s: %s: want the config loader to accept it: %v, got %v (error %v, rejected %v)",
+			key, value, ok, accepted, err, cfg.Rejected)
 	}
 }

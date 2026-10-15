@@ -86,12 +86,13 @@ func TestCheckConfig(t *testing.T) {
 	}
 }
 
-// TestCheckConfigRefusesAnInvalidView (forsgren#46): check-config exits 1
-// and names the key and the valid values; a valid view is OK.
-func TestCheckConfigRefusesAnInvalidView(t *testing.T) {
+// TestCheckConfigAcceptsAnInvalidViewWithTheDefault (forsgren#46, #183):
+// check-config exits 0 for a view that is not accepted, which falls back to
+// the default, and for each valid view.
+func TestCheckConfigAcceptsAnInvalidViewWithTheDefault(t *testing.T) {
 	code, _, stderr := runCommand("check-config", "--config", writeConfig(t, "view: Numbers\n"+validConfig))
-	if code != 1 || !strings.Contains(stderr, `invalid view "Numbers": use standard, numbers or scoring`) {
-		t.Errorf("want exit 1 and the refusal naming the view, got %d, %q", code, stderr)
+	if code != 0 {
+		t.Errorf("want exit 0 for a view that falls back to the default, got %d, %q", code, stderr)
 	}
 	for _, view := range []string{"standard", "numbers", "scoring"} {
 		path := writeConfig(t, "view: "+view+"\n"+validConfig)
