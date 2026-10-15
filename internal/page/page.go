@@ -224,15 +224,15 @@ func (d Data) WeeklyToMonthlyTo() int { return d.DailyToWeeklyFrom() - 1 }
 // renders. parsePages and PageNames read the same set through it.
 const pagesGlob = "templates/pages/*.html"
 
-// issuePage is a page that tabulates issues, not metrics: its file is
+// issuePage is a page of its own at the root, not a view: its file is
 // <Name>.html and the menu calls it Label.
 type issuePage struct{ Name, Label string }
 
-// issuePages are the pages that tabulate issues, in the order the menu names
-// them after the folderPages: the issues page (forsgren#123, forsgren#128: the
-// weeks, months and years) and the days page (forsgren#76, forsgren#128: the
-// last 30 days, labelled Daily).
-var issuePages = []issuePage{{IssuesPage, "Issues"}, {DaysPage, "Daily"}}
+// issuePages are the pages at the root, in the order the menu names them
+// after the folderPages: the issues page (forsgren#123, forsgren#128: the
+// weeks, months and years), the days page (forsgren#76, forsgren#128: the
+// last 30 days, labelled Daily) and the history page (forsgren#68).
+var issuePages = []issuePage{{IssuesPage, "Issues"}, {DaysPage, "Daily"}, {HistoryPage, "History"}}
 
 // IssuesPage and DaysPage are the names of the two issue pages, the keys of
 // Data.Hidden (forsgren#159).

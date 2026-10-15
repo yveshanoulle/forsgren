@@ -10,11 +10,11 @@ import (
 type menuEntry struct{ href, label string }
 
 // menuEntries are the menu's entries in its order (forsgren#128, decision
-// #133): the three views, then the issues page and the days page.
+// #133): the three views, the numbers and scoring page, then the issues, days and history pages.
 var menuEntries = []menuEntry{
 	{"standard/", "Standard"}, {"numbers/", "Numbers"}, {"scoring/", "Scoring"},
 	{"numbers-scoring/", "Numbers and scoring"},
-	{"issues.html", "Issues"}, {"days.html", "Daily"},
+	{"issues.html", "Issues"}, {"days.html", "Daily"}, {"history.html", "History"},
 }
 
 // wantMenu is the menu of a page whose links start with base: the label of
@@ -47,6 +47,7 @@ func menuCases(root menuCase) map[string]menuCase {
 		"numbers-scoring/index.html": {"../", "Numbers and scoring", "page"},
 		"issues.html":                {"", "Issues", "page"},
 		"days.html":                  {"", "Daily", "page"},
+		"history.html":               {"", "History", "page"},
 		"settings.html":              {},
 		"legend.html":                {},
 	}
@@ -153,4 +154,25 @@ func TestLegendPageIsTitledLegend(t *testing.T) {
 	got := rendered(t, "legend.html", viewData())
 	wantAll(t, "legend.html", got, "<title>Legend · forsgren</title>", "<h1>Legend</h1>")
 	wantNone(t, "legend.html", got, "What the bands mean", `class="site-name"`)
+}
+
+// TestMenuEndsWithHistoryAndOmitsItWhenHidden (forsgren#68): the entry is the
+// last, after Daily, a link from the root and from every folder, plain text
+// with aria-current="page" on its own page; a site that hides the history
+// page has no entry for it in any page's menu, and the others stay.
+func TestMenuEndsWithHistoryAndOmitsItWhenHidden(t *testing.T) {
+	data := viewData()
+	for page, want := range map[string]string{
+		"index.html":         `<a href="days.html">Daily</a> · <a href="history.html">History</a></nav>`,
+		"scoring/index.html": `<a href="../days.html">Daily</a> · <a href="../history.html">History</a></nav>`,
+		"history.html":       `<a href="days.html">Daily</a> · <span aria-current="page">History</span></nav>`,
+	} {
+		wantAll(t, page, rendered(t, page, data), want)
+	}
+	data.Hidden = map[string]bool{HistoryPage: true}
+	for _, page := range []string{"index.html", "scoring/index.html", "days.html"} {
+		got := rendered(t, page, data)
+		wantNone(t, page, got, "History", "history.html")
+		wantAll(t, page, got, "Daily")
+	}
 }

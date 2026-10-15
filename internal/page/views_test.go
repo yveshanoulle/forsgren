@@ -338,17 +338,17 @@ func TestRootPageFollowsItsDataView(t *testing.T) {
 }
 
 // TestMenuEndsWithIssuesAndDaily (forsgren#128, step 6): the menu of the table
-// pages ends with the issues page and the days page, labelled Daily, linked
-// from the root and, one folder down, through ../.
+// pages ends with the issues page, the days page, labelled Daily, and the
+// history page (forsgren#68), linked from the root and, one folder down,
+// through ../.
 func TestMenuEndsWithIssuesAndDaily(t *testing.T) {
 	data := viewData()
 	data.View = viewNumbers
-	for name, want := range map[string]string{
-		"index.html":          `<a href="issues.html">Issues</a> · <a href="days.html">Daily</a></nav>`,
-		"standard/index.html": `<a href="../issues.html">Issues</a> · <a href="../days.html">Daily</a></nav>`,
-		"numbers/index.html":  `<a href="../issues.html">Issues</a> · <a href="../days.html">Daily</a></nav>`,
-		"scoring/index.html":  `<a href="../issues.html">Issues</a> · <a href="../days.html">Daily</a></nav>`,
+	for name, base := range map[string]string{
+		"index.html": "", "standard/index.html": "../", "numbers/index.html": "../", "scoring/index.html": "../",
 	} {
+		want := `<a href="` + base + `issues.html">Issues</a> · <a href="` + base + `days.html">Daily</a> · ` +
+			`<a href="` + base + `history.html">History</a></nav>`
 		wantAll(t, name, rendered(t, name, data), want)
 	}
 }
