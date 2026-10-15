@@ -41,19 +41,15 @@ func (f fileConfig) toConfig() (Config, error) {
 // level DefaultLevel when the file has none), or the first refusal among them
 // (forsgren#46, #58, #157, #159).
 func (f fileConfig) settings() (Config, error) {
-	view, err := checkView(f.View)
-	if err != nil {
-		return Config{}, err
-	}
-	auto, err := checkAutoUpdate(f.AutoUpdate)
-	if err != nil {
-		return Config{}, err
-	}
-	level, err := checkAutoUpdateLevel(f.AutoUpdateLevel)
+	view, auto, level, err := f.choices()
 	if err != nil {
 		return Config{}, err
 	}
 	days, chunk, hours, err := f.numbers()
+	if err != nil {
+		return Config{}, err
+	}
+	doraDays, err := checkDoraDays(f.DoraDays)
 	if err != nil {
 		return Config{}, err
 	}
@@ -63,8 +59,22 @@ func (f fileConfig) settings() (Config, error) {
 	}
 	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level,
 		HistoryDays: days, HistoryChunkDays: chunk, WorkingHours: hours,
+		DoraDays:        doraDays,
 		WorkingHoursSet: hasValue(f.WorkingHours), IssuesPage: issuesPage, DaysPage: daysPage,
 		written: f.written()}, nil
+}
+
+// choices is view, auto_update and auto_update_level, or the first refusal of
+// the three (forsgren#46, #58, #157).
+func (f fileConfig) choices() (view string, auto bool, level string, err error) {
+	if view, err = checkView(f.View); err != nil {
+		return "", false, "", err
+	}
+	if auto, err = checkAutoUpdate(f.AutoUpdate); err != nil {
+		return "", false, "", err
+	}
+	level, err = checkAutoUpdateLevel(f.AutoUpdateLevel)
+	return view, auto, level, err
 }
 
 // pages is issues_page and days_page, or the first refusal of the two: the
@@ -159,6 +169,23 @@ func checkHistoryDays(n yaml.Node) (int, error) { return historyDays.check(n) }
 // checkHistoryChunkDays is history_chunk_days as written,
 // DefaultHistoryChunkDays when the file has none (forsgren#57).
 func checkHistoryChunkDays(n yaml.Node) (int, error) { return historyChunkDays.check(n) }
+
+// checkDoraDays is dora_days as written, DefaultDoraDays when the file has
+// none (a key without a value is none): the integer 30, 90 or 180, never a
+// quoted value (forsgren#178).
+func checkDoraDays(n yaml.Node) (int, error) {
+	if !hasValue(n) {
+		return DefaultDoraDays, nil
+	}
+	days, err := strconv.Atoi(n.Value)
+	if err == nil && n.ShortTag() == "!!int" {
+		switch days {
+		case DefaultDoraDays, DoraDays90, DoraDays180:
+			return days, nil
+		}
+	}
+	return 0, fmt.Errorf("%w %q: use %d, %d or %d", ErrDoraDays, n.Value, DefaultDoraDays, DoraDays90, DoraDays180)
+}
 
 // checkAutoUpdateLevel is the level as written, DefaultLevel when the file has
 // none (a key without a value is none), or the refusal naming the valid values

@@ -84,6 +84,14 @@ const (
 	MaxWorkingHours     = 24
 )
 
+// The days the DORA numbers count back (forsgren#178): the default, and the
+// two longer windows dora_days can name besides it.
+const (
+	DefaultDoraDays = 30
+	DoraDays90      = 90
+	DoraDays180     = 180
+)
+
 // DefaultEnvironment is the GitHub environment a repository deploys to when
 // its config names no deployment.
 const DefaultEnvironment = "production"
@@ -160,6 +168,9 @@ type Config struct {
 	// WorkingHoursSet says whether the file has a working_hours key, so the
 	// legend can tell a configured day from the default (forsgren#71).
 	WorkingHoursSet bool
+	// DoraDays is how many days the DORA numbers count back, 30 when the file
+	// has no dora_days key (forsgren#178).
+	DoraDays int
 	// IssuesPage is whether the issues page is generated, true when the file
 	// has no issues_page key (forsgren#159).
 	IssuesPage bool
@@ -194,6 +205,7 @@ var (
 	ErrHistoryDays         = errors.New("invalid history_days")
 	ErrHistoryChunkDays    = errors.New("invalid history_chunk_days")
 	ErrWorkingHours        = errors.New("invalid working_hours")
+	ErrDoraDays            = errors.New("invalid dora_days")
 	ErrIssuesPage          = errors.New("invalid issues_page")
 	ErrDaysPage            = errors.New("invalid days_page")
 )
@@ -245,6 +257,8 @@ type fileConfig struct {
 	HistoryChunkDays yaml.Node `yaml:"history_chunk_days"`
 	// WorkingHours is the node as written, like HistoryDays (forsgren#71).
 	WorkingHours yaml.Node `yaml:"working_hours"`
+	// DoraDays is the node as written, like HistoryDays (forsgren#178).
+	DoraDays yaml.Node `yaml:"dora_days"`
 	// IssuesPage and DaysPage are the nodes as written, so a non-boolean is
 	// refused by name (forsgren#159).
 	IssuesPage yaml.Node     `yaml:"issues_page"`

@@ -21,6 +21,7 @@ func TestLoadValid(t *testing.T) {
 			file: "minimal.yml",
 			want: Config{Version: 1, AutoUpdateLevel: DefaultLevel, HistoryDays: DefaultHistoryDays,
 				HistoryChunkDays: DefaultHistoryChunkDays, WorkingHours: DefaultWorkingHours,
+				DoraDays:   DefaultDoraDays,
 				IssuesPage: true, Projects: []Project{{
 					Name: "Acme",
 					Repositories: []Repository{
@@ -33,6 +34,7 @@ func TestLoadValid(t *testing.T) {
 			file: "full.yml",
 			want: Config{Version: 1, AutoUpdateLevel: DefaultLevel, HistoryDays: DefaultHistoryDays,
 				HistoryChunkDays: DefaultHistoryChunkDays, WorkingHours: DefaultWorkingHours,
+				DoraDays:   DefaultDoraDays,
 				IssuesPage: true, Projects: []Project{
 					{Name: "Acme Shop", Repositories: []Repository{
 						{Name: "acme/api", Deployment: Deployment{Kind: Environment, Name: "production"}},
