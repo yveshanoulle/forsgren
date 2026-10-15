@@ -114,6 +114,12 @@ sfl pull contract|Scripts/test_sfl_pull.sh|pre|
 npm manifest policy self-test|Scripts/test_check_guardrail_packages.sh|pre|
 npm manifest policy|Scripts/check_guardrail_packages.sh|pre|
 #
+# The lockfile must describe the manifest (forsgren#2, ladder step 1): the
+# root entry of package-lock.json against package.json, offline, so a drift
+# is red in PRE and not only at CI's `npm ci`. forsgren's own, not ported yet.
+npm lockfile sync self-test|Scripts/test_check_npm_lock_sync.sh|pre|
+npm lockfile sync|Scripts/check_npm_lock_sync.sh|pre|
+#
 # Tool installer contract (Scripts/install_tools.sh, identical across the
 # estate). The tools it provides govern every gate after it, so its fixture
 # runs before the build.
