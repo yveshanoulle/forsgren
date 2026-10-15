@@ -176,3 +176,41 @@ func TestCheckNeedsAddsNoRenewalItemFromAnUnknownExpiry(t *testing.T) {
 		}
 	})
 }
+
+// failingLookupServer answers every request with a 500 and returns the
+// methods it was asked with.
+func failingLookupServer(t *testing.T) *[]string {
+	t.Helper()
+	requests := &[]string{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		*requests = append(*requests, r.Method)
+		http.Error(w, `{"message": "boom"}`, http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+	setGithubAPI(t, srv.URL)
+	return requests
+}
+
+// TestCheckNeedsKeepsNothingWhenTheLookupFailsAndTheExpiryIsUnknown
+// (forsgren#181): the setup issue lookup answers an error while the expiry is
+// unknown. A failed lookup is not proof of a renewal: no item is kept, the
+// issue is neither written nor closed (no write at all), and the run says
+// what it says today: the note that the issue could not be closed on stderr,
+// status ok on stdout.
+func TestCheckNeedsKeepsNothingWhenTheLookupFailsAndTheExpiryIsUnknown(t *testing.T) {
+	t.Setenv("GITHUB_REPOSITORY", "acme/data")
+	for name, file := range unknownExpiry {
+		t.Run(name, func(t *testing.T) {
+			requests := failingLookupServer(t)
+			code, stdout, stderr := checkNeedsWithTokenExpiry(t, file)
+			if code != 0 || stdout != "check-needs: ok\n" ||
+				!strings.HasPrefix(stderr, "check-needs: the setup issue could not be closed: ") {
+				t.Errorf("want exit 0, the note that the issue could not be closed and status ok, got %d, %q, %q",
+					code, stdout, stderr)
+			}
+			if got := strings.Join(*requests, " "); got != http.MethodGet {
+				t.Errorf("want one lookup and no write, got requests %q", got)
+			}
+		})
+	}
+}
