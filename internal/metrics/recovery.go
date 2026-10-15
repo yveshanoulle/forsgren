@@ -58,12 +58,19 @@ type Recovery struct {
 // project, in the order of projects, from the history records at the render
 // time now.
 func RecoveryTimes(projects []config.Project, records []history.Record, now time.Time) []Recovery {
+	return RecoveryTimesOver(projects, records, last30Days, now)
+}
+
+// RecoveryTimesOver is RecoveryTimes over a window of days (30, 90 or 180): a
+// recovery counts when its success was created in the last days days
+// (forsgren#178). A run not recovered yet is counted whatever its age.
+func RecoveryTimesOver(projects []config.Project, records []history.Record, days int, now time.Time) []Recovery {
 	index := indexOf(projects)
 	times := make([][]time.Duration, len(projects))
 	out := make([]Recovery, len(projects))
 	for s, deployments := range streamsOf(index, records, now) {
 		i, _ := index.of(s.Repository)
-		recovered, open := recoveriesOf(deployments, now)
+		recovered, open := recoveriesOf(deployments, window(days), now)
 		times[i] = append(times[i], recovered...)
 		out[i].Unrecovered += open
 	}
@@ -84,12 +91,12 @@ func (r *Recovery) over(times []time.Duration) {
 }
 
 // recoveriesOf walks one stream's deployments oldest first and returns the
-// recovery times of the runs of failures recovered in the last 30 days, and
+// recovery times of the runs of failures recovered in the window w, and
 // 1 when the stream ends in a run of failures not recovered yet, else 0.
-func recoveriesOf(deployments []history.Record, now time.Time) ([]time.Duration, int) {
+func recoveriesOf(deployments []history.Record, w window, now time.Time) ([]time.Duration, int) {
 	var out []time.Duration
 	open := eachSuccess(deployments, func(s streamSuccess) {
-		if s.recovered && last30.holds(s.at, now) {
+		if s.recovered && w.holds(s.at, now) {
 			out = append(out, s.took)
 		}
 	})
