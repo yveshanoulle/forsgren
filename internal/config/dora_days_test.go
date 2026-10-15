@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // TestDoraDaysDefaultsTo30AndReadsEachAllowedValue (forsgren#178): the
 // optional top-level dora_days key is 30, 90 or 180; 30 when the key is left
@@ -27,26 +30,36 @@ func TestDoraDaysDefaultsTo30AndReadsEachAllowedValue(t *testing.T) {
 	}
 }
 
-// TestDoraDaysRefusesAnythingElse (forsgren#178): any other value is refused
-// with ErrDoraDays and the message names the key and the three values.
-func TestDoraDaysRefusesAnythingElse(t *testing.T) {
+// TestRejectedDoraDaysFallsBackTo30 (forsgren#178, #183): any other value is
+// not accepted: 30 is in force and the rejection names the key and the three
+// values.
+func TestRejectedDoraDaysFallsBackTo30(t *testing.T) {
 	for name, value := range map[string]string{
 		"sixty": "60", "zero": "0", "negative": "-30", "a year": "365", "fraction": "30.5",
 		"float": "90.0", "quoted": `"90"`, "word": "ninety",
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := parse([]byte("dora_days: " + value + "\n" + valid))
-			wantRefusal(t, err, ErrDoraDays, "invalid dora_days", "use 30, 90 or 180")
+			got, err := parse([]byte("dora_days: " + value + "\n" + valid))
+			if err != nil || got.DoraDays != DefaultDoraDays {
+				t.Fatalf("want dora_days 30 and no error, got %d, %v", got.DoraDays, err)
+			}
+			wantRejection(t, got.Rejected, ErrDoraDays,
+				[4]string{"dora_days", strings.Trim(value, `"`), "use 30, 90 or 180", "30"})
 		})
 	}
 }
 
-// TestDoraDaysLongerThanHistoryDaysIsRefused (forsgren#178): a written
-// dora_days the history cannot reach back is refused naming both numbers.
-func TestDoraDaysLongerThanHistoryDaysIsRefused(t *testing.T) {
-	_, err := parse([]byte("dora_days: 180\nhistory_days: 90\n" + valid))
-	wantRefusal(t, err, ErrDoraDays, `invalid dora_days "180"`, "history_days is 90",
-		"raise history_days to at least 180 or use a shorter window")
+// TestDoraDaysLongerThanHistoryDaysFallsBack (forsgren#178, #183): a written
+// dora_days the history cannot reach back is not accepted: 30 is in force and
+// the reason names both numbers.
+func TestDoraDaysLongerThanHistoryDaysFallsBack(t *testing.T) {
+	got, err := parse([]byte("dora_days: 180\nhistory_days: 90\n" + valid))
+	if err != nil || got.DoraDays != DefaultDoraDays {
+		t.Fatalf("want dora_days 30 and no error, got %d, %v", got.DoraDays, err)
+	}
+	wantRejection(t, got.Rejected, ErrDoraDays, [4]string{"dora_days", "180",
+		"history_days is 90, so the history cannot reach back 180 days; " +
+			"raise history_days to at least 180 or use a shorter window", "30"})
 }
 
 // TestDoraDaysThatFitHistoryDaysLoad (forsgren#178): equal fits, the default

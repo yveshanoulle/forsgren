@@ -51,3 +51,25 @@ func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 		t.Errorf("want settings %v, got %v", want, s)
 	}
 }
+
+// TestEveryRejectedSettingIsListedInOrder (forsgren#183): a file with several
+// settings that are not accepted loads, every default is in force and each
+// rejection is listed, in the order of the settings.
+func TestEveryRejectedSettingIsListedInOrder(t *testing.T) {
+	bad := "days_page: yes\ndora_days: 60\nhistory_days: 0\nauto_update: maybe\nview: weekly\nworking_hours: 6\n"
+	got, err := parse([]byte(bad + valid))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var keys []string
+	for _, r := range got.Rejected {
+		keys = append(keys, r.Key)
+	}
+	want := []string{"view", "auto_update", "history_days", "dora_days", "days_page"}
+	if !slices.Equal(keys, want) {
+		t.Errorf("want rejections %v, got %v", want, keys)
+	}
+	if got.WorkingHours != 6 {
+		t.Errorf("want the accepted working_hours 6 read, got %d", got.WorkingHours)
+	}
+}

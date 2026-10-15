@@ -17,10 +17,7 @@ func (f fileConfig) toConfig() (Config, error) {
 	if err := checkVersion(f.Version); err != nil {
 		return Config{}, err
 	}
-	cfg, err := f.settings()
-	if err != nil {
-		return Config{}, err
-	}
+	cfg := f.settings()
 	if f.Projects == nil {
 		return Config{}, fmt.Errorf("%w: list at least one under the projects key, or use projects: [] for none",
 			ErrNoProjects)
@@ -41,9 +38,9 @@ func (f fileConfig) toConfig() (Config, error) {
 // level DefaultLevel when the file has none); view, auto_update and
 // auto_update_level are a Rejection when not accepted, the default in force
 // (forsgren#183), and so are history_days, history_chunk_days, working_hours,
-// issues_page and days_page; dora_days is still the first refusal
-// (forsgren#46, #58, #157, #159).
-func (f fileConfig) settings() (Config, error) {
+// issues_page and days_page, and so is dora_days (forsgren#46, #58, #157, #159,
+// #178).
+func (f fileConfig) settings() Config {
 	view, viewRejection := checkView(f.View)
 	auto, autoRejection := checkAutoUpdate(f.AutoUpdate)
 	level, levelRejection := checkAutoUpdateLevel(f.AutoUpdateLevel)
@@ -52,17 +49,14 @@ func (f fileConfig) settings() (Config, error) {
 	hours, hoursRejection := workingHours.check(f.WorkingHours)
 	issues, issuesRejection := issuesPage.value(f.IssuesPage)
 	daysOn, daysOnRejection := daysPage.value(f.DaysPage)
+	doraDays, doraRejection := checkDoraDays(f.DoraDays, days)
 	rejected := rejections(viewRejection, autoRejection, levelRejection, daysRejection, chunkRejection, hoursRejection,
-		issuesRejection, daysOnRejection)
-	doraDays, err := checkDoraDays(f.DoraDays, days)
-	if err != nil {
-		return Config{}, err
-	}
+		doraRejection, issuesRejection, daysOnRejection)
 	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level,
 		HistoryDays: days, HistoryChunkDays: chunk, WorkingHours: hours,
 		DoraDays:        doraDays,
 		WorkingHoursSet: hasValue(f.WorkingHours) && hoursRejection == nil, IssuesPage: issues, DaysPage: daysOn,
-		written: f.written(rejected), Rejected: rejected}, nil
+		written: f.written(rejected), Rejected: rejected}
 }
 
 // rejections are the non-nil rejections, in order (forsgren#183).
@@ -157,21 +151,30 @@ func checkHistoryChunkDays(n yaml.Node) (int, *Rejection) { return historyChunkD
 // checkDoraDays is dora_days as written, DefaultDoraDays when the file has
 // none (a key without a value is none): the integer 30, 90 or 180, never a
 // quoted value, and no longer than history_days, which the history must reach
-// back. The default window is never checked against history_days, so a short
+// back; otherwise DefaultDoraDays and the Rejection (forsgren#183). The
+// default window is never checked against history_days, so a short
 // history_days stays valid (forsgren#178).
-func checkDoraDays(n yaml.Node, historyDays int) (int, error) {
+func checkDoraDays(n yaml.Node, historyDays int) (int, *Rejection) {
 	if !hasValue(n) {
 		return DefaultDoraDays, nil
 	}
 	days, err := strconv.Atoi(n.Value)
 	if err != nil || n.ShortTag() != "!!int" || !isDoraWindow(days) {
-		return 0, fmt.Errorf("%w %q: use %d, %d or %d", ErrDoraDays, n.Value, DefaultDoraDays, DoraDays90, DoraDays180)
+		return DefaultDoraDays, doraRejection(n.Value,
+			fmt.Sprintf("use %d, %d or %d", DefaultDoraDays, DoraDays90, DoraDays180))
 	}
 	if days > historyDays {
-		return 0, fmt.Errorf("%w %q: history_days is %d, so the history cannot reach back %d days; "+
-			"raise history_days to at least %d or use a shorter window", ErrDoraDays, n.Value, historyDays, days, days)
+		return DefaultDoraDays, doraRejection(n.Value,
+			fmt.Sprintf("history_days is %d, so the history cannot reach back %d days; "+
+				"raise history_days to at least %d or use a shorter window", historyDays, days, days))
 	}
 	return days, nil
+}
+
+// doraRejection is dora_days written as written, not accepted for the reason,
+// with DefaultDoraDays in force (forsgren#183).
+func doraRejection(written, reason string) *Rejection {
+	return reject(ErrDoraDays, "dora_days", written, reason, strconv.Itoa(DefaultDoraDays))
 }
 
 // isDoraWindow says whether days is one of the windows dora_days can name.
