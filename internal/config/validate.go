@@ -77,6 +77,7 @@ func (f fileConfig) written(rejected []Rejection) map[string]bool {
 	var keys map[string]bool
 	for key, node := range map[string]yaml.Node{"auto_update": f.AutoUpdate, "history_days": f.HistoryDays,
 		"history_chunk_days": f.HistoryChunkDays, "working_hours": f.WorkingHours,
+		"dora_days":   f.DoraDays,
 		"issues_page": f.IssuesPage, "days_page": f.DaysPage} {
 		keys = mark(keys, key, hasValue(node))
 	}

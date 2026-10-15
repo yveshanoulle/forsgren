@@ -22,9 +22,14 @@ var possibleValues = map[string]string{
 	"history_days":       between(config.MinHistoryDays, config.MaxHistoryDays),
 	"history_chunk_days": upTo(config.MaxHistoryChunkDays),
 	"working_hours":      upTo(config.MaxWorkingHours),
+	"dora_days":          doraWindows,
 	"issues_page":        booleanValues,
 	"days_page":          booleanValues,
 }
+
+// doraWindows are the windows dora_days can name, as the page lists them.
+var doraWindows = list(strconv.Itoa(config.DefaultDoraDays), strconv.Itoa(config.DoraDays90),
+	strconv.Itoa(config.DoraDays180))
 
 // booleanValues are the values of a boolean key, as the page lists them.
 var booleanValues = list(strconv.FormatBool(true), strconv.FormatBool(false))

@@ -17,16 +17,17 @@ func TestSettingsListsEveryKeyWithItsDefault(t *testing.T) {
 		{Key: "history_days", Value: "30", Set: true},
 		{Key: "history_chunk_days", Value: "100"},
 		{Key: "working_hours", Value: "8"},
+		{Key: "dora_days", Value: "30"},
 		{Key: "issues_page", Value: "true"},
 		{Key: "days_page", Value: "false"},
 	})
 }
 
 // TestSettingsMarksEveryWrittenKeySet (forsgren#74): a file that writes all
-// eight keys has all of them Set, with the written values.
+// nine keys has all of them Set, with the written values.
 func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 	all := "view: numbers\nauto_update: true\nauto_update_level: minor\n" +
-		"history_days: 30\nhistory_chunk_days: 10\nworking_hours: 6\nissues_page: false\ndays_page: true\n"
+		"history_days: 30\nhistory_chunk_days: 10\nworking_hours: 6\ndora_days: 30\nissues_page: false\ndays_page: true\n"
 	wantSettings(t, all, []Setting{
 		{Key: "view", Value: "numbers", Set: true},
 		{Key: "auto_update", Value: "true", Set: true},
@@ -34,6 +35,7 @@ func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 		{Key: "history_days", Value: "30", Set: true},
 		{Key: "history_chunk_days", Value: "10", Set: true},
 		{Key: "working_hours", Value: "6", Set: true},
+		{Key: "dora_days", Value: "30", Set: true},
 		{Key: "issues_page", Value: "false", Set: true},
 		{Key: "days_page", Value: "true", Set: true},
 	})
@@ -130,6 +132,7 @@ func TestSettingsCarriesEachRejection(t *testing.T) {
 		{Key: "history_days", Value: "365", Written: "0", Reason: "use a whole number of days from 30 to 1825"},
 		{Key: "history_chunk_days", Value: "100"},
 		{Key: "working_hours", Value: "6", Set: true},
+		{Key: "dora_days", Value: "30"},
 		{Key: "issues_page", Value: "true"},
 		{Key: "days_page", Value: "false"},
 	})
@@ -145,5 +148,19 @@ func wantSettings(t *testing.T, keys string, want []Setting) {
 	}
 	if s := got.Settings(); !slices.Equal(s, want) {
 		t.Errorf("want settings %v, got %v", want, s)
+	}
+}
+
+// TestSettingsShowsARejectedDoraDaysLikeTheOtherKeys (forsgren#178, #183): a
+// dora_days that is not accepted lists 30 as not written, with the value as
+// written and the reason.
+func TestSettingsShowsARejectedDoraDaysLikeTheOtherKeys(t *testing.T) {
+	got, err := parse([]byte("dora_days: 60\n" + valid))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := Setting{Key: "dora_days", Value: "30", Written: "60", Reason: "use 30, 90 or 180"}
+	if !slices.Contains(got.Settings(), want) {
+		t.Errorf("want the settings to hold %+v, got %+v", want, got.Settings())
 	}
 }
