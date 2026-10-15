@@ -322,13 +322,14 @@ configuration: see the job summary of this run" to the footer, and leaving it
 out or `ok` adds nothing. `forsgren
 run-summary --latest <version> --waiting-pr <number> --pr-check
 <ok|no-access|rate-limited|failed|skipped> [--needs-check
-<ok|no-access|rate-limited|failed>] --repository <owner/name>` prints the run's job
+<ok|no-access|rate-limited|failed>] [--token-expiry <path>] --repository <owner/name>` prints the run's job
 summary as markdown (the version that built the page, the latest release or
 "unknown", and one of "up to date", "0.0.10 is available; no Dependabot pull
 request yet", "0.0.10 is waiting in pull request [#7](link)", "pull-request
 check skipped: grant pull-requests: read in your caller to enable it", "the
 pull-request check hit GitHub's rate limit, the next run tries again" and "the
-pull-request check failed", and a Setup line, see [The setup issue](updating-and-releases.md)); the link is fine there, because a run page is
+pull-request check failed", a Token line when `--token-expiry` names the file `collect` wrote, and a Setup line, see [The setup issue](updating-and-releases.md)). The Token line
+says "valid for N more days (until YYYY-MM-DD)" from one day left, "valid for N more hours (until YYYY-MM-DD HH:MM UTC)" under a day, "valid for less than an hour (until ...)" under an hour (or once the date has passed during the run), and "days left unknown" when GitHub named no expiry date in the run (a token without one, or a failed `collect`). The link is fine there, because a run page is
 private to the repository, unlike the public page. A flag it cannot use is a
 usage error that prints nothing. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides

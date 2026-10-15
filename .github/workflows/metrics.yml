@@ -450,7 +450,9 @@ jobs:
       # request lookup worked, had no access (grant pull-requests: read in
       # the caller), hit GitHub's rate limit or failed; the needs step's check
       # says the same of the setup issue (forsgren#73), and run-summary lists
-      # what this version needs when the issue could not be written. A summary never fails the run: forsgren
+      # what this version needs when the issue could not be written, and the file
+      # collect wrote says how long FORSGREN_TOKEN is still valid (forsgren#185).
+      # A summary never fails the run: forsgren
       # run-summary failing appends nothing, and neither does an append that
       # cannot be written.
       - name: Write the run summary
@@ -462,7 +464,8 @@ jobs:
           NEEDS_CHECK: ${{ steps.needs.outputs.check }}
         run: |
           set -uo pipefail
-          if summary="$(forsgren run-summary --latest "$LATEST" --waiting-pr "${WAITING:-0}" --pr-check "$PR_CHECK" --needs-check "$NEEDS_CHECK" --repository "$GITHUB_REPOSITORY")"; then
+          if summary="$(forsgren run-summary --latest "$LATEST" --waiting-pr "${WAITING:-0}" --pr-check "$PR_CHECK" --needs-check "$NEEDS_CHECK" --repository "$GITHUB_REPOSITORY" \
+            --token-expiry "${RUNNER_TEMP}/token-expiry")"; then
             printf '%s\n' "$summary" >> "$GITHUB_STEP_SUMMARY" || true
           fi
 

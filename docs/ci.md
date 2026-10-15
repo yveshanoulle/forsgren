@@ -333,7 +333,9 @@ Six PRE gates keep the CI honest:
   else counting as `failed`, and the render step passes `--waiting-pr
   <number>` when it is set; the step "Write the run summary" appends
   `forsgren run-summary`'s markdown to `$GITHUB_STEP_SUMMARY` and never fails
-  the run (a `run-summary` that fails appends nothing);
+  the run (a `run-summary` that fails appends nothing); it passes `--token-expiry
+  "${RUNNER_TEMP}/token-expiry"`, the file collect writes, for the summary's
+  Token line (days or hours left, or unknown);
   and install, checkout, starter, config
   check, collect, data commit and render come in that order, the fail step
   after publishing. Each pin is shown failing, with its own reason, on a

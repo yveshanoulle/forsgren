@@ -194,7 +194,9 @@
 #      rate-limited, failed or skipped) and NEEDS_CHECK (the needs step's
 #      `check` output, forsgren#73) through env: only and, EXECUTED with the
 #      stub, appends `forsgren run-summary --latest ... --waiting-pr ...
-#      --pr-check ... --needs-check ... --repository $GITHUB_REPOSITORY`'s markdown to
+#      --pr-check ... --needs-check ... --repository $GITHUB_REPOSITORY
+#      --token-expiry ${RUNNER_TEMP}/token-expiry` (the file collect writes,
+#      forsgren#185: the Token line)'s markdown to
 #      $GITHUB_STEP_SUMMARY, and never fails the run: a run-summary that
 #      fails appends nothing and the step exits 0; and pin 31 adds that the
 #      waiting step outputs `check=` from the status file its lookup writes
@@ -915,8 +917,8 @@ summary_outcome() {
   : > "$summary"
   : > "$calls"
   PATH="${STUB}:${PATH}" FG_CALLS="$calls" GITHUB_STEP_SUMMARY="$summary" GITHUB_REPOSITORY="acme/data" \
-    LATEST="0.0.10" WAITING="7" PR_CHECK="ok" NEEDS_CHECK="no-access" STUB_SUMMARY="$2" STUB_SUMMARY_RC="$3" bash "$1" > /dev/null 2>&1 || rc=$?
-  echo "exit=${rc} summary=$(paste -sd'|' - < "$summary") calls=$(paste -sd, - < "$calls")"
+    LATEST="0.0.10" WAITING="7" PR_CHECK="ok" NEEDS_CHECK="no-access" RUNNER_TEMP="${TMP}/runner" STUB_SUMMARY="$2" STUB_SUMMARY_RC="$3" bash "$1" > /dev/null 2>&1 || rc=$?
+  echo "exit=${rc} summary=$(paste -sd'|' - < "$summary") calls=$(paste -sd, - < "$calls" | sed "s|${TMP}/runner/|RUNNER_TEMP/|g")"
 }
 
 # judge_run_summary <workflow-file>: pin 33, the run summary step.
@@ -935,10 +937,10 @@ judge_run_summary() {
     return 0
   fi
   got="$(summary_outcome "$script" "## forsgren\n- Update: up to date\n" 0)"
-  want="exit=0 summary=## forsgren|- Update: up to date calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --needs-check no-access --repository acme/data"
+  want="exit=0 summary=## forsgren|- Update: up to date calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --needs-check no-access --repository acme/data --token-expiry RUNNER_TEMP/token-expiry"
   [[ "$got" == "$want" ]] || echo "the run summary step gives '${got}', not '${want}' — forsgren run-summary's markdown is appended to \$GITHUB_STEP_SUMMARY"
   got="$(summary_outcome "$script" "half a sum" 1)"
-  want="exit=0 summary= calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --needs-check no-access --repository acme/data"
+  want="exit=0 summary= calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --needs-check no-access --repository acme/data --token-expiry RUNNER_TEMP/token-expiry"
   [[ "$got" == "$want" ]] || echo "for a run-summary that fails the run summary step gives '${got}', not '${want}' — a summary never fails the run, and half of one is never appended"
 }
 
@@ -1791,6 +1793,8 @@ proves judge_waiting_lookup "a waiting lookup without the job token" "does not s
   "/GITHUB_TOKEN: \\${D}{{ github.token }}/{x;s/^/x/;/^xx\$/{x;d;};x;}"
 proves judge_waiting_lookup "a waiting lookup that fails the job" "for a lookup that fails the waiting step gives" \
   "s/--status \"\\${D}status_file\" || true/--status \"\\${D}status_file\"/"
+proves judge_run_summary "a run summary without the token expiry file" "the run summary step gives" \
+  '/--token-expiry "[^"]*")"; then/s|--token-expiry "[^"]*"||'
 proves judge_waiting_lookup "a waiting output that is not checked" "for an answer that is not a number" \
   "/if \\[\\[ ! \"\\${D}waiting\" =~/,/^          fi${D}/d"
 proves judge_run_summary "a run summary that is not appended" "the run summary step gives" \
