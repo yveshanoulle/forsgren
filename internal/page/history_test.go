@@ -156,3 +156,18 @@ func TestHistoryPageIsMarkedBeta(t *testing.T) {
 	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()), "<h2>History page (beta)</h2>")
 	wantNone(t, "index.html", rendered(t, "index.html", calculated()), "(beta)")
 }
+
+// historyHowToRead is the line under the History heading (forsgren#198).
+const historyHowToRead = `<p>Each column is a period: the calendar half-years, then the last 6 months. ` +
+	`A cell is the number and its score (0 to 10), number · score. Trend draws the score over the periods.</p>`
+
+// TestHistoryPageSaysHowToReadItUnderTheHeading (forsgren#198): right under
+// the heading, with history and without, one line says what a column, a cell
+// and the Trend are; the legend already says the same at length, so it gains
+// no sentence.
+func TestHistoryPageSaysHowToReadItUnderTheHeading(t *testing.T) {
+	for name, data := range map[string]Data{"with history": historyData(), "without": calculated()} {
+		wantAll(t, name, rendered(t, "history.html", data),
+			`<h1 id="history-heading">History (beta)</h1>`+"\n    "+historyHowToRead)
+	}
+}
