@@ -65,7 +65,7 @@
   {
    "path": "internal/config/config_test.go",
    "score": 9.68,
-   "checkedAt": "2026-10-02",
+   "checkedAt": "2026-10-15",
    "minScore": 9.58
   },
   {
@@ -1288,6 +1288,24 @@
   },
   {
    "path": "cmd/forsgren/dependabot.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-15",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/history_page_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-15",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/numbers_scoring_page_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-15",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/pages_keys_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-15",
    "minScore": 10.0

@@ -1,7 +1,6 @@
 package installerdoc
 
 import (
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -10,7 +9,7 @@ import (
 // written as the starter writes it (forsgren#68).
 func starterHistoryPage(t *testing.T) string {
 	t.Helper()
-	return "history_page: " + strconv.FormatBool(loadedStarter(t).HistoryPage)
+	return "history_page: " + string(loadedStarter(t).HistoryPage)
 }
 
 // TestInstallerAsksForTheHistoryPage (forsgren#68, #199): step 2 asks

@@ -152,6 +152,18 @@ type Project struct {
 	Repositories []Repository
 }
 
+// PageMode is how an optional page is handled (forsgren#200): PageOn, the page
+// is generated and in the menu; PageUnlisted, it is generated, has no menu entry
+// and asks search engines to skip it; PageOff, it is not generated.
+type PageMode string
+
+// The three values of a page key, as the file writes them.
+const (
+	PageOn       PageMode = "true"
+	PageUnlisted PageMode = "unlisted"
+	PageOff      PageMode = "false"
+)
+
 // Config is a validated forsgren.config.yml.
 type Config struct {
 	Version int
@@ -185,19 +197,19 @@ type Config struct {
 	// DoraDaysSet says whether the file has an accepted dora_days key, so the
 	// legend can tell a configured window from the default (forsgren#178).
 	DoraDaysSet bool
-	// IssuesPage is whether the issues page is generated, true when the file
-	// has no issues_page key (forsgren#159).
-	IssuesPage bool
-	// DaysPage is whether the days page (Daily) is generated, false when the
-	// file has no days_page key (forsgren#159).
-	DaysPage bool
-	// NumbersScoringPage is whether the numbers and scoring page is
-	// generated, false when the file has no numbers_scoring_page key
-	// (forsgren#55).
-	NumbersScoringPage bool
-	// HistoryPage is whether the history page is generated, false when the
-	// file has no history_page key (forsgren#68, #199).
-	HistoryPage bool
+	// IssuesPage is how the issues page is handled, PageOn when the file has
+	// no issues_page key (forsgren#159, #200).
+	IssuesPage PageMode
+	// DaysPage is how the days page (Daily) is handled, PageOff when the
+	// file has no days_page key (forsgren#159, #200).
+	DaysPage PageMode
+	// NumbersScoringPage is how the numbers and scoring page is handled,
+	// PageOff when the file has no numbers_scoring_page key (forsgren#55,
+	// #200).
+	NumbersScoringPage PageMode
+	// HistoryPage is how the history page is handled, PageOff when the file
+	// has no history_page key (forsgren#68, #199, #200).
+	HistoryPage PageMode
 	// written is the optional keys the file writes, by key (forsgren#74).
 	written  map[string]bool
 	Projects []Project
@@ -426,10 +438,10 @@ var settingKeys = []settingKey{
 		func(c Config) string { return strconv.Itoa(c.HistoryChunkDays) }},
 	{"working_hours", strconv.Itoa(DefaultWorkingHours), func(c Config) string { return strconv.Itoa(c.WorkingHours) }},
 	{"dora_days", strconv.Itoa(DefaultDoraDays), func(c Config) string { return strconv.Itoa(c.DoraDays) }},
-	{"issues_page", "true", func(c Config) string { return strconv.FormatBool(c.IssuesPage) }},
-	{"days_page", "false", func(c Config) string { return strconv.FormatBool(c.DaysPage) }},
-	{"numbers_scoring_page", "false", func(c Config) string { return strconv.FormatBool(c.NumbersScoringPage) }},
-	{"history_page", "false", func(c Config) string { return strconv.FormatBool(c.HistoryPage) }},
+	{"issues_page", "true", func(c Config) string { return string(c.IssuesPage) }},
+	{"days_page", "false", func(c Config) string { return string(c.DaysPage) }},
+	{"numbers_scoring_page", "false", func(c Config) string { return string(c.NumbersScoringPage) }},
+	{"history_page", "false", func(c Config) string { return string(c.HistoryPage) }},
 }
 
 // Settings lists every optional key in the order of settingKeys: the value

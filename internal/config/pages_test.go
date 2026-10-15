@@ -11,18 +11,18 @@ import (
 func TestIssuesAndDaysPagesAreRead(t *testing.T) {
 	cases := []struct {
 		name, file           string
-		wantIssues, wantDays bool
+		wantIssues, wantDays PageMode
 	}{
-		{"absent", valid, true, false},
-		{"both on", "issues_page: true\ndays_page: true\n" + valid, true, true},
-		{"both off", "issues_page: false\ndays_page: false\n" + valid, false, false},
-		{"issues off", valid + "issues_page: false\n", false, false},
-		{"days on", "days_page: true\n" + valid, true, true},
-		{"no value", "issues_page:\ndays_page: null\n" + valid, true, false},
+		{"absent", valid, PageOn, PageOff},
+		{"both on", "issues_page: true\ndays_page: true\n" + valid, PageOn, PageOn},
+		{"both off", "issues_page: false\ndays_page: false\n" + valid, PageOff, PageOff},
+		{"issues off", valid + "issues_page: false\n", PageOff, PageOff},
+		{"days on", "days_page: true\n" + valid, PageOn, PageOn},
+		{"no value", "issues_page:\ndays_page: null\n" + valid, PageOn, PageOff},
 	}
 	for _, tc := range cases {
 		got, err := parse([]byte(tc.file))
-		if err != nil || issuesAndDays(got) != [2]bool{tc.wantIssues, tc.wantDays} {
+		if err != nil || issuesAndDays(got) != [2]PageMode{tc.wantIssues, tc.wantDays} {
 			t.Errorf("%s: want issues_page %v, days_page %v and no error, got %v, %v, %v",
 				tc.name, tc.wantIssues, tc.wantDays, got.IssuesPage, got.DaysPage, err)
 		}
@@ -34,13 +34,13 @@ func TestIssuesAndDaysPagesAreRead(t *testing.T) {
 func TestNumbersScoringPageIsRead(t *testing.T) {
 	cases := []struct {
 		name, file string
-		want       bool
+		want       PageMode
 	}{
-		{"absent", valid, false},
-		{"on", "numbers_scoring_page: true\n" + valid, true},
-		{"off", "numbers_scoring_page: false\n" + valid, false},
-		{"after the projects", valid + "numbers_scoring_page: true\n", true},
-		{"no value", "numbers_scoring_page:\n" + valid, false},
+		{"absent", valid, PageOff},
+		{"on", "numbers_scoring_page: true\n" + valid, PageOn},
+		{"off", "numbers_scoring_page: false\n" + valid, PageOff},
+		{"after the projects", valid + "numbers_scoring_page: true\n", PageOn},
+		{"no value", "numbers_scoring_page:\n" + valid, PageOff},
 	}
 	for _, tc := range cases {
 		got, err := parse([]byte(tc.file))
@@ -51,7 +51,7 @@ func TestNumbersScoringPageIsRead(t *testing.T) {
 }
 
 // issuesAndDays are the config's issues_page and days_page, in that order.
-func issuesAndDays(cfg Config) [2]bool { return [2]bool{cfg.IssuesPage, cfg.DaysPage} }
+func issuesAndDays(cfg Config) [2]PageMode { return [2]PageMode{cfg.IssuesPage, cfg.DaysPage} }
 
 // TestRejectedPageKeyFallsBack (forsgren#159, #183): any value that is not the
 // YAML boolean true or false is not accepted: the key's default is in force
@@ -63,16 +63,16 @@ func TestRejectedPageKeyFallsBack(t *testing.T) {
 		name, file           string
 		sentinel             error
 		want                 [4]string
-		wantIssues, wantDays bool
+		wantIssues, wantDays PageMode
 	}{
 		{"issues yes", "issues_page: yes\n" + valid, ErrIssuesPage,
-			[4]string{"issues_page", "yes", "use true or false", "true"}, true, false},
+			[4]string{"issues_page", "yes", "use true or false", "true"}, PageOn, PageOff},
 		{"days quoted", "days_page: \"true\"\n" + valid, ErrDaysPage,
-			[4]string{"days_page", "true", "use true or false", "false"}, true, false},
+			[4]string{"days_page", "true", "use true or false", "false"}, PageOn, PageOff},
 		{"days number", "days_page: 0\n" + valid, ErrDaysPage,
-			[4]string{"days_page", "0", "use true or false", "false"}, true, false},
+			[4]string{"days_page", "0", "use true or false", "false"}, PageOn, PageOff},
 		{"the other key is kept", "issues_page: false\ndays_page: yes\n" + valid, ErrDaysPage,
-			[4]string{"days_page", "yes", "use true or false", "false"}, false, false},
+			[4]string{"days_page", "yes", "use true or false", "false"}, PageOff, PageOff},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -80,7 +80,7 @@ func TestRejectedPageKeyFallsBack(t *testing.T) {
 			if err != nil || got.written[tc.want[0]] {
 				t.Fatalf("want %s not written and no error, got %v, %v", tc.want[0], got.written, err)
 			}
-			if issuesAndDays(got) != [2]bool{tc.wantIssues, tc.wantDays} {
+			if issuesAndDays(got) != [2]PageMode{tc.wantIssues, tc.wantDays} {
 				t.Fatalf("want issues_page %v, days_page %v, got %v, %v",
 					tc.wantIssues, tc.wantDays, got.IssuesPage, got.DaysPage)
 			}
@@ -99,7 +99,7 @@ func TestRejectedNumbersScoringPageFallsBack(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", written, err)
 		}
-		if got.NumbersScoringPage || got.written["numbers_scoring_page"] {
+		if got.NumbersScoringPage != PageOff || got.written["numbers_scoring_page"] {
 			t.Errorf("%s: want the page off and the key not written, got %v, %v", written,
 				got.NumbersScoringPage, got.written)
 		}
@@ -133,16 +133,16 @@ func TestRejectedNumbersScoringPageIsListedLast(t *testing.T) {
 func TestHistoryPageIsOffByDefaultAndRejectsOtherValues(t *testing.T) {
 	cases := []struct {
 		name, file, rejected string
-		want                 bool
+		want                 PageMode
 	}{
-		{"absent", valid, "", false},
-		{"on", "history_page: true\n" + valid, "", true},
-		{"off", "history_page: false\n" + valid, "", false},
-		{"after the projects", valid + "history_page: true\n", "", true},
-		{"no value", "history_page:\n" + valid, "", false},
-		{"yes", "history_page: yes\n" + valid, "yes", false},
-		{"quoted", "history_page: \"true\"\n" + valid, "true", false},
-		{"a number", "history_page: 1\n" + valid, "1", false},
+		{"absent", valid, "", PageOff},
+		{"on", "history_page: true\n" + valid, "", PageOn},
+		{"off", "history_page: false\n" + valid, "", PageOff},
+		{"after the projects", valid + "history_page: true\n", "", PageOn},
+		{"no value", "history_page:\n" + valid, "", PageOff},
+		{"yes", "history_page: yes\n" + valid, "yes", PageOff},
+		{"quoted", "history_page: \"true\"\n" + valid, "true", PageOff},
+		{"a number", "history_page: 1\n" + valid, "1", PageOff},
 	}
 	for _, tc := range cases {
 		got, err := parse([]byte(tc.file))
@@ -153,5 +153,28 @@ func TestHistoryPageIsOffByDefaultAndRejectsOtherValues(t *testing.T) {
 			wantRejection(t, got.Rejected, ErrHistoryPage,
 				[4]string{"history_page", tc.rejected, "use true or false", "false"})
 		}
+	}
+}
+
+// pageModeOf is the PageMode the config holds for the page key.
+func pageModeOf(cfg Config, key string) PageMode {
+	return map[string]PageMode{"issues_page": cfg.IssuesPage, "days_page": cfg.DaysPage,
+		"numbers_scoring_page": cfg.NumbersScoringPage, "history_page": cfg.HistoryPage}[key]
+}
+
+// TestEveryPageKeyReadsUnlisted (forsgren#200): the literal unlisted is a value
+// of each of the four page keys, read as PageUnlisted, written, and not
+// rejected: the page is generated without a menu entry.
+func TestEveryPageKeyReadsUnlisted(t *testing.T) {
+	for _, key := range []string{"issues_page", "days_page", "numbers_scoring_page", "history_page"} {
+		t.Run(key, func(t *testing.T) {
+			got, err := parse([]byte(key + ": unlisted\n" + valid))
+			if err != nil || len(got.Rejected) != 0 {
+				t.Fatalf("want nothing rejected and no error, got %v, %v", got.Rejected, err)
+			}
+			if mode := pageModeOf(got, key); mode != PageUnlisted || !got.written[key] {
+				t.Errorf("want %s unlisted and written, got %q, written %v", key, mode, got.written[key])
+			}
+		})
 	}
 }

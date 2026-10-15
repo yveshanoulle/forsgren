@@ -221,9 +221,10 @@ func TestStarterPassesLoad(t *testing.T) {
 // the settings page marks all three as set.
 func wantPageKeysWritten(t *testing.T, cfg Config) {
 	t.Helper()
-	got := map[string]bool{"issues_page": cfg.IssuesPage, "days_page": cfg.DaysPage,
+	got := map[string]PageMode{"issues_page": cfg.IssuesPage, "days_page": cfg.DaysPage,
 		"numbers_scoring_page": cfg.NumbersScoringPage}
-	for key, want := range map[string]bool{"issues_page": true, "days_page": false, "numbers_scoring_page": false} {
+	for key, want := range map[string]PageMode{"issues_page": PageOn, "days_page": PageOff,
+		"numbers_scoring_page": PageOff} {
 		if got[key] != want || !cfg.written[key] {
 			t.Errorf("want %s %v and written, got %v, written %v", key, want, got[key], cfg.written[key])
 		}
@@ -485,7 +486,7 @@ func TestStarterLoadsWithTheHistoryPageWrittenOff(t *testing.T) {
 	if err != nil || len(cfg.Rejected) != 0 {
 		t.Fatalf("want nothing rejected, got %v, %v", cfg.Rejected, err)
 	}
-	if cfg.HistoryPage || !cfg.written["history_page"] {
+	if cfg.HistoryPage != PageOff || !cfg.written["history_page"] {
 		t.Errorf("want history_page false and written, got %v, %v", cfg.HistoryPage, cfg.written["history_page"])
 	}
 }

@@ -46,10 +46,10 @@ func (f fileConfig) settings() Config {
 	chunk, chunkRejection := historyChunkDays.check(f.HistoryChunkDays)
 	hours, hoursRejection := workingHours.check(f.WorkingHours)
 	doraDays, doraRejection := checkDoraDays(f.DoraDays, days)
-	issues, issuesRejection := issuesPage.value(f.IssuesPage)
-	daysOn, daysOnRejection := daysPage.value(f.DaysPage)
-	numbersScoring, numbersScoringRejection := numbersScoringPage.value(f.NumbersScoringPage)
-	historyOn, historyRejection := historyPage.value(f.HistoryPage)
+	issues, issuesRejection := issuesPage.mode(f.IssuesPage)
+	daysOn, daysOnRejection := daysPage.mode(f.DaysPage)
+	numbersScoring, numbersScoringRejection := numbersScoringPage.mode(f.NumbersScoringPage)
+	historyOn, historyRejection := historyPage.mode(f.HistoryPage)
 	rejected := rejections(viewRejection, autoRejection, levelRejection, daysRejection, chunkRejection, hoursRejection,
 		doraRejection, issuesRejection, daysOnRejection, numbersScoringRejection, historyRejection)
 	written := f.written(rejected)
@@ -202,8 +202,8 @@ func checkAutoUpdateLevel(n yaml.Node) (string, *Rejection) {
 // booleans are the only spellings of a boolean key (forsgren#58).
 var booleans = map[string]bool{"true": true, "false": false}
 
-// booleanKey is a key that is true or false (forsgren#58, #159): its refusal
-// and its default.
+// booleanKey is a key that is true or false (forsgren#58): its refusal and its
+// default.
 type booleanKey struct {
 	sentinel error
 	key      string
@@ -212,10 +212,10 @@ type booleanKey struct {
 
 var (
 	autoUpdate         = booleanKey{ErrAutoUpdate, "auto_update", false}
-	issuesPage         = booleanKey{ErrIssuesPage, "issues_page", true}
-	daysPage           = booleanKey{ErrDaysPage, "days_page", false}
-	numbersScoringPage = booleanKey{ErrNumbersScoringPage, "numbers_scoring_page", false}
-	historyPage        = booleanKey{ErrHistoryPage, "history_page", false}
+	issuesPage         = pageKey{ErrIssuesPage, "issues_page", PageOn}
+	daysPage           = pageKey{ErrDaysPage, "days_page", PageOff}
+	numbersScoringPage = pageKey{ErrNumbersScoringPage, "numbers_scoring_page", PageOff}
+	historyPage        = pageKey{ErrHistoryPage, "history_page", PageOff}
 )
 
 // value is the key as written, its default when the file has none (a key
@@ -230,6 +230,44 @@ func (k booleanKey) value(n yaml.Node) (bool, *Rejection) {
 		return on, nil
 	}
 	return k.def, refusable{k.sentinel, k.key, strconv.FormatBool(k.def)}.reject(n, "use true or false")
+}
+
+// pageKey is the key of an optional page (forsgren#159, #200): its refusal and
+// its default PageMode.
+type pageKey struct {
+	sentinel error
+	key      string
+	def      PageMode
+}
+
+// mode is the key as written, its default when the file has none (a key
+// without a value is none): only the literals true, unlisted and false, never
+// a quoted or numeric value, nor yes; otherwise the default and the Rejection,
+// which wraps the key's sentinel (forsgren#183, #200).
+func (k pageKey) mode(n yaml.Node) (PageMode, *Rejection) {
+	if !hasValue(n) {
+		return k.def, nil
+	}
+	if mode, ok := readPageMode(n); ok {
+		return mode, nil
+	}
+	return k.def, refusable{k.sentinel, k.key, string(k.def)}.reject(n, "use true or false")
+}
+
+// readPageMode is the PageMode a node writes, when it writes one: the YAML
+// booleans true and false, or the string unlisted.
+func readPageMode(n yaml.Node) (PageMode, bool) {
+	if n.Value == string(PageUnlisted) && n.ShortTag() == "!!str" {
+		return PageUnlisted, true
+	}
+	on, literal := booleans[n.Value]
+	if !literal || n.ShortTag() != "!!bool" {
+		return "", false
+	}
+	if on {
+		return PageOn, true
+	}
+	return PageOff, true
 }
 
 func checkVersion(v *int) error {

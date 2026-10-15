@@ -3,7 +3,6 @@ package installerdoc
 import (
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -22,7 +21,7 @@ func starterPages(t *testing.T) (issues, days string) {
 	if err != nil {
 		t.Fatalf("want the starter to load, got %v", err)
 	}
-	return "issues_page: " + strconv.FormatBool(cfg.IssuesPage), "days_page: " + strconv.FormatBool(cfg.DaysPage)
+	return "issues_page: " + string(cfg.IssuesPage), "days_page: " + string(cfg.DaysPage)
 }
 
 // TestDocsAndInstallerStateTheStartersPageKeys (forsgren#159): the agent

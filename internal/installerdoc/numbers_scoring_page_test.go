@@ -1,7 +1,6 @@
 package installerdoc
 
 import (
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -10,7 +9,7 @@ import (
 // loads it, written as the starter writes it (forsgren#55).
 func starterNumbersScoringPage(t *testing.T) string {
 	t.Helper()
-	return "numbers_scoring_page: " + strconv.FormatBool(loadedStarter(t).NumbersScoringPage)
+	return "numbers_scoring_page: " + string(loadedStarter(t).NumbersScoringPage)
 }
 
 // TestInstallerAsksForTheNumbersAndScoringPage (forsgren#55): step 2 asks

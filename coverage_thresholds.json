@@ -218,6 +218,8 @@
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:written": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:settings": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:value": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/validate.go:mode": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/validate.go:readPageMode": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:checkAutoUpdateLevel": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:whole": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:integer": 100.0,

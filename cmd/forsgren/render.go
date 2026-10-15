@@ -114,14 +114,13 @@ func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error
 	return withHistory(data, cfg, o.data, at)
 }
 
-// hiddenPages are the pages the config leaves out: the issues page when
-// issues_page is false, the days page unless days_page is true (forsgren#159),
-// and the numbers and scoring page unless numbers_scoring_page is true
-// (forsgren#55), and the history page unless history_page is true
-// (forsgren#68, #199).
+// hiddenPages are the pages the config leaves out: each page whose key is
+// false (forsgren#159, #55, #68, #199, #200).
 func hiddenPages(cfg config.Config) map[string]bool {
-	return map[string]bool{page.IssuesPage: !cfg.IssuesPage, page.DaysPage: !cfg.DaysPage,
-		page.NumbersScoringPage: !cfg.NumbersScoringPage, page.HistoryPage: !cfg.HistoryPage}
+	return map[string]bool{page.IssuesPage: cfg.IssuesPage == config.PageOff,
+		page.DaysPage:           cfg.DaysPage == config.PageOff,
+		page.NumbersScoringPage: cfg.NumbersScoringPage == config.PageOff,
+		page.HistoryPage:        cfg.HistoryPage == config.PageOff}
 }
 
 // issueDays is how many UTC days the days page shows, ending yesterday
