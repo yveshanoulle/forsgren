@@ -6,6 +6,7 @@
         <thead>
           <tr>
             <th scope="col">Project</th>
+            <th scope="col">Trend</th>
 {{range .HistoryPeriods}}            <th scope="col">{{.}}</th>
 {{end}}          </tr>
         </thead>
@@ -15,6 +16,7 @@
           </tr>
 {{range .Rows}}          <tr{{if .IsLabel}} class="label"{{end}}>
 {{template "rowheader" .}}
+            <td>{{if .Chart}}{{template "chart" .Chart}}{{else}}-{{end}}</td>
 {{range .Cells}}            <td>{{.}}</td>
 {{end}}          </tr>
 {{end}}        </tbody>

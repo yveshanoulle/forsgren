@@ -29,10 +29,11 @@ type HistorySection struct {
 	Rows  []HistoryRow
 }
 
-// HistoryRow is a row of a history table: the row's heading and its cell per
-// period.
+// HistoryRow is a row of a history table: the row's heading, its chart and its
+// cell per period.
 type HistoryRow struct {
 	Row
+	Chart *HistoryChart
 	Cells []string
 }
 
@@ -45,7 +46,7 @@ func (d Data) HistorySections() []HistorySection {
 	headings := Table(d.History[0].Rows)
 	sections := make([]HistorySection, len(historyMeasures))
 	for m, measure := range historyMeasures {
-		sections[m] = HistorySection{Title: measure, Span: len(d.History) + 1, Rows: d.historyRows(headings, m)}
+		sections[m] = HistorySection{Title: measure, Span: len(d.History) + 2, Rows: d.historyRows(headings, m)}
 	}
 	return sections
 }
@@ -66,9 +67,12 @@ func (d Data) historyRows(headings []Row, m int) []HistoryRow {
 	rows := make([]HistoryRow, len(headings))
 	for r, heading := range headings {
 		rows[r] = HistoryRow{Row: heading, Cells: make([]string, len(d.History))}
+		scores := make([]score, len(d.History))
 		for c, column := range d.History {
 			rows[r].Cells[c] = historyCells(Row{Row: column.Rows[r]})[m]
+			scores[c] = chartScore(Row{Row: column.Rows[r]}, m)
 		}
+		rows[r].Chart = historyChart(chartTitle(m, heading.Heading, d.History), scores)
 	}
 	return rows
 }
