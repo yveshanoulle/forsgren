@@ -38,7 +38,7 @@ func collectDeployments(args []string, stdout, stderr io.Writer) int {
 	if !ok {
 		return 2
 	}
-	cfg, err := loadForCollect(opts)
+	cfg, err := loadForCollect(opts, stderr)
 	if err != nil {
 		return failed(stderr, "collect", err)
 	}
@@ -57,12 +57,13 @@ func collectDeployments(args []string, stdout, stderr io.Writer) int {
 }
 
 // loadForCollect removes the expiry file of an earlier run (removeTokenExpiry),
-// before anything can fail, then loads the config.
-func loadForCollect(opts collectOptions) (config.Config, error) {
+// before anything can fail, then loads the config, warning on stderr about each
+// setting that is not accepted (forsgren#183).
+func loadForCollect(opts collectOptions, stderr io.Writer) (config.Config, error) {
 	if err := removeTokenExpiry(opts.tokenExpiry); err != nil {
 		return config.Config{}, err
 	}
-	return config.Load(opts.config)
+	return loadConfig(opts.config, stderr)
 }
 
 // collectAndNoteExpiry runs collect, then writes the token's expiry to
