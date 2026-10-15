@@ -97,6 +97,33 @@ func TestNumbersScoringPageShowsNumberThenScore(t *testing.T) {
 	}
 }
 
+// TestNumbersScoringPageShowsOneDashForAMetricWithoutData (forsgren#55,
+// decision #187): a metric with no data is a single -, never "- · -"; a
+// project that never had a successful deployment shows its real zero count and
+// no score, 0 · -; a row with no data at all has no scored metric, so Overall
+// Performance is -, and a last success older than six months is 0 · 0.
+func TestNumbersScoringPageShowsOneDashForAMetricWithoutData(t *testing.T) {
+	data := Placeholder("1.6.2")
+	idle := metrics.Frequency{Band: metrics.LessThanSixMonthly}
+	old := metrics.Frequency{Latest: time.Date(2025, 9, 1, 9, 30, 0, 0, time.UTC), Band: metrics.LessThanSixMonthly}
+	data.Rows = Table([]metrics.Row{
+		{Level: metrics.ProjectRow, Name: "Acme Empty"},
+		{Level: metrics.ProjectRow, Name: "Acme Idle", Frequency: idle},
+		{Level: metrics.ProjectRow, Name: "Acme Old", Frequency: old},
+	})
+	got := rendered(t, "numbers-scoring/index.html", data)
+	for heading, cells := range map[string][]string{
+		"Acme Empty": {"0 · -", "-", "-", "-", "-", "-"},
+		"Acme Idle":  {"0 · -", "-", "-", "-", "-", "-"},
+		"Acme Old":   {"0 · 0", "-", "-", "-", "-", "0.0"},
+	} {
+		if !row(heading, cells...).MatchString(got) {
+			t.Errorf("want the row of %s to read %v, got:\n%s", heading, cells, got)
+		}
+	}
+	wantNone(t, "numbers-scoring/index.html", got, "- · -", "No deployments recorded yet", "colspan")
+}
+
 // TestScoringPageShowsNoOverallPerformanceWithoutAScore (forsgren#47): a row
 // with no data has no scored metric, so all six cells, Overall Performance
 // included, are -.
@@ -262,6 +289,16 @@ func TestNumbersPageWithoutDeploymentsMatchesGolden(t *testing.T) {
 	data.AsOf = "2026-10-03 12:00"
 	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Empty"}})
 	checkPageGolden(t, "numbers/index.html", "testdata/numbers.no-data.golden.html", data)
+}
+
+// TestNumbersScoringPageWithoutDeploymentsMatchesGolden (forsgren#55): a
+// project with no deployment recorded yet is six cells on the numbers and
+// scoring page, 0 · - for the frequency and a dash for each other cell.
+func TestNumbersScoringPageWithoutDeploymentsMatchesGolden(t *testing.T) {
+	data := Placeholder("1.6.2")
+	data.AsOf = "2026-10-03 12:00"
+	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Empty"}})
+	checkPageGolden(t, "numbers-scoring/index.html", "testdata/numbers-scoring.no-data.golden.html", data)
 }
 
 // TestWriteSiteFailsWhenAViewFolderIsAFile (forsgren#46): a view's folder
