@@ -33,18 +33,14 @@ func TestInstallerAsksForTheNumbersAndScoringPage(t *testing.T) {
 	}
 }
 
-// TestInstallerProvesTenSettingsRows (forsgren#55): the settings page proof
-// lists numbers_scoring_page as written in the config, ten rows in all, and
-// "Changing a setting later" names the key.
-func TestInstallerProvesTenSettingsRows(t *testing.T) {
+// TestInstallerProvesTheNumbersAndScoringRow (forsgren#55): the settings page
+// proof lists numbers_scoring_page as written in the config, and "Changing a
+// setting later" names the key; the count of rows is
+// TestInstallerProvesElevenSettingsRows' (forsgren#68).
+func TestInstallerProvesTheNumbersAndScoringRow(t *testing.T) {
 	proof := asOneLine(section(t, installerFile, "Step 12."))
-	for _, text := range []string{"`numbers_scoring_page`", "Ten rows in all"} {
-		if !strings.Contains(proof, text) {
-			t.Errorf("agent-installer.md step 12 does not say %q", text)
-		}
-	}
-	if strings.Contains(proof, "Nine rows in all") {
-		t.Error("agent-installer.md step 12 still says nine rows")
+	if !strings.Contains(proof, "`numbers_scoring_page`") {
+		t.Error("agent-installer.md step 12 does not say `numbers_scoring_page`")
 	}
 	later := asOneLine(section(t, installerFile, "Changing a setting later"))
 	if !strings.Contains(later, "`numbers_scoring_page`") {

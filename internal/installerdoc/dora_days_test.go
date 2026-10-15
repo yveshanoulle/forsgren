@@ -53,7 +53,7 @@ func TestInstallerStep9SaysASettingNotAcceptedIsAWarning(t *testing.T) {
 
 // TestInstallerProvesTheDoraDaysRow (forsgren#178): the settings page proof
 // lists dora_days as written in the config and "Changing a setting later" names
-// the key; the count of rows is TestInstallerProvesTenSettingsRows' (forsgren#55).
+// the key; the count of rows is TestInstallerProvesElevenSettingsRows' (forsgren#68).
 func TestInstallerProvesTheDoraDaysRow(t *testing.T) {
 	proof := asOneLine(section(t, installerFile, "Step 12."))
 	if !strings.Contains(proof, "`dora_days`") {

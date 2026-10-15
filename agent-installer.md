@@ -242,6 +242,18 @@ Then wait for the answers.
     is `true` or `false`. A page that is off is not generated and has no
     entry in the menu. The person can show it later by setting
     `numbers_scoring_page: true`; the legend of the published site says so.
+13. **The History page**, whether the site has a page that shows the five
+    metrics for every half-year (January to June, July to December) and
+    for the last 6 months, a table and a small chart per row, to see
+    whether delivery improved. Default: `history_page: true` (the page is
+    shown). It is `true` or `false`. A page that is off is not generated and
+    has no entry in the menu. Tell the person that the page fills in over
+    several daily runs, because each run reads one more chunk of history,
+    and that the default `history_days` of 365 gives about one half-year
+    besides the last 6 months, while `history_days: 1825` (5 years) gives up
+    to ten half-years; they can raise it now or later. The person can hide the
+    page later by setting `history_page: false`; the legend of the published
+    site says so.
 
 ## Step 3. Look at every measured repository (read only)
 
@@ -405,6 +417,7 @@ dora_days: 30
 issues_page: true
 days_page: false
 numbers_scoring_page: false
+history_page: true
 projects:
   - name: Acme Shop
     repositories:
@@ -421,7 +434,8 @@ projects:
 - Write `issues_page` and `days_page` with the answers to question 10
   (the defaults are `true` and `false`), and `dora_days` with the answer to
   question 11 (the default is `30`) and `numbers_scoring_page` with the
-  answer to question 12 (the default is `false`).
+  answer to question 12 (the default is `false`), and `history_page` with the
+  answer to question 13 (the default is `true`).
 - Write every repository's `deployment:` line, also for
   `environment=production`, so the file says what was chosen.
 - Indent with spaces only, as shown.
@@ -691,16 +705,16 @@ Then check what the run did:
 
    For example `;view;numbers;standard, numbers, scoring;standard;`. The
    last field of each row is the default of the key: `standard`, `false`,
-   `major`, `365`, `100`, `8`, `30`, `true`, `false`, `false`, for the rows
-   `view` to `numbers_scoring_page` in the page's order.
+   `major`, `365`, `100`, `8`, `30`, `true`, `false`, `false`, `true`, for the rows
+   `view` to `history_page` in the page's order.
    - The rows `view`, `auto_update`, `auto_update_level`,
-     `history_days`, `dora_days`, `issues_page`, `days_page` and
-     `numbers_scoring_page` show the value of the config, without `(not set)`
-     (the file sets the key).
+     `history_days`, `dora_days`, `issues_page`, `days_page`,
+     `numbers_scoring_page` and `history_page` show the value of the config,
+     without `(not set)` (the file sets the key).
    - The rows `history_chunk_days` and `working_hours` are left to their
      defaults: `history_chunk_days` shows `100 (not set)` and `working_hours`
      shows `8 (not set)`.
-   - Ten rows in all. A row missing or different: stop and report.
+   - Eleven rows in all. A row missing or different: stop and report.
 9. The footer names the pinned version:
    `curl -fsS SITE | grep -o 'Forsgren</a> [0-9.]*'`
    prints `Forsgren</a>` and `VERSION` without its `v`.
@@ -966,7 +980,7 @@ Anything else: report it to the person.
 For an install that exists, you can change one setting: a top-level key of
 `forsgren.config.yml` (`view`, `auto_update`, `auto_update_level`,
 `history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
-`issues_page`, `days_page`, `numbers_scoring_page`), or the update wait
+`issues_page`, `days_page`, `numbers_scoring_page`, `history_page`), or the update wait
 (`default-days` in `.github/dependabot.yml`, in days). Changes to the
 projects and repositories are not covered here. Follow these steps alone;
 the install steps above do not apply.
