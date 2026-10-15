@@ -66,3 +66,23 @@ func TestDoraDaysThatFitHistoryDaysLoad(t *testing.T) {
 		})
 	}
 }
+
+// TestRejectedHistoryDaysLeavesDoraDaysCheckedAgainstTheDefaultHistory
+// (forsgren#183): dora_days is checked against the history_days in force, so
+// a history_days that is not accepted (365 in force) does not refuse a window
+// the default history reaches, and the other keys are still read.
+func TestRejectedHistoryDaysLeavesDoraDaysCheckedAgainstTheDefaultHistory(t *testing.T) {
+	got, err := parse([]byte("history_days: 0\ndora_days: 180\nworking_hours: 6\n" + valid))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Rejected) != 1 || got.Rejected[0].Key != "history_days" {
+		t.Errorf("want only history_days rejected, got %v", got.Rejected)
+	}
+	if got.DoraDays != DoraDays180 {
+		t.Errorf("want dora_days 180, got %d", got.DoraDays)
+	}
+	if got.WorkingHours != 6 {
+		t.Errorf("want working_hours 6, got %d", got.WorkingHours)
+	}
+}

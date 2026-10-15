@@ -27,11 +27,13 @@ func TestWorkingHoursIsRead(t *testing.T) {
 	}
 }
 
-// TestParseRefusesInvalidWorkingHours (forsgren#71): zero, a negative number,
-// more than 24, a fraction, a float written 8.0 or a word is refused, naming
-// the key and the limit.
-func TestParseRefusesInvalidWorkingHours(t *testing.T) {
-	wantDaysRefused(t, daysTestKey{name: "working_hours", sentinel: ErrWorkingHours, upper: MaxWorkingHours},
+// TestRejectedWorkingHoursFallBack (forsgren#71, #183): zero, a negative
+// number, more than 24, a fraction, a float written 8.0 or a word is not
+// accepted: 8 is in force, and the rejection names the key and the limit.
+func TestRejectedWorkingHoursFallBack(t *testing.T) {
+	workingHoursTest := daysTestKey{"working_hours", ErrWorkingHours, func(c Config) int { return c.WorkingHours },
+		DefaultWorkingHours, MaxWorkingHours}
+	wantDaysRejected(t, workingHoursTest,
 		map[string]string{
 			"zero":       "0",
 			"negative":   "-1",
@@ -42,10 +44,12 @@ func TestParseRefusesInvalidWorkingHours(t *testing.T) {
 		})
 }
 
-// TestWorkingHoursSetSaysWhetherTheKeyIsWritten (forsgren#71): true when the
-// file has a working_hours key, false when it is left out.
+// TestWorkingHoursSetSaysWhetherTheKeyIsWritten (forsgren#71, #183): true when
+// the file has an accepted working_hours key, false when it is left out or
+// not accepted.
 func TestWorkingHoursSetSaysWhetherTheKeyIsWritten(t *testing.T) {
-	for yaml, want := range map[string]bool{valid: false, "working_hours: 8\n" + valid: true} {
+	for yaml, want := range map[string]bool{valid: false, "working_hours: 8\n" + valid: true,
+		"working_hours: 25\n" + valid: false} {
 		got, err := parse([]byte(yaml))
 		if err != nil || got.WorkingHoursSet != want {
 			t.Errorf("want WorkingHoursSet %v and no error, got %v, %v", want, got.WorkingHoursSet, err)

@@ -9,11 +9,11 @@ func TestHistoryChunkDaysIsRead(t *testing.T) {
 	wantDaysRead(t, chunkDaysTest)
 }
 
-// TestParseRefusesAnInvalidHistoryChunkDays (forsgren#57): a non-integer,
-// zero, a negative number or more than 365 is refused, naming the key and
-// the limit.
-func TestParseRefusesAnInvalidHistoryChunkDays(t *testing.T) {
-	wantDaysRefused(t, chunkDaysTest, map[string]string{
+// TestRejectedHistoryChunkDaysFallsBack (forsgren#57): a non-integer,
+// zero, a negative number or more than 365 is not accepted: the default is in
+// force, and the rejection names the key and the limit (forsgren#183).
+func TestRejectedHistoryChunkDaysFallsBack(t *testing.T) {
+	wantDaysRejected(t, chunkDaysTest, map[string]string{
 		"zero":       "0",
 		"negative":   "-1",
 		"too many":   "366",

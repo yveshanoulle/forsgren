@@ -46,14 +46,23 @@ func wantDaysRead(t *testing.T, k daysTestKey) {
 	}
 }
 
-// wantDaysRefused wants each value refused with the key's sentinel, a message
-// that names the key and its limit.
-func wantDaysRefused(t *testing.T, k daysTestKey, values map[string]string) {
+// wantDaysRejected wants each value not accepted: the key falls back to its
+// default and counts as not written, and the one rejection names the key, the
+// value as written, the limit and the default (forsgren#183).
+func wantDaysRejected(t *testing.T, k daysTestKey, values map[string]string) {
 	t.Helper()
+	unit := map[string]string{"working_hours": "hours"}[k.name]
+	if unit == "" {
+		unit = "days"
+	}
 	for name, value := range values {
 		t.Run(name, func(t *testing.T) {
-			_, err := parse([]byte(k.name + ": " + value + "\n" + valid))
-			wantRefusal(t, err, k.sentinel, k.name, strconv.Itoa(k.upper))
+			got, err := parse([]byte(k.name + ": " + value + "\n" + valid))
+			if err != nil || k.got(got) != k.def || got.written[k.name] {
+				t.Fatalf("want %s %d not written and no error, got %d, %v, %v", k.name, k.def, k.got(got), got.written, err)
+			}
+			wantRejection(t, got.Rejected, k.sentinel, [4]string{k.name, strings.Trim(value, `"`),
+				"use a whole number of " + unit + " from 1 to " + strconv.Itoa(k.upper), strconv.Itoa(k.def)})
 		})
 	}
 }

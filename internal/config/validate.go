@@ -40,17 +40,17 @@ func (f fileConfig) toConfig() (Config, error) {
 // auto_update, auto_update_level, issues_page and days_page (as written, the
 // level DefaultLevel when the file has none); view, auto_update and
 // auto_update_level are a Rejection when not accepted, the default in force
-// (forsgren#183); the first refusal among the others (forsgren#46, #58, #157,
+// (forsgren#183), and so are history_days, history_chunk_days and
+// working_hours; the first refusal among the others (forsgren#46, #58, #157,
 // #159).
 func (f fileConfig) settings() (Config, error) {
 	view, viewRejection := checkView(f.View)
 	auto, autoRejection := checkAutoUpdate(f.AutoUpdate)
 	level, levelRejection := checkAutoUpdateLevel(f.AutoUpdateLevel)
-	rejected := rejections(viewRejection, autoRejection, levelRejection)
-	days, chunk, hours, err := f.numbers()
-	if err != nil {
-		return Config{}, err
-	}
+	days, daysRejection := checkHistoryDays(f.HistoryDays)
+	chunk, chunkRejection := checkHistoryChunkDays(f.HistoryChunkDays)
+	hours, hoursRejection := workingHours.check(f.WorkingHours)
+	rejected := rejections(viewRejection, autoRejection, levelRejection, daysRejection, chunkRejection, hoursRejection)
 	doraDays, err := checkDoraDays(f.DoraDays, days)
 	if err != nil {
 		return Config{}, err
@@ -62,7 +62,7 @@ func (f fileConfig) settings() (Config, error) {
 	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level,
 		HistoryDays: days, HistoryChunkDays: chunk, WorkingHours: hours,
 		DoraDays:        doraDays,
-		WorkingHoursSet: hasValue(f.WorkingHours), IssuesPage: issuesPage, DaysPage: daysPage,
+		WorkingHoursSet: hasValue(f.WorkingHours) && hoursRejection == nil, IssuesPage: issuesPage, DaysPage: daysPage,
 		written: f.written(rejected), Rejected: rejected}, nil
 }
 
@@ -121,31 +121,20 @@ func mark(keys map[string]bool, key string, on bool) map[string]bool {
 	return keys
 }
 
-// numbers is history_days, history_chunk_days and working_hours, or the
-// first refusal of the three (forsgren#57, #71).
-func (f fileConfig) numbers() (days, chunk, hours int, err error) {
-	if days, err = checkHistoryDays(f.HistoryDays); err != nil {
-		return 0, 0, 0, err
-	}
-	if chunk, err = checkHistoryChunkDays(f.HistoryChunkDays); err != nil {
-		return 0, 0, 0, err
-	}
-	hours, err = workingHours.check(f.WorkingHours)
-	return days, chunk, hours, err
-}
-
 // numberKey is a key that is a whole number of a unit, days or hours
 // (forsgren#57, #71): its refusal, its unit, its default and its upper limit.
 type numberKey struct {
 	sentinel error
+	key      string
 	unit     string
 	def, max int
 }
 
 var (
-	historyDays      = numberKey{ErrHistoryDays, "days", DefaultHistoryDays, MaxHistoryDays}
-	historyChunkDays = numberKey{ErrHistoryChunkDays, "days", DefaultHistoryChunkDays, MaxHistoryChunkDays}
-	workingHours     = numberKey{ErrWorkingHours, "hours", DefaultWorkingHours, MaxWorkingHours}
+	historyDays      = numberKey{ErrHistoryDays, "history_days", "days", DefaultHistoryDays, MaxHistoryDays}
+	historyChunkDays = numberKey{ErrHistoryChunkDays, "history_chunk_days", "days",
+		DefaultHistoryChunkDays, MaxHistoryChunkDays}
+	workingHours = numberKey{ErrWorkingHours, "working_hours", "hours", DefaultWorkingHours, MaxWorkingHours}
 )
 
 // hasValue says whether a key has a value: a key left out, or written without
@@ -160,24 +149,25 @@ func (k numberKey) whole(n yaml.Node) (int, bool) {
 
 // check is the key as written, its default when the file has none (a key
 // without a value is none): a whole number from 1 to its limit, never a
-// quoted value.
-func (k numberKey) check(n yaml.Node) (int, error) {
+// quoted value; otherwise the default and the Rejection (forsgren#183).
+func (k numberKey) check(n yaml.Node) (int, *Rejection) {
 	if !hasValue(n) {
 		return k.def, nil
 	}
 	if v, ok := k.whole(n); ok {
 		return v, nil
 	}
-	return 0, fmt.Errorf("%w %q: use a whole number of %s from 1 to %d", k.sentinel, n.Value, k.unit, k.max)
+	return k.def, reject(k.sentinel, k.key, n.Value,
+		fmt.Sprintf("use a whole number of %s from 1 to %d", k.unit, k.max), strconv.Itoa(k.def))
 }
 
 // checkHistoryDays is history_days as written, DefaultHistoryDays when the
 // file has none (forsgren#57).
-func checkHistoryDays(n yaml.Node) (int, error) { return historyDays.check(n) }
+func checkHistoryDays(n yaml.Node) (int, *Rejection) { return historyDays.check(n) }
 
 // checkHistoryChunkDays is history_chunk_days as written,
 // DefaultHistoryChunkDays when the file has none (forsgren#57).
-func checkHistoryChunkDays(n yaml.Node) (int, error) { return historyChunkDays.check(n) }
+func checkHistoryChunkDays(n yaml.Node) (int, *Rejection) { return historyChunkDays.check(n) }
 
 // checkDoraDays is dora_days as written, DefaultDoraDays when the file has
 // none (a key without a value is none): the integer 30, 90 or 180, never a
