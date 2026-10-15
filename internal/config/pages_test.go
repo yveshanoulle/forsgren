@@ -179,3 +179,34 @@ func TestEveryPageKeyReadsUnlisted(t *testing.T) {
 		})
 	}
 }
+
+// TestAcceptedIsWhatTheLoaderTakes (forsgren#79, #200): every value Accepted
+// names for a key loads without a rejection, and a key that takes a number
+// names none; the settings page is held to list the same set.
+func TestAcceptedIsWhatTheLoaderTakes(t *testing.T) {
+	for _, setting := range (Config{}).Settings() {
+		for _, value := range Accepted(setting.Key) {
+			wantAcceptedValue(t, setting.Key, value)
+		}
+	}
+	for _, key := range []string{"history_days", "history_chunk_days", "working_hours"} {
+		if got := Accepted(key); got != nil {
+			t.Errorf("%s: want no fixed set for a number, got %v", key, got)
+		}
+	}
+	if got := Accepted("dora_days"); !slices.Equal(got, []string{"30", "90", "180"}) {
+		t.Errorf("want the dora windows 30, 90, 180, got %v", got)
+	}
+}
+
+// wantAcceptedValue fails t unless a file that sets key to value loads with
+// no rejection; auto_update and its level need each other.
+func wantAcceptedValue(t *testing.T, key, value string) {
+	t.Helper()
+	companions := map[string]string{"auto_update": "auto_update_level: patch\n",
+		"auto_update_level": "auto_update: true\n"}
+	got, err := parse([]byte(key + ": " + value + "\n" + companions[key] + valid))
+	if err != nil || len(got.Rejected) != 0 {
+		t.Errorf("%s: want %s accepted, got %v, %v", key, value, got.Rejected, err)
+	}
+}

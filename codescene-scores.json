@@ -1127,7 +1127,7 @@
   {
    "path": "internal/page/settings_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-14",
+   "checkedAt": "2026-10-15",
    "minScore": 10.0
   },
   {
@@ -1324,6 +1324,12 @@
   },
   {
    "path": "cmd/forsgren/render_pages_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-15",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/accepted.go",
    "score": 10.0,
    "checkedAt": "2026-10-15",
    "minScore": 10.0

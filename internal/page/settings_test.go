@@ -115,3 +115,37 @@ func TestSettingsPageMarksAnUnsetKey(t *testing.T) {
 		`<span class="default-in-force">30</span>.</td>`)
 	wantNone(t, "settings.html", html, "30 (not set)", "8 (not set)", "</span> (not set)")
 }
+
+// TestEveryValueTheConfigAcceptsIsListedOnTheSettingsPage (forsgren#79, #200):
+// the other half of the drift test. For each key that takes a fixed set of
+// values, every value the config package accepts (config.Accepted, the set its
+// own loader checks against) is listed in the Possible values column, so a
+// value cannot be accepted without showing on the page. A numeric key has no
+// set; its range is held by the probes of the test above.
+func TestEveryValueTheConfigAcceptsIsListedOnTheSettingsPage(t *testing.T) {
+	enumerated := []string{"view", "auto_update", "auto_update_level", "dora_days", "issues_page", "days_page",
+		"numbers_scoring_page", "history_page"}
+	for _, key := range enumerated {
+		wantListed(t, key, config.Accepted(key))
+	}
+	for _, setting := range (config.Config{}).Settings() {
+		if config.Accepted(setting.Key) != nil && !slices.Contains(enumerated, setting.Key) {
+			t.Errorf("%s: want the key in the enumerated keys of this test", setting.Key)
+		}
+	}
+}
+
+// wantListed fails t unless accepted is not empty and every value in it is
+// listed in the Possible values of the key.
+func wantListed(t *testing.T, key string, accepted []string) {
+	t.Helper()
+	if len(accepted) == 0 {
+		t.Errorf("%s: want the config to say which values it accepts, got none", key)
+	}
+	listed := strings.Split(possibleOf(key), ", ")
+	for _, value := range accepted {
+		if !slices.Contains(listed, value) {
+			t.Errorf("%s: want the settings page to list %q, which the config accepts, got %v", key, value, listed)
+		}
+	}
+}

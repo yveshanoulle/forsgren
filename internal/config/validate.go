@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -181,7 +182,7 @@ var doraDaysKey = refusable{ErrDoraDays, "dora_days", strconv.Itoa(DefaultDoraDa
 
 // isDoraWindow says whether days is one of the windows dora_days can name.
 func isDoraWindow(days int) bool {
-	return days == DefaultDoraDays || days == DoraDays90 || days == DoraDays180
+	return slices.Contains(doraWindows, days)
 }
 
 // checkAutoUpdateLevel is the level as written, DefaultLevel when the file has
@@ -191,8 +192,7 @@ func checkAutoUpdateLevel(n yaml.Node) (string, *Rejection) {
 	if !hasValue(n) {
 		return DefaultLevel, nil
 	}
-	switch n.Value {
-	case LevelPatch, LevelMinor, LevelMajor:
+	if slices.Contains(levelValues, n.Value) {
 		return n.Value, nil
 	}
 	return DefaultLevel, refusable{ErrAutoUpdateLevel, "auto_update_level", DefaultLevel}.reject(n,
@@ -254,20 +254,12 @@ func (k pageKey) mode(n yaml.Node) (PageMode, *Rejection) {
 	return k.def, refusable{k.sentinel, k.key, string(k.def)}.reject(n, "use true, unlisted or false")
 }
 
-// readPageMode is the PageMode a node writes, when it writes one: the YAML
-// booleans true and false, or the plain string unlisted, never a quoted one.
+// readPageMode is the PageMode a node writes, when it writes one: a value of
+// pageModeValues as a plain scalar, never a quoted one (forsgren#200).
 func readPageMode(n yaml.Node) (PageMode, bool) {
-	if n.Value == string(PageUnlisted) && n.Style&(yaml.DoubleQuotedStyle|yaml.SingleQuotedStyle) == 0 {
-		return PageUnlisted, true
-	}
-	on, literal := booleans[n.Value]
-	if !literal || n.ShortTag() != "!!bool" {
-		return "", false
-	}
-	if on {
-		return PageOn, true
-	}
-	return PageOff, true
+	mode := PageMode(n.Value)
+	quoted := n.Style&(yaml.DoubleQuotedStyle|yaml.SingleQuotedStyle) != 0
+	return mode, !quoted && slices.Contains(pageModeValues, mode)
 }
 
 func checkVersion(v *int) error {
@@ -287,8 +279,7 @@ func checkView(n yaml.Node) (string, *Rejection) {
 	if !hasValue(n) {
 		return "", nil
 	}
-	switch n.Value {
-	case ViewStandard, ViewNumbers, ViewScoring:
+	if slices.Contains(viewValues, n.Value) {
 		return n.Value, nil
 	}
 	return "", refusable{ErrView, "view", ViewStandard}.reject(n,
