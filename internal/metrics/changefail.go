@@ -118,6 +118,16 @@ func (r ChangeFailRate) Percent() int {
 func ChangeFailRates(projects []config.Project, records []history.Record, failures []history.Failure,
 	now time.Time,
 ) []ChangeFailRate {
+	return ChangeFailRatesOver(projects, records, failures, last30Days, now)
+}
+
+// ChangeFailRatesOver is ChangeFailRates over a window of days (30, 90 or
+// 180): the deployments created and the failure issues opened in the last days
+// days count (forsgren#178). The failures are those left after the withdrawn
+// ones were dropped (forsgren#155), whatever the window.
+func ChangeFailRatesOver(projects []config.Project, records []history.Record, failures []history.Failure,
+	days int, now time.Time,
+) []ChangeFailRate {
 	repos := map[string]*changes{}
 	of := func(repository string) *changes {
 		key := strings.ToLower(repository)
@@ -127,12 +137,12 @@ func ChangeFailRates(projects []config.Project, records []history.Record, failur
 		return repos[key]
 	}
 	for _, r := range records {
-		if last30.holds(r.CreatedAt, now) {
+		if window(days).holds(r.CreatedAt, now) {
 			of(r.Repository).deployed(r.State)
 		}
 	}
 	for _, f := range failures {
-		of(f.Repository).failureIssues += last30.count(f.OpenedAt, now)
+		of(f.Repository).failureIssues += window(days).count(f.OpenedAt, now)
 	}
 	return ratesOf(projects, repos)
 }

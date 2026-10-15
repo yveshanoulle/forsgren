@@ -434,6 +434,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/changefail.go:String": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/changefail.go:Percent": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/changefail.go:ChangeFailRates": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/changefail.go:ChangeFailRatesOver": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/changefail.go:deployed": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/changefail.go:ratesOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/changefail.go:add": 100.0,
