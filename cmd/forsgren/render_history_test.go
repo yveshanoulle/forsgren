@@ -75,17 +75,18 @@ func TestRenderSaysHowToGetHistory(t *testing.T) {
 	}
 }
 
-// TestRenderLeavesOutTheHistoryPageWhenTheConfigSaysSo (forsgren#68):
-// history.html and its menu entry are written only when history_page is true
-// (forsgren#199); absent, false and a value that is not accepted (the default
-// false is in force) leave both out; without --config nothing is hidden.
+// TestHistoryPageIsHiddenByDefault (forsgren#68, #199, #200): history.html is
+// left out only when history_page is false; absent and a value that is not
+// accepted (the default unlisted is in force) write it, and until the menu
+// learns unlisted (#200 steps 5 to 8) they list it like true; without
+// --config nothing is hidden.
 func TestHistoryPageIsHiddenByDefault(t *testing.T) {
 	cases := map[string]struct {
 		keys string
 		want bool
 	}{
-		"absent": {"", false}, "true": {"history_page: true\n", true},
-		"false": {"history_page: false\n", false}, "not accepted": {"history_page: yes\n", false},
+		"absent": {"", true}, "true": {"history_page: true\n", true},
+		"false": {"history_page: false\n", false}, "not accepted": {"history_page: yes\n", true},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -96,17 +97,17 @@ func TestHistoryPageIsHiddenByDefault(t *testing.T) {
 	t.Run("no --config", func(t *testing.T) { wantHistoryPage(t, renderInto(t), true) })
 }
 
-// TestRenderRemovesAStaleHistoryPageWhenTheKeyIsLeftOut (forsgren#199): an
+// TestRenderRemovesAStaleHistoryPageWhenTheKeyIsFalse (forsgren#199, #200): an
 // out dir that holds the history.html of an earlier run with history_page:
-// true loses it when the config no longer has the key.
-func TestRenderRemovesAStaleHistoryPageWhenTheKeyIsLeftOut(t *testing.T) {
+// true loses it when the config sets history_page: false.
+func TestRenderRemovesAStaleHistoryPageWhenTheKeyIsFalse(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "site")
-	for _, keys := range []string{"history_page: true\n", ""} {
+	for _, keys := range []string{"history_page: true\n", "history_page: false\n"} {
 		args := []string{"render", "--out", dir, "--config", writeConfig(t, keys+validConfig)}
 		if code, _, stderr := runCommand(args...); code != 0 {
 			t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
 		}
-		wantHistoryPage(t, dir, keys != "")
+		wantHistoryPage(t, dir, keys == "history_page: true\n")
 	}
 }
 

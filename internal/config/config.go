@@ -204,10 +204,10 @@ type Config struct {
 	// file has no days_page key (forsgren#159, #200).
 	DaysPage PageMode
 	// NumbersScoringPage is how the numbers and scoring page is handled,
-	// PageOff when the file has no numbers_scoring_page key (forsgren#55,
+	// PageUnlisted when the file has no numbers_scoring_page key (forsgren#55,
 	// #200).
 	NumbersScoringPage PageMode
-	// HistoryPage is how the history page is handled, PageOff when the file
+	// HistoryPage is how the history page is handled, PageUnlisted when the file
 	// has no history_page key (forsgren#68, #199, #200).
 	HistoryPage PageMode
 	// written is the optional keys the file writes, by key (forsgren#74).
@@ -440,8 +440,8 @@ var settingKeys = []settingKey{
 	{"dora_days", strconv.Itoa(DefaultDoraDays), func(c Config) string { return strconv.Itoa(c.DoraDays) }},
 	{"issues_page", "true", func(c Config) string { return string(c.IssuesPage) }},
 	{"days_page", "false", func(c Config) string { return string(c.DaysPage) }},
-	{"numbers_scoring_page", "false", func(c Config) string { return string(c.NumbersScoringPage) }},
-	{"history_page", "false", func(c Config) string { return string(c.HistoryPage) }},
+	{"numbers_scoring_page", string(PageUnlisted), func(c Config) string { return string(c.NumbersScoringPage) }},
+	{"history_page", string(PageUnlisted), func(c Config) string { return string(c.HistoryPage) }},
 }
 
 // Settings lists every optional key in the order of settingKeys: the value

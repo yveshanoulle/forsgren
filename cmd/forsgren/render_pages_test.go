@@ -74,17 +74,18 @@ func wantPages(t *testing.T, dir string, issues, days bool) {
 
 // TestRenderLeavesOutTheNumbersAndScoringPageUnlessTheConfigShowsIt
 // (forsgren#55, decision 12): with --config the numbers and scoring page, and
-// its menu entry, are written only when numbers_scoring_page is true; absent,
-// false and a value that is not accepted (the default false is in force) leave
-// both out; without --config nothing is hidden.
+// its menu entry, are left out only when numbers_scoring_page is false; absent
+// and a value that is not accepted (the default unlisted is in force) write
+// them, and until the menu learns unlisted (forsgren#200 steps 5 to 8) they
+// list the entry like true; without --config nothing is hidden.
 func TestRenderLeavesOutTheNumbersAndScoringPageUnlessTheConfigShowsIt(t *testing.T) {
 	cases := map[string]struct {
 		keys string
 		want bool
 	}{
-		"absent":       {"", false},
+		"absent":       {"", true},
 		"false":        {"numbers_scoring_page: false\n", false},
-		"not accepted": {"numbers_scoring_page: yes\n", false},
+		"not accepted": {"numbers_scoring_page: yes\n", true},
 		"true":         {numbersScoringOn, true},
 	}
 	for name, tc := range cases {

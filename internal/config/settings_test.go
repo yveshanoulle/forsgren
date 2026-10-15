@@ -20,8 +20,8 @@ func TestSettingsListsEveryKeyWithItsDefault(t *testing.T) {
 		{Key: "dora_days", Value: "30", Default: "30"},
 		{Key: "issues_page", Value: "true", Default: "true"},
 		{Key: "days_page", Value: "false", Default: "false"},
-		{Key: "numbers_scoring_page", Value: "false", Default: "false"},
-		{Key: "history_page", Value: "false", Default: "false"},
+		{Key: "numbers_scoring_page", Value: "unlisted", Default: "unlisted"},
+		{Key: "history_page", Value: "unlisted", Default: "unlisted"},
 	})
 }
 
@@ -41,8 +41,8 @@ func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 		{Key: "dora_days", Value: "30", Default: "30", Set: true},
 		{Key: "issues_page", Value: "false", Default: "true", Set: true},
 		{Key: "days_page", Value: "true", Default: "false", Set: true},
-		{Key: "numbers_scoring_page", Value: "true", Default: "false", Set: true},
-		{Key: "history_page", Value: "false", Default: "false", Set: true},
+		{Key: "numbers_scoring_page", Value: "true", Default: "unlisted", Set: true},
+		{Key: "history_page", Value: "false", Default: "unlisted", Set: true},
 	})
 }
 
@@ -86,8 +86,8 @@ func TestAListOrMappingForASettingIsRejectedNotSyntax(t *testing.T) {
 		{"dora_days", "use 30, 90 or 180", "30", ErrDoraDays},
 		{"issues_page", "use true, unlisted or false", "true", ErrIssuesPage},
 		{"days_page", "use true, unlisted or false", "false", ErrDaysPage},
-		{"numbers_scoring_page", "use true, unlisted or false", "false", ErrNumbersScoringPage},
-		{"history_page", "use true, unlisted or false", "false", ErrHistoryPage},
+		{"numbers_scoring_page", "use true, unlisted or false", "unlisted", ErrNumbersScoringPage},
+		{"history_page", "use true, unlisted or false", "unlisted", ErrHistoryPage},
 	}
 	for _, k := range keys {
 		for written, yaml := range map[string]string{"[a, b]": "\n  - a\n  - b", "{a: b}": "\n  a: b"} {
@@ -143,8 +143,8 @@ func TestSettingsCarriesEachRejection(t *testing.T) {
 		{Key: "dora_days", Value: "30", Default: "30"},
 		{Key: "issues_page", Value: "true", Default: "true"},
 		{Key: "days_page", Value: "false", Default: "false"},
-		{Key: "numbers_scoring_page", Value: "false", Default: "false"},
-		{Key: "history_page", Value: "false", Default: "false"},
+		{Key: "numbers_scoring_page", Value: "unlisted", Default: "unlisted"},
+		{Key: "history_page", Value: "unlisted", Default: "unlisted"},
 	})
 }
 
@@ -179,7 +179,7 @@ func TestSettingsShowsARejectedDoraDaysLikeTheOtherKeys(t *testing.T) {
 // default, the same whether the file leaves the key out or writes another
 // value, so the settings page can show it beside the current value.
 func TestSettingsExposeTheDefaultOfEveryKey(t *testing.T) {
-	want := []string{"standard", "false", "major", "365", "100", "8", "30", "true", "false", "false", "false"}
+	want := []string{"standard", "false", "major", "365", "100", "8", "30", "true", "false", "unlisted", "unlisted"}
 	for _, file := range []string{"", "history_days: 90\nview: numbers\n"} {
 		got, err := parse([]byte(file + valid))
 		if err != nil {

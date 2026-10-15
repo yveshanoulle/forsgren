@@ -30,17 +30,17 @@ func TestIssuesAndDaysPagesAreRead(t *testing.T) {
 }
 
 // TestNumbersScoringPageIsRead (forsgren#55): the optional numbers_scoring_page
-// key, as written; the page is off when the key is left out or has no value.
+// key, as written; the page is unlisted when the key is left out or has no value.
 func TestNumbersScoringPageIsRead(t *testing.T) {
 	cases := []struct {
 		name, file string
 		want       PageMode
 	}{
-		{"absent", valid, PageOff},
+		{"absent", valid, PageUnlisted},
 		{"on", "numbers_scoring_page: true\n" + valid, PageOn},
 		{"off", "numbers_scoring_page: false\n" + valid, PageOff},
 		{"after the projects", valid + "numbers_scoring_page: true\n", PageOn},
-		{"no value", "numbers_scoring_page:\n" + valid, PageOff},
+		{"no value", "numbers_scoring_page:\n" + valid, PageUnlisted},
 	}
 	for _, tc := range cases {
 		got, err := parse([]byte(tc.file))
@@ -90,7 +90,7 @@ func TestRejectedPageKeyFallsBack(t *testing.T) {
 }
 
 // TestRejectedNumbersScoringPageFallsBack (forsgren#55, #183): a value that is
-// not the YAML boolean true or false is not accepted: the page stays off, the
+// not the YAML boolean true or false is not accepted: the page stays unlisted, the
 // key counts as not written, and the rejection names the key and the valid
 // values.
 func TestRejectedNumbersScoringPageFallsBack(t *testing.T) {
@@ -99,12 +99,12 @@ func TestRejectedNumbersScoringPageFallsBack(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", written, err)
 		}
-		if got.NumbersScoringPage != PageOff || got.written["numbers_scoring_page"] {
+		if got.NumbersScoringPage != PageUnlisted || got.written["numbers_scoring_page"] {
 			t.Errorf("%s: want the page off and the key not written, got %v, %v", written,
 				got.NumbersScoringPage, got.written)
 		}
 		wantRejection(t, got.Rejected, ErrNumbersScoringPage,
-			[4]string{"numbers_scoring_page", written, "use true, unlisted or false", "false"})
+			[4]string{"numbers_scoring_page", written, "use true, unlisted or false", "unlisted"})
 	}
 }
 
@@ -124,26 +124,26 @@ func TestRejectedNumbersScoringPageIsListedLast(t *testing.T) {
 	}
 }
 
-// TestHistoryPageIsOffByDefaultAndRejectsOtherValues (forsgren#68, #199): the
-// optional history_page key is off when it is left out or has no value, as
-// numbers_scoring_page is, and as written otherwise; a value that is not the
-// YAML boolean true or false is not accepted: the page stays off, the key
-// counts as not written, and the rejection names the key, the valid values
-// and the default false.
-func TestHistoryPageIsOffByDefaultAndRejectsOtherValues(t *testing.T) {
+// TestHistoryPageIsUnlistedByDefaultAndRejectsOtherValues (forsgren#68, #199,
+// #200): the optional history_page key is unlisted when it is left out or has
+// no value, as numbers_scoring_page is, and as written otherwise; a value that
+// is not true, unlisted or false is not accepted: the page stays unlisted, the
+// key counts as not written, and the rejection names the key, the valid values
+// and the default unlisted.
+func TestHistoryPageIsUnlistedByDefaultAndRejectsOtherValues(t *testing.T) {
 	cases := []struct {
 		name, file, rejected string
 		want                 PageMode
 	}{
-		{"absent", valid, "", PageOff},
+		{"absent", valid, "", PageUnlisted},
 		{"on", "history_page: true\n" + valid, "", PageOn},
 		{"off", "history_page: false\n" + valid, "", PageOff},
 		{"after the projects", valid + "history_page: true\n", "", PageOn},
-		{"no value", "history_page:\n" + valid, "", PageOff},
-		{"yes", "history_page: yes\n" + valid, "yes", PageOff},
-		{"quoted", "history_page: \"true\"\n" + valid, "true", PageOff},
-		{"a number", "history_page: 1\n" + valid, "1", PageOff},
-		{"quoted unlisted", "history_page: \"unlisted\"\n" + valid, "unlisted", PageOff},
+		{"no value", "history_page:\n" + valid, "", PageUnlisted},
+		{"yes", "history_page: yes\n" + valid, "yes", PageUnlisted},
+		{"quoted", "history_page: \"true\"\n" + valid, "true", PageUnlisted},
+		{"a number", "history_page: 1\n" + valid, "1", PageUnlisted},
+		{"quoted unlisted", "history_page: \"unlisted\"\n" + valid, "unlisted", PageUnlisted},
 	}
 	for _, tc := range cases {
 		got, err := parse([]byte(tc.file))
@@ -152,7 +152,7 @@ func TestHistoryPageIsOffByDefaultAndRejectsOtherValues(t *testing.T) {
 		}
 		if tc.rejected != "" {
 			wantRejection(t, got.Rejected, ErrHistoryPage,
-				[4]string{"history_page", tc.rejected, "use true, unlisted or false", "false"})
+				[4]string{"history_page", tc.rejected, "use true, unlisted or false", "unlisted"})
 		}
 	}
 }

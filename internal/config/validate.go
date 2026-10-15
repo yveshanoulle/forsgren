@@ -214,8 +214,8 @@ var (
 	autoUpdate         = booleanKey{ErrAutoUpdate, "auto_update", false}
 	issuesPage         = pageKey{ErrIssuesPage, "issues_page", PageOn}
 	daysPage           = pageKey{ErrDaysPage, "days_page", PageOff}
-	numbersScoringPage = pageKey{ErrNumbersScoringPage, "numbers_scoring_page", PageOff}
-	historyPage        = pageKey{ErrHistoryPage, "history_page", PageOff}
+	numbersScoringPage = pageKey{ErrNumbersScoringPage, "numbers_scoring_page", PageUnlisted}
+	historyPage        = pageKey{ErrHistoryPage, "history_page", PageUnlisted}
 )
 
 // value is the key as written, its default when the file has none (a key
