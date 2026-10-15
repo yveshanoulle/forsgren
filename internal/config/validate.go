@@ -38,19 +38,15 @@ func (f fileConfig) toConfig() (Config, error) {
 
 // settings is the Config of the file's optional top-level keys, view,
 // auto_update, auto_update_level, issues_page and days_page (as written, the
-// level DefaultLevel when the file has none), the view a Rejection when it is
-// not accepted (forsgren#183), or the first refusal among the others
-// (forsgren#46, #58, #157, #159).
+// level DefaultLevel when the file has none); view, auto_update and
+// auto_update_level are a Rejection when not accepted, the default in force
+// (forsgren#183); the first refusal among the others (forsgren#46, #58, #157,
+// #159).
 func (f fileConfig) settings() (Config, error) {
-	view, rejection := checkView(f.View)
-	var rejected []Rejection
-	if rejection != nil {
-		rejected = append(rejected, *rejection)
-	}
-	auto, level, err := f.updates()
-	if err != nil {
-		return Config{}, err
-	}
+	view, viewRejection := checkView(f.View)
+	auto, autoRejection := checkAutoUpdate(f.AutoUpdate)
+	level, levelRejection := checkAutoUpdateLevel(f.AutoUpdateLevel)
+	rejected := rejections(viewRejection, autoRejection, levelRejection)
 	days, chunk, hours, err := f.numbers()
 	if err != nil {
 		return Config{}, err
@@ -70,24 +66,29 @@ func (f fileConfig) settings() (Config, error) {
 		written: f.written(rejected), Rejected: rejected}, nil
 }
 
-// updates is auto_update and auto_update_level, or the first refusal of the
-// two (forsgren#58, #157).
-func (f fileConfig) updates() (auto bool, level string, err error) {
-	if auto, err = checkAutoUpdate(f.AutoUpdate); err != nil {
-		return false, "", err
+// rejections are the non-nil rejections, in order (forsgren#183).
+func rejections(all ...*Rejection) []Rejection {
+	var rejected []Rejection
+	for _, r := range all {
+		if r != nil {
+			rejected = append(rejected, *r)
+		}
 	}
-	level, err = checkAutoUpdateLevel(f.AutoUpdateLevel)
-	return auto, level, err
+	return rejected
 }
 
 // pages is issues_page and days_page, or the first refusal of the two: the
 // issues page on and the days page off when the file has none (forsgren#159).
 func (f fileConfig) pages() (issues, days bool, err error) {
-	if issues, err = issuesPage.value(f.IssuesPage); err != nil {
-		return false, false, err
+	issues, rejection := issuesPage.value(f.IssuesPage)
+	if rejection != nil {
+		return false, false, rejection
 	}
-	days, err = daysPage.value(f.DaysPage)
-	return issues, days, err
+	days, rejection = daysPage.value(f.DaysPage)
+	if rejection != nil {
+		return false, false, rejection
+	}
+	return issues, days, nil
 }
 
 // written is the optional keys the file gives a value, by key, nil when it
@@ -204,9 +205,9 @@ func isDoraWindow(days int) bool {
 }
 
 // checkAutoUpdateLevel is the level as written, DefaultLevel when the file has
-// none (a key without a value is none), or the refusal naming the valid values
-// (forsgren#58, #157).
-func checkAutoUpdateLevel(v *string) (string, error) {
+// none (a key without a value is none), or DefaultLevel and the Rejection
+// naming the valid values (forsgren#58, #157, #183).
+func checkAutoUpdateLevel(v *string) (string, *Rejection) {
 	if v == nil {
 		return DefaultLevel, nil
 	}
@@ -214,7 +215,8 @@ func checkAutoUpdateLevel(v *string) (string, error) {
 	case LevelPatch, LevelMinor, LevelMajor:
 		return *v, nil
 	}
-	return "", fmt.Errorf("%w %q: use %s, %s or %s", ErrAutoUpdateLevel, *v, LevelPatch, LevelMinor, LevelMajor)
+	return DefaultLevel, reject(ErrAutoUpdateLevel, "auto_update_level", *v,
+		fmt.Sprintf("use %s, %s or %s", LevelPatch, LevelMinor, LevelMajor), DefaultLevel)
 }
 
 // booleans are the only spellings of a boolean key (forsgren#58).
@@ -223,25 +225,26 @@ var booleans = map[string]bool{"true": true, "false": false}
 // checkAutoUpdate is auto_update as written, off when the file has none (a
 // key without a value is none): only the literals true and false, never a
 // quoted or numeric value, nor yes (forsgren#58).
-func checkAutoUpdate(n yaml.Node) (bool, error) { return autoUpdate.value(n) }
+func checkAutoUpdate(n yaml.Node) (bool, *Rejection) { return autoUpdate.value(n) }
 
 // booleanKey is a key that is true or false (forsgren#58, #159): its refusal
 // and its default.
 type booleanKey struct {
 	sentinel error
+	key      string
 	def      bool
 }
 
 var (
-	autoUpdate = booleanKey{ErrAutoUpdate, false}
-	issuesPage = booleanKey{ErrIssuesPage, true}
-	daysPage   = booleanKey{ErrDaysPage, false}
+	autoUpdate = booleanKey{ErrAutoUpdate, "auto_update", false}
+	issuesPage = booleanKey{ErrIssuesPage, "issues_page", true}
+	daysPage   = booleanKey{ErrDaysPage, "days_page", false}
 )
 
 // value is the key as written, its default when the file has none (a key
 // without a value is none): only the literals true and false, never a quoted
 // or numeric value, nor yes; the refusal wraps the key's sentinel.
-func (k booleanKey) value(n yaml.Node) (bool, error) {
+func (k booleanKey) value(n yaml.Node) (bool, *Rejection) {
 	if !hasValue(n) {
 		return k.def, nil
 	}
@@ -249,7 +252,7 @@ func (k booleanKey) value(n yaml.Node) (bool, error) {
 	if literal && n.ShortTag() == "!!bool" {
 		return on, nil
 	}
-	return k.def, fmt.Errorf("%w %q: use true or false", k.sentinel, n.Value)
+	return k.def, reject(k.sentinel, k.key, n.Value, "use true or false", strconv.FormatBool(k.def))
 }
 
 func checkVersion(v *int) error {

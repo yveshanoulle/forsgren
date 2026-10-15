@@ -4,14 +4,16 @@ import "testing"
 
 // TestCheckUpdateLeavesEverythingForAHumanWhileAutoUpdateIsOff: an installation
 // that has not turned auto_update on (the key absent, or false, with or
-// without a level) is never asked of GitHub: the one line is `left for a
-// human: auto_update is off`, the exit status 1, and no request is made, even
-// for a pull request the guard would merge.
+// without a level, or a value that is not accepted and so falls back to false,
+// forsgren#183) is never asked of GitHub: the one line is `left for a human:
+// auto_update is off`, the exit status 1, and no request is made, even for a
+// pull request the guard would merge.
 func TestCheckUpdateLeavesEverythingForAHumanWhileAutoUpdateIsOff(t *testing.T) {
 	configs := map[string]string{
 		"the key absent":             oneRepository,
 		"false":                      oneRepository + "auto_update: false\n",
 		"false with a level written": oneRepository + "auto_update: false\nauto_update_level: patch\n",
+		"a value not accepted":       oneRepository + "auto_update: yes\nauto_update_level: patch\n",
 	}
 	for name, content := range configs {
 		t.Run(name, func(t *testing.T) {

@@ -2,7 +2,7 @@ package config
 
 import (
 	"errors"
-	"slices"
+	"strconv"
 	"testing"
 )
 
@@ -47,25 +47,27 @@ func TestRejectedViewFallsBackToTheDefault(t *testing.T) {
 			if err != nil || got.View != "" || got.written["view"] {
 				t.Fatalf("want no error, no view and view not written, got %q, %v, %v", got.View, got.written, err)
 			}
-			wantRejection(t, got.Rejected, tc.written)
+			wantRejection(t, got.Rejected, ErrView,
+				[4]string{"view", tc.written, "use standard, numbers or scoring", ViewStandard})
 		})
 	}
 }
 
-// wantRejection wants exactly one rejection of view, written as written.
-func wantRejection(t *testing.T, rejected []Rejection, written string) {
+// wantRejection wants exactly one rejection, with the key, value as written,
+// reason and default of want, whose message is the old refusal's and unwraps
+// to sentinel.
+func wantRejection(t *testing.T, rejected []Rejection, sentinel error, want [4]string) {
 	t.Helper()
 	if len(rejected) != 1 {
 		t.Fatalf("want one rejection, got %v", rejected)
 	}
 	r := rejected[0]
-	want := []string{"view", written, "use standard, numbers or scoring", ViewStandard}
-	if have := []string{r.Key, r.Written, r.Reason, r.Default}; !slices.Equal(have, want) {
+	if have := [4]string{r.Key, r.Written, r.Reason, r.Default}; have != want {
 		t.Errorf("want rejection %q, got %q", want, have)
 	}
-	message := `invalid view "` + written + `": use standard, numbers or scoring`
-	if r.Error() != message || !errors.Is(&r, ErrView) {
-		t.Errorf("want message %q unwrapping to ErrView, got %q", message, r.Error())
+	message := "invalid " + want[0] + " " + strconv.Quote(want[1]) + ": " + want[2]
+	if r.Error() != message || !errors.Is(&r, sentinel) {
+		t.Errorf("want message %q unwrapping to %v, got %q", message, sentinel, r.Error())
 	}
 }
 

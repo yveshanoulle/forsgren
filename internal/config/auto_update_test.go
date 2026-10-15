@@ -39,13 +39,18 @@ func TestAutoUpdateWithNoValueIsOff(t *testing.T) {
 	}
 }
 
-// TestParseRefusesANonBooleanAutoUpdate (forsgren#58): any value that is not
-// the YAML boolean true or false is refused, naming the key and the valid
-// values, as for an invalid view.
-func TestParseRefusesANonBooleanAutoUpdate(t *testing.T) {
-	checkRefusals(t, []refusal{
-		{"yes", "auto_update: yes\n" + valid, ErrAutoUpdate, `invalid auto_update "yes": use true or false`},
-		{"quoted", "auto_update: \"true\"\n" + valid, ErrAutoUpdate, `invalid auto_update "true": use true or false`},
-		{"number", "auto_update: 1\n" + valid, ErrAutoUpdate, `invalid auto_update "1": use true or false`},
-	})
+// TestRejectedAutoUpdateFallsBackToOff (forsgren#58, #183): any value that is
+// not the YAML boolean true or false is not accepted: auto_update is off, as
+// when the key is left out and not written, and the rejection names the key.
+func TestRejectedAutoUpdateFallsBackToOff(t *testing.T) {
+	for written, yaml := range map[string]string{"yes": "yes", "true": `"true"`, "1": "1"} {
+		t.Run(written, func(t *testing.T) {
+			got, err := parse([]byte("auto_update: " + yaml + "\n" + valid))
+			if err != nil || got.AutoUpdate || got.written["auto_update"] {
+				t.Fatalf("want no error, auto_update off and not written, got %v, %v, %v",
+					got.AutoUpdate, got.written, err)
+			}
+			wantRejection(t, got.Rejected, ErrAutoUpdate, [4]string{"auto_update", written, "use true or false", "false"})
+		})
+	}
 }

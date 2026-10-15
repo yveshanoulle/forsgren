@@ -113,9 +113,8 @@ func TestCheckConfigReadsAutoUpdate(t *testing.T) {
 		want       string
 	}{
 		{"valid", "auto_update: true\nauto_update_level: patch\n", 0, ""},
-		{"not a boolean", "auto_update: yes\n", 1, `invalid auto_update "yes": use true or false`},
-		{"other level", "auto_update: true\nauto_update_level: Minor\n", 1,
-			`invalid auto_update_level "Minor": use patch, minor or major`},
+		{"not a boolean", "auto_update: yes\n", 0, ""},
+		{"other level", "auto_update: true\nauto_update_level: Minor\n", 0, ""},
 		{"no level", "auto_update: true\n", 0, ""},
 	}
 	for _, tc := range cases {

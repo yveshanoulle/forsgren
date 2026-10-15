@@ -99,7 +99,7 @@ func TestCheckUpdateNeedsARepositoryName(t *testing.T) {
 // TestCheckUpdateNamesAConfigItCannotUse: a config that is missing or invalid
 // is exit 2, and the message names the file.
 func TestCheckUpdateNamesAConfigItCannotUse(t *testing.T) {
-	invalid := configFile(t, oneRepository+"auto_update: yes\n")
+	invalid := configFile(t, oneRepository+"view: [\n")
 	for _, path := range []string{filepath.Join(t.TempDir(), "missing.yml"), invalid} {
 		flags := updateFlags(t)
 		flags["config"] = path

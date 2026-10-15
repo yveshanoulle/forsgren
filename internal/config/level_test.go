@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"strconv"
+	"testing"
+)
 
 // TestAutoUpdateLevelIsRead (forsgren#58): the optional top-level
 // auto_update_level key, as written; DefaultLevel when the key is left out, or
@@ -44,17 +47,19 @@ func TestAutoUpdateWithoutALevelUsesTheDefault(t *testing.T) {
 	}
 }
 
-// TestParseRefusesAnInvalidAutoUpdateLevel (forsgren#58): any other value is
-// refused, naming the key and the valid values, as for an invalid view.
-func TestParseRefusesAnInvalidAutoUpdateLevel(t *testing.T) {
-	checkRefusals(t, []refusal{
-		{"other case", "auto_update_level: Minor\n" + valid, ErrAutoUpdateLevel,
-			`invalid auto_update_level "Minor": use patch, minor or major`},
-		{"unknown", "auto_update_level: huge\n" + valid, ErrAutoUpdateLevel,
-			`invalid auto_update_level "huge": use patch, minor or major`},
-		{"number", "auto_update_level: 1\n" + valid, ErrAutoUpdateLevel,
-			`invalid auto_update_level "1": use patch, minor or major`},
-		{"empty", "auto_update_level: \"\"\n" + valid, ErrAutoUpdateLevel,
-			`invalid auto_update_level "": use patch, minor or major`},
-	})
+// TestRejectedAutoUpdateLevelFallsBackToMajor (forsgren#58, #183): any other
+// value is not accepted: the level is DefaultLevel and not written, auto_update
+// keeps its own value, and the rejection names the key and the valid values.
+func TestRejectedAutoUpdateLevelFallsBackToMajor(t *testing.T) {
+	for _, written := range []string{"Minor", "huge", "1", ""} {
+		t.Run(written, func(t *testing.T) {
+			got, err := parse([]byte("auto_update: true\nauto_update_level: " + strconv.Quote(written) + "\n" + valid))
+			if err != nil || !got.AutoUpdate || got.AutoUpdateLevel != DefaultLevel || got.written["auto_update_level"] {
+				t.Fatalf("want auto_update on, level %q not written and no error, got %v, %q, %v, %v",
+					DefaultLevel, got.AutoUpdate, got.AutoUpdateLevel, got.written, err)
+			}
+			wantRejection(t, got.Rejected, ErrAutoUpdateLevel,
+				[4]string{"auto_update_level", written, "use patch, minor or major", DefaultLevel})
+		})
+	}
 }
