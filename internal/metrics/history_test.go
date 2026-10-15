@@ -196,3 +196,42 @@ func TestRecoveryAndReworkInAPastPeriod(t *testing.T) {
 		t.Errorf("rework %d of %d successes, want 2 of 4", r.Rework, r.Deployments)
 	}
 }
+
+// TestChangeFailAndLeadTimeInAPastPeriod (forsgren#68): change fail rate and
+// lead time of a half-year that ended in the past. A failure issue counts when
+// it was opened in the period, not before it, at its end or after it, and not
+// when it is withdrawn; a commit counts by the date of its deployment, the
+// start's but not the end's.
+func TestChangeFailAndLeadTimeInAPastPeriod(t *testing.T) {
+	end := now.Add(-10 * day)
+	start := end.Add(-184 * day)
+	ago := func(offset time.Duration) time.Duration { return now.Sub(start.Add(offset)) }
+	opened := func(issue int64, offset time.Duration) history.Failure {
+		return history.Failure{Repository: "acme/app", Issue: issue, OpenedAt: start.Add(offset)}
+	}
+	ok := history.StateSuccess
+	data := Data{
+		Records: []history.Record{
+			appDeployment(1, "", ok, ago(day)), appDeployment(2, "", ok, ago(2*day)),
+			appDeployment(3, "", ok, ago(3*day)), appDeployment(4, "", ok, ago(4*day)),
+			appDeployment(5, "", history.StateFailure, ago(5*day)),
+		},
+		Commits: []history.Commit{
+			shippedBy("acme/app", 1, ago(-day), day), shippedBy("acme/app", 2, ago(0), day),
+			shippedBy("acme/app", 3, ago(10*day), 2*time.Hour), shippedBy("acme/app", 4, ago(100*day), 4*time.Hour),
+			shippedBy("acme/app", 5, ago(184*day), 99*time.Hour), shippedBy("acme/app", 6, ago(190*day), time.Hour),
+		},
+		Failures: history.WithoutWithdrawn([]history.Failure{
+			opened(1, -5*day), opened(2, 10*day), opened(3, 20*day), opened(4, 30*day),
+			opened(5, 184*day), opened(6, 190*day),
+		}, []history.Withdrawal{{Repository: "acme/app", Issue: 4, Withdrawn: true, Reason: history.ReasonLabelRemoved}}),
+	}
+	shop := PeriodRows(tableProjects, data, Period{Label: "past", Start: start, End: end})[0]
+	if c := shop.ChangeFail; c.Deployments != 5 || c.FailureIssues != 2 || c.Failed != 2 {
+		t.Errorf("change fail: %d deployments, %d failure issues, %d failed, want 5, 2 and 2", c.Deployments,
+			c.FailureIssues, c.Failed)
+	}
+	if l := shop.LeadTime; l.Commits != 3 || l.Median != 4*time.Hour {
+		t.Errorf("lead time: %d commits, median %v, want 3 and 4h", l.Commits, l.Median)
+	}
+}
