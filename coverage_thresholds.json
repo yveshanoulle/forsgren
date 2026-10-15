@@ -173,6 +173,7 @@
     "github.com/yveshanoulle/forsgren/internal/collect/withdrawn.go:reread": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/withdrawn.go:needsReread": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/withdrawn.go:canStillCount": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/withdrawn.go:countingWindowOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/withdrawn.go:failuresToReread": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/withdrawn.go:hasLabel": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/failures.go:failuresFile": 100.0,

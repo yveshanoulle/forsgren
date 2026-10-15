@@ -32,6 +32,7 @@ func (o Options) reachFile() string { return filepath.Join(filepath.Dir(o.Histor
 func (o Options) windowOf(cfg config.Config) Options {
 	o.earliest = o.Now.Add(-time.Duration(cfg.HistoryDays) * 24 * time.Hour)
 	o.chunk = time.Duration(cfg.HistoryChunkDays) * 24 * time.Hour
+	o.counting = countingWindowOf(cfg.DoraDays)
 	return o
 }
 

@@ -100,6 +100,9 @@ type Options struct {
 	// history at once. Both are set by Run (forsgren#57).
 	earliest time.Time
 	chunk    time.Duration
+	// counting is how far back a closed failure issue was opened to be re-read
+	// by the catch-up: the DORA window, dora_days (forsgren#178). Set by Run.
+	counting time.Duration
 }
 
 // Run collects every repository of cfg: one line per repository on stdout,

@@ -132,8 +132,17 @@ func (o Options) finishCatchUp(h held, failed int) error {
 }
 
 // countingWindow is how far back an issue was opened to be counted by change
-// fail rate, the window of the metrics.
+// fail rate when the config sets no window, 30 days (forsgren#178).
 const countingWindow = 30 * 24 * time.Hour
+
+// countingWindowOf is the window of the metrics in days, dora_days, as a
+// duration: 30 days when days is 0, a Config that sets none (forsgren#178).
+func countingWindowOf(days int) time.Duration {
+	if days == 0 {
+		return countingWindow
+	}
+	return time.Duration(days) * 24 * time.Hour
+}
 
 // reread is repo's withdrawals in the catch-up: those of the daily read and
 // of the stored failures that can still count and the daily read did not
@@ -161,7 +170,7 @@ func (o Options) reread(ctx context.Context, h held, repo string, daily []github
 }
 
 // failuresToReread is the numbers of repo's stored failures that are open or
-// were opened in the last 30 days and that daily does not list, oldest first.
+// were opened in the window and that daily does not list, oldest first.
 func (o Options) failuresToReread(h held, repo string, daily []github.RepoIssue) []int64 {
 	listed := map[int64]bool{}
 	for _, i := range daily {
@@ -187,7 +196,8 @@ func (o Options) needsReread(f history.Failure, repo string, listed map[int64]bo
 }
 
 // canStillCount says whether the stored failure f is open or was opened in the
-// last 30 days, the window of change fail rate.
+// window, dora_days (30 days unless the config sets another), the window of
+// change fail rate.
 func (o Options) canStillCount(f history.Failure) bool {
-	return f.ClosedAt.IsZero() || !f.OpenedAt.Before(o.Now.Add(-countingWindow))
+	return f.ClosedAt.IsZero() || !f.OpenedAt.Before(o.Now.Add(-o.counting))
 }
