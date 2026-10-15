@@ -236,6 +236,12 @@ Then wait for the answers.
     and the history behind a longer window fills in over several daily runs.
     The person can change it later; the legend of the published site says
     which window is in use.
+12. **The Numbers and scoring page**, whether the site has a page that
+    shows, for each metric, its number and its score side by side in one
+    cell. Default: `numbers_scoring_page: false` (the page is hidden). It
+    is `true` or `false`. A page that is off is not generated and has no
+    entry in the menu. The person can show it later by setting
+    `numbers_scoring_page: true`; the legend of the published site says so.
 
 ## Step 3. Look at every measured repository (read only)
 
@@ -398,6 +404,7 @@ history_days: 365
 dora_days: 30
 issues_page: true
 days_page: false
+numbers_scoring_page: false
 projects:
   - name: Acme Shop
     repositories:
@@ -413,7 +420,8 @@ projects:
 
 - Write `issues_page` and `days_page` with the answers to question 10
   (the defaults are `true` and `false`), and `dora_days` with the answer to
-  question 11 (the default is `30`).
+  question 11 (the default is `30`) and `numbers_scoring_page` with the
+  answer to question 12 (the default is `false`).
 - Write every repository's `deployment:` line, also for
   `environment=production`, so the file says what was chosen.
 - Indent with spaces only, as shown.
@@ -683,12 +691,12 @@ Then check what the run did:
 
    For example `;view;numbers;standard, numbers, scoring;False;`.
    - The rows `view`, `auto_update`, `auto_update_level`,
-     `history_days`, `dora_days`, `issues_page` and `days_page` show the
-     values of the config, and end with `False` (set in
-     forsgren.config.yml, not the default).
+     `history_days`, `dora_days`, `issues_page`, `days_page` and
+     `numbers_scoring_page` show the values of the config, and end with
+     `False` (set in forsgren.config.yml, not the default).
    - The rows `history_chunk_days` (`100`) and `working_hours` (`8`) end
      with `True` (the default).
-   - Nine rows in all. A row missing or different: stop and report.
+   - Ten rows in all. A row missing or different: stop and report.
 9. The footer names the pinned version:
    `curl -fsS SITE | grep -o 'Forsgren</a> [0-9.]*'`
    prints `Forsgren</a>` and `VERSION` without its `v`.
@@ -954,7 +962,7 @@ Anything else: report it to the person.
 For an install that exists, you can change one setting: a top-level key of
 `forsgren.config.yml` (`view`, `auto_update`, `auto_update_level`,
 `history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
-`issues_page`, `days_page`), or the update wait
+`issues_page`, `days_page`, `numbers_scoring_page`), or the update wait
 (`default-days` in `.github/dependabot.yml`, in days). Changes to the
 projects and repositories are not covered here. Follow these steps alone;
 the install steps above do not apply.

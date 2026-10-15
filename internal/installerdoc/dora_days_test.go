@@ -1,8 +1,6 @@
 package installerdoc
 
 import (
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,15 +12,7 @@ import (
 // the starter writes it (forsgren#178).
 func starterDoraDays(t *testing.T) string {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "forsgren.config.yml")
-	if err := os.WriteFile(path, []byte(config.Starter), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	cfg, err := config.Load(path)
-	if err != nil {
-		t.Fatalf("want the starter to load, got %v", err)
-	}
-	return "dora_days: " + strconv.Itoa(cfg.DoraDays)
+	return "dora_days: " + strconv.Itoa(loadedStarter(t).DoraDays)
 }
 
 // TestInstallerAsksForTheDoraWindow (forsgren#178): step 2 asks for the window
@@ -62,17 +52,14 @@ func TestInstallerStep9SaysASettingNotAcceptedIsAWarning(t *testing.T) {
 }
 
 // TestInstallerProvesTheDoraDaysRow (forsgren#178): the settings page proof
-// lists dora_days as written in the config, nine rows in all, and "Changing a
-// setting later" names the key.
+// lists dora_days as written in the config and "Changing a setting later" names
+// the key; the count of rows is TestInstallerProvesTenSettingsRows' (forsgren#55).
 func TestInstallerProvesTheDoraDaysRow(t *testing.T) {
 	proof := asOneLine(section(t, installerFile, "Step 12."))
-	for _, text := range []string{"`dora_days`", "Nine rows in all"} {
+	for _, text := range []string{"`dora_days`"} {
 		if !strings.Contains(proof, text) {
 			t.Errorf("agent-installer.md step 12 does not say %q", text)
 		}
-	}
-	if strings.Contains(proof, "Eight rows in all") {
-		t.Error("agent-installer.md step 12 still says eight rows")
 	}
 	if later := asOneLine(section(t, installerFile, "Changing a setting later")); !strings.Contains(later, "`dora_days`") {
 		t.Error("agent-installer.md 'Changing a setting later' does not list dora_days")

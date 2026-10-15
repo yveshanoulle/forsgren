@@ -131,8 +131,8 @@ func workRemovals(t *testing.T, path repoFile) (found int, notLeavingFirst []wor
 	return found, notLeavingFirst
 }
 
-// starterLevel is the auto_update_level forsgren's own starter loads with.
-func starterLevel(t *testing.T) string {
+// loadedStarter is forsgren's own starter as Load reads it.
+func loadedStarter(t *testing.T) config.Config {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "forsgren.config.yml")
 	if err := os.WriteFile(path, []byte(config.Starter), 0o600); err != nil {
@@ -142,5 +142,8 @@ func starterLevel(t *testing.T) string {
 	if err != nil {
 		t.Fatalf("want the starter to load, got %v", err)
 	}
-	return cfg.AutoUpdateLevel
+	return cfg
 }
+
+// starterLevel is the auto_update_level forsgren's own starter loads with.
+func starterLevel(t *testing.T) string { return loadedStarter(t).AutoUpdateLevel }
