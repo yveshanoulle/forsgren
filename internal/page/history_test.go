@@ -159,16 +159,25 @@ func TestHistoryPageIsMarkedBeta(t *testing.T) {
 
 // historyHowToRead is the line under the History heading (forsgren#198).
 const historyHowToRead = `<p>Each column is a period: the calendar half-years, then the last 6 months. ` +
-	`A cell is the number and its score (0 to 10), number · score. Trend draws the score over the periods.</p>`
+	`A cell is the number and its score (0 to 10), number · score.`
+
+// historyTrendToRead is what the line adds while the Trend column is shown.
+const historyTrendToRead = ` Trend draws the score over the periods.`
 
 // TestHistoryPageSaysHowToReadItUnderTheHeading (forsgren#198): right under
-// the heading, with history and without, one line says what a column, a cell
-// and the Trend are; the legend already says the same at length, so it gains
-// no sentence.
+// the heading, one line says what a column and a cell are, and what the Trend
+// is unless the table has a single period column and so no Trend column; the
+// legend already says the same at length.
 func TestHistoryPageSaysHowToReadItUnderTheHeading(t *testing.T) {
-	for name, data := range map[string]Data{"with history": historyData(), "without": calculated()} {
-		wantAll(t, name, rendered(t, "history.html", data),
-			`<h1 id="history-heading">History (beta)</h1>`+"\n    "+historyHowToRead)
+	for name, tc := range map[string]struct {
+		data Data
+		line string
+	}{
+		"two periods": {historyData(), historyHowToRead + historyTrendToRead + "</p>"},
+		"none":        {calculated(), historyHowToRead + historyTrendToRead + "</p>"},
+	} {
+		wantAll(t, name, rendered(t, "history.html", tc.data),
+			`<h1 id="history-heading">History (beta)</h1>`+"\n    "+tc.line)
 	}
 }
 
@@ -180,7 +189,21 @@ func TestHistoryPageWithOnePeriodSaysWhyUnderTheHowToReadLine(t *testing.T) {
 	data.History, data.FirstDeployment, data.HistoryDays = data.History[1:], day(time.October, 2, 9, 30), 365
 	const notice = "<p>Only the last 6 months have data so far: the first deployment is 2026-10-02. " +
 		"The first half-year, 2026 H2, appears on 2027-01-01.</p>"
-	wantAll(t, "history.html", rendered(t, "history.html", data), historyHowToRead+"\n    "+notice)
+	wantAll(t, "history.html", rendered(t, "history.html", data), historyHowToRead+"</p>\n    "+notice)
 	checkPageGolden(t, "history.html", "testdata/history.one-period.golden.html", data)
 	wantNone(t, "history.html", rendered(t, "history.html", historyData()), "Only the last 6 months")
+}
+
+// TestHistoryPageLeavesOutTheTrendColumnBelowTwoPeriods (forsgren#198): with
+// one period column the table has no Trend header, no chart and a group header
+// as wide as the row headings plus that one column; with two it has the
+// Trend column and a header that is two wider.
+func TestHistoryPageLeavesOutTheTrendColumnBelowTwoPeriods(t *testing.T) {
+	one := historyData()
+	one.History = one.History[1:]
+	got := rendered(t, "history.html", one)
+	wantNone(t, "one period", got, `<th scope="col">Trend</th>`, "<svg", `colspan="3"`, "Trend draws")
+	wantAll(t, "one period", got, `colspan="2"`)
+	two := rendered(t, "history.html", historyData())
+	wantAll(t, "two periods", two, `<th scope="col">Trend</th>`, "<svg", `colspan="4"`, "Trend draws")
 }

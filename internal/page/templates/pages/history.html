@@ -1,15 +1,15 @@
 {{define "title"}}History{{beta}} · {{.Title}}{{end -}}
 {{template "header" .}}  <main>
     <h1 id="history-heading">History{{beta}}</h1>
-    <p>Each column is a period: the calendar half-years, then the last 6 months. A cell is the number and its score (0 to 10), number · score. Trend draws the score over the periods.</p>
+    <p>Each column is a period: the calendar half-years, then the last 6 months. A cell is the number and its score (0 to 10), number · score.{{if not .HistoryOnePeriod}} Trend draws the score over the periods.{{end}}</p>
 {{with .HistoryNotice}}    <p>{{.}}</p>
 {{end}}{{if .HistorySections}}    <div class="table-scroll" role="region" aria-labelledby="history-heading" tabindex="0">
       <table class="no-wrap">
         <thead>
           <tr>
             <th scope="col">Project</th>
-            <th scope="col">Trend</th>
-{{range .HistoryPeriods}}            <th scope="col">{{.}}</th>
+{{if not .HistoryOnePeriod}}            <th scope="col">Trend</th>
+{{end}}{{range .HistoryPeriods}}            <th scope="col">{{.}}</th>
 {{end}}          </tr>
         </thead>
 {{range .HistorySections}}        <tbody>
@@ -18,8 +18,8 @@
           </tr>
 {{range .Rows}}          <tr{{if .IsLabel}} class="label"{{end}}>
 {{template "rowheader" .}}
-            <td>{{if .Chart}}{{template "chart" .Chart}}{{else}}-{{end}}</td>
-{{range .Cells}}            <td>{{.}}</td>
+{{if not $.HistoryOnePeriod}}            <td>{{if .Chart}}{{template "chart" .Chart}}{{else}}-{{end}}</td>
+{{end}}{{range .Cells}}            <td>{{.}}</td>
 {{end}}          </tr>
 {{end}}        </tbody>
 {{end}}      </table>

@@ -512,6 +512,8 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/history.go:HalfYearOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/history.go:FirstDeployment": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/history.go:HistoryNotice": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/history.go:HistoryOnePeriod": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/history.go:historySpan": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/history.go:onlyTheRollingColumn": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/history.go:historyNotice": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/history.go:wholeDays": 100.0,

@@ -47,9 +47,22 @@ func (d Data) HistorySections() []HistorySection {
 	headings := Table(d.History[0].Rows)
 	sections := make([]HistorySection, len(historyMeasures))
 	for m, measure := range historyMeasures {
-		sections[m] = HistorySection{Title: measure, Span: len(d.History) + 2, Rows: d.historyRows(headings, m)}
+		sections[m] = HistorySection{Title: measure, Span: d.historySpan(), Rows: d.historyRows(headings, m)}
 	}
 	return sections
+}
+
+// HistoryOnePeriod says whether the table has a single period column, which
+// leaves out the Trend column: a trend needs two periods (forsgren#198).
+func (d Data) HistoryOnePeriod() bool { return len(d.History) == 1 }
+
+// historySpan is how many columns a group header spans: the row headings, the
+// Trend column when it is shown, and the periods.
+func (d Data) historySpan() int {
+	if d.HistoryOnePeriod() {
+		return len(d.History) + 1
+	}
+	return len(d.History) + 2
 }
 
 // HistoryPeriods are the headers of the history page's period columns, oldest
