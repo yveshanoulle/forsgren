@@ -26,6 +26,27 @@ func TestIssuesAndDaysPagesAreRead(t *testing.T) {
 	}
 }
 
+// TestNumbersScoringPageIsRead (forsgren#55): the optional numbers_scoring_page
+// key, as written; the page is off when the key is left out or has no value.
+func TestNumbersScoringPageIsRead(t *testing.T) {
+	cases := []struct {
+		name, file string
+		want       bool
+	}{
+		{"absent", valid, false},
+		{"on", "numbers_scoring_page: true\n" + valid, true},
+		{"off", "numbers_scoring_page: false\n" + valid, false},
+		{"after the projects", valid + "numbers_scoring_page: true\n", true},
+		{"no value", "numbers_scoring_page:\n" + valid, false},
+	}
+	for _, tc := range cases {
+		got, err := parse([]byte(tc.file))
+		if err != nil || got.NumbersScoringPage != tc.want {
+			t.Errorf("%s: want numbers_scoring_page %v and no error, got %v, %v", tc.name, tc.want, got.NumbersScoringPage, err)
+		}
+	}
+}
+
 // TestRejectedPageKeyFallsBack (forsgren#159, #183): any value that is not the
 // YAML boolean true or false is not accepted: the key's default is in force
 // (issues page on, days page off) and the key counts as not written; the other

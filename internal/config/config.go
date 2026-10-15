@@ -191,6 +191,10 @@ type Config struct {
 	// DaysPage is whether the days page (Daily) is generated, false when the
 	// file has no days_page key (forsgren#159).
 	DaysPage bool
+	// NumbersScoringPage is whether the numbers and scoring page is
+	// generated, false when the file has no numbers_scoring_page key
+	// (forsgren#55).
+	NumbersScoringPage bool
 	// written is the optional keys the file writes, by key (forsgren#74).
 	written  map[string]bool
 	Projects []Project
@@ -256,6 +260,7 @@ var (
 	ErrDoraDays            = errors.New("invalid dora_days")
 	ErrIssuesPage          = errors.New("invalid issues_page")
 	ErrDaysPage            = errors.New("invalid days_page")
+	ErrNumbersScoringPage  = errors.New("invalid numbers_scoring_page")
 )
 
 // Load reads and validates the config file at path. Every error names the
@@ -310,9 +315,11 @@ type fileConfig struct {
 	DoraDays yaml.Node `yaml:"dora_days"`
 	// IssuesPage and DaysPage are the nodes as written, so a non-boolean is
 	// refused by name (forsgren#159).
-	IssuesPage yaml.Node     `yaml:"issues_page"`
-	DaysPage   yaml.Node     `yaml:"days_page"`
-	Projects   []fileProject `yaml:"projects"`
+	IssuesPage yaml.Node `yaml:"issues_page"`
+	DaysPage   yaml.Node `yaml:"days_page"`
+	// NumbersScoringPage is the node as written (forsgren#55).
+	NumbersScoringPage yaml.Node     `yaml:"numbers_scoring_page"`
+	Projects           []fileProject `yaml:"projects"`
 }
 
 type fileProject struct {
@@ -415,6 +422,7 @@ var settingKeys = []settingKey{
 	{"dora_days", strconv.Itoa(DefaultDoraDays), func(c Config) string { return strconv.Itoa(c.DoraDays) }},
 	{"issues_page", "true", func(c Config) string { return strconv.FormatBool(c.IssuesPage) }},
 	{"days_page", "false", func(c Config) string { return strconv.FormatBool(c.DaysPage) }},
+	{"numbers_scoring_page", "false", func(c Config) string { return strconv.FormatBool(c.NumbersScoringPage) }},
 }
 
 // Settings lists every optional key in the order of settingKeys: the value

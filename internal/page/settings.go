@@ -16,15 +16,16 @@ import (
 
 // possibleValues are the values each key accepts, by key name.
 var possibleValues = map[string]string{
-	"view":               list(config.ViewStandard, config.ViewNumbers, config.ViewScoring),
-	"auto_update":        booleanValues,
-	"auto_update_level":  list(config.LevelPatch, config.LevelMinor, config.LevelMajor),
-	"history_days":       between(config.MinHistoryDays, config.MaxHistoryDays),
-	"history_chunk_days": upTo(config.MaxHistoryChunkDays),
-	"working_hours":      upTo(config.MaxWorkingHours),
-	"dora_days":          doraWindows,
-	"issues_page":        booleanValues,
-	"days_page":          booleanValues,
+	"view":                 list(config.ViewStandard, config.ViewNumbers, config.ViewScoring),
+	"auto_update":          booleanValues,
+	"auto_update_level":    list(config.LevelPatch, config.LevelMinor, config.LevelMajor),
+	"history_days":         between(config.MinHistoryDays, config.MaxHistoryDays),
+	"history_chunk_days":   upTo(config.MaxHistoryChunkDays),
+	"working_hours":        upTo(config.MaxWorkingHours),
+	"dora_days":            doraWindows,
+	"issues_page":          booleanValues,
+	"days_page":            booleanValues,
+	"numbers_scoring_page": booleanValues,
 }
 
 // doraWindows are the windows dora_days can name, as the page lists them.

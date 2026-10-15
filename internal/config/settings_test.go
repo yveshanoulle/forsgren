@@ -20,14 +20,16 @@ func TestSettingsListsEveryKeyWithItsDefault(t *testing.T) {
 		{Key: "dora_days", Value: "30"},
 		{Key: "issues_page", Value: "true"},
 		{Key: "days_page", Value: "false"},
+		{Key: "numbers_scoring_page", Value: "false"},
 	})
 }
 
 // TestSettingsMarksEveryWrittenKeySet (forsgren#74): a file that writes all
-// nine keys has all of them Set, with the written values.
+// ten keys has all of them Set, with the written values.
 func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 	all := "view: numbers\nauto_update: true\nauto_update_level: minor\n" +
-		"history_days: 30\nhistory_chunk_days: 10\nworking_hours: 6\ndora_days: 30\nissues_page: false\ndays_page: true\n"
+		"history_days: 30\nhistory_chunk_days: 10\nworking_hours: 6\ndora_days: 30\nissues_page: false\ndays_page: true\n" +
+		"numbers_scoring_page: true\n"
 	wantSettings(t, all, []Setting{
 		{Key: "view", Value: "numbers", Set: true},
 		{Key: "auto_update", Value: "true", Set: true},
@@ -38,6 +40,7 @@ func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 		{Key: "dora_days", Value: "30", Set: true},
 		{Key: "issues_page", Value: "false", Set: true},
 		{Key: "days_page", Value: "true", Set: true},
+		{Key: "numbers_scoring_page", Value: "true", Set: true},
 	})
 }
 
@@ -135,6 +138,7 @@ func TestSettingsCarriesEachRejection(t *testing.T) {
 		{Key: "dora_days", Value: "30"},
 		{Key: "issues_page", Value: "true"},
 		{Key: "days_page", Value: "false"},
+		{Key: "numbers_scoring_page", Value: "false"},
 	})
 }
 
