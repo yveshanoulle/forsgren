@@ -40,3 +40,29 @@ func TestDoraDaysRefusesAnythingElse(t *testing.T) {
 		})
 	}
 }
+
+// TestDoraDaysLongerThanHistoryDaysIsRefused (forsgren#178): a written
+// dora_days the history cannot reach back is refused naming both numbers.
+func TestDoraDaysLongerThanHistoryDaysIsRefused(t *testing.T) {
+	_, err := parse([]byte("dora_days: 180\nhistory_days: 90\n" + valid))
+	wantRefusal(t, err, ErrDoraDays, `invalid dora_days "180"`, "history_days is 90",
+		"raise history_days to at least 180 or use a shorter window")
+}
+
+// TestDoraDaysThatFitHistoryDaysLoad (forsgren#178): equal fits, the default
+// history of 365 days fits every window, and an unwritten dora_days is never
+// checked, so a history_days under 30 stays valid.
+func TestDoraDaysThatFitHistoryDaysLoad(t *testing.T) {
+	for name, yaml := range map[string]string{
+		"equal":              "dora_days: 90\nhistory_days: 90\n",
+		"default history":    "dora_days: 180\n",
+		"unwritten short":    "history_days: 7\n",
+		"unwritten no value": "dora_days:\nhistory_days: 7\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := parse([]byte(yaml + valid)); err != nil {
+				t.Errorf("want no error, got %v", err)
+			}
+		})
+	}
+}

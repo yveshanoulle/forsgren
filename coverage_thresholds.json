@@ -215,6 +215,7 @@
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:check": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:checkHistoryChunkDays": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:checkDoraDays": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/validate.go:isDoraWindow": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:choices": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:claimProject": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/validate.go:claimRepository": 100.0,

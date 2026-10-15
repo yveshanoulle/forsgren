@@ -49,7 +49,7 @@ func (f fileConfig) settings() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	doraDays, err := checkDoraDays(f.DoraDays)
+	doraDays, err := checkDoraDays(f.DoraDays, days)
 	if err != nil {
 		return Config{}, err
 	}
@@ -172,19 +172,27 @@ func checkHistoryChunkDays(n yaml.Node) (int, error) { return historyChunkDays.c
 
 // checkDoraDays is dora_days as written, DefaultDoraDays when the file has
 // none (a key without a value is none): the integer 30, 90 or 180, never a
-// quoted value (forsgren#178).
-func checkDoraDays(n yaml.Node) (int, error) {
+// quoted value, and no longer than history_days, which the history must reach
+// back. The default window is never checked against history_days, so a short
+// history_days stays valid (forsgren#178).
+func checkDoraDays(n yaml.Node, historyDays int) (int, error) {
 	if !hasValue(n) {
 		return DefaultDoraDays, nil
 	}
 	days, err := strconv.Atoi(n.Value)
-	if err == nil && n.ShortTag() == "!!int" {
-		switch days {
-		case DefaultDoraDays, DoraDays90, DoraDays180:
-			return days, nil
-		}
+	if err != nil || n.ShortTag() != "!!int" || !isDoraWindow(days) {
+		return 0, fmt.Errorf("%w %q: use %d, %d or %d", ErrDoraDays, n.Value, DefaultDoraDays, DoraDays90, DoraDays180)
 	}
-	return 0, fmt.Errorf("%w %q: use %d, %d or %d", ErrDoraDays, n.Value, DefaultDoraDays, DoraDays90, DoraDays180)
+	if days > historyDays {
+		return 0, fmt.Errorf("%w %q: history_days is %d, so the history cannot reach back %d days; "+
+			"raise history_days to at least %d or use a shorter window", ErrDoraDays, n.Value, historyDays, days, days)
+	}
+	return days, nil
+}
+
+// isDoraWindow says whether days is one of the windows dora_days can name.
+func isDoraWindow(days int) bool {
+	return days == DefaultDoraDays || days == DoraDays90 || days == DoraDays180
 }
 
 // checkAutoUpdateLevel is the level as written, DefaultLevel when the file has
