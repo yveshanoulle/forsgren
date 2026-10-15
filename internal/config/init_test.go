@@ -461,7 +461,7 @@ func TestStarterWritesDoraDaysAndLoadsClean(t *testing.T) {
 	if err != nil || len(got.Rejected) != 0 {
 		t.Fatalf("want the starter to load with nothing rejected, got %v, %v", got.Rejected, err)
 	}
-	want := Setting{Key: "dora_days", Value: "30", Set: true}
+	want := Setting{Key: "dora_days", Value: "30", Default: "30", Set: true}
 	if !slices.Contains(got.Settings(), want) {
 		t.Errorf("want the settings to hold %+v, got %+v", want, got.Settings())
 	}

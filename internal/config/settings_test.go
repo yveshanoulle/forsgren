@@ -11,16 +11,16 @@ import (
 // with its default, in the fixed order.
 func TestSettingsListsEveryKeyWithItsDefault(t *testing.T) {
 	wantSettings(t, "history_days: 30\n", []Setting{
-		{Key: "view", Value: "standard"},
-		{Key: "auto_update", Value: "false"},
-		{Key: "auto_update_level", Value: "major"},
-		{Key: "history_days", Value: "30", Set: true},
-		{Key: "history_chunk_days", Value: "100"},
-		{Key: "working_hours", Value: "8"},
-		{Key: "dora_days", Value: "30"},
-		{Key: "issues_page", Value: "true"},
-		{Key: "days_page", Value: "false"},
-		{Key: "numbers_scoring_page", Value: "false"},
+		{Key: "view", Value: "standard", Default: "standard"},
+		{Key: "auto_update", Value: "false", Default: "false"},
+		{Key: "auto_update_level", Value: "major", Default: "major"},
+		{Key: "history_days", Value: "30", Default: "365", Set: true},
+		{Key: "history_chunk_days", Value: "100", Default: "100"},
+		{Key: "working_hours", Value: "8", Default: "8"},
+		{Key: "dora_days", Value: "30", Default: "30"},
+		{Key: "issues_page", Value: "true", Default: "true"},
+		{Key: "days_page", Value: "false", Default: "false"},
+		{Key: "numbers_scoring_page", Value: "false", Default: "false"},
 	})
 }
 
@@ -31,16 +31,16 @@ func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 		"history_days: 30\nhistory_chunk_days: 10\nworking_hours: 6\ndora_days: 30\nissues_page: false\ndays_page: true\n" +
 		"numbers_scoring_page: true\n"
 	wantSettings(t, all, []Setting{
-		{Key: "view", Value: "numbers", Set: true},
-		{Key: "auto_update", Value: "true", Set: true},
-		{Key: "auto_update_level", Value: "minor", Set: true},
-		{Key: "history_days", Value: "30", Set: true},
-		{Key: "history_chunk_days", Value: "10", Set: true},
-		{Key: "working_hours", Value: "6", Set: true},
-		{Key: "dora_days", Value: "30", Set: true},
-		{Key: "issues_page", Value: "false", Set: true},
-		{Key: "days_page", Value: "true", Set: true},
-		{Key: "numbers_scoring_page", Value: "true", Set: true},
+		{Key: "view", Value: "numbers", Default: "standard", Set: true},
+		{Key: "auto_update", Value: "true", Default: "false", Set: true},
+		{Key: "auto_update_level", Value: "minor", Default: "major", Set: true},
+		{Key: "history_days", Value: "30", Default: "365", Set: true},
+		{Key: "history_chunk_days", Value: "10", Default: "100", Set: true},
+		{Key: "working_hours", Value: "6", Default: "8", Set: true},
+		{Key: "dora_days", Value: "30", Default: "30", Set: true},
+		{Key: "issues_page", Value: "false", Default: "true", Set: true},
+		{Key: "days_page", Value: "true", Default: "false", Set: true},
+		{Key: "numbers_scoring_page", Value: "true", Default: "false", Set: true},
 	})
 }
 
@@ -130,16 +130,17 @@ func TestAnAliasInsideAValueShowsItsName(t *testing.T) {
 // written and the reason; the other settings carry neither.
 func TestSettingsCarriesEachRejection(t *testing.T) {
 	wantSettings(t, "view: weekly\nhistory_days: 0\nworking_hours: 6\n", []Setting{
-		{Key: "view", Value: "standard", Written: "weekly", Reason: "use standard, numbers or scoring"},
-		{Key: "auto_update", Value: "false"},
-		{Key: "auto_update_level", Value: "major"},
-		{Key: "history_days", Value: "365", Written: "0", Reason: "use a whole number of days from 30 to 1825"},
-		{Key: "history_chunk_days", Value: "100"},
-		{Key: "working_hours", Value: "6", Set: true},
-		{Key: "dora_days", Value: "30"},
-		{Key: "issues_page", Value: "true"},
-		{Key: "days_page", Value: "false"},
-		{Key: "numbers_scoring_page", Value: "false"},
+		{Key: "view", Value: "standard", Default: "standard", Written: "weekly", Reason: "use standard, numbers or scoring"},
+		{Key: "auto_update", Value: "false", Default: "false"},
+		{Key: "auto_update_level", Value: "major", Default: "major"},
+		{Key: "history_days", Value: "365", Default: "365", Written: "0",
+			Reason: "use a whole number of days from 30 to 1825"},
+		{Key: "history_chunk_days", Value: "100", Default: "100"},
+		{Key: "working_hours", Value: "6", Default: "8", Set: true},
+		{Key: "dora_days", Value: "30", Default: "30"},
+		{Key: "issues_page", Value: "true", Default: "true"},
+		{Key: "days_page", Value: "false", Default: "false"},
+		{Key: "numbers_scoring_page", Value: "false", Default: "false"},
 	})
 }
 
@@ -164,8 +165,28 @@ func TestSettingsShowsARejectedDoraDaysLikeTheOtherKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := Setting{Key: "dora_days", Value: "30", Written: "60", Reason: "use 30, 90 or 180"}
+	want := Setting{Key: "dora_days", Value: "30", Default: "30", Written: "60", Reason: "use 30, 90 or 180"}
 	if !slices.Contains(got.Settings(), want) {
 		t.Errorf("want the settings to hold %+v, got %+v", want, got.Settings())
+	}
+}
+
+// TestSettingsExposeTheDefaultOfEveryKey (forsgren#169): every key lists its
+// default, the same whether the file leaves the key out or writes another
+// value, so the settings page can show it beside the current value.
+func TestSettingsExposeTheDefaultOfEveryKey(t *testing.T) {
+	want := []string{"standard", "false", "major", "365", "100", "8", "30", "true", "false", "false"}
+	for _, file := range []string{"", "history_days: 90\nview: numbers\n"} {
+		got, err := parse([]byte(file + valid))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var defaults []string
+		for _, s := range got.Settings() {
+			defaults = append(defaults, s.Default)
+		}
+		if !slices.Equal(defaults, want) {
+			t.Errorf("file %q: want defaults %v, got %v", file, want, defaults)
+		}
 	}
 }
