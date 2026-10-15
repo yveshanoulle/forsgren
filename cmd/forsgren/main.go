@@ -4,7 +4,7 @@
 // Usage:
 //
 //	forsgren render --out <dir> [--config <path>] [--data <path>]
-//	                [--latest <version>] [--waiting-pr <number>]
+//	                [--latest <version>] [--waiting-pr <number>] [--needs-check <status>]
 //	forsgren check-config --config <path>
 //	forsgren init-config --config <path>
 //	forsgren collect --config <path> --data <path> [--token-expiry <path>]
@@ -14,6 +14,9 @@
 //	                     [--token-expiry <path>]
 //	forsgren run-summary --latest <version> --waiting-pr <number>
 //	                     --pr-check <ok|no-access|rate-limited|failed|skipped> --repository <owner/name>
+//	                     [--needs-check <status>] [--token-expiry <path>]
+//	forsgren check-update --config <path> --repo <owner/name> --pull <number>
+//	forsgren install-update --repo <owner/name> --branch <branch> --version <vX.Y.Z> --sha <40-hex>
 package main
 
 import (
@@ -26,15 +29,19 @@ import (
 )
 
 const usage = `usage: forsgren render --out <dir> [--config <path>] [--data <path>]
-                       [--latest <version>] [--waiting-pr <number>]
+                       [--latest <version>] [--waiting-pr <number>] [--needs-check <status>]
        forsgren check-config --config <path>
        forsgren init-config --config <path>
-       forsgren collect --config <path> --data <path>
+       forsgren collect --config <path> --data <path> [--token-expiry <path>]
        forsgren latest-release
        forsgren waiting-pull-request --version <x.y.z> [--status <path>]
        forsgren check-needs --config <path> --repository <owner/name> [--status <path>]
+                            [--token-expiry <path>]
        forsgren run-summary --latest <version> --waiting-pr <number>
-                            --pr-check <ok|no-access|rate-limited|failed|skipped> --repository <owner/name>`
+                            --pr-check <ok|no-access|rate-limited|failed|skipped> --repository <owner/name>
+                            [--needs-check <status>] [--token-expiry <path>]
+       forsgren check-update --config <path> --repo <owner/name> --pull <number>
+       forsgren install-update --repo <owner/name> --branch <branch> --version <vX.Y.Z> --sha <40-hex>`
 
 // version is the forsgren release this binary is, shown on every page it
 // renders. It is the one source of the version: a var, not a const, so a
