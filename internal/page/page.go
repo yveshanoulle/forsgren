@@ -325,6 +325,10 @@ func (p pageData) ScoredCells(row Row) []string {
 	return row.ScoreCells()
 }
 
+// Noindex says whether the page asks search engines to skip it: an unlisted
+// page does (forsgren#200).
+func (p pageData) Noindex() bool { return p.Unlisted[p.Page] }
+
 // menuItem is one entry of the menu: its address from the root, its label,
 // and its aria-current, empty for an entry that is a link.
 type menuItem struct{ Href, Label, Current string }

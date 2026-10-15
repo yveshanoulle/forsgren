@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -60,4 +61,26 @@ func wantNoEntry(t *testing.T, page, html string, entry menuEntry) {
 	menu := menuOf(t, page, html)
 	wantNone(t, page+" menu", menu, entry.href+`"`, ">"+entry.label+"<")
 	wantAll(t, page+" menu", menu, "Standard", "Numbers and scoring")
+}
+
+// noindex is the tag that asks search engines to skip a page (forsgren#200).
+const noindex = `<meta name="robots" content="noindex">`
+
+// TestAnUnlistedRootPageAsksSearchEnginesToSkipIt (forsgren#200): the head of an
+// unlisted root page carries the robots noindex tag, and the head of every
+// other page of the site, the unlisted page's neighbours and a page that is
+// listed, does not.
+func TestAnUnlistedRootPageAsksSearchEnginesToSkipIt(t *testing.T) {
+	for _, unlisted := range []string{"issues", "days", "history"} {
+		t.Run(unlisted, func(t *testing.T) {
+			data := viewData()
+			data.Unlisted = map[string]bool{unlisted: true}
+			for _, page := range PageNames() {
+				head, _, _ := strings.Cut(rendered(t, page, data), "</head>")
+				if got, want := strings.Contains(head, noindex), page == unlisted+".html"; got != want {
+					t.Errorf("%s: want the noindex tag in the head: %v, got %v", page, want, got)
+				}
+			}
+		})
+	}
 }

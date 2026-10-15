@@ -507,6 +507,7 @@
     "github.com/yveshanoulle/forsgren/internal/page/page.go:AnyIssueDayActive": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:AnyIssueRowActive": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:Menu": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/page.go:Noindex": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:markIf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:name": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:IssueTableRows": 100.0,
