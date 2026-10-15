@@ -487,4 +487,6 @@ Yves grouped the small work into one patch release (#111 and #77 turned out to b
 - **#172, the no-projects page** links https://forsgren.be/#configuration instead of a github.com docs path the repository-links gate refuses; a test runs that gate on a site rendered with no projects (7da2f8d).
 - **One refactor and the docs** (this commit): the FBP test's sandbox proof counts its own `run_fbp` calls instead of a hand-written number; the three tier-stripping proofs share one helper; docs/ci.md, CONTRIBUTING.md, docs/quality-gates.md, docs/configuration.md (the full usage), docs/pages-and-views.md, docs/development.md, agent-installer.md and CLAUDE.md.
 
+- **#193, the docs' usage copy is held to the code**: a test requires docs/configuration.md's usage block to equal what main.go prints, byte for byte, and names the first differing line (the next commit).
+
 What an installation sees: the complete usage text and the forsgren.be link on a page without projects. Everything else is forsgren's own checks.
