@@ -95,23 +95,40 @@ func (in summaryInput) markdown(stderr io.Writer) string {
 		in.token() + in.setup(stderr)
 }
 
-// tokenUnknown is the Token line for a run with no readable expiry date: a
-// token that has none, or a collect that failed before it learned one.
-const tokenUnknown = "- Token: days left unknown: GitHub named no expiry date in this run " +
-	"(a token without an expiry date, or collect could not ask: see the failed collect step)\n"
+// The Token lines of a token with no date to count from (forsgren#194): one
+// that collect could not ask about, the run's own token, and one that answered
+// without an expiry date.
+const (
+	unknownLine = "- Token: unknown: collect could not ask GitHub: see the failed collect step\n"
+	ownLine     = "- Token: the run's own token (GITHUB_TOKEN), renewed every run; nothing expires\n"
+	noDateLine  = "- Token: no expiry date: a personal token set to no expiration (or more than a year); " +
+		"a date under a year makes forsgren warn before it runs out\n"
+)
 
-// token says how long FORSGREN_TOKEN is still valid, from the date collect
-// wrote to --token-expiry (forsgren#185, decision #186): whole days from one
-// day left, whole hours under a day, "less than an hour" under an hour or
-// once the date has passed mid-run. Nothing without --token-expiry; an
-// unreadable file is the unknown line.
+// token says how long FORSGREN_TOKEN is still valid, from the line collect
+// wrote to --token-expiry (forsgren#185, decision #186, forsgren#194): whole
+// days from one day left, whole hours under a day, "less than an hour" under
+// an hour or once the date has passed mid-run; for no date, whether the token
+// is the run's own (renewed every run) or has none; and that collect could not
+// ask when the file is missing or unreadable. Nothing without --token-expiry.
 func (in summaryInput) token() string {
 	if in.tokenFile == "" {
 		return ""
 	}
-	expiry, known := readTokenExpiry(in.tokenFile)
+	return tokenLine(in.tokenFile)
+}
+
+// tokenLine is the Token line for the file at path (see token).
+func tokenLine(path string) string {
+	switch tokenFileLine(path) {
+	case expiryNoneRunOwn:
+		return ownLine
+	case expiryNone:
+		return noDateLine
+	}
+	expiry, known := readTokenExpiry(path)
 	if !known {
-		return tokenUnknown
+		return unknownLine
 	}
 	until := expiry.UTC().Format("2006-01-02 15:04 UTC")
 	left := expiry.Sub(now())

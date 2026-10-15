@@ -65,6 +65,8 @@ type Client struct {
 	expiry time.Time
 	// unreadable is the first expiry header value that was no date, "" for none.
 	unreadable string
+	// answered is whether a call got a 2xx answer (tokenexpiry.go).
+	answered bool
 }
 
 // defaultTokenName is the token a refusal names unless WithTokenName says
@@ -205,6 +207,7 @@ func (c *Client) do(ctx context.Context, k call) ([]byte, http.Header, error) {
 	if err := statusError(t, resp, c.tokenName); err != nil {
 		return nil, nil, err
 	}
+	c.answered = true
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBody))
 	if err != nil {
 		return nil, nil, fmt.Errorf("%s: %w for %s: %w", t.repo, ErrAnswer, t.path(), err)

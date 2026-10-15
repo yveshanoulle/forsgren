@@ -50,19 +50,59 @@ func TestCollectWritesTheTokenExpiryToTheFile(t *testing.T) {
 	}
 }
 
-// TestCollectRemovesTheTokenExpiryFileWhenNoExpiryIsKnown (forsgren#177): an
-// answer without the header (route A, a token that never expires) leaves no
-// file, and takes a stale one away.
-func TestCollectRemovesTheTokenExpiryFileWhenNoExpiryIsKnown(t *testing.T) {
+// TestCollectReplacesAStaleTokenExpiryFileWithNoExpiry (forsgren#177, #194):
+// an answer without the header (route A, a token that never expires) takes a
+// stale file away and writes no-expiry in its place: the token answered, and
+// has no date.
+func TestCollectReplacesAStaleTokenExpiryFileWithNoExpiry(t *testing.T) {
 	t.Setenv("FORSGREN_TOKEN", testToken)
 	fakeAPI(t, acmeApp, 0)
-	file := expiryFile(t)
-	if err := os.WriteFile(file, []byte("2020-01-01T00:00:00Z\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	file := staleExpiry(t)
 	got := collectOneRepository(t, "--token-expiry", file)
-	if _, err := os.Stat(file); got.code != 0 || !errors.Is(err, fs.ErrNotExist) {
-		t.Errorf("want exit 0 and no file, got %+v and %v", got, err)
+	if content, err := os.ReadFile(filepath.Clean(file)); got.code != 0 || err != nil || string(content) != "no-expiry\n" {
+		t.Errorf("want exit 0 and the file no-expiry, got %+v, %q and %v", got, content, err)
+	}
+}
+
+// TestCollectNotesATokenWithoutAnExpiryDate (forsgren#194): when the token
+// answered without a date, the file says no-expiry, and no-expiry run-token
+// when the token is the job's own (ghs_); the token itself, or any part of it
+// beyond that word, is never in the file.
+func TestCollectNotesATokenWithoutAnExpiryDate(t *testing.T) {
+	cases := map[string]struct{ token, want string }{
+		"a run token":    {"ghs_runtokensecret", "no-expiry run-token\n"},
+		"a personal":     {testToken, "no-expiry\n"},
+		"a fine-grained": {"github_pat_secretsecret", "no-expiry\n"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("FORSGREN_TOKEN", c.token)
+			fakeAPI(t, acmeApp, 0)
+			file := expiryFile(t)
+			got := collectOneRepository(t, "--token-expiry", file)
+			content, err := os.ReadFile(filepath.Clean(file))
+			if got.code != 0 || err != nil || string(content) != c.want {
+				t.Errorf("want exit 0 and %q, got %+v, %q and %v", c.want, got, content, err)
+			}
+			if strings.Contains(string(content)+got.stdout+got.stderr, strings.TrimPrefix(c.token, "ghs_")) {
+				t.Errorf("want nothing of the token in the file or the log, got %q", content)
+			}
+		})
+	}
+}
+
+// TestNoExpiryFilesAreAnUnknownDateToCheckNeeds (forsgren#194): the two
+// no-expiry lines hold no date, so readTokenExpiry says unknown and the setup
+// issue's renewal item behaves as it did with no file.
+func TestNoExpiryFilesAreAnUnknownDateToCheckNeeds(t *testing.T) {
+	for _, line := range []string{"no-expiry\n", "no-expiry run-token\n"} {
+		path := filepath.Join(t.TempDir(), "token-expiry")
+		if err := os.WriteFile(path, []byte(line), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if at, known := readTokenExpiry(path); known {
+			t.Errorf("%q: want an unknown date, got %v", line, at)
+		}
 	}
 }
 

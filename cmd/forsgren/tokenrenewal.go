@@ -16,10 +16,20 @@ import (
 // (no readable date) keeps the item the open setup issue carries and never
 // makes one.
 
+// tokenFileLine is the one line of the file at path, "" when it cannot be read.
+func tokenFileLine(path string) string {
+	raw, err := os.ReadFile(filepath.Clean(path))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(raw))
+}
+
 // readTokenExpiry is the expiry date in the file at path, which collect
 // --token-expiry wrote (writeTokenExpiry): one RFC 3339 line. It says false
 // for no path, a file that is missing or unreadable and one that holds no
-// such date: the expiry is then unknown.
+// such date, the lines expiryNone and expiryNoneRunOwn among them: the
+// expiry is then unknown.
 func readTokenExpiry(path string) (time.Time, bool) {
 	if path == "" {
 		return time.Time{}, false

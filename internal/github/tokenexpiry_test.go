@@ -125,3 +125,37 @@ func TestOnlyTheInstallationsTokenFeedsTheExpiry(t *testing.T) {
 		t.Errorf("want no unreadable value from the job's token, got %q", got)
 	}
 }
+
+// TestTheClientKnowsWhetherGitHubAnsweredItsToken (forsgren#194): a 2xx
+// answer, with or without the expiry header, says the token was accepted; a
+// client that has asked nothing, and one whose token was refused, have not
+// been answered.
+func TestTheClientKnowsWhetherGitHubAnsweredItsToken(t *testing.T) {
+	f := newFake(t)
+	f.on("/repos/acme/app", reply{body: `{"default_branch":"main"}`})
+	c := f.client(t, 1)
+	if c.Answered() {
+		t.Error("want no answer before any call")
+	}
+	if _, err := c.DefaultBranch(t.Context(), "acme/missing"); err == nil || c.Answered() {
+		t.Errorf("want a refused call not to count as an answer, got %v and answered %v", err, c.Answered())
+	}
+	if _, err := c.DefaultBranch(t.Context(), "acme/app"); err != nil || !c.Answered() {
+		t.Errorf("want a 2xx answer to count, got %v and answered %v", err, c.Answered())
+	}
+}
+
+// TestOnlyAGhsPrefixMakesARunToken (forsgren#194): the token a job gets from
+// GitHub starts with ghs_; any other, a personal token among them, is not.
+func TestOnlyAGhsPrefixMakesARunToken(t *testing.T) {
+	cases := map[string]bool{"ghs_abc123": true, "github_pat_abc": false, "ghp_abc": false, "xghs_abc": false, "": false}
+	for token, want := range cases {
+		c, err := New("https://api.github.com", token, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := c.IsRunToken(); got != want {
+			t.Errorf("token starting %.4q: want run token %v, got %v", token, want, got)
+		}
+	}
+}

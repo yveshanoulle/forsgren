@@ -233,17 +233,20 @@ func TestAStatusThatCannotBeWrittenIsANoteNotAnError(t *testing.T) {
 	wantLookup(t, "7\n", "cannot write the status", "waiting-pull-request", "--version", "0.0.10", "--status", missing)
 }
 
-// TestRunSummaryTellsHowLongTheTokenIsValid (forsgren#185, decision #186):
-// the Token line counts whole days from one day left, whole hours under a
-// day, says less than an hour under an hour (or once the date has passed
-// mid-run), and names the unknown when no date can be read. Without
-// --token-expiry there is no line.
+// TestRunSummaryTellsHowLongTheTokenIsValid (forsgren#185, decision #186,
+// forsgren#194): the Token line counts whole days from one day left, whole
+// hours under a day, says less than an hour under an hour (or once the date
+// has passed mid-run), tells the run's own token from one with no expiry date,
+// and says collect could not ask when the file is missing or unreadable.
+// Without --token-expiry there is no line.
 func TestRunSummaryTellsHowLongTheTokenIsValid(t *testing.T) {
 	old := now
 	now = func() time.Time { return time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC) }
 	t.Cleanup(func() { now = old })
-	const unknown = "- Token: days left unknown: GitHub named no expiry date in this run " +
-		"(a token without an expiry date, or collect could not ask: see the failed collect step)\n"
+	const unknown = "- Token: unknown: collect could not ask GitHub: see the failed collect step\n"
+	const ownLine = "- Token: the run's own token (GITHUB_TOKEN), renewed every run; nothing expires\n"
+	const noDate = "- Token: no expiry date: a personal token set to no expiration (or more than a year); " +
+		"a date under a year makes forsgren warn before it runs out\n"
 	const lessThanAnHour = "- Token: valid for less than an hour (until "
 	cases := []struct{ name, file, want string }{
 		{"days", "2026-10-11T12:00:00Z\n", "- Token: valid for 10 more days (until 2026-10-11)\n"},
@@ -252,6 +255,8 @@ func TestRunSummaryTellsHowLongTheTokenIsValid(t *testing.T) {
 		{"1 hour rounded down", "2026-10-01T13:59:59Z\n", "- Token: valid for 1 more hour (until 2026-10-01 13:59 UTC)\n"},
 		{"less than an hour", "2026-10-01T12:59:59Z\n", lessThanAnHour + "2026-10-01 12:59 UTC)\n"},
 		{"already passed", "2026-10-01T11:00:00Z\n", lessThanAnHour + "2026-10-01 11:00 UTC)\n"},
+		{"run token", "no-expiry run-token\n", ownLine},
+		{"no expiry date", "no-expiry\n", noDate},
 		{"not a date", "banana\n", unknown},
 		{"no file", "", unknown},
 	}

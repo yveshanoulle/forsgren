@@ -47,3 +47,16 @@ func (c *Client) noteExpiry(h http.Header) {
 // answers so far, that was not a date, and whether there was one; what a run
 // notes once.
 func (c *Client) UnreadableTokenExpiry() (string, bool) { return c.unreadable, c.unreadable != "" }
+
+// Answered says whether GitHub has answered a call with a 2xx status, so the
+// token was accepted: a token without an expiry date is then one that has
+// none, not one that never asked (forsgren#194).
+func (c *Client) Answered() bool { return c.answered }
+
+// IsRunToken says whether the token is a job's own, which GitHub creates for
+// every run: its first characters are ghs_. It looks at that prefix only and
+// shows nothing of the token (forsgren#194).
+func (c *Client) IsRunToken() bool { return strings.HasPrefix(c.token, runTokenPrefix) }
+
+// runTokenPrefix starts the token GitHub creates for a job.
+const runTokenPrefix = "ghs_"

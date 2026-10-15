@@ -41,8 +41,8 @@ func tokenExpiryMessage(expiry, at time.Time) (string, bool) {
 }
 
 // removeTokenExpiry removes the expiry file of an earlier run at path, the
-// first thing collect does: whatever then fails leaves no file, which
-// check-needs reads as unknown, never as an old run's date. No path, or no
+// first thing collect does: whatever then fails before the token is answered
+// leaves no file, which check-needs reads as unknown, never as an old run's date. No path, or no
 // file, is nothing to do; a file that cannot be removed is an error.
 func removeTokenExpiry(path string) error {
 	if path == "" {
@@ -54,21 +54,50 @@ func removeTokenExpiry(path string) error {
 	return nil
 }
 
-// writeTokenExpiry writes the expiry date client's token has to path, one
-// UTC RFC 3339 line, whole or not at all: it is written to path+".tmp" and
-// renamed over path, and the temporary file is removed when that fails. A
-// token without an expiry date (or the job's own) leaves no file; the file of
-// an earlier run was removed at the start (removeTokenExpiry). The date of
-// this run's own answers is written even when a repository failed after the
-// token answered: it is this run's observation, not an old one. No path is
-// nothing to do (forsgren#177).
+// The two lines the --token-expiry file holds besides a date (forsgren#194):
+// the token answered GitHub and has no expiry date, and, when it is the job's
+// own token (GITHUB_TOKEN, route A), that it is renewed every run.
+const (
+	expiryNone       = "no-expiry"
+	expiryNoneRunOwn = "no-expiry run-token"
+)
+
+// tokenExpiryLine is the one line client's token has to leave in the file: its
+// UTC RFC 3339 expiry date, else, once GitHub answered it without a date,
+// expiryNone or expiryNoneRunOwn; none for a token that never got an
+// answer, and none when a header was sent that is no date (it may have one).
+// Of the token itself nothing is read but whether it is a run token.
+func tokenExpiryLine(client *github.Client) (string, bool) {
+	if at, known := client.TokenExpiry(); known {
+		return at.UTC().Format(time.RFC3339), true
+	}
+	if _, unreadable := client.UnreadableTokenExpiry(); unreadable {
+		return "", false
+	}
+	switch {
+	case client.IsRunToken() && client.Answered():
+		return expiryNoneRunOwn, true
+	case client.Answered():
+		return expiryNone, true
+	}
+	return "", false
+}
+
+// writeTokenExpiry writes what client's token has to say about its expiry to
+// path, one line (tokenExpiryLine), whole or not at all: it is written to
+// path+".tmp" and renamed over path, and the temporary file is removed when
+// that fails. A collect whose token never got an answer leaves no file; the
+// file of an earlier run was removed at the start (removeTokenExpiry). What
+// this run's own answers say is written even when a repository failed after
+// the token answered: it is this run's observation, not an old one. No path is
+// nothing to do (forsgren#177, #194).
 func writeTokenExpiry(path string, client *github.Client) error {
-	at, known := client.TokenExpiry()
+	line, known := tokenExpiryLine(client)
 	if path == "" || !known {
 		return nil
 	}
 	temp := path + ".tmp"
-	err := os.WriteFile(temp, []byte(at.UTC().Format(time.RFC3339)+"\n"), 0o600)
+	err := os.WriteFile(temp, []byte(line+"\n"), 0o600)
 	if err == nil {
 		err = os.Rename(temp, path)
 	}

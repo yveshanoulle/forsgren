@@ -509,7 +509,9 @@ date to the file, as one UTC RFC 3339 line such as `2027-01-12T08:35:47Z`.
 `check-needs` reads it from there. `collect` removes the file of an earlier
 run before anything else, so a run that fails (no token, a refused token, a
 bad config) leaves none and `check-needs` sees an unknown date, never an old
-one; a token without an expiry date leaves none either. The file is written
+one. A token that answered without an expiry date makes the file say `no-expiry`, or `no-expiry run-token` when it is the job's own token (it starts with `ghs_`, and
+nothing else of the token is looked at or written); `check-needs` reads both as an unknown
+date. The file is written
 whole (beside it, then renamed over it). A file that cannot be written or
 removed fails the run. From 14 days before the date, and once it has passed, `collect` also
 warns on stderr: a `collect: warning:` line that names the date and the
