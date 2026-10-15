@@ -98,6 +98,9 @@ type Data struct {
 	// Hidden are the pages the site leaves out, by page name (IssuesPage,
 	// DaysPage); the zero value hides none (forsgren#159).
 	Hidden map[string]bool
+	// Unlisted are the pages the site writes but leaves out of the menu, by
+	// page name as Hidden has them; the zero value lists all (forsgren#200).
+	Unlisted map[string]bool
 }
 
 // Row is one row of the table: its numbers, the heading the page gives it,
@@ -346,12 +349,12 @@ func (p pageData) folderEntries() []menuItem {
 	return menu
 }
 
-// rootEntries are the menu's entries of the rootPages the site shows, the
-// page's own marked "page".
+// rootEntries are the menu's entries of the rootPages the site lists (not
+// hidden, not unlisted: forsgren#200), the page's own marked "page".
 func (p pageData) rootEntries() []menuItem {
 	menu := make([]menuItem, 0, len(rootPages))
 	for _, root := range rootPages {
-		if !p.Hidden[root.Name] {
+		if !p.Hidden[root.Name] && !p.Unlisted[root.Name] {
 			menu = append(menu, menuItem{root.Name + ".html", root.Label, markIf(root.Name == p.Page, "page")})
 		}
 	}
