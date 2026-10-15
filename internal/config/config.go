@@ -195,6 +195,9 @@ type Config struct {
 	// generated, false when the file has no numbers_scoring_page key
 	// (forsgren#55).
 	NumbersScoringPage bool
+	// HistoryPage is whether the history page is generated, true when the
+	// file has no history_page key (forsgren#68).
+	HistoryPage bool
 	// written is the optional keys the file writes, by key (forsgren#74).
 	written  map[string]bool
 	Projects []Project
@@ -261,6 +264,7 @@ var (
 	ErrIssuesPage          = errors.New("invalid issues_page")
 	ErrDaysPage            = errors.New("invalid days_page")
 	ErrNumbersScoringPage  = errors.New("invalid numbers_scoring_page")
+	ErrHistoryPage         = errors.New("invalid history_page")
 )
 
 // Load reads and validates the config file at path. Every error names the
@@ -313,11 +317,13 @@ type fileConfig struct {
 	WorkingHours yaml.Node `yaml:"working_hours"`
 	// DoraDays is the node as written, like HistoryDays (forsgren#178).
 	DoraDays yaml.Node `yaml:"dora_days"`
-	// IssuesPage, DaysPage and NumbersScoringPage are the nodes as written,
-	// so a non-boolean is refused by name (forsgren#159, forsgren#55).
+	// IssuesPage, DaysPage, NumbersScoringPage and HistoryPage are the nodes
+	// as written, so a non-boolean is refused by name (forsgren#159,
+	// forsgren#55, forsgren#68).
 	IssuesPage         yaml.Node     `yaml:"issues_page"`
 	DaysPage           yaml.Node     `yaml:"days_page"`
 	NumbersScoringPage yaml.Node     `yaml:"numbers_scoring_page"`
+	HistoryPage        yaml.Node     `yaml:"history_page"`
 	Projects           []fileProject `yaml:"projects"`
 }
 
@@ -423,6 +429,7 @@ var settingKeys = []settingKey{
 	{"issues_page", "true", func(c Config) string { return strconv.FormatBool(c.IssuesPage) }},
 	{"days_page", "false", func(c Config) string { return strconv.FormatBool(c.DaysPage) }},
 	{"numbers_scoring_page", "false", func(c Config) string { return strconv.FormatBool(c.NumbersScoringPage) }},
+	{"history_page", "true", func(c Config) string { return strconv.FormatBool(c.HistoryPage) }},
 }
 
 // Settings lists every optional key in the order of settingKeys: the value

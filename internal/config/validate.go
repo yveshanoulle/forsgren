@@ -49,13 +49,14 @@ func (f fileConfig) settings() Config {
 	issues, issuesRejection := issuesPage.value(f.IssuesPage)
 	daysOn, daysOnRejection := daysPage.value(f.DaysPage)
 	numbersScoring, numbersScoringRejection := numbersScoringPage.value(f.NumbersScoringPage)
+	historyOn, historyRejection := historyPage.value(f.HistoryPage)
 	rejected := rejections(viewRejection, autoRejection, levelRejection, daysRejection, chunkRejection, hoursRejection,
-		doraRejection, issuesRejection, daysOnRejection, numbersScoringRejection)
+		doraRejection, issuesRejection, daysOnRejection, numbersScoringRejection, historyRejection)
 	written := f.written(rejected)
 	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level,
 		HistoryDays: days, HistoryChunkDays: chunk, WorkingHours: hours, WorkingHoursSet: written["working_hours"],
 		DoraDays: doraDays, DoraDaysSet: written["dora_days"], IssuesPage: issues, DaysPage: daysOn,
-		NumbersScoringPage: numbersScoring, written: written, Rejected: rejected}
+		NumbersScoringPage: numbersScoring, HistoryPage: historyOn, written: written, Rejected: rejected}
 }
 
 // rejections are the non-nil rejections, in the order of settingKeys, the
@@ -80,7 +81,8 @@ func (f fileConfig) written(rejected []Rejection) map[string]bool {
 	for key, node := range map[string]yaml.Node{"view": f.View, "auto_update": f.AutoUpdate,
 		"auto_update_level": f.AutoUpdateLevel, "history_days": f.HistoryDays,
 		"history_chunk_days": f.HistoryChunkDays, "working_hours": f.WorkingHours, "dora_days": f.DoraDays,
-		"issues_page": f.IssuesPage, "days_page": f.DaysPage, "numbers_scoring_page": f.NumbersScoringPage} {
+		"issues_page": f.IssuesPage, "days_page": f.DaysPage, "numbers_scoring_page": f.NumbersScoringPage,
+		"history_page": f.HistoryPage} {
 		keys = mark(keys, key, hasValue(node))
 	}
 	for _, r := range rejected {
@@ -213,6 +215,7 @@ var (
 	issuesPage         = booleanKey{ErrIssuesPage, "issues_page", true}
 	daysPage           = booleanKey{ErrDaysPage, "days_page", false}
 	numbersScoringPage = booleanKey{ErrNumbersScoringPage, "numbers_scoring_page", false}
+	historyPage        = booleanKey{ErrHistoryPage, "history_page", true}
 )
 
 // value is the key as written, its default when the file has none (a key

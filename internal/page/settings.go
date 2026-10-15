@@ -26,6 +26,7 @@ var possibleValues = map[string]string{
 	"issues_page":          booleanValues,
 	"days_page":            booleanValues,
 	"numbers_scoring_page": booleanValues,
+	"history_page":         booleanValues,
 }
 
 // doraWindows are the windows dora_days can name, as the page lists them.

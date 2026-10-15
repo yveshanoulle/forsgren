@@ -114,3 +114,34 @@ func TestRejectedNumbersScoringPageIsListedLast(t *testing.T) {
 		t.Errorf("want rejections %v, got %v", want, keys)
 	}
 }
+
+// TestHistoryPageDefaultsToTrueAndRejectsOtherValues (forsgren#68): the
+// optional history_page key is on when it is left out or has no value, as
+// written otherwise; a value that is not the YAML boolean true or false is
+// not accepted: the page stays on, the key counts as not written, and the
+// rejection names the key, the valid values and the default true.
+func TestHistoryPageDefaultsToTrueAndRejectsOtherValues(t *testing.T) {
+	cases := []struct {
+		name, file, rejected string
+		want                 bool
+	}{
+		{"absent", valid, "", true},
+		{"on", "history_page: true\n" + valid, "", true},
+		{"off", "history_page: false\n" + valid, "", false},
+		{"after the projects", valid + "history_page: false\n", "", false},
+		{"no value", "history_page:\n" + valid, "", true},
+		{"yes", "history_page: yes\n" + valid, "yes", true},
+		{"quoted", "history_page: \"false\"\n" + valid, "false", true},
+		{"a number", "history_page: 0\n" + valid, "0", true},
+	}
+	for _, tc := range cases {
+		got, err := parse([]byte(tc.file))
+		if err != nil || got.HistoryPage != tc.want {
+			t.Errorf("%s: want history_page %v and no error, got %v, %v", tc.name, tc.want, got.HistoryPage, err)
+		}
+		if tc.rejected != "" {
+			wantRejection(t, got.Rejected, ErrHistoryPage,
+				[4]string{"history_page", tc.rejected, "use true or false", "true"})
+		}
+	}
+}
