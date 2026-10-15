@@ -56,7 +56,7 @@ func render(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return failed(stderr, "render", err)
 	}
-	data, err := pageData(o, at)
+	data, err := pageData(o, at, stderr)
 	if err != nil {
 		return failed(stderr, "render", err)
 	}
@@ -85,8 +85,9 @@ func renderTime() (time.Time, error) {
 	return time.Unix(seconds, 0), nil
 }
 
-// pageData is what the page shows for the options at the render time at.
-func pageData(o renderOptions, at time.Time) (page.Data, error) {
+// pageData is what the page shows for the options at the render time at; a
+// setting of the config that is not accepted is warned about on stderr.
+func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error) {
 	data := page.Placeholder(version)
 	data.AsOf = at.UTC().Format(calculatedLayout)
 	data.Latest, data.WaitingPR = o.latest, o.waitingPR
@@ -95,7 +96,7 @@ func pageData(o renderOptions, at time.Time) (page.Data, error) {
 	if o.config == "" {
 		return data, nil
 	}
-	cfg, err := config.Load(o.config)
+	cfg, err := loadConfig(o.config, stderr)
 	if err != nil {
 		return data, err
 	}
