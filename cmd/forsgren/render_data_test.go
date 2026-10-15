@@ -28,10 +28,17 @@ const (
 )
 
 // pinNow sets render's clock to renderNow for this test only.
-func pinNow(t *testing.T) {
+func pinNow(t *testing.T) { pinClock(t, renderNow) }
+
+// pinClock sets render's clock to at for this test only. It also empties
+// SOURCE_DATE_EPOCH, which beats the clock in renderTime, so a developer's or
+// a runner's reproducible-builds variable never reaches the goldens
+// (forsgren#163); a test of that variable sets it after pinClock.
+func pinClock(t *testing.T, at time.Time) {
 	t.Helper()
+	t.Setenv(sourceDateEpoch, "")
 	old := now
-	now = func() time.Time { return renderNow }
+	now = func() time.Time { return at }
 	t.Cleanup(func() { now = old })
 }
 
@@ -209,10 +216,8 @@ func TestRenderDataNeedsConfig(t *testing.T) {
 // UTC whatever zone the clock is in (here 01:19 on the 4th is still the 3rd
 // in UTC), cut off (never rounded up) at the minute.
 func TestRenderShowsTheMinuteOfTheCalculationInUTC(t *testing.T) {
-	old := now
 	zone := time.FixedZone("CEST", 2*60*60)
-	now = func() time.Time { return time.Date(2026, 10, 4, 1, 19, 59, 0, zone) }
-	t.Cleanup(func() { now = old })
+	pinClock(t, time.Date(2026, 10, 4, 1, 19, 59, 0, zone))
 	_, _, index := renderWith(t, "--config", writeAllPagesConfig(t, validConfig), "--data", writeHistory(t, acmeHistory()))
 	const want = "Calculated at 2026-10-03 23:19 UTC</p>"
 	if !strings.Contains(index, want) {
@@ -247,9 +252,7 @@ func TestRenderShowsTheCalculationTimeOnEveryRun(t *testing.T) {
 // script pins the page's time through SOURCE_DATE_EPOCH, whatever the clock
 // says; a value that is not Unix seconds fails the render.
 func TestRenderTimeFollowsSourceDateEpoch(t *testing.T) {
-	old := now
-	now = func() time.Time { return time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC) }
-	t.Cleanup(func() { now = old })
+	pinClock(t, time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC))
 	t.Setenv(sourceDateEpoch, strconv.FormatInt(renderNow.Unix(), 10))
 	if _, _, index := renderWith(t); !strings.Contains(index, "Calculated at 2026-10-03 12:00 UTC</p>") {
 		t.Errorf("want the pinned time in the footer, got:\n%s", index)
@@ -257,5 +260,16 @@ func TestRenderTimeFollowsSourceDateEpoch(t *testing.T) {
 	t.Setenv(sourceDateEpoch, "yesterday")
 	if code, stderr, _ := renderWith(t); code != 1 || !strings.Contains(stderr, sourceDateEpoch) {
 		t.Errorf("want exit 1 naming %s, got %d, %q", sourceDateEpoch, code, stderr)
+	}
+}
+
+// TestPinnedClockIgnoresSourceDateEpochInTheEnvironment (forsgren#163): a
+// SOURCE_DATE_EPOCH exported for an unrelated reason must not change the
+// render time of a test that pinned the clock with pinNow.
+func TestPinnedClockIgnoresSourceDateEpochInTheEnvironment(t *testing.T) {
+	t.Setenv(sourceDateEpoch, "1")
+	pinNow(t)
+	if _, _, index := renderWith(t); !strings.Contains(index, "Calculated at 2026-10-03 12:00 UTC</p>") {
+		t.Errorf("want the pinned clock in the footer, got:\n%s", index)
 	}
 }

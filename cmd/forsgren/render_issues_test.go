@@ -80,9 +80,7 @@ func TestRenderShowsTheYearRowsOnTheIssuesPage(t *testing.T) {
 // numbered from 1, and returns the site's folder.
 func renderOn14October(t *testing.T, days ...string) string {
 	t.Helper()
-	old := now
-	now = func() time.Time { return time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC) }
-	t.Cleanup(func() { now = old })
+	pinClock(t, time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC))
 	data := writeHistory(t, acmeHistory())
 	var events []history.IssueEvent
 	for i, day := range days {
