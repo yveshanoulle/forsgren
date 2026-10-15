@@ -42,7 +42,8 @@ The page shows its band with the rate and the rework deployments:
 - the history in `data/` (deployments, commits, failure issues and issue
   events), which the metrics are calculated from
 - a static page with the metrics table in three views (standard, numbers,
-  scoring), the Issues and Daily pages (each can be hidden with `issues_page` and
+  scoring), an optional Numbers and scoring page (each metric's number and
+  score in one cell, shown with `numbers_scoring_page: true`), the Issues and Daily pages (each can be hidden with `issues_page` and
   `days_page`; Daily is hidden by default) with their Open and Open bugs
   columns and trend arrows, and the Settings and Legend pages, safe to publish: numbers and
   dates only, no issue titles, no links into private repositories

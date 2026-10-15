@@ -1,9 +1,11 @@
 package page
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -67,6 +69,10 @@ func placeholderHiding(hidden map[string]bool) Data {
 	data.Hidden = hidden
 	return data
 }
+
+// hideNumbersScoring is the Data.Hidden of a site that hides the numbers and
+// scoring page only (forsgren#55).
+func hideNumbersScoring() map[string]bool { return map[string]bool{viewNumbersScoring: true} }
 
 // writeStale leaves an old days.html and issues.html in dir.
 func writeStale(t *testing.T, dir string) {
@@ -178,7 +184,7 @@ const (
 // sentence on numbers_scoring_page and says under Scores what the page shows,
 // the same text whether the page is shown or hidden.
 func TestLegendExplainsTheNumbersAndScoringPageWhateverIsHidden(t *testing.T) {
-	for name, hide := range map[string]map[string]bool{"shown": nil, "hidden": {viewNumbersScoring: true}} {
+	for name, hide := range map[string]map[string]bool{"shown": nil, "hidden": hideNumbersScoring()} {
 		data := calculated()
 		data.Hidden = hide
 		html := rendered(t, "legend.html", data)
@@ -195,7 +201,7 @@ func TestLegendExplainsTheNumbersAndScoringPageWhateverIsHidden(t *testing.T) {
 // in a reused out dir is removed with its folder once empty, and a folder
 // that holds something else keeps it; the other eight pages are written.
 func TestWriteSiteLeavesOutAHiddenNumbersAndScoringPage(t *testing.T) {
-	hidden := placeholderHiding(map[string]bool{viewNumbersScoring: true})
+	hidden := placeholderHiding(hideNumbersScoring())
 	for name, other := range map[string]string{"empty folder": "", "folder with another file": "keep.txt"} {
 		t.Run(name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -236,8 +242,19 @@ func writeStaleFolder(t *testing.T, dir, other string) string {
 // file and no folder in a fresh out dir is no error, and none is made.
 func TestWriteSiteHidesANumbersAndScoringPageThatWasNeverWritten(t *testing.T) {
 	dir := t.TempDir()
-	if n, err := WriteSite(dir, placeholderHiding(map[string]bool{viewNumbersScoring: true})); err != nil || n != 8 {
+	if n, err := WriteSite(dir, placeholderHiding(hideNumbersScoring())); err != nil || n != 8 {
 		t.Errorf("want 8 pages and no error, got %d, %v", n, err)
 	}
 	wantGone(t, dir, []string{viewNumbersScoring})
+}
+
+// TestRemoveEmptyFolderFailsOnAnyOtherError (forsgren#55): only "not empty"
+// and "not there" leave a page's folder without an error; any other failure
+// of the removal is returned. A NUL byte in the folder's name makes the
+// removal fail the same way on every system and for every user, root
+// included, which a read-only out dir does not.
+func TestRemoveEmptyFolderFailsOnAnyOtherError(t *testing.T) {
+	if err := removeEmptyFolder(siteDir(t.TempDir()), "numbers\x00scoring/index.html"); !errors.Is(err, syscall.EINVAL) {
+		t.Errorf("want the failed removal as the error, got %v", err)
+	}
 }

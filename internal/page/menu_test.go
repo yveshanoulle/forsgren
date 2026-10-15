@@ -82,7 +82,7 @@ func TestEveryPageOpensWithTheMenu(t *testing.T) {
 // page's menu, and the other entries stay in their order.
 func TestMenuLeavesOutNumbersAndScoringWhenHidden(t *testing.T) {
 	data := viewData()
-	data.Hidden = map[string]bool{viewNumbersScoring: true}
+	data.Hidden = hideNumbersScoring()
 	for page, next := range map[string]string{"index.html": `Scoring</a> · <a href="issues.html">`,
 		"scoring/index.html": `Scoring</span> · <a href="../issues.html">`,
 		"issues.html":        `Scoring</a> · <span aria-current="page">Issues`} {

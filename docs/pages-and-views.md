@@ -366,7 +366,7 @@ version that built the page, the version line adds it, "Forsgren 1.6.2 ·
 0.3.9 is available" (forsgren#40; nothing is added when the page is up to
 date, and no repository appears). The numbers are compared as numbers, so 0.0.10
 is newer than 0.0.9. On every page the footer's paragraph is followed by
-two links on one line, "Settings" and "Legend", to the settings page and the legend (forsgren#83, #84, #128). The footer is the same on all eight pages, so the settings page and the legend link to themselves too (Yves's ruling on decision #133).
+two links on one line, "Settings" and "Legend", to the settings page and the legend (forsgren#83, #84, #128). The footer is the same on every page, so the settings page and the legend link to themselves too (Yves's ruling on decision #133).
 
 `render` writes one table (forsgren#38) first on the table page, with no text
 above it but the page's heading, "DORA metrics" (forsgren#135; the version is
@@ -402,7 +402,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   and the count it is over, "Less than one day · 2 h 7 min (48)"; the
   weekend deployments have their own column. Durations are in min, h and d,
   each part cut down, never rounded up.
-- **Pages:** up to eight pages are written: `index.html`, `legend.html`, `settings.html`, `issues.html`, `days.html` and the three views. Every page opens with one menu, "View: Standard · Numbers · Scoring · Issues · Daily" (forsgren#128, decision #133): the three views, then the issues page, `issues.html`, and the days page, `days.html`, labelled Daily; one folder down its links go through `../`. The current page is plain text marked `aria-current="page"`; the root marks the view it shows `aria-current="true"` (see Views), and the settings and legend pages mark none. No page has a link back to the table, since the menu reaches it, and every page ends with the same footer, the version line and then Settings and Legend. The Issues and Daily pages can be hidden (forsgren#159): `issues_page: false` leaves out `issues.html` and `days_page: false` leaves out `days.html`; a hidden page is not generated, is removed from the site if an earlier run wrote it, and has no entry in the menu. The defaults are `issues_page: true` and `days_page: false`, so the Daily page appears only with `days_page: true`. A render without a config, as forsgren's own build, writes all eight. The legend explains both keys on every page set, shown or hidden. Up to 0.8.3 the days page was `issues.html` and the issues page `months.html`; 0.8.4 renamed them with no redirect (decision #133), and `months.html` is gone.
+- **Pages:** up to nine pages are written: `index.html`, `legend.html`, `settings.html`, `issues.html`, `days.html`, the three views and the Numbers and scoring page. Every page opens with one menu, "View: Standard · Numbers · Scoring · Numbers and scoring · Issues · Daily" (forsgren#128, decision #133, forsgren#55): the three views, then the Numbers and scoring page, `numbers-scoring/`, then the issues page, `issues.html`, and the days page, `days.html`, labelled Daily; one folder down its links go through `../`. The current page is plain text marked `aria-current="page"`; the root marks the view it shows `aria-current="true"` (see Views), and the settings and legend pages mark none. No page has a link back to the table, since the menu reaches it, and every page ends with the same footer, the version line and then Settings and Legend. The Issues and Daily pages can be hidden (forsgren#159): `issues_page: false` leaves out `issues.html` and `days_page: false` leaves out `days.html`; a hidden page is not generated, is removed from the site if an earlier run wrote it, and has no entry in the menu. The defaults are `issues_page: true` and `days_page: false`, so the Daily page appears only with `days_page: true`. The Numbers and scoring page is hidden the same way unless `numbers_scoring_page: true` (forsgren#55): by default it is not generated, its folder is removed once empty, and the menu has no entry for it. A render without a config, as forsgren's own build, writes all nine. The legend explains the three keys on every page set, shown or hidden. Up to 0.8.3 the days page was `issues.html` and the issues page `months.html`; 0.8.4 renamed them with no redirect (decision #133), and `months.html` is gone.
 - **Views** (forsgren#46): the table is built in more than one view, each its
   own page: `/standard/` (`standard/index.html`) is the table above, band,
   number and count, and `/numbers/` (`numbers/index.html`) shows only
@@ -432,10 +432,30 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   Performance: the mean of the scored metrics to one decimal, `-` when none
   is scored. A `0` score is performance in the lowest band, never missing
   data. The menu names it, as it names the other two.
+- **The Numbers and scoring page** (`/numbers-scoring/`,
+  `numbers-scoring/index.html`, forsgren#55, decision #187) puts the numbers
+  view and the scoring view together: each metric cell is its number, as the
+  numbers view shows it, then " · ", then its score, as the scoring view
+  shows it: `12 · 6`, `7% · 9.3`, `0% · 10`, `2 h 7 min · 8`. A metric with
+  no data is a single `-`, never `- · -`; deployment frequency of a project
+  that never had a successful deployment is `0 · -`, its real zero count and
+  no score, and a row with no deployments recorded is six cells, never a
+  sentence. The last column is Overall Performance, as on `/scoring/`: the
+  mean of the scored metrics to one decimal, `-` when none is scored. There
+  is no Weekend deployments column. The cells follow the DORA window
+  (`dora_days`), since both halves come from the same row. The menu names it
+  "Numbers and scoring", after Scoring and before Issues; on its own page
+  the entry is plain text with `aria-current="page"`. It is hidden by
+  default: only `numbers_scoring_page: true` (see
+  [Configuration](configuration.md#configuration)) generates it and its
+  menu entry. It is not a view: `view:` cannot name it, so the root never
+  shows it.
 - **The legend** (`legend.html`, titled "Legend", forsgren#128) gives each metric's bands in one compact
   list (recovery time's are lead time's, and rework rate's are change fail
   rate's, so it refers to them), with what each cell counts and its window;
-  its last section, Scores, says what the scoring view shows and credits the
+  its last section, Scores, says what the scoring view shows, that "The
+  Numbers and scoring page, when it is shown, has the number and the score of
+  each metric in one cell." (forsgren#55), and credits the
   DORA Quick Check, linked: "Scores follow the DORA Quick Check (dora.dev),
   © Google LLC, CC BY 4.0" (forsgren#47). A last section, Issues pages,
   explains the periods of the issues and days pages: "Days are in UTC, weeks
@@ -594,7 +614,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   whether or not the page scrolls, and every table fills that width, while
   running text (paragraphs and list items) stops at 72rem (forsgren#153,
   decision #160). The tables of the issues and days pages and of the numbers
-  and scoring views keep each cell on one line (class `no-wrap`); the
+  and scoring views and of the Numbers and scoring page keep each cell on one line (class `no-wrap`); the
   standard view's band text and the settings table wrap. The starter page,
   forsgren.be, is 72rem wide, its text in a framed card (decision #161).
   `styles.css` sets

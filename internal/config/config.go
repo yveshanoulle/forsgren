@@ -313,11 +313,10 @@ type fileConfig struct {
 	WorkingHours yaml.Node `yaml:"working_hours"`
 	// DoraDays is the node as written, like HistoryDays (forsgren#178).
 	DoraDays yaml.Node `yaml:"dora_days"`
-	// IssuesPage and DaysPage are the nodes as written, so a non-boolean is
-	// refused by name (forsgren#159).
-	IssuesPage yaml.Node `yaml:"issues_page"`
-	DaysPage   yaml.Node `yaml:"days_page"`
-	// NumbersScoringPage is the node as written (forsgren#55).
+	// IssuesPage, DaysPage and NumbersScoringPage are the nodes as written,
+	// so a non-boolean is refused by name (forsgren#159, forsgren#55).
+	IssuesPage         yaml.Node     `yaml:"issues_page"`
+	DaysPage           yaml.Node     `yaml:"days_page"`
 	NumbersScoringPage yaml.Node     `yaml:"numbers_scoring_page"`
 	Projects           []fileProject `yaml:"projects"`
 }

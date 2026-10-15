@@ -302,6 +302,15 @@ already ran it and later widens `dora_days` gets no second catch-up (see
 this is rare. An agent following [agent-upgrade.md](../agent-upgrade.md) asks
 you only whether you want a longer window, and checks `history_days`.
 
+**Upgrading to 1.7.0** (forsgren#55). A new optional key,
+`numbers_scoring_page` (`true` or `false`), adds the Numbers and scoring page
+at `/numbers-scoring/`, each metric's number and its score in one cell, and
+its menu entry after Scoring. It defaults to `false`, so nothing changes
+until you set `numbers_scoring_page: true` (see
+[Configuration](configuration.md#configuration)); the settings page lists
+the key as its tenth row. An agent following
+[agent-upgrade.md](../agent-upgrade.md) asks you nothing about it.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`

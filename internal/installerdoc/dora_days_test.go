@@ -56,10 +56,8 @@ func TestInstallerStep9SaysASettingNotAcceptedIsAWarning(t *testing.T) {
 // the key; the count of rows is TestInstallerProvesTenSettingsRows' (forsgren#55).
 func TestInstallerProvesTheDoraDaysRow(t *testing.T) {
 	proof := asOneLine(section(t, installerFile, "Step 12."))
-	for _, text := range []string{"`dora_days`"} {
-		if !strings.Contains(proof, text) {
-			t.Errorf("agent-installer.md step 12 does not say %q", text)
-		}
+	if !strings.Contains(proof, "`dora_days`") {
+		t.Error("agent-installer.md step 12 does not say `dora_days`")
 	}
 	if later := asOneLine(section(t, installerFile, "Changing a setting later")); !strings.Contains(later, "`dora_days`") {
 		t.Error("agent-installer.md 'Changing a setting later' does not list dora_days")
@@ -71,5 +69,14 @@ func TestInstallerProvesTheDoraDaysRow(t *testing.T) {
 func TestUpgradeFileNamesNoDoraDays(t *testing.T) {
 	if strings.Contains(readRepoFile(t, upgraderFile), "dora_days") {
 		t.Error("agent-upgrade.md names dora_days; the release notes carry it")
+	}
+}
+
+// TestUpgradeFileNamesNoNumbersScoringPage (forsgren#55, decision #187 item
+// 11): the upgrade file stays generic; the 1.7.0 release notes carry the key,
+// which adds a page only when it is set.
+func TestUpgradeFileNamesNoNumbersScoringPage(t *testing.T) {
+	if strings.Contains(readRepoFile(t, upgraderFile), "numbers_scoring_page") {
+		t.Error("agent-upgrade.md names numbers_scoring_page; the release notes carry it")
 	}
 }

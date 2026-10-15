@@ -135,14 +135,30 @@ projects:
   does not set `days_page` has no Daily page until it sets `days_page: true`.
   The legend says how to show or hide the two pages. The starter that
   `init-config` writes includes `issues_page: true` and `days_page: false`.
+- **`numbers_scoring_page`** is optional (forsgren#55, from 1.7.0): whether
+  the Numbers and scoring page (`/numbers-scoring/`) is generated, `true` or
+  `false`, written at the top level, for example `numbers_scoring_page: true`.
+  Left out, or without a value, it is `false`: the page is hidden. The page
+  shows each metric's number and its score in one cell, written number ·
+  score, and the Overall Performance column (see
+  [The page](pages-and-views.md#the-page)); `view:` does not name it, so the
+  root page never shows it. Only the literals `true` and `false` are
+  accepted; any other value is not accepted: forsgren uses the default
+  `false` instead and says so (see
+  [A setting that is not accepted](#a-setting-that-is-not-accepted)), naming
+  the key: `invalid numbers_scoring_page "yes": use true or false`. A page
+  that is `false` is not generated, is removed from the site with its folder
+  if an earlier run wrote it, and has no entry in the menu. The legend says
+  how to show it. The starter that `init-config` writes includes
+  `numbers_scoring_page: false`.
 - **The settings page** (`settings.html`, forsgren#74, moved out of the legend
   in forsgren#84, a table since forsgren#141) tabulates every optional key,
   `view`, `auto_update`, `auto_update_level`, `history_days`,
-  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page` and `days_page`, in four columns: **Parameter**;
+  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page` and `numbers_scoring_page`, ten rows in four columns: **Parameter**;
   **Current value**, the value in use (`major` for an unset
   `auto_update_level`); **Possible values**, built from the config package's
   own constants and limits so the page cannot drift from what `check-config`
-  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `30 to 1825`; `1 to 365`; `1 to 24`; `30, 90, 180`; `true, false` for each of the two page keys),
+  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `30 to 1825`; `1 to 365`; `1 to 24`; `30, 90, 180`; `true, false` for each of the three page keys),
   a test holds the lists to the config loader; and **Default**: True when
   `forsgren.config.yml` does not set the key, so the current value is the
   default, False when the file sets it, even to the default's value. For a
@@ -213,7 +229,8 @@ commit. Neither is configured per repository in version 1.
 
 A setting with a default (`view`, `auto_update`, `auto_update_level`,
 `history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
-`issues_page` and `days_page`) whose value forsgren does not accept, a list or
+`issues_page`, `days_page` and `numbers_scoring_page`) whose value forsgren
+does not accept, a list or
 a mapping included, does not stop the run (forsgren#183): forsgren uses that
 key's default instead, and says so in three places. The settings page's row
 for the key shows the value as written, that it is not accepted and why, and
@@ -260,7 +277,8 @@ example with made-up `acme` names (the default deployment, `workflow=` and
 `release`), followed by `version: 1`, `view: standard`, `auto_update: true`,
 `auto_update_level: major`, `history_days: 365`,
 `history_chunk_days: 100`, `working_hours: 8`, `dora_days: 30`,
-`issues_page: true`, `days_page: false` and `projects: []`, so
+`issues_page: true`, `days_page: false`, `numbers_scoring_page: false` and
+`projects: []`, so
 `check-config` accepts it as it is: `projects: 0, repositories: 0`. When the file exists,
 whatever it holds (even an invalid or an empty file), it is left byte for
 byte and the command prints `kept forsgren.config.yml`; both exit 0. The file
@@ -277,7 +295,8 @@ forsgren renders a static page whose footer says "Forsgren 1.6.2", the version o
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
-`/standard/`, `/numbers/` and `/scoring/` (see [The page](pages-and-views.md#the-page)). That version has one source,
+`/standard/`, `/numbers/` and `/scoring/`, and with `numbers_scoring_page: true` the Numbers and scoring page at
+`/numbers-scoring/` (see [The page](pages-and-views.md#the-page)). That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
 it with `-ldflags "-X main.version=<version>"`. `forsgren collect` reads
 GitHub into the history file (see [Collecting deployments](data-files.md#collecting-deployments-collect)); the daily run

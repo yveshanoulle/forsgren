@@ -55,8 +55,7 @@ func (f fileConfig) settings() Config {
 	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level,
 		HistoryDays: days, HistoryChunkDays: chunk, WorkingHours: hours, WorkingHoursSet: written["working_hours"],
 		DoraDays: doraDays, DoraDaysSet: written["dora_days"], IssuesPage: issues, DaysPage: daysOn,
-		NumbersScoringPage: numbersScoring,
-		written:            written, Rejected: rejected}
+		NumbersScoringPage: numbersScoring, written: written, Rejected: rejected}
 }
 
 // rejections are the non-nil rejections, in the order of settingKeys, the

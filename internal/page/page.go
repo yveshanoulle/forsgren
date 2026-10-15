@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
 	"github.com/yveshanoulle/forsgren/internal/metrics"
@@ -222,7 +223,7 @@ const pagesGlob = "templates/pages/*.html"
 type issuePage struct{ Name, Label string }
 
 // issuePages are the pages that tabulate issues, in the order the menu names
-// them after the views: the issues page (forsgren#123, forsgren#128: the
+// them after the folderPages: the issues page (forsgren#123, forsgren#128: the
 // weeks, months and years) and the days page (forsgren#76, forsgren#128: the
 // last 30 days, labelled Daily).
 var issuePages = []issuePage{{IssuesPage, "Issues"}, {DaysPage, "Daily"}}
@@ -251,18 +252,18 @@ const (
 	viewNumbersScoring = "numbers-scoring"
 )
 
-// views are the views of the table page, in the menu's order, each
-// rendered from index.html at its own address, /standard/, /numbers/ and
-// /scoring/, one folder below the root.
-var views = []string{viewStandard, viewNumbers, viewScoring}
+// folderPage is a page in a folder of its own, rendered from index.html at
+// /<Name>/, one folder below the root; Label is its menu entry.
+type folderPage struct{ Name, Label string }
 
-// numbersScoringLabel is the menu's name for the numbers and scoring page: the
-// capitalised-name rule of the views would give "Numbers-scoring" (forsgren#55).
-const numbersScoringLabel = "Numbers and scoring"
-
-// folderPages are the pages in a folder of their own that render index.html:
-// the views, and the numbers and scoring page (forsgren#55).
-var folderPages = append(slices.Clone(views), viewNumbersScoring)
+// folderPages are the pages in a folder, in the menu's order: the views of
+// the table page, standard, numbers and scoring, which the root can show too,
+// and the numbers and scoring page, which it cannot (forsgren#55; labelled
+// "Numbers and scoring", not by the capitalised name of the views).
+var folderPages = []folderPage{
+	{viewStandard, "Standard"}, {viewNumbers, "Numbers"}, {viewScoring, "Scoring"},
+	{viewNumbersScoring, "Numbers and scoring"},
+}
 
 // viewBase is the way back from a view's folder to the root.
 const viewBase = "../"
@@ -275,8 +276,9 @@ type pageData struct {
 	// empty at the root, viewBase in a view's folder.
 	Base string
 	// View is the view the page shows and its menu marks, "standard",
-	// "numbers" or "scoring" on a view's page and the root's; empty on the
-	// other pages (forsgren#128).
+	// "numbers" or "scoring" on a view's page and the root's, and
+	// "numbers-scoring" on the numbers and scoring page (forsgren#55); empty
+	// on the other pages (forsgren#128).
 	View string
 	// Page is the page's name, its file without ".html": the menu marks
 	// the one of issuePages it names as current (forsgren#76, forsgren#123,
@@ -296,30 +298,52 @@ func (p pageData) Both() bool { return p.View == viewNumbersScoring }
 // and its last column Overall Performance.
 func (p pageData) Scoring() bool { return p.View == viewScoring }
 
+// Scored says whether the page's cells carry the scores, with an Overall
+// Performance column and no weekend column: the scoring view and the numbers
+// and scoring page (forsgren#47, forsgren#55).
+func (p pageData) Scored() bool { return p.Scoring() || p.Both() }
+
+// ScoredCells are the five metric cells of row on a Scored page: number and
+// score on the numbers and scoring page, the score alone on the scoring view.
+func (p pageData) ScoredCells(row Row) []string {
+	if p.Both() {
+		return row.NumberScoreCells()
+	}
+	return row.ScoreCells()
+}
+
 // menuItem is one entry of the menu: its address from the root, its label,
 // and its aria-current, empty for an entry that is a link.
 type menuItem struct{ Href, Label, Current string }
 
 // Menu is the menu at the top of the page (forsgren#128, decision #133): the
-// views, each labelled by its name with a capital (its address stays lower
-// case), then the issuePages the site shows (forsgren#159). The view the
-// page shows is marked current, and the issue page the page is marked "page";
-// every other entry is a link.
+// folderPages, then the issuePages, each one the site shows (forsgren#159,
+// forsgren#55). The view the page shows is marked current, and the issue page
+// the page is marked "page"; every other entry is a link.
 func (p pageData) Menu() []menuItem {
-	menu := make([]menuItem, 0, len(views)+len(issuePages)+1)
-	for _, view := range views {
-		label := strings.ToUpper(view[:1]) + view[1:]
-		menu = append(menu, menuItem{view + "/", label, markIf(view == p.View, p.viewCurrent())})
-	}
-	if !p.Hidden[viewNumbersScoring] {
-		menu = append(menu, menuItem{viewNumbersScoring + "/", numbersScoringLabel,
-			markIf(p.Both(), "page")})
-	}
-	for _, issues := range issuePages {
-		if p.Hidden[issues.Name] {
-			continue
+	return append(p.folderEntries(), p.issueEntries()...)
+}
+
+// folderEntries are the menu's entries of the folderPages the site shows,
+// the one the page shows marked as viewCurrent says.
+func (p pageData) folderEntries() []menuItem {
+	menu := make([]menuItem, 0, len(folderPages)+len(issuePages))
+	for _, folder := range folderPages {
+		if !p.Hidden[folder.Name] {
+			menu = append(menu, menuItem{folder.Name + "/", folder.Label, markIf(folder.Name == p.View, p.viewCurrent())})
 		}
-		menu = append(menu, menuItem{issues.Name + ".html", issues.Label, markIf(issues.Name == p.Page, "page")})
+	}
+	return menu
+}
+
+// issueEntries are the menu's entries of the issuePages the site shows, the
+// page's own marked "page".
+func (p pageData) issueEntries() []menuItem {
+	menu := make([]menuItem, 0, len(issuePages))
+	for _, issues := range issuePages {
+		if !p.Hidden[issues.Name] {
+			menu = append(menu, menuItem{issues.Name + ".html", issues.Label, markIf(issues.Name == p.Page, "page")})
+		}
 	}
 	return menu
 }
@@ -372,8 +396,9 @@ func parsePages() map[string]page {
 		set := template.Must(template.Must(layout.Clone()).ParseFS(files, name))
 		out[path.Base(name)] = page{set: set, file: path.Base(name)}
 	}
-	for _, view := range folderPages {
-		out[view+"/index.html"] = page{set: out["index.html"].set, file: "index.html", view: view, base: viewBase}
+	for _, folder := range folderPages {
+		out[folder.Name+"/index.html"] = page{set: out["index.html"].set, file: "index.html", view: folder.Name,
+			base: viewBase}
 	}
 	return out
 }
@@ -392,9 +417,9 @@ func PageNames() []string {
 // and each view's page.
 func (p page) name() string { return strings.TrimSuffix(p.file, ".html") }
 
-// viewShown is the view the page shows and its menu marks: a view's page its
+// viewShown is the view the page shows and its menu marks: a folder page its
 // own, the root the configured one, and every other page none, so its menu
-// links all three views (forsgren#76, decision #102, forsgren#128).
+// links every folder page (forsgren#76, decision #102, forsgren#128).
 func (p page) viewShown(data Data) string {
 	if p.file != "index.html" {
 		return ""
@@ -457,20 +482,34 @@ func (d Data) hides(name string) bool {
 
 // removePage deletes the file of a hidden page from a reused out dir; a page
 // that was never written is not an error. The folder of a page in a folder
-// goes with it once empty, and stays when something else is in it.
+// goes with it once empty (removeEmptyFolder).
 func removePage(dir siteDir, name string) error {
 	file := filepath.Join(string(dir), name)
-	err := os.Remove(file)
-	if errors.Is(err, fs.ErrNotExist) {
-		err = nil
+	if err := os.Remove(file); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
 	}
-	if err == nil && path.Dir(name) != "." {
-		// A folder that is not empty is not ours to remove: the error says
-		// only that, and is left out.
-		_ = os.Remove(filepath.Dir(file))
+	if path.Dir(name) == "." {
+		return nil
+	}
+	return removeEmptyFolder(dir, name)
+}
+
+// removeEmptyFolder removes the folder of the page called name from dir when
+// it is empty. A folder that holds something else is not ours to remove and
+// stays, and one that is not there is gone already: neither is an error, and
+// every other failure is (forsgren#55). POSIX lets rmdir say "not empty" as
+// ENOTEMPTY or EEXIST.
+func removeEmptyFolder(dir siteDir, name string) error {
+	err := os.Remove(filepath.Join(string(dir), path.Dir(name)))
+	if slices.ContainsFunc(folderLeftAs, func(left error) bool { return errors.Is(err, left) }) {
+		return nil
 	}
 	return err
 }
+
+// folderLeftAs are the errors of a folder removal that leave the folder as
+// it should be: gone already, or holding something else.
+var folderLeftAs = []error{fs.ErrNotExist, syscall.ENOTEMPTY, syscall.EEXIST}
 
 // siteDir is the folder WriteSite writes the site into.
 type siteDir string
