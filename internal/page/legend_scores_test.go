@@ -81,3 +81,21 @@ func TestLegendReworkListsTheSixLevelsWithScore(t *testing.T) {
 		"<li>Rework of 80%: 70% to below 90% of the deployments, score 3 to 1.1</li>",
 		"<li>Rework of 100%: 90% and more of the deployments, score 1 to 0</li>")
 }
+
+// legendLevelScoresText is the sentence under Scores that points at the scores
+// of the levels listed above (forsgren#79, decision #197).
+const legendLevelScoresText = "Each metric's levels above show the score they give; change fail rate and " +
+	"deployment rework rate are scored per whole percent, so their level shows the range of scores its " +
+	"percentages give."
+
+// TestLegendScoresSectionPointsAtTheLevelScores (forsgren#79): the Scores
+// section says that the levels listed above carry their score, and that a
+// percent metric's level carries a range.
+func TestLegendScoresSectionPointsAtTheLevelScores(t *testing.T) {
+	_, section, found := strings.Cut(rendered(t, "legend.html", viewData()), "<h2>Scores</h2>")
+	if !found {
+		t.Fatal("want a Scores section in the legend")
+	}
+	section, _, _ = strings.Cut(section, "<h2>")
+	wantAll(t, "scores section", section, legendLevelScoresText)
+}
