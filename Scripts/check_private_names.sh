@@ -102,7 +102,7 @@ read_list() {
   file="$(private_names_file)"
   if [[ ! -f "$file" ]]; then
     [[ "$MESSAGE_MODE" -eq 1 ]] && exit 0
-    if [[ -n "${FORSGREN_PRIVATE_NAMES_FILE:-}" ]]; then
+    if private_names_file_given; then
       echo "❌ FAIL: the private-names file ${file} does not exist"
     elif [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
       echo "❌ FAIL: no list of private names: the Actions secret FORSGREN_PRIVATE_NAMES is not set or is empty here. A pull request from a fork gets no secrets, so this gate cannot run on it: the maintainer runs ./FBP.sh on the branch instead"

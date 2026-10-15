@@ -12,7 +12,7 @@
 #   Scripts/ensure_private_names_file.sh
 #   creates the default file, empty (mkdir -p its directory), and prints one
 #   line naming it, only when FORSGREN_PRIVATE_NAMES is empty or unset AND
-#   FORSGREN_PRIVATE_NAMES_FILE is unset AND the default file does not
+#   FORSGREN_PRIVATE_NAMES_FILE is unset or empty AND the default file does not
 #   exist. It never touches an existing file, never creates anything when
 #   FORSGREN_PRIVATE_NAMES_FILE is set (a missing explicit file stays a red
 #   in the gate), and never creates it when the env list is given.
@@ -86,6 +86,22 @@ if [[ ! -e "${TMP}/missing-names" && ! -e "${HOME_EXPLICIT}/.config" ]]; then
 else
   fail "a missing explicit file must stay missing, and no default created. Output: ${OUT}"
 fi
+
+# --- an EMPTY explicit file variable is unset, as the gate reads it ----------
+# The gate falls back to the default path when FORSGREN_PRIVATE_NAMES_FILE is
+# empty (forsgren#54), so the helper must create that default file, not do
+# nothing and leave the gate on exit 2.
+HOME_EMPTYVAR="${TMP}/home-emptyvar"
+DEFAULT_EMPTYVAR="${HOME_EMPTYVAR}/.config/forsgren/private-names"
+mkdir -p "$HOME_EMPTYVAR"
+capture env -u FORSGREN_PRIVATE_NAMES HOME="$HOME_EMPTYVAR" \
+  FORSGREN_PRIVATE_NAMES_FILE="" "$ENSURE"
+if [[ -f "$DEFAULT_EMPTYVAR" && ! -s "$DEFAULT_EMPTYVAR" ]]; then
+  echo "  ok: an empty FORSGREN_PRIVATE_NAMES_FILE is unset: the default file is created, empty"
+else
+  fail "an empty FORSGREN_PRIVATE_NAMES_FILE must count as unset and create ${DEFAULT_EMPTYVAR}. Output: ${OUT}"
+fi
+want_said "an empty FORSGREN_PRIVATE_NAMES_FILE: the note names the default file" "$DEFAULT_EMPTYVAR"
 
 # --- the env list given creates nothing -------------------------------------
 HOME_ENV="${TMP}/home-env"

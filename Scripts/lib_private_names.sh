@@ -20,6 +20,14 @@ private_names_file() {
   printf '%s' "${FORSGREN_PRIVATE_NAMES_FILE:-${HOME:-/nonexistent}/.config/forsgren/private-names}"
 }
 
+# private_names_file_given: succeeds when FORSGREN_PRIVATE_NAMES_FILE names a
+# file. An EMPTY variable names none: it counts as unset, here and in
+# private_names_file's fallback, so the gate and the pre-flight helper
+# agree (forsgren#54).
+private_names_file_given() {
+  [[ -n "${FORSGREN_PRIVATE_NAMES_FILE:-}" ]]
+}
+
 # private_names_read <file> <variable>: the raw text of <file> in the shell
 # variable named <variable>. Returns non-zero, printing nothing (cat's own
 # message would name the path; the callers print their own one FAIL line),

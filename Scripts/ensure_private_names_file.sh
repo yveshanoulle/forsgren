@@ -10,8 +10,9 @@
 # mode 600 because names will go in it, and prints one line naming the path.
 # It does nothing, silently, when
 #   - env FORSGREN_PRIVATE_NAMES is non-empty (the list is given), or
-#   - FORSGREN_PRIVATE_NAMES_FILE is set (an explicit file: a missing one
-#     stays a red in the gate), or
+#   - FORSGREN_PRIVATE_NAMES_FILE is set and not empty (an explicit file: a
+#     missing one stays a red in the gate; an empty variable counts as unset,
+#     as in the gate, forsgren#54), or
 #   - the default file already exists (never touched, never rewritten).
 #
 # Why: Yves's ruling: CI always fails without a list (the gate exits 2).
@@ -28,7 +29,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=Scripts/lib_private_names.sh
 source "${ROOT}/Scripts/lib_private_names.sh"
 
-if [[ -n "${FORSGREN_PRIVATE_NAMES:-}" || -n "${FORSGREN_PRIVATE_NAMES_FILE+set}" ]]; then
+if [[ -n "${FORSGREN_PRIVATE_NAMES:-}" ]] || private_names_file_given; then
   exit 0
 fi
 
