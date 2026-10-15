@@ -52,7 +52,7 @@ func TestRenderShowsTheHistoryPagePeriods(t *testing.T) {
 	unread := writeHistory(t, olderHistory())
 	writeReach(t, unread, time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC))
 	late := readSite(t, renderInto(t, "--config", writeConfig(t, historyOn+validConfig), "--data", unread), "history.html")
-	if strings.Contains(late, "2026 H1") || !strings.Contains(late, "Last 6 months") {
+	if strings.Contains(late, `<th scope="col">2026 H1</th>`) || !strings.Contains(late, "Last 6 months") {
 		t.Errorf("want only the last 6 months when the history is read back to March 2026, got:\n%s", late)
 	}
 }
@@ -101,5 +101,20 @@ func TestRenderMatchesTheReachWhateverTheCase(t *testing.T) {
 	got := readSite(t, renderInto(t, "--config", writeConfig(t, historyOn+validConfig), "--data", data), "history.html")
 	if !strings.Contains(got, `<th scope="col">2026 H1</th>`) {
 		t.Errorf("want the half-year the repositories were read back to, got:\n%s", got)
+	}
+}
+
+// TestRenderTellsWhyTheHistoryPageHasOnePeriod (forsgren#198): with only the
+// last 6 months holding data, history.html says when the first deployment of
+// the listed repositories was and when the first half-year appears.
+func TestRenderTellsWhyTheHistoryPageHasOnePeriod(t *testing.T) {
+	pinNow(t)
+	data := writeHistory(t, acmeHistory())
+	writeReach(t, data, time.Date(2025, time.October, 1, 0, 0, 0, 0, time.UTC))
+	got := readSite(t, renderInto(t, "--config", writeConfig(t, historyOn+validConfig), "--data", data), "history.html")
+	const notice = "Only the last 6 months have data so far: the first deployment is 2026-08-20. " +
+		"The first half-year, 2026 H2, appears on 2027-01-01."
+	if !strings.Contains(got, notice) {
+		t.Errorf("want the notice %q, got:\n%s", notice, got)
 	}
 }

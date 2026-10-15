@@ -9,6 +9,12 @@
    "minScore": 9.0
   },
   {
+   "path": "internal/metrics/history_test.go",
+   "score": 9.09,
+   "checkedAt": "2026-10-16",
+   "minScore": 9.0
+  },
+  {
    "path": "cmd/forsgren/init_config_test.go",
    "score": 9.38,
    "checkedAt": "2026-10-04",
@@ -1289,7 +1295,7 @@
   {
    "path": "internal/page/history.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
@@ -1301,7 +1307,7 @@
   {
    "path": "internal/metrics/history.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
@@ -1366,6 +1372,12 @@
   },
   {
    "path": "internal/page/history_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-16",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/history_notice_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-16",
    "minScore": 10.0

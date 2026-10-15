@@ -54,6 +54,7 @@ var legendHistoryText = []string{
 	"The lead time of older periods can be a dash",
 	"lost its label long ago",
 	"covers only the dora_days window",
+	"a line under the heading gives the first deployment and the day the first half-year appears",
 	"The History page is unlisted by default (history_page: unlisted): it is " +
 		"generated and can be opened at history.html, but it has no menu entry and search" +
 		" engines are asked to skip it. Set history_page: true to put it in the menu, or " +

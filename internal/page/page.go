@@ -26,6 +26,7 @@ import (
 	"slices"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
 	"github.com/yveshanoulle/forsgren/internal/metrics"
@@ -95,6 +96,10 @@ type Data struct {
 	HistoryDays int
 	// History are the columns of the history page, oldest first (forsgren#68).
 	History []metrics.Column
+	// FirstDeployment is when the oldest successful deployment of the listed
+	// repositories was created, zero when there is none; the history page
+	// says when its first half-year appears (forsgren#198).
+	FirstDeployment time.Time
 	// Hidden are the pages the site leaves out, by page name (IssuesPage,
 	// DaysPage); the zero value hides none (forsgren#159).
 	Hidden map[string]bool

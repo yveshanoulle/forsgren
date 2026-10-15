@@ -120,3 +120,23 @@ func History(projects []config.Project, data Data, now time.Time, historyDays in
 // HasData says whether the row is read and has a deployment, so the history
 // page shows its numbers; a row without them shows a dash in every cell.
 func (r Row) HasData() bool { return !r.Unread && r.HasDeployments() }
+
+// HalfYearOf is the calendar half-year (UTC) that holds at: its label, its
+// first day and the day after it ends (forsgren#198).
+func HalfYearOf(at time.Time) (label string, start, next time.Time) {
+	start = currentHalfYearStart(at)
+	return halfYearLabel(start), start, start.AddDate(0, 6, 0)
+}
+
+// FirstDeployment is the creation time of the oldest successful deployment of
+// the repositories of projects in data, false when there is none (forsgren#198).
+func FirstDeployment(projects []config.Project, data Data) (time.Time, bool) {
+	index := indexOf(projects)
+	var first time.Time
+	for _, r := range data.Records {
+		if _, ok := index.of(r.Repository); ok && r.State == history.StateSuccess {
+			first = earlier(first, r.CreatedAt)
+		}
+	}
+	return first, !first.IsZero()
+}

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yveshanoulle/forsgren/internal/config"
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
@@ -334,4 +335,55 @@ func deployedOn(repository string, at time.Time) history.Record {
 	r := deployed(repository, history.StateSuccess, 0)
 	r.CreatedAt = at
 	return r
+}
+
+// TestHalfYearOfHoldsTheDay (forsgren#198): the calendar half-year (UTC) of a
+// day, with its label, its first day and the day after its last.
+func TestHalfYearOfHoldsTheDay(t *testing.T) {
+	type halfYear struct {
+		Label      string
+		Start, End time.Time
+	}
+	h1 := halfYear{"2026 H1", at(2026, time.January, 1, 0, 0, 0), at(2026, time.July, 1, 0, 0, 0)}
+	h2 := halfYear{"2026 H2", at(2026, time.July, 1, 0, 0, 0), at(2027, time.January, 1, 0, 0, 0)}
+	tests := map[string]struct {
+		day  time.Time
+		want halfYear
+	}{
+		"first day of H1":   {at(2026, time.January, 1, 0, 0, 0), h1},
+		"last second of H1": {at(2026, time.June, 30, 23, 59, 59), h1},
+		"first day of H2":   {at(2026, time.July, 1, 0, 0, 0), h2},
+		"a day in H2":       {at(2026, time.October, 2, 9, 30, 0), h2},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			label, start, end := HalfYearOf(tt.day)
+			if got := (halfYear{label, start, end}); got != tt.want {
+				t.Errorf("HalfYearOf(%s) = %+v; want %+v", tt.day, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestFirstDeploymentIsTheOldestSuccessOfAListedRepository (forsgren#198): a
+// failure, another state and a repository the projects do not list do not
+// count; no success is false.
+func TestFirstDeploymentIsTheOldestSuccessOfAListedRepository(t *testing.T) {
+	projects := []config.Project{{Name: "Acme", Repositories: []config.Repository{{Name: "acme/app"}}}}
+	record := func(repository string, state history.State, created time.Time) history.Record {
+		return history.Record{Repository: repository, State: state, CreatedAt: created}
+	}
+	data := Data{Records: []history.Record{
+		record("acme/app", history.StateSuccess, at(2026, time.October, 2, 9, 0, 0)),
+		record("acme/app", history.StateSuccess, at(2026, time.September, 4, 12, 0, 0)),
+		record("acme/app", history.StateFailure, at(2026, time.August, 1, 0, 0, 0)),
+		record("acme/gone", history.StateSuccess, at(2026, time.July, 1, 0, 0, 0)),
+	}}
+	first, ok := FirstDeployment(projects, data)
+	if want := at(2026, time.September, 4, 12, 0, 0); !ok || !first.Equal(want) {
+		t.Errorf("want %s, true, got %s, %v", want, first, ok)
+	}
+	if first, ok := FirstDeployment(projects, Data{}); ok || !first.IsZero() {
+		t.Errorf("want zero and false without records, got %s, %v", first, ok)
+	}
 }

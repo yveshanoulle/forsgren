@@ -171,3 +171,16 @@ func TestHistoryPageSaysHowToReadItUnderTheHeading(t *testing.T) {
 			`<h1 id="history-heading">History (beta)</h1>`+"\n    "+historyHowToRead)
 	}
 }
+
+// TestHistoryPageWithOnePeriodSaysWhyUnderTheHowToReadLine (forsgren#198): with
+// only the last 6 months, the page has the notice under the how-to-read line;
+// with two columns it has none.
+func TestHistoryPageWithOnePeriodSaysWhyUnderTheHowToReadLine(t *testing.T) {
+	data := historyData()
+	data.History, data.FirstDeployment, data.HistoryDays = data.History[1:], day(time.October, 2, 9, 30), 365
+	const notice = "<p>Only the last 6 months have data so far: the first deployment is 2026-10-02. " +
+		"The first half-year, 2026 H2, appears on 2027-01-01.</p>"
+	wantAll(t, "history.html", rendered(t, "history.html", data), historyHowToRead+"\n    "+notice)
+	checkPageGolden(t, "history.html", "testdata/history.one-period.golden.html", data)
+	wantNone(t, "history.html", rendered(t, "history.html", historyData()), "Only the last 6 months")
+}
