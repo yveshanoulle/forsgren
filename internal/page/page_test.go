@@ -654,7 +654,7 @@ func TestSettingsPageIsATableOfParameterValuePossibleValuesAndDefault(t *testing
             <td>standard, numbers, scoring</td>
             <td>standard</td>`,
 		`<th scope="row">history_days</th>
-            <td>365</td>
+            <td>365 (not set)</td>
             <td>30 to 1825</td>
             <td>365</td>`,
 	)

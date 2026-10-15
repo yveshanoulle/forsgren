@@ -149,7 +149,8 @@ func TestRenderSettingsPageListsTheSettings(t *testing.T) {
 	for _, want := range []string{
 		"<th scope=\"row\">history_days</th>\n            <td>30</td>\n            <td>30 to 1825</td>\n" +
 			"            <td>365</td>",
-		"<th scope=\"row\">view</th>\n            <td>standard</td>\n            <td>standard, numbers, scoring</td>\n" +
+		"<th scope=\"row\">view</th>\n            <td>standard (not set)</td>\n" +
+			"            <td>standard, numbers, scoring</td>\n" +
 			"            <td>standard</td>",
 	} {
 		if !strings.Contains(settings, want) {

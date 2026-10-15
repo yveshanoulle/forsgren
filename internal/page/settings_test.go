@@ -88,9 +88,30 @@ func TestSettingsPageDefaultColumnShowsTheDefaultValue(t *testing.T) {
             <td>standard, numbers, scoring</td>
             <td>standard</td>`,
 		`<th scope="row">history_days</th>
-            <td>365</td>
+            <td>365 (not set)</td>
             <td>30 to 1825</td>
             <td>365</td>`,
 	)
 	wantNone(t, "settings.html", rendered(t, "settings.html", data), "<td>True</td>", "<td>False</td>")
+}
+
+// TestSettingsPageMarksAnUnsetKey (forsgren#169, decision 2 on #189): the
+// Current value of a key the file does not set reads `<value> (not set)`; a
+// key the file sets is bare, even when it equals the default; a key that is
+// not accepted keeps its sentence, with no marker.
+func TestSettingsPageMarksAnUnsetKey(t *testing.T) {
+	data := withTwoSettings()
+	data.Settings = append(data.Settings,
+		config.Setting{Key: "working_hours", Value: "8", Default: "8", Set: true},
+		config.Setting{Key: "dora_days", Value: "30", Default: "30", Written: "60", Reason: "use 30, 90 or 180"})
+	html := rendered(t, "settings.html", data)
+	wantAll(t, "settings.html", html,
+		`<th scope="row">view</th>
+            <td>numbers</td>`,
+		`<th scope="row">history_days</th>
+            <td>365 (not set)</td>`,
+		`<th scope="row">working_hours</th>
+            <td>8</td>`,
+		`<span class="default-in-force">30</span>.</td>`)
+	wantNone(t, "settings.html", html, "30 (not set)", "8 (not set)", "</span> (not set)")
 }
