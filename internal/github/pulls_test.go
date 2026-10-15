@@ -142,3 +142,23 @@ func TestForsgrenBumpFindsTheDependabotPullRequestForExactlyThatVersion(t *testi
 		})
 	}
 }
+
+// TestDependabotPullsAreTheOnesDependabotOpened (forsgren#42): the pull
+// requests of dependabot[bot], whatever their branch, in their order.
+func TestDependabotPullsAreTheOnesDependabotOpened(t *testing.T) {
+	prs := []PullRequest{
+		{Number: 3, Author: "acme-dev", Branch: "dependabot/github_actions/x"},
+		{Number: 7, Author: "dependabot[bot]", Branch: "dependabot/github_actions/group-abc123"},
+		{Number: 9, Author: "dependabot[bot]", Branch: "feature/y"},
+	}
+	var numbers []int64
+	for _, p := range DependabotPulls(prs) {
+		numbers = append(numbers, p.Number)
+	}
+	if !slices.Equal(numbers, []int64{7, 9}) {
+		t.Errorf("want pull requests 7 and 9, got %v", numbers)
+	}
+	if got := DependabotPulls(nil); got != nil {
+		t.Errorf("want none, got %v", got)
+	}
+}

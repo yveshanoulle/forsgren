@@ -214,11 +214,7 @@ func readPull(ctx context.Context, client *github.Client, in pullToCheck) (strin
 	if truncated {
 		return "", nil, errFilesCut
 	}
-	files := make([]update.File, len(changed))
-	for i, f := range changed {
-		files[i] = update.File{Filename: f.Filename, Patch: f.Patch}
-	}
-	return author, files, nil
+	return author, updateFiles(changed), nil
 }
 
 // lookUpTag is forsgren's release of tag: whether it is published and, only

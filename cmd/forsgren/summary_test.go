@@ -201,7 +201,7 @@ func wantStatus(t *testing.T, want string) {
 // status stays 0 whatever the status.
 func TestWaitingPullRequestSaysHowTheLookupWent(t *testing.T) {
 	t.Setenv("GITHUB_REPOSITORY", "acme/data")
-	fakeAPI(t, map[string]string{waitingPath: dependabotPulls}, 0)
+	fakeAPI(t, dependabotAPI(t), 0)
 	wantStatus(t, "ok")
 	fakeAPI(t, map[string]string{waitingPath: `[]`}, 0)
 	wantStatus(t, "ok")
@@ -228,7 +228,7 @@ func TestTheSummaryCommandsRefuseAnUnknownFlag(t *testing.T) {
 // status as failed.
 func TestAStatusThatCannotBeWrittenIsANoteNotAnError(t *testing.T) {
 	t.Setenv("GITHUB_REPOSITORY", "acme/data")
-	fakeAPI(t, map[string]string{waitingPath: dependabotPulls}, 0)
+	fakeAPI(t, dependabotAPI(t), 0)
 	missing := filepath.Join(t.TempDir(), "no", "such", "dir", "status")
 	wantLookup(t, "7\n", "cannot write the status", "waiting-pull-request", "--version", "0.0.10", "--status", missing)
 }

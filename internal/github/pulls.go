@@ -96,6 +96,18 @@ const (
 	bumpBranchPrefix = "dependabot/github_actions/yveshanoulle/forsgren/"
 )
 
+// DependabotPulls are the pulls among prs that Dependabot opened, in their
+// order (forsgren#42).
+func DependabotPulls(prs []PullRequest) []PullRequest {
+	var out []PullRequest
+	for _, p := range prs {
+		if p.Author == dependabotLogin {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 // ForsgrenBump is the number of the open pull request, among prs, that
 // Dependabot opened to bump forsgren's pin to exactly version, and false
 // when there is none. The rule: its author is dependabot[bot] and its head

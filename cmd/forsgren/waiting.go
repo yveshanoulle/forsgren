@@ -87,7 +87,10 @@ func writeStatus(path, status string, stderr io.Writer) {
 	}
 }
 
-// lookUpWaiting is the number of the pull request, or 0 for none.
+// lookUpWaiting is the number of the pull request, or 0 for none: of the open
+// pull requests of Dependabot, the highest whose changed files move the pin of
+// metrics.yml to version, so a pull request is found by what it changes, not by
+// the name of its branch (forsgren#42).
 func lookUpWaiting(version string) (int64, error) {
 	repository := strings.TrimSpace(os.Getenv("GITHUB_REPOSITORY"))
 	if repository == "" {
@@ -97,10 +100,5 @@ func lookUpWaiting(version string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	pulls, _, err := client.OpenPullRequests(context.Background(), repository)
-	if err != nil {
-		return 0, err
-	}
-	number, _ := github.ForsgrenBump(pulls, strings.TrimPrefix(version, "v"))
-	return number, nil
+	return pullLookup{client, repository}.waiting(context.Background(), strings.TrimPrefix(version, "v"))
 }

@@ -162,13 +162,20 @@ const dependabotPulls = `[
   "head": {"ref": "dependabot/github_actions/yveshanoulle/forsgren/dot-github/workflows/metrics.yml-0.0.10"}}
 ]`
 
+// dependabotAPI is what GitHub answers for acme/data: dependabotPulls, and for
+// pull request 7 the files that move the pin of metrics.yml to 0.0.10.
+func dependabotAPI(t *testing.T) map[string]string {
+	t.Helper()
+	return map[string]string{waitingPath: dependabotPulls, waitingPath + "/7/files": pinFiles(t, "0.0.10")}
+}
+
 // TestWaitingPullRequestPrintsTheNumber (forsgren#40, step 5): the command
 // reads the open pull requests of GITHUB_REPOSITORY and prints the number of
 // Dependabot's bump to --version, and nothing when there is none.
 func TestWaitingPullRequestPrintsTheNumber(t *testing.T) {
 	t.Setenv("GITHUB_REPOSITORY", "acme/data")
 	t.Setenv("GITHUB_TOKEN", testToken)
-	fakeAPI(t, map[string]string{waitingPath: dependabotPulls}, 0)
+	fakeAPI(t, dependabotAPI(t), 0)
 	wantLookup(t, "7\n", "", "waiting-pull-request", "--version", "0.0.10")
 	wantLookup(t, "", "", "waiting-pull-request", "--version", "0.0.11")
 }
@@ -259,13 +266,22 @@ func TestLatestReleaseCanWriteThePublishTime(t *testing.T) {
 			file := filepath.Join(t.TempDir(), "published")
 			code, stdout, _ := runCommand("latest-release", "--published", file)
 			content, err := os.ReadFile(filepath.Clean(file))
-			if code != 0 || stdout != c.stdout || string(content) != c.file || (c.file == "") != (err != nil) {
-				t.Errorf("want exit 0, stdout %q and file %q, got %d, %q and %q (%v)", c.stdout, c.file, code,
-					stdout, content, err)
+			if code != 0 || stdout != c.stdout {
+				t.Errorf("want exit 0 and stdout %q, got %d and %q", c.stdout, code, stdout)
 			}
+			wantPublishFile(t, c.file, content, err)
 		})
 	}
 	fakeAPI(t, map[string]string{latestPath: published}, 0)
 	missing := filepath.Join(t.TempDir(), "no", "such", "published")
 	wantLookup(t, "0.0.10\n", "cannot write the publish time", "latest-release", "--published", missing)
+}
+
+// wantPublishFile fails t unless the publish time file read as content, err is
+// there with the wanted content, or, for an empty wanted content, is not there.
+func wantPublishFile(t *testing.T, want string, content []byte, err error) {
+	t.Helper()
+	if (want == "") != (err != nil) || string(content) != want {
+		t.Errorf("want the file %q, got %q (%v)", want, content, err)
+	}
 }

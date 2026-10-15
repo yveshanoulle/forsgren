@@ -125,7 +125,7 @@
   {
    "path": "cmd/forsgren/summary_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-07",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
@@ -563,25 +563,25 @@
   {
    "path": "cmd/forsgren/render_latest_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-07",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
    "path": "cmd/forsgren/waiting.go",
    "score": 10.0,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
    "path": "internal/github/pulls.go",
    "score": 10.0,
-   "checkedAt": "2026-10-07",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
    "path": "internal/github/pulls_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-07",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
@@ -629,7 +629,7 @@
   {
    "path": "cmd/forsgren/checkupdate.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
@@ -1402,6 +1402,18 @@
   },
   {
    "path": "internal/update/movespin_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-16",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/pulllookup.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-16",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/waiting_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-16",
    "minScore": 10.0
