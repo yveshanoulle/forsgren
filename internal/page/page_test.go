@@ -425,21 +425,21 @@ func TestEveryPageNamesFiveMetrics(t *testing.T) {
 	wantOnEveryPage(t, acmeTable(), " Metrics from GitHub data.")
 }
 
-// TestWriteSiteWritesEightPagesAndStyles (forsgren#46, #47, #84, #76, #123, #128): the
+// TestWriteSiteWritesNinePagesAndStyles (forsgren#55, #46, #47, #84, #76, #123, #128): the
 // root page, the legend, the settings page, the days page and the issues page, and each
-// view's page, standard, numbers and scoring, in its own folder.
-func TestWriteSiteWritesEightPagesAndStyles(t *testing.T) {
+// view's page, standard, numbers and scoring, in its own folder, and the numbers and scoring page.
+func TestWriteSiteWritesNinePagesAndStyles(t *testing.T) {
 	dir := t.TempDir()
 	n, err := WriteSite(dir, Placeholder("1.6.2"))
 	if err != nil {
 		t.Fatalf("WriteSite: %v", err)
 	}
-	if n != 8 {
-		t.Errorf("want 8 pages written, got %d", n)
+	if n != 9 {
+		t.Errorf("want 9 pages written, got %d", n)
 	}
 	for _, name := range []string{
 		"index.html", "legend.html", "settings.html", "days.html", "issues.html", "standard/index.html",
-		"numbers/index.html", "scoring/index.html", "styles.css",
+		"numbers/index.html", "scoring/index.html", "numbers-scoring/index.html", "styles.css",
 	} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
 			t.Errorf("want %s in the site: %v", name, err)

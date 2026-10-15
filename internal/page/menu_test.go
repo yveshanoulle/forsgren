@@ -43,10 +43,12 @@ func menuCases(root menuCase) map[string]menuCase {
 		"standard/index.html": {"../", "Standard", "page"},
 		"numbers/index.html":  {"../", "Numbers", "page"},
 		"scoring/index.html":  {"../", "Scoring", "page"},
-		"issues.html":         {"", "Issues", "page"},
-		"days.html":           {"", "Daily", "page"},
-		"settings.html":       {},
-		"legend.html":         {},
+		// Not in the menu yet (forsgren#55), so it marks nothing.
+		"numbers-scoring/index.html": {"../", "", ""},
+		"issues.html":                {"", "Issues", "page"},
+		"days.html":                  {"", "Daily", "page"},
+		"settings.html":              {},
+		"legend.html":                {},
 	}
 }
 

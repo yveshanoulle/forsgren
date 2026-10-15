@@ -69,3 +69,24 @@ func (r Row) OverallCell() string {
 	}
 	return fmt.Sprintf("%.1f", overall)
 }
+
+// separator joins a number and its score in a cell of the numbers and
+// scoring page, the " · " of the menu and the footer (forsgren#55).
+const separator = " · "
+
+// NumberScoreCells are the row's five metrics as the numbers and scoring page
+// shows them (forsgren#55): the number as the numbers page shows it, then its
+// score, "12 · 6", "7% · 9.3", and "-" for a metric without data. The weekend
+// deployments are not a metric and have no cell.
+func (r Row) NumberScoreCells() []string {
+	numbers := []string{r.Frequency.NumberCell(), r.LeadTime.NumberCell(), r.Recovery.NumberCell(),
+		r.ChangeFail.NumberCell(), r.Rework.NumberCell()}
+	cells := make([]string, len(numbers))
+	for i, score := range r.ScoreCells() {
+		cells[i] = numbers[i]
+		if numbers[i] != noScore {
+			cells[i] += separator + score
+		}
+	}
+	return cells
+}

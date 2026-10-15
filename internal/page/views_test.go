@@ -14,7 +14,7 @@ import (
 
 // viewPages are the pages of the views (forsgren#46), each in its own
 // folder, one level below the site's root.
-var viewPages = []string{"standard/index.html", "numbers/index.html"}
+var viewPages = []string{"standard/index.html", "numbers/index.html", "numbers-scoring/index.html"}
 
 // TestPageNamesIncludeEachView (forsgren#46): the site has the root page,
 // the legend, and a page per view at /standard/ and /numbers/.
@@ -76,6 +76,25 @@ func TestScoringPageShowsEachMetricsScoreAndOverallPerformance(t *testing.T) {
 		}
 	}
 	wantAll(t, "scoring/index.html", got, `<th scope="col">Overall Performance</th>`)
+}
+
+// TestNumbersScoringPageShowsNumberThenScore (forsgren#55): each metric cell
+// is the number as the numbers page shows it, " · ", then its Quick Check
+// score; the last cell is Overall Performance to one decimal, as on the
+// scoring page, and there is no weekend column. Acme Shop reads 12 · 6,
+// 7% · 9.3, 0% · 10 and 8.4; with a lead time, 2 h 7 min · 8.
+func TestNumbersScoringPageShowsNumberThenScore(t *testing.T) {
+	const name = "numbers-scoring/index.html"
+	shop := rendered(t, name, acmeProjects(metrics.LeadTime{}, unrecovered, oneFailed, noRework))
+	if want := row("Acme Shop", "12 · 6", "-", "-", "7% · 9.3", "0% · 10", "8.4"); !want.MatchString(shop) {
+		t.Errorf("want the row of Acme Shop to read 12 · 6, -, -, 7%% · 9.3, 0%% · 10, 8.4, got:\n%s", shop)
+	}
+	wantAll(t, name, shop, `<th scope="col">Overall Performance</th>`, `<th scope="col">Deployment frequency</th>`)
+	wantNone(t, name, shop, "Weekend deployments")
+	timed := rendered(t, name, viewData())
+	if want := row("Acme Shop", "12 · 6", "2 h 7 min · 8"); !want.MatchString(timed) {
+		t.Errorf("want the lead time of Acme Shop to read 2 h 7 min · 8, got:\n%s", timed)
+	}
 }
 
 // TestScoringPageShowsNoOverallPerformanceWithoutAScore (forsgren#47): a row
@@ -224,6 +243,7 @@ func TestViewPagesMatchGolden(t *testing.T) {
 	checkPageGolden(t, "standard/index.html", "testdata/standard.golden.html", viewData())
 	checkPageGolden(t, "numbers/index.html", "testdata/numbers.golden.html", viewData())
 	checkPageGolden(t, "scoring/index.html", "testdata/scoring.golden.html", viewData())
+	checkPageGolden(t, "numbers-scoring/index.html", "testdata/numbers-scoring.golden.html", viewData())
 }
 
 // TestViewPagesWithoutDataMatchGolden (forsgren#46): the views of the

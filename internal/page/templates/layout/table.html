@@ -1,21 +1,23 @@
 {{define "table"}}    <div class="table-scroll" role="region" aria-labelledby="metrics-heading" tabindex="0">
-      <table{{if or .Numbers .Scoring}} class="no-wrap"{{end}}>
+      <table{{if or .Numbers .Scoring .Both}} class="no-wrap"{{end}}>
         <thead>
           <tr>
             <th scope="col">Project</th>
             <th scope="col">Deployment frequency</th>
-{{if not .Scoring}}            <th scope="col">Weekend deployments</th>
+{{if not (or .Scoring .Both)}}            <th scope="col">Weekend deployments</th>
 {{end}}            <th scope="col">Lead time for changes</th>
             <th scope="col">Failed deployment recovery time</th>
             <th scope="col">Change fail rate</th>
             <th scope="col">Deployment rework rate</th>
-{{if .Scoring}}            <th scope="col">Overall Performance</th>
+{{if or .Scoring .Both}}            <th scope="col">Overall Performance</th>
 {{end}}          </tr>
         </thead>
         <tbody>
 {{range .Rows}}          <tr{{if .IsLabel}} class="label"{{end}}>
             <th scope="row">{{if .IsLabel}}<span class="visually-hidden">{{.Project}}: </span>{{end}}{{.Heading}}</th>
-{{if $.Scoring}}{{range .ScoreCells}}            <td>{{.}}</td>
+{{if $.Both}}{{range .NumberScoreCells}}            <td>{{.}}</td>
+{{end}}            <td>{{.OverallCell}}</td>
+{{else if $.Scoring}}{{range .ScoreCells}}            <td>{{.}}</td>
 {{end}}            <td>{{.OverallCell}}</td>
 {{else if $.Numbers}}            <td>{{.Frequency.NumberCell}}</td>
             <td>{{.Frequency.WeekendNumberCell}}</td>

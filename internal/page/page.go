@@ -241,12 +241,20 @@ const (
 	viewStandard = "standard"
 	viewNumbers  = "numbers"
 	viewScoring  = "scoring"
+	// viewNumbersScoring is the page that shows both, each cell the number
+	// and then its score (forsgren#55); it is a folder like the views, but not
+	// one of the views the root can show and the menu lists (yet).
+	viewNumbersScoring = "numbers-scoring"
 )
 
 // views are the views of the table page, in the menu's order, each
 // rendered from index.html at its own address, /standard/, /numbers/ and
 // /scoring/, one folder below the root.
 var views = []string{viewStandard, viewNumbers, viewScoring}
+
+// folderPages are the pages in a folder of their own that render index.html:
+// the views, and the numbers and scoring page (forsgren#55).
+var folderPages = append(slices.Clone(views), viewNumbersScoring)
 
 // viewBase is the way back from a view's folder to the root.
 const viewBase = "../"
@@ -271,6 +279,10 @@ type pageData struct {
 // Numbers says whether the page is the numbers view, its cells the numbers
 // only.
 func (p pageData) Numbers() bool { return p.View == viewNumbers }
+
+// Both says whether the page is the numbers and scoring page, each cell the
+// number and its score (forsgren#55).
+func (p pageData) Both() bool { return p.View == viewNumbersScoring }
 
 // Scoring says whether the page is the scoring view, its cells the scores
 // and its last column Overall Performance.
@@ -348,7 +360,7 @@ func parsePages() map[string]page {
 		set := template.Must(template.Must(layout.Clone()).ParseFS(files, name))
 		out[path.Base(name)] = page{set: set, file: path.Base(name)}
 	}
-	for _, view := range views {
+	for _, view := range folderPages {
 		out[view+"/index.html"] = page{set: out["index.html"].set, file: "index.html", view: view, base: viewBase}
 	}
 	return out

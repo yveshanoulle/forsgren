@@ -17,9 +17,9 @@ func TestWriteSiteLeavesOutHiddenPagesAndRemovesStaleOnes(t *testing.T) {
 		kept   []string
 		pages  int
 	}{
-		"days":   {map[string]bool{"days": true}, []string{"days.html"}, []string{"issues.html"}, 7},
-		"issues": {map[string]bool{"issues": true}, []string{"issues.html"}, []string{"days.html"}, 7},
-		"both":   {map[string]bool{"days": true, "issues": true}, []string{"days.html", "issues.html"}, nil, 6},
+		"days":   {map[string]bool{"days": true}, []string{"days.html"}, []string{"issues.html"}, 8},
+		"issues": {map[string]bool{"issues": true}, []string{"issues.html"}, []string{"days.html"}, 8},
+		"both":   {map[string]bool{"days": true, "issues": true}, []string{"days.html", "issues.html"}, nil, 7},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -55,8 +55,8 @@ func TestWriteSiteFailsWhenAHiddenPageCannotBeRemoved(t *testing.T) {
 // TestWriteSiteHidesAPageThatWasNeverWritten (forsgren#159): a hidden page
 // with no file in a fresh out dir is no error.
 func TestWriteSiteHidesAPageThatWasNeverWritten(t *testing.T) {
-	if n, err := WriteSite(t.TempDir(), placeholderHiding(map[string]bool{"days": true})); err != nil || n != 7 {
-		t.Errorf("want 7 pages and no error, got %d, %v", n, err)
+	if n, err := WriteSite(t.TempDir(), placeholderHiding(map[string]bool{"days": true})); err != nil || n != 8 {
+		t.Errorf("want 8 pages and no error, got %d, %v", n, err)
 	}
 }
 

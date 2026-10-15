@@ -478,6 +478,8 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/shared.go:counted": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:Placeholder": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:Numbers": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/page.go:Both": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/scoring.go:NumberScoreCells": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:AnyIssueDayActive": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:AnyIssueRowActive": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:Menu": 100.0,
