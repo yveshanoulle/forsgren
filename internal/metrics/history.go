@@ -4,9 +4,11 @@ package metrics
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
+	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
 // rollingDays is the length of the newest column and the days every period
@@ -66,8 +68,29 @@ func halfYearLabel(start time.Time) string {
 
 // PeriodRows are the history page's rows for one period (forsgren#68): the
 // table's rows, as Rows gives them, counted over the period's own days ending
-// at its end.
+// at its end, from what was created before it: the start is counted, the end
+// is not (the rolling column's end, now, is), and nothing later is seen.
 func PeriodRows(projects []config.Project, data Data, p Period) []Row {
 	data.DoraDays = int(p.End.Sub(p.Start) / day)
+	data.Records = seen(p, data.Records, func(r history.Record) time.Time { return r.CreatedAt })
+	data.Commits = seen(p, data.Commits, func(c history.Commit) time.Time { return c.DeployedAt })
+	data.Failures = seen(p, data.Failures, func(f history.Failure) time.Time { return f.OpenedAt })
 	return Rows(projects, data, p.End)
+}
+
+// seen is a copy of the items that came before the period was over, each at
+// the time when gives.
+func seen[T any](p Period, items []T, when func(T) time.Time) []T {
+	return slices.DeleteFunc(slices.Clone(items), func(item T) bool { return p.over(when(item)) })
+}
+
+// over says whether something at at came after the period: at its end or
+// later for a calendar half-year, which ends before its End, and later than
+// now for the rolling column, which ends at now, both ends included as for the
+// table.
+func (p Period) over(at time.Time) bool {
+	if p.Rolling {
+		return at.After(p.End)
+	}
+	return !at.Before(p.End)
 }

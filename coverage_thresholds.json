@@ -443,6 +443,8 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/history.go:currentHalfYearStart": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/history.go:halfYearLabel": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/history.go:PeriodRows": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/history.go:over": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/history.go:seen": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/frequency.go:HasDeployments": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/frequency.go:DeploymentFrequency": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/frequency.go:add": 100.0,

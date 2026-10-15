@@ -98,3 +98,46 @@ func TestRollingPeriodEqualsTheNumbersAt180Days(t *testing.T) {
 		t.Errorf("rolling column = %+v, want the rows at 180 days %+v", got, want)
 	}
 }
+
+// TestPastPeriodCountsStartButNotEndAndIgnoresLaterDeployments (forsgren#68):
+// a calendar half-year is half-open, [Start, End): what is created at its
+// start counts, what is created at its end or later is not seen at all, so a
+// project whose first success came after the period has no deployment in it,
+// and a commit deployed or a failure issue opened after it is not counted.
+func TestPastPeriodCountsStartButNotEndAndIgnoresLaterDeployments(t *testing.T) {
+	end := now.Add(-10 * day)
+	past := Period{Label: "past", Start: end.Add(-184 * day), End: end}
+	ok := history.StateSuccess
+	data := Data{
+		Records: []history.Record{
+			appDeployment(1, "", ok, 10*day+185*day),
+			appDeployment(2, "", ok, 10*day+184*day),
+			appDeployment(3, "", ok, 10*day+time.Hour),
+			appDeployment(4, "", ok, 10*day),
+			appDeployment(5, "", ok, 5*day),
+			released(withTask(deployed("acme/cli", ok, 5*day), 6, "v1.0")),
+		},
+		Commits: []history.Commit{
+			shippedBy("acme/app", 3, 10*day+time.Hour, time.Hour),
+			shippedBy("acme/app", 4, 10*day, time.Hour),
+			shippedBy("acme/app", 5, 5*day, time.Hour),
+		},
+		Failures: []history.Failure{
+			{Repository: "acme/app", Issue: 1, OpenedAt: end.Add(-time.Hour)},
+			{Repository: "acme/app", Issue: 2, OpenedAt: end},
+		},
+	}
+	rows := PeriodRows(tableProjects, data, past)
+	shop, tools := rows[0], rows[len(rows)-1]
+	if shop.Frequency.InWindow != 2 || !shop.Frequency.Latest.Equal(end.Add(-time.Hour)) {
+		t.Errorf("Acme Shop deployments in the period = %d, latest %v, want 2 and %v", shop.Frequency.InWindow,
+			shop.Frequency.Latest, end.Add(-time.Hour))
+	}
+	if shop.LeadTime.Commits != 1 || shop.ChangeFail.FailureIssues != 1 {
+		t.Errorf("Acme Shop commits = %d, failure issues = %d, want 1 and 1", shop.LeadTime.Commits,
+			shop.ChangeFail.FailureIssues)
+	}
+	if tools.Frequency.HasDeployments() {
+		t.Errorf("Acme Tools deployed only after the period, but has deployments: latest %v", tools.Frequency.Latest)
+	}
+}
