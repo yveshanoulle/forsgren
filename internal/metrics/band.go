@@ -28,7 +28,9 @@ import "github.com/yveshanoulle/forsgren/internal/config"
 //   - Less than once per six months: none in 180 days.
 //
 // The 30-day count decides whenever it holds a deployment; only with none
-// in 30 days does the 180-day count tell the two slowest bands apart.
+// in 30 days does the 180-day count tell the two slowest bands apart. Over a
+// DORA window of 90 or 180 days (dora_days, forsgren#178) the edges scale
+// with the window, never the count (BandOf).
 type Band int
 
 // The six bands, fastest first. The zero Band is no band.
@@ -41,7 +43,8 @@ const (
 	LessThanSixMonthly
 )
 
-// The lowest 30-day count of each band from WeeklyToMonthly up.
+// The lowest count per 30 days of each band from WeeklyToMonthly up; over
+// a longer window, scaled gives the edge.
 const (
 	weeklyToMonthlyFrom = 1
 	dailyToWeeklyFrom   = 5
@@ -57,28 +60,17 @@ func WorkingDay(hours int) int {
 	return hours
 }
 
-// OnDemandFrom is the lowest 30-day count that is on demand: once an hour
-// over a working day of the given hours is hours × 30 deployments in 30
-// days, so on demand is more than that (forsgren#69, #71): 241 at 8.
-func OnDemandFrom(hours int) int { return OnDemandFromOver(hours, last30Days) }
-
-// BandOf is the band of the counts of successful deployments in the last 30
-// and the last 180 days, for a working day of the given hours (forsgren#71).
-func BandOf(last30, last180, workingHours int) Band {
-	return BandOverDays(last30, last180, workingHours, last30Days)
-}
-
-// BandOverDays is the band of the count of successful deployments over a
+// BandOf is the band of the count of successful deployments over the DORA
 // window of days (30, 90 or 180) and of the count over the last 180 days,
-// for a working day of the given hours (forsgren#178). The edges above are
+// for a working day of the given hours (forsgren#71, #178). The edges above are
 // per 30 days and scale by days/30, never the counts, so the rate each band
 // stands for is the same in every window: at 8 hours 1, 5, 30 and 241 over 30
 // days, 3, 15, 90 and 721 over 90, 6, 30, 180 and 1441 over 180. Under the
 // first edge the 180-day count tells the two slowest bands apart; over 180
 // days it is the window's own count.
-func BandOverDays(count, last180, workingHours, days int) Band {
+func BandOf(count, last180, workingHours, days int) Band {
 	switch {
-	case count >= OnDemandFromOver(workingHours, days):
+	case count >= OnDemandFrom(workingHours, days):
 		return OnDemand
 	case count >= scaled(hourlyToDailyFrom, days):
 		return HourlyToDaily
@@ -93,24 +85,27 @@ func BandOverDays(count, last180, workingHours, days int) Band {
 	}
 }
 
+// monthDays is the 30 days a band edge is given per.
+const monthDays = 30
+
 // scaled is an edge given per 30 days, over a window of days.
-func scaled(per30, days int) int { return per30 * days / last30Days }
+func scaled(per30, days int) int { return per30 * days / monthDays }
 
 // Edges are the lowest counts of the bands from WeeklyToMonthly up over a
 // window of days (forsgren#178): the legend lists them.
 type Edges struct{ WeeklyToMonthly, DailyToWeekly, HourlyToDaily int }
 
-// EdgesOver are the edges over a window of days: those per 30 days scaled by
+// EdgesOf are the edges over a window of days: those per 30 days scaled by
 // days/30.
-func EdgesOver(days int) Edges {
+func EdgesOf(days int) Edges {
 	return Edges{scaled(weeklyToMonthlyFrom, days), scaled(dailyToWeeklyFrom, days), scaled(hourlyToDailyFrom, days)}
 }
 
-// OnDemandFromOver is the lowest count over a window of days that is on
-// demand: once an hour over a working day of the given hours is hours × days
-// deployments, so on demand is more than that (forsgren#178): 721 at 8 hours
-// over 90 days.
-func OnDemandFromOver(hours, days int) int { return WorkingDay(hours)*days + 1 }
+// OnDemandFrom is the lowest count over a window of days that is on demand:
+// once an hour over a working day of the given hours is hours × days
+// deployments, so on demand is more than that (forsgren#69, #71, #178): 241
+// at 8 hours over 30 days, 721 over 90.
+func OnDemandFrom(hours, days int) int { return WorkingDay(hours)*days + 1 }
 
 // bandNames are the bands' names, indexed by band; index 0 is no band.
 var bandNames = [...]string{

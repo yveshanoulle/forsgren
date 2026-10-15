@@ -19,10 +19,10 @@ const day = 24 * time.Hour
 // minus that many days of 24 hours, and not after now, both ends included.
 type window int
 
-// The windows the page counts in.
+// The fixed windows the page counts in besides the DORA window, dora_days
+// (window(days), forsgren#178).
 const (
 	last7   window = 7
-	last30  window = 30
 	last180 window = 180
 )
 

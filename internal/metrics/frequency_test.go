@@ -34,7 +34,9 @@ func success(ago time.Duration) history.Record {
 // shopOf returns Acme Shop's frequency for records.
 func shopOf(t *testing.T, records ...history.Record) Frequency {
 	t.Helper()
-	got := DeploymentFrequency(projects, records, config.DefaultWorkingHours, now)
+	got := DeploymentFrequency(projects, Data{
+		Records: records, WorkingHours: config.DefaultWorkingHours, DoraDays: 30,
+	}, now)
 	if len(got) != 2 {
 		t.Fatalf("want one Frequency per project, 2, got %d", len(got))
 	}
@@ -47,7 +49,7 @@ type counts struct {
 	has                    bool
 }
 
-func countsOf(f Frequency) counts { return counts{f.Last7, f.Last30, f.Last180, f.HasDeployments()} }
+func countsOf(f Frequency) counts { return counts{f.Last7, f.InWindow, f.Last180, f.HasDeployments()} }
 
 // TestWindowEdges pins the windows: at or after now minus 7 (30, 180) days
 // of 24 hours, and not after now. Exactly 7 days old is in the 7-day count;
@@ -111,11 +113,11 @@ func TestLatestIsTheNewestSuccess(t *testing.T) {
 // compared ignoring case, as the config does); a repository no project
 // lists is left out.
 func TestProjectsInConfigOrderWithTheirOwnRecords(t *testing.T) {
-	got := DeploymentFrequency(projects, []history.Record{
+	got := DeploymentFrequency(projects, Data{Records: []history.Record{
 		deployed("Acme/CLI", history.StateSuccess, time.Hour),
 		deployed("acme/gone", history.StateSuccess, time.Hour),
 		success(time.Hour), success(2 * time.Hour),
-	}, config.DefaultWorkingHours, now)
+	}, WorkingHours: config.DefaultWorkingHours, DoraDays: 30}, now)
 	want := []struct {
 		project string
 		last30  int
@@ -124,7 +126,7 @@ func TestProjectsInConfigOrderWithTheirOwnRecords(t *testing.T) {
 		t.Fatalf("want %d projects, got %+v", len(want), got)
 	}
 	for i, w := range want {
-		if got[i].Project != w.project || got[i].Last30 != w.last30 {
+		if got[i].Project != w.project || got[i].InWindow != w.last30 {
 			t.Errorf("project %d: want %s with %d, got %+v", i, w.project, w.last30, got[i])
 		}
 	}
@@ -133,7 +135,7 @@ func TestProjectsInConfigOrderWithTheirOwnRecords(t *testing.T) {
 // TestEmptyHistory: every project is there, with no deployment and the
 // slowest band; no project gives no Frequency.
 func TestEmptyHistory(t *testing.T) {
-	got := DeploymentFrequency(projects, nil, config.DefaultWorkingHours, now)
+	got := DeploymentFrequency(projects, Data{WorkingHours: config.DefaultWorkingHours, DoraDays: 30}, now)
 	want := []Frequency{
 		{Project: "Acme Shop", Band: LessThanSixMonthly},
 		{Project: "Acme Tools", Band: LessThanSixMonthly},
@@ -142,7 +144,9 @@ func TestEmptyHistory(t *testing.T) {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
 	recorded := []history.Record{success(time.Hour)}
-	if none := DeploymentFrequency(nil, recorded, config.DefaultWorkingHours, now); len(none) != 0 {
+	if none := DeploymentFrequency(nil, Data{
+		Records: recorded, WorkingHours: config.DefaultWorkingHours, DoraDays: 30,
+	}, now); len(none) != 0 {
 		t.Errorf("want no Frequency without projects, got %+v", none)
 	}
 }
@@ -166,7 +170,7 @@ func daysAgo(first, last int) []time.Duration {
 	return ages
 }
 
-// TestBandFollowsTheThirtyDayCount: the band comes from Last30 whenever it
+// TestBandFollowsTheThirtyDayCount: the band comes from InWindow whenever it
 // holds a deployment, whatever else the 180 days hold.
 func TestBandFollowsTheThirtyDayCount(t *testing.T) {
 	cases := []struct {
@@ -207,7 +211,7 @@ func youngAges(n int, first time.Duration) []time.Duration {
 }
 
 // TestBandScalesAProjectYoungerThanThirtyDays (forsgren#69): when the first
-// success is less than 30 days old, the band uses Last30 times 30 over the
+// success is less than 30 days old, the band uses InWindow times 30 over the
 // age in whole days, at least 1; an older project is not scaled.
 func TestBandScalesAProjectYoungerThanThirtyDays(t *testing.T) {
 	cases := []struct {
@@ -245,7 +249,9 @@ func TestFrequencyBandFollowsWorkingHours(t *testing.T) {
 		for range c.count {
 			records = append(records, success(2*day))
 		}
-		if got := DeploymentFrequency(projects, records, c.hours, now)[0].Band; got != c.want {
+		if got := DeploymentFrequency(projects, Data{
+			Records: records, WorkingHours: c.hours, DoraDays: 30,
+		}, now)[0].Band; got != c.want {
 			t.Errorf("%d hours, %d in 30 days: want %v, got %v", c.hours, c.count, c.want, got)
 		}
 		rows := Rows(projects[:1], Data{Records: records, WorkingHours: c.hours}, now)
@@ -256,7 +262,7 @@ func TestFrequencyBandFollowsWorkingHours(t *testing.T) {
 }
 
 // TestWeekendDeploymentsCountOnlySaturdayAndSundayUTC pins forsgren#115:
-// Weekend30 counts the successes of the last 30 days created on a UTC
+// WeekendInWindow counts the successes of the last 30 days created on a UTC
 // Saturday or Sunday, at the edges of both days; a failure, an other and a
 // success older than 30 days do not count.
 func TestWeekendDeploymentsCountOnlySaturdayAndSundayUTC(t *testing.T) {
@@ -277,8 +283,8 @@ func TestWeekendDeploymentsCountOnlySaturdayAndSundayUTC(t *testing.T) {
 		record(history.StateOther, saturday),
 		record(history.StateSuccess, time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)), // a Saturday, 35 days ago
 	)
-	if got.Weekend30 != 2 {
-		t.Errorf("want 2 weekend successes in the last 30 days, got %d", got.Weekend30)
+	if got.WeekendInWindow != 2 {
+		t.Errorf("want 2 weekend successes in the last 30 days, got %d", got.WeekendInWindow)
 	}
 }
 
@@ -293,8 +299,8 @@ func TestWeekendDeploymentsAlsoCountedOverTheLast180Days(t *testing.T) {
 		return r
 	}
 	got := shopOf(t, at(time.June, 27), at(time.August, 4), at(time.March, 21))
-	if got.Last30 != 0 || got.Last180 != 2 {
-		t.Fatalf("want 0 successes in 30 days and 2 in 180, got %d and %d", got.Last30, got.Last180)
+	if got.InWindow != 0 || got.Last180 != 2 {
+		t.Fatalf("want 0 successes in 30 days and 2 in 180, got %d and %d", got.InWindow, got.Last180)
 	}
 	if got.Weekend180 != 1 {
 		t.Errorf("want 1 weekend success in the last 180 days, got %d", got.Weekend180)

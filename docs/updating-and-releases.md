@@ -112,14 +112,16 @@ the config switches it on, and a new install's starter does, at `major` (see
 **The two keys** of `forsgren.config.yml` (see [Configuration](configuration.md#configuration)):
 
 - **`auto_update`** is `true` or `false`, and only those literals (a quoted
-  value, `yes` or a number is refused by `check-config`). Absent, or without
-  a value, it is off, so an existing config keeps its behaviour until it opts
-  in.
+  value, `yes` or a number is not accepted: it is off, the default, and
+  `check-update` and `check-config` warn about it, see
+  [A setting that is not accepted](configuration.md#a-setting-that-is-not-accepted)).
+  Absent, or without a value, it is off, so an existing config keeps its
+  behaviour until it opts in.
 - **`auto_update_level`** is `patch`, `minor` or `major`: the largest step
   an update may take and still merge itself. It is optional and
   defaults to `major`: with `auto_update: true` and no level, the level is
-  `major`, and any value other than the three is refused (`check-config`
-  names them). At `patch`,
+  `major`, and any value other than the three is not accepted: the level is
+  then `major`, the default, and the warning names the three. At `patch`,
   v0.2.0 to v0.2.1 merges and v0.3.0 does not; at `minor`, v0.3.0 merges (and
   every patch) and v1.0.0 does not; at `major`, v1.0.0 merges as well. A
   level only limits what merges: a pull request beyond it is left for you,
@@ -184,7 +186,8 @@ or two for exit 3:
   With no such release it is exit 1, as before; any other reason to leave the
   pull request never looks at the releases;
 - exit 2: a usage, config or network error, with the message on stderr and
-  nothing on stdout (a flag missing or invalid, a config that is invalid, an
+  nothing on stdout (a flag missing or invalid, a config that is invalid (a
+  setting that is not accepted only warns and uses its default), an
   answer of GitHub that is an error, or a pull request with more files than
   forsgren reads).
 
@@ -282,6 +285,22 @@ the Daily page, add `days_page: true` to `forsgren.config.yml` before or
 after the update, and the next run generates it again. An agent following
 [agent-upgrade.md](../agent-upgrade.md) asks you about it before it moves the
 pins.
+
+**Upgrading to 1.6.0** (forsgren#178, #183). A new optional key,
+`dora_days` (30, 90 or 180), sets the window of the five DORA metrics; it
+defaults to 30, so nothing changes until you set it, and a longer window needs
+`history_days` of at least as many days (see
+[Configuration](configuration.md#configuration)). `history_days` now accepts
+30 to 1825 (it was 1 to 1825): raise a lower value to at least 30 before the
+update, or the default 365 is used. A setting forsgren does not accept no
+longer stops the run: its default is used, the settings page says so in the
+key's row, the log warns with a `config: warning:` line and `check-config`
+passes with `settings not accepted: N`. The one-time catch-up of withdrawn
+failure issues re-reads the `dora_days` window, but an installation that
+already ran it and later widens `dora_days` gets no second catch-up (see
+[Collecting deployments](data-files.md#collecting-deployments-collect));
+this is rare. An agent following [agent-upgrade.md](../agent-upgrade.md) asks
+you only whether you want a longer window, and checks `history_days`.
 
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the

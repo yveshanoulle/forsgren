@@ -31,7 +31,7 @@ func reworkOf(r ReworkRate) reworkWant {
 // the test unless Acme Tools follows it with none.
 func shopRework(t *testing.T, records []history.Record, failures []history.Failure) ReworkRate {
 	t.Helper()
-	all := ReworkRates(projects, records, failures, now)
+	all := ReworkRates(projects, Data{Records: records, Failures: failures, DoraDays: 30}, now)
 	if !shopThenIdleTools(all) {
 		t.Fatalf("want Acme Shop's rate, then Acme Tools with nothing, got %+v", all)
 	}
@@ -164,7 +164,7 @@ func TestReworkBandEdges(t *testing.T) {
 		{0, 10, ZeroPercent}, {1, 11, ZeroPercent}, {1, 10, TwentyPercent}, {3, 11, TwentyPercent},
 		{3, 10, FortyPercent}, {1, 2, SixtyPercent}, {7, 10, EightyPercent}, {9, 10, HundredPercent},
 	} {
-		got := ReworkRates(projects, reworkOutOf(want.rework, want.successes), nil, now)[0]
+		got := ReworkRates(projects, Data{Records: reworkOutOf(want.rework, want.successes), DoraDays: 30}, now)[0]
 		if bandOf(got) != want {
 			t.Errorf("%d of %d: want band %q, got %d of %d, %q", want.rework, want.successes, want.band,
 				got.Rework, got.Deployments, got.Band)

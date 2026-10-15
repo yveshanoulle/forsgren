@@ -180,14 +180,14 @@ func (d Data) AnyIssueRowActive() bool {
 func (d Data) WorkingDay() int { return metrics.WorkingDay(d.WorkingHours) }
 
 // Window is the DORA window in days, 30 when Data holds none (forsgren#178).
-func (d Data) Window() int { return metrics.Data{Days: d.DoraDays}.WindowDays() }
+func (d Data) Window() int { return config.DoraWindow(d.DoraDays) }
 
 // edges are the band edges over the window.
-func (d Data) edges() metrics.Edges { return metrics.EdgesOver(d.Window()) }
+func (d Data) edges() metrics.Edges { return metrics.EdgesOf(d.Window()) }
 
 // OnDemandFrom is the lowest count over the window that is on demand for the
 // working day.
-func (d Data) OnDemandFrom() int { return metrics.OnDemandFromOver(d.WorkingHours, d.Window()) }
+func (d Data) OnDemandFrom() int { return metrics.OnDemandFrom(d.WorkingHours, d.Window()) }
 
 // HourlyToDailyFrom is the lowest count over the window between once per hour
 // and once per day.

@@ -25,27 +25,27 @@ import (
 // Frequency is one project's deployment frequency at the render time.
 type Frequency struct {
 	Project string
-	// Last7 and Last30 count the successful deployments created in the
-	// last 7 and 30 days: at or after now minus 7 (30) times 24 hours, and
-	// not after now. A deployment exactly 7 days old is in the 7-day count.
-	// Over a longer DORA window (DeploymentFrequencyOver, forsgren#178),
-	// Last30 counts the window's days, 90 or 180, until a later step renames it.
-	Last7, Last30 int
+	// Last7 and InWindow count the successful deployments created in the
+	// last 7 days and in the DORA window (dora_days: 30, 90 or 180 days,
+	// forsgren#178): at or after now minus 7 (the window's) times 24 hours,
+	// and not after now. A deployment exactly 7 days old is in the 7-day
+	// count.
+	Last7, InWindow int
 	// Last180 counts them over the last 180 days the same way, for the two
 	// slowest bands (forsgren#16, step 6).
 	Last180 int
-	// Weekend30 counts the Last30 successes created on a Saturday or a
-	// Sunday, UTC (forsgren#115).
-	Weekend30 int
+	// WeekendInWindow counts the InWindow successes created on a Saturday or
+	// a Sunday, UTC (forsgren#115).
+	WeekendInWindow int
 	// Weekend180 counts the Last180 successes created on a Saturday or a
 	// Sunday, UTC (forsgren#115).
 	Weekend180 int
 	// Latest is the creation time of the project's newest successful
 	// deployment; zero when it has none.
 	Latest time.Time
-	// Band is the DORA band of Last30, or of Last180 when Last30 is 0 (see
-	// BandOf); a project younger than 30 days scales Last30 to 30 days
-	// first (see bandOfAgeOver, forsgren#69).
+	// Band is the DORA band of InWindow, or of Last180 when InWindow is 0
+	// (see BandOf); a project younger than the window scales InWindow to the
+	// window first (see scaledToAge, forsgren#69).
 	Band Band
 }
 
@@ -54,25 +54,18 @@ type Frequency struct {
 func (f Frequency) HasDeployments() bool { return !f.Latest.IsZero() }
 
 // DeploymentFrequency returns the deployment frequency of each project, in
-// the order of projects, from the history records at the render time now.
-func DeploymentFrequency(
-	projects []config.Project, records []history.Record, workingHours int, now time.Time,
-) []Frequency {
-	return DeploymentFrequencyOver(projects, records, workingHours, last30Days, now)
-}
-
-// DeploymentFrequencyOver is DeploymentFrequency over a window of days (30,
-// 90 or 180), forsgren#178: Last30 and Weekend30 then count the window's days.
-func DeploymentFrequencyOver(
-	projects []config.Project, records []history.Record, workingHours, days int, now time.Time,
-) []Frequency {
+// the order of projects, from the data's history records at the render time
+// now, over its DORA window (30, 90 or 180 days, forsgren#178) and with its
+// working day.
+func DeploymentFrequency(projects []config.Project, data Data, now time.Time) []Frequency {
+	days := data.days()
 	index := indexOf(projects)
 	out := make([]Frequency, len(projects))
 	for i, p := range projects {
 		out[i].Project = p.Name
 	}
 	firsts := make([]time.Time, len(projects))
-	for _, r := range records {
+	for _, r := range data.Records {
 		i, ok := index.of(r.Repository)
 		if ok && r.State == history.StateSuccess {
 			out[i].add(r.CreatedAt, now, window(days))
@@ -80,22 +73,22 @@ func DeploymentFrequencyOver(
 		}
 	}
 	for i := range out {
-		out[i].Band = bandOfAgeOver(out[i].Last30, out[i].Last180, workingHours, days, firsts[i], now)
+		out[i].Band = BandOf(scaledToAge(out[i].InWindow, days, firsts[i], now), out[i].Last180, data.WorkingHours, days)
 	}
 	return out
 }
 
-// add counts one successful deployment created at, seen at now, Last30 and
-// Weekend30 over the window w (forsgren#178).
+// add counts one successful deployment created at, seen at now, InWindow and
+// WeekendInWindow over the DORA window w (forsgren#178).
 func (f *Frequency) add(at, now time.Time, w window) {
 	if at.After(f.Latest) {
 		f.Latest = at
 	}
 	f.Last7 += last7.count(at, now)
-	f.Last30 += w.count(at, now)
+	f.InWindow += w.count(at, now)
 	f.Last180 += last180.count(at, now)
 	if isWeekend(at) {
-		f.Weekend30 += w.count(at, now)
+		f.WeekendInWindow += w.count(at, now)
 		f.Weekend180 += last180.count(at, now)
 	}
 }

@@ -93,6 +93,16 @@ const (
 	DoraDays180     = 180
 )
 
+// DoraWindow is the DORA window in days for a DoraDays value: days, or
+// DefaultDoraDays when it is 0, as in a Config that was not loaded from a
+// file (forsgren#178).
+func DoraWindow(days int) int {
+	if days == 0 {
+		return DefaultDoraDays
+	}
+	return days
+}
+
 // DefaultEnvironment is the GitHub environment a repository deploys to when
 // its config names no deployment.
 const DefaultEnvironment = "production"
@@ -185,8 +195,8 @@ type Config struct {
 	written  map[string]bool
 	Projects []Project
 	// Rejected are the settings the file writes that are not accepted, in the
-	// order of the file's settings; the default is in force for each
-	// (forsgren#183).
+	// order of the settings page (settingKeys); the default is in force for
+	// each (forsgren#183).
 	Rejected []Rejection
 }
 
@@ -204,10 +214,17 @@ func (r *Rejection) Error() string {
 	return fmt.Sprintf("%v %q: %s", r.sentinel, r.Written, r.Reason)
 }
 
-// reject is the rejection of key written as written, for the reason, with the
-// default in force instead; sentinel is the key's Err value.
-func reject(sentinel error, key, written, reason, def string) *Rejection {
-	return &Rejection{Key: key, Written: written, Reason: reason, Default: def, sentinel: sentinel}
+// refusable is one setting as a Rejection names it: its Err sentinel, its key
+// and its default as the settings page writes it.
+type refusable struct {
+	sentinel error
+	key, def string
+}
+
+// reject is the rejection of the setting written as n, for the reason, with
+// its default in force instead (forsgren#183).
+func (s refusable) reject(n yaml.Node, reason string) *Rejection {
+	return &Rejection{Key: s.key, Written: writtenOf(n), Reason: reason, Default: s.def, sentinel: s.sentinel}
 }
 
 // Unwrap is the key's Err sentinel.
@@ -407,17 +424,21 @@ var settingKeys = []settingKey{
 func (c Config) Settings() []Setting {
 	list := make([]Setting, len(settingKeys))
 	for i, k := range settingKeys {
-		list[i] = Setting{Key: k.key, Value: k.def, Set: c.written[k.key]}
-		if list[i].Set {
-			list[i].Value = k.value(c)
-		}
-	}
-	for _, r := range c.Rejected {
-		for i := range list {
-			if list[i].Key == r.Key {
-				list[i].Written, list[i].Reason = r.Written, r.Reason
-			}
-		}
+		list[i] = c.setting(k)
 	}
 	return list
+}
+
+// setting is the Setting of one optional key.
+func (c Config) setting(k settingKey) Setting {
+	s := Setting{Key: k.key, Value: k.def, Set: c.written[k.key]}
+	if s.Set {
+		s.Value = k.value(c)
+	}
+	for _, r := range c.Rejected {
+		if r.Key == k.key {
+			s.Written, s.Reason = r.Written, r.Reason
+		}
+	}
+	return s
 }

@@ -429,7 +429,8 @@ either.
   stored failures that may have lost their label long ago, which no `since`
   list shows again. The first run that finds no `failures_withdrawn.csv`
   therefore re-reads each stored failure issue that can still count, open or
-  opened in the last 30 days, and not already in that run's daily read:
+  opened in the DORA window (`dora_days`: the last 30 days unless the config
+  sets 90 or 180, forsgren#178), and not already in that run's daily read:
   `issues/{number}`, one request per issue, once per installation. Its
   cost is one request per such issue (an older closed failure no longer
   counts and is not asked). An issue GitHub answers 410 for, or 404 once the
@@ -440,6 +441,11 @@ either.
   even with no line, so the catch-up is not done again; a run that failed
   anywhere writes no withdrawals at all, and the next run does the catch-up
   again.
+- The catch-up reads the window in force when it runs. An installation that
+  already ran it and later widens `dora_days` gets no second catch-up: a
+  failure issue opened 31 to 180 days ago that lost its label before 1.4.1
+  and that the daily read no longer lists stays counted. This is rare: it
+  needs a withdrawal before 1.4.1 on an issue older than 30 days.
 - Outside the catch-up, an issue that is deleted or transferred is not seen
   as gone: GitHub no longer lists it, so it keeps counting as its stored
   lines say (see the known limits of the issue events).

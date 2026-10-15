@@ -51,7 +51,8 @@ func acmeProjects(shop metrics.LeadTime, recovery metrics.Recovery, changeFail m
 	data := calculated()
 	latest := time.Date(2026, 10, 1, 9, 30, 0, 0, time.UTC)
 	frequency := metrics.Frequency{
-		Project: "Acme Shop", Last7: 3, Last30: 12, Last180: 12, Weekend30: 3, Latest: latest, Band: metrics.DailyToWeekly,
+		Project: "Acme Shop", Last7: 3, InWindow: 12, Last180: 12, WeekendInWindow: 3, Latest: latest,
+		Band: metrics.DailyToWeekly,
 	}
 	data.Rows = Table([]metrics.Row{
 		{Level: metrics.ProjectRow, Name: "Acme Shop", Frequency: frequency, LeadTime: shop, Recovery: recovery,
@@ -136,9 +137,11 @@ func TestNoDataPageMatchesGolden(t *testing.T) {
 // labels.
 func labelledRows() []metrics.Row {
 	latest := time.Date(2026, 10, 2, 8, 0, 0, 0, time.UTC)
-	often := metrics.Frequency{Last30: 16, Last180: 40, Weekend30: 5, Latest: latest, Band: metrics.DailyToWeekly}
-	apiOften := metrics.Frequency{Last30: 12, Last180: 30, Weekend30: 3, Latest: latest, Band: metrics.DailyToWeekly}
-	rarely := metrics.Frequency{Last30: 2, Last180: 5, Latest: latest, Band: metrics.WeeklyToMonthly}
+	often := metrics.Frequency{InWindow: 16, Last180: 40, WeekendInWindow: 5, Latest: latest, Band: metrics.DailyToWeekly}
+	apiOften := metrics.Frequency{
+		InWindow: 12, Last180: 30, WeekendInWindow: 3, Latest: latest, Band: metrics.DailyToWeekly,
+	}
+	rarely := metrics.Frequency{InWindow: 2, Last180: 5, Latest: latest, Band: metrics.WeeklyToMonthly}
 	fast := metrics.LeadTime{Commits: 48, Median: 2*time.Hour + 7*time.Minute, Band: metrics.LessThanOneDay}
 	slow := metrics.LeadTime{Commits: 5, Median: 3*24*time.Hour + 4*time.Hour, Band: metrics.OneDayToOneWeek}
 	recovered := metrics.Recovery{Recoveries: 1, Median: 40 * time.Minute, Band: metrics.LessThanOneHour}
@@ -157,7 +160,7 @@ func labelledRows() []metrics.Row {
 		row(label, "API", apiOften, fast, recovered, cf(7, 1, metrics.TwentyPercent)),
 		{Level: label, Name: "IOS"},
 		row(label, "Website", rarely, metrics.LeadTime{}, metrics.Recovery{Unrecovered: 1}, cf(3, 1, metrics.FortyPercent)),
-		row(metrics.ProjectRow, "Acme Tools", metrics.Frequency{Last30: 3, Latest: latest, Band: metrics.WeeklyToMonthly},
+		row(metrics.ProjectRow, "Acme Tools", metrics.Frequency{InWindow: 3, Latest: latest, Band: metrics.WeeklyToMonthly},
 			slow, metrics.Recovery{}, cf(3, 0, metrics.ZeroPercent)),
 		{Level: metrics.ProjectRow, Name: "Acme Docs"},
 	}

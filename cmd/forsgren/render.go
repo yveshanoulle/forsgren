@@ -208,7 +208,7 @@ func rowsOf(cfg config.Config, path string, at time.Time) ([]metrics.Row, error)
 		return nil, err
 	}
 	data := metrics.Data{Records: records, Commits: commits, Failures: failures, WorkingHours: cfg.WorkingHours,
-		Days: cfg.DoraDays}
+		DoraDays: cfg.DoraDays}
 	return metrics.Rows(cfg.Projects, data, at), nil
 }
 

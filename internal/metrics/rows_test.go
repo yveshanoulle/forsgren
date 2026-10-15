@@ -137,11 +137,15 @@ func TestLabelsSortIgnoringCase(t *testing.T) {
 // changes no project's number.
 func TestProjectRowsKeepTheirNumbers(t *testing.T) {
 	data := tableData()
-	frequencies := DeploymentFrequency(tableProjects, data.Records, config.DefaultWorkingHours, now)
-	leadTimes := LeadTimes(tableProjects, data.Commits, now)
-	recoveries := RecoveryTimes(tableProjects, data.Records, now)
-	changeFails := ChangeFailRates(tableProjects, data.Records, data.Failures, now)
-	reworks := ReworkRates(tableProjects, data.Records, data.Failures, now)
+	frequencies := DeploymentFrequency(tableProjects, Data{
+		Records: data.Records, WorkingHours: config.DefaultWorkingHours, DoraDays: 30,
+	}, now)
+	leadTimes := LeadTimes(tableProjects, Data{Commits: data.Commits, DoraDays: 30}, now)
+	recoveries := RecoveryTimes(tableProjects, Data{Records: data.Records, DoraDays: 30}, now)
+	changeFails := ChangeFailRates(tableProjects, Data{
+		Records: data.Records, Failures: data.Failures, DoraDays: 30,
+	}, now)
+	reworks := ReworkRates(tableProjects, Data{Records: data.Records, Failures: data.Failures, DoraDays: 30}, now)
 	projectRows := projectRowsOf(Rows(tableProjects, data, now))
 	if len(projectRows) != len(tableProjects) {
 		t.Fatalf("want a row per project, got %v", headingsOf(projectRows))
@@ -188,7 +192,7 @@ type tally struct {
 
 func tallyOf(r Row) tally {
 	return tally{
-		r.Frequency.Last30, r.LeadTime.Commits, r.Recovery.Recoveries,
+		r.Frequency.InWindow, r.LeadTime.Commits, r.Recovery.Recoveries,
 		r.ChangeFail.Deployments, r.ChangeFail.FailedDeployments, r.ChangeFail.FailureIssues, r.ChangeFail.Failed,
 	}
 }
@@ -261,8 +265,8 @@ func TestServiceTasksMatchExactly(t *testing.T) {
 		appDeployment(3, "deploy-API", ok, time.Hour),
 	}
 	rows := Rows(tableProjects[:1], Data{Records: records}, now)
-	if api := rowNamed(t, rows, "API"); api.Frequency.Last30 != 2 {
-		t.Errorf("want API to count deploy-api of acme/app in any case, 2, got %d", api.Frequency.Last30)
+	if api := rowNamed(t, rows, "API"); api.Frequency.InWindow != 2 {
+		t.Errorf("want API to count deploy-api of acme/app in any case, 2, got %d", api.Frequency.InWindow)
 	}
 }
 

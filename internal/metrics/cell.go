@@ -14,8 +14,8 @@ import (
 // cellSeparator separates the parts of a cell.
 const cellSeparator = " · "
 
-// Cell is the band and the count that decided it, the last 30 days' or,
-// with none in them, the last 180 days': "Between once per day and once per
+// Cell is the band and the count that decided it, the DORA window's or,
+// with none in it, the last 180 days': "Between once per day and once per
 // week · 7"; a row whose deployments all failed shows its band of none,
 // "Less than once per six months · 0" (decision #35).
 func (f Frequency) Cell() string {
@@ -31,18 +31,18 @@ func (f Frequency) WeekendCell() string { return strconv.Itoa(f.shown().weekends
 // (forsgren#124).
 type windowCounts struct{ deployments, weekends int }
 
-// shown are the counts of the window the frequency cell shows: the last 30
-// days', or, with none in them, the last 180 days'.
+// shown are the counts of the window the frequency cell shows: the DORA
+// window's, or, with none in it, the last 180 days'.
 func (f Frequency) shown() windowCounts {
-	if f.Last30 == 0 {
+	if f.InWindow == 0 {
 		return windowCounts{f.Last180, f.Weekend180}
 	}
-	return f.last30Counts()
+	return f.ofWindow()
 }
 
-// last30Counts are the counts of the last 30 days, the window the numbers
-// view shows.
-func (f Frequency) last30Counts() windowCounts { return windowCounts{f.Last30, f.Weekend30} }
+// ofWindow are the counts of the DORA window, the window the numbers view
+// shows (forsgren#178).
+func (f Frequency) ofWindow() windowCounts { return windowCounts{f.InWindow, f.WeekendInWindow} }
 
 // Cell is the band, the median and the count of commits, "Less than one
 // day · 2 h 7 min (48)"; "No lead time yet" without commits.

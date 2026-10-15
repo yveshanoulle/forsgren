@@ -5,12 +5,12 @@ import (
 	"time"
 )
 
-// TestBandOfAgeOverScalesAYoungRowToTheWindow (forsgren#178, #69): a row
+// TestScaledToAgeScalesAYoungRowToTheWindow (forsgren#178, #69): a row
 // whose first success is younger than the window has not had a whole window
 // to deploy in, so its count is scaled to the window, count × days over its
 // age in whole days (at least 1), and then banded with the window's edges.
 // A row as old as the window or older is not scaled.
-func TestBandOfAgeOverScalesAYoungRowToTheWindow(t *testing.T) {
+func TestScaledToAgeScalesAYoungRowToTheWindow(t *testing.T) {
 	cases := []struct {
 		name        string
 		days, count int
@@ -30,7 +30,7 @@ func TestBandOfAgeOverScalesAYoungRowToTheWindow(t *testing.T) {
 	}
 	for _, c := range cases {
 		// A young row's 180-day count is its window count: at least the count.
-		got := bandOfAgeOver(c.count, c.count, 8, c.days, now.Add(-c.age), now)
+		got := BandOf(scaledToAge(c.count, c.days, now.Add(-c.age), now), c.count, 8, c.days)
 		if got != c.want {
 			t.Errorf("%s: want %v, got %v", c.name, c.want, got)
 		}

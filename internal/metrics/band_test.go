@@ -32,7 +32,7 @@ func TestBandOfEachEdge(t *testing.T) {
 		{0, 0, LessThanSixMonthly},
 	}
 	for _, c := range cases {
-		if got := BandOf(c.last30, c.last180, config.DefaultWorkingHours); got != c.want {
+		if got := BandOf(c.last30, c.last180, config.DefaultWorkingHours, 30); got != c.want {
 			t.Errorf("BandOf(%d, %d): want band %d (%v), got %d (%v)",
 				c.last30, c.last180, c.want, c.want, got, got)
 		}
@@ -75,7 +75,7 @@ func TestBandOfFollowsWorkingHours(t *testing.T) {
 		{8, 240, HourlyToDaily},
 	}
 	for _, c := range cases {
-		if got := BandOf(c.last30, c.last30, c.hours); got != c.want {
+		if got := BandOf(c.last30, c.last30, c.hours, 30); got != c.want {
 			t.Errorf("BandOf(%d, %d, %d hours): want %v, got %v", c.last30, c.last30, c.hours, c.want, got)
 		}
 	}

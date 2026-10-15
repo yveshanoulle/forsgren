@@ -10,7 +10,7 @@ import (
 func TestFrequencyNumberCell(t *testing.T) {
 	wantCells(t, map[string][2]string{
 		"none":          {Frequency{}.NumberCell(), "0"},
-		"30 days":       {Frequency{Last30: 7, Last180: 9}.NumberCell(), "7"},
+		"30 days":       {Frequency{InWindow: 7, Last180: 9}.NumberCell(), "7"},
 		"only 180 days": {Frequency{Last180: 3}.NumberCell(), "0"},
 	})
 }
@@ -21,7 +21,7 @@ func TestFrequencyNumberCell(t *testing.T) {
 func TestFrequencyWeekendNumberCell(t *testing.T) {
 	wantCells(t, map[string][2]string{
 		"none":          {Frequency{}.WeekendNumberCell(), "0"},
-		"30 days":       {Frequency{Last30: 7, Last180: 9, Weekend30: 2, Weekend180: 4}.WeekendNumberCell(), "2"},
+		"30 days":       {Frequency{InWindow: 7, Last180: 9, WeekendInWindow: 2, Weekend180: 4}.WeekendNumberCell(), "2"},
 		"only 180 days": {Frequency{Last180: 3, Weekend180: 1}.WeekendNumberCell(), "0"},
 	})
 }

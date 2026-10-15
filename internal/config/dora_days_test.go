@@ -112,3 +112,14 @@ func TestHistoryDaysBelowTheMinimumLeavesTheWindowChecked(t *testing.T) {
 		t.Errorf("want only history_days rejected, got %v", got.Rejected)
 	}
 }
+
+// TestDoraWindowOfZeroIsTheDefault (forsgren#178): a Config not loaded from a
+// file has DoraDays 0, and its window is the default 30 days; a set window is
+// itself.
+func TestDoraWindowOfZeroIsTheDefault(t *testing.T) {
+	for days, want := range map[int]int{0: DefaultDoraDays, 30: 30, 90: 90, 180: 180} {
+		if got := DoraWindow(days); got != want {
+			t.Errorf("DoraWindow(%d): want %d, got %d", days, want, got)
+		}
+	}
+}

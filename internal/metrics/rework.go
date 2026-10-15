@@ -3,8 +3,9 @@ package metrics
 // The fifth number is deployment rework rate (forsgren#39), per configured
 // project: DORA's share of deployments that were not planned but made to
 // address a user-facing bug, from the stored deployments and failure
-// issues, over the last 30 days, both ends included, the window of lead
-// time, recovery time and change fail rate.
+// issues, over the DORA window (dora_days: the last 30, 90 or 180 days,
+// forsgren#178), both ends included, the window of lead time, recovery time
+// and change fail rate.
 //
 // A rework deployment is a successful deployment that either
 //
@@ -70,30 +71,21 @@ func (r ReworkRate) Cell() string {
 }
 
 // ReworkRates returns the rework rate of each project, in the order of
-// projects, from the history records and the failure issues at the render
-// time now.
-func ReworkRates(projects []config.Project, records []history.Record, failures []history.Failure,
-	now time.Time,
-) []ReworkRate {
-	return ReworkRatesOver(projects, records, failures, last30Days, now)
-}
-
-// ReworkRatesOver is ReworkRates over a window of days (30, 90 or 180): the
-// successful deployments created in the last days days (forsgren#178). The
-// failures are those left after the withdrawn ones were dropped (forsgren#155),
-// whatever the window.
-func ReworkRatesOver(projects []config.Project, records []history.Record, failures []history.Failure,
-	days int, now time.Time,
-) []ReworkRate {
+// projects, from the data's history records and failure issues at the render
+// time now, over its DORA window (30, 90 or 180 days): the successful
+// deployments created in the window (forsgren#178). The failures are those
+// left after the withdrawn ones were dropped (forsgren#155), whatever the
+// window.
+func ReworkRates(projects []config.Project, data Data, now time.Time) []ReworkRate {
 	index := indexOf(projects)
-	issues := issuesByRepository(failures)
+	issues := issuesByRepository(data.Failures)
 	out := make([]ReworkRate, len(projects))
 	for i, p := range projects {
 		out[i].Project = p.Name
 	}
-	for s, deployments := range streamsOf(index, records, now) {
+	for s, deployments := range streamsOf(index, data.Records, now) {
 		i, _ := index.of(s.Repository)
-		successes, rework := reworkIn(deployments, issues[s.Repository], window(days), now)
+		successes, rework := reworkIn(deployments, issues[s.Repository], data.window(), now)
 		out[i].Deployments += successes
 		out[i].Rework += rework
 	}

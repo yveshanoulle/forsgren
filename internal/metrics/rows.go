@@ -62,17 +62,16 @@ type Data struct {
 	// WorkingHours is the hours of a working day, which sets where the
 	// deployment frequency bands begin (forsgren#71).
 	WorkingHours int
-	// Days is the DORA window in days, 30 when it is 0 (forsgren#178).
-	Days int
+	// DoraDays is the DORA window in days, the default 30 when it is 0
+	// (config.DoraWindow, forsgren#178).
+	DoraDays int
 }
 
-// WindowDays is the window of the data in days: Days, or 30 when it is not set.
-func (d Data) WindowDays() int {
-	if d.Days == 0 {
-		return last30Days
-	}
-	return d.Days
-}
+// days is the data's DORA window in days.
+func (d Data) days() int { return config.DoraWindow(d.DoraDays) }
+
+// window is the data's DORA window.
+func (d Data) window() window { return window(d.days()) }
 
 // Rows is the page's table at the render time now: for each project, in
 // config order, its total row, then a row per label its repositories give,
@@ -92,11 +91,11 @@ func rowOf(level Level, p config.Project, data Data, now time.Time) Row {
 	only := []config.Project{p}
 	return Row{
 		Level: level, Name: p.Name,
-		Frequency:  DeploymentFrequencyOver(only, data.Records, data.WorkingHours, data.WindowDays(), now)[0],
-		LeadTime:   LeadTimesOver(only, data.Commits, data.WindowDays(), now)[0],
-		Recovery:   RecoveryTimesOver(only, data.Records, data.WindowDays(), now)[0],
-		ChangeFail: ChangeFailRatesOver(only, data.Records, data.Failures, data.WindowDays(), now)[0],
-		Rework:     ReworkRatesOver(only, data.Records, data.Failures, data.WindowDays(), now)[0],
+		Frequency:  DeploymentFrequency(only, data, now)[0],
+		LeadTime:   LeadTimes(only, data, now)[0],
+		Recovery:   RecoveryTimes(only, data, now)[0],
+		ChangeFail: ChangeFailRates(only, data, now)[0],
+		Rework:     ReworkRates(only, data, now)[0],
 	}
 }
 

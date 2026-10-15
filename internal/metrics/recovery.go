@@ -21,8 +21,9 @@ package metrics
 //   - a deployment in another final state neither starts nor ends a run of
 //     failures, and a deployment created after the render time is not
 //     there yet;
-//   - a recovery counts when its success was created in the last 30 days,
-//     both ends included, the window of lead time;
+//   - a recovery counts when its success was created in the DORA window
+//     (dora_days: the last 30, 90 or 180 days, forsgren#178), both ends
+//     included, the window of lead time;
 //   - a run of failures with no success after it is not recovered yet: it
 //     is counted and shown, whatever its age, but it has no time to put in
 //     the median.
@@ -42,7 +43,7 @@ import (
 // time.
 type Recovery struct {
 	Project string
-	// Recoveries counts the runs of failures recovered in the last 30 days.
+	// Recoveries counts the runs of failures recovered in the DORA window.
 	Recoveries int
 	// Median is their median recovery time; zero without recoveries.
 	Median time.Duration
@@ -55,22 +56,17 @@ type Recovery struct {
 }
 
 // RecoveryTimes returns the failed deployment recovery time of each
-// project, in the order of projects, from the history records at the render
-// time now.
-func RecoveryTimes(projects []config.Project, records []history.Record, now time.Time) []Recovery {
-	return RecoveryTimesOver(projects, records, last30Days, now)
-}
-
-// RecoveryTimesOver is RecoveryTimes over a window of days (30, 90 or 180): a
-// recovery counts when its success was created in the last days days
-// (forsgren#178). A run not recovered yet is counted whatever its age.
-func RecoveryTimesOver(projects []config.Project, records []history.Record, days int, now time.Time) []Recovery {
+// project, in the order of projects, from the data's history records at the
+// render time now, over its DORA window (30, 90 or 180 days): a recovery
+// counts when its success was created in the window (forsgren#178). A run not
+// recovered yet is counted whatever its age.
+func RecoveryTimes(projects []config.Project, data Data, now time.Time) []Recovery {
 	index := indexOf(projects)
 	times := make([][]time.Duration, len(projects))
 	out := make([]Recovery, len(projects))
-	for s, deployments := range streamsOf(index, records, now) {
+	for s, deployments := range streamsOf(index, data.Records, now) {
 		i, _ := index.of(s.Repository)
-		recovered, open := recoveriesOf(deployments, window(days), now)
+		recovered, open := recoveriesOf(deployments, data.window(), now)
 		times[i] = append(times[i], recovered...)
 		out[i].Unrecovered += open
 	}

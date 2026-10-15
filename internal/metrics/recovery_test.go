@@ -32,7 +32,7 @@ func fixed(ago time.Duration) history.Record { return to(deployAPI, history.Stat
 // shopRecovery returns Acme Shop's recovery time for records.
 func shopRecovery(t *testing.T, records ...history.Record) Recovery {
 	t.Helper()
-	got := RecoveryTimes(projects, records, now)
+	got := RecoveryTimes(projects, Data{Records: records, DoraDays: 30}, now)
 	if len(got) != 2 {
 		t.Fatalf("want one Recovery per project, 2, got %d", len(got))
 	}
@@ -224,7 +224,9 @@ func TestNoFailedDeployments(t *testing.T) {
 		"Acme Tools: No failed deployments",
 	}
 	for _, records := range [][]history.Record{nil, {fixed(time.Hour), gone}} {
-		if got := projectTexts(RecoveryTimes(projects, records, now)); !slices.Equal(got, want) {
+		if got := projectTexts(RecoveryTimes(projects, Data{
+			Records: records, DoraDays: 30,
+		}, now)); !slices.Equal(got, want) {
 			t.Errorf("want %q, got %q", want, got)
 		}
 	}
@@ -234,8 +236,8 @@ func TestNoFailedDeployments(t *testing.T) {
 // lists its repository.
 func TestRecoveryPerProject(t *testing.T) {
 	cli := func(state history.State, ago time.Duration) history.Record { return deployed("acme/cli", state, ago) }
-	got := RecoveryTimes(projects, []history.Record{cli(history.StateFailure, 3*time.Hour),
-		cli(history.StateSuccess, time.Hour)}, now)
+	got := RecoveryTimes(projects, Data{Records: []history.Record{cli(history.StateFailure, 3*time.Hour),
+		cli(history.StateSuccess, time.Hour)}, DoraDays: 30}, now)
 	want := []string{
 		"Acme Shop: No failed deployments",
 		"Acme Tools: Less than one day · 2 h (1)",

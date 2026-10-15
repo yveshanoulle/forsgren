@@ -11,13 +11,13 @@ import (
 // noNumber is the cell of a metric with no number.
 const noNumber = "-"
 
-// NumberCell is the successful deployments of the last 30 days, 0 if none.
-func (f Frequency) NumberCell() string { return strconv.Itoa(f.last30Counts().deployments) }
+// NumberCell is the successful deployments of the DORA window, 0 if none.
+func (f Frequency) NumberCell() string { return strconv.Itoa(f.ofWindow().deployments) }
 
-// WeekendNumberCell is how many of the successful deployments of the last
-// 30 days, the window NumberCell counts, were created on a Saturday or a
+// WeekendNumberCell is how many of the successful deployments of the DORA
+// window, the window NumberCell counts, were created on a Saturday or a
 // Sunday, UTC; 0 if none (forsgren#124).
-func (f Frequency) WeekendNumberCell() string { return strconv.Itoa(f.last30Counts().weekends) }
+func (f Frequency) WeekendNumberCell() string { return strconv.Itoa(f.ofWindow().weekends) }
 
 // NumberCell is the median as the standard cell shows it, "2 h 7 min", "-"
 // without commits.

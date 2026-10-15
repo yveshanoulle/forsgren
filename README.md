@@ -10,7 +10,8 @@ Named after Dr. Nicole Forsgren, whose research with DORA (and the book
 
 forsgren shows each metric as its DORA band next to the figures it comes from,
 for every project. The definitions, with the rulings behind them, are in
-[Pages and views](docs/pages-and-views.md).
+[Pages and views](docs/pages-and-views.md). The numbers count back over the
+last 30 days, or over 90 or 180 days when `dora_days` in the config says so.
 
 **[Deployment frequency](docs/pages-and-views.md#deployment-frequency)** answers
 how often you ship to users. The page shows its band with the number of

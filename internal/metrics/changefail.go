@@ -2,8 +2,9 @@ package metrics
 
 // The fourth number is change fail rate (forsgren#18), per configured
 // project: DORA's share of deployments that cause a failure in production
-// requiring remediation, over the last 30 days, both ends included, the
-// window of lead time and recovery time.
+// requiring remediation, over the DORA window (dora_days: the last 30, 90 or
+// 180 days, forsgren#178), both ends included, the window of lead time and
+// recovery time.
 //
 //   - the deployments are the stored final deployments, successes and
 //     failures, created in the window; another final state (a cancelled
@@ -87,11 +88,11 @@ func (b ChangeFailBand) String() string { return bandName(b, changeFailBandNames
 type ChangeFailRate struct {
 	Project string
 	// Deployments counts the final deployments, successes and failures,
-	// created in the last 30 days.
+	// created in the DORA window.
 	Deployments int
 	// FailedDeployments counts those that failed.
 	FailedDeployments int
-	// FailureIssues counts the failure issues opened in the last 30 days.
+	// FailureIssues counts the failure issues opened in the DORA window.
 	FailureIssues int
 	// Failed counts the failed changes: per repository the larger of its
 	// failed deployments and its failure issues, added up, at most
@@ -113,21 +114,12 @@ func (r ChangeFailRate) Percent() int {
 }
 
 // ChangeFailRates returns the change fail rate of each project, in the
-// order of projects, from the history records and the failure issues at the
-// render time now.
-func ChangeFailRates(projects []config.Project, records []history.Record, failures []history.Failure,
-	now time.Time,
-) []ChangeFailRate {
-	return ChangeFailRatesOver(projects, records, failures, last30Days, now)
-}
-
-// ChangeFailRatesOver is ChangeFailRates over a window of days (30, 90 or
-// 180): the deployments created and the failure issues opened in the last days
-// days count (forsgren#178). The failures are those left after the withdrawn
-// ones were dropped (forsgren#155), whatever the window.
-func ChangeFailRatesOver(projects []config.Project, records []history.Record, failures []history.Failure,
-	days int, now time.Time,
-) []ChangeFailRate {
+// order of projects, from the data's history records and failure issues at
+// the render time now, over its DORA window (30, 90 or 180 days): the
+// deployments created and the failure issues opened in the window count
+// (forsgren#178). The failures are those left after the withdrawn ones were
+// dropped (forsgren#155), whatever the window.
+func ChangeFailRates(projects []config.Project, data Data, now time.Time) []ChangeFailRate {
 	repos := map[string]*changes{}
 	of := func(repository string) *changes {
 		key := strings.ToLower(repository)
@@ -136,13 +128,13 @@ func ChangeFailRatesOver(projects []config.Project, records []history.Record, fa
 		}
 		return repos[key]
 	}
-	for _, r := range records {
-		if window(days).holds(r.CreatedAt, now) {
+	for _, r := range data.Records {
+		if data.window().holds(r.CreatedAt, now) {
 			of(r.Repository).deployed(r.State)
 		}
 	}
-	for _, f := range failures {
-		of(f.Repository).failureIssues += window(days).count(f.OpenedAt, now)
+	for _, f := range data.Failures {
+		of(f.Repository).failureIssues += data.window().count(f.OpenedAt, now)
 	}
 	return ratesOf(projects, repos)
 }

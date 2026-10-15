@@ -1,5 +1,14 @@
 # Pages and views
 
+**The DORA window** (forsgren#178). All five DORA numbers count back over one
+window, `dora_days` in `forsgren.config.yml` (see
+[Configuration](configuration.md#configuration)): 30 days unless it is set
+to 90 or 180. The sections below say "the last 30 days", the default; with
+`dora_days: 90` or `180` read 90 or 180 days there. Durations that are band
+edges (a month of 30 days, six months of 180 days) and the 180-day count of
+the two slowest frequency bands do not change with the window. The legend
+states the window in use, and whether `dora_days` sets it.
+
 ## Deployment frequency
 
 The first DORA number on the page (forsgren#12, step 7, package
@@ -22,7 +31,7 @@ a split per service is forsgren#11.
 
 **The windows** are counted back from the render time, in UTC, in days of
 24 hours: a deployment counts when it was created at or after the render
-time minus 7 (30, 180) days, and not after the render time. A deployment
+time minus 7 days (the DORA window, 180 days), and not after the render time. A deployment
 exactly 7 days old is in the 7-day count.
 
 **The bands** are the six deployment-frequency answers of the current DORA
@@ -45,15 +54,24 @@ slowest bands apart:
 | none in 30 days, 1 and more in 180 days | Between once per month and once every six months |
 | none in 180 days | Less than once per six months |
 
+Over a longer window the edges scale with it, never the count, so each band
+stands for the same rate (forsgren#178): an edge per 30 days is multiplied by
+`dora_days`/30. At 8 hours, on demand starts at 721 in 90 days and 1441 in
+180 days, between once per hour and once per day at 90 and 180, between once
+per day and once per week at 15 and 30, and between once per week and once
+per month at 3 and 6; with fewer, the 180-day count tells the two slowest
+bands apart as above (over 180 days it is the window's own count, so 1 to 5
+is between once per month and once every six months).
+
 Once an hour over a working day is `working_hours` × 30 deployments in 30
 days (8 × 30 = 240 with the default 8), so on demand is more than that
 (forsgren#69, #71); the legend page states the configured day and the numbers
 that follow from it. A row whose first
-successful deployment is less than 30 days old (the project total: its
+successful deployment is younger than the window (the project total: its
 earliest) has not had a whole window to deploy in, so its band uses its
-30-day count scaled to 30 days: the count × 30 over its age in whole days, at
-least 1 (19 in 9 days count as 63). The count shown, and the numbers view,
-stay the plain count.
+window count scaled to the window: the count × the window's days over its age
+in whole days, at least 1 (19 in 9 days count as 63 over 30 days). The count
+shown, and the numbers view, stay the plain count.
 
 The band describes throughput over the period, not regularity; the count
 makes a burst visible (Yves's ruling on forsgren#12), so the band is never
@@ -70,7 +88,8 @@ from the count it follows: the last 30 days, or the last 180 days when the
 blank, when there are none (decision #129). The numbers view shows the
 weekend deployments of the last 30 days beside its 30-day count; the scoring
 view does not show the column, as the count is no DORA metric and has no
-score. It never changes the band:
+score. It never changes the band (the table is at the default window; at
+180 days the window and the 180-day count are one):
 
 | Situation | Frequency cell | Weekend deployments |
 | --- | --- | --- |
@@ -332,8 +351,8 @@ six labels as change fail rate, "100%", "80%", "60%", "40%", "20%" and
 "0%". A rate is banded by the nearest label, a rate halfway between two the
 higher one, on change fail rate's edges (below 10% is 0%, 10% to below 30%
 is 20%, and so on up to 90% and more as 100%). DORA's question says "in the
-last 6 months"; forsgren measures the last 30 days, like its other four
-metrics.
+last 6 months"; forsgren measures the DORA window, the last 30 days unless
+`dora_days: 180` asks for six months, like its other four metrics.
 
 ## The page
 
@@ -422,7 +441,13 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   explains the periods of the issues and days pages: "Days are in UTC, weeks
   run Monday to Sunday, months and years follow the calendar, and a week that
   spans two months is in both." (forsgren#128, decision #133). It no longer
-  lists the settings (forsgren#84). Its Settings page section explains the
+  lists the settings (forsgren#84). After the paragraph on where the numbers
+  come from it states the window: "The window is 30 days (the default;
+  dora_days is not set in forsgren.config.yml)." or "The window is 90 days
+  (dora_days in forsgren.config.yml).", and every "last 30 days" of the
+  metric sections and the frequency bands' counts follow it, at 90 days "3 to
+  14 in 90 days", "Between once per month and once every six months: fewer
+  than 3 in 90 days, 1 and more in 180 days" (forsgren#178). Its Settings page section explains the
   values of `auto_update_level` (forsgren#156): `patch` merges patch updates
   only, `minor` merges minor and patch updates, and `major` merges major, minor
   and patch updates, which does not mean a major release is safe, as nothing
@@ -555,6 +580,10 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
 - **The settings page** (`settings.html`, forsgren#84, a table since forsgren#141)
   tabulates each optional config key under Parameter, Current value, Possible
   values and Default, see [Configuration](configuration.md#configuration).
+  A value that is not accepted (forsgren#183) shows in its row's Current
+  value as written, then why and the default in use: "60 is not accepted:
+  use 30, 90 or 180. Using the default 30." (an empty value as "(empty)"),
+  and its Default is True.
 - **Layout:** no table has a caption: each is named by its page's heading
   ("DORA metrics" on the three views and the root, Issues, Daily), and one `h1`
   rule in `styles.css` sets the look of every page's heading (forsgren#135), and every table has `<th scope>` headers; it scrolls

@@ -33,38 +33,39 @@ func (f fileConfig) toConfig() (Config, error) {
 	return cfg, nil
 }
 
-// settings is the Config of the file's optional top-level keys, view,
-// auto_update, auto_update_level, issues_page and days_page (as written, the
-// level DefaultLevel when the file has none); view, auto_update and
-// auto_update_level are a Rejection when not accepted, the default in force
-// (forsgren#183), and so are history_days, history_chunk_days, working_hours,
-// issues_page and days_page, and so is dora_days (forsgren#46, #58, #157, #159,
-// #178).
+// settings is the Config of the file's optional top-level keys (forsgren#46,
+// #58, #157, #159, #178): each as written, or its default when the file has
+// none; a value forsgren does not accept is a Rejection, and the key's default
+// is in force (forsgren#183). dora_days is checked against the history_days in
+// force.
 func (f fileConfig) settings() Config {
 	view, viewRejection := checkView(f.View)
-	auto, autoRejection := checkAutoUpdate(f.AutoUpdate)
+	auto, autoRejection := autoUpdate.value(f.AutoUpdate)
 	level, levelRejection := checkAutoUpdateLevel(f.AutoUpdateLevel)
-	days, daysRejection := checkHistoryDays(f.HistoryDays)
-	chunk, chunkRejection := checkHistoryChunkDays(f.HistoryChunkDays)
+	days, daysRejection := historyDays.check(f.HistoryDays)
+	chunk, chunkRejection := historyChunkDays.check(f.HistoryChunkDays)
 	hours, hoursRejection := workingHours.check(f.WorkingHours)
+	doraDays, doraRejection := checkDoraDays(f.DoraDays, days)
 	issues, issuesRejection := issuesPage.value(f.IssuesPage)
 	daysOn, daysOnRejection := daysPage.value(f.DaysPage)
-	doraDays, doraRejection := checkDoraDays(f.DoraDays, days)
 	rejected := rejections(viewRejection, autoRejection, levelRejection, daysRejection, chunkRejection, hoursRejection,
 		doraRejection, issuesRejection, daysOnRejection)
+	written := f.written(rejected)
 	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level,
-		HistoryDays: days, HistoryChunkDays: chunk, WorkingHours: hours,
-		DoraDays: doraDays, DoraDaysSet: hasValue(f.DoraDays) && doraRejection == nil,
-		WorkingHoursSet: hasValue(f.WorkingHours) && hoursRejection == nil, IssuesPage: issues, DaysPage: daysOn,
-		written: f.written(rejected), Rejected: rejected}
+		HistoryDays: days, HistoryChunkDays: chunk, WorkingHours: hours, WorkingHoursSet: written["working_hours"],
+		DoraDays: doraDays, DoraDaysSet: written["dora_days"], IssuesPage: issues, DaysPage: daysOn,
+		written: written, Rejected: rejected}
 }
 
-// rejections are the non-nil rejections, in order (forsgren#183).
+// rejections are the non-nil rejections, in the order of settingKeys, the
+// order of the settings page (forsgren#183).
 func rejections(all ...*Rejection) []Rejection {
 	var rejected []Rejection
-	for _, r := range all {
-		if r != nil {
-			rejected = append(rejected, *r)
+	for _, k := range settingKeys {
+		for _, r := range all {
+			if r != nil && r.Key == k.key {
+				rejected = append(rejected, *r)
+			}
 		}
 	}
 	return rejected
@@ -75,14 +76,12 @@ func rejections(all ...*Rejection) []Rejection {
 // key that is rejected, whose default is in force (forsgren#74, #183).
 func (f fileConfig) written(rejected []Rejection) map[string]bool {
 	var keys map[string]bool
-	for key, node := range map[string]yaml.Node{"auto_update": f.AutoUpdate, "history_days": f.HistoryDays,
-		"history_chunk_days": f.HistoryChunkDays, "working_hours": f.WorkingHours,
-		"dora_days":   f.DoraDays,
+	for key, node := range map[string]yaml.Node{"view": f.View, "auto_update": f.AutoUpdate,
+		"auto_update_level": f.AutoUpdateLevel, "history_days": f.HistoryDays,
+		"history_chunk_days": f.HistoryChunkDays, "working_hours": f.WorkingHours, "dora_days": f.DoraDays,
 		"issues_page": f.IssuesPage, "days_page": f.DaysPage} {
 		keys = mark(keys, key, hasValue(node))
 	}
-	keys = mark(keys, "view", hasValue(f.View))
-	keys = mark(keys, "auto_update_level", hasValue(f.AutoUpdateLevel))
 	for _, r := range rejected {
 		delete(keys, r.Key)
 	}
@@ -123,10 +122,17 @@ var (
 // one, is none.
 func hasValue(n yaml.Node) bool { return n.Kind != 0 && n.ShortTag() != "!!null" }
 
+// integer is the node's integer, when it is a YAML integer, never a quoted
+// value.
+func integer(n yaml.Node) (int, bool) {
+	v, err := strconv.Atoi(n.Value)
+	return v, err == nil && n.ShortTag() == "!!int"
+}
+
 // whole is the node's integer, when it is one from its minimum to the key's limit.
 func (k numberKey) whole(n yaml.Node) (int, bool) {
-	n2, err := strconv.Atoi(n.Value)
-	return n2, err == nil && n.ShortTag() == "!!int" && n2 >= k.min && n2 <= k.max
+	v, isInt := integer(n)
+	return v, isInt && v >= k.min && v <= k.max
 }
 
 // check is the key as written, its default when the file has none (a key
@@ -139,17 +145,9 @@ func (k numberKey) check(n yaml.Node) (int, *Rejection) {
 	if v, ok := k.whole(n); ok {
 		return v, nil
 	}
-	return k.def, reject(k.sentinel, k.key, writtenOf(n),
-		fmt.Sprintf("use a whole number of %s from %d to %d", k.unit, k.min, k.max), strconv.Itoa(k.def))
+	return k.def, refusable{k.sentinel, k.key, strconv.Itoa(k.def)}.reject(n,
+		fmt.Sprintf("use a whole number of %s from %d to %d", k.unit, k.min, k.max))
 }
-
-// checkHistoryDays is history_days as written, DefaultHistoryDays when the
-// file has none (forsgren#57).
-func checkHistoryDays(n yaml.Node) (int, *Rejection) { return historyDays.check(n) }
-
-// checkHistoryChunkDays is history_chunk_days as written,
-// DefaultHistoryChunkDays when the file has none (forsgren#57).
-func checkHistoryChunkDays(n yaml.Node) (int, *Rejection) { return historyChunkDays.check(n) }
 
 // checkDoraDays is dora_days as written, DefaultDoraDays when the file has
 // none (a key without a value is none): the integer 30, 90 or 180, never a
@@ -161,24 +159,22 @@ func checkDoraDays(n yaml.Node, historyDays int) (int, *Rejection) {
 	if !hasValue(n) {
 		return DefaultDoraDays, nil
 	}
-	days, err := strconv.Atoi(n.Value)
-	if err != nil || n.ShortTag() != "!!int" || !isDoraWindow(days) {
-		return DefaultDoraDays, doraRejection(writtenOf(n),
+	days, isInt := integer(n)
+	if !isInt || !isDoraWindow(days) {
+		return DefaultDoraDays, doraDaysKey.reject(n,
 			fmt.Sprintf("use %d, %d or %d", DefaultDoraDays, DoraDays90, DoraDays180))
 	}
 	if days > historyDays {
-		return DefaultDoraDays, doraRejection(writtenOf(n),
+		return DefaultDoraDays, doraDaysKey.reject(n,
 			fmt.Sprintf("history_days is %d, so the history cannot reach back %d days; "+
 				"raise history_days to at least %d or use a shorter window", historyDays, days, days))
 	}
 	return days, nil
 }
 
-// doraRejection is dora_days written as written, not accepted for the reason,
-// with DefaultDoraDays in force (forsgren#183).
-func doraRejection(written, reason string) *Rejection {
-	return reject(ErrDoraDays, "dora_days", written, reason, strconv.Itoa(DefaultDoraDays))
-}
+// doraDaysKey is dora_days as a Rejection names it, DefaultDoraDays in force
+// (forsgren#183).
+var doraDaysKey = refusable{ErrDoraDays, "dora_days", strconv.Itoa(DefaultDoraDays)}
 
 // isDoraWindow says whether days is one of the windows dora_days can name.
 func isDoraWindow(days int) bool {
@@ -196,17 +192,12 @@ func checkAutoUpdateLevel(n yaml.Node) (string, *Rejection) {
 	case LevelPatch, LevelMinor, LevelMajor:
 		return n.Value, nil
 	}
-	return DefaultLevel, reject(ErrAutoUpdateLevel, "auto_update_level", writtenOf(n),
-		fmt.Sprintf("use %s, %s or %s", LevelPatch, LevelMinor, LevelMajor), DefaultLevel)
+	return DefaultLevel, refusable{ErrAutoUpdateLevel, "auto_update_level", DefaultLevel}.reject(n,
+		fmt.Sprintf("use %s, %s or %s", LevelPatch, LevelMinor, LevelMajor))
 }
 
 // booleans are the only spellings of a boolean key (forsgren#58).
 var booleans = map[string]bool{"true": true, "false": false}
-
-// checkAutoUpdate is auto_update as written, off when the file has none (a
-// key without a value is none): only the literals true and false, never a
-// quoted or numeric value, nor yes (forsgren#58).
-func checkAutoUpdate(n yaml.Node) (bool, *Rejection) { return autoUpdate.value(n) }
 
 // booleanKey is a key that is true or false (forsgren#58, #159): its refusal
 // and its default.
@@ -233,7 +224,7 @@ func (k booleanKey) value(n yaml.Node) (bool, *Rejection) {
 	if literal && n.ShortTag() == "!!bool" {
 		return on, nil
 	}
-	return k.def, reject(k.sentinel, k.key, writtenOf(n), "use true or false", strconv.FormatBool(k.def))
+	return k.def, refusable{k.sentinel, k.key, strconv.FormatBool(k.def)}.reject(n, "use true or false")
 }
 
 func checkVersion(v *int) error {
@@ -257,8 +248,8 @@ func checkView(n yaml.Node) (string, *Rejection) {
 	case ViewStandard, ViewNumbers, ViewScoring:
 		return n.Value, nil
 	}
-	return "", reject(ErrView, "view", writtenOf(n),
-		fmt.Sprintf("use %s, %s or %s", ViewStandard, ViewNumbers, ViewScoring), ViewStandard)
+	return "", refusable{ErrView, "view", ViewStandard}.reject(n,
+		fmt.Sprintf("use %s, %s or %s", ViewStandard, ViewNumbers, ViewScoring))
 }
 
 // names holds the names already used in the file, compared ignoring case

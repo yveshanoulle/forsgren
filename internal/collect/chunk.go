@@ -27,12 +27,13 @@ const ReachFile = "reach.csv"
 // reachFile is the path of the reach file next to the history.
 func (o Options) reachFile() string { return filepath.Join(filepath.Dir(o.History), ReachFile) }
 
-// windowOf is o with the window of cfg: history_days back at the most, in
-// chunks of history_chunk_days.
+// windowOf is o with the windows of cfg: history_days back at the most, in
+// chunks of history_chunk_days, and the DORA window, dora_days, that the
+// withdrawn-failure catch-up re-reads (forsgren#178).
 func (o Options) windowOf(cfg config.Config) Options {
 	o.earliest = o.Now.Add(-time.Duration(cfg.HistoryDays) * 24 * time.Hour)
 	o.chunk = time.Duration(cfg.HistoryChunkDays) * 24 * time.Hour
-	o.counting = countingWindowOf(cfg.DoraDays)
+	o.counting = time.Duration(config.DoraWindow(cfg.DoraDays)) * 24 * time.Hour
 	return o
 }
 

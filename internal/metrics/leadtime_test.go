@@ -25,7 +25,7 @@ func shopCommit(lead time.Duration) history.Commit { return shippedCommit("acme/
 // shopLeadTime returns Acme Shop's lead time for commits.
 func shopLeadTime(t *testing.T, commits ...history.Commit) LeadTime {
 	t.Helper()
-	got := LeadTimes(projects, commits, now)
+	got := LeadTimes(projects, Data{Commits: commits, DoraDays: 30}, now)
 	if len(got) != 2 {
 		t.Fatalf("want one LeadTime per project, 2, got %d", len(got))
 	}
@@ -105,12 +105,12 @@ func TestNegativeLeadTimeCountsAsZero(t *testing.T) {
 // case); a repository no project lists is left out. The band follows the
 // median.
 func TestLeadTimeProjectsInConfigOrder(t *testing.T) {
-	got := LeadTimes(projects, []history.Commit{
+	got := LeadTimes(projects, Data{Commits: []history.Commit{
 		shippedCommit("Acme/CLI", time.Hour, 3*day),
 		shippedCommit("acme/gone", time.Hour, time.Minute),
 		shippedCommit("ACME/API", time.Hour, 2*time.Hour),
 		shopCommit(4 * time.Hour),
-	}, now)
+	}, DoraDays: 30}, now)
 	want := []LeadTime{
 		{Project: "Acme Shop", Commits: 2, Median: 3 * time.Hour, Band: LessThanOneDay},
 		{Project: "Acme Tools", Commits: 1, Median: 3 * day, Band: OneDayToOneWeek},
@@ -123,12 +123,14 @@ func TestLeadTimeProjectsInConfigOrder(t *testing.T) {
 // TestNoCommits: every project is there, with no commit and no band; no
 // project gives no LeadTime.
 func TestNoCommits(t *testing.T) {
-	got := LeadTimes(projects, nil, now)
+	got := LeadTimes(projects, Data{DoraDays: 30}, now)
 	want := []LeadTime{{Project: "Acme Shop"}, {Project: "Acme Tools"}}
 	if !slices.Equal(got, want) {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
-	if none := LeadTimes(nil, []history.Commit{shopCommit(time.Minute)}, now); len(none) != 0 {
+	if none := LeadTimes(nil, Data{
+		Commits: []history.Commit{shopCommit(time.Minute)}, DoraDays: 30,
+	}, now); len(none) != 0 {
 		t.Errorf("want no LeadTime without projects, got %+v", none)
 	}
 }

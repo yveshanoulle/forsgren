@@ -40,7 +40,8 @@ projects:
   the root is the standard page and the menu marks no view, so an
   existing installation sees the standard table until it opts in; with a
   `view:`, even `standard`, the root page is that view and the menu marks it. Any
-  other value is refused by `check-config` and `render`, naming the key and
+  other value is not accepted: forsgren uses the default instead and says so (see
+  [A setting that is not accepted](#a-setting-that-is-not-accepted)), naming the key and
   the valid values: `invalid view "Numbers": use standard, numbers or scoring`. Each
   view is also its own page at `/standard/`, `/numbers/` and `/scoring/`, whatever this
   key says. The starter that `init-config` writes for a new installation
@@ -52,12 +53,15 @@ projects:
   one included. `auto_update_level` is optional: left out, it defaults to
   `major` (forsgren#157), and the legend explains each level (forsgren#156); an existing config without `auto_update:` keeps it off (see [Auto-update](updating-and-releases.md)).
 - **`history_days`** is optional (forsgren#57): how deep a repository's
-  history goes, in days, a whole number from 1 to 1825 (5 years), written at
+  history goes, in days, a whole number from 30 to 1825 (5 years), written at
   the top level, for example `history_days: 730`. Left out, or without a
-  value, it is 365. Anything else (zero, a negative number, more than 1825, a
-  quoted value, a decimal or text) is refused by `check-config` and `render`,
+  value, it is 365. Anything else (less than 30, more than 1825, a quoted
+  value, a decimal or text) is not accepted: forsgren uses the default instead and says so (see
+  [A setting that is not accepted](#a-setting-that-is-not-accepted)),
   naming the key and the limit: `invalid history_days "1826": use a whole
-  number of days from 1 to 1825`. forsgren does not read that far at once:
+  number of days from 30 to 1825`. Up to 1.5.x the least was 1; from 1.6.0 a
+  value under 30 is not accepted and 365 is used (forsgren#178), so the
+  default DORA window of 30 days always fits. forsgren does not read that far at once:
   a repository's first run reads one chunk (`history_chunk_days`), and each
   later run reads what is new plus one older chunk, until the history reaches
   `history_days` back (see [Collecting deployments](data-files.md#collecting-deployments-collect)). It is also the most any
@@ -75,7 +79,8 @@ projects:
   written at the top level, for example `history_chunk_days: 30`. Left out,
   or without a value, it is 100; it is not tied to `history_days`. Anything
   else (zero, a negative number, more than 365, a quoted value, a decimal or
-  text) is refused by `check-config` and `render`, naming the key and the
+  text) is not accepted: forsgren uses the default instead and says so (see
+  [A setting that is not accepted](#a-setting-that-is-not-accepted)), naming the key and the
   limit: `invalid history_chunk_days "366": use a whole number of days from 1
   to 365`. A repository's first run reads this many days back, and each
   later run adds one older chunk of this size until `history_days` is
@@ -86,18 +91,44 @@ projects:
   is, a whole number from 1 to 24, written at the top level, for example
   `working_hours: 8`. Left out, or without a value, it is 8. Anything else
   (zero, a negative number, more than 24, a quoted value, a decimal such as
-  `8.5` or `8.0`, or text) is refused by `check-config` and `render`, naming
+  `8.5` or `8.0`, or text) is not accepted: forsgren uses the default instead and says so (see
+  [A setting that is not accepted](#a-setting-that-is-not-accepted)), naming
   the key and the limit: `invalid working_hours "25": use a whole number of
-  hours from 1 to 24`. It is read and checked now; the on-demand threshold
-  uses it in the next step. The starter that `init-config` writes includes
-  `working_hours: 8`.
+  hours from 1 to 24`. The on-demand threshold of deployment frequency uses
+  it, and the legend says the working day in use. The starter that
+  `init-config` writes includes `working_hours: 8`.
+- **`dora_days`** is optional (forsgren#178): the DORA window, how many days
+  back all five DORA metrics count (deployment frequency, lead time for
+  changes, failed deployment recovery time, change fail rate and deployment
+  rework rate), one of `30`, `90` or `180`, written at the top level, for
+  example `dora_days: 180`. Left out, or without a value, it is 30, so nothing
+  changes until an installation sets it; DORA usually reports the last six
+  months, 180 days. The window needs that much history: `history_days` must be
+  at least the window (the default 365 is enough for all three). Anything else
+  (`60`, `0`, `365`, a quoted `"90"`, `90.0` or text) is not accepted: forsgren uses the default instead and says so (see
+  [A setting that is not accepted](#a-setting-that-is-not-accepted)), naming
+  the key and the valid values: `invalid dora_days "60": use 30, 90 or 180`;
+  so is a window longer than `history_days`: `invalid dora_days "180":
+  history_days is 90, so the history cannot reach back 180 days; raise
+  history_days to at least 180 or use a shorter window`. The deployment
+  frequency bands keep DORA's rates: their edges are given per 30 days and
+  scale with the window (at 8 hours, 1, 5, 30 and 241 in 30 days; 3, 15, 90
+  and 721 in 90 days; 6, 30, 180 and 1441 in 180 days), and a project younger
+  than the window has its count scaled to the window. The 180-day count that
+  tells the two slowest bands apart stays 180 days. The legend says the
+  window in use, and whether `dora_days` sets it. `collect`'s one-time
+  catch-up of withdrawn failure issues re-reads the failures of this window
+  (see [Collecting deployments](data-files.md#collecting-deployments-collect)).
+  The days and issues pages keep their own periods. The starter that
+  `init-config` writes includes `dora_days: 30`.
 - **`issues_page`** and **`days_page`** are optional (forsgren#159): whether
   the Issues page (`issues.html`) and the Daily page (`days.html`) are
   generated, each `true` or `false`, written at the top level, for example
   `issues_page: true` and `days_page: false`. Left out, or without a value,
   `issues_page` is `true` (the page is shown) and `days_page` is `false` (the
   page is hidden). Only the literals `true` and `false` are accepted; a quoted
-  value, `yes`, a number or text is refused by `check-config` and `render`,
+  value, `yes`, a number or text is not accepted: forsgren uses the default instead and says so (see
+  [A setting that is not accepted](#a-setting-that-is-not-accepted)),
   naming the key: `invalid days_page "yes": use true or false`. A page that
   is `false` is not generated, is removed from the site if an earlier run
   wrote it, and has no entry in the menu. From 1.3.0 an installation that
@@ -107,15 +138,17 @@ projects:
 - **The settings page** (`settings.html`, forsgren#74, moved out of the legend
   in forsgren#84, a table since forsgren#141) tabulates every optional key,
   `view`, `auto_update`, `auto_update_level`, `history_days`,
-  `history_chunk_days`, `working_hours`, `issues_page` and `days_page`, in four columns: **Parameter**;
+  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page` and `days_page`, in four columns: **Parameter**;
   **Current value**, the value in use (`major` for an unset
   `auto_update_level`); **Possible values**, built from the config package's
   own constants and limits so the page cannot drift from what `check-config`
-  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `1 to 1825`; `1 to 365`; `1 to 24`; `true, false` for each of the two page keys),
+  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `30 to 1825`; `1 to 365`; `1 to 24`; `30, 90, 180`; `true, false` for each of the two page keys),
   a test holds the lists to the config loader; and **Default**: True when
   `forsgren.config.yml` does not set the key, so the current value is the
-  default, False when the file sets it, even to the default's value. The legend
-  explains the Default column.
+  default, False when the file sets it, even to the default's value. For a
+  value that is not accepted the Current value says so: `60 is not accepted:
+  use 30, 90 or 180. Using the default 30.`, and Default is True, since the
+  default is in use (forsgren#183). The legend explains the Default column.
 - **`projects`** is required: a list of projects, or `projects: []` for an
   installation that measures nothing yet (it is valid, and `check-config`
   reports `projects: 0, repositories: 0`). A file whose `projects` key is
@@ -176,8 +209,26 @@ A **failure** is an issue labelled `failure` whose body carries the failure
 record block (see [How it gets its data](data-files.md#how-it-gets-its-data)); lead time runs from a change's first
 commit. Neither is configured per repository in version 1.
 
-Any other key is refused, as is a value of the wrong kind or a second YAML
-document in the file, so a typo never silently does nothing. Every refusal
+### A setting that is not accepted
+
+A setting with a default (`view`, `auto_update`, `auto_update_level`,
+`history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
+`issues_page` and `days_page`) whose value forsgren does not accept, a list or
+a mapping included, does not stop the run (forsgren#183): forsgren uses that
+key's default instead, and says so in three places. The settings page's row
+for the key shows the value as written, that it is not accepted and why, and
+the default in use. `render`, `collect` and `check-update` write one warning
+line per such key on stderr, so in the workflow's log: `config: warning:
+forsgren.config.yml: invalid dora_days "60": use 30, 90 or 180; using the
+default 30`. `check-config` writes the same warnings, adds `, settings not
+accepted: N` to its OK line and exits 0. Up to 1.5.x such a value stopped
+the run.
+
+What has no default still stops the run, and `check-config` exits 1 with the
+refusal: a file that cannot be read or is empty, YAML that does not parse,
+a missing or unsupported `version`, any key forsgren does not know, a second
+YAML document in the file, and every mistake in the projects, repositories,
+deployments and labels; so a typo never silently does nothing. Every refusal
 names the file, the project and repository it is in (or the line, for a
 YAML error) and what to write instead, on one line: a line break in a key
 or value it quotes is written as `\n`.
@@ -190,9 +241,10 @@ forsgren check-config --config forsgren.config.yml
 
 It prints one line, `OK: forsgren.config.yml is a valid forsgren config
 (version 1): projects: 2, repositories: 3`, with `, labels: 4` added when
-the file labels rows, and exits 0; it exits 1 with
-the refusal on stderr when the file is invalid or cannot be read, and 2 on
-a usage error.
+the file labels rows and `, settings not accepted: 1` when a setting falls
+back to its default (with its `config: warning:` line on stderr), and exits
+0; it exits 1 with the refusal on stderr when the file is invalid or cannot
+be read, and 2 on a usage error.
 
 Start an installation's config with `init-config`:
 
@@ -207,7 +259,8 @@ forms, and shows a commented
 example with made-up `acme` names (the default deployment, `workflow=` and
 `release`), followed by `version: 1`, `view: standard`, `auto_update: true`,
 `auto_update_level: major`, `history_days: 365`,
-`history_chunk_days: 100` and `projects: []`, so
+`history_chunk_days: 100`, `working_hours: 8`, `dora_days: 30`,
+`issues_page: true`, `days_page: false` and `projects: []`, so
 `check-config` accepts it as it is: `projects: 0, repositories: 0`. When the file exists,
 whatever it holds (even an invalid or an empty file), it is left byte for
 byte and the command prints `kept forsgren.config.yml`; both exit 0. The file
@@ -363,7 +416,8 @@ jobs:
   the data repository (the commit that triggered the run, without leaving
   its token in the checkout) and runs `forsgren check-config --config
   forsgren.config.yml` on the file at the repository root, before it renders
-  anything. An invalid file (a missing one was just written) fails the job with check-config's
+  anything. A setting that is not accepted only warns in the log (see
+  [A setting that is not accepted](#a-setting-that-is-not-accepted)). An invalid file (a missing one was just written) fails the job with check-config's
   message in the log and in the run's summary, after a cross mark, and
   nothing is published from it. The message can quote the file, so the log
   shows it with workflow commands stopped: a line of it that starts with

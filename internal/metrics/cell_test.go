@@ -25,9 +25,9 @@ func TestFrequencyCell(t *testing.T) {
 	latest := now.Add(-day)
 	wantCells(t, map[string][2]string{
 		"no success": {Frequency{Band: LessThanSixMonthly}.Cell(), "Less than once per six months · 0"},
-		"30 days": {Frequency{Last30: 7, Last180: 9, Latest: latest, Band: DailyToWeekly}.Cell(),
+		"30 days": {Frequency{InWindow: 7, Last180: 9, Latest: latest, Band: DailyToWeekly}.Cell(),
 			"Between once per day and once per week · 7"},
-		"weekends": {Frequency{Last30: 12, Last180: 12, Weekend30: 3, Latest: latest, Band: DailyToWeekly}.Cell(),
+		"weekends": {Frequency{InWindow: 12, Last180: 12, WeekendInWindow: 3, Latest: latest, Band: DailyToWeekly}.Cell(),
 			"Between once per day and once per week · 12"},
 		"180 days": {Frequency{Last180: 3, Latest: latest, Band: MonthlyToSixMonthly}.Cell(),
 			"Between once per month and once every six months · 3"},
@@ -104,8 +104,8 @@ func TestFrequencyCellOfTheFallbackEndsWithItsCount(t *testing.T) {
 // days or, with none in them, the last 180; 0 when there are none.
 func TestFrequencyWeekendCell(t *testing.T) {
 	wantCells(t, map[string][2]string{
-		"30 days":             {Frequency{Last30: 12, Last180: 12, Weekend30: 3, Weekend180: 3}.WeekendCell(), "3"},
-		"30 days not 180":     {Frequency{Last30: 12, Last180: 20, Weekend30: 3, Weekend180: 7}.WeekendCell(), "3"},
+		"30 days":             {Frequency{InWindow: 12, Last180: 12, WeekendInWindow: 3, Weekend180: 3}.WeekendCell(), "3"},
+		"30 days not 180":     {Frequency{InWindow: 12, Last180: 20, WeekendInWindow: 3, Weekend180: 7}.WeekendCell(), "3"},
 		"180 days fallback":   {Frequency{Last180: 3, Weekend180: 1}.WeekendCell(), "1"},
 		"fallback no weekend": {Frequency{Last180: 3}.WeekendCell(), "0"},
 		"no success":          {Frequency{}.WeekendCell(), "0"},

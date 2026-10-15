@@ -43,7 +43,7 @@ func rateOf(r ChangeFailRate) rate {
 // and failures is want, and Acme Tools has none.
 func wantRate(t *testing.T, want rate, records []history.Record, failures ...history.Failure) {
 	t.Helper()
-	got := ChangeFailRates(projects, records, failures, now)
+	got := ChangeFailRates(projects, Data{Records: records, Failures: failures, DoraDays: 30}, now)
 	if len(got) != 2 {
 		t.Fatalf("want one ChangeFailRate per project, 2, got %d", len(got))
 	}

@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/github"
 	"github.com/yveshanoulle/forsgren/internal/history"
@@ -129,19 +128,6 @@ func (o Options) finishCatchUp(h held, failed int) error {
 	}
 	_, err := history.AppendWithdrawals(o.withdrawnFile(), h.catchUp.found)
 	return err
-}
-
-// countingWindow is how far back an issue was opened to be counted by change
-// fail rate when the config sets no window, 30 days (forsgren#178).
-const countingWindow = 30 * 24 * time.Hour
-
-// countingWindowOf is the window of the metrics in days, dora_days, as a
-// duration: 30 days when days is 0, a Config that sets none (forsgren#178).
-func countingWindowOf(days int) time.Duration {
-	if days == 0 {
-		return countingWindow
-	}
-	return time.Duration(days) * 24 * time.Hour
 }
 
 // reread is repo's withdrawals in the catch-up: those of the daily read and
