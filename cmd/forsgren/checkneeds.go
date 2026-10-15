@@ -84,17 +84,17 @@ func reportNeeds(o checkNeedsOptions, stdout, stderr io.Writer) string {
 	return writeSetup(setupReport{issues: client, repo: o.repository, version: version}, missing, known, stderr)
 }
 
-// writeSetup writes the setup issue for the missing needs, with the renewal
-// item the open issue already carries when the token's expiry is not known
-// (withKeptToken), and returns how that went (writeOutcome).
+// writeSetup writes the setup issue for the missing needs, looking it up
+// once, with the renewal item the open issue already carries when the
+// token's expiry is not known (withKeptToken), and returns how that went (writeOutcome).
 func writeSetup(s setupReport, missing []needs.Need, expiryKnown bool, stderr io.Writer) string {
 	ctx := context.Background()
-	var err error
-	if !expiryKnown {
-		missing, err = s.withKeptToken(ctx, missing, now())
-	}
+	found, err := s.find(ctx)
 	if err == nil {
-		err = s.report(ctx, missing)
+		if !expiryKnown {
+			missing = withKeptToken(found, missing, now())
+		}
+		err = s.report(ctx, found, missing)
 	}
 	return writeOutcome(len(missing), err, stderr)
 }

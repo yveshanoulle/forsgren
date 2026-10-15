@@ -37,6 +37,7 @@
     "github.com/yveshanoulle/forsgren/cmd/forsgren/checkneeds.go:noteFailed": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/checkneeds.go:configKeys": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/setupissue.go:report": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/setupissue.go:find": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/setupissue.go:closeIssue": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/setupissue.go:openIssue": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/setupissue.go:setupStatus": 100.0,

@@ -30,17 +30,28 @@ type setupReport struct {
 	version string
 }
 
+// foundIssue is what one lookup of the setup issue found: the issue, and
+// whether there is one at all (ok). A lookup that failed is an error instead,
+// never a foundIssue: not found and failed stay distinct.
+type foundIssue struct {
+	issue github.SetupIssue
+	ok    bool
+}
+
+// find looks the setup issue up, the one lookup of a run.
+func (s setupReport) find(ctx context.Context) (foundIssue, error) {
+	issue, ok, err := s.issues.FindIssueByMarker(ctx, s.repo, setupLabel, needs.Marker)
+	return foundIssue{issue: issue, ok: ok}, err
+}
+
 // report makes the one call the run's missing needs call for on the setup
-// issue (forsgren#73): create, update, reopen or close it, or none.
-func (s setupReport) report(ctx context.Context, missing []needs.Need) error {
-	found, ok, err := s.issues.FindIssueByMarker(ctx, s.repo, setupLabel, needs.Marker)
-	if err != nil {
-		return err
-	}
+// issue (forsgren#73), given what find found: create, update, reopen or
+// close it, or none.
+func (s setupReport) report(ctx context.Context, found foundIssue, missing []needs.Need) error {
 	if len(missing) == 0 {
-		return s.closeIssue(ctx, found, ok)
+		return s.closeIssue(ctx, found.issue, found.ok)
 	}
-	return s.openIssue(ctx, missing, found, ok)
+	return s.openIssue(ctx, missing, found.issue, found.ok)
 }
 
 // closeIssue closes the setup issue when it is open: nothing is missing, and

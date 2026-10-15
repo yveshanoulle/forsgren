@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -47,16 +46,15 @@ func renewalNeed(expiry, at time.Time) (needs.Need, bool) {
 // closed nor given up on, and an issue that carries no item, a closed one or
 // none gets nothing added. A collect that failed leaves no file, so it is
 // unknown too.
-func (s setupReport) withKeptToken(ctx context.Context, missing []needs.Need, at time.Time) ([]needs.Need, error) {
-	found, ok, err := s.issues.FindIssueByMarker(ctx, s.repo, setupLabel, needs.Marker)
-	if err != nil || !isOpen(found, ok) {
-		return missing, err
+func withKeptToken(found foundIssue, missing []needs.Need, at time.Time) []needs.Need {
+	if !isOpen(found.issue, found.ok) {
+		return missing
 	}
-	expiry, marked := needs.TokenExpiryIn(found.Body)
+	expiry, marked := needs.TokenExpiryIn(found.issue.Body)
 	if kept, near := renewalNeed(expiry, at); marked && near {
 		missing = append(missing, kept)
 	}
-	return missing, nil
+	return missing
 }
 
 // isOpen says whether the lookup found the setup issue (ok) and it is open.

@@ -77,7 +77,7 @@ func TestReportSetupMakesTheCallTheStateCallsFor(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			fake := &recordingIssues{found: c.found, ok: c.ok}
 			report := setupReport{issues: fake, repo: "acme/app", version: v}
-			if err := report.report(context.Background(), c.missing); err != nil {
+			if err := report.report(context.Background(), foundIssue{c.found, c.ok}, c.missing); err != nil {
 				t.Fatalf("report: %v", err)
 			}
 			checkSetupCalls(t, fake, c.want)
@@ -102,26 +102,14 @@ func createsIssue(calls []string) bool {
 	return len(calls) > 0 && strings.HasPrefix(calls[0], "create")
 }
 
-// TestReportSetupPassesOnALookupError (forsgren#73, step 13): a failed lookup
-// comes back as it is, and nothing is written, missing needs or not.
-func TestReportSetupPassesOnALookupError(t *testing.T) {
+// TestFindSetupIssuePassesOnALookupError (forsgren#73, step 13; #181): a
+// failed lookup comes back as it is, with nothing written.
+func TestFindSetupIssuePassesOnALookupError(t *testing.T) {
 	lookup := errors.New("lookup failed")
-	open := github.SetupIssue{Number: 7, State: "open"}
-	cases := []struct {
-		name    string
-		missing []needs.Need
-	}{
-		{"something missing", []needs.Need{{Steps: "grant the permission"}}},
-		{"nothing missing", nil},
+	fake := &recordingIssues{found: github.SetupIssue{Number: 7, State: "open"}, ok: true, err: lookup}
+	_, err := setupReport{issues: fake, repo: "acme/app", version: "0.4.0"}.find(context.Background())
+	if !errors.Is(err, lookup) {
+		t.Fatalf("find = %v, want the lookup error", err)
 	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			fake := &recordingIssues{found: open, ok: true, err: lookup}
-			err := setupReport{issues: fake, repo: "acme/app", version: "0.4.0"}.report(context.Background(), c.missing)
-			if !errors.Is(err, lookup) {
-				t.Fatalf("report = %v, want the lookup error", err)
-			}
-			checkSetupCalls(t, fake, nil)
-		})
-	}
+	checkSetupCalls(t, fake, nil)
 }

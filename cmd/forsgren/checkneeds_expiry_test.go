@@ -85,9 +85,13 @@ func TestCheckNeedsHasNoItemForATokenThatIsFarOrUnknown(t *testing.T) {
 }
 
 // recordingIssueServer answers the setup issue lookup with one marked issue
-// in state whose body is body, and every write with 200; it keeps each write
-// as `METHOD path body`, the body being the JSON body's "body" text, if any.
-type recordingIssueServer struct{ writes []string }
+// in state whose body is body (none for an empty state), counts those
+// lookups, and answers every write with 200; it keeps each write as
+// `METHOD path body`, the body being the JSON body's "body" text, if any.
+type recordingIssueServer struct {
+	writes  []string
+	lookups int
+}
 
 func newRecordingIssueServer(t *testing.T, state, body string) *recordingIssueServer {
 	t.Helper()
@@ -99,6 +103,11 @@ func newRecordingIssueServer(t *testing.T, state, body string) *recordingIssueSe
 			_ = json.Unmarshal(raw, &sent)
 			fake.writes = append(fake.writes, r.Method+" "+r.URL.Path+" "+sent.Body)
 			_, _ = io.WriteString(w, `{"number": 7}`)
+			return
+		}
+		fake.lookups++
+		if state == "" {
+			_, _ = io.WriteString(w, "[]")
 			return
 		}
 		issue, _ := json.Marshal(map[string]any{"number": 7, "state": state, "title": "Setup",
@@ -210,6 +219,38 @@ func TestCheckNeedsKeepsNothingWhenTheLookupFailsAndTheExpiryIsUnknown(t *testin
 			}
 			if got := strings.Join(*requests, " "); got != http.MethodGet {
 				t.Errorf("want one lookup and no write, got requests %q", got)
+			}
+		})
+	}
+}
+
+// TestCheckNeedsLooksTheSetupIssueUpOncePerRun (forsgren#181): whatever the
+// expiry and the issue, a run looks the setup issue up once and writes what
+// it wrote before: the lookup is shared by keeping the renewal item and by
+// reporting.
+func TestCheckNeedsLooksTheSetupIssueUpOncePerRun(t *testing.T) {
+	t.Setenv("GITHUB_REPOSITORY", "acme/data")
+	near := func(t *testing.T) string { return writeExpiry(t, "2026-10-10T08:35:47Z\n") }
+	far := func(t *testing.T) string { return writeExpiry(t, "2026-10-15T00:00:01Z\n") }
+	cases := []struct {
+		name, state string
+		expiry      func(*testing.T) string
+		writes      int
+	}{
+		{"unknown, open issue", "open", unknownExpiry["no file"], 1},
+		{"unknown, closed issue", "closed", unknownExpiry["no file"], 0},
+		{"unknown, no issue", "", unknownExpiry["no file"], 0},
+		{"near, open issue", "open", near, 1},
+		{"near, closed issue", "closed", near, 1},
+		{"far, open issue", "open", far, 2},
+		{"far, closed issue", "closed", far, 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			fake := newRecordingIssueServer(t, c.state, carriedItem)
+			code, _, _ := checkNeedsWithTokenExpiry(t, c.expiry)
+			if code != 0 || fake.lookups != 1 || len(fake.writes) != c.writes {
+				t.Errorf("want exit 0, one lookup and %d writes, got %d, %d, %q", c.writes, code, fake.lookups, fake.writes)
 			}
 		})
 	}
