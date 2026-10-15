@@ -666,6 +666,8 @@
     "github.com/yveshanoulle/forsgren/internal/page/history.go:historyCells": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/history.go:periodHeader": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/history.go:HistoryMessage": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/page.go:HistoryEdges": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/page.go:HistoryOnDemandFrom": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/historychart.go:historyChart": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/historychart.go:runsOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/historychart.go:drawRun": 100.0,

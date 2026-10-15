@@ -220,6 +220,16 @@ func (d Data) WeeklyToMonthlyFrom() int { return d.edges().WeeklyToMonthly }
 // month, one below DailyToWeeklyFrom.
 func (d Data) WeeklyToMonthlyTo() int { return d.DailyToWeeklyFrom() - 1 }
 
+// HistoryEdges are the band edges of the history page's 180 days
+// (forsgren#68).
+func (d Data) HistoryEdges() metrics.Edges { return metrics.EdgesOf(metrics.RollingDays) }
+
+// HistoryOnDemandFrom is the lowest count over the 180 days of a history
+// period that is on demand for the working day (forsgren#68).
+func (d Data) HistoryOnDemandFrom() int {
+	return metrics.OnDemandFrom(d.WorkingHours, metrics.RollingDays)
+}
+
 // pagesGlob matches one template file per page, named as the page it
 // renders. parsePages and PageNames read the same set through it.
 const pagesGlob = "templates/pages/*.html"

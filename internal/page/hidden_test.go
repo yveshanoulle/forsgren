@@ -174,7 +174,7 @@ func TestLegendExplainsTheTwoPageKeysWhateverIsHidden(t *testing.T) {
 const (
 	legendNumbersScoringText = " The Numbers and scoring page, shown only with numbers_scoring_page: true " +
 		"(default false), puts each metric's number and its score in one cell, written number \u00b7 score, " +
-		"with a dash where there is no data.</p>"
+		"with a dash where there is no data."
 	legendScoresText = "The Numbers and scoring page, when it is shown, has the number and the score of each " +
 		"metric in one cell."
 )
