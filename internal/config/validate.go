@@ -80,8 +80,8 @@ func (f fileConfig) written(rejected []Rejection) map[string]bool {
 		"issues_page": f.IssuesPage, "days_page": f.DaysPage} {
 		keys = mark(keys, key, hasValue(node))
 	}
-	keys = mark(keys, "view", f.View != nil)
-	keys = mark(keys, "auto_update_level", f.AutoUpdateLevel != nil)
+	keys = mark(keys, "view", hasValue(f.View))
+	keys = mark(keys, "auto_update_level", hasValue(f.AutoUpdateLevel))
 	for _, r := range rejected {
 		delete(keys, r.Key)
 	}
@@ -136,7 +136,7 @@ func (k numberKey) check(n yaml.Node) (int, *Rejection) {
 	if v, ok := k.whole(n); ok {
 		return v, nil
 	}
-	return k.def, reject(k.sentinel, k.key, n.Value,
+	return k.def, reject(k.sentinel, k.key, writtenOf(n),
 		fmt.Sprintf("use a whole number of %s from 1 to %d", k.unit, k.max), strconv.Itoa(k.def))
 }
 
@@ -160,11 +160,11 @@ func checkDoraDays(n yaml.Node, historyDays int) (int, *Rejection) {
 	}
 	days, err := strconv.Atoi(n.Value)
 	if err != nil || n.ShortTag() != "!!int" || !isDoraWindow(days) {
-		return DefaultDoraDays, doraRejection(n.Value,
+		return DefaultDoraDays, doraRejection(writtenOf(n),
 			fmt.Sprintf("use %d, %d or %d", DefaultDoraDays, DoraDays90, DoraDays180))
 	}
 	if days > historyDays {
-		return DefaultDoraDays, doraRejection(n.Value,
+		return DefaultDoraDays, doraRejection(writtenOf(n),
 			fmt.Sprintf("history_days is %d, so the history cannot reach back %d days; "+
 				"raise history_days to at least %d or use a shorter window", historyDays, days, days))
 	}
@@ -185,15 +185,15 @@ func isDoraWindow(days int) bool {
 // checkAutoUpdateLevel is the level as written, DefaultLevel when the file has
 // none (a key without a value is none), or DefaultLevel and the Rejection
 // naming the valid values (forsgren#58, #157, #183).
-func checkAutoUpdateLevel(v *string) (string, *Rejection) {
-	if v == nil {
+func checkAutoUpdateLevel(n yaml.Node) (string, *Rejection) {
+	if !hasValue(n) {
 		return DefaultLevel, nil
 	}
-	switch *v {
+	switch n.Value {
 	case LevelPatch, LevelMinor, LevelMajor:
-		return *v, nil
+		return n.Value, nil
 	}
-	return DefaultLevel, reject(ErrAutoUpdateLevel, "auto_update_level", *v,
+	return DefaultLevel, reject(ErrAutoUpdateLevel, "auto_update_level", writtenOf(n),
 		fmt.Sprintf("use %s, %s or %s", LevelPatch, LevelMinor, LevelMajor), DefaultLevel)
 }
 
@@ -230,7 +230,7 @@ func (k booleanKey) value(n yaml.Node) (bool, *Rejection) {
 	if literal && n.ShortTag() == "!!bool" {
 		return on, nil
 	}
-	return k.def, reject(k.sentinel, k.key, n.Value, "use true or false", strconv.FormatBool(k.def))
+	return k.def, reject(k.sentinel, k.key, writtenOf(n), "use true or false", strconv.FormatBool(k.def))
 }
 
 func checkVersion(v *int) error {
@@ -246,15 +246,15 @@ func checkVersion(v *int) error {
 // checkView is the view as written, empty when the file has none (a key
 // without a value is none), or empty and the Rejection naming the valid
 // values (forsgren#183).
-func checkView(v *string) (string, *Rejection) {
-	if v == nil {
+func checkView(n yaml.Node) (string, *Rejection) {
+	if !hasValue(n) {
 		return "", nil
 	}
-	switch *v {
+	switch n.Value {
 	case ViewStandard, ViewNumbers, ViewScoring:
-		return *v, nil
+		return n.Value, nil
 	}
-	return "", reject(ErrView, "view", *v,
+	return "", reject(ErrView, "view", writtenOf(n),
 		fmt.Sprintf("use %s, %s or %s", ViewStandard, ViewNumbers, ViewScoring), ViewStandard)
 }
 

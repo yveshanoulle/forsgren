@@ -274,10 +274,11 @@ func parse(data []byte) (Config, error) {
 // or a null value and empty but not nil for `projects: []`.
 type fileConfig struct {
 	Version    *int      `yaml:"version"`
-	View       *string   `yaml:"view"`
+	View       yaml.Node `yaml:"view"`
 	AutoUpdate yaml.Node `yaml:"auto_update"`
-	// AutoUpdateLevel is nil for a missing key or no value.
-	AutoUpdateLevel *string `yaml:"auto_update_level"`
+	// AutoUpdateLevel is the node as written, like AutoUpdate, so a list or
+	// mapping is not accepted by name, not refused as syntax (forsgren#183).
+	AutoUpdateLevel yaml.Node `yaml:"auto_update_level"`
 	// HistoryDays is the node as written, so a non-integer is refused by name.
 	HistoryDays yaml.Node `yaml:"history_days"`
 	// HistoryChunkDays is the node as written, like HistoryDays.
