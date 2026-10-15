@@ -65,7 +65,7 @@ func TestWriteSiteHidesAPageThatWasNeverWritten(t *testing.T) {
 // placeholderHiding is the placeholder page data with hidden as its hidden
 // pages.
 func placeholderHiding(hidden map[string]bool) Data {
-	data := Placeholder("1.7.2")
+	data := Placeholder("1.7.3")
 	data.Hidden = hidden
 	return data
 }
