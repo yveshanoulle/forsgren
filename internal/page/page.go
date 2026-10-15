@@ -243,7 +243,7 @@ const (
 	viewScoring  = "scoring"
 	// viewNumbersScoring is the page that shows both, each cell the number
 	// and then its score (forsgren#55); it is a folder like the views, but not
-	// one of the views the root can show and the menu lists (yet).
+	// one of the views the root can show.
 	viewNumbersScoring = "numbers-scoring"
 )
 
@@ -251,6 +251,10 @@ const (
 // rendered from index.html at its own address, /standard/, /numbers/ and
 // /scoring/, one folder below the root.
 var views = []string{viewStandard, viewNumbers, viewScoring}
+
+// numbersScoringLabel is the menu's name for the numbers and scoring page: the
+// capitalised-name rule of the views would give "Numbers-scoring" (forsgren#55).
+const numbersScoringLabel = "Numbers and scoring"
 
 // folderPages are the pages in a folder of their own that render index.html:
 // the views, and the numbers and scoring page (forsgren#55).
@@ -298,10 +302,14 @@ type menuItem struct{ Href, Label, Current string }
 // page shows is marked current, and the issue page the page is marked "page";
 // every other entry is a link.
 func (p pageData) Menu() []menuItem {
-	menu := make([]menuItem, 0, len(views)+len(issuePages))
+	menu := make([]menuItem, 0, len(views)+len(issuePages)+1)
 	for _, view := range views {
 		label := strings.ToUpper(view[:1]) + view[1:]
 		menu = append(menu, menuItem{view + "/", label, markIf(view == p.View, p.viewCurrent())})
+	}
+	if !p.Hidden[viewNumbersScoring] {
+		menu = append(menu, menuItem{viewNumbersScoring + "/", numbersScoringLabel,
+			markIf(p.Both(), "page")})
 	}
 	for _, issues := range issuePages {
 		if p.Hidden[issues.Name] {

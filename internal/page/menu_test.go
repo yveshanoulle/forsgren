@@ -13,6 +13,7 @@ type menuEntry struct{ href, label string }
 // #133): the three views, then the issues page and the days page.
 var menuEntries = []menuEntry{
 	{"standard/", "Standard"}, {"numbers/", "Numbers"}, {"scoring/", "Scoring"},
+	{"numbers-scoring/", "Numbers and scoring"},
 	{"issues.html", "Issues"}, {"days.html", "Daily"},
 }
 
@@ -39,12 +40,11 @@ type menuCase struct{ base, current, mark string }
 // nothing; root is the root's.
 func menuCases(root menuCase) map[string]menuCase {
 	return map[string]menuCase{
-		"index.html":          root,
-		"standard/index.html": {"../", "Standard", "page"},
-		"numbers/index.html":  {"../", "Numbers", "page"},
-		"scoring/index.html":  {"../", "Scoring", "page"},
-		// Not in the menu yet (forsgren#55), so it marks nothing.
-		"numbers-scoring/index.html": {"../", "", ""},
+		"index.html":                 root,
+		"standard/index.html":        {"../", "Standard", "page"},
+		"numbers/index.html":         {"../", "Numbers", "page"},
+		"scoring/index.html":         {"../", "Scoring", "page"},
+		"numbers-scoring/index.html": {"../", "Numbers and scoring", "page"},
 		"issues.html":                {"", "Issues", "page"},
 		"days.html":                  {"", "Daily", "page"},
 		"settings.html":              {},
@@ -75,6 +75,38 @@ func TestEveryPageOpensWithTheMenu(t *testing.T) {
 			wantOneMenuFirst(t, name+" "+page, rendered(t, page, c.data), pages[page])
 		}
 	}
+}
+
+// TestMenuLeavesOutNumbersAndScoringWhenHidden (forsgren#55, decision #187):
+// a site that hides the numbers and scoring page has no entry for it in any
+// page's menu, and the other entries stay in their order.
+func TestMenuLeavesOutNumbersAndScoringWhenHidden(t *testing.T) {
+	data := viewData()
+	data.Hidden = map[string]bool{viewNumbersScoring: true}
+	for page, next := range map[string]string{"index.html": `Scoring</a> · <a href="issues.html">`,
+		"scoring/index.html": `Scoring</span> · <a href="../issues.html">`,
+		"issues.html":        `Scoring</a> · <span aria-current="page">Issues`} {
+		got := rendered(t, page, data)
+		wantNone(t, page, got, "Numbers and scoring", "numbers-scoring/")
+		wantAll(t, page, got, next)
+	}
+}
+
+// TestMenuPutsNumbersAndScoringBetweenScoringAndIssues (forsgren#55, decision
+// #187): the entry follows Scoring and precedes Issues, a link from the root
+// and from every folder, plain text with aria-current="page" on its own page,
+// and never the root's marked view, whatever the root shows.
+func TestMenuPutsNumbersAndScoringBetweenScoringAndIssues(t *testing.T) {
+	data := viewData()
+	data.View = viewScoring
+	root := rendered(t, "index.html", data)
+	wantAll(t, "index.html", root, `<span aria-current="true">Scoring</span> · `+
+		`<a href="numbers-scoring/">Numbers and scoring</a> · <a href="issues.html">Issues</a>`)
+	own := rendered(t, "numbers-scoring/index.html", data)
+	wantAll(t, "numbers-scoring/index.html", own, `<a href="../scoring/">Scoring</a> · `+
+		`<span aria-current="page">Numbers and scoring</span> · <a href="../issues.html">Issues</a>`)
+	wantNone(t, "index.html", root, `<span aria-current="true">Numbers and scoring`,
+		`<span aria-current="page">Numbers and scoring`)
 }
 
 // wantOneMenuFirst fails unless the page got opens with the menu m and holds
