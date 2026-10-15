@@ -393,3 +393,27 @@ func TestLegendExplainsTheIncompleteOpenBugsCell(t *testing.T) {
 	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()),
 		"<p>"+bugsNote+"</p>\n    <p>"+incompleteNote+"</p>\n    <p>"+trendNote+"</p>\n")
 }
+
+// closedColumnsNote and issueLimitsNote are the legend's paragraphs on what
+// New, Completed, Not planned, Duplicate and Other count, and on the two limits
+// of the issue history (forsgren#112).
+const (
+	closedColumnsNote = "New, Completed, Not planned, Duplicate and Other count what happened in the row's " +
+		"period (UTC): New is the issues created; Completed, Not planned and Duplicate are the issues closed " +
+		"with that reason; Other is the issues closed with no reason, or with a reason forsgren does not know, " +
+		"so every close is counted in exactly one of the four. A reopen is counted in none of them; it only " +
+		"puts the issue back into Open."
+	issueLimitsNote = "Two limits: a reopen is dated when the collection sees it, not when it happened, so " +
+		"it can fall in a later period than the real one; and when a repository has more issues than the one " +
+		"full read takes (it stops at 100 pages of 100 issues), its older issues are missing and its " +
+		"historical Total stays incomplete. The — (incomplete) note covers Open bugs only."
+)
+
+// TestLegendExplainsTheClosedColumnsAndTheLimitsOfTheIssueHistory
+// (forsgren#112): the Issues pages section says what the New and the four
+// closed columns count, in the row's period, that a reopen counts in none, and
+// the two limits, the dating of a reopen and the full-read cap.
+func TestLegendExplainsTheClosedColumnsAndTheLimitsOfTheIssueHistory(t *testing.T) {
+	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()),
+		"<p>"+columnsNote+"</p>\n    <p>"+closedColumnsNote+"</p>", "<p>"+issueLimitsNote+"</p>")
+}
