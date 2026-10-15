@@ -125,3 +125,10 @@ li {
 .trend-flat-bugs {
   color: light-dark(#0b57d0, #8ab4f8);
 }
+
+/* The 0 of Open bugs is green, the green of .trend-down, whatever the arrow
+   after it (forsgren#151). The number itself is the signal, so colour is not
+   the only one. */
+.bugs-zero {
+  color: light-dark(#1b6e2f, #7fd98f);
+}

@@ -280,8 +280,9 @@ func wantArrows(t *testing.T, what, flat string, set func(day metrics.IssueDay, 
 // trendNote explains the arrows after Open and Open bugs (forsgren#126).
 const trendNote = "An arrow after Open and after Open bugs shows which way the count moved from the end of " +
 	"the period before: red when it rose, green when it fell, and grey when it did not change (blue after " +
-	"Open bugs). Red and green mean rose and fell, not worse and better. A day is compared with the day " +
-	"before, a week with the week before, a month with the month before and a year with the year before; " +
+	"Open bugs, where a count of 0 open bugs is green too). Red and green mean rose and fell, not worse and better. " +
+	"A day is compared with the day before, a week with the week before, a month with the month before " +
+	"and a year with the year before; " +
 	"the oldest row of each kind is compared with the count just before its period, even when that period " +
 	"is outside the rows shown."
 
@@ -301,6 +302,29 @@ func TestLegendExplainsTheTrendArrows(t *testing.T) {
 // Open bugs counts and that the label is the one at the latest collection.
 func TestLegendExplainsTheOpenBugsColumn(t *testing.T) {
 	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()), "<p>"+bugsNote+"</p>\n")
+}
+
+// TestAZeroInTheOpenBugsCellIsGreenWhateverTheArrow (forsgren#151): a count of
+// 0 open bugs hangs on class bugs-zero, which styles.css gives the green of
+// the falling arrow, after a fall and unchanged alike (the dash stays blue); a
+// count above 0 and the incomplete cell carry no such class. The Open column's
+// 0 is not coloured.
+func TestAZeroInTheOpenBugsCellIsGreenWhateverTheArrow(t *testing.T) {
+	zeroAfterFall := metrics.IssueDay{Date: october(4), Open: 0, OpenBugs: 0, OpenBugsChange: -1, Active: true}
+	zeroUnchanged := metrics.IssueDay{Date: october(3), Active: true}
+	three := metrics.IssueDay{Date: october(2), Open: 3, OpenBugs: 3, OpenBugsChange: -1, Active: true}
+	incomplete := metrics.IssueDay{Date: october(1), BugsIncomplete: true, Active: true}
+	got := issuesPageOf(t, zeroAfterFall, zeroUnchanged, three, incomplete)
+	zero := func(arrow string) string {
+		return `<td><span class="bugs-zero">0</span> <span class="` + arrow + `</span></td>`
+	}
+	wantAll(t, "issues.html", got,
+		zero(`trend-down" role="img" aria-label="open bugs decreased by 1">▼ −1`),
+		zero(`trend-flat-bugs" role="img" aria-label="open bugs unchanged">–`),
+		`<td>3 <span class="trend-down"`)
+	if n := strings.Count(got, `class="bugs-zero"`); n != 2 {
+		t.Errorf("want class bugs-zero on exactly the two zero open bugs counts, got %d in:\n%s", n, got)
+	}
 }
 
 // TestNoWrapTablesAreTheIssuesNumbersAndScoringTables (forsgren#153, step 7;
