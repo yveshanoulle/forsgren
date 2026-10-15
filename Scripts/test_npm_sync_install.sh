@@ -13,8 +13,14 @@
 #   6. npm ci fails after a lockfile change -> the OLD stamp is gone too, so the
 #                                              next run installs again
 #   7. no package-lock.json                 -> red, npm ci does not run
-# Mutation proof: case 2 against a copy of the script that never compares
-# the stamp must run npm ci, so case 2 holds BECAUSE of the comparison.
+#   8. the Node major changed               -> npm ci runs, the stamp follows;
+#                                              a patch change does not
+# The stamp is `<lockfile sha256> node<major>`; a stub `node` prints
+# $NODE_VERSION.
+# Mutation proofs: case 2 against a copy of the script that never compares
+# the stamp must run npm ci, so case 2 holds BECAUSE of the comparison; case 8
+# against a copy that leaves the Node major out of the stamp must NOT run npm ci,
+# so case 8 holds BECAUSE the major is in it.
 
 set -euo pipefail
 
@@ -41,6 +47,12 @@ rm -rf node_modules
 mkdir -p node_modules/.bin
 STUB
 chmod +x "${STUBS}/npm"
+cat > "${STUBS}/node" <<'STUB'
+#!/usr/bin/env bash
+echo "${NODE_VERSION}"
+STUB
+chmod +x "${STUBS}/node"
+export NODE_VERSION="v26.11.1"
 export NPM_LOG="${TMP}/npm.log"
 export PATH="${STUBS}:${PATH}"
 
@@ -59,9 +71,9 @@ ci_runs() {
   wc -l < "$NPM_LOG" | tr -d ' '
 }
 
-# lock_hash <dir> — the sha256 of the directory's lockfile.
+# lock_hash <dir> — the stamp the directory's lockfile and the stub node give.
 lock_hash() {
-  shasum -a 256 "$1/package-lock.json" | awk '{ print $1 }'
+  echo "$(shasum -a 256 "$1/package-lock.json" | awk '{ print $1 }') node${NODE_VERSION#v}" | sed 's/\(node[0-9]*\)\..*/\1/'
 }
 
 # want_runs <case> <count> — the stub npm was called exactly <count> times.
@@ -148,6 +160,20 @@ run_script "$SCRIPT"
 want_red "7. no package-lock.json" "package-lock.json is missing"
 want_runs "7. npm ci did not run" 0
 
+# --- 8. the Node major changed ---------------------------------------------------
+new_dir major 'lock one'
+run_script "$SCRIPT"
+MAJOR_DIR="$DIR"
+NODE_VERSION="v26.12.0"
+: > "$NPM_LOG"
+run_script "$SCRIPT"
+want_runs "8. a Node patch change does not reinstall" 0
+NODE_VERSION="v27.0.0"
+run_script "$SCRIPT"
+want_runs "8. a Node major change reinstalls" 1
+want_stamp "8. the stamp follows the Node major" "$MAJOR_DIR"
+NODE_VERSION="v26.11.1"
+
 # --- mutation proof: the stamp is never compared -> case 2 runs npm ci -----------
 NEVER_EQUAL="s/\\[ \"\\\$stamp\" = \"\\\$want\" \\]/false/"
 if selftest_mutant "$SCRIPT" "${TMP}/mutant/Scripts/npm_sync_install.sh" "$NEVER_EQUAL"; then
@@ -158,6 +184,22 @@ if selftest_mutant "$SCRIPT" "${TMP}/mutant/Scripts/npm_sync_install.sh" "$NEVER
     echo "  ok: mutation proof: without the comparison npm ci runs again, so case 2 holds because of it"
   else
     fail "mutation proof: the comparison-less script did not run npm ci for an unchanged lockfile"
+  fi
+fi
+
+# --- mutation proof: the Node major is left out of the stamp -> case 8 holds no more
+NO_MAJOR="s/^want=.*\$/want=\"\\\${lock_hash}\"/"
+if selftest_mutant "$SCRIPT" "${TMP}/mutant2/Scripts/npm_sync_install.sh" "$NO_MAJOR"; then
+  new_dir nomajor 'lock one'
+  capture "${TMP}/mutant2/Scripts/npm_sync_install.sh" "$DIR"
+  NODE_VERSION="v27.0.0"
+  : > "$NPM_LOG"
+  capture "${TMP}/mutant2/Scripts/npm_sync_install.sh" "$DIR"
+  NODE_VERSION="v26.11.1"
+  if [[ "$(ci_runs)" == "0" ]]; then
+    echo "  ok: mutation proof: without the major in the stamp a Node major change does not reinstall, so case 8 holds because of it"
+  else
+    fail "mutation proof: the major-less stamp still reinstalled on a Node major change"
   fi
 fi
 

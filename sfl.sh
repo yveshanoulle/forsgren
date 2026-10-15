@@ -59,6 +59,12 @@ export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
 # only the list differs. Fixture: Scripts/test_install_tools.sh.
 ./Scripts/install_tools.sh
 
+# The Node pin: .nvmrc holds the major, and the node on PATH, which
+# install_tools.sh may just have installed, must be it. Red with the fix
+# command; Node cannot fetch its own version the way Go does. The same check
+# is a PRE row. Fixtures: Scripts/test_node_pin.sh, Scripts/test_check_node_pin.sh.
+./Scripts/check_node_pin.sh || exit 1
+
 # Tooling mirrors another estate repository (forsgren#1, ladder step 7): the linters are
 # pinned devDependencies in package.json + package-lock.json, installed into
 # node_modules and invoked by path — NOT global installs and NOT `npx --yes`,

@@ -285,6 +285,15 @@ for path in Scripts/*.sh; do
       require_fixture "$base" "an installer with no fixture fails by leaving a machine looking correctly configured"
       ;;
 
+    # READER, not a gate (forsgren#2): it prints the Node major pinned in
+    # .nvmrc for check_node_pin.sh, the gate (a row of its own), which must
+    # still call it, and for CI's setup-node step later. Fixture required.
+    node_pin.sh)
+      runs_script "Scripts/check_node_pin.sh" "$base" \
+        || fail "${base} reads the Node pin and Scripts/check_node_pin.sh never invokes it — the gate would not read .nvmrc"
+      require_fixture "$base" "a pin reader with no fixture can print the wrong major and nothing would notice"
+      ;;
+
     # PRE-FLIGHT, not a gate (forsgren#2): sfl's npm install step. It runs
     # `npm ci` when node_modules is missing or older than the lockfile. CI
     # checks out a fresh tree and runs `npm ci` itself, so only sfl calls it.

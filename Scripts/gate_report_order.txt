@@ -130,6 +130,14 @@ npm install sync self-test|Scripts/test_npm_sync_install.sh|pre|
 # runs before the build.
 tool install self-test|Scripts/test_install_tools.sh|pre|
 #
+# The Node pin (forsgren#2, decision #190): .nvmrc holds the Node major,
+# Scripts/node_pin.sh reads it, Scripts/check_node_pin.sh is red when the node
+# on PATH is another major, with the fix. sfl.sh runs the check right after
+# install_tools.sh; the reader is exercised by its own self-test.
+Node pin self-test|Scripts/test_node_pin.sh|pre|
+Node pin gate self-test|Scripts/test_check_node_pin.sh|pre|
+Node pin|Scripts/check_node_pin.sh|pre|
+#
 # The Go pin: sfl.sh and FBP.sh export GOTOOLCHAIN from go.mod's toolchain
 # line via Scripts/go_toolchain.sh.
 Go toolchain pin self-test|Scripts/test_go_toolchain.sh|pre|

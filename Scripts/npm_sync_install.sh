@@ -16,8 +16,10 @@
 # successful `npm ci`, and removed before one starts, so a failed install never
 # leaves a stamp that vouches for a half-built tree. A node_modules without a
 # stamp (installed before this step existed) is installed once more.
-# The stamp holds the lockfile's hash only; the Node pin joins it in a later
-# step of forsgren#2.
+# The stamp is `<lockfile sha256> node<major>`: a Node major change reinstalls
+# too, because the installed tree (native addons, engines checks) is the
+# product of both. Stamps written before the Node major joined it (the hash
+# alone) differ, so those trees are installed once more.
 #
 # Usage: Scripts/npm_sync_install.sh [dir]   (default: the repo root)
 # Exit: 0 node_modules matches the lockfile (installed now or already),
@@ -44,8 +46,15 @@ STAMP_FILE="node_modules/.package-lock.sha256"
 
 [ -f package-lock.json ] || fail_now "package-lock.json is missing — npm ci has nothing to install"
 
-want="$(shasum -a 256 package-lock.json | awk '{ print $1 }')"
-[ -n "$want" ] || fail_now "could not hash package-lock.json"
+lock_hash="$(shasum -a 256 package-lock.json | awk '{ print $1 }')"
+[ -n "$lock_hash" ] || fail_now "could not hash package-lock.json"
+
+node_version="$(node --version 2>/dev/null || true)"
+node_major="${node_version#v}"
+node_major="${node_major%%.*}"
+[[ "$node_major" =~ ^[0-9]+$ ]] || fail_now "could not read a Node major from 'node --version' (got '${node_version}') — npm ci needs node"
+
+want="${lock_hash} node${node_major}"
 
 stamp=""
 if [ -f "$STAMP_FILE" ]; then
@@ -54,7 +63,7 @@ fi
 
 if [ -d node_modules ] && [ "$stamp" = "$want" ]; then
   COMPLETED=1
-  echo "OK: node_modules was installed from this package-lock.json (${want})"
+  echo "OK: node_modules was installed from this package-lock.json and Node major (${want})"
   exit 0
 fi
 
@@ -63,7 +72,7 @@ if [ ! -d node_modules ]; then
 elif [ -z "$stamp" ]; then
   reason="node_modules has no lockfile stamp"
 else
-  reason="package-lock.json changed since node_modules was installed"
+  reason="package-lock.json or the Node major changed since node_modules was installed"
 fi
 
 echo "INFO: installing pinned devDependencies (npm ci): ${reason}"
