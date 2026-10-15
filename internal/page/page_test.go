@@ -550,7 +550,7 @@ func TestNoProjectsPageShowsAHowTo(t *testing.T) {
 		"forsgren.config.yml lists the projects",
 		"<pre><code>version: 1\nprojects:\n  - name: Acme Shop\n    repositories:\n",
 		"        label: iOS\n",
-		`<a href="https://github.com/yveshanoulle/forsgren/blob/main/docs/configuration.md">`,
+		`<a href="https://forsgren.be/#configuration">`,
 	)
 	wantNone(t, "index.html", got, "No projects configured yet")
 }

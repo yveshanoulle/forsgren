@@ -933,6 +933,12 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/page/repolinks_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-15",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/page/styles_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-14",
