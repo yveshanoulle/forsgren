@@ -19,7 +19,7 @@ var possibleValues = map[string]string{
 	"view":               list(config.ViewStandard, config.ViewNumbers, config.ViewScoring),
 	"auto_update":        booleanValues,
 	"auto_update_level":  list(config.LevelPatch, config.LevelMinor, config.LevelMajor),
-	"history_days":       upTo(config.MaxHistoryDays),
+	"history_days":       between(config.MinHistoryDays, config.MaxHistoryDays),
 	"history_chunk_days": upTo(config.MaxHistoryChunkDays),
 	"working_hours":      upTo(config.MaxWorkingHours),
 	"issues_page":        booleanValues,
@@ -33,7 +33,10 @@ var booleanValues = list(strconv.FormatBool(true), strconv.FormatBool(false))
 func list(names ...string) string { return strings.Join(names, ", ") }
 
 // upTo is the whole numbers from 1 to most.
-func upTo(most int) string { return fmt.Sprintf("1 to %d", most) }
+func upTo(most int) string { return between(1, most) }
+
+// between is the whole numbers from least to most.
+func between(least, most int) string { return fmt.Sprintf("%d to %d", least, most) }
 
 // possibleOf is the values the key accepts, empty for a key the page does
 // not know; the drift test holds exactly this list to the config loader.

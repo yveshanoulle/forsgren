@@ -9,7 +9,7 @@ func TestCollectWarnsOnARejectedSetting(t *testing.T) {
 	t.Setenv("FORSGREN_TOKEN", "")
 	cfg := writeConfig(t, "version: 1\nhistory_days: 0\nprojects: []\n")
 	got := collectRun("--config", cfg, "--data", dataPath(t))
-	want := "config: warning: " + cfg + `: invalid history_days "0": use a whole number of days from 1 to 1825; ` +
+	want := "config: warning: " + cfg + `: invalid history_days "0": use a whole number of days from 30 to 1825; ` +
 		"using the default 365\n"
 	if got.code != 0 || got.stdout != "" || got.stderr != want {
 		t.Errorf("want exit 0, no stdout and stderr %q, got %+v", want, got)

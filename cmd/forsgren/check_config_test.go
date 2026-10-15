@@ -136,7 +136,7 @@ func TestCheckConfigReportsARejectedSettingAndExitsZero(t *testing.T) {
 		"settings not accepted: 2\n"
 	wantErr := "config: warning: " + path + `: invalid view "Numbers": use standard, numbers or scoring; ` +
 		"using the default standard\n" +
-		"config: warning: " + path + `: invalid history_days "0": use a whole number of days from 1 to 1825; ` +
+		"config: warning: " + path + `: invalid history_days "0": use a whole number of days from 30 to 1825; ` +
 		"using the default 365\n"
 	if code != 0 || stdout != wantOut || stderr != wantErr {
 		t.Errorf("want exit 0, stdout %q and stderr %q, got %d, %q, %q", wantOut, wantErr, code, stdout, stderr)

@@ -147,7 +147,7 @@ func TestRenderSettingsPageListsTheSettings(t *testing.T) {
 	}
 	settings := readFile(t, filepath.Join(dir, "settings.html"))
 	for _, want := range []string{
-		"<th scope=\"row\">history_days</th>\n            <td>30</td>\n            <td>1 to 1825</td>\n" +
+		"<th scope=\"row\">history_days</th>\n            <td>30</td>\n            <td>30 to 1825</td>\n" +
 			"            <td>False</td>",
 		"<th scope=\"row\">view</th>\n            <td>standard</td>\n            <td>standard, numbers, scoring</td>\n" +
 			"            <td>True</td>",
@@ -171,7 +171,7 @@ func TestRenderSettingsPageSaysARejectedSetting(t *testing.T) {
 	if code, _, stderr := runCommand("render", "--out", dir, "--config", cfg); code != 0 {
 		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
 	}
-	want := `<td><span class="written">0</span> is not accepted: use a whole number of days from 1 to 1825. ` +
+	want := `<td><span class="written">0</span> is not accepted: use a whole number of days from 30 to 1825. ` +
 		`Using the default <span class="default-in-force">365</span>.</td>`
 	if settings := readFile(t, filepath.Join(dir, "settings.html")); !strings.Contains(settings, want) {
 		t.Errorf("want the settings page to say %q, got:\n%s", want, settings)

@@ -106,28 +106,30 @@ type numberKey struct {
 	sentinel error
 	key      string
 	unit     string
-	def, max int
+	def      int
+	min, max int
 }
 
 var (
-	historyDays      = numberKey{ErrHistoryDays, "history_days", "days", DefaultHistoryDays, MaxHistoryDays}
+	historyDays = numberKey{ErrHistoryDays, "history_days", "days", DefaultHistoryDays,
+		MinHistoryDays, MaxHistoryDays}
 	historyChunkDays = numberKey{ErrHistoryChunkDays, "history_chunk_days", "days",
-		DefaultHistoryChunkDays, MaxHistoryChunkDays}
-	workingHours = numberKey{ErrWorkingHours, "working_hours", "hours", DefaultWorkingHours, MaxWorkingHours}
+		DefaultHistoryChunkDays, 1, MaxHistoryChunkDays}
+	workingHours = numberKey{ErrWorkingHours, "working_hours", "hours", DefaultWorkingHours, 1, MaxWorkingHours}
 )
 
 // hasValue says whether a key has a value: a key left out, or written without
 // one, is none.
 func hasValue(n yaml.Node) bool { return n.Kind != 0 && n.ShortTag() != "!!null" }
 
-// whole is the node's integer, when it is one from 1 to the key's limit.
+// whole is the node's integer, when it is one from its minimum to the key's limit.
 func (k numberKey) whole(n yaml.Node) (int, bool) {
 	n2, err := strconv.Atoi(n.Value)
-	return n2, err == nil && n.ShortTag() == "!!int" && n2 >= 1 && n2 <= k.max
+	return n2, err == nil && n.ShortTag() == "!!int" && n2 >= k.min && n2 <= k.max
 }
 
 // check is the key as written, its default when the file has none (a key
-// without a value is none): a whole number from 1 to its limit, never a
+// without a value is none): a whole number from its minimum to its limit, never a
 // quoted value; otherwise the default and the Rejection (forsgren#183).
 func (k numberKey) check(n yaml.Node) (int, *Rejection) {
 	if !hasValue(n) {
@@ -137,7 +139,7 @@ func (k numberKey) check(n yaml.Node) (int, *Rejection) {
 		return v, nil
 	}
 	return k.def, reject(k.sentinel, k.key, writtenOf(n),
-		fmt.Sprintf("use a whole number of %s from 1 to %d", k.unit, k.max), strconv.Itoa(k.def))
+		fmt.Sprintf("use a whole number of %s from %d to %d", k.unit, k.min, k.max), strconv.Itoa(k.def))
 }
 
 // checkHistoryDays is history_days as written, DefaultHistoryDays when the
@@ -152,8 +154,8 @@ func checkHistoryChunkDays(n yaml.Node) (int, *Rejection) { return historyChunkD
 // none (a key without a value is none): the integer 30, 90 or 180, never a
 // quoted value, and no longer than history_days, which the history must reach
 // back; otherwise DefaultDoraDays and the Rejection (forsgren#183). The
-// default window is never checked against history_days, so a short
-// history_days stays valid (forsgren#178).
+// history_days is the one in force, at least MinHistoryDays, so the default
+// window always fits (forsgren#178).
 func checkDoraDays(n yaml.Node, historyDays int) (int, *Rejection) {
 	if !hasValue(n) {
 		return DefaultDoraDays, nil

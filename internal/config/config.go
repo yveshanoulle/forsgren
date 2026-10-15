@@ -67,6 +67,7 @@ const (
 // history_days can name (five years).
 const (
 	DefaultHistoryDays = 365
+	MinHistoryDays     = 30
 	MaxHistoryDays     = 1825
 )
 

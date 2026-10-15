@@ -505,6 +505,7 @@
     "github.com/yveshanoulle/forsgren/internal/page/trend.go:trendViewOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/settings.go:list": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/settings.go:upTo": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/settings.go:between": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/settings.go:possibleOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/labels.go:UnmarshalYAML": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/labels.go:kindOf": 100.0,

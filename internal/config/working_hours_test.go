@@ -32,7 +32,7 @@ func TestWorkingHoursIsRead(t *testing.T) {
 // accepted: 8 is in force, and the rejection names the key and the limit.
 func TestRejectedWorkingHoursFallBack(t *testing.T) {
 	workingHoursTest := daysTestKey{"working_hours", ErrWorkingHours, func(c Config) int { return c.WorkingHours },
-		DefaultWorkingHours, MaxWorkingHours}
+		DefaultWorkingHours, MaxWorkingHours, 1}
 	wantDaysRejected(t, workingHoursTest,
 		map[string]string{
 			"zero":       "0",

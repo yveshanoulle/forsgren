@@ -63,14 +63,14 @@ func TestDoraDaysLongerThanHistoryDaysFallsBack(t *testing.T) {
 }
 
 // TestDoraDaysThatFitHistoryDaysLoad (forsgren#178): equal fits, the default
-// history of 365 days fits every window, and an unwritten dora_days is never
-// checked, so a history_days under 30 stays valid.
+// history of 365 days fits every window, and the default window of 30 fits
+// the smallest history_days, 30.
 func TestDoraDaysThatFitHistoryDaysLoad(t *testing.T) {
 	for name, yaml := range map[string]string{
 		"equal":              "dora_days: 90\nhistory_days: 90\n",
 		"default history":    "dora_days: 180\n",
-		"unwritten short":    "history_days: 7\n",
-		"unwritten no value": "dora_days:\nhistory_days: 7\n",
+		"smallest history":   "history_days: 30\n",
+		"unwritten no value": "dora_days:\nhistory_days: 30\n",
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := parse([]byte(yaml + valid)); err != nil {
@@ -97,5 +97,18 @@ func TestRejectedHistoryDaysLeavesDoraDaysCheckedAgainstTheDefaultHistory(t *tes
 	}
 	if got.WorkingHours != 6 {
 		t.Errorf("want working_hours 6, got %d", got.WorkingHours)
+	}
+}
+
+// TestHistoryDaysBelowTheMinimumLeavesTheWindowChecked (forsgren#178): a
+// history_days under 30 is not accepted, 365 is in force, so a written window
+// is checked against 365 and fits.
+func TestHistoryDaysBelowTheMinimumLeavesTheWindowChecked(t *testing.T) {
+	got, err := parse([]byte("history_days: 7\ndora_days: 180\n" + valid))
+	if err != nil || got.DoraDays != 180 || got.HistoryDays != DefaultHistoryDays {
+		t.Fatalf("want history 365, window 180 and no error, got %d, %d, %v", got.HistoryDays, got.DoraDays, err)
+	}
+	if len(got.Rejected) != 1 || got.Rejected[0].Key != "history_days" {
+		t.Errorf("want only history_days rejected, got %v", got.Rejected)
 	}
 }

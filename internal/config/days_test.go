@@ -15,12 +15,14 @@ type daysTestKey struct {
 	got      func(Config) int
 	def      int
 	upper    int
+	lower    int
 }
 
 var (
-	historyDaysTest = daysTestKey{"history_days", ErrHistoryDays, func(c Config) int { return c.HistoryDays }, 365, 1825}
-	chunkDaysTest   = daysTestKey{"history_chunk_days", ErrHistoryChunkDays,
-		func(c Config) int { return c.HistoryChunkDays }, 100, 365}
+	historyDaysTest = daysTestKey{"history_days", ErrHistoryDays, func(c Config) int { return c.HistoryDays },
+		365, 1825, 30}
+	chunkDaysTest = daysTestKey{"history_chunk_days", ErrHistoryChunkDays,
+		func(c Config) int { return c.HistoryChunkDays }, 100, 365, 1}
 )
 
 // wantDaysRead wants the key's default when it is left out, and the value as
@@ -34,6 +36,7 @@ func wantDaysRead(t *testing.T, k daysTestKey) {
 	}{
 		{"absent", valid, k.def},
 		{"thirty", k.name + ": 30\n" + valid, 30},
+		{"lower limit", k.name + ": " + strconv.Itoa(k.lower) + "\n" + valid, k.lower},
 		{"upper limit", valid + k.name + ": " + strconv.Itoa(k.upper) + "\n", k.upper},
 	}
 	for _, tc := range cases {
@@ -62,7 +65,8 @@ func wantDaysRejected(t *testing.T, k daysTestKey, values map[string]string) {
 				t.Fatalf("want %s %d not written and no error, got %d, %v, %v", k.name, k.def, k.got(got), got.written, err)
 			}
 			wantRejection(t, got.Rejected, k.sentinel, [4]string{k.name, strings.Trim(value, `"`),
-				"use a whole number of " + unit + " from 1 to " + strconv.Itoa(k.upper), strconv.Itoa(k.def)})
+				"use a whole number of " + unit + " from " + strconv.Itoa(k.lower) + " to " + strconv.Itoa(k.upper),
+				strconv.Itoa(k.def)})
 		})
 	}
 }

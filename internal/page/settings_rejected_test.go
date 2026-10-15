@@ -15,7 +15,7 @@ func withRejected(view string) Data {
 		switch data.Settings[i].Key {
 		case "history_days":
 			data.Settings[i].Written = "0"
-			data.Settings[i].Reason = "use a whole number of days from 1 to 1825"
+			data.Settings[i].Reason = "use a whole number of days from 30 to 1825"
 		case "view":
 			data.Settings[i].Written = view
 			data.Settings[i].Reason = "use standard, numbers or scoring"
@@ -31,9 +31,9 @@ func TestSettingsPageSaysARejectedValue(t *testing.T) {
 	wantAll(t, "settings.html", rendered(t, "settings.html", withRejected("weekly")),
 		`<tr class="not-accepted">
             <th scope="row">history_days</th>
-            <td><span class="written">0</span> is not accepted: use a whole number of days from 1 to 1825. `+
+            <td><span class="written">0</span> is not accepted: use a whole number of days from 30 to 1825. `+
 			`Using the default <span class="default-in-force">365</span>.</td>
-            <td>1 to 1825</td>
+            <td>30 to 1825</td>
             <td>True</td>
           </tr>`,
 		`<tr>
