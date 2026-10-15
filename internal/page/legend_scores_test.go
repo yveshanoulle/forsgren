@@ -61,3 +61,23 @@ func TestLegendRecoveryListsLeadTimesLevelsWithScore(t *testing.T) {
 		"<li>Recovered in one to six months: 30 days to below 180 days, score 2</li>",
 		"<li>Recovered in more than six months: 180 days and more, score 0</li>")
 }
+
+// TestLegendReworkListsTheSixLevelsWithScore (forsgren#79, decision #197):
+// rework rate is scored by PercentScore on the whole percent, like change fail
+// rate, and banded on the same six labels, so its section of the legend lists
+// the six levels with the same score ranges, worded as a rework so that the
+// rendered page repeats no text (the html duplication ceiling is 0.00%).
+func TestLegendReworkListsTheSixLevelsWithScore(t *testing.T) {
+	_, section, found := strings.Cut(rendered(t, "legend.html", viewData()), "<h2>Deployment rework rate</h2>")
+	if !found {
+		t.Fatal("want a rework rate section in the legend")
+	}
+	section, _, _ = strings.Cut(section, "<h2>")
+	wantAll(t, "rework rate section", section,
+		"<li>Rework of 0%: below 10% of the deployments, score 10 to 9.1</li>",
+		"<li>Rework of 20%: 10% to below 30% of the deployments, score 9 to 7.1</li>",
+		"<li>Rework of 40%: 30% to below 50% of the deployments, score 7 to 5.1</li>",
+		"<li>Rework of 60%: 50% to below 70% of the deployments, score 5 to 3.1</li>",
+		"<li>Rework of 80%: 70% to below 90% of the deployments, score 3 to 1.1</li>",
+		"<li>Rework of 100%: 90% and more of the deployments, score 1 to 0</li>")
+}

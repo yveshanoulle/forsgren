@@ -51,3 +51,9 @@ func (d Data) ChangeFailScores() []string {
 // metrics.BandScore of its LeadTimeBand (Row.scores), the type of lead time's
 // bands, so these are lead time's scores.
 func (d Data) RecoveryScores() []string { return d.LeadTimeScores() }
+
+// ReworkScores are the scores of deployment rework rate's six levels, lowest
+// rate first. The scoring view scores a rework rate with metrics.PercentScore
+// (Row.scores), as it does a change fail rate, and the six levels are the
+// same, so these are change fail rate's scores.
+func (d Data) ReworkScores() []string { return d.ChangeFailScores() }
