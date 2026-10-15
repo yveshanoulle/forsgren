@@ -68,13 +68,13 @@ export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
 # AFTER install_tools.sh, unlike konenki where it runs before it: node comes
 # from Scripts/required_tools.txt, so on a fresh machine npm exists only once
 # the installer has run.
-# jscpd joined the check in forsgren#1 step 11 (VERSION 4): a node_modules
-# installed before jscpd was pinned has htmlhint but no jscpd, and would
-# otherwise never be re-installed.
-if [[ ! -x node_modules/.bin/htmlhint || ! -x node_modules/.bin/jscpd ]]; then
-  echo "INFO: installing pinned devDependencies (npm ci)"
-  npm ci
-fi
+# Scripts/npm_sync_install.sh runs `npm ci` when node_modules is missing or was
+# installed from another package-lock.json than the one in the tree (a stamp
+# inside node_modules holds the lockfile's hash; forsgren#2). It replaces the
+# check on node_modules/.bin/htmlhint and .bin/jscpd, which never noticed a
+# lockfile change. A node_modules without the stamp is installed once more.
+# Fixture: Scripts/test_npm_sync_install.sh.
+./Scripts/npm_sync_install.sh || exit 1
 
 # Pin Go exactly. go.mod's `toolchain` line is only a minimum (GOTOOLCHAIN=auto
 # runs the newer of it and the local Go, and install_tools.sh may just have

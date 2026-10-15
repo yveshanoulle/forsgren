@@ -285,6 +285,15 @@ for path in Scripts/*.sh; do
       require_fixture "$base" "an installer with no fixture fails by leaving a machine looking correctly configured"
       ;;
 
+    # PRE-FLIGHT, not a gate (forsgren#2): sfl's npm install step. It runs
+    # `npm ci` when node_modules is missing or older than the lockfile. CI
+    # checks out a fresh tree and runs `npm ci` itself, so only sfl calls it.
+    npm_sync_install.sh)
+      runs_script "$SFL" "$base" \
+        || fail "${base} reinstalls node_modules on a lockfile change and ${SFL} never invokes it — sfl would run the old node_modules after a lockfile bump"
+      require_fixture "$base" "an install step with no fixture can skip the install and nothing would notice"
+      ;;
+
     # PRE-FLIGHT SYNCHRONISATION, not a gate. sfl sources it before PRE so
     # the run starts from the latest fast-forwardable upstream state. CI
     # checks out the exact commit it evaluates and must not pull another.
