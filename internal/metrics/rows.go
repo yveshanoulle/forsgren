@@ -125,7 +125,8 @@ func byLabel(a, b Row) int {
 }
 
 // ofTask is one service's data: the deployments of repository (ignoring
-// case) with task, the commits they shipped, and no failure issue.
+// case) with task, the commits they shipped, and no failure issue; every
+// other field, the settings of the data, is the parent's.
 func (d Data) ofTask(repository, task string) Data {
 	records := slices.DeleteFunc(slices.Clone(d.Records), func(r history.Record) bool {
 		return !strings.EqualFold(r.Repository, repository) || r.Task != task
@@ -137,7 +138,9 @@ func (d Data) ofTask(repository, task string) Data {
 	commits := slices.DeleteFunc(slices.Clone(d.Commits), func(c history.Commit) bool {
 		return !shipped[keyOf(c.Repository, c.Kind, c.DeploymentID)]
 	})
-	return Data{Records: records, Commits: commits}
+	service := d
+	service.Records, service.Commits, service.Failures = records, commits, nil
+	return service
 }
 
 // deploymentKey is the deployment a commit was shipped by: the repository,
