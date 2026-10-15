@@ -54,25 +54,29 @@ func removeTokenExpiry(path string) error {
 	return nil
 }
 
-// The two lines the --token-expiry file holds besides a date (forsgren#194):
-// the token answered GitHub and has no expiry date, and, when it is the job's
-// own token (GITHUB_TOKEN, route A), that it is renewed every run.
+// The lines the --token-expiry file holds besides a date (forsgren#194): the
+// token answered GitHub and has no expiry date, and, when it is the job's own
+// token (GITHUB_TOKEN, route A), that it is renewed every run; or GitHub sent
+// an expiry header that is no date forsgren can read, which the file does not
+// repeat (the note on stderr shows it).
 const (
 	expiryNone       = "no-expiry"
 	expiryNoneRunOwn = "no-expiry run-token"
+	expiryUnreadable = "unreadable"
 )
 
 // tokenExpiryLine is the one line client's token has to leave in the file: its
 // UTC RFC 3339 expiry date, else, once GitHub answered it without a date,
 // expiryNone or expiryNoneRunOwn; none for a token that never got an
-// answer, and none when a header was sent that is no date (it may have one).
+// answer; a header that is no date, from a token that was answered, is
+// expiryUnreadable.
 // Of the token itself nothing is read but whether it is a run token.
 func tokenExpiryLine(client *github.Client) (string, bool) {
 	if at, known := client.TokenExpiry(); known {
 		return at.UTC().Format(time.RFC3339), true
 	}
 	if _, unreadable := client.UnreadableTokenExpiry(); unreadable {
-		return "", false
+		return expiryUnreadable, client.Answered()
 	}
 	switch {
 	case client.IsRunToken() && client.Answered():

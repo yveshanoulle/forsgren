@@ -92,10 +92,10 @@ func TestCollectNotesATokenWithoutAnExpiryDate(t *testing.T) {
 }
 
 // TestNoExpiryFilesAreAnUnknownDateToCheckNeeds (forsgren#194): the two
-// no-expiry lines hold no date, so readTokenExpiry says unknown and the setup
+// no-expiry lines and the unreadable one hold no date, so readTokenExpiry says unknown and the setup
 // issue's renewal item behaves as it did with no file.
 func TestNoExpiryFilesAreAnUnknownDateToCheckNeeds(t *testing.T) {
-	for _, line := range []string{"no-expiry\n", "no-expiry run-token\n"} {
+	for _, line := range []string{"no-expiry\n", "no-expiry run-token\n", "unreadable\n"} {
 		path := filepath.Join(t.TempDir(), "token-expiry")
 		if err := os.WriteFile(path, []byte(line), 0o600); err != nil {
 			t.Fatal(err)
@@ -175,8 +175,8 @@ func TestTheTokenExpiryWarningNamesTheRepositoryTheWorkflowRunsIn(t *testing.T) 
 
 // TestCollectNotesAnUnreadableExpiryHeaderOnce (forsgren#177): a header that
 // is not a date is one note on stderr naming the first value, however many
-// answers carried it; the run's exit code and the expiry file are not
-// touched (no file without a valid date).
+// answers carried it; the run's exit code is not touched, and the expiry file
+// says unreadable (forsgren#194), never the header's value.
 func TestCollectNotesAnUnreadableExpiryHeaderOnce(t *testing.T) {
 	t.Setenv("FORSGREN_TOKEN", testToken)
 	fakeAPIWithHeader(t, acmeApp, 0, expiryHeader("soon"))
@@ -186,8 +186,8 @@ func TestCollectNotesAnUnreadableExpiryHeaderOnce(t *testing.T) {
 	if got.code != 0 || got.stderr != note {
 		t.Errorf("want exit 0 and exactly one note %q, got %+v", note, got)
 	}
-	if _, err := os.Stat(file); !errors.Is(err, fs.ErrNotExist) {
-		t.Errorf("want no expiry file, got %v", err)
+	if content, err := os.ReadFile(filepath.Clean(file)); err != nil || string(content) != "unreadable\n" {
+		t.Errorf("want the expiry file to say unreadable, got %q (%v)", content, err)
 	}
 }
 

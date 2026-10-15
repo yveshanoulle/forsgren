@@ -101,12 +101,14 @@ func (in summaryInput) markdown(stderr io.Writer) string {
 }
 
 // The Token lines of a token with no date to count from (forsgren#194): one
-// that collect could not ask about, the run's own token, and one that answered
-// without an expiry date.
+// that collect could not ask about, the run's own token, one that answered
+// without an expiry date, and one whose header forsgren cannot read.
 const (
-	unknownLine = "- Token: unknown: collect could not ask GitHub: see the failed collect step\n"
-	ownLine     = "- Token: the run's own token (GITHUB_TOKEN), renewed every run; nothing expires\n"
-	noDateLine  = "- Token: no expiry date: a personal token set to no expiration (or more than a year); " +
+	unknownLine    = "- Token: unknown: collect could not ask GitHub: see the failed collect step\n"
+	unreadableLine = "- Token: unknown: GitHub sent an expiry date forsgren cannot read; " +
+		"see the note in the collect step\n"
+	ownLine    = "- Token: the run's own token (GITHUB_TOKEN), renewed every run; nothing expires\n"
+	noDateLine = "- Token: no expiry date: a personal token set to no expiration (or more than a year); " +
 		"a date under a year makes forsgren warn before it runs out\n"
 )
 
@@ -123,13 +125,18 @@ func (in summaryInput) token() string {
 	return tokenLine(in.tokenFile)
 }
 
+// tokenLines are the Token lines of the lines collect leaves in the file
+// besides a date.
+var tokenLines = map[string]string{
+	expiryNoneRunOwn: ownLine,
+	expiryNone:       noDateLine,
+	expiryUnreadable: unreadableLine,
+}
+
 // tokenLine is the Token line for the file at path (see token).
 func tokenLine(path string) string {
-	switch tokenFileLine(path) {
-	case expiryNoneRunOwn:
-		return ownLine
-	case expiryNone:
-		return noDateLine
+	if line, fixed := tokenLines[tokenFileLine(path)]; fixed {
+		return line
 	}
 	expiry, known := readTokenExpiry(path)
 	if !known {

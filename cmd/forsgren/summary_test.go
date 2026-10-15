@@ -245,6 +245,8 @@ func TestRunSummaryTellsHowLongTheTokenIsValid(t *testing.T) {
 	t.Cleanup(func() { now = old })
 	const unknown = "- Token: unknown: collect could not ask GitHub: see the failed collect step\n"
 	const ownLine = "- Token: the run's own token (GITHUB_TOKEN), renewed every run; nothing expires\n"
+	const unreadable = "- Token: unknown: GitHub sent an expiry date forsgren cannot read; " +
+		"see the note in the collect step\n"
 	const noDate = "- Token: no expiry date: a personal token set to no expiration (or more than a year); " +
 		"a date under a year makes forsgren warn before it runs out\n"
 	const lessThanAnHour = "- Token: valid for less than an hour (until "
@@ -257,6 +259,7 @@ func TestRunSummaryTellsHowLongTheTokenIsValid(t *testing.T) {
 		{"already passed", "2026-10-01T11:00:00Z\n", lessThanAnHour + "2026-10-01 11:00 UTC)\n"},
 		{"run token", "no-expiry run-token\n", ownLine},
 		{"no expiry date", "no-expiry\n", noDate},
+		{"unreadable", "unreadable\n", unreadable},
 		{"not a date", "banana\n", unknown},
 		{"no file", "", unknown},
 	}
