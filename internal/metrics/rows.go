@@ -62,6 +62,16 @@ type Data struct {
 	// WorkingHours is the hours of a working day, which sets where the
 	// deployment frequency bands begin (forsgren#71).
 	WorkingHours int
+	// Days is the DORA window in days, 30 when it is 0 (forsgren#178).
+	Days int
+}
+
+// WindowDays is the window of the data in days: Days, or 30 when it is not set.
+func (d Data) WindowDays() int {
+	if d.Days == 0 {
+		return last30Days
+	}
+	return d.Days
 }
 
 // Rows is the page's table at the render time now: for each project, in
@@ -82,7 +92,7 @@ func rowOf(level Level, p config.Project, data Data, now time.Time) Row {
 	only := []config.Project{p}
 	return Row{
 		Level: level, Name: p.Name,
-		Frequency:  DeploymentFrequency(only, data.Records, data.WorkingHours, now)[0],
+		Frequency:  DeploymentFrequencyOver(only, data.Records, data.WorkingHours, data.WindowDays(), now)[0],
 		LeadTime:   LeadTimes(only, data.Commits, now)[0],
 		Recovery:   RecoveryTimes(only, data.Records, now)[0],
 		ChangeFail: ChangeFailRates(only, data.Records, data.Failures, now)[0],

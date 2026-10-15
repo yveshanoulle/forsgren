@@ -28,6 +28,8 @@ type Frequency struct {
 	// Last7 and Last30 count the successful deployments created in the
 	// last 7 and 30 days: at or after now minus 7 (30) times 24 hours, and
 	// not after now. A deployment exactly 7 days old is in the 7-day count.
+	// Over a longer DORA window (DeploymentFrequencyOver, forsgren#178),
+	// Last30 counts the window's days, 90 or 180, until a later step renames it.
 	Last7, Last30 int
 	// Last180 counts them over the last 180 days the same way, for the two
 	// slowest bands (forsgren#16, step 6).
@@ -43,7 +45,7 @@ type Frequency struct {
 	Latest time.Time
 	// Band is the DORA band of Last30, or of Last180 when Last30 is 0 (see
 	// BandOf); a project younger than 30 days scales Last30 to 30 days
-	// first (see bandOfAge, forsgren#69).
+	// first (see bandOfAgeOver, forsgren#69).
 	Band Band
 }
 
@@ -56,6 +58,14 @@ func (f Frequency) HasDeployments() bool { return !f.Latest.IsZero() }
 func DeploymentFrequency(
 	projects []config.Project, records []history.Record, workingHours int, now time.Time,
 ) []Frequency {
+	return DeploymentFrequencyOver(projects, records, workingHours, last30Days, now)
+}
+
+// DeploymentFrequencyOver is DeploymentFrequency over a window of days (30,
+// 90 or 180), forsgren#178: Last30 and Weekend30 then count the window's days.
+func DeploymentFrequencyOver(
+	projects []config.Project, records []history.Record, workingHours, days int, now time.Time,
+) []Frequency {
 	index := indexOf(projects)
 	out := make([]Frequency, len(projects))
 	for i, p := range projects {
@@ -65,26 +75,27 @@ func DeploymentFrequency(
 	for _, r := range records {
 		i, ok := index.of(r.Repository)
 		if ok && r.State == history.StateSuccess {
-			out[i].add(r.CreatedAt, now)
+			out[i].add(r.CreatedAt, now, window(days))
 			firsts[i] = earlier(firsts[i], r.CreatedAt)
 		}
 	}
 	for i := range out {
-		out[i].Band = bandOfAge(out[i].Last30, out[i].Last180, workingHours, firsts[i], now)
+		out[i].Band = bandOfAgeOver(out[i].Last30, out[i].Last180, workingHours, days, firsts[i], now)
 	}
 	return out
 }
 
-// add counts one successful deployment created at, seen at now.
-func (f *Frequency) add(at, now time.Time) {
+// add counts one successful deployment created at, seen at now, Last30 and
+// Weekend30 over the window w (forsgren#178).
+func (f *Frequency) add(at, now time.Time, w window) {
 	if at.After(f.Latest) {
 		f.Latest = at
 	}
 	f.Last7 += last7.count(at, now)
-	f.Last30 += last30.count(at, now)
+	f.Last30 += w.count(at, now)
 	f.Last180 += last180.count(at, now)
 	if isWeekend(at) {
-		f.Weekend30 += last30.count(at, now)
+		f.Weekend30 += w.count(at, now)
 		f.Weekend180 += last180.count(at, now)
 	}
 }
