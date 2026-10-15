@@ -328,13 +328,14 @@ usage: forsgren render --out <dir> [--config <path>] [--data <path>]
        forsgren check-config --config <path>
        forsgren init-config --config <path>
        forsgren collect --config <path> --data <path> [--token-expiry <path>]
-       forsgren latest-release
+       forsgren latest-release [--published <path>]
        forsgren waiting-pull-request --version <x.y.z> [--status <path>]
        forsgren check-needs --config <path> --repository <owner/name> [--status <path>]
                             [--token-expiry <path>]
        forsgren run-summary --latest <version> --waiting-pr <number>
                             --pr-check <ok|no-access|rate-limited|failed|skipped> --repository <owner/name>
                             [--needs-check <status>] [--token-expiry <path>]
+                            [--latest-published <path>]
        forsgren check-update --config <path> --repo <owner/name> --pull <number>
        forsgren install-update --repo <owner/name> --branch <branch> --version <vX.Y.Z> --sha <40-hex>
 ```

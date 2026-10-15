@@ -34,6 +34,9 @@ type summaryInput struct {
 	needsCheck string
 	repository string
 	tokenFile  string
+	// published is the file latest-release --published wrote, for the
+	// cooldown the Update line names (forsgren#194).
+	published string
 }
 
 // runSummary prints the markdown a run appends to its job summary
@@ -63,6 +66,8 @@ func summaryFlags(args []string, stderr io.Writer) (summaryInput, bool) {
 	flags.StringVar(&in.repository, "repository", "", "the installation's owner/name, for the pull request's link")
 	flags.StringVar(&in.tokenFile, "token-expiry", "",
 		"the file collect --token-expiry wrote, for the token's days left (optional)")
+	flags.StringVar(&in.published, "latest-published", "",
+		"the file latest-release --published wrote, for the Dependabot cooldown (optional)")
 	if err := flags.Parse(args); err != nil {
 		return in, false
 	}
@@ -200,6 +205,23 @@ func (in summaryInput) update(latest string, known bool) string {
 	return latest + " is available; " + in.pullRequestState()
 }
 
+// cooldownNote says that the release is waiting for Dependabot's cooldown,
+// until the day it ends in UTC, while the cooldown the installation's
+// dependabot.yml names is still running; false when the file names none, the
+// publish time is unknown or the cooldown is over (forsgren#194).
+func (in summaryInput) cooldownNote() (string, bool) {
+	days := cooldownDays(dependabotFile)
+	published, err := time.Parse(time.RFC3339, strings.TrimSpace(tokenFileText(in.published)))
+	if days == 0 || err != nil {
+		return "", false
+	}
+	end := published.AddDate(0, 0, days)
+	if !now().Before(end) {
+		return "", false
+	}
+	return "waiting for the " + strconv.Itoa(days) + "-day cooldown until " + end.UTC().Format(time.DateOnly), true
+}
+
 // pullRequestState says what is known of the pull request when none waits.
 func (in summaryInput) pullRequestState() string {
 	switch in.check {
@@ -209,6 +231,9 @@ func (in summaryInput) pullRequestState() string {
 		return "the pull-request check hit GitHub's rate limit, the next run tries again"
 	case statusFailed:
 		return "the pull-request check failed"
+	}
+	if note, waiting := in.cooldownNote(); waiting {
+		return note
 	}
 	return "no Dependabot pull request yet"
 }

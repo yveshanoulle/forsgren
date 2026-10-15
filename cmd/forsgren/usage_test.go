@@ -77,7 +77,7 @@ func TestUsageNamesEveryCommandAndEveryFlag(t *testing.T) {
 	// A reader of -h that found no flag anywhere would make every comparison
 	// above pass on empty sets.
 	if flagged < len(commands)-1 {
-		t.Errorf("only %d of %d commands printed any flag for -h, want all but latest-release: the reader of -h is broken",
+		t.Errorf("only %d of %d commands printed any flag for -h, want them all: the reader of -h is broken",
 			flagged, len(commands))
 	}
 }

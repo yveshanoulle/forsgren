@@ -356,7 +356,9 @@ jobs:
       # limit of 60 an hour). A lookup that fails is not an error: the output
       # is then empty and the page says nothing of releases. Only a plain
       # version, three numbers, becomes the step's output, whatever the
-      # command printed.
+      # command printed. The time the release was published goes to a file in
+      # the runner's temp directory, for the run summary's Update line, which
+      # names Dependabot's cooldown (forsgren#194).
       - name: Look up the latest forsgren release
         id: latest
         shell: bash
@@ -364,7 +366,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          latest="$(forsgren latest-release || true)"
+          latest="$(forsgren latest-release --published "${RUNNER_TEMP}/latest-published" || true)"
           if [[ ! "$latest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             latest=""
           fi
@@ -451,7 +453,9 @@ jobs:
       # the caller), hit GitHub's rate limit or failed; the needs step's check
       # says the same of the setup issue (forsgren#73), and run-summary lists
       # what this version needs when the issue could not be written, and the file
-      # collect wrote says how long FORSGREN_TOKEN is still valid (forsgren#185).
+      # collect wrote says how long FORSGREN_TOKEN is still valid (forsgren#185),
+      # and the cooldown the checkout's .github/dependabot.yml names is counted
+      # from the publish time the lookup step wrote (forsgren#194).
       # A summary never fails the run: forsgren
       # run-summary failing appends nothing, and neither does an append that
       # cannot be written.
@@ -465,7 +469,7 @@ jobs:
         run: |
           set -uo pipefail
           if summary="$(forsgren run-summary --latest "$LATEST" --waiting-pr "${WAITING:-0}" --pr-check "$PR_CHECK" --needs-check "$NEEDS_CHECK" --repository "$GITHUB_REPOSITORY" \
-            --token-expiry "${RUNNER_TEMP}/token-expiry")"; then
+            --token-expiry "${RUNNER_TEMP}/token-expiry" --latest-published "${RUNNER_TEMP}/latest-published")"; then
             printf '%s\n' "$summary" >> "$GITHUB_STEP_SUMMARY" || true
           fi
 

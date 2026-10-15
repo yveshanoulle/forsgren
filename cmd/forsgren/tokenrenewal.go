@@ -17,12 +17,19 @@ import (
 // makes one.
 
 // tokenFileLine is the one line of the file at path, "" when it cannot be read.
-func tokenFileLine(path string) string {
+func tokenFileLine(path string) string { return strings.TrimSpace(tokenFileText(path)) }
+
+// tokenFileText is the content of the small file at path, "" for no path and
+// when it cannot be read.
+func tokenFileText(path string) string {
+	if path == "" {
+		return ""
+	}
 	raw, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return ""
 	}
-	return strings.TrimSpace(string(raw))
+	return string(raw)
 }
 
 // readTokenExpiry is the expiry date in the file at path, which collect

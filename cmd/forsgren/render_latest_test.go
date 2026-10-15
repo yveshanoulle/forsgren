@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -233,4 +235,37 @@ func TestRenderJoinsTheUpdateAndWhatThisVersionNeeds(t *testing.T) {
 	wantPage(t, "Forsgren</a> "+version+" · 99.0.0 is available."+
 		" · needs more configuration: see the job summary of this run. Metrics",
 		"", "--latest", "99.0.0", "--needs-check", "failed")
+}
+
+// TestLatestReleaseCanWriteThePublishTime (forsgren#194): with --published
+// the time the release was published, one UTC RFC 3339 line, is written to the
+// file, and stdout is the version as ever; a release without a time and a
+// lookup that fails leave no file, and a file that cannot be written is a
+// note, not an error.
+func TestLatestReleaseCanWriteThePublishTime(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "")
+	const published = `{"id": 7, "tag_name": "v0.0.10", "published_at": "2026-10-04T10:00:00+02:00"}`
+	cases := []struct {
+		name, body, stdout, file string
+		code                     int
+	}{
+		{"published", published, "0.0.10\n", "2026-10-04T08:00:00Z\n", 0},
+		{"no time", `{"id": 7, "tag_name": "v0.0.10"}`, "0.0.10\n", "", 0},
+		{"failed lookup", `{"message":"boom"}`, "", "", 500},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			fakeAPI(t, map[string]string{latestPath: c.body}, c.code)
+			file := filepath.Join(t.TempDir(), "published")
+			code, stdout, _ := runCommand("latest-release", "--published", file)
+			content, err := os.ReadFile(filepath.Clean(file))
+			if code != 0 || stdout != c.stdout || string(content) != c.file || (c.file == "") != (err != nil) {
+				t.Errorf("want exit 0, stdout %q and file %q, got %d, %q and %q (%v)", c.stdout, c.file, code,
+					stdout, content, err)
+			}
+		})
+	}
+	fakeAPI(t, map[string]string{latestPath: published}, 0)
+	missing := filepath.Join(t.TempDir(), "no", "such", "published")
+	wantLookup(t, "0.0.10\n", "cannot write the publish time", "latest-release", "--published", missing)
 }

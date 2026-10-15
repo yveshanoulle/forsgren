@@ -196,7 +196,9 @@
 #      stub, appends `forsgren run-summary --latest ... --waiting-pr ...
 #      --pr-check ... --needs-check ... --repository $GITHUB_REPOSITORY
 #      --token-expiry ${RUNNER_TEMP}/token-expiry` (the file collect writes,
-#      forsgren#185: the Token line)'s markdown to
+#      forsgren#185: the Token line) `--latest-published
+#      ${RUNNER_TEMP}/latest-published` (the file the lookup step's
+#      latest-release writes, forsgren#194: the cooldown in the Update line)'s markdown to
 #      $GITHUB_STEP_SUMMARY, and never fails the run: a run-summary that
 #      fails appends nothing and the step exits 0; and pin 31 adds that the
 #      waiting step outputs `check=` from the status file its lookup writes
@@ -780,9 +782,9 @@ lookup_outcome() {
   local rc=0 out="${TMP}/lookup.out" calls="${TMP}/fg.calls"
   : > "$out"
   : > "$calls"
-  PATH="${STUB}:${PATH}" FG_CALLS="$calls" GITHUB_OUTPUT="$out" STUB_LATEST="$2" STUB_LATEST_RC="$3" \
+  PATH="${STUB}:${PATH}" FG_CALLS="$calls" GITHUB_OUTPUT="$out" RUNNER_TEMP="${TMP}/runner" STUB_LATEST="$2" STUB_LATEST_RC="$3" \
     bash "$1" > /dev/null 2>&1 || rc=$?
-  echo "exit=${rc} output=$(paste -sd'|' - < "$out") calls=$(paste -sd, - < "$calls")"
+  echo "exit=${rc} output=$(paste -sd'|' - < "$out") calls=$(paste -sd, - < "$calls" | sed "s|${TMP}/runner/|RUNNER_TEMP/|g")"
 }
 
 # judge_job_token <workflow-file> <step name> <who> <why>: the step's env:
@@ -811,16 +813,16 @@ judge_latest_lookup() {
     return 0
   fi
   got="$(lookup_outcome "$script" "0.0.10\n" 0)"
-  want="exit=0 output=latest=0.0.10 calls=latest-release"
+  want="exit=0 output=latest=0.0.10 calls=latest-release --published RUNNER_TEMP/latest-published"
   [[ "$got" == "$want" ]] || echo "the lookup step gives '${got}', not '${want}' — a plain version is the step's output"
   got="$(lookup_outcome "$script" "" 1)"
-  want="exit=0 output=latest= calls=latest-release"
+  want="exit=0 output=latest= calls=latest-release --published RUNNER_TEMP/latest-published"
   [[ "$got" == "$want" ]] || echo "for a lookup that fails the lookup step gives '${got}', not '${want}' — a failed lookup is not an error and the page says nothing of releases"
   got="$(lookup_outcome "$script" "nightly" 0)"
-  want="exit=0 output=latest= calls=latest-release"
+  want="exit=0 output=latest= calls=latest-release --published RUNNER_TEMP/latest-published"
   [[ "$got" == "$want" ]] || echo "for an answer that is not a version the lookup step gives '${got}', not '${want}' — only a plain version becomes an output"
   got="$(lookup_outcome "$script" "0.0.10\nevil=1\n" 0)"
-  want="exit=0 output=latest= calls=latest-release"
+  want="exit=0 output=latest= calls=latest-release --published RUNNER_TEMP/latest-published"
   [[ "$got" == "$want" ]] || echo "for an answer with a second line the lookup step gives '${got}', not '${want}' — a line break must never add an output"
 }
 
@@ -937,10 +939,10 @@ judge_run_summary() {
     return 0
   fi
   got="$(summary_outcome "$script" "## forsgren\n- Update: up to date\n" 0)"
-  want="exit=0 summary=## forsgren|- Update: up to date calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --needs-check no-access --repository acme/data --token-expiry RUNNER_TEMP/token-expiry"
+  want="exit=0 summary=## forsgren|- Update: up to date calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --needs-check no-access --repository acme/data --token-expiry RUNNER_TEMP/token-expiry --latest-published RUNNER_TEMP/latest-published"
   [[ "$got" == "$want" ]] || echo "the run summary step gives '${got}', not '${want}' — forsgren run-summary's markdown is appended to \$GITHUB_STEP_SUMMARY"
   got="$(summary_outcome "$script" "half a sum" 1)"
-  want="exit=0 summary= calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --needs-check no-access --repository acme/data --token-expiry RUNNER_TEMP/token-expiry"
+  want="exit=0 summary= calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --needs-check no-access --repository acme/data --token-expiry RUNNER_TEMP/token-expiry --latest-published RUNNER_TEMP/latest-published"
   [[ "$got" == "$want" ]] || echo "for a run-summary that fails the run summary step gives '${got}', not '${want}' — a summary never fails the run, and half of one is never appended"
 }
 
@@ -1794,7 +1796,9 @@ proves judge_waiting_lookup "a waiting lookup without the job token" "does not s
 proves judge_waiting_lookup "a waiting lookup that fails the job" "for a lookup that fails the waiting step gives" \
   "s/--status \"\\${D}status_file\" || true/--status \"\\${D}status_file\"/"
 proves judge_run_summary "a run summary without the token expiry file" "the run summary step gives" \
-  '/--token-expiry "[^"]*")"; then/s|--token-expiry "[^"]*"||'
+  '/--latest-published "[^"]*")"; then/s|--token-expiry "[^"]*"||'
+proves judge_run_summary "a run summary without the publish time file" "the run summary step gives" \
+  '/--latest-published "[^"]*")"; then/s| --latest-published "[^"]*"||'
 proves judge_waiting_lookup "a waiting output that is not checked" "for an answer that is not a number" \
   "/if \\[\\[ ! \"\\${D}waiting\" =~/,/^          fi${D}/d"
 proves judge_run_summary "a run summary that is not appended" "the run summary step gives" \
@@ -1816,7 +1820,9 @@ proves judge_latest_lookup "a lookup without the job token" "does not set GITHUB
 proves judge_latest_lookup "a lookup with the caller's secret" "hands FORSGREN_TOKEN over" \
   "s|^\\( *\\)GITHUB_TOKEN: \\${D}{{ github.token }}|&\\n\\1FORSGREN_TOKEN: x|"
 proves judge_latest_lookup "a lookup that fails the job" "for a lookup that fails the lookup step gives" \
-  's/forsgren latest-release || true/forsgren latest-release/'
+  's/\(forsgren latest-release[^|]*\) || true/\1/'
+proves judge_latest_lookup "a lookup without the publish time file" "the lookup step gives" \
+  's| --published "[^"]*"||'
 proves judge_latest_lookup "a lookup output that is not checked" "for an answer that is not a version" \
   "/if \\[\\[ ! \"\\${D}latest\" =~/,/^          fi${D}/d"
 proves judge_render_needs "a render without the needs check" "with NEEDS_CHECK set the render step runs" \

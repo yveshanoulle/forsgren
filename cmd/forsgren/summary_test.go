@@ -291,3 +291,88 @@ func writeFile(t *testing.T, path, content string) {
 		t.Fatal(err)
 	}
 }
+
+// checkoutWith makes the working directory a checkout whose
+// .github/dependabot.yml holds dependabot ("" for none), and returns the file
+// latest-release --published would write with published ("" for none).
+func checkoutWith(t *testing.T, dependabot, published string) string {
+	t.Helper()
+	t.Chdir(t.TempDir())
+	if dependabot != "" {
+		if err := os.MkdirAll(".github", 0o750); err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, dependabotFile, dependabot)
+	}
+	file := filepath.Join(t.TempDir(), "latest-published")
+	if published != "" {
+		writeFile(t, file, published+"\n")
+	}
+	return file
+}
+
+// actionsCooldown is a dependabot.yml whose github-actions update waits days.
+func actionsCooldown(days string) string {
+	return "version: 2\nupdates:\n  - package-ecosystem: github-actions\n    cooldown:\n      default-days: " + days + "\n"
+}
+
+// TestTheUpdateLineNamesTheDependabotCooldown (forsgren#194): a newer release
+// with no pull request yet is waiting for the cooldown, with the date it ends
+// (the publish time plus the days, in UTC), while the cooldown is running; with
+// no days, the date past, no file, a file that says nothing or a publish time
+// that is unknown, it is today's "no Dependabot pull request yet". The clock
+// of these cases is 2026-10-15 15:10 UTC.
+func TestTheUpdateLineNamesTheDependabotCooldown(t *testing.T) {
+	const (
+		fresh   = "2026-10-15T09:00:00Z"
+		none    = "no Dependabot pull request yet"
+		waiting = "waiting for the 3-day cooldown until 2026-10-18"
+	)
+	cases := []struct{ name, dependabot, published, want string }{
+		{"waiting", actionsCooldown("3"), fresh, waiting},
+		{"the template's", templateDependabot, fresh, waiting},
+		{"in UTC", actionsCooldown("3"), "2026-10-15T23:30:00-03:00", "waiting for the 3-day cooldown until 2026-10-19"},
+		{"zero days", actionsCooldown("0"), fresh, none},
+		{"no cooldown", "version: 2\nupdates: []\n", fresh, none},
+		{"no dependabot file", "", fresh, none},
+		{"unreadable file", "updates: [", fresh, none},
+		{"past the date", actionsCooldown("3"), "2026-10-01T09:00:00Z", none},
+		{"publish time unknown", actionsCooldown("3"), "", none},
+		{"publish time not a time", actionsCooldown("3"), "yesterday", none},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			pinClock(t, time.Date(2026, 10, 15, 15, 10, 0, 0, time.UTC))
+			file := checkoutWith(t, c.dependabot, c.published)
+			_, stdout, _ := runCommand("run-summary", "--latest", "1.7.4", "--pr-check", "ok", "--latest-published", file)
+			if want := summaryOf("1.7.4", "1.7.4 is available; "+c.want); stdout != want {
+				t.Errorf("want %q, got %q", want, stdout)
+			}
+		})
+	}
+}
+
+// TestTheCooldownIsOnlyNamedWhereNoPullRequestWaits (forsgren#194): a waiting
+// pull request, a check that did not work and an up to date installation keep
+// their own Update lines, whatever the cooldown says.
+func TestTheCooldownIsOnlyNamedWhereNoPullRequestWaits(t *testing.T) {
+	pinClock(t, time.Date(2026, 10, 15, 15, 10, 0, 0, time.UTC))
+	file := checkoutWith(t, templateDependabot, "2026-10-15T09:00:00Z")
+	cases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"waiting", []string{"--latest", "1.7.4", "--waiting-pr", "7", "--pr-check", "ok", "--repository", "acme/data"},
+			"1.7.4 is waiting in pull request [#7](https://github.com/acme/data/pull/7)"},
+		{"check failed", []string{"--latest", "1.7.4", "--pr-check", "failed"},
+			"1.7.4 is available; the pull-request check failed"},
+		{"up to date", []string{"--latest", version, "--pr-check", "ok"}, "up to date"},
+	}
+	for _, c := range cases {
+		args := append([]string{"run-summary", "--latest-published", file}, c.args...)
+		if _, stdout, _ := runCommand(args...); !strings.Contains(stdout, "- Update: "+c.want+"\n") {
+			t.Errorf("%s: want the Update line %q, got %q", c.name, c.want, stdout)
+		}
+	}
+}
