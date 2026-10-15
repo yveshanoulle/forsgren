@@ -84,10 +84,10 @@ func TestAListOrMappingForASettingIsRejectedNotSyntax(t *testing.T) {
 		{"history_chunk_days", "use a whole number of days from 1 to 365", "100", ErrHistoryChunkDays},
 		{"working_hours", "use a whole number of hours from 1 to 24", "8", ErrWorkingHours},
 		{"dora_days", "use 30, 90 or 180", "30", ErrDoraDays},
-		{"issues_page", "use true or false", "true", ErrIssuesPage},
-		{"days_page", "use true or false", "false", ErrDaysPage},
-		{"numbers_scoring_page", "use true or false", "false", ErrNumbersScoringPage},
-		{"history_page", "use true or false", "false", ErrHistoryPage},
+		{"issues_page", "use true, unlisted or false", "true", ErrIssuesPage},
+		{"days_page", "use true, unlisted or false", "false", ErrDaysPage},
+		{"numbers_scoring_page", "use true, unlisted or false", "false", ErrNumbersScoringPage},
+		{"history_page", "use true, unlisted or false", "false", ErrHistoryPage},
 	}
 	for _, k := range keys {
 		for written, yaml := range map[string]string{"[a, b]": "\n  - a\n  - b", "{a: b}": "\n  a: b"} {

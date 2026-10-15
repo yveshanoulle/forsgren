@@ -27,6 +27,12 @@
    "minScore": 9.28
   },
   {
+   "path": "internal/config/settings_test.go",
+   "score": 9.38,
+   "checkedAt": "2026-10-15",
+   "minScore": 9.28
+  },
+  {
    "path": "internal/update/guard_test.go",
    "score": 9.68,
    "checkedAt": "2026-10-05",

@@ -251,13 +251,13 @@ func (k pageKey) mode(n yaml.Node) (PageMode, *Rejection) {
 	if mode, ok := readPageMode(n); ok {
 		return mode, nil
 	}
-	return k.def, refusable{k.sentinel, k.key, string(k.def)}.reject(n, "use true or false")
+	return k.def, refusable{k.sentinel, k.key, string(k.def)}.reject(n, "use true, unlisted or false")
 }
 
 // readPageMode is the PageMode a node writes, when it writes one: the YAML
-// booleans true and false, or the string unlisted.
+// booleans true and false, or the plain string unlisted, never a quoted one.
 func readPageMode(n yaml.Node) (PageMode, bool) {
-	if n.Value == string(PageUnlisted) && n.ShortTag() == "!!str" {
+	if n.Value == string(PageUnlisted) && n.Style&(yaml.DoubleQuotedStyle|yaml.SingleQuotedStyle) == 0 {
 		return PageUnlisted, true
 	}
 	on, literal := booleans[n.Value]

@@ -66,13 +66,13 @@ func TestRejectedPageKeyFallsBack(t *testing.T) {
 		wantIssues, wantDays PageMode
 	}{
 		{"issues yes", "issues_page: yes\n" + valid, ErrIssuesPage,
-			[4]string{"issues_page", "yes", "use true or false", "true"}, PageOn, PageOff},
+			[4]string{"issues_page", "yes", "use true, unlisted or false", "true"}, PageOn, PageOff},
 		{"days quoted", "days_page: \"true\"\n" + valid, ErrDaysPage,
-			[4]string{"days_page", "true", "use true or false", "false"}, PageOn, PageOff},
+			[4]string{"days_page", "true", "use true, unlisted or false", "false"}, PageOn, PageOff},
 		{"days number", "days_page: 0\n" + valid, ErrDaysPage,
-			[4]string{"days_page", "0", "use true or false", "false"}, PageOn, PageOff},
+			[4]string{"days_page", "0", "use true, unlisted or false", "false"}, PageOn, PageOff},
 		{"the other key is kept", "issues_page: false\ndays_page: yes\n" + valid, ErrDaysPage,
-			[4]string{"days_page", "yes", "use true or false", "false"}, PageOff, PageOff},
+			[4]string{"days_page", "yes", "use true, unlisted or false", "false"}, PageOff, PageOff},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -104,7 +104,7 @@ func TestRejectedNumbersScoringPageFallsBack(t *testing.T) {
 				got.NumbersScoringPage, got.written)
 		}
 		wantRejection(t, got.Rejected, ErrNumbersScoringPage,
-			[4]string{"numbers_scoring_page", written, "use true or false", "false"})
+			[4]string{"numbers_scoring_page", written, "use true, unlisted or false", "false"})
 	}
 }
 
@@ -143,6 +143,7 @@ func TestHistoryPageIsOffByDefaultAndRejectsOtherValues(t *testing.T) {
 		{"yes", "history_page: yes\n" + valid, "yes", PageOff},
 		{"quoted", "history_page: \"true\"\n" + valid, "true", PageOff},
 		{"a number", "history_page: 1\n" + valid, "1", PageOff},
+		{"quoted unlisted", "history_page: \"unlisted\"\n" + valid, "unlisted", PageOff},
 	}
 	for _, tc := range cases {
 		got, err := parse([]byte(tc.file))
@@ -151,7 +152,7 @@ func TestHistoryPageIsOffByDefaultAndRejectsOtherValues(t *testing.T) {
 		}
 		if tc.rejected != "" {
 			wantRejection(t, got.Rejected, ErrHistoryPage,
-				[4]string{"history_page", tc.rejected, "use true or false", "false"})
+				[4]string{"history_page", tc.rejected, "use true, unlisted or false", "false"})
 		}
 	}
 }
