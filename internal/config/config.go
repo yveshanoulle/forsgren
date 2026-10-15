@@ -152,18 +152,6 @@ type Project struct {
 	Repositories []Repository
 }
 
-// PageMode is how an optional page is handled (forsgren#200): PageOn, the page
-// is generated and in the menu; PageUnlisted, it is generated, has no menu entry
-// and asks search engines to skip it; PageOff, it is not generated.
-type PageMode string
-
-// The three values of a page key, as the file writes them.
-const (
-	PageOn       PageMode = "true"
-	PageUnlisted PageMode = "unlisted"
-	PageOff      PageMode = "false"
-)
-
 // Config is a validated forsgren.config.yml.
 type Config struct {
 	Version int
@@ -438,10 +426,11 @@ var settingKeys = []settingKey{
 		func(c Config) string { return strconv.Itoa(c.HistoryChunkDays) }},
 	{"working_hours", strconv.Itoa(DefaultWorkingHours), func(c Config) string { return strconv.Itoa(c.WorkingHours) }},
 	{"dora_days", strconv.Itoa(DefaultDoraDays), func(c Config) string { return strconv.Itoa(c.DoraDays) }},
-	{"issues_page", "true", func(c Config) string { return string(c.IssuesPage) }},
-	{"days_page", "false", func(c Config) string { return string(c.DaysPage) }},
-	{"numbers_scoring_page", string(PageUnlisted), func(c Config) string { return string(c.NumbersScoringPage) }},
-	{"history_page", string(PageUnlisted), func(c Config) string { return string(c.HistoryPage) }},
+	{"issues_page", string(issuesPage.def), func(c Config) string { return string(c.IssuesPage) }},
+	{"days_page", string(daysPage.def), func(c Config) string { return string(c.DaysPage) }},
+	{"numbers_scoring_page", string(numbersScoringPage.def),
+		func(c Config) string { return string(c.NumbersScoringPage) }},
+	{"history_page", string(historyPage.def), func(c Config) string { return string(c.HistoryPage) }},
 }
 
 // Settings lists every optional key in the order of settingKeys: the value

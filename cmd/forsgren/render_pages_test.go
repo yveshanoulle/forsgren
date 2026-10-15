@@ -11,12 +11,13 @@ import (
 // its menu with the golden pages keep all the pages (forsgren#159).
 const daysOn = "days_page: true\n"
 
-// numbersScoringOn is the config line that keeps the numbers and scoring page,
-// which a config hides unless it sets numbers_scoring_page: true (forsgren#55).
+// numbersScoringOn is the config line that lists the numbers and scoring page,
+// which a config leaves unlisted unless it sets numbers_scoring_page: true
+// (forsgren#55, #200).
 const numbersScoringOn = "numbers_scoring_page: true\n"
 
-// historyOn is the config line that keeps the history page, which a config
-// hides unless it sets history_page: true (forsgren#199).
+// historyOn is the config line that lists the history page, which a config
+// leaves unlisted unless it sets history_page: true (forsgren#68, #200).
 const historyOn = "history_page: true\n"
 
 // writeAllPagesConfig writes the config content with daysOn, numbersScoringOn
@@ -28,7 +29,7 @@ func writeAllPagesConfig(t *testing.T, content string) string {
 
 // TestRenderLeavesOutThePagesTheConfigHides (forsgren#159): with --config the
 // issues page is written unless issues_page is false, and the days page only
-// when days_page is true, so a config that sets nothing writes no days page;
+// when days_page is true or unlisted, so a config that sets nothing writes no days page;
 // without --config nothing is hidden.
 func TestRenderLeavesOutThePagesTheConfigHides(t *testing.T) {
 	cases := map[string]struct {

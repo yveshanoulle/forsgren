@@ -42,13 +42,16 @@ The page shows its band with the rate and the rework deployments:
 - the history in `data/` (deployments, commits, failure issues and issue
   events), which the metrics are calculated from
 - a static page with the metrics table in three views (standard, numbers,
-  scoring), an optional Numbers and scoring page (each metric's number and
-  score in one cell, shown with `numbers_scoring_page: true`), the Issues and Daily pages (each can be hidden with `issues_page` and
-  `days_page`; Daily is hidden by default) with their Open and Open bugs
-  columns and trend arrows, an optional History page (each metric's number
+  scoring), a Numbers and scoring page (each metric's number and score in
+  one cell), the Issues and Daily pages with their Open and Open bugs
+  columns and trend arrows, a History page in beta (each metric's number
   and score per half-year and for the last 6 months, with a trend chart per
-  row; shown with `history_page: true`), and the Settings and Legend pages, safe to publish: numbers and
-  dates only, no issue titles, no links into private repositories
+  row), and the Settings and Legend pages, safe to publish: numbers and
+  dates only, no issue titles, no links into private repositories. Each of
+  the four optional pages has a key that takes `true` (in the menu),
+  `unlisted` (generated, no menu entry, noindex) or `false` (not
+  generated); by default Issues is listed, Daily is not generated, and
+  Numbers and scoring and History are unlisted
 
 ## A live example
 

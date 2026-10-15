@@ -121,54 +121,49 @@ projects:
   (see [Collecting deployments](data-files.md#collecting-deployments-collect)).
   The days and issues pages keep their own periods. The starter that
   `init-config` writes includes `dora_days: 30`.
-- **`issues_page`** and **`days_page`** are optional (forsgren#159): whether
-  the Issues page (`issues.html`) and the Daily page (`days.html`) are
-  generated, each `true` or `false`, written at the top level, for example
-  `issues_page: true` and `days_page: false`. Left out, or without a value,
-  `issues_page` is `true` (the page is shown) and `days_page` is `false` (the
-  page is hidden). Only the literals `true` and `false` are accepted; a quoted
-  value, `yes`, a number or text is not accepted: forsgren uses the default instead and says so (see
-  [A setting that is not accepted](#a-setting-that-is-not-accepted)),
-  naming the key: `invalid days_page "yes": use true or false`. A page that
-  is `false` is not generated, is removed from the site if an earlier run
-  wrote it, and has no entry in the menu. From 1.3.0 an installation that
-  does not set `days_page` has no Daily page until it sets `days_page: true`.
-  The legend says how to show or hide the two pages. The starter that
-  `init-config` writes includes `issues_page: true` and `days_page: false`.
-- **`numbers_scoring_page`** is optional (forsgren#55, from 1.7.0): whether
-  the Numbers and scoring page (`/numbers-scoring/`) is generated, `true` or
-  `false`, written at the top level, for example `numbers_scoring_page: true`.
-  Left out, or without a value, it is `false`: the page is hidden. The page
-  shows each metric's number and its score in one cell, written number ·
-  score, and the Overall Performance column (see
-  [The page](pages-and-views.md#the-page)); `view:` does not name it, so the
-  root page never shows it. Only the literals `true` and `false` are
-  accepted; any other value is not accepted: forsgren uses the default
-  `false` instead and says so (see
+- **The page keys** `issues_page`, `days_page`, `numbers_scoring_page` and
+  `history_page` are optional (forsgren#159, #55, #68, #200, from 1.8.2):
+  each says how one optional page is handled, written at the top level, for
+  example `history_page: true`. Each takes one of three values:
+  - `true`: the page is generated and has an entry in the menu.
+  - `unlisted`: the page is generated, but it has no entry in any menu,
+    its own included, and it carries `<meta name="robots" content="noindex">`.
+    It can be opened by its address, so you can look at a page before you
+    list it. Unlisted is discoverable, not private: noindex asks compliant
+    search engines not to index the page; it does not enforce access control.
+    Anyone who knows or guesses the address can open it.
+  - `false`: the page is not generated, is removed from the site (with its
+    folder, for the Numbers and scoring page) if an earlier run wrote it, and
+    has no entry in the menu.
+
+  Left out, or without a value, `issues_page` is `true`, `days_page` is
+  `false`, and `numbers_scoring_page` and `history_page` are `unlisted`
+  (forsgren#200, from 1.8.2; before 1.8.2 both were `false`, see
+  [Installing and updating](updating-and-releases.md#installing-and-updating)).
+  Only the plain literals `true`, `unlisted` and `false` are accepted; a
+  quoted value, `yes`, a number or other text is not accepted: forsgren uses
+  the key's default instead and says so (see
   [A setting that is not accepted](#a-setting-that-is-not-accepted)), naming
-  the key: `invalid numbers_scoring_page "yes": use true or false`. A page
-  that is `false` is not generated, is removed from the site with its folder
-  if an earlier run wrote it, and has no entry in the menu. The legend says
-  how to show it. The starter that `init-config` writes includes
-  `numbers_scoring_page: false`.
-- **`history_page`** is optional (forsgren#68, from 1.8.0): whether the
-  History page (`history.html`) is generated, `true` or `false`, written at
-  the top level, for example `history_page: true`. Left out, or without a
-  value, it is `false` (forsgren#199, from 1.8.1): the page is hidden, and
-  shown only with `history_page: true`. In 1.8.0 the default was `true`, so
-  an installation that leaves the key out loses the page when it updates to
-  1.8.1 (see [Installing and updating](updating-and-releases.md#installing-and-updating)). The page shows the five metrics
-  and Overall Performance per period, the calendar half-years that
-  `history_days` reaches back and the last 6 months (see
-  [The History page](pages-and-views.md#the-history-page)); `dora_days` does
-  not change it. Only the literals `true` and `false` are accepted; any other
-  value is not accepted: forsgren uses the default `false` instead and says so
-  (see [A setting that is not accepted](#a-setting-that-is-not-accepted)),
-  naming the key: `invalid history_page "yes": use true or false`. `false`
-  hides the page and its menu entry: the page is not generated, is removed
-  from the site if an earlier run wrote it, and has no entry in the menu. The
-  legend says how to show it. The starter that `init-config` writes includes
-  `history_page: false`.
+  the key: `invalid days_page "yes": use true, unlisted or false`. The
+  noindex tag is only ever on an unlisted page: switching a page back to
+  `true` removes it. A render without a config writes and lists every page.
+  The legend explains the three values and the defaults. The starter that
+  `init-config` writes includes `issues_page: true`, `days_page: false`,
+  `numbers_scoring_page: unlisted` and `history_page: unlisted`. The pages:
+  - **`issues_page`**: the Issues page (`issues.html`, forsgren#159).
+  - **`days_page`**: the Daily page (`days.html`, forsgren#159). From 1.3.0
+    an installation that does not set `days_page` has no Daily page.
+  - **`numbers_scoring_page`**: the Numbers and scoring page
+    (`/numbers-scoring/`, forsgren#55, from 1.7.0). It shows each metric's
+    number and its score in one cell, written number · score, and the Overall
+    Performance column (see [The page](pages-and-views.md#the-page));
+    `view:` does not name it, so the root page never shows it.
+  - **`history_page`**: the History page (`history.html`, forsgren#68, from
+    1.8.0), marked beta. It shows the five metrics and Overall Performance
+    per period, the calendar half-years that `history_days` reaches back and
+    the last 6 months (see [The History page](pages-and-views.md#the-history-page));
+    `dora_days` does not change it. In 1.8.0 it defaulted to `true` and in
+    1.8.1 to `false`.
 - **The settings page** (`settings.html`, forsgren#74, moved out of the legend
   in forsgren#84, a table since forsgren#141) tabulates every optional key,
   `view`, `auto_update`, `auto_update_level`, `history_days`,
@@ -176,11 +171,11 @@ projects:
   **Current value**, the value in use (`major` for an unset
   `auto_update_level`); **Possible values**, built from the config package's
   own constants and limits so the page cannot drift from what `check-config`
-  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `30 to 1825`; `1 to 365`; `1 to 24`; `30, 90, 180`; `true, false` for each of the four page keys),
+  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `30 to 1825`; `1 to 365`; `1 to 24`; `30, 90, 180`; `true, unlisted, false` for each of the four page keys),
   a test holds the lists to the config loader; and **Default**, the value
   used when `forsgren.config.yml` does not set the key (forsgren#169):
   `standard`, `false`, `major`, `365`, `100`, `8`, `30`, `true`, `false`,
-  `false` and `false`, in the order of the rows. A
+  `unlisted` and `unlisted`, in the order of the rows. A
   Current value followed by `(not set)` means the file does not set the key,
   so the default applies; a Current value without it is set in the file, even
   to the default's value. For a value that is not accepted the Current value
@@ -299,8 +294,8 @@ example with made-up `acme` names (the default deployment, `workflow=` and
 `release`), followed by `version: 1`, `view: standard`, `auto_update: true`,
 `auto_update_level: major`, `history_days: 365`,
 `history_chunk_days: 100`, `working_hours: 8`, `dora_days: 30`,
-`issues_page: true`, `days_page: false`, `numbers_scoring_page: false`,
-`history_page: false` and `projects: []`, so
+`issues_page: true`, `days_page: false`, `numbers_scoring_page: unlisted`,
+`history_page: unlisted` and `projects: []`, so
 `check-config` accepts it as it is: `projects: 0, repositories: 0`. When the file exists,
 whatever it holds (even an invalid or an empty file), it is left byte for
 byte and the command prints `kept forsgren.config.yml`; both exit 0. The file
@@ -317,9 +312,9 @@ forsgren renders a static page whose footer says "Forsgren 1.8.1", the version o
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
-`/standard/`, `/numbers/` and `/scoring/`, with `numbers_scoring_page: true` the Numbers and scoring page at
-`/numbers-scoring/`, and with `history_page: true` the History page at
-`history.html` (see [The page](pages-and-views.md#the-page)). That version has one source,
+`/standard/`, `/numbers/` and `/scoring/`, and, unless their key is `false`, the Numbers and scoring page at
+`/numbers-scoring/` and the History page at `history.html`, both unlisted by
+default (see [The page](pages-and-views.md#the-page)). That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
 it with `-ldflags "-X main.version=<version>"`. `forsgren collect` reads
 GitHub into the history file (see [Collecting deployments](data-files.md#collecting-deployments-collect)); the daily run

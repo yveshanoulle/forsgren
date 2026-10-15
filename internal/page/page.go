@@ -176,8 +176,11 @@ func issueRowLabel(r metrics.IssueRow) string {
 	case metrics.KindYear:
 		return r.Date.Format("2006")
 	}
-	return r.Date.Format("2006-01-02")
+	return r.Date.Format(dateLayout)
 }
+
+// dateLayout is a day as the pages write it.
+const dateLayout = "2006-01-02"
 
 // AnyIssueDayActive says whether some day of IssueDays is Active, that is
 // whether the days page has a row to show (forsgren#108).
@@ -330,74 +333,6 @@ func (p pageData) ScoredCells(row Row) []string {
 	return row.ScoreCells()
 }
 
-// Noindex says whether the page asks search engines to skip it: an unlisted
-// page does (forsgren#200).
-func (p pageData) Noindex() bool { return p.Unlisted[p.listedAs()] }
-
-// listedAs is the name the site lists the page under, in Hidden and Unlisted:
-// the folder of a page in a folder, whose Page is index, else its own name.
-func (p pageData) listedAs() string {
-	if p.Base == viewBase {
-		return p.View
-	}
-	return p.Page
-}
-
-// menuItem is one entry of the menu: its address from the root, its label,
-// and its aria-current, empty for an entry that is a link.
-type menuItem struct{ Href, Label, Current string }
-
-// Menu is the menu at the top of the page (forsgren#128, decision #133): the
-// folderPages, then the rootPages, each one the site shows (forsgren#159,
-// forsgren#55). The view the page shows is marked current, and the root page
-// the page is marked "page"; every other entry is a link.
-func (p pageData) Menu() []menuItem {
-	return append(p.folderEntries(), p.rootEntries()...)
-}
-
-// folderEntries are the menu's entries of the folderPages the site lists,
-// the one the page shows marked as viewCurrent says.
-func (p pageData) folderEntries() []menuItem {
-	menu := make([]menuItem, 0, len(folderPages)+len(rootPages))
-	for _, folder := range folderPages {
-		if !p.Hidden[folder.Name] && !p.Unlisted[folder.Name] {
-			menu = append(menu, menuItem{folder.Name + "/", folder.Label, markIf(folder.Name == p.View, p.viewCurrent())})
-		}
-	}
-	return menu
-}
-
-// rootEntries are the menu's entries of the rootPages the site lists (not
-// hidden, not unlisted: forsgren#200), the page's own marked "page".
-func (p pageData) rootEntries() []menuItem {
-	menu := make([]menuItem, 0, len(rootPages))
-	for _, root := range rootPages {
-		if !p.Hidden[root.Name] && !p.Unlisted[root.Name] {
-			menu = append(menu, menuItem{root.Name + ".html", root.Label, markIf(root.Name == p.Page, "page")})
-		}
-	}
-	return menu
-}
-
-// markIf is the aria-current mark of the entry the page is on, empty for the
-// others.
-func markIf(on bool, mark string) string {
-	if on {
-		return mark
-	}
-	return ""
-}
-
-// viewCurrent is the menu's aria-current for the view the page shows: "page"
-// on the view's own page, "true" on the root, which shows the view but is not
-// its page (Yves's ruling, forsgren#46).
-func (p pageData) viewCurrent() string {
-	if p.Base == viewBase {
-		return "page"
-	}
-	return "true"
-}
-
 // page is a page's parsed template set, the template it executes, the
 // view it shows and the prefix of its links to the root's files.
 type page struct {
@@ -411,17 +346,10 @@ type page struct {
 // template set.
 var pages = parsePages()
 
-// betaMarker is what marks the History page while it is in beta (forsgren#198):
-// its title, its heading and the legend's section heading. Leaving beta is
-// setting it to the empty string.
-const betaMarker = " (beta)"
-
-// historyBeta is betaMarker, for the templates that name the History page.
-func historyBeta() string { return betaMarker }
-
 // templateFuncs are the functions the templates call: "trend" and "bugtrend", the arrow of
 // the issues tables (trend.go), and "possible", the settings page's Possible
-// values cell (settings.go), and "beta", the beta marker of the History page.
+// values cell (settings.go), and "beta", the beta marker of the History page
+// (history.go).
 var templateFuncs = template.FuncMap{"trend": trendViewOf, "bugtrend": bugTrendViewOf, "possible": possibleOf,
 	"beta": historyBeta}
 

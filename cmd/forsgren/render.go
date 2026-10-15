@@ -118,8 +118,18 @@ func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error
 // with PageOff the pages the site leaves out, with PageUnlisted the pages it
 // writes without a menu entry (forsgren#159, #55, #68, #199, #200).
 func pagesInMode(cfg config.Config, mode config.PageMode) map[string]bool {
-	return map[string]bool{page.IssuesPage: cfg.IssuesPage == mode, page.DaysPage: cfg.DaysPage == mode,
-		page.NumbersScoringPage: cfg.NumbersScoringPage == mode, page.HistoryPage: cfg.HistoryPage == mode}
+	pages := map[string]bool{}
+	for name, m := range pageModes(cfg) {
+		pages[name] = m == mode
+	}
+	return pages
+}
+
+// pageModes is the PageMode of each optional page, by page name: the one place
+// a page is tied to its key.
+func pageModes(cfg config.Config) map[string]config.PageMode {
+	return map[string]config.PageMode{page.IssuesPage: cfg.IssuesPage, page.DaysPage: cfg.DaysPage,
+		page.NumbersScoringPage: cfg.NumbersScoringPage, page.HistoryPage: cfg.HistoryPage}
 }
 
 // issueDays is how many UTC days the days page shows, ending yesterday

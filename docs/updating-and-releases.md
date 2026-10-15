@@ -350,6 +350,29 @@ are scored per whole percent, so each of their levels shows the range of
 its scores, for example `20%: 10% to below 30%, score 9 to 7.1`. No new
 permission, secret or config key is needed.
 
+**Upgrading to 1.8.2** (forsgren#200, #198). The page keys `issues_page`,
+`days_page`, `numbers_scoring_page` and `history_page` take one new value,
+`unlisted`, besides `true` and `false`: the page is generated but has no menu
+entry, and it asks search engines not to index it (noindex). Unlisted is
+discoverable, not private: noindex asks compliant search engines not to index
+the page; it does not enforce access control. The defaults changed: without
+the keys, the History page and the Numbers and scoring page are now
+generated and unlisted, reachable at `history.html` and `numbers-scoring/`.
+Set `history_page: false` or `numbers_scoring_page: false` to keep a page
+out, or `true` to list it in the menu (see
+[Configuration](configuration.md#configuration)). `issues_page` still
+defaults to `true` and `days_page` to `false`. A value the keys do not
+accept now says `use true, unlisted or false`, and the settings page lists
+`true, unlisted, false` and the new defaults. The starter that `init-config`
+writes includes `numbers_scoring_page: unlisted` and
+`history_page: unlisted`. The History page is marked beta, "History (beta)",
+and explains itself: a line under its heading says how to read it; while the
+last 6 months are its only period, a second line says why, with the date of
+the first deployment and the day the first half-year appears; and with one
+period there is no Trend column (see
+[The History page](pages-and-views.md#the-history-page)). No new permission
+or secret is needed.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`

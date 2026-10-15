@@ -210,13 +210,7 @@ type booleanKey struct {
 	def      bool
 }
 
-var (
-	autoUpdate         = booleanKey{ErrAutoUpdate, "auto_update", false}
-	issuesPage         = pageKey{ErrIssuesPage, "issues_page", PageOn}
-	daysPage           = pageKey{ErrDaysPage, "days_page", PageOff}
-	numbersScoringPage = pageKey{ErrNumbersScoringPage, "numbers_scoring_page", PageUnlisted}
-	historyPage        = pageKey{ErrHistoryPage, "history_page", PageUnlisted}
-)
+var autoUpdate = booleanKey{ErrAutoUpdate, "auto_update", false}
 
 // value is the key as written, its default when the file has none (a key
 // without a value is none): only the literals true and false, never a quoted
@@ -230,36 +224,6 @@ func (k booleanKey) value(n yaml.Node) (bool, *Rejection) {
 		return on, nil
 	}
 	return k.def, refusable{k.sentinel, k.key, strconv.FormatBool(k.def)}.reject(n, "use true or false")
-}
-
-// pageKey is the key of an optional page (forsgren#159, #200): its refusal and
-// its default PageMode.
-type pageKey struct {
-	sentinel error
-	key      string
-	def      PageMode
-}
-
-// mode is the key as written, its default when the file has none (a key
-// without a value is none): only the literals true, unlisted and false, never
-// a quoted or numeric value, nor yes; otherwise the default and the Rejection,
-// which wraps the key's sentinel (forsgren#183, #200).
-func (k pageKey) mode(n yaml.Node) (PageMode, *Rejection) {
-	if !hasValue(n) {
-		return k.def, nil
-	}
-	if mode, ok := readPageMode(n); ok {
-		return mode, nil
-	}
-	return k.def, refusable{k.sentinel, k.key, string(k.def)}.reject(n, "use true, unlisted or false")
-}
-
-// readPageMode is the PageMode a node writes, when it writes one: a value of
-// pageModeValues as a plain scalar, never a quoted one (forsgren#200).
-func readPageMode(n yaml.Node) (PageMode, bool) {
-	mode := PageMode(n.Value)
-	quoted := n.Style&(yaml.DoubleQuotedStyle|yaml.SingleQuotedStyle) != 0
-	return mode, !quoted && slices.Contains(pageModeValues, mode)
 }
 
 func checkVersion(v *int) error {

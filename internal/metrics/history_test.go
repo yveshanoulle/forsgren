@@ -11,9 +11,13 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
-// at is the UTC time of a date and a clock time.
-func at(year int, month time.Month, d, hour, min, sec int) time.Time {
-	return time.Date(year, month, d, hour, min, sec, 0, time.UTC)
+// at is the UTC time written in RFC 3339, such as 2026-10-15T12:00:00Z.
+func at(rfc3339 string) time.Time {
+	t, err := time.Parse(time.RFC3339, rfc3339)
+	if err != nil {
+		panic(err)
+	}
+	return t
 }
 
 // labelsOf are the labels of periods, in their order.
@@ -37,18 +41,18 @@ func TestPeriodsAreCalendarHalfYearsAndARollingNewest(t *testing.T) {
 		days int
 		want []string
 	}{
-		{"five years", at(2026, time.October, 15, 12, 0, 0), 1825, []string{"2022 H1", "2022 H2", "2023 H1", "2023 H2",
+		{"five years", at("2026-10-15T12:00:00Z"), 1825, []string{"2022 H1", "2022 H2", "2023 H1", "2023 H2",
 			"2024 H1", "2024 H2", "2025 H1", "2025 H2", "2026 H1", rolling}},
-		{"a year", at(2026, time.October, 15, 12, 0, 0), 365, []string{"2026 H1", rolling}},
-		{"more than the cap is the cap", at(2026, time.October, 15, 12, 0, 0), 2000, []string{"2022 H1", "2022 H2",
+		{"a year", at("2026-10-15T12:00:00Z"), 365, []string{"2026 H1", rolling}},
+		{"more than the cap is the cap", at("2026-10-15T12:00:00Z"), 2000, []string{"2022 H1", "2022 H2",
 			"2023 H1", "2023 H2", "2024 H1", "2024 H2", "2025 H1", "2025 H2", "2026 H1", rolling}},
-		{"exactly 180 days", at(2026, time.October, 15, 12, 0, 0), 180, []string{rolling}},
-		{"under 180 days", at(2026, time.October, 15, 12, 0, 0), 179, nil},
-		{"on January 1 the second half-year just ended", at(2026, time.January, 1, 0, 0, 0), 200,
+		{"exactly 180 days", at("2026-10-15T12:00:00Z"), 180, []string{rolling}},
+		{"under 180 days", at("2026-10-15T12:00:00Z"), 179, nil},
+		{"on January 1 the second half-year just ended", at("2026-01-01T00:00:00Z"), 200,
 			[]string{"2025 H2", rolling}},
-		{"the last second of June, the first half-year is not complete", at(2026, time.June, 30, 23, 59, 59), 400,
+		{"the last second of June, the first half-year is not complete", at("2026-06-30T23:59:59Z"), 400,
 			[]string{"2025 H2", rolling}},
-		{"on July 1 the first half-year is complete", at(2026, time.July, 1, 0, 0, 0), 400,
+		{"on July 1 the first half-year is complete", at("2026-07-01T00:00:00Z"), 400,
 			[]string{"2025 H2", "2026 H1", rolling}},
 	}
 	for _, tt := range tests {
@@ -65,10 +69,10 @@ func TestPeriodsAreCalendarHalfYearsAndARollingNewest(t *testing.T) {
 // day to the first day of the next, a whole number of days; the rolling one
 // from 180 days before now to now.
 func TestPeriodsHaveTheirSpans(t *testing.T) {
-	now := at(2026, time.October, 15, 12, 0, 0)
+	now := at("2026-10-15T12:00:00Z")
 	want := []Period{
-		{"2025 H2", at(2025, time.July, 1, 0, 0, 0), at(2026, time.January, 1, 0, 0, 0), false},
-		{"2026 H1", at(2026, time.January, 1, 0, 0, 0), at(2026, time.July, 1, 0, 0, 0), false},
+		{"2025 H2", at("2025-07-01T00:00:00Z"), at("2026-01-01T00:00:00Z"), false},
+		{"2026 H1", at("2026-01-01T00:00:00Z"), at("2026-07-01T00:00:00Z"), false},
 		{"Last 6 months", now.Add(-180 * 24 * time.Hour), now, true},
 	}
 	got := Periods(now, 500)
@@ -210,12 +214,12 @@ func TestRecoveryAndReworkInAPastPeriod(t *testing.T) {
 	}
 	data.Reach = fullyRead()
 	shop := PeriodRows(tableProjects, data, Period{Label: "past", Start: start, End: end})[0]
-	if r := shop.Recovery; r.Recoveries != 1 || r.Median != 7*day || r.Unrecovered != 1 {
-		t.Errorf("recoveries = %d, median %v, unrecovered = %d, want 1, %v and 1", r.Recoveries, r.Median,
-			r.Unrecovered, 7*day)
+	r := shop.Recovery
+	if got, want := [3]any{r.Recoveries, r.Median, r.Unrecovered}, [3]any{1, 7 * day, 1}; got != want {
+		t.Errorf("recoveries, median, unrecovered = %v, want %v", got, want)
 	}
-	if r := shop.Rework; r.Deployments != 4 || r.Rework != 2 {
-		t.Errorf("rework %d of %d successes, want 2 of 4", r.Rework, r.Deployments)
+	if got, want := [2]int{shop.Rework.Rework, shop.Rework.Deployments}, [2]int{2, 4}; got != want {
+		t.Errorf("rework of successes = %v, want %v", got, want)
 	}
 }
 
@@ -250,12 +254,12 @@ func TestChangeFailAndLeadTimeInAPastPeriod(t *testing.T) {
 	}
 	data.Reach = fullyRead()
 	shop := PeriodRows(tableProjects, data, Period{Label: "past", Start: start, End: end})[0]
-	if c := shop.ChangeFail; c.Deployments != 5 || c.FailureIssues != 2 || c.Failed != 2 {
-		t.Errorf("change fail: %d deployments, %d failure issues, %d failed, want 5, 2 and 2", c.Deployments,
-			c.FailureIssues, c.Failed)
+	c := shop.ChangeFail
+	if got, want := [3]int{c.Deployments, c.FailureIssues, c.Failed}, [3]int{5, 2, 2}; got != want {
+		t.Errorf("change fail deployments, failure issues, failed = %v, want %v", got, want)
 	}
-	if l := shop.LeadTime; l.Commits != 3 || l.Median != 4*time.Hour {
-		t.Errorf("lead time: %d commits, median %v, want 3 and 4h", l.Commits, l.Median)
+	if got, want := [2]any{shop.LeadTime.Commits, shop.LeadTime.Median}, [2]any{3, 4 * time.Hour}; got != want {
+		t.Errorf("lead time commits, median = %v, want %v", got, want)
 	}
 }
 
@@ -304,8 +308,8 @@ func labelsOfColumns(columns []Column) []string {
 // whenever some row has data.
 func TestHistoryDropsAColumnNoRowHasDataFor(t *testing.T) {
 	data := Data{Records: []history.Record{
-		deployedOn("acme/app", at(2025, time.August, 15, 12, 0, 0)),
-		deployedOn("acme/app", at(2026, time.September, 1, 12, 0, 0)),
+		deployedOn("acme/app", at("2025-08-15T12:00:00Z")),
+		deployedOn("acme/app", at("2026-09-01T12:00:00Z")),
 	}, Reach: fullyRead()}
 	tests := []struct {
 		name     string
@@ -313,7 +317,7 @@ func TestHistoryDropsAColumnNoRowHasDataFor(t *testing.T) {
 		want     []string
 	}{
 		{"read in full", time.Unix(0, 0), []string{"2025 H2", "2026 H1", "Last 6 months"}},
-		{"read back to March 2026 only", at(2026, time.March, 1, 0, 0, 0), []string{"Last 6 months"}},
+		{"read back to March 2026 only", at("2026-03-01T00:00:00Z"), []string{"Last 6 months"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -344,16 +348,16 @@ func TestHalfYearOfHoldsTheDay(t *testing.T) {
 		Label      string
 		Start, End time.Time
 	}
-	h1 := halfYear{"2026 H1", at(2026, time.January, 1, 0, 0, 0), at(2026, time.July, 1, 0, 0, 0)}
-	h2 := halfYear{"2026 H2", at(2026, time.July, 1, 0, 0, 0), at(2027, time.January, 1, 0, 0, 0)}
+	h1 := halfYear{"2026 H1", at("2026-01-01T00:00:00Z"), at("2026-07-01T00:00:00Z")}
+	h2 := halfYear{"2026 H2", at("2026-07-01T00:00:00Z"), at("2027-01-01T00:00:00Z")}
 	tests := map[string]struct {
 		day  time.Time
 		want halfYear
 	}{
-		"first day of H1":   {at(2026, time.January, 1, 0, 0, 0), h1},
-		"last second of H1": {at(2026, time.June, 30, 23, 59, 59), h1},
-		"first day of H2":   {at(2026, time.July, 1, 0, 0, 0), h2},
-		"a day in H2":       {at(2026, time.October, 2, 9, 30, 0), h2},
+		"first day of H1":   {at("2026-01-01T00:00:00Z"), h1},
+		"last second of H1": {at("2026-06-30T23:59:59Z"), h1},
+		"first day of H2":   {at("2026-07-01T00:00:00Z"), h2},
+		"a day in H2":       {at("2026-10-02T09:30:00Z"), h2},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -374,13 +378,13 @@ func TestFirstDeploymentIsTheOldestSuccessOfAListedRepository(t *testing.T) {
 		return history.Record{Repository: repository, State: state, CreatedAt: created}
 	}
 	data := Data{Records: []history.Record{
-		record("acme/app", history.StateSuccess, at(2026, time.October, 2, 9, 0, 0)),
-		record("acme/app", history.StateSuccess, at(2026, time.September, 4, 12, 0, 0)),
-		record("acme/app", history.StateFailure, at(2026, time.August, 1, 0, 0, 0)),
-		record("acme/gone", history.StateSuccess, at(2026, time.July, 1, 0, 0, 0)),
+		record("acme/app", history.StateSuccess, at("2026-10-02T09:00:00Z")),
+		record("acme/app", history.StateSuccess, at("2026-09-04T12:00:00Z")),
+		record("acme/app", history.StateFailure, at("2026-08-01T00:00:00Z")),
+		record("acme/gone", history.StateSuccess, at("2026-07-01T00:00:00Z")),
 	}}
 	first, ok := FirstDeployment(projects, data)
-	if want := at(2026, time.September, 4, 12, 0, 0); !ok || !first.Equal(want) {
+	if want := at("2026-09-04T12:00:00Z"); !ok || !first.Equal(want) {
 		t.Errorf("want %s, true, got %s, %v", want, first, ok)
 	}
 	if first, ok := FirstDeployment(projects, Data{}); ok || !first.IsZero() {

@@ -520,3 +520,29 @@ Decisions: #197 (a percent level shows its score range).
   - Docs: configuration.md, pages-and-views.md, updating-and-releases.md ("Upgrading to 1.8.1"), README.md and CLAUDE.md.
 
 What an installation sees: the History page is gone after the update unless the config sets `history_page: true`, and the legend's levels carry their scores. No new permission, secret or key.
+
+---
+
+## 2026-10-16 — a page can be generated without a menu entry, and the History page explains itself, released as 1.8.2 ([#200](https://github.com/yveshanoulle/forsgren/issues/200), [#198](https://github.com/yveshanoulle/forsgren/issues/198))
+
+Yves, on the History page of 1.8.0: "only 1 period / the trend shows nothing / all in all, I don't understand the screen" (#198). Then: "for pages there should be two settings: generate, menu so we can generate a page and not add it to the menu, so I (and others) can easily test it, without that customers can see it" (#200), option A (one key, three values), "also create history, numbers_scoring_page as unlisted by default". The release was first planned with #112 and #42 too; Yves split it so #198 closes the next day ("ok do that new plan"); those two follow as 1.8.3.
+
+- **#200, three values per page key.** `issues_page`, `days_page`, `numbers_scoring_page` and `history_page` take `true` (generated and in the menu), `unlisted` (generated, no menu entry, `<meta name="robots" content="noindex">`) or `false` (not generated, a stale file removed). The steps:
+  - the `PageMode` type and `pageKey` (97d3ec9);
+  - the message "use true, unlisted or false" for a value not accepted (daa9141);
+  - History and Numbers and scoring default to `unlisted` (0c04ec2);
+  - the settings page lists the three values (18c720f);
+  - `config.Accepted`, so no accepted value can be missing from the settings page, which closes a gap left by #79 (793c6ff);
+  - an unlisted root page leaves every menu, including its own (459b5bd), and carries `noindex` (cc931b3); the folder page gets the same (1089dd9);
+  - render wires the three modes (0508b9a);
+  - the legend (0bf0478);
+  - the starter and agent-installer.md questions 10, 12 and 13 (7a1693f);
+  - Yves's acceptance checks pinned, each proven by a mutation: every switch of a key in a reused site, and no link to an unlisted page outside the menu (ebc60d0).
+- **#198, the History page explains itself.**
+  - "History (beta)" in the title and heading; one constant removes it later (2da314a).
+  - A line under the heading says how to read the page (0cc31d5).
+  - With only the last 6 months, the page says why, with the first deployment and the day the first half-year appears, or how far to raise `history_days` (75fed4e).
+  - No Trend column below two periods (2b2afdb).
+- **One refactor and the docs** (this commit): the page keys live in `pagemode.go`, the menu and unlisted helpers in `menu.go` (page.go 584 → 512 lines), the History notice in `historynotice.go`, `pageModes` is the one map from page to mode, each page default is written once; `internal/metrics/history_test.go` 9.09 → 10.0. Docs: configuration.md (one page-keys entry, "discoverable, not private"), pages-and-views.md (Unlisted pages, the History page), updating-and-releases.md ("Upgrading to 1.8.2"), README.md and CLAUDE.md.
+
+What an installation sees after the update: without page keys, the History page and the Numbers and scoring page are generated but not in the menu, at `history.html` and `numbers-scoring/`. Anyone with the address can open them, so they are discoverable, not private. No new permission or secret.

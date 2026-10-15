@@ -9,12 +9,6 @@
    "minScore": 9.0
   },
   {
-   "path": "internal/metrics/history_test.go",
-   "score": 9.09,
-   "checkedAt": "2026-10-16",
-   "minScore": 9.0
-  },
-  {
    "path": "cmd/forsgren/init_config_test.go",
    "score": 9.38,
    "checkedAt": "2026-10-04",
@@ -63,6 +57,12 @@
    "minScore": 9.82
   },
   {
+   "path": "internal/metrics/history_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-16",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/collect/bugflags.go",
    "score": 10.0,
    "checkedAt": "2026-10-14",
@@ -95,7 +95,7 @@
   {
    "path": "internal/config/validate.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
@@ -215,7 +215,7 @@
   {
    "path": "internal/config/config.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
@@ -1349,7 +1349,7 @@
   {
    "path": "internal/config/accepted.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
@@ -1378,6 +1378,24 @@
   },
   {
    "path": "internal/page/history_notice_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-16",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/pagemode.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-16",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/menu.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-16",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/historynotice.go",
    "score": 10.0,
    "checkedAt": "2026-10-16",
    "minScore": 10.0

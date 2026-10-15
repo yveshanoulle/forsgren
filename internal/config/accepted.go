@@ -7,12 +7,12 @@ import (
 )
 
 // The sets of values of the keys that take a fixed one: the loader checks a
-// value against them, and Accepted hands them out (forsgren#200).
+// value against them, and Accepted hands them out (forsgren#200). The page
+// keys' set, pageModeValues, is in pagemode.go.
 var (
-	viewValues     = []string{ViewStandard, ViewNumbers, ViewScoring}
-	levelValues    = []string{LevelPatch, LevelMinor, LevelMajor}
-	pageModeValues = []PageMode{PageOn, PageUnlisted, PageOff}
-	doraWindows    = []int{DefaultDoraDays, DoraDays90, DoraDays180}
+	viewValues  = []string{ViewStandard, ViewNumbers, ViewScoring}
+	levelValues = []string{LevelPatch, LevelMinor, LevelMajor}
+	doraWindows = []int{DefaultDoraDays, DoraDays90, DoraDays180}
 )
 
 // Accepted is the values the key accepts when they are a fixed set, sorted
@@ -30,8 +30,8 @@ func Accepted(key string) []string {
 	case "dora_days":
 		return numbersOf(doraWindows)
 	}
-	if page, ok := pageKeys[key]; ok {
-		return page
+	if isPageKey(key) {
+		return pageModeNames()
 	}
 	return nil
 }
@@ -41,19 +41,6 @@ func numbersOf(numbers []int) []string {
 	out := make([]string, len(numbers))
 	for i, n := range numbers {
 		out[i] = strconv.Itoa(n)
-	}
-	return out
-}
-
-// pageKeys are the page keys, each with the values a page key accepts.
-var pageKeys = map[string][]string{"issues_page": pageModeNames(), "days_page": pageModeNames(),
-	"numbers_scoring_page": pageModeNames(), "history_page": pageModeNames()}
-
-// pageModeNames are the PageModes as written in the file.
-func pageModeNames() []string {
-	out := make([]string, len(pageModeValues))
-	for i, m := range pageModeValues {
-		out[i] = string(m)
 	}
 	return out
 }

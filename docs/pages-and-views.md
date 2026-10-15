@@ -404,7 +404,8 @@ a path on github.com (forsgren#172):
   and the count it is over, "Less than one day · 2 h 7 min (48)"; the
   weekend deployments have their own column. Durations are in min, h and d,
   each part cut down, never rounded up.
-- **Pages:** up to ten pages are written: `index.html`, `legend.html`, `settings.html`, `issues.html`, `days.html`, `history.html`, the three views and the Numbers and scoring page. Every page opens with one menu, "View: Standard · Numbers · Scoring · Numbers and scoring · Issues · Daily · History" (forsgren#128, decision #133, forsgren#55, forsgren#68): the three views, then the Numbers and scoring page, `numbers-scoring/`, then the issues page, `issues.html`, the days page, `days.html`, labelled Daily, and the History page, `history.html`; one folder down its links go through `../`. The current page is plain text marked `aria-current="page"`; the root marks the view it shows `aria-current="true"` (see Views), and the settings and legend pages mark none. No page has a link back to the table, since the menu reaches it, and every page ends with the same footer, the version line and then Settings and Legend. The Issues and Daily pages can be hidden (forsgren#159): `issues_page: false` leaves out `issues.html` and `days_page: false` leaves out `days.html`; a hidden page is not generated, is removed from the site if an earlier run wrote it, and has no entry in the menu. The defaults are `issues_page: true` and `days_page: false`, so the Daily page appears only with `days_page: true`. The Numbers and scoring page is hidden the same way unless `numbers_scoring_page: true` (forsgren#55): by default it is not generated, its folder is removed once empty, and the menu has no entry for it. The History page is hidden the same way unless `history_page: true` (forsgren#68, #199): from 1.8.1 it is off by default, not generated, and the menu has no entry for it. A render without a config, as forsgren's own build, writes all ten. The legend explains the four keys on every page set, shown or hidden. Up to 0.8.3 the days page was `issues.html` and the issues page `months.html`; 0.8.4 renamed them with no redirect (decision #133), and `months.html` is gone.
+- **Pages:** up to ten pages are written: `index.html`, `legend.html`, `settings.html`, `issues.html`, `days.html`, `history.html`, the three views and the Numbers and scoring page. Every page opens with one menu, "View: Standard · Numbers · Scoring · Numbers and scoring · Issues · Daily · History" (forsgren#128, decision #133, forsgren#55, forsgren#68): the three views, then the Numbers and scoring page, `numbers-scoring/`, then the issues page, `issues.html`, the days page, `days.html`, labelled Daily, and the History page, `history.html`; one folder down its links go through `../`. The current page is plain text marked `aria-current="page"`; the root marks the view it shows `aria-current="true"` (see Views), and the settings and legend pages mark none. No page has a link back to the table, since the menu reaches it, and every page ends with the same footer, the version line and then Settings and Legend. Four pages have a key that takes `true`, `unlisted` or `false` (forsgren#159, #55, #68, #200; see [Configuration](configuration.md#configuration)): `issues_page` for `issues.html`, `days_page` for `days.html`, `numbers_scoring_page` for `numbers-scoring/` and `history_page` for `history.html`. `true` generates the page and lists it in the menu. `false` does not generate it, removes it from the site if an earlier run wrote it (the Numbers and scoring page's folder too, once empty), and leaves it out of the menu. The defaults are `issues_page: true`, `days_page: false`, `numbers_scoring_page: unlisted` and `history_page: unlisted` (from 1.8.2). A render without a config, as forsgren's own build, writes and lists all ten. The legend explains the four keys and their three values on every page set.
+- **Unlisted pages** (forsgren#200, from 1.8.2): a page whose key is `unlisted` is generated, but no menu names it, not even its own, and its `<head>` carries `<meta name="robots" content="noindex">`. It is reachable by its address, `history.html` or `numbers-scoring/`, so you can look at it before you list it. Unlisted is discoverable, not private: noindex asks compliant search engines not to index the page; it does not enforce access control. Anyone who knows or guesses the address can open it. Only an unlisted page carries the tag; set the key to `true` and the next run lists the page and drops the tag. Up to 0.8.3 the days page was `issues.html` and the issues page `months.html`; 0.8.4 renamed them with no redirect (decision #133), and `months.html` is gone.
 - **Views** (forsgren#46): the table is built in more than one view, each its
   own page: `/standard/` (`standard/index.html`) is the table above, band,
   number and count, and `/numbers/` (`numbers/index.html`) shows only
@@ -447,10 +448,10 @@ a path on github.com (forsgren#172):
   is no Weekend deployments column. The cells follow the DORA window
   (`dora_days`), since both halves come from the same row. The menu names it
   "Numbers and scoring", after Scoring and before Issues; on its own page
-  the entry is plain text with `aria-current="page"`. It is hidden by
-  default: only `numbers_scoring_page: true` (see
-  [Configuration](configuration.md#configuration)) generates it and its
-  menu entry. It is not a view: `view:` cannot name it, so the root never
+  the entry is plain text with `aria-current="page"`. It is unlisted by
+  default: generated with no menu entry; `numbers_scoring_page: true` (see
+  [Configuration](configuration.md#configuration)) lists it and `false`
+  leaves it out. It is not a view: `view:` cannot name it, so the root never
   shows it.
 - **The legend** (`legend.html`, titled "Legend", forsgren#128) gives each metric's bands in one compact
   list, with what each cell counts and its window. Each level ends with the
@@ -646,12 +647,33 @@ or a task's own name, a SHA or a commit message.
 
 ### The History page
 
-The History page (`history.html`, titled "History", forsgren#68, from 1.8.0)
+The History page (`history.html`, titled "History (beta)", forsgren#68, from 1.8.0)
 shows how the five metrics and Overall Performance moved over time. It is
-off by default (forsgren#199, from 1.8.1) and shown only with
-`history_page: true` (see
-[Configuration](configuration.md#configuration)); the menu then names it
-last, "History".
+unlisted by default (forsgren#200, from 1.8.2): generated and reachable at
+`history.html`, with no menu entry and a noindex tag (see Unlisted pages
+under [The page](#the-page), and
+[Configuration](configuration.md#configuration)). `history_page: true` lists
+it last in the menu, "History"; `false` leaves it out.
+
+- **Beta.** The page is marked beta (forsgren#198, from 1.8.2): its title,
+  its heading and the legend's History section heading read "History
+  (beta)"; the menu entry stays "History". When the page leaves beta, all
+  three go back together.
+- **How to read it.** Under the heading one line says how to read the page:
+  "Each column is a period: the calendar half-years, then the last 6 months.
+  A cell is the number and its score (0 to 10), number · score. Trend draws
+  the score over the periods." The last sentence is left out while there is
+  no Trend column.
+- **One period.** While the last 6 months are the only column, a line under
+  it says why, with dates (forsgren#198): "Only the last 6 months have data
+  so far: the first deployment is 2026-10-02. The first half-year, 2026 H2,
+  appears on 2027-01-01." When `history_days` is too short to reach back
+  over that half-year, the line says the value it needs and to raise it in
+  forsgren.config.yml. A half-year that is already over but has no column
+  is named with its reason: `history_days` is too short, with the value it
+  needs, or the history is still being read back to its start. The line
+  needs a known first deployment, and is not there with no column or
+  several.
 
 - **Periods.** The columns are periods, the oldest on the left: the calendar
   half-years, January to June ("2026 H1") and July to December ("2025 H2"),
@@ -679,7 +701,9 @@ last, "History".
   rescaled to 180 days, so a half-year of 181 to 184 days can read higher
   than the same pace over exactly 180 days, by at most 3%. `dora_days` does
   not change this page; `working_hours` does.
-- **The Trend chart.** The Trend column, after the row's name, holds a small
+- **The Trend chart.** With fewer than two periods there is no Trend column
+  (forsgren#198, from 1.8.2): a trend of one period shows nothing. From two
+  periods on, the Trend column, after the row's name, holds a small
   line chart per row: the row's score per period, 0 to 10, 10 at the top,
   the same scale in every chart, the oldest period on the left. A period
   without a score is a gap that breaks the line, never a zero, and a period
