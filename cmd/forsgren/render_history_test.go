@@ -75,54 +75,6 @@ func TestRenderSaysHowToGetHistory(t *testing.T) {
 	}
 }
 
-// TestHistoryPageIsHiddenByDefault (forsgren#68, #199, #200): history.html is
-// left out only when history_page is false; absent and a value that is not
-// accepted (the default unlisted is in force) write it, and until the menu
-// learns unlisted (#200 steps 5 to 8) they list it like true; without
-// --config nothing is hidden.
-func TestHistoryPageIsHiddenByDefault(t *testing.T) {
-	cases := map[string]struct {
-		keys string
-		want bool
-	}{
-		"absent": {"", true}, "true": {"history_page: true\n", true},
-		"false": {"history_page: false\n", false}, "not accepted": {"history_page: yes\n", true},
-	}
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			dir := renderInto(t, "--config", writeConfig(t, tc.keys+validConfig))
-			wantHistoryPage(t, dir, tc.want)
-		})
-	}
-	t.Run("no --config", func(t *testing.T) { wantHistoryPage(t, renderInto(t), true) })
-}
-
-// TestRenderRemovesAStaleHistoryPageWhenTheKeyIsFalse (forsgren#199, #200): an
-// out dir that holds the history.html of an earlier run with history_page:
-// true loses it when the config sets history_page: false.
-func TestRenderRemovesAStaleHistoryPageWhenTheKeyIsFalse(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "site")
-	for _, keys := range []string{"history_page: true\n", "history_page: false\n"} {
-		args := []string{"render", "--out", dir, "--config", writeConfig(t, keys+validConfig)}
-		if code, _, stderr := runCommand(args...); code != 0 {
-			t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
-		}
-		wantHistoryPage(t, dir, keys == "history_page: true\n")
-	}
-}
-
-// wantHistoryPage fails unless history.html is written exactly when want, and
-// the menu of index.html links it exactly then.
-func wantHistoryPage(t *testing.T, dir string, want bool) {
-	t.Helper()
-	if _, err := os.Stat(filepath.Join(dir, "history.html")); (err == nil) != want {
-		t.Errorf("want history.html written: %v, got %v", want, err)
-	}
-	if got := strings.Contains(readSite(t, dir, "index.html"), `href="history.html"`); got != want {
-		t.Errorf("want the menu to link history.html: %v, got %v", want, got)
-	}
-}
-
 // TestRenderRefusesABadReach (forsgren#68): a reach file of an unknown format
 // fails render with the file's own message, and writes no page.
 func TestRenderRefusesABadReach(t *testing.T) {

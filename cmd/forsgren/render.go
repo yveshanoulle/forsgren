@@ -107,20 +107,19 @@ func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error
 	data.DoraDays, data.DoraDaysSet = cfg.DoraDays, cfg.DoraDaysSet
 	data.Settings = cfg.Settings()
 	data.HistoryDays = cfg.HistoryDays
-	data.Hidden = hiddenPages(cfg)
+	data.Hidden, data.Unlisted = pagesInMode(cfg, config.PageOff), pagesInMode(cfg, config.PageUnlisted)
 	if o.data == "" {
 		return data, nil
 	}
 	return withHistory(data, cfg, o.data, at)
 }
 
-// hiddenPages are the pages the config leaves out: each page whose key is
-// false (forsgren#159, #55, #68, #199, #200).
-func hiddenPages(cfg config.Config) map[string]bool {
-	return map[string]bool{page.IssuesPage: cfg.IssuesPage == config.PageOff,
-		page.DaysPage:           cfg.DaysPage == config.PageOff,
-		page.NumbersScoringPage: cfg.NumbersScoringPage == config.PageOff,
-		page.HistoryPage:        cfg.HistoryPage == config.PageOff}
+// pagesInMode are the pages whose key the config sets to mode, by page name:
+// with PageOff the pages the site leaves out, with PageUnlisted the pages it
+// writes without a menu entry (forsgren#159, #55, #68, #199, #200).
+func pagesInMode(cfg config.Config, mode config.PageMode) map[string]bool {
+	return map[string]bool{page.IssuesPage: cfg.IssuesPage == mode, page.DaysPage: cfg.DaysPage == mode,
+		page.NumbersScoringPage: cfg.NumbersScoringPage == mode, page.HistoryPage: cfg.HistoryPage == mode}
 }
 
 // issueDays is how many UTC days the days page shows, ending yesterday

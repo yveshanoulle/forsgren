@@ -91,7 +91,7 @@
     "github.com/yveshanoulle/forsgren/internal/needs/check.go:grants": 100.0,
     "github.com/yveshanoulle/forsgren/internal/needs/check.go:secretInPlace": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:renderTime": 100.0,
-    "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:hiddenPages": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:pagesInMode": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:pageData": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:loadOrNone": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:renderFlags": 100.0,

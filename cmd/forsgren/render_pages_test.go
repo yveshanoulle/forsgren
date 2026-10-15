@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -69,46 +68,5 @@ func wantPages(t *testing.T, dir string, issues, days bool) {
 		if _, err := os.Stat(filepath.Join(dir, page)); (err == nil) != want {
 			t.Errorf("want %s written: %v, got %v", page, want, err)
 		}
-	}
-}
-
-// TestRenderLeavesOutTheNumbersAndScoringPageUnlessTheConfigShowsIt
-// (forsgren#55, decision 12): with --config the numbers and scoring page, and
-// its menu entry, are left out only when numbers_scoring_page is false; absent
-// and a value that is not accepted (the default unlisted is in force) write
-// them, and until the menu learns unlisted (forsgren#200 steps 5 to 8) they
-// list the entry like true; without --config nothing is hidden.
-func TestRenderLeavesOutTheNumbersAndScoringPageUnlessTheConfigShowsIt(t *testing.T) {
-	cases := map[string]struct {
-		keys string
-		want bool
-	}{
-		"absent":       {"", true},
-		"false":        {"numbers_scoring_page: false\n", false},
-		"not accepted": {"numbers_scoring_page: yes\n", true},
-		"true":         {numbersScoringOn, true},
-	}
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			wantNumbersScoring(t, renderInto(t, "--config", writeConfig(t, validConfig+tc.keys)), tc.want)
-		})
-	}
-	t.Run("no --config", func(t *testing.T) {
-		wantNumbersScoring(t, renderInto(t), true)
-	})
-}
-
-// wantNumbersScoring fails unless the page and the menu entry of the numbers
-// and scoring page are in dir exactly as said.
-func wantNumbersScoring(t *testing.T, dir string, want bool) {
-	t.Helper()
-	_, err := os.Stat(filepath.Join(dir, "numbers-scoring", "index.html"))
-	root, readErr := os.ReadFile(filepath.Clean(filepath.Join(dir, "index.html")))
-	if readErr != nil {
-		t.Fatal(readErr)
-	}
-	if (err == nil) != want || strings.Contains(string(root), "Numbers and scoring") != want {
-		t.Errorf("want the page and its menu entry: %v, got page %v, root menu %v", want, err == nil,
-			strings.Contains(string(root), "Numbers and scoring"))
 	}
 }

@@ -143,7 +143,7 @@
   {
    "path": "cmd/forsgren/render.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
@@ -1319,13 +1319,13 @@
   {
    "path": "cmd/forsgren/render_history_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
    "path": "cmd/forsgren/render_pages_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
@@ -1338,6 +1338,12 @@
    "path": "internal/page/unlisted_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-15",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_modes_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   }
  ]
