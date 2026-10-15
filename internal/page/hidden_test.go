@@ -141,7 +141,7 @@ func wantMenuWithout(t *testing.T, name, html string, gone []string) {
 const legendPagesText = "<p>The Issues page and the Daily page are shown or hidden with issues_page and days_page " +
 	"in forsgren.config.yml. By default the Issues page is shown (issues_page: true) and the Daily page is hidden " +
 	"(days_page: false); days_page: true brings the Daily page back. A hidden page is not generated and has no " +
-	"entry in the menu. To add the Daily page, set days_page: true and run forsgren again to regenerate the report.</p>"
+	"entry in the menu. To add the Daily page, set days_page: true and run forsgren again to regenerate the report."
 
 // TestLegendExplainsTheTwoPageKeysWhateverIsHidden (forsgren#159, Yves's
 // ruling on decision #165): the legend keeps its Issues pages section and says
@@ -158,6 +158,33 @@ func TestLegendExplainsTheTwoPageKeysWhateverIsHidden(t *testing.T) {
 		for _, want := range []string{"<h2>Issues pages</h2>", legendPagesText} {
 			if !strings.Contains(html, want) {
 				t.Errorf("%s hidden: want %q in the legend", name, want)
+			}
+		}
+	}
+}
+
+// legendNumbersScoringText is the sentence the legend adds on the numbers and
+// scoring page's key, and legendScoresText the one under Scores (forsgren#55).
+const (
+	legendNumbersScoringText = " The Numbers and scoring page, shown only with numbers_scoring_page: true " +
+		"(default false), puts each metric's number and its score in one cell, written number \u00b7 score, " +
+		"with a dash where there is no data.</p>"
+	legendScoresText = "The Numbers and scoring page, when it is shown, has the number and the score of each " +
+		"metric in one cell."
+)
+
+// TestLegendExplainsTheNumbersAndScoringPageWhateverIsHidden (forsgren#55,
+// decision 7): the legend ends the paragraph on the page keys with the
+// sentence on numbers_scoring_page and says under Scores what the page shows,
+// the same text whether the page is shown or hidden.
+func TestLegendExplainsTheNumbersAndScoringPageWhateverIsHidden(t *testing.T) {
+	for name, hide := range map[string]map[string]bool{"shown": nil, "hidden": {viewNumbersScoring: true}} {
+		data := calculated()
+		data.Hidden = hide
+		html := rendered(t, "legend.html", data)
+		for _, want := range []string{"regenerate the report." + legendNumbersScoringText, legendScoresText} {
+			if !strings.Contains(html, want) {
+				t.Errorf("%s: want %q in the legend", name, want)
 			}
 		}
 	}
