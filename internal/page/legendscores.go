@@ -4,7 +4,9 @@ package page
 // the function the scoring view scores with, so the legend cannot drift from
 // the scoring view.
 
-import "github.com/yveshanoulle/forsgren/internal/metrics"
+import (
+	"github.com/yveshanoulle/forsgren/internal/metrics"
+)
 
 // bandScores are the scores of the bands from first to last, as the scoring
 // view gives them.
@@ -25,4 +27,21 @@ func (d Data) FrequencyScores() []string {
 // LeadTimeScores are the scores of lead time's six levels, fastest first.
 func (d Data) LeadTimeScores() []string {
 	return bandScores(metrics.LessThanOneHour, metrics.MoreThanSixMonths)
+}
+
+// ChangeFailScores are the scores of change fail rate's six levels, lowest
+// rate first. The scoring view scores the whole percent, so a level has the
+// scores of its lowest and of its highest percent: "9 to 7.1", or one number
+// when they are equal (forsgren#79).
+func (d Data) ChangeFailScores() []string {
+	var scores []string
+	for b := metrics.ZeroPercent; b <= metrics.HundredPercent; b++ {
+		lowest, highest := b.Percents()
+		best, worst := scoreCell(metrics.PercentScore(lowest)), scoreCell(metrics.PercentScore(highest))
+		if best != worst {
+			best += " to " + worst
+		}
+		scores = append(scores, best)
+	}
+	return scores
 }

@@ -77,6 +77,20 @@ func ChangeFailBandOf(failed, deployments int) ChangeFailBand {
 	return band
 }
 
+// Percents are the lowest and the highest whole percent of the band, from
+// the same edges ChangeFailBandOf bands by: 0 to 9, 10 to 29, up to 90 to 100
+// (forsgren#79).
+func (b ChangeFailBand) Percents() (lowest, highest int) {
+	highest = 100
+	if b > ZeroPercent {
+		lowest = changeFailEdges[b-ZeroPercent-1]
+	}
+	if b < HundredPercent {
+		highest = changeFailEdges[b-ZeroPercent] - 1
+	}
+	return lowest, highest
+}
+
 // changeFailBandNames are the bands' names, indexed by band; index 0 is no
 // band.
 var changeFailBandNames = [...]string{"No band", "0%", "20%", "40%", "60%", "80%", "100%"}

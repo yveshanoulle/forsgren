@@ -27,3 +27,16 @@ func TestLegendFrequencyLevelsShowTheirScore(t *testing.T) {
 		"1 and more in 180 days, score 2</li>",
 		"<li>Less than once per six months: none in 180 days, score 0</li>")
 }
+
+// TestLegendChangeFailLevelsShowTheirScoreRange (forsgren#79, decision #197):
+// the scoring view scores the whole percent, so a level of change fail rate
+// has the scores of its lowest and its highest whole percent.
+func TestLegendChangeFailLevelsShowTheirScoreRange(t *testing.T) {
+	wantAll(t, "legend.html", rendered(t, "legend.html", viewData()),
+		"<li>0%: below 10%, score 10 to 9.1</li>",
+		"<li>20%: 10% to below 30%, score 9 to 7.1</li>",
+		"<li>40%: 30% to below 50%, score 7 to 5.1</li>",
+		"<li>60%: 50% to below 70%, score 5 to 3.1</li>",
+		"<li>80%: 70% to below 90%, score 3 to 1.1</li>",
+		"<li>100%: 90% and more, score 1 to 0</li>")
+}

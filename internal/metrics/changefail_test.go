@@ -169,3 +169,21 @@ func TestThePercentIsRoundedDown(t *testing.T) {
 		}
 	}
 }
+
+// TestChangeFailBandPercents (forsgren#79): the whole percents each band
+// spans are those ChangeFailBandOf bands by: the lowest and the highest
+// whole percent of every band land in that band, and the percent beside
+// them lands in the neighbour.
+func TestChangeFailBandPercents(t *testing.T) {
+	wants := [][2]int{{0, 9}, {10, 29}, {30, 49}, {50, 69}, {70, 89}, {90, 100}}
+	for i, want := range wants {
+		band := ChangeFailBand(i + 1)
+		lowest, highest := band.Percents()
+		if lowest != want[0] || highest != want[1] {
+			t.Errorf("%v: got %d to %d, want %d to %d", band, lowest, highest, want[0], want[1])
+		}
+		if ChangeFailBandOf(lowest, 100) != band || ChangeFailBandOf(highest, 100) != band {
+			t.Errorf("%v: %d and %d are not both in the band", band, lowest, highest)
+		}
+	}
+}
