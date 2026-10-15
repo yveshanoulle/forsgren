@@ -94,3 +94,29 @@ func (p Period) over(at time.Time) bool {
 	}
 	return !at.Before(p.End)
 }
+
+// Column is one column of the history page: a period and the rows counted
+// over it (forsgren#68).
+type Column struct {
+	Period Period
+	Rows   []Row
+}
+
+// History are the history page's columns at the render time now, oldest
+// first: the Periods for historyDays, each with its PeriodRows, less a period
+// no row has data for, that is where every row is unread or has no deployment
+// yet (forsgren#68).
+func History(projects []config.Project, data Data, now time.Time, historyDays int) []Column {
+	var columns []Column
+	for _, period := range Periods(now, historyDays) {
+		rows := PeriodRows(projects, data, period)
+		if slices.ContainsFunc(rows, Row.hasData) {
+			columns = append(columns, Column{Period: period, Rows: rows})
+		}
+	}
+	return columns
+}
+
+// hasData says whether the row is read and has a deployment, as the page
+// shows a row in full (HasDeployments).
+func (r Row) hasData() bool { return !r.Unread && r.HasDeployments() }

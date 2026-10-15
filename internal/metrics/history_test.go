@@ -80,11 +80,15 @@ func TestPeriodsHaveTheirSpans(t *testing.T) {
 
 // fullyRead is the reach of tableProjects' repositories when all their history
 // was read, back to the epoch.
-func fullyRead() history.Reach {
+func fullyRead() history.Reach { return readBackTo(time.Unix(0, 0)) }
+
+// readBackTo is the reach of tableProjects' repositories when all were read
+// back to at.
+func readBackTo(at time.Time) history.Reach {
 	reach := history.Reach{}
 	for _, p := range tableProjects {
 		for _, r := range p.Repositories {
-			reach[strings.ToLower(r.Name)] = time.Unix(0, 0)
+			reach[strings.ToLower(r.Name)] = at
 		}
 	}
 	return reach
@@ -281,4 +285,53 @@ func TestPeriodBeforeTheReachHasNoData(t *testing.T) {
 			t.Errorf("%s is unread with every repository read back to the start of the period", row.Name)
 		}
 	}
+}
+
+// labelsOfColumns are the labels of the periods of columns, in their order.
+func labelsOfColumns(columns []Column) []string {
+	labels := make([]string, len(columns))
+	for i, c := range columns {
+		labels[i] = c.Period.Label
+	}
+	return labels
+}
+
+// TestHistoryDropsAColumnNoRowHasDataFor (forsgren#68): the columns are the
+// periods, oldest first, each with a row per table row; a period before the
+// first deployment, or one the history was not read back to, is no column,
+// while a quiet period after a deployment stays, and so does the rolling one
+// whenever some row has data.
+func TestHistoryDropsAColumnNoRowHasDataFor(t *testing.T) {
+	data := Data{Records: []history.Record{
+		deployedOn("acme/app", at(2025, time.August, 15, 12, 0, 0)),
+		deployedOn("acme/app", at(2026, time.September, 1, 12, 0, 0)),
+	}, Reach: fullyRead()}
+	tests := []struct {
+		name     string
+		readBack time.Time
+		want     []string
+	}{
+		{"read in full", time.Unix(0, 0), []string{"2025 H2", "2026 H1", "Last 6 months"}},
+		{"read back to March 2026 only", at(2026, time.March, 1, 0, 0, 0), []string{"Last 6 months"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := data
+			data.Reach = readBackTo(tt.readBack)
+			columns := History(tableProjects, data, now, 1825)
+			if got := labelsOfColumns(columns); !slices.Equal(got, tt.want) {
+				t.Fatalf("columns = %v, want %v", got, tt.want)
+			}
+			if got, want := columns[0].Rows, PeriodRows(tableProjects, data, columns[0].Period); !reflect.DeepEqual(got, want) {
+				t.Errorf("%s rows = %+v, want the period's rows %+v", columns[0].Period.Label, got, want)
+			}
+		})
+	}
+}
+
+// deployedOn is a successful deployment of repository created at at.
+func deployedOn(repository string, at time.Time) history.Record {
+	r := deployed(repository, history.StateSuccess, 0)
+	r.CreatedAt = at
+	return r
 }
