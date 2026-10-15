@@ -89,4 +89,5 @@ dora_days: 30  # the window of the DORA numbers in days: 30, 90 or 180
 issues_page: true  # the Issues page and its menu entry: true shows them, false leaves them out
 days_page: false  # the Daily page and its menu entry: false leaves them out, true brings them back
 numbers_scoring_page: false  # the Numbers and scoring page and its menu entry: false leaves them out, true shows them
+history_page: true  # the History page and its menu entry: true shows them, false leaves them out
 projects: []

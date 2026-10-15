@@ -31,6 +31,7 @@ const starterConfig = "version: 1\nview: standard\nauto_update: true\n" +
 	"days_page: false  # the Daily page and its menu entry: false leaves them out, true brings them back\n" +
 	"numbers_scoring_page: false  # the Numbers and scoring page and its menu entry: false leaves them out, " +
 	"true shows them\n" +
+	"history_page: true  # the History page and its menu entry: true shows them, false leaves them out\n" +
 	"projects: []\n"
 
 // isStarterLine says whether a line may stand in the starter: blank, a
@@ -464,5 +465,29 @@ func TestStarterWritesDoraDaysAndLoadsClean(t *testing.T) {
 	want := Setting{Key: "dora_days", Value: "30", Default: "30", Set: true}
 	if !slices.Contains(got.Settings(), want) {
 		t.Errorf("want the settings to hold %+v, got %+v", want, got.Settings())
+	}
+}
+
+// historyPageLine is the starter's history_page line (forsgren#68).
+const historyPageLine = "history_page: true  # the History page and its menu entry: " +
+	"true shows them, false leaves them out"
+
+// TestStarterWritesHistoryPage (forsgren#68): the starter writes history_page:
+// true right after numbers_scoring_page, with its comment.
+func TestStarterWritesHistoryPage(t *testing.T) {
+	lines := starterLines()
+	i := slices.IndexFunc(lines, func(l string) bool { return strings.HasPrefix(l, "numbers_scoring_page:") })
+	if i < 0 || i+1 >= len(lines) || lines[i+1] != historyPageLine {
+		t.Errorf("want the line %q right after numbers_scoring_page in the starter", historyPageLine)
+	}
+}
+
+// TestStarterLoadsWithTheHistoryPageOn (forsgren#68): the config the starter
+// loads to reads the page as on and written, with no setting rejected.
+func TestStarterLoadsWithTheHistoryPageOn(t *testing.T) {
+	cfg, err := parse([]byte(Starter))
+	if err != nil || !cfg.HistoryPage || !cfg.written["history_page"] || len(cfg.Rejected) != 0 {
+		t.Errorf("want history_page true, written and nothing rejected, got %v, %v, %v, %v", cfg.HistoryPage,
+			cfg.written["history_page"], cfg.Rejected, err)
 	}
 }
