@@ -117,8 +117,8 @@ func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error
 // hiddenPages are the pages the config leaves out: the issues page when
 // issues_page is false, the days page unless days_page is true (forsgren#159),
 // and the numbers and scoring page unless numbers_scoring_page is true
-// (forsgren#55), and the history page when history_page is false
-// (forsgren#68).
+// (forsgren#55), and the history page unless history_page is true
+// (forsgren#68, #199).
 func hiddenPages(cfg config.Config) map[string]bool {
 	return map[string]bool{page.IssuesPage: !cfg.IssuesPage, page.DaysPage: !cfg.DaysPage,
 		page.NumbersScoringPage: !cfg.NumbersScoringPage, page.HistoryPage: !cfg.HistoryPage}

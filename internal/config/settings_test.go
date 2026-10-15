@@ -21,7 +21,7 @@ func TestSettingsListsEveryKeyWithItsDefault(t *testing.T) {
 		{Key: "issues_page", Value: "true", Default: "true"},
 		{Key: "days_page", Value: "false", Default: "false"},
 		{Key: "numbers_scoring_page", Value: "false", Default: "false"},
-		{Key: "history_page", Value: "true", Default: "true"},
+		{Key: "history_page", Value: "false", Default: "false"},
 	})
 }
 
@@ -42,7 +42,7 @@ func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 		{Key: "issues_page", Value: "false", Default: "true", Set: true},
 		{Key: "days_page", Value: "true", Default: "false", Set: true},
 		{Key: "numbers_scoring_page", Value: "true", Default: "false", Set: true},
-		{Key: "history_page", Value: "false", Default: "true", Set: true},
+		{Key: "history_page", Value: "false", Default: "false", Set: true},
 	})
 }
 
@@ -87,7 +87,7 @@ func TestAListOrMappingForASettingIsRejectedNotSyntax(t *testing.T) {
 		{"issues_page", "use true or false", "true", ErrIssuesPage},
 		{"days_page", "use true or false", "false", ErrDaysPage},
 		{"numbers_scoring_page", "use true or false", "false", ErrNumbersScoringPage},
-		{"history_page", "use true or false", "true", ErrHistoryPage},
+		{"history_page", "use true or false", "false", ErrHistoryPage},
 	}
 	for _, k := range keys {
 		for written, yaml := range map[string]string{"[a, b]": "\n  - a\n  - b", "{a: b}": "\n  a: b"} {
@@ -144,7 +144,7 @@ func TestSettingsCarriesEachRejection(t *testing.T) {
 		{Key: "issues_page", Value: "true", Default: "true"},
 		{Key: "days_page", Value: "false", Default: "false"},
 		{Key: "numbers_scoring_page", Value: "false", Default: "false"},
-		{Key: "history_page", Value: "true", Default: "true"},
+		{Key: "history_page", Value: "false", Default: "false"},
 	})
 }
 
@@ -179,7 +179,7 @@ func TestSettingsShowsARejectedDoraDaysLikeTheOtherKeys(t *testing.T) {
 // default, the same whether the file leaves the key out or writes another
 // value, so the settings page can show it beside the current value.
 func TestSettingsExposeTheDefaultOfEveryKey(t *testing.T) {
-	want := []string{"standard", "false", "major", "365", "100", "8", "30", "true", "false", "false", "true"}
+	want := []string{"standard", "false", "major", "365", "100", "8", "30", "true", "false", "false", "false"}
 	for _, file := range []string{"", "history_days: 90\nview: numbers\n"} {
 		got, err := parse([]byte(file + valid))
 		if err != nil {

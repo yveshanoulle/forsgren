@@ -40,7 +40,7 @@ func TestRenderShowsTheHistoryPagePeriods(t *testing.T) {
 	pinNow(t)
 	data := writeHistory(t, olderHistory())
 	writeReach(t, data, time.Date(2025, time.October, 1, 0, 0, 0, 0, time.UTC))
-	dir := renderInto(t, "--config", writeConfig(t, validConfig), "--data", data)
+	dir := renderInto(t, "--config", writeConfig(t, historyOn+validConfig), "--data", data)
 	got := readSite(t, dir, "history.html")
 	first, second := `<th scope="col">2026 H1</th>`, `<th scope="col">Last 6 months to 2026-10-03</th>`
 	if !strings.Contains(got, first+"\n            "+second) {
@@ -51,7 +51,7 @@ func TestRenderShowsTheHistoryPagePeriods(t *testing.T) {
 	}
 	unread := writeHistory(t, olderHistory())
 	writeReach(t, unread, time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC))
-	late := readSite(t, renderInto(t, "--config", writeConfig(t, validConfig), "--data", unread), "history.html")
+	late := readSite(t, renderInto(t, "--config", writeConfig(t, historyOn+validConfig), "--data", unread), "history.html")
 	if strings.Contains(late, "2026 H1") || !strings.Contains(late, "Last 6 months") {
 		t.Errorf("want only the last 6 months when the history is read back to March 2026, got:\n%s", late)
 	}
@@ -62,29 +62,30 @@ func TestRenderShowsTheHistoryPagePeriods(t *testing.T) {
 func TestRenderSaysHowToGetHistory(t *testing.T) {
 	pinNow(t)
 	data := writeHistory(t, olderHistory())
-	nothing := readSite(t, renderInto(t, "--config", writeConfig(t, validConfig), "--data", data), "history.html")
+	config := writeConfig(t, historyOn+validConfig)
+	nothing := readSite(t, renderInto(t, "--config", config, "--data", data), "history.html")
 	if !strings.Contains(nothing, "No history to show yet") {
 		t.Errorf("want the no-history line without a reach file, got:\n%s", nothing)
 	}
 	writeReach(t, data, time.Date(2025, time.October, 1, 0, 0, 0, 0, time.UTC))
-	short := readSite(t, renderInto(t, "--config", writeConfig(t, "history_days: 90\n"+validConfig), "--data", data),
-		"history.html")
+	config = writeConfig(t, historyOn+"history_days: 90\n"+validConfig)
+	short := readSite(t, renderInto(t, "--config", config, "--data", data), "history.html")
 	if !strings.Contains(short, "history_days is 90, too short for the last 6 months: set history_days to at least 180") {
 		t.Errorf("want the short history line, got:\n%s", short)
 	}
 }
 
 // TestRenderLeavesOutTheHistoryPageWhenTheConfigSaysSo (forsgren#68):
-// history.html and its menu entry are written unless history_page is false;
-// absent, true and a value that is not accepted (the default true is in force)
-// keep both; without --config nothing is hidden.
-func TestRenderLeavesOutTheHistoryPageWhenTheConfigSaysSo(t *testing.T) {
+// history.html and its menu entry are written only when history_page is true
+// (forsgren#199); absent, false and a value that is not accepted (the default
+// false is in force) leave both out; without --config nothing is hidden.
+func TestHistoryPageIsHiddenByDefault(t *testing.T) {
 	cases := map[string]struct {
 		keys string
 		want bool
 	}{
-		"absent": {"", true}, "true": {"history_page: true\n", true},
-		"false": {"history_page: false\n", false}, "not accepted": {"history_page: yes\n", true},
+		"absent": {"", false}, "true": {"history_page: true\n", true},
+		"false": {"history_page: false\n", false}, "not accepted": {"history_page: yes\n", false},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -93,6 +94,20 @@ func TestRenderLeavesOutTheHistoryPageWhenTheConfigSaysSo(t *testing.T) {
 		})
 	}
 	t.Run("no --config", func(t *testing.T) { wantHistoryPage(t, renderInto(t), true) })
+}
+
+// TestRenderRemovesAStaleHistoryPageWhenTheKeyIsLeftOut (forsgren#199): an
+// out dir that holds the history.html of an earlier run with history_page:
+// true loses it when the config no longer has the key.
+func TestRenderRemovesAStaleHistoryPageWhenTheKeyIsLeftOut(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "site")
+	for _, keys := range []string{"history_page: true\n", ""} {
+		args := []string{"render", "--out", dir, "--config", writeConfig(t, keys+validConfig)}
+		if code, _, stderr := runCommand(args...); code != 0 {
+			t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
+		}
+		wantHistoryPage(t, dir, keys != "")
+	}
 }
 
 // wantHistoryPage fails unless history.html is written exactly when want, and
@@ -130,7 +145,7 @@ func TestRenderMatchesTheReachWhateverTheCase(t *testing.T) {
 	if err := history.SaveReach(filepath.Join(filepath.Dir(data), "reach.csv"), reach); err != nil {
 		t.Fatal(err)
 	}
-	got := readSite(t, renderInto(t, "--config", writeConfig(t, validConfig), "--data", data), "history.html")
+	got := readSite(t, renderInto(t, "--config", writeConfig(t, historyOn+validConfig), "--data", data), "history.html")
 	if !strings.Contains(got, `<th scope="col">2026 H1</th>`) {
 		t.Errorf("want the half-year the repositories were read back to, got:\n%s", got)
 	}

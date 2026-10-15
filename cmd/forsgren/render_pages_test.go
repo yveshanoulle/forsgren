@@ -16,11 +16,15 @@ const daysOn = "days_page: true\n"
 // which a config hides unless it sets numbers_scoring_page: true (forsgren#55).
 const numbersScoringOn = "numbers_scoring_page: true\n"
 
-// writeAllPagesConfig writes the config content with daysOn and numbersScoringOn
-// added, so every page is written, and returns its path.
+// historyOn is the config line that keeps the history page, which a config
+// hides unless it sets history_page: true (forsgren#199).
+const historyOn = "history_page: true\n"
+
+// writeAllPagesConfig writes the config content with daysOn, numbersScoringOn
+// and historyOn added, so every page is written, and returns its path.
 func writeAllPagesConfig(t *testing.T, content string) string {
 	t.Helper()
-	return writeConfig(t, content+daysOn+numbersScoringOn)
+	return writeConfig(t, content+daysOn+numbersScoringOn+historyOn)
 }
 
 // TestRenderLeavesOutThePagesTheConfigHides (forsgren#159): with --config the

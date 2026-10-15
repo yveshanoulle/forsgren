@@ -215,7 +215,7 @@ var (
 	issuesPage         = booleanKey{ErrIssuesPage, "issues_page", true}
 	daysPage           = booleanKey{ErrDaysPage, "days_page", false}
 	numbersScoringPage = booleanKey{ErrNumbersScoringPage, "numbers_scoring_page", false}
-	historyPage        = booleanKey{ErrHistoryPage, "history_page", true}
+	historyPage        = booleanKey{ErrHistoryPage, "history_page", false}
 )
 
 // value is the key as written, its default when the file has none (a key

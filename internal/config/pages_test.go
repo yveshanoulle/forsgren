@@ -115,24 +115,25 @@ func TestRejectedNumbersScoringPageIsListedLast(t *testing.T) {
 	}
 }
 
-// TestHistoryPageDefaultsToTrueAndRejectsOtherValues (forsgren#68): the
-// optional history_page key is on when it is left out or has no value, as
-// written otherwise; a value that is not the YAML boolean true or false is
-// not accepted: the page stays on, the key counts as not written, and the
-// rejection names the key, the valid values and the default true.
-func TestHistoryPageDefaultsToTrueAndRejectsOtherValues(t *testing.T) {
+// TestHistoryPageIsOffByDefaultAndRejectsOtherValues (forsgren#68, #199): the
+// optional history_page key is off when it is left out or has no value, as
+// numbers_scoring_page is, and as written otherwise; a value that is not the
+// YAML boolean true or false is not accepted: the page stays off, the key
+// counts as not written, and the rejection names the key, the valid values
+// and the default false.
+func TestHistoryPageIsOffByDefaultAndRejectsOtherValues(t *testing.T) {
 	cases := []struct {
 		name, file, rejected string
 		want                 bool
 	}{
-		{"absent", valid, "", true},
+		{"absent", valid, "", false},
 		{"on", "history_page: true\n" + valid, "", true},
 		{"off", "history_page: false\n" + valid, "", false},
-		{"after the projects", valid + "history_page: false\n", "", false},
-		{"no value", "history_page:\n" + valid, "", true},
-		{"yes", "history_page: yes\n" + valid, "yes", true},
-		{"quoted", "history_page: \"false\"\n" + valid, "false", true},
-		{"a number", "history_page: 0\n" + valid, "0", true},
+		{"after the projects", valid + "history_page: true\n", "", true},
+		{"no value", "history_page:\n" + valid, "", false},
+		{"yes", "history_page: yes\n" + valid, "yes", false},
+		{"quoted", "history_page: \"true\"\n" + valid, "true", false},
+		{"a number", "history_page: 1\n" + valid, "1", false},
 	}
 	for _, tc := range cases {
 		got, err := parse([]byte(tc.file))
@@ -141,7 +142,7 @@ func TestHistoryPageDefaultsToTrueAndRejectsOtherValues(t *testing.T) {
 		}
 		if tc.rejected != "" {
 			wantRejection(t, got.Rejected, ErrHistoryPage,
-				[4]string{"history_page", tc.rejected, "use true or false", "true"})
+				[4]string{"history_page", tc.rejected, "use true or false", "false"})
 		}
 	}
 }

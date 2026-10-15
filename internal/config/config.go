@@ -195,8 +195,8 @@ type Config struct {
 	// generated, false when the file has no numbers_scoring_page key
 	// (forsgren#55).
 	NumbersScoringPage bool
-	// HistoryPage is whether the history page is generated, true when the
-	// file has no history_page key (forsgren#68).
+	// HistoryPage is whether the history page is generated, false when the
+	// file has no history_page key (forsgren#68, #199).
 	HistoryPage bool
 	// written is the optional keys the file writes, by key (forsgren#74).
 	written  map[string]bool
@@ -429,7 +429,7 @@ var settingKeys = []settingKey{
 	{"issues_page", "true", func(c Config) string { return strconv.FormatBool(c.IssuesPage) }},
 	{"days_page", "false", func(c Config) string { return strconv.FormatBool(c.DaysPage) }},
 	{"numbers_scoring_page", "false", func(c Config) string { return strconv.FormatBool(c.NumbersScoringPage) }},
-	{"history_page", "true", func(c Config) string { return strconv.FormatBool(c.HistoryPage) }},
+	{"history_page", "false", func(c Config) string { return strconv.FormatBool(c.HistoryPage) }},
 }
 
 // Settings lists every optional key in the order of settingKeys: the value

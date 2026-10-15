@@ -32,8 +32,8 @@ func TestLegendExplainsTheHistoryPage(t *testing.T) {
 			}
 		}
 	}
-	if !strings.Contains(rendered(t, "legend.html", calculated()), "The History page is shown by default and is hidden "+
-		"with history_page: false.") {
+	const shown = "The History page is shown only with history_page: true (default false)."
+	if !strings.Contains(rendered(t, "legend.html", calculated()), shown) {
 		t.Error("want the Issues pages paragraph to list history_page among the page switches")
 	}
 }
@@ -54,5 +54,5 @@ var legendHistoryText = []string{
 	"The lead time of older periods can be a dash",
 	"lost its label long ago",
 	"covers only the dora_days window",
-	"history_page: false",
+	"The History page is shown only with history_page: true (default false) in forsgren.config.yml",
 }
