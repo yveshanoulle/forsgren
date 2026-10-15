@@ -386,9 +386,15 @@ The POST gates, on the generated site:
   `[text](path)` or a reference definition `[label]: path`, outside a fenced
   block, an HTML comment and an inline code span) resolves, from the file's
   own directory, to a tracked file or a directory that holds one, spelled
-  with the right case. A link with a scheme, a `//host` link and a pure
-  `#anchor` are not checked, and the `#anchor` of a file link is cut before
-  resolving. Red on a root with no Markdown file or no relative link. The
+  with the right case. A link with a scheme and a `//host` link are not
+  checked. An `#anchor` (on a Markdown file, or a pure `#anchor` for the file
+  itself) must name a heading of that file by GitHub's rules: ATX `#`
+  headings outside fences and comments, lower case, spaces to hyphens,
+  punctuation dropped, a repeated heading numbered `-1`, `-2`
+  (`Scripts/markdown_heading_slugs.awk`). A setext heading and an HTML `id`
+  are not seen, so a link to one is red; an anchor into a directory or a
+  non-Markdown file, one with a non-ASCII byte or a `%` escape, and one that
+  starts with `user-content-` are not checked. Red on a root with no Markdown file or no relative link. The
   failure line names `file:line` and the link as written; every finding is
   reported in one run.
 - **exit-trap completion** (`Scripts/check_exit_trap_completion.sh`, forsgren's

@@ -14,14 +14,20 @@
 #   6. a wrong-case spelling                                     -> red
 #   7. ../ out of the repository                                 -> red
 #   8. a broken link inside a fence, a comment, a code span      -> green
-#   9. http(s), mailto and a pure #anchor to nothing             -> green
+#   9. http(s), mailto and //host to nothing                     -> green
 #  10. every finding in one run                                  -> two lines
 #  11. no Markdown file, or no relative link                     -> red (zero)
 #  12. a missing root, a root that is no git work tree           -> exit 2
 #  13. this repository                                           -> green
+#  14. good anchors: plain, repeated -1, code span, dash, underscore, linked
+#      text, closing #s, a directory, a line anchor, a % escape, a pure
+#      #anchor; a heading only in a fence                        -> one red, named
+#  15. a broken anchor, a broken pure #anchor, a setext heading, a heading in
+#      a comment                                                 -> red, file:line + anchor
 # Mutation proofs: the link reader replaced by one that strips nothing turns
 # the fence, comment and code-span fixture red; the not-relative pattern
-# replaced by one that never matches turns the http fixture red.
+# replaced by one that never matches turns the http fixture red; a heading
+# reader that numbers no repeat turns the -1 anchor red.
 
 set -euo pipefail
 
@@ -55,7 +61,9 @@ ROOT="$TMP/good"
 put "$ROOT" README.md "$GOOD_README"
 put "$ROOT" docs/a.md '# A
 
-[up](../README.md) [sibling](b.md) [self](#top) [root](/README.md)'
+[up](../README.md) [sibling](b.md) [self](#top) [root](/README.md)
+
+## Top'
 put "$ROOT" docs/b.md '# B'
 track "$ROOT"
 capture "$GATE" "$ROOT"
@@ -135,11 +143,11 @@ want_green_ok "8. a broken link in a fence, a comment or a code span is not a li
 ROOT="$TMP/external"
 put "$ROOT" README.md '# T [ok](README.md)
 
-[web](https://example.org/x.md) [plain](http://example.org/y.md) [mail](mailto:a@b.c) [anchor](#nowhere) [proto](//example.org/z.md) [ref]'
+[web](https://example.org/x.md) [plain](http://example.org/y.md) [mail](mailto:a@b.c) [proto](//example.org/z.md) [ref]'
 put "$ROOT" docs/a.md '# A [ok](../README.md)'
 track "$ROOT"
 capture "$GATE" "$ROOT"
-want_green_ok "9. http(s), mailto, //host and a pure #anchor are not checked"
+want_green_ok "9. http(s), mailto and //host are not checked"
 
 ROOT="$TMP/many"
 put "$ROOT" README.md '# T [ok](README.md)
@@ -175,12 +183,74 @@ want_exit "12b. exits 2 on a root that is no git work tree" 2 "is not a git work
 capture "$GATE"
 want_green_ok "13. this repository's Markdown links all resolve"
 
+# Anchors (forsgren#147, step 3).
+ROOT="$TMP/anchors"
+put "$ROOT" README.md '# Title
+
+[a](docs/a.md#plain-heading) [b](docs/a.md#same-twice) [c](docs/a.md#same-twice-1)
+[d](docs/a.md#with-code-and--dash-a_b) [e](docs/a.md#linked-text) [f](docs/a.md#closed)
+[g](docs) [h](docs#nothing-here) [i](LICENSE#L10) [j](docs/a.md#caf%C3%A9) [k](#title)
+[l](docs/a.md#in-fence-only-x)'
+put "$ROOT" LICENSE 'text'
+mkdir -p "$ROOT/docs"
+cat > "$ROOT/docs/a.md" <<'MD'
+# Plain Heading
+
+## Same twice
+## Same twice
+
+### With `code` and — dash? A_b
+
+## [Linked](x.md) text
+## Closed ##
+
+```
+# In fence only x
+```
+MD
+track "$ROOT"
+capture "$GATE" "$ROOT"
+want_red "14a. an anchor in a fence is not a heading" "README.md:6 links docs/a.md#in-fence-only-x, but docs/a.md has no heading with the anchor #in-fence-only-x"
+want_said "14b. the broken anchor is named with the file that lacks it" "has no heading with the anchor #in-fence-only-x (ATX headings only"
+if grep -q "README.md:[1-5] " <<<"$OUT"; then
+  fail "14c. a plain, repeated (-1), code, dash, underscore, linked, closed, directory, line, non-ASCII and self anchor is wrongly red. Output: $OUT"
+else
+  echo "  ok: 14c. plain, repeated (-1), code, dash, underscore, linked, closed, directory, line, non-ASCII and self anchors are not findings"
+fi
+
+ROOT="$TMP/badanchor"
+put "$ROOT" README.md '# Title
+
+[x](docs/a.md#missing) and [self](#nope)'
+put "$ROOT" docs/a.md '# A
+
+[up](../README.md#title) [setext](#underlined)
+
+Underlined
+==========
+
+<!--
+# In comment
+-->
+[c](../README.md#in-comment)'
+track "$ROOT"
+capture "$GATE" "$ROOT"
+want_said "15a. a broken anchor to another file, file:line and the anchor" "README.md:3 links docs/a.md#missing, but docs/a.md has no heading with the anchor #missing"
+want_said "15b. a broken pure #anchor in the same file" "README.md:3 links #nope, but README.md has no heading with the anchor #nope"
+want_said "15c. a setext heading is not seen, and the message says ATX only" "docs/a.md:3 links #underlined"
+want_said "15d. a heading in an HTML comment is not a heading" "docs/a.md:11 links ../README.md#in-comment"
+if grep -q "docs/a.md:3 links ../README.md#title" <<<"$OUT"; then
+  fail "15e. a good anchor into the other file is wrongly red. Output: $OUT"
+else
+  echo "  ok: 15e. a good anchor beside broken ones is not a finding"
+fi
+
 # Mutation proofs. The mutant sits in its own Scripts/, and gets the real
 # reader beside it unless the mutation replaces the reader.
 mutate() {
   # mutate <name> <sed-expression> <fixture-root> <case> <expected>
   mkdir -p "$TMP/mutant-$1/Scripts"
-  cp Scripts/extract_markdown_links.awk "$TMP/mutant-$1/Scripts/"
+  cp Scripts/extract_markdown_links.awk Scripts/markdown_heading_slugs.awk "$TMP/mutant-$1/Scripts/"
   selftest_mutant "$GATE" "$TMP/mutant-$1/Scripts/check_markdown_links.sh" "$2" || return 0
   capture "$TMP/mutant-$1/Scripts/check_markdown_links.sh" "$3"
   want_red "mutation proof: $4" "$5"
@@ -196,5 +266,13 @@ mutate notrel "s|^NOT_RELATIVE=.*|NOT_RELATIVE='NEVER-MATCHES-ANY-TARGET'|" "$TM
   "a not-relative pattern that never matches turns the http fixture red, so it is green because of the pattern" \
   "links https://example.org/x.md"
 
+# A heading reader that numbers nothing: a repeated heading has one anchor.
+cat > "$TMP/unnumbered.awk" <<'AWK'
+/^#/ { sub(/^#+ */, ""); s = tolower($0); gsub(/[ \t]/, "-", s); gsub(/[^a-z0-9_-]/, "", s); print s }
+AWK
+mutate slugs "s|^HEADING_SLUGS=.*|HEADING_SLUGS='$TMP/unnumbered.awk'|" "$TMP/anchors" \
+  "a heading reader that does not number repeats turns the -1 anchor red, so it is green because of the numbering" \
+  "README.md:3 links docs/a.md#same-twice-1"
+
 selftest_end "the markdown-links gate does not hold the relative links of the Markdown files" \
-  "markdown-links gate is red on a broken inline link, reference definition, untracked file, wrong case and a ../ out of the repository, with file:line named, reports every finding in one run, is red on a scan over nothing, exits 2 on a missing root or no git work tree, is green on good links and ignores fences, comments, code spans, external links and pure anchors, and its reader and not-relative pattern are what decide its cases"
+  "markdown-links gate is red on a broken inline link, reference definition, untracked file, wrong case and a ../ out of the repository, with file:line named, reports every finding in one run, is red on a scan over nothing, exits 2 on a missing root or no git work tree, checks every #anchor against the headings of its file (ATX, fences and comments skipped, repeats numbered), is green on good links and ignores fences, comments, code spans, external links and pure anchors, and its reader and not-relative pattern are what decide its cases"

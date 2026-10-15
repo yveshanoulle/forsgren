@@ -11,12 +11,21 @@
 # reference definition [label]: path, outside a fenced block, an HTML comment
 # and an inline code span (Scripts/extract_markdown_links.awk). Not checked:
 # a link with a scheme (https:, mailto:, ...), a protocol-relative //host
-# link, and a pure #anchor. The path is resolved against the directory of the
+# link. The path is resolved against the directory of the
 # file that holds the link (a leading / against the repository root), with
 # ./ and ../ folded, and must name a TRACKED file or a directory that holds a
 # tracked file (git ls-files), spelled with the right case. A ../ that leaves
-# the repository is red. The #anchor and a ?query are cut before resolving;
-# whether the anchor names a heading is not checked here.
+# the repository is red. A ?query is cut before resolving.
+#
+# Anchors: a link to a Markdown file with a #anchor, and a pure #anchor (the
+# file itself), must name a heading of that file by GitHub's rules
+# (Scripts/markdown_heading_slugs.awk): ATX "#" headings only, outside
+# fences and comments, lower case, spaces to hyphens, punctuation dropped,
+# a repeated heading numbered -1, -2. NOT supported, so a link to one is
+# red: a setext heading (text over === or ---) and an HTML id or name. Not
+# checked: an anchor into a directory or a file that is not Markdown (a line
+# anchor like #L10), an anchor with a non-ASCII byte (an accented letter, an
+# emoji), an anchor that starts with user-content-.
 #
 # Why a gate: Scripts/check_repo_links.sh only walks the generated html and
 # css, and check_script_references.sh only Scripts paths. A doc moved or
@@ -29,7 +38,7 @@
 # Usage: Scripts/check_markdown_links.sh [root-dir]   (default: the repo root)
 # Exit: 0 clean, 1 a finding or a scan over nothing, 2 root missing or not a
 # git work tree.
-# Fixture: Scripts/test_check_markdown_links.sh. The two settings below start
+# Fixture: Scripts/test_check_markdown_links.sh. The three settings below start
 # at column 0: its mutation proofs replace each.
 
 set -uo pipefail
@@ -41,8 +50,10 @@ ROOT="${1:-$REPO}"
 
 # The link reader (Scripts/extract_markdown_links.awk).
 LINK_READER="$REPO/Scripts/extract_markdown_links.awk"
-# A target that is not a relative path: a scheme, //host, or a pure #anchor.
-NOT_RELATIVE='^([A-Za-z][A-Za-z0-9+.-]*:|//|#)'
+# The heading reader (Scripts/markdown_heading_slugs.awk), run with LC_ALL=C.
+HEADING_SLUGS="$REPO/Scripts/markdown_heading_slugs.awk"
+# A target that is not a relative path: a scheme or //host.
+NOT_RELATIVE='^([A-Za-z][A-Za-z0-9+.-]*:|//)'
 
 if [ ! -d "$ROOT" ]; then
   echo "❌ FAIL: root dir not found: ${ROOT}"
@@ -87,6 +98,18 @@ normalize() {
   (IFS=/; echo "${stack[*]-}")
 }
 
+# check_anchor <tracked path> <anchor>: succeeds when there is nothing to
+# check (no anchor, not a Markdown file on disk, an anchor the reader cannot
+# judge) or the file has a heading with that anchor.
+check_anchor() {
+  [ -n "$2" ] || return 0
+  case "$1" in *.md) ;; *) return 0 ;; esac
+  [ -f "$ROOT/$1" ] || return 0
+  case "$2" in user-content-* | *%*) return 0 ;; esac
+  if printf '%s' "$2" | LC_ALL=C grep -q '[^ -~]'; then return 0; fi
+  LC_ALL=C awk -f "$HEADING_SLUGS" "$ROOT/$1" | grep -qxF -- "$2"
+}
+
 findings=0
 links=0
 files=0
@@ -104,12 +127,21 @@ while IFS= read -r md; do
     links=$((links + 1))
     path="${target%%#*}"
     path="${path%%\?*}"
-    if [ -z "$path" ]; then continue; fi
-    resolved="$(normalize "$dir" "$path")"
-    if [ -z "$resolved" ] || ! grep -qxF -- "$resolved" "$TRACKED"; then
-      echo "❌ FAIL: ${md}:${line} links ${target}, which is not a tracked file or directory"
-      findings=$((findings + 1))
+    anchor=""
+    case "$target" in *"#"*) anchor="${target#*#}" ;; esac
+    if [ -z "$path" ]; then
+      resolved="$md"
+    else
+      resolved="$(normalize "$dir" "$path")"
+      if [ -z "$resolved" ] || ! grep -qxF -- "$resolved" "$TRACKED"; then
+        echo "❌ FAIL: ${md}:${line} links ${target}, which is not a tracked file or directory"
+        findings=$((findings + 1))
+        continue
+      fi
     fi
+    if check_anchor "$resolved" "$anchor"; then continue; fi
+    echo "❌ FAIL: ${md}:${line} links ${target}, but ${resolved} has no heading with the anchor #${anchor} (ATX headings only: a setext heading or an HTML id is not seen)"
+    findings=$((findings + 1))
   done < <(awk -f "$LINK_READER" "$ROOT/$md")
 done < <(git -C "$ROOT" ls-files '*.md')
 
@@ -132,5 +164,5 @@ if [ "$findings" -ne 0 ]; then
 fi
 
 COMPLETED=1
-echo "OK: markdown links: ${links} relative link(s) in ${files} tracked Markdown file(s) all resolve to a tracked file or directory"
+echo "OK: markdown links: ${links} relative link(s) in ${files} tracked Markdown file(s) all resolve to a tracked file or directory, and every #anchor to a heading"
 exit 0
