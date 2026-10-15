@@ -406,10 +406,19 @@ type page struct {
 // template set.
 var pages = parsePages()
 
+// betaMarker is what marks the History page while it is in beta (forsgren#198):
+// its title, its heading and the legend's section heading. Leaving beta is
+// setting it to the empty string.
+const betaMarker = " (beta)"
+
+// historyBeta is betaMarker, for the templates that name the History page.
+func historyBeta() string { return betaMarker }
+
 // templateFuncs are the functions the templates call: "trend" and "bugtrend", the arrow of
 // the issues tables (trend.go), and "possible", the settings page's Possible
-// values cell (settings.go).
-var templateFuncs = template.FuncMap{"trend": trendViewOf, "bugtrend": bugTrendViewOf, "possible": possibleOf}
+// values cell (settings.go), and "beta", the beta marker of the History page.
+var templateFuncs = template.FuncMap{"trend": trendViewOf, "bugtrend": bugTrendViewOf, "possible": possibleOf,
+	"beta": historyBeta}
 
 // parsePages parses the layout once and clones it per page. A malformed
 // template fails at start-up through template.Must, never at render time.

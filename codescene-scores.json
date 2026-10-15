@@ -365,7 +365,7 @@
   {
    "path": "internal/page/page.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
@@ -1360,6 +1360,12 @@
   },
   {
    "path": "internal/page/hidden_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-16",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/history_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-16",
    "minScore": 10.0
