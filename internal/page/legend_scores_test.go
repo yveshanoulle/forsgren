@@ -14,3 +14,16 @@ func TestLegendLeadTimeLevelsShowTheirScore(t *testing.T) {
 		"<li>One to six months: 30 days to below 180 days, score 2</li>",
 		"<li>More than six months: 180 days and more, score 0</li>")
 }
+
+// TestLegendFrequencyLevelsShowTheirScore (forsgren#79): each level of
+// deployment frequency in the legend ends with the score the scoring view
+// gives that level, at the default window of 30 days.
+func TestLegendFrequencyLevelsShowTheirScore(t *testing.T) {
+	wantAll(t, "legend.html", rendered(t, "legend.html", viewData()),
+		"in 30 days (more than once an hour over a working day of 8 hours), score 10</li>",
+		"to 240 in 30 days, score 8</li>",
+		"to 29 in 30 days, score 6</li>",
+		"to 4 in 30 days, score 4</li>",
+		"1 and more in 180 days, score 2</li>",
+		"<li>Less than once per six months: none in 180 days, score 0</li>")
+}

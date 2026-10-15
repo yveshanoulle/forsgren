@@ -8,12 +8,12 @@
     <p>The DORA band, then the successful deployments of the last {{.Window}} days, or of the last 180 days when the {{.Window}} days hold none:</p>
     <p>{{if .WorkingHoursSet}}A working day is configured as {{.WorkingDay}} hours.{{else}}A working day is configured as {{.WorkingDay}} hours (the default; working_hours is not set in forsgren.config.yml).{{end}}</p>
     <ul>
-      <li>On demand (multiple deploys per day): {{.OnDemandFrom}} and more in {{.Window}} days (more than once an hour over a working day of {{.WorkingDay}} hours)</li>
-      <li>Between once per hour and once per day: {{.HourlyToDailyFrom}} to {{.HourlyToDailyTo}} in {{.Window}} days</li>
-      <li>Between once per day and once per week: {{.DailyToWeeklyFrom}} to {{.DailyToWeeklyTo}} in {{.Window}} days</li>
-      <li>Between once per week and once per month: {{.WeeklyToMonthlyFrom}} to {{.WeeklyToMonthlyTo}} in {{.Window}} days</li>
-      <li>Between once per month and once every six months: {{if eq .Window 30}}none in 30 days{{else}}fewer than {{.WeeklyToMonthlyFrom}} in {{.Window}} days{{end}}, 1 and more in 180 days</li>
-      <li>Less than once per six months: none in 180 days</li>
+      <li>On demand (multiple deploys per day): {{.OnDemandFrom}} and more in {{.Window}} days (more than once an hour over a working day of {{.WorkingDay}} hours), score {{index .FrequencyScores 0}}</li>
+      <li>Between once per hour and once per day: {{.HourlyToDailyFrom}} to {{.HourlyToDailyTo}} in {{.Window}} days, score {{index .FrequencyScores 1}}</li>
+      <li>Between once per day and once per week: {{.DailyToWeeklyFrom}} to {{.DailyToWeeklyTo}} in {{.Window}} days, score {{index .FrequencyScores 2}}</li>
+      <li>Between once per week and once per month: {{.WeeklyToMonthlyFrom}} to {{.WeeklyToMonthlyTo}} in {{.Window}} days, score {{index .FrequencyScores 3}}</li>
+      <li>Between once per month and once every six months: {{if eq .Window 30}}none in 30 days{{else}}fewer than {{.WeeklyToMonthlyFrom}} in {{.Window}} days{{end}}, 1 and more in 180 days, score {{index .FrequencyScores 4}}</li>
+      <li>Less than once per six months: none in 180 days, score {{index .FrequencyScores 5}}</li>
     </ul>
     <p>The next column, Weekend deployments, is how many of the successful deployments that count were created on a Saturday or a Sunday, UTC, over the same {{if eq .Window 180}}180{{else}}{{.Window}} or 180{{end}} days; it is 0 when there are none. The numbers view shows the last {{.Window}} days.</p>
     <h2>Lead time for changes</h2>

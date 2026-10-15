@@ -6,12 +6,23 @@ package page
 
 import "github.com/yveshanoulle/forsgren/internal/metrics"
 
-// LeadTimeScores are the scores of lead time's six levels, fastest first, as
-// the scoring view gives them.
-func (d Data) LeadTimeScores() []string {
+// bandScores are the scores of the bands from first to last, as the scoring
+// view gives them.
+func bandScores[B ~int](first, last B) []string {
 	var scores []string
-	for b := metrics.LessThanOneHour; b <= metrics.MoreThanSixMonths; b++ {
+	for b := first; b <= last; b++ {
 		scores = append(scores, scoreCell(metrics.BandScore(b)))
 	}
 	return scores
+}
+
+// FrequencyScores are the scores of deployment frequency's six levels,
+// fastest first.
+func (d Data) FrequencyScores() []string {
+	return bandScores(metrics.OnDemand, metrics.LessThanSixMonthly)
+}
+
+// LeadTimeScores are the scores of lead time's six levels, fastest first.
+func (d Data) LeadTimeScores() []string {
+	return bandScores(metrics.LessThanOneHour, metrics.MoreThanSixMonths)
 }
