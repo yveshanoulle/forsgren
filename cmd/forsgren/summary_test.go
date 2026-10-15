@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // summaryOf is the run summary for the version that built the page, the
@@ -214,4 +215,57 @@ func TestAStatusThatCannotBeWrittenIsANoteNotAnError(t *testing.T) {
 	fakeAPI(t, map[string]string{waitingPath: dependabotPulls}, 0)
 	missing := filepath.Join(t.TempDir(), "no", "such", "dir", "status")
 	wantLookup(t, "7\n", "cannot write the status", "waiting-pull-request", "--version", "0.0.10", "--status", missing)
+}
+
+// TestRunSummaryTellsHowLongTheTokenIsValid (forsgren#185, decision #186):
+// the Token line counts whole days from one day left, whole hours under a
+// day, says less than an hour under an hour (or once the date has passed
+// mid-run), and names the unknown when no date can be read. Without
+// --token-expiry there is no line.
+func TestRunSummaryTellsHowLongTheTokenIsValid(t *testing.T) {
+	old := now
+	now = func() time.Time { return time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC) }
+	t.Cleanup(func() { now = old })
+	const unknown = "- Token: days left unknown: GitHub named no expiry date in this run " +
+		"(a token without an expiry date, or collect could not ask: see the failed collect step)\n"
+	const lessThanAnHour = "- Token: valid for less than an hour (until "
+	cases := []struct{ name, file, want string }{
+		{"days", "2026-10-11T12:00:00Z\n", "- Token: valid for 10 more days (until 2026-10-11)\n"},
+		{"days rounded down", "2026-10-03T11:59:59Z\n", "- Token: valid for 1 more day (until 2026-10-03)\n"},
+		{"hours", "2026-10-02T11:59:59Z\n", "- Token: valid for 23 more hours (until 2026-10-02 11:59 UTC)\n"},
+		{"1 hour rounded down", "2026-10-01T13:59:59Z\n", "- Token: valid for 1 more hour (until 2026-10-01 13:59 UTC)\n"},
+		{"less than an hour", "2026-10-01T12:59:59Z\n", lessThanAnHour + "2026-10-01 12:59 UTC)\n"},
+		{"already passed", "2026-10-01T11:00:00Z\n", lessThanAnHour + "2026-10-01 11:00 UTC)\n"},
+		{"not a date", "banana\n", unknown},
+		{"no file", "", unknown},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "token-expiry")
+			if c.file != "" {
+				writeFile(t, path, c.file)
+			}
+			_, stdout, _ := runCommand("run-summary", "--latest", version, "--pr-check", "ok", "--token-expiry", path)
+			if want := summaryOf(version, "up to date") + c.want; stdout != want {
+				t.Errorf("want %q, got %q", want, stdout)
+			}
+		})
+	}
+}
+
+// TestRunSummaryHasNoTokenLineWithoutTheFlag (forsgren#185): a caller that
+// does not pass --token-expiry gets the summary it always had.
+func TestRunSummaryHasNoTokenLineWithoutTheFlag(t *testing.T) {
+	_, stdout, _ := runCommand("run-summary", "--latest", version, "--pr-check", "ok")
+	if want := summaryOf(version, "up to date"); stdout != want {
+		t.Errorf("want %q, got %q", want, stdout)
+	}
+}
+
+// writeFile writes content to path or fails the test.
+func writeFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
 }

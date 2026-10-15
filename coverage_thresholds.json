@@ -48,6 +48,8 @@
     "github.com/yveshanoulle/forsgren/cmd/forsgren/summary.go:markdown": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/summary.go:setup": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/summary.go:update": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/summary.go:token": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/summary.go:more": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/summary.go:pullRequestState": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/waiting.go:waitingFlags": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/waiting.go:lookupStatus": 100.0,

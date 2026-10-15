@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/page"
 )
@@ -32,6 +33,7 @@ type summaryInput struct {
 	check      string
 	needsCheck string
 	repository string
+	tokenFile  string
 }
 
 // runSummary prints the markdown a run appends to its job summary
@@ -59,6 +61,8 @@ func summaryFlags(args []string, stderr io.Writer) (summaryInput, bool) {
 	flags.StringVar(&in.needsCheck, "needs-check", "",
 		"how the setup issue went: ok, no-access, rate-limited or failed (optional)")
 	flags.StringVar(&in.repository, "repository", "", "the installation's owner/name, for the pull request's link")
+	flags.StringVar(&in.tokenFile, "token-expiry", "",
+		"the file collect --token-expiry wrote, for the token's days left (optional)")
 	if err := flags.Parse(args); err != nil {
 		return in, false
 	}
@@ -81,7 +85,46 @@ func (in summaryInput) markdown(stderr io.Writer) string {
 		latest = "unknown"
 	}
 	return "## forsgren\n\n- Built with: forsgren " + version + "\n- Latest release: " + latest +
-		"\n- Update: " + in.update(latest, known) + "\n" + in.setup(stderr)
+		"\n- Update: " + in.update(latest, known) + "\n" +
+		in.token() + in.setup(stderr)
+}
+
+// tokenUnknown is the Token line for a run with no readable expiry date: a
+// token that has none, or a collect that failed before it learned one.
+const tokenUnknown = "- Token: days left unknown: GitHub named no expiry date in this run " +
+	"(a token without an expiry date, or collect could not ask: see the failed collect step)\n"
+
+// token says how long FORSGREN_TOKEN is still valid, from the date collect
+// wrote to --token-expiry (forsgren#185, decision #186): whole days from one
+// day left, whole hours under a day, "less than an hour" under an hour or
+// once the date has passed mid-run. Nothing without --token-expiry; an
+// unreadable file is the unknown line.
+func (in summaryInput) token() string {
+	if in.tokenFile == "" {
+		return ""
+	}
+	expiry, known := readTokenExpiry(in.tokenFile)
+	if !known {
+		return tokenUnknown
+	}
+	until := expiry.UTC().Format("2006-01-02 15:04 UTC")
+	left := expiry.Sub(now())
+	switch {
+	case left >= 24*time.Hour:
+		return "- Token: valid for " + more(int(left/(24*time.Hour)), "day") + " (until " +
+			expiry.UTC().Format(time.DateOnly) + ")\n"
+	case left >= time.Hour:
+		return "- Token: valid for " + more(int(left/time.Hour), "hour") + " (until " + until + ")\n"
+	}
+	return "- Token: valid for less than an hour (until " + until + ")\n"
+}
+
+// more is "N more unit", the unit in the plural unless N is 1.
+func more(n int, unit string) string {
+	if n != 1 {
+		unit += "s"
+	}
+	return strconv.Itoa(n) + " more " + unit
 }
 
 // setupConfig is the config run-summary reads the config keys of, where the
