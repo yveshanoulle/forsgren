@@ -78,13 +78,19 @@ func summaryFlags(args []string, stderr io.Writer) (summaryInput, bool) {
 	return in, false
 }
 
-// markdown is the summary.
+// runLayout is the moment the summary names, to the minute in UTC
+// (forsgren#194).
+const runLayout = "2006-01-02 15:04 UTC"
+
+// markdown is the summary: the moment it is written, so a summary pasted
+// somewhere says when it is from (forsgren#194), then the versions and the rest.
 func (in summaryInput) markdown(stderr io.Writer) string {
 	latest, known := page.ReleaseVersion(in.latest)
 	if !known {
 		latest = "unknown"
 	}
-	return "## forsgren\n\n- Built with: forsgren " + version + "\n- Latest release: " + latest +
+	return "## forsgren\n\n- Run: " + now().UTC().Format(runLayout) + "\n- Built with: forsgren " + version +
+		"\n- Latest release: " + latest +
 		"\n- Update: " + in.update(latest, known) + "\n" +
 		in.token() + in.setup(stderr)
 }

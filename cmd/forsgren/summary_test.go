@@ -8,11 +8,26 @@ import (
 	"time"
 )
 
-// summaryOf is the run summary for the version that built the page, the
-// latest release as the summary shows it, and the update line.
+// summaryOf is the run summary for the moment of the run, as the clock of the
+// test gives it (forsgren#194), the version that built the page, the latest
+// release as the summary shows it, and the update line. A test that compares a
+// whole summary pins the clock first.
 func summaryOf(latest, update string) string {
-	return "## forsgren\n\n- Built with: forsgren " + version + "\n- Latest release: " + latest + "\n- Update: " +
-		update + "\n"
+	return "## forsgren\n\n- Run: " + now().UTC().Format("2006-01-02 15:04 UTC") + "\n- Built with: forsgren " +
+		version + "\n- Latest release: " + latest + "\n- Update: " + update + "\n"
+}
+
+// TestRunSummaryNamesTheRunMomentInUTC (forsgren#194): the first line of the
+// summary, before the version that built the page, is the moment the summary is
+// written, to the minute, in UTC whatever zone the clock is in, so a summary
+// pasted somewhere says when it is from.
+func TestRunSummaryNamesTheRunMomentInUTC(t *testing.T) {
+	pinClock(t, time.Date(2026, time.October, 4, 1, 30, 59, 0, time.FixedZone("CEST", 2*60*60)))
+	_, stdout, _ := runCommand("run-summary", "--latest", version, "--pr-check", "ok")
+	want := "## forsgren\n\n- Run: 2026-10-03 23:30 UTC\n- Built with: forsgren " + version + "\n"
+	if !strings.HasPrefix(stdout, want) {
+		t.Errorf("want the summary to start with %q, got %q", want, stdout)
+	}
 }
 
 // TestRunSummaryTellsWhereTheUpdateStands (forsgren#40, step 6): the
@@ -20,6 +35,7 @@ func summaryOf(latest, update string) string {
 // the page, the latest release, and one of the six states of the update.
 // The run page is private to the repository, so the pull request is linked.
 func TestRunSummaryTellsWhereTheUpdateStands(t *testing.T) {
+	pinNow(t)
 	const skipped = "pull-request check skipped: grant pull-requests: read in your caller to enable it"
 	const rateLimited = "the pull-request check hit GitHub's rate limit, the next run tries again"
 	cases := []struct {
@@ -256,6 +272,7 @@ func TestRunSummaryTellsHowLongTheTokenIsValid(t *testing.T) {
 // TestRunSummaryHasNoTokenLineWithoutTheFlag (forsgren#185): a caller that
 // does not pass --token-expiry gets the summary it always had.
 func TestRunSummaryHasNoTokenLineWithoutTheFlag(t *testing.T) {
+	pinNow(t)
 	_, stdout, _ := runCommand("run-summary", "--latest", version, "--pr-check", "ok")
 	if want := summaryOf(version, "up to date"); stdout != want {
 		t.Errorf("want %q, got %q", want, stdout)
