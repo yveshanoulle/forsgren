@@ -527,6 +527,31 @@ GATE
 fi
 
 # ---------------------------------------------------------------------------
+# Case 8: forsgren#54 S6 — a commit message that starts with a dash or a
+# slash looks like a flag, and FBP.sh used to print the unrecognised flag back
+# BEFORE the private-names check could see it. Wanted: no commit, a non-zero
+# exit, a ❌ line, and no occurrence of the name in the output in any case.
+# ---------------------------------------------------------------------------
+for dashed in "-Pre-ACME-Secret-Repo-v2 notes" "/Pre-ACME-Secret-Repo-v2 notes"; do
+  if FORSGREN_PRIVATE_NAMES="$PRIVATE_NAME" run_fbp "$dashed"; then
+    if [ -n "$COMMIT_SHA" ]; then
+      fail "8.a. FBP.sh committed a message that starts like a flag"
+    fi
+    if [ "$(fbp_sandbox_rc)" -eq 0 ]; then
+      fail "8.a. FBP.sh exited 0 on an argument that starts like a flag"
+    fi
+    if ! grep -q '❌' <<< "$OUT"; then
+      fail "8.a. the output has no ❌ line for an unrecognised flag. Output: ${OUT}"
+    fi
+    if grep -Fqi "$PRIVATE_NAME" <<< "$OUT"; then
+      fail "8.a. FBP.sh printed the dash-led argument back, and it holds a private name. Output: ${OUT}"
+    else
+      echo "  ok: 8.a. an argument that starts like a flag is not printed back"
+    fi
+  fi
+done
+
+# ---------------------------------------------------------------------------
 # Self-proofs, issue source-repo#20 step 3 (items 1 to 3 of the #14 review). Each one
 # runs this fixture, a copy of it, or a small driver, from inside ONE
 # directory made here with the real mktemp and registered with the lib, so
@@ -556,9 +581,10 @@ else
   # before its subshell (issue source-repo#20 step 2), and even a lib that did not would
   # write its stubs into that empty directory, never into this repo.
   #
-  # Wanted: the run fails; exactly 8 FAIL lines carry the reason, one for
+  # Wanted: the run fails; exactly 10 FAIL lines carry the reason, one for
   # each run_fbp call (cases 1 and 2, and case 4's three runs, #52 and forsgren#1 step
-  # 12.2d, case 5's two runs, road to public step 4, and case 6's one run, all of which skip
+  # 12.2d, case 5's two runs, road to public step 4, case 6's one run and case 8's
+  # two runs, forsgren#54, all of which skip
   # their checks on it); every other FAIL line names mktemp
   # itself (case 3's fake repo and these proofs cannot get a directory
   # either), so no downstream assertion fired. The lib's own stderr line is
@@ -585,8 +611,8 @@ else
       ;;
   esac
 
-  if [ "$callers_reasons" != "8" ]; then
-    fail "callers check the run: with no sandbox, ${callers_reasons:-0} FAIL line(s) carry 'could not create the FBP sandbox', want 8 — one per run_fbp call (cases 1 and 2, case 4's three runs, case 5's two runs, case 6's run), so case 2's absence check cannot pass vacuously on empty output. Output: ${callers_out}"
+  if [ "$callers_reasons" != "10" ]; then
+    fail "callers check the run: with no sandbox, ${callers_reasons:-0} FAIL line(s) carry 'could not create the FBP sandbox', want 10 — one per run_fbp call (cases 1 and 2, case 4's three runs, case 5's two runs, case 6's run, case 8's two runs), so case 2's absence check cannot pass vacuously on empty output. Output: ${callers_out}"
   fi
 
   if [ -n "$callers_downstream" ]; then

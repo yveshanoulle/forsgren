@@ -40,7 +40,9 @@ while [ "$#" -gt 0 ]; do
       shift
       ;;
     -*|/*)
-      echo "ERROR: unrecognised flag '$1'"
+      # The argument is NOT printed back (forsgren#54): it may be a commit
+      # message, and this runs before the private-names check.
+      echo "❌ ERROR: unrecognised option; usage: $0 \"<commit message>\" or $0 --no-commit"
       echo "Did you mean --no-commit?"
       echo "(Commit messages cannot start with '-' or '/' — quote your message if needed.)"
       exit 1
@@ -84,7 +86,7 @@ fi
 # repo because two FBP runs back to back were otherwise
 # indistinguishable from their first line (Yves, 2026-08-31). Mirrors
 # sfl.sh's banner; editing a Scripts/*.sh does not require a bump.
-FBP_VERSION=6
+FBP_VERSION=7
 
 STARTED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
 START_EPOCH="$(date +%s)"
