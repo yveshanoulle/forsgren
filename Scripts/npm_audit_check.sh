@@ -39,9 +39,9 @@
 # explicit yes recorded on a GitHub issue, like every suppression
 # (docs/quality-gates.md).
 #
-# jq is not in Scripts/required_tools.txt: it ships with macOS (/usr/bin/jq
-# since macOS 15) and on GitHub's macOS images, like awk. A missing jq is a
-# tool error, named.
+# jq is in Scripts/required_tools.txt since forsgren#2 (the lockfile sync gate
+# needs it too); it also ships with macOS (/usr/bin/jq since macOS 15) and on
+# GitHub's macOS images. A missing jq is a tool error, named.
 #
 # NPM_AUDIT_TODAY (YYYY-MM-DD, default `date -u +%F`) and
 # NPM_AUDIT_EXCEPTIONS (default: npm_audit_exceptions.txt next to this

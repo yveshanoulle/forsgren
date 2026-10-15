@@ -269,6 +269,32 @@ Seven PRE gates read the repository's own scripts and files:
   condition the ruling rests on, so a script subfolder means revisiting
   the ruling first. Data files in a subfolder are not scripts and stay
   allowed.
+- **npm lockfile sync** (`Scripts/check_npm_lock_sync.sh`, forsgren's own,
+  forsgren#2): `package.json` and `package-lock.json` must agree. The
+  dependencies, devDependencies, optionalDependencies and peerDependencies of
+  `package.json` are compared, by name and exact version, with the same four
+  of the lockfile's root entry (`packages[""]`), offline, with jq. Red with
+  one line per difference (a version that differs, a dependency the lockfile
+  lacks, one only the lockfile has) and the fix, `npm install
+  --package-lock-only`. CI finds the same mismatch at `npm ci`; this says it
+  in PRE, before anything runs on a tree that does not match its manifest.
+  Its self-test (`Scripts/test_check_npm_lock_sync.sh`) runs first.
+- **npm install sync** (`Scripts/npm_sync_install.sh`, forsgren#2): not a
+  gate but sfl's install step, with a row for its self-test
+  (`Scripts/test_npm_sync_install.sh`). It runs `npm ci` when `node_modules`
+  is missing or was installed from another lockfile or Node major, judged by
+  a stamp, `node_modules/.package-lock.sha256`, holding the lockfile's sha256
+  and `node<major>`. The stamp is written only after a successful `npm ci`.
+- **Node pin** (`Scripts/check_node_pin.sh`, forsgren's own, forsgren#2,
+  decision #190): the `node` on `PATH` must be the major pinned in `.nvmrc`
+  (one line, a whole major, read by `Scripts/node_pin.sh`). Red with the
+  running `node --version`, the pinned major and the fix (`brew install
+  node@26`, or `brew upgrade node` when that major is Homebrew's current one),
+  and red when node is missing or `.nvmrc` is malformed. It cannot repair
+  anything: Node does not download itself the way Go does, so installing is
+  the maintainer's. `sfl.sh` runs it right after the tool install. Two
+  self-tests (`Scripts/test_node_pin.sh`, `Scripts/test_check_node_pin.sh`)
+  run first.
 - **checkout pins** (`Scripts/test_workflow_checkout_pins.sh`, the estate's
   gate in coachretreat-website's copy): every `uses:` in a
   `.github/workflows/*.yml` file ends in a full 40-hex commit SHA, never a
@@ -283,6 +309,16 @@ Seven PRE gates read the repository's own scripts and files:
   `uses:` at all. Its proof (`Scripts/test_workflow_checkout_pins_mutations.sh`,
   row `mutation: checkout pins`) runs first and shows each kind of bad ref
   rejected for its own reason.
+- **workflow node pin** (`Scripts/test_workflow_node_pin.sh`, forsgren's own,
+  forsgren#2): a workflow that runs `npm`, `npx` or `node` in a `run:` line
+  must have an `actions/setup-node` step pinned by a full commit SHA with a
+  `# vX.Y.Z` comment, setting `node-version-file: .nvmrc`, and placed before
+  the first step that runs `Scripts/install_tools.sh` or `npm ci`. Red with
+  the workflow's path and the broken part otherwise. This is CI's half of the
+  Node pin: the same file, `.nvmrc`, that the **Node pin** gate enforces
+  locally. Its fixtures are synthetic workflows (one per broken shape) plus
+  the real ones, and a mutation proof shows the SHA check is what refuses a
+  tag.
 
 actionlint, zizmor, shellcheck and yamllint come from Homebrew, through
 `Scripts/required_tools.txt` (see [The tools](development.md)). As with the data

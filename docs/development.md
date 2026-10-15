@@ -62,8 +62,9 @@ before it is ever published.
 
 **`./sfl.sh pre|post`** runs one phase of the gates. Before PRE it runs
 `git pull --ff-only` and stops (exit 3) when that cannot fast-forward, then
-installs the tools (see [The tools](#the-tools)), runs `npm ci` when the
-npm linters are missing, and exports the Go pin. It runs every gate of the
+installs the tools (see [The tools](#the-tools)), checks the Node pin, runs
+`npm ci` when `node_modules` is missing or stale (see [The tools](#the-tools)),
+and exports the Go pin. It runs every gate of the
 phase even after a failure, prints a step table and an `Errors:` block with
 each failed gate's reason, and exits 0 green, 1 red, 2 on a secret-class
 red.
@@ -122,21 +123,46 @@ then run `./FBP.sh` and commit `go.mod` and `go.sum` together (the go mod
 tidy gate is red when the `go mod tidy` is forgotten). A new version can
 bring new findings; they are fixed in the code like any other.
 
-**The npm linters are pinned in `package.json`.** Node itself (and with it
-`npm`) is a Homebrew tool from `Scripts/required_tools.txt`, so like Go it
-follows whatever the formula publishes. The npm tools the gates use,
+**Node is pinned to a major in `.nvmrc`.** The file holds one line, a whole
+major (currently `26`), and is the only place the pin is written.
+`Scripts/check_node_pin.sh` runs in `sfl.sh` right after the tool install (and
+as the **Node pin** gate) and is red when the `node` on `PATH` is another
+major, naming the running version and the fix. Node cannot download its own
+version the way Go does, and Homebrew publishes only `node` (the newest major)
+and `node@NN` per major, never a patch you pick, so the pin is the major and
+installing it is yours. When the check is red, run what it prints:
+`brew install node@26` (a `node@NN` formula is keg-only: put
+`/opt/homebrew/opt/node@26/bin` first on `PATH`), or `brew upgrade node` when
+26 is Homebrew's current major. **To move to a new Node major,** edit
+`.nvmrc` and nothing else, install that major, then run `./FBP.sh`; the stamp
+below reinstalls `node_modules` for it. CI reads the same file through
+`actions/setup-node` (`node-version-file: .nvmrc`), so the hosted runner uses
+the pinned major whatever Homebrew has that day (the **workflow node pin**
+gate keeps that step in place).
+
+**The npm linters are pinned in `package.json`.** Node (and with it `npm`) is
+a Homebrew tool from `Scripts/required_tools.txt` that the pin above holds to
+one major. The npm tools the gates use,
 htmlhint, stylelint and stylelint-config-standard, and jscpd for the html
 duplication ratchet, are not: they are `devDependencies` in `package.json`
 at an exact version (no `^` or `~`), and `package-lock.json` pins every
-package they pull in. Both files are committed. `./sfl.sh` runs `npm ci`
-when `node_modules/.bin/htmlhint` or `node_modules/.bin/jscpd` is missing:
-`npm ci` installs exactly what the lockfile says into `node_modules/`
-(gitignored, never committed) and fails when `package.json` and the
-lockfile disagree.
+package they pull in. Both files are committed. `./sfl.sh` runs
+`Scripts/npm_sync_install.sh`, which runs `npm ci` when `node_modules` is
+missing or was installed from another `package-lock.json` or Node major than
+today's: a stamp inside it, `node_modules/.package-lock.sha256`, holds the
+lockfile's sha256 and `node<major>`, and is written only after a successful
+`npm ci`. So a lockfile bump (a pull, an `npm audit fix`) is reinstalled by
+the next run, and a `node_modules` from before the stamp existed is
+reinstalled once. `npm ci` installs exactly what the lockfile says into
+`node_modules/` (gitignored, never committed) and fails when `package.json`
+and the lockfile disagree.
 Never use `npm install` in a gate or a workflow, and never install the linters
 globally or run them through `npx --yes`.
 
-Two gates keep it that way: **npm manifest policy**
+Three gates keep it that way: **npm lockfile sync**
+(`Scripts/check_npm_lock_sync.sh`) is red when `package.json` and
+`package-lock.json` disagree, naming each difference and the fix, `npm install
+--package-lock-only`, without the network; **npm manifest policy**
 (`Scripts/check_guardrail_packages.sh`) is red on a version range in
 `package.json`, on a missing or gitignored `package.json` or
 `package-lock.json`, and on a tracked `node_modules/`; **npm audit**

@@ -208,6 +208,11 @@ required-pages manifest|Scripts/validate_required_pages.sh|post|
 mutation: checkout pins|Scripts/test_workflow_checkout_pins_mutations.sh|pre|
 checkout pins|Scripts/test_workflow_checkout_pins.sh|pre|
 #
+# The Node pin in CI (forsgren#2, decision #190): a workflow that runs npm or
+# node sets Node up from .nvmrc with a sha-pinned actions/setup-node, before its
+# installs. Beside the checkout pins, its neighbour in kind.
+workflow node pin|Scripts/test_workflow_node_pin.sh|pre|
+#
 # HTML duplication, a RATCHET (forsgren#1, ladder step 11), at its canon
 # position after the required-pages rows (forsgren has none of the release
 # and workflow-pin rows between them). Another estate repository runs both rows in

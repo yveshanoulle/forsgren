@@ -13,7 +13,8 @@ with nothing fixed: `Scripts/run_ci_phase.sh pre`, then
 post`. Both read `Scripts/gate_report_order.txt` with the same row rules, so
 every gate runs in both, in the same order, under the same label. Before the
 gates, CI checks out the commit, puts Homebrew's directories first on `PATH`
-and exports `GOTOOLCHAIN` from `go.mod` (as `sfl.sh` does), runs
+and exports `GOTOOLCHAIN` from `go.mod` (as `sfl.sh` does), sets up Node from
+`.nvmrc` with `actions/setup-node` (the Node pin `sfl.sh` checks), runs
 `Scripts/install_tools.sh` (as `sfl.sh` does) and `npm ci`. The runner is a
 fresh machine on every run with none of the Homebrew tools the gates need,
 so the installer puts them there; installing and upgrading costs nothing
@@ -73,7 +74,7 @@ A POST gate reads `.build/site`, so run `./Scripts/build_site.sh` first.
 (`runs-on: macos-latest`), a fresh virtual machine per run, thrown away
 after it (Yves's ruling on forsgren#1, road to public: the runner swap). It
 has Homebrew and a Go to start from; everything else comes from
-`Scripts/install_tools.sh`, `npm ci` and the `go.mod` pins, as locally.
+`Scripts/install_tools.sh`, `npm ci`, the `go.mod` pins and the `.nvmrc` Node pin, as locally.
 
 **On pull requests, safely.** Quality triggers on `pull_request` into
 `main`, so a contributor's pull request shows the same gate results as a

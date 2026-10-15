@@ -85,6 +85,21 @@ jobs:
           toolchain="$(./Scripts/go_toolchain.sh)"
           echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
 
+      # Exactly the Node major of .nvmrc, the file Scripts/check_node_pin.sh
+      # enforces in sfl and in the Node pin row below (forsgren#2, decision
+      # #190): one source for the pin, here and locally. Without this step the
+      # job runs whatever Node Homebrew has that day, and the Node pin row goes
+      # red the day Homebrew moves to another major. After the step above, so
+      # its PATH entry (GITHUB_PATH prepends) ends up ahead of Homebrew's, and
+      # before the tool install and npm ci. No package-manager cache: the
+      # lockfile alone decides what npm ci installs, and a restored cache is
+      # one more input.
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
       # The Homebrew tools of Scripts/required_tools.txt, with the script sfl
       # runs before its gates. The hosted image has none of gitleaks,
       # yamllint, actionlint or zizmor, so without this every gate needing

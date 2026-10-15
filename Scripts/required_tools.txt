@@ -39,6 +39,13 @@ go
 # linters never go in this list. The formula is `node`; it provides `npm` too.
 node
 
+# JSON, offline: Scripts/check_npm_lock_sync.sh (forsgren#2) compares
+# package.json with the lockfile's root entry, and Scripts/npm_audit_check.sh
+# reads `npm audit --json`. It ships with macOS 15+ and the hosted macOS
+# images; listing it makes a machine without it install it by name instead of
+# failing a gate with `command not found`.
+jq
+
 # Scripts/check_shellcheck.sh (forsgren#1, ladder step 12): every tracked
 # shell script, the *.sh files and the extension-less ones with a bash or sh
 # shebang.

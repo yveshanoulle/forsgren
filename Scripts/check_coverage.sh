@@ -29,7 +29,7 @@
 #   - bash and awk, not Python: python3 is not in Scripts/required_tools.txt,
 #     and listing it there would make every sfl run `brew upgrade` a
 #     machine-wide Python. Without Python there is no JSON parser either
-#     (jq is not listed), so the thresholds file is read line by line in ONE
+#     (jq was not listed when this was ported; it is since forsgren#2), so the thresholds file is read line by line in ONE
 #     fixed shape, the shape another estate repository's files already have:
 #         {
 #           "_comment": "...",

@@ -13,8 +13,8 @@
 # <author account> is <type>:<login> of the GitHub account GitHub linked the
 # commit to (the commits API's .author: type User, Bot, ...), or - when it
 # linked it to none. The workflow writes it from the pull request's commit
-# list (gh api, with gh's built-in jq; jq itself is not a listed tool here,
-# see Scripts/check_coverage.sh). base64 keeps a message with any content on
+# list (gh api, with gh's built-in jq; jq itself became a listed tool in
+# forsgren#2, see Scripts/required_tools.txt). base64 keeps a message with any content on
 # one line, so no message can forge the start of another commit. The
 # format is plain text so that Scripts/test_check_dco.sh runs offline.
 # The second argument is the account that opened the pull request,
