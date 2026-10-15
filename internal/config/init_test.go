@@ -31,7 +31,7 @@ const starterConfig = "version: 1\nview: standard\nauto_update: true\n" +
 	"days_page: false  # the Daily page and its menu entry: false leaves them out, true brings them back\n" +
 	"numbers_scoring_page: false  # the Numbers and scoring page and its menu entry: false leaves them out, " +
 	"true shows them\n" +
-	"history_page: true  # the History page and its menu entry: true shows them, false leaves them out\n" +
+	"history_page: false  # the History page and its menu entry: false leaves them out, true shows them\n" +
 	"projects: []\n"
 
 // isStarterLine says whether a line may stand in the starter: blank, a
@@ -469,11 +469,11 @@ func TestStarterWritesDoraDaysAndLoadsClean(t *testing.T) {
 }
 
 // historyPageLine is the starter's history_page line (forsgren#68).
-const historyPageLine = "history_page: true  # the History page and its menu entry: " +
-	"true shows them, false leaves them out"
+const historyPageLine = "history_page: false  # the History page and its menu entry: " +
+	"false leaves them out, true shows them"
 
-// TestStarterWritesHistoryPage (forsgren#68): the starter writes history_page:
-// true right after numbers_scoring_page, with its comment.
+// TestStarterWritesHistoryPage (forsgren#68, #199): the starter writes
+// history_page: false right after numbers_scoring_page, with its comment.
 func TestStarterWritesHistoryPage(t *testing.T) {
 	lines := starterLines()
 	i := slices.IndexFunc(lines, func(l string) bool { return strings.HasPrefix(l, "numbers_scoring_page:") })
@@ -482,12 +482,13 @@ func TestStarterWritesHistoryPage(t *testing.T) {
 	}
 }
 
-// TestStarterLoadsWithTheHistoryPageOn (forsgren#68): the config the starter
-// loads to reads the page as on and written, with no setting rejected.
-func TestStarterLoadsWithTheHistoryPageOn(t *testing.T) {
+// TestStarterLoadsWithTheHistoryPageWrittenOff (forsgren#68, #199): the config
+// the starter loads to reads the page as off, written, with no setting
+// rejected.
+func TestStarterLoadsWithTheHistoryPageWrittenOff(t *testing.T) {
 	cfg, err := parse([]byte(Starter))
-	if err != nil || !cfg.HistoryPage || !cfg.written["history_page"] || len(cfg.Rejected) != 0 {
-		t.Errorf("want history_page true, written and nothing rejected, got %v, %v, %v, %v", cfg.HistoryPage,
+	if err != nil || cfg.HistoryPage || !cfg.written["history_page"] || len(cfg.Rejected) != 0 {
+		t.Errorf("want history_page false, written and nothing rejected, got %v, %v, %v, %v", cfg.HistoryPage,
 			cfg.written["history_page"], cfg.Rejected, err)
 	}
 }

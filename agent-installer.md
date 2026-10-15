@@ -245,14 +245,15 @@ Then wait for the answers.
 13. **The History page**, whether the site has a page that shows the five
     metrics for every half-year (January to June, July to December) and
     for the last 6 months, a table and a small chart per row, to see
-    whether delivery improved. Default: `history_page: true` (the page is
-    shown). It is `true` or `false`. A page that is off is not generated and
-    has no entry in the menu. Tell the person that the page fills in over
-    several daily runs, because each run reads one more chunk of history,
-    and that the default `history_days` of 365 gives about one half-year
+    whether delivery improved. Default: `history_page: false` (the page is
+    hidden). It is `true` or `false`. A page that is off is not generated and
+    has no entry in the menu. If the person wants the page, they turn it on
+    by setting `history_page: true`. Tell the person that, once it is on,
+    the page fills in over several daily runs, because each run reads one
+    more chunk of history, and that the default `history_days` of 365 gives about one half-year
     besides the last 6 months, while `history_days: 1825` (5 years) gives up
-    to ten half-years; they can raise it now or later. The person can hide the
-    page later by setting `history_page: false`; the legend of the published
+    to ten half-years; they can raise it now or later. The person can turn the
+    page on or off later by setting `history_page`; the legend of the published
     site says so.
 
 ## Step 3. Look at every measured repository (read only)
@@ -417,7 +418,7 @@ dora_days: 30
 issues_page: true
 days_page: false
 numbers_scoring_page: false
-history_page: true
+history_page: false
 projects:
   - name: Acme Shop
     repositories:
@@ -435,7 +436,7 @@ projects:
   (the defaults are `true` and `false`), and `dora_days` with the answer to
   question 11 (the default is `30`) and `numbers_scoring_page` with the
   answer to question 12 (the default is `false`), and `history_page` with the
-  answer to question 13 (the default is `true`).
+  answer to question 13 (the default is `false`).
 - Write every repository's `deployment:` line, also for
   `environment=production`, so the file says what was chosen.
 - Indent with spaces only, as shown.
@@ -705,7 +706,7 @@ Then check what the run did:
 
    For example `;view;numbers;standard, numbers, scoring;standard;`. The
    last field of each row is the default of the key: `standard`, `false`,
-   `major`, `365`, `100`, `8`, `30`, `true`, `false`, `false`, `true`, for the rows
+   `major`, `365`, `100`, `8`, `30`, `true`, `false`, `false`, `false`, for the rows
    `view` to `history_page` in the page's order.
    - The rows `view`, `auto_update`, `auto_update_level`,
      `history_days`, `dora_days`, `issues_page`, `days_page`,

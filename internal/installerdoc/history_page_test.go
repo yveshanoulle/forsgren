@@ -13,10 +13,11 @@ func starterHistoryPage(t *testing.T) string {
 	return "history_page: " + strconv.FormatBool(loadedStarter(t).HistoryPage)
 }
 
-// TestInstallerAsksForTheHistoryPage (forsgren#68): step 2 asks question 13
-// with the starter's default, says the page fills over several daily runs and
-// that history_days up to 1825 gives more half-years, and step 9's example
-// config writes the key with the answer.
+// TestInstallerAsksForTheHistoryPage (forsgren#68, #199): step 2 asks
+// question 13 with the starter's default, false, says the person can turn the
+// page on, says the page fills over several daily runs and that history_days
+// up to 1825 gives more half-years, and step 9's example config writes the key
+// with the answer.
 func TestInstallerAsksForTheHistoryPage(t *testing.T) {
 	want := starterHistoryPage(t)
 	ask := asOneLine(section(t, installerFile, "Step 2."))
@@ -25,7 +26,7 @@ func TestInstallerAsksForTheHistoryPage(t *testing.T) {
 		t.Fatal("agent-installer.md step 2 does not ask question 13, \"The History page\"")
 	}
 	for _, text := range []string{"`" + want + "`", "`true` or `false`", "fills in over several daily runs",
-		"`history_days`", "1825", "half-years"} {
+		"`history_days`", "1825", "half-years", "turn it on by setting `history_page: true`"} {
 		if !strings.Contains(question, text) {
 			t.Errorf("agent-installer.md question 13 does not say %q", text)
 		}

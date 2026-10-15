@@ -112,7 +112,7 @@ func TestInstallerStep12ReadsTheDefaultColumn(t *testing.T) {
 	wantAll(t, "step 12", proof,
 		"`;view;numbers;standard, numbers, scoring;standard;`",
 		"last field of each row is the default of the key: `standard`, `false`, `major`, `365`, `100`, "+
-			"`8`, `30`, `true`, `false`, `false`, `true`",
+			"`8`, `30`, `true`, `false`, `false`, `false`",
 		"show the value of the config, without `(not set)`",
 		"`history_chunk_days` shows `100 (not set)` and `working_hours` shows `8 (not set)`",
 		"Eleven rows in all")
