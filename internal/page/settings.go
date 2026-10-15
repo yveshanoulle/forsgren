@@ -23,10 +23,10 @@ var possibleValues = map[string]string{
 	"history_chunk_days":   upTo(config.MaxHistoryChunkDays),
 	"working_hours":        upTo(config.MaxWorkingHours),
 	"dora_days":            doraWindows,
-	"issues_page":          booleanValues,
-	"days_page":            booleanValues,
-	"numbers_scoring_page": booleanValues,
-	"history_page":         booleanValues,
+	"issues_page":          pageValues,
+	"days_page":            pageValues,
+	"numbers_scoring_page": pageValues,
+	"history_page":         pageValues,
 }
 
 // doraWindows are the windows dora_days can name, as the page lists them.
@@ -35,6 +35,9 @@ var doraWindows = list(strconv.Itoa(config.DefaultDoraDays), strconv.Itoa(config
 
 // booleanValues are the values of a boolean key, as the page lists them.
 var booleanValues = list(strconv.FormatBool(true), strconv.FormatBool(false))
+
+// pageValues are the values of a page key, as the page lists them (forsgren#200).
+var pageValues = list(string(config.PageOn), string(config.PageUnlisted), string(config.PageOff))
 
 // list is names written as the page lists them.
 func list(names ...string) string { return strings.Join(names, ", ") }
