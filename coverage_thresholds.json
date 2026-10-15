@@ -449,6 +449,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/frequency.go:DeploymentFrequency": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/frequency.go:band": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:bandedDays": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:unread": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/frequency.go:add": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/frequency.go:isWeekend": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/leadband.go:LeadTimeBandOf": 100.0,

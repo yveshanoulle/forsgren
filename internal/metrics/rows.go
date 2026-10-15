@@ -46,6 +46,9 @@ type Row struct {
 	ChangeFail ChangeFailRate
 	// Rework is the row's deployment rework rate (forsgren#39).
 	Rework ReworkRate
+	// Unread says the history behind the row was not read back to the start of
+	// its period (forsgren#68): then it has no numbers, only its level and name.
+	Unread bool
 }
 
 // HasDeployments says whether the row has any final deployment, successful
@@ -69,6 +72,13 @@ type Data struct {
 	// edged at instead of the window's, and the 180-day count is then the
 	// window's own: the history page's periods (forsgren#68).
 	BandDays int
+	// Reach is the date per repository, lower-case, down to which collect has
+	// read its history (data/reach.csv), and UnreadBefore the start of the
+	// period counted: a row of a repository read back only to a later date,
+	// or not noted at all, is Unread. The zero UnreadBefore, as in every view
+	// but the history page's, leaves no row unread (forsgren#68).
+	Reach        history.Reach
+	UnreadBefore time.Time
 }
 
 // days is the data's DORA window in days.
@@ -81,6 +91,18 @@ func (d Data) bandedDays() int {
 		return d.BandDays
 	}
 	return d.days()
+}
+
+// unread says whether the history of any of the repositories was not read
+// back to UnreadBefore: its reach is later, or none is noted (forsgren#68).
+func (d Data) unread(repositories []config.Repository) bool {
+	if d.UnreadBefore.IsZero() {
+		return false
+	}
+	return slices.ContainsFunc(repositories, func(r config.Repository) bool {
+		reach, noted := d.Reach[strings.ToLower(r.Name)]
+		return !noted || reach.After(d.UnreadBefore)
+	})
 }
 
 // window is the data's DORA window.
@@ -101,6 +123,9 @@ func Rows(projects []config.Project, data Data, now time.Time) []Row {
 // rowOf is the row at level of the project p over data: its five numbers,
 // p being the only project.
 func rowOf(level Level, p config.Project, data Data, now time.Time) Row {
+	if data.unread(p.Repositories) {
+		return Row{Level: level, Name: p.Name, Unread: true}
+	}
 	only := []config.Project{p}
 	return Row{
 		Level: level, Name: p.Name,

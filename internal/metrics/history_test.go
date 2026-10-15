@@ -3,6 +3,7 @@ package metrics
 import (
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -77,6 +78,18 @@ func TestPeriodsHaveTheirSpans(t *testing.T) {
 	}
 }
 
+// fullyRead is the reach of tableProjects' repositories when all their history
+// was read, back to the epoch.
+func fullyRead() history.Reach {
+	reach := history.Reach{}
+	for _, p := range tableProjects {
+		for _, r := range p.Repositories {
+			reach[strings.ToLower(r.Name)] = time.Unix(0, 0)
+		}
+	}
+	return reach
+}
+
 // TestRollingPeriodEqualsTheNumbersAt180Days (forsgren#68): the newest column
 // is the table's rows over the last 180 days, as dora_days: 180 gives them,
 // for deployments, commits and failure issues up to six months old; what is
@@ -91,6 +104,7 @@ func TestRollingPeriodEqualsTheNumbersAt180Days(t *testing.T) {
 	data.Commits = append(data.Commits, shippedBy("acme/app", 21, 100*day-time.Hour, 3*day))
 	data.Failures = append(data.Failures, history.Failure{Repository: "acme/app", Issue: 3, OpenedAt: now.Add(-150 * day)})
 	rolling := Periods(now, 365)[1]
+	data.Reach = fullyRead()
 	got := PeriodRows(tableProjects, data, rolling)
 	data.DoraDays = 180
 	want := Rows(tableProjects, data, now)
@@ -127,6 +141,7 @@ func TestPastPeriodCountsStartButNotEndAndIgnoresLaterDeployments(t *testing.T) 
 			{Repository: "acme/app", Issue: 2, OpenedAt: end},
 		},
 	}
+	data.Reach = fullyRead()
 	rows := PeriodRows(tableProjects, data, past)
 	shop, tools := rows[0], rows[len(rows)-1]
 	if shop.Frequency.InWindow != 2 || !shop.Frequency.Latest.Equal(end.Add(-time.Hour)) {
@@ -154,6 +169,7 @@ func TestHalfYearIsBandedAs180DaysWhateverItsLength(t *testing.T) {
 		appDeployment(2, "", history.StateSuccess, 10*day+182*day),
 		appDeployment(3, "", history.StateSuccess, 10*day+181*day),
 	}}
+	data.Reach = fullyRead()
 	got := PeriodRows(tableProjects, data, period)[0].Frequency
 	if got.InWindow != 3 || got.Band != MonthlyToSixMonthly {
 		t.Errorf("3 deployments in the first days of a 184-day period: in window %d, band %v, want 3 and %v",
@@ -187,6 +203,7 @@ func TestRecoveryAndReworkInAPastPeriod(t *testing.T) {
 			{Repository: "acme/app", Issue: 1, OpenedAt: start.Add(10 * day), ClosedAt: start.Add(30 * day)},
 		},
 	}
+	data.Reach = fullyRead()
 	shop := PeriodRows(tableProjects, data, Period{Label: "past", Start: start, End: end})[0]
 	if r := shop.Recovery; r.Recoveries != 1 || r.Median != 7*day || r.Unrecovered != 1 {
 		t.Errorf("recoveries = %d, median %v, unrecovered = %d, want 1, %v and 1", r.Recoveries, r.Median,
@@ -226,6 +243,7 @@ func TestChangeFailAndLeadTimeInAPastPeriod(t *testing.T) {
 			opened(5, 184*day), opened(6, 190*day),
 		}, []history.Withdrawal{{Repository: "acme/app", Issue: 4, Withdrawn: true, Reason: history.ReasonLabelRemoved}}),
 	}
+	data.Reach = fullyRead()
 	shop := PeriodRows(tableProjects, data, Period{Label: "past", Start: start, End: end})[0]
 	if c := shop.ChangeFail; c.Deployments != 5 || c.FailureIssues != 2 || c.Failed != 2 {
 		t.Errorf("change fail: %d deployments, %d failure issues, %d failed, want 5, 2 and 2", c.Deployments,
@@ -233,5 +251,34 @@ func TestChangeFailAndLeadTimeInAPastPeriod(t *testing.T) {
 	}
 	if l := shop.LeadTime; l.Commits != 3 || l.Median != 4*time.Hour {
 		t.Errorf("lead time: %d commits, median %v, want 3 and 4h", l.Commits, l.Median)
+	}
+}
+
+// TestPeriodBeforeTheReachHasNoData (forsgren#68): history that was not read
+// back to the start of a period is no data, not a quiet period: a row is
+// unread when any repository it counts was read back only to a later date or
+// has no reach noted, a project's total by its repositories, a repository's
+// label by its own, a service's by its repository's.
+func TestPeriodBeforeTheReachHasNoData(t *testing.T) {
+	end := now.Add(-10 * day)
+	period := Period{Label: "past", Start: end.Add(-184 * day), End: end}
+	data := tableData()
+	data.Reach = history.Reach{
+		"acme/web": period.Start.Add(-day), "acme/app": period.Start.Add(day), "acme/extra": period.Start.Add(-10 * day),
+	}
+	unread := map[string]bool{}
+	for _, row := range PeriodRows(tableProjects, data, period) {
+		unread[row.Name] = row.Unread
+	}
+	want := map[string]bool{"Acme Shop": true, "ADMIN": true, "API": true, "IOS": true, "Website": false,
+		"Acme Tools": true}
+	if !reflect.DeepEqual(unread, want) {
+		t.Errorf("unread rows = %v, want %v", unread, want)
+	}
+	data.Reach["acme/app"], data.Reach["acme/cli"] = period.Start, period.Start
+	for _, row := range PeriodRows(tableProjects, data, period) {
+		if row.Unread {
+			t.Errorf("%s is unread with every repository read back to the start of the period", row.Name)
+		}
 	}
 }

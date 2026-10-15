@@ -152,7 +152,8 @@ func TestProjectRowsKeepTheirNumbers(t *testing.T) {
 	}
 	for i, r := range projectRows {
 		want := Row{
-			ProjectRow, tableProjects[i].Name, frequencies[i], leadTimes[i], recoveries[i], changeFails[i], reworks[i],
+			Level: ProjectRow, Name: tableProjects[i].Name, Frequency: frequencies[i], LeadTime: leadTimes[i],
+			Recovery: recoveries[i], ChangeFail: changeFails[i], Rework: reworks[i],
 		}
 		if !reflect.DeepEqual(r, want) {
 			t.Errorf("want\n%+v\ngot\n%+v", want, r)
