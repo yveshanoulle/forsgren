@@ -224,9 +224,10 @@ Then wait for the answers.
    HTTPS can take up to a day after that.
 10. **The Issues page and the Daily page**, which of the two the site
     shows. Default: `issues_page: true` (the Issues page is shown) and
-    `days_page: false` (the Daily page is hidden). Each is `true` or
-    `false`. A page that is off is not generated and has no entry in the
-    menu. The person can show the Daily page later by setting
+    `days_page: false` (the Daily page is not generated). Each is `true`
+    (generated and in the menu), `unlisted` (generated, with no menu entry,
+    and search engines are asked to skip it) or `false` (not generated). The
+    person can put the Daily page in the menu later by setting
     `days_page: true`; the legend of the published site says so.
 11. **The DORA window**, over how many days the five metrics count back.
     Default: `dora_days: 30`. One of 30, 90 or 180; DORA usually
@@ -238,22 +239,26 @@ Then wait for the answers.
     which window is in use.
 12. **The Numbers and scoring page**, whether the site has a page that
     shows, for each metric, its number and its score side by side in one
-    cell. Default: `numbers_scoring_page: false` (the page is hidden). It
-    is `true` or `false`. A page that is off is not generated and has no
-    entry in the menu. The person can show it later by setting
-    `numbers_scoring_page: true`; the legend of the published site says so.
+    cell. Default: `numbers_scoring_page: unlisted` (the page is generated,
+    has no menu entry, and search engines are asked to skip it). It is
+    `true` (generated and in the menu), `unlisted` or `false` (not
+    generated). The person can open an unlisted page at its address,
+    `numbers-scoring/`, to look at it, and set `numbers_scoring_page: true`
+    to put it in the menu; the legend of the published site says so.
 13. **The History page**, whether the site has a page that shows the five
     metrics for every half-year (January to June, July to December) and
     for the last 6 months, a table and a small chart per row, to see
-    whether delivery improved. Default: `history_page: false` (the page is
-    hidden). It is `true` or `false`. A page that is off is not generated and
-    has no entry in the menu. If the person wants the page, they turn it on
-    by setting `history_page: true`. Tell the person that, once it is on,
-    the page fills in over several daily runs, because each run reads one
+    whether delivery improved. Default: `history_page: unlisted` (the page
+    is generated, has no menu entry, and search engines are asked to skip
+    it). It is `true` (generated and in the menu), `unlisted` or `false`
+    (not generated). The person can open the unlisted page at its address,
+    `history.html`, to look at it, and set `history_page: true` to put it in
+    the menu. Tell the person that the page fills in over several daily
+    runs, because each run reads one
     more chunk of history, and that the default `history_days` of 365 gives about one half-year
     besides the last 6 months, while `history_days: 1825` (5 years) gives up
-    to ten half-years; they can raise it now or later. The person can turn the
-    page on or off later by setting `history_page`; the legend of the published
+    to ten half-years; they can raise it now or later. The person can change
+    `history_page` later; the legend of the published
     site says so.
 
 ## Step 3. Look at every measured repository (read only)
@@ -417,8 +422,8 @@ history_days: 365
 dora_days: 30
 issues_page: true
 days_page: false
-numbers_scoring_page: false
-history_page: false
+numbers_scoring_page: unlisted
+history_page: unlisted
 projects:
   - name: Acme Shop
     repositories:
@@ -435,8 +440,8 @@ projects:
 - Write `issues_page` and `days_page` with the answers to question 10
   (the defaults are `true` and `false`), and `dora_days` with the answer to
   question 11 (the default is `30`) and `numbers_scoring_page` with the
-  answer to question 12 (the default is `false`), and `history_page` with the
-  answer to question 13 (the default is `false`).
+  answer to question 12 (the default is `unlisted`), and `history_page` with the
+  answer to question 13 (the default is `unlisted`).
 - Write every repository's `deployment:` line, also for
   `environment=production`, so the file says what was chosen.
 - Indent with spaces only, as shown.
@@ -706,7 +711,7 @@ Then check what the run did:
 
    For example `;view;numbers;standard, numbers, scoring;standard;`. The
    last field of each row is the default of the key: `standard`, `false`,
-   `major`, `365`, `100`, `8`, `30`, `true`, `false`, `false`, `false`, for the rows
+   `major`, `365`, `100`, `8`, `30`, `true`, `false`, `unlisted`, `unlisted`, for the rows
    `view` to `history_page` in the page's order.
    - The rows `view`, `auto_update`, `auto_update_level`,
      `history_days`, `dora_days`, `issues_page`, `days_page`,

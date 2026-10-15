@@ -57,3 +57,24 @@ func TestUpdatingDocSaysTheDailyPageGoesAt130(t *testing.T) {
 		t.Errorf("docs/updating-and-releases.md does not say %q", want)
 	}
 }
+
+// TestInstallerExplainsTheThreeValuesOfThePageQuestions (forsgren#200): step 2
+// names true, unlisted and false in questions 10, 12 and 13; questions 12 and
+// 13, whose default is unlisted, say what unlisted is, that the person can open
+// the page at its address and that true puts it in the menu.
+func TestInstallerExplainsTheThreeValuesOfThePageQuestions(t *testing.T) {
+	ask := asOneLine(section(t, installerFile, "Step 2."))
+	for _, tc := range []struct{ start, end, address string }{
+		{"10. **The Issues page", "11. **The DORA window**", ""},
+		{"12. **The Numbers and scoring page**", "13. **The History page**", "numbers-scoring/"},
+		{"13. **The History page**", "## Step 3.", "history.html"},
+	} {
+		_, rest, _ := strings.Cut(ask, tc.start)
+		question, _, _ := strings.Cut(rest, tc.end)
+		for _, text := range []string{"`true`", "`unlisted`", "`false`", "no menu entry", "not generated", tc.address} {
+			if !strings.Contains(question, text) {
+				t.Errorf("agent-installer.md question %q does not say %q", tc.start, text)
+			}
+		}
+	}
+}

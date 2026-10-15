@@ -18,7 +18,7 @@ func starterNumbersScoringPage(t *testing.T) string {
 func TestInstallerAsksForTheNumbersAndScoringPage(t *testing.T) {
 	want := starterNumbersScoringPage(t)
 	ask := asOneLine(section(t, installerFile, "Step 2."))
-	for _, text := range []string{"12. **The Numbers and scoring page**", "`" + want + "`", "`true` or `false`",
+	for _, text := range []string{"12. **The Numbers and scoring page**", "`" + want + "`", "`unlisted` or `false`",
 		"number and its score"} {
 		if !strings.Contains(ask, text) {
 			t.Errorf("agent-installer.md step 2 does not say %q", text)

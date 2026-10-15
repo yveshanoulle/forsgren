@@ -86,8 +86,8 @@ history_days: 365  # how far back history goes, 30 to 1825 days (5 years)
 history_chunk_days: 100  # how many days back each run adds until history_days is reached, 1 to 365
 working_hours: 8  # a working day is configured as this many hours, 1 to 24
 dora_days: 30  # the window of the DORA numbers in days: 30, 90 or 180
-issues_page: true  # the Issues page and its menu entry: true shows them, false leaves them out
-days_page: false  # the Daily page and its menu entry: false leaves them out, true brings them back
-numbers_scoring_page: false  # the Numbers and scoring page and its menu entry: false leaves them out, true shows them
-history_page: false  # the History page and its menu entry: false leaves them out, true shows them
+issues_page: true  # the Issues page. true: generated and in the menu; unlisted: generated, no menu entry; false: not generated
+days_page: false  # the Daily page. true: generated and in the menu; unlisted: generated, no menu entry; false: not generated
+numbers_scoring_page: unlisted  # the Numbers and scoring page. true: generated and in the menu; unlisted: generated, no menu entry; false: not generated
+history_page: unlisted  # the History page. true: generated and in the menu; unlisted: generated, no menu entry; false: not generated
 projects: []

@@ -33,6 +33,12 @@
    "minScore": 9.28
   },
   {
+   "path": "internal/installerdoc/agent_installer_test.go",
+   "score": 9.38,
+   "checkedAt": "2026-10-16",
+   "minScore": 9.28
+  },
+  {
    "path": "internal/update/guard_test.go",
    "score": 9.68,
    "checkedAt": "2026-10-05",
@@ -533,7 +539,7 @@
   {
    "path": "internal/config/init_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
@@ -1307,19 +1313,19 @@
   {
    "path": "internal/installerdoc/history_page_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
    "path": "internal/installerdoc/numbers_scoring_page_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
    "path": "internal/installerdoc/pages_keys_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {

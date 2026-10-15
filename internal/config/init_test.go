@@ -16,6 +16,10 @@ func starterLines() []string {
 	return strings.Split(strings.TrimSuffix(Starter, "\n"), "\n")
 }
 
+// pageValuesComment is what the comment of each page key of the starter says
+// of the three values (forsgren#200).
+const pageValuesComment = "true: generated and in the menu; unlisted: generated, no menu entry; false: not generated"
+
 // starterConfig is the config at the end of the starter: one that measures
 // nothing yet, its root page the standard view marked in the menu (forsgren#51, #128),
 // and auto-merge of forsgren's Dependabot updates on at major level
@@ -27,11 +31,10 @@ const starterConfig = "version: 1\nview: standard\nauto_update: true\n" +
 	"1 to 365\n" +
 	"working_hours: 8  # a working day is configured as this many hours, 1 to 24\n" +
 	"dora_days: 30  # the window of the DORA numbers in days: 30, 90 or 180\n" +
-	"issues_page: true  # the Issues page and its menu entry: true shows them, false leaves them out\n" +
-	"days_page: false  # the Daily page and its menu entry: false leaves them out, true brings them back\n" +
-	"numbers_scoring_page: false  # the Numbers and scoring page and its menu entry: false leaves them out, " +
-	"true shows them\n" +
-	"history_page: false  # the History page and its menu entry: false leaves them out, true shows them\n" +
+	"issues_page: true  # the Issues page. " + pageValuesComment + "\n" +
+	"days_page: false  # the Daily page. " + pageValuesComment + "\n" +
+	"numbers_scoring_page: unlisted  # the Numbers and scoring page. " + pageValuesComment + "\n" +
+	"history_page: unlisted  # the History page. " + pageValuesComment + "\n" +
 	"projects: []\n"
 
 // isStarterLine says whether a line may stand in the starter: blank, a
@@ -216,15 +219,15 @@ func TestStarterPassesLoad(t *testing.T) {
 	wantPageKeysWritten(t, cfg)
 }
 
-// wantPageKeysWritten (forsgren#159): the starter writes issues_page: true and
-// days_page: false itself, and numbers_scoring_page: false (forsgren#55), so
+// wantPageKeysWritten (forsgren#159, #200): the starter writes issues_page: true,
+// days_page: false and numbers_scoring_page: unlisted itself (forsgren#55), so
 // the settings page marks all three as set.
 func wantPageKeysWritten(t *testing.T, cfg Config) {
 	t.Helper()
 	got := map[string]PageMode{"issues_page": cfg.IssuesPage, "days_page": cfg.DaysPage,
 		"numbers_scoring_page": cfg.NumbersScoringPage}
 	for key, want := range map[string]PageMode{"issues_page": PageOn, "days_page": PageOff,
-		"numbers_scoring_page": PageOff} {
+		"numbers_scoring_page": PageUnlisted} {
 		if got[key] != want || !cfg.written[key] {
 			t.Errorf("want %s %v and written, got %v, written %v", key, want, got[key], cfg.written[key])
 		}
@@ -464,13 +467,13 @@ func TestStarterWritesDoraDaysAndLoadsClean(t *testing.T) {
 	}
 }
 
-// historyPageLine is the starter's history_page line (forsgren#68).
-const historyPageLine = "history_page: false  # the History page and its menu entry: " +
-	"false leaves them out, true shows them"
+// historyPageLine is the starter's history_page line (forsgren#68, #200).
+const historyPageLine = "history_page: unlisted  # the History page. " + pageValuesComment
 
-// TestStarterWritesHistoryPage (forsgren#68, #199): the starter writes
-// history_page: false right after numbers_scoring_page, with its comment.
-func TestStarterWritesHistoryPage(t *testing.T) {
+// TestStarterWritesHistoryPageUnlisted (forsgren#68, #199, #200): the starter
+// writes history_page: unlisted right after numbers_scoring_page, with its
+// comment.
+func TestStarterWritesHistoryPageUnlisted(t *testing.T) {
 	lines := starterLines()
 	i := slices.IndexFunc(lines, func(l string) bool { return strings.HasPrefix(l, "numbers_scoring_page:") })
 	if i < 0 || slices.Index(lines, historyPageLine) != i+1 {
@@ -478,15 +481,30 @@ func TestStarterWritesHistoryPage(t *testing.T) {
 	}
 }
 
-// TestStarterLoadsWithTheHistoryPageWrittenOff (forsgren#68, #199): the config
-// the starter loads to reads the page as off, written, with no setting
-// rejected.
-func TestStarterLoadsWithTheHistoryPageWrittenOff(t *testing.T) {
+// TestEveryPageKeyOfTheStarterExplainsTheThreeValues (forsgren#200): the
+// comment of each of the four page keys ends in the same sentence on true,
+// unlisted and false.
+func TestEveryPageKeyOfTheStarterExplainsTheThreeValues(t *testing.T) {
+	for _, key := range []string{"issues_page:", "days_page:", "numbers_scoring_page:", "history_page:"} {
+		i := slices.IndexFunc(starterLines(), func(l string) bool { return strings.HasPrefix(l, key) })
+		if i < 0 || !strings.HasSuffix(starterLines()[i], pageValuesComment) {
+			t.Errorf("want the %s line of the starter to end in %q", key, pageValuesComment)
+		}
+	}
+}
+
+// TestStarterLoadsWithTheHistoryAndNumbersScoringPagesUnlisted (forsgren#68,
+// #199, #200): the config the starter loads to reads both pages as unlisted,
+// written, with no setting rejected.
+func TestStarterLoadsWithTheHistoryAndNumbersScoringPagesUnlisted(t *testing.T) {
 	cfg, err := parse([]byte(Starter))
 	if err != nil || len(cfg.Rejected) != 0 {
 		t.Fatalf("want nothing rejected, got %v, %v", cfg.Rejected, err)
 	}
-	if cfg.HistoryPage != PageOff || !cfg.written["history_page"] {
-		t.Errorf("want history_page false and written, got %v, %v", cfg.HistoryPage, cfg.written["history_page"])
+	for key, got := range map[string]PageMode{"history_page": cfg.HistoryPage,
+		"numbers_scoring_page": cfg.NumbersScoringPage} {
+		if got != PageUnlisted || !cfg.written[key] {
+			t.Errorf("want %s unlisted and written, got %v, %v", key, got, cfg.written[key])
+		}
 	}
 }
