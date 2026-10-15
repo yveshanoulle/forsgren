@@ -327,7 +327,16 @@ func (p pageData) ScoredCells(row Row) []string {
 
 // Noindex says whether the page asks search engines to skip it: an unlisted
 // page does (forsgren#200).
-func (p pageData) Noindex() bool { return p.Unlisted[p.Page] }
+func (p pageData) Noindex() bool { return p.Unlisted[p.listedAs()] }
+
+// listedAs is the name the site lists the page under, in Hidden and Unlisted:
+// the folder of a page in a folder, whose Page is index, else its own name.
+func (p pageData) listedAs() string {
+	if p.Base == viewBase {
+		return p.View
+	}
+	return p.Page
+}
 
 // menuItem is one entry of the menu: its address from the root, its label,
 // and its aria-current, empty for an entry that is a link.
@@ -341,12 +350,12 @@ func (p pageData) Menu() []menuItem {
 	return append(p.folderEntries(), p.rootEntries()...)
 }
 
-// folderEntries are the menu's entries of the folderPages the site shows,
+// folderEntries are the menu's entries of the folderPages the site lists,
 // the one the page shows marked as viewCurrent says.
 func (p pageData) folderEntries() []menuItem {
 	menu := make([]menuItem, 0, len(folderPages)+len(rootPages))
 	for _, folder := range folderPages {
-		if !p.Hidden[folder.Name] {
+		if !p.Hidden[folder.Name] && !p.Unlisted[folder.Name] {
 			menu = append(menu, menuItem{folder.Name + "/", folder.Label, markIf(folder.Name == p.View, p.viewCurrent())})
 		}
 	}
