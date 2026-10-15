@@ -317,6 +317,28 @@ installation pins that version. From a checkout of this repository:
 .build/bin/forsgren render --out <dir>
 ```
 
+`forsgren` with no command, or with one it does not know, prints its usage
+on stderr and exits 2. The usage names every command and every flag each
+one takes (forsgren#180; `cmd/forsgren/usage_test.go` holds it to the
+flags the commands define):
+
+```
+usage: forsgren render --out <dir> [--config <path>] [--data <path>]
+                       [--latest <version>] [--waiting-pr <number>] [--needs-check <status>]
+       forsgren check-config --config <path>
+       forsgren init-config --config <path>
+       forsgren collect --config <path> --data <path> [--token-expiry <path>]
+       forsgren latest-release
+       forsgren waiting-pull-request --version <x.y.z> [--status <path>]
+       forsgren check-needs --config <path> --repository <owner/name> [--status <path>]
+                            [--token-expiry <path>]
+       forsgren run-summary --latest <version> --waiting-pr <number>
+                            --pr-check <ok|no-access|rate-limited|failed|skipped> --repository <owner/name>
+                            [--needs-check <status>] [--token-expiry <path>]
+       forsgren check-update --config <path> --repo <owner/name> --pull <number>
+       forsgren install-update --repo <owner/name> --branch <branch> --version <vX.Y.Z> --sha <40-hex>
+```
+
 `forsgren render --out <dir> [--config <path>] [--data <path>] [--latest <version>] [--waiting-pr <number>] [--needs-check <status>]` writes the site (every page
 plus `styles.css`) into `<dir>`, creating it when needed, and exits 0; 1 when
 the render failed (or the `--config` file is missing or invalid, with

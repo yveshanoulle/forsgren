@@ -4,9 +4,10 @@
 # The DCO sign-off check (road to public, step 4). Not canon: forsgren's own.
 # The ruling on forsgren#1: forsgren is EUPL-1.2, and every contribution is
 # made under the Developer Certificate of Origin 1.1 (CONTRIBUTING.md), so
-# every commit of a pull request carries a Signed-off-by trailer from its
-# author. .github/workflows/dco.yml runs this on every pull request; sfl and
-# Quality do not, since a commit on main has no pull request.
+# every commit carries a Signed-off-by trailer from its author.
+# .github/workflows/dco.yml runs this on every pull request and on every push
+# to main (forsgren#81), on that push's commits only, with no exemption; sfl
+# and Quality do not run it (Quality runs its self-test).
 #
 # INPUT, one line per commit, from a file or stdin:
 #   <sha> <author account> <base64 of the author email> <base64 of the message>
@@ -14,7 +15,9 @@
 # commit to (the commits API's .author: type User, Bot, ...), or - when it
 # linked it to none. The workflow writes it from the pull request's commit
 # list (gh api, with gh's built-in jq; jq itself became a listed tool in
-# forsgren#2, see Scripts/required_tools.txt). base64 keeps a message with any content on
+# forsgren#2, see Scripts/required_tools.txt), and on a push from git with
+# Scripts/dco_push_commits.sh, whose account is always -: a push names no
+# account, and gives no opener. base64 keeps a message with any content on
 # one line, so no message can forge the start of another commit. The
 # format is plain text so that Scripts/test_check_dco.sh runs offline.
 # The second argument is the account that opened the pull request,

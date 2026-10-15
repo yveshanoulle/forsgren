@@ -547,8 +547,9 @@ else
 
       # Every commit is signed off (road to public, step 4): forsgren takes
       # contributions under the Developer Certificate of Origin
-      # (CONTRIBUTING.md), and the DCO check on pull requests
-      # (Scripts/check_dco.sh) wants a Signed-off-by trailer from the author.
+      # (CONTRIBUTING.md), and the DCO check on pull requests and on every
+      # push to main (Scripts/check_dco.sh, forsgren#81) wants a
+      # Signed-off-by trailer from the author.
       # git writes it from the committer identity: whoever runs FBP.sh, or
       # agent-Friend under Scripts/fbp_agent_friend.sh. The RED commit too,
       # since it is pushed later, under its green successor.

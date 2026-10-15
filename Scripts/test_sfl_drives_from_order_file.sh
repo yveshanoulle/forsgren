@@ -121,6 +121,33 @@ for f in Scripts/test_*.sh; do
     || fail "${f} is not named by any row in ${ORDER} — it would run unlabelled and appear in no report"
 done
 
+# tier_stripping_proof <pin> <row label> <mutation name prefix> <tier noun>
+# — the non-vacuity proof of a secret-class tier pin (5, 6 and 7): the real
+# order file with that row's tier stripped must change, and running this
+# check on it must be red with the pin's OWN FAIL text ("the <row label> row
+# does not carry the PRE secret-class tier"), not for another reason
+# (forsgren#54 S5). Runs only on the real order file, never on a mutant.
+tier_stripping_proof() {
+  local pin="$1" label="$2" mutation="$3" noun="$4" _tmp _out
+  [ "$ORDER" = "Scripts/gate_report_order.txt" ] || return 0
+  _tmp="$(mktemp -d)"
+  sed \
+    "s/^${label}|\\(.*\\)|pre|secret-class\$/${label}|\\1|pre|/" \
+    "$ORDER" > "${_tmp}/order.txt"
+
+  if cmp -s "$ORDER" "${_tmp}/order.txt"; then
+    fail "the ${mutation}tier-stripping mutation changed nothing — pin ${pin} is matching something other than the row it claims to"
+  elif _out="$("$0" "${_tmp}/order.txt" 2>&1)"; then
+    fail "an order file with ${noun} REMOVED was accepted — pin ${pin} does not actually guard it"
+  elif ! grep -qF "the ${label} row does not carry the PRE secret-class tier" <<< "$_out"; then
+    fail "an order file with ${noun} REMOVED was rejected, but not by pin ${pin} (its own FAIL text is missing) — the rejection is for another reason. Output: ${_out}"
+  else
+    echo "  ok: stripping ${noun} is rejected by pin ${pin}'s own FAIL"
+  fi
+
+  rm -rf "$_tmp"
+}
+
 # Pin 5: the SECRET-CLASS TIER lives in field 4 of the file. run_gate_secret is
 # what makes sfl exit 2, which FBP.sh reads as "do not commit at all"
 # — committing a secret puts it into history, where removing it is a rewrite
@@ -135,24 +162,7 @@ fi
 # Non-vacuity for pin 5: the same file with the tier stripped must be rejected.
 # Every other pin here fails loudly on a repo that has not migrated; this one is
 # a single word in one row, and would sit green forever if it matched nothing.
-if [ "$ORDER" = "Scripts/gate_report_order.txt" ]; then
-  _tmp="$(mktemp -d)"
-  sed \
-    's/^secret scan|\(.*\)|pre|secret-class$/secret scan|\1|pre|/' \
-    "$ORDER" > "${_tmp}/order.txt"
-
-  if cmp -s "$ORDER" "${_tmp}/order.txt"; then
-    fail "the tier-stripping mutation changed nothing — pin 5 is matching something other than the row it claims to"
-  elif _out="$("$0" "${_tmp}/order.txt" 2>&1)"; then
-    fail "an order file with the secret-class tier REMOVED was accepted — pin 5 does not actually guard it"
-  elif ! grep -qF "the secret scan row does not carry the PRE secret-class tier" <<< "$_out"; then
-    fail "an order file with the secret-class tier REMOVED was rejected, but not by pin 5 (its own FAIL text is missing) — the rejection is for another reason. Output: ${_out}"
-  else
-    echo "  ok: stripping the secret-class tier is rejected by pin 5's own FAIL"
-  fi
-
-  rm -rf "$_tmp"
-fi
+tier_stripping_proof 5 "secret scan" "" "the secret-class tier"
 
 # Pin 6: the DATA GUARD carries the same tier (Yves, 2026-10-02, forsgren#1
 # step 12.2: "it works like the secret scan"). What it guards, an
@@ -167,24 +177,7 @@ fi
 # Non-vacuity for pin 6, as for pin 5: the same file with the data guard's
 # tier stripped must be rejected. The anchor names the row, not its
 # self-test, whose label also starts with "data guard".
-if [ "$ORDER" = "Scripts/gate_report_order.txt" ]; then
-  _tmp="$(mktemp -d)"
-  sed \
-    's/^data guard|\(.*\)|pre|secret-class$/data guard|\1|pre|/' \
-    "$ORDER" > "${_tmp}/order.txt"
-
-  if cmp -s "$ORDER" "${_tmp}/order.txt"; then
-    fail "the data-guard tier-stripping mutation changed nothing — pin 6 is matching something other than the row it claims to"
-  elif _out="$("$0" "${_tmp}/order.txt" 2>&1)"; then
-    fail "an order file with the data guard's secret-class tier REMOVED was accepted — pin 6 does not actually guard it"
-  elif ! grep -qF "the data guard row does not carry the PRE secret-class tier" <<< "$_out"; then
-    fail "an order file with the data guard's secret-class tier REMOVED was rejected, but not by pin 6 (its own FAIL text is missing) — the rejection is for another reason. Output: ${_out}"
-  else
-    echo "  ok: stripping the data guard's secret-class tier is rejected by pin 6's own FAIL"
-  fi
-
-  rm -rf "$_tmp"
-fi
+tier_stripping_proof 6 "data guard" "data-guard " "the data guard's secret-class tier"
 
 # Pin 7: the PRIVATE NAMES gate carries the same tier (forsgren#52). What it
 # guards, a private repository name in a public file, is what must never reach
@@ -197,24 +190,7 @@ fi
 
 # Non-vacuity for pin 7, as for pins 5 and 6: the same file with the private
 # names row's tier stripped must be rejected.
-if [ "$ORDER" = "Scripts/gate_report_order.txt" ]; then
-  _tmp="$(mktemp -d)"
-  sed \
-    's/^private names|\(.*\)|pre|secret-class$/private names|\1|pre|/' \
-    "$ORDER" > "${_tmp}/order.txt"
-
-  if cmp -s "$ORDER" "${_tmp}/order.txt"; then
-    fail "the private-names tier-stripping mutation changed nothing — pin 7 is matching something other than the row it claims to"
-  elif _out="$("$0" "${_tmp}/order.txt" 2>&1)"; then
-    fail "an order file with the private names row's secret-class tier REMOVED was accepted — pin 7 does not actually guard it"
-  elif ! grep -qF "the private names row does not carry the PRE secret-class tier" <<< "$_out"; then
-    fail "an order file with the private names row's secret-class tier REMOVED was rejected, but not by pin 7 (its own FAIL text is missing) — the rejection is for another reason. Output: ${_out}"
-  else
-    echo "  ok: stripping the private names row's secret-class tier is rejected by pin 7's own FAIL"
-  fi
-
-  rm -rf "$_tmp"
-fi
+tier_stripping_proof 7 "private names" "private-names " "the private names row's secret-class tier"
 
 COMPLETED=1
 

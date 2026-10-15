@@ -395,7 +395,7 @@ answers. Shape (the `acme` names stand for the person's):
 
 ```yaml
 # forsgren configuration: what this installation measures.
-# Reference: https://github.com/yveshanoulle/forsgren/blob/main/docs/configuration.md
+# Reference: https://forsgren.be/#configuration
 version: 1
 view: standard
 auto_update: true

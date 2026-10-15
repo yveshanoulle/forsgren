@@ -89,6 +89,15 @@ pull-request event while one of its jobs runs anywhere but on a
 GitHub-hosted runner. A new push to a pull request cancels its run in
 flight; runs on `main` are never cancelled, each commit gets its own.
 
+**The private-names secret.** The PRE step gets the Actions secret
+`FORSGREN_PRIVATE_NAMES` through `env:`, the list the **private names**
+gate searches for (see [Quality gates](quality-gates.md)). When the secret
+is not set or is empty, the gate fails with exit 2 and a line that names
+it: `the Actions secret FORSGREN_PRIVATE_NAMES is not set or is empty here`
+(forsgren#81). A fork's pull request gets no secrets, so on one the gate is
+always red; the line says so, and the maintainer runs `./FBP.sh` on the
+branch instead.
+
 **Repository settings behind the gates.** On top of that, GitHub holds
 every workflow run of a pull request from an outside contributor until the
 maintainer approves it, and the repository requires every action to be
@@ -97,10 +106,14 @@ files. Secret scanning with push protection and Dependabot alerts are on
 too, behind the secret scan and npm audit gates. These are settings, not
 files: no gate can see them.
 
-**The DCO check, on pull requests.** `.github/workflows/dco.yml` triggers
-on `pull_request` (never `pull_request_target`), as Quality does, and may
-because its one job runs on a GitHub-hosted runner (`ubuntu-latest`), with
-a read-only token (`contents: read`, `pull-requests: read`). It holds every commit of the pull request to the
+**The DCO check, on pull requests and on every push to main.**
+`.github/workflows/dco.yml` triggers on `pull_request` (never
+`pull_request_target`), as Quality does, and may because its one job runs
+on a GitHub-hosted runner (`ubuntu-latest`), with a read-only token
+(`contents: read`, `pull-requests: read`), and on every push to `main`
+(forsgren#81: forsgren does not work through pull requests, so until then
+no commit on `main` was checked). It holds every commit of the pull
+request, and every commit the push brings, to the
 Developer Certificate of Origin (see [CONTRIBUTING.md](../CONTRIBUTING.md)):
 `Scripts/check_dco.sh` is red on a commit with no `Signed-off-by:`
 trailer, or with one whose email is not the commit author's, naming the
@@ -117,12 +130,23 @@ through `env:`, never as `${{ }}` inside `run:`), and checks out only
 `Scripts/check_dco.sh`, at the pull request's base commit, so a pull
 request cannot change the check that judges it. A pull request can still
 change `dco.yml` itself, which GitHub reads from the pull request: the
-review of such a change is the guard there. The check does not run in
-`sfl` or Quality, since a commit on `main` has no pull request; its
+review of such a change is the guard there. On a push, the job checks out
+the pushed commit with its history and `Scripts/dco_push_commits.sh` lists
+only the pushed range, `before..after` (the two shas through `env:`),
+oldest first, in the check's input lines; a push that creates a branch is
+checked on its head commit, and a range with no commit in it is red, never
+an empty pass. Commits of an earlier push are not judged again. A push names
+no account and no one opened it, so no commit of a push is exempt, a bot's
+included. Runs on pull requests share a group and a new push cancels the
+one in flight; runs on `main` are never cancelled, each commit gets its
+own. The check does not run in `sfl` or Quality, since it judges the
+commits a pull request or a push brings; its
 self-test does (**DCO sign-off self-test**, `Scripts/test_check_dco.sh`,
 offline, with mutation proofs for the last-paragraph rule, the email
-comparison, the account-type rule and the opener comparison), and **gate wiring** is red when `dco.yml` stops running
-the check or the self-test loses its row.
+comparison, the account-type rule and the opener comparison, and a
+throwaway repository for the push listing), and **gate wiring** is red when
+`dco.yml` stops running the check or the push listing, loses its push
+trigger on `main`, or the self-test loses its row.
 
 **The metrics workflow, for installations.** `.github/workflows/metrics.yml`
 is the reusable workflow a data repository calls daily (see [Running

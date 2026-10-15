@@ -77,8 +77,10 @@ merged until it is.
 
 ### What the DCO check enforces
 
-Every pull request runs the **DCO** workflow (`.github/workflows/dco.yml`).
-It is red, naming the commit, when any commit of the pull request:
+Every pull request, and every push to `main`, runs the **DCO** workflow
+(`.github/workflows/dco.yml`). It is red, naming the commit, when any
+commit it checks (every commit of the pull request, or every commit the
+push brings to `main`; commits of an earlier push are not checked again):
 
 - has no `Signed-off-by: Name <email>` line as a trailer: the line must
   stand whole, in the last paragraph of the commit message (where
@@ -96,6 +98,7 @@ other GitHub Apps) and that same bot opened the pull request. The check
 decides on what GitHub reports, the account type and who opened the pull
 request, never on a commit's author name or email: anyone can write a
 bot's address into a commit. Your own commit in a bot's pull request is
-held to the rule. To fix a red check, sign the
+held to the rule. A push to `main` has no one who opened it, so no commit
+of a push is exempt. To fix a red check, sign the
 commits off and force-push the branch: `git commit --amend -s` for the
 last commit, `git rebase --signoff main` for all of them.

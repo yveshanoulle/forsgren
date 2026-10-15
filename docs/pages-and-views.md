@@ -374,7 +374,9 @@ in the footer); where each metric comes from is explained on the
 legend page, counting back from the time in the footer. A config that lists
 no projects has no table: the page shows, in its place, a short how-to, that
 `forsgren.config.yml` lists the projects, with a small example (a project, two
-repositories, one with a `label`) and a link to Configuration (forsgren#41):
+repositories, one with a `label`) and a link to Configuration
+(forsgren#41), on the project page, https://forsgren.be/#configuration, never
+a path on github.com (forsgren#172):
 
 - **The columns** are the five metrics: deployment frequency, lead time for
   changes, failed deployment recovery time, change fail rate and deployment

@@ -43,9 +43,13 @@
 # never in a file, so no trace or process list shows it.
 #
 # Exit 0 clean. Exit 1 a name found. Exit 2 when:
-#   - there is no list at all (no env list, no names file);
+#   - there is no list at all (no env list, no names file); in GitHub Actions
+#     (GITHUB_ACTIONS=true) the FAIL line names the Actions secret
+#     FORSGREN_PRIVATE_NAMES and says a fork's pull request gets no secrets
+#     (forsgren#81), elsewhere it names the three local sources;
 #   - the env list FORSGREN_PRIVATE_NAMES has no names (an emptied CI secret);
-#   - the names file FORSGREN_PRIVATE_NAMES_FILE names does not exist;
+#   - the names file FORSGREN_PRIVATE_NAMES_FILE names does not exist (an
+#     empty FORSGREN_PRIVATE_NAMES_FILE counts as unset, forsgren#54);
 #   - the names file exists but cannot be read (one FAIL line, no path of cat);
 #   - there is no tracked or untracked file (the scan read nothing);
 #   - a tracked or untracked path (or the blob of a tracked symlink) could not

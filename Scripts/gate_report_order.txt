@@ -458,9 +458,10 @@ workflow triggers|Scripts/check_workflow_triggers.sh|pre|
 # plus a Developer Certificate of Origin sign-off on every commit). Not
 # canon: forsgren's own, beside the workflow-triggers rows, since it is the
 # one workflow that does trigger on pull requests. The check,
-# Scripts/check_dco.sh, runs in neither sfl nor Quality: a commit on main
-# has no pull request, so .github/workflows/dco.yml runs it, on every pull
-# request, on a GitHub-hosted runner (Scripts/test_gate_wiring.sh declares
+# Scripts/check_dco.sh, runs in neither sfl nor Quality: it judges the
+# commits a pull request or a push brings, so .github/workflows/dco.yml runs
+# it, on every pull request and on every push to main (forsgren#81), on a
+# GitHub-hosted runner (Scripts/test_gate_wiring.sh declares
 # it as an exemption with that runner, and requires this self-test). Only
 # its self-test has a row: it is offline, so it runs in pre with the other
 # repository-source rows.

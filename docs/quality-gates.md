@@ -32,14 +32,22 @@ commit itself:
   `./Scripts/sync_private_names_secrets.sh` by hand (it needs the
   maintainer's `gh` login) and it sets both. An external fork pull request
   receives neither secret, so the gate fails there (exit 2, no list); that
-  is intended: CI always fails without the secret or with an emptied one. The gate searches
+  is intended: CI always fails without the secret or with an emptied one.
+  In GitHub Actions a missing or empty secret is exit 2 with a line that
+  names it, `the Actions secret FORSGREN_PRIVATE_NAMES is not set or is
+  empty here`, and says a fork's pull request gets no secrets, so the
+  maintainer runs `./FBP.sh` on the branch instead; a local run with no list
+  names the three local sources. An empty `FORSGREN_PRIVATE_NAMES_FILE`
+  counts as unset, in the gate and in `Scripts/ensure_private_names_file.sh`
+  alike. The gate searches
   `git ls-files` and `git ls-files -o --exclude-standard` (what `git add -A`
   would stage), case-insensitively, for a substring (a listed name
   inside a longer token is a hit). Its failure line
   names `file:line`, or `tracked path #N in git ls-files`, and never the
   name, so the gate's own output reveals none. A commit message is checked too:
-  `FBP.sh` hands it to `Scripts/check_private_names.sh --message <file>` (the
-  same list and matching, a temp file, no repository scan) first of all, and on
+  `FBP.sh` hands it to `Scripts/check_private_names.sh --message -` (the
+  same list and matching, the message on stdin, never in a file an interrupt
+  could leave behind, no repository scan) first of all, and on
   a hit it makes no commit, runs no gate, prints one `❌` line that never holds
   the name or the message, and exits non-zero; with no list or an empty one the
   message check passes. No list, an env list with no
@@ -406,7 +414,10 @@ The POST gates, on the generated site:
   a public one, and the page has no reason to point into either. Red on a
   site with no `.html` page. No exception: forsgren's own repository is red
   like any other (forsgren#162; the footer links https://forsgren.be/, the
-  project page, which links GitHub itself). The failure line names the file and line, never
+  project page, which links GitHub itself; the no-projects page links
+  https://forsgren.be/#configuration, forsgren#172, and
+  `internal/page/repolinks_test.go` runs this gate on a site rendered with
+  no projects). The failure line names the file and line, never
   the path it matched, so a private repository's name cannot reach a commit
   message.
 - **community files** (`Scripts/check_community_files.sh`, forsgren's own):

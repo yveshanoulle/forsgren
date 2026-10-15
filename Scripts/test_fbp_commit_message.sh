@@ -78,7 +78,12 @@ trap finish EXIT
 # Issue source-repo#20 (item 1): when there is no sandbox it fails this fixture once,
 # with the sandbox's own reason, and returns 1, so the case skips its
 # assertions: case 2's absence check would otherwise pass on empty output.
+# Every call counts itself in RUN_FBP_CALLS, which the end of this fixture
+# prints as "run_fbp calls: N": proof (a) holds the no-sandbox FAIL lines to
+# that count, so a new case needs no edit of a hand-written number.
+RUN_FBP_CALLS=0
 run_fbp() {
+  RUN_FBP_CALLS=$((RUN_FBP_CALLS + 1))
   if ! fbp_sandbox_run 3 "$@"; then
     fail "run_fbp: ${FBP_SANDBOX_REASON}"
     return 1
@@ -581,14 +586,13 @@ else
   # before its subshell (issue source-repo#20 step 2), and even a lib that did not would
   # write its stubs into that empty directory, never into this repo.
   #
-  # Wanted: the run fails; exactly 10 FAIL lines carry the reason, one for
-  # each run_fbp call (cases 1 and 2, and case 4's three runs, #52 and forsgren#1 step
-  # 12.2d, case 5's two runs, road to public step 4, case 6's one run and case 8's
-  # two runs, forsgren#54, all of which skip
-  # their checks on it); every other FAIL line names mktemp
-  # itself (case 3's fake repo and these proofs cannot get a directory
-  # either), so no downstream assertion fired. The lib's own stderr line is
-  # not a FAIL line and does not count.
+  # Wanted: the run fails; exactly as many FAIL lines carry the reason as
+  # the run made run_fbp calls, by its own count ("run_fbp calls: N", at
+  # least one), one for each, all of which skip their checks on it; every
+  # other FAIL line names mktemp itself (case 3's fake repo and these proofs
+  # cannot get a directory either), so no downstream assertion fired. A run
+  # that printed no count, or a count of 0, ran no case at all and fails the
+  # proof. The lib's own stderr line is not a FAIL line and does not count.
   # -------------------------------------------------------------------------
   callers_dir="${proof_dir}/callers"
   mkdir -p "${callers_dir}/cwd"
@@ -601,6 +605,7 @@ else
   callers_fails="$(grep -F '❌ FAIL:' <<< "$callers_out" || true)"
   callers_reasons="$(grep -cF 'could not create the FBP sandbox' <<< "$callers_fails" || true)"
   callers_downstream="$(grep -vF 'could not create the FBP sandbox' <<< "$callers_fails" | grep -vF 'mktemp -d gave no directory' || true)"
+  callers_calls="$(sed -n 's/^run_fbp calls: \([0-9][0-9]*\)$/\1/p' <<< "$callers_out")"
 
   case "$callers_rc" in
     missing)
@@ -611,8 +616,10 @@ else
       ;;
   esac
 
-  if [ "$callers_reasons" != "10" ]; then
-    fail "callers check the run: with no sandbox, ${callers_reasons:-0} FAIL line(s) carry 'could not create the FBP sandbox', want 10 — one per run_fbp call (cases 1 and 2, case 4's three runs, case 5's two runs, case 6's run, case 8's two runs), so case 2's absence check cannot pass vacuously on empty output. Output: ${callers_out}"
+  if [ -z "$callers_calls" ] || [ "$callers_calls" -eq 0 ]; then
+    fail "callers check the run: the no-sandbox run of this fixture reported no run_fbp call ('run_fbp calls: ${callers_calls:-none}'), so no case ran and nothing was tested. Output: ${callers_out}"
+  elif [ "$callers_reasons" != "$callers_calls" ]; then
+    fail "callers check the run: with no sandbox, ${callers_reasons:-0} FAIL line(s) carry 'could not create the FBP sandbox', want ${callers_calls} — one per run_fbp call the run counted, so case 2's absence check cannot pass vacuously on empty output. Output: ${callers_out}"
   fi
 
   if [ -n "$callers_downstream" ]; then
@@ -718,6 +725,9 @@ DRIVER
 fi
 
 COMPLETED=1
+
+# Read by proof (a) of the run that started this one with no sandbox.
+echo "run_fbp calls: ${RUN_FBP_CALLS}"
 
 if [ "$failed" -ne 0 ]; then
   echo ""

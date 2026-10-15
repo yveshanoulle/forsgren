@@ -373,11 +373,12 @@ for path in Scripts/*.sh; do
       done
       ;;
 
-    # PULL-REQUEST CHECK, not a gate of sfl or Quality (road to public,
-    # step 4): every commit of a pull request carries a DCO sign-off from its
-    # author. A commit on main has no pull request, so neither runner can
-    # run it; .github/workflows/dco.yml does, on a GitHub-hosted runner, and
-    # its self-test is an order-file row, so sfl and Quality still prove it.
+    # DCO WORKFLOW CHECK, not a gate of sfl or Quality (road to public,
+    # step 4): every commit of a pull request, and of a push to main
+    # (forsgren#81), carries a DCO sign-off from its author. It judges the
+    # commits a pull request or a push brings, which neither runner has;
+    # .github/workflows/dco.yml runs it, on a GitHub-hosted runner, and its
+    # self-test is an order-file row, so sfl and Quality still prove it.
     check_dco.sh)
       runs_script "$DCO_WF" "$base" \
         || fail "${base} checks a pull request's sign-offs and ${DCO_WF} never invokes it — no pull request would be checked"

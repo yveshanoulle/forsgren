@@ -43,8 +43,9 @@ Every commit it makes, green or `*** RED ****`, is signed off
 (`git commit --signoff`): git adds a `Signed-off-by:` trailer for the
 committer identity, yours from `user.name` and `user.email`, or
 agent-Friend's under `Scripts/fbp_agent_friend.sh`. That is the Developer
-Certificate of Origin sign-off the DCO check on pull requests asks for (see
-[CI](ci.md) and [CONTRIBUTING.md](../CONTRIBUTING.md)).
+Certificate of Origin sign-off the DCO check on pull requests and on every
+push to `main` asks for (see [CI](ci.md) and
+[CONTRIBUTING.md](../CONTRIBUTING.md)).
 
 Its closing summary prints the message, one row per phase with the
 gate counts and the page count, and every failure's reason. A run ended by
@@ -241,12 +242,19 @@ broken runner cannot report green:
   (`Scripts/test_sfl_drives_from_order_file.sh`): sfl names no gate label
   itself, every row names an executable script, every `Scripts/test_*.sh`
   is declared by a row, and the secret scan, the data guard and the
-  private-names gate each carry `secret-class`.
+  private-names gate each carry `secret-class`; each of those three pins
+  is seen rejecting the order file with its tier stripped, by its own
+  FAIL line and not for another reason.
 - **FullBuildAndPush commit-message block** and **FullBuildAndPush
   build-site page count** (`Scripts/test_fbp_commit_message.sh`,
   `Scripts/test_fbp_build_pagecount.sh`): the real `FBP.sh`, run in a
   throwaway repository with stub gates, prints its message, reaches PRE,
   blocks a secret-class commit with the right hint, signs off its green and
   `*** RED ****` commits as the identity that ran it (a commit that then
-  passes `Scripts/check_dco.sh`), and fails the build row
-  by name on a missing, unreadable, non-numeric or zero page count.
+  passes `Scripts/check_dco.sh`), refuses a message that names a private
+  name before any gate runs, hands the message to the private-names gate on
+  stdin (`--message -`), never prints back an argument that starts like a
+  flag, and fails the build row
+  by name on a missing, unreadable, non-numeric or zero page count. With no
+  sandbox, the commit-message fixture fails once per `run_fbp` call, a
+  number it counts itself.
