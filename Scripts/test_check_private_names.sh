@@ -227,6 +227,16 @@ want_not_said "no list" "$NAME_A"
 # In CI the missing list is the Actions secret, which a fork's pull request
 # never receives (forsgren#81): the line names the secret and says so, and
 # the local wording stays for a local run. Exit 2 either way.
+# --message - reads the message from stdin (FBP.sh, forsgren#54): no file.
+new_repo "message-on-stdin"
+capture env -u FORSGREN_PRIVATE_NAMES_FILE HOME="$EMPTY_HOME" FORSGREN_PRIVATE_NAMES="$NAMES_ENV" \
+  "$GATE" --message - <<< "touch the Pre-ACME-Secret-Repo-v2 notes"
+want_exit "--message - on a message naming a private name is exit 1" 1 "the commit message names a private name"
+want_not_said "--message - naming" "$NAME_A" "$NAME_B"
+capture env -u FORSGREN_PRIVATE_NAMES_FILE HOME="$EMPTY_HOME" FORSGREN_PRIVATE_NAMES="$NAMES_ENV" \
+  "$GATE" --message - <<< "a clean message"
+want_rc "--message - on a clean message is exit 0" 0
+
 new_repo "no-list-in-actions"
 capture env -u FORSGREN_PRIVATE_NAMES -u FORSGREN_PRIVATE_NAMES_FILE GITHUB_ACTIONS=true \
   HOME="$EMPTY_HOME" "$GATE" "$REPO"

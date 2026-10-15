@@ -66,20 +66,17 @@ fi
 # here, FIRST: before the banner, the gates and the summary print the message,
 # and long before any commit. The check lives in the gate itself
 # (Scripts/check_private_names.sh --message), the one matcher with the one
-# list. The message goes in through a temp file, never as an argument, and
-# the gate's FAIL line never holds the name or the message. FBP.sh adds only
+# list. The message goes in on stdin, never as an argument and never through a
+# file an interrupt could leave behind (forsgren#54), and the gate's FAIL line
+# never holds the name or the message. FBP.sh adds only
 # fixed text of its own to the message ('*** RED ****'), so this one check of
 # the given message is also the check of what `git commit` receives. With no
 # list the check passes; --no-commit with no message has nothing to check.
 if [ -n "$COMMIT_MSG" ]; then
-  MSG_FILE="$(mktemp -t forsgren_commit_msg)"
-  printf '%s\n' "$COMMIT_MSG" > "$MSG_FILE"
-  if ! ./Scripts/check_private_names.sh --message "$MSG_FILE"; then
-    rm -f "$MSG_FILE"
+  if ! printf '%s\n' "$COMMIT_MSG" | ./Scripts/check_private_names.sh --message -; then
     echo "No commit was made and no gate ran. Reword the message and run FBP.sh again."
     exit 1
   fi
-  rm -f "$MSG_FILE"
 fi
 
 # Bump FBP_VERSION on every meaningful change to THIS file. The banner
@@ -87,7 +84,7 @@ fi
 # repo because two FBP runs back to back were otherwise
 # indistinguishable from their first line (Yves, 2026-08-31). Mirrors
 # sfl.sh's banner; editing a Scripts/*.sh does not require a bump.
-FBP_VERSION=5
+FBP_VERSION=6
 
 STARTED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
 START_EPOCH="$(date +%s)"

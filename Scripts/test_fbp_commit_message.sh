@@ -482,6 +482,44 @@ if FORSGREN_PRIVATE_NAMES="$PRIVATE_NAME" run_fbp "6.a: touch the Pre-ACME-Secre
 fi
 
 # ---------------------------------------------------------------------------
+# Case 7: forsgren#54 S3 — the message reaches the private-names gate on
+# stdin, never through a file. A file written for the check and left behind by
+# an interrupt may hold a name. A recording stand-in for the gate (the
+# sandbox copies FBP_SANDBOX_PRIVATE_NAMES_GATE, which is set here to the
+# stand-in) writes down its arguments and what it was given on stdin.
+# Wanted: `--message -` (a path would be a file) and the message on stdin.
+# ---------------------------------------------------------------------------
+if fbp_sandbox_new_dir; then
+  stdin_dir="$FBP_SANDBOX_NEW_DIR"
+  stdin_log="${stdin_dir}/gate.log"
+  cat > "${stdin_dir}/recording_gate.sh" <<'GATE'
+#!/usr/bin/env bash
+{
+  printf 'args: %s\n' "$*"
+  printf 'stdin: %s\n' "$(cat)"
+} > "$STDIN_GATE_LOG"
+exit 0
+GATE
+  chmod +x "${stdin_dir}/recording_gate.sh"
+  real_gate="$FBP_SANDBOX_PRIVATE_NAMES_GATE"
+  FBP_SANDBOX_PRIVATE_NAMES_GATE="${stdin_dir}/recording_gate.sh"
+  if STDIN_GATE_LOG="$stdin_log" run_fbp --no-commit "7.a: the message goes in on stdin"; then
+    if [ ! -f "$stdin_log" ]; then
+      fail "7.a. the gate stand-in never ran — FBP.sh did not check the message. Output: ${OUT}"
+    else
+      grep -Fxq "args: --message -" "$stdin_log" \
+        || fail "7.a. FBP.sh did not call the gate as --message -. Log: $(cat "$stdin_log")"
+      grep -Fxq "stdin: 7.a: the message goes in on stdin" "$stdin_log" \
+        || fail "7.a. the message did not arrive on the gate's stdin. Log: $(cat "$stdin_log")"
+      if [ "$failed" -eq 0 ]; then
+        echo "  ok: 7.a. the message reaches the gate on stdin, not through a file"
+      fi
+    fi
+  fi
+  FBP_SANDBOX_PRIVATE_NAMES_GATE="$real_gate"
+fi
+
+# ---------------------------------------------------------------------------
 # Self-proofs, issue source-repo#20 step 3 (items 1 to 3 of the #14 review). Each one
 # runs this fixture, a copy of it, or a small driver, from inside ONE
 # directory made here with the real mktemp and registered with the lib, so

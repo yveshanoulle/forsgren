@@ -6,7 +6,7 @@
 # 2026-10-04); writing them here to keep them out of here would publish them.
 #
 # Usage: Scripts/check_private_names.sh [repo-dir]   (default: the current directory)
-#        Scripts/check_private_names.sh --message <file>
+#        Scripts/check_private_names.sh --message <file>   (<file> - : stdin)
 #
 # The list, the first source that is set and non-empty wins:
 #   1. env FORSGREN_PRIVATE_NAMES, newline-separated (the CI Actions secret)
@@ -39,8 +39,8 @@
 # an env list or a names file with no names all pass (exit 0): locally FBP.sh
 # makes an empty list itself, and CI never commits through FBP.sh. Exit 2 only
 # when <file> cannot be read, or the names file exists but cannot be read.
-# FBP.sh hands the message in a temp file, never as an argument, so no trace
-# or process list shows it.
+# FBP.sh hands the message in on stdin (--message -), never as an argument and
+# never in a file, so no trace or process list shows it.
 #
 # Exit 0 clean. Exit 1 a name found. Exit 2 when:
 #   - there is no list at all (no env list, no names file);
@@ -244,7 +244,8 @@ scan_tracked() {
 check_message() {
   local msg="$1"
   MESSAGE_MODE=1
-  [[ -f "$msg" && -r "$msg" ]] || { echo "❌ FAIL: cannot read the commit message file"; exit 2; }
+  # "-" is the message on stdin (FBP.sh, forsgren#54): no file to leave behind.
+  [[ "$msg" == "-" ]] || [[ -f "$msg" && -r "$msg" ]] || { echo "❌ FAIL: cannot read the commit message file"; exit 2; }
   read_list
   build_patterns
   [[ "$COUNT" -eq 0 ]] && exit 0
