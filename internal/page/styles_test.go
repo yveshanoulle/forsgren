@@ -236,3 +236,51 @@ func TestRunningTextHasAReadableMeasureWhileTablesKeepTheFullWidth(t *testing.T)
 		t.Errorf("want no max-width on the table rule, got:\n%s", tables[0])
 	}
 }
+
+// chartColour matches what brings a colour into a rule: a colour literal or
+// function, a variable, or a property that sets a colour.
+var chartColour = regexp.MustCompile(`#[0-9a-fA-F]{3,8}\b` +
+	`|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|light-dark|var)\(` +
+	`|(?:^|[\s;])(?:color|fill|stroke|background[a-z-]*|border[a-z-]*color|outline-color)\s*:`)
+
+// chartRulesWithColour are the rules of sheet on an svg that bring a colour.
+func chartRulesWithColour(sheet cssSheet) (rules []cssRule) {
+	for _, r := range sheet.rules {
+		if strings.Contains(r.selector, "svg") && chartColour.MatchString(r.body) {
+			rules = append(rules, r)
+		}
+	}
+	return rules
+}
+
+// TestHistoryChartStylesUseNoColours (forsgren#68): the History charts are
+// sized by rules on the svg of a cell and its polyline, which exist, and bring
+// no colour: no colour literal, function or variable, no colour property and no
+// custom property in the sheet. The lines are drawn in currentcolor by the
+// markup, so light and dark follow color-scheme and the text colour.
+func TestHistoryChartStylesUseNoColours(t *testing.T) {
+	sheet := stylesSheet(t)
+	checkChartRules(t, sheet)
+	for _, r := range chartRulesWithColour(sheet) {
+		t.Errorf("want no colour in the rule %q, got:\n%s", r.selector, r.body)
+	}
+	if strings.Contains(sheet.text, "--") {
+		t.Error("want no custom property (colour token) in styles.css")
+	}
+}
+
+// checkChartRules fails t unless sheet has one rule on the svg of a cell, which
+// scales it in its cell, and one on its polyline.
+func checkChartRules(t *testing.T, sheet cssSheet) {
+	t.Helper()
+	for _, selector := range []string{"td svg", "td svg polyline"} {
+		if n := len(sheet.bodies(selector)); n != 1 {
+			t.Fatalf("want one %q rule in styles.css, got %d", selector, n)
+		}
+	}
+	for _, declaration := range []string{"max-width: 100%", "height: auto"} {
+		if !sheet.declares("td svg", declaration) {
+			t.Errorf("want the chart to scale in its cell (%s), got %v", declaration, sheet.bodies("td svg"))
+		}
+	}
+}

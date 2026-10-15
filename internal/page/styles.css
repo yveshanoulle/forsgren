@@ -132,3 +132,20 @@ li {
 .bugs-zero {
   color: light-dark(#1b6e2f, #7fd98f);
 }
+
+/* The charts of the History page (forsgren#68) sit in the Trend cell and shrink
+   with it, never past the cell, at their own proportions. They are drawn in
+   currentcolor by the markup, so light and dark follow the text colour and no
+   rule here sets a colour. */
+td svg {
+  display: block;
+  width: 7.5rem;
+  max-width: 100%;
+  height: auto;
+}
+
+td svg polyline {
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
