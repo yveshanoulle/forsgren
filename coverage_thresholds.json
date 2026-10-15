@@ -520,6 +520,8 @@
     "github.com/yveshanoulle/forsgren/internal/page/page.go:Scoring": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/scoring.go:scores": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/scoring.go:ScoreCells": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/scoring.go:scoreCell": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/legendscores.go:LeadTimeScores": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/scoring.go:OverallCell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:parsePages": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:PageNames": 100.0,

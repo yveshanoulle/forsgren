@@ -40,6 +40,10 @@ func (r Row) scores() []score {
 	}
 }
 
+// scoreCell is a score as a cell shows it: "9.3", "10", "0", with no trailing
+// zero. The legend writes the score of a level the same way (forsgren#79).
+func scoreCell(value float64) string { return strconv.FormatFloat(value, 'f', -1, 64) }
+
 // ScoreCells are the row's five scores as cells: "9.3", "10", "0", with no
 // trailing zero, and "-" for a metric without data.
 func (r Row) ScoreCells() []string {
@@ -47,7 +51,7 @@ func (r Row) ScoreCells() []string {
 	for _, s := range r.scores() {
 		cell := noScore
 		if s.ok {
-			cell = strconv.FormatFloat(s.value, 'f', -1, 64)
+			cell = scoreCell(s.value)
 		}
 		cells = append(cells, cell)
 	}
