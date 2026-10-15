@@ -388,10 +388,15 @@ for path in Scripts/*.sh; do
 
     # HELPER OF THE DCO CHECK, not a gate (forsgren#81): lists the commits of
     # a push in check_dco.sh's input shape. Scripts/test_check_dco.sh, an
-    # order-file row, is its test and must still run it.
+    # order-file row, is its test and must still run it; dco.yml runs it on
+    # a push to main, and must trigger on one.
     dco_push_commits.sh)
       runs_script "Scripts/test_check_dco.sh" "$base" \
         || fail "${base} lists a push's commits for the DCO check and Scripts/test_check_dco.sh never runs it — the listing would be unproven"
+      runs_script "$DCO_WF" "$base" \
+        || fail "${base} lists a push's commits for the DCO check and ${DCO_WF} never invokes it — a push to main would not be checked"
+      awk '/^  push:/ { p = 1; next } /^  [A-Za-z_]+:/ { p = 0 } p && /branches:.*"main"/ { f = 1 } END { exit !f }' "$DCO_WF" \
+        || fail "${DCO_WF} has no push trigger on main — ${base} would list commits nobody checks"
       ;;
 
     # HAND-RUN BY THE LOOP, never by sfl or a workflow: a thin exec wrapper
@@ -1043,6 +1048,17 @@ if ! is_mutation_rerun; then
     's|^([[:space:]]*)(\./Scripts/check_dco\.sh )|\1# \2|' \
     "check_dco.sh checks a pull request's sign-offs and" \
     "a dco.yml whose check_dco.sh call is a comment"
+
+  # dco.yml: the push-listing call becomes a comment, then the push trigger
+  # becomes another one.
+  mutation_proof GATE_WIRING_DCO_OVERRIDE "Scripts/dco_push_commits.sh" \
+    's|^([[:space:]]*)(\./Scripts/dco_push_commits\.sh )|\1# \2|' \
+    "dco_push_commits.sh lists a push's commits for the DCO check and" \
+    "a dco.yml whose dco_push_commits.sh call is a comment"
+  mutation_proof GATE_WIRING_DCO_OVERRIDE "Scripts/dco_push_commits.sh" \
+    's|^  push:|  workflow_dispatch:|' \
+    "has no push trigger on main" \
+    "a dco.yml with no push trigger"
 
   # The order file: the DCO self-test row becomes a comment, so neither sfl
   # nor Quality proves the check dco.yml runs.
