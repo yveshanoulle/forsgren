@@ -96,7 +96,7 @@ func rowOf(level Level, p config.Project, data Data, now time.Time) Row {
 		LeadTime:   LeadTimesOver(only, data.Commits, data.WindowDays(), now)[0],
 		Recovery:   RecoveryTimesOver(only, data.Records, data.WindowDays(), now)[0],
 		ChangeFail: ChangeFailRatesOver(only, data.Records, data.Failures, data.WindowDays(), now)[0],
-		Rework:     ReworkRates(only, data.Records, data.Failures, now)[0],
+		Rework:     ReworkRatesOver(only, data.Records, data.Failures, data.WindowDays(), now)[0],
 	}
 }
 

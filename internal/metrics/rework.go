@@ -75,6 +75,16 @@ func (r ReworkRate) Cell() string {
 func ReworkRates(projects []config.Project, records []history.Record, failures []history.Failure,
 	now time.Time,
 ) []ReworkRate {
+	return ReworkRatesOver(projects, records, failures, last30Days, now)
+}
+
+// ReworkRatesOver is ReworkRates over a window of days (30, 90 or 180): the
+// successful deployments created in the last days days (forsgren#178). The
+// failures are those left after the withdrawn ones were dropped (forsgren#155),
+// whatever the window.
+func ReworkRatesOver(projects []config.Project, records []history.Record, failures []history.Failure,
+	days int, now time.Time,
+) []ReworkRate {
 	index := indexOf(projects)
 	issues := issuesByRepository(failures)
 	out := make([]ReworkRate, len(projects))
@@ -83,7 +93,7 @@ func ReworkRates(projects []config.Project, records []history.Record, failures [
 	}
 	for s, deployments := range streamsOf(index, records, now) {
 		i, _ := index.of(s.Repository)
-		successes, rework := reworkIn(deployments, issues[s.Repository], now)
+		successes, rework := reworkIn(deployments, issues[s.Repository], window(days), now)
 		out[i].Deployments += successes
 		out[i].Rework += rework
 	}
@@ -104,11 +114,11 @@ func issuesByRepository(failures []history.Failure) map[string][]history.Failure
 }
 
 // reworkIn walks one stream's deployments oldest first and returns how
-// many successes of the last 30 days it holds and how many of them are
+// many successes of the window w it holds and how many of them are
 // rework, given the failure issues of its repository.
-func reworkIn(deployments []history.Record, issues []history.Failure, now time.Time) (successes, rework int) {
+func reworkIn(deployments []history.Record, issues []history.Failure, w window, now time.Time) (successes, rework int) {
 	eachSuccess(deployments, func(s streamSuccess) {
-		if last30.holds(s.at, now) {
+		if w.holds(s.at, now) {
 			successes++
 			rework += reworkCount(s.recovered, issues, s.at)
 		}

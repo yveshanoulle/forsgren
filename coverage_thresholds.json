@@ -469,6 +469,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/rework.go:Percent": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/rework.go:Cell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/rework.go:ReworkRates": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/rework.go:ReworkRatesOver": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/rework.go:issuesByRepository": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/rework.go:reworkIn": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/rework.go:reworkCount": 100.0,
