@@ -101,3 +101,24 @@ func TestStep13DoesNotAskForTheValueOfAVerifiedDomain(t *testing.T) {
 		t.Error("step 13 still has an already verified person send the record's name and value")
 	}
 }
+
+// TestInstallerStep12ReadsTheDefaultColumn (forsgren#169): the settings proof
+// reads the last field of each row as the key's default value and tells a key
+// the file sets (a bare value) from one it leaves out (`(not set)` after the
+// value), so it can be checked from the page alone; it no longer speaks of
+// True and False.
+func TestInstallerStep12ReadsTheDefaultColumn(t *testing.T) {
+	proof := asOneLine(section(t, installerFile, "Step 12."))
+	wantAll(t, "step 12", proof,
+		"`;view;numbers;standard, numbers, scoring;standard;`",
+		"last field of each row is the default of the key: `standard`, `false`, `major`, `365`, `100`, "+
+			"`8`, `30`, `true`, `false`, `false`",
+		"show the value of the config, without `(not set)`",
+		"`history_chunk_days` shows `100 (not set)` and `working_hours` shows `8 (not set)`",
+		"Ten rows in all")
+	for _, old := range []string{"`True` (the default)", "`False` (set in forsgren.config.yml", ";False;"} {
+		if strings.Contains(proof, old) {
+			t.Errorf("agent-installer.md step 12 still says %q", old)
+		}
+	}
+}

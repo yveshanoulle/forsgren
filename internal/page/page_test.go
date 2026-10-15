@@ -683,17 +683,19 @@ func TestLegendHasNoSettings(t *testing.T) {
 }
 
 // defaultNote is the legend's explanation of the settings page's Default
-// column (forsgren#141).
-const defaultNote = "The Default column of the settings page says whether the default applies: True when " +
-	"forsgren.config.yml does not set the key, so the current value is the default, and False when the file sets " +
-	"it, even to the default's value."
+// column and of "(not set)" after a Current value (forsgren#141, #169).
+const defaultNote = "The Default column of the settings page is the value used when forsgren.config.yml does not " +
+	"set the key. A current value followed by (not set) means the file does not set the key, so the default applies; " +
+	"a current value without it is set in the file, even to the default's value."
 
-// TestLegendExplainsTheDefaultColumnOfTheSettingsPage (forsgren#141): the
-// legend ends with a section on the settings page that says what True and
-// False mean in its Default column.
-func TestLegendExplainsTheDefaultColumnOfTheSettingsPage(t *testing.T) {
-	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()),
-		"<h2>Settings page</h2>\n    <p>"+defaultNote+"</p>\n")
+// TestLegendExplainsTheDefaultColumnAndNotSet (forsgren#141, #169): the legend
+// ends with a section on the settings page that says what the Default column
+// holds and what (not set) after a Current value means, and no longer speaks
+// of True and False.
+func TestLegendExplainsTheDefaultColumnAndNotSet(t *testing.T) {
+	html := rendered(t, "legend.html", calculated())
+	wantAll(t, "legend.html", html, "<h2>Settings page</h2>\n    <p>"+defaultNote+"</p>\n")
+	wantNone(t, "legend.html", html, "True when forsgren.config.yml")
 }
 
 // autoUpdateLevelNote is the legend's explanation of auto_update_level and of

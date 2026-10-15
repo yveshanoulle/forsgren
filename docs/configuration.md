@@ -159,12 +159,14 @@ projects:
   `auto_update_level`); **Possible values**, built from the config package's
   own constants and limits so the page cannot drift from what `check-config`
   accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `30 to 1825`; `1 to 365`; `1 to 24`; `30, 90, 180`; `true, false` for each of the three page keys),
-  a test holds the lists to the config loader; and **Default**: True when
-  `forsgren.config.yml` does not set the key, so the current value is the
-  default, False when the file sets it, even to the default's value. For a
-  value that is not accepted the Current value says so: `60 is not accepted:
-  use 30, 90 or 180. Using the default 30.`, and Default is True, since the
-  default is in use (forsgren#183). The legend explains the Default column.
+  a test holds the lists to the config loader; and **Default**, the value
+  used when `forsgren.config.yml` does not set the key (forsgren#169). A
+  Current value followed by `(not set)` means the file does not set the key,
+  so the default applies; a Current value without it is set in the file, even
+  to the default's value. For a value that is not accepted the Current value
+  says so, with no `(not set)`: `60 is not accepted: use 30, 90 or 180. Using
+  the default 30.`, and Default shows that default (forsgren#183). The legend
+  explains the Default column and `(not set)`.
 - **`projects`** is required: a list of projects, or `projects: []` for an
   installation that measures nothing yet (it is valid, and `check-config`
   reports `projects: 0, repositories: 0`). A file whose `projects` key is

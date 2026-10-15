@@ -603,7 +603,7 @@ repositories, one with a `label`) and a link to Configuration (forsgren#41):
   A value that is not accepted (forsgren#183) shows in its row's Current
   value as written, then why and the default in use: "60 is not accepted:
   use 30, 90 or 180. Using the default 30." (an empty value as "(empty)"),
-  and its Default is True.
+  and its Default shows that default.
 - **Layout:** no table has a caption: each is named by its page's heading
   ("DORA metrics" on the three views and the root, Issues, Daily), and one `h1`
   rule in `styles.css` sets the look of every page's heading (forsgren#135), and every table has `<th scope>` headers; it scrolls

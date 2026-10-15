@@ -210,7 +210,6 @@ func TestUpgraderStep9StartsARunAndChecksThePublishedPage(t *testing.T) {
 		"Forsgren</a>",
 		"at most 5 times",
 		"settings.html",
-		"ends with `False`",
 		"404",
 		"HTTPS",
 		"gh issue list -R OWNER/REPO -l forsgren-setup")
@@ -410,4 +409,24 @@ func TestUpgraderStep8NamesEverySettingInTheCommitMessage(t *testing.T) {
 	wantAll(t, "step 8", upgraderSection(t, "Step 8."),
 		"every setting the commit changes, the update wait included",
 		"forsgren: set auto_update, auto_update_level, days_page and the update wait for LATEST")
+}
+
+// TestUpgraderStep9ReadsNotSet (forsgren#169): the settings check after the
+// run tells a key the person set (their value, bare) from one they left alone
+// (`(not set)` after the value), and step 2 item 2 reads both pages: the
+// default in the last field with `(not set)`, and the older True and False.
+func TestUpgraderStep9ReadsNotSet(t *testing.T) {
+	wantAll(t, "step 9", upgraderSection(t, "Step 9."),
+		"shows their value without `(not set)`",
+		"shows the same value as before, with `(not set)` after it when the file does not set it",
+		"shows its default followed by `(not set)`")
+	step2 := upgraderSection(t, "Step 2.")
+	wantAll(t, "step 2", step2,
+		"such as `;auto_update;true;true, false;false;`",
+		"From forsgren 1.7.2 on the last field is the default of the key",
+		"`(not set)` after the current value means the file leaves the key out",
+		"Up to forsgren 1.7.1 the last field is `True` when the file leaves the key out and `False` when it sets it")
+	if strings.Contains(upgraderSection(t, "Step 9."), "ends with `False`") {
+		t.Error("step 9 still says ends with `False`")
+	}
 }

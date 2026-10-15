@@ -689,13 +689,17 @@ Then check what the run did:
      | sed -E 's/<[^>]+>/;/g; s/; *;/;/g'
    ```
 
-   For example `;view;numbers;standard, numbers, scoring;False;`.
+   For example `;view;numbers;standard, numbers, scoring;standard;`. The
+   last field of each row is the default of the key: `standard`, `false`,
+   `major`, `365`, `100`, `8`, `30`, `true`, `false`, `false`, for the rows
+   `view` to `numbers_scoring_page` in the page's order.
    - The rows `view`, `auto_update`, `auto_update_level`,
      `history_days`, `dora_days`, `issues_page`, `days_page` and
-     `numbers_scoring_page` show the values of the config, and end with
-     `False` (set in forsgren.config.yml, not the default).
-   - The rows `history_chunk_days` (`100`) and `working_hours` (`8`) end
-     with `True` (the default).
+     `numbers_scoring_page` show the value of the config, without `(not set)`
+     (the file sets the key).
+   - The rows `history_chunk_days` and `working_hours` are left to their
+     defaults: `history_chunk_days` shows `100 (not set)` and `working_hours`
+     shows `8 (not set)`.
    - Ten rows in all. A row missing or different: stop and report.
 9. The footer names the pinned version:
    `curl -fsS SITE | grep -o 'Forsgren</a> [0-9.]*'`

@@ -167,9 +167,13 @@ Read the report first, then the repository it comes from.
 2. The settings page shows the current configuration, every key with its
    value:
    `curl -fsS REPORTsettings.html | tr -d '\n' | grep -oE '<th scope="row">[a-z_]+</th>([^<]*<td>[^<]*</td>){3}' | sed -E 's/<[^>]+>/;/g; s/; *;/;/g'`
-   - Works: one line per setting, such as `;auto_update;true;true, false;False;`:
+   - Works: one line per setting, such as `;auto_update;true;true, false;false;`:
      the key, its current value, the possible values and, from forsgren 0.8.6
-     on, whether it is the default (`True`) or set in the file (`False`).
+     on, a last field. From forsgren 1.7.2 on the last field is the default
+     of the key, and `(not set)` after the current value means the file
+     leaves the key out; a current value without it is set in the file. Up to
+     forsgren 1.7.1 the last field is `True` when the file leaves the key out
+     and `False` when it sets it.
    - The settings page exists from forsgren 0.5.0. A 404 means the
      installation is older than forsgren 0.5.0 (`curl -f` then ends with an
      error: that is the answer, not a failure of this file; the issues and
@@ -763,10 +767,11 @@ minute and run that check again, at most 5 times, before you report it.
    all the retries: stop and report.
 6. The settings page shows the chosen settings. Run step 2 item 2's command
    again (`curl ... REPORTsettings.html ...`). Every row the person set in
-   step 8 shows their value and ends with `False` (set in the file); every
-   key they left alone shows the same value as before; a key new in this
-   release that they did not set ends with `True` (the default) and shows the
-   default. A row missing or different: stop and report.
+   step 8 shows their value without `(not set)` (set in the file); every
+   key they left alone shows the same value as before, with `(not set)` after
+   it when the file does not set it; a key new in this release that they did
+   not set shows its default followed by `(not set)`. A row missing or
+   different: stop and report.
 7. A page that a release hides or shows (`WORK/asks.md`, step 4): ask for it
    by its address, `curl -sS -o /dev/null -w '%{http_code}' REPORTdays.html`
    (for another page, its file name in place of `days.html`).

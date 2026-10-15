@@ -448,3 +448,11 @@ What an installation sees: nothing until `numbers_scoring_page: true`; then the 
 ## 2026-10-15 — a 0 in the Open bugs cell is green, released as 1.7.1 ([#151](https://github.com/yveshanoulle/forsgren/issues/151))
 
 Yves: when the open bugs are at 0, that zero can be green too (`0 ▼ −1`). The count in the Open bugs cell now carries `bugs-zero`, the green of the falling arrow (`#1b6e2f` light, `#7fd98f` dark, no new colour), whenever it is 0, whatever the arrow; unchanged, the 0 is green and the dash stays blue (#152). The Open column and the "— (incomplete)" cell (#140) are unchanged. The legend adds "where a count of 0 open bugs is green too". One step: the cell, the legend, the contrast test and the Days, Issues and legend goldens (this commit). Decisions: #188.
+
+---
+
+## 2026-10-15 — the settings page's Default column shows the default value, released as 1.7.2 ([#169](https://github.com/yveshanoulle/forsgren/issues/169))
+
+Yves: the Default column (True/False) is confusing; better show the actual default setting. The column now shows each key's default (`standard`, `false`, `major`, `365`, `100`, `8`, `30`, `true`, `false`, `false`). The signal it carried (#141: does the file set this key, or does the default apply?) moves into the Current value cell: a key the file leaves out reads `<value> (not set)`; a key the file sets shows its bare value, even when equal to the default. A rejected row (#183) keeps its sentence. Steps, each its own FBP: 1 a setting carries its default (e5861e8); 2 the Default column shows it (1002c7a); 3 `(not set)` for a key the file does not set (b3b3d65); 4 the legend, configuration.md, pages-and-views.md, CLAUDE.md, agent-installer.md step 12 and agent-upgrade.md steps 2 and 9 read the new columns; step 2 explains both readings, since it reads an installation's page from before the update (this commit). Decisions: #189.
+
+What an installation sees: on the settings page, real defaults in the last column and `(not set)` beside each key the file leaves out. Nothing to do.
