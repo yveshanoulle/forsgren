@@ -9,7 +9,7 @@ import (
 // page section that says what the periods are, that every period is banded as
 // 180 days at the configured working day with the period's own count, what a
 // cell, the chart and a dash mean, the limits of old periods, and how to hide
-// the page; the Issues pages paragraph lists history_page among the switches.
+// the page; the Issues pages paragraph names the default of history_page.
 func TestLegendExplainsTheHistoryPage(t *testing.T) {
 	cases := map[string]struct {
 		hours int
@@ -32,7 +32,7 @@ func TestLegendExplainsTheHistoryPage(t *testing.T) {
 			}
 		}
 	}
-	const shown = "The History page is shown only with history_page: true (default false)."
+	const shown = "history_page: unlisted"
 	if !strings.Contains(rendered(t, "legend.html", calculated()), shown) {
 		t.Error("want the Issues pages paragraph to list history_page among the page switches")
 	}
@@ -54,5 +54,8 @@ var legendHistoryText = []string{
 	"The lead time of older periods can be a dash",
 	"lost its label long ago",
 	"covers only the dora_days window",
-	"The History page is shown only with history_page: true (default false) in forsgren.config.yml",
+	"The History page is unlisted by default (history_page: unlisted): it is " +
+		"generated and can be opened at history.html, but it has no menu entry and search" +
+		" engines are asked to skip it. Set history_page: true to put it in the menu, or " +
+		"history_page: false to not generate it.",
 }

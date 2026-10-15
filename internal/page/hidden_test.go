@@ -143,11 +143,15 @@ func wantMenuWithout(t *testing.T, name, html string, gone []string) {
 	}
 }
 
-// legendPagesText is the legend's explanation of the two keys (forsgren#159).
-const legendPagesText = "<p>The Issues page and the Daily page are shown or hidden with issues_page and days_page " +
-	"in forsgren.config.yml. By default the Issues page is shown (issues_page: true) and the Daily page is hidden " +
-	"(days_page: false); days_page: true brings the Daily page back. A hidden page is not generated and has no " +
-	"entry in the menu. To add the Daily page, set days_page: true and run forsgren again to regenerate the report."
+// legendPagesText is the legend's explanation of the page keys (forsgren#159, #200).
+const legendPagesText = "<p>Each optional page has a key in forsgren.config.yml: issues_page, days_page, " +
+	"numbers_scoring_page and history_page. A key takes true (the page is generated and in the " +
+	"menu), unlisted (generated, with no menu entry, and search engines are asked to skip it) " +
+	"or false (the page is not generated). An unlisted page can still be opened by its address." +
+	" By default the Issues page is listed (issues_page: true), the Daily page is not generated" +
+	" (days_page: false), and the History page and the Numbers and scoring page are unlisted " +
+	"(history_page: unlisted, numbers_scoring_page: unlisted). To put the Daily page in the " +
+	"menu, set days_page: true and run forsgren again to regenerate the report."
 
 // TestLegendExplainsTheTwoPageKeysWhateverIsHidden (forsgren#159, Yves's
 // ruling on decision #165): the legend keeps its Issues pages section and says
@@ -172,9 +176,8 @@ func TestLegendExplainsTheTwoPageKeysWhateverIsHidden(t *testing.T) {
 // legendNumbersScoringText is the sentence the legend adds on the numbers and
 // scoring page's key, and legendScoresText the one under Scores (forsgren#55).
 const (
-	legendNumbersScoringText = " The Numbers and scoring page, shown only with numbers_scoring_page: true " +
-		"(default false), puts each metric's number and its score in one cell, written number \u00b7 score, " +
-		"with a dash where there is no data."
+	legendNumbersScoringText = " The Numbers and scoring page puts each metric's number and its score in one " +
+		"cell, written number \u00b7 score, with a dash where there is no data."
 	legendScoresText = "The Numbers and scoring page, when it is shown, has the number and the score of each " +
 		"metric in one cell."
 )
