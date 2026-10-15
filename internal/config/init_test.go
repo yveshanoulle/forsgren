@@ -26,6 +26,7 @@ const starterConfig = "version: 1\nview: standard\nauto_update: true\n" +
 	"history_chunk_days: 100  # how many days back each run adds until history_days is reached, " +
 	"1 to 365\n" +
 	"working_hours: 8  # a working day is configured as this many hours, 1 to 24\n" +
+	"dora_days: 30  # the window of the DORA numbers in days: 30, 90 or 180\n" +
 	"issues_page: true  # the Issues page and its menu entry: true shows them, false leaves them out\n" +
 	"days_page: false  # the Daily page and its menu entry: false leaves them out, true brings them back\n" +
 	"projects: []\n"
@@ -443,5 +444,19 @@ func TestStarterSaysNothingChecksAReleaseAgainstTheInstallationsData(t *testing.
 	const want = "Nothing checks a release against this installation's own data."
 	if !strings.Contains(text, want) {
 		t.Errorf("want the starter to say %q", want)
+	}
+}
+
+// TestStarterWritesDoraDaysAndLoadsClean (forsgren#178): the starter writes
+// dora_days: 30, which loads with nothing rejected and shows on the settings
+// as written, not the default.
+func TestStarterWritesDoraDaysAndLoadsClean(t *testing.T) {
+	got, err := parse([]byte(Starter))
+	if err != nil || len(got.Rejected) != 0 {
+		t.Fatalf("want the starter to load with nothing rejected, got %v, %v", got.Rejected, err)
+	}
+	want := Setting{Key: "dora_days", Value: "30", Set: true}
+	if !slices.Contains(got.Settings(), want) {
+		t.Errorf("want the settings to hold %+v, got %+v", want, got.Settings())
 	}
 }
