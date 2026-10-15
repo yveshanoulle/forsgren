@@ -73,9 +73,20 @@ func DeploymentFrequency(projects []config.Project, data Data, now time.Time) []
 		}
 	}
 	for i := range out {
-		out[i].Band = BandOf(scaledToAge(out[i].InWindow, days, firsts[i], now), out[i].Last180, data.WorkingHours, days)
+		out[i].band(data, firsts[i], now)
 	}
 	return out
+}
+
+// band sets f's Band from its counts, first being its first successful
+// deployment: over the data's banding days, and for a data that sets them the
+// 180-day count is the window's own (forsgren#68).
+func (f *Frequency) band(data Data, first, now time.Time) {
+	days := data.bandedDays()
+	if data.BandDays != 0 {
+		f.Last180 = f.InWindow
+	}
+	f.Band = BandOf(scaledToAge(f.InWindow, days, first, now), f.Last180, data.WorkingHours, days)
 }
 
 // add counts one successful deployment created at, seen at now, InWindow and

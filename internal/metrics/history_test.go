@@ -141,3 +141,22 @@ func TestPastPeriodCountsStartButNotEndAndIgnoresLaterDeployments(t *testing.T) 
 		t.Errorf("Acme Tools deployed only after the period, but has deployments: latest %v", tools.Frequency.Latest)
 	}
 }
+
+// TestHalfYearIsBandedAs180DaysWhateverItsLength (forsgren#68): every period
+// is banded with the 180-day edges, and its own count is the count of the
+// last 180 days: a 184-day half-year whose only deployments fall in its first
+// four days deployed once per month or less, not never.
+func TestHalfYearIsBandedAs180DaysWhateverItsLength(t *testing.T) {
+	end := now.Add(-10 * day)
+	period := Period{Label: "long", Start: end.Add(-184 * day), End: end}
+	data := Data{Records: []history.Record{
+		appDeployment(1, "", history.StateSuccess, 10*day+184*day-time.Hour),
+		appDeployment(2, "", history.StateSuccess, 10*day+182*day),
+		appDeployment(3, "", history.StateSuccess, 10*day+181*day),
+	}}
+	got := PeriodRows(tableProjects, data, period)[0].Frequency
+	if got.InWindow != 3 || got.Band != MonthlyToSixMonthly {
+		t.Errorf("3 deployments in the first days of a 184-day period: in window %d, band %v, want 3 and %v",
+			got.InWindow, got.Band, MonthlyToSixMonthly)
+	}
+}

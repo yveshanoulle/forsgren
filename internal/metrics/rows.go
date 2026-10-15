@@ -65,10 +65,23 @@ type Data struct {
 	// DoraDays is the DORA window in days, the default 30 when it is 0
 	// (config.DoraWindow, forsgren#178).
 	DoraDays int
+	// BandDays, when set, is the days the deployment frequency bands are
+	// edged at instead of the window's, and the 180-day count is then the
+	// window's own: the history page's periods (forsgren#68).
+	BandDays int
 }
 
 // days is the data's DORA window in days.
 func (d Data) days() int { return config.DoraWindow(d.DoraDays) }
+
+// bandedDays is the days the deployment frequency bands are edged at: the
+// window's, or BandDays when it is set.
+func (d Data) bandedDays() int {
+	if d.BandDays != 0 {
+		return d.BandDays
+	}
+	return d.days()
+}
 
 // window is the data's DORA window.
 func (d Data) window() window { return window(d.days()) }

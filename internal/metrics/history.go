@@ -71,7 +71,7 @@ func halfYearLabel(start time.Time) string {
 // at its end, from what was created before it: the start is counted, the end
 // is not (the rolling column's end, now, is), and nothing later is seen.
 func PeriodRows(projects []config.Project, data Data, p Period) []Row {
-	data.DoraDays = int(p.End.Sub(p.Start) / day)
+	data.DoraDays, data.BandDays = int(p.End.Sub(p.Start)/day), rollingDays
 	data.Records = seen(p, data.Records, func(r history.Record) time.Time { return r.CreatedAt })
 	data.Commits = seen(p, data.Commits, func(c history.Commit) time.Time { return c.DeployedAt })
 	data.Failures = seen(p, data.Failures, func(f history.Failure) time.Time { return f.OpenedAt })
