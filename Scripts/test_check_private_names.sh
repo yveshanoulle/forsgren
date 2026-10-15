@@ -224,6 +224,20 @@ run_home "$EMPTY_HOME"
 want_exit "no list at all is exit 2, loudly" 2 "FORSGREN_PRIVATE_NAMES"
 want_not_said "no list" "$NAME_A"
 
+# In CI the missing list is the Actions secret, which a fork's pull request
+# never receives (forsgren#81): the line names the secret and says so, and
+# the local wording stays for a local run. Exit 2 either way.
+new_repo "no-list-in-actions"
+capture env -u FORSGREN_PRIVATE_NAMES -u FORSGREN_PRIVATE_NAMES_FILE GITHUB_ACTIONS=true \
+  HOME="$EMPTY_HOME" "$GATE" "$REPO"
+want_exit "no list in GitHub Actions is exit 2 and names the Actions secret" 2 "the Actions secret FORSGREN_PRIVATE_NAMES is not set or is empty"
+want_said "no list in GitHub Actions says a fork's pull request gets no secrets" "pull request from a fork gets no secrets"
+want_not_said "no list in GitHub Actions" ".config/forsgren/private-names"
+capture env -u FORSGREN_PRIVATE_NAMES -u FORSGREN_PRIVATE_NAMES_FILE -u GITHUB_ACTIONS \
+  HOME="$EMPTY_HOME" "$GATE" "$REPO"
+want_exit "no list outside GitHub Actions keeps the local wording" 2 "or create ~/.config/forsgren/private-names"
+want_not_said "no list outside GitHub Actions" "the Actions secret"
+
 new_repo "empty-list"
 run_file "$EMPTY_FILE"
 want_exit "an existing names file with only comments and blanks is exit 0, 0 names searched" 0 "0 names searched"
