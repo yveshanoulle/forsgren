@@ -105,6 +105,7 @@ func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error
 	data.WorkingHours, data.WorkingHoursSet = cfg.WorkingHours, cfg.WorkingHoursSet
 	data.DoraDays, data.DoraDaysSet = cfg.DoraDays, cfg.DoraDaysSet
 	data.Settings = cfg.Settings()
+	data.HistoryDays = cfg.HistoryDays
 	data.Hidden = hiddenPages(cfg)
 	if o.data == "" {
 		return data, nil
@@ -115,10 +116,11 @@ func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error
 // hiddenPages are the pages the config leaves out: the issues page when
 // issues_page is false, the days page unless days_page is true (forsgren#159),
 // and the numbers and scoring page unless numbers_scoring_page is true
-// (forsgren#55).
+// (forsgren#55), and the history page when history_page is false
+// (forsgren#68).
 func hiddenPages(cfg config.Config) map[string]bool {
 	return map[string]bool{page.IssuesPage: !cfg.IssuesPage, page.DaysPage: !cfg.DaysPage,
-		page.NumbersScoringPage: !cfg.NumbersScoringPage}
+		page.NumbersScoringPage: !cfg.NumbersScoringPage, page.HistoryPage: !cfg.HistoryPage}
 }
 
 // issueDays is how many UTC days the days page shows, ending yesterday
@@ -130,11 +132,12 @@ const issueDays = 30
 // from the issues file next to the history (data/issues.csv beside
 // data/deployments.csv), at the render time at.
 func withHistory(data page.Data, cfg config.Config, path string, at time.Time) (page.Data, error) {
-	rows, err := rowsOf(cfg, path, at)
+	metricsData, err := metricsDataOf(cfg, path)
 	if err != nil {
 		return data, err
 	}
-	data.Rows = page.Table(rows)
+	data.Rows = page.Table(metrics.Rows(cfg.Projects, metricsData, at))
+	data.History = metrics.History(cfg.Projects, metricsData, at, cfg.HistoryDays)
 	events, err := issueEventsOf(path)
 	if err != nil {
 		return data, err
@@ -191,28 +194,33 @@ func markBugs(events []history.IssueEvent, bugs []history.IssueBug) []history.Is
 	return marked
 }
 
-// rowsOf is the table's rows (forsgren#38), each project's total and the
-// rows its labels name, from the history at path (deployment frequency
-// and, forsgren#17, recovery time), the commits file next to it
-// (data/commits.csv beside data/deployments.csv, lead time, forsgren#16)
-// and the failure issues that count (failuresOf; with the history change
-// fail rate, forsgren#18, and rework rate, forsgren#39), at the render time at.
-func rowsOf(cfg config.Config, path string, at time.Time) ([]metrics.Row, error) {
+// metricsDataOf is what the table's rows and the history page are counted
+// from (forsgren#38): the history at path (deployment frequency and,
+// forsgren#17, recovery time), the commits file next to it
+// (data/commits.csv beside data/deployments.csv, lead time, forsgren#16), the
+// failure issues that count (failuresOf; with the history change fail rate,
+// forsgren#18, and rework rate, forsgren#39) and the reach beside it
+// (data/reach.csv, how far back each repository was read; none when missing,
+// then nothing is read for the history page, forsgren#68).
+func metricsDataOf(cfg config.Config, path string) (metrics.Data, error) {
 	records, err := loadOrNone(path, history.Load)
 	if err != nil {
-		return nil, err
+		return metrics.Data{}, err
 	}
 	commits, err := loadOrNone(beside(path, collect.CommitsFile), history.LoadCommits)
 	if err != nil {
-		return nil, err
+		return metrics.Data{}, err
 	}
 	failures, err := failuresOf(path)
 	if err != nil {
-		return nil, err
+		return metrics.Data{}, err
 	}
-	data := metrics.Data{Records: records, Commits: commits, Failures: failures, WorkingHours: cfg.WorkingHours,
-		DoraDays: cfg.DoraDays}
-	return metrics.Rows(cfg.Projects, data, at), nil
+	reach, err := history.LoadReach(beside(path, collect.ReachFile))
+	if err != nil {
+		return metrics.Data{}, err
+	}
+	return metrics.Data{Records: records, Commits: commits, Failures: failures, WorkingHours: cfg.WorkingHours,
+		DoraDays: cfg.DoraDays, Reach: reach}, nil
 }
 
 // failuresOf is the failure issues beside the history at path
