@@ -234,6 +234,10 @@ const (
 	DaysPage   = "days"
 )
 
+// NumbersScoringPage is the name of the numbers and scoring page, a key of
+// Data.Hidden (forsgren#55).
+const NumbersScoringPage = viewNumbersScoring
+
 // The views of the table page (forsgren#46): the standard cells, the numbers
 // only, and (forsgren#47) each metric's DORA Quick Check score with an
 // Overall Performance column.

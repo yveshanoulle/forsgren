@@ -3,19 +3,24 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 // daysOn is the config line that keeps the days page, which a config hides
 // unless it sets days_page: true, so the tests that compare the whole site or
-// its menu with the golden pages keep all eight pages (forsgren#159).
+// its menu with the golden pages keep all the pages (forsgren#159).
 const daysOn = "days_page: true\n"
 
-// writeAllPagesConfig writes the config content with daysOn added, so every
-// page is written, and returns its path.
+// numbersScoringOn is the config line that keeps the numbers and scoring page,
+// which a config hides unless it sets numbers_scoring_page: true (forsgren#55).
+const numbersScoringOn = "numbers_scoring_page: true\n"
+
+// writeAllPagesConfig writes the config content with daysOn and numbersScoringOn
+// added, so every page is written, and returns its path.
 func writeAllPagesConfig(t *testing.T, content string) string {
 	t.Helper()
-	return writeConfig(t, content+daysOn)
+	return writeConfig(t, content+daysOn+numbersScoringOn)
 }
 
 // TestRenderLeavesOutThePagesTheConfigHides (forsgren#159): with --config the
@@ -60,5 +65,45 @@ func wantPages(t *testing.T, dir string, issues, days bool) {
 		if _, err := os.Stat(filepath.Join(dir, page)); (err == nil) != want {
 			t.Errorf("want %s written: %v, got %v", page, want, err)
 		}
+	}
+}
+
+// TestRenderLeavesOutTheNumbersAndScoringPageUnlessTheConfigShowsIt
+// (forsgren#55, decision 12): with --config the numbers and scoring page, and
+// its menu entry, are written only when numbers_scoring_page is true; absent,
+// false and a value that is not accepted (the default false is in force) leave
+// both out; without --config nothing is hidden.
+func TestRenderLeavesOutTheNumbersAndScoringPageUnlessTheConfigShowsIt(t *testing.T) {
+	cases := map[string]struct {
+		keys string
+		want bool
+	}{
+		"absent":       {"", false},
+		"false":        {"numbers_scoring_page: false\n", false},
+		"not accepted": {"numbers_scoring_page: yes\n", false},
+		"true":         {numbersScoringOn, true},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			wantNumbersScoring(t, renderInto(t, "--config", writeConfig(t, validConfig+tc.keys)), tc.want)
+		})
+	}
+	t.Run("no --config", func(t *testing.T) {
+		wantNumbersScoring(t, renderInto(t), true)
+	})
+}
+
+// wantNumbersScoring fails unless the page and the menu entry of the numbers
+// and scoring page are in dir exactly as said.
+func wantNumbersScoring(t *testing.T, dir string, want bool) {
+	t.Helper()
+	_, err := os.Stat(filepath.Join(dir, "numbers-scoring", "index.html"))
+	root, readErr := os.ReadFile(filepath.Clean(filepath.Join(dir, "index.html")))
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if (err == nil) != want || strings.Contains(string(root), "Numbers and scoring") != want {
+		t.Errorf("want the page and its menu entry: %v, got page %v, root menu %v", want, err == nil,
+			strings.Contains(string(root), "Numbers and scoring"))
 	}
 }
