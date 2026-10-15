@@ -96,6 +96,16 @@ func BandOverDays(count, last180, workingHours, days int) Band {
 // scaled is an edge given per 30 days, over a window of days.
 func scaled(per30, days int) int { return per30 * days / last30Days }
 
+// Edges are the lowest counts of the bands from WeeklyToMonthly up over a
+// window of days (forsgren#178): the legend lists them.
+type Edges struct{ WeeklyToMonthly, DailyToWeekly, HourlyToDaily int }
+
+// EdgesOver are the edges over a window of days: those per 30 days scaled by
+// days/30.
+func EdgesOver(days int) Edges {
+	return Edges{scaled(weeklyToMonthlyFrom, days), scaled(dailyToWeeklyFrom, days), scaled(hourlyToDailyFrom, days)}
+}
+
 // OnDemandFromOver is the lowest count over a window of days that is on
 // demand: once an hour over a working day of the given hours is hours × days
 // deployments, so on demand is more than that (forsgren#178): 721 at 8 hours

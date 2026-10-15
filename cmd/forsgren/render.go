@@ -103,6 +103,7 @@ func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error
 	data.NoProjects = len(cfg.Projects) == 0
 	data.View = cfg.View
 	data.WorkingHours, data.WorkingHoursSet = cfg.WorkingHours, cfg.WorkingHoursSet
+	data.DoraDays, data.DoraDaysSet = cfg.DoraDays, cfg.DoraDaysSet
 	data.Settings = cfg.Settings()
 	data.Hidden = hiddenPages(cfg)
 	if o.data == "" {

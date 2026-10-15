@@ -67,3 +67,13 @@ func TestOnDemandFromOverScalesWithTheWindow(t *testing.T) {
 		t.Errorf("90 days at 24 hours: want 2161, got %d", got)
 	}
 }
+
+// TestEdgesOverAreTheScaledEdges (forsgren#178): the lowest counts of the
+// bands from weekly to monthly up, over each window.
+func TestEdgesOverAreTheScaledEdges(t *testing.T) {
+	for days, want := range map[int]Edges{30: {1, 5, 30}, 90: {3, 15, 90}, 180: {6, 30, 180}} {
+		if got := EdgesOver(days); got != want {
+			t.Errorf("%d days: want %+v, got %+v", days, want, got)
+		}
+	}
+}

@@ -172,6 +172,9 @@ type Config struct {
 	// DoraDays is how many days the DORA numbers count back, 30 when the file
 	// has no dora_days key (forsgren#178).
 	DoraDays int
+	// DoraDaysSet says whether the file has an accepted dora_days key, so the
+	// legend can tell a configured window from the default (forsgren#178).
+	DoraDaysSet bool
 	// IssuesPage is whether the issues page is generated, true when the file
 	// has no issues_page key (forsgren#159).
 	IssuesPage bool

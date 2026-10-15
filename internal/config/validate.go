@@ -54,7 +54,7 @@ func (f fileConfig) settings() Config {
 		doraRejection, issuesRejection, daysOnRejection)
 	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level,
 		HistoryDays: days, HistoryChunkDays: chunk, WorkingHours: hours,
-		DoraDays:        doraDays,
+		DoraDays: doraDays, DoraDaysSet: hasValue(f.DoraDays) && doraRejection == nil,
 		WorkingHoursSet: hasValue(f.WorkingHours) && hoursRejection == nil, IssuesPage: issues, DaysPage: daysOn,
 		written: f.written(rejected), Rejected: rejected}
 }
