@@ -1,6 +1,9 @@
 package page
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // TestLegendLeadTimeLevelsShowTheirScore (forsgren#79): each level of lead
 // time for changes in the legend ends with the score the scoring view gives
@@ -39,4 +42,22 @@ func TestLegendChangeFailLevelsShowTheirScoreRange(t *testing.T) {
 		"<li>60%: 50% to below 70%, score 5 to 3.1</li>",
 		"<li>80%: 70% to below 90%, score 3 to 1.1</li>",
 		"<li>100%: 90% and more, score 1 to 0</li>")
+}
+
+// TestLegendRecoveryListsLeadTimesLevelsWithScore (forsgren#79): recovery time
+// is banded and scored on lead time's six answers, so its section of the
+// legend lists the same six levels, each with its score.
+func TestLegendRecoveryListsLeadTimesLevelsWithScore(t *testing.T) {
+	_, section, found := strings.Cut(rendered(t, "legend.html", viewData()), "<h2>Failed deployment recovery time</h2>")
+	if !found {
+		t.Fatal("want a recovery time section in the legend")
+	}
+	section, _, _ = strings.Cut(section, "<h2>")
+	wantAll(t, "recovery time section", section,
+		"<li>Recovered in less than one hour: below 1 hour, score 10</li>",
+		"<li>Recovered in less than one day: 1 hour to below 24 hours, score 8</li>",
+		"<li>Recovered in one day to one week: 24 hours to below 7 days, score 6</li>",
+		"<li>Recovered in one week to one month: 7 days to below 30 days, score 4</li>",
+		"<li>Recovered in one to six months: 30 days to below 180 days, score 2</li>",
+		"<li>Recovered in more than six months: 180 days and more, score 0</li>")
 }

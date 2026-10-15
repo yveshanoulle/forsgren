@@ -45,3 +45,9 @@ func (d Data) ChangeFailScores() []string {
 	}
 	return scores
 }
+
+// RecoveryScores are the scores of failed deployment recovery time's six
+// levels, fastest first. The scoring view scores a recovery with
+// metrics.BandScore of its LeadTimeBand (Row.scores), the type of lead time's
+// bands, so these are lead time's scores.
+func (d Data) RecoveryScores() []string { return d.LeadTimeScores() }

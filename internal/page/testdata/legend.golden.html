@@ -37,6 +37,14 @@
     </ul>
     <h2>Failed deployment recovery time</h2>
     <p>The DORA band, on the edges of lead time for changes, as the DORA Quick Check gives both the same answers; then the median time from the first failed deployment of a run to the next successful deployment of the same stream, and in brackets the recoveries of the last 30 days; then the recoveries not completed yet, each a run of failed deployments with no success after it, counted, not timed. With none completed, the band and the median are —.</p>
+    <ul>
+      <li>Recovered in less than one hour: below 1 hour, score 10</li>
+      <li>Recovered in less than one day: 1 hour to below 24 hours, score 8</li>
+      <li>Recovered in one day to one week: 24 hours to below 7 days, score 6</li>
+      <li>Recovered in one week to one month: 7 days to below 30 days, score 4</li>
+      <li>Recovered in one to six months: 30 days to below 180 days, score 2</li>
+      <li>Recovered in more than six months: 180 days and more, score 0</li>
+    </ul>
     <h2>Change fail rate</h2>
     <p>The DORA band, the nearest label of the DORA Quick Check's scale; then the failed changes out of the final deployments of the last 30 days, in whole percent, rounded down, and in brackets both counts. A failed change is a failed deployment or an issue labelled failure opened in the window, per repository the larger of the two counts, so an issue about a failed deployment is not counted twice. A failure issue names no service, so a service's row counts its failed deployments only.</p>
     <ul>

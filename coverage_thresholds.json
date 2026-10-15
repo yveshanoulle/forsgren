@@ -522,6 +522,7 @@
     "github.com/yveshanoulle/forsgren/internal/page/scoring.go:ScoreCells": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/scoring.go:scoreCell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/legendscores.go:LeadTimeScores": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/legendscores.go:RecoveryScores": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/legendscores.go:FrequencyScores": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/legendscores.go:bandScores": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/legendscores.go:ChangeFailScores": 100.0,
