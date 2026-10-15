@@ -237,6 +237,21 @@ else
   echo "  ok: 24. only the unsigned commit is named"
 fi
 
+ZEROS="0000000000000000000000000000000000000000"
+capture ./Scripts/dco_push_commits.sh "$ZEROS" "$PUSH_AFTER" "$PUSH_REPO"
+want_green "25. an all-zero before (a new branch) lists the head commit" "$PUSH_AFTER"
+if [[ "$(wc -l <<< "$OUT" | tr -d ' ')" -eq 1 ]]; then
+  echo "  ok: 25. only the head commit, not the history behind it"
+else
+  fail "25. want the head commit alone. Output: ${OUT}"
+fi
+
+capture ./Scripts/dco_push_commits.sh "$PUSH_AFTER" "$PUSH_AFTER" "$PUSH_REPO"
+want_red "26. before equal to after lists nothing and is an error" "❌ FAIL: no commit in"
+
+capture ./Scripts/dco_push_commits.sh "$PUSH_AFTER" "$PUSH_BEFORE" "$PUSH_REPO"
+want_red "27. an after that brings nothing over before is an error" "❌ FAIL: no commit in"
+
 # Mutation proof for case 4: a copy of the check whose trailer block starts
 # right after the subject, not at the last paragraph, must be green on it.
 # The mutant cds to its own dir's parent; give it the same layout.
