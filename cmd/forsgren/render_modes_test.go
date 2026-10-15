@@ -1,8 +1,10 @@
 package main
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -78,20 +80,74 @@ func TestRenderWithoutAConfigListsEveryPage(t *testing.T) {
 	}
 }
 
-// TestRenderRemovesAPageWhoseKeyBecomesFalse (forsgren#159, #199, #200): an
-// out dir that holds a page of an earlier run with its key true loses it when
-// the key is false, and keeps it, unlisted, when the key is unlisted.
-func TestRenderRemovesAPageWhoseKeyBecomesFalse(t *testing.T) {
-	for _, p := range modePages {
-		t.Run(p.key, func(t *testing.T) {
-			dir := filepath.Join(t.TempDir(), "site")
-			for _, mode := range []config.PageMode{config.PageOn, config.PageUnlisted, config.PageOff} {
-				args := []string{"render", "--out", dir, "--config", writeConfig(t, validConfig+p.key+": "+string(mode)+"\n")}
-				if code, _, stderr := runCommand(args...); code != 0 {
-					t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
+// TestRenderFollowsEachChangeOfAPageKeyInAReusedOutDir (forsgren#159, #199,
+// #200): in one out dir reused across runs, a page follows its key at every
+// change: true to false removes the file, unlisted to false removes it,
+// unlisted to true gives the page its menu entry back and takes its noindex
+// tag away, and true to unlisted does the reverse; the page is checked after
+// each run for its file, its menu entry and its tag.
+func TestRenderFollowsEachChangeOfAPageKeyInAReusedOutDir(t *testing.T) {
+	on, unlisted, off := config.PageOn, config.PageUnlisted, config.PageOff
+	for name, runs := range map[string][]config.PageMode{
+		"true, unlisted, false": {on, unlisted, off}, "true, false": {on, off}, "unlisted, false": {unlisted, off},
+		"unlisted, true": {unlisted, on}, "true, unlisted": {on, unlisted}, "false, unlisted, true": {off, unlisted, on},
+	} {
+		for _, p := range modePages {
+			t.Run(p.key+": "+name, func(t *testing.T) {
+				dir := filepath.Join(t.TempDir(), "site")
+				for _, mode := range runs {
+					renderModeInto(t, dir, p, mode)
+					wantMode(t, dir, p, mode)
 				}
-				wantMode(t, dir, p, mode)
-			}
-		})
+			})
+		}
 	}
+}
+
+// renderModeInto renders into dir, which may hold an earlier run, with the
+// page's key set to mode.
+func renderModeInto(t *testing.T, dir string, p modePage, mode config.PageMode) {
+	t.Helper()
+	args := []string{"render", "--out", dir, "--config", writeConfig(t, validConfig+p.key+": "+string(mode)+"\n")}
+	if code, _, stderr := runCommand(args...); code != 0 {
+		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
+	}
+}
+
+// linkToAnOptionalPage finds a link to the history page or the numbers and
+// scoring page, from the root or from a folder.
+var linkToAnOptionalPage = regexp.MustCompile(`href="[^"]*(history\.html|numbers-scoring/)`)
+
+// TestNoGeneratedPageLinksToAnUnlistedPageOutsideTheMenu (forsgren#200): with
+// the History and the Numbers and scoring page unlisted, no file the render
+// writes links to either of them, from the menu or from anywhere else; set
+// true, the same pages are linked, so the scan is not blind.
+func TestNoGeneratedPageLinksToAnUnlistedPageOutsideTheMenu(t *testing.T) {
+	for mode, wantLinks := range map[config.PageMode]bool{config.PageUnlisted: false, config.PageOn: true} {
+		file := writeConfig(t, validConfig+daysOn+"history_page: "+string(mode)+"\nnumbers_scoring_page: "+
+			string(mode)+"\n")
+		found := linksToOptionalPages(t, renderInto(t, "--config", file))
+		if wantLinks != (len(found) > 0) {
+			t.Errorf("%s: want links to the two pages: %v, got %v", mode, wantLinks, found)
+		}
+	}
+}
+
+// linksToOptionalPages are the links to the history page or the numbers and
+// scoring page in every html file under dir, each as its file and the link.
+func linksToOptionalPages(t *testing.T, dir string) []string {
+	t.Helper()
+	var found []string
+	err := filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
+		if err == nil && strings.HasSuffix(path, ".html") {
+			if link := linkToAnOptionalPage.FindString(readFile(t, path)); link != "" {
+				found = append(found, filepath.Base(filepath.Dir(path))+"/"+filepath.Base(path)+": "+link)
+			}
+		}
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return found
 }
