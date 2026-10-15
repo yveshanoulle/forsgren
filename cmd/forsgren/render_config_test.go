@@ -160,3 +160,20 @@ func TestRenderSettingsPageListsTheSettings(t *testing.T) {
 		t.Errorf("want no setting on the legend, got:\n%s", legend)
 	}
 }
+
+// TestRenderSettingsPageSaysARejectedSetting (forsgren#183): a config with
+// history_days: 0 renders, exit 0, and the settings page says in that row that
+// 0 is not accepted and that the default 365 is used.
+func TestRenderSettingsPageSaysARejectedSetting(t *testing.T) {
+	pinNow(t)
+	dir := filepath.Join(t.TempDir(), "site")
+	cfg := writeConfig(t, "version: 1\nhistory_days: 0\nprojects: []\n")
+	if code, _, stderr := runCommand("render", "--out", dir, "--config", cfg); code != 0 {
+		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
+	}
+	want := `<td><span class="written">0</span> is not accepted: use a whole number of days from 1 to 1825. ` +
+		`Using the default <span class="default-in-force">365</span>.</td>`
+	if settings := readFile(t, filepath.Join(dir, "settings.html")); !strings.Contains(settings, want) {
+		t.Errorf("want the settings page to say %q, got:\n%s", want, settings)
+	}
+}

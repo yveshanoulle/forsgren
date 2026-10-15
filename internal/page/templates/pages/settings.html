@@ -12,9 +12,9 @@
           </tr>
         </thead>
         <tbody>
-{{range .Settings}}          <tr>
+{{range .Settings}}          <tr{{if .Reason}} class="not-accepted"{{end}}>
             <th scope="row">{{.Key}}</th>
-            <td>{{.Value}}</td>
+            <td>{{if .Reason}}<span class="written">{{if .Written}}{{.Written}}{{else}}(empty){{end}}</span> is not accepted: {{.Reason}}. Using the default <span class="default-in-force">{{.Value}}</span>.{{else}}{{.Value}}{{end}}</td>
             <td>{{possible .Key}}</td>
             <td>{{if .Set}}False{{else}}True{{end}}</td>
           </tr>

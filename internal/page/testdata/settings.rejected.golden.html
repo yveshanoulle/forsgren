@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings · forsgren</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <nav class="views">View: <a href="standard/">Standard</a> · <a href="numbers/">Numbers</a> · <a href="scoring/">Scoring</a> · <a href="issues.html">Issues</a> · <a href="days.html">Daily</a></nav>
+  <main>
+    <h1 id="settings-heading">Settings</h1>
+    <div class="table-scroll" role="region" aria-labelledby="settings-heading" tabindex="0">
+      <table aria-labelledby="settings-heading">
+        <thead>
+          <tr>
+            <th scope="col">Parameter</th>
+            <th scope="col">Current value</th>
+            <th scope="col">Possible values</th>
+            <th scope="col">Default</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="not-accepted">
+            <th scope="row">view</th>
+            <td><span class="written">weekly</span> is not accepted: use standard, numbers or scoring. Using the default <span class="default-in-force">standard</span>.</td>
+            <td>standard, numbers, scoring</td>
+            <td>True</td>
+          </tr>
+          <tr>
+            <th scope="row">auto_update</th>
+            <td>false</td>
+            <td>true, false</td>
+            <td>True</td>
+          </tr>
+          <tr>
+            <th scope="row">auto_update_level</th>
+            <td>major</td>
+            <td>patch, minor, major</td>
+            <td>True</td>
+          </tr>
+          <tr class="not-accepted">
+            <th scope="row">history_days</th>
+            <td><span class="written">0</span> is not accepted: use a whole number of days from 1 to 1825. Using the default <span class="default-in-force">365</span>.</td>
+            <td>1 to 1825</td>
+            <td>True</td>
+          </tr>
+          <tr>
+            <th scope="row">history_chunk_days</th>
+            <td>100</td>
+            <td>1 to 365</td>
+            <td>True</td>
+          </tr>
+          <tr>
+            <th scope="row">working_hours</th>
+            <td>8</td>
+            <td>1 to 24</td>
+            <td>True</td>
+          </tr>
+          <tr>
+            <th scope="row">issues_page</th>
+            <td>true</td>
+            <td>true, false</td>
+            <td>True</td>
+          </tr>
+          <tr>
+            <th scope="row">days_page</th>
+            <td>false</td>
+            <td>true, false</td>
+            <td>True</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+  <footer>
+    <p><a href="https://forsgren.be/">Forsgren</a> 1.5.0 Metrics from GitHub data. Calculated at 2026-10-03 12:00 UTC</p>
+    <p><a href="settings.html">Settings</a> <a href="legend.html">Legend</a></p>
+  </footer>
+</body>
+</html>
