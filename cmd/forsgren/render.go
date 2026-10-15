@@ -206,7 +206,8 @@ func rowsOf(cfg config.Config, path string, at time.Time) ([]metrics.Row, error)
 	if err != nil {
 		return nil, err
 	}
-	data := metrics.Data{Records: records, Commits: commits, Failures: failures, WorkingHours: cfg.WorkingHours}
+	data := metrics.Data{Records: records, Commits: commits, Failures: failures, WorkingHours: cfg.WorkingHours,
+		Days: cfg.DoraDays}
 	return metrics.Rows(cfg.Projects, data, at), nil
 }
 
