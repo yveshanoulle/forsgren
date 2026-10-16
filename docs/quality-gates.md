@@ -183,6 +183,11 @@ Seven more PRE gates check the Go code:
   database it writes, with one made-up entry, and shows a call to the listed
   symbol red, an unreachable database a skip (red when required) and, by mutation, that the
   probe is what makes offline a skip rather than a tool error.
+  The tool path comes from `go tool -n govulncheck` on stdout alone: on a
+  fresh runner go's `go: downloading ...` lines stay on stderr, and a path
+  that is not an executable is red with its own line (forsgren#210). The
+  self-test fakes that runner with a `go` shim, and shows by mutation that
+  the old `2>&1` capture is the exit 127 of the first scheduled run.
 - **Go dead code** (`Scripts/check_deadcode.sh`, another estate repository's): `deadcode
   -test ./...`, red on any function, exported or not, that neither a main
   package nor a test reaches, each named with its file and line. The fix is

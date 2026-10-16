@@ -11,7 +11,8 @@
 #   - govulncheck is the one pinned by go.mod's `tool` line plus go.sum
 #     (Yves's ruling on forsgren#1), never `go install ...@latest` as
 #     another estate repository does: `go tool -n govulncheck`, run in this repository, builds
-#     the pinned version once and prints its path, and the gate runs that
+#     the pinned version once and prints its path on stdout (its download
+#     lines go to stderr, forsgren#210), and the gate runs that
 #     binary in the module it scans.
 #   - the database is FORSGREN_VULN_DB (default https://vuln.go.dev), passed
 #     to govulncheck as -db and probed at <db>/index/db.json, the file
@@ -47,9 +48,17 @@ ROOT="$(pwd)"
 MODULE_DIR="${1:-.}"
 DB="${FORSGREN_VULN_DB:-https://vuln.go.dev}"
 
-if ! BIN="$(go tool -n govulncheck 2>&1)"; then
-  printf '%s\n' "$BIN"
+# stdout is the path, nothing else: on a fresh runner go prints its
+# "go: downloading ..." lines on stderr (forsgren#210), which stay on stderr, in
+# the log, and never reach BIN. `go tool -n` builds the tool before it prints
+# the path; the -x check makes a path that is not a built binary red here, not
+# an exit 127 further down.
+if ! BIN="$(go tool -n govulncheck)"; then
   echo "❌ FAIL: govulncheck is not pinned in ${ROOT}/go.mod: go tool -n govulncheck failed (add it: go get -tool golang.org/x/vuln/cmd/govulncheck@<version>)"
+  exit 1
+fi
+if [ ! -x "$BIN" ]; then
+  echo "❌ FAIL: go tool -n govulncheck printed ${BIN}, which is not an executable: the pinned govulncheck was not built"
   exit 1
 fi
 

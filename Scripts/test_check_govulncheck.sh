@@ -33,6 +33,9 @@
 #      no pass; 4c. required and reachable -> the same verdicts as without
 #   5. MUTATION PROOF: the gate with its reachability probe disabled is red
 #      on case 4 as a tool error: the probe is what makes offline a skip
+#  5b. a cold runner (forsgren#210): `go tool -n` prints download lines on
+#      stderr -> green; 5c. a tool path that is not built -> red; 5d. MUTATION
+#      PROOF: the old 2>&1 capture is red there as the exit 127
 #   6. a module with no Go package                     -> red: a scan over
 #                                                          nothing is no pass
 #   7. a module directory that does not exist          -> red
@@ -152,6 +155,49 @@ if mutant "no-probe" 's/^if ! curl /if false \&\& ! curl /'; then
   run_gate "$OFFLINE_DB" "$MUTANT"
   want_red "mutation: without the probe, offline is red as a tool error" "govulncheck could not run"
 fi
+
+# --- Case 5b: a cold runner (forsgren#210). `go tool -n` writes its
+# "go: downloading ..." lines on stderr before it prints the path; a go shim
+# does the same here. The gate must keep them out of the tool path.
+SHIM="${TMP}/shim"
+mkdir -p "$SHIM"
+REAL_GO="$(command -v go)"
+cat > "${SHIM}/go" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1 \$2 \$3" == "tool -n govulncheck" ]]; then
+  echo "go: downloading golang.org/x/vuln v0.0.0" >&2
+  echo "go: downloading golang.org/x/mod v0.0.0" >&2
+fi
+exec "$REAL_GO" "\$@"
+EOF
+chmod +x "${SHIM}/go"
+MOD="$CALLS"
+capture env PATH="${SHIM}:${PATH}" FORSGREN_VULN_DB="$EMPTY_DB" "$GATE" "$MOD"
+want_green_ok "cold runner: download lines on stderr of go tool -n do not reach the tool path"
+if grep -qF -- "could not run" <<< "$OUT"; then
+  fail "cold runner: the gate reported it could not run. Output: ${OUT}"
+fi
+
+# --- Case 5d: MUTATION PROOF for 5b. The old capture (2>&1) put back is red
+# on the cold runner as the exit 127 of forsgren#210 (the -x check is
+# disabled too: it would catch the polluted path with its own message).
+if mutant "stderr-captured" 's/tool -n govulncheck)"/tool -n govulncheck 2>\&1)"/; s/^if \[ ! -x /if false \&\& [ ! -x /'; then
+  capture env PATH="${SHIM}:${PATH}" FORSGREN_VULN_DB="$EMPTY_DB" "$MUTANT" "$MOD"
+  want_red "mutation: with stderr captured into the tool path, a cold runner is red as the exit 127" "could not run (exit 127)"
+fi
+
+# --- Case 5c: the path go prints is not a built binary: red with its reason.
+cat > "${SHIM}/go" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1 \$2 \$3" == "tool -n govulncheck" ]]; then
+  echo "${TMP}/not-built/govulncheck"
+  exit 0
+fi
+exec "$REAL_GO" "\$@"
+EOF
+capture env PATH="${SHIM}:${PATH}" FORSGREN_VULN_DB="$EMPTY_DB" "$GATE" "$MOD"
+want_red "a tool path that is not built is red, naming the reason" "was not built"
+
 
 # --- Case 6: no Go package.
 new_module "no-package" "ToLower"
