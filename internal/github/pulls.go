@@ -9,8 +9,9 @@ import (
 	"net/url"
 )
 
-// ErrPullRequestsDenied is the 403 of OpenPullRequests: the token has no
-// pull-requests: read. It comes with ErrAccess, which it narrows.
+// ErrPullRequestsDenied is the 403 of OpenPullRequests or PullRequestFiles:
+// the token has no pull-requests: read. It comes with ErrAccess, which it
+// narrows.
 var ErrPullRequestsDenied = errors.New("pull requests are not readable")
 
 // PullRequest is one open pull request: its number and its author's login.
@@ -43,15 +44,15 @@ func (c *Client) OpenPullRequests(ctx context.Context, repo string) ([]PullReque
 	var pulls []PullRequest
 	truncated, err := c.list(ctx, t, readPullRequests(&pulls))
 	if err != nil {
-		return nil, false, deniedPullRequests(repo, t, err)
+		return nil, false, explainDenied(repo, t, err)
 	}
 	return pulls, truncated, nil
 }
 
-// deniedPullRequests is err, or, when err is the 403 of a token without
-// pull-requests: read (not GitHub's rate limit), the error that says so,
-// ErrAccess and ErrPullRequestsDenied naming that permission.
-func deniedPullRequests(repo string, t target, err error) error {
+// explainDenied is err, or, when err is the 403 of a token without
+// pull-requests: read (not GitHub's rate limit), the error that says so:
+// ErrAccess and ErrPullRequestsDenied, naming that permission.
+func explainDenied(repo string, t target, err error) error {
 	forbidden, ok := errors.AsType[*answerError](err)
 	if !ok || !isDenied(forbidden) {
 		return err
@@ -60,8 +61,8 @@ func deniedPullRequests(repo string, t target, err error) error {
 		repo, ErrAccess, ErrPullRequestsDenied, forbidden.status(), t.path())
 }
 
-// isDenied says whether GitHub's error answer to the pull request list is
-// the token missing pull-requests: read: a 403 that is not a rate limit,
+// isDenied says whether GitHub's error answer to a pull request read is the
+// token missing pull-requests: read: a 403 that is not a rate limit,
 // which keeps its ErrRateLimit (forsgren#40, review of step 7).
 func isDenied(e *answerError) bool {
 	return e.code == http.StatusForbidden && !errors.Is(e, ErrRateLimit)

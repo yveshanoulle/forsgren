@@ -373,11 +373,28 @@ period there is no Trend column (see
 [The History page](pages-and-views.md#the-history-page)). No new permission
 or secret is needed.
 
+**Upgrading to 1.8.3** (forsgren#42, #112). The waiting update is found by
+what it changes: forsgren reads the files of Dependabot's open pull requests
+and takes the highest-numbered one that moves the `metrics.yml` pin to the
+newer release, so "is waiting in pull request #N (merge it to update)" now
+also shows when Dependabot groups the update or names its branch differently
+(see [Running forsgren](configuration.md#running-forsgren)). When
+`check-update` cannot read a pull request's files for lack of
+`pull-requests: read`, its 403 message now names that permission. The legend
+explains the issue columns: New is the issues created, Completed, Not
+planned and Duplicate the issues closed with that reason, and Other the ones
+closed with no reason or one forsgren does not know; and it names two
+limits: a reopen is dated when the collection sees it, and a repository with
+more issues than the one full read takes has an incomplete older history. No
+new permission, secret or config key is needed.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`
 (see [Running forsgren](configuration.md#running-forsgren)), "0.0.10 is waiting in pull request #N (merge it to
-update)" when Dependabot's pull request for it is open in your repository.
+update)" when Dependabot's pull request for it is open in your repository:
+the open pull request by Dependabot whose files move the `metrics.yml` pin
+to that release, whatever its branch is called (forsgren#42).
 Updating is merging that pull request; the template's calling workflow
 carries the permission line.
 

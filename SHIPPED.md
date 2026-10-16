@@ -546,3 +546,20 @@ Yves, on the History page of 1.8.0: "only 1 period / the trend shows nothing / a
 - **One refactor and the docs** (this commit): the page keys live in `pagemode.go`, the menu and unlisted helpers in `menu.go` (page.go 584 → 512 lines), the History notice in `historynotice.go`, `pageModes` is the one map from page to mode, each page default is written once; `internal/metrics/history_test.go` 9.09 → 10.0. Docs: configuration.md (one page-keys entry, "discoverable, not private"), pages-and-views.md (Unlisted pages, the History page), updating-and-releases.md ("Upgrading to 1.8.2"), README.md and CLAUDE.md.
 
 What an installation sees after the update: without page keys, the History page and the Numbers and scoring page are generated but not in the menu, at `history.html` and `numbers-scoring/`. Anyone with the address can open them, so they are discoverable, not private. No new permission or secret.
+
+---
+
+## 2026-10-16 — the waiting update found by what it changes, and the legend explains the issue columns, released as 1.8.3 ([#42](https://github.com/yveshanoulle/forsgren/issues/42), [#112](https://github.com/yveshanoulle/forsgren/issues/112))
+
+These two were planned with #200 and #198 as one patch. Yves split them off so #198 could close a day earlier ("ok do that new plan"), and on #112 he said "keep doing 112".
+
+- **#112, the issue columns in the legend** (4663458). The legend now says what New, Completed, Not planned, Duplicate and Other count, and that a reopen counts in none of them. It names two limits: a reopen is dated when the collection sees it, and a repository past the full-read cap (100 pages) has an incomplete back history. The footer links #112 asked for had already come with #128.
+- **#42, the waiting pull request by its contents.**
+  - `update.MovesPinTo` tells whether a patch moves the `metrics.yml` pin to a version (6d63bd3).
+  - `waiting-pull-request` reads the files of the open `dependabot[bot]` pull requests and takes the highest one that moves the pin, so a grouped branch such as `dependabot/github_actions/group-abc123` is found (fd8af72).
+  - The matching rules are pinned, each proven by a mutation: another author, another version, another file, a person's pull request on a Dependabot-like branch, and the highest of several (34d755c).
+  - A failed files read gives `no-access`, `rate-limited` or `failed`, and a file list too long to read is no match (3346bf0).
+  - The branch-name heuristic, `ForsgrenBump`, is gone (369df6b).
+- **One refactor and the docs** (this commit): `pullFiles` is the one way check-update and the waiting lookup read a pull request's files (a cut list is `errFilesCut`), `pullLookup.movesPin` checks one candidate, `MovesPinTo` reads as one predicate, `explainDenied` names the missing permission, and two test fakes share `serveAPI`. Docs: configuration.md (the pull request found by its files), ci.md, updating-and-releases.md ("Upgrading to 1.8.3"), pages-and-views.md and CLAUDE.md.
+
+What an installation sees: "is waiting in pull request #N" where it used to say "is available" when Dependabot grouped or renamed its branch, and the legend's issue columns explained. No new permission, secret or key.

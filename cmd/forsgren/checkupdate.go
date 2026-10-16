@@ -207,14 +207,11 @@ func readPull(ctx context.Context, client *github.Client, in pullToCheck) (strin
 	if err != nil {
 		return "", nil, err
 	}
-	changed, truncated, err := client.PullRequestFiles(ctx, in.repo, in.number)
+	files, err := pullFiles(ctx, client, in.repo, in.number)
 	if err != nil {
 		return "", nil, err
 	}
-	if truncated {
-		return "", nil, errFilesCut
-	}
-	return author, updateFiles(changed), nil
+	return author, files, nil
 }
 
 // lookUpTag is forsgren's release of tag: whether it is published and, only

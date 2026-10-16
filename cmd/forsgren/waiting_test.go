@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
@@ -130,8 +129,7 @@ type reply struct {
 // stops at its page limit.
 func routedAPI(t *testing.T, routes map[string]reply, endless ...string) {
 	t.Helper()
-	var srv *httptest.Server
-	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	serveAPI(t, func(w http.ResponseWriter, r *http.Request) {
 		answer, ok := routes[r.URL.Path]
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)
@@ -141,15 +139,11 @@ func routedAPI(t *testing.T, routes map[string]reply, endless ...string) {
 			w.Header()[name] = values
 		}
 		if slices.Contains(endless, r.URL.Path) {
-			w.Header().Set("Link", fmt.Sprintf(`<%s%s?page=%d>; rel="next"`, srv.URL, r.URL.Path, len(r.URL.RawQuery)+2))
+			w.Header().Set("Link", fmt.Sprintf(`<%s%s?page=%d>; rel="next"`, githubAPI, r.URL.Path, len(r.URL.RawQuery)+2))
 		}
 		w.WriteHeader(max(answer.code, http.StatusOK))
 		_, _ = io.WriteString(w, answer.body)
-	}))
-	t.Cleanup(srv.Close)
-	old := githubAPI
-	githubAPI = srv.URL
-	t.Cleanup(func() { githubAPI = old })
+	})
 }
 
 // onePull is GitHub's answer to the open pull requests: one of Dependabot's,

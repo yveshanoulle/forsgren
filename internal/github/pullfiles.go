@@ -38,7 +38,9 @@ func (c *Client) PullRequestAuthor(ctx context.Context, repo string, number int6
 
 // PullRequestFiles lists the files pull request number of repo changes: GET
 // /repos/{owner}/{repo}/pulls/{number}/files, every page up to the limit,
-// and says whether it stopped there with files left unread.
+// and says whether it stopped there with files left unread. A 403 for a
+// token without pull-requests: read is ErrPullRequestsDenied, as for
+// OpenPullRequests.
 func (c *Client) PullRequestFiles(ctx context.Context, repo string, number int64) ([]ChangedFile, bool, error) {
 	t, err := c.endpoint(repo, url.Values{}, "pulls", strconv.FormatInt(number, 10), "files")
 	if err != nil {
@@ -47,7 +49,7 @@ func (c *Client) PullRequestFiles(ctx context.Context, repo string, number int64
 	var files []ChangedFile
 	truncated, err := c.list(ctx, t, readChangedFiles(&files))
 	if err != nil {
-		return nil, false, deniedPullRequests(repo, t, err)
+		return nil, false, explainDenied(repo, t, err)
 	}
 	return files, truncated, nil
 }

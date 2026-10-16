@@ -587,15 +587,17 @@ jobs:
   repository) says where the update stands, and when the token lacks the
   permission it says "pull-request check skipped: grant pull-requests: read
   in your caller to enable it".
-  **The pull request is found by its head branch, a temporary heuristic**
-  ([#42](https://github.com/yveshanoulle/forsgren/issues/42)): its author
-  is `dependabot[bot]` and its branch starts with
-  `dependabot/github_actions/yveshanoulle/forsgren/` and ends with
-  `/metrics.yml-` plus the version, which is Dependabot's naming for a
-  dependabot.yml with `directory: /`, no `groups:` and the default branch
-  separator, as the template has it. A grouped update, another separator or
-  another directory names the branch differently, and the footer then keeps
-  saying "is available".
+  **The pull request is found by what it changes**
+  ([#42](https://github.com/yveshanoulle/forsgren/issues/42)): forsgren
+  lists the open pull requests by `dependabot[bot]`, reads each one's
+  changed files, and takes the highest-numbered one whose files move the
+  `metrics.yml` pin to that release. The branch name is not read, so a
+  grouped update, another separator or another directory in your
+  dependabot.yml is found too. A pull request with more files than forsgren
+  reads is skipped and named in the run's log. When the files cannot be
+  read, the lookup is unknown as for the list: a 403 is `no-access` (the
+  token needs `pull-requests: read`), GitHub's rate limit is
+  `rate-limited`, and anything else is `failed`.
 - **`issues: write` lets forsgren open its setup issue** (forsgren#73). When
   the running version needs more configuration, `forsgren check-needs` writes
   one issue in the data repository with the job's token. Without the

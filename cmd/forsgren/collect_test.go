@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,7 +34,7 @@ func fakeAPI(t *testing.T, bodies map[string]string, code int) {
 // fakeAPIWithHeader is fakeAPI whose every answer carries header.
 func fakeAPIWithHeader(t *testing.T, bodies map[string]string, code int, header http.Header) {
 	t.Helper()
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	serveAPI(t, func(w http.ResponseWriter, r *http.Request) {
 		for name, values := range header {
 			w.Header()[name] = values
 		}
@@ -47,11 +46,10 @@ func fakeAPIWithHeader(t *testing.T, bodies map[string]string, code int, header 
 			w.WriteHeader(code)
 		}
 		_, _ = io.WriteString(w, body)
-	}))
-	t.Cleanup(srv.Close)
-	oldAPI, oldNow := githubAPI, now
-	githubAPI, now = srv.URL, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) }
-	t.Cleanup(func() { githubAPI, now = oldAPI, oldNow })
+	})
+	oldNow := now
+	now = func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) }
+	t.Cleanup(func() { now = oldNow })
 }
 
 // acmeApp is one production deployment of acme/app, a success.

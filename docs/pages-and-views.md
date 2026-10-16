@@ -472,7 +472,15 @@ a path on github.com (forsgren#172):
   above, with their ranges for the two percent metrics. A last section, Issues pages,
   explains the periods of the issues and days pages: "Days are in UTC, weeks
   run Monday to Sunday, months and years follow the calendar, and a week that
-  spans two months is in both." (forsgren#128, decision #133). It no longer
+  spans two months is in both." (forsgren#128, decision #133). That
+  section also says what the issue columns count (forsgren#112): New the
+  issues created in the period, Completed, Not planned and Duplicate the
+  issues closed with that reason, and Other those closed with no reason or
+  one forsgren does not know, so every close is in exactly one column, while
+  a reopen is in none; and it names two limits: a reopen is dated when the
+  collection sees it, and a repository with more issues than the one full
+  read takes (100 pages of 100) has its older issues missing, so its
+  historical Total stays incomplete. It no longer
   lists the settings (forsgren#84). After the paragraph on where the numbers
   come from it states the window: "The window is 30 days (the default;
   dora_days is not set in forsgren.config.yml)." or "The window is 90 days

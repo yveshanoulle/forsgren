@@ -355,7 +355,8 @@ Six PRE gates keep the CI honest:
   fails or an answer that is anything else; the step after it, "Look up the
   waiting Dependabot pull request", does the same for a pull request number
   (also with the job's token, and asked only when a latest release was
-  found) and outputs its `check` (`ok`, `no-access`, `rate-limited`, `failed`, or `skipped`
+  found; the pull request is found by its files moving the `metrics.yml` pin
+  to that release, never by its branch name, forsgren#42) and outputs its `check` (`ok`, `no-access`, `rate-limited`, `failed`, or `skipped`
   without a latest release) from the status file the lookup wrote, anything
   else counting as `failed`, and the render step passes `--waiting-pr
   <number>` when it is set; the step "Write the run summary" appends
