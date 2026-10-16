@@ -516,7 +516,9 @@ jobs:
       # what this version needs when the issue could not be written, and the file
       # collect wrote says how long FORSGREN_TOKEN is still valid (forsgren#185),
       # and the cooldown the checkout's .github/dependabot.yml names is counted
-      # from the publish time the lookup step wrote (forsgren#194).
+      # from the publish time the lookup step wrote (forsgren#194), and the
+      # README step's word says whether the installation's README was created,
+      # replaced or left as it was (forsgren#110): no flag when it is empty.
       # A summary never fails the run: forsgren
       # run-summary failing appends nothing, and neither does an append that
       # cannot be written.
@@ -527,9 +529,11 @@ jobs:
           WAITING: ${{ steps.waiting.outputs.waiting }}
           PR_CHECK: ${{ steps.waiting.outputs.check }}
           NEEDS_CHECK: ${{ steps.needs.outputs.check }}
+          README: ${{ steps.readme.outputs.readme }}
         run: |
           set -uo pipefail
-          if summary="$(forsgren run-summary --latest "$LATEST" --waiting-pr "${WAITING:-0}" --pr-check "$PR_CHECK" --needs-check "$NEEDS_CHECK" --repository "$GITHUB_REPOSITORY" \
+          if summary="$(forsgren run-summary --latest "$LATEST" --waiting-pr "${WAITING:-0}" --pr-check "$PR_CHECK" --needs-check "$NEEDS_CHECK" \
+            ${README:+--readme "$README"} --repository "$GITHUB_REPOSITORY" \
             --token-expiry "${RUNNER_TEMP}/token-expiry" --latest-published "${RUNNER_TEMP}/latest-published")"; then
             printf '%s\n' "$summary" >> "$GITHUB_STEP_SUMMARY" || true
           fi
