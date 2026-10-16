@@ -19,14 +19,14 @@ type LeadMedian struct {
 }
 
 // leadMedians is, for each of n rows, the LeadMedian of the closes rowOf gives
-// that row (the index of an event time's row, as periodRows uses it), each
-// close measured from the issue's created event.
+// that row (the index of an event time's row, as periodRows uses it), over the
+// completed closes only, each measured from the issue's created event.
 func leadMedians(events []history.IssueEvent, rowOf func(time.Time) (int, bool), n int) []LeadMedian {
 	created := createdAt(events)
 	leads := make([][]time.Duration, n)
 	for _, e := range events {
 		i, ok := rowOf(e.At)
-		if e.Event == history.EventClosed && ok {
+		if completedClose(e) && ok {
 			leads[i] = append(leads[i], e.At.Sub(created[issueKeyOf(e)]))
 		}
 	}
@@ -42,6 +42,16 @@ func medianEach(leads [][]time.Duration) []LeadMedian {
 		}
 	}
 	return medians
+}
+
+// completedClose is whether e is a close that closedColumn counts as Completed,
+// the one classification of a close's reason.
+func completedClose(e history.IssueEvent) bool {
+	if e.Event != history.EventClosed {
+		return false
+	}
+	var d IssueDay
+	return d.closedColumn(e.Reason) == &d.Completed
 }
 
 // issueKey names an issue: its repository, lower case, and its number.
