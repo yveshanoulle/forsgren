@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
+# canon: npm_audit_check v1
 # npm_audit_check.sh — npm-audit gate with one-shot self-heal (GATE_FIX=1 only)
 # and ruled, weekly exceptions.
 #
 # Contract (pinned by test_npm_audit_check.sh):
-# Ported from another estate repository Scripts/admin/ — unit 393.
+# Ported from another estate repository Scripts/admin/ — unit 393 — and in
+# its exception form from forsgren's Scripts/npm_audit_check.sh (forsgren#13),
+# wholesale, for a transitive finding no fix reaches.
 #
 #   exit 0 — no high or critical advisory outside a ruled exception, possibly
 #            after ONE `npm audit fix` (re-verified) when GATE_FIX=1; a heal
 #            reports the package-lock.json change, which rides into the commit
 #            (sqlc-generate precedent). CI never sets GATE_FIX, so it only
 #            checks: it reports what the commit CONTAINS, and a changed
-#            package-lock.json is red there (Scripts/run_ci_phase.sh).
+#            package-lock.json is red there.
 #   exit 1 — an advisory is found and GATE_FIX is not 1 (nothing was changed:
 #            the report and the fix to run are named), an advisory remains
 #            after the heal, or the exception file is
@@ -21,7 +24,7 @@
 #            silent pass.
 #
 # RULED EXCEPTIONS (forsgren#13, Yves's ruling 2026-10-03: option 1, then a
-# weekly re-check). Scripts/npm_audit_exceptions.txt lists them, one per
+# weekly re-check; 2026-10-16). Scripts/npm_audit_exceptions.txt lists them, one per
 # line: advisory|package|re-check date|issue|reason. A finding is ignored
 # only while ALL of these hold:
 #   - its advisory ID (GHSA) AND its package are listed;
@@ -39,11 +42,9 @@
 # 7 days after today: an exception is re-checked WEEKLY, and nobody can set
 # it a month out. An entry whose advisory npm no longer reports is a warning
 # (remove the stale exception), not a red. An exception needs Yves's
-# explicit yes recorded on a GitHub issue, like every suppression
-# (docs/quality-gates.md).
+# explicit yes recorded on a GitHub issue, like every suppression.
 #
-# jq is in Scripts/required_tools.txt since forsgren#2 (the lockfile sync gate
-# needs it too); it also ships with macOS (/usr/bin/jq since macOS 15) and on
+# jq is in Scripts/required_tools.txt; it also ships with macOS (/usr/bin/jq since macOS 15) and on
 # GitHub's macOS images. A missing jq is a tool error, named.
 #
 # NPM_AUDIT_TODAY (YYYY-MM-DD, default `date -u +%F`) and
@@ -201,11 +202,11 @@ if [[ "$rc" -ne 1 ]]; then
 fi
 
 # CHECK-ONLY unless GATE_FIX=1: sfl.sh exports it so
-# FBP.sh heals; CI never sets it and never changes a file.
+# FullBuildAndPush heals; CI never sets it and never changes a file.
 if [[ "${GATE_FIX:-}" != "1" ]]; then
   printf '%s\n' "$first"
   echo "npm-audit: high-severity advisory found"
-  echo "❌ npm-audit: nothing was changed: npm audit fix runs only under GATE_FIX=1 (FBP.sh); run it there and commit package-lock.json"
+  echo "❌ npm-audit: nothing was changed: npm audit fix runs only under GATE_FIX=1 (FullBuildAndPush); run it there and commit package-lock.json"
   exit 1
 fi
 

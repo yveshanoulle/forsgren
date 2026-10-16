@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
+# canon: check_markdown_links v1
 # Scripts/check_markdown_links.sh
 #
-# The markdown-links gate (forsgren#147). Not canon: forsgren's own. Red when
+# The markdown-links gate, byte-identical across the estate's
+# repositories. Red when
 # a relative link in a listed Markdown file points at nothing listed (listed:
-# tracked, or untracked and not ignored, Scripts/lib_repo_files.sh,
-# forsgren#204): README.md, CLAUDE.md, docs/*.md, agent-*.md, SHIPPED.md and
-# every other listed *.md, SHIPPED.md included (its history links must still resolve:
+# tracked, or untracked and not ignored, Scripts/lib_repo_files.sh):
+# every listed *.md, SHIPPED.md included (its history links must still resolve:
 # a file moved is a link moved).
 #
 # A relative link is an inline [text](path) or [text](path#anchor), or a
@@ -28,9 +29,10 @@
 # anchor like #L10), an anchor with a non-ASCII byte (an accented letter, an
 # emoji), an anchor that starts with user-content-.
 #
-# Why a gate: Scripts/check_repo_links.sh only walks the generated html and
-# css, and check_script_references.sh only Scripts paths. A doc moved or
-# renamed left its links dead, and nothing noticed.
+# Why a gate: the other link checks walk the generated html and css, or only
+# Scripts paths. A doc moved or renamed left its links dead, and nothing
+# noticed. An absolute path such as /home/me/x.md resolves against the
+# repository root, so a link into one person's checkout is red.
 #
 # The FAIL line names file:line and the link as written. Every link is
 # checked, so one run reports every finding. Red-on-zero: a root with no
@@ -110,8 +112,10 @@ check_anchor() {
   case "$1" in *.md) ;; *) return 0 ;; esac
   [ -f "$ROOT/$1" ] || return 0
   case "$2" in user-content-* | *%*) return 0 ;; esac
-  if printf '%s' "$2" | LC_ALL=C grep -q '[^ -~]'; then return 0; fi
-  LC_ALL=C awk -f "$HEADING_SLUGS" "$ROOT/$1" | grep -qxF -- "$2"
+  if LC_ALL=C grep -q '[^ -~]' <<<"$2"; then return 0; fi
+  local slugs
+  slugs="$(LC_ALL=C awk -f "$HEADING_SLUGS" "$ROOT/$1")"
+  grep -qxF -- "$2" <<<"$slugs"
 }
 
 findings=0

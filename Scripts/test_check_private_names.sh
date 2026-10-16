@@ -79,6 +79,12 @@
 #                                                     be read`, never cat's own
 #                                                     `Permission denied`; the same
 #                                                     in --message mode
+#  17. a repository-specific EXTRA list, merged with the shared one: a name
+#      only on it is found in a file and in a message (file variable, default
+#      file named after the origin remote, env), the shared list is unchanged
+#      and still searched, a missing extra list is fine, an unreadable extra
+#      file is exit 2, and an extra list never stands in for a missing or
+#      emptied shared one
 # Mutation proof: a copy of the gate that prints the matched line must reveal
 # the name, so the no-name assertion can fail.
 
@@ -436,6 +442,118 @@ else
   want_red "an unreadable tracked file is red" "tracked path #"
   want_said "an unreadable file says it could not be read" "could not be read"
   want_not_said "an unreadable file" "widget-plan" "Permission denied"
+fi
+
+# --- A repository-specific EXTRA list, merged with the shared one ------------
+# A name that only the extra list holds must be found in a file and in a
+# message, the shared list unchanged. Sources, merged with the shared list:
+#   locally  FORSGREN_PRIVATE_NAMES_EXTRA_FILE, else the file
+#            $HOME/.config/forsgren/private-names-extra/<name>, <name> being
+#            the basename of the origin remote URL without .git
+#   in CI    env FORSGREN_PRIVATE_NAMES_EXTRA (from a secret of that name)
+# A missing extra list is fine; a present but unreadable file is exit 2.
+NAME_X="initech-vault"
+EXTRA_FILE="${TMP}/extra-names"
+printf '# made-up extra names of one repository\n%s\n' "$NAME_X" > "$EXTRA_FILE"
+
+# run_extra <env-assignment...>: the shared list from the file, plus the given
+# extra settings; HOME is the empty home unless an assignment sets it.
+run_extra() {
+  capture env -u FORSGREN_PRIVATE_NAMES -u FORSGREN_PRIVATE_NAMES_EXTRA -u FORSGREN_PRIVATE_NAMES_EXTRA_FILE \
+    HOME="$EMPTY_HOME" FORSGREN_PRIVATE_NAMES_FILE="$NAMES_FILE" "$@" "$GATE" "$REPO"
+}
+
+new_repo "extra-file"
+write_file "docs/notes.md" $'harmless\nsee initech-vault for details\n' track
+run_extra FORSGREN_PRIVATE_NAMES_EXTRA_FILE="$EXTRA_FILE"
+want_red "a name only on the extra list (file variable) is found, file:line" "docs/notes.md:2"
+want_not_said "an extra-list name" "$NAME_X" "$NAME_A" "$NAME_B"
+
+run_extra
+want_green_ok "without any extra list the same name passes (the shared list is unchanged)"
+
+new_repo "extra-shared"
+write_file "docs/notes.md" $'see acme-secret-repo\n' track
+run_extra FORSGREN_PRIVATE_NAMES_EXTRA_FILE="$EXTRA_FILE"
+want_red "the extra list ADDS: a shared-list name is still found" "docs/notes.md:1"
+
+new_repo "extra-default"
+git -C "$REPO" remote add origin "https://example.invalid/acme/widget-site.git"
+write_file "docs/notes.md" $'initech-vault\n' track
+EXTRA_HOME="${TMP}/home-with-extra"
+mkdir -p "${EXTRA_HOME}/.config/forsgren/private-names-extra"
+cp "$EXTRA_FILE" "${EXTRA_HOME}/.config/forsgren/private-names-extra/widget-site"
+run_extra HOME="$EXTRA_HOME"
+want_red "the default extra file is named by the origin remote's basename" "docs/notes.md:1"
+cp "$EXTRA_FILE" "${EXTRA_HOME}/.config/forsgren/private-names-extra/other-site"
+rm "${EXTRA_HOME}/.config/forsgren/private-names-extra/widget-site"
+run_extra HOME="$EXTRA_HOME"
+want_green_ok "another repository's extra file is not read"
+
+new_repo "extra-env"
+write_file "docs/notes.md" $'initech-vault\n' track
+run_extra FORSGREN_PRIVATE_NAMES_EXTRA="$NAME_X"
+want_red "a name only in env FORSGREN_PRIVATE_NAMES_EXTRA (CI) is found" "docs/notes.md:1"
+want_not_said "an extra-env name" "$NAME_X"
+
+capture env -u FORSGREN_PRIVATE_NAMES -u FORSGREN_PRIVATE_NAMES_EXTRA_FILE HOME="$EMPTY_HOME" \
+  FORSGREN_PRIVATE_NAMES_FILE="$NAMES_FILE" FORSGREN_PRIVATE_NAMES_EXTRA="$NAME_X" \
+  "$GATE" --message - <<< "touch the Pre-Initech-Vault-v2 notes"
+want_exit "--message - finds a name only the extra list holds" 1 "the commit message names a private name"
+want_not_said "--message - extra" "$NAME_X"
+capture env -u FORSGREN_PRIVATE_NAMES -u FORSGREN_PRIVATE_NAMES_EXTRA_FILE -u FORSGREN_PRIVATE_NAMES_EXTRA \
+  HOME="$EMPTY_HOME" FORSGREN_PRIVATE_NAMES_FILE="$NAMES_FILE" "$GATE" --message - <<< "touch the Pre-Initech-Vault-v2 notes"
+want_rc "--message - passes that message without the extra list" 0
+
+# The extra list does not stand in for the shared one: CI with the extra
+# secret but no shared list still fails.
+capture env -u FORSGREN_PRIVATE_NAMES -u FORSGREN_PRIVATE_NAMES_FILE HOME="$EMPTY_HOME" \
+  FORSGREN_PRIVATE_NAMES_EXTRA="$NAME_X" "$GATE" "$REPO"
+want_exit "an extra list alone does not replace a missing shared list" 2 "no list of private names"
+
+# An emptied shared env secret stays an error although the extra list has names.
+capture env -u FORSGREN_PRIVATE_NAMES_FILE HOME="$EMPTY_HOME" FORSGREN_PRIVATE_NAMES=$'# nothing\n' \
+  FORSGREN_PRIVATE_NAMES_EXTRA="$NAME_X" "$GATE" "$REPO"
+want_exit "an emptied shared secret is still exit 2 beside a full extra list" 2 "has no names in it"
+
+new_repo "extra-unreadable"
+write_file "docs/notes.md" $'harmless\n' track
+UNREADABLE_EXTRA="${TMP}/extra-unreadable-names"
+cp "$EXTRA_FILE" "$UNREADABLE_EXTRA"
+chmod 000 "$UNREADABLE_EXTRA"
+if [[ "$(id -u)" -eq 0 ]]; then
+  echo "  skip: an unreadable extra file is exit 2: running as root, which reads a mode 000 file"
+else
+  run_extra FORSGREN_PRIVATE_NAMES_EXTRA_FILE="$UNREADABLE_EXTRA"
+  want_exit "a present but unreadable extra file is exit 2" 2 "cannot be read"
+  want_not_said "an unreadable extra file" "Permission denied" "$NAME_X"
+fi
+chmod 644 "$UNREADABLE_EXTRA"
+
+# Mutation proofs: the extra list is what finds the name, and it adds.
+new_repo "extra-mutants"
+write_file "docs/notes.md" $'initech-vault\nacme-secret-repo\n' track
+EXTRA_IGNORED="${TMP}/mutant-ignore/Scripts/check_private_names.sh"
+if selftest_mutant "$GATE" "$EXTRA_IGNORED" "s/^  LIST=\"\${LIST}\".*\$/  :/"; then
+  cp Scripts/lib_private_names.sh "$(dirname "$EXTRA_IGNORED")/"
+  capture env -u FORSGREN_PRIVATE_NAMES -u FORSGREN_PRIVATE_NAMES_EXTRA HOME="$EMPTY_HOME" \
+    FORSGREN_PRIVATE_NAMES_FILE="$NAMES_FILE" FORSGREN_PRIVATE_NAMES_EXTRA_FILE="$EXTRA_FILE" "$EXTRA_IGNORED" "$REPO"
+  if grep -qF "docs/notes.md:1" <<< "$OUT"; then
+    fail "mutation proof: a gate that ignores the extra list still found the extra-only name"
+  else
+    echo "  ok: mutation proof: a gate that ignores the extra list misses the extra-only name"
+  fi
+fi
+EXTRA_REPLACES="${TMP}/mutant-replace/Scripts/check_private_names.sh"
+if selftest_mutant "$GATE" "$EXTRA_REPLACES" "s/^  LIST=\"\${LIST}\".*\$/  LIST=\"\${EXTRA}\"/"; then
+  cp Scripts/lib_private_names.sh "$(dirname "$EXTRA_REPLACES")/"
+  capture env -u FORSGREN_PRIVATE_NAMES -u FORSGREN_PRIVATE_NAMES_EXTRA HOME="$EMPTY_HOME" \
+    FORSGREN_PRIVATE_NAMES_FILE="$NAMES_FILE" FORSGREN_PRIVATE_NAMES_EXTRA_FILE="$EXTRA_FILE" "$EXTRA_REPLACES" "$REPO"
+  if grep -qF "docs/notes.md:2" <<< "$OUT"; then
+    fail "mutation proof: a gate whose extra list replaces the shared one still found the shared name"
+  else
+    echo "  ok: mutation proof: a gate whose extra list replaces the shared one misses the shared name"
+  fi
 fi
 
 # Mutation proof: the no-name assertion can fail. A gate that prints the

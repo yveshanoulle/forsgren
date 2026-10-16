@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
+# canon: validate_required_pages v1
 set -euo pipefail
 
-# Validates internal/page/required-pages.json — the release's declaration of which pages
+cd "$(dirname "$0")/.."
+
+# Validates the required-pages manifest — the release's declaration of which pages
 # it must serve.
 #
-# The paragraph below is another estate repository's, where this validator comes from;
-# forsgren has no release or promotion yet (see the forsgren note further
-# down). The manifest ships inside the release artifact, and promotion to live reads it
+# The manifest ships inside the release artifact, and promotion to live reads it
 # from the promoted release to decide what to verify over HTTP. A malformed
 # manifest would therefore turn promotion into an ambiguous partial check that
 # still reports success, which is the weak verification this arc exists to
@@ -15,29 +16,29 @@ set -euo pipefail
 # Every rejection names the offending entry: a bare non-zero exit sends whoever
 # hits it hunting through the file.
 #
-# Usage: validate_required_pages.sh <manifest-path>
-
-# Unit 409 step 3: defaults to this repo's manifest so the order file can name
-# a bare script path. An EXPLICIT empty argument is still a usage error — that
-# is a caller passing nothing on purpose, which is different from not passing.
+# Usage: validate_required_pages.sh [<manifest-path>]
 #
-# forsgren (ported 2026-10-01, forsgren#1 ladder step 9): the default is
-# internal/page/required-pages.json, where forsgren keeps its hand-authored
-# manifest beside the templates; forsgren commits no generated site, so there
-# is no Site/ to hold it. That path, here and in the first line of this
-# header, and the note that the release paragraph is konenki's, are the only
-# changes from another estate repository's copy. forsgren has no
-# release or promotion yet: until it does, the manifest is what
-# Scripts/test_required_pages_covers_site.sh holds the generated site to.
-MANIFEST="${1-internal/page/required-pages.json}"
+# With no argument the manifest is the repository's own, required_pages_manifest
+# in Scripts/site_settings.txt (read through Scripts/lib_site_settings.sh), so
+# the order file can name a bare script path. An EXPLICIT empty argument is
+# still a usage error. The script works from the repository root, so a relative
+# path is relative to it.
+
+# shellcheck source=Scripts/lib_site_settings.sh
+source Scripts/lib_site_settings.sh
+if [[ $# -ge 1 ]]; then
+  MANIFEST="$1"
+else
+  MANIFEST="$(site_settings_get Scripts/site_settings.txt required_pages_manifest)"
+fi
 if [[ -z "$MANIFEST" ]]; then
-  echo "Usage: $0 <manifest-path>" >&2
+  echo "Usage: $0 [<manifest-path>]" >&2
   exit 2
 fi
 
 if [[ ! -f "$MANIFEST" ]]; then
-  # Absence is a hard failure, never a fallback: for this site a release
-  # without its manifest is an invalid release.
+  # Absence is a hard failure, never a fallback: a release without its
+  # manifest is an invalid release.
   echo "FAIL manifest not found: ${MANIFEST}" >&2
   exit 1
 fi

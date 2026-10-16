@@ -1,32 +1,31 @@
 #!/usr/bin/env bash
+# canon: check_secrets v1
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-# gitleaks — secret scanning. Ported from another estate repository 2026-10-01
-# (forsgren#1, ladder step 3); unit numbers are the estate's.
+# gitleaks — secret scanning.
 #
-# WHY. Every repo in the estate gates on gitleaks in BOTH runners. It came
-# to the site repos last (another estate repository, where this copy is from, had it in
-# neither runner until then), and forsgren has had it from its ladder step 3.
+# WHY. Every repo in the estate gates on gitleaks in BOTH runners (sfl and CI),
+# so there is no repo where a leaked secret can be committed with nothing
+# objecting.
 #
-# The realistic exposure is not the HTML. It is someone pasting a token
-# inline into a workflow or a script while debugging — which is exactly what
-# happened with the fastlane-certs PAT (another estate repository, 2026-07-08). forsgren will
-# read GitHub with a token, so it has the shape.
+# The realistic exposure is not the site or the code. It is someone pasting a
+# token inline into a workflow or a script while debugging — which has happened
+# with a real PAT. Repos with deploy workflows and SSH keys in secrets have the
+# shape.
 #
 # SECRET-CLASS: its row in Scripts/gate_report_order.txt carries the class
 # `secret-class`, and that class, not this script's exit code, is what makes
-# sfl (and Scripts/run_ci_phase.sh) exit 2 on a failure here, so
-# FBP.sh REFUSES TO COMMIT. This script exits 2 rather than 1 too,
-# as the estate's copies do, but any non-zero exit would block the commit
-# the same way (forsgren#1 step 12.2d). An ordinary red still commits
-# locally to keep the WIP; a secret-class red must not, because committing it
-# puts the secret into git history where removing it is a rewrite rather than
-# an edit. The distinction is the whole point of the tier.
+# sfl (and Scripts/run_ci_phase.sh) exit 2 on a failure here, so the push
+# wrapper REFUSES TO COMMIT. This script exits 2 rather than 1 too, but any
+# non-zero exit would block the commit the same way. An ordinary red still
+# commits locally to keep the WIP; a secret-class red must not, because
+# committing it puts the secret into git history where removing it is a rewrite
+# rather than an edit. The distinction is the whole point of the tier.
 #
-# Config is .gitleaks.toml, copied from another estate repository: default ruleset plus an
-# allowlist for `${{ secrets.NAME }}` references, which are names not values.
+# Config is .gitleaks.toml: the default ruleset plus an allowlist for
+# `${{ secrets.NAME }}` references, which are names not values.
 #
 # Exit: 0 clean, 2 secret found or tooling missing.
 

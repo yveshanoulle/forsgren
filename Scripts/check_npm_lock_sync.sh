@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
+# canon: check_npm_lock_sync v1
 # Scripts/check_npm_lock_sync.sh
 #
-# The npm lockfile sync gate (forsgren#2, ladder step 1): package.json and
+# The npm lockfile sync gate, byte-identical across the
+# estate's repositories: package.json and
 # package-lock.json must agree. The lockfile repeats the manifest's
 # dependencies under packages[""]; when the two differ, the lockfile no longer
 # describes the manifest and `npm ci` will refuse it. CI finds that out at its
-# Install dependencies step; locally, sfl only ran `npm ci` when node_modules
-# was missing, so the mismatch went unseen. This gate says it in the PRE phase.
+# install step; locally, the install only ran when node_modules was missing or
+# stale, so the mismatch went unseen. This gate says it in the PRE phase.
 #
 # Compared, by name and exact version string: dependencies, devDependencies,
 # optionalDependencies and peerDependencies of package.json against the same
 # four of the lockfile's root entry packages[""]. Offline: two JSON files and
-# jq, no registry. It does NOT judge node_modules (that is a separate step of
-# forsgren#2) or exact pinning (Scripts/check_guardrail_packages.sh).
+# jq, no registry. It does NOT judge node_modules (Scripts/npm_sync_install.sh
+# installs when its stamp is stale) or exact pinning and tracked files
+# (Scripts/check_guardrail_packages.sh).
 #
 # Usage: Scripts/check_npm_lock_sync.sh [dir]   (default: the repo root)
 # Exit: 0 in sync, 1 a difference, a missing file or no jq.

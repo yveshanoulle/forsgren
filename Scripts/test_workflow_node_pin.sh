@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+# canon: test_workflow_node_pin v1
 # Scripts/test_workflow_node_pin.sh
 #
-# The Node pin in CI (forsgren#2, decision #190): every workflow that runs npm
+# The Node pin in CI: every workflow that runs npm
 # or node gets its Node from .nvmrc, the file sfl's Scripts/check_node_pin.sh
 # enforces locally, through actions/setup-node. Without it CI runs whatever
 # Node Homebrew has that day, and the "Node pin" row goes red the day Homebrew
@@ -12,9 +13,14 @@
 #   1. uses actions/setup-node pinned by a 40-hex commit sha with a `# vX.Y.Z`
 #      comment (a tag can be re-pointed; the sha cannot);
 #   2. sets node-version-file: .nvmrc, the one source of the pin;
-#   3. comes before the first step that runs Scripts/install_tools.sh or npm.
+#   3. comes before the first step that runs Scripts/install_tools.sh or npm;
+#   4. is a release that runs on Node 24: the `# vX.Y.Z` comment names a major of
+#      5 or more. actions/setup-node v4.4.0 and older declare
+#      `using: node20`, which GitHub forces onto Node 24 with a deprecation
+#      warning; v5.0.0 is the first release that declares `using: node24`.
 # Synthetic workflows show each broken shape red, and the real workflows green.
-# Mutation proof: a judge that skips the sha check must accept a tag pin.
+# Mutation proofs: a judge that skips the sha check must accept a tag pin, and one
+# that skips the minimum major must accept a v4.4.0 pin.
 
 set -euo pipefail
 
@@ -27,7 +33,7 @@ selftest_begin "workflow node pin self-test"
 # judge_file <workflow-file> — prints one line per problem; none when the file
 # needs no Node or sets it up properly.
 judge_file() {
-  awk -v file="$1" -v checksha="${CHECK_SHA:-1}" '
+  awk -v file="$1" -v checksha="${CHECK_SHA:-1}" -v checkmin="${CHECK_MIN:-1}" -v minmajor=5 '
     function code(s) { return s !~ /^[[:space:]]*#/ }
     /^      - / { step++ }
     code($0) && $0 ~ /(^|[[:space:];&|(])(npm|npx|node)[[:space:]]/ && $0 ~ /run:|^[[:space:]]+[a-z]/ && $0 !~ /uses:/ { needs = 1 }
@@ -41,6 +47,10 @@ judge_file() {
       if (!sn) { print file ": runs npm or node but has no actions/setup-node step"; exit }
       if (checksha == 1 && usesline !~ /setup-node@[0-9a-f]{40}[[:space:]]+# v[0-9]+\.[0-9]+\.[0-9]+/)
         print file ": actions/setup-node is not pinned by a 40-hex commit sha with a # vX.Y.Z comment"
+      if (checkmin == 1 && match(usesline, /# v[0-9]+/)) {
+        major = substr(usesline, RSTART + 3, RLENGTH - 3) + 0
+        if (major < minmajor) print file ": actions/setup-node is v" major ", which runs on Node 20; v" minmajor ".0.0 is the first release on node24"
+      }
       if (vf !~ /node-version-file:[[:space:]]*\.nvmrc[[:space:]]*$/)
         print file ": actions/setup-node does not set node-version-file: .nvmrc"
       if (first && sn >= first) print file ": actions/setup-node comes after the first step that installs tools or runs npm"
@@ -94,6 +104,11 @@ judge tag "$WF"
 want_red "3. a tag instead of a sha" "not pinned by a 40-hex commit sha"
 TAG_WF="$WF"
 
+synth old "${SHA}  # v4.4.0" "node-version-file: .nvmrc" before
+judge old "$WF"
+want_red "3c. a release that still runs on Node 20" "which runs on Node 20"
+OLD_WF="$WF"
+
 synth nocomment "${SHA}" "node-version-file: .nvmrc" before
 judge nocomment "$WF"
 want_red "3b. a sha without the version comment" "not pinned by a 40-hex commit sha"
@@ -125,6 +140,14 @@ if [[ "$RC" -eq 0 ]]; then
   echo "  ok: mutation proof: without the sha check a tag pin is accepted, so case 3 is red because of it"
 else
   fail "mutation proof: the sha-blind judge still refused a tag pin. Output: ${OUT}"
+fi
+
+# --- mutation proof: no minimum major -> the Node 20 release is accepted ------
+CHECK_MIN=0 judge oldmut "$OLD_WF"
+if [[ "$RC" -eq 0 ]]; then
+  echo "  ok: mutation proof: without the minimum major a v4.4.0 pin is accepted, so case 3c is red because of it"
+else
+  fail "mutation proof: the minimum-blind judge still refused a v4.4.0 pin. Output: ${OUT}"
 fi
 
 selftest_end "the workflow Node pin does not hold" \

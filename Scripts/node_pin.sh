@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
+# canon: node_pin v1
 # Scripts/node_pin.sh
 #
-# Prints the Node major forsgren runs its npm tooling on, read from .nvmrc
-# (forsgren#2, decision #190): ONE line, a whole major such as `26`. .nvmrc is
+# Prints the Node major this repository runs its npm tooling on, read from .nvmrc
+# ONE line, a whole major such as `26`. .nvmrc is
 # the one place the pin is written; Scripts/check_node_pin.sh enforces it and
 # CI's setup-node reads the same file.
 #

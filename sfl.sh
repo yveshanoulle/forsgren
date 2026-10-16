@@ -249,14 +249,60 @@ check_step_total() {
 # `read` returns non-zero when it reaches EOF without a trailing newline, even
 # though it has populated the fields from that final line. The second condition
 # keeps that final declared gate executable instead of silently dropping it.
-while IFS='|' read -r label script phase gate_class || [ -n "${label:-}" ]; do
+while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:-}" ]; do
   case "$label" in
-    \#*|'') continue ;;
+    \#*) continue ;;
+    '') [ -z "${script:-}${phase:-}${gate_class:-}" ] && continue ;;
   esac
-
-  [ -n "${label:-}" ] || continue
   [ "${script:-}" = "n/a" ] && continue
-  [ "${phase:-}" = "$PHASE" ] || continue
+
+  # Validate the row before the phase filter: a row that fits no phase must be
+  # red, not invisible. The same rules as Scripts/run_ci_phase.sh, which
+  # Scripts/test_gate_wiring.sh pins line for line.
+  bad=""
+  if [ -z "${label:-}" ]; then
+    label="(row with no label)"
+    bad="the row has no label"
+  elif [ -z "${script:-}" ]; then
+    bad="the row names no script"
+  else
+    case "$script" in
+      Scripts/*.sh) ;;
+      *) bad="its script ${script} is not a Scripts/<name>.sh path" ;;
+    esac
+    case "$script" in
+      *..*|*[!A-Za-z0-9_./-]*) bad="its script ${script} is not a plain Scripts/<name>.sh path" ;;
+    esac
+  fi
+  if [ -z "$bad" ]; then
+    case "${phase:-}" in
+      pre|post) ;;
+      *) bad="its phase '${phase:-}' is neither pre nor post, so no phase would ever run it" ;;
+    esac
+    case "${gate_class:-}" in
+      ''|empty|secret-class) ;;
+      *) bad="its class '${gate_class:-}' is neither empty nor secret-class" ;;
+    esac
+  fi
+  if [ -z "$bad" ]; then
+    [ "$phase" = "$PHASE" ] || continue
+  fi
+
+  if [ -n "$bad" ]; then
+    echo "❌ ${label} is a malformed row of Scripts/gate_report_order.txt: ${bad}"
+    FAIL=1
+    FAILED_GATES="${FAILED_GATES}  ${label} ❌"$'\n'
+    FAILED_GATES="${FAILED_GATES}    malformed order-file row: ${bad}"$'\n'
+    continue
+  fi
+
+  if [ ! -e "$script" ]; then
+    echo "❌ ${label} declares ${script}, which does not exist"
+    FAIL=1
+    FAILED_GATES="${FAILED_GATES}  ${label} ❌"$'\n'
+    FAILED_GATES="${FAILED_GATES}    declared script does not exist: ${script}"$'\n'
+    continue
+  fi
 
   if [ ! -x "$script" ]; then
     echo "❌ ${label} declares ${script}, which is not an executable script"

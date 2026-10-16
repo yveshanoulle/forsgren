@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
+# canon: check_lint_coverage v1
 set -uo pipefail
 
 # check_lint_coverage.sh — did the linters actually OPEN every file that ships?
 #
-# Unit 394, ported from coachretreat-website; the site-shaped answer to
-# another estate repository's admin_template_files.sh.
+# Unit 394, ported from another estate repository; the site-shaped answer to
+# that repository's template-file listing.
 #
 # WHY. Both linters are invoked through globs. A glob that stops matching is
 # not an error — it is a smaller job that finishes sooner and reports success.
@@ -23,7 +24,7 @@ set -uo pipefail
 # file it never opened. Green means "nothing to report", and "I found nothing
 # wrong" is indistinguishable from "I looked at nothing".
 #
-# Usage: check_lint_coverage.sh [site-dir]  (default: .build/site)
+# Usage: check_lint_coverage.sh [site-dir]  (default: site_dir from site_settings.txt)
 #   HTMLHINT_CMD / STYLELINT_CMD override the binaries (the fixture fakes them).
 
 # House pattern: resolve to the repo root before touching any relative path.
@@ -32,14 +33,18 @@ set -uo pipefail
 # standing in the right place.
 cd "$(dirname "$0")/.." || exit 1
 
-# Unit 409 step 3: defaults to this repo's site dir so gate_report_order.txt
-# can name a bare script path. The argument was a per-repo constant duplicated
-# at the call site; a caller may still override it, and the fixture does.
-# forsgren (ported 2026-10-01, forsgren#1 ladder step 8): the default is
-# .build/site, where Scripts/build_site.sh renders the site. With the Usage
-# line above and the gate_htmlhint.sh naming in the --config comment below,
-# the only change from another estate repository's copy.
-SITE="${1:-.build/site}"
+# The canon version, byte-identical across the estate's repositories
+# What differs per repository is DATA: the default site
+# directory is the site_dir of Scripts/site_settings.txt, read through
+# Scripts/lib_site_settings.sh (a missing or invalid file is exit 2, never a
+# guessed default). The argument stays, so a caller can check another directory
+# and the fixture does.
+SITE="${1:-}"
+if [ -z "$SITE" ]; then
+  # shellcheck source=Scripts/lib_site_settings.sh
+  source Scripts/lib_site_settings.sh
+  SITE="$(site_settings_get Scripts/site_settings.txt site_dir)" || exit 2
+fi
 
 # The JSON counter lives in its own file: it has to read two possible streams
 # and report "unreadable" distinctly from "zero", which is more than belongs
@@ -47,7 +52,7 @@ SITE="${1:-.build/site}"
 LINT_JSON_COUNT="Scripts/lint_json_count.py"
 
 HTMLHINT_CMD="${HTMLHINT_CMD:-node_modules/.bin/htmlhint}"
-# konenki passes --config; so does Scripts/gate_htmlhint.sh, and a check that
+# The gate passes --config (Scripts/gate_htmlhint.sh), and a check that
 # lints under different rules than the gate is measuring a different thing.
 # AN ARRAY, not a string. As a string it had to be left unquoted at the call
 # site to split into two arguments, and an unquoted expansion also GLOBS — a
@@ -58,6 +63,19 @@ HTMLHINT_CMD="${HTMLHINT_CMD:-node_modules/.bin/htmlhint}"
 # means "use the default", exactly as the `:-` did.
 read -r -a htmlhint_args <<<"${HTMLHINT_ARGS:---config .htmlhintrc}"
 STYLELINT_CMD="${STYLELINT_CMD:-node_modules/.bin/stylelint}"
+
+# NO FALLBACK. The linters are the repository's pinned devDependencies in
+# node_modules/.bin, installed by `npm ci`. A missing binary is red (exit 2),
+# never a download of whatever version a registry serves today: that would
+# measure a different tool than the one the gates run, and would turn a broken
+# install into a quiet pass. Pinned by Scripts/test_check_lint_coverage.sh,
+# which puts a stub npx on PATH and requires that it is never called.
+for tool_cmd in "$HTMLHINT_CMD" "$STYLELINT_CMD"; do
+  if [ ! -x "$tool_cmd" ]; then
+    echo "lint-coverage: ${tool_cmd} is missing or not executable — run npm ci; there is no fallback" >&2
+    exit 2
+  fi
+done
 
 if [ ! -d "$SITE" ]; then
   echo "lint-coverage: site dir not found: $SITE" >&2

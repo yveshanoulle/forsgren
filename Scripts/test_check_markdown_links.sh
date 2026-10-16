@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
+# canon: test_check_markdown_links v1
 # Scripts/test_check_markdown_links.sh
 #
-# Self-test for Scripts/check_markdown_links.sh (forsgren#147), run in pre
-# before the gate it validates. forsgren's own. Each fixture is a git work
+# Self-test for Scripts/check_markdown_links.sh, run in pre
+# before the gate it validates. Each fixture is a git work
 # tree (the gate reads git ls-files); each case asserts the exit code AND the
 # reason, so a red for another cause proves nothing.
 #   1. good links: file, ./file, dir, ../ from a subfolder, #anchor on a
@@ -12,7 +13,7 @@
 #   4. a reference definition to nothing                         -> red
 #   5. a link to an ignored file                                 -> red; to a
 #      new, untracked, not-ignored file -> resolves; a new untracked
-#      Markdown file with a broken link (forsgren#204)           -> red, named
+#      Markdown file with a broken link           -> red, named
 #   6. a wrong-case spelling                                     -> red
 #   7. ../ out of the repository                                 -> red
 #   8. a broken link inside a fence, a comment, a code span      -> green
@@ -24,6 +25,7 @@
 #  14. good anchors: plain, repeated -1, code span, dash, underscore, linked
 #      text, closing #s, a directory, a line anchor, a % escape, a pure
 #      #anchor; a heading only in a fence                        -> one red, named
+#  16. an absolute path (a link into one checkout)             -> red
 #  15. a broken anchor, a broken pure #anchor, a setext heading, a heading in
 #      a comment                                                 -> red, file:line + anchor
 # Mutation proofs: the link reader replaced by one that strips nothing turns
@@ -106,9 +108,9 @@ put "$ROOT" scratch/ign.md '# ignored'
 capture "$GATE" "$ROOT"
 want_red "5a. rejects a link to a file that git ignores, which will never be committed" "README.md:1 links scratch/ign.md"
 if grep -qF -- "links new.md" <<< "$OUT"; then
-  fail "5b. a link to a new file, untracked and not ignored, was refused: it is in the commit that adds the link (forsgren#204). Output: ${OUT}"
+  fail "5b. a link to a new file, untracked and not ignored, was refused: it is in the commit that adds the link. Output: ${OUT}"
 else
-  echo "  ok: 5b. a link to a new, untracked, not-ignored file resolves (forsgren#204)"
+  echo "  ok: 5b. a link to a new, untracked, not-ignored file resolves"
 fi
 
 ROOT="$TMP/untracked-md"
@@ -118,7 +120,7 @@ put "$ROOT" docs/new.md '# new
 
 [gone](gone.md)'
 capture "$GATE" "$ROOT"
-want_red "5c. reads a new Markdown file too, untracked and not ignored (forsgren#204)" "docs/new.md:3 links gone.md"
+want_red "5c. reads a new Markdown file too, untracked and not ignored" "docs/new.md:3 links gone.md"
 
 ROOT="$TMP/case"
 put "$ROOT" README.md '# T [ok](README.md) [c](Docs/A.md)'
@@ -201,7 +203,7 @@ want_exit "12b. exits 2 on a root that is no git work tree" 2 "is not a git work
 capture "$GATE"
 want_green_ok "13. this repository's Markdown links all resolve"
 
-# Anchors (forsgren#147, step 3).
+# Anchors.
 ROOT="$TMP/anchors"
 put "$ROOT" README.md '# Title
 
@@ -263,6 +265,22 @@ else
   echo "  ok: 15e. a good anchor beside broken ones is not a finding"
 fi
 
+# An absolute path resolves against the repository root, so a link into one
+# person's checkout names nothing the repository lists.
+ROOT="$TMP/absolute"
+put "$ROOT" README.md '# T [ok](README.md)
+
+[checkout](/home/someone/work/repo/NOTES.md) and [root](/NOTES.md)'
+put "$ROOT" NOTES.md '# Notes'
+track "$ROOT"
+capture "$GATE" "$ROOT"
+want_red "16a. rejects an absolute path into a checkout, naming file:line" "README.md:3 links /home/someone/work/repo/NOTES.md"
+if grep -qF -- "links /NOTES.md" <<< "$OUT"; then
+  fail "16b. a /path that resolves against the repository root was refused. Output: ${OUT}"
+else
+  echo "  ok: 16b. a leading / resolves against the repository root"
+fi
+
 # Mutation proofs. The mutant sits in its own Scripts/, and gets the real
 # reader beside it unless the mutation replaces the reader.
 mutate() {
@@ -272,6 +290,16 @@ mutate() {
   selftest_mutant "$GATE" "$TMP/mutant-$1/Scripts/check_markdown_links.sh" "$2" || return 0
   capture "$TMP/mutant-$1/Scripts/check_markdown_links.sh" "$3"
   want_red "mutation proof: $4" "$5"
+}
+# mutate_green <name> <sed-expression> <fixture-root> <case>: the mutant is
+# green on a fixture the real gate is red on, so the gate is red BECAUSE of the
+# line the mutation removes.
+mutate_green() {
+  mkdir -p "$TMP/mutant-$1/Scripts"
+  cp Scripts/extract_markdown_links.awk Scripts/markdown_heading_slugs.awk Scripts/lib_repo_files.sh "$TMP/mutant-$1/Scripts/"
+  selftest_mutant "$GATE" "$TMP/mutant-$1/Scripts/check_markdown_links.sh" "$2" || return 0
+  capture "$TMP/mutant-$1/Scripts/check_markdown_links.sh" "$3"
+  want_green_ok "mutation proof: $4"
 }
 # A reader that strips nothing: every ](x) counts, in a fence or not.
 cat > "$TMP/naive.awk" <<'AWK'
@@ -291,6 +319,16 @@ AWK
 mutate slugs "s|^HEADING_SLUGS=.*|HEADING_SLUGS='$TMP/unnumbered.awk'|" "$TMP/anchors" \
   "a heading reader that does not number repeats turns the -1 anchor red, so it is green because of the numbering" \
   "README.md:3 links docs/a.md#same-twice-1"
+
+# A gate that treats a leading / as not relative skips absolute targets: the
+# absolute-path fixture turns green.
+mutate_green absolute "s,^NOT_RELATIVE=.*,NOT_RELATIVE='^([A-Za-z][A-Za-z0-9+.-]*:|//|/)'," "$TMP/absolute" \
+  "a gate that skips absolute targets is green on the absolute-path fixture, so it is red because they are checked"
+
+# A gate that swallows its findings: it never takes the red branch, prints OK
+# and exits 0 on the broken fixture.
+mutate_green swallow 's/^if \[ "[$]findings" -ne 0 \]; then/if false; then/' "$TMP/many" \
+  "a gate that swallows its findings exits 0 on the broken fixture, so the exit status is what makes it red"
 
 selftest_end "the markdown-links gate does not hold the relative links of the Markdown files" \
   "markdown-links gate is red on a broken inline link, reference definition, untracked file, wrong case and a ../ out of the repository, with file:line named, reports every finding in one run, is red on a scan over nothing, exits 2 on a missing root or no git work tree, checks every #anchor against the headings of its file (ATX, fences and comments skipped, repeats numbered), is green on good links and ignores fences, comments, code spans, external links and pure anchors, and its reader and not-relative pattern are what decide its cases"

@@ -37,10 +37,12 @@ GOOD='<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="description" content="acme">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>acme</title>
 </head>
 <body>
   <main>
+    <h1>acme</h1>
     <p>acme/app</p>
   </main>
 </body>
@@ -48,12 +50,15 @@ GOOD='<!doctype html>
 '
 
 # new_root <name> — a throwaway root with the wrappers, the gates they call,
-# the config and node_modules. ROOT is set.
+# the settings lib and file and the privacy exceptions file the privacy gate
+# reads, the config and node_modules. ROOT is set.
 new_root() {
   ROOT="${TMP}/$1"
   mkdir -p "${ROOT}/Scripts"
   cp Scripts/gate_htmlhint_starter.sh Scripts/gate_htmlhint.sh \
-    Scripts/check_privacy_posture_starter.sh Scripts/check_privacy_posture.sh "${ROOT}/Scripts/"
+    Scripts/check_privacy_posture_starter.sh Scripts/check_privacy_posture.sh \
+    Scripts/lib_site_settings.sh Scripts/site_settings.txt Scripts/privacy_posture_exceptions.txt \
+    "${ROOT}/Scripts/"
   cp .htmlhintrc "$ROOT/"
   ln -s "${REPO_ROOT}/node_modules" "${ROOT}/node_modules"
 }

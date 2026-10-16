@@ -1,0 +1,6 @@
+# HTMLHint canon rules this repo does not turn on.
+#
+# One row per rule: rule|reason. The reason is required. The canon rule list is
+# CANON_RULES in Scripts/test_gate_htmlhint.sh, and that test is red for a canon
+# rule that is neither on in .htmlhintrc nor a row here, for a rule that is
+# both, and for a row without a reason.

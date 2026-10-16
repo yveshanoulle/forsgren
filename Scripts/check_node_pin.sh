@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+# canon: check_node_pin v1
 # Scripts/check_node_pin.sh
 #
-# The Node pin gate (forsgren#2, decision #190): the node on PATH must be the
+# The Node pin gate: the node on PATH must be the
 # major .nvmrc pins (Scripts/node_pin.sh). Red otherwise, naming the running
 # `node --version`, the pinned major and the fix. Node cannot download its own
 # toolchain the way Go does, so this gate cannot repair anything: installing

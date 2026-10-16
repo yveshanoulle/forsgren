@@ -39,7 +39,17 @@ commit itself:
   maintainer runs `./FBP.sh` on the branch instead; a local run with no list
   names the three local sources. An empty `FORSGREN_PRIVATE_NAMES_FILE`
   counts as unset, in the gate and in `Scripts/ensure_private_names_file.sh`
-  alike. The gate searches
+  alike. A repository-specific EXTRA list adds names that only this
+  repository must keep out, merged with the shared list and never replacing
+  it: locally the file `FORSGREN_PRIVATE_NAMES_EXTRA_FILE` points to, else
+  `~/.config/forsgren/private-names-extra/<name>` (`<name>` is the basename
+  of the origin remote URL without `.git`); in CI the Actions secret
+  `FORSGREN_PRIVATE_NAMES_EXTRA`, which `quality.yml` passes through `env`.
+  A missing extra list is fine; an extra file that exists but cannot be read
+  is exit 2. `./Scripts/sync_private_names_secrets.sh` also syncs the extra
+  file, when it is there, into the Actions and Dependabot secrets
+  `FORSGREN_PRIVATE_NAMES_EXTRA`, and leaves them alone when it is not.
+  The gate searches
   `git ls-files` and `git ls-files -o --exclude-standard` (what `git add -A`
   would stage), case-insensitively, for a substring (a listed name
   inside a longer token is a hit). Its failure line
@@ -66,13 +76,29 @@ commit itself:
 
 Two PRE gates check the page templates and the pages they render:
 
-- **html duplication** (`Scripts/check_html_dupl.sh`, the estate's ratchet
-  from another estate repository): jscpd measures the share of duplicated markup in
+- **html duplication** (`Scripts/check_html_dupl.sh`, the estate canon; its
+  target and ceiling are read from `Scripts/site_settings.txt`, see Site
+  settings below): jscpd measures the share of duplicated markup in
   the `html/template` files under `internal/page/templates` and the gate
   compares it to a recorded ceiling, today 0.00%. The ceiling only moves
   down: a red is fixed by removing the duplication, never by raising the
   number. Red on a run that scanned zero `.html` files. jscpd is pinned like
   the linters below.
+- **site settings** (`Scripts/lib_site_settings.sh` and
+  `Scripts/site_settings.txt`, the estate canon, forsgren#215): the values
+  the shared gate scripts read per repository, through one reader that fails
+  closed (a missing file, an unknown or missing key is exit 2, never a
+  guessed default): `site_dir=.build/site` (the generated site, read by
+  HTMLHint, Stylelint and lint coverage), `html_dupl_target` and
+  `html_dupl_ceiling` (the templates, 0.00%), `required_pages_manifest`. The
+  reader accepts one optional leading dot per path component, which
+  `.build/site` needs. Its self-test is `Scripts/test_lib_site_settings.sh`.
+  The other per-repository data of the canon gates sit in empty exception
+  files, each with a required reason per row and a red for a row that excuses
+  nothing: `Scripts/htmlhint_exceptions.txt`,
+  `Scripts/privacy_posture_exceptions.txt`,
+  `Scripts/workflow_trigger_exceptions.txt` and
+  `Scripts/required_pages_exclusions.txt`.
 - **golden pages** (`Scripts/check_golden_pages.sh`, forsgren's own,
   forsgren#12 step 8): the build renders the page without an installation's
   config or history, so the POST gates below never see the page with data
@@ -356,22 +382,24 @@ The POST gates, on the generated site:
 
 - **HTMLHint** (`Scripts/gate_htmlhint.sh`): every `.html` file under the
   rules in `.htmlhintrc`. Red on a finding, and on a run that scanned zero
-  files, since nothing linted is not clean. `.htmlhintrc` turns on 30 rules
-  (forsgren#206, #207, #208): the 28 that the estate's public sites share,
-  among them `meta-charset-require` and `doctype-html5`, plus
-  `inline-style-disabled` and `meta-description-require`, so every page
-  must declare its charset (a page without one still passes Lighthouse when
-  the server sends a charset header; htmlhint reads the file itself) and
-  carry a meta description (see
+  files, since nothing linted is not clean. `.htmlhintrc` turns on 32 rules
+  (forsgren#206, #207, #208, #215): the 32 of the estate's canon, among them
+  `meta-charset-require`, `doctype-html5`, `inline-style-disabled`,
+  `meta-description-require`, `h1-require` and `meta-viewport-require`, so
+  every page must declare its charset (a page without one still passes
+  Lighthouse when the server sends a charset header; htmlhint reads the file
+  itself), carry a meta description, a viewport and one `<h1>` (see
   [Pages and views](pages-and-views.md#the-page)). The same file holds for
   the built site, the golden pages and the starter page.
   `Scripts/test_gate_htmlhint.sh` runs the real `htmlhint` and gives each of
-  the 30 rules a row: a minimal page that breaks only that rule must be red
+  the 32 rules a row: a minimal page that breaks only that rule must be red
   and name that rule and no other (`tagname-specialchars` also trips
   `tag-pair`, which an end tag with no start tag always does). Its mutation
   proof turns each rule off in a copy of `.htmlhintrc` and sees its row stop
   naming it, so every row is red because of its rule, and the self-test is
-  red when `.htmlhintrc` holds more or fewer rules than its list.
+  red when `.htmlhintrc` holds more or fewer rules than its list, or a canon
+  rule is neither on nor a row of `Scripts/htmlhint_exceptions.txt` (empty
+  here: forsgren turns every canon rule on).
 - **starter page build** (`Scripts/build_starter_page.sh`, forsgren's own,
   forsgren#132): renders `README.md` with `./cmd/readmepage` into
   `.build/starter` (`index.html`, `styles.css`, the same stylesheet the
@@ -407,7 +435,18 @@ The POST gates, on the generated site:
   allowlist is what turns a foreign link red.
 - **Stylelint** (`Scripts/gate_stylelint.sh`): every `.css` file under
   `.stylelintrc.json` (stylelint-config-standard plus another estate repository's
-  overrides). Red on a finding, and on a glob that matches no file.
+  overrides). Red on a finding, and on a glob that matches no file. The gate
+  is the estate canon: CI only checks. Under `GATE_FIX=1` it would add
+  `--fix`, but forsgren's stylesheet is not authored in `.build/site`: it is
+  `internal/page/styles.css`, embedded with `go:embed` and copied into every
+  build, so a fix on the generated copy is lost on the next build and CI
+  stays red on the source. Therefore `FBP.sh` runs
+  `Scripts/fix_source_css.sh` with `GATE_FIX=1` on the SOURCE, before the pre
+  gates and the build, so the build copies the fixed source. The script does
+  nothing without `GATE_FIX=1`, is no order-file row and is named by no
+  workflow; its self-test, `Scripts/test_fix_source_css.sh` (its own row),
+  pins that the fix reaches the source and never the generated copy, that
+  `FBP.sh` runs it before the build, and that CI never fixes.
 - **html duplication, generated page** (`Scripts/check_html_dupl_site.sh`):
   the same ratchet over `.build/site`, with its own ceiling, today 0.00%,
   measured one page at a time (every `.html` under the site, subfolders

@@ -5,7 +5,7 @@
 # ladder step 1); named FBP.sh by Yves's ruling on forsgren#1. Issue numbers
 # below are another estate repository's unless they say forsgren.
 #
-# Phases: gofmt -w (local auto-fix) -> sfl.sh pre -> Scripts/build_site.sh
+# Phases: gofmt -w and the source CSS fix (local auto-fix) -> sfl.sh pre -> Scripts/build_site.sh
 # (the Go generator into .build/site) -> sfl.sh post -> git.
 
 set -euo pipefail
@@ -110,7 +110,7 @@ fi
 # repo because two FBP runs back to back were otherwise
 # indistinguishable from their first line (Yves, 2026-08-31). Mirrors
 # sfl.sh's banner; editing a Scripts/*.sh does not require a bump.
-FBP_VERSION=8
+FBP_VERSION=9
 
 STARTED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
 START_EPOCH="$(date +%s)"
@@ -368,6 +368,16 @@ export GOTOOLCHAIN
 # parse is not fatal here: the check-only row fails on it with the reason.
 if ! ./Scripts/check_gofmt.sh --fix; then
   echo "⚠️ gofmt -w could not fix every file — the gofmt gate below says why."
+fi
+
+# Source CSS fix (forsgren#215): stylelint --fix on the SOURCE
+# internal/page/styles.css, before the build copies it, never on the generated
+# .build/site (a fix there is lost on the next build). Only FBP fixes, so the
+# variable is set for this one call; CI never sets it and never runs the
+# script. A finding it cannot fix is not fatal here: the Stylelint gate below
+# reports what is left.
+if ! GATE_FIX=1 ./Scripts/fix_source_css.sh; then
+  echo "⚠️ stylelint --fix could not fix every finding in internal/page/styles.css — the Stylelint gate below says what is left."
 fi
 
 # Remove a previous run's sink before starting this phase. Otherwise an sfl

@@ -1,0 +1,357 @@
+#!/usr/bin/env bash
+# Scripts/test_check_html_dupl_site.sh
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+# Fixture for Scripts/check_html_dupl_site.sh, forsgren's wrapper that measures
+# the GENERATED page one page at a time with the canon gate
+# (Scripts/check_html_dupl.sh), called with an explicit target and ceiling.
+# The canon gate and its self-test (Scripts/test_check_html_dupl.sh) are
+# byte-identical across the estate; what forsgren adds, a second target, has
+# its cases here and no longer in the canon test.
+#
+# Uses the REAL pinned jscpd (node_modules/.bin, installed by sfl's `npm ci`),
+# not a fake. A site is built into the temp dir (this runs in pre, before
+# Scripts/build_site.sh writes .build/site).
+#
+#   - the wrapper passes the built site at its recorded ceiling, passes pages
+#     that only share their chrome, and is red on duplication inside one page;
+#   - it measures EVERY page, not only the first, in subfolders too, and names
+#     a red page by its path in the site ("sub/x.html");
+#   - it leaves no stage directory behind, green or red;
+#   - an inner exit other than 0 or 1 is a tooling failure, exit 2 naming that
+#     exit, never "over the ceiling"; a failing `mktemp -d` is exit 2 saying so;
+#   - a site with no .html is exit 2 with the zero reason.
+
+CHECK="./Scripts/check_html_dupl.sh"
+SITE_CHECK="./Scripts/check_html_dupl_site.sh"
+ZERO_REASON="scanned 0 .html files under"
+
+TMP="$(mktemp -d)"
+COMPLETED=0
+finish() {
+  rm -rf "$TMP"
+  if [[ "$COMPLETED" -ne 1 ]]; then
+    echo "FAIL: html-dupl fixture aborted before completing all cases" >&2
+    exit 1
+  fi
+}
+
+trap finish EXIT
+
+failures=0
+
+check() {
+  # check <name> <expected-rc> <actual-rc>
+  if [[ "$2" == "$3" ]]; then
+    echo "  ✅ $1"
+  else
+    echo "  ❌ $1 — expected exit $2, got $3"
+    failures=$((failures + 1))
+  fi
+}
+
+# check_says <name> <needle> — the last run's output carries needle.
+check_says() {
+  if grep -Fq -- "$2" <<< "$OUT"; then
+    echo "  ✅ $1"
+  else
+    echo "  ❌ $1 — output does not carry '$2'"
+    echo "     got: $OUT"
+    failures=$((failures + 1))
+  fi
+}
+
+run() {
+  set +e
+  OUT="$("$CHECK" "$@" 2>&1)"
+  RC=$?
+  set -e
+}
+
+run_site() {
+  set +e
+  OUT="$("$SITE_CHECK" "$@" 2>&1)"
+  RC=$?
+  set -e
+}
+
+# run_site_staged <tmpdir> <args...> — run_site with every `mktemp -d` the
+# wrapper (and the gate under it) makes landing in tmpdir, created fresh.
+# TMPDIR alone does not do it: macOS's mktemp -d without a template ignores
+# TMPDIR. So a mktemp first on PATH turns a bare `mktemp -d` into one with a
+# template under tmpdir, and passes every other call to the real mktemp; the
+# wrapper itself runs unchanged.
+REAL_MKTEMP="$(command -v mktemp)"
+run_site_staged() {
+  local stage_tmp="$1" shim="${TMP}/mktemp-shim"
+  shift
+  mkdir -p "$stage_tmp" "$shim"
+  cat > "${shim}/mktemp" <<'SHIM'
+#!/usr/bin/env bash
+if [[ "$#" -eq 1 && "$1" == "-d" ]]; then
+  exec "$REAL_MKTEMP" -d "${STAGE_TMP}/tmp.XXXXXXXX"
+fi
+exec "$REAL_MKTEMP" "$@"
+SHIM
+  chmod +x "${shim}/mktemp"
+  set +e
+  OUT="$(PATH="${shim}:${PATH}" REAL_MKTEMP="$REAL_MKTEMP" STAGE_TMP="$stage_tmp" "$SITE_CHECK" "$@" 2>&1)"
+  RC=$?
+  set -e
+}
+
+# check_left_nothing <name> <tmpdir> — tmpdir is empty again after the run.
+check_left_nothing() {
+  local left
+  left="$(ls -A "$2")"
+  if [[ -z "$left" ]]; then
+    echo "  ✅ $1"
+  else
+    echo "  ❌ $1 — left behind in $2: $left"
+    failures=$((failures + 1))
+  fi
+}
+
+# check_not_says <name> <needle> — the last run's output does not carry
+# needle.
+check_not_says() {
+  if grep -Fq -- "$2" <<< "$OUT"; then
+    echo "  ❌ $1 — output carries '$2'"
+    echo "     got: $OUT"
+    failures=$((failures + 1))
+  else
+    echo "  ✅ $1"
+  fi
+}
+
+# run_site_inner_exit <code> <args...> — runs the real wrapper from Scripts/
+# of a throwaway root whose check_html_dupl.sh does nothing but exit code,
+# since the wrapper calls ./Scripts/check_html_dupl.sh from its own root.
+run_site_inner_exit() {
+  local code="$1" root
+  shift
+  root="${TMP}/root-inner-exit-${code}"
+  mkdir -p "${root}/Scripts"
+  cp "$SITE_CHECK" "${root}/Scripts/check_html_dupl_site.sh"
+  printf '#!/usr/bin/env bash\nexit %s\n' "$code" > "${root}/Scripts/check_html_dupl.sh"
+  chmod +x "${root}/Scripts/check_html_dupl_site.sh" "${root}/Scripts/check_html_dupl.sh"
+  set +e
+  OUT="$("${root}/Scripts/check_html_dupl_site.sh" "$@" 2>&1)"
+  RC=$?
+  set -e
+}
+
+# run_site_no_mktemp <args...> — run_site with a mktemp first on PATH whose
+# bare `mktemp -d` fails, silently, so any word about it is the wrapper's;
+# every other call goes to the real mktemp.
+run_site_no_mktemp() {
+  local shim="${TMP}/mktemp-fails"
+  mkdir -p "$shim"
+  cat > "${shim}/mktemp" <<'SHIM'
+#!/usr/bin/env bash
+if [[ "$#" -eq 1 && "$1" == "-d" ]]; then
+  exit 1
+fi
+exec "$REAL_MKTEMP" "$@"
+SHIM
+  chmod +x "${shim}/mktemp"
+  set +e
+  OUT="$(PATH="${shim}:${PATH}" REAL_MKTEMP="$REAL_MKTEMP" "$SITE_CHECK" "$@" 2>&1)"
+  RC=$?
+  set -e
+}
+
+make_duplicate_fixture() {
+  local fixture_dir="$1"
+
+  mkdir -p "$fixture_dir"
+
+  cat > "${fixture_dir}/first.html" <<'HTML'
+<!doctype html>
+<html lang="en">
+  <body>
+    <main>
+      <section>
+        <h1>Duplicated fixture</h1>
+        <p>This deliberately repeated block exists to prove the duplication gate can fail.</p>
+        <p>The fixture needs enough repeated tokens and lines for jscpd to identify the clone.</p>
+        <p>It is synthetic and does not establish the production duplication ceiling.</p>
+        <p>The same complete block appears in a second HTML file below.</p>
+        <p>This line adds enough material for the minimum token threshold used by the gate.</p>
+        <p>This line also belongs to the deliberate duplicated test content.</p>
+        <p>The ratchet must reject this fixture when its ceiling is zero percent.</p>
+        <p>A passing result here would mean the duplication checker cannot detect duplication.</p>
+        <p>That would make the production ratchet untrustworthy even if the templates are clean.</p>
+        <p>The test therefore exercises the real pinned jscpd rather than a fake implementation.</p>
+        <p>Both files intentionally contain this same sequence of markup and textual content.</p>
+      </section>
+    </main>
+  </body>
+</html>
+HTML
+
+  cp "${fixture_dir}/first.html" "${fixture_dir}/second.html"
+}
+
+# make_shared_chrome_site <dir> — two pages that share their chrome (a
+# header and a footer well over jscpd's 50-token minimum) and nothing else:
+# duplication in the OUTPUT of two pages rendered from one layout, none in any
+# one page (forsgren#39, step 1).
+make_shared_chrome_site() {
+  local dir="$1" n
+  mkdir -p "$dir"
+  for n in first second; do
+    cat > "${dir}/${n}.html" <<HTML
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>shared chrome</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <p class="site-name">shared chrome</p>
+  </header>
+  <main>
+    <h1>The ${n} page</h1>
+    <p>Only this paragraph of the ${n} page is its own.</p>
+  </main>
+  <footer>
+    <p>The same footer sentence closes both pages of this synthetic site.</p>
+  </footer>
+</body>
+</html>
+HTML
+  done
+}
+
+# make_inside_duplicate_fixture <dir> — ONE page holding the fixture's block
+# twice, so its duplication is within a page, whichever way pages are measured.
+make_inside_duplicate_fixture() {
+  local dir="$1"
+  mkdir -p "$dir"
+  {
+    sed '/<\/section>/,$d' "${FIXTURE_DIR}/first.html"
+    sed -n '/<section>/,/<\/section>/p' "${FIXTURE_DIR}/first.html"
+    sed -n '/<\/section>/,$p' "${FIXTURE_DIR}/first.html"
+  } > "${dir}/only.html"
+}
+
+# make_later_duplicate_site <dir> — a clean page first in glob order, then a
+# page that duplicates inside itself, so only measuring every page reds it.
+make_later_duplicate_site() {
+  local dir="$1"
+  make_shared_chrome_site "${dir}/chrome"
+  make_inside_duplicate_fixture "${dir}/inside"
+  mkdir -p "$dir"
+  mv "${dir}/chrome/first.html" "${dir}/a-clean.html"
+  mv "${dir}/inside/only.html" "${dir}/b-duplicated.html"
+  rm -rf "${dir}/chrome" "${dir}/inside"
+}
+
+# make_nested_duplicate_site <dir> — a clean page at the top, and in sub/ a
+# page that duplicates inside itself.
+make_nested_duplicate_site() {
+  local dir="$1"
+  make_shared_chrome_site "${dir}/chrome"
+  make_inside_duplicate_fixture "${dir}/sub"
+  mv "${dir}/chrome/first.html" "${dir}/index.html"
+  mv "${dir}/sub/only.html" "${dir}/sub/x.html"
+  rm -rf "${dir}/chrome"
+}
+
+echo "test_check_html_dupl_site"
+
+# Tooling absence is exit 2 below; if jscpd cannot be reached at all, say so once.
+run internal/page/templates 99
+if [[ "$RC" -eq 2 ]]; then
+  echo "  ⚠️  jscpd unavailable — cannot exercise this gate"
+  printf '%s\n' "$OUT" | sed 's/^/     /'
+  COMPLETED=1
+  exit 1
+fi
+
+FIXTURE_DIR="${TMP}/duplicated"
+make_duplicate_fixture "$FIXTURE_DIR"
+
+EMPTY_DIR="${TMP}/no-html"
+mkdir -p "$EMPTY_DIR"
+printf 'body {\n  margin: 0;\n}\n' > "${EMPTY_DIR}/styles.css"
+
+run "$EMPTY_DIR" 99
+check "exits 2 on a directory with no .html in it, never 0" 2 "$RC"
+check_says "the zero red names that nothing was scanned" "$ZERO_REASON"
+# --- forsgren: the generated-page wrapper ----------------------------------
+set +e
+SITE_PAGE_COUNT_FILE="${TMP}/built.count" FORSGREN_BIN_DIR="${TMP}/bin" \
+  ./Scripts/build_site.sh "${TMP}/built" > "${TMP}/built.log" 2>&1
+BUILD_RC=$?
+set -e
+check "the generated site builds" 0 "$BUILD_RC"
+[[ "$BUILD_RC" -eq 0 ]] || sed 's/^/     /' "${TMP}/built.log"
+
+run_site "${TMP}/built"
+check "the generated page passes at its recorded ceiling" 0 "$RC"
+check_says "the generated-page run measured the built site" "in ${TMP}/built"
+
+# forsgren#39, step 1: pages rendered from one layout repeat its chrome, which
+# is duplication in the output, not in any page; each page is measured alone.
+SHARED_DIR="${TMP}/shared-chrome"
+make_shared_chrome_site "$SHARED_DIR"
+run_site "$SHARED_DIR"
+check "the generated-page wrapper passes two pages that only share their chrome" 0 "$RC"
+
+INSIDE_DIR="${TMP}/inside-duplicate"
+make_inside_duplicate_fixture "$INSIDE_DIR"
+run_site "$INSIDE_DIR"
+check "the generated-page wrapper FAILS on duplication inside one page" 1 "$RC"
+check_says "the inside-one-page red names the ceiling it exceeded" "EXCEEDS the 0.00% ceiling"
+
+# forsgren#39, step 4: every page is measured, not only the first, and the
+# stage is removed whether the run is green or red.
+LATER_DIR="${TMP}/later-duplicate"
+make_later_duplicate_site "$LATER_DIR"
+run_site_staged "${TMP}/stage-red" "$LATER_DIR"
+check "the generated-page wrapper FAILS on a later page duplicating inside itself" 1 "$RC"
+check_says "the later-page red names that page" "html-dupl: b-duplicated.html in ${LATER_DIR}"
+check_left_nothing "the generated-page wrapper leaves no stage behind on a red run" "${TMP}/stage-red"
+
+run_site_staged "${TMP}/stage-green" "$SHARED_DIR"
+check "the generated-page wrapper passes the shared-chrome site with its temp dirs moved" 0 "$RC"
+check_left_nothing "the generated-page wrapper leaves no stage behind on a green run" "${TMP}/stage-green"
+
+# Yves's rulings on forsgren#39, step 4.
+NESTED_DIR="${TMP}/nested-duplicate"
+make_nested_duplicate_site "$NESTED_DIR"
+run_site "$NESTED_DIR"
+check "the generated-page wrapper FAILS on a page in a subfolder duplicating inside itself" 1 "$RC"
+check_says "the subfolder red names the page by its path in the site" "html-dupl: sub/x.html in ${NESTED_DIR}"
+
+run_site_inner_exit 3 "$SHARED_DIR"
+check "the generated-page wrapper exits 2 when the gate under it exits 3" 2 "$RC"
+check_says "the exit-3 red names the exit" "exit 3"
+check_not_says "the exit-3 red is not called over the ceiling" "over the ceiling"
+
+run_site_no_mktemp "$SHARED_DIR"
+check "the generated-page wrapper exits 2 when mktemp -d fails" 2 "$RC"
+check_says "the mktemp red says mktemp failed" "mktemp"
+
+run_site "$EMPTY_DIR"
+check "the generated-page wrapper exits 2 on a site with no .html" 2 "$RC"
+check_says "the generated-page zero red names that nothing was scanned" "$ZERO_REASON"
+
+COMPLETED=1
+
+if [[ "$failures" -ne 0 ]]; then
+  echo ""
+  echo "FAIL: check_html_dupl_site contract"
+  exit 1
+fi
+
+echo ""
+echo "✅ test_check_html_dupl_site"

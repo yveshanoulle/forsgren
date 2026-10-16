@@ -1,34 +1,26 @@
 #!/usr/bin/env bash
+# canon: render_step_table v1
 set -uo pipefail
 
-# Ported unchanged from another estate repository 2026-10-01 (forsgren#1); "this repo"
-# in the history below means another estate repository.
+# Renders sfl's end-of-run step table. It is byte-identical across the site
+# repos; Scripts/test_render_step_table.sh pins it and proves each pin against a
+# weakened copy.
 #
-# Renders sfl's end-of-run step table — unit 405.
-#
-# Ported in SHAPE from another estate repository, which has had one since its unit 352, but not
-# in form: there it is thirty lines inline in sfl.sh. Here it is a script with a
-# fixture, per the presentation-script rule this repo adopted in unit 404. A
-# renderer nobody tests is how coachretreat's CI report step exited 1 on every
-# run for a day with sfl green throughout.
-#
-# Usage: ./Scripts/render_step_table.sh <rows-file> [elapsed-seconds]
+# Usage: ./Scripts/render_step_table.sh <rows-file> [elapsed-seconds] [counts-file]
 #
 # Rows are `<name><TAB><result><TAB><seconds>` in execution order.
 #
-# The third column is agilelean's, taken back up in unit 408. It has carried a
-# per-step duration since it built its table; this repo's original port dropped
-# it, and a table that cannot say WHICH gate cost the twelve seconds is a table
-# you stop reading — at 31 steps, most of all.
+# The third column is a per-step duration: a table that cannot say WHICH gate
+# cost the twelve seconds is a table you stop reading.
 
 ROWS="${1:?usage: render_step_table.sh <rows-file> [elapsed-seconds] [counts-file]}"
 ELAPSED="${2:-0}"
-# Unit 407. FullBuildAndPush's one-line summary read `sfl ✅ (11s)` — a glyph
-# and a duration, so a run with four gates skipped looked exactly like one
-# where all thirty passed. The counts are written HERE because this script
-# already derives them from the rows; two places counting the same gates is how
-# they start disagreeing, and the shortest line on screen is the one a reader
-# trusts most.
+# FullBuildAndPush's one-line summary used to read `sfl ✅ (11s)`: a glyph and a
+# duration, so a run with four gates skipped looked exactly like one where all
+# thirty passed. The counts are written HERE because this script already
+# derives them from the rows; two places counting the same gates is how they
+# start disagreeing, and the shortest line on screen is the one a reader trusts
+# most.
 COUNTS_FILE="${3:-}"
 
 # A header over no rows reads as "there are no gates" — the same false-clean
@@ -36,16 +28,17 @@ COUNTS_FILE="${3:-}"
 if [ ! -s "$ROWS" ]; then
   echo "---"
   echo "no steps were recorded — sfl ended before it ran a gate"
-  # The same sentence shape as a real run — unit 415. `0/0` was a second format
-  # for the emptiest possible result, and the summary row would have read as a
-  # ratio nobody can interpret rather than as a run that recorded nothing.
-  if [ -n "$COUNTS_FILE" ]; then printf '0 passed, 0 failed, 0 skipped (%ss)\n' "$ELAPSED" > "$COUNTS_FILE"; fi
+  # The same sentence shape as a real run. `0/0` was a second format for the
+  # emptiest possible result, and the summary row would have read as a ratio
+  # nobody can interpret rather than as a run that recorded nothing.
+  if [ -n "$COUNTS_FILE" ]; then printf '0 passed, 0 warnings, 0 failed, 0 skipped (%ss)\n' "$ELAPSED" > "$COUNTS_FILE"; fi
   exit 0
 fi
 
-COL=36
+COL=40
 n=0
 passed=0
+warned=0
 failed=0
 skipped=0
 
@@ -55,8 +48,7 @@ printf '%*s\n' "$((COL + 18))" '' | tr ' ' '─'
 
 # THE COUNTS ARE THE TABLE'S OWN. Nothing is passed in by the caller: a total
 # that comes from somewhere other than the rows is how a summary starts
-# disagreeing with what it summarises, which is exactly what this repo's CI
-# report did for weeks — "25 of 25" over a file declaring 27.
+# disagreeing with what it summarises ("25 of 25" over a file declaring 27).
 while IFS=$'\t' read -r name result secs; do
   [ -n "${name:-}" ] || continue
   n=$((n + 1))
@@ -66,28 +58,41 @@ while IFS=$'\t' read -r name result secs; do
   # A zero-second gate prints (0s), never a blank: a blank in this column reads
   # as unmeasured rather than as fast.
   printf "[%2d] %-${COL}s %s  (%ss)\n" "$n" "$name" "${result:-}" "${secs:-0}"
+  # THE WARNING CLASS. A row that warned and let the run continue must not be
+  # counted as a pass: it would report a clean run over a step that did not
+  # fully succeed. Nothing may fold it into the passed count, so it has its own.
+  #
+  # `⛔` counts as a failure, not as its own class — it is the secret-class red,
+  # which differs in what it BLOCKS (the commit itself) rather than in whether
+  # the run failed.
   case "${result:-}" in
     *pass*) passed=$((passed + 1)) ;;
+    *warn*) warned=$((warned + 1)) ;;
     *FAIL*) failed=$((failed + 1)) ;;
+    ⛔*)     failed=$((failed + 1)) ;;
     *skip*) skipped=$((skipped + 1)) ;;
   esac
 done < "$ROWS"
 
 printf '%*s\n' "$((COL + 18))" '' | tr ' ' '─'
 
-# ONE SENTENCE, ONE PRODUCER — unit 415, the last site repo to take it. This
-# footer and the counts sink were two formats describing one run: `3 passed, 1
-# failed` here and `3/4` in the sink, which FullBuildAndPush then printed beside
-# its OWN timing of the same step. Three numbers, one run, one screen.
+# ONE SENTENCE, ONE PRODUCER. The footer used to say `30 passed (19s)` while the
+# sink said `30/30`, and FullBuildAndPush printed the sink beside its OWN timing
+# of the same step: three numbers for one run on one screen. Skipped and failed
+# are counted even when 0.
 #
 # Built once and consumed twice, so they cannot disagree.
 #
-# ZERO IS A MEASUREMENT (Yves, 2026-09-02: *"I would like to add skipped and
-# failed even if 0"*). Both halves fell silent on a zero skip, which is right for
-# a SUFFIX and wrong for a sentence: a missing clause reads as something nobody
-# counted rather than as none. The quiet-on-zero rule stands for the icon policy
-# it came from and does not survive the move into prose.
-SUMMARY_LINE="${passed} passed, ${failed} failed, ${skipped} skipped (${ELAPSED}s)"
+# ZERO IS A MEASUREMENT. Both halves used to fall silent on a zero skip, which
+# is right for a SUFFIX and wrong for a sentence: a missing clause reads as
+# something nobody counted rather than as none.
+# Singular reads correctly: "1 warning", not "1 warnings". The other three
+# counts are participles and take the same word either way; this one is a noun,
+# and a summary line that cannot manage plain English gets read less carefully.
+warn_word="warnings"
+[ "$warned" -eq 1 ] && warn_word="warning"
+
+SUMMARY_LINE="${passed} passed, ${warned} ${warn_word}, ${failed} failed, ${skipped} skipped (${ELAPSED}s)"
 echo "$SUMMARY_LINE"
 
 if [ -n "$COUNTS_FILE" ]; then

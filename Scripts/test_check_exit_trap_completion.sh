@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+# canon: test_check_exit_trap_completion v1
 # Scripts/test_check_exit_trap_completion.sh
 #
-# Self-test of Scripts/check_exit_trap_completion.sh (forsgren#137): fixture
+# Self-test of Scripts/check_exit_trap_completion.sh: fixture
 # trees, a flagged script and the clean shapes beside it, plus a mutation proof
 # per pattern. Fixtures are written under $TMP, never the real tree.
 
@@ -42,6 +43,14 @@ want_red "1. set -e, an EXIT trap and no completion flag is red, with file:line 
 new_root flaggedroot a.sh < <(flagged_script)
 capture "$GATE" "$ROOT"
 want_red "2. a script at the repository root is read too" "a.sh:4 runs under set -e"
+
+# A flagged script at the root beside a clean one in Scripts/: the fixture of
+# the root-glob mutation, so that dropping the glob leaves something scanned.
+new_root rootmix a.sh < <(flagged_script)
+mkdir -p "$ROOT/Scripts"
+printf '#!/usr/bin/env bash\necho clean\n' > "$ROOT/Scripts/b.sh"
+capture "$GATE" "$ROOT"
+want_red "2b. a flagged root script beside a clean Scripts/ script is red" "a.sh:4 runs under set -e"
 
 new_root completed Scripts/a.sh <<'EOF'
 #!/usr/bin/env bash
@@ -119,7 +128,14 @@ mutate() {
     "$3 turns case 1 green, so it is red because of the pattern" \
     "with $1 neutralised the flagged fixture is still red"
 }
-mutate COMPLETION '.' "a completion pattern that matches anything"
+# A gate that skips the scripts at the repository root: case 2 turns green.
+mkdir -p "$TMP/mutant-noroot/Scripts"
+selftest_mutant_green "$GATE" "$TMP/mutant-noroot/Scripts/check_exit_trap_completion.sh" \
+  's|/\*\.sh "|/no-such-root-script.sh "|' "$TMP/rootmix" \
+  "a gate that skips the root scripts turns case 2b green, so the root is read BECAUSE of that glob" \
+  "with the root glob dropped the flagged root script is still red"
+
+mutate COMPLETION '.' "a gate that accepts a trap without the flag (a completion pattern that matches anything)"
 mutate SET_E 'NEVER-MATCHES-ANY-SET-LINE' "a set pattern that never matches"
 mutate EXIT_TRAP 'NEVER-MATCHES-ANY-TRAP-LINE' "a trap pattern that never matches"
 

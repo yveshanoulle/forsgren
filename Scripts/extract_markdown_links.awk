@@ -1,6 +1,7 @@
+# canon: extract_markdown_links_awk v1
 # Scripts/extract_markdown_links.awk
 #
-# The markdown-links gate's (forsgren#147) reader: prints "<line>:<target>"
+# The markdown-links gate's reader: prints "<line>:<target>"
 # for every link in a Markdown file, outside code. Counted: an inline link
 # [text](target) or [text](target "title") or [text](<target>), and a
 # reference definition [label]: target. Not counted: what sits in a fenced

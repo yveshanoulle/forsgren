@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
+# canon: install_tools v1
 # Installs and refreshes the Homebrew tools this repo's gates need, from
-# Scripts/required_tools.txt. Unit 414.
+# Scripts/required_tools.txt.
 #
 # THIS SCRIPT IS MEANT TO BE IDENTICAL IN EVERY REPO OF THE ESTATE. Everything
 # that differs between repos lives in the list it reads. Keep it that way: a
-# tool name added here rather than to the list is how four copies of one script
+# tool name added here rather than to the list is how copies of one script
 # stop being one script.
 #
 # NO PATH EXPORT HERE, deliberately. sfl.sh sets the Homebrew path before
@@ -39,7 +40,7 @@ done < "$TOOLS_FILE"
 
 # NON-VACUITY, before any expansion of the array — which on bash 3.2 under
 # `set -u` is itself fatal when empty. A list that has quietly become empty must
-# not read as "all tools present": another estate repository's grant audit reported `none` for
+# not read as "all tools present": a past grant audit reported `none` for
 # weeks on exactly that shape.
 if [ "${#tools[@]}" -eq 0 ]; then
   echo "❌ FAIL: ${TOOLS_FILE} declares no tools — this run would install nothing, check nothing, and report success" >&2

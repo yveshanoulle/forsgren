@@ -1,44 +1,27 @@
 #!/usr/bin/env bash
-# test_check_script_references.sh — fixture test for check_script_references.sh.
+# canon: test_check_script_references v1
+# Scripts/test_check_script_references.sh
 #
-# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 13); "this repo"
-# in the history below means another estate repository. forsgren's changes, matching the
-# gate's (see its header):
-#   - CHECK names the gate in forsgren's flat Scripts/.
-#   - FAIL lines carry the estate's red-cross marker.
-#   - Fixture 5 is INVERTED: forsgren scans docs, so a dangling Scripts path
-#     in Markdown is red here. Fixtures 5b-5d are forsgren's: another
-#     repository's path named as such, an order file, and the reverse
-#     callers (an order file and CLAUDE.md count, other prose does not).
-#   - Fixtures 15-19 (the CLIMB ban) are removed with the ban, which is not
-#     ported.
-#   - Fixtures 22-25 and two mutation proofs are forsgren's, at the end: a
-#     default-argument fallback, a missing path under an existing directory,
-#     and red-on-zero; those and the proofs assert the REASON as well as the
-#     exit code.
-#   - Fixture 13 is INVERTED and fixtures 26-28 plus mutation proof C are
-#     forsgren's flat-Scripts guard (forsgren#1, step 15), which records:
-#       "Ruling (Yves, 2026-10-01): climb ban — N/A for forsgren, with a
-#        flat-folder guard."
-#       "This exception is valid only while `Scripts/` remains flat. The
-#        script-reference gate must reject scripts in subdirectories.
-#        Introducing a script below `Scripts/*/` requires revisiting this
-#        ruling before that structure is accepted."
-#     A script one folder down is red with that reason, the hand-run
-#     directory included; a data file in a subfolder is not a script and
-#     stays green.
-#
-# Why this exists: the guard's whole job is to make a mistake during the
-# Scripts/ reorganisation loud. A guard that cannot tell broken-from-clean is
-# worse than none — this repo has already been bitten twice by gates that
-# silently passed (check_sql_dupl's mktemp and jscpd-ANSI traps). So the guard
-# is fed trees with KNOWN answers and its verdict is asserted.
-#
-# Asserts only the EXIT CODE (caught / didn't catch), never which findings.
+# Fixture test for Scripts/check_script_references.sh,
+# byte-identical across the estate's repositories. The gate's job is to make a
+# moved or renamed script loud, and a gate that cannot tell broken from clean is
+# worse than none, so it is fed trees with KNOWN answers and its verdict is
+# asserted: the exit code, and for the later fixtures the REASON as well.
+#   1 clean tree, 2 forward (missing script), 3 reverse (orphan), 4 a script
+#   naming only itself, 5 prose scanned, 5b another repository's path, 5c an
+#   order file, 5d reverse callers, 6-7 and 11 subdirectories and moves, 13 a
+#   standalone folder is red, 20-21 case and external paths, 22-25 a fallback
+#   default, a missing path under an existing directory and red-on-zero, 26-28
+#   flat Scripts/, 29 a path named only in a comment, 30 the orphan is named.
+# Mutation proofs (weakened copies of the gate): A forward resolution always
+# true, B no zero-files check, C no flatness check, D the exit status
+# swallowed, E comments ignored, F the reverse check off. Each fixture that is
+# red must turn green (or lose its reason) under the mutation that removes
+# the check it names.
 set -uo pipefail
 
-# Repo root without counting levels — rule C. The replaced form is
-# described, never quoted: the depth check greps every script for it.
+# Repo root without counting levels. The replaced form is described, never
+# quoted: the depth check greps every script for it.
 cd "$(cd "$(dirname "$0")" && git rev-parse --show-toplevel)" || exit 1
 CHECK="Scripts/check_script_references.sh"
 CHECK_ABS="$(pwd)/$CHECK"
@@ -92,21 +75,20 @@ if bash "$CHECK_ABS" "$selfref" >/dev/null 2>&1; then
   fail "a script referenced only by its own usage line was NOT caught (reverse check)"
 fi
 
-# --- Fixture 5 (INVERTED for forsgren): prose is scanned → must FAIL ---
-# another estate repository excludes Markdown, where ten planned, foreign or historical paths
-# lived on 2026-08-17. forsgren scans its docs on purpose: a dangling Scripts
-# path in a doc is the "we will forget later" this guard catches now.
+# --- Fixture 5: prose is scanned → must FAIL ---
+# The docs are scanned on purpose: a dangling Scripts path in a doc is the
+# "we will forget later" this guard catches now.
 prose="$tmproot/prose-only"
 make_tree "$prose"
 printf '#!/usr/bin/env bash\nbash Scripts/used.sh\n' > "$prose/caller.sh"
 printf 'Plan: add Scripts/not_written_yet.sh next sprint.\n' > "$prose/TODO.md"
 if bash "$CHECK_ABS" "$prose" >/dev/null 2>&1; then
-  fail "a Scripts path in Markdown that does not exist was NOT caught (forsgren scans docs)"
+  fail "a Scripts path in Markdown that does not exist was NOT caught (docs are scanned)"
 fi
 
 # --- Fixture 5b: another repository's script, named as such → must PASS ---
-# The repository is the path's first component; forsgren has no such
-# directory, so the path is not ours to verify.
+# The repository is the path's first component; this repository has no
+# such directory, so the path is not ours to verify.
 foreign="$tmproot/foreign-repo"
 make_tree "$foreign"
 printf '#!/usr/bin/env bash\n# twin of source-repo/Scripts/twin.sh\nbash Scripts/used.sh\n' > "$foreign/caller.sh"
@@ -173,17 +155,6 @@ if bash "$CHECK_ABS" "$moved" >/dev/null 2>&1; then
   fail "a caller still naming the pre-move path was NOT caught (forward check)"
 fi
 
-# NOTE — fixtures 8, 9, 10, 12 and 14 were REMOVED on 2026-08-17. 8 and 10
-# asserted the OPPOSITE contract (a correctly-counted climb passes; a named
-# target is exempt) — the exemption is what let boot_smoke.sh and start-mcp.sh (since deleted)
-# move and break silently. 9, 12 and 14 measured climb LENGTHS, which nothing
-# does any more: fixtures 15-17 pin the three spellings as bans instead.
-# They asserted the opposite contract: that a correctly-counted climb passes,
-# and that a named target (../konenki-api) is exempt. Both are now failures by
-# design — the exemption is what let boot_smoke.sh and start-mcp.sh (since deleted) move and
-# break silently. Fixtures 9, 12 and 14 still hold: their trees contain climbs,
-# which must fail, though now for the ban's reason rather than a depth count.
-
 # --- Fixture 11: a stale reference INTO a subdirectory → must FAIL (forward) ---
 # Fixture 7 covers the pre-move path; this is the post-move one, and it is the
 # form every reference the reorganisation rewrites now takes. The forward scan
@@ -200,12 +171,10 @@ if bash "$CHECK_ABS" "$subforward" >/dev/null 2>&1; then
   fail "a reference to a nonexistent Scripts/common/gone.sh was NOT caught (forward check ignores subdirectories)"
 fi
 
-# --- Fixture 13 (INVERTED for forsgren): Scripts/standalone is a subfolder → must FAIL ---
-# another estate repository declares a hand-run script by putting it in Scripts/standalone.
-# forsgren keeps Scripts/ flat (forsgren#1 ruling, see the header), so that
-# directory is a script below Scripts/*/ like any other: red, for the
-# flatness reason, until the ruling is revisited. forsgren declares its
-# hand-run scripts in CLAUDE.md instead (fixture 5d).
+# --- Fixture 13: Scripts/standalone is a subfolder → must FAIL ---
+# Scripts/ is kept flat, so that directory is a script below Scripts/*/ like
+# any other: red, for the flatness reason. A hand-run script is declared in
+# CLAUDE.md instead (fixture 5d).
 standalone="$tmproot/standalone-dir"
 make_tree "$standalone"
 mkdir -p "$standalone/Scripts/standalone"
@@ -213,12 +182,9 @@ printf '#!/usr/bin/env bash\necho hand-run diagnostic\n' \
   > "$standalone/Scripts/standalone/lonely.sh"
 printf '#!/usr/bin/env bash\nbash Scripts/used.sh\n' > "$standalone/caller.sh"
 OUT="$(bash "$CHECK_ABS" "$standalone" 2>&1)"; RC=$?
-[ "$RC" -ne 0 ] || fail "a script in Scripts/standalone was green — Scripts/ must stay flat (forsgren#1)"
+[ "$RC" -ne 0 ] || fail "a script in Scripts/standalone was green — Scripts/ must stay flat "
 grep -qF 'SCRIPT IN SUBFOLDER: Scripts/standalone/lonely.sh' <<<"$OUT" \
   || fail "the Scripts/standalone case is red for another reason. Output: $OUT"
-
-# --- Fixtures 15-19 (the CLIMB ban) are not ported: forsgren is flat and does
-# not port the ban (see the gate header). ---
 
 # --- Fixtures 20-21: references must resolve CASE-SENSITIVELY ---------------
 # macOS is case-insensitive, so `[ -e ../scripts/x.py ]` answers TRUE for a
@@ -248,7 +214,7 @@ if ! bash "$CHECK_ABS" "$external" >/dev/null 2>&1; then
   fail "an absolute or home-relative path outside the repo was treated as a broken reference"
 fi
 
-# --- forsgren's fixtures 22-25: they assert the REASON as well as the exit ---
+# --- Fixtures 22-25: they assert the REASON as well as the exit ---
 run_check() { OUT="$(bash "$1" "$2" 2>&1)"; RC=$?; }
 
 # 22: a default argument's fallback naming a missing script -> must FAIL
@@ -291,6 +257,22 @@ run_check "$CHECK_ABS" "$norefs"
 grep -q 'extracted zero Scripts paths' <<<"$OUT" \
   || fail "the zero-references case is red for another reason. Output: $OUT"
 
+
+# --- Fixture 29: a path named ONLY in a comment is still a reference → must FAIL ---
+# A comment is where a stale path survives longest, so the scan reads comments.
+commented="$tmproot/comment-only"
+make_tree "$commented"
+printf '#!/usr/bin/env bash\nbash Scripts/used.sh\n# see Scripts/removed_long_ago.sh for the old way\n' > "$commented/caller.sh"
+run_check "$CHECK_ABS" "$commented"
+[ "$RC" -ne 0 ] || fail "a comment naming a nonexistent Scripts/removed_long_ago.sh was NOT caught"
+grep -qF 'UNRESOLVED REFERENCE: Scripts/removed_long_ago.sh' <<<"$OUT" \
+  || fail "the comment-only case is red for another reason. Output: $OUT"
+
+# 30: the orphan of fixture 4 is NAMED, not only counted.
+run_check "$CHECK_ABS" "$selfref"
+grep -qF 'UNREFERENCED SCRIPT: Scripts/talks_to_itself.sh' <<<"$OUT" \
+  || fail "the self-reference case does not name the orphan. Output: $OUT"
+
 # --- Mutation proofs: each red above is red BECAUSE of the check it names ---
 # mutant <name> <sed-expression> — a copy of the gate with one line replaced;
 # a sed that changes nothing proves nothing, so that is a failure too.
@@ -320,8 +302,8 @@ if grep -q 'scanned zero files' <<<"$OUT"; then
   fail "mutation proof B: without the zero-files check the gate still says it scanned zero files — the reason comes from elsewhere"
 fi
 
-# --- forsgren's fixtures 26-28: the flat-Scripts guard (forsgren#1, step 15) ---
-FLAT_REASON="scripts must sit directly under Scripts/ — the climb-ban exception holds only while Scripts/ is flat; see forsgren#1"
+# --- Fixtures 26-28: the flat-Scripts guard ---
+FLAT_REASON="scripts must sit directly under Scripts/ — every script finds the root one level up, which holds only while Scripts/ is flat"
 
 # 26: a CALLED script one folder down -> must FAIL, for the flatness reason
 # alone: the forward and reverse checks are both satisfied.
@@ -331,7 +313,7 @@ mkdir -p "$nested/Scripts/sub"
 printf '#!/usr/bin/env bash\necho nested\n' > "$nested/Scripts/sub/x.sh"
 printf '#!/usr/bin/env bash\nbash Scripts/used.sh\nbash Scripts/sub/x.sh\n' > "$nested/caller.sh"
 run_check "$CHECK_ABS" "$nested"
-[ "$RC" -ne 0 ] || fail "a script under Scripts/sub/ was green — Scripts/ must stay flat (forsgren#1)"
+[ "$RC" -ne 0 ] || fail "a script under Scripts/sub/ was green — Scripts/ must stay flat "
 grep -qF "SCRIPT IN SUBFOLDER: Scripts/sub/x.sh — ${FLAT_REASON}" <<<"$OUT" \
   || fail "the nested-script case does not name the flatness reason. Output: $OUT"
 
@@ -343,7 +325,7 @@ mkdir -p "$nestedpy/Scripts/lib"
 printf 'print(1)\n' > "$nestedpy/Scripts/lib/y.py"
 printf '#!/usr/bin/env bash\nbash Scripts/used.sh\npython3 Scripts/lib/y.py\n' > "$nestedpy/caller.sh"
 run_check "$CHECK_ABS" "$nestedpy"
-[ "$RC" -ne 0 ] || fail "a Python script under Scripts/lib/ was green — Scripts/ must stay flat (forsgren#1)"
+[ "$RC" -ne 0 ] || fail "a Python script under Scripts/lib/ was green — Scripts/ must stay flat "
 grep -qF "SCRIPT IN SUBFOLDER: Scripts/lib/y.py — ${FLAT_REASON}" <<<"$OUT" \
   || fail "the nested-Python case does not name the flatness reason. Output: $OUT"
 
@@ -364,5 +346,28 @@ mutant flat-unchecked "s/^if \\[ -n \"\\\$nested_scripts\" \\]; then\$/if false;
 run_check "$MUTANT" "$nested"
 [ "$RC" -eq 0 ] \
   || fail "mutation proof C: a gate without the flatness check is still red on fixture 26 (exit $RC) — red for another reason. Output: $OUT"
+
+# D: the exit status. A gate that swallows its status exits 0 on fixture 2,
+# so fixture 2 is red because the status is what the gate returns.
+mutant status-swallowed "s/^exit \"\\\$status\"\$/exit 0/"
+run_check "$MUTANT" "$broken"
+[ "$RC" -eq 0 ] \
+  || fail "mutation proof D: a gate that swallows its exit status still exits $RC on fixture 2 — the status is not what makes it red. Output: $OUT"
+grep -q 'UNRESOLVED REFERENCE: Scripts/gone.sh' <<<"$OUT" \
+  || fail "mutation proof D: the swallowing gate no longer even names the finding — the proof changed more than the status. Output: $OUT"
+
+# E: comments ignored. A gate that cuts every line at its first # does not see
+# fixture 29's path, so fixture 29 is red because comments are read.
+mutant comments-ignored "s/| xargs -0 grep -ohiE /| xargs -0 cat | cut -d# -f1 | grep -ohiE /"
+run_check "$MUTANT" "$commented"
+if grep -qF 'UNRESOLVED REFERENCE: Scripts/removed_long_ago.sh' <<<"$OUT"; then
+  fail "mutation proof E: a gate that ignores comments still names the commented path — the reason comes from elsewhere. Output: $OUT"
+fi
+
+# F: the reverse check. Without it, fixture 3's orphan is not reported.
+mutant reverse-off "s/^if \\[ -n \"\\\$unreferenced\" \\]; then\$/if false; then/"
+run_check "$MUTANT" "$orphan"
+[ "$RC" -eq 0 ] \
+  || fail "mutation proof F: a gate without the reverse check is still red on fixture 3 (exit $RC) — red for another reason. Output: $OUT"
 
 echo "✅ test_check_script_references: PASS"

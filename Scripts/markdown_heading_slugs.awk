@@ -1,6 +1,7 @@
+# canon: markdown_heading_slugs_awk v1
 # Scripts/markdown_heading_slugs.awk
 #
-# The markdown-links gate's (forsgren#147) reader of a link's #anchor: prints
+# The markdown-links gate's reader of a link's #anchor: prints
 # the GitHub anchor of every heading of a Markdown file, one per line, in
 # file order. Run it with LC_ALL=C, so a byte is a character.
 # The rules, as GitHub renders them:

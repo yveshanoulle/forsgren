@@ -1,72 +1,52 @@
 #!/usr/bin/env bash
+# canon: test_required_pages_covers_site v1
 # Scripts/test_required_pages_covers_site.sh
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# Does the manifest still describe the site? — unit 392, ported from
-# coachretreat-website where it was written as part of unit 367.
+# Does the manifest still describe the site?
 #
-# The history below is another estate repository's: "this repo" means konenki, and
-# Site/, SiteSource/, the privacy pages and promotion are konenki's.
-# forsgren's changes are listed at the end of this header.
-#
-# This repo's manifest has been correct since it was written — by attention,
-# not by construction. Nothing checked it. And the pages it declares are not
-# ordinary pages: privacy.html and privacy_nl.html are where the App Store
-# listing and the app point for the privacy policy, so a page added to the
-# generated site and left out of the manifest is not merely unverified, it is
-# a legal surface nothing watches.
+# A manifest that is correct by attention, not by construction, rots. And the
+# pages it declares can be legal surfaces (a privacy policy), so a page added to
+# the site and left out of the manifest is not merely unverified, it is a
+# surface nothing watches.
 #
 # Scripts/validate_required_pages.sh checks the manifest's SHAPE: valid JSON,
 # root-relative entries, no duplicates, not empty. It cannot check the thing
-# that actually rots — whether the manifest still matches the site it ships
+# that actually rots: whether the manifest still matches the site it ships
 # with. Both halves pass happily while drifting apart:
 #
-#   - a page added to the generated site and not listed is never verified on
-#     promote, so the release can serve a broken new page and promote reports
-#     success
+#   - a page added to the site and not listed is never verified on promote, so
+#     the release can serve a broken new page and promote reports success
 #   - a page listed but deleted makes every promote fail on a 404, which is
-#     loud and therefore self-correcting — but it is checked here too, because
+#     loud and therefore self-correcting, but it is checked here too, because
 #     finding it at promote time means finding it during a deploy
 #
 # The first case is the dangerous one: it fails SILENTLY, by verifying less
 # than it claims to. That is the exact failure this arc keeps meeting.
 #
-# A page that deliberately must not be verified (a partial, an error page)
-# is a decision, not an oversight — record it in EXCLUDED below with a
-# reason, so the next reader sees a choice instead of a gap.
+# Also red, and said: a site with no .html in it (nothing covered is not
+# covered). Pages in subfolders count: a folder's index.html is served at the
+# folder, so standard/index.html is /standard/, and one the manifest does not
+# declare is as red as one at the root.
 #
-# The site directory and manifest are separate inputs because CI builds the
-# authored SiteSource/ files into a temporary directory. The independently
-# authored release manifest remains Site/required-pages.json. With no
-# arguments, this script preserves its original repository check.
+# THE VALUES ARE DATA, not code. With no arguments the site directory
+# (site_dir) and the manifest (required_pages_manifest) come from
+# Scripts/site_settings.txt through Scripts/lib_site_settings.sh, and the
+# exclusions from Scripts/required_pages_exclusions.txt (page|reason, a missing
+# file is red, a row without a reason is red). The arguments exist so a caller
+# can check another build, and so the self-test can drive the gate with sites
+# of its own:
 #
-# forsgren (ported 2026-10-01, forsgren#1 ladder step 9). Two changes, both
-# forsgren's own (a third was added by forsgren#46, below):
-#   1. The defaults: the site is .build/site, where Scripts/build_site.sh
-#      renders it (forsgren commits no generated site), and the manifest is
-#      the hand-authored internal/page/required-pages.json beside the
-#      templates. Both arguments stay, so a caller can check another build.
-#   2. A SITE WITH NO .html IN IT IS RED, AND SAYS SO. In konenki's copy an
-#      empty site checked against an empty manifest reds only by accident:
-#      the closing `grep -c .` counts nothing, exits 1 under set -e after
-#      COMPLETED=1, and the run dies with no line at all. Against a non-empty
-#      manifest it reds through a declared page it no longer finds, which
-#      names a page, not the cause. Nothing covered is not covered, and the
-#      red names that.
-#   3. (forsgren#46) PAGES IN SUBFOLDERS COUNT. A view's page is served at
-#      its folder, so standard/index.html is /standard/, and a page there
-#      that the manifest does not declare is as red as one at the root.
+#   test_required_pages_covers_site.sh [site-dir [manifest [exclusions]]]
+#
 # Self-test: Scripts/test_required_pages_covers_site_selftest.sh.
 
-SITE_DIR="${1:-.build/site}"
-SITE_DIR="${SITE_DIR%/}"
-MANIFEST="${2:-internal/page/required-pages.json}"
-
-# basename -> why it is not a required page. Empty today.
-EXCLUDED=""
+# shellcheck source=Scripts/lib_site_settings.sh
+source Scripts/lib_site_settings.sh
+SETTINGS="Scripts/site_settings.txt"
 
 COMPLETED=0
 finish() {
@@ -84,6 +64,13 @@ fail() {
   failed=1
 }
 
+SITE_DIR="${1:-}"
+[[ -n "$SITE_DIR" ]] || SITE_DIR="$(site_settings_get "$SETTINGS" site_dir)"
+SITE_DIR="${SITE_DIR%/}"
+MANIFEST="${2:-}"
+[[ -n "$MANIFEST" ]] || MANIFEST="$(site_settings_get "$SETTINGS" required_pages_manifest)"
+EXCLUSIONS="${3:-Scripts/required_pages_exclusions.txt}"
+
 if [[ ! -d "$SITE_DIR" ]]; then
   echo "FAIL: $SITE_DIR not found" >&2
   exit 1
@@ -93,6 +80,26 @@ if [[ ! -f "$MANIFEST" ]]; then
   echo "FAIL: $MANIFEST not found" >&2
   exit 1
 fi
+
+if [[ ! -f "$EXCLUSIONS" ]]; then
+  echo "FAIL: $EXCLUSIONS not found" >&2
+  exit 1
+fi
+
+# page -> why it is not a required page. One `page|reason` row per exclusion;
+# a row without a reason is red, named, and the rest is still read.
+excluded=""
+row_pattern='^[^|[:space:]]+[|].*[^[:space:]]'
+row_no=0
+while IFS= read -r row || [[ -n "$row" ]]; do
+  row_no=$((row_no + 1))
+  case "$row" in '' | '#'*) continue ;; esac
+  if [[ "$row" =~ $row_pattern ]]; then
+    excluded="${excluded}${row%%|*}"$'\n'
+  else
+    fail "${EXCLUSIONS} line ${row_no} is not page|reason (a reason is required): ${row}"
+  fi
+done < "$EXCLUSIONS"
 
 listed="$(python3 - "$MANIFEST" <<'PY'
 import json
@@ -106,8 +113,7 @@ for entry in required_pages:
 PY
 )"
 
-# forsgren change 2: zero pages is red, with its reason, before either
-# direction runs.
+# Zero pages is red, with its reason, before either direction runs.
 html_count="$(find "$SITE_DIR" -type f -name '*.html' | wc -l | tr -d '[:space:]')"
 if [[ "$html_count" -eq 0 ]]; then
   COMPLETED=1
@@ -119,12 +125,12 @@ fi
 while IFS= read -r f; do
   [ -f "$f" ] || continue
   rel="${f#"${SITE_DIR}"/}"
-  if grep -qx "$rel" <<< "$EXCLUDED"; then
+  if grep -qx -- "$rel" <<< "$excluded"; then
     echo "  skip: ${rel} (declared exclusion)"
     continue
   fi
 
-  # A folder's index.html is served at the folder (forsgren#46):
+  # A folder's index.html is served at the folder:
   # standard/index.html is /standard/, index.html is /.
   path="/${rel}"
   [[ "$rel" == "index.html" || "$rel" == */index.html ]] && path="/${rel%index.html}"

@@ -1,19 +1,17 @@
 #!/usr/bin/env bash
+# canon: test_workflow_checkout_pins v1
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# Action pins (forsgren#1, ladder step 17), the canon row `checkout pins`.
-# PORTED from coachretreat-website, the estate's best-shape copy, adapted
-# only in these header comments: the code is coachretreat's, byte for byte.
-# The lineage: another estate repository's test_persist_credentials.sh, then another estate repository
-# (the sha pin and the step-scoped scan), coachretreat-website (its unit
-# 368), and agilelean-website's every-action pin (its unit 399, coachretreat's
-# unit 400). Another estate repository's own copy still checks actions/checkout only.
+# Action pins, the canon row `checkout pins`: every actions/checkout, and
+# every other third-party action, is pinned to a commit sha.
 #
 # SECURITY, not tidiness. A tag or a branch is resolved when the runner
-# fetches it, so whoever controls the action's repository decides what runs
-# in forsgren's CI, with the job's token. A commit sha cannot be re-pointed.
+# fetches it, so whoever controls the action's repository decides what runs in
+# CI, with the job's token. A commit sha cannot be re-pointed. A repository
+# that left `@v4` on every checkout and persist-credentials nowhere stayed in
+# that posture only because nothing ever asked.
 #
 # Every actions/checkout in this repo must:
 #
@@ -23,11 +21,10 @@ cd "$(dirname "$0")/.."
 #      into .git/config for the rest of the job unless disabled; no step
 #      in this repo needs it.
 #
-# STEP-SCOPED SCAN, and this is where coachretreat's port first broke.
-# konenki writes
-# `- uses: actions/checkout@…` with `uses` ON the dash line (indent 6), so a
-# scan that walks forward while indent > the uses-line indent sees `with:` at
-# 8 and keeps going. coachretreat writes `- name: Checkout …` and then
+# STEP-SCOPED SCAN, and this is where an earlier port first broke. One style
+# writes `- uses: actions/checkout@…` with `uses` ON the dash line (indent 6),
+# so a scan that walks forward while indent > the uses-line indent sees `with:`
+# at 8 and keeps going. The other style writes `- name: Checkout …` and then
 # `uses:` on its own line at indent 8 — `with:` is ALSO 8, so that scan broke
 # at the first line and reported persist-credentials missing when it was
 # right there.
@@ -114,22 +111,18 @@ if [[ "$checked" -eq 0 ]]; then
   fail "no actions/checkout found in ${WF_DIR} — scan pattern broken?"
 fi
 
-# Pin 3 — EVERY third-party action, not just checkout. coachretreat's unit
-# 400, ported from agilelean-website (its unit 399).
+# Pin 3 — EVERY third-party action, not just checkout.
 #
 # FIX THE CLASS, NOT THE INSTANCE. The two pins above grep for the literal
 # string `actions/checkout`, so they test ONE INSTANCE of the property: that no
-# action here can be re-pointed by its maintainer between two runs. agilelean
-# was carrying `actions/setup-node@v4` outside that scan for as long as it had
-# existed — the only unpinned action in the estate, invisible to a gate all
-# three repos share, because the check was written around the name of the
-# action that prompted it.
+# action here can be re-pointed by its maintainer between two runs. A gate
+# written around the name of the action that prompted it leaves every other
+# action outside the scan, invisible, for as long as it exists.
 #
-# This repo uses checkout and nothing else, so the pin is green here today.
-# That is why Scripts/test_workflow_checkout_pins_mutations.sh proves it
-# against a SYNTHETIC second action rather than against these workflows: a gate
-# that can only test what the repo happens to contain goes green on the day
-# someone adds a second action, which is exactly when it stops being true.
+# Scripts/test_workflow_checkout_pins_mutations.sh proves this pin against a
+# SYNTHETIC second action as well as against these workflows: a gate that can
+# only test what the repo happens to contain goes green on the day someone adds
+# a second action, which is exactly when it stops being true.
 #
 # Local references (`./.github/actions/...`, same-repo reusable workflows) are
 # skipped — they are this repo's own content at the commit being built, and

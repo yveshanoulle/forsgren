@@ -28,6 +28,45 @@ private_names_file_given() {
   [[ -n "${FORSGREN_PRIVATE_NAMES_FILE:-}" ]]
 }
 
+# private_names_extra_file <repo-dir>: prints the path of the repository's
+# EXTRA list file: FORSGREN_PRIVATE_NAMES_EXTRA_FILE when set and not empty,
+# else ${HOME}/.config/forsgren/private-names-extra/<name>, <name> being the
+# basename of the origin remote URL of <repo-dir> without .git. Returns
+# non-zero, printing nothing, when there is no variable and no origin to name
+# the file after. A path, never a name.
+private_names_extra_file() {
+  local url name
+  if [[ -n "${FORSGREN_PRIVATE_NAMES_EXTRA_FILE:-}" ]]; then
+    printf '%s' "$FORSGREN_PRIVATE_NAMES_EXTRA_FILE"
+    return 0
+  fi
+  url="$(git -C "$1" remote get-url origin 2>/dev/null)" || return 1
+  name="${url##*/}"
+  name="${name##*:}"
+  name="${name%.git}"
+  [[ -n "$name" ]] || return 1
+  printf '%s' "${HOME:-/nonexistent}/.config/forsgren/private-names-extra/${name}"
+}
+
+# private_names_extra_read <repo-dir> <variable>: the raw text of the EXTRA
+# list in the shell variable named <variable>: env FORSGREN_PRIVATE_NAMES_EXTRA
+# (the CI secret) and the extra file, when each is there, one after the
+# other. An absent extra list is not an error and leaves the variable empty.
+# Returns non-zero, printing nothing, when the extra file exists but cannot be
+# read.
+private_names_extra_read() {
+  local file text="" part
+  file="$(private_names_extra_file "$1")" || file=""
+  if [[ -n "${FORSGREN_PRIVATE_NAMES_EXTRA:-}" ]]; then
+    text="$FORSGREN_PRIVATE_NAMES_EXTRA"
+  fi
+  if [[ -n "$file" && -e "$file" ]]; then
+    part="$(cat "$file" 2>/dev/null)" || return 1
+    text+=$'\n'"$part"
+  fi
+  printf -v "$2" '%s' "$text"
+}
+
 # private_names_read <file> <variable>: the raw text of <file> in the shell
 # variable named <variable>. Returns non-zero, printing nothing (cat's own
 # message would name the path; the callers print their own one FAIL line),

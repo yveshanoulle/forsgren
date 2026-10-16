@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# canon: test_npm_audit_check v1
 # test_npm_audit_check.sh — fixture test for npm_audit_check.sh.
 #
 # Ported from another estate repository's admin gate — unit 393. This repo ships htmlhint and
@@ -15,10 +16,10 @@
 # `npm` drives every mode — an unexercised script mode is broken until a
 # fixture drives it.
 #
-# forsgren#13 (Yves's ruling, 2026-10-03: option 1, then weekly): the gate
+# ACME#9 (Yves's ruling, 2026-10-03: option 1, then weekly): the gate
 # reads `npm audit --json` and honours a RULED EXCEPTION from
 # Scripts/npm_audit_exceptions.txt, narrow and expiring by itself. This
-# self-test therefore left the estate harness for forsgren's own
+# self-test therefore moved onto the shared harness
 # (Scripts/lib_selftest.sh): it needs its mutation proofs. Its cases:
 #
 #   1. a clean audit                           -> green, no `npm audit fix`
@@ -123,7 +124,7 @@ export NPM_AUDIT_TODAY="2026-10-03"
 mkdir -p "$NPM_FAKE_STATE"
 
 ADV="GHSA-h2h2-j3j3-q4q4"
-NOTICE="excepted: ${ADV} (acme-braces) until 2026-10-10, forsgren#13"
+NOTICE="excepted: ${ADV} (acme-braces) until 2026-10-10, ACME#9"
 
 # serve <full report> [prod report]: what the fake npm answers; the prod
 # report defaults to clean (every path a dev path).
@@ -143,7 +144,7 @@ except() {
 
 # the ruled entry, re-checked on 2026-10-10.
 except_ruled() {
-  except "${ADV}|acme-braces|${1:-2026-10-10}|forsgren#13|dev tooling only; no patched acme-braces"
+  except "${ADV}|acme-braces|${1:-2026-10-10}|ACME#9|dev tooling only; no patched acme-braces"
 }
 
 # variant <name> <jq filter>: a fixture derived from excepted.json.
@@ -253,7 +254,7 @@ want_green "on the re-check date itself it is green" "$NOTICE"
 export NPM_AUDIT_TODAY="2026-10-11"
 run_check
 export NPM_AUDIT_TODAY="2026-10-03"
-want_red "past the re-check date it is red" "re-check forsgren#13: is a fix out?"
+want_red "past the re-check date it is red" "re-check ACME#9: is a fix out?"
 
 # --- Case 8: a second advisory on the excepted package -> red.
 SECOND="$(variant second '.vulnerabilities["acme-braces"].via += [{source: 1000003, name: "acme-braces", dependency: "acme-braces", title: "acme-braces leaks memory", url: "https://github.com/advisories/GHSA-w9w9-x8x8-v7v7", severity: "high", cwe: [], cvss: {score: 7.5, vectorString: null}, range: "<=3.0.3"}]')"
@@ -267,7 +268,7 @@ run_check
 want_red "another package's advisory is red" "GHSA-m5m5-p6p6-r7r7 (acme-yaml <2.4.0, high) is not excepted"
 
 # --- Case 10: the listed advisory, but the entry names another package.
-except "${ADV}|acme-other|2026-10-10|forsgren#13|dev tooling only"
+except "${ADV}|acme-other|2026-10-10|ACME#9|dev tooling only"
 serve "${FIXTURES}/excepted.json"
 run_check
 want_red "the listed advisory on an unlisted package is red" "${ADV} (acme-braces <=3.0.3, high) is not excepted"
@@ -314,7 +315,7 @@ run_check
 want_red "a re-check date 8 days ahead is red" "an exception may run at most 7 days ahead: re-check weekly"
 
 # --- Case 17: a malformed exception file -> red, no audit.
-except "${ADV}|acme-braces|2026-10-10|forsgren#13"
+except "${ADV}|acme-braces|2026-10-10|ACME#9"
 : > "$NPM_FAKE_CALLS"
 run_check
 want_red "an entry without its reason is red" "malformed exception file"
@@ -323,11 +324,11 @@ if grep -q "audit" "$NPM_FAKE_CALLS"; then
 else
   echo "  ok:   ... before any audit"
 fi
-except "${ADV}|acme-braces|2026-02-30|forsgren#13|dev tooling only"
+except "${ADV}|acme-braces|2026-02-30|ACME#9|dev tooling only"
 run_check
 want_red "an impossible re-check date is red" "malformed exception file"
 except_ruled
-printf '%s\n' "${ADV}|acme-braces|2026-10-09|forsgren#13|again" >> "$NPM_AUDIT_EXCEPTIONS"
+printf '%s\n' "${ADV}|acme-braces|2026-10-09|ACME#9|again" >> "$NPM_AUDIT_EXCEPTIONS"
 run_check
 want_red "a duplicate entry is red" "malformed exception file"
 
@@ -351,11 +352,11 @@ prove() {
 # Each setup pins today, so no case leaks its date into the next.
 setup_expired() { export NPM_AUDIT_TODAY="2026-10-11"; except_ruled; serve "${FIXTURES}/excepted.json"; }
 setup_second() { export NPM_AUDIT_TODAY="2026-10-03"; except_ruled; serve "$SECOND"; }
-setup_package() { export NPM_AUDIT_TODAY="2026-10-03"; except "${ADV}|acme-other|2026-10-10|forsgren#13|dev tooling only"; serve "${FIXTURES}/excepted.json"; }
+setup_package() { export NPM_AUDIT_TODAY="2026-10-03"; except "${ADV}|acme-other|2026-10-10|ACME#9|dev tooling only"; serve "${FIXTURES}/excepted.json"; }
 setup_prod() { export NPM_AUDIT_TODAY="2026-10-03"; except_ruled; serve "${FIXTURES}/excepted.json" "${FIXTURES}/excepted.json"; }
 setup_fix() { export NPM_AUDIT_TODAY="2026-10-03"; except_ruled; serve "${TMP}/fixtrue.json"; }
 setup_weekly() { export NPM_AUDIT_TODAY="2026-10-03"; except_ruled "2026-10-11"; serve "${FIXTURES}/excepted.json"; }
-setup_malformed() { export NPM_AUDIT_TODAY="2026-10-03"; except "${ADV}|acme-braces|2026-10-10|forsgren#13"; serve "${FIXTURES}/excepted.json"; }
+setup_malformed() { export NPM_AUDIT_TODAY="2026-10-03"; except "${ADV}|acme-braces|2026-10-10|ACME#9"; serve "${FIXTURES}/excepted.json"; }
 
 prove "re-check date" 's/^def expired(/def expired(e): false; def unused_expired(/' setup_expired
 prove "listed advisory" '/# rule: listed advisory/d' setup_second

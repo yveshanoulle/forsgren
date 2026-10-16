@@ -48,6 +48,9 @@ cd "$(dirname "$0")/.."
 #  10. MUTATION PROOF: a zizmor.yml that disables template-injection, in the
 #      same place, turns case 9 green: zizmor reads the config from the
 #      scanned directory, so case 9 is not vacuous
+#  11. MUTATION PROOF: the gate passes --color never; run with colour forced
+#      (GITHUB_ACTIONS, FORCE_COLOR, CLICOLOR_FORCE) its report carries no
+#      escape code, and a copy without the flag does
 
 CHECK="./Scripts/check_zizmor.sh"
 CONFIG=".github/zizmor.yml"
@@ -162,6 +165,26 @@ fi
 printf 'rules:\n  template-injection:\n    disable: true\n' > "$cfg/zizmor.yml"
 capture "$CHECK" "$cfg"
 want_exit "mutation: a zizmor.yml disabling template-injection turns case 9 green" 0 "No findings to report"
+
+# --- Case 11: MUTATION PROOF. The gate without --color never, run with colour forced.
+# The text of the report then carries escape codes, which is what broke a text
+# count on CI; the gate with the flag stays plain under the same environment.
+esc="$(printf '\033')"
+capture env CLICOLOR_FORCE=1 FORCE_COLOR=1 GITHUB_ACTIONS=true "$CHECK" "$inj"
+if grep -qF -- "$esc" <<< "$OUT"; then
+  fail "the gate prints escape codes when colour is forced: its report is not plain text on CI"
+else
+  echo "  ok: the gate's output is plain under the CI colour environment"
+fi
+colour="$TMP/colour/Scripts/check_zizmor.sh"
+if selftest_mutant "$CHECK" "$colour" 's/ --color never//'; then
+  capture env CLICOLOR_FORCE=1 FORCE_COLOR=1 GITHUB_ACTIONS=true "$colour" "$inj"
+  if grep -qF -- "$esc" <<< "$OUT"; then
+    echo "  ok: mutation: without --color never, forced colour puts escape codes in the report"
+  else
+    fail "mutation: without --color never the report is still plain under forced colour, so case 11 proves nothing"
+  fi
+fi
 
 selftest_end "the zizmor gate does not tell a safe workflow from an unsafe one" \
   "zizmor gate is red on template injection (.yml and .yaml), on no workflow and on a missing directory, green on a clean workflow, on a Medium finding and on this repository's .github, its severity threshold is what keeps the Medium out, and this repository's zizmor.yml suppresses no template injection"

@@ -13,7 +13,7 @@ cd "$(dirname "$0")/.."
 #
 #   quality.yml was gated behind `paths: ["Site/**", ".github/workflows/
 #   quality.yml"]`, so a commit touching only Scripts/ or sfl.sh triggered
-#   nothing at all, and the file its fixtures pin (deploy-feta.yml) sat
+#   nothing at all, and the file its fixtures pin sat
 #   outside the trigger of the workflow that checks it. A green CI then
 #   means "nothing ran", which is indistinguishable from "everything
 #   passed".
@@ -28,8 +28,8 @@ cd "$(dirname "$0")/.."
 # tracked files (a .DS_Store or a workflow copy anywhere) and script
 # references (every script, workflow, order file and doc). No glob list short
 # of everything covers those, so the only filter that keeps the rule is none.
-# konenki keeps a filter because a feta deploy chains off its Quality run and
-# must not fire for a documentation edit; nothing chains off forsgren's.
+# a repository whose deploy chains off its Quality run may keep a filter, so a
+# documentation edit does not fire the deploy; nothing chains off forsgren's.
 # So this check pins, on .github/workflows/quality.yml:
 #   1. a push trigger on main exists (without one nothing runs on a push, and
 #      the absence passes every filter check silently);

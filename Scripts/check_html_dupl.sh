@@ -1,60 +1,66 @@
 #!/usr/bin/env bash
+# canon: check_html_dupl v1
 # Scripts/check_html_dupl.sh
 
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-# HTML duplication RATCHET — unit 397, adapted from
-# source-repo/Scripts/admin/check_html_dupl.sh.
+# HTML duplication RATCHET — unit 397, adapted from the admin check of the
+# estate's application repository.
 #
-# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 11). No repo
-# of the estate keeps this file identical: konenki, coachretreat and agilelean
-# each carry their own target and ceiling. Yves's ruling on forsgren#1: ported
-# even with one page, measured on the templates AND on the generated page, not
-# n/a. forsgren's changes:
-#   1. Two targets, one script. The default target is the html/template files
-#      under internal/page/templates, the authored source (konenki's choice:
-#      shared chrome is written once there, in templates/layout/). The
-#      generated page in .build/site is measured too, through
-#      Scripts/check_html_dupl_site.sh, which calls this script with that
-#      directory and its own ceiling: a clone the templates do not show (a
-#      page template pasting the chrome instead of calling it) shows there.
-#   2. jscpd is a pinned devDependency in package.json + package-lock.json,
-#      invoked by path from node_modules/.bin, never `npx --yes`: forsgren's
-#      rule for every npm tool (docs/development.md, The tools). Same version
-#      as konenki's npx pin, 4.2.4, so the numbers compare across the estate.
-#   3. ZERO FILES SCANNED IS RED (exit 2), with that reason. jscpd 4.2.4 over a
+# The canon version, byte-identical across the estate's repositories
+# What differs per repository is DATA, in
+# Scripts/site_settings.txt, read through Scripts/lib_site_settings.sh:
+#   html_dupl_target   the directory measured when no argument is given
+#   html_dupl_ceiling  the ceiling in percent, when no second argument is given
+# A missing or invalid settings file is exit 2, never a guessed default. A
+# repository that measures more than one target (a generated page as well as
+# its authored source) does it with a thin wrapper of its own that calls this
+# script with an explicit target and ceiling: the arguments override the
+# settings, so the canon stays identical and the second target is a documented
+# difference outside it, not a fork of it.
+#
+#   1. jscpd is a pinned devDependency (exact version in package.json and
+#      package-lock.json), invoked by path from node_modules/.bin, never
+#      `npx --yes`: a different version is a different number, and a ratchet
+#      cannot float. A missing binary is exit 2 with no fallback.
+#   2. ZERO FILES SCANNED IS RED (exit 2), with that reason. jscpd 4.2.4 over a
 #      directory with no .html prints neither a percentage nor "Found 0
-#      clones" and exits 0; konenki's script then reports "could not read a
-#      percentage", a red that blames jscpd's output format for what is an
-#      empty target. The count comes from jscpd's own JSON report
+#      clones" and exits 0, which would read as "could not read a percentage",
+#      a red that blames jscpd's output format for what is an empty target.
+#      The count comes from jscpd's own JSON report
 #      (statistics.total.sources), what jscpd OPENED, not a separate find.
-#      Self-test: Scripts/test_check_html_dupl.sh.
+#   Self-test: Scripts/test_check_html_dupl.sh.
 #
-# The bar is a CEILING at the measured value, and the direction is DOWN.
-# Ceiling 0.00% for the templates — measured 2026-10-01 with the pinned jscpd
-# 4.2.4: 3 files, 0 clones. The gate fails if duplication RISES. Lower MAX_PCT
+# The bar is a CEILING at the measured value, and the direction is DOWN. The
+# gate fails if duplication RISES. Lower the ceiling in site_settings.txt
 # deliberately whenever the number improves; never raise it to make a red go
 # away.
 #
 # TOOL VERSION IS PINNED, AND THAT IS LOAD-BEARING. A ratchet compares a
 # measurement to a recorded constant, so the measurement must not depend on
-# what happens to be installed. konenki measured its pre-template Site/ at
-# 8.67% with jscpd 4.2.4 and 7.84% with 5.0.15, on the same files.
+# what happens to be installed: the same files measured 8.67% with jscpd 4.2.4
+# and 7.84% with 5.0.15.
 #
 # jscpd MEASURES; this script GATES. It is run with -t 0 so the percentage
 # always appears in the output, and the ceiling comparison happens here. That
 # keeps the number visible on a passing run.
 #
 # Exit: 0 at or under the ceiling, 1 over it, 2 tooling or nothing scanned.
-# Usage: check_html_dupl.sh [target-dir] [max-pct]
+# Usage: check_html_dupl.sh [target-dir] [max-pct]  (defaults: site_settings.txt)
 
 export NO_COLOR=1
 export FORCE_COLOR=0
 
-TARGET_DIR="${1:-internal/page/templates}"
-MAX_PCT="${2:-0.00}"
+TARGET_DIR="${1:-}"
+MAX_PCT="${2:-}"
+if [ -z "$TARGET_DIR" ] || [ -z "$MAX_PCT" ]; then
+  # shellcheck source=Scripts/lib_site_settings.sh
+  source Scripts/lib_site_settings.sh
+  [ -n "$TARGET_DIR" ] || TARGET_DIR="$(site_settings_get Scripts/site_settings.txt html_dupl_target)" || exit 2
+  [ -n "$MAX_PCT" ] || MAX_PCT="$(site_settings_get Scripts/site_settings.txt html_dupl_ceiling)" || exit 2
+fi
 
 JSCPD_PIN="jscpd@4.2.4"
 JSCPD="$(pwd)/node_modules/.bin/jscpd"
@@ -121,7 +127,7 @@ if [ "$over" -eq 1 ]; then
   printf '%s\n' "$plain"
   echo "html-dupl: duplication ${pct}% EXCEEDS the ${MAX_PCT}% ceiling." >&2
   echo "  The ceiling only ever moves DOWN. Do not raise it to clear this —" >&2
-  echo "  remove the duplication from the templates under internal/page instead." >&2
+  echo "  remove the duplication instead." >&2
   exit 1
 fi
 

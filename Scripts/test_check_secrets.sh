@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+# canon: test_check_secrets v1
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# Fixture for check_secrets.sh — unit 399.
+# Fixture for check_secrets.sh.
 #
 # The case that matters is a PLANTED SECRET being caught. A secret scanner
 # that has never been seen catching anything is a scanner nobody has tested,
@@ -15,8 +16,15 @@ cd "$(dirname "$0")/.."
 # them — an allowlist that failed to cover those would red every run and get
 # removed within a day. But an allowlist wide enough to swallow a real key
 # beside one is worse than none, so that is asserted too.
+#
+# MUTATION PROOF, at the end: the same cases run against weakened copies of the
+# gate (a finding that exits 0, a scan that never runs), and each copy must be
+# red. A fixture that passes a gate which cannot fail is decoration. The gate
+# under test is the optional first argument; without one it is the real gate and
+# the mutation proof runs.
 
-CHECK="./Scripts/check_secrets.sh"
+CHECK="${1:-./Scripts/check_secrets.sh}"
+SELF="${PWD}/Scripts/test_check_secrets.sh"
 TMP="$(mktemp -d)"
 
 COMPLETED=0
@@ -79,6 +87,29 @@ YAML
 } > "$both/wf.yml"
 run "$both"
 check "a real key BESIDE an allowlisted reference is still caught" 2 "$RC"
+
+# --- Mutation proof: weakened copies of the gate must be red here.
+# Only for the real gate; the copies are judged by this same file, run on them.
+if [[ $# -eq 0 ]]; then
+  mutant_must_fail() { # <label> <sed-expression>
+    local dir="$TMP/mutant-$RANDOM" m
+    mkdir -p "$dir/Scripts"
+    cp .gitleaks.toml "$dir/.gitleaks.toml"
+    m="$dir/Scripts/check_secrets.sh"
+    sed "$2" "$CHECK" > "$m"
+    chmod +x "$m"
+    if cmp -s "$CHECK" "$m"; then
+      echo "  ❌ mutation '$1' changed nothing — it proves nothing"; failures=$((failures+1)); return
+    fi
+    if "$SELF" "$m" >/dev/null 2>&1; then
+      echo "  ❌ mutation '$1' PASSED this fixture — the cases do not guard it"; failures=$((failures+1))
+    else
+      echo "  ✅ mutation '$1' is red"
+    fi
+  }
+  mutant_must_fail "a finding exits 0" '$ s/^exit 2$/exit 0/'
+  mutant_must_fail "the scan never runs" 's/^if gitleaks detect /if true || gitleaks detect /'
+fi
 
 COMPLETED=1
 

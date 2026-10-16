@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
+# canon: test_npm_sync_install v1
 # Scripts/test_npm_sync_install.sh
 #
-# Self-test for Scripts/npm_sync_install.sh, sfl's npm install step
-# (forsgren#2, ladder step 2), run before sfl relies on it. No network: a stub
+# Self-test for Scripts/npm_sync_install.sh, sfl's npm install step,
+# run before sfl relies on it. No network: a stub
 # `npm` first on PATH records each call in $NPM_LOG and, unless NPM_FAIL is
 # set, creates node_modules/ like `npm ci` does (it deletes the old one first).
 #   1. no node_modules                      -> npm ci runs, the stamp is written
@@ -13,10 +14,25 @@
 #   6. npm ci fails after a lockfile change -> the OLD stamp is gone too, so the
 #                                              next run installs again
 #   7. no package-lock.json                 -> red, npm ci does not run
+#   9. htmlhint and stylelint present, jscpd missing, no stamp (the state of a
+#      checkout installed before a devDependency was added) -> npm ci runs
 #   8. the Node major changed               -> npm ci runs, the stamp follows;
 #                                              a patch change does not
+#  10. the stub npm run from a directory outside the sandbox, with a marker in
+#      its node_modules                     -> the marker survives
+#  11. the real tree's node_modules         -> unchanged by the whole run
 # The stamp is `<lockfile sha256> node<major>`; a stub `node` prints
 # $NODE_VERSION.
+#
+# THE SANDBOX. Every case directory lives under ${TMP}/sandbox, and the stub
+# npm acts only there: it resolves its working directory, refuses (exit 97,
+# nothing removed) anywhere outside the sandbox's absolute path, and removes
+# node_modules by that absolute path. A stub that ran a relative
+# `rm -rf node_modules` emptied a worktree's real node_modules once:
+# whatever directory it was started from lost its node_modules.
+# Case 10 starts it from ${TMP}/outside, a directory outside the sandbox that
+# stands in for a real tree; a mutation proof puts the old relative-rm stub
+# back and requires case 10 to catch it.
 # Mutation proofs: case 2 against a copy of the script that never compares
 # the stamp must run npm ci, so case 2 holds BECAUSE of the comparison; case 8
 # against a copy that leaves the Node major out of the stamp must NOT run npm ci,
@@ -34,18 +50,47 @@ selftest_begin "npm install sync self-test"
 
 [[ -f "$SCRIPT" ]] || selftest_abort "${SCRIPT} does not exist — sfl has no npm install step to validate"
 
+# The fingerprint of the real tree's node_modules (case 11): its entries and
+# its stamp, or "absent".
+real_node_modules_print() {
+  if [[ -d node_modules ]]; then
+    { ls -A node_modules; cat node_modules/.package-lock.sha256 2>/dev/null || true; } | shasum -a 256
+  else
+    echo "absent"
+  fi
+}
+REAL_BEFORE="$(real_node_modules_print)"
+
+# The sandbox, by its resolved absolute path: the stub npm compares its own
+# resolved working directory against it.
+mkdir -p "${TMP}/sandbox"
+SANDBOX="$(cd "${TMP}/sandbox" && pwd -P)"
+
 STUBS="${TMP}/bin"
 mkdir -p "$STUBS"
-cat > "${STUBS}/npm" <<'STUB'
-#!/usr/bin/env bash
+# The sandbox path is written into the stub as a literal, so no environment
+# variable can widen it.
+{
+  echo '#!/usr/bin/env bash'
+  printf "SANDBOX='%s'\n" "$SANDBOX"
+  cat <<'STUB'
+here="$(pwd -P)"
+case "${here}/" in
+  "${SANDBOX}"/*) ;;
+  *)
+    echo "stub npm: refusing to run in ${here}, outside the test sandbox ${SANDBOX}" >&2
+    exit 97
+    ;;
+esac
 echo "$*" >> "$NPM_LOG"
 if [ -n "${NPM_FAIL:-}" ]; then
   echo "npm ERR! stub failure" >&2
   exit 1
 fi
-rm -rf node_modules
-mkdir -p node_modules/.bin
+rm -rf "${here}/node_modules"
+mkdir -p "${here}/node_modules/.bin"
 STUB
+} > "${STUBS}/npm"
 chmod +x "${STUBS}/npm"
 cat > "${STUBS}/node" <<'STUB'
 #!/usr/bin/env bash
@@ -58,9 +103,10 @@ export PATH="${STUBS}:${PATH}"
 
 STAMP_FILE="node_modules/.package-lock.sha256"
 
-# new_dir <name> <lock-content> — a directory with a lockfile; sets DIR.
+# new_dir <name> <lock-content> — a directory with a lockfile, inside the
+# sandbox; sets DIR.
 new_dir() {
-  DIR="${TMP}/$1"
+  DIR="${SANDBOX}/$1"
   mkdir -p "$DIR"
   printf '%s' "$2" > "${DIR}/package-lock.json"
   : > "$NPM_LOG"
@@ -174,6 +220,35 @@ want_runs "8. a Node major change reinstalls" 1
 want_stamp "8. the stamp follows the Node major" "$MAJOR_DIR"
 NODE_VERSION="v26.11.1"
 
+# --- 9. the old marker-binary state: linters present, jscpd missing ------------
+# What the previous install script skipped on: htmlhint and stylelint in
+# node_modules/.bin, a newer devDependency (jscpd) absent, no stamp at all.
+new_dir oldmarker 'lock one'
+mkdir -p "${DIR}/node_modules/.bin"
+touch "${DIR}/node_modules/.bin/htmlhint" "${DIR}/node_modules/.bin/stylelint"
+chmod +x "${DIR}/node_modules/.bin/htmlhint" "${DIR}/node_modules/.bin/stylelint"
+run_script "$SCRIPT"
+want_green_ok "9. linters present, jscpd missing"
+want_runs "9. npm ci ran" 1
+want_stamp "9. the stamp was written" "$DIR"
+
+# --- mutation proof: the OLD early exit put back -> case 9 holds no more ---------
+# A copy that skips whenever htmlhint and stylelint exist, as the previous
+# install script did, must NOT run npm ci in the case-9 state.
+OLD_EXIT="s/^if \\[ -d node_modules \\] && \\[ \"\\\$stamp\" = \"\\\$want\" \\]; then\$/if [ -x node_modules\/.bin\/htmlhint ] \\&\\& [ -x node_modules\/.bin\/stylelint ]; then/"
+if selftest_mutant "$SCRIPT" "${TMP}/mutant3/Scripts/npm_sync_install.sh" "$OLD_EXIT"; then
+  new_dir oldmarker-mutant 'lock one'
+  mkdir -p "${DIR}/node_modules/.bin"
+  touch "${DIR}/node_modules/.bin/htmlhint" "${DIR}/node_modules/.bin/stylelint"
+  chmod +x "${DIR}/node_modules/.bin/htmlhint" "${DIR}/node_modules/.bin/stylelint"
+  capture "${TMP}/mutant3/Scripts/npm_sync_install.sh" "$DIR"
+  if [[ "$(ci_runs)" == "0" ]]; then
+    echo "  ok: mutation proof: with the old early exit put back npm ci does not run, so case 9 holds because of the stamp"
+  else
+    fail "mutation proof: the old-early-exit script still ran npm ci in the jscpd-missing state"
+  fi
+fi
+
 # --- mutation proof: the stamp is never compared -> case 2 runs npm ci -----------
 NEVER_EQUAL="s/\\[ \"\\\$stamp\" = \"\\\$want\" \\]/false/"
 if selftest_mutant "$SCRIPT" "${TMP}/mutant/Scripts/npm_sync_install.sh" "$NEVER_EQUAL"; then
@@ -203,5 +278,45 @@ if selftest_mutant "$SCRIPT" "${TMP}/mutant2/Scripts/npm_sync_install.sh" "$NO_M
   fi
 fi
 
+# --- 10. the stub npm outside the sandbox: the marker survives ------------------
+# outside_marker_survives <npm> <name> — starts `<npm> ci` from ${TMP}/<name>, a
+# directory outside the sandbox with a marker in its node_modules, the way a
+# real tree would be; returns 0 when the marker is still there.
+outside_marker_survives() {
+  local out="${TMP}/$2"
+  mkdir -p "${out}/node_modules"
+  echo "keep" > "${out}/node_modules/marker"
+  (cd "$out" && "$1" ci) >/dev/null 2>&1 || true
+  [[ -f "${out}/node_modules/marker" ]]
+}
+if outside_marker_survives "${STUBS}/npm" outside; then
+  echo "  ok: 10. the stub npm started outside the sandbox left that node_modules alone"
+else
+  fail "10. the stub npm started from ${TMP}/outside removed its node_modules: the stub acts outside the sandbox, so a run from a real tree empties that tree's node_modules"
+fi
+
+# --- mutation proof: the old relative-rm stub -> case 10 catches it -------------
+OLD_STUBS="${TMP}/oldstub"
+mkdir -p "$OLD_STUBS"
+cat > "${OLD_STUBS}/npm" <<'STUB'
+#!/usr/bin/env bash
+echo "$*" >> "$NPM_LOG"
+rm -rf node_modules
+mkdir -p node_modules/.bin
+STUB
+chmod +x "${OLD_STUBS}/npm"
+if outside_marker_survives "${OLD_STUBS}/npm" outside-mutant; then
+  fail "mutation proof: the old stub with a relative rm -rf node_modules left the outside marker, so case 10 cannot catch it"
+else
+  echo "  ok: mutation proof: the old stub with a relative rm -rf node_modules removes the outside marker, so case 10 holds because of the sandbox guard"
+fi
+
+# --- 11. the real tree's node_modules is untouched --------------------------------
+if [[ "$(real_node_modules_print)" == "$REAL_BEFORE" ]]; then
+  echo "  ok: 11. the real tree's node_modules is unchanged by the whole run"
+else
+  fail "11. the real tree's node_modules ($(pwd)/node_modules) changed during this self-test"
+fi
+
 selftest_end "the npm install sync does not hold" \
-  "npm install sync: installs when node_modules or the stamp is missing or stale, skips when current, writes the stamp only after success; mutation proven"
+  "npm install sync: installs when node_modules or the stamp is missing or stale, skips when current, writes the stamp only after success, and its stub npm acts only inside the sandbox; mutation proven"

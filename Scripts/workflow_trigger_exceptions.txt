@@ -1,0 +1,8 @@
+# Workflow triggers the workflow-trigger gate allows although the workflow has a job
+# off GitHub-hosted runners.
+#
+# One row per workflow file and event: workflow|event|reason. The reason is
+# required: why the trigger stays and the issue that makes it safe. A row covers
+# exactly that file and that event, and a row that excuses nothing is red. A
+# repository with no exception keeps this file with comments only; a missing
+# file is red.

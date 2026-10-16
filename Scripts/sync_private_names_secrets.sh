@@ -9,6 +9,14 @@
 #   gh secret set FORSGREN_PRIVATE_NAMES -R yveshanoulle/forsgren
 #   gh secret set FORSGREN_PRIVATE_NAMES --app dependabot -R yveshanoulle/forsgren
 #
+# The repository's EXTRA list, when its file is there, goes the same way into
+# the Actions and Dependabot secrets FORSGREN_PRIVATE_NAMES_EXTRA (the file is
+# FORSGREN_PRIVATE_NAMES_EXTRA_FILE, else
+# ${HOME}/.config/forsgren/private-names-extra/<origin basename>, see
+# Scripts/lib_private_names.sh). With no such file the extra secrets are not
+# touched. An extra file that exists but cannot be read is exit 2, before any
+# gh call.
+#
 # Usage: Scripts/sync_private_names_secrets.sh
 #
 # Run it BY HAND after the file changes: it needs the maintainer's gh login.
@@ -54,6 +62,20 @@ fi
 
 # set_secret <kind> [gh option...]: hands the names on stdin to
 # `gh secret set`; <kind> names the secret in the FAIL line.
+# The extra list, read before any gh call so an unreadable file stops the run
+# first. EXTRA_TEXT stays empty when there is no extra file.
+EXTRA_SECRET="FORSGREN_PRIVATE_NAMES_EXTRA"
+EXTRA_TEXT=""
+EXTRA_FILE="$(private_names_extra_file "$ROOT")" || EXTRA_FILE=""
+if [[ -n "$EXTRA_FILE" && -e "$EXTRA_FILE" ]]; then
+  if ! private_names_read "$EXTRA_FILE" EXTRA_TEXT; then
+    echo "❌ FAIL: the extra private-names file ${EXTRA_FILE} cannot be read"
+    exit 2
+  fi
+fi
+SHARED_COUNT="$PRIVATE_NAMES_COUNT"
+SHARED_NAMES="$PRIVATE_NAMES"
+
 set_secret() {
   local kind="$1"
   shift
@@ -65,5 +87,19 @@ set_secret() {
 
 set_secret Actions
 set_secret Dependabot --app dependabot
+
+# The extra secrets, only when the extra file holds names: the same two calls
+# for FORSGREN_PRIVATE_NAMES_EXTRA, on the extra names alone.
+if [[ -n "$EXTRA_TEXT" ]]; then
+  private_names_parse "$EXTRA_TEXT"
+  if [[ "$PRIVATE_NAMES_COUNT" -gt 0 ]]; then
+    SECRET="$EXTRA_SECRET"
+    set_secret Actions
+    set_secret Dependabot --app dependabot
+    echo "OK: synced ${PRIVATE_NAMES_COUNT} extra names into the Actions and Dependabot secrets ${EXTRA_SECRET}"
+  fi
+fi
+PRIVATE_NAMES="$SHARED_NAMES"
+PRIVATE_NAMES_COUNT="$SHARED_COUNT"
 
 echo "OK: synced ${PRIVATE_NAMES_COUNT} names into the Actions and Dependabot secrets"

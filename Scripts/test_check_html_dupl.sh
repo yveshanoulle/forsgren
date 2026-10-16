@@ -1,55 +1,38 @@
 #!/usr/bin/env bash
+# canon: test_check_html_dupl v1
 # Scripts/test_check_html_dupl.sh
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# Fixture for check_html_dupl.sh — unit 397.
-#
-# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 11), adapted
-# for forsgren's two targets: the html/template files under
-# internal/page/templates (the default, as konenki's default is its authored
-# SiteSource/) and the generated page, through Scripts/check_html_dupl_site.sh.
-# Konenki's cases come first, with its SiteSource/ read as forsgren's
-# templates; forsgren's own cases follow.
+# Fixture for check_html_dupl.sh — unit 397, the canon version.
 #
 # A ratchet's essential contract is that duplication above its ceiling fails.
-# That contract is tested with a synthetic duplicated fixture so it remains
-# testable even when the real templates measure 0.00%, as they do today.
+# That contract is tested with a synthetic duplicated fixture, so it stays
+# testable whatever the real site measures.
 #
-# Uses the REAL pinned jscpd (node_modules/.bin, installed by sfl's `npm ci`)
-# rather than a fake: the thing under test is largely how this script reads
-# jscpd's output. A fake can silently diverge from the actual tool's output
-# format.
+# Uses the REAL pinned jscpd (node_modules/.bin, installed by `npm ci`) rather
+# than a fake: the thing under test is largely how this script reads jscpd's
+# output, and a fake can silently diverge from the actual tool.
 #
-# forsgren's own cases and mutation proofs:
-#   - a directory with no .html in it is exit 2 NAMING that nothing was
-#     scanned, and mutation proof B shows the reason comes from the
-#     zero-sources check: without it the same directory is still exit 2, but
-#     blamed on jscpd's output format ("BLIND"), the misleading reason this
-#     check replaces;
-#   - mutation proof A: the duplicated fixture turns green against a copy of
-#     the gate whose ceiling comparison always says "under", so its red comes
-#     from that comparison;
-#   - the generated-page wrapper: a site built into the temp dir (this runs in
-#     pre, before Scripts/build_site.sh writes .build/site) passes at its
-#     recorded ceiling, the duplicated fixture is red through it, and an empty
-#     site is exit 2 with the zero reason.
-#   - the wrapper measures EVERY page, not only the first: a site whose
-#     clean page comes first in glob order and whose later page duplicates
-#     inside itself is red and names that later page; and it leaves no stage
-#     directory behind, green or red, seen by sending its `mktemp -d` into a
-#     fresh directory that must be empty afterwards (forsgren#39, step 4).
-#   - Yves's rulings on forsgren#39, step 4: the wrapper measures every
-#     .html under the site, subfolders too, and names a red page by its path
-#     relative to the site ("sub/x.html"); an inner exit other than 0 or 1 is
-#     a tooling failure, exit 2 naming that exit, never "over the ceiling";
-#     and a failing `mktemp -d` is exit 2 saying so, before anything is
-#     staged.
+# What the canon pins:
+#   - the target and the ceiling come from Scripts/site_settings.txt when no
+#     argument is given, and the arguments override them. A lowered ceiling in
+#     the settings turns the real site red; the settings' target is the one
+#     measured;
+#   - zero files scanned is exit 2 NAMING that nothing was scanned (mutation
+#     proof B: without the zero-sources check the reason is no longer named);
+#   - a missing node_modules/.bin/jscpd is exit 2, and a stub `npx` first on
+#     PATH is never called: there is no fallback;
+#   - mutation proof A: the duplicated fixture turns green against a copy whose
+#     ceiling comparison always says "under";
+#   - mutation proof C: the lowered-settings-ceiling case turns green against a
+#     copy with the ceiling hard-coded.
+# A repository with a second target keeps its own wrapper and its own cases for
+# it, outside this canon file.
 
 CHECK="./Scripts/check_html_dupl.sh"
-SITE_CHECK="./Scripts/check_html_dupl_site.sh"
 REPO_ROOT="$(pwd)"
 ZERO_REASON="scanned 0 .html files under"
 
@@ -62,13 +45,12 @@ finish() {
     exit 1
   fi
 }
-
 trap finish EXIT
 
 failures=0
 
+# check <name> <expected-rc> <actual-rc>
 check() {
-  # check <name> <expected-rc> <actual-rc>
   if [[ "$2" == "$3" ]]; then
     echo "  ✅ $1"
   else
@@ -83,8 +65,18 @@ check_says() {
     echo "  ✅ $1"
   else
     echo "  ❌ $1 — output does not carry '$2'"
-    echo "     got: $OUT"
+    echo "     got: $(head -c 600 <<< "$OUT")"
     failures=$((failures + 1))
+  fi
+}
+
+# check_not_says <name> <needle> — the last run's output does not carry needle.
+check_not_says() {
+  if grep -Fq -- "$2" <<< "$OUT"; then
+    echo "  ❌ $1 — output carries '$2'"
+    failures=$((failures + 1))
+  else
+    echo "  ✅ $1"
   fi
 }
 
@@ -95,112 +87,33 @@ run() {
   set -e
 }
 
-run_site() {
-  set +e
-  OUT="$("$SITE_CHECK" "$@" 2>&1)"
-  RC=$?
-  set -e
+# new_root <name> <gate> <target-dir-name> <ceiling> [no-jscpd] — a throwaway
+# repository root holding a copy of the gate, the settings lib, a
+# site_settings.txt naming <target-dir-name> and <ceiling>, and (unless
+# no-jscpd) a link to this repository's node_modules. Sets ROOT.
+new_root() {
+  ROOT="${TMP}/root-$1"
+  mkdir -p "${ROOT}/Scripts"
+  cp "$2" "${ROOT}/Scripts/check_html_dupl.sh"
+  chmod +x "${ROOT}/Scripts/check_html_dupl.sh"
+  cp Scripts/lib_site_settings.sh "${ROOT}/Scripts/"
+  printf 'site_dir=%s\nhtml_dupl_target=%s\nhtml_dupl_ceiling=%s\nrequired_pages_manifest=m.json\n' "$3" "$3" "$4" > "${ROOT}/Scripts/site_settings.txt"
+  [[ "${5:-}" == "no-jscpd" ]] || ln -s "${REPO_ROOT}/node_modules" "${ROOT}/node_modules"
 }
 
-# run_site_staged <tmpdir> <args...> — run_site with every `mktemp -d` the
-# wrapper (and the gate under it) makes landing in tmpdir, created fresh.
-# TMPDIR alone does not do it: macOS's mktemp -d without a template ignores
-# TMPDIR. So a mktemp first on PATH turns a bare `mktemp -d` into one with a
-# template under tmpdir, and passes every other call to the real mktemp; the
-# wrapper itself runs unchanged.
-REAL_MKTEMP="$(command -v mktemp)"
-run_site_staged() {
-  local stage_tmp="$1" shim="${TMP}/mktemp-shim"
-  shift
-  mkdir -p "$stage_tmp" "$shim"
-  cat > "${shim}/mktemp" <<'SHIM'
+# run_root <args...> — runs the gate of $ROOT with a stub npx first on PATH
+# that records any call in $ROOT/npx.log.
+run_root() {
+  mkdir -p "${ROOT}/fakebin"
+  cat > "${ROOT}/fakebin/npx" <<'NPX'
 #!/usr/bin/env bash
-if [[ "$#" -eq 1 && "$1" == "-d" ]]; then
-  exec "$REAL_MKTEMP" -d "${STAGE_TMP}/tmp.XXXXXXXX"
-fi
-exec "$REAL_MKTEMP" "$@"
-SHIM
-  chmod +x "${shim}/mktemp"
+echo "npx $*" >> "$NPX_LOG"
+exit 0
+NPX
+  chmod +x "${ROOT}/fakebin/npx"
+  : > "${ROOT}/npx.log"
   set +e
-  OUT="$(PATH="${shim}:${PATH}" REAL_MKTEMP="$REAL_MKTEMP" STAGE_TMP="$stage_tmp" "$SITE_CHECK" "$@" 2>&1)"
-  RC=$?
-  set -e
-}
-
-# check_left_nothing <name> <tmpdir> — tmpdir is empty again after the run.
-check_left_nothing() {
-  local left
-  left="$(ls -A "$2")"
-  if [[ -z "$left" ]]; then
-    echo "  ✅ $1"
-  else
-    echo "  ❌ $1 — left behind in $2: $left"
-    failures=$((failures + 1))
-  fi
-}
-
-# check_not_says <name> <needle> — the last run's output does not carry
-# needle.
-check_not_says() {
-  if grep -Fq -- "$2" <<< "$OUT"; then
-    echo "  ❌ $1 — output carries '$2'"
-    echo "     got: $OUT"
-    failures=$((failures + 1))
-  else
-    echo "  ✅ $1"
-  fi
-}
-
-# run_site_inner_exit <code> <args...> — runs the real wrapper from Scripts/
-# of a throwaway root whose check_html_dupl.sh does nothing but exit code,
-# since the wrapper calls ./Scripts/check_html_dupl.sh from its own root.
-run_site_inner_exit() {
-  local code="$1" root
-  shift
-  root="${TMP}/root-inner-exit-${code}"
-  mkdir -p "${root}/Scripts"
-  cp "$SITE_CHECK" "${root}/Scripts/check_html_dupl_site.sh"
-  printf '#!/usr/bin/env bash\nexit %s\n' "$code" > "${root}/Scripts/check_html_dupl.sh"
-  chmod +x "${root}/Scripts/check_html_dupl_site.sh" "${root}/Scripts/check_html_dupl.sh"
-  set +e
-  OUT="$("${root}/Scripts/check_html_dupl_site.sh" "$@" 2>&1)"
-  RC=$?
-  set -e
-}
-
-# run_site_no_mktemp <args...> — run_site with a mktemp first on PATH whose
-# bare `mktemp -d` fails, silently, so any word about it is the wrapper's;
-# every other call goes to the real mktemp.
-run_site_no_mktemp() {
-  local shim="${TMP}/mktemp-fails"
-  mkdir -p "$shim"
-  cat > "${shim}/mktemp" <<'SHIM'
-#!/usr/bin/env bash
-if [[ "$#" -eq 1 && "$1" == "-d" ]]; then
-  exit 1
-fi
-exec "$REAL_MKTEMP" "$@"
-SHIM
-  chmod +x "${shim}/mktemp"
-  set +e
-  OUT="$(PATH="${shim}:${PATH}" REAL_MKTEMP="$REAL_MKTEMP" "$SITE_CHECK" "$@" 2>&1)"
-  RC=$?
-  set -e
-}
-
-# run_copy <gate-copy> <args...> — runs a copy of the gate from Scripts/ of a
-# throwaway root that links the repository's node_modules, since the gate
-# anchors itself with `cd "$(dirname "$0")/.."` and runs jscpd from there.
-run_copy() {
-  local copy="$1" root
-  shift
-  root="${TMP}/root-$(basename "$copy" .sh)"
-  mkdir -p "${root}/Scripts"
-  cp "$copy" "${root}/Scripts/check_html_dupl.sh"
-  chmod +x "${root}/Scripts/check_html_dupl.sh"
-  ln -s "${REPO_ROOT}/node_modules" "${root}/node_modules"
-  set +e
-  OUT="$("${root}/Scripts/check_html_dupl.sh" "$@" 2>&1)"
+  OUT="$(PATH="${ROOT}/fakebin:${PATH}" NPX_LOG="${ROOT}/npx.log" "${ROOT}/Scripts/check_html_dupl.sh" "$@" 2>&1)"
   RC=$?
   set -e
 }
@@ -225,7 +138,7 @@ make_duplicate_fixture() {
         <p>This line also belongs to the deliberate duplicated test content.</p>
         <p>The ratchet must reject this fixture when its ceiling is zero percent.</p>
         <p>A passing result here would mean the duplication checker cannot detect duplication.</p>
-        <p>That would make the production ratchet untrustworthy even if the templates are clean.</p>
+        <p>That would make the production ratchet untrustworthy even if the pages are clean.</p>
         <p>The test therefore exercises the real pinned jscpd rather than a fake implementation.</p>
         <p>Both files intentionally contain this same sequence of markup and textual content.</p>
       </section>
@@ -237,211 +150,136 @@ HTML
   cp "${fixture_dir}/first.html" "${fixture_dir}/second.html"
 }
 
-# make_shared_chrome_site <dir> — two pages that share their chrome (a
-# header and a footer well over jscpd's 50-token minimum) and nothing else:
-# duplication in the OUTPUT of two pages rendered from one layout, none in any
-# one page (forsgren#39, step 1).
-make_shared_chrome_site() {
-  local dir="$1" n
-  mkdir -p "$dir"
-  for n in first second; do
-    cat > "${dir}/${n}.html" <<HTML
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>shared chrome</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <header>
-    <p class="site-name">shared chrome</p>
-  </header>
-  <main>
-    <h1>The ${n} page</h1>
-    <p>Only this paragraph of the ${n} page is its own.</p>
-  </main>
-  <footer>
-    <p>The same footer sentence closes both pages of this synthetic site.</p>
-  </footer>
-</body>
-</html>
-HTML
-  done
-}
-
-# make_inside_duplicate_fixture <dir> — ONE page holding the fixture's block
-# twice, so its duplication is within a page, whichever way pages are measured.
-make_inside_duplicate_fixture() {
-  local dir="$1"
-  mkdir -p "$dir"
-  {
-    sed '/<\/section>/,$d' "${FIXTURE_DIR}/first.html"
-    sed -n '/<section>/,/<\/section>/p' "${FIXTURE_DIR}/first.html"
-    sed -n '/<\/section>/,$p' "${FIXTURE_DIR}/first.html"
-  } > "${dir}/only.html"
-}
-
-# make_later_duplicate_site <dir> — a clean page first in glob order, then a
-# page that duplicates inside itself, so only measuring every page reds it.
-make_later_duplicate_site() {
-  local dir="$1"
-  make_shared_chrome_site "${dir}/chrome"
-  make_inside_duplicate_fixture "${dir}/inside"
-  mkdir -p "$dir"
-  mv "${dir}/chrome/first.html" "${dir}/a-clean.html"
-  mv "${dir}/inside/only.html" "${dir}/b-duplicated.html"
-  rm -rf "${dir}/chrome" "${dir}/inside"
-}
-
-# make_nested_duplicate_site <dir> — a clean page at the top, and in sub/ a
-# page that duplicates inside itself.
-make_nested_duplicate_site() {
-  local dir="$1"
-  make_shared_chrome_site "${dir}/chrome"
-  make_inside_duplicate_fixture "${dir}/sub"
-  mv "${dir}/chrome/first.html" "${dir}/index.html"
-  mv "${dir}/sub/only.html" "${dir}/sub/x.html"
-  rm -rf "${dir}/chrome"
-}
-
 echo "test_check_html_dupl"
 
-# Tooling absence is exit 2 everywhere below; if jscpd cannot be reached at
-# all, say so once rather than reporting several identical failures.
-run internal/page/templates 99
-if [[ "$RC" -eq 2 ]]; then
-  echo "  ⚠️  jscpd unavailable — cannot exercise this gate"
-  printf '%s\n' "$OUT" | sed 's/^/     /'
+if [[ ! -x node_modules/.bin/jscpd ]]; then
+  echo "  ❌ node_modules/.bin/jscpd is missing — run npm ci; this gate cannot be exercised without the pinned jscpd"
   COMPLETED=1
   exit 1
-fi
-
-check "the templates pass under a deliberately loose ceiling" 0 "$RC"
-
-# The default invocation is the production contract: the templates and the
-# recorded ceiling. This catches an accidental switch of the default target.
-run
-check "default template ratchet passes at its recorded ceiling" 0 "$RC"
-check_says "the default target is internal/page/templates" "in internal/page/templates"
-
-# The number must be the one the ceiling judges. Reporting duplicated TOKENS
-# while gating on duplicated LINES prints a true number that is not the
-# relevant one, and a reader cannot tell which they are looking at.
-run internal/page/templates 99
-if grep -qE 'html duplication [0-9]+\.[0-9]+%' <<< "$OUT"; then
-  echo "  ✅ reports the measured template percentage on a passing run"
-else
-  echo "  ❌ a passing run does not print the number — a ratchet nobody can read is just a threshold"
-  echo "     got: $OUT"
-  failures=$((failures + 1))
 fi
 
 FIXTURE_DIR="${TMP}/duplicated"
 make_duplicate_fixture "$FIXTURE_DIR"
 
-run "$FIXTURE_DIR" 0
+# --- the arguments ----------------------------------------------------------
+run "$FIXTURE_DIR" 99
+check "passes under a deliberately loose ceiling" 0 "$RC"
+if grep -qE 'html duplication [0-9]+(\.[0-9]+)?%' <<< "$OUT"; then
+  echo "  ✅ reports the measured percentage on a passing run"
+else
+  echo "  ❌ a passing run does not print the number — a ratchet nobody can read is just a threshold"
+  failures=$((failures + 1))
+fi
+
+run "$FIXTURE_DIR" 0.00
 check "FAILS when deliberate duplication exceeds the ceiling" 1 "$RC"
-check_says "the red names the ceiling it exceeded" "EXCEEDS the 0% ceiling"
+check_says "the red names the ceiling it exceeded" "EXCEEDS the 0.00% ceiling"
 
 run does-not-exist 99
 check "exits 2 on a missing target dir, never 0" 2 "$RC"
 
-# --- forsgren: nothing scanned is red, and says so ---------------------------
+# --- zero files is red, and says so -----------------------------------------
 EMPTY_DIR="${TMP}/no-html"
 mkdir -p "$EMPTY_DIR"
 printf 'body {\n  margin: 0;\n}\n' > "${EMPTY_DIR}/styles.css"
-
 run "$EMPTY_DIR" 99
 check "exits 2 on a directory with no .html in it, never 0" 2 "$RC"
 check_says "the zero red names that nothing was scanned" "$ZERO_REASON"
 
-# --- forsgren: the generated-page wrapper ----------------------------------
-set +e
-SITE_PAGE_COUNT_FILE="${TMP}/built.count" FORSGREN_BIN_DIR="${TMP}/bin" \
-  ./Scripts/build_site.sh "${TMP}/built" > "${TMP}/built.log" 2>&1
-BUILD_RC=$?
-set -e
-check "the generated site builds" 0 "$BUILD_RC"
-[[ "$BUILD_RC" -eq 0 ]] || sed 's/^/     /' "${TMP}/built.log"
+# --- the settings: the real site, at the recorded ceiling -------------------
+run
+check "the default run (target and ceiling from site_settings.txt) passes" 0 "$RC"
+WANT_TARGET="$(sed -n 's/^html_dupl_target=//p' Scripts/site_settings.txt)"
+check_says "the default target is the settings' html_dupl_target" "in ${WANT_TARGET} (ceiling"
 
-run_site "${TMP}/built"
-check "the generated page passes at its recorded ceiling" 0 "$RC"
-check_says "the generated-page run measured the built site" "in ${TMP}/built"
+# A lowered ceiling in the settings turns the real site red. The real target is
+# copied into a throwaway root so the real settings file stays untouched.
+new_root lowered "$CHECK" "$WANT_TARGET" 0.1
+mkdir -p "$(dirname "${ROOT}/${WANT_TARGET}")"  # forsgren: a nested target such as internal/page/templates
+cp -R "$WANT_TARGET" "${ROOT}/${WANT_TARGET}"
+# forsgren: the real target measures 0.00%, so no ceiling can be lowered under
+# it. The throwaway copy gets one page twice, a clone, so it measures above 0.1.
+_first="$(find "${ROOT}/${WANT_TARGET}" -name '*.html' | LC_ALL=C sort | head -1)"
+cp "$_first" "${_first%.html}-copy.html"
+run_root
+check "a lowered ceiling in the settings turns the real site red" 1 "$RC"
+check_says "the red quotes the settings' ceiling" "EXCEEDS the 0.1% ceiling"
+LOWERED_ROOT="$ROOT"
 
-# forsgren#39, step 1: pages rendered from one layout repeat its chrome, which
-# is duplication in the output, not in any page; each page is measured alone.
-SHARED_DIR="${TMP}/shared-chrome"
-make_shared_chrome_site "$SHARED_DIR"
-run_site "$SHARED_DIR"
-check "the generated-page wrapper passes two pages that only share their chrome" 0 "$RC"
+# The target comes from the settings too: a settings target without .html files
+# is the zero red, however clean the real site is.
+new_root target "$CHECK" empty 99
+mkdir -p "${ROOT}/empty"
+cp "${EMPTY_DIR}/styles.css" "${ROOT}/empty/"
+run_root
+check "the target is read from the settings (an empty one is exit 2)" 2 "$RC"
+check_says "the settings' target is the one named" "under empty"
 
-INSIDE_DIR="${TMP}/inside-duplicate"
-make_inside_duplicate_fixture "$INSIDE_DIR"
-run_site "$INSIDE_DIR"
-check "the generated-page wrapper FAILS on duplication inside one page" 1 "$RC"
-check_says "the inside-one-page red names the ceiling it exceeded" "EXCEEDS the 0.00% ceiling"
+# A missing settings file is exit 2, never a guessed default.
+new_root nosettings "$CHECK" "$WANT_TARGET" 99
+rm "${ROOT}/Scripts/site_settings.txt"
+mkdir -p "$(dirname "${ROOT}/${WANT_TARGET}")"  # forsgren: a nested target such as internal/page/templates
+cp -R "$WANT_TARGET" "${ROOT}/${WANT_TARGET}"
+run_root
+check "a missing site_settings.txt is exit 2, no guessed default" 2 "$RC"
 
-# forsgren#39, step 4: every page is measured, not only the first, and the
-# stage is removed whether the run is green or red.
-LATER_DIR="${TMP}/later-duplicate"
-make_later_duplicate_site "$LATER_DIR"
-run_site_staged "${TMP}/stage-red" "$LATER_DIR"
-check "the generated-page wrapper FAILS on a later page duplicating inside itself" 1 "$RC"
-check_says "the later-page red names that page" "html-dupl: b-duplicated.html in ${LATER_DIR}"
-check_left_nothing "the generated-page wrapper leaves no stage behind on a red run" "${TMP}/stage-red"
+# --- no jscpd in node_modules: exit 2, and no npx --------------------------
+new_root nojscpd "$CHECK" dup 99 no-jscpd
+cp -R "$FIXTURE_DIR" "${ROOT}/dup"
+run_root dup 99
+check "a missing node_modules/.bin/jscpd is exit 2" 2 "$RC"
+check_says "the red says to run npm ci" "run npm ci"
+if [[ -s "${ROOT}/npx.log" ]]; then
+  echo "  ❌ the gate called npx: $(cat "${ROOT}/npx.log")"
+  failures=$((failures + 1))
+else
+  echo "  ✅ the gate never calls npx"
+fi
+if grep -vE '^[[:space:]]*#' "$CHECK" | grep -qE 'npx'; then
+  echo "  ❌ the gate's text names npx outside comments"
+  failures=$((failures + 1))
+else
+  echo "  ✅ the gate's text names no npx"
+fi
 
-run_site_staged "${TMP}/stage-green" "$SHARED_DIR"
-check "the generated-page wrapper passes the shared-chrome site with its temp dirs moved" 0 "$RC"
-check_left_nothing "the generated-page wrapper leaves no stage behind on a green run" "${TMP}/stage-green"
-
-# Yves's rulings on forsgren#39, step 4.
-NESTED_DIR="${TMP}/nested-duplicate"
-make_nested_duplicate_site "$NESTED_DIR"
-run_site "$NESTED_DIR"
-check "the generated-page wrapper FAILS on a page in a subfolder duplicating inside itself" 1 "$RC"
-check_says "the subfolder red names the page by its path in the site" "html-dupl: sub/x.html in ${NESTED_DIR}"
-
-run_site_inner_exit 3 "$SHARED_DIR"
-check "the generated-page wrapper exits 2 when the gate under it exits 3" 2 "$RC"
-check_says "the exit-3 red names the exit" "exit 3"
-check_not_says "the exit-3 red is not called over the ceiling" "over the ceiling"
-
-run_site_no_mktemp "$SHARED_DIR"
-check "the generated-page wrapper exits 2 when mktemp -d fails" 2 "$RC"
-check_says "the mktemp red says mktemp failed" "mktemp"
-
-run_site "$EMPTY_DIR"
-check "the generated-page wrapper exits 2 on a site with no .html" 2 "$RC"
-check_says "the generated-page zero red names that nothing was scanned" "$ZERO_REASON"
-
-# --- Mutation proof A: the ceiling comparison is what reds the fixture -------
+# --- Mutation proof A: the ceiling comparison is what reds the fixture ------
 MUTANT_A="${TMP}/mutant_a.sh"
 sed 's/print (a > b) ? 1 : 0/print 0/' "$CHECK" > "$MUTANT_A"
 if cmp -s "$CHECK" "$MUTANT_A"; then
   echo "  ❌ mutation proof A: the sed no longer matches the ceiling comparison, so this proof proves nothing"
   failures=$((failures + 1))
 else
-  run_copy "$MUTANT_A" "$FIXTURE_DIR" 0
+  new_root mut-a "$MUTANT_A" dup 99
+  cp -R "$FIXTURE_DIR" "${ROOT}/dup"
+  run_root dup 0.00
   check "mutation proof A: the duplicated fixture turns green when the ceiling comparison always says under" 0 "$RC"
 fi
 
-# --- Mutation proof B: the zero-sources check is what names the zero red -----
+# --- Mutation proof B: a copy WITHOUT the zero-files check ------------------
 MUTANT_B="${TMP}/mutant_b.sh"
 sed 's/\[ "[$]sources" = "0" \]/false/; s/\[ -z "[$]sources" \] ||/false ||/' "$CHECK" > "$MUTANT_B"
 if cmp -s "$CHECK" "$MUTANT_B"; then
   echo "  ❌ mutation proof B: the sed no longer matches the zero-sources check, so this proof proves nothing"
   failures=$((failures + 1))
 else
-  run_copy "$MUTANT_B" "$EMPTY_DIR" 99
-  if grep -Fq -- "$ZERO_REASON" <<< "$OUT"; then
-    echo "  ❌ mutation proof B: the zero reason is still printed with the zero-sources check removed, so it does not come from that check"
-    echo "     got: $OUT"
-    failures=$((failures + 1))
-  else
-    echo "  ✅ mutation proof B: with the zero-sources check removed the empty directory is no longer named as nothing scanned (exit ${RC})"
-  fi
+  new_root mut-b "$MUTANT_B" empty 99
+  mkdir -p "${ROOT}/empty"
+  cp "${EMPTY_DIR}/styles.css" "${ROOT}/empty/"
+  run_root
+  check_not_says "mutation proof B: without the zero-files check the empty target is no longer named as nothing scanned" "$ZERO_REASON"
+fi
+
+# --- Mutation proof C: a copy with the ceiling hard-coded -------------------
+MUTANT_C="${TMP}/mutant_c.sh"
+sed 's/^  \[ -n "[$]MAX_PCT" \] || MAX_PCT=.*$/  MAX_PCT=38.4/' "$CHECK" > "$MUTANT_C"
+if cmp -s "$CHECK" "$MUTANT_C"; then
+  echo "  ❌ mutation proof C: the sed no longer matches the ceiling read, so this proof proves nothing"
+  failures=$((failures + 1))
+else
+  ROOT="$LOWERED_ROOT"
+  cp "$MUTANT_C" "${ROOT}/Scripts/check_html_dupl.sh"
+  run_root
+  check "mutation proof C: the lowered-ceiling case turns green when the ceiling is hard-coded" 0 "$RC"
 fi
 
 COMPLETED=1

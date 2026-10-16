@@ -42,7 +42,7 @@ cd "$(dirname "$0")/.." || exit 1
 # `mktemp -d` that fails, said before anything is staged.
 #
 # Usage: check_html_dupl_site.sh [site-dir]  (default: .build/site)
-# Self-test: Scripts/test_check_html_dupl.sh.
+# Self-test: Scripts/test_check_html_dupl_site.sh.
 
 SITE_DIR="${1:-.build/site}"
 SITE_DIR="${SITE_DIR%/}"

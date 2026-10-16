@@ -1,152 +1,244 @@
 #!/usr/bin/env bash
+# canon: test_check_privacy_posture v1
+# Scripts/test_check_privacy_posture.sh
+#
+# Self-test for Scripts/check_privacy_posture.sh, the
+# canon version, byte-identical across the estate's repositories. Run in pre,
+# before the gate it validates. The gate judges the real site in post; this
+# test judges the GATE, on synthetic sites.
+#
+# WHY THE GATE EXISTS. A gate order file may declare the privacy pages n/a on
+# the grounds that the site collects nothing. That claim is true the day it is
+# written; nothing else stops someone pasting a Google Fonts link or an
+# analytics snippet the next day. An exemption nothing enforces is a belief.
+#
+# The gate anchors itself with `cd "$(dirname "$0")/.."`, so each case runs a
+# copy of it in Scripts/ of a throwaway root that holds the settings lib, a
+# site_settings.txt (site_dir=Site) and the exceptions file the case names.
+#
+# Cases:
+#   1. a clean site                               -> green, and the INFO block
+#                                                    names fonts, embeds, links
+#   2. a form, an analytics script, a Google Fonts stylesheet, cookie use
+#                                                 -> red each, naming the finding
+#   3. an outbound link                           -> green (a link is no finding)
+#   4. a missing site dir                         -> exit 2
+#   5. no argument: the site dir comes from site_settings.txt; no settings
+#      file is exit 2
+#   6. an iframe from a host not listed, privacy.html present
+#                                                 -> red (no blanket rule)
+#   7. an iframe from a listed host, src on the line after `<iframe`
+#                                                 -> green, the INFO block lists it
+#   8. a listed iframe and an unlisted one        -> red naming the unlisted
+#   9. a relative src, an http src, an unquoted src, no src
+#                                                 -> red each
+#  10. a lookalike host (longer, and a part of a listed host)
+#                                                -> red each
+#  11. an empty exceptions file: an iframe red, no iframe green
+#  12. a row without a reason, a row whose reason is blank, a malformed row,
+#      a duplicate host                           -> exit 2 each, named
+#  13. a missing exceptions file                  -> exit 2 (fail closed)
+# Mutation proofs (a weakened copy of the gate must turn the case green):
+#   A. the blanket rule (any iframe passes when privacy.html exists): case 6
+#   B. the allow-list skipped when its file is missing: case 13
+#   C. the reason not required: case 12, the row without a reason
+#   D. the src host matched as a part of a listed host instead of exactly: case 10
+
 set -euo pipefail
 
-# Fixture for check_privacy_posture.sh.
-#
-# WHY THIS GATE EXISTS. This repo declares `privacy pages|n/a` on the grounds
-# that the page collects nothing: no forms, no analytics or tracking, no
-# cookies or storage, no third-party assets or embeds. Nothing else stops
-# someone pasting a Google Fonts link or an analytics snippet the next day, at
-# which point the exemption would be false and still on the record.
-#
-# Yves ruled privacy into the canon so every site must answer the question
-# rather than only the site that thought of it. This is the other half: the
-# ANSWER is checked too. An exemption nothing enforces is a belief.
-#
-# It is NOT konenki's check_privacy_pages.sh, which validates the CONTENT of a
-# privacy page. Different question, different site: that one is for a site
-# that needs privacy pages; this one asserts there is nothing to write a page
-# about.
-#
-# Deliberately NOT flagged: outbound LINKS. forsgren's page has none today;
-# the cases below borrow another estate repository's (pretix.eu, a social platform) as
-# made-up examples. A link transmits nothing until someone clicks it and then
-# they are plainly somewhere else. What matters is what the page loads or
-# stores WITHOUT being asked.
-#
-# Exit: 0 clean, 1 finding, 2 tooling/target missing.
-#
-# Local invocation: ./Scripts/test_check_privacy_posture.sh
+cd "$(dirname "$0")/.." || exit 1
 
-CHECK="./Scripts/check_privacy_posture.sh"
-if [[ ! -f "$CHECK" ]]; then
-  echo "FAIL: script not found at $CHECK" >&2
-  exit 1
-fi
+GATE="$(pwd)/Scripts/check_privacy_posture.sh"
 
-TMP="$(mktemp -d)"
-COMPLETED=0
-cleanup() {
-  rm -rf "$TMP"
-  if [[ "$COMPLETED" -ne 1 ]]; then
-    echo "FAIL: privacy posture fixture aborted before completing all cases" >&2
-    exit 1
+# shellcheck source=Scripts/lib_selftest.sh
+source Scripts/lib_selftest.sh
+selftest_begin "privacy posture self-test"
+
+[[ -f "$GATE" ]] || selftest_abort "${GATE} does not exist — the privacy posture has no gate to validate"
+
+DOLLAR='$'
+EXC_OK="# comment
+barcamp.io|embedded agenda viewer, documented on the privacy page
+"
+
+# mkroot <name> [exceptions-content | -]: a root with the gate copy, the
+# settings lib and file, an empty Site/, and the exceptions file (none when "-").
+mkroot() {
+  local root="${TMP}/$1"
+  mkdir -p "${root}/Scripts" "${root}/Site"
+  cp "$GATE" "${root}/Scripts/check_privacy_posture.sh"
+  cp Scripts/lib_site_settings.sh "${root}/Scripts/lib_site_settings.sh"
+  printf 'site_dir=Site\nhtml_dupl_target=Site\nhtml_dupl_ceiling=1.0\nrequired_pages_manifest=m.json\n' > "${root}/Scripts/site_settings.txt"
+  if [[ "${2-$EXC_OK}" != "-" ]]; then
+    printf '%s' "${2-$EXC_OK}" > "${root}/Scripts/privacy_posture_exceptions.txt"
   fi
-}
-trap cleanup EXIT
-
-failures=0
-check() {
-  if [[ "$2" == "$3" ]]; then echo "  ✅ $1"; else echo "  ❌ $1 — expected exit $2, got $3"; failures=$((failures+1)); fi
-}
-run() { set +e; OUT="$("$CHECK" "$@" 2>&1)"; RC=$?; set -e; }
-
-echo "test_check_privacy_posture"
-
-clean_site() {
-  local d="$1"
-  mkdir -p "$d"
-  printf '<!doctype html><html><head><style>@font-face{font-family:x;src:url(Fonts/x.otf)}</style></head><body><a href="https://pretix.eu/tickets">Tickets</a></body></html>\n' > "$d/index.html"
+  printf '<!doctype html><html><head><style>@font-face{font-family:x;src:url(Fonts/x.otf)}</style></head><body><a href="https://ticketing.example/tickets">Tickets</a></body></html>\n' > "${root}/Site/index.html"
+  printf '<html><body>privacy</body></html>\n' > "${root}/Site/privacy.html"
+  echo "$root"
 }
 
-# --- the real site must pass; if it does not, the n/a in the order file is
-# false and this gate is the thing that says so.
-# forsgren: the site is generated, not committed, and this self-test runs in
-# pre, before Scripts/build_site.sh has written .build/site. So the case builds
-# its own copy into the temp dir (binary and page-count sink there too, as in
-# Scripts/test_build_site.sh) and checks that.
-set +e
-SITE_PAGE_COUNT_FILE="$TMP/built.count" FORSGREN_BIN_DIR="$TMP/bin" \
-  ./Scripts/build_site.sh "$TMP/built" > "$TMP/built.log" 2>&1
-BUILD_RC=$?
-set -e
-check "the generated site builds" 0 "$BUILD_RC"
-[[ "$BUILD_RC" -eq 0 ]] || sed 's/^/    /' "$TMP/built.log"
-run "$TMP/built"
-check "the shipped site collects nothing" 0 "$RC"
-[[ "$RC" -eq 0 ]] || printf '%s\n' "$OUT" | sed 's/^/    /'
+# gate_in <root> [args...]: runs the root's gate copy, from the root.
+gate_in() {
+  local root="$1"
+  shift
+  capture "${root}/Scripts/check_privacy_posture.sh" "$@"
+}
 
-# --- A PASSING RUN MUST SAY WHAT THE SITE DOES LOAD AND LINK.
-# "no third-party assets" is a claim about an absence, and an absence is the
-# hardest thing to read. Showing the fonts served from this repo and the hosts
-# visitors are sent to makes the verdict checkable instead of trusted — the
-# same reason the duplication ratchet prints its percentage on a green run.
-# These are INFORMATION, not findings: none of them fails the gate.
-# Driven against the SYNTHETIC site, not the real one: the destinations a
-# given site links to are its own business and differ per repo, so asserting a
-# specific host here would make this fixture unportable — which is exactly the
-# hard-coded-page-names problem the deployed-pages fixture already had.
-D="$TMP/info"; clean_site "$D"
-run "$D"
-if grep -q "INFO" <<<"$OUT"; then
-  echo "  ✅ a passing run reports what is loaded and linked"
-else
-  echo "  ❌ a passing run says nothing about the site's actual external surface"
-  failures=$((failures+1))
-fi
-grep -qi "font" <<<"$OUT" \
-  || { echo "  ❌ the report does not mention the locally served fonts"; failures=$((failures+1)); }
-grep -q "pretix.eu" <<<"$OUT" \
-  || { echo "  ❌ the report does not name the outbound destinations visitors are sent to"; failures=$((failures+1)); }
+# from_root <root> <command...>: runs the command with the root as working directory.
+from_root() {
+  local root="$1"
+  shift
+  (cd "$root" && "$@")
+}
 
-# --- a form appears
-D="$TMP/form"; clean_site "$D"
-printf '<form action="/subscribe"><input name="email"></form>\n' >> "$D/index.html"
-run "$D"
-check "rejects a form" 1 "$RC"
-grep -qi "form" <<<"$OUT" || { echo "  ❌ the finding does not name the form"; failures=$((failures+1)); }
+# --- 1. clean
+R="$(mkroot clean)"
+gate_in "$R" Site
+want_green_ok "a clean site passes"
+want_said "the report mentions the locally served fonts" "@font-face"
+want_said "the report names the outbound destinations" "ticketing.example"
+want_said "the report lists the allowed embeds" "barcamp.io"
 
-# --- an analytics snippet appears
-D="$TMP/analytics"; clean_site "$D"
-printf '<script src="https://www.googletagmanager.com/gtag/js?id=G-X"></script>\n' >> "$D/index.html"
-run "$D"
-check "rejects an analytics script" 1 "$RC"
+# --- 2. findings
+R="$(mkroot form)"
+printf '<form action="/subscribe"><input name="email"></form>\n' >> "${R}/Site/index.html"
+gate_in "$R" Site
+want_red "rejects a form" "a form collects input"
 
-# --- Google Fonts: the classic one. A stylesheet from fonts.googleapis.com
-# sends every visitor's IP to a third party before anything is clicked, and it
-# looks exactly like a local style link.
-D="$TMP/gfonts"; clean_site "$D"
-printf '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter">\n' >> "$D/index.html"
-run "$D"
-check "rejects a third-party font stylesheet" 1 "$RC"
+R="$(mkroot analytics)"
+printf '<script src="https://www.googletagmanager.com/gtag/js?id=G-X"></script>\n' >> "${R}/Site/index.html"
+gate_in "$R" Site
+want_red "rejects an analytics script" "FINDING"
 
-# --- an iframe embed
-D="$TMP/iframe"; clean_site "$D"
-printf '<iframe src="https://www.youtube.com/embed/x"></iframe>\n' >> "$D/index.html"
-run "$D"
-check "rejects an embedded third party" 1 "$RC"
+R="$(mkroot gfonts)"
+printf '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter">\n' >> "${R}/Site/index.html"
+gate_in "$R" Site
+want_red "rejects a third-party font stylesheet" "a third-party asset is loaded"
 
-# --- cookies / storage
-D="$TMP/cookie"; clean_site "$D"
-printf '<script>document.cookie="seen=1";</script>\n' >> "$D/index.html"
-run "$D"
-check "rejects cookie or storage use" 1 "$RC"
+R="$(mkroot cookie)"
+printf '<script>document.cookie="seen=1";</script>\n' >> "${R}/Site/index.html"
+gate_in "$R" Site
+want_red "rejects cookie or storage use" "cookies or browser storage"
 
-# --- outbound links are NOT findings: a link transmits nothing until clicked.
-D="$TMP/links"; clean_site "$D"
-printf '<a href="https://pretix.eu/x">buy</a><a href="https://www.linkedin.com/y">in</a>\n' >> "$D/index.html"
-run "$D"
-check "an outbound link is not a finding" 0 "$RC"
+# --- 3. a link is no finding
+R="$(mkroot links)"
+printf '<a href="https://other.example/x">buy</a><a href="https://social.example/y">in</a>\n' >> "${R}/Site/index.html"
+gate_in "$R" Site
+want_green_ok "an outbound link is not a finding"
 
-# --- fail closed on a missing target, never a clean 0
-run "$TMP/does-not-exist"
-check "exits 2 on a missing site dir, never 0" 2 "$RC"
+# --- 4. a missing site dir
+R="$(mkroot nosite)"
+gate_in "$R" "${R}/does-not-exist"
+want_exit "exits 2 on a missing site dir, never 0" 2 "site dir not found"
 
-COMPLETED=1
-if [[ "$failures" -ne 0 ]]; then
-  echo ""
-  echo "FAIL: check_privacy_posture contract"
-  exit 1
-fi
-echo ""
-echo "✅ test_check_privacy_posture"
+# --- 5. the site dir from the settings
+R="$(mkroot settings)"
+printf '<form action="/s"></form>\n' >> "${R}/Site/index.html"
+capture from_root "$R" ./Scripts/check_privacy_posture.sh
+want_red "no argument: the site dir comes from site_settings.txt (a form in Site/ is red)" "a form collects input"
+rm "${R}/Scripts/site_settings.txt"
+capture from_root "$R" ./Scripts/check_privacy_posture.sh
+want_rc "no argument and no settings file is exit 2" 2
+
+# --- 6. an unlisted host is red even with privacy.html present
+UNLISTED='<iframe src="https://video.example/embed/x"></iframe>'
+R="$(mkroot unlisted)"
+printf '%s\n' "$UNLISTED" >> "${R}/Site/index.html"
+gate_in "$R" Site
+want_red "an iframe from an unlisted host is red although privacy.html exists" "an embedded third party"
+want_said "the finding names the iframe" "video.example"
+
+# --- 7. a listed host, the src on the line after <iframe
+R="$(mkroot listed)"
+printf '<iframe\n  src="https://barcamp.io/event/embed"\n  title="agenda"\n></iframe>\n' >> "${R}/Site/index.html"
+gate_in "$R" Site
+want_green_ok "an iframe from a listed host passes, src on the next line"
+
+# --- 8. a listed and an unlisted one
+R="$(mkroot mixed)"
+printf '<iframe src="https://barcamp.io/e"></iframe>\n%s\n' "$UNLISTED" >> "${R}/Site/index.html"
+gate_in "$R" Site
+want_red "a listed iframe does not allow an unlisted one" "video.example"
+
+# --- 9. a src that cannot be read as an https host
+for variant in 'src="/local/embed.html"' 'src="http://barcamp.io/e"' 'src=https://barcamp.io/e' 'title="no source"'; do
+  R="$(mkroot "bad-${#variant}-${variant:0:5}")"
+  printf '<iframe %s></iframe>\n' "$variant" >> "${R}/Site/index.html"
+  gate_in "$R" Site
+  want_red "an iframe with ${variant} is red" "an embedded third party"
+done
+
+# --- 10. lookalike hosts
+for host in barcamp.io.evil.example evilbarcamp.io camp.io; do
+  R="$(mkroot "look-${host}")"
+  printf '<iframe src="https://%s/e"></iframe>\n' "$host" >> "${R}/Site/index.html"
+  gate_in "$R" Site
+  want_red "the lookalike host ${host} is red" "an embedded third party"
+done
+
+# --- 11. an empty exceptions file
+R="$(mkroot empty "# no embeds
+")"
+gate_in "$R" Site
+want_green_ok "an empty exceptions file and no iframe is green"
+printf '%s\n' '<iframe src="https://barcamp.io/e"></iframe>' >> "${R}/Site/index.html"
+gate_in "$R" Site
+want_red "an empty exceptions file allows no iframe" "an embedded third party"
+
+# --- 12. malformed rows
+R="$(mkroot noreason "barcamp.io|
+")"
+gate_in "$R" Site
+want_exit "a row without a reason is exit 2" 2 "malformed row 1"
+R="$(mkroot blankreason "barcamp.io|   
+")"
+gate_in "$R" Site
+want_exit "a row whose reason is blank is exit 2" 2 "malformed row 1"
+R="$(mkroot nobar "barcamp.io embedded viewer
+")"
+gate_in "$R" Site
+want_exit "a row without a bar is exit 2" 2 "malformed row 1"
+R="$(mkroot dup "barcamp.io|first
+BARCAMP.io|second
+")"
+gate_in "$R" Site
+want_exit "a duplicate host is exit 2" 2 "duplicate host"
+
+# --- 13. a missing exceptions file fails closed
+R="$(mkroot nofile -)"
+gate_in "$R" Site
+want_exit "a missing exceptions file is exit 2, never a pass" 2 "exceptions file not found"
+
+# --- Mutation proofs
+R="$(mkroot mut-blanket)"
+printf '%s\n' "$UNLISTED" >> "${R}/Site/index.html"
+selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
+  "s|^hits=\"${DOLLAR}(iframe_unlisted)\"${DOLLAR}|&; [ -f \"${DOLLAR}SITE/privacy.html\" ] \\&\\& hits=\"\"|" \
+  "${R}/Site" \
+  "the blanket rule (any iframe passes when privacy.html exists) turns case 6 green, so it is red BECAUSE of the host list" \
+  "the blanket copy did not turn case 6 green"
+
+R="$(mkroot mut-nofile -)"
+selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
+  '/exceptions file not found/{n;s/exit 2/:/;}' \
+  "${R}/Site" \
+  "a copy that carries on without its exceptions file turns case 13 green" \
+  "the copy without the missing-file exit did not turn case 13 green"
+
+R="$(mkroot mut-reason "barcamp.io|
+")"
+selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
+  's/\[^\[:space:\]\]/[^|]*/' \
+  "${R}/Site" \
+  "a copy that does not require the reason turns the row-without-reason case green" \
+  "the copy without the reason requirement did not turn the case green"
+
+R="$(mkroot mut-substring)"
+printf '<iframe src="https://camp.io/e"></iframe>\n' >> "${R}/Site/index.html"
+selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
+  "s/\" ${DOLLAR}{host:-none} \"/\"${DOLLAR}{host:-none}\"/" \
+  "${R}/Site" \
+  "a match of the src host as a part of a listed host turns the lookalike case green" \
+  "the substring-match copy did not turn the lookalike case green"
+
+selftest_end "privacy posture gate" "privacy posture gate proven on synthetic sites (iframes by host list, malformed and missing exceptions red, four weakened copies caught)"

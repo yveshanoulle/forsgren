@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
+# canon: test_check_npm_lock_sync v1
 # Scripts/test_check_npm_lock_sync.sh
 #
-# Self-test for Scripts/check_npm_lock_sync.sh, the npm lockfile sync gate
-# (forsgren#2, ladder step 1), run before the gate it validates.
+# Self-test for Scripts/check_npm_lock_sync.sh, the npm lockfile sync gate,
+# run before the gate it validates.
 #
 # Each case builds a throwaway directory with a package.json and a
 # package-lock.json and runs the gate on it (the gate takes the directory as
@@ -15,8 +16,9 @@
 #   4. a dependency only the lockfile has                  -> red, names it
 #   5. the lockfile has no root package entry              -> red
 #   6. no package-lock.json                                -> red
-# Mutation proof: case 2 against a copy of the gate with the comparison
-# removed must turn green, so case 2 is red BECAUSE of the comparison.
+# Mutation proofs (weakened copies of the gate): the comparison removed, the
+# devDependencies section skipped, and the findings swallowed (exit 0) must each
+# turn the drifted fixture green, so it is red because of what they remove.
 
 set -euo pipefail
 
@@ -97,6 +99,19 @@ selftest_mutant_green "$GATE" "${TMP}/mutant/Scripts/check_npm_lock_sync.sh" \
   "$NO_COMPARE" "$DRIFT_DIR" \
   "without the comparison the drifted lockfile passes, so case 2 is red because of it" \
   "the comparison-less gate still failed the drifted lockfile"
+
+# --- mutation proof: devDependencies not compared -> the drift fixture (all
+# devDependencies) turns green
+selftest_mutant_green "$GATE" "${TMP}/mutant-dev/Scripts/check_npm_lock_sync.sh" \
+  's/"dependencies","devDependencies","optionalDependencies"/"dependencies","optionalDependencies"/' "$DRIFT_DIR" \
+  "without devDependencies in the comparison the drifted lockfile passes, so case 2 is red because they are compared" \
+  "the devDependencies-blind gate still failed the drifted lockfile"
+
+# --- mutation proof: findings swallowed -> the drift fixture exits 0
+selftest_mutant_green "$GATE" "${TMP}/mutant-swallow/Scripts/check_npm_lock_sync.sh" \
+  's/^if \[ -n "[$]report" \]; then/if false; then/' "$DRIFT_DIR" \
+  "a gate that swallows its findings exits 0 on the drifted lockfile, so the exit status is what makes case 2 red" \
+  "the findings-swallowing gate still failed the drifted lockfile"
 
 selftest_end "the npm lockfile sync gate does not hold" \
   "npm lockfile sync gate: in sync green; drift, missing and extra dependency, no root entry and no lockfile red; mutation proven"

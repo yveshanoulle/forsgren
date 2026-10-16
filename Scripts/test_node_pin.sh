@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+# canon: test_node_pin v1
 # Scripts/test_node_pin.sh
 #
-# Self-test for Scripts/node_pin.sh (forsgren#2): the Node major is read from
+# Self-test for Scripts/node_pin.sh: the Node major is read from
 # one line of .nvmrc. Each case is a throwaway pin file:
 #   1. `26` and a newline               -> prints 26, rc 0
 #   2. `26` with no final newline       -> prints 26

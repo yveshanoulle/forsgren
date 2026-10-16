@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
+# canon: test_render_quality_report v1
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# Pins for Scripts/render_quality_report.sh — unit 406, ported from
-# coachretreat-website (its unit 401), where another estate repository's gate-parity axis has
+# Pins for Scripts/render_quality_report.sh — unit 406, ported from another
+# estate repository (its unit 401), where the estate's gate-parity axis had
 # been reporting this gate MISSING here since unit 403 put it in the canon.
 #
 # THE ONE THAT MATTERS IS THE EXIT STATUS. The renderer runs with
@@ -14,14 +15,14 @@ cd "$(dirname "$0")/.."
 # declared gate has no details file, the loop returns 1, the group returns 1,
 # and the step FAILS while every gate passed.
 #
-# NOT the defect this repo has — konenki's last declared row is a real gate, so
+# NOT the defect this repo has — this repo's last declared row is a real gate, so
 # the exit-status bug never fired here. What this repo has instead is worse in a
 # quieter way: `cat "$ROWS"` and `cat "$DETAILS"` render in RUN order while
 # gate_report_order.txt exists precisely to fix that, so the table and the body
 # can disagree about sequence. The pins below carry both properties, because the
 # estate runs one renderer and it has to hold in every repo.
 #
-# In coachretreat that is not hypothetical. Two `n/a` rows at the end of
+# In the source repository that is not hypothetical. Two `n/a` rows at the end of
 # Scripts/gate_report_order.txt describe gates that do not exist here and can
 # never write a details file, so the report has exited 1 on every run since
 # they were added — while sfl stayed green, because nothing local ran it.
@@ -31,9 +32,10 @@ cd "$(dirname "$0")/.."
 # something is wrong.
 #
 # Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 14); "this
-# repo" above means konenki. forsgren's change: case 6 at the end, for the
-# renderer's forsgren change (n/a rows are not counted as unreported gates,
-# and show as n/a in the table), seen red against konenki's renderer first.
+# repo" above means the repository it was ported to. forsgren's change: case 6
+# at the end, for the renderer's forsgren change (n/a rows are not counted as
+# unreported gates, and show as n/a in the table), seen red against the
+# unchanged renderer first.
 # Its two n/a rows sit at the end of forsgren's order file too, so case 5
 # exercises the trailing-row property on what ships here.
 #
@@ -131,7 +133,7 @@ want "a short run is called unmeasured" "they are unmeasured" "$out5"
 # Case 6 (forsgren#1, ladder step 14): an `n/a` row declares a gate this
 # repo does not have, with the reason. It can never report, so it must not be
 # counted as a gate that should have: another estate repository's renderer counts every
-# declared row, so coachretreat-website, with two n/a rows, reads "N of N+2
+# declared row, so that repository, with two n/a rows, reads "N of N+2
 # gates reported" and "unmeasured" on a run where every gate ran. Nor may it
 # vanish from the table: the reader sees the n/a the order file declares.
 order6="${TMP}/order6"
@@ -154,6 +156,25 @@ if "$RENDER" "$rows6" "$details6" >/dev/null 2>&1; then
   echo "  ok: the repo's own gate_report_order.txt renders and exits 0"
 else
   fail "the SHIPPED order file makes the renderer exit non-zero — this is the CI failure, reproduced locally"
+fi
+
+# Case 7, MUTATION PROOF built here: a renderer that
+# DROPS a row from the table (the line that prints a gate's row is removed) must
+# not satisfy the declared-order case. Without this the table cases could pass
+# against a renderer that prints no rows at all.
+mkdir -p "${TMP}/mutant/Scripts"
+sed "/mark\" \\]/s/then echo.*; fi/then :; fi/" "$RENDER" > "${TMP}/mutant/Scripts/render_quality_report.sh"
+if cmp -s "$RENDER" "${TMP}/mutant/Scripts/render_quality_report.sh"; then
+  fail "the drop-a-row mutation changed nothing — case 7 is matching a line that is not in the renderer"
+else
+  chmod +x "${TMP}/mutant/Scripts/render_quality_report.sh"
+  out7="$("${TMP}/mutant/Scripts/render_quality_report.sh" "$rows2" "$details2" "$order2" 2>&1)" || true
+  table7="$(grep -o '^| [a-z]* |' <<< "$out7" | tr -d '| ' | tr '\n' ' ' || true)"
+  if [ "$table7" = "alpha beta gamma " ]; then
+    fail "a renderer that drops every row still satisfies the declared-order case — the table cases prove nothing"
+  else
+    echo "  ok: a renderer that drops a row fails the declared-order case (table: '${table7}')"
+  fi
 fi
 
 COMPLETED=1

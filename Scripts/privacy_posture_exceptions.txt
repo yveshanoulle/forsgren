@@ -1,0 +1,5 @@
+# Hosts whose iframe embed the privacy posture gate allows.
+#
+# One row per host: host|reason. The reason is required: what the embed is and where
+# it is documented. An iframe from a host not listed here is a finding. A repository
+# with no embed keeps this file with comments only; a missing file is red.

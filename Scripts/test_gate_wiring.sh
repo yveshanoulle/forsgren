@@ -33,13 +33,15 @@ cd "$(dirname "$0")/.."
 #      runner it must still be invoked by. Anything else is a validator
 #      nobody runs. (That every Scripts/test_*.sh is named by a row is
 #      Scripts/test_sfl_drives_from_order_file.sh's pin 4, not repeated here.)
-#   4. THE CI LOOP, AT RUNTIME. run_ci_phase.sh, over the REAL order file
-#      with a stub at every declared path, runs every runnable row exactly
-#      once across its two phases, each in its own phase, in file order; and
-#      over synthetic order files it skips what sfl skips, keeps going after
-#      a failure, exits 2 on a secret-class failure, is red on a phase with
-#      no row, on a non-executable script and on a gate that changes the
-#      checked-out tree, and survives GitHub's `bash -e -o pipefail`.
+#   4. THE CI LOOP, AT RUNTIME. Pinned by Scripts/test_run_ci_phase.sh, its
+#      own order-file row: run_ci_phase.sh over the REAL order file with a
+#      stub at every declared path runs every runnable row exactly once across
+#      its two phases, each in its own phase, in file order; and over
+#      synthetic order files it skips what sfl skips, keeps going after a
+#      failure, exits 2 on a secret-class failure, is red on a malformed row,
+#      a phase with no row, a missing or non-executable script and a gate that
+#      changes the checked-out tree, and survives GitHub's
+#      `bash -e -o pipefail`.
 #   5. PROOFS. Mutation proofs re-run this whole check against a copy of a
 #      runner (or of the order file) with one invocation commented out or one
 #      rule broken, and require the rejection by name; konenki's matcher
@@ -134,6 +136,39 @@ if [[ "$n_rows" -eq 0 ]]; then
   fail "no runnable row found in ${ORDER} — the parse is broken, so this check verified nothing"
 fi
 
+# --- 1b. THE GATE COUNT IS A RATCHET: gates go up, never down -----------------
+#
+# Yves, 2026-08-31: "so that gates can not go down, only up". Same rule as the
+# coverage ratchet and the duplication ceiling: raise MIN_GATES whenever a row
+# lands, never lower it to make a red go away. It counts the runnable rows of
+# the order file (n/a rows included: a declared absence is a row). It counts
+# rather than pinning the list, deliberately: swapping one gate for another
+# keeps the count and passes; the estate's gate-parity axis catches that from
+# outside, because the removed one reappears as missing against the canon.
+#
+# New in forsgren with forsgren#215; set to the row count of that change.
+# The self-proof below removes one row and requires the count to fall under the
+# floor, so the floor has to track the current count exactly: a row cannot
+# land here without someone raising the ratchet on purpose.
+MIN_GATES=115
+
+gate_count_of() {
+  grep -v '^#' "$1" | grep -c . || true
+}
+
+if [[ -f "$ORDER" ]]; then
+  declared="$(gate_count_of "$ORDER")"
+  if [[ "$declared" -lt "$MIN_GATES" ]]; then
+    fail "gate count fell to ${declared}, ratchet is ${MIN_GATES} — a gate was removed. Restore it, or raise MIN_GATES only if a gate was legitimately merged into another"
+  fi
+  SHRUNK="$(mktemp)"
+  grep -v '^#' "$ORDER" | grep . | tail -n +2 > "$SHRUNK"
+  if [[ "$(gate_count_of "$SHRUNK")" -ge "$MIN_GATES" ]]; then
+    fail "the ratchet cannot detect a removed gate — it is measuring nothing"
+  fi
+  rm -f "$SHRUNK"
+fi
+
 # --- 2. RUNNERS -------------------------------------------------------------
 #
 # first_line <file> <regex>: the number of the first line of <file> matching
@@ -177,9 +212,13 @@ phases_in_order "$CI" \
 # The two loops must read a row the same way. These are sfl.sh's own lines;
 # run_ci_phase.sh repeats them on purpose. If one changes, the other must,
 # and this says which line.
-#   - the read that keeps a last line with no trailing newline
+#   - the read that keeps a last line with no trailing newline (a row with
+#     only a label counts as a last line too)
 #   - the n/a skip
-#   - the phase filter
+#   - the phase filter, after the row is validated
+#   - the validation: a malformed row (no label, no script, a script that is
+#     not a Scripts/<name>.sh path, a phase other than pre or post, an
+#     unknown class) is a red row in whichever phase runs, never skipped
 #   - the order file both read
 #
 # Each rule must be a whole line of each runner, indentation aside, so a
@@ -191,9 +230,14 @@ while IFS= read -r rule; do
       || fail "${runner} no longer has the row rule: ${rule} — sfl.sh and ${CI_RUNNER} read ${ORDER} with the same rules, so they run the same rows; change both or neither"
   done
 done <<'RULES'
-while IFS='|' read -r label script phase gate_class || [ -n "${label:-}" ]; do
+while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:-}" ]; do
 [ "${script:-}" = "n/a" ] && continue
-[ "${phase:-}" = "$PHASE" ] || continue
+[ "$phase" = "$PHASE" ] || continue
+bad="the row has no label"
+bad="the row names no script"
+*) bad="its script ${script} is not a Scripts/<name>.sh path" ;;
+*) bad="its phase '${phase:-}' is neither pre nor post, so no phase would ever run it" ;;
+*) bad="its class '${gate_class:-}' is neither empty nor secret-class" ;;
 RULES
 grep -qF 'done < Scripts/gate_report_order.txt' "$SFL" \
   || fail "${SFL} no longer reads Scripts/gate_report_order.txt — sfl and CI must run the same rows"
@@ -442,6 +486,41 @@ for path in Scripts/*.sh; do
         || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the local list creation"
       ;;
 
+    # SOURCE CSS FIX, not a gate (forsgren#215): FBP.sh runs it, with
+    # GATE_FIX=1, on the source internal/page/styles.css before the build.
+    # CI never runs it (it only checks), so no workflow may name it. Its
+    # self-test is an order-file row, so sfl and Quality prove it.
+    fix_source_css.sh)
+      runs_script "$FBP" "$base" \
+        || fail "${base} fixes the source CSS and ${FBP} never invokes it — the generated stylesheet would be fixed too late or not at all"
+      if grep -rqF "$base" .github/workflows; then
+        fail "a workflow names ${base} — CI only checks and must never fix the source CSS"
+      fi
+      require_fixture "$base" "the source CSS fix would be untested"
+      order_names "test_${base}" \
+        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the source CSS fix"
+      ;;
+
+    # SOURCED HELPER, not a gate (estate canon): the one reader of
+    # Scripts/site_settings.txt. The gates that need a per-repository value
+    # source it; its self-test is an order-file row, and the gates below must
+    # still source it.
+    lib_site_settings.sh)
+      for consumer in gate_htmlhint.sh gate_stylelint.sh check_lint_coverage.sh check_html_dupl.sh validate_required_pages.sh check_privacy_posture.sh; do
+        grep -qE '^[[:space:]]*source .*lib_site_settings\.sh"?$' "Scripts/${consumer}" \
+          || fail "${base} holds the settings reader and Scripts/${consumer} never sources it"
+      done
+      order_names "test_lib_site_settings.sh" \
+        || fail "Scripts/test_lib_site_settings.sh is not an order-file row — the settings reader would be unproven"
+      ;;
+
+    # SOURCED HELPER, not a gate (estate canon): the engine of the exit-trap
+    # behaviour test, which sources it. The test is its own order-file row.
+    lib_exit_trap_probe.sh)
+      runs_script "Scripts/test_exit_trap_completion_behaviour.sh" "$base" \
+        || fail "${base} holds the exit-trap probe engine and Scripts/test_exit_trap_completion_behaviour.sh never sources it"
+      ;;
+
     *)
       fail "${base} is a script no order-file row names and no declared exemption covers — a validator nobody runs is a file, not a gate"
       ;;
@@ -451,221 +530,11 @@ done
 
 # --- 4. THE CI LOOP, AT RUNTIME ----------------------------------------------
 #
-# run_ci_phase.sh runs against a sandbox root (its RUN_CI_PHASE_ROOT seam): a
-# git repository holding an order file and stub gates. A stub appends its own
-# path to $WIRING_TRACE, prints one line, and exits with the status its name
-# asks for.
-
-# new_sandbox: a fresh sandbox; sets SB and TRACE. One tracked file,
-# committed, so a gate that writes to it changes the tree.
-new_sandbox() {
-  SANDBOX_N=$((SANDBOX_N + 1))
-  SB="${RUNTIME_TMP}/sandbox_${SANDBOX_N}"
-  mkdir -p "${SB}/Scripts"
-  git -C "$SB" init -q
-  echo "tracked" > "${SB}/tracked.txt"
-  git -C "$SB" add tracked.txt
-  git -C "$SB" -c user.name=wiring -c user.email=wiring@example.invalid \
-    -c commit.gpgsign=false commit -q -m "sandbox"
-  TRACE="${SB}.trace"
-  : > "$TRACE"
-}
-
-# stub <path> <exit> [writes]: an executable stub gate at <path> in $SB.
-# With `writes`, it changes the tracked file before exiting.
-stub() {
-  local path="$1" code="$2" writes="${3:-}"
-  mkdir -p "$(dirname "${SB}/${path}")"
-  {
-    cat <<'STUB'
-#!/usr/bin/env bash
-printf '%s\n' "${0#./}" >> "$WIRING_TRACE"
-STUB
-    printf 'echo "stub output of %s"\n' "$path"
-    if [[ -n "$writes" ]]; then
-      printf '%s\n' 'echo changed >> tracked.txt'
-    fi
-    printf 'exit %s\n' "$code"
-  } > "${SB}/${path}"
-  chmod +x "${SB}/${path}"
-}
-
-# run_phase <phase> [shell...]: runs the loop over $SB; sets RUN_OUT, RUN_RC,
-# RUN_ROWS and RUN_DETAILS. With a shell, runs it under that shell.
-run_phase() {
-  local phase="$1"
-  shift
-  RUN_ROWS="${SB}.${phase}.rows"
-  RUN_DETAILS="${SB}.${phase}.details"
-  rm -rf "$RUN_ROWS" "$RUN_DETAILS"
-  RUN_RC=0
-  RUN_OUT="$(WIRING_TRACE="$TRACE" RUN_CI_PHASE_ROOT="$SB" \
-    "$@" "./${CI_RUNNER}" "$phase" "$RUN_ROWS" "$RUN_DETAILS" 2>&1)" || RUN_RC=$?
-}
-
-# runnable_rows <order-file>: the script of every runnable row, file order,
-# phase ignored. What the two phases together must run, each exactly once.
-runnable_rows() {
-  awk -F'|' '$0 !~ /^#/ && $1 != "" && NF >= 2 && $2 != "n/a" { print $2 }' "$1"
-}
-
-# phase_of <order-file> <script>: the phase the row naming <script> declares.
-phase_of() {
-  awk -F'|' -v s="$2" '$0 !~ /^#/ && $2 == s { print $3; exit }' "$1"
-}
-
-# 4a. The REAL order file: every runnable row runs exactly once across the
-# two phases, each in its own phase, in file order.
-runtime_real_order_file() {
-  local script trace_pre trace_post want got wrong=0
-  new_sandbox
-  cp "$ORDER" "${SB}/Scripts/gate_report_order.txt"
-  while IFS= read -r script; do
-    stub "$script" 0
-  done < <(runnable_rows "$ORDER")
-
-  run_phase pre
-  trace_pre="$(cat "$TRACE")"
-  [[ "$RUN_RC" -eq 0 ]] || fail "run_ci_phase.sh pre over the real order file, all stubs green, exited ${RUN_RC}. Output: ${RUN_OUT}"
-  : > "$TRACE"
-  run_phase post
-  trace_post="$(cat "$TRACE")"
-  [[ "$RUN_RC" -eq 0 ]] || fail "run_ci_phase.sh post over the real order file, all stubs green, exited ${RUN_RC}. Output: ${RUN_OUT}"
-
-  want="$(runnable_rows "$ORDER" | LC_ALL=C sort)"
-  got="$(printf '%s\n%s\n' "$trace_pre" "$trace_post" | grep -v '^$' | LC_ALL=C sort || true)"
-  if [[ "$got" != "$want" ]]; then
-    fail "run_ci_phase.sh pre + post did not run every runnable row of ${ORDER} exactly once. Missing or extra (< wanted, > ran):"
-    diff <(echo "$want") <(echo "$got") | grep '^[<>]' | sed 's/^/      /' || true
-    wrong=1
-  fi
-
-  while IFS= read -r script; do
-    [[ -n "$script" ]] || continue
-    [[ "$(phase_of "$ORDER" "$script")" == "pre" ]] \
-      || { fail "${script} ran in CI's PRE phase but its row declares $(phase_of "$ORDER" "$script")"; wrong=1; }
-  done <<< "$trace_pre"
-  while IFS= read -r script; do
-    [[ -n "$script" ]] || continue
-    [[ "$(phase_of "$ORDER" "$script")" == "post" ]] \
-      || { fail "${script} ran in CI's POST phase but its row declares $(phase_of "$ORDER" "$script")"; wrong=1; }
-  done <<< "$trace_post"
-
-  want="$(runnable_rows "$ORDER" | while IFS= read -r script; do
-    [[ "$(phase_of "$ORDER" "$script")" == "pre" ]] && echo "$script"; done || true)"
-  [[ "$trace_pre" == "$want" ]] \
-    || { fail "CI's PRE phase did not run its rows in file order. Ran: ${trace_pre}"; wrong=1; }
-
-  [[ "$wrong" -eq 0 ]] \
-    && echo "  ok: run_ci_phase.sh runs each of the $(runnable_rows "$ORDER" | grep -c .) runnable rows of ${ORDER} exactly once, in its own phase, in file order"
-  return 0
-}
-
-# 4b. Synthetic order files: the row rules, failures, the tree check.
-runtime_synthetic() {
-  new_sandbox
-  {
-    echo "# a comment line"
-    echo ""
-    echo "first|Scripts/pass_a.sh|pre|"
-    echo "fails|Scripts/fail.sh|pre|"
-    echo "later|Scripts/pass_b.sh|pre|"
-    echo "post only|Scripts/pass_c.sh|post|"
-    echo "declared n/a|n/a|this repo has no such gate"
-    echo "not executable|Scripts/noexec.sh|pre|"
-    echo "writes the tree|Scripts/writes.sh|pre|"
-    printf '%s' "last, no newline|Scripts/pass_d.sh|pre|"
-  } > "${SB}/Scripts/gate_report_order.txt"
-  stub Scripts/pass_a.sh 0
-  stub Scripts/fail.sh 3
-  stub Scripts/pass_b.sh 0
-  stub Scripts/pass_c.sh 0
-  stub Scripts/writes.sh 0 writes
-  stub Scripts/pass_d.sh 0
-  printf '#!/usr/bin/env bash\nexit 0\n' > "${SB}/Scripts/noexec.sh"
-
-  # GitHub's `shell: bash`: errexit and pipefail on. The loop must survive.
-  run_phase pre bash --noprofile --norc -eo pipefail
-
-  [[ "$RUN_RC" -eq 1 ]] \
-    || fail "run_ci_phase.sh exited ${RUN_RC} on a phase with failing rows — want 1. Output: ${RUN_OUT}"
-
-  local want_trace got_trace
-  want_trace="$(printf '%s\n' Scripts/pass_a.sh Scripts/fail.sh Scripts/pass_b.sh Scripts/writes.sh Scripts/pass_d.sh)"
-  got_trace="$(cat "$TRACE")"
-  if [[ "$got_trace" == "$want_trace" ]]; then
-    echo "  ok: the loop skips comments, blanks, n/a and the other phase, keeps going after a failure, and reads a last line with no newline"
-  else
-    fail "the loop ran the wrong rows (want: $(echo "$want_trace" | tr '\n' ' '); ran: $(echo "$got_trace" | tr '\n' ' ')) — sfl runs exactly the first list"
-  fi
-
-  local row
-  for row in "first|✅" "fails|❌" "later|✅" "not executable|❌" "writes the tree|❌" "last, no newline|✅"; do
-    grep -qxF -- "$row" "$RUN_ROWS" \
-      || fail "no '${row}' row was written. Rows: $(tr '\n' ' ' < "$RUN_ROWS")"
-  done
-  if grep -qE '^(post only|declared n/a)\|' "$RUN_ROWS"; then
-    fail "a row of another phase or an n/a row was reported. Rows: $(tr '\n' ' ' < "$RUN_ROWS")"
-  fi
-  [[ "$(grep -c . "$RUN_ROWS")" -eq 6 ]] \
-    || fail "want exactly 6 rows, one per pre row run. Rows: $(tr '\n' ' ' < "$RUN_ROWS")"
-
-  grep -qF "stub output of Scripts/fail.sh" "${RUN_DETAILS}/fails.md" 2>/dev/null \
-    || fail "the failing gate's details file does not carry its output"
-  grep -qF "#### ❌ fails" "${RUN_DETAILS}/fails.md" 2>/dev/null \
-    || fail "the failing gate's details file has no ❌ heading"
-  grep -qF "not an executable script" "${RUN_DETAILS}/not_executable.md" 2>/dev/null \
-    || fail "a non-executable declared script is not named as such in its details"
-  if grep -qF "changed the checked-out tree" "${RUN_DETAILS}/writes_the_tree.md" 2>/dev/null \
-    && grep -qF "M tracked.txt" "${RUN_DETAILS}/writes_the_tree.md"; then
-    echo "  ok: a gate that exits 0 but changes the checked-out tree is red, naming the file"
-  else
-    fail "a gate that changed a tracked file was not reported red with the file named — CI would pass a commit only after fixing it"
-  fi
-  grep -qF "stub output of Scripts/pass_d.sh" <<< "$RUN_OUT" \
-    || fail "the gates' output does not reach the step log"
-
-  # A secret-class failure: exit 2, and the rows after it still run.
-  new_sandbox
-  {
-    echo "secret scan|Scripts/fail.sh|pre|secret-class"
-    echo "after|Scripts/pass_a.sh|pre|"
-  } > "${SB}/Scripts/gate_report_order.txt"
-  stub Scripts/fail.sh 1
-  stub Scripts/pass_a.sh 0
-  run_phase pre
-  if [[ "$RUN_RC" -eq 2 ]] && grep -qF Scripts/pass_a.sh "$TRACE"; then
-    echo "  ok: a secret-class failure exits 2, and the rest of the phase still runs"
-  else
-    fail "a secret-class failure exited ${RUN_RC} (want 2, so the workflow skips the build as FBP does) or stopped the phase. Output: ${RUN_OUT}"
-  fi
-
-  # A phase with no row is red, with the reason.
-  new_sandbox
-  echo "post only|Scripts/pass_c.sh|post|" > "${SB}/Scripts/gate_report_order.txt"
-  stub Scripts/pass_c.sh 0
-  run_phase pre
-  if [[ "$RUN_RC" -eq 1 ]] && grep -qF "declares no pre row" <<< "$RUN_OUT"; then
-    echo "  ok: a phase with no row is red, and says so"
-  else
-    fail "a phase with no row exited ${RUN_RC} — a CI phase that ran nothing must not be green. Output: ${RUN_OUT}"
-  fi
-
-  # No order file: red, with the reason.
-  new_sandbox
-  run_phase pre
-  if [[ "$RUN_RC" -eq 1 ]] && grep -qF "is missing" <<< "$RUN_OUT"; then
-    echo "  ok: a missing order file is red, and says so"
-  else
-    fail "a missing order file exited ${RUN_RC}. Output: ${RUN_OUT}"
-  fi
-
-  # A phase name sfl does not have is a usage error, not an empty phase.
-  run_phase build
-  [[ "$RUN_RC" -eq 64 ]] \
-    || fail "run_ci_phase.sh build exited ${RUN_RC} — want 64, usage: only pre and post exist"
-  return 0
-}
+# Pinned by Scripts/test_run_ci_phase.sh (an order-file row, the estate canon):
+# the runner over throwaway order files with stub gates, over the REAL order
+# file with a stub at every declared path (each runnable row exactly once, in
+# its own phase, in file order), and against weakened copies of the runner.
+# The cases that used to sit here moved there unchanged in what they require.
 
 # --- 5. PROOFS ----------------------------------------------------------------
 #
@@ -964,14 +833,9 @@ SAMPLE
 }
 
 if ! is_mutation_rerun; then
-  RUNTIME_TMP="$(mktemp -d)"
   MUTATION_TMP="$(mktemp -d)"
-  trap 'rm -rf "$RUNTIME_TMP" "$MUTATION_TMP"; finish' EXIT
-  SANDBOX_N=0
+  trap 'rm -rf "$MUTATION_TMP"; finish' EXIT
   MUTANT_N=0
-
-  runtime_real_order_file
-  runtime_synthetic
 
   # quality.yml: the POST phase call becomes a comment; the comments that
   # name the runner stay.
@@ -1038,8 +902,8 @@ if ! is_mutation_rerun; then
 
   # sfl.sh: the phase filter becomes a comment, so sfl would run every row in
   # both phases while CI runs each in one.
-  mutation_proof GATE_WIRING_SFL_OVERRIDE "phase:-" \
-    's#^([[:space:]]*)(\[ "[$][{]phase:-[}]" = )#\1\# \2#' \
+  mutation_proof GATE_WIRING_SFL_OVERRIDE "PHASE" \
+    's#^([[:space:]]*)(\[ "[$]phase" = )#\1\# \2#' \
     "no longer has the row rule" \
     "an sfl.sh whose phase filter is a comment"
 

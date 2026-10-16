@@ -18,7 +18,7 @@
 # it accepted an echo that the gate-wiring check rejected). Not every check
 # that asks "is X invoked" uses it yet: Part A of
 # source-repo/Scripts/test_report_ci_step.sh and the pins in
-# source-repo/Scripts/test_deploy_feta_workflow.sh still grep on their
+# a deploy-workflow pin of the estate still grep on their
 # own.
 #
 # SOURCED, never run. It judges nothing on its own. Scripts/test_gate_wiring.sh

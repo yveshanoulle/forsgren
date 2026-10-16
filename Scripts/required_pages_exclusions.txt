@@ -1,0 +1,10 @@
+# Pages the manifest-covers-site gate does not require in the required-pages
+# manifest.
+#
+# One row per page: page|reason. The page is the path relative to the site
+# directory, as the file is named there (programme.html, sub/page.html). The
+# reason is required. A page that deliberately must not be verified (a
+# partial, an error page, an orphan) is a decision, not an oversight: the
+# reason is what lets the next reader see a choice instead of a gap. A
+# repository with no exclusion keeps this file with comments only; a missing
+# file is red.

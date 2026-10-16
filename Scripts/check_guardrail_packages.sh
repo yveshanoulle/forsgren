@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# canon: check_guardrail_packages v1
 set -euo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
@@ -7,12 +8,9 @@ source Scripts/lib_repo_files.sh
 
 # Guardrail: the npm manifest policy this estate settled on — unit 418.
 #
-# PORTED FROM agilelean 2026-09-02, where it existed as the opposite rule — it
-# asserted that package.json must NOT exist, because that repo pinned its
-# linters inside the npx invocation. The estate standardised the other way on a
-# reviewer's ruling recorded in
-# source-repo/documentation/decision-linter-pinning.md, and this repo, which had
-# the manifest all along, had nothing enforcing any of it:
+# The canon version, byte-identical across the estate's repositories
+# The policy, from a reviewer's ruling recorded in the estate's decision on
+# linter pinning:
 #
 #   Repository-executed npm tooling is declared as exact-version
 #   devDependencies, with a committed lockfile, installed using `npm ci`.
@@ -27,12 +25,9 @@ source Scripts/lib_repo_files.sh
 # node_modules must never be tracked: `npm ci` creates it in the working tree
 # and deletes any existing one first, so it is build output, not source.
 #
-# THE CLAUSE THIS REPO ACTUALLY FAILED is the exact-version one. Its manifest
-# declared `^1.9.2` and `^17.14.1` — ranges — which left the odd state the
-# reviewer named: the gate policy says pinned, the manifest says
-# compatible-range, and only the lockfile says what runs. The caret does not
-# float CI, because `npm ci` installs the lockfile; it just meant the manifest
-# was not stating what anyone had chosen.
+# EXACT VERSIONS, not ranges: a caret does not float CI, because `npm ci`
+# installs the lockfile; it leaves the odd state where the policy says pinned,
+# the manifest says compatible-range, and only the lockfile says what runs.
 
 failed=0
 
@@ -66,7 +61,8 @@ for f in package.json package-lock.json; do
 done
 
 # Tracked, and untracked but not ignored: the commit that adds a node_modules/
-# would carry it (forsgren#204).
+# would carry it. A node_modules SYMLINK counts too: a .gitignore pattern with
+# a trailing slash matches only a directory.
 listed="$(repo_files .)"
 if grep -qE '^node_modules(/|$)' <<<"$listed"; then
   echo "❌ FAIL: node_modules must not be committed — npm ci deletes and recreates it, so a tracked copy is build output masquerading as source."

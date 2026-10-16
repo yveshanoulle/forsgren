@@ -157,6 +157,10 @@ jobs:
         # is exit 2 there, never a silent pass (forsgren#52).
         env:
           FORSGREN_PRIVATE_NAMES: ${{ secrets.FORSGREN_PRIVATE_NAMES }}
+          # Names only this repository must keep out, added to the shared list.
+          # Optional: an unset secret is an empty variable, and the gate then
+          # uses the shared list alone.
+          FORSGREN_PRIVATE_NAMES_EXTRA: ${{ secrets.FORSGREN_PRIVATE_NAMES_EXTRA }}
         run: |
           set -uo pipefail
           ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" && rc=0 || rc=$?

@@ -14,6 +14,15 @@
 #      ${HOME}/.config/forsgren/private-names; one name per line
 # Blank lines and lines starting with # are not names.
 #
+# EXTRA list, merged with the shared one (it adds, never replaces): names that
+# only this repository must keep out. In CI env FORSGREN_PRIVATE_NAMES_EXTRA
+# (an Actions secret of that name); locally the file
+# FORSGREN_PRIVATE_NAMES_EXTRA_FILE, else
+# ${HOME}/.config/forsgren/private-names-extra/<name>, <name> being the
+# basename of the origin remote URL without .git. A missing extra list is fine
+# (only the shared list is used); an extra file that exists but cannot be read
+# is exit 2. Both modes (the scan and --message) use it.
+#
 # It searches the CONTENT and the PATH of every tracked file (git ls-files) and
 # of every untracked, not-ignored file (git ls-files -o --exclude-standard:
 # exactly what git add -A would stage; an untracked symlink is judged by its
@@ -95,8 +104,25 @@ source "${ROOT}/Scripts/lib_private_names.sh"
 MESSAGE_MODE=0
 
 # read_list: the raw list text in LIST, from the first source that has one;
-# SOURCE is env or file.
+# SOURCE is env or file. The repository's EXTRA list is then added to it
+# (add_extra_names); it never stands in for the shared list.
 read_list() {
+  read_shared_list
+  PRIMARY_LIST="$LIST"
+  if ! private_names_extra_read . EXTRA; then
+    echo "❌ FAIL: the extra private-names file cannot be read"
+    exit 2
+  fi
+  add_extra_names
+}
+
+# add_extra_names: the extra names ADD to the shared list.
+add_extra_names() {
+  LIST="${LIST}"$'\n'"${EXTRA}"
+}
+
+# read_shared_list: LIST from the shared list alone.
+read_shared_list() {
   if [[ -n "${FORSGREN_PRIVATE_NAMES:-}" ]]; then
     LIST="$FORSGREN_PRIVATE_NAMES"
     SOURCE="env"
@@ -129,13 +155,16 @@ read_list() {
 # file with no names gives empty PATTERNS, which are never handed to grep
 # (judge_path and check_message skip them at 0 names).
 build_patterns() {
-  private_names_parse "$LIST"
+  private_names_parse "$PRIMARY_LIST"
   COUNT="$PRIVATE_NAMES_COUNT"
   PATTERNS="$(printf '%s' "$PRIVATE_NAMES" | sed 's/[][\.*^$+?(){}|/]/\\&/g')"
   if [[ "$COUNT" -eq 0 && "$SOURCE" == env && "$MESSAGE_MODE" -eq 0 ]]; then
     echo "❌ FAIL: the list of private names in FORSGREN_PRIVATE_NAMES has no names in it: an emptied secret is not a clean scan"
     exit 2
   fi
+  private_names_parse "$LIST"
+  COUNT="$PRIVATE_NAMES_COUNT"
+  PATTERNS="$(printf '%s' "$PRIVATE_NAMES" | sed 's/[][\.*^$+?(){}|/]/\\&/g')"
 }
 
 # match_names <grep options...>: grep -i -E with the escaped names as its
@@ -274,6 +303,8 @@ REPO="${1:-.}"
 cd "$REPO" || { echo "❌ FAIL: cannot enter ${REPO}"; exit 2; }
 
 LIST=""
+PRIMARY_LIST=""
+EXTRA=""
 SOURCE=""
 PATTERNS=""
 read_list

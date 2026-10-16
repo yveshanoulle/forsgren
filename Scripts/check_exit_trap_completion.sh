@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+# canon: check_exit_trap_completion v1
 # Scripts/check_exit_trap_completion.sh [repo-root]
 #
-# Gate (forsgren#137, found by forsgren#136): red when a shell script runs
+# Gate: red when a shell script runs
 # under `set -e` with a top-level EXIT trap and carries no completion flag.
 #
 # Why. On bash 3.2 (macOS /bin/bash, the shell sfl and the self-hosted runner
@@ -9,8 +10,8 @@
 # after an unbound variable in the main shell, and $? inside the trap is 0
 # too. The abort is invisible, so the caller reads it as a pass. The cure is
 # a COMPLETED flag: the very last statement sets COMPLETED=1, and the trap
-# turns an exit of 0 without it into exit 1 (FBP.sh, forsgren#136;
-# Scripts/lib_selftest.sh's selftest_cleanup, which every test fixture that
+# turns an exit of 0 without it into exit 1 (the push wrapper's
+# print_summary; Scripts/lib_selftest.sh's selftest_cleanup, which every test fixture that
 # calls selftest_begin gets).
 #
 # The rule, per *.sh at the repository root and directly in Scripts/: a
@@ -19,7 +20,7 @@
 # selftest_begin or lib_selftest.sh. Known limits, on purpose: `set -o
 # errexit` is not read, a `set -e` placed after the trap is not read (the trap
 # then ran without -e), and a column-0 line inside a heredoc is read as code.
-# Behaviour is not probed here; the fixes of forsgren#137 were each shown by
+# Behaviour is not probed here; each fix was shown by
 # injecting an unbound variable after the trap.
 #
 # Findings carry the red-cross marker, one per script, as file:line of the
@@ -66,7 +67,7 @@ fi
 if [ "$findings" -ne 0 ]; then
   echo ""
   echo "exit-trap completion: ${findings} script(s) can end an abort with exit 0 in ${ROOT}."
-  echo "Fix: COMPLETED=0 before the trap, COMPLETED=1 as the last statement, and the trap exits 1 when \$? is 0 and COMPLETED is not 1 (see FBP.sh print_summary)."
+  echo "Fix: COMPLETED=0 before the trap, COMPLETED=1 as the last statement, and the trap exits 1 when \$? is 0 and COMPLETED is not 1 (see the push wrapper's print_summary)."
   exit 1
 fi
 

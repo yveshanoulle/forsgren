@@ -114,46 +114,24 @@ sfl pull contract|Scripts/test_sfl_pull.sh|pre|
 npm manifest policy self-test|Scripts/test_check_guardrail_packages.sh|pre|
 npm manifest policy|Scripts/check_guardrail_packages.sh|pre|
 #
-# The lockfile must describe the manifest (forsgren#2, ladder step 1): the
-# root entry of package-lock.json against package.json, offline, so a drift
-# is red in PRE and not only at CI's `npm ci`. forsgren's own, not ported yet.
-npm lockfile sync self-test|Scripts/test_check_npm_lock_sync.sh|pre|
-npm lockfile sync|Scripts/check_npm_lock_sync.sh|pre|
+# Tool installer contract (Scripts/install_tools.sh, identical across the
+# estate). The tools it provides govern every gate after it, so its fixture
+# runs before the build.
+tool install self-test|Scripts/test_install_tools.sh|pre|
 #
 # sfl's npm install step (forsgren#2, ladder step 2): `npm ci` when
 # node_modules is missing or was installed from another lockfile. A
 # pre-flight, not a gate: only its self-test is a row.
 npm install sync self-test|Scripts/test_npm_sync_install.sh|pre|
 #
-# Tool installer contract (Scripts/install_tools.sh, identical across the
-# estate). The tools it provides govern every gate after it, so its fixture
-# runs before the build.
-tool install self-test|Scripts/test_install_tools.sh|pre|
-#
-# The Node pin (forsgren#2, decision #190): .nvmrc holds the Node major,
-# Scripts/node_pin.sh reads it, Scripts/check_node_pin.sh is red when the node
-# on PATH is another major, with the fix. sfl.sh runs the check right after
-# install_tools.sh; the reader is exercised by its own self-test.
-Node pin self-test|Scripts/test_node_pin.sh|pre|
-Node pin gate self-test|Scripts/test_check_node_pin.sh|pre|
-Node pin|Scripts/check_node_pin.sh|pre|
-#
-# The Go pin: sfl.sh and FBP.sh export GOTOOLCHAIN from go.mod's toolchain
-# line via Scripts/go_toolchain.sh.
-Go toolchain pin self-test|Scripts/test_go_toolchain.sh|pre|
-#
-# The Go generator (cmd/forsgren render) and the site build around it.
-build-site self-test|Scripts/test_build_site.sh|pre|
-#
-# The starter page (forsgren#132): README.md rendered by ./cmd/readmepage to
-# .build/starter, the page forsgren.be shows. Not canon: forsgren's own. The
-# self-test runs in pre, the build in post, so the rows that lint the page
-# (HTMLHint, privacy posture and the starter-page links, below) read a page
-# this run built. A README the renderer refuses is a red here, never a
-# page published wrong.
-starter page build self-test|Scripts/test_build_starter_page.sh|pre|
-starter page links self-test|Scripts/test_check_starter_links.sh|pre|
-starter page gates self-test|Scripts/test_starter_page_gates.sh|pre|
+# Site settings (estate gate-parity, step 4 of the forsgren port, forsgren#215).
+# Canon: Scripts/lib_site_settings.sh is the one reader of
+# Scripts/site_settings.txt, which holds the values that differ per repository:
+# site_dir, the HTML duplication target and ceiling, and the required-pages
+# manifest. A missing or invalid file is exit 2, never a guessed default. The
+# lib accepts one optional leading dot per path component, so forsgren states
+# site_dir=.build/site. Repository source, so it runs in pre.
+site-settings self-test|Scripts/test_lib_site_settings.sh|pre|
 #
 # HTMLHint and Stylelint validate the generated site (forsgren#1, ladder step
 # 8), at another estate repository's position, right after the build-site self-test.
@@ -166,6 +144,18 @@ HTMLHint self-test|Scripts/test_gate_htmlhint.sh|pre|
 HTMLHint|Scripts/gate_htmlhint.sh|post|
 Stylelint self-test|Scripts/test_gate_stylelint.sh|pre|
 Stylelint|Scripts/gate_stylelint.sh|post|
+#
+# Stylelint source fix (forsgren#215). Not canon: forsgren's own. The CSS of the
+# generated pages is NOT hand-written in .build/site: it is internal/page/styles.css,
+# embedded by go:embed and copied into every build. A stylelint --fix on the
+# generated copy would be lost on the next build and CI would then be red on the
+# source. So the canonical Stylelint gate above stays check-only in CI, and what
+# can be fixed is fixed in the SOURCE, before the build, by
+# Scripts/fix_source_css.sh, which FBP.sh runs under GATE_FIX=1 and which does
+# nothing without it. This self-test pins both: the fix reaches the source and
+# never the generated copy, FBP.sh runs it before the build, and CI never does.
+# It lives outside the canonical Stylelint gate. Repository source, so pre.
+Stylelint source-fix self-test|Scripts/test_fix_source_css.sh|pre|
 starter page build|Scripts/build_starter_page.sh|post|
 #
 # HTMLHint and the privacy posture on the starter page: the site's own gates,
@@ -180,6 +170,13 @@ starter page privacy posture|Scripts/check_privacy_posture_starter.sh|post|
 # rule for the metrics site and is never run on this page.
 starter page links|Scripts/check_starter_links.sh|post|
 #
+# n/a rows, declared as the canon declares them (estate gate-parity): the
+# deployed-pages self-test belongs to a repository that deploys its pages to a
+# server and verifies them there; forsgren publishes no site of its own pages
+# through this repository (the starter page deploys through its own workflow,
+# pinned by the starter page rows).
+deployed-pages self-test|n/a|forsgren does not deploy its generated pages from this repository, so there is no deployed-pages verification to self-test
+#
 # The required-pages manifest (forsgren#1, ladder step 9), at its canon
 # position after Stylelint (forsgren has no deployed-pages self-test, the
 # canon row between them). The manifest is internal/page/required-pages.json,
@@ -193,8 +190,15 @@ starter page links|Scripts/check_starter_links.sh|post|
 required-pages self-test|Scripts/test_validate_required_pages.sh|pre|
 required-pages manifest|Scripts/validate_required_pages.sh|post|
 #
+# n/a row (estate gate-parity): the release-shape pin belongs to a repository
+# whose release is a published script. forsgren releases with a git tag, and
+# its workflows are pinned by the checkout-pin, workflow node pin and workflow
+# rows below. Canon rows for a deploy workflow forsgren does not have are not
+# declared here at all.
+publish-release shape|n/a|forsgren has no publish-release script: a release is a git tag made by the maintainer
+#
 # Action pins (forsgren#1, ladder step 17), at their canon position after
-# the required-pages rows (forsgren has none of the release and deploy-feta
+# the required-pages rows (forsgren has none of the release and deploy
 # rows between them). Every `uses:` in .github/workflows/*.yml that is not a
 # local `./` reference ends in a full 40-hex commit SHA, and every
 # actions/checkout is SHA-pinned and sets persist-credentials: false. The
@@ -207,11 +211,6 @@ required-pages manifest|Scripts/validate_required_pages.sh|post|
 # source, so both run in pre, the proof first.
 mutation: checkout pins|Scripts/test_workflow_checkout_pins_mutations.sh|pre|
 checkout pins|Scripts/test_workflow_checkout_pins.sh|pre|
-#
-# The Node pin in CI (forsgren#2, decision #190): a workflow that runs npm or
-# node sets Node up from .nvmrc with a sha-pinned actions/setup-node, before its
-# installs. Beside the checkout pins, its neighbour in kind.
-workflow node pin|Scripts/test_workflow_node_pin.sh|pre|
 #
 # HTML duplication, a RATCHET (forsgren#1, ladder step 11), at its canon
 # position after the required-pages rows (forsgren has none of the release
@@ -230,6 +229,7 @@ workflow node pin|Scripts/test_workflow_node_pin.sh|pre|
 # that reason.
 html-duplication self-test|Scripts/test_check_html_dupl.sh|pre|
 html duplication|Scripts/check_html_dupl.sh|pre|
+html duplication, generated page self-test|Scripts/test_check_html_dupl_site.sh|pre|
 html duplication, generated page|Scripts/check_html_dupl_site.sh|post|
 #
 # The golden pages (forsgren#12, step 8). Not canon: forsgren's own, right
@@ -263,6 +263,12 @@ FBP --no-push self-test|Scripts/test_fbp_no_push.sh|pre|
 # at runtime, that run_ci_phase.sh runs every row of this file exactly once
 # in its own phase. Repository source, so it runs in pre.
 gate wiring|Scripts/test_gate_wiring.sh|pre|
+#
+# CI phase runner (estate canon, forsgren#215). Scripts/run_ci_phase.sh is the
+# loop quality.yml runs once per phase; its runtime cases moved out of the gate
+# wiring test into this self-test, which runs the runner over throwaway order
+# files with stub gates and mutated copies of the runner.
+CI phase runner self-test|Scripts/test_run_ci_phase.sh|pre|
 #
 # go mod tidy (forsgren#1, ladder step 23). Not canon: another estate repository's tidy
 # check (CI and Makefiles: `go mod tidy`, then git status on go.mod and
@@ -364,22 +370,7 @@ Go dead code|Scripts/check_deadcode.sh|pre|
 # self-test first.
 actionlint self-test|Scripts/test_check_actionlint.sh|pre|
 actionlint|Scripts/check_actionlint.sh|pre|
-#
-# zizmor (forsgren#1, ladder step 19). Not canon: another estate repository's gate (its sfl
-# runs it right behind actionlint, as here), so it sits right behind the
-# canon actionlint rows, before shellcheck. actionlint asks whether a
-# workflow is valid, zizmor whether it is safe: template injection, an
-# attacker-controlled ${{ ... }} expanded into a run: block, above all. The
-# self-test is forsgren's own (no repo of the estate has one): each case
-# asserts its reason, a .yaml workflow is read as well as a .yml, a scan over
-# no workflow is red, and two mutation proofs show the severity threshold
-# and the config are what they claim. The gate is another estate repository's, adapted only
-# in its paths (an optional directory argument, default .github), at
-# another estate repository's setting: --offline, --min-severity high, the default persona.
-# Its config, .github/zizmor.yml, suppresses nothing. Repository source, so
-# both run in pre, self-test first.
-zizmor self-test|Scripts/test_check_zizmor.sh|pre|
-zizmor|Scripts/check_zizmor.sh|pre|
+actionlint forsgren cases self-test|Scripts/test_check_actionlint_forsgren.sh|pre|
 #
 # Shellcheck and yamllint (forsgren#1, ladder step 12), at their canon
 # position after the actionlint rows and before lint coverage. Both read
@@ -446,6 +437,143 @@ manifest covers site|Scripts/test_required_pages_covers_site.sh|post|
 # that makes the pull_request trigger safe. Repository source, so it runs in
 # pre.
 quality trigger scope|Scripts/test_quality_trigger_scope.sh|pre|
+#
+# No stray tracked files (forsgren#1, ladder step 12). Not canon:
+# Another estate repository's issue #10 gate, byte-identical, at konenki's position
+# between the quality-trigger-scope row and the report-script fixtures. Red
+# on a tracked .DS_Store at any depth, and on a
+# tracked .yml/.yaml with a top-level jobs: key anywhere GitHub does not run
+# it: outside .github/workflows/ or in a subdirectory of it. It proves its
+# matcher on a scratch repository before judging this one. Repository source
+# (paths from the index, content from the working tree), so it runs in pre.
+stray tracked files|Scripts/test_no_stray_tracked_files.sh|pre|
+#
+# The CI report (forsgren#1, ladder step 14), at its canon position before
+# the gate-failure summary (konenki puts it right after the stray-files row;
+# the non-canon script-references pair sits between them here).
+# Scripts/render_quality_report.sh renders CI's step summary from these rows,
+# in this file's order; this is its fixture, another estate repository's, with one
+# forsgren case (an n/a row is not counted as unreported).
+quality-report render|Scripts/test_render_quality_report.sh|pre|
+#
+# forsgren#8, forsgren's own (no estate repository has it yet): the run's key
+# numbers above that report. Scripts/render_quality_summary.sh renders them
+# in quality.yml's last step from what the run wrote (these rows, the Go
+# tests and coverage outputs, the page-count sink) and the job's status;
+# this is its fixture.
+quality-run summary|Scripts/test_render_quality_summary.sh|pre|
+#
+gate-failure summary|Scripts/test_summarize_gate_failure.sh|pre|
+sfl drives from the order file|Scripts/test_sfl_drives_from_order_file.sh|pre|
+step table|Scripts/test_render_step_table.sh|pre|
+#
+# FBP.sh's own summary and its build-site page count (another estate repository issues
+# #6 and #8): repository-source presentation, like the report scripts above.
+FullBuildAndPush commit-message block|Scripts/test_fbp_commit_message.sh|pre|
+FullBuildAndPush build-site page count|Scripts/test_fbp_build_pagecount.sh|pre|
+FullBuildAndPush aborted run|Scripts/test_fbp_aborted.sh|pre|
+FullBuildAndPush abort exit|Scripts/test_fbp_abort_exit.sh|pre|
+#
+# THE PRIVACY POSTURE (forsgren#1, ladder step 10), at its canon position
+# after the step table, behind the FBP fixtures as in another estate repository. The
+# public page shows numbers and dates only: no forms, no third-party assets
+# (fonts, analytics, CDNs), no cookies or browser storage, no tracking.
+# The gate is coachretreat-website's copy of another estate repository's, adapted only
+# in its default site directory (.build/site); coachretreat's is the copy for
+# a site that declares `privacy pages|n/a`, and its failure text says so,
+# where konenki's points at konenki's own privacy pages. Its self-test is
+# another estate repository's, adapted in one case: konenki checks its committed Site/,
+# forsgren's site is generated and this self-test runs in pre, before the
+# build, so that case builds its own copy into the temp dir and checks it.
+# Self-test in pre, gate in post.
+privacy-posture self-test|Scripts/test_check_privacy_posture.sh|pre|
+privacy posture|Scripts/check_privacy_posture.sh|post|
+#
+# Repository links. Not canon: forsgren's own, a direct consequence of the
+# design rule that the page carries no links into private repositories. Red
+# on any github.com/<owner>/<repo> path in the generated .html or .css (the
+# gate cannot tell private from public, and the page has no reason to point
+# into any repository), and on a site with no .html page. The FAIL line names
+# file:line, never the path, as the data guard does. Its self-test is
+# forsgren's own, with a mutation proof, and sits right before the gate.
+repository-links self-test|Scripts/test_check_repo_links.sh|pre|
+repository links|Scripts/check_repo_links.sh|post|
+#
+# THE COMMUNITY FILES (forsgren#43, #44). Not canon: forsgren's own. Red unless
+# CODE_OF_CONDUCT.md exists at the repository root and names conduct@hanoulle.be,
+# SECURITY.md exists and names the private reporting route, neither has a
+# template placeholder left (any bracket that is not a Markdown link), and
+# README.md links to both outside code. It reads repository files, so it
+# is pre. Self-test right before the gate, with a mutation proof per pattern.
+community-files self-test|Scripts/test_check_community_files.sh|pre|
+community files|Scripts/check_community_files.sh|pre|
+#
+# THE EXIT-TRAP COMPLETION RULE (forsgren#137, found by #136). Not canon: forsgren's own.
+# Red when a script runs under set -e with a top-level EXIT trap and no COMPLETED
+# flag: on bash 3.2 an abort after the trap then exits 0. It reads repository
+# files, so it is pre. Self-test right before the gate, with a mutation proof
+# per pattern.
+exit-trap completion self-test|Scripts/test_check_exit_trap_completion.sh|pre|
+exit-trap completion|Scripts/check_exit_trap_completion.sh|pre|
+exit-trap completion behaviour|Scripts/test_exit_trap_completion_behaviour.sh|pre|
+#
+# THE MARKDOWN LINKS (forsgren#147). Not canon: forsgren's own. Red when a
+# relative link in a tracked Markdown file (inline or reference definition,
+# outside code) names no tracked file or directory. It reads repository
+# files, so it is pre. Self-test right before the gate, with a mutation proof
+# per setting.
+markdown-links self-test|Scripts/test_check_markdown_links.sh|pre|
+markdown links|Scripts/check_markdown_links.sh|pre|
+#
+# Script references (forsgren#1, ladder step 13). Not canon: another estate repository's
+# guard, ported beside the stray-tracked-files row, the other
+# repository-hygiene check. Red when a script, workflow, doc or order file
+# names a Scripts path that does not exist (case-sensitively), when a script
+# has no caller (an executable file, an order or tool file, or CLAUDE.md), and
+# on a run that scanned nothing. A path that names another repository's
+# script says so with that repository as its first component, and is not
+# checked. The self-test is another estate repository's, adapted for forsgren's scope, with
+# forsgren's cases and two mutation proofs at its end; another estate repository's CLIMB ban
+# is not ported (see the gate's header). Repository source, so both run in
+# pre, self-test first.
+script references self-test|Scripts/test_check_script_references.sh|pre|
+script references|Scripts/check_script_references.sh|pre|
+#
+# The Node pin (forsgren#2, decision #190): .nvmrc holds the Node major,
+# Scripts/node_pin.sh reads it, Scripts/check_node_pin.sh is red when the node
+# on PATH is another major, with the fix. sfl.sh runs the check right after
+# install_tools.sh; the reader is exercised by its own self-test.
+Node pin self-test|Scripts/test_node_pin.sh|pre|
+Node pin gate self-test|Scripts/test_check_node_pin.sh|pre|
+Node pin|Scripts/check_node_pin.sh|pre|
+#
+# The Go pin: sfl.sh and FBP.sh export GOTOOLCHAIN from go.mod's toolchain
+# line via Scripts/go_toolchain.sh.
+Go toolchain pin self-test|Scripts/test_go_toolchain.sh|pre|
+#
+# The Go generator (cmd/forsgren render) and the site build around it.
+build-site self-test|Scripts/test_build_site.sh|pre|
+#
+# The starter page (forsgren#132): README.md rendered by ./cmd/readmepage to
+# .build/starter, the page forsgren.be shows. Not canon: forsgren's own. The
+# self-test runs in pre, the build in post, so the rows that lint the page
+# (HTMLHint, privacy posture and the starter-page links, below) read a page
+# this run built. A README the renderer refuses is a red here, never a
+# page published wrong.
+starter page build self-test|Scripts/test_build_starter_page.sh|pre|
+starter page links self-test|Scripts/test_check_starter_links.sh|pre|
+starter page gates self-test|Scripts/test_starter_page_gates.sh|pre|
+#
+# The Node pin in CI (forsgren#2, decision #190): a workflow that runs npm or
+# node sets Node up from .nvmrc with a sha-pinned actions/setup-node, before its
+# installs. Beside the checkout pins, its neighbour in kind.
+workflow node pin|Scripts/test_workflow_node_pin.sh|pre|
+#
+# The lockfile must describe the manifest (forsgren#2, ladder step 1): the
+# root entry of package-lock.json against package.json, offline, so a drift
+# is red in PRE and not only at CI's `npm ci`. forsgren's own, not ported yet.
+npm lockfile sync self-test|Scripts/test_check_npm_lock_sync.sh|pre|
+npm lockfile sync|Scripts/check_npm_lock_sync.sh|pre|
 #
 # Workflow triggers (forsgren#1, ladder step 16). Not canon: forsgren's own
 # (no repo of the estate has this gate), right behind the canon row it
@@ -526,106 +654,21 @@ starter page workflow|Scripts/test_starter_page_workflow.sh|pre|
 # real file. Repository source, so it runs in pre.
 vulncheck workflow|Scripts/test_vulncheck_workflow.sh|pre|
 #
-# No stray tracked files (forsgren#1, ladder step 12). Not canon:
-# Another estate repository's issue #10 gate, byte-identical, at konenki's position
-# between the quality-trigger-scope row and the report-script fixtures. Red
-# on a tracked .DS_Store at any depth, and on a
-# tracked .yml/.yaml with a top-level jobs: key anywhere GitHub does not run
-# it: outside .github/workflows/ or in a subdirectory of it. It proves its
-# matcher on a scratch repository before judging this one. Repository source
-# (paths from the index, content from the working tree), so it runs in pre.
-stray tracked files|Scripts/test_no_stray_tracked_files.sh|pre|
-#
-# Script references (forsgren#1, ladder step 13). Not canon: another estate repository's
-# guard, ported beside the stray-tracked-files row, the other
-# repository-hygiene check. Red when a script, workflow, doc or order file
-# names a Scripts path that does not exist (case-sensitively), when a script
-# has no caller (an executable file, an order or tool file, or CLAUDE.md), and
-# on a run that scanned nothing. A path that names another repository's
-# script says so with that repository as its first component, and is not
-# checked. The self-test is another estate repository's, adapted for forsgren's scope, with
-# forsgren's cases and two mutation proofs at its end; another estate repository's CLIMB ban
-# is not ported (see the gate's header). Repository source, so both run in
-# pre, self-test first.
-script references self-test|Scripts/test_check_script_references.sh|pre|
-script references|Scripts/check_script_references.sh|pre|
-#
-# The CI report (forsgren#1, ladder step 14), at its canon position before
-# the gate-failure summary (konenki puts it right after the stray-files row;
-# the non-canon script-references pair sits between them here).
-# Scripts/render_quality_report.sh renders CI's step summary from these rows,
-# in this file's order; this is its fixture, another estate repository's, with one
-# forsgren case (an n/a row is not counted as unreported).
-quality-report render|Scripts/test_render_quality_report.sh|pre|
-#
-# forsgren#8, forsgren's own (no estate repository has it yet): the run's key
-# numbers above that report. Scripts/render_quality_summary.sh renders them
-# in quality.yml's last step from what the run wrote (these rows, the Go
-# tests and coverage outputs, the page-count sink) and the job's status;
-# this is its fixture.
-quality-run summary|Scripts/test_render_quality_summary.sh|pre|
-#
-gate-failure summary|Scripts/test_summarize_gate_failure.sh|pre|
-sfl drives from the order file|Scripts/test_sfl_drives_from_order_file.sh|pre|
-step table|Scripts/test_render_step_table.sh|pre|
-#
-# FBP.sh's own summary and its build-site page count (another estate repository issues
-# #6 and #8): repository-source presentation, like the report scripts above.
-FullBuildAndPush commit-message block|Scripts/test_fbp_commit_message.sh|pre|
-FullBuildAndPush build-site page count|Scripts/test_fbp_build_pagecount.sh|pre|
-FullBuildAndPush aborted run|Scripts/test_fbp_aborted.sh|pre|
-FullBuildAndPush abort exit|Scripts/test_fbp_abort_exit.sh|pre|
-#
-# THE PRIVACY POSTURE (forsgren#1, ladder step 10), at its canon position
-# after the step table, behind the FBP fixtures as in another estate repository. The
-# public page shows numbers and dates only: no forms, no third-party assets
-# (fonts, analytics, CDNs), no cookies or browser storage, no tracking.
-# The gate is coachretreat-website's copy of another estate repository's, adapted only
-# in its default site directory (.build/site); coachretreat's is the copy for
-# a site that declares `privacy pages|n/a`, and its failure text says so,
-# where konenki's points at konenki's own privacy pages. Its self-test is
-# another estate repository's, adapted in one case: konenki checks its committed Site/,
-# forsgren's site is generated and this self-test runs in pre, before the
-# build, so that case builds its own copy into the temp dir and checks it.
-# Self-test in pre, gate in post.
-privacy-posture self-test|Scripts/test_check_privacy_posture.sh|pre|
-privacy posture|Scripts/check_privacy_posture.sh|post|
-#
-# Repository links. Not canon: forsgren's own, a direct consequence of the
-# design rule that the page carries no links into private repositories. Red
-# on any github.com/<owner>/<repo> path in the generated .html or .css (the
-# gate cannot tell private from public, and the page has no reason to point
-# into any repository), and on a site with no .html page. The FAIL line names
-# file:line, never the path, as the data guard does. Its self-test is
-# forsgren's own, with a mutation proof, and sits right before the gate.
-repository-links self-test|Scripts/test_check_repo_links.sh|pre|
-repository links|Scripts/check_repo_links.sh|post|
-#
-# THE COMMUNITY FILES (forsgren#43, #44). Not canon: forsgren's own. Red unless
-# CODE_OF_CONDUCT.md exists at the repository root and names conduct@hanoulle.be,
-# SECURITY.md exists and names the private reporting route, neither has a
-# template placeholder left (any bracket that is not a Markdown link), and
-# README.md links to both outside code. It reads repository files, so it
-# is pre. Self-test right before the gate, with a mutation proof per pattern.
-community-files self-test|Scripts/test_check_community_files.sh|pre|
-community files|Scripts/check_community_files.sh|pre|
-#
-# THE MARKDOWN LINKS (forsgren#147). Not canon: forsgren's own. Red when a
-# relative link in a tracked Markdown file (inline or reference definition,
-# outside code) names no tracked file or directory. It reads repository
-# files, so it is pre. Self-test right before the gate, with a mutation proof
-# per setting.
-markdown-links self-test|Scripts/test_check_markdown_links.sh|pre|
-markdown links|Scripts/check_markdown_links.sh|pre|
-#
-# THE EXIT-TRAP COMPLETION RULE (forsgren#137, found by #136). Not canon: forsgren's own.
-# Red when a script runs under set -e with a top-level EXIT trap and no COMPLETED
-# flag: on bash 3.2 an abort after the trap then exits 0. It reads repository
-# files, so it is pre. Self-test right before the gate, with a mutation proof
-# per pattern.
-exit-trap completion self-test|Scripts/test_check_exit_trap_completion.sh|pre|
-exit-trap completion|Scripts/check_exit_trap_completion.sh|pre|
-exit-trap completion behaviour|Scripts/test_exit_trap_completion_behaviour.sh|pre|
+# zizmor (forsgren#1, ladder step 19). Not canon: another estate repository's gate (its sfl
+# runs it right behind actionlint, as here), so it sits right behind the
+# canon actionlint rows, before shellcheck. actionlint asks whether a
+# workflow is valid, zizmor whether it is safe: template injection, an
+# attacker-controlled ${{ ... }} expanded into a run: block, above all. The
+# self-test is forsgren's own (no repo of the estate has one): each case
+# asserts its reason, a .yaml workflow is read as well as a .yml, a scan over
+# no workflow is red, and two mutation proofs show the severity threshold
+# and the config are what they claim. The gate is another estate repository's, adapted only
+# in its paths (an optional directory argument, default .github), at
+# another estate repository's setting: --offline, --min-severity high, the default persona.
+# Its config, .github/zizmor.yml, suppresses nothing. Repository source, so
+# both run in pre, self-test first.
+zizmor self-test|Scripts/test_check_zizmor.sh|pre|
+zizmor|Scripts/check_zizmor.sh|pre|
 #
 # The privacy pages belong to a site that needs privacy pages: another estate repository
 # serves a privacy policy, and its check_privacy_pages.sh pins that

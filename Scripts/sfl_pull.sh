@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
+# canon: sfl_pull v1
 # Scripts/sfl_pull.sh
-#
-# Ported unchanged from another estate repository 2026-10-01 (forsgren#1).
 #
 # sfl's opening pull is verified before any check runs. A pull that cannot
 # fast-forward is a hard stop, never an auto-rebase — rewriting local commits

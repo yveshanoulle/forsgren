@@ -1,98 +1,55 @@
 #!/usr/bin/env bash
-# check_script_references.sh [repo-root]
+# canon: check_script_references v1
+# Scripts/check_script_references.sh [repo-root]
 #
-# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 13), from its
-# lint/ script directory; "this repo" in the history below means another estate repository.
-# forsgren's changes, each for forsgren's layout or file types:
-#   1. Scope widened to forsgren's own files: besides the executable callers
-#      (.sh, .py, .yml, and .yaml, which forsgren's yamllint also covers), the
-#      FORWARD scan reads the order and tool files (.txt) and the docs (.md).
-#      Yves wanted the guard to catch a dangling path in a doc or an order
-#      file now, not later. A path that names ANOTHER repository's script
-#      says so with that repository as its first component, and is skipped
-#      (see the forward loop); a bare Scripts path is read as forsgren's own.
-#   2. REVERSE callers are the executable files, the .txt order and tool
-#      files (sfl dispatches every gate from the order file, so that row IS
-#      the caller) and CLAUDE.md, where the scripts an agent runs by hand are
-#      declared (forsgren is flat: there is no standalone directory to put
-#      them in). Other prose is still no caller, as in another estate repository.
-#   3. Resolution bases: forsgren runs everything from its root, so the
-#      only base is the root; another estate repository's per-module bases do not exist here.
-#      Leading dashes are stripped before resolving, so a default argument
-#      written as a parameter expansion with a fallback is still checked.
-#   4. The CLIMB ban is NOT ported: forsgren is flat, and every script finds
-#      its root one level up by design. Yves ruled on it on forsgren#1
-#      (step 15):
-#        "Ruling (Yves, 2026-10-01): climb ban — N/A for forsgren, with a
-#         flat-folder guard."
-#        "This exception is valid only while `Scripts/` remains flat. The
-#         script-reference gate must reject scripts in subdirectories.
-#         Introducing a script below `Scripts/*/` requires revisiting this
-#         ruling before that structure is accepted."
-#      So this gate ENFORCES flatness (the FLAT check below): a script (.sh
-#      or .py, the scripts this gate knows) one folder or more below
-#      Scripts/ is red. A subfolder of scripts means revisiting the ruling
-#      first, not widening this check. Data files in a subfolder are not
-#      scripts, run nothing, and stay allowed.
-#   5. Red on zero: a run that scanned no file, or extracted no Scripts
-#      reference at all, is red and says so. Nothing scanned is not clean.
-#   6. Findings carry the estate's red-cross marker, so sfl's failure summary
-#      quotes them, and the root defaults to the repository's top level, not
-#      to the working directory.
-#   7. The case-sensitive listing is a glob instead of ls piped into grep, for
-#      forsgren's shellcheck gate (see resolves_case_sensitively).
+# The script-references gate, byte-identical across the
+# estate's repositories. A two-way integrity check over the scripts, so that a
+# moved file or a renamed script is loud instead of silently skipping a gate.
 #
-# Two-way integrity check over the repo's script directories. Written before
-# the Scripts/ reorganisation (2026-08-17) so the move has a detector rather
-# than a hope: a file moved without its callers updated, or a caller pointed at
-# a path that no longer exists, fails here instead of silently skipping a gate.
+# FORWARD  - every Scripts path named by a scanned file resolves to a file on
+#            disk, CASE-SENSITIVELY (macOS forgives a lower-cased spelling;
+#            GitHub path filters do not). Scanned: .sh, .py, .yml, .yaml, the
+#            order and tool files (.txt) and the docs (.md), comments
+#            included: a dangling path in a comment or a doc is the "we will
+#            forget later" this catches now. A path that names ANOTHER
+#            repository's script says so with that repository as its first
+#            component and is skipped; a bare Scripts path is this repository's
+#            own. Fixture files (test_*) are not scanned forward: they name
+#            deliberately missing paths as inputs. A leading ./ or ../ run, and
+#            the dashes of a parameter-expansion fallback, are stripped before
+#            resolving.
+# REVERSE  - every script under Scripts/ is named by at least one caller other
+#            than itself: an executable file, an order or tool file (sfl
+#            dispatches every gate from the order file, so that row IS the
+#            caller), a fixture, or CLAUDE.md where one exists. Other prose is
+#            no caller. A script that names only itself is an orphan.
+# FLAT     - no script (.sh or .py) sits below Scripts/*/. Every script finds
+#            the repository root one level up, so a script one folder down
+#            would reach a different directory with the same step. Data files
+#            in a subfolder run nothing and stay allowed.
 #
-# FORWARD  — every Scripts path mentioned by a scanned file resolves to a
-#            file on disk, CASE-SENSITIVELY. Catches "moved the script, missed
-#            a reference", and a lower-cased spelling the filesystem forgives.
-# REVERSE  — every script under a script directory is mentioned by at least one
-#            caller other than itself. Catches "moved the caller's reference,
-#            orphaned the script" and, incidentally, genuinely dead scripts.
-#
-# Fixture files are excluded from the FORWARD scan: they build temp trees and
-# name deliberately-nonexistent paths as their inputs, so
-# scanning them reports the guard's own test data as broken references. They
-# still count as CALLERS for the reverse check, which is what keeps a fixture's
-# subject from looking unreferenced.
-#
-# A path resolves if it exists as written, OR with a leading ./ or ../ run
-# stripped. Resolution keeps the guard about existence rather than about each
-# relative path.
-#
-# The scan reads a path with subdirectories in it (Scripts/<owner>/<file>).
-# It did not until 2026-08-17: the match was one segment after Scripts/, so
-# every reference the reorganisation rewrote fell out of scope unseen. The
-# guard did not go red, it went quiet — five subdirectories' worth of
-# references were unchecked while it reported OK.
+# Red on zero: a run that scanned no file, or extracted no Scripts reference
+# at all, is red and says so. Findings carry the red-cross marker, so sfl's
+# failure summary quotes them. The root defaults to the repository's top level.
 #
 # Concrete example paths are deliberately absent from this header: the forward
-# scan reads every scanned file including this one, and a doc example that
-# looks like a path is reported as a broken reference. It has no way to tell an
+# scan reads every scanned file including this one, and an example that looks
+# like a path is reported as a broken reference. It cannot tell an
 # illustration from a call, which is the correct behaviour.
 #
-# Fixture: Scripts/test_check_script_references.sh.
+# Fixture: Scripts/test_check_script_references.sh. The lines its mutation
+# proofs replace start at column 0 or are named there.
 set -uo pipefail
 
 ROOT="${1:-$(cd "$(dirname "$0")" && git rev-parse --show-toplevel)}"
 cd "$ROOT" || exit 2
 
-# The one script hierarchy, flat in forsgren.
+# The one script hierarchy, flat.
 SCRIPT_DIRS="Scripts"
 
-# Scripts run by hand, by design. They have no automated caller and are not
-# meant to gain one, so the reverse check would otherwise be red on arrival.
-#
-# The DIRECTORY is the declaration in another estate repository: a hand-run script in
-# Scripts/standalone is exempt from the reverse check. In forsgren that
-# directory is a subfolder, so the FLAT check (change 4) makes any script in
-# it red; the exemption is kept as ported and is dormant until the ruling is
-# revisited. forsgren declares its hand-run scripts in CLAUDE.md instead (see
-# change 2 above).
+# Scripts run by hand, by design, would sit in a standalone directory. Scripts/
+# is kept flat (the FLAT check below), so that directory is itself red; the
+# exemption is dormant and kept so a deliberate change of the rule is one line.
 STANDALONE_DIR="Scripts/standalone"
 
 # PERFORMANCE: both directions are driven by ONE tree scan each. The first
@@ -105,7 +62,7 @@ scanned="$(find . -type f \( -name '*.sh' -o -name '*.py' -o -name '*.yml' -o -n
   2>/dev/null | sort)"
 
 # Callers for the reverse check: every scanned file except prose, with
-# CLAUDE.md as the one prose caller (see change 2 above).
+# CLAUDE.md as the one prose caller.
 callers="$(printf '%s\n' "$scanned" | grep -vE '\.md$')"
 if [ -f ./CLAUDE.md ]; then
   callers="$(printf '%s\n%s\n' "$callers" ./CLAUDE.md | grep -v '^$')"
@@ -128,10 +85,9 @@ fi
 # the same spelling in a workflow `paths:` entry matches nothing while looking
 # entirely correct.
 #
-# forsgren: the directory listing is a glob, not another estate repository's ls piped into
-# grep (shellcheck SC2010, a warning forsgren's shellcheck gate is red on). A
-# glob expands to the names as the directory stores them, and the test
-# compares them case-sensitively, so the check is the same.
+# The directory listing is a glob, not ls piped into grep (shellcheck SC2010).
+# A glob expands to the names as the directory stores them, and the test
+# compares them case-sensitively.
 has_entry_verbatim() {
   local entry
   for entry in "$1"/* "$1"/.*; do
@@ -196,7 +152,7 @@ for ref in $refs; do
   # ANOTHER repository's script names that repository as its first
   # component, and is not ours to verify. Only a first component that is not
   # the script directory itself and does not exist here reads that way; a
-  # path under a directory forsgren has is checked like any other.
+  # path under a directory this repository has is checked like any other.
   first="${stripped%%/*}"
   case "$first" in
     [Ss][Cc][Rr][Ii][Pp][Tt][Ss]) ;;
@@ -263,16 +219,15 @@ unreferenced="$(printf '%s\n' "$scripts" \
 
 if [ -n "$unreferenced" ]; then
   for u in $unreferenced; do
-    echo "❌ UNREFERENCED SCRIPT: ${u} — no caller mentions it (an executable file, an order or tool file, or CLAUDE.md)" >&2
+    echo "❌ UNREFERENCED SCRIPT: ${u} — no caller mentions it (an executable file, a fixture, an order or tool file, or CLAUDE.md)" >&2
   done
   status=1
 fi
 
-# ---------- FLAT: no script below Scripts/*/ (forsgren#1, change 4) ----------
-# The climb-ban exception holds only while Scripts/ is flat: every script
-# reaches the root with one fixed step up. A script one folder down would
-# reach a different directory with the same step, which is the relocation
-# risk the ban exists for in another estate repository.
+# ---------- FLAT: no script below Scripts/*/ ----------
+# Every script reaches the root with one fixed step up, which holds only while
+# Scripts/ is flat. A script one folder down would reach a different directory
+# with the same step.
 nested_scripts=""
 if [ -d Scripts ]; then
   nested_scripts="$(find Scripts -mindepth 2 -type f \( -name '*.sh' -o -name '*.py' \) \
@@ -280,7 +235,7 @@ if [ -d Scripts ]; then
 fi
 if [ -n "$nested_scripts" ]; then
   for n in $nested_scripts; do
-    echo "❌ SCRIPT IN SUBFOLDER: ${n} — scripts must sit directly under Scripts/ — the climb-ban exception holds only while Scripts/ is flat; see forsgren#1" >&2
+    echo "❌ SCRIPT IN SUBFOLDER: ${n} — scripts must sit directly under Scripts/ — every script finds the root one level up, which holds only while Scripts/ is flat" >&2
   done
   status=1
 fi

@@ -1,18 +1,27 @@
 #!/usr/bin/env bash
+# canon: check_workflow_triggers v1
 # Scripts/check_workflow_triggers.sh
 #
-# The workflow-trigger gate (forsgren#1, ladder step 16). Not canon:
-# forsgren's own, no repo of the estate has it.
+# The workflow-trigger gate, byte-identical across the
+# estate's repositories.
 #
-# THE RULE (Yves's ruling on forsgren#1): a workflow with a job on a
-# self-hosted runner never triggers on a pull-request event. On such a
-# trigger a pull request from a fork runs its own code on that runner, a
-# machine someone keeps, once the repository is public. On a GitHub-hosted
-# runner it runs on a machine thrown away after the job, which is why
-# quality.yml and dco.yml may trigger on pull_request.
-# Scripts/test_quality_trigger_scope.sh pins the shape quality.yml must have
-# (push to and pull_request into main, by hand, on macos-latest); this gate
-# bans the one shape no workflow here may have, whatever the file.
+# THE RULE: a workflow with a job on a self-hosted runner never triggers on a
+# pull-request event. On such a trigger a pull request from a fork runs its own
+# code on that runner, a machine someone keeps, once the repository is public.
+# On a GitHub-hosted runner it runs on a machine thrown away after the job.
+# Scripts/test_quality_trigger_scope.sh pins the shape quality.yml must have;
+# this gate bans the one shape no workflow may have, whatever the file, except
+# where a row of the exceptions file says otherwise.
+#
+# EXCEPTIONS are data, never edited copies: Scripts/workflow_trigger_exceptions.txt,
+# one row per workflow file and event, workflow|event|reason. The reason is
+# required (why the trigger stays, and the issue that makes it safe); a row
+# without one is red. An exception covers exactly that file and that event: a
+# NEW pull-request event in the same file, or the same event in another file,
+# is a finding again. A row that excuses nothing (the trigger is gone, or the
+# job moved to a hosted runner) is red too, so an exception cannot outlive its
+# reason. A missing exceptions file is exit 2; a repository with none keeps the
+# file with comments only.
 #
 # Pull-request events: pull_request and pull_request_target, the two the
 # ruling names, plus pull_request_review and pull_request_review_comment.
@@ -32,8 +41,7 @@
 # workflow that needs one says so here first.
 #
 # READ WITH AWK, NOT A YAML PARSER, on purpose, as
-# Scripts/test_quality_trigger_scope.sh and another estate repository's lib_workflow_job.sh
-# do. PyYAML is a Python module, not a command, so
+# Scripts/test_quality_trigger_scope.sh does. PyYAML is a Python module, not a command, so
 # Scripts/required_tools.txt (commands only) cannot declare it and
 # Scripts/install_tools.sh cannot install it, and a gate that dies on a
 # missing module on another Mac or on a fresh hosted runner has stopped
@@ -52,10 +60,11 @@
 #     keys sit one level deeper (the indent of its first key). runs-on is read
 #     at that level: inline, or as the block lines under it.
 #
-# Usage: Scripts/check_workflow_triggers.sh [workflows-dir]
+# Usage: Scripts/check_workflow_triggers.sh [workflows-dir [exceptions-file]]
 #        (default: .github/workflows; the *.yml and *.yaml files directly in
 #        it, the only ones GitHub runs)
-# Exit: 0 clean, 1 a finding or a scan over nothing, 2 dir missing.
+# Exit: 0 clean, 1 a finding, a bad or unused exception row, or a scan over
+# nothing, 2 workflows dir or exceptions file missing.
 # Fixture: Scripts/test_check_workflow_triggers.sh.
 
 set -uo pipefail
@@ -63,6 +72,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
 DIR="${1:-.github/workflows}"
+EXCEPTIONS="${2:-Scripts/workflow_trigger_exceptions.txt}"
 
 # The pull-request events, one alternation for grep -xE. The row starts at
 # column 0 with PR_EVENTS=: Scripts/test_check_workflow_triggers.sh's mutation
@@ -77,6 +87,38 @@ if [ ! -d "$DIR" ]; then
   echo "❌ FAIL: workflows dir not found: ${DIR}"
   exit 2
 fi
+if [ ! -f "$EXCEPTIONS" ]; then
+  echo "❌ FAIL: exceptions file not found: ${EXCEPTIONS} (keep it with comments only when there is no exception)"
+  exit 2
+fi
+
+# The exception rows, workflow|event|reason. EXC_ROWS holds the valid ones; a
+# row with a missing field or an empty reason is a finding. Strings, not
+# arrays: an empty array under set -u is fatal on bash 3.2.
+EXC_ROWS=""
+EXC_USED=""
+findings=0
+while IFS= read -r row; do
+  case "$row" in ''|\#*) continue ;; esac
+  IFS='|' read -r ex_name ex_event ex_reason <<<"$row"
+  ex_has_reason="$(printf '%s' "${ex_reason:-}" | tr -d '[:space:]')"
+  if [ -z "${ex_name:-}" ] || [ -z "${ex_event:-}" ] || [ -z "$ex_has_reason" ]; then
+    echo "❌ FAIL: ${EXCEPTIONS}: bad row '${row}' — wanted workflow|event|reason, with a reason"
+    findings=$((findings + 1))
+    continue
+  fi
+  EXC_ROWS="${EXC_ROWS}${ex_name}|${ex_event}|${ex_reason}"$'\n'
+done < "$EXCEPTIONS"
+
+# excepted <workflow> <event> — 0 when a row covers exactly this file and event.
+excepted() {
+  awk -F'|' -v n="$1" -v e="$2" '$1 == n && $2 == e { f = 1 } END { exit !f }' <<<"$EXC_ROWS"
+}
+
+# exception_reason <workflow> <event> — the row's reason.
+exception_reason() {
+  awk -F'|' -v n="$1" -v e="$2" '$1 == n && $2 == e { print $3; exit }' <<<"$EXC_ROWS"
+}
 
 # trigger_events <file> — the pull-request events its `on:` section names,
 # one per line; NO_ON_KEY when the file has no `on:` key at column 0.
@@ -170,7 +212,6 @@ if [ "${#files[@]}" -eq 0 ]; then
   exit 1
 fi
 
-findings=0
 selfhosted_files=""
 for wf in "${files[@]}"; do
   name="$(basename "$wf")"
@@ -194,7 +235,6 @@ for wf in "${files[@]}"; do
 
   [ -n "$events" ] || continue
   [ -n "$not_hosted" ] || continue
-  event_list="$(printf '%s\n' "$events" | paste -sd, - | sed 's/,/, /g')"
   while IFS=$'\t' read -r job ro; do
     [ -n "$job" ] || continue
     case "$ro" in
@@ -202,10 +242,27 @@ for wf in "${files[@]}"; do
       NONE) runner="no runs-on this gate could read" ;;
       *)    runner="runs-on ${ro}" ;;
     esac
-    echo "❌ FAIL: ${name}: triggers on ${event_list} and job '${job}' has ${runner}, not a GitHub-hosted image label — a pull request from a fork would run its own code on the self-hosted runner. Remove the trigger (forsgren#1: never on a workflow with a self-hosted job)."
-    findings=$((findings + 1))
+    while IFS= read -r event; do
+      [ -n "$event" ] || continue
+      if excepted "$name" "$event"; then
+        EXC_USED="${EXC_USED}${name}|${event}"$'\n'
+        echo "excepted: ${name}: ${event} with job '${job}' (${runner}) — $(exception_reason "$name" "$event")"
+        continue
+      fi
+      echo "❌ FAIL: ${name}: triggers on ${event} and job '${job}' has ${runner}, not a GitHub-hosted image label — a pull request from a fork would run its own code on the self-hosted runner. Remove the trigger, or record an exception row with its reason in ${EXCEPTIONS}."
+      findings=$((findings + 1))
+    done <<<"$events"
   done <<<"$not_hosted"
 done
+
+# An exception row nothing used excuses nothing: red.
+while IFS='|' read -r ex_name ex_event ex_reason; do
+  [ -n "$ex_name" ] || continue
+  if ! grep -qxF -- "${ex_name}|${ex_event}" <<<"$EXC_USED"; then
+    echo "❌ FAIL: ${EXCEPTIONS}: ${ex_name}|${ex_event} excuses no finding — the trigger is gone or its job is on a hosted runner; remove the row"
+    findings=$((findings + 1))
+  fi
+done <<<"$EXC_ROWS"
 
 if [ "$findings" -ne 0 ]; then
   echo ""
@@ -213,5 +270,5 @@ if [ "$findings" -ne 0 ]; then
   exit 1
 fi
 
-echo "✅ workflow triggers: ${#files[@]} workflow file(s) in ${DIR}; none runs a job off GitHub-hosted runners on a pull-request event (self-hosted or unproven runners in:${selfhosted_files:- none})"
+echo "✅ workflow triggers: ${#files[@]} workflow file(s) in ${DIR}; no unexcused pull-request event reaches a job off GitHub-hosted runners (self-hosted or unproven runners in:${selfhosted_files:- none}; exceptions used: $(printf '%s' "$EXC_USED" | grep -c . || true))"
 exit 0

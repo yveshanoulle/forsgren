@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+# canon: test_check_node_pin v1
 # Scripts/test_check_node_pin.sh
 #
-# Self-test for Scripts/check_node_pin.sh (forsgren#2), run before the gate it
+# Self-test for Scripts/check_node_pin.sh, run before the gate it
 # validates. A stub `node` printing $NODE_VERSION stands in for the real one;
 # the gate runs from a copy of Scripts/ in a throwaway tree with its own pin.
 #   1. running major equals the pin           -> green

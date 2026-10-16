@@ -1,27 +1,44 @@
 #!/usr/bin/env bash
+# canon: gate_stylelint v1
 # Scripts/gate_stylelint.sh
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# Stylelint gate — unit 409 step 3. Wrapper, same reason as gate_htmlhint.sh:
-# the order file names a path, not a command line with a quoted glob in it.
+# Stylelint gate. Wrapper, same reason as gate_htmlhint.sh: the order file names
+# a path, not a command line with a quoted glob in it.
 #
-# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 8). The one
-# change: the default site directory is .build/site, where
-# Scripts/build_site.sh renders the site; forsgren commits no generated
-# output. The argument stays, so a caller can lint another build.
-# A glob that matches nothing is already red here (stylelint's
-# NoFilesFoundError). Self-test: Scripts/test_gate_stylelint.sh.
+# The canon version, byte-identical across the estate's repositories
+# What differs per repository is DATA:
+#   1. The default site directory is the site_dir of Scripts/site_settings.txt,
+#      read through Scripts/lib_site_settings.sh. A missing or invalid settings
+#      file is exit 2, never a guessed default. The argument stays, so a caller
+#      can lint another directory.
+#   2. A missing site directory is exit 2.
+#   3. A glob that matches nothing is red (stylelint's NoFilesFoundError, exit 1,
+#      "No files matching the pattern"); the gate does not soften it.
+#   4. CHECK-ONLY by default. Only GATE_FIX=1 adds --fix. sfl.sh exports it, so
+#      FullBuildAndPush fixes what stylelint can fix; CI never sets it, so CI
+#      reports what the commit CONTAINS and never changes a file.
 #
-# Usage: gate_stylelint.sh [site-dir]  (default: .build/site)
+# Self-test: Scripts/test_gate_stylelint.sh.
+#
+# Usage: gate_stylelint.sh [site-dir]  (default: site_dir from site_settings.txt)
 
-SITE_DIR="${1:-.build/site}"
+SITE_DIR="${1:-}"
+if [[ -z "$SITE_DIR" ]]; then
+  # shellcheck source=Scripts/lib_site_settings.sh
+  source Scripts/lib_site_settings.sh
+  SITE_DIR="$(site_settings_get Scripts/site_settings.txt site_dir)" || exit 2
+fi
 
 if [[ ! -d "$SITE_DIR" ]]; then
   echo "stylelint: site dir not found: $SITE_DIR" >&2
   exit 2
 fi
 
+if [[ "${GATE_FIX:-}" == "1" ]]; then
+  exec node_modules/.bin/stylelint --fix "${SITE_DIR}/**/*.css"
+fi
 exec node_modules/.bin/stylelint "${SITE_DIR}/**/*.css"

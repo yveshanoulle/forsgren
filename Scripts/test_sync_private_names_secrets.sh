@@ -257,6 +257,111 @@ holds "a failing Actions secret exits 1, says so, and skips the Dependabot call"
 holds "a failing Dependabot secret exits 1 and says so" case_dependabot_fails
 holds "the output never holds a name (success and every failure path)" case_output_has_no_name
 
+# --- the EXTRA list: synced into FORSGREN_PRIVATE_NAMES_EXTRA when the file is
+# there, untouched when it is not. The file is FORSGREN_PRIVATE_NAMES_EXTRA_FILE,
+# else $HOME/.config/forsgren/private-names-extra/<origin basename>. Calls 3
+# and 4 are its Actions and Dependabot secrets.
+NAME_X="initech-vault"
+EXTRA_FILE="${TMP}/extra-file"
+printf '%s\n%s\n' "$COMMENT" "$NAME_X" > "$EXTRA_FILE"
+
+# run_sync_extra <script> <extra file> [fail-on]: the shared list from the names
+# file, the extra list from <extra file>.
+run_sync_extra() {
+  rm -f "${GH_LOG}"/args-* "${GH_LOG}"/stdin-*
+  capture env -u FORSGREN_PRIVATE_NAMES HOME="${TMP}/empty-home" \
+    FORSGREN_PRIVATE_NAMES_FILE="$NAMES_FILE" FORSGREN_PRIVATE_NAMES_EXTRA_FILE="$2" \
+    GH_LOG="$GH_LOG" GH_FAIL_ON="${3:-}" PATH="${FAKE_BIN}:${PATH}" "$1"
+}
+
+# no_extra_name_in_output: the output holds no name of the extra list either.
+no_extra_name_in_output() {
+  ! grep -qiF -e "$NAME_A" -e "$NAME_B" -e "$NAME_X" <<< "$OUT"
+}
+
+# case_extra_present <script>
+case_extra_present() {
+  run_sync_extra "$1" "$EXTRA_FILE"
+  if [[ "$RC" != "0" ]]; then
+    REASON="a sync with an extra file exited ${RC}. Output: ${OUT}"
+  elif [[ "$(calls)" != "4" ]]; then
+    REASON="a sync with an extra file made $(calls) gh calls, not 4"
+  elif ! call_has_args 3 "secret set FORSGREN_PRIVATE_NAMES_EXTRA -R yveshanoulle/forsgren" \
+    || ! call_has_args 4 "secret set FORSGREN_PRIVATE_NAMES_EXTRA --app dependabot -R yveshanoulle/forsgren"; then
+    REASON="gh calls 3 and 4 are not the extra Actions and Dependabot secrets: $(cat "${GH_LOG}"/args-* | tr '\n' ';')"
+  elif [[ "$(cat "${GH_LOG}/stdin-3")" != "$NAME_X" || "$(cat "${GH_LOG}/stdin-4")" != "$NAME_X" ]]; then
+    REASON="the extra secrets did not get exactly the extra name on stdin"
+  elif ! call_stdin_is_names 1 || ! call_stdin_is_names 2; then
+    REASON="the shared secrets no longer get exactly the two shared names"
+  elif ! no_extra_name_in_output; then
+    REASON="the output of an extra sync holds a name. Output: ${OUT}"
+  else
+    return 0
+  fi
+  return 1
+}
+
+# case_extra_absent <script>: no extra file, the extra secret is never touched.
+case_extra_absent() {
+  run_sync_extra "$1" "${TMP}/no-such-extra-file"
+  if [[ "$RC" != "0" ]]; then
+    REASON="a sync without an extra file exited ${RC}. Output: ${OUT}"
+  elif [[ "$(calls)" != "2" ]]; then
+    REASON="a sync without an extra file made $(calls) gh calls, not 2"
+  elif grep -qF "EXTRA" "${GH_LOG}"/args-*; then
+    REASON="a sync without an extra file touched the extra secret"
+  else
+    return 0
+  fi
+  return 1
+}
+
+# case_extra_unreadable <script>: exit 2 before any gh call.
+case_extra_unreadable() {
+  local file="${TMP}/unreadable-extra-file"
+  cp "$EXTRA_FILE" "$file"
+  chmod 000 "$file"
+  run_sync_extra "$1" "$file"
+  chmod 644 "$file"
+  if [[ "$RC" != "2" ]]; then
+    REASON="an unreadable extra file exited ${RC}, not 2. Output: ${OUT}"
+  elif ! grep -qF "cannot be read" <<< "$OUT" || grep -qF "Permission denied" <<< "$OUT"; then
+    REASON="an unreadable extra file gave no clean FAIL line. Output: ${OUT}"
+  elif [[ "$(calls)" != "0" ]]; then
+    REASON="an unreadable extra file still made $(calls) gh call(s)"
+  else
+    return 0
+  fi
+  return 1
+}
+
+# case_extra_actions_fails <script>: the extra Actions call (3) fails.
+case_extra_actions_fails() {
+  run_sync_extra "$1" "$EXTRA_FILE" 3
+  if [[ "$RC" != "1" ]]; then
+    REASON="a failing extra Actions secret exited ${RC}, not 1. Output: ${OUT}"
+  elif ! grep -qF "Actions secret FORSGREN_PRIVATE_NAMES_EXTRA" <<< "$OUT"; then
+    REASON="a failing extra Actions secret gave no FAIL line naming it. Output: ${OUT}"
+  elif [[ "$(calls)" != "3" ]]; then
+    REASON="after the extra Actions failure there were $(calls) gh calls, not 3"
+  elif ! no_extra_name_in_output; then
+    REASON="a failing extra secret printed a name. Output: ${OUT}"
+  else
+    return 0
+  fi
+  return 1
+}
+
+if [[ ! -f "${TMP}/empty-home/.keep" ]]; then mkdir -p "${TMP}/empty-home"; fi
+holds "an extra file is synced into the extra Actions and Dependabot secrets, the shared ones unchanged" case_extra_present
+holds "no extra file leaves the extra secret untouched (two gh calls)" case_extra_absent
+if [[ "$(id -u)" -eq 0 ]]; then
+  echo "  skip: an unreadable extra file exits 2: running as root, which reads a mode 000 file"
+else
+  holds "an unreadable extra file exits 2 before any gh call" case_extra_unreadable
+fi
+holds "a failing extra Actions secret exits 1, says so and skips the extra Dependabot call" case_extra_actions_fails
+
 # mutation_proof <label> <sed-expression> <case function>: a mutant of the
 # script that breaks the behaviour must NOT hold the case, so the case can fail.
 MUTANT_N=0
@@ -291,6 +396,11 @@ mutation_proof "a script that echoes the names on success" \
   "s/^echo \"OK: synced/echo \"\$PRIVATE_NAMES\"; echo \"OK: synced/" case_output_has_no_name
 mutation_proof "a script that echoes the names in its FAIL line" \
   "s/could not set the \${kind} secret \${SECRET}/could not set \${PRIVATE_NAMES}/" case_output_has_no_name
+
+mutation_proof "a script that syncs the extra secret although the file is absent" \
+  "s/^if \\[\\[ -n \"\\\$EXTRA_FILE\" && -e \"\\\$EXTRA_FILE\" \\]\\]; then\$/if true; then/" case_extra_absent
+mutation_proof "a script that never syncs the extra list" \
+  "s/^if \\[\\[ -n \"\\\$EXTRA_FILE\" && -e \"\\\$EXTRA_FILE\" \\]\\]; then\$/if false; then/" case_extra_present
 
 selftest_end "the secret sync does not hold its success and failure paths" \
   "secret sync sets FORSGREN_PRIVATE_NAMES for Actions and Dependabot from the names file, comments dropped, names on stdin; fails safe, without printing a name"

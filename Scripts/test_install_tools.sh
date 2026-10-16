@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
+# canon: test_install_tools v1
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# Fixture for Scripts/install_tools.sh — unit 414.
+# Fixture for Scripts/install_tools.sh.
 #
-# Yves, 2026-09-01, reading the sfl.sh comment that said this repo installs
-# nothing: *"other sfls do install using brew … we should have an install.sh
-# that does the installers and reuse the same everywhere."* The reason this repo
-# installed nothing only ever covered the npm linters, which are pinned
-# devDependencies on purpose. It never covered gitleaks, shellcheck, yamllint or
-# actionlint, which were simply assumed to be on the machine.
+# The gates shell out to Homebrew tools (the list is Scripts/required_tools.txt).
+# A machine that lacks one must get it installed, or a failure naming it, and
+# never a gate that runs against nothing.
 #
 # THE SEAM IS `BREW`. The installer never runs Homebrew here: the fixture puts a
 # stub on the path that records what it was asked to do and, for `install`,
@@ -20,8 +18,14 @@ cd "$(dirname "$0")/.."
 #
 # Runs from sfl.sh; CI parity via quality.yml. Local:
 #   ./Scripts/test_install_tools.sh
+#
+# MUTATION PROOF, at the end: the cases run against weakened copies of the
+# installer (a missing tool not reported, no upgrade, comments read as tools),
+# and each copy must be red. The script under test is the optional first
+# argument; without one it is the real installer and the mutation proof runs.
 
-SCRIPT_UNDER_TEST="./Scripts/install_tools.sh"
+SCRIPT_UNDER_TEST="${1:-./Scripts/install_tools.sh}"
+SELF="${PWD}/Scripts/test_install_tools.sh"
 TMP="$(mktemp -d)"
 
 COMPLETED=0
@@ -38,7 +42,7 @@ failed=0
 fail() { echo "❌ FAIL: $*"; failed=1; }
 
 if [ ! -x "$SCRIPT_UNDER_TEST" ]; then
-  fail "${SCRIPT_UNDER_TEST} is missing or not executable — the estate's installer does not exist yet"
+  fail "${SCRIPT_UNDER_TEST} is missing or not executable — the installer does not exist yet"
   COMPLETED=1
   exit 1
 fi
@@ -141,7 +145,7 @@ fi
 # --- an empty list ---------------------------------------------------------
 #
 # NON-VACUITY. A list that has quietly become empty must not read as "all tools
-# present". It is the same failure the estate's grant audit had: an enumeration
+# present". It is the same failure a past grant audit had: an enumeration
 # that returned nothing, reported as nothing wrong.
 run_case '# nothing but a comment
 ' empty
@@ -170,6 +174,28 @@ if [ "${real_count:-0}" -lt 1 ]; then
   fail "Scripts/required_tools.txt declares no tools — sfl would install nothing and say so cheerfully"
 else
   echo "OK:   the repo declares ${real_count} required tools"
+fi
+
+# --- Mutation proof: weakened copies of the installer must be red here.
+if [ $# -eq 0 ]; then
+  mutant_must_fail() { # <label> <sed-expression>
+    local dir="$TMP/mutant-$RANDOM" m
+    mkdir -p "$dir/Scripts"
+    m="$dir/Scripts/install_tools.sh"
+    sed "$2" "$SCRIPT_UNDER_TEST" > "$m"
+    chmod +x "$m"
+    if cmp -s "$SCRIPT_UNDER_TEST" "$m"; then
+      fail "mutation '$1' changed nothing: it proves nothing"; return
+    fi
+    if "$SELF" "$m" >/dev/null 2>&1; then
+      fail "mutation '$1' PASSED this fixture: the cases do not guard it"
+    else
+      echo "OK:   mutation '$1' is red"
+    fi
+  }
+  mutant_must_fail "a tool still missing after install is not reported" 's/^    missing=.*/    :/'
+  mutant_must_fail "an installed tool is not upgraded" 's/ upgrade / true /'
+  mutant_must_fail "comments are read as tool names" '/%%#/d'
 fi
 
 COMPLETED=1

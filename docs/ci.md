@@ -250,7 +250,7 @@ What had to be set up once, on the repository and not in a file:
 tracked files and script references read every tracked file, so a filter
 on paths would leave some change that runs no gate.
 
-Eight PRE gates keep the CI honest:
+Nine PRE gates keep the CI honest:
 
 - **gate wiring** (`Scripts/test_gate_wiring.sh`, another estate repository's,
   adapted): every runnable row of the order file has phase `pre` or `post`
@@ -258,10 +258,15 @@ Eight PRE gates keep the CI honest:
   PRE, the build and POST in that order; `sfl.sh` and
   `Scripts/run_ci_phase.sh` read a row with the same rules; every script
   that no row names is a declared exemption with the runner it must still
-  be run by. It also runs `run_ci_phase.sh` itself, over the real order
-  file with a stub at every declared path (each row must run exactly once,
-  in its own phase, in file order) and over made-up order files (failures,
-  the secret-class exit, the tree check, a phase with no row).
+  be run by. It holds the gate-count ratchet: `MIN_GATES` is the number of
+  rows of the order file (n/a rows included), it may only go up, and a
+  self-proof removes one row and requires the count to fall under it.
+- **CI phase runner** (`Scripts/test_run_ci_phase.sh`, the estate canon):
+  runs `Scripts/run_ci_phase.sh` over the real order file with a stub at
+  every declared path (each row must run exactly once, in its own phase, in
+  file order) and over made-up order files (failures, the secret-class exit,
+  malformed rows, a missing or non-executable script, the tree check, a
+  phase with no row), and against weakened copies of the runner.
 - **quality trigger scope** (`Scripts/test_quality_trigger_scope.sh`): the
   workflow runs on every push to `main` and every `pull_request` into it,
   neither with a `paths` or `paths-ignore` filter, never on

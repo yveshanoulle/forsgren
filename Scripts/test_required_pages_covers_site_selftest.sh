@@ -1,16 +1,12 @@
 #!/usr/bin/env bash
+# canon: test_required_pages_covers_site_selftest v1
 # Scripts/test_required_pages_covers_site_selftest.sh
 #
 # Self-test for Scripts/test_required_pages_covers_site.sh, the "manifest
-# covers site" post gate (forsgren#1, ladder step 9), run in PRE before the
-# gate it validates.
-#
-# NEW IN forsgren. No repo of the estate has a self-test for this gate: there
-# it runs unvalidated against the one real site, so a gate that stopped
-# reading the manifest, or a site directory that went empty, would sit green.
-# forsgren's rule is that a ported gate comes with its fixtures, seen green,
-# plus one mutation seen red, so this file is forsgren's own. (The gate's own
-# name already starts with test_, hence the _selftest suffix here.)
+# covers site" post gate, run in PRE before the gate it
+# validates. The gate's own name already starts with test_, hence the
+# _selftest suffix here. A gate that stopped reading the manifest, or a site
+# directory that went empty, would otherwise sit green on the one real site.
 #
 # Every case builds a throwaway site and manifest and passes both as the
 # gate's arguments; nothing here reads .build/site.
@@ -20,17 +16,25 @@
 #   4. a site directory that does not exist         -> red, "not found"
 #   5. a site directory with no .html in it         -> red, "no .html page"
 #   6. a manifest that does not exist               -> red, "not found"
-#   7. pages in subfolders, declared as /dir/       -> green (forsgren#46)
+#   7. pages in subfolders, declared as /dir/       -> green 
 #   8. a subfolder page that is not declared        -> red, naming the page
 #   9. a subfolder page declared but not generated  -> red, naming the path
-#  10. the site directory given with a trailing /  -> green (forsgren#46),
-#      as green as without it, as in Scripts/check_html_dupl_site.sh
+#  10. the site directory given with a trailing /  -> green
+#  11. a page listed in the exclusions file           -> green, skipped by name
+#  12. an exclusions file that does not exist         -> red, "not found"
+#  13. an exclusion row without a reason              -> red, naming the line
 # Mutation proofs:
 #   A. case 5 against a copy of the gate without its zero-pages check must
 #      lose the "no .html page" reason, so that reason comes from that check
 #      (the copy still exits 1, silently: see the gate's header);
 #   B. case 4 against a copy of the gate without its site-directory check
-#      must lose the "not found" reason, so that reason comes from that check.
+#      must lose the "not found" reason, so that reason comes from that check;
+#   C. case 2 against a copy of the gate that never reds an undeclared page
+#      must exit 0;
+#   D. case 3 against a copy of the gate that never reds a declared page that
+#      does not exist must exit 0;
+#   E. case 11 against a copy of the gate that ignores the exclusions file
+#      must be red, so the page is skipped BECAUSE of its row.
 
 set -euo pipefail
 
@@ -60,15 +64,20 @@ new_manifest() {
   printf '%s\n' "$2" > "$MANIFEST"
 }
 
-# run_gate <gate> <site> <manifest> — sets RC and OUT.
+# run_gate <gate> <site> <manifest> [exclusions] — sets RC and OUT. Without an
+# exclusions argument the gate reads the repository's own file.
 run_gate() {
-  capture "$1" "$2" "$3"
+  capture "$1" "$2" "$3" ${4:+"$4"}
 }
 
-# mutant <name> <sed-expression> — a copy of the gate with one check removed;
-# MUTANT is its path. Refuses a sed that changed nothing.
+# mutant <name> <sed-expression> — a copy of the gate with one check removed,
+# in a root of its own (the gate works from its parent directory and sources the
+# settings reader there); MUTANT is its path. Refuses a sed that changed nothing.
 mutant() {
-  MUTANT="${TMP}/$1.sh"
+  local root="${TMP}/mutants/$1"
+  mkdir -p "${root}/Scripts"
+  cp Scripts/lib_site_settings.sh Scripts/site_settings.txt Scripts/required_pages_exclusions.txt "${root}/Scripts/"
+  MUTANT="${root}/Scripts/test_required_pages_covers_site.sh"
   selftest_mutant "$GATE" "$MUTANT" "$2"
 }
 
@@ -100,8 +109,8 @@ run_gate "$GATE" "$NOSITE" "$MANIFEST"
 want_exit "4. a site directory that does not exist" 1 "FAIL: ${NOSITE} not found"
 
 # --- 5. a site with no .html -> red -----------------------------------------
-# Against an EMPTY manifest, so no declared page can red it: konenki's copy
-# dies here with exit 1 and no output at all.
+# Against an EMPTY manifest, so no declared page can red it: an older copy
+# died here with exit 1 and no output at all.
 new_site empty
 printf 'body {\n  margin: 0;\n}\n' > "${SITE}/styles.css"
 new_manifest empty '{"requiredPages":[]}'
@@ -145,6 +154,35 @@ run_gate "$GATE" "${SITE}/" "$MANIFEST"
 want_exit "10. the site directory given with a trailing /" 0 \
   "OK: manifest matches the site (2 pages declared, all present, none unlisted)"
 
+# --- 11. an excluded page is skipped by its row -> green --------------------
+new_site excluded index.html orphan.html
+new_manifest excluded '{"requiredPages":["/"]}'
+EXCLUSIONS_OK="${TMP}/exclusions-ok.txt"
+printf '# a comment\n\norphan.html|an orphan page, on purpose\n' > "$EXCLUSIONS_OK"
+EXCLUDED_SITE="$SITE"
+EXCLUDED_MANIFEST="$MANIFEST"
+run_gate "$GATE" "$EXCLUDED_SITE" "$EXCLUDED_MANIFEST" "$EXCLUSIONS_OK"
+want_exit "11. a page listed in the exclusions file" 0 "skip: orphan.html (declared exclusion)"
+run_gate "$GATE" "$EXCLUDED_SITE" "$EXCLUDED_MANIFEST" "${TMP}/exclusions-empty.txt"
+want_exit "11b. the same page with no exclusions file is red" 1 "FAIL: ${TMP}/exclusions-empty.txt not found"
+printf '# no exclusions\n' > "${TMP}/exclusions-none.txt"
+run_gate "$GATE" "$EXCLUDED_SITE" "$EXCLUDED_MANIFEST" "${TMP}/exclusions-none.txt"
+want_exit "11c. the same page with no exclusion row is red" 1 \
+  "${EXCLUDED_SITE}/orphan.html is served but not declared"
+
+# --- 12. no exclusions file -> red ------------------------------------------
+new_site noexclusions index.html
+new_manifest noexclusions '{"requiredPages":["/"]}'
+run_gate "$GATE" "$SITE" "$MANIFEST" "${TMP}/absent-exclusions.txt"
+want_exit "12. an exclusions file that does not exist" 1 \
+  "FAIL: ${TMP}/absent-exclusions.txt not found"
+
+# --- 13. an exclusion row without a reason -> red ----------------------------
+printf '# a comment\norphan.html|\n' > "${TMP}/exclusions-noreason.txt"
+run_gate "$GATE" "$EXCLUDED_SITE" "$EXCLUDED_MANIFEST" "${TMP}/exclusions-noreason.txt"
+want_exit "13. an exclusion row without a reason" 1 \
+  "exclusions-noreason.txt line 2 is not page|reason"
+
 # --- Mutation proof A: the zero-pages check names case 5's reason ----------
 if mutant no-zero-check 's/if \[\[ "[$]html_count" -eq 0 \]\]; then/if false; then/'; then
   run_gate "$MUTANT" "$EMPTY_SITE" "$EMPTY_MANIFEST"
@@ -166,5 +204,39 @@ if mutant no-site-check 's/if \[\[ ! -d "[$]SITE_DIR" \]\]; then/if false; then/
   fi
 fi
 
+# --- Mutation proof C: an undeclared page that never reds ------------------
+if mutant no-direction-1 's/if ! grep -qx -- "[$]path" <<< "[$]listed"; then/if false; then/'; then
+  new_site unlisted-mutant index.html status.html
+  new_manifest unlisted-mutant '{"requiredPages":["/"]}'
+  run_gate "$MUTANT" "$SITE" "$MANIFEST"
+  if [[ "$RC" -eq 0 ]]; then
+    echo "  ok: mutation proof C: with the undeclared-page check removed case 2 exits 0, so that red comes from that check"
+  else
+    fail "mutation proof C: the gate without its undeclared-page check still exited ${RC}. Output: ${OUT}"
+  fi
+fi
+
+# --- Mutation proof D: a declared page that does not exist never reds -------
+if mutant no-direction-2 's/if \[\[ ! -f "[$]f" \]\]; then/if false; then/'; then
+  new_site absent-mutant index.html
+  new_manifest absent-mutant '{"requiredPages":["/","/status.html"]}'
+  run_gate "$MUTANT" "$SITE" "$MANIFEST"
+  if [[ "$RC" -eq 0 ]]; then
+    echo "  ok: mutation proof D: with the missing-page check removed case 3 exits 0, so that red comes from that check"
+  else
+    fail "mutation proof D: the gate without its missing-page check still exited ${RC}. Output: ${OUT}"
+  fi
+fi
+
+# --- Mutation proof E: the exclusions file is ignored -----------------------
+if mutant ignores-exclusions 's/^    excluded="[$]{excluded}[$]{row%%|\*}"[$]'"'"'\\n'"'"'$/    :/'; then
+  run_gate "$MUTANT" "$EXCLUDED_SITE" "$EXCLUDED_MANIFEST" "$EXCLUSIONS_OK"
+  if [[ "$RC" -ne 0 ]]; then
+    echo "  ok: mutation proof E: case 11 is red once the exclusions are ignored, so the page is skipped because of its row"
+  else
+    fail "mutation proof E: case 11 still exits 0 with the exclusions ignored. Output: ${OUT}"
+  fi
+fi
+
 selftest_end "manifest-covers-site self-test" \
-  "manifest-covers-site gate passes a matching site, and is red on an unlisted page, a missing page, a subfolder page unlisted or missing, a missing site, a site with no pages and a missing manifest"
+  "manifest-covers-site gate passes a matching site, and is red on an unlisted page, a missing page, a subfolder page unlisted or missing, a missing site, a site with no pages, a missing manifest, a missing exclusions file and an exclusion row without a reason; an excluded page is skipped by its row"

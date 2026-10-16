@@ -1,20 +1,22 @@
 #!/usr/bin/env bash
+# canon: test_exit_trap_completion_behaviour v1
 # Scripts/test_exit_trap_completion_behaviour.sh
 #
-# forsgren#137: the BEHAVIOUR behind Scripts/check_exit_trap_completion.sh. The
-# gate reads source; this fixture runs the real scripts it once flagged.
+# The BEHAVIOUR behind Scripts/check_exit_trap_completion.sh.
+# The gate reads source; this test runs the real scripts it covers.
+# The engine is Scripts/lib_exit_trap_probe.sh (see there for what each case
+# requires); the cases below are this repository's data: which scripts exist,
+# and what each needs in its sandbox before its trap. Which scripts need a case
+# is DERIVED from the gate's own rule (probe_require_all), not listed here.
 #
-# On bash 3.2 (macOS /bin/bash) a script under `set -e -u` with an EXIT trap
-# ends with status 0 after an unbound variable in the main shell. The four
-# scripts below now carry the COMPLETED idiom (their trap turns an exit of 0
-# without COMPLETED=1 into exit 1). For each, this fixture copies the REAL
-# script into a sandbox, injects `: "${G_PROBE}"` right after its top-level
-# EXIT trap (the line is found by grep, so it follows edits), runs it with the
-# minimal setup it needs, and requires:
-#   - a non-zero exit,
-#   - the probe named on stderr (so it aborted there, not earlier),
-#   - the 'aborted before completing' FAIL line,
-#   - no temp directory left behind (the trap still cleans up).
+# Mutation proofs (the engine is the thing under test, so weakened copies of
+# it run on one real case):
+#   A. an engine that does not inject the abort: the case is red
+#   B. an engine whose verdict accepts exit 0: the case is red
+#   C. a script with its guard removed (the trap without the COMPLETED
+#      statement): the case is red
+#   D. a push wrapper whose abort line no longer says Aborted: red, and an
+#      engine without the expected-output check lets it through
 
 set -euo pipefail
 
@@ -24,103 +26,133 @@ ROOT="$(pwd)"
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
 selftest_begin "exit-trap completion behaviour self-test"
+# shellcheck source=Scripts/lib_exit_trap_probe.sh
+source Scripts/lib_exit_trap_probe.sh
 
-PROBE_VAR="G_PROBE"
+setup_nothing() { :; }
 
-# probe_sandbox <dir> <script> — <dir> holds Scripts/<script> with the probe
-# injected right after its top-level EXIT trap (the line is found by grep, so it
-# follows edits), bin/ with a mktemp stub, and tmp/, where that stub puts every
-# temp path. Returns 1 when the script has no such trap to probe.
-probe_sandbox() {
-  local dir="$1" script="$2" inject
-  mkdir -p "$dir/Scripts" "$dir/bin" "$dir/tmp"
-  inject="$(grep -nE -m 1 '^trap .* EXIT' "$ROOT/Scripts/$script" | cut -d: -f1)"
-  [[ -n "$inject" ]] || return 1
-  awk -v n="$inject" -v v="$PROBE_VAR" '{ print } NR == n { print ": \"${" v "}\"" }' \
-    "$ROOT/Scripts/$script" > "$dir/Scripts/$script"
-  chmod +x "$dir/Scripts/$script"
-  # macOS mktemp ignores TMPDIR, so a stub puts every temp path of the run in
-  # $dir/tmp, where the leftovers are counted. Only the two forms the scripts use.
-  cat > "$dir/bin/mktemp" <<EOF
-#!/usr/bin/env bash
-if [ "\${1:-}" = "-d" ]; then exec /usr/bin/mktemp -d "$dir/tmp/tmp.XXXXXXXX"; fi
-exec /usr/bin/mktemp "$dir/tmp/tmp.XXXXXXXX"
-EOF
-  chmod +x "$dir/bin/mktemp"
+# FullBuildAndPush.sh / FBP.sh: the repository's push wrapper, the one of the two
+# that exists. Run with --no-commit in a sandbox that is not a git repository,
+# with a say stub, so nothing is committed, pushed or spoken; the abort comes
+# before its first step. Its summary must also say 'Aborted ❌'.
+FBP=""
+for candidate in FullBuildAndPush.sh FBP.sh; do
+  if [[ -f "$candidate" ]]; then
+    [[ -z "$FBP" ]] || selftest_abort "both ${FBP} and ${candidate} exist — the script under test is ambiguous"
+    FBP="$candidate"
+  fi
+done
+[[ -n "$FBP" ]] || selftest_abort "neither FullBuildAndPush.sh nor FBP.sh exists — there is no push wrapper to probe"
+PROBE_EXPECT_OUT="Aborted ❌"
+probe_case push_wrapper "$FBP" "$ROOT" setup_nothing --no-commit probe
+
+# gate_htmlhint.sh: a stub htmlhint that scans one file, a site dir, a config.
+setup_gate_htmlhint() {
+  mkdir -p "$1/node_modules/.bin" "$1/Site"
+  printf '#!/usr/bin/env bash\necho "Scanned 1 files"\n' > "$1/node_modules/.bin/htmlhint"
+  chmod +x "$1/node_modules/.bin/htmlhint"
+  : > "$1/.htmlhintrc"
+  : > "$1/Site/index.html"
 }
+probe_case gate_htmlhint Scripts/gate_htmlhint.sh "$ROOT" setup_gate_htmlhint Site
 
-# probe_verdict <name> <script> <dir> <rc> — judges the run in <dir>, which
-# exited <rc>: the probe aborted it, and it exited non-zero, said 'aborted
-# before completing' and left nothing in <dir>/tmp.
-probe_verdict() {
-  local name="$1" script="$2" dir="$3" rc="$4" out err left held=true
-  out="$(cat "$dir/out.log")"
-  err="$(cat "$dir/err.log")"
-  left="$(find "$dir/tmp" -mindepth 1 | head -n 3)"
-  if ! grep -Fq "${PROBE_VAR}: unbound variable" <<< "$err"; then
-    fail "${name}: the probe never aborted the run (exit ${rc}), so nothing was tested. stderr: ${err}"
-    return
-  fi
-  if [[ "$rc" -eq 0 ]]; then
-    fail "${name}: an abort after ${script}'s EXIT trap exits 0 — a caller takes that as a pass. stdout: ${out}"
-    held=false
-  fi
-  if ! grep -Fq "aborted before completing" <<< "$err"; then
-    fail "${name}: an abort after ${script}'s EXIT trap printed no 'aborted before completing' line. stderr: ${err}"
-    held=false
-  fi
-  if [[ -n "$left" ]]; then
-    fail "${name}: ${script} left a temp directory behind (its trap must still clean up): ${left}"
-    held=false
-  fi
-  if $held; then
-    echo "  ok: ${name}: an abort after ${script}'s EXIT trap exits ${rc}, says 'aborted before completing' and leaves no temp directory"
-  fi
-}
-
-# probe_case <name> <script> <setup-function> [script args...] — runs
-# Scripts/<script> with the probe in the sandbox $TMP/<name> (probe_sandbox)
-# plus whatever <setup-function> adds, with the script args, and judges the
-# run (probe_verdict).
-probe_case() {
-  local name="$1" script="$2" setup="$3" dir rc=0
-  shift 3
-  dir="$TMP/$name"
-  if ! probe_sandbox "$dir" "$script"; then
-    fail "${name}: Scripts/${script} has no top-level EXIT trap to probe, so nothing was tested"
-    return
-  fi
-  "$setup" "$dir"
-  (cd "$dir" && PATH="$dir/bin:$PATH" /bin/bash "./Scripts/$script" "$@" \
-    > "$dir/out.log" 2> "$dir/err.log" < /dev/null) || rc=$?
-  probe_verdict "$name" "$script" "$dir" "$rc"
-}
-
-# 1. build_site.sh: a stub go (the probe is hit before anything is rendered).
+# build_site.sh (forsgren's own case): a stub go, since the probe is hit before
+# anything is rendered but after the `go build` line.
 setup_build_site() {
   printf '#!/usr/bin/env bash\nexit 0\n' > "$1/bin/go"
   chmod +x "$1/bin/go"
 }
-probe_case build_site build_site.sh setup_build_site
+probe_case build_site Scripts/build_site.sh "$ROOT" setup_build_site
 
-# 2. gate_htmlhint.sh: a stub htmlhint that scans one file, a site dir, a config.
-setup_gate_htmlhint() {
-  mkdir -p "$1/node_modules/.bin" "$1/site"
-  printf '#!/usr/bin/env bash\necho "Scanned 1 files"\n' > "$1/node_modules/.bin/htmlhint"
-  chmod +x "$1/node_modules/.bin/htmlhint"
-  : > "$1/.htmlhintrc"
+# This self-test's sibling: its only column-0 trap line sits inside a heredoc
+# fixture, so an injected probe would land in fixture text; its real trap comes
+# from selftest_begin, and the abort path of that trap is lib_selftest.sh's.
+probe_exempt Scripts/test_check_exit_trap_completion.sh "the only column-0 trap line is inside a heredoc fixture; the real trap is selftest_begin's"
+
+# Every other script the gate's rule covers needs nothing before its trap.
+while IFS= read -r rel; do
+  case "$PROBE_SEEN" in *" ${rel} "*) continue ;; esac
+  probe_case "$(tr '/.' '__' <<< "$rel")" "$rel" "$ROOT" setup_nothing
+done < <(probe_trapped_scripts "$ROOT")
+
+probe_require_all "$ROOT"
+
+# --- Mutation proofs: weakened copies of the ENGINE, and a script without its guard.
+
+# probe_child <engine-file> <root> [rel] [expected stdout] [script args]: a child
+# run of one real case (default: test_sfl_pull.sh) through the given engine, so a
+# failure of the weakened engine does not fail this test.
+probe_child() {
+  local engine="$1" root="$2" rel="${3:-Scripts/test_sfl_pull.sh}" expect="${4:-}" args="${5:-}"
+  cat > "$TMP/child.sh" <<CHILD
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$ROOT"
+source Scripts/lib_selftest.sh
+selftest_begin "child"
+source "$engine"
+nothing() { :; }
+PROBE_EXPECT_OUT="$expect"
+probe_case child_case $rel "$root" nothing $args
+selftest_end "child failed" "child held"
+CHILD
+  capture bash "$TMP/child.sh"
 }
-probe_case gate_htmlhint gate_htmlhint.sh setup_gate_htmlhint site
 
-# 3. test_sfl_pull.sh: sources Scripts/sfl_pull.sh after the trap.
-setup_test_sfl_pull() {
-  cp "$ROOT/Scripts/sfl_pull.sh" "$1/Scripts/sfl_pull.sh"
-}
-probe_case test_sfl_pull test_sfl_pull.sh setup_test_sfl_pull
+# C. The real engine on a copy of a real script with its guard removed: red,
+# and the reason is the exit of 0. This is the case the whole test exists for.
+mkdir -p "$TMP/guardless/Scripts"
+cp -R Scripts/. "$TMP/guardless/Scripts/"
+sed 's/^trap finish EXIT$/trap : EXIT/' Scripts/test_sfl_pull.sh > "$TMP/guardless/Scripts/test_sfl_pull.sh"
+if cmp -s Scripts/test_sfl_pull.sh "$TMP/guardless/Scripts/test_sfl_pull.sh"; then
+  fail "the guard removal changed nothing in test_sfl_pull.sh: the proof would be vacuous"
+else
+  probe_child "$ROOT/Scripts/lib_exit_trap_probe.sh" "$TMP/guardless"
+  want_red "C. test_sfl_pull.sh with its guard removed is red: the abort exits 0" "exits 0"
+fi
 
-# 4. test_validate_required_pages.sh: needs nothing before its trap.
-setup_nothing() { :; }
-probe_case test_validate_required_pages test_validate_required_pages.sh setup_nothing
+# Control: the same child on the real script is green.
+probe_child "$ROOT/Scripts/lib_exit_trap_probe.sh" "$ROOT"
+want_green "C. control: the real test_sfl_pull.sh is green through the same child" "child held"
 
-selftest_end "an abort after the EXIT trap of build_site.sh, gate_htmlhint.sh, test_sfl_pull.sh or test_validate_required_pages.sh exits 0, prints no 'aborted before completing', or leaves a temp directory" \
-  "an abort after the EXIT trap of build_site.sh, gate_htmlhint.sh, test_sfl_pull.sh and test_validate_required_pages.sh exits non-zero, says 'aborted before completing' and leaves no temp directory"
+# A. An engine that does not inject the abort: the real case is red.
+mkdir -p "$TMP/mutA"
+selftest_mutant Scripts/lib_exit_trap_probe.sh "$TMP/mutA/lib.sh" 's/NR == n {/NR == -1 {/' || true
+probe_child "$TMP/mutA/lib.sh" "$ROOT"
+want_red "A. an engine that does not inject the abort is caught: the probe never aborted the run" "the probe never aborted the run"
+
+# B. An engine that accepts exit 0. The half-guarded script prints the
+# 'aborted before completing' line but exits 0: the real engine is red for the
+# exit, the weakened one is green, so the exit check is what reddens it.
+mkdir -p "$TMP/halfguard/Scripts"
+cp -R Scripts/. "$TMP/halfguard/Scripts/"
+sed 's/^    exit 1$/    exit 0/' Scripts/test_sfl_pull.sh > "$TMP/halfguard/Scripts/test_sfl_pull.sh"
+if cmp -s Scripts/test_sfl_pull.sh "$TMP/halfguard/Scripts/test_sfl_pull.sh"; then
+  fail "the half-guard change did nothing in test_sfl_pull.sh: the proof would be vacuous"
+else
+  probe_child "$ROOT/Scripts/lib_exit_trap_probe.sh" "$TMP/halfguard"
+  want_red "B. a guard that prints its line but exits 0 is red: the abort exits 0" "exits 0"
+  mkdir -p "$TMP/mutB"
+  selftest_mutant Scripts/lib_exit_trap_probe.sh "$TMP/mutB/lib.sh" 's/rc" -eq 0 \]\]/rc" -eq 99 ]]/' || true
+  probe_child "$TMP/mutB/lib.sh" "$TMP/halfguard"
+  want_green "B. an engine that accepts exit 0 lets the half-guarded script through, so the exit check is what reddens it" "child held"
+fi
+
+# D. The push wrapper must say Aborted: a copy whose line says Stopped is red
+# for the missing text; an engine without the expected-output check is green.
+mkdir -p "$TMP/quiet/Scripts"
+cp -R Scripts/. "$TMP/quiet/Scripts/"
+sed 's/Aborted ❌/Stopped/' "$FBP" > "$TMP/quiet/$FBP"
+if cmp -s "$FBP" "$TMP/quiet/$FBP"; then
+  fail "the Aborted rewording changed nothing in ${FBP}: the proof would be vacuous"
+else
+  probe_child "$ROOT/Scripts/lib_exit_trap_probe.sh" "$TMP/quiet" "$FBP" "Aborted ❌" "--no-commit probe"
+  want_red "D. a push wrapper that no longer says Aborted is red: the output does not say" "the output does not say"
+  mkdir -p "$TMP/mutD"
+  selftest_mutant Scripts/lib_exit_trap_probe.sh "$TMP/mutD/lib.sh" 's/\[\[ -n "[^"]*EXPECT_OUT" \]\] \&\&/false \&\&/' || true
+  probe_child "$TMP/mutD/lib.sh" "$TMP/quiet" "$FBP" "Aborted ❌" "--no-commit probe"
+  want_green "D. an engine without the expected-output check lets it through, so that check is what reddens it" "child held"
+fi
+
+selftest_end "an abort after the EXIT trap of a script the gate covers exits 0, prints no 'aborted before completing', leaves a temp path, or the engine proof failed" \
+  "an abort after the EXIT trap of every script the exit-trap gate covers exits non-zero under /bin/bash, says 'aborted before completing' and leaves no temp path (the push wrapper also says Aborted), and a missing guard, a half guard, an engine without the injection, an engine that accepts exit 0, a push wrapper that stops saying Aborted and an engine that skips that check are each caught"

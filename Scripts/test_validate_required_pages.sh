@@ -1,40 +1,43 @@
 #!/usr/bin/env bash
+# canon: test_validate_required_pages v1
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
 # Self-test for validate_required_pages.sh.
 #
-# The paragraph below, and the release and promotion wording in the cases, are
-# another estate repository's, where this self-test comes from; forsgren has no release
-# or promotion yet, and its manifest is what the manifest-covers-site gate
-# holds the generated site to (forsgren's cases are at the end).
-#
-# internal/page/required-pages.json is part of the release artifact: promotion to live
-# reads it from the promoted release and verifies every declared page over
-# HTTP. A malformed manifest must therefore be caught BEFORE the release is
-# promotable — otherwise promotion silently degrades into an ambiguous partial
-# check, which is the weak verification this whole arc exists to remove.
+# The required-pages manifest is part of the release artifact: it ships with
+# the site, with no packaging change. Promotion to live reads it from the
+# promoted release and verifies every declared page over HTTP. A malformed
+# manifest must therefore be caught BEFORE the release is promotable —
+# otherwise promotion silently degrades into an ambiguous partial check, which
+# is the weak verification this whole arc exists to remove.
 #
 # Every case below is a way a manifest can be wrong while still looking
 # plausible in a diff.
+#
+# MUTATION PROOF, at the end: the same cases run against weakened copies of the
+# validator (an empty list, a duplicate, a traversal, a scheme, a missing slash
+# or a missing file accepted, invalid JSON accepted, every finding ignored), and
+# each copy must be red. A fixture that passes a validator which cannot fail is
+# decoration. The validator under test is the optional first argument; without
+# one it is the real validator and the mutation proof runs.
 
+VALIDATOR="${1:-./Scripts/validate_required_pages.sh}"
+SELF="${PWD}/Scripts/test_validate_required_pages.sh"
 TMP="$(mktemp -d)"
-# Issue forsgren#137. On bash 3.2 an abort (an unbound variable under set -eu)
-# ends a script with an EXIT trap with status 0, and $? in the trap is 0 too.
-# COMPLETED, set as the very last statement, is the only way out with 0: an
-# exit of 0 without it is an abort and becomes exit 1. Gate:
-# Scripts/check_exit_trap_completion.sh.
+# COMPLETED is set by the last statement. On bash 3.2 an abort under set -eu can
+# end with status 0; the trap turns an exit of 0 without COMPLETED into exit 1.
 COMPLETED=0
-finish() {
-  local rc=$?
+cleanup() {
+  local exit_code=$?
   rm -rf "$TMP"
-  if [ "$rc" -eq 0 ] && [ "$COMPLETED" -ne 1 ]; then
-    echo "FAIL: test_validate_required_pages.sh aborted before completing (COMPLETED was never set)" >&2
+  if [ "$exit_code" -eq 0 ] && [ "$COMPLETED" -ne 1 ]; then
+    echo "❌ test_validate_required_pages aborted before completing" >&2
     exit 1
   fi
 }
-trap finish EXIT
+trap cleanup EXIT
 
 FAILURES=0
 check() {
@@ -50,7 +53,7 @@ check() {
 # Runs the validator without set -e killing the fixture on the expected reds.
 run_validator() { # <manifest-path> -> sets OUT and RC
   set +e
-  OUT="$(./Scripts/validate_required_pages.sh "$1" 2>&1)"
+  OUT="$("$VALIDATOR" "$1" 2>&1)"
   RC=$?
   set -e
 }
@@ -69,12 +72,23 @@ check "accepts a well-formed manifest" 0 "$RC"
 
 # --- The shipped manifest must itself be valid ----------------------------
 # Without this the validator could be green while the file it guards is not.
-run_validator "internal/page/required-pages.json"
-check "accepts the shipped internal/page/required-pages.json" 0 "$RC"
+# shellcheck source=Scripts/lib_site_settings.sh
+source Scripts/lib_site_settings.sh
+SHIPPED="$(site_settings_get Scripts/site_settings.txt required_pages_manifest)"
+run_validator "${PWD}/${SHIPPED}"
+check "accepts the shipped manifest (${SHIPPED})" 0 "$RC"
+
+# The order file names the bare script, so the default must find the same file.
+set +e; "$VALIDATOR" >/dev/null 2>&1; RC=$?; set -e
+check "accepts the shipped manifest with no argument" 0 "$RC"
+
+# An explicit empty argument is a usage error, never the default.
+set +e; "$VALIDATOR" "" >/dev/null 2>&1; RC=$?; set -e
+check "an explicit empty argument is a usage error" 2 "$RC"
 
 # --- Missing file ---------------------------------------------------------
-# For Konenki the manifest is mandatory: absence is an invalid release, never a
-# quiet fallback to index-only verification.
+# The manifest is mandatory: absence is an invalid release, never a quiet
+# fallback to index-only verification.
 run_validator "$TMP/does-not-exist.json"
 check "rejects a missing manifest" 1 "$RC"
 
@@ -111,6 +125,12 @@ m="$(write_manifest scheme '{"requiredPages":["/","https://example.com/privacy.h
 run_validator "$m"
 check "rejects an entry with a scheme and host" 1 "$RC"
 
+# A scheme behind a leading slash is root-relative to the eye, so only the
+# scheme check can reject it.
+m="$(write_manifest slashscheme '{"requiredPages":["/","/https://example.com/privacy.html"]}')"
+run_validator "$m"
+check "rejects a scheme and host behind a leading slash" 1 "$RC"
+
 # --- Protocol-relative URL ------------------------------------------------
 m="$(write_manifest protorel '{"requiredPages":["/","//example.com/privacy.html"]}')"
 run_validator "$m"
@@ -144,77 +164,41 @@ if grep -qF "https://example.com/privacy.html" <<<"$OUT"; then
   echo "  ✅ names the offending entry in its output"
 else
   echo "  ❌ output does not name the offending entry — the reason would be invisible"
-  # Parameter expansion rather than sed: every line gets the same prefix, and
-  # the newline substitution says so without spawning a process to say it.
   printf '       %s\n' "${OUT//$'\n'/$'\n'       }"
   FAILURES=$((FAILURES + 1))
 fi
 
-# --- forsgren: the zero and missing reds carry their reason --------------
-# Added in forsgren (ported 2026-10-01, forsgren#1 ladder step 9); everything
-# above is another estate repository's, with the manifest path and the note at the top
-# as the only changes. The
-# cases above pin the EXIT CODE of a missing manifest and of an empty list,
-# not why: a validator that crashed on the missing file, or redded an empty
-# list for some other reason, would pass them. These pin the named reason, and
-# each mutation proof removes the check that names it and shows the reason
-# gone, so the reason is pinned to that check.
-expect_reason() { # <case> <needle>
-  if [[ "$RC" -eq 1 ]] && grep -qF -- "$2" <<<"$OUT"; then
-    echo "  ✅ $1"
-  else
-    echo "  ❌ $1 — expected exit 1 naming '$2', got exit $RC: $OUT"
-    FAILURES=$((FAILURES + 1))
-  fi
-}
-
-run_validator "$TMP/does-not-exist.json"
-expect_reason "a missing manifest is red as not found" \
-  "FAIL manifest not found: $TMP/does-not-exist.json"
-
-m="$(write_manifest empty-reason '{"requiredPages":[]}')"
-run_validator "$m"
-expect_reason "an empty list is red as empty" \
-  "FAIL requiredPages is empty"
-
-# mutant <name> <sed-expression> — a copy of the validator with one check
-# removed; refuses a sed that changed nothing (a proof that proves nothing).
-mutant() {
-  sed "$2" Scripts/validate_required_pages.sh > "$TMP/$1.sh"
-  chmod +x "$TMP/$1.sh"
-  if cmp -s Scripts/validate_required_pages.sh "$TMP/$1.sh"; then
-    echo "  ❌ mutation $1: the sed changed nothing — this proof proves nothing"
-    FAILURES=$((FAILURES + 1))
-    return 1
-  fi
-}
-
-# Mutation proof A: without the existence check, the missing manifest no
-# longer reds as "not found".
-if mutant no-exist-check 's/\[\[ ! -f "[$]MANIFEST" \]\]/false/'; then
-  set +e
-  OUT="$("$TMP/no-exist-check.sh" "$TMP/does-not-exist.json" 2>&1)"
-  set -e
-  if grep -qF "FAIL manifest not found" <<<"$OUT"; then
-    echo "  ❌ mutation A: the reason survives without the existence check, so it does not come from that check"
-    FAILURES=$((FAILURES + 1))
-  else
-    echo "  ✅ mutation A: without the existence check, 'manifest not found' is gone"
-  fi
-fi
-
-# Mutation proof B: without the empty-list check, an empty list turns green.
-if mutant no-empty-check 's/^if not pages:/if False:/'; then
-  set +e
-  OUT="$("$TMP/no-empty-check.sh" "$TMP/empty-reason.json" 2>&1)"
-  RC=$?
-  set -e
-  if [[ "$RC" -eq 0 ]]; then
-    echo "  ✅ mutation B: without the empty-list check, an empty list turns green"
-  else
-    echo "  ❌ mutation B: an empty list is still red (exit $RC) without the empty-list check, so its red does not come from that check: $OUT"
-    FAILURES=$((FAILURES + 1))
-  fi
+# --- Mutation proof: weakened copies of the validator must be red here.
+# Only for the real validator; the copies are judged by this same file, run on
+# them. A copy lives in a root of its own (the validator works from its parent
+# directory and sources the settings reader there), with the manifest's top
+# directory linked in so the shipped-manifest cases still find it.
+if [[ $# -eq 0 ]]; then
+  mutant_must_fail() { # <label> <sed-expression>
+    local dir="$TMP/mutant-$RANDOM" m
+    mkdir -p "$dir/Scripts"
+    cp Scripts/lib_site_settings.sh Scripts/site_settings.txt "$dir/Scripts/"
+    ln -s "${PWD}/${SHIPPED%%/*}" "$dir/${SHIPPED%%/*}"
+    m="$dir/Scripts/validate_required_pages.sh"
+    sed "$2" "$VALIDATOR" > "$m"
+    chmod +x "$m"
+    if cmp -s "$VALIDATOR" "$m"; then
+      echo "  ❌ mutation '$1' changed nothing — it proves nothing"; FAILURES=$((FAILURES+1)); return
+    fi
+    if "$SELF" "$m" >/dev/null 2>&1; then
+      echo "  ❌ mutation '$1' PASSED this fixture — the cases do not guard it"; FAILURES=$((FAILURES+1))
+    else
+      echo "  ✅ mutation '$1' is red"
+    fi
+  }
+  mutant_must_fail "an empty list is accepted" 's/^if not pages:$/if False:/'
+  mutant_must_fail "a duplicate is accepted" 's/^    if entry in seen:$/    if False:/'
+  mutant_must_fail "a .. segment is accepted" 's/^    if ".." in entry.split("\/"):$/    if False:/'
+  mutant_must_fail "a scheme and host is accepted" 's/^    if "[:]\/\/" in entry:$/    if False:/'
+  mutant_must_fail "a missing leading slash is accepted" 's/^    elif not entry.startswith("\/"):$/    elif False:/'
+  mutant_must_fail "invalid JSON is accepted" '/except json.JSONDecodeError/,/sys.exit(1)/ s/sys.exit(1)/sys.exit(0)/'
+  mutant_must_fail "a missing manifest is accepted" '/^if \[\[ ! -f "[$]MANIFEST" \]\]; then$/,/^fi$/ s/exit 1/exit 0/'
+  mutant_must_fail "every finding is ignored" 's/^if problems:$/if False:/'
 fi
 
 echo

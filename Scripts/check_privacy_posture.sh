@@ -1,42 +1,86 @@
 #!/usr/bin/env bash
+# canon: check_privacy_posture v1
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
+# shellcheck source=Scripts/lib_site_settings.sh
+source Scripts/lib_site_settings.sh
+
 # check_privacy_posture.sh — does this site collect anything?
 #
-# WHY. Scripts/gate_report_order.txt declares `privacy pages|n/a` on the
-# grounds that nothing is collected here: no forms, no analytics or tracking,
-# no cookies or storage, no third-party assets or embeds. That is true the day
-# it is written. Nothing else stops a Google Fonts link or an analytics
-# snippet arriving the next day and leaving a false exemption on the record.
+# The canon version, byte-identical across the estate's repositories
+# Per-repo values live in data: the site directory in
+# Scripts/site_settings.txt, the allowed embeds in
+# Scripts/privacy_posture_exceptions.txt.
 #
-# Yves ruled privacy into the canon (another estate repository unit 394) so every site must
-# ANSWER the question rather than only the site that thought of it. This is the
-# other half: the answer is checked. An exemption nothing enforces is a belief.
+# WHY. A gate order file may declare the privacy pages n/a on the grounds that
+# nothing is collected: no forms, no analytics, no cookies, no third-party
+# assets, fonts served from this repo. That is true the day it is written.
+# Nothing else stops a Google Fonts link or an analytics snippet arriving the
+# next day and leaving a false exemption on the record. An exemption nothing
+# enforces is a belief, and this gate re-proves the claim every run.
 #
-# NOT konenki's check_privacy_pages.sh, which validates the CONTENT of a
-# privacy page, for a site that needs privacy pages. This asserts
-# there is nothing to write a page about, which is this site's position.
+# It asserts something narrower than a check of a privacy page's CONTENT: that
+# the WEBSITE itself collects nothing. Both can be true, and both should be
+# checked: a correct privacy page says nothing about a tracking script somebody
+# adds to the site.
 #
-# WHAT IS DELIBERATELY NOT A FINDING: outbound links. forsgren's page links
-# nowhere off itself today (in coachretreat-website, where this copy is from,
-# ticketing goes to pretix.eu and the footer to social platforms). A link
-# transmits nothing until someone clicks it, and then they are plainly
-# somewhere else; a new one is listed below on the next run. What
-# matters is what the page loads or stores WITHOUT being asked — which is also
-# why a third-party font stylesheet IS a finding: it sends every visitor's IP
-# before anything is clicked, and it looks exactly like a local style link.
+# EMBEDS. An iframe loads from another party on page view, before any click, so
+# it is a finding UNLESS its host is a row of Scripts/privacy_posture_exceptions.txt.
+# One row per host: `host|reason`, the reason required (what the embed is and
+# where it is documented). There is no blanket rule: a page that documents one
+# embed does not thereby allow another. A repository with no embed keeps the
+# file with comments only. The file is read on every run and its absence is red:
+# a gate that skips its allow-list when the file is gone has no allow-list.
+# Only an exact host with an https double-quoted src is matched; a relative,
+# protocol-relative, unquoted or missing src is a finding.
 #
-# Exit: 0 clean, 1 finding, 2 target missing.
-# Usage: check_privacy_posture.sh [site-dir]  (default: .build/site)
+# WHAT IS DELIBERATELY NOT A FINDING: outbound links (ticketing, social
+# platforms). A link transmits nothing until someone clicks it, and then they
+# are plainly somewhere else. What matters is what the page loads or stores
+# WITHOUT being asked, which is also why a third-party font stylesheet IS a
+# finding: it sends every visitor's IP before anything is clicked, and it looks
+# exactly like a local style link.
+#
+# Exit: 0 clean, 1 finding, 2 target, settings or exceptions file missing or
+# malformed.
+# Usage: check_privacy_posture.sh [site-dir [exceptions-file]]
+#   site-dir default: site_dir in Scripts/site_settings.txt
 
-SITE="${1:-.build/site}"
+if [ $# -ge 1 ]; then
+  SITE="$1"
+else
+  SITE="$(site_settings_get Scripts/site_settings.txt site_dir)" || exit 2
+fi
+EXCEPTIONS="${2:-Scripts/privacy_posture_exceptions.txt}"
 
 if [ ! -d "$SITE" ]; then
   echo "privacy-posture: site dir not found: $SITE" >&2
   exit 2
 fi
+
+# The allow-list is read and validated first, on every run, even with no
+# iframe on the site: a malformed or missing file is red, never skipped.
+if [ ! -f "$EXCEPTIONS" ]; then
+  echo "privacy-posture: exceptions file not found: $EXCEPTIONS" >&2
+  exit 2
+fi
+allowed_hosts=" "
+n=0
+while IFS= read -r line || [ -n "$line" ]; do
+  n=$((n + 1))
+  case "$line" in '' | '#'*) continue ;; esac
+  if ! [[ "$line" =~ ^([A-Za-z0-9.-]+)\|[^[:space:]].*$ ]]; then
+    echo "privacy-posture: malformed row ${n} in ${EXCEPTIONS} (want host|reason, the reason required): ${line}" >&2
+    exit 2
+  fi
+  host="$(printf '%s' "${BASH_REMATCH[1]}" | tr '[:upper:]' '[:lower:]')"
+  case "$allowed_hosts" in
+    *" ${host} "*) echo "privacy-posture: duplicate host '${host}' (row ${n} of ${EXCEPTIONS})" >&2; exit 2 ;;
+  esac
+  allowed_hosts="${allowed_hosts}${host} "
+done < "$EXCEPTIONS"
 
 findings=0
 
@@ -57,9 +101,35 @@ hits="$(scan '<form[[:space:]>]')"
 [ -n "$hits" ] && report "a form collects input" \
   "A form makes this site a collector. The n/a in gate_report_order.txt says it is not." "$hits"
 
-hits="$(scan '<iframe')"
+# iframe_unlisted: one line per iframe tag whose src host is not allowed, as
+# `file: tag`. The tag is read across line breaks (the src is often on the line
+# after `<iframe`), and a file with an `<iframe` that no complete tag explains is
+# reported whole.
+iframe_unlisted() {
+  local file tags tag host total found
+  while IFS= read -r file; do
+    [ -n "$file" ] || continue
+    tags="$(tr '\n\r' '  ' < "$file" | grep -oiE '<iframe[^>]*>' || true)"
+    total="$(grep -oi '<iframe' "$file" | wc -l | tr -d ' ')"
+    found=0
+    while IFS= read -r tag; do
+      [ -n "$tag" ] || continue
+      found=$((found + 1))
+      host="$(printf '%s' "$tag" | sed -nE 's#.*[[:space:]]src[[:space:]]*=[[:space:]]*"https://([A-Za-z0-9.-]+)([/:?#"].*)?$#\1#p' | tr '[:upper:]' '[:lower:]')"
+      case "$allowed_hosts" in
+        *" ${host:-none} "*) [ -n "$host" ] && continue ;;
+      esac
+      echo "${file}: ${tag}"
+    done <<< "$tags"
+    if [ "$found" -ne "$total" ]; then
+      echo "${file}: an <iframe that is not a complete tag"
+    fi
+  done < <(grep -rIil '<iframe' "$SITE" --include='*.html' --include='*.css' 2>/dev/null | sort)
+}
+
+hits="$(iframe_unlisted)"
 [ -n "$hits" ] && report "an embedded third party" \
-  "An iframe loads from another party on page view, before any click." "$hits"
+  "An iframe loads from another party on page view, before any click. Allowed only for a host listed with a reason in ${EXCEPTIONS}." "$hits"
 
 hits="$(scan '<(script|link)[^>]+(src|href)="https?://')"
 [ -n "$hits" ] && report "a third-party asset is loaded" \
@@ -80,10 +150,10 @@ hits="$(scan 'gtag\(|googletagmanager|google-analytics|matomo|plausible\.io|hotj
 if [ "$findings" -ne 0 ]; then
   echo "" >&2
   echo "privacy-posture: ${findings} finding(s) in ${SITE}." >&2
-  echo "  This site declares 'privacy pages|n/a' in Scripts/gate_report_order.txt" >&2
-  echo "  because it collects nothing. That is no longer true. Either remove the" >&2
-  echo "  collection, or replace the n/a with a real privacy page and say what is" >&2
-  echo "  collected and by whom." >&2
+  echo "  The privacy pages row in Scripts/gate_report_order.txt says the website" >&2
+  echo "  collects nothing beyond what ${EXCEPTIONS} lists. That is no longer" >&2
+  echo "  true. Either remove the collection, or extend the privacy pages to say" >&2
+  echo "  what is collected and by whom, and list a documented embed's host there." >&2
   exit 1
 fi
 
@@ -103,6 +173,13 @@ font_faces="$(grep -rhoE '@font-face' "$SITE" --include='*.css' --include='*.htm
 echo "  fonts   ${font_faces} @font-face rule(s), ${font_files} font file(s) served from this repo"
 echo "          (self-hosted: a font stylesheet from another host would send every"
 echo "           visitor's IP there on page view, which is why that IS a finding)"
+
+echo "  embeds  hosts allowed by ${EXCEPTIONS}:"
+if [ "$allowed_hosts" = " " ]; then
+  echo "            (none)"
+else
+  grep -vE '^(#|$)' "$EXCEPTIONS" | sed 's/^/            /'
+fi
 
 echo "  links   outbound destinations visitors can choose to follow:"
 outbound="$(grep -rhoE '<a[^>]+href="https?://[^"]+"' "$SITE" --include='*.html' 2>/dev/null \

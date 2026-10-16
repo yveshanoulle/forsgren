@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
+# canon: render_quality_report v1
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-# Renders the Quality run report — unit 406, ported from coachretreat-website
-# (its unit 401).
+# Renders the Quality run report — unit 406, ported from another estate
+# repository (its unit 401).
 #
 # Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 14); "HERE"
-# below means konenki. forsgren's changes:
+# below means the repository it was ported to. forsgren's changes:
 #   1. An `n/a` row (`<label>|n/a|<reason>`) is not counted in the total: it
 #      declares a gate this repo does not have, so it can never report, and
-#      counting it made every run "unmeasured" (coachretreat-website, with two
+#      counting it made every run "unmeasured" (another estate repository, with two
 #      n/a rows, reads "N of N+2" on a run where every gate ran). It is shown
 #      in the table as `n/a`, so the reader still sees the declaration.
 #   2. The unmeasured note names what skips gates here: Scripts/run_ci_phase.sh
@@ -19,7 +20,7 @@ cd "$(dirname "$0")/.." || exit 1
 #      unrun.
 # Pinned by Scripts/test_render_quality_report.sh, case 6.
 #
-# WHY IT LEFT THE WORKFLOW. In coachretreat this block exited 1 on every run for
+# WHY IT LEFT THE WORKFLOW. In the source repository this block exited 1 on every run for
 # a day and no local check could see it, because nothing outside the workflow
 # ever executed it; sfl was green throughout. HERE the defect was quieter:
 # `cat "$ROWS"` and `cat "$DETAILS"` are both append-ordered, so the table and

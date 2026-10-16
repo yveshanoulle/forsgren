@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
+# canon: npm_sync_install v1
 # Scripts/npm_sync_install.sh
 #
-# sfl's npm install step (forsgren#2, ladder step 2): runs `npm ci` when
+# sfl's npm install step, the canon version: runs `npm ci` when
 # node_modules is missing, or was installed from another package-lock.json
 # than the one in the tree, and otherwise leaves it alone.
 #
-# WHY. sfl used to run `npm ci` only when node_modules/.bin/htmlhint or
-# .bin/jscpd was missing, so after a lockfile change (a pull, an npm audit
+# WHY. sfl used to run `npm ci` only when a marker binary was missing
+# (htmlhint, stylelint), so a devDependency added later (jscpd) was never
+# installed on a machine that already had the others, and after a lockfile change (a pull, an npm audit
 # fix) it kept running the old node_modules until someone reinstalled by hand.
 #
 # HOW. node_modules/.package-lock.sha256 holds the sha256 of the
