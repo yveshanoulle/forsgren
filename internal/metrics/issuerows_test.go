@@ -172,3 +172,34 @@ func TestIssueRowsCarryTheLeadTimeOfEveryKind(t *testing.T) {
 		t.Errorf("want the lead times\n%v\ngot\n%v", want, got)
 	}
 }
+
+// TestIssueRowsCarryTheBugsLeadTimeOfBugIssues (forsgren#202, step 5): on 13
+// October a bug closes 10 h after its creation and an issue with no bug label
+// 20 h after: the row's LeadTime is over both, 15 h (2), its BugsLeadTime over
+// the bug alone, 10 h (1); the day before, a close of an issue with no bug
+// label gives a LeadTime and no BugsLeadTime.
+func TestIssueRowsCarryTheBugsLeadTimeOfBugIssues(t *testing.T) {
+	at := func(d, h int) time.Time { return time.Date(2026, time.October, d, h, 0, 0, 0, time.UTC) }
+	bug := func(e history.IssueEvent) history.IssueEvent {
+		e.Bug = true
+		return e
+	}
+	events := []history.IssueEvent{
+		bug(appEvent(1, "created", at(13, 0))), bug(closedIssue(1, at(13, 10))),
+		appEvent(2, "created", at(13, 0)), closedIssue(2, at(13, 20)),
+		appEvent(3, "created", at(12, 0)), closedIssue(3, at(12, 6)),
+	}
+	want := [][2]LeadMedian{
+		{{15 * time.Hour, 2}, {10 * time.Hour, 1}},
+		{{6 * time.Hour, 1}, {}},
+	}
+	var got [][2]LeadMedian
+	for _, r := range IssueRows(events, at(14, 12)) {
+		if r.Kind == KindDay {
+			got = append(got, [2]LeadMedian{r.LeadTime, r.BugsLeadTime})
+		}
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("want the lead times and the bugs lead times\n%v\ngot\n%v", want, got)
+	}
+}

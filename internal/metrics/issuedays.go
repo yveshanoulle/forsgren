@@ -55,6 +55,9 @@ type IssueDay struct {
 	// LeadTime is the median time from creation to close of the issues closed
 	// as completed in that period (forsgren#202); Count 0 when none.
 	LeadTime LeadMedian
+	// BugsLeadTime is LeadTime over the issues that carry the bug label, the
+	// flag OpenBugs uses (forsgren#202); Count 0 when none.
+	BugsLeadTime LeadMedian
 	// Active is whether anything happened on that day: a new issue, a close
 	// of any kind, or a reopen (forsgren#108).
 	Active bool
@@ -118,9 +121,7 @@ func periodRows(
 			rows[i].count(e)
 		}
 	}
-	for i, lead := range leadMedians(events, rowOf, len(rows)) {
-		rows[i].LeadTime = lead
-	}
+	setLeadTimes(rows, events, rowOf)
 	start := dateOf(len(rows) - 1)
 	for _, c := range runningCounts {
 		perRow, atStart := periodChanges(events, start, len(rows), rowOf, c.delta)

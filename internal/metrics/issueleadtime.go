@@ -4,6 +4,7 @@ package metrics
 // creation of an issue to its close, over the issues closed in that period.
 
 import (
+	"slices"
 	"strings"
 	"time"
 
@@ -44,6 +45,23 @@ func medianEach(leads [][]time.Duration) []LeadMedian {
 		}
 	}
 	return medians
+}
+
+// setLeadTimes sets the LeadTime of each of rows from the closes of events that
+// rowOf places on it, and its BugsLeadTime from those of the bug issues.
+func setLeadTimes(rows []IssueDay, events []history.IssueEvent, rowOf func(time.Time) (int, bool)) {
+	for i, lead := range leadMedians(events, rowOf, len(rows)) {
+		rows[i].LeadTime = lead
+	}
+	for i, lead := range leadMedians(bugEvents(events), rowOf, len(rows)) {
+		rows[i].BugsLeadTime = lead
+	}
+}
+
+// bugEvents are the events of events that belong to an issue carrying the bug
+// label, the flag bugDelta reads.
+func bugEvents(events []history.IssueEvent) []history.IssueEvent {
+	return slices.DeleteFunc(slices.Clone(events), func(e history.IssueEvent) bool { return !e.Bug })
 }
 
 // leadOf is the lead time of e, from the creation of its issue (created) to
