@@ -236,6 +236,16 @@
 #      the branch moved since the checkout fails with an ::error saying so,
 #      never rebased and never forced, as the data step does (pin 24). Pin 9
 #      puts it after the starter and before the config check;
+#  36. the whole job for the README (forsgren#110): the starter step, the
+#      README step and the run summary step, in the workflow's order, EXECUTED
+#      together with the real forsgren and git against a local remote (the
+#      summary gets the README step's output only if its env: takes it from
+#      there). A new installation with no README and no config ends with the
+#      starter commit and the README commit and a summary that says "README:
+#      created from forsgren X.Y.Z's"; one with an old hand-written README
+#      ends with one bot commit that holds README.md alone and "replaced with
+#      forsgren X.Y.Z's", and its next run adds no commit and says "README:
+#      unchanged";
 #  and pin 9 also orders the steps: install, checkout, starter, README, config check,
 #  collect, data commit, render, and the fail step after "Publish to GitHub
 #  Pages", so what was stored is committed and published before the job
@@ -875,6 +885,83 @@ judge_readme_moved() {
   if ! grep -E '^::error' "${TMP}/step.log" | grep -qF -- "$MOVED"; then
     echo "with the branch moved since the checkout the README step does not name the cause in an ::error saying '${MOVED}' (log: $(paste -sd'|' - < "${TMP}/step.log"))"
   fi
+}
+
+# job_run <order>: the steps of <order> (starter, readme, summary, one per
+# line, in the workflow's order) run in the installation's checkout with the
+# real forsgren and git, as the job runs them: the summary step gets the
+# README step's output only when its env: takes it from there. Leaves the
+# summary in ${TMP}/job.md and prints the exit statuses that were not 0 and
+# then the commit count of ${TRUNK} on the remote.
+job_run() {
+  local word got out="" env=""
+  env="$(step_block "$WF_UNDER_TEST" "$SUMMARY_STEP" env)"
+  : > "${TMP}/job.md"
+  mkdir -p "${TMP}/runner"
+  while IFS= read -r word; do
+    case "$word" in
+      starter | readme)
+        got="$(git_step_outcome "${TMP}/job-${word}.sh" real "refs/heads/${TRUNK}" "$TRUNK")"
+        [[ "$got" == exit=0* ]] || echo "the ${word} step ends '${got}' in the whole job"
+        [[ "$word" != readme ]] || out="$(readme_output)"
+        ;;
+      summary)
+        grep -qxF -- "README: ${EXPR_OPEN} steps.readme.outputs.readme }}" <<< "$env" || out=""
+        (cd "$INSTALL" && PATH="${REAL}:${PATH}" GITHUB_STEP_SUMMARY="${TMP}/job.md" GITHUB_REPOSITORY="acme/data" \
+          LATEST="" WAITING="" PR_CHECK="skipped" NEEDS_CHECK="" README="$out" RUNNER_TEMP="${TMP}/runner" \
+          bash "${TMP}/job-summary.sh") > /dev/null 2>&1 || true
+        ;;
+    esac
+  done <<< "$1"
+  iso_out -C "$ORIGIN" rev-list --count "$TRUNK"
+}
+
+# job_findings <label> <order> <want commits> <want README summary line, with
+# VERSION for forsgren's version>: one whole run of the three steps, and what
+# it must have left: the commits and the summary's README line.
+job_findings() {
+  local got built line
+  got="$(job_run "$2")"
+  [[ "$(tail -1 <<< "$got")" == "$3" ]] || echo "$1 the whole job leaves '$(paste -sd, - <<< "$got")' commits on ${TRUNK}, not ${3}"
+  built="$(sed -n 's/^- Built with: forsgren //p' "${TMP}/job.md")"
+  line="${4//VERSION/$built}"
+  grep -qxF -- "$line" "${TMP}/job.md" || echo "$1 the job summary does not say '${line}' (it holds: $(paste -sd'|' - < "${TMP}/job.md"))"
+}
+
+# judge_readme_job <workflow-file>: pin 36, the whole job for the README: the
+# starter step, the README step and the summary, in the workflow's order, with
+# the real forsgren and git against a local remote. A new installation (no
+# README, no config) gets two commits, the starter and the README, and the
+# summary says created; an installation with an old hand-written README gets
+# one bot commit that holds README.md alone, the summary says replaced, and a
+# second run adds no commit and says unchanged.
+judge_readme_job() {
+  local order word
+  WF_UNDER_TEST="$1"
+  step_block "$1" "$INIT_STEP" run > "${TMP}/job-starter.sh"
+  step_block "$1" "$README_STEP" run > "${TMP}/job-readme.sh"
+  step_block "$1" "$SUMMARY_STEP" run > "${TMP}/job-summary.sh"
+  for word in starter readme summary; do
+    [[ -s "${TMP}/job-${word}.sh" ]] || return 0
+  done
+  order="$(printf '%s\n' "$(line_of "$1" "- name: ${INIT_STEP}"):starter" "$(line_of "$1" "- name: ${README_STEP}"):readme" \
+    "$(line_of "$1" "- name: ${SUMMARY_STEP}"):summary" | sort -t: -k1,1n | cut -d: -f2)"
+  new_install
+  iso -C "$INSTALL" rm README.md
+  iso -C "$INSTALL" -c user.name=Setup -c user.email=setup@example.com commit -m "Remove the README"
+  iso -C "$INSTALL" push origin "$TRUNK"
+  job_findings "for a new installation" "$order" 4 "- README: created from forsgren VERSION's"
+  readme_commit_findings "for a new installation" "$TRUNK"
+  bot_findings "for a new installation" "starter commit" "${TRUNK}~1"
+  [[ "$(iso_out -C "$ORIGIN" log -1 --format='%B' "${TRUNK}~1")" == "$STARTER_SUBJECT" ]] || echo "for a new installation the commit before the README commit is not the starter's"
+  new_install
+  cp internal/config/starter.yml "${INSTALL}/forsgren.config.yml"
+  iso -C "$INSTALL" add forsgren.config.yml
+  iso -C "$INSTALL" -c user.name=Setup -c user.email=setup@example.com commit -m "Add the config"
+  iso -C "$INSTALL" push origin "$TRUNK"
+  job_findings "for an old hand-written README" "$order" 3 "- README: replaced with forsgren VERSION's"
+  readme_commit_findings "for an old hand-written README" "$TRUNK"
+  job_findings "for the run after it" "$order" 3 "- README: unchanged"
 }
 
 # judge_readme_token <workflow-file>: pin 13 for the README step (pin 35): its push
@@ -1783,6 +1870,7 @@ judge() {
   judge_readme_token "$1"
   judge_readme_tag "$1"
   judge_readme_moved "$1"
+  judge_readme_job "$1"
   judge_config_step "$1"
   judge_config_commands "$1"
   judge_config_e2e "$1"
@@ -2182,6 +2270,17 @@ proves judge_readme_moved "a refused README push without its cause" "the README 
   "/- name: Write the installation README/,/- name: Check the caller/ s/${MOVED}/was refused/"
 proves judge_readme_moved "a refused README push that passes" "with the branch moved since the checkout the README step gives 'exit=0 commits=2'" \
   '/- name: Write the installation README/,/- name: Check the caller/ { /^ *exit 1$/d; }'
+
+# The whole job for the README (forsgren#110, step 8).
+proves_moved judge_readme_job "the README step after the run summary" "the job summary does not say '- README: created from forsgren" "$README_STEP" "Upload the page"
+proves judge_readme_job "a job summary not given the README output" "the job summary does not say '- README: created from forsgren" \
+  "/- name: ${SUMMARY_STEP}\$/,/run: |/{/README: \\${D}{{ steps.readme.outputs.readme }}/d;}"
+proves judge_readme_job "a job summary call without the README flag" "the job summary does not say '- README: created from forsgren" \
+  "/- name: ${SUMMARY_STEP}\$/,/- name: Upload/ s| \\${D}{README:+--readme \"\\${D}README\"}||"
+proves judge_readme_job "a README step that sets no output" "the job summary does not say '- README: created from forsgren" \
+  "s/readme=\\${D}{word}/other=${D}{word}/"
+proves judge_readme_job "a README step that never commits" "the whole job leaves" \
+  '/- name: Write the installation README/,/- name: Check the caller/ { /^ *GIT_CONFIG_COUNT=0 /,/git commit --quiet/d; }'
 
 # The fail step, and the three steps in a row.
 proves judge_fail_step "no fail step" "has no step '${FAIL_STEP}'" \
