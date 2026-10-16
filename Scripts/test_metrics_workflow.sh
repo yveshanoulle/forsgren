@@ -1852,7 +1852,7 @@ proves judge_render_pr_check "a render without PR_CHECK in env" "does not set PR
 proves judge_render_needs "a render without the needs check" "with NEEDS_CHECK set the render step runs" \
   "s/ \\${D}{NEEDS_CHECK:+--needs-check \"\\${D}NEEDS_CHECK\"}//"
 proves judge_render_needs "a render without NEEDS_CHECK in env" "does not set NEEDS_CHECK from steps.needs.outputs.check" \
-  "0,/NEEDS_CHECK: \\${D}{{ steps.needs.outputs.check }}/{/NEEDS_CHECK: \\${D}{{ steps.needs.outputs.check }}/d}"
+  "/- name: ${RENDER_STEP}\$/,/run: |/{/NEEDS_CHECK: \\${D}{{ steps.needs.outputs.check }}/d;}"
 proves judge_render_latest "a render without the latest release" "with LATEST set the render step runs" \
   "s/ \\${D}{LATEST:+--latest \"\\${D}LATEST\"}//"
 proves judge_render_latest "a render without LATEST in env" "does not set LATEST from steps.latest.outputs.latest" \
