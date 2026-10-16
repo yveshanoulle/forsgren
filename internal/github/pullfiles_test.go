@@ -102,7 +102,7 @@ func TestPullRequestFilesSaysItStoppedAtThePageLimit(t *testing.T) {
 // author.
 func TestPullRequestAuthorReadsTheLoginOfOnePullRequest(t *testing.T) {
 	f := newFake(t)
-	f.on(pullsPath+"/7", reply{body: pullItem(7, "dependabot[bot]", dependabotBranch("0.1.4"))})
+	f.on(pullsPath+"/7", reply{body: pullItem(7, "dependabot[bot]")})
 	got, err := f.client(t, DefaultMaxPages).PullRequestAuthor(context.Background(), "acme/data", 7)
 	if err != nil || got != "dependabot[bot]" {
 		t.Errorf("want dependabot[bot], got %q, %v", got, err)

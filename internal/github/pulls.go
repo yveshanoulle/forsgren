@@ -7,20 +7,18 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 )
 
 // ErrPullRequestsDenied is the 403 of OpenPullRequests: the token has no
 // pull-requests: read. It comes with ErrAccess, which it narrows.
 var ErrPullRequestsDenied = errors.New("pull requests are not readable")
 
-// PullRequest is one open pull request: its number, its author's login and
-// its head branch. Nothing else is read: no title, no body, no repository
-// name for the page.
+// PullRequest is one open pull request: its number and its author's login.
+// Nothing else is read: no title, no body, no branch, no repository name for
+// the page.
 type PullRequest struct {
 	Number int64
 	Author string
-	Branch string
 }
 
 // pullRequest is one item of GitHub's answer, the fields OpenPullRequests
@@ -30,9 +28,6 @@ type pullRequest struct {
 	User   struct {
 		Login string `json:"login"`
 	} `json:"user"`
-	Head struct {
-		Ref string `json:"ref"`
-	} `json:"head"`
 }
 
 // OpenPullRequests lists the open pull requests of repo: GET
@@ -91,18 +86,14 @@ func readPullRequests(pulls *[]PullRequest) func([]byte) (bool, error) {
 			return false, err
 		}
 		for _, p := range page {
-			*pulls = append(*pulls, PullRequest{Number: p.Number, Author: p.User.Login, Branch: p.Head.Ref})
+			*pulls = append(*pulls, PullRequest{Number: p.Number, Author: p.User.Login})
 		}
 		return len(page) > 0, nil
 	}
 }
 
-// dependabotLogin is Dependabot's login in GitHub's REST answers, and
-// bumpBranchPrefix the head branches it gives a bump of forsgren's pin.
-const (
-	dependabotLogin  = "dependabot[bot]"
-	bumpBranchPrefix = "dependabot/github_actions/yveshanoulle/forsgren/"
-)
+// dependabotLogin is Dependabot's login in GitHub's REST answers.
+const dependabotLogin = "dependabot[bot]"
 
 // DependabotPulls are the pulls among prs that Dependabot opened, in their
 // order (forsgren#42).
@@ -114,29 +105,4 @@ func DependabotPulls(prs []PullRequest) []PullRequest {
 		}
 	}
 	return out
-}
-
-// ForsgrenBump is the number of the open pull request, among prs, that
-// Dependabot opened to bump forsgren's pin to exactly version, and false
-// when there is none. The rule: its author is dependabot[bot] and its head
-// branch starts with dependabot/github_actions/yveshanoulle/forsgren/ and
-// ends with /metrics.yml- plus the version. Titles are not read (an
-// installation can prefix them). Of several the highest number wins.
-func ForsgrenBump(prs []PullRequest, version string) (int64, bool) {
-	var found int64
-	for _, p := range prs {
-		if isBumpTo(p, version) {
-			found = max(found, p.Number)
-		}
-	}
-	return found, found != 0
-}
-
-// isBumpTo says whether p is Dependabot's pull request bumping forsgren's
-// pin to exactly version.
-func isBumpTo(p PullRequest, version string) bool {
-	if version == "" || p.Author != dependabotLogin {
-		return false
-	}
-	return strings.HasPrefix(p.Branch, bumpBranchPrefix) && strings.HasSuffix(p.Branch, "/metrics.yml-"+version)
 }
