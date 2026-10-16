@@ -20,6 +20,8 @@
 #   6. node_modules/ tracked                          -> red
 #   8. node_modules/ untracked and not ignored        -> red (forsgren#204)
 #   9. node_modules/ ignored                          -> green
+#  10. node_modules a symlink, under the real .gitignore -> green
+#  11. node_modules a symlink, not ignored              -> red
 #   7. manifest and lockfile present, not yet added   -> green, with the INFO
 #                                                        line (the commit that
 #                                                        introduces them)
@@ -151,6 +153,32 @@ write_file package-lock.json "$LOCKFILE" track
 write_file node_modules/acme/index.js $'module.exports = 1;\n'
 run_gate
 want_green "9. node_modules/ ignored" "OK: manifest and lockfile committed"
+
+# --- 10. node_modules as a SYMLINK, under this repository's .gitignore ------
+# Writer agents symlink node_modules into a worktree for the HTML gates. A
+# .gitignore pattern with a trailing slash matches only a directory, so the
+# symlink would be an untracked, not-ignored entry (forsgren#204). The
+# fixture carries the real .gitignore, so this case reads the real entry.
+new_repo nodemods-symlink
+cp "$(dirname "$GATE")/../.gitignore" "${REPO}/.gitignore"
+git -C "$REPO" add .gitignore
+write_file package.json "$EXACT_MANIFEST" track
+write_file package-lock.json "$LOCKFILE" track
+mkdir -p "${TMP}/elsewhere/node_modules/acme"
+printf 'module.exports = 1;\n' > "${TMP}/elsewhere/node_modules/acme/index.js"
+ln -s "${TMP}/elsewhere/node_modules" "${REPO}/node_modules"
+run_gate
+want_green "10. a node_modules symlink, ignored by the repository's own .gitignore" "OK: manifest and lockfile committed"
+
+# --- 11. the same symlink, in a repository that does not ignore it -> red ---
+# git add -A would commit the link, so the gate must see it: a bare
+# node_modules entry, not only one with a slash after it.
+new_repo nodemods-symlink-unignored
+write_file package.json "$EXACT_MANIFEST" track
+write_file package-lock.json "$LOCKFILE" track
+ln -s "${TMP}/elsewhere/node_modules" "${REPO}/node_modules"
+run_gate
+want_red "11. a node_modules symlink that git does not ignore" "node_modules must not be committed"
 
 # --- Mutation proof --------------------------------------------------------
 # Case 2 against a gate whose range check is gone must turn green; otherwise

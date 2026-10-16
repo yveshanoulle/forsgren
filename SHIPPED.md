@@ -596,3 +596,10 @@ Yves: "202, 201, 203, 195, 110,87 can go togther as 1.9.0". #204 was found durin
   - The incomplete cell's subject comes through a template function, not a string branch. `PRListCut` is a bool, so "truncated" lives in Go only.
   - The README words are keyed by the install package's outcomes.
   - Docs: configuration.md, pages-and-views.md, ci.md, quality-gates.md, development.md, data-files.md, updating-and-releases.md ("Upgrading to 1.9.0"), README.md, install/README.md and CLAUDE.md.
+- **Found by the refactor step, fixed before the release:**
+  - **#203 never reached a real run** (f8e3284). The waiting step in metrics.yml turned `truncated` into `failed`. It now passes `truncated` on, and a pin follows it from the waiting step through render to the summary.
+  - **A failed README step stopped the whole day's run** (25110ed). It now records `readme=failed` and the run goes on. A last step fails the job, and the summary says "README: not pushed: see the README step". A failed push undoes the README commit, so the data push carries `data/` alone.
+  - **The data guard could not find its helper when run from inside `Scripts/`** (07c38cf).
+  - **The package gate missed a `node_modules` symlink, and `.gitignore` did not ignore one** (this commit).
+
+What an installation sees after the update: a README written and committed by the daily run (a hand-edited one is replaced), the 3-day cooldown when dependabot.yml sets none, Lead time and Bugs lead time on the Issues and Daily pages, and "unknown (pull request list truncated)" where a cut list cannot rule out a waiting pull request. No new permission or secret.

@@ -68,7 +68,7 @@ done
 # Tracked, and untracked but not ignored: the commit that adds a node_modules/
 # would carry it (forsgren#204).
 listed="$(repo_files .)"
-if grep -q '^node_modules/' <<<"$listed"; then
+if grep -qE '^node_modules(/|$)' <<<"$listed"; then
   echo "❌ FAIL: node_modules must not be committed — npm ci deletes and recreates it, so a tracked copy is build output masquerading as source."
   failed=1
 fi
