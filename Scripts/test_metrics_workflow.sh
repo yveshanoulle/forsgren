@@ -234,8 +234,14 @@
 #      not a branch (a tag) refuses by name with an ::error and pushes
 #      nothing, an unchanged one is no error there; a push refused because
 #      the branch moved since the checkout fails with an ::error saying so,
-#      never rebased and never forced, as the data step does (pin 24). Pin 9
-#      puts it after the starter and before the config check;
+#      never rebased and never forced, as the data step does (pin 24). None
+#      of these stops the day: the step prints its ::error, sets the output
+#      `readme` to failed (its only write of it on that path), undoes its
+#      local commit (the data step's push then carries data/ alone, tested
+#      with a remote that refuses README.md) and exits 0; the last step "Fail
+#      the job when the README could not be pushed", `if: ${{ !cancelled() }}`
+#      and after collect's fail step, fails the job for readme=failed only.
+#      Pin 9 puts it after the starter and before the config check;
 #  36. the whole job for the README (forsgren#110): the starter step, the
 #      README step and the run summary step, in the workflow's order, EXECUTED
 #      together with the real forsgren and git against a local remote (the
@@ -333,6 +339,7 @@ EXPR_OPEN="\${{"
 COLLECT_STEP="Collect deployments"
 DATA_STEP="Commit the collected deployments"
 FAIL_STEP="Fail the job when collect failed"
+README_FAIL_STEP="Fail the job when the README could not be pushed"
 PUBLISH_STEP="Publish to GitHub Pages"
 COLLECT_CMD="collect --config forsgren.config.yml --data data/deployments.csv --token-expiry RUNNER_TEMP/token-expiry"
 DATA_SUBJECT="forsgren: record deployments"
@@ -845,19 +852,19 @@ judge_readme_step() {
 # not a branch (a tag): a changed README is refused by name, nothing is
 # committed or pushed; an unchanged one is no error.
 judge_readme_tag() {
-  local script="${TMP}/readme.sh" got want="exit=1 commits=1"
+  local script="${TMP}/readme.sh" got want="exit=0 commits=1 output=failed"
   step_block "$1" "$README_STEP" run > "$script"
   [[ -s "$script" ]] || return 0
   new_install
-  got="$(git_step_outcome "$script" real "refs/tags/v1" "$TRUNK")"
-  [[ "$got" == "$want" ]] || echo "for a README that differs on a ref that is not a branch (refs/tags/v1) the README step gives '${got}', not '${want}' — it must refuse, there is no branch to commit to"
+  got="$(git_step_outcome "$script" real "refs/tags/v1" "$TRUNK") output=$(readme_output)"
+  [[ "$got" == "$want" ]] || echo "for a README that differs on a ref that is not a branch (refs/tags/v1) the README step gives '${got}', not '${want}' — it must refuse by name and go on, there is no branch to commit to"
   if ! grep -E '^::error' "${TMP}/step.log" | grep -qF -- "can be committed only on a branch"; then
     echo "on a tag the README step does not name the cause in an ::error saying 'can be committed only on a branch' (log: $(paste -sd'|' - < "${TMP}/step.log"))"
   fi
   new_install
   git_step_outcome "$script" real "refs/heads/${TRUNK}" "$TRUNK" > /dev/null
-  got="$(git_step_outcome "$script" real "refs/tags/v1" "$TRUNK")"
-  want="exit=0 commits=2"
+  got="$(git_step_outcome "$script" real "refs/tags/v1" "$TRUNK") output=$(readme_output)"
+  want="exit=0 commits=2 output=unchanged"
   [[ "$got" == "$want" ]] || echo "with an unchanged README on a tag the README step gives '${got}', not '${want}' — an unchanged README exits 0 before any branch logic"
 }
 
@@ -865,7 +872,7 @@ judge_readme_tag() {
 # checkout fails the README step by name, with no rebase and no force, as the
 # data step does (pin 24).
 judge_readme_moved() {
-  local script="${TMP}/readme.sh" other="${TMP}/other" got want tip
+  local script="${TMP}/readme.sh" other="${TMP}/other" got want tip before
   step_block "$1" "$README_STEP" run > "$script"
   [[ -s "$script" ]] || return 0
   new_install
@@ -876,15 +883,84 @@ judge_readme_moved() {
   iso -C "$other" -c user.name=Other -c user.email=other@example.com commit -m "Another push"
   iso -C "$other" push origin "$TRUNK"
   tip="$(iso_out -C "$ORIGIN" rev-parse "$TRUNK")"
-  got="$(git_step_outcome "$script" real "refs/heads/${TRUNK}" "$TRUNK")"
-  want="exit=1 commits=2"
-  [[ "$got" == "$want" ]] || echo "with the branch moved since the checkout the README step gives '${got}', not '${want}' — it must fail, never rebase or force"
+  before="$(iso_out -C "$INSTALL" rev-parse HEAD)"
+  got="$(git_step_outcome "$script" real "refs/heads/${TRUNK}" "$TRUNK") output=$(readme_output)"
+  [[ "$(iso_out -C "$INSTALL" rev-parse HEAD)" == "$before" ]] && got+=" local=clean" || got+=" local=commit"
+  want="exit=0 commits=2 output=failed local=clean"
+  [[ "$got" == "$want" ]] || echo "with the branch moved since the checkout the README step gives '${got}', not '${want}' — it must go on (the job fails at its end), never rebase or force, and leave no local commit for the data push to carry"
   if [[ "$(iso_out -C "$ORIGIN" rev-parse "$TRUNK")" != "$tip" ]]; then
     echo "with the branch moved since the checkout the README step replaced the commit another pushed — it must never force"
   fi
   if ! grep -E '^::error' "${TMP}/step.log" | grep -qF -- "$MOVED"; then
     echo "with the branch moved since the checkout the README step does not name the cause in an ::error saying '${MOVED}' (log: $(paste -sd'|' - < "${TMP}/step.log"))"
   fi
+}
+
+# protect_readme: the installation's remote refuses any push that changes
+# README.md, as branch protection against the bot would.
+protect_readme() {
+  cat > "${ORIGIN}/hooks/pre-receive" <<'HOOK'
+#!/bin/sh
+while read old new ref; do
+  if git diff-tree --no-commit-id --name-only -r "$old" "$new" | grep -qx README.md; then
+    echo "README.md is protected" >&2
+    exit 1
+  fi
+done
+HOOK
+  chmod +x "${ORIGIN}/hooks/pre-receive"
+}
+
+# judge_readme_failure <workflow-file>: pin 35, a README step that fails does
+# not stop the day: the remote refuses README.md (a protected file, as branch
+# protection would), the step records readme=failed and exits 0, the data
+# step after it still commits and pushes data/ alone (the README commit is not
+# left behind to ride along), the run summary says the README was not pushed,
+# and the last step fails the job, whatever stopped before it, but only for
+# that output (forsgren#110).
+judge_readme_failure() {
+  local readme="${TMP}/readme.sh" data="${TMP}/data.sh" failstep="${TMP}/readme-fail.sh" summary="${TMP}/summary.sh" got want files text
+  step_block "$1" "$README_STEP" run > "$readme"
+  step_block "$1" "$DATA_STEP" run > "$data"
+  step_block "$1" "$README_FAIL_STEP" run > "$failstep"
+  step_block "$1" "$SUMMARY_STEP" run > "$summary"
+  if [[ ! -s "$failstep" ]]; then
+    echo "has no step '${README_FAIL_STEP}' with a run: | block — a README that could not be pushed leaves the run green"
+    return 0
+  fi
+  [[ -s "$readme" && -s "$data" && -s "$summary" ]] || return 0
+  text="$(step_text "$1" "$README_FAIL_STEP")"
+  if ! grep -qxF -- "        if: ${EXPR_OPEN} !cancelled() }}" <<< "$text"; then
+    echo "the step '${README_FAIL_STEP}' has no 'if: ${EXPR_OPEN} !cancelled() }}' — a failed collect or render before it would hide the README failure"
+  fi
+  new_install
+  protect_readme
+  got="$(git_step_outcome "$readme" real "refs/heads/${TRUNK}" "$TRUNK") output=$(readme_output)"
+  want="exit=0 commits=1 output=failed"
+  [[ "$got" == "$want" ]] || echo "with README.md refused by the remote the README step gives '${got}', not '${want}' — a refused push is an ::error and the job goes on"
+  grep -E '^::error' "${TMP}/step.log" | grep -qF -- "was refused" || echo "with README.md refused by the remote the README step does not say so in an ::error"
+  new_install
+  rm -f "${INSTALL}/README.md"
+  mkdir "${INSTALL}/README.md"
+  got="$(git_step_outcome "$readme" real "refs/heads/${TRUNK}" "$TRUNK") output=$(readme_output)"
+  want="exit=0 commits=1 output=failed"
+  [[ "$got" == "$want" ]] || echo "with a README.md that install-readme cannot write the README step gives '${got}', not '${want}' — it must say so and go on"
+  grep -E '^::error' "${TMP}/step.log" | grep -qF -- "could not write README.md" || echo "with a README.md that install-readme cannot write the README step does not say 'could not write README.md' in an ::error"
+  new_install
+  protect_readme
+  git_step_outcome "$readme" real "refs/heads/${TRUNK}" "$TRUNK" > /dev/null
+  store_data
+  got="$(git_step_outcome "$data" kept "refs/heads/${TRUNK}" "$TRUNK")"
+  want="exit=0 commits=2"
+  [[ "$got" == "$want" ]] || echo "after a README step that failed the data step gives '${got}', not '${want}' — data/ is still committed and pushed"
+  files="$(iso_out -C "$ORIGIN" diff-tree --no-commit-id --name-only -r "$TRUNK" | paste -sd, -)"
+  [[ "$files" == "data/commits.csv,data/deployments.csv" ]] || echo "after a README step that failed the data commit holds [${files}] — the README commit must not be left behind to ride along"
+  got="$(README_STATUS=failed bash "$failstep" 2>&1; echo "rc=$?")"
+  [[ "$got" == *"::error title=forsgren README::"*"rc=1" ]] || echo "with README_STATUS=failed the step '${README_FAIL_STEP}' gives '${got}' — it must name the README in an ::error and exit 1"
+  for want in replaced created unchanged ""; do
+    got="$(README_STATUS="$want" bash "$failstep" > /dev/null 2>&1; echo "rc=$?")"
+    [[ "$got" == rc=0 ]] || echo "with README_STATUS='${want}' the step '${README_FAIL_STEP}' exits ${got#rc=}, not 0 — only a failed README fails the job"
+  done
 }
 
 # job_run <order>: the steps of <order> (starter, readme, summary, one per
@@ -1725,13 +1801,14 @@ judge_config_e2e() {
 
 # judge_order <workflow-file>: pin 9.
 judge_order() {
-  local install checkout init check render collect data publish failstep lookup needs readme
+  local install checkout init check render collect data publish failstep lookup needs readme readmefail
   lookup="$(line_of "$1" "- name: ${LATEST_STEP}")"
   install="$(line_of "$1" "- name: ${INSTALL_STEP}")"
   checkout="$(line_of "$1" "- name: ${CHECKOUT_STEP}")"
   init="$(line_of "$1" "- name: ${INIT_STEP}")"
   check="$(line_of "$1" "- name: ${CHECK_STEP}")"
   readme="$(line_of "$1" "- name: ${README_STEP}")"
+  readmefail="$(line_of "$1" "- name: ${README_FAIL_STEP}")"
   render="$(line_of "$1" "- name: ${RENDER_STEP}")"
   collect="$(line_of "$1" "- name: ${COLLECT_STEP}")"
   data="$(line_of "$1" "- name: ${DATA_STEP}")"
@@ -1757,6 +1834,12 @@ judge_order() {
   fi
   if later "$install" "$init"; then
     echo "writes the starter (line ${init}) before installing forsgren (line ${install}) — init-config is not on PATH yet"
+  fi
+  if later "$failstep" "$readmefail"; then
+    echo "fails the job for the README (line ${readmefail}) before collect's own fail step (line ${failstep}) — a failed collect would be hidden by it"
+  fi
+  if later "$publish" "$readmefail"; then
+    echo "fails the job for the README (line ${readmefail}) before it publishes (line ${publish}) — the page must be published first"
   fi
   if later "$readme" "$check"; then
     echo "writes the README (line ${readme}) after the config check (line ${check}) — it belongs to the files written before the run reads anything"
@@ -1903,6 +1986,7 @@ judge() {
   judge_readme_token "$1"
   judge_readme_tag "$1"
   judge_readme_moved "$1"
+  judge_readme_failure "$1"
   judge_readme_job "$1"
   judge_config_step "$1"
   judge_config_commands "$1"
@@ -2303,19 +2387,34 @@ proves judge_readme_token "a README push without the header" "the README step's 
   "/- name: Write the installation README/,/- name: Check the caller/ s/\"AUTHORIZATION: basic /\"X-Other: basic /"
 
 proves judge_readme_tag "a README pushed from a tag" "for a README that differs on a ref that is not a branch (refs/tags/v1)" \
-  '/- name: Write the installation README/,/git add --/ s/exit 1/exit 0/'
+  "/- name: Write the installation README/,/- name: Check the caller/ s/\\[\\[ \"${D}GITHUB_REF\" != refs\\/heads\\/\\* \\]\\]/false/"
 proves judge_readme_tag "a tag error without its cause" "on a tag the README step does not name the cause" \
   's/can be committed only on a branch/cannot be committed/'
 proves judge_readme_tag "the branch guard before the unchanged check" "with an unchanged README on a tag" \
   '/- name: Write the installation README/,/- name: Check the caller/ s/^\( *\)exit 0$/\1true/'
 proves judge_readme_moved "a forced README push" "the README step replaced the commit another pushed" \
   "/- name: Write the installation README/,/- name: Check the caller/ s|push_log=\"${D}(git push --quiet|push_log=\"${D}(git push --force --quiet|"
-proves judge_readme_moved "a rebased README push" "with the branch moved since the checkout the README step gives 'exit=0 commits=3'" \
+proves judge_readme_moved "a rebased README push" "with the branch moved since the checkout the README step gives 'exit=0 commits=3" \
   "/- name: Write the installation README/,/- name: Check the caller/ s|^\\( *\\)push_log=|\\1git -c user.name=x -c user.email=x@example.com pull --rebase --autostash --quiet origin \"${D}{GITHUB_REF}\"\\n&|"
 proves judge_readme_moved "a refused README push without its cause" "the README step does not name the cause in an ::error" \
   "/- name: Write the installation README/,/- name: Check the caller/ s/${MOVED}/was refused/"
-proves judge_readme_moved "a refused README push that passes" "with the branch moved since the checkout the README step gives 'exit=0 commits=2'" \
-  '/- name: Write the installation README/,/- name: Check the caller/ { /^ *exit 1$/d; }'
+proves judge_readme_moved "a README step that exits 1 again" "with the branch moved since the checkout the README step gives 'exit=1" \
+  '/- name: Write the installation README/,/- name: Check the caller/ { s/^\( *\)exit 0$/\1exit 1/; }'
+proves judge_readme_moved "a README step that leaves its commit behind" "local=commit" \
+  '/- name: Write the installation README/,/- name: Check the caller/ { /git reset --quiet/d; }'
+proves judge_readme_failure "a README step that does not record its failure" "gives 'exit=0 commits=1 output=" \
+  '/- name: Write the installation README/,/- name: Check the caller/ { /echo "readme=failed"/d; }'
+proves judge_readme_failure "a README step that cannot write and stops" "does not say 'could not write README.md'" \
+  's/could not write README\.md; its message/could not do it; its message/'
+proves judge_readme_failure "a README fail step conditioned on nothing" "has no 'if:" \
+  '/- name: Fail the job when the README could not be pushed/,/shell: bash/ { /^ *if: /d; }'
+proves judge_readme_failure "a README fail step that never fails" "with README_STATUS=failed the step" \
+  '/- name: Fail the job when the README could not be pushed/,$ s/exit 1/exit 0/'
+proves judge_readme_failure "a README fail step that fails every run" "exits 1, not 0" \
+  '/- name: Fail the job when the README could not be pushed/,$ s/== failed \]\]/!= nothing ]]/'
+proves_moved judge_readme_failure "a workflow without the README fail step" "has no step 'Fail the job when the README could not be pushed'" "$README_FAIL_STEP"
+proves_moved judge_order "the README fail step before collect's" "before collect's own fail step" "$README_FAIL_STEP" "$FAIL_STEP"
+proves_moved judge_order "the README fail step before publishing" "before it publishes" "$README_FAIL_STEP" "$RENDER_STEP"
 
 # The whole job for the README (forsgren#110, step 8).
 proves_moved judge_readme_job "the README step after the run summary" "the job summary does not say '- README: created from forsgren" "$README_STEP" "Upload the page"

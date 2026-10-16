@@ -243,11 +243,20 @@ jobs:
       # branch the run is on, as github-actions[bot]; an unchanged one commits
       # and pushes nothing, so a daily run adds no commit. Commit identity,
       # branch rule and the push carrying the token in git's environment only
-      # are the starter step's, for the reasons given there. A ref that is not
-      # a branch (a tag) fails by name when the README changed. When the push
-      # is refused because the branch moved since this run's checkout, the
-      # step fails with an ::error that says so, as the data step does: no
-      # rebase, no force, the next run writes the README again. Inline for the
+      # are the starter step's, for the reasons given there.
+      #
+      # A failure here does not stop the day (the rule collect follows): a ref
+      # that is not a branch (a tag) when the README changed, a push refused
+      # because the branch moved since this run's checkout, a push refused
+      # for another reason (branch protection against the bot), or a README
+      # that cannot be written, prints an ::error that says which, sets the
+      # output `readme` to failed (the only write of that output on the way)
+      # and exits 0, so check-config, collect, the data commit, render and the
+      # page still run, and the last step, "Fail the job when the README could
+      # not be pushed", turns the run red. A refused push leaves no commit
+      # behind: the local one is undone (git reset, which keeps README.md in
+      # the working tree), so the data step's push carries data/ alone.
+      # No rebase, no force: the next run writes the README again. Inline for the
       # same reason; Scripts/test_metrics_workflow.sh executes this block with
       # a real git against a local remote and the real forsgren.
       - name: Write the installation README
@@ -257,17 +266,24 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          result="$(forsgren install-readme --out README.md)"
+          fail() {
+            echo "::error title=forsgren README::$1"
+            echo "readme=failed" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          if ! result="$(forsgren install-readme --out README.md)"; then
+            fail "forsgren install-readme could not write README.md; its message is above"
+          fi
           echo "$result"
           word="${result%% *}"
-          echo "readme=${word}" >> "$GITHUB_OUTPUT"
           if [[ "$word" == unchanged ]]; then
+            echo "readme=unchanged" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if [[ "$GITHUB_REF" != refs/heads/* ]]; then
-            echo "::error title=forsgren README::README.md changed and can be committed only on a branch; run this workflow on one"
-            exit 1
+            fail "README.md changed and can be committed only on a branch; run this workflow on one"
           fi
+          before="$(git rev-parse HEAD)"
           git add -- README.md
           GIT_CONFIG_COUNT=0 \
           GIT_AUTHOR_NAME='github-actions[bot]' GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com' \
@@ -279,16 +295,15 @@ jobs:
           export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${auth}"
           status=0
           push_log="$(git push --quiet origin "HEAD:${GITHUB_REF}" 2>&1)" || status=$?
-          if [[ "$status" -eq 0 ]]; then
-            exit 0
+          if [[ "$status" -ne 0 ]]; then
+            printf '%s\n' "$push_log"
+            git reset --quiet "$before"
+            if grep -qE '\[rejected\].*\((fetch first|non-fast-forward)\)' <<< "$push_log"; then
+              fail "${GITHUB_REF} moved since this run checked it out (another push); README.md is not pushed, rebased or forced: the next run writes it again"
+            fi
+            fail "the push of README.md to ${GITHUB_REF} was refused; git's message is above"
           fi
-          printf '%s\n' "$push_log"
-          if grep -qE '\[rejected\].*\((fetch first|non-fast-forward)\)' <<< "$push_log"; then
-            echo "::error title=forsgren README::${GITHUB_REF} moved since this run checked it out (another push); README.md is not pushed, rebased or forced: the next run writes it again"
-          else
-            echo "::error title=forsgren README::the push of README.md to ${GITHUB_REF} was refused; git's message is above"
-          fi
-          exit 1
+          echo "readme=${word}" >> "$GITHUB_OUTPUT"
 
       # forsgren check-config reads the caller's forsgren.config.yml and says
       # in one line whether it is valid. A missing or invalid file fails the
@@ -562,5 +577,23 @@ jobs:
           set -euo pipefail
           if [[ "$COLLECT_STATUS" != 0 ]]; then
             echo "::error title=forsgren collect::forsgren collect exited ${COLLECT_STATUS:-without a status}; see the step 'Collect deployments'. What the others stored is published."
+            exit 1
+          fi
+
+      # A README that could not be pushed (the README step recorded
+      # readme=failed and went on, so the data was committed and the page
+      # published) fails the job here, after collect's own fail step. It runs
+      # unless the run was cancelled, so a collect that failed or a step that
+      # stopped the job earlier does not hide it; with any other output, or
+      # none, it does nothing.
+      - name: Fail the job when the README could not be pushed
+        if: ${{ !cancelled() }}
+        shell: bash
+        env:
+          README_STATUS: ${{ steps.readme.outputs.readme }}
+        run: |
+          set -euo pipefail
+          if [[ "$README_STATUS" == failed ]]; then
+            echo "::error title=forsgren README::the installation README could not be pushed; see the step 'Write the installation README'. The rest of the run was done."
             exit 1
           fi

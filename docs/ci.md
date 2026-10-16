@@ -176,8 +176,9 @@ alone as `github-actions[bot]`, pushed to the branch the run is on with the toke
 in git's environment only (so it is in no argument, file or log and the
 checkout still stores nothing), `forsgren install-readme --out README.md`
 and, when it created or replaced the README, one commit of `README.md` alone,
-"forsgren: update README.md", pushed the same way (an `::error` on a tag or
-a branch that moved; forsgren#110), `forsgren check-config --config
+"forsgren: update README.md", pushed the same way (an `::error` on a tag, a
+branch that moved or a refused push, recorded as `readme=failed`, and the run goes on;
+forsgren#110), `forsgren check-config --config
 forsgren.config.yml` (its message printed between
 `::stop-commands::<token>` and `::<token>::`, a fresh random token per
 run, so a line of it that starts with `::` never runs as a workflow
@@ -189,8 +190,9 @@ branch that moved, never a rebase or a force), `forsgren render --config
 forsgren.config.yml --data data/deployments.csv` (with `--latest`,
 `--waiting-pr` and `--pr-check` from the lookups), `forsgren run-summary`
 appended to the job summary (with `--readme` from the README step), then `actions/upload-pages-artifact` and
-`actions/deploy-pages` into the `github-pages` environment, and last a step
-that fails the job when collect failed. The job
+`actions/deploy-pages` into the `github-pages` environment, and last two steps
+that fail the job when collect failed and when the README could not be pushed
+(`readme=failed`; it runs unless the run was cancelled). The job
 context, not the `github` context: in a called workflow the `github`
 context is the caller's. `setup-go` exports `GOTOOLCHAIN=local`, so
 `go install` builds with that Go and never switches to another. The commit
@@ -398,8 +400,12 @@ Eight PRE gates keep the CI honest:
   `github-actions[bot]` (unsigned under a hostile inherited git
   environment), pushes it with the token as pin 13 has it, commits and
   pushes nothing for an unchanged README, refuses a changed one on a tag by
-  name, and fails with an `::error` naming a branch that moved, with no
-  rebase and no force; and the whole job for the README (pin 36: the
+  name, and names a branch that moved or a refused push in an `::error`, with no
+  rebase, no force and no local commit left behind; both record `readme=failed` and
+  exit 0, and the data step after them still pushes `data/` alone, the run
+  summary says "README: not pushed: see the README step" and the step "Fail the job
+  when the README could not be pushed" (`if: ${{ !cancelled() }}`, after collect's
+  own fail step) fails the job for that output only; and the whole job for the README (pin 36: the
   starter, README and summary steps run together in the workflow's order)
   gives a new installation the starter commit, the README commit and
   "README: created from forsgren X.Y.Z's", an installation with a

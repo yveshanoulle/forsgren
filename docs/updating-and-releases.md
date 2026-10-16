@@ -397,9 +397,11 @@ holds that one file, "forsgren: update README.md". **A README you edited by
 hand is replaced on the first run after this update**, so keep your own
 notes elsewhere before you update. The README says so in its first lines,
 and the run's job summary gains a README line: "created from forsgren
-1.9.0's", "replaced with forsgren 1.9.0's" or "unchanged". On a tag, or when
-the branch moved during the run, nothing is pushed and the run fails with
-the reason (see [Running forsgren](configuration.md#running-forsgren)).
+1.9.0's", "replaced with forsgren 1.9.0's" or "unchanged". A README that cannot be
+pushed (a tag, a branch that moved during the run, a push the remote refuses)
+does not stop the day: the run prints the reason, goes on, and fails at its
+end, and the job summary says "README: not pushed: see the README step" (see
+[Running forsgren](configuration.md#running-forsgren)).
 **No cooldown key now means Dependabot's 3 days** (forsgren#195): when your
 `.github/dependabot.yml` updates `github-actions` with no `cooldown`
 `default-days`, the Update line of the job summary counts Dependabot's

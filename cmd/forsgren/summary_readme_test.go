@@ -15,6 +15,7 @@ func TestRunSummaryTellsWhatHappenedToTheReadme(t *testing.T) {
 		"created":   "- README: created from forsgren " + version + "'s\n",
 		"replaced":  "- README: replaced with forsgren " + version + "'s\n",
 		"unchanged": "- README: unchanged\n",
+		"failed":    "- README: not pushed: see the README step\n",
 		"":          "",
 		"banana":    "",
 	}

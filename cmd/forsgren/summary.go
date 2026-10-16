@@ -36,7 +36,7 @@ type summaryInput struct {
 	waitingPR  int
 	check      string
 	needsCheck string
-	// readme is how install-readme went, created, replaced or unchanged
+	// readme is how the README step went, install-readme's word or failed
 	// (forsgren#110).
 	readme     string
 	repository string
@@ -71,7 +71,7 @@ func summaryFlags(args []string, stderr io.Writer) (summaryInput, bool) {
 	flags.StringVar(&in.needsCheck, "needs-check", "",
 		"how the setup issue went: ok, no-access, rate-limited or failed (optional)")
 	flags.StringVar(&in.readme, "readme", "",
-		"how install-readme went: created, replaced or unchanged (optional)")
+		"how the README step went: created, replaced, unchanged or failed (optional)")
 	flags.StringVar(&in.repository, "repository", "", "the installation's owner/name, for the pull request's link")
 	flags.StringVar(&in.tokenFile, "token-expiry", "",
 		"the file collect --token-expiry wrote, for the token's days left (optional)")
@@ -206,13 +206,18 @@ func (in summaryInput) setup(stderr io.Writer) string {
 	return line
 }
 
-// readmeWords say what the README line tells for each word install-readme
-// prints (the values of --readme, installreadme's outcomes), %s standing for
-// the version that wrote the README.
+// readmeFailed is the word the workflow's README step records when the README
+// could not be written or pushed; the job goes on and fails at its end.
+const readmeFailed = "failed"
+
+// readmeWords say what the README line tells for each word of --readme:
+// installreadme's outcomes and readmeFailed, %s standing for the version that
+// wrote the README.
 var readmeWords = map[string]string{
 	installreadme.Created:   "created from forsgren %s's",
 	installreadme.Replaced:  "replaced with forsgren %s's",
 	installreadme.Unchanged: "unchanged",
+	readmeFailed:            "not pushed: see the README step",
 }
 
 // readmeLine says what happened to the installation's README (forsgren#110):

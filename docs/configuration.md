@@ -399,7 +399,7 @@ configuration: see the job summary of this run" to the footer, and leaving it
 out or `ok` adds nothing. `forsgren
 run-summary --latest <version> --waiting-pr <number> --pr-check
 <ok|no-access|rate-limited|truncated|failed|skipped> [--needs-check
-<ok|no-access|rate-limited|failed>] [--readme <created|replaced|unchanged>]
+<ok|no-access|rate-limited|failed>] [--readme <created|replaced|unchanged|failed>]
 [--token-expiry <path>] [--latest-published <path>] --repository
 <owner/name>` prints the run's job summary as markdown, a `## forsgren`
 heading and then these lines, in this order: Run, Built with, Latest
@@ -447,8 +447,9 @@ with its flag:
   [The setup issue](updating-and-releases.md)).
 - `README:`, only with `--readme` (forsgren#110), the word `install-readme`
   printed: "created from forsgren 1.9.0's", "replaced with forsgren 1.9.0's"
-  (the version that built the page) or "unchanged"; a word it does not know
-  adds no line.
+  (the version that built the page), "unchanged", or, for the word `failed`
+  the workflow's README step records, "not pushed: see the README step"; a
+  word it does not know adds no line.
 
 `forsgren install-readme --out <path>` (forsgren#110) writes the
 installation README of the running version to `<path>`: the text is built
@@ -554,10 +555,16 @@ jobs:
   `github-actions[bot]`, "forsgren: update README.md", and pushed the way
   the starter is; an unchanged one commits nothing, so a daily run adds no
   commit. **A README you edit by hand is replaced on the next run**: keep
-  your own notes elsewhere. A run on a tag whose README changed fails by
-  name; when the branch moved during the run, the push is refused and the
-  run fails with "… moved since this run checked it out", nothing rebased or
-  forced, and the next run writes the README again. No new permission:
+  your own notes elsewhere. A README that cannot be written or pushed does not
+  stop the day: on a tag whose README changed, when the branch moved during
+  the run ("… moved since this run checked it out"), or when the remote
+  refuses the push, the step prints an `::error`, records `readme=failed`
+  and goes on, so the configuration check, collect, the data commit and the
+  page still run. The local README commit is undone, so the data push
+  carries `data/` alone. The job then fails at its end, in "Fail the job
+  when the README could not be pushed", and the job summary says "README:
+  not pushed: see the README step". Nothing is rebased or forced, and the
+  next run writes the README again. No new permission:
   `contents: write` already lets the run push.
 - **The daily run checks the configuration first.** The workflow checks out
   the data repository (the commit that triggered the run, without leaving
