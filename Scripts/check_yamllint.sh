@@ -30,6 +30,9 @@
 
 set -euo pipefail
 
+# shellcheck source=Scripts/lib_repo_files.sh
+source "$(cd "$(dirname "$0")" && pwd)/lib_repo_files.sh"
+
 CONFIG="$(cd "$(dirname "$0")/.." && pwd)/.yamllint.yml"
 ROOT="${YAMLLINT_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 cd "$ROOT"
@@ -45,8 +48,8 @@ fi
 # The listing goes through a variable, not a process substitution: a failing
 # `git ls-files` inside `< <(...)` is invisible, and an empty listing would
 # then read as "no YAML here".
-if ! listing="$(git ls-files '*.yml' '*.yaml')"; then
-  echo "❌ FAIL: git ls-files failed in ${ROOT} — no verdict" >&2
+if ! listing="$(repo_files . '*.yml' '*.yaml')"; then
+  echo "❌ FAIL: git ls-files (tracked and untracked) failed in ${ROOT} — no verdict" >&2
   exit 1
 fi
 
@@ -58,7 +61,7 @@ while IFS= read -r f; do
 done <<< "$listing"
 
 if [ "${#targets[@]}" -eq 0 ]; then
-  echo "❌ FAIL: yamllint: no tracked .yml or .yaml file found under ${ROOT} — .yamllint.yml alone should be one, so the collection is broken" >&2
+  echo "❌ FAIL: yamllint: no .yml or .yaml file found under ${ROOT} — .yamllint.yml alone should be one, so the collection is broken" >&2
   exit 1
 fi
 

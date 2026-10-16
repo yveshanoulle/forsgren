@@ -22,6 +22,9 @@
 #   6. a *.sh file that is merely mentioned in another file's text
 #      (a comment, a doc) but not itself tracked is not invented
 #      out of thin air                                            -> exit 0
+#   8. an UNTRACKED, not-ignored script with a finding, with and without an
+#      extension (forsgren#204)                                   -> exit 1
+#   9. the same finding in a gitignored file                      -> exit 0
 #   7. an empty EXCLUDE_ALLOWED does not blow up on bash 3.2 under
 #      `set -u` (same empty-string-not-array shape as
 #      check_sfl_ci_parity.sh's SFL_ONLY_ALLOWED)
@@ -42,7 +45,7 @@ fail() { assert_log "check_shellcheck: $*"; echo "❌ FAIL: $*"; failed=1; }
 indent_out() { echo "      ${1//$'\n'/$'\n'      }"; }
 
 # make_case <case-dir> — an empty git repo (no identity needed: this check
-# only ever calls `git ls-files`, which reads the index, never `git commit`).
+# only ever calls `git ls-files`, never `git commit`).
 make_case() {
   local dir="$1"
   mkdir -p "$dir"
@@ -56,6 +59,15 @@ add_file() {
   printf '%s' "$content" > "${dir}/${path}"
   chmod +x "${dir}/${path}"
   git -C "$dir" add "$path"
+}
+
+# write_file <case-dir> <relative-path> <content> — writes a file, does not
+# stage it: an untracked file, the state of a new file while the gates run.
+write_file() {
+  local dir="$1" path="$2" content="$3"
+  mkdir -p "$(dirname "${dir}/${path}")"
+  printf '%s' "$content" > "${dir}/${path}"
+  chmod +x "${dir}/${path}"
 }
 
 # run_guard <case-dir> — sets RC and OUT.
@@ -178,6 +190,38 @@ if printf '%s\n' "$OUT" | grep -qi "unbound variable"; then
   indent_out "$OUT"
 else
   ok "empty EXCLUDE_ALLOWED expands safely"
+fi
+
+# 8. forsgren#204: a NEW file is untracked while the gates run (FBP commits
+#    after them), so an untracked, not-ignored script with a finding fails
+#    the guard too, named: a script with an extension, and an extension-less
+#    one with a bash shebang.
+G="$TMP/untracked_broken"
+make_case "$G"
+add_file "$G" "Scripts/ok.sh" "$CLEAN_SH"
+write_file "$G" "Scripts/new_broken.sh" "$BROKEN_SH"
+write_file "$G" "Scripts/new-wrapper" "$BROKEN_SH"
+run_guard "$G"
+if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -q 'Scripts/new_broken.sh' && printf '%s\n' "$OUT" | grep -q 'Scripts/new-wrapper'; then
+  ok "an untracked script with a finding fails the guard, both forms named"
+else
+  fail "an untracked .sh and an untracked extension-less script with a finding should fail the guard and be named, got exit $RC"
+  indent_out "$OUT"
+fi
+
+# 9. An untracked file that git ignores will never be committed: left alone.
+H="$TMP/ignored_broken"
+make_case "$H"
+add_file "$H" "Scripts/ok.sh" "$CLEAN_SH"
+add_file "$H" ".gitignore" "scratch/
+"
+write_file "$H" "scratch/broken.sh" "$BROKEN_SH"
+run_guard "$H"
+if [ "$RC" -eq 0 ]; then
+  ok "an ignored broken script is left alone"
+else
+  fail "an ignored script should not be shellchecked, got exit $RC"
+  indent_out "$OUT"
 fi
 
 if [ "$failed" -ne 0 ]; then

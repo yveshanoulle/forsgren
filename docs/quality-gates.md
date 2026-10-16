@@ -248,11 +248,20 @@ Seven PRE gates read the repository's own scripts and files:
   it may carry a `# shellcheck disable=SCxxxx` only with a comment giving the
   reason, and with Yves's explicit yes recorded on a GitHub issue, which
   that comment links.
+- **Files a step adds are judged in that step** (forsgren#204): FBP commits
+  after its gates run, so a new file is still untracked while they do. The
+  shellcheck, yamllint, markdown links, npm manifest policy and data guard
+  gates list their files through `repo_files` in `Scripts/lib_repo_files.sh`
+  (`git ls-files --cached --others --exclude-standard`): the tracked files and
+  the untracked ones that git does not ignore, which the next commit will
+  carry; an ignored file is left alone. The self-test of each gate has a case
+  with an untracked file that has a finding and one with an ignored file.
+  `check_gofmt.sh` and `check_private_names.sh` already did the same.
 - **yamllint** (`Scripts/check_yamllint.sh`, from another estate repository): every
   tracked `.yml` and `.yaml` file under the rules in `.yamllint.yml`
   (another estate repository's). konenki lints its workflow directory by name;
   here the targets come from `git ls-files`, as for shellcheck, so the
-  workflow and any other YAML are covered the moment they are tracked.
+  workflow and any other YAML are covered the moment they exist.
   `.yamllint.yml` is itself tracked YAML and is linted too, so the list is
   never empty, and a run that found none is red.
 - **stray tracked files** (`Scripts/test_no_stray_tracked_files.sh`,

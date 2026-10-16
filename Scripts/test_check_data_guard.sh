@@ -8,8 +8,9 @@
 #   1. a clean repository                         -> green
 #   2. history.csv at the root                    -> red, naming the file
 #   3. a config file under testdata/              -> green (a fixture)
-#   4. a config file NOT git-added                -> green (untracked scratch
-#                                                    is not judged)
+#   4. a config file and a data/ file NOT          -> red, named (forsgren#204: a
+#      git-added; an ignored config file -> green     new file is untracked while
+#                                                    the gates run)
 #   5. a repository with no tracked files         -> red: the walk found nothing
 #   6. a wildcard arm really matches: a tracked  -> red, each named
 #      root events.jsonl (*.jsonl), x.history.csv
@@ -73,6 +74,9 @@ GATE="$(pwd)/Scripts/check_data_guard.sh"
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
 selftest_begin "data-guard gate self-test"
+
+# The mutants of the gate sit in $TMP and source their helper from beside them.
+cp Scripts/lib_repo_files.sh "$TMP/lib_repo_files.sh"
 
 # new_repo <name> — a git repository with one ordinary tracked Go file.
 new_repo() {
@@ -143,14 +147,22 @@ want_green "config and events under testdata/ are fixtures, green"
 
 new_repo "untracked-config"
 write_file "config.yml" $'repos:\n  - acme/app\n'
+write_file "data/deployments.csv" $'repo,id\n'
 run_gate
-want_green "an untracked config.yml is not judged"
+want_red "an untracked config.yml is judged: a new file is untracked while the gates run (forsgren#204)" "❌ FAIL: config.yml"
+want_said "  ... and an untracked data/deployments.csv" "❌ FAIL: data/deployments.csv"
+
+new_repo "ignored-config"
+write_file ".gitignore" $'scratch/\n' track
+write_file "scratch/config.yml" $'repos:\n  - acme/app\n'
+run_gate
+want_green "an ignored config.yml will never be committed, green"
 
 REPO="${TMP}/no-files"
 mkdir -p "$REPO"
 git -C "$REPO" init -q
 run_gate
-want_red "a repository with no tracked files is red" "no tracked files"
+want_red "a repository with no tracked files is red" "no files found"
 
 new_repo "wildcard-rows"
 write_file "events.jsonl" $'{"run":1}\n' track

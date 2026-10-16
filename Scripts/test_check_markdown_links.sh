@@ -10,7 +10,9 @@
 #   2. a broken inline link                                      -> red, file:line
 #   3. a broken link from a subfolder (../ and plain)            -> red
 #   4. a reference definition to nothing                         -> red
-#   5. a file that exists but is not tracked                     -> red
+#   5. a link to an ignored file                                 -> red; to a
+#      new, untracked, not-ignored file -> resolves; a new untracked
+#      Markdown file with a broken link (forsgren#204)           -> red, named
 #   6. a wrong-case spelling                                     -> red
 #   7. ../ out of the repository                                 -> red
 #   8. a broken link inside a fence, a comment, a code span      -> green
@@ -96,11 +98,27 @@ capture "$GATE" "$ROOT"
 want_red "4. rejects a reference definition to nothing" "README.md:3 links elsewhere.md"
 
 ROOT="$TMP/untracked"
-put "$ROOT" README.md '# T [ok](README.md) [new](new.md)'
+put "$ROOT" README.md '# T [ok](README.md) [new](new.md) [ign](scratch/ign.md)'
+put "$ROOT" .gitignore 'scratch/'
 track "$ROOT"
 put "$ROOT" new.md '# new, never added'
+put "$ROOT" scratch/ign.md '# ignored'
 capture "$GATE" "$ROOT"
-want_red "5. rejects a file that exists but is not tracked" "README.md:1 links new.md"
+want_red "5a. rejects a link to a file that git ignores, which will never be committed" "README.md:1 links scratch/ign.md"
+if grep -qF -- "links new.md" <<< "$OUT"; then
+  fail "5b. a link to a new file, untracked and not ignored, was refused: it is in the commit that adds the link (forsgren#204). Output: ${OUT}"
+else
+  echo "  ok: 5b. a link to a new, untracked, not-ignored file resolves (forsgren#204)"
+fi
+
+ROOT="$TMP/untracked-md"
+put "$ROOT" README.md '# T [ok](README.md)'
+track "$ROOT"
+put "$ROOT" docs/new.md '# new
+
+[gone](gone.md)'
+capture "$GATE" "$ROOT"
+want_red "5c. reads a new Markdown file too, untracked and not ignored (forsgren#204)" "docs/new.md:3 links gone.md"
 
 ROOT="$TMP/case"
 put "$ROOT" README.md '# T [ok](README.md) [c](Docs/A.md)'
@@ -164,7 +182,7 @@ mkdir -p "$ROOT"
 printf 'x\n' > "$ROOT/file.txt"
 track "$ROOT"
 capture "$GATE" "$ROOT"
-want_red "11a. a root with no tracked Markdown file is red" "no tracked Markdown file"
+want_red "11a. a root with no Markdown file is red" "no Markdown file"
 
 ROOT="$TMP/nolinks"
 put "$ROOT" README.md '# T
@@ -250,7 +268,7 @@ fi
 mutate() {
   # mutate <name> <sed-expression> <fixture-root> <case> <expected>
   mkdir -p "$TMP/mutant-$1/Scripts"
-  cp Scripts/extract_markdown_links.awk Scripts/markdown_heading_slugs.awk "$TMP/mutant-$1/Scripts/"
+  cp Scripts/extract_markdown_links.awk Scripts/markdown_heading_slugs.awk Scripts/lib_repo_files.sh "$TMP/mutant-$1/Scripts/"
   selftest_mutant "$GATE" "$TMP/mutant-$1/Scripts/check_markdown_links.sh" "$2" || return 0
   capture "$TMP/mutant-$1/Scripts/check_markdown_links.sh" "$3"
   want_red "mutation proof: $4" "$5"

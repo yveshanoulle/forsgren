@@ -9,9 +9,10 @@
 # repository is meant to become open source, so anything an installation
 # owns that lands here is a leak waiting for the day it goes public.
 #
-# One structural rule, over the files git TRACKS (git ls-files -z, read NUL-separated):
+# One structural rule, over the files git tracks and the untracked ones it does
+# not ignore (Scripts/lib_repo_files.sh, read NUL-separated, forsgren#204):
 #
-#   Installation config or data outside testdata/. A tracked file whose
+#   Installation config or data outside testdata/. A file whose
 #   name matches an arm of guarded_reason below, or whose path matches an
 #   arm of guarded_path_reason (anything under a top-level data/),
 #   anywhere but under a directory named testdata (at any depth, Go's
@@ -29,11 +30,12 @@
 # push. It is the row's class that does this, not this script's exit code
 # (1 on a finding).
 #
-# TRACKED ONLY, deliberately: untracked scratch in a working tree is not
-# judged. The other side of that: a NEW file is invisible to this gate until
-# git knows it, so `git add` it (or `git add -N` it) before running the gates.
+# UNTRACKED FILES COUNT (forsgren#204): FBP commits after its gates run, so a
+# new data file is still untracked while this gate judges it, and a gate that
+# looked only at tracked files would let the commit that adds it through. A
+# file git ignores is left alone: it will never be committed.
 #
-# Red-on-zero: no tracked files at all is red (the walk broke).
+# Red-on-zero: no file at all is red (the walk broke).
 #
 # Usage: Scripts/check_data_guard.sh [repo-dir]   (default: the repo root)
 # Exit: 0 clean, 1 a finding or a scan over nothing.
@@ -42,6 +44,9 @@
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
+
+# shellcheck source=Scripts/lib_repo_files.sh
+source "$(cd "$(dirname "$0")" && pwd)/lib_repo_files.sh"
 
 ROOT_DIR="${1:-.}"
 cd "$ROOT_DIR" || {
@@ -53,13 +58,13 @@ cd "$ROOT_DIR" || {
 # reaches the arms as it is, unquoted, and a FAIL line prints the real path.
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-if ! git ls-files --cached -z > "$TMP/tracked" 2> "$TMP/err"; then
+if ! repo_files . -z > "$TMP/tracked" 2> "$TMP/err"; then
   echo "❌ FAIL: git ls-files failed in ${ROOT_DIR}: $(cat "$TMP/err")"
   exit 1
 fi
 
 if [ ! -s "$TMP/tracked" ]; then
-  echo "❌ FAIL: no tracked files found — the walk over git ls-files found nothing to check"
+  echo "❌ FAIL: no files found — the walk over git ls-files found nothing to check"
   exit 1
 fi
 
@@ -151,4 +156,4 @@ if [ "$FAIL" -ne 0 ]; then
   exit 1
 fi
 
-echo "OK: ${count} tracked files hold no installation config or data outside testdata/"
+echo "OK: ${count} files hold no installation config or data outside testdata/"

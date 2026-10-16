@@ -43,6 +43,9 @@
 
 set -euo pipefail
 
+# shellcheck source=Scripts/lib_repo_files.sh
+source "$(cd "$(dirname "$0")" && pwd)/lib_repo_files.sh"
+
 ROOT="${SHELLCHECK_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 cd "$ROOT"
 
@@ -51,11 +54,11 @@ EXCLUDE_ALLOWED=""
 # collect_targets — prints every candidate path, one per line, deduped and
 # sorted by the caller.
 collect_targets() {
-  git ls-files '*.sh'
+  repo_files . '*.sh'
 
   # Extension-less tracked files: only worth a `head`+shebang check, since
   # the *.sh glob above already caught every named script.
-  git ls-files | while IFS= read -r f; do
+  repo_files . | while IFS= read -r f; do
     case "$f" in
       *.*) continue ;;
     esac
@@ -78,7 +81,7 @@ while IFS= read -r f; do
 done < <(collect_targets | sort -u)
 
 if [ "${#targets[@]}" -eq 0 ]; then
-  echo "shellcheck: no tracked shell scripts found under $ROOT" >&2
+  echo "shellcheck: no shell scripts found under $ROOT" >&2
   exit 1
 fi
 
@@ -88,8 +91,9 @@ fi
 # ANOTHER of this invocation's targets — which fails for a script that
 # sources a sibling introduced in the same, not-yet-committed change: sfl
 # runs shellcheck on the working tree BEFORE staging/committing, so a brand
-# new sourced file is untracked and `collect_targets`'s `git ls-files` never
-# lists it, even though the file genuinely exists on disk and IS what will
+# new sourced file is untracked; `collect_targets` lists untracked, not-ignored
+# files too (forsgren#204), and -x also reads one that is ignored or not a
+# target, since the file genuinely exists on disk and IS what will
 # be sourced at runtime. -x reads the real file either way, so it checks
 # what actually runs rather than depending on git's index at the moment sfl
 # happens to run.

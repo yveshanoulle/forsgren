@@ -18,6 +18,8 @@
 #   4. no package-lock.json                           -> red, naming the file
 #   5. package-lock.json present but gitignored       -> red, naming the file
 #   6. node_modules/ tracked                          -> red
+#   8. node_modules/ untracked and not ignored        -> red (forsgren#204)
+#   9. node_modules/ ignored                          -> green
 #   7. manifest and lockfile present, not yet added   -> green, with the INFO
 #                                                        line (the commit that
 #                                                        introduces them)
@@ -61,6 +63,7 @@ new_repo() {
   mkdir -p "${REPO}/Scripts"
   git -C "$REPO" init -q
   cp "${2:-$GATE}" "${REPO}/Scripts/check_guardrail_packages.sh"
+  cp "$(dirname "$GATE")/lib_repo_files.sh" "${REPO}/Scripts/lib_repo_files.sh"
   chmod +x "${REPO}/Scripts/check_guardrail_packages.sh"
 }
 
@@ -130,6 +133,24 @@ write_file package-lock.json "$LOCKFILE"
 run_gate
 want_green "7. manifest and lockfile present, not yet added" \
   "INFO: package-lock.json is present and not ignored, not yet committed"
+
+# --- 8. node_modules new, untracked, not ignored -> red (forsgren#204) -------
+# The commit that adds it would carry it, so the gate refuses it before.
+new_repo nodemods-new
+write_file package.json "$EXACT_MANIFEST" track
+write_file package-lock.json "$LOCKFILE" track
+write_file node_modules/acme/index.js $'module.exports = 1;\n'
+run_gate
+want_red "8. node_modules/ untracked and not ignored" "node_modules must not be committed"
+
+# --- 9. node_modules ignored -> green --------------------------------------
+new_repo nodemods-ignored
+write_file .gitignore $'node_modules/\n' track
+write_file package.json "$EXACT_MANIFEST" track
+write_file package-lock.json "$LOCKFILE" track
+write_file node_modules/acme/index.js $'module.exports = 1;\n'
+run_gate
+want_green "9. node_modules/ ignored" "OK: manifest and lockfile committed"
 
 # --- Mutation proof --------------------------------------------------------
 # Case 2 against a gate whose range check is gone must turn green; otherwise

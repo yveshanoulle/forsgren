@@ -2,6 +2,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
+# shellcheck source=Scripts/lib_repo_files.sh
+source Scripts/lib_repo_files.sh
+
 # Guardrail: the npm manifest policy this estate settled on — unit 418.
 #
 # PORTED FROM agilelean 2026-09-02, where it existed as the opposite rule — it
@@ -62,7 +65,9 @@ for f in package.json package-lock.json; do
   fi
 done
 
-tracked="$(git ls-files)"
+# Tracked, and untracked but not ignored: the commit that adds a node_modules/
+# would carry it (forsgren#204).
+tracked="$(repo_files .)"
 if grep -q '^node_modules/' <<<"$tracked"; then
   echo "❌ FAIL: node_modules must not be committed — npm ci deletes and recreates it, so a tracked copy is build output masquerading as source."
   failed=1

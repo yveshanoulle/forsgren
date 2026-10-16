@@ -14,8 +14,9 @@
 #   3. the same finding in a NESTED .yaml file (any directory, any
 #      depth, either extension)                                   -> exit 1,
 #      naming that file
-#   4. a broken .yml that is on disk but NOT tracked is left
-#      alone: targets come from the index                         -> exit 0
+#   4. a broken .yml that is on disk, NOT tracked and not ignored
+#      is a target (forsgren#204: a new file); an ignored one is
+#      left alone                                                 -> exit 1 / 0
 #   5. a tree with no tracked YAML at all                         -> exit 1,
 #      with the reason that nothing was found, never a green over nothing
 #   6. this repository's own tracked YAML passes                  -> exit 0
@@ -117,16 +118,33 @@ else
   indent_out "$OUT"
 fi
 
-# 4. A broken file on disk but not in the index is not a target.
+# 4. forsgren#204: a NEW file is untracked while the gates run (FBP commits
+#    after them), so a broken file on disk, not in the index and not ignored,
+#    is a target too.
 D="$TMP/untracked_broken"
 make_case "$D"
 add_file "$D" "config.yml" "$CLEAN_YML"
-write_file "$D" "scratch.yml" "$BROKEN_YML"
+write_file "$D" "new/scratch.yml" "$BROKEN_YML"
 run_guard "$D"
-if [ "$RC" -eq 0 ]; then
-  ok "an untracked broken .yml is left alone"
+if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -q 'new/scratch.yml'; then
+  ok "an untracked, not-ignored broken .yml fails the gate, named"
 else
-  fail "an untracked .yml should not be linted, got exit $RC"
+  fail "an untracked .yml with a duplicate key should fail the gate and be named, got exit $RC"
+  indent_out "$OUT"
+fi
+
+# 4b. A broken file that git ignores will never be committed: left alone.
+D2="$TMP/ignored_broken"
+make_case "$D2"
+add_file "$D2" "config.yml" "$CLEAN_YML"
+add_file "$D2" ".gitignore" "scratch/
+"
+write_file "$D2" "scratch/broken.yml" "$BROKEN_YML"
+run_guard "$D2"
+if [ "$RC" -eq 0 ]; then
+  ok "an ignored broken .yml is left alone"
+else
+  fail "an ignored .yml should not be linted, got exit $RC"
   indent_out "$OUT"
 fi
 
@@ -136,7 +154,7 @@ make_case "$E"
 add_file "$E" "README.md" "no yaml here
 "
 run_guard "$E"
-if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -q 'no tracked .yml or .yaml file found'; then
+if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -q 'no .yml or .yaml file found'; then
   ok "a tree with no tracked YAML is red, with the reason"
 else
   fail "zero tracked YAML should be red and say so, got exit $RC"

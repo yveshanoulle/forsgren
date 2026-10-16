@@ -363,6 +363,18 @@ for path in Scripts/*.sh; do
       done
       ;;
 
+    # SOURCED HELPER, not a gate (forsgren#204): the one listing of the
+    # files a gate judges, tracked plus untracked and not ignored. The
+    # self-tests of the five gates that source it are its test, and all five
+    # must still source it (a plain grep: the data guard's mutants source it
+    # from beside them, so the path is not always Scripts/<name>).
+    lib_repo_files.sh)
+      for consumer in check_shellcheck.sh check_yamllint.sh check_markdown_links.sh check_guardrail_packages.sh check_data_guard.sh; do
+        grep -qE '^source .*lib_repo_files\.sh"?$' "Scripts/${consumer}" \
+          || fail "${base} holds the file listing and Scripts/${consumer} never sources it"
+      done
+      ;;
+
     # SOURCED HELPER, not a gate (forsgren#59, refactor): the awk readers of
     # a workflow file the pins of the two reusable workflows share. Those
     # pins are its test, and both must still source it.

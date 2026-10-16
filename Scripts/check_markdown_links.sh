@@ -48,6 +48,9 @@ REPO="$(pwd)"
 
 ROOT="${1:-$REPO}"
 
+# shellcheck source=Scripts/lib_repo_files.sh
+source "$REPO/Scripts/lib_repo_files.sh"
+
 # The link reader (Scripts/extract_markdown_links.awk).
 LINK_READER="$REPO/Scripts/extract_markdown_links.awk"
 # The heading reader (Scripts/markdown_heading_slugs.awk), run with LC_ALL=C.
@@ -70,7 +73,7 @@ trap 'rm -rf "$TMPDIR_GATE"; if [ "$COMPLETED" -ne 1 ]; then echo "❌ FAIL: che
 
 # The tracked files, and every directory that holds one, one per line.
 TRACKED="$TMPDIR_GATE/tracked"
-git -C "$ROOT" ls-files | awk '
+repo_files "$ROOT" | awk '
   { print }
   { p = $0; while ((i = match(p, /\/[^\/]*$/)) > 0) { p = substr(p, 1, i - 1); print p } }
 ' | sort -u > "$TRACKED"
@@ -143,10 +146,10 @@ while IFS= read -r md; do
     echo "❌ FAIL: ${md}:${line} links ${target}, but ${resolved} has no heading with the anchor #${anchor} (ATX headings only: a setext heading or an HTML id is not seen)"
     findings=$((findings + 1))
   done < <(awk -f "$LINK_READER" "$ROOT/$md")
-done < <(git -C "$ROOT" ls-files '*.md')
+done < <(repo_files "$ROOT" '*.md')
 
 if [ "$files" -eq 0 ]; then
-  echo "❌ FAIL: no tracked Markdown file in ${ROOT} — a scan over nothing is not a clean scan"
+  echo "❌ FAIL: no Markdown file in ${ROOT} — a scan over nothing is not a clean scan"
   COMPLETED=1
   exit 1
 fi
