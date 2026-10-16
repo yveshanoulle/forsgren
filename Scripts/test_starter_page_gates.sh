@@ -36,6 +36,7 @@ GOOD='<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="description" content="acme">
   <title>acme</title>
 </head>
 <body>

@@ -747,6 +747,7 @@
     "github.com/yveshanoulle/forsgren/internal/page/historychart.go:Height": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/historychart.go:DotRadius": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/menu.go:rootEntries": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/page/scoring.go:overall": 100.0
+    "github.com/yveshanoulle/forsgren/internal/page/scoring.go:overall": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/description.go:Description": 100.0
   }
 }
