@@ -406,7 +406,7 @@ const (
 	issueLimitsNote = "Two limits: a reopen is dated when the collection sees it, not when it happened, so " +
 		"it can fall in a later period than the real one; and when a repository has more issues than the one " +
 		"full read takes (it stops at 100 pages of 100 issues), its older issues are missing and its " +
-		"historical Total stays incomplete. The — (incomplete) note covers Open bugs only."
+		"historical Total stays incomplete. The — (incomplete) note covers Open bugs and Bugs lead time only."
 )
 
 // TestLegendExplainsTheClosedColumnsAndTheLimitsOfTheIssueHistory
@@ -495,4 +495,20 @@ func TestIssuesPageShowsBugsLeadTimeAndItsIncompleteNote(t *testing.T) {
 		wantNone(t, name, rendered(t, name, data), `<td>1 d 1 h</td>
             <td><span role="img" aria-label="Open bugs incomplete`)
 	}
+}
+
+// leadTimeNote is the legend's paragraph on the Lead time and Bugs lead time
+// columns (forsgren#202).
+const leadTimeNote = "Lead time is the median time from an issue's creation to its Completed close, over the " +
+	"issues completed in the row's period; Not planned, Duplicate and Other closes are not counted. A reopened " +
+	"issue is measured from its creation to the close in that period. Bugs lead time is the same over the " +
+	"issues that carry the GitHub label bug, and shows — (incomplete) on the same rule as Open bugs. A dash " +
+	"means no issue was completed in the period."
+
+// TestLegendDescribesLeadTimeAndBugsLeadTime (forsgren#202, step 9): the Issues
+// pages section describes both lead time columns in one paragraph right after
+// the paragraph on the closed columns.
+func TestLegendDescribesLeadTimeAndBugsLeadTime(t *testing.T) {
+	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()),
+		"<p>"+closedColumnsNote+"</p>\n    <p>"+leadTimeNote+"</p>\n")
 }
