@@ -19,12 +19,14 @@
 #   2. an unpaired tag                           -> red, naming tag-pair
 #   3. a site directory with no .html in it      -> exit 2, nothing linted
 #   4. a site directory that does not exist      -> exit 2
-#   5. a page with no meta charset               -> red, naming meta-charset-require
+#   5. one page per rule of the shared set (forsgren#207): each page breaks
+#      only that rule -> red, naming that rule and no other
 # Mutation proofs:
 #   A. case 2 under an .htmlhintrc with tag-pair turned off must turn green,
 #      so case 2 is red BECAUSE the gate reads that config's rule;
-#   C. case 5 under an .htmlhintrc with meta-charset-require turned off must
-#      turn green, so case 5 is red BECAUSE the gate reads that config's rule;
+#   C. for each row of case 5, the .htmlhintrc with only that rule turned off
+#      must stop naming the rule (and turn green, unless the row has an
+#      unavoidable companion rule), so every row is red BECAUSE of its rule;
 #   B. case 3 against a copy of the gate without its zero-files check must
 #      turn green, so case 3 is red BECAUSE of that check.
 
@@ -123,14 +125,94 @@ new_root missing
 run_gate "${TMP}/sites/does-not-exist"
 want_exit "4. a site directory that does not exist" 2 "htmlhint: site dir not found"
 
-# --- 5. no meta charset -> red, naming the rule (forsgren#206) -------------
+# --- 5. one page per rule of the shared set (forsgren#207) -----------------
+# The shared set is the 29 rules of .htmlhintrc, in the order of forsgren#207.
+# Each row is a minimal page that breaks only that rule, built from GOOD_PAGE;
+# the page must be red, name the rule, and name no other rule. This replaces
+# the single meta-charset case of forsgren#206.
 # A page that loses its meta charset still passes Lighthouse when the server
 # sends a charset header; htmlhint reads the file itself.
-new_root nocharset
-new_site nocharset "${GOOD_PAGE/  <meta charset=\"utf-8\">
-/}"
-run_gate
-want_exit "5. a page with no meta charset" 1 "(meta-charset-require)"
+# tagname-specialchars is the one row with a companion: a start tag only
+# matches [A-Za-z0-9_:-], so a special character can only sit in an end tag,
+# and an end tag with no start tag is always a tag-pair error as well.
+SHARED_RULES=(
+  attr-lowercase attr-no-duplication attr-no-unnecessary-whitespace
+  attr-unsafe-chars attr-value-double-quotes attr-value-no-duplication
+  attr-whitespace alt-require doctype-first doctype-html5 form-method-require
+  frame-title-require head-script-disabled html-lang-require
+  id-class-ad-disabled id-unique inline-script-disabled inline-style-disabled
+  input-requires-label main-require meta-charset-require
+  space-tab-mixed-disabled spec-char-escape src-not-empty tag-no-obsolete
+  tag-pair tagname-lowercase tagname-specialchars title-require
+)
+
+# rule_companions <rule> — the other rule the row's page cannot avoid breaking.
+rule_companions() {
+  case "$1" in
+    tagname-specialchars) echo "tag-pair" ;;
+    *) echo "" ;;
+  esac
+}
+
+# bad_page <rule> — GOOD_PAGE with exactly one thing wrong.
+bad_page() {
+  case "$1" in
+    attr-lowercase) printf '%s' "${GOOD_PAGE/<p>/<p CLASS=\"x\">}" ;;
+    attr-no-duplication) printf '%s' "${GOOD_PAGE/<p>/<p class=\"x\" class=\"y\">}" ;;
+    attr-no-unnecessary-whitespace) printf '%s' "${GOOD_PAGE/<p>/<p class = \"x\">}" ;;
+    attr-unsafe-chars) printf '%s' "${GOOD_PAGE/<p>/<p title=\"a$(printf '\001')b\">}" ;;
+    attr-value-double-quotes) printf '%s' "${GOOD_PAGE/<p>/<p class='x'>}" ;;
+    attr-value-no-duplication) printf '%s' "${GOOD_PAGE/<p>/<p class=\"x x\">}" ;;
+    attr-whitespace) printf '%s' "${GOOD_PAGE/<p>/<p class=\" x\">}" ;;
+    alt-require) printf '%s' "${GOOD_PAGE/<p>acme\/app<\/p>/<img src=\"a.png\">}" ;;
+    doctype-first) printf '%s' "${GOOD_PAGE/<!doctype html>/<title>x</title>}" ;;
+    doctype-html5) printf '%s' "${GOOD_PAGE/<!doctype html>/<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN\">}" ;;
+    form-method-require) printf '%s' "${GOOD_PAGE/<p>acme\/app<\/p>/<form action=\"/x\"></form>}" ;;
+    frame-title-require) printf '%s' "${GOOD_PAGE/<p>acme\/app<\/p>/<iframe src=\"a.html\"></iframe>}" ;;
+    head-script-disabled) printf '%s' "${GOOD_PAGE/<\/head>/  <script src=\"a.js\"></script>
+</head>}" ;;
+    html-lang-require) printf '%s' "${GOOD_PAGE/ lang=\"en\"/}" ;;
+    id-class-ad-disabled) printf '%s' "${GOOD_PAGE/<p>/<p class=\"ad\">}" ;;
+    id-unique) printf '%s' "${GOOD_PAGE/<p>acme\/app<\/p>/<p id=\"a\">x</p><p id=\"a\">y</p>}" ;;
+    inline-script-disabled) printf '%s' "${GOOD_PAGE/<p>/<p onclick=\"go\">}" ;;
+    inline-style-disabled) printf '%s' "${GOOD_PAGE/<p>/<p style=\"color:red\">}" ;;
+    input-requires-label) printf '%s' "${GOOD_PAGE/<p>acme\/app<\/p>/<input type=\"text\" id=\"q\">}" ;;
+    main-require) printf '%s' "${GOOD_PAGE//main>/div>}" ;;
+    meta-charset-require) printf '%s' "${GOOD_PAGE/  <meta charset=\"utf-8\">
+/}" ;;
+    space-tab-mixed-disabled) printf '%s' "${GOOD_PAGE/    <p>/ $(printf '\t')<p>}" ;;
+    spec-char-escape) printf '%s' "${GOOD_PAGE/<p>acme\/app/<p>a < b}" ;;
+    src-not-empty) printf '%s' "${GOOD_PAGE/<p>acme\/app<\/p>/<img src=\"\" alt=\"x\">}" ;;
+    tag-no-obsolete) printf '%s' "${GOOD_PAGE/<p>acme\/app<\/p>/<center>x</center>}" ;;
+    tag-pair) printf '%s' "${GOOD_PAGE/<\/p>/}" ;;
+    tagname-lowercase) printf '%s' "${GOOD_PAGE/<p>acme\/app<\/p>/<P>acme/app</P>}" ;;
+    tagname-specialchars) printf '%s' "${GOOD_PAGE/<\/p>/</p></p!>}" ;;
+    title-require) printf '%s' "${GOOD_PAGE/  <title>acme<\/title>
+/}" ;;
+    *) selftest_abort "bad_page: no page for rule $1" ;;
+  esac
+}
+
+# rule_ids — the rule ids named in OUT, sorted, one per line.
+rule_ids() {
+  grep -o '([a-z0-9]*-[a-z0-9-]*)' <<< "$OUT" | tr -d '()' | sort -u || true
+}
+
+if [[ "$(grep -c '": true' "$CONFIG")" -ne "${#SHARED_RULES[@]}" ]]; then
+  fail "5. .htmlhintrc does not hold exactly the ${#SHARED_RULES[@]} rules of the shared set"
+fi
+for rule in "${SHARED_RULES[@]}"; do
+  new_root "rule-${rule}"
+  new_site "rule-${rule}" "$(bad_page "$rule")
+"
+  run_gate
+  want_ids="$(printf '%s\n%s\n' "$rule" "$(rule_companions "$rule")" | sed '/^$/d' | sort -u)"
+  if [[ "$RC" -eq 1 && "$(rule_ids)" == "$want_ids" ]]; then
+    echo "  ok: 5. a page that breaks only ${rule}"
+  else
+    fail "5. a page that breaks only ${rule} — expected exit 1 naming only: $(tr '\n' ' ' <<< "$want_ids"); got exit ${RC} naming: $(rule_ids | tr '\n' ' '). Output: ${OUT}"
+  fi
+done
 
 # --- Mutation proof A: the config's rule is what reds case 2 ---------------
 MUTANT_CONFIG="${TMP}/htmlhintrc.no-tag-pair"
@@ -145,19 +227,25 @@ if selftest_mutant "$CONFIG" "$MUTANT_CONFIG" 's/"tag-pair": true/"tag-pair": fa
   fi
 fi
 
-# --- Mutation proof C: the config's rule is what reds case 5 --------------
-MUTANT_CHARSET_CONFIG="${TMP}/htmlhintrc.no-meta-charset-require"
-if selftest_mutant "$CONFIG" "$MUTANT_CHARSET_CONFIG" 's/"meta-charset-require": true/"meta-charset-require": false/'; then
-  new_root mutant-charset "$GATE" "$MUTANT_CHARSET_CONFIG"
-  new_site mutant-charset "${GOOD_PAGE/  <meta charset=\"utf-8\">
-/}"
-  run_gate
-  if [[ "$RC" -ne 0 ]]; then
-    fail "mutation proof C: case 5 is still red with meta-charset-require turned off, so its red does not come from the config's rule. Output: ${OUT}"
-  else
-    echo "  ok: mutation proof C: case 5 turns green with meta-charset-require turned off in .htmlhintrc"
+# --- Mutation proof C: each rule of the set reds its own row ---------------
+# The rc with only that rule turned off must no longer name it, and must turn
+# green unless the row has a companion rule that stays red.
+for rule in "${SHARED_RULES[@]}"; do
+  MUTANT_RULE_CONFIG="${TMP}/htmlhintrc.no-${rule}"
+  if selftest_mutant "$CONFIG" "$MUTANT_RULE_CONFIG" "s/\"${rule}\": true/\"${rule}\": false/"; then
+    new_root "mutant-${rule}" "$GATE" "$MUTANT_RULE_CONFIG"
+    new_site "mutant-${rule}" "$(bad_page "$rule")
+"
+    run_gate
+    if [[ -z "$(rule_companions "$rule")" && "$RC" -ne 0 ]]; then
+      fail "mutation proof C: the ${rule} row is still red with ${rule} turned off in .htmlhintrc, so its red does not come from the config's rule. Output: ${OUT}"
+    elif [[ -n "$(rule_companions "$rule")" && "$(rule_ids)" != "$(rule_companions "$rule")" ]]; then
+      fail "mutation proof C: the ${rule} row names '$(rule_ids | tr '\n' ' ')' with ${rule} turned off, expected only its companion $(rule_companions "$rule"). Output: ${OUT}"
+    else
+      echo "  ok: mutation proof C: the ${rule} row no longer names ${rule} with it turned off in .htmlhintrc"
+    fi
   fi
-fi
+done
 
 # --- Mutation proof B: the zero-files check is what reds case 3 ------------
 MUTANT_GATE="${TMP}/gate_htmlhint.no-zero-check.sh"
