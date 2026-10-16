@@ -32,7 +32,8 @@ func TestEveryPageCarriesAMetaDescription(t *testing.T) {
 	titled.Title = "Acme & Co"
 	numbersRoot := viewData()
 	numbersRoot.View = viewNumbers
-	noProjects := Placeholder("1.9.0")
+	placeholder := Placeholder("1.9.0")
+	noProjects := placeholder
 	noProjects.NoProjects = true
 	cases := []struct {
 		name, page, sentence string
@@ -50,10 +51,10 @@ func TestEveryPageCarriesAMetaDescription(t *testing.T) {
 		{"history", "history.html", historySentence, viewData()},
 		{"legend", "legend.html", legendSentence, viewData()},
 		{"settings", "settings.html", settingsSentence, viewData()},
-		{"placeholder root", "index.html", doraSentence, Placeholder("1.9.0")},
+		{"placeholder root", "index.html", doraSentence, placeholder},
 		{"no projects root", "index.html", doraSentence, noProjects},
-		{"placeholder days", "days.html", daysSentence, Placeholder("1.9.0")},
-		{"placeholder history", "history.html", historySentence, Placeholder("1.9.0")},
+		{"placeholder days", "days.html", daysSentence, placeholder},
+		{"placeholder history", "history.html", historySentence, placeholder},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

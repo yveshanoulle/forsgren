@@ -351,7 +351,22 @@ The POST gates, on the generated site:
 
 - **HTMLHint** (`Scripts/gate_htmlhint.sh`): every `.html` file under the
   rules in `.htmlhintrc`. Red on a finding, and on a run that scanned zero
-  files, since nothing linted is not clean.
+  files, since nothing linted is not clean. `.htmlhintrc` turns on 30 rules
+  (forsgren#206, #207, #208): the 28 that the estate's public sites share,
+  among them `meta-charset-require` and `doctype-html5`, plus
+  `inline-style-disabled` and `meta-description-require`, so every page
+  must declare its charset (a page without one still passes Lighthouse when
+  the server sends a charset header; htmlhint reads the file itself) and
+  carry a meta description (see
+  [Pages and views](pages-and-views.md#the-page)). The same file holds for
+  the built site, the golden pages and the starter page.
+  `Scripts/test_gate_htmlhint.sh` runs the real `htmlhint` and gives each of
+  the 30 rules a row: a minimal page that breaks only that rule must be red
+  and name that rule and no other (`tagname-specialchars` also trips
+  `tag-pair`, which an end tag with no start tag always does). Its mutation
+  proof turns each rule off in a copy of `.htmlhintrc` and sees its row stop
+  naming it, so every row is red because of its rule, and the self-test is
+  red when `.htmlhintrc` holds more or fewer rules than its list.
 - **starter page build** (`Scripts/build_starter_page.sh`, forsgren's own,
   forsgren#132): renders `README.md` with `./cmd/readmepage` into
   `.build/starter` (`index.html`, `styles.css`, the same stylesheet the

@@ -19,8 +19,8 @@ var descriptions = map[string]string{
 	IssuesPage:         "Issues opened, closed and reopened, by week, month and year",
 	DaysPage:           "Issues opened, closed and reopened on each of the last 30 days",
 	HistoryPage:        "The history of the DORA metrics per project: each half-year and the last 6 months",
-	"legend":           "How the DORA numbers are counted and scored: the window, the bands and the scores",
-	"settings":         "The settings of forsgren.config.yml and the value in use for each",
+	legendPage:         "How the DORA numbers are counted and scored: the window, the bands and the scores",
+	settingsPage:       "The settings of forsgren.config.yml and the value in use for each",
 }
 
 // Description is the page's meta description (forsgren#208): the sentence of
@@ -28,7 +28,7 @@ var descriptions = map[string]string{
 // one on the root without a view.
 func (p pageData) Description() string {
 	key := p.Page
-	if key == "index" {
+	if key == indexPage {
 		key = p.View
 	}
 	sentence, ok := descriptions[key]

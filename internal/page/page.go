@@ -265,6 +265,14 @@ const NumbersScoringPage = viewNumbersScoring
 // (forsgren#68).
 const HistoryPage = "history"
 
+// The names of the pages no setting hides: the table page, index.html at the
+// root and in each view's folder, and the legend and settings pages.
+const (
+	indexPage    = "index"
+	legendPage   = "legend"
+	settingsPage = "settings"
+)
+
 // The views of the table page (forsgren#46): the standard cells, the numbers
 // only, and (forsgren#47) each metric's DORA Quick Check score with an
 // Overall Performance column.

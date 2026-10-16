@@ -19,8 +19,8 @@
 #   2. an unpaired tag                           -> red, naming tag-pair
 #   3. a site directory with no .html in it      -> exit 2, nothing linted
 #   4. a site directory that does not exist      -> exit 2
-#   5. one page per rule of the shared set (forsgren#207): each page breaks
-#      only that rule -> red, naming that rule and no other
+#   5. one page per rule of .htmlhintrc (forsgren#207, forsgren#208): each
+#      page breaks only that rule -> red, naming that rule and no other
 # Mutation proofs:
 #   A. case 2 under an .htmlhintrc with tag-pair turned off must turn green,
 #      so case 2 is red BECAUSE the gate reads that config's rule;
@@ -127,8 +127,10 @@ new_root missing
 run_gate "${TMP}/sites/does-not-exist"
 want_exit "4. a site directory that does not exist" 2 "htmlhint: site dir not found"
 
-# --- 5. one page per rule of the shared set (forsgren#207) -----------------
-# The shared set is the 30 rules of .htmlhintrc, in the order of forsgren#207.
+# --- 5. one page per rule of .htmlhintrc (forsgren#207, forsgren#208) -----
+# RC_RULES are the 30 rules of .htmlhintrc: the 28 shared with the estate's
+# other public sites, plus inline-style-disabled (forsgren#207) and
+# meta-description-require (forsgren#208).
 # Each row is a minimal page that breaks only that rule, built from GOOD_PAGE;
 # the page must be red, name the rule, and name no other rule. This replaces
 # the single meta-charset case of forsgren#206.
@@ -137,7 +139,7 @@ want_exit "4. a site directory that does not exist" 2 "htmlhint: site dir not fo
 # tagname-specialchars is the one row with a companion: a start tag only
 # matches [A-Za-z0-9_:-], so a special character can only sit in an end tag,
 # and an end tag with no start tag is always a tag-pair error as well.
-SHARED_RULES=(
+RC_RULES=(
   attr-lowercase attr-no-duplication attr-no-unnecessary-whitespace
   attr-unsafe-chars attr-value-double-quotes attr-value-no-duplication
   attr-whitespace alt-require doctype-first doctype-html5 form-method-require
@@ -202,15 +204,16 @@ rule_ids() {
   grep -o '([a-z0-9]*-[a-z0-9-]*)' <<< "$OUT" | tr -d '()' | sort -u || true
 }
 
-if [[ "$(grep -c '": true' "$CONFIG")" -ne "${#SHARED_RULES[@]}" ]]; then
-  fail "5. .htmlhintrc does not hold exactly the ${#SHARED_RULES[@]} rules of the shared set"
+if [[ "$(grep -c '": true' "$CONFIG")" -ne "${#RC_RULES[@]}" ]]; then
+  fail "5. .htmlhintrc does not hold exactly the ${#RC_RULES[@]} rules of the shared set"
 fi
-for rule in "${SHARED_RULES[@]}"; do
+for rule in "${RC_RULES[@]}"; do
   new_root "rule-${rule}"
   new_site "rule-${rule}" "$(bad_page "$rule")
 "
   run_gate
-  want_ids="$(printf '%s\n%s\n' "$rule" "$(rule_companions "$rule")" | sed '/^$/d' | sort -u)"
+  companion="$(rule_companions "$rule")"
+  want_ids="$(printf '%s\n%s\n' "$rule" "$companion" | sed '/^$/d' | sort -u)"
   if [[ "$RC" -eq 1 && "$(rule_ids)" == "$want_ids" ]]; then
     echo "  ok: 5. a page that breaks only ${rule}"
   else
@@ -234,17 +237,18 @@ fi
 # --- Mutation proof C: each rule of the set reds its own row ---------------
 # The rc with only that rule turned off must no longer name it, and must turn
 # green unless the row has a companion rule that stays red.
-for rule in "${SHARED_RULES[@]}"; do
+for rule in "${RC_RULES[@]}"; do
   MUTANT_RULE_CONFIG="${TMP}/htmlhintrc.no-${rule}"
   if selftest_mutant "$CONFIG" "$MUTANT_RULE_CONFIG" "s/\"${rule}\": true/\"${rule}\": false/"; then
     new_root "mutant-${rule}" "$GATE" "$MUTANT_RULE_CONFIG"
     new_site "mutant-${rule}" "$(bad_page "$rule")
 "
     run_gate
-    if [[ -z "$(rule_companions "$rule")" && "$RC" -ne 0 ]]; then
+    companion="$(rule_companions "$rule")"
+    if [[ -z "$companion" && "$RC" -ne 0 ]]; then
       fail "mutation proof C: the ${rule} row is still red with ${rule} turned off in .htmlhintrc, so its red does not come from the config's rule. Output: ${OUT}"
-    elif [[ -n "$(rule_companions "$rule")" && "$(rule_ids)" != "$(rule_companions "$rule")" ]]; then
-      fail "mutation proof C: the ${rule} row names '$(rule_ids | tr '\n' ' ')' with ${rule} turned off, expected only its companion $(rule_companions "$rule"). Output: ${OUT}"
+    elif [[ -n "$companion" && "$(rule_ids)" != "$companion" ]]; then
+      fail "mutation proof C: the ${rule} row names '$(rule_ids | tr '\n' ' ')' with ${rule} turned off, expected only its companion ${companion}. Output: ${OUT}"
     else
       echo "  ok: mutation proof C: the ${rule} row no longer names ${rule} with it turned off in .htmlhintrc"
     fi
