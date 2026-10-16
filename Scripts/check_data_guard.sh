@@ -43,10 +43,13 @@
 
 set -uo pipefail
 
-cd "$(dirname "$0")/.." || exit 1
+# The script's own directory, resolved before the cd: a relative $0 (run from
+# inside Scripts/) no longer names it afterwards.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.." || exit 1
 
 # shellcheck source=Scripts/lib_repo_files.sh
-source "$(cd "$(dirname "$0")" && pwd)/lib_repo_files.sh"
+source "${SCRIPT_DIR}/lib_repo_files.sh"
 
 ROOT_DIR="${1:-.}"
 cd "$ROOT_DIR" || {

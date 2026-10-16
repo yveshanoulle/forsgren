@@ -100,6 +100,12 @@ run_gate() {
   capture "$GATE" "$REPO"
 }
 
+# run_from_scripts <repo> — runs the gate by a relative path from inside its
+# own directory (forsgren#204).
+run_from_scripts() {
+  (cd Scripts && ./check_data_guard.sh "$1")
+}
+
 # run_mutant <mutant> <repo-name> — runs a mutated gate against a case's
 # repository; sets RC and OUT.
 run_mutant() {
@@ -133,6 +139,13 @@ write_file "internal/m/m_test.go" $'package m\n// acme/app is the made-up fixtur
 write_file "internal/m/testdata/history.csv" $'date,metric,value\n' track
 run_gate
 want_green "a clean repository is green"
+
+# forsgren#204: the gate finds its helper whatever the current directory, from
+# inside Scripts/ with a relative $0 included.
+new_repo "run-from-scripts"
+write_file "history.csv" $'date,metric,value\n' track
+capture run_from_scripts "$REPO"
+want_red "run from inside Scripts/ it still finds its helper and judges the repository" "❌ FAIL: history.csv"
 
 new_repo "history-root"
 write_file "history.csv" $'date,metric,value\n' track
