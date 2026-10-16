@@ -7,6 +7,7 @@
 //	                [--latest <version>] [--waiting-pr <number>] [--pr-check <status>] [--needs-check <status>]
 //	forsgren check-config --config <path>
 //	forsgren init-config --config <path>
+//	forsgren install-readme --out <path>
 //	forsgren collect --config <path> --data <path> [--token-expiry <path>]
 //	forsgren latest-release [--published <path>]
 //	forsgren waiting-pull-request --version <x.y.z> [--status <path>]
@@ -26,6 +27,7 @@ import (
 	"io"
 	"os"
 
+	installreadme "github.com/yveshanoulle/forsgren/install"
 	"github.com/yveshanoulle/forsgren/internal/config"
 )
 
@@ -33,6 +35,7 @@ const usage = `usage: forsgren render --out <dir> [--config <path>] [--data <pat
                        [--latest <version>] [--waiting-pr <number>] [--pr-check <status>] [--needs-check <status>]
        forsgren check-config --config <path>
        forsgren init-config --config <path>
+       forsgren install-readme --out <path>
        forsgren collect --config <path> --data <path> [--token-expiry <path>]
        forsgren latest-release [--published <path>]
        forsgren waiting-pull-request --version <x.y.z> [--status <path>]
@@ -60,6 +63,7 @@ var commands = map[string]func(args []string, stdout, stderr io.Writer) int{
 	"render":               render,
 	"check-config":         checkConfig,
 	"init-config":          initConfig,
+	"install-readme":       installReadme,
 	"collect":              collectDeployments,
 	"latest-release":       latestRelease,
 	"waiting-pull-request": waitingPullRequest,
@@ -126,6 +130,23 @@ func initConfig(args []string, stdout, stderr io.Writer) int {
 		verb = "created"
 	}
 	_, _ = fmt.Fprintf(stdout, "%s %s\n", verb, path)
+	return 0
+}
+
+// installReadme writes forsgren's installation README for this version to
+// --out and says what it did, `created <path>` or `unchanged <path>`
+// (forsgren#110). A real error exits 1.
+func installReadme(args []string, stdout, stderr io.Writer) int {
+	path, ok := requiredFlag(stderr, args, "install-readme", "out", "<path>",
+		"the README.md to write for this version")
+	if !ok {
+		return 2
+	}
+	outcome, err := installreadme.Write(path, version)
+	if err != nil {
+		return failed(stderr, "install-readme", err)
+	}
+	_, _ = fmt.Fprintf(stdout, "%s %s\n", outcome, path)
 	return 0
 }
 

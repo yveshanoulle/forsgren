@@ -3,6 +3,9 @@
   "total": 99.6,
   "functions": {
     "github.com/yveshanoulle/forsgren/cmd/forsgren/loadconfig.go:loadConfig": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/main.go:installReadme": 100.0,
+    "github.com/yveshanoulle/forsgren/install/install.go:Text": 100.0,
+    "github.com/yveshanoulle/forsgren/install/install.go:Write": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/collect.go:collectDeployments": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/collect.go:collectFlags": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/tokenexpiry.go:removeTokenExpiry": 100.0,

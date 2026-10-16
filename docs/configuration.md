@@ -343,6 +343,7 @@ usage: forsgren render --out <dir> [--config <path>] [--data <path>]
                        [--latest <version>] [--waiting-pr <number>] [--pr-check <status>] [--needs-check <status>]
        forsgren check-config --config <path>
        forsgren init-config --config <path>
+       forsgren install-readme --out <path>
        forsgren collect --config <path> --data <path> [--token-expiry <path>]
        forsgren latest-release [--published <path>]
        forsgren waiting-pull-request --version <x.y.z> [--status <path>]

@@ -1441,6 +1441,24 @@
    "score": 10.0,
    "checkedAt": "2026-10-16",
    "minScore": 10.0
+  },
+  {
+   "path": "install/install.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-16",
+   "minScore": 10.0
+  },
+  {
+   "path": "install/install_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-16",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/install_readme_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-16",
+   "minScore": 10.0
   }
  ]
 }
