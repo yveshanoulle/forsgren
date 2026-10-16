@@ -1,0 +1,63 @@
+# .github/workflows/vulncheck.yml
+#
+# The scheduled Go vulnerability check (forsgren#87): Scripts/
+# check_govulncheck.sh, the very script the Go vulnerabilities gate runs in
+# sfl and in Quality, once a day against main and by hand. Quality runs only
+# when something is pushed, so a vulnerability published on a day nobody
+# pushes would go unseen (the go1.27.1 standard-library fixes of forsgren#82
+# were found by luck). A finding turns this run red with the script's own
+# ❌ line naming the vulnerability IDs; a failed scheduled run is visible in
+# Actions, and no issue is opened.
+#
+# Triggers: schedule and workflow_dispatch, nothing else. No pull request:
+# nothing here needs to run for one. One cron entry, at 05:37 UTC, an
+# off-peak minute (GitHub delays scheduled runs at the top of the hour).
+#
+# FORSGREN_VULN_DB_REQUIRED=1: this run exists to give a verdict, so a
+# vulnerability database it cannot reach fails the run; the gate otherwise
+# skips with a warning and exits 0, which on a schedule would read as green.
+#
+# The same toolchain as everywhere (go.mod's toolchain line through
+# Scripts/go_toolchain.sh into GOTOOLCHAIN), and govulncheck is the version
+# go.mod's tool line pins, built by `go tool`, never installed unpinned.
+# Runs on GitHub's hosted ubuntu-latest: the script needs only bash, curl and
+# Go. Scripts/test_vulncheck_workflow.sh pins this file in sfl and Quality.
+name: Vulncheck
+
+on:
+  schedule:
+    - cron: "37 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vulncheck:
+    name: Go vulnerabilities
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Pin the Go toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          toolchain="$(./Scripts/go_toolchain.sh)"
+          echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
+
+      - name: Scan for vulnerabilities
+        shell: bash
+        env:
+          FORSGREN_VULN_DB_REQUIRED: '1'
+        run: ./Scripts/check_govulncheck.sh

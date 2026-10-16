@@ -507,6 +507,18 @@ auto-update workflow|Scripts/test_auto_update_workflow.sh|pre|
 # pre.
 starter page workflow|Scripts/test_starter_page_workflow.sh|pre|
 #
+# The vulnerability-check workflow (forsgren#87). Not canon: forsgren's own,
+# beside the other workflow rows.
+# .github/workflows/vulncheck.yml runs Scripts/check_govulncheck.sh daily and
+# by hand, so a vulnerability published on a day nobody pushes still turns a
+# run red. Nothing in forsgren runs it, so this pin proves it: schedule and
+# workflow_dispatch only, one off-peak daily cron, contents: read, one job on
+# ubuntu-latest, checkout and setup-go pinned at metrics.yml's commits, the
+# toolchain from go_toolchain.sh, and the scan with FORSGREN_VULN_DB_REQUIRED=1
+# so an unreachable database fails the run; each pin proved by a mutant of the
+# real file. Repository source, so it runs in pre.
+vulncheck workflow|Scripts/test_vulncheck_workflow.sh|pre|
+#
 # No stray tracked files (forsgren#1, ladder step 12). Not canon:
 # Another estate repository's issue #10 gate, byte-identical, at konenki's position
 # between the quality-trigger-scope row and the report-script fixtures. Red

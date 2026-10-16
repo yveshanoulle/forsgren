@@ -291,6 +291,23 @@ Six PRE gates keep the CI honest:
   test with a stub `gh`. The real file must hold every pin and each pin is
   proved by a mutant that breaks it. GitHub Pages must be enabled on the
   repository with the source "GitHub Actions" for the deploy to succeed.
+- **vulncheck workflow** (`Scripts/test_vulncheck_workflow.sh`, forsgren's
+  own, forsgren#87): `vulncheck.yml` runs `Scripts/check_govulncheck.sh`, the
+  script of the Go vulnerabilities gate, once a day (one cron entry at an
+  off-peak minute) and by hand, so a vulnerability published on a day nobody
+  pushes still turns a run red; Quality runs only on a push or a pull request.
+  It triggers on `schedule` and `workflow_dispatch` and on nothing else,
+  never a push or a pull request; it has `contents: read`, one job on
+  `ubuntu-latest`, `actions/checkout` (no persisted credentials) and
+  `actions/setup-go` pinned at the very commits `metrics.yml` pins, and takes
+  `GOTOOLCHAIN` from `Scripts/go_toolchain.sh`; govulncheck is the version
+  `go.mod` pins. The scan step sets `FORSGREN_VULN_DB_REQUIRED=1`: a
+  vulnerability database it cannot reach fails the run (the gate would
+  otherwise skip with a warning and exit 0, which on a schedule reads as
+  green), and a found vulnerability fails it with the script's own `❌` line
+  naming the IDs and the fixed version. A failed scheduled run is visible in
+  Actions; no issue is opened. The real file must hold every pin and each
+  pin is proved by a mutant that breaks it.
 - **metrics workflow** (`Scripts/test_metrics_workflow.sh`, forsgren's
   own): `metrics.yml` triggers on `workflow_call` and nothing else, and
   declares no inputs; no `run:` block expands a `${{ }}` expression; the
