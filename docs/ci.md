@@ -154,8 +154,8 @@ forsgren](configuration.md#running-forsgren)). It triggers on `workflow_call` on
 repository and no pull request can start it. Its one job runs on
 `ubuntu-latest`, in the caller's repository and with the caller's token,
 checks out the caller's repository only (never forsgren's), and asks for
-`pages: write`, `id-token: write` and `contents: write` (the starter step
-and the data step each push one commit) and, optionally, `pull-requests:
+`pages: write`, `id-token: write` and `contents: write` (the starter step,
+the README step and the data step each push one commit) and, optionally, `pull-requests:
 read` (forsgren#40), all as the caller grants them: the workflow has no
 `permissions:` block, so its job takes exactly what the caller's job grants
 and a caller that has not added the optional one still starts (a token
@@ -174,7 +174,10 @@ commit, `persist-credentials: false`), `forsgren init-config --config
 forsgren.config.yml` and, when it created the file, one commit of that file
 alone as `github-actions[bot]`, pushed to the branch the run is on with the token
 in git's environment only (so it is in no argument, file or log and the
-checkout still stores nothing), `forsgren check-config --config
+checkout still stores nothing), `forsgren install-readme --out README.md`
+and, when it created or replaced the README, one commit of `README.md` alone,
+"forsgren: update README.md", pushed the same way (an `::error` on a tag or
+a branch that moved; forsgren#110), `forsgren check-config --config
 forsgren.config.yml` (its message printed between
 `::stop-commands::<token>` and `::<token>::`, a fresh random token per
 run, so a line of it that starts with `::` never runs as a workflow
@@ -183,7 +186,9 @@ data/deployments.csv --token-expiry "${RUNNER_TEMP}/token-expiry"` (its output s
 exit status kept as a step output), a commit of
 `data/` alone when it changed, pushed like the starter (an `::error` naming a
 branch that moved, never a rebase or a force), `forsgren render --config
-forsgren.config.yml --data data/deployments.csv`, then `actions/upload-pages-artifact` and
+forsgren.config.yml --data data/deployments.csv` (with `--latest`,
+`--waiting-pr` and `--pr-check` from the lookups), `forsgren run-summary`
+appended to the job summary (with `--readme` from the README step), then `actions/upload-pages-artifact` and
 `actions/deploy-pages` into the `github-pages` environment, and last a step
 that fails the job when collect failed. The job
 context, not the `github` context: in a called workflow the `github`
@@ -194,8 +199,8 @@ and repository reach the shell through `env:`, never as `${{ }}` inside
 `Scripts/`: the job has no checkout of forsgren, and the only commit it
 could fetch one at is the one still unchecked, and the starter and data
 steps' logic is the commit and the push, which only git can do. The
-**metrics workflow** pin below executes those very blocks, the starter and
-data steps with a real git against a local remote.
+**metrics workflow** pin below executes those very blocks, the starter,
+README and data steps with a real git against a local remote.
 Nothing in this repository runs the workflow, so no gate does; the pin and
 actionlint, zizmor, yamllint, checkout pins and workflow triggers, which read
 every workflow, are what check it.
@@ -243,7 +248,7 @@ What had to be set up once, on the repository and not in a file:
 tracked files and script references read every tracked file, so a filter
 on paths would leave some change that runs no gate.
 
-Six PRE gates keep the CI honest:
+Eight PRE gates keep the CI honest:
 
 - **gate wiring** (`Scripts/test_gate_wiring.sh`, another estate repository's,
   adapted): every runnable row of the order file has phase `pre` or `post`
@@ -376,15 +381,32 @@ Six PRE gates keep the CI honest:
   to that release, never by its branch name, forsgren#42) and outputs its `check` (`ok`, `no-access`, `rate-limited`, `failed`, or `skipped`
   without a latest release) from the status file the lookup wrote, anything
   else counting as `failed`, and the render step passes `--waiting-pr
-  <number>` when it is set; the step "Write the run summary" appends
+  <number>` when it is set and `--pr-check <check>` when the check is set
+  (forsgren#203); the step "Write the run summary" appends
   `forsgren run-summary`'s markdown to `$GITHUB_STEP_SUMMARY` and never fails
   the run (a `run-summary` that fails appends nothing); it passes `--token-expiry
   "${RUNNER_TEMP}/token-expiry"`, the file collect writes, for the summary's
   Token line (days or hours left, the run's own token, no expiry date, an
   unreadable date, or unknown), and `--latest-published
   "${RUNNER_TEMP}/latest-published"`, the file the lookup step writes, for
-  the Update line's Dependabot cooldown;
-  and install, checkout, starter, config
+  the Update line's Dependabot cooldown, and `--readme <word>` only when the
+  README step's `readme` output is set (forsgren#110); the step "Write the
+  installation README" (pin 35), executed with the real `forsgren` and a
+  real git against a local remote, runs `forsgren install-readme --out
+  README.md`, outputs the word it printed as `readme`, commits a created or
+  replaced `README.md` alone, "forsgren: update README.md", as
+  `github-actions[bot]` (unsigned under a hostile inherited git
+  environment), pushes it with the token as pin 13 has it, commits and
+  pushes nothing for an unchanged README, refuses a changed one on a tag by
+  name, and fails with an `::error` naming a branch that moved, with no
+  rebase and no force; and the whole job for the README (pin 36: the
+  starter, README and summary steps run together in the workflow's order)
+  gives a new installation the starter commit, the README commit and
+  "README: created from forsgren X.Y.Z's", an installation with a
+  hand-written README one bot commit of `README.md` alone and "replaced
+  with forsgren X.Y.Z's", and its next run no commit and "README:
+  unchanged";
+  and install, checkout, starter, README, config
   check, collect, data commit and render come in that order, the fail step
   after publishing. Each pin is shown failing, with its own reason, on a
   mutant of the real file, judged by the pin it is aimed at.

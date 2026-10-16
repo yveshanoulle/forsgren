@@ -235,10 +235,11 @@ Seven PRE gates read the repository's own scripts and files:
   proofs: the severity threshold is what keeps a Medium out, and the
   config is read from the scanned directory.
 - **shellcheck** (`Scripts/check_shellcheck.sh`, the estate's gate from
-  another estate repository): every tracked `*.sh` file, and every tracked file without an
-  extension whose first line is a bash or sh shebang, at any depth. The
-  targets come from `git ls-files`, so a new script is checked the moment it
-  is tracked, with no list to keep up to date. Red on any finding, and on a
+  another estate repository): every `*.sh` file, and every file without an
+  extension whose first line is a bash or sh shebang, at any depth, that git
+  tracks or does not ignore. The targets come from `repo_files` (see the
+  rule below), so a new script is checked the moment it exists, with no list
+  to keep up to date. Red on any finding, and on a
   run that found no script. No script is excluded, and an empty
   `EXCLUDE_ALLOWED` is the normal state. An exclusion needs three things:
   the entry in the gate's `EXCLUDE_ALLOWED`, a sentence here naming the
@@ -258,9 +259,10 @@ Seven PRE gates read the repository's own scripts and files:
   with an untracked file that has a finding and one with an ignored file.
   `check_gofmt.sh` and `check_private_names.sh` already did the same.
 - **yamllint** (`Scripts/check_yamllint.sh`, from another estate repository): every
-  tracked `.yml` and `.yaml` file under the rules in `.yamllint.yml`
-  (another estate repository's). konenki lints its workflow directory by name;
-  here the targets come from `git ls-files`, as for shellcheck, so the
+  `.yml` and `.yaml` file that git tracks or does not ignore, under the rules
+  in `.yamllint.yml` (another estate repository's). konenki lints its workflow
+  directory by name; here the targets come from `repo_files`, as for
+  shellcheck, so the
   workflow and any other YAML are covered the moment they exist.
   `.yamllint.yml` is itself tracked YAML and is linted too, so the list is
   never empty, and a run that found none is red.
@@ -340,8 +342,10 @@ Seven PRE gates read the repository's own scripts and files:
   tag.
 
 actionlint, zizmor, shellcheck and yamllint come from Homebrew, through
-`Scripts/required_tools.txt` (see [The tools](development.md)). As with the data
-guard, untracked files are not checked: `git add -N` a new script first.
+`Scripts/required_tools.txt` (see [The tools](development.md)). shellcheck
+and yamllint, like the data guard, also check the untracked files git does
+not ignore (forsgren#204), so a new script or workflow is judged in the FBP
+that adds it.
 
 The POST gates, on the generated site:
 
@@ -440,10 +444,11 @@ The POST gates, on the generated site:
   inside a code block, a code span or a comment. Every finding is reported in
   one run.
 - **markdown links** (`Scripts/check_markdown_links.sh`, forsgren's own,
-  forsgren#147): every relative link in a tracked Markdown file (an inline
+  forsgren#147): every relative link in a Markdown file git tracks or does
+  not ignore (an inline
   `[text](path)` or a reference definition `[label]: path`, outside a fenced
   block, an HTML comment and an inline code span) resolves, from the file's
-  own directory, to a tracked file or a directory that holds one, spelled
+  own directory, to such a file or a directory that holds one, spelled
   with the right case. A link with a scheme and a `//host` link are not
   checked. An `#anchor` (on a Markdown file, or a pure `#anchor` for the file
   itself) must name a heading of that file by GitHub's rules: ATX `#`

@@ -16,7 +16,9 @@ is a table with, for every setting, the value in use, the possible values and th
 Default shows the default value; a key your config leaves out shows "(not set)" after its current value.
 The Daily page, in the menu at the top of every page, shows how many issues
 were opened and how many were closed as completed, not planned, duplicate or
-other, across all your projects; then Open, how many issues were still open at
+other, across all your projects; Lead time, the median time from an issue's
+creation to its close as completed, over the issues completed in that period,
+and Bugs lead time, the same for issues with the GitHub `bug` label; then Open, how many issues were still open at
 the end of each day; Open bugs, how many of those carry the GitHub `bug` label
 (the label as it is now, applied to the whole history); Total, how many issues had been created by then, open or
 closed; and Open / Total as a percentage. Open and Open bugs show an arrow after each
@@ -92,15 +94,16 @@ version never overwrites them.
    to show it. The Issues page is shown unless you set `issues_page: false`. The History page and the Numbers and scoring page are generated but left out of the menu by default (`unlisted`); set `true` to list them or `false` to leave them out.
 
 From then on it runs every day by itself: it collects the new deployments,
-commits them to `data/` and publishes the page. If your default branch
+commits them to `data/`, keeps this README current for the forsgren version it
+runs and publishes the page. If your default branch
 refuses pushes from `github-actions[bot]`, allow it to bypass that rule, or
 the run cannot commit.
 
 The forsgren job in `.github/workflows/forsgren.yml` grants itself only what it
 needs, each permission declared explicitly:
 
-- `contents: write`: commit a new install's starter `forsgren.config.yml` and
-  the collected history in `data/`.
+- `contents: write`: commit a new install's starter `forsgren.config.yml`,
+  this README and the collected history in `data/`.
 - `pages: write` and `id-token: write`: publish to your GitHub Pages.
 - `pull-requests: read` (optional): lets the page footer name Dependabot's
   waiting pull request for a newer forsgren release.
@@ -123,7 +126,9 @@ least privilege.
   request for you when `forsgren.config.yml` says `auto_update: true`.
 - `.github/dependabot.yml`: proposes each new forsgren release as a pull
   request, every day at 04:00 UTC.
-- `README.md` and `LICENSE`: this text and its licence.
+- `README.md`: this text, rewritten by the daily run whenever the forsgren
+  version it runs has a different one.
+- `LICENSE`: its licence.
 
 What you add or the run writes, and what forsgren never overwrites:
 
@@ -131,7 +136,7 @@ What you add or the run writes, and what forsgren never overwrites:
   one if you have none; an existing file is never touched.
 - `data/`: your history, written and committed by the daily run as
   `github-actions[bot]`: `deployments.csv`, `commits.csv`, `failures.csv` and
-  `issues.csv` (what happened to every issue, for the issues and months pages),
+  `issues.csv` (what happened to every issue, for the Issues and Daily pages),
   `issue_bugs.csv` (which issues carry the `bug` label, for Open bugs), plus
   `reach.csv` (how far back each repository has been read),
   `failures_read.csv` (when its failure issues were last read),

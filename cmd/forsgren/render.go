@@ -92,7 +92,7 @@ func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error
 	data := page.Placeholder(version)
 	data.AsOf = at.UTC().Format(calculatedLayout)
 	data.Latest, data.WaitingPR = o.latest, o.waitingPR
-	data.NeedsCheck, data.PRCheck = o.needsCheck, o.prCheck
+	data.NeedsCheck, data.PRListCut = o.needsCheck, o.prCheck == statusTruncated
 	data.Settings = config.Config{}.Settings()
 	if o.config == "" {
 		return data, nil

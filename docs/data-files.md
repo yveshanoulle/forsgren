@@ -153,7 +153,7 @@ acme/app,42,false,,2026-10-03T06:00:00Z
   malformed, naming the line; a refused file stops the collect run before
   GitHub is asked anything and fails the render with its own message.
 - The data guard knows its name: a `failures_withdrawn.csv` that git tracks
-  outside `testdata/` blocks the commit, like the other data files.
+  or does not ignore, outside `testdata/` blocks the commit, like the other data files.
 
 **The issue events**, for the days and issues pages (forsgren#76, #123, #128), are kept in
 `data/issues.csv`, with its own format version (the issues format v1). It
@@ -231,7 +231,7 @@ acme/app,2026-10-14T06:00:00Z
   `— (incomplete)` instead of a number (see
   [Pages and views](pages-and-views.md)).
 - The data guard knows its name: an `issue_bugs_cut.csv` that git tracks
-  outside `testdata/` blocks the commit, like the other data files.
+  or does not ignore, outside `testdata/` blocks the commit, like the other data files.
 
 ## Collecting deployments (`collect`)
 

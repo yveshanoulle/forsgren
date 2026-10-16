@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Yamllint — every tracked YAML file. Config in .yamllint.yml.
+# Yamllint — every YAML file git tracks or will commit (tracked, or untracked
+# and not ignored: Scripts/lib_repo_files.sh, forsgren#204). Config in .yamllint.yml.
 #
 # Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 12), which
 # ported it from another estate repository (its unit 411 put it in the canon). konenki lints
@@ -7,8 +8,8 @@
 # directory. forsgren had no workflow directory when this was ported (CI came
 # in forsgren#1 step 14), and `yamllint .github/workflows/` on a directory
 # that does not exist exits 255. So the targets here are DERIVED, the way Scripts/check_shellcheck.sh
-# derives its own: every git-tracked *.yml / *.yaml at any depth. A workflow,
-# a .golangci.yml or any other YAML is covered the moment it is tracked,
+# derives its own: every such *.yml / *.yaml at any depth. A workflow,
+# a .golangci.yml or any other YAML is covered the moment it exists,
 # instead of when someone remembers to name its directory.
 #
 # Never empty today: .yamllint.yml is itself tracked YAML and is linted under

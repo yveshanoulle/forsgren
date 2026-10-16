@@ -1031,7 +1031,7 @@
   {
    "path": "internal/metrics/issuedays.go",
    "score": 10.0,
-   "checkedAt": "2026-10-14",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
@@ -1468,6 +1468,12 @@
   },
   {
    "path": "cmd/forsgren/summary_readme_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-16",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/incomplete.go",
    "score": 10.0,
    "checkedAt": "2026-10-16",
    "minScore": 10.0

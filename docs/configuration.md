@@ -379,18 +379,32 @@ is Dependabot's open pull request for it, as `forsgren waiting-pull-request
 `GITHUB_REPOSITORY`, read with `GITHUB_TOKEN`; with `--status` it also writes
 how the lookup went, `ok`, `no-access` for the 403 of a token without
 `pull-requests: read`, `rate-limited` when GitHub's rate limit refused it (a
-403 or 429 with no request left, never taken for a missing permission), or
+403 or 429 with no request left, never taken for a missing permission),
+`truncated` when the list of open pull requests was longer than forsgren
+reads (10 pages) and none of the pull requests read moves the pin, or
 `failed`, and its exit status is 0 either way); the
-footer then names the pull request instead of "is available".
+footer then names the pull request instead of "is available". A cut list
+with no match is not taken for "none is waiting" (forsgren#203): the
+lookup prints nothing, writes `truncated` and says on stderr
+"waiting-pull-request: acme/app: the list of open pull requests is cut at 10
+page(s), so a waiting pull request cannot be ruled out"; a pull request found
+in a cut list is still printed, since the match is conclusive.
+`--pr-check <status>` is that `--status`: `truncated`, with no
+`--waiting-pr`, makes the footer say "0.3.9 is available; unknown (pull
+request list truncated)." instead of "0.3.9 is available."; any other value,
+or none, changes nothing, and `--waiting-pr` wins over it.
 `--needs-check <ok|no-access|rate-limited|failed>` is how `forsgren
 check-needs` went (see [The setup issue](updating-and-releases.md)): anything but `ok` adds "needs more
 configuration: see the job summary of this run" to the footer, and leaving it
 out or `ok` adds nothing. `forsgren
 run-summary --latest <version> --waiting-pr <number> --pr-check
 <ok|no-access|rate-limited|truncated|failed|skipped> [--needs-check
-<ok|no-access|rate-limited|failed>] [--token-expiry <path>]
-[--latest-published <path>] --repository <owner/name>` prints the run's job
-summary as markdown, a `## forsgren` heading and then one line each:
+<ok|no-access|rate-limited|failed>] [--readme <created|replaced|unchanged>]
+[--token-expiry <path>] [--latest-published <path>] --repository
+<owner/name>` prints the run's job summary as markdown, a `## forsgren`
+heading and then these lines, in this order: Run, Built with, Latest
+release, Update, then Token, Setup and README, each of the last three only
+with its flag:
 
 - `Run:` the moment the summary was written, in UTC to the minute,
   "2026-10-15 15:10 UTC" (forsgren#194), so a summary pasted somewhere says
@@ -402,7 +416,8 @@ summary as markdown, a `## forsgren` heading and then one line each:
   pull request `[#7](link)`", or "0.0.10 is available; " followed by
   "pull-request check skipped: grant pull-requests: read in your caller to
   enable it", "the pull-request check hit GitHub's rate limit, the next run
-  tries again", "the pull-request check failed", "waiting for the 3-day
+  tries again", "unknown (pull request list truncated)" for `--pr-check
+  truncated` (forsgren#203), "the pull-request check failed", "waiting for the 3-day
   cooldown until 2026-10-18" or "no Dependabot pull request yet"; "unknown
   (the latest release could not be read)" when the latest release is
   unknown. The cooldown (forsgren#194) is the `cooldown: default-days` of the
@@ -430,6 +445,22 @@ summary as markdown, a `## forsgren` heading and then one line each:
   what is missing" for `ok`, else "the setup issue could not be written"
   with the reason and the steps this version needs (see
   [The setup issue](updating-and-releases.md)).
+- `README:`, only with `--readme` (forsgren#110), the word `install-readme`
+  printed: "created from forsgren 1.9.0's", "replaced with forsgren 1.9.0's"
+  (the version that built the page) or "unchanged"; a word it does not know
+  adds no line.
+
+`forsgren install-readme --out <path>` (forsgren#110) writes the
+installation README of the running version to `<path>`: the text is built
+into forsgren (`install/README.md` in this repository) with the version
+written into it, so it describes exactly the version that wrote it. It
+prints one word and the path: `created` when there was no file, `replaced`
+when there was a different one (a hand-edited README is overwritten),
+`unchanged` when the file already holds the text, which it then leaves
+untouched, its modification time included. The file is written whole,
+through a temporary file in the same directory and a rename; the directory
+must exist. Exit 0, 1 when the file cannot be read or written (with the
+path), 2 on a usage error.
 
 The pull request is linked: the link is fine there, because a run page is
 private to the repository, unlike the public page. A flag it cannot use is a
@@ -515,6 +546,19 @@ jobs:
   there is no branch to commit to. The push sends the job's token as an HTTP header through git's
   environment for that one command: not in any argument, not in a file, not
   in the log, and the checkout still keeps no credential.
+- **The README is forsgren's file** (forsgren#110). Right after the
+  starter step the workflow runs `forsgren install-readme --out README.md`,
+  which writes the README of the version the run is, and the run summary's
+  README line says what happened. A created or replaced README, and that
+  one file alone, is committed to the branch the run is on as
+  `github-actions[bot]`, "forsgren: update README.md", and pushed the way
+  the starter is; an unchanged one commits nothing, so a daily run adds no
+  commit. **A README you edit by hand is replaced on the next run**: keep
+  your own notes elsewhere. A run on a tag whose README changed fails by
+  name; when the branch moved during the run, the push is refused and the
+  run fails with "… moved since this run checked it out", nothing rebased or
+  forced, and the next run writes the README again. No new permission:
+  `contents: write` already lets the run push.
 - **The daily run checks the configuration first.** The workflow checks out
   the data repository (the commit that triggered the run, without leaving
   its token in the checkout) and runs `forsgren check-config --config
@@ -569,7 +613,8 @@ jobs:
 - **The three permissions are the caller's to grant.** A called workflow
   can only keep or narrow what its caller's job grants: `pages: write` and
   `id-token: write` let `actions/deploy-pages` publish, `contents: write`
-  lets the starter step and the data step each push their one commit.
+  lets the starter step, the README step and the data step each push their
+  one commit.
   Without them the deploy step or a push fails. **Moving to the release
   that adds the starter and collect, change `contents: read` to
   `contents: write` and add the `secrets:` block** in the calling workflow

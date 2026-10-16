@@ -65,11 +65,11 @@ type Data struct {
 	// no-access, rate-limited or failed), empty when unknown; the footer says
 	// so when the setup issue could not be written (forsgren#73).
 	NeedsCheck string
-	// PRCheck is how the lookup of the waiting pull request went, as
-	// waiting-pull-request writes it, empty when unknown; truncated (the list
-	// of open pull requests was cut with no match) makes the footer say the
-	// pull request is unknown (forsgren#203).
-	PRCheck string
+	// PRListCut is whether the lookup of the waiting pull request found none
+	// in a list of open pull requests cut at the page limit (render's
+	// --pr-check truncated), so the footer says the pull request is unknown
+	// rather than that the release is just available (forsgren#203).
+	PRListCut bool
 	// WorkingHours is the hours of a working day and WorkingHoursSet says
 	// whether the config sets it; the legend states both and derives the
 	// on-demand threshold from it (forsgren#71).
@@ -353,10 +353,11 @@ var pages = parsePages()
 
 // templateFuncs are the functions the templates call: "trend" and "bugtrend", the arrow of
 // the issues tables (trend.go), and "possible", the settings page's Possible
-// values cell (settings.go), and "beta", the beta marker of the History page
-// (history.go).
+// values cell (settings.go), "beta", the beta marker of the History page
+// (history.go), and "incomplete", the note of a bug column that cannot be
+// trusted (incomplete.go).
 var templateFuncs = template.FuncMap{"trend": trendViewOf, "bugtrend": bugTrendViewOf, "possible": possibleOf,
-	"beta": historyBeta}
+	"beta": historyBeta, "incomplete": incompleteViewOf}
 
 // parsePages parses the layout once and clones it per page. A malformed
 // template fails at start-up through template.Must, never at render time.

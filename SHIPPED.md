@@ -564,3 +564,35 @@ These two were planned with #200 and #198 as one patch. Yves split them off so #
 - **One refactor and the docs** (this commit): `pullFiles` is the one way check-update and the waiting lookup read a pull request's files (a cut list is `errFilesCut`), `pullLookup.movesPin` checks one candidate, `MovesPinTo` reads as one predicate, `explainDenied` names the missing permission, and two test fakes share `serveAPI`. Docs: configuration.md (the pull request found by its files), ci.md, updating-and-releases.md ("Upgrading to 1.8.3"), pages-and-views.md and CLAUDE.md.
 
 What an installation sees: "is waiting in pull request #N" where it used to say "is available" when Dependabot grouped or renamed its branch, and the legend's issue columns explained. No new permission, secret or key.
+
+---
+
+## 2026-10-16 — issue lead time, the installation README follows the installed version, and five smaller changes, released as 1.9.0 ([#202](https://github.com/yveshanoulle/forsgren/issues/202), [#203](https://github.com/yveshanoulle/forsgren/issues/203), [#201](https://github.com/yveshanoulle/forsgren/issues/201), [#195](https://github.com/yveshanoulle/forsgren/issues/195), [#87](https://github.com/yveshanoulle/forsgren/issues/87), [#204](https://github.com/yveshanoulle/forsgren/issues/204), [#110](https://github.com/yveshanoulle/forsgren/issues/110))
+
+Yves: "202, 201, 203, 195, 110,87 can go togther as 1.9.0". #204 was found during the release and went in too. One refactor and the docs come at the end.
+
+- **#202, lead time of issues** (Yves: "yes bugs lead times next to it", "good to all of it").
+  - The median time from creation to the Completed close, per row's period. Only Completed closes count, and a close without a created event is skipped (cfd87b5, a533d48, accc30d).
+  - Every row kind carries it, and so does the bugs version (4f87381, 42a3336).
+  - The cell is a short duration or a dash (3d44a8c). The Lead time column comes after Completed (20666ce).
+  - Bugs lead time has its own "— (incomplete)" wording, so a screen reader names the right column (87542b1).
+  - The legend explains both (62461e4).
+- **#203, a cut pull-request list** (Yves's four behaviours on the issue). A cut list with no match is `truncated`, never "available" (c2f0781). The run summary (e17955a) and the footer (51fa6b1) say "unknown (pull request list truncated)", and the workflow passes the check to render (fa1475b).
+  - A GNU-only `sed` made an older mutation proof vacuous on macOS. It now bites on both (d58bcdc).
+- **#201, forsgren.be's description.**
+  - It comes from the README's first paragraph (0641e21).
+  - A paragraph over 160 characters is cut at a word with "…" (47c50ab).
+  - A README with no paragraph fails the starter page (619bc64).
+- **#195, no cooldown key means 3 days.** Yves: "no key = 3 days, the documented default". `default-days: 0` stays 0 (c73eb5c).
+- **#87, govulncheck daily.** `FORSGREN_VULN_DB_REQUIRED=1` makes an unreachable vulnerability database red (e030738). `vulncheck.yml` runs the push gate's script every day (be0d02d).
+  - That step's new pin script broke shellcheck on CI. The local FBP missed it because the gate scanned tracked files only. The fix rode in b156515, and the class became #204.
+- **#204, the file gates scan new files too.** Shellcheck, yamllint, markdown links, guardrail packages and the data guard list their files through `Scripts/lib_repo_files.sh`: tracked plus untracked files that are not ignored (006e3a1).
+- **#110, the installation README.**
+  - `forsgren install-readme` writes the README of this version from `install/README.md`, embedded in the binary. It creates, replaces or leaves the file untouched (b156515, 2b51ddb). The text is pinned (4c53603).
+  - The daily run writes it and commits it alone, as the bot, only when it changed (405e3b1). A tag ref or a moved branch is named, never forced or rebased (d056329).
+  - The run summary says what happened, and the run passes that on (d9a4d96, 6abf6f5). A whole-job pin covers it (9cbc113).
+- **One refactor and the docs** (this commit):
+  - A shared `rowIndex`, and issue keys through `history.IssueKey`.
+  - The incomplete cell's subject comes through a template function, not a string branch. `PRListCut` is a bool, so "truncated" lives in Go only.
+  - The README words are keyed by the install package's outcomes.
+  - Docs: configuration.md, pages-and-views.md, ci.md, quality-gates.md, development.md, data-files.md, updating-and-releases.md ("Upgrading to 1.9.0"), README.md, install/README.md and CLAUDE.md.

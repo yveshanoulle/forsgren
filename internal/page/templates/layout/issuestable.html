@@ -23,13 +23,13 @@
 {{end}}{{define "issuecells"}}            <td>{{.New}}</td>
             <td>{{.Completed}}</td>
             <td>{{.LeadTime.Cell}}</td>
-            <td>{{if .BugsIncomplete}}{{template "bugsincomplete" "Bugs lead time"}}{{else}}{{.BugsLeadTime.Cell}}{{end}}</td>
+            <td>{{if .BugsIncomplete}}{{template "bugsincomplete" (incomplete "Bugs lead time" "the bugs lead time")}}{{else}}{{.BugsLeadTime.Cell}}{{end}}</td>
             <td>{{.NotPlanned}}</td>
             <td>{{.Duplicate}}</td>
             <td>{{.Other}}</td>
             <td>{{.Open}} {{template "trend" (trend "open issues" .OpenTrend .OpenChange)}}</td>
-            <td>{{if .BugsIncomplete}}{{template "bugsincomplete" "Open bugs"}}{{else}}{{if eq .OpenBugs 0}}<span class="bugs-zero">0</span>{{else}}{{.OpenBugs}}{{end}} {{template "trend" (bugtrend .OpenBugsTrend .OpenBugsChange)}}{{end}}</td>
+            <td>{{if .BugsIncomplete}}{{template "bugsincomplete" (incomplete "Open bugs" "the number of open bugs")}}{{else}}{{if eq .OpenBugs 0}}<span class="bugs-zero">0</span>{{else}}{{.OpenBugs}}{{end}} {{template "trend" (bugtrend .OpenBugsTrend .OpenBugsChange)}}{{end}}</td>
             <td>{{.Total}}</td>
             <td>{{.OpenShare}}</td>
           </tr>
-{{end}}{{define "trend"}}<span class="{{.Class}}" role="img" aria-label="{{.Label}}">{{.Arrow}}{{if gt .Sign 0}} +{{.Change}}{{else if lt .Sign 0}} −{{.Change}}{{end}}</span>{{end}}{{define "bugsincomplete"}}<span role="img" aria-label="{{.}} incomplete: a repository's bug list was too long to read in full" title="A repository's bug list was too long to read in full, so {{if eq . "Open bugs"}}the number of open bugs{{else}}the bugs lead time{{end}} is not shown">— (incomplete)</span>{{end}}
+{{end}}{{define "trend"}}<span class="{{.Class}}" role="img" aria-label="{{.Label}}">{{.Arrow}}{{if gt .Sign 0}} +{{.Change}}{{else if lt .Sign 0}} −{{.Change}}{{end}}</span>{{end}}{{define "bugsincomplete"}}<span role="img" aria-label="{{.Column}} incomplete: a repository's bug list was too long to read in full" title="A repository's bug list was too long to read in full, so {{.Hidden}} is not shown">— (incomplete)</span>{{end}}

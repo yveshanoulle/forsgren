@@ -104,13 +104,18 @@ func IssueDays(events []history.IssueEvent, now time.Time, days int) []IssueDay 
 		func(at time.Time) (int, bool) { return dayRow(at, today, days) })
 }
 
+// rowIndex places a time on a table of period rows: the index of the row whose
+// period holds it, newest first, and false for a time outside every row
+// (dayRow, weekRow, monthRow and yearRow give one).
+type rowIndex func(time.Time) (int, bool)
+
 // periodRows is n rows of back-to-back periods (days, weeks, months or years),
 // newest first, row i dated dateOf(i), the start of its period; none for n 0
 // or less. Each event counts on the row rowOf gives its time, each row's
 // Open is the issues open at the end of its period, and its Total the issues
 // created up to the end of it (forsgren#134).
 func periodRows(
-	events []history.IssueEvent, n int, dateOf func(int) time.Time, rowOf func(time.Time) (int, bool),
+	events []history.IssueEvent, n int, dateOf func(int) time.Time, rowOf rowIndex,
 ) []IssueDay {
 	rows := make([]IssueDay, max(n, 0))
 	for i := range rows {
@@ -155,7 +160,7 @@ var runningCounts = []runningCount{
 // begins at start, from the events before it. Events after the newest row
 // change nothing.
 func periodChanges(
-	events []history.IssueEvent, start time.Time, rows int, rowOf func(time.Time) (int, bool),
+	events []history.IssueEvent, start time.Time, rows int, rowOf rowIndex,
 	delta func(history.IssueEvent) int,
 ) (perRow []int, atStart int) {
 	perRow = make([]int, rows)

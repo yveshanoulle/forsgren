@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	installreadme "github.com/yveshanoulle/forsgren/install"
 	"github.com/yveshanoulle/forsgren/internal/page"
 )
 
@@ -21,9 +22,9 @@ const (
 	statusOK          = "ok"
 	statusNoAccess    = "no-access"
 	statusRateLimited = "rate-limited"
+	statusTruncated   = "truncated"
 	statusFailed      = "failed"
 	statusSkipped     = "skipped"
-	statusTruncated   = "truncated"
 )
 
 // statuses are the values of --pr-check.
@@ -205,18 +206,23 @@ func (in summaryInput) setup(stderr io.Writer) string {
 	return line
 }
 
-// readmeWords are the lines for the words install-readme prints (the values
-// of --readme), the version being the one that wrote the README.
+// readmeWords say what the README line tells for each word install-readme
+// prints (the values of --readme, installreadme's outcomes), %s standing for
+// the version that wrote the README.
 var readmeWords = map[string]string{
-	"created":   "- README: created from forsgren %s's\n",
-	"replaced":  "- README: replaced with forsgren %s's\n",
-	"unchanged": "- README: unchanged\n",
+	installreadme.Created:   "created from forsgren %s's",
+	installreadme.Replaced:  "replaced with forsgren %s's",
+	installreadme.Unchanged: "unchanged",
 }
 
 // readmeLine says what happened to the installation's README (forsgren#110):
 // nothing without --readme or with a word it does not know, as setup does.
 func (in summaryInput) readmeLine() string {
-	return strings.Replace(readmeWords[in.readme], "%s", version, 1)
+	words, known := readmeWords[in.readme]
+	if !known {
+		return ""
+	}
+	return "- README: " + strings.Replace(words, "%s", version, 1) + "\n"
 }
 
 // update says where the update stands.

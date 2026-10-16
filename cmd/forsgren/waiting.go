@@ -62,14 +62,16 @@ func waitingFlags(args []string, stderr io.Writer) (version, statusPath string, 
 	return *wanted, *status, true
 }
 
-// lookupNote is the line on stderr for a lookup that ended in err: for a cut
-// list that the lookup cannot say there is no waiting pull request, else that
-// the waiting pull request is unknown, so the page says nothing of it.
+// lookupNote is the line on stderr for a lookup that ended in err: a cut list
+// says itself that a waiting pull request cannot be ruled out (errPullsCut);
+// any other error is prefixed with what it means, that the waiting pull
+// request is unknown, so the page says nothing of it.
 func lookupNote(err error) string {
-	if errors.Is(err, errPullsCut) {
-		return "waiting-pull-request: " + err.Error()
+	note := err.Error()
+	if !errors.Is(err, errPullsCut) {
+		note = "the waiting pull request is unknown, so the page says nothing of it: " + note
 	}
-	return "waiting-pull-request: the waiting pull request is unknown, so the page says nothing of it: " + err.Error()
+	return "waiting-pull-request: " + note
 }
 
 // lookupStatus is how a lookup went, from its error.

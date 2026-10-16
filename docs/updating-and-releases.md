@@ -388,6 +388,35 @@ limits: a reopen is dated when the collection sees it, and a repository with
 more issues than the one full read takes has an incomplete older history. No
 new permission, secret or config key is needed.
 
+**Upgrading to 1.9.0** (forsgren#110, #195, #202, #203). A minor release.
+Two changes show in your own repository; read them before you update.
+**The README of your installation is now forsgren's file** (forsgren#110):
+each daily run writes `README.md` for the forsgren version it runs and
+commits it only when it changed, as `github-actions[bot]`, in a commit that
+holds that one file, "forsgren: update README.md". **A README you edited by
+hand is replaced on the first run after this update**, so keep your own
+notes elsewhere before you update. The README says so in its first lines,
+and the run's job summary gains a README line: "created from forsgren
+1.9.0's", "replaced with forsgren 1.9.0's" or "unchanged". On a tag, or when
+the branch moved during the run, nothing is pushed and the run fails with
+the reason (see [Running forsgren](configuration.md#running-forsgren)).
+**No cooldown key now means Dependabot's 3 days** (forsgren#195): when your
+`.github/dependabot.yml` updates `github-actions` with no `cooldown`
+`default-days`, the Update line of the job summary counts Dependabot's
+documented default of 3 days, "waiting for the 3-day cooldown until
+2026-10-18", where it said "no Dependabot pull request yet"; set
+`default-days: 0` for no cooldown. The Issues and Daily pages gain two
+columns after Completed (forsgren#202): Lead time, the median time from an
+issue's creation to its Completed close over the issues completed in the
+row's period, and Bugs lead time, the same over the issues labelled `bug`,
+which shows "— (incomplete)" on the same rule as Open bugs; the legend
+explains both (see [Pages and views](pages-and-views.md#the-page)). When the
+list of your open pull requests is too long to read in full and Dependabot's
+pull request is not among those read, the job summary and the footer say
+"0.3.9 is available; unknown (pull request list truncated)" instead of a plain
+"is available" (forsgren#203). No new permission, secret or config key is
+needed: `contents: write`, which the run already has, pushes the README.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`

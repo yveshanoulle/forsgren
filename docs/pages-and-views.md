@@ -364,7 +364,12 @@ repository (forsgren#162), its version, "Metrics from GitHub data."
 run, with rows or without; and, when a newer forsgren release exists than the
 version that built the page, the version line adds it, "Forsgren 1.8.3 ·
 0.3.9 is available" (forsgren#40; nothing is added when the page is up to
-date, and no repository appears). The numbers are compared as numbers, so 0.0.10
+date, and no repository appears), "0.3.9 is waiting in pull request #7
+(merge it to update)" when Dependabot's pull request for it is open, or
+"0.3.9 is available; unknown (pull request list truncated)" when the list
+of open pull requests was too long to read in full and none of those read
+was it (forsgren#203; see
+[Running forsgren](configuration.md#running-forsgren)). The numbers are compared as numbers, so 0.0.10
 is newer than 0.0.9. On every page the footer's paragraph is followed by
 two links on one line, "Settings" and "Legend", to the settings page and the legend (forsgren#83, #84, #128). The footer is the same on every page, so the settings page and the legend link to themselves too (Yves's ruling on decision #133).
 
@@ -477,10 +482,18 @@ a path on github.com (forsgren#172):
   issues created in the period, Completed, Not planned and Duplicate the
   issues closed with that reason, and Other those closed with no reason or
   one forsgren does not know, so every close is in exactly one column, while
-  a reopen is in none; and it names two limits: a reopen is dated when the
-  collection sees it, and a repository with more issues than the one full
-  read takes (100 pages of 100) has its older issues missing, so its
-  historical Total stays incomplete. It no longer
+  a reopen is in none; it explains Lead time and Bugs lead time
+  (forsgren#202): "Lead time is the median time from an issue's creation to
+  its Completed close, over the issues completed in the row's period; Not
+  planned, Duplicate and Other closes are not counted. A reopened issue is
+  measured from its creation to the close in that period. Bugs lead time is
+  the same over the issues that carry the GitHub label bug, and shows —
+  (incomplete) on the same rule as Open bugs. A dash means no issue was
+  completed in the period."; and it names two limits: a reopen is dated when
+  the collection sees it, and a repository with more issues than the one
+  full read takes (100 pages of 100) has its older issues missing, so its
+  historical Total stays incomplete, and it says the — (incomplete) note
+  covers Open bugs and Bugs lead time only. It no longer
   lists the settings (forsgren#84). After the paragraph on where the numbers
   come from it states the window: "The window is 30 days (the default;
   dora_days is not set in forsgren.config.yml)." or "The window is 90 days
@@ -496,7 +509,7 @@ a path on github.com (forsgren#172):
   banding at the configured working day with its edges, the `number · score`
   cells, the Trend chart, what a dash means and the limits of old periods.
 - **The days page** (`days.html`, titled "Daily"; `issues.html` up to 0.8.3; forsgren#76, #128) is a table, Date | New |
-  Completed | Not planned | Duplicate | Other | Open | Open bugs | Total | Open / Total, one row per UTC calendar day,
+  Completed | Lead time | Bugs lead time | Not planned | Duplicate | Other | Open | Open bugs | Total | Open / Total, one row per UTC calendar day,
   the last 30 complete days (`issueDays`), yesterday on top and going down;
   today is left out, so a row never changes once it is shown (apart from the
   [known limits](data-files.md#issue-events-forsgren76)). It has no week or month row: those are on the issues
@@ -516,7 +529,17 @@ a path on github.com (forsgren#172):
   (decision #107): **Completed** is the reason `completed`, **Not planned**
   `not_planned` and **Duplicate** `duplicate`; **Other** is a close with no
   reason (an old issue, closed before GitHub gave reasons) or a reason
-  forsgren does not know. **Open** (headed Total up to 0.8.4, forsgren#134) is the issues open at the end of that
+  forsgren does not know. **Lead time** (forsgren#202), right after
+  Completed, is the median time from an issue's `created` event to its
+  `completed` close, over the issues completed in the row's period, the
+  mean of the two middle ones for an even count, in the short form of the
+  numbers view ("3 d", "5 h", "12 min"); a dash when nothing was completed
+  in the period. Not planned, Duplicate and Other closes are not counted, a
+  close of an issue with no stored `created` event is left out, and a
+  reopened issue is measured from its creation to the close in that period.
+  **Bugs lead time** is the same over the issues that carry the `bug` label,
+  the flag Open bugs reads, and shows `— (incomplete)` on the same rule as
+  Open bugs (below). **Open** (headed Total up to 0.8.4, forsgren#134) is the issues open at the end of that
   day, across all repositories: the issues created, minus those closed, plus
   those reopened, counted from the oldest stored event. Every close counts
   -1 and every reopen +1, also for an issue with no created event
@@ -555,7 +578,9 @@ a path on github.com (forsgren#172):
   `aria-label` "Open bugs incomplete: a repository's bug list was too long to
   read in full" and the `title` "A repository's bug list was too long to read
   in full, so the number of open bugs is not shown"; the legend explains it
-  after its note on Open bugs. The number comes back by itself once a run
+  after its note on Open bugs. The Bugs lead time cell shows the same note
+  in the same rows (forsgren#202), its `aria-label` starting "Bugs lead time
+  incomplete" and its `title` ending "so the bugs lead time is not shown". The number comes back by itself once a run
   reads the bug list in full. A missing file marks no cell, and an unknown
   version or a malformed line fails the render with its own message.
   **The arrows** (forsgren#126, forsgren#114) follow the Open and
@@ -580,7 +605,7 @@ a path on github.com (forsgren#172):
 - **The issues page** (`issues.html`, titled "Issues"; `months.html` up to
   0.8.3; forsgren#123, #128, from #89, decisions #118 and #119) is the days
   page's table over longer periods: Period | New |
-  Completed | Not planned | Duplicate | Other | Open | Open bugs | Total | Open / Total, the columns counted as
+  Completed | Lead time | Bugs lead time | Not planned | Duplicate | Other | Open | Open bugs | Total | Open / Total, the columns counted as
   on the days page, with four kinds of row, newest first within each.
   First the **days of the current week**, Monday up to yesterday (none on a
   Monday), labelled by their UTC date; then the **complete weeks** that touch

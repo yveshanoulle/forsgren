@@ -48,11 +48,11 @@ func shorten(text string, limit int) string {
 	if len(runes) <= limit {
 		return text
 	}
-	head := runes[:limit-1]
+	head := string(runes[:limit-1])
 	if runes[limit-1] != ' ' {
-		if space := strings.LastIndex(string(head), " "); space > 0 {
-			head = []rune(string(head)[:space])
+		if space := strings.LastIndex(head, " "); space > 0 {
+			head = head[:space]
 		}
 	}
-	return strings.TrimRight(string(head), " ") + "…"
+	return strings.TrimRight(head, " ") + "…"
 }

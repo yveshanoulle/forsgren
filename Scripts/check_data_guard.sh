@@ -58,12 +58,12 @@ cd "$ROOT_DIR" || {
 # reaches the arms as it is, unquoted, and a FAIL line prints the real path.
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-if ! repo_files . -z > "$TMP/tracked" 2> "$TMP/err"; then
+if ! repo_files . -z > "$TMP/listed" 2> "$TMP/err"; then
   echo "❌ FAIL: git ls-files failed in ${ROOT_DIR}: $(cat "$TMP/err")"
   exit 1
 fi
 
-if [ ! -s "$TMP/tracked" ]; then
+if [ ! -s "$TMP/listed" ]; then
   echo "❌ FAIL: no files found — the walk over git ls-files found nothing to check"
   exit 1
 fi
@@ -150,7 +150,7 @@ while IFS= read -r -d '' f; do
     echo "❌ FAIL: ${f} — looks like installation config or data (${reason}); it belongs in the installation's private data repository, passed to forsgren as a path, or under testdata/ if it is a made-up fixture"
     FAIL=1
   fi
-done < "$TMP/tracked"
+done < "$TMP/listed"
 
 if [ "$FAIL" -ne 0 ]; then
   exit 1

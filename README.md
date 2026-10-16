@@ -43,8 +43,8 @@ The page shows its band with the rate and the rework deployments:
   events), which the metrics are calculated from
 - a static page with the metrics table in three views (standard, numbers,
   scoring), a Numbers and scoring page (each metric's number and score in
-  one cell), the Issues and Daily pages with their Open and Open bugs
-  columns and trend arrows, a History page in beta (each metric's number
+  one cell), the Issues and Daily pages with their Lead time and Bugs lead
+  time columns and their Open and Open bugs columns with trend arrows, a History page in beta (each metric's number
   and score per half-year and for the last 6 months, with a trend chart per
   row), and the Settings and Legend pages, safe to publish: numbers and
   dates only, no issue titles, no links into private repositories. Each of
@@ -68,6 +68,8 @@ private repositories), made from the
 [forsgren-template](https://github.com/yveshanoulle/forsgren-template)
 repository. It keeps your `forsgren.config.yml` and its `data/`, runs forsgren
 once a day from a one-line workflow pin, and publishes the page on GitHub Pages.
+Its `README.md` is forsgren's: the daily run rewrites it for the version it
+runs, so a hand edit there is overwritten.
 Create it from the template and follow the template's own README, or point an AI
 coding agent at [agent-installer.md](agent-installer.md): it asks what only you
 can decide and creates your data repository from the template step by step.

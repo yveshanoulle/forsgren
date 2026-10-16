@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Shellcheck — every tracked shell script, DERIVED rather than named, so a
+# Shellcheck — every shell script git tracks or will commit (tracked, or
+# untracked and not ignored: Scripts/lib_repo_files.sh, forsgren#204), DERIVED rather than named, so a
 # new script is covered the moment it is added instead of when someone
 # remembers to list it here. Two sources feed the target list:
-#   1. every git-tracked *.sh file (any directory, any depth)
-#   2. every git-tracked extension-less file whose first line is a bash/sh
+#   1. every such *.sh file (any directory, any depth)
+#   2. every such extension-less file whose first line is a bash/sh
 #      shebang — a wrapper script without an extension would otherwise slip
 #      through both the *.sh glob and human memory
 # In another estate repository, where this gate comes from, a named list plus a Scripts/*.sh
@@ -56,7 +57,7 @@ EXCLUDE_ALLOWED=""
 collect_targets() {
   repo_files . '*.sh'
 
-  # Extension-less tracked files: only worth a `head`+shebang check, since
+  # Extension-less files: only worth a `head`+shebang check, since
   # the *.sh glob above already caught every named script.
   repo_files . | while IFS= read -r f; do
     case "$f" in

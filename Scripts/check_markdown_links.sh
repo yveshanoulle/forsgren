@@ -2,9 +2,10 @@
 # Scripts/check_markdown_links.sh
 #
 # The markdown-links gate (forsgren#147). Not canon: forsgren's own. Red when
-# a relative link in a tracked Markdown file points at nothing tracked:
-# README.md, CLAUDE.md, docs/*.md, agent-*.md, SHIPPED.md and every other
-# tracked *.md, SHIPPED.md included (its history links must still resolve:
+# a relative link in a listed Markdown file points at nothing listed (listed:
+# tracked, or untracked and not ignored, Scripts/lib_repo_files.sh,
+# forsgren#204): README.md, CLAUDE.md, docs/*.md, agent-*.md, SHIPPED.md and
+# every other listed *.md, SHIPPED.md included (its history links must still resolve:
 # a file moved is a link moved).
 #
 # A relative link is an inline [text](path) or [text](path#anchor), or a
@@ -13,8 +14,8 @@
 # a link with a scheme (https:, mailto:, ...), a protocol-relative //host
 # link. The path is resolved against the directory of the
 # file that holds the link (a leading / against the repository root), with
-# ./ and ../ folded, and must name a TRACKED file or a directory that holds a
-# tracked file (git ls-files), spelled with the right case. A ../ that leaves
+# ./ and ../ folded, and must name a LISTED file or a directory that holds a
+# listed file, spelled with the right case. A ../ that leaves
 # the repository is red. A ?query is cut before resolving.
 #
 # Anchors: a link to a Markdown file with a #anchor, and a pure #anchor (the
@@ -33,7 +34,7 @@
 #
 # The FAIL line names file:line and the link as written. Every link is
 # checked, so one run reports every finding. Red-on-zero: a root with no
-# tracked Markdown file, or no relative link at all, is red.
+# listed Markdown file, or no relative link at all, is red.
 #
 # Usage: Scripts/check_markdown_links.sh [root-dir]   (default: the repo root)
 # Exit: 0 clean, 1 a finding or a scan over nothing, 2 root missing or not a
@@ -71,12 +72,12 @@ TMPDIR_GATE="$(mktemp -d)"
 COMPLETED=0
 trap 'rm -rf "$TMPDIR_GATE"; if [ "$COMPLETED" -ne 1 ]; then echo "❌ FAIL: check_markdown_links.sh aborted before completing" >&2; exit 1; fi' EXIT
 
-# The tracked files, and every directory that holds one, one per line.
-TRACKED="$TMPDIR_GATE/tracked"
+# The listed files, and every directory that holds one, one per line.
+LISTED="$TMPDIR_GATE/listed"
 repo_files "$ROOT" | awk '
   { print }
   { p = $0; while ((i = match(p, /\/[^\/]*$/)) > 0) { p = substr(p, 1, i - 1); print p } }
-' | sort -u > "$TRACKED"
+' | sort -u > "$LISTED"
 
 # normalize <dir> <target>: the target folded onto the directory ("" for the
 # root), printed; empty output when it climbs out of the repository.
@@ -101,7 +102,7 @@ normalize() {
   (IFS=/; echo "${stack[*]-}")
 }
 
-# check_anchor <tracked path> <anchor>: succeeds when there is nothing to
+# check_anchor <listed path> <anchor>: succeeds when there is nothing to
 # check (no anchor, not a Markdown file on disk, an anchor the reader cannot
 # judge) or the file has a heading with that anchor.
 check_anchor() {
@@ -136,7 +137,7 @@ while IFS= read -r md; do
       resolved="$md"
     else
       resolved="$(normalize "$dir" "$path")"
-      if [ -z "$resolved" ] || ! grep -qxF -- "$resolved" "$TRACKED"; then
+      if [ -z "$resolved" ] || ! grep -qxF -- "$resolved" "$LISTED"; then
         echo "❌ FAIL: ${md}:${line} links ${target}, which is not a tracked file or directory"
         findings=$((findings + 1))
         continue

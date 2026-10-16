@@ -5,7 +5,8 @@
 The data guard (`Scripts/check_data_guard.sh`, a PRE gate) keeps it that way.
 Like the secret scan it is secret-class: a finding blocks the commit itself,
 not only the push, so the leak never enters history.
-Over the files git tracks, it fails when:
+Over the files git tracks and the untracked ones it does not ignore
+(`repo_files` in `Scripts/lib_repo_files.sh`, forsgren#204), it fails when:
 
 - a file that looks like installation config or data sits outside
   `testdata/`: anything under a top-level `data/`, `deployments.csv`,
@@ -22,8 +23,9 @@ Private names are not this gate's business: the private-names gate
 (`Scripts/check_private_names.sh`, in [Quality gates](quality-gates.md)) searches every tracked and every untracked,
 not-ignored path and file for them.
 
-The data guard does not check untracked files, so `git add` (or `git add -N`) a
-new file before running the gates; the private-names gate does check them.
+The data guard checks untracked files too (forsgren#204): FBP commits after
+its gates run, so a new data file is judged in the very FBP that would add
+it. A file git ignores is left alone, since it will never be committed.
 
 ## Working on forsgren
 
@@ -166,7 +168,7 @@ Three gates keep it that way: **npm lockfile sync**
 --package-lock-only`, without the network; **npm manifest policy**
 (`Scripts/check_guardrail_packages.sh`) is red on a version range in
 `package.json`, on a missing or gitignored `package.json` or
-`package-lock.json`, and on a tracked `node_modules/`; **npm audit**
+`package-lock.json`, and on a `node_modules/` git tracks or does not ignore; **npm audit**
 (`Scripts/npm_audit_check.sh`) is red on a high-severity advisory that one
 `npm audit fix` cannot heal and no ruled exception covers. When that fix does
 heal it, the changed `package-lock.json` rides into the commit.
