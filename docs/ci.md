@@ -378,7 +378,7 @@ Eight PRE gates keep the CI honest:
   waiting Dependabot pull request", does the same for a pull request number
   (also with the job's token, and asked only when a latest release was
   found; the pull request is found by its files moving the `metrics.yml` pin
-  to that release, never by its branch name, forsgren#42) and outputs its `check` (`ok`, `no-access`, `rate-limited`, `failed`, or `skipped`
+  to that release, never by its branch name, forsgren#42) and outputs its `check` (`ok`, `no-access`, `rate-limited`, `truncated`, `failed`, or `skipped`
   without a latest release) from the status file the lookup wrote, anything
   else counting as `failed`, and the render step passes `--waiting-pr
   <number>` when it is set and `--pr-check <check>` when the check is set

@@ -437,8 +437,10 @@ jobs:
       # GITHUB_REPOSITORY with the job's token, which has pull-requests: read
       # only when the caller grants it (see the note on permissions above). A
       # token without it, GitHub's rate limit (its own check, rate-limited,
-      # so the summary never asks for a permission already granted), or any
-      # other failure, is not an error: the output
+      # so the summary never asks for a permission already granted), a list of
+      # open pull requests cut at the page limit with none of them moving the
+      # pin (its own check, truncated, so the page says the pull request is
+      # unknown, forsgren#203), or any other failure, is not an error: the output
       # is then empty and the page keeps saying the release is available.
       # Only a number becomes the step's output, whatever the command printed.
       - name: Look up the waiting Dependabot pull request
@@ -461,7 +463,7 @@ jobs:
             waiting=""
           fi
           case "$check" in
-            ok | no-access | rate-limited | failed | skipped) ;;
+            ok | no-access | rate-limited | truncated | failed | skipped) ;;
             *) check="failed" ;;
           esac
           echo "waiting=${waiting}" >> "$GITHUB_OUTPUT"

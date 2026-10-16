@@ -194,7 +194,7 @@
 #      <check>` (forsgren#73);
 #  33. the step "Write the run summary" (forsgren#40) takes LATEST, WAITING,
 #      PR_CHECK (the waiting step's `check` output: ok, no-access,
-#      rate-limited, failed or skipped), NEEDS_CHECK (the needs step's
+#      rate-limited, truncated, failed or skipped), NEEDS_CHECK (the needs step's
 #      `check` output, forsgren#73) and README (the README step's `readme`
 #      output, forsgren#110: --readme only when it is not empty) through
 #      env: only and, EXECUTED with the stub, appends `forsgren run-summary
@@ -1087,6 +1087,9 @@ judge_waiting_lookup() {
   got="$(waiting_outcome "$script" "0.0.10" "" 0 "rate-limited")"
   want="exit=0 output=waiting=|check=rate-limited calls=waiting-pull-request --version 0.0.10 --status RUNNER_TEMP/waiting-status"
   [[ "$got" == "$want" ]] || echo "for a lookup that hit GitHub's rate limit the waiting step gives '${got}', not '${want}' — its check says rate-limited, so the run summary never asks for a permission the caller grants"
+  got="$(waiting_outcome "$script" "0.0.10" "" 0 "truncated")"
+  want="exit=0 output=waiting=|check=truncated calls=waiting-pull-request --version 0.0.10 --status RUNNER_TEMP/waiting-status"
+  [[ "$got" == "$want" ]] || echo "for a list of open pull requests cut at the page limit the waiting step gives '${got}', not '${want}' — its check says truncated, or the footer and the job summary never say the pull request is unknown (forsgren#203)"
   got="$(waiting_outcome "$script" "0.0.10" "seven" 0 ok)"
   want="exit=0 output=waiting=|check=ok calls=waiting-pull-request --version 0.0.10 --status RUNNER_TEMP/waiting-status"
   [[ "$got" == "$want" ]] || echo "for an answer that is not a number the waiting step gives '${got}', not '${want}' — only a plain number becomes an output"
@@ -1094,7 +1097,7 @@ judge_waiting_lookup() {
   [[ "$got" == "$want" ]] || echo "for an answer with a second line the waiting step gives '${got}', not '${want}' — a line break must never add an output"
   got="$(waiting_outcome "$script" "0.0.10" "7\n" 0 "ok\nevil=1")"
   want="exit=0 output=waiting=7|check=failed calls=waiting-pull-request --version 0.0.10 --status RUNNER_TEMP/waiting-status"
-  [[ "$got" == "$want" ]] || echo "for a status file that says anything but ok, no-access, rate-limited or failed the waiting step gives '${got}', not '${want}' — only those four become the check"
+  [[ "$got" == "$want" ]] || echo "for a status file that says anything but ok, no-access, rate-limited, truncated or failed the waiting step gives '${got}', not '${want}' — only those five become the check"
   got="$(waiting_outcome "$script" "" "7\n" 0 ok)"
   want="exit=0 output=waiting=|check=skipped calls="
   [[ "$got" == "$want" ]] || echo "with no latest release the waiting step gives '${got}', not '${want}' — there is no version to look a pull request up for, so its check is skipped"
@@ -1174,6 +1177,36 @@ judge_run_summary() {
   got="$(summary_outcome "$script" "half a sum" 1)"
   want="exit=0 summary= calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --needs-check no-access --readme replaced --repository acme/data --token-expiry RUNNER_TEMP/token-expiry --latest-published RUNNER_TEMP/latest-published"
   [[ "$got" == "$want" ]] || echo "for a run-summary that fails the run summary step gives '${got}', not '${want}' — a summary never fails the run, and half of one is never appended"
+}
+
+# judge_waiting_path <workflow-file>: pin 31, the waiting step's check goes
+# all the way: a lookup whose list was cut (the stub writes truncated to the
+# status file) is the step's output check=truncated, the render step is
+# given it as --pr-check truncated, and the run summary, the real forsgren,
+# says the pull request is unknown (forsgren#203). Each step takes the
+# output through the env: its workflow line names, as the job does.
+judge_waiting_path() {
+  local waiting="${TMP}/waiting.sh" render="${TMP}/render.sh" summary="${TMP}/summary.sh" check calls renv senv
+  step_block "$1" "$WAITING_STEP" run > "$waiting"
+  step_block "$1" "$RENDER_STEP" run > "$render"
+  step_block "$1" "$SUMMARY_STEP" run > "$summary"
+  [[ -s "$waiting" && -s "$render" && -s "$summary" ]] || return 0
+  waiting_outcome "$waiting" "99.0.0" "" 0 truncated > /dev/null
+  check="$(sed -n 's/^check=//p' "${TMP}/waiting.out")"
+  [[ "$check" == truncated ]] || echo "a lookup whose list was cut gives the waiting step's output check='${check}', not truncated"
+  renv="$(step_block "$1" "$RENDER_STEP" env)"
+  senv="$(step_block "$1" "$SUMMARY_STEP" env)"
+  grep -qxF -- "PR_CHECK: ${EXPR_OPEN} steps.waiting.outputs.check }}" <<< "$renv" || check=""
+  calls="$(render_calls "$render" LATEST=99.0.0 PR_CHECK="$check")"
+  [[ "$calls" == *" --pr-check truncated" ]] || echo "the render step is not given the waiting step's check truncated — it runs 'forsgren ${calls}'"
+  check="$(sed -n 's/^check=//p' "${TMP}/waiting.out")"
+  grep -qxF -- "PR_CHECK: ${EXPR_OPEN} steps.waiting.outputs.check }}" <<< "$senv" || check=""
+  mkdir -p "${TMP}/runner"
+  : > "${TMP}/path.md"
+  (cd "$INSTALL" && PATH="${REAL}:${PATH}" GITHUB_STEP_SUMMARY="${TMP}/path.md" GITHUB_REPOSITORY="acme/data" \
+    LATEST="99.0.0" WAITING="" PR_CHECK="$check" NEEDS_CHECK="" README="" RUNNER_TEMP="${TMP}/runner" \
+    bash "$summary") > /dev/null 2>&1 || true
+  grep -qF -- "99.0.0 is available; unknown (pull request list truncated)" "${TMP}/path.md" || echo "the run summary does not say the pull request is unknown for a cut list (it holds: $(paste -sd'|' - < "${TMP}/path.md"))"
 }
 
 # judge_render_waiting <workflow-file>: pin 32, the render step passes the
@@ -1878,6 +1911,7 @@ judge() {
   judge_latest_lookup "$1"
   judge_render_latest "$1"
   judge_waiting_lookup "$1"
+  judge_waiting_path "$1"
   judge_render_waiting "$1"
   judge_render_pr_check "$1"
   judge_render_needs "$1"
@@ -2080,6 +2114,18 @@ proves judge_run_summary "a run summary without the README flag" "the run summar
   "/- name: ${SUMMARY_STEP}\$/,/- name: Upload/ s| \\${D}{README:+--readme \"\\${D}README\"}||"
 proves judge_run_summary "a README flag passed even when empty" "with no README output the run summary step gives" \
   "/- name: ${SUMMARY_STEP}\$/,/- name: Upload/ s|\\${D}{README:+--readme \"\\${D}README\"}|--readme \"\\${D}README\"|"
+proves judge_waiting_lookup "a waiting step that turns truncated into failed" "for a list of open pull requests cut at the page limit the waiting step gives" \
+  's/rate-limited | truncated | failed | skipped/rate-limited | failed | skipped/'
+proves judge_waiting_path "a waiting step that turns truncated into failed" "gives the waiting step's output check='failed', not truncated" \
+  's/rate-limited | truncated | failed | skipped/rate-limited | failed | skipped/'
+proves judge_waiting_path "a render not given the waiting check" "the render step is not given the waiting step's check truncated" \
+  "/- name: ${RENDER_STEP}\$/,/run: |/{/PR_CHECK: \\${D}{{ steps.waiting.outputs.check }}/d;}"
+proves judge_waiting_path "a render call without the waiting check" "the render step is not given the waiting step's check truncated" \
+  "s/ \\${D}{PR_CHECK:+--pr-check \"\\${D}PR_CHECK\"}//"
+proves judge_waiting_path "a run summary not given the waiting check" "the run summary does not say the pull request is unknown for a cut list" \
+  "/- name: ${SUMMARY_STEP}\$/,/run: |/{/PR_CHECK: \\${D}{{ steps.waiting.outputs.check }}/d;}"
+proves judge_waiting_path "a run summary call without the waiting check" "the run summary does not say the pull request is unknown for a cut list" \
+  "s/ --pr-check \"\\${D}PR_CHECK\"//"
 proves judge_waiting_lookup "a waiting step without its check" "for a token without pull-requests: read the waiting step gives" \
   "/echo \"check=/d"
 proves judge_render_waiting "a render without the waiting pull request" "with WAITING set the render step runs" \
