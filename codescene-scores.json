@@ -1459,6 +1459,12 @@
    "score": 10.0,
    "checkedAt": "2026-10-16",
    "minScore": 10.0
+  },
+  {
+   "path": "install/readme_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-16",
+   "minScore": 10.0
   }
  ]
 }
