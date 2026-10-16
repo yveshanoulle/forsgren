@@ -13,7 +13,7 @@
 //	forsgren check-needs --config <path> --repository <owner/name> [--status <path>]
 //	                     [--token-expiry <path>]
 //	forsgren run-summary --latest <version> --waiting-pr <number>
-//	                     --pr-check <ok|no-access|rate-limited|failed|skipped> --repository <owner/name>
+//	                     --pr-check <ok|no-access|rate-limited|truncated|failed|skipped> --repository <owner/name>
 //	                     [--needs-check <status>] [--token-expiry <path>]
 //	                     [--latest-published <path>]
 //	forsgren check-update --config <path> --repo <owner/name> --pull <number>
@@ -39,7 +39,7 @@ const usage = `usage: forsgren render --out <dir> [--config <path>] [--data <pat
        forsgren check-needs --config <path> --repository <owner/name> [--status <path>]
                             [--token-expiry <path>]
        forsgren run-summary --latest <version> --waiting-pr <number>
-                            --pr-check <ok|no-access|rate-limited|failed|skipped> --repository <owner/name>
+                            --pr-check <ok|no-access|rate-limited|truncated|failed|skipped> --repository <owner/name>
                             [--needs-check <status>] [--token-expiry <path>]
                             [--latest-published <path>]
        forsgren check-update --config <path> --repo <owner/name> --pull <number>

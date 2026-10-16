@@ -349,7 +349,7 @@ usage: forsgren render --out <dir> [--config <path>] [--data <path>]
        forsgren check-needs --config <path> --repository <owner/name> [--status <path>]
                             [--token-expiry <path>]
        forsgren run-summary --latest <version> --waiting-pr <number>
-                            --pr-check <ok|no-access|rate-limited|failed|skipped> --repository <owner/name>
+                            --pr-check <ok|no-access|rate-limited|truncated|failed|skipped> --repository <owner/name>
                             [--needs-check <status>] [--token-expiry <path>]
                             [--latest-published <path>]
        forsgren check-update --config <path> --repo <owner/name> --pull <number>
@@ -386,7 +386,7 @@ check-needs` went (see [The setup issue](updating-and-releases.md)): anything bu
 configuration: see the job summary of this run" to the footer, and leaving it
 out or `ok` adds nothing. `forsgren
 run-summary --latest <version> --waiting-pr <number> --pr-check
-<ok|no-access|rate-limited|failed|skipped> [--needs-check
+<ok|no-access|rate-limited|truncated|failed|skipped> [--needs-check
 <ok|no-access|rate-limited|failed>] [--token-expiry <path>]
 [--latest-published <path>] --repository <owner/name>` prints the run's job
 summary as markdown, a `## forsgren` heading and then one line each:

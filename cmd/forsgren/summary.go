@@ -14,7 +14,9 @@ import (
 // The ways the lookup of the waiting pull request went, as waiting-pull-
 // request writes them to --status and run-summary reads them from
 // --pr-check; rate-limited is GitHub's rate limit, never a missing
-// permission; skipped is a run with no latest release to look one up for.
+// permission; truncated is a list of open pull requests cut at the page limit
+// with no waiting pull request in it (forsgren#203); skipped is a run with no
+// latest release to look one up for.
 const (
 	statusOK          = "ok"
 	statusNoAccess    = "no-access"
@@ -25,7 +27,7 @@ const (
 )
 
 // statuses are the values of --pr-check.
-var statuses = []string{statusOK, statusNoAccess, statusRateLimited, statusFailed, statusSkipped}
+var statuses = []string{statusOK, statusNoAccess, statusRateLimited, statusTruncated, statusFailed, statusSkipped}
 
 // summaryInput is what run-summary tells the run's page about.
 type summaryInput struct {
@@ -238,6 +240,8 @@ func (in summaryInput) pullRequestState() string {
 		return "pull-request check skipped: grant pull-requests: read in your caller to enable it"
 	case statusRateLimited:
 		return "the pull-request check hit GitHub's rate limit, the next run tries again"
+	case statusTruncated:
+		return "unknown (pull request list truncated)"
 	case statusFailed:
 		return "the pull-request check failed"
 	}
