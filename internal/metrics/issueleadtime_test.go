@@ -57,3 +57,21 @@ func TestLeadMediansCountsOnlyCompletedCloses(t *testing.T) {
 		t.Errorf("want the lead times\n%v\ngot\n%v", want, got)
 	}
 }
+
+// TestLeadMediansSkipsACloseWithoutACreatedEvent (forsgren#202, step 3): issue
+// 1 was created 10 h before its close; issue 2 has a completed close on the
+// same day and no created event (its repository's read stopped before it), so
+// it has no lead time and is left out of the median and of the count.
+func TestLeadMediansSkipsACloseWithoutACreatedEvent(t *testing.T) {
+	events := []history.IssueEvent{
+		appEvent(1, "created", oct(2, 0, 0, 0)),
+		closedIssue(1, oct(2, 10, 0, 0)),
+		closedIssue(2, oct(2, 20, 0, 0)),
+	}
+	today := utcDay(now)
+	rowOf := func(at time.Time) (int, bool) { return dayRow(at, today, 1) }
+	want := []LeadMedian{{Median: 10 * time.Hour, Count: 1}}
+	if got := leadMedians(events, rowOf, 1); !slices.Equal(got, want) {
+		t.Errorf("want the lead times\n%v\ngot\n%v", want, got)
+	}
+}
