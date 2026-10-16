@@ -243,7 +243,11 @@ jobs:
       # branch the run is on, as github-actions[bot]; an unchanged one commits
       # and pushes nothing, so a daily run adds no commit. Commit identity,
       # branch rule and the push carrying the token in git's environment only
-      # are the starter step's, for the reasons given there. Inline for the
+      # are the starter step's, for the reasons given there. A ref that is not
+      # a branch (a tag) fails by name when the README changed. When the push
+      # is refused because the branch moved since this run's checkout, the
+      # step fails with an ::error that says so, as the data step does: no
+      # rebase, no force, the next run writes the README again. Inline for the
       # same reason; Scripts/test_metrics_workflow.sh executes this block with
       # a real git against a local remote and the real forsgren.
       - name: Write the installation README
@@ -273,7 +277,18 @@ jobs:
           export GIT_CONFIG_COUNT=1
           export GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL}/.extraheader"
           export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${auth}"
-          git push --quiet origin "HEAD:${GITHUB_REF}"
+          status=0
+          push_log="$(git push --quiet origin "HEAD:${GITHUB_REF}" 2>&1)" || status=$?
+          if [[ "$status" -eq 0 ]]; then
+            exit 0
+          fi
+          printf '%s\n' "$push_log"
+          if grep -qE '\[rejected\].*\((fetch first|non-fast-forward)\)' <<< "$push_log"; then
+            echo "::error title=forsgren README::${GITHUB_REF} moved since this run checked it out (another push); README.md is not pushed, rebased or forced: the next run writes it again"
+          else
+            echo "::error title=forsgren README::the push of README.md to ${GITHUB_REF} was refused; git's message is above"
+          fi
+          exit 1
 
       # forsgren check-config reads the caller's forsgren.config.yml and says
       # in one line whether it is valid. A missing or invalid file fails the

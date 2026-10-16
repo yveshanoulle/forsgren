@@ -228,8 +228,12 @@
 #      committed by `github-actions[bot]` (an inherited identity and signing
 #      config do not reach it), and pushed to the branch the run is on with
 #      the token in git's environment only (pin 13's rule); an unchanged
-#      README makes no commit and no push. Pin 9 puts it after the starter
-#      and before the config check;
+#      README makes no commit and no push; a changed README on a ref that is
+#      not a branch (a tag) refuses by name with an ::error and pushes
+#      nothing, an unchanged one is no error there; a push refused because
+#      the branch moved since the checkout fails with an ::error saying so,
+#      never rebased and never forced, as the data step does (pin 24). Pin 9
+#      puts it after the starter and before the config check;
 #  and pin 9 also orders the steps: install, checkout, starter, README, config check,
 #  collect, data commit, render, and the fail step after "Publish to GitHub
 #  Pages", so what was stored is committed and published before the job
@@ -823,6 +827,52 @@ judge_readme_step() {
   new_install
   readme_case "$script" "with an outer identity and a signing config inherited from the environment" 2 replaced hostile
   readme_commit_findings "with an inherited outer identity" "$TRUNK"
+}
+
+# judge_readme_tag <workflow-file>: pin 35, the README step on a ref that is
+# not a branch (a tag): a changed README is refused by name, nothing is
+# committed or pushed; an unchanged one is no error.
+judge_readme_tag() {
+  local script="${TMP}/readme.sh" got want="exit=1 commits=1"
+  step_block "$1" "$README_STEP" run > "$script"
+  [[ -s "$script" ]] || return 0
+  new_install
+  got="$(git_step_outcome "$script" real "refs/tags/v1" "$TRUNK")"
+  [[ "$got" == "$want" ]] || echo "for a README that differs on a ref that is not a branch (refs/tags/v1) the README step gives '${got}', not '${want}' — it must refuse, there is no branch to commit to"
+  if ! grep -E '^::error' "${TMP}/step.log" | grep -qF -- "can be committed only on a branch"; then
+    echo "on a tag the README step does not name the cause in an ::error saying 'can be committed only on a branch' (log: $(paste -sd'|' - < "${TMP}/step.log"))"
+  fi
+  new_install
+  git_step_outcome "$script" real "refs/heads/${TRUNK}" "$TRUNK" > /dev/null
+  got="$(git_step_outcome "$script" real "refs/tags/v1" "$TRUNK")"
+  want="exit=0 commits=2"
+  [[ "$got" == "$want" ]] || echo "with an unchanged README on a tag the README step gives '${got}', not '${want}' — an unchanged README exits 0 before any branch logic"
+}
+
+# judge_readme_moved <workflow-file>: pin 35, a branch that moved since the
+# checkout fails the README step by name, with no rebase and no force, as the
+# data step does (pin 24).
+judge_readme_moved() {
+  local script="${TMP}/readme.sh" other="${TMP}/other" got want tip
+  step_block "$1" "$README_STEP" run > "$script"
+  [[ -s "$script" ]] || return 0
+  new_install
+  rm -rf "$other"
+  iso clone "$ORIGIN" "$other"
+  printf 'other\n' > "${other}/OTHER.md"
+  iso -C "$other" add OTHER.md
+  iso -C "$other" -c user.name=Other -c user.email=other@example.com commit -m "Another push"
+  iso -C "$other" push origin "$TRUNK"
+  tip="$(iso_out -C "$ORIGIN" rev-parse "$TRUNK")"
+  got="$(git_step_outcome "$script" real "refs/heads/${TRUNK}" "$TRUNK")"
+  want="exit=1 commits=2"
+  [[ "$got" == "$want" ]] || echo "with the branch moved since the checkout the README step gives '${got}', not '${want}' — it must fail, never rebase or force"
+  if [[ "$(iso_out -C "$ORIGIN" rev-parse "$TRUNK")" != "$tip" ]]; then
+    echo "with the branch moved since the checkout the README step replaced the commit another pushed — it must never force"
+  fi
+  if ! grep -E '^::error' "${TMP}/step.log" | grep -qF -- "$MOVED"; then
+    echo "with the branch moved since the checkout the README step does not name the cause in an ::error saying '${MOVED}' (log: $(paste -sd'|' - < "${TMP}/step.log"))"
+  fi
 }
 
 # judge_readme_token <workflow-file>: pin 13 for the README step (pin 35): its push
@@ -1725,6 +1775,8 @@ judge() {
   judge_starter_e2e "$1"
   judge_readme_step "$1"
   judge_readme_token "$1"
+  judge_readme_tag "$1"
+  judge_readme_moved "$1"
   judge_config_step "$1"
   judge_config_commands "$1"
   judge_config_e2e "$1"
@@ -2100,9 +2152,24 @@ proves judge_readme_step "no step output" "the README step's output readme is ''
 proves judge_readme_step "the output without its word" "the README step's output readme is 'README.md', not 'replaced'" \
   "s/word=\"\\${D}{result%% \\*}\"/word=\"${D}{result#* }\"/"
 proves judge_readme_token "the README token in an argument" "the README step hands the token to git in an argument" \
-  "/- name: Write the installation README/,/- name: Check the caller/ s|^\\( *\\)git push --quiet origin|\\1git -c \"http.extraheader=AUTHORIZATION: basic ${D}{auth}\" push --quiet origin|"
+  "/- name: Write the installation README/,/- name: Check the caller/ s|push_log=\"${D}(git push|push_log=\"${D}(git -c \"http.extraheader=AUTHORIZATION: basic ${D}{auth}\" push|"
 proves judge_readme_token "a README push without the header" "the README step's push carries" \
   "/- name: Write the installation README/,/- name: Check the caller/ s/\"AUTHORIZATION: basic /\"X-Other: basic /"
+
+proves judge_readme_tag "a README pushed from a tag" "for a README that differs on a ref that is not a branch (refs/tags/v1)" \
+  '/- name: Write the installation README/,/git add --/ s/exit 1/exit 0/'
+proves judge_readme_tag "a tag error without its cause" "on a tag the README step does not name the cause" \
+  's/can be committed only on a branch/cannot be committed/'
+proves judge_readme_tag "the branch guard before the unchanged check" "with an unchanged README on a tag" \
+  '/- name: Write the installation README/,/- name: Check the caller/ s/^\( *\)exit 0$/\1true/'
+proves judge_readme_moved "a forced README push" "the README step replaced the commit another pushed" \
+  "/- name: Write the installation README/,/- name: Check the caller/ s|push_log=\"${D}(git push --quiet|push_log=\"${D}(git push --force --quiet|"
+proves judge_readme_moved "a rebased README push" "with the branch moved since the checkout the README step gives 'exit=0 commits=3'" \
+  "/- name: Write the installation README/,/- name: Check the caller/ s|^\\( *\\)push_log=|\\1git -c user.name=x -c user.email=x@example.com pull --rebase --autostash --quiet origin \"${D}{GITHUB_REF}\"\\n&|"
+proves judge_readme_moved "a refused README push without its cause" "the README step does not name the cause in an ::error" \
+  "/- name: Write the installation README/,/- name: Check the caller/ s/${MOVED}/was refused/"
+proves judge_readme_moved "a refused README push that passes" "with the branch moved since the checkout the README step gives 'exit=0 commits=2'" \
+  '/- name: Write the installation README/,/- name: Check the caller/ { /^ *exit 1$/d; }'
 
 # The fail step, and the three steps in a row.
 proves judge_fail_step "no fail step" "has no step '${FAIL_STEP}'" \
