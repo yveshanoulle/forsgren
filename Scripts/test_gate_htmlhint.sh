@@ -19,9 +19,12 @@
 #   2. an unpaired tag                           -> red, naming tag-pair
 #   3. a site directory with no .html in it      -> exit 2, nothing linted
 #   4. a site directory that does not exist      -> exit 2
+#   5. a page with no meta charset               -> red, naming meta-charset-require
 # Mutation proofs:
 #   A. case 2 under an .htmlhintrc with tag-pair turned off must turn green,
 #      so case 2 is red BECAUSE the gate reads that config's rule;
+#   C. case 5 under an .htmlhintrc with meta-charset-require turned off must
+#      turn green, so case 5 is red BECAUSE the gate reads that config's rule;
 #   B. case 3 against a copy of the gate without its zero-files check must
 #      turn green, so case 3 is red BECAUSE of that check.
 
@@ -120,6 +123,15 @@ new_root missing
 run_gate "${TMP}/sites/does-not-exist"
 want_exit "4. a site directory that does not exist" 2 "htmlhint: site dir not found"
 
+# --- 5. no meta charset -> red, naming the rule (forsgren#206) -------------
+# A page that loses its meta charset still passes Lighthouse when the server
+# sends a charset header; htmlhint reads the file itself.
+new_root nocharset
+new_site nocharset "${GOOD_PAGE/  <meta charset=\"utf-8\">
+/}"
+run_gate
+want_exit "5. a page with no meta charset" 1 "(meta-charset-require)"
+
 # --- Mutation proof A: the config's rule is what reds case 2 ---------------
 MUTANT_CONFIG="${TMP}/htmlhintrc.no-tag-pair"
 if selftest_mutant "$CONFIG" "$MUTANT_CONFIG" 's/"tag-pair": true/"tag-pair": false/'; then
@@ -130,6 +142,20 @@ if selftest_mutant "$CONFIG" "$MUTANT_CONFIG" 's/"tag-pair": true/"tag-pair": fa
     fail "mutation proof A: case 2 is still red with tag-pair turned off, so its red does not come from the config's rule. Output: ${OUT}"
   else
     echo "  ok: mutation proof A: case 2 turns green with tag-pair turned off in .htmlhintrc"
+  fi
+fi
+
+# --- Mutation proof C: the config's rule is what reds case 5 --------------
+MUTANT_CHARSET_CONFIG="${TMP}/htmlhintrc.no-meta-charset-require"
+if selftest_mutant "$CONFIG" "$MUTANT_CHARSET_CONFIG" 's/"meta-charset-require": true/"meta-charset-require": false/'; then
+  new_root mutant-charset "$GATE" "$MUTANT_CHARSET_CONFIG"
+  new_site mutant-charset "${GOOD_PAGE/  <meta charset=\"utf-8\">
+/}"
+  run_gate
+  if [[ "$RC" -ne 0 ]]; then
+    fail "mutation proof C: case 5 is still red with meta-charset-require turned off, so its red does not come from the config's rule. Output: ${OUT}"
+  else
+    echo "  ok: mutation proof C: case 5 turns green with meta-charset-require turned off in .htmlhintrc"
   fi
 fi
 
