@@ -219,7 +219,18 @@
 #      checkout and the config check and before "Write the run summary",
 #      which reads its status; and pin 16 adds that the documented caller
 #      permissions name `issues: write`, with its reason: the setup issue;
-#  and pin 9 also orders the steps: install, checkout, starter, config check,
+#  35. the step "Write the installation README" (forsgren#110), whose run:
+#      block is EXECUTED here with the real git against a local remote and
+#      the real forsgren: it runs `forsgren install-readme --out README.md`
+#      and sets the step output `readme` to what that says (created,
+#      replaced, unchanged); a created or replaced README is committed
+#      ALONE, in its own commit "forsgren: update README.md", authored and
+#      committed by `github-actions[bot]` (an inherited identity and signing
+#      config do not reach it), and pushed to the branch the run is on with
+#      the token in git's environment only (pin 13's rule); an unchanged
+#      README makes no commit and no push. Pin 9 puts it after the starter
+#      and before the config check;
+#  and pin 9 also orders the steps: install, checkout, starter, README, config check,
 #  collect, data commit, render, and the fail step after "Publish to GitHub
 #  Pages", so what was stored is committed and published before the job
 #  fails.
@@ -283,6 +294,7 @@ WAITING_STEP="Look up the waiting Dependabot pull request"
 SUMMARY_STEP="Write the run summary"
 NEEDS_STEP="Check what this forsgren version needs"
 INIT_STEP="Write the starter configuration on a new install"
+README_STEP="Write the installation README"
 CROSS="❌"
 CONFIG_CMD="check-config --config forsgren.config.yml"
 INIT_CMD="init-config --config forsgren.config.yml"
@@ -292,6 +304,8 @@ D='$'
 # The starter commit (forsgren#12): who, and what it says.
 BOT_IDENTITY="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
 STARTER_SUBJECT="forsgren: add a starter forsgren.config.yml"
+# The README commit (forsgren#110): what it says.
+README_SUBJECT="forsgren: update README.md"
 # The branch of the made-up installation, and a token that no
 # argument, file or log may ever show.
 TRUNK="trunk"
@@ -622,6 +636,7 @@ git_step_outcome() {
   : > "${TMP}/fg.calls"
   : > "$GIT_ARGV_LOG"
   : > "$GIT_ENV_LOG"
+  : > "${TMP}/step.out"
   (
     cd "$INSTALL"
     if [[ "${5:-}" == hostile ]]; then
@@ -633,7 +648,7 @@ git_step_outcome() {
       export GIT_CONFIG_KEY_2="user.signingkey" GIT_CONFIG_VALUE_2="/nonexistent"
     fi
     PATH="$path" FG_CALLS="${TMP}/fg.calls" STUB_INIT="$2" GH_TOKEN="$SECRET" \
-      GITHUB_REF="$3" GITHUB_SERVER_URL="https://github.com" \
+      GITHUB_REF="$3" GITHUB_SERVER_URL="https://github.com" GITHUB_OUTPUT="${TMP}/step.out" \
       GIT_ARGV_LOG="$GIT_ARGV_LOG" GIT_ENV_LOG="$GIT_ENV_LOG" REAL_GIT="$REAL_GIT" \
       GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 bash "$1"
   ) > "${TMP}/step.log" 2>&1 || rc=$?
@@ -750,6 +765,75 @@ judge_starter_e2e() {
   fi
   got="$(git_step_outcome "$script" real "$ref" "$TRUNK")"
   [[ "$got" == "$want" ]] || echo "with the real forsgren the next run's starter step gives '${got}', not '${want}' — an existing starter is kept, no second commit"
+}
+
+# readme_output: the value of the step output `readme` the last
+# git_step_outcome wrote ("" when it wrote none).
+readme_output() {
+  sed -n 's/^readme=//p' "${TMP}/step.out"
+}
+
+# readme_commit_findings <label> <branch> <files wanted>: after a
+# git_step_outcome that committed the README: who, what it says and what it
+# holds.
+readme_commit_findings() {
+  local who files
+  bot_findings "$1" "README commit" "$2"
+  who="$(iso_out -C "$ORIGIN" log -1 --format='%B' "$2")"
+  [[ "$who" == "$README_SUBJECT" ]] || echo "$1 the README commit's message is '${who}', not '${README_SUBJECT}'"
+  files="$(iso_out -C "$ORIGIN" diff-tree --no-commit-id --name-only -r "$2" | paste -sd, -)"
+  [[ "$files" == "README.md" ]] || echo "$1 the README commit holds [${files}], not README.md alone — one file only, never the rest of the checkout"
+}
+
+# readme_case <script> <label> <want commits> <want output> [hostile]: one
+# run of the executed README step on the installation as it is, with the
+# real forsgren: the exit and commits it ends with, and its output.
+readme_case() {
+  local got want="exit=0 commits=$3"
+  got="$(git_step_outcome "$1" real "refs/heads/${TRUNK}" "$TRUNK" "${5:-}")"
+  [[ "$got" == "$want" ]] || echo "$2 the README step gives '${got}', not '${want}'"
+  got="$(readme_output)"
+  [[ "$got" == "$4" ]] || echo "$2 the README step's output readme is '${got}', not '${4}'"
+}
+
+# judge_readme_step <workflow-file>: pin 35, the executed README step, with
+# the real forsgren and a real git against a local remote: a README that
+# differs is replaced and committed alone, as github-actions[bot]; a missing
+# one is created and committed; an identical one makes no commit.
+judge_readme_step() {
+  local script="${TMP}/readme.sh"
+  step_block "$1" "$README_STEP" run > "$script"
+  if [[ ! -s "$script" ]]; then
+    echo "has no step '${README_STEP}' with a run: | block — the installation's README never follows the installed version"
+    return 0
+  fi
+  new_install
+  printf 'untracked\n' > "${INSTALL}/other.txt"
+  printf 'staged\n' > "${INSTALL}/staged.txt"
+  iso -C "$INSTALL" add staged.txt
+  readme_case "$script" "for a README that differs" 2 replaced
+  readme_commit_findings "for a README that differs" "$TRUNK"
+  readme_case "$script" "for the README it wrote last run" 2 unchanged
+  new_install
+  iso -C "$INSTALL" rm README.md
+  iso -C "$INSTALL" -c user.name=Setup -c user.email=setup@example.com commit -m "Remove the README"
+  iso -C "$INSTALL" push origin "$TRUNK"
+  readme_case "$script" "for a missing README" 3 created
+  readme_commit_findings "for a missing README" "$TRUNK"
+  new_install
+  readme_case "$script" "with an outer identity and a signing config inherited from the environment" 2 replaced hostile
+  readme_commit_findings "with an inherited outer identity" "$TRUNK"
+}
+
+# judge_readme_token <workflow-file>: pin 13 for the README step (pin 35): its push
+# carries the token as git's environment only.
+judge_readme_token() {
+  local script="${TMP}/readme.sh"
+  step_block "$1" "$README_STEP" run > "$script"
+  [[ -s "$script" ]] || return 0
+  new_install
+  git_step_outcome "$script" real "refs/heads/${TRUNK}" "$TRUNK" > /dev/null
+  push_token_findings "the README step"
 }
 
 # render_calls <script> [<NAME=value> ...]: the forsgren calls, joined by
@@ -1465,12 +1549,13 @@ judge_config_e2e() {
 
 # judge_order <workflow-file>: pin 9.
 judge_order() {
-  local install checkout init check render collect data publish failstep lookup needs
+  local install checkout init check render collect data publish failstep lookup needs readme
   lookup="$(line_of "$1" "- name: ${LATEST_STEP}")"
   install="$(line_of "$1" "- name: ${INSTALL_STEP}")"
   checkout="$(line_of "$1" "- name: ${CHECKOUT_STEP}")"
   init="$(line_of "$1" "- name: ${INIT_STEP}")"
   check="$(line_of "$1" "- name: ${CHECK_STEP}")"
+  readme="$(line_of "$1" "- name: ${README_STEP}")"
   render="$(line_of "$1" "- name: ${RENDER_STEP}")"
   collect="$(line_of "$1" "- name: ${COLLECT_STEP}")"
   data="$(line_of "$1" "- name: ${DATA_STEP}")"
@@ -1496,6 +1581,18 @@ judge_order() {
   fi
   if later "$install" "$init"; then
     echo "writes the starter (line ${init}) before installing forsgren (line ${install}) — init-config is not on PATH yet"
+  fi
+  if later "$readme" "$check"; then
+    echo "writes the README (line ${readme}) after the config check (line ${check}) — it belongs to the files written before the run reads anything"
+  fi
+  if later "$init" "$readme"; then
+    echo "writes the README (line ${readme}) before the starter (line ${init}) — the starter step comes first, the README second"
+  fi
+  if later "$checkout" "$readme"; then
+    echo "writes the README (line ${readme}) before checking out the caller's repository (line ${checkout}) — there is no checkout to write it into"
+  fi
+  if later "$install" "$readme"; then
+    echo "writes the README (line ${readme}) before installing forsgren (line ${install}) — install-readme is not on PATH yet"
   fi
   needs="$(line_of "$1" "- name: ${NEEDS_STEP}")"
   if later "$checkout" "$needs"; then
@@ -1626,6 +1723,8 @@ judge() {
   judge_starter_step "$1"
   judge_starter_token "$1"
   judge_starter_e2e "$1"
+  judge_readme_step "$1"
+  judge_readme_token "$1"
   judge_config_step "$1"
   judge_config_commands "$1"
   judge_config_e2e "$1"
@@ -1971,6 +2070,40 @@ proves judge_data_moved "a rebased data push" "with the branch moved since the c
 proves judge_data_moved "a refused push without its cause" "does not name the cause in an ::error" \
   "s/${MOVED}/was refused/"
 
+# The README step (forsgren#110, step 4).
+proves judge_readme_step "no README step" "has no step '${README_STEP}'" \
+  "s/- name: ${README_STEP}\$/- name: Write something else/"
+proves judge_readme_step "install-readme on another file" "for a README that differs the README step gives 'exit=1 commits=1'" \
+  's/install-readme --out README\.md/install-readme --out README.txt/'
+proves judge_readme_step "a README committed even when unchanged" "for the README it wrote last run the README step gives 'exit=1 commits=2'" \
+  "s/\"${D}word\" == unchanged/\"${D}word\" == nothing/"
+proves judge_readme_step "no README commit" "for a README that differs the README step gives 'exit=0 commits=1'" \
+  '/- name: Write the installation README/,/- name: Check the caller/ { /^ *GIT_CONFIG_COUNT=0 /,/git commit --quiet/d; }'
+proves judge_readme_step "the whole checkout committed" "the README commit holds [README.md,other.txt,staged.txt]" \
+  "/- name: Write the installation README/,/- name: Check the caller/ { s/git add -- README.md/git add -A/; s/ -- README\\.md\$//; }"
+proves judge_readme_step "another commit author" "the README commit's author is 'someone <" \
+  "/- name: Write the installation README/,/- name: Check the caller/ s/GIT_AUTHOR_NAME='github-actions\\[bot\\]'/GIT_AUTHOR_NAME='someone'/"
+proves judge_readme_step "another committer" "the README commit's committer is 'someone <" \
+  "/- name: Write the installation README/,/- name: Check the caller/ s/GIT_COMMITTER_NAME='github-actions\\[bot\\]'/GIT_COMMITTER_NAME='someone'/"
+proves judge_readme_step "an identity left to -c" "with an inherited outer identity the README commit's author is 'Outer Author <outer-author@example.com>'" \
+  "/- name: Write the installation README/,/- name: Check the caller/ { /GIT_AUTHOR_NAME=/d; /GIT_COMMITTER_NAME=/d; s/git commit --quiet/git -c user.name=bot -c user.email=bot@example.com commit --quiet/; }"
+proves judge_readme_step "the inherited config left alone" "with an outer identity and a signing config inherited from the environment the README step gives 'exit=128 commits=1'" \
+  '/- name: Write the installation README/,/- name: Check the caller/ { /^ *GIT_CONFIG_COUNT=0 /d; }'
+proves judge_readme_step "another commit message" "the README commit's message is 'forsgren: change the readme'" \
+  "s/forsgren: update README\\.md/forsgren: change the readme/"
+proves judge_readme_step "no README push" "for a README that differs the README step gives 'exit=0 commits=1'" \
+  '/- name: Write the installation README/,/- name: Check the caller/ { /git push --quiet origin/d; }'
+proves judge_readme_step "a README push to a fixed branch" "for a README that differs the README step gives 'exit=0 commits=1'" \
+  "/- name: Write the installation README/,/- name: Check the caller/ s|\"HEAD:${D}{GITHUB_REF}\"|\"HEAD:refs/heads/main\"|"
+proves judge_readme_step "no step output" "the README step's output readme is '', not 'replaced'" \
+  "s/readme=\\${D}{word}/other=${D}{word}/"
+proves judge_readme_step "the output without its word" "the README step's output readme is 'README.md', not 'replaced'" \
+  "s/word=\"\\${D}{result%% \\*}\"/word=\"${D}{result#* }\"/"
+proves judge_readme_token "the README token in an argument" "the README step hands the token to git in an argument" \
+  "/- name: Write the installation README/,/- name: Check the caller/ s|^\\( *\\)git push --quiet origin|\\1git -c \"http.extraheader=AUTHORIZATION: basic ${D}{auth}\" push --quiet origin|"
+proves judge_readme_token "a README push without the header" "the README step's push carries" \
+  "/- name: Write the installation README/,/- name: Check the caller/ s/\"AUTHORIZATION: basic /\"X-Other: basic /"
+
 # The fail step, and the three steps in a row.
 proves judge_fail_step "no fail step" "has no step '${FAIL_STEP}'" \
   "s/- name: ${FAIL_STEP}\$/- name: Fail something else/"
@@ -1999,6 +2132,9 @@ proves_moved judge_config_step "a workflow without the config step" "has no step
 proves_moved judge_order "the config check after render" "after it renders" "$CHECK_STEP" "Upload the page"
 proves_moved judge_order "the starter after the config check" "writes the starter (line" "$INIT_STEP" "Render the page"
 proves_moved judge_order "the starter before the checkout" "before checking out the caller's repository" "$INIT_STEP" "$CHECKOUT_STEP"
+proves_moved judge_order "the README after the config check" "writes the README (line" "$README_STEP" "Render the page"
+proves_moved judge_order "the README before the starter" "before the starter (line" "$README_STEP" "$INIT_STEP"
+proves_moved judge_order "the README before the checkout" "before checking out the caller's repository (line" "$README_STEP" "$CHECKOUT_STEP"
 proves_moved judge_setup_go "the install step before setup-go" "after the install step" "$INSTALL_STEP" "Set up Go"
 proves_moved judge_order "collect before the config check" "collects (line" "$COLLECT_STEP" "$CHECK_STEP"
 proves_moved judge_order "the data commit before collect" "there is nothing to commit yet" "$DATA_STEP" "$COLLECT_STEP"

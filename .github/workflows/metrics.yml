@@ -5,7 +5,9 @@
 # very commit it is called at, renders the page and publishes it to the
 # caller's GitHub Pages. A new install has no forsgren.config.yml: the run
 # writes the starter with forsgren init-config and commits that one file to
-# the branch the run is on (forsgren#12). Before it renders, it checks
+# the branch the run is on (forsgren#12). It writes the installation's
+# README.md for the installed version the same way, committing it only when
+# it changed (forsgren#110). Before it renders, it checks
 # the caller's forsgren.config.yml with forsgren check-config, so an invalid
 # configuration fails the job by name instead of publishing from it. Then
 # forsgren collect reads the configured repositories' deployments into
@@ -225,6 +227,48 @@ jobs:
           GIT_AUTHOR_NAME='github-actions[bot]' GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com' \
           GIT_COMMITTER_NAME='github-actions[bot]' GIT_COMMITTER_EMAIL='41898282+github-actions[bot]@users.noreply.github.com' \
             git commit --quiet -m 'forsgren: add a starter forsgren.config.yml' -- forsgren.config.yml
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL}/.extraheader"
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${auth}"
+          git push --quiet origin "HEAD:${GITHUB_REF}"
+
+      # The installation's README is forsgren's file (forsgren#110): the one
+      # that describes the version this run is, embedded in the binary, with
+      # the version written into it. forsgren install-readme writes it to
+      # README.md and says created, replaced or unchanged (a hand-edited
+      # README is replaced; a README that already holds the text is not
+      # touched). The word is the step's output `readme`. Only a created or a
+      # replaced README is committed, ALONE and in its own commit, to the
+      # branch the run is on, as github-actions[bot]; an unchanged one commits
+      # and pushes nothing, so a daily run adds no commit. Commit identity,
+      # branch rule and the push carrying the token in git's environment only
+      # are the starter step's, for the reasons given there. Inline for the
+      # same reason; Scripts/test_metrics_workflow.sh executes this block with
+      # a real git against a local remote and the real forsgren.
+      - name: Write the installation README
+        id: readme
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          result="$(forsgren install-readme --out README.md)"
+          echo "$result"
+          word="${result%% *}"
+          echo "readme=${word}" >> "$GITHUB_OUTPUT"
+          if [[ "$word" == unchanged ]]; then
+            exit 0
+          fi
+          if [[ "$GITHUB_REF" != refs/heads/* ]]; then
+            echo "::error title=forsgren README::README.md changed and can be committed only on a branch; run this workflow on one"
+            exit 1
+          fi
+          git add -- README.md
+          GIT_CONFIG_COUNT=0 \
+          GIT_AUTHOR_NAME='github-actions[bot]' GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com' \
+          GIT_COMMITTER_NAME='github-actions[bot]' GIT_COMMITTER_EMAIL='41898282+github-actions[bot]@users.noreply.github.com' \
+            git commit --quiet -m 'forsgren: update README.md' -- README.md
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           export GIT_CONFIG_COUNT=1
           export GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL}/.extraheader"
