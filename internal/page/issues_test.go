@@ -417,3 +417,29 @@ func TestLegendExplainsTheClosedColumnsAndTheLimitsOfTheIssueHistory(t *testing.
 	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()),
 		"<p>"+columnsNote+"</p>\n    <p>"+closedColumnsNote+"</p>", "<p>"+issueLimitsNote+"</p>")
 }
+
+// TestIssuesPageShowsLeadTimeAfterCompleted (forsgren#202, step 7): the issues
+// and days tables head a column Lead time right after Completed, whose cell is
+// IssueDay.LeadTime.Cell: 25 h is 1 d 1 h, and a row that completed no issue
+// shows the dash.
+func TestIssuesPageShowsLeadTimeAfterCompleted(t *testing.T) {
+	data := calculated()
+	lead := metrics.LeadMedian{Median: 25 * time.Hour, Count: 2}
+	days := []metrics.IssueDay{
+		{Date: october(2), Completed: 2, NotPlanned: 1, LeadTime: lead, Active: true},
+		{Date: october(1), NotPlanned: 1, Active: true},
+	}
+	data.IssueDays = days
+	for _, d := range days {
+		data.IssueRows = append(data.IssueRows, metrics.IssueRow{Kind: metrics.KindDay, IssueDay: d})
+	}
+	for _, name := range []string{"issues.html", "days.html"} {
+		wantAll(t, name, rendered(t, name, data), `<th scope="col">Completed</th>
+            <th scope="col">Lead time</th>
+            <th scope="col">Not planned</th>`, `<td>2</td>
+            <td>1 d 1 h</td>
+            <td>1</td>`, `<td>0</td>
+            <td>—</td>
+            <td>1</td>`)
+	}
+}

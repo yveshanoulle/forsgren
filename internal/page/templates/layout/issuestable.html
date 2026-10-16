@@ -5,6 +5,7 @@
             <th scope="col">{{template "issuesfirst"}}</th>
             <th scope="col">New</th>
             <th scope="col">Completed</th>
+            <th scope="col">Lead time</th>
             <th scope="col">Not planned</th>
             <th scope="col">Duplicate</th>
             <th scope="col">Other</th>
@@ -20,6 +21,7 @@
     </div>
 {{end}}{{define "issuecells"}}            <td>{{.New}}</td>
             <td>{{.Completed}}</td>
+            <td>{{.LeadTime.Cell}}</td>
             <td>{{.NotPlanned}}</td>
             <td>{{.Duplicate}}</td>
             <td>{{.Other}}</td>

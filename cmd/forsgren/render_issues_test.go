@@ -26,7 +26,9 @@ func issueEventAt(number int64, event, reason, at string) history.IssueEvent {
 // data/issues.csv next to --data, days.html shows the UTC day before the
 // render time, 2 October. Issue 7 is created that day; issues 8 to 11, created
 // earlier, are closed that day, one for each reason, completed, not planned,
-// duplicate and none: 1 in each column, and 1 issue still open, the Open.
+// duplicate and none: 1 in each column, and 1 issue still open, the Open. The
+// completed one, created 12 d 7 h before its close, gives the Lead time
+// (forsgren#202).
 func TestRenderShowsTheIssuesOfEachDay(t *testing.T) {
 	pinNow(t)
 	data := writeHistory(t, acmeHistory())
@@ -43,7 +45,8 @@ func TestRenderShowsTheIssuesOfEachDay(t *testing.T) {
 		"--data", data); code != 0 {
 		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
 	}
-	want := "<th scope=\"row\">2026-10-02</th>\n" + strings.Repeat("            <td>1</td>\n", 5) +
+	want := "<th scope=\"row\">2026-10-02</th>\n" + strings.Repeat("            <td>1</td>\n", 2) +
+		"            <td>12 d 7 h</td>\n" + strings.Repeat("            <td>1</td>\n", 3) +
 		"            <td>1 <span class=\"trend-down\" role=\"img\" " +
 		"aria-label=\"open issues decreased by 3\">▼ −3</span></td>\n"
 	if issues := readFile(t, filepath.Join(dir, "days.html")); !strings.Contains(issues, want) {
