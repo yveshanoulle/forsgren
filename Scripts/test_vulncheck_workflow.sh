@@ -39,6 +39,11 @@ selftest_begin "vulncheck workflow pin"
 [[ -f "$WORKFLOW" ]] || selftest_abort "${WORKFLOW} does not exist: nothing runs govulncheck on a schedule"
 [[ -f "$METRICS" ]] || selftest_abort "${METRICS} does not exist: the action pins have nothing to be compared with"
 
+# DOLLAR builds the literals that hold a dollar sign (the lines of the toolchain
+# step, the template expression of a mutant) in double quotes, so no
+# single-quoted string has to hold one.
+DOLLAR='$'
+
 # code <file>: the file without its comment lines.
 code() {
   grep -vE '^[[:space:]]*#' "$1"
@@ -96,9 +101,9 @@ action_findings() {
 
 # step_findings <file> — pins 8 to 11.
 step_findings() {
-  step_block "$1" "Pin the Go toolchain" run | grep -qF 'toolchain="$(./Scripts/go_toolchain.sh)"' \
+  step_block "$1" "Pin the Go toolchain" run | grep -qF "toolchain=\"${DOLLAR}(./Scripts/go_toolchain.sh)\"" \
     || echo "toolchain: it is not read from Scripts/go_toolchain.sh"
-  step_block "$1" "Pin the Go toolchain" run | grep -qF 'echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"' \
+  step_block "$1" "Pin the Go toolchain" run | grep -qF "echo \"GOTOOLCHAIN=${DOLLAR}{toolchain}\" >> \"${DOLLAR}GITHUB_ENV\"" \
     || echo "toolchain: GOTOOLCHAIN is not written to GITHUB_ENV"
   step_text "$1" "Scan for vulnerabilities" | grep -qxF '        run: ./Scripts/check_govulncheck.sh' \
     || echo "scan: the step does not run exactly ./Scripts/check_govulncheck.sh"
@@ -171,10 +176,10 @@ mutant "persisted credentials" 's/persist-credentials: false/persist-credentials
 mutant "a Go that ignores go.mod" 's/go-version-file: go.mod/go-version: stable/' "setup-go: it does not read go.mod"
 mutant "a Go cache" 's/cache: false/cache: true/' "setup-go: a cache"
 mutant "a toolchain from elsewhere" 's#\./Scripts/go_toolchain.sh#echo go1.0#' "toolchain: it is not read from"
-mutant "a toolchain never exported" 's#>> "\$GITHUB_ENV"#>> /dev/null#' "toolchain: GOTOOLCHAIN is not written"
+mutant "a toolchain never exported" "s#>> \"\\${DOLLAR}GITHUB_ENV\"#>> /dev/null#" "toolchain: GOTOOLCHAIN is not written"
 mutant "another scan command" 's#run: ./Scripts/check_govulncheck.sh#run: go vet ./...#' "scan: the step does not run exactly"
 mutant "a scan that may skip" "s/FORSGREN_VULN_DB_REQUIRED: '1'/FORSGREN_VULN_DB_REQUIRED: '0'/" "required: the scan step"
-mutant "a template expression in run" 's#run: ./Scripts/check_govulncheck.sh#run: ./Scripts/check_govulncheck.sh ${{ github.sha }}#' "injection:"
+mutant "a template expression in run" "s#run: ./Scripts/check_govulncheck.sh#run: ./Scripts/check_govulncheck.sh ${DOLLAR}{{ github.sha }}#" "injection:"
 mutant "a scan before the toolchain" 's/name: Pin the Go toolchain/name: Pin the Go toolchain late/;s/name: Scan for vulnerabilities/name: Pin the Go toolchain/' "order:"
 
 selftest_end "the vulncheck workflow pin found failures" "vulncheck workflow pin (the real file holds every pin; each mutant is named)"
