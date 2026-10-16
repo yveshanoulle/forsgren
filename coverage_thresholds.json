@@ -679,6 +679,7 @@
     "github.com/yveshanoulle/forsgren/internal/readmepage/render.go:Render": 100.0,
     "github.com/yveshanoulle/forsgren/internal/readmepage/description.go:add": 100.0,
     "github.com/yveshanoulle/forsgren/internal/readmepage/description.go:plainText": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/readmepage/description.go:shorten": 100.0,
     "github.com/yveshanoulle/forsgren/internal/readmepage/render.go:Error": 100.0,
     "github.com/yveshanoulle/forsgren/internal/readmepage/render.go:atLine": 100.0,
     "github.com/yveshanoulle/forsgren/internal/readmepage/inline.go:autolink": 100.0,
