@@ -154,6 +154,53 @@ want_exit "a module with no _test.go file is red" 1 "no _test.go file to check"
 run_gate "$GATE" "${TMP}/nope"
 want_exit "a missing module directory is a tooling error" 2 "module directory not found"
 
+# --- Case 5b: a cold runner (forsgren#210). `go tool -n` writes its
+# "go: downloading ..." lines on stderr before it prints the path; a go shim
+# does the same here. The gate must keep them out of the tool path.
+SHIM="${TMP}/shim"
+mkdir -p "$SHIM"
+REAL_GO="$(command -v go)"
+cat > "${SHIM}/go" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1 \$2 \$3" == "tool -n golangci-lint" ]]; then
+  echo "go: downloading golang.org/x/tools v0.0.0" >&2
+  echo "go: downloading golang.org/x/mod v0.0.0" >&2
+fi
+exec "$REAL_GO" "\$@"
+EOF
+chmod +x "${SHIM}/go"
+new_module "cold"
+add_one_test
+capture env PATH="${SHIM}:${PATH}" "$GATE" "$MOD" "$THRESHOLD"
+COLD="$MOD"
+want_exit "cold runner: download lines on stderr of go tool -n do not reach the tool path" 0 "OK:"
+if grep -qF -- "could not run" <<< "$OUT"; then
+  fail "cold runner: the gate reported it could not run. Output: ${OUT}"
+fi
+
+# --- Case 5bb: MUTATION PROOF. The old 2>&1 capture put back (the -x check
+# disabled too: it would catch the polluted path with its own message) is red
+# on the cold runner as an exit 127.
+MUTANT_GATE="${TMP}/stderr-captured/Scripts/check_test_dupl.sh"
+if selftest_mutant "$GATE" "$MUTANT_GATE" 's/tool -n golangci-lint)"/tool -n golangci-lint 2>\&1)"/; s/^if \[ ! -x /if false \&\& [ ! -x /'; then
+  cp go.mod "${TMP}/stderr-captured/"
+  if [[ -f go.sum ]]; then cp go.sum "${TMP}/stderr-captured/"; fi
+  capture env PATH="${SHIM}:${PATH}" "$MUTANT_GATE" "$COLD" "$THRESHOLD"
+  want_red "mutation: with stderr captured into the tool path, a cold runner is red as the exit 127" "No such file or directory"
+fi
+
+# --- Case 5bc: the path go prints is not a built binary: red with its reason.
+cat > "${SHIM}/go" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1 \$2 \$3" == "tool -n golangci-lint" ]]; then
+  echo "${TMP}/not-built/golangci-lint"
+  exit 0
+fi
+exec "$REAL_GO" "\$@"
+EOF
+capture env PATH="${SHIM}:${PATH}" "$GATE" "$COLD" "$THRESHOLD"
+want_exit "a tool path that is not built is a tooling error, naming the reason" 2 "was not built"
+
 # --- Case 6: MUTATION PROOF. path-except turned into path.
 # The mutant finds its root as the gate does, one level above its Scripts/,
 # and the pinned golangci-lint through the go.mod and go.sum it finds there.

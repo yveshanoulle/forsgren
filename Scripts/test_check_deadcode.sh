@@ -104,6 +104,48 @@ if mutant "no-test-flag" 's/ -test / /'; then
   want_red "mutation: without -test, case 5's test-only function is red" "unreachable func: testOnly"
 fi
 
+# --- Case 6b: a cold runner (forsgren#210). `go tool -n` writes its
+# "go: downloading ..." lines on stderr before it prints the path; a go shim
+# does the same here. The gate must keep them out of the tool path.
+SHIM="${TMP}/shim"
+mkdir -p "$SHIM"
+REAL_GO="$(command -v go)"
+cat > "${SHIM}/go" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1 \$2 \$3" == "tool -n deadcode" ]]; then
+  echo "go: downloading golang.org/x/tools v0.0.0" >&2
+  echo "go: downloading golang.org/x/mod v0.0.0" >&2
+fi
+exec "$REAL_GO" "\$@"
+EOF
+chmod +x "${SHIM}/go"
+new_module "cold"
+capture env PATH="${SHIM}:${PATH}" "$GATE" "$MOD"
+want_green_ok "cold runner: download lines on stderr of go tool -n do not reach the tool path"
+if grep -qF -- "could not run" <<< "$OUT"; then
+  fail "cold runner: the gate reported it could not run. Output: ${OUT}"
+fi
+
+# --- Case 6bb: MUTATION PROOF. The old 2>&1 capture put back (the -x check
+# disabled too: it would catch the polluted path with its own message) is red
+# on the cold runner as an exit 127.
+if mutant "stderr-captured" 's/tool -n deadcode)"/tool -n deadcode 2>\&1)"/; s/^if \[ ! -x /if false \&\& [ ! -x /'; then
+  capture env PATH="${SHIM}:${PATH}" "$MUTANT" "$MOD"
+  want_red "mutation: with stderr captured into the tool path, a cold runner is red as the exit 127" "could not run"
+fi
+
+# --- Case 6bc: the path go prints is not a built binary: red with its reason.
+cat > "${SHIM}/go" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1 \$2 \$3" == "tool -n deadcode" ]]; then
+  echo "${TMP}/not-built/deadcode"
+  exit 0
+fi
+exec "$REAL_GO" "\$@"
+EOF
+capture env PATH="${SHIM}:${PATH}" "$GATE" "$MOD"
+want_red "a tool path that is not built is red, naming the reason" "was not built"
+
 # --- Case 7: no main package.
 new_module "no-main"
 rm "${MOD}/main.go"

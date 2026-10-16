@@ -35,9 +35,17 @@ cd "$(dirname "$0")/.." || exit 2
 MODULE_DIR="${1:-.}"
 THRESHOLD="${2:-80}"
 
-if ! BIN="$(go tool -n golangci-lint 2>&1)"; then
-  printf '%s\n' "$BIN" >&2
+# stdout is the path, nothing else: on a fresh runner go prints its
+# "go: downloading ..." lines on stderr (forsgren#210), which stay on stderr, in
+# the log, and never reach BIN. `go tool -n` builds the tool before it prints
+# the path; the -x check makes a path that is not a built binary red here, not
+# an exit 127 further down.
+if ! BIN="$(go tool -n golangci-lint)"; then
   echo "❌ FAIL: golangci-lint is not pinned in go.mod: go tool -n golangci-lint failed" >&2
+  exit 2
+fi
+if [ ! -x "$BIN" ]; then
+  echo "❌ FAIL: go tool -n golangci-lint printed ${BIN}, which is not an executable: the pinned golangci-lint was not built" >&2
   exit 2
 fi
 

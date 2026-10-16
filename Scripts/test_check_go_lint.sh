@@ -144,6 +144,50 @@ if mutate_config "g101-excluded" '
   want_green_ok "mutation: a blanket G101 exclusion turns case 5 green"
 fi
 
+# --- Case 7b: a cold runner (forsgren#210). `go tool -n` writes its
+# "go: downloading ..." lines on stderr before it prints the path; a go shim
+# does the same here. The gate must keep them out of the tool path.
+SHIM="${TMP}/shim"
+mkdir -p "$SHIM"
+REAL_GO="$(command -v go)"
+cat > "${SHIM}/go" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1 \$2 \$3" == "tool -n golangci-lint" ]]; then
+  echo "go: downloading golang.org/x/tools v0.0.0" >&2
+  echo "go: downloading golang.org/x/mod v0.0.0" >&2
+fi
+exec "$REAL_GO" "\$@"
+EOF
+chmod +x "${SHIM}/go"
+new_module "cold"
+capture env PATH="${SHIM}:${PATH}" "$GATE" "$MOD" "$CONFIG"
+want_green_ok "cold runner: download lines on stderr of go tool -n do not reach the tool path"
+if grep -qF -- "could not run" <<< "$OUT"; then
+  fail "cold runner: the gate reported it could not run. Output: ${OUT}"
+fi
+
+# --- Case 7bb: MUTATION PROOF. The old 2>&1 capture put back (the -x check
+# disabled too: it would catch the polluted path with its own message) is red
+# on the cold runner as an exit 127.
+MUTANT_GATE="${TMP}/stderr-captured/Scripts/check_go_lint.sh"
+if selftest_mutant "$GATE" "$MUTANT_GATE" 's/tool -n golangci-lint)"/tool -n golangci-lint 2>\&1)"/; s/^if \[ ! -x /if false \&\& [ ! -x /'; then
+  cp go.mod go.sum "${TMP}/stderr-captured/"
+  capture env PATH="${SHIM}:${PATH}" "$MUTANT_GATE" "$MOD" "$(pwd)/${CONFIG}"
+  want_red "mutation: with stderr captured into the tool path, a cold runner is red as the exit 127" "could not run"
+fi
+
+# --- Case 7bc: the path go prints is not a built binary: red with its reason.
+cat > "${SHIM}/go" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1 \$2 \$3" == "tool -n golangci-lint" ]]; then
+  echo "${TMP}/not-built/golangci-lint"
+  exit 0
+fi
+exec "$REAL_GO" "\$@"
+EOF
+capture env PATH="${SHIM}:${PATH}" "$GATE" "$MOD" "$CONFIG"
+want_red "a tool path that is not built is red, naming the reason" "was not built"
+
 # --- Case 8: no Go package.
 new_module "no-package"
 rm "${MOD}/m.go"
