@@ -15,7 +15,7 @@
 //	                     [--token-expiry <path>]
 //	forsgren run-summary --latest <version> --waiting-pr <number>
 //	                     --pr-check <ok|no-access|rate-limited|truncated|failed|skipped> --repository <owner/name>
-//	                     [--needs-check <status>] [--token-expiry <path>]
+//	                     [--needs-check <status>] [--readme <status>] [--token-expiry <path>]
 //	                     [--latest-published <path>]
 //	forsgren check-update --config <path> --repo <owner/name> --pull <number>
 //	forsgren install-update --repo <owner/name> --branch <branch> --version <vX.Y.Z> --sha <40-hex>
@@ -43,7 +43,7 @@ const usage = `usage: forsgren render --out <dir> [--config <path>] [--data <pat
                             [--token-expiry <path>]
        forsgren run-summary --latest <version> --waiting-pr <number>
                             --pr-check <ok|no-access|rate-limited|truncated|failed|skipped> --repository <owner/name>
-                            [--needs-check <status>] [--token-expiry <path>]
+                            [--needs-check <status>] [--readme <status>] [--token-expiry <path>]
                             [--latest-published <path>]
        forsgren check-update --config <path> --repo <owner/name> --pull <number>
        forsgren install-update --repo <owner/name> --branch <branch> --version <vX.Y.Z> --sha <40-hex>`

@@ -35,6 +35,9 @@ type summaryInput struct {
 	waitingPR  int
 	check      string
 	needsCheck string
+	// readme is how install-readme went, created, replaced or unchanged
+	// (forsgren#110).
+	readme     string
 	repository string
 	tokenFile  string
 	// published is the file latest-release --published wrote, for the
@@ -66,6 +69,8 @@ func summaryFlags(args []string, stderr io.Writer) (summaryInput, bool) {
 	flags.StringVar(&in.check, "pr-check", "", "how the pull request lookup went: "+strings.Join(statuses, ", "))
 	flags.StringVar(&in.needsCheck, "needs-check", "",
 		"how the setup issue went: ok, no-access, rate-limited or failed (optional)")
+	flags.StringVar(&in.readme, "readme", "",
+		"how install-readme went: created, replaced or unchanged (optional)")
 	flags.StringVar(&in.repository, "repository", "", "the installation's owner/name, for the pull request's link")
 	flags.StringVar(&in.tokenFile, "token-expiry", "",
 		"the file collect --token-expiry wrote, for the token's days left (optional)")
@@ -100,7 +105,7 @@ func (in summaryInput) markdown(stderr io.Writer) string {
 		"Latest release: " + latest,
 		"Update: " + in.update(),
 	}
-	return "## forsgren\n\n- " + strings.Join(lines, "\n- ") + "\n" + in.token() + in.setup(stderr)
+	return "## forsgren\n\n- " + strings.Join(lines, "\n- ") + "\n" + in.token() + in.setup(stderr) + in.readmeLine()
 }
 
 // latestRelease is the newest release as --latest names it, and whether it is
@@ -198,6 +203,20 @@ func (in summaryInput) setup(stderr io.Writer) string {
 		line += "  - " + n.Steps + "\n"
 	}
 	return line
+}
+
+// readmeWords are the lines for the words install-readme prints (the values
+// of --readme), the version being the one that wrote the README.
+var readmeWords = map[string]string{
+	"created":   "- README: created from forsgren %s's\n",
+	"replaced":  "- README: replaced with forsgren %s's\n",
+	"unchanged": "- README: unchanged\n",
+}
+
+// readmeLine says what happened to the installation's README (forsgren#110):
+// nothing without --readme or with a word it does not know, as setup does.
+func (in summaryInput) readmeLine() string {
+	return strings.Replace(readmeWords[in.readme], "%s", version, 1)
 }
 
 // update says where the update stands.
