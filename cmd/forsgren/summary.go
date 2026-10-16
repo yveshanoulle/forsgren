@@ -21,6 +21,7 @@ const (
 	statusRateLimited = "rate-limited"
 	statusFailed      = "failed"
 	statusSkipped     = "skipped"
+	statusTruncated   = "truncated"
 )
 
 // statuses are the values of --pr-check.

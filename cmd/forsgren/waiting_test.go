@@ -200,3 +200,46 @@ func TestWaitingPullRequestWithMoreFilesThanWereReadIsNotAMatch(t *testing.T) {
 	wantLookup(t, "6\n", "waiting-pull-request: pull request #9 has more files than were read, so it is not looked at",
 		"waiting-pull-request", "--version", "0.0.10")
 }
+
+// cutPulls is routedAPI's routes for a list of open pull requests that never
+// ends (every page names a next one, so the client stops at its page limit),
+// each page holding Dependabot's pull request 7, whose files move the pin of
+// metrics.yml to moves.
+func cutPulls(t *testing.T, moves string) {
+	t.Helper()
+	routedAPI(t, map[string]reply{
+		waitingPath:              {body: onePull(t)},
+		waitingPath + "/7/files": {body: pinFiles(t, moves)},
+	}, waitingPath)
+}
+
+// TestWaitingPullRequestOfACutListWithNoMatchIsUnknown (forsgren#203): when the
+// list of open pull requests is cut at the page limit and none of the pull
+// requests read is the waiting one, the lookup cannot say there is none: stdout
+// stays empty, exit 0, the status is truncated, a status of its own that is not
+// failed, and stderr says which repository's list was cut and where.
+func TestWaitingPullRequestOfACutListWithNoMatchIsUnknown(t *testing.T) {
+	t.Setenv("GITHUB_REPOSITORY", "acme/data")
+	t.Setenv("GITHUB_TOKEN", testToken)
+	cutPulls(t, "0.0.11")
+	path := filepath.Join(t.TempDir(), "status")
+	wantLookup(t, "", "waiting-pull-request: acme/data: the list of open pull requests is cut at 10 page(s), "+
+		"so a waiting pull request cannot be ruled out\n", "waiting-pull-request", "--version", "0.0.10", "--status", path)
+	if status, err := os.ReadFile(filepath.Clean(path)); err != nil || string(status) != "truncated" {
+		t.Errorf("want the status truncated, got %q (%v)", status, err)
+	}
+}
+
+// TestWaitingPullRequestOfACutListWithAMatchIsWaiting (forsgren#203): a match
+// in a cut list is conclusive: the number is printed, the status is ok and
+// nothing is said on stderr.
+func TestWaitingPullRequestOfACutListWithAMatchIsWaiting(t *testing.T) {
+	t.Setenv("GITHUB_REPOSITORY", "acme/data")
+	t.Setenv("GITHUB_TOKEN", testToken)
+	cutPulls(t, "0.0.10")
+	path := filepath.Join(t.TempDir(), "status")
+	wantLookup(t, "7\n", "", "waiting-pull-request", "--version", "0.0.10", "--status", path)
+	if status, err := os.ReadFile(filepath.Clean(path)); err != nil || string(status) != "ok" {
+		t.Errorf("want the status ok, got %q (%v)", status, err)
+	}
+}

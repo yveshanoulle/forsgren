@@ -20,24 +20,45 @@ type pullLookup struct {
 	stderr     io.Writer
 }
 
+// errPullsCut is a list of open pull requests that the client cut at its page
+// limit, in which no waiting pull request was found: one on a later page cannot
+// be ruled out (forsgren#203).
+var errPullsCut = errors.New("the list of open pull requests is cut")
+
 // waiting is the number of the highest open pull request of Dependabot whose
-// files move the pin of metrics.yml to version, 0 for none (forsgren#42).
+// files move the pin of metrics.yml to version, 0 for none (forsgren#42). A
+// match is conclusive even when the list is cut; with no match in a cut list
+// it is 0 and errPullsCut, naming the repository and the page limit.
 func (l pullLookup) waiting(ctx context.Context, version string) (int64, error) {
-	pulls, _, err := l.client.OpenPullRequests(ctx, l.repository)
+	pulls, cut, err := l.client.OpenPullRequests(ctx, l.repository)
 	if err != nil {
 		return 0, err
 	}
-	var waiting int64
-	for _, p := range github.DependabotPulls(pulls) {
+	waiting, err := l.highestMoving(ctx, github.DependabotPulls(pulls), version)
+	if err != nil {
+		return 0, err
+	}
+	if cut && waiting == 0 {
+		return 0, fmt.Errorf("%s: %w at %d page(s), so a waiting pull request cannot be ruled out",
+			l.repository, errPullsCut, l.client.MaxPages())
+	}
+	return waiting, nil
+}
+
+// highestMoving is the number of the highest of pulls that moves the pin of
+// metrics.yml to version, 0 for none.
+func (l pullLookup) highestMoving(ctx context.Context, pulls []github.PullRequest, version string) (int64, error) {
+	var highest int64
+	for _, p := range pulls {
 		moves, err := l.movesPin(ctx, p.Number, version)
 		if err != nil {
 			return 0, err
 		}
 		if moves {
-			waiting = max(waiting, p.Number)
+			highest = max(highest, p.Number)
 		}
 	}
-	return waiting, nil
+	return highest, nil
 }
 
 // movesPin says whether pull request number moves the pin of metrics.yml to
