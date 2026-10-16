@@ -19,6 +19,16 @@ type LeadMedian struct {
 	Count  int
 }
 
+// Cell is the median in the short form of the lead time for changes
+// (shortDuration), "—" when no issue was closed in the period, the dash the
+// issues table shows for an empty value (OpenShare).
+func (l LeadMedian) Cell() string {
+	if l.Count == 0 {
+		return "—"
+	}
+	return shortDuration(l.Median)
+}
+
 // leadMedians is, for each of n rows, the LeadMedian of the closes rowOf gives
 // that row (the index of an event time's row, as periodRows uses it), over the
 // completed closes only, each measured from the issue's created event; a close

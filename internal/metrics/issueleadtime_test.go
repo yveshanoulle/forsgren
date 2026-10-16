@@ -75,3 +75,23 @@ func TestLeadMediansSkipsACloseWithoutACreatedEvent(t *testing.T) {
 		t.Errorf("want the lead times\n%v\ngot\n%v", want, got)
 	}
 }
+
+// TestLeadMedianCell (forsgren#202, step 6): the median is written as the
+// lead time for changes writes it (shortDuration): whole minutes below an
+// hour, hours and minutes below a day, days and hours above; with no close in
+// the period, the dash of the issues table, whatever the median field holds.
+func TestLeadMedianCell(t *testing.T) {
+	for _, c := range []struct {
+		lead LeadMedian
+		want string
+	}{
+		{LeadMedian{}, "—"},
+		{LeadMedian{Median: 59 * time.Minute, Count: 3}, "59 min"},
+		{LeadMedian{Median: 25 * time.Hour, Count: 1}, "1 d 1 h"},
+		{LeadMedian{Median: 40 * 24 * time.Hour, Count: 2}, "40 d"},
+	} {
+		if got := c.lead.Cell(); got != c.want {
+			t.Errorf("the cell of %v: want %q, got %q", c.lead, c.want, got)
+		}
+	}
+}

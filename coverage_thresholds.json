@@ -426,6 +426,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/issueleadtime.go:leadOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issueleadtime.go:bugEvents": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issueleadtime.go:setLeadTimes": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/issueleadtime.go:Cell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:closedColumn": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:utcDay": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/issuedays.go:dayRow": 100.0,
