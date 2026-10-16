@@ -560,6 +560,7 @@ These two were planned with #200 and #198 as one patch. Yves split them off so #
   - The matching rules are pinned, each proven by a mutation: another author, another version, another file, a person's pull request on a Dependabot-like branch, and the highest of several (34d755c).
   - A failed files read gives `no-access`, `rate-limited` or `failed`, and a file list too long to read is no match (3346bf0).
   - The branch-name heuristic, `ForsgrenBump`, is gone (369df6b).
+  - check-update's 403 on reading the pull request itself names `pull-requests: read` too, found by the refactor step: the author read came before the files read and gave the plain 403 (this release's step 8).
 - **One refactor and the docs** (this commit): `pullFiles` is the one way check-update and the waiting lookup read a pull request's files (a cut list is `errFilesCut`), `pullLookup.movesPin` checks one candidate, `MovesPinTo` reads as one predicate, `explainDenied` names the missing permission, and two test fakes share `serveAPI`. Docs: configuration.md (the pull request found by its files), ci.md, updating-and-releases.md ("Upgrading to 1.8.3"), pages-and-views.md and CLAUDE.md.
 
 What an installation sees: "is waiting in pull request #N" where it used to say "is available" when Dependabot grouped or renamed its branch, and the legend's issue columns explained. No new permission, secret or key.

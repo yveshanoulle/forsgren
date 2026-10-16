@@ -379,7 +379,7 @@ and takes the highest-numbered one that moves the `metrics.yml` pin to the
 newer release, so "is waiting in pull request #N (merge it to update)" now
 also shows when Dependabot groups the update or names its branch differently
 (see [Running forsgren](configuration.md#running-forsgren)). When
-`check-update` cannot read a pull request's files for lack of
+`check-update` cannot read a pull request or its files for lack of
 `pull-requests: read`, its 403 message now names that permission. The legend
 explains the issue columns: New is the issues created, Completed, Not
 planned and Duplicate the issues closed with that reason, and Other the ones

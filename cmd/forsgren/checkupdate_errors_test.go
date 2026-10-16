@@ -172,6 +172,19 @@ func TestCheckUpdateIsExit2WhenGitHubFails(t *testing.T) {
 	}
 }
 
+// TestCheckUpdateNamesTheMissingPermissionWhenThePullRequestCannotBeRead
+// (forsgren#42): the 403 of a token without pull-requests: read on the read of
+// the pull request, the first call check-update makes on it, is exit 2 and
+// says which permission is missing.
+func TestCheckUpdateNamesTheMissingPermissionWhenThePullRequestCannotBeRead(t *testing.T) {
+	answers := mergeableAnswers(t)
+	answers["/repos/acme/data/pulls/7"] = answer{403, `{"message":"Resource not accessible by integration"}`}
+	answerPaths(t, answers)
+	flags := updateFlags(t)
+	wantExit2(t, checkUpdateRun(argsOf(flags, "config", "repo", "pull")...), "check-update",
+		"403 Forbidden for /repos/acme/data/pulls/7; the job's token needs pull-requests: read")
+}
+
 // TestCheckUpdateIsExit2WhenTheFileListIsCutAtThePageLimit: files that were
 // not read could be anything, so a pull request with more files than the
 // client reads is exit 2, never a merge on the files seen: the first page is

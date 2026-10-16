@@ -149,23 +149,44 @@ func TestIsRepositoryNameIsTheNameEveryCallRequires(t *testing.T) {
 	}
 }
 
-// TestPullRequestFilesNamesTheMissingPermission (forsgren#42): the 403 of a
-// token without pull-requests: read on a pull request's files is ErrAccess and
-// ErrPullRequestsDenied and names the permission, as the list of pull requests
-// does; GitHub's rate limit stays ErrRateLimit.
-func TestPullRequestFilesNamesTheMissingPermission(t *testing.T) {
-	path := pullsPath + "/7/files"
+// wantPermissionExplained fails t unless call, which reads path, is explained
+// when GitHub answers 403: ErrAccess and ErrPullRequestsDenied naming
+// pull-requests: read; and, when the 403 is the rate limit, ErrRateLimit and
+// not ErrPullRequestsDenied.
+func wantPermissionExplained(t *testing.T, path string, call func(*Client) error) {
+	t.Helper()
 	f := newFake(t)
 	f.on(path, reply{status: 403, body: `{"message":"Resource not accessible by integration"}`})
-	_, _, err := f.client(t, DefaultMaxPages).PullRequestFiles(context.Background(), "acme/data", 7)
+	err := call(f.client(t, DefaultMaxPages))
 	wantError(t, err, ErrAccess, "acme/data", "pull-requests: read")
 	if !errors.Is(err, ErrPullRequestsDenied) {
 		t.Errorf("want ErrPullRequestsDenied, got %v", err)
 	}
 	limited := newFake(t)
-	limited.on(path, reply{status: 403, header: http.Header{"X-Ratelimit-Remaining": {"0"}}, body: `{"message":"limit"}`})
-	_, _, err = limited.client(t, DefaultMaxPages).PullRequestFiles(context.Background(), "acme/data", 7)
+	noneLeft := http.Header{"X-Ratelimit-Remaining": {"0"}}
+	limited.on(path, reply{status: 403, header: noneLeft, body: `{"message":"limit"}`})
+	err = call(limited.client(t, DefaultMaxPages))
 	if !errors.Is(err, ErrRateLimit) || errors.Is(err, ErrPullRequestsDenied) {
 		t.Errorf("want ErrRateLimit and not ErrPullRequestsDenied, got %v", err)
 	}
+}
+
+// TestPullRequestFilesNamesTheMissingPermission (forsgren#42): the 403 of a
+// token without pull-requests: read on a pull request's files is explained as
+// the one on the list of pull requests is; GitHub's rate limit stays
+// ErrRateLimit.
+func TestPullRequestFilesNamesTheMissingPermission(t *testing.T) {
+	wantPermissionExplained(t, pullsPath+"/7/files", func(c *Client) error {
+		_, _, err := c.PullRequestFiles(context.Background(), "acme/data", 7)
+		return err
+	})
+}
+
+// TestPullRequestAuthorNamesTheMissingPermission (forsgren#42): the 403 on the
+// pull request itself is explained the same way as the one on its files.
+func TestPullRequestAuthorNamesTheMissingPermission(t *testing.T) {
+	wantPermissionExplained(t, pullsPath+"/7", func(c *Client) error {
+		_, err := c.PullRequestAuthor(context.Background(), "acme/data", 7)
+		return err
+	})
 }

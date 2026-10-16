@@ -27,7 +27,7 @@ func (c *Client) PullRequestAuthor(ctx context.Context, repo string, number int6
 	}
 	body, _, err := c.get(ctx, t, jsonMedia)
 	if err != nil {
-		return "", err
+		return "", explainDenied(repo, t, err)
 	}
 	var p pullRequest
 	if err := json.Unmarshal(body, &p); err != nil {
