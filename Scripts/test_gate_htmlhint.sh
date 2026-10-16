@@ -50,6 +50,7 @@ GOOD_PAGE='<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="description" content="acme">
   <title>acme</title>
 </head>
 <body>
@@ -63,6 +64,7 @@ BAD_PAGE='<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="description" content="acme">
   <title>acme</title>
 </head>
 <body>
@@ -126,7 +128,7 @@ run_gate "${TMP}/sites/does-not-exist"
 want_exit "4. a site directory that does not exist" 2 "htmlhint: site dir not found"
 
 # --- 5. one page per rule of the shared set (forsgren#207) -----------------
-# The shared set is the 29 rules of .htmlhintrc, in the order of forsgren#207.
+# The shared set is the 30 rules of .htmlhintrc, in the order of forsgren#207.
 # Each row is a minimal page that breaks only that rule, built from GOOD_PAGE;
 # the page must be red, name the rule, and name no other rule. This replaces
 # the single meta-charset case of forsgren#206.
@@ -141,7 +143,7 @@ SHARED_RULES=(
   attr-whitespace alt-require doctype-first doctype-html5 form-method-require
   frame-title-require head-script-disabled html-lang-require
   id-class-ad-disabled id-unique inline-script-disabled inline-style-disabled
-  input-requires-label main-require meta-charset-require
+  input-requires-label main-require meta-charset-require meta-description-require
   space-tab-mixed-disabled spec-char-escape src-not-empty tag-no-obsolete
   tag-pair tagname-lowercase tagname-specialchars title-require
 )
@@ -179,6 +181,8 @@ bad_page() {
     input-requires-label) printf '%s' "${GOOD_PAGE/<p>acme\/app<\/p>/<input type=\"text\" id=\"q\">}" ;;
     main-require) printf '%s' "${GOOD_PAGE//main>/div>}" ;;
     meta-charset-require) printf '%s' "${GOOD_PAGE/  <meta charset=\"utf-8\">
+/}" ;;
+    meta-description-require) printf '%s' "${GOOD_PAGE/  <meta name=\"description\" content=\"acme\">
 /}" ;;
     space-tab-mixed-disabled) printf '%s' "${GOOD_PAGE/    <p>/ $(printf '\t')<p>}" ;;
     spec-char-escape) printf '%s' "${GOOD_PAGE/<p>acme\/app/<p>a < b}" ;;

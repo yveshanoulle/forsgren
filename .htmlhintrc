@@ -20,6 +20,7 @@
   "input-requires-label": true,
   "main-require": true,
   "meta-charset-require": true,
+  "meta-description-require": true,
   "space-tab-mixed-disabled": true,
   "spec-char-escape": true,
   "src-not-empty": true,
