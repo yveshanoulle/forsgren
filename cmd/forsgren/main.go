@@ -134,7 +134,7 @@ func initConfig(args []string, stdout, stderr io.Writer) int {
 }
 
 // installReadme writes forsgren's installation README for this version to
-// --out and says what it did, `created <path>` or `unchanged <path>`
+// --out and says what it did, `created`, `replaced` or `unchanged` and the path
 // (forsgren#110). A real error exits 1.
 func installReadme(args []string, stdout, stderr io.Writer) int {
 	path, ok := requiredFlag(stderr, args, "install-readme", "out", "<path>",

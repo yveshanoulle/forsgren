@@ -8,6 +8,7 @@ import (
 	_ "embed" // readme is embedded.
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,24 +28,63 @@ func Text(version string) string {
 	return strings.ReplaceAll(readme, versionToken, version)
 }
 
-// Created is what Write reports, and the command prints before the path, when
-// it put the README where none was.
-const Created = "created"
+// What Write reports, and the command prints before the path: Created when
+// no file was there, Replaced when a different one was, Unchanged when the
+// text was already there.
+const (
+	Created   = "created"
+	Replaced  = "replaced"
+	Unchanged = "unchanged"
+)
 
 // ErrWrite is what every error Write returns wraps, after the path.
 var ErrWrite = errors.New("cannot write the README")
 
-// Write puts the README for version at path and says what it did: Created
-// when no file was there. A file that is there, and a directory of path that
-// is missing, are errors. The file is written whole or the error says why not.
+// Write puts the README for version at path and says what it did. A file
+// that holds the text already is not touched, its modification time included;
+// any other file is replaced, as forsgren's file (a hand edit is overwritten).
+// The directory of path must exist. The file is whole from its first moment at
+// path, or the error says why not.
 func Write(path, version string) (string, error) {
-	f, err := os.OpenFile(filepath.Clean(path), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
-	if err == nil {
-		_, werr := f.WriteString(Text(version))
-		err = errors.Join(werr, f.Close())
+	path = filepath.Clean(path)
+	want := Text(version)
+	outcome, err := judge(path, want)
+	if err == nil && outcome != Unchanged {
+		err = replace(path, want)
 	}
 	if err != nil {
 		return "", fmt.Errorf("%s: %w: %w", path, ErrWrite, err)
 	}
-	return Created, nil
+	return outcome, nil
+}
+
+// judge says what writing want to path would be: Created for no file,
+// Unchanged for a file that holds want, Replaced for any other.
+func judge(path, want string) (string, error) {
+	have, err := os.ReadFile(filepath.Clean(path))
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return Created, nil
+	case err != nil:
+		return "", err
+	case string(have) == want:
+		return Unchanged, nil
+	}
+	return Replaced, nil
+}
+
+// replace puts text at path through a temporary file in the same directory
+// and a rename, so a reader sees the old file or the new one, never half.
+func replace(path, text string) error {
+	f, err := os.CreateTemp(filepath.Dir(path), ".README-*.tmp")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.Remove(f.Name()) }()
+	_, err = f.WriteString(text)
+	err = errors.Join(err, f.Close())
+	if err == nil {
+		err = os.Rename(f.Name(), path)
+	}
+	return err
 }
