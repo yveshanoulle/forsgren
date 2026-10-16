@@ -326,10 +326,10 @@ func actionsCooldown(days string) string {
 	return "version: 2\nupdates:\n  - package-ecosystem: github-actions\n    cooldown:\n      default-days: " + days + "\n"
 }
 
-// TestTheUpdateLineNamesTheDependabotCooldown (forsgren#194): a newer release
+// TestTheUpdateLineNamesTheDependabotCooldown (forsgren#194, #195): a newer release
 // with no pull request yet is waiting for the cooldown, with the date it ends
 // (the publish time plus the days, in UTC), while the cooldown is running; with
-// no days, the date past, no file, a file that says nothing or a publish time
+// no days (default-days: 0), the date past, no file, a file that says nothing or a publish time
 // that is unknown, it is today's "no Dependabot pull request yet". The clock
 // of these cases is 2026-10-15 15:10 UTC.
 func TestTheUpdateLineNamesTheDependabotCooldown(t *testing.T) {
@@ -343,7 +343,8 @@ func TestTheUpdateLineNamesTheDependabotCooldown(t *testing.T) {
 		{"the template's", templateDependabot, fresh, waiting},
 		{"in UTC", actionsCooldown("3"), "2026-10-15T23:30:00-03:00", "waiting for the 3-day cooldown until 2026-10-19"},
 		{"zero days", actionsCooldown("0"), fresh, none},
-		{"no cooldown", "version: 2\nupdates: []\n", fresh, none},
+		{"no cooldown key", "version: 2\nupdates:\n  - package-ecosystem: github-actions\n", fresh, waiting},
+		{"no github-actions update", "version: 2\nupdates: []\n", fresh, none},
 		{"no dependabot file", "", fresh, none},
 		{"unreadable file", "updates: [", fresh, none},
 		{"past the date", actionsCooldown("3"), "2026-10-01T09:00:00Z", none},

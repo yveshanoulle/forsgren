@@ -408,9 +408,11 @@ summary as markdown, a `## forsgren` heading and then one line each:
   first `github-actions` update in the checkout's `.github/dependabot.yml`
   that names one, counted from the publish time in the file `--latest-published`
   names (the one `latest-release --published` wrote), and it ends on the
-  UTC date shown; with no such file, no such cooldown, a time that cannot be
-  read or a cooldown that is over, the line says "no Dependabot pull request
-  yet".
+  UTC date shown. A `github-actions` update with no `default-days` (no
+  `cooldown` key at all) has Dependabot's documented default of 3 days
+  (forsgren#195); `default-days: 0` is no cooldown. With no such file, no
+  `github-actions` update, a cooldown of 0, a time that cannot be read or a
+  cooldown that is over, the line says "no Dependabot pull request yet".
 - `Token:`, only with `--token-expiry`, from the file `collect` wrote (see
   [Collecting deployments](data-files.md#collecting-deployments-collect)): "valid
   for N more days (until YYYY-MM-DD)" from one day left, "valid for N more

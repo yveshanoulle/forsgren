@@ -53,11 +53,12 @@ func writeDependabot(t *testing.T, content string) string {
 	return path
 }
 
-// TestCooldownDaysReadsTheGithubActionsCooldown (forsgren#194): the days are
-// default-days of the github-actions update, as forsgren-template writes it;
-// no file, a file that is no YAML, no cooldown, another ecosystem's cooldown,
-// a cooldown without default-days and one with only the semver days (which
-// Dependabot does not apply to github-actions) are none.
+// TestCooldownDaysReadsTheGithubActionsCooldown (forsgren#194, #195): the days
+// are default-days of the github-actions update, as forsgren-template writes
+// it, 0 included; a github-actions update that does not name default-days (no
+// cooldown, an empty one, or only the semver days, which Dependabot does not
+// apply to github-actions) has Dependabot's default of 3. No file, a file that
+// is no YAML, a negative number and another ecosystem's cooldown are none.
 func TestCooldownDaysReadsTheGithubActionsCooldown(t *testing.T) {
 	const head = "version: 2\nupdates:\n"
 	const npm = "  - package-ecosystem: npm\n    directory: /\n    cooldown:\n      default-days: 9\n"
@@ -69,10 +70,12 @@ func TestCooldownDaysReadsTheGithubActionsCooldown(t *testing.T) {
 		{"the template's", templateDependabot, 3},
 		{"zero", head + actions + "    cooldown:\n      default-days: 0\n", 0},
 		{"five", head + actions + "    cooldown:\n      default-days: 5\n", 5},
-		{"no cooldown", head + actions, 0},
+		{"no cooldown key", head + actions, defaultCooldownDays},
 		{"another ecosystem", head + npm, 0},
 		{"after another ecosystem", head + npm + actions + "    cooldown:\n      default-days: 4\n", 4},
-		{"semver days only", head + actions + "    cooldown:\n      semver-minor-days: 7\n", 0},
+		{"semver days only", head + actions + "    cooldown:\n      semver-minor-days: 7\n", defaultCooldownDays},
+		{"an empty cooldown", head + actions + "    cooldown: {}\n", defaultCooldownDays},
+		{"two updates, the one that names it", head + actions + actions + "    cooldown:\n      default-days: 2\n", 2},
 		{"not a number", head + actions + "    cooldown:\n      default-days: soon\n", 0},
 		{"negative", head + actions + "    cooldown:\n      default-days: -3\n", 0},
 		{"not YAML", "updates: [", 0},
