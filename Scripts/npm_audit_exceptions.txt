@@ -27,4 +27,6 @@
 #   2026-10-11 re-checked: braces 3.0.3 is still the newest release, no patched
 #              version; micromatch and fast-glob still need braces ^3.0.3; next
 #              re-check 2026-10-17.
-GHSA-vfj7-8cjw-p6xm|braces|2026-10-17|forsgren#13|dev tooling only (jscpd, stylelint via fast-glob and micromatch); braces has no patched version
+#   2026-10-16 re-checked a day early (forsgren#209): braces 3.0.3 is still the
+#              newest release, no patched version; next re-check 2026-10-23.
+GHSA-vfj7-8cjw-p6xm|braces|2026-10-23|forsgren#13|dev tooling only (jscpd, stylelint via fast-glob and micromatch); braces has no patched version
