@@ -28,8 +28,15 @@
 #   - red on a govulncheck that could not run (an exit other than 0 or 3:
 #     govulncheck exits 3 for findings), and on a module with no Go package.
 #
+#   - FORSGREN_VULN_DB_REQUIRED=1 turns that skip into a red (forsgren#87): the
+#     scheduled run (.github/workflows/vulncheck.yml) exists to give a verdict
+#     every day, so a database it cannot reach fails the run; a found
+#     vulnerability stays a finding (its own ❌ line naming the IDs), never a
+#     network failure. Unset, the gate skips as above.
+#
 # Usage: Scripts/check_govulncheck.sh [module-dir]   (default: the repo root)
 #        FORSGREN_VULN_DB=<url> overrides the database (https:// or file://).
+#        FORSGREN_VULN_DB_REQUIRED=1: an unreachable database is red, not a skip.
 # Fixture: Scripts/test_check_govulncheck.sh.
 
 set -uo pipefail
@@ -57,6 +64,10 @@ if [ -z "$(go list ./... 2>/dev/null)" ]; then
 fi
 
 if ! curl -sf --max-time 5 "${DB}/index/db.json" -o /dev/null; then
+  if [ "${FORSGREN_VULN_DB_REQUIRED:-}" = "1" ]; then
+    echo "❌ FAIL: govulncheck did not run — the vulnerability database ${DB} is unreachable (curl ${DB}/index/db.json failed) and FORSGREN_VULN_DB_REQUIRED=1 asks for a verdict: no verdict is no pass"
+    exit 1
+  fi
   echo "⚠️ SKIP: govulncheck did not run — the vulnerability database ${DB} is unreachable (curl ${DB}/index/db.json failed): offline, so there is no verdict for ${MODULE_DIR}; this is not a pass"
   if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
     echo "::warning::govulncheck skipped: ${DB} unreachable"

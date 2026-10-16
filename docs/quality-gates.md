@@ -176,10 +176,12 @@ Seven more PRE gates check the Go code:
   fails: offline, refused, a timeout, an HTTP error) the check is skipped,
   as in another estate repository: one `⚠️ SKIP: govulncheck did not run` line naming the
   database, a `::warning::` in GitHub Actions, exit 0, and never the `OK`
-  line of a pass. `FORSGREN_VULN_DB` points it at another database. Its
+  line of a pass. With `FORSGREN_VULN_DB_REQUIRED=1` (the scheduled run,
+  forsgren#87) an unreachable database is red instead, never a skip.
+  `FORSGREN_VULN_DB` points it at another database. Its
   self-test (`Scripts/test_check_govulncheck.sh`) runs offline against a
   database it writes, with one made-up entry, and shows a call to the listed
-  symbol red, an unreachable database a skip and, by mutation, that the
+  symbol red, an unreachable database a skip (red when required) and, by mutation, that the
   probe is what makes offline a skip rather than a tool error.
 - **Go dead code** (`Scripts/check_deadcode.sh`, another estate repository's): `deadcode
   -test ./...`, red on any function, exported or not, that neither a main

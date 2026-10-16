@@ -28,6 +28,9 @@
 #   4. the database unreachable (offline)              -> a ⚠️ SKIP line and
 #      exit 0: not red, and NOT a silent green (no OK line, the skip says
 #      the check did not run and why)
+#  4b. the database unreachable and FORSGREN_VULN_DB_REQUIRED=1 (the scheduled
+#      run, forsgren#87) -> red, naming the variable and the database: no skip,
+#      no pass; 4c. required and reachable -> the same verdicts as without
 #   5. MUTATION PROOF: the gate with its reachability probe disabled is red
 #      on case 4 as a tool error: the probe is what makes offline a skip
 #   6. a module with no Go package                     -> red: a scan over
@@ -126,6 +129,23 @@ want_green_ok "importing strings without calling ToUpper is green"
 MOD="$CALLS"
 run_gate "$OFFLINE_DB"
 want_skip "an unreachable database is a ⚠️ skip, neither red nor a silent green"
+
+# --- Case 4b: offline where the verdict is required (the scheduled run,
+# forsgren#87): an unreachable database is red, never a skip and never a pass.
+MOD="$CALLS"
+capture env FORSGREN_VULN_DB="$OFFLINE_DB" FORSGREN_VULN_DB_REQUIRED=1 "$GATE" "$MOD"
+want_red "a required database that is unreachable is red, not a skip" "FORSGREN_VULN_DB_REQUIRED"
+want_said "  ... naming the database" "$OFFLINE_DB"
+if grep -qF -- "SKIP" <<< "$OUT" || grep -qF -- "OK:" <<< "$OUT"; then
+  fail "a required database that is unreachable printed a skip or an OK line. Output: ${OUT}"
+fi
+
+# --- Case 4c: required, and the database answers: the verdicts are the same.
+MOD="$CALLS"
+capture env FORSGREN_VULN_DB="$VULN_DB" FORSGREN_VULN_DB_REQUIRED=1 "$GATE" "$MOD"
+want_red "required and reachable: a vulnerable call is still red as a finding" "govulncheck found"
+capture env FORSGREN_VULN_DB="$EMPTY_DB" FORSGREN_VULN_DB_REQUIRED=1 "$GATE" "$MOD"
+want_green_ok "required and reachable: a clean scan is still green"
 
 # --- Case 5: MUTATION PROOF. The reachability probe disabled.
 if mutant "no-probe" 's/^if ! curl /if false \&\& ! curl /'; then
