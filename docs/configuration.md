@@ -340,7 +340,7 @@ flags the commands define):
 
 ```
 usage: forsgren render --out <dir> [--config <path>] [--data <path>]
-                       [--latest <version>] [--waiting-pr <number>] [--needs-check <status>]
+                       [--latest <version>] [--waiting-pr <number>] [--pr-check <status>] [--needs-check <status>]
        forsgren check-config --config <path>
        forsgren init-config --config <path>
        forsgren collect --config <path> --data <path> [--token-expiry <path>]
@@ -356,7 +356,7 @@ usage: forsgren render --out <dir> [--config <path>] [--data <path>]
        forsgren install-update --repo <owner/name> --branch <branch> --version <vX.Y.Z> --sha <40-hex>
 ```
 
-`forsgren render --out <dir> [--config <path>] [--data <path>] [--latest <version>] [--waiting-pr <number>] [--needs-check <status>]` writes the site (every page
+`forsgren render --out <dir> [--config <path>] [--data <path>] [--latest <version>] [--waiting-pr <number>] [--pr-check <status>] [--needs-check <status>]` writes the site (every page
 plus `styles.css`) into `<dir>`, creating it when needed, and exits 0; 1 when
 the render failed (or the `--config` file is missing or invalid, with
 check-config's refusal), 2 on a usage error. `--latest` is the newest forsgren

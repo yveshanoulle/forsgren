@@ -65,6 +65,11 @@ type Data struct {
 	// no-access, rate-limited or failed), empty when unknown; the footer says
 	// so when the setup issue could not be written (forsgren#73).
 	NeedsCheck string
+	// PRCheck is how the lookup of the waiting pull request went, as
+	// waiting-pull-request writes it, empty when unknown; truncated (the list
+	// of open pull requests was cut with no match) makes the footer say the
+	// pull request is unknown (forsgren#203).
+	PRCheck string
 	// WorkingHours is the hours of a working day and WorkingHoursSet says
 	// whether the config sets it; the legend states both and derives the
 	// on-demand threshold from it (forsgren#71).

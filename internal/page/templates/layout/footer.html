@@ -1,5 +1,5 @@
 {{define "footer"}}  <footer>
-    <p><a href="https://forsgren.be/">Forsgren</a> {{.Version}}{{with .Update}} · {{.}} {{if $.WaitingPR}}is waiting in pull request #{{$.WaitingPR}} (merge it to update){{else}}is available{{end}}.{{end}}{{if .NeedsMore}} · needs more configuration: see the job summary of this run.{{end}} Metrics from GitHub data.{{if .AsOf}} Calculated at {{.AsOf}} UTC{{end}}</p>
+    <p><a href="https://forsgren.be/">Forsgren</a> {{.Version}}{{with .Update}} · {{.}} {{if $.WaitingPR}}is waiting in pull request #{{$.WaitingPR}} (merge it to update){{else if eq $.PRCheck "truncated"}}is available; unknown (pull request list truncated){{else}}is available{{end}}.{{end}}{{if .NeedsMore}} · needs more configuration: see the job summary of this run.{{end}} Metrics from GitHub data.{{if .AsOf}} Calculated at {{.AsOf}} UTC{{end}}</p>
 {{/* Every page links to Settings and the legend, the same two links (forsgren#128, decision #133). */}}    <p><a href="{{.Base}}settings.html">Settings</a> <a href="{{.Base}}legend.html">Legend</a></p>
   </footer>
 </body>

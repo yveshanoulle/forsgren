@@ -35,7 +35,7 @@ const sourceDateEpoch = "SOURCE_DATE_EPOCH"
 // --config, --data and --latest (empty when absent).
 type renderOptions struct {
 	out, config, data, latest string
-	needsCheck                string
+	needsCheck, prCheck       string
 	waitingPR                 int
 }
 
@@ -92,7 +92,7 @@ func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error
 	data := page.Placeholder(version)
 	data.AsOf = at.UTC().Format(calculatedLayout)
 	data.Latest, data.WaitingPR = o.latest, o.waitingPR
-	data.NeedsCheck = o.needsCheck
+	data.NeedsCheck, data.PRCheck = o.needsCheck, o.prCheck
 	data.Settings = config.Config{}.Settings()
 	if o.config == "" {
 		return data, nil
@@ -294,6 +294,9 @@ func renderFlags(args []string, stderr io.Writer) (renderOptions, bool) {
 		"the newest forsgren release, as latest-release prints it; the footer names it when it is newer (optional)")
 	flags.IntVar(&o.waitingPR, "waiting-pr", 0,
 		"the open Dependabot pull request for that release, as waiting-pull-request prints it (optional, 1 or more)")
+	flags.StringVar(&o.prCheck, "pr-check", "",
+		"how the lookup of the waiting pull request went, as waiting-pull-request --status writes it; truncated "+
+			"makes the footer say the pull request is unknown (optional)")
 	flags.StringVar(&o.needsCheck, "needs-check", "",
 		"how the check of what this version needs went: ok, no-access, rate-limited or failed (optional)")
 	if err := flags.Parse(args); err != nil {

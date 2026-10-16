@@ -285,3 +285,21 @@ func wantPublishFile(t *testing.T, want string, content []byte, err error) {
 		t.Errorf("want the file %q, got %q (%v)", want, content, err)
 	}
 }
+
+// TestRenderSaysTheWaitingPullRequestIsUnknownWhenTheListWasCut (forsgren#203):
+// with --pr-check truncated and no --waiting-pr, the footer says the release is
+// available and that the pull request is unknown, as the run summary does; a
+// waiting pull request still wins, and any other status, or none, leaves the
+// footer as it was.
+func TestRenderSaysTheWaitingPullRequestIsUnknownWhenTheListWasCut(t *testing.T) {
+	const latest = "1.8.4"
+	unknown := version + " · " + latest + " is available; unknown (pull request list truncated)."
+	wantPage(t, unknown, "", "--latest", latest, "--pr-check", "truncated")
+	waiting := version + " · " + latest + " is waiting in pull request #7 (merge it to update)."
+	wantPage(t, waiting, "unknown (pull request list truncated)", "--latest", latest, "--waiting-pr", "7",
+		"--pr-check", "truncated")
+	for _, check := range []string{"ok", "no-access", "rate-limited", "failed", "skipped", ""} {
+		wantPage(t, version+" · "+latest+" is available.", "unknown", "--latest", latest, "--pr-check", check)
+	}
+	wantPage(t, version+" Metrics", "unknown", "--latest", version, "--pr-check", "truncated")
+}

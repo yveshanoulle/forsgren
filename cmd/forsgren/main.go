@@ -4,7 +4,7 @@
 // Usage:
 //
 //	forsgren render --out <dir> [--config <path>] [--data <path>]
-//	                [--latest <version>] [--waiting-pr <number>] [--needs-check <status>]
+//	                [--latest <version>] [--waiting-pr <number>] [--pr-check <status>] [--needs-check <status>]
 //	forsgren check-config --config <path>
 //	forsgren init-config --config <path>
 //	forsgren collect --config <path> --data <path> [--token-expiry <path>]
@@ -30,7 +30,7 @@ import (
 )
 
 const usage = `usage: forsgren render --out <dir> [--config <path>] [--data <path>]
-                       [--latest <version>] [--waiting-pr <number>] [--needs-check <status>]
+                       [--latest <version>] [--waiting-pr <number>] [--pr-check <status>] [--needs-check <status>]
        forsgren check-config --config <path>
        forsgren init-config --config <path>
        forsgren collect --config <path> --data <path> [--token-expiry <path>]
