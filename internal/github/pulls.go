@@ -47,14 +47,22 @@ func (c *Client) OpenPullRequests(ctx context.Context, repo string) ([]PullReque
 	}
 	var pulls []PullRequest
 	truncated, err := c.list(ctx, t, readPullRequests(&pulls))
-	if forbidden, ok := errors.AsType[*answerError](err); ok && isDenied(forbidden) {
-		return nil, false, fmt.Errorf("%s: %w: %w: %s for %s; the job's token needs pull-requests: read",
-			repo, ErrAccess, ErrPullRequestsDenied, forbidden.status(), t.path())
-	}
 	if err != nil {
-		return nil, false, err
+		return nil, false, deniedPullRequests(repo, t, err)
 	}
 	return pulls, truncated, nil
+}
+
+// deniedPullRequests is err, or, when err is the 403 of a token without
+// pull-requests: read (not GitHub's rate limit), the error that says so,
+// ErrAccess and ErrPullRequestsDenied naming that permission.
+func deniedPullRequests(repo string, t target, err error) error {
+	forbidden, ok := errors.AsType[*answerError](err)
+	if !ok || !isDenied(forbidden) {
+		return err
+	}
+	return fmt.Errorf("%s: %w: %w: %s for %s; the job's token needs pull-requests: read",
+		repo, ErrAccess, ErrPullRequestsDenied, forbidden.status(), t.path())
 }
 
 // isDenied says whether GitHub's error answer to the pull request list is

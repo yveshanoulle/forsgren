@@ -647,13 +647,13 @@
   {
    "path": "internal/github/pullfiles.go",
    "score": 10.0,
-   "checkedAt": "2026-10-05",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {
    "path": "internal/github/pullfiles_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-05",
+   "checkedAt": "2026-10-16",
    "minScore": 10.0
   },
   {

@@ -148,3 +148,24 @@ func TestIsRepositoryNameIsTheNameEveryCallRequires(t *testing.T) {
 		}
 	}
 }
+
+// TestPullRequestFilesNamesTheMissingPermission (forsgren#42): the 403 of a
+// token without pull-requests: read on a pull request's files is ErrAccess and
+// ErrPullRequestsDenied and names the permission, as the list of pull requests
+// does; GitHub's rate limit stays ErrRateLimit.
+func TestPullRequestFilesNamesTheMissingPermission(t *testing.T) {
+	path := pullsPath + "/7/files"
+	f := newFake(t)
+	f.on(path, reply{status: 403, body: `{"message":"Resource not accessible by integration"}`})
+	_, _, err := f.client(t, DefaultMaxPages).PullRequestFiles(context.Background(), "acme/data", 7)
+	wantError(t, err, ErrAccess, "acme/data", "pull-requests: read")
+	if !errors.Is(err, ErrPullRequestsDenied) {
+		t.Errorf("want ErrPullRequestsDenied, got %v", err)
+	}
+	limited := newFake(t)
+	limited.on(path, reply{status: 403, header: http.Header{"X-Ratelimit-Remaining": {"0"}}, body: `{"message":"limit"}`})
+	_, _, err = limited.client(t, DefaultMaxPages).PullRequestFiles(context.Background(), "acme/data", 7)
+	if !errors.Is(err, ErrRateLimit) || errors.Is(err, ErrPullRequestsDenied) {
+		t.Errorf("want ErrRateLimit and not ErrPullRequestsDenied, got %v", err)
+	}
+}

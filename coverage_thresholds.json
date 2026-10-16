@@ -66,6 +66,7 @@
     "github.com/yveshanoulle/forsgren/internal/github/pulls.go:IsRefused": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/pulls.go:readPullRequests": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/pulls.go:DependabotPulls": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/github/pulls.go:deniedPullRequests": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/pulls.go:ForsgrenBump": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/pulls.go:isBumpTo": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/latest.go:latestRelease": 100.0,

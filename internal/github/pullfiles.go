@@ -47,7 +47,7 @@ func (c *Client) PullRequestFiles(ctx context.Context, repo string, number int64
 	var files []ChangedFile
 	truncated, err := c.list(ctx, t, readChangedFiles(&files))
 	if err != nil {
-		return nil, false, err
+		return nil, false, deniedPullRequests(repo, t, err)
 	}
 	return files, truncated, nil
 }

@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"io"
 
 	"github.com/yveshanoulle/forsgren/internal/github"
 	"github.com/yveshanoulle/forsgren/internal/update"
@@ -14,6 +16,7 @@ const metricsWorkflow = "metrics.yml"
 type pullLookup struct {
 	client     *github.Client
 	repository string
+	stderr     io.Writer
 }
 
 // waiting is the number of the highest open pull request of Dependabot whose
@@ -25,9 +28,14 @@ func (l pullLookup) waiting(ctx context.Context, version string) (int64, error) 
 	}
 	var waiting int64
 	for _, p := range github.DependabotPulls(pulls) {
-		changed, _, err := l.client.PullRequestFiles(ctx, l.repository, p.Number)
+		changed, cut, err := l.client.PullRequestFiles(ctx, l.repository, p.Number)
 		if err != nil {
 			return 0, err
+		}
+		if cut {
+			_, _ = fmt.Fprintf(l.stderr, "waiting-pull-request: pull request #%d has more files than were read, "+
+				"so it is not looked at\n", p.Number)
+			continue
 		}
 		if update.MovesPinTo(updateFiles(changed), metricsWorkflow, version) {
 			waiting = max(waiting, p.Number)

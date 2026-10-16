@@ -31,7 +31,7 @@ func waitingPullRequest(args []string, stdout, stderr io.Writer) int {
 	if !ok {
 		return 2
 	}
-	number, err := lookUpWaiting(wanted)
+	number, err := lookUpWaiting(wanted, stderr)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "waiting-pull-request: the waiting pull request is unknown, so the page "+
 			"says nothing of it: %v\n", err)
@@ -91,7 +91,7 @@ func writeStatus(path, status string, stderr io.Writer) {
 // pull requests of Dependabot, the highest whose changed files move the pin of
 // metrics.yml to version, so a pull request is found by what it changes, not by
 // the name of its branch (forsgren#42).
-func lookUpWaiting(version string) (int64, error) {
+func lookUpWaiting(version string, stderr io.Writer) (int64, error) {
 	repository := strings.TrimSpace(os.Getenv("GITHUB_REPOSITORY"))
 	if repository == "" {
 		return 0, errNoRepository
@@ -100,5 +100,5 @@ func lookUpWaiting(version string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return pullLookup{client, repository}.waiting(context.Background(), strings.TrimPrefix(version, "v"))
+	return pullLookup{client, repository, stderr}.waiting(context.Background(), strings.TrimPrefix(version, "v"))
 }

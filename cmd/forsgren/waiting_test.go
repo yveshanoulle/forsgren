@@ -2,6 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"slices"
 	"strconv"
 	"testing"
 )
@@ -109,4 +116,93 @@ func TestWaitingPullRequestIsTheHighestDependabotOneThatMovesThePin(t *testing.T
 			wantLookup(t, tc.want, "", "waiting-pull-request", "--version", "0.0.10")
 		})
 	}
+}
+
+// reply is one answer of routedAPI: its status, headers and body.
+type reply struct {
+	code   int
+	header http.Header
+	body   string
+}
+
+// routedAPI serves an answer per path, 404 for the others, and an answer
+// that names a next page of itself for a path in endless, so the client
+// stops at its page limit.
+func routedAPI(t *testing.T, routes map[string]reply, endless ...string) {
+	t.Helper()
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		answer, ok := routes[r.URL.Path]
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		for name, values := range answer.header {
+			w.Header()[name] = values
+		}
+		if slices.Contains(endless, r.URL.Path) {
+			w.Header().Set("Link", fmt.Sprintf(`<%s%s?page=%d>; rel="next"`, srv.URL, r.URL.Path, len(r.URL.RawQuery)+2))
+		}
+		w.WriteHeader(max(answer.code, http.StatusOK))
+		_, _ = io.WriteString(w, answer.body)
+	}))
+	t.Cleanup(srv.Close)
+	old := githubAPI
+	githubAPI = srv.URL
+	t.Cleanup(func() { githubAPI = old })
+}
+
+// onePull is GitHub's answer to the open pull requests: one of Dependabot's,
+// number 7.
+func onePull(t *testing.T) string {
+	t.Helper()
+	return waitingPulls(t, [3]string{"7", "dependabot[bot]", "dependabot/github_actions/x"})
+}
+
+// TestWaitingPullRequestStatusFollowsAFailedFilesRead (forsgren#42): when the
+// files of a candidate cannot be read the lookup is one that failed, as when
+// the list cannot be read: nothing on stdout, exit 0, the status no-access for
+// the 403 of a token without pull-requests: read, rate-limited for GitHub's
+// rate limit and failed for anything else, and the stderr note names the
+// permission for the 403.
+func TestWaitingPullRequestStatusFollowsAFailedFilesRead(t *testing.T) {
+	t.Setenv("GITHUB_REPOSITORY", "acme/data")
+	t.Setenv("GITHUB_TOKEN", testToken)
+	noneLeft := http.Header{"X-Ratelimit-Remaining": {"0"}}
+	cases := map[string]struct {
+		files  reply
+		status string
+		note   string
+	}{
+		"no permission": {reply{code: 403, body: `{"message":"no"}`}, "no-access",
+			"the job's token needs pull-requests: read"},
+		"rate limit":   {reply{code: 403, header: noneLeft, body: `{"message":"limit"}`}, "rate-limited", "rate limit"},
+		"server error": {reply{code: 500, body: `{"message":"boom"}`}, "failed", "waiting pull request"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			routedAPI(t, map[string]reply{waitingPath: {body: onePull(t)}, waitingPath + "/7/files": tc.files})
+			path := filepath.Join(t.TempDir(), "status")
+			wantLookup(t, "", tc.note, "waiting-pull-request", "--version", "0.0.10", "--status", path)
+			if status, err := os.ReadFile(filepath.Clean(path)); err != nil || string(status) != tc.status {
+				t.Errorf("want the status %q, got %q (%v)", tc.status, status, err)
+			}
+		})
+	}
+}
+
+// TestWaitingPullRequestWithMoreFilesThanWereReadIsNotAMatch (forsgren#42):
+// GitHub cuts the files of a pull request at the client's page limit; a
+// pull request whose files were cut is noted on stderr and is not the
+// waiting one, even when the pin moves in the files read, and the other
+// candidates are still checked.
+func TestWaitingPullRequestWithMoreFilesThanWereReadIsNotAMatch(t *testing.T) {
+	t.Setenv("GITHUB_REPOSITORY", "acme/data")
+	t.Setenv("GITHUB_TOKEN", testToken)
+	pulls := waitingPulls(t, [3]string{"6", "dependabot[bot]", "dependabot/github_actions/x"},
+		[3]string{"9", "dependabot[bot]", "dependabot/github_actions/y"})
+	routedAPI(t, map[string]reply{waitingPath: {body: pulls}, waitingPath + "/6/files": {body: pinFiles(t, "0.0.10")},
+		waitingPath + "/9/files": {body: pinFiles(t, "0.0.10")}}, waitingPath+"/9/files")
+	wantLookup(t, "6\n", "waiting-pull-request: pull request #9 has more files than were read, so it is not looked at",
+		"waiting-pull-request", "--version", "0.0.10")
 }
