@@ -95,6 +95,7 @@ func TestRenderRefusesWhatIsOutsideTheSubset(t *testing.T) {
 		{"a bad link in a list", "# T\n\n- [x](ftp://a)\n", link},
 		{"an empty link", "# T\n\n[x]()\n", "no target"},
 		{"no heading", "just words\n", "no heading"},
+		{"no paragraph", "# T\n\n- only a list\n", "has no paragraph: its first paragraph is the page's description"},
 	}
 	for _, c := range cases {
 		got, err := Render(c.src, fixtureBase)

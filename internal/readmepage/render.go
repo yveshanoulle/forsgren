@@ -21,7 +21,7 @@ import (
 // relative link made absolute against base (an https URL ending in a slash).
 // The page's title is the text of the first heading and its meta description
 // the plain text of the first paragraph (forsgren#201); a README without a
-// heading, or with a construct outside the subset, is an error.
+// heading or a paragraph, or with a construct outside the subset, is an error.
 func Render(src, base string) (string, error) {
 	r := renderer{base: base}
 	var c content
@@ -34,6 +34,9 @@ func Render(src, base string) (string, error) {
 	}
 	if c.title == "" {
 		return "", errors.New("the README has no heading to title the page")
+	}
+	if c.description == "" {
+		return "", errors.New("the README has no paragraph: its first paragraph is the page's description")
 	}
 	return page(c.title, c.description, strings.Join(c.body, "\n")), nil
 }

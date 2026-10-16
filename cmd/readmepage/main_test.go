@@ -68,9 +68,11 @@ func wantedFromTheReadme() []string {
 // stderr, and none leaves a page behind.
 func TestRunFailsLoudOnBadInput(t *testing.T) {
 	dir := t.TempDir()
-	sources := map[string]string{"fence": "# T\n\n```\ncode\n```\n", "headless": "just words\n", "good": "# T\n"}
+	sources := map[string]string{
+		"fence": "# T\n\n```\ncode\n```\n", "headless": "just words\n", "bare": "# T\n", "good": "# T\n\nA paragraph.\n",
+	}
 	path := writeReadmes(t, dir, sources)
-	fence, headless, good := path["fence"], path["headless"], path["good"]
+	fence, headless, bare, good := path["fence"], path["headless"], path["bare"], path["good"]
 	cases := []struct {
 		name   string
 		args   []string
@@ -82,6 +84,8 @@ func TestRunFailsLoudOnBadInput(t *testing.T) {
 		{"a missing README", []string{"--readme", filepath.Join(dir, "gone.md"), "--out", dir}, 1, "gone.md"},
 		{"a construct outside the subset", []string{"--readme", fence, "--out", dir}, 1, "fence.md:3: unsupported Markdown"},
 		{"a README with no heading", []string{"--readme", headless, "--out", dir}, 1, "headless.md: the README has no"},
+		{"a README with no paragraph", []string{"--readme", bare, "--out", dir}, 1,
+			"bare.md: the README has no paragraph: its first paragraph is the page's description"},
 		{"an --out that is a file", []string{"--readme", good, "--out", good}, 1, "good.md"},
 	}
 	for _, c := range cases {
