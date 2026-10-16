@@ -16,7 +16,11 @@ cd "$(dirname "$0")" || exit 1
 # Scripts/*.sh that sfl merely calls does not require a bump.
 # Form ported from another estate repository 2026-08-31: it names the file, so a pasted log
 # says which script produced it, not just "the script".
-VERSION=4
+VERSION=5
+
+# forsgren#214: FBP.sh FIXES what the gates can fix (the npm audit heal runs
+# only under GATE_FIX=1); CI never sets it and only checks.
+export GATE_FIX=1
 
 usage() {
   echo "Usage:"

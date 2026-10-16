@@ -46,6 +46,15 @@
 #  16. a re-check date 8 days ahead            -> red: re-check weekly
 #  17. a malformed exception file (4 fields, an impossible date, a
 #      duplicate)                              -> red, no audit run
+#  2b. the same advisory, a DEFAULT run (GATE_FIX unset, as in CI)
+#                                              -> red, naming `npm audit fix`,
+#                                                 and `npm audit fix` never ran
+#  3b. an advisory, a default run              -> red, no heal either
+#  19. MUTATION PROOF: a copy that always heals is not check-only.
+#  The heal runs ONLY under GATE_FIX=1 (FullBuildAndPush
+#  exports it, CI never sets it). Every case runs with GATE_FIX unset unless it
+#  says otherwise: sfl.sh exports GATE_FIX=1 to the self-tests it runs, and a
+#  case that inherited it would test the wrong mode.
 #  18. MUTATION PROOFS, one per rule: the gate with that rule taken out is
 #      green on the case that rule refuses, saying `excepted:`.
 #
@@ -144,7 +153,12 @@ variant() {
 }
 
 run_check() {
-  capture env PATH="${fakebin}:${PATH}" bash "${1:-$CHECK}" "$pkgdir"
+  capture env -u GATE_FIX PATH="${fakebin}:${PATH}" bash "${1:-$CHECK}" "$pkgdir"
+}
+
+# run_check_fix [script]: the same under GATE_FIX=1 (FullBuildAndPush).
+run_check_fix() {
+  capture env GATE_FIX=1 PATH="${fakebin}:${PATH}" bash "${1:-$CHECK}" "$pkgdir"
 }
 
 # no_heal <case>: the gate never ran `npm audit fix`.
@@ -167,9 +181,9 @@ no_heal "  ... without npm audit fix"
 except
 serve "${FIXTURES}/other.json"
 export NPM_FAKE_HEAL=yes
-run_check
+run_check_fix
 export NPM_FAKE_HEAL=no
-want_green "an advisory npm audit fix heals is green" "package-lock.json"
+want_green "an advisory npm audit fix heals is green under GATE_FIX=1" "package-lock.json"
 if grep -q "audit fix" "$NPM_FAKE_CALLS"; then
   echo "  ok:   ... it ran npm audit fix"
 else
@@ -182,13 +196,30 @@ else
   fail "the heal was not re-verified (saw ${audits} JSON audits, want 4: full and prod, twice)"
 fi
 
+# --- Case 2b: the same advisory, a default run -> red, names the fix, no heal.
+except
+serve "${FIXTURES}/other.json"
+export NPM_FAKE_HEAL=yes
+run_check
+export NPM_FAKE_HEAL=no
+want_exit "a fixable advisory is red in a default run" 1 "npm audit fix runs only under GATE_FIX=1"
+want_said "  ... naming the advisory report" "npm-audit: high-severity advisory found"
+no_heal "  ... and npm audit fix never ran"
+
 # --- Case 3: an advisory the heal leaves -> exit 1, report + summary line.
 except
 serve "${FIXTURES}/other.json"
-run_check
+run_check_fix
 want_exit "an advisory the heal leaves is red" 1 "❌ npm-audit:"
 want_said "  ... with the audit report" "npm audit report"
 want_said "  ... and the parseable summary line" "after npm audit fix"
+
+# --- Case 3b: an advisory the heal would not fix, a default run -> red, no heal.
+except
+serve "${FIXTURES}/other.json"
+run_check
+want_exit "an advisory in a default run is red" 1 "npm audit fix runs only under GATE_FIX=1"
+no_heal "  ... and npm audit fix never ran"
 
 # --- Case 4: npm missing -> exit 2.
 capture env PATH="/usr/bin:/bin" bash "$CHECK" "$pkgdir"
@@ -347,5 +378,22 @@ if selftest_mutant "$CHECK" "${TMP}/mutant-stale/npm_audit_check.sh" 's/^def sta
   fi
 fi
 
+# --- Case 19: MUTATION PROOF. A copy that always heals ignores GATE_FIX: its
+# default run on a fixable advisory goes green and calls npm audit fix, which is
+# exactly what case 2b refuses.
+if selftest_mutant "$CHECK" "${TMP}/mutant-always-heal/npm_audit_check.sh" \
+     "/^if \\[\\[ .*GATE_FIX/s/.*/if false; then/"; then
+  except
+  serve "${FIXTURES}/other.json"
+  export NPM_FAKE_HEAL=yes
+  run_check "${TMP}/mutant-always-heal/npm_audit_check.sh"
+  export NPM_FAKE_HEAL=no
+  if [[ "$RC" -eq 0 ]] && grep -q "audit fix" "$NPM_FAKE_CALLS"; then
+    echo "  ok: mutation always-heal: without the GATE_FIX guard a default run heals, which case 2b refuses"
+  else
+    fail "mutation always-heal: the mutant still did not heal in a default run (exit ${RC}), so case 2b does not prove check-only. Output: ${OUT}"
+  fi
+fi
+
 selftest_end "the npm audit gate does not hold its contract" \
-  "the npm audit gate heals, reports, and honours only a narrow, weekly, dev-only exception"
+  "the npm audit gate checks by default, heals only under GATE_FIX=1, reports, and honours only a narrow, weekly, dev-only exception"

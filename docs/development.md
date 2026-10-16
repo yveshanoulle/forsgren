@@ -41,6 +41,9 @@ skips the push.
 A secret-class red (the secret scan, the data guard or the private-names gate)
 commits nothing at all. `./FBP.sh --no-commit` runs the gates and the build
 only. 
+`./FBP.sh --no-push "<message>"` runs the same and commits, but does not push;
+it is for changes that only touch FBP.sh, sfl.sh, local-only scripts or their
+self-tests. It cannot be combined with `--no-commit`.
 Every commit it makes, green or `*** RED ****`, is signed off
 (`git commit --signoff`): git adds a `Signed-off-by:` trailer for the
 committer identity, yours from `user.name` and `user.email`, or
@@ -171,7 +174,9 @@ Three gates keep it that way: **npm lockfile sync**
 `package-lock.json`, and on a `node_modules/` git tracks or does not ignore; **npm audit**
 (`Scripts/npm_audit_check.sh`) is red on a high-severity advisory that one
 `npm audit fix` cannot heal and no ruled exception covers. When that fix does
-heal it, the changed `package-lock.json` rides into the commit.
+heal it, the changed `package-lock.json` rides into the commit. The heal runs
+only under `GATE_FIX=1`, which `sfl.sh` exports and CI never sets; in CI the gate
+only checks and is red on the advisory.
 
 **Ruled exceptions to npm audit.** An advisory with no fix can be excepted
 in `Scripts/npm_audit_exceptions.txt`, one line per advisory:

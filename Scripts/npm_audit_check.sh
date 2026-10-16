@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
-# npm_audit_check.sh — npm-audit gate with one-shot self-heal and ruled,
-# weekly exceptions.
+# npm_audit_check.sh — npm-audit gate with one-shot self-heal (GATE_FIX=1 only)
+# and ruled, weekly exceptions.
 #
 # Contract (pinned by test_npm_audit_check.sh):
 # Ported from another estate repository Scripts/admin/ — unit 393.
 #
 #   exit 0 — no high or critical advisory outside a ruled exception, possibly
-#            after ONE `npm audit fix` (re-verified); a heal reports the
-#            package-lock.json change, which rides into the commit
-#            (sqlc-generate precedent). CI stays the strict gatekeeper:
-#            Scripts/run_ci_phase.sh turns a heal (a changed tree) red.
-#   exit 1 — an advisory remains after the heal, or the exception file is
+#            after ONE `npm audit fix` (re-verified) when GATE_FIX=1; a heal
+#            reports the package-lock.json change, which rides into the commit
+#            (sqlc-generate precedent). CI never sets GATE_FIX, so it only
+#            checks: it reports what the commit CONTAINS, and a changed
+#            package-lock.json is red there (Scripts/run_ci_phase.sh).
+#   exit 1 — an advisory is found and GATE_FIX is not 1 (nothing was changed:
+#            the report and the fix to run are named), an advisory remains
+#            after the heal, or the exception file is
 #            wrong; prints the audit report, a `❌ npm-audit:` line per
 #            reason, and a final parseable `npm-audit:` summary line for
 #            the caller's error sink.
@@ -195,6 +198,15 @@ fi
 if [[ "$rc" -ne 1 ]]; then
   printf '%s\n' "$first"
   exit "$rc"
+fi
+
+# CHECK-ONLY unless GATE_FIX=1: sfl.sh exports it so
+# FBP.sh heals; CI never sets it and never changes a file.
+if [[ "${GATE_FIX:-}" != "1" ]]; then
+  printf '%s\n' "$first"
+  echo "npm-audit: high-severity advisory found"
+  echo "❌ npm-audit: nothing was changed: npm audit fix runs only under GATE_FIX=1 (FBP.sh); run it there and commit package-lock.json"
+  exit 1
 fi
 
 echo "npm-audit: high-severity advisory found — attempting npm audit fix"

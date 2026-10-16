@@ -1087,6 +1087,38 @@ if [[ "$n_gate" -eq 0 ]]; then
   fail "no Scripts/*.sh is named by an order-file row — the glob or the parse is broken, so this check verified nothing"
 fi
 
+# Pin 6 (forsgren#214, canon from the sister site repositories): FBP FIXES, CI
+# ONLY CHECKS. sfl.sh exports GATE_FIX=1 (the npm audit heal runs only under
+# it); no workflow may set it, or CI would change files instead of reporting
+# what the commit contains. Mutations built here: an sfl.sh without the
+# export, and a workflow copy that mentions GATE_FIX, must each be rejected.
+# Adapted from the canon only in its file names: forsgren's workflows live in
+# .github/workflows and quality.yml is the one the mutation appends to.
+if ! is_mutation_rerun; then
+  fix_wiring_problems() {
+    local sfl="$1" wf="$2"
+    grep -qE '^export GATE_FIX=1$' "$sfl" || echo "sfl.sh does not export GATE_FIX=1"
+    if grep -rqF 'GATE_FIX' "$wf"; then echo "a workflow mentions GATE_FIX"; fi
+  }
+  WF_DIR=".github/workflows"
+  problems="$(fix_wiring_problems "$SFL" "$WF_DIR")"
+  [[ -z "$problems" ]] || fail "FBP must fix and CI only check: ${problems}"
+  _t="$(mktemp -d)"
+  grep -v '^export GATE_FIX=1$' "$SFL" > "${_t}/sfl.sh"
+  mkdir -p "${_t}/wf"
+  cp "$WF_DIR"/*.yml "${_t}/wf/"
+  printf '# GATE_FIX=1\n' >> "${_t}/wf/quality.yml"
+  if cmp -s "$SFL" "${_t}/sfl.sh"; then
+    fail "the no-export mutation changed nothing — pin 6 matches something other than the export line"
+  elif ! grep -qF 'does not export' <<< "$(fix_wiring_problems "${_t}/sfl.sh" "$WF_DIR")"; then
+    fail "an sfl.sh without the GATE_FIX export was accepted — pin 6 does not guard it"
+  fi
+  if ! grep -qF 'a workflow mentions' <<< "$(fix_wiring_problems "$SFL" "${_t}/wf")"; then
+    fail "a workflow that mentions GATE_FIX was accepted — pin 6 does not guard CI staying check-only"
+  fi
+  rm -rf "$_t"
+fi
+
 COMPLETED=1
 
 if [[ "$failed" -ne 0 ]]; then

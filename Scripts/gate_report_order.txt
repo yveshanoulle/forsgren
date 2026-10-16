@@ -245,6 +245,13 @@ html duplication, generated page|Scripts/check_html_dupl_site.sh|post|
 golden-pages self-test|Scripts/test_check_golden_pages.sh|pre|
 golden pages|Scripts/check_golden_pages.sh|pre|
 #
+# The push wrapper's --no-push flag (forsgren#214, canon from the sister site
+# repositories): a green run commits and stays local, a plain run still pushes,
+# a red run commits RED and stays local, and the pair with --no-commit is
+# rejected. A script that ignores the flag is caught. Run against a copy in a
+# throwaway repository with a bare origin. Repository source, so it runs in pre.
+FBP --no-push self-test|Scripts/test_fbp_no_push.sh|pre|
+#
 # Gate wiring, the sfl/CI parity guard (forsgren#1, ladder step 14), at its
 # canon position after the html-duplication rows. Another estate repository's fixture,
 # adapted: konenki names every gate in its own workflow step and checks the

@@ -17,6 +17,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 NO_COMMIT=false
+NO_PUSH=false
 COMMIT_MSG=""
 POSITIONAL=()
 
@@ -26,6 +27,13 @@ usage() {
   echo "  $0 --no-commit           run gates/build only (skip commit + push)"
   echo "                           (flag aliases: -no-commit, --nocommit,"
   echo "                            -nocommit, /noCommit, /no-commit)"
+  # canon-block: no-push v1 begin (usage)
+  echo "  $0 --no-push \"<commit message>\""
+  echo "                           run sfl, then commit but do not push"
+  echo "                           (flag aliases: -no-push, --nopush,"
+  echo "                            -nopush, /noPush, /no-push)"
+  echo "                           not combinable with --no-commit"
+  # canon-block: no-push v1 end
   echo
   echo "On ordinary red the script continues where safe, then commits locally so"
   echo "WIP isn't lost, but skips the push. The subject becomes '*** RED ****'"
@@ -39,11 +47,17 @@ while [ "$#" -gt 0 ]; do
       NO_COMMIT=true
       shift
       ;;
+    # canon-block: no-push v1 begin (parse)
+    --no-push|-no-push|--nopush|-nopush|/noPush|/no-push)
+      NO_PUSH=true
+      shift
+      ;;
+    # canon-block: no-push v1 end
     -*|/*)
       # The argument is NOT printed back (forsgren#54): it may be a commit
       # message, and this runs before the private-names check.
       echo "❌ ERROR: unrecognised option; usage: $0 \"<commit message>\" or $0 --no-commit"
-      echo "Did you mean --no-commit?"
+      echo "Did you mean --no-commit or --no-push?"
       echo "(Commit messages cannot start with '-' or '/' — quote your message if needed.)"
       exit 1
       ;;
@@ -57,6 +71,16 @@ done
 # :- guard: on bash 3.2 (macOS system bash) expanding an empty array under
 # `set -u` is an unbound-variable error, which broke --no-commit in another estate repository.
 COMMIT_MSG="${POSITIONAL[*]:-}"
+
+# canon-block: no-push v1 begin (combination)
+# --no-commit already skips the push, so the pair says nothing the first flag
+# does not, and it reads as if a commit happened. Rejected rather than guessed.
+if $NO_COMMIT && $NO_PUSH; then
+  echo "ERROR: --no-commit and --no-push cannot be combined."
+  echo "--no-commit skips the commit and the push; --no-push commits and skips only the push."
+  exit 1
+fi
+# canon-block: no-push v1 end
 
 if [ -z "$COMMIT_MSG" ] && ! $NO_COMMIT; then
   usage
@@ -86,7 +110,7 @@ fi
 # repo because two FBP runs back to back were otherwise
 # indistinguishable from their first line (Yves, 2026-08-31). Mirrors
 # sfl.sh's banner; editing a Scripts/*.sh does not require a bump.
-FBP_VERSION=7
+FBP_VERSION=8
 
 STARTED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
 START_EPOCH="$(date +%s)"
@@ -567,6 +591,10 @@ else
 
     if $FAILED; then
       echo "Earlier step failed — skipping push (commit preserved locally)."
+    # canon-block: no-push v1 begin (push)
+    elif $NO_PUSH; then
+      echo "--no-push set — skipping git push (any commit is preserved locally)."
+    # canon-block: no-push v1 end
     elif UPSTREAM=$(git rev-parse --abbrev-ref '@{u}' 2>/dev/null); then
       AHEAD=$(git rev-list --count "@{u}..HEAD")
 
@@ -587,6 +615,12 @@ else
       GIT_STATUS="⚠️ (committed locally, push skipped — earlier ❌)"
     elif $FAILED; then
       GIT_STATUS="➖ (nothing to commit; push skipped — earlier ❌)"
+    # canon-block: no-push v1 begin (status)
+    elif $NO_PUSH && $COMMIT_DONE; then
+      GIT_STATUS="✅ (committed locally, push skipped (--no-push))"
+    elif $NO_PUSH; then
+      GIT_STATUS="➖ (nothing to commit; push skipped (--no-push))"
+    # canon-block: no-push v1 end
     elif $COMMIT_DONE && $PUSH_DONE; then
       GIT_STATUS="✅"
     elif $PUSH_DONE; then
