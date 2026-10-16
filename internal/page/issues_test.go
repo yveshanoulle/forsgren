@@ -435,11 +435,64 @@ func TestIssuesPageShowsLeadTimeAfterCompleted(t *testing.T) {
 	}
 	for _, name := range []string{"issues.html", "days.html"} {
 		wantAll(t, name, rendered(t, name, data), `<th scope="col">Completed</th>
-            <th scope="col">Lead time</th>
-            <th scope="col">Not planned</th>`, `<td>2</td>
+            <th scope="col">Lead time</th>`, `<td>2</td>
             <td>1 d 1 h</td>
+            <td>—</td>
             <td>1</td>`, `<td>0</td>
             <td>—</td>
+            <td>—</td>
             <td>1</td>`)
+	}
+}
+
+// The two "— (incomplete)" spans of the issues table: the Open bugs cell's and
+// the Bugs lead time cell's, each naming the number it hides (forsgren#202).
+const (
+	openBugsIncomplete = `<span role="img" aria-label="Open bugs incomplete: a repository's bug list was too long ` +
+		`to read in full" title="A repository's bug list was too long to read in full, so the number of open bugs ` +
+		`is not shown">— (incomplete)</span>`
+	bugsLeadTimeIncomplete = `<span role="img" aria-label="Bugs lead time incomplete: a repository's bug list was too ` +
+		`long to read in full" title="A repository's bug list was too long to read in full, so the bugs lead time ` +
+		`is not shown">— (incomplete)</span>`
+)
+
+// TestIssuesPageShowsBugsLeadTimeAndItsIncompleteNote (forsgren#202, step 8):
+// the issues and days tables head a column Bugs lead time right after Lead
+// time, whose cell is IssueDay.BugsLeadTime.Cell: 10 h for one bug, the dash
+// for none. When the row is BugsIncomplete the cell is the "— (incomplete)"
+// note of Open bugs, and the Lead time cell before it is still the number.
+func TestIssuesPageShowsBugsLeadTimeAndItsIncompleteNote(t *testing.T) {
+	lead := metrics.LeadMedian{Median: 25 * time.Hour, Count: 2}
+	bugs := metrics.LeadMedian{Median: 10 * time.Hour, Count: 1}
+	header := `<th scope="col">Lead time</th>
+            <th scope="col">Bugs lead time</th>
+            <th scope="col">Not planned</th>`
+	for _, name := range []string{"issues.html", "days.html"} {
+		data := calculated()
+		days := []metrics.IssueDay{
+			{Date: october(2), Completed: 2, NotPlanned: 1, LeadTime: lead, BugsLeadTime: bugs, Active: true},
+			{Date: october(1), Completed: 1, NotPlanned: 1, LeadTime: lead, Active: true},
+		}
+		data.IssueDays = days
+		for _, d := range days {
+			data.IssueRows = append(data.IssueRows, metrics.IssueRow{Kind: metrics.KindDay, IssueDay: d})
+		}
+		wantAll(t, name, rendered(t, name, data), header, `<td>1 d 1 h</td>
+            <td>10 h</td>
+            <td>1</td>`, `<td>1 d 1 h</td>
+            <td>—</td>
+            <td>1</td>`)
+		for i := range days {
+			days[i].BugsIncomplete = true
+		}
+		data.IssueDays = days
+		data.IssueRows = nil
+		for _, d := range days {
+			data.IssueRows = append(data.IssueRows, metrics.IssueRow{Kind: metrics.KindDay, IssueDay: d})
+		}
+		wantAll(t, name, rendered(t, name, data), `<td>1 d 1 h</td>
+            <td>`+bugsLeadTimeIncomplete+`</td>`, openBugsIncomplete)
+		wantNone(t, name, rendered(t, name, data), `<td>1 d 1 h</td>
+            <td><span role="img" aria-label="Open bugs incomplete`)
 	}
 }
