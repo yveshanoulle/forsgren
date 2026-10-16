@@ -52,6 +52,9 @@ type IssueDay struct {
 	// tracked repository stopped at its page cap, so the page does not show the
 	// number (forsgren#140). Render sets it on every row.
 	BugsIncomplete bool
+	// LeadTime is the median time from creation to close of the issues closed
+	// as completed in that period (forsgren#202); Count 0 when none.
+	LeadTime LeadMedian
 	// Active is whether anything happened on that day: a new issue, a close
 	// of any kind, or a reopen (forsgren#108).
 	Active bool
@@ -114,6 +117,9 @@ func periodRows(
 		if i, ok := rowOf(e.At); ok {
 			rows[i].count(e)
 		}
+	}
+	for i, lead := range leadMedians(events, rowOf, len(rows)) {
+		rows[i].LeadTime = lead
 	}
 	start := dateOf(len(rows) - 1)
 	for _, c := range runningCounts {

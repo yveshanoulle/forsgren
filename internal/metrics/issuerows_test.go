@@ -135,3 +135,40 @@ func TestIssueRowsOpenChangeIsAgainstThePreviousPeriodOfTheSameKind(t *testing.T
 		t.Errorf("want the Open change per row, newest first, %v, got %v", want, got)
 	}
 }
+
+// TestIssueRowsCarryTheLeadTimeOfEveryKind (forsgren#202, step 4): with now on
+// Wednesday 14 October 2026, a close on Tuesday 13 October (10 h after its
+// creation), one in week 41 (60 h), one in September (48 h) and one in 2025
+// (24 h) each give the median of the row of their period, a day, a week, a
+// month and a year row, and no other row has a lead time.
+func TestIssueRowsCarryTheLeadTimeOfEveryKind(t *testing.T) {
+	at := func(year int, month time.Month, d, h int) time.Time {
+		return time.Date(year, month, d, h, 0, 0, 0, time.UTC)
+	}
+	events := []history.IssueEvent{
+		appEvent(1, "created", at(2026, time.October, 13, 0)), closedIssue(1, at(2026, time.October, 13, 10)),
+		appEvent(2, "created", at(2026, time.October, 5, 0)), closedIssue(2, at(2026, time.October, 7, 12)),
+		appEvent(3, "created", at(2026, time.September, 1, 0)), closedIssue(3, at(2026, time.September, 3, 0)),
+		appEvent(4, "created", at(2025, time.December, 30, 0)), closedIssue(4, at(2025, time.December, 31, 0)),
+	}
+	type lead struct {
+		kind string
+		date time.Time
+		LeadMedian
+	}
+	want := []lead{
+		{KindDay, at(2026, time.October, 13, 0), LeadMedian{10 * time.Hour, 1}},
+		{KindWeek, at(2026, time.October, 5, 0), LeadMedian{60 * time.Hour, 1}},
+		{KindMonth, at(2026, time.September, 1, 0), LeadMedian{48 * time.Hour, 1}},
+		{KindYear, at(2025, time.January, 1, 0), LeadMedian{24 * time.Hour, 1}},
+	}
+	var got []lead
+	for _, r := range IssueRows(events, at(2026, time.October, 14, 12)) {
+		if r.LeadTime.Count > 0 {
+			got = append(got, lead{r.Kind, r.Date, r.LeadTime})
+		}
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("want the lead times\n%v\ngot\n%v", want, got)
+	}
+}
