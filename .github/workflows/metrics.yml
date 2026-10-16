@@ -437,12 +437,14 @@ jobs:
         env:
           LATEST: ${{ steps.latest.outputs.latest }}
           WAITING: ${{ steps.waiting.outputs.waiting }}
+          PR_CHECK: ${{ steps.waiting.outputs.check }}
           NEEDS_CHECK: ${{ steps.needs.outputs.check }}
         run: |
           set -euo pipefail
           forsgren render --out "${RUNNER_TEMP}/site" --config forsgren.config.yml --data data/deployments.csv \
             ${LATEST:+--latest "$LATEST"} \
             ${WAITING:+--waiting-pr "$WAITING"} \
+            ${PR_CHECK:+--pr-check "$PR_CHECK"} \
             ${NEEDS_CHECK:+--needs-check "$NEEDS_CHECK"}
 
       # The run's job summary (forsgren#40): the version that built the page,

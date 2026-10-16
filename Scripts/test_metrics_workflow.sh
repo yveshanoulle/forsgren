@@ -186,7 +186,10 @@
 #      a second line, and never asks when there is no latest release;
 #  32. the render step takes that output through env: only (`WAITING:
 #      ${{ steps.waiting.outputs.waiting }}`) and, EXECUTED with the stub,
-#      passes `--waiting-pr <number>` when it is set, and likewise
+#      passes `--waiting-pr <number>` when it is set, likewise
+#      `PR_CHECK: ${{ steps.waiting.outputs.check }}` for `--pr-check <check>`
+#      (forsgren#203: a cut list of pull requests makes the footer say the
+#      pull request is unknown), and likewise
 #      `NEEDS_CHECK: ${{ steps.needs.outputs.check }}` for `--needs-check
 #      <check>` (forsgren#73);
 #  33. the step "Write the run summary" (forsgren#40) takes LATEST, WAITING,
@@ -961,6 +964,22 @@ judge_render_waiting() {
   [[ "$got" == "$want" ]] || echo "with WAITING set the render step runs 'forsgren ${got}', not 'forsgren ${want}' — the footer names the pull request only when render is given it"
 }
 
+# judge_render_pr_check <workflow-file>: pin 32, the render step passes the
+# waiting step's check on (forsgren#203), and nothing when it is empty, so a
+# lookup that was skipped never breaks render.
+judge_render_pr_check() {
+  local script="${TMP}/render.sh" env got want
+  env="$(step_block "$1" "$RENDER_STEP" env)"
+  if ! grep -qxF -- "PR_CHECK: ${EXPR_OPEN} steps.waiting.outputs.check }}" <<< "$env"; then
+    echo "the render step's env: does not set PR_CHECK from steps.waiting.outputs.check — render is not told how the pull request lookup went"
+  fi
+  step_block "$1" "$RENDER_STEP" run > "$script"
+  [[ -s "$script" ]] || return 0
+  got="$(render_calls "$script" LATEST=0.0.10 PR_CHECK=truncated)"
+  want="render --out ${TMP}/runner/site --config forsgren.config.yml --data data/deployments.csv --latest 0.0.10 --pr-check truncated"
+  [[ "$got" == "$want" ]] || echo "with PR_CHECK set the render step runs 'forsgren ${got}', not 'forsgren ${want}' — the footer says the pull request is unknown only when render is given the check"
+}
+
 # judge_render_needs <workflow-file>: pin 32, the render step passes the
 # needs step's check on (forsgren#73), and nothing when it is empty.
 judge_render_needs() {
@@ -1615,6 +1634,7 @@ judge() {
   judge_render_latest "$1"
   judge_waiting_lookup "$1"
   judge_render_waiting "$1"
+  judge_render_pr_check "$1"
   judge_render_needs "$1"
   judge_run_summary "$1"
   judge_needs_check "$1"
@@ -1825,6 +1845,10 @@ proves judge_latest_lookup "a lookup without the publish time file" "the lookup 
   's| --published "[^"]*"||'
 proves judge_latest_lookup "a lookup output that is not checked" "for an answer that is not a version" \
   "/if \\[\\[ ! \"\\${D}latest\" =~/,/^          fi${D}/d"
+proves judge_render_pr_check "a render without the pull request check" "with PR_CHECK set the render step runs" \
+  "s/ \\${D}{PR_CHECK:+--pr-check \"\\${D}PR_CHECK\"}//"
+proves judge_render_pr_check "a render without PR_CHECK in env" "does not set PR_CHECK from steps.waiting.outputs.check" \
+  "/- name: ${RENDER_STEP}\$/,/run: |/{/PR_CHECK: \\${D}{{ steps.waiting.outputs.check }}/d;}"
 proves judge_render_needs "a render without the needs check" "with NEEDS_CHECK set the render step runs" \
   "s/ \\${D}{NEEDS_CHECK:+--needs-check \"\\${D}NEEDS_CHECK\"}//"
 proves judge_render_needs "a render without NEEDS_CHECK in env" "does not set NEEDS_CHECK from steps.needs.outputs.check" \
