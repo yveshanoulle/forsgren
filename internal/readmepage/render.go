@@ -19,26 +19,23 @@ import (
 
 // Render renders the Markdown src to a complete HTML page, with every
 // relative link made absolute against base (an https URL ending in a slash).
-// The page's title is the text of the first heading; a README without a
+// The page's title is the text of the first heading and its meta description
+// the plain text of the first paragraph (forsgren#201); a README without a
 // heading, or with a construct outside the subset, is an error.
 func Render(src, base string) (string, error) {
 	r := renderer{base: base}
-	var body []string
-	title := ""
+	var c content
 	for _, block := range splitBlocks(src) {
 		out, heading, err := r.block(block.text)
 		if err != nil {
 			return "", atLine(err, block.line)
 		}
-		if title == "" && heading != "" {
-			title = heading
-		}
-		body = append(body, out)
+		c.add(out, heading)
 	}
-	if title == "" {
+	if c.title == "" {
 		return "", errors.New("the README has no heading to title the page")
 	}
-	return page(title, strings.Join(body, "\n")), nil
+	return page(c.title, c.description, strings.Join(c.body, "\n")), nil
 }
 
 // LineError is a refusal of the README at a line, 1-based: within the block
@@ -61,10 +58,11 @@ func atLine(err error, first int) error {
 }
 
 // page wraps the rendered body in the page's document.
-func page(title, body string) string {
+func page(title, summary, body string) string {
 	return "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n" +
 		"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n" +
 		"<title>" + html.EscapeString(title) + "</title>\n" +
+		"<meta name=\"description\" content=\"" + html.EscapeString(summary) + "\">\n" +
 		"<link rel=\"stylesheet\" href=\"styles.css\">\n</head>\n<body class=\"starter\">\n<main>\n" +
 		body + "\n</main>\n</body>\n</html>\n"
 }

@@ -1149,6 +1149,18 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/readmepage/description.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-16",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/readmepage/description_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-16",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/readmepage/render.go",
    "score": 9.68,
    "checkedAt": "2026-10-14",

@@ -40,6 +40,15 @@ if grep -qF '<h1 id="forsgren">forsgren</h1>' "${TMP}/happy/index.html" 2>/dev/n
 else
   fail "index.html lacks the heading or the absolute LICENSE link"
 fi
+# The description is the README's first paragraph (forsgren#201), read from the
+# README itself, never typed into the renderer.
+want_description="Measure the five DORA metrics for a set of GitHub repositories, from GitHub data, and publish them as a small static status page."
+if grep -qF "<meta name=\"description\" content=\"${want_description}\">" "${TMP}/happy/index.html" 2>/dev/null \
+  && [[ "$(grep -c 'name="description"' "${TMP}/happy/index.html")" -eq 1 ]]; then
+  echo "  ok: index.html has one description, the README's first paragraph"
+else
+  fail "index.html lacks exactly one meta description holding the README's first paragraph"
+fi
 if cname_is_domain "${TMP}/happy"; then
   echo "  ok: CNAME holds the domain"
 else
