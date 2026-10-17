@@ -1,0 +1,12 @@
+# The browser gate's baseline: today's findings, shrink-only (forsgren#205, ruling of
+# 2026-10-16: new serious violations fail, existing findings stay visible).
+# Read by Scripts/browser_gate.mjs; closed format, a reason on every row, every row
+# starts with its variant (Scripts/browser_gate_variants.txt):
+#   axe|<variant>|<page>|<rule>|<selector>|reason   one serious or critical axe finding
+#   cls|<variant>|<page>|<value>|reason             the page's CLS, as measured
+# A new finding is red, a CLS above its row is red, a CLS below it is red (lower the
+# row), a row whose finding is gone is red (remove it). This list only shrinks: add no
+# row to clear a red.
+#
+# forsgren on 2026-10-17: no axe serious or critical finding and a CLS of 0, so this
+# baseline has no rows.

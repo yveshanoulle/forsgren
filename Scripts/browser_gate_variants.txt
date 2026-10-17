@@ -1,0 +1,9 @@
+# The looks of forsgren's pages, each checked on its own by the browser gate
+# (forsgren#205). One row per variant:
+#   name|how to apply
+# how: scheme:light | scheme:dark | attr:<attribute>=<value>. Closed vocabulary,
+# read by Scripts/browser_gate.mjs; a missing file or a bad row is exit 2.
+#
+# forsgren has one look: the pages follow the colour scheme through light-dark(), and
+# the gate opens them in the light scheme.
+light|scheme:light

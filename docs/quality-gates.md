@@ -544,6 +544,22 @@ The POST gates, on the generated site:
   line and no temporary directory left behind. Its self-test is
   `Scripts/test_check_exit_trap_completion.sh`.
 
+- **browser gate** (`Scripts/gate_browser.sh`, engine `Scripts/browser_gate.mjs`,
+  self-test `Scripts/test_gate_browser.sh`, forsgren#205, the estate's shared
+  gate): after the build, every page of `internal/page/required-pages.json` is
+  opened from `.build/site`, served on 127.0.0.1, in the installed Chrome
+  (puppeteer-core 25.14.0, axe-core 4.14.0, exact devDependencies) at 1280x800,
+  once per variant of `Scripts/browser_gate_variants.txt` (one: `light|scheme:light`).
+  Red on an axe serious or critical finding, a missing doctype or charset, a
+  console or page error, a failed request, a request that leaves loopback, and a
+  layout shift (CLS) other than exactly 0, the largest of five cold loads. Chrome
+  runs with a fresh temporary profile, the sandbox on, a scrubbed environment and
+  a loopback-only resolver. The shrink-only baseline
+  (`Scripts/browser_gate_baseline.txt`) and the exceptions
+  (`Scripts/browser_gate_exceptions.txt`) have no rows; a missing file is exit 2.
+  axe-core is an automated gate, not proof of WCAG conformance. No new workflow,
+  trigger, secret or permission.
+
 forsgren has no privacy-pages gate: that one is another estate repository's, pinning
 the content of a privacy policy forsgren does not serve. The order file
 declares it `n/a` with its reason, and the privacy posture gate keeps that

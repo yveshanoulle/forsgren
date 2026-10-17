@@ -660,3 +660,16 @@ What an installation sees after the update: every page, the root, the three view
   - Red first: `internal/page/favicon_test.go` (the file is written with the embedded bytes; every page links it by its relative path), and the golden pages of every view.
   - The site build and the starter-link check follow the extra file.
   - Release 1.9.3: `version` in `cmd/forsgren/main.go`, the pinned version in the tests, goldens and docs, the newer-release examples at 1.9.4. No new permission, secret or config key.
+
+---
+
+## 2026-10-17 — the browser gate, the estate's shared canon version ([#205](https://github.com/yveshanoulle/forsgren/issues/205), 1/2)
+
+Tooling only: no release.
+
+- **#205 (1/2), the browser gate.**
+  - `Scripts/gate_browser.sh`, `Scripts/browser_gate.mjs` and `Scripts/test_gate_browser.sh` are the estate's canon v2, byte-identical (`# canon:` lines). After the build, every page of the required-pages manifest is opened from `.build/site` on 127.0.0.1 in Chrome with puppeteer-core 25.14.0 and axe-core 4.14.0 (exact devDependencies, lockfile), once per variant: axe serious and critical, doctype, charset, console and page errors, failed requests, CLS exactly 0 (the largest of five cold loads).
+  - Chrome has a fresh temporary profile, the sandbox on, a scrubbed environment and a loopback-only resolver.
+  - `Scripts/browser_gate_variants.txt` has one row, `light|scheme:light`. `Scripts/browser_gate_baseline.txt` and `Scripts/browser_gate_exceptions.txt` have no rows: forsgren has no findings and no external embed.
+  - Red first: the self-test run before the engine existed.
+  - `MIN_GATES` 116 to 118 (self-test in pre, gate in post). No new workflow, trigger, secret or permission.

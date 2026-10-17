@@ -1,0 +1,8 @@
+# What the browser gate lets through. Closed format, fail-closed: a reason on every row,
+# and a row that matches nothing is red (stale).
+#   resource|reason                   a resource path that may answer an error
+#   external|<url prefix>|reason      requests to that prefix are blocked (no network is
+#                                     used), counted and shown, and not failed
+# forsgren: no resource and no external request. The generated pages load nothing from
+# another host. A finding gets a row here only by a ruling, with the reason written down;
+# today's findings would be the baseline in Scripts/browser_gate_baseline.txt.

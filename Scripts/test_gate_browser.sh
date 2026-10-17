@@ -1,0 +1,392 @@
+#!/usr/bin/env bash
+# canon: test_gate_browser v2
+# Scripts/test_gate_browser.sh (forsgren#205)
+#
+# Self-test for Scripts/gate_browser.sh, the browser gate, run in PRE before the
+# gate it validates. The real Chrome and the real axe-core, never a fake: each
+# case is a fixture site served on 127.0.0.1 and run through the gate.
+#   1. a clean page                              -> green, the OK line
+#   2. an axe serious violation (low contrast)   -> red, naming axe color-contrast
+#   3. an axe critical violation (unnamed button) -> red, naming axe button-name
+#   4. no doctype                                -> red, naming the doctype
+#   5. no charset (the server sends none)        -> red, naming the charset
+#   6. a console error                           -> red, naming the console error
+#   7. an image answering 404                    -> red, naming the resource and 404
+#   8. a layout shift                            -> red, naming the CLS
+#   9. a request that leaves loopback            -> red, naming it
+#  10. a manifest page that answers 404          -> red, naming 404
+#  11. an exception row for the 404 image        -> green, counted as excepted
+#  12. an exception row without a reason         -> exit 2 (fail-closed)
+#  13. an exception row that matches nothing     -> red (stale)
+#  14. a missing exceptions file                 -> exit 2
+#  15. the OK line records the CLS, viewport, browser version and interval
+# The shrink-only baseline (estate issue 305, Scripts/browser_gate_baseline.txt;
+# every row starts with its variant, v2):
+#  16. every axe finding in the baseline               -> green, each shown as a WARN
+#  17. an axe finding the baseline lacks               -> red, new
+#  18. a baselined axe finding that is gone            -> red, stale
+#  19. a page CLS above its recorded value             -> red, grew
+#  20. a page CLS below its recorded value             -> red, lower the row
+#  21. a page CLS equal to its recorded value          -> green, shown as a WARN
+#  22. a CLS row on a page that has no shift           -> red, stale
+#  23. a CLS above 0 with no row                       -> red, no baseline row
+#  24. a row without a reason, a malformed row, a
+#      duplicate row, an unknown kind of row           -> exit 2
+#  25. a missing baseline file                         -> exit 2
+# The external exceptions (external|<url prefix>|<reason>):
+#  26. a listed external request                       -> green, blocked, shown, counted
+#  27. an external request that is not listed          -> red, leaves loopback
+#  28. a listed prefix that no page requests           -> red, stale
+#  29. an external row without a reason                -> exit 2
+# The variants (v2, Scripts/browser_gate_variants.txt, name|how to apply):
+#  30. a finding only in an attr: variant              -> red, naming that variant
+#  31. the same finding baselined for that variant     -> green, a WARN with the variant
+#  32. the baseline row naming the other variant       -> red (new in dark, stale in light)
+#  33. a finding only in a scheme:dark variant         -> red, naming dark
+#  34. the same finding baselined, the OK line names pages x variants and the checks -> green
+#  35. a variants file that is missing, has no row, repeats a name, has an
+#      unknown how, or a malformed attr:               -> exit 2
+#  36. a baseline row naming no known variant, and the v1 row without one -> exit 2
+# Mutation proofs (each fixture is red BECAUSE of the line mutated):
+#   A. the severity filter widened to ignore serious: case 2 turns green;
+#   B. the CLS compared rounded: case 19 turns green (a small growth passes);
+#   C. a 404 read only from network-failure events: case 7 stops saying 404;
+#   D. the baseline match ignoring the selector: case 17 turns green (a new
+#      element on a baselined rule passes);
+#   E. the stale check removed: case 18 turns green;
+#   F. an attr: variant not applied: case 30 turns green (the dark look never
+#      checked);
+#   G. the scheme not emulated per variant: case 33 turns green.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.." || exit 1
+
+REPO_ROOT="$(pwd)"
+GATE="${REPO_ROOT}/Scripts/gate_browser.sh"
+ENGINE="${REPO_ROOT}/Scripts/browser_gate.mjs"
+
+# shellcheck source=Scripts/lib_selftest.sh
+source Scripts/lib_selftest.sh
+selftest_begin "browser gate self-test"
+
+for need in "$GATE" "$ENGINE" "${REPO_ROOT}/node_modules/puppeteer-core" "${REPO_ROOT}/node_modules/axe-core"; do
+  if [[ ! -e "$need" ]]; then
+    selftest_abort "browser gate self-test: ${need} is missing"
+  fi
+done
+
+# page <body-extra> <head-extra> [doctype] [charset]: a clean page, one part changed.
+page() {
+  local body="$1" head="$2" doctype="${3-<!doctype html>}" charset="${4-<meta charset=\"utf-8\">}"
+  cat <<HTML
+${doctype}
+<html lang="en">
+<head>
+${charset}
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fixture</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/styles.css">
+${head}
+</head>
+<body>
+<main>
+<h1>Fixture</h1>
+<p>Plain text.</p>
+${body}
+</main>
+</body>
+</html>
+HTML
+}
+
+# make_site <name> <index.html content>: a site with that page, a stylesheet,
+# a manifest of "/" and an empty exceptions file, under $TMP/<name>.
+make_site() {
+  local dir="${TMP}/$1"
+  mkdir -p "$dir/site"
+  printf '%s\n' "$2" > "$dir/site/index.html"
+  printf 'body { color: #111; background: #fff; }\n' > "$dir/site/styles.css"
+  printf '{"requiredPages": ["/"]}\n' > "$dir/manifest.json"
+  : > "$dir/exceptions.txt"
+  : > "$dir/baseline.txt"
+  printf 'light|scheme:light\n' > "$dir/variants.txt"
+}
+
+run_gate() {
+  capture "$GATE" "${TMP}/$1/site" "${TMP}/$1/manifest.json" "${TMP}/$1/exceptions.txt" "${TMP}/$1/baseline.txt" "${TMP}/$1/variants.txt"
+}
+
+make_site clean "$(page '' '')"
+make_site serious "$(page '<p style="color:#cccccc">pale text</p>' '')"
+make_site critical "$(page '<button></button>' '')"
+make_site nodoctype "$(page '' '' '')"
+make_site nocharset "$(page '' '' '<!doctype html>' '')"
+make_site console "$(page '<script>console.error("fixture boom")</script>' '')"
+make_site notfound "$(page '<img src="/missing.png" alt="absent">' '')"
+make_site shift "$(page '' '<script>setTimeout(function () { var d = document.createElement("div"); d.style.height = "120px"; d.textContent = "late"; document.querySelector("main").prepend(d); }, 200);</script>')"
+make_site external "$(page '<img src="http://example.invalid/x.png" alt="away">' '')"
+make_site nopage "$(page '' '')"
+printf '{"requiredPages": ["/", "/nope.html"]}\n' > "${TMP}/nopage/manifest.json"
+
+run_gate clean
+want_green "1: a clean page" "OK: browser gate: 1 pages x 1 variants (light)"
+CLEAN_OUT="$OUT"
+
+run_gate serious
+want_red "2: an axe serious violation" "axe color-contrast (serious)"
+run_gate critical
+want_red "3: an axe critical violation" "axe button-name (critical)"
+run_gate nodoctype
+want_red "4: no doctype" "doctype missing"
+run_gate nocharset
+want_red "5: no charset" "charset not declared"
+run_gate console
+want_red "6: a console error" "console error: fixture boom"
+run_gate notfound
+want_red "7: a 404 image" "request /missing.png -> 404"
+run_gate shift
+want_red "8: a layout shift" "CLS 0."
+want_said "8b: a layout shift without a row says so" "no baseline row"
+run_gate external
+want_red "9: a request leaving loopback" "leaves loopback"
+run_gate nopage
+want_red "10: a manifest page answering 404" "FAIL: light /nope.html: request /nope.html -> 404"
+
+# 11: the exception turns the 404 image green (its console error goes too).
+printf '/missing.png|fixture: deliberately absent\n' > "${TMP}/notfound/exceptions.txt"
+run_gate notfound
+want_green "11: an exception row for the 404 image" "1 excepted"
+
+# 12-14: the exceptions file is closed and fail-closed.
+printf '/missing.png|\n' > "${TMP}/notfound/exceptions.txt"
+run_gate notfound
+want_exit "12: an exception without a reason" 2 "has no reason"
+printf '/other.png|fixture: stale\n' > "${TMP}/clean/exceptions.txt"
+run_gate clean
+want_red "13: an exception that matches nothing" "exception /other.png matched nothing"
+rm -f "${TMP}/clean/exceptions.txt"
+run_gate clean
+want_exit "14: a missing exceptions file" 2 "exceptions file not found"
+: > "${TMP}/clean/exceptions.txt"
+
+# 15: what is recorded.
+for need in "CLS worst 0 " "viewport 1280x800" "variants (light)" "Chrome/" "interval 1000 ms"; do
+  if ! grep -qF -- "$need" <<< "$CLEAN_OUT"; then
+    fail "15: the OK line does not record '${need}'. Output: ${CLEAN_OUT}"
+  fi
+done
+echo "  ok: 15: the OK line records the CLS, viewport, browser version and interval"
+
+# The baseline. Two pale paragraphs, #a and #b, both color-contrast serious.
+REASON="fixture, shrink-only"
+make_site two "$(page '<p id="a" style="color:#cccccc">pale a</p><p id="b" style="color:#cccccc">pale b</p>' '')"
+printf 'axe|light|/|color-contrast|#a|%s\naxe|light|/|color-contrast|#b|%s\n' "$REASON" "$REASON" > "${TMP}/two/baseline.txt"
+run_gate two
+want_green "16: every axe finding in the baseline" "OK: browser gate"
+want_said "16b: each baselined finding is shown as a WARN" "WARN: baselined axe color-contrast (serious): light /: #a"
+want_said "16c: the other too" "WARN: baselined axe color-contrast (serious): light /: #b"
+want_said "16d: and they are counted" "2 axe findings baselined"
+
+printf 'axe|light|/|color-contrast|#a|%s\n' "$REASON" > "${TMP}/two/baseline.txt"
+run_gate two
+want_red "17: an axe finding the baseline lacks" "FAIL: light /: axe color-contrast (serious): #b (new, not in the baseline)"
+
+printf 'axe|light|/|color-contrast|#a|%s\naxe|light|/|color-contrast|#b|%s\naxe|light|/|color-contrast|#gone|%s\n' "$REASON" "$REASON" "$REASON" > "${TMP}/two/baseline.txt"
+run_gate two
+want_red "18: a baselined axe finding that is gone" "FAIL: stale baseline row: axe|light|/|color-contrast|#gone"
+
+# CLS rows. M is the shift the fixture measures, read from the gate itself.
+run_gate shift
+CLS_M="$(sed -n 's/.*FAIL: light \/: CLS \([0-9.e-]*\) .*/\1/p' <<< "$OUT" | head -1)"
+if [[ -z "$CLS_M" ]]; then
+  fail "the shift fixture did not report a CLS value. Output: ${OUT}"
+  CLS_M=0.05
+fi
+scaled() { awk -v m="$CLS_M" -v f="$1" 'BEGIN { printf "%.17g", m * f }'; }
+
+printf 'cls|light|/|%s|%s\n' "$(scaled 0.999)" "$REASON" > "${TMP}/shift/baseline.txt"
+run_gate shift
+want_red "19: a CLS above its recorded value" "FAIL: light /: CLS ${CLS_M} grew above the recorded"
+printf 'cls|light|/|%s|%s\n' "$(scaled 1.001)" "$REASON" > "${TMP}/shift/baseline.txt"
+run_gate shift
+want_red "20: a CLS below its recorded value" "FAIL: light /: CLS ${CLS_M} is below the recorded"
+want_said "20b: and it says to lower the row" "lower the row"
+printf 'cls|light|/|%s|%s\n' "$CLS_M" "$REASON" > "${TMP}/shift/baseline.txt"
+run_gate shift
+want_green "21: a CLS equal to its recorded value" "WARN: baselined CLS light /: ${CLS_M}"
+
+printf 'cls|light|/|0.01|%s\n' "$REASON" > "${TMP}/clean/baseline.txt"
+run_gate clean
+want_red "22: a CLS row on a page without a shift" "is below the recorded 0.01"
+: > "${TMP}/clean/baseline.txt"
+
+: > "${TMP}/shift/baseline.txt"
+run_gate shift
+want_red "23: a CLS above 0 with no row" "no baseline row"
+
+printf 'axe|light|/|color-contrast|#a|\n' > "${TMP}/two/baseline.txt"
+run_gate two
+want_exit "24a: an axe row without a reason" 2 "has no reason"
+printf 'cls|light|/|0.01|\n' > "${TMP}/two/baseline.txt"
+run_gate two
+want_exit "24b: a CLS row without a reason" 2 "has no reason"
+printf 'axe|light|/|color-contrast|%s\n' "$REASON" > "${TMP}/two/baseline.txt"
+run_gate two
+want_exit "24c: an axe row without a selector" 2 "a row is"
+printf 'cls|light|/|large|%s\n' "$REASON" > "${TMP}/two/baseline.txt"
+run_gate two
+want_exit "24d: a CLS row with a value that is no number" 2 "must be a positive number"
+printf 'other|/|x|%s\n' "$REASON" > "${TMP}/two/baseline.txt"
+run_gate two
+want_exit "24e: a row of an unknown kind" 2 "unknown row"
+printf 'axe|light|/|color-contrast|#a|%s\naxe|light|/|color-contrast|#a|%s\n' "$REASON" "$REASON" > "${TMP}/two/baseline.txt"
+run_gate two
+want_exit "24f: a row listed twice" 2 "listed twice"
+
+rm -f "${TMP}/two/baseline.txt"
+run_gate two
+want_exit "25: a missing baseline file" 2 "baseline file not found"
+
+# External requests.
+make_site viaexternal "$(page '<img src="http://example.invalid/x.png" alt="away">' '')"
+printf 'external|http://example.invalid/|fixture: an embed that must not leave\n' > "${TMP}/viaexternal/exceptions.txt"
+run_gate viaexternal
+want_green "26: a listed external request" "WARN: external blocked: light /: http://example.invalid/x.png"
+want_said "26b: counted" "1 external requests blocked"
+
+run_gate external
+want_red "27: an external request that is not listed" "request http://example.invalid/x.png leaves loopback"
+
+printf 'external|http://elsewhere.invalid/|fixture: never requested\n' > "${TMP}/clean/exceptions.txt"
+run_gate clean
+want_red "28: a listed external prefix no page requests" "FAIL: stale external exception: http://elsewhere.invalid/"
+: > "${TMP}/clean/exceptions.txt"
+
+printf 'external|http://example.invalid/|\n' > "${TMP}/viaexternal/exceptions.txt"
+run_gate viaexternal
+want_exit "29: an external row without a reason" 2 "has no reason"
+
+# The variants (v2). #t is pale in the dark look only: under an attribute the
+# page's own CSS reads (case 30-32), and under the dark colour scheme (case 33).
+make_site themed "$(page '<p id="t">themed text</p>' '<style>:root[data-theme="dark"] #t { color: #cccccc; }</style>')"
+printf 'light|attr:data-theme=light\ndark|attr:data-theme=dark\n' > "${TMP}/themed/variants.txt"
+run_gate themed
+want_red "30: a finding only in an attr: variant" "FAIL: dark /: axe color-contrast (serious): #t (new, not in the baseline)"
+if grep -qF -- "FAIL: light /" <<< "$OUT"; then
+  fail "30b: the light variant was blamed for the dark finding. Output: ${OUT}"
+else
+  echo "  ok: 30b: the light variant is clean"
+fi
+
+printf 'axe|dark|/|color-contrast|#t|%s\n' "$REASON" > "${TMP}/themed/baseline.txt"
+run_gate themed
+want_green "31: the same finding baselined for that variant" "OK: browser gate: 1 pages x 2 variants (light, dark)"
+want_said "31b: shown as a WARN with its variant" "WARN: baselined axe color-contrast (serious): dark /: #t"
+
+printf 'axe|light|/|color-contrast|#t|%s\n' "$REASON" > "${TMP}/themed/baseline.txt"
+run_gate themed
+want_red "32: a row naming the other variant" "FAIL: dark /: axe color-contrast (serious): #t (new, not in the baseline)"
+want_said "32b: and the row of the wrong variant is stale" "FAIL: stale baseline row: axe|light|/|color-contrast|#t"
+
+make_site schemed "$(page '<p id="t">schemed text</p>' '<style>@media (prefers-color-scheme: dark) { #t { color: #cccccc; } }</style>')"
+printf 'light|scheme:light\ndark|scheme:dark\n' > "${TMP}/schemed/variants.txt"
+run_gate schemed
+want_red "33: a finding only in a scheme:dark variant" "FAIL: dark /: axe color-contrast (serious): #t"
+printf 'axe|dark|/|color-contrast|#t|%s\n' "$REASON" > "${TMP}/schemed/baseline.txt"
+run_gate schemed
+want_green "34: baselined, the scheme:dark run is green, and its OK line names pages x variants and checks" "OK: browser gate: 1 pages x 2 variants (light, dark), 2 checks"
+: > "${TMP}/schemed/baseline.txt"
+
+# 35: the variants file is closed and fail-closed.
+rm -f "${TMP}/clean/variants.txt"
+run_gate clean
+want_exit "35a: a missing variants file" 2 "variants file not found"
+: > "${TMP}/clean/variants.txt"
+run_gate clean
+want_exit "35b: a variants file with no row" 2 "lists no variant"
+printf 'light|scheme:light\nlight|scheme:dark\n' > "${TMP}/clean/variants.txt"
+run_gate clean
+want_exit "35c: a variant listed twice" 2 "listed twice"
+printf 'light|theme:light\n' > "${TMP}/clean/variants.txt"
+run_gate clean
+want_exit "35d: an unknown how to apply" 2 "unknown how to apply"
+printf 'dark|attr:data-theme\n' > "${TMP}/clean/variants.txt"
+run_gate clean
+want_exit "35e: an attr: without a value" 2 "unknown how to apply"
+printf 'light\n' > "${TMP}/clean/variants.txt"
+run_gate clean
+want_exit "35f: a row without a how" 2 "a row is name|how to apply"
+printf 'light|scheme:light\n' > "${TMP}/clean/variants.txt"
+
+# 36: a baseline row names a variant of the file; the v1 row has none.
+printf 'axe|dusk|/|color-contrast|#a|%s\n' "$REASON" > "${TMP}/clean/baseline.txt"
+run_gate clean
+want_exit "36a: a baseline row naming an unknown variant" 2 "is not a variant"
+printf 'axe|/|color-contrast|#a|%s\n' "$REASON" > "${TMP}/clean/baseline.txt"
+run_gate clean
+want_exit "36b: a row of the v1 format, without a variant" 2 "a row is axe|<variant>"
+printf 'cls|/|0.01|%s\n' "$REASON" > "${TMP}/clean/baseline.txt"
+run_gate clean
+want_exit "36c: a CLS row of the v1 format, without a variant" 2 "a row is cls|<variant>"
+: > "${TMP}/clean/baseline.txt"
+
+# Mutation proofs: the engine copy is run directly, with the real node_modules.
+MUT="${TMP}/mutants"
+run_mutant() {
+  FORSGREN_NODE_ROOT="$REPO_ROOT" capture node "$1" "${TMP}/$2/site" "${TMP}/$2/manifest.json" "${TMP}/$2/exceptions.txt" "${TMP}/$2/baseline.txt" "${TMP}/$2/variants.txt"
+}
+
+# A: only critical gates -> the serious fixture turns green.
+if selftest_mutant "$ENGINE" "${MUT}/a.mjs" "s/\['serious', 'critical'\]/['critical']/"; then
+  run_mutant "${MUT}/a.mjs" serious
+  want_green "mutation proof A: ignoring serious turns case 2 green" "OK:"
+fi
+
+# B: the CLS compared rounded -> a growth of 0.1 percent turns green (case 19).
+printf 'cls|light|/|%s|%s\n' "$(scaled 0.999)" "$REASON" > "${TMP}/shift/baseline.txt"
+if selftest_mutant "$ENGINE" "${MUT}/b.mjs" "s/^const compared = .*/const compared = (value) => Math.round(value * 100);/"; then
+  run_mutant "${MUT}/b.mjs" shift
+  want_green "mutation proof B: a rounded CLS comparison turns case 19 green" "OK:"
+fi
+
+# C: a 404 read only from network-failure events -> case 7 no longer says 404.
+if selftest_mutant "$ENGINE" "${MUT}/c.mjs" "s/page.on('response'/page.on('response-ignored'/"; then
+  run_mutant "${MUT}/c.mjs" notfound
+  if grep -qF -- "request /missing.png -> 404" <<< "$OUT"; then
+    fail "mutation proof C: the 404 was still named without the response status. Output: ${OUT}"
+  else
+    echo "  ok: mutation proof C: without the response status case 7 loses its 404"
+  fi
+fi
+
+# D: the baseline match ignores the selector -> a new element on a baselined
+# rule turns green. The fixture is case 17's: only #a is in the baseline.
+printf 'axe|light|/|color-contrast|#a|%s\n' "$REASON" > "${TMP}/two/baseline.txt"
+if selftest_mutant "$ENGINE" "${MUT}/d.mjs" 's/^\(const axeKey = .*\)[$]{selector}\(.*\)$/\1\2/'; then
+  run_mutant "${MUT}/d.mjs" two
+  want_green "mutation proof D: ignoring the selector turns case 17 green" "OK:"
+fi
+
+# E: the stale check removed -> a baselined finding that is gone turns green.
+printf 'axe|light|/|color-contrast|#a|%s\naxe|light|/|color-contrast|#b|%s\naxe|light|/|color-contrast|#gone|%s\n' "$REASON" "$REASON" "$REASON" > "${TMP}/two/baseline.txt"
+if selftest_mutant "$ENGINE" "${MUT}/e.mjs" "s/if (!row.seen)/if (false \&\& !row.seen)/"; then
+  run_mutant "${MUT}/e.mjs" two
+  want_green "mutation proof E: without the stale check case 18 turns green" "OK:"
+fi
+
+# F: an attr: variant not applied -> the dark look is never checked, case 30 green.
+: > "${TMP}/themed/baseline.txt"
+if selftest_mutant "$ENGINE" "${MUT}/f.mjs" "s/if (variant.attr) await/if (false \&\& variant.attr) await/"; then
+  run_mutant "${MUT}/f.mjs" themed
+  want_green "mutation proof F: an unapplied attr: variant turns case 30 green" "OK:"
+fi
+
+# G: the scheme not emulated per variant -> case 33 turns green.
+if selftest_mutant "$ENGINE" "${MUT}/g.mjs" "s/value: variant.scheme/value: 'light'/"; then
+  run_mutant "${MUT}/g.mjs" schemed
+  want_green "mutation proof G: an unemulated scheme turns case 33 green" "OK:"
+fi
+
+selftest_end "the browser gate self-test failed" "browser gate: every case holds, seven mutations seen"

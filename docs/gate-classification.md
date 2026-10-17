@@ -21,7 +21,7 @@ not close it.
 ## The order file, row by row
 
 [Scripts/gate_report_order.txt](../Scripts/gate_report_order.txt) is the one
-list sfl and CI both run. It has 116 rows: 112 with a script and 4 `n/a`
+list sfl and CI both run. It has 118 rows: 114 with a script and 4 `n/a`
 rows. All scripts are in `Scripts/`. The phase is `pre` (repository inputs and
 checker behaviour) or `post` (the generated site). `secret-class` means a
 finding blocks the commit as well as the push. A row for a self-test is
@@ -144,8 +144,10 @@ self-tests are.
 | 112 | vulncheck workflow | `test_vulncheck_workflow.sh` | pre | required |
 | 113 | zizmor self-test | `test_check_zizmor.sh` | pre | required |
 | 114 | zizmor | `check_zizmor.sh` | pre | required |
-| 115 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
-| 116 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
+| 115 | browser gate self-test | `test_gate_browser.sh` | pre | required, `test_gate_browser v2`; real Chrome and axe-core, fixture sites on 127.0.0.1 |
+| 116 | browser gate | `gate_browser.sh` | post | required, `gate_browser v2`; baseline and exceptions are empty, one variant (see below) |
+| 117 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
+| 118 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
 
 ## Documented exceptions
 
@@ -164,6 +166,16 @@ The other exception files are empty, with the rule for a row in their header:
 and
 [Scripts/required_pages_exclusions.txt](../Scripts/required_pages_exclusions.txt).
 zizmor has no suppression either ([.github/zizmor.yml](../.github/zizmor.yml)).
+
+The browser gate has three data files: [Scripts/browser_gate_variants.txt](../Scripts/browser_gate_variants.txt)
+(`name|how`, one row here, `light|scheme:light`), and two with no rows because
+forsgren has no finding and no external embed:
+[Scripts/browser_gate_baseline.txt](../Scripts/browser_gate_baseline.txt)
+(a shrink-only baseline: `axe|variant|page|rule|selector|reason`,
+`cls|variant|page|value|reason`, a reason on every row) and
+[Scripts/browser_gate_exceptions.txt](../Scripts/browser_gate_exceptions.txt)
+(`resource|reason`, `external|url prefix|reason`). A row is added only by a
+ruling; a missing file is exit 2.
 
 ## Checks outside the order file
 
@@ -215,6 +227,7 @@ same case turns green with the exit code swallowed.
 
 ## The ratchet today
 
-`MIN_GATES` is 116, which equals the 116 rows of the order file (112 with a
+`MIN_GATES` is 118, which equals the 118 rows of the order file (114 with a
 script and 4 `n/a` rows). forsgren#215 brought it to 115 and the Go tool
-helper self-test of forsgren#216 is the 116th.
+helper self-test of forsgren#216 is the 116th; the browser gate and its
+self-test (forsgren#205) made 118.

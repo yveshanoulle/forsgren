@@ -678,6 +678,19 @@ vulncheck workflow|Scripts/test_vulncheck_workflow.sh|pre|
 zizmor self-test|Scripts/test_check_zizmor.sh|pre|
 zizmor|Scripts/check_zizmor.sh|pre|
 #
+# --- Browser gate (forsgren#205, estate issue 305) -----------------------
+# Every page of the required-pages manifest opened in the installed Chrome, on
+# 127.0.0.1 only, once per look of the site (Scripts/browser_gate_variants.txt:
+# here the light scheme): axe-core serious and critical findings, doctype and
+# charset, console and page errors, failed requests, CLS exactly 0. forsgren has
+# no findings and no external embed, so Scripts/browser_gate_baseline.txt and
+# Scripts/browser_gate_exceptions.txt have no rows; a new finding is red and a
+# missing baseline or variants file is exit 2. axe-core is an automated gate, not
+# proof of WCAG conformance. The self-test runs first, in pre; the gate opens the
+# site that the build wrote, so it is post.
+browser gate self-test|Scripts/test_gate_browser.sh|pre|
+browser gate|Scripts/gate_browser.sh|post|
+#
 # The privacy pages belong to a site that needs privacy pages: another estate repository
 # serves a privacy policy, and its check_privacy_pages.sh pins that
 # policy's content (language, title, approved date, binding-version

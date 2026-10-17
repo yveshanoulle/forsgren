@@ -148,10 +148,11 @@ fi
 #
 # New in forsgren with forsgren#215; set to the row count of that change
 # (115), plus the Go tool helper self-test of forsgren#216 (116).
+# Raised to 118 for the browser gate and its self-test (forsgren#205).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=116
+MIN_GATES=118
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true

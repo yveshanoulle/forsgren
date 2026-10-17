@@ -1,0 +1,554 @@
+// canon: browser_gate v2
+// Scripts/browser_gate.mjs (forsgren#205)
+//
+// The browser gate's engine: serves a built site on 127.0.0.1 (loopback only),
+// opens each required page in the installed Chrome through puppeteer-core and
+// checks it. Run through Scripts/gate_browser.sh, which owns the arguments and
+// the exit-trap idiom; self-test: Scripts/test_gate_browser.sh.
+//
+//   node Scripts/browser_gate.mjs <site-dir> <manifest.json> <exceptions.txt> <baseline.txt> <variants.txt>
+//
+// Per page: axe-core serious and critical violations, a doctype, a charset
+// declared by the document itself (the server sends none), zero console
+// errors and page errors, zero failed requests (a status >= 400 read from the
+// RESPONSE, plus network failures, plus any request that leaves loopback), and
+// a layout shift (CLS), observed for a fixed interval at a fixed viewport. The
+// CLS is printed unrounded with the viewport, the browser version and the
+// interval.
+//
+// Variants (v2, estate issue 305): every page is checked once per variant, each
+// on its own, because a site may have more than one look. A variant is a row of
+// the variants file, data per site, `name|how to apply`, a closed vocabulary:
+//   scheme:light | scheme:dark   emulate that prefers-color-scheme;
+//   attr:<attribute>=<value>     set that attribute on <html> before the first
+//                                paint (a manual theme switch), the colour
+//                                scheme emulated light.
+// The variant is applied to the page, never by clicking its controls. A missing
+// file, no row, a duplicate name, an unknown how and a malformed row are exit 2.
+// A site with one look has one row, light|scheme:light.
+//
+// Exceptions (closed format, fail-closed, a reason on every row):
+//   resource|reason              a resource path that may answer an error;
+//   external|<url prefix>|reason a request to that prefix is blocked (no
+//                                network), counted and shown, not failed.
+// Every row must match something, so a stale row is red.
+//
+// The baseline (estate issue 305, closed format, fail-closed, a reason on
+// every row, shrink-only):
+//   axe|<variant>|<page>|<rule>|<selector>|reason   one serious or critical axe
+//                                                   finding, in that variant;
+//   cls|<variant>|<page>|<value>|reason             the page's CLS in that
+//                                                   variant, as measured.
+// A row names a variant of the variants file, or it is exit 2: a row without a
+// variant is malformed, there is no default.
+// Every baselined finding is printed as a WARN and counted. A finding that is
+// not in the baseline is red (new); a baselined axe finding that is gone is red
+// (stale); a CLS above its recorded value is red (grew), a CLS below it is red
+// (lower the row), and a CLS above 0 with no row is red. A missing baseline
+// file is exit 2.
+//
+// axe-core is an automated accessibility gate, not proof of complete WCAG
+// compliance.
+//
+// Security (estate issue 305, #302): the pages come from the commit under test,
+// pull requests included, and their scripts run in Chrome. Chrome gets a
+// fresh temporary profile, a scrubbed environment, the sandbox, and loopback
+// only (see CHROME_ARGS); the server serves the site directory and nothing else.
+//
+// Exit 0 green, 1 findings, 2 the gate could not run (Chrome, arguments,
+// manifest or exceptions unusable). Nothing is guessed.
+
+import fs from 'node:fs';
+import http from 'node:http';
+import os from 'node:os';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const root = process.env.FORSGREN_NODE_ROOT || path.resolve(here, '..');
+const require = createRequire(path.join(root, 'package.json'));
+const puppeteer = require('puppeteer-core');
+const axe = require('axe-core');
+
+const VIEWPORT = { width: 1280, height: 800, deviceScaleFactor: 1 };
+const CLS_INTERVAL_MS = 1000;
+// The nav is injected by a script racing the first paint, so one load can show a
+// shift another does not: a page's CLS is the largest of this many cold loads.
+const CLS_LOADS = 5;
+const NAV_TIMEOUT_MS = 30000;
+// The baseline's keys and the CLS comparison, one place each: what a finding
+// is matched on, and how two CLS values are compared (exactly).
+const axeKey = (variant, page, rule, selector) => `axe|${variant}|${page}|${rule}|${selector}`;
+const clsKey = (variant, page) => `${variant}|${page}`;
+const compared = (value) => value;
+const GATING_IMPACTS = ['serious', 'critical'];
+const CHROME_CANDIDATES = [
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
+];
+const TYPES = {
+  '.html': 'text/html',
+  '.css': 'text/css',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
+  '.otf': 'font/otf',
+  '.ttf': 'font/ttf',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.js': 'text/javascript',
+  '.json': 'application/json',
+  '.txt': 'text/plain',
+};
+// Chrome runs the pages' own scripts, so it is launched as bare as it goes:
+// a fresh empty profile (made here, removed after), a scrubbed environment
+// (no token, no SSH agent, no HOME of the user), the sandbox ON (no
+// --no-sandbox), no extensions or background services, and a resolver that
+// answers only 127.0.0.1, so a name never reaches a DNS server. The request
+// interception below is the second wall: a request that leaves loopback is red.
+const CHROME_ARGS = [
+  '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1',
+  '--proxy-server=direct://',
+  '--proxy-bypass-list=*',
+  '--disable-extensions',
+  '--disable-sync',
+  '--disable-background-networking',
+  '--disable-component-update',
+  '--no-first-run',
+  '--no-default-browser-check',
+  '--password-store=basic',
+  '--use-mock-keychain',
+];
+
+function die(message) {
+  console.error(`browser-gate: ${message}`);
+  process.exit(2);
+}
+
+function chromePath() {
+  const named = process.env.FORSGREN_CHROME;
+  if (named) {
+    if (!fs.existsSync(named)) die(`FORSGREN_CHROME does not exist: ${named}`);
+    return named;
+  }
+  const found = CHROME_CANDIDATES.find((candidate) => fs.existsSync(candidate));
+  if (!found) die('no Chrome found (set FORSGREN_CHROME, or install Google Chrome)');
+  return found;
+}
+
+function readPages(manifestFile) {
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
+  } catch (error) {
+    die(`cannot read the pages manifest ${manifestFile}: ${error.message}`);
+  }
+  const pages = manifest.requiredPages;
+  if (!Array.isArray(pages) || pages.length === 0) {
+    die(`${manifestFile} lists no requiredPages: nothing to open is not clean`);
+  }
+  return pages;
+}
+
+// Exceptions: `resource|reason` and `external|<url prefix>|reason`, one per
+// line; comments and blanks skipped.
+function readExceptions(file) {
+  if (!fs.existsSync(file)) die(`exceptions file not found: ${file}`);
+  const resources = new Map();
+  const externals = new Map();
+  fs.readFileSync(file, 'utf8').split('\n').forEach((line, index) => {
+    if (line.trim() === '' || line.startsWith('#')) return;
+    const at = `${file} line ${index + 1}`;
+    const fields = line.split('|').map((field) => field.trim());
+    if (fields[0] === 'external') {
+      if (fields.length !== 3) die(`${at}: an external row is external|<url prefix>|reason`);
+      const [, prefix, reason] = fields;
+      if (!/^https?:\/\/./.test(prefix)) die(`${at}: the external prefix must start with http:// or https://`);
+      if (reason === '') die(`${at}: ${prefix} has no reason; an exception names its reason`);
+      if (externals.has(prefix)) die(`${at}: ${prefix} is listed twice`);
+      externals.set(prefix, { reason, used: false });
+      return;
+    }
+    if (fields.length !== 2) die(`${at}: a row is resource|reason or external|<url prefix>|reason`);
+    const [resource, reason] = fields;
+    if (!resource.startsWith('/')) die(`${at}: the resource must be a path starting with /`);
+    if (reason === '') die(`${at}: ${resource} has no reason; an exception names its reason`);
+    resources.set(resource, { reason, used: false });
+  });
+  return { resources, externals };
+}
+
+// The variants: `name|how to apply`, one per line; comments and blanks skipped.
+// How: scheme:light, scheme:dark or attr:<attribute>=<value>.
+function readVariants(file) {
+  if (!fs.existsSync(file)) die(`variants file not found: ${file}`);
+  const variants = new Map();
+  fs.readFileSync(file, 'utf8').split('\n').forEach((line, index) => {
+    if (line.trim() === '' || line.startsWith('#')) return;
+    const at = `${file} line ${index + 1}`;
+    const fields = line.split('|').map((field) => field.trim());
+    if (fields.length !== 2) die(`${at}: a row is name|how to apply`);
+    const [name, how] = fields;
+    if (!/^[a-z][a-z0-9-]*$/.test(name)) die(`${at}: the variant name is lower-case letters, digits and dashes`);
+    if (variants.has(name)) die(`${at}: variant ${name} is listed twice`);
+    const attribute = /^attr:([A-Za-z][A-Za-z0-9_-]*)=([A-Za-z0-9_-]+)$/.exec(how);
+    if (how === 'scheme:light' || how === 'scheme:dark') {
+      variants.set(name, { name, how, scheme: how.slice(7), attr: null });
+    } else if (attribute) {
+      variants.set(name, { name, how, scheme: 'light', attr: { name: attribute[1], value: attribute[2] } });
+    } else {
+      die(`${at}: ${name}: unknown how to apply '${how}' (scheme:light, scheme:dark or attr:<attribute>=<value>)`);
+    }
+  });
+  if (variants.size === 0) die(`${file} lists no variant: nothing to check is not clean`);
+  return variants;
+}
+
+// The baseline: `axe|<variant>|<page>|<rule>|<selector>|reason` and
+// `cls|<variant>|<page>|<value>|reason`. A selector may contain `|`; the reason
+// may not. Every row names a variant of the variants file.
+function readBaseline(file, variants) {
+  if (!fs.existsSync(file)) die(`baseline file not found: ${file}`);
+  const axeRows = new Map();
+  const clsRows = new Map();
+  const knownVariant = (at, variant) => {
+    if (!variants.has(variant)) die(`${at}: '${variant}' is not a variant of the variants file (a row starts with its variant)`);
+  };
+  fs.readFileSync(file, 'utf8').split('\n').forEach((line, index) => {
+    if (line.trim() === '' || line.startsWith('#')) return;
+    const at = `${file} line ${index + 1}`;
+    const fields = line.split('|').map((field) => field.trim());
+    const reason = fields[fields.length - 1];
+    if (fields[0] === 'axe') {
+      if (fields.length < 6) die(`${at}: a row is axe|<variant>|<page>|<rule>|<selector>|reason`);
+      const [, variant, page, rule] = fields;
+      const selector = fields.slice(4, -1).join('|');
+      knownVariant(at, variant);
+      if (!page.startsWith('/') || rule === '' || selector === '') die(`${at}: a row is axe|<variant>|<page>|<rule>|<selector>|reason, the page starting with /`);
+      if (reason === '') die(`${at}: ${variant} ${page} ${rule} ${selector} has no reason; a baseline row names its reason`);
+      const key = axeKey(variant, page, rule, selector);
+      if (axeRows.has(key)) die(`${at}: ${key} is listed twice`);
+      axeRows.set(key, { key, reason, seen: false });
+    } else if (fields[0] === 'cls') {
+      if (fields.length !== 5) die(`${at}: a row is cls|<variant>|<page>|<value>|reason`);
+      const [, variant, page, text] = fields;
+      knownVariant(at, variant);
+      if (!page.startsWith('/')) die(`${at}: the page must start with /`);
+      if (!/^[0-9]+(\.[0-9]+)?([eE]-?[0-9]+)?$/.test(text) || Number(text) <= 0) die(`${at}: ${page} CLS value must be a positive number`);
+      if (reason === '') die(`${at}: ${variant} ${page} CLS has no reason; a baseline row names its reason`);
+      const key = clsKey(variant, page);
+      if (clsRows.has(key)) die(`${at}: ${variant} ${page} CLS is listed twice`);
+      clsRows.set(key, { variant, page, text, value: Number(text), reason, seen: false });
+    } else {
+      die(`${at}: unknown row kind (axe or cls)`);
+    }
+  });
+  return { axeRows, clsRows };
+}
+
+function serve(siteDir) {
+  const base = path.resolve(siteDir);
+  const server = http.createServer((request, response) => {
+    let pathname = decodeURIComponent(new URL(request.url, 'http://x').pathname);
+    if (pathname.endsWith('/')) pathname += 'index.html';
+    const file = path.join(base, pathname);
+    const inside = file === base || file.startsWith(base + path.sep);
+    if (!inside || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
+      response.writeHead(404, { 'Content-Type': 'text/plain' });
+      response.end('not found');
+      return;
+    }
+    // No charset in the header: the document has to declare its own.
+    response.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream' });
+    fs.createReadStream(file).pipe(response);
+  });
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => resolve(server));
+  });
+}
+
+const OBSERVE_SHIFTS = `
+  window.__shifts = [];
+  new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) {
+      if (!entry.hadRecentInput) window.__shifts.push(entry.value);
+    }
+  }).observe({ type: 'layout-shift', buffered: true });
+`;
+
+// One page's findings. `used` collects the exception rows that matched.
+class PageCheck {
+  constructor(page, origin, variant, pagePath, exceptions, baseline) {
+    this.page = page;
+    this.origin = origin;
+    this.variant = variant.name;
+    this.pagePath = pagePath;
+    this.label = `${variant.name} ${pagePath}`;
+    this.exceptions = exceptions.resources;
+    this.externals = exceptions.externals;
+    this.baseline = baseline;
+    this.findings = [];
+    this.warnings = [];
+    this.baselinedAxe = 0;
+    this.baselinedCls = 0;
+    this.externalBlocked = 0;
+    this.blocked = new Set();
+    this.exceptedUrls = new Set();
+    this.nonGating = 0;
+    this.cls = 0;
+  }
+
+  // Excepted responses, once each: the page is loaded again to measure the CLS.
+  get excepted() {
+    return this.exceptedUrls.size;
+  }
+
+  resourceOf(url) {
+    return url.startsWith(this.origin) ? url.slice(this.origin.length) : url;
+  }
+
+  // The row for a resource, marked used, or undefined.
+  exception(url) {
+    const row = this.exceptions.get(this.resourceOf(url).split('?')[0]);
+    if (row) row.used = true;
+    return row;
+  }
+
+  find(text) {
+    const line = `FAIL: ${this.label}: ${text}`;
+    if (!this.findings.includes(line)) this.findings.push(line);
+  }
+
+  // A warning once per page: the page is loaded again to measure the CLS.
+  // True when it is new.
+  warn(text) {
+    const line = `WARN: ${text}`;
+    if (this.warnings.includes(line)) return false;
+    this.warnings.push(line);
+    return true;
+  }
+
+  // The external row whose prefix starts the URL, marked used, or undefined.
+  externalRow(url) {
+    for (const [prefix, row] of this.externals) {
+      if (url.startsWith(prefix)) {
+        row.used = true;
+        return row;
+      }
+    }
+    return undefined;
+  }
+
+  listen() {
+    const { page } = this;
+    page.on('response', (response) => {
+      if (response.status() < 400) return;
+      if (this.exception(response.url())) {
+        this.exceptedUrls.add(response.url());
+        return;
+      }
+      this.find(`request ${this.resourceOf(response.url())} -> ${response.status()}`);
+    });
+    page.on('requestfailed', (request) => {
+      if (this.blocked.has(request.url())) return;
+      if (this.exception(request.url())) return;
+      const reason = request.failure()?.errorText ?? 'unknown';
+      this.find(`request ${this.resourceOf(request.url())} failed: ${reason}`);
+    });
+    page.on('console', (message) => {
+      if (message.type() !== 'error') return;
+      const where = message.location().url ?? '';
+      if (this.exception(where) || this.blocked.has(where)) return;
+      this.find(`console error: ${message.text()}`);
+    });
+    page.on('pageerror', (error) => this.find(`page error: ${error.message}`));
+    page.on('request', (request) => {
+      const url = request.url();
+      if (url.startsWith(this.origin) || url.startsWith('data:') || url.startsWith('about:')) {
+        request.continue();
+        return;
+      }
+      this.blocked.add(url);
+      const external = this.externalRow(url);
+      if (external) {
+        if (this.warn(`external blocked: ${this.label}: ${url} (${external.reason})`)) this.externalBlocked += 1;
+      } else {
+        this.find(`request ${url} leaves loopback`);
+      }
+      request.abort('blockedbyclient');
+    });
+  }
+
+  async checkDocument() {
+    const { doctype, charset } = await this.page.evaluate(() => ({
+      doctype: document.doctype ? document.doctype.name : '',
+      charset: Boolean(document.querySelector('meta[charset]')),
+    }));
+    if (doctype.toLowerCase() !== 'html') this.find('doctype missing or not html');
+    if (!charset) this.find('charset not declared by a meta charset');
+  }
+
+  async checkAxe() {
+    await this.page.evaluate(axe.source);
+    const result = await this.page.evaluate(() => axe.run(document, { resultTypes: ['violations'] }));
+    for (const violation of result.violations) {
+      if (!GATING_IMPACTS.includes(violation.impact)) {
+        this.nonGating += 1;
+        continue;
+      }
+      for (const node of violation.nodes) this.judgeAxeNode(violation, node.target.join(' '));
+    }
+  }
+
+  // One axe finding against the baseline: listed is a WARN, not listed is new.
+  judgeAxeNode(violation, selector) {
+    const row = this.baseline.axeRows.get(axeKey(this.variant, this.pagePath, violation.id, selector));
+    if (row) {
+      if (row.seen) return;
+      row.seen = true;
+      this.baselinedAxe += 1;
+      this.warn(`baselined axe ${violation.id} (${violation.impact}): ${this.label}: ${selector}`);
+      return;
+    }
+    this.find(`axe ${violation.id} (${violation.impact}): ${selector} (new, not in the baseline)`);
+  }
+
+  // The shift of the load in progress, read after the fixed interval.
+  async shiftOfThisLoad() {
+    await new Promise((resolve) => setTimeout(resolve, CLS_INTERVAL_MS));
+    const shifts = await this.page.evaluate(() => window.__shifts);
+    return shifts.reduce((sum, value) => sum + value, 0);
+  }
+
+  async checkLayoutShift() {
+    let cls = await this.shiftOfThisLoad();
+    for (let load = 1; load < CLS_LOADS; load += 1) {
+      await this.page.reload({ waitUntil: 'load', timeout: NAV_TIMEOUT_MS });
+      cls = Math.max(cls, await this.shiftOfThisLoad());
+    }
+    this.cls = cls;
+    const conditions = `viewport ${VIEWPORT.width}x${VIEWPORT.height}, interval ${CLS_INTERVAL_MS} ms, largest of ${CLS_LOADS} cold loads`;
+    const row = this.baseline.clsRows.get(clsKey(this.variant, this.pagePath));
+    if (!row) {
+      if (cls !== 0) this.find(`CLS ${cls} (${conditions}); no baseline row`);
+      return;
+    }
+    row.seen = true;
+    if (compared(cls) > compared(row.value)) {
+      this.find(`CLS ${cls} grew above the recorded ${row.text} (${conditions})`);
+    } else if (compared(cls) < compared(row.value)) {
+      this.find(`CLS ${cls} is below the recorded ${row.text}: lower the row, or remove it at 0 (${conditions})`);
+    } else {
+      this.baselinedCls += 1;
+      this.warn(`baselined CLS ${this.label}: ${cls} (${conditions})`);
+    }
+  }
+}
+
+// The script that sets the variant's attribute on <html> before the page's own
+// scripts and first paint. <html> may not exist yet at document start, so it
+// waits for it.
+function attributeScript(attr) {
+  return `(() => {
+    const set = () => document.documentElement.setAttribute(${JSON.stringify(attr.name)}, ${JSON.stringify(attr.value)});
+    if (document.documentElement) { set(); return; }
+    new MutationObserver((records, observer) => {
+      if (document.documentElement) { set(); observer.disconnect(); }
+    }).observe(document, { childList: true });
+  })();`;
+}
+
+async function checkPage(browser, origin, variant, pagePath, exceptions, baseline) {
+  const page = await browser.newPage();
+  await page.setViewport(VIEWPORT);
+  // Fixed conditions: the machine's own colour scheme must not decide the result.
+  await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: variant.scheme }]);
+  if (variant.attr) await page.evaluateOnNewDocument(attributeScript(variant.attr));
+  await page.setCacheEnabled(false);
+  await page.setRequestInterception(true);
+  await page.evaluateOnNewDocument(OBSERVE_SHIFTS);
+  const check = new PageCheck(page, origin, variant, pagePath, exceptions, baseline);
+  check.listen();
+  try {
+    await page.goto(origin + pagePath, { waitUntil: 'load', timeout: NAV_TIMEOUT_MS });
+    await check.checkDocument();
+    await check.checkAxe();
+    await check.checkLayoutShift();
+  } catch (error) {
+    check.find(`could not be checked: ${error.message}`);
+  }
+  await page.close();
+  return check;
+}
+
+async function main() {
+  const [siteDir, manifestFile, exceptionsFile, baselineFile, variantsFile] = process.argv.slice(2);
+  if (!siteDir || !manifestFile || !exceptionsFile || !baselineFile || !variantsFile) die('usage: browser_gate.mjs <site-dir> <manifest.json> <exceptions.txt> <baseline.txt> <variants.txt>');
+  if (!fs.statSync(siteDir, { throwIfNoEntry: false })?.isDirectory()) die(`site dir not found: ${siteDir}`);
+  const pages = readPages(manifestFile);
+  const exceptions = readExceptions(exceptionsFile);
+  const variants = readVariants(variantsFile);
+  const baseline = readBaseline(baselineFile, variants);
+  const executablePath = chromePath();
+
+  const server = await serve(siteDir);
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-gate-'));
+  const browser = await puppeteer.launch({
+    executablePath,
+    headless: true,
+    userDataDir: profile,
+    args: CHROME_ARGS,
+    env: { PATH: '/usr/bin:/bin', HOME: profile, TMPDIR: profile, LANG: 'C' },
+  });
+  const version = await browser.version();
+  const checks = [];
+  try {
+    for (const variant of variants.values()) {
+      for (const pagePath of pages) checks.push(await checkPage(browser, origin, variant, pagePath, exceptions, baseline));
+    }
+  } finally {
+    await browser.close();
+    server.close();
+    fs.rmSync(profile, { recursive: true, force: true });
+  }
+
+  const findings = checks.flatMap((check) => check.findings);
+  for (const [resource, row] of exceptions.resources) {
+    if (!row.used) findings.push(`FAIL: exception ${resource} matched nothing (${row.reason}); remove it`);
+  }
+  for (const [prefix, row] of exceptions.externals) {
+    if (!row.used) findings.push(`FAIL: stale external exception: ${prefix} was requested by no page (${row.reason}); remove it`);
+  }
+  for (const row of baseline.axeRows.values()) {
+    if (!row.seen) findings.push(`FAIL: stale baseline row: ${row.key} is no longer found; remove it`);
+  }
+  for (const row of baseline.clsRows.values()) {
+    if (!row.seen) findings.push(`FAIL: stale baseline row: cls|${row.variant}|${row.page}|${row.text} was not measured; remove it`);
+  }
+  const warnings = checks.flatMap((check) => check.warnings);
+  if (warnings.length > 0) console.log(warnings.join('\n'));
+  if (findings.length > 0) {
+    console.log(findings.join('\n'));
+    process.exit(1);
+  }
+  const sum = (key) => checks.reduce((total, check) => total + check[key], 0);
+  const clsWorst = Math.max(...checks.map((check) => check.cls));
+  console.log(
+    `OK: browser gate: ${pages.length} pages x ${variants.size} variants (${[...variants.keys()].join(', ')}), ${checks.length} checks, axe serious+critical 0 new (${sum('baselinedAxe')} axe findings baselined, ${sum('nonGating')} moderate or minor not gated), ` +
+    `doctype and charset present, console errors 0, failed requests 0 (${sum('excepted')} excepted), ` +
+    `${sum('externalBlocked')} external requests blocked (listed), ` +
+    `CLS worst ${clsWorst} (${sum('baselinedCls')} pages with a baselined CLS) ` +
+    `(viewport ${VIEWPORT.width}x${VIEWPORT.height}, ${version}, interval ${CLS_INTERVAL_MS} ms)`,
+  );
+}
+
+main().catch((error) => die(error.stack || error.message));
