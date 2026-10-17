@@ -150,11 +150,13 @@ fi
 # New in forsgren with forsgren#215; set to the row count of that change
 # (115), plus the Go tool helper self-test of forsgren#216 (116).
 # Raised to 118 for the browser gate and its self-test (forsgren#205), and to
-# 119 for the live check's self-test (forsgren#205, step 2 of 2).
+# 119 for the live check's self-test (forsgren#205, step 2 of 2), and to 123
+# for the language gate (its self-test, the pages wrapper's self-test and the gate)
+# and the baseline report self-test (forsgren#220).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=119
+MIN_GATES=123
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -248,6 +250,34 @@ grep -qF 'done < Scripts/gate_report_order.txt' "$SFL" \
 grep -qF 'ORDER="Scripts/gate_report_order.txt"' "$CI_RUNNER" \
   || fail "${CI_RUNNER} no longer reads Scripts/gate_report_order.txt — sfl and CI must run the same rows"
 
+# --- 2b. THE BASELINES ON THE RUN PAGE (forsgren#220) -----------------------
+#
+# The baselines are shown on the Quality run page, one step per gate, each by
+# name, each `if: always()` (so it shows when a gate is red), each calling
+# Scripts/report_baselines.sh with its own section.
+baseline_step_problems() {
+  local wf="$1" pair name arg block
+  for pair in "Language baselines:language" "Browser baselines:browser" "Image baselines:image"; do
+    name="${pair%%:*}"
+    arg="${pair##*:}"
+    block="$(awk -v n="      - name: ${name}" '
+      $0 == n { on = 1; print; next }
+      on && /^      - / { exit }
+      on { print }
+    ' "$wf")"
+    if [[ -z "$block" ]]; then
+      echo "the workflow has no step named '${name}'"
+      continue
+    fi
+    grep -qE '^[[:space:]]+if: always\(\)[[:space:]]*$' <<< "$block" \
+      || echo "the step '${name}' is not 'if: always()', so it would vanish when a gate is red"
+    grep -vE '^[[:space:]]*#' <<< "$block" | grep -qE "^[[:space:]]*\./Scripts/report_baselines\.sh ${arg}[[:space:]]*$" \
+      || echo "the step '${name}' does not run ./Scripts/report_baselines.sh ${arg}"
+  done
+}
+problems="$(baseline_step_problems "$CI")"
+[[ -z "$problems" ]] || fail "quality.yml must show the baselines, one step per gate: ${problems}"
+
 # --- 3. SCRIPTS OUTSIDE THE ORDER FILE --------------------------------------
 n_gate=0
 n_exempt=0
@@ -293,6 +323,26 @@ for path in Scripts/*.sh; do
     render_quality_report.sh)
       runs_script "$CI" "$base" \
         || fail "${base} renders CI's step summary and CI never invokes it — a renderer nobody calls is a file, not a report"
+      require_fixture "$base"
+      ;;
+
+    # PRESENTATION, not a gate (forsgren#220): it renders the baseline data
+    # files as markdown tables on CI's run page, one Quality step per gate
+    # (pin 2b below). Same terms as the report renderer: CI must call it and it
+    # must have a fixture.
+    report_baselines.sh)
+      runs_script "$CI" "$base" \
+        || fail "${base} renders the baselines on CI's run page and ${CI} never invokes it — a renderer nobody calls is a file, not a report"
+      require_fixture "$base"
+      ;;
+
+    # THE CANON LANGUAGE GATE (forsgren#220): the order file runs it through
+    # Scripts/gate_language_pages.sh, which puts the metrics site and the
+    # starter page in one directory (a row names a script, not a command
+    # line). The wrapper must still call it, and it must keep its fixture.
+    gate_language.sh)
+      runs_script "Scripts/gate_language_pages.sh" "$base" \
+        || fail "${base} is the language gate and Scripts/gate_language_pages.sh, the row that runs it, never invokes it"
       require_fixture "$base"
       ;;
 
@@ -885,6 +935,20 @@ if ! is_mutation_rerun; then
     's|^([[:space:]]*)(\./Scripts/build_site\.sh)|\1# \2|' \
     "build_site.sh is the CI build boundary and" \
     "a quality.yml that mentions build_site.sh only in comments"
+
+  # quality.yml: the baseline steps (forsgren#220), each broken once.
+  mutation_proof GATE_WIRING_CI_OVERRIDE "Browser baselines" \
+    's|^      - name: Browser baselines$|      - name: Browser baselines (renamed)|' \
+    "no step named 'Browser baselines'" \
+    "a quality.yml without the Browser baselines step"
+  mutation_proof GATE_WIRING_CI_OVERRIDE "Image baselines" \
+    '/name: Image baselines/,$ s|^        if: always\(\)$|        if: success()|' \
+    "'Image baselines' is not 'if: always()'" \
+    "a quality.yml whose Image baselines step is not always()"
+  mutation_proof GATE_WIRING_CI_OVERRIDE "report_baselines.sh language" \
+    's|^( *)\./Scripts/report_baselines\.sh language$|\1: report_baselines.sh language|' \
+    "does not run ./Scripts/report_baselines.sh language" \
+    "a quality.yml whose Language baselines step does not call the report"
 
   # quality.yml: the report call becomes a comment.
   mutation_proof GATE_WIRING_CI_OVERRIDE "Scripts/render_quality_report.sh" \

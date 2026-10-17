@@ -64,3 +64,10 @@ actionlint
 # Scripts/check_zizmor.sh (forsgren#1, ladder step 19): the GitHub Actions
 # security linter, over .github, under .github/zizmor.yml.
 zizmor
+
+# Scripts/gate_language.sh (forsgren#220): the language gate runs LanguageTool
+# on this machine, offline. Homebrew installs it with its own openjdk@17, which
+# is keg-only, so no other job sees a changed Java. The gate pins the version
+# (language_tool_version in Scripts/language_settings.txt) and is red on
+# another one, so a Homebrew upgrade is a visible, deliberate change.
+languagetool

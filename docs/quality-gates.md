@@ -544,6 +544,22 @@ The POST gates, on the generated site:
   line and no temporary directory left behind. Its self-test is
   `Scripts/test_check_exit_trap_completion.sh`.
 
+- **language gate** (`Scripts/gate_language_pages.sh` running the canon
+  `Scripts/gate_language.sh`, self-tests `Scripts/test_gate_language.sh` and
+  `Scripts/test_gate_language_pages.sh`, forsgren#220): after the build and the
+  starter page build, the text a visitor reads on every page of `.build/site` and
+  `.build/starter` (the latter as `starter/index.html`), plus `alt`, `title` and
+  `aria-label`, is checked by LanguageTool 6.8 in `en-GB`. It runs on this
+  machine under `sandbox-exec` with the network denied, never against a remote
+  service. Mode `enforce` (`Scripts/language_settings.txt`): red for a finding
+  that is neither in `Scripts/language_allowlist.txt` (names and terms, spelling
+  matches only) nor in `Scripts/language_baseline.txt` (false positives and
+  accepted style hints, a reason on every row, keyed by page, language, rule,
+  match and context and never by offset), and red for a baseline row whose finding
+  is gone. A missing LanguageTool, Java or sandbox-exec is red; another
+  LanguageTool version than `language_tool_version` is red. CI installs
+  LanguageTool with the other Homebrew tools (`Scripts/required_tools.txt`).
+  `Scripts/report_baselines.sh` shows the baselines on the Quality run page.
 - **browser gate** (`Scripts/gate_browser.sh`, engine `Scripts/browser_gate.mjs`,
   self-test `Scripts/test_gate_browser.sh`, forsgren#205, the estate's shared
   gate): after the build, every page of `internal/page/required-pages.json` is

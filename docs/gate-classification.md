@@ -21,7 +21,7 @@ not close it.
 ## The order file, row by row
 
 [Scripts/gate_report_order.txt](../Scripts/gate_report_order.txt) is the one
-list sfl and CI both run. It has 119 rows: 115 with a script and 4 `n/a`
+list sfl and CI both run. It has 123 rows: 119 with a script and 4 `n/a`
 rows. All scripts are in `Scripts/`. The phase is `pre` (repository inputs and
 checker behaviour) or `post` (the generated site). `secret-class` means a
 finding blocks the commit as well as the push. A row for a self-test is
@@ -147,8 +147,12 @@ self-tests are.
 | 115 | browser gate self-test | `test_gate_browser.sh` | pre | required, `test_gate_browser v2`; real Chrome and axe-core, fixture sites on 127.0.0.1 |
 | 116 | browser gate | `gate_browser.sh` | post | required, `gate_browser v2`; baseline and exceptions are empty, one variant (see below) |
 | 117 | live check self-test | `test_live_check.sh` | pre | required; stub curl, no network. The live check itself, `live_check.sh`, is not a gate: it needs the deployed site and runs only in the live-check job of `starter_page.yml` |
-| 118 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
-| 119 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
+| 118 | language gate self-test | `test_gate_language.sh` | pre | required, `test_gate_language v1`; LanguageTool stubbed, 8 mutations |
+| 119 | language pages wrapper self-test | `test_gate_language_pages.sh` | pre | required; the wrapper's own, the canon gate stubbed, 3 mutations |
+| 120 | language gate | `gate_language_pages.sh` | post | required; runs `gate_language.sh` (`gate_language v1`) over the metrics site and the starter page; LanguageTool 6.8 run locally and offline; mode `enforce` in `language_settings.txt`; the allowlist and the baseline are data files (see below) |
+| 121 | baseline report self-test | `test_report_baselines.sh` | pre | required, `test_report_baselines v1`; the report itself, `report_baselines.sh` (`report_baselines v1`), is presentation, not a gate: Quality calls it in three steps (see below) |
+| 122 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
+| 123 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
 
 ## Documented exceptions
 
@@ -226,10 +230,54 @@ same case turns green with the exit code swallowed.
   `Scripts/test_gate_wiring.sh` equals the number of rows in the order file. It
   goes up when a row lands and never goes down to clear a red.
 
+## The language gate (forsgren#220)
+
+The gate (row 120, `Scripts/gate_language_pages.sh` running the canon
+`Scripts/gate_language.sh`) checks the text a visitor reads on every generated
+page, the metrics site and the starter page, with LanguageTool 6.8 in `en-GB`
+(`Scripts/language_settings.txt`), plus the values of `alt`, `title` and
+`aria-label`. The canon gate checks one directory and a row names a script, so the
+wrapper puts both in one temporary directory, the starter page as
+`starter/index.html`. It does not check `<head>`, `script`, `style`, `pre` or `svg`.
+
+- **Local only.** LanguageTool runs on this machine under `sandbox-exec` with the
+  network denied, so no page text can leave it. A missing LanguageTool, Java or
+  sandbox-exec is red in both modes. The version is pinned by
+  `language_tool_version`; another version is red.
+- **Mode `enforce`.** A finding that is not allowlisted or baselined is red, and so
+  is a baseline row whose finding is gone.
+- **Data.** [Scripts/language_allowlist.txt](../Scripts/language_allowlist.txt)
+  (6 words: the product name in two spellings, the standard's name, one surname,
+  the template repository name, a robots keyword) and
+  [Scripts/language_baseline.txt](../Scripts/language_baseline.txt) (13 rows, 13
+  findings, each with its reason). The measurement found no real error; the one
+  style hint (`By default` without a comma) is accepted as written.
+- **Tool in CI.** CI runs on GitHub's `macos-latest`, which has no LanguageTool.
+  `Scripts/required_tools.txt` lists `languagetool`, so the Install tools step
+  installs it from Homebrew with its own keg-only `openjdk@17` (no other job sees
+  a changed Java), the same as a local sfl run. The ruling's plan was the official
+  zip checked against a recorded SHA-256, but languagetool.org publishes no 6.8
+  zip: its download directory ends at 6.6 (`LanguageTool-stable.zip` is 6.6), and
+  the pin would then differ from the version a local run uses. If the zip is
+  wanted later, the pin has to move to a published version on both.
+
+## The baselines on the Quality run page (forsgren#220)
+
+`Scripts/report_baselines.sh <section>` (`report_baselines v1`) renders one
+gate's baseline data as markdown tables, to stdout and to `$GITHUB_STEP_SUMMARY`.
+Quality has one step per section after the report, each `if: always()` so it shows
+when a gate is red, pinned by name in `Scripts/test_gate_wiring.sh` (pin 2b):
+`Language baselines` (rows and allowlist words), `Browser baselines` (axe rows,
+CLS rows, counts by rule and by page) and `Image baselines`. forsgren has no image
+size gate, so that step prints that this site has no such file; that is correct
+and stays. It reads data files and runs no gate; an unreadable file or a
+malformed row fails the step. Its self-test is the PRE row 121.
+
 ## The ratchet today
 
-`MIN_GATES` is 119, which equals the 119 rows of the order file (115 with a
+`MIN_GATES` is 123, which equals the 123 rows of the order file (119 with a
 script and 4 `n/a` rows). forsgren#215 brought it to 115 and the Go tool
 helper self-test of forsgren#216 is the 116th; the browser gate and its
 self-test (forsgren#205) made 118, and the live check self-test
-(forsgren#205, step 2 of 2) made 119.
+(forsgren#205, step 2 of 2) made 119; the language gate, the pages wrapper's
+self-test and the baseline report self-test (forsgren#220) made 123.

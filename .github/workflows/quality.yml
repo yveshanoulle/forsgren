@@ -226,3 +226,30 @@ jobs:
           ./Scripts/render_quality_summary.sh "${ROWS:-}" "${DETAILS:-}" >> "$GITHUB_STEP_SUMMARY" || rc=$?
           ./Scripts/render_quality_report.sh "${ROWS:-}" "${DETAILS:-}" >> "$GITHUB_STEP_SUMMARY" || rc=$?
           exit "$rc"
+
+      # What this site has agreed to live with, as markdown tables on the run
+      # page, one step per gate so each is easy to find in the job's step list.
+      # `if: always()`: they show even when a gate is red. They read the baseline
+      # data files only and run no gate; a file the site does not have is said
+      # so (there is no image size gate here), and an unreadable one fails the
+      # step.
+      - name: Language baselines
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/report_baselines.sh language
+
+      - name: Browser baselines
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/report_baselines.sh browser
+
+      - name: Image baselines
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/report_baselines.sh image

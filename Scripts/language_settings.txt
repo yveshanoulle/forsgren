@@ -1,0 +1,13 @@
+# Per-site values of the language gate (Scripts/gate_language.sh).
+# One key=value per line; all three keys are required.
+#
+# language_mode          enforce: a finding that is not allowlisted or baselined
+#                        fails the gate. warn: the same findings are printed as
+#                        warnings and the gate exits 0.
+# language_locales       the LanguageTool locale for each lang attribute value
+#                        (the first part of lang, lower case), lang:locale pairs.
+# language_tool_version  the LanguageTool version the baseline was recorded with;
+#                        another version is red in enforce, a warning in warn.
+language_mode=enforce
+language_locales=en:en-GB
+language_tool_version=6.8

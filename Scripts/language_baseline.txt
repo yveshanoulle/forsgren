@@ -1,0 +1,31 @@
+# Language gate baseline, read by Scripts/gate_language.sh.
+#
+# What LanguageTool still reports on the built pages (the metrics site and the
+# starter page, which is keyed as starter/index.html) after the allowlist, each
+# row judged a false positive or an accepted style hint, with its reason. The
+# gate fails on a finding that is not listed (language_mode=enforce in
+# Scripts/language_settings.txt). The measurement found no real error.
+#
+# Format: page|lang|rule|match|context|count|reason
+#   page     relative to the checked directory
+#   lang     the LanguageTool locale
+#   match    the flagged text
+#   context  up to 12 characters either side of the match, inside its paragraph
+#   count    how often the finding occurs
+# Rows are keyed by those five fields, never by an offset, so editing other text
+# does not change them. This file only SHRINKS: add no row to clear a red unless
+# the finding is judged as above; remove or lower a row as soon as its finding
+# is gone or rarer (the gate is red for a stale row).
+legend.html|en-GB|AGREEMENT_SENT_START_2|is|Open bugs is Open counte|1|a metric name that reads like a sentence start (false positive)
+legend.html|en-GB|BY_DEFAULT_COMMA|By default|ts address. By default the Issues|1|a style hint (a comma after By default); accepted as written
+legend.html|en-GB|UPPERCASE_SENTENCE_START|auto|auto_update_leve|1|a configuration key, a bump label or the lower-case product name opening a list item or a sentence on purpose (false positive)
+legend.html|en-GB|UPPERCASE_SENTENCE_START|dora|ar appears. dora_days does n|1|a configuration key, a bump label or the lower-case product name opening a list item or a sentence on purpose (false positive)
+legend.html|en-GB|UPPERCASE_SENTENCE_START|major|major: merges maj|1|a configuration key, a bump label or the lower-case product name opening a list item or a sentence on purpose (false positive)
+legend.html|en-GB|UPPERCASE_SENTENCE_START|patch|patch: merges pat|1|a configuration key, a bump label or the lower-case product name opening a list item or a sentence on purpose (false positive)
+starter/index.html|en-GB|COMMA_PARENTHESIS_WHITESPACE|,|and its code , runs forsgr|1|the inline code element of the page is checked as the word code, which leaves a loose comma (text extraction artefact, false positive)
+starter/index.html|en-GB|LICENCE_LICENSE_NOUN_SINGULAR|LICENSE|L-1.2): see LICENSE. Contributi|1|LICENSE is the name of a file, spelled as the file is (false positive)
+starter/index.html|en-GB|UPPERCASE_SENTENCE_START|a|a static page|1|a configuration key, a bump label or the lower-case product name opening a list item or a sentence on purpose (false positive)
+starter/index.html|en-GB|UPPERCASE_SENTENCE_START|forsgren|forsgren is licensed|1|a configuration key, a bump label or the lower-case product name opening a list item or a sentence on purpose (false positive)
+starter/index.html|en-GB|UPPERCASE_SENTENCE_START|forsgren|forsgren measures it|1|a configuration key, a bump label or the lower-case product name opening a list item or a sentence on purpose (false positive)
+starter/index.html|en-GB|UPPERCASE_SENTENCE_START|forsgren|forsgren shows each|1|a configuration key, a bump label or the lower-case product name opening a list item or a sentence on purpose (false positive)
+starter/index.html|en-GB|UPPERCASE_SENTENCE_START|forsgren|ll request. forsgren is open sou|1|a configuration key, a bump label or the lower-case product name opening a list item or a sentence on purpose (false positive)

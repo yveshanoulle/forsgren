@@ -9,6 +9,27 @@ Active work lives in
 
 ---
 
+## 2026-10-17 — language gate and the baselines on the run page ([#220](https://github.com/yveshanoulle/forsgren/issues/220))
+
+A language gate for the generated pages: LanguageTool 6.8 in `en-GB`, run locally
+and offline (`sandbox-exec`, no network), over the metrics site and the starter
+page. Mode `enforce`; names and terms in an allowlist (6 words), 13 false
+positives and accepted style hints in a shrink-only baseline with a reason each;
+the measurement found no real error.
+
+- **Canon, byte-identical with the other sites:** `Scripts/gate_language.sh`
+  (`gate_language v1`), `Scripts/test_gate_language.sh`, `Scripts/report_baselines.sh`
+  (`report_baselines v1`) and `Scripts/test_report_baselines.sh`.
+- **forsgren's own:** `Scripts/gate_language_pages.sh` (both page directories in
+  one, the starter page as `starter/index.html`) with its self-test, the settings,
+  allowlist and baseline files, and `languagetool` in `Scripts/required_tools.txt`
+  so CI installs it with the other Homebrew tools.
+- **Run page:** three `if: always()` steps, Language baselines, Browser baselines
+  and Image baselines (no image size gate here, so the last says so), pinned by
+  name. `MIN_GATES` 119 to 123.
+
+---
+
 ## 2026-10-02 — bootstrap: the estate's build, gates, CI and conventions for forsgren ([#1](https://github.com/yveshanoulle/forsgren/issues/1))
 
 Twenty-five steps, `da7bf40` … this review (step 25), each landed through

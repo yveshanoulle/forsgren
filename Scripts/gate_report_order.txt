@@ -170,6 +170,33 @@ starter page privacy posture|Scripts/check_privacy_posture_starter.sh|post|
 # rule for the metrics site and is never run on this page.
 starter page links|Scripts/check_starter_links.sh|post|
 #
+# --- Language gate (forsgren#220) ------------------------------------------
+# The visible text of every generated page, the metrics site and the starter
+# page, checked by LanguageTool run locally and offline (sandbox-exec, no
+# network, never a remote service). The canon gate checks one directory, so a
+# wrapper (Scripts/gate_language_pages.sh) puts both in one, the starter page as
+# starter/index.html; a row names a script, not a command line. What remains
+# after the allowlist (Scripts/language_allowlist.txt: names and terms) is a
+# shrink-only baseline of false positives and accepted style hints
+# (Scripts/language_baseline.txt, keyed by page, language, rule, match and
+# context, never by offset). The mode is a site setting
+# (Scripts/language_settings.txt): enforce here, so a finding that is not listed
+# is red, as is a listed one that is gone. A missing LanguageTool or Java is red
+# in both modes. The canon self-test stubs LanguageTool and the wrapper's stubs
+# the gate; both run first, in pre. The gate reads the pages just built, so it
+# is post, after the starter page build above.
+language gate self-test|Scripts/test_gate_language.sh|pre|
+language pages wrapper self-test|Scripts/test_gate_language_pages.sh|pre|
+language gate|Scripts/gate_language_pages.sh|post|
+#
+# --- Baseline report (forsgren#220) ----------------------------------------
+# Scripts/report_baselines.sh renders the baseline data files (language,
+# browser, image size) as markdown tables on the Quality run page, one step per
+# gate in quality.yml (pinned by name in test_gate_wiring.sh). It is
+# presentation, not a gate, so only its self-test is a row. The image size
+# section prints that this site has no such file: there is no image size gate.
+baseline report self-test|Scripts/test_report_baselines.sh|pre|
+#
 # n/a rows, declared as the canon declares them (estate gate-parity): the
 # deployed-pages self-test belongs to a repository that deploys its pages to a
 # server and verifies them there; forsgren publishes no site of its own pages
