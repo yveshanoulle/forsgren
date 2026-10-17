@@ -446,3 +446,29 @@ carries the permission line.
 `README.md` and `docs/` in the same change, or the docs version pin fails; a
 new MAJOR also needs a new proof run of each agent file, recorded in its
 Tested-with line, or the Tested-with major test fails.
+
+**The building blocks of the Release workflow** (forsgren#221, step 1 of 2).
+Two scripts do the checkable parts of a release; the workflow that runs them
+comes in step 2.
+
+- `Scripts/release_plan.sh <patch|minor|major> [--notes <file>]` reads the
+  latest release and the issues closed after its publish time. Each issue
+  requires the bump of its label (`patch`, `minor` or `major`, the highest
+  wins; none of the three counts as a patch). Issues labelled `decision`,
+  `duplicate`, `invalid`, `wontfix` or `question`, and issues closed as not
+  planned, are not part of a release. It stops when nothing was closed since
+  the release, and when the requested bump is lower than the required one,
+  naming the issues that require more. Otherwise it prints the next version
+  and the release notes, one `- #N title` line per issue grouped under Major,
+  Minor, Patch and Other.
+- `Scripts/release_bump.sh <new-version>` makes the bump of the manual bump
+  commits: `version` in `cmd/forsgren/main.go`, the version the tests and
+  golden pages under `cmd/forsgren` and `internal/page` pin, the
+  newer-release examples in them (the patch after the new version), and the
+  running version in `README.md` and `docs/`. It leaves `SHIPPED.md` and the
+  npm files alone, and fails when a file still holds the old version. A new
+  major still needs the proof runs of the agent files by hand.
+
+Their self-tests, `Scripts/test_release_plan.sh` and
+`Scripts/test_release_bump.sh`, run in sfl and Quality; the second bumps a
+copy of the repository and runs `go test ./...` on it.

@@ -152,11 +152,12 @@ fi
 # Raised to 118 for the browser gate and its self-test (forsgren#205), and to
 # 119 for the live check's self-test (forsgren#205, step 2 of 2), and to 123
 # for the language gate (its self-test, the pages wrapper's self-test and the gate)
-# and the baseline report self-test (forsgren#220).
+# and the baseline report self-test (forsgren#220), and to 125 for the two
+# self-tests of the release building blocks (forsgren#221, step 1 of 2).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=123
+MIN_GATES=125
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -508,6 +509,17 @@ for path in Scripts/*.sh; do
       require_fixture "$base" "the live check would be unproven"
       order_names "test_${base}" \
         || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the check starter_page.yml runs"
+      ;;
+
+    # RELEASE BUILDING BLOCKS, not gates (forsgren#221, step 1 of 2): the
+    # release plan (bump required by the labels of the closed issues, next
+    # version, notes) and the version bump. The Release workflow of step 2
+    # runs them; their self-tests are order-file rows, so sfl and Quality
+    # prove them meanwhile. Step 2 adds the workflow invocation pin here.
+    release_plan.sh|release_bump.sh)
+      require_fixture "$base" "the release step would be unproven"
+      order_names "test_${base}" \
+        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
       ;;
 
     # HELPER OF THE DCO CHECK, not a gate (forsgren#81): lists the commits of

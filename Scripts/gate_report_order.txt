@@ -729,6 +729,17 @@ browser gate|Scripts/gate_browser.sh|post|
 # job's needs, permissions and command.
 live check self-test|Scripts/test_live_check.sh|pre|
 #
+# --- Release building blocks (forsgren#221, step 1 of 2) -----------------
+# Scripts/release_plan.sh (the bump the labels of the issues closed since the
+# last release require, checked against the requested one, with the next
+# version and the release notes) and Scripts/release_bump.sh (the version bump
+# of a release, golden pages included) are NOT gates: the Release workflow of
+# step 2 runs them, with gh and a checkout. What runs on every sfl and Quality
+# run is their self-tests: the plan on fixture data with no gh, the bump on a
+# copy of the repository with `go test ./...` on it.
+release plan self-test|Scripts/test_release_plan.sh|pre|
+release bump self-test|Scripts/test_release_bump.sh|pre|
+#
 # The privacy pages belong to a site that needs privacy pages: another estate repository
 # serves a privacy policy, and its check_privacy_pages.sh pins that
 # policy's content (language, title, approved date, binding-version

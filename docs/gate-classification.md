@@ -21,7 +21,7 @@ not close it.
 ## The order file, row by row
 
 [Scripts/gate_report_order.txt](../Scripts/gate_report_order.txt) is the one
-list sfl and CI both run. It has 123 rows: 119 with a script and 4 `n/a`
+list sfl and CI both run. It has 125 rows: 121 with a script and 4 `n/a`
 rows. All scripts are in `Scripts/`. The phase is `pre` (repository inputs and
 checker behaviour) or `post` (the generated site). `secret-class` means a
 finding blocks the commit as well as the push. A row for a self-test is
@@ -151,8 +151,10 @@ self-tests are.
 | 119 | language pages wrapper self-test | `test_gate_language_pages.sh` | pre | required; the wrapper's own, the canon gate stubbed, 3 mutations |
 | 120 | language gate | `gate_language_pages.sh` | post | required; runs `gate_language.sh` (`gate_language v2`) over the metrics site and the starter page; LanguageTool 6.8 run locally and offline; mode `enforce` in `language_settings.txt`; the allowlist and the baseline are data files (see below) |
 | 121 | baseline report self-test | `test_report_baselines.sh` | pre | required, `test_report_baselines v2`; the report itself, `report_baselines.sh` (`report_baselines v2`), is presentation, not a gate: Quality calls it in three steps (see below) |
-| 122 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
-| 123 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
+| 122 | release plan self-test | `test_release_plan.sh` | pre | required; fixture data, no gh, 4 mutations. The plan itself, `release_plan.sh`, is not a gate: the Release workflow of forsgren#221 step 2 runs it |
+| 123 | release bump self-test | `test_release_bump.sh` | pre | required; bumps a copy of the repository and runs `go test ./...` on it, 2 mutations. The bump itself, `release_bump.sh`, is not a gate: the Release workflow runs it |
+| 124 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
+| 125 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
 
 ## Documented exceptions
 
@@ -283,9 +285,11 @@ malformed row fails the step. Its self-test is the PRE row 121.
 
 ## The ratchet today
 
-`MIN_GATES` is 123, which equals the 123 rows of the order file (119 with a
+`MIN_GATES` is 125, which equals the 125 rows of the order file (121 with a
 script and 4 `n/a` rows). forsgren#215 brought it to 115 and the Go tool
 helper self-test of forsgren#216 is the 116th; the browser gate and its
 self-test (forsgren#205) made 118, and the live check self-test
 (forsgren#205, step 2 of 2) made 119; the language gate, the pages wrapper's
-self-test and the baseline report self-test (forsgren#220) made 123.
+self-test and the baseline report self-test (forsgren#220) made 123; the
+self-tests of the release plan and the release bump (forsgren#221, step 1 of
+2) made 125.
