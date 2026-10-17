@@ -1,0 +1,206 @@
+# .github/workflows/release.yml
+#
+# The Release workflow (forsgren#221): one run releases patch, minor or major
+# and does what the manual release did, step by step. All logic lives in tested
+# scripts (Scripts/release_*.sh, each with a self-test that runs in sfl and
+# Quality); this file only calls them, in this order, and
+# Scripts/test_release_workflow.sh pins it.
+#
+#   a. Quality is green on main's head.
+#   b. Scripts/release_plan.sh: the bump the labels of the issues closed since
+#      the last release require, checked against the requested one; stops when
+#      nothing was closed, an issue has no label, or the bump is too low.
+#   c. The version is new (no tag, no release); Scripts/release_bump.sh bumps
+#      the working tree and `go test ./...` runs on it; only then
+#      Scripts/release_commit.sh commits it as github-actions[bot] with a DCO
+#      sign-off and pushes it to main (a fast-forward, or nothing happens).
+#   d. quality.yml is dispatched on the bump commit (a push by the job's token
+#      starts no run, a dispatch by it does) and awaited, bounded.
+#   e. `gh release create` makes the tag and the release together, Latest,
+#      with the notes of step b: a tag never exists without its release.
+#   f. forsgren-template: pins and README in one commit.
+#   g. forsgren-metrics: a pin pull request.
+# Steps f and g use the secret FORSGREN_RELEASE_TOKEN, a fine-grained token
+# (docs/updating-and-releases.md says which). It is checked first thing, so
+# a missing secret stops the run before anything is pushed, and again in f and
+# g, which fail with an ::error:: naming it and never skip.
+# The last step runs whatever happened and says what was done and what was not
+# (Scripts/release_report.sh).
+#
+# Triggers: workflow_dispatch only: from the Actions page, or through the API
+# (`gh workflow run release.yml -f bump=patch`; patch is the default). Run it
+# on main. Permissions: contents write (the bump commit, the tag and release),
+# actions write (dispatching Quality), issues read (the closed issues).
+# Everything user-controlled reaches the shell through env:, never ${{ }}
+# inside run:.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "The kind of release: checked against the labels of the issues closed since the last one"
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: read
+
+# One release at a time, never cancelled half way.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write   # the bump commit on main, the tag and the release
+      actions: write    # dispatch quality.yml on the bump commit
+      issues: read      # the issues closed since the last release
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+
+    steps:
+      - name: Require a run on main
+        shell: bash
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [ "$REF" != "refs/heads/main" ]; then
+            echo "::error::The Release workflow runs on main, this run is on ${REF}."
+            exit 1
+          fi
+
+      - name: Check out main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Start the log of what is done
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "RELEASE_LOG=${RUNNER_TEMP}/release.log" >> "$GITHUB_ENV"
+          toolchain="$(./Scripts/go_toolchain.sh)"
+          echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
+
+      - name: Check the release token is set
+        shell: bash
+        env:
+          FORSGREN_RELEASE_TOKEN: ${{ secrets.FORSGREN_RELEASE_TOKEN }}
+        run: ./Scripts/release_pins.sh token
+
+      - name: Quality is green on main
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./Scripts/release_quality.sh check "$GITHUB_SHA"
+          echo "quality: green on ${GITHUB_SHA}" >> "$RELEASE_LOG"
+
+      - name: Plan the release
+        id: plan
+        shell: bash
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          set -euo pipefail
+          ./Scripts/release_plan.sh "$BUMP" --notes "${RUNNER_TEMP}/notes.md" | tee "${RUNNER_TEMP}/plan.txt"
+          grep -E '^(version|tag|issues)=' "${RUNNER_TEMP}/plan.txt" >> "$GITHUB_OUTPUT"
+          echo "plan: $(grep '^version=' "${RUNNER_TEMP}/plan.txt") for $(grep '^issues=' "${RUNNER_TEMP}/plan.txt")" >> "$RELEASE_LOG"
+
+      - name: Check the version is new
+        shell: bash
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          set -euo pipefail
+          ./Scripts/release_publish.sh free "$VERSION"
+          echo "free: no tag and no release v${VERSION}" >> "$RELEASE_LOG"
+
+      - name: Bump the version in the working tree
+        shell: bash
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          set -euo pipefail
+          ./Scripts/release_bump.sh "$VERSION"
+          echo "bump: the working tree is at ${VERSION}, not committed" >> "$RELEASE_LOG"
+
+      - name: Test the bumped tree
+        shell: bash
+        run: go test ./...
+
+      - name: Commit the bump and push it to main
+        id: commit
+        shell: bash
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+          ISSUES: ${{ steps.plan.outputs.issues }}
+          FORSGREN_PRIVATE_NAMES: ${{ secrets.FORSGREN_PRIVATE_NAMES }}
+          FORSGREN_PRIVATE_NAMES_EXTRA: ${{ secrets.FORSGREN_PRIVATE_NAMES_EXTRA }}
+        run: |
+          set -euo pipefail
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          ./Scripts/release_commit.sh "$VERSION" "$ISSUES" "$remote" | tee "${RUNNER_TEMP}/commit.txt"
+          grep '^sha=' "${RUNNER_TEMP}/commit.txt" >> "$GITHUB_OUTPUT"
+          echo "commit: $(grep '^sha=' "${RUNNER_TEMP}/commit.txt") pushed to main" >> "$RELEASE_LOG"
+
+      - name: Quality is green on the bump commit
+        shell: bash
+        env:
+          BUMP_SHA: ${{ steps.commit.outputs.sha }}
+        run: |
+          set -euo pipefail
+          ./Scripts/release_quality.sh dispatch "$BUMP_SHA" main
+          echo "quality-bump: green on ${BUMP_SHA}" >> "$RELEASE_LOG"
+
+      - name: Create the tag and the release
+        shell: bash
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+          BUMP_SHA: ${{ steps.commit.outputs.sha }}
+        run: |
+          set -euo pipefail
+          ./Scripts/release_publish.sh create "$VERSION" "$BUMP_SHA" "${RUNNER_TEMP}/notes.md"
+          echo "publish: tag and release v${VERSION} at ${BUMP_SHA}, Latest" >> "$RELEASE_LOG"
+
+      - name: Move the pins and README of forsgren-template
+        shell: bash
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+          BUMP_SHA: ${{ steps.commit.outputs.sha }}
+          FORSGREN_RELEASE_TOKEN: ${{ secrets.FORSGREN_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          ./Scripts/release_pins.sh template "$VERSION" "$BUMP_SHA"
+          echo "template: pins and README at ${VERSION}" >> "$RELEASE_LOG"
+
+      - name: Open the pin pull request in forsgren-metrics
+        shell: bash
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+          BUMP_SHA: ${{ steps.commit.outputs.sha }}
+          FORSGREN_RELEASE_TOKEN: ${{ secrets.FORSGREN_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          ./Scripts/release_pins.sh metrics "$VERSION" "$BUMP_SHA"
+          echo "metrics: pin pull request for ${VERSION} opened" >> "$RELEASE_LOG"
+
+      - name: Say what was done
+        if: ${{ always() }}
+        shell: bash
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./Scripts/release_report.sh "${RELEASE_LOG:-${RUNNER_TEMP}/release.log}" "$JOB_STATUS"

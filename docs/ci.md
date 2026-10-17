@@ -325,6 +325,21 @@ Nine PRE gates keep the CI honest:
   naming the IDs and the fixed version. A failed scheduled run is visible in
   Actions; no issue is opened. The real file must hold every pin and each
   pin is proved by a mutant that breaks it.
+- **release workflow** (`Scripts/test_release_workflow.sh`, forsgren's own,
+  forsgren#221): `release.yml` releases patch, minor or major in one run,
+  started by hand or through the API (`workflow_dispatch` only, the input
+  `bump` a choice of patch, minor, major, default patch; one release at a
+  time, never cancelled). The top level has `contents: read`; the one job, on
+  `ubuntu-latest`, adds exactly `contents: write`, `actions: write` and
+  `issues: read`. It uses `actions/checkout` (no persisted credentials) and
+  `actions/setup-go` at the commits `metrics.yml` pins, and every step is a
+  tested script: Quality on main, the plan, the new version, the bump and
+  `go test`, the signed-off commit, Quality dispatched on it, the release,
+  the template pins, the metrics pin pull request, the report. No `run:` block
+  expands a `${{ }}` expression, the tag is made only by
+  `Scripts/release_publish.sh`, and the secret `FORSGREN_RELEASE_TOKEN` is in
+  the env of exactly three steps. The scripts' self-tests are order-file rows.
+  See [Updating and releases](updating-and-releases.md#the-release-workflow).
 - **metrics workflow** (`Scripts/test_metrics_workflow.sh`, forsgren's
   own): `metrics.yml` triggers on `workflow_call` and nothing else, and
   declares no inputs; no `run:` block expands a `${{ }}` expression; the

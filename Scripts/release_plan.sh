@@ -12,22 +12,31 @@
 # ones that are not part of a release:
 #   - labelled decision, duplicate, invalid, wontfix or question
 #   - closed as not planned
+#   - named in the notes of an earlier release (a `#N` in the body of any of
+#     the last 100 releases): an issue closed after its release was published
+#     is never released twice
 # Each remaining issue requires the bump of its label: patch, minor or major
-# (the highest of its labels); an issue with none of the three requires a
-# patch. The highest requirement wins.
+# (the highest of its labels). The highest requirement wins. An issue with
+# none of the three labels cannot be judged: the plan stops and names every
+# such issue.
 #
 # Red (exit 1, a ❌ line that names the reason):
 #   - nothing was closed since the latest release
+#   - an issue has no patch, minor or major label: every one is named, followed
+#     by "label it patch, minor or major"
 #   - the requested bump is lower than the required one; the line names the
 #     issues that require more
 # Green (exit 0): `OK: next version X.Y.Z`, then the lines `version=X.Y.Z` and
-# `tag=vX.Y.Z`, then the release notes: one `- #N title` line per issue,
-# grouped under ### Major, ### Minor, ### Patch and ### Other (no bump label).
+# `tag=vX.Y.Z` and `issues=#3 #5` (the numbers, ascending), then the release
+# notes: one `- #N title` line per issue, grouped under ### Major, ### Minor
+# and ### Patch.
 # With --notes the same notes are written to <file>.
 # Exit 2: a usage error, or a latest release that is no vX.Y.Z tag.
 #
-# Data: from gh (latest release, closed issues). The seam for the self-test is
-# RELEASE_PLAN_DATA, a file read instead of gh: the first line is the latest
+# Data: from gh (latest release, closed issues, the bodies of the earlier
+# releases). The seam for the self-test is RELEASE_PLAN_DATA, a file read
+# instead of gh (RELEASE_PLAN_NOTES, a file with the earlier releases' notes,
+# stands for their bodies; none when unset): the first line is the latest
 # tag, TAB, its publish time (UTC, 2026-10-17T05:06:23Z); every other line is
 # number, title, labels (comma separated), closed time, state reason, TAB
 # separated.
@@ -101,6 +110,25 @@ fetch() {
     || refuse "gh could not list the closed issues"
 }
 
+# earlier_notes: the notes of the earlier releases, from the seam or from gh.
+earlier_notes() {
+  if [ -n "${RELEASE_PLAN_DATA:-}" ]; then
+    if [ -n "${RELEASE_PLAN_NOTES:-}" ]; then cat "$RELEASE_PLAN_NOTES"; fi
+    return
+  fi
+  local tags tag
+  tags="$(gh release list --limit 100 --json tagName --jq '.[].tagName')" \
+    || refuse "gh could not list the releases"
+  for tag in $tags; do
+    gh release view "$tag" --json body --jq '.body' || refuse "gh could not read the notes of ${tag}"
+  done
+}
+
+# is_named <number>: 0 when an earlier release's notes name the issue.
+is_named() {
+  printf '%s\n' "$NAMED" | grep -qxF "#$1"
+}
+
 # is_excluded <labels> <reason>: 0 when the issue is not part of a release.
 is_excluded() {
   case ",$1," in
@@ -135,7 +163,9 @@ PATCH="${BASH_REMATCH[3]}"
 # A tab is white space to read, which would swallow an empty labels field: the
 # fields are split on a unit separator instead.
 SEP="$(printf '\037')"
+NAMED="$(earlier_notes | grep -oE '#[0-9]+' | sort -u)" || NAMED="$(true)"
 count=0
+unlabelled=""
 required_rank=1
 rows=""
 while IFS="$SEP" read -r number title labels closed reason; do
@@ -144,16 +174,32 @@ while IFS="$SEP" read -r number title labels closed reason; do
   if is_excluded "$labels" "$reason"; then
     continue
   fi
+  if is_named "$number"; then
+    continue
+  fi
   bump="$(label_bump "$labels")"
+  count=$((count + 1))
+  if [ "$bump" = other ]; then
+    unlabelled="${unlabelled}#${number} ${title}: label it patch, minor or major
+"
+    continue
+  fi
   rank="$(rank_of "$bump")"
   if (( rank > required_rank )); then required_rank="$rank"; fi
-  count=$((count + 1))
   rows="${rows}${bump}	${number}	${title}
 "
 done <<< "$(printf '%s\n' "$RAW" | tail -n +2 | tr '\t' "$SEP")"
 
 if (( count == 0 )); then
   stop "nothing was closed since ${TAG}"
+fi
+
+if [ -n "$unlabelled" ]; then
+  printf '%s' "$unlabelled" | while IFS= read -r line; do
+    echo "❌ FAIL: release plan: ${line}"
+  done
+  COMPLETED=1
+  exit 1
 fi
 
 requested_rank="$(rank_of "$REQUESTED")"
@@ -179,7 +225,7 @@ case "$REQUESTED" in
 esac
 
 NOTES=""
-for group in major minor patch other; do
+for group in major minor patch; do
   lines="$(printf '%s' "$rows" | awk -F'\t' -v g="$group" '$1 == g { printf "%08d\t- #%s %s\n", $2, $2, $3 }' | sort | cut -f2-)"
   [ -n "$lines" ] || continue
   heading="$(printf '%s' "$group" | awk '{ print toupper(substr($0, 1, 1)) substr($0, 2) }')"
@@ -195,6 +241,7 @@ fi
 echo "OK: next version ${NEXT} (${count} issues closed since ${TAG}, ${REQUESTED} requested, ${required} required)"
 echo "version=${NEXT}"
 echo "tag=v${NEXT}"
+echo "issues=$(printf '%s' "$rows" | awk -F'\t' '{ printf "%08d\t#%s\n", $2, $2 }' | sort | cut -f2 | tr '\n' ' ' | sed 's/ $//')"
 echo "release notes:"
 printf '%s\n' "$NOTES"
 COMPLETED=1

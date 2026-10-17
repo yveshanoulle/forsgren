@@ -729,16 +729,28 @@ browser gate|Scripts/gate_browser.sh|post|
 # job's needs, permissions and command.
 live check self-test|Scripts/test_live_check.sh|pre|
 #
-# --- Release building blocks (forsgren#221, step 1 of 2) -----------------
+# --- The Release workflow and its scripts (forsgren#221) -----------------
+# .github/workflows/release.yml releases patch, minor or major in one run, and
+# its scripts are NOT gates: they need gh, a checkout and tokens.
 # Scripts/release_plan.sh (the bump the labels of the issues closed since the
 # last release require, checked against the requested one, with the next
-# version and the release notes) and Scripts/release_bump.sh (the version bump
-# of a release, golden pages included) are NOT gates: the Release workflow of
-# step 2 runs them, with gh and a checkout. What runs on every sfl and Quality
-# run is their self-tests: the plan on fixture data with no gh, the bump on a
-# copy of the repository with `go test ./...` on it.
+# version and the release notes), release_bump.sh (the version bump, golden
+# pages included), release_quality.sh (Quality green, also dispatched),
+# release_commit.sh (the signed-off bump commit pushed to main),
+# release_publish.sh (the tag and the release in one call), release_pins.sh
+# (forsgren-template's pins and README, forsgren-metrics' pin pull request)
+# and release_report.sh (what was done). What runs on every sfl and Quality
+# run is their self-tests (fixture data, a stub gh, throwaway repositories, a
+# copy of the repository with `go test ./...` on it) and the pin of the
+# workflow itself, which holds the order, the permissions and the arguments.
 release plan self-test|Scripts/test_release_plan.sh|pre|
 release bump self-test|Scripts/test_release_bump.sh|pre|
+release quality self-test|Scripts/test_release_quality.sh|pre|
+release commit self-test|Scripts/test_release_commit.sh|pre|
+release publish self-test|Scripts/test_release_publish.sh|pre|
+release pins self-test|Scripts/test_release_pins.sh|pre|
+release report self-test|Scripts/test_release_report.sh|pre|
+release workflow|Scripts/test_release_workflow.sh|pre|
 #
 # The privacy pages belong to a site that needs privacy pages: another estate repository
 # serves a privacy policy, and its check_privacy_pages.sh pins that

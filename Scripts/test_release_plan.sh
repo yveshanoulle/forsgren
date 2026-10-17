@@ -17,12 +17,16 @@
 #      closed issue is older than the publish time
 #   7. decision / duplicate / invalid / wontfix / question issues and issues
 #      closed as not planned                      -> never count, never raise
-#   8. an issue without a bump label              -> counts as a patch, "Other"
+#   8. an issue without a patch, minor or major label -> red, every such
+#      issue named, followed by "label it patch, minor or major"
+#   8b. an issue that an earlier release's notes name -> never listed again
+#      (RELEASE_PLAN_NOTES stands for the notes of the earlier releases)
 #   9. --notes writes the notes to a file
 #  10. usage errors, a latest tag that is no vX.Y.Z -> exit 2
 # Mutation proofs: a copy that accepts a lower bump, one that accepts nothing
-# closed, one without the exclusion and one without the publish-time filter
-# must each let the case they exist for pass.
+# closed, one without the exclusion, one without the publish-time filter, one
+# that lets an unlabelled issue pass and one that lists an issue an earlier
+# release named must each let the case they exist for pass.
 
 set -euo pipefail
 
@@ -122,11 +126,30 @@ want_green "excluded issues never raise the required bump" "OK: next version 1.9
 if grep -qE '#20|#25' <<< "$OUT"; then fail "an excluded issue is in the output. Output: ${OUT}"; fi
 
 # 8
-data "$(issue 30 'No label' '')" "$(issue 31 'Other label' 'tools')"
+data "$(issue 30 'No label' '')" "$(issue 31 'Other label' 'tools')" "$(issue 5 'Fix the thing' patch)"
 plan "$PLAN" patch
-want_green "issues without a bump label" "OK: next version 1.9.4"
-want_said "they are listed under Other" "### Other"
-want_said "an issue with another label is listed" "- #31 Other label"
+want_red "issues without a bump label" "#30 No label: label it patch, minor or major"
+want_said "every unlabelled issue is named" "#31 Other label: label it patch, minor or major"
+if grep -qF '#5 ' <<< "$OUT"; then fail "a labelled issue is named among the unlabelled ones. Output: ${OUT}"; fi
+if grep -qF 'OK:' <<< "$OUT"; then fail "the plan says OK although issues have no label. Output: ${OUT}"; fi
+data "$(issue 30 'No label' 'decision')"
+plan "$PLAN" patch
+want_red "an excluded issue without a bump label is no reason to stop" "nothing was closed since v1.9.3"
+
+# 8b
+printf 'forsgren 1.9.3\n\n- Favicon ([#218](https://github.com/acme/app/issues/218)).\nFrom #209 and #210.\n' > "${TMP}/notes_before.md"
+data "$(issue 218 'Favicon' patch)" "$(issue 223 'Live check' patch)" "$(issue 2090 'Not 209' patch)"
+RELEASE_PLAN_NOTES="${TMP}/notes_before.md" plan "$PLAN" patch
+want_green "an issue an earlier release named" "OK: next version 1.9.4"
+want_said "the others are listed" "- #223 Live check"
+want_said "an issue number that only starts like a named one is listed" "- #2090 Not 209"
+if grep -qF '#218' <<< "$OUT"; then fail "#218 was named by an earlier release and is listed again. Output: ${OUT}"; fi
+data "$(issue 218 'Favicon' patch)" "$(issue 209 'Gates' 'minor')"
+RELEASE_PLAN_NOTES="${TMP}/notes_before.md" plan "$PLAN" patch
+want_red "only issues earlier releases named" "nothing was closed since v1.9.3"
+data "$(issue 5 'Fix the thing' patch)"
+RELEASE_PLAN_NOTES="${TMP}/notes_before.md" plan "$PLAN" patch
+want_said "the issue numbers are a machine readable line" "issues=#5"
 
 data "$(issue 32 'No label, old' '' "$BEFORE")"
 plan "$PLAN" patch
@@ -190,6 +213,21 @@ fi
 data "$(issue 5 'Fix the thing' patch "$BEFORE")"
 if mutant_runs timefilter 's/\[\[ ".closed" > ".published" \]\] || continue/true || continue/' patch; then
   want_green "mutation proof: without the publish-time filter an old issue is released again" "OK: next version 1.9.4"
+fi
+
+data "$(issue 30 'No label' '')"
+if mutant_runs unlabelled "s/if \[ \".bump\" = other \]; then/if false; then/" patch; then
+  if [[ "$RC" -eq 0 ]] && grep -qF "OK: next version" <<< "$OUT"; then
+    echo "  ok: mutation proof: without the check an unlabelled issue passes"
+  else
+    fail "mutation proof: the mutant without the label check still refused (exit ${RC}). Output: ${OUT}"
+  fi
+fi
+
+data "$(issue 218 'Favicon' patch)"
+if selftest_mutant "$PLAN" "${TMP}/mut/named/release_plan.sh" "s/if is_named \".number\"; then/if false; then/"; then
+  RELEASE_PLAN_NOTES="${TMP}/notes_before.md" RELEASE_PLAN_DATA="${TMP}/data.tsv" capture "${TMP}/mut/named/release_plan.sh" patch
+  want_green "mutation proof: without the filter an issue an earlier release named is released again" "- #218 Favicon"
 fi
 
 selftest_end "the release plan does not hold" "release plan: the bump check, the closed-issue filter, the notes and the version arithmetic all held"

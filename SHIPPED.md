@@ -729,3 +729,20 @@ Tooling only: no release.
   - `.github/workflows/starter_page.yml` has a third job, `live-check`: `needs: deploy`, only when the deploy step really published (a release run that skipped the deploy skips it), `contents: read`, `Scripts/live_check.sh https://forsgren.be`. A red check cannot undo the deploy; it makes the job red.
   - Red first: `Scripts/test_live_check.sh` run before the script existed. It uses a stub curl, no network, and covers each check passing and failing by name, the href forms, the bounded retry, the usage errors, and four mutants (no redirect check, no Location assertion, `--insecure`, no stylesheet check). `Scripts/test_starter_page_workflow.sh` pins the new job, with eight mutants.
   - `MIN_GATES` 118 to 119 (the self-test in pre). The live check itself is not a local gate: it needs the deployed site. No new secret; the job adds no permission.
+
+---
+
+## 2026-10-17 — a Release workflow releases patch, minor or major in one run ([#221](https://github.com/yveshanoulle/forsgren/issues/221), 1/2 and 2/2)
+
+Tooling only: no release.
+
+- **#221 (1/2), the building blocks.**
+  - `Scripts/release_plan.sh` computes the bump the labels of the closed issues require and the release notes; `Scripts/release_bump.sh` makes the version bump of the manual bump commits, goldens included, and run on the tree before the 1.9.3 bump it reproduces that commit byte for byte.
+  - Red first: both self-tests before the scripts existed; mutation proofs for a lower bump accepted, nothing closed accepted and a missed golden page.
+- **#221 (2/2), the workflow.**
+  - `.github/workflows/release.yml`: `workflow_dispatch` with `bump` (patch, minor, major; default patch), permissions `contents: write`, `actions: write`, `issues: read`. The steps: Quality green on main, the plan, the new version, the bump and `go test`, the DCO-signed bump commit as github-actions[bot] pushed to main, Quality dispatched on it and awaited (bounded), one `gh release create --target <bump commit> --latest`, forsgren-template's pins and README in one git-data commit, a pin pull request in forsgren-metrics, and a last step that says what was done.
+  - Decisions on the issue: an issue without a patch, minor or major label stops the plan and is named; an issue an earlier release's notes already name is never listed again.
+  - Scripts, each with a self-test and mutation proofs: `release_quality.sh`, `release_commit.sh` (a throwaway repository with a bare origin), `release_publish.sh`, `release_pins.sh` (a stub of the git-data API over the real template files), `release_report.sh`; `Scripts/test_release_workflow.sh` pins the workflow with 25 mutants.
+  - The new secret `FORSGREN_RELEASE_TOKEN` (fine-grained: contents write on forsgren-template, contents and pull-requests write on forsgren-metrics, expiry under one year) is checked first thing and again by the two steps that use it.
+  - `MIN_GATES` 123 to 131.
+

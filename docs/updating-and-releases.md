@@ -447,28 +447,84 @@ carries the permission line.
 new MAJOR also needs a new proof run of each agent file, recorded in its
 Tested-with line, or the Tested-with major test fails.
 
-**The building blocks of the Release workflow** (forsgren#221, step 1 of 2).
-Two scripts do the checkable parts of a release; the workflow that runs them
-comes in step 2.
+## The Release workflow
 
-- `Scripts/release_plan.sh <patch|minor|major> [--notes <file>]` reads the
-  latest release and the issues closed after its publish time. Each issue
-  requires the bump of its label (`patch`, `minor` or `major`, the highest
-  wins; none of the three counts as a patch). Issues labelled `decision`,
-  `duplicate`, `invalid`, `wontfix` or `question`, and issues closed as not
-  planned, are not part of a release. It stops when nothing was closed since
-  the release, and when the requested bump is lower than the required one,
-  naming the issues that require more. Otherwise it prints the next version
-  and the release notes, one `- #N title` line per issue grouped under Major,
-  Minor, Patch and Other.
-- `Scripts/release_bump.sh <new-version>` makes the bump of the manual bump
-  commits: `version` in `cmd/forsgren/main.go`, the version the tests and
-  golden pages under `cmd/forsgren` and `internal/page` pin, the
-  newer-release examples in them (the patch after the new version), and the
-  running version in `README.md` and `docs/`. It leaves `SHIPPED.md` and the
-  npm files alone, and fails when a file still holds the old version. A new
-  major still needs the proof runs of the agent files by hand.
+`.github/workflows/release.yml` (forsgren#221) cuts a release in one run. Start
+it from the Actions page (Release, Run workflow, on `main`) with the kind of
+release, `patch`, `minor` or `major` (the default is `patch`), or through the
+API: `gh workflow run release.yml -f bump=minor`. The run does, in this order,
+and stops at the first step that fails:
 
-Their self-tests, `Scripts/test_release_plan.sh` and
-`Scripts/test_release_bump.sh`, run in sfl and Quality; the second bumps a
-copy of the repository and runs `go test ./...` on it.
+1. **Quality is green on main's head** (`Scripts/release_quality.sh check`).
+2. **The plan** (`Scripts/release_plan.sh`), before anything changes. It reads
+   the latest release and the issues closed after its publish time. Each
+   issue requires the bump of its label, `patch`, `minor` or `major`; the
+   highest wins. These issues are not part of a release: the ones labelled
+   `decision`, `duplicate`, `invalid`, `wontfix` or `question`, the ones closed
+   as not planned, and the ones that the notes of an earlier release already
+   name (an issue closed after its release was published is never listed
+   twice). The plan stops when nothing is left, and when an issue has none of
+   the three labels: every such issue is named, followed by "label it patch,
+   minor or major". It stops when the requested bump is lower than the
+   required one and names the issues that require more, so a minor change is
+   never released as a patch. Otherwise it prints the next version and the
+   release notes, one `- #N title` line per issue, grouped under Major, Minor
+   and Patch.
+3. **The version is new**, no tag and no release of that name
+   (`Scripts/release_publish.sh free`).
+4. **The bump** (`Scripts/release_bump.sh`): `version` in `cmd/forsgren/main.go`,
+   the version the tests and golden pages under `cmd/forsgren` and
+   `internal/page` pin, the newer-release examples in them (the patch after the
+   new version), and the running version in `README.md` and `docs/`. It leaves
+   `SHIPPED.md` and the npm files alone, and fails when a file still holds the
+   old version. Then `go test ./...` runs on the bumped tree. A new major
+   needs the proof runs of the agent files, which no script can do: it fails
+   here, before anything is pushed.
+5. **The bump commit** (`Scripts/release_commit.sh`), as `github-actions[bot]`
+   with a DCO sign-off, the subject `release X.Y.Z (1/1): bump to X.Y.Z, #N #M`,
+   checked by `Scripts/check_private_names.sh --message` first, pushed to
+   `main` as a fast-forward: if `main` moved since the run began, the push is
+   refused and nothing has changed.
+6. **Quality on the bump commit**: a push by the job's token starts no run, so
+   the workflow dispatches `quality.yml` and waits for its run on that commit,
+   at most an hour (`Scripts/release_quality.sh dispatch`).
+7. **The tag and the release**, in one `gh release create vX.Y.Z --target
+   <bump commit> --latest` with the notes of the plan
+   (`Scripts/release_publish.sh create`). Nothing else makes the tag, so a tag
+   never exists without its release.
+8. **The template**: the pins of both caller workflows and the README of
+   forsgren-template move to the new release in one commit, through the
+   git-data API, the way the manual release did it
+   (`Scripts/release_pins.sh template`).
+9. **The metrics installation**: a pull request in forsgren-metrics that moves
+   the pins of its two workflows to the new release
+   (`Scripts/release_pins.sh metrics`). Merge it to update that page at once.
+   Other installations keep their own Dependabot schedule.
+
+The last step runs whatever happened and prints what was done and what was not
+(`Scripts/release_report.sh`), so a run that fails halfway says so: a bump
+commit that was pushed stays on `main`, and a tag exists only together with its
+release. `SHIPPED.md` is still written by hand.
+
+**The secret `FORSGREN_RELEASE_TOKEN`** is what steps 8 and 9 use, since the
+job's own token cannot write to another repository. It is a fine-grained
+personal access token of the owner of the repositories:
+
+- resource owner: the account that owns forsgren-template and
+  forsgren-metrics; repository access: only those two repositories
+- repository permissions: Contents read and write, and Pull requests read and
+  write (Metadata read is added by GitHub). Nothing else.
+- expiration: a custom date under one year (a token with a longer custom date
+  never expires, so keep it under a year)
+- stored as the Actions secret `FORSGREN_RELEASE_TOKEN` of the forsgren
+  repository
+
+The run checks it first, so a missing secret stops the run before anything is
+pushed, and steps 8 and 9 check it again: without it they fail with an
+`::error::` line that names the secret, and never skip.
+
+Each script has a self-test that runs in sfl and Quality, and
+`Scripts/test_release_workflow.sh` pins the workflow: its trigger, its
+permissions (`contents: write`, `actions: write`, `issues: read`), its order,
+its commands and that the secret reaches only the token check and the two
+steps that use it.

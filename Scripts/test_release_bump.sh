@@ -58,7 +58,7 @@ bump() {
 
 # gotest <name> <case>: go test ./... in the copy.
 gotest() {
-  if (cd "${TMP}/$1" && go test ./... > "${TMP}/$1.gotest.log" 2>&1); then
+  if (cd "${TMP}/$1" && GOCACHE="${TMP}/gocache" go test ./... > "${TMP}/$1.gotest.log" 2>&1); then
     echo "  ok: $2: go test ./... passes"
   else
     fail "$2: go test ./... fails on the bumped copy. Output: $(tail -30 "${TMP}/$1.gotest.log")"
@@ -110,7 +110,7 @@ bump major "$NEXT_MAJOR"
 want_green "major bump" "OK: bumped ${CURRENT} to ${NEXT_MAJOR}"
 # A new major also needs a new proof run of each agent file (forsgren#148):
 # the bump cannot do that, and exactly that one test says so. Nothing else may fail.
-if (cd "${TMP}/major" && go test ./... > "${TMP}/major.gotest.log" 2>&1); then
+if (cd "${TMP}/major" && GOCACHE="${TMP}/gocache" go test ./... > "${TMP}/major.gotest.log" 2>&1); then
   fail "major bump: go test ./... passes, but the Tested-with major test should ask for a proof run of the agent files"
 else
   others="$(grep -E '^--- FAIL' "${TMP}/major.gotest.log" | grep -vF 'TestEveryAgentFileWasTestedOnTheRunningMajor' || true)"
