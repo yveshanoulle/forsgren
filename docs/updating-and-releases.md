@@ -502,7 +502,10 @@ and stops at the first step that fails:
    Other installations keep their own Dependabot schedule.
 
 The last step runs whatever happened and prints what was done and what was not
-(`Scripts/release_report.sh`), so a run that fails halfway says so: a bump
+(`Scripts/release_report.sh`). It names the step that failed from the outcome of
+each step (`steps.<id>.outcome`, passed to it), not from the log, so a step that
+fails before it could record anything, like the token check, is still the one
+named. A run that fails halfway says so: a bump
 commit that was pushed stays on `main`, and a tag exists only together with its
 release. `SHIPPED.md` is still written by hand.
 
@@ -512,8 +515,12 @@ personal access token of the owner of the repositories:
 
 - resource owner: the account that owns forsgren-template and
   forsgren-metrics; repository access: only those two repositories
-- repository permissions: Contents read and write, and Pull requests read and
-  write (Metadata read is added by GitHub). Nothing else.
+- repository permissions: Contents read and write, Pull requests read and
+  write, and Workflows read and write (Metadata read is added by GitHub).
+  Nothing else. Workflows is needed because both steps change files under
+  `.github/workflows`: without it GitHub answers 403 "Resource not accessible
+  by personal access token", and the step says the token needs Workflows: Read
+  and write on that repository.
 - expiration: a custom date under one year (a token with a longer custom date
   never expires, so keep it under a year)
 - stored as the Actions secret `FORSGREN_RELEASE_TOKEN` of the forsgren
@@ -523,8 +530,47 @@ The run checks it first, so a missing secret stops the run before anything is
 pushed, and steps 8 and 9 check it again: without it they fail with an
 `::error::` line that names the secret, and never skip.
 
+**When a run fails.** The last step says what to do, in the job summary and as
+one `::notice::` line, by the stage the failure is in:
+
+- *Before anything was pushed* (the token check, Quality on main, the plan, the
+  version check, the bump, the tests, the commit): nothing was released and
+  nothing is on `main`. Fix the cause (the summary names it where it is known:
+  the secret, the issues to label, a version that exists, Quality with a
+  link) and start Release again with the same bump.
+- *The bump commit is on `main` but no release exists* (Quality on it, or the
+  publish, failed): do not start Release again with a bump. The version in
+  `main.go` is already the new one, so the bump step would refuse it (a
+  version that is not greater than the current one). Start it with
+  `resume` set to `publish` (`gh workflow run release.yml -f resume=publish`):
+  it takes the version from `main.go`, checks that it has no tag or release
+  and that its bump commit is in the last 200 commits, runs Quality again on
+  main's head (the bump commit, or a later commit that fixed the cause), makes
+  the release there and does the pins.
+- *The release is published and the template or metrics step failed*: the
+  summary says the version is released; fix the cause (for a 403: the token's
+  Workflows permission), then start Release with `resume` set to `pins`
+  (`gh workflow run release.yml -f resume=pins`, or Actions, Release, Run
+  workflow, resume: pins). A step is never done by hand: the way on is always
+  another run.
+
+**Resuming a run that stopped after the release.** When steps 8 or 9 fail, the
+release exists and the version is no longer free, so the run cannot simply be
+started again. Start it with the input `resume` set to `pins`
+(`gh workflow run release.yml -f resume=pins`; the default is `none`). It
+finds the latest release (`Scripts/release_resume.sh`: published, not a
+draft or prerelease, its tag at the commit the release was made for), skips
+the plan, the bump, the commit, Quality and the publish, and does only steps 8
+and 9 for that release. Both are safe to repeat: a repository that already
+pins the version, or a pull request for it that is open or merged, is "already
+done", not an error; of several pull requests for the release branch, any open
+or merged one is enough, whatever the order. One closed without merging does
+not count: the step names it in a note and opens a new pull request, reusing
+the release branch when it holds the same pins or moving it when it does not.
+The report of a resumed run expects only these steps.
+
 Each script has a self-test that runs in sfl and Quality, and
 `Scripts/test_release_workflow.sh` pins the workflow: its trigger, its
 permissions (`contents: write`, `actions: write`, `issues: read`), its order,
-its commands and that the secret reaches only the token check and the two
-steps that use it.
+its commands, which steps `resume: pins` skips and that the secret reaches only
+the token check and the two steps that use it.

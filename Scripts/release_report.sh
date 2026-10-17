@@ -1,18 +1,30 @@
 #!/usr/bin/env bash
 # Scripts/release_report.sh
 #
-# What a Release run did, for its last step (forsgren#221, step 2 of 2), which
-# runs whatever happened. The earlier steps append one line each to a log file:
-# `<step id>: <what was done>`. The steps, in order: quality, plan, free, bump,
-# commit, quality-bump, publish, template, metrics.
+# What a Release run did, for its last step (forsgren#221), which runs
+# whatever happened. Two inputs:
+#
+#   - the log file: the steps that do work append one line each,
+#     `<step id>: <what was done>`. The ids, in order: token, quality, plan,
+#     free, bump, test, commit, quality-bump, publish, template, metrics.
+#   - the outcomes, in the environment variable RELEASE_STEP_OUTCOMES, one
+#     `<step id>=<outcome>` line per step of the job (the workflow passes
+#     steps.<id>.outcome of every step, the way the maintenance summary does).
+#     The failed step is read from them, never inferred from the log: a step
+#     that records nothing, or fails before it could, is still the one named.
+#     The step ids, in order: main, checkout, setup-go, log, then the logged
+#     ones above, with `resume` (Find the release to resume) after token. With
+#     RELEASE_RESUME=pins (a resumed run) only token, resume, template and
+#     metrics are expected.
 #
 # Usage: Scripts/release_report.sh <log-file> <job-status>
 # On success it prints the done steps. On any other status it prints an
-# ::error:: line that names the first step that did not finish and says what
-# was already done and what was not, so a half-made release is never a guess:
-# a pushed bump commit, a release, a template that still pins the old version.
-# It writes the same text to $GITHUB_STEP_SUMMARY when that is set, and always
-# exits 0: it reports, the failed step already failed the run.
+# ::error:: line that names the first step whose outcome is failure (or
+# cancelled), its id in brackets, then what was already done and what was not
+# (the logged steps without a line). With no outcomes, or none that failed, it
+# says the failed step is unknown. It writes the same text to
+# $GITHUB_STEP_SUMMARY when that is set, and always exits 0: it reports, the
+# failed step already failed the run.
 # Self-test: Scripts/test_release_report.sh.
 
 set -uo pipefail
@@ -28,10 +40,43 @@ fi
 LOG="$1"
 STATUS="$2"
 
-STEPS="quality plan free bump commit quality-bump publish template metrics"
+ALL_IDS="main checkout setup-go log token resume quality plan free bump test commit quality-bump publish template metrics"
+LOGGED_IDS="token quality plan free bump test commit quality-bump publish template metrics"
+# A resumed run (RELEASE_RESUME=pins) skips everything between the token check and the pins.
+if [ "${RELEASE_RESUME:-}" = pins ]; then LOGGED_IDS="token resume template metrics"; fi
+if [ "${RELEASE_RESUME:-}" = publish ]; then LOGGED_IDS="token resume quality-bump publish template metrics"; fi
+
+# name_of <id>: the step's name in release.yml.
+name_of() {
+  case "$1" in
+    main) echo "Require a run on main" ;;
+    checkout) echo "Check out main" ;;
+    setup-go) echo "Set up Go" ;;
+    log) echo "Start the log of what is done" ;;
+    token) echo "Check the release token is set" ;;
+    resume) echo "Find the release to resume" ;;
+    quality) echo "Quality is green on main" ;;
+    plan) echo "Plan the release" ;;
+    free) echo "Check the version is new" ;;
+    bump) echo "Bump the version in the working tree" ;;
+    test) echo "Test the bumped tree" ;;
+    commit) echo "Commit the bump and push it to main" ;;
+    quality-bump) echo "Quality is green on the bump commit" ;;
+    publish) echo "Create the tag and the release" ;;
+    template) echo "Move the pins and README of forsgren-template" ;;
+    metrics) echo "Open the pin pull request in forsgren-metrics" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+# outcome_of <id>: the outcome the workflow passed for that step, or nothing.
+outcome_of() {
+  printf '%s\n' "${RELEASE_STEP_OUTCOMES:-}" | sed -n "s/^$1=//p" | head -n 1
+}
+
 DONE=""
 MISSING=""
-for step in $STEPS; do
+for step in $LOGGED_IDS; do
   line=""
   if [ -f "$LOG" ]; then line="$(grep -m1 "^${step}: " "$LOG" || true)"; fi
   if [ -n "$line" ]; then
@@ -42,17 +87,90 @@ for step in $STEPS; do
   fi
 done
 
+failed_id=""
+for step in $ALL_IDS; do
+  outcome="$(outcome_of "$step")"
+  if [ "$outcome" = failure ] || [ "$outcome" = cancelled ]; then
+    failed_id="$step"
+    break
+  fi
+done
+
+# line_value <regex>: the first line of the log matching it, or nothing.
+line_value() {
+  if [ -f "$LOG" ]; then grep -m1 -E "$1" "$LOG" || true; fi
+}
+
+# What to do next, by the stage the failure is in. ADVICE goes to the job
+# summary, NOTICE (one line) to the run as a ::notice::. A step is never to be
+# done by hand: the way on is always another Release run.
+ADVICE=""
+NOTICE=""
+QUALITY_LINK="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-owner/forsgren}/actions/workflows/quality.yml"
+advise() {
+  local name bump sha version
+  name="$(name_of "$failed_id")"
+  bump="${RELEASE_BUMP:-the same}"
+  sha="$(line_value '^(commit: sha=|resume: tag=.* at )' | sed -E 's/^commit: sha=([0-9a-f]+).*/\1/; s/^resume: tag=.* at ([0-9a-f]+).*/\1/')"
+  version="$(line_value '^publish: ' | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true)"
+  if [ -z "$version" ]; then version="$(line_value '^resume: tag=' | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true)"; fi
+  case "$failed_id" in
+    template | metrics)
+      ADVICE="${version:-This release} is released.
+Next: fix the cause (for a 403: the token's Workflows permission), then start Release with resume = pins: gh workflow run release.yml -f resume=pins, or Actions → Release → Run workflow → resume: pins."
+      NOTICE="Release failed at the step '${name}': ${version:-this release} is released. Fix the cause (for a 403: the token's Workflows permission), then start Release with resume = pins: gh workflow run release.yml -f resume=pins"
+      ;;
+    quality-bump | publish)
+      ADVICE="The bump commit ${sha:-of this run} is on main and no release exists.
+Do not start Release again with a bump: the version is already bumped and the bump step would refuse it.
+Next: fix the cause (Quality: ${QUALITY_LINK}), then start Release with resume = publish: gh workflow run release.yml -f resume=publish, or Actions → Release → Run workflow → resume: publish."
+      NOTICE="Release failed at the step '${name}': the bump commit is on main and no release exists. Fix the cause, then start Release with resume = publish: gh workflow run release.yml -f resume=publish"
+      ;;
+    resume)
+      ADVICE="Nothing was changed by this run.
+Next: fix the cause and start the same resume again (resume = ${RELEASE_RESUME:-pins})."
+      NOTICE="Release failed at the step '${name}': fix the cause and start the same resume again."
+      ;;
+    *)
+      cause=""
+      case "$failed_id" in
+        token) cause="Cause: the secret FORSGREN_RELEASE_TOKEN is not set or empty; it is a fine-grained token with Contents, Pull requests and Workflows read and write on forsgren-template and forsgren-metrics." ;;
+        plan) cause="Cause: label the issues the plan names patch, minor or major (or choose the bump it names, or nothing was closed since the last release)." ;;
+        free) cause="Cause: that version already exists as a tag or a release; see the Releases page." ;;
+        quality) cause="Cause: Quality is not green on main: ${QUALITY_LINK}" ;;
+        bump | test) cause="Cause: the bump or the tests on the bumped tree failed; read the step log." ;;
+        commit) cause="Cause: the commit or its push was refused (has main moved since the run began?)." ;;
+      esac
+      ADVICE="Nothing was released and nothing was pushed to main.
+${cause:+${cause}
+}Next: fix the cause and start Release again with the same bump (${bump})."
+      NOTICE="Release failed at the step '${name}': nothing was released. Fix the cause and start Release again with the same bump (${bump})."
+      ;;
+  esac
+}
+if [ "$STATUS" != success ] && [ -n "$failed_id" ]; then advise; fi
+
 {
   if [ "$STATUS" = success ]; then
     echo "Release run finished. Done:"
     printf '%s' "$DONE"
   else
-    first="${MISSING%%,*}"
-    echo "::error::The release run ended as ${STATUS} at the step '${first:-unknown}'."
+    if [ -n "$failed_id" ]; then
+      echo "::error::The release run ended as ${STATUS} at the step '$(name_of "$failed_id")' (${failed_id})."
+    elif [ -z "${RELEASE_STEP_OUTCOMES:-}" ]; then
+      echo "::error::The release run ended as ${STATUS}; the failed step is unknown (the step outcomes were not passed)."
+    else
+      echo "::error::The release run ended as ${STATUS}; no step reports a failure (a step outside the list, or the run was stopped)."
+    fi
     echo "Already done:"
     if [ -n "$DONE" ]; then printf '%s' "$DONE"; else echo "- nothing"; fi
     echo "Not done: ${MISSING:-nothing}"
     echo "A bump commit that was pushed stays on main, a tag exists only together with its release."
+    if [ -n "$ADVICE" ]; then
+      echo "What to do next:"
+      printf '%s\n' "$ADVICE"
+    fi
   fi
 } | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}"
+if [ -n "$NOTICE" ]; then echo "::notice::${NOTICE}"; fi
 COMPLETED=1

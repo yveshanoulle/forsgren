@@ -739,7 +739,8 @@ live check self-test|Scripts/test_live_check.sh|pre|
 # release_commit.sh (the signed-off bump commit pushed to main),
 # release_publish.sh (the tag and the release in one call), release_pins.sh
 # (forsgren-template's pins and README, forsgren-metrics' pin pull request)
-# and release_report.sh (what was done). What runs on every sfl and Quality
+# release_resume.sh (the release a resumed run continues with) and
+# release_report.sh (what was done). What runs on every sfl and Quality
 # run is their self-tests (fixture data, a stub gh, throwaway repositories, a
 # copy of the repository with `go test ./...` on it) and the pin of the
 # workflow itself, which holds the order, the permissions and the arguments.
@@ -750,6 +751,7 @@ release commit self-test|Scripts/test_release_commit.sh|pre|
 release publish self-test|Scripts/test_release_publish.sh|pre|
 release pins self-test|Scripts/test_release_pins.sh|pre|
 release report self-test|Scripts/test_release_report.sh|pre|
+release resume self-test|Scripts/test_release_resume.sh|pre|
 release workflow|Scripts/test_release_workflow.sh|pre|
 #
 # The privacy pages belong to a site that needs privacy pages: another estate repository

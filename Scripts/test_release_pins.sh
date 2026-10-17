@@ -67,16 +67,30 @@ if [ "$input" -eq 1 ]; then
   cat > "$body"
 fi
 reply() { printf '%s' "$1" | jq -r "${expr}"; }
+if [ "${args[0]}" = "pr" ] && [ "${args[1]}" = "list" ]; then
+  { cat "${STUB_STATE}/pr_list.json" 2> /dev/null || echo '[]'; } | jq -r "${expr}"
+  exit 0
+fi
 if [ "${args[0]}" = "pr" ]; then
   [ -f "${STUB_STATE}/pr_fails" ] && exit 1
   echo "https://example.test/pull/1"
   exit 0
 fi
 case "$path" in
+  repos/*/git/ref/heads/forsgren-release-v*)
+    [ -f "${STUB_STATE}/branch_commit" ] || { echo "Not Found (HTTP 404)" >&2; exit 1; }
+    reply '{"object":{"sha":"'"$(cat "${STUB_STATE}/branch_commit")"'"}}'
+    ;;
   repos/*/git/ref/heads/*) reply '{"object":{"sha":"BASECOMMIT"}}' ;;
   repos/*/git/commits/BASECOMMIT) reply '{"tree":{"sha":"BASETREE"}}' ;;
+  repos/*/git/commits/OLDBRANCH) reply '{"tree":{"sha":"'"$(cat "${STUB_STATE}/branch_tree")"'"}}' ;;
   repos/*/git/blobs) reply '{"sha":"blob'"$n"'"}' ;;
-  repos/*/git/trees) reply '{"sha":"NEWTREE"}' ;;
+  repos/*/git/trees)
+    if [ -f "${STUB_STATE}/trees_403" ]; then
+      echo "gh: Resource not accessible by personal access token (HTTP 403)" >&2
+      exit 1
+    fi
+    reply '{"sha":"NEWTREE"}' ;;
   repos/*/git/commits) reply '{"sha":"NEWCOMMIT"}' ;;
   repos/*/git/refs/heads/*)
     [ -f "${STUB_STATE}/patch_fails" ] && exit 1
@@ -200,9 +214,84 @@ world
 cp "${FIX}/forsgren.yml.fixture" "${TMP}/f.yml"
 GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite workflow "$VERSION" "$SHA" < "${TMP}/f.yml" > "${STATE}/files/.github/workflows/forsgren.yml"
 GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite workflow "$VERSION" "$SHA" < "${FIX}/forsgren-update.yml.fixture" > "${STATE}/files/.github/workflows/forsgren-update.yml"
+GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite readme "$VERSION" "$SHA" < "${FIX}/README.md.fixture" > "${STATE}/files/README.md"
 FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
-want_red "both files already pinned" "no file of acme/met needed a change"
-if grep -q 'git/commits --input\|git/refs' "${TMP}/gh.log"; then fail "something was committed although nothing changed"; else echo "  ok: nothing was committed"; fi
+want_green "metrics already on the pin is already done" "already done: acme/met already pins ${VERSION}"
+FORSGREN_RELEASE_TOKEN="rt-token" pins template "$VERSION" "$SHA"
+want_green "template already on the pin is already done" "already done: acme/tpl already pins ${VERSION}"
+if grep -q 'git/commits --input\|git/refs\|PATCH\|pr create' "${TMP}/gh.log"; then fail "something was written although everything was already pinned"; else echo "  ok: nothing was written"; fi
+
+# prs <url state>...: the pull requests the stub lists for the release branch.
+prs() {
+  local out="[" sep="" pair
+  for pair in "$@"; do
+    out+="${sep}{\"url\":\"${pair% *}\",\"state\":\"${pair#* }\"}"
+    sep=","
+  done
+  echo "${out}]" > "${STATE}/pr_list.json"
+}
+P18="https://example.test/pull/18"
+P19="https://example.test/pull/19"
+nothing_written() {
+  if grep -q 'git/commits --input\|git/refs\|PATCH\|pr create' "${TMP}/gh.log"; then fail "$1: something was written"; else echo "  ok: $1: nothing was written"; fi
+}
+
+world
+prs "${P18} OPEN"
+FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
+want_green "an open pull request is already done" "already done: pull request ${P18} (OPEN)"
+prs "${P18} MERGED"
+FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
+want_green "a merged pull request is already done" "(MERGED)"
+prs "${P18} CLOSED" "${P19} MERGED"
+FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
+want_green "a closed and a merged one (closed listed first) is done" "already done: pull request ${P19} (MERGED)"
+nothing_written "closed plus merged"
+prs "${P18} CLOSED" "${P19} OPEN"
+FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
+want_green "a closed and an open one (closed listed first) is done" "already done: pull request ${P19} (OPEN)"
+nothing_written "closed plus open"
+
+# Closed without merging, nothing else: a NEW pull request, the branch recreated.
+world
+prs "${P18} CLOSED"
+FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
+want_green "closed only: a new pull request" "OK: acme/met pull request for ${VERSION}: https://example.test/pull/1"
+want_said "the closed one is named" "note: pull request ${P18} was closed without merging; opening a new one"
+if grep -qF "refs/heads/forsgren-release-v${VERSION}" "${STATE}"/bodies/*git_refs*; then echo "  ok: the branch is created again"; else fail "the branch was not created"; fi
+if grep -qF "pr create" "${TMP}/gh.log"; then echo "  ok: a pull request is opened"; else fail "no pull request was opened"; fi
+world
+prs "${P18} CLOSED" "${P19} CLOSED"
+FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
+want_green "two closed ones: a new pull request" "opening a new one"
+
+# The branch still exists: reused when it holds the right tree, else moved.
+world
+prs "${P18} CLOSED"
+echo "OLDBRANCH" > "${STATE}/branch_commit"
+echo "NEWTREE" > "${STATE}/branch_tree"
+FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
+want_green "a branch with the right content is reused" "OK: acme/met pull request for ${VERSION}"
+want_said "it says so" "branch forsgren-release-v${VERSION} already holds these pins"
+if grep -q 'git/refs' "${TMP}/gh.log" && ! grep -q 'git/refs/heads/forsgren-release-v' "${TMP}/gh.log"; then fail "the branch was created although it exists"; else echo "  ok: the existing branch is not created again"; fi
+if grep -qF "pr create" "${TMP}/gh.log"; then echo "  ok: a pull request is opened on it"; else fail "no pull request was opened on the reused branch"; fi
+world
+prs "${P18} CLOSED"
+echo "OLDBRANCH" > "${STATE}/branch_commit"
+echo "OTHERTREE" > "${STATE}/branch_tree"
+FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
+want_green "a branch with other content is moved" "OK: acme/met pull request for ${VERSION}"
+want_said "it says so" "holds other content; moving it"
+if grep -qF "PATCH repos/acme/met/git/refs/heads/forsgren-release-v${VERSION}" "${TMP}/gh.log"; then echo "  ok: the branch is moved to the new commit"; else fail "the stale branch was not moved. Log: $(cat "${TMP}/gh.log")"; fi
+
+# 403 on the workflow files
+world
+touch "${STATE}/trees_403"
+FORSGREN_RELEASE_TOKEN="rt-token" pins template "$VERSION" "$SHA"
+want_red "a 403 writing the tree names the cause" "the token needs Workflows: Read and write on acme/tpl"
+want_said "it names the files" ".github/workflows"
+FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
+want_red "a 403 for the metrics repository" "the token needs Workflows: Read and write on acme/met"
 
 world
 touch "${STATE}/patch_fails"
@@ -248,6 +337,27 @@ world
 if mutant nopr "s/URL=\".(ghr pr create/URL=\"${D}(echo/"; then
   FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
   if grep -qF "pr create" "${TMP}/gh.log"; then fail "mutation proof: the mutant still opens the pull request"; else echo "  ok: mutation proof: without the call no pull request is opened, which the pinned call case would see"; fi
+fi
+world
+cp "${FIX}/forsgren.yml.fixture" "${TMP}/f.yml"
+GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite workflow "$VERSION" "$SHA" < "${TMP}/f.yml" > "${STATE}/files/.github/workflows/forsgren.yml"
+GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite workflow "$VERSION" "$SHA" < "${FIX}/forsgren-update.yml.fixture" > "${STATE}/files/.github/workflows/forsgren-update.yml"
+GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite readme "$VERSION" "$SHA" < "${FIX}/README.md.fixture" > "${STATE}/files/README.md"
+if mutant notidempotent "s/echo \"OK: already done: .{TARGET} already pins .{VERSION}\"/red \"no file of ${D}{TARGET} needed a change\"/"; then
+  FORSGREN_RELEASE_TOKEN="rt-token" pins template "$VERSION" "$SHA"
+  want_red "mutation proof: a template step that fails on an already-moved pin" "needed a change"
+fi
+world
+touch "${STATE}/trees_403"
+if mutant nocause "s/the token needs Workflows: Read and write on/the token lacks something on/"; then
+  FORSGREN_RELEASE_TOKEN="rt-token" pins template "$VERSION" "$SHA"
+  if grep -qF "Workflows: Read and write" <<< "$OUT"; then fail "mutation proof: the mutant still names the cause"; else echo "  ok: mutation proof: without the hint a 403 does not name the permission"; fi
+fi
+world
+prs "${P18} CLOSED" "${P19} MERGED"
+if mutant firstonly "s/'\\.\\[\\] | \\[\\.url/'.[0] | [.url/"; then
+  FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
+  if grep -qF "pr create" "${TMP}/gh.log"; then echo "  ok: mutation proof: picking the first listed pull request opens a duplicate next to a merged one"; else fail "mutation proof: the first-only mutant did not open a duplicate. Output: ${OUT}"; fi
 fi
 unset SCRIPT
 

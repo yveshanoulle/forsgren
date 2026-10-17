@@ -23,9 +23,27 @@
 # Steps f and g use the secret FORSGREN_RELEASE_TOKEN, a fine-grained token
 # (docs/updating-and-releases.md says which). It is checked first thing, so
 # a missing secret stops the run before anything is pushed, and again in f and
-# g, which fail with an ::error:: naming it and never skip.
+# g, which fail with an ::error:: naming it and never skip. The token needs
+# Workflows: Read and write as well (the pins are in .github/workflows).
 # The last step runs whatever happened and says what was done and what was not
-# (Scripts/release_report.sh).
+# (Scripts/release_report.sh); the step that failed it reads from the outcomes
+# of the steps (steps.<id>.outcome, passed in RELEASE_STEP_OUTCOMES), never from
+# the log, so a step that records nothing is still the one named.
+#
+# Resume: a run that failed after something was done cannot simply be started
+# again, and the last step says which input to use (Scripts/release_report.sh).
+#   resume: pins     the release was published, the template or metrics step
+#                    failed (the version is no longer free): finds the latest
+#                    release (Scripts/release_resume.sh), skips the plan, the
+#                    bump, the commit, Quality and the publish, and does only
+#                    the template and metrics steps for that release. Both are
+#                    idempotent: a repository already on the pin, or a pull
+#                    request already open or merged, is "already done".
+#   resume: publish  the bump commit is on main, Quality on it or the publish
+#                    failed, no release exists: a plain rerun would refuse the
+#                    bump (the version is already the new one). Finds the bump
+#                    commit, runs Quality on it again, publishes it and does
+#                    the pins.
 #
 # Triggers: workflow_dispatch only: from the Actions page, or through the API
 # (`gh workflow run release.yml -f bump=patch`; patch is the default). Run it
@@ -43,6 +61,11 @@ on:
         type: choice
         options: [patch, minor, major]
         default: patch
+      resume:
+        description: "none: a new release. pins: published, but the template or metrics step failed. publish: the bump commit is on main, no release yet"
+        type: choice
+        options: [none, pins, publish]
+        default: none
 
 permissions:
   contents: read
@@ -67,6 +90,7 @@ jobs:
 
     steps:
       - name: Require a run on main
+        id: main
         shell: bash
         env:
           REF: ${{ github.ref }}
@@ -78,17 +102,21 @@ jobs:
           fi
 
       - name: Check out main
+        id: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          fetch-depth: 200  # resume: publish looks for the bump commit in the history
           persist-credentials: false
 
       - name: Set up Go
+        id: setup-go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: go.mod
           cache: false
 
       - name: Start the log of what is done
+        id: log
         shell: bash
         run: |
           set -euo pipefail
@@ -97,12 +125,30 @@ jobs:
           echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
 
       - name: Check the release token is set
+        id: token
         shell: bash
         env:
           FORSGREN_RELEASE_TOKEN: ${{ secrets.FORSGREN_RELEASE_TOKEN }}
-        run: ./Scripts/release_pins.sh token
+        run: |
+          set -euo pipefail
+          ./Scripts/release_pins.sh token
+          echo "token: FORSGREN_RELEASE_TOKEN is set" >> "$RELEASE_LOG"
+
+      - name: Find the release to resume
+        id: resume
+        if: ${{ inputs.resume != 'none' }}
+        shell: bash
+        env:
+          RESUME_MODE: ${{ inputs.resume }}
+        run: |
+          set -euo pipefail
+          ./Scripts/release_resume.sh "$RESUME_MODE" | tee "${RUNNER_TEMP}/resume.txt"
+          grep -E '^(version|tag|sha)=' "${RUNNER_TEMP}/resume.txt" >> "$GITHUB_OUTPUT"
+          echo "resume: $(grep '^tag=' "${RUNNER_TEMP}/resume.txt") at $(grep '^sha=' "${RUNNER_TEMP}/resume.txt" | cut -d= -f2)" >> "$RELEASE_LOG"
 
       - name: Quality is green on main
+        id: quality
+        if: ${{ inputs.resume == 'none' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -111,6 +157,7 @@ jobs:
 
       - name: Plan the release
         id: plan
+        if: ${{ inputs.resume == 'none' }}
         shell: bash
         env:
           BUMP: ${{ inputs.bump }}
@@ -121,6 +168,8 @@ jobs:
           echo "plan: $(grep '^version=' "${RUNNER_TEMP}/plan.txt") for $(grep '^issues=' "${RUNNER_TEMP}/plan.txt")" >> "$RELEASE_LOG"
 
       - name: Check the version is new
+        id: free
+        if: ${{ inputs.resume == 'none' }}
         shell: bash
         env:
           VERSION: ${{ steps.plan.outputs.version }}
@@ -130,6 +179,8 @@ jobs:
           echo "free: no tag and no release v${VERSION}" >> "$RELEASE_LOG"
 
       - name: Bump the version in the working tree
+        id: bump
+        if: ${{ inputs.resume == 'none' }}
         shell: bash
         env:
           VERSION: ${{ steps.plan.outputs.version }}
@@ -139,11 +190,17 @@ jobs:
           echo "bump: the working tree is at ${VERSION}, not committed" >> "$RELEASE_LOG"
 
       - name: Test the bumped tree
+        id: test
+        if: ${{ inputs.resume == 'none' }}
         shell: bash
-        run: go test ./...
+        run: |
+          set -euo pipefail
+          go test ./...
+          echo "test: go test ./... passes on the bumped tree" >> "$RELEASE_LOG"
 
       - name: Commit the bump and push it to main
         id: commit
+        if: ${{ inputs.resume == 'none' }}
         shell: bash
         env:
           VERSION: ${{ steps.plan.outputs.version }}
@@ -158,29 +215,34 @@ jobs:
           echo "commit: $(grep '^sha=' "${RUNNER_TEMP}/commit.txt") pushed to main" >> "$RELEASE_LOG"
 
       - name: Quality is green on the bump commit
+        id: quality-bump
+        if: ${{ inputs.resume != 'pins' }}
         shell: bash
         env:
-          BUMP_SHA: ${{ steps.commit.outputs.sha }}
+          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
         run: |
           set -euo pipefail
           ./Scripts/release_quality.sh dispatch "$BUMP_SHA" main
           echo "quality-bump: green on ${BUMP_SHA}" >> "$RELEASE_LOG"
 
       - name: Create the tag and the release
+        id: publish
+        if: ${{ inputs.resume != 'pins' }}
         shell: bash
         env:
-          VERSION: ${{ steps.plan.outputs.version }}
-          BUMP_SHA: ${{ steps.commit.outputs.sha }}
+          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
+          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
         run: |
           set -euo pipefail
           ./Scripts/release_publish.sh create "$VERSION" "$BUMP_SHA" "${RUNNER_TEMP}/notes.md"
           echo "publish: tag and release v${VERSION} at ${BUMP_SHA}, Latest" >> "$RELEASE_LOG"
 
       - name: Move the pins and README of forsgren-template
+        id: template
         shell: bash
         env:
-          VERSION: ${{ steps.plan.outputs.version }}
-          BUMP_SHA: ${{ steps.commit.outputs.sha }}
+          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
+          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
           FORSGREN_RELEASE_TOKEN: ${{ secrets.FORSGREN_RELEASE_TOKEN }}
         run: |
           set -euo pipefail
@@ -188,10 +250,11 @@ jobs:
           echo "template: pins and README at ${VERSION}" >> "$RELEASE_LOG"
 
       - name: Open the pin pull request in forsgren-metrics
+        id: metrics
         shell: bash
         env:
-          VERSION: ${{ steps.plan.outputs.version }}
-          BUMP_SHA: ${{ steps.commit.outputs.sha }}
+          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
+          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
           FORSGREN_RELEASE_TOKEN: ${{ secrets.FORSGREN_RELEASE_TOKEN }}
         run: |
           set -euo pipefail
@@ -203,4 +266,23 @@ jobs:
         shell: bash
         env:
           JOB_STATUS: ${{ job.status }}
+          RELEASE_RESUME: ${{ inputs.resume }}
+          RELEASE_BUMP: ${{ inputs.bump }}
+          RELEASE_STEP_OUTCOMES: |
+            main=${{ steps.main.outcome }}
+            checkout=${{ steps.checkout.outcome }}
+            setup-go=${{ steps.setup-go.outcome }}
+            log=${{ steps.log.outcome }}
+            token=${{ steps.token.outcome }}
+            resume=${{ steps.resume.outcome }}
+            quality=${{ steps.quality.outcome }}
+            plan=${{ steps.plan.outcome }}
+            free=${{ steps.free.outcome }}
+            bump=${{ steps.bump.outcome }}
+            test=${{ steps.test.outcome }}
+            commit=${{ steps.commit.outcome }}
+            quality-bump=${{ steps.quality-bump.outcome }}
+            publish=${{ steps.publish.outcome }}
+            template=${{ steps.template.outcome }}
+            metrics=${{ steps.metrics.outcome }}
         run: ./Scripts/release_report.sh "${RELEASE_LOG:-${RUNNER_TEMP}/release.log}" "$JOB_STATUS"
