@@ -526,6 +526,15 @@ personal access token of the owner of the repositories:
 - stored as the Actions secret `FORSGREN_RELEASE_TOKEN` of the forsgren
   repository
 
+The first line of every Release run page, normal, failed or resumed, is the
+token's expiry, read from GitHub's `github-authentication-token-expiration`
+header on one authenticated call (`Scripts/release_token_expiry.sh`): more
+than 30 days left, a green line with the date; 30 to 8 days, a yellow line and
+a warning to renew it before the next release; 7 days or fewer, a red line and
+an error annotation, and the run goes on; expired, or a token without an
+expiry date, or one that cannot be used, a failed line and the run stops before
+anything is pushed.
+
 The run checks it first, so a missing secret stops the run before anything is
 pushed, and steps 8 and 9 check it again: without it they fail with an
 `::error::` line that names the secret, and never skip.
@@ -544,9 +553,11 @@ one `::notice::` line, by the stage the failure is in:
   version that is not greater than the current one). Start it with
   `resume` set to `publish` (`gh workflow run release.yml -f resume=publish`):
   it takes the version from `main.go`, checks that it has no tag or release
-  and that its bump commit is in the last 200 commits, runs Quality again on
-  main's head (the bump commit, or a later commit that fixed the cause), makes
-  the release there and does the pins.
+  and that its bump commit is in the last 200 commits and is main's head, runs
+  Quality again on it, makes the release there and does the pins. If main has
+  moved past the bump commit, the run refuses and names both commits: fix main
+  and run a new release instead, since a release is made only at its bump
+  commit.
 - *The release is published and the template or metrics step failed*: the
   summary says the version is released; fix the cause (for a 403: the token's
   Workflows permission), then start Release with `resume` set to `pins`

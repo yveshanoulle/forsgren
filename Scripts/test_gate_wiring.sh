@@ -157,11 +157,12 @@ fi
 # self-tests of the release building blocks (forsgren#221, step 1 of 2), and to
 # 131 for the five self-tests of the release scripts and the pin of the Release
 # workflow (forsgren#221, step 2 of 2), and to 132 for the self-test of
-# release_resume.sh (forsgren#221, the resume).
+# release_resume.sh (forsgren#221, the resume), and to 133 for the self-test of
+# release_token_expiry.sh (forsgren#221, step 4).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=132
+MIN_GATES=133
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -520,7 +521,7 @@ for path in Scripts/*.sh; do
     # (Scripts/test_release_workflow.sh) holds the order and the arguments.
     # Their self-tests are order-file rows, so sfl and Quality prove them.
     # A script the workflow never calls would be a release step nobody runs.
-    release_plan.sh|release_bump.sh|release_quality.sh|release_commit.sh|release_publish.sh|release_pins.sh|release_report.sh|release_resume.sh)
+    release_plan.sh|release_bump.sh|release_quality.sh|release_commit.sh|release_publish.sh|release_pins.sh|release_report.sh|release_resume.sh|release_token_expiry.sh)
       runs_script "$RELEASE_WF" "$base" \
         || fail "${base} is a step of the release and ${RELEASE_WF} never invokes it — that step would be done by hand"
       require_fixture "$base" "the release step would be unproven"

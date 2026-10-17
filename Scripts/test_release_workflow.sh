@@ -166,6 +166,7 @@ step_findings() {
 
 # PINNED_LINES: <step name>@@<the exact line that step holds>, one per row.
 PINNED_LINES="$(cat <<'ROWS'
+Check the release token is set@@          ./Scripts/release_token_expiry.sh
 Check the release token is set@@          ./Scripts/release_pins.sh token
 Check the release token is set@@          echo "token: FORSGREN_RELEASE_TOKEN is set" >> "$RELEASE_LOG"
 Find the release to resume@@        if: ${{ inputs.resume != 'none' }}
@@ -288,6 +289,7 @@ mutant "a template step skipped by resume" "/name: Move the pins and README of f
         if: ${DOLLAR}{{ inputs.resume != 'pins' }}/" "resume: the step 'Move the pins and README of forsgren-template' must run"
 mutant "a resume by default" 's/^        default: none/        default: pins/' "input: the default resume is not none"
 mutant "a template that ignores the resumed release" 's/^          VERSION: \(.*\) || steps.resume.outputs.version }}/          VERSION: \1 }}/' "Move the pins and README of forsgren-template"
+mutant "a token check that does not show the expiry" '/^          .\/Scripts\/release_token_expiry.sh$/d' "step 'Check the release token is set'"
 mutant "a token check that records nothing" '/echo "token: FORSGREN_RELEASE_TOKEN is set"/d' "step 'Check the release token is set'"
 mutant "a step without an id" '/^        id: token$/d' "ids: the step 'Check the release token is set'"
 mutant "an outcome the report does not get" '/^            token=/d' "outcomes: the report step does not get steps.token.outcome"

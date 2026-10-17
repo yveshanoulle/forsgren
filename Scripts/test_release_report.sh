@@ -162,6 +162,7 @@ CASE="quality-bump"
 want_said "$CASE: the commit is on main" "The bump commit ${SHA40} is on main and no release exists."
 want_said "$CASE: a rerun cannot work" "Do not start Release again with a bump: the version is already bumped and the bump step would refuse it."
 want_said "$CASE: resume publish" "start Release with resume = publish: gh workflow run release.yml -f resume=publish"
+want_said "$CASE: only while main has not moved" "if main has moved on, fix main and run a new release instead"
 want_said "$CASE: the UI path" "Actions → Release → Run workflow → resume: publish"
 want_said "$CASE: the quality link" "https://github.com/acme/app/actions/workflows/quality.yml"
 one_notice

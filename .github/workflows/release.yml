@@ -20,6 +20,10 @@
 #      with the notes of step b: a tag never exists without its release.
 #   f. forsgren-template: pins and README in one commit.
 #   g. forsgren-metrics: a pin pull request.
+# The first step that writes the job summary is the token check, which puts the
+# token's expiry on its first line (Scripts/release_token_expiry.sh: green over
+# 30 days, yellow 30 to 8, red 7 or fewer and the run goes on, an expired token
+# or one without an expiry fails the run before anything is pushed).
 # Steps f and g use the secret FORSGREN_RELEASE_TOKEN, a fine-grained token
 # (docs/updating-and-releases.md says which). It is checked first thing, so
 # a missing secret stops the run before anything is pushed, and again in f and
@@ -131,6 +135,7 @@ jobs:
           FORSGREN_RELEASE_TOKEN: ${{ secrets.FORSGREN_RELEASE_TOKEN }}
         run: |
           set -euo pipefail
+          ./Scripts/release_token_expiry.sh
           ./Scripts/release_pins.sh token
           echo "token: FORSGREN_RELEASE_TOKEN is set" >> "$RELEASE_LOG"
 

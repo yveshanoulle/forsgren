@@ -123,6 +123,7 @@ Next: fix the cause (for a 403: the token's Workflows permission), then start Re
     quality-bump | publish)
       ADVICE="The bump commit ${sha:-of this run} is on main and no release exists.
 Do not start Release again with a bump: the version is already bumped and the bump step would refuse it.
+resume = publish works only while main's head is still the bump commit; if main has moved on, fix main and run a new release instead.
 Next: fix the cause (Quality: ${QUALITY_LINK}), then start Release with resume = publish: gh workflow run release.yml -f resume=publish, or Actions → Release → Run workflow → resume: publish."
       NOTICE="Release failed at the step '${name}': the bump commit is on main and no release exists. Fix the cause, then start Release with resume = publish: gh workflow run release.yml -f resume=publish"
       ;;
@@ -134,7 +135,7 @@ Next: fix the cause and start the same resume again (resume = ${RELEASE_RESUME:-
     *)
       cause=""
       case "$failed_id" in
-        token) cause="Cause: the secret FORSGREN_RELEASE_TOKEN is not set or empty; it is a fine-grained token with Contents, Pull requests and Workflows read and write on forsgren-template and forsgren-metrics." ;;
+        token) cause="Cause: the secret FORSGREN_RELEASE_TOKEN is not set, empty, expired or without an expiry date (the first line of this summary says which); it is a fine-grained token with Contents, Pull requests and Workflows read and write on forsgren-template and forsgren-metrics." ;;
         plan) cause="Cause: label the issues the plan names patch, minor or major (or choose the bump it names, or nothing was closed since the last release)." ;;
         free) cause="Cause: that version already exists as a tag or a release; see the Releases page." ;;
         quality) cause="Cause: Quality is not green on main: ${QUALITY_LINK}" ;;

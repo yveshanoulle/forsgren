@@ -18,11 +18,10 @@
 #       again, publishes it and does the pins. This mode finds that commit: the
 #       version is the one in cmd/forsgren/main.go, it must have no tag and no
 #       release, and its bump commit (subject `release X.Y.Z (1/1): bump to
-#       X.Y.Z...`) must be in the last 200 commits. The release is made at
-#       main's head, which is the bump commit itself, or a later commit that
-#       fixed what stopped the first run (a tag cannot be made at a commit
-#       Quality was never run on, and quality.yml can only be dispatched on a
-#       branch). Output as for pins; the sha is the head.
+#       X.Y.Z...`) must be in the last 200 commits and must BE main's head. If
+#       main has moved past it the mode refuses, naming both commits: a release
+#       is made only at its bump commit, so fix main and run a new release
+#       instead. Output as for pins; the sha is the bump commit.
 #
 # Mode pins:
 # It reads the latest release of GITHUB_REPOSITORY and requires: it exists, it
@@ -64,10 +63,13 @@ if [ "$MODE" = publish ]; then
   BUMP_SHA="$(git log -n 200 --format='%H %s' | grep -E " release ${VERSION//./\\.} \\(1/1\\): bump to ${VERSION//./\\.}(,|$)" | head -n 1 | cut -d' ' -f1)"
   [[ "$BUMP_SHA" =~ ^[0-9a-f]{40}$ ]] || red "no bump commit for ${VERSION} in the last 200 commits of main: nothing to publish"
   HEAD_SHA="$(git rev-parse HEAD)"
+  if [ "$HEAD_SHA" != "$BUMP_SHA" ]; then
+    red "main's head ${HEAD_SHA} is not the bump commit ${BUMP_SHA}: main has moved past it. Fix main and run a new release instead (a release is made only at its bump commit)"
+  fi
   echo "version=${VERSION}"
   echo "tag=v${VERSION}"
-  echo "sha=${HEAD_SHA}"
-  echo "OK: resuming v${VERSION} at ${HEAD_SHA} (main's head; the bump commit is ${BUMP_SHA}, no release yet)"
+  echo "sha=${BUMP_SHA}"
+  echo "OK: resuming v${VERSION} at ${BUMP_SHA} (the bump commit is main's head, no release yet)"
   COMPLETED=1
   exit 0
 fi
