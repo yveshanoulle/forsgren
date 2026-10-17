@@ -9,6 +9,10 @@ Active work lives in
 
 ---
 
+## 2026-10-17 — release tags are protected by a ruleset ([#225](https://github.com/yveshanoulle/forsgren/issues/225), 1/1)
+
+- The repository ruleset "Protect release tags" blocks moving and deleting every `v*` tag, with no bypass; creating one stays allowed for the Release workflow. Checked with a test tag that could be created but not moved or deleted, then removed. Recorded in docs/updating-and-releases.md.
+
 ## 2026-10-17 — the live check also requires charset=utf-8, shared canon `live_check v1` ([#223](https://github.com/yveshanoulle/forsgren/issues/223), 1/1)
 
 Tooling only: no release.

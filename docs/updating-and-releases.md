@@ -585,3 +585,18 @@ Each script has a self-test that runs in sfl and Quality, and
 permissions (`contents: write`, `actions: write`, `issues: read`), its order,
 its commands, which steps `resume: pins` skips and that the secret reaches only
 the token check and the two steps that use it.
+
+### Release tags are protected
+
+A repository ruleset, "Protect release tags" (forsgren#225), covers every tag
+that matches `v*`: nobody can move one (`update`) or delete one (`deletion`),
+and it has no bypass. Creating a tag stays allowed, because the Release workflow
+creates the tag together with its release. Installations pin forsgren's
+workflows by commit, so a moved tag would not change the code they run, but it
+would mislabel a release and the links that name it.
+
+The ruleset was checked when it was set: a test tag `v0.0.0-ruleset-check`
+could be created, and moving and deleting it were both refused with
+"Cannot update this protected ref". The ruleset was then switched off for a
+moment to remove the test tag, and switched back on. Changing the ruleset is a
+repository setting (Settings, Rules, Rulesets) for the maintainer.
