@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+# canon: live_check_selftest v1
 # Scripts/test_live_check.sh
 #
-# Self-test for Scripts/live_check.sh (forsgren#205, step 2 of 2), the check
-# the starter page workflow runs against the live site after every deploy.
-# forsgren's own. No network: a stub `curl` on PATH answers like a site whose
+# Self-test for Scripts/live_check.sh (estate issue 305 item 6), the check a
+# deploy workflow runs against the deployed host after every deploy.
+# No network: a stub `curl` on PATH answers like a site whose
 # every answer a case sets through the environment, and logs the arguments it
 # was called with. Each case asserts the OK line, or the ❌ line that NAMES the
 # failing check and the observed value, so a red for the wrong reason fails.
@@ -15,6 +16,9 @@
 #   4. a certificate curl refuses (exit 60)      -> red, "certificate validation"
 #   5. the page answers 404 / text/plain / has
 #      no stylesheet link                        -> red, "https page" / "stylesheet"
+#   5b. the page answers text/html without
+#      charset=utf-8 (none, another one)         -> red, "https page"; any
+#                                                   spelling of utf-8 is right
 #   6. the stylesheet answers 404 / text/plain   -> red, "stylesheet"
 #   7. href styles.css, /styles.css and an
 #      absolute URL                              -> the stylesheet the page
@@ -24,7 +28,8 @@
 #  10. curl is never given -k or --insecure, and is told to ignore a curlrc
 #  11. a missing or malformed argument, a bad try count -> exit 2
 # Mutation proofs: a copy without the redirect check, without the Location
-# assertion, with --insecure added and without the stylesheet check must each
+# assertion, with --insecure added, without the stylesheet check and without
+# the charset check must each
 # let the case they exist for pass.
 
 set -euo pipefail
@@ -116,7 +121,7 @@ page_fetches() { cat "${TMP}/count" 2>/dev/null || echo 0; }
 run_check
 want_green "1. a site that is right" "OK: live check of https://example.test/"
 want_said "1. the OK line names the redirect" "http redirects 301 to https://example.test/"
-want_said "1. the OK line names the page" "https page 200 text/html (certificate validated)"
+want_said "1. the OK line names the page" "https page 200 text/html charset=utf-8 (certificate validated)"
 want_said "1. the OK line names the stylesheet" "stylesheet https://example.test/styles.css 200 text/css"
 want_said "1. the OK line counts the tries" "1 try"
 
@@ -153,6 +158,20 @@ want_said "5. a 404 page: names the observed status" "answered 404"
 PAGE_CT=text/plain LIVE_CHECK_TRIES=1 run_check
 want_red "5. a page that is not html: names the check" "❌ FAIL: live check: https page"
 want_said "5. a page that is not html: names the observed type" "Content-Type text/plain"
+
+PAGE_CT=text/html LIVE_CHECK_TRIES=1 run_check
+want_red "5b. text/html without a charset: names the check" "❌ FAIL: live check: https page"
+want_said "5b. no charset: names the observed Content-Type and the wanted charset" "Content-Type text/html without charset=utf-8"
+
+PAGE_CT='text/html; charset=iso-8859-1' LIVE_CHECK_TRIES=1 run_check
+want_red "5b. another charset: names the check" "❌ FAIL: live check: https page"
+want_said "5b. another charset: names the observed charset" "(charset iso-8859-1)"
+
+PAGE_CT='text/html;charset=UTF-8' run_check
+want_green "5b. charset=UTF-8 without a space is utf-8" "https page 200 text/html charset=utf-8"
+
+PAGE_CT='text/html; charset="utf-8"' run_check
+want_green "5b. a quoted charset is utf-8" "https page 200 text/html charset=utf-8"
 
 PAGE_BODY="$(page_with '<link rel="icon" href="favicon.svg">')" LIVE_CHECK_TRIES=1 run_check
 want_red "5. no stylesheet link: names the check" "❌ FAIL: live check: stylesheet"
@@ -255,5 +274,15 @@ if selftest_mutant "$CHECK" "${MUT}/no_css.sh" 's/^  check_stylesheet$/  :/'; th
   fi
 fi
 
+NO_CHARSET='s/ != utf-8 / == never-matches /'
+if selftest_mutant "$CHECK" "${MUT}/no_charset.sh" "$NO_CHARSET"; then
+  PAGE_CT=text/html run_check "${MUT}/no_charset.sh"
+  if [[ "$RC" -eq 0 ]]; then
+    echo "  ok: mutation proof: without the charset check a page with no charset passes, so case 5b is red because of it"
+  else
+    fail "mutation proof: the charset-less check still failed (exit ${RC}). Output: ${OUT}"
+  fi
+fi
+
 selftest_end "the live check self-test found failures" \
-  "live check: a right site is OK with its codes and types; the redirect, the certificate, the page and the stylesheet each fail by name with the observed value; the retry is bounded; validation is never off; mutation proven"
+  "live check: a right site is OK with its codes and types; the redirect, the certificate, the page (status, type, utf-8 charset) and the stylesheet each fail by name with the observed value; the retry is bounded; validation is never off; mutation proven"

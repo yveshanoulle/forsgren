@@ -146,7 +146,7 @@ self-tests are.
 | 114 | zizmor | `check_zizmor.sh` | pre | required |
 | 115 | browser gate self-test | `test_gate_browser.sh` | pre | required, `test_gate_browser v2`; real Chrome and axe-core, fixture sites on 127.0.0.1 |
 | 116 | browser gate | `gate_browser.sh` | post | required, `gate_browser v2`; baseline and exceptions are empty, one variant (see below) |
-| 117 | live check self-test | `test_live_check.sh` | pre | required; stub curl, no network. The live check itself, `live_check.sh`, is not a gate: it needs the deployed site and runs only in the live-check job of `starter_page.yml` |
+| 117 | live check self-test | `test_live_check.sh` | pre | required, `test_live_check_selftest v1`; stub curl, no network. The live check itself, `live_check.sh` (`live_check v1`), is not a gate: it needs the deployed site and runs only in the live-check job of `starter_page.yml` |
 | 118 | language gate self-test | `test_gate_language.sh` | pre | required, `test_gate_language v2`; LanguageTool stubbed, 9 mutations |
 | 119 | language pages wrapper self-test | `test_gate_language_pages.sh` | pre | required; the wrapper's own, the canon gate stubbed, 3 mutations |
 | 120 | language gate | `gate_language_pages.sh` | post | required; runs `gate_language.sh` (`gate_language v2`) over the metrics site and the starter page; LanguageTool 6.8 run locally and offline; mode `enforce` in `language_settings.txt`; the allowlist and the baseline are data files (see below) |

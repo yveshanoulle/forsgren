@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
+# canon: live_check v1
 # Scripts/live_check.sh
 #
-# The live check of the deployed starter page (forsgren#205, step 2 of 2,
-# ruling item 3): after every forsgren.be deploy, with curl and no browser,
+# The live check of a deployed site (estate issue 305 item 6): after every
+# deploy, with curl and no browser,
 #   1. http://<host>/ answers 301 or 308 and its Location is exactly
 #      https://<host>/
 #   2. https://<host>/ answers 200 as text/html with the certificate
 #      VALIDATED (curl is never given -k or --insecure, and --disable first
-#      keeps a curlrc from adding it), and links a stylesheet
+#      keeps a curlrc from adding it), with a Content-Type that carries
+#      charset=utf-8 (any spelling of the name), and links a stylesheet
 #   3. the stylesheet the page actually links (its href, resolved against the
 #      base) answers 200 as text/css
 # Every failed check prints a ❌ line naming the check and the value observed,
@@ -16,11 +18,11 @@
 # whole set is tried up to LIVE_CHECK_TRIES times (default 5), LIVE_CHECK_DELAY
 # seconds apart (default 10); the OK line says how many tries it took.
 #
-# Usage: Scripts/live_check.sh <https-base-url>     e.g. https://forsgren.be
+# Usage: Scripts/live_check.sh <https-base-url>     e.g. https://example.org
 # Exit: 0 every check held, 1 a check failed on the last try, 2 usage.
 #
-# NOT a local gate: it needs the deployed site. Only the starter page
-# workflow runs it. Fixture: Scripts/test_live_check.sh (a stub curl).
+# NOT a local gate: it needs the deployed site. Only a deploy workflow runs it.
+# Fixture: Scripts/test_live_check.sh (a stub curl).
 
 set -uo pipefail
 
@@ -68,13 +70,15 @@ note_fail() { # <check> <observed text>
 }
 
 # fetch <url> — headers in $WORK/headers, body in $WORK/body; sets CURL_RC,
-# STATUS and CONTENT_TYPE (media type only, lower case; empty when absent).
+# STATUS, CONTENT_TYPE (media type only, lower case; empty when absent) and
+# CHARSET (the charset parameter, lower case, quotes dropped; empty when absent).
 fetch() {
   : > "$WORK/headers"
   : > "$WORK/body"
   CURL_RC=0
   curl "${CURL_OPTS[@]}" --output "$WORK/body" --dump-header "$WORK/headers" "$1" 2> "$WORK/stderr" || CURL_RC=$?
   STATUS="$(tr -d '\r' < "$WORK/headers" | awk '/^HTTP\// { s = $2 } END { print s }')"
+  CHARSET="$(tr -d '\r' < "$WORK/headers" | awk 'tolower($1) == "content-type:" { v = tolower($0) } END { print v }' | sed -nE 's/.*;[[:space:]]*charset=("([^"]*)"|([^;,[:space:]]*)).*/\2\3/p')"
   CONTENT_TYPE="$(tr -d '\r' < "$WORK/headers" | awk 'tolower($1) == "content-type:" { sub(/^[^:]*:[ \t]*/, ""); sub(/[ \t]*;.*$/, ""); v = tolower($0) } END { print v }')"
 }
 
@@ -117,6 +121,10 @@ check_page() {
   fi
   if [[ "$CONTENT_TYPE" != text/html ]]; then
     note_fail "https page" "${HTTPS_URL} answered 200 with Content-Type ${CONTENT_TYPE:-none}, want text/html"
+    return
+  fi
+  if [[ "$CHARSET" != utf-8 ]]; then
+    note_fail "https page" "${HTTPS_URL} answered 200 with Content-Type ${CONTENT_TYPE} without charset=utf-8 (charset ${CHARSET:-none})"
     return
   fi
   PAGE_OK=1
@@ -181,4 +189,4 @@ done
 noun="tries"
 [[ "$try" -eq 1 ]] && noun="try"
 COMPLETED=1
-echo "OK: live check of ${HTTPS_URL}: http redirects ${REDIRECT_STATUS} to ${HTTPS_URL}; https page 200 text/html (certificate validated); stylesheet ${STYLESHEET} 200 text/css (${try} ${noun})"
+echo "OK: live check of ${HTTPS_URL}: http redirects ${REDIRECT_STATUS} to ${HTTPS_URL}; https page 200 text/html charset=utf-8 (certificate validated); stylesheet ${STYLESHEET} 200 text/css (${try} ${noun})"

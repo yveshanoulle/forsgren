@@ -9,6 +9,16 @@ Active work lives in
 
 ---
 
+## 2026-10-17 — the live check also requires charset=utf-8, shared canon `live_check v1` ([#223](https://github.com/yveshanoulle/forsgren/issues/223), 1/1)
+
+Tooling only: no release.
+
+- `Scripts/live_check.sh` and `Scripts/test_live_check.sh` are now shared canon (`live_check v1`, `live_check_selftest v1`), byte-identical with the two site repositories that run the same check against their deployed hosts.
+- New check: the page's Content-Type must carry `charset=utf-8` (any spelling of the name, a quoted value allowed). A missing or other charset is a `❌ FAIL: live check: https page` line naming the observed Content-Type and charset. The OK line now says `https page 200 text/html charset=utf-8`.
+- forsgren.be already sends `text/html; charset=utf-8`, so the live-check job stays green. The self-test gained the 5b cases and a no-charset mutation proof.
+
+---
+
 ## 2026-10-17 — the sentence of each language baseline row on the run page ([#220](https://github.com/yveshanoulle/forsgren/issues/220))
 
 The Language baselines table on the run page gains a `sentence` column: the
