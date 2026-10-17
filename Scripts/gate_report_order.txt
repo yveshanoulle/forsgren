@@ -318,6 +318,14 @@ gofmt|Scripts/check_gofmt.sh|pre|
 # the test-duplication one is another estate repository's, adapted, with forsgren's cases and
 # a mutation proof. Repository source, so all four run in pre, each
 # self-test right before its gate.
+#
+# Go tool helper (forsgren#216). forsgren's own: Scripts/lib_go_tool.sh, the
+# sourced helper the four Go-tool gates (Go lint, Go test duplication, Go
+# vulnerabilities, Go dead code) resolve and run their go.mod-pinned tool with:
+# the path from `go tool -n` stdout alone, an executable file, the tool's own
+# exit code back. Not a gate, so only its self-test is a row, in pre, before
+# the first gate that sources it.
+Go tool helper self-test|Scripts/test_lib_go_tool.sh|pre|
 Go lint self-test|Scripts/test_check_go_lint.sh|pre|
 Go lint|Scripts/check_go_lint.sh|pre|
 Go test duplication self-test|Scripts/test_check_test_dupl.sh|pre|

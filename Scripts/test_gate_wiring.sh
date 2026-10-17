@@ -146,11 +146,12 @@ fi
 # keeps the count and passes; the estate's gate-parity axis catches that from
 # outside, because the removed one reappears as missing against the canon.
 #
-# New in forsgren with forsgren#215; set to the row count of that change.
+# New in forsgren with forsgren#215; set to the row count of that change
+# (115), plus the Go tool helper self-test of forsgren#216 (116).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=115
+MIN_GATES=116
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -512,6 +513,18 @@ for path in Scripts/*.sh; do
       done
       order_names "test_lib_site_settings.sh" \
         || fail "Scripts/test_lib_site_settings.sh is not an order-file row — the settings reader would be unproven"
+      ;;
+
+    # SOURCED HELPER, not a gate (forsgren#216): how the four Go-tool gates
+    # resolve and run their go.mod-pinned tool. Each must still source it, and
+    # its self-test is an order-file row.
+    lib_go_tool.sh)
+      for consumer in check_govulncheck.sh check_deadcode.sh check_go_lint.sh check_test_dupl.sh; do
+        grep -qE '^source .*lib_go_tool\.sh"?$' "Scripts/${consumer}" \
+          || fail "${base} holds the Go tool resolver and Scripts/${consumer} never sources it"
+      done
+      order_names "test_lib_go_tool.sh" \
+        || fail "Scripts/test_lib_go_tool.sh is not an order-file row — the Go tool resolver would be unproven"
       ;;
 
     # SOURCED HELPER, not a gate (estate canon): the engine of the exit-trap

@@ -227,6 +227,13 @@ Go lint, Go test duplication, Go vulnerabilities and Go dead code run the
 golangci-lint, govulncheck and deadcode pinned in `go.mod` (see [The
 tools](development.md#the-tools)).
 
+They resolve and run the tool through one sourced helper,
+`Scripts/lib_go_tool.sh` (forsgren#216): the path is what `go tool -n <tool>`
+prints on stdout alone, it must be an executable file, and the tool's own exit
+code comes back unchanged, so a tool that fails is never reported as a pass.
+Its self-test is `Scripts/test_lib_go_tool.sh`. Each gate and its class are
+listed in [Gate classification](gate-classification.md).
+
 Seven PRE gates read the repository's own scripts and files:
 
 - **actionlint** (`Scripts/check_actionlint.sh`, the estate's gate in

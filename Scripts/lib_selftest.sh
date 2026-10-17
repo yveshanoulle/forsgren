@@ -159,6 +159,22 @@ selftest_mutant_green() {
   fi
 }
 
+# selftest_lib_mutant <gate> <lib> <dir> <sed-expression>: for a gate that
+# sources a helper from its own Scripts/ (forsgren#216). Writes <dir>/Scripts/
+# with a plain copy of <gate> and a mutated copy of <lib> (see
+# selftest_mutant), and this repository's go.mod and go.sum beside it, so the
+# gate there finds its root, the mutated helper and the pinned tools. Sets
+# MUTANT to the gate copy; the status is selftest_mutant's, 1 for a mutation
+# that changed nothing.
+selftest_lib_mutant() {
+  MUTANT="$3/Scripts/$(basename "$1")"
+  mkdir -p "$3/Scripts"
+  cp "$1" "$MUTANT"
+  selftest_mutant "$2" "$3/Scripts/$(basename "$2")" "$4" || return 1
+  cp go.mod "$3/"
+  if [[ -f go.sum ]]; then cp go.sum "$3/"; fi
+}
+
 # selftest_end <claim not held> <claim>: the closing verdict. Exits 1 with
 # the first after any failed case, else prints the second as the OK line.
 selftest_end() {

@@ -169,9 +169,8 @@ fi
 # --- Case 7bb: MUTATION PROOF. The old 2>&1 capture put back (the -x check
 # disabled too: it would catch the polluted path with its own message) is red
 # on the cold runner as an exit 127.
-MUTANT_GATE="${TMP}/stderr-captured/Scripts/check_go_lint.sh"
-if selftest_mutant "$GATE" "$MUTANT_GATE" 's/tool -n golangci-lint)"/tool -n golangci-lint 2>\&1)"/; s/^if \[ ! -x /if false \&\& [ ! -x /'; then
-  cp go.mod go.sum "${TMP}/stderr-captured/"
+if selftest_lib_mutant "$GATE" Scripts/lib_go_tool.sh "${TMP}/stderr-captured" '/go tool -n/s/1")"/1" 2>\&1)"/; s/^  if \[ ! -f .*$/  if false; then/'; then
+  MUTANT_GATE="$MUTANT"
   capture env PATH="${SHIM}:${PATH}" "$MUTANT_GATE" "$MOD" "$(pwd)/${CONFIG}"
   want_red "mutation: with stderr captured into the tool path, a cold runner is red as the exit 127" "could not run"
 fi
@@ -187,6 +186,42 @@ exec "$REAL_GO" "\$@"
 EOF
 capture env PATH="${SHIM}:${PATH}" "$GATE" "$MOD" "$CONFIG"
 want_red "a tool path that is not built is red, naming the reason" "was not built"
+
+# --- Tool failure (forsgren#216): the tool itself fails. A go shim whose
+# `go tool -n golangci-lint` names a stub tool that exits $STUB_TOOL_RC: the gate is red as
+# a tool that did not run, and never prints the OK line of a pass. The stub says
+# nothing: its exit code is the only sign it failed.
+cat > "${TMP}/failing-tool" <<'EOF'
+#!/bin/sh
+exit "${STUB_TOOL_RC:-2}"
+EOF
+chmod +x "${TMP}/failing-tool"
+cat > "${SHIM}/go" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1 \$2 \$3" == "tool -n golangci-lint" ]]; then
+  echo "${TMP}/failing-tool"
+  exit 0
+fi
+exec "$REAL_GO" "\$@"
+EOF
+capture env PATH="${SHIM}:${PATH}" STUB_TOOL_RC=2 "$GATE" "$MOD" "$CONFIG"
+want_red "a tool that exits 2 is red, never a pass" "could not run (exit 2)"
+if grep -qF -- "OK:" <<< "$OUT"; then
+  fail "a tool that exits 2 printed the OK line of a pass. Output: ${OUT}"
+fi
+capture env PATH="${SHIM}:${PATH}" STUB_TOOL_RC=1 "$GATE" "$MOD" "$CONFIG"
+want_red "a tool that exits 1 is red, never a pass" "FAIL"
+if grep -qF -- "OK:" <<< "$OUT"; then
+  fail "a tool that exits 1 printed the OK line of a pass. Output: ${OUT}"
+fi
+
+# MUTATION PROOF: a helper that swallows the tool's exit code turns the case
+# above green, so Scripts/lib_go_tool.sh returning the tool's own code is what
+# keeps check_go_lint.sh red here.
+if selftest_lib_mutant "$GATE" Scripts/lib_go_tool.sh "${TMP}/swallowed" '/BIN" "/s/$/ || true/'; then
+  capture env PATH="${SHIM}:${PATH}" STUB_TOOL_RC=2 "$MUTANT" "$MOD" "$(pwd)/${CONFIG}"
+  want_green_ok "mutation: a helper that swallows the exit code lets the failing tool pass"
+fi
 
 # --- Case 8: no Go package.
 new_module "no-package"

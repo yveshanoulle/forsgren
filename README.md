@@ -95,6 +95,7 @@ Every `forsgren.config.yml` key is described in [docs/configuration.md](docs/con
 - [Updating and releases](docs/updating-and-releases.md): the setup issue, auto-update, Dependabot and installing a new version.
 - [Development](docs/development.md): working on forsgren, the tools and their pins, the data guard.
 - [Quality gates](docs/quality-gates.md): every gate FBP and CI run, and what each one checks.
+- [Gate classification](docs/gate-classification.md): each gate required, not applicable or a documented exception.
 - [CI](docs/ci.md): what runs on GitHub, the metrics workflow for installations, and how a red row maps to a local run.
 
 ## Status

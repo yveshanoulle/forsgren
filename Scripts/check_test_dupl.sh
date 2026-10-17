@@ -35,16 +35,22 @@ cd "$(dirname "$0")/.." || exit 2
 MODULE_DIR="${1:-.}"
 THRESHOLD="${2:-80}"
 
-# stdout is the path, nothing else: on a fresh runner go prints its
-# "go: downloading ..." lines on stderr (forsgren#210), which stay on stderr, in
-# the log, and never reach BIN. `go tool -n` builds the tool before it prints
-# the path; the -x check makes a path that is not a built binary red here, not
-# an exit 127 further down.
-if ! BIN="$(go tool -n golangci-lint)"; then
+# The tool path comes from stdout alone (Scripts/lib_go_tool.sh, forsgren#216):
+# on a fresh runner go prints its "go: downloading ..." lines on stderr
+# (forsgren#210), which stay on stderr, in the log, and never reach BIN. `go
+# tool -n` builds the tool before it prints the path; the executable-file check
+# makes a path that is not a built binary red here, not an exit 127 further
+# down.
+# shellcheck source=Scripts/lib_go_tool.sh
+source Scripts/lib_go_tool.sh
+go_tool_path golangci-lint
+tool_rc=$?
+BIN="$GO_TOOL_BIN"
+if [ "$tool_rc" -eq 1 ]; then
   echo "❌ FAIL: golangci-lint is not pinned in go.mod: go tool -n golangci-lint failed" >&2
   exit 2
 fi
-if [ ! -x "$BIN" ]; then
+if [ "$tool_rc" -ne 0 ]; then
   echo "❌ FAIL: go tool -n golangci-lint printed ${BIN}, which is not an executable: the pinned golangci-lint was not built" >&2
   exit 2
 fi
@@ -91,7 +97,7 @@ linters:
 YAML
 
 status=0
-out="$("$BIN" run -c "$CONFIG" ./... 2>&1)" || status=$?
+out="$(go_tool_run run -c "$CONFIG" ./...)" || status=$?
 
 # golangci-lint exits 0 (clean) or 1 (issues found). Any other code is a real
 # error — never mistake a non-running linter for a clean result.

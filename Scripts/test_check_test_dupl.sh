@@ -181,10 +181,8 @@ fi
 # --- Case 5bb: MUTATION PROOF. The old 2>&1 capture put back (the -x check
 # disabled too: it would catch the polluted path with its own message) is red
 # on the cold runner as an exit 127.
-MUTANT_GATE="${TMP}/stderr-captured/Scripts/check_test_dupl.sh"
-if selftest_mutant "$GATE" "$MUTANT_GATE" 's/tool -n golangci-lint)"/tool -n golangci-lint 2>\&1)"/; s/^if \[ ! -x /if false \&\& [ ! -x /'; then
-  cp go.mod "${TMP}/stderr-captured/"
-  if [[ -f go.sum ]]; then cp go.sum "${TMP}/stderr-captured/"; fi
+if selftest_lib_mutant "$GATE" Scripts/lib_go_tool.sh "${TMP}/stderr-captured" '/go tool -n/s/1")"/1" 2>\&1)"/; s/^  if \[ ! -f .*$/  if false; then/'; then
+  MUTANT_GATE="$MUTANT"
   capture env PATH="${SHIM}:${PATH}" "$MUTANT_GATE" "$COLD" "$THRESHOLD"
   want_red "mutation: with stderr captured into the tool path, a cold runner is red as the exit 127" "No such file or directory"
 fi
@@ -201,12 +199,44 @@ EOF
 capture env PATH="${SHIM}:${PATH}" "$GATE" "$COLD" "$THRESHOLD"
 want_exit "a tool path that is not built is a tooling error, naming the reason" 2 "was not built"
 
+# --- Tool failure (forsgren#216): the tool itself fails. A go shim whose
+# `go tool -n golangci-lint` names a stub tool that exits $STUB_TOOL_RC: the gate is red as
+# a tool that did not run, and never prints the OK line of a pass. The stub says
+# nothing: its exit code is the only sign it failed.
+cat > "${TMP}/failing-tool" <<'EOF'
+#!/bin/sh
+exit "${STUB_TOOL_RC:-2}"
+EOF
+chmod +x "${TMP}/failing-tool"
+cat > "${SHIM}/go" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1 \$2 \$3" == "tool -n golangci-lint" ]]; then
+  echo "${TMP}/failing-tool"
+  exit 0
+fi
+exec "$REAL_GO" "\$@"
+EOF
+capture env PATH="${SHIM}:${PATH}" STUB_TOOL_RC=2 "$GATE" "$COLD" "$THRESHOLD"
+want_exit "a tool that exits 2 is a tooling error, never a pass" 2 "golangci-lint error (exit 2)"
+if grep -qF -- "OK:" <<< "$OUT"; then
+  fail "a tool that exits 2 printed the OK line of a pass. Output: ${OUT}"
+fi
+
+# MUTATION PROOF: a helper that swallows the tool's exit code turns the case
+# above green, so Scripts/lib_go_tool.sh returning the tool's own code is what
+# keeps check_test_dupl.sh red here.
+if selftest_lib_mutant "$GATE" Scripts/lib_go_tool.sh "${TMP}/swallowed" '/BIN" "/s/$/ || true/'; then
+  capture env PATH="${SHIM}:${PATH}" STUB_TOOL_RC=2 "$MUTANT" "$COLD" "$THRESHOLD"
+  want_exit "mutation: a helper that swallows the exit code lets the failing tool pass" 0 "OK:"
+fi
+
 # --- Case 6: MUTATION PROOF. path-except turned into path.
 # The mutant finds its root as the gate does, one level above its Scripts/,
 # and the pinned golangci-lint through the go.mod and go.sum it finds there.
 MUTANT="${TMP}/mutant/Scripts/check_test_dupl.sh"
 if selftest_mutant "$GATE" "$MUTANT" 's/path-except:/path:/'; then
   cp go.mod "${TMP}/mutant/"
+  cp Scripts/lib_go_tool.sh "${TMP}/mutant/Scripts/"
   if [[ -f go.sum ]]; then cp go.sum "${TMP}/mutant/"; fi
   run_gate "$MUTANT" "$DUP"
   want_exit "mutation: with path instead of path-except, case 1 is green" 0 "OK:"
