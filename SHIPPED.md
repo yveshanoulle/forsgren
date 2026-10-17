@@ -673,3 +673,16 @@ Tooling only: no release.
   - `Scripts/browser_gate_variants.txt` has one row, `light|scheme:light`. `Scripts/browser_gate_baseline.txt` and `Scripts/browser_gate_exceptions.txt` have no rows: forsgren has no findings and no external embed.
   - Red first: the self-test run before the engine existed.
   - `MIN_GATES` 116 to 118 (self-test in pre, gate in post). No new workflow, trigger, secret or permission.
+
+---
+
+## 2026-10-17 — the live check after every forsgren.be deploy ([#205](https://github.com/yveshanoulle/forsgren/issues/205), 2/2)
+
+Tooling only: no release.
+
+- **#205 (2/2), the live check.**
+  - `Scripts/live_check.sh <https-base-url>` checks the deployed site with curl and no browser: `http://` answers 301 or 308 with exactly `https://<host>/` as Location; `https://` answers 200 as `text/html` with the certificate validated (never `-k` or `--insecure`, `--disable` first so a curlrc cannot add it) and links a stylesheet; the stylesheet the page actually links, resolved against the base, answers 200 as `text/css`.
+  - Every failed check is a `❌ FAIL: live check: <check>: <observed value>` line and exit 1. Success is one `OK:` line with the status codes, content types and the number of tries. The set is tried up to 5 times, 10 s apart (`LIVE_CHECK_TRIES`, `LIVE_CHECK_DELAY`), so a deploy that is still propagating is not a false red.
+  - `.github/workflows/starter_page.yml` has a third job, `live-check`: `needs: deploy`, only when the deploy step really published (a release run that skipped the deploy skips it), `contents: read`, `Scripts/live_check.sh https://forsgren.be`. A red check cannot undo the deploy; it makes the job red.
+  - Red first: `Scripts/test_live_check.sh` run before the script existed. It uses a stub curl, no network, and covers each check passing and failing by name, the href forms, the bounded retry, the usage errors, and four mutants (no redirect check, no Location assertion, `--insecure`, no stylesheet check). `Scripts/test_starter_page_workflow.sh` pins the new job, with eight mutants.
+  - `MIN_GATES` 118 to 119 (the self-test in pre). The live check itself is not a local gate: it needs the deployed site. No new secret; the job adds no permission.

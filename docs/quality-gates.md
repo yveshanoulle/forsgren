@@ -560,6 +560,27 @@ The POST gates, on the generated site:
   axe-core is an automated gate, not proof of WCAG conformance. No new workflow,
   trigger, secret or permission.
 
+- **live check** (`Scripts/live_check.sh`, self-test `Scripts/test_live_check.sh`,
+  forsgren#205 step 2 of 2, ruling item 3): after every forsgren.be deploy, the
+  `live-check` job of `starter_page.yml` (needs `deploy`, runs only when the
+  deploy step published, `contents: read`) runs `Scripts/live_check.sh
+  https://forsgren.be`, with curl and no browser. It checks that `http://` answers
+  301 or 308 with exactly `https://<host>/` as Location, that `https://` answers
+  200 as `text/html` with the certificate validated (curl is never given `-k`
+  or `--insecure`, and `--disable` keeps a curlrc from adding it) and links a
+  stylesheet, and that the stylesheet the page actually links (its href,
+  resolved against the base) answers 200 as `text/css`. Every failed check is a
+  `❌ FAIL: live check: <check>: <observed value>` line and exit 1, so the job
+  is red, though it cannot undo the deploy; success is one `OK:` line with the
+  status codes, content types and the number of tries. A deploy may take a
+  moment to show, so the set is tried up to `LIVE_CHECK_TRIES` times (5),
+  `LIVE_CHECK_DELAY` seconds apart (10). It is not a local gate, because it
+  needs the deployed site. The self-test (a pre row) puts a stub `curl` on
+  PATH, covers each check passing and failing by name, the href forms, the
+  bounded retry, that validation is never off and the usage errors, and proves
+  four mutants (no redirect check, no Location assertion, `--insecure`, no
+  stylesheet check). No new secret; the job adds no permission.
+
 forsgren has no privacy-pages gate: that one is another estate repository's, pinning
 the content of a privacy policy forsgren does not serve. The order file
 declares it `n/a` with its reason, and the privacy posture gate keeps that

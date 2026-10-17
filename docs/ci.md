@@ -293,7 +293,7 @@ Nine PRE gates keep the CI honest:
   filtered to the README, the renderer, the stylesheet, the build script and
   itself, on a published release, and by hand, never on a pull request; the
   workflow has `contents: read` and only the deploy job adds `pages: write`
-  and `id-token: write`; both jobs run on `ubuntu-latest`; every action is
+  and `id-token: write`; all three jobs run on `ubuntu-latest`; every action is
   pinned at the very commit `metrics.yml` pins; the build step runs exactly
   `./Scripts/build_starter_page.sh` and uploads `.build/starter`; no `run:`
   block expands a `${{ }}` expression. A release-triggered run first asks
@@ -302,7 +302,12 @@ Nine PRE gates keep the CI honest:
   and a push or a manual run is not checked. The check is executed in the
   test with a stub `gh`. The real file must hold every pin and each pin is
   proved by a mutant that breaks it. GitHub Pages must be enabled on the
-  repository with the source "GitHub Actions" for the deploy to succeed.
+  repository with the source "GitHub Actions" for the deploy to succeed. A
+  third job, `live-check` (forsgren#205), needs `deploy`, runs only when the
+  deploy step really published (the deploy job's `deployed` output) and runs
+  `./Scripts/live_check.sh https://forsgren.be` with `contents: read`; the pin
+  holds its needs, condition, permission, checkout and command, each proved by
+  a mutant.
 - **vulncheck workflow** (`Scripts/test_vulncheck_workflow.sh`, forsgren's
   own, forsgren#87): `vulncheck.yml` runs `Scripts/check_govulncheck.sh`, the
   script of the Go vulnerabilities gate, once a day (one cron entry at an

@@ -19,6 +19,13 @@
 # Every action is pinned by commit, the same commits metrics.yml and
 # quality.yml use.
 #
+# The live check (forsgren#205, ruling item 3): a third job, after the deploy
+# and only when the deploy step really published, runs Scripts/live_check.sh
+# against https://forsgren.be: the http redirect, the validated certificate, a
+# 200 page and its stylesheet as text/css. It holds contents: read only and
+# cannot undo the deploy; a failed check makes the job red. A release run that
+# skipped the deploy (Pages not enabled) skips it too.
+#
 # GitHub Pages must be enabled on the repository with the source "GitHub
 # Actions" (Settings, Pages) for the deploy to succeed; a release-triggered
 # run skips the deploy with a notice while it is not.
@@ -86,6 +93,8 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      deployed: ${{ steps.deployment.outcome == 'success' }}
 
     steps:
       # A release-triggered run skips the deploy, with a notice saying why,
@@ -121,3 +130,20 @@ jobs:
         id: deployment
         if: github.event_name != 'release' || steps.pages.outputs.enabled == 'true'
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346  # v5.0.1
+
+  live-check:
+    name: Check the live site
+    needs: deploy
+    if: needs.deploy.result == 'success' && needs.deploy.outputs.deployed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check the live site
+        run: ./Scripts/live_check.sh https://forsgren.be

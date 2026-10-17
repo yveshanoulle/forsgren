@@ -21,7 +21,7 @@ not close it.
 ## The order file, row by row
 
 [Scripts/gate_report_order.txt](../Scripts/gate_report_order.txt) is the one
-list sfl and CI both run. It has 118 rows: 114 with a script and 4 `n/a`
+list sfl and CI both run. It has 119 rows: 115 with a script and 4 `n/a`
 rows. All scripts are in `Scripts/`. The phase is `pre` (repository inputs and
 checker behaviour) or `post` (the generated site). `secret-class` means a
 finding blocks the commit as well as the push. A row for a self-test is
@@ -146,8 +146,9 @@ self-tests are.
 | 114 | zizmor | `check_zizmor.sh` | pre | required |
 | 115 | browser gate self-test | `test_gate_browser.sh` | pre | required, `test_gate_browser v2`; real Chrome and axe-core, fixture sites on 127.0.0.1 |
 | 116 | browser gate | `gate_browser.sh` | post | required, `gate_browser v2`; baseline and exceptions are empty, one variant (see below) |
-| 117 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
-| 118 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
+| 117 | live check self-test | `test_live_check.sh` | pre | required; stub curl, no network. The live check itself, `live_check.sh`, is not a gate: it needs the deployed site and runs only in the live-check job of `starter_page.yml` |
+| 118 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
+| 119 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
 
 ## Documented exceptions
 
@@ -227,7 +228,8 @@ same case turns green with the exit code swallowed.
 
 ## The ratchet today
 
-`MIN_GATES` is 118, which equals the 118 rows of the order file (114 with a
+`MIN_GATES` is 119, which equals the 119 rows of the order file (115 with a
 script and 4 `n/a` rows). forsgren#215 brought it to 115 and the Go tool
 helper self-test of forsgren#216 is the 116th; the browser gate and its
-self-test (forsgren#205) made 118.
+self-test (forsgren#205) made 118, and the live check self-test
+(forsgren#205, step 2 of 2) made 119.

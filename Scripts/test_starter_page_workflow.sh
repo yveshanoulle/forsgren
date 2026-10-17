@@ -37,6 +37,13 @@
 #      problem is never read as "not enabled". The deploy step runs for every
 #      event but a release, and for a release only when enabled=true. No
 #      permission is added for it: the deploy job already holds pages: write.
+#  15. the live check (forsgren#205, ruling item 3): a third job, live-check,
+#      needs deploy and runs only when the deploy step really published
+#      (the deploy job's `deployed` output is that step's outcome being
+#      success, so a release run that skipped the deploy skips the check);
+#      it holds contents: read and nothing else, checks out without
+#      persisting credentials, and runs exactly
+#      ./Scripts/live_check.sh https://forsgren.be with no ${{ }} in the run.
 
 set -euo pipefail
 
@@ -98,7 +105,7 @@ permission_findings() {
   fi
   local hosts
   hosts="$(code "$1" | grep -E '^[[:space:]]+runs-on:' | sed -E 's/.*runs-on:[[:space:]]*//' | sort | uniq -c | tr -s ' ' | tr '\n' ';')"
-  [[ "$hosts" == " 2 ubuntu-latest;" ]] || echo "runs-on: every job must run on ubuntu-latest, got: ${hosts}"
+  [[ "$hosts" == " 3 ubuntu-latest;" ]] || echo "runs-on: every job must run on ubuntu-latest, got: ${hosts}"
 }
 
 # action_findings <file> — pins 6 to 8.
@@ -193,6 +200,29 @@ release_findings() {
     || echo "pages check: any other failure must be an ::error and a failed step, never 'not enabled' (exit ${PAGES_RC}, output '${PAGES_OUTPUT}')"
 }
 
+# live_check_findings <file> — pin 15.
+live_check_findings() {
+  local job
+  job="$(awk '/^  live-check:/ { j=1; print; next } j && /^  [a-z]/ { j=0 } j { print }' "$1")"
+  if [[ -z "$job" ]]; then
+    echo "live check: there is no live-check job"
+    return 0
+  fi
+  grep -qxF '    needs: deploy' <<< "$job" || echo "live check: the job does not need the deploy job"
+  grep -qxF "    if: needs.deploy.result == 'success' && needs.deploy.outputs.deployed == 'true'" <<< "$job" \
+    || echo "live check: the job does not run only when the deploy step published"
+  grep -qxF "      deployed: \${{ steps.deployment.outcome == 'success' }}" <(code "$1") \
+    || echo "live check: the deploy job's deployed output is not the publish step's success"
+  grep -qxF '      contents: read' <<< "$job" || echo "live check: the job does not hold contents: read"
+  if grep -qE ': (write|admin)' <<< "$job"; then
+    echo "live check: the job holds a write permission"
+  fi
+  grep -qxF '          persist-credentials: false' <<< "$job" || echo "live check: the checkout persists credentials"
+  grep -qxF '        run: ./Scripts/live_check.sh https://forsgren.be' <<< "$job" \
+    || echo "live check: the step does not run exactly ./Scripts/live_check.sh https://forsgren.be"
+  later "$(line_of "$1" "  live-check:")" "$(line_of "$1" "  deploy:")" || echo "live check: the job does not come after the deploy job"
+}
+
 # findings <file>: every pin the file breaks, one line each.
 findings() {
   trigger_findings "$1"
@@ -200,6 +230,7 @@ findings() {
   action_findings "$1"
   step_findings "$1"
   release_findings "$1"
+  live_check_findings "$1"
 }
 
 OUT="$(findings "$WORKFLOW")"
@@ -253,5 +284,14 @@ mutant "a check on every event" "s/if: github.event_name == 'release'/if: true/"
 mutant "a 404 that is not recognised" 's/HTTP 404/HTTP 405/' "pages check: a 404 must output enabled=false"
 mutant "a check that never says enabled" 's/enabled=true/enabled=maybe/' "pages check: a site that exists"
 mutant "any failure read as not enabled" 's/\*"HTTP 404"\*/*/' "pages check: any other failure"
+
+mutant "a live check that needs only the build" 's/needs: deploy/needs: build/' "live check: the job does not need the deploy job"
+mutant "a live check that runs after a skipped deploy" "s/ && needs.deploy.outputs.deployed == 'true'//" "live check: the job does not run only when the deploy step published"
+mutant "a deployed output that is always true" "s/steps.deployment.outcome == 'success'/true/" "live check: the deploy job's deployed output"
+mutant "a live check with a write token" '/^  live-check:/,$ s/      contents: read/      contents: write/' "live check: the job holds a write permission"
+mutant "a live check that persists credentials" '/^  live-check:/,$ s/persist-credentials: false/persist-credentials: true/' "live check: the checkout persists credentials"
+mutant "a live check of another URL" 's#live_check.sh https://forsgren.be#live_check.sh https://example.org#' "live check: the step does not run exactly"
+mutant "a live check of the http URL" 's#live_check.sh https://forsgren.be#live_check.sh http://forsgren.be#' "live check: the step does not run exactly"
+mutant "a live check job renamed away" 's/^  live-check:/  live-look:/' "live check: there is no live-check job"
 
 selftest_end "the starter page workflow pin found failures" "starter page workflow pin (the real file holds every pin; each mutant is named)"

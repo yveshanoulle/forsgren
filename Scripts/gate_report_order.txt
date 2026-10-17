@@ -691,6 +691,17 @@ zizmor|Scripts/check_zizmor.sh|pre|
 browser gate self-test|Scripts/test_gate_browser.sh|pre|
 browser gate|Scripts/gate_browser.sh|post|
 #
+# --- Live check self-test (forsgren#205, step 2 of 2) --------------------
+# forsgren's own. Scripts/live_check.sh checks the DEPLOYED forsgren.be with
+# curl (http redirects to https, certificate validated, the page answers 200 as
+# text/html, the stylesheet it links answers 200 as text/css). It needs the
+# live site, so it is NOT a gate here: only the live-check job of
+# .github/workflows/starter_page.yml runs it, after the deploy. What runs on
+# every sfl and Quality run is its self-test, with a stub curl and no network,
+# plus the workflow pin (Scripts/test_starter_page_workflow.sh) that holds the
+# job's needs, permissions and command.
+live check self-test|Scripts/test_live_check.sh|pre|
+#
 # The privacy pages belong to a site that needs privacy pages: another estate repository
 # serves a privacy policy, and its check_privacy_pages.sh pins that
 # policy's content (language, title, approved date, binding-version

@@ -59,20 +59,21 @@ cd "$(dirname "$0")/.."
 
 # The runner paths are overridable ONLY so the mutation proofs in part 5 can
 # re-run this whole check against a mutated copy of sfl.sh, FBP.sh,
-# quality.yml, dco.yml or the order file. Nothing else sets them; sfl and CI
+# quality.yml, dco.yml, starter_page.yml or the order file. Nothing else sets them; sfl and CI
 # always run against the real files.
 SFL="${GATE_WIRING_SFL_OVERRIDE:-sfl.sh}"
 FBP="${GATE_WIRING_FBP_OVERRIDE:-FBP.sh}"
 CI="${GATE_WIRING_CI_OVERRIDE:-.github/workflows/quality.yml}"
 ORDER="${GATE_WIRING_ORDER_OVERRIDE:-Scripts/gate_report_order.txt}"
 DCO_WF="${GATE_WIRING_DCO_OVERRIDE:-.github/workflows/dco.yml}"
+STARTER_WF="${GATE_WIRING_STARTER_OVERRIDE:-.github/workflows/starter_page.yml}"
 CI_RUNNER="Scripts/run_ci_phase.sh"
 
 # is_mutation_rerun: this run is a proof re-running the check with one of
 # the files above replaced, so it must not start proofs of its own, nor
 # repeat the runtime cases of part 4, which do not read those files.
 is_mutation_rerun() {
-  [[ -n "${GATE_WIRING_CI_OVERRIDE:-}${GATE_WIRING_FBP_OVERRIDE:-}${GATE_WIRING_SFL_OVERRIDE:-}${GATE_WIRING_ORDER_OVERRIDE:-}${GATE_WIRING_DCO_OVERRIDE:-}" ]]
+  [[ -n "${GATE_WIRING_CI_OVERRIDE:-}${GATE_WIRING_FBP_OVERRIDE:-}${GATE_WIRING_SFL_OVERRIDE:-}${GATE_WIRING_ORDER_OVERRIDE:-}${GATE_WIRING_DCO_OVERRIDE:-}${GATE_WIRING_STARTER_OVERRIDE:-}" ]]
 }
 
 COMPLETED=0
@@ -148,11 +149,12 @@ fi
 #
 # New in forsgren with forsgren#215; set to the row count of that change
 # (115), plus the Go tool helper self-test of forsgren#216 (116).
-# Raised to 118 for the browser gate and its self-test (forsgren#205).
+# Raised to 118 for the browser gate and its self-test (forsgren#205), and to
+# 119 for the live check's self-test (forsgren#205, step 2 of 2).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=118
+MIN_GATES=119
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -445,6 +447,19 @@ for path in Scripts/*.sh; do
         || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the check dco.yml relies on"
       ;;
 
+    # THE LIVE CHECK, not a local gate (forsgren#205, step 2 of 2): it checks
+    # the DEPLOYED forsgren.be with curl, so only the live-check job of
+    # .github/workflows/starter_page.yml can run it, after a deploy. Its
+    # self-test (stub curl, no network) is an order-file row, so sfl and
+    # Quality still prove it.
+    live_check.sh)
+      runs_script "$STARTER_WF" "$base" \
+        || fail "${base} checks the live site after a deploy and ${STARTER_WF} never invokes it — nothing would check forsgren.be"
+      require_fixture "$base" "the live check would be unproven"
+      order_names "test_${base}" \
+        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the check starter_page.yml runs"
+      ;;
+
     # HELPER OF THE DCO CHECK, not a gate (forsgren#81): lists the commits of
     # a push in check_dco.sh's input shape. Scripts/test_check_dco.sh, an
     # order-file row, is its test and must still run it; dco.yml runs it on
@@ -559,8 +574,8 @@ done
 #
 # mutation_proof <override-var> <mention> <sed-expr> <expected> <label>
 #   <override-var>  GATE_WIRING_CI_OVERRIDE, GATE_WIRING_FBP_OVERRIDE,
-#                   GATE_WIRING_SFL_OVERRIDE, GATE_WIRING_ORDER_OVERRIDE or
-#                   GATE_WIRING_DCO_OVERRIDE
+#                   GATE_WIRING_SFL_OVERRIDE, GATE_WIRING_ORDER_OVERRIDE,
+#                   GATE_WIRING_DCO_OVERRIDE or GATE_WIRING_STARTER_OVERRIDE
 #   <mention>       text the mutant must still contain (else the proof tests
 #                   a deletion, not a mention)
 #   <sed-expr>      the -E expression that makes the mutant
@@ -586,6 +601,7 @@ mutation_proof() {
     GATE_WIRING_SFL_OVERRIDE) original="$SFL" ;;
     GATE_WIRING_ORDER_OVERRIDE) original="$ORDER" ;;
     GATE_WIRING_DCO_OVERRIDE) original="$DCO_WF" ;;
+    GATE_WIRING_STARTER_OVERRIDE) original="$STARTER_WF" ;;
     *)
       fail "mutation proof: unknown override variable ${override_var}"
       return 0
@@ -950,6 +966,18 @@ if ! is_mutation_rerun; then
     's|^  push:|  workflow_dispatch:|' \
     "has no push trigger on main" \
     "a dco.yml with no push trigger"
+
+  # starter_page.yml: the live check call becomes a comment.
+  mutation_proof GATE_WIRING_STARTER_OVERRIDE "Scripts/live_check.sh" \
+    's|^([[:space:]]*)(run: \./Scripts/live_check\.sh )|\1run: # \2|' \
+    "live_check.sh checks the live site after a deploy and" \
+    "a starter_page.yml whose live_check.sh call is a comment"
+
+  # The order file: the live check self-test row becomes a comment.
+  mutation_proof GATE_WIRING_ORDER_OVERRIDE "Scripts/test_live_check.sh" \
+    's#^(live check self-test\|)#\# \1#' \
+    "Scripts/test_live_check.sh is not an order-file row" \
+    "an order file whose live check self-test row is a comment"
 
   # The order file: the DCO self-test row becomes a comment, so neither sfl
   # nor Quality proves the check dco.yml runs.
