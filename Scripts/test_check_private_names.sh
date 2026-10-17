@@ -105,6 +105,10 @@ fi
 NAME_A="acme-secret-repo"
 NAME_B="globex-internal"
 
+# The test owns the extra-list variables: CI passes the real extra secret in
+# the environment, which would add a name to every case that sets none.
+unset FORSGREN_PRIVATE_NAMES_EXTRA FORSGREN_PRIVATE_NAMES_EXTRA_FILE
+
 NAMES_FILE="${TMP}/names-file"
 printf '# made-up private names\n%s\n\n%s\n' "$NAME_A" "$NAME_B" > "$NAMES_FILE"
 NAMES_ENV="$(printf '%s\n\n%s' "$NAME_A" "$NAME_B")"

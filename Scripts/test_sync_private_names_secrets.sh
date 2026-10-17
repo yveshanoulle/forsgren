@@ -79,6 +79,10 @@ call_has_args() {
   [[ -f "${GH_LOG}/args-$1" ]] && grep -qxF -- "$2" "${GH_LOG}/args-$1"
 }
 
+# The test owns the extra-list variables: CI passes the real extra secret in
+# the environment, which would leak into every case that sets none.
+unset FORSGREN_PRIVATE_NAMES_EXTRA FORSGREN_PRIVATE_NAMES_EXTRA_FILE
+
 # call_stdin_is_names <n>: succeeds when stdin of call <n> was exactly the two names.
 call_stdin_is_names() {
   [[ -f "${GH_LOG}/stdin-$1" ]] \
