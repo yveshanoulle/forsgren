@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_gate_language v1
+# canon: test_gate_language v2
 # Scripts/test_gate_language.sh (estate issue 300)
 #
 # Self-test for Scripts/gate_language.sh, the LanguageTool gate, run in PRE
@@ -26,6 +26,8 @@
 #  17. script, style and head text is not checked; alt text is
 #  18. a match on a page marker line is dropped
 #  19. LanguageTool runs without network, never with a remote option
+#  22. --text mode (v2): the extracted text of the pages, per language, with no
+#      LanguageTool, Java, allowlist or baseline; the optional page roots key
 #  20. the language settings file: an invalid mode, locale list or version, a
 #      missing, unknown or repeated key, a malformed line, no file -> exit 2 each
 # Mutation proofs (each fixture is red BECAUSE of the line mutated):
@@ -36,7 +38,8 @@
 #   E. the allowlist ignored: case 2 turns red, as a new finding;
 #   F. the version pin not compared: case 12 turns green;
 #   G. the network sandbox removed: case 19 sees an open network;
-#   H. a page marker match kept: case 18 turns red.
+#   H. a page marker match kept: case 18 turns red;
+#   I. --text mode not recognised: case 22a no longer exits 0.
 
 set -euo pipefail
 
@@ -279,6 +282,32 @@ mk nosettings; rm -f "${TMP}/nosettings/settings.txt"
 run_gate nosettings
 want_exit "20h: no settings file" 2 "settings file not found"
 
+# 22. --text mode: the extractor the baseline report reuses.
+mk textmode "Dit is Zorbo nu.</p><p>Tweede zin."
+mkdir -p "${TMP}/textmode/out"
+capture env GATE_LANGUAGE_TOOL="${TMP}/absent/languagetool" JAVA_HOME="${TMP}/nojava-home" \
+  "$TARGET" --text "${TMP}/textmode/out" "${TMP}/textmode/site" "${TMP}/absent-allow" "${TMP}/absent-base" "${TMP}/textmode/settings.txt"
+want_green "22a: --text needs no LanguageTool, Java, allowlist or baseline"
+if grep -qxF 'PAGEMARK index.html' "${TMP}/textmode/out/text.nl.txt" && grep -qxF 'Dit is Zorbo nu.' "${TMP}/textmode/out/text.nl.txt" \
+  && grep -qxF 'Tweede zin.' "${TMP}/textmode/out/text.nl.txt" && grep -qxF 'PAGEMARK privacy.html' "${TMP}/textmode/out/text.en.txt"; then
+  echo "  ok: 22b: --text writes a text file per language, a PAGEMARK line before each page"
+else
+  fail "22b: the --text output is wrong: $(printf '%s ' "${TMP}"/textmode/out/*)"
+fi
+capture env "$TARGET" --text "${TMP}/nolocale/out" "${TMP}/nolocale/site" "${TMP}/nolocale/allow.txt" "${TMP}/nolocale/base.txt" "${TMP}/nolocale/settings.txt"
+want_exit "22c: --text refuses a language with no locale as the gate does" 2 "no locale for language 'fr'"
+capture env "$TARGET" --text
+want_exit "22d: --text without a directory" 2 "--text needs an output directory"
+mk roots; echo 'language_page_roots=site,starter=other/dir' >> "${TMP}/roots/settings.txt"
+run_gate roots
+want_green "22e: the optional language_page_roots key is accepted" "OK:"
+mk badroots; echo 'language_page_roots=a b' >> "${TMP}/badroots/settings.txt"
+run_gate badroots
+want_exit "22f: a malformed language_page_roots line" 2 "malformed line 4"
+mk badroots2; echo 'language_page_roots=/x//y,' >> "${TMP}/badroots2/settings.txt"
+run_gate badroots2
+want_exit "22g: an invalid language_page_roots value" 2 "invalid value for 'language_page_roots'"
+
 # Mutation proofs: a copy of the gate runs on the same fixtures. The copy lives
 # in Scripts/ (it cd-s to its own parent), so it is removed again.
 MUT="${REPO_ROOT}/Scripts/.language_mutant.$$.sh"
@@ -336,5 +365,17 @@ if selftest_mutant "$GATE" "$MUT" 's/if marker_hit:/if False:/'; then
   want_red "mutation proof H: a marker match kept turns case 18 red" "new finding"
 fi
 
+# I: --text mode is not recognised -> the text-only run fails as a normal run.
+if selftest_mutant "$GATE" "$MUT" 's/^if \[\[ -n ".TEXT_OUT" \]\]; then$/if false; then/'; then
+  TARGET="$MUT"
+  capture env GATE_LANGUAGE_TOOL="${TMP}/absent/languagetool" JAVA_HOME="${TMP}/nojava-home" \
+    "$TARGET" --text "${TMP}/textmode/out2" "${TMP}/textmode/site" "${TMP}/absent-allow" "${TMP}/absent-base" "${TMP}/textmode/settings.txt"
+  if [[ "$RC" -eq 0 ]]; then
+    fail "mutation proof I: without the --text branch the run still exits 0. Output: ${OUT}"
+  else
+    echo "  ok: mutation proof I: without the --text branch the run exits ${RC} (case 22a would be red)"
+  fi
+fi
+
 rm -f "$MUT"
-selftest_end "the language gate self-test failed" "language gate: every case holds, eight mutations seen"
+selftest_end "the language gate self-test failed" "language gate: every case holds, nine mutations seen"

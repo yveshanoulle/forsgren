@@ -147,10 +147,10 @@ self-tests are.
 | 115 | browser gate self-test | `test_gate_browser.sh` | pre | required, `test_gate_browser v2`; real Chrome and axe-core, fixture sites on 127.0.0.1 |
 | 116 | browser gate | `gate_browser.sh` | post | required, `gate_browser v2`; baseline and exceptions are empty, one variant (see below) |
 | 117 | live check self-test | `test_live_check.sh` | pre | required; stub curl, no network. The live check itself, `live_check.sh`, is not a gate: it needs the deployed site and runs only in the live-check job of `starter_page.yml` |
-| 118 | language gate self-test | `test_gate_language.sh` | pre | required, `test_gate_language v1`; LanguageTool stubbed, 8 mutations |
+| 118 | language gate self-test | `test_gate_language.sh` | pre | required, `test_gate_language v2`; LanguageTool stubbed, 9 mutations |
 | 119 | language pages wrapper self-test | `test_gate_language_pages.sh` | pre | required; the wrapper's own, the canon gate stubbed, 3 mutations |
-| 120 | language gate | `gate_language_pages.sh` | post | required; runs `gate_language.sh` (`gate_language v1`) over the metrics site and the starter page; LanguageTool 6.8 run locally and offline; mode `enforce` in `language_settings.txt`; the allowlist and the baseline are data files (see below) |
-| 121 | baseline report self-test | `test_report_baselines.sh` | pre | required, `test_report_baselines v1`; the report itself, `report_baselines.sh` (`report_baselines v1`), is presentation, not a gate: Quality calls it in three steps (see below) |
+| 120 | language gate | `gate_language_pages.sh` | post | required; runs `gate_language.sh` (`gate_language v2`) over the metrics site and the starter page; LanguageTool 6.8 run locally and offline; mode `enforce` in `language_settings.txt`; the allowlist and the baseline are data files (see below) |
+| 121 | baseline report self-test | `test_report_baselines.sh` | pre | required, `test_report_baselines v2`; the report itself, `report_baselines.sh` (`report_baselines v2`), is presentation, not a gate: Quality calls it in three steps (see below) |
 | 122 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
 | 123 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
 
@@ -263,14 +263,22 @@ wrapper puts both in one temporary directory, the starter page as
 
 ## The baselines on the Quality run page (forsgren#220)
 
-`Scripts/report_baselines.sh <section>` (`report_baselines v1`) renders one
+`Scripts/report_baselines.sh <section>` (`report_baselines v2`) renders one
 gate's baseline data as markdown tables, to stdout and to `$GITHUB_STEP_SUMMARY`.
 Quality has one step per section after the report, each `if: always()` so it shows
 when a gate is red, pinned by name in `Scripts/test_gate_wiring.sh` (pin 2b):
-`Language baselines` (rows and allowlist words), `Browser baselines` (axe rows,
+`Language baselines` (rows with the sentence where the text is used, and the allowlist words), `Browser baselines` (axe rows,
 CLS rows, counts by rule and by page) and `Image baselines`. forsgren has no image
 size gate, so that step prints that this site has no such file; that is correct
-and stays. It reads data files and runs no gate; an unreadable file or a
+and stays. The sentence is not stored in the baseline: the report finds each row's recorded
+context in the visible text of the row's own page, extracted by the gate itself
+(`gate_language.sh --text`), and shows the enclosing sentence, bounded by `.`,
+`!`, `?` or the paragraph and cut near 200 characters with `…`. The pages are
+`language_page_roots` of `Scripts/language_settings.txt`: here `.build/site` and
+`starter=.build/starter`, the same layout the pages wrapper gives the gate, so a
+starter page row is keyed `starter/index.html`. Quality's baseline steps run after
+the POST gates, so the built pages exist. A missing page or context says so
+without failing the step. It reads data files and runs no gate; an unreadable file or a
 malformed row fails the step. Its self-test is the PRE row 121.
 
 ## The ratchet today

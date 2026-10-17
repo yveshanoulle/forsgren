@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: gate_language v1
+# canon: gate_language v2
 # Scripts/gate_language.sh (estate issue 300)
 #
 # The language gate (POST): the visible text of every built page, checked by
@@ -47,12 +47,21 @@
 # change moves the findings).
 #
 # THE SETTINGS, Scripts/language_settings.txt (key=value, # comments, all three
-# required, none repeated, none unknown, else exit 2): language_mode (enforce or
+# required, none repeated, none unknown, else exit 2; one more key is optional,
+# language_page_roots, read by Scripts/report_baselines.sh and only validated
+# here): language_mode (enforce or
 # warn), language_locales (comma separated lang:locale pairs, e.g.
 # nl:nl-BE,en:en-GB) and language_tool_version (the version the baseline was
 # recorded with). A separate file, read here, so the site settings reader stays
 # as it is in every repository. The site directory comes from site_dir of
 # Scripts/site_settings.txt unless it is given.
+#
+# TEXT MODE (v2): gate_language.sh --text <out-dir> [site-dir [allowlist
+# [baseline [language-settings]]]] writes the extracted text of the pages to
+# <out-dir> (text.<lang>.txt with a PAGEMARK line before each page, langs.txt,
+# pages.txt) and exits 0. It needs only the settings file and the pages: no
+# allowlist, baseline, LanguageTool, Java or sandbox. The baseline report uses it,
+# so the sentence it shows is from the very text this gate checks.
 #
 # Usage: gate_language.sh [site-dir [allowlist [baseline [language-settings]]]]
 # Environment: GATE_LANGUAGE_TOOL names the languagetool command (default: the
@@ -83,6 +92,12 @@ tool_fail() { echo "❌ $*" >&2; exit 2; }
 
 # shellcheck source=Scripts/lib_site_settings.sh
 source Scripts/lib_site_settings.sh
+TEXT_OUT=""
+if [[ "${1:-}" == "--text" ]]; then
+  TEXT_OUT="${2:-}"
+  [[ -n "$TEXT_OUT" ]] || tool_fail "language gate: --text needs an output directory"
+  shift 2
+fi
 SITE_DIR="${1:-}"
 if [[ -z "$SITE_DIR" ]]; then
   SITE_DIR="$(site_settings_get Scripts/site_settings.txt site_dir)" || exit 2
@@ -108,6 +123,7 @@ language_setting() {
       language_mode) [[ "$value" =~ ^(enforce|warn)$ ]] || tool_fail "language gate: invalid value for 'language_mode' (line ${n} of ${SETTINGS}): ${value}; enforce or warn" ;;
       language_locales) [[ "$value" =~ ^[a-z]{2,3}:[A-Za-z]{2,3}(-[A-Za-z0-9]+)*(,[a-z]{2,3}:[A-Za-z]{2,3}(-[A-Za-z0-9]+)*)*$ ]] || tool_fail "language gate: invalid value for 'language_locales' (line ${n} of ${SETTINGS}): ${value}; lang:locale pairs" ;;
       language_tool_version) [[ "$value" =~ ^[0-9]+(\.[0-9]+)+$ ]] || tool_fail "language gate: invalid value for 'language_tool_version' (line ${n} of ${SETTINGS}): ${value}" ;;
+      language_page_roots) [[ "$value" =~ ^([A-Za-z0-9_-]+=)?[A-Za-z0-9_./-]+(,([A-Za-z0-9_-]+=)?[A-Za-z0-9_./-]+)*$ ]] || tool_fail "language gate: invalid value for 'language_page_roots' (line ${n} of ${SETTINGS}): ${value}; dir or prefix=dir, comma separated" ;;
       *) tool_fail "language gate: unknown key '${key}' (line ${n} of ${SETTINGS})" ;;
     esac
     case "$seen" in *" ${key} "*) tool_fail "language gate: duplicate key '${key}' (line ${n} of ${SETTINGS})" ;; esac
@@ -123,44 +139,14 @@ MODE="$(language_setting language_mode)"
 LOCALES="$(language_setting language_locales)"
 PINNED_VERSION="$(language_setting language_tool_version)"
 
-[[ -d "$SITE_DIR" ]] || tool_fail "language gate: site dir not found: ${SITE_DIR}"
-[[ -f "$ALLOWLIST" ]] || tool_fail "language gate: allowlist not found: ${ALLOWLIST}"
-[[ -f "$BASELINE" ]] || tool_fail "language gate: baseline not found: ${BASELINE}"
-
-# LanguageTool and Java: found, or the gate fails and says what is missing.
-LT_BIN="${GATE_LANGUAGE_TOOL:-}"
-if [[ -z "$LT_BIN" ]]; then
-  LT_BIN="$(command -v languagetool || true)"
-  [[ -n "$LT_BIN" ]] || LT_BIN="/opt/homebrew/opt/languagetool/bin/languagetool"
-fi
-[[ -x "$LT_BIN" ]] || tool_fail "LanguageTool is missing: ${LT_BIN} (brew install languagetool)"
-export JAVA_HOME="${JAVA_HOME:-/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home}"
-[[ -x "${JAVA_HOME}/bin/java" ]] || tool_fail "Java is missing: ${JAVA_HOME}/bin/java (LanguageTool runs on openjdk@17, installed with it by brew)"
-
-# No network for LanguageTool, enforced by the operating system.
-SANDBOX_PROFILE='(version 1)(allow default)(deny network*)'
-command -v sandbox-exec >/dev/null 2>&1 || tool_fail "sandbox-exec is missing: LanguageTool cannot be run without network, so it is not run"
-sandbox-exec -p "$SANDBOX_PROFILE" /usr/bin/true >/dev/null 2>&1 || tool_fail "sandbox-exec cannot apply the no-network profile: LanguageTool is not run"
-run_lt() { sandbox-exec -p "$SANDBOX_PROFILE" "$LT_BIN" "$@"; }
-
-set +e
-VERSION_OUT="$(run_lt --version 2>&1 </dev/null)"
-vrc=$?
-set -e
-[[ "$vrc" -eq 0 ]] || tool_fail "LanguageTool failed (exit ${vrc}) on --version: ${VERSION_OUT}"
-LT_VERSION="$(printf '%s\n' "$VERSION_OUT" | sed -n 's/^LanguageTool version \([0-9][0-9.]*\).*/\1/p' | head -n 1)"
-[[ -n "$LT_VERSION" ]] || tool_fail "cannot read the LanguageTool version from: ${VERSION_OUT}"
-if [[ "$LT_VERSION" != "$PINNED_VERSION" ]]; then
-  VERSION_MSG="LanguageTool is ${LT_VERSION}, the pinned version is ${PINNED_VERSION} (language_tool_version in ${SETTINGS})"
-  if [[ "$MODE" == "enforce" ]]; then
-    echo "❌ ${VERSION_MSG}"
-    exit 1
-  fi
-  echo "⚠️ warn: ${VERSION_MSG}"
-fi
-
-# The visible text of every page, one file per language.
-PYTHONIOENCODING=utf-8 python3 -I - "$SITE_DIR" "$LOCALES" "$WORK" <<'PY'
+# extract_text <out-dir>: the visible text of every page of SITE_DIR, one file
+# per language (text.<lang>.txt, a PAGEMARK line before each page), the list of
+# languages (langs.txt) and the page count (pages.txt). Also the gate's --text
+# mode, which Scripts/report_baselines.sh uses to show the sentence of a baseline
+# row from exactly the text the gate checked.
+extract_text() {
+  mkdir -p "$1"
+PYTHONIOENCODING=utf-8 python3 -I - "$SITE_DIR" "$LOCALES" "$1" <<'PY'
 import os
 import re
 import sys
@@ -313,6 +299,53 @@ with open(os.path.join(work, "langs.txt"), "w", encoding="utf-8") as langs:
 with open(os.path.join(work, "pages.txt"), "w", encoding="utf-8") as count:
     count.write(str(len(pages)) + "\n")
 PY
+}
+
+if [[ -n "$TEXT_OUT" ]]; then
+  [[ -d "$SITE_DIR" ]] || tool_fail "language gate: site dir not found: ${SITE_DIR}"
+  extract_text "$TEXT_OUT"
+  COMPLETED=1
+  exit 0
+fi
+
+[[ -d "$SITE_DIR" ]] || tool_fail "language gate: site dir not found: ${SITE_DIR}"
+[[ -f "$ALLOWLIST" ]] || tool_fail "language gate: allowlist not found: ${ALLOWLIST}"
+[[ -f "$BASELINE" ]] || tool_fail "language gate: baseline not found: ${BASELINE}"
+
+# LanguageTool and Java: found, or the gate fails and says what is missing.
+LT_BIN="${GATE_LANGUAGE_TOOL:-}"
+if [[ -z "$LT_BIN" ]]; then
+  LT_BIN="$(command -v languagetool || true)"
+  [[ -n "$LT_BIN" ]] || LT_BIN="/opt/homebrew/opt/languagetool/bin/languagetool"
+fi
+[[ -x "$LT_BIN" ]] || tool_fail "LanguageTool is missing: ${LT_BIN} (brew install languagetool)"
+export JAVA_HOME="${JAVA_HOME:-/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home}"
+[[ -x "${JAVA_HOME}/bin/java" ]] || tool_fail "Java is missing: ${JAVA_HOME}/bin/java (LanguageTool runs on openjdk@17, installed with it by brew)"
+
+# No network for LanguageTool, enforced by the operating system.
+SANDBOX_PROFILE='(version 1)(allow default)(deny network*)'
+command -v sandbox-exec >/dev/null 2>&1 || tool_fail "sandbox-exec is missing: LanguageTool cannot be run without network, so it is not run"
+sandbox-exec -p "$SANDBOX_PROFILE" /usr/bin/true >/dev/null 2>&1 || tool_fail "sandbox-exec cannot apply the no-network profile: LanguageTool is not run"
+run_lt() { sandbox-exec -p "$SANDBOX_PROFILE" "$LT_BIN" "$@"; }
+
+set +e
+VERSION_OUT="$(run_lt --version 2>&1 </dev/null)"
+vrc=$?
+set -e
+[[ "$vrc" -eq 0 ]] || tool_fail "LanguageTool failed (exit ${vrc}) on --version: ${VERSION_OUT}"
+LT_VERSION="$(printf '%s\n' "$VERSION_OUT" | sed -n 's/^LanguageTool version \([0-9][0-9.]*\).*/\1/p' | head -n 1)"
+[[ -n "$LT_VERSION" ]] || tool_fail "cannot read the LanguageTool version from: ${VERSION_OUT}"
+if [[ "$LT_VERSION" != "$PINNED_VERSION" ]]; then
+  VERSION_MSG="LanguageTool is ${LT_VERSION}, the pinned version is ${PINNED_VERSION} (language_tool_version in ${SETTINGS})"
+  if [[ "$MODE" == "enforce" ]]; then
+    echo "❌ ${VERSION_MSG}"
+    exit 1
+  fi
+  echo "⚠️ warn: ${VERSION_MSG}"
+fi
+
+# The visible text of every page, one file per language.
+extract_text "$WORK"
 
 # LanguageTool, once per language, offline.
 while read -r lang locale; do

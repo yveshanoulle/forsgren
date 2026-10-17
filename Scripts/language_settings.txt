@@ -11,3 +11,7 @@
 language_mode=enforce
 language_locales=en:en-GB
 language_tool_version=6.8
+# language_page_roots     where the built pages are, for Scripts/report_baselines.sh:
+#                         comma separated dir or prefix=dir; the starter page goes
+#                         under starter/, as Scripts/gate_language_pages.sh puts it
+language_page_roots=.build/site,starter=.build/starter

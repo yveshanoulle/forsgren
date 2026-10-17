@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# canon: test_report_baselines v1
+# canon: test_report_baselines v2
 # Scripts/test_report_baselines.sh (estate issue 300)
 #
 # Self-test for Scripts/report_baselines.sh, which renders the baseline data
 # files as markdown tables for the Quality run page, run in PRE. Each case is a
 # fixture data directory.
-#   1. language: the rows (page, language, text, rule, times, reason) and the allowlist words
+#   1. language: the rows (page, language, text, sentence, rule, times, reason) and the allowlist words
+#      (v2) the sentence comes from the row's own page, found by the row's context in the visible
+#      text the gate extracts, bounded by . ! ? or the paragraph, capped near 200 characters with …;
+#      a missing page says "page not found: <page>", a context not in the page "not found in <page>",
+#      neither empty and neither a failure; LanguageTool is never run
 #   2. language: an empty baseline and an empty allowlist             -> "no rows (empty baseline)"
 #   3. language: no files                                             -> a line saying so, exit 0
 #   4. browser: axe and CLS rows, a selector with a pipe, the counts by rule and by page
@@ -21,6 +25,9 @@
 #   B. the reason column dropped: case 1 no longer lists the reason;
 #   C. an unreadable file only warns: case 8 no longer exits 1;
 #   D. the allowlist section dropped: case 1 no longer lists the words;
+#   J. the sentence taken from another page than the row's own: case 1k shows the other page's sentence;
+#   K. the cap removed: case 1i no longer cuts;
+#   L. the sentence boundaries ignored: case 1a shows the whole paragraph;
 #   E. a missing file errors: case 3 no longer says "this site has no";
 #   F. an empty file prints a table: case 2 no longer says "no rows (empty baseline)";
 #   G. a malformed row is printed: case 9 no longer fails naming the row format;
@@ -54,11 +61,27 @@ want_lacks() {
 }
 
 D="${TMP}/full"; mkdir -p "$D"
-cat > "$D/language_baseline.txt" <<'DATA'
+PAGES="${TMP}/pages"; mkdir -p "$PAGES"
+page() { printf '<!doctype html>\n<html lang="%s"><head><title>t</title></head><body>%s</body></html>\n' "$2" "$3" > "${PAGES}/$1"; }
+LONG="$(printf 'word %.0s' $(seq 1 60))MATCHX$(printf ' word%.0s' $(seq 1 60))."
+page a.html nl '<p>Eerste zin. Dit is een Foo bar hier! Derde zin?</p><p>Tweede alinea zonder punt</p><p>Versie 3.5 heeft een Foo3 fout. Nog een zin.</p>'
+page b.html en '<p>The Baz is here.</p><p>Second.</p>'
+page d.html en "<p>${LONG}</p>"
+page p1.html en '<p>Alpha ctx here one.</p>'
+page p2.html en '<p>Beta ctx here two.</p>'
+cat > "$D/language_baseline.txt" <<DATA
 # comment
-a.html|nl-BE|RULE_ONE|Foo bar|ctx Foo bar ctx|2|because it is a name
-b.html|en-GB|RULE_TWO|Baz|ctx Baz|1|Dutch chrome, intended
+a.html|nl-BE|RULE_ONE|Foo bar|Dit is een Foo bar hier|2|because it is a name
+b.html|en-GB|RULE_TWO|Baz|The Baz is here|1|Dutch chrome, intended
+a.html|nl-BE|RULE_THREE|Foo3|heeft een Foo3 fout|1|a decimal is not a sentence end
+a.html|nl-BE|RULE_FOUR|alinea|Tweede alinea zonder|1|a paragraph is a boundary
+d.html|en-GB|RULE_FIVE|MATCHX|word MATCHX word|1|a long sentence
+c.html|en-GB|RULE_SIX|Gone|about Gone page|1|the page is not there
+b.html|en-GB|RULE_SEVEN|Nope|not in this page at all|1|the context is not on the page
+p2.html|en-GB|RULE_EIGHT|ctx|ctx here|1|the sentence is from its own page
 DATA
+printf '%s\n' 'language_mode=warn' 'language_locales=nl:nl-BE,en:en-GB' 'language_tool_version=6.8' \
+  "language_page_roots=${PAGES}" > "$D/language_settings.txt"
 printf '# words\nZorbo\npasskey\n' > "$D/language_allowlist.txt"
 cat > "$D/browser_gate_baseline.txt" <<'DATA'
 # comment
@@ -70,12 +93,33 @@ DATA
 printf '# comment\nlimit_bytes=1000\nSite/a.png|2000|logo, shrink-only\n' > "$D/image_size_exceptions.txt"
 
 run language "$D"
-want_green "1a: language rows are listed with the text and the rule" "| a.html | nl-BE | \`Foo bar\` | RULE_ONE | 2 | because it is a name |"
-want_said "1b: the table header" "| page | language | text | rule | times | reason |"
-want_said "1c: the second row" "| b.html | en-GB | \`Baz\` | RULE_TWO | 1 | Dutch chrome, intended |"
-want_said "1d: the totals" "2 rows, 3 findings"
+want_green "1a: a row is listed with the text, the sentence and the rule" "| a.html | nl-BE | \`Foo bar\` | Dit is een Foo bar hier! | RULE_ONE | 2 | because it is a name |"
+want_lacks "1a2: the sentence stops at . ! and ? (neither neighbour is in it)" "Eerste zin"
+want_said "1b: the table header" "| page | language | text | sentence | rule | times | reason |"
+want_said "1c: the second row" "| b.html | en-GB | \`Baz\` | The Baz is here. | RULE_TWO | 1 | Dutch chrome, intended |"
+want_said "1d: the totals" "8 rows, 9 findings"
 want_said "1e: the allowlist words" "| \`Zorbo\` |"
 want_said "1f: the allowlist says it does not count matches" "does not run LanguageTool"
+want_said "1g: a decimal point is not a sentence end" "| Versie 3.5 heeft een Foo3 fout. |"
+want_said "1h: a paragraph is a boundary" "| Tweede alinea zonder punt |"
+want_said "1j: a missing page says so" "| c.html | en-GB | \`Gone\` | page not found: c.html |"
+want_said "1j2: a context that is not on the page says so" "| b.html | en-GB | \`Nope\` | not found in b.html |"
+cell="$(grep -F 'RULE_FIVE' <<< "$OUT" | awk -F'|' '{ print $5 }' | sed 's/^ *//; s/ *$//')"
+if [[ "${#cell}" -le 215 && "${#cell}" -ge 150 && "$cell" == …* && "$cell" == *… && "$cell" == *MATCHX* ]]; then
+  echo "  ok: 1i: a long sentence is cut near 200 characters on both sides with …, around the text"
+else
+  fail "1i: the cap is wrong (${#cell} characters): ${cell}"
+fi
+want_said "1k: the sentence of a row is from its own page" "| Beta ctx here two. |"
+capture env GATE_LANGUAGE_TOOL=/nonexistent/languagetool JAVA_HOME=/nonexistent "$TARGET" language "$D"
+want_green "1l: LanguageTool is never run (it is not even installed here)" "Beta ctx here two."
+mkdir -p "${TMP}/nosettings"; cp "$D/language_baseline.txt" "${TMP}/nosettings/"
+run language "${TMP}/nosettings"
+want_exit "1m: rows without a settings file fail, never an empty sentence" 1 "settings file not found"
+mkdir -p "${TMP}/noroot"; cp "$D/language_baseline.txt" "$D/language_settings.txt" "${TMP}/noroot/"
+sed -i.bak "s#^language_page_roots=.*#language_page_roots=${TMP}/absent-pages#" "${TMP}/noroot/language_settings.txt"; rm -f "${TMP}/noroot/language_settings.txt.bak"
+run language "${TMP}/noroot"
+want_green "1n: no page root on disk: every sentence says page not found, the step does not fail" "page not found: a.html"
 
 E="${TMP}/empty"; mkdir -p "$E"
 : > "$E/language_baseline.txt"; : > "$E/language_allowlist.txt"; : > "$E/browser_gate_baseline.txt"
@@ -201,5 +245,18 @@ if selftest_mutant "$TOOL" "$MUT" 's/"\\\\|", v/"|", v/'; then
   want_lacks "mutation proof I: an unescaped pipe in a selector no longer has the escaped cell (case 4b)" "a[href\\|=x]"
 fi
 
+if selftest_mutant "$TOOL" "$MUT" 's/paras = by_lang.get(lang, {}).get(page, \[\])/paras = [q for ps in by_lang.get(lang, {}).values() for q in ps]/'; then
+  TARGET="$MUT"; run language "$D"
+  want_lacks "mutation proof J: a sentence taken from another page loses the row's own sentence (case 1k)" "| Beta ctx here two. |"
+fi
+if selftest_mutant "$TOOL" "$MUT" 's/^CAP = 200$/CAP = 100000/'; then
+  TARGET="$MUT"; run language "$D"
+  want_lacks "mutation proof K: without the cap the long sentence is not cut (case 1i)" "…"
+fi
+if selftest_mutant "$TOOL" "$MUT" 's/^BOUNDARIES = ".!?"$/BOUNDARIES = ""/'; then
+  TARGET="$MUT"; run language "$D"
+  want_lacks "mutation proof L: without the sentence boundaries the whole paragraph is shown (case 1a)" "| Dit is een Foo bar hier! |"
+fi
+
 rm -f "$MUT"
-selftest_end "the report_baselines self-test failed" "report_baselines: every case holds, nine mutations seen"
+selftest_end "the report_baselines self-test failed" "report_baselines: every case holds, twelve mutations seen"

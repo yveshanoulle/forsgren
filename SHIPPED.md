@@ -9,6 +9,18 @@ Active work lives in
 
 ---
 
+## 2026-10-17 — the sentence of each language baseline row on the run page ([#220](https://github.com/yveshanoulle/forsgren/issues/220))
+
+The Language baselines table on the run page gains a `sentence` column: the
+report (`report_baselines v2`) finds each row's recorded context in the visible
+text of the row's own page, extracted by the gate itself (`gate_language v2`, new
+`--text` mode), and shows the enclosing sentence, cut near 200 characters. It is
+never stored in the baseline. New optional key `language_page_roots` in
+`Scripts/language_settings.txt`: `.build/site,starter=.build/starter` here. The
+four canon files are byte-identical with the other sites.
+
+---
+
 ## 2026-10-17 — language gate and the baselines on the run page ([#220](https://github.com/yveshanoulle/forsgren/issues/220))
 
 A language gate for the generated pages: LanguageTool 6.8 in `en-GB`, run locally
