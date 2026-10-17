@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+# canon: test_sync_private_names_secrets v1
 # Scripts/test_sync_private_names_secrets.sh
 #
-# Self-test for Scripts/sync_private_names_secrets.sh (forsgren#52, step 3).
+# Self-test for Scripts/sync_private_names_secrets.sh (the canon, shared by repositories).
 # The script copies the private-names list from its local file into the two
 # GitHub secrets the private-names gate reads in CI: the Actions secret and
 # the Dependabot secret, both named FORSGREN_PRIVATE_NAMES. Every name below
@@ -13,9 +14,10 @@
 #   $HOME/.config/forsgren/private-names (the rule of check_private_names.sh);
 #   lines starting with # are not names.
 #   It calls `gh` twice, the list on stdin, never as an argument:
-#     gh secret set FORSGREN_PRIVATE_NAMES -R yveshanoulle/forsgren
-#     gh secret set FORSGREN_PRIVATE_NAMES --app dependabot -R yveshanoulle/forsgren
-#   and never prints a name.
+#     gh secret set FORSGREN_PRIVATE_NAMES -R acme/app
+#     gh secret set FORSGREN_PRIVATE_NAMES --app dependabot -R acme/app
+#   and never prints a name. <owner>/<repo> (a made-up acme/app here) is the
+#   clone's origin remote, or env SYNC_REPO; it is never written in the script.
 #
 #   1. a file with a comment and two names -> exactly two gh calls (Actions,
 #      Dependabot), each fed the two names and not the comment on stdin.
@@ -94,7 +96,7 @@ call_stdin_is_names() {
 run_sync() {
   rm -f "${GH_LOG}"/args-* "${GH_LOG}"/stdin-*
   capture env -u FORSGREN_PRIVATE_NAMES HOME="${TMP}/empty-home" \
-    FORSGREN_PRIVATE_NAMES_FILE="$2" GH_LOG="$GH_LOG" GH_FAIL_ON="${3:-}" \
+    FORSGREN_PRIVATE_NAMES_FILE="$2" SYNC_REPO="acme/app" GH_LOG="$GH_LOG" GH_FAIL_ON="${3:-}" \
     PATH="${FAKE_BIN}:${PATH}" "$1"
 }
 
@@ -108,8 +110,8 @@ else
   fail "expected exactly 2 gh calls, got $(calls). Output: ${OUT}"
 fi
 
-ARGS_ACTIONS="secret set FORSGREN_PRIVATE_NAMES -R yveshanoulle/forsgren"
-ARGS_DEPENDABOT="secret set FORSGREN_PRIVATE_NAMES --app dependabot -R yveshanoulle/forsgren"
+ARGS_ACTIONS="secret set FORSGREN_PRIVATE_NAMES -R acme/app"
+ARGS_DEPENDABOT="secret set FORSGREN_PRIVATE_NAMES --app dependabot -R acme/app"
 if call_has_args 1 "$ARGS_ACTIONS" && call_has_args 2 "$ARGS_DEPENDABOT"; then
   echo "  ok: the calls are the Actions secret, then the Dependabot secret"
 else
@@ -274,7 +276,7 @@ printf '%s\n%s\n' "$COMMENT" "$NAME_X" > "$EXTRA_FILE"
 run_sync_extra() {
   rm -f "${GH_LOG}"/args-* "${GH_LOG}"/stdin-*
   capture env -u FORSGREN_PRIVATE_NAMES HOME="${TMP}/empty-home" \
-    FORSGREN_PRIVATE_NAMES_FILE="$NAMES_FILE" FORSGREN_PRIVATE_NAMES_EXTRA_FILE="$2" \
+    FORSGREN_PRIVATE_NAMES_FILE="$NAMES_FILE" FORSGREN_PRIVATE_NAMES_EXTRA_FILE="$2" SYNC_REPO="acme/app" \
     GH_LOG="$GH_LOG" GH_FAIL_ON="${3:-}" PATH="${FAKE_BIN}:${PATH}" "$1"
 }
 
@@ -290,8 +292,8 @@ case_extra_present() {
     REASON="a sync with an extra file exited ${RC}. Output: ${OUT}"
   elif [[ "$(calls)" != "4" ]]; then
     REASON="a sync with an extra file made $(calls) gh calls, not 4"
-  elif ! call_has_args 3 "secret set FORSGREN_PRIVATE_NAMES_EXTRA -R yveshanoulle/forsgren" \
-    || ! call_has_args 4 "secret set FORSGREN_PRIVATE_NAMES_EXTRA --app dependabot -R yveshanoulle/forsgren"; then
+  elif ! call_has_args 3 "secret set FORSGREN_PRIVATE_NAMES_EXTRA -R acme/app" \
+    || ! call_has_args 4 "secret set FORSGREN_PRIVATE_NAMES_EXTRA --app dependabot -R acme/app"; then
     REASON="gh calls 3 and 4 are not the extra Actions and Dependabot secrets: $(cat "${GH_LOG}"/args-* | tr '\n' ';')"
   elif [[ "$(cat "${GH_LOG}/stdin-3")" != "$NAME_X" || "$(cat "${GH_LOG}/stdin-4")" != "$NAME_X" ]]; then
     REASON="the extra secrets did not get exactly the extra name on stdin"
@@ -366,6 +368,60 @@ else
 fi
 holds "a failing extra Actions secret exits 1, says so and skips the extra Dependabot call" case_extra_actions_fails
 
+# --- the repository is DERIVED from the origin remote (SYNC_REPO unset), in
+# every URL form; an origin that names no owner/repo is exit 2, no gh call.
+# run_derived <script> <origin url>: the script in a fixture clone of its own.
+run_derived() {
+  local d="${TMP}/derived-${DERIVED_N:=0}"
+  DERIVED_N=$((DERIVED_N + 1))
+  mkdir -p "${d}/Scripts"
+  git -C "$d" init -q -b main
+  [[ -z "$2" ]] || git -C "$d" remote add origin "$2"
+  cp "$1" "${d}/Scripts/sync_private_names_secrets.sh"
+  cp Scripts/lib_private_names.sh "${d}/Scripts/"
+  rm -f "${GH_LOG}"/args-* "${GH_LOG}"/stdin-*
+  capture env -u FORSGREN_PRIVATE_NAMES -u SYNC_REPO HOME="${TMP}/empty-home" \
+    GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null \
+    FORSGREN_PRIVATE_NAMES_FILE="$NAMES_FILE" GH_LOG="$GH_LOG" PATH="${FAKE_BIN}:${PATH}" \
+    "${d}/Scripts/sync_private_names_secrets.sh"
+}
+
+# case_derives_repo <script>
+case_derives_repo() {
+  local url
+  for url in "https://example.invalid/acme/app.git" "git@example.invalid:acme/app.git" \
+    "ssh://git@example.invalid/acme/app.git" "https://example.invalid/acme/app"; do
+    run_derived "$1" "$url"
+    if [[ "$RC" != "0" ]]; then
+      REASON="origin ${url}: the sync exited ${RC}. Output: ${OUT}"
+    elif ! call_has_args 1 "secret set FORSGREN_PRIVATE_NAMES -R acme/app" \
+      || ! call_has_args 2 "secret set FORSGREN_PRIVATE_NAMES --app dependabot -R acme/app"; then
+      REASON="origin ${url}: the repository was not acme/app: $(cat "${GH_LOG}"/args-* | tr '\n' ';')"
+    else
+      continue
+    fi
+    return 1
+  done
+}
+
+# case_no_origin <script>: no origin, no SYNC_REPO: exit 2 before any gh call.
+case_no_origin() {
+  run_derived "$1" ""
+  if [[ "$RC" != "2" ]]; then
+    REASON="a clone without origin exited ${RC}, not 2. Output: ${OUT}"
+  elif ! grep -qF "SYNC_REPO" <<< "$OUT"; then
+    REASON="a clone without origin gave no FAIL line naming SYNC_REPO. Output: ${OUT}"
+  elif [[ "$(calls)" != "0" ]]; then
+    REASON="a clone without origin still made $(calls) gh call(s)"
+  else
+    return 0
+  fi
+  return 1
+}
+
+holds "the repository is derived from the origin remote (https, scp, ssh, no .git)" case_derives_repo
+holds "a clone without an origin and without SYNC_REPO exits 2 before any gh call" case_no_origin
+
 # mutation_proof <label> <sed-expression> <case function>: a mutant of the
 # script that breaks the behaviour must NOT hold the case, so the case can fail.
 MUTANT_N=0
@@ -405,6 +461,10 @@ mutation_proof "a script that syncs the extra secret although the file is absent
   "s/^if \\[\\[ -n \"\\\$EXTRA_FILE\" && -e \"\\\$EXTRA_FILE\" \\]\\]; then\$/if true; then/" case_extra_absent
 mutation_proof "a script that never syncs the extra list" \
   "s/^if \\[\\[ -n \"\\\$EXTRA_FILE\" && -e \"\\\$EXTRA_FILE\" \\]\\]; then\$/if false; then/" case_extra_present
+mutation_proof "a script with the repository hard-coded" \
+  "s/^REPO=\"\${SYNC_REPO:-}\"\$/REPO=\"other\\/repo\"/" case_derives_repo
+mutation_proof "a script that ignores a missing origin" \
+  "s/^if \\[\\[ ! \"\$REPO\" =~ .*\$/if false; then/" case_no_origin
 
 selftest_end "the secret sync does not hold its success and failure paths" \
   "secret sync sets FORSGREN_PRIVATE_NAMES for Actions and Dependabot from the names file, comments dropped, names on stdin; fails safe, without printing a name"

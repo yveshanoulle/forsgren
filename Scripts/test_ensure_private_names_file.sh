@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+# canon: test_ensure_private_names_file v1
 # Scripts/test_ensure_private_names_file.sh
 #
-# Self-test for Scripts/ensure_private_names_file.sh (forsgren#52, step
+# Self-test for Scripts/ensure_private_names_file.sh (step
 # 12c). CI always fails without a private-names list (the gate exits 2);
 # LOCALLY, FBP.sh calls this helper before the PRE gates so a first run needs
 # no setup: when no list is given at all, it creates an EMPTY list file at
@@ -89,7 +90,7 @@ fi
 
 # --- an EMPTY explicit file variable is unset, as the gate reads it ----------
 # The gate falls back to the default path when FORSGREN_PRIVATE_NAMES_FILE is
-# empty (forsgren#54), so the helper must create that default file, not do
+# empty, so the helper must create that default file, not do
 # nothing and leave the gate on exit 2.
 HOME_EMPTYVAR="${TMP}/home-emptyvar"
 DEFAULT_EMPTYVAR="${HOME_EMPTYVAR}/.config/forsgren/private-names"

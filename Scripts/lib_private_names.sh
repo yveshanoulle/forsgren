@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+# canon: lib_private_names v1
 # Scripts/lib_private_names.sh
 #
-# forsgren#52 (refactor): the one reading of the private-names list, shared
+# (refactor): the one reading of the private-names list, shared
 # by the gate (Scripts/check_private_names.sh) and the secret sync
 # (Scripts/sync_private_names_secrets.sh), which used to carry a copy each.
 # It parses list TEXT; the callers choose the source (the gate takes env
@@ -23,7 +24,7 @@ private_names_file() {
 # private_names_file_given: succeeds when FORSGREN_PRIVATE_NAMES_FILE names a
 # file. An EMPTY variable names none: it counts as unset, here and in
 # private_names_file's fallback, so the gate and the pre-flight helper
-# agree (forsgren#54).
+# agree.
 private_names_file_given() {
   [[ -n "${FORSGREN_PRIVATE_NAMES_FILE:-}" ]]
 }

@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
+# canon: sync_private_names_secrets v1
 # Scripts/sync_private_names_secrets.sh
 #
-# forsgren#52. The private-names gate reads its list in CI from the Actions
+# The private-names gate reads its list in CI from the Actions
 # secret FORSGREN_PRIVATE_NAMES (and Dependabot runs read the Dependabot
 # secret of the same name). The LOCAL file is the source of truth; both
 # secrets are copies of it. This script copies it:
 #
-#   gh secret set FORSGREN_PRIVATE_NAMES -R yveshanoulle/forsgren
-#   gh secret set FORSGREN_PRIVATE_NAMES --app dependabot -R yveshanoulle/forsgren
+#   gh secret set FORSGREN_PRIVATE_NAMES -R <owner>/<repo>
+#   gh secret set FORSGREN_PRIVATE_NAMES --app dependabot -R <owner>/<repo>
+#
+# <owner>/<repo> is this clone's own origin (git remote get-url origin), or
+# env SYNC_REPO when set: the repository name is NEVER written in a tracked
+# file here, since the list of private names keeps it out of them.
 #
 # The repository's EXTRA list, when its file is there, goes the same way into
 # the Actions and Dependabot secrets FORSGREN_PRIVATE_NAMES_EXTRA (the file is
@@ -41,7 +46,15 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=Scripts/lib_private_names.sh
 source "${ROOT}/Scripts/lib_private_names.sh"
 
-REPO="yveshanoulle/forsgren"
+REPO="${SYNC_REPO:-}"
+if [[ -z "$REPO" ]]; then
+  url="$(git -C "$ROOT" remote get-url origin 2>/dev/null || true)"
+  REPO="$(printf '%s' "$url" | sed -E 's#^(git@[^:]+:|https?://[^/]+/|ssh://[^/]+/)##; s#\.git$##')"
+fi
+if [[ ! "$REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+  echo "❌ FAIL: cannot tell this repository from the origin remote; set SYNC_REPO=<owner>/<repo>"
+  exit 2
+fi
 SECRET="FORSGREN_PRIVATE_NAMES"
 FILE="$(private_names_file)"
 

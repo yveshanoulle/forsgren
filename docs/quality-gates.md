@@ -30,7 +30,9 @@ commit itself:
   `env`, and the Dependabot secret of the same name are synchronized copies,
   never edited on their own: after changing the file, run
   `./Scripts/sync_private_names_secrets.sh` by hand (it needs the
-  maintainer's `gh` login) and it sets both. An external fork pull request
+  maintainer's `gh` login) and it sets both, for the repository the
+  clone's `origin` remote names (or `SYNC_REPO=<owner>/<repo>`; no tracked
+  file writes the name). An external fork pull request
   receives neither secret, so the gate fails there (exit 2, no list); that
   is intended: CI always fails without the secret or with an emptied one.
   In GitHub Actions a missing or empty secret is exit 2 with a line that

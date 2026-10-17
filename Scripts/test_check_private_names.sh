@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+# canon: test_check_private_names v1
 # Scripts/test_check_private_names.sh
 #
-# Self-test for Scripts/check_private_names.sh (forsgren#52), run before the
+# Self-test for Scripts/check_private_names.sh, run before the
 # gate it validates. The gate keeps the real private repository names out of
 # this public repository's tracked files. The list of names lives OUTSIDE the
 # repository (Yves's ruling, 2026-10-04): locally in a file, in CI in an
@@ -16,7 +17,7 @@
 #        $HOME/.config/forsgren/private-names, one name per line
 #   blank lines and lines starting with # are not names.
 #   exit 0 clean (prints an OK: line), 1 a name found, 2 the scan read nothing.
-#   Yves's corrected ruling (#52, 2026-10-04): only an EXISTING names file that
+#   Yves's corrected ruling (2026-10-04): only an EXISTING names file that
 #   holds no names (empty, or only blanks and comments) passes, with
 #   `0 names searched`; FBP creates such an empty file locally when it is
 #   missing. Everything else without names is exit 2: no list at all (CI always
@@ -24,7 +25,7 @@
 #   (an emptied CI secret must fail), and FORSGREN_PRIVATE_NAMES_FILE naming a
 #   file that does not exist.
 #
-# THE MATCH RULE (Yves's ruling, #52): a name matches case-insensitively, as a
+# THE MATCH RULE (Yves's ruling): a name matches case-insensitively, as a
 # SUBSTRING, the data guard's `grep -iF` matching. A listed name anywhere
 # inside a longer token is a hit: `acme-secret-repo` is found in
 # `github.com/Acme-Secret-Repo`, in `acme-secret-repo.`, and also in
@@ -234,7 +235,7 @@ run_home "$EMPTY_HOME"
 want_exit "no list at all is exit 2, loudly" 2 "FORSGREN_PRIVATE_NAMES"
 want_not_said "no list" "$NAME_A"
 
-# --message - reads the message from stdin (FBP.sh, forsgren#54): no file.
+# --message - reads the message from stdin (FBP.sh): no file.
 new_repo "message-on-stdin"
 capture env -u FORSGREN_PRIVATE_NAMES_FILE HOME="$EMPTY_HOME" FORSGREN_PRIVATE_NAMES="$NAMES_ENV" \
   "$GATE" --message - <<< "touch the Pre-ACME-Secret-Repo-v2 notes"
@@ -245,7 +246,7 @@ capture env -u FORSGREN_PRIVATE_NAMES_FILE HOME="$EMPTY_HOME" FORSGREN_PRIVATE_N
 want_rc "--message - on a clean message is exit 0" 0
 
 # In CI the missing list is the Actions secret, which a fork's pull request
-# never receives (forsgren#81): the line names the secret and says so, and
+# never receives: the line names the secret and says so, and
 # the local wording stays for a local run. Exit 2 either way.
 new_repo "no-list-in-actions"
 capture env -u FORSGREN_PRIVATE_NAMES -u FORSGREN_PRIVATE_NAMES_FILE GITHUB_ACTIONS=true \
@@ -339,7 +340,7 @@ for n in 2 3 4 5; do
 done
 want_not_said "a name inside a longer word" "$NAME_A" "$NAME_B"
 
-# #52 ruling: the gate takes over the data guard's substring matching, so a
+# The ruling: the gate takes over the data guard's substring matching, so a
 # name joined to a longer token on both sides (a workflow file name) is a hit.
 new_repo "embedded"
 write_file ".github/workflows/ci.yml" $'name: ci\nuses: apply-acme-secret-repo.yml\n' track

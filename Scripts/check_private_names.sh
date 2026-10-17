@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+# canon: check_private_names v1
 # Scripts/check_private_names.sh
 #
-# forsgren#52. This repository is public, so no tracked or untracked file
+# This repository is public, so no tracked or untracked file
 # (one git add -A would stage) may name a private repository. The names live OUTSIDE the repository (Yves's ruling,
 # 2026-10-04); writing them here to keep them out of here would publish them.
 #
@@ -54,11 +55,11 @@
 # Exit 0 clean. Exit 1 a name found. Exit 2 when:
 #   - there is no list at all (no env list, no names file); in GitHub Actions
 #     (GITHUB_ACTIONS=true) the FAIL line names the Actions secret
-#     FORSGREN_PRIVATE_NAMES and says a fork's pull request gets no secrets
-#     (forsgren#81), elsewhere it names the three local sources;
+#     FORSGREN_PRIVATE_NAMES and says a fork's pull request gets no secrets,
+#     elsewhere it names the three local sources;
 #   - the env list FORSGREN_PRIVATE_NAMES has no names (an emptied CI secret);
 #   - the names file FORSGREN_PRIVATE_NAMES_FILE names does not exist (an
-#     empty FORSGREN_PRIVATE_NAMES_FILE counts as unset, forsgren#54);
+#     empty FORSGREN_PRIVATE_NAMES_FILE counts as unset);
 #   - the names file exists but cannot be read (one FAIL line, no path of cat);
 #   - there is no tracked or untracked file (the scan read nothing);
 #   - a tracked or untracked path (or the blob of a tracked symlink) could not
@@ -277,7 +278,7 @@ scan_tracked() {
 check_message() {
   local msg="$1"
   MESSAGE_MODE=1
-  # "-" is the message on stdin (FBP.sh, forsgren#54): no file to leave behind.
+  # "-" is the message on stdin (FBP.sh): no file to leave behind.
   [[ "$msg" == "-" ]] || [[ -f "$msg" && -r "$msg" ]] || { echo "❌ FAIL: cannot read the commit message file"; exit 2; }
   read_list
   build_patterns

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+# canon: ensure_private_names_file v1
 # Scripts/ensure_private_names_file.sh
 #
-# forsgren#52 (step 12c): LOCAL pre-flight. FBP.sh runs it just before the
+# (step 12c): LOCAL pre-flight. FBP.sh runs it just before the
 # PRE gates (sfl.sh pre).
 #
 # What: when no private-names list is given at all, it creates an EMPTY list
@@ -12,7 +13,7 @@
 #   - env FORSGREN_PRIVATE_NAMES is non-empty (the list is given), or
 #   - FORSGREN_PRIVATE_NAMES_FILE is set and not empty (an explicit file: a
 #     missing one stays a red in the gate; an empty variable counts as unset,
-#     as in the gate, forsgren#54), or
+#     as in the gate), or
 #   - the default file already exists (never touched, never rewritten).
 #
 # Why: Yves's ruling: CI always fails without a list (the gate exits 2).
@@ -40,4 +41,4 @@ fi
 
 mkdir -p "$(dirname "$file")"
 (umask 077 && : > "$file")
-echo "ℹ️ created an empty private-names list at ${file}; add private names there, one per line (forsgren#52)"
+echo "ℹ️ created an empty private-names list at ${file}; add private names there, one per line"
