@@ -7,6 +7,7 @@
   {{if .Noindex}}<meta name="robots" content="noindex">
   {{end}}<title>{{block "title" .}}{{.Title}}{{end}}</title>
   <link rel="stylesheet" href="{{.Base}}styles.css">
+  <link rel="icon" href="{{.Base}}favicon.svg" type="image/svg+xml">
 </head>
 <body>
   {{template "menu" .}}

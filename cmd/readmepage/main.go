@@ -50,7 +50,7 @@ func run(args []string, stderr io.Writer) int {
 }
 
 // write renders the Markdown file readme into out/index.html, with the
-// site's stylesheet next to it as out/styles.css.
+// site's stylesheet and icon next to it as out/styles.css and out/favicon.svg.
 func write(readme, base, out string) error {
 	src, err := os.ReadFile(filepath.Clean(readme))
 	if err != nil {
@@ -60,7 +60,9 @@ func write(readme, base, out string) error {
 	if err != nil {
 		return located(readme, err)
 	}
-	return publish(out, map[string][]byte{"styles.css": page.Styles(), "index.html": []byte(html)})
+	return publish(out, map[string][]byte{
+		"styles.css": page.Styles(), "favicon.svg": page.Favicon(), "index.html": []byte(html),
+	})
 }
 
 // located is the refusal err of the file readme, named as file:line when

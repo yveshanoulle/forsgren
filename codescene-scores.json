@@ -371,7 +371,13 @@
   {
    "path": "internal/page/page.go",
    "score": 10.0,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-17",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/favicon_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-17",
    "minScore": 10.0
   },
   {
@@ -1163,7 +1169,7 @@
   {
    "path": "internal/readmepage/render.go",
    "score": 9.68,
-   "checkedAt": "2026-10-14",
+   "checkedAt": "2026-10-17",
    "minScore": 9.58
   },
   {
@@ -1193,13 +1199,13 @@
   {
    "path": "cmd/readmepage/main.go",
    "score": 10.0,
-   "checkedAt": "2026-10-14",
+   "checkedAt": "2026-10-17",
    "minScore": 10.0
   },
   {
    "path": "cmd/readmepage/main_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-14",
+   "checkedAt": "2026-10-17",
    "minScore": 10.0
   },
   {

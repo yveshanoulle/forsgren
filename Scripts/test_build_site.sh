@@ -153,6 +153,7 @@ check_file 15 "settings.html is the golden settings page" "internal/page/testdat
 check_file 16 "days.html is the golden placeholder days page" "internal/page/testdata/days.placeholder.golden.html" "${HAPPY_OUTPUT}/days.html"
 check_file 17 "issues.html is the golden placeholder issues page" "internal/page/testdata/issues.no-rows.golden.html" "${HAPPY_OUTPUT}/issues.html"
 check_file 3 "styles.css is copied as authored" "$STYLES" "${HAPPY_OUTPUT}/styles.css"
+check_file 19 "favicon.svg is copied as authored" "internal/page/favicon.svg" "${HAPPY_OUTPUT}/favicon.svg"
 
 if [[ -f "$HAPPY_SINK" ]] && [[ "$(cat "$HAPPY_SINK")" == "10" ]]; then
   pass 4 "writes the page count (10) to SITE_PAGE_COUNT_FILE"

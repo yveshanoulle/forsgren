@@ -66,7 +66,8 @@ func page(title, summary, body string) string {
 		"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n" +
 		"<title>" + html.EscapeString(title) + "</title>\n" +
 		"<meta name=\"description\" content=\"" + html.EscapeString(summary) + "\">\n" +
-		"<link rel=\"stylesheet\" href=\"styles.css\">\n</head>\n<body class=\"starter\">\n<main>\n" +
+		"<link rel=\"stylesheet\" href=\"styles.css\">\n" +
+		"<link rel=\"icon\" href=\"favicon.svg\" type=\"image/svg+xml\">\n</head>\n<body class=\"starter\">\n<main>\n" +
 		body + "\n</main>\n</body>\n</html>\n"
 }
 

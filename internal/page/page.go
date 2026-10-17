@@ -419,15 +419,15 @@ func Render(w io.Writer, name string, data Data) error {
 	return p.set.ExecuteTemplate(w, p.file, shown)
 }
 
-// WriteSite renders every page and copies styles.css into dir, creating
-// dir when needed. It returns how many pages it wrote; styles.css is not a
-// page and is not counted.
+// WriteSite renders every page and copies styles.css and favicon.svg into dir,
+// creating dir when needed. It returns how many pages it wrote; the two files
+// are not pages and are not counted.
 func WriteSite(dir string, data Data) (int, error) {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return 0, err
 	}
 	site := siteDir(dir)
-	if err := copyStyles(site); err != nil {
+	if err := copyAssets(site); err != nil {
 		return 0, err
 	}
 	written := 0
@@ -521,6 +521,23 @@ func Styles() []byte {
 	return stylesheet
 }
 
-func copyStyles(dir siteDir) error {
-	return os.WriteFile(filepath.Join(string(dir), "styles.css"), Styles(), 0o600)
+// copyAssets writes the files every page links, styles.css and favicon.svg.
+func copyAssets(dir siteDir) error {
+	for name, content := range map[string][]byte{"styles.css": Styles(), "favicon.svg": Favicon()} {
+		if err := os.WriteFile(filepath.Join(string(dir), name), content, 0o600); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// icon is favicon.svg as authored, for Favicon.
+//
+//go:embed favicon.svg
+var icon []byte
+
+// Favicon is the site's one icon, favicon.svg as authored (forsgren#218). The
+// starter page links it too.
+func Favicon() []byte {
+	return icon
 }

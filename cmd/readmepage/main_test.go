@@ -13,11 +13,7 @@ import (
 // this repository becomes index.html, titled forsgren, with its five metric
 // links and the live example as absolute links and no relative href left.
 func TestRunRendersTheRealReadmeToTheStarterPage(t *testing.T) {
-	out := filepath.Join(t.TempDir(), "starter")
-	var stderr bytes.Buffer
-	if code := run([]string{"--readme", "../../README.md", "--out", out}, &stderr); code != 0 {
-		t.Fatalf("want exit 0, got %d: %s", code, stderr.String())
-	}
+	out := starterOut(t)
 	raw, err := os.ReadFile(filepath.Clean(filepath.Join(out, "index.html")))
 	if err != nil {
 		t.Fatalf("the page is not written: %v", err)
@@ -110,24 +106,45 @@ func writeReadmes(t *testing.T, dir string, sources map[string]string) map[strin
 	return path
 }
 
+// starterOut is the directory the starter page of the repository's README was
+// written to.
+func starterOut(t *testing.T) string {
+	t.Helper()
+	out := filepath.Join(t.TempDir(), "starter")
+	var stderr bytes.Buffer
+	if code := run([]string{"--readme", "../../README.md", "--out", out}, &stderr); code != 0 {
+		t.Fatalf("want exit 0, got %d: %s", code, stderr.String())
+	}
+	return out
+}
+
 // TestRunStylesTheStarterPageWithTheSitesStylesheet (forsgren#132): the page
 // links styles.css, and styles.css next to it is the one stylesheet the
 // metrics site is styled with, so the project page looks like the page it
 // describes (colour scheme, width, phone layout) with no stylesheet of its
 // own.
 func TestRunStylesTheStarterPageWithTheSitesStylesheet(t *testing.T) {
-	out := filepath.Join(t.TempDir(), "starter")
-	var stderr bytes.Buffer
-	if code := run([]string{"--readme", "../../README.md", "--out", out}, &stderr); code != 0 {
-		t.Fatalf("want exit 0, got %d: %s", code, stderr.String())
+	wantSiteFile(t, "styles.css", `<link rel="stylesheet" href="styles.css">`)
+}
+
+// TestRunGivesTheStarterPageTheSitesFavicon (forsgren#218): the starter page has
+// its own head, so it links favicon.svg itself, and the site's icon is written
+// next to it.
+func TestRunGivesTheStarterPageTheSitesFavicon(t *testing.T) {
+	wantSiteFile(t, "favicon.svg", `<link rel="icon" href="favicon.svg" type="image/svg+xml">`)
+}
+
+// wantSiteFile fails unless the starter page holds link and the file name next
+// to it is the site's own, as internal/page embeds it.
+func wantSiteFile(t *testing.T, name, link string) {
+	t.Helper()
+	out := starterOut(t)
+	if page := mustRead(t, filepath.Join(out, "index.html")); !bytes.Contains(page, []byte(link)) {
+		t.Errorf("the page does not hold %s:\n%s", link, page)
 	}
-	page := mustRead(t, filepath.Join(out, "index.html"))
-	if !bytes.Contains(page, []byte(`<link rel="stylesheet" href="styles.css">`)) {
-		t.Errorf("the page does not link styles.css:\n%s", page)
-	}
-	got := mustRead(t, filepath.Join(out, "styles.css"))
-	if want := mustRead(t, "../../internal/page/styles.css"); !bytes.Equal(got, want) {
-		t.Errorf("styles.css is not the site's stylesheet (%d bytes, want %d)", len(got), len(want))
+	got := mustRead(t, filepath.Join(out, name))
+	if want := mustRead(t, "../../internal/page/"+name); !bytes.Equal(got, want) {
+		t.Errorf("%s is not the site's own (%d bytes, want %d)", name, len(got), len(want))
 	}
 }
 

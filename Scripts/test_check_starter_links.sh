@@ -41,12 +41,13 @@ new_page() {
 }
 
 new_page clean '<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <a href="#usage">a</a> <a href="https://github.com/yveshanoulle/forsgren">b</a>
 <a href="https://github.com/yveshanoulle/forsgren/blob/main/docs/ci.md#x">c</a>
 <a href="https://github.com/yveshanoulle/forsgren-template">d</a>
 <a href="https://forsgren.forsgren.be">e</a> <a href="https://forsgren.forsgren.be/standard/">f</a>'
 capture "$GATE" "$PAGE"
-want_green "1. the three destinations and anchors are clean" "7 link(s)"
+want_green "1. the three destinations and anchors are clean" "8 link(s)"
 
 new_page repo '<a href="https://github.com/acme/app/issues/7">x</a>'
 capture "$GATE" "$PAGE"
