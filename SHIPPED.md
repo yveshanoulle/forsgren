@@ -628,9 +628,9 @@ What an installation sees after the update: each page has a `<meta name="descrip
 
 ---
 
-## 2026-10-17 — the quality gates move to the shared canon, FBP gets `--no-push` and fix mode, and the Go-tool gates share one helper ([#214](https://github.com/yveshanoulle/forsgren/issues/214), [#215](https://github.com/yveshanoulle/forsgren/issues/215), [#216](https://github.com/yveshanoulle/forsgren/issues/216))
+## 2026-10-17 — the quality gates move to the shared canon, FBP gets `--no-push` and fix mode, and the Go-tool gates share one helper, released as 1.9.2 ([#209](https://github.com/yveshanoulle/forsgren/issues/209), [#210](https://github.com/yveshanoulle/forsgren/issues/210), [#214](https://github.com/yveshanoulle/forsgren/issues/214), [#215](https://github.com/yveshanoulle/forsgren/issues/215), [#216](https://github.com/yveshanoulle/forsgren/issues/216))
 
-Nothing a user of forsgren sees changes: these are local build and quality-gate changes only. No release.
+Nothing a user of forsgren sees changes: these are local build and quality-gate changes only, shipped as the patch release 1.9.2 (also #209, the braces exception re-check, and #210, govulncheck and the other Go-tool gates on a cold runner).
 
 - **#214, local build.**
   - `FBP.sh --no-push` builds, checks and commits but does not push, for changes that only touch FBP.sh, sfl.sh, local-only scripts or their self-tests. Its self-test builds generic stubs for every helper script FBP.sh calls.

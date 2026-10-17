@@ -25,7 +25,7 @@ func TestNumbersScoringPageFollowsTheDoraWindow(t *testing.T) {
 	records := []history.Record{deployed(1, 250*day), deployed(2, 45*day), deployed(3, 46*day), deployed(4, 47*day)}
 	shop := []config.Project{{Name: "Acme Shop", Repositories: []config.Repository{{Name: "acme/app"}}}}
 	for days, want := range map[int]string{30: "0 · 2", 90: "3 · 4"} {
-		data := Placeholder("1.9.1")
+		data := Placeholder("1.9.2")
 		data.Rows = Table(metrics.Rows(shop, metrics.Data{Records: records, WorkingHours: config.DefaultWorkingHours,
 			DoraDays: days}, at))
 		got := rendered(t, "numbers-scoring/index.html", data)

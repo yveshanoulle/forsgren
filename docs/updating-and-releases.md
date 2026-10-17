@@ -49,7 +49,7 @@ is then the failed run.
   first line of its body; the label only narrows the lookup. An issue with
   the label and no marker is never touched, and if you remove the label from
   the managed issue, the next run opens a new one. Its title is "forsgren
-  1.9.1 needs more configuration" (the running version) and its body lists the
+  1.9.2 needs more configuration" (the running version) and its body lists the
   steps of each missing need; title and body are presentation, and a run
   rewrites them.
 - **What a run does with it.** Something missing and no issue: it opens one.
@@ -419,7 +419,7 @@ pull request is not among those read, the job summary and the footer say
 "is available" (forsgren#203). No new permission, secret or config key is
 needed: `contents: write`, which the run already has, pushes the README.
 
-**Upgrading to 1.9.1** (forsgren#208, #206, #207). A patch release. Every
+**Upgrading to 1.9.2** (forsgren#208, #206, #207). A patch release. Every
 page of your site now carries a meta description, the text a search result
 shows under the page's title: one fixed sentence per page, ending "generated
 by Forsgren", for example "The DORA numbers per project, without scores
