@@ -648,3 +648,15 @@ Nothing a user of forsgren sees changes: these are local build and quality-gate 
   - `MIN_GATES` 115 to 116 (the helper self-test is one order-file row), and the gate-wiring test requires the four gates to source the helper.
   - New: [docs/gate-classification.md](docs/gate-classification.md), each gate required, n/a or a documented exception.
   - No Go code is touched, so there is no CodeScene review.
+
+---
+
+## 2026-10-17 — every page shows a small forsgren icon in the browser tab and bookmarks, released as 1.9.3 ([#218](https://github.com/yveshanoulle/forsgren/issues/218))
+
+What an installation sees after the update: every page, the root, the three views and the Numbers and scoring page included, links a small SVG icon, so the browser tab and bookmarks show a forsgren icon instead of the browser's default. The icon is written as `favicon.svg` next to `styles.css`, and each page links it by its relative path, so it works from the site root and from a folder one level down. The starter page the README links to carries it too. Released as the patch release 1.9.3.
+
+- **#218, favicon.**
+  - `internal/page/favicon.svg` is embedded and written beside the stylesheet with the embedded bytes; the layout header links `<link rel="icon" href="favicon.svg" type="image/svg+xml">`, with `../` in front one folder down.
+  - Red first: `internal/page/favicon_test.go` (the file is written with the embedded bytes; every page links it by its relative path), and the golden pages of every view.
+  - The site build and the starter-link check follow the extra file.
+  - Release 1.9.3: `version` in `cmd/forsgren/main.go`, the pinned version in the tests, goldens and docs, the newer-release examples at 1.9.4. No new permission, secret or config key.

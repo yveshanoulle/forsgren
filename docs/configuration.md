@@ -308,7 +308,7 @@ metrics workflow runs it on every new install (see [Running forsgren](#running-f
 
 ## Running forsgren
 
-forsgren renders a static page whose footer says "Forsgren 1.9.2", the version of
+forsgren renders a static page whose footer says "Forsgren 1.9.3", the version of
 the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
@@ -409,7 +409,7 @@ with its flag:
 - `Run:` the moment the summary was written, in UTC to the minute,
   "2026-10-15 15:10 UTC" (forsgren#194), so a summary pasted somewhere says
   when it is from.
-- `Built with:` the version that built the page, "forsgren 1.9.2".
+- `Built with:` the version that built the page, "forsgren 1.9.3".
 - `Latest release:` the newest release, or "unknown" when `--latest` is
   empty or not a version.
 - `Update:` where the update stands: "up to date", "0.0.10 is waiting in
@@ -467,7 +467,7 @@ The pull request is linked: the link is fine there, because a run page is
 private to the repository, unlike the public page. A flag it cannot use is a
 usage error that prints nothing. With `--config`, a config that
 lists no projects makes the page show, in place of the table and besides
-"Forsgren 1.9.2" in its footer, a how-to for filling `forsgren.config.yml`;
+"Forsgren 1.9.3" in its footer, a how-to for filling `forsgren.config.yml`;
 without `--config` (the build above has no installation config) or with
 projects, the page is the placeholder. With `--data` as well (it needs `--config`), the
 page shows each project's deployment frequency from that history, counted
@@ -629,7 +629,7 @@ jobs:
 - **`pull-requests: read` is optional, and the caller's to grant too**
   (forsgren#40). With it, when a newer forsgren release exists and
   Dependabot has an open pull request in your repository that bumps the
-  `uses:` pin to exactly that release, the page footer says "Forsgren 1.9.2
+  `uses:` pin to exactly that release, the page footer says "Forsgren 1.9.3
   · 0.3.9 is waiting in pull request #7 (merge it to update)", with the
   number only. Without it the footer still says "0.3.9 is available": the
   lookup treats the refusal (a 403) as unknown, never as an error, and the

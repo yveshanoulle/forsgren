@@ -362,7 +362,7 @@ repository (forsgren#162), its version, "Metrics from GitHub data."
 "Calculated at
 2026-10-03 12:00 UTC", the moment of the run (UTC, to the minute), on every
 run, with rows or without; and, when a newer forsgren release exists than the
-version that built the page, the version line adds it, "Forsgren 1.9.2 ·
+version that built the page, the version line adds it, "Forsgren 1.9.3 ·
 0.3.9 is available" (forsgren#40; nothing is added when the page is up to
 date, and no repository appears), "0.3.9 is waiting in pull request #7
 (merge it to update)" when Dependabot's pull request for it is open, or
