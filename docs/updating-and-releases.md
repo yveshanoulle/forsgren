@@ -449,6 +449,20 @@ Tested-with line, or the Tested-with major test fails.
 
 ## The Release workflow
 
+**Before you start a Release: `./Scripts/release_precheck.sh [patch|minor|major]`**
+(forsgren#231). One read-only command: it runs the same `Scripts/release_plan.sh`
+the Release runs (with `--all`, so it names every block at once, not only the
+first kind) and prints the plan's verdict, a table `| Issue | Blocks because | Do |`
+of every open issue with commits on main since the latest release, every closed
+issue since it without a `patch`, `minor` or `major` label and every issue that
+needs a higher bump than the one asked, in the shape of the Release run page
+(`Scripts/release_report.sh --table`, the same code), and a ✅ list of the
+issues that are ready with their label. With no bump it judges the bump the
+labels require. Exit 0: a Release with that bump would pass its plan; exit 1:
+it would stop, and the table says what to do first; exit 2: the plan could not
+judge. It writes nothing. `Scripts/test_release_precheck.sh` feeds the pre-check
+and the Release's report the same data and compares the tables.
+
 `.github/workflows/release.yml` (forsgren#221) cuts a release in one run. Start
 it from the Actions page (Release, Run workflow, on `main`) with the kind of
 release, `patch`, `minor` or `major` (the default is `patch`), or through the

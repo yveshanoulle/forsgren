@@ -423,4 +423,10 @@ if mutant nocross "s/}| ❌ | /}| /"; then
 fi
 unset SCRIPT RELEASE_STEP_OUTCOMES
 
+# --table (forsgren#231, step 3): only the table and the ready list.
+printf 'blocking=6\tunlabelled\tUnlabelled thing\tv1.9.3\nready=5\tpatch\tFix the thing\tv1.9.3\n' > "${TMP}/table-plan.txt"
+capture env GH_REPO= GITHUB_REPOSITORY= "$REPORT" --table "${TMP}/table-plan.txt"
+want_green "--table renders the table" "| ❌ | #6 Unlabelled thing | closed since v1.9.3, no patch, minor or major label | label it patch, minor or major |"
+want_said "--table lists the ready issue" "- ✅ #5 Fix the thing (patch)"
+
 selftest_end "the release report does not hold" "release report: done steps, the step that failed (read from its outcome) and what was not done are all said"

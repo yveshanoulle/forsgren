@@ -367,4 +367,17 @@ if selftest_mutant "$PLAN" "${TMP}/mut/nomachine/release_plan.sh" "s/machine_lin
   fi
 fi
 
+# 12. --all (forsgren#231, step 3): every kind of block at once, a ready line
+# per labelled issue; without --all the same data stops at the first kind.
+data "$(issue 5 'Fix the thing' patch)" "$(issue 6 'Unlabelled thing' '')" "$(issue 7 'New feature' minor)"
+printf '9%sHalf landed\n' "$TAB" > "${TMP}/open12.tsv"
+printf 'forsgren#9 (1/1): work\n' > "${TMP}/commits12.txt"
+RELEASE_PLAN_OPEN="${TMP}/open12.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits12.txt" plan "$PLAN" patch --all
+want_exit "--all names the open issue with commits" 1 "blocking=9"
+want_said "--all names the unlabelled issue too" "blocking=6${TAB}unlabelled"
+want_said "--all names the issue that needs more too" "blocking=7${TAB}needs-minor"
+want_said "--all prints a ready line per labelled issue" "ready=5${TAB}patch${TAB}Fix the thing${TAB}v1.9.3"
+RELEASE_PLAN_OPEN="${TMP}/open12.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits12.txt" plan "$PLAN" patch
+if grep -qF "blocking=6" <<< "$OUT"; then fail "without --all the plan named a second kind of block"; else echo "  ok: without --all the plan stops at the first kind, as the Release needs"; fi
+
 selftest_end "the release plan does not hold" "release plan: the bump check, the closed-issue filter, the notes and the version arithmetic all held"

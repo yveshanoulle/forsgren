@@ -5,7 +5,7 @@
 # and the issues closed since it, the bump the labels require, the check of
 # the requested bump against it, the next version and the release notes.
 #
-# Usage: Scripts/release_plan.sh <patch|minor|major> [--notes <file>]
+# Usage: Scripts/release_plan.sh <patch|minor|major> [--notes <file>] [--all]
 #
 # The issues considered are the ones of this repository (gh runs in the
 # checkout) closed AFTER the publish time of the latest release, minus the
@@ -44,6 +44,14 @@
 # notes: one `- #N title` line per issue, grouped under ### Major, ### Minor
 # and ### Patch.
 # With --notes the same notes are written to <file>.
+# With --all (forsgren#231, step 3, for Scripts/release_precheck.sh) the plan
+# does not stop at the first kind of red: it names every open issue with
+# commits, every unlabelled issue and every issue that needs more than was
+# asked, prints one machine line per issue that is ready,
+#   ready=<N> TAB <bump> TAB <title> TAB <latest tag>
+# and exits 1 when anything blocked, 0 when not. The requested bump may then
+# be `auto`: the bump the labels require. Without --all nothing changes. It
+# reads and writes nothing else (the notes only with --notes).
 # Exit 2: a usage error, or a latest release that is no vX.Y.Z tag.
 #
 # Data: from gh (latest release, closed issues, the bodies of the earlier
@@ -87,12 +95,17 @@ refuse() {
 REQUESTED="${1:-}"
 [ "$#" -ge 1 ] && shift
 NOTES_FILE=""
+ALL=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --notes)
       [ "$#" -ge 2 ] || usage
       NOTES_FILE="$2"
       shift 2
+      ;;
+    --all)
+      ALL=1
+      shift
       ;;
     *) usage ;;
   esac
@@ -108,6 +121,7 @@ rank_of() {
 
 case "$REQUESTED" in
   patch | minor | major) ;;
+  auto) [ "$ALL" -eq 1 ] || usage ;;
   *) usage ;;
 esac
 
@@ -261,10 +275,14 @@ while IFS="$SEP" read -r number title; do
 $(machine_line "$number" open-with-commits "$title")
 "
 done <<< "$(printf '%s\n' "$OPEN_RAW" | sort -t "$(printf '\t')" -k1,1n | tr '\t' "$SEP")"
+ALL_RED=0
 if [ -n "$open_hits" ]; then
   printf '%s' "$open_hits"
-  COMPLETED=1
-  exit 1
+  if [ "$ALL" -ne 1 ]; then
+    COMPLETED=1
+    exit 1
+  fi
+  ALL_RED=1
 fi
 
 if (( count == 0 )); then
@@ -277,14 +295,27 @@ if [ -n "$unlabelled" ]; then
     echo "❌ FAIL: release plan: #${number} ${title}: label it patch, minor or major"
     machine_line "$number" unlabelled "$title"
   done <<< "$unlabelled"
-  COMPLETED=1
-  exit 1
+  if [ "$ALL" -ne 1 ]; then
+    COMPLETED=1
+    exit 1
+  fi
+  ALL_RED=1
 fi
 
-requested_rank="$(rank_of "$REQUESTED")"
 required="patch"
 [ "$required_rank" -eq 2 ] && required="minor"
 [ "$required_rank" -eq 3 ] && required="major"
+if [ "$REQUESTED" = auto ]; then REQUESTED="$required"; fi
+requested_rank="$(rank_of "$REQUESTED")"
+
+# ready_lines: one machine line per labelled issue, only under --all.
+ready_lines() {
+  [ "$ALL" -eq 1 ] || return 0
+  while IFS="$(printf '\t')" read -r bump number title; do
+    [ -n "$number" ] || continue
+    printf 'ready=%s\t%s\t%s\t%s\n' "$number" "$bump" "$title" "$TAG"
+  done <<< "$(printf '%s' "$rows" | sort -t "$(printf '\t')" -k2,2n)"
+}
 
 if (( requested_rank < required_rank )); then
   more=""
@@ -299,6 +330,15 @@ if (( requested_rank < required_rank )); then
   done <<< "$rows"
   echo "❌ FAIL: release plan: requested ${REQUESTED} is lower than required ${required}: ${more}"
   printf '%s' "$machine"
+  if [ "$ALL" -ne 1 ]; then
+    COMPLETED=1
+    exit 1
+  fi
+  ALL_RED=1
+fi
+
+if [ "$ALL_RED" -eq 1 ]; then
+  ready_lines
   COMPLETED=1
   exit 1
 fi
@@ -327,6 +367,7 @@ echo "OK: next version ${NEXT} (${count} issues closed since ${TAG}, ${REQUESTED
 echo "version=${NEXT}"
 echo "tag=v${NEXT}"
 echo "issues=$(printf '%s' "$rows" | awk -F'\t' '{ printf "%08d\t#%s\n", $2, $2 }' | sort | cut -f2 | tr '\n' ' ' | sed 's/ $//')"
+ready_lines
 echo "release notes:"
 printf '%s\n' "$NOTES"
 COMPLETED=1

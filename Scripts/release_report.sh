@@ -24,6 +24,11 @@
 #     "What to do next", and the ::error:: line names the issue numbers.
 #
 # Usage: Scripts/release_report.sh <log-file> <job-status>
+#        Scripts/release_report.sh --table <plan-output-file>
+# The second form (forsgren#231, step 3) prints only the table of blocking
+# issues and the list of ready issues, rendered from the plan's output by the
+# same functions the run summary uses, and exits 0. Scripts/release_precheck.sh
+# calls it, so the pre-check and the Release run page cannot differ in shape.
 # On success it prints the done steps. On any other status it prints an
 # ::error:: line that names the first step whose outcome is failure (or
 # cancelled), its id in brackets, then what was already done and what was not
@@ -45,6 +50,13 @@ if [ "$#" -ne 2 ]; then
 fi
 LOG="$1"
 STATUS="$2"
+TABLE_ONLY=0
+if [ "$LOG" = "--table" ]; then
+  TABLE_ONLY=1
+  RELEASE_PLAN_OUTPUT="$STATUS"
+  LOG=/dev/null
+  STATUS=table
+fi
 
 ALL_IDS="main checkout setup-go log token resume quality plan free bump test commit quality-bump quality-resumed publish template metrics-pr metrics"
 LOGGED_IDS="token quality plan free bump test commit quality-bump publish template metrics-pr metrics"
@@ -159,6 +171,36 @@ ${rows%
 }"
 }
 if [ "$failed_id" = plan ]; then blocking_table; fi
+
+# ready_list: the issues a plan run with --all says are ready, from its
+# `ready=<N> TAB <bump> TAB <title> TAB <tag>` lines; READY_LIST is empty when
+# there are none. The same link rule as the table.
+READY_LIST=""
+ready_list() {
+  local file="${RELEASE_PLAN_OUTPUT:-}" repo link number bump title tag
+  [ -n "$file" ] && [ -f "$file" ] || return 0
+  repo="${GH_REPO:-${GITHUB_REPOSITORY:-}}"
+  while IFS="$(printf '\t')" read -r number bump title tag; do
+    number="${number#ready=}"
+    [ -n "$number" ] || continue
+    link="#${number}"
+    if [ -n "$repo" ]; then link="[#${number}](${GITHUB_SERVER_URL:-https://github.com}/${repo}/issues/${number})"; fi
+    READY_LIST="${READY_LIST}- ✅ ${link} ${title} (${bump})
+"
+  done <<< "$(grep '^ready=' "$file" || true)"
+}
+
+if [ "$TABLE_ONLY" -eq 1 ]; then
+  blocking_table
+  ready_list
+  if [ -n "$BLOCKED_TABLE" ]; then printf '%s\n' "$BLOCKED_TABLE"; fi
+  if [ -n "$READY_LIST" ]; then
+    if [ -n "$BLOCKED_TABLE" ]; then echo; fi
+    printf 'Ready for the release:\n%s' "$READY_LIST"
+  fi
+  COMPLETED=1
+  exit 0
+fi
 
 # What to do next, by the stage the failure is in. ADVICE goes to the job
 # summary, NOTICE (one line) to the run as a ::notice::. A step is never to be

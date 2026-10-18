@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-18 — a read-only pre-check before a Release ([#231](https://github.com/yveshanoulle/forsgren/issues/231), step 3)
+
+The 1.11.0 Release stopped at its plan on an issue closed two minutes after 1.10.0 with no label; nothing said so before the run.
+
+- `Scripts/release_precheck.sh [patch|minor|major]` runs the same `Scripts/release_plan.sh` against the real data and prints its verdict, the table of blocking issues in the Release run page's shape, and a ✅ list of the ready issues. Exit 0 when the Release would pass its plan, 1 when it would stop. It writes nothing.
+- `release_plan.sh --all` names every kind of block at once (open with commits, unlabelled, needs a higher bump) and prints a `ready=` line per labelled issue; the default behaviour is unchanged. `release_report.sh --table <plan output>` renders the table and the ready list with the code of the run page, so there is no second table.
+- Red first; the parity test feeds the pre-check and the Release's report the same data for each kind of block and compares the tables (it found the one difference, the bump named in the "needs minor" row). Mutation proofs: no `--all`, open issues with commits ignored, exit 0 whatever the plan said, a hand-written table. `MIN_GATES` 144 to 145.
+
 ## 2026-10-18 — a red static check stops the run early ([#231](https://github.com/yveshanoulle/forsgren/issues/231), step 2)
 
 FBP ran all 117 steps for 22 minutes after a shellcheck red that appeared about minute 4.

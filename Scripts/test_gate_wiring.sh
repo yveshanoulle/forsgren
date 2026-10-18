@@ -165,11 +165,12 @@ fi
 # (forsgren#230, step 2), and to 142 for the preview deploy's script self-test and
 # workflow pin (forsgren#222), and to 143 for the pre-check's self-test
 # (forsgren#231, step 1), and to 144 for the static block's self-test
-# (forsgren#231, step 2).
+# (forsgren#231, step 2), and to 145 for the release pre-check's self-test
+# (forsgren#231, step 3).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=144
+MIN_GATES=145
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -695,6 +696,16 @@ for path in Scripts/*.sh; do
     # files and judges nothing FBP and CI do not; FBP.sh and quality.yml never
     # call it. Required to have a fixture, and its self-test is an order-file
     # row (which also pins that every gate it runs is an order-file row).
+    # WRITER/MAINTAINER TOOL, not a gate (forsgren#231, step 3): the read-only
+    # check before a Release starts. It runs release_plan.sh and
+    # release_report.sh, which the Release workflow runs too. Same terms as
+    # precheck.sh: a fixture, and its self-test is an order-file row.
+    release_precheck.sh)
+      require_fixture "$base" "the release pre-check would be unproven"
+      order_names "test_${base}" \
+        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the release pre-check"
+      ;;
+
     precheck.sh)
       require_fixture "$base" "the pre-check would be unproven"
       order_names "test_${base}" \
