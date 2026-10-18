@@ -34,6 +34,22 @@ PRECHECK="${REPO}/Scripts/release_precheck.sh"
 [[ -x "$PRECHECK" ]] || selftest_abort "${PRECHECK} is missing or not executable: nothing checks a Release before it starts"
 
 TAB=$'\t'
+
+# The repository variables decide whether the table links its issues (CI sets
+# GITHUB_REPOSITORY, a laptop does not), so no run reads the ambient ones:
+# every run goes through REPO_ENV. plain: all unset, issues are #N. linked: a
+# fixture repository, issues are links. The table cases run in both.
+REPO_ENV=(-u GITHUB_REPOSITORY -u GH_REPO -u GITHUB_SERVER_URL)
+use_plain() { REPO_ENV=(-u GITHUB_REPOSITORY -u GH_REPO -u GITHUB_SERVER_URL); }
+use_linked() { REPO_ENV=(-u GITHUB_REPOSITORY GH_REPO=acme/app GITHUB_SERVER_URL=https://github.com); }
+# ref <number>: how the table names an issue in the current mode.
+ref() {
+  if [[ "${REPO_ENV[*]}" == *GH_REPO=acme/app* ]]; then
+    printf '[#%s](https://github.com/acme/app/issues/%s)' "$1" "$1"
+  else
+    printf '#%s' "$1"
+  fi
+}
 PUBLISHED="2026-10-17T05:06:23Z"
 AFTER="2026-10-17T09:00:00Z"
 
@@ -57,21 +73,22 @@ no_open() {
 precheck() {
   local script="$1"
   shift
-  capture env RELEASE_PLAN_DATA="${TMP}/data.tsv" RELEASE_PLAN_OPEN="${TMP}/open.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits.txt" "$script" "$@"
+  capture env "${REPO_ENV[@]}" RELEASE_PLAN_DATA="${TMP}/data.tsv" RELEASE_PLAN_OPEN="${TMP}/open.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits.txt" "$script" "$@"
 }
 # table_lines: the markdown table lines of the last capture.
 table_lines() { grep '^|' <<< "$OUT" || true; }
 
+table_cases() {
 # 1. every kind of block at once
 data "$(issue 5 'Fix the thing' patch)" "$(issue 6 'Unlabelled thing' '')" "$(issue 7 'New feature' minor)"
 open_with_commit 9 'Half landed'
 precheck "$PRECHECK" patch
 want_exit "1. a stopped plan exits 1" 1 "would stop at its plan"
-want_said "1. the open issue with commits is named" "#9 Half landed"
-want_said "1. the unlabelled issue is named" "#6 Unlabelled thing"
-want_said "1. the issue that needs more is named" "#7 New feature"
+want_said "1. the open issue with commits is named" "$(ref 9) Half landed"
+want_said "1. the unlabelled issue is named" "$(ref 6) Unlabelled thing"
+want_said "1. the issue that needs more is named" "$(ref 7) New feature"
 want_said "1. the reason of the needs-minor row" "needs minor, the run asked for patch"
-want_said "1. the ready issue is listed with its label" "- ✅ #5 Fix the thing (patch)"
+want_said "1. the ready issue is listed with its label" "- ✅ $(ref 5) Fix the thing (patch)"
 want_said "1. the table has the Release run page's header" "|  | Issue | Blocks because | Do |"
 
 # 2. only ready issues
@@ -80,7 +97,7 @@ no_open
 precheck "$PRECHECK" patch
 want_exit "2. a plan that passes exits 0" 0 "would pass the plan"
 want_said "2. the plan's verdict is shown" "OK: next version 1.9.4"
-want_said "2. the ready issues are listed" "- ✅ #3 Fix another thing (patch)"
+want_said "2. the ready issues are listed" "- ✅ $(ref 3) Fix another thing (patch)"
 
 # 3. no bump: the bump the labels require
 data "$(issue 5 'Fix the thing' patch)" "$(issue 7 'New feature' minor)"
@@ -95,7 +112,7 @@ parity() {
   RELEASE_PLAN_DATA="${TMP}/data.tsv" RELEASE_PLAN_OPEN="${TMP}/open.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits.txt" \
     "${REPO}/Scripts/release_plan.sh" patch > "$plan_out" 2>&1 || true
   : > "$report_log"
-  OUT="$(RELEASE_STEP_OUTCOMES='plan=failure' RELEASE_PLAN_OUTPUT="$plan_out" RELEASE_BUMP=patch "${REPO}/Scripts/release_report.sh" "$report_log" failure 2>&1)" || true
+  OUT="$(env "${REPO_ENV[@]}" RELEASE_STEP_OUTCOMES='plan=failure' RELEASE_PLAN_OUTPUT="$plan_out" RELEASE_BUMP=patch "${REPO}/Scripts/release_report.sh" "$report_log" failure 2>&1)" || true
   release_table="$(table_lines)"
   precheck "$PRECHECK" patch
   precheck_table="$(table_lines)"
@@ -115,6 +132,14 @@ data "$(issue 7 'New feature' minor)"
 no_open
 parity "an issue that needs more"
 
+}
+
+use_plain
+table_cases
+use_linked
+table_cases
+use_plain
+
 # 5. read-only
 before="$(git status --porcelain)"
 data "$(issue 5 'Fix the thing' patch)"
@@ -133,7 +158,7 @@ mutate() {
   selftest_mutant "$PRECHECK" "$m" "$2" || return 1
   data "$(issue 5 'Fix the thing' patch)" "$(issue 6 'Unlabelled thing' '')" "$(issue 7 'New feature' minor)"
   open_with_commit 9 'Half landed'
-  capture env RELEASE_PRECHECK_SCRIPTS="${REPO}/Scripts" RELEASE_PLAN_DATA="${TMP}/data.tsv" RELEASE_PLAN_OPEN="${TMP}/open.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits.txt" "$m" patch
+  capture env "${REPO_ENV[@]}" RELEASE_PRECHECK_SCRIPTS="${REPO}/Scripts" RELEASE_PLAN_DATA="${TMP}/data.tsv" RELEASE_PLAN_OPEN="${TMP}/open.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits.txt" "$m" patch
 }
 if mutate noall 's/ --all > / > /'; then
   if [[ "$RC" -eq 1 ]] && grep -qF "#6 Unlabelled thing" <<< "$OUT"; then
@@ -161,6 +186,23 @@ if mutate ownTable 's#^RELEASE_PLAN_OUTPUT=.* || {$#echo "| X | own table |"; tr
     fail "mutation proof: a hand-written table still named the issues"
   else
     echo "  ok: mutation proof: a pre-check with its own table does not print the Release page's table, which the parity cases catch"
+  fi
+fi
+
+# A test that reads the ambient repository variables again (the class CI hit):
+# a copy of this test whose runs do not go through REPO_ENV, started with
+# GITHUB_REPOSITORY exported, must fail.
+mkdir -p "${TMP}/ambient"
+cp -R "${REPO}/Scripts" "${TMP}/ambient/Scripts"
+sed $'s/capture env "\\${REPO_ENV\\[@\\]}" /capture env /' "${REPO}/Scripts/test_release_precheck.sh" > "${TMP}/ambient/Scripts/test_release_precheck.sh"
+if cmp -s "${REPO}/Scripts/test_release_precheck.sh" "${TMP}/ambient/Scripts/test_release_precheck.sh"; then
+  fail "mutation proof: the ambient-variable mutation changed nothing, the proof would be vacuous"
+else
+  ambient_out="$(cd "${TMP}/ambient" && GITHUB_REPOSITORY=acme/app ./Scripts/test_release_precheck.sh </dev/null 2>&1)" && ambient_rc=0 || ambient_rc=$?
+  if [[ "$ambient_rc" -ne 0 ]] && grep -qF "the output does not say" <<< "$ambient_out"; then
+    echo "  ok: mutation proof: a test that reads the ambient GITHUB_REPOSITORY fails where CI sets it"
+  else
+    fail "mutation proof: a copy that reads the ambient GITHUB_REPOSITORY exited ${ambient_rc}, so the test does not control it. Output: ${ambient_out}"
   fi
 fi
 

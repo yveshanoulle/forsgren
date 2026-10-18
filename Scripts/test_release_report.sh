@@ -42,6 +42,8 @@ REPORT="Scripts/release_report.sh"
 LOG="${TMP}/release.log"
 D='$'
 LOGGED=(token quality plan free bump test commit quality-bump publish template metrics-pr metrics)
+# GH_REPO wins over GITHUB_REPOSITORY for the links, so an ambient one must not leak in.
+unset GH_REPO
 export GITHUB_SERVER_URL=https://github.com GITHUB_REPOSITORY=acme/app RELEASE_BUMP=minor
 SHA40=0123456789abcdef0123456789abcdef01234567
 ALL_STEPS=(main checkout setup-go log token resume quality plan free bump test commit quality-bump quality-resumed publish template metrics-pr metrics)
@@ -428,5 +430,7 @@ printf 'blocking=6\tunlabelled\tUnlabelled thing\tv1.9.3\nready=5\tpatch\tFix th
 capture env GH_REPO= GITHUB_REPOSITORY= "$REPORT" --table "${TMP}/table-plan.txt"
 want_green "--table renders the table" "| ❌ | #6 Unlabelled thing | closed since v1.9.3, no patch, minor or major label | label it patch, minor or major |"
 want_said "--table lists the ready issue" "- ✅ #5 Fix the thing (patch)"
+capture env -u GH_REPO GITHUB_REPOSITORY=acme/app GITHUB_SERVER_URL=https://github.com "$REPORT" --table "${TMP}/table-plan.txt"
+want_said "--table links the issues when the repository is known" "[#6](https://github.com/acme/app/issues/6) Unlabelled thing"
 
 selftest_end "the release report does not hold" "release report: done steps, the step that failed (read from its outcome) and what was not done are all said"
