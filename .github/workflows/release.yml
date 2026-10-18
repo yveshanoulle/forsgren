@@ -19,7 +19,10 @@
 #   e. `gh release create` makes the tag and the release together, Latest,
 #      with the notes of step b: a tag never exists without its release.
 #   f. forsgren-template: pins and README in one commit.
-#   g. forsgren-metrics: a pin pull request.
+#   g. forsgren-metrics: a pin pull request, then (Scripts/release_metrics.sh) its
+#      files are read (only the forsgren pins of this release), it is merged and
+#      forsgren.yml is run there until it is green: the release is done only
+#      when the metrics site runs the new version.
 # The first step that writes the job summary is the token check, which puts the
 # token's expiry on its first line (Scripts/release_token_expiry.sh: green over
 # 30 days, yellow 30 to 8, red 7 or fewer and the run goes on, an expired token
@@ -255,7 +258,7 @@ jobs:
           echo "template: pins and README at ${VERSION}" >> "$RELEASE_LOG"
 
       - name: Open the pin pull request in forsgren-metrics
-        id: metrics
+        id: metrics-pr
         shell: bash
         env:
           VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
@@ -264,7 +267,19 @@ jobs:
         run: |
           set -euo pipefail
           ./Scripts/release_pins.sh metrics "$VERSION" "$BUMP_SHA"
-          echo "metrics: pin pull request for ${VERSION} opened" >> "$RELEASE_LOG"
+          echo "metrics-pr: pin pull request for ${VERSION} opened or found" >> "$RELEASE_LOG"
+
+      - name: Merge the pin pull request and run forsgren in forsgren-metrics
+        id: metrics
+        shell: bash
+        env:
+          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
+          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
+          FORSGREN_RELEASE_TOKEN: ${{ secrets.FORSGREN_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          ./Scripts/release_metrics.sh "$VERSION" "$BUMP_SHA" | tee "${RUNNER_TEMP}/metrics.txt"
+          echo "metrics: $(grep '^OK: metrics: ' "${RUNNER_TEMP}/metrics.txt" | sed 's/^OK: metrics: //')" >> "$RELEASE_LOG"
 
       - name: Say what was done
         if: ${{ always() }}
@@ -289,5 +304,6 @@ jobs:
             quality-bump=${{ steps.quality-bump.outcome }}
             publish=${{ steps.publish.outcome }}
             template=${{ steps.template.outcome }}
+            metrics-pr=${{ steps.metrics-pr.outcome }}
             metrics=${{ steps.metrics.outcome }}
         run: ./Scripts/release_report.sh "${RELEASE_LOG:-${RUNNER_TEMP}/release.log}" "$JOB_STATUS"

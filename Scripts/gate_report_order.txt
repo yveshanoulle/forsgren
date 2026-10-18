@@ -740,7 +740,9 @@ live check self-test|Scripts/test_live_check.sh|pre|
 # release_publish.sh (the tag and the release in one call), release_pins.sh
 # (forsgren-template's pins and README, forsgren-metrics' pin pull request)
 # release_resume.sh (the release a resumed run continues with), release_token_expiry.sh
-# (the token's expiry on the first line of the run page) and
+# (the token's expiry on the first line of the run page), release_verify_pin.sh
+# (a pin pull request changes only the pins) and release_metrics.sh (merge it and
+# run forsgren in forsgren-metrics until green) and
 # release_report.sh (what was done). What runs on every sfl and Quality
 # run is their self-tests (fixture data, a stub gh, throwaway repositories, a
 # copy of the repository with `go test ./...` on it) and the pin of the
@@ -754,6 +756,8 @@ release pins self-test|Scripts/test_release_pins.sh|pre|
 release report self-test|Scripts/test_release_report.sh|pre|
 release resume self-test|Scripts/test_release_resume.sh|pre|
 release token expiry self-test|Scripts/test_release_token_expiry.sh|pre|
+release verify pin self-test|Scripts/test_release_verify_pin.sh|pre|
+release metrics self-test|Scripts/test_release_metrics.sh|pre|
 release workflow|Scripts/test_release_workflow.sh|pre|
 #
 # The privacy pages belong to a site that needs privacy pages: another estate repository

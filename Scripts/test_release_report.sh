@@ -36,10 +36,10 @@ REPORT="Scripts/release_report.sh"
 
 LOG="${TMP}/release.log"
 D='$'
-LOGGED=(token quality plan free bump test commit quality-bump publish template metrics)
+LOGGED=(token quality plan free bump test commit quality-bump publish template metrics-pr metrics)
 export GITHUB_SERVER_URL=https://github.com GITHUB_REPOSITORY=acme/app RELEASE_BUMP=minor
 SHA40=0123456789abcdef0123456789abcdef01234567
-ALL_STEPS=(main checkout setup-go log token resume quality plan free bump test commit quality-bump publish template metrics)
+ALL_STEPS=(main checkout setup-go log token resume quality plan free bump test commit quality-bump publish template metrics-pr metrics)
 
 # logged <id>...: the log with those steps recorded.
 logged() {
@@ -72,6 +72,10 @@ report "$LOG" success
 want_green "a successful run" "Release run finished"
 if grep -q '::error::' <<< "$OUT"; then fail "a successful run printed an error. Output: ${OUT}"; fi
 want_said "it lists the last step" "- metrics: did metrics"
+grep -v '^metrics: ' "$LOG" > "${LOG}.new" && mv "${LOG}.new" "$LOG"
+echo "metrics: PR #19 merged, forsgren run https://example.test/run/9 green" >> "$LOG"
+report "$LOG" success
+want_said "the metrics line says the pull request and the run" "- metrics: PR #19 merged, forsgren run https://example.test/run/9 green"
 want_said "it lists the token check" "- token: did token"
 
 # 2
@@ -81,7 +85,7 @@ report "$LOG" failure
 want_green "a failed run is only reported"
 want_said "the failed step is named" "::error::The release run ended as failure at the step 'Quality is green on the bump commit' (quality-bump)."
 want_said "the done steps are listed" "- commit: did commit"
-want_said "the steps not done are listed" "Not done: quality-bump, publish, template, metrics"
+want_said "the steps not done are listed" "Not done: quality-bump, publish, template, metrics-pr, metrics"
 
 # 3: the first real run
 logged
@@ -110,9 +114,9 @@ logged token resume
 outcomes template failure
 RELEASE_RESUME=pins report "$LOG" failure
 want_said "a resumed run names its failed step" "at the step 'Move the pins and README of forsgren-template' (template)."
-want_said "a resumed run expects only its own steps" "Not done: template, metrics"
+want_said "a resumed run expects only its own steps" "Not done: template, metrics-pr, metrics"
 if grep -qF "quality" <<< "$OUT"; then fail "a resumed run lists the skipped steps as not done. Output: ${OUT}"; else echo "  ok: the skipped steps are not listed"; fi
-logged token resume template metrics
+logged token resume template metrics-pr metrics
 outcomes
 RELEASE_RESUME=pins report "$LOG" success
 want_green "a resumed run that finished" "- resume: did resume"
@@ -186,9 +190,16 @@ want_said "$CASE: resume pins" "start Release with resume = pins: gh workflow ru
 want_said "$CASE: the UI path" "Actions → Release → Run workflow → resume: pins"
 one_notice
 no_hand
+outcomes metrics-pr failure
+report "$LOG" failure
+CASE="metrics-pr"
+want_said "$CASE: it is released" "v1.9.5 is released."
+want_said "$CASE: resume pins" "-f resume=pins"
+no_hand
 outcomes metrics failure
 report "$LOG" failure
-CASE="metrics"
+CASE="metrics (the merge or the forsgren run)"
+want_said "$CASE: the step is named" "at the step 'Merge the pin pull request and run forsgren in forsgren-metrics' (metrics)."
 want_said "$CASE: it is released" "v1.9.5 is released."
 want_said "$CASE: resume pins" "-f resume=pins"
 no_hand

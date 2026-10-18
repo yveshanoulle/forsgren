@@ -158,11 +158,12 @@ fi
 # 131 for the five self-tests of the release scripts and the pin of the Release
 # workflow (forsgren#221, step 2 of 2), and to 132 for the self-test of
 # release_resume.sh (forsgren#221, the resume), and to 133 for the self-test of
-# release_token_expiry.sh (forsgren#221, step 4).
+# release_token_expiry.sh (forsgren#221, step 4), and to 135 for the self-tests of
+# release_verify_pin.sh and release_metrics.sh (forsgren#221, step 5).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=133
+MIN_GATES=135
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -521,10 +522,21 @@ for path in Scripts/*.sh; do
     # (Scripts/test_release_workflow.sh) holds the order and the arguments.
     # Their self-tests are order-file rows, so sfl and Quality prove them.
     # A script the workflow never calls would be a release step nobody runs.
-    release_plan.sh|release_bump.sh|release_quality.sh|release_commit.sh|release_publish.sh|release_pins.sh|release_report.sh|release_resume.sh|release_token_expiry.sh)
+    release_plan.sh|release_bump.sh|release_quality.sh|release_commit.sh|release_publish.sh|release_pins.sh|release_report.sh|release_resume.sh|release_token_expiry.sh|release_metrics.sh)
       runs_script "$RELEASE_WF" "$base" \
         || fail "${base} is a step of the release and ${RELEASE_WF} never invokes it — that step would be done by hand"
       require_fixture "$base" "the release step would be unproven"
+      order_names "test_${base}" \
+        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
+      ;;
+
+    # THE PIN CHECK of the Release workflow's metrics step (forsgren#221, step 5):
+    # release_metrics.sh runs it on the pull request's files before it merges
+    # anything, so that script, not the workflow, must invoke it.
+    release_verify_pin.sh)
+      runs_script "Scripts/release_metrics.sh" "$base" \
+        || fail "${base} reads a pin pull request and Scripts/release_metrics.sh never invokes it — a pull request would be merged unread"
+      require_fixture "$base" "the pin check would be unproven"
       order_names "test_${base}" \
         || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
       ;;

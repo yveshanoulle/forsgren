@@ -4,7 +4,7 @@
 # Moves the forsgren pins of the two public repositories that follow a release
 # (forsgren#221, step 2 of 2), the way the manual release does it today:
 #
-#   Scripts/release_pins.sh rewrite <workflow|readme> <version> <sha>
+#   Scripts/release_pins.sh rewrite <workflow|pins|readme> <version> <sha>
 #       stdin to stdout, the pure part. A workflow file: each `uses:` line of
 #       this repository's reusable workflows becomes `@<sha> # vX.Y.Z`, and
 #       "pinned by the commit of release vX.Y.Z" in the comments names the new
@@ -15,6 +15,9 @@
 #       Red (::error::) when FORSGREN_RELEASE_TOKEN is not set. The Release
 #       workflow runs it first, so a missing secret stops the run before
 #       anything is pushed, and template and metrics check it again.
+#       The kind `pins` (forsgren-metrics) moves the `uses:` lines only, as
+#       Dependabot does and as Scripts/release_verify_pin.sh requires: no comment
+#       changes.
 #   Scripts/release_pins.sh template <version> <sha>
 #       forsgren-template: its two workflow files and its README in ONE commit
 #       ("forsgren X.Y.Z: pin and README") on the default branch, through the
@@ -47,7 +50,7 @@ COMPLETED=0
 trap '[ "$COMPLETED" -eq 1 ] || { echo "❌ FAIL: release_pins.sh aborted before completing (COMPLETED was never set)" >&2; exit 1; }' EXIT
 
 usage() {
-  echo "usage: Scripts/release_pins.sh token | rewrite <workflow|readme> <version> <sha> | template <version> <sha> | metrics <version> <sha>" >&2
+  echo "usage: Scripts/release_pins.sh token | rewrite <workflow|pins|readme> <version> <sha> | template <version> <sha> | metrics <version> <sha>" >&2
   COMPLETED=1
   exit 2
 }
@@ -81,6 +84,11 @@ rewrite() {
         s{(uses:\s*\Q$ENV{PIN_REPO}\E/\.github/workflows/[A-Za-z_]+\.yml)@[0-9a-f]{40}\s+#\s*v[0-9]+\.[0-9]+\.[0-9]+}{$1\@$ENV{PIN_SHA} # v$ENV{PIN_VERSION}}g;
         s{(commit of release\s+(?:#\s+)?)v[0-9]+\.[0-9]+\.[0-9]+}{$1v$ENV{PIN_VERSION}}g;'
       ;;
+    pins)
+      # the uses lines only, as Dependabot moves them: no comment is touched
+      PIN_REPO="$REPO" PIN_VERSION="$VERSION" PIN_SHA="$SHA" perl -0777 -pe '
+        s{(uses:\s*\Q$ENV{PIN_REPO}\E/\.github/workflows/[A-Za-z_]+\.yml)@[0-9a-f]{40}\s+#\s*v[0-9]+\.[0-9]+\.[0-9]+}{$1\@$ENV{PIN_SHA} # v$ENV{PIN_VERSION}}g;'
+      ;;
     readme)
       PIN_VERSION="$VERSION" perl -0777 -pe 's{(written by the daily run for forsgren )[0-9]+\.[0-9]+\.[0-9]+}{$1$ENV{PIN_VERSION}}g;'
       ;;
@@ -91,13 +99,13 @@ rewrite() {
 # pinned <kind> <file>: 0 when the rewritten file holds the new pin.
 pinned() {
   case "$1" in
-    workflow) grep -qF "@${SHA} # v${VERSION}" "$2" ;;
+    workflow | pins) grep -qF "@${SHA} # v${VERSION}" "$2" ;;
     readme) grep -qF "written by the daily run for forsgren ${VERSION}" "$2" ;;
   esac
 }
 
 if [ "$MODE" = rewrite ]; then
-  case "$KIND" in workflow | readme) ;; *) usage ;; esac
+  case "$KIND" in workflow | pins | readme) ;; *) usage ;; esac
   TMPIN="$(mktemp)"
   TMPOUT="$(mktemp)"
   trap 'rm -f "$TMPIN" "$TMPOUT"; [ "$COMPLETED" -eq 1 ] || { echo "❌ FAIL: release_pins.sh aborted before completing (COMPLETED was never set)" >&2; exit 1; }' EXIT
@@ -151,7 +159,7 @@ if [ "$MODE" = template ]; then
   MESSAGE="forsgren ${VERSION}: pin and README"
 else
   TARGET="${RELEASE_METRICS_REPO:-${OWNER}/forsgren-metrics}"
-  FILES="workflow:.github/workflows/forsgren.yml workflow:.github/workflows/forsgren-update.yml"
+  FILES="pins:.github/workflows/forsgren.yml pins:.github/workflows/forsgren-update.yml"
   MESSAGE="forsgren: bump to ${VERSION}"
 fi
 

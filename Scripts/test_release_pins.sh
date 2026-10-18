@@ -151,6 +151,16 @@ want_red "a pin of another repository is not moved" "would be skipped"
 OUT="$(printf 'hello\n' | GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite readme "$VERSION" "$SHA" 2>&1)" && RC=0 || RC=$?
 want_red "a README with no version sentence" "would be skipped"
 
+# 1b: the pins kind (forsgren-metrics): the uses lines only, as Dependabot moves them
+OUT="$(GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite pins "$VERSION" "$SHA" < "${FIX}/forsgren.yml.fixture")"
+if grep -qF "metrics.yml@${SHA} # v${VERSION}" <<< "$OUT" && grep -qF "pinned by the commit of release v1.9.3" <<< "$OUT"; then
+  echo "  ok: the pins kind moves the pin and leaves the comment"
+else
+  fail "the pins kind did not leave the comment alone. Output: ${OUT}"
+fi
+OUT="$(printf 'name: x\n' | GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite pins "$VERSION" "$SHA" 2>&1)" && RC=0 || RC=$?
+want_red "the pins kind with no pin" "would be skipped"
+
 # 2: template
 world
 FORSGREN_RELEASE_TOKEN="rt-token" pins template "$VERSION" "$SHA"
@@ -187,6 +197,7 @@ world
 FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
 want_green "metrics" "OK: acme/met pull request for ${VERSION}: https://example.test/pull/1"
 if [[ "$(grep -c 'git/blobs' "${TMP}/gh.log")" -eq 2 ]]; then echo "  ok: two blobs, no README"; else fail "want two blobs. Log: $(cat "${TMP}/gh.log")"; fi
+if grep -qF "commit of release v1.9.3" "${STATE}"/bodies/*blobs* && ! grep -qF "commit of release v${VERSION}" "${STATE}"/bodies/*blobs*; then echo "  ok: the metrics pull request changes the pins only, the comments stay"; else fail "the metrics blobs changed a comment"; fi
 if grep -qF "refs/heads/forsgren-release-v${VERSION}" "${STATE}"/bodies/*git_refs*; then echo "  ok: the branch is forsgren-release-v${VERSION}"; else fail "no branch was created"; fi
 if grep -q 'PATCH' "${TMP}/gh.log"; then fail "the default branch of the metrics repository was moved: it must only get a pull request"; else echo "  ok: the default branch is untouched"; fi
 if grep -qF "pr create --repo acme/met --base main --head forsgren-release-v${VERSION}" "${TMP}/gh.log"; then echo "  ok: the pull request goes into main"; else fail "pr create is not as pinned. Log: $(cat "${TMP}/gh.log")"; fi

@@ -498,8 +498,23 @@ and stops at the first step that fails:
    (`Scripts/release_pins.sh template`).
 9. **The metrics installation**: a pull request in forsgren-metrics that moves
    the pins of its two workflows to the new release
-   (`Scripts/release_pins.sh metrics`). Merge it to update that page at once.
-   Other installations keep their own Dependabot schedule.
+   (`Scripts/release_pins.sh metrics`; it changes the `uses:` lines only, as
+   Dependabot does, and leaves the comments). The release is done only when
+   the metrics site runs the new version, so the workflow finishes it
+   (`Scripts/release_metrics.sh`): it reads the pull request's files
+   (`Scripts/release_verify_pin.sh`, the rule of `forsgren check-update` for the
+   changed files: exactly the two caller workflows, each by one removed and one
+   added pin line of the workflow it calls, to this release's version and
+   commit; any other change is a red and nothing is merged), squash-merges it
+   and deletes its branch (as the auto-update workflow does), starts
+   `forsgren.yml` in forsgren-metrics on its default branch, which Dependabot's
+   merge never does because that workflow runs on a schedule or by hand, and
+   waits for the run to be green, at most about 20 minutes. The run page says
+   `metrics: PR #N merged, forsgren run <url> green`. A red or cancelled run
+   fails the step with the run's URL. It is safe to repeat (a resumed run
+   with `resume: pins`): a merged pull request skips to the run, a green run
+   after the merge is already done, and no second run is started while one is
+   green or going. Other installations keep their own Dependabot schedule.
 
 The last step runs whatever happened and prints what was done and what was not
 (`Scripts/release_report.sh`). It names the step that failed from the outcome of
@@ -516,7 +531,8 @@ personal access token of the owner of the repositories:
 - resource owner: the account that owns forsgren-template and
   forsgren-metrics; repository access: only those two repositories
 - repository permissions: Contents read and write, Pull requests read and
-  write, and Workflows read and write (Metadata read is added by GitHub).
+  write, Workflows read and write, and Actions read and write (to start
+  forsgren.yml in forsgren-metrics; Metadata read is added by GitHub).
   Nothing else. Workflows is needed because both steps change files under
   `.github/workflows`: without it GitHub answers 403 "Resource not accessible
   by personal access token", and the step says the token needs Workflows: Read

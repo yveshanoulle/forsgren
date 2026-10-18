@@ -6,7 +6,8 @@
 #
 #   - the log file: the steps that do work append one line each,
 #     `<step id>: <what was done>`. The ids, in order: token, quality, plan,
-#     free, bump, test, commit, quality-bump, publish, template, metrics.
+#     free, bump, test, commit, quality-bump, publish, template, metrics-pr,
+#     metrics (the last one logs `PR #N merged, forsgren run <url> green`).
 #   - the outcomes, in the environment variable RELEASE_STEP_OUTCOMES, one
 #     `<step id>=<outcome>` line per step of the job (the workflow passes
 #     steps.<id>.outcome of every step, the way the maintenance summary does).
@@ -40,11 +41,11 @@ fi
 LOG="$1"
 STATUS="$2"
 
-ALL_IDS="main checkout setup-go log token resume quality plan free bump test commit quality-bump publish template metrics"
-LOGGED_IDS="token quality plan free bump test commit quality-bump publish template metrics"
+ALL_IDS="main checkout setup-go log token resume quality plan free bump test commit quality-bump publish template metrics-pr metrics"
+LOGGED_IDS="token quality plan free bump test commit quality-bump publish template metrics-pr metrics"
 # A resumed run (RELEASE_RESUME=pins) skips everything between the token check and the pins.
-if [ "${RELEASE_RESUME:-}" = pins ]; then LOGGED_IDS="token resume template metrics"; fi
-if [ "${RELEASE_RESUME:-}" = publish ]; then LOGGED_IDS="token resume quality-bump publish template metrics"; fi
+if [ "${RELEASE_RESUME:-}" = pins ]; then LOGGED_IDS="token resume template metrics-pr metrics"; fi
+if [ "${RELEASE_RESUME:-}" = publish ]; then LOGGED_IDS="token resume quality-bump publish template metrics-pr metrics"; fi
 
 # name_of <id>: the step's name in release.yml.
 name_of() {
@@ -64,7 +65,8 @@ name_of() {
     quality-bump) echo "Quality is green on the bump commit" ;;
     publish) echo "Create the tag and the release" ;;
     template) echo "Move the pins and README of forsgren-template" ;;
-    metrics) echo "Open the pin pull request in forsgren-metrics" ;;
+    metrics-pr) echo "Open the pin pull request in forsgren-metrics" ;;
+    metrics) echo "Merge the pin pull request and run forsgren in forsgren-metrics" ;;
     *) echo "$1" ;;
   esac
 }
@@ -115,7 +117,7 @@ advise() {
   version="$(line_value '^publish: ' | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true)"
   if [ -z "$version" ]; then version="$(line_value '^resume: tag=' | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true)"; fi
   case "$failed_id" in
-    template | metrics)
+    template | metrics-pr | metrics)
       ADVICE="${version:-This release} is released.
 Next: fix the cause (for a 403: the token's Workflows permission), then start Release with resume = pins: gh workflow run release.yml -f resume=pins, or Actions → Release → Run workflow → resume: pins."
       NOTICE="Release failed at the step '${name}': ${version:-this release} is released. Fix the cause (for a 403: the token's Workflows permission), then start Release with resume = pins: gh workflow run release.yml -f resume=pins"

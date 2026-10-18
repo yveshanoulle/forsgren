@@ -71,12 +71,13 @@ NAMES=(
   "Create the tag and the release"
   "Move the pins and README of forsgren-template"
   "Open the pin pull request in forsgren-metrics"
+  "Merge the pin pull request and run forsgren in forsgren-metrics"
   "Say what was done"
 )
 
 # IDS: the step ids in the order of NAMES; the report step passes the outcome
 # of each (steps.<id>.outcome), so it names the step that failed (forsgren#221).
-IDS=(main checkout setup-go log token resume quality plan free bump test commit quality-bump publish template metrics)
+IDS=(main checkout setup-go log token resume quality plan free bump test commit quality-bump publish template metrics-pr metrics)
 
 id_findings() {
   local i name id
@@ -103,7 +104,7 @@ resume_findings() {
   for name in "Quality is green on the bump commit" "Create the tag and the release"; do
     step_text "$1" "$name" | grep -qxF "        if: ${DOLLAR}{{ inputs.resume != 'pins' }}" || echo "resume: the step '${name}' is not skipped by resume: pins only"
   done
-  for name in "Move the pins and README of forsgren-template" "Open the pin pull request in forsgren-metrics" "Check the release token is set"; do
+  for name in "Move the pins and README of forsgren-template" "Open the pin pull request in forsgren-metrics" "Merge the pin pull request and run forsgren in forsgren-metrics" "Check the release token is set"; do
     if step_text "$1" "$name" | grep -qE '^        if:'; then echo "resume: the step '${name}' must run also when resuming"; fi
   done
   code "$1" | grep -qxF '        options: [none, pins, publish]' || echo "input: resume is not a choice of none, pins, publish"
@@ -182,6 +183,9 @@ Move the pins and README of forsgren-template@@          VERSION: ${{ steps.plan
 Move the pins and README of forsgren-template@@          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
 Open the pin pull request in forsgren-metrics@@          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
 Open the pin pull request in forsgren-metrics@@          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
+Merge the pin pull request and run forsgren in forsgren-metrics@@          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
+Merge the pin pull request and run forsgren in forsgren-metrics@@          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
+Merge the pin pull request and run forsgren in forsgren-metrics@@          ./Scripts/release_metrics.sh "$VERSION" "$BUMP_SHA" | tee "${RUNNER_TEMP}/metrics.txt"
 Say what was done@@          RELEASE_RESUME: ${{ inputs.resume }}
 Quality is green on main@@          ./Scripts/release_quality.sh check "$GITHUB_SHA"
 Plan the release@@          ./Scripts/release_plan.sh "$BUMP" --notes "${RUNNER_TEMP}/notes.md" | tee "${RUNNER_TEMP}/plan.txt"
@@ -196,6 +200,7 @@ Quality is green on the bump commit@@          ./Scripts/release_quality.sh disp
 Create the tag and the release@@          ./Scripts/release_publish.sh create "$VERSION" "$BUMP_SHA" "${RUNNER_TEMP}/notes.md"
 Move the pins and README of forsgren-template@@          ./Scripts/release_pins.sh template "$VERSION" "$BUMP_SHA"
 Open the pin pull request in forsgren-metrics@@          ./Scripts/release_pins.sh metrics "$VERSION" "$BUMP_SHA"
+Merge the pin pull request and run forsgren in forsgren-metrics@@          echo "metrics: $(grep '^OK: metrics: ' "${RUNNER_TEMP}/metrics.txt" | sed 's/^OK: metrics: //')" >> "$RELEASE_LOG"
 Say what was done@@        if: ${{ always() }}
 Say what was done@@        run: ./Scripts/release_report.sh "${RELEASE_LOG:-${RUNNER_TEMP}/release.log}" "$JOB_STATUS"
 Say what was done@@          JOB_STATUS: ${{ job.status }}
@@ -213,8 +218,8 @@ command_findings() {
 secret_findings() {
   local count where
   count="$(code "$1" | grep -c 'secrets.FORSGREN_RELEASE_TOKEN' || true)"
-  [[ "$count" -eq 3 ]] || echo "secret: FORSGREN_RELEASE_TOKEN appears ${count} times, want 3 (token check, template, metrics)"
-  for where in "Check the release token is set" "Move the pins and README of forsgren-template" "Open the pin pull request in forsgren-metrics"; do
+  [[ "$count" -eq 4 ]] || echo "secret: FORSGREN_RELEASE_TOKEN appears ${count} times, want 4 (token check, template, the metrics pull request, the metrics merge and run)"
+  for where in "Check the release token is set" "Move the pins and README of forsgren-template" "Open the pin pull request in forsgren-metrics" "Merge the pin pull request and run forsgren in forsgren-metrics"; do
     step_text "$1" "$where" | grep -qF "FORSGREN_RELEASE_TOKEN: ${DOLLAR}{{ secrets.FORSGREN_RELEASE_TOKEN }}" \
       || echo "secret: the step '${where}' does not get FORSGREN_RELEASE_TOKEN"
   done
@@ -290,6 +295,8 @@ mutant "a template step skipped by resume" "/name: Move the pins and README of f
 mutant "a resume by default" 's/^        default: none/        default: pins/' "input: the default resume is not none"
 mutant "a template that ignores the resumed release" 's/^          VERSION: \(.*\) || steps.resume.outputs.version }}/          VERSION: \1 }}/' "Move the pins and README of forsgren-template"
 mutant "a token check that does not show the expiry" '/^          .\/Scripts\/release_token_expiry.sh$/d' "step 'Check the release token is set'"
+mutant "a metrics step that merges without the script" "s/release_metrics.sh \".VERSION\"/gh pr merge \"${DOLLAR}VERSION\"/" "step 'Merge the pin pull request and run forsgren in forsgren-metrics'"
+mutant "a metrics step that logs nothing" '/echo "metrics: /d' "step 'Merge the pin pull request and run forsgren in forsgren-metrics'"
 mutant "a token check that records nothing" '/echo "token: FORSGREN_RELEASE_TOKEN is set"/d' "step 'Check the release token is set'"
 mutant "a step without an id" '/^        id: token$/d' "ids: the step 'Check the release token is set'"
 mutant "an outcome the report does not get" '/^            token=/d' "outcomes: the report step does not get steps.token.outcome"
