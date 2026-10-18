@@ -5,6 +5,7 @@ import (
 	"math"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -39,13 +40,49 @@ func TestTrendColoursHaveAContrastOfAtLeast4Point5InLightAndDark(t *testing.T) {
 // as #rrggbb; it stops t when there is no such rule.
 func trendColours(t *testing.T, css, class string) (light, dark string) {
 	t.Helper()
-	const hex = `\s*(#[0-9a-f]{6})\s*`
-	rule := regexp.MustCompile(`(?s)\.` + class + `\s*\{[^}]*color:\s*light-dark\(` + hex + `,` + hex + `\)`)
+	const hex = `\s*(#(?:[0-9a-f]{6}|[0-9a-f]{3}))\s*`
+	rule := regexp.MustCompile(`(?is)\.` + class + `\s*\{[^}]*color:\s*light-dark\(` + hex + `,` + hex + `\)`)
 	found := rule.FindStringSubmatch(css)
 	if found == nil {
 		t.Fatalf("want a .%s rule with color: light-dark(#rrggbb, #rrggbb) in styles.css, got:\n%s", class, css)
 	}
-	return found[1], found[2]
+	return longHex(found[1]), longHex(found[2])
+}
+
+// longHex is the colour as #rrggbb in lower case, whatever way the sheet writes
+// it: stylelint --fix, which FBP runs on styles.css, shortens #000000 to #000,
+// so a colour is compared by value, never as written (forsgren#212).
+func longHex(colour string) string {
+	colour = strings.ToLower(colour)
+	if len(colour) == 4 {
+		return "#" + strings.Repeat(colour[1:2], 2) + strings.Repeat(colour[2:3], 2) + strings.Repeat(colour[3:4], 2)
+	}
+	return colour
+}
+
+// TestColoursAreComparedByValueNotAsWritten (forsgren#212): a rule written with
+// the short form the formatter produces, or in capitals, reads as the same
+// colour as its long form, and a different colour still reads as different.
+// The raw strings differ, which is what a comparison as written would trip on.
+func TestColoursAreComparedByValueNotAsWritten(t *testing.T) {
+	css := ".short { color: light-dark(#000, #FFF); }\n.long { color: light-dark(#000000, #ffffff); }\n" +
+		".other { color: light-dark(#001, #fff); }"
+	got := map[string][2]string{}
+	for _, class := range []string{"short", "long", "other"} {
+		light, dark := trendColours(t, css, class)
+		got[class] = [2]string{light, dark}
+	}
+	want := map[string][2]string{
+		"short": {"#000000", "#ffffff"}, "long": {"#000000", "#ffffff"}, "other": {"#000011", "#ffffff"},
+	}
+	for class, colours := range want {
+		if got[class] != colours {
+			t.Errorf(".%s reads %v, want %v", class, got[class], colours)
+		}
+	}
+	if raw := "#000"; raw == got["long"][0] {
+		t.Error("the raw short form equals the long one: the proof of a comparison as written is void")
+	}
 }
 
 // swatch is the colour of a trend class in one mode.

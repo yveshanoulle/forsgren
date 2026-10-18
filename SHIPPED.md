@@ -16,7 +16,7 @@ Yves: one trend chart per project, above that project's block; a colour for each
 - The project's block opens with its name row, then one row with a full-width cell holding the chart and its legend, then the measure rows. A cell spanning the table in the tbody keeps the HTML valid and the project's name is the chart's heading.
 - A line per measure of the project's total, 0 to 10 on one scale. Colours (light / dark): `#000000 / #ffffff`, red `#b3261e / #ff8a80`, green `#1b6e2f / #7fd98f`, blue `#0b57d0 / #8ab4f8`, orange `#a34100 / #ffb74d`, purple `#7b1fa2 / #ce93d8`, as `.measure-N` rules with `light-dark()`. The legend gives each line a swatch with its dash pattern, a second cue besides colour.
 - The per-row Trend cells and the Trend column are removed: the project chart replaces them and nothing depends on them. With one period there is still no chart.
-- Red first: `TestHistoryChartIsOnePerProjectAboveItsBlock`, `TestHistoryChartDrawsOneLinePerMeasureAndALegendNamesThem` and `TestHistoryChartColoursReachContrastInLightAndDark`. Goldens `history*` and `legend` regenerated.
+- Red first: `TestHistoryChartIsOnePerProjectAboveItsBlock`, `TestHistoryChartDrawsOneLinePerMeasureAndALegendNamesThem` and `TestHistoryChartColoursReachContrastInLightAndDark`. Goldens `history*` and `legend` regenerated. The colour tests read hex by value (`#000` is `#000000`), since FBP runs `stylelint --fix` on `styles.css` and it writes the short form; `styles.css` holds that form.
 
 ---
 
