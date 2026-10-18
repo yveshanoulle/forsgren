@@ -12,6 +12,13 @@
 #       token starts no run, a dispatch by it does), then waits as `check` does
 #       for a run on <sha>; a run that has not appeared yet is waited for too.
 #
+#   Scripts/release_quality.sh dispatch-bump <sha> <ref> <green-parent> <old-version> <new-version>
+#       The same, for the bump commit of a release (forsgren#230, step 2): the
+#       dispatch carries scope=bump and the green parent, the old and the new
+#       version as inputs, so quality.yml runs the short Quality: the bump diff
+#       check first (Scripts/release_bump_diff.sh), then only the gates of
+#       Scripts/quality_bump_gates.txt and the site build.
+#
 # The wait is bounded: RELEASE_QUALITY_TRIES polls (default 120), RELEASE_QUALITY_DELAY
 # seconds apart (default 30). Running out of tries is a red naming the commit.
 # Exit: 0 green, 1 red or timed out, 2 usage. gh reads GH_TOKEN.
@@ -23,7 +30,7 @@ COMPLETED=0
 trap '[ "$COMPLETED" -eq 1 ] || { echo "❌ FAIL: release_quality.sh aborted before completing (COMPLETED was never set)" >&2; exit 1; }' EXIT
 
 usage() {
-  echo "usage: Scripts/release_quality.sh check <sha> | dispatch <sha> <ref>" >&2
+  echo "usage: Scripts/release_quality.sh check <sha> | dispatch <sha> <ref> | dispatch-bump <sha> <ref> <green-parent> <old-version> <new-version>" >&2
   COMPLETED=1
   exit 2
 }
@@ -39,9 +46,14 @@ SHA="${2:-}"
 case "$MODE" in
   check) [ "$#" -eq 2 ] || usage ;;
   dispatch) [ "$#" -eq 3 ] || usage ;;
+  dispatch-bump) [ "$#" -eq 6 ] || usage ;;
   *) usage ;;
 esac
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || usage
+if [ "$MODE" = dispatch-bump ]; then
+  [[ "$4" =~ ^[0-9a-f]{40}$ ]] || usage
+  [[ "$5" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$6" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || usage
+fi
 TRIES="${RELEASE_QUALITY_TRIES:-120}"
 DELAY="${RELEASE_QUALITY_DELAY:-30}"
 [[ "$TRIES" =~ ^[1-9][0-9]*$ && "$DELAY" =~ ^[0-9]+$ ]] || usage
@@ -49,6 +61,10 @@ DELAY="${RELEASE_QUALITY_DELAY:-30}"
 if [ "$MODE" = dispatch ]; then
   gh workflow run quality.yml --ref "$3" || red "could not start quality.yml on ${3}"
   echo "started quality.yml on ${3}, waiting for its run on ${SHA}"
+elif [ "$MODE" = dispatch-bump ]; then
+  gh workflow run quality.yml --ref "$3" -f scope=bump -f green_parent="$4" -f old_version="$5" -f new_version="$6" \
+    || red "could not start the short quality.yml (scope=bump) on ${3}"
+  echo "started the short quality.yml (scope=bump) on ${3}, waiting for its run on ${SHA}"
 fi
 
 try=0

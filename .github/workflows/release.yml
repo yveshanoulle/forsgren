@@ -14,8 +14,13 @@
 #      the working tree and `go test ./...` runs on it; only then
 #      Scripts/release_commit.sh commits it as github-actions[bot] with a DCO
 #      sign-off and pushes it to main (a fast-forward, or nothing happens).
-#   d. quality.yml is dispatched on the bump commit (a push by the job's token
-#      starts no run, a dispatch by it does) and awaited, bounded.
+#   d. quality.yml is dispatched on the bump commit with scope=bump (a push by
+#      the job's token starts no run, a dispatch by it does) and awaited,
+#      bounded: the short Quality, which first checks the commit holds only
+#      the version bump on the commit Quality was green on in step b
+#      (Scripts/release_bump_diff.sh), then runs only the gates of
+#      Scripts/quality_bump_gates.txt and the build. resume: publish has no
+#      green parent on record and gets the full Quality.
 #   e. `gh release create` makes the tag and the release together, Latest,
 #      with the notes of step b: a tag never exists without its release.
 #   f. forsgren-template: pins and README in one commit.
@@ -162,6 +167,7 @@ jobs:
         run: |
           set -euo pipefail
           ./Scripts/release_quality.sh check "$GITHUB_SHA"
+          echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
           echo "quality: green on ${GITHUB_SHA}" >> "$RELEASE_LOG"
 
       - name: Plan the release
@@ -195,7 +201,8 @@ jobs:
           VERSION: ${{ steps.plan.outputs.version }}
         run: |
           set -euo pipefail
-          ./Scripts/release_bump.sh "$VERSION"
+          ./Scripts/release_bump.sh "$VERSION" | tee "${RUNNER_TEMP}/bump.txt"
+          echo "old=$(sed -n 's/^OK: bumped \([0-9.]*\) to .*/\1/p' "${RUNNER_TEMP}/bump.txt")" >> "$GITHUB_OUTPUT"
           echo "bump: the working tree is at ${VERSION}, not committed" >> "$RELEASE_LOG"
 
       - name: Test the bumped tree
@@ -223,16 +230,36 @@ jobs:
           grep '^sha=' "${RUNNER_TEMP}/commit.txt" >> "$GITHUB_OUTPUT"
           echo "commit: $(grep '^sha=' "${RUNNER_TEMP}/commit.txt") pushed to main" >> "$RELEASE_LOG"
 
+      # The short Quality (forsgren#230, step 2): quality.yml with scope=bump
+      # checks the bump commit holds only the version bump on the commit
+      # Quality was green on (the sha of the step above), then runs only the
+      # gates of Scripts/quality_bump_gates.txt and the build.
       - name: Quality is green on the bump commit
         id: quality-bump
-        if: ${{ inputs.resume != 'pins' }}
+        if: ${{ inputs.resume == 'none' }}
         shell: bash
         env:
-          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
+          BUMP_SHA: ${{ steps.commit.outputs.sha }}
+          GREEN_PARENT: ${{ steps.quality.outputs.sha }}
+          OLD_VERSION: ${{ steps.bump.outputs.old }}
+          NEW_VERSION: ${{ steps.plan.outputs.version }}
         run: |
           set -euo pipefail
-          ./Scripts/release_quality.sh dispatch "$BUMP_SHA" main
-          echo "quality-bump: green on ${BUMP_SHA}" >> "$RELEASE_LOG"
+          ./Scripts/release_quality.sh dispatch-bump "$BUMP_SHA" main "$GREEN_PARENT" "$OLD_VERSION" "$NEW_VERSION" | tee "${RUNNER_TEMP}/quality-bump.txt"
+          echo "quality-bump: short Quality (bump) green on ${BUMP_SHA}: $(grep '^OK: ' "${RUNNER_TEMP}/quality-bump.txt" | sed 's/^OK: //')" >> "$RELEASE_LOG"
+
+      # resume: publish has no green parent on record, so the resumed bump
+      # commit gets the full Quality.
+      - name: Quality is green on the resumed bump commit
+        id: quality-resumed
+        if: ${{ inputs.resume == 'publish' }}
+        shell: bash
+        env:
+          BUMP_SHA: ${{ steps.resume.outputs.sha }}
+        run: |
+          set -euo pipefail
+          ./Scripts/release_quality.sh dispatch "$BUMP_SHA" main | tee "${RUNNER_TEMP}/quality-resumed.txt"
+          echo "quality-resumed: full Quality green on ${BUMP_SHA}: $(grep '^OK: ' "${RUNNER_TEMP}/quality-resumed.txt" | sed 's/^OK: //')" >> "$RELEASE_LOG"
 
       - name: Create the tag and the release
         id: publish
@@ -303,6 +330,7 @@ jobs:
             test=${{ steps.test.outcome }}
             commit=${{ steps.commit.outcome }}
             quality-bump=${{ steps.quality-bump.outcome }}
+            quality-resumed=${{ steps.quality-resumed.outcome }}
             publish=${{ steps.publish.outcome }}
             template=${{ steps.template.outcome }}
             metrics-pr=${{ steps.metrics-pr.outcome }}

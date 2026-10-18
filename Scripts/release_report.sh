@@ -6,7 +6,7 @@
 #
 #   - the log file: the steps that do work append one line each,
 #     `<step id>: <what was done>`. The ids, in order: token, quality, plan,
-#     free, bump, test, commit, quality-bump, publish, template, metrics-pr,
+#     free, bump, test, commit, quality-bump, quality-resumed, publish, template, metrics-pr,
 #     metrics (the last one logs `PR #N merged, forsgren run <url> green`).
 #   - the outcomes, in the environment variable RELEASE_STEP_OUTCOMES, one
 #     `<step id>=<outcome>` line per step of the job (the workflow passes
@@ -41,11 +41,11 @@ fi
 LOG="$1"
 STATUS="$2"
 
-ALL_IDS="main checkout setup-go log token resume quality plan free bump test commit quality-bump publish template metrics-pr metrics"
+ALL_IDS="main checkout setup-go log token resume quality plan free bump test commit quality-bump quality-resumed publish template metrics-pr metrics"
 LOGGED_IDS="token quality plan free bump test commit quality-bump publish template metrics-pr metrics"
 # A resumed run (RELEASE_RESUME=pins) skips everything between the token check and the pins.
 if [ "${RELEASE_RESUME:-}" = pins ]; then LOGGED_IDS="token resume template metrics-pr metrics"; fi
-if [ "${RELEASE_RESUME:-}" = publish ]; then LOGGED_IDS="token resume quality-bump publish template metrics-pr metrics"; fi
+if [ "${RELEASE_RESUME:-}" = publish ]; then LOGGED_IDS="token resume quality-resumed publish template metrics-pr metrics"; fi
 
 # name_of <id>: the step's name in release.yml.
 name_of() {
@@ -63,6 +63,7 @@ name_of() {
     test) echo "Test the bumped tree" ;;
     commit) echo "Commit the bump and push it to main" ;;
     quality-bump) echo "Quality is green on the bump commit" ;;
+    quality-resumed) echo "Quality is green on the resumed bump commit" ;;
     publish) echo "Create the tag and the release" ;;
     template) echo "Move the pins and README of forsgren-template" ;;
     metrics-pr) echo "Open the pin pull request in forsgren-metrics" ;;
@@ -122,7 +123,7 @@ advise() {
 Next: fix the cause (for a 403: the token's Workflows permission), then start Release with resume = pins: gh workflow run release.yml -f resume=pins, or Actions → Release → Run workflow → resume: pins."
       NOTICE="Release failed at the step '${name}': ${version:-this release} is released. Fix the cause (for a 403: the token's Workflows permission), then start Release with resume = pins: gh workflow run release.yml -f resume=pins"
       ;;
-    quality-bump | publish)
+    quality-bump | quality-resumed | publish)
       ADVICE="The bump commit ${sha:-of this run} is on main and no release exists.
 Do not start Release again with a bump: the version is already bumped and the bump step would refuse it.
 resume = publish works only while main's head is still the bump commit; if main has moved on, fix main and run a new release instead.

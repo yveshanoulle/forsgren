@@ -71,6 +71,7 @@ NAMES=(
   "Test the bumped tree"
   "Commit the bump and push it to main"
   "Quality is green on the bump commit"
+  "Quality is green on the resumed bump commit"
   "Create the tag and the release"
   "Move the pins and README of forsgren-template"
   "Open the pin pull request in forsgren-metrics"
@@ -80,7 +81,7 @@ NAMES=(
 
 # IDS: the step ids in the order of NAMES; the report step passes the outcome
 # of each (steps.<id>.outcome), so it names the step that failed (forsgren#221).
-IDS=(main checkout setup-go log token resume quality plan free bump test commit quality-bump publish template metrics-pr metrics)
+IDS=(main checkout setup-go log token resume quality plan free bump test commit quality-bump quality-resumed publish template metrics-pr metrics)
 
 id_findings() {
   local i name id
@@ -103,10 +104,10 @@ resume_findings() {
   for name in "Quality is green on main" "Plan the release" "Check the version is new" "Bump the version in the working tree" "Test the bumped tree" "Commit the bump and push it to main"; do
     step_text "$1" "$name" | grep -qxF "        if: ${DOLLAR}{{ inputs.resume == 'none' }}" || echo "resume: the step '${name}' is not skipped by resume: pins and publish"
   done
-  # Quality on the bump commit and the publish also run for resume: publish.
-  for name in "Quality is green on the bump commit" "Create the tag and the release"; do
-    step_text "$1" "$name" | grep -qxF "        if: ${DOLLAR}{{ inputs.resume != 'pins' }}" || echo "resume: the step '${name}' is not skipped by resume: pins only"
-  done
+  # The publish also runs for resume: publish, with the full Quality on the
+  # resumed bump commit; the short Quality is for a new release only.
+  step_text "$1" "Create the tag and the release" | grep -qxF "        if: ${DOLLAR}{{ inputs.resume != 'pins' }}" || echo "resume: the step 'Create the tag and the release' is not skipped by resume: pins only"
+  step_text "$1" "Quality is green on the bump commit" | grep -qxF "        if: ${DOLLAR}{{ inputs.resume == 'none' }}" || echo "resume: the step 'Quality is green on the bump commit' is not skipped by resume: pins and publish"
   for name in "Move the pins and README of forsgren-template" "Open the pin pull request in forsgren-metrics" "Merge the pin pull request and run forsgren in forsgren-metrics" "Check the release token is set"; do
     if step_text "$1" "$name" | grep -qE '^        if:'; then echo "resume: the step '${name}' must run also when resuming"; fi
   done
@@ -177,7 +178,16 @@ Find the release to resume@@        if: ${{ inputs.resume != 'none' }}
 Find the release to resume@@          RESUME_MODE: ${{ inputs.resume }}
 Find the release to resume@@          ./Scripts/release_resume.sh "$RESUME_MODE" | tee "${RUNNER_TEMP}/resume.txt"
 Find the release to resume@@          echo "resume: $(grep '^tag=' "${RUNNER_TEMP}/resume.txt") at $(grep '^sha=' "${RUNNER_TEMP}/resume.txt" | cut -d= -f2)" >> "$RELEASE_LOG"
-Quality is green on the bump commit@@          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
+Quality is green on main@@          echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+Quality is green on the bump commit@@          BUMP_SHA: ${{ steps.commit.outputs.sha }}
+Quality is green on the bump commit@@          GREEN_PARENT: ${{ steps.quality.outputs.sha }}
+Quality is green on the bump commit@@          OLD_VERSION: ${{ steps.bump.outputs.old }}
+Quality is green on the bump commit@@          NEW_VERSION: ${{ steps.plan.outputs.version }}
+Quality is green on the bump commit@@          echo "quality-bump: short Quality (bump) green on ${BUMP_SHA}: $(grep '^OK: ' "${RUNNER_TEMP}/quality-bump.txt" | sed 's/^OK: //')" >> "$RELEASE_LOG"
+Quality is green on the resumed bump commit@@        if: ${{ inputs.resume == 'publish' }}
+Quality is green on the resumed bump commit@@          BUMP_SHA: ${{ steps.resume.outputs.sha }}
+Quality is green on the resumed bump commit@@          echo "quality-resumed: full Quality green on ${BUMP_SHA}: $(grep '^OK: ' "${RUNNER_TEMP}/quality-resumed.txt" | sed 's/^OK: //')" >> "$RELEASE_LOG"
+Bump the version in the working tree@@          echo "old=$(sed -n 's/^OK: bumped \([0-9.]*\) to .*/\1/p' "${RUNNER_TEMP}/bump.txt")" >> "$GITHUB_OUTPUT"
 Create the tag and the release@@          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
 Create the tag and the release@@          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
 Say what was done@@          RELEASE_BUMP: ${{ inputs.bump }}
@@ -194,12 +204,13 @@ Quality is green on main@@          ./Scripts/release_quality.sh check "$GITHUB_
 Plan the release@@          ./Scripts/release_plan.sh "$BUMP" --notes "${RUNNER_TEMP}/notes.md" | tee "${RUNNER_TEMP}/plan.txt"
 Plan the release@@          BUMP: ${{ inputs.bump }}
 Check the version is new@@          ./Scripts/release_publish.sh free "$VERSION"
-Bump the version in the working tree@@          ./Scripts/release_bump.sh "$VERSION"
+Bump the version in the working tree@@          ./Scripts/release_bump.sh "$VERSION" | tee "${RUNNER_TEMP}/bump.txt"
 Test the bumped tree@@          go test ./...
 Test the bumped tree@@          echo "test: go test ./... passes on the bumped tree" >> "$RELEASE_LOG"
 Commit the bump and push it to main@@          ./Scripts/release_commit.sh "$VERSION" "$ISSUES" "$remote" | tee "${RUNNER_TEMP}/commit.txt"
 Commit the bump and push it to main@@          FORSGREN_PRIVATE_NAMES: ${{ secrets.FORSGREN_PRIVATE_NAMES }}
-Quality is green on the bump commit@@          ./Scripts/release_quality.sh dispatch "$BUMP_SHA" main
+Quality is green on the bump commit@@          ./Scripts/release_quality.sh dispatch-bump "$BUMP_SHA" main "$GREEN_PARENT" "$OLD_VERSION" "$NEW_VERSION" | tee "${RUNNER_TEMP}/quality-bump.txt"
+Quality is green on the resumed bump commit@@          ./Scripts/release_quality.sh dispatch "$BUMP_SHA" main | tee "${RUNNER_TEMP}/quality-resumed.txt"
 Create the tag and the release@@          ./Scripts/release_publish.sh create "$VERSION" "$BUMP_SHA" "${RUNNER_TEMP}/notes.md"
 Move the pins and README of forsgren-template@@          ./Scripts/release_pins.sh template "$VERSION" "$BUMP_SHA"
 Open the pin pull request in forsgren-metrics@@          ./Scripts/release_pins.sh metrics "$VERSION" "$BUMP_SHA"
@@ -306,7 +317,15 @@ mutant "an outcome the report does not get" '/^            token=/d' "outcomes: 
 mutant "the wrong step's outcome" 's/^            token=.*$/            token=success/' "outcomes: the report step does not get steps.token.outcome"
 mutant "no outcomes at all" 's/RELEASE_STEP_OUTCOMES: |/RELEASE_STEP_OUTCOMES_X: |/' "outcomes: the report step has no RELEASE_STEP_OUTCOMES"
 mutant "a bump that is not the plan's" "s/release_bump.sh \".VERSION\"/release_bump.sh 9.9.9/" "step 'Bump the version in the working tree'"
-mutant "the release before quality on the bump" "s/release_quality.sh dispatch \".BUMP_SHA\" main/release_quality.sh check \"${DOLLAR}BUMP_SHA\"/" "step 'Quality is green on the bump commit'"
+mutant "the release before quality on the bump" "s/release_quality.sh dispatch-bump \".BUMP_SHA\" main/release_quality.sh check \"${DOLLAR}BUMP_SHA\" main/" "step 'Quality is green on the bump commit'"
+mutant "the release dispatches the full Quality on the bump commit" "s/release_quality.sh dispatch-bump \".BUMP_SHA\" main \".GREEN_PARENT\" \".OLD_VERSION\" \".NEW_VERSION\"/release_quality.sh dispatch \"${DOLLAR}BUMP_SHA\" main/" "step 'Quality is green on the bump commit': want the line:           ./Scripts/release_quality.sh dispatch-bump"
+mutant "the short Quality without the green parent" '/^          GREEN_PARENT: /d' "step 'Quality is green on the bump commit': want the line:           GREEN_PARENT"
+mutant "the green parent is the commit under test" "s/^          GREEN_PARENT: .*\$/          GREEN_PARENT: ${DOLLAR}{{ steps.commit.outputs.sha }}/" "step 'Quality is green on the bump commit': want the line:           GREEN_PARENT"
+mutant "main's green sha not recorded" "/echo \"sha=${DOLLAR}{GITHUB_SHA}\" >> /d" "step 'Quality is green on main': want the line"
+mutant "the old version not recorded" "/echo \"old=/d" "step 'Bump the version in the working tree': want the line"
+mutant "the short Quality on a resumed run" "/name: Quality is green on the bump commit/,/shell:/s/inputs.resume == 'none'/inputs.resume != 'pins'/" "resume: the step 'Quality is green on the bump commit' is not skipped by resume: pins and publish"
+mutant "a resumed run without the full Quality" "/name: Quality is green on the resumed bump commit/,/shell:/s/inputs.resume == 'publish'/inputs.resume == 'none'/" "step 'Quality is green on the resumed bump commit': want the line"
+mutant "the log does not say which Quality ran" '/echo "quality-bump: short Quality (bump) green/d' "step 'Quality is green on the bump commit': want the line"
 mutant "a tag made by hand" 's/^          set -euo pipefail$/          set -euo pipefail\
           git tag v0/' "tag: the workflow makes a tag"
 mutant "a release made by hand" "s/release_publish.sh create \".VERSION\"/gh release create \"${DOLLAR}VERSION\"/" "tag: the workflow makes a tag"

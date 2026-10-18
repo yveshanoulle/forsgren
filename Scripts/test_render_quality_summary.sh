@@ -129,7 +129,7 @@ green_run() {
 # The env of one run. Each case sets what differs; reset_env restores a
 # green push on main, started 252 seconds before "now".
 reset_env() {
-  JOB=success PRE=success BUILD=success POST=success SECRET=""
+  JOB=success PRE=success BUILD=success POST=success SECRET="" SHORT="" DIFF=""
   EVENT=push SHA=0123456789abcdef0123456789abcdef01234567 REF=main PR=""
   STARTED=1000 NOW=1252
 }
@@ -142,7 +142,7 @@ render() {
   capture env \
     QS_JOB_STATUS="$JOB" QS_PRE_OUTCOME="$PRE" QS_BUILD_OUTCOME="$BUILD" \
     QS_POST_OUTCOME="$POST" QS_SECRET_BLOCK="$SECRET" QS_PR_NUMBER="$PR" \
-    QS_STARTED_AT="$STARTED" QS_NOW="$NOW" \
+    QS_STARTED_AT="$STARTED" QS_NOW="$NOW" QS_SHORT_QUALITY="$SHORT" QS_DIFF_OUTCOME="$DIFF" \
     GITHUB_EVENT_NAME="$EVENT" GITHUB_SHA="$SHA" GITHUB_REF_NAME="$REF" \
     QS_MAIN_GO="$MAIN_GO" SITE_PAGE_COUNT_FILE="${dir}/pages.log" \
     "$RENDER" "${dir}/rows.md" "${dir}/details" "$ORDER"
@@ -196,6 +196,20 @@ want_row "the forsgren version"                 "| forsgren version | 9.8.7 |"
 want_row "the short commit"                     "| Commit | \`0123456\` |"
 want_row "a push names its branch"              "| Trigger | push to main |"
 want_row "the duration"                         "| Duration | 4m 12s |"
+
+# --- 1b. the short Quality of a release bump (forsgren#230, step 2) ---------------
+#     POST never runs there, and the status must not say it did.
+reset_env
+green_run "${TMP}/short"
+SHORT=true POST=skipped
+render "${TMP}/short"
+want_said "a short Quality says what it is" "**✅ Succeeded (short Quality for a release bump)** — the bump diff check, the short PRE gates and the build ran; POST and the other gates were not run."
+want_absent "a short Quality does not claim POST ran" "PRE, build and POST all ran"
+reset_env
+green_run "${TMP}/shortred"
+SHORT=true JOB=failure DIFF=failure PRE=skipped BUILD=skipped POST=skipped
+render "${TMP}/shortred"
+want_said "a red bump diff check is named" "**❌ Failed** — the bump diff check is red; no gate ran after it."
 
 # --- 2. a red PRE with a secret-class finding -------------------------------
 # The build and POST are skipped, so their numbers do not exist: each shows —

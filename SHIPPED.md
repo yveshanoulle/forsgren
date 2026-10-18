@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-18 — the Release runs a short Quality on its bump commit ([#230](https://github.com/yveshanoulle/forsgren/issues/230), step 2)
+
+The bump commit was given the full Quality for a change of version strings only.
+
+- `quality.yml` takes a `scope` (`full` by default; a push and a pull request are always full) and, for `bump`, the green parent and the two versions. The short Quality runs `Scripts/release_bump_diff.sh` first, then only the gates of `Scripts/quality_bump_gates.txt` (secret scan, Go tests, golden pages, Go lint) through `Scripts/run_short_quality.sh`, then the site build; the run page says `short Quality for a release bump: N gates` and names every gate not run.
+- The Release workflow dispatches `scope=bump` with the commit Quality was green on, so a bump on any other commit is red; `resume = publish` keeps the full Quality. The run report says `short Quality (bump)` with the run's link.
+- Red first for the runner, the dispatch, the pin of the scope (`Scripts/test_quality_scope.sh`), the release pins and the report; mutation proofs for a short Quality that skips the diff check, a release that dispatches `scope=full`, a list that ignores itself and a summary that claims POST ran. `MIN_GATES` 138 to 140.
+
 ## 2026-10-18 — a release bump commit is checked to hold only the version bump ([#230](https://github.com/yveshanoulle/forsgren/issues/230), step 1)
 
 A bump commit that changed more than the version, or sat on a commit Quality was not green on, would have been released as it was.

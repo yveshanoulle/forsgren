@@ -15,7 +15,10 @@
 #      the bound, naming the commit
 #   8. dispatch that gh refuses                        -> red, nothing awaited
 #   9. usage errors                                    -> exit 2
-# Mutation proofs: a copy that takes a failed run for green, one that does not
+#  10. dispatch-bump (forsgren#230, step 2) starts quality.yml on the ref with
+#      scope=bump and the green parent, the old and the new version as inputs,
+#      then waits as dispatch does; bad shas and versions -> exit 2
+# Mutation proofs: a copy that dispatches the bump with the full scope, and one that takes a failed run for green, one that does not
 # wait (gives up on a running run) and one that has no bound must each let the
 # case they exist for pass.
 
@@ -118,6 +121,26 @@ want_red "a dispatch gh refuses" "could not start quality.yml on main"
 if grep -q '^run list' "${TMP}/gh.log"; then fail "it waited for a run after the dispatch failed"; fi
 rm -f "${TMP}/seq/dispatch_fails"
 
+GREEN="89abcdef0123456789abcdef0123456789abcdef"
+BUMP_ARGS="-f scope=bump -f green_parent=${GREEN} -f old_version=1.10.0 -f new_version=1.11.0"
+runs "" "$OK_RUN"
+run dispatch-bump "$SHA" main "$GREEN" 1.10.0 1.11.0
+want_green "dispatch-bump, the run appears on poll 2" "poll 2"
+bump_dispatch_findings() {
+  grep -qxF "workflow run quality.yml --ref main ${BUMP_ARGS}" "${TMP}/gh.log" \
+    || echo "gh was not told to run quality.yml on main with ${BUMP_ARGS}. Log: $(cat "${TMP}/gh.log")"
+}
+if [[ -z "$(bump_dispatch_findings)" ]]; then echo "  ok: quality.yml is started with scope=bump and the parent and versions"; else fail "$(bump_dispatch_findings)"; fi
+runs "$OK_RUN"
+run dispatch "$SHA" main
+if grep -qF -- "scope=" "${TMP}/gh.log"; then fail "a plain dispatch passes a scope: $(cat "${TMP}/gh.log")"; else echo "  ok: a plain dispatch passes no scope, so it runs the full Quality"; fi
+run dispatch-bump "$SHA" main "$GREEN" 1.10.0
+want_exit "dispatch-bump without the new version" 2 "usage"
+run dispatch-bump "$SHA" main abc 1.10.0 1.11.0
+want_exit "dispatch-bump with a short green parent" 2 "usage"
+run dispatch-bump "$SHA" main "$GREEN" 1.10 1.11.0
+want_exit "dispatch-bump with a malformed version" 2 "usage"
+
 run
 want_exit "no mode" 2 "usage"
 run check
@@ -155,6 +178,24 @@ if mutant unbounded "s/while \[ \".try\" -lt \".TRIES\" \]; do/while [ \"${D}try
     fail "mutation proof: the mutant with a fixed bound still honoured the tries. Output: ${OUT}"
   else
     echo "  ok: mutation proof: without the tries the bound is no longer the caller's"
+  fi
+fi
+if mutant fullscope 's/ -f scope=bump//'; then
+  runs "$OK_RUN"
+  run dispatch-bump "$SHA" main "$GREEN" 1.10.0 1.11.0
+  if [[ -n "$(bump_dispatch_findings)" ]]; then
+    echo "  ok: mutation proof: a dispatch-bump without scope=bump is named: it would run the full Quality"
+  else
+    fail "mutation proof: the mutant without scope=bump still dispatched the bump scope"
+  fi
+fi
+if mutant noparent 's/ -f green_parent="[$]4"//'; then
+  runs "$OK_RUN"
+  run dispatch-bump "$SHA" main "$GREEN" 1.10.0 1.11.0
+  if [[ -n "$(bump_dispatch_findings)" ]]; then
+    echo "  ok: mutation proof: a dispatch-bump without the green parent is named"
+  else
+    fail "mutation proof: the mutant without the green parent still passed it"
   fi
 fi
 unset SCRIPT

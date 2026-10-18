@@ -39,7 +39,7 @@ D='$'
 LOGGED=(token quality plan free bump test commit quality-bump publish template metrics-pr metrics)
 export GITHUB_SERVER_URL=https://github.com GITHUB_REPOSITORY=acme/app RELEASE_BUMP=minor
 SHA40=0123456789abcdef0123456789abcdef01234567
-ALL_STEPS=(main checkout setup-go log token resume quality plan free bump test commit quality-bump publish template metrics-pr metrics)
+ALL_STEPS=(main checkout setup-go log token resume quality plan free bump test commit quality-bump quality-resumed publish template metrics-pr metrics)
 
 # logged <id>...: the log with those steps recorded.
 logged() {
@@ -178,6 +178,28 @@ CASE="publish"
 want_said "$CASE: the commit is on main" "The bump commit ${SHA40} is on main and no release exists."
 want_said "$CASE: resume publish" "-f resume=publish"
 no_hand
+
+# resume = publish runs the full Quality on the resumed bump commit (forsgren#230, step 2)
+logged token resume
+echo "resume: tag=v1.9.5 at ${SHA40}" >> "$LOG"
+outcomes quality-resumed failure
+RELEASE_RESUME=publish report "$LOG" failure
+CASE="quality-resumed"
+want_said "$CASE: the step is named" "at the step 'Quality is green on the resumed bump commit' (quality-resumed)."
+want_said "$CASE: resume publish" "start Release with resume = publish: gh workflow run release.yml -f resume=publish"
+want_said "$CASE: the steps not done" "Not done: quality-resumed, publish, template, metrics-pr, metrics"
+no_hand
+logged token resume quality-resumed publish template metrics-pr metrics
+outcomes
+RELEASE_RESUME=publish report "$LOG" success
+want_green "a resumed publish that finished" "- quality-resumed: did quality-resumed"
+# which Quality ran is in the report, from the step's own log line
+logged token quality plan free bump test commit
+echo "quality-bump: short Quality (bump) green on ${SHA40}: Quality is green on ${SHA40} (https://example.test/run/9, poll 2)" >> "$LOG"
+outcomes
+report "$LOG" success
+want_said "the report says the short Quality ran, with its run" "short Quality (bump) green on ${SHA40}"
+want_said "the report links the run" "https://example.test/run/9"
 
 # released, a pin step failed
 logged token quality plan free bump test commit quality-bump

@@ -504,7 +504,19 @@ and stops at the first step that fails:
    refused and nothing has changed.
 6. **Quality on the bump commit**: a push by the job's token starts no run, so
    the workflow dispatches `quality.yml` and waits for its run on that commit,
-   at most an hour (`Scripts/release_quality.sh dispatch`).
+   at most an hour (`Scripts/release_quality.sh dispatch-bump`). The dispatch
+   sets `scope=bump` and passes the commit Quality was green on in step 2 (the
+   bump commit's only parent), the old and the new version: the **short
+   Quality**. It first runs `Scripts/release_bump_diff.sh` (nothing else runs
+   when that is red), then only the gates of `Scripts/quality_bump_gates.txt`
+   (the secret scan, the Go tests, the golden pages and the Go lint) through
+   `Scripts/run_short_quality.sh`, and the site build. The run page says
+   `short Quality for a release bump: N gates`, names the gates that ran and
+   every gate that did not. The release report says `short Quality (bump)` with
+   the run's link. A run by hand, a push and a pull request are always the
+   full Quality (`scope` defaults to `full`). `resume = publish` has no green
+   parent on record, so it dispatches the full Quality
+   (`Scripts/release_quality.sh dispatch`).
 7. **The tag and the release**, in one `gh release create vX.Y.Z --target
    <bump commit> --latest` with the notes of the plan
    (`Scripts/release_publish.sh create`). Nothing else makes the tag, so a tag

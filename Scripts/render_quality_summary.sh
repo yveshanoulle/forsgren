@@ -28,6 +28,9 @@
 #                       the outcome of each phase's step: success, failure,
 #                       cancelled, skipped, or empty when never reached
 #       QS_SECRET_BLOCK true when PRE had a secret-class finding
+#       QS_SHORT_QUALITY true on the short Quality of a release bump
+#                       (forsgren#230), whose POST never runs
+#       QS_DIFF_OUTCOME the outcome of the bump diff check step there
 #       QS_PR_NUMBER    the pull request's number, on a pull_request run
 #       QS_STARTED_AT   epoch seconds, written by the job's first shell step
 #       QS_NOW          epoch seconds for "now" (the fixture's seam; default
@@ -116,11 +119,17 @@ red=""
 
 case "$JOB_STATUS" in
   success)
-    status="**✅ Succeeded** — PRE, build and POST all ran." ;;
+    if [ "${QS_SHORT_QUALITY:-}" = "true" ]; then
+      status="**✅ Succeeded (short Quality for a release bump)** — the bump diff check, the short PRE gates and the build ran; POST and the other gates were not run."
+    else
+      status="**✅ Succeeded** — PRE, build and POST all ran."
+    fi ;;
   cancelled)
     status="**⏹️ Cancelled** — stopped in ${furthest}." ;;
   failure)
-    if [ "$furthest" = "POST" ]; then
+    if [ "${QS_DIFF_OUTCOME:-}" = "failure" ]; then
+      status="**❌ Failed** — the bump diff check is red; no gate ran after it."
+    elif [ "$furthest" = "POST" ]; then
       status="**❌ Failed** — every phase ran; red in: ${red:-no phase step}."
     else
       status="**❌ Failed** — stopped in ${furthest}${red:+; red in: ${red}}."
