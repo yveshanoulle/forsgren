@@ -97,6 +97,38 @@ data guard|Scripts/check_data_guard.sh|pre|secret-class
 # Self-test first; the self-test stays ordinary-class.
 private-names self-test|Scripts/test_check_private_names.sh|pre|
 private names|Scripts/check_private_names.sh|pre|secret-class
+#
+# THE STATIC BLOCK (forsgren#231, step 2). The fast static checks run as ONE
+# block straight after the secret-class rows, in this order: gofmt (check
+# only; FBP.sh has already run gofmt -w and the source CSS fix), Go lint,
+# actionlint, shellcheck, yamllint, zizmor, each directly after its own
+# self-test (a green from a checker nobody validated is worth nothing, so the
+# canon rule holds inside the block). A red self-test is a red row of the
+# block and stops the run like a red gate.
+# The two marker lines below start with `#!`, so every reader that skips `#`
+# lines (run_ci_phase.sh, Scripts/test_gate_wiring.sh) skips them; only sfl.sh
+# reads them. When a row between them is red, sfl.sh runs no further row: each
+# later row of the phase is reported as skipped by name and the summary says
+# `stopped after the static block` (FBP.sh then skips the build and the POST
+# gates, named, and commits the RED commit as for any red). CI does NOT stop
+# early: run_ci_phase.sh runs every row, so a pull request shows all its reds.
+# Scripts/test_sfl_static_block.sh pins both. A row added to the block goes
+# between the markers; Scripts/precheck.sh runs the same scripts.
+#! static-block-start
+gofmt self-test|Scripts/test_check_gofmt.sh|pre|
+gofmt|Scripts/check_gofmt.sh|pre|
+Go lint self-test|Scripts/test_check_go_lint.sh|pre|
+Go lint|Scripts/check_go_lint.sh|pre|
+actionlint self-test|Scripts/test_check_actionlint.sh|pre|
+actionlint forsgren cases self-test|Scripts/test_check_actionlint_forsgren.sh|pre|
+actionlint|Scripts/check_actionlint.sh|pre|
+shellcheck self-test|Scripts/test_check_shellcheck.sh|pre|
+shellcheck|Scripts/check_shellcheck.sh|pre|
+yamllint self-test|Scripts/test_check_yamllint.sh|pre|
+yamllint|Scripts/check_yamllint.sh|pre|
+zizmor self-test|Scripts/test_check_zizmor.sh|pre|
+zizmor|Scripts/check_zizmor.sh|pre|
+#! static-block-end
 private-names secret sync self-test|Scripts/test_sync_private_names_secrets.sh|pre|
 private-names local file self-test|Scripts/test_ensure_private_names_file.sh|pre|
 #
@@ -331,8 +363,8 @@ Go coverage|Scripts/check_coverage.sh|pre|
 #
 # CHECK-ONLY here (gofmt -l), as CI calls it. FBP.sh runs the same script
 # with --fix before PRE, so locally the check sees an already-formatted tree.
-gofmt self-test|Scripts/test_check_gofmt.sh|pre|
-gofmt|Scripts/check_gofmt.sh|pre|
+# (gofmt self-test: the row is in the static block, directly before its gate, forsgren#231)
+# (gofmt: the gate row is in the static block after the private names gate, forsgren#231)
 #
 # Go lint and Go test duplication (forsgren#1, ladder step 20). Not canon
 # (the sites have no Go): another estate repository's Go gates, beside the other Go rows.
@@ -353,8 +385,8 @@ gofmt|Scripts/check_gofmt.sh|pre|
 # exit code back. Not a gate, so only its self-test is a row, in pre, before
 # the first gate that sources it.
 Go tool helper self-test|Scripts/test_lib_go_tool.sh|pre|
-Go lint self-test|Scripts/test_check_go_lint.sh|pre|
-Go lint|Scripts/check_go_lint.sh|pre|
+# (Go lint self-test: the row is in the static block, directly before its gate, forsgren#231)
+# (Go lint: the gate row is in the static block after the private names gate, forsgren#231)
 Go test duplication self-test|Scripts/test_check_test_dupl.sh|pre|
 Go test duplication|Scripts/check_test_dupl.sh|pre|
 #
@@ -403,9 +435,9 @@ Go dead code|Scripts/check_deadcode.sh|pre|
 # silently, is red too), and a mutation proof shows a label is known only
 # through .actionlint.yaml. Repository source, so both run in pre,
 # self-test first.
-actionlint self-test|Scripts/test_check_actionlint.sh|pre|
-actionlint|Scripts/check_actionlint.sh|pre|
-actionlint forsgren cases self-test|Scripts/test_check_actionlint_forsgren.sh|pre|
+# (actionlint self-test: the row is in the static block, directly before its gate, forsgren#231)
+# (actionlint: the gate row is in the static block after the private names gate, forsgren#231)
+# (actionlint forsgren cases self-test: the row is in the static block, directly before its gate, forsgren#231)
 #
 # Shellcheck and yamllint (forsgren#1, ladder step 12), at their canon
 # position after the actionlint rows and before lint coverage. Both read
@@ -423,10 +455,10 @@ actionlint forsgren cases self-test|Scripts/test_check_actionlint_forsgren.sh|pr
 # forsgren's own (no repo of the estate has one) and, being non-canon, sits
 # right before the canon row it validates. .yamllint.yml is konenki's, the
 # rules unchanged, adapted only in its header comment.
-shellcheck self-test|Scripts/test_check_shellcheck.sh|pre|
-shellcheck|Scripts/check_shellcheck.sh|pre|
-yamllint self-test|Scripts/test_check_yamllint.sh|pre|
-yamllint|Scripts/check_yamllint.sh|pre|
+# (shellcheck self-test: the row is in the static block, directly before its gate, forsgren#231)
+# (shellcheck: the gate row is in the static block after the private names gate, forsgren#231)
+# (yamllint self-test: the row is in the static block, directly before its gate, forsgren#231)
+# (yamllint: the gate row is in the static block after the private names gate, forsgren#231)
 #
 # Lint coverage (forsgren#1, ladder step 8): did each linter OPEN every .html
 # and .css file the generated site ships? A glob that stops matching is a
@@ -719,8 +751,8 @@ preview workflow|Scripts/test_preview_workflow.sh|pre|
 # another estate repository's setting: --offline, --min-severity high, the default persona.
 # Its config, .github/zizmor.yml, suppresses nothing. Repository source, so
 # both run in pre, self-test first.
-zizmor self-test|Scripts/test_check_zizmor.sh|pre|
-zizmor|Scripts/check_zizmor.sh|pre|
+# (zizmor self-test: the row is in the static block, directly before its gate, forsgren#231)
+# (zizmor: the gate row is in the static block after the private names gate, forsgren#231)
 #
 # --- Browser gate (forsgren#205, estate issue 305) -----------------------
 # Every page of the required-pages manifest opened in the installed Chrome, on
@@ -785,6 +817,7 @@ quality scope|Scripts/test_quality_scope.sh|pre|
 git sandbox isolation self-test|Scripts/test_git_sandbox_isolation.sh|pre|
 git sandbox guard self-test|Scripts/test_git_sandbox_guard.sh|pre|
 precheck self-test|Scripts/test_precheck.sh|pre|
+static block self-test|Scripts/test_sfl_static_block.sh|pre|
 #
 # The privacy pages belong to a site that needs privacy pages: another estate repository
 # serves a privacy policy, and its check_privacy_pages.sh pins that

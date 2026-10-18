@@ -130,6 +130,18 @@ FBP_SANDBOX_SINK_MODE=""
 FBP_SANDBOX_SFL_PRE_RC=""
 FBP_SANDBOX_SFL_PRE_OUTPUT=""
 
+# forsgren#231, step 2: two more seams, for Scripts/test_sfl_static_block.sh,
+# set and reset the same way.
+#   FBP_SANDBOX_SFL_STATIC_STOP: when non-empty, the stub sfl.sh, run as
+#     sfl.sh pre, first writes the sink the real sfl.sh writes when its static
+#     block is red (.build/sfl-static-stop.log) with this text, so FBP.sh
+#     reads a PRE that stopped after the static block. Use with
+#     FBP_SANDBOX_SFL_PRE_RC=1.
+#   FBP_SANDBOX_ORDER_FILE: a file copied to Scripts/gate_report_order.txt of
+#     the sandbox, from which FBP.sh names the POST gates it skips.
+FBP_SANDBOX_SFL_STATIC_STOP=""
+FBP_SANDBOX_ORDER_FILE=""
+
 # forsgren#85: one more seam, for Scripts/test_fbp_aborted.sh, set and reset
 # the same way.
 #   FBP_SANDBOX_SFL_PRE_SIGNAL: a signal name (TERM). When non-empty, the stub
@@ -298,11 +310,22 @@ fbp_sandbox_write_sfl() {
     printf '#!/usr/bin/env bash\n'
     fbp_sandbox_sfl_counts_line pre "$FBP_SANDBOX_SFL_COUNTS_PRE"
     fbp_sandbox_sfl_counts_line post "$FBP_SANDBOX_SFL_COUNTS_POST"
+    fbp_sandbox_sfl_static_stop_line
     fbp_sandbox_sfl_pre_red_line
     fbp_sandbox_sfl_pre_signal_line
     printf 'exit 0\n'
   } > sfl.sh
   chmod +x sfl.sh
+}
+
+# fbp_sandbox_sfl_static_stop_line — forsgren#231: prints the stub sfl.sh line
+# that, when the stub runs as sfl.sh pre, writes FBP_SANDBOX_SFL_STATIC_STOP to
+# .build/sfl-static-stop.log; prints nothing when that is empty.
+fbp_sandbox_sfl_static_stop_line() {
+  local phase_arg="\"\$1\""
+  if [ -n "$FBP_SANDBOX_SFL_STATIC_STOP" ]; then
+    printf 'if [ %s = pre ]; then mkdir -p .build; printf %%s\\n %q > .build/sfl-static-stop.log; fi\n' "$phase_arg" "$FBP_SANDBOX_SFL_STATIC_STOP"
+  fi
 }
 
 # fbp_sandbox_sfl_pre_red_line — forsgren#1 step 12.2d: prints the stub
@@ -381,6 +404,9 @@ fbp_sandbox_run() {
     git config user.name t
     fbp_sandbox_write_sfl
     mkdir -p Scripts
+    if [ -n "$FBP_SANDBOX_ORDER_FILE" ]; then
+      cp "$FBP_SANDBOX_ORDER_FILE" Scripts/gate_report_order.txt
+    fi
     fbp_sandbox_write_build_site "$sink"
     printf '#!/usr/bin/env bash\nexit 0\n' > Scripts/check_gofmt.sh
     chmod +x Scripts/check_gofmt.sh

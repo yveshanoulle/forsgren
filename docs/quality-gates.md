@@ -7,7 +7,10 @@ checks the repository before the site is generated, `Scripts/build_site.sh`
 renders the site into `.build/site`, and `./sfl.sh post` checks that
 generated output. `Scripts/gate_report_order.txt` declares every gate, its
 phase and its order; a gate's self-test always runs in PRE, before the gate
-it validates.
+it validates. The six static gates (gofmt, Go lint, actionlint, shellcheck,
+yamllint, zizmor) and their self-tests form the static block, right after the
+secret-class rows; a red row in it stops the run early with every later gate
+skipped and named (forsgren#231; [development.md](development.md)).
 
 Three PRE gates come first and are secret-class, so a finding blocks the
 commit itself:

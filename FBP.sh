@@ -393,12 +393,23 @@ rm -f "$SFL_COUNTS_FILE"
 # Capture the exit code without tripping `set -e`. An ordinary PRE red does NOT
 # stop the pipeline: build and POST still run so one invocation collects all
 # failures before preserving the red state in a local commit.
+# forsgren#231, step 2: sfl.sh pre writes this sink when the static block (the
+# fast static checks, Scripts/gate_report_order.txt) is red and it stopped
+# there. Removed first so an earlier run's sink is never read as this one's.
+STATIC_STOP_SINK=".build/sfl-static-stop.log"
+rm -f "$STATIC_STOP_SINK"
+STATIC_STOP=false
+
 set +e
 ./sfl.sh pre 2>&1 | tee "$PRE_LOG"
 PRE_EXIT=${PIPESTATUS[0]}
 set -e
 
 PRE_DURATION="$(($(date +%s) - PRE_START))"
+
+if [ -s "$STATIC_STOP_SINK" ]; then
+  STATIC_STOP=true
+fi
 
 PRE_COUNTS="$(sfl_counts)"
 
@@ -430,6 +441,9 @@ echo "================================"
 if $SECRET_BLOCK; then
   echo "⏭️ Skipping build because PRE has a secret-class failure."
   BUILD_STATUS="⏭️ (secret-class)"
+elif $STATIC_STOP; then
+  echo "⏭️ Skipping build: stopped after the static block."
+  BUILD_STATUS="⏭️ (stopped after the static block)"
 else
   BUILD_START="$(date +%s)"
 
@@ -518,6 +532,10 @@ echo "================================"
 if $SECRET_BLOCK; then
   echo "⏭️ Skipping POST gates because PRE has a secret-class failure."
   POST_STATUS="⏭️ (secret-class)"
+elif $STATIC_STOP; then
+  echo "⏭️ Skipping POST gates: stopped after the static block. Skipped, by name:"
+  awk -F'|' '$0 !~ /^#/ && NF >= 3 && $3 == "post" && $2 != "n/a" { print "  ⏭ skipped: " $1 }' Scripts/gate_report_order.txt
+  POST_STATUS="⏭️ (stopped after the static block)"
 elif [ "${BUILD_EXIT:-1}" -ne 0 ]; then
   echo "⏭️ Skipping POST gates because the site build failed."
   POST_STATUS="⏭️ (build failed)"

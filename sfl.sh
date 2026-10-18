@@ -16,7 +16,7 @@ cd "$(dirname "$0")" || exit 1
 # Scripts/*.sh that sfl merely calls does not require a bump.
 # Form ported from another estate repository 2026-08-31: it names the file, so a pasted log
 # says which script produced it, not just "the script".
-VERSION=5
+VERSION=6
 
 # forsgren#214: FBP.sh FIXES what the gates can fix (the npm audit heal runs
 # only under GATE_FIX=1); CI never sets it and only checks.
@@ -107,6 +107,7 @@ FAIL=0
 # Failing gate names, one per line. A plain string, not an array: an empty
 # bash 3.2 array under `set -u` is a fatal expansion on macOS.
 FAILED_GATES=""
+SKIPPED_GATES=0
 
 # Runs one gate and remembers its name on failure, so the end of the run
 # names WHAT failed — a bare "❌ sfl failed" forces reading the scroll-back
@@ -131,6 +132,19 @@ run_gate_secret() {
     SECRET_FAIL=$((SECRET_FAIL + 1))
   fi
 }
+
+# forsgren#231, step 2: THE STATIC BLOCK. Scripts/gate_report_order.txt marks
+# the fast static checks between two `#!` lines. When a row of the block is red
+# sfl runs no further row of the phase: each is reported as skipped, by name,
+# the summary says `stopped after the static block`, and the sentence is also
+# written to STOP_SINK, which FBP.sh reads to skip the build and the POST gates
+# the same way. CI (Scripts/run_ci_phase.sh) does not stop: it runs every row.
+# Fixture: Scripts/test_sfl_static_block.sh.
+BLOCK_FAIL_FROM=0
+STOPPED=0
+STOP_SENTENCE="stopped after the static block"
+STOP_SINK=".build/sfl-static-stop.log"
+rm -f "$STOP_SINK"
 
 # Unit 404. Each gate's output is teed to a log so the block at the end can
 # quote the REASON, not just the name. Naming the gate was never enough: it
@@ -250,6 +264,21 @@ check_step_total() {
 # though it has populated the fields from that final line. The second condition
 # keeps that final declared gate executable instead of silently dropping it.
 while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:-}" ]; do
+  # The block markers (forsgren#231): comments to every other reader.
+  case "$label" in
+    "#! static-block-start")
+      BLOCK_FAIL_FROM=$FAIL
+      continue
+      ;;
+    "#! static-block-end")
+      if [ "$FAIL" -ne "$BLOCK_FAIL_FROM" ]; then
+        STOPPED=1
+        echo
+        echo "❌ The static block is red: ${STOP_SENTENCE}. The later gates of this phase are skipped, named below."
+      fi
+      continue
+      ;;
+  esac
   case "$label" in
     \#*) continue ;;
     '') [ -z "${script:-}${phase:-}${gate_class:-}" ] && continue ;;
@@ -312,6 +341,15 @@ while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:
     continue
   fi
 
+  if [ "$STOPPED" -eq 1 ]; then
+    STEP=$((STEP + 1))
+    SKIPPED_GATES=$((SKIPPED_GATES + 1))
+    printf '[%d/%d] ==> %s\n' "$STEP" "$TOTAL_STEPS" "$label"
+    echo "⏭ skipped: ${label} (${STOP_SENTENCE})"
+    printf '%s\t%s\t%s\n' "$label" "⏭ skip" "0" >> "$STEP_ROWS"
+    continue
+  fi
+
   if [ "${gate_class:-}" = "secret-class" ]; then
     run_gate_secret "$label" "./$script"
   else
@@ -335,6 +373,13 @@ if [[ $FAIL -ne 0 ]]; then
   if [[ $SECRET_FAIL -ne 0 ]]; then
     echo "⛔ sfl failed with a SECRET-CLASS finding — exit 2, commit will be blocked"
     exit 2
+  fi
+
+  if [ "$STOPPED" -eq 1 ]; then
+    mkdir -p .build
+    echo "${STOP_SENTENCE}: ${SKIPPED_GATES} gate(s) skipped" > "$STOP_SINK"
+    echo "❌ sfl ${PHASE} failed, ${STOP_SENTENCE} (${SKIPPED_GATES} later gate(s) skipped, named above)"
+    exit 1
   fi
 
   echo "❌ sfl ${PHASE} failed"

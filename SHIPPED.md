@@ -9,6 +9,15 @@ Active work lives in
 
 ---
 
+## 2026-10-18 — a red static check stops the run early ([#231](https://github.com/yveshanoulle/forsgren/issues/231), step 2)
+
+FBP ran all 117 steps for 22 minutes after a shellcheck red that appeared about minute 4.
+
+- The fast static checks (gofmt check, Go lint, actionlint, shellcheck, yamllint, zizmor), each directly after its self-test, moved in `Scripts/gate_report_order.txt` into one block straight after the secret-class rows, between the marker lines `#! static-block-start` and `#! static-block-end` (comments to every other reader). `sfl.sh` runs the block to its end; when a row is red it runs no later gate: each is printed `⏭ skipped: <label> (stopped after the static block)`, is a `⏭ skip` row of the step table, and the summary says `stopped after the static block`.
+- `FBP.sh` reads `.build/sfl-static-stop.log`, skips the build and the POST gates (the POST gates named) and makes the RED commit as for any red. After the block the gates keep running all and reporting all.
+- CI keeps running everything: `run_ci_phase.sh` ignores the markers, so a pull request shows all its reds. Pinned, with the block's contents, in `Scripts/test_sfl_static_block.sh`.
+- Red first (against the old `sfl.sh` the later gates ran); mutation proofs for a block boundary the runner ignores and for skipped gates that are not named. `MIN_GATES` 143 to 144; `sfl.sh` v6.
+
 ## 2026-10-18 — the test duplication gate fails when the tool reports something other than duplication ([#217](https://github.com/yveshanoulle/forsgren/issues/217))
 
 - An exit of 1 from golangci-lint without a `(dupl)` line (a typecheck or build error, which the tool reports as an issue) used to read as OK. It is now a tooling error: exit 2, with the tool's output shown. Exit 1 with `(dupl)` lines and exit 0 are unchanged.

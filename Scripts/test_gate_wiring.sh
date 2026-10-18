@@ -164,11 +164,12 @@ fi
 # 140 for the self-tests of run_short_quality.sh and the pin of quality.yml's scope
 # (forsgren#230, step 2), and to 142 for the preview deploy's script self-test and
 # workflow pin (forsgren#222), and to 143 for the pre-check's self-test
-# (forsgren#231, step 1).
+# (forsgren#231, step 1), and to 144 for the static block's self-test
+# (forsgren#231, step 2).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=143
+MIN_GATES=144
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true

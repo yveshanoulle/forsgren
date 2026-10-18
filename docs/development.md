@@ -86,7 +86,21 @@ installs the tools (see [The tools](#the-tools)), checks the Node pin, runs
 and exports the Go pin. It runs every gate of the
 phase even after a failure, prints a step table and an `Errors:` block with
 each failed gate's reason, and exits 0 green, 1 red, 2 on a secret-class
-red.
+red. One exception, the **static block** (forsgren#231): the fast static checks
+(gofmt check, Go lint, actionlint, shellcheck, yamllint, zizmor, each after its
+self-test) sit in the order file between the marker lines
+`#! static-block-start` and `#! static-block-end`, straight after the
+secret-class rows. The block always runs to its end, so every static finding is
+reported; when one is red, sfl runs no later gate: each is printed as
+`⏭ skipped: <label> (stopped after the static block)`, is a `⏭ skip` row of the
+step table, and the last line says `sfl pre failed, stopped after the static
+block`. sfl writes `.build/sfl-static-stop.log`; FBP.sh reads it, skips the
+build and the POST gates (the POST gates named), and commits the RED commit as
+for any red. FBP.sh runs the formatters (`gofmt -w`, the source CSS fix) before
+sfl, so the block checks the formatted tree. **CI does not stop early**:
+`Scripts/run_ci_phase.sh` runs every row of the phase, so a pull request shows
+all its reds in one run; the markers start with `#!`, a comment to every reader
+but sfl. `Scripts/test_sfl_static_block.sh` pins both.
 
 **`Scripts/gate_report_order.txt`** declares every gate, one row
 `<label>|<script>|<phase>|<class>`: the label sfl and CI print, the script
