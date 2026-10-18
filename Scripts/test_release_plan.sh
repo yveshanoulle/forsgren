@@ -283,7 +283,7 @@ fi
 printf '%s\t%s\n' 40 'Half landed' 41 'Also half landed' > "${TMP}/open.tsv"
 printf 'Step of #40\nStep of #41\n' > "${TMP}/commits.txt"
 data "$(issue 5 'Fix the thing' patch)"
-if selftest_mutant "$PLAN" "${TMP}/mut/first/release_plan.sh" 's/^  open_found=1$/  break/'; then :; fi
+if selftest_mutant "$PLAN" "${TMP}/mut/first/release_plan.sh" "/^open_hits=/,/^done/ s/^\"\$/\"; break/"; then :; fi
 RELEASE_PLAN_OPEN="${TMP}/open.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits.txt" RELEASE_PLAN_DATA="${TMP}/data.tsv" capture "${TMP}/mut/first/release_plan.sh" patch
 if grep -qF '#41' <<< "$OUT"; then
   fail "mutation proof: the mutant that stops at the first open issue still named the second. Output: ${OUT}"
@@ -293,13 +293,13 @@ fi
 printf 'From #218.\n' > "${TMP}/notes_open.md"
 printf '%s\t%s\n' 218 'Named before' > "${TMP}/open.tsv"
 printf 'Work on #218\n' > "${TMP}/commits.txt"
-if selftest_mutant "$PLAN" "${TMP}/mut/openNamed/release_plan.sh" '/^COMMITTED=/,/^  open_found=1/ s/if is_named "\$number"; then/if false; then/'; then
+if selftest_mutant "$PLAN" "${TMP}/mut/openNamed/release_plan.sh" "/^open_hits=/,/^done/ s/if is_named \".number\"; then/if false; then/"; then
   RELEASE_PLAN_NOTES="${TMP}/notes_open.md" RELEASE_PLAN_OPEN="${TMP}/open.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits.txt" RELEASE_PLAN_DATA="${TMP}/data.tsv" capture "${TMP}/mut/openNamed/release_plan.sh" patch
   want_red "mutation proof: without the exclusion an open issue an earlier release named stops the plan" "release plan: #218 Named before is still open"
 fi
 
 data "$(issue 5 'Fix the thing' patch)"
-if selftest_mutant "$PLAN" "${TMP}/mut/unread/release_plan.sh" 's/^COMMIT_RAW="\$(commit_subjects "\$TAG")" || .*$/COMMIT_RAW="$(commit_subjects "$TAG")" || COMMIT_RAW=""/'; then
+if selftest_mutant "$PLAN" "${TMP}/mut/unread/release_plan.sh" "s/ || stop \"git could not read.*/ || COMMIT_RAW=\"\"/"; then
   RELEASE_PLAN_OPEN="${TMP}/open_one.tsv" RELEASE_PLAN_COMMITS="${TMP}/does_not_exist.txt" RELEASE_PLAN_DATA="${TMP}/data.tsv" capture "${TMP}/mut/unread/release_plan.sh" patch
   if [[ "$RC" -eq 0 ]] && ! grep -qF "git could not read the commits" <<< "$OUT"; then
     echo "  ok: mutation proof: with a fallback an unreadable commit source passes unchecked"
@@ -308,7 +308,7 @@ if selftest_mutant "$PLAN" "${TMP}/mut/unread/release_plan.sh" 's/^COMMIT_RAW="\
   fi
 fi
 
-if selftest_mutant "$PLAN" "${TMP}/mut/notes/release_plan.sh" 's/^NOTES_RAW="\$(earlier_notes)" || .*$/NOTES_RAW="$(earlier_notes)" || NOTES_RAW=""/'; then
+if selftest_mutant "$PLAN" "${TMP}/mut/notes/release_plan.sh" "s/ || stop \"gh could not read the notes.*/ || NOTES_RAW=\"\"/"; then
   RELEASE_PLAN_NOTES="${TMP}/does_not_exist.md" RELEASE_PLAN_DATA="${TMP}/data.tsv" capture "${TMP}/mut/notes/release_plan.sh" patch
   if [[ "$RC" -eq 0 ]] && ! grep -qF "gh could not read the notes" <<< "$OUT"; then
     echo "  ok: mutation proof: with a fallback unreadable earlier notes pass unchecked"

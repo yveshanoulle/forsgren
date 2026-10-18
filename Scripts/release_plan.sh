@@ -246,7 +246,6 @@ while IFS="$SEP" read -r number title; do
   fi
   open_hits="${open_hits}❌ FAIL: release plan: #${number} ${title} is still open but has commits on main since ${TAG}: close it, or split it (close the landed part as its own issue, move the rest to a new one)
 "
-  open_found=1
 done <<< "$(printf '%s\n' "$OPEN_RAW" | sort -t "$(printf '\t')" -k1,1n | tr '\t' "$SEP")"
 if [ -n "$open_hits" ]; then
   printf '%s' "$open_hits"
