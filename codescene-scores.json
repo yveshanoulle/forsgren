@@ -1313,7 +1313,7 @@
   {
    "path": "internal/page/history.go",
    "score": 10.0,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-18",
    "minScore": 10.0
   },
   {
@@ -1391,7 +1391,7 @@
   {
    "path": "internal/page/history_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-18",
    "minScore": 10.0
   },
   {

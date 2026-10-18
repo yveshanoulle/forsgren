@@ -1,8 +1,8 @@
 package page
 
 // The history page (forsgren#68): the DORA metrics of every period in one
-// table, a group of rows per measure, a row per table row in it and a column
-// per period, oldest first.
+// table, a block per project (forsgren#211), a row per measure in it for the
+// project and for each label, and a column per period, oldest first.
 
 import (
 	"fmt"
@@ -18,8 +18,8 @@ const betaMarker = " (beta)"
 // historyBeta is betaMarker, for the templates that name the History page.
 func historyBeta() string { return betaMarker }
 
-// historyMeasures are the history page's row groups in order: the Overall
-// Performance first, then the five metrics in the table's order.
+// historyMeasures are the measures of each project's block in order: the
+// Overall Performance first, then the five metrics in the table's order.
 var historyMeasures = []string{
 	"Overall Performance",
 	"Deployment frequency",
@@ -29,34 +29,39 @@ var historyMeasures = []string{
 	"Deployment rework rate",
 }
 
-// HistorySection is one group of rows of the history page's table: a measure
-// and a row per table row, Span columns wide with the row headings.
-type HistorySection struct {
+// HistoryGroup is one project's block of the history page's table (forsgren#211):
+// the project's name, Span columns wide with the row headings, then a row per
+// measure for the project's total and for each of its labels.
+type HistoryGroup struct {
 	Title string
 	Span  int
 	Rows  []HistoryRow
 }
 
-// HistoryRow is a row of a history table: the row's heading, its chart and its
-// cell per period.
+// HistoryRow is a row of a history table: one measure of one table row, its
+// heading, its chart and its cell per period.
 type HistoryRow struct {
 	Row
-	Chart *HistoryChart
-	Cells []string
+	Measure string
+	Chart   *HistoryChart
+	Cells   []string
 }
 
-// HistorySections are the tables of the history page, one per measure, none
-// when there are no columns.
-func (d Data) HistorySections() []HistorySection {
+// HistoryGroups are the blocks of the history page's table, one per project in
+// the table page's order, none when there are no columns.
+func (d Data) HistoryGroups() []HistoryGroup {
 	if len(d.History) == 0 {
 		return nil
 	}
-	headings := Table(d.History[0].Rows)
-	sections := make([]HistorySection, len(historyMeasures))
-	for m, measure := range historyMeasures {
-		sections[m] = HistorySection{Title: measure, Span: d.historySpan(), Rows: d.historyRows(headings, m)}
+	var groups []HistoryGroup
+	for r, heading := range Table(d.History[0].Rows) {
+		if heading.Level == metrics.ProjectRow || len(groups) == 0 {
+			groups = append(groups, HistoryGroup{Title: heading.Name, Span: d.historySpan()})
+		}
+		last := &groups[len(groups)-1]
+		last.Rows = append(last.Rows, d.historyRows(heading, r)...)
 	}
-	return sections
+	return groups
 }
 
 // HistoryOnePeriod says whether the table has a single period column, which
@@ -83,19 +88,19 @@ func (d Data) HistoryPeriods() []string {
 	return periods
 }
 
-// historyRows are the rows of the section of measure m: the headings, each
-// with its cell of m in every column.
-func (d Data) historyRows(headings []Row, m int) []HistoryRow {
-	rows := make([]HistoryRow, len(headings))
-	for r, heading := range headings {
-		rows[r] = HistoryRow{Row: heading, Cells: make([]string, len(d.History))}
+// historyRows are the rows of one table row, the heading at index r: a row per
+// measure, each with its cell in every column.
+func (d Data) historyRows(heading Row, r int) []HistoryRow {
+	rows := make([]HistoryRow, len(historyMeasures))
+	for m, measure := range historyMeasures {
+		rows[m] = HistoryRow{Row: heading, Measure: measure, Cells: make([]string, len(d.History))}
 		scores := make([]score, len(d.History))
 		for c, column := range d.History {
 			row := Row{Row: column.Rows[r]}
-			rows[r].Cells[c] = historyCells(row)[m]
+			rows[m].Cells[c] = historyCells(row)[m]
 			scores[c] = chartScore(row, m)
 		}
-		rows[r].Chart = historyChart(chartTitle(m, heading.Heading, d.History), scores)
+		rows[m].Chart = historyChart(chartTitle(m, heading.Heading, d.History), scores)
 	}
 	return rows
 }

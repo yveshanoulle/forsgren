@@ -735,11 +735,14 @@ it last in the menu, "History"; `false` leaves it out.
   `history_days` goes up to 1825, five years, so the page has at most ten
   half-years and the rolling column. With `history_days` under 180 there
   are no periods, and the page says, in one line, to set it to at least 180.
-- **Rows.** One table, a row group per measure, each headed by its name:
-  Overall Performance first, then deployment frequency, lead time for
-  changes, failed deployment recovery time, change fail rate and deployment
-  rework rate. Each group has the rows of the table page: each project's
-  total and its label rows.
+- **Rows.** One table with a block per project (forsgren#211), in the table
+  page's order, each headed by the project's name. A block has a row per
+  measure for the project's total, Overall Performance first, then deployment
+  frequency, lead time for changes, failed deployment recovery time, change
+  fail rate and deployment rework rate, and the same six rows for each of
+  the project's labels, headed "API: Deployment frequency" (a screen reader
+  also hears the project). A project's rows sit together, and the first
+  column reads Measure.
 - **Cells.** Each metric cell is `number · score`, as on the Numbers and
   scoring page (`40 · 6`, `7% · 9.3`); the Overall Performance cell is the
   score alone (`7.7`).

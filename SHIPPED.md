@@ -9,9 +9,21 @@ Active work lives in
 
 ---
 
+## 2026-10-18 — the History page groups per project ([#211](https://github.com/yveshanoulle/forsgren/issues/211), 1/1)
+
+Yves: the goal was to group things. The History page was one table with a block per measure, each listing every project; it is now one table with a block per project.
+
+- One `<tbody>` per project, headed by the project's name, in the table page's order. In it the project's total and each of its labels have a row per measure, Overall Performance first, then the five metrics. A label's row header reads `API: Deployment frequency`, with the project's name visually hidden before it; the first column header reads Measure.
+- One table kept (not one per project): the periods share the same column headers, a screen reader announces each project as a row group, and the Trend charts of #212 will sit above each block later. Periods, the Trend cell per row, the beta marker, the notices and the unlisted behaviour are unchanged.
+- Red first: `TestHistoryPageGroupsRowsPerProject`. Goldens `history` and `history.one-period` regenerated. `Data.HistorySections` is now `Data.HistoryGroups`.
+
+---
+
 ## 2026-10-17 — release tags are protected by a ruleset ([#225](https://github.com/yveshanoulle/forsgren/issues/225), 1/1)
 
 - The repository ruleset "Protect release tags" blocks moving and deleting every `v*` tag, with no bypass; creating one stays allowed for the Release workflow. Checked with a test tag that could be created but not moved or deleted, then removed. Recorded in docs/updating-and-releases.md.
+
+---
 
 ## 2026-10-17 — the live check also requires charset=utf-8, shared canon `live_check v1` ([#223](https://github.com/yveshanoulle/forsgren/issues/223), 1/1)
 

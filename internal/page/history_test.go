@@ -52,13 +52,42 @@ func historyData() Data {
 	return data
 }
 
-// TestHistoryPageGolden (forsgren#68): the history page is a table per
-// measure, Overall Performance first, a row per table row and a column per
-// period, oldest first, each cell the number and its score as the numbers
-// and scoring page writes them and a dash for a row that is unread or has no
-// deployment yet.
+// TestHistoryPageGolden (forsgren#68, #211): the history page is one table with
+// a block per project, the project's total and its labels each with a row per
+// measure, Overall Performance first, and a column per period, oldest first,
+// each cell the number and its score as the numbers and scoring page writes
+// them and a dash for a row that is unread or has no deployment yet.
 func TestHistoryPageGolden(t *testing.T) {
 	checkPageGolden(t, "history.html", "testdata/history.golden.html", historyData())
+}
+
+// TestHistoryPageGroupsRowsPerProject (forsgren#211): the table has one tbody
+// per project, headed by the project's name; in it the project's total and then
+// each label, each with the six measures in order, Overall Performance first.
+// No measure heads a group of rows of every project.
+func TestHistoryPageGroupsRowsPerProject(t *testing.T) {
+	got := rendered(t, "history.html", historyData())
+	if n := strings.Count(got, "<tbody>"); n != 2 {
+		t.Errorf("want a tbody for each of the 2 projects, got %d", n)
+	}
+	wantAll(t, "history.html", got,
+		`<th scope="rowgroup" colspan="4">Acme Shop</th>`, `<th scope="rowgroup" colspan="4">Acme Tools</th>`)
+	wantNone(t, "history.html", got, `scope="rowgroup" colspan="4">Overall Performance`,
+		`scope="rowgroup" colspan="4">Deployment frequency`)
+	var order []string
+	for _, heading := range []string{"Acme Shop", "Overall Performance", "Deployment frequency", "Lead time for changes",
+		"Failed deployment recovery time", "Change fail rate", "Deployment rework rate",
+		"API: Overall Performance", "API: Deployment frequency", "API: Deployment rework rate", "Acme Tools"} {
+		order = append(order, ">"+heading+"</th>")
+	}
+	at := 0
+	for _, want := range order {
+		i := strings.Index(got[at:], want)
+		if i < 0 {
+			t.Fatalf("history page does not have %q after offset %d, in this order", want, at)
+		}
+		at += i + len(want)
+	}
 }
 
 // TestHistoryPageCellsAreNumbersAndScores (forsgren#68): one row of the
