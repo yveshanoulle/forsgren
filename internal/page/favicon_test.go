@@ -12,7 +12,7 @@ import (
 // is written beside styles.css with the embedded bytes, a small SVG.
 func TestWriteSiteWritesTheFaviconNextToTheStylesheet(t *testing.T) {
 	dir := t.TempDir()
-	if _, err := WriteSite(dir, Placeholder("1.9.4")); err != nil {
+	if _, err := WriteSite(dir, Placeholder("1.10.0")); err != nil {
 		t.Fatalf("WriteSite: %v", err)
 	}
 	got, err := os.ReadFile(filepath.Clean(filepath.Join(dir, "favicon.svg")))
@@ -33,7 +33,7 @@ func TestEveryPageLinksTheFaviconByItsRelativePath(t *testing.T) {
 	for _, name := range PageNames() {
 		base := strings.Repeat("../", strings.Count(name, "/"))
 		want := `<link rel="icon" href="` + base + `favicon.svg" type="image/svg+xml">`
-		wantAll(t, name, rendered(t, name, Placeholder("1.9.4")), want)
+		wantAll(t, name, rendered(t, name, Placeholder("1.10.0")), want)
 	}
 }
 
@@ -44,7 +44,7 @@ func TestWriteSiteFailsWhenTheFaviconCannotBeWritten(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(dir, "favicon.svg"), 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := WriteSite(dir, Placeholder("1.9.4")); err == nil {
+	if _, err := WriteSite(dir, Placeholder("1.10.0")); err == nil {
 		t.Error("want an error when favicon.svg cannot be written, got none")
 	}
 }

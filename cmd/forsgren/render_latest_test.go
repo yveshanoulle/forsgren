@@ -68,12 +68,12 @@ func wantPage(t *testing.T, want, notWant string, args ...string) {
 // network; a newer one is named in the footer of both pages.
 func TestRenderNamesTheLatestReleaseItIsGiven(t *testing.T) {
 	dir := t.TempDir()
-	if code, _, stderr := runCommand("render", "--out", dir, "--latest", "1.9.5"); code != 0 {
+	if code, _, stderr := runCommand("render", "--out", dir, "--latest", "1.10.1"); code != 0 {
 		t.Fatalf("want exit 0, got %d, %q", code, stderr)
 	}
 	for _, name := range []string{"index.html", "legend.html"} {
-		if got := readFile(t, dir+"/"+name); !strings.Contains(got, version+" · 1.9.5 is available") {
-			t.Errorf("%s: want %q in the footer, got:\n%s", name, version+" · 1.9.5 is available", got)
+		if got := readFile(t, dir+"/"+name); !strings.Contains(got, version+" · 1.10.1 is available") {
+			t.Errorf("%s: want %q in the footer, got:\n%s", name, version+" · 1.10.1 is available", got)
 		}
 	}
 }
@@ -146,9 +146,9 @@ func TestLatestReleaseTakesNoArgumentsAndSurvivesABadAPI(t *testing.T) {
 // --latest newer and --waiting-pr, the footer names the pull request's
 // number instead of "is available"; without --waiting-pr there is none.
 func TestRenderNamesTheWaitingPullRequestItIsGiven(t *testing.T) {
-	waiting := version + " · 1.9.5 is waiting in pull request #7 (merge it to update)"
-	wantPage(t, waiting, " is available", "--latest", "1.9.5", "--waiting-pr", "7")
-	wantPage(t, "1.9.5 is available", "waiting", "--latest", "1.9.5")
+	waiting := version + " · 1.10.1 is waiting in pull request #7 (merge it to update)"
+	wantPage(t, waiting, " is available", "--latest", "1.10.1", "--waiting-pr", "7")
+	wantPage(t, "1.10.1 is available", "waiting", "--latest", "1.10.1")
 	wantPage(t, version+" Metrics", "pull request #", "--latest", version, "--waiting-pr", "7")
 }
 
@@ -292,7 +292,7 @@ func wantPublishFile(t *testing.T, want string, content []byte, err error) {
 // waiting pull request still wins, and any other status, or none, leaves the
 // footer as it was.
 func TestRenderSaysTheWaitingPullRequestIsUnknownWhenTheListWasCut(t *testing.T) {
-	const latest = "1.9.5"
+	const latest = "1.10.1"
 	unknown := version + " · " + latest + " is available; unknown (pull request list truncated)."
 	wantPage(t, unknown, "", "--latest", latest, "--pr-check", "truncated")
 	waiting := version + " · " + latest + " is waiting in pull request #7 (merge it to update)."
