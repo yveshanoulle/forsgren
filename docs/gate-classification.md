@@ -21,7 +21,7 @@ not close it.
 ## The order file, row by row
 
 [Scripts/gate_report_order.txt](../Scripts/gate_report_order.txt) is the one
-list sfl and CI both run. It has 140 rows: 136 with a script and 4 `n/a`
+list sfl and CI both run. It has 142 rows: 138 with a script and 4 `n/a`
 rows. All scripts are in `Scripts/`. The phase is `pre` (repository inputs and
 checker behaviour) or `post` (the generated site). `secret-class` means a
 finding blocks the commit as well as the push. A row for a self-test is
@@ -142,34 +142,36 @@ self-tests are.
 | 110 | auto-update workflow | `test_auto_update_workflow.sh` | pre | required |
 | 111 | starter page workflow | `test_starter_page_workflow.sh` | pre | required |
 | 112 | vulncheck workflow | `test_vulncheck_workflow.sh` | pre | required |
-| 113 | zizmor self-test | `test_check_zizmor.sh` | pre | required |
-| 114 | zizmor | `check_zizmor.sh` | pre | required |
-| 115 | browser gate self-test | `test_gate_browser.sh` | pre | required, `test_gate_browser v2`; real Chrome and axe-core, fixture sites on 127.0.0.1 |
-| 116 | browser gate | `gate_browser.sh` | post | required, `gate_browser v2`; baseline and exceptions are empty, one variant (see below) |
-| 117 | live check self-test | `test_live_check.sh` | pre | required, `test_live_check_selftest v1`; stub curl, no network. The live check itself, `live_check.sh` (`live_check v1`), is not a gate: it needs the deployed site and runs only in the live-check job of `starter_page.yml` |
-| 118 | language gate self-test | `test_gate_language.sh` | pre | required, `test_gate_language v2`; LanguageTool stubbed, 9 mutations |
-| 119 | language pages wrapper self-test | `test_gate_language_pages.sh` | pre | required; the wrapper's own, the canon gate stubbed, 3 mutations |
-| 120 | language gate | `gate_language_pages.sh` | post | required; runs `gate_language.sh` (`gate_language v2`) over the metrics site and the starter page; LanguageTool 6.8 run locally and offline; mode `enforce` in `language_settings.txt`; the allowlist and the baseline are data files (see below) |
-| 121 | baseline report self-test | `test_report_baselines.sh` | pre | required, `test_report_baselines v2`; the report itself, `report_baselines.sh` (`report_baselines v2`), is presentation, not a gate: Quality calls it in three steps (see below) |
-| 122 | release plan self-test | `test_release_plan.sh` | pre | required; fixture data, no gh, 4 mutations. The plan itself, `release_plan.sh`, is not a gate: the Release workflow of forsgren#221 step 2 runs it |
-| 123 | release bump self-test | `test_release_bump.sh` | pre | required; bumps a copy of the repository and runs `go test ./...` on it, 2 mutations. The bump itself, `release_bump.sh`, is not a gate: the Release workflow runs it |
-| 124 | release quality self-test | `test_release_quality.sh` | pre | required; stub gh, 3 mutations. `release_quality.sh` is a step of the Release workflow, not a gate |
-| 125 | release commit self-test | `test_release_commit.sh` | pre | required; a throwaway repository with a local bare origin, 3 mutations. `release_commit.sh` is a step of the Release workflow |
-| 126 | release publish self-test | `test_release_publish.sh` | pre | required; stub gh, 3 mutations. `release_publish.sh` is a step of the Release workflow |
-| 127 | release pins self-test | `test_release_pins.sh` | pre | required; a stub of the git-data API over the real template files of an earlier release, 6 mutations. `release_pins.sh` is a step of the Release workflow |
-| 128 | release report self-test | `test_release_report.sh` | pre | required, 4 mutations (the failed step inferred from the log, a template failure without the resume instruction). `release_report.sh` is the last step of the Release workflow |
-| 129 | release resume self-test | `test_release_resume.sh` | pre | required; stub gh and a throwaway repository, 3 mutations. `release_resume.sh` finds what a `resume: pins` or `resume: publish` run continues with; it is a step of the Release workflow |
-| 130 | release token expiry self-test | `test_release_token_expiry.sh` | pre | required; stub gh, injected clock, 5 mutations (each tier edge, a header taken as fine). `release_token_expiry.sh` is a step of the Release workflow |
-| 131 | release verify pin self-test | `test_release_verify_pin.sh` | pre | required; 3 mutations. `release_verify_pin.sh` reads a pin pull request (only the pins of both callers, to this release) and is a step of the Release workflow |
-| 132 | release metrics self-test | `test_release_metrics.sh` | pre | required; stub gh, 4 mutations (merging more than the pins, no wait, a red run taken for done, a second run next to a green one). `release_metrics.sh` merges the pin pull request and runs forsgren in forsgren-metrics until green |
-| 133 | release workflow | `test_release_workflow.sh` | pre | required; pins `.github/workflows/release.yml`: trigger, permissions, actions, order, commands, ids and outcomes, resume, the secret, no tag made by hand; 39 mutations |
-| 134 | release bump diff self-test | `test_release_bump_diff.sh` | pre | required; a fixture repository bumped by the real `release_bump.sh`, 2 mutations (no parent comparison, any line of an allowed file accepted). `release_bump_diff.sh` holds a bump commit to the version bump on the green parent and is a step of the Release workflow from forsgren#230 step 2 |
-| 135 | run short quality self-test | `test_run_short_quality.sh` | pre | required; stub gates in a throwaway repository, 3 mutations (the list ignored, the skipped gates not named, no tree check). `run_short_quality.sh` runs the PRE gates of `quality_bump_gates.txt` for the short Quality of a release bump and is a step of `quality.yml` (forsgren#230) |
-| 136 | quality scope | `test_quality_scope.sh` | pre | required; pins the scope input of `.github/workflows/quality.yml` (default full, push and pull request always full, scope bump runs the bump diff check first and only the listed gates), 17 mutations (forsgren#230) |
-| 137 | git sandbox isolation self-test | `test_git_sandbox_isolation.sh` | pre | required; runs ten git-using self-tests with `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` pointing at a decoy repository with a decoy origin, and requires both unchanged (forsgren#228) |
-| 138 | git sandbox guard self-test | `test_git_sandbox_guard.sh` | pre | required; every git-using `test_*.sh` sources `lib_git_sandbox.sh`, 1 mutation (forsgren#228) |
-| 139 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
-| 140 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
+| 113 | dispatch preview self-test | `test_dispatch_preview.sh` | pre | required; stub curl, no network, 3 mutation proofs. `dispatch_preview.sh` itself is run by the `preview` job of `quality.yml` (forsgren#222) |
+| 114 | preview workflow | `test_preview_workflow.sh` | pre | required; pins the `preview` job of `quality.yml`, each pin proved by a mutant of the real file |
+| 115 | zizmor self-test | `test_check_zizmor.sh` | pre | required |
+| 116 | zizmor | `check_zizmor.sh` | pre | required |
+| 117 | browser gate self-test | `test_gate_browser.sh` | pre | required, `test_gate_browser v2`; real Chrome and axe-core, fixture sites on 127.0.0.1 |
+| 118 | browser gate | `gate_browser.sh` | post | required, `gate_browser v2`; baseline and exceptions are empty, one variant (see below) |
+| 119 | live check self-test | `test_live_check.sh` | pre | required, `test_live_check_selftest v1`; stub curl, no network. The live check itself, `live_check.sh` (`live_check v1`), is not a gate: it needs the deployed site and runs only in the live-check job of `starter_page.yml` |
+| 120 | language gate self-test | `test_gate_language.sh` | pre | required, `test_gate_language v2`; LanguageTool stubbed, 9 mutations |
+| 121 | language pages wrapper self-test | `test_gate_language_pages.sh` | pre | required; the wrapper's own, the canon gate stubbed, 3 mutations |
+| 122 | language gate | `gate_language_pages.sh` | post | required; runs `gate_language.sh` (`gate_language v2`) over the metrics site and the starter page; LanguageTool 6.8 run locally and offline; mode `enforce` in `language_settings.txt`; the allowlist and the baseline are data files (see below) |
+| 123 | baseline report self-test | `test_report_baselines.sh` | pre | required, `test_report_baselines v2`; the report itself, `report_baselines.sh` (`report_baselines v2`), is presentation, not a gate: Quality calls it in three steps (see below) |
+| 124 | release plan self-test | `test_release_plan.sh` | pre | required; fixture data, no gh, 4 mutations. The plan itself, `release_plan.sh`, is not a gate: the Release workflow of forsgren#221 step 2 runs it |
+| 125 | release bump self-test | `test_release_bump.sh` | pre | required; bumps a copy of the repository and runs `go test ./...` on it, 2 mutations. The bump itself, `release_bump.sh`, is not a gate: the Release workflow runs it |
+| 126 | release quality self-test | `test_release_quality.sh` | pre | required; stub gh, 3 mutations. `release_quality.sh` is a step of the Release workflow, not a gate |
+| 127 | release commit self-test | `test_release_commit.sh` | pre | required; a throwaway repository with a local bare origin, 3 mutations. `release_commit.sh` is a step of the Release workflow |
+| 128 | release publish self-test | `test_release_publish.sh` | pre | required; stub gh, 3 mutations. `release_publish.sh` is a step of the Release workflow |
+| 129 | release pins self-test | `test_release_pins.sh` | pre | required; a stub of the git-data API over the real template files of an earlier release, 6 mutations. `release_pins.sh` is a step of the Release workflow |
+| 130 | release report self-test | `test_release_report.sh` | pre | required, 4 mutations (the failed step inferred from the log, a template failure without the resume instruction). `release_report.sh` is the last step of the Release workflow |
+| 131 | release resume self-test | `test_release_resume.sh` | pre | required; stub gh and a throwaway repository, 3 mutations. `release_resume.sh` finds what a `resume: pins` or `resume: publish` run continues with; it is a step of the Release workflow |
+| 132 | release token expiry self-test | `test_release_token_expiry.sh` | pre | required; stub gh, injected clock, 5 mutations (each tier edge, a header taken as fine). `release_token_expiry.sh` is a step of the Release workflow |
+| 133 | release verify pin self-test | `test_release_verify_pin.sh` | pre | required; 3 mutations. `release_verify_pin.sh` reads a pin pull request (only the pins of both callers, to this release) and is a step of the Release workflow |
+| 134 | release metrics self-test | `test_release_metrics.sh` | pre | required; stub gh, 4 mutations (merging more than the pins, no wait, a red run taken for done, a second run next to a green one). `release_metrics.sh` merges the pin pull request and runs forsgren in forsgren-metrics until green |
+| 135 | release workflow | `test_release_workflow.sh` | pre | required; pins `.github/workflows/release.yml`: trigger, permissions, actions, order, commands, ids and outcomes, resume, the secret, no tag made by hand; 39 mutations |
+| 136 | release bump diff self-test | `test_release_bump_diff.sh` | pre | required; a fixture repository bumped by the real `release_bump.sh`, 2 mutations (no parent comparison, any line of an allowed file accepted). `release_bump_diff.sh` holds a bump commit to the version bump on the green parent and is a step of the Release workflow from forsgren#230 step 2 |
+| 137 | run short quality self-test | `test_run_short_quality.sh` | pre | required; stub gates in a throwaway repository, 3 mutations (the list ignored, the skipped gates not named, no tree check). `run_short_quality.sh` runs the PRE gates of `quality_bump_gates.txt` for the short Quality of a release bump and is a step of `quality.yml` (forsgren#230) |
+| 138 | quality scope | `test_quality_scope.sh` | pre | required; pins the scope input of `.github/workflows/quality.yml` (default full, push and pull request always full, scope bump runs the bump diff check first and only the listed gates), 17 mutations (forsgren#230) |
+| 139 | git sandbox isolation self-test | `test_git_sandbox_isolation.sh` | pre | required; runs ten git-using self-tests with `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` pointing at a decoy repository with a decoy origin, and requires both unchanged (forsgren#228) |
+| 140 | git sandbox guard self-test | `test_git_sandbox_guard.sh` | pre | required; every git-using `test_*.sh` sources `lib_git_sandbox.sh`, 1 mutation (forsgren#228) |
+| 141 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
+| 142 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
 
 ## Documented exceptions
 
@@ -210,6 +212,11 @@ ruling; a missing file is exit 2.
 - **Scheduled vulnerability scan**: `.github/workflows/vulncheck.yml` runs the
   Go vulnerabilities gate daily, shown in the order file by
   `test_vulncheck_workflow.sh`.
+- **Preview deploy start**: the `preview` job of `.github/workflows/quality.yml`
+  starts the preview repository's deploy after a push to main, only when every
+  other job succeeded, through `Scripts/dispatch_preview.sh`; the order file
+  shows it by `test_dispatch_preview.sh` and `test_preview_workflow.sh`. A
+  start that does not answer 204 fails the run.
 - **Fix mode**: sfl exports `GATE_FIX=1`. Gates that can repair what they find
   (the npm audit heal, the Stylelint source-CSS fix) do so only when it is
   set. CI never sets it, so CI only checks.
@@ -249,7 +256,7 @@ same case turns green with the exit code swallowed.
 
 ## The language gate (forsgren#220)
 
-The gate (row 120, `Scripts/gate_language_pages.sh` running the canon
+The gate (row 122, `Scripts/gate_language_pages.sh` running the canon
 `Scripts/gate_language.sh`) checks the text a visitor reads on every generated
 page, the metrics site and the starter page, with LanguageTool 6.8 in `en-GB`
 (`Scripts/language_settings.txt`), plus the values of `alt`, `title` and
@@ -296,11 +303,11 @@ context in the visible text of the row's own page, extracted by the gate itself
 starter page row is keyed `starter/index.html`. Quality's baseline steps run after
 the POST gates, so the built pages exist. A missing page or context says so
 without failing the step. It reads data files and runs no gate; an unreadable file or a
-malformed row fails the step. Its self-test is the PRE row 121.
+malformed row fails the step. Its self-test is the PRE row 123.
 
 ## The ratchet today
 
-`MIN_GATES` is 140, which equals the 140 rows of the order file (136 with a
+`MIN_GATES` is 142, which equals the 142 rows of the order file (138 with a
 script and 4 `n/a` rows). forsgren#215 brought it to 115 and the Go tool
 helper self-test of forsgren#216 is the 116th; the browser gate and its
 self-test (forsgren#205) made 118, and the live check self-test
@@ -313,4 +320,5 @@ self-test made 132, the token expiry self-test made 133, and the self-tests of t
 metrics merge (forsgren#221, step 5) made 135, and the two self-tests of the git
 sandbox (forsgren#228) made 137, and the bump diff self-test (forsgren#230,
 step 1) made 138, and the short Quality (forsgren#230, step 2: its runner and the pin
-of the scope) made 140.
+of the scope) made 140, and the preview deploy
+script's self-test and the preview workflow pin (forsgren#222) made 142.

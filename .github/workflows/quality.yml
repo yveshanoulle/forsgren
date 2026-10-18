@@ -313,3 +313,45 @@ jobs:
         run: |
           set -uo pipefail
           ./Scripts/report_baselines.sh image
+
+  # Starts the preview deploy (forsgren#222), only after every gate job
+  # succeeded for this very commit, so a pushed commit that fails Quality
+  # never reaches the preview site (Yves's ruling). The preview shows what the
+  # next release will look like on real data: the public metrics installation's
+  # collected data rendered with the newest code on main, at
+  # https://feta.forsgren.forsgren.be. It lives in yveshanoulle/forsgren-metrics-feta,
+  # whose preview.yml takes the pushed sha as its one input and never collects.
+  # This job only starts it: Scripts/dispatch_preview.sh POSTs a
+  # workflow_dispatch and requires HTTP 204; any other answer fails the run.
+  #
+  # needs: every other job (today quality alone), no `if: always()`: a failed,
+  # cancelled or skipped gate job skips this one. The condition keeps it off
+  # pull requests, where no secret exists. The secret PREVIEW_DISPATCH_TOKEN
+  # (Actions read/write on the preview repository only) reaches this job's one
+  # step as env:, nowhere else. Never workflow_run (a dangerous trigger).
+  # The job group never cancels a run in flight; GitHub keeps the newest of
+  # the waiting ones, and the preview workflow cancels an older deploy itself.
+  # macos-latest like every job here (Scripts/test_quality_trigger_scope.sh).
+  # Scripts/test_preview_workflow.sh pins this job.
+  preview:
+    name: Start the preview deploy
+    needs: [quality]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: macos-latest
+    permissions:
+      contents: read   # the checkout of Scripts/dispatch_preview.sh
+    concurrency:
+      group: preview-deploy
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Start the preview deploy
+        shell: bash
+        env:
+          PREVIEW_DISPATCH_TOKEN: ${{ secrets.PREVIEW_DISPATCH_TOKEN }}
+          SHA: ${{ github.sha }}
+        run: ./Scripts/dispatch_preview.sh "$SHA"

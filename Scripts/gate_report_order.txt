@@ -689,6 +689,23 @@ starter page workflow|Scripts/test_starter_page_workflow.sh|pre|
 # real file. Repository source, so it runs in pre.
 vulncheck workflow|Scripts/test_vulncheck_workflow.sh|pre|
 #
+# The preview deploy (forsgren#222). Not canon: forsgren's own.
+# Scripts/dispatch_preview.sh starts the preview repository's deploy at the
+# pushed sha, and the preview job of .github/workflows/quality.yml runs it
+# after every push to main, once every gate job succeeded. Quality runs the
+# job, not the script's gates, so two pins prove them. The script's self-test
+# uses a stub curl: 204 is the only success, any other status or a curl
+# failure fails naming it, an empty token or a bad sha fails without calling
+# curl (no fallback to another login), the token reaches curl on stdin and
+# never in its arguments; 3 mutation proofs. The workflow pin: the job needs
+# every other job, runs only on a push to main with no status function in its
+# if:, on macos-latest with contents: read, one non-cancelling group, checkout
+# at metrics.yml's commit, the one secret in the start step's env, no
+# softening, no workflow_run; each pin proved by a mutant of the real file.
+# Repository source, so both run in pre.
+dispatch preview self-test|Scripts/test_dispatch_preview.sh|pre|
+preview workflow|Scripts/test_preview_workflow.sh|pre|
+#
 # zizmor (forsgren#1, ladder step 19). Not canon: another estate repository's gate (its sfl
 # runs it right behind actionlint, as here), so it sits right behind the
 # canon actionlint rows, before shellcheck. actionlint asks whether a

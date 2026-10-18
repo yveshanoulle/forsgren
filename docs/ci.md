@@ -6,6 +6,27 @@
 push to `main`, on every pull request into `main`, and by hand (Actions →
 Quality → Run workflow).
 
+**The preview.** After every push to `main`, once Quality is green for that
+commit, the `preview` job at the end of `quality.yml` starts the deploy of a
+preview site, <https://feta.forsgren.forsgren.be> (forsgren#222). It shows what
+the next release will look like on real data: the collected data of the public
+metrics installation, rendered with the newest code on `main`. It never
+collects, so any difference from the live metrics site comes from the code
+alone. The deploy itself lives in the preview repository,
+`yveshanoulle/forsgren-metrics-feta`, whose `preview.yml` takes the pushed sha
+as its one input. The job only starts it: `Scripts/dispatch_preview.sh <sha>`
+POSTs a `workflow_dispatch` with the Actions secret `PREVIEW_DISPATCH_TOKEN`,
+a fine-grained token that holds Actions read and write on the preview
+repository and nothing else, and requires HTTP 204. Any other answer, an empty
+token or a sha that is not 40 lower-case hex digits fails the run; the script
+never falls back to another token or login. The job `needs:` every other job,
+with no status function in its `if:`, so a commit that fails a gate never
+reaches the preview; its `if:` keeps it off pull requests, where no secret
+exists; it holds `contents: read` and runs on `macos-latest` like every job
+of the file. Its own concurrency group never cancels a run in flight (the
+shas are started in push order; of several waiting runs GitHub keeps the
+newest). It is not a `workflow_run` workflow: that is a dangerous trigger.
+
 **What runs where.** Locally, `./FBP.sh` runs `gofmt -w`, `./sfl.sh pre`,
 `Scripts/build_site.sh` and `./sfl.sh post`. CI runs the same three phases
 with nothing fixed: `Scripts/run_ci_phase.sh pre`, then
@@ -354,6 +375,25 @@ Nine PRE gates keep the CI honest:
   `Scripts/release_publish.sh`, and the secret `FORSGREN_RELEASE_TOKEN` is in
   the env of exactly three steps. The scripts' self-tests are order-file rows.
   See [Updating and releases](updating-and-releases.md#the-release-workflow).
+- **preview deploy** (`Scripts/test_dispatch_preview.sh` and
+  `Scripts/test_preview_workflow.sh`, forsgren's own, forsgren#222): the
+  script's self-test runs it against a stub `curl`: 204 is the only success; a
+  200, 202, 302, 404, 422 or 500, or a curl that fails, fails naming the
+  status; an empty token (with `GH_TOKEN` and `GITHUB_TOKEN` set or not) and a
+  bad sha fail without calling curl; the token reaches curl as a header on
+  stdin, never in its arguments. Three mutation proofs: a copy that accepts any
+  2xx, one without the empty-token guard and one without the sha check each
+  let their case pass. The workflow pin reads the `preview` job of
+  `quality.yml`: its `needs:` names every other job (a gate job added later
+  must be added), its `if:` is exactly the push-to-main condition and holds no
+  `always()`, `failure()`, `cancelled()` or `success()`, it runs on
+  `macos-latest` with `contents: read`, the fixed non-cancelling group,
+  `actions/checkout` at the very commit `metrics.yml` pins without persisted
+  credentials, the one secret reference of the file in the start step's
+  `env:`, the exact command, no `${{ }}` in a `run:` block, nothing that
+  softens a failed start, and no `workflow_run` in the file; each pin is
+  proved by a mutant of the real file (a missing `needs:`, a missing
+  push-only condition, `always()` added, a gate job left out of `needs:`).
 - **metrics workflow** (`Scripts/test_metrics_workflow.sh`, forsgren's
   own): `metrics.yml` triggers on `workflow_call` and nothing else, and
   declares no inputs; no `run:` block expands a `${{ }}` expression; the

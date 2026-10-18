@@ -162,11 +162,12 @@ fi
 # release_verify_pin.sh and release_metrics.sh (forsgren#221, step 5), and
 # to 138 for the self-test of release_bump_diff.sh (forsgren#230, step 1), and to
 # 140 for the self-tests of run_short_quality.sh and the pin of quality.yml's scope
-# (forsgren#230, step 2).
+# (forsgren#230, step 2), and to 142 for the preview deploy's script self-test and
+# workflow pin (forsgren#222).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=140
+MIN_GATES=142
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -527,6 +528,19 @@ for path in Scripts/*.sh; do
       require_fixture "$base" "the live check would be unproven"
       order_names "test_${base}" \
         || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the check starter_page.yml runs"
+      ;;
+
+    # THE PREVIEW DISPATCH, not a local gate (forsgren#222): it starts the
+    # preview repository's deploy through the GitHub API with a token only
+    # CI holds, so only the preview job of .github/workflows/quality.yml can run it,
+    # after a push to main and Quality green. Its self-test (stub curl, no network) is an order-file
+    # row, so sfl and Quality still prove it.
+    dispatch_preview.sh)
+      runs_script "$CI" "$base" \
+        || fail "${base} starts the preview deploy and ${CI} never invokes it — no push would start a preview"
+      require_fixture "$base" "the preview start would be unproven"
+      order_names "test_${base}" \
+        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the script the preview job runs"
       ;;
 
     # THE RELEASE SCRIPTS, not gates (forsgren#221): the Release workflow

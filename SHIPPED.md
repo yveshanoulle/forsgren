@@ -68,6 +68,18 @@ Yves: the goal was to group things. The History page was one table with a block 
 
 ---
 
+## 2026-10-17 — a push to main starts the preview deploy ([#222](https://github.com/yveshanoulle/forsgren/issues/222), 1/1)
+
+Tooling only: no release.
+
+- New `preview` job at the end of `quality.yml`: after a push to `main`, and only when every other job succeeded (`needs:`, no status function in its `if:`), it runs `Scripts/dispatch_preview.sh <sha>`, which starts the deploy of the preview site (<https://feta.forsgren.forsgren.be>) in the preview repository `yveshanoulle/forsgren-metrics-feta`. A commit that fails a gate, or a pull request, never reaches it. The preview shows the newest code on `main` on the public metrics installation's collected data; it never collects.
+- The script POSTs a `workflow_dispatch` with the Actions secret `PREVIEW_DISPATCH_TOKEN` (Actions read and write on the preview repository only) and requires HTTP 204. Any other status, a failing curl, an empty token or a bad sha fails the run with an `::error::` line; no other token or login is a fallback. The token reaches curl on stdin, never in its arguments.
+- `macos-latest` like every job of the file, `contents: read`, one group that never cancels a run in flight (push order). Not a `workflow_run` workflow (a dangerous trigger).
+- Pins: `Scripts/test_dispatch_preview.sh` (stub curl, 3 mutation proofs) and `Scripts/test_preview_workflow.sh` (the job: needs, push-only condition, no status function, runner, permissions, secret; a dispatch-triggered run, scope bump or full, never starts it; mutants include a missing `needs:`, a missing condition, `always()` and `workflow_dispatch` allowed). `MIN_GATES` 140 to 142. docs/ci.md and docs/gate-classification.md describe the preview.
+- forsgren may now name its own preview environment: the word was taken out of this repository's extra private-names list in the same step.
+
+---
+
 ## 2026-10-17 — the live check also requires charset=utf-8, shared canon `live_check v1` ([#223](https://github.com/yveshanoulle/forsgren/issues/223), 1/1)
 
 Tooling only: no release.
