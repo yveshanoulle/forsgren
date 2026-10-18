@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: check_exit_trap_completion v1
+# canon: check_exit_trap_completion v2
 # Scripts/check_exit_trap_completion.sh [repo-root]
 #
 # Gate: red when a shell script runs
@@ -20,8 +20,10 @@
 # selftest_begin or lib_selftest.sh. Known limits, on purpose: `set -o
 # errexit` is not read, a `set -e` placed after the trap is not read (the trap
 # then ran without -e), and a column-0 line inside a heredoc is read as code.
-# Behaviour is not probed here; each fix was shown by
-# injecting an unbound variable after the trap.
+# This gate reads source and runs nothing. The behaviour behind it is probed by
+# Scripts/test_exit_trap_completion_behaviour.sh, which runs every covered script
+# once with an unbound variable injected right after its trap (the engine is
+# Scripts/lib_exit_trap_probe.sh) and requires a non-zero exit.
 #
 # Findings carry the red-cross marker, one per script, as file:line of the
 # trap. Exit 0 clean, 1 findings, 2 a missing root, and a root with no script

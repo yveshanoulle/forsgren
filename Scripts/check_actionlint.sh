@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: check_actionlint v1
+# canon: check_actionlint v2
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -28,8 +28,10 @@ cd "$(dirname "$0")/.."
 # that printed SKIP and exited 0, and kept lint green for a full day while the
 # runner could not resolve docker at all.
 #
-# Optional further arguments (forsgren#231, Scripts/precheck.sh): workflow files
-# to lint instead of every *.yml in the directory, same config and call.
+# Optional file list (estate issue 301): workflow files after the directory
+# (relative to the repository root) are linted instead of every *.yml in the
+# directory, with the same config and call; without, exactly as before. A
+# listed path that is not a file is red, named.
 #
 # Local invocation: ./Scripts/check_actionlint.sh [workflow-dir [workflow-file...]]
 
@@ -62,7 +64,17 @@ fi
 # Suppressions are added only for a finding someone has looked at and ruled
 # on — an -ignore added pre-emptively silences the rule before it has ever
 # said anything, which is how a gate arrives already half-asleep.
-if [ "$#" -gt 0 ]; then targets=("$@"); else targets=("$WF_DIR"/*.yml); fi
+if [ "$#" -gt 0 ]; then
+  for f in "$@"; do
+    if [ ! -f "$f" ]; then
+      echo "actionlint: listed file not found: ${f}" >&2
+      exit 3
+    fi
+  done
+  targets=("$@")
+else
+  targets=("$WF_DIR"/*.yml)
+fi
 actionlint -config-file .actionlint.yaml "${targets[@]}"
 
-echo "OK: actionlint (${count} workflow(s) validated)"
+echo "OK: actionlint (${#targets[@]} workflow(s) validated)"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_check_privacy_posture v1
+# canon: test_check_privacy_posture v2
 # Scripts/test_check_privacy_posture.sh
 #
 # Self-test for Scripts/check_privacy_posture.sh, the
@@ -38,11 +38,14 @@
 #  12. a row without a reason, a row whose reason is blank, a malformed row,
 #      a duplicate host                           -> exit 2 each, named
 #  13. a missing exceptions file                  -> exit 2 (fail closed)
+#  14. an anchor split over lines is a link; "links nowhere" only for none
 # Mutation proofs (a weakened copy of the gate must turn the case green):
 #   A. the blanket rule (any iframe passes when privacy.html exists): case 6
 #   B. the allow-list skipped when its file is missing: case 13
 #   C. the reason not required: case 12, the row without a reason
 #   D. the src host matched as a part of a listed host instead of exactly: case 10
+#   E. the HTML read line by line: the split anchor is missed and the INFO
+#      block claims the site links nowhere (case 14)
 
 set -euo pipefail
 
@@ -209,6 +212,27 @@ R="$(mkroot nofile -)"
 gate_in "$R" Site
 want_exit "a missing exceptions file is exit 2, never a pass" 2 "exceptions file not found"
 
+# --- 14. the links INFO is true: an anchor split over lines is still a link
+# The INFO block says what the site points at; "links nowhere off itself" must
+# only be printed for a site that really has no outbound link, and an anchor
+# whose href sits on a later line than `<a` (a formatter does this) is one.
+R="$(mkroot splitlink)"
+printf '<!doctype html><html><body>\n<a class="store"\n   rel="noopener"\n   href="https://store.example/app/1">App</a>\n</body></html>\n' > "${R}/Site/index.html"
+gate_in "$R" Site
+want_green_ok "an outbound link split over lines is not a finding"
+want_said "the report names the destination of a link split over lines" "store.example"
+if grep -qF "links nowhere" <<< "$OUT"; then
+  fail "the report claims the site links nowhere although it has a link. Output: ${OUT}"
+else
+  echo "  ok: the report does not claim the site links nowhere"
+fi
+
+R="$(mkroot nolinks)"
+printf '<!doctype html><html><body><p>no links here</p></body></html>\n' > "${R}/Site/index.html"
+gate_in "$R" Site
+want_green_ok "a site without any outbound link is green"
+want_said "and the report says it links nowhere off itself" "links nowhere off itself"
+
 # --- Mutation proofs
 R="$(mkroot mut-blanket)"
 printf '%s\n' "$UNLISTED" >> "${R}/Site/index.html"
@@ -241,4 +265,15 @@ selftest_mutant_green "$GATE" "${R}/Scripts/check_privacy_posture.sh" \
   "a match of the src host as a part of a listed host turns the lookalike case green" \
   "the substring-match copy did not turn the lookalike case green"
 
-selftest_end "privacy posture gate" "privacy posture gate proven on synthetic sites (iframes by host list, malformed and missing exceptions red, four weakened copies caught)"
+R="$(mkroot mut-splitlink)"
+printf '<a class="store"\n   href="https://store.example/app/1">App</a>\n' > "${R}/Site/index.html"
+if selftest_mutant "$GATE" "${R}/Scripts/check_privacy_posture.sh" 's/^  [|] tr .*$/  | cat \\/'; then
+  gate_in "$R" Site
+  if grep -qF "links nowhere" <<< "$OUT"; then
+    echo "  ok: mutation proof: a copy that reads the HTML line by line prints the false 'links nowhere' for a split anchor"
+  else
+    fail "mutation proof: the line-by-line copy still names the split anchor, so the split-link case proves nothing. Output: $OUT"
+  fi
+fi
+
+selftest_end "privacy posture gate" "privacy posture gate proven on synthetic sites (iframes by host list, malformed and missing exceptions red, five weakened copies caught, links true for a split anchor)"

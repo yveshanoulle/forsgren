@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+# canon: test_git_sandbox_isolation v1
 # Scripts/test_git_sandbox_isolation.sh
 #
-# Self-test for forsgren#228: a self-test run with GIT_DIR, GIT_WORK_TREE and
+# Self-test: a self-test run with GIT_DIR, GIT_WORK_TREE and
 # GIT_INDEX_FILE exported in the calling shell must not touch that
 # repository. `git -C <sandbox>` does not override an exported GIT_DIR, so a
 # fixture's `git push origin main` once went into the caller's repository.
@@ -77,19 +78,23 @@ compare() {
 snapshot "${DECOY}/.git" "${TMP}/decoy.before"
 snapshot "$ORIGIN" "${TMP}/origin.before"
 
-# One run per self-test, so a reported leak names the self-test that caused it.
-TESTS=(
-  Scripts/test_release_commit.sh
-  Scripts/test_metrics_workflow.sh
-  Scripts/test_release_workflow.sh
-  Scripts/test_fbp_no_push.sh
-  Scripts/test_fbp_commit_message.sh
-  Scripts/test_fbp_build_pagecount.sh
-  Scripts/test_fbp_aborted.sh
-  Scripts/test_fbp_abort_exit.sh
-  Scripts/test_release_resume.sh
-  Scripts/test_sfl_pull.sh
-)
+# One run per git-using self-test, so a reported leak names the self-test that
+# caused it. The list is derived with the guard's own detector, never written
+# down: a new git-using self-test is run against the decoy from the day it
+# exists. This test and the guard are left out (this one would recurse; the
+# guard only reads files).
+TESTS=()
+for t in Scripts/test_*.sh; do
+  case "$t" in
+    Scripts/test_git_sandbox_isolation.sh | Scripts/test_git_sandbox_guard.sh) continue ;;
+  esac
+  if git_sandbox_uses_git "$t"; then
+    TESTS+=("$t")
+  fi
+done
+if [[ "${#TESTS[@]}" -lt 3 ]]; then
+  fail "only ${#TESTS[@]} git-using self-tests found: the detector is broken, not the repository"
+fi
 
 # Two shapes of the leak: all three variables (the 2026-10-18 shell), and
 # GIT_DIR with GIT_INDEX_FILE only, which lets fixtures that init a bare

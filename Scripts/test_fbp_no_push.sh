@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_fbp_no_push v2
+# canon: test_fbp_no_push v3
 # Scripts/test_fbp_no_push.sh
 #
 # Self-test for the --no-push flag of the repository's FullBuildAndPush script.

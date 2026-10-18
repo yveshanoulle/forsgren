@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_check_actionlint v1
+# canon: test_check_actionlint v2
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -113,6 +113,21 @@ for tool in env bash dirname find wc tr; do ln -s "$(command -v "$tool")" "$nopa
 set +e; PATH="$nopath" "$CHECK" "$good" >/dev/null 2>&1; RC=$?; set -e
 check "exits 3 when actionlint is not on PATH, never 0" 3 "$RC"
 
+# --- Case 7: a file list after the directory: only the listed workflows are judged.
+mixed="$TMP/mixed"; mkdir -p "$mixed"
+cp "$good/wf.yml" "$mixed/ok.yml"
+cp "$bad/wf.yml" "$mixed/broken.yml"
+set +e; "$CHECK" "$mixed" "$mixed/ok.yml" >/dev/null 2>&1; RC=$?; set -e
+check "a file list judges only the listed workflow, not the broken one beside it" 0 "$RC"
+set +e; LISTOUT="$("$CHECK" "$mixed" "$mixed/broken.yml" 2>&1)"; RC=$?; set -e
+check "a file list with the broken workflow is red" 1 "$RC"
+if [[ "$LISTOUT" == *"broken.yml"* ]]; then echo "  ✅ ... and names it"; else echo "  ❌ the finding does not name broken.yml"; failures=$((failures+1)); fi
+
+# --- Case 8: a listed path that is no file is red, named, exit 3.
+set +e; LISTOUT="$("$CHECK" "$mixed" "$mixed/ok.yml" "$mixed/missing.yml" 2>&1)"; RC=$?; set -e
+check "a file list naming a missing file exits 3" 3 "$RC"
+if [[ "$LISTOUT" == *"missing.yml"* ]]; then echo "  ✅ ... and names it"; else echo "  ❌ the error does not name missing.yml"; failures=$((failures+1)); fi
+
 # --- Mutation proof: weakened copies of the gate must be red here.
 # Only for the real gate; the copies are judged by this same file, run on them.
 if [[ $# -eq 0 ]]; then
@@ -136,6 +151,7 @@ if [[ $# -eq 0 ]]; then
   mutant_must_fail "a missing actionlint exits 0" '/command -v actionlint/,/^fi$/ s/exit 3/exit 0/'
   mutant_must_fail "a missing workflow dir exits 0" '/! -d "[$]WF_DIR"/,/^fi$/ s/exit 3/exit 0/'
   mutant_must_fail "a dir with no workflows exits 0" '/"[$]count" -eq 0/,/^fi$/ s/exit 3/exit 0/'
+  mutant_must_fail "the file list is ignored" 's/^if \[ "[$]#" -gt 0 \]; then$/if false; then/'
 fi
 
 COMPLETED=1

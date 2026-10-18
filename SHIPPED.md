@@ -9,6 +9,10 @@ Active work lives in
 
 ---
 
+## 2026-10-18 — the shared gate scripts and self-tests are byte-identical with the shared versions ([#227](https://github.com/yveshanoulle/forsgren/issues/227))
+
+Forsgren's copies of the shared gate scripts, their self-tests and the git sandbox (`lib_git_sandbox.sh`, its guard and its isolation test) are the shared versions again, with no adaptation of their own; the one repository-specific input, the shellcheck exclusions, is a data file. Tooling only.
+
 ## 2026-10-18 — the Quality report shows what each gate checked ([#219](https://github.com/yveshanoulle/forsgren/issues/219))
 
 The gate table of the Quality run report is now the place to see what is checked.

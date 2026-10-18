@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_check_guardrail_packages v1
+# canon: test_check_guardrail_packages v2
 # Scripts/test_check_guardrail_packages.sh
 #
 # Self-test for Scripts/check_guardrail_packages.sh, the npm manifest policy

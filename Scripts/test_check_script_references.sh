@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_check_script_references v1
+# canon: test_check_script_references v2
 # Scripts/test_check_script_references.sh
 #
 # Fixture test for Scripts/check_script_references.sh,
@@ -20,11 +20,11 @@
 # the check it names.
 set -uo pipefail
 
-# Repo root without counting levels. The replaced form is described, never
-# quoted: the depth check greps every script for it.
 # shellcheck source=Scripts/lib_git_sandbox.sh
 source "$(dirname "$0")/lib_git_sandbox.sh"
 
+# Repo root without counting levels. The replaced form is described, never
+# quoted: the depth check greps every script for it.
 cd "$(cd "$(dirname "$0")" && git rev-parse --show-toplevel)" || exit 1
 CHECK="Scripts/check_script_references.sh"
 CHECK_ABS="$(pwd)/$CHECK"

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
+# canon: test_git_sandbox_guard v1
 # Scripts/test_git_sandbox_guard.sh
 #
-# Guard for forsgren#228: every Scripts/test_*.sh that calls git, or that
-# drives the shared FBP sandbox (which does), sources Scripts/lib_git_sandbox.sh,
-# so an exported GIT_DIR cannot send its fixture's git into the caller's
-# repository. A new git-using self-test that forgets the source line fails
-# here, naming the file.
+# Guard: every Scripts/test_*.sh that calls git, or that drives the shared FBP
+# sandbox (which does), sources Scripts/lib_git_sandbox.sh, so an exported
+# GIT_DIR cannot send its fixture's git into the caller's repository. A new
+# git-using self-test that forgets the source line fails here, naming the
+# file. Known limit: a test that only runs a git-using script is not seen.
 #
 # Mutation proof: a copy of a git-using self-test without the source line must
 # be reported, and the copy with it must not.
@@ -21,40 +22,31 @@ source Scripts/lib_git_sandbox.sh
 source Scripts/lib_selftest.sh
 selftest_begin "git sandbox guard self-test"
 
-# uses_git <file>: a non-comment line runs git, looks it up, or names the real git binary or the shared FBP sandbox.
-uses_git() {
-  # Into a variable first: grep -q closes the pipe early and pipefail would
-  # turn a match in a long file into a miss.
-  local code
-  code="$(grep -v '^[[:space:]]*#' "$1" || true)"
-  grep -qE '(^|[^[:alnum:]_./-])git( |$)|command -v git|REAL_GIT|source .*lib_fbp_sandbox\.sh' <<< "$code"
-}
-
-# sources_helper <file>: a non-comment line sources the helper.
-sources_helper() {
-  local code
-  code="$(grep -v '^[[:space:]]*#' "$1" || true)"
-  grep -qE '^[[:space:]]*source .*lib_git_sandbox\.sh"?$' <<< "$code"
-}
-
 # unisolated <file>...: the files that use git and do not source the helper.
 unisolated() {
   local f
   for f in "$@"; do
-    if uses_git "$f" && ! sources_helper "$f"; then
+    if git_sandbox_uses_git "$f" && ! git_sandbox_sources_helper "$f"; then
       echo "$f"
     fi
   done
 }
 
+# A floor, not a count: a detector that finds almost nothing is broken.
+MIN_GIT_TESTS=5
+
 checked=0
+victim=""
 for f in Scripts/test_*.sh; do
-  if uses_git "$f"; then
+  if git_sandbox_uses_git "$f"; then
     checked=$((checked + 1))
+    if [[ -z "$victim" && "$f" != "Scripts/test_git_sandbox_guard.sh" ]]; then
+      victim="$f"
+    fi
   fi
 done
-if [[ "$checked" -lt 20 ]]; then
-  fail "only ${checked} git-using self-tests found: the detector is broken, not the repository"
+if [[ "$checked" -lt "$MIN_GIT_TESTS" ]]; then
+  fail "only ${checked} git-using self-tests found, the floor is ${MIN_GIT_TESTS}: the detector is broken, not the repository"
 fi
 
 missing="$(unisolated Scripts/test_*.sh)"
@@ -64,15 +56,20 @@ else
   echo "  ok: all ${checked} git-using self-tests source Scripts/lib_git_sandbox.sh"
 fi
 
-# Mutation proof: Scripts/test_release_commit.sh without its source line.
-mkdir -p "${TMP}/Scripts"
-grep -v 'source Scripts/lib_git_sandbox.sh' Scripts/test_release_commit.sh > "${TMP}/Scripts/test_release_commit.sh"
-if cmp -s Scripts/test_release_commit.sh "${TMP}/Scripts/test_release_commit.sh"; then
-  fail "mutation proof: removing the source line changed nothing in Scripts/test_release_commit.sh, the proof would be vacuous"
-elif [[ "$(unisolated "${TMP}/Scripts/test_release_commit.sh")" == "${TMP}/Scripts/test_release_commit.sh" ]]; then
-  echo "  ok: mutation proof: a git-using self-test without the source line is reported by name"
+# Mutation proof: the first other git-using self-test, without its source line.
+if [[ -z "$victim" ]]; then
+  fail "mutation proof: no git-using self-test besides this one to mutate"
 else
-  fail "mutation proof: a copy of Scripts/test_release_commit.sh without the source line was not reported"
+  mkdir -p "${TMP}/Scripts"
+  mutant="${TMP}/${victim}"
+  grep -v 'source Scripts/lib_git_sandbox.sh' "$victim" > "$mutant" || true
+  if cmp -s "$victim" "$mutant"; then
+    fail "mutation proof: removing the source line changed nothing in ${victim}, the proof would be vacuous"
+  elif [[ "$(unisolated "$mutant")" == "$mutant" ]]; then
+    echo "  ok: mutation proof: a git-using self-test without the source line is reported by name"
+  else
+    fail "mutation proof: a copy of ${victim} without the source line was not reported"
+  fi
 fi
 
 selftest_end "a git-using self-test does not isolate itself from an exported GIT_DIR" "every git-using self-test sources Scripts/lib_git_sandbox.sh"

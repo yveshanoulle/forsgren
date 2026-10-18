@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# canon: check_zizmor v1
 # Zizmor: GitHub Actions static analysis (workflows and composite actions). Catches
 # the template-injection class actionlint does not: untrusted ${{ ... }} context
 # values interpolated straight into run: shell, where a malicious value can break

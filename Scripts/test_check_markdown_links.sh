@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_check_markdown_links v1
+# canon: test_check_markdown_links v2
 # Scripts/test_check_markdown_links.sh
 #
 # Self-test for Scripts/check_markdown_links.sh, run in pre

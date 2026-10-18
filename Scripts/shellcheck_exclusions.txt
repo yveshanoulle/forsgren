@@ -1,0 +1,10 @@
+# Shell scripts deliberately left out of Scripts/check_shellcheck.sh, read only
+# by that script. One repository-relative path per line; blank lines and lines
+# starting with # are ignored. Empty is the normal state: every shell script is
+# expected to pass shellcheck as it is. A malformed line, or a path that is not
+# a file, makes the gate red: it never skips on a guess.
+#
+# An entry needs all three of: the line here, a sentence in
+# documentation/gate-classification.md naming the script and the reason, and
+# an explicit yes recorded on an issue that sentence links. An exception costs
+# a deliberate decision, never a silent skip.

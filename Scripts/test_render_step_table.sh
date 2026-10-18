@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_render_step_table v1
+# canon: test_render_step_table v3
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

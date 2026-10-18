@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_run_ci_phase v1
+# canon: test_run_ci_phase v2
 # Scripts/test_run_ci_phase.sh
 #
 # Self-test for Scripts/run_ci_phase.sh, the loop CI runs over the rows of

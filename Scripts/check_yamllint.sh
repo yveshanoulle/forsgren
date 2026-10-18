@@ -1,16 +1,13 @@
 #!/usr/bin/env bash
+# canon: check_yamllint v2
 # Yamllint — every YAML file git tracks or will commit (tracked, or untracked
-# and not ignored: Scripts/lib_repo_files.sh, forsgren#204). Config in .yamllint.yml.
+# and not ignored: Scripts/lib_repo_files.sh). Config in .yamllint.yml.
 #
-# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 12), which
-# ported it from another estate repository (its unit 411 put it in the canon). konenki lints
-# .github/workflows/ and another estate repository adds its compose stacks/, each a NAMED
-# directory. forsgren had no workflow directory when this was ported (CI came
-# in forsgren#1 step 14), and `yamllint .github/workflows/` on a directory
-# that does not exist exits 255. So the targets here are DERIVED, the way Scripts/check_shellcheck.sh
-# derives its own: every such *.yml / *.yaml at any depth. A workflow,
-# a .golangci.yml or any other YAML is covered the moment it exists,
-# instead of when someone remembers to name its directory.
+# The targets are DERIVED, not a named directory: every *.yml / *.yaml at any
+# depth. A workflow, a tool config or any other YAML is covered the moment it
+# exists, instead of when someone remembers to name its directory. (A named
+# `yamllint .github/workflows/` also exits 255 on a tree without that
+# directory.)
 #
 # Never empty today: .yamllint.yml is itself tracked YAML and is linted under
 # its own rules. So zero targets means the collection broke, and it is red,
@@ -27,9 +24,10 @@
 # The config is always this repository's .yamllint.yml, so the fixture tests
 # the rules that run here.
 #
-# Optional arguments (forsgren#231, Scripts/precheck.sh): with file names (relative
-# to the root), only those files are linted, under the same config; without,
-# the derived list above.
+# Optional file list (estate issue 301): with paths after the program name
+# (relative to the root), only those files are linted, under the same config;
+# without, the derived list above, exactly as before. A listed path that is
+# not a file is red, named.
 #
 # Local invocation: ./Scripts/check_yamllint.sh [file...]
 
@@ -54,6 +52,12 @@ fi
 # `git ls-files` inside `< <(...)` is invisible, and an empty listing would
 # then read as "no YAML here".
 if [ "$#" -gt 0 ]; then
+  for f in "$@"; do
+    if [ ! -f "$f" ]; then
+      echo "❌ FAIL: yamllint: listed file not found: ${f}" >&2
+      exit 1
+    fi
+  done
   listing="$(printf '%s\n' "$@")"
 elif ! listing="$(repo_files . '*.yml' '*.yaml')"; then
   echo "❌ FAIL: git ls-files (tracked and untracked) failed in ${ROOT} — no verdict" >&2
@@ -72,7 +76,7 @@ if [ "${#targets[@]}" -eq 0 ]; then
   exit 1
 fi
 
-# Same reasoning as konenki's shellcheck gate: the full report to a gitignored
+# Same reasoning as the shellcheck gate: the full report to a gitignored
 # file, because sfl's summary block quotes only its first lines.
 mkdir -p .build
 rc=0

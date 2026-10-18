@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
+# canon: lib_selftest v1
 # Scripts/lib_selftest.sh
 #
-# forsgren's own (forsgren#1, ladder step 24, refactor): the harness of
-# forsgren's own gate self-tests, once. Each of them carried its own copy of
-# the same temp root, completion guard, fail helper, red/green assertions,
-# mutant writer and closing verdict; this is that code, once, with one
-# wording: every failure line starts `❌ FAIL:`, every case that holds
-# prints `  ok: <case>`, and the closing line is `OK: <claim>` or
-# `❌ FAIL: <claim not held>`.
+# Ported from forsgren (forsgren#207), where it is the harness of the gate
+# self-tests: the temp root, completion guard, fail helper, red/green
+# assertions, mutant writer and closing verdict, once, with one wording: every
+# failure line starts `❌ FAIL:`, every case that holds prints `  ok: <case>`,
+# and the closing line is `OK: <claim>` or `❌ FAIL: <claim not held>`.
 #
-# The fixtures ported from another repository of the estate keep their own
-# harness, so a port back stays a diff of cases, not of scaffolding.
+# The self-tests that source it share this harness; an older self-test may keep
+# its own, and moving it onto this one is a separate unit.
 #
 # SOURCED, never run. It judges nothing on its own: the self-tests that
 # source it are what test it. It sets no shell options (the sourcing
@@ -162,8 +161,9 @@ selftest_mutant_green() {
 # selftest_lib_mutant <gate> <lib> <dir> <sed-expression>: for a gate that
 # sources a helper from its own Scripts/ (forsgren#216). Writes <dir>/Scripts/
 # with a plain copy of <gate> and a mutated copy of <lib> (see
-# selftest_mutant), and this repository's go.mod and go.sum beside it, so the
-# gate there finds its root, the mutated helper and the pinned tools. Sets
+# selftest_mutant), and this repository's go.mod and go.sum beside it when it
+# has them, so the gate there finds its root, the mutated helper and the pinned
+# tools. Sets
 # MUTANT to the gate copy; the status is selftest_mutant's, 1 for a mutation
 # that changed nothing.
 selftest_lib_mutant() {
@@ -171,7 +171,7 @@ selftest_lib_mutant() {
   mkdir -p "$3/Scripts"
   cp "$1" "$MUTANT"
   selftest_mutant "$2" "$3/Scripts/$(basename "$2")" "$4" || return 1
-  cp go.mod "$3/"
+  if [[ -f go.mod ]]; then cp go.mod "$3/"; fi
   if [[ -f go.sum ]]; then cp go.sum "$3/"; fi
 }
 

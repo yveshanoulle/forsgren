@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Fixture test for Scripts/check_yamllint.sh — forsgren's own (no repo of the
-# estate has one), in the shape of another estate repository's Scripts/test_check_shellcheck.sh.
+# canon: test_check_yamllint v4
+# Scripts/test_check_yamllint.sh
+#
+# Fixture test for Scripts/check_yamllint.sh, in the shape of
+# Scripts/test_check_shellcheck.sh.
 #
 # Drives the checker against synthetic git trees (via YAMLLINT_ROOT), with
 # this repository's real .yamllint.yml as the config, so the pins never
-# depend on which YAML files forsgren happens to track today.
+# depend on which YAML files this repository happens to track today.
 #
 # Pinned behaviours:
 #   1. a clean synthetic tree (a well-formed .yml and .yaml)     -> exit 0
@@ -15,11 +18,19 @@
 #      depth, either extension)                                   -> exit 1,
 #      naming that file
 #   4. a broken .yml that is on disk, NOT tracked and not ignored
-#      is a target (forsgren#204: a new file); an ignored one is
+#      is a target (a new file); an ignored one is
 #      left alone                                                 -> exit 1 / 0
 #   5. a tree with no tracked YAML at all                         -> exit 1,
 #      with the reason that nothing was found, never a green over nothing
 #   6. this repository's own tracked YAML passes                  -> exit 0
+#   7. a file list: a broken file outside the list is not judged  -> exit 0;
+#      the broken file in the list is                             -> exit 1, named
+#   8. a listed path that is no file                              -> exit 1, named
+# Mutation proofs (a weakened COPY of the gate must turn a red case green):
+#   A. the exit status swallowed: case 2
+#   B. discovery back to a fixed file: case 3 (nested .yaml)
+#   C. zero targets passing: case 5
+#   D. the file list ignored (the whole tree linted): case 7 turns red
 
 set -uo pipefail
 
@@ -121,7 +132,7 @@ else
   indent_out "$OUT"
 fi
 
-# 4. forsgren#204: a NEW file is untracked while the gates run (FBP commits
+# 4. a NEW file is untracked while the gates run (FBP commits
 #    after them), so a broken file on disk, not in the index and not ignored,
 #    is a target too.
 D="$TMP/untracked_broken"
@@ -172,6 +183,92 @@ if [ "$RC" -eq 0 ]; then
 else
   fail "this repository's tracked YAML should pass, got exit $RC"
   indent_out "$OUT"
+fi
+
+# run_list <case-dir> <file>... — the checker with a file list. Sets RC and OUT.
+run_list() {
+  local dir="$1"
+  shift
+  OUT="$(YAMLLINT_ROOT="$dir" bash "$SCRIPT_UNDER_TEST" "$@" 2>&1)"
+  RC=$?
+}
+
+# 7. A file list: only the listed files are judged.
+L="$TMP/file_list"
+make_case "$L"
+add_file "$L" "ok.yml" "$CLEAN_YML"
+add_file "$L" "broken.yml" "$BROKEN_YML"
+run_list "$L" ok.yml
+if [ "$RC" -eq 0 ]; then
+  ok "a file list: a broken file outside the list is not judged"
+else
+  fail "the broken file is outside the list and must not be judged, got exit $RC"
+  indent_out "$OUT"
+fi
+run_list "$L" broken.yml
+if [ "$RC" -ne 0 ] && [[ "$OUT" == *"broken.yml"* ]]; then
+  ok "a file list: the broken file in the list is red, named"
+else
+  fail "the broken file in the list should be red and named, got exit $RC"
+  indent_out "$OUT"
+fi
+
+# 8. A listed path that is no file is red, named.
+run_list "$L" ok.yml missing.yml
+if [ "$RC" -ne 0 ] && [[ "$OUT" == *"missing.yml"* ]]; then
+  ok "a file list naming a missing file is red, named"
+else
+  fail "a listed missing file should be red and named, got exit $RC"
+  indent_out "$OUT"
+fi
+
+# --- Mutation proofs. mutant_green <label> <sed-expr> <case-dir> <ok text>:
+# a weakened copy of the gate (with its lib and the real config) must turn the
+# red case green. A sed that changes nothing is a failed proof.
+mutant_green() {
+  local label="$1" expr="$2" case_dir="$3" text="$4" md="$TMP/mutant_$1" mrc mout
+  mkdir -p "${md}/Scripts"
+  cp "${ROOT}/Scripts/lib_repo_files.sh" "${md}/Scripts/"
+  cp "${ROOT}/.yamllint.yml" "${md}/.yamllint.yml"
+  sed "$expr" "$SCRIPT_UNDER_TEST" > "${md}/Scripts/check_yamllint.sh"
+  if cmp -s "$SCRIPT_UNDER_TEST" "${md}/Scripts/check_yamllint.sh"; then
+    fail "mutation ${label}: the sed changed nothing, the proof would be vacuous"
+    return 0
+  fi
+  mout="$(YAMLLINT_ROOT="$case_dir" bash "${md}/Scripts/check_yamllint.sh" 2>&1)"
+  mrc=$?
+  if [ "$mrc" -eq 0 ]; then
+    ok "mutation proof ${label}: ${text}"
+  else
+    fail "mutation proof ${label}: the weakened copy stayed red (exit ${mrc}), so the case is not red for the stated reason"
+    indent_out "$mout"
+  fi
+}
+
+mutant_green A 's/^exit "[$]rc"/exit 0/' "$B" \
+  "a copy that swallows the exit status turns the root finding green"
+mutant_green B "s#repo_files \. '\\*\\.yml' '\\*\\.yaml'#repo_files . 'config.yml'#" "$C" \
+  "a copy that reads a fixed file does not see the nested .yaml, so any-depth discovery is what catches it"
+mutant_green C '/no \.yml or \.yaml file found/{n;s/exit 1/exit 0/;}' "$E" \
+  "a copy that passes on zero targets turns case 5 green"
+# D: the file list ignored. The weakened copy lints the whole tree, so the
+# listed clean file is no longer green: the broken one outside the list is judged.
+md="$TMP/mutant_D"
+mkdir -p "${md}/Scripts"
+cp "${ROOT}/Scripts/lib_repo_files.sh" "${md}/Scripts/"
+cp "${ROOT}/.yamllint.yml" "${md}/.yamllint.yml"
+sed 's/^if \[ "[$]#" -gt 0 \]; then$/if false; then/' "$SCRIPT_UNDER_TEST" > "${md}/Scripts/check_yamllint.sh"
+if cmp -s "$SCRIPT_UNDER_TEST" "${md}/Scripts/check_yamllint.sh"; then
+  fail "mutation D: the sed changed nothing, the proof would be vacuous"
+else
+  mout="$(YAMLLINT_ROOT="$L" bash "${md}/Scripts/check_yamllint.sh" ok.yml 2>&1)"
+  mrc=$?
+  if [ "$mrc" -ne 0 ] && [[ "$mout" == *"broken.yml"* ]]; then
+    ok "mutation proof D: a copy that ignores the file list judges the file outside it, so case 7 is what catches that"
+  else
+    fail "mutation proof D: the weakened copy did not judge the file outside the list (exit ${mrc})"
+    indent_out "$mout"
+  fi
 fi
 
 if [ "$failed" -ne 0 ]; then

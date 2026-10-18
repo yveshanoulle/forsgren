@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_exit_trap_completion_behaviour v1
+# canon: test_exit_trap_completion_behaviour v2
 # Scripts/test_exit_trap_completion_behaviour.sh
 #
 # The BEHAVIOUR behind Scripts/check_exit_trap_completion.sh.
@@ -56,13 +56,18 @@ setup_gate_htmlhint() {
 }
 probe_case gate_htmlhint Scripts/gate_htmlhint.sh "$ROOT" setup_gate_htmlhint Site
 
-# build_site.sh (forsgren's own case): a stub go, since the probe is hit before
-# anything is rendered but after the `go build` line.
+# build_site.sh, for a repository whose build script is in the gate's scope (a
+# top-level EXIT trap): a stub go, since the probe is hit before anything is
+# rendered but after the `go build` line. A repository whose script is not in
+# scope, or has none, has no such case; probe_require_all below still fails for
+# any covered script that has no case.
 setup_build_site() {
   printf '#!/usr/bin/env bash\nexit 0\n' > "$1/bin/go"
   chmod +x "$1/bin/go"
 }
-probe_case build_site Scripts/build_site.sh "$ROOT" setup_build_site
+if grep -qxF -- "Scripts/build_site.sh" <<< "$(probe_trapped_scripts "$ROOT")"; then
+  probe_case build_site Scripts/build_site.sh "$ROOT" setup_build_site
+fi
 
 # This self-test's sibling: its only column-0 trap line sits inside a heredoc
 # fixture, so an injected probe would land in fixture text; its real trap comes

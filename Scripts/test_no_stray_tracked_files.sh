@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_no_stray_tracked_files v1
+# canon: test_no_stray_tracked_files v2
 # Scripts/test_no_stray_tracked_files.sh
 #
 # No stray files in what the next commit would carry. The
@@ -230,8 +230,8 @@ if [[ -z "${STRAY_MUTANT_RUN:-}" ]]; then
     local root="${TMP}/mutant-${name}"
     mkdir -p "${root}/Scripts"
     cp Scripts/lib_selftest.sh "${root}/Scripts/lib_selftest.sh"
-    cp Scripts/lib_repo_files.sh "${root}/Scripts/lib_repo_files.sh"
     cp Scripts/lib_git_sandbox.sh "${root}/Scripts/lib_git_sandbox.sh"
+    cp Scripts/lib_repo_files.sh "${root}/Scripts/lib_repo_files.sh"
     cp Scripts/test_no_stray_tracked_files.sh "${root}/Scripts/test_no_stray_tracked_files.sh"
     if [[ "$script_sed" != "-" ]]; then
       selftest_mutant Scripts/test_no_stray_tracked_files.sh "${root}/Scripts/test_no_stray_tracked_files.sh" "$script_sed" || return 0

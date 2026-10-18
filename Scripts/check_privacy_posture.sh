@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: check_privacy_posture v1
+# canon: check_privacy_posture v2
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
@@ -182,7 +182,12 @@ else
 fi
 
 echo "  links   outbound destinations visitors can choose to follow:"
-outbound="$(grep -rhoE '<a[^>]+href="https?://[^"]+"' "$SITE" --include='*.html' 2>/dev/null \
+# The HTML is joined into one line first: a formatter puts href on a later line
+# than `<a`, and a line-by-line scan would miss that link and then print the
+# false "links nowhere" below.
+outbound="$(find "$SITE" -type f -name '*.html' -exec cat {} + 2>/dev/null \
+  | tr '\n' ' ' \
+  | grep -oE '<a[[:space:]][^>]*href="https?://[^"]+"' \
   | grep -oE 'https?://[a-zA-Z0-9.-]+' \
   | sed -E 's#https?://##' \
   | sort | uniq -c | sort -rn || true)"

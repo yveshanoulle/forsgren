@@ -1,60 +1,81 @@
 #!/usr/bin/env bash
+# canon: check_shellcheck v2
 # Shellcheck — every shell script git tracks or will commit (tracked, or
-# untracked and not ignored: Scripts/lib_repo_files.sh, forsgren#204), DERIVED rather than named, so a
-# new script is covered the moment it is added instead of when someone
-# remembers to list it here. Two sources feed the target list:
+# untracked and not ignored: Scripts/lib_repo_files.sh), DERIVED rather than
+# named, so a new script is covered the moment it is added instead of when
+# someone remembers to list it here. Two sources feed the target list:
 #   1. every such *.sh file (any directory, any depth)
 #   2. every such extension-less file whose first line is a bash/sh
 #      shebang — a wrapper script without an extension would otherwise slip
 #      through both the *.sh glob and human memory
-# In another estate repository, where this gate comes from, a named list plus a Scripts/*.sh
-# glob used to live here: the glob kept Scripts/ covered automatically, but
-# every OTHER directory needed a name added by hand, and one such directory
-# (another estate repository's extracted server/sbin/*.sh wrappers) was simply never added —
-# it shellchecked nothing, in sfl or CI, until another estate repository's copy of
-# Scripts/test_check_shellcheck.sh proved it. forsgren has no server/sbin;
-# the self-test keeps that path as fixture data.
+# A named list plus a Scripts/*.sh glob used to live here in several sites of
+# the estate: the glob kept Scripts/ covered automatically, but every OTHER
+# directory needed a name added by hand, and one such directory (extracted
+# server wrappers) was simply never added — it shellchecked nothing, in sfl or
+# CI. The self-test keeps such a path as fixture data.
 #
-# EXCLUDE_ALLOWED lists tracked shell scripts deliberately left out of this
-# check, one per line. Empty is the normal state: every tracked shell
-# script is expected to pass shellcheck as-is. An exclusion needs all
-# three of:
-#   (a) the entry here;
-#   (b) a sentence in docs/quality-gates.md naming the script and the
-#       reason (another estate repository, where this gate comes from, asks for a row in its
-#       documentation/check-parity.md instead; forsgren has no such file);
-#   (c) Yves's explicit yes, recorded on a GitHub issue that the README
-#       sentence links.
-# An exception costs a deliberate, approved decision, never a silent skip
-# (ruling 1B, forsgren#1, 2026-10-01). A plain string, not an array: an
-# empty bash 3.2 array under `set -u` is a fatal expansion on macOS, and
-# this list is expected to stay empty.
+# Scripts/shellcheck_exclusions.txt lists tracked shell scripts deliberately
+# left out of this check, one path per line. Empty is the normal state: every
+# shell script is expected to pass shellcheck as-is. An exclusion needs all
+# three of: the entry there; a sentence in documentation/gate-classification.md
+# naming the script and the reason; an explicit yes recorded on an issue that
+# sentence links. The file is required and read fail closed: missing, a
+# malformed line or an entry that is not a file is red, never a skip. It is
+# always this repository's file (next to this script), not the SHELLCHECK_ROOT
+# fixture's.
 #
 # Testing seam: SHELLCHECK_ROOT overrides the repo root so
 # Scripts/test_check_shellcheck.sh can drive target collection against a
-# synthetic git tree (same pattern as another estate repository's check_sfl_ci_parity.sh
-# SFL_FILE).
+# synthetic git tree.
 #
-# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 12), the estate
-# canon; adapted only in these comments, which named another estate repository's own files.
+# Byte-identical across the estate's repositories: what differs per site is data.
 # sfl.sh runs it from Scripts/gate_report_order.txt, and so does CI, through
 # Scripts/run_ci_phase.sh.
 #
-# Optional arguments (forsgren#231, Scripts/precheck.sh): with file names (relative
-# to the root), only those files are checked, with the same shellcheck -x call;
-# without, the derived list above. Nothing else changes.
+# Optional file list (estate issue 301): with paths after the program name
+# (relative to the root), only those files are checked, with the same -x
+# call and the same exclusions file; without, the derived list
+# above, exactly as before. A listed path that is not a file is red, named. A
+# list whose files are all excluded checks nothing and says so.
 #
 # Local invocation: ./Scripts/check_shellcheck.sh [file...]
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=Scripts/lib_repo_files.sh
-source "$(cd "$(dirname "$0")" && pwd)/lib_repo_files.sh"
+source "${SCRIPT_DIR}/lib_repo_files.sh"
 
-ROOT="${SHELLCHECK_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+ROOT="${SHELLCHECK_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+EXCLUSIONS_FILE="${SCRIPT_DIR}/shellcheck_exclusions.txt"
 cd "$ROOT"
 
+# Same PATH sfl.sh sets. CI invokes this script directly rather than through
+# sfl, and a Homebrew tool that is not on the runner's PATH would otherwise read
+# as "no such command" rather than as the tool it is.
+export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
+
+if ! command -v shellcheck >/dev/null 2>&1; then
+  echo "❌ FAIL: shellcheck is not installed — this gate cannot run, and a gate that cannot run must not report a pass" >&2
+  echo "   brew install shellcheck" >&2
+  exit 1
+fi
+
+# A plain string, not an array: an empty bash 3.2 array under `set -u` is a
+# fatal expansion on macOS, and this list is expected to stay empty.
 EXCLUDE_ALLOWED=""
+if [ ! -f "$EXCLUSIONS_FILE" ]; then
+  echo "❌ FAIL: shellcheck: ${EXCLUSIONS_FILE} is missing — there is no default, and no verdict without it" >&2
+  exit 1
+fi
+while IFS= read -r line || [ -n "$line" ]; do
+  case "$line" in '' | '#'*) continue ;; esac
+  if ! [[ "$line" =~ ^[A-Za-z0-9_][A-Za-z0-9_./-]*$ ]] || [ ! -f "$ROOT/$line" ]; then
+    echo "❌ FAIL: shellcheck: ${EXCLUSIONS_FILE}: '${line}' is not a path of an existing file — fix the line, the gate does not guess" >&2
+    exit 1
+  fi
+  EXCLUDE_ALLOWED="${EXCLUDE_ALLOWED}${line}"$'\n'
+done < "$EXCLUSIONS_FILE"
 
 # collect_targets — prints every candidate path, one per line, deduped and
 # sorted by the caller.
@@ -78,7 +99,20 @@ collect_targets() {
 
 targets=()
 if [ "$#" -gt 0 ]; then
-  targets=("$@")
+  for f in "$@"; do
+    if [ ! -f "$f" ]; then
+      echo "❌ FAIL: shellcheck: listed file not found: ${f}" >&2
+      exit 1
+    fi
+    if printf '%s\n' "$EXCLUDE_ALLOWED" | grep -qxF "$f"; then
+      continue
+    fi
+    targets+=("$f")
+  done
+  if [ "${#targets[@]}" -eq 0 ]; then
+    echo "shellcheck: every listed file is in the exclusions file, nothing to check"
+    exit 0
+  fi
 else
   while IFS= read -r f; do
     [ -n "$f" ] || continue
@@ -101,9 +135,21 @@ fi
 # sources a sibling introduced in the same, not-yet-committed change: sfl
 # runs shellcheck on the working tree BEFORE staging/committing, so a brand
 # new sourced file is untracked; `collect_targets` lists untracked, not-ignored
-# files too (forsgren#204), and -x also reads one that is ignored or not a
+# files too, and -x also reads one that is ignored or not a
 # target, since the file genuinely exists on disk and IS what will
 # be sourced at runtime. -x reads the real file either way, so it checks
 # what actually runs rather than depending on git's index at the moment sfl
 # happens to run.
-shellcheck -x "${targets[@]}"
+#
+# THE WHOLE REPORT GOES TO A FILE. sfl's end-of-run Errors: block quotes only
+# the first few lines of a failing gate, the wrong size for a linter reading
+# many scripts at once. .build/ is gitignored, so the log is readable after the
+# run without being committed.
+mkdir -p .build
+rc=0
+shellcheck -x "${targets[@]}" 2>&1 | tee .build/shellcheck.log || rc=$?
+
+if [ "$rc" -ne 0 ]; then
+  echo "(full report: ${ROOT}/.build/shellcheck.log)" >&2
+fi
+exit "$rc"

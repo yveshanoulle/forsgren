@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_check_html_dupl v1
+# canon: test_check_html_dupl v2
 # Scripts/test_check_html_dupl.sh
 
 set -euo pipefail
@@ -195,10 +195,10 @@ check_says "the default target is the settings' html_dupl_target" "in ${WANT_TAR
 # A lowered ceiling in the settings turns the real site red. The real target is
 # copied into a throwaway root so the real settings file stays untouched.
 new_root lowered "$CHECK" "$WANT_TARGET" 0.1
-mkdir -p "$(dirname "${ROOT}/${WANT_TARGET}")"  # forsgren: a nested target such as internal/page/templates
+mkdir -p "$(dirname "${ROOT}/${WANT_TARGET}")"  # a nested target such as internal/page/templates
 cp -R "$WANT_TARGET" "${ROOT}/${WANT_TARGET}"
-# forsgren: the real target measures 0.00%, so no ceiling can be lowered under
-# it. The throwaway copy gets one page twice, a clone, so it measures above 0.1.
+# A site whose real target measures 0.00% has no ceiling to lower under it, so
+# the throwaway copy gets one page twice, a clone, and measures above 0.1.
 _first="$(find "${ROOT}/${WANT_TARGET}" -name '*.html' | LC_ALL=C sort | head -1)"
 cp "$_first" "${_first%.html}-copy.html"
 run_root
@@ -218,7 +218,7 @@ check_says "the settings' target is the one named" "under empty"
 # A missing settings file is exit 2, never a guessed default.
 new_root nosettings "$CHECK" "$WANT_TARGET" 99
 rm "${ROOT}/Scripts/site_settings.txt"
-mkdir -p "$(dirname "${ROOT}/${WANT_TARGET}")"  # forsgren: a nested target such as internal/page/templates
+mkdir -p "$(dirname "${ROOT}/${WANT_TARGET}")"  # a nested target such as internal/page/templates
 cp -R "$WANT_TARGET" "${ROOT}/${WANT_TARGET}"
 run_root
 check "a missing site_settings.txt is exit 2, no guessed default" 2 "$RC"
@@ -271,7 +271,7 @@ fi
 
 # --- Mutation proof C: a copy with the ceiling hard-coded -------------------
 MUTANT_C="${TMP}/mutant_c.sh"
-sed 's/^  \[ -n "[$]MAX_PCT" \] || MAX_PCT=.*$/  MAX_PCT=38.4/' "$CHECK" > "$MUTANT_C"
+sed 's/^  \[ -n "[$]MAX_PCT" \] || MAX_PCT=.*$/  MAX_PCT=99/' "$CHECK" > "$MUTANT_C"
 if cmp -s "$CHECK" "$MUTANT_C"; then
   echo "  ❌ mutation proof C: the sed no longer matches the ceiling read, so this proof proves nothing"
   failures=$((failures + 1))

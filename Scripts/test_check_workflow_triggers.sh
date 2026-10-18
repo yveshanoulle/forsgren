@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_check_workflow_triggers v1
+# canon: test_check_workflow_triggers v2
 # Scripts/test_check_workflow_triggers.sh
 #
 # Self-test for Scripts/check_workflow_triggers.sh, run in pre
@@ -243,9 +243,9 @@ want_rc "19. this repository's workflows pass with their exceptions file" 0
 [[ "$RC" -eq 0 ]] || printf '%s\n' "$OUT" | sed 's/^/    /'
 
 capture "$GATE" .github/workflows "$NOEXC"
-# forsgren: every job runs on a GitHub-hosted image, so the exceptions file has
-# no row and the empty file changes nothing. The case is red-without-the-row
-# only for a repository whose file carries a row.
+# A repository whose jobs all run on GitHub-hosted images has no row in its
+# exceptions file, and the empty file changes nothing: the case is
+# red-without-the-row only for a repository whose file carries a row.
 if grep -qvE '^[[:space:]]*(#|$)' Scripts/workflow_trigger_exceptions.txt; then
   want_rc "20. this repository's workflows are red without the exception row" 1
   want_said "20. the finding names quality.yml and pull_request" "quality.yml: triggers on pull_request"

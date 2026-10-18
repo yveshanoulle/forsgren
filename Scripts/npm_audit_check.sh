@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# canon: npm_audit_check v1
+# canon: npm_audit_check v2
 # npm_audit_check.sh — npm-audit gate with one-shot self-heal (GATE_FIX=1 only)
 # and ruled, weekly exceptions.
 #
+# The estate's npm-audit gate: a high or critical advisory is red, one
+# self-heal is allowed under GATE_FIX=1, and a transitive finding no fix reaches
+# is a ruled, dated exception.
+#
 # Contract (pinned by test_npm_audit_check.sh):
-# Ported from another estate repository Scripts/admin/ — unit 393 — and in
-# its exception form from forsgren's Scripts/npm_audit_check.sh (forsgren#13),
-# wholesale, for a transitive finding no fix reaches.
 #
 #   exit 0 — no high or critical advisory outside a ruled exception, possibly
 #            after ONE `npm audit fix` (re-verified) when GATE_FIX=1; a heal

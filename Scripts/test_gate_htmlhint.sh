@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_gate_htmlhint v1
+# canon: test_gate_htmlhint v2
 # Scripts/test_gate_htmlhint.sh
 #
 # Self-test for Scripts/gate_htmlhint.sh, the HTMLHint post gate, run in PRE
@@ -114,8 +114,8 @@ new_root() {
   chmod +x "${ROOT}/Scripts/gate_htmlhint.sh"
   cp "${3:-$CONFIG}" "${ROOT}/.htmlhintrc"
   cp "${REPO_ROOT}/Scripts/lib_site_settings.sh" "${ROOT}/Scripts/"
-  # forsgren: the repository's own site_dir is .build/site, which does not exist
-  # when this self-test runs (pre phase), so the throwaway root states the Site/
+  # A repository's own site_dir may not exist when this self-test runs (a build
+  # output, absent in the pre phase), so the throwaway root states the Site/
   # these cases build instead of copying the repository's settings.
   printf 'site_dir=Site\nhtml_dupl_target=Site\nhtml_dupl_ceiling=1.0\nrequired_pages_manifest=m.json\n' > "${ROOT}/Scripts/site_settings.txt"
   ln -s "${REPO_ROOT}/node_modules" "${ROOT}/node_modules"

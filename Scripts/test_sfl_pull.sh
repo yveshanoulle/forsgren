@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_sfl_pull v1
+# canon: test_sfl_pull v2
 set -euo pipefail
 
 cd "$(dirname "$0")/.." || exit 1

@@ -1,64 +1,66 @@
 #!/usr/bin/env bash
-# Scripts/test_quality_trigger_scope.sh
-
+# canon: test_quality_trigger_scope v1
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# The gates must actually be reachable — unit 391, ported from
-# coachretreat-website's unit 390 the day it was found there.
+# The gates must actually be reachable.
 #
-# Ported from another estate repository 2026-10-01 (forsgren#1, ladder step 14).
-# konenki's history, which is why this check exists:
+# quality.yml runs the repository's gates, so on paper CI checks everything sfl
+# checks. A workflow gated behind a narrow paths filter (say the site directory
+# plus the workflow file) runs only the gates that read those paths, and the
+# fixtures that pin the release shape and the deploy workflow would run ONLY in
+# sfl: nothing but a local run would stand between a broken deploy pin and main.
 #
-#   quality.yml was gated behind `paths: ["Site/**", ".github/workflows/
-#   quality.yml"]`, so a commit touching only Scripts/ or sfl.sh triggered
-#   nothing at all, and the file its fixtures pin sat
-#   outside the trigger of the workflow that checks it. A green CI then
-#   means "nothing ran", which is indistinguishable from "everything
-#   passed".
+# The sharp edge is not the fixtures going unrun. It is that the fixtures exist
+# to pin deploy-feta.yml, and a commit changing ONLY deploy-feta.yml fires
+# neither Quality nor the deploy (which chains off the completion of Quality):
+# **the file the checks guard sits outside the trigger of the workflow that
+# checks it.** A green CI then means "nothing ran", which is indistinguishable
+# from "everything passed".
 #
-# THE RULE (konenki's): either Quality has no paths filter, or the filter
-# covers every path the gates read or build from. A filter is allowed — an
-# incorrect one is not.
+# A separate workflow just to avoid widening Quality was weighed and rejected:
+# two mechanisms for one job is how the next person fails to find where a check
+# lives. An occasional extra feta deploy after a gate edit is accepted.
 #
-# FORSGREN'S ANSWER TO THE RULE: no paths filter at all. Several gates here
-# read EVERY tracked file, not a directory: the secret scan (the whole working
-# tree), the data guard (installation config or data at any depth), stray
-# tracked files (a .DS_Store or a workflow copy anywhere) and script
-# references (every script, workflow, order file and doc). No glob list short
-# of everything covers those, so the only filter that keeps the rule is none.
-# a repository whose deploy chains off its Quality run may keep a filter, so a
-# documentation edit does not fire the deploy; nothing chains off forsgren's.
-# So this check pins, on .github/workflows/quality.yml:
-#   1. a push trigger on main exists (without one nothing runs on a push, and
-#      the absence passes every filter check silently);
-#   2. the push trigger has no `paths:` and no `paths-ignore:` filter;
-#   3. a pull_request trigger on main exists, also with no `paths:` and no
-#      `paths-ignore:` filter, and there is no pull_request_target;
-#   4. workflow_dispatch exists, so a run can be started by hand;
-#   5. every job runs on `macos-latest`, GitHub's hosted macOS image.
+# THE RULE: either Quality has no paths filter, or the filter covers every
+# path the gates read. A filter is allowed — an incorrect one is not.
 #
-# PINS 3 AND 5 GO TOGETHER (Yves's rulings on forsgren#1, road to public,
-# the runner swap). Quality runs on GitHub's `macos-latest`, a throwaway
-# virtual machine per run, so a contributor's pull request shows the same
-# gate results as a local FBP run. pull_request, NEVER pull_request_target:
-# a fork's pull request then gets a read-only token and no secrets, and its
-# code runs on a machine that is thrown away after the job. This is
-# konenki's second pin (it requires a pull_request trigger), which forsgren
-# did not port while Quality ran on a self-hosted runner. The runner pin is
-# what keeps pin 3 safe: Scripts/check_workflow_triggers.sh would also turn
-# red on a pull_request trigger with a job off GitHub-hosted runners, over
-# every workflow, but this check names the one runner Quality must have, so a
-# swap to another hosted image (or back to a self-hosted one) is a decision
-# made here first.
+# Pull requests: Quality keeps its pull_request trigger (a ruling, recorded in
+# Scripts/workflow_trigger_exceptions.txt), and it must keep one. judge() only
+# inspects events that EXIST: an absent event has no paths filter to be wrong
+# about, so a repo with no pull_request trigger would score perfectly while
+# checking nothing before merge. That gap is its own assertion (Pin 2).
 #
-# Self-proving: the same judge runs against synthetic workflows at the end,
-# a narrow paths filter, a paths-ignore filter, a missing push trigger, a
-# missing or filtered pull_request trigger, a pull_request_target trigger,
-# a self-hosted runner and another hosted image, and MUST reject each, and
-# must accept the right shape. Without that this file would pass the moment
-# its matcher broke and could never be shown failing again.
+# Self-proving: the same check runs against a synthetic narrow-filter workflow
+# at the end and MUST reject it, and against the real workflow with each
+# required glob removed, one at a time. Without that this file would pass the
+# moment the filter was removed and could never be shown failing again.
+#
+# Per-repo values are data: the site directory (Scripts/site_settings.txt) and
+# any extra globs (Scripts/quality_trigger_globs.txt). The rest is canon.
+
+# Entries the filter must contain LITERALLY. Deliberately not a prefix test:
+# `.github/workflows/quality.yml` starts with `.github/workflows/` while
+# covering none of the other workflows, so a prefix match would call the
+# current, broken filter correct. What is required is a glob spanning the
+# whole directory.
+CANON_GLOBS=(
+  "Scripts/**"                        # every gate, its test, the order file, the data files
+  "sfl.sh"                            # the local gate the CI loop mirrors
+  "FullBuildAndPush.sh"               # read by the --no-push self-test
+  ".github/workflows/**"              # every workflow the fixtures pin
+  ".github/zizmor.yml"                # zizmor's configuration: the gate reads it, no workflow glob covers it
+  "package.json"                      # what npm ci installs
+  "package-lock.json"
+  ".nvmrc"                            # the Node pin
+  ".htmlhintrc"                       # lint and scan configuration the gates read
+  ".stylelintrc*"
+  ".yamllint*"
+  ".gitleaks.toml"
+  ".actionlint.yaml"
+  "**/*.md"                           # the markdown-links gate reads every *.md
+)
 
 COMPLETED=0
 finish() {
@@ -67,209 +69,155 @@ finish() {
     exit 1
   fi
 }
-
 trap finish EXIT
 
 failed=0
-fail() {
-  echo "❌ FAIL: $*"
-  failed=1
+fail() { echo "❌ FAIL: $*"; failed=1; }
+
+# shellcheck source=Scripts/lib_site_settings.sh
+source Scripts/lib_site_settings.sh
+
+# load_required_globs <extra-globs-file>: fills REQUIRED_GLOBS with the canon
+# list, the site directory's glob (read from data) and the repo's extra globs
+# (data). Fails closed: a missing settings or extras file is an error.
+load_required_globs() {
+  local extras="$1" site line
+  site="$(site_settings_get Scripts/site_settings.txt site_dir)" || return 1
+  [[ -f "$extras" ]] || { echo "extra globs file is missing: ${extras}" >&2; return 1; }
+  REQUIRED_GLOBS=("${CANON_GLOBS[@]}" "${site}/**")
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    case "$line" in '' | '#'*) continue ;; esac
+    REQUIRED_GLOBS+=("$line")
+  done < "$extras"
 }
 
 # judge <workflow-file> -> prints one problem per line; silent when the
-# trigger is right.
+# trigger reaches every required glob.
 #
-# Read with awk rather than a YAML parser on purpose: PyYAML is a module,
-# not a command, so Scripts/required_tools.txt cannot declare it and nothing
-# installs it on the hosted runner, and a fixture that dies on a missing
-# module is a gate that stopped gating. The shape it reads is the one this
-# repo writes: `on:` at column 0, each event two spaces in, its keys four;
-# a job's runs-on four spaces in.
-
-# event_block <workflow-file> <event>: that event's own keys, up to the next
-# event or top-level key.
-event_block() {
-  awk -v ev="$2" '
-    $0 ~ ("^  " ev ":[[:space:]]*$") { inev=1; next }
-    inev && /^  [a-z_]+:/ { inev=0 }
-    inev && /^[a-z]/      { inev=0 }
-    inev                  { print }
-  ' "$1"
-}
-
-# judge_event <workflow-file> <event> <why>: the event must run on
-# branches ["main"], with no paths and no paths-ignore filter.
-judge_event() {
-  local wf="$1" ev="$2" why="$3" block
-  block="$(event_block "$wf" "$ev")"
-  if ! grep -qE '^    branches:[[:space:]]*\[[[:space:]]*"?main"?[[:space:]]*\][[:space:]]*$' <<< "$block"; then
-    echo "${ev}: does not run on branches [\"main\"] — ${why}"
-  fi
-  if grep -qE '^    paths:' <<< "$block"; then
-    echo "${ev}: has a paths filter — the secret scan, the data guard, stray tracked files and script references read every tracked file, so any filter leaves a change that runs no gate at all"
-  fi
-  if grep -qE '^    paths-ignore:' <<< "$block"; then
-    echo "${ev}: has a paths-ignore filter — the secret scan, the data guard, stray tracked files and script references read every tracked file, so an ignored path is one a secret or a stray file can arrive through unchecked"
-  fi
-}
-
-# judge <workflow-file> -> prints one problem per line; silent when the
-# trigger and the runner are right.
+# Read with awk rather than a YAML parser on purpose: pyyaml is not
+# guaranteed on the self-hosted runner, and a fixture that dies on a missing
+# module is a gate that stopped gating. The shape it reads is the one these
+# repos write — `paths:` under push/pull_request, one `- "glob"` per line.
 judge() {
-  local wf="$1" runners runner
-  if ! grep -qE '^  push:[[:space:]]*$' "$wf"; then
-    echo "has no push trigger — nothing runs on a push to main, and a CI that never ran looks exactly like a CI that passed"
-  else
-    judge_event "$wf" push "every commit on main must run the gates"
-  fi
+  local wf="$1" event paths want
+  for event in push pull_request; do
+    # The paths block for this event, or empty when there is none.
+    paths="$(awk -v ev="$event" '
+      $0 ~ "^  " ev ":[[:space:]]*$" { inev=1; next }
+      inev && /^  [a-z_]+:/           { inev=0 }
+      inev && /^    paths:[[:space:]]*$/ { inpaths=1; next }
+      inpaths && /^    [a-z_]+:/      { inpaths=0 }
+      inpaths && /^      - / {
+        line=$0
+        sub(/^      - /, "", line)
+        gsub(/"/, "", line)
+        print line
+      }
+    ' "$wf")"
 
-  if ! grep -qE '^  pull_request:[[:space:]]*$' "$wf"; then
-    echo "has no pull_request trigger — a contributor's pull request would show no gate result, only the DCO check (forsgren#1: Quality runs on pull requests)"
-  else
-    judge_event "$wf" pull_request "every pull request into main must run the gates"
-  fi
-  if grep -qE '^  pull_request_target:' "$wf"; then
-    echo "has a pull_request_target trigger — it runs with the base repository's token and secrets while a fork's code is checked out; Quality uses pull_request only"
-  fi
+    # No paths block: this event triggers on everything. Nothing to check.
+    [[ -z "$paths" ]] && continue
 
-  if ! grep -qE '^  workflow_dispatch:' "$wf"; then
-    echo "has no workflow_dispatch trigger — a run cannot be started by hand, so checking the runner means pushing a commit"
-  fi
-
-  runners="$(sed -nE 's/^    runs-on:[[:space:]]*(.*[^[:space:]])[[:space:]]*$/\1/p' "$wf")"
-  if [[ -z "$runners" ]]; then
-    echo "has no job with a runs-on this check can read — Quality must run on macos-latest"
-  fi
-  while IFS= read -r runner; do
-    [[ -n "$runner" ]] || continue
-    if [[ "$runner" != "macos-latest" ]]; then
-      echo "has a job on runs-on: ${runner}, not macos-latest — Quality runs on GitHub's hosted macOS image (forsgren#1, the runner swap), a throwaway machine per run, which is what makes its pull_request trigger safe"
-    fi
-  done <<< "$runners"
+    for want in "${REQUIRED_GLOBS[@]}"; do
+      if ! grep -qxF -- "$want" <<< "$paths"; then
+        echo "${event}: paths does not contain ${want}"
+      fi
+    done
+  done
 }
 
 WF=".github/workflows/quality.yml"
+EXTRAS="Scripts/quality_trigger_globs.txt"
 if [[ ! -f "$WF" ]]; then
   echo "FAIL: $WF not found" >&2
   exit 1
 fi
+load_required_globs "$EXTRAS" || { echo "FAIL: the required globs could not be loaded" >&2; exit 1; }
 
 out="$(judge "$WF")"
 if [[ -n "$out" ]]; then
   while IFS= read -r line; do
-    [[ -n "$line" ]] && fail "${WF} ${line}"
+    [[ -n "$line" ]] && fail "${WF} ${line} — a change there runs no gate at all, and a CI that never ran looks exactly like a CI that passed"
   done <<< "$out"
-else
-  echo "  ok: ${WF} runs on every push to and pull request into main, with no paths filter, and by hand, on macos-latest"
 fi
 
-# --- Self-proof: each wrong shape MUST be rejected, the right one accepted.
+# --- Pin 2: pull_request must be a trigger at all (see the header).
+if ! grep -qE '^  pull_request:' "$WF"; then
+  fail "${WF} has no pull_request trigger — every gate here would be push-to-main only, so a pull request is checked by nothing and the first run happens after the change has already landed"
+fi
+
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"; finish' EXIT
 
-# write_workflow <name> <on-block> [runs-on]: a minimal workflow with that
-# `on:` block, its one job on macos-latest unless a runs-on is given.
-write_workflow() {
-  {
-    echo "name: Sample"
-    echo "on:"
-    printf '%s\n' "$2"
-    echo "jobs:"
-    echo "  lint:"
-    echo "    runs-on: ${3:-macos-latest}"
-    echo "    steps:"
-    echo "      - run: echo hi"
-  } > "${TMP}/$1.yml"
-}
-
-write_workflow narrow '  push:
+# --- Self-proof 1: a deliberately narrow filter MUST be rejected.
+cat > "${TMP}/narrow.yml" <<'YML'
+name: Narrow
+on:
+  push:
     branches: ["main"]
     paths:
-      - "Scripts/**"
-  pull_request:
-    branches: ["main"]
-  workflow_dispatch:'
-write_workflow ignore '  push:
-    branches: ["main"]
-    paths-ignore:
-      - "**.md"
-  pull_request:
-    branches: ["main"]
-  workflow_dispatch:'
-write_workflow nopush '  pull_request:
-    branches: ["main"]
-  workflow_dispatch:'
-write_workflow nodispatch '  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]'
-write_workflow nopr '  push:
-    branches: ["main"]
-  workflow_dispatch:'
-write_workflow prnarrow '  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
-    paths:
-      - "internal/**"
-  workflow_dispatch:'
-write_workflow prtarget '  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
-  pull_request_target:
-    branches: ["main"]
-  workflow_dispatch:'
-write_workflow selfhosted '  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
-  workflow_dispatch:' '[self-hosted, macOS, ARM64]'
-write_workflow ubuntu '  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
-  workflow_dispatch:' 'ubuntu-latest'
-write_workflow right '  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
-  workflow_dispatch:'
-
-# rejects <name> <expected> <what>: the judge must name <expected> for it.
-rejects() {
-  local verdict
-  verdict="$(judge "${TMP}/$1.yml")"
-  if grep -qF -- "$2" <<< "$verdict"; then
-    echo "  ok: ${3} is rejected"
-  else
-    fail "the synthetic workflow with ${3} was ACCEPTED (verdict: ${verdict:-none}) — this check cannot detect the defect it exists for"
-  fi
-}
-
-rejects narrow     "has a paths filter"            "a narrow paths filter"
-rejects ignore     "has a paths-ignore filter"     "a paths-ignore filter"
-rejects nopush     "has no push trigger"           "no push trigger"
-rejects nodispatch "has no workflow_dispatch"      "no workflow_dispatch trigger"
-rejects nopr       "has no pull_request trigger"   "no pull_request trigger"
-rejects prnarrow   "pull_request: has a paths filter" "a paths filter on pull_request"
-rejects prtarget   "has a pull_request_target"     "a pull_request_target trigger"
-rejects selfhosted "not macos-latest"              "a self-hosted runner"
-rejects ubuntu     "runs-on: ubuntu-latest, not macos-latest" "another GitHub-hosted image"
-
-right_verdict="$(judge "${TMP}/right.yml")"
-if [[ -z "$right_verdict" ]]; then
-  echo "  ok: push to and pull_request into main with no filter, plus workflow_dispatch, on macos-latest, is accepted"
+      - "Site/**"
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hi
+YML
+if [[ -z "$(judge "${TMP}/narrow.yml")" ]]; then
+  fail "the synthetic narrow-filter workflow was ACCEPTED — this check cannot detect the defect it exists for"
 else
-  fail "the synthetic workflow with the right trigger was REJECTED (${right_verdict}) — the judge would keep this check red on a correct quality.yml"
+  echo "  ok: synthetic narrow filter correctly rejected"
+fi
+
+# --- Self-proof 2: the real workflow with ONE required glob removed MUST be
+# rejected, for EVERY required glob (the canon list, the site glob and the
+# extras), and the rejection must name that glob.
+for glob in "${REQUIRED_GLOBS[@]}"; do
+  grep -vF -- "- \"${glob}\"" "$WF" > "${TMP}/without.yml" || true
+  if cmp -s "$WF" "${TMP}/without.yml"; then
+    fail "removing ${glob} from a copy of ${WF} changed nothing — the proof matches nothing"
+  elif ! grep -qF -- "does not contain ${glob}" <<< "$(judge "${TMP}/without.yml")"; then
+    fail "a quality.yml without ${glob} was ACCEPTED — the scope check cannot see that glob"
+  else
+    echo "  ok: a filter without ${glob} is rejected"
+  fi
+done
+
+# --- Self-proof 3: a glob from the extras file is required like a canon one,
+# and a missing extras file is an error, not an empty list.
+printf '# an extra glob\nNope/**\n' > "${TMP}/extras.txt"
+saved=("${REQUIRED_GLOBS[@]}")
+load_required_globs "${TMP}/extras.txt"
+if grep -qF -- "does not contain Nope/**" <<< "$(judge "$WF")"; then
+  echo "  ok: a glob from the extras file is required"
+else
+  fail "an extra glob the workflow lacks was ACCEPTED — the extras file is read but not enforced"
+fi
+REQUIRED_GLOBS=("${saved[@]}")
+if load_required_globs "${TMP}/absent.txt" 2>/dev/null; then
+  fail "a missing extras file was accepted — the data has no default"
+else
+  echo "  ok: a missing extras file is an error"
+fi
+REQUIRED_GLOBS=("${saved[@]}")
+
+# --- Self-proof 4: the real workflow without its pull_request trigger MUST be
+# rejected by Pin 2's test (the event name is the only thing changed).
+sed 's/^  pull_request:/  pull_requested:/' "$WF" > "${TMP}/no_pr.yml"
+if cmp -s "$WF" "${TMP}/no_pr.yml"; then
+  fail "renaming the pull_request trigger in a copy changed nothing — the proof matches nothing"
+elif grep -qE '^  pull_request:' "${TMP}/no_pr.yml"; then
+  fail "a quality.yml without a pull_request trigger still passes Pin 2's test"
+else
+  echo "  ok: a workflow without a pull_request trigger is rejected by Pin 2"
 fi
 
 COMPLETED=1
 
 if [[ "$failed" -ne 0 ]]; then
   echo ""
-  echo "FAIL: quality.yml's trigger or runner is not the shape forsgren#1 rules: every push to and pull request into main, and by hand, on macos-latest"
+  echo "FAIL: quality.yml's trigger does not reach everything its gates check"
   exit 1
 fi
 
-echo "OK: quality.yml runs on every push to main, every pull request into it and by hand, on macos-latest, with no paths filter to leave a change unchecked (and each wrong shape is still detected)"
+echo "OK: quality.yml triggers on every path its gates read (and a narrow filter is still detected)"
