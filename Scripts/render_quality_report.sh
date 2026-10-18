@@ -43,6 +43,11 @@ ROWS="${1:?usage: render_quality_report.sh <rows-file> <details-dir> [order-file
 DETAILS="${2:?usage: render_quality_report.sh <rows-file> <details-dir> [order-file]}"
 ORDER="${3:-Scripts/gate_report_order.txt}"
 
+# The details file's name and the anchor of the gate's section: the label with
+# every character outside A-Za-z0-9 turned into _ (as Scripts/run_ci_phase.sh
+# names the file). The link in the table is #gate-<slug>.
+gate_slug() { printf '%s' "$1" | tr -c 'A-Za-z0-9' '_'; }
+
 total="$(grep -v '^#' "$ORDER" | grep '|' | grep -vc '^[^|]*|n/a|')"
 ran=0
 [ -f "${ROWS:-}" ] && ran="$(grep -c '|' "$ROWS" || true)"
@@ -53,15 +58,32 @@ if [ "$ran" -eq 0 ]; then
   echo "**No gate reported.** The job stopped before any gate ran —"
   echo "check the setup steps, not the gates."
 else
-  echo "| Gate | Result |"
-  echo "|---|:-:|"
+  echo "| Gate | Checks | Result |"
+  echo "|---|--:|:-:|"
   # Declared order, not run order: the site reports must list the same gates
   # in the same places to be read side by side.
   grep -v '^#' "$ORDER" | while IFS='|' read -r label script _; do
     [ -n "$label" ] || continue
-    if [ "${script:-}" = "n/a" ]; then echo "| ${label} | n/a |"; continue; fi
+    if [ "${script:-}" = "n/a" ]; then echo "| ${label} | n/a | n/a |"; continue; fi
     mark="$(awk -F'|' -v l="$label" '$1 == l { print $2 }' "$ROWS")"
-    if [ -n "$mark" ]; then echo "| ${label} | ${mark} |"; fi
+    [ -n "$mark" ] || continue
+    slug="$(gate_slug "$label")"
+    cell="$label"
+    checks="not readable"
+    if [ -r "${DETAILS}/${slug}.md" ]; then
+      # forsgren#219: Checks is the number of the gate's own `ok:` and `✅`
+      # lines (every gate prints one per passing check). The heading line
+      # starts with `####`, so it is never one. No such line is `not counted`,
+      # never 0: a gate that prints none has not been measured, and 0 would
+      # read as a gate that ran nothing. An unreadable file is `not readable`.
+      checks="not counted"
+      n="$(grep -cE '^[[:space:]]*(ok:|✅)' "${DETAILS}/${slug}.md")"
+      grc=$?
+      if [ "$grc" -ge 2 ]; then checks="not readable"; elif [ "$n" -gt 0 ]; then checks="$n"; fi
+      # The label links to its section only when the section exists below.
+      cell="[${label}](#gate-${slug})"
+    fi
+    echo "| ${cell} | ${checks} | ${mark} |"
   done
   echo ""
   echo "_${ran} of ${total} gates reported._"
@@ -75,12 +97,18 @@ else
   # Detail in the SAME declared order as the table above.
   grep -v '^#' "$ORDER" | while IFS='|' read -r label _; do
     [ -n "$label" ] || continue
-    slug="$(printf '%s' "$label" | tr -c 'A-Za-z0-9' '_')"
+    slug="$(gate_slug "$label")"
     # `if`, not `[ -f … ] && cat`. THIS LINE IS THE WHOLE UNIT. As the last
     # command of the last loop of the last group, its status became the step's:
     # a declared row with no details file — an `n/a` gate, or any gate the run
     # never reached — returned 1, and the report failed while every gate
     # passed. `if … fi` returns 0 when the condition is false.
-    if [ -f "${DETAILS}/${slug}.md" ]; then cat "${DETAILS}/${slug}.md"; fi
+    # The anchor is explicit, not the heading's generated one: that one
+    # depends on how GitHub strips the emoji of "#### ✅ label".
+    if [ -f "${DETAILS}/${slug}.md" ]; then
+      echo ""
+      echo "<a id=\"gate-${slug}\"></a>"
+      cat "${DETAILS}/${slug}.md"
+    fi
   done
 fi

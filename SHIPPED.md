@@ -9,6 +9,15 @@ Active work lives in
 
 ---
 
+## 2026-10-18 — the Quality report shows what each gate checked ([#219](https://github.com/yveshanoulle/forsgren/issues/219))
+
+The gate table of the Quality run report is now the place to see what is checked.
+
+- A Checks column: the number of `ok:` and check-mark lines in each gate's own output. A gate that prints none shows `not counted`, never 0; a gate whose details cannot be read shows `not readable`.
+- Each gate label links to its section below the table, through an explicit anchor (`gate-` and the label with every character outside A-Za-z0-9 turned into `_`); the rule is pinned in a test. Whether GitHub keeps the anchors in a job summary is proved on a real run, not in this change.
+- CONTRIBUTING.md gets a "What we check" list, generated from `Scripts/gate_report_order.txt` by `Scripts/render_gate_list.sh` and kept in sync by a test.
+- Red first. Mutation proofs: 0 for an uncounted gate, no links, no anchors, an unreadable gate shown as not counted, the verdict line counted.
+
 ## 2026-10-18 — a read-only pre-check before a Release ([#231](https://github.com/yveshanoulle/forsgren/issues/231), step 3)
 
 The 1.11.0 Release stopped at its plan on an issue closed two minutes after 1.10.0 with no label; nothing said so before the run.

@@ -712,6 +712,14 @@ for path in Scripts/*.sh; do
         || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the pre-check"
       ;;
 
+    # GENERATOR, not a gate (forsgren#219): prints the "What we check" list of
+    # CONTRIBUTING.md from the order file. Scripts/test_render_quality_report.sh,
+    # an order-file row, runs it and compares its output with CONTRIBUTING.md.
+    render_gate_list.sh)
+      runs_script "Scripts/test_render_quality_report.sh" "$base" \
+        || fail "${base} generates the CONTRIBUTING.md gate list and Scripts/test_render_quality_report.sh, the row that keeps the two in sync, never runs it"
+      ;;
+
     # SOURCED HELPER, not a gate (estate canon): the engine of the exit-trap
     # behaviour test, which sources it. The test is its own order-file row.
     lib_exit_trap_probe.sh)
