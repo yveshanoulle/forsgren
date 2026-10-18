@@ -14,6 +14,8 @@ Active work lives in
 When the release plan stops, the run summary lists every blocking issue in a table (issue, why it blocks, what to do), and the error annotation names the issue numbers.
 
 - `Scripts/release_plan.sh` prints a `blocking=` machine line per blocking issue next to its red line, from the same data; `Scripts/release_report.sh` renders the table from the plan's output. The generic cause is said only when the plan names no issue.
+- The job summary of a failed run starts with a red ❌ instead of the literal `::error::` (the annotation stays in the log), and every table row starts with a red ❌ in an icon column.
+- The table has a blank line before its header and after its last row, so GitHub renders it (pinned in `Scripts/test_release_report.sh`, with a mutation proof for a table glued to the sentence above).
 - Red first for the machine lines and the table; mutation proofs for a plan without the machine line of an open issue and a report that renders only the first issue.
 
 ## 2026-10-18 — the Release runs a short Quality on its bump commit ([#230](https://github.com/yveshanoulle/forsgren/issues/230), step 2)

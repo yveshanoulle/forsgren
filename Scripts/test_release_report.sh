@@ -17,7 +17,7 @@
 #      with no release (resume = publish, a plain rerun cannot work), released
 #      with a pin step failed (resume = pins, never by hand); one ::notice::
 #   4e. the plan stopped on named issues (forsgren#232): a table
-#      `| Issue | Blocks because | Do |`, one row per blocking issue in the
+#      `|  | Issue | Blocks because | Do |` (a red ❌ first in every row), one row per blocking issue in the
 #      plan's order, read from the plan's machine lines (RELEASE_PLAN_OUTPUT);
 #      links when the repo is known; the annotation names the numbers; the
 #      generic cause only when no issue is named
@@ -180,13 +180,39 @@ printf '%s\n' \
 plan_case token quality
 CASE="plan with named issues"
 want_said "$CASE: the table header" "| Issue | Blocks because | Do |"
-want_said "$CASE: unlabelled row" "| [#221](https://github.com/acme/app/issues/221) No label yet | closed since v1.10.0, no patch, minor or major label | label it patch, minor or major |"
-want_said "$CASE: open row, a bar in the title is escaped" "| [#231](https://github.com/acme/app/issues/231) Half \\| landed | open, with commits on main since v1.10.0 | close it, or split it (close the landed part as its own issue, move the rest to a new one) |"
-want_said "$CASE: bump row" "| [#240](https://github.com/acme/app/issues/240) Add a view | needs minor, the run asked for minor | start Release with bump = minor |"
+want_said "$CASE: unlabelled row" "| ❌ | [#221](https://github.com/acme/app/issues/221) No label yet | closed since v1.10.0, no patch, minor or major label | label it patch, minor or major |"
+want_said "$CASE: open row, a bar in the title is escaped" "| ❌ | [#231](https://github.com/acme/app/issues/231) Half \\| landed | open, with commits on main since v1.10.0 | close it, or split it (close the landed part as its own issue, move the rest to a new one) |"
+want_said "$CASE: bump row" "| ❌ | [#240](https://github.com/acme/app/issues/240) Add a view | needs minor, the run asked for minor | start Release with bump = minor |"
 if [[ "$(grep -n -F '#221](' <<< "$OUT" | cut -d: -f1)" -ge "$(grep -n -F '#231](' <<< "$OUT" | cut -d: -f1)" || "$(grep -n -F '#231](' <<< "$OUT" | cut -d: -f1)" -ge "$(grep -n -F '#240](' <<< "$OUT" | cut -d: -f1)" ]]; then fail "$CASE: the rows are not in the plan's order. Output: ${OUT}"; else echo "  ok: $CASE: the rows are in the plan's order"; fi
 want_said "$CASE: the annotation names the numbers" "(plan), blocked by #221, #231, #240."
 if grep -qF "label the issues the plan names" <<< "$OUT"; then fail "$CASE: the generic cause is said although issues are named. Output: ${OUT}"; else echo "  ok: $CASE: no generic cause"; fi
 want_said "$CASE: start again" "start Release again"
+# GitHub renders a table only after a blank line, and the line after it
+# must be blank too, or the next line becomes a table row.
+table_framed() { # <text>: blank line before the header, blank after the last row
+  local text="$1" head last
+  head="$(grep -nF '| Issue | Blocks because | Do |' <<< "$text" | head -n 1 | cut -d: -f1)"
+  [[ -n "$head" ]] || return 1
+  last="$(grep -n '^|' <<< "$text" | tail -n 1 | cut -d: -f1)"
+  [[ -z "$(sed -n "$((head - 1))p" <<< "$text")" && "$head" -gt 1 ]] || return 1
+  [[ "$(wc -l <<< "$text")" -gt "$last" && -z "$(sed -n "$((last + 1))p" <<< "$text")" ]]
+}
+# every row starts with the red cross and has 4 cells; the header names 4 columns
+row_findings() { # <text>: one line per table row that is not "| ❌ | ... |" with 4 cells
+  local row
+  while IFS= read -r row; do
+    [[ "$row" == "| ❌ | "* ]] || { echo "row without the red cross: ${row}"; continue; }
+    [[ "$(grep -o ' | ' <<< "$row" | wc -l | tr -d ' ')" -ge 3 ]] || echo "row with fewer than 4 cells: ${row}"
+  done < <(grep '^| ' <<< "$1" | grep -vF '|  | Issue |')
+}
+GITHUB_STEP_SUMMARY="${TMP}/summary4.md" plan_case token quality
+SUMMARY4="$(cat "${TMP}/summary4.md")"
+if [[ -n "$(row_findings "$SUMMARY4")" ]]; then fail "$CASE: $(row_findings "$SUMMARY4")"; else echo "  ok: $CASE: every row starts with the red cross and has 4 cells"; fi
+want_said "$CASE: the header has the icon column" "|  | Issue | Blocks because | Do |"
+if grep -qF '::' "${TMP}/summary4.md"; then fail "$CASE: the job summary holds workflow-command text ('::'). Summary: ${SUMMARY4}"; else echo "  ok: $CASE: no workflow command in the job summary"; fi
+if [[ "$(head -n 1 "${TMP}/summary4.md")" == "❌ The release run ended as failure at the step 'Plan the release' (plan), blocked by #221, #231, #240." ]]; then echo "  ok: $CASE: the summary headline is a red cross"; else fail "$CASE: the summary headline is: $(head -n 1 "${TMP}/summary4.md")"; fi
+if [[ "$(head -n 1 <<< "$OUT")" == "::error::The release run ended as failure"* ]]; then echo "  ok: $CASE: the log keeps the ::error:: annotation"; else fail "$CASE: the log has no ::error:: headline. Output: ${OUT}"; fi
+if table_framed "$OUT"; then echo "  ok: $CASE: a blank line before and after the table"; else fail "$CASE: the table has no blank line before its header or after its last row (it would not render). Output: ${OUT}"; fi
 if [[ "$(grep -cF '| Issue | Blocks because | Do |' <<< "$OUT")" -ne 1 ]]; then fail "$CASE: the table is not printed exactly once. Output: ${OUT}"; else echo "  ok: $CASE: the table is printed once"; fi
 one_notice
 no_hand
@@ -195,7 +221,7 @@ plan_case token quality
 want_said "$CASE: the run's own bump is in the reason" "needs minor, the run asked for patch"
 export RELEASE_BUMP=minor
 GITHUB_REPOSITORY="" GH_REPO="" plan_case token quality
-want_said "$CASE: without a repo the issue is plain" "| #221 No label yet | closed since v1.10.0"
+want_said "$CASE: without a repo the issue is plain" "| ❌ | #221 No label yet | closed since v1.10.0"
 if grep -qF 'issues/221' <<< "$OUT"; then fail "$CASE: a link without a known repo. Output: ${OUT}"; else echo "  ok: $CASE: no link without a repo"; fi
 GH_REPO=other/repo GITHUB_REPOSITORY=acme/app plan_case token quality
 want_said "$CASE: GH_REPO wins for links" "https://github.com/other/repo/issues/221"
@@ -330,11 +356,11 @@ mutant() {
 
 logged token quality
 outcomes plan failure
-if mutant success "s/if \[ \".STATUS\" = success \]; then/if true; then/"; then
+if mutant success "s/^if \\[ \".STATUS\" != success \\]; then\$/if false; then/"; then
   report "$LOG" failure
   if grep -q '::error::' <<< "$OUT"; then fail "mutation proof: the mutant still reports the failure"; else echo "  ok: mutation proof: a failure reported as success has no ::error::"; fi
 fi
-if mutant notdone 's/^    echo "Not done: .*$/    true/'; then
+if mutant notdone '/^Not done: /d'; then
   report "$LOG" failure
   if grep -q 'Not done' <<< "$OUT"; then fail "mutation proof: the mutant still lists what was not done"; else echo "  ok: mutation proof: without the list a half-made release is a guess"; fi
 fi
@@ -373,6 +399,27 @@ outcomes plan failure
 if [[ -x "${TMP}/mut/firstonly/release_report.sh" ]]; then
   RELEASE_PLAN_OUTPUT="$PLAN_OUT" report "$LOG" failure
   if grep -qF '#231' <<< "$OUT"; then fail "mutation proof: the mutant still renders #231. Output: ${OUT}"; else echo "  ok: mutation proof: a report that renders only the first issue leaves out #231, and case 4e names it"; fi
+fi
+# A table glued to the sentence above it (no blank line) must be caught.
+printf '%s\n' "blocking=221${TABS}unlabelled${TABS}No label yet${TABS}v1.10.0" > "$PLAN_OUT"
+if mutant glued '/^            cause="The plan stopped; these issues block the release:$/{n;d;}'; then
+  logged token quality
+  outcomes plan failure
+  RELEASE_PLAN_OUTPUT="$PLAN_OUT" report "$LOG" failure
+  if table_framed "$OUT"; then fail "mutation proof: the glued table was not caught. Output: ${OUT}"; else echo "  ok: mutation proof: a table without the blank line before it is caught by the framing case"; fi
+fi
+# ::error:: written into the job summary must be caught.
+logged token quality
+outcomes plan failure
+if mutant summaryerr "s/'❌ %s/'::error::%s/"; then
+  GITHUB_STEP_SUMMARY="${TMP}/summary5.md" RELEASE_PLAN_OUTPUT="$PLAN_OUT" report "$LOG" failure
+  if grep -qF '::error::' "${TMP}/summary5.md"; then echo "  ok: mutation proof: an ::error:: line in the job summary is what case 4e catches"; else fail "mutation proof: the mutant did not write ::error:: into the summary"; fi
+fi
+# A row without the red cross must be caught, naming the issue.
+if mutant nocross "s/}| ❌ | /}| /"; then
+  GITHUB_STEP_SUMMARY="${TMP}/summary6.md" RELEASE_PLAN_OUTPUT="$PLAN_OUT" report "$LOG" failure
+  found="$(row_findings "$(cat "${TMP}/summary6.md")")"
+  if grep -qF '#221' <<< "$found"; then echo "  ok: mutation proof: a row without the red cross is caught, naming #221"; else fail "mutation proof: the row without the red cross was not caught. Findings: ${found}"; fi
 fi
 unset SCRIPT RELEASE_STEP_OUTCOMES
 

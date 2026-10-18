@@ -147,14 +147,14 @@ blocking_table() {
         action="read the plan step"
         ;;
     esac
-    rows="${rows}| ${link} ${title} | ${reason} | ${action} |
+    rows="${rows}| ❌ | ${link} ${title} | ${reason} | ${action} |
 "
     BLOCKED_NUMS="${BLOCKED_NUMS}${BLOCKED_NUMS:+, }#${number}"
     n_blocked=$((n_blocked + 1))
   done <<< "$(grep '^blocking=' "$file" || true)"
   [ "$n_blocked" -gt 0 ] || return 0
-  BLOCKED_TABLE="| Issue | Blocks because | Do |
-|---|---|---|
+  BLOCKED_TABLE="|  | Issue | Blocks because | Do |
+|---|---|---|---|
 ${rows%
 }"
 }
@@ -198,7 +198,9 @@ Next: fix the cause and start the same resume again (resume = ${RELEASE_RESUME:-
         plan)
           if [ -n "$BLOCKED_TABLE" ]; then
             cause="The plan stopped; these issues block the release:
-${BLOCKED_TABLE}"
+
+${BLOCKED_TABLE}
+"
           elif [ -n "${RELEASE_PLAN_OUTPUT:-}" ] && [ -f "$RELEASE_PLAN_OUTPUT" ] && grep -q 'nothing was closed since' "$RELEASE_PLAN_OUTPUT"; then
             cause="Cause: nothing was closed since the last release."
           else
@@ -221,27 +223,44 @@ ${cause:+${cause}
 }
 if [ "$STATUS" != success ] && [ -n "$failed_id" ]; then advise; fi
 
-{
-  if [ "$STATUS" = success ]; then
-    echo "Release run finished. Done:"
-    printf '%s' "$DONE"
+# The headline of a failed run is a workflow command in the log (::error::,
+# an annotation) and the same sentence with a red ❌ in the job summary, where
+# a workflow command is plain text. HEADLINE is empty on success.
+HEADLINE=""
+if [ "$STATUS" != success ]; then
+  if [ -n "$failed_id" ]; then
+    HEADLINE="The release run ended as ${STATUS} at the step '$(name_of "$failed_id")' (${failed_id})${BLOCKED_NUMS:+, blocked by ${BLOCKED_NUMS}}."
+  elif [ -z "${RELEASE_STEP_OUTCOMES:-}" ]; then
+    HEADLINE="The release run ended as ${STATUS}; the failed step is unknown (the step outcomes were not passed)."
   else
-    if [ -n "$failed_id" ]; then
-      echo "::error::The release run ended as ${STATUS} at the step '$(name_of "$failed_id")' (${failed_id})${BLOCKED_NUMS:+, blocked by ${BLOCKED_NUMS}}."
-    elif [ -z "${RELEASE_STEP_OUTCOMES:-}" ]; then
-      echo "::error::The release run ended as ${STATUS}; the failed step is unknown (the step outcomes were not passed)."
-    else
-      echo "::error::The release run ended as ${STATUS}; no step reports a failure (a step outside the list, or the run was stopped)."
-    fi
-    echo "Already done:"
-    if [ -n "$DONE" ]; then printf '%s' "$DONE"; else echo "- nothing"; fi
-    echo "Not done: ${MISSING:-nothing}"
-    echo "A bump commit that was pushed stays on main, a tag exists only together with its release."
-    if [ -n "$ADVICE" ]; then
-      echo "What to do next:"
-      printf '%s\n' "$ADVICE"
-    fi
+    HEADLINE="The release run ended as ${STATUS}; no step reports a failure (a step outside the list, or the run was stopped)."
   fi
-} | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}"
+fi
+BODY=""
+if [ "$STATUS" = success ]; then
+  BODY="Release run finished. Done:
+${DONE%
+}"
+else
+  BODY="Already done:
+${DONE:-- nothing
+}"
+  BODY="${BODY%
+}
+Not done: ${MISSING:-nothing}
+A bump commit that was pushed stays on main, a tag exists only together with its release."
+  if [ -n "$ADVICE" ]; then
+    BODY="${BODY}
+What to do next:
+${ADVICE}"
+  fi
+fi
+if [ -n "$HEADLINE" ]; then
+  printf '::error::%s\n%s\n' "$HEADLINE" "$BODY"
+  if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then printf '❌ %s\n%s\n' "$HEADLINE" "$BODY" >> "$GITHUB_STEP_SUMMARY"; fi
+else
+  printf '%s\n' "$BODY"
+  if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then printf '%s\n' "$BODY" >> "$GITHUB_STEP_SUMMARY"; fi
+fi
 if [ -n "$NOTICE" ]; then echo "::notice::${NOTICE}"; fi
 COMPLETED=1

@@ -595,16 +595,18 @@ one `::notice::` line, by the stage the failure is in:
   When the plan stopped, the run page lists every issue that blocks the
   release in a table, one row per issue, in the plan's order:
 
-  | Issue | Blocks because | Do |
-  |---|---|---|
-  | #N title (linked to the issue) | closed since vX.Y.Z, no patch, minor or major label | label it patch, minor or major |
-  | #N title (linked to the issue) | open, with commits on main since vX.Y.Z | close it, or split it (close the landed part as its own issue, move the rest to a new one) |
-  | #N title (linked to the issue) | needs minor, the run asked for patch | start Release with bump = minor |
+  |  | Issue | Blocks because | Do |
+  |---|---|---|---|
+  | ❌ | #N title (linked to the issue) | closed since vX.Y.Z, no patch, minor or major label | label it patch, minor or major |
+  | ❌ | #N title (linked to the issue) | open, with commits on main since vX.Y.Z | close it, or split it (close the landed part as its own issue, move the rest to a new one) |
+  | ❌ | #N title (linked to the issue) | needs minor, the run asked for patch | start Release with bump = minor |
 
   The rows are the plan's own machine lines (`blocking=<N>`, kind, title,
   tag), printed next to its red lines, so the page and the plan cannot
-  disagree. The same table is in the step log, and the red annotation names
-  the issue numbers (`blocked by #221, #231`). The generic cause is said only
+  disagree. The same table is in the step log. The headline of a failed run
+  is the annotation `::error::...` in the log and `❌ ...` in the job summary
+  (a workflow command is plain text there); both name the issue numbers
+  (`blocked by #221, #231`). The generic cause is said only
   when the plan names no issue; "nothing was closed since the last release"
   is one sentence, not a table.
 - *The bump commit is on `main` but no release exists* (Quality on it, or the
