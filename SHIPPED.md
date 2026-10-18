@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-18 — a release bump commit is checked to hold only the version bump ([#230](https://github.com/yveshanoulle/forsgren/issues/230), step 1)
+
+A bump commit that changed more than the version, or sat on a commit Quality was not green on, would have been released as it was.
+
+- `Scripts/release_bump_diff.sh <bump-sha> <green-parent-sha> <old> <new>` is green only when the commit's one parent is the green commit, every changed file is only modified and one the bump may change, and every changed line is its old line with the version replaced (the newer-release example too); each violation is a `FAIL: bump diff:` line naming file and line.
+- The files the bump may change are one list, `Scripts/release_bump_scope.txt`, read by `Scripts/release_bump.sh` and the check alike, so they cannot drift.
+- Red first in `Scripts/test_release_bump_diff.sh` (the real bump on a fixture repository; an extra line, an extra file, a mode change, a wrong parent, a merge commit, a version replaced in a line that also changes); mutation proofs for no parent comparison and for accepting any line of an allowed file. `MIN_GATES` 137 to 138. Not yet wired into the Release workflow (step 2).
+
 ## 2026-10-18 — the release plan stops on open issues that already landed ([#229](https://github.com/yveshanoulle/forsgren/issues/229))
 
 An open issue with a commit on main since the latest release ships with the release anyway, because the release tags main as it is, while its notes and its bump miss it.

@@ -1,0 +1,18 @@
+# Scripts/release_bump_scope.txt
+#
+# The files a release bump may change (forsgren#230), once. Scripts/release_bump.sh
+# rewrites exactly these, and Scripts/release_bump_diff.sh refuses a bump commit
+# that changes any other file, so the two cannot drift. Read through
+# Scripts/lib_release_bump_scope.sh. SHIPPED.md and the npm files are not here:
+# the bump leaves them alone.
+#
+# One row per set: <kind>|<path>|<name suffix>
+#   tree  every file below <path>, at any depth, whose name ends in the suffix
+#   dir   the files directly in <path> whose name ends in the suffix
+#   file  the one file <path> (the suffix is empty)
+tree|cmd/forsgren|.go
+tree|cmd/forsgren|.golden.html
+tree|internal/page|.go
+tree|internal/page|.golden.html
+file|README.md|
+dir|docs|.md

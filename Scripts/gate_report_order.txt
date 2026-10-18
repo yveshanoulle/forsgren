@@ -743,7 +743,9 @@ live check self-test|Scripts/test_live_check.sh|pre|
 # (the token's expiry on the first line of the run page), release_verify_pin.sh
 # (a pin pull request changes only the pins) and release_metrics.sh (merge it and
 # run forsgren in forsgren-metrics until green) and
-# release_report.sh (what was done). What runs on every sfl and Quality
+# release_report.sh (what was done); release_bump_diff.sh (forsgren#230: the bump
+# commit holds only the version bump, on the green parent) follows the workflow
+# row below. What runs on every sfl and Quality
 # run is their self-tests (fixture data, a stub gh, throwaway repositories, a
 # copy of the repository with `go test ./...` on it) and the pin of the
 # workflow itself, which holds the order, the permissions and the arguments.
@@ -759,6 +761,7 @@ release token expiry self-test|Scripts/test_release_token_expiry.sh|pre|
 release verify pin self-test|Scripts/test_release_verify_pin.sh|pre|
 release metrics self-test|Scripts/test_release_metrics.sh|pre|
 release workflow|Scripts/test_release_workflow.sh|pre|
+release bump diff self-test|Scripts/test_release_bump_diff.sh|pre|
 git sandbox isolation self-test|Scripts/test_git_sandbox_isolation.sh|pre|
 git sandbox guard self-test|Scripts/test_git_sandbox_guard.sh|pre|
 #

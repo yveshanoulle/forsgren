@@ -13,9 +13,9 @@
 #   3. every golden page and every test that names the version changed
 #   4. a version that is malformed, equal to the current one or lower, a
 #      missing argument -> exit 2 with its reason, the copy untouched
-# Mutation proofs: a copy that no longer rewrites the golden pages must be
-# refused by the script itself, naming the page that still holds the old
-# version; a copy that also lost that check must let it through (exit 0).
+# Mutation proofs: a copy whose scope list (Scripts/release_bump_scope.txt)
+# lost the golden pages must be refused by the script itself, naming the page
+# that still holds the old version; a copy that also lost that check must let it through (exit 0).
 
 set -euo pipefail
 
@@ -142,15 +142,15 @@ fi
 
 # Mutation proofs.
 fresh mutant
-MUT="${TMP}/mutant/Scripts/release_bump.sh"
-selftest_mutant "$BUMP" "$MUT" "s/ -o -name '\\*\\.golden\\.html'//" || true
+selftest_mutant "${BASE}/Scripts/release_bump_scope.txt" "${TMP}/mutant/Scripts/release_bump_scope.txt" '/golden\.html/d' || true
 bump mutant "$NEXT_PATCH"
 want_red "mutation proof: a bump that skips the golden pages is refused" "still holds ${CURRENT}"
 want_said "the refusal names a golden page" "internal/page/testdata/"
 
 fresh mutant2
 MUT2="${TMP}/mutant2/Scripts/release_bump.sh"
-selftest_mutant "$BUMP" "$MUT2" "s/ -o -name '\\*\\.golden\\.html'//; s/^verify_nothing_missed\$/true/" || true
+selftest_mutant "${BASE}/Scripts/release_bump_scope.txt" "${TMP}/mutant2/Scripts/release_bump_scope.txt" '/golden\.html/d' || true
+selftest_mutant "$BUMP" "$MUT2" 's/^verify_nothing_missed$/true/' || true
 bump mutant2 "$NEXT_PATCH"
 want_green "mutation proof: without the check, the skipped golden pages pass the script" "OK: bumped"
 

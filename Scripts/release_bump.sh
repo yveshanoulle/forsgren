@@ -15,6 +15,8 @@
 #     page footer), "forsgren X.Y.Z needs more configuration" (also across a
 #     line break) and the "Built with" example. Release history in the docs
 #     ("Upgrading to 1.9.2") stays.
+# The files it may change are listed once, in Scripts/release_bump_scope.txt,
+# which Scripts/release_bump_diff.sh (forsgren#230) holds a bump commit to.
 # Not touched, as in the manual commits: SHIPPED.md (its entry is prose, written
 # per release) and the npm files (their versions are dependencies).
 #
@@ -37,6 +39,8 @@ COMPLETED=0
 trap '[ "$COMPLETED" -eq 1 ] || { echo "❌ FAIL: release_bump.sh aborted before completing (COMPLETED was never set)" >&2; exit 1; }' EXIT
 
 cd "$(dirname "$0")/.." || exit 1
+# shellcheck source=Scripts/lib_release_bump_scope.sh
+source Scripts/lib_release_bump_scope.sh
 
 usage() {
   echo "usage: Scripts/release_bump.sh <new-version>   (X.Y.Z, greater than the current one)" >&2
@@ -91,12 +95,12 @@ rewrite() {
 # The tests and the golden pages that pin the version.
 while IFS= read -r file; do
   rewrite "$file" "s/$(token "$OLD_EXAMPLE")/${NEW_EXAMPLE}/g; s/$(token "$OLD")/${NEW}/g"
-done < <(find cmd/forsgren internal/page -type f \( -name '*.go' -o -name '*.golden.html' \) | sort)
+done < <(bump_scope_list tree)
 
 # The docs name the running version in three places.
-for file in README.md docs/*.md; do
+while IFS= read -r file; do
   rewrite "$file" "s/(Forsgren\\s+)$(token "$OLD")/\${1}${NEW}/g; s/(forsgren\\s+)$(token "$OLD")(\\s+needs more configuration)/\${1}${NEW}\${2}/g; s/(built the page, \"forsgren )$(token "$OLD")/\${1}${NEW}/g"
-done
+done < <(bump_scope_list file dir)
 
 # verify_nothing_missed: the bump's own check, independent of the rewrite
 # above (it lists every file of the two directories, whatever its type).

@@ -159,11 +159,12 @@ fi
 # workflow (forsgren#221, step 2 of 2), and to 132 for the self-test of
 # release_resume.sh (forsgren#221, the resume), and to 133 for the self-test of
 # release_token_expiry.sh (forsgren#221, step 4), and to 135 for the self-tests of
-# release_verify_pin.sh and release_metrics.sh (forsgren#221, step 5).
+# release_verify_pin.sh and release_metrics.sh (forsgren#221, step 5), and
+# to 138 for the self-test of release_bump_diff.sh (forsgren#230, step 1).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=137
+MIN_GATES=138
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -537,6 +538,28 @@ for path in Scripts/*.sh; do
       require_fixture "$base" "the release step would be unproven"
       order_names "test_${base}" \
         || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
+      ;;
+
+    # THE BUMP DIFF CHECK (forsgren#230, step 1): checks the bump commit. The
+    # Release workflow does not call it yet (step 2 wires it in and pins that
+    # in Scripts/test_release_workflow.sh), so for now its self-test must be an
+    # order-file row, and it must read the one list of the files a bump may change.
+    release_bump_diff.sh)
+      require_fixture "$base" "the bump commit check would be unproven"
+      order_names "test_${base}" \
+        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
+      grep -qF 'lib_release_bump_scope.sh' "Scripts/${base}" \
+        || fail "${base} does not source Scripts/lib_release_bump_scope.sh — its list of allowed files could drift from the bump's"
+      ;;
+
+    # SOURCED HELPER, not a gate (forsgren#230): the files a release bump may
+    # change, read by release_bump.sh and release_bump_diff.sh alike. The
+    # self-test of the latter proves it.
+    lib_release_bump_scope.sh)
+      order_names "test_release_bump_diff.sh" \
+        || fail "${base} is read by the bump check and Scripts/test_release_bump_diff.sh is not an order-file row"
+      grep -qF 'lib_release_bump_scope.sh' Scripts/release_bump.sh \
+        || fail "${base} lists the files of a bump and Scripts/release_bump.sh never reads it — the list could drift"
       ;;
 
     # THE PIN CHECK of the Release workflow's metrics step (forsgren#221, step 5):

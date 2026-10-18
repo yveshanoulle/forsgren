@@ -486,6 +486,17 @@ and stops at the first step that fails:
    old version. Then `go test ./...` runs on the bumped tree. A new major
    needs the proof runs of the agent files, which no script can do: it fails
    here, before anything is pushed.
+   The files the bump may change are listed once, in
+   `Scripts/release_bump_scope.txt`, which the bump rewrites from and the check
+   of the next paragraph reads.
+   `Scripts/release_bump_diff.sh <bump-sha> <green-parent-sha> <old> <new>`
+   holds the bump commit to that: its only parent is the commit Quality was
+   green on, every changed file is only modified and in the list (`SHIPPED.md`
+   is not), every hunk removes as many lines as it adds, and each added line is
+   its removed line with only the version replaced (the old version by the new
+   one, the newer-release example by the one after the new version). It prints
+   one `FAIL: bump diff: file:line changes more than the version` line per
+   violation, or `OK:`.
 5. **The bump commit** (`Scripts/release_commit.sh`), as `github-actions[bot]`
    with a DCO sign-off, the subject `release X.Y.Z (1/1): bump to X.Y.Z, #N #M`,
    checked by `Scripts/check_private_names.sh --message` first, pushed to
