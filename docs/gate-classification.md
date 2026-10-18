@@ -21,7 +21,7 @@ not close it.
 ## The order file, row by row
 
 [Scripts/gate_report_order.txt](../Scripts/gate_report_order.txt) is the one
-list sfl and CI both run. It has 142 rows: 138 with a script and 4 `n/a`
+list sfl and CI both run. It has 143 rows: 139 with a script and 4 `n/a`
 rows. All scripts are in `Scripts/`. The phase is `pre` (repository inputs and
 checker behaviour) or `post` (the generated site). `secret-class` means a
 finding blocks the commit as well as the push. A row for a self-test is
@@ -170,8 +170,9 @@ self-tests are.
 | 138 | quality scope | `test_quality_scope.sh` | pre | required; pins the scope input of `.github/workflows/quality.yml` (default full, push and pull request always full, scope bump runs the bump diff check first and only the listed gates), 17 mutations (forsgren#230) |
 | 139 | git sandbox isolation self-test | `test_git_sandbox_isolation.sh` | pre | required; runs ten git-using self-tests with `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` pointing at a decoy repository with a decoy origin, and requires both unchanged (forsgren#228) |
 | 140 | git sandbox guard self-test | `test_git_sandbox_guard.sh` | pre | required; every git-using `test_*.sh` sources `lib_git_sandbox.sh`, 1 mutation (forsgren#228) |
-| 141 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
-| 142 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
+| 141 | precheck self-test | `test_precheck.sh` | pre | required; `precheck.sh` runs the fast static gates on the changed files and the self-tests that name them, 7 cases and 2 mutations (the test-mention step skipped, a missing tool counted as a pass), and a parity check that every gate script it runs is a row of this file (forsgren#231) |
+| 142 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
+| 143 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
 
 ## Documented exceptions
 
@@ -307,7 +308,7 @@ malformed row fails the step. Its self-test is the PRE row 123.
 
 ## The ratchet today
 
-`MIN_GATES` is 142, which equals the 142 rows of the order file (138 with a
+`MIN_GATES` is 143, which equals the 143 rows of the order file (139 with a
 script and 4 `n/a` rows). forsgren#215 brought it to 115 and the Go tool
 helper self-test of forsgren#216 is the 116th; the browser gate and its
 self-test (forsgren#205) made 118, and the live check self-test
@@ -321,4 +322,5 @@ metrics merge (forsgren#221, step 5) made 135, and the two self-tests of the git
 sandbox (forsgren#228) made 137, and the bump diff self-test (forsgren#230,
 step 1) made 138, and the short Quality (forsgren#230, step 2: its runner and the pin
 of the scope) made 140, and the preview deploy
-script's self-test and the preview workflow pin (forsgren#222) made 142.
+script's self-test and the preview workflow pin (forsgren#222) made 142, and the
+pre-check's self-test (forsgren#231, step 1) made 143.

@@ -163,11 +163,12 @@ fi
 # to 138 for the self-test of release_bump_diff.sh (forsgren#230, step 1), and to
 # 140 for the self-tests of run_short_quality.sh and the pin of quality.yml's scope
 # (forsgren#230, step 2), and to 142 for the preview deploy's script self-test and
-# workflow pin (forsgren#222).
+# workflow pin (forsgren#222), and to 143 for the pre-check's self-test
+# (forsgren#231, step 1).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=142
+MIN_GATES=143
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -686,6 +687,17 @@ for path in Scripts/*.sh; do
       done
       order_names "test_lib_go_tool.sh" \
         || fail "Scripts/test_lib_go_tool.sh is not an order-file row — the Go tool resolver would be unproven"
+      ;;
+
+    # WRITER TOOL, not a gate (forsgren#231): the pre-check a writer runs
+    # before handing a change back. It runs gates' own scripts on the changed
+    # files and judges nothing FBP and CI do not; FBP.sh and quality.yml never
+    # call it. Required to have a fixture, and its self-test is an order-file
+    # row (which also pins that every gate it runs is an order-file row).
+    precheck.sh)
+      require_fixture "$base" "the pre-check would be unproven"
+      order_names "test_${base}" \
+        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the pre-check"
       ;;
 
     # SOURCED HELPER, not a gate (estate canon): the engine of the exit-trap

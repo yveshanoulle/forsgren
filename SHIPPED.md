@@ -9,6 +9,15 @@ Active work lives in
 
 ---
 
+## 2026-10-18 — a writer's pre-check runs the fast gates and the tests that read the changed files ([#231](https://github.com/yveshanoulle/forsgren/issues/231), step 1)
+
+`Scripts/precheck.sh` is what a writer runs before handing a change back: the checks FBP would find red after minutes, on the changed files, in seconds.
+
+- The changed files are the tracked changes against HEAD plus the untracked files git does not ignore. It runs the gates' own scripts: shellcheck, actionlint, zizmor, yamllint, gofmt and Go lint, the gate wiring test when `Scripts/` or the order file changed, the markdown link gate for a changed `.md`, the git sandbox guard for a changed `Scripts/test_*.sh`, and every `Scripts/test_*.sh` whose source names the basename of a changed file (`SHIPPED.md`, `CLAUDE.md`, `README.md` and `TODO.md` are left out as too broad).
+- One line per check, `precheck: N checks, M failed`, the elapsed seconds, exit 1 on any failure. A missing tool is a red line, never a skip.
+- `check_shellcheck.sh`, `check_yamllint.sh` and `check_actionlint.sh` take an optional file list; without it they behave as before.
+- Red first for the six cases (an SC2034 finding, an actionlint finding, a mentioning test run, nothing changed, a missing tool, git detection) and the parity of its gate scripts with the order file; mutation proofs for a pre-check that skips the test-mention step and one that counts a missing tool as a pass. `MIN_GATES` 142 to 143.
+
 ## 2026-10-18 — the Release run page names the issues that block the release ([#232](https://github.com/yveshanoulle/forsgren/issues/232))
 
 When the release plan stops, the run summary lists every blocking issue in a table (issue, why it blocks, what to do), and the error annotation names the issue numbers.

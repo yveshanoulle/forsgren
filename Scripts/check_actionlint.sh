@@ -28,9 +28,13 @@ cd "$(dirname "$0")/.."
 # that printed SKIP and exited 0, and kept lint green for a full day while the
 # runner could not resolve docker at all.
 #
-# Local invocation: ./Scripts/check_actionlint.sh [workflow-dir]
+# Optional further arguments (forsgren#231, Scripts/precheck.sh): workflow files
+# to lint instead of every *.yml in the directory, same config and call.
+#
+# Local invocation: ./Scripts/check_actionlint.sh [workflow-dir [workflow-file...]]
 
 WF_DIR="${1:-.github/workflows}"
+if [ "$#" -gt 0 ]; then shift; fi
 
 if ! command -v actionlint >/dev/null 2>&1; then
   echo "actionlint: not found on PATH — cannot validate any workflow." >&2
@@ -58,6 +62,7 @@ fi
 # Suppressions are added only for a finding someone has looked at and ruled
 # on — an -ignore added pre-emptively silences the rule before it has ever
 # said anything, which is how a gate arrives already half-asleep.
-actionlint -config-file .actionlint.yaml "$WF_DIR"/*.yml
+if [ "$#" -gt 0 ]; then targets=("$@"); else targets=("$WF_DIR"/*.yml); fi
+actionlint -config-file .actionlint.yaml "${targets[@]}"
 
 echo "OK: actionlint (${count} workflow(s) validated)"

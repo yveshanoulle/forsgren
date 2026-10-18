@@ -784,6 +784,7 @@ run short quality self-test|Scripts/test_run_short_quality.sh|pre|
 quality scope|Scripts/test_quality_scope.sh|pre|
 git sandbox isolation self-test|Scripts/test_git_sandbox_isolation.sh|pre|
 git sandbox guard self-test|Scripts/test_git_sandbox_guard.sh|pre|
+precheck self-test|Scripts/test_precheck.sh|pre|
 #
 # The privacy pages belong to a site that needs privacy pages: another estate repository
 # serves a privacy policy, and its check_privacy_pages.sh pins that

@@ -66,6 +66,19 @@ last statement, as when bash 3.2 ends the script on an unbound variable under
 POST gate row of its own, so a README the renderer refuses is red in FBP and CI
 before it is ever published.
 
+**`./Scripts/precheck.sh`** (forsgren#231) is what a writer runs before handing a
+change back. It takes the files changed against HEAD plus the untracked ones
+and runs the fast static gates on them with the gates' own scripts (shellcheck,
+actionlint, zizmor, yamllint, gofmt, Go lint, and where they apply the gate
+wiring test, the markdown link gate and the git sandbox guard), then every
+`Scripts/test_*.sh` whose source names the basename of a changed file
+(`SHIPPED.md`, `CLAUDE.md`, `README.md` and `TODO.md` excepted, as too broad).
+It prints one line per check, `precheck: N checks, M failed` and the elapsed
+seconds, and exits 1 on any failure; a missing tool is a red line, not a skip.
+It changes, commits and pushes nothing, and FBP and CI remain the verdict.
+`Scripts/test_precheck.sh` pins it and that each gate it runs is a row of the
+order file.
+
 **`./sfl.sh pre|post`** runs one phase of the gates. Before PRE it runs
 `git pull --ff-only` and stops (exit 3) when that cannot fast-forward, then
 installs the tools (see [The tools](#the-tools)), checks the Node pin, runs

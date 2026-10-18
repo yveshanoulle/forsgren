@@ -27,7 +27,11 @@
 # The config is always this repository's .yamllint.yml, so the fixture tests
 # the rules that run here.
 #
-# Local invocation: ./Scripts/check_yamllint.sh
+# Optional arguments (forsgren#231, Scripts/precheck.sh): with file names (relative
+# to the root), only those files are linted, under the same config; without,
+# the derived list above.
+#
+# Local invocation: ./Scripts/check_yamllint.sh [file...]
 
 set -euo pipefail
 
@@ -49,7 +53,9 @@ fi
 # The listing goes through a variable, not a process substitution: a failing
 # `git ls-files` inside `< <(...)` is invisible, and an empty listing would
 # then read as "no YAML here".
-if ! listing="$(repo_files . '*.yml' '*.yaml')"; then
+if [ "$#" -gt 0 ]; then
+  listing="$(printf '%s\n' "$@")"
+elif ! listing="$(repo_files . '*.yml' '*.yaml')"; then
   echo "❌ FAIL: git ls-files (tracked and untracked) failed in ${ROOT} — no verdict" >&2
   exit 1
 fi

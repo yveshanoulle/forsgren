@@ -40,7 +40,11 @@
 # sfl.sh runs it from Scripts/gate_report_order.txt, and so does CI, through
 # Scripts/run_ci_phase.sh.
 #
-# Local invocation: ./Scripts/check_shellcheck.sh
+# Optional arguments (forsgren#231, Scripts/precheck.sh): with file names (relative
+# to the root), only those files are checked, with the same shellcheck -x call;
+# without, the derived list above. Nothing else changes.
+#
+# Local invocation: ./Scripts/check_shellcheck.sh [file...]
 
 set -euo pipefail
 
@@ -73,13 +77,17 @@ collect_targets() {
 }
 
 targets=()
-while IFS= read -r f; do
-  [ -n "$f" ] || continue
-  if printf '%s\n' "$EXCLUDE_ALLOWED" | grep -qxF "$f"; then
-    continue
-  fi
-  targets+=("$f")
-done < <(collect_targets | sort -u)
+if [ "$#" -gt 0 ]; then
+  targets=("$@")
+else
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    if printf '%s\n' "$EXCLUDE_ALLOWED" | grep -qxF "$f"; then
+      continue
+    fi
+    targets+=("$f")
+  done < <(collect_targets | sort -u)
+fi
 
 if [ "${#targets[@]}" -eq 0 ]; then
   echo "shellcheck: no shell scripts found under $ROOT" >&2
