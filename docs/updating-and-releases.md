@@ -597,9 +597,9 @@ one `::notice::` line, by the stage the failure is in:
 
   | Issue | Blocks because | Do |
   |---|---|---|
-  | [#N](link) title | closed since vX.Y.Z, no patch, minor or major label | label it patch, minor or major |
-  | [#N](link) title | open, with commits on main since vX.Y.Z | close it, or split it (close the landed part as its own issue, move the rest to a new one) |
-  | [#N](link) title | needs minor, the run asked for patch | start Release with bump = minor |
+  | #N title (linked to the issue) | closed since vX.Y.Z, no patch, minor or major label | label it patch, minor or major |
+  | #N title (linked to the issue) | open, with commits on main since vX.Y.Z | close it, or split it (close the landed part as its own issue, move the rest to a new one) |
+  | #N title (linked to the issue) | needs minor, the run asked for patch | start Release with bump = minor |
 
   The rows are the plan's own machine lines (`blocking=<N>`, kind, title,
   tag), printed next to its red lines, so the page and the plan cannot
