@@ -205,6 +205,7 @@ want_exit "a tool path that is not built is a tooling error, naming the reason" 
 # nothing: its exit code is the only sign it failed.
 cat > "${TMP}/failing-tool" <<'EOF'
 #!/bin/sh
+if [ -n "${STUB_TOOL_OUT:-}" ]; then printf '%s\n' "$STUB_TOOL_OUT"; fi
 exit "${STUB_TOOL_RC:-2}"
 EOF
 chmod +x "${TMP}/failing-tool"
@@ -228,6 +229,28 @@ fi
 if selftest_lib_mutant "$GATE" Scripts/lib_go_tool.sh "${TMP}/swallowed" '/BIN" "/s/$/ || true/'; then
   capture env PATH="${SHIM}:${PATH}" STUB_TOOL_RC=2 "$MUTANT" "$COLD" "$THRESHOLD"
   want_exit "mutation: a helper that swallows the exit code lets the failing tool pass" 0 "OK:"
+fi
+
+# --- forsgren#217: an exit of 1 without a (dupl) line is not a pass. The config
+# enables only dupl, so another issue line (here a typecheck error, which
+# golangci-lint reports as an issue with exit 1) means the tool did not judge
+# the code: a tooling error, exit 2, with the tool's output shown.
+capture env PATH="${SHIM}:${PATH}" STUB_TOOL_RC=1 \
+  STUB_TOOL_OUT="x_test.go:3:1: undefined: foo (typecheck)" "$GATE" "$COLD" "$THRESHOLD"
+want_exit "an exit of 1 without a (dupl) line is a tooling error, naming the reason" 2 "reported no (dupl) finding"
+if grep -qF -- "OK:" <<< "$OUT"; then
+  fail "an exit of 1 without a (dupl) line printed the OK line of a pass. Output: ${OUT}"
+fi
+if ! grep -qF -- "undefined: foo (typecheck)" <<< "$OUT"; then
+  fail "an exit of 1 without a (dupl) line did not show the tool's output. Output: ${OUT}"
+fi
+
+# MUTATION PROOF: "exit 1 without dupl lines is OK" put back (the guard made
+# inert) turns the case above green.
+if selftest_lib_mutant Scripts/lib_go_tool.sh "$GATE" "${TMP}/exit1-ok" 's/ -eq 1 \] && / -eq 9 ] \&\& /'; then
+  capture env PATH="${SHIM}:${PATH}" STUB_TOOL_RC=1 \
+    STUB_TOOL_OUT="x_test.go:3:1: undefined: foo (typecheck)" "${TMP}/exit1-ok/Scripts/check_test_dupl.sh" "$COLD" "$THRESHOLD"
+  want_exit "mutation: exit 1 without a (dupl) line read as OK lets the typecheck error pass" 0 "OK:"
 fi
 
 # --- Case 6: MUTATION PROOF. path-except turned into path.

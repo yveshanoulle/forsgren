@@ -9,6 +9,11 @@ Active work lives in
 
 ---
 
+## 2026-10-18 — the test duplication gate fails when the tool reports something other than duplication ([#217](https://github.com/yveshanoulle/forsgren/issues/217))
+
+- An exit of 1 from golangci-lint without a `(dupl)` line (a typecheck or build error, which the tool reports as an issue) used to read as OK. It is now a tooling error: exit 2, with the tool's output shown. Exit 1 with `(dupl)` lines and exit 0 are unchanged.
+- Red first with a stub tool that exits 1 and prints a typecheck line; mutation proof: putting "exit 1 without dupl lines is OK" back is caught by that case.
+
 ## 2026-10-18 — a writer's pre-check runs the fast gates and the tests that read the changed files ([#231](https://github.com/yveshanoulle/forsgren/issues/231), step 1)
 
 `Scripts/precheck.sh` is what a writer runs before handing a change back: the checks FBP would find red after minutes, on the changed files, in seconds.

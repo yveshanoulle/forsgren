@@ -167,7 +167,8 @@ Seven more PRE gates check the Go code:
 - **Go test duplication** (`Scripts/check_test_dupl.sh`, another estate repository's): the
   same `dupl` rule pointed at `_test.go` files only, which `.golangci.yml`
   leaves to it, so test code is judged once. Red on a module with no test
-  file.
+  file, and a tooling error (exit 2) when the tool exits 1 without a `(dupl)`
+  line (forsgren#217).
 - **Go file length** (`Scripts/check_file_length.sh`, another estate repository's
   `check_file_length.py` rewritten in bash and awk): red when a Go
   production file is longer than 600 lines, each such file named with its

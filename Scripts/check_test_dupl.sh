@@ -22,7 +22,7 @@
 #   0 — no test-code duplication
 #   1 — duplication found (findings printed), or no test file to check
 #   2 — tooling error (no pinned golangci-lint, bad module dir, golangci
-#       failure)
+#       failure, or an exit of 1 without a (dupl) line: forsgren#217)
 #
 # Usage: Scripts/check_test_dupl.sh [module-dir] [threshold]
 #        (default: the repo root, 80)
@@ -99,8 +99,8 @@ YAML
 status=0
 out="$(go_tool_run run -c "$CONFIG" ./...)" || status=$?
 
-# golangci-lint exits 0 (clean) or 1 (issues found). Any other code is a real
-# error — never mistake a non-running linter for a clean result.
+# golangci-lint exits 0 (clean) or 1 (issues found; see the (dupl) check
+# below). Any other code is a real error — never mistake a non-running linter for a clean result.
 if [ "$status" -ne 0 ] && [ "$status" -ne 1 ]; then
   echo "❌ FAIL: golangci-lint error (exit $status):" >&2
   printf '%s\n' "$out" >&2
@@ -108,6 +108,15 @@ if [ "$status" -ne 0 ] && [ "$status" -ne 1 ]; then
 fi
 
 count="$(printf '%s\n' "$out" | grep -c '(dupl)' || true)"
+# The config enables only dupl, so an exit of 1 without a (dupl) line is
+# another issue (golangci-lint reports typecheck and build errors that way):
+# the tool did not judge the code, a tooling error (forsgren#217).
+if [ "$status" -eq 1 ] && [ "$count" -eq 0 ]; then
+  echo "❌ FAIL: golangci-lint exited 1 and reported no (dupl) finding: the tool did not judge the code:" >&2
+  printf '%s\n' "$out" >&2
+  exit 2
+fi
+
 if [ "$count" -eq 0 ]; then
   echo "OK: no test-code duplication in ${MODULE_DIR} (${tests} test files, threshold ${THRESHOLD} tokens)"
   exit 0
