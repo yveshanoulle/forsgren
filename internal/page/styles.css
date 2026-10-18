@@ -133,19 +133,71 @@ li {
   color: light-dark(#1b6e2f, #7fd98f);
 }
 
-/* The charts of the History page (forsgren#68) sit in the Trend cell and shrink
-   with it, never past the cell, at their own proportions. They are drawn in
-   currentcolor by the markup, so light and dark follow the text colour and no
-   rule here sets a colour. */
+/* The colours of the History page's chart lines (forsgren#212; Yves's ruling:
+   Overall Performance black in light mode and white in dark mode, Deployment
+   frequency red, Lead time for changes green, three more distinct colours for
+   the rest). Like the trend arrows above, each is light-dark(light, dark) and
+   reads at 4.5:1 or more on the page background in its mode, which
+   TestHistoryChartColoursReachContrastInLightAndDark measures. The chart draws
+   them as currentcolor; the legend adds a dash pattern to each line, so colour
+   is never the only signal. N in measure-N is the index of the measure. */
+.measure-0 {
+  color: light-dark(#000, #fff);
+}
+
+.measure-1 {
+  color: light-dark(#b3261e, #ff8a80);
+}
+
+.measure-2 {
+  color: light-dark(#1b6e2f, #7fd98f);
+}
+
+.measure-3 {
+  color: light-dark(#0b57d0, #8ab4f8);
+}
+
+.measure-4 {
+  color: light-dark(#a34100, #ffb74d);
+}
+
+.measure-5 {
+  color: light-dark(#7b1fa2, #ce93d8);
+}
+
+/* The chart of a project on the History page (forsgren#68, #212) sits in a
+   cell as wide as the table and shrinks with it, never past the cell, at its
+   own proportions. It is drawn in currentcolor by the markup, so the colours
+   are those of the .measure-N classes above and no rule on the svg sets one. */
 td svg {
   display: block;
-  width: 7.5rem;
+  width: 30rem;
   max-width: 100%;
   height: auto;
 }
 
 td svg polyline {
   stroke-width: 2;
-  stroke-linecap: round;
+  stroke-linecap: butt;
   stroke-linejoin: round;
+}
+
+/* The legend under a chart: the swatches of the lines in a row that wraps. */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+td svg.swatch {
+  display: inline-block;
+  width: 2rem;
+  vertical-align: middle;
+}
+
+td svg.swatch line {
+  stroke-width: 2;
 }

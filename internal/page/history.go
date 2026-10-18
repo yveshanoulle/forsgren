@@ -30,20 +30,21 @@ var historyMeasures = []string{
 }
 
 // HistoryGroup is one project's block of the history page's table (forsgren#211):
-// the project's name, Span columns wide with the row headings, then a row per
-// measure for the project's total and for each of its labels.
+// the project's name, Span columns wide with the row headings, the project's
+// chart (forsgren#212; none while there is a single period, or no score), then
+// a row per measure for the project's total and for each of its labels.
 type HistoryGroup struct {
 	Title string
 	Span  int
+	Chart *HistoryChart
 	Rows  []HistoryRow
 }
 
 // HistoryRow is a row of a history table: one measure of one table row, its
-// heading, its chart and its cell per period.
+// heading and its cell per period.
 type HistoryRow struct {
 	Row
 	Measure string
-	Chart   *HistoryChart
 	Cells   []string
 }
 
@@ -56,7 +57,7 @@ func (d Data) HistoryGroups() []HistoryGroup {
 	var groups []HistoryGroup
 	for r, heading := range Table(d.History[0].Rows) {
 		if heading.Level == metrics.ProjectRow || len(groups) == 0 {
-			groups = append(groups, HistoryGroup{Title: heading.Name, Span: d.historySpan()})
+			groups = append(groups, HistoryGroup{Title: heading.Name, Span: d.historySpan(), Chart: d.historyChart(heading, r)})
 		}
 		last := &groups[len(groups)-1]
 		last.Rows = append(last.Rows, d.historyRows(heading, r)...)
@@ -65,18 +66,12 @@ func (d Data) HistoryGroups() []HistoryGroup {
 }
 
 // HistoryOnePeriod says whether the table has a single period column, which
-// leaves out the Trend column: a trend needs two periods (forsgren#198).
+// leaves out the charts: a trend needs two periods (forsgren#198).
 func (d Data) HistoryOnePeriod() bool { return len(d.History) == 1 }
 
-// historySpan is how many columns a group header spans: the row headings,
-// the periods, and the Trend column when it is shown.
-func (d Data) historySpan() int {
-	span := 1 + len(d.History)
-	if !d.HistoryOnePeriod() {
-		span++
-	}
-	return span
-}
+// historySpan is how many columns a group header and its chart span: the row
+// headings and the periods.
+func (d Data) historySpan() int { return 1 + len(d.History) }
 
 // HistoryPeriods are the headers of the history page's period columns, oldest
 // first.
@@ -94,15 +89,31 @@ func (d Data) historyRows(heading Row, r int) []HistoryRow {
 	rows := make([]HistoryRow, len(historyMeasures))
 	for m, measure := range historyMeasures {
 		rows[m] = HistoryRow{Row: heading, Measure: measure, Cells: make([]string, len(d.History))}
-		scores := make([]score, len(d.History))
 		for c, column := range d.History {
-			row := Row{Row: column.Rows[r]}
-			rows[m].Cells[c] = historyCells(row)[m]
-			scores[c] = chartScore(row, m)
+			rows[m].Cells[c] = historyCells(Row{Row: column.Rows[r]})[m]
 		}
-		rows[m].Chart = historyChart(chartTitle(m, heading.Heading, d.History), scores)
 	}
 	return rows
+}
+
+// historyChart is the chart of the table row at index r, a project's total:
+// the score of each measure in every column. None with a single period.
+func (d Data) historyChart(heading Row, r int) *HistoryChart {
+	if d.HistoryOnePeriod() {
+		return nil
+	}
+	scores := make([][]score, len(historyMeasures))
+	for m := range scores {
+		scores[m] = make([]score, len(d.History))
+		for c, column := range d.History {
+			scores[m][c] = chartScore(Row{Row: column.Rows[r]}, m)
+		}
+	}
+	chart := historyChart(chartTitle(heading.Name, d.History), scores)
+	if chart != nil {
+		chart.Project = heading.Name
+	}
+	return chart
 }
 
 // historyCells are the row's cells in the order of historyMeasures: Overall

@@ -1,6 +1,8 @@
 package page
 
 import (
+	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -71,9 +73,9 @@ func TestHistoryPageGroupsRowsPerProject(t *testing.T) {
 		t.Errorf("want a tbody for each of the 2 projects, got %d", n)
 	}
 	wantAll(t, "history.html", got,
-		`<th scope="rowgroup" colspan="4">Acme Shop</th>`, `<th scope="rowgroup" colspan="4">Acme Tools</th>`)
-	wantNone(t, "history.html", got, `scope="rowgroup" colspan="4">Overall Performance`,
-		`scope="rowgroup" colspan="4">Deployment frequency`)
+		`<th scope="rowgroup" colspan="3">Acme Shop</th>`, `<th scope="rowgroup" colspan="3">Acme Tools</th>`)
+	wantNone(t, "history.html", got, `scope="rowgroup" colspan="3">Overall Performance`,
+		`scope="rowgroup" colspan="3">Deployment frequency`)
 	var order []string
 	for _, heading := range []string{"Acme Shop", "Overall Performance", "Deployment frequency", "Lead time for changes",
 		"Failed deployment recovery time", "Change fail rate", "Deployment rework rate",
@@ -100,7 +102,6 @@ func TestHistoryPageCellsAreNumbersAndScores(t *testing.T) {
 		"<td>40 · 6</td>\n            <td>30 · 6</td>",
 		"<td>-</td>\n            <td>5 · 6</td>",
 		"<td>-</td>\n            <td>1 · 0</td>",
-		"</svg></td>\n            <td>-</td>\n            <td>1 · 0</td>",
 		"<th scope=\"col\">Last 6 months to 2026-10-03</th>",
 	} {
 		if !strings.Contains(got, want) {
@@ -121,28 +122,95 @@ func TestHistoryPageWithoutHistoryGolden(t *testing.T) {
 	checkPageGolden(t, "history.html", "testdata/history.no-data.golden.html", nothingYet)
 }
 
-// TestHistoryChartsAreInlineSVGWithTitleAndNoScript (forsgren#68): every row
-// of every group has a chart in its Trend cell, an inline SVG with a title
-// that names the measure, the row and the periods it spans, drawn in the
-// text colour, and with no script and no description.
-func TestHistoryChartsAreInlineSVGWithTitleAndNoScript(t *testing.T) {
-	got := rendered(t, "history.html", historyData())
-	if n := strings.Count(got, "<svg role=\"img\""); n != 18 {
-		t.Errorf("want a chart for each of the 18 rows (6 groups of 3), got %d", n)
+// projectBlock is the part of the history page between the tbody opening of
+// the project headed name and its closing.
+func projectBlock(t *testing.T, page, name string) string {
+	t.Helper()
+	start := strings.Index(page, `<th scope="rowgroup" colspan="3">`+name+`</th>`)
+	if start < 0 {
+		t.Fatalf("history page has no block for %q", name)
 	}
-	for _, want := range []string{
-		"<title>Deployment frequency score, Acme Shop (total): 2026 H1 to Last 6 months</title>",
-		"<title>Overall Performance score, API: 2026 H1 to Last 6 months</title>",
-		"<th scope=\"col\">Trend</th>",
-		"stroke=\"currentcolor\"",
-	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("history page does not contain %q", want)
+	return page[start : start+strings.Index(page[start:], "</tbody>")]
+}
+
+// TestHistoryChartIsOnePerProjectAboveItsBlock (forsgren#212): each project's
+// tbody has, right after the row with the project's name, one row with a cell
+// as wide as the table (row headings plus periods, there is no Trend column
+// any more) that holds the project's chart, an inline SVG with a title, no
+// script and no description; the rows of the measures come after it, and no row
+// has a chart of its own.
+func TestHistoryChartIsOnePerProjectAboveItsBlock(t *testing.T) {
+	got := rendered(t, "history.html", historyData())
+	if n := strings.Count(got, `<svg role="img"`); n != 2 {
+		t.Errorf("want a chart for each of the 2 projects, got %d", n)
+	}
+	wantNone(t, "history.html", got, `<th scope="col">Trend</th>`, "Trend draws", "<td><svg")
+	for _, project := range []string{"Acme Shop", "Acme Tools"} {
+		block := projectBlock(t, got, project)
+		head := `<th scope="rowgroup" colspan="3">` + project + "</th>\n          </tr>\n" +
+			"          <tr>\n            <td colspan=\"3\">"
+		wantAll(t, project, block, head, "<title>Scores of "+project+": 2026 H1 to Last 6 months</title>")
+		if !strings.Contains(block, "<svg") || strings.Index(block, "<svg") > strings.Index(block, `<th scope="row">`) {
+			t.Errorf("%s: want the chart before the first measure row", project)
 		}
 	}
-	for _, not := range []string{"<script", "<desc", "javascript", "#"} {
-		if strings.Contains(strings.ToLower(got), not) {
-			t.Errorf("history page contains %q", not)
+	wantNone(t, "history.html", got, "<script", "<desc", "javascript", "#")
+}
+
+// TestHistoryChartDrawsOneLinePerMeasureAndALegendNamesThem (forsgren#212): the
+// chart draws a line for each measure that has a score, in the order of the
+// table and each in its own class (measure-0 for Overall Performance to
+// measure-5), and a legend under it names each line with its colour and a
+// dash pattern, a second cue that works without colour; no two lines share a
+// pattern. Acme Tools has scores in the last 6 months only, so its chart draws
+// dots and its legend still names every measure.
+func TestHistoryChartDrawsOneLinePerMeasureAndALegendNamesThem(t *testing.T) {
+	got := rendered(t, "history.html", historyData())
+	shop := projectBlock(t, got, "Acme Shop")
+	patterns := map[string]bool{}
+	last := -1
+	for m, name := range historyMeasures {
+		class := fmt.Sprintf(`<g class="measure-%d"`, m)
+		i := strings.Index(shop, class)
+		if i < 0 || i < last {
+			t.Fatalf("want the line %q (%s) after the previous one", name, class)
+		}
+		last = i
+		legend := regexp.MustCompile(`<li><span class="measure-` + fmt.Sprint(m) +
+			`"><svg class="swatch"[^>]*><line [^>]*stroke-dasharray="([^"]*)"[^>]*/></svg></span> ` +
+			`<span class="visually-hidden">Acme Shop: </span>` + name + `</li>`)
+		found := legend.FindStringSubmatch(shop)
+		if found == nil {
+			t.Fatalf("want a legend item for %q with its swatch in class measure-%d", name, m)
+		}
+		if patterns[found[1]] {
+			t.Errorf("the dash pattern %q is used by two lines", found[1])
+		}
+		patterns[found[1]] = true
+	}
+	wantAll(t, "Acme Tools", projectBlock(t, got, "Acme Tools"), "<circle", `<ul class="legend">`)
+}
+
+// TestHistoryChartColoursReachContrastInLightAndDark (forsgren#212): the six
+// line colours are light-dark(light, dark) in styles.css, each at 4.5:1 or
+// more on the page background in its mode, like the trend arrows; Overall
+// Performance is black and white, Deployment frequency red and Lead time for
+// changes green, and the six are six different colours in each mode.
+func TestHistoryChartColoursReachContrastInLightAndDark(t *testing.T) {
+	css := stylesCSS(t)
+	seenLight, seenDark := map[string]bool{}, map[string]bool{}
+	for m := range historyMeasures {
+		class := fmt.Sprintf("measure-%d", m)
+		light, dark := trendColours(t, css, class)
+		wantContrast(t, swatch{class, "light", light}, lightCanvases)
+		wantContrast(t, swatch{class, "dark", dark}, darkCanvases)
+		if seenLight[light] || seenDark[dark] {
+			t.Errorf(".%s repeats the colour %s / %s of another line", class, light, dark)
+		}
+		seenLight[light], seenDark[dark] = true, true
+		want := map[int][2]string{0: {"#000000", "#ffffff"}, 1: {"#b3261e", "#ff8a80"}, 2: {"#1b6e2f", "#7fd98f"}}[m]
+		if want != [2]string{} && [2]string{light, dark} != want {
+			t.Errorf(".%s is %s / %s, want %s / %s", class, light, dark, want[0], want[1])
 		}
 	}
 }
@@ -150,27 +218,29 @@ func TestHistoryChartsAreInlineSVGWithTitleAndNoScript(t *testing.T) {
 // TestChartBreaksAtAGapAndDrawsASinglePointAsADot (forsgren#68): a period
 // without a score is a gap, never a zero: the line breaks there, a run of
 // two periods or more is a polyline and a period alone between gaps a dot.
-// The scale is 0 to 10 for every chart, 10 at the top.
+// The scale is 0 to 10 for every chart, 10 at the top (forsgren#212: the chart
+// of a project, a group per line).
 func TestChartBreaksAtAGapAndDrawsASinglePointAsADot(t *testing.T) {
 	scores := []score{{10, true}, {0, false}, {5, true}, {0, true}}
 	var drawn strings.Builder
-	if err := pages["history.html"].set.ExecuteTemplate(&drawn, "chart", historyChart("Test", scores)); err != nil {
+	chart := historyChart("Test", [][]score{scores})
+	if err := pages["history.html"].set.ExecuteTemplate(&drawn, "chart", chart); err != nil {
 		t.Fatal(err)
 	}
 	got := drawn.String()
 	for _, want := range []string{
-		`<svg role="img" viewBox="0 0 120 32" width="120" height="32"><title>Test</title>`,
-		`<circle cx="4.0" cy="4.0" r="2" fill="currentcolor"/>`,
-		`<polyline points="78.7,16.0 116.0,28.0" fill="none" stroke="currentcolor"/></svg>`,
+		`<svg role="img" viewBox="0 0 480 160" width="480" height="160"><title>Test</title>`,
+		`<circle cx="8.0" cy="8.0" r="3" fill="currentcolor" stroke="none"/>`,
+		`<polyline points="317.3,80.0 472.0,152.0"/></g></svg>`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("chart does not contain %q, got %s", want, got)
 		}
 	}
-	if strings.Contains(got, "41.3") {
+	if strings.Contains(got, "162.7") {
 		t.Errorf("chart draws the period without a score: %s", got)
 	}
-	if none := historyChart("Test", []score{{0, false}, {0, false}}); none != nil {
+	if none := historyChart("Test", [][]score{{{0, false}, {0, false}}}); none != nil {
 		t.Errorf("want no chart when no period has a score, got %+v", none)
 	}
 }
@@ -190,12 +260,12 @@ func TestHistoryPageIsMarkedBeta(t *testing.T) {
 const historyHowToRead = `<p>Each column is a period: the calendar half-years, then the last 6 months. ` +
 	`A cell is the number and its score (0 to 10), number · score.`
 
-// historyTrendToRead is what the line adds while the Trend column is shown.
-const historyTrendToRead = ` Trend draws the score over the periods.`
+// historyTrendToRead is what the line adds while the charts are shown.
+const historyTrendToRead = ` The chart above each project draws the score of each measure over the periods.`
 
 // TestHistoryPageSaysHowToReadItUnderTheHeading (forsgren#198): right under
-// the heading, one line says what a column and a cell are, and what the Trend
-// is unless the table has a single period column and so no Trend column; the
+// the heading, one line says what a column and a cell are, and what the charts
+// are unless the table has a single period column and so no chart; the
 // legend already says the same at length.
 func TestHistoryPageSaysHowToReadItUnderTheHeading(t *testing.T) {
 	for name, tc := range map[string]struct {
@@ -223,16 +293,16 @@ func TestHistoryPageWithOnePeriodSaysWhyUnderTheHowToReadLine(t *testing.T) {
 	wantNone(t, "history.html", rendered(t, "history.html", historyData()), "Only the last 6 months")
 }
 
-// TestHistoryPageLeavesOutTheTrendColumnBelowTwoPeriods (forsgren#198): with
-// one period column the table has no Trend header, no chart and a group header
-// as wide as the row headings plus that one column; with two it has the
-// Trend column and a header that is two wider.
-func TestHistoryPageLeavesOutTheTrendColumnBelowTwoPeriods(t *testing.T) {
+// TestHistoryPageLeavesOutTheChartsBelowTwoPeriods (forsgren#198): with
+// one period column the table has no chart and a group header as wide as the
+// row headings plus that one column; with two it has the charts and a header
+// that is one wider (forsgren#212: there is no Trend column any more).
+func TestHistoryPageLeavesOutTheChartsBelowTwoPeriods(t *testing.T) {
 	one := historyData()
 	one.History = one.History[1:]
 	got := rendered(t, "history.html", one)
-	wantNone(t, "one period", got, `<th scope="col">Trend</th>`, "<svg", `colspan="3"`, "Trend draws")
+	wantNone(t, "one period", got, "<svg", `colspan="3"`, "The chart above", `class="legend"`)
 	wantAll(t, "one period", got, `colspan="2"`)
 	two := rendered(t, "history.html", historyData())
-	wantAll(t, "two periods", two, `<th scope="col">Trend</th>`, "<svg", `colspan="4"`, "Trend draws")
+	wantAll(t, "two periods", two, "<svg", `colspan="3"`, "The chart above each project")
 }

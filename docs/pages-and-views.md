@@ -709,9 +709,9 @@ it last in the menu, "History"; `false` leaves it out.
   three go back together.
 - **How to read it.** Under the heading one line says how to read the page:
   "Each column is a period: the calendar half-years, then the last 6 months.
-  A cell is the number and its score (0 to 10), number · score. Trend draws
-  the score over the periods." The last sentence is left out while there is
-  no Trend column.
+  A cell is the number and its score (0 to 10), number · score. The chart
+  above each project draws the score of each measure over the periods." The
+  last sentence is left out while there is no chart.
 - **One period.** While the last 6 months are the only column, a line under
   it says why, with dates (forsgren#198): "Only the last 6 months have data
   so far: the first deployment is 2026-10-02. The first half-year, 2026 H2,
@@ -752,16 +752,26 @@ it last in the menu, "History"; `false` leaves it out.
   rescaled to 180 days, so a half-year of 181 to 184 days can read higher
   than the same pace over exactly 180 days, by at most 3%. `dora_days` does
   not change this page; `working_hours` does.
-- **The Trend chart.** With fewer than two periods there is no Trend column
-  (forsgren#198, from 1.8.2): a trend of one period shows nothing. From two
-  periods on, the Trend column, after the row's name, holds a small
-  line chart per row: the row's score per period, 0 to 10, 10 at the top,
-  the same scale in every chart, the oldest period on the left. A period
-  without a score is a gap that breaks the line, never a zero, and a period
-  alone between gaps is a dot. Each chart is an inline SVG with a title
-  ("Deployment frequency score, Acme Shop (total): 2025 H2 to Last 6
-  months") and no script, drawn in the text colour; the table beside it
-  carries every number the chart draws.
+- **The charts.** One chart per project (forsgren#212), above that project's
+  rows: in the project's block, a row after its name holds a cell as wide as
+  the table with the chart and its legend. With fewer than two periods there
+  is no chart (forsgren#198, from 1.8.2): a trend of one period shows
+  nothing. The chart has a line per measure of the project's total (not its
+  labels), in the table's order: Overall Performance (black in light mode,
+  white in dark mode), Deployment frequency (red), Lead time for changes
+  (green), Failed deployment recovery time (blue), Change fail rate (orange)
+  and Deployment rework rate (purple). A measure with no score in any period
+  has no line. The scale is the score, 0 to 10, 10 at the top, the same in
+  every chart, the oldest period on the left. A period without a score is a
+  gap that breaks the line, never a zero, and a period alone between gaps
+  is a dot. A legend under the chart names each line with a swatch in its
+  colour and its dash pattern (Overall Performance solid, each metric its
+  own), so the chart reads without colour (a screen reader hears the project's name before each legend entry). Every colour reaches a contrast
+  of 4.5:1 on the page background in light and in dark mode. Each chart is
+  an inline SVG with a title ("Scores of Acme Shop: 2025 H2 to Last 6
+  months") and no script; the table below it carries every number the
+  chart draws. The per-row Trend column of 1.8.0 to 1.9.x is gone: the
+  project chart replaces it.
 - **Dashes.** A dash is no data: nothing was deployed yet up to that
   period, or the collection has not read the history back that far yet: a
   period shows a row only when every repository of the row was read back to

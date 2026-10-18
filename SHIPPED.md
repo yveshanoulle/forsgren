@@ -9,6 +9,17 @@ Active work lives in
 
 ---
 
+## 2026-10-18 — one chart per project on the History page ([#212](https://github.com/yveshanoulle/forsgren/issues/212), 1/1)
+
+Yves: one trend chart per project, above that project's block; a colour for each line (Overall Performance black in light mode and white in dark mode, Deployment frequency red, Lead time for changes green, three more chosen by Lenka); every colour at 4.5:1 in both modes, tested like the trend arrows; a legend under the chart naming each line.
+
+- The project's block opens with its name row, then one row with a full-width cell holding the chart and its legend, then the measure rows. A cell spanning the table in the tbody keeps the HTML valid and the project's name is the chart's heading.
+- A line per measure of the project's total, 0 to 10 on one scale. Colours (light / dark): `#000000 / #ffffff`, red `#b3261e / #ff8a80`, green `#1b6e2f / #7fd98f`, blue `#0b57d0 / #8ab4f8`, orange `#a34100 / #ffb74d`, purple `#7b1fa2 / #ce93d8`, as `.measure-N` rules with `light-dark()`. The legend gives each line a swatch with its dash pattern, a second cue besides colour.
+- The per-row Trend cells and the Trend column are removed: the project chart replaces them and nothing depends on them. With one period there is still no chart.
+- Red first: `TestHistoryChartIsOnePerProjectAboveItsBlock`, `TestHistoryChartDrawsOneLinePerMeasureAndALegendNamesThem` and `TestHistoryChartColoursReachContrastInLightAndDark`. Goldens `history*` and `legend` regenerated.
+
+---
+
 ## 2026-10-18 — the History page groups per project ([#211](https://github.com/yveshanoulle/forsgren/issues/211), 1/1)
 
 Yves: the goal was to group things. The History page was one table with a block per measure, each listing every project; it is now one table with a block per project.
