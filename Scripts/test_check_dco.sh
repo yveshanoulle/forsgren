@@ -69,6 +69,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
+# shellcheck source=Scripts/lib_git_sandbox.sh
+source Scripts/lib_git_sandbox.sh
+
 CHECK="./Scripts/check_dco.sh"
 
 # shellcheck source=Scripts/lib_selftest.sh

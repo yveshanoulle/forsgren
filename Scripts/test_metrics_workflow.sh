@@ -292,6 +292,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# shellcheck source=Scripts/lib_git_sandbox.sh
+source Scripts/lib_git_sandbox.sh
+
 # The cases own their environment for the starter step: an identity or config
 # inherited from whoever runs this (fbp_agent_friend.sh exports both) never
 # reaches one. The hostile case sets its own, inside the subshell that runs it.

@@ -31,6 +31,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
+# shellcheck source=Scripts/lib_git_sandbox.sh
+source Scripts/lib_git_sandbox.sh
+
 WORKFLOW=".github/workflows/release.yml"
 METRICS=".github/workflows/metrics.yml"
 

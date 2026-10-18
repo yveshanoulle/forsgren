@@ -759,6 +759,8 @@ release token expiry self-test|Scripts/test_release_token_expiry.sh|pre|
 release verify pin self-test|Scripts/test_release_verify_pin.sh|pre|
 release metrics self-test|Scripts/test_release_metrics.sh|pre|
 release workflow|Scripts/test_release_workflow.sh|pre|
+git sandbox isolation self-test|Scripts/test_git_sandbox_isolation.sh|pre|
+git sandbox guard self-test|Scripts/test_git_sandbox_guard.sh|pre|
 #
 # The privacy pages belong to a site that needs privacy pages: another estate repository
 # serves a privacy policy, and its check_privacy_pages.sh pins that

@@ -4,6 +4,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
+# shellcheck source=Scripts/lib_git_sandbox.sh
+source Scripts/lib_git_sandbox.sh
+
 # Scripts/test_sfl_pull.sh
 #
 # The sfl pull contract, shared by every repo of the estate: `git pull --ff-only`;

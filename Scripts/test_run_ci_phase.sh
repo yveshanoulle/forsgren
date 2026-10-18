@@ -29,6 +29,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# shellcheck source=Scripts/lib_git_sandbox.sh
+source Scripts/lib_git_sandbox.sh
+
 RUNNER="Scripts/run_ci_phase.sh"
 ORDER="Scripts/gate_report_order.txt"
 

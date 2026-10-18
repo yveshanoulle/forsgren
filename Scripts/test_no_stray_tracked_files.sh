@@ -42,6 +42,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
+# shellcheck source=Scripts/lib_git_sandbox.sh
+source Scripts/lib_git_sandbox.sh
+
 # An inherited GIT_DIR / GIT_WORK_TREE / GIT_INDEX_FILE (a hook, a wrapper)
 # would point the scratch `git init` and `git add` below at THIS repository
 # instead of the scratch one. Nothing here needs them.
@@ -228,6 +231,7 @@ if [[ -z "${STRAY_MUTANT_RUN:-}" ]]; then
     mkdir -p "${root}/Scripts"
     cp Scripts/lib_selftest.sh "${root}/Scripts/lib_selftest.sh"
     cp Scripts/lib_repo_files.sh "${root}/Scripts/lib_repo_files.sh"
+    cp Scripts/lib_git_sandbox.sh "${root}/Scripts/lib_git_sandbox.sh"
     cp Scripts/test_no_stray_tracked_files.sh "${root}/Scripts/test_no_stray_tracked_files.sh"
     if [[ "$script_sed" != "-" ]]; then
       selftest_mutant Scripts/test_no_stray_tracked_files.sh "${root}/Scripts/test_no_stray_tracked_files.sh" "$script_sed" || return 0

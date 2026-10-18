@@ -4,6 +4,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# shellcheck source=Scripts/lib_git_sandbox.sh
+source Scripts/lib_git_sandbox.sh
+
 # Pins for Scripts/render_step_table.sh, the renderer of sfl's end-of-run step
 # table. Having the table and having the check that keeps it are different
 # things: inline in sfl.sh nothing would notice it breaking.

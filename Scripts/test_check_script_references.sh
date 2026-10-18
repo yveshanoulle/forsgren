@@ -22,6 +22,9 @@ set -uo pipefail
 
 # Repo root without counting levels. The replaced form is described, never
 # quoted: the depth check greps every script for it.
+# shellcheck source=Scripts/lib_git_sandbox.sh
+source "$(dirname "$0")/lib_git_sandbox.sh"
+
 cd "$(cd "$(dirname "$0")" && git rev-parse --show-toplevel)" || exit 1
 CHECK="Scripts/check_script_references.sh"
 CHECK_ABS="$(pwd)/$CHECK"

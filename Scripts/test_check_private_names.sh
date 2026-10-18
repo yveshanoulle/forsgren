@@ -93,6 +93,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
+# shellcheck source=Scripts/lib_git_sandbox.sh
+source Scripts/lib_git_sandbox.sh
+
 GATE="$(pwd)/Scripts/check_private_names.sh"
 
 # shellcheck source=Scripts/lib_selftest.sh

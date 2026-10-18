@@ -163,7 +163,7 @@ fi
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=135
+MIN_GATES=137
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -433,6 +433,15 @@ for path in Scripts/*.sh; do
         runs_script "Scripts/${consumer}" "$base" \
           || fail "${base} holds the shared FBP sandbox and Scripts/${consumer} never sources it"
       done
+      ;;
+
+    # SOURCED HELPER, not a gate (forsgren#228): unsets the variables by which
+    # git locates a repository. Scripts/test_git_sandbox_guard.sh is its test
+    # and holds that every git-using self-test sources it; this guards the
+    # other way, that the guard itself does.
+    lib_git_sandbox.sh)
+      runs_script "Scripts/test_git_sandbox_guard.sh" "$base" \
+        || fail "${base} isolates the self-tests from an exported GIT_DIR and Scripts/test_git_sandbox_guard.sh never sources it"
       ;;
 
     # SOURCED HELPER, not a gate (konenki issue #18): runs_script, the one

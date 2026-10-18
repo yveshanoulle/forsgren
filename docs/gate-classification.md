@@ -21,7 +21,7 @@ not close it.
 ## The order file, row by row
 
 [Scripts/gate_report_order.txt](../Scripts/gate_report_order.txt) is the one
-list sfl and CI both run. It has 135 rows: 131 with a script and 4 `n/a`
+list sfl and CI both run. It has 137 rows: 133 with a script and 4 `n/a`
 rows. All scripts are in `Scripts/`. The phase is `pre` (repository inputs and
 checker behaviour) or `post` (the generated site). `secret-class` means a
 finding blocks the commit as well as the push. A row for a self-test is
@@ -163,8 +163,10 @@ self-tests are.
 | 131 | release verify pin self-test | `test_release_verify_pin.sh` | pre | required; 3 mutations. `release_verify_pin.sh` reads a pin pull request (only the pins of both callers, to this release) and is a step of the Release workflow |
 | 132 | release metrics self-test | `test_release_metrics.sh` | pre | required; stub gh, 4 mutations (merging more than the pins, no wait, a red run taken for done, a second run next to a green one). `release_metrics.sh` merges the pin pull request and runs forsgren in forsgren-metrics until green |
 | 133 | release workflow | `test_release_workflow.sh` | pre | required; pins `.github/workflows/release.yml`: trigger, permissions, actions, order, commands, ids and outcomes, resume, the secret, no tag made by hand; 39 mutations |
-| 134 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
-| 135 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
+| 134 | git sandbox isolation self-test | `test_git_sandbox_isolation.sh` | pre | required; runs ten git-using self-tests with `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` pointing at a decoy repository with a decoy origin, and requires both unchanged (forsgren#228) |
+| 135 | git sandbox guard self-test | `test_git_sandbox_guard.sh` | pre | required; every git-using `test_*.sh` sources `lib_git_sandbox.sh`, 1 mutation (forsgren#228) |
+| 136 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
+| 137 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
 
 ## Documented exceptions
 
@@ -295,7 +297,7 @@ malformed row fails the step. Its self-test is the PRE row 121.
 
 ## The ratchet today
 
-`MIN_GATES` is 135, which equals the 135 rows of the order file (131 with a
+`MIN_GATES` is 137, which equals the 137 rows of the order file (133 with a
 script and 4 `n/a` rows). forsgren#215 brought it to 115 and the Go tool
 helper self-test of forsgren#216 is the 116th; the browser gate and its
 self-test (forsgren#205) made 118, and the live check self-test
@@ -305,4 +307,5 @@ self-tests of the release plan and the release bump (forsgren#221, step 1 of
 2) made 125; the five self-tests of the release scripts and the pin of the
 Release workflow (forsgren#221, step 2 of 2) made 131, and the resume
 self-test made 132, the token expiry self-test made 133, and the self-tests of the pin check and of the
-metrics merge (forsgren#221, step 5) made 135.
+metrics merge (forsgren#221, step 5) made 135, and the two self-tests of the git
+sandbox (forsgren#228) made 137.

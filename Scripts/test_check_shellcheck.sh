@@ -32,6 +32,9 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# shellcheck source=Scripts/lib_git_sandbox.sh
+source "${ROOT}/Scripts/lib_git_sandbox.sh"
 SCRIPT_UNDER_TEST="${ROOT}/Scripts/check_shellcheck.sh"
 
 TMP="$(mktemp -d)"

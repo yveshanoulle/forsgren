@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-18 — self-tests no longer escape their sandbox ([#228](https://github.com/yveshanoulle/forsgren/issues/228))
+
+A self-test run from a shell that exported `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` wrote into that repository: `git -C <sandbox>` does not override an exported `GIT_DIR`, so a fixture's push, config and branch changes landed in the caller's repository.
+
+- `Scripts/lib_git_sandbox.sh` unsets every variable by which git locates a repository; every `Scripts/test_*.sh` that calls git sources it before its first git call.
+- Red first: `Scripts/test_git_sandbox_isolation.sh` runs ten git-using self-tests with the variables pointing at a decoy repository with a decoy origin, and requires both unchanged; it named the changed config, refs and branches before the fix.
+- `Scripts/test_git_sandbox_guard.sh` fails, naming the file, when a git-using self-test does not source the helper.
+
 ## 2026-10-18 — one chart per project on the History page ([#212](https://github.com/yveshanoulle/forsgren/issues/212), 1/1)
 
 Yves: one trend chart per project, above that project's block; a colour for each line (Overall Performance black in light mode and white in dark mode, Deployment frequency red, Lead time for changes green, three more chosen by Lenka); every colour at 4.5:1 in both modes, tested like the trend arrows; a legend under the chart naming each line.
