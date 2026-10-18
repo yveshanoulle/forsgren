@@ -147,6 +147,7 @@ one_notice
 no_hand
 advice_case "plan" plan token quality
 want_said "$CASE: the cause" "label the issues the plan names patch, minor or major"
+want_said "$CASE: the cause names open issues with commits on main" "close or split every open issue it names that already has commits on main"
 want_said "$CASE: start again" "start Release again with the same bump (minor)"
 advice_case "free" free token quality plan
 want_said "$CASE: the cause" "that version already exists as a tag or a release"

@@ -21,6 +21,14 @@
 # such issue.
 #
 # Red (exit 1, a ❌ line that names the reason):
+#   - an OPEN issue of this repository has a commit on main since the latest
+#     release (a `#N` or `forsgren#N` in the subject of a commit in
+#     <latest tag>..HEAD; other repositories' references and the `release
+#     X.Y.Z` bump commits do not count; an issue named in an earlier release's
+#     notes does not count): every such issue is named, ascending, followed by
+#     "close it, or split it (close the landed part as its own issue, move
+#     the rest to a new one)". The release tags main as it is, so landed code
+#     of an open issue ships while its notes and bump would miss it.
 #   - nothing was closed since the latest release
 #   - an issue has no patch, minor or major label: every one is named, followed
 #     by "label it patch, minor or major"
@@ -40,6 +48,11 @@
 # tag, TAB, its publish time (UTC, 2026-10-17T05:06:23Z); every other line is
 # number, title, labels (comma separated), closed time, state reason, TAB
 # separated.
+# The open issues and the commits have a seam of their own, none when unset
+# (while RELEASE_PLAN_DATA is set): RELEASE_PLAN_OPEN, a file with one open
+# issue per line, number TAB title, and RELEASE_PLAN_COMMITS, a file with the
+# subjects of the commits since the latest tag, one per line. Without the seam
+# they come from gh (open issues) and git log <latest tag>..HEAD.
 #
 # Self-test: Scripts/test_release_plan.sh.
 
@@ -118,15 +131,43 @@ earlier_notes() {
   fi
   local tags tag
   tags="$(gh release list --limit 100 --json tagName --jq '.[].tagName')" \
-    || refuse "gh could not list the releases"
+    || return 1
   for tag in $tags; do
-    gh release view "$tag" --json body --jq '.body' || refuse "gh could not read the notes of ${tag}"
+    gh release view "$tag" --json body --jq '.body' || return 1
   done
+}
+
+# open_issues: the open issues, number TAB title, from the seam or from gh.
+open_issues() {
+  if [ -n "${RELEASE_PLAN_DATA:-}" ]; then
+    if [ -n "${RELEASE_PLAN_OPEN:-}" ]; then cat "$RELEASE_PLAN_OPEN"; fi
+    return
+  fi
+  gh issue list --state open --limit 1000 --json number,title \
+    --jq '.[] | [.number, (.title | gsub("[\t\n]"; " "))] | @tsv'
+}
+
+# commit_subjects <tag>: the subjects of the commits since the tag, from the seam or from git.
+commit_subjects() {
+  if [ -n "${RELEASE_PLAN_DATA:-}" ]; then
+    if [ -n "${RELEASE_PLAN_COMMITS:-}" ]; then cat "$RELEASE_PLAN_COMMITS"; fi
+    return
+  fi
+  git log --format=%s "${1}..HEAD"
+}
+
+# referenced: the issue numbers this repository's commit subjects name, as #N
+# lines. The bump commits are skipped, and a reference with a prefix other
+# than forsgren (another repository) is dropped.
+referenced() {
+  { grep -vE '^release [0-9]' || true; } \
+    | sed -E 's/forsgren#/#/g; s/[A-Za-z0-9_.\/-]+#[0-9]+//g' \
+    | { grep -oE '#[0-9]+' || true; } | sort -u
 }
 
 # is_named <number>: 0 when an earlier release's notes name the issue.
 is_named() {
-  printf '%s\n' "$NAMED" | grep -qxF "#$1"
+  grep -qxF -- "#$1" <<< "$NAMED"
 }
 
 # is_excluded <labels> <reason>: 0 when the issue is not part of a release.
@@ -163,7 +204,8 @@ PATCH="${BASH_REMATCH[3]}"
 # A tab is white space to read, which would swallow an empty labels field: the
 # fields are split on a unit separator instead.
 SEP="$(printf '\037')"
-NAMED="$(earlier_notes | grep -oE '#[0-9]+' | sort -u)" || NAMED="$(true)"
+NOTES_RAW="$(earlier_notes)" || stop "gh could not read the notes of the earlier releases"
+NAMED="$({ grep -oE '#[0-9]+' <<< "$NOTES_RAW" || true; } | sort -u)"
 count=0
 unlabelled=""
 required_rank=1
@@ -189,6 +231,28 @@ while IFS="$SEP" read -r number title labels closed reason; do
   rows="${rows}${bump}	${number}	${title}
 "
 done <<< "$(printf '%s\n' "$RAW" | tail -n +2 | tr '\t' "$SEP")"
+
+# A source that cannot be read is red, never an empty list: the substitution
+# runs at the top level so that stop can end the plan.
+COMMIT_RAW="$(commit_subjects "$TAG")" || stop "git could not read the commits since ${TAG}"
+OPEN_RAW="$(open_issues)" || stop "gh could not list the open issues"
+COMMITTED="$(referenced <<< "$COMMIT_RAW")"
+open_hits=""
+while IFS="$SEP" read -r number title; do
+  [ -n "$number" ] || continue
+  grep -qxF -- "#${number}" <<< "$COMMITTED" || continue
+  if is_named "$number"; then
+    continue
+  fi
+  open_hits="${open_hits}❌ FAIL: release plan: #${number} ${title} is still open but has commits on main since ${TAG}: close it, or split it (close the landed part as its own issue, move the rest to a new one)
+"
+  open_found=1
+done <<< "$(printf '%s\n' "$OPEN_RAW" | sort -t "$(printf '\t')" -k1,1n | tr '\t' "$SEP")"
+if [ -n "$open_hits" ]; then
+  printf '%s' "$open_hits"
+  COMPLETED=1
+  exit 1
+fi
 
 if (( count == 0 )); then
   stop "nothing was closed since ${TAG}"

@@ -22,16 +22,25 @@
 #   8b. an issue that an earlier release's notes name -> never listed again
 #      (RELEASE_PLAN_NOTES stands for the notes of the earlier releases)
 #   9. --notes writes the notes to a file
+#  9b. an OPEN issue with a commit on main since the release -> red, every
+#      such issue named, ascending (RELEASE_PLAN_OPEN: number TAB title per
+#      open issue; RELEASE_PLAN_COMMITS: one commit subject per line); open
+#      issues without commits, ones an earlier release named, release-bump
+#      commits and other repositories' references never count
 #  10. usage errors, a latest tag that is no vX.Y.Z -> exit 2
 # Mutation proofs: a copy that accepts a lower bump, one that accepts nothing
 # closed, one without the exclusion, one without the publish-time filter, one
 # that lets an unlabelled issue pass and one that lists an issue an earlier
-# release named must each let the case they exist for pass.
+# release named, one that names only the first open issue with commits and one
+# that ignores the earlier releases for open issues must each let the case
+# they exist for pass.
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
+# shellcheck source=Scripts/lib_git_sandbox.sh
+source Scripts/lib_git_sandbox.sh
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
 selftest_begin "release plan self-test"
@@ -165,6 +174,47 @@ else
   echo "  ok: the notes file holds the grouped notes"
 fi
 
+# 9b
+printf '%s\t%s\n' 40 'Half landed' 41 'Also half landed' 42 'No commits yet' 218 'Named before' > "${TMP}/open.tsv"
+printf 'Step 1 of #40 (1/2): first part\nrelease 1.9.4 for #42\nfixes forsgren#41 too\nother-repo#42 only\nacme/app#42 only\nwork on #218\n' > "${TMP}/commits.txt"
+open_plan() { RELEASE_PLAN_OPEN="${TMP}/open.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits.txt" plan "$@"; }
+data "$(issue 5 'Fix the thing' patch)"
+printf 'From #218.\n' > "${TMP}/notes_open.md"
+RELEASE_PLAN_NOTES="${TMP}/notes_open.md" open_plan "$PLAN" patch
+want_red "an open issue with a commit on main" "release plan: #40 Half landed is still open but has commits on main since v1.9.3: close it, or split it (close the landed part as its own issue, move the rest to a new one)"
+want_said "the forsgren#N form counts, every issue is named" "release plan: #41 Also half landed is still open but has commits on main since v1.9.3"
+if grep -qE '#42|#218|OK:' <<< "$OUT"; then fail "#42 (bump or other repository only), #218 (named earlier) or OK: is in the output. Output: ${OUT}"; fi
+if [[ "$(grep -n -F -- '#40 ' <<< "$OUT" | cut -d: -f1)" -ge "$(grep -n -F -- '#41 ' <<< "$OUT" | cut -d: -f1)" ]]; then
+  fail "the open issues are not in ascending order. Output: ${OUT}"
+fi
+printf '%s\t%s\n' 50 'Only one' 51 'No commit' > "${TMP}/open_one.tsv"
+printf 'First #50\n' > "${TMP}/commits_one.txt"
+RELEASE_PLAN_OPEN="${TMP}/open_one.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits_one.txt" plan "$PLAN" patch
+want_red "one open issue with a commit" "release plan: #50 Only one is still open but has commits on main since v1.9.3"
+if grep -qF '#51' <<< "$OUT"; then fail "an open issue without commits is named. Output: ${OUT}"; fi
+printf 'Work on #99\n' > "${TMP}/commits_none.txt"
+RELEASE_PLAN_OPEN="${TMP}/open_one.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits_none.txt" plan "$PLAN" patch
+want_green "open issues without commits on main" "OK: next version 1.9.4"
+data "$(issue 50 'Only one' patch)"
+RELEASE_PLAN_OPEN="${TMP}/open_one.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits_one.txt" plan "$PLAN" patch
+want_red "the same number open again does not matter, the open list rules" "release plan: #50 Only one is still open"
+: > "${TMP}/open_none.tsv"
+RELEASE_PLAN_OPEN="${TMP}/open_none.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits_one.txt" plan "$PLAN" patch
+want_green "a closed issue with a commit is unaffected" "OK: next version 1.9.4"
+
+# 9c: a source that cannot be read is red, never an empty list
+data "$(issue 5 'Fix the thing' patch)"
+RELEASE_PLAN_OPEN="${TMP}/open_one.tsv" RELEASE_PLAN_COMMITS="${TMP}/does_not_exist.txt" plan "$PLAN" patch
+want_red "the commits cannot be read" "release plan: git could not read the commits since v1.9.3"
+RELEASE_PLAN_OPEN="${TMP}/does_not_exist.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits_one.txt" plan "$PLAN" patch
+want_red "the open issues cannot be read" "release plan: gh could not list the open issues"
+RELEASE_PLAN_NOTES="${TMP}/does_not_exist.md" plan "$PLAN" patch
+want_red "the earlier releases' notes cannot be read" "release plan: gh could not read the notes of the earlier releases"
+plan "$PLAN" patch
+want_green "RELEASE_PLAN_NOTES unset means no earlier notes" "OK: next version 1.9.4"
+RELEASE_PLAN_NOTES="${TMP}/does_not_exist.md" plan "$PLAN" patch
+if grep -qF 'OK:' <<< "$OUT"; then fail "the plan says OK although a source could not be read. Output: ${OUT}"; fi
+
 # 10
 plan "$PLAN"
 want_exit "no bump" 2 "usage"
@@ -228,6 +278,43 @@ data "$(issue 218 'Favicon' patch)"
 if selftest_mutant "$PLAN" "${TMP}/mut/named/release_plan.sh" "s/if is_named \".number\"; then/if false; then/"; then
   RELEASE_PLAN_NOTES="${TMP}/notes_before.md" RELEASE_PLAN_DATA="${TMP}/data.tsv" capture "${TMP}/mut/named/release_plan.sh" patch
   want_green "mutation proof: without the filter an issue an earlier release named is released again" "- #218 Favicon"
+fi
+
+printf '%s\t%s\n' 40 'Half landed' 41 'Also half landed' > "${TMP}/open.tsv"
+printf 'Step of #40\nStep of #41\n' > "${TMP}/commits.txt"
+data "$(issue 5 'Fix the thing' patch)"
+if selftest_mutant "$PLAN" "${TMP}/mut/first/release_plan.sh" 's/^  open_found=1$/  break/'; then :; fi
+RELEASE_PLAN_OPEN="${TMP}/open.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits.txt" RELEASE_PLAN_DATA="${TMP}/data.tsv" capture "${TMP}/mut/first/release_plan.sh" patch
+if grep -qF '#41' <<< "$OUT"; then
+  fail "mutation proof: the mutant that stops at the first open issue still named the second. Output: ${OUT}"
+else
+  echo "  ok: mutation proof: a plan that names only the first open issue leaves the second out"
+fi
+printf 'From #218.\n' > "${TMP}/notes_open.md"
+printf '%s\t%s\n' 218 'Named before' > "${TMP}/open.tsv"
+printf 'Work on #218\n' > "${TMP}/commits.txt"
+if selftest_mutant "$PLAN" "${TMP}/mut/openNamed/release_plan.sh" '/^COMMITTED=/,/^  open_found=1/ s/if is_named "\$number"; then/if false; then/'; then
+  RELEASE_PLAN_NOTES="${TMP}/notes_open.md" RELEASE_PLAN_OPEN="${TMP}/open.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits.txt" RELEASE_PLAN_DATA="${TMP}/data.tsv" capture "${TMP}/mut/openNamed/release_plan.sh" patch
+  want_red "mutation proof: without the exclusion an open issue an earlier release named stops the plan" "release plan: #218 Named before is still open"
+fi
+
+data "$(issue 5 'Fix the thing' patch)"
+if selftest_mutant "$PLAN" "${TMP}/mut/unread/release_plan.sh" 's/^COMMIT_RAW="\$(commit_subjects "\$TAG")" || .*$/COMMIT_RAW="$(commit_subjects "$TAG")" || COMMIT_RAW=""/'; then
+  RELEASE_PLAN_OPEN="${TMP}/open_one.tsv" RELEASE_PLAN_COMMITS="${TMP}/does_not_exist.txt" RELEASE_PLAN_DATA="${TMP}/data.tsv" capture "${TMP}/mut/unread/release_plan.sh" patch
+  if [[ "$RC" -eq 0 ]] && ! grep -qF "git could not read the commits" <<< "$OUT"; then
+    echo "  ok: mutation proof: with a fallback an unreadable commit source passes unchecked"
+  else
+    fail "mutation proof: the mutant with the fallback still stopped (exit ${RC}). Output: ${OUT}"
+  fi
+fi
+
+if selftest_mutant "$PLAN" "${TMP}/mut/notes/release_plan.sh" 's/^NOTES_RAW="\$(earlier_notes)" || .*$/NOTES_RAW="$(earlier_notes)" || NOTES_RAW=""/'; then
+  RELEASE_PLAN_NOTES="${TMP}/does_not_exist.md" RELEASE_PLAN_DATA="${TMP}/data.tsv" capture "${TMP}/mut/notes/release_plan.sh" patch
+  if [[ "$RC" -eq 0 ]] && ! grep -qF "gh could not read the notes" <<< "$OUT"; then
+    echo "  ok: mutation proof: with a fallback unreadable earlier notes pass unchecked"
+  else
+    fail "mutation proof: the mutant with the fallback still stopped (exit ${RC}). Output: ${OUT}"
+  fi
 fi
 
 selftest_end "the release plan does not hold" "release plan: the bump check, the closed-issue filter, the notes and the version arithmetic all held"

@@ -138,7 +138,7 @@ Next: fix the cause and start the same resume again (resume = ${RELEASE_RESUME:-
       cause=""
       case "$failed_id" in
         token) cause="Cause: the secret FORSGREN_RELEASE_TOKEN is not set, empty, expired or without an expiry date (the first line of this summary says which); it is a fine-grained token with Contents, Pull requests and Workflows read and write on forsgren-template and forsgren-metrics." ;;
-        plan) cause="Cause: label the issues the plan names patch, minor or major (or choose the bump it names, or nothing was closed since the last release)." ;;
+        plan) cause="Cause: label the issues the plan names patch, minor or major (or choose the bump it names, or nothing was closed since the last release), and close or split every open issue it names that already has commits on main." ;;
         free) cause="Cause: that version already exists as a tag or a release; see the Releases page." ;;
         quality) cause="Cause: Quality is not green on main: ${QUALITY_LINK}" ;;
         bump | test) cause="Cause: the bump or the tests on the bumped tree failed; read the step log." ;;

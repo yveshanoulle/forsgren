@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-18 — the release plan stops on open issues that already landed ([#229](https://github.com/yveshanoulle/forsgren/issues/229))
+
+An open issue with a commit on main since the latest release ships with the release anyway, because the release tags main as it is, while its notes and its bump miss it.
+
+- `Scripts/release_plan.sh` stops on every open issue with a `#N` or `forsgren#N` in a commit subject since the latest tag, names each one, and advises closing it or splitting it; release-bump commits, other repositories' references and issues an earlier release named do not count.
+- Red first in `Scripts/test_release_plan.sh` with a seam for the open issues and the commit subjects; mutation proofs for naming only the first issue and for dropping the earlier-release exclusion.
+- The Release run report's plan-failure cause names these issues too; the Release workflow fetches the tags the plan needs.
+
 ## 2026-10-18 — self-tests no longer escape their sandbox ([#228](https://github.com/yveshanoulle/forsgren/issues/228))
 
 A self-test run from a shell that exported `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` wrote into that repository: `git -C <sandbox>` does not override an exported `GIT_DIR`, so a fixture's push, config and branch changes landed in the caller's repository.

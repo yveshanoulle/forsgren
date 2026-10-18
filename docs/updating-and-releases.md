@@ -463,7 +463,13 @@ and stops at the first step that fails:
    `decision`, `duplicate`, `invalid`, `wontfix` or `question`, the ones closed
    as not planned, and the ones that the notes of an earlier release already
    name (an issue closed after its release was published is never listed
-   twice). The plan stops when nothing is left, and when an issue has none of
+   twice). The plan stops on every open issue of the repository that has a
+   commit on main since the latest release (a `#N` or `forsgren#N` in a commit
+   subject; the release-bump commits and issues an earlier release named do
+   not count): the release tags main as it is, so its landed code would ship
+   while its notes and bump miss it. Every such issue is named, followed by
+   "close it, or split it (close the landed part as its own issue, move the
+   rest to a new one)". The plan stops when nothing is left, and when an issue has none of
    the three labels: every such issue is named, followed by "label it patch,
    minor or major". It stops when the requested bump is lower than the
    required one and names the issues that require more, so a minor change is
