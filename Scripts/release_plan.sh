@@ -34,6 +34,11 @@
 #     by "label it patch, minor or major"
 #   - the requested bump is lower than the required one; the line names the
 #     issues that require more
+# Every red that names issues also prints one machine line per issue, from
+# the same data (forsgren#232), for the run summary:
+#   blocking=<N> TAB <kind> TAB <title> TAB <latest tag>
+# kind: unlabelled, open-with-commits, or needs-<minor|major> (the issue's own
+# bump label, one line per issue that requires more than was asked).
 # Green (exit 0): `OK: next version X.Y.Z`, then the lines `version=X.Y.Z` and
 # `tag=vX.Y.Z` and `issues=#3 #5` (the numbers, ascending), then the release
 # notes: one `- #N title` line per issue, grouped under ### Major, ### Minor
@@ -178,6 +183,14 @@ is_excluded() {
   [ "$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')" = "not_planned" ]
 }
 
+# machine_line <number> <kind> <title>: the machine form of a blocking issue,
+# `blocking=<N> TAB <kind> TAB <title> TAB <latest tag>`. Every ❌ line that
+# names an issue is printed together with it, from the same data, so the run
+# summary (Scripts/release_report.sh) cannot disagree with the plan.
+machine_line() {
+  printf 'blocking=%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$TAG"
+}
+
 # label_bump <labels>: the highest of patch, minor, major in it; "other" when none.
 label_bump() {
   case ",$1," in
@@ -222,7 +235,7 @@ while IFS="$SEP" read -r number title labels closed reason; do
   bump="$(label_bump "$labels")"
   count=$((count + 1))
   if [ "$bump" = other ]; then
-    unlabelled="${unlabelled}#${number} ${title}: label it patch, minor or major
+    unlabelled="${unlabelled}${number}	${title}
 "
     continue
   fi
@@ -245,6 +258,7 @@ while IFS="$SEP" read -r number title; do
     continue
   fi
   open_hits="${open_hits}❌ FAIL: release plan: #${number} ${title} is still open but has commits on main since ${TAG}: close it, or split it (close the landed part as its own issue, move the rest to a new one)
+$(machine_line "$number" open-with-commits "$title")
 "
 done <<< "$(printf '%s\n' "$OPEN_RAW" | sort -t "$(printf '\t')" -k1,1n | tr '\t' "$SEP")"
 if [ -n "$open_hits" ]; then
@@ -258,9 +272,11 @@ if (( count == 0 )); then
 fi
 
 if [ -n "$unlabelled" ]; then
-  printf '%s' "$unlabelled" | while IFS= read -r line; do
-    echo "❌ FAIL: release plan: ${line}"
-  done
+  while IFS="$(printf '\t')" read -r number title; do
+    [ -n "$number" ] || continue
+    echo "❌ FAIL: release plan: #${number} ${title}: label it patch, minor or major"
+    machine_line "$number" unlabelled "$title"
+  done <<< "$unlabelled"
   COMPLETED=1
   exit 1
 fi
@@ -272,13 +288,19 @@ required="patch"
 
 if (( requested_rank < required_rank )); then
   more=""
+  machine=""
   while IFS="$(printf '\t')" read -r bump number title; do
     [ -n "$number" ] || continue
     if [ "$(rank_of "$bump")" -gt "$requested_rank" ]; then
       more="${more}${more:+, }#${number} (${bump}) ${title}"
+      machine="${machine}$(machine_line "$number" "needs-${bump}" "$title")
+"
     fi
   done <<< "$rows"
-  stop "requested ${REQUESTED} is lower than required ${required}: ${more}"
+  echo "❌ FAIL: release plan: requested ${REQUESTED} is lower than required ${required}: ${more}"
+  printf '%s' "$machine"
+  COMPLETED=1
+  exit 1
 fi
 
 case "$REQUESTED" in

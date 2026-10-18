@@ -27,6 +27,9 @@
 #      open issue; RELEASE_PLAN_COMMITS: one commit subject per line); open
 #      issues without commits, ones an earlier release named, release-bump
 #      commits and other repositories' references never count
+#  11. a machine line per blocking issue, besides the human line:
+#      blocking=<N> TAB <kind> TAB <title> TAB <latest tag>, kind unlabelled,
+#      open-with-commits or needs-<bump> (forsgren#232)
 #  10. usage errors, a latest tag that is no vX.Y.Z -> exit 2
 # Mutation proofs: a copy that accepts a lower bump, one that accepts nothing
 # closed, one without the exclusion, one without the publish-time filter, one
@@ -229,6 +232,39 @@ want_exit "latest release that is no vX.Y.Z" 2 "not a vX.Y.Z tag"
 plan "$PLAN" patch
 want_exit "no latest release at all" 2 "no latest release"
 
+# 11: one machine line per blocking issue, besides the human line:
+# blocking=<N> TAB <kind> TAB <title> TAB <latest tag>
+blocking() { printf 'blocking=%s%s%s%s%s%s%s' "$1" "$TAB" "$2" "$TAB" "$3" "$TAB" "v1.9.3"; }
+data "$(issue 30 'No label' '')" "$(issue 31 'Other label' 'tools')" "$(issue 5 'Fix the thing' patch)"
+plan "$PLAN" patch
+want_said "unlabelled: the human line is unchanged" "release plan: #30 No label: label it patch, minor or major"
+want_said "unlabelled: the first machine line" "$(blocking 30 unlabelled 'No label')"
+want_said "unlabelled: the second machine line" "$(blocking 31 unlabelled 'Other label')"
+if grep -qF 'blocking=5'"$TAB" <<< "$OUT"; then fail "a labelled issue has a machine line. Output: ${OUT}"; fi
+printf '%s\t%s\n' 40 'Half landed' 41 'Also half landed' 42 'No commits yet' > "${TMP}/open.tsv"
+printf 'Step 1 of #40\nfixes forsgren#41 too\n' > "${TMP}/commits.txt"
+data "$(issue 5 'Fix the thing' patch)"
+RELEASE_PLAN_OPEN="${TMP}/open.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits.txt" plan "$PLAN" patch
+want_said "open with commits: the human line is unchanged" "release plan: #40 Half landed is still open but has commits on main since v1.9.3: close it, or split it"
+want_said "open with commits: the first machine line" "$(blocking 40 open-with-commits 'Half landed')"
+want_said "open with commits: the second machine line" "$(blocking 41 open-with-commits 'Also half landed')"
+if grep -qF 'blocking=42'"$TAB" <<< "$OUT"; then fail "an open issue without commits has a machine line. Output: ${OUT}"; fi
+data "$(issue 5 'Fix the thing' patch)" "$(issue 12 'Add a view' minor)" "$(issue 15 'Rename a flag' major)"
+plan "$PLAN" patch
+want_red "bump too low: the human line is unchanged" "requested patch is lower than required major: #12 (minor) Add a view, #15 (major) Rename a flag"
+want_said "bump too low: the minor issue" "$(blocking 12 needs-minor 'Add a view')"
+want_said "bump too low: the major issue" "$(blocking 15 needs-major 'Rename a flag')"
+if grep -qF 'blocking=5'"$TAB" <<< "$OUT"; then fail "a patch issue has a machine line although patch was asked. Output: ${OUT}"; fi
+plan "$PLAN" minor
+want_said "bump too low: only the issue that requires more" "$(blocking 15 needs-major 'Rename a flag')"
+if grep -qF 'blocking=12'"$TAB" <<< "$OUT"; then fail "the minor issue has a machine line although minor was asked. Output: ${OUT}"; fi
+data
+plan "$PLAN" patch
+if grep -qF 'blocking=' <<< "$OUT"; then fail "nothing closed names an issue. Output: ${OUT}"; fi
+data "$(issue 5 'Fix the thing' patch)"
+plan "$PLAN" patch
+if grep -qF 'blocking=' <<< "$OUT"; then fail "a green plan has a machine line. Output: ${OUT}"; fi
+
 # Mutation proofs: each mutant must let its case pass.
 mutant_runs() {
   # <name> <sed> <case> <reason>: the mutant on the fixture the case uses
@@ -314,6 +350,20 @@ if selftest_mutant "$PLAN" "${TMP}/mut/notes/release_plan.sh" "s/ || stop \"gh c
     echo "  ok: mutation proof: with a fallback unreadable earlier notes pass unchecked"
   else
     fail "mutation proof: the mutant with the fallback still stopped (exit ${RC}). Output: ${OUT}"
+  fi
+fi
+
+# The machine line of an open issue with commits is dropped: the case above
+# (11) names the missing issue.
+printf '%s\t%s\n' 40 'Half landed' > "${TMP}/open.tsv"
+printf 'Step 1 of #40\n' > "${TMP}/commits.txt"
+data "$(issue 5 'Fix the thing' patch)"
+if selftest_mutant "$PLAN" "${TMP}/mut/nomachine/release_plan.sh" "s/machine_line \"\$number\" open-with-commits/:/"; then
+  RELEASE_PLAN_OPEN="${TMP}/open.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits.txt" RELEASE_PLAN_DATA="${TMP}/data.tsv" capture "${TMP}/mut/nomachine/release_plan.sh" patch
+  if grep -qF "$(blocking 40 open-with-commits 'Half landed')" <<< "$OUT"; then
+    fail "mutation proof: the mutant still has the machine line of #40. Output: ${OUT}"
+  else
+    echo "  ok: mutation proof: a plan without the machine line leaves #40 out, and case 11 names it"
   fi
 fi
 

@@ -16,6 +16,11 @@
 #      cause per step, start again with the same bump), the bump commit on main
 #      with no release (resume = publish, a plain rerun cannot work), released
 #      with a pin step failed (resume = pins, never by hand); one ::notice::
+#   4e. the plan stopped on named issues (forsgren#232): a table
+#      `| Issue | Blocks because | Do |`, one row per blocking issue in the
+#      plan's order, read from the plan's machine lines (RELEASE_PLAN_OUTPUT);
+#      links when the repo is known; the annotation names the numbers; the
+#      generic cause only when no issue is named
 #   5. the same text goes to GITHUB_STEP_SUMMARY; usage
 # The failed step is read from the outcomes of the steps (RELEASE_STEP_OUTCOMES,
 # one `<id>=<outcome>` line per step, the workflow passes steps.<id>.outcome).
@@ -158,6 +163,65 @@ want_said "$CASE: start again" "start Release again with the same bump (minor)"
 advice_case "commit" commit token quality plan free bump test
 want_said "$CASE: nothing pushed" "Nothing was released and nothing was pushed to main."
 
+# 4e: the plan stopped on named issues (forsgren#232): a table, one row per
+# issue, from the plan's own machine lines (RELEASE_PLAN_OUTPUT)
+TABS=$'\t'
+PLAN_OUT="${TMP}/plan.txt"
+plan_case() { # <log steps...>: a failed plan with the plan output in PLAN_OUT
+  logged "$@"
+  outcomes plan failure
+  RELEASE_PLAN_OUTPUT="$PLAN_OUT" report "$LOG" failure
+}
+printf '%s\n' \
+  '❌ FAIL: release plan: #221 No label yet: label it patch, minor or major' \
+  "blocking=221${TABS}unlabelled${TABS}No label yet${TABS}v1.10.0" \
+  "blocking=231${TABS}open-with-commits${TABS}Half | landed${TABS}v1.10.0" \
+  "blocking=240${TABS}needs-minor${TABS}Add a view${TABS}v1.10.0" > "$PLAN_OUT"
+plan_case token quality
+CASE="plan with named issues"
+want_said "$CASE: the table header" "| Issue | Blocks because | Do |"
+want_said "$CASE: unlabelled row" "| [#221](https://github.com/acme/app/issues/221) No label yet | closed since v1.10.0, no patch, minor or major label | label it patch, minor or major |"
+want_said "$CASE: open row, a bar in the title is escaped" "| [#231](https://github.com/acme/app/issues/231) Half \\| landed | open, with commits on main since v1.10.0 | close it, or split it (close the landed part as its own issue, move the rest to a new one) |"
+want_said "$CASE: bump row" "| [#240](https://github.com/acme/app/issues/240) Add a view | needs minor, the run asked for minor | start Release with bump = minor |"
+if [[ "$(grep -n -F '#221](' <<< "$OUT" | cut -d: -f1)" -ge "$(grep -n -F '#231](' <<< "$OUT" | cut -d: -f1)" || "$(grep -n -F '#231](' <<< "$OUT" | cut -d: -f1)" -ge "$(grep -n -F '#240](' <<< "$OUT" | cut -d: -f1)" ]]; then fail "$CASE: the rows are not in the plan's order. Output: ${OUT}"; else echo "  ok: $CASE: the rows are in the plan's order"; fi
+want_said "$CASE: the annotation names the numbers" "(plan), blocked by #221, #231, #240."
+if grep -qF "label the issues the plan names" <<< "$OUT"; then fail "$CASE: the generic cause is said although issues are named. Output: ${OUT}"; else echo "  ok: $CASE: no generic cause"; fi
+want_said "$CASE: start again" "start Release again"
+if [[ "$(grep -cF '| Issue | Blocks because | Do |' <<< "$OUT")" -ne 1 ]]; then fail "$CASE: the table is not printed exactly once. Output: ${OUT}"; else echo "  ok: $CASE: the table is printed once"; fi
+one_notice
+no_hand
+export RELEASE_BUMP=patch
+plan_case token quality
+want_said "$CASE: the run's own bump is in the reason" "needs minor, the run asked for patch"
+export RELEASE_BUMP=minor
+GITHUB_REPOSITORY="" GH_REPO="" plan_case token quality
+want_said "$CASE: without a repo the issue is plain" "| #221 No label yet | closed since v1.10.0"
+if grep -qF 'issues/221' <<< "$OUT"; then fail "$CASE: a link without a known repo. Output: ${OUT}"; else echo "  ok: $CASE: no link without a repo"; fi
+GH_REPO=other/repo GITHUB_REPOSITORY=acme/app plan_case token quality
+want_said "$CASE: GH_REPO wins for links" "https://github.com/other/repo/issues/221"
+GITHUB_STEP_SUMMARY="${TMP}/summary3.md" plan_case token quality
+if grep -qF "| Issue | Blocks because | Do |" "${TMP}/summary3.md"; then echo "  ok: $CASE: the table is in the job summary"; else fail "$CASE: no table in the job summary"; fi
+# no issue named: the generic sentence stays; nothing closed is one sentence
+printf '%s\n' '❌ FAIL: release plan: nothing was closed since v1.10.0' > "$PLAN_OUT"
+plan_case token quality
+CASE="plan, nothing closed"
+want_said "$CASE: one sentence" "Cause: nothing was closed since the last release."
+if grep -qF "| Issue |" <<< "$OUT"; then fail "$CASE: a table. Output: ${OUT}"; else echo "  ok: $CASE: no table"; fi
+CASE="plan, no issue named"
+: > "$PLAN_OUT"
+plan_case token quality
+want_said "$CASE: the generic cause" "label the issues the plan names patch, minor or major"
+if grep -qF "| Issue |" <<< "$OUT"; then fail "$CASE: a table. Output: ${OUT}"; else echo "  ok: $CASE: no table"; fi
+rm -f "$PLAN_OUT"
+plan_case token quality
+want_said "$CASE: no plan output at all: the generic cause" "label the issues the plan names patch, minor or major"
+# blocking lines of another step's failure are not used
+printf 'blocking=221\tunlabelled\tX\tv1.10.0\n' > "$PLAN_OUT"
+logged token quality plan
+outcomes free failure
+RELEASE_PLAN_OUTPUT="$PLAN_OUT" report "$LOG" failure
+if grep -qF "| Issue |" <<< "$OUT"; then fail "a free failure shows the plan table. Output: ${OUT}"; else echo "  ok: only a failed plan step shows the table"; fi
+
 # the bump commit is on main, no release
 logged token quality plan free bump test commit
 echo "commit: sha=${SHA40} pushed to main" >> "$LOG"
@@ -299,6 +363,16 @@ if mutant noresume 's/resume = pins/resume = nothing/;s/-f resume=pins/-f resume
   else
     echo "  ok: mutation proof: a template failure without the resume instruction is what the case above catches"
   fi
+fi
+# A report that renders only the first blocking issue must be caught, naming
+# the missing one.
+printf '%s\n' "blocking=221${TABS}unlabelled${TABS}No label yet${TABS}v1.10.0" "blocking=231${TABS}open-with-commits${TABS}Half landed${TABS}v1.10.0" > "$PLAN_OUT"
+if mutant firstonly "s/^    n_blocked=\\\$((n_blocked + 1))\$/    n_blocked=\$((n_blocked + 1)); break/"; then :; fi
+logged token quality
+outcomes plan failure
+if [[ -x "${TMP}/mut/firstonly/release_report.sh" ]]; then
+  RELEASE_PLAN_OUTPUT="$PLAN_OUT" report "$LOG" failure
+  if grep -qF '#231' <<< "$OUT"; then fail "mutation proof: the mutant still renders #231. Output: ${OUT}"; else echo "  ok: mutation proof: a report that renders only the first issue leaves out #231, and case 4e names it"; fi
 fi
 unset SCRIPT RELEASE_STEP_OUTCOMES
 

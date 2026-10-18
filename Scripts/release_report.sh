@@ -18,6 +18,11 @@
 #     RELEASE_RESUME=pins (a resumed run) only token, resume, template and
 #     metrics are expected.
 #
+#   - when the plan step failed, the plan's own output (RELEASE_PLAN_OUTPUT, a
+#     file; the workflow tees the plan there): its `blocking=` machine lines
+#     (forsgren#232) become a table `| Issue | Blocks because | Do |` in
+#     "What to do next", and the ::error:: line names the issue numbers.
+#
 # Usage: Scripts/release_report.sh <log-file> <job-status>
 # On success it prints the done steps. On any other status it prints an
 # ::error:: line that names the first step whose outcome is failure (or
@@ -104,6 +109,57 @@ line_value() {
   if [ -f "$LOG" ]; then grep -m1 -E "$1" "$LOG" || true; fi
 }
 
+# blocking_table: the issues a stopped plan names (forsgren#232), from the
+# machine lines `blocking=<N> TAB <kind> TAB <title> TAB <tag>` of the plan's
+# own output (RELEASE_PLAN_OUTPUT, the file the workflow tees the plan to).
+# Sets BLOCKED_TABLE (a markdown table, one row per issue, in the plan's
+# order) and BLOCKED_NUMS (#221, #231); both stay empty when the plan names no
+# issue. The issue is a link when the repository is known (GH_REPO, else
+# GITHUB_REPOSITORY), else a plain #N.
+BLOCKED_TABLE=""
+BLOCKED_NUMS=""
+blocking_table() {
+  local file="${RELEASE_PLAN_OUTPUT:-}" repo link number kind title tag asked reason action rows="" n_blocked=0
+  [ -n "$file" ] && [ -f "$file" ] || return 0
+  repo="${GH_REPO:-${GITHUB_REPOSITORY:-}}"
+  asked="${RELEASE_BUMP:-a lower bump}"
+  while IFS="$(printf '\t')" read -r number kind title tag; do
+    number="${number#blocking=}"
+    [ -n "$number" ] || continue
+    title="${title//|/\\|}"
+    link="#${number}"
+    if [ -n "$repo" ]; then link="[#${number}](${GITHUB_SERVER_URL:-https://github.com}/${repo}/issues/${number})"; fi
+    case "$kind" in
+      unlabelled)
+        reason="closed since ${tag}, no patch, minor or major label"
+        action="label it patch, minor or major"
+        ;;
+      open-with-commits)
+        reason="open, with commits on main since ${tag}"
+        action="close it, or split it (close the landed part as its own issue, move the rest to a new one)"
+        ;;
+      needs-*)
+        reason="needs ${kind#needs-}, the run asked for ${asked}"
+        action="start Release with bump = ${kind#needs-}"
+        ;;
+      *)
+        reason="the plan names it (${kind})"
+        action="read the plan step"
+        ;;
+    esac
+    rows="${rows}| ${link} ${title} | ${reason} | ${action} |
+"
+    BLOCKED_NUMS="${BLOCKED_NUMS}${BLOCKED_NUMS:+, }#${number}"
+    n_blocked=$((n_blocked + 1))
+  done <<< "$(grep '^blocking=' "$file" || true)"
+  [ "$n_blocked" -gt 0 ] || return 0
+  BLOCKED_TABLE="| Issue | Blocks because | Do |
+|---|---|---|
+${rows%
+}"
+}
+if [ "$failed_id" = plan ]; then blocking_table; fi
+
 # What to do next, by the stage the failure is in. ADVICE goes to the job
 # summary, NOTICE (one line) to the run as a ::notice::. A step is never to be
 # done by hand: the way on is always another Release run.
@@ -111,7 +167,7 @@ ADVICE=""
 NOTICE=""
 QUALITY_LINK="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-owner/forsgren}/actions/workflows/quality.yml"
 advise() {
-  local name bump sha version
+  local name bump sha version next
   name="$(name_of "$failed_id")"
   bump="${RELEASE_BUMP:-the same}"
   sha="$(line_value '^(commit: sha=|resume: tag=.* at )' | sed -E 's/^commit: sha=([0-9a-f]+).*/\1/; s/^resume: tag=.* at ([0-9a-f]+).*/\1/')"
@@ -139,16 +195,27 @@ Next: fix the cause and start the same resume again (resume = ${RELEASE_RESUME:-
       cause=""
       case "$failed_id" in
         token) cause="Cause: the secret FORSGREN_RELEASE_TOKEN is not set, empty, expired or without an expiry date (the first line of this summary says which); it is a fine-grained token with Contents, Pull requests and Workflows read and write on forsgren-template and forsgren-metrics." ;;
-        plan) cause="Cause: label the issues the plan names patch, minor or major (or choose the bump it names, or nothing was closed since the last release), and close or split every open issue it names that already has commits on main." ;;
+        plan)
+          if [ -n "$BLOCKED_TABLE" ]; then
+            cause="The plan stopped; these issues block the release:
+${BLOCKED_TABLE}"
+          elif [ -n "${RELEASE_PLAN_OUTPUT:-}" ] && [ -f "$RELEASE_PLAN_OUTPUT" ] && grep -q 'nothing was closed since' "$RELEASE_PLAN_OUTPUT"; then
+            cause="Cause: nothing was closed since the last release."
+          else
+            cause="Cause: label the issues the plan names patch, minor or major (or choose the bump it names, or nothing was closed since the last release), and close or split every open issue it names that already has commits on main."
+          fi
+          ;;
         free) cause="Cause: that version already exists as a tag or a release; see the Releases page." ;;
         quality) cause="Cause: Quality is not green on main: ${QUALITY_LINK}" ;;
         bump | test) cause="Cause: the bump or the tests on the bumped tree failed; read the step log." ;;
         commit) cause="Cause: the commit or its push was refused (has main moved since the run began?)." ;;
       esac
+      next="fix the cause and start Release again with the same bump (${bump})."
+      if [ -n "$BLOCKED_TABLE" ]; then next="do what the table says, then start Release again (with the same bump unless a row says otherwise)."; fi
       ADVICE="Nothing was released and nothing was pushed to main.
 ${cause:+${cause}
-}Next: fix the cause and start Release again with the same bump (${bump})."
-      NOTICE="Release failed at the step '${name}': nothing was released. Fix the cause and start Release again with the same bump (${bump})."
+}Next: ${next}"
+      NOTICE="Release failed at the step '${name}': nothing was released. ${BLOCKED_NUMS:+Blocked by ${BLOCKED_NUMS}. }Fix the cause and start Release again with the same bump (${bump})."
       ;;
   esac
 }
@@ -160,7 +227,7 @@ if [ "$STATUS" != success ] && [ -n "$failed_id" ]; then advise; fi
     printf '%s' "$DONE"
   else
     if [ -n "$failed_id" ]; then
-      echo "::error::The release run ended as ${STATUS} at the step '$(name_of "$failed_id")' (${failed_id})."
+      echo "::error::The release run ended as ${STATUS} at the step '$(name_of "$failed_id")' (${failed_id})${BLOCKED_NUMS:+, blocked by ${BLOCKED_NUMS}}."
     elif [ -z "${RELEASE_STEP_OUTCOMES:-}" ]; then
       echo "::error::The release run ended as ${STATUS}; the failed step is unknown (the step outcomes were not passed)."
     else

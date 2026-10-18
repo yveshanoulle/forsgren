@@ -316,6 +316,7 @@ jobs:
           JOB_STATUS: ${{ job.status }}
           RELEASE_RESUME: ${{ inputs.resume }}
           RELEASE_BUMP: ${{ inputs.bump }}
+          RELEASE_PLAN_OUTPUT: ${{ runner.temp }}/plan.txt
           RELEASE_STEP_OUTCOMES: |
             main=${{ steps.main.outcome }}
             checkout=${{ steps.checkout.outcome }}

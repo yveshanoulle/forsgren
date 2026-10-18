@@ -9,6 +9,13 @@ Active work lives in
 
 ---
 
+## 2026-10-18 — the Release run page names the issues that block the release ([#232](https://github.com/yveshanoulle/forsgren/issues/232))
+
+When the release plan stops, the run summary lists every blocking issue in a table (issue, why it blocks, what to do), and the error annotation names the issue numbers.
+
+- `Scripts/release_plan.sh` prints a `blocking=` machine line per blocking issue next to its red line, from the same data; `Scripts/release_report.sh` renders the table from the plan's output. The generic cause is said only when the plan names no issue.
+- Red first for the machine lines and the table; mutation proofs for a plan without the machine line of an open issue and a report that renders only the first issue.
+
 ## 2026-10-18 — the Release runs a short Quality on its bump commit ([#230](https://github.com/yveshanoulle/forsgren/issues/230), step 2)
 
 The bump commit was given the full Quality for a change of version strings only.
