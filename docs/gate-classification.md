@@ -109,8 +109,8 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 74 | npm audit | `npm_audit_check.sh` | pre | required, `npm_audit_check v1`; documented exception: one dated advisory (see below) |
 | 75 | manifest-covers-site self-test | `test_required_pages_covers_site_selftest.sh` | pre | required, `test_required_pages_covers_site_selftest v1` |
 | 76 | manifest covers site | `test_required_pages_covers_site.sh` | post | required, `test_required_pages_covers_site v1` |
-| 77 | quality trigger scope | `test_quality_trigger_scope.sh` | pre | required, `test_quality_trigger_scope v2` |
-| 78 | quality runner pins | `test_quality_runner_pins.sh` | pre | required; forsgren's own (not canon): `test_quality_trigger_scope.sh` is the sites' shared `test_quality_trigger_scope v2`, byte-identical; this one pins push and `pull_request` on `main` with no `paths` or `paths-ignore` filter, no `pull_request_target`, `workflow_dispatch`, and every job on `macos-latest`, 9 mutation proofs on synthetic workflows (forsgren#240) |
+| 77 | quality trigger scope | `test_quality_trigger_scope.sh` | pre | required, `test_quality_trigger_scope v3` |
+| 78 | quality runner pins | `test_quality_runner_pins.sh` | pre | required; forsgren's own (not canon): `test_quality_trigger_scope.sh` is the sites' shared `test_quality_trigger_scope v3`, byte-identical; this one pins push and `pull_request` on `main` with no `paths` or `paths-ignore` filter, no `pull_request_target`, `workflow_dispatch`, and every job on `macos-latest`, 9 mutation proofs on synthetic workflows (forsgren#240) |
 | 79 | stray tracked files | `test_no_stray_tracked_files.sh` | pre | required, `test_no_stray_tracked_files v1` |
 | 80 | quality-report render | `test_render_quality_report.sh` | pre | required, `test_render_quality_report v2` |
 | 81 | quality-run summary | `test_render_quality_summary.sh` | pre | required |

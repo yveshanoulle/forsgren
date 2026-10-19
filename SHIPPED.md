@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-10-19 — the shared trigger scope test needs no globs file when there is none ([#240](https://github.com/yveshanoulle/forsgren/issues/240), step 3)
+
+`Scripts/test_quality_trigger_scope.sh` is now `test_quality_trigger_scope v3`: its nested sandbox cases copy `Scripts/quality_trigger_globs.txt` when the repository has one and otherwise run on an empty one of their own. forsgren's comment-only copy of that file, added in step 1 for v2, is removed. The sites take v3 through their own issues, one per repository.
+
+- Red first: with the file removed, v2 aborted with `cp: Scripts/quality_trigger_globs.txt: No such file or directory` and `FAIL: quality trigger scope check aborted before completing`; green with v3.
+
 ## 2026-10-19 — render_gate_list.sh carries its canon line ([#240](https://github.com/yveshanoulle/forsgren/issues/240), step 2)
 
 `Scripts/render_gate_list.sh`, the generator of the "What we check" list of CONTRIBUTING.md, has the line `# canon: render_gate_list v1`, so the estate's parity check can tell it is the shared copy; the sites take it afterwards. The script itself is unchanged.

@@ -1,8 +1,0 @@
-# Globs Quality's trigger paths must contain IN ADDITION to the canon list in
-# Scripts/test_quality_trigger_scope.sh and the site directory (site_dir in
-# Scripts/site_settings.txt, as <site_dir>/**). One glob per line; blank lines
-# and lines starting with # are ignored. The file must exist: a repo with no
-# extra input keeps this comment and no glob.
-#
-# A glob belongs here when a gate of THIS repo reads a path the shared list
-# cannot know about (for example a second authored-input directory).

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_quality_trigger_scope v2
+# canon: test_quality_trigger_scope v3
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -30,6 +30,11 @@ cd "$(dirname "$0")/.."
 # settings nor the extra globs are read (a repository that deliberately runs
 # every gate on every change keeps none of them); a paths-ignore filter is
 # rejected, because an ignored path is a change that runs no gate.
+#
+# v3 (forsgren#240): the nested sandbox cases copy the extra globs file when the
+# repository has one and otherwise give the sandbox an empty one (the filtered
+# cases need a file to read), so a repository with no extra glob and no filter
+# needs no comment-only file of its own.
 #
 # Pull requests: Quality keeps its pull_request trigger (a ruling, recorded in
 # Scripts/workflow_trigger_exceptions.txt), and it must keep one. judge() only
@@ -273,7 +278,8 @@ if [[ -z "${QTS_NESTED:-}" ]]; then
     local root="${TMP}/sb_$1"
     mkdir -p "${root}/Scripts" "${root}/.github/workflows"
     if [[ "$4" == yes ]]; then
-      cp Scripts/lib_site_settings.sh Scripts/site_settings.txt Scripts/quality_trigger_globs.txt "${root}/Scripts/"
+      cp Scripts/lib_site_settings.sh Scripts/site_settings.txt "${root}/Scripts/"
+      if [[ -f "$EXTRAS" ]]; then cp "$EXTRAS" "${root}/Scripts/"; else : > "${root}/Scripts/quality_trigger_globs.txt"; fi
     fi
     cp "$2" "${root}/Scripts/test_quality_trigger_scope.sh"
     cp "$3" "${root}/.github/workflows/quality.yml"
