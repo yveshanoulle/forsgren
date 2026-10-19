@@ -233,10 +233,37 @@ acme/app,2026-10-14T06:00:00Z
 - The data guard knows its name: an `issue_bugs_cut.csv` that git tracks
   or does not ignore, outside `testdata/` blocks the commit, like the other data files.
 
+**The cut runs note** (forsgren#64) is kept in `data/cut_runs.csv`, next to
+the history, with its own format version (the cut runs format v1): one line per
+repository that the request budget cut short without keeping a day, since the
+first run of that streak.
+
+```
+# forsgren cut runs v1
+repository,first_cut_at
+acme/app,2026-10-14T06:00:00Z
+```
+
+- `first_cut_at` is the start of the first run of the streak, in UTC, to the
+  second. Lines are sorted by repository.
+- A run writes the line when it cut the repository short and kept nothing (no
+  record and no read mark moved), keeping the time of a line that is already
+  there. A run that kept something, or read the repository to its end, removes
+  the line; a repository that failed keeps its line as it was.
+- A repository cut short that already has the line is reported as stalled: it
+  made no progress on two runs in a row (see the cut report below). The first
+  run it makes none is reported as `no`.
+- Rewritten whole like `data/reach.csv`, through a temporary file renamed over
+  it, and only when a line changed. A missing file notes no repository. An
+  unknown version or a malformed line refuses the collect run before GitHub is
+  asked anything, naming the file.
+- The data guard knows its name: a `cut_runs.csv` that git tracks or does not
+  ignore, outside `testdata/` blocks the commit, like the other data files.
+
 ## Collecting deployments (`collect`)
 
 ```
-FORSGREN_TOKEN=<token> forsgren collect --config forsgren.config.yml --data data/deployments.csv [--token-expiry <path>]
+FORSGREN_TOKEN=<token> forsgren collect --config forsgren.config.yml --data data/deployments.csv [--token-expiry <path>] [--cut-report <path>]
 ```
 
 `collect` reads, for every repository in the config, that repository's
@@ -563,6 +590,30 @@ have and skip each deployment with a warning instead (not verified against
 live GitHub, see above). Metadata is
 in every fine-grained token. A classic token needs `repo` for
 private repositories (no scope for public ones).
+
+**The cut report** (forsgren#64, step 3b). With `--cut-report <path>`,
+`collect` writes what the run left incomplete, for the job summary to say that
+a green run is not the same as a complete history. `collect` removes the file of an earlier
+run before anything else, and writes none for a run it refused (an unreadable
+history), so no file is unknown, never complete. The file is text:
+
+```
+# forsgren collect report v1
+incomplete resets=2026-10-01T01:00:00Z
+cut acme/app kept=2026-06-22 recent=discarded issues=unread progress=stalled
+failed acme/web secondary-rate-limit
+```
+
+- The second line is `complete`, or `incomplete resets=<UTC RFC 3339>` when
+  any repository was cut short at the request budget.
+- A `cut` line names such a repository: `kept` is the UTC day its read mark
+  moved to (`none` when it kept no day), `recent` what became of the read of
+  what is new (`read` whole, `kept` in part, `discarded`), `issues` is always
+  `unread` (a cut repository stores nothing of its issues) and `progress` is
+  `yes` when it kept something, `no` the first run it kept nothing, and
+  `stalled` when it kept nothing again (the cut runs note above).
+- A `failed` line names a repository that failed: `primary-rate-limit`,
+  `secondary-rate-limit` or `error`.
 
 **The token's expiry date** (forsgren#177). GitHub names a token's expiry
 date in every answer. Only the answers to `FORSGREN_TOKEN` count. An answer

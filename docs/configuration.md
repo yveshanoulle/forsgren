@@ -344,7 +344,7 @@ usage: forsgren render --out <dir> [--config <path>] [--data <path>]
        forsgren check-config --config <path>
        forsgren init-config --config <path>
        forsgren install-readme --out <path>
-       forsgren collect --config <path> --data <path> [--token-expiry <path>]
+       forsgren collect --config <path> --data <path> [--token-expiry <path>] [--cut-report <path>]
        forsgren latest-release [--published <path>]
        forsgren waiting-pull-request --version <x.y.z> [--status <path>]
        forsgren check-needs --config <path> --repository <owner/name> [--status <path>]

@@ -47,7 +47,11 @@ type gitHub struct {
 	// 5000: the margin of 250 plus allow, less the requests since the run began
 	// (used), so a run may send allow requests, and one more (forsgren#64).
 	allow, used int
-	requests    []string // path?query
+	// report is what the latest run left incomplete (forsgren#64, step 3b).
+	report Report
+	// noReport makes the run pass no Report (the option is optional).
+	noReport bool
+	requests []string // path?query
 }
 
 func newGitHub(t *testing.T) *gitHub {
@@ -219,7 +223,11 @@ func (g *gitHub) collect(t *testing.T, cfg config.Config, path string, maxPages 
 	}
 	g.used = 0
 	var stdout, stderr bytes.Buffer
-	o := Options{Client: client, History: path, Now: now, Stdout: &stdout, Stderr: &stderr}
+	g.report = Report{}
+	o := Options{Client: client, History: path, Now: now, Stdout: &stdout, Stderr: &stderr, Report: &g.report}
+	if g.noReport {
+		o.Report = nil
+	}
 	err = Run(context.Background(), cfg, o)
 	return result{stdout.String(), stderr.String(), err}
 }

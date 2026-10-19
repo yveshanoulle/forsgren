@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-19 — collect reports what it left incomplete ([#64](https://github.com/yveshanoulle/forsgren/issues/64), step 3b)
+
+`forsgren collect --cut-report <path>` writes a small report of the run: complete, or incomplete with the time the request budget resets, the repositories cut short (how far the read mark moved, what became of the recent read, that the issues were not read, and whether it progressed), and the repositories that failed on GitHub's primary or secondary rate limit. The job summary line that prints it is step 3c.
+
+- A repository cut short that keeps nothing on two runs in a row is reported as stalled. `data/cut_runs.csv` (a new mark file, guarded by the data guard) notes the first run of such a streak, and is cleared when the repository progresses or is read to the end.
+- The file is removed first thing, and a run that was refused writes none, so a missing file reads as unknown, never as complete.
+- Red first (no flag, no report, no mark file, the data guard's drift check). Tests use fixture servers, never the network.
+
 ## 2026-10-19 — GitHub's two rate limits are named apart ([#64](https://github.com/yveshanoulle/forsgren/issues/64), step 3a)
 
 A failed repository now says which of GitHub's limits it met: "GitHub's primary rate limit is reached; it resets at ..." when no request is left in the hour, and "GitHub's secondary rate limit is reached; GitHub asks to retry after 60 seconds" for a `Retry-After`, or a 429 that says nothing else. Both stay failures, neither is the budget's cut, and both are still a rate limit for the lookups that treat the two alike (the waiting pull request and the pull-request lookups). A 429 with no header used to be reported as a plain error status.

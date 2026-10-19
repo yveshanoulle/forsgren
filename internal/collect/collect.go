@@ -100,6 +100,9 @@ type Options struct {
 	Now     time.Time
 	Stdout  io.Writer
 	Stderr  io.Writer
+	// Report, when set, is filled with what the run left incomplete or failed
+	// (report.go, forsgren#64).
+	Report *Report
 
 	// earliest is the most any run reads back: history_days before Now; and
 	// chunk is history_chunk_days, how much a run reads of a repository's
@@ -137,6 +140,7 @@ func Run(ctx context.Context, cfg config.Config, o Options) error {
 	for _, p := range cfg.Projects {
 		done = done.plus(o.collectProject(ctx, h, p))
 	}
+	o.closeReport()
 	return o.finish(h, before, done, cfg.RepositoryCount())
 }
 
@@ -160,9 +164,11 @@ func (o Options) collectProject(ctx context.Context, h held, p config.Project) t
 		case errors.Is(err, github.ErrBudget):
 			_, _ = fmt.Fprintf(o.Stderr, "collect: cut short: %v\n", err)
 			t.cut++
+			o.reportCut(err)
 		case err != nil:
 			_, _ = fmt.Fprintf(o.Stderr, "collect: %v\n", err)
 			t.failed++
+			o.reportFailed(r.Name, err)
 		}
 	}
 	return t
@@ -178,6 +184,7 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	}
 	lines, err := o.readIssues(ctx, h, r.Name)
 	if err != nil {
+		d.recent = RecentRead
 		return o.keepWhole(h, r.Name, d, err)
 	}
 	stored, err := o.store(batch{d.records, d.commits, lines.failures, lines.withdrawals, lines.events, lines.bugs})
@@ -185,6 +192,7 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 		return fmt.Errorf("%s: %w", r.Name, err)
 	}
 	h.noteReach(r.Name, d.reach)
+	h.noteCutDone(r.Name)
 	h.noteRead(r.Name, o.Now)
 	h.noteFull(r.Name, o.Now)
 	h.noteBugsCut(r.Name, lines.bugsCut, o.Now)
@@ -298,8 +306,10 @@ type found struct {
 	truncated bool
 	// successes is how many of records are successes, each owed a comparison.
 	successes int
-	// win is the windows the repository was read in (cutshort.go).
-	win windows
+	// win is the windows the repository was read in (cutshort.go), and recent
+	// what became of its recent read when a budget cut ended it (Recent*).
+	win    windows
+	recent string
 	// oldest is the creation time of the oldest item read, and reach where
 	// the repository's reach moves to (zero: it stays), see chunk.go.
 	oldest, reach time.Time
@@ -499,6 +509,7 @@ type held struct {
 	read       history.Reach             // see failuresread.go
 	full       history.Reach             // see issueevents.go
 	cut        history.Reach             // see bugflags.go
+	cutRuns    history.Reach             // see report.go
 	partial    map[string]bool
 }
 

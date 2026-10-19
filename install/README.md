@@ -145,7 +145,9 @@ What you add or the run writes, and what forsgren never overwrites:
   `issues_full.csv` (which repositories had their one full read of every
   issue, for the historical Open and Total) and
   `issue_bugs_cut.csv` (which repositories' bug reads stopped at the page cap,
-  so Open bugs shows as incomplete). The first run
+  so Open bugs shows as incomplete) and
+  `cut_runs.csv` (which repositories the request budget cut short without
+  progress). The first run
   reads one chunk of `history_chunk_days`; each later run adds one older chunk
   until `history_days` is reached. forsgren never deletes history.
 

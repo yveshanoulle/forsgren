@@ -49,29 +49,32 @@ func collectDeployments(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return failed(stderr, "collect", err)
 	}
-	o := collect.Options{Client: client, History: opts.data, Now: now(), Stdout: stdout, Stderr: stderr}
-	if err := collectAndNoteExpiry(cfg, o, opts.tokenExpiry, client); err != nil {
+	o := collect.Options{Client: client, History: opts.data, Now: now(), Stdout: stdout, Stderr: stderr,
+		Report: &collect.Report{}}
+	if err := collectAndNoteFiles(cfg, o, opts, client); err != nil {
 		return failed(stderr, "collect", err)
 	}
 	return 0
 }
 
-// loadForCollect removes the expiry file of an earlier run (removeTokenExpiry),
-// before anything can fail, then loads the config, warning on stderr about each
+// loadForCollect removes the expiry file and the report file of an earlier run
+// (removeTokenExpiry, removeCutReport), before anything can fail, then loads the config, warning on stderr about each
 // setting that is not accepted (forsgren#183).
 func loadForCollect(opts collectOptions, stderr io.Writer) (config.Config, error) {
-	if err := removeTokenExpiry(opts.tokenExpiry); err != nil {
+	if err := errors.Join(removeTokenExpiry(opts.tokenExpiry), removeCutReport(opts.cutReport)); err != nil {
 		return config.Config{}, err
 	}
 	return loadConfig(opts.config, stderr)
 }
 
-// collectAndNoteExpiry runs collect, then writes the token's expiry to
-// expiryPath (writeTokenExpiry), whether or not a repository failed; a write
-// that failed is the error, else collect's own.
-func collectAndNoteExpiry(cfg config.Config, o collect.Options, expiryPath string, client *github.Client) error {
+// collectAndNoteFiles runs collect, then writes the token's expiry to
+// opts.tokenExpiry (writeTokenExpiry) and what the run left incomplete to
+// opts.cutReport (writeCutReport), whether or not a repository failed; a
+// write that failed is the error, else collect's own.
+func collectAndNoteFiles(cfg config.Config, o collect.Options, opts collectOptions, client *github.Client) error {
 	runErr := collect.Run(context.Background(), cfg, o)
-	if err := writeTokenExpiry(expiryPath, client); err != nil {
+	reportErr := writeCutReport(opts.cutReport, *o.Report, runErr)
+	if err := errors.Join(reportErr, writeTokenExpiry(opts.tokenExpiry, client)); err != nil {
 		return err
 	}
 	warnTokenExpiry(o.Stderr, o.Now, client)
@@ -80,9 +83,10 @@ func collectAndNoteExpiry(cfg config.Config, o collect.Options, expiryPath strin
 }
 
 // collectOptions are collect's flags: the required config and history
-// (data), and the file to write the token's expiry date to, "" for none.
+// (data), and the files to write the token's expiry date and what the run
+// left incomplete to, "" for none.
 type collectOptions struct {
-	config, data, tokenExpiry string
+	config, data, tokenExpiry, cutReport string
 }
 
 // collectFlags parses collect's arguments: the required --config and --data
@@ -96,6 +100,9 @@ func collectFlags(stderr io.Writer, args []string) (collectOptions, bool) {
 		"the history to append to, data/deployments.csv; commits.csv, failures.csv beside it, <path>")
 	flags.StringVar(&o.tokenExpiry, "token-expiry", "",
 		"a file to write the token's expiry date to, one UTC RFC 3339 line; a failed run leaves none (optional)")
+	flags.StringVar(&o.cutReport, "cut-report", "",
+		"a file to write what the run left incomplete to: complete, or the repositories cut short at the "+
+			"request budget and those that failed on a rate limit; a failed run leaves none (optional)")
 	if err := flags.Parse(args); err != nil {
 		return o, false
 	}

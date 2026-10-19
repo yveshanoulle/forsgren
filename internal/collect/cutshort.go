@@ -129,6 +129,26 @@ func (w windows) reachAfter(from time.Time) time.Time {
 // the whole days, and the reach those days give. A read that keeps no record
 // moves no reach, so a day with none is read again with the days behind it.
 func (w windows) kept(f found, at time.Time) found {
+	f = w.keptRecords(f, at)
+	f.recent = w.recentOf(at, f.records)
+	return f
+}
+
+// recentOf says what became of the recent read of a read cut at an item
+// created at at that keeps records: read whole when the cut is in the older
+// chunk, kept in part, or discarded.
+func (w windows) recentOf(at time.Time, records []history.Record) string {
+	switch {
+	case !at.IsZero() && w.inOlder(at):
+		return RecentRead
+	case len(records) > 0:
+		return RecentKept
+	}
+	return RecentDiscarded
+}
+
+// keptRecords is kept's records and reach.
+func (w windows) keptRecords(f found, at time.Time) found {
 	from, ok := w.wholeDays(at)
 	f.reach = time.Time{}
 	if !ok {
@@ -211,26 +231,35 @@ func (o Options) deploymentsOf(ctx context.Context, h held, project string, r co
 	return whole{f, commits}, err
 }
 
+// cutReport is a budget cut with the Cut that says what it left.
+type cutReport struct {
+	Cut
+	err error
+}
+
+func (c *cutReport) Error() string { return c.err.Error() }
+func (c *cutReport) Unwrap() error { return c.err }
+
 // keepWhole ends a repository that stopped on err after deployments it read
 // whole: a budget cut stores them with their commits, moves the reach, and
-// is returned for collectProject to name; any other error is returned as it
-// is, with nothing stored. Nothing of the issues is stored and no mark of
-// them moves, for their read is stored whole or not at all.
+// is returned as a *cutReport for collectProject to name and report; any
+// other error is returned as it is, with nothing stored. Nothing of the
+// issues is stored and no mark of them moves, for their read is stored whole
+// or not at all.
 func (o Options) keepWhole(h held, repo string, w whole, err error) error {
 	if !errors.Is(err, github.ErrBudget) {
 		return err
 	}
-	if w.empty() {
-		return err
+	if !w.empty() {
+		stored, serr := o.store(batch{records: w.records, commits: w.commits})
+		if serr != nil {
+			return fmt.Errorf("%s: %w", repo, serr)
+		}
+		h.noteReach(repo, w.reach)
+		o.report(repo, w.found, stored)
+		o.warn("collect: %s: cut short; the days read whole are stored, the rest is read again by the next run\n", repo)
 	}
-	stored, serr := o.store(batch{records: w.records, commits: w.commits})
-	if serr != nil {
-		return fmt.Errorf("%s: %w", repo, serr)
-	}
-	h.noteReach(repo, w.reach)
-	o.report(repo, w.found, stored)
-	o.warn("collect: %s: cut short; the days read whole are stored, the rest is read again by the next run\n", repo)
-	return err
+	return &cutReport{h.cutOf(repo, w, o.Now), err}
 }
 
 // earlier is the earlier of a and b.

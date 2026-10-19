@@ -189,3 +189,15 @@ func reservedClient(t *testing.T, header http.Header, margin bool) *Client {
 	}
 	return client
 }
+
+// TestTheBudgetResetIsKnownOnceAnAnswerSaidIt: the reset time of the latest
+// answer, UTC-comparable, and none before an answer or when it gave none.
+func TestTheBudgetResetIsKnownOnceAnAnswerSaidIt(t *testing.T) {
+	reset := time.Now().Add(40 * time.Minute).Truncate(time.Second)
+	if at, ok := reservedClient(t, budgetHeaders("300", "5000", reset), true).BudgetReset(); !ok || !at.Equal(reset) {
+		t.Errorf("want the reset %v, got %v, %v", reset, at, ok)
+	}
+	if _, ok := newClientWithMargin(t).BudgetReset(); ok {
+		t.Error("want no reset before an answer")
+	}
+}

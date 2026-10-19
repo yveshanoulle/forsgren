@@ -94,3 +94,7 @@ func (b budget) spare(now time.Time) int {
 	}
 	return b.left - b.margin()
 }
+
+// BudgetReset is when the request budget starts over, as the latest answer
+// said, and whether an answer said at all.
+func (c *Client) BudgetReset() (time.Time, bool) { return c.budget.reset, !c.budget.reset.IsZero() }

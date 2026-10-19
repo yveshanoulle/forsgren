@@ -63,6 +63,24 @@
    "minScore": 9.82
   },
   {
+   "path": "internal/collect/report.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-19",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/cutreport.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-19",
+   "minScore": 9.58
+  },
+  {
+   "path": "cmd/forsgren/collect_report_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-19",
+   "minScore": 9.58
+  },
+  {
    "path": "internal/metrics/history_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-16",
@@ -149,7 +167,7 @@
   {
    "path": "cmd/forsgren/collect.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-19",
    "minScore": 10.0
   },
   {
@@ -887,7 +905,7 @@
   {
    "path": "internal/collect/failuresread.go",
    "score": 10.0,
-   "checkedAt": "2026-10-14",
+   "checkedAt": "2026-10-19",
    "minScore": 10.0
   },
   {
@@ -1522,6 +1540,24 @@
   },
   {
    "path": "internal/collect/cutshort.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-19",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/cutruns.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-19",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/report_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-19",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/reportcut.go",
    "score": 10.0,
    "checkedAt": "2026-10-19",
    "minScore": 10.0
