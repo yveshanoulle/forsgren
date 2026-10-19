@@ -9,6 +9,13 @@ Active work lives in
 
 ---
 
+## 2026-10-19 — GitHub's two rate limits are named apart ([#64](https://github.com/yveshanoulle/forsgren/issues/64), step 3a)
+
+A failed repository now says which of GitHub's limits it met: "GitHub's primary rate limit is reached; it resets at ..." when no request is left in the hour, and "GitHub's secondary rate limit is reached; GitHub asks to retry after 60 seconds" for a `Retry-After`, or a 429 that says nothing else. Both stay failures, neither is the budget's cut, and both are still a rate limit for the lookups that treat the two alike (the waiting pull request and the pull-request lookups). A 429 with no header used to be reported as a plain error status.
+
+- Red first (the old error named neither limit, a bare 429 was a plain status error). Tests use fixture servers, never the network.
+- Still to come in step 3: the report file collect writes, the repositories that make no progress, and the job summary line ("Collected: complete" or "incomplete").
+
 ## 2026-10-19 — a cut recent read keeps its whole days when the next window still reaches the rest ([#64](https://github.com/yveshanoulle/forsgren/issues/64), step 2b)
 
 When the budget runs out in what is new since the last run, `collect` now keeps the newest days it read whole, with their commits, if the next run's window (7 days before the newest deployment stored) still starts at or before the newest deployment stored before this run, so nothing that was not read can fall out of it. Otherwise it stores nothing, as before, and reads it again.

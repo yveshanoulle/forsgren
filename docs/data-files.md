@@ -497,8 +497,12 @@ request budget is nearly used (80 of 5000 left); it resets at
 before its first request, because the budget is the token's. The repositories
 already done keep what they stored, and the run exits 0: a run that meets the
 limit is not a failure. A request GitHub refuses with none left is not this: it
-stays a failed repository, as above (GitHub's secondary rate limit, a
-`Retry-After`, is counted with it today).
+stays a failed repository, as above, and GitHub's two limits are named apart
+(forsgren#64, step 3): the primary one, `GitHub's primary rate limit is reached;
+it resets at <UTC>`, and the secondary one, a `Retry-After` or a 429 that says
+nothing else, `GitHub's secondary rate limit is reached; GitHub asks to retry
+after <n> seconds`. Neither is the budget's cut, and both are still a rate
+limit (`ErrRateLimit`) for a caller that treats them alike.
 
 A repository cut short keeps what it read whole (forsgren#64, decision #239).
 Lists come newest first, so a cut leaves the newest days read. A deployment

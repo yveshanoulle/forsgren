@@ -36,20 +36,33 @@ const (
 // The refusals; every error the client returns wraps one of them, except a
 // failure to reach GitHub at all, which wraps the transport's own error.
 var (
-	ErrBaseURL        = errors.New("not an http or https API URL")
-	ErrRepositoryName = errors.New("not an owner/name repository")
-	ErrAccess         = errors.New("no access")
-	ErrIssueGone      = errors.New("the issue is gone")
-	ErrRateLimit      = errors.New("GitHub's rate limit is reached")
-	ErrStatus         = errors.New("GitHub answered with an error")
-	ErrAnswer         = errors.New("cannot read GitHub's answer")
-	ErrForeignLink    = errors.New("the next page is not on the API host")
-	ErrTooManyPages   = errors.New("more pages than forsgren reads")
-	ErrMissingTag     = errors.New("the release's tag is missing")
-	ErrCommitSHA      = errors.New("not a 40-hex commit SHA")
-	ErrNotAncestor    = errors.New("the base is not an ancestor of the head")
-	ErrMissingCommit  = errors.New("a commit of the comparison is missing")
+	ErrBaseURL              = errors.New("not an http or https API URL")
+	ErrRepositoryName       = errors.New("not an owner/name repository")
+	ErrAccess               = errors.New("no access")
+	ErrIssueGone            = errors.New("the issue is gone")
+	ErrRateLimit            = errors.New("GitHub's rate limit is reached")
+	ErrPrimaryLimit   error = &limitError{"GitHub's primary rate limit is reached"}
+	ErrSecondaryLimit error = &limitError{"GitHub's secondary rate limit is reached"}
+	ErrStatus               = errors.New("GitHub answered with an error")
+	ErrAnswer               = errors.New("cannot read GitHub's answer")
+	ErrForeignLink          = errors.New("the next page is not on the API host")
+	ErrTooManyPages         = errors.New("more pages than forsgren reads")
+	ErrMissingTag           = errors.New("the release's tag is missing")
+	ErrCommitSHA            = errors.New("not a 40-hex commit SHA")
+	ErrNotAncestor          = errors.New("the base is not an ancestor of the head")
+	ErrMissingCommit        = errors.New("a commit of the comparison is missing")
 )
+
+// limitError is one of GitHub's two rate limits: the primary one, with no
+// request left until the hourly count resets, and the secondary one, which
+// asks to wait (forsgren#64, step 3). Each is also an ErrRateLimit, for a
+// caller that treats them alike.
+type limitError struct{ text string }
+
+func (e *limitError) Error() string { return e.text }
+
+// Is makes both limits an ErrRateLimit.
+func (e *limitError) Is(target error) bool { return target == ErrRateLimit }
 
 // Client reads GitHub's REST API at one base URL with one token.
 type Client struct {
@@ -278,26 +291,44 @@ func isRefused(code int) bool {
 
 // isRateLimited: GitHub answers 403 or 429 when a rate limit is reached,
 // with no request left (the primary limit) or with a Retry-After (a
-// secondary limit).
+// secondary limit); a 429 is a rate limit whatever else it says.
 func isRateLimited(resp *http.Response) bool {
-	if resp.StatusCode != http.StatusForbidden && resp.StatusCode != http.StatusTooManyRequests {
-		return false
+	switch resp.StatusCode {
+	case http.StatusTooManyRequests:
+		return true
+	case http.StatusForbidden:
+		return resp.Header.Get("X-RateLimit-Remaining") == "0" || resp.Header.Get("Retry-After") != ""
 	}
-	return resp.Header.Get("X-RateLimit-Remaining") == "0" || resp.Header.Get("Retry-After") != ""
+	return false
 }
 
-// rateLimitError says when to try again: the reset time of the primary
-// limit (UTC), or the seconds a secondary limit asks to wait. Both numbers
-// are parsed, never quoted.
+// rateLimitError names which limit it was: the secondary limit when GitHub
+// sends a Retry-After or does not say that nothing is left, else the primary
+// one.
 func rateLimitError(t target, h http.Header) error {
-	if wait, err := strconv.Atoi(h.Get("Retry-After")); err == nil {
-		return fmt.Errorf("%s: %w; GitHub asks to retry after %d seconds", t.repo, ErrRateLimit, wait)
+	if h.Get("Retry-After") != "" || h.Get("X-RateLimit-Remaining") != "0" {
+		return secondaryError(t, h)
 	}
+	return primaryError(t, h)
+}
+
+// secondaryError says how many seconds the secondary limit asks to wait. The
+// number is parsed, never quoted.
+func secondaryError(t target, h http.Header) error {
+	if wait, err := strconv.Atoi(h.Get("Retry-After")); err == nil {
+		return fmt.Errorf("%s: %w; GitHub asks to retry after %d seconds", t.repo, ErrSecondaryLimit, wait)
+	}
+	return fmt.Errorf("%s: %w", t.repo, ErrSecondaryLimit)
+}
+
+// primaryError says when the primary limit resets (UTC). The number is
+// parsed, never quoted.
+func primaryError(t target, h http.Header) error {
 	if reset, err := strconv.ParseInt(h.Get("X-RateLimit-Reset"), 10, 64); err == nil {
-		return fmt.Errorf("%s: %w; it resets at %s", t.repo, ErrRateLimit,
+		return fmt.Errorf("%s: %w; it resets at %s", t.repo, ErrPrimaryLimit,
 			time.Unix(reset, 0).UTC().Format(time.RFC3339))
 	}
-	return fmt.Errorf("%s: %w", t.repo, ErrRateLimit)
+	return fmt.Errorf("%s: %w", t.repo, ErrPrimaryLimit)
 }
 
 // list reads the pages of a list from first on: page judges each page's

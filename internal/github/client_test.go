@@ -169,12 +169,12 @@ func TestHTTPErrorsNameTheRepository(t *testing.T) {
 		"401": {reply{status: 401}, ErrAccess, []string{"401 Unauthorized", access}},
 		"403": {reply{status: 403}, ErrAccess, []string{"403 Forbidden", access}},
 		"404": {reply{status: 404}, ErrAccess, []string{"404 Not Found", deploymentsPath, access}},
-		"rate limit": {reply{status: 403, header: limited}, ErrRateLimit,
-			[]string{"resets at 2026-09-21T14:13:20Z"}},
-		"secondary rate limit": {reply{status: 429, header: http.Header{"Retry-After": {"60"}}}, ErrRateLimit,
-			[]string{"retry after 60 seconds"}},
+		"rate limit": {reply{status: 403, header: limited}, ErrPrimaryLimit,
+			[]string{"primary rate limit is reached", "resets at 2026-09-21T14:13:20Z"}},
+		"secondary rate limit": {reply{status: 429, header: http.Header{"Retry-After": {"60"}}}, ErrSecondaryLimit,
+			[]string{"secondary rate limit is reached", "retry after 60 seconds"}},
 		"rate limit, no time": {reply{status: 429, header: http.Header{"Retry-After": {"soon " + token}}},
-			ErrRateLimit, []string{"rate limit is reached"}},
+			ErrSecondaryLimit, []string{"secondary rate limit is reached"}},
 		"server error": {reply{status: 502}, ErrStatus, []string{"502 Bad Gateway", deploymentsPath}},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -315,5 +315,42 @@ func TestNewRefusesABaseURLThatIsNotHTTP(t *testing.T) {
 		if _, err := New(base, token, DefaultMaxPages); !errors.Is(err, ErrBaseURL) {
 			t.Errorf("%q: want ErrBaseURL, got %v", base, err)
 		}
+	}
+}
+
+// TestThePrimaryAndTheSecondaryLimitAreTwoErrors (forsgren#64, step 3): GitHub's
+// primary limit (no request left, with the time it resets) and its secondary
+// limit (a Retry-After, or a 429 that says nothing else) are different
+// errors with different words, both still a rate limit for a caller that
+// treats the two alike.
+func TestThePrimaryAndTheSecondaryLimitAreTwoErrors(t *testing.T) {
+	zero := http.Header{"X-Ratelimit-Remaining": {"0"}, "X-Ratelimit-Reset": {"1790000000"}}
+	for name, c := range map[string]struct {
+		reply          reply
+		primary, other bool
+	}{
+		"403 with nothing left":  {reply{status: 403, header: zero}, true, false},
+		"429 with nothing left":  {reply{status: 429, header: zero}, true, false},
+		"403 with a Retry-After": {reply{status: 403, header: http.Header{"Retry-After": {"60"}}}, false, true},
+		"429 with a Retry-After": {reply{status: 429, header: http.Header{"Retry-After": {"60"}}}, false, true},
+		"429 with some left, no Retry-After": {reply{status: 429, header: http.Header{"X-Ratelimit-Remaining": {"40"}}},
+			false, true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFake(t)
+			f.on(deploymentsPath, c.reply)
+			_, _, err := f.client(t, DefaultMaxPages).Deployments(context.Background(), "acme/app", "production", sinceOnly)
+			wantLimit(t, err, ErrPrimaryLimit, c.primary)
+			wantLimit(t, err, ErrSecondaryLimit, c.other)
+			wantLimit(t, err, ErrRateLimit, true)
+		})
+	}
+}
+
+// wantLimit fails unless err is limit exactly when want says so.
+func wantLimit(t *testing.T, err, limit error, want bool) {
+	t.Helper()
+	if got := errors.Is(err, limit); got != want {
+		t.Errorf("want errors.Is(%v) %v, got %v for %v", limit, want, got, err)
 	}
 }

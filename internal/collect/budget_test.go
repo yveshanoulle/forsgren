@@ -140,3 +140,26 @@ func TestARequestRefusedAtZeroStaysAFailure(t *testing.T) {
 		t.Errorf("want a failed repository for the rate limit, got %v (stderr %q)", r.err, r.stderr)
 	}
 }
+
+// TestASecondaryLimitFailsTheRepositoryAndIsNamedAsSuch (forsgren#64, step 3):
+// GitHub's secondary rate limit, a Retry-After, is a failed repository like
+// the primary one, but stderr names it as the secondary limit and says how
+// long GitHub asks to wait, and it is not the budget's cut.
+func TestASecondaryLimitFailsTheRepositoryAndIsNamedAsSuch(t *testing.T) {
+	g := newGitHub(t)
+	cfg := threeRepositories(g)
+	g.status["/repos/acme/web/deployments"] = http.StatusTooManyRequests
+	g.limited["/repos/acme/web/deployments"] = true
+	r := g.collect(t, cfg, historyPath(t), github.DefaultMaxPages)
+	if !errors.Is(r.err, ErrFailed) {
+		t.Errorf("want a failed repository, got %v", r.err)
+	}
+	for _, want := range []string{"secondary rate limit is reached", "retry after 60 seconds"} {
+		if !strings.Contains(r.stderr, want) {
+			t.Errorf("want %q on stderr, got %q", want, r.stderr)
+		}
+	}
+	if strings.Contains(r.stderr, "cut short") {
+		t.Errorf("want a failure, not the budget's cut, got %q", r.stderr)
+	}
+}
