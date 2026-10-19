@@ -14,7 +14,8 @@
 # On a push the commits are those of before..after, listed from git by
 # Scripts/dco_push_commits.sh (a new branch: its head commit; an empty range
 # is red), with no account and so no bot exemption. Commits of an earlier
-# push are not judged again.
+# push are not judged again. The second job, private-names (forsgren#213),
+# judges the messages of the same commits with the private-names matcher.
 #
 # It triggers on pull_request, as quality.yml does, and safely:
 #   - pull_request, NEVER pull_request_target: a fork's pull request gets a
@@ -63,16 +64,17 @@ jobs:
           sparse-checkout: |
             Scripts/check_dco.sh
             Scripts/dco_push_commits.sh
+            Scripts/dco_pr_commits.sh
           sparse-checkout-cone-mode: false
 
       # One line per commit, <sha> <author account> <base64 author email>
       # <base64 message>, the shape Scripts/check_dco.sh reads (see its
-      # header). The account is <type>:<login> of the GitHub account the
-      # commit is linked to (.author, null: -); the opener is the account
-      # that opened the pull request. gh is on every
-      # GitHub-hosted runner, and its --jq is gh's own, so the runner needs
-      # no jq. The list API returns at most 250 commits; a pull request
-      # longer than that is checked on its first 250.
+      # header), listed by Scripts/dco_pr_commits.sh (forsgren#213: the second
+      # job lists them the same way). The account is <type>:<login> of the
+      # GitHub account the commit is linked to (.author, null: -); the opener
+      # is the account that opened the pull request. The list API returns at
+      # most 250 commits; a pull request longer than that is checked on its
+      # first 250.
       - name: Check every commit is signed off by its author
         if: ${{ github.event_name == 'pull_request' }}
         shell: bash
@@ -84,9 +86,7 @@ jobs:
         run: |
           set -euo pipefail
           commits="${RUNNER_TEMP}/dco_commits.txt"
-          gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/commits" \
-            --jq '.[] | "\(.sha) \(if .author == null then "-" else "\(.author.type):\(.author.login)" end) \(.commit.author.email // "" | @base64) \(.commit.message | @base64)"' \
-            > "$commits"
+          ./Scripts/dco_pr_commits.sh "$REPO" "$PR_NUMBER" > "$commits"
           ./Scripts/check_dco.sh "$commits" "$PR_OPENER"
 
       # A push to main: the commits of before..after, from git (fetch-depth
@@ -103,3 +103,70 @@ jobs:
           commits="${RUNNER_TEMP}/dco_push_commits.txt"
           ./Scripts/dco_push_commits.sh "$BEFORE" "$AFTER" > "$commits"
           ./Scripts/check_dco.sh "$commits"
+
+  # The private names in commit messages (forsgren#213). This repository is
+  # public and a commit message is published with the commit; FBP.sh refuses a
+  # message that names a private name, but a pull request's commits and a hand
+  # made push never pass through it. Why in this workflow and not in
+  # quality.yml: this is the one workflow that already triggers on every pull
+  # request and every push to main without checking out the pull request's
+  # code, with the full history a push's range needs and the two commit
+  # listings (Scripts/dco_pr_commits.sh, Scripts/dco_push_commits.sh); Quality
+  # checks the tree, and a pull request's own checkout would let it change the
+  # check that judges it. A job of its own, so a DCO finding and a
+  # private-name finding are two red checks, and one never hides the other.
+  #
+  # The commits are those the DCO job lists, except where a push cannot say
+  # which are new: a new branch (all-zero before) or a before this checkout
+  # does not have (a force-push) checks every commit of the pushed head that is
+  # on no other branch or tag (dco_push_commits.sh --fresh), never only the
+  # head commit and never nothing. The list reaches the check through env: from
+  # the Actions secrets Quality uses; a pull request from a fork gets none, and
+  # the check is then exit 2, never a pass (Scripts/check_commit_messages.sh).
+  # The output never prints a name, a message or a subject.
+  private-names:
+    name: Private names in commit messages
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          sparse-checkout: |
+            Scripts/check_commit_messages.sh
+            Scripts/check_private_names.sh
+            Scripts/lib_private_names.sh
+            Scripts/dco_push_commits.sh
+            Scripts/dco_pr_commits.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Check no commit message of the pull request names a private name
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          FORSGREN_PRIVATE_NAMES: ${{ secrets.FORSGREN_PRIVATE_NAMES }}
+          FORSGREN_PRIVATE_NAMES_EXTRA: ${{ secrets.FORSGREN_PRIVATE_NAMES_EXTRA }}
+        run: |
+          set -euo pipefail
+          commits="${RUNNER_TEMP}/message_commits.txt"
+          ./Scripts/dco_pr_commits.sh "$REPO" "$PR_NUMBER" > "$commits"
+          ./Scripts/check_commit_messages.sh "$commits"
+
+      - name: Check no pushed commit message names a private name
+        if: ${{ github.event_name == 'push' }}
+        shell: bash
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+          FORSGREN_PRIVATE_NAMES: ${{ secrets.FORSGREN_PRIVATE_NAMES }}
+          FORSGREN_PRIVATE_NAMES_EXTRA: ${{ secrets.FORSGREN_PRIVATE_NAMES_EXTRA }}
+        run: |
+          set -euo pipefail
+          commits="${RUNNER_TEMP}/message_commits.txt"
+          ./Scripts/dco_push_commits.sh --fresh "$BEFORE" "$AFTER" > "$commits"
+          ./Scripts/check_commit_messages.sh "$commits"

@@ -167,11 +167,12 @@ fi
 # (forsgren#231, step 1), and to 144 for the static block's self-test
 # (forsgren#231, step 2), and to 145 for the release pre-check's self-test
 # (forsgren#231, step 3), and to 148 for the Quality runner pins gate
-# (forsgren#240, step 1).
+# (forsgren#240, step 1), and to 151 for the commit messages self-test
+# (forsgren#213).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=150
+MIN_GATES=151
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -618,6 +619,30 @@ for path in Scripts/*.sh; do
         || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
       ;;
 
+    # COMMIT MESSAGE CHECK, not a gate of sfl or Quality (forsgren#213): the
+    # private-names matcher on the message of every commit a pull request or
+    # a push brings. It judges commits neither runner has, so the second job
+    # of .github/workflows/dco.yml runs it, and its self-test is an
+    # order-file row, so sfl and Quality still prove it.
+    check_commit_messages.sh)
+      runs_script "$DCO_WF" "$base" \
+        || fail "${base} checks the private names in commit messages and ${DCO_WF} never invokes it — no commit message would be checked"
+      require_fixture "$base" "the commit message check would wave commits through unproven"
+      order_names "test_${base}" \
+        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the check dco.yml relies on"
+      ;;
+
+    # HELPER OF THE DCO CHECK AND THE COMMIT MESSAGE CHECK, not a gate
+    # (forsgren#213): lists a pull request's commits through gh, for both
+    # jobs of dco.yml. Scripts/test_check_commit_messages.sh, an order-file
+    # row, is its test and must still run it.
+    dco_pr_commits.sh)
+      runs_script "Scripts/test_check_commit_messages.sh" "$base" \
+        || fail "${base} lists a pull request's commits and Scripts/test_check_commit_messages.sh never runs it — the listing would be unproven"
+      runs_script "$DCO_WF" "$base" \
+        || fail "${base} lists a pull request's commits and ${DCO_WF} never invokes it — a pull request would not be checked"
+      ;;
+
     # HELPER OF THE DCO CHECK, not a gate (forsgren#81): lists the commits of
     # a push in check_dco.sh's input shape. Scripts/test_check_dco.sh, an
     # order-file row, is its test and must still run it; dco.yml runs it on
@@ -629,6 +654,11 @@ for path in Scripts/*.sh; do
         || fail "${base} lists a push's commits for the DCO check and ${DCO_WF} never invokes it — a push to main would not be checked"
       awk '/^  push:/ { p = 1; next } /^  [A-Za-z_]+:/ { p = 0 } p && /branches:.*"main"/ { f = 1 } END { exit !f }' "$DCO_WF" \
         || fail "${DCO_WF} has no push trigger on main — ${base} would list commits nobody checks"
+      # forsgren#213: the commit message check lists a push with --fresh, so
+      # a new branch or a before the checkout lacks is never listed as its
+      # head commit alone, nor as nothing.
+      grep -qE '^[[:space:]]*\./Scripts/dco_push_commits\.sh --fresh ' "$DCO_WF" \
+        || fail "${DCO_WF} never lists a push with ${base} --fresh — a new branch or a force-push would be checked on its head commit alone"
       ;;
 
     # HAND-RUN BY THE LOOP, never by sfl or a workflow: a thin exec wrapper
@@ -1171,6 +1201,27 @@ if ! is_mutation_rerun; then
     's|^  push:|  workflow_dispatch:|' \
     "has no push trigger on main" \
     "a dco.yml with no push trigger"
+
+  # dco.yml: the commit message check call becomes a comment, the pull
+  # request listing too, and the --fresh of the push listing goes.
+  mutation_proof GATE_WIRING_DCO_OVERRIDE "Scripts/check_commit_messages.sh" \
+    's|^([[:space:]]*)(\./Scripts/check_commit_messages\.sh )|\1# \2|' \
+    "check_commit_messages.sh checks the private names in commit messages and" \
+    "a dco.yml whose check_commit_messages.sh call is a comment"
+  mutation_proof GATE_WIRING_DCO_OVERRIDE "Scripts/dco_pr_commits.sh" \
+    's|^([[:space:]]*)(\./Scripts/dco_pr_commits\.sh )|\1# \2|' \
+    "dco_pr_commits.sh lists a pull request's commits and" \
+    "a dco.yml whose dco_pr_commits.sh call is a comment"
+  mutation_proof GATE_WIRING_DCO_OVERRIDE "Scripts/dco_push_commits.sh" \
+    's|(dco_push_commits\.sh) --fresh |\1 |' \
+    "never lists a push with dco_push_commits.sh --fresh" \
+    "a dco.yml whose push listing for the messages has no --fresh"
+
+  # The order file: the commit messages self-test row becomes a comment.
+  mutation_proof GATE_WIRING_ORDER_OVERRIDE "Scripts/test_check_commit_messages.sh" \
+    's#^(commit messages self-test\|)#\# \1#' \
+    "Scripts/test_check_commit_messages.sh is not an order-file row" \
+    "an order file whose commit messages self-test row is a comment"
 
   # starter_page.yml: the live check call becomes a comment.
   mutation_proof GATE_WIRING_STARTER_OVERRIDE "Scripts/live_check.sh" \

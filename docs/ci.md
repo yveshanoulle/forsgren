@@ -188,6 +188,42 @@ throwaway repository for the push listing), and **gate wiring** is red when
 `dco.yml` stops running the check or the push listing, loses its push
 trigger on `main`, or the self-test loses its row.
 
+**Private names in commit messages (forsgren#213).** This repository is
+public and a commit message is published with its commit. `FBP.sh` refuses a
+message that names a private name, but a pull request's commits and a push
+made by hand never pass through it, so the second job of `dco.yml`
+(**Private names in commit messages**) judges the message of every commit a
+pull request or a push to `main` brings with the same matcher and list as the
+private names gate: `Scripts/check_commit_messages.sh` sends each message, on
+stdin, to `Scripts/check_private_names.sh --message -` (canon v2, unchanged:
+the list from the Actions secrets `FORSGREN_PRIVATE_NAMES` and
+`FORSGREN_PRIVATE_NAMES_EXTRA`, a case-insensitive substring match, the
+repository's own name left out). A hit is red and names the short sha and the
+commit's number in the list; the output never holds a name, a message or a
+subject. History is never rewritten: the commit is reworded by hand, or the
+name leaves the list. The job lives in `dco.yml`, not in `quality.yml`,
+because that workflow already runs on every pull request and every push to
+`main` without checking out the pull request's code (the check comes from the
+base commit, so a pull request cannot change what judges it), has the full
+history a push's range needs, and has the two commit listings:
+`Scripts/dco_pr_commits.sh` (the commits API, moved out of the workflow so
+both jobs list a pull request the same way) and `Scripts/dco_push_commits.sh`.
+A push is listed with `--fresh`: a range `before..after` is listed as the DCO
+job lists it, but a new branch (an all-zero `before`) or a `before` the
+checkout does not have (a force-push removed it) cannot say which commits are
+new, so every commit of the pushed head that is on no other remote branch and
+no tag is listed, never the head commit alone and never nothing; a commit
+another branch or a tag already holds was pushed before and is not judged
+again. A list with no commit is red. In Actions the list must exist: unlike
+`--message` alone, which passes without a list on a laptop, the check is
+exit 2 with no secret or an emptied one, and so on a fork's pull request,
+which gets no secrets. Its self-test is the **commit messages self-test**
+(`Scripts/test_check_commit_messages.sh`, offline, a throwaway repository with
+made-up names, mutation proofs for judging only the last commit and for
+skipping the range when `before` is unavailable), and **gate wiring** is red
+when `dco.yml` stops running the check, the pull request listing or the push
+listing with `--fresh`.
+
 **The metrics workflow, for installations.** `.github/workflows/metrics.yml`
 is the reusable workflow a data repository calls daily (see [Running
 forsgren](configuration.md#running-forsgren)). It triggers on `workflow_call` only, so it never runs in this

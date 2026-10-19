@@ -165,6 +165,7 @@ run report shows how many checks each of them ran.
 - git sandbox guard self-test (`Scripts/test_git_sandbox_guard.sh`, pre)
 - precheck self-test (`Scripts/test_precheck.sh`, pre)
 - static block self-test (`Scripts/test_sfl_static_block.sh`, pre)
+- commit messages self-test (`Scripts/test_check_commit_messages.sh`, pre)
 <!-- gate-list:end -->
 
 ## Reporting a vulnerability

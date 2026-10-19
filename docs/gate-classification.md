@@ -181,8 +181,9 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 146 | git sandbox guard self-test | `test_git_sandbox_guard.sh` | pre | required; every git-using `test_*.sh` sources `lib_git_sandbox.sh`, 1 mutation (forsgren#228) |
 | 147 | precheck self-test | `test_precheck.sh` | pre | required; `precheck.sh` runs the fast static gates on the changed files and the self-tests that name them, 7 cases and 2 mutations (the test-mention step skipped, a missing tool counted as a pass), and a parity check that every gate script it runs is a row of this file (forsgren#231) |
 | 148 | static block self-test | `test_sfl_static_block.sh` | pre | required; a fake gate set in a throwaway root, the real `sfl.sh`, `run_ci_phase.sh` and a sandboxed `FBP.sh`: a red gate in the static block (`#! static-block-start` / `#! static-block-end` in the order file) is followed by the rest of the block, then every later gate is skipped and named, the summary says `stopped after the static block`, FBP skips the build and the POST gates, named, and CI still runs every row; 2 mutations (the boundary ignored, skipped gates not named) (forsgren#231) |
-| 149 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
-| 150 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
+| 149 | commit messages self-test | `test_check_commit_messages.sh` | pre | required; forsgren's own (forsgren#213): `check_commit_messages.sh` runs the private-names matcher (`check_private_names.sh --message -`) on the message of every commit a pull request or a push brings, in the second job of `dco.yml`; a throwaway repository with made-up names; 2 mutations (only the last commit judged, a before the checkout lacks skipped) |
+| 150 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
+| 151 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
 
 ## Documented exceptions
 
@@ -220,6 +221,9 @@ ruling; a missing file is exit 2.
   `npm_sync_install`, `sfl_pull`).
 - **DCO sign-off**: `.github/workflows/dco.yml` on pull requests and pushes
   to main, with its self-test in the order file.
+- **Private names in commit messages** (forsgren#213): the second job of
+  `.github/workflows/dco.yml`, `Scripts/check_commit_messages.sh`, with its
+  self-test in the order file.
 - **Scheduled vulnerability scan**: `.github/workflows/vulncheck.yml` runs the
   Go vulnerabilities gate daily, shown in the order file by
   `test_vulncheck_workflow.sh`.
@@ -318,7 +322,7 @@ malformed row fails the step. Its self-test is the PRE row 124.
 
 ## The ratchet today
 
-`MIN_GATES` is 150, which equals the 150 rows of the order file (146 with a
+`MIN_GATES` is 151, which equals the 151 rows of the order file (147 with a
 script and 4 `n/a` rows). forsgren#215 brought it to 115 and the Go tool
 helper self-test of forsgren#216 is the 116th; the browser gate and its
 self-test (forsgren#205) made 118, and the live check self-test
@@ -333,4 +337,4 @@ sandbox (forsgren#228) made 137, and the bump diff self-test (forsgren#230,
 step 1) made 138, and the short Quality (forsgren#230, step 2: its runner and the pin
 of the scope) made 140, and the preview deploy
 script's self-test and the preview workflow pin (forsgren#222) made 142, and the
-pre-check's self-test (forsgren#231, step 1) made 143, and the static block's self-test (forsgren#231, step 2) made 144, and the release pre-check's self-test (forsgren#231, step 3) made 145, and the pin that the run summary comes first (forsgren#233) made 146, and the isolation of the self-tests from the run summary (forsgren#233) made 147, and the Quality runner pins gate (forsgren#240, step 1) made 148, and the self-test and the gate of the browser gate on the fixture site (forsgren#226) made 150.
+pre-check's self-test (forsgren#231, step 1) made 143, and the static block's self-test (forsgren#231, step 2) made 144, and the release pre-check's self-test (forsgren#231, step 3) made 145, and the pin that the run summary comes first (forsgren#233) made 146, and the isolation of the self-tests from the run summary (forsgren#233) made 147, and the Quality runner pins gate (forsgren#240, step 1) made 148, and the self-test and the gate of the browser gate on the fixture site (forsgren#226) made 150, and the commit messages self-test (forsgren#213) made 151.

@@ -841,6 +841,12 @@ git sandbox guard self-test|Scripts/test_git_sandbox_guard.sh|pre|
 precheck self-test|Scripts/test_precheck.sh|pre|
 static block self-test|Scripts/test_sfl_static_block.sh|pre|
 #
+# The commit messages of a push or a pull request (forsgren#213): the same
+# private-names matcher and list as the private names gate, applied to the
+# message of every commit dco.yml's second job lists. Offline, so its
+# self-test runs in pre; the check itself runs in that job only.
+commit messages self-test|Scripts/test_check_commit_messages.sh|pre|
+#
 # The privacy pages belong to a site that needs privacy pages: another estate repository
 # serves a privacy policy, and its check_privacy_pages.sh pins that
 # policy's content (language, title, approved date, binding-version
