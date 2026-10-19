@@ -9,6 +9,13 @@ Active work lives in
 
 ---
 
+## 2026-10-19 — the job summary says whether the history was collected in full ([#64](https://github.com/yveshanoulle/forsgren/issues/64), step 3c)
+
+A green run is not a complete history. The run summary now has a `Collected:` line: "complete" only when collect's report says so, otherwise "incomplete, budget reached;" with each repository cut short (how far it kept, that its issues were not read, the recent read when it was discarded), the time the budget resets, and the repositories that failed on GitHub's primary or secondary rate limit, named apart. A repository cut short with nothing kept on consecutive runs is named "not progressing". A missing report is "unknown", never complete.
+
+- `forsgren run-summary --collect-report <path>` reads the file `collect --cut-report` wrote; `metrics.yml` passes `${RUNNER_TEMP}/collect-report` from the collect step to the summary step, and `Scripts/test_metrics_workflow.sh` pins both flags, with mutations for a missing flag and another file.
+- Red first (the flag did not exist, the workflow passed neither file). This completes step 3 of #64.
+
 ## 2026-10-19 — collect reports what it left incomplete ([#64](https://github.com/yveshanoulle/forsgren/issues/64), step 3b)
 
 `forsgren collect --cut-report <path>` writes a small report of the run: complete, or incomplete with the time the request budget resets, the repositories cut short (how far the read mark moved, what became of the recent read, that the issues were not read, and whether it progressed), and the repositories that failed on GitHub's primary or secondary rate limit. The job summary line that prints it is step 3c.

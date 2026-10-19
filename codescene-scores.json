@@ -1561,6 +1561,18 @@
    "score": 10.0,
    "checkedAt": "2026-10-19",
    "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/collected.go",
+   "score": 9.92,
+   "checkedAt": "2026-10-19",
+   "minScore": 9.82
+  },
+  {
+   "path": "cmd/forsgren/summary_collected_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-19",
+   "minScore": 10.0
   }
  ]
 }

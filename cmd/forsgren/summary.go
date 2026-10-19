@@ -41,6 +41,8 @@ type summaryInput struct {
 	readme     string
 	repository string
 	tokenFile  string
+	// collectReport is the file collect --cut-report wrote (forsgren#64).
+	collectReport string
 	// published is the file latest-release --published wrote, for the
 	// cooldown the Update line names (forsgren#194).
 	published string
@@ -75,6 +77,8 @@ func summaryFlags(args []string, stderr io.Writer) (summaryInput, bool) {
 	flags.StringVar(&in.repository, "repository", "", "the installation's owner/name, for the pull request's link")
 	flags.StringVar(&in.tokenFile, "token-expiry", "",
 		"the file collect --token-expiry wrote, for the token's days left (optional)")
+	flags.StringVar(&in.collectReport, "collect-report", "",
+		"the file collect --cut-report wrote, for the Collected line: complete or incomplete (optional)")
 	flags.StringVar(&in.published, "latest-published", "",
 		"the file latest-release --published wrote, for the Dependabot cooldown (optional)")
 	if err := flags.Parse(args); err != nil {
@@ -106,7 +110,8 @@ func (in summaryInput) markdown(stderr io.Writer) string {
 		"Latest release: " + latest,
 		"Update: " + in.update(),
 	}
-	return "## forsgren\n\n- " + strings.Join(lines, "\n- ") + "\n" + in.token() + in.setup(stderr) + in.readmeLine()
+	head := "## forsgren\n\n- " + strings.Join(lines, "\n- ") + "\n"
+	return head + in.token() + in.collected() + in.setup(stderr) + in.readmeLine()
 }
 
 // latestRelease is the newest release as --latest names it, and whether it is

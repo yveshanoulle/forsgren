@@ -124,8 +124,9 @@
 #      workflow env:, no other step);
 #  19. that step, EXECUTED here with a stub forsgren in the installation's
 #      checkout, runs exactly `forsgren collect --config forsgren.config.yml
-#      --data data/deployments.csv --token-expiry ${RUNNER_TEMP}/token-expiry`
-#      (the file the needs step reads, forsgren#177) with FORSGREN_TOKEN in its environment,
+#      --data data/deployments.csv --token-expiry ${RUNNER_TEMP}/token-expiry
+#      --cut-report ${RUNNER_TEMP}/collect-report` (the files the needs step
+#      and the run summary read, forsgren#177, forsgren#64) with FORSGREN_TOKEN in its environment,
 #      exits 0 and records collect's exit status as the step output
 #      `status`: 0 when collect stored, 1 when it stored the others and then
 #      failed, its message still in the log;
@@ -201,7 +202,9 @@
 #      --latest ... --waiting-pr ... --pr-check ... --needs-check ...
 #      [--readme ...] --repository $GITHUB_REPOSITORY
 #      --token-expiry ${RUNNER_TEMP}/token-expiry` (the file collect writes,
-#      forsgren#185: the Token line) `--latest-published
+#      forsgren#185: the Token line) `--collect-report
+#      ${RUNNER_TEMP}/collect-report` (the file collect writes, forsgren#64:
+#      the Collected line) `--latest-published
 #      ${RUNNER_TEMP}/latest-published` (the file the lookup step's
 #      latest-release writes, forsgren#194: the cooldown in the Update line)'s markdown to
 #      $GITHUB_STEP_SUMMARY, and never fails the run: a run-summary that
@@ -344,7 +347,7 @@ DATA_STEP="Commit the collected deployments"
 FAIL_STEP="Fail the job when collect failed"
 README_FAIL_STEP="Fail the job when the README could not be pushed"
 PUBLISH_STEP="Publish to GitHub Pages"
-COLLECT_CMD="collect --config forsgren.config.yml --data data/deployments.csv --token-expiry RUNNER_TEMP/token-expiry"
+COLLECT_CMD="collect --config forsgren.config.yml --data data/deployments.csv --token-expiry RUNNER_TEMP/token-expiry --cut-report RUNNER_TEMP/collect-report"
 DATA_SUBJECT="forsgren: record deployments"
 # The one line that hands the installation's token to the collect step.
 TOKEN_ENV="FORSGREN_TOKEN: ${EXPR_OPEN} secrets.FORSGREN_TOKEN }}"
@@ -1248,13 +1251,13 @@ judge_run_summary() {
     return 0
   fi
   got="$(summary_outcome "$script" "## forsgren\n- Update: up to date\n" 0)"
-  want="exit=0 summary=## forsgren|- Update: up to date calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --needs-check no-access --readme replaced --repository acme/data --token-expiry RUNNER_TEMP/token-expiry --latest-published RUNNER_TEMP/latest-published"
+  want="exit=0 summary=## forsgren|- Update: up to date calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --needs-check no-access --readme replaced --repository acme/data --token-expiry RUNNER_TEMP/token-expiry --collect-report RUNNER_TEMP/collect-report --latest-published RUNNER_TEMP/latest-published"
   [[ "$got" == "$want" ]] || echo "the run summary step gives '${got}', not '${want}' — forsgren run-summary's markdown is appended to \$GITHUB_STEP_SUMMARY"
   got="$(summary_outcome "$script" "## forsgren\n" 0 "")"
-  want="exit=0 summary=## forsgren calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --needs-check no-access --repository acme/data --token-expiry RUNNER_TEMP/token-expiry --latest-published RUNNER_TEMP/latest-published"
+  want="exit=0 summary=## forsgren calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --needs-check no-access --repository acme/data --token-expiry RUNNER_TEMP/token-expiry --collect-report RUNNER_TEMP/collect-report --latest-published RUNNER_TEMP/latest-published"
   [[ "$got" == "$want" ]] || echo "with no README output the run summary step gives '${got}', not '${want}' — an empty README adds no --readme flag"
   got="$(summary_outcome "$script" "half a sum" 1)"
-  want="exit=0 summary= calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --needs-check no-access --readme replaced --repository acme/data --token-expiry RUNNER_TEMP/token-expiry --latest-published RUNNER_TEMP/latest-published"
+  want="exit=0 summary= calls=run-summary --latest 0.0.10 --waiting-pr 7 --pr-check ok --needs-check no-access --readme replaced --repository acme/data --token-expiry RUNNER_TEMP/token-expiry --collect-report RUNNER_TEMP/collect-report --latest-published RUNNER_TEMP/latest-published"
   [[ "$got" == "$want" ]] || echo "for a run-summary that fails the run summary step gives '${got}', not '${want}' — a summary never fails the run, and half of one is never appended"
 }
 
@@ -2183,6 +2186,10 @@ proves judge_waiting_lookup "a waiting lookup that fails the job" "for a lookup 
   "s/--status \"\\${D}status_file\" || true/--status \"\\${D}status_file\"/"
 proves judge_run_summary "a run summary without the token expiry file" "the run summary step gives" \
   '/--latest-published "[^"]*")"; then/s|--token-expiry "[^"]*"||'
+proves judge_run_summary "a run summary without the collect report file" "the run summary step gives" \
+  's| --collect-report "[^"]*"||'
+proves judge_run_summary "a run summary reading another report file" "the run summary step gives" \
+  '/--collect-report/s|/collect-report"|/elsewhere"|'
 proves judge_run_summary "a run summary without the publish time file" "the run summary step gives" \
   '/--latest-published "[^"]*")"; then/s| --latest-published "[^"]*"||'
 proves judge_waiting_lookup "a waiting output that is not checked" "for an answer that is not a number" \
@@ -2277,10 +2284,14 @@ proves judge_collect_token "a collect step without the token" "the collect step'
 # The collect step.
 proves judge_collect_step "no collect step" "has no step '${COLLECT_STEP}'" \
   "s/- name: ${COLLECT_STEP}\$/- name: Collect something else/"
-proves judge_collect_step "collect on another history" "the collect step runs 'forsgren collect --config forsgren.config.yml --data deployments.csv --token-expiry RUNNER_TEMP/token-expiry'" \
+proves judge_collect_step "collect on another history" "the collect step runs 'forsgren collect --config forsgren.config.yml --data deployments.csv --token-expiry RUNNER_TEMP/token-expiry --cut-report RUNNER_TEMP/collect-report'" \
   's|--data data/deployments\.csv|--data deployments.csv|'
-proves judge_collect_step "collect without the token expiry file" "the collect step runs 'forsgren collect --config forsgren.config.yml --data data/deployments.csv'," \
+proves judge_collect_step "collect without the token expiry file" "the collect step runs 'forsgren collect --config forsgren.config.yml --data data/deployments.csv --cut-report RUNNER_TEMP/collect-report'," \
   's| --token-expiry "[^"]*"||'
+proves judge_collect_step "collect without the cut report file" "the collect step runs 'forsgren collect --config forsgren.config.yml --data data/deployments.csv --token-expiry RUNNER_TEMP/token-expiry'," \
+  's| --cut-report "[^"]*"||'
+proves judge_collect_step "collect writing the report somewhere else" "the collect step runs 'forsgren collect --config forsgren.config.yml --data data/deployments.csv --token-expiry RUNNER_TEMP/token-expiry --cut-report RUNNER_TEMP/elsewhere'," \
+  '/^ *report=/s|/collect-report"|/elsewhere"|'
 proves judge_collect_token "the token as an argument" "hands FORSGREN_TOKEN to forsgren in an argument" \
   "s|forsgren collect --config|forsgren collect --token \"${D}FORSGREN_TOKEN\" --config|"
 proves judge_collect_step "the token dropped" "does not hand collect FORSGREN_TOKEN" \

@@ -223,7 +223,8 @@ forsgren.config.yml` (its message printed between
 `::stop-commands::<token>` and `::<token>::`, a fresh random token per
 run, so a line of it that starts with `::` never runs as a workflow
 command), `forsgren collect --config forsgren.config.yml --data
-data/deployments.csv --token-expiry "${RUNNER_TEMP}/token-expiry"` (its output shown with workflow commands stopped, its
+data/deployments.csv --token-expiry "${RUNNER_TEMP}/token-expiry" --cut-report
+"${RUNNER_TEMP}/collect-report"` (its output shown with workflow commands stopped, its
 exit status kept as a step output), a commit of
 `data/` alone when it changed, pushed like the starter (an `::error` naming a
 branch that moved, never a rebase or a force), `forsgren render --config
@@ -436,8 +437,9 @@ Nine PRE gates keep the CI honest:
   false`, and the only `${{ secrets… }}` in the file is the collect step's
   `env:`; the collect step, executed with a stub and with the real
   `forsgren`, runs exactly `forsgren collect --config forsgren.config.yml
-  --data data/deployments.csv --token-expiry ${RUNNER_TEMP}/token-expiry`
-  (the file the needs step reads), records its exit status as the output
+  --data data/deployments.csv --token-expiry ${RUNNER_TEMP}/token-expiry
+  --cut-report ${RUNNER_TEMP}/collect-report` (the files the needs step and
+  the run summary read), records its exit status as the output
   `status` and succeeds, keeps the token out of arguments, files, the log
   and outputs, with no token passes the starter and records a failure
   naming `FORSGREN_TOKEN` for a configured repository, and, as the config
@@ -473,7 +475,11 @@ Nine PRE gates keep the CI honest:
   the run (a `run-summary` that fails appends nothing); it passes `--token-expiry
   "${RUNNER_TEMP}/token-expiry"`, the file collect writes, for the summary's
   Token line (days or hours left, the run's own token, no expiry date, an
-  unreadable date, or unknown), and `--latest-published
+  unreadable date, or unknown), `--collect-report
+  "${RUNNER_TEMP}/collect-report"`, the report collect writes, for the
+  Collected line (complete, or incomplete with the repositories the request
+  budget cut short and those that failed on a rate limit; unknown, never
+  complete, without the file; forsgren#64), and `--latest-published
   "${RUNNER_TEMP}/latest-published"`, the file the lookup step writes, for
   the Update line's Dependabot cooldown, and `--readme <word>` only when the
   README step's `readme` output is set (forsgren#110); the step "Write the

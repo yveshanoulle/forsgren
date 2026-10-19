@@ -16,7 +16,7 @@
 //	forsgren run-summary --latest <version> --waiting-pr <number>
 //	                     --pr-check <ok|no-access|rate-limited|truncated|failed|skipped> --repository <owner/name>
 //	                     [--needs-check <status>] [--readme <status>] [--token-expiry <path>]
-//	                     [--latest-published <path>]
+//	                     [--collect-report <path>] [--latest-published <path>]
 //	forsgren check-update --config <path> --repo <owner/name> --pull <number>
 //	forsgren install-update --repo <owner/name> --branch <branch> --version <vX.Y.Z> --sha <40-hex>
 package main
@@ -44,7 +44,7 @@ const usage = `usage: forsgren render --out <dir> [--config <path>] [--data <pat
        forsgren run-summary --latest <version> --waiting-pr <number>
                             --pr-check <ok|no-access|rate-limited|truncated|failed|skipped> --repository <owner/name>
                             [--needs-check <status>] [--readme <status>] [--token-expiry <path>]
-                            [--latest-published <path>]
+                            [--collect-report <path>] [--latest-published <path>]
        forsgren check-update --config <path> --repo <owner/name> --pull <number>
        forsgren install-update --repo <owner/name> --branch <branch> --version <vX.Y.Z> --sha <40-hex>`
 

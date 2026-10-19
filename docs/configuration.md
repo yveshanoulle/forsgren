@@ -352,7 +352,7 @@ usage: forsgren render --out <dir> [--config <path>] [--data <path>]
        forsgren run-summary --latest <version> --waiting-pr <number>
                             --pr-check <ok|no-access|rate-limited|truncated|failed|skipped> --repository <owner/name>
                             [--needs-check <status>] [--readme <status>] [--token-expiry <path>]
-                            [--latest-published <path>]
+                            [--collect-report <path>] [--latest-published <path>]
        forsgren check-update --config <path> --repo <owner/name> --pull <number>
        forsgren install-update --repo <owner/name> --branch <branch> --version <vX.Y.Z> --sha <40-hex>
 ```
@@ -400,11 +400,11 @@ out or `ok` adds nothing. `forsgren
 run-summary --latest <version> --waiting-pr <number> --pr-check
 <ok|no-access|rate-limited|truncated|failed|skipped> [--needs-check
 <ok|no-access|rate-limited|failed>] [--readme <created|replaced|unchanged|failed>]
-[--token-expiry <path>] [--latest-published <path>] --repository
-<owner/name>` prints the run's job summary as markdown, a `## forsgren`
+[--token-expiry <path>] [--collect-report <path>] [--latest-published <path>]
+--repository <owner/name>` prints the run's job summary as markdown, a `## forsgren`
 heading and then these lines, in this order: Run, Built with, Latest
-release, Update, then Token, Setup and README, each of the last three only
-with its flag:
+release, Update, then Token, Collected, Setup and README, each of the last
+four only with its flag:
 
 - `Run:` the moment the summary was written, in UTC to the minute,
   "2026-10-15 15:10 UTC" (forsgren#194), so a summary pasted somewhere says
@@ -441,6 +441,18 @@ with its flag:
   sent an expiry date forsgren cannot read; see the note in the collect step",
   and, when the file is missing or holds anything else, "unknown: collect
   could not ask GitHub: see the failed collect step".
+- `Collected:`, only with `--collect-report`, from the file `collect --cut-report`
+  wrote (see [The cut report](data-files.md#collecting-deployments-collect)):
+  a green run means collection ran correctly, not that all requested history
+  was collected (forsgren#64). "complete" only for a report that says so;
+  otherwise "incomplete" with `budget reached;` and each repository cut short
+  (how far it kept, `issues not read`, `recent read discarded`, and
+  `and not progressing` when it was cut short with nothing kept on
+  consecutive runs), the time the budget resets, and each repository that
+  failed on GitHub's "primary rate limit" or "secondary rate limit". A missing
+  file is "unknown: collect wrote no report: see the failed collect step",
+  and a file that is no report "unknown: collect's report cannot be read: see
+  the collect step", never complete.
 - `Setup:`, only with `--needs-check`: "in place, or the setup issue says
   what is missing" for `ok`, else "the setup issue could not be written"
   with the reason and the steps this version needs (see
