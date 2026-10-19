@@ -111,7 +111,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 76 | manifest covers site | `test_required_pages_covers_site.sh` | post | required, `test_required_pages_covers_site v1` |
 | 77 | quality trigger scope | `test_quality_trigger_scope.sh` | pre | required |
 | 78 | stray tracked files | `test_no_stray_tracked_files.sh` | pre | required, `test_no_stray_tracked_files v1` |
-| 79 | quality-report render | `test_render_quality_report.sh` | pre | required, `test_render_quality_report v1` |
+| 79 | quality-report render | `test_render_quality_report.sh` | pre | required, `test_render_quality_report v2` |
 | 80 | quality-run summary | `test_render_quality_summary.sh` | pre | required |
 | 81 | gate-failure summary | `test_summarize_gate_failure.sh` | pre | required |
 | 82 | sfl drives from the order file | `test_sfl_drives_from_order_file.sh` | pre | required |

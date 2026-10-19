@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: render_quality_report v1
+# canon: render_quality_report v2
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
@@ -43,9 +43,8 @@ ROWS="${1:?usage: render_quality_report.sh <rows-file> <details-dir> [order-file
 DETAILS="${2:?usage: render_quality_report.sh <rows-file> <details-dir> [order-file]}"
 ORDER="${3:-Scripts/gate_report_order.txt}"
 
-# The details file's name and the anchor of the gate's section: the label with
-# every character outside A-Za-z0-9 turned into _ (as Scripts/run_ci_phase.sh
-# names the file). The link in the table is #gate-<slug>.
+# The details file's name: the label with every character outside A-Za-z0-9
+# turned into _ (as Scripts/run_ci_phase.sh names the file).
 gate_slug() { printf '%s' "$1" | tr -c 'A-Za-z0-9' '_'; }
 
 total="$(grep -v '^#' "$ORDER" | grep '|' | grep -vc '^[^|]*|n/a|')"
@@ -68,7 +67,6 @@ else
     mark="$(awk -F'|' -v l="$label" '$1 == l { print $2 }' "$ROWS")"
     [ -n "$mark" ] || continue
     slug="$(gate_slug "$label")"
-    cell="$label"
     checks="not readable"
     if [ -r "${DETAILS}/${slug}.md" ]; then
       # forsgren#219: Checks is the number of the gate's own `ok:` and `✅`
@@ -80,10 +78,8 @@ else
       n="$(grep -cE '^[[:space:]]*(ok:|✅)' "${DETAILS}/${slug}.md")"
       grc=$?
       if [ "$grc" -ge 2 ]; then checks="not readable"; elif [ "$n" -gt 0 ]; then checks="$n"; fi
-      # The label links to its section only when the section exists below.
-      cell="[${label}](#gate-${slug})"
     fi
-    echo "| ${cell} | ${checks} | ${mark} |"
+    echo "| ${label} | ${checks} | ${mark} |"
   done
   echo ""
   echo "_${ran} of ${total} gates reported._"
@@ -103,11 +99,8 @@ else
     # a declared row with no details file — an `n/a` gate, or any gate the run
     # never reached — returned 1, and the report failed while every gate
     # passed. `if … fi` returns 0 when the condition is false.
-    # The anchor is explicit, not the heading's generated one: that one
-    # depends on how GitHub strips the emoji of "#### ✅ label".
     if [ -f "${DETAILS}/${slug}.md" ]; then
       echo ""
-      echo "<a id=\"gate-${slug}\"></a>"
       cat "${DETAILS}/${slug}.md"
     fi
   done

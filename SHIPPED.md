@@ -9,6 +9,10 @@ Active work lives in
 
 ---
 
+## 2026-10-19 — the gate table shows plain gate names again ([#219](https://github.com/yveshanoulle/forsgren/issues/219), step 4)
+
+The gate table of the Quality run report shows plain gate names again: GitHub job summaries do not keep in-page links, so the links to each gate's section (and their anchors) did nothing when clicked and are gone. The Checks column, the details sections and the "What we check" list in CONTRIBUTING.md are unchanged. A test pins that no table row links and no anchor line is written, with a mutation proof for a renderer that still links a label. Tooling only.
+
 ## 2026-10-19 — the key numbers are the first thing on the Quality run page again ([#233](https://github.com/yveshanoulle/forsgren/issues/233))
 
 The headline block of the Quality run (status, gates per phase, Go tests, total checks, coverage, pages, version, commit, trigger, duration) is again the first thing on the run summary page.
