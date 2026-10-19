@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-10-19 — render_gate_list.sh carries its canon line ([#240](https://github.com/yveshanoulle/forsgren/issues/240), step 2)
+
+`Scripts/render_gate_list.sh`, the generator of the "What we check" list of CONTRIBUTING.md, has the line `# canon: render_gate_list v1`, so the estate's parity check can tell it is the shared copy; the sites take it afterwards. The script itself is unchanged.
+
+- Red first: `Scripts/test_gate_wiring.sh` now requires the canon line in the first 5 lines of the generator, and failed with `Scripts/render_gate_list.sh has no '# canon: render_gate_list v1' line`; green after.
+
 ## 2026-10-19 — the private-names gate leaves out a repository's own name ([#241](https://github.com/yveshanoulle/forsgren/issues/241))
 
 A repository's own name is not private inside that repository. `Scripts/check_private_names.sh` (canon v2) drops the basename of the origin remote (https, scp or ssh, with or without .git, compared ignoring case) from the list, in the tree scan and in `--message`, so a commit can refer to its own repository's issues. Every other listed name stays blocked, a repository with no origin keeps every name, and the output still never prints a name.

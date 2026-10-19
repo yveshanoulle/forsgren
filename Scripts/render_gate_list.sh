@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# canon: render_gate_list v1
 # Scripts/render_gate_list.sh [order-file]
 #
 # forsgren#219: the "What we check" list of CONTRIBUTING.md, generated from

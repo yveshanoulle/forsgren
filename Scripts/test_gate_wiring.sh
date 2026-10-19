@@ -719,6 +719,10 @@ for path in Scripts/*.sh; do
     render_gate_list.sh)
       runs_script "Scripts/test_render_quality_report.sh" "$base" \
         || fail "${base} generates the CONTRIBUTING.md gate list and Scripts/test_render_quality_report.sh, the row that keeps the two in sync, never runs it"
+      # Shared with the sites (forsgren#240): a shared helper carries its canon
+      # line, which the estate's parity check reads.
+      head -5 "Scripts/${base}" | grep -qxF '# canon: render_gate_list v1' \
+        || fail "Scripts/${base} has no '# canon: render_gate_list v1' line in its first 5 lines — the sites' parity check could not tell it is the shared copy"
       ;;
 
     # SOURCED HELPER, not a gate (estate canon): the engine of the exit-trap
