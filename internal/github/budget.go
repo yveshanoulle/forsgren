@@ -11,6 +11,7 @@ package github
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"time"
@@ -65,24 +66,31 @@ func number(s string) (int, bool) {
 	return n, err == nil && n >= 0
 }
 
-// checkBudget is nil, or the ErrBudget of a call about repo when the client
-// has a margin, the last answer left fewer requests than it, and the reset
-// time is still to come.
-func (c *Client) checkBudget(repo string) error {
+// Reserve is nil, or the ErrBudget of a call about repo, worded as
+// checkBudget's, when the client has a margin and fewer than n requests are
+// spare above it: a request may still be sent while Remaining has not fallen
+// below the margin, so n more after this one fit when Remaining is at least
+// the margin plus n. A caller that needs n requests after this one to finish
+// what it starts stops here instead (forsgren#64, decision #239). Nil too
+// before any answer said, and once the reset time has passed.
+func (c *Client) Reserve(repo string, n int) error {
 	b := c.budget
-	if !c.margin || !b.atMargin(time.Now()) {
+	if !c.margin || b.spare(time.Now()) >= n {
 		return nil
 	}
 	return fmt.Errorf("%s: %w (%d of %d left); it resets at %s", repo, ErrBudget, b.left, b.limit,
 		b.reset.UTC().Format(time.RFC3339))
 }
 
-// atMargin says whether an answer said fewer requests are left than the
-// margin, max(100, 5% of the limit), and the count has not started over by
-// now.
-func (b budget) atMargin(now time.Time) bool {
-	if !b.known {
-		return false
+// margin is the fewest requests left that the client sends one in: the
+// larger of the floor and 5% of the limit.
+func (b budget) margin() int { return max(budgetFloor, b.limit/budgetShare) }
+
+// spare is how many requests are left above the margin, as many as there can
+// be when no answer said yet or the count has started over by now.
+func (b budget) spare(now time.Time) int {
+	if !b.known || !now.Before(b.reset) {
+		return math.MaxInt
 	}
-	return b.left < max(budgetFloor, b.limit/budgetShare) && now.Before(b.reset)
+	return b.left - b.margin()
 }

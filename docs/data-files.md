@@ -490,19 +490,42 @@ hour (`X-RateLimit-Limit`) and when that starts over (`X-RateLimit-Reset`).
 When fewer than max(100, 5% of the limit) are left, 250 for a token with 5,000
 an hour, `collect` starts no further request, so the rest of the hour is left
 to the run's last steps (the render, the release and pull request lookups) and
-to anything else using the token. The repository it was reading is cut short:
-nothing of it is stored, not even a part of a list, none of its read marks
-(`reach.csv`, `failures_read.csv`, `issues_full.csv`, `issue_bugs_cut.csv`)
-moves, and stderr says so with the reset time, `collect: cut short: acme/app:
-GitHub's request budget is nearly used (80 of 5000 left); it resets at
+to anything else using the token. The repository it was reading is cut short,
+and stderr says so with the reset time, `collect: cut short: acme/app: GitHub's
+request budget is nearly used (80 of 5000 left); it resets at
 2026-10-01T01:00:00Z`. Every repository after it is cut short the same way,
 before its first request, because the budget is the token's. The repositories
 already done keep what they stored, and the run exits 0: a run that meets the
-limit is not a failure. The next run reads the cut-short repositories again,
-a first read only as far back as one `history_chunk_days` at a time. A request
-GitHub refuses with none left is not this: it stays a failed repository, as
-above. The one-time withdrawn-failures catch-up waits until no repository was
-cut short or failed.
+limit is not a failure. A request GitHub refuses with none left is not this: it
+stays a failed repository, as above (GitHub's secondary rate limit, a
+`Retry-After`, is counted with it today).
+
+A repository cut short keeps what it read whole (forsgren#64, decision #239).
+Lists come newest first, so a cut leaves the newest days read. A deployment
+counts as read only with its statuses and, for a success, its commits
+comparison, and each UTC calendar day only when all its deployments do. So the
+statuses are read only while the budget has room left for the comparisons of
+the successes read so far, the comparisons are sent newest first, and what is
+stored is every day after the day of the item the budget stopped at: its
+deployments and their commits (no commit twice: a success compared again on a
+later run adds nothing, the commits file skips it). The read mark
+(`reach.csv`) moves only to the start of the oldest such day, for the first
+chunk and the older chunk. The day the cut fell in, and everything older, is
+read again by the next run. Nothing else moves: a cut that keeps no day moves
+no mark, and each run names the repository as cut short, so a repository that
+cannot advance is visible, never mistaken for progress. A cut in the recent
+read (what is new since the last run) of a repository with a read mark stores
+none of it yet. A cut in the read of the issues, which is stored whole or not
+at all with the marks that say it was read (`failures_read.csv`,
+`issues_full.csv`, `issue_bugs_cut.csv`), keeps the deployments and moves
+none of those marks. The one-time withdrawn-failures catch-up waits until no
+repository was cut short or failed.
+
+A repository progresses on every run as long as one day of its history fits in
+the budget. A chunk with a single day that needs more than about 4,750
+requests (about 2 per deployment: its statuses and its comparison) is never
+finished; the way out is a smaller `history_chunk_days`, which makes the
+chunk read per run smaller.
 
 **The token.** `collect` reads the token from the environment variable
 `FORSGREN_TOKEN` only (never a flag) and sends it only as an

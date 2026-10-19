@@ -9,6 +9,12 @@
    "minScore": 9.0
   },
   {
+   "path": "internal/collect/cutshort_test.go",
+   "score": 9.38,
+   "checkedAt": "2026-10-19",
+   "minScore": 9.28
+  },
+  {
    "path": "cmd/forsgren/init_config_test.go",
    "score": 9.38,
    "checkedAt": "2026-10-04",
@@ -407,7 +413,7 @@
   {
    "path": "internal/collect/commits.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-19",
    "minScore": 10.0
   },
   {
@@ -1512,6 +1518,12 @@
    "path": "internal/page/incomplete.go",
    "score": 10.0,
    "checkedAt": "2026-10-16",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/cutshort.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-19",
    "minScore": 10.0
   }
  ]

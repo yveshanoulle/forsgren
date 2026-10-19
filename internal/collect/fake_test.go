@@ -35,15 +35,19 @@ const (
 // for are an empty list: collect reads every repository's failure issues
 // (forsgren#18), and a test about deployments has none.
 type gitHub struct {
-	srv      *httptest.Server
-	mu       sync.Mutex
-	bodies   map[string]string
-	status   map[string]int
-	paged    map[string]bool
-	limited  map[string]bool // paths answered with Retry-After: 60, GitHub's secondary rate limit
-	left     map[string]int  // paths answered with X-RateLimit-Remaining: n, of 5000, resetting at resetAt
-	resetAt  time.Time
-	requests []string // path?query
+	srv     *httptest.Server
+	mu      sync.Mutex
+	bodies  map[string]string
+	status  map[string]int
+	paged   map[string]bool
+	limited map[string]bool // paths answered with Retry-After: 60, GitHub's secondary rate limit
+	left    map[string]int  // paths answered with X-RateLimit-Remaining: n, of 5000, resetting at resetAt
+	resetAt time.Time
+	// allow, when above 0, makes every answer say how many requests are left of
+	// 5000: the margin of 250 plus allow, less the requests since the run began
+	// (used), so a run may send allow requests, and one more (forsgren#64).
+	allow, used int
+	requests    []string // path?query
 }
 
 func newGitHub(t *testing.T) *gitHub {
@@ -67,7 +71,11 @@ func (g *gitHub) setHeaders(w http.ResponseWriter, r *http.Request, key string) 
 	if g.limited[key] {
 		w.Header().Set("Retry-After", "60")
 	}
-	if n, ok := g.left[key]; ok {
+	n, ok := g.left[key]
+	if g.allow > 0 {
+		n, ok = 250+g.allow-g.used, true
+	}
+	if ok {
 		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(n))
 		w.Header().Set("X-RateLimit-Limit", "5000")
 		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(g.resetAt.Unix(), 10))
@@ -78,6 +86,7 @@ func (g *gitHub) serve(w http.ResponseWriter, r *http.Request) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.requests = append(g.requests, r.URL.RequestURI())
+	g.used++
 	key := keyOf(r)
 	body, ok := g.bodies[key]
 	if !ok && strings.HasSuffix(r.URL.Path, "/issues") {
@@ -208,6 +217,7 @@ func (g *gitHub) collect(t *testing.T, cfg config.Config, path string, maxPages 
 	if err != nil {
 		t.Fatal(err)
 	}
+	g.used = 0
 	var stdout, stderr bytes.Buffer
 	o := Options{Client: client, History: path, Now: now, Stdout: &stdout, Stderr: &stderr}
 	err = Run(context.Background(), cfg, o)

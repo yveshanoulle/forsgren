@@ -172,28 +172,23 @@ func (o Options) collectProject(ctx context.Context, h held, p config.Project) t
 // the commits of the new successes, its new or changed failure issues and
 // the new events of its issues.
 func (o Options) collectRepository(ctx context.Context, h held, project string, r config.Repository) error {
-	f, err := o.read(ctx, h, history.Record{Project: project, Repository: r.Name, Name: r.Deployment.Name},
-		r.Deployment.Kind)
+	d, err := o.deploymentsOf(ctx, h, project, r)
 	if err != nil {
-		return err
-	}
-	commits, err := o.commitsOf(ctx, h, h.fresh(f.records))
-	if err != nil {
-		return err
+		return o.keepWhole(h, r.Name, d, err)
 	}
 	lines, err := o.readIssues(ctx, h, r.Name)
 	if err != nil {
-		return err
+		return o.keepWhole(h, r.Name, d, err)
 	}
-	stored, err := o.store(batch{f.records, commits, lines.failures, lines.withdrawals, lines.events, lines.bugs})
+	stored, err := o.store(batch{d.records, d.commits, lines.failures, lines.withdrawals, lines.events, lines.bugs})
 	if err != nil {
 		return fmt.Errorf("%s: %w", r.Name, err)
 	}
-	h.noteReach(r.Name, f.reach)
+	h.noteReach(r.Name, d.reach)
 	h.noteRead(r.Name, o.Now)
 	h.noteFull(r.Name, o.Now)
 	h.noteBugsCut(r.Name, lines.bugsCut, o.Now)
-	o.report(r.Name, f, stored)
+	o.report(r.Name, d.found, stored)
 	return nil
 }
 
@@ -301,6 +296,10 @@ type found struct {
 	records   []history.Record
 	notFinal  int
 	truncated bool
+	// successes is how many of records are successes, each owed a comparison.
+	successes int
+	// win is the windows the repository was read in (cutshort.go).
+	win windows
 	// oldest is the creation time of the oldest item read, and reach where
 	// the repository's reach moves to (zero: it stays), see chunk.go.
 	oldest, reach time.Time
@@ -314,6 +313,9 @@ func (f *found) add(r history.Record, final bool) {
 		return
 	}
 	f.records = append(f.records, r)
+	if r.State == history.StateSuccess {
+		f.successes++
+	}
 }
 
 // with is base with one deployment's fields; the time in UTC, whole seconds.
@@ -327,23 +329,25 @@ func with(base history.Record, id int64, commit string, at time.Time, state hist
 // fetch reads one repository by its rule, the part of its list in span; base
 // holds the project, the repository, the kind and the environment or
 // workflow name.
-func (o Options) fetch(ctx context.Context, h held, base history.Record, span github.Span) (found, error) {
+func (o Options) fetch(ctx context.Context, h held, base history.Record, span github.Span, owed int) (found, error) {
 	switch base.Kind {
 	case history.KindWorkflow:
 		return o.workflow(ctx, h, base, span)
 	case history.KindRelease:
-		return o.releases(ctx, h, base, span)
+		return o.releases(ctx, h, base, span, owed)
 	default:
-		return o.environment(ctx, h, base, span)
+		return o.environment(ctx, h, base, span, owed)
 	}
 }
 
 // environment reads the deployments to one environment and judges each one
 // not stored yet by its statuses.
-func (o Options) environment(ctx context.Context, h held, base history.Record, span github.Span) (found, error) {
+func (o Options) environment(ctx context.Context, h held, base history.Record, span github.Span,
+	owed int,
+) (found, error) {
 	deployments, truncated, err := o.Client.Deployments(ctx, base.Repository, base.Name, span)
 	if err != nil {
-		return found{}, err
+		return found{}, cutAt(err, time.Time{})
 	}
 	f := found{truncated: truncated}
 	for _, d := range deployments {
@@ -351,9 +355,9 @@ func (o Options) environment(ctx context.Context, h held, base history.Record, s
 		if h.has(base, d.ID) {
 			continue
 		}
-		statuses, err := o.Client.DeploymentStatuses(ctx, base.Repository, d.ID)
+		statuses, err := o.statusesOf(ctx, base.Repository, d.ID, owed+f.successes)
 		if err != nil {
-			return found{}, err
+			return f, cutAt(err, d.CreatedAt)
 		}
 		state, final := outcome(statuses)
 		f.add(with(base, d.ID, d.SHA, d.CreatedAt, state, d.Task), final)
@@ -396,11 +400,11 @@ func newer(a, b github.DeploymentStatus) bool {
 func (o Options) workflow(ctx context.Context, h held, base history.Record, span github.Span) (found, error) {
 	branch, err := o.Client.DefaultBranch(ctx, base.Repository)
 	if err != nil {
-		return found{}, err
+		return found{}, cutAt(err, time.Time{})
 	}
 	runs, truncated, err := o.Client.Runs(ctx, base.Repository, base.Name, branch, span)
 	if err != nil {
-		return found{}, err
+		return found{}, cutAt(err, time.Time{})
 	}
 	f := found{truncated: truncated}
 	for _, r := range runs {
@@ -430,10 +434,12 @@ func conclusion(r github.Run) (history.State, bool) {
 
 // releases reads the published releases and looks up the commit of each one
 // not stored yet.
-func (o Options) releases(ctx context.Context, h held, base history.Record, span github.Span) (found, error) {
+func (o Options) releases(ctx context.Context, h held, base history.Record, span github.Span,
+	owed int,
+) (found, error) {
 	releases, truncated, err := o.Client.Releases(ctx, base.Repository, span)
 	if err != nil {
-		return found{}, err
+		return found{}, cutAt(err, time.Time{})
 	}
 	f := found{truncated: truncated}
 	for _, r := range releases {
@@ -441,9 +447,9 @@ func (o Options) releases(ctx context.Context, h held, base history.Record, span
 		if !published(r) || h.has(base, r.ID) {
 			continue
 		}
-		commit, err := o.Client.TagCommit(ctx, base.Repository, r.TagName)
+		commit, err := o.tagCommitOf(ctx, base.Repository, r.TagName, owed+f.successes)
 		if err != nil {
-			return found{}, err
+			return f, cutAt(err, r.PublishedAt)
 		}
 		f.add(with(base, r.ID, commit, r.PublishedAt, history.StateSuccess, r.TagName), true)
 	}

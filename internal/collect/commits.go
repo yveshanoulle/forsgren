@@ -73,21 +73,44 @@ func precedes(c, r history.Record, s history.Stream) bool {
 
 // commitsOf compares each fresh success with its previous success and
 // returns the commits to store (see start for the successes that get none),
-// with those of the stored successes that waited for them (forsgren#66).
+// with those of the stored successes that waited for them (forsgren#66). The
+// comparisons are sent newest first, so a budget cut (forsgren#64) leaves the
+// newest compared; it returns the commits so far with the cut at the
+// deployment that was not compared. The commits are in the order of the
+// deployments, oldest first, whichever order they were sent in.
 func (o Options) commitsOf(ctx context.Context, h held, fresh []history.Record) ([]history.Commit, error) {
-	var out []history.Commit
-	for _, r := range slices.Concat(h.waiting(fresh), fresh) {
-		prev, ok := o.start(h, r, fresh)
-		if !ok {
-			continue
-		}
-		commits, err := o.compare(ctx, prev, r)
+	todo := slices.Concat(h.waiting(fresh), fresh)
+	done := make([][]history.Commit, len(todo))
+	for _, i := range newestFirst(todo) {
+		commits, err := o.commitsFor(ctx, h, todo[i], fresh)
 		if err != nil {
-			return nil, err
+			return slices.Concat(done...), cutAt(err, todo[i].CreatedAt)
 		}
-		out = append(out, commits...)
+		done[i] = commits
 	}
-	return out, nil
+	return slices.Concat(done...), nil
+}
+
+// newestFirst is the indexes of records, the newest record's first.
+func newestFirst(records []history.Record) []int {
+	idx := make([]int, len(records))
+	for i := range idx {
+		idx[i] = i
+	}
+	slices.SortStableFunc(idx, func(a, b int) int { return history.Chronological(records[b], records[a]) })
+	return idx
+}
+
+// commitsFor is the commits of r since its previous success, none when it has
+// none (see start).
+func (o Options) commitsFor(ctx context.Context, h held, r history.Record, fresh []history.Record) (
+	[]history.Commit, error,
+) {
+	prev, ok := o.start(h, r, fresh)
+	if !ok {
+		return nil, nil
+	}
+	return o.compare(ctx, prev, r)
 }
 
 // start is the previous success r's commits are counted from. There is

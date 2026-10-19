@@ -47,6 +47,8 @@ type windows struct {
 	// but no reach row, zero for the others: the reach the run takes for it
 	// (forsgren#196).
 	stored time.Time
+	// now is the moment of the run; the days of a cut read end there.
+	now time.Time
 }
 
 // windows plans the read of base's source. The normal read starts 7 days
@@ -59,7 +61,8 @@ func (o Options) windows(h held, base history.Record) windows {
 	s := sourceOf(base)
 	newest, stored := h.newest[s]
 	reach, noted := h.reach[strings.ToLower(base.Repository)]
-	w := windows{normal: github.Span{Since: later(o.Now.Add(-o.chunk), o.earliest)}, first: !stored && !noted}
+	w := windows{normal: github.Span{Since: later(o.Now.Add(-o.chunk), o.earliest)}, first: !stored && !noted,
+		now: o.Now}
 	if stored {
 		w.normal.Since = later(newest.Add(-Lookback), o.earliest)
 	}
@@ -88,9 +91,10 @@ func (o Options) olderChunk(reach time.Time) github.Span {
 func (o Options) read(ctx context.Context, h held, base history.Record, kind config.DeploymentKind) (found, error) {
 	base.Kind = kindOf(kind)
 	w := o.windows(h, base)
-	f, err := o.fetch(ctx, h, base, w.normal)
+	f, err := o.fetch(ctx, h, base, w.normal, 0)
+	f.win = w
 	if err != nil {
-		return found{}, err
+		return w.cutRead(f, err)
 	}
 	if w.first {
 		f.reach = advance(w.normal, f)
@@ -101,9 +105,9 @@ func (o Options) read(ctx context.Context, h held, base history.Record, kind con
 		}
 		return f, nil
 	}
-	g, err := o.fetch(ctx, h, base, w.older)
+	g, err := o.fetch(ctx, h, base, w.older, f.successes)
 	if err != nil {
-		return found{}, err
+		return w.cutOlder(f.merge(g), err)
 	}
 	reach := advance(w.older, g)
 	f = f.merge(g)
@@ -144,6 +148,7 @@ func (f found) merge(g found) found {
 	f.records = append(f.records, g.records...)
 	f.notFinal += g.notFinal
 	f.truncated = f.truncated || g.truncated
+	f.successes += g.successes
 	return f
 }
 

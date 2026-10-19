@@ -198,7 +198,7 @@ func (c *Client) request(ctx context.Context, k call) (*http.Request, error) {
 // margin (budget.go): the body of a 2xx answer and its headers, or an error
 // that names the repository of the call's target.
 func (c *Client) do(ctx context.Context, k call) ([]byte, http.Header, error) {
-	if err := c.checkBudget(k.t.repo); err != nil {
+	if err := c.Reserve(k.t.repo, 0); err != nil {
 		return nil, nil, err
 	}
 	return c.send(ctx, k)

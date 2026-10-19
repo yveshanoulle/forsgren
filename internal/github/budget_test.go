@@ -141,3 +141,51 @@ func TestARefusalAtZeroIsStillARateLimit(t *testing.T) {
 		t.Errorf("want a refusal, not the margin: %v", err)
 	}
 }
+
+// TestReserveStopsWhereTheCallerCouldNotFinish (forsgren#64, decision #239):
+// with 300 of 5000 left the margin is 250, so 50 requests are still to send
+// and one more than the margin leaves is permitted; a caller that needs n
+// more after this one is refused when fewer than n are spare, with the
+// ErrBudget message of every other stop. No margin, no answer yet, or a
+// reset that has passed: nil.
+func TestReserveStopsWhereTheCallerCouldNotFinish(t *testing.T) {
+	reset := time.Now().Add(40 * time.Minute).UTC().Truncate(time.Second)
+	client := reservedClient(t, budgetHeaders("300", "5000", reset), true)
+	if err := client.Reserve("acme/app", 50); err != nil {
+		t.Errorf("want 50 spare for 50 needed, got %v", err)
+	}
+	wantError(t, client.Reserve("acme/app", 51), ErrBudget, "acme/app: ", "300 of 5000",
+		"resets at "+reset.Format(time.RFC3339))
+	for name, c := range map[string]*Client{
+		"no margin":   reservedClient(t, budgetHeaders("300", "5000", reset), false),
+		"after reset": reservedClient(t, budgetHeaders("300", "5000", time.Now().Add(-time.Minute)), true),
+		"no number":   reservedClient(t, budgetHeaders("", "5000", reset), true),
+		"no answer":   newClientWithMargin(t),
+	} {
+		if err := c.Reserve("acme/app", 5000); err != nil {
+			t.Errorf("%s: want no stop, got %v", name, err)
+		}
+	}
+}
+
+// newClientWithMargin is a client with the margin that has had no answer.
+func newClientWithMargin(t *testing.T) *Client {
+	t.Helper()
+	return newFake(t).client(t, DefaultMaxPages).WithBudgetMargin()
+}
+
+// reservedClient is a client, with the margin or without, that has had one
+// answer with header.
+func reservedClient(t *testing.T, header http.Header, margin bool) *Client {
+	t.Helper()
+	f := newFake(t)
+	f.on(deploymentsPath, reply{body: "[]", header: header})
+	client := f.client(t, DefaultMaxPages)
+	if margin {
+		client.WithBudgetMargin()
+	}
+	if err := calls("acme/app")["deployments"](client); err != nil {
+		t.Fatal(err)
+	}
+	return client
+}

@@ -9,6 +9,15 @@ Active work lives in
 
 ---
 
+## 2026-10-19 — a repository cut short keeps what it read whole ([#64](https://github.com/yveshanoulle/forsgren/issues/64), step 2a)
+
+Throwing a whole repository away at the request budget's margin meant a very busy repository could meet the same wall every day. Now a cut repository keeps every UTC calendar day it read whole, and the next run goes on behind it.
+
+- In the first chunk and the older chunk, `collect` stores each day after the day of the item the budget stopped at: its deployments and their commits. The read mark (`reach.csv`) moves only to the start of the oldest such day; the day the cut fell in, and everything older, is read again.
+- A deployment is whole only with its statuses and its commits comparison, so the statuses are read only while the budget has room for the comparisons of the successes read so far, and the comparisons are sent newest first. A success compared again on a later run leaves the commits file as an uncut run leaves it.
+- The issue reads are stored as a group or not at all: a cut in them keeps the deployments and moves no issue mark. A cut in the recent read of a repository with a read mark still stores none of it (step 2b). A cut that keeps no day moves no mark and is named on stderr every run.
+- Red first (nothing of a half-read chunk was stored, a repository could not progress across runs), with a mutation-style test that a half-read day is not kept, a midnight boundary test, and a test that a chunk bigger than one run's budget ends where an uncut run ends. Tests use fixture servers, never the network. The job summary line is step 3.
+
 ## 2026-10-19 — collect stops before the token's request budget is gone ([#64](https://github.com/yveshanoulle/forsgren/issues/64), step 1)
 
 A large first read can use thousands of requests, and forsgren noticed the limit only when GitHub refused a request at 0. Now `collect` reads GitHub's rate-limit headers on every answer and starts no further request once fewer than max(100, 5% of the limit) are left (250 for a token with 5,000 an hour), so the run's last steps and anything else using the token keep some of the hour.
