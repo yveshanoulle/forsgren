@@ -197,7 +197,11 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          ./Scripts/run_short_quality.sh "$ROWS" "$DETAILS" && rc=0 || rc=$?
+          # The note goes to a file the summary step appends after the
+          # headline: this step runs before it and must not write the run
+          # page itself (forsgren#233).
+          GITHUB_STEP_SUMMARY="${RUNNER_TEMP}/summary_short_note.md" \
+            ./Scripts/run_short_quality.sh "$ROWS" "$DETAILS" && rc=0 || rc=$?
           if [ "$rc" -eq 2 ]; then
             echo "secret_block=true" >> "$GITHUB_OUTPUT"
           fi
@@ -253,12 +257,16 @@ jobs:
       # matters: the run that most needs a report is the one that failed,
       # or was cancelled.
       #
-      # Two blocks, in this order, appended to one summary page: first the
+      # Nothing before this step writes the run page (forsgren#233): GitHub
+      # shows step summaries in step order, so the headline is first only
+      # while no earlier step writes it. Scripts/test_quality_summary_first.sh
+      # pins it. Blocks, in this order, appended to one summary page: first the
       # run's key numbers (forsgren#8, Scripts/render_quality_summary.sh):
       # status and how far the run got, gates per phase, Go tests, the total
       # checks, coverage and floors to raise, pages, version, commit, trigger
       # and duration;
-      # then the gate table with each gate's output. One step, so the numbers
+      # then the gate table with each gate's output, then the short Quality
+      # note of the bump scope. One step, so the numbers
       # sit above the table without either renderer knowing about the other.
       # Gates that never ran are named rather than omitted: a short table
       # would otherwise read as "fewer checks exist", and a number that does
@@ -285,6 +293,11 @@ jobs:
           rc=0
           ./Scripts/render_quality_summary.sh "${ROWS:-}" "${DETAILS:-}" >> "$GITHUB_STEP_SUMMARY" || rc=$?
           ./Scripts/render_quality_report.sh "${ROWS:-}" "${DETAILS:-}" >> "$GITHUB_STEP_SUMMARY" || rc=$?
+          # The short Quality note of the bump scope, after the headline; a
+          # full run left no such file.
+          if [ -f "${RUNNER_TEMP}/summary_short_note.md" ]; then
+            cat "${RUNNER_TEMP}/summary_short_note.md" >> "$GITHUB_STEP_SUMMARY" || rc=$?
+          fi
           exit "$rc"
 
       # What this site has agreed to live with, as markdown tables on the run

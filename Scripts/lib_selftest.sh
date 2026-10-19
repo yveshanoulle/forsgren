@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: lib_selftest v1
+# canon: lib_selftest v2
 # Scripts/lib_selftest.sh
 #
 # Ported from forsgren (forsgren#207), where it is the harness of the gate
@@ -32,6 +32,14 @@ selftest_begin() {
   TMP="$(mktemp -d)"
   COMPLETED=0
   failed=0
+  # The step summary is the self-test's own, never the ambient one: in CI the
+  # runner exports GITHUB_STEP_SUMMARY, and a script a self-test runs that
+  # appends to it would write fixture output to the real run page (forsgren#233,
+  # pinned by Scripts/test_step_summary_isolation.sh). A case that wants
+  # its own file sets the variable on that command.
+  GITHUB_STEP_SUMMARY="${TMP}/ambient_step_summary.md"
+  : > "$GITHUB_STEP_SUMMARY"
+  export GITHUB_STEP_SUMMARY
   trap selftest_cleanup EXIT
 }
 

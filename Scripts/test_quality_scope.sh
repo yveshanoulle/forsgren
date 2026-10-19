@@ -88,7 +88,7 @@ step_findings() {
   step_has "$1" "Bump diff check" "          OLD_VERSION: ${DOLLAR}{{ inputs.old_version }}"
   step_has "$1" "Bump diff check" "          NEW_VERSION: ${DOLLAR}{{ inputs.new_version }}"
   step_has "$1" "Short PRE gates" "        if: ${DOLLAR}{{ inputs.scope == 'bump' }}"
-  step_has "$1" "Short PRE gates" "          ./Scripts/run_short_quality.sh \"\$ROWS\" \"\$DETAILS\" && rc=0 || rc=\$?"
+  step_has "$1" "Short PRE gates" "            ./Scripts/run_short_quality.sh \"\$ROWS\" \"\$DETAILS\" && rc=0 || rc=\$?"
   step_has "$1" "PRE gates" "        if: ${DOLLAR}{{ inputs.scope != 'bump' }}"
   step_has "$1" "PRE gates" "          ./Scripts/run_ci_phase.sh pre \"\$ROWS\" \"\$DETAILS\" && rc=0 || rc=\$?"
   step_has "$1" "POST gates" "        if: ${DOLLAR}{{ !cancelled() && steps.build.outcome == 'success' && inputs.scope != 'bump' }}"

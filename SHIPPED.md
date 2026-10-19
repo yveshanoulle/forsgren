@@ -9,6 +9,15 @@ Active work lives in
 
 ---
 
+## 2026-10-19 — the key numbers are the first thing on the Quality run page again ([#233](https://github.com/yveshanoulle/forsgren/issues/233))
+
+The headline block of the Quality run (status, gates per phase, Go tests, total checks, coverage, pages, version, commit, trigger, duration) is again the first thing on the run summary page.
+
+- The cause: the Quality run executes the self-tests inside a gate step, CI exports `GITHUB_STEP_SUMMARY`, and the self-tests of the release report, the token expiry check, the release pre-check and the baselines report ran their scripts under that ambient variable. Their fixture output (many blocks with temporary paths and example releases) was appended to the real run page long before the headline step. `Scripts/lib_selftest.sh` now gives every self-test a summary file of its own, as `lib_git_sandbox.sh` does for `GIT_DIR`.
+- `Scripts/test_step_summary_isolation.sh` pins it: every self-test that names a script appending to the step summary runs with `GITHUB_STEP_SUMMARY` pointing at a decoy file, which must stay empty. It failed on four self-tests before the change.
+- The note of the short Quality of a release bump was the one real step before the headline; it now goes to a file that the summary step appends after the gate table. `Scripts/test_quality_summary_first.sh` pins that no step before the summary step writes the page and that the headline comes before the gate table.
+- Tooling only.
+
 ## 2026-10-18 — the shared gate scripts and self-tests are byte-identical with the shared versions ([#227](https://github.com/yveshanoulle/forsgren/issues/227))
 
 Forsgren's copies of the shared gate scripts, their self-tests and the git sandbox (`lib_git_sandbox.sh`, its guard and its isolation test) are the shared versions again, with no adaptation of their own; the one repository-specific input, the shellcheck exclusions, is a data file. Tooling only.
