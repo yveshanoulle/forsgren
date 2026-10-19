@@ -159,6 +159,18 @@
    "minScore": 10.0
   },
   {
+   "path": "cmd/forsgren/devbuild.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-19",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/devbuild_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-19",
+   "minScore": 10.0
+  },
+  {
    "path": "cmd/forsgren/render.go",
    "score": 10.0,
    "checkedAt": "2026-10-16",

@@ -12,7 +12,12 @@ preview site, <https://feta.forsgren.forsgren.be> (forsgren#222). It shows what
 the next release will look like on real data: the collected data of the public
 metrics installation, rendered with the newest code on `main`. It never
 collects, so any difference from the live metrics site comes from the code
-alone. The deploy itself lives in the preview repository,
+alone, and the footer says so: the preview is built from the checkout with
+`go install ./cmd/forsgren`, which records the commit in the binary, so its
+footer reads "Forsgren 1.11.1+dev (c41db9e)" (forsgren#224). A release is
+installed as a module at a pinned commit, which records none, and
+`Scripts/build_site.sh` builds with `-buildvcs=false`, so both keep the plain
+version. The deploy itself lives in the preview repository,
 `yveshanoulle/forsgren-metrics-feta`, whose `preview.yml` takes the pushed sha
 as its one input. The job only starts it: `Scripts/dispatch_preview.sh <sha>`
 POSTs a `workflow_dispatch` with the Actions secret `PREVIEW_DISPATCH_TOKEN`,

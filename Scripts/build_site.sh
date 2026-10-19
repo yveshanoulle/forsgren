@@ -36,7 +36,10 @@ fail() {
 echo "build_site v${VERSION}"
 
 mkdir -p "$BIN_DIR"
-go build -o "$BIN" ./cmd/forsgren || fail "go build ./cmd/forsgren failed"
+# -buildvcs=false: the checkout's commit is not stamped into the binary, so the
+# site this build renders is a release build's (no "+dev" footer, forsgren#224);
+# the preview, built with go install, is the development build.
+go build -o "$BIN" -buildvcs=false ./cmd/forsgren || fail "go build ./cmd/forsgren failed"
 
 # Rendered into a fresh staging directory first, so the count is this run's
 # pages and never a stale file already in OUTPUT_DIR.

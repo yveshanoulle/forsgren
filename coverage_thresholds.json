@@ -4,6 +4,7 @@
   "functions": {
     "github.com/yveshanoulle/forsgren/cmd/forsgren/loadconfig.go:loadConfig": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/main.go:installReadme": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/devbuild.go:devCommit": 100.0,
     "github.com/yveshanoulle/forsgren/install/install.go:Text": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/summary.go:readmeLine": 100.0,
     "github.com/yveshanoulle/forsgren/install/install.go:Write": 100.0,

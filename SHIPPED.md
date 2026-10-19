@@ -9,6 +9,10 @@ Active work lives in
 
 ---
 
+## 2026-10-19 — a preview build shows a development version in the footer ([#224](https://github.com/yveshanoulle/forsgren/issues/224), step 1)
+
+A build made from a checkout, as the preview site's, shows its version with `+dev` and the short commit it is built from in the page footer, "Forsgren 1.11.1+dev (c41db9e)", so the preview can no longer be taken for the release. The commit is plain text: the repository-links gate allows no link into a repository. A release build, installed at a pinned commit, shows its version alone and its pages are unchanged. `Scripts/build_site.sh` builds with `-buildvcs=false`, so the gates still render a release page. Tests pin both footers and the commit read from the build information. Step 2 (no bump commit, the version from the release tag) stays open on the issue.
+
 ## 2026-10-19 — the gate table shows plain gate names again ([#219](https://github.com/yveshanoulle/forsgren/issues/219), step 4)
 
 The gate table of the Quality run report shows plain gate names again: GitHub job summaries do not keep in-page links, so the links to each gate's section (and their anchors) did nothing when clicked and are gone. The Checks column, the details sections and the "What we check" list in CONTRIBUTING.md are unchanged. A test pins that no table row links and no anchor line is written, with a mutation proof for a renderer that still links a label. Tooling only.

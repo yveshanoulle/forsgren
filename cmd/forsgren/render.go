@@ -90,6 +90,7 @@ func renderTime() (time.Time, error) {
 // setting of the config that is not accepted is warned about on stderr.
 func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error) {
 	data := page.Placeholder(version)
+	data.DevCommit = devCommit(buildInfo())
 	data.AsOf = at.UTC().Format(calculatedLayout)
 	data.Latest, data.WaitingPR = o.latest, o.waitingPR
 	data.NeedsCheck, data.PRListCut = o.needsCheck, o.prCheck == statusTruncated

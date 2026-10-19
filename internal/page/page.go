@@ -40,7 +40,11 @@ var files embed.FS
 type Data struct {
 	Title   string
 	Version string
-	Message string
+	// DevCommit is the short commit of a development build (the preview's),
+	// empty for a release; the footer then reads "<Version>+dev (<DevCommit>)",
+	// as text, since the page links into no repository (forsgren#224).
+	DevCommit string
+	Message   string
 	// NoProjects makes the page say that no projects are configured yet:
 	// the installation's forsgren.config.yml lists none (forsgren#12).
 	NoProjects bool

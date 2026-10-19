@@ -369,7 +369,10 @@ date, and no repository appears), "0.3.9 is waiting in pull request #7
 "0.3.9 is available; unknown (pull request list truncated)" when the list
 of open pull requests was too long to read in full and none of those read
 was it (forsgren#203; see
-[Running forsgren](configuration.md#running-forsgren)). The numbers are compared as numbers, so 0.0.10
+[Running forsgren](configuration.md#running-forsgren)). A development build, such as the
+[preview](ci.md)'s, adds `+dev` and the short commit it is built from to its
+version, "Forsgren 1.11.1+dev (c41db9e)", as text: the page links into no
+repository (forsgren#224); a release build shows its version alone. The numbers are compared as numbers, so 0.0.10
 is newer than 0.0.9. On every page the footer's paragraph is followed by
 two links on one line, "Settings" and "Legend", to the settings page and the legend (forsgren#83, #84, #128). The footer is the same on every page, so the settings page and the legend link to themselves too (Yves's ruling on decision #133).
 
