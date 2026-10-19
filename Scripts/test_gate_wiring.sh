@@ -170,7 +170,7 @@ fi
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=145
+MIN_GATES=147
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true

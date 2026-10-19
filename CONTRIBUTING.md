@@ -156,6 +156,8 @@ run report shows how many checks each of them ran.
 - release bump diff self-test (`Scripts/test_release_bump_diff.sh`, pre)
 - run short quality self-test (`Scripts/test_run_short_quality.sh`, pre)
 - quality scope (`Scripts/test_quality_scope.sh`, pre)
+- quality summary first (`Scripts/test_quality_summary_first.sh`, pre)
+- step summary isolation (`Scripts/test_step_summary_isolation.sh`, pre)
 - git sandbox isolation self-test (`Scripts/test_git_sandbox_isolation.sh`, pre)
 - git sandbox guard self-test (`Scripts/test_git_sandbox_guard.sh`, pre)
 - precheck self-test (`Scripts/test_precheck.sh`, pre)

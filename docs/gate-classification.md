@@ -21,7 +21,7 @@ not close it.
 ## The order file, row by row
 
 [Scripts/gate_report_order.txt](../Scripts/gate_report_order.txt) is the one
-list sfl and CI both run. It has 145 rows: 141 with a script and 4 `n/a`
+list sfl and CI both run. It has 147 rows: 143 with a script and 4 `n/a`
 rows. All scripts are in `Scripts/`. The phase is `pre` (repository inputs and
 checker behaviour) or `post` (the generated site). `secret-class` means a
 finding blocks the commit as well as the push. A row for a self-test is
@@ -172,12 +172,14 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 137 | release bump diff self-test | `test_release_bump_diff.sh` | pre | required; a fixture repository bumped by the real `release_bump.sh`, 2 mutations (no parent comparison, any line of an allowed file accepted). `release_bump_diff.sh` holds a bump commit to the version bump on the green parent and is a step of the Release workflow from forsgren#230 step 2 |
 | 138 | run short quality self-test | `test_run_short_quality.sh` | pre | required; stub gates in a throwaway repository, 3 mutations (the list ignored, the skipped gates not named, no tree check). `run_short_quality.sh` runs the PRE gates of `quality_bump_gates.txt` for the short Quality of a release bump and is a step of `quality.yml` (forsgren#230) |
 | 139 | quality scope | `test_quality_scope.sh` | pre | required; pins the scope input of `.github/workflows/quality.yml` (default full, push and pull request always full, scope bump runs the bump diff check first and only the listed gates), 17 mutations (forsgren#230) |
-| 140 | git sandbox isolation self-test | `test_git_sandbox_isolation.sh` | pre | required; runs ten git-using self-tests with `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` pointing at a decoy repository with a decoy origin, and requires both unchanged (forsgren#228) |
-| 141 | git sandbox guard self-test | `test_git_sandbox_guard.sh` | pre | required; every git-using `test_*.sh` sources `lib_git_sandbox.sh`, 1 mutation (forsgren#228) |
-| 142 | precheck self-test | `test_precheck.sh` | pre | required; `precheck.sh` runs the fast static gates on the changed files and the self-tests that name them, 7 cases and 2 mutations (the test-mention step skipped, a missing tool counted as a pass), and a parity check that every gate script it runs is a row of this file (forsgren#231) |
-| 143 | static block self-test | `test_sfl_static_block.sh` | pre | required; a fake gate set in a throwaway root, the real `sfl.sh`, `run_ci_phase.sh` and a sandboxed `FBP.sh`: a red gate in the static block (`#! static-block-start` / `#! static-block-end` in the order file) is followed by the rest of the block, then every later gate is skipped and named, the summary says `stopped after the static block`, FBP skips the build and the POST gates, named, and CI still runs every row; 2 mutations (the boundary ignored, skipped gates not named) (forsgren#231) |
-| 144 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
-| 145 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
+| 140 | quality summary first | `test_quality_summary_first.sh` | pre | required; pins that no step before `Render summary and report` writes the run summary of `.github/workflows/quality.yml` and that the step writes the headline before the gate table, 4 mutations (a gate step writing the page, the short Quality note writing it directly, the table before the headline, a baselines step moved before the summary step) (forsgren#233) |
+| 141 | step summary isolation | `test_step_summary_isolation.sh` | pre | required; every self-test that names a script appending to `$GITHUB_STEP_SUMMARY` is run with that variable pointing at a decoy file in the calling shell, and the decoy must stay empty, so fixture output never reaches the real run page of the Quality run; 2 mutations (a self-test on the harness, a self-test off it) (forsgren#233) |
+| 142 | git sandbox isolation self-test | `test_git_sandbox_isolation.sh` | pre | required; runs ten git-using self-tests with `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` pointing at a decoy repository with a decoy origin, and requires both unchanged (forsgren#228) |
+| 143 | git sandbox guard self-test | `test_git_sandbox_guard.sh` | pre | required; every git-using `test_*.sh` sources `lib_git_sandbox.sh`, 1 mutation (forsgren#228) |
+| 144 | precheck self-test | `test_precheck.sh` | pre | required; `precheck.sh` runs the fast static gates on the changed files and the self-tests that name them, 7 cases and 2 mutations (the test-mention step skipped, a missing tool counted as a pass), and a parity check that every gate script it runs is a row of this file (forsgren#231) |
+| 145 | static block self-test | `test_sfl_static_block.sh` | pre | required; a fake gate set in a throwaway root, the real `sfl.sh`, `run_ci_phase.sh` and a sandboxed `FBP.sh`: a red gate in the static block (`#! static-block-start` / `#! static-block-end` in the order file) is followed by the rest of the block, then every later gate is skipped and named, the summary says `stopped after the static block`, FBP skips the build and the POST gates, named, and CI still runs every row; 2 mutations (the boundary ignored, skipped gates not named) (forsgren#231) |
+| 146 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
+| 147 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
 
 ## Documented exceptions
 
@@ -313,7 +315,7 @@ malformed row fails the step. Its self-test is the PRE row 123.
 
 ## The ratchet today
 
-`MIN_GATES` is 145, which equals the 145 rows of the order file (141 with a
+`MIN_GATES` is 147, which equals the 147 rows of the order file (143 with a
 script and 4 `n/a` rows). forsgren#215 brought it to 115 and the Go tool
 helper self-test of forsgren#216 is the 116th; the browser gate and its
 self-test (forsgren#205) made 118, and the live check self-test
@@ -328,4 +330,4 @@ sandbox (forsgren#228) made 137, and the bump diff self-test (forsgren#230,
 step 1) made 138, and the short Quality (forsgren#230, step 2: its runner and the pin
 of the scope) made 140, and the preview deploy
 script's self-test and the preview workflow pin (forsgren#222) made 142, and the
-pre-check's self-test (forsgren#231, step 1) made 143, and the static block's self-test (forsgren#231, step 2) made 144, and the release pre-check's self-test (forsgren#231, step 3) made 145.
+pre-check's self-test (forsgren#231, step 1) made 143, and the static block's self-test (forsgren#231, step 2) made 144, and the release pre-check's self-test (forsgren#231, step 3) made 145, and the pin that the run summary comes first (forsgren#233) made 146, and the isolation of the self-tests from the run summary (forsgren#233) made 147.
