@@ -45,21 +45,21 @@ func TestRunSummaryTellsWhereTheUpdateStands(t *testing.T) {
 	}{
 		{"up to date", []string{"--latest", version, "--pr-check", "ok"}, summaryOf(version, "up to date")},
 		{"ahead of the latest", []string{"--latest", "0.0.1", "--pr-check", "ok"}, summaryOf("0.0.1", "up to date")},
-		{"available", []string{"--latest", "1.11.1", "--pr-check", "ok"},
-			summaryOf("1.11.1", "1.11.1 is available; no Dependabot pull request yet")},
-		{"waiting", []string{"--latest", "1.11.1", "--waiting-pr", "7", "--pr-check", "ok", "--repository", "acme/data"},
-			summaryOf("1.11.1", "1.11.1 is waiting in pull request [#7](https://github.com/acme/data/pull/7)")},
-		{"no access", []string{"--latest", "1.11.1", "--pr-check", "no-access"},
-			summaryOf("1.11.1", "1.11.1 is available; "+skipped)},
-		{"check failed", []string{"--latest", "1.11.1", "--pr-check", "failed"},
-			summaryOf("1.11.1", "1.11.1 is available; the pull-request check failed")},
-		{"rate limited", []string{"--latest", "1.11.1", "--pr-check", "rate-limited"},
-			summaryOf("1.11.1", "1.11.1 is available; "+rateLimited)},
-		{"pull request list truncated", []string{"--latest", "1.11.1", "--pr-check", "truncated"},
-			summaryOf("1.11.1", "1.11.1 is available; unknown (pull request list truncated)")},
-		{"truncated, waiting", []string{"--latest", "1.11.1", "--waiting-pr", "7", "--pr-check", "truncated",
+		{"available", []string{"--latest", "1.11.2", "--pr-check", "ok"},
+			summaryOf("1.11.2", "1.11.2 is available; no Dependabot pull request yet")},
+		{"waiting", []string{"--latest", "1.11.2", "--waiting-pr", "7", "--pr-check", "ok", "--repository", "acme/data"},
+			summaryOf("1.11.2", "1.11.2 is waiting in pull request [#7](https://github.com/acme/data/pull/7)")},
+		{"no access", []string{"--latest", "1.11.2", "--pr-check", "no-access"},
+			summaryOf("1.11.2", "1.11.2 is available; "+skipped)},
+		{"check failed", []string{"--latest", "1.11.2", "--pr-check", "failed"},
+			summaryOf("1.11.2", "1.11.2 is available; the pull-request check failed")},
+		{"rate limited", []string{"--latest", "1.11.2", "--pr-check", "rate-limited"},
+			summaryOf("1.11.2", "1.11.2 is available; "+rateLimited)},
+		{"pull request list truncated", []string{"--latest", "1.11.2", "--pr-check", "truncated"},
+			summaryOf("1.11.2", "1.11.2 is available; unknown (pull request list truncated)")},
+		{"truncated, waiting", []string{"--latest", "1.11.2", "--waiting-pr", "7", "--pr-check", "truncated",
 			"--repository", "acme/data"},
-			summaryOf("1.11.1", "1.11.1 is waiting in pull request [#7](https://github.com/acme/data/pull/7)")},
+			summaryOf("1.11.2", "1.11.2 is waiting in pull request [#7](https://github.com/acme/data/pull/7)")},
 		{"truncated, up to date", []string{"--latest", version, "--pr-check", "truncated"},
 			summaryOf(version, "up to date")},
 		{"no access, up to date", []string{"--latest", version, "--pr-check", "no-access"},
@@ -179,8 +179,8 @@ func TestRunSummaryNotesAnUnreadableConfigAsItsOwn(t *testing.T) {
 // nothing (the workflow never lets that fail the run).
 func TestRunSummaryRefusesWhatItCannotTell(t *testing.T) {
 	cases := map[string][]string{
-		"--pr-check":   {"run-summary", "--latest", "1.11.1", "--pr-check", "banana"},
-		"--repository": {"run-summary", "--latest", "1.11.1", "--waiting-pr", "7", "--pr-check", "ok"},
+		"--pr-check":   {"run-summary", "--latest", "1.11.2", "--pr-check", "banana"},
+		"--repository": {"run-summary", "--latest", "1.11.2", "--waiting-pr", "7", "--pr-check", "ok"},
 	}
 	for flag, args := range cases {
 		wantExit(t, exit{2, "", flag}, args...)
@@ -355,8 +355,8 @@ func TestTheUpdateLineNamesTheDependabotCooldown(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			pinClock(t, time.Date(2026, 10, 15, 15, 10, 0, 0, time.UTC))
 			file := checkoutWith(t, c.dependabot, c.published)
-			_, stdout, _ := runCommand("run-summary", "--latest", "1.11.1", "--pr-check", "ok", "--latest-published", file)
-			if want := summaryOf("1.11.1", "1.11.1 is available; "+c.want); stdout != want {
+			_, stdout, _ := runCommand("run-summary", "--latest", "1.11.2", "--pr-check", "ok", "--latest-published", file)
+			if want := summaryOf("1.11.2", "1.11.2 is available; "+c.want); stdout != want {
 				t.Errorf("want %q, got %q", want, stdout)
 			}
 		})
@@ -374,10 +374,10 @@ func TestTheCooldownIsOnlyNamedWhereNoPullRequestWaits(t *testing.T) {
 		args []string
 		want string
 	}{
-		{"waiting", []string{"--latest", "1.11.1", "--waiting-pr", "7", "--pr-check", "ok", "--repository", "acme/data"},
-			"1.11.1 is waiting in pull request [#7](https://github.com/acme/data/pull/7)"},
-		{"check failed", []string{"--latest", "1.11.1", "--pr-check", "failed"},
-			"1.11.1 is available; the pull-request check failed"},
+		{"waiting", []string{"--latest", "1.11.2", "--waiting-pr", "7", "--pr-check", "ok", "--repository", "acme/data"},
+			"1.11.2 is waiting in pull request [#7](https://github.com/acme/data/pull/7)"},
+		{"check failed", []string{"--latest", "1.11.2", "--pr-check", "failed"},
+			"1.11.2 is available; the pull-request check failed"},
 		{"up to date", []string{"--latest", version, "--pr-check", "ok"}, "up to date"},
 	}
 	for _, c := range cases {
