@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: check_private_names v1
+# canon: check_private_names v2
 # Scripts/check_private_names.sh
 #
 # This repository is public, so no tracked or untracked file
@@ -35,6 +35,13 @@
 # token is a hit (so `acme-secret-repo` is found inside `acme-secret-repository`,
 # `my-acme-secret-repo` and `apply-acme-secret-repo.yml`). Yves's ruling: the
 # gate takes over the data guard's `grep -iF` matching.
+#
+# THE OWN NAME (canon v2): a repository's own name is not private inside that
+# repository. The basename of the origin remote URL (https, scp or ssh form,
+# with or without .git, as the extra-list lookup derives it) is left out of
+# the list, compared ignoring case, in the tree scan and in --message. Every
+# other listed name stays blocked; a repository with no origin keeps every
+# name. The own name is never printed.
 #
 # The FAIL lines name `file:line` for a content hit (`tracked path #N:line`
 # when the path itself names a private name) and `tracked path #N in
@@ -149,6 +156,24 @@ read_shared_list() {
   SOURCE="file"
 }
 
+# drop_own_name: removes the repository's own name from PRIVATE_NAMES (one
+# name per line, newline-terminated) and lowers PRIVATE_NAMES_COUNT by the
+# lines removed. Case-insensitive; nothing is printed.
+drop_own_name() {
+  local own line kept="" count=0 lower_own lower_line
+  own="$(origin_repo_name .)" || return 0
+  lower_own="$(printf '%s' "$own" | tr '[:upper:]' '[:lower:]')"
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    lower_line="$(printf '%s' "$line" | tr '[:upper:]' '[:lower:]')"
+    [[ "$lower_line" == "$lower_own" ]] && continue
+    kept+="${line}"$'\n'
+    count=$((count + 1))
+  done <<< "$PRIVATE_NAMES"
+  PRIVATE_NAMES="$kept"
+  PRIVATE_NAMES_COUNT="$count"
+}
+
 # build_patterns: one ERE per name, newline-separated, in PATTERNS,
 # regex-escaped, no boundary (a substring match). Sets COUNT to the number of
 # names; exit 2 on none in an env list. The patterns stay in this variable and
@@ -164,6 +189,7 @@ build_patterns() {
     exit 2
   fi
   private_names_parse "$LIST"
+  drop_own_name
   COUNT="$PRIVATE_NAMES_COUNT"
   PATTERNS="$(printf '%s' "$PRIVATE_NAMES" | sed 's/[][\.*^$+?(){}|/]/\\&/g')"
 }

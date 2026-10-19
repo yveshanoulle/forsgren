@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_check_private_names v1
+# canon: test_check_private_names v2
 # Scripts/test_check_private_names.sh
 #
 # Self-test for Scripts/check_private_names.sh, run before the
@@ -86,6 +86,10 @@
 #      and still searched, a missing extra list is fine, an unreadable extra
 #      file is exit 2, and an extra list never stands in for a missing or
 #      emptied shared one
+#  18. the repository's OWN name (canon v2): the basename of the origin remote
+#      (https, scp, ssh; with or without .git) is left out, case-insensitively,
+#      in the tree scan and in --message; another listed name in the same
+#      repository stays red; no origin keeps every name; the output names none
 # Mutation proof: a copy of the gate that prints the matched line must reveal
 # the name, so the no-name assertion can fail.
 
@@ -586,6 +590,74 @@ if selftest_mutant "$GATE" "$MUTANT" "s/lineno=\${hit%%:\*}/lineno=\$hit/"; then
     echo "  ok: mutation proof: the real gate, on the same repository, reveals nothing"
   fi
 fi
+
+# --- The repository's OWN name is not private inside it (canon v2) -----------
+# NAME_A is listed. A repository whose origin basename is NAME_A may name it;
+# NAME_B, another listed name, stays blocked there; a repository with no origin
+# keeps both. The name is compared ignoring case, for every URL form.
+
+# run_own <repo>: the gate on <repo> with the shared list from the file.
+run_own() {
+  capture env -u FORSGREN_PRIVATE_NAMES HOME="$EMPTY_HOME" FORSGREN_PRIVATE_NAMES_FILE="$NAMES_FILE" "${OWN_GATE:-$GATE}" "$1"
+}
+
+# own_message <text>: --message - run INSIDE $REPO, as FBP.sh runs it.
+own_message() {
+  # shellcheck disable=SC2016
+  capture env -u FORSGREN_PRIVATE_NAMES HOME="$EMPTY_HOME" FORSGREN_PRIVATE_NAMES_FILE="$NAMES_FILE" \
+    bash -c 'cd "$1" && "$2" --message - <<< "$3"' _ "$REPO" "${OWN_GATE:-$GATE}" "$1"
+}
+
+own_url=0
+for url in "https://example.invalid/acme/acme-secret-repo.git" "https://example.invalid/acme/Acme-Secret-Repo" \
+  "git@example.invalid:acme/acme-secret-repo.git" "ssh://git@example.invalid/acme/ACME-SECRET-REPO.git"; do
+  own_url=$((own_url + 1))
+  new_repo "own-${own_url}"
+  git -C "$REPO" remote add origin "$url"
+  write_file "docs/notes.md" $'see acme-secret-repo issue 1\nAcme-Secret-Repo\n' track
+  run_own "$REPO"
+  want_green_ok "own name ${own_url}: a file naming the repository's own name passes"
+  want_not_said "own name ${own_url}" "$NAME_A"
+  own_message "acme-secret-repo: Pre-ACME-Secret-Repo notes"
+  want_rc "own name ${own_url}: --message names the own name and passes" 0
+  want_not_said "own name ${own_url} message" "$NAME_A"
+done
+
+new_repo "own-other"
+git -C "$REPO" remote add origin "https://example.invalid/acme/acme-secret-repo.git"
+write_file "docs/notes.md" $'acme-secret-repo\nsee globex-internal here\n' track
+run_own "$REPO"
+want_red "own name: another listed name in the same repository is still red" "docs/notes.md:2"
+want_not_said "own name, other name" "$NAME_A" "$NAME_B"
+own_message "see globex-internal and acme-secret-repo"
+want_exit "own name: --message with another listed name is still exit 1" 1 "the commit message names a private name"
+want_not_said "own name, other name in a message" "$NAME_A" "$NAME_B"
+
+new_repo "own-no-origin"
+write_file "docs/notes.md" $'acme-secret-repo\n' track
+run_own "$REPO"
+want_red "no origin keeps every name: the file is red" "docs/notes.md:1"
+own_message "acme-secret-repo"
+want_exit "no origin keeps every name: --message is exit 1" 1 "the commit message names a private name"
+
+# Mutation proof: a gate that does not leave the own name out is caught.
+new_repo "own-mutant"
+git -C "$REPO" remote add origin "https://example.invalid/acme/acme-secret-repo.git"
+write_file "docs/notes.md" $'acme-secret-repo\n' track
+OWN_MUTANT="${TMP}/mutant-own/Scripts/check_private_names.sh"
+# shellcheck disable=SC2016
+if selftest_mutant "$GATE" "$OWN_MUTANT" 's/^  own="\$(origin_repo_name \.)" || return 0$/  return 0/'; then
+  cp Scripts/lib_private_names.sh "$(dirname "$OWN_MUTANT")/"
+  OWN_GATE="$OWN_MUTANT" run_own "$REPO"
+  if [[ "$RC" -eq 1 ]] && grep -qF "docs/notes.md:1" <<< "$OUT"; then
+    echo "  ok: mutation proof: a gate that does not leave the own name out is red on the own name"
+  else
+    fail "mutation proof: a gate that does not leave the own name out was not caught (exit ${RC}). Output: ${OUT}"
+  fi
+  run_own "$REPO"
+  want_green_ok "mutation proof: the real gate, on the same repository, passes"
+fi
+OWN_GATE=""
 
 selftest_end "the private-names gate does not keep listed names out of tracked files, or passes without a list, or fails an emptied secret" \
   "private-names gate is red with file:line (never the name) on a listed name, case-insensitively and as a substring, reads its list from a file or from env, passes an existing names file with no names, and is exit 2 when no list, an env list with no names, a missing names file or no tracked file is there"

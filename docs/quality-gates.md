@@ -59,7 +59,9 @@ commit itself:
   would stage), case-insensitively, for a substring (a listed name
   inside a longer token is a hit). Its failure line
   names `file:line`, or `tracked path #N in git ls-files`, and never the
-  name, so the gate's own output reveals none. A commit message is checked too:
+  name, so the gate's own output reveals none. The repository's own name (the
+  basename of its `origin` remote, ignoring case) is left out of the list, in the
+  scan and in `--message` (canon v2, forsgren#241); no origin keeps every name. A commit message is checked too:
   `FBP.sh` hands it to `Scripts/check_private_names.sh --message -` (the
   same list and matching, the message on stdin, never in a file an interrupt
   could leave behind, no repository scan) first of all, and on

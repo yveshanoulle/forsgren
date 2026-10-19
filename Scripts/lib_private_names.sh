@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: lib_private_names v1
+# canon: lib_private_names v2
 # Scripts/lib_private_names.sh
 #
 # (refactor): the one reading of the private-names list, shared
@@ -29,6 +29,20 @@ private_names_file_given() {
   [[ -n "${FORSGREN_PRIVATE_NAMES_FILE:-}" ]]
 }
 
+# origin_repo_name <repo-dir>: prints the basename of the origin remote URL of
+# <repo-dir> without .git (https, scp and ssh forms). Returns non-zero,
+# printing nothing, when there is no origin or no name in it. The one parse,
+# used by the extra-list lookup and by the gate's own-name rule.
+origin_repo_name() {
+  local url name
+  url="$(git -C "$1" remote get-url origin 2>/dev/null)" || return 1
+  name="${url##*/}"
+  name="${name##*:}"
+  name="${name%.git}"
+  [[ -n "$name" ]] || return 1
+  printf '%s' "$name"
+}
+
 # private_names_extra_file <repo-dir>: prints the path of the repository's
 # EXTRA list file: FORSGREN_PRIVATE_NAMES_EXTRA_FILE when set and not empty,
 # else ${HOME}/.config/forsgren/private-names-extra/<name>, <name> being the
@@ -36,16 +50,12 @@ private_names_file_given() {
 # non-zero, printing nothing, when there is no variable and no origin to name
 # the file after. A path, never a name.
 private_names_extra_file() {
-  local url name
+  local name
   if [[ -n "${FORSGREN_PRIVATE_NAMES_EXTRA_FILE:-}" ]]; then
     printf '%s' "$FORSGREN_PRIVATE_NAMES_EXTRA_FILE"
     return 0
   fi
-  url="$(git -C "$1" remote get-url origin 2>/dev/null)" || return 1
-  name="${url##*/}"
-  name="${name##*:}"
-  name="${name%.git}"
-  [[ -n "$name" ]] || return 1
+  name="$(origin_repo_name "$1")" || return 1
   printf '%s' "${HOME:-/nonexistent}/.config/forsgren/private-names-extra/${name}"
 }
 

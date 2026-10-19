@@ -9,6 +9,15 @@ Active work lives in
 
 ---
 
+## 2026-10-19 — the private-names gate leaves out a repository's own name ([#241](https://github.com/yveshanoulle/forsgren/issues/241))
+
+A repository's own name is not private inside that repository. `Scripts/check_private_names.sh` (canon v2) drops the basename of the origin remote (https, scp or ssh, with or without .git, compared ignoring case) from the list, in the tree scan and in `--message`, so a commit can refer to its own repository's issues. Every other listed name stays blocked, a repository with no origin keeps every name, and the output still never prints a name.
+
+- Red first: a file and a message naming the own name (four URL forms, mixed case) were refused; green after. Another listed name in the same repository and a repository with no origin stay red. A mutant that does not leave the own name out is caught for that reason.
+- The sites take v2 through their own issues.
+
+---
+
 ## 2026-10-19 — the HUP case of the aborted-run test no longer depends on how it is launched ([#234](https://github.com/yveshanoulle/forsgren/issues/234))
 
 `Scripts/test_fbp_aborted.sh` failed once in its HUP case and passed on rerun. FBP.sh installs its EXIT, TERM, INT and HUP traps before it starts `./sfl.sh pre`, and the stub that sends the signal runs only from there, so the signal cannot arrive before the traps. The cause was the launch: a signal ignored when a non-interactive bash starts is never trapped, and the sandbox reset that disposition for INT only, so a fixture started under nohup (or by a harness that ignores HUP) saw FBP.sh finish with "All checks passed" and exit 0 on a HUP.
