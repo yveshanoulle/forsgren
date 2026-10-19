@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-19 — a cut recent read keeps its whole days when the next window still reaches the rest ([#64](https://github.com/yveshanoulle/forsgren/issues/64), step 2b)
+
+When the budget runs out in what is new since the last run, `collect` now keeps the newest days it read whole, with their commits, if the next run's window (7 days before the newest deployment stored) still starts at or before the newest deployment stored before this run, so nothing that was not read can fall out of it. Otherwise it stores nothing, as before, and reads it again.
+
+- The boundary is tested to the second: exactly 7 days after the stored deployment keeps the day, one second more stores nothing, and a mutation test shows that keeping a day beyond the reach would lose a deployment for good.
+- A deployment read by the next run between two stored successes gets no commits and a warning, as the existing rule has it, so no commit counts twice.
+- The read marks do not move for a recent read.
+
 ## 2026-10-19 — a repository cut short keeps what it read whole ([#64](https://github.com/yveshanoulle/forsgren/issues/64), step 2a)
 
 Throwing a whole repository away at the request budget's margin meant a very busy repository could meet the same wall every day. Now a cut repository keeps every UTC calendar day it read whole, and the next run goes on behind it.

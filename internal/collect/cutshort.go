@@ -74,7 +74,8 @@ func (o Options) tagCommitOf(ctx context.Context, repo, tag string, owed int) (s
 // wholeDays is where the whole days of a read cut at an item created at at
 // start: the first instant after at's day, and whether the cut leaves any.
 // The first chunk of a repository, and the older chunk, keep their days;
-// the recent read of a repository with a reach keeps none yet.
+// the recent read of a repository with a reach keeps its days only while the
+// next run's window still reaches what was not read (windowReaches).
 func (w windows) wholeDays(at time.Time) (time.Time, bool) {
 	if at.IsZero() {
 		return time.Time{}, false
@@ -83,10 +84,35 @@ func (w windows) wholeDays(at time.Time) (time.Time, bool) {
 	switch {
 	case w.first:
 		return from, !from.After(w.now)
-	case !w.older.Until.IsZero() && at.Before(w.older.Until):
+	case w.inOlder(at):
 		return earlier(from, w.older.Until), true
 	}
-	return time.Time{}, false
+	return from, true
+}
+
+// inOlder says whether an item created at at is in the older chunk.
+func (w windows) inOlder(at time.Time) bool {
+	return !w.older.Until.IsZero() && at.Before(w.older.Until)
+}
+
+// losesUnread says whether storing records of a read cut at an item created
+// at at would hide what was not read: the cut is in the recent read and the
+// next window would not reach it.
+func (w windows) losesUnread(at time.Time, records []history.Record) bool {
+	return !w.first && !w.inOlder(at) && !w.windowReaches(records)
+}
+
+// windowReaches says whether the next run's window, which starts 7 days
+// (Lookback) before the newest deployment stored, never before earliest,
+// still reaches the oldest deployment a cut recent read can have left unread,
+// which is newer than the newest stored one, once records are stored. Nothing
+// stored from a read that fails this would be read again.
+func (w windows) windowReaches(records []history.Record) bool {
+	var newest time.Time
+	for _, r := range records {
+		newest = later(newest, r.CreatedAt)
+	}
+	return !later(newest.Add(-Lookback), w.earliest).After(w.anchor)
 }
 
 // reachAfter is where the reach moves to when the days from from on are kept:
@@ -110,6 +136,9 @@ func (w windows) kept(f found, at time.Time) found {
 		return f
 	}
 	f.records = slices.DeleteFunc(slices.Clone(f.records), func(r history.Record) bool { return r.CreatedAt.Before(from) })
+	if w.losesUnread(at, f.records) {
+		f.records, f.successes = nil, 0
+	}
 	if len(f.records) > 0 {
 		f.reach = w.reachAfter(from)
 	}

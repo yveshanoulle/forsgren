@@ -49,6 +49,10 @@ type windows struct {
 	stored time.Time
 	// now is the moment of the run; the days of a cut read end there.
 	now time.Time
+	// earliest and anchor serve a cut recent read (cutshort.go): the earliest
+	// moment a run reads, and the oldest deployment the recent read can have
+	// left unread: the newest stored one, else where the window starts.
+	earliest, anchor time.Time
 }
 
 // windows plans the read of base's source. The normal read starts 7 days
@@ -62,9 +66,11 @@ func (o Options) windows(h held, base history.Record) windows {
 	newest, stored := h.newest[s]
 	reach, noted := h.reach[strings.ToLower(base.Repository)]
 	w := windows{normal: github.Span{Since: later(o.Now.Add(-o.chunk), o.earliest)}, first: !stored && !noted,
-		now: o.Now}
+		now: o.Now, earliest: o.earliest}
+	w.anchor = w.normal.Since
 	if stored {
 		w.normal.Since = later(newest.Add(-Lookback), o.earliest)
+		w.anchor = newest
 	}
 	if !noted {
 		reach = h.oldest[s]

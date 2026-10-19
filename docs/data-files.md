@@ -514,8 +514,13 @@ chunk and the older chunk. The day the cut fell in, and everything older, is
 read again by the next run. Nothing else moves: a cut that keeps no day moves
 no mark, and each run names the repository as cut short, so a repository that
 cannot advance is visible, never mistaken for progress. A cut in the recent
-read (what is new since the last run) of a repository with a read mark stores
-none of it yet. A cut in the read of the issues, which is stored whole or not
+read (what is new since the last run) of a repository with a read mark keeps
+its whole days only while the next run's window, which starts 7 days before
+the newest deployment stored, still reaches the oldest deployment that was not
+read, which is newer than the newest one stored before the run; otherwise it
+stores none of it and the next run reads it again. A deployment read later
+that lies between two stored successes gets no commits and a warning, so no
+commit counts twice. A cut in the read of the issues, which is stored whole or not
 at all with the marks that say it was read (`failures_read.csv`,
 `issues_full.csv`, `issue_bugs_cut.csv`), keeps the deployments and moves
 none of those marks. The one-time withdrawn-failures catch-up waits until no

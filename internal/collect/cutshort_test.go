@@ -386,11 +386,10 @@ func recentGitHub(t *testing.T) (*gitHub, string) {
 	return g, path
 }
 
-// TestACutRecentReadKeepsNothingYet: a cut in the comparison of the recent
-// read stores none of it, for the next window starts a week before the
-// newest deployment stored and would skip what was not read; the read mark
-// stays. (Keeping it is step 2b, forsgren#64.)
-func TestACutRecentReadKeepsNothingYet(t *testing.T) {
+// TestACutInTheComparisonOfTheNewestDayKeepsNothing: the newest day's
+// success is the one whose comparison the budget stops, so no day of the
+// recent read is whole, nothing is stored, and the read mark stays.
+func TestACutInTheComparisonOfTheNewestDayKeepsNothing(t *testing.T) {
 	g, path := recentGitHub(t)
 	g.allow = 1
 	wantCutShort(t, g.collect(t, shopWithChunks(), path, github.DefaultMaxPages))
@@ -439,4 +438,104 @@ func TestAStoreThatFailsAfterACutFailsTheRepository(t *testing.T) {
 		t.Errorf("want a failed repository naming deployments.csv, got %v (stderr %q)", r.err, r.stderr)
 	}
 	wantReachAtDay(t, path, 100)
+}
+
+// Lookback fixtures (forsgren#64, step 2b, decision #239): acme/app has the
+// stored success 1005 at N0, 20 days ago, and reach.csv at 100 days. GitHub
+// lists the newer 5001 (at the time a case gives, in a day of its own) and
+// then 5002, six hours after N0, in the day of N0. The comparison of 5001
+// with 1005 holds the commits of both. With 2 requests allowed the budget
+// stops at the statuses of 5002, so only 5001's day was read whole. The next
+// run's window starts 7 days before the newest deployment stored, so storing
+// 5001 is safe only while that is no later than N0: 5002 is newer than N0 and
+// may lie anywhere between.
+
+const (
+	lookbackNewest = 5001
+	lookbackOlder  = 5002
+)
+
+// lookbackGitHub is the fake of those fixtures with 5001 created at newest,
+// and the path of the history.
+func lookbackGitHub(t *testing.T, newest time.Time) (*gitHub, string) {
+	t.Helper()
+	g := newGitHub(t)
+	older := ago(20).Add(6 * time.Hour)
+	times := map[int64]time.Time{lookbackNewest: newest, lookbackOlder: older}
+	var listed []string
+	for _, id := range []int64{lookbackNewest, lookbackOlder} {
+		created := times[id].Format(time.RFC3339)
+		listed = append(listed, deployment(id, busySha(id), "deploy", created))
+		g.bodies[statusesPath(fmt.Sprint(id))] = list(status(1, "success", created))
+	}
+	g.bodies[deploymentsPath] = list(listed...)
+	g.bodies[comparePath(busySha(storedOne), busySha(lookbackNewest))] = ahead(
+		authored{busySha(lookbackOlder), older}, authored{busySha(lookbackNewest), newest})
+	g.bodies[comparePath(busySha(storedOne), busySha(lookbackOlder))] = ahead(authored{busySha(lookbackOlder), older})
+	path := historyPath(t)
+	seedChunk(t, path, reachFileOf(path), chunkCase{reachAge: 100})
+	held := record(history.KindEnvironment, "production", storedOne, busySha(storedOne), ago(20),
+		history.StateSuccess, "deploy")
+	if _, err := history.Append(path, []history.Record{held}); err != nil {
+		t.Fatal(err)
+	}
+	return g, path
+}
+
+// TestACutRecentReadKeepsItsWholeDaysWhileTheNextWindowReachesWhatWasNotRead:
+// 5001 is created exactly 7 days after N0 (inside: the next window starts at
+// N0) and it is stored, with its commits; one second later (outside) nothing
+// is stored; and the read mark stays in both. The next run, with the budget,
+// stores 5002 in the first case, which lies between two stored successes and
+// so gets no commits and a warning, none counted twice.
+func TestACutRecentReadKeepsItsWholeDaysWhileTheNextWindowReachesWhatWasNotRead(t *testing.T) {
+	cases := []struct {
+		name   string
+		offset time.Duration
+		stored []int64
+	}{
+		{"exactly the lookback after the oldest not read", Lookback, []int64{storedOne, lookbackNewest}},
+		{"a second beyond it", Lookback + time.Second, []int64{storedOne}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g, path := lookbackGitHub(t, ago(20).Add(c.offset))
+			g.allow = 2
+			wantCutShort(t, g.collect(t, shopWithChunks(), path, github.DefaultMaxPages))
+			wantStoredIDs(t, path, c.stored...)
+			wantReachAtDay(t, path, 100)
+		})
+	}
+}
+
+// TestADayKeptBeyondTheNextWindowWouldLoseWhatWasNotRead (the mutation proof
+// of the rule above): 5001 is 7.5 days after N0, so the next window starts
+// after 5002, which was not read. Nothing is stored, and the next run, with
+// the budget, stores both; a run that kept 5001 would never see 5002.
+func TestADayKeptBeyondTheNextWindowWouldLoseWhatWasNotRead(t *testing.T) {
+	g, path := lookbackGitHub(t, ago(20).Add(Lookback+12*time.Hour))
+	g.allow = 2
+	wantCutShort(t, g.collect(t, shopWithChunks(), path, github.DefaultMaxPages))
+	wantStoredIDs(t, path, storedOne)
+	g.allow = 0
+	if r := g.collect(t, shopWithChunks(), path, github.DefaultMaxPages); r.err != nil {
+		t.Fatal(r.err)
+	}
+	wantStoredIDs(t, path, storedOne, lookbackNewest, lookbackOlder)
+}
+
+// TestWhatTheNextRunReadsAfterAKeptDayIsNotCountedTwice: after the inside
+// case the next run stores 5002, between 1005 and 5001, with the warning and
+// no commits of its own, and every commit is in the file once.
+func TestWhatTheNextRunReadsAfterAKeptDayIsNotCountedTwice(t *testing.T) {
+	g, path := lookbackGitHub(t, ago(20).Add(Lookback))
+	g.allow = 2
+	g.collect(t, shopWithChunks(), path, github.DefaultMaxPages)
+	g.allow = 0
+	r := g.collect(t, shopWithChunks(), path, github.DefaultMaxPages)
+	wantStoredIDs(t, path, storedOne, lookbackNewest, lookbackOlder)
+	wantCommitsOf(t, path, lookbackNewest, lookbackNewest)
+	if !strings.Contains(r.stderr, "no commit counts twice") {
+		t.Errorf("want the warning for the deployment between two stored ones, got %q", r.stderr)
+	}
 }
