@@ -9,6 +9,15 @@ Active work lives in
 
 ---
 
+## 2026-10-19 — the HUP case of the aborted-run test no longer depends on how it is launched ([#234](https://github.com/yveshanoulle/forsgren/issues/234))
+
+`Scripts/test_fbp_aborted.sh` failed once in its HUP case and passed on rerun. FBP.sh installs its EXIT, TERM, INT and HUP traps before it starts `./sfl.sh pre`, and the stub that sends the signal runs only from there, so the signal cannot arrive before the traps. The cause was the launch: a signal ignored when a non-interactive bash starts is never trapped, and the sandbox reset that disposition for INT only, so a fixture started under nohup (or by a harness that ignores HUP) saw FBP.sh finish with "All checks passed" and exit 0 on a HUP.
+
+- The sandbox now resets INT, TERM and HUP to the default before FBP.sh starts.
+- The test runs each signal again with that signal ignored in the fixture (red before the reset: HUP and TERM printed "All checks passed" and exited 0), and checks the ready condition by source order: all four traps come before the first `./sfl.sh pre`, with a mutant that moves the HUP trap after it, caught for that reason. No sleep, no change to FBP.sh.
+
+---
+
 ## 2026-10-19 — the job summary says whether the history was collected in full ([#64](https://github.com/yveshanoulle/forsgren/issues/64), step 3c)
 
 A green run is not a complete history. The run summary now has a `Collected:` line: "complete" only when collect's report says so, otherwise "incomplete, budget reached;" with each repository cut short (how far it kept, that its issues were not read, the recent read when it was discarded), the time the budget resets, and the repositories that failed on GitHub's primary or secondary rate limit, named apart. A repository cut short with nothing kept on consecutive runs is named "not progressing". A missing report is "unknown", never complete.

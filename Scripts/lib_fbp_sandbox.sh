@@ -432,8 +432,9 @@ fbp_sandbox_run() {
     # without job control starts its background jobs with SIGINT ignored,
     # and a non-interactive bash silently does not set a trap for a signal
     # that was ignored on entry, so without this an INT to FBP.sh would
-    # depend on how the fixture was launched.
-    PATH="$PWD/bin:$PATH" perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV or die "exec: $!"' ./FBP.sh "$@" > fbp-out.log 2>&1
+    # depend on how the fixture was launched. forsgren#234: the same holds
+    # for HUP (nohup, a harness) and TERM, so perl resets all three.
+    PATH="$PWD/bin:$PATH" perl -e '$SIG{INT} = $SIG{TERM} = $SIG{HUP} = "DEFAULT"; exec @ARGV or die "exec: $!"' ./FBP.sh "$@" > fbp-out.log 2>&1
     echo "$?" > fbp-rc.log
     if git rev-parse -q --verify HEAD > /dev/null; then
       git log -1 --format=%H > fbp-commit-sha.log
