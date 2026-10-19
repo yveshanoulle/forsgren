@@ -9,6 +9,10 @@ Active work lives in
 
 ---
 
+## 2026-10-19 — the browser gate also opens the site rendered from fixture data ([#226](https://github.com/yveshanoulle/forsgren/issues/226))
+
+`Scripts/build_site.sh` renders the site without a config or history, so the History page the browser gate opened showed only its "no history" message, and the charts and tables of the History, Daily and Issues pages were never checked by axe. `Scripts/build_fixture_site.sh` now renders the site from the made-up fixture of `Scripts/testdata/fixture_site/` (acme/api, acme/ios-app and acme/cli; render time pinned), red when the History page has no chart or the Daily or Issues page no rows. A new gate, `Scripts/gate_browser_fixture.sh` (forsgren only; the canon `gate_browser.sh` is unchanged), runs the browser gate's engine on it, with the same checks, manifest, exceptions and variants and its own empty shrink-only baseline, `Scripts/browser_gate_fixture_baseline.txt`, which `Scripts/report_baselines.sh browser` now shows. Seen red first: its self-test (`Scripts/test_gate_browser_fixture.sh`, two mutation proofs), the fixture build (cases 20 to 30 of `Scripts/test_build_site.sh`, one mutation proof) and the report case. The gate found nothing on the data pages.
+
 ## 2026-10-19 — the shared trigger scope test needs no globs file when there is none ([#240](https://github.com/yveshanoulle/forsgren/issues/240), step 3)
 
 `Scripts/test_quality_trigger_scope.sh` is now `test_quality_trigger_scope v3`: its nested sandbox cases copy `Scripts/quality_trigger_globs.txt` when the repository has one and otherwise run on an empty one of their own. forsgren's comment-only copy of that file, added in step 1 for v2, is removed. The sites take v3 through their own issues, one per repository.

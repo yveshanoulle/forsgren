@@ -1,0 +1,13 @@
+version: 1
+history_days: 730
+days_page: true
+projects:
+  - name: Acme Shop
+    repositories:
+      - name: acme/api
+      - name: acme/ios-app
+        deployment: workflow=testflight.yml
+  - name: Acme Tools
+    repositories:
+      - name: acme/cli
+        deployment: release

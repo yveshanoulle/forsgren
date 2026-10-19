@@ -140,6 +140,8 @@ run report shows how many checks each of them ran.
 - preview workflow (`Scripts/test_preview_workflow.sh`, pre)
 - browser gate self-test (`Scripts/test_gate_browser.sh`, pre)
 - browser gate (`Scripts/gate_browser.sh`, post)
+- browser gate (fixture site) self-test (`Scripts/test_gate_browser_fixture.sh`, pre)
+- browser gate (fixture site) (`Scripts/gate_browser_fixture.sh`, post)
 - live check self-test (`Scripts/test_live_check.sh`, pre)
 - release plan self-test (`Scripts/test_release_plan.sh`, pre)
 - release bump self-test (`Scripts/test_release_bump.sh`, pre)

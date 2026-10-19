@@ -775,6 +775,17 @@ preview workflow|Scripts/test_preview_workflow.sh|pre|
 browser gate self-test|Scripts/test_gate_browser.sh|pre|
 browser gate|Scripts/gate_browser.sh|post|
 #
+# The same engine on the site rendered from the made-up fixture (forsgren#226,
+# not canon: forsgren only). The build renders the site without a config or
+# history, so the browser gate above never opens a History chart or a Daily or
+# Issues table. Scripts/build_fixture_site.sh renders them from
+# Scripts/testdata/fixture_site; the gate runs the browser gate's checks on that
+# site, with its own empty shrink-only baseline
+# (Scripts/browser_gate_fixture_baseline.txt). The self-test runs first, in pre;
+# the gate builds its own site, but is post, with the browser gate.
+browser gate (fixture site) self-test|Scripts/test_gate_browser_fixture.sh|pre|
+browser gate (fixture site)|Scripts/gate_browser_fixture.sh|post|
+#
 # --- Live check self-test (forsgren#205, step 2 of 2) --------------------
 # Shared canon (live_check v1, forsgren#223). Scripts/live_check.sh checks the
 # DEPLOYED forsgren.be with curl (http redirects to https, certificate

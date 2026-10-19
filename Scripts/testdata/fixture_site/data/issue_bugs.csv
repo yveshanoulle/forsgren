@@ -1,0 +1,4 @@
+# forsgren issue bugs v1
+repository,issue,bug
+acme/api,4,true
+acme/api,9,true

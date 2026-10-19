@@ -171,7 +171,7 @@ fi
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=148
+MIN_GATES=150
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -359,6 +359,15 @@ for path in Scripts/*.sh; do
       runs_script "Scripts/gate_language_pages.sh" "$base" \
         || fail "${base} is the language gate and Scripts/gate_language_pages.sh, the row that runs it, never invokes it"
       require_fixture "$base"
+      ;;
+
+    # BUILD HELPER, not a gate (forsgren#226): it renders the site from the
+    # made-up fixture, which the browser gate opens as its data site. The gate
+    # (a row of its own) must still build it. Its fixture is cases 20 to 30 of
+    # test_build_site.sh, a row of its own, not a test_build_fixture_site.sh.
+    build_fixture_site.sh)
+      runs_script "Scripts/gate_browser_fixture.sh" "$base" \
+        || fail "${base} renders the data site and Scripts/gate_browser_fixture.sh, the row that opens it, never invokes it — the History, Daily and Issues pages would not be opened"
       ;;
 
     # PRESENTATION, not a gate (forsgren#8): the run's key numbers, rendered

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: report_baselines v2
+# canon: report_baselines v3
 # Scripts/report_baselines.sh <language|browser|image> [data-dir] (estate issue 300)
 #
 # Renders one gate's baseline data as markdown tables, so what a site has
@@ -8,7 +8,9 @@
 # even when a gate is red:
 #   language   Scripts/language_baseline.txt (page | language | text | sentence |
 #              rule | times | reason) and the words of Scripts/language_allowlist.txt
-#   browser    Scripts/browser_gate_baseline.txt: the axe rows (variant | page |
+#   browser    Scripts/browser_gate_baseline.txt, then (v3) every further
+#              Scripts/browser_gate_*_baseline.txt, each under a heading (its first
+#              comment line, else its name), each as: the axe rows (variant | page |
 #              rule | selector | reason), the CLS rows (variant | page | value |
 #              reason), then a summary by rule and by page with counts
 #   image      Scripts/image_size_exceptions.txt (path | bytes | reason)
@@ -253,11 +255,30 @@ render_language() {
   fi
 }
 
+# render_browser: the baseline of the built site, then any further
+# browser_gate_*_baseline.txt of the directory (another site the gate opens),
+# each under a heading: the file's first comment line, else its name. A site with
+# only the main baseline prints just that.
 render_browser() {
-  local base="${DIR}/browser_gate_baseline.txt"
+  local extra heading
   echo "### Browser baselines"
   echo ""
-  absent "$base" "browser baseline" && return 0
+  render_browser_file "${DIR}/browser_gate_baseline.txt" "browser baseline"
+  for extra in "${DIR}"/browser_gate_*_baseline.txt; do
+    [[ -e "$extra" ]] || continue
+    heading="$(sed -n '1s/^#[[:space:]]*//p' "$extra")"
+    [[ -n "$heading" ]] || heading="$(basename "$extra")"
+    echo ""
+    printf '**%s** (\140%s\140)\n' "$heading" "$extra"
+    echo ""
+    render_browser_file "$extra" "$(basename "$extra")"
+  done
+}
+
+# render_browser_file <baseline> <what>: the tables of one browser baseline.
+render_browser_file() {
+  local base="$1"
+  absent "$base" "$2" && return 0
   awk -F'|' "${AWK_COMMON}"'
     function sorted(counts, keys,    k, n, i, j, t) {
       n = 0

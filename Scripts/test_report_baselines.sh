@@ -12,7 +12,7 @@
 #      neither empty and neither a failure; LanguageTool is never run
 #   2. language: an empty baseline and an empty allowlist             -> "no rows (empty baseline)"
 #   3. language: no files                                             -> a line saying so, exit 0
-#   4. browser: axe and CLS rows, a selector with a pipe, the counts by rule and by page
+#   4. browser: axe and CLS rows, a selector with a pipe, the counts by rule and by page, then the fixture site baseline
 #   5. browser: an empty baseline, no file
 #   6. image: the rows (path, bytes, reason) and the limit; empty; no file
 #   7. an unknown section, and none                                   -> exit 2
@@ -90,6 +90,10 @@ axe|dark|/|color-contrast|a[href|=x]|reason two
 axe|light|/b.html|aria-required-parent|ul|reason three
 cls|light|/|0.5|reason four
 DATA
+cat > "$D/browser_gate_fixture_baseline.txt" <<'DATA'
+# Browser baseline: a second site
+axe|light|/history.html|color-contrast|.chart-legend|fixture reason
+DATA
 printf '# comment\nlimit_bytes=1000\nSite/a.png|2000|logo, shrink-only\n' > "$D/image_size_exceptions.txt"
 
 run language "$D"
@@ -122,7 +126,7 @@ run language "${TMP}/noroot"
 want_green "1n: no page root on disk: every sentence says page not found, the step does not fail" "page not found: a.html"
 
 E="${TMP}/empty"; mkdir -p "$E"
-: > "$E/language_baseline.txt"; : > "$E/language_allowlist.txt"; : > "$E/browser_gate_baseline.txt"
+: > "$E/language_baseline.txt"; : > "$E/language_allowlist.txt"; : > "$E/browser_gate_baseline.txt"; : > "$E/browser_gate_fixture_baseline.txt"
 printf 'limit_bytes=1000\n' > "$E/image_size_exceptions.txt"
 run language "$E"
 want_said "2a: an empty language baseline" "no rows (empty baseline)"
@@ -140,10 +144,25 @@ want_said "4c: a CLS row" "| light | / | 0.5 | reason four |"
 want_said "4d: the count by rule" "| color-contrast | 2 |"
 want_said "4e: the count by page" "| / | 2 | 1 |"
 want_said "4f: the second page" "| /b.html | 1 | 0 |"
+want_said "4g: the fixture site's baseline is listed after it (forsgren#226)" "| light | /history.html | color-contrast | \`.chart-legend\` | fixture reason |"
+want_said "4h: under a heading from its first comment line" "**Browser baseline: a second site** ("
 run browser "$E"
 want_green "5a: an empty browser baseline" "no rows (empty baseline)"
 run browser "$N"
 want_green "5b: no browser file" "this site has no \`${N}/browser_gate_baseline.txt\`"
+O="${TMP}/mainonly"; mkdir -p "$O"; cp "$D/browser_gate_baseline.txt" "$O/"
+run browser "$O"
+want_green "5c: a site with only the main baseline prints its table" "| light | / | color-contrast | \`.nav-link\` | reason one |"
+want_lacks "5d: and no further heading (v3)" "second site"
+if [[ "$(grep -c '^\*\*' <<< "$OUT")" == "5" && "$(grep -c '^### ' <<< "$OUT")" == "1" ]]; then
+  echo "  ok: 5e: and only its own five labels and one section heading, nothing extra"
+else
+  fail "5e: a main-only site prints something extra. Output: ${OUT}"
+fi
+P="${TMP}/nocomment"; mkdir -p "$P"; cp "$O/browser_gate_baseline.txt" "$P/"
+printf 'axe|light|/x.html|label|.y|why\n' > "$P/browser_gate_other_baseline.txt"
+run browser "$P"
+want_green "5f: a further baseline without a comment is headed by its file name" "**browser_gate_other_baseline.txt**"
 
 run image "$D"
 want_green "6a: an image row" "| \`Site/a.png\` | 2000 | logo, shrink-only |"

@@ -89,13 +89,15 @@ run_build() {
 # A stub `go`, put first on PATH by stub_go. build_site.sh calls
 # `go build -o <bin> ./cmd/forsgren`, so <bin> is $3. STUB_GO_MODE picks
 # what it does: build-fails exits 1; render-fails and no-pages "build" a
-# fake forsgren that exits 1, or exits 0 having written nothing.
+# fake forsgren that exits 1, or exits 0 having written nothing; prebuilt
+# copies the binary STUB_PREBUILT names (the mutation proof of the fixture site).
 STUB_GO_DIR="${TEMP_ROOT}/stub-go"
 mkdir -p "$STUB_GO_DIR"
 cat > "${STUB_GO_DIR}/go" <<'STUB'
 #!/usr/bin/env bash
 case "${STUB_GO_MODE:?}" in
   build-fails) echo "stub go: build failed" >&2; exit 1 ;;
+  prebuilt) cp "${STUB_PREBUILT:?}" "$3" ;;
   render-fails) printf '#!/usr/bin/env bash\nexit 1\n' > "$3" ;;
   no-pages) printf '#!/usr/bin/env bash\nexit 0\n' > "$3" ;;
 esac
@@ -199,6 +201,125 @@ if [[ "$RC" -eq 0 && ! -e "${CASE_OUTPUT}/months.html" && ! -e "${CASE_OUTPUT}/o
   pass 18 "a page left by an earlier build is not in the new site, a file the build does not own is kept"
 else
   fail_check 18 "a page left by an earlier build is not in the new site (exit ${RC}) — found: $(cd "$CASE_OUTPUT" && find . -type f | LC_ALL=C sort | tr '\n' ' ')"
+fi
+
+
+# The site rendered from the made-up fixture (forsgren#226): the pages the
+# browser gate opens for the tables and charts the placeholder build never has.
+# Scripts/build_fixture_site.sh; each case its own output and binary directory.
+FIXTURE_BUILD="./Scripts/build_fixture_site.sh"
+FIXTURE_DIR="Scripts/testdata/fixture_site"
+
+# run_fixture <name> [fixture-dir [script]]: builds the fixture site into
+# ${TEMP_ROOT}/<name>/site; sets RC and leaves the output in FIXTURE_LOG.
+run_fixture() {
+  local root="${TEMP_ROOT}/$1"
+  mkdir -p "$root"
+  FIXTURE_OUT="${root}/site"
+  FIXTURE_LOG="${root}/log"
+  set +e
+  FORSGREN_BIN_DIR="${root}/bin" FORSGREN_FIXTURE_DIR="${2:-$FIXTURE_DIR}" "${3:-$FIXTURE_BUILD}" "$FIXTURE_OUT" > "$FIXTURE_LOG" 2>&1
+  RC=$?
+  set -e
+}
+
+run_fixture "fixture"
+check 20 "builds the site from the fixture" 0 "$RC"
+if [[ "$RC" -ne 0 ]]; then cat "$FIXTURE_LOG"; fi
+FIXTURE_HAPPY="$FIXTURE_OUT"
+FIXTURE_PAGES="$( (find "$FIXTURE_HAPPY" -type f -name '*.html' 2>/dev/null || true) | wc -l | tr -d '[:space:]')"
+if [[ "$FIXTURE_PAGES" == "10" ]]; then
+  pass 21 "the fixture site has the ten pages of the manifest"
+else
+  fail_check 21 "the fixture site has the ten pages of the manifest — found ${FIXTURE_PAGES}"
+fi
+
+if [[ -f "${FIXTURE_HAPPY}/history.html" ]] && grep -qF '<svg' "${FIXTURE_HAPPY}/history.html" \
+  && grep -qF 'role="img"' "${FIXTURE_HAPPY}/history.html" && ! grep -qF 'No history to show yet' "${FIXTURE_HAPPY}/history.html"; then
+  pass 22 "history.html has its charts and not the no-history message"
+else
+  fail_check 22 "history.html has its charts and not the no-history message"
+fi
+
+if grep -qF '<td' "${FIXTURE_HAPPY}/days.html" 2>/dev/null && ! grep -qF 'No issues were opened' "${FIXTURE_HAPPY}/days.html" \
+  && grep -qF '<td' "${FIXTURE_HAPPY}/issues.html" 2>/dev/null && ! grep -qF 'No issues were opened' "${FIXTURE_HAPPY}/issues.html"; then
+  pass 23 "days.html and issues.html have rows"
+else
+  fail_check 23 "days.html and issues.html have rows"
+fi
+
+if grep -qF 'Acme Shop' "${FIXTURE_HAPPY}/index.html" 2>/dev/null && grep -qF 'Acme Tools' "${FIXTURE_HAPPY}/index.html"; then
+  pass 24 "index.html has the table of both made-up projects"
+else
+  fail_check 24 "index.html has the table of both made-up projects"
+fi
+
+run_fixture "fixture-again"
+if [[ "$RC" -eq 0 ]] && diff -r "$FIXTURE_HAPPY" "$FIXTURE_OUT" > /dev/null; then
+  pass 25 "two fixture builds are byte-identical"
+else
+  fail_check 25 "two fixture builds are byte-identical — the second (exit ${RC}) differs from the first"
+fi
+
+# 26: every repository of the fixture is made up (acme/...), never a real one.
+NOT_MADE_UP="$(cd "$FIXTURE_DIR" && {
+  awk -F, '!/^#/ && !/^project,/ && !/^repository,/ { print $2 }' data/deployments.csv
+  for f in commits failures issues issue_bugs reach; do
+    awk -F, '!/^#/ && !/^repository,/ { print $1 }' "data/${f}.csv"
+  done
+  grep -E '^ +- name: ' forsgren.config.yml | sed 's/^ *- name: //' | grep '/'
+} | sort -u | grep -v '^acme/' || true)"
+if [[ -z "$NOT_MADE_UP" ]]; then
+  pass 26 "every repository of the fixture is a made-up acme/ one"
+else
+  fail_check 26 "every repository of the fixture is a made-up acme/ one — found: ${NOT_MADE_UP}"
+fi
+
+# 27, 28: a fixture that shows no data is red, naming the page. 27 has no
+# reach.csv (every row unread, so no history column), 28 no issues.csv.
+for dropped in "27:reach:history.html shows no chart" "28:issues:days.html shows no rows"; do
+  number="${dropped%%:*}"
+  rest="${dropped#*:}"
+  file="${rest%%:*}"
+  reason="${rest#*:}"
+  rm -rf "${TEMP_ROOT}/fx-${file}"
+  mkdir -p "${TEMP_ROOT}/fx-${file}"
+  cp -R "$FIXTURE_DIR"/. "${TEMP_ROOT}/fx-${file}/"
+  rm -f "${TEMP_ROOT}/fx-${file}/data/${file}.csv"
+  run_fixture "fixture-no-${file}" "${TEMP_ROOT}/fx-${file}"
+  if [[ "$RC" -eq 1 ]] && grep -qF -- "$reason" "$FIXTURE_LOG"; then
+    pass "$number" "a fixture without ${file}.csv is red: ${reason}"
+  else
+    fail_check "$number" "a fixture without ${file}.csv is red: ${reason} — exit ${RC}: $(cat "$FIXTURE_LOG")"
+  fi
+done
+
+# 29: a fixture without its config is red, naming it.
+run_fixture "fixture-no-config" "${TEMP_ROOT}/nowhere"
+if [[ "$RC" -eq 1 ]] && grep -qF 'forsgren.config.yml is missing' "$FIXTURE_LOG"; then
+  pass 29 "a fixture without a config is red"
+else
+  fail_check 29 "a fixture without a config is red — exit ${RC}: $(cat "$FIXTURE_LOG")"
+fi
+
+# 30: mutation proof. The data check removed from a copy of the script, run with
+# the stub go that copies the binary case 20 built: the fixture of case 27
+# (no history to show) turns green, so case 27 was red BECAUSE of the check.
+MUTANT_ROOT="${TEMP_ROOT}/mutant"
+mkdir -p "${MUTANT_ROOT}/Scripts"
+sed 's/^if ! history_shows_chart; then/if false; then/' "$FIXTURE_BUILD" > "${MUTANT_ROOT}/Scripts/build_fixture_site.sh"
+chmod +x "${MUTANT_ROOT}/Scripts/build_fixture_site.sh"
+if cmp -s "$FIXTURE_BUILD" "${MUTANT_ROOT}/Scripts/build_fixture_site.sh"; then
+  fail_check 30 "mutation proof: the mutation changed nothing, the proof would be vacuous"
+else
+  mkdir -p "${TEMP_ROOT}/mutant-out"
+  set +e
+  PATH="${STUB_GO_DIR}:$PATH" STUB_GO_MODE=prebuilt STUB_PREBUILT="${TEMP_ROOT}/fixture/bin/forsgren" \
+    FORSGREN_BIN_DIR="${TEMP_ROOT}/mutant-out/bin" FORSGREN_FIXTURE_DIR="$(cd "${TEMP_ROOT}/fx-reach" && pwd)" \
+    "${MUTANT_ROOT}/Scripts/build_fixture_site.sh" "${TEMP_ROOT}/mutant-out/site" > "${TEMP_ROOT}/mutant-out/log" 2>&1
+  RC=$?
+  set -e
+  check 30 "mutation proof: without the data check the fixture with no history is green" 0 "$RC"
 fi
 
 FOUND_FAILED_SINKS=""

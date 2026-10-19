@@ -267,7 +267,11 @@ broken runner cannot report green:
   without one.
 - **build-site self-test** (`Scripts/test_build_site.sh`): the build
   compiles the binary, renders the site and writes the page count only on
-  full success.
+  full success. It also covers `Scripts/build_fixture_site.sh`, which renders the
+  site from the made-up fixture of `Scripts/testdata/fixture_site/` for the
+  browser gate (fixture site) (forsgren#226): ten pages, a History page with charts, Daily and
+  Issues pages with rows, byte-identical twice, only made-up repositories, red
+  when the fixture shows no data, one mutation proof.
 - **gate-failure summary**, **step table**
   (`Scripts/test_summarize_gate_failure.sh`,
   `Scripts/test_render_step_table.sh`): sfl's end-of-run reason lines and

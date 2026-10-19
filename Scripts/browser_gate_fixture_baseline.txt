@@ -1,0 +1,6 @@
+# Browser baseline: the site rendered from fixture data (forsgren#226)
+# The browser gate's baseline for the site rendered from the made-up fixture of
+# Scripts/testdata/fixture_site (forsgren#226): the History, Daily and Issues pages
+# with their tables and charts. Same closed format, same rules and same engine as
+# Scripts/browser_gate_baseline.txt (a reason on every row, every row starts with its
+# variant, shrink-only): add no row to clear a red; only a ruling adds a row.

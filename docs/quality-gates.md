@@ -592,6 +592,26 @@ The POST gates, on the generated site:
   axe-core is an automated gate, not proof of WCAG conformance. No new workflow,
   trigger, secret or permission.
 
+- **browser gate (fixture site)** (`Scripts/gate_browser_fixture.sh`, self-test
+  `Scripts/test_gate_browser_fixture.sh`, forsgren#226, forsgren only, not canon):
+  the build renders the site without a config or history, so the browser gate
+  above never opened a History chart or a Daily or Issues table.
+  `Scripts/build_fixture_site.sh` renders `forsgren render` with the made-up
+  fixture of `Scripts/testdata/fixture_site/` (a config of two projects, the
+  repositories acme/api, acme/ios-app and acme/cli, and the files `collect` keeps:
+  deployments, commits, failures, issues, issue bugs and reach; the render time
+  pinned to the goldens' 2026-10-03 12:00 UTC) into a temporary directory, and is
+  red when the History page has no chart or the Daily or Issues page no rows, so
+  the fixture cannot go back to the placeholder. This gate then runs the browser
+  gate's engine (`Scripts/browser_gate.mjs`) on that site: the same checks, the
+  same manifest, exceptions and variants, and its own shrink-only baseline,
+  `Scripts/browser_gate_fixture_baseline.txt` (empty; only a ruling adds a row;
+  `Scripts/report_baselines.sh browser` shows it on the Quality page). The
+  canon `gate_browser.sh` is unchanged. The fixture build is checked by cases 20
+  to 30 of `Scripts/test_build_site.sh`, the gate by its self-test (the data site
+  clean, a finding only on a data page, the baseline, stale rows, exit 2 cases,
+  the default build, mutation proofs H and I).
+
 - **live check** (`Scripts/live_check.sh`, self-test `Scripts/test_live_check.sh`,
   forsgren#205 step 2 of 2, ruling item 3): after every forsgren.be deploy, the
   `live-check` job of `starter_page.yml` (needs `deploy`, runs only when the
