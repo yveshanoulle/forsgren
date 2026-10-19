@@ -3,7 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# Ported unchanged from another estate repository 2026-10-01 (forsgren#1); "here" in
+# Ported from another estate repository 2026-10-01 (forsgren#1), extended 2026-10-20 with case 6 (forsgren#243, start-of-line marker match); "here" in
 # the history below means another estate repository.
 #
 # Pins for Scripts/summarize_gate_failure.sh — unit 404, ported from
@@ -116,6 +116,36 @@ else
   fail "the cap was ignored — ${n5} reason lines returned when 5 were asked for, which reprints the log the summary exists to replace"
 fi
 want "and it says how many it left out" "35 more" "$out5"
+
+# Case 6 (forsgren#243): only a line that STARTS with the marker (after any
+# indentation) is a reason. A self-test's passing ok: lines quote the marker as
+# a needle; matched anywhere they fill the cap and push the real FAIL lines out.
+log6="${TMP}/quoting.log"
+: > "$log6"
+i=1
+while [ "$i" -le 6 ]; do echo "  ok: case ${i} quotes the marker ❌ as its needle" >> "$log6"; i=$((i + 1)); done
+{
+  echo "❌ FAIL: first real failure"
+  echo "    ❌ FAIL: second real failure, indented"
+  echo "❌ FAIL: third real failure"
+} >> "$log6"
+out6="$("$SUM" "$log6")"
+want     "the first real failure is shown past six quoting ok lines"  "first real failure" "$out6"
+want     "the indented real failure is shown"                         "second real failure, indented" "$out6"
+want     "the third real failure is shown"                            "third real failure" "$out6"
+want_not "an ok line that only quotes the marker is not a reason"     "quotes the marker" "$out6"
+
+# Mutation proof: a summarizer that matches the marker anywhere in a line must
+# be caught, and for the OK-line reason (the quoting lines shown, real ones out).
+mut="${TMP}/summarize_anywhere.sh"
+sed -e "s/grep -E '^\[\[:space:\]\]\*❌'/grep -F '❌'/" "$SUM" > "$mut"
+if cmp -s "$SUM" "$mut"; then
+  fail "the mutant is identical to the summarizer — the start-of-line match was not found to replace, so the proof would be vacuous"
+fi
+chmod +x "$mut"
+outm="$("$mut" "$log6")"
+want     "mutation (marker matched anywhere) shows the quoting ok lines" "quotes the marker" "$outm"
+want_not "mutation (marker matched anywhere) pushes the real failures out" "first real failure" "$outm"
 
 COMPLETED=1
 if [[ "$failed" -ne 0 ]]; then

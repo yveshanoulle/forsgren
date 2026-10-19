@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-# Ported unchanged from another estate repository 2026-10-01 (forsgren#1); "this repo"
-# in the history below means another estate repository.
+# Ported from another estate repository 2026-10-01 (forsgren#1); "this repo" in the
+# history below means another estate repository. Changed since the port: 2026-10-20
+# (forsgren#243) the marker match takes only lines that START with the cross, after
+# any indentation (same fix as in the source repository), not the cross anywhere.
 #
 # Prints WHY a gate failed, for sfl's end-of-run block and FullBuildAndPush's
 # summary — unit 404, ported from coachretreat-website (its unit 402).
@@ -27,7 +29,10 @@ fi
 
 # THREE SHAPES, in order of how much they tell you.
 #
-# 1. The ❌ marker, added 2026-09-01 so a failure is findable by eye.
+# 1. The ❌ marker, added 2026-09-01 so a failure is findable by eye. Only a line
+#    that STARTS with it (after any indentation) counts: a self-test's passing
+#    ok: lines quote the marker as a needle and, matched anywhere, filled the
+#    cap and pushed the real FAIL lines out (forsgren#243).
 # 2. A bare `FAIL:`. Most of the estate still prints this — 86 fixtures across
 #    the four repos were unswept at the time of writing. A summarizer that only
 #    understood the new marker would go silent on exactly the scripts nobody
@@ -36,7 +41,7 @@ fi
 #    the match is on `^[[:space:]]*FAIL` and not on `FAIL:`.
 # 3. Neither: a syntax error, a missing binary, a `set -e` abort. The tail is
 #    all there is, and it beats a blank line.
-reasons="$(grep -F '❌' "$LOG" || true)"
+reasons="$(grep -E '^[[:space:]]*❌' "$LOG" || true)"
 if [ -z "$reasons" ]; then
   reasons="$(grep -E '^[[:space:]]*FAIL' "$LOG" || true)"
 fi

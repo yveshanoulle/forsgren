@@ -9,6 +9,13 @@ Active work lives in
 
 ---
 
+## 2026-10-20 — the gate-failure summary takes only lines that start with the cross ([#243](https://github.com/yveshanoulle/forsgren/issues/243))
+
+`Scripts/summarize_gate_failure.sh`, which fills the Errors list of an sfl or FBP run, matched the cross mark anywhere in a line. A self-test's passing ok: lines that quote the marker as a needle matched too, and with the cap of six shown lines they pushed the real FAIL lines out. It now takes only lines that start with the marker after any indentation (`grep -E '^[[:space:]]*❌'`); the bare `FAIL` and tail fallbacks are unchanged. Ported from the same fix in another estate repository.
+
+- Red first: the new case 6 of `Scripts/test_summarize_gate_failure.sh` (six quoting ok lines, then three real FAIL lines, one indented) failed four times, for example `the first real failure is shown past six quoting ok lines — expected to find: first real failure`.
+- Mutation proof: a copy of the summarizer that matches the marker anywhere shows the quoting ok lines and pushes the real failures out.
+
 ## 2026-10-19 — CI checks the private names in every new commit message ([#213](https://github.com/yveshanoulle/forsgren/issues/213))
 
 `FBP.sh` already refused a commit message that names a private name, but a pull request's commits and a hand-made push never passed through it. The second job of `.github/workflows/dco.yml`, **Private names in commit messages**, now sends the message of every commit a pull request or a push to `main` brings to `Scripts/check_private_names.sh --message -` (canon v2, unchanged), through the new `Scripts/check_commit_messages.sh`. A hit is red, naming the short sha and the commit's number, never a name, a message or a subject; history is not rewritten. A push is listed by `Scripts/dco_push_commits.sh --fresh`: a normal range as before, but a new branch (all-zero before) or a before the checkout does not have (a force-push) checks every commit of the pushed head that is on no other branch or tag, never the head commit alone and never nothing. In Actions the list must exist (exit 2 naming the secret when it is unset or emptied, a fork's pull request included), where `--message` alone would pass. The pull request listing moved from the workflow into `Scripts/dco_pr_commits.sh`, shared by both jobs. The job is in `dco.yml` and not `quality.yml` because that workflow already runs on every pull request and push without checking out the pull request's code and has the history and both listings. The canon gate needed no change.
