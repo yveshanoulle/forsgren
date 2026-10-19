@@ -25,7 +25,7 @@ on:
   # No paths filter, on push or on pull_request: the secret scan, the data
   # guard, stray tracked files and script references read every tracked
   # file, so any filter would leave a change that runs no gate (konenki's
-  # rule, pinned by Scripts/test_quality_trigger_scope.sh).
+  # rule, pinned by Scripts/test_quality_runner_pins.sh).
   #
   # pull_request, NEVER pull_request_target (Yves's rulings on forsgren#1,
   # road to public): a contributor's pull request shows the same gate results
@@ -34,7 +34,7 @@ on:
   # it, and a fork's pull_request run gets a read-only token and no secrets.
   # Scripts/check_workflow_triggers.sh is red on a pull-request trigger in
   # any workflow with a job it cannot prove GitHub-hosted, and
-  # Scripts/test_quality_trigger_scope.sh pins this job to macos-latest.
+  # Scripts/test_quality_runner_pins.sh pins this job to macos-latest.
   push:
     branches: ["main"]
   pull_request:
@@ -344,7 +344,7 @@ jobs:
   # step as env:, nowhere else. Never workflow_run (a dangerous trigger).
   # The job group never cancels a run in flight; GitHub keeps the newest of
   # the waiting ones, and the preview workflow cancels an older deploy itself.
-  # macos-latest like every job here (Scripts/test_quality_trigger_scope.sh).
+  # macos-latest like every job here (Scripts/test_quality_runner_pins.sh).
   # Scripts/test_preview_workflow.sh pins this job.
   preview:
     name: Start the preview deploy

@@ -310,6 +310,16 @@ Seven PRE gates read the repository's own scripts and files:
   workflow and any other YAML are covered the moment they exist.
   `.yamllint.yml` is itself tracked YAML and is linted too, so the list is
   never empty, and a run that found none is red.
+- **quality trigger scope** and **quality runner pins**
+  (`Scripts/test_quality_trigger_scope.sh`, the sites' shared canon, and
+  `Scripts/test_quality_runner_pins.sh`, forsgren's own; forsgren#240): the
+  shared one is red when `quality.yml` has a `paths-ignore` filter, a `paths`
+  filter that lacks a glob the gates read, or no `pull_request` trigger (no
+  filter at all passes and reads no settings). The pins are red on a missing
+  push or `pull_request` trigger on `main`, any `paths` or `paths-ignore` on
+  either, a `pull_request_target`, no `workflow_dispatch`, and any job off
+  `macos-latest`; each is proven against a synthetic workflow that must be
+  rejected.
 - **stray tracked files** (`Scripts/test_no_stray_tracked_files.sh`,
   another estate repository's): red on a tracked `.DS_Store` at any depth, and on a
   tracked `.yml`/`.yaml` with a top-level `jobs:` key anywhere GitHub would

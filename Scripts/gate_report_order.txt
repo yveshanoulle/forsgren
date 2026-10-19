@@ -505,6 +505,14 @@ manifest covers site|Scripts/test_required_pages_covers_site.sh|post|
 # pre.
 quality trigger scope|Scripts/test_quality_trigger_scope.sh|pre|
 #
+# Quality runner pins (forsgren#240, step 1). Not canon: forsgren only. The
+# pins that were forsgren's own in the trigger-scope script above, which is
+# now the sites' shared version: push and pull_request on main with no paths
+# or paths-ignore filter, no pull_request_target, workflow_dispatch, and every
+# job on macos-latest, each with its mutation proof. Repository source, so it
+# runs in pre.
+quality runner pins|Scripts/test_quality_runner_pins.sh|pre|
+#
 # No stray tracked files (forsgren#1, ladder step 12). Not canon:
 # Another estate repository's issue #10 gate, byte-identical, at konenki's position
 # between the quality-trigger-scope row and the report-script fixtures. Red

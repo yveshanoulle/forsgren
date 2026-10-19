@@ -18,6 +18,13 @@ Active work lives in
 
 ---
 
+## 2026-10-19 — forsgren's own Quality pins have their own gate ([#240](https://github.com/yveshanoulle/forsgren/issues/240), step 1)
+
+`Scripts/test_quality_trigger_scope.sh` is now the sites' shared `test_quality_trigger_scope v2`, byte-identical: either `quality.yml` has no `paths` or `paths-ignore` filter (then it reads no settings), or its `paths` filter holds every glob the gates read, and it must have a `pull_request` trigger. forsgren's own pins moved, with their mutation proofs, into the new `Scripts/test_quality_runner_pins.sh` (row 78): push and `pull_request` on `main` with no `paths` or `paths-ignore` filter, no `pull_request_target`, `workflow_dispatch`, and every job on `macos-latest`.
+
+- `Scripts/quality_trigger_globs.txt` is the data file the shared script requires to exist; forsgren keeps it without a glob.
+- `MIN_GATES` is 148. Red first: a runner-pins stub that accepts everything fails each of its nine mutation proofs.
+
 ## 2026-10-19 — the job summary says whether the history was collected in full ([#64](https://github.com/yveshanoulle/forsgren/issues/64), step 3c)
 
 A green run is not a complete history. The run summary now has a `Collected:` line: "complete" only when collect's report says so, otherwise "incomplete, budget reached;" with each repository cut short (how far it kept, that its issues were not read, the recent read when it was discarded), the time the budget resets, and the repositories that failed on GitHub's primary or secondary rate limit, named apart. A repository cut short with nothing kept on consecutive runs is named "not progressing". A missing report is "unknown", never complete.

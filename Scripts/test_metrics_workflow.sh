@@ -277,7 +277,7 @@
 # 25, 27 and 28 execute their blocks the same way.
 #
 # Read with awk and grep, not a YAML parser, as
-# Scripts/test_quality_trigger_scope.sh and Scripts/check_workflow_triggers.sh
+# Scripts/test_quality_runner_pins.sh and Scripts/check_workflow_triggers.sh
 # are, for their reason: PyYAML is a module, not a command, and nothing here
 # installs it. The shape read is the one metrics.yml is written in: `on:` at
 # column 0, its events two spaces in; a step starts at `      - `, its keys

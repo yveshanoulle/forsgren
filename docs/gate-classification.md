@@ -21,7 +21,7 @@ not close it.
 ## The order file, row by row
 
 [Scripts/gate_report_order.txt](../Scripts/gate_report_order.txt) is the one
-list sfl and CI both run. It has 147 rows: 143 with a script and 4 `n/a`
+list sfl and CI both run. It has 148 rows: 144 with a script and 4 `n/a`
 rows. All scripts are in `Scripts/`. The phase is `pre` (repository inputs and
 checker behaviour) or `post` (the generated site). `secret-class` means a
 finding blocks the commit as well as the push. A row for a self-test is
@@ -109,77 +109,78 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 74 | npm audit | `npm_audit_check.sh` | pre | required, `npm_audit_check v1`; documented exception: one dated advisory (see below) |
 | 75 | manifest-covers-site self-test | `test_required_pages_covers_site_selftest.sh` | pre | required, `test_required_pages_covers_site_selftest v1` |
 | 76 | manifest covers site | `test_required_pages_covers_site.sh` | post | required, `test_required_pages_covers_site v1` |
-| 77 | quality trigger scope | `test_quality_trigger_scope.sh` | pre | required |
-| 78 | stray tracked files | `test_no_stray_tracked_files.sh` | pre | required, `test_no_stray_tracked_files v1` |
-| 79 | quality-report render | `test_render_quality_report.sh` | pre | required, `test_render_quality_report v2` |
-| 80 | quality-run summary | `test_render_quality_summary.sh` | pre | required |
-| 81 | gate-failure summary | `test_summarize_gate_failure.sh` | pre | required |
-| 82 | sfl drives from the order file | `test_sfl_drives_from_order_file.sh` | pre | required |
-| 83 | step table | `test_render_step_table.sh` | pre | required, `test_render_step_table v1` |
-| 84 | FullBuildAndPush commit-message block | `test_fbp_commit_message.sh` | pre | required |
-| 85 | FullBuildAndPush build-site page count | `test_fbp_build_pagecount.sh` | pre | required |
-| 86 | FullBuildAndPush aborted run | `test_fbp_aborted.sh` | pre | required |
-| 87 | FullBuildAndPush abort exit | `test_fbp_abort_exit.sh` | pre | required |
-| 88 | privacy-posture self-test | `test_check_privacy_posture.sh` | pre | required, `test_check_privacy_posture v1` |
-| 89 | privacy posture | `check_privacy_posture.sh` | post | required, `check_privacy_posture v1` |
-| 90 | repository-links self-test | `test_check_repo_links.sh` | pre | required |
-| 91 | repository links | `check_repo_links.sh` | post | required |
-| 92 | community-files self-test | `test_check_community_files.sh` | pre | required |
-| 93 | community files | `check_community_files.sh` | pre | required |
-| 94 | exit-trap completion self-test | `test_check_exit_trap_completion.sh` | pre | required, `test_check_exit_trap_completion v1` |
-| 95 | exit-trap completion | `check_exit_trap_completion.sh` | pre | required, `check_exit_trap_completion v1` |
-| 96 | exit-trap completion behaviour | `test_exit_trap_completion_behaviour.sh` | pre | required, `test_exit_trap_completion_behaviour v1` |
-| 97 | markdown-links self-test | `test_check_markdown_links.sh` | pre | required, `test_check_markdown_links v1` |
-| 98 | markdown links | `check_markdown_links.sh` | pre | required, `check_markdown_links v1` |
-| 99 | script references self-test | `test_check_script_references.sh` | pre | required, `test_check_script_references v1` |
-| 100 | script references | `check_script_references.sh` | pre | required, `check_script_references v1` |
-| 101 | Node pin self-test | `test_node_pin.sh` | pre | required, `test_node_pin v1` |
-| 102 | Node pin gate self-test | `test_check_node_pin.sh` | pre | required, `test_check_node_pin v1` |
-| 103 | Node pin | `check_node_pin.sh` | pre | required, `check_node_pin v1` |
-| 104 | Go toolchain pin self-test | `test_go_toolchain.sh` | pre | required |
-| 105 | build-site self-test | `test_build_site.sh` | pre | required |
-| 106 | starter page build self-test | `test_build_starter_page.sh` | pre | required |
-| 107 | starter page links self-test | `test_check_starter_links.sh` | pre | required |
-| 108 | starter page gates self-test | `test_starter_page_gates.sh` | pre | required |
-| 109 | workflow node pin | `test_workflow_node_pin.sh` | pre | required, `test_workflow_node_pin v1` |
-| 110 | npm lockfile sync self-test | `test_check_npm_lock_sync.sh` | pre | required, `test_check_npm_lock_sync v1` |
-| 111 | npm lockfile sync | `check_npm_lock_sync.sh` | pre | required, `check_npm_lock_sync v1` |
-| 112 | workflow-triggers self-test | `test_check_workflow_triggers.sh` | pre | required, `test_check_workflow_triggers v1` |
-| 113 | workflow triggers | `check_workflow_triggers.sh` | pre | required, `check_workflow_triggers v1` |
-| 114 | DCO sign-off self-test | `test_check_dco.sh` | pre | required |
-| 115 | metrics workflow | `test_metrics_workflow.sh` | pre | required |
-| 116 | auto-update workflow | `test_auto_update_workflow.sh` | pre | required |
-| 117 | starter page workflow | `test_starter_page_workflow.sh` | pre | required |
-| 118 | vulncheck workflow | `test_vulncheck_workflow.sh` | pre | required |
-| 119 | dispatch preview self-test | `test_dispatch_preview.sh` | pre | required; stub curl, no network, 3 mutation proofs. `dispatch_preview.sh` itself is run by the `preview` job of `quality.yml` (forsgren#222) |
-| 120 | preview workflow | `test_preview_workflow.sh` | pre | required; pins the `preview` job of `quality.yml`, each pin proved by a mutant of the real file |
-| 121 | browser gate self-test | `test_gate_browser.sh` | pre | required, `test_gate_browser v2`; real Chrome and axe-core, fixture sites on 127.0.0.1 |
-| 122 | browser gate | `gate_browser.sh` | post | required, `gate_browser v2`; baseline and exceptions are empty, one variant (see below) |
-| 123 | live check self-test | `test_live_check.sh` | pre | required, `test_live_check_selftest v1`; stub curl, no network. The live check itself, `live_check.sh` (`live_check v1`), is not a gate: it needs the deployed site and runs only in the live-check job of `starter_page.yml` |
-| 124 | release plan self-test | `test_release_plan.sh` | pre | required; fixture data, no gh, 4 mutations. The plan itself, `release_plan.sh`, is not a gate: the Release workflow of forsgren#221 step 2 runs it |
-| 125 | release bump self-test | `test_release_bump.sh` | pre | required; bumps a copy of the repository and runs `go test ./...` on it, 2 mutations. The bump itself, `release_bump.sh`, is not a gate: the Release workflow runs it |
-| 126 | release quality self-test | `test_release_quality.sh` | pre | required; stub gh, 3 mutations. `release_quality.sh` is a step of the Release workflow, not a gate |
-| 127 | release commit self-test | `test_release_commit.sh` | pre | required; a throwaway repository with a local bare origin, 3 mutations. `release_commit.sh` is a step of the Release workflow |
-| 128 | release publish self-test | `test_release_publish.sh` | pre | required; stub gh, 3 mutations. `release_publish.sh` is a step of the Release workflow |
-| 129 | release pins self-test | `test_release_pins.sh` | pre | required; a stub of the git-data API over the real template files of an earlier release, 6 mutations. `release_pins.sh` is a step of the Release workflow |
-| 130 | release report self-test | `test_release_report.sh` | pre | required, 4 mutations (the failed step inferred from the log, a template failure without the resume instruction). `release_report.sh` is the last step of the Release workflow |
-| 131 | release precheck self-test | `test_release_precheck.sh` | pre | required; `release_precheck.sh` runs the real `release_plan.sh --all` and `release_report.sh --table` on seam data: every kind of block named at once, ready issues listed, exit 0 or 1 as the plan, read-only, and the table equal line for line to the Release run page's for each kind of block; 4 mutations (no `--all`, open issues with commits ignored, exit 0 whatever the plan said, a hand-written table) (forsgren#231) |
-| 132 | release resume self-test | `test_release_resume.sh` | pre | required; stub gh and a throwaway repository, 3 mutations. `release_resume.sh` finds what a `resume: pins` or `resume: publish` run continues with; it is a step of the Release workflow |
-| 133 | release token expiry self-test | `test_release_token_expiry.sh` | pre | required; stub gh, injected clock, 5 mutations (each tier edge, a header taken as fine). `release_token_expiry.sh` is a step of the Release workflow |
-| 134 | release verify pin self-test | `test_release_verify_pin.sh` | pre | required; 3 mutations. `release_verify_pin.sh` reads a pin pull request (only the pins of both callers, to this release) and is a step of the Release workflow |
-| 135 | release metrics self-test | `test_release_metrics.sh` | pre | required; stub gh, 4 mutations (merging more than the pins, no wait, a red run taken for done, a second run next to a green one). `release_metrics.sh` merges the pin pull request and runs forsgren in forsgren-metrics until green |
-| 136 | release workflow | `test_release_workflow.sh` | pre | required; pins `.github/workflows/release.yml`: trigger, permissions, actions, order, commands, ids and outcomes, resume, the secret, no tag made by hand; 39 mutations |
-| 137 | release bump diff self-test | `test_release_bump_diff.sh` | pre | required; a fixture repository bumped by the real `release_bump.sh`, 2 mutations (no parent comparison, any line of an allowed file accepted). `release_bump_diff.sh` holds a bump commit to the version bump on the green parent and is a step of the Release workflow from forsgren#230 step 2 |
-| 138 | run short quality self-test | `test_run_short_quality.sh` | pre | required; stub gates in a throwaway repository, 3 mutations (the list ignored, the skipped gates not named, no tree check). `run_short_quality.sh` runs the PRE gates of `quality_bump_gates.txt` for the short Quality of a release bump and is a step of `quality.yml` (forsgren#230) |
-| 139 | quality scope | `test_quality_scope.sh` | pre | required; pins the scope input of `.github/workflows/quality.yml` (default full, push and pull request always full, scope bump runs the bump diff check first and only the listed gates), 17 mutations (forsgren#230) |
-| 140 | quality summary first | `test_quality_summary_first.sh` | pre | required; pins that no step before `Render summary and report` writes the run summary of `.github/workflows/quality.yml` and that the step writes the headline before the gate table, 4 mutations (a gate step writing the page, the short Quality note writing it directly, the table before the headline, a baselines step moved before the summary step) (forsgren#233) |
-| 141 | step summary isolation | `test_step_summary_isolation.sh` | pre | required; every self-test that names a script appending to `$GITHUB_STEP_SUMMARY` is run with that variable pointing at a decoy file in the calling shell, and the decoy must stay empty, so fixture output never reaches the real run page of the Quality run; 2 mutations (a self-test on the harness, a self-test off it) (forsgren#233) |
-| 142 | git sandbox isolation self-test | `test_git_sandbox_isolation.sh` | pre | required; runs ten git-using self-tests with `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` pointing at a decoy repository with a decoy origin, and requires both unchanged (forsgren#228) |
-| 143 | git sandbox guard self-test | `test_git_sandbox_guard.sh` | pre | required; every git-using `test_*.sh` sources `lib_git_sandbox.sh`, 1 mutation (forsgren#228) |
-| 144 | precheck self-test | `test_precheck.sh` | pre | required; `precheck.sh` runs the fast static gates on the changed files and the self-tests that name them, 7 cases and 2 mutations (the test-mention step skipped, a missing tool counted as a pass), and a parity check that every gate script it runs is a row of this file (forsgren#231) |
-| 145 | static block self-test | `test_sfl_static_block.sh` | pre | required; a fake gate set in a throwaway root, the real `sfl.sh`, `run_ci_phase.sh` and a sandboxed `FBP.sh`: a red gate in the static block (`#! static-block-start` / `#! static-block-end` in the order file) is followed by the rest of the block, then every later gate is skipped and named, the summary says `stopped after the static block`, FBP skips the build and the POST gates, named, and CI still runs every row; 2 mutations (the boundary ignored, skipped gates not named) (forsgren#231) |
-| 146 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
-| 147 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
+| 77 | quality trigger scope | `test_quality_trigger_scope.sh` | pre | required, `test_quality_trigger_scope v2` |
+| 78 | quality runner pins | `test_quality_runner_pins.sh` | pre | required; forsgren's own (not canon): `test_quality_trigger_scope.sh` is the sites' shared `test_quality_trigger_scope v2`, byte-identical; this one pins push and `pull_request` on `main` with no `paths` or `paths-ignore` filter, no `pull_request_target`, `workflow_dispatch`, and every job on `macos-latest`, 9 mutation proofs on synthetic workflows (forsgren#240) |
+| 79 | stray tracked files | `test_no_stray_tracked_files.sh` | pre | required, `test_no_stray_tracked_files v1` |
+| 80 | quality-report render | `test_render_quality_report.sh` | pre | required, `test_render_quality_report v2` |
+| 81 | quality-run summary | `test_render_quality_summary.sh` | pre | required |
+| 82 | gate-failure summary | `test_summarize_gate_failure.sh` | pre | required |
+| 83 | sfl drives from the order file | `test_sfl_drives_from_order_file.sh` | pre | required |
+| 84 | step table | `test_render_step_table.sh` | pre | required, `test_render_step_table v1` |
+| 85 | FullBuildAndPush commit-message block | `test_fbp_commit_message.sh` | pre | required |
+| 86 | FullBuildAndPush build-site page count | `test_fbp_build_pagecount.sh` | pre | required |
+| 87 | FullBuildAndPush aborted run | `test_fbp_aborted.sh` | pre | required |
+| 88 | FullBuildAndPush abort exit | `test_fbp_abort_exit.sh` | pre | required |
+| 89 | privacy-posture self-test | `test_check_privacy_posture.sh` | pre | required, `test_check_privacy_posture v1` |
+| 90 | privacy posture | `check_privacy_posture.sh` | post | required, `check_privacy_posture v1` |
+| 91 | repository-links self-test | `test_check_repo_links.sh` | pre | required |
+| 92 | repository links | `check_repo_links.sh` | post | required |
+| 93 | community-files self-test | `test_check_community_files.sh` | pre | required |
+| 94 | community files | `check_community_files.sh` | pre | required |
+| 95 | exit-trap completion self-test | `test_check_exit_trap_completion.sh` | pre | required, `test_check_exit_trap_completion v1` |
+| 96 | exit-trap completion | `check_exit_trap_completion.sh` | pre | required, `check_exit_trap_completion v1` |
+| 97 | exit-trap completion behaviour | `test_exit_trap_completion_behaviour.sh` | pre | required, `test_exit_trap_completion_behaviour v1` |
+| 98 | markdown-links self-test | `test_check_markdown_links.sh` | pre | required, `test_check_markdown_links v1` |
+| 99 | markdown links | `check_markdown_links.sh` | pre | required, `check_markdown_links v1` |
+| 100 | script references self-test | `test_check_script_references.sh` | pre | required, `test_check_script_references v1` |
+| 101 | script references | `check_script_references.sh` | pre | required, `check_script_references v1` |
+| 102 | Node pin self-test | `test_node_pin.sh` | pre | required, `test_node_pin v1` |
+| 103 | Node pin gate self-test | `test_check_node_pin.sh` | pre | required, `test_check_node_pin v1` |
+| 104 | Node pin | `check_node_pin.sh` | pre | required, `check_node_pin v1` |
+| 105 | Go toolchain pin self-test | `test_go_toolchain.sh` | pre | required |
+| 106 | build-site self-test | `test_build_site.sh` | pre | required |
+| 107 | starter page build self-test | `test_build_starter_page.sh` | pre | required |
+| 108 | starter page links self-test | `test_check_starter_links.sh` | pre | required |
+| 109 | starter page gates self-test | `test_starter_page_gates.sh` | pre | required |
+| 110 | workflow node pin | `test_workflow_node_pin.sh` | pre | required, `test_workflow_node_pin v1` |
+| 111 | npm lockfile sync self-test | `test_check_npm_lock_sync.sh` | pre | required, `test_check_npm_lock_sync v1` |
+| 112 | npm lockfile sync | `check_npm_lock_sync.sh` | pre | required, `check_npm_lock_sync v1` |
+| 113 | workflow-triggers self-test | `test_check_workflow_triggers.sh` | pre | required, `test_check_workflow_triggers v1` |
+| 114 | workflow triggers | `check_workflow_triggers.sh` | pre | required, `check_workflow_triggers v1` |
+| 115 | DCO sign-off self-test | `test_check_dco.sh` | pre | required |
+| 116 | metrics workflow | `test_metrics_workflow.sh` | pre | required |
+| 117 | auto-update workflow | `test_auto_update_workflow.sh` | pre | required |
+| 118 | starter page workflow | `test_starter_page_workflow.sh` | pre | required |
+| 119 | vulncheck workflow | `test_vulncheck_workflow.sh` | pre | required |
+| 120 | dispatch preview self-test | `test_dispatch_preview.sh` | pre | required; stub curl, no network, 3 mutation proofs. `dispatch_preview.sh` itself is run by the `preview` job of `quality.yml` (forsgren#222) |
+| 121 | preview workflow | `test_preview_workflow.sh` | pre | required; pins the `preview` job of `quality.yml`, each pin proved by a mutant of the real file |
+| 122 | browser gate self-test | `test_gate_browser.sh` | pre | required, `test_gate_browser v2`; real Chrome and axe-core, fixture sites on 127.0.0.1 |
+| 123 | browser gate | `gate_browser.sh` | post | required, `gate_browser v2`; baseline and exceptions are empty, one variant (see below) |
+| 124 | live check self-test | `test_live_check.sh` | pre | required, `test_live_check_selftest v1`; stub curl, no network. The live check itself, `live_check.sh` (`live_check v1`), is not a gate: it needs the deployed site and runs only in the live-check job of `starter_page.yml` |
+| 125 | release plan self-test | `test_release_plan.sh` | pre | required; fixture data, no gh, 4 mutations. The plan itself, `release_plan.sh`, is not a gate: the Release workflow of forsgren#221 step 2 runs it |
+| 126 | release bump self-test | `test_release_bump.sh` | pre | required; bumps a copy of the repository and runs `go test ./...` on it, 2 mutations. The bump itself, `release_bump.sh`, is not a gate: the Release workflow runs it |
+| 127 | release quality self-test | `test_release_quality.sh` | pre | required; stub gh, 3 mutations. `release_quality.sh` is a step of the Release workflow, not a gate |
+| 128 | release commit self-test | `test_release_commit.sh` | pre | required; a throwaway repository with a local bare origin, 3 mutations. `release_commit.sh` is a step of the Release workflow |
+| 129 | release publish self-test | `test_release_publish.sh` | pre | required; stub gh, 3 mutations. `release_publish.sh` is a step of the Release workflow |
+| 130 | release pins self-test | `test_release_pins.sh` | pre | required; a stub of the git-data API over the real template files of an earlier release, 6 mutations. `release_pins.sh` is a step of the Release workflow |
+| 131 | release report self-test | `test_release_report.sh` | pre | required, 4 mutations (the failed step inferred from the log, a template failure without the resume instruction). `release_report.sh` is the last step of the Release workflow |
+| 132 | release precheck self-test | `test_release_precheck.sh` | pre | required; `release_precheck.sh` runs the real `release_plan.sh --all` and `release_report.sh --table` on seam data: every kind of block named at once, ready issues listed, exit 0 or 1 as the plan, read-only, and the table equal line for line to the Release run page's for each kind of block; 4 mutations (no `--all`, open issues with commits ignored, exit 0 whatever the plan said, a hand-written table) (forsgren#231) |
+| 133 | release resume self-test | `test_release_resume.sh` | pre | required; stub gh and a throwaway repository, 3 mutations. `release_resume.sh` finds what a `resume: pins` or `resume: publish` run continues with; it is a step of the Release workflow |
+| 134 | release token expiry self-test | `test_release_token_expiry.sh` | pre | required; stub gh, injected clock, 5 mutations (each tier edge, a header taken as fine). `release_token_expiry.sh` is a step of the Release workflow |
+| 135 | release verify pin self-test | `test_release_verify_pin.sh` | pre | required; 3 mutations. `release_verify_pin.sh` reads a pin pull request (only the pins of both callers, to this release) and is a step of the Release workflow |
+| 136 | release metrics self-test | `test_release_metrics.sh` | pre | required; stub gh, 4 mutations (merging more than the pins, no wait, a red run taken for done, a second run next to a green one). `release_metrics.sh` merges the pin pull request and runs forsgren in forsgren-metrics until green |
+| 137 | release workflow | `test_release_workflow.sh` | pre | required; pins `.github/workflows/release.yml`: trigger, permissions, actions, order, commands, ids and outcomes, resume, the secret, no tag made by hand; 39 mutations |
+| 138 | release bump diff self-test | `test_release_bump_diff.sh` | pre | required; a fixture repository bumped by the real `release_bump.sh`, 2 mutations (no parent comparison, any line of an allowed file accepted). `release_bump_diff.sh` holds a bump commit to the version bump on the green parent and is a step of the Release workflow from forsgren#230 step 2 |
+| 139 | run short quality self-test | `test_run_short_quality.sh` | pre | required; stub gates in a throwaway repository, 3 mutations (the list ignored, the skipped gates not named, no tree check). `run_short_quality.sh` runs the PRE gates of `quality_bump_gates.txt` for the short Quality of a release bump and is a step of `quality.yml` (forsgren#230) |
+| 140 | quality scope | `test_quality_scope.sh` | pre | required; pins the scope input of `.github/workflows/quality.yml` (default full, push and pull request always full, scope bump runs the bump diff check first and only the listed gates), 17 mutations (forsgren#230) |
+| 141 | quality summary first | `test_quality_summary_first.sh` | pre | required; pins that no step before `Render summary and report` writes the run summary of `.github/workflows/quality.yml` and that the step writes the headline before the gate table, 4 mutations (a gate step writing the page, the short Quality note writing it directly, the table before the headline, a baselines step moved before the summary step) (forsgren#233) |
+| 142 | step summary isolation | `test_step_summary_isolation.sh` | pre | required; every self-test that names a script appending to `$GITHUB_STEP_SUMMARY` is run with that variable pointing at a decoy file in the calling shell, and the decoy must stay empty, so fixture output never reaches the real run page of the Quality run; 2 mutations (a self-test on the harness, a self-test off it) (forsgren#233) |
+| 143 | git sandbox isolation self-test | `test_git_sandbox_isolation.sh` | pre | required; runs ten git-using self-tests with `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` pointing at a decoy repository with a decoy origin, and requires both unchanged (forsgren#228) |
+| 144 | git sandbox guard self-test | `test_git_sandbox_guard.sh` | pre | required; every git-using `test_*.sh` sources `lib_git_sandbox.sh`, 1 mutation (forsgren#228) |
+| 145 | precheck self-test | `test_precheck.sh` | pre | required; `precheck.sh` runs the fast static gates on the changed files and the self-tests that name them, 7 cases and 2 mutations (the test-mention step skipped, a missing tool counted as a pass), and a parity check that every gate script it runs is a row of this file (forsgren#231) |
+| 146 | static block self-test | `test_sfl_static_block.sh` | pre | required; a fake gate set in a throwaway root, the real `sfl.sh`, `run_ci_phase.sh` and a sandboxed `FBP.sh`: a red gate in the static block (`#! static-block-start` / `#! static-block-end` in the order file) is followed by the rest of the block, then every later gate is skipped and named, the summary says `stopped after the static block`, FBP skips the build and the POST gates, named, and CI still runs every row; 2 mutations (the boundary ignored, skipped gates not named) (forsgren#231) |
+| 147 | privacy-pages self-test | n/a | n/a | n/a: there is no privacy-pages gate here to self-test |
+| 148 | privacy pages | n/a | n/a | n/a: static generated page - numbers and dates only; no forms, no analytics or tracking, no cookies or storage, no third-party assets or embeds; nothing personal is collected or processed - and the privacy-posture gate above re-proves that every run rather than leaving it asserted |
 
 ## Documented exceptions
 
@@ -264,7 +265,7 @@ same case turns green with the exit code swallowed.
 
 ## The language gate (forsgren#220)
 
-The gate (row 122, `Scripts/gate_language_pages.sh` running the canon
+The gate (row 123, `Scripts/gate_language_pages.sh` running the canon
 `Scripts/gate_language.sh`) checks the text a visitor reads on every generated
 page, the metrics site and the starter page, with LanguageTool 6.8 in `en-GB`
 (`Scripts/language_settings.txt`), plus the values of `alt`, `title` and
@@ -311,11 +312,11 @@ context in the visible text of the row's own page, extracted by the gate itself
 starter page row is keyed `starter/index.html`. Quality's baseline steps run after
 the POST gates, so the built pages exist. A missing page or context says so
 without failing the step. It reads data files and runs no gate; an unreadable file or a
-malformed row fails the step. Its self-test is the PRE row 123.
+malformed row fails the step. Its self-test is the PRE row 124.
 
 ## The ratchet today
 
-`MIN_GATES` is 147, which equals the 147 rows of the order file (143 with a
+`MIN_GATES` is 148, which equals the 148 rows of the order file (144 with a
 script and 4 `n/a` rows). forsgren#215 brought it to 115 and the Go tool
 helper self-test of forsgren#216 is the 116th; the browser gate and its
 self-test (forsgren#205) made 118, and the live check self-test
@@ -330,4 +331,4 @@ sandbox (forsgren#228) made 137, and the bump diff self-test (forsgren#230,
 step 1) made 138, and the short Quality (forsgren#230, step 2: its runner and the pin
 of the scope) made 140, and the preview deploy
 script's self-test and the preview workflow pin (forsgren#222) made 142, and the
-pre-check's self-test (forsgren#231, step 1) made 143, and the static block's self-test (forsgren#231, step 2) made 144, and the release pre-check's self-test (forsgren#231, step 3) made 145, and the pin that the run summary comes first (forsgren#233) made 146, and the isolation of the self-tests from the run summary (forsgren#233) made 147.
+pre-check's self-test (forsgren#231, step 1) made 143, and the static block's self-test (forsgren#231, step 2) made 144, and the release pre-check's self-test (forsgren#231, step 3) made 145, and the pin that the run summary comes first (forsgren#233) made 146, and the isolation of the self-tests from the run summary (forsgren#233) made 147, and the Quality runner pins gate (forsgren#240, step 1) made 148.

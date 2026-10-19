@@ -122,7 +122,7 @@ local `./FBP.sh` run, and never on `pull_request_target`. A pull request
 from a fork runs its own code here, which is safe only because of the two
 things the ruling pairs with the trigger: the machine is GitHub's and is
 thrown away after the job, and a fork's `pull_request` run gets a read-only
-token (`contents: read`) and no secrets. The **quality trigger scope** gate
+token (`contents: read`) and no secrets. The **quality runner pins** gate
 pins this job to `macos-latest`, and the rule holds for every workflow: the
 **workflow triggers** gate below is red on any of them that triggers on a
 pull-request event while one of its jobs runs anywhere but on a
@@ -308,8 +308,12 @@ Nine PRE gates keep the CI honest:
   file order) and over made-up order files (failures, the secret-class exit,
   malformed rows, a missing or non-executable script, the tree check, a
   phase with no row), and against weakened copies of the runner.
-- **quality trigger scope** (`Scripts/test_quality_trigger_scope.sh`): the
-  workflow runs on every push to `main` and every `pull_request` into it,
+- **quality trigger scope** (`Scripts/test_quality_trigger_scope.sh`, the
+  sites' shared canon, forsgren#240): the workflow has no `paths` or
+  `paths-ignore` filter, or a `paths` filter that holds every glob the gates
+  read; it must have a `pull_request` trigger.
+- **quality runner pins** (`Scripts/test_quality_runner_pins.sh`, forsgren's
+  own, forsgren#240): the workflow runs on every push to `main` and every `pull_request` into it,
   neither with a `paths` or `paths-ignore` filter, never on
   `pull_request_target`, and on `workflow_dispatch`; and its job runs on
   `macos-latest`, the GitHub-hosted image that makes the pull-request

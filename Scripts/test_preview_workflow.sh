@@ -15,7 +15,7 @@
 #      where no secret exists), and no status function (always(), failure(),
 #      cancelled(), success()) is in it: a failed gate skips the job
 #   3. runs-on: macos-latest, like every job of the file
-#      (Scripts/test_quality_trigger_scope.sh)
+#      (Scripts/test_quality_runner_pins.sh)
 #   4. the job grants contents: read only, and no write appears in it
 #   5. its own concurrency group, cancel-in-progress false (push order)
 #   6. only checkout, at the commit metrics.yml pins, no persisted credentials

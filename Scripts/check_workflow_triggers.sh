@@ -9,7 +9,7 @@
 # pull-request event. On such a trigger a pull request from a fork runs its own
 # code on that runner, a machine someone keeps, once the repository is public.
 # On a GitHub-hosted runner it runs on a machine thrown away after the job.
-# Scripts/test_quality_trigger_scope.sh pins the shape quality.yml must have;
+# Scripts/test_quality_runner_pins.sh pins the shape quality.yml must have;
 # this gate bans the one shape no workflow may have, whatever the file, except
 # where a row of the exceptions file says otherwise.
 #
@@ -41,7 +41,7 @@
 # workflow that needs one says so here first.
 #
 # READ WITH AWK, NOT A YAML PARSER, on purpose, as
-# Scripts/test_quality_trigger_scope.sh does. PyYAML is a Python module, not a command, so
+# Scripts/test_quality_runner_pins.sh does. PyYAML is a Python module, not a command, so
 # Scripts/required_tools.txt (commands only) cannot declare it and
 # Scripts/install_tools.sh cannot install it, and a gate that dies on a
 # missing module on another Mac or on a fresh hosted runner has stopped

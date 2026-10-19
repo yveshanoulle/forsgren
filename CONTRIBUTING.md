@@ -94,6 +94,7 @@ run report shows how many checks each of them ran.
 - manifest-covers-site self-test (`Scripts/test_required_pages_covers_site_selftest.sh`, pre)
 - manifest covers site (`Scripts/test_required_pages_covers_site.sh`, post)
 - quality trigger scope (`Scripts/test_quality_trigger_scope.sh`, pre)
+- quality runner pins (`Scripts/test_quality_runner_pins.sh`, pre)
 - stray tracked files (`Scripts/test_no_stray_tracked_files.sh`, pre)
 - quality-report render (`Scripts/test_render_quality_report.sh`, pre)
 - quality-run summary (`Scripts/test_render_quality_summary.sh`, pre)
