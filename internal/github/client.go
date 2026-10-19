@@ -67,6 +67,10 @@ type Client struct {
 	unreadable string
 	// answered is whether a call got a 2xx answer (tokenexpiry.go).
 	answered bool
+	// margin is whether a call stops at the request budget's margin, and
+	// budget what the last answers said of it (budget.go).
+	margin bool
+	budget budget
 }
 
 // defaultTokenName is the token a refusal names unless WithTokenName says
@@ -190,9 +194,18 @@ func (c *Client) request(ctx context.Context, k call) (*http.Request, error) {
 	return req, nil
 }
 
-// do sends the call with the token: the body of a 2xx answer and its headers,
-// or an error that names the repository of the call's target.
+// do sends the call with the token, unless the request budget is at its
+// margin (budget.go): the body of a 2xx answer and its headers, or an error
+// that names the repository of the call's target.
 func (c *Client) do(ctx context.Context, k call) ([]byte, http.Header, error) {
+	if err := c.checkBudget(k.t.repo); err != nil {
+		return nil, nil, err
+	}
+	return c.send(ctx, k)
+}
+
+// send is do past the budget check.
+func (c *Client) send(ctx context.Context, k call) ([]byte, http.Header, error) {
 	t := k.t
 	req, err := c.request(ctx, k)
 	if err != nil {
@@ -204,6 +217,7 @@ func (c *Client) do(ctx context.Context, k call) ([]byte, http.Header, error) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 	c.noteExpiry(resp.Header)
+	c.noteBudget(resp.Header)
 	if err := statusError(t, resp, c.tokenName); err != nil {
 		return nil, nil, err
 	}

@@ -59,6 +59,12 @@
 // write fails, the next run reads and compares those deployments again, and
 // the commits already stored are skipped by their key. A failure in one
 // repository is printed and the others are still collected; Run then fails.
+//
+// The request budget (forsgren#64): once GitHub's answers say fewer requests
+// are left than the client's margin, a repository is cut short, not failed:
+// it stores nothing and moves no read mark, stderr names it with the reset
+// time, the repositories already done keep what they stored, and Run does
+// not fail for it. The next run reads it again.
 package collect
 
 import (
@@ -112,6 +118,7 @@ type Options struct {
 // file that cannot be read is refused before GitHub is asked anything.
 func Run(ctx context.Context, cfg config.Config, o Options) error {
 	o = o.windowOf(cfg)
+	o.Client.WithBudgetMargin()
 	h, err := loadHeld(o.History)
 	if err != nil {
 		return err
@@ -126,23 +133,39 @@ func Run(ctx context.Context, cfg config.Config, o Options) error {
 		return err
 	}
 	before := o.marks(h)
-	failed := 0
+	var done tally
 	for _, p := range cfg.Projects {
-		failed += o.collectProject(ctx, h, p)
+		done = done.plus(o.collectProject(ctx, h, p))
 	}
-	return o.finish(h, before, failed, cfg.RepositoryCount())
+	return o.finish(h, before, done, cfg.RepositoryCount())
 }
 
-// collectProject collects the repositories of p and returns how many failed.
-func (o Options) collectProject(ctx context.Context, h held, p config.Project) int {
-	failed := 0
+// tally is how a run's repositories ended besides done: failed, or cut short
+// at the request budget's margin (forsgren#64).
+type tally struct{ failed, cut int }
+
+// plus is t and u added up.
+func (t tally) plus(u tally) tally { return tally{t.failed + u.failed, t.cut + u.cut} }
+
+// collectProject collects the repositories of p and returns how many failed
+// and how many were cut short. A repository cut short stores nothing and
+// moves no read mark, the next run reads it again, and it is no failure: the
+// request budget's margin was reached (github.ErrBudget), and stderr says
+// when it resets.
+func (o Options) collectProject(ctx context.Context, h held, p config.Project) tally {
+	var t tally
 	for _, r := range p.Repositories {
-		if err := o.collectRepository(ctx, h, p.Name, r); err != nil {
+		err := o.collectRepository(ctx, h, p.Name, r)
+		switch {
+		case errors.Is(err, github.ErrBudget):
+			_, _ = fmt.Fprintf(o.Stderr, "collect: cut short: %v\n", err)
+			t.cut++
+		case err != nil:
 			_, _ = fmt.Fprintf(o.Stderr, "collect: %v\n", err)
-			failed++
+			t.failed++
 		}
 	}
-	return failed
+	return t
 }
 
 // collectRepository reads one repository and appends its final deployments,

@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -40,20 +41,23 @@ type gitHub struct {
 	status   map[string]int
 	paged    map[string]bool
 	limited  map[string]bool // paths answered with Retry-After: 60, GitHub's secondary rate limit
-	requests []string        // path?query
+	left     map[string]int  // paths answered with X-RateLimit-Remaining: n, of 5000, resetting at resetAt
+	resetAt  time.Time
+	requests []string // path?query
 }
 
 func newGitHub(t *testing.T) *gitHub {
 	t.Helper()
 	g := &gitHub{bodies: map[string]string{}, status: map[string]int{}, paged: map[string]bool{},
-		limited: map[string]bool{}}
+		limited: map[string]bool{}, left: map[string]int{},
+		resetAt: time.Now().Add(40 * time.Minute).Truncate(time.Second)}
 	g.srv = httptest.NewServer(http.HandlerFunc(g.serve))
 	t.Cleanup(g.srv.Close)
 	return g
 }
 
-// setHeaders sets the Link to page 2 of a path in paged and the Retry-After of
-// a path in limited.
+// setHeaders sets the Link to page 2 of a path in paged, the Retry-After of a
+// path in limited and the rate-limit headers of a path in left.
 func (g *gitHub) setHeaders(w http.ResponseWriter, r *http.Request, key string) {
 	if g.paged[key] {
 		next := r.URL.Query()
@@ -62,6 +66,11 @@ func (g *gitHub) setHeaders(w http.ResponseWriter, r *http.Request, key string) 
 	}
 	if g.limited[key] {
 		w.Header().Set("Retry-After", "60")
+	}
+	if n, ok := g.left[key]; ok {
+		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(n))
+		w.Header().Set("X-RateLimit-Limit", "5000")
+		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(g.resetAt.Unix(), 10))
 	}
 }
 

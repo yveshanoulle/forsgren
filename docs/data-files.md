@@ -484,6 +484,26 @@ before GitHub is asked anything. With no project configured `collect` does nothi
 token and exits 0; with at least one repository and no `FORSGREN_TOKEN` it
 exits 1 before anything is read or written. It exits 2 on a usage error.
 
+**The request budget (forsgren#64).** GitHub says on every answer how many
+requests the token has left (`X-RateLimit-Remaining`), how many it gets an
+hour (`X-RateLimit-Limit`) and when that starts over (`X-RateLimit-Reset`).
+When fewer than max(100, 5% of the limit) are left, 250 for a token with 5,000
+an hour, `collect` starts no further request, so the rest of the hour is left
+to the run's last steps (the render, the release and pull request lookups) and
+to anything else using the token. The repository it was reading is cut short:
+nothing of it is stored, not even a part of a list, none of its read marks
+(`reach.csv`, `failures_read.csv`, `issues_full.csv`, `issue_bugs_cut.csv`)
+moves, and stderr says so with the reset time, `collect: cut short: acme/app:
+GitHub's request budget is nearly used (80 of 5000 left); it resets at
+2026-10-01T01:00:00Z`. Every repository after it is cut short the same way,
+before its first request, because the budget is the token's. The repositories
+already done keep what they stored, and the run exits 0: a run that meets the
+limit is not a failure. The next run reads the cut-short repositories again,
+a first read only as far back as one `history_chunk_days` at a time. A request
+GitHub refuses with none left is not this: it stays a failed repository, as
+above. The one-time withdrawn-failures catch-up waits until no repository was
+cut short or failed.
+
 **The token.** `collect` reads the token from the environment variable
 `FORSGREN_TOKEN` only (never a flag) and sends it only as an
 `Authorization: Bearer` header to `api.github.com`: never in a URL, never in

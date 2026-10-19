@@ -156,11 +156,13 @@ func (h held) noteReach(repository string, reach time.Time) {
 
 // finish is the end of a run: the failed repositories as ErrFailed, joined
 // with the errors of saving the marks, each saved when it moved. The marks of
-// the repositories that were read are kept even when others failed.
-func (o Options) finish(h held, before marks, failed, total int) error {
+// the repositories that were read are kept even when others failed. A
+// repository cut short is no failure, but it was not read, so the catch-up
+// waits for it as it waits for a failed one.
+func (o Options) finish(h held, before marks, done tally, total int) error {
 	var err error
-	if failed > 0 {
-		err = fmt.Errorf("%d of %d %w", failed, total, ErrFailed)
+	if done.failed > 0 {
+		err = fmt.Errorf("%d of %d %w", done.failed, total, ErrFailed)
 	}
-	return errors.Join(err, o.finishCatchUp(h, failed), o.saveMarks(h, before))
+	return errors.Join(err, o.finishCatchUp(h, done.failed+done.cut), o.saveMarks(h, before))
 }

@@ -5,7 +5,7 @@
   {
    "path": "internal/collect/fake_test.go",
    "score": 9.09,
-   "checkedAt": "2026-10-14",
+   "checkedAt": "2026-10-19",
    "minScore": 9.0
   },
   {
@@ -77,7 +77,7 @@
   {
    "path": "internal/collect/collect.go",
    "score": 9.68,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-19",
    "minScore": 9.58
   },
   {
@@ -102,6 +102,12 @@
    "path": "internal/github/client_test.go",
    "score": 9.68,
    "checkedAt": "2026-10-07",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/collect/budget_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-19",
    "minScore": 9.58
   },
   {
@@ -239,7 +245,7 @@
   {
    "path": "internal/github/client.go",
    "score": 10.0,
-   "checkedAt": "2026-10-11",
+   "checkedAt": "2026-10-19",
    "minScore": 10.0
   },
   {
@@ -845,7 +851,7 @@
   {
    "path": "internal/collect/chunk.go",
    "score": 9.68,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-19",
    "minScore": 9.58
   },
   {
@@ -1116,6 +1122,18 @@
    "path": "internal/github/bugissues_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-14",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/budget_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-19",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/budget.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-19",
    "minScore": 10.0
   },
   {

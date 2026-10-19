@@ -9,6 +9,16 @@ Active work lives in
 
 ---
 
+## 2026-10-19 — collect stops before the token's request budget is gone ([#64](https://github.com/yveshanoulle/forsgren/issues/64), step 1)
+
+A large first read can use thousands of requests, and forsgren noticed the limit only when GitHub refused a request at 0. Now `collect` reads GitHub's rate-limit headers on every answer and starts no further request once fewer than max(100, 5% of the limit) are left (250 for a token with 5,000 an hour), so the run's last steps and anything else using the token keep some of the hour.
+
+- The repository it was reading is cut short: it stores nothing for it, moves none of its read marks, and stderr names it with the reset time. Every repository behind it is cut short the same way before its first request; the repositories already done keep what they stored.
+- The run exits 0: meeting the limit is not a failure. A request GitHub refuses with none left stays a failed repository, as before. The next run reads the cut-short repositories again.
+- The one-time withdrawn-failures catch-up waits until no repository was cut short.
+- Not yet: the job summary naming the repositories cut short (step 2). The margin is kept by the client for collect only; the lookups of the render and the setup issue are unchanged.
+- Red first (a client at its margin kept sending, a run past it stored the repository). Tests use fixture servers, never the network.
+
 ## 2026-10-19 — a preview build shows a development version in the footer ([#224](https://github.com/yveshanoulle/forsgren/issues/224), step 1)
 
 A build made from a checkout, as the preview site's, shows its version with `+dev` and the short commit it is built from in the page footer, "Forsgren 1.11.1+dev (c41db9e)", so the preview can no longer be taken for the release. The commit is plain text: the repository-links gate allows no link into a repository. A release build, installed at a pinned commit, shows its version alone and its pages are unchanged. `Scripts/build_site.sh` builds with `-buildvcs=false`, so the gates still render a release page. Tests pin both footers and the commit read from the build information. Step 2 (no bump commit, the version from the release tag) stays open on the issue.
