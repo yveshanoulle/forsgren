@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_render_quality_report v1
+# canon: test_render_quality_report v2
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -93,7 +93,7 @@ if out="$("$RENDER" "$rows" "$details" "$order" 2>&1)"; then
 else
   fail "the renderer EXITED NON-ZERO on a report it rendered fine — the last declared row has no details file, and the loop's exit status became the step's. Every gate passed and the run went red"
 fi
-want "the rendered table is still produced" "| [secret scan](#gate-secret_scan) | not counted | ✅ |" "$out"
+want "the rendered table is still produced" "| secret scan | not counted | ✅ |" "$out"
 want "the detail body is still emitted"     "#### ✅ secret scan"  "$out"
 
 # Case 2: declared order wins over the order rows arrived in. Gates run in
@@ -107,7 +107,7 @@ out2="$("$RENDER" "$rows2" "$details2" "$order2" 2>&1)" || true
 # `|| true` on the pipeline: grep exits 1 when it matches nothing, which under
 # set -e aborts the fixture before the cases below ever run — what happened the
 # first time these pins met a stub.
-table_order="$(grep -oE '^\| \[?[a-z]+' <<< "$out2" | tr -d '|[ ' | tr '\n' ' ' || true)"
+table_order="$(grep -oE '^\| [a-z]+' <<< "$out2" | tr -d '| ' | tr '\n' ' ' || true)"
 if [ "$table_order" = "alpha beta gamma " ]; then
   echo "  ok: rows render in declared order, not the order they arrived"
 else
@@ -169,7 +169,7 @@ if cmp -s "$RENDER" "${TMP}/mutant/Scripts/render_quality_report.sh"; then
 else
   chmod +x "${TMP}/mutant/Scripts/render_quality_report.sh"
   out7="$("${TMP}/mutant/Scripts/render_quality_report.sh" "$rows2" "$details2" "$order2" 2>&1)" || true
-  table7="$(grep -oE '^\| \[?[a-z]+' <<< "$out7" | tr -d '|[ ' | tr '\n' ' ' || true)"
+  table7="$(grep -oE '^\| [a-z]+' <<< "$out7" | tr -d '| ' | tr '\n' ' ' || true)"
   if [ "$table7" = "alpha beta gamma " ]; then
     fail "a renderer that drops every row still satisfies the declared-order case — the table cases prove nothing"
   else
@@ -177,8 +177,7 @@ else
   fi
 fi
 
-# Cases 8-12 (forsgren#219): the Checks column, the links to each gate's
-# section, and the CONTRIBUTING.md list kept in sync with the order file.
+# Cases 8-12 (forsgren#219): the Checks column, the plain gate labels, and the CONTRIBUTING.md list kept in sync with the order file.
 #
 # Case 8: Checks counts the gate's own `ok:` and `✅` lines. The heading line
 # the runner writes ("#### ✅ label"), prose that merely contains ok: and the
@@ -202,31 +201,27 @@ details8="${TMP}/details8"; mkdir -p "$details8"
 { echo ""; echo "#### ✅ silent gate"; echo ""; echo "_no output_"; } > "${details8}/silent_gate.md"
 { echo ""; echo "#### ✅ Go test coverage (90)"; echo ""; echo '```'; echo "ok: one"; echo '```'; } > "${details8}/Go_test_coverage__90_.md"
 out8="$("$RENDER" "$rows8" "$details8" "$order8" 2>&1)" || true
-want     "Checks counts the ok: and check-mark lines of the gate's output" "| [counted gate](#gate-counted_gate) | 3 | ✅ |" "$out8"
-want     "a gate with no countable line says not counted"                  "| [silent gate](#gate-silent_gate) | not counted | ✅ |" "$out8"
+want     "Checks counts the ok: and check-mark lines of the gate's output" "| counted gate | 3 | ✅ |" "$out8"
+want     "a gate with no countable line says not counted"                  "| silent gate | not counted | ✅ |" "$out8"
 want_not "and never shows 0 for it"                                        "| 0 |" "$out8"
 want     "a reported gate whose details cannot be read says not readable"  "| lost gate | not readable | ❌ |" "$out8"
 want     "the table has the Checks column"                                 "| Gate | Checks | Result |" "$out8"
 want     "the table's rule line is the three-column rule"                  "|---|--:|:-:|" "$out8"
 
-# Case 9: every link has its anchor, and the anchor rule is pinned: `gate-`
-# plus the label with every character outside A-Za-z0-9 turned into _ (the
-# details file's own slug). The anchor is an explicit <a id> in the summary,
-# not the heading's generated one, which would depend on how GitHub strips
-# the emoji of "#### ✅ label". A gate with no details section has no anchor
-# to land on, so its label is not a link.
-want "the anchor sits in the body, before the gate's details" '<a id="gate-counted_gate"></a>' "$out8"
-want "a label with spaces and punctuation gets the _ slug" "[Go test coverage (90)](#gate-Go_test_coverage__90_)" "$out8"
-want "and its anchor has the same slug" '<a id="gate-Go_test_coverage__90_"></a>' "$out8"
-links="$(grep -o '](#gate-[A-Za-z0-9_]*)' <<< "$out8" | sed 's/^](#//; s/)$//' || true)"
-anchors="$(grep -o '<a id="gate-[A-Za-z0-9_]*"></a>' <<< "$out8" | sed 's/^<a id="//; s/"><\/a>$//' || true)"
-nlinks=0
-for l in $links; do
-  nlinks=$((nlinks + 1))
-  if grep -qxF -- "$l" <<< "$anchors"; then echo "  ok: link #${l} has its anchor"; else fail "link #${l} has no anchor in the body"; fi
-done
-if [ "$nlinks" -eq 3 ]; then echo "  ok: the three gates with a section are linked"; else fail "expected 3 links, found ${nlinks}"; fi
-want_not "a gate without a details section is not a link" "[lost gate]" "$out8"
+# Case 9 (forsgren#219): GitHub keeps neither an in-page link nor an explicit
+# <a id> in a job summary (a real run showed the labels as links that do
+# nothing), so the Gate cell is the plain label and the output holds no anchor
+# line. A gate with a details section, a gate without one and a label with
+# spaces and punctuation are all plain.
+linked_rows() { grep -E '^\|.*\]\(#' <<< "$1" || true; }
+anchor_lines() { grep -F '<a id=' <<< "$1" || true; }
+want     "a gate with a section is its plain label"                    "| Go test coverage (90) | 1 | ✅ |" "$out8"
+want     "a gate without a section is its plain label"                 "| lost gate | not readable | ❌ |" "$out8"
+want     "the details section of a gate is still emitted"              "#### ✅ counted gate" "$out8"
+rows_linked="$(linked_rows "$out8")"
+if [ -z "$rows_linked" ]; then echo "  ok: no table row links to an in-page anchor"; else fail "a table row still links a label: ${rows_linked}"; fi
+anchors_found="$(anchor_lines "$out8")"
+if [ -z "$anchors_found" ]; then echo "  ok: the output holds no <a id= line"; else fail "the output still holds an anchor line: ${anchors_found}"; fi
 
 # Case 10: the CONTRIBUTING.md list is the generator's output for the real
 # order file, between the two markers.
@@ -260,19 +255,18 @@ mutate() { # <name> <sed-expr>
   mut_out="$("${dir}/Scripts/render_quality_report.sh" "$rows8" "$details8" "$order8" 2>&1)" || true
 }
 if mutate zero 's/checks="not counted"/checks="0"/'; then
-  if grep -qF -- "| [silent gate](#gate-silent_gate) | not counted | ✅ |" <<< "$mut_out"; then fail "a renderer that shows 0 for a gate with no countable line still satisfies case 8"; else echo "  ok: a gate with no countable line rendered as 0 is caught"; fi
+  if grep -qF -- "| silent gate | not counted | ✅ |" <<< "$mut_out"; then fail "a renderer that shows 0 for a gate with no countable line still satisfies case 8"; else echo "  ok: a gate with no countable line rendered as 0 is caught"; fi
 fi
-if mutate nolink "s/\\[\\\${label}\\](#gate-\\\${slug})/\\\${label}/"; then
-  if grep -qF -- "[counted gate](#gate-counted_gate)" <<< "$mut_out"; then fail "a renderer without the links still satisfies case 9"; else echo "  ok: a table label without its link is caught"; fi
-fi
-if mutate noanchor 's/echo "<a id.*$/:/'; then
-  if grep -qF -- '<a id="gate-counted_gate"></a>' <<< "$mut_out"; then fail "a renderer without the anchors still satisfies case 9"; else echo "  ok: a link whose anchor is missing is caught"; fi
+dl="$(printf '\044')"
+if mutate link "s#echo \"| ${dl}{[a-z]*} | ${dl}{checks}#echo \"| [${dl}{label}](\#gate-${dl}{slug}) | ${dl}{checks}#"; then
+  mut_linked="$(linked_rows "$mut_out")"
+  if grep -qF -- "[counted gate](#gate-counted_gate)" <<< "$mut_linked"; then echo "  ok: a renderer that still links a label is caught, naming: counted gate"; else fail "a renderer that links the labels still satisfies case 9 (rows seen: ${mut_linked:-none})"; fi
 fi
 if mutate unreadable 's/checks="not readable"/checks="not counted"/'; then
   if grep -qF -- "| lost gate | not readable | ❌ |" <<< "$mut_out"; then fail "a renderer that calls an unreadable gate not counted still satisfies case 8"; else echo "  ok: an unreadable gate rendered as not counted is caught"; fi
 fi
 if mutate verdict "s/ok:|✅/ok:|✅|OK:/"; then
-  if grep -qF -- "| [counted gate](#gate-counted_gate) | 3 | ✅ |" <<< "$mut_out"; then fail "a renderer that counts OK: verdict lines still satisfies case 8"; else echo "  ok: a renderer counting the verdict line is caught"; fi
+  if grep -qF -- "| counted gate | 3 | ✅ |" <<< "$mut_out"; then fail "a renderer that counts OK: verdict lines still satisfies case 8"; else echo "  ok: a renderer counting the verdict line is caught"; fi
 fi
 
 COMPLETED=1
@@ -281,4 +275,4 @@ if [[ "$failed" -ne 0 ]]; then
   echo "FAIL: quality-report render pins"
   exit 1
 fi
-echo "OK: quality-report render (exit status survives a detail-less trailing row, declared order honoured, empty and partial runs told apart from clean, Checks counted from the gates output, links with their anchors, CONTRIBUTING list in sync)"
+echo "OK: quality-report render (exit status survives a detail-less trailing row, declared order honoured, empty and partial runs told apart from clean, Checks counted from the gates output, plain gate labels without links or anchors, CONTRIBUTING list in sync)"
