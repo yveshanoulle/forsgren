@@ -72,7 +72,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 37 | language gate self-test | `test_gate_language.sh` | pre | required, `test_gate_language v2`; LanguageTool stubbed, 9 mutations |
 | 38 | language pages wrapper self-test | `test_gate_language_pages.sh` | pre | required; the wrapper's own, the canon gate stubbed, 3 mutations |
 | 39 | language gate | `gate_language_pages.sh` | post | required; runs `gate_language.sh` (`gate_language v2`) over the metrics site and the starter page; LanguageTool 6.8 run locally and offline; mode `enforce` in `language_settings.txt`; the allowlist and the baseline are data files (see below) |
-| 40 | baseline report self-test | `test_report_baselines.sh` | pre | required, `test_report_baselines v2`; the report itself, `report_baselines.sh` (`report_baselines v2`), is presentation, not a gate: Quality calls it in three steps (see below) |
+| 40 | baseline report self-test | `test_report_baselines.sh` | pre | required, `test_report_baselines v3`; the report itself, `report_baselines.sh` (`report_baselines v2`), is presentation, not a gate: Quality calls it in three steps (see below) |
 | 41 | deployed-pages self-test | n/a | n/a | n/a: forsgren does not deploy its generated pages from this repository, so there is no deployed-pages verification to self-test |
 | 42 | required-pages self-test | `test_validate_required_pages.sh` | pre | required, `test_validate_required_pages v1` |
 | 43 | required-pages manifest | `validate_required_pages.sh` | post | required, `validate_required_pages v1` |

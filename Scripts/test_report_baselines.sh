@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_report_baselines v2
+# canon: test_report_baselines v3
 # Scripts/test_report_baselines.sh (estate issue 300)
 #
 # Self-test for Scripts/report_baselines.sh, which renders the baseline data

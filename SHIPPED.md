@@ -9,6 +9,10 @@ Active work lives in
 
 ---
 
+## 2026-10-20 — the baseline report self-test carries canon v3 ([#244](https://github.com/yveshanoulle/forsgren/issues/244))
+
+`Scripts/test_report_baselines.sh` changed content in forsgren#226 (the cases for every further browser baseline) but kept its `# canon: test_report_baselines v2` line. It now says `v3`, as does its row in `docs/gate-classification.md`, so the copies in the estate's repositories end byte-identical. A version line only: no behaviour changed, so no red.
+
 ## 2026-10-20 — html duplication takes canon v2: jscpd's threshold line is rewritten and a jscpd crash is shown ([#242](https://github.com/yveshanoulle/forsgren/issues/242))
 
 `Scripts/check_html_dupl.sh` is now canon `check_html_dupl` v2 and `Scripts/test_check_html_dupl.sh` v3, both byte-identical to another estate repository's. The gate runs jscpd with a threshold of 0 only to make it print the number, so an over-ceiling red used to show jscpd's own `over threshold (0%)` line as if the gate demanded 0%. The red now shows the gate's own ceiling and verdict and keeps the measured percentage on a line of its own; a jscpd failure for any other reason (exit not 0 or 1) shows jscpd's own error and is exit 2. The wrapper `Scripts/check_html_dupl_site.sh` does not read that line and needed no change.
