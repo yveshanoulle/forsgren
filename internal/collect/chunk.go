@@ -175,5 +175,6 @@ func (o Options) finish(h held, before marks, done tally, total int) error {
 	if done.failed > 0 {
 		err = fmt.Errorf("%d of %d %w", done.failed, total, ErrFailed)
 	}
+	o.finishStarts(h, done.failed+done.cut)
 	return errors.Join(err, o.finishCatchUp(h, done.failed+done.cut), o.saveMarks(h, before))
 }

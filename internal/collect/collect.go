@@ -196,6 +196,7 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	h.noteRead(r.Name, o.Now)
 	h.noteFull(r.Name, o.Now)
 	h.noteBugsCut(r.Name, lines.bugsCut, o.Now)
+	h.noteStartsDone(r.Name)
 	o.report(r.Name, d.found, stored)
 	return nil
 }
@@ -217,6 +218,9 @@ func (o Options) readIssues(ctx context.Context, h held, repo string) (issueLine
 	var l issueLines
 	var err error
 	if l.failures, err = o.failureIssues(ctx, h, repo); err != nil {
+		return l, err
+	}
+	if l.failures, err = o.withStartCatchUp(ctx, h, repo, l.failures); err != nil {
 		return l, err
 	}
 	var daily []github.RepoIssue
@@ -510,6 +514,8 @@ type held struct {
 	full       history.Reach             // see issueevents.go
 	cut        history.Reach             // see bugflags.go
 	cutRuns    history.Reach             // see report.go
+	checked    history.Reach             // see startscatchup.go
+	startsDone map[string]bool           // the repositories caught up in this run
 	partial    map[string]bool
 }
 
@@ -520,7 +526,7 @@ func loadHeld(path string) (held, error) {
 		return held{}, err
 	}
 	h := held{ids: map[entry]bool{}, newest: map[source]time.Time{}, oldest: map[source]time.Time{},
-		successes: map[history.Stream][]history.Record{}, partial: map[string]bool{}}
+		successes: map[history.Stream][]history.Record{}, partial: map[string]bool{}, startsDone: map[string]bool{}}
 	for _, r := range records {
 		h.hold(r)
 	}

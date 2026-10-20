@@ -53,7 +53,7 @@
 #     issue_bugs_cut.csv
 #     arm deleted, a repository holding only ops/ of that file must turn
 #     green.
-#   - case 15: with the reach.csv or cut_runs.csv arm deleted, a repository
+#   - case 15: with the reach.csv, cut_runs.csv or starts_checked.csv arm deleted, a repository
 #     holding only ops/ of that file must turn green; reach.csv has no case of its own, so the
 #     drift check is the case that holds its arm. The drift check needs no
 #     other proof: it reads the Go constants, and a deleted arm turns it red,
@@ -268,6 +268,8 @@ new_repo "other-data-elsewhere-reach"
 write_file "ops/reach.csv" $'# forsgren reach v1\n' track
 new_repo "other-data-elsewhere-cutruns"
 write_file "ops/cut_runs.csv" $'# forsgren cut runs v1\n' track
+new_repo "other-data-elsewhere-startschecked"
+write_file "ops/starts_checked.csv" $'# forsgren starts checked v1\n' track
 
 new_repo "history-fixtures"
 write_file "internal/history/testdata/deployments.csv" $'# forsgren history v1\n' track
@@ -345,6 +347,8 @@ arm_deleted_proof 15 "reach.csv" '^[[:space:]]*reach\.csv\) why=' \
   "${TMP}/check_data_guard_noreach.sh" "other-data-elsewhere-reach" "ops/reach.csv"
 arm_deleted_proof 15 "cut_runs.csv" '^[[:space:]]*cut_runs\.csv\) why=' \
   "${TMP}/check_data_guard_nocutruns.sh" "other-data-elsewhere-cutruns" "ops/cut_runs.csv"
+arm_deleted_proof 15 "starts_checked.csv" '^[[:space:]]*starts_checked\.csv\) why=' \
+  "${TMP}/check_data_guard_nostartschecked.sh" "other-data-elsewhere-startschecked" "ops/starts_checked.csv"
 
 # ---------------------------------------------------------------------------
 # Mutation proof for case 6: a copy of the gate with every arm whose pattern

@@ -260,6 +260,33 @@ acme/app,2026-10-14T06:00:00Z
 - The data guard knows its name: a `cut_runs.csv` that git tracks or does not
   ignore, outside `testdata/` blocks the commit, like the other data files.
 
+**The starts catch-up note** (forsgren#245) is kept in `data/starts_checked.csv`,
+next to the history, with its own format version (the starts checked format
+v1): one line per repository whose stored failure issues had their empty
+`failure_start` caught up from the issues' comments (forsgren#37).
+
+```
+# forsgren starts checked v1
+repository,checked_at
+acme/app,2026-10-21T06:00:00Z
+```
+
+- A repository without a line is caught up once: each of its stored failure
+  issues with an empty `failure_start` that is open or was opened in the DORA
+  window, and that no withdrawal takes back, has its comments read once, and a
+  record block found there is stored as a new line of the failure. A refused
+  read fails the repository.
+- The lines are written only when every repository of the run finished: a run
+  that failed or was cut short anywhere writes none, and does the catch-up
+  again, which stores only what it finds. An installation that has done it gets
+  no second one; a repository added to the configuration later gets its own.
+- Rewritten whole like `data/reach.csv`, and only when a line changed. A
+  missing file notes no repository. An unknown version or a malformed line
+  refuses the collect run before GitHub is asked anything, naming the file.
+- The data guard knows its name: a `starts_checked.csv` that git tracks or
+  does not ignore, outside `testdata/` blocks the commit, like the other data
+  files.
+
 ## Collecting deployments (`collect`)
 
 ```

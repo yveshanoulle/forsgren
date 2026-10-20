@@ -37,11 +37,13 @@ type markFile struct {
 	save func(path string, r history.Reach) error
 }
 
-// markFiles are h's five marks, in the order they are loaded and saved: how
+// markFiles are h's six marks, in the order they are loaded and saved: how
 // far each repository was read (reach, chunk.go), when its issues were last
 // read (read), whether they were read in full (full, issueevents.go) and
 // where its bug read was cut (cut, bugflags.go) and since when it has been
-// cut short at the request budget without progress (cutRuns, report.go).
+// cut short at the request budget without progress (cutRuns, report.go) and
+// which repositories had their failure starts caught up from the comments
+// (checked, startscatchup.go).
 func (o Options) markFiles(h *held) []markFile {
 	return []markFile{
 		{&h.reach, o.reachFile(), history.LoadReach, history.SaveReach},
@@ -49,6 +51,7 @@ func (o Options) markFiles(h *held) []markFile {
 		{&h.full, o.issuesFullFile(), history.LoadFullAt, history.SaveFullAt},
 		{&h.cut, o.bugsCutFile(), history.LoadBugsCut, history.SaveBugsCut},
 		{&h.cutRuns, o.cutRunsFile(), history.LoadCutRuns, history.SaveCutRuns},
+		{&h.checked, o.startsCheckedFile(), history.LoadStartsChecked, history.SaveStartsChecked},
 	}
 }
 

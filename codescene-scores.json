@@ -63,6 +63,12 @@
    "minScore": 9.58
   },
   {
+   "path": "internal/collect/startscatchup.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-20",
+   "minScore": 9.58
+  },
+  {
    "path": "internal/page/legend_history_test.go",
    "score": 9.92,
    "checkedAt": "2026-10-16",
@@ -1588,6 +1594,18 @@
   },
   {
    "path": "internal/collect/failures_comments_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-20",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/startscatchup_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-20",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/startschecked.go",
    "score": 10.0,
    "checkedAt": "2026-10-20",
    "minScore": 10.0
