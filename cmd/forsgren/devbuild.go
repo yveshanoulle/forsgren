@@ -3,6 +3,7 @@ package main
 import (
 	"regexp"
 	"runtime/debug"
+	"strconv"
 	"strings"
 )
 
@@ -42,10 +43,33 @@ var cleanRelease = regexp.MustCompile(`^v(\d+\.\d+\.\d+)$`)
 // ldflagsVersion is how the go tool records an ldflags value for the version.
 const ldflagsVersion = "main.version="
 
+// checkoutPseudo is the module version the go tool records for a build made in
+// a checkout after a release tag: the next patch release with a pre-release
+// part of the commit, vX.Y.(Z+1)-0.<time>-<commit>, and +dirty for a modified
+// tree. Only the three numbers matter.
+var checkoutPseudo = regexp.MustCompile(`^v(\d+)\.(\d+)\.([1-9]\d*)-0\.\d{14}-[0-9a-f]{12}(\+dirty)?$`)
+
+// lastTagOfCheckout is the release tag behind a build made from a checkout
+// (forsgren#237, step 7): the pseudo-version's patch minus one. Empty when the
+// build records no commit (an installation's go install of an untagged commit
+// names no tag it can show) or its module version is no such pseudo-version.
+func lastTagOfCheckout(info *debug.BuildInfo) string {
+	if devCommit(info, true) == "" {
+		return ""
+	}
+	m := checkoutPseudo.FindStringSubmatch(info.Main.Version)
+	if m == nil {
+		return ""
+	}
+	patch, _ := strconv.Atoi(m[3])
+	return m[1] + "." + m[2] + "." + strconv.Itoa(patch-1)
+}
+
 // runningVersion is the version this binary reports, from one place
 // (forsgren#237): an ldflags value of var version as is; else the build
 // information's module version when it is a clean vX.Y.Z, without its v; else
-// var version.
+// the last release tag of a build made from a checkout (the footer adds +dev
+// and the commit); else var version.
 func runningVersion() string {
 	info := usableBuildInfo()
 	if info == nil {
@@ -53,6 +77,9 @@ func runningVersion() string {
 	}
 	if m := cleanRelease.FindStringSubmatch(info.Main.Version); m != nil {
 		return m[1]
+	}
+	if tag := lastTagOfCheckout(info); tag != "" {
+		return tag
 	}
 	return version
 }

@@ -39,6 +39,27 @@ func TestFooterOfADevelopmentBuildNamesItsCommit(t *testing.T) {
 	}
 }
 
+// TestFooterOfADevelopmentBuildNamesTheLastTag (forsgren#237, step 7): the
+// preview is built from main, which no release bumps, so its footer names the
+// last release tag, not the var: "<last tag>+dev (<commit>)".
+func TestFooterOfADevelopmentBuildNamesTheLastTag(t *testing.T) {
+	old := buildInfo
+	buildInfo = func() (*debug.BuildInfo, bool) {
+		return &debug.BuildInfo{
+			Main:     debug.Module{Version: "v4.5.7-0.20261020211502-c41db9e0a1b2"},
+			Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: "c41db9e0a1b2c3d4e5f60718293a4b5c6d7e8f90"}},
+		}, true
+	}
+	t.Cleanup(func() { buildInfo = old })
+	code, stderr, index := renderWith(t)
+	if code != 0 {
+		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
+	}
+	if want := "Forsgren</a> 4.5.6+dev (c41db9e) Metrics from GitHub data."; !strings.Contains(index, want) {
+		t.Errorf("want %q in the footer, got:\n%s", want, index)
+	}
+}
+
 // TestFooterOfAReleaseBuildIsUnchanged (forsgren#224): a build with no
 // revision, as an installation's go install of a pinned commit, shows the
 // version alone.

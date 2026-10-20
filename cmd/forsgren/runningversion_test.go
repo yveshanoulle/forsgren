@@ -78,3 +78,46 @@ func TestRunningVersionOfAnInstallationByCommit(t *testing.T) {
 		})
 	}
 }
+
+// TestRunningVersionOfACheckoutBuildIsTheLastTag (forsgren#237, step 7): a
+// build made from a checkout records the commit and, since the go tool
+// derives the module version from the tags, a pseudo-version of the NEXT
+// patch release after the last tag: measured with go build on 2026-10-20,
+// vA.B.(C+1)-0.20261020211502-a9eb14f9a07c with the tag vA.B.C behind it (and
+// +dirty after a modified tree). The version of that build is the last tag
+// (the +dev and the commit are the footer's); with no commit recorded (an
+// installation's go install of an untagged commit) or no tag behind it, the var.
+func TestRunningVersionOfACheckoutBuildIsTheLastTag(t *testing.T) {
+	const commit = "c41db9e0a1b2c3d4e5f60718293a4b5c6d7e8f90"
+	cases := []struct {
+		name, module string
+		revision     string
+		want         string
+	}{
+		{"a pseudo-version after a tag is the tag", "v4.5.7-0.20261020211502-a9eb14f9a07c", commit, "4.5.6"},
+		{"a modified tree is the same tag", "v4.5.7-0.20261020211502-a9eb14f9a07c+dirty", commit, "4.5.6"},
+		{"the first patch after a minor release", "v4.6.1-0.20261020211502-a9eb14f9a07c", commit, "4.6.0"},
+		{"no commit recorded is the var, an installation names no tag", "v4.5.7-0.20261020211502-a9eb14f9a07c", "", testVersion},
+		{"a pseudo-version of no tag is the var", "v0.0.0-20261020211502-a9eb14f9a07c", commit, testVersion},
+		{"a patch of 0 cannot follow a tag", "v4.5.0-0.20261020211502-a9eb14f9a07c", commit, testVersion},
+		{"a pre-release base is the var", "v4.5.7-rc.1.0.20261020211502-a9eb14f9a07c", commit, testVersion},
+		{"(devel) is the var", "(devel)", commit, testVersion},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			old := buildInfo
+			buildInfo = func() (*debug.BuildInfo, bool) {
+				info := &debug.BuildInfo{Main: debug.Module{Version: c.module}}
+				if c.revision != "" {
+					info.Settings = []debug.BuildSetting{{Key: "vcs.revision", Value: c.revision}}
+				}
+				return info, true
+			}
+			t.Cleanup(func() { buildInfo = old })
+			setVersion(t, testVersion)
+			if got := runningVersion(); got != c.want {
+				t.Errorf("runningVersion() = %q, want %q (Main.Version %q, commit %q)", got, c.want, c.module, c.revision)
+			}
+		})
+	}
+}

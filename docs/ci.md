@@ -14,7 +14,7 @@ metrics installation, rendered with the newest code on `main`. It never
 collects, so any difference from the live metrics site comes from the code
 alone, and the footer says so: the preview is built from the checkout with
 `go install ./cmd/forsgren`, which records the commit in the binary, so its
-footer reads "Forsgren <version>+dev (c41db9e)" (forsgren#224). A release is
+footer reads "Forsgren <last release tag>+dev (c41db9e)" (forsgren#224, forsgren#237). A release is
 installed as a module at a pinned commit, which records none, and
 `Scripts/build_site.sh` builds with `-buildvcs=false`, so both keep the plain
 version. The deploy itself lives in the preview repository,
