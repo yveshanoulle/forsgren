@@ -10,12 +10,13 @@
 #   2. a minor bump -> OK, `go test ./...` passes (the newer-release examples
 #      moved to the version after the new one); a major bump -> OK, and
 #      `go test ./...` fails ONLY on the agent-file proof run a new major needs
-#   3. every golden page and every test that names the version changed
+#   3. the bump changes cmd/forsgren/main.go and the docs, and no test and
+#      no golden page (forsgren#237)
 #   4. a version that is malformed, equal to the current one or lower, a
 #      missing argument -> exit 2 with its reason, the copy untouched
 # Mutation proofs: a copy whose scope list (Scripts/release_bump_scope.txt)
-# lost the golden pages must be refused by the script itself, naming the page
-# that still holds the old version; a copy that also lost that check must let it through (exit 0).
+# lost main.go must be refused by the script itself, naming the file that
+# still holds the old version; a copy that also lost that check must let it through (exit 0).
 
 set -euo pipefail
 
@@ -83,21 +84,18 @@ for history in SHIPPED.md package.json package-lock.json; do
   fi
 done
 
-# 3: every golden page and every test file that held the old version changed.
-missed=""
-while IFS= read -r file; do
-  if cmp -s "${BASE}/${file}" "${TMP}/patch/${file}"; then missed="${missed} ${file}"; fi
-done < <(cd "$BASE" && grep -rlE "(^|[^0-9.])${CURRENT//./\\.}($|[^0-9]|\\.[^0-9])" cmd/forsgren internal/page)
-if [[ -n "$missed" ]]; then
-  fail "files that held ${CURRENT} did not change:${missed}"
+# 3: the bump changes main.go and the docs, and no test and no golden page.
+changed="$(diff -rq "$BASE" "${TMP}/patch" | sed -n 's/^Files .* and .*\/patch\/\(.*\) differ$/\1/p' || true)"
+pinned_tests="$(printf '%s\n' "$changed" | grep -E '_test\.go$|\.golden\.html$' || true)"
+if [[ -n "$pinned_tests" ]]; then
+  fail "the bump changed tests or golden pages, which run as a fixed version: ${pinned_tests}"
 else
-  echo "  ok: every file under cmd/forsgren and internal/page that held ${CURRENT} changed"
+  echo "  ok: the bump changed no test and no golden page"
 fi
-goldens="$(cd "$BASE" && grep -rlF "${CURRENT}" internal/page/testdata | wc -l | tr -d ' ')"
-if [[ "$goldens" -lt 1 ]]; then
-  fail "no golden page holds ${CURRENT} in the base tree: the case above proves nothing about goldens"
+if printf '%s\n' "$changed" | grep -qxF 'cmd/forsgren/main.go'; then
+  echo "  ok: the bump changed cmd/forsgren/main.go (the case above is not vacuous)"
 else
-  echo "  ok: ${goldens} golden pages held the version"
+  fail "the bump did not change cmd/forsgren/main.go: ${changed:-nothing changed}"
 fi
 
 # 2
@@ -142,16 +140,16 @@ fi
 
 # Mutation proofs.
 fresh mutant
-selftest_mutant "${BASE}/Scripts/release_bump_scope.txt" "${TMP}/mutant/Scripts/release_bump_scope.txt" '/golden\.html/d' || true
+selftest_mutant "${BASE}/Scripts/release_bump_scope.txt" "${TMP}/mutant/Scripts/release_bump_scope.txt" '/^code|/d' || true
 bump mutant "$NEXT_PATCH"
-want_red "mutation proof: a bump that skips the golden pages is refused" "still holds ${CURRENT}"
-want_said "the refusal names a golden page" "internal/page/testdata/"
+want_red "mutation proof: a bump that skips main.go is refused" "still holds ${CURRENT}"
+want_said "the refusal names main.go" "cmd/forsgren/main.go"
 
 fresh mutant2
 MUT2="${TMP}/mutant2/Scripts/release_bump.sh"
-selftest_mutant "${BASE}/Scripts/release_bump_scope.txt" "${TMP}/mutant2/Scripts/release_bump_scope.txt" '/golden\.html/d' || true
+selftest_mutant "${BASE}/Scripts/release_bump_scope.txt" "${TMP}/mutant2/Scripts/release_bump_scope.txt" '/^code|/d' || true
 selftest_mutant "$BUMP" "$MUT2" 's/^verify_nothing_missed$/true/' || true
 bump mutant2 "$NEXT_PATCH"
-want_green "mutation proof: without the check, the skipped golden pages pass the script" "OK: bumped"
+want_green "mutation proof: without the check, the skipped main.go passes the script" "OK: bumped"
 
 selftest_end "the release bump does not hold" "release bump: patch and minor bumps leave go test green, a major only the agent-file proof run to do, nothing stays at the old version, a missed file is refused"

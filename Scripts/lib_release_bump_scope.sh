@@ -39,7 +39,7 @@ bump_scope_list() {
     case "$kind" in
       tree) find "$path" -type f -name "*${pattern}" ;;
       dir) find "$path" -maxdepth 1 -type f -name "*${pattern}" ;;
-      file) if [ -f "$path" ]; then printf '%s\n' "$path"; fi ;;
+      file | code) if [ -f "$path" ]; then printf '%s\n' "$path"; fi ;;
     esac
   done < <(bump_scope_rows "$@") | LC_ALL=C sort -u
 }
@@ -56,7 +56,7 @@ bump_scope_allows() {
     case "$kind" in
       tree) case "$target" in "${path}/"*) [[ "$name" == *"$pattern" ]] && return 0 ;; esac ;;
       dir) [ "${target%/*}" = "$path" ] && [[ "$name" == *"$pattern" ]] && return 0 ;;
-      file) [ "$target" = "$path" ] && return 0 ;;
+      file | code) [ "$target" = "$path" ] && return 0 ;;
     esac
   done < <(bump_scope_rows)
   return 1

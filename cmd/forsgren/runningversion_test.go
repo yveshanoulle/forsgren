@@ -16,13 +16,13 @@ func TestRunningVersionComesFromOneResolver(t *testing.T) {
 		settings []debug.BuildSetting
 		want     string
 	}{
-		{"a clean module version is the version without its v", "v1.12.0", nil, "1.12.0"},
+		{"a clean module version is the version without its v", "v8.8.8", nil, "8.8.8"},
 		{"a pseudo-version falls back to the var", "v0.0.0-20261020-abcdef123456", nil, testVersion},
 		{"(devel) falls back to the var", "(devel)", nil, testVersion},
 		{"an empty version falls back to the var", "", nil, testVersion},
-		{"a pre-release falls back to the var", "v1.12.0-rc1", nil, testVersion},
-		{"a +incompatible or dirty suffix falls back", "v1.12.0+dirty", nil, testVersion},
-		{"an ldflags value wins over the build information", "v1.12.0", ldflags, "9.9.9"},
+		{"a pre-release falls back to the var", "v8.8.8-rc1", nil, testVersion},
+		{"a +incompatible or dirty suffix falls back", "v8.8.8+dirty", nil, testVersion},
+		{"an ldflags value wins over the build information", "v8.8.8", ldflags, "9.9.9"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

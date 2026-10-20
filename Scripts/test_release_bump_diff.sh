@@ -5,8 +5,7 @@
 # check that a release's bump commit holds nothing but the version bump. The
 # fixture is a small repository in a temp directory with the files a bump
 # touches, a green commit, and the bump made by the real
-# Scripts/release_bump.sh (a patch bump, so the newer-release example moves
-# too), committed on top of it.
+# Scripts/release_bump.sh (a patch bump), committed on top of it.
 #   1. the real bump on the green commit                          -> OK
 #   2. one other line changed in an allowed file                  -> red, file:line
 #   3. a version replaced in a line that also changes more        -> red, file:line
@@ -42,9 +41,7 @@ g() {
 
 # The fixture: the files a bump touches, one file it must not, the scripts.
 mkdir -p "$FX/cmd/forsgren" "$FX/internal/page/testdata" "$FX/docs" "$FX/Scripts"
-printf 'package main\n\nvar version = "%s"\n' "$OLD_V" > "$FX/cmd/forsgren/main.go"
-printf 'package main\n\nfunc a() string { return Placeholder("%s") }\nfunc b() string { return "newer 1.2.4" }\nfunc c() int { return 3 }\n' "$OLD_V" > "$FX/cmd/forsgren/main_test.go"
-printf '<html>\n<footer><a href="x">Forsgren</a> %s</footer>\n<p>unrelated</p>\n</html>\n' "$OLD_V" > "$FX/internal/page/testdata/home.golden.html"
+printf 'package main\n\nvar version = "%s"\n\nfunc c() int { return 3 }\n' "$OLD_V" > "$FX/cmd/forsgren/main.go"
 printf '# Title\n\nPage footer: Forsgren %s\nsecond line\n' "$OLD_V" > "$FX/README.md"
 printf '# Guide\n\nforsgren %s\nneeds more configuration\n\nUpgrading to 1.2.2\n' "$OLD_V" > "$FX/docs/guide.md"
 printf '# Shipped\n' > "$FX/SHIPPED.md"
@@ -78,19 +75,19 @@ GOOD="$(commit_bump)"
 run_diff "$DIFFSCRIPT" "$GOOD"
 want_green "the real bump on the green commit" "OK: ${GOOD} only bumps ${OLD_V} to ${NEW_V} on top of the green ${GREEN}"
 git_changed="$(g diff --name-only "$GREEN" "$GOOD" | wc -l | tr -d ' ')"
-if [[ "$git_changed" -ge 4 ]]; then
+if [[ "$git_changed" -ge 3 ]]; then
   echo "  ok: the fixture bump changed ${git_changed} files (the case above is not vacuous)"
 else
   fail "the fixture bump changed only ${git_changed} files, the green case proves little"
 fi
 
-# 2: one other line in an allowed file (the unrelated golden line is line 3).
+# 2: one other line in an allowed file (the unrelated README line is line 4).
 bump_on extraline "$GREEN"
-sed -i.bak 's#<p>unrelated</p>#<p>changed</p>#' "$FX/internal/page/testdata/home.golden.html"
-rm "$FX/internal/page/testdata/home.golden.html.bak"
+sed -i.bak 's#second line#changed line#' "$FX/README.md"
+rm "$FX/README.md.bak"
 EXTRALINE="$(commit_bump)"
 run_diff "$DIFFSCRIPT" "$EXTRALINE"
-want_red "one other line changed in an allowed file" "❌ FAIL: bump diff: internal/page/testdata/home.golden.html:3 changes more than the version"
+want_red "one other line changed in an allowed file" "❌ FAIL: bump diff: README.md:4 changes more than the version"
 
 # 3: the version replaced in a line that also changes something else.
 bump_on moreinline "$GREEN"
@@ -100,18 +97,18 @@ MOREINLINE="$(commit_bump)"
 run_diff "$DIFFSCRIPT" "$MOREINLINE"
 want_red "a bumped line that also changes more" "❌ FAIL: bump diff: README.md:3 changes more than the version"
 bump_on halfbump "$GREEN"
-sed -i.bak "s#Placeholder(\"${NEW_V}\")#Placeholder(\"9.9.9\")#" "$FX/cmd/forsgren/main_test.go"
-rm "$FX/cmd/forsgren/main_test.go.bak"
+sed -i.bak "s#var version = \"${NEW_V}\"#var version = \"9.9.9\"#" "$FX/cmd/forsgren/main.go"
+rm "$FX/cmd/forsgren/main.go.bak"
 HALFBUMP="$(commit_bump)"
 run_diff "$DIFFSCRIPT" "$HALFBUMP"
-want_red "the version replaced by another version" "❌ FAIL: bump diff: cmd/forsgren/main_test.go:3 changes more than the version"
+want_red "the version replaced by another version" "❌ FAIL: bump diff: cmd/forsgren/main.go:3 changes more than the version"
 
 # 4: an uneven hunk.
 bump_on uneven "$GREEN"
-printf 'func d() int { return 4 }\n' >> "$FX/cmd/forsgren/main_test.go"
+printf 'func d() int { return 4 }\n' >> "$FX/cmd/forsgren/main.go"
 UNEVEN="$(commit_bump)"
 run_diff "$DIFFSCRIPT" "$UNEVEN"
-want_red "a line added next to the bump" "❌ FAIL: bump diff: cmd/forsgren/main_test.go:6 changes more than the version (0 lines removed, 1 added)"
+want_red "a line added next to the bump" "❌ FAIL: bump diff: cmd/forsgren/main.go:6 changes more than the version (0 lines removed, 1 added)"
 
 # 5: files outside the set.
 bump_on shipped "$GREEN"

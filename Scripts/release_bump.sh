@@ -5,12 +5,8 @@
 # working tree exactly as the manual bump commits do (1.9.2 and 1.9.3):
 #
 #   - `var version` in cmd/forsgren/main.go, the one source of the version
-#   - every test and golden page under cmd/forsgren and internal/page that
-#     pins the running version (Placeholder("1.9.3"), "Forsgren</a> 1.9.3",
-#     the golden footers), old to new
-#   - the newer-release examples in those tests: the patch after the old
-#     version moves to the patch after the new one (1.9.3 to 1.9.4 for the
-#     bump to 1.9.3), done first, so the examples stay newer than the version
+#   - nothing in the tests or the golden pages: they run as a fixed test
+#     version (forsgren#237), so a release does not touch them
 #   - the running version in README.md and docs/*.md: "Forsgren X.Y.Z" (the
 #     page footer), "forsgren X.Y.Z needs more configuration" (also across a
 #     line break) and the "Built with" example. Release history in the docs
@@ -21,7 +17,7 @@
 # per release) and the npm files (their versions are dependencies).
 #
 # Then it checks its own work: no file under cmd/forsgren or internal/page
-# still holds the old version, and no doc still names it as the running
+# (tests and golden pages included) still holds the old version, and no doc still names it as the running
 # version; a file that does is a red naming it. It runs no tests: the caller
 # runs `go test ./...` (the self-test does, on a copy).
 #
@@ -92,10 +88,10 @@ rewrite() {
   fi
 }
 
-# The tests and the golden pages that pin the version.
+# The source that holds var version.
 while IFS= read -r file; do
   rewrite "$file" "s/$(token "$OLD_EXAMPLE")/${NEW_EXAMPLE}/g; s/$(token "$OLD")/${NEW}/g"
-done < <(bump_scope_list tree)
+done < <(bump_scope_list code)
 
 # The docs name the running version in three places.
 while IFS= read -r file; do
