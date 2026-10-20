@@ -97,7 +97,10 @@ func TestRunningVersionOfACheckoutBuildIsTheLastTag(t *testing.T) {
 		{"a pseudo-version after a tag is the tag", "v4.5.7-0.20261020211502-a9eb14f9a07c", commit, "4.5.6"},
 		{"a modified tree is the same tag", "v4.5.7-0.20261020211502-a9eb14f9a07c+dirty", commit, "4.5.6"},
 		{"the first patch after a minor release", "v4.6.1-0.20261020211502-a9eb14f9a07c", commit, "4.6.0"},
-		{"no commit recorded is the var, an installation names no tag", "v4.5.7-0.20261020211502-a9eb14f9a07c", "", testVersion},
+		{
+			"no commit recorded is the var, an installation names no tag",
+			"v4.5.7-0.20261020211502-a9eb14f9a07c", "", testVersion,
+		},
 		{"a pseudo-version of no tag is the var", "v0.0.0-20261020211502-a9eb14f9a07c", commit, testVersion},
 		{"a patch of 0 cannot follow a tag", "v4.5.0-0.20261020211502-a9eb14f9a07c", commit, testVersion},
 		{"a pre-release base is the var", "v4.5.7-rc.1.0.20261020211502-a9eb14f9a07c", commit, testVersion},
