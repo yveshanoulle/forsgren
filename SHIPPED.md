@@ -9,6 +9,13 @@ Active work lives in
 
 ---
 
+## 2026-10-20 — html duplication takes canon v2: jscpd's threshold line is rewritten and a jscpd crash is shown ([#242](https://github.com/yveshanoulle/forsgren/issues/242))
+
+`Scripts/check_html_dupl.sh` is now canon `check_html_dupl` v2 and `Scripts/test_check_html_dupl.sh` v3, both byte-identical to another estate repository's. The gate runs jscpd with a threshold of 0 only to make it print the number, so an over-ceiling red used to show jscpd's own `over threshold (0%)` line as if the gate demanded 0%. The red now shows the gate's own ceiling and verdict and keeps the measured percentage on a line of its own; a jscpd failure for any other reason (exit not 0 or 1) shows jscpd's own error and is exit 2. The wrapper `Scripts/check_html_dupl_site.sh` does not read that line and needed no change.
+
+- Red first: the v3 test on the v1 gate failed five times, for example `the red does not show jscpd's over threshold (0%) line — output carries 'over threshold (0%)'` and `the crash shows jscpd's own error — output does not carry 'boom, cannot read config'`.
+- The test carries two new mutation proofs (D: jscpd's output shown unfiltered; E: no jscpd-failure check).
+
 ## 2026-10-20 — the gate-failure summary takes only lines that start with the cross ([#243](https://github.com/yveshanoulle/forsgren/issues/243))
 
 `Scripts/summarize_gate_failure.sh`, which fills the Errors list of an sfl or FBP run, matched the cross mark anywhere in a line. A self-test's passing ok: lines that quote the marker as a needle matched too, and with the cap of six shown lines they pushed the real FAIL lines out. It now takes only lines that start with the marker after any indentation (`grep -E '^[[:space:]]*❌'`); the bare `FAIL` and tail fallbacks are unchanged. Ported from the same fix in another estate repository.

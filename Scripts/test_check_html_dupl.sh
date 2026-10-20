@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_check_html_dupl v2
+# canon: test_check_html_dupl v3
 # Scripts/test_check_html_dupl.sh
 
 set -euo pipefail
@@ -25,6 +25,11 @@ cd "$(dirname "$0")/.."
 #     proof B: without the zero-sources check the reason is no longer named);
 #   - a missing node_modules/.bin/jscpd is exit 2, and a stub `npx` first on
 #     PATH is never called: there is no fallback;
+#   - an over-ceiling red shows the gate's own ceiling and verdict, never
+#     jscpd's "over threshold (0%)" line (the -t 0 it runs with is only there
+#     to print the number), and keeps the measured percentage (mutation proof D);
+#   - a jscpd failure for any other reason (a crash, exit not 0 or 1) shows
+#     jscpd's own error and is exit 2 (mutation proof E);
 #   - mutation proof A: the duplicated fixture turns green against a copy whose
 #     ceiling comparison always says "under";
 #   - mutation proof C: the lowered-settings-ceiling case turns green against a
@@ -175,6 +180,19 @@ run "$FIXTURE_DIR" 0.00
 check "FAILS when deliberate duplication exceeds the ceiling" 1 "$RC"
 check_says "the red names the ceiling it exceeded" "EXCEEDS the 0.00% ceiling"
 
+# jscpd's own line reads as if the gate demanded 0%; the gate's ceiling is
+# the real bar, so that line is not shown and the number is kept.
+run "$FIXTURE_DIR" 7.5
+check "FAILS over a non-zero ceiling" 1 "$RC"
+check_not_says "the red does not show jscpd's over threshold (0%) line" "over threshold (0%)"
+check_says "the red names the real ceiling" "EXCEEDS the 7.5% ceiling"
+if grep -qE 'measured [0-9]+(\.[0-9]+)?%' <<< "$OUT"; then
+  echo "  ✅ the red keeps the measured percentage on a line of its own"
+else
+  echo "  ❌ the red lost the measured percentage"
+  failures=$((failures + 1))
+fi
+
 run does-not-exist 99
 check "exits 2 on a missing target dir, never 0" 2 "$RC"
 
@@ -242,6 +260,16 @@ else
   echo "  ✅ the gate's text names no npx"
 fi
 
+# --- a jscpd failure for another reason still shows its error --------------
+new_root crash "$CHECK" dup 99 no-jscpd
+cp -R "$FIXTURE_DIR" "${ROOT}/dup"
+mkdir -p "${ROOT}/node_modules/.bin"
+printf '#!/usr/bin/env bash\necho "jscpd: boom, cannot read config"\nexit 3\n' > "${ROOT}/node_modules/.bin/jscpd"
+chmod +x "${ROOT}/node_modules/.bin/jscpd"
+run_root dup 99
+check "a jscpd crash (exit 3) is exit 2, never 0 or 1" 2 "$RC"
+check_says "the crash shows jscpd's own error" "boom, cannot read config"
+
 # --- Mutation proof A: the ceiling comparison is what reds the fixture ------
 MUTANT_A="${TMP}/mutant_a.sh"
 sed 's/print (a > b) ? 1 : 0/print 0/' "$CHECK" > "$MUTANT_A"
@@ -280,6 +308,34 @@ else
   cp "$MUTANT_C" "${ROOT}/Scripts/check_html_dupl.sh"
   run_root
   check "mutation proof C: the lowered-ceiling case turns green when the ceiling is hard-coded" 0 "$RC"
+fi
+
+# --- Mutation proof D: a copy that shows jscpd's output unfiltered ----------
+MUTANT_D="${TMP}/mutant_d.sh"
+sed "s/^ *shown=.*/  shown=\"\${plain}\"/" "$CHECK" > "$MUTANT_D"
+if cmp -s "$CHECK" "$MUTANT_D"; then
+  echo "  ❌ mutation proof D: the sed no longer matches the output filter, so this proof proves nothing"
+  failures=$((failures + 1))
+else
+  new_root mut-d "$MUTANT_D" dup 99
+  cp -R "$FIXTURE_DIR" "${ROOT}/dup"
+  run_root dup 7.5
+  check_says "mutation proof D: without the filter jscpd's over threshold (0%) line is shown again" "over threshold (0%)"
+fi
+
+# --- Mutation proof E: a copy without the jscpd-failure check ---------------
+MUTANT_E="${TMP}/mutant_e.sh"
+sed 's/\[ "[$]status" -ne 0 \] &&/false \&\&/' "$CHECK" > "$MUTANT_E"
+if cmp -s "$CHECK" "$MUTANT_E"; then
+  echo "  ❌ mutation proof E: the sed no longer matches the failure check, so this proof proves nothing"
+  failures=$((failures + 1))
+else
+  new_root mut-e "$MUTANT_E" dup 99 no-jscpd
+  cp -R "$FIXTURE_DIR" "${ROOT}/dup"
+  mkdir -p "${ROOT}/node_modules/.bin"
+  cp "${TMP}/root-crash/node_modules/.bin/jscpd" "${ROOT}/node_modules/.bin/jscpd"
+  run_root dup 99
+  check_not_says "mutation proof E: without the failure check the crash's error is swallowed" "boom, cannot read config"
 fi
 
 COMPLETED=1

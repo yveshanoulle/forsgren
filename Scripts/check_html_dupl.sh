@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: check_html_dupl v1
+# canon: check_html_dupl v2
 # Scripts/check_html_dupl.sh
 
 set -uo pipefail
@@ -46,6 +46,12 @@ cd "$(dirname "$0")/.." || exit 1
 # jscpd MEASURES; this script GATES. It is run with -t 0 so the percentage
 # always appears in the output, and the ceiling comparison happens here. That
 # keeps the number visible on a passing run.
+#
+# jscpd's own line "found too many duplicates (N%) over threshold (0%)" is
+# what -t 0 makes it print, and it reads as if this gate demanded 0%. It is
+# rephrased to "jscpd measured N% duplication" when shown; the ceiling and the
+# verdict are this script's own lines. Any other jscpd failure (exit not 0 or
+# 1, or no such line) is shown as jscpd printed it, exit 2.
 #
 # Exit: 0 at or under the ceiling, 1 over it, 2 tooling or nothing scanned.
 # Usage: check_html_dupl.sh [target-dir] [max-pct]  (defaults: site_settings.txt)
@@ -97,6 +103,14 @@ fi
 
 plain="$(printf '%s\n' "$out" | sed -E 's/\x1b\[[0-9;]*m//g')"
 
+# -t 0 makes jscpd exit 1 whenever it finds a clone, with the threshold line.
+# A non-zero exit WITHOUT that line is a real failure: show it, never hide it.
+if [ "$status" -ne 0 ] && ! grep -q 'found too many duplicates' <<<"$plain"; then
+  echo "html-dupl: ${JSCPD_PIN} failed (exit ${status}) — cannot measure:" >&2
+  printf '%s\n' "$plain" | tail -20 >&2
+  exit 2
+fi
+
 # Nothing scanned is not clean. jscpd writes no report at all when its pattern
 # matches no file, so a missing report counts as zero too.
 sources="$(node -e 'process.stdout.write(String(require(process.argv[1]).statistics.total.sources))' \
@@ -124,7 +138,8 @@ fi
 over="$(awk -v a="$pct" -v b="$MAX_PCT" 'BEGIN { print (a > b) ? 1 : 0 }')"
 
 if [ "$over" -eq 1 ]; then
-  printf '%s\n' "$plain"
+  shown="$(printf '%s\n' "$plain" | sed -E 's/ERROR: jscpd found too many duplicates \(([0-9.]+)%\) over threshold \(0%\)/jscpd measured \1% duplication/')"
+  printf '%s\n' "$shown"
   echo "html-dupl: duplication ${pct}% EXCEEDS the ${MAX_PCT}% ceiling." >&2
   echo "  The ceiling only ever moves DOWN. Do not raise it to clear this —" >&2
   echo "  remove the duplication instead." >&2
