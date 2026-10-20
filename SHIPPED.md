@@ -9,6 +9,10 @@ Active work lives in
 
 ---
 
+## 2026-10-20 — the tests stop pinning the released version ([#237](https://github.com/yveshanoulle/forsgren/issues/237), step 3 of 7)
+
+forsgren issue 237, step 3 of 7, patch. The tests of `cmd/forsgren` run as a fixed version through one seam, a `TestMain` that sets `var version` to `9.9.9`; the page package's tests render `Placeholder(testVersion)` with the same value, so the 29 page goldens say `9.9.9` and a release touches none of them (regenerated with the existing `-update` flag). The newer-release examples derive from it (`9.9.10`, by `nextPatch`), no longer literals. `TestNoTestPinsTheReleasedVersion` fails for any test file or golden that names the value of `var version` or the next patch. With `var version` set to `1.11.9`, 40 tests failed before and only the docs-version test fails after; step 4 handles the docs.
+
 ## 2026-10-20 — the install by commit reports the tag ([#237](https://github.com/yveshanoulle/forsgren/issues/237), step 2 of 7)
 
 forsgren issue 237, step 2 of 7, patch. Measured with `go install github.com/yveshanoulle/forsgren/cmd/forsgren@<ref>` and `go version -m`: the commit the tag v1.11.1 points at (790b3f4) records `v1.11.1`, the tag `v1.11.1` records `v1.11.1`, and an untagged commit of main (fc3b9cd) records `v1.11.2-0.20261020113112-fc3b9cd8afaa`. So a pin on a commit that carries the tag reports the release, and an untagged build falls back to `var version`. No code change; `TestRunningVersionOfAnInstallationByCommit` pins the two strings.

@@ -39,7 +39,7 @@ func TestLegendStatesTheDoraWindow(t *testing.T) {
 		}},
 	}
 	for _, c := range cases {
-		data := Placeholder("1.11.1")
+		data := Placeholder(testVersion)
 		data.DoraDays, data.DoraDaysSet = c.days, c.set
 		wantAll(t, c.name, rendered(t, "legend.html", data), c.want...)
 	}

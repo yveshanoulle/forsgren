@@ -17,11 +17,11 @@ func TestRunningVersionComesFromOneResolver(t *testing.T) {
 		want     string
 	}{
 		{"a clean module version is the version without its v", "v1.12.0", nil, "1.12.0"},
-		{"a pseudo-version falls back to the var", "v0.0.0-20261020-abcdef123456", nil, "1.11.1"},
-		{"(devel) falls back to the var", "(devel)", nil, "1.11.1"},
-		{"an empty version falls back to the var", "", nil, "1.11.1"},
-		{"a pre-release falls back to the var", "v1.12.0-rc1", nil, "1.11.1"},
-		{"a +incompatible or dirty suffix falls back", "v1.12.0+dirty", nil, "1.11.1"},
+		{"a pseudo-version falls back to the var", "v0.0.0-20261020-abcdef123456", nil, testVersion},
+		{"(devel) falls back to the var", "(devel)", nil, testVersion},
+		{"an empty version falls back to the var", "", nil, testVersion},
+		{"a pre-release falls back to the var", "v1.12.0-rc1", nil, testVersion},
+		{"a +incompatible or dirty suffix falls back", "v1.12.0+dirty", nil, testVersion},
 		{"an ldflags value wins over the build information", "v1.12.0", ldflags, "9.9.9"},
 	}
 	for _, c := range cases {
@@ -31,7 +31,7 @@ func TestRunningVersionComesFromOneResolver(t *testing.T) {
 				return &debug.BuildInfo{Main: debug.Module{Version: c.main}, Settings: c.settings}, true
 			}
 			t.Cleanup(func() { buildInfo = old })
-			setVersion(t, "1.11.1")
+			setVersion(t, testVersion)
 			if c.want == "9.9.9" {
 				setVersion(t, "9.9.9")
 			}
@@ -46,22 +46,23 @@ func TestRunningVersionWithoutBuildInformationIsTheVar(t *testing.T) {
 	old := buildInfo
 	buildInfo = func() (*debug.BuildInfo, bool) { return nil, false }
 	t.Cleanup(func() { buildInfo = old })
-	setVersion(t, "1.11.1")
-	if got := runningVersion(); got != "1.11.1" {
-		t.Errorf("runningVersion() = %q, want 1.11.1", got)
+	setVersion(t, testVersion)
+	if got := runningVersion(); got != testVersion {
+		t.Errorf("runningVersion() = %q, want %s", got, testVersion)
 	}
 }
 
 // TestRunningVersionOfAnInstallationByCommit (forsgren#237, step 2): the
 // module versions the go tool recorded, measured with go install of
 // github.com/yveshanoulle/forsgren/cmd/forsgren on 2026-10-20: at the commit
-// the tag v1.11.1 points at, and at the tag, it records v1.11.1; at an
-// untagged commit of main it records a pseudo-version. The var is set apart
+// a tag points at, and at the tag, it records the tag; at an untagged commit
+// of main it records a pseudo-version of the next patch release, such as
+// v<tag with its patch plus one>-0.20261020113112-fc3b9cd8afaa. The var is set apart
 // from both, so the answer can only come from the build information.
 func TestRunningVersionOfAnInstallationByCommit(t *testing.T) {
 	cases := []struct{ name, module, want string }{
-		{"the commit of a tag is the tag", "v1.11.1", "1.11.1"},
-		{"an untagged commit of main is the var", "v1.11.2-0.20261020113112-fc3b9cd8afaa", "0.0.0-test"},
+		{"the commit of a tag is the tag", "v" + testVersion, testVersion},
+		{"an untagged commit of main is the var", "v" + newerRelease + "-0.20261020113112-fc3b9cd8afaa", "0.0.0-test"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

@@ -32,7 +32,7 @@ func TestEveryPageCarriesAMetaDescription(t *testing.T) {
 	titled.Title = "Acme & Co"
 	numbersRoot := viewData()
 	numbersRoot.View = viewNumbers
-	placeholder := Placeholder("1.11.1")
+	placeholder := Placeholder(testVersion)
 	noProjects := placeholder
 	noProjects.NoProjects = true
 	cases := []struct {

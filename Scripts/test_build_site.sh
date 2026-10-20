@@ -25,6 +25,10 @@ STYLES="internal/page/styles.css"
 # through render's clock seam (SOURCE_DATE_EPOCH); the time is never stripped.
 PINNED_EPOCH=1791028800
 
+# The goldens are rendered as the fixed test version of the Go tests, never the
+# released one (forsgren#237); the build says it is that version.
+export FORSGREN_BUILD_VERSION=9.9.9
+
 TEMP_ROOT="$(mktemp -d)"
 COMPLETED=0
 FAILURES=0

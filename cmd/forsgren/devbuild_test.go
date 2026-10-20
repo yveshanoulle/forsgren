@@ -23,7 +23,7 @@ func builtFrom(t *testing.T, revision string) {
 }
 
 // TestFooterOfADevelopmentBuildNamesItsCommit (forsgren#224): a build made
-// from a checkout, as the preview's, shows 1.11.1+dev and the short commit,
+// from a checkout, as the preview's, shows the version with +dev and the short commit,
 // as text: the repository-links gate allows no link into a repository.
 func TestFooterOfADevelopmentBuildNamesItsCommit(t *testing.T) {
 	builtFrom(t, "c41db9e0a1b2c3d4e5f60718293a4b5c6d7e8f90")
@@ -31,7 +31,7 @@ func TestFooterOfADevelopmentBuildNamesItsCommit(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
 	}
-	if want := "Forsgren</a> 1.11.1+dev (c41db9e) Metrics from GitHub data."; !strings.Contains(index, want) {
+	if want := "Forsgren</a> " + testVersion + "+dev (c41db9e) Metrics from GitHub data."; !strings.Contains(index, want) {
 		t.Errorf("want %q in the footer, got:\n%s", want, index)
 	}
 	if strings.Contains(index, "github.com/") {
@@ -48,7 +48,7 @@ func TestFooterOfAReleaseBuildIsUnchanged(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
 	}
-	if want := "Forsgren</a> 1.11.1 Metrics from GitHub data."; !strings.Contains(index, want) {
+	if want := "Forsgren</a> " + testVersion + " Metrics from GitHub data."; !strings.Contains(index, want) {
 		t.Errorf("want %q in the footer, got:\n%s", want, index)
 	}
 	if strings.Contains(index, "+dev") {

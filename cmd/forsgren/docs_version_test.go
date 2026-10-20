@@ -76,8 +76,8 @@ func TestDocsNameTheRunningVersion(t *testing.T) {
 	found := runningVersionsInDocs(t)
 	for _, name := range slices.Sorted(maps.Keys(found)) {
 		for _, v := range found[name] {
-			if v != version {
-				t.Errorf("%s says Forsgren %s, but version is %s: a release bump forgot it", name, v, version)
+			if v != releasedVersion {
+				t.Errorf("%s says Forsgren %s, but version is %s: a release bump forgot it", name, v, releasedVersion)
 			}
 		}
 	}

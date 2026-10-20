@@ -39,7 +39,14 @@ mkdir -p "$BIN_DIR"
 # -buildvcs=false: the checkout's commit is not stamped into the binary, so the
 # site this build renders is a release build's (no "+dev" footer, forsgren#224);
 # the preview, built with go install, is the development build.
-go build -o "$BIN" -buildvcs=false ./cmd/forsgren || fail "go build ./cmd/forsgren failed"
+# FORSGREN_BUILD_VERSION, when set, is the version the binary says it is (an
+# ldflags value, forsgren#237): the fixture test builds the pages of the golden
+# files, which are rendered as a fixed test version.
+LDFLAGS=()
+if [[ -n "${FORSGREN_BUILD_VERSION:-}" ]]; then
+  LDFLAGS=(-ldflags "-X main.version=${FORSGREN_BUILD_VERSION}")
+fi
+go build -o "$BIN" -buildvcs=false ${LDFLAGS[@]+"${LDFLAGS[@]}"} ./cmd/forsgren || fail "go build ./cmd/forsgren failed"
 
 # Rendered into a fresh staging directory first, so the count is this run's
 # pages and never a stale file already in OUTPUT_DIR.
