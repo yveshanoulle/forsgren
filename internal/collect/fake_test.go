@@ -31,7 +31,7 @@ const (
 
 // gitHub is a fake GitHub that answers each path with one body (status 200),
 // or 404 for a path it does not know, and records every request. A path in
-// paged also gets a Link to its page 2. A repository's issues it has no body
+// paged also gets a Link to its page 2. A repository's issues, and an issue's comments, it has no body
 // for are an empty list: collect reads every repository's failure issues
 // (forsgren#18), and a test about deployments has none.
 type gitHub struct {
@@ -93,7 +93,7 @@ func (g *gitHub) serve(w http.ResponseWriter, r *http.Request) {
 	g.used++
 	key := keyOf(r)
 	body, ok := g.bodies[key]
-	if !ok && strings.HasSuffix(r.URL.Path, "/issues") {
+	if !ok && listsNothingByDefault(r.URL.Path) {
 		body, ok = "[]", true
 	}
 	if !ok {
@@ -106,6 +106,13 @@ func (g *gitHub) serve(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(code)
 	}
 	_, _ = io.WriteString(w, body)
+}
+
+// listsNothingByDefault says whether the fake answers an empty list to the
+// path when it has no body for it: a repository's issues and an issue's
+// comments.
+func listsNothingByDefault(path string) bool {
+	return strings.HasSuffix(path, "/issues") || strings.HasSuffix(path, "/comments")
 }
 
 // allIssues marks the fake's answers to a repository's issues listed

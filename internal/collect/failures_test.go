@@ -111,7 +111,7 @@ func TestAFailureIssueWithoutAFailureStartIsStoredAndNamed(t *testing.T) {
 	g := issuesOnly(t, issueJSON(43, "2026-09-22T08:00:00Z", "", "null"))
 	path := historyPath(t)
 	for _, wantErr := range []string{
-		"collect: acme/app: failure issue #43 has no failure-start line forsgren can read in its body\n", "",
+		"collect: acme/app: failure issue #43 has no failure-start line forsgren can read in its body or its comments\n", "",
 	} {
 		r := g.collect(t, shop(production), path, github.DefaultMaxPages)
 		if r.err != nil || r.stderr != wantErr {

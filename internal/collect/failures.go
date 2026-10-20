@@ -11,15 +11,19 @@ package collect
 // grows, and the newest line of an issue is the issue
 // (history.AppendFailures). An issue updated more than history_days ago is not
 // read again, so a change older than that is never seen. An issue without a
-// failure-start its body gives is named on stderr once, when it is first
-// stored, not again when it is closed or reopened: it counts all the same,
-// as change fail rate needs only its opening time.
+// failure-start in its body is looked for in its comments (forsgren#37): one
+// request, the first comment with a block winning, oldest first; the body
+// wins when it has one, and its comments are not read. One still without is
+// named on stderr once, when it is first stored, not again when it is closed
+// or reopened: it counts all the same, as change fail rate needs only its
+// opening time.
 
 import (
 	"context"
 	"errors"
 	"io/fs"
 	"path/filepath"
+	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/github"
 	"github.com/yveshanoulle/forsgren/internal/history"
@@ -58,26 +62,82 @@ func (o Options) failureIssues(ctx context.Context, h held, repo string) ([]hist
 		o.warn("collect: %s: read the newest %d page(s) of failure issues only; older ones were not read\n",
 			repo, o.Client.MaxPages())
 	}
-	return o.freshFailures(h, repo, issues), nil
+	return o.freshFailures(ctx, h, repo, issues)
 }
 
 // freshFailures is the issues of repo to store: new, or changed since their
-// newest stored line; a new one without a failure-start is named on stderr.
-func (o Options) freshFailures(h held, repo string, issues []github.Issue) []history.Failure {
+// newest stored line. One whose body gives no failure-start has its comments
+// read for the record block (forsgren#37); a new one still without a
+// failure-start is named on stderr. A refused read of the comments fails the
+// repository, like the other reads.
+func (o Options) freshFailures(
+	ctx context.Context, h held, repo string, issues []github.Issue,
+) ([]history.Failure, error) {
 	var fresh []history.Failure
 	for _, i := range issues {
-		f := failureOf(repo, i)
-		stored, known := h.failures[f.Key()]
-		if known && !f.Revises(stored) {
-			continue
+		f, store, err := o.failureToStore(ctx, h, repo, i)
+		if err != nil {
+			return nil, err
 		}
-		if !known && f.FailureStart.IsZero() {
-			o.warn("collect: %s: failure issue #%d has no failure-start line forsgren can read in its body\n",
-				repo, i.Number)
+		if store {
+			fresh = append(fresh, f)
 		}
-		fresh = append(fresh, f)
 	}
-	return fresh
+	return fresh, nil
+}
+
+// failureToStore is issue i of repo as it is stored and whether it is to be
+// stored: new, or changed since its newest stored line. A new one without a
+// failure-start, body and comments alike, is named on stderr.
+func (o Options) failureToStore(
+	ctx context.Context, h held, repo string, i github.Issue,
+) (history.Failure, bool, error) {
+	f, err := o.failureWithComments(ctx, repo, i)
+	if err != nil {
+		return f, false, err
+	}
+	stored, known := h.failures[f.Key()]
+	if known && !f.Revises(stored) {
+		return f, false, nil
+	}
+	if !known && f.FailureStart.IsZero() {
+		o.warn("collect: %s: failure issue #%d has no failure-start line forsgren can read "+
+			"in its body or its comments\n", repo, i.Number)
+	}
+	return f, true, nil
+}
+
+// failureWithComments is the stored form of issue i of repo, its failure-start
+// from the comments when the body gives none.
+func (o Options) failureWithComments(ctx context.Context, repo string, i github.Issue) (history.Failure, error) {
+	f := failureOf(repo, i)
+	if !f.FailureStart.IsZero() {
+		return f, nil
+	}
+	var err error
+	f.FailureStart, err = o.commentStart(ctx, repo, i.Number)
+	return f, err
+}
+
+// commentStart is the failure-start of the first comment of issue number of
+// repo that has one, oldest first (a block never combines two comments); zero
+// when none does. It is the only request for the comments of an issue whose
+// body has no failure-start.
+func (o Options) commentStart(ctx context.Context, repo string, number int64) (time.Time, error) {
+	records, truncated, err := o.Client.CommentRecords(ctx, repo, number)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if truncated {
+		o.warn("collect: %s: read the first %d page(s) of the comments of failure issue #%d only\n",
+			repo, o.Client.MaxPages(), number)
+	}
+	for _, r := range records {
+		if !r.FailureStart.IsZero() {
+			return r.FailureStart, nil
+		}
+	}
+	return time.Time{}, nil
 }
 
 // failureOf is the stored form of one issue of repo: times in UTC, whole

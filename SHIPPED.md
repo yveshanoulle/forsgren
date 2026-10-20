@@ -9,6 +9,13 @@ Active work lives in
 
 ---
 
+## 2026-10-20 — collect reads the failure record block from an issue's comments when the body has none ([#37](https://github.com/yveshanoulle/forsgren/issues/37))
+
+Another estate repository writes the record block (`failure-start`, `failed-build`, `fixed-build`) in a comment of its own, so forsgren stored an empty `failure_start` for each of its failure issues. `collect` now reads the issue's comments when its body gives no `failure-start`: one request per such issue (`github.Client.CommentRecords`, every page up to the limit), never for an issue whose body has the block, so the body wins and a newer block in a comment does not override it. Among the comments the first one with a `failure-start` counts, oldest first; the lines of different comments are never combined. A refused read of the comments fails the repository like the other reads, never a silent empty value; a list cut at the page limit is named on stderr; an issue with no block anywhere is stored with an empty `failure_start` and named on stderr as before ("in its body or its comments"). An issue is looked at again only when it is listed again, so when its update time moved. Recovery time is unchanged. Not in this step: a backfill of the failure issues already stored with an empty `failure_start` (they are repaired when their issue is next updated).
+
+- Red first: with a stub, `go test -run` showed `TestCommentRecordsReadsTheBlockOfEachComment`, `TestCommentRecordsFollowsTheLinkNext`, `TestCommentRecordsRefusesWhatItCannotRead` and the collect cases (comment block, no block anywhere, refused comments read) failing; the body-wins case is a pin that holds from the start.
+- `CommentRecords` and `commentStart` are registered at 100.0 in `coverage_thresholds.json`.
+
 ## 2026-10-20 — the Quality run page shows details only for gates that are not green ([#235](https://github.com/yveshanoulle/forsgren/issues/235))
 
 Under the gate table the Quality run page printed the full output of every gate, green ones included: the whole Go test log, each coverage function and every self-test case, thousands of lines. `Scripts/render_quality_report.sh` is now canon `render_quality_report v3` (with `test_render_quality_report v3`): the page keeps the headline, the key numbers and the gate table, then the details of the gates whose mark is not the green check only, so a green run ends after the table and the baseline sections. The full output stays in the job log. The sites take the same v3 byte-identical through their own issues.

@@ -433,18 +433,26 @@ as issues, with a `pull_request` field).
   `reach.csv`.
 
 - Each issue's number, `created_at`, `closed_at` and the `failure-start:`
-  line of its body are stored (see [History](#history)). An issue already stored is
+  line of its record block (body, else comments) are stored (see [History](#history)). An issue already stored is
   stored again only when one of them changed: closed, or reopened.
-- **The record block is read from the issue's body**, the lines
+- **The record block is read from the issue's body, then its comments** (forsgren#37), the lines
   `failure-start:`, `failed-build:` and `fixed-build:` alone on their
   line, as forsgren#6 rules. `failure-start` is read as ISO 8601 with an
   offset, to the minute (`2026-09-20T09:12+02:00`) or the second; a body
   without one, or with a time in another form, stores the issue with an
   empty `failure_start` and a warning: `collect: acme/app: failure issue
-  #43 has no failure-start line forsgren can read in its body`, once, when
-  the issue is first stored (not again when it is closed or reopened). A block written in a comment instead of the body is
-  not read. The issue counts all the same: change fail rate needs only
-  when it was opened.
+  #43 has no failure-start line forsgren can read in its body or its
+  comments`, once, when the issue is first stored (not again when it is
+  closed or reopened). The body wins: when it has a `failure-start`, the
+  comments are not requested, and a newer block in a comment does not
+  override it. Otherwise the issue's comments are read, one request, every
+  page up to the limit, oldest first, and the first comment with a
+  `failure-start` is the block (the lines of different comments are never
+  combined); a list cut at the page limit is named on stderr. A refused read
+  of the comments fails the repository like the other reads, never an empty
+  `failure_start`. An issue is looked at again only when it is listed again,
+  that is when its update time moved (a new or edited comment included). The
+  issue counts all the same: change fail rate needs only when it was opened.
 - A list cut at the page limit is stored and named on stderr: `collect:
   acme/app: read the newest 10 page(s) of failure issues only; older ones
   were not read`.

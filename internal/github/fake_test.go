@@ -161,5 +161,9 @@ func calls(repo string) map[string]func(*Client) error {
 			_, _, err := c.FailureIssues(ctx, repo, since)
 			return err
 		},
+		"comment records": func(c *Client) error {
+			_, _, err := c.CommentRecords(ctx, repo, 42)
+			return err
+		},
 	}
 }
