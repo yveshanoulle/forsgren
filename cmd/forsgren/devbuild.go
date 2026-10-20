@@ -3,6 +3,7 @@ package main
 import (
 	"regexp"
 	"runtime/debug"
+	"strings"
 )
 
 // buildInfo reads how this binary was built; a var so a test can say it was
@@ -32,4 +33,36 @@ func devCommit(info *debug.BuildInfo, ok bool) string {
 		}
 	}
 	return ""
+}
+
+// cleanRelease is a module version of a release: vX.Y.Z, no pre-release, no
+// pseudo-version, no build suffix.
+var cleanRelease = regexp.MustCompile(`^v(\d+\.\d+\.\d+)$`)
+
+// ldflagsVersion is how the go tool records an ldflags value for the version.
+const ldflagsVersion = "main.version="
+
+// runningVersion is the version this binary reports, from one place
+// (forsgren#237): an ldflags value of var version as is; else the build
+// information's module version when it is a clean vX.Y.Z, without its v; else
+// var version.
+func runningVersion() string {
+	info, ok := buildInfo()
+	if !ok || info == nil || setByLdflags(info) {
+		return version
+	}
+	if m := cleanRelease.FindStringSubmatch(info.Main.Version); m != nil {
+		return m[1]
+	}
+	return version
+}
+
+// setByLdflags is whether the build was given -X main.version.
+func setByLdflags(info *debug.BuildInfo) bool {
+	for _, s := range info.Settings {
+		if s.Key == "-ldflags" && strings.Contains(s.Value, ldflagsVersion) {
+			return true
+		}
+	}
+	return false
 }

@@ -106,7 +106,7 @@ func (in summaryInput) markdown(stderr io.Writer) string {
 	latest, _ := in.latestRelease()
 	lines := []string{
 		"Run: " + now().UTC().Format(runLayout),
-		"Built with: forsgren " + version,
+		"Built with: forsgren " + runningVersion(),
 		"Latest release: " + latest,
 		"Update: " + in.update(),
 	}
@@ -232,7 +232,7 @@ func (in summaryInput) readmeLine() string {
 	if !known {
 		return ""
 	}
-	return "- README: " + strings.Replace(words, "%s", version, 1) + "\n"
+	return "- README: " + strings.Replace(words, "%s", runningVersion(), 1) + "\n"
 }
 
 // update says where the update stands.
@@ -241,7 +241,7 @@ func (in summaryInput) update() string {
 	if !known {
 		return "unknown (the latest release could not be read)"
 	}
-	if (page.Data{Version: version, Latest: latest}).Update() == "" {
+	if (page.Data{Version: runningVersion(), Latest: latest}).Update() == "" {
 		return "up to date"
 	}
 	if in.waitingPR > 0 {

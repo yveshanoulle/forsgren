@@ -81,7 +81,7 @@ func reportNeeds(o checkNeedsOptions, stdout, stderr io.Writer) string {
 	if err != nil {
 		return noteFailed(stderr, err)
 	}
-	return writeSetup(setupReport{issues: client, repo: o.repository, version: version}, missing, known, stderr)
+	return writeSetup(setupReport{issues: client, repo: o.repository, version: runningVersion()}, missing, known, stderr)
 }
 
 // writeSetup writes the setup issue for the missing needs, looking it up
@@ -122,7 +122,7 @@ func writeOutcome(missing int, err error, stderr io.Writer) string {
 // notes on stderr start with name, the running command. The error is For's:
 // a version or a declaration that cannot be read.
 func missingNeeds(name, config string, stderr io.Writer) ([]needs.Need, error) {
-	all, err := needs.For(version)
+	all, err := needs.For(runningVersion())
 	if err != nil {
 		return nil, err
 	}

@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-10-20 — the running version comes from one resolver ([#237](https://github.com/yveshanoulle/forsgren/issues/237), step 1 of 7)
+
+forsgren issue 237, step 1 of 7, patch. `runningVersion()` in `cmd/forsgren/devbuild.go` is the one place the version is read for output: an ldflags `-X main.version` value as is; else the build information's module version when it is a clean `vX.Y.Z`, without its `v`; else `var version`, with the existing `+dev (sha)` footer logic. The render, summary, setup-check and install-README call sites use it. No visible change: goldens, footer and docs are unchanged.
+
+- Red first: `TestRunningVersionComesFromOneResolver` failed for `v1.12.0` (got `1.11.1`, want `1.12.0`). Mutation proofs: `v` not stripped, the end anchor of the clean-version pattern removed (pseudo-version, pre-release and `+dirty` cases fail), and the ldflags check removed each fail with their reason.
+
 ## 2026-10-20 — the Release workflow starts the preview deploy of the release ([#236](https://github.com/yveshanoulle/forsgren/issues/236), step 1 of 1)
 
 After a release the preview site could name the version before the metrics site: the bump commit is pushed with the job's token, which starts no Quality run with a preview job, so the preview deploy waited for the next push to main. `release.yml` has a new step after the metrics step, "Start the preview deploy of the release", that runs `Scripts/dispatch_preview.sh` with the bump sha and gets `PREVIEW_DISPATCH_TOKEN` (and only that step does). It also runs for `resume: pins` and `resume: publish`. A failed start prints an `::error::` line with a red cross and fails the step; there is no `continue-on-error` and no `|| true`. The release is already published by then and stays published. Patch.

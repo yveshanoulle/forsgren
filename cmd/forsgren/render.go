@@ -89,7 +89,7 @@ func renderTime() (time.Time, error) {
 // pageData is what the page shows for the options at the render time at; a
 // setting of the config that is not accepted is warned about on stderr.
 func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error) {
-	data := page.Placeholder(version)
+	data := page.Placeholder(runningVersion())
 	data.DevCommit = devCommit(buildInfo())
 	data.AsOf = at.UTC().Format(calculatedLayout)
 	data.Latest, data.WaitingPR = o.latest, o.waitingPR

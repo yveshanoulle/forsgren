@@ -142,7 +142,7 @@ func installReadme(args []string, stdout, stderr io.Writer) int {
 	if !ok {
 		return 2
 	}
-	outcome, err := installreadme.Write(path, version)
+	outcome, err := installreadme.Write(path, runningVersion())
 	if err != nil {
 		return failed(stderr, "install-readme", err)
 	}
