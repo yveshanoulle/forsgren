@@ -34,6 +34,9 @@
 #     by "label it patch, minor or major"
 #   - the requested bump is lower than the required one; the line names the
 #     issues that require more
+#   - a major (asked, or required with auto) while an agent file lacks a proof
+#     run on the new major (forsgren#237, step 5b): every such file is named,
+#     by Scripts/release_agent_proofs.sh
 # Every red that names issues also prints one machine line per issue, from
 # the same data (forsgren#232), for the run summary:
 #   blocking=<N> TAB <kind> TAB <title> TAB <latest tag>
@@ -335,6 +338,22 @@ if (( requested_rank < required_rank )); then
     exit 1
   fi
   ALL_RED=1
+fi
+
+# A major needs a proof run of every agent file on the new major
+# (forsgren#237, step 5b): the rule lives where the major is decided, since no
+# release bumps `var version` any more for a test to read.
+if [ "$REQUESTED" = major ]; then
+  NEW_MAJOR="$((MAJOR + 1))"
+  if ! agent_out="$(./Scripts/release_agent_proofs.sh "$NEW_MAJOR" 2>&1)"; then
+    echo "❌ FAIL: release plan: a major release (${NEW_MAJOR}.0.0) needs a proof run of every agent file on major ${NEW_MAJOR}:"
+    printf '%s\n' "$agent_out"
+    if [ "$ALL" -ne 1 ]; then
+      COMPLETED=1
+      exit 1
+    fi
+    ALL_RED=1
+  fi
 fi
 
 if [ "$ALL_RED" -eq 1 ]; then

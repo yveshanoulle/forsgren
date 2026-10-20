@@ -10,22 +10,26 @@
 #   1. workflow_dispatch and nothing else; one input `bump`, a choice of
 #      patch, minor, major, default patch; one release at a time, never cancelled
 #   2. top-level permissions contents: read; the one job has exactly contents,
-#      actions and issues, the first two write, the last read; one job on ubuntu-latest
+#      actions and issues, contents write (the tag and the release), the other
+#      two read (nothing is dispatched any more, forsgren#237); one job on ubuntu-latest
 #   3. only checkout and setup-go, pinned by the commits metrics.yml pins; the
 #      checkout keeps no credentials
 #   4. no run: block expands a ${{ }} expression (template injection)
 #   5. the steps, in this order, each with its name: the run is on main,
 #      checkout, Go, the log, the token check, Quality on main, the plan, the
-#      version is free, the bump, go test, the commit, Quality on the bump
-#      commit, the release, the template, the metrics pull request, the report
+#      version is free, main's head has not moved, the release (the tag at the
+#      Quality-green head, forsgren#237: no bump, no commit, no push), the
+#      install check (go install at the released sha reports the release),
+#      the template, the metrics pull request, the preview, the report
 #   6. each step runs exactly its script with its arguments
 #   7. the secret FORSGREN_RELEASE_TOKEN is in the env of the token check, the
 #      template step and the metrics step, and nowhere else
 #   8. the tag is made by Scripts/release_publish.sh alone: the workflow has no
-#      git tag, no git push, no gh release
+#      git tag, no git commit, no git push, no gh release; the head check is
+#      the step right before the release, the install check is before the pins
 #   8b. the step after the metrics step starts the preview deploy of the
-#      release (forsgren issue 236): Scripts/dispatch_preview.sh with the bump
-#      sha, PREVIEW_DISPATCH_TOKEN in its env and nowhere else, a failed start
+#      release (forsgren issue 236): Scripts/dispatch_preview.sh with the released
+#      sha (RELEASE_SHA), PREVIEW_DISPATCH_TOKEN in its env and nowhere else, a failed start
 #      prints ::error:: with a red cross and fails the step (the release stays
 #      published), no continue-on-error, no skip
 #   9. the last step runs `if: ${{ always() }}`, reports the job's status and
@@ -72,12 +76,9 @@ NAMES=(
   "Quality is green on main"
   "Plan the release"
   "Check the version is new"
-  "Bump the version in the working tree"
-  "Test the bumped tree"
-  "Commit the bump and push it to main"
-  "Quality is green on the bump commit"
-  "Quality is green on the resumed bump commit"
+  "Check main has not moved"
   "Create the tag and the release"
+  "Check an install of the release reports its version"
   "Move the pins and README of forsgren-template"
   "Open the pin pull request in forsgren-metrics"
   "Merge the pin pull request and run forsgren in forsgren-metrics"
@@ -87,7 +88,7 @@ NAMES=(
 
 # IDS: the step ids in the order of NAMES; the report step passes the outcome
 # of each (steps.<id>.outcome), so it names the step that failed (forsgren#221).
-IDS=(main checkout setup-go log token resume quality plan free bump test commit quality-bump quality-resumed publish template metrics-pr metrics preview)
+IDS=(main checkout setup-go log token resume quality plan free head publish verify-install template metrics-pr metrics preview)
 
 id_findings() {
   local i name id
@@ -102,23 +103,32 @@ id_findings() {
   step_text "$1" "Say what was done" | grep -qxF '          RELEASE_STEP_OUTCOMES: |' || echo "outcomes: the report step has no RELEASE_STEP_OUTCOMES"
 }
 
-# resume_findings: with `resume: pins` only the template and metrics steps run
-# for the release that exists; every step that makes a release is skipped.
+# resume_findings: with `resume: pins` only the install check, the template and
+# metrics steps run for the release that exists; every step that makes a
+# release is skipped. There is no resume: publish (forsgren#237).
 resume_findings() {
   local name
-  # A new release only: the steps that make the release.
-  for name in "Quality is green on main" "Plan the release" "Check the version is new" "Bump the version in the working tree" "Test the bumped tree" "Commit the bump and push it to main"; do
-    step_text "$1" "$name" | grep -qxF "        if: ${DOLLAR}{{ inputs.resume == 'none' }}" || echo "resume: the step '${name}' is not skipped by resume: pins and publish"
+  for name in "Quality is green on main" "Plan the release" "Check the version is new" "Check main has not moved" "Create the tag and the release"; do
+    step_text "$1" "$name" | grep -qxF "        if: ${DOLLAR}{{ inputs.resume == 'none' }}" || echo "resume: the step '${name}' is not skipped by resume: pins"
   done
-  # The publish also runs for resume: publish, with the full Quality on the
-  # resumed bump commit; the short Quality is for a new release only.
-  step_text "$1" "Create the tag and the release" | grep -qxF "        if: ${DOLLAR}{{ inputs.resume != 'pins' }}" || echo "resume: the step 'Create the tag and the release' is not skipped by resume: pins only"
-  step_text "$1" "Quality is green on the bump commit" | grep -qxF "        if: ${DOLLAR}{{ inputs.resume == 'none' }}" || echo "resume: the step 'Quality is green on the bump commit' is not skipped by resume: pins and publish"
-  for name in "Move the pins and README of forsgren-template" "Open the pin pull request in forsgren-metrics" "Merge the pin pull request and run forsgren in forsgren-metrics" "Check the release token is set"; do
+  for name in "Check an install of the release reports its version" "Move the pins and README of forsgren-template" "Open the pin pull request in forsgren-metrics" "Merge the pin pull request and run forsgren in forsgren-metrics" "Check the release token is set"; do
     if step_text "$1" "$name" | grep -qE '^        if:'; then echo "resume: the step '${name}' must run also when resuming"; fi
   done
-  code "$1" | grep -qxF '        options: [none, pins, publish]' || echo "input: resume is not a choice of none, pins, publish"
+  code "$1" | grep -qxF '        options: [none, pins]' || echo "input: resume is not a choice of none, pins"
   awk '/^      resume:/ { r=1 } r && /default:/ { print; exit }' "$1" | grep -qxF '        default: none' || echo "input: the default resume is not none"
+}
+
+# release_findings (forsgren#237): the release tags the Quality-green head of
+# main as it is. Nothing is bumped, tested, committed or pushed by the
+# workflow, and the sha is RELEASE_SHA; the head check is the step right before
+# the publish.
+release_findings() {
+  if code "$1" | grep -qE 'git (commit|push|add|config)|release_bump|release_commit|dispatch-bump|BUMP_SHA|resume: publish|quality-bump|quality-resumed'; then
+    echo "release: the workflow still bumps, commits, pushes or names a bump commit"
+  fi
+  local following
+  following="$(awk '/^      - name: Check main has not moved$/ { f=1; next } f && /^      - name:/ { sub(/^      - name: /, ""); print; exit }' "$1")"
+  [[ "$following" == "Create the tag and the release" ]] || echo "head: the step after 'Check main has not moved' is '${following:-none}', not the release"
 }
 
 trigger_findings() {
@@ -137,7 +147,7 @@ permission_findings() {
     || echo "permissions: the top level is not contents: read"
   local perms
   perms="$(awk '/^    permissions:/ { p=1; next } p && /^      [a-z-]+:/ { s=$0; sub(/#.*/, "", s); gsub(/ +/, " ", s); print s; next } p { exit }' "$1" | tr -d ' ' | LC_ALL=C sort | tr '\n' ' ')"
-  [[ "$perms" == "actions:write contents:write issues:read " ]] || echo "permissions: the job must hold exactly actions write, contents write, issues read, got: ${perms:-none}"
+  [[ "$perms" == "actions:read contents:write issues:read " ]] || echo "permissions: the job must hold exactly actions read, contents write, issues read, got: ${perms:-none}"
   local hosts
   hosts="$(code "$1" | grep -E '^[[:space:]]+runs-on:' | sed -E 's/.*runs-on:[[:space:]]*//' | sort | uniq -c | tr -s ' ' | tr '\n' ';')"
   [[ "$hosts" == " 1 ubuntu-latest;" ]] || echo "runs-on: want one job on ubuntu-latest, got: ${hosts}"
@@ -184,50 +194,41 @@ Find the release to resume@@        if: ${{ inputs.resume != 'none' }}
 Find the release to resume@@          RESUME_MODE: ${{ inputs.resume }}
 Find the release to resume@@          ./Scripts/release_resume.sh "$RESUME_MODE" | tee "${RUNNER_TEMP}/resume.txt"
 Find the release to resume@@          echo "resume: $(grep '^tag=' "${RUNNER_TEMP}/resume.txt") at $(grep '^sha=' "${RUNNER_TEMP}/resume.txt" | cut -d= -f2)" >> "$RELEASE_LOG"
+Check out main@@          fetch-depth: 200  # plan: the commits since the latest tag name the open issues that landed
 Quality is green on main@@          echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-Quality is green on the bump commit@@          BUMP_SHA: ${{ steps.commit.outputs.sha }}
-Quality is green on the bump commit@@          GREEN_PARENT: ${{ steps.quality.outputs.sha }}
-Quality is green on the bump commit@@          OLD_VERSION: ${{ steps.bump.outputs.old }}
-Quality is green on the bump commit@@          NEW_VERSION: ${{ steps.plan.outputs.version }}
-Quality is green on the bump commit@@          echo "quality-bump: short Quality (bump) green on ${BUMP_SHA}: $(grep '^OK: ' "${RUNNER_TEMP}/quality-bump.txt" | sed 's/^OK: //')" >> "$RELEASE_LOG"
-Quality is green on the resumed bump commit@@        if: ${{ inputs.resume == 'publish' }}
-Quality is green on the resumed bump commit@@          BUMP_SHA: ${{ steps.resume.outputs.sha }}
-Quality is green on the resumed bump commit@@          echo "quality-resumed: full Quality green on ${BUMP_SHA}: $(grep '^OK: ' "${RUNNER_TEMP}/quality-resumed.txt" | sed 's/^OK: //')" >> "$RELEASE_LOG"
-Bump the version in the working tree@@          echo "old=$(sed -n 's/^OK: bumped \([0-9.]*\) to .*/\1/p' "${RUNNER_TEMP}/bump.txt")" >> "$GITHUB_OUTPUT"
-Create the tag and the release@@          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
-Create the tag and the release@@          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
-Say what was done@@          RELEASE_BUMP: ${{ inputs.bump }}
-Check out main@@          fetch-depth: 200  # resume: publish looks for the bump commit in the history
-Move the pins and README of forsgren-template@@          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
-Move the pins and README of forsgren-template@@          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
-Open the pin pull request in forsgren-metrics@@          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
-Open the pin pull request in forsgren-metrics@@          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
-Merge the pin pull request and run forsgren in forsgren-metrics@@          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
-Merge the pin pull request and run forsgren in forsgren-metrics@@          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
-Merge the pin pull request and run forsgren in forsgren-metrics@@          ./Scripts/release_metrics.sh "$VERSION" "$BUMP_SHA" | tee "${RUNNER_TEMP}/metrics.txt"
-Start the preview deploy of the release@@          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
-Start the preview deploy of the release@@          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
-Start the preview deploy of the release@@          PREVIEW_DISPATCH_TOKEN: ${{ secrets.PREVIEW_DISPATCH_TOKEN }}
-Start the preview deploy of the release@@          if ! ./Scripts/dispatch_preview.sh "$BUMP_SHA"; then
-Start the preview deploy of the release@@            echo "::error::❌ the preview deploy of v${VERSION} at ${BUMP_SHA} was not started; the release is published, start the preview by hand with Scripts/dispatch_preview.sh"
-Start the preview deploy of the release@@            exit 1
-Start the preview deploy of the release@@          echo "preview: deploy started at ${BUMP_SHA}" >> "$RELEASE_LOG"
-Say what was done@@          RELEASE_RESUME: ${{ inputs.resume }}
 Quality is green on main@@          ./Scripts/release_quality.sh check "$GITHUB_SHA"
 Plan the release@@          ./Scripts/release_plan.sh "$BUMP" --notes "${RUNNER_TEMP}/notes.md" | tee "${RUNNER_TEMP}/plan.txt"
 Plan the release@@          BUMP: ${{ inputs.bump }}
 Check the version is new@@          ./Scripts/release_publish.sh free "$VERSION"
-Bump the version in the working tree@@          ./Scripts/release_bump.sh "$VERSION" | tee "${RUNNER_TEMP}/bump.txt"
-Test the bumped tree@@          go test ./...
-Test the bumped tree@@          echo "test: go test ./... passes on the bumped tree" >> "$RELEASE_LOG"
-Commit the bump and push it to main@@          ./Scripts/release_commit.sh "$VERSION" "$ISSUES" "$remote" | tee "${RUNNER_TEMP}/commit.txt"
-Commit the bump and push it to main@@          FORSGREN_PRIVATE_NAMES: ${{ secrets.FORSGREN_PRIVATE_NAMES }}
-Quality is green on the bump commit@@          ./Scripts/release_quality.sh dispatch-bump "$BUMP_SHA" main "$GREEN_PARENT" "$OLD_VERSION" "$NEW_VERSION" | tee "${RUNNER_TEMP}/quality-bump.txt"
-Quality is green on the resumed bump commit@@          ./Scripts/release_quality.sh dispatch "$BUMP_SHA" main | tee "${RUNNER_TEMP}/quality-resumed.txt"
-Create the tag and the release@@          ./Scripts/release_publish.sh create "$VERSION" "$BUMP_SHA" "${RUNNER_TEMP}/notes.md"
-Move the pins and README of forsgren-template@@          ./Scripts/release_pins.sh template "$VERSION" "$BUMP_SHA"
-Open the pin pull request in forsgren-metrics@@          ./Scripts/release_pins.sh metrics "$VERSION" "$BUMP_SHA"
+Check main has not moved@@          ./Scripts/release_quality.sh head "$GITHUB_SHA"
+Check main has not moved@@          echo "head: main's head is still ${GITHUB_SHA}" >> "$RELEASE_LOG"
+Create the tag and the release@@          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
+Create the tag and the release@@          RELEASE_SHA: ${{ steps.quality.outputs.sha || steps.resume.outputs.sha }}
+Create the tag and the release@@          ./Scripts/release_publish.sh create "$VERSION" "$RELEASE_SHA" "${RUNNER_TEMP}/notes.md"
+Create the tag and the release@@          echo "publish: tag and release v${VERSION} at ${RELEASE_SHA}, Latest" >> "$RELEASE_LOG"
+Check an install of the release reports its version@@          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
+Check an install of the release reports its version@@          RELEASE_SHA: ${{ steps.quality.outputs.sha || steps.resume.outputs.sha }}
+Check an install of the release reports its version@@          ./Scripts/release_verify_install.sh "$VERSION" "$RELEASE_SHA" | tee "${RUNNER_TEMP}/verify-install.txt"
+Check an install of the release reports its version@@          echo "verify-install: go install at ${RELEASE_SHA} reports v${VERSION}" >> "$RELEASE_LOG"
+Move the pins and README of forsgren-template@@          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
+Move the pins and README of forsgren-template@@          RELEASE_SHA: ${{ steps.quality.outputs.sha || steps.resume.outputs.sha }}
+Move the pins and README of forsgren-template@@          ./Scripts/release_pins.sh template "$VERSION" "$RELEASE_SHA"
+Open the pin pull request in forsgren-metrics@@          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
+Open the pin pull request in forsgren-metrics@@          RELEASE_SHA: ${{ steps.quality.outputs.sha || steps.resume.outputs.sha }}
+Open the pin pull request in forsgren-metrics@@          ./Scripts/release_pins.sh metrics "$VERSION" "$RELEASE_SHA"
+Merge the pin pull request and run forsgren in forsgren-metrics@@          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
+Merge the pin pull request and run forsgren in forsgren-metrics@@          RELEASE_SHA: ${{ steps.quality.outputs.sha || steps.resume.outputs.sha }}
+Merge the pin pull request and run forsgren in forsgren-metrics@@          ./Scripts/release_metrics.sh "$VERSION" "$RELEASE_SHA" | tee "${RUNNER_TEMP}/metrics.txt"
 Merge the pin pull request and run forsgren in forsgren-metrics@@          echo "metrics: $(grep '^OK: metrics: ' "${RUNNER_TEMP}/metrics.txt" | sed 's/^OK: metrics: //')" >> "$RELEASE_LOG"
+Start the preview deploy of the release@@          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
+Start the preview deploy of the release@@          RELEASE_SHA: ${{ steps.quality.outputs.sha || steps.resume.outputs.sha }}
+Start the preview deploy of the release@@          PREVIEW_DISPATCH_TOKEN: ${{ secrets.PREVIEW_DISPATCH_TOKEN }}
+Start the preview deploy of the release@@          if ! ./Scripts/dispatch_preview.sh "$RELEASE_SHA"; then
+Start the preview deploy of the release@@            echo "::error::❌ the preview deploy of v${VERSION} at ${RELEASE_SHA} was not started; the release is published, start the preview by hand with Scripts/dispatch_preview.sh"
+Start the preview deploy of the release@@            exit 1
+Start the preview deploy of the release@@          echo "preview: deploy started at ${RELEASE_SHA}" >> "$RELEASE_LOG"
+Say what was done@@          RELEASE_BUMP: ${{ inputs.bump }}
+Say what was done@@          RELEASE_RESUME: ${{ inputs.resume }}
 Say what was done@@        if: ${{ always() }}
 Say what was done@@        run: ./Scripts/release_report.sh "${RELEASE_LOG:-${RUNNER_TEMP}/release.log}" "$JOB_STATUS"
 Say what was done@@          JOB_STATUS: ${{ job.status }}
@@ -284,6 +285,7 @@ findings() {
   command_findings "$1"
   id_findings "$1"
   resume_findings "$1"
+  release_findings "$1"
   secret_findings "$1"
   preview_findings "$1"
   tag_findings "$1"
@@ -320,22 +322,40 @@ mutant "a cancellable release" 's/cancel-in-progress: false/cancel-in-progress: 
 mutant "a write token at the top" 's/^  contents: read/  contents: write/' "permissions: the top level"
 mutant "pull requests write" 's/^      issues: read /      pull-requests: write\
       issues: read /' "permissions: the job must hold exactly"
-mutant "no actions write" 's/^      actions: write /      actions: read /' "permissions: the job must hold exactly"
+mutant "no contents write" 's/^      contents: write /      contents: read /' "permissions: the job must hold exactly"
 mutant "a macOS runner" 's/runs-on: ubuntu-latest/runs-on: macos-latest/' "runs-on: want one job"
 mutant "a self-hosted runner" 's/runs-on: ubuntu-latest/runs-on: self-hosted/' "runs-on: want one job"
 mutant "an unpinned checkout" 's/checkout@[0-9a-f]\{40\}/checkout@v7/' "pins: an action is not pinned"
 mutant "another commit of setup-go" 's/setup-go@b7ad/setup-go@b7ae/' "pin of setup-go:"
 mutant "persisted credentials" 's/persist-credentials: false/persist-credentials: true/' "step 'Check out main'"
-mutant "a template expression in run" "s#^          go test ./...#          go test ${DOLLAR}{{ inputs.bump }}#" "injection:"
+mutant "a template expression in run" "s#^          ./Scripts/release_publish.sh free#          echo ${DOLLAR}{{ inputs.bump }}; ./Scripts/release_publish.sh free#" "injection:"
 mutant "no quality wait on main" 's/name: Quality is green on main/name: Quality on main/' "no step named 'Quality is green on main'"
-mutant "the release before the commit" 's/name: Commit the bump and push it to main/name: Moved/;s/name: Create the tag and the release/name: Commit the bump and push it to main/;s/name: Moved/name: Create the tag and the release/' "order:"
-mutant "no go test" 's/^          go test \.\/\.\.\.$/          true/' "step 'Test the bumped tree'"
-mutant "a resume that republishes" "/name: Create the tag and the release/,/shell:/s/inputs.resume != 'pins'/inputs.resume == 'none'/" "resume: the step 'Create the tag and the release' is not skipped by resume: pins only"
-mutant "a resume: pins that republishes" "/name: Create the tag and the release/,/shell:/{/if: .{{ inputs.resume != 'pins' }}/d;}" "resume: the step 'Create the tag and the release' is not skipped by resume: pins only"
-mutant "a resume that bumps again" "/name: Bump the version in the working tree/,/shell:/{/if: .{{ inputs.resume == 'none' }}/d;}" "resume: the step 'Bump the version in the working tree' is not skipped"
 mutant "a template step skipped by resume" "/name: Move the pins and README of forsgren-template/,/shell:/s/^        id: template\$/        id: template\\
         if: ${DOLLAR}{{ inputs.resume != 'pins' }}/" "resume: the step 'Move the pins and README of forsgren-template' must run"
 mutant "a resume by default" 's/^        default: none/        default: pins/' "input: the default resume is not none"
+mutant "a publish that also runs when resuming pins" "/name: Create the tag and the release/,/shell:/s/inputs.resume == 'none'/inputs.resume != 'pins'/" "resume: the step 'Create the tag and the release' is not skipped by resume: pins"
+mutant "a resume: pins that publishes again" "/name: Create the tag and the release/,/shell:/{/if: .{{ inputs.resume == 'none' }}/d;}" "resume: the step 'Create the tag and the release' is not skipped by resume: pins"
+mutant "a resume: pins that checks the head again" "/name: Check main has not moved/,/shell:/{/if: .{{ inputs.resume == 'none' }}/d;}" "resume: the step 'Check main has not moved' is not skipped by resume: pins"
+mutant "a resume: publish back" 's/options: \[none, pins\]/options: [none, pins, publish]/' "input: resume is not a choice of none, pins"
+mutant "a git push added back" 's/^          set -euo pipefail$/          set -euo pipefail\
+          git push origin main/' "release: the workflow still bumps, commits, pushes"
+mutant "a git commit added back" 's/^          set -euo pipefail$/          set -euo pipefail\
+          git commit -am bump/' "release: the workflow still bumps, commits, pushes"
+mutant "a bump script called again" "s#^          ./Scripts/release_plan.sh#          ./Scripts/release_bump.sh 9.9.9\
+          ./Scripts/release_plan.sh#" "release: the workflow still bumps, commits, pushes"
+mutant "a pin step still on BUMP_SHA" 's/^          RELEASE_SHA: /          BUMP_SHA: /' "release: the workflow still bumps, commits, pushes"
+mutant "the head check removed" 's/name: Check main has not moved/name: Moved on/' "no step named 'Check main has not moved'"
+mutant "a head check of another sha" "s/release_quality.sh head \"${DOLLAR}GITHUB_SHA\"/release_quality.sh head \"${DOLLAR}VERSION\"/" "step 'Check main has not moved': want the line"
+mutant "a step between the head check and the release" 's/^      - name: Create the tag and the release/      - name: Dummy\
+        run: true\
+      - name: Create the tag and the release/' "head: the step after 'Check main has not moved' is 'Dummy'"
+mutant "a release at another sha" "s/release_publish.sh create \"${DOLLAR}VERSION\" \"${DOLLAR}RELEASE_SHA\"/release_publish.sh create \"${DOLLAR}VERSION\" \"${DOLLAR}VERSION\"/" "step 'Create the tag and the release': want the line"
+mutant "no install check" 's/name: Check an install of the release reports its version/name: Moved on/' "no step named 'Check an install of the release reports its version'"
+mutant "the install check after the pins" 's/name: Check an install of the release reports its version/name: MOVED1/;s/name: Move the pins and README of forsgren-template/name: Check an install of the release reports its version/;s/name: MOVED1/name: Move the pins and README of forsgren-template/' "order:"
+mutant "an install check skipped when resuming" "s/^        id: verify-install\$/        id: verify-install\\
+        if: ${DOLLAR}{{ inputs.resume == 'none' }}/" "resume: the step 'Check an install of the release reports its version' must run also when resuming"
+mutant "an install check that does not get the released sha" "s/release_verify_install.sh \"${DOLLAR}VERSION\" \"${DOLLAR}RELEASE_SHA\"/release_verify_install.sh \"${DOLLAR}VERSION\" \"${DOLLAR}GITHUB_SHA\"/" "step 'Check an install of the release reports its version': want the line"
+mutant "actions write back" 's/^      actions: read /      actions: write /' "permissions: the job must hold exactly"
 mutant "a template that ignores the resumed release" 's/^          VERSION: \(.*\) || steps.resume.outputs.version }}/          VERSION: \1 }}/' "Move the pins and README of forsgren-template"
 mutant "a token check that does not show the expiry" '/^          .\/Scripts\/release_token_expiry.sh$/d' "step 'Check the release token is set'"
 mutant "a metrics step that merges without the script" "s/release_metrics.sh \".VERSION\"/gh pr merge \"${DOLLAR}VERSION\"/" "step 'Merge the pin pull request and run forsgren in forsgren-metrics'"
@@ -345,18 +365,9 @@ mutant "a step without an id" '/^        id: token$/d' "ids: the step 'Check the
 mutant "an outcome the report does not get" '/^            token=/d' "outcomes: the report step does not get steps.token.outcome"
 mutant "the wrong step's outcome" 's/^            token=.*$/            token=success/' "outcomes: the report step does not get steps.token.outcome"
 mutant "no outcomes at all" 's/RELEASE_STEP_OUTCOMES: |/RELEASE_STEP_OUTCOMES_X: |/' "outcomes: the report step has no RELEASE_STEP_OUTCOMES"
-mutant "a bump that is not the plan's" "s/release_bump.sh \".VERSION\"/release_bump.sh 9.9.9/" "step 'Bump the version in the working tree'"
-mutant "the release before quality on the bump" "s/release_quality.sh dispatch-bump \".BUMP_SHA\" main/release_quality.sh check \"${DOLLAR}BUMP_SHA\" main/" "step 'Quality is green on the bump commit'"
-mutant "the release dispatches the full Quality on the bump commit" "s/release_quality.sh dispatch-bump \".BUMP_SHA\" main \".GREEN_PARENT\" \".OLD_VERSION\" \".NEW_VERSION\"/release_quality.sh dispatch \"${DOLLAR}BUMP_SHA\" main/" "step 'Quality is green on the bump commit': want the line:           ./Scripts/release_quality.sh dispatch-bump"
-mutant "the short Quality without the green parent" '/^          GREEN_PARENT: /d' "step 'Quality is green on the bump commit': want the line:           GREEN_PARENT"
-mutant "the green parent is the commit under test" "s/^          GREEN_PARENT: .*\$/          GREEN_PARENT: ${DOLLAR}{{ steps.commit.outputs.sha }}/" "step 'Quality is green on the bump commit': want the line:           GREEN_PARENT"
 mutant "main's green sha not recorded" "/echo \"sha=${DOLLAR}{GITHUB_SHA}\" >> /d" "step 'Quality is green on main': want the line"
-mutant "the old version not recorded" "/echo \"old=/d" "step 'Bump the version in the working tree': want the line"
-mutant "the short Quality on a resumed run" "/name: Quality is green on the bump commit/,/shell:/s/inputs.resume == 'none'/inputs.resume != 'pins'/" "resume: the step 'Quality is green on the bump commit' is not skipped by resume: pins and publish"
-mutant "a resumed run without the full Quality" "/name: Quality is green on the resumed bump commit/,/shell:/s/inputs.resume == 'publish'/inputs.resume == 'none'/" "step 'Quality is green on the resumed bump commit': want the line"
-mutant "the log does not say which Quality ran" '/echo "quality-bump: short Quality (bump) green/d' "step 'Quality is green on the bump commit': want the line"
 mutant "no preview step" '/name: Start the preview deploy of the release/,/^      - name: Say what was done/{/^      - name: Say what was done/!d;}' "no step named 'Start the preview deploy of the release'"
-mutant "a preview that does not get the bump commit" "s/dispatch_preview.sh \"${DOLLAR}BUMP_SHA\"/dispatch_preview.sh \"${DOLLAR}VERSION\"/" "step 'Start the preview deploy of the release': want the line"
+mutant "a preview that does not get the released sha" "s/dispatch_preview.sh \"${DOLLAR}RELEASE_SHA\"/dispatch_preview.sh \"${DOLLAR}VERSION\"/" "step 'Start the preview deploy of the release': want the line"
 mutant "a preview without the token" '/PREVIEW_DISPATCH_TOKEN: /d' "preview: PREVIEW_DISPATCH_TOKEN appears 0 times"
 mutant "a preview failure that only warns" 's/^            exit 1$/            exit 0/' "step 'Start the preview deploy of the release': want the line"
 mutant "a preview failure that is ignored" 's/^        id: preview$/        id: preview\
@@ -368,7 +379,7 @@ mutant "the token in a job env" "s/^      GH_REPO: \(.*\)\$/      GH_REPO: \1\\
       FORSGREN_RELEASE_TOKEN: ${DOLLAR}{{ secrets.FORSGREN_RELEASE_TOKEN }}/" "secret: FORSGREN_RELEASE_TOKEN appears"
 mutant "the template step without the secret" '/name: Move the pins and README/,/run:/s/FORSGREN_RELEASE_TOKEN: .*$/FORSGREN_RELEASE_TOKEN: x/' "secret: the step 'Move the pins"
 mutant "a report that only runs on success" "s/if: .{{ always() }}/if: ${DOLLAR}{{ success() }}/" "step 'Say what was done'"
-mutant "a leaked token" "s/^          remote=\(.*\)\$/          remote=\1\\
-          echo \"${DOLLAR}remote\"/" "token: the workflow echoes a token"
+mutant "a leaked token" "s#^          ./Scripts/release_pins.sh token#          echo ${DOLLAR}GH_TOKEN\\
+          ./Scripts/release_pins.sh token#" "token: the workflow echoes a token"
 
 selftest_end "the release workflow pin found failures" "release workflow pin (the real file holds every pin; each mutant is named)"

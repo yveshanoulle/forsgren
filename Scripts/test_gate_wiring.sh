@@ -169,11 +169,12 @@ fi
 # (forsgren#231, step 3), and to 148 for the Quality runner pins gate
 # (forsgren#240, step 1), and to 151 for the commit messages self-test
 # (forsgren#213), and to 152 for the self-test of release_verify_install.sh
-# (forsgren#237, step 5a).
+# (forsgren#237, step 5a), and to 153 for the self-test of release_agent_proofs.sh
+# (forsgren#237, step 5b).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=152
+MIN_GATES=153
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -563,7 +564,7 @@ for path in Scripts/*.sh; do
     # (Scripts/test_release_workflow.sh) holds the order and the arguments.
     # Their self-tests are order-file rows, so sfl and Quality prove them.
     # A script the workflow never calls would be a release step nobody runs.
-    release_plan.sh|release_bump.sh|release_quality.sh|release_commit.sh|release_publish.sh|release_pins.sh|release_report.sh|release_resume.sh|release_token_expiry.sh|release_metrics.sh)
+    release_plan.sh|release_quality.sh|release_publish.sh|release_pins.sh|release_report.sh|release_resume.sh|release_token_expiry.sh|release_metrics.sh|release_verify_install.sh)
       runs_script "$RELEASE_WF" "$base" \
         || fail "${base} is a step of the release and ${RELEASE_WF} never invokes it — that step would be done by hand"
       require_fixture "$base" "the release step would be unproven"
@@ -571,12 +572,21 @@ for path in Scripts/*.sh; do
         || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
       ;;
 
-    # THE INSTALL CHECK of a release (forsgren#237, step 5a): after the publish
-    # and before the pins, `go install` at the released sha must report the
-    # release. Step 5b makes the Release workflow invoke it; until then only its
-    # self-test, an order-file row, proves it.
-    release_verify_install.sh)
-      require_fixture "$base" "the install check would be unproven"
+    # THE AGENT PROOF CHECK (forsgren#237, step 5b): a major release needs a
+    # proof run of every agent file on the new major. The plan decides the
+    # bump, so release_plan.sh, not the workflow, must invoke it.
+    release_agent_proofs.sh)
+      runs_script "Scripts/release_plan.sh" "$base" \
+        || fail "${base} holds a major release to the agent proofs and Scripts/release_plan.sh never invokes it — a major could be planned on unproved agent files"
+      require_fixture "$base" "the agent proof check would be unproven"
+      order_names "test_${base}" \
+        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
+      ;;
+
+    # THE UNUSED BUMP SCRIPTS (forsgren#237, step 5b): the Release workflow no
+    # longer bumps or commits anything; step 6 removes these scripts and their
+    # self-tests. Until then only the self-tests, order-file rows, prove them.
+    release_bump.sh|release_commit.sh)
       order_names "test_${base}" \
         || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
       ;;

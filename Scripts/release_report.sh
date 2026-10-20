@@ -6,8 +6,9 @@
 #
 #   - the log file: the steps that do work append one line each,
 #     `<step id>: <what was done>`. The ids, in order: token, quality, plan,
-#     free, bump, test, commit, quality-bump, quality-resumed, publish, template, metrics-pr,
-#     metrics (the last one logs `PR #N merged, forsgren run <url> green`).
+#     free, head, publish, verify-install, template, metrics-pr, metrics (the
+#     last one logs `PR #N merged, forsgren run <url> green`). A release makes
+#     no bump commit (forsgren#237): it tags main's Quality-green head.
 #   - the outcomes, in the environment variable RELEASE_STEP_OUTCOMES, one
 #     `<step id>=<outcome>` line per step of the job (the workflow passes
 #     steps.<id>.outcome of every step, the way the maintenance summary does).
@@ -15,8 +16,8 @@
 #     that records nothing, or fails before it could, is still the one named.
 #     The step ids, in order: main, checkout, setup-go, log, then the logged
 #     ones above, with `resume` (Find the release to resume) after token. With
-#     RELEASE_RESUME=pins (a resumed run) only token, resume, template and
-#     metrics are expected.
+#     RELEASE_RESUME=pins (a resumed run) only token, resume, verify-install,
+#     template and metrics are expected.
 #
 #   - when the plan step failed, the plan's own output (RELEASE_PLAN_OUTPUT, a
 #     file; the workflow tees the plan there): its `blocking=` machine lines
@@ -58,11 +59,11 @@ if [ "$LOG" = "--table" ]; then
   STATUS=table
 fi
 
-ALL_IDS="main checkout setup-go log token resume quality plan free bump test commit quality-bump quality-resumed publish template metrics-pr metrics"
-LOGGED_IDS="token quality plan free bump test commit quality-bump publish template metrics-pr metrics"
-# A resumed run (RELEASE_RESUME=pins) skips everything between the token check and the pins.
-if [ "${RELEASE_RESUME:-}" = pins ]; then LOGGED_IDS="token resume template metrics-pr metrics"; fi
-if [ "${RELEASE_RESUME:-}" = publish ]; then LOGGED_IDS="token resume quality-resumed publish template metrics-pr metrics"; fi
+ALL_IDS="main checkout setup-go log token resume quality plan free head publish verify-install template metrics-pr metrics"
+LOGGED_IDS="token quality plan free head publish verify-install template metrics-pr metrics"
+# A resumed run (RELEASE_RESUME=pins) skips everything between the token check
+# and the install check.
+if [ "${RELEASE_RESUME:-}" = pins ]; then LOGGED_IDS="token resume verify-install template metrics-pr metrics"; fi
 
 # name_of <id>: the step's name in release.yml.
 name_of() {
@@ -76,12 +77,9 @@ name_of() {
     quality) echo "Quality is green on main" ;;
     plan) echo "Plan the release" ;;
     free) echo "Check the version is new" ;;
-    bump) echo "Bump the version in the working tree" ;;
-    test) echo "Test the bumped tree" ;;
-    commit) echo "Commit the bump and push it to main" ;;
-    quality-bump) echo "Quality is green on the bump commit" ;;
-    quality-resumed) echo "Quality is green on the resumed bump commit" ;;
+    head) echo "Check main has not moved" ;;
     publish) echo "Create the tag and the release" ;;
+    verify-install) echo "Check an install of the release reports its version" ;;
     template) echo "Move the pins and README of forsgren-template" ;;
     metrics-pr) echo "Open the pin pull request in forsgren-metrics" ;;
     metrics) echo "Merge the pin pull request and run forsgren in forsgren-metrics" ;;
@@ -209,10 +207,9 @@ ADVICE=""
 NOTICE=""
 QUALITY_LINK="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-owner/forsgren}/actions/workflows/quality.yml"
 advise() {
-  local name bump sha version next
+  local name bump version next
   name="$(name_of "$failed_id")"
   bump="${RELEASE_BUMP:-the same}"
-  sha="$(line_value '^(commit: sha=|resume: tag=.* at )' | sed -E 's/^commit: sha=([0-9a-f]+).*/\1/; s/^resume: tag=.* at ([0-9a-f]+).*/\1/')"
   version="$(line_value '^publish: ' | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true)"
   if [ -z "$version" ]; then version="$(line_value '^resume: tag=' | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true)"; fi
   case "$failed_id" in
@@ -221,12 +218,10 @@ advise() {
 Next: fix the cause (for a 403: the token's Workflows permission), then start Release with resume = pins: gh workflow run release.yml -f resume=pins, or Actions → Release → Run workflow → resume: pins."
       NOTICE="Release failed at the step '${name}': ${version:-this release} is released. Fix the cause (for a 403: the token's Workflows permission), then start Release with resume = pins: gh workflow run release.yml -f resume=pins"
       ;;
-    quality-bump | quality-resumed | publish)
-      ADVICE="The bump commit ${sha:-of this run} is on main and no release exists.
-Do not start Release again with a bump: the version is already bumped and the bump step would refuse it.
-resume = publish works only while main's head is still the bump commit; if main has moved on, fix main and run a new release instead.
-Next: fix the cause (Quality: ${QUALITY_LINK}), then start Release with resume = publish: gh workflow run release.yml -f resume=publish, or Actions → Release → Run workflow → resume: publish."
-      NOTICE="Release failed at the step '${name}': the bump commit is on main and no release exists. Fix the cause, then start Release with resume = publish: gh workflow run release.yml -f resume=publish"
+    verify-install)
+      ADVICE="${version:-This release} is released, but go install at its sha does not report it yet, so installations show the fallback version meanwhile.
+Next: wait for the module proxy to know the tag, then start Release with resume = pins, which reruns the install check first: gh workflow run release.yml -f resume=pins, or Actions → Release → Run workflow → resume: pins. Do not move a pin by hand."
+      NOTICE="Release failed at the step '${name}': ${version:-this release} is released, but installations show the fallback version until go install at its sha reports it. Start Release with resume = pins (it reruns the check): gh workflow run release.yml -f resume=pins. Do not move a pin by hand."
       ;;
     resume)
       ADVICE="Nothing was changed by this run.
@@ -246,13 +241,13 @@ ${BLOCKED_TABLE}
           elif [ -n "${RELEASE_PLAN_OUTPUT:-}" ] && [ -f "$RELEASE_PLAN_OUTPUT" ] && grep -q 'nothing was closed since' "$RELEASE_PLAN_OUTPUT"; then
             cause="Cause: nothing was closed since the last release."
           else
-            cause="Cause: label the issues the plan names patch, minor or major (or choose the bump it names, or nothing was closed since the last release), and close or split every open issue it names that already has commits on main."
+            cause="Cause: label the issues the plan names patch, minor or major (or choose the bump it names, or nothing was closed since the last release), close or split every open issue it names that already has commits on main, and for a major give every agent file a proof run on the new major."
           fi
           ;;
         free) cause="Cause: that version already exists as a tag or a release; see the Releases page." ;;
         quality) cause="Cause: Quality is not green on main: ${QUALITY_LINK}" ;;
-        bump | test) cause="Cause: the bump or the tests on the bumped tree failed; read the step log." ;;
-        commit) cause="Cause: the commit or its push was refused (has main moved since the run began?)." ;;
+        head) cause="Cause: main has moved since the run began, so Quality was proved green on an older commit; nothing was tagged. The step log names both shas." ;;
+        publish) cause="Cause: gh release create failed; if a tag v<version> exists without its release, delete that tag first (the step log says so)." ;;
       esac
       next="fix the cause and start Release again with the same bump (${bump})."
       if [ -n "$BLOCKED_TABLE" ]; then next="do what the table says, then start Release again (with the same bump unless a row says otherwise)."; fi
@@ -290,7 +285,7 @@ ${DONE:-- nothing
   BODY="${BODY%
 }
 Not done: ${MISSING:-nothing}
-A bump commit that was pushed stays on main, a tag exists only together with its release."
+A release pushes nothing to main, and a tag exists only together with its release."
   if [ -n "$ADVICE" ]; then
     BODY="${BODY}
 What to do next:

@@ -441,11 +441,14 @@ to that release, whatever its branch is called (forsgren#42).
 Updating is merging that pull request; the template's calling workflow
 carries the permission line.
 
-**Cutting a release** (forsgren#148, decision #170). A release bump of
-`version` in `cmd/forsgren/main.go` must update the version strings in
-`README.md` and `docs/` in the same change, or the docs version pin fails; a
-new MAJOR also needs a new proof run of each agent file, recorded in its
-Tested-with line, or the Tested-with major test fails.
+**Cutting a release** (forsgren#148, decision #170; forsgren#237). A release
+changes no file: it tags the Quality-green head of `main` as it is, so there is
+no bump commit and no version to rewrite in `README.md` and `docs/` (they name
+no running version). The version an installation reports is the release's tag,
+read by the go tool from the pinned commit. A new MAJOR also needs a new proof
+run of each agent file, recorded in its Tested-with line: the release plan
+refuses a major until every agent file has one
+(`Scripts/release_agent_proofs.sh`).
 
 ## The Release workflow
 
@@ -487,57 +490,33 @@ and stops at the first step that fails:
    the three labels: every such issue is named, followed by "label it patch,
    minor or major". It stops when the requested bump is lower than the
    required one and names the issues that require more, so a minor change is
-   never released as a patch. Otherwise it prints the next version and the
-   release notes, one `- #N title` line per issue, grouped under Major, Minor
-   and Patch.
+   never released as a patch. It stops on a major while an agent file has no
+   proof run on the new major, and names each such file
+   (`Scripts/release_agent_proofs.sh`). Otherwise it prints the next version
+   and the release notes, one `- #N title` line per issue, grouped under Major,
+   Minor and Patch.
 3. **The version is new**, no tag and no release of that name
    (`Scripts/release_publish.sh free`).
-4. **The bump** (`Scripts/release_bump.sh`): `version` in `cmd/forsgren/main.go`,
-   and nothing else: the tests run as a fixed version and the docs name no
-   running version (forsgren#237). It leaves `SHIPPED.md` and the npm files
-   alone, and fails when a file still holds the old version. Then `go test ./...` runs on the bumped tree. A new major
-   needs the proof runs of the agent files, which no script can do: it fails
-   here, before anything is pushed.
-   The files the bump may change are listed once, in
-   `Scripts/release_bump_scope.txt`, which the bump rewrites from and the check
-   of the next paragraph reads.
-   `Scripts/release_bump_diff.sh <bump-sha> <green-parent-sha> <old> <new>`
-   holds the bump commit to that: its only parent is the commit Quality was
-   green on, every changed file is only modified and in the list (`SHIPPED.md`
-   is not), every hunk removes as many lines as it adds, and each added line is
-   its removed line with only the version replaced (the old version by the new
-   one, the newer-release example by the one after the new version). It prints
-   one `FAIL: bump diff: file:line changes more than the version` line per
-   violation, or `OK:`.
-5. **The bump commit** (`Scripts/release_commit.sh`), as `github-actions[bot]`
-   with a DCO sign-off, the subject `release X.Y.Z (1/1): bump to X.Y.Z, #N #M`,
-   checked by `Scripts/check_private_names.sh --message` first, pushed to
-   `main` as a fast-forward: if `main` moved since the run began, the push is
-   refused and nothing has changed.
-6. **Quality on the bump commit**: a push by the job's token starts no run, so
-   the workflow dispatches `quality.yml` and waits for its run on that commit,
-   at most an hour (`Scripts/release_quality.sh dispatch-bump`). The dispatch
-   sets `scope=bump` and passes the commit Quality was green on in step 2 (the
-   bump commit's only parent), the old and the new version: the **short
-   Quality**. It first runs `Scripts/release_bump_diff.sh` (nothing else runs
-   when that is red), then only the gates of `Scripts/quality_bump_gates.txt`
-   (the secret scan, the Go tests, the golden pages and the Go lint) through
-   `Scripts/run_short_quality.sh`, and the site build. The run page says
-   `short Quality for a release bump: N gates`, names the gates that ran and
-   every gate that did not. The release report says `short Quality (bump)` with
-   the run's link. A run by hand, a push and a pull request are always the
-   full Quality (`scope` defaults to `full`). `resume = publish` has no green
-   parent on record, so it dispatches the full Quality
-   (`Scripts/release_quality.sh dispatch`).
-7. **The tag and the release**, in one `gh release create vX.Y.Z --target
-   <bump commit> --latest` with the notes of the plan
+4. **Main has not moved** (`Scripts/release_quality.sh head`), the step right
+   before the publish: the head of `main` must still be the commit Quality was
+   proved green on. If it moved, the run stops and names both commits; nothing
+   is tagged and the release is started again.
+5. **The tag and the release**, in one `gh release create vX.Y.Z --target
+   <that commit> --latest` with the notes of the plan
    (`Scripts/release_publish.sh create`). Nothing else makes the tag, so a tag
-   never exists without its release.
-8. **The template**: the pins of both caller workflows and the README of
+   never exists without its release, and nothing is committed or pushed.
+6. **The install check** (`Scripts/release_verify_install.sh`): `go install` of
+   the module at the released commit, into a temporary directory, must report
+   the release, `vX.Y.Z`, as its module version, not a pseudo-version. The
+   module proxy may need a moment to know the tag, so the check repeats (five
+   tries, 30 seconds apart). If it never reports the release, no pin moves:
+   installations would show the fallback version of `cmd/forsgren/main.go`, and
+   `resume: pins` reruns the check.
+7. **The template**: the pins of both caller workflows and the README of
    forsgren-template move to the new release in one commit, through the
    git-data API, the way the manual release did it
    (`Scripts/release_pins.sh template`).
-9. **The metrics installation**: a pull request in forsgren-metrics that moves
+8. **The metrics installation**: a pull request in forsgren-metrics that moves
    the pins of its two workflows to the new release
    (`Scripts/release_pins.sh metrics`; it changes the `uses:` lines only, as
    Dependabot does, and leaves the comments). The release is done only when
@@ -561,11 +540,10 @@ The last step runs whatever happened and prints what was done and what was not
 (`Scripts/release_report.sh`). It names the step that failed from the outcome of
 each step (`steps.<id>.outcome`, passed to it), not from the log, so a step that
 fails before it could record anything, like the token check, is still the one
-named. A run that fails halfway says so: a bump
-commit that was pushed stays on `main`, and a tag exists only together with its
-release. `SHIPPED.md` is still written by hand.
+named. A run that fails halfway says so: a release pushes nothing to `main`,
+and a tag exists only together with its release. `SHIPPED.md` is still written by hand.
 
-**The secret `FORSGREN_RELEASE_TOKEN`** is what steps 8 and 9 use, since the
+**The secret `FORSGREN_RELEASE_TOKEN`** is what steps 7 and 8 use, since the
 job's own token cannot write to another repository. It is a fine-grained
 personal access token of the owner of the repositories:
 
@@ -593,15 +571,16 @@ expiry date, or one that cannot be used, a failed line and the run stops before
 anything is pushed.
 
 The run checks it first, so a missing secret stops the run before anything is
-pushed, and steps 8 and 9 check it again: without it they fail with an
+pushed, and steps 7 and 8 check it again: without it they fail with an
 `::error::` line that names the secret, and never skip.
 
 **When a run fails.** The last step says what to do, in the job summary and as
 one `::notice::` line, by the stage the failure is in:
 
-- *Before anything was pushed* (the token check, Quality on main, the plan, the
-  version check, the bump, the tests, the commit): nothing was released and
-  nothing is on `main`. Fix the cause (the summary names it where it is known:
+- *Before the release* (the token check, Quality on main, the plan, the
+  version check, the head check, the publish): nothing was released and
+  nothing is on `main`; a head check that finds `main` moved names both
+  commits. Fix the cause (the summary names it where it is known:
   the secret, the issues to label, a version that exists, Quality with a
   link) and start Release again with the same bump.
   When the plan stopped, the run page lists every issue that blocks the
@@ -621,32 +600,23 @@ one `::notice::` line, by the stage the failure is in:
   (`blocked by #221, #231`). The generic cause is said only
   when the plan names no issue; "nothing was closed since the last release"
   is one sentence, not a table.
-- *The bump commit is on `main` but no release exists* (Quality on it, or the
-  publish, failed): do not start Release again with a bump. The version in
-  `main.go` is already the new one, so the bump step would refuse it (a
-  version that is not greater than the current one). Start it with
-  `resume` set to `publish` (`gh workflow run release.yml -f resume=publish`):
-  it takes the version from `main.go`, checks that it has no tag or release
-  and that its bump commit is in the last 200 commits and is main's head, runs
-  Quality again on it, makes the release there and does the pins. If main has
-  moved past the bump commit, the run refuses and names both commits: fix main
-  and run a new release instead, since a release is made only at its bump
-  commit.
-- *The release is published and the template or metrics step failed*: the
-  summary says the version is released; fix the cause (for a 403: the token's
-  Workflows permission), then start Release with `resume` set to `pins`
+- *The release is published and the install check, the template or the
+  metrics step failed*: the summary says the version is released; fix the cause
+  (for a 403: the token's Workflows permission; for the install check: wait
+  for the module proxy, installations show the fallback version meanwhile),
+  then start Release with `resume` set to `pins`
   (`gh workflow run release.yml -f resume=pins`, or Actions, Release, Run
-  workflow, resume: pins). A step is never done by hand: the way on is always
-  another run.
+  workflow, resume: pins). A step is never done by hand, no pin moved by
+  hand: the way on is always another run.
 
-**Resuming a run that stopped after the release.** When steps 8 or 9 fail, the
+**Resuming a run that stopped after the release.** When steps 6, 7 or 8 fail, the
 release exists and the version is no longer free, so the run cannot simply be
 started again. Start it with the input `resume` set to `pins`
 (`gh workflow run release.yml -f resume=pins`; the default is `none`). It
 finds the latest release (`Scripts/release_resume.sh`: published, not a
 draft or prerelease, its tag at the commit the release was made for), skips
-the plan, the bump, the commit, Quality and the publish, and does only steps 8
-and 9 for that release. Both are safe to repeat: a repository that already
+Quality, the plan, the head check and the publish, and does only steps 6, 7
+and 8 for that release. Both are safe to repeat: a repository that already
 pins the version, or a pull request for it that is open or merged, is "already
 done", not an error; of several pull requests for the release branch, any open
 or merged one is enough, whatever the order. One closed without merging does
@@ -656,7 +626,7 @@ The report of a resumed run expects only these steps.
 
 Each script has a self-test that runs in sfl and Quality, and
 `Scripts/test_release_workflow.sh` pins the workflow: its trigger, its
-permissions (`contents: write`, `actions: write`, `issues: read`), its order,
+permissions (`contents: write`, `actions: read`, `issues: read`), its order,
 its commands, which steps `resume: pins` skips and that the secret reaches only
 the token check and the two steps that use it.
 

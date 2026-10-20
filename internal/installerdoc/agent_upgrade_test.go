@@ -349,43 +349,11 @@ func TestBothFilesNameWhatTheyWereTestedWith(t *testing.T) {
 			"Start your agent with that model (in Claude Code: `claude --model sonnet`).")
 }
 
-// testedMajor captures the major of the version a file was tested with: the
-// last one on the line, so "v0.8.5 → v1.3.0" gives 1.
-var testedMajor = regexp.MustCompile(`(?m)^Tested with: forsgren (?:v\d+\.\d+\.\d+ → )?v(\d+)\.`)
-
-// versionLineMajor captures the major of `var version` in
-// cmd/forsgren/main.go, the one source of the running version.
-var versionLineMajor = regexp.MustCompile(`(?m)^var version = "(\d+)\.`)
-
-// mainGo is the file that holds the running version. This package cannot
-// import package main, so it reads the `var version` line as text.
-const mainGo repoFile = "cmd/forsgren/main.go"
-
-// runningMajor returns the major of the running version.
-func runningMajor(t *testing.T) string {
-	t.Helper()
-	m := versionLineMajor.FindStringSubmatch(readRepoFile(t, mainGo))
-	if m == nil {
-		t.Fatal("cmd/forsgren/main.go has no var version line")
-	}
-	return m[1]
-}
-
-// TestEveryAgentFileWasTestedOnTheRunningMajor (forsgren#148, decision
-// #170): a release that starts a new major fails until the agent files have
-// a new proof run behind them; within a major the line passes.
-func TestEveryAgentFileWasTestedOnTheRunningMajor(t *testing.T) {
-	running := runningMajor(t)
-	for _, path := range agentFiles {
-		tested := testedMajor.FindStringSubmatch(readRepoFile(t, path))
-		if tested == nil {
-			t.Errorf("%s has no Tested-with line to read a major from", path)
-		} else if tested[1] != running {
-			t.Errorf("%s was tested on forsgren major %s, but the running version is major %s: "+
-				"run a new proof and update its Tested-with line", path, tested[1], running)
-		}
-	}
-}
+// A new major's proof run is held where the major is decided: the release
+// plan refuses a major until every agent file has one (forsgren#237, step 5b;
+// Scripts/release_agent_proofs.sh, proved by Scripts/test_release_agent_proofs.sh).
+// It used to be a test here that read the major of `var version`, which no
+// release bumps any more.
 
 // TestUpgraderStep5SaysTheReleaseBeforeTheQuestions (forsgren#166, step
 // 166-14): a fact that needs no answer is a statement before the numbered

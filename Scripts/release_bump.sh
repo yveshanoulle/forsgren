@@ -19,8 +19,8 @@
 # (the self-test does, on a copy).
 #
 # Usage: Scripts/release_bump.sh <new-version>    e.g. 1.9.4
-# A new major also needs a new proof run of each agent file, which no script
-# can do: the script says so, and go test names it.
+# A new major also needs a new proof run of each agent file; the release plan
+# (Scripts/release_plan.sh) refuses a major until they exist (forsgren#237).
 # Exit: 0 bumped and checked, 1 a file still holds the old version,
 #       2 usage (no argument, not X.Y.Z, not greater than the current one).
 # It works on the repository the script lives in. Self-test:
@@ -112,7 +112,4 @@ if [ "$VERIFIED" -ne 0 ]; then
 fi
 
 echo "OK: bumped ${OLD} to ${NEW} (${CHANGED} files changed, newer-release examples ${OLD_EXAMPLE} to ${NEW_EXAMPLE})"
-if (( N_MAJOR > O_MAJOR )); then
-  echo "NOTE: a new major needs a new proof run of each agent file (their Tested-with lines) before go test passes (forsgren#148)"
-fi
 COMPLETED=1

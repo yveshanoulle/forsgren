@@ -30,13 +30,15 @@
 #  11. a machine line per blocking issue, besides the human line:
 #      blocking=<N> TAB <kind> TAB <title> TAB <latest tag>, kind unlabelled,
 #      open-with-commits or needs-<bump> (forsgren#232)
+#  13. a major (asked, or required with auto under --all) is refused until every
+#      agent file has a proof run on the new major (forsgren#237, step 5b)
 #  10. usage errors, a latest tag that is no vX.Y.Z -> exit 2
 # Mutation proofs: a copy that accepts a lower bump, one that accepts nothing
 # closed, one without the exclusion, one without the publish-time filter, one
 # that lets an unlabelled issue pass and one that lists an issue an earlier
 # release named, one that names only the first open issue with commits and one
-# that ignores the earlier releases for open issues must each let the case
-# they exist for pass.
+# that ignores the earlier releases for open issues, and one that never asks for
+# the agent proofs of a major must each let the case they exist for pass.
 
 set -euo pipefail
 
@@ -66,11 +68,23 @@ issue() {
   printf '%s%s%s%s%s%s%s%s%s' "$1" "$TAB" "$2" "$TAB" "$3" "$TAB" "${4:-$AFTER}" "$TAB" "${5:-completed}"
 }
 
-# plan <script> <args>...: capture the script on the fixture.
+# The agent files a major release checks (forsgren#237, step 5b): fixtures in
+# the shape of the real ones, one set already proved on major 2, one still on
+# major 1. RELEASE_AGENT_FILES stands for the repository's agent-*.md.
+mkdir -p "${TMP}/agents_ready" "${TMP}/agents_old"
+printf '# Agent\n\nTested with: forsgren v2.0.1, Claude Code, model claude-sonnet-5-5.\n' > "${TMP}/agents_ready/agent-one.md"
+printf '# Agent\n\nTested with: forsgren v0.8.5 \xe2\x86\x92 v2.0.0, Claude Code, model claude-sonnet-5-5.\n' > "${TMP}/agents_ready/agent-two.md"
+printf '# Agent\n\nTested with: forsgren v1.3.2, Claude Code, model claude-sonnet-5-5.\n' > "${TMP}/agents_old/agent-one.md"
+printf '# Agent\n\nTested with: forsgren v0.8.5 \xe2\x86\x92 v1.3.0, Claude Code, model claude-sonnet-5-5.\n' > "${TMP}/agents_old/agent-two.md"
+printf '# Agent\n\nNo proof line.\n' > "${TMP}/agents_old/agent-three.md"
+AGENTS_READY="${TMP}/agents_ready/agent-one.md ${TMP}/agents_ready/agent-two.md"
+
+# plan <script> <args>...: capture the script on the fixture. The agent files
+# are proved on major 2 unless AGENTS says otherwise.
 plan() {
   local script="$1"
   shift
-  RELEASE_PLAN_DATA="${TMP}/data.tsv" capture "$script" "$@"
+  RELEASE_AGENT_FILES="${AGENTS:-$AGENTS_READY}" RELEASE_PLAN_DATA="${TMP}/data.tsv" capture "$script" "$@"
 }
 
 # 1
@@ -367,6 +381,34 @@ if selftest_mutant "$PLAN" "${TMP}/mut/nomachine/release_plan.sh" "s/machine_lin
   fi
 fi
 
+# 13. A major release needs a proof run of every agent file on the new major
+# (forsgren#237, step 5b; it was a Go test on the version in main.go, which no
+# release bumps any more): the plan refuses a major until each agent file has
+# one, naming each file, and plans nothing.
+data "$(issue 9 'Rename a flag' major)"
+AGENTS="${TMP}/agents_old/agent-one.md ${TMP}/agents_old/agent-two.md" plan "$PLAN" major
+want_red "a major, the agent files proved on major 1" "a major release (2.0.0) needs a proof run of every agent file on major 2"
+want_said "the first stale file is named with its major" "agent-one.md was tested on forsgren major 1"
+want_said "the arrow form reads its last version" "agent-two.md was tested on forsgren major 1"
+want_said "it says what to do" "run a new proof and update its Tested-with line"
+if grep -qE '^(OK|version=)' <<< "$OUT"; then fail "a refused major still printed a version. Output: ${OUT}"; else echo "  ok: a refused major plans no version"; fi
+AGENTS="${TMP}/agents_old/agent-three.md" plan "$PLAN" major
+want_red "a major, an agent file with no Tested-with line" "agent-three.md has no Tested-with line to read a major from"
+data "$(issue 9 'Rename a flag' major)"
+plan "$PLAN" major
+want_green "a major, every agent file proved on major 2" "OK: next version 2.0.0"
+data "$(issue 5 'Fix the thing' patch)"
+AGENTS="${TMP}/agents_old/agent-one.md" plan "$PLAN" patch
+want_green "a patch ignores the agent files" "OK: next version 1.9.4"
+AGENTS="${TMP}/agents_old/agent-one.md" plan "$PLAN" minor
+want_green "a minor ignores the agent files" "OK: next version 1.10.0"
+data "$(issue 9 'Rename a flag' major)"
+AGENTS="${TMP}/agents_old/agent-one.md" plan "$PLAN" patch
+want_red "a major issue with patch asked still names the bump first" "requested patch is lower than required major"
+AGENTS="${TMP}/agents_old/agent-one.md" plan "$PLAN" auto --all
+want_exit "--all with auto: the major the labels require is refused too" 1 "a major release (2.0.0) needs a proof run of every agent file on major 2"
+want_said "--all with auto still prints a ready line" "ready=9${TAB}major${TAB}Rename a flag${TAB}v1.9.3"
+
 # 12. --all (forsgren#231, step 3): every kind of block at once, a ready line
 # per labelled issue; without --all the same data stops at the first kind.
 data "$(issue 5 'Fix the thing' patch)" "$(issue 6 'Unlabelled thing' '')" "$(issue 7 'New feature' minor)"
@@ -379,5 +421,12 @@ want_said "--all names the issue that needs more too" "blocking=7${TAB}needs-min
 want_said "--all prints a ready line per labelled issue" "ready=5${TAB}patch${TAB}Fix the thing${TAB}v1.9.3"
 RELEASE_PLAN_OPEN="${TMP}/open12.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits12.txt" plan "$PLAN" patch
 if grep -qF "blocking=6" <<< "$OUT"; then fail "without --all the plan named a second kind of block"; else echo "  ok: without --all the plan stops at the first kind, as the Release needs"; fi
+
+# A plan that never asks for the agent proofs plans a major on stale agent files.
+data "$(issue 9 'Rename a flag' major)"
+if selftest_mutant "$PLAN" "${TMP}/mut/noproofs/release_plan.sh" 's/^if \[ "[$]REQUESTED" = major \]; then$/if false; then/'; then
+  RELEASE_AGENT_FILES="${TMP}/agents_old/agent-one.md" RELEASE_PLAN_DATA="${TMP}/data.tsv" capture "${TMP}/mut/noproofs/release_plan.sh" major
+  want_green "mutation proof: without the agent proof check a major is planned on stale agent files" "OK: next version 2.0.0"
+fi
 
 selftest_end "the release plan does not hold" "release plan: the bump check, the closed-issue filter, the notes and the version arithmetic all held"

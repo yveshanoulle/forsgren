@@ -8,7 +8,8 @@
 #      files that are history (SHIPPED.md, the npm files) are untouched
 #   2. a minor bump -> OK, `go test ./...` passes (the newer-release examples
 #      moved to the version after the new one); a major bump -> OK, and
-#      `go test ./...` fails ONLY on the agent-file proof run a new major needs
+#      `go test ./...` passes (the agent-file proof run a new major needs is
+#      held by the release plan, forsgren#237)
 #   3. the bump changes cmd/forsgren/main.go and nothing else: no test, no
 #      golden page and no doc (forsgren#237)
 #   4. a version that is malformed, equal to the current one or lower, a
@@ -99,21 +100,9 @@ gotest minor "minor bump"
 fresh major
 bump major "$NEXT_MAJOR"
 want_green "major bump" "OK: bumped ${CURRENT} to ${NEXT_MAJOR}"
-# A new major also needs a new proof run of each agent file (forsgren#148):
-# the bump cannot do that, and exactly that one test says so. Nothing else may fail.
-if (cd "${TMP}/major" && GOCACHE="${TMP}/gocache" go test ./... > "${TMP}/major.gotest.log" 2>&1); then
-  fail "major bump: go test ./... passes, but the Tested-with major test should ask for a proof run of the agent files"
-else
-  others="$(grep -E '^--- FAIL' "${TMP}/major.gotest.log" | grep -vF 'TestEveryAgentFileWasTestedOnTheRunningMajor' || true)"
-  if [[ -n "$others" ]]; then
-    fail "major bump: go test ./... fails beyond the agent-file proof run: ${others}"
-  elif ! grep -qF 'TestEveryAgentFileWasTestedOnTheRunningMajor' "${TMP}/major.gotest.log"; then
-    fail "major bump: go test ./... fails, but not on the agent-file proof run. Output: $(tail -20 "${TMP}/major.gotest.log")"
-  else
-    echo "  ok: major bump: go test ./... fails only on the agent-file proof run a new major needs"
-  fi
-fi
-want_said "a major bump says the agent files need a proof run" "proof run"
+# The proof run of the agent files a new major needs is held by the release
+# plan now (forsgren#237, step 5b), so the bumped copy's tests pass.
+gotest major "major bump"
 
 # 4
 fresh usage
@@ -145,4 +134,4 @@ selftest_mutant "$BUMP" "$MUT2" 's/^verify_nothing_missed$/true/' || true
 bump mutant2 "$NEXT_PATCH"
 want_green "mutation proof: without the check, the skipped main.go passes the script" "OK: bumped"
 
-selftest_end "the release bump does not hold" "release bump: patch and minor bumps leave go test green, a major only the agent-file proof run to do, nothing stays at the old version, a missed file is refused"
+selftest_end "the release bump does not hold" "release bump: patch and minor bumps leave go test green, nothing stays at the old version, a missed file is refused"
