@@ -168,11 +168,12 @@ fi
 # (forsgren#231, step 2), and to 145 for the release pre-check's self-test
 # (forsgren#231, step 3), and to 148 for the Quality runner pins gate
 # (forsgren#240, step 1), and to 151 for the commit messages self-test
-# (forsgren#213).
+# (forsgren#213), and to 152 for the self-test of release_verify_install.sh
+# (forsgren#237, step 5a).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=151
+MIN_GATES=152
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -566,6 +567,16 @@ for path in Scripts/*.sh; do
       runs_script "$RELEASE_WF" "$base" \
         || fail "${base} is a step of the release and ${RELEASE_WF} never invokes it — that step would be done by hand"
       require_fixture "$base" "the release step would be unproven"
+      order_names "test_${base}" \
+        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
+      ;;
+
+    # THE INSTALL CHECK of a release (forsgren#237, step 5a): after the publish
+    # and before the pins, `go install` at the released sha must report the
+    # release. Step 5b makes the Release workflow invoke it; until then only its
+    # self-test, an order-file row, proves it.
+    release_verify_install.sh)
+      require_fixture "$base" "the install check would be unproven"
       order_names "test_${base}" \
         || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
       ;;

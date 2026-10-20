@@ -154,6 +154,7 @@ run report shows how many checks each of them ran.
 - release resume self-test (`Scripts/test_release_resume.sh`, pre)
 - release token expiry self-test (`Scripts/test_release_token_expiry.sh`, pre)
 - release verify pin self-test (`Scripts/test_release_verify_pin.sh`, pre)
+- release verify install self-test (`Scripts/test_release_verify_install.sh`, pre)
 - release metrics self-test (`Scripts/test_release_metrics.sh`, pre)
 - release workflow (`Scripts/test_release_workflow.sh`, pre)
 - release bump diff self-test (`Scripts/test_release_bump_diff.sh`, pre)

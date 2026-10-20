@@ -18,7 +18,10 @@
 #  10. dispatch-bump (forsgren#230, step 2) starts quality.yml on the ref with
 #      scope=bump and the green parent, the old and the new version as inputs,
 #      then waits as dispatch does; bad shas and versions -> exit 2
-# Mutation proofs: a copy that dispatches the bump with the full scope, and one that takes a failed run for green, one that does not
+#  11. head <sha> (forsgren#237, step 5a): green when main's head is the sha, red
+#      naming both shas when main moved, red when the head cannot be read
+# Mutation proofs: a copy that never compares the head must let a moved main
+# pass; a copy that dispatches the bump with the full scope, and one that takes a failed run for green, one that does not
 # wait (gives up on a running run) and one that has no bound must each let the
 # case they exist for pass.
 
@@ -49,6 +52,10 @@ case "$1 $2" in
     [ -f "$f" ] || f="$(ls "${STUB_SEQ}"/runs.* | sort -t. -k2 -n | tail -1)"
     cat "$f"
     ;;
+  "api repos/acme/forsgren/git/ref/heads/main")
+    if [ -f "${STUB_SEQ}/api_fails" ]; then echo "HTTP 500" >&2; exit 1; fi
+    cat "${STUB_SEQ}/main_sha"
+    ;;
   "workflow run")
     if [ -f "${STUB_SEQ}/dispatch_fails" ]; then echo "HTTP 403" >&2; exit 1; fi
     ;;
@@ -69,7 +76,7 @@ runs() {
 }
 
 run() {
-  PATH="${STUBS}:${PATH}" STUB_LOG="${TMP}/gh.log" STUB_SEQ="${TMP}/seq" \
+  GITHUB_REPOSITORY=acme/forsgren PATH="${STUBS}:${PATH}" STUB_LOG="${TMP}/gh.log" STUB_SEQ="${TMP}/seq" \
     RELEASE_QUALITY_DELAY=0 RELEASE_QUALITY_TRIES="${TRIES:-5}" capture "${SCRIPT:-$CHECK}" "$@"
 }
 OK_RUN="completed${TAB}success${TAB}https://example.test/run/1"
@@ -141,6 +148,28 @@ want_exit "dispatch-bump with a short green parent" 2 "usage"
 run dispatch-bump "$SHA" main "$GREEN" 1.10 1.11.0
 want_exit "dispatch-bump with a malformed version" 2 "usage"
 
+# 11 (forsgren#237, step 5a): head <sha> proves main's head still is the commit
+# Quality was proved green on, before a tag is made at it.
+MOVED="fedcba9876543210fedcba9876543210fedcba98"
+printf '%s\n' "$SHA" > "${TMP}/seq/main_sha"
+run head "$SHA"
+want_green "main's head is the commit" "OK: main's head is ${SHA}"
+printf '%s\n' "$MOVED" > "${TMP}/seq/main_sha"
+run head "$SHA"
+want_red "main has moved" "main has moved: its head is ${MOVED}, not ${SHA}"
+want_said "the commit Quality was proved on is named" "Quality was proved green on ${SHA}"
+touch "${TMP}/seq/api_fails"
+run head "$SHA"
+want_red "gh cannot read main" "could not read the head of main"
+rm -f "${TMP}/seq/api_fails"
+printf '\n' > "${TMP}/seq/main_sha"
+run head "$SHA"
+want_red "gh answers no sha" "could not read the head of main"
+run head abc
+want_exit "head with a short sha" 2 "usage"
+run head
+want_exit "head without a sha" 2 "usage"
+
 run
 want_exit "no mode" 2 "usage"
 run check
@@ -199,5 +228,15 @@ if mutant noparent 's/ -f green_parent="[$]4"//'; then
   fi
 fi
 unset SCRIPT
+
+if mutant headblind 's/if \[ "[$]HEAD_SHA" != "[$]SHA" \]; then/if false; then/'; then
+  printf '%s\n' "$MOVED" > "${TMP}/seq/main_sha"
+  run head "$SHA"
+  if [[ "$RC" -ne 0 ]]; then
+    fail "mutation proof: the mutant that never compares the head still refused a moved main. Output: ${OUT}"
+  else
+    echo "  ok: mutation proof: without the comparison a moved main is not refused"
+  fi
+fi
 
 selftest_end "the release quality check does not hold" "release quality: green, going, failed, absent, dispatched and bounded runs all judged right"
