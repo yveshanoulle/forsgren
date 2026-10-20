@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-10-20 — the docs name no running version ([#237](https://github.com/yveshanoulle/forsgren/issues/237), step 4 of 7)
+
+forsgren issue 237, step 4 of 7, patch. `README.md` and `docs/` no longer write the version of the day: the footer, `Built with` and setup-issue-title examples say `<version>`. `TestDocsNameNoRunningVersion` replaces the docs version pin: no doc holds "Forsgren X.Y.Z" or "forsgren X.Y.Z needs more configuration" with any version, and the released version (`var version`) appears nowhere except right after a history phrase (since, from, in, upgrading to, until); other past versions ("From 1.3.0", "v0.8.7 to v1.0.0") stay. `TestDocsKeepTheirVersionPlaceholders` keeps a reworded doc from emptying the pin. `Scripts/release_bump_scope.txt` lost its README and docs rows, `release_bump.sh` rewrites `main.go` alone, and the release bump self-tests expect exactly that. With `var version` set to `1.11.9`, no test fails. `runningVersion` is also split (structure only; restores devbuild.go to 10.0): `usableBuildInfo` decides whether there is build information to read the version from, so no conditional has more than one `||`.
+
+- Red first: the new pin failed on 15 findings across `docs/ci.md`, `docs/configuration.md`, `docs/pages-and-views.md` and `docs/updating-and-releases.md`, each with its file and line.
+
 ## 2026-10-20 — the tests stop pinning the released version ([#237](https://github.com/yveshanoulle/forsgren/issues/237), step 3 of 7)
 
 forsgren issue 237, step 3 of 7, patch. The tests of `cmd/forsgren` run as a fixed version through one seam, a `TestMain` that sets `var version` to `9.9.9`; the page package's tests render `Placeholder(testVersion)` with the same value, so the 29 page goldens say `9.9.9` and a release touches none of them (regenerated with the existing `-update` flag). The newer-release examples derive from it (`9.9.10`, by `nextPatch`), no longer literals. `TestNoTestPinsTheReleasedVersion` fails for any test file or golden that names the value of `var version` or the next patch. With `var version` set to `1.11.9`, 40 tests failed before and only the docs-version test fails after; step 4 handles the docs.

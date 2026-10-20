@@ -203,7 +203,7 @@
   {
    "path": "cmd/forsgren/devbuild.go",
    "score": 10.0,
-   "checkedAt": "2026-10-19",
+   "checkedAt": "2026-10-20",
    "minScore": 10.0
   },
   {
@@ -1251,12 +1251,6 @@
    "minScore": 9.58
   },
   {
-   "path": "cmd/forsgren/docs_version_test.go",
-   "score": 9.92,
-   "checkedAt": "2026-10-14",
-   "minScore": 9.82
-  },
-  {
    "path": "internal/readmepage/render_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-14",
@@ -1606,6 +1600,30 @@
   },
   {
    "path": "internal/history/startschecked.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-20",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/docs_version_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-20",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/runningversion_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-20",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/testversion_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-20",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/pinnedversion_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-20",
    "minScore": 10.0

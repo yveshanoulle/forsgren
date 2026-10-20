@@ -4,14 +4,13 @@
 # Self-test for Scripts/release_bump.sh (forsgren#221, step 1 of 2): the
 # version bump of a release, done to a copy of this repository's files in a
 # temp directory, so the work tree is never left bumped.
-#   1. a patch bump        -> OK, the old version is gone from every place
-#      that pins it, `go test ./...` passes on the bumped copy, and the
+#   1. a patch bump        -> OK, the old version is gone from main.go, `go test ./...` passes on the bumped copy, and the
 #      files that are history (SHIPPED.md, the npm files) are untouched
 #   2. a minor bump -> OK, `go test ./...` passes (the newer-release examples
 #      moved to the version after the new one); a major bump -> OK, and
 #      `go test ./...` fails ONLY on the agent-file proof run a new major needs
-#   3. the bump changes cmd/forsgren/main.go and the docs, and no test and
-#      no golden page (forsgren#237)
+#   3. the bump changes cmd/forsgren/main.go and nothing else: no test, no
+#      golden page and no doc (forsgren#237)
 #   4. a version that is malformed, equal to the current one or lower, a
 #      missing argument -> exit 2 with its reason, the copy untouched
 # Mutation proofs: a copy whose scope list (Scripts/release_bump_scope.txt)
@@ -84,18 +83,12 @@ for history in SHIPPED.md package.json package-lock.json; do
   fi
 done
 
-# 3: the bump changes main.go and the docs, and no test and no golden page.
+# 3: the bump changes main.go and nothing else: no test, no golden page, no doc.
 changed="$(diff -rq "$BASE" "${TMP}/patch" | sed -n 's/^Files .* and .*\/patch\/\(.*\) differ$/\1/p' || true)"
-pinned_tests="$(printf '%s\n' "$changed" | grep -E '_test\.go$|\.golden\.html$' || true)"
-if [[ -n "$pinned_tests" ]]; then
-  fail "the bump changed tests or golden pages, which run as a fixed version: ${pinned_tests}"
+if [[ "$changed" == "cmd/forsgren/main.go" ]]; then
+  echo "  ok: the bump changed cmd/forsgren/main.go and nothing else (no test, no golden page, no doc)"
 else
-  echo "  ok: the bump changed no test and no golden page"
-fi
-if printf '%s\n' "$changed" | grep -qxF 'cmd/forsgren/main.go'; then
-  echo "  ok: the bump changed cmd/forsgren/main.go (the case above is not vacuous)"
-else
-  fail "the bump did not change cmd/forsgren/main.go: ${changed:-nothing changed}"
+  fail "the bump must change cmd/forsgren/main.go alone, it changed: ${changed:-nothing}"
 fi
 
 # 2

@@ -47,14 +47,27 @@ const ldflagsVersion = "main.version="
 // information's module version when it is a clean vX.Y.Z, without its v; else
 // var version.
 func runningVersion() string {
-	info, ok := buildInfo()
-	if !ok || info == nil || setByLdflags(info) {
+	info := usableBuildInfo()
+	if info == nil {
 		return version
 	}
 	if m := cleanRelease.FindStringSubmatch(info.Main.Version); m != nil {
 		return m[1]
 	}
 	return version
+}
+
+// usableBuildInfo is the build information the version may be read from: none
+// when the binary has none, or when an ldflags value set the version.
+func usableBuildInfo() *debug.BuildInfo {
+	info, ok := buildInfo()
+	if !ok || info == nil {
+		return nil
+	}
+	if setByLdflags(info) {
+		return nil
+	}
+	return info
 }
 
 // setByLdflags is whether the build was given -X main.version.

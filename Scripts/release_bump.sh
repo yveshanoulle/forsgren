@@ -7,19 +7,16 @@
 #   - `var version` in cmd/forsgren/main.go, the one source of the version
 #   - nothing in the tests or the golden pages: they run as a fixed test
 #     version (forsgren#237), so a release does not touch them
-#   - the running version in README.md and docs/*.md: "Forsgren X.Y.Z" (the
-#     page footer), "forsgren X.Y.Z needs more configuration" (also across a
-#     line break) and the "Built with" example. Release history in the docs
-#     ("Upgrading to 1.9.2") stays.
+#   - nothing in the docs: they name no running version (forsgren#237)
 # The files it may change are listed once, in Scripts/release_bump_scope.txt,
 # which Scripts/release_bump_diff.sh (forsgren#230) holds a bump commit to.
 # Not touched, as in the manual commits: SHIPPED.md (its entry is prose, written
 # per release) and the npm files (their versions are dependencies).
 #
 # Then it checks its own work: no file under cmd/forsgren or internal/page
-# (tests and golden pages included) still holds the old version, and no doc still names it as the running
-# version; a file that does is a red naming it. It runs no tests: the caller
-# runs `go test ./...` (the self-test does, on a copy).
+# (tests and golden pages included) still holds the old version; a file that
+# does is a red naming it. It runs no tests: the caller runs `go test ./...`
+# (the self-test does, on a copy).
 #
 # Usage: Scripts/release_bump.sh <new-version>    e.g. 1.9.4
 # A new major also needs a new proof run of each agent file, which no script
@@ -93,11 +90,6 @@ while IFS= read -r file; do
   rewrite "$file" "s/$(token "$OLD_EXAMPLE")/${NEW_EXAMPLE}/g; s/$(token "$OLD")/${NEW}/g"
 done < <(bump_scope_list code)
 
-# The docs name the running version in three places.
-while IFS= read -r file; do
-  rewrite "$file" "s/(Forsgren\\s+)$(token "$OLD")/\${1}${NEW}/g; s/(forsgren\\s+)$(token "$OLD")(\\s+needs more configuration)/\${1}${NEW}\${2}/g; s/(built the page, \"forsgren )$(token "$OLD")/\${1}${NEW}/g"
-done < <(bump_scope_list file dir)
-
 # verify_nothing_missed: the bump's own check, independent of the rewrite
 # above (it lists every file of the two directories, whatever its type).
 verify_nothing_missed() {
@@ -106,12 +98,6 @@ verify_nothing_missed() {
     echo "❌ FAIL: release bump: ${file} still holds ${OLD}"
     left=1
   done < <(grep -rlE "(^|[^0-9.])${OLD//./\\.}($|[^0-9]|\\.[^0-9])" cmd/forsgren internal/page | sort)
-  for file in README.md docs/*.md; do
-    if tr -s '[:space:]' ' ' < "$file" | grep -qE "Forsgren ${OLD//./\\.}($|[^0-9.]|\\.[^0-9])|forsgren ${OLD//./\\.} needs more configuration"; then
-      echo "❌ FAIL: release bump: ${file} still names ${OLD} as the running version"
-      left=1
-    fi
-  done
   grep -qF "var version = \"${NEW}\"" "$MAIN" || {
     echo "❌ FAIL: release bump: ${MAIN} does not say version ${NEW}"
     left=1

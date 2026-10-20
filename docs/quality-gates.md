@@ -124,14 +124,14 @@ Two PRE gates run the Go tests and the formatting:
   keeps npm's vendored Go out of `./...`; this is its guard). A green run
   leaves the coverage profile the Go coverage gate reads. Two of the tests
   guard a release bump (forsgren#148, decision #170):
-  - **Docs version pin** (`cmd/forsgren/docs_version_test.go`): every
-    "Forsgren X.Y.Z" and "forsgren X.Y.Z needs more configuration" in
-    `README.md` and `docs/*.md`, wrapped lines joined, must equal `version`
-    in `cmd/forsgren/main.go`, and each file listed in the test keeps at least
-    its count of them, so a reworded doc cannot empty the pin. Only those two
-    phrases name the running version; history and examples ("From 1.3.0",
-    "v0.8.7 to v1.0.0") name past releases on purpose, so they are not
-    matched and a stale one is not caught.
+  - **Docs name no running version** (`cmd/forsgren/docs_version_test.go`,
+    forsgren#237): no "Forsgren X.Y.Z" and no "forsgren X.Y.Z needs more
+    configuration" in `README.md` and `docs/*.md`, wrapped lines joined, with
+    any X.Y.Z (the docs write `<version>`), and the version of `main.go` appears
+    nowhere except in a history phrase ("since", "from", "in", "upgrading to"
+    before it). Other versions ("From 1.3.0", "v0.8.7 to v1.0.0") name past
+    releases on purpose and are allowed. `TestDocsStillSayWhereTheVersionIs`
+    keeps the pin from going vacuous.
   - **Tested-with major** (`TestEveryAgentFileWasTestedOnTheRunningMajor`
     in `internal/installerdoc`): the major of each agent file's Tested-with
     line (the last version on it) must equal the major of `version`, read

@@ -4,8 +4,9 @@
 # rewrites exactly these, and Scripts/release_bump_diff.sh refuses a bump commit
 # that changes any other file, so the two cannot drift. Read through
 # Scripts/lib_release_bump_scope.sh. SHIPPED.md and the npm files are not here:
-# the bump leaves them alone. No test and no golden page is here: the tests
-# run as a fixed version (forsgren#237), so a release changes none of them.
+# the bump leaves them alone. No test, no golden page and no doc is here: the
+# tests run as a fixed version and the docs name no running version
+# (forsgren#237), so a release changes none of them.
 #
 # One row per set: <kind>|<path>|<name suffix>
 #   tree  every file below <path>, at any depth, whose name ends in the suffix
@@ -13,5 +14,3 @@
 #   dir   the files directly in <path> whose name ends in the suffix
 #   file  the one file <path> (the suffix is empty)
 code|cmd/forsgren/main.go|
-file|README.md|
-dir|docs|.md

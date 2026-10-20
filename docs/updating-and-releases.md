@@ -49,7 +49,7 @@ is then the failed run.
   first line of its body; the label only narrows the lookup. An issue with
   the label and no marker is never touched, and if you remove the label from
   the managed issue, the next run opens a new one. Its title is "forsgren
-  1.11.1 needs more configuration" (the running version) and its body lists the
+  <version> needs more configuration" (the running version) and its body lists the
   steps of each missing need; title and body are presentation, and a run
   rewrites them.
 - **What a run does with it.** Something missing and no issue: it opens one.
@@ -493,11 +493,9 @@ and stops at the first step that fails:
 3. **The version is new**, no tag and no release of that name
    (`Scripts/release_publish.sh free`).
 4. **The bump** (`Scripts/release_bump.sh`): `version` in `cmd/forsgren/main.go`,
-   the version the tests and golden pages under `cmd/forsgren` and
-   `internal/page` pin, the newer-release examples in them (the patch after the
-   new version), and the running version in `README.md` and `docs/`. It leaves
-   `SHIPPED.md` and the npm files alone, and fails when a file still holds the
-   old version. Then `go test ./...` runs on the bumped tree. A new major
+   and nothing else: the tests run as a fixed version and the docs name no
+   running version (forsgren#237). It leaves `SHIPPED.md` and the npm files
+   alone, and fails when a file still holds the old version. Then `go test ./...` runs on the bumped tree. A new major
    needs the proof runs of the agent files, which no script can do: it fails
    here, before anything is pushed.
    The files the bump may change are listed once, in
