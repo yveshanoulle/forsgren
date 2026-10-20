@@ -23,6 +23,11 @@
 #      template step and the metrics step, and nowhere else
 #   8. the tag is made by Scripts/release_publish.sh alone: the workflow has no
 #      git tag, no git push, no gh release
+#   8b. the step after the metrics step starts the preview deploy of the
+#      release (forsgren issue 236): Scripts/dispatch_preview.sh with the bump
+#      sha, PREVIEW_DISPATCH_TOKEN in its env and nowhere else, a failed start
+#      prints ::error:: with a red cross and fails the step (the release stays
+#      published), no continue-on-error, no skip
 #   9. the last step runs `if: ${{ always() }}`, reports the job's status and
 #      gets the outcome of every step (steps.<id>.outcome), every step has its
 #      id, and the token check and the test record themselves in the log
@@ -76,12 +81,13 @@ NAMES=(
   "Move the pins and README of forsgren-template"
   "Open the pin pull request in forsgren-metrics"
   "Merge the pin pull request and run forsgren in forsgren-metrics"
+  "Start the preview deploy of the release"
   "Say what was done"
 )
 
 # IDS: the step ids in the order of NAMES; the report step passes the outcome
 # of each (steps.<id>.outcome), so it names the step that failed (forsgren#221).
-IDS=(main checkout setup-go log token resume quality plan free bump test commit quality-bump quality-resumed publish template metrics-pr metrics)
+IDS=(main checkout setup-go log token resume quality plan free bump test commit quality-bump quality-resumed publish template metrics-pr metrics preview)
 
 id_findings() {
   local i name id
@@ -199,6 +205,13 @@ Open the pin pull request in forsgren-metrics@@          BUMP_SHA: ${{ steps.com
 Merge the pin pull request and run forsgren in forsgren-metrics@@          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
 Merge the pin pull request and run forsgren in forsgren-metrics@@          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
 Merge the pin pull request and run forsgren in forsgren-metrics@@          ./Scripts/release_metrics.sh "$VERSION" "$BUMP_SHA" | tee "${RUNNER_TEMP}/metrics.txt"
+Start the preview deploy of the release@@          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
+Start the preview deploy of the release@@          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
+Start the preview deploy of the release@@          PREVIEW_DISPATCH_TOKEN: ${{ secrets.PREVIEW_DISPATCH_TOKEN }}
+Start the preview deploy of the release@@          if ! ./Scripts/dispatch_preview.sh "$BUMP_SHA"; then
+Start the preview deploy of the release@@            echo "::error::❌ the preview deploy of v${VERSION} at ${BUMP_SHA} was not started; the release is published, start the preview by hand with Scripts/dispatch_preview.sh"
+Start the preview deploy of the release@@            exit 1
+Start the preview deploy of the release@@          echo "preview: deploy started at ${BUMP_SHA}" >> "$RELEASE_LOG"
 Say what was done@@          RELEASE_RESUME: ${{ inputs.resume }}
 Quality is green on main@@          ./Scripts/release_quality.sh check "$GITHUB_SHA"
 Plan the release@@          ./Scripts/release_plan.sh "$BUMP" --notes "${RUNNER_TEMP}/notes.md" | tee "${RUNNER_TEMP}/plan.txt"
@@ -239,6 +252,21 @@ secret_findings() {
   done
 }
 
+# preview_findings (forsgren issue 236): the preview deploy starts from the
+# release's bump commit once the release is published, and a failed start
+# fails the step (the release stays published).
+preview_findings() {
+  local name="Start the preview deploy of the release" count
+  count="$(code "$1" | grep -c 'secrets.PREVIEW_DISPATCH_TOKEN' || true)"
+  [[ "$count" -eq 1 ]] || echo "preview: PREVIEW_DISPATCH_TOKEN appears ${count} times, want 1 (the preview step)"
+  if step_text "$1" "$name" | grep -qE 'continue-on-error|\|\| *true|^        if:'; then
+    echo "preview: the step '${name}' can pass or skip when the start fails"
+  fi
+  if [[ -n "$(line_of "$1" "- name: ${name}")" && "$(line_of "$1" "- name: ${name}")" -lt "$(line_of "$1" "- name: Create the tag and the release")" ]]; then
+    echo "preview: the step '${name}' runs before the release is published"
+  fi
+}
+
 tag_findings() {
   if code "$1" | grep -qE 'git tag|git push|git remote|gh release|--tags|gh api .*git/(refs|tags)'; then
     echo "tag: the workflow makes a tag, a push or a release itself, not only through the scripts"
@@ -257,6 +285,7 @@ findings() {
   id_findings "$1"
   resume_findings "$1"
   secret_findings "$1"
+  preview_findings "$1"
   tag_findings "$1"
 }
 
@@ -326,6 +355,12 @@ mutant "the old version not recorded" "/echo \"old=/d" "step 'Bump the version i
 mutant "the short Quality on a resumed run" "/name: Quality is green on the bump commit/,/shell:/s/inputs.resume == 'none'/inputs.resume != 'pins'/" "resume: the step 'Quality is green on the bump commit' is not skipped by resume: pins and publish"
 mutant "a resumed run without the full Quality" "/name: Quality is green on the resumed bump commit/,/shell:/s/inputs.resume == 'publish'/inputs.resume == 'none'/" "step 'Quality is green on the resumed bump commit': want the line"
 mutant "the log does not say which Quality ran" '/echo "quality-bump: short Quality (bump) green/d' "step 'Quality is green on the bump commit': want the line"
+mutant "no preview step" '/name: Start the preview deploy of the release/,/^      - name: Say what was done/{/^      - name: Say what was done/!d;}' "no step named 'Start the preview deploy of the release'"
+mutant "a preview that does not get the bump commit" "s/dispatch_preview.sh \"${DOLLAR}BUMP_SHA\"/dispatch_preview.sh \"${DOLLAR}VERSION\"/" "step 'Start the preview deploy of the release': want the line"
+mutant "a preview without the token" '/PREVIEW_DISPATCH_TOKEN: /d' "preview: PREVIEW_DISPATCH_TOKEN appears 0 times"
+mutant "a preview failure that only warns" 's/^            exit 1$/            exit 0/' "step 'Start the preview deploy of the release': want the line"
+mutant "a preview failure that is ignored" 's/^        id: preview$/        id: preview\
+        continue-on-error: true/' "preview: the step 'Start the preview deploy of the release' can pass or skip"
 mutant "a tag made by hand" 's/^          set -euo pipefail$/          set -euo pipefail\
           git tag v0/' "tag: the workflow makes a tag"
 mutant "a release made by hand" "s/release_publish.sh create \".VERSION\"/gh release create \"${DOLLAR}VERSION\"/" "tag: the workflow makes a tag"

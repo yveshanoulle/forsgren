@@ -9,6 +9,13 @@ Active work lives in
 
 ---
 
+## 2026-10-20 — the Release workflow starts the preview deploy of the release ([#236](https://github.com/yveshanoulle/forsgren/issues/236), step 1 of 1)
+
+After a release the preview site could name the version before the metrics site: the bump commit is pushed with the job's token, which starts no Quality run with a preview job, so the preview deploy waited for the next push to main. `release.yml` has a new step after the metrics step, "Start the preview deploy of the release", that runs `Scripts/dispatch_preview.sh` with the bump sha and gets `PREVIEW_DISPATCH_TOKEN` (and only that step does). It also runs for `resume: pins` and `resume: publish`. A failed start prints an `::error::` line with a red cross and fails the step; there is no `continue-on-error` and no `|| true`. The release is already published by then and stays published. Patch.
+
+- Red first: `Scripts/test_release_workflow.sh` failed with "there is no step named 'Start the preview deploy of the release'", the missing id and outcome, and the token appearing 0 times; five mutation proofs pin the step (removed, wrong sha, no token, a failure that only warns, a failure that is ignored).
+- Not in this step: `Scripts/release_report.sh` does not yet name the `preview` step in its summary advice.
+
 ## 2026-10-20 — a one-time catch-up reads the comments of stored failure issues with an empty failure start ([#245](https://github.com/yveshanoulle/forsgren/issues/245))
 
 Failure issues stored before `collect` read their comments (forsgren#37) kept an empty `failure_start` even when a comment holds the record block. Like the withdrawn-failures catch-up (forsgren#155), `collect` now does a one-time catch-up per repository (`internal/collect/startscatchup.go`): each stored failure issue with an empty `failure_start` that is open or was opened in the DORA window, and that no withdrawal takes back, has its comments read once with `CommentRecords`, and a block found there is stored as a new line. A refused read fails the repository. The new mark file `data/starts_checked.csv` (starts checked format v1, a row per repository, in the mark-file table and known to the data guard) is written only when every repository of the run finished, so a run that failed or was cut short does the catch-up again and an installation that has done it gets no second one.

@@ -28,6 +28,10 @@
 #      files are read (only the forsgren pins of this release), it is merged and
 #      forsgren.yml is run there until it is green: the release is done only
 #      when the metrics site runs the new version.
+#   h. Scripts/dispatch_preview.sh starts the preview deploy at the bump commit
+#      (the bump commit's push starts no Quality preview job), so the preview
+#      never names an older version than the metrics site (forsgren issue 236).
+#      A failed start fails this step; the release stays published.
 # The first step that writes the job summary is the token check, which puts the
 # token's expiry on its first line (Scripts/release_token_expiry.sh: green over
 # 30 days, yellow 30 to 8, red 7 or fewer and the run goes on, an expired token
@@ -309,6 +313,21 @@ jobs:
           ./Scripts/release_metrics.sh "$VERSION" "$BUMP_SHA" | tee "${RUNNER_TEMP}/metrics.txt"
           echo "metrics: $(grep '^OK: metrics: ' "${RUNNER_TEMP}/metrics.txt" | sed 's/^OK: metrics: //')" >> "$RELEASE_LOG"
 
+      - name: Start the preview deploy of the release
+        id: preview
+        shell: bash
+        env:
+          VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
+          BUMP_SHA: ${{ steps.commit.outputs.sha || steps.resume.outputs.sha }}
+          PREVIEW_DISPATCH_TOKEN: ${{ secrets.PREVIEW_DISPATCH_TOKEN }}
+        run: |
+          set -euo pipefail
+          if ! ./Scripts/dispatch_preview.sh "$BUMP_SHA"; then
+            echo "::error::❌ the preview deploy of v${VERSION} at ${BUMP_SHA} was not started; the release is published, start the preview by hand with Scripts/dispatch_preview.sh"
+            exit 1
+          fi
+          echo "preview: deploy started at ${BUMP_SHA}" >> "$RELEASE_LOG"
+
       - name: Say what was done
         if: ${{ always() }}
         shell: bash
@@ -336,4 +355,5 @@ jobs:
             template=${{ steps.template.outcome }}
             metrics-pr=${{ steps.metrics-pr.outcome }}
             metrics=${{ steps.metrics.outcome }}
+            preview=${{ steps.preview.outcome }}
         run: ./Scripts/release_report.sh "${RELEASE_LOG:-${RUNNER_TEMP}/release.log}" "$JOB_STATUS"
