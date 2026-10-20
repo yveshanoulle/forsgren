@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-10-20 — the install by commit reports the tag ([#237](https://github.com/yveshanoulle/forsgren/issues/237), step 2 of 7)
+
+forsgren issue 237, step 2 of 7, patch. Measured with `go install github.com/yveshanoulle/forsgren/cmd/forsgren@<ref>` and `go version -m`: the commit the tag v1.11.1 points at (790b3f4) records `v1.11.1`, the tag `v1.11.1` records `v1.11.1`, and an untagged commit of main (fc3b9cd) records `v1.11.2-0.20261020113112-fc3b9cd8afaa`. So a pin on a commit that carries the tag reports the release, and an untagged build falls back to `var version`. No code change; `TestRunningVersionOfAnInstallationByCommit` pins the two strings.
+
+- Red on a mutant: a resolver whose pattern accepts pseudo-versions fails the untagged case with `runningVersion() = "1.11.2", want "0.0.0-test"`.
+
 ## 2026-10-20 — the running version comes from one resolver ([#237](https://github.com/yveshanoulle/forsgren/issues/237), step 1 of 7)
 
 forsgren issue 237, step 1 of 7, patch. `runningVersion()` in `cmd/forsgren/devbuild.go` is the one place the version is read for output: an ldflags `-X main.version` value as is; else the build information's module version when it is a clean `vX.Y.Z`, without its `v`; else `var version`, with the existing `+dev (sha)` footer logic. The render, summary, setup-check and install-README call sites use it. No visible change: goldens, footer and docs are unchanged.
