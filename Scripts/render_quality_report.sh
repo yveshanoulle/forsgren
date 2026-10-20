@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: render_quality_report v2
+# canon: render_quality_report v3
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
@@ -28,6 +28,13 @@ cd "$(dirname "$0")/.." || exit 1
 # fix that — the index and the thing it indexes disagreeing, which is worse than
 # either being wrong alone. Same cure: a renderer that lives in YAML is a
 # renderer nobody tests.
+#
+# v3: the page lists the details of the gates that are NOT green
+# only. A green gate's full output (the whole test log, every coverage function,
+# every self-test case: thousands of lines) stays in the job log, so a green run
+# ends after the table. A gate with any other mark, or whose row cannot be
+# read, keeps its details. Pinned by cases 13 and 14 of
+# Scripts/test_render_quality_report.sh.
 #
 # Usage:
 #   ./Scripts/render_quality_report.sh <rows-file> <details-dir> [order-file]
@@ -90,16 +97,17 @@ else
     echo "> not report are not passing — they are unmeasured."
   fi
   echo ""
-  # Detail in the SAME declared order as the table above.
+  # Details of the gates that are not green, in the SAME declared order as the table above.
   grep -v '^#' "$ORDER" | while IFS='|' read -r label _; do
     [ -n "$label" ] || continue
     slug="$(gate_slug "$label")"
+    mark="$(awk -F'|' -v l="$label" '$1 == l { print $2 }' "$ROWS")"
     # `if`, not `[ -f … ] && cat`. THIS LINE IS THE WHOLE UNIT. As the last
     # command of the last loop of the last group, its status became the step's:
     # a declared row with no details file — an `n/a` gate, or any gate the run
     # never reached — returned 1, and the report failed while every gate
     # passed. `if … fi` returns 0 when the condition is false.
-    if [ -f "${DETAILS}/${slug}.md" ]; then
+    if [ "$mark" != "✅" ] && [ -f "${DETAILS}/${slug}.md" ]; then
       echo ""
       cat "${DETAILS}/${slug}.md"
     fi

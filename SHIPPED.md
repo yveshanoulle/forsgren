@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-20 — the Quality run page shows details only for gates that are not green ([#235](https://github.com/yveshanoulle/forsgren/issues/235))
+
+Under the gate table the Quality run page printed the full output of every gate, green ones included: the whole Go test log, each coverage function and every self-test case, thousands of lines. `Scripts/render_quality_report.sh` is now canon `render_quality_report v3` (with `test_render_quality_report v3`): the page keeps the headline, the key numbers and the gate table, then the details of the gates whose mark is not the green check only, so a green run ends after the table and the baseline sections. The full output stays in the job log. The sites take the same v3 byte-identical through their own issues.
+
+- Red first: case 13 (one green and one red gate) failed five times, for example `the green gate's details are left out — did NOT expect: green gate output line`; the two older cases that expected a green gate's heading now expect it left out.
+- Mutation proof (case 14): a renderer that prints every gate's details is caught, naming the green gate.
+- `Scripts/test_quality_summary_first.sh` and `Scripts/test_step_summary_isolation.sh` still hold.
+
 ## 2026-10-20 — the baseline report self-test carries canon v3 ([#244](https://github.com/yveshanoulle/forsgren/issues/244))
 
 `Scripts/test_report_baselines.sh` changed content in forsgren#226 (the cases for every further browser baseline) but kept its `# canon: test_report_baselines v2` line. It now says `v3`, as does its row in `docs/gate-classification.md`, so the copies in the estate's repositories end byte-identical. A version line only: no behaviour changed, so no red.

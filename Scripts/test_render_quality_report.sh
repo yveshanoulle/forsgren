@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_render_quality_report v2
+# canon: test_render_quality_report v3
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -94,7 +94,7 @@ else
   fail "the renderer EXITED NON-ZERO on a report it rendered fine — the last declared row has no details file, and the loop's exit status became the step's. Every gate passed and the run went red"
 fi
 want "the rendered table is still produced" "| secret scan | not counted | ✅ |" "$out"
-want "the detail body is still emitted"     "#### ✅ secret scan"  "$out"
+want_not "a green gate's details are left out of the page (v3)" "#### ✅ secret scan"  "$out"
 
 # Case 2: declared order wins over the order rows arrived in. Gates run in
 # glob order and the report must not inherit it — an index and the thing it
@@ -217,7 +217,7 @@ linked_rows() { grep -E '^\|.*\]\(#' <<< "$1" || true; }
 anchor_lines() { grep -F '<a id=' <<< "$1" || true; }
 want     "a gate with a section is its plain label"                    "| Go test coverage (90) | 1 | ✅ |" "$out8"
 want     "a gate without a section is its plain label"                 "| lost gate | not readable | ❌ |" "$out8"
-want     "the details section of a gate is still emitted"              "#### ✅ counted gate" "$out8"
+want_not "the details section of a green gate is left out (v3)"        "#### ✅ counted gate" "$out8"
 rows_linked="$(linked_rows "$out8")"
 if [ -z "$rows_linked" ]; then echo "  ok: no table row links to an in-page anchor"; else fail "a table row still links a label: ${rows_linked}"; fi
 anchors_found="$(anchor_lines "$out8")"
@@ -267,6 +267,46 @@ if mutate unreadable 's/checks="not readable"/checks="not counted"/'; then
 fi
 if mutate verdict "s/ok:|✅/ok:|✅|OK:/"; then
   if grep -qF -- "| counted gate | 3 | ✅ |" <<< "$mut_out"; then fail "a renderer that counts OK: verdict lines still satisfies case 8"; else echo "  ok: a renderer counting the verdict line is caught"; fi
+fi
+
+# Case 13 (v3): the page shows the table, then the details of
+# the gates that are NOT green only. A green gate's output (thousands of lines
+# on a real run) stays in the job log. A run with one green and one red gate
+# renders the red gate's details and none of the green gate's.
+order13="${TMP}/order13"
+{ echo "green gate|Scripts/a.sh|pre|"; echo "red gate|Scripts/b.sh|pre|"; } > "$order13"
+rows13="${TMP}/rows13"; printf 'green gate|✅\nred gate|❌\n' > "$rows13"
+details13="${TMP}/details13"; mkdir -p "$details13"
+{ echo ""; echo "#### ✅ green gate"; echo ""; echo '```'; echo "ok: green gate output line"; echo '```'; } > "${details13}/green_gate.md"
+{ echo ""; echo "#### ❌ red gate"; echo ""; echo '```'; echo "ok: red gate passing line"; echo "❌ FAIL: red gate reason"; echo '```'; } > "${details13}/red_gate.md"
+out13="$("$RENDER" "$rows13" "$details13" "$order13" 2>&1)" || true
+want     "the table still lists the green gate, with its count"  "| green gate | 1 | ✅ |" "$out13"
+want     "and the red gate"                                       "| red gate | 1 | ❌ |" "$out13"
+want     "the red gate's details are shown"                       "#### ❌ red gate" "$out13"
+want     "with its reason"                                        "❌ FAIL: red gate reason" "$out13"
+want_not "the green gate's details are left out"                  "green gate output line" "$out13"
+want_not "and its heading"                                        "#### ✅ green gate" "$out13"
+
+# A green run ends after the table: no details at all.
+rows13g="${TMP}/rows13g"; printf 'green gate|✅\n' > "$rows13g"
+details13g="${TMP}/details13g"; mkdir -p "$details13g"; cp "${details13}/green_gate.md" "$details13g/"
+out13g="$("$RENDER" "$rows13g" "$details13g" "$order13" 2>&1)" || true
+want_not "a run with only green gates has no details section"     "####" "$out13g"
+
+# Case 14, MUTATION PROOF: a renderer that prints every gate's details is caught,
+# and the failure names the green gate.
+mut14="${TMP}/mut_all/Scripts"; mkdir -p "$mut14"
+sed 's/\[ "[$]mark" != "✅" \] && //' "$RENDER" > "${mut14}/render_quality_report.sh"
+if cmp -s "$RENDER" "${mut14}/render_quality_report.sh"; then
+  fail "the print-every-gate mutation changed nothing — case 14 matches a line that is not in the renderer"
+else
+  chmod +x "${mut14}/render_quality_report.sh"
+  out14="$("${mut14}/render_quality_report.sh" "$rows13" "$details13" "$order13" 2>&1)" || true
+  if grep -qF -- "#### ✅ green gate" <<< "$out14"; then
+    echo "  ok: a renderer that prints every gate's details is caught, naming: green gate"
+  else
+    fail "a renderer that prints every gate's details still satisfies case 13 (the green gate's details are not in its output)"
+  fi
 fi
 
 COMPLETED=1

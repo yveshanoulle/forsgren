@@ -112,7 +112,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 77 | quality trigger scope | `test_quality_trigger_scope.sh` | pre | required, `test_quality_trigger_scope v3` |
 | 78 | quality runner pins | `test_quality_runner_pins.sh` | pre | required; forsgren's own (not canon): `test_quality_trigger_scope.sh` is the sites' shared `test_quality_trigger_scope v3`, byte-identical; this one pins push and `pull_request` on `main` with no `paths` or `paths-ignore` filter, no `pull_request_target`, `workflow_dispatch`, and every job on `macos-latest`, 9 mutation proofs on synthetic workflows (forsgren#240) |
 | 79 | stray tracked files | `test_no_stray_tracked_files.sh` | pre | required, `test_no_stray_tracked_files v1` |
-| 80 | quality-report render | `test_render_quality_report.sh` | pre | required, `test_render_quality_report v2` |
+| 80 | quality-report render | `test_render_quality_report.sh` | pre | required, `test_render_quality_report v3`; the renderer is `render_quality_report v3` |
 | 81 | quality-run summary | `test_render_quality_summary.sh` | pre | required |
 | 82 | gate-failure summary | `test_summarize_gate_failure.sh` | pre | required |
 | 83 | sfl drives from the order file | `test_sfl_drives_from_order_file.sh` | pre | required |
