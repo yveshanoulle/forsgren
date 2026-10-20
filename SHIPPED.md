@@ -269,17 +269,17 @@ When the release plan stops, the run summary lists every blocking issue in a tab
 
 The bump commit was given the full Quality for a change of version strings only.
 
-- `quality.yml` takes a `scope` (`full` by default; a push and a pull request are always full) and, for `bump`, the green parent and the two versions. The short Quality runs `Scripts/release_bump_diff.sh` first, then only the gates of `Scripts/quality_bump_gates.txt` (secret scan, Go tests, golden pages, Go lint) through `Scripts/run_short_quality.sh`, then the site build; the run page says `short Quality for a release bump: N gates` and names every gate not run.
+- `quality.yml` takes a `scope` (`full` by default; a push and a pull request are always full) and, for `bump`, the green parent and the two versions. The short Quality runs `release_bump_diff.sh` first, then only the gates of `Scripts/quality_bump_gates.txt` (secret scan, Go tests, golden pages, Go lint) through `run_short_quality.sh`, then the site build; the run page says `short Quality for a release bump: N gates` and names every gate not run.
 - The Release workflow dispatches `scope=bump` with the commit Quality was green on, so a bump on any other commit is red; `resume = publish` keeps the full Quality. The run report says `short Quality (bump)` with the run's link.
-- Red first for the runner, the dispatch, the pin of the scope (`Scripts/test_quality_scope.sh`), the release pins and the report; mutation proofs for a short Quality that skips the diff check, a release that dispatches `scope=full`, a list that ignores itself and a summary that claims POST ran. `MIN_GATES` 138 to 140.
+- Red first for the runner, the dispatch, the pin of the scope (`test_quality_scope.sh`), the release pins and the report; mutation proofs for a short Quality that skips the diff check, a release that dispatches `scope=full`, a list that ignores itself and a summary that claims POST ran. `MIN_GATES` 138 to 140.
 
 ## 2026-10-18 — a release bump commit is checked to hold only the version bump ([#230](https://github.com/yveshanoulle/forsgren/issues/230), step 1)
 
 A bump commit that changed more than the version, or sat on a commit Quality was not green on, would have been released as it was.
 
-- `Scripts/release_bump_diff.sh <bump-sha> <green-parent-sha> <old> <new>` is green only when the commit's one parent is the green commit, every changed file is only modified and one the bump may change, and every changed line is its old line with the version replaced (the newer-release example too); each violation is a `FAIL: bump diff:` line naming file and line.
-- The files the bump may change are one list, `Scripts/release_bump_scope.txt`, read by `Scripts/release_bump.sh` and the check alike, so they cannot drift.
-- Red first in `Scripts/test_release_bump_diff.sh` (the real bump on a fixture repository; an extra line, an extra file, a mode change, a wrong parent, a merge commit, a version replaced in a line that also changes); mutation proofs for no parent comparison and for accepting any line of an allowed file. `MIN_GATES` 137 to 138. Not yet wired into the Release workflow (step 2).
+- `release_bump_diff.sh <bump-sha> <green-parent-sha> <old> <new>` is green only when the commit's one parent is the green commit, every changed file is only modified and one the bump may change, and every changed line is its old line with the version replaced (the newer-release example too); each violation is a `FAIL: bump diff:` line naming file and line.
+- The files the bump may change are one list, `Scripts/release_bump_scope.txt`, read by `release_bump.sh` and the check alike, so they cannot drift.
+- Red first in `test_release_bump_diff.sh` (the real bump on a fixture repository; an extra line, an extra file, a mode change, a wrong parent, a merge commit, a version replaced in a line that also changes); mutation proofs for no parent comparison and for accepting any line of an allowed file. `MIN_GATES` 137 to 138. Not yet wired into the Release workflow (step 2).
 
 ## 2026-10-18 — the release plan stops on open issues that already landed ([#229](https://github.com/yveshanoulle/forsgren/issues/229))
 
@@ -1064,7 +1064,7 @@ Tooling only: no release.
 Tooling only: no release.
 
 - **#221 (1/2), the building blocks.**
-  - `Scripts/release_plan.sh` computes the bump the labels of the closed issues require and the release notes; `Scripts/release_bump.sh` makes the version bump of the manual bump commits, goldens included, and run on the tree before the 1.9.3 bump it reproduces that commit byte for byte.
+  - `Scripts/release_plan.sh` computes the bump the labels of the closed issues require and the release notes; `release_bump.sh` makes the version bump of the manual bump commits, goldens included, and run on the tree before the 1.9.3 bump it reproduces that commit byte for byte.
   - Red first: both self-tests before the scripts existed; mutation proofs for a lower bump accepted, nothing closed accepted and a missed golden page.
 - **#221 (2/2), the workflow.**
   - `.github/workflows/release.yml`: `workflow_dispatch` with `bump` (patch, minor, major; default patch), permissions `contents: write`, `actions: write`, `issues: read`. The steps: Quality green on main, the plan, the new version, the bump and `go test`, the DCO-signed bump commit as github-actions[bot] pushed to main, Quality dispatched on it and awaited (bounded), one `gh release create --target <bump commit> --latest`, forsgren-template's pins and README in one git-data commit, a pin pull request in forsgren-metrics, and a last step that says what was done.
