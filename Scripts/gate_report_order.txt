@@ -802,26 +802,20 @@ live check self-test|Scripts/test_live_check.sh|pre|
 # its scripts are NOT gates: they need gh, a checkout and tokens.
 # Scripts/release_plan.sh (the bump the labels of the issues closed since the
 # last release require, checked against the requested one, with the next
-# version and the release notes), release_bump.sh (the version bump, golden
-# pages included), release_quality.sh (Quality green, also dispatched),
-# release_commit.sh (the signed-off bump commit pushed to main),
-# release_publish.sh (the tag and the release in one call), release_pins.sh
+# version and the release notes), release_quality.sh (Quality green on the run's
+# commit, main's head not moved), release_publish.sh (the tag and the release in one call), release_pins.sh
 # (forsgren-template's pins and README, forsgren-metrics' pin pull request)
 # release_resume.sh (the release a resumed run continues with), release_token_expiry.sh
 # (the token's expiry on the first line of the run page), release_verify_pin.sh
 # (a pin pull request changes only the pins) and release_metrics.sh (merge it and
 # run forsgren in forsgren-metrics until green) and
-# release_report.sh (what was done); release_bump_diff.sh (forsgren#230: the bump
-# commit holds only the version bump, on the green parent) and run_short_quality.sh
-# (the PRE gates of the short Quality quality.yml runs for a release's bump commit,
-# forsgren#230 step 2) follow the workflow row below. What runs on every sfl and Quality
+# release_report.sh (what was done) follow the workflow row below (no bump commit
+# since forsgren#237: the bump, commit and short Quality scripts are gone). What runs on every sfl and Quality
 # run is their self-tests (fixture data, a stub gh, throwaway repositories, a
 # copy of the repository with `go test ./...` on it) and the pin of the
 # workflow itself, which holds the order, the permissions and the arguments.
 release plan self-test|Scripts/test_release_plan.sh|pre|
-release bump self-test|Scripts/test_release_bump.sh|pre|
 release quality self-test|Scripts/test_release_quality.sh|pre|
-release commit self-test|Scripts/test_release_commit.sh|pre|
 release publish self-test|Scripts/test_release_publish.sh|pre|
 release pins self-test|Scripts/test_release_pins.sh|pre|
 release report self-test|Scripts/test_release_report.sh|pre|
@@ -833,9 +827,6 @@ release verify install self-test|Scripts/test_release_verify_install.sh|pre|
 release agent proofs self-test|Scripts/test_release_agent_proofs.sh|pre|
 release metrics self-test|Scripts/test_release_metrics.sh|pre|
 release workflow|Scripts/test_release_workflow.sh|pre|
-release bump diff self-test|Scripts/test_release_bump_diff.sh|pre|
-run short quality self-test|Scripts/test_run_short_quality.sh|pre|
-quality scope|Scripts/test_quality_scope.sh|pre|
 quality summary first|Scripts/test_quality_summary_first.sh|pre|
 step summary isolation|Scripts/test_step_summary_isolation.sh|pre|
 git sandbox isolation self-test|Scripts/test_git_sandbox_isolation.sh|pre|

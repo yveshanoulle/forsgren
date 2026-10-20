@@ -47,19 +47,10 @@ so the installer puts them there; installing and upgrading costs nothing
 lasting on a machine that is thrown away after the job. A tool still missing
 after it fails the Install tools step by name.
 
-**Scope (forsgren#230).** `quality.yml` takes a `scope` when started by hand:
-`full` (the default; a push and a pull request are always full) or `bump`, the
-short Quality the Release workflow dispatches on its bump commit, with
-`green_parent`, `old_version` and `new_version`. With `bump` the run does the
-same setup, then FIRST `Scripts/release_bump_diff.sh` (the commit holds only the
-version bump on the green parent; when it is red nothing else runs), then
-`Scripts/run_short_quality.sh`, which runs only the PRE rows of
-`Scripts/quality_bump_gates.txt` (secret scan, Go tests, golden pages, Go lint),
-then the site build; POST is skipped. Nothing is skipped silently: the run page
-opens with `short Quality for a release bump: N gates`, names the gates that ran
-and every gate of the order file that did not, and the summary says it is a
-short Quality. `Scripts/test_quality_scope.sh` pins this; the list lives only in
-`Scripts/quality_bump_gates.txt`.
+**By hand.** `quality.yml` takes no inputs when started by hand: the run is the
+full Quality, as on a push. The short Quality for a release bump commit
+(forsgren#230) is gone since forsgren#237: the Release workflow makes no bump
+commit, it tags the Quality-green head of main.
 
 **Check-only.** CI reports what the commit contains. gofmt runs as
 `gofmt -l` (the `gofmt` row), never with `--fix`, and a gate that changes

@@ -39,31 +39,8 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["main"]
-  # By hand the run is the full Quality, as on a push. The Release workflow
-  # dispatches scope=bump on its bump commit (forsgren#230, step 2): the short
-  # Quality, which first checks that the commit holds only the version bump on
-  # the green parent (Scripts/release_bump_diff.sh, with the three inputs
-  # below), then runs only the gates of Scripts/quality_bump_gates.txt and the
-  # site build. Pinned by Scripts/test_quality_scope.sh.
+  # By hand the run is the full Quality, as on a push.
   workflow_dispatch:
-    inputs:
-      scope:
-        description: "full: every gate. bump: the short Quality of a release bump commit (the Release workflow sets it)"
-        type: choice
-        options: [full, bump]
-        default: full
-      green_parent:
-        description: "scope bump: the commit Quality was green on, the bump commit's only parent"
-        type: string
-        default: ""
-      old_version:
-        description: "scope bump: the version before the bump (X.Y.Z)"
-        type: string
-        default: ""
-      new_version:
-        description: "scope bump: the version of the bump (X.Y.Z)"
-        type: string
-        default: ""
 
 # The job reads the repository and nothing else.
 permissions:
@@ -170,50 +147,12 @@ jobs:
           echo "ROWS=${rows}" >> "$GITHUB_ENV"
           echo "DETAILS=${details}" >> "$GITHUB_ENV"
 
-      # scope bump only (forsgren#230, step 2): FIRST the bump diff check, the
-      # commit holds only the version bump on the green parent. When it is
-      # red nothing else runs: the gates, the build and POST are skipped
-      # with this step named as the cause. The inputs come in through env:.
-      - name: Bump diff check
-        id: diff
-        if: ${{ inputs.scope == 'bump' }}
-        shell: bash
-        env:
-          BUMP_SHA: ${{ github.sha }}
-          GREEN_PARENT: ${{ inputs.green_parent }}
-          OLD_VERSION: ${{ inputs.old_version }}
-          NEW_VERSION: ${{ inputs.new_version }}
-        run: |
-          set -euo pipefail
-          ./Scripts/release_bump_diff.sh "$BUMP_SHA" "$GREEN_PARENT" "$OLD_VERSION" "$NEW_VERSION"
-
-      # scope bump only: the PRE gates of Scripts/quality_bump_gates.txt and
-      # no other, through Scripts/run_short_quality.sh, which says on the run
-      # page how many gates ran and names every one that did not. Exit 2 is a
-      # secret-class finding, as in the PRE step below.
-      - name: Short PRE gates
-        id: short
-        if: ${{ inputs.scope == 'bump' }}
-        shell: bash
-        run: |
-          set -uo pipefail
-          # The note goes to a file the summary step appends after the
-          # headline: this step runs before it and must not write the run
-          # page itself (forsgren#233).
-          GITHUB_STEP_SUMMARY="${RUNNER_TEMP}/summary_short_note.md" \
-            ./Scripts/run_short_quality.sh "$ROWS" "$DETAILS" && rc=0 || rc=$?
-          if [ "$rc" -eq 2 ]; then
-            echo "secret_block=true" >> "$GITHUB_OUTPUT"
-          fi
-          exit "$rc"
-
       # Every pre row of Scripts/gate_report_order.txt, in file order. A
       # failing gate does not stop the phase, as in sfl. Exit 2 is a
       # secret-class finding: the build and POST are then skipped, as FBP.sh
       # skips them, and the step fails either way.
       - name: PRE gates
         id: pre
-        if: ${{ inputs.scope != 'bump' }}
         shell: bash
         # The private-names gate reads its list from this secret; no list
         # is exit 2 there, never a silent pass (forsgren#52).
@@ -237,7 +176,7 @@ jobs:
       # which the POST gates read by default.
       - name: Build site
         id: build
-        if: ${{ !cancelled() && steps.pre.outputs.secret_block != 'true' && steps.short.outputs.secret_block != 'true' && steps.diff.outcome != 'failure' }}
+        if: ${{ !cancelled() && steps.pre.outputs.secret_block != 'true' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -247,7 +186,7 @@ jobs:
       # not succeed: those gates then report as unmeasured, not as passing.
       - name: POST gates
         id: post
-        if: ${{ !cancelled() && steps.build.outcome == 'success' && inputs.scope != 'bump' }}
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         shell: bash
         run: |
           set -uo pipefail
@@ -265,8 +204,7 @@ jobs:
       # status and how far the run got, gates per phase, Go tests, the total
       # checks, coverage and floors to raise, pages, version, commit, trigger
       # and duration;
-      # then the gate table with each gate's output, then the short Quality
-      # note of the bump scope. One step, so the numbers
+      # then the gate table with each gate's output. One step, so the numbers
       # sit above the table without either renderer knowing about the other.
       # Gates that never ran are named rather than omitted: a short table
       # would otherwise read as "fewer checks exist", and a number that does
@@ -281,23 +219,16 @@ jobs:
         shell: bash
         env:
           QS_JOB_STATUS: ${{ job.status }}
-          QS_PRE_OUTCOME: ${{ inputs.scope == 'bump' && steps.short.outcome || steps.pre.outcome }}
-          QS_SHORT_QUALITY: ${{ inputs.scope == 'bump' && 'true' || '' }}
-          QS_DIFF_OUTCOME: ${{ steps.diff.outcome }}
+          QS_PRE_OUTCOME: ${{ steps.pre.outcome }}
           QS_BUILD_OUTCOME: ${{ steps.build.outcome }}
           QS_POST_OUTCOME: ${{ steps.post.outcome }}
-          QS_SECRET_BLOCK: ${{ steps.pre.outputs.secret_block || steps.short.outputs.secret_block }}
+          QS_SECRET_BLOCK: ${{ steps.pre.outputs.secret_block }}
           QS_PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -uo pipefail
           rc=0
           ./Scripts/render_quality_summary.sh "${ROWS:-}" "${DETAILS:-}" >> "$GITHUB_STEP_SUMMARY" || rc=$?
           ./Scripts/render_quality_report.sh "${ROWS:-}" "${DETAILS:-}" >> "$GITHUB_STEP_SUMMARY" || rc=$?
-          # The short Quality note of the bump scope, after the headline; a
-          # full run left no such file.
-          if [ -f "${RUNNER_TEMP}/summary_short_note.md" ]; then
-            cat "${RUNNER_TEMP}/summary_short_note.md" >> "$GITHUB_STEP_SUMMARY" || rc=$?
-          fi
           exit "$rc"
 
       # What this site has agreed to live with, as markdown tables on the run

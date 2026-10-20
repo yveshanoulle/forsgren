@@ -7,18 +7,6 @@
 #       Quality (quality.yml) must be green on <sha>: a completed run with the
 #       conclusion success. A run still going is waited for; no run at all, or
 #       only runs that ended in anything but success, is a red.
-#   Scripts/release_quality.sh dispatch <sha> <ref>
-#       Starts quality.yml on <ref> (a workflow_dispatch: a push by the job's
-#       token starts no run, a dispatch by it does), then waits as `check` does
-#       for a run on <sha>; a run that has not appeared yet is waited for too.
-#
-#   Scripts/release_quality.sh dispatch-bump <sha> <ref> <green-parent> <old-version> <new-version>
-#       The same, for the bump commit of a release (forsgren#230, step 2): the
-#       dispatch carries scope=bump and the green parent, the old and the new
-#       version as inputs, so quality.yml runs the short Quality: the bump diff
-#       check first (Scripts/release_bump_diff.sh), then only the gates of
-#       Scripts/quality_bump_gates.txt and the site build.
-#
 #   Scripts/release_quality.sh head <sha>
 #       Main's head (GITHUB_REPOSITORY, read through gh) must still be <sha>,
 #       the commit Quality was proved green on (forsgren#237, step 5a): a red
@@ -35,7 +23,7 @@ COMPLETED=0
 trap '[ "$COMPLETED" -eq 1 ] || { echo "❌ FAIL: release_quality.sh aborted before completing (COMPLETED was never set)" >&2; exit 1; }' EXIT
 
 usage() {
-  echo "usage: Scripts/release_quality.sh check <sha> | dispatch <sha> <ref> | dispatch-bump <sha> <ref> <green-parent> <old-version> <new-version> | head <sha>" >&2
+  echo "usage: Scripts/release_quality.sh check <sha> | head <sha>" >&2
   COMPLETED=1
   exit 2
 }
@@ -50,16 +38,10 @@ MODE="${1:-}"
 SHA="${2:-}"
 case "$MODE" in
   check) [ "$#" -eq 2 ] || usage ;;
-  dispatch) [ "$#" -eq 3 ] || usage ;;
-  dispatch-bump) [ "$#" -eq 6 ] || usage ;;
   head) [ "$#" -eq 2 ] || usage ;;
   *) usage ;;
 esac
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || usage
-if [ "$MODE" = dispatch-bump ]; then
-  [[ "$4" =~ ^[0-9a-f]{40}$ ]] || usage
-  [[ "$5" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$6" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || usage
-fi
 if [ "$MODE" = head ]; then
   # forsgren#237, step 5a: a release tags the commit Quality was proved green
   # on, so main must still be at it.
@@ -77,15 +59,6 @@ fi
 TRIES="${RELEASE_QUALITY_TRIES:-120}"
 DELAY="${RELEASE_QUALITY_DELAY:-30}"
 [[ "$TRIES" =~ ^[1-9][0-9]*$ && "$DELAY" =~ ^[0-9]+$ ]] || usage
-
-if [ "$MODE" = dispatch ]; then
-  gh workflow run quality.yml --ref "$3" || red "could not start quality.yml on ${3}"
-  echo "started quality.yml on ${3}, waiting for its run on ${SHA}"
-elif [ "$MODE" = dispatch-bump ]; then
-  gh workflow run quality.yml --ref "$3" -f scope=bump -f green_parent="$4" -f old_version="$5" -f new_version="$6" \
-    || red "could not start the short quality.yml (scope=bump) on ${3}"
-  echo "started the short quality.yml (scope=bump) on ${3}, waiting for its run on ${SHA}"
-fi
 
 try=0
 state="no run"
@@ -111,10 +84,8 @@ while [ "$try" -lt "$TRIES" ]; do
     state="a run is still going"
   elif [ -n "$failed" ]; then
     red "Quality is not green on ${SHA}: ${failed}"
-  elif [ "$MODE" = check ]; then
-    red "no Quality run on ${SHA}: start quality.yml on main by hand, then run the release again"
   else
-    state="no run yet"
+    red "no Quality run on ${SHA}: start quality.yml on main by hand, then run the release again"
   fi
   if [ "$try" -lt "$TRIES" ]; then sleep "$DELAY"; fi
 done

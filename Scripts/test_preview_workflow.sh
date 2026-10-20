@@ -27,8 +27,8 @@
 #  10. a failed start is never softened: no continue-on-error, no || true
 #  11. the file has no workflow_run and no pull_request_target trigger
 #  12. the order: checkout, then the start
-#  13. a dispatch-triggered run (workflow_dispatch, scope bump or full: a
-#      release bump's short Quality) never starts the preview: the if: names
+#  13. a dispatch-triggered run (workflow_dispatch: a by-hand
+#      Quality run) never starts the preview: the if: names
 #      no workflow_dispatch, no inputs and no ||, so only a push passes it
 
 set -euo pipefail

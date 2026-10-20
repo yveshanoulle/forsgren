@@ -4,7 +4,7 @@
 # forsgren's own (forsgren#233). In CI the runner exports GITHUB_STEP_SUMMARY,
 # and the Quality run runs the self-tests inside a gate step. A self-test that
 # runs a script which appends to $GITHUB_STEP_SUMMARY (the release report, the
-# token expiry check, the baselines report, the short Quality) then wrote its
+# token expiry check, the baselines report) then wrote its
 # fixture output to the REAL run page, ahead of the run's headline. Every
 # self-test must run those scripts under a summary file it owns:
 # Scripts/lib_selftest.sh points GITHUB_STEP_SUMMARY at a file in the

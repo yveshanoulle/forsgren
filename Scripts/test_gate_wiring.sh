@@ -160,8 +160,8 @@ fi
 # release_resume.sh (forsgren#221, the resume), and to 133 for the self-test of
 # release_token_expiry.sh (forsgren#221, step 4), and to 135 for the self-tests of
 # release_verify_pin.sh and release_metrics.sh (forsgren#221, step 5), and
-# to 138 for the self-test of release_bump_diff.sh (forsgren#230, step 1), and to
-# 140 for the self-tests of run_short_quality.sh and the pin of quality.yml's scope
+# to 138 for the self-test of the bump diff check (forsgren#230, step 1), and to
+# 140 for the self-tests of the short Quality runner and the pin of quality.yml's scope
 # (forsgren#230, step 2), and to 142 for the preview deploy's script self-test and
 # workflow pin (forsgren#222), and to 143 for the pre-check's self-test
 # (forsgren#231, step 1), and to 144 for the static block's self-test
@@ -170,11 +170,13 @@ fi
 # (forsgren#240, step 1), and to 151 for the commit messages self-test
 # (forsgren#213), and to 152 for the self-test of release_verify_install.sh
 # (forsgren#237, step 5a), and to 153 for the self-test of release_agent_proofs.sh
-# (forsgren#237, step 5b).
+# (forsgren#237, step 5b), and down to 148 when the five self-tests of the
+# bump, commit, bump diff, short Quality and quality scope pins went with the
+# scripts they proved (forsgren#237, step 6).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=153
+MIN_GATES=148
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -581,52 +583,6 @@ for path in Scripts/*.sh; do
       require_fixture "$base" "the agent proof check would be unproven"
       order_names "test_${base}" \
         || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
-      ;;
-
-    # THE UNUSED BUMP SCRIPTS (forsgren#237, step 5b): the Release workflow no
-    # longer bumps or commits anything; step 6 removes these scripts and their
-    # self-tests. Until then only the self-tests, order-file rows, prove them.
-    release_bump.sh|release_commit.sh)
-      order_names "test_${base}" \
-        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
-      ;;
-
-    # THE BUMP DIFF CHECK (forsgren#230): checks the bump commit. The Release
-    # workflow reaches it through quality.yml: the short Quality (scope=bump)
-    # runs it first, and the release dispatches that scope. So quality.yml
-    # must invoke it, its self-test must be an order-file row, and it must read
-    # the one list of the files a bump may change.
-    release_bump_diff.sh)
-      runs_script "$CI" "$base" \
-        || fail "${base} checks the bump commit and ${CI} (the short Quality, scope=bump) never invokes it — a bump commit would be released unread"
-      require_fixture "$base" "the bump commit check would be unproven"
-      order_names "test_${base}" \
-        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
-      grep -qF 'lib_release_bump_scope.sh' "Scripts/${base}" \
-        || fail "${base} does not source Scripts/lib_release_bump_scope.sh — its list of allowed files could drift from the bump's"
-      ;;
-
-    # THE SHORT QUALITY (forsgren#230, step 2): quality.yml runs it, for
-    # scope=bump, instead of the PRE phase. Its self-test and the pin of the
-    # workflow's scope are order-file rows.
-    run_short_quality.sh)
-      runs_script "$CI" "$base" \
-        || fail "${base} runs the short Quality and ${CI} never invokes it — scope=bump would run no gate"
-      require_fixture "$base" "the short Quality would be unproven"
-      order_names "test_${base}" \
-        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove ${base}"
-      order_names "test_quality_scope.sh" \
-        || fail "Scripts/test_quality_scope.sh is not an order-file row — nothing would hold quality.yml's scope to the short Quality"
-      ;;
-
-    # SOURCED HELPER, not a gate (forsgren#230): the files a release bump may
-    # change, read by release_bump.sh and release_bump_diff.sh alike. The
-    # self-test of the latter proves it.
-    lib_release_bump_scope.sh)
-      order_names "test_release_bump_diff.sh" \
-        || fail "${base} is read by the bump check and Scripts/test_release_bump_diff.sh is not an order-file row"
-      grep -qF 'lib_release_bump_scope.sh' Scripts/release_bump.sh \
-        || fail "${base} lists the files of a bump and Scripts/release_bump.sh never reads it — the list could drift"
       ;;
 
     # THE PIN CHECK of the Release workflow's metrics step (forsgren#221, step 5):

@@ -9,19 +9,15 @@
 #   3. check, only a failed run                        -> red naming the run
 #   4. check, a failed run and a later success         -> OK (a re-run)
 #   5. check, no run at all                            -> red, at once
-#   6. dispatch starts quality.yml on the ref, then waits, also while no run
-#      has appeared yet
-#   7. a run that never ends / never appears           -> red after exactly
+#   6. a run that never ends                           -> red after exactly
 #      the bound, naming the commit
-#   8. dispatch that gh refuses                        -> red, nothing awaited
-#   9. usage errors                                    -> exit 2
-#  10. dispatch-bump (forsgren#230, step 2) starts quality.yml on the ref with
-#      scope=bump and the green parent, the old and the new version as inputs,
-#      then waits as dispatch does; bad shas and versions -> exit 2
+#   7. usage errors                                    -> exit 2
+#   8. dispatch is not a mode any more (forsgren#237, step 6): the Release
+#      workflow starts no Quality run
 #  11. head <sha> (forsgren#237, step 5a): green when main's head is the sha, red
 #      naming both shas when main moved, red when the head cannot be read
 # Mutation proofs: a copy that never compares the head must let a moved main
-# pass; a copy that dispatches the bump with the full scope, and one that takes a failed run for green, one that does not
+# pass; one that takes a failed run for green, one that does not
 # wait (gives up on a running run) and one that has no bound must each let the
 # case they exist for pass.
 
@@ -55,9 +51,6 @@ case "$1 $2" in
   "api repos/acme/forsgren/git/ref/heads/main")
     if [ -f "${STUB_SEQ}/api_fails" ]; then echo "HTTP 500" >&2; exit 1; fi
     cat "${STUB_SEQ}/main_sha"
-    ;;
-  "workflow run")
-    if [ -f "${STUB_SEQ}/dispatch_fails" ]; then echo "HTTP 403" >&2; exit 1; fi
     ;;
 esac
 STUB
@@ -106,47 +99,11 @@ run check "$SHA"
 want_red "no run at all" "no Quality run on ${SHA}"
 if [[ "$(grep -c '^run list' "${TMP}/gh.log")" -ne 1 ]]; then fail "check polled more than once for no run at all"; fi
 
-runs "" "" "$OK_RUN"
-run dispatch "$SHA" main
-want_green "dispatch, the run appears on poll 3" "poll 3"
-if ! grep -qxF "workflow run quality.yml --ref main" "${TMP}/gh.log"; then fail "gh was not told to run quality.yml on main. Log: $(cat "${TMP}/gh.log")"; else echo "  ok: quality.yml is started on the ref"; fi
-
 runs "$GOING"
 TRIES=4 run check "$SHA"
 want_red "a run that never ends" "gave up after 4 polls"
 want_said "the commit is named" "$SHA"
 if [[ "$(grep -c '^run list' "${TMP}/gh.log")" -ne 4 ]]; then fail "the wait was not exactly 4 polls. Log: $(cat "${TMP}/gh.log")"; else echo "  ok: the wait is bounded to the tries"; fi
-
-runs ""
-TRIES=3 run dispatch "$SHA" main
-want_red "a run that never appears" "no run yet on ${SHA}"
-
-runs "$OK_RUN"
-touch "${TMP}/seq/dispatch_fails"
-run dispatch "$SHA" main
-want_red "a dispatch gh refuses" "could not start quality.yml on main"
-if grep -q '^run list' "${TMP}/gh.log"; then fail "it waited for a run after the dispatch failed"; fi
-rm -f "${TMP}/seq/dispatch_fails"
-
-GREEN="89abcdef0123456789abcdef0123456789abcdef"
-BUMP_ARGS="-f scope=bump -f green_parent=${GREEN} -f old_version=1.10.0 -f new_version=1.11.0"
-runs "" "$OK_RUN"
-run dispatch-bump "$SHA" main "$GREEN" 1.10.0 1.11.0
-want_green "dispatch-bump, the run appears on poll 2" "poll 2"
-bump_dispatch_findings() {
-  grep -qxF "workflow run quality.yml --ref main ${BUMP_ARGS}" "${TMP}/gh.log" \
-    || echo "gh was not told to run quality.yml on main with ${BUMP_ARGS}. Log: $(cat "${TMP}/gh.log")"
-}
-if [[ -z "$(bump_dispatch_findings)" ]]; then echo "  ok: quality.yml is started with scope=bump and the parent and versions"; else fail "$(bump_dispatch_findings)"; fi
-runs "$OK_RUN"
-run dispatch "$SHA" main
-if grep -qF -- "scope=" "${TMP}/gh.log"; then fail "a plain dispatch passes a scope: $(cat "${TMP}/gh.log")"; else echo "  ok: a plain dispatch passes no scope, so it runs the full Quality"; fi
-run dispatch-bump "$SHA" main "$GREEN" 1.10.0
-want_exit "dispatch-bump without the new version" 2 "usage"
-run dispatch-bump "$SHA" main abc 1.10.0 1.11.0
-want_exit "dispatch-bump with a short green parent" 2 "usage"
-run dispatch-bump "$SHA" main "$GREEN" 1.10 1.11.0
-want_exit "dispatch-bump with a malformed version" 2 "usage"
 
 # 11 (forsgren#237, step 5a): head <sha> proves main's head still is the commit
 # Quality was proved green on, before a tag is made at it.
@@ -176,8 +133,8 @@ run check
 want_exit "no sha" 2 "usage"
 run check abc
 want_exit "a short sha" 2 "usage"
-run dispatch "$SHA"
-want_exit "dispatch without a ref" 2 "usage"
+run dispatch "$SHA" main
+want_exit "dispatch is no mode any more" 2 "usage"
 
 # Mutation proofs.
 mutant() {
@@ -209,24 +166,6 @@ if mutant unbounded "s/while \[ \".try\" -lt \".TRIES\" \]; do/while [ \"${D}try
     echo "  ok: mutation proof: without the tries the bound is no longer the caller's"
   fi
 fi
-if mutant fullscope 's/ -f scope=bump//'; then
-  runs "$OK_RUN"
-  run dispatch-bump "$SHA" main "$GREEN" 1.10.0 1.11.0
-  if [[ -n "$(bump_dispatch_findings)" ]]; then
-    echo "  ok: mutation proof: a dispatch-bump without scope=bump is named: it would run the full Quality"
-  else
-    fail "mutation proof: the mutant without scope=bump still dispatched the bump scope"
-  fi
-fi
-if mutant noparent 's/ -f green_parent="[$]4"//'; then
-  runs "$OK_RUN"
-  run dispatch-bump "$SHA" main "$GREEN" 1.10.0 1.11.0
-  if [[ -n "$(bump_dispatch_findings)" ]]; then
-    echo "  ok: mutation proof: a dispatch-bump without the green parent is named"
-  else
-    fail "mutation proof: the mutant without the green parent still passed it"
-  fi
-fi
 unset SCRIPT
 
 if mutant headblind 's/if \[ "[$]HEAD_SHA" != "[$]SHA" \]; then/if false; then/'; then
@@ -239,4 +178,4 @@ if mutant headblind 's/if \[ "[$]HEAD_SHA" != "[$]SHA" \]; then/if false; then/'
   fi
 fi
 
-selftest_end "the release quality check does not hold" "release quality: green, going, failed, absent, dispatched and bounded runs all judged right"
+selftest_end "the release quality check does not hold" "release quality: green, going, failed, absent and bounded runs all judged right"

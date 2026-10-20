@@ -382,4 +382,33 @@ mutant "a report that only runs on success" "s/if: .{{ always() }}/if: ${DOLLAR}
 mutant "a leaked token" "s#^          ./Scripts/release_pins.sh token#          echo ${DOLLAR}GH_TOKEN\\
           ./Scripts/release_pins.sh token#" "token: the workflow echoes a token"
 
+# --- 10. the unused bump machinery is gone (forsgren#237, step 6) -------------
+# The release tags main's head and bumps, tests and commits nothing, so the
+# scripts that did, the short Quality for a bump commit (quality.yml scope=bump)
+# and their self-tests, gate rows and docs rows no longer exist, and no tracked
+# file but SHIPPED.md (the history) names them.
+REMOVED_FILES="Scripts/release_bump.sh Scripts/release_commit.sh Scripts/release_bump_diff.sh Scripts/lib_release_bump_scope.sh Scripts/release_bump_scope.txt Scripts/quality_bump_gates.txt Scripts/run_short_quality.sh Scripts/test_release_bump.sh Scripts/test_release_commit.sh Scripts/test_release_bump_diff.sh Scripts/test_run_short_quality.sh Scripts/test_quality_scope.sh"
+REMOVED_WORDS="dispatch-bump scope=bump QS_SHORT_QUALITY QS_DIFF_OUTCOME summary_short_note quality-bump quality-resumed"
+removed_findings() {
+  local f w names
+  for f in $REMOVED_FILES; do
+    [[ ! -e "$f" ]] || echo "removed: ${f} still exists"
+  done
+  names=""
+  for f in $REMOVED_FILES; do names="${names} $(basename "$f")"; done
+  for w in $names $REMOVED_WORDS; do
+    git ls-files | grep -vxE 'SHIPPED.md|Scripts/test_release_workflow.sh' | while IFS= read -r t; do
+      [[ -f "$t" ]] && grep -qF -- "$w" "$t" && echo "removed: ${t} still names ${w}"
+    done
+  done
+  grep -qE '^      scope:' .github/workflows/quality.yml && echo "removed: quality.yml still has the scope input"
+  return 0
+}
+REMOVED_OUT="$(removed_findings)"
+if [[ -z "$REMOVED_OUT" ]]; then
+  echo "  ok: the unused bump scripts, the short Quality and their rows are gone"
+else
+  while IFS= read -r line; do fail "$line"; done <<< "$REMOVED_OUT"
+fi
+
 selftest_end "the release workflow pin found failures" "release workflow pin (the real file holds every pin; each mutant is named)"

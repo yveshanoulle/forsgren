@@ -5,13 +5,13 @@
 # (forsgren#233). GitHub shows each step's summary in step order, so the
 # headline is first only while no step BEFORE the step "Render summary and
 # report" writes to $GITHUB_STEP_SUMMARY. That step writes the headline, then
-# the gate table, then the note of the short Quality. The steps after it (the
+# the gate table. The steps after it (the
 # baselines) may write the page themselves. forsgren's own. The pins, on the
 # real .github/workflows/quality.yml, each proved by a mutant that breaks it
 # and must be named:
 #   1. no step before the summary step writes to $GITHUB_STEP_SUMMARY, neither
 #      itself nor through a script of Scripts/ that appends to it
-#      (run_short_quality.sh, report_baselines.sh ...); a step that runs such
+#      (report_baselines.sh ...); a step that runs such
 #      a script points GITHUB_STEP_SUMMARY at its own file on that command
 #   2. in the summary step the headline (render_quality_summary.sh) is the
 #      first write, ahead of the gate table (render_quality_report.sh)
@@ -121,9 +121,6 @@ mutant() {
 mutant "a gate step that writes the summary itself" \
   "/name: PRE gates/,/run: |/s#run: |#run: |\\n          echo early >> \"\$GITHUB_STEP_SUMMARY\"#" \
   "writer: step 'PRE gates' writes to GITHUB_STEP_SUMMARY itself"
-mutant "the short Quality note writing straight to the page" \
-  "/GITHUB_STEP_SUMMARY=\"\${RUNNER_TEMP}\\/summary_short_note.md\" \\\\\$/d" \
-  "writer: step 'Short PRE gates' runs run_short_quality.sh"
 mutant "the gate table before the headline" \
   's#render_quality_summary.sh#TMPNAME#;s#render_quality_report.sh#render_quality_summary.sh#;s#TMPNAME#render_quality_report.sh#' \
   "summary: the gate table is written before the headline"
