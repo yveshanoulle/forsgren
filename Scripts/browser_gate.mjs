@@ -72,10 +72,20 @@ const puppeteer = require('puppeteer-core');
 const axe = require('axe-core');
 
 const VIEWPORT = { width: 1280, height: 800, deviceScaleFactor: 1 };
-const CLS_INTERVAL_MS = 1000;
+// The layout-shift measurement: this many cold loads, each read after this
+// interval. The defaults are the real gate. A self-test case that never asserts
+// on layout shift shortens them through the environment (forsgren#247); an unset
+// variable keeps the default, an unusable one stops the gate (exit 2).
+function envPositive(name, fallback) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return fallback;
+  if (!/^[1-9][0-9]*$/.test(raw)) die(`${name} must be a positive integer, got '${raw}'`);
+  return Number(raw);
+}
+const CLS_INTERVAL_MS = envPositive('FORSGREN_CLS_INTERVAL_MS', 1000);
 // The nav is injected by a script racing the first paint, so one load can show a
 // shift another does not: a page's CLS is the largest of this many cold loads.
-const CLS_LOADS = 5;
+const CLS_LOADS = envPositive('FORSGREN_CLS_LOADS', 5);
 const NAV_TIMEOUT_MS = 30000;
 // The baseline's keys and the CLS comparison, one place each: what a finding
 // is matched on, and how two CLS values are compared (exactly).

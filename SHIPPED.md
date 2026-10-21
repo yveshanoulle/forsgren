@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-10-21 — the browser gate self-test measures layout shift briefly where no case asserts on it ([#247](https://github.com/yveshanoulle/forsgren/issues/247), step 1 of 2)
+
+forsgren issue 247, step 1 of 3, patch (decision 249). Nothing an installation sees changes. `Scripts/browser_gate.mjs` reads the layout-shift loads and interval from `FORSGREN_CLS_LOADS` and `FORSGREN_CLS_INTERVAL_MS`; unset, the defaults stay 5 loads at 1000 ms (the real gate and the site check are unchanged), and a value that is no positive integer stops the gate with exit 2. `Scripts/test_gate_browser.sh` runs its cases with 1 load at 300 ms (longer than the 200 ms of the shift fixture) except the clean page that records the interval, the layout-shift cases 8 and 19-23 and the mutation runs, which keep the real values; `Scripts/test_gate_browser_fixture.sh` does the same for its non-mutation cases. Measured locally: the browser gate self-test 321 s before, 132 s after; the fixture-site self-test about 70 s (CI log) before, 23 s after.
+
+- Red first: the new cases failed against the unchanged engine with 8 failure lines (37 override not honoured, 38 short setting not read, 39a and 39b no exit 2, the three default mutants vacuous because the override did not exist, and the too-short-setting proof). Mutation proofs: H the override ignored (case 37 loses 50 ms), I the default interval changed (case 15 loses 1000 ms), J the default loads changed (case 8a loses 5 cold loads), K a shift case given a 1 ms setting turns green (why the shift cases keep the real values; 100 ms still caught the shift, so 1 ms is the proof value).
+
 ## 2026-10-21 — the Go toolchain moves to go1.27.3 ([#250](https://github.com/yveshanoulle/forsgren/issues/250), step 1 of 1)
 
 forsgren issue 250, step 1 of 1, patch. Nothing an installation sees changes. govulncheck reported GO-2026-6809 (crypto/x509, distrust of compromised intermediate certificates), reached through `collect.Report.Render`, fixed in go1.27.3. `go.mod` now says `toolchain go1.27.3` (the one place `sfl.sh` and `FBP.sh` read through `Scripts/go_toolchain.sh`) and the `go-version` of `auto_update.yml`, `metrics.yml` and `starter_page.yml` is `1.27.3`. No other file names the running toolchain.

@@ -57,6 +57,17 @@
 #   F. an attr: variant not applied: case 30 turns green (the dark look never
 #      checked);
 #   G. the scheme not emulated per variant: case 33 turns green.
+# The layout-shift override (forsgren#247, decision 249): the loads and the
+# interval are read from FORSGREN_CLS_LOADS and FORSGREN_CLS_INTERVAL_MS, the
+# default stays 5 loads at 1000 ms. Every case but the layout-shift ones runs with
+# the short setting (1 load, 300 ms, longer than the 200 ms of the shift fixture):
+#  37. the override is honoured (2 loads, 50 ms)        -> the OK line says 50 ms
+#  38. the short setting still catches the shift fixture -> red, 1 cold loads
+#  39. an override that is no positive integer           -> exit 2
+#   H. the override ignored: case 37 stops saying 50 ms;
+#   I. the default interval changed: case 15 loses 1000 ms;
+#   J. the default loads changed: case 8 loses 5 cold loads;
+#   K. a layout-shift case given a too short setting (1 ms) turns green.
 
 set -euo pipefail
 
@@ -114,8 +125,18 @@ make_site() {
   printf 'light|scheme:light\n' > "$dir/variants.txt"
 }
 
+# The short setting: the cases that never assert on layout shift. The shift
+# fixture moves at 200 ms, so 300 ms still sees it (case 38).
+SHORT_CLS_LOADS=1
+SHORT_CLS_INTERVAL_MS=300
 run_gate() {
-  capture "$GATE" "${TMP}/$1/site" "${TMP}/$1/manifest.json" "${TMP}/$1/exceptions.txt" "${TMP}/$1/baseline.txt" "${TMP}/$1/variants.txt"
+  FORSGREN_CLS_LOADS="$SHORT_CLS_LOADS" FORSGREN_CLS_INTERVAL_MS="$SHORT_CLS_INTERVAL_MS" capture "$GATE" "${TMP}/$1/site" "${TMP}/$1/manifest.json" "${TMP}/$1/exceptions.txt" "${TMP}/$1/baseline.txt" "${TMP}/$1/variants.txt"
+}
+
+# run_gate_real: the real setting (the default, whatever the caller exports),
+# for the cases that assert on layout shift or on the interval text.
+run_gate_real() {
+  capture env -u FORSGREN_CLS_LOADS -u FORSGREN_CLS_INTERVAL_MS "$GATE" "${TMP}/$1/site" "${TMP}/$1/manifest.json" "${TMP}/$1/exceptions.txt" "${TMP}/$1/baseline.txt" "${TMP}/$1/variants.txt"
 }
 
 make_site clean "$(page '' '')"
@@ -130,7 +151,7 @@ make_site external "$(page '<img src="http://example.invalid/x.png" alt="away">'
 make_site nopage "$(page '' '')"
 printf '{"requiredPages": ["/", "/nope.html"]}\n' > "${TMP}/nopage/manifest.json"
 
-run_gate clean
+run_gate_real clean
 want_green "1: a clean page" "OK: browser gate: 1 pages x 1 variants (light)"
 CLEAN_OUT="$OUT"
 
@@ -146,8 +167,9 @@ run_gate console
 want_red "6: a console error" "console error: fixture boom"
 run_gate notfound
 want_red "7: a 404 image" "request /missing.png -> 404"
-run_gate shift
+run_gate_real shift
 want_red "8: a layout shift" "CLS 0."
+want_said "8a: with the default 5 cold loads" "largest of 5 cold loads"
 want_said "8b: a layout shift without a row says so" "no baseline row"
 run_gate external
 want_red "9: a request leaving loopback" "leaves loopback"
@@ -198,7 +220,7 @@ run_gate two
 want_red "18: a baselined axe finding that is gone" "FAIL: stale baseline row: axe|light|/|color-contrast|#gone"
 
 # CLS rows. M is the shift the fixture measures, read from the gate itself.
-run_gate shift
+run_gate_real shift
 CLS_M="$(sed -n 's/.*FAIL: light \/: CLS \([0-9.e-]*\) .*/\1/p' <<< "$OUT" | head -1)"
 if [[ -z "$CLS_M" ]]; then
   fail "the shift fixture did not report a CLS value. Output: ${OUT}"
@@ -207,14 +229,14 @@ fi
 scaled() { awk -v m="$CLS_M" -v f="$1" 'BEGIN { printf "%.17g", m * f }'; }
 
 printf 'cls|light|/|%s|%s\n' "$(scaled 0.999)" "$REASON" > "${TMP}/shift/baseline.txt"
-run_gate shift
+run_gate_real shift
 want_red "19: a CLS above its recorded value" "FAIL: light /: CLS ${CLS_M} grew above the recorded"
 printf 'cls|light|/|%s|%s\n' "$(scaled 1.001)" "$REASON" > "${TMP}/shift/baseline.txt"
-run_gate shift
+run_gate_real shift
 want_red "20: a CLS below its recorded value" "FAIL: light /: CLS ${CLS_M} is below the recorded"
 want_said "20b: and it says to lower the row" "lower the row"
 printf 'cls|light|/|%s|%s\n' "$CLS_M" "$REASON" > "${TMP}/shift/baseline.txt"
-run_gate shift
+run_gate_real shift
 want_green "21: a CLS equal to its recorded value" "WARN: baselined CLS light /: ${CLS_M}"
 
 printf 'cls|light|/|0.01|%s\n' "$REASON" > "${TMP}/clean/baseline.txt"
@@ -223,7 +245,7 @@ want_red "22: a CLS row on a page without a shift" "is below the recorded 0.01"
 : > "${TMP}/clean/baseline.txt"
 
 : > "${TMP}/shift/baseline.txt"
-run_gate shift
+run_gate_real shift
 want_red "23: a CLS above 0 with no row" "no baseline row"
 
 printf 'axe|light|/|color-contrast|#a|\n' > "${TMP}/two/baseline.txt"
@@ -332,10 +354,20 @@ run_gate clean
 want_exit "36c: a CLS row of the v1 format, without a variant" 2 "a row is cls|<variant>"
 : > "${TMP}/clean/baseline.txt"
 
+# 37-39: the layout-shift override.
+FORSGREN_CLS_LOADS=2 FORSGREN_CLS_INTERVAL_MS=50 capture "$GATE" "${TMP}/clean/site" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
+want_green "37: the override is honoured" "interval 50 ms"
+run_gate shift
+want_red "38: the short setting still catches the shift fixture" "largest of 1 cold loads"
+FORSGREN_CLS_LOADS=0 capture "$GATE" "${TMP}/clean/site" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
+want_exit "39a: zero loads" 2 "FORSGREN_CLS_LOADS must be a positive integer"
+FORSGREN_CLS_INTERVAL_MS=fast capture "$GATE" "${TMP}/clean/site" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
+want_exit "39b: an interval that is no number" 2 "FORSGREN_CLS_INTERVAL_MS must be a positive integer"
+
 # Mutation proofs: the engine copy is run directly, with the real node_modules.
 MUT="${TMP}/mutants"
 run_mutant() {
-  FORSGREN_NODE_ROOT="$REPO_ROOT" capture node "$1" "${TMP}/$2/site" "${TMP}/$2/manifest.json" "${TMP}/$2/exceptions.txt" "${TMP}/$2/baseline.txt" "${TMP}/$2/variants.txt"
+  FORSGREN_NODE_ROOT="$REPO_ROOT" capture env -u FORSGREN_CLS_LOADS -u FORSGREN_CLS_INTERVAL_MS node "$1" "${TMP}/$2/site" "${TMP}/$2/manifest.json" "${TMP}/$2/exceptions.txt" "${TMP}/$2/baseline.txt" "${TMP}/$2/variants.txt"
 }
 
 # A: only critical gates -> the serious fixture turns green.
@@ -389,4 +421,40 @@ if selftest_mutant "$ENGINE" "${MUT}/g.mjs" "s/value: variant.scheme/value: 'lig
   want_green "mutation proof G: an unemulated scheme turns case 33 green" "OK:"
 fi
 
-selftest_end "the browser gate self-test failed" "browser gate: every case holds, seven mutations seen"
+# H: the override ignored -> the 50 ms of case 37 is not read.
+if selftest_mutant "$ENGINE" "${MUT}/h.mjs" "s/envPositive('FORSGREN_CLS_INTERVAL_MS', 1000)/1000/"; then
+  FORSGREN_CLS_LOADS=2 FORSGREN_CLS_INTERVAL_MS=50 FORSGREN_NODE_ROOT="$REPO_ROOT" capture node "${MUT}/h.mjs" "${TMP}/clean/site" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
+  if grep -qF -- "interval 50 ms" <<< "$OUT"; then
+    fail "mutation proof H: the override was still read. Output: ${OUT}"
+  else
+    echo "  ok: mutation proof H: an ignored override loses case 37's 50 ms"
+  fi
+fi
+
+# I: the default interval changed -> case 15 loses its 1000 ms.
+if selftest_mutant "$ENGINE" "${MUT}/i.mjs" "s/envPositive('FORSGREN_CLS_INTERVAL_MS', 1000)/envPositive('FORSGREN_CLS_INTERVAL_MS', 500)/"; then
+  run_mutant "${MUT}/i.mjs" clean
+  if grep -qF -- "interval 1000 ms" <<< "$OUT"; then
+    fail "mutation proof I: the default interval was still 1000 ms. Output: ${OUT}"
+  else
+    echo "  ok: mutation proof I: a changed default interval loses case 15's 1000 ms"
+  fi
+fi
+
+# J: the default loads changed -> case 8a loses its 5 cold loads.
+if selftest_mutant "$ENGINE" "${MUT}/j.mjs" "s/envPositive('FORSGREN_CLS_LOADS', 5)/envPositive('FORSGREN_CLS_LOADS', 3)/"; then
+  run_mutant "${MUT}/j.mjs" shift
+  if grep -qF -- "largest of 5 cold loads" <<< "$OUT"; then
+    fail "mutation proof J: the default was still 5 loads. Output: ${OUT}"
+  else
+    echo "  ok: mutation proof J: a changed default load count loses case 8a's 5 cold loads"
+  fi
+fi
+
+# K: a layout-shift case given a too short setting (1 ms, before the shift
+# at 200 ms) turns green: why cases 8 and 19-23 keep the real values.
+: > "${TMP}/shift/baseline.txt"
+FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL_MS=1 capture "$GATE" "${TMP}/shift/site" "${TMP}/shift/manifest.json" "${TMP}/shift/exceptions.txt" "${TMP}/shift/baseline.txt" "${TMP}/shift/variants.txt"
+want_green "mutation proof K: a shift case on a too short setting turns green" "OK:"
+
+selftest_end "the browser gate self-test failed" "browser gate: every case holds, eleven mutations seen"

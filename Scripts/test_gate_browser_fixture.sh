@@ -74,8 +74,14 @@ make_site() {
 }
 
 # run_gate <name> [gate]: the gate on the site of <name>, with its files.
+# The short layout-shift setting (forsgren#247): no case here asserts on shift,
+# so the cases run with 1 load at 300 ms; the mutation proofs keep the real values.
 run_gate() {
-  capture "${2:-$GATE}" "${TMP}/$1/site" "${TMP}/$1/manifest.json" "${TMP}/$1/exceptions.txt" "${TMP}/$1/baseline.txt" "${TMP}/$1/variants.txt"
+  if [[ -n "${2:-}" ]]; then
+    capture env -u FORSGREN_CLS_LOADS -u FORSGREN_CLS_INTERVAL_MS "$2" "${TMP}/$1/site" "${TMP}/$1/manifest.json" "${TMP}/$1/exceptions.txt" "${TMP}/$1/baseline.txt" "${TMP}/$1/variants.txt"
+    return
+  fi
+  FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL_MS=300 capture "$GATE" "${TMP}/$1/site" "${TMP}/$1/manifest.json" "${TMP}/$1/exceptions.txt" "${TMP}/$1/baseline.txt" "${TMP}/$1/variants.txt"
 }
 
 REASON="fixture, shrink-only"
@@ -108,10 +114,10 @@ capture "$GATE" "${TMP}/nowhere" "${TMP}/clean/manifest.json" "${TMP}/clean/exce
 want_exit "6: a site directory that does not exist" 2 "site dir not found"
 
 # 7: the default site is the fixture site; only "/" and "/history.html" are asked for.
-capture "$GATE" "" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
+FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL_MS=300 capture "$GATE" "" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
 want_green "7: the gate builds the fixture site and its History page passes" "OK: browser gate: 2 pages x 1 variants (light)"
 
-FORSGREN_FIXTURE_DIR="${TMP}/nowhere" capture "$GATE" "" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
+FORSGREN_FIXTURE_DIR="${TMP}/nowhere" FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL_MS=300 capture "$GATE" "" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
 want_exit "8: a fixture site that cannot be built" 2 "the fixture site could not be built"
 
 # Mutation proofs: a copy of the gate in its own root, with the engine, the
