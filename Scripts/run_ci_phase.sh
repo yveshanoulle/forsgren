@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # canon: run_ci_phase v1
-# Scripts/run_ci_phase.sh <pre|post> <rows-file> <details-dir>
+# Scripts/run_ci_phase.sh <pre|post> <rows-file> <details-dir> [job]
 #
 # CI's gate loop. .github/workflows/quality.yml calls it
 # twice, `pre` before the build step (if the repository has one) and `post`
@@ -48,6 +48,15 @@
 # Each gate gets /dev/null as stdin: the loop reads the order file on stdin,
 # and a gate that read its own stdin would swallow the rows after it.
 #
+# JOBS (forsgren#259, decision #260). Quality runs its slowest gates in
+# parallel jobs of one workflow. The optional fourth argument names the job
+# (default main); Scripts/ci_job_groups.txt lists `<job>|<label>` for the gates
+# that belong to a job other than main, and every gate it does not list is
+# main's, so a gate runs in exactly one job and a new gate is never in none.
+# A group file that names a label the order file does not have is red in every
+# job, and a job the group file does not name is a usage error (64). A
+# malformed row is red in the main job only.
+#
 # Exit: 0 all rows of the phase passed; 1 a row failed, or the phase has no
 # row at all (a phase that ran nothing is not green); 2 a secret-class row
 # failed; 64 bad usage.
@@ -63,15 +72,18 @@ cd "$ROOT" || exit 1
 
 ORDER="Scripts/gate_report_order.txt"
 
+JOB_GROUPS="Scripts/ci_job_groups.txt"
+
 usage() {
-  echo "usage: run_ci_phase.sh <pre|post> <rows-file> <details-dir>" >&2
+  echo "usage: run_ci_phase.sh <pre|post> <rows-file> <details-dir> [job]" >&2
   exit 64
 }
 
-[ "$#" -eq 3 ] || usage
+[ "$#" -eq 3 ] || [ "$#" -eq 4 ] || usage
 PHASE="$1"
 ROWS="$2"
 DETAILS="$3"
+JOB="${4:-main}"
 case "$PHASE" in
   pre|post) ;;
   *) usage ;;
@@ -80,6 +92,33 @@ esac
 if [ ! -f "$ORDER" ]; then
   echo "❌ FAIL: ${ORDER} is missing — every gate is declared there, so without it no gate runs" >&2
   exit 1
+fi
+
+# gate_job <label>: the job the gate runs in, main unless the group file lists it.
+gate_job() {
+  local job=""
+  if [ -f "$JOB_GROUPS" ]; then
+    job="$(awk -F'|' -v l="$1" '$0 !~ /^#/ && $2 == l { print $1; exit }' "$JOB_GROUPS")"
+  fi
+  printf '%s\n' "${job:-main}"
+}
+
+# The job must exist, and every gate the group file names must be a row of
+# the order file: a typo there would take the gate out of every job unseen.
+if [ "$JOB" != "main" ]; then
+  if [ ! -f "$JOB_GROUPS" ] || ! awk -F'|' -v j="$JOB" '$0 !~ /^#/ && $1 == j { f = 1 } END { exit !f }' "$JOB_GROUPS"; then
+    echo "❌ FAIL: the job '${JOB}' has no gate in ${JOB_GROUPS}" >&2
+    usage
+  fi
+fi
+if [ -f "$JOB_GROUPS" ]; then
+  while IFS='|' read -r group_job group_label || [ -n "${group_job:-}${group_label:-}" ]; do
+    case "$group_job" in \#*|'') continue ;; esac
+    if [ -z "${group_label:-}" ] || ! awk -F'|' -v l="$group_label" '$0 !~ /^#/ && $1 == l && $2 != "" { f = 1 } END { exit !f }' "$ORDER"; then
+      echo "❌ FAIL: ${JOB_GROUPS} names the gate '${group_label:-}' for the job ${group_job}, which is no row of ${ORDER} — the gate would run in no job" >&2
+      exit 1
+    fi
+  done < "$JOB_GROUPS"
 fi
 
 mkdir -p "$DETAILS" || exit 1
@@ -110,6 +149,8 @@ if ! tree_before="$(git status --porcelain 2>&1)"; then
   exit 1
 fi
 
+JOB_NOTE=""
+[ "$JOB" = "main" ] || JOB_NOTE=" for the job ${JOB}"
 ran=0
 failed=0
 secret_failed=0
@@ -151,6 +192,9 @@ while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:
   fi
   if [ -z "$bad" ]; then
     [ "$phase" = "$PHASE" ] || continue
+    [ "$(gate_job "$label")" = "$JOB" ] || continue
+  else
+    [ "$JOB" = "main" ] || continue
   fi
 
   ran=$((ran + 1))
@@ -193,7 +237,7 @@ while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:
 done < "$ORDER"
 
 if [ "$ran" -eq 0 ]; then
-  echo "❌ FAIL: ${ORDER} declares no ${PHASE} row — a CI phase that ran nothing is not green" >&2
+  echo "❌ FAIL: ${ORDER} declares no ${PHASE} row${JOB_NOTE} — a CI phase that ran nothing is not green" >&2
   exit 1
 fi
 

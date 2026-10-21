@@ -158,6 +158,8 @@ run report shows how many checks each of them ran.
 - release metrics self-test (`Scripts/test_release_metrics.sh`, pre)
 - release workflow (`Scripts/test_release_workflow.sh`, pre)
 - quality summary first (`Scripts/test_quality_summary_first.sh`, pre)
+- quality jobs pin (`Scripts/test_quality_jobs.sh`, pre)
+- merge quality report self-test (`Scripts/test_merge_quality_report.sh`, pre)
 - step summary isolation (`Scripts/test_step_summary_isolation.sh`, pre)
 - git sandbox isolation self-test (`Scripts/test_git_sandbox_isolation.sh`, pre)
 - git sandbox isolation scope self-test (`Scripts/test_git_sandbox_isolation_scope.sh`, pre)

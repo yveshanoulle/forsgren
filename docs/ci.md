@@ -47,6 +47,29 @@ so the installer puts them there; installing and upgrading costs nothing
 lasting on a machine that is thrown away after the job. A tool still missing
 after it fails the Install tools step by name.
 
+**Jobs** (forsgren#259, decision #260). Quality is one workflow with parallel
+jobs and one verdict: the run's conclusion is success only when every job
+succeeded, and that conclusion is what the Release reads
+(`Scripts/release_quality.sh` lists the runs of `quality.yml` and reads each
+run's status and conclusion, never a job). The main job `quality` runs every gate that
+`Scripts/ci_job_groups.txt` does not give to another job. The `isolation` job
+runs the git sandbox isolation self-test and the step summary isolation gate
+(the two rows that file lists) with the same setup as the main job: checkout,
+the gate environment, Node, `Scripts/install_tools.sh` and `npm ci`. It builds
+no site, since both are PRE rows. `Scripts/run_ci_phase.sh <pre|post> <rows>
+<details> [job]` takes the job as its fourth argument (default `main`): a gate
+the group file lists runs in that job only, every other gate in the main job,
+so a gate is never in two jobs or none, and a group file that names a gate the
+order file does not have is red. Each gate job hands over its rows, details
+and page count as the artifact `quality-report-<job>`; the `report` job
+(`if: always()`, `needs:` every gate job) downloads them,
+`Scripts/merge_quality_report.sh` merges them (a gate reported by two jobs is
+red, a job that handed over nothing is named and its gates read as unmeasured)
+and the two renderers write the one Quality report to its run page, with the
+status taken from the jobs' results. The `preview` job `needs:` all of them.
+The three baselines steps stay in the main job: they read the built site.
+`Scripts/test_quality_jobs.sh` pins the layout.
+
 **By hand.** `quality.yml` takes no inputs when started by hand: the run is the
 full Quality, as on a push. The short Quality for a release bump commit
 (forsgren#230) is gone since forsgren#237: the Release workflow makes no bump
@@ -69,7 +92,7 @@ file's order, ✅, ❌ or `n/a`, with each gate's output below the table.
 Gates that did not run are counted as unmeasured, never as passing.
 
 **The run summary.** Above that table, every run page opens with the run's
-key numbers (forsgren#8), written by the job's last step, which runs after a
+key numbers (forsgren#8), written by the report job's step, which runs after a
 failure or a cancel too: the status (succeeded, failed or cancelled, and the
 phase it stopped in), the gates passed, failed and skipped in PRE and in
 POST, the Go tests passed, the total checks (every individual check that

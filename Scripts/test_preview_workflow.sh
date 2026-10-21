@@ -193,7 +193,9 @@ mutant "a gate job missing from needs" 's/^  preview:/  extra_gate:\
       - run: true\
 \
   preview:/' "needs: the gate job extra_gate"
-mutant "a needs for a job that is not there" "${P}"'s/needs: \[quality\]/needs: [quality, ghost]/' "needs: ghost is not a job"
+mutant "the report job missing from needs" "${P}"'s/needs: \[quality, isolation, report\]/needs: [quality, isolation]/' "needs: the gate job report is not in the preview job's needs:"
+mutant "the isolation job missing from needs" "${P}"'s/needs: \[quality, isolation, report\]/needs: [quality, report]/' "needs: the gate job isolation is not in the preview job's needs:"
+mutant "a needs for a job that is not there" "${P}"'s/needs: \[quality, isolation, report\]/needs: [quality, isolation, report, ghost]/' "needs: ghost is not a job"
 mutant "no push-only condition" "${P}"'{/^    if: /d;}' "if: the condition is not exactly"
 mutant "a pull request condition" "${P}"'s/github.event_name == .push./github.event_name != '"'"'push'"'"'/' "if: the condition is not exactly"
 mutant "another branch" "${P}"'s#refs/heads/main#refs/heads/dev#' "if: the condition is not exactly"
@@ -216,7 +218,7 @@ mutant "persisted credentials" "${P}"'s/persist-credentials: false/persist-crede
 mutant "another command" "${P}"'s#run: ./Scripts/dispatch_preview.sh#run: echo#' "start: the step does not run exactly"
 mutant "a token from elsewhere" "${P}"'s/secrets.PREVIEW_DISPATCH_TOKEN/secrets.GITHUB_TOKEN/' "token: the step's env"
 mutant "a sha from elsewhere" "${P}"'s/SHA: .*github.sha.*/SHA: main/' "sha: the step's env"
-mutant "the token in another job too" 's/^\(      QS_PR_NUMBER: .*\)$/\1/;s/^\(          QS_JOB_STATUS: .*\)$/\1\
+mutant "the token in another job too" 's/^\(      QS_PR_NUMBER: .*\)$/\1/;s/^\(          QS_QUALITY_RESULT: .*\)$/\1\
           LEAK: '"${DOLLAR}"'{{ secrets.PREVIEW_DISPATCH_TOKEN }}/' "secrets: want exactly one"
 mutant "a template expression in run" "${P}s#\"\\${DOLLAR}SHA\"#\"${DOLLAR}{{ github.sha }}\"#" "injection:"
 mutant "a start that may fail" "${P}"'s#^\(        run: .*\)$#\1 || true#' "softened:"

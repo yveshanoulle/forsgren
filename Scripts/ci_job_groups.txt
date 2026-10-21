@@ -1,0 +1,19 @@
+# Scripts/ci_job_groups.txt
+#
+# Which Quality job runs which gate (forsgren#259, decision #260). One row per
+# gate that does NOT run in the main job:
+#
+#   <job>|<label of the row in Scripts/gate_report_order.txt>
+#
+# Every gate this file does not list runs in the main job, so a new gate is in
+# one job and never in none. Scripts/run_ci_phase.sh reads it (its optional
+# fourth argument is the job) and is red when a label here is no row of the
+# order file. The label must be the exact label of the order file; the phase
+# comes from the order file. sfl.sh and FBP.sh run every row, this file or not.
+# Scripts/test_quality_jobs.sh pins the rows below and quality.yml's jobs.
+#
+# The isolation job: the two slowest gates that no other gate waits for, about
+# 294 s together (measured in forsgren#259, step 1). The git sandbox isolation
+# SCOPE self-test stays in the main job: it is short.
+isolation|git sandbox isolation self-test
+isolation|step summary isolation

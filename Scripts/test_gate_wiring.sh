@@ -173,11 +173,12 @@ fi
 # (forsgren#237, step 5b), and down to 148 when the five self-tests of the
 # bump, commit, bump diff, short Quality and quality scope pins went with the
 # scripts they proved (forsgren#237, step 6), and up to 149 for the Dependabot
-# configuration self-test (forsgren#86).
+# configuration self-test (forsgren#86), and up to 152 for the Quality job
+# layout pin and the self-test of the report merge (forsgren#259, step 2).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=150
+MIN_GATES=152
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -374,6 +375,16 @@ for path in Scripts/*.sh; do
     build_fixture_site.sh)
       runs_script "Scripts/gate_browser_fixture.sh" "$base" \
         || fail "${base} renders the data site and Scripts/gate_browser_fixture.sh, the row that opens it, never invokes it — the History, Daily and Issues pages would not be opened"
+      ;;
+
+    # PRESENTATION, not a gate (forsgren#259): it hands over each Quality
+    # job's rows and details and merges them into the one report the renderers
+    # read, and judges the run's status from the jobs' results. CI must call
+    # it and it must have a fixture, as for the renderers.
+    merge_quality_report.sh)
+      runs_script "$CI" "$base" \
+        || fail "${base} merges the Quality jobs' reports and ${CI} never invokes it — each job's gates would be missing from the report"
+      require_fixture "$base"
       ;;
 
     # PRESENTATION, not a gate (forsgren#8): the run's key numbers, rendered

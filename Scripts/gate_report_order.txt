@@ -833,6 +833,12 @@ release agent proofs self-test|Scripts/test_release_agent_proofs.sh|pre|
 release metrics self-test|Scripts/test_release_metrics.sh|pre|
 release workflow|Scripts/test_release_workflow.sh|pre|
 quality summary first|Scripts/test_quality_summary_first.sh|pre|
+#
+# Quality's parallel jobs (forsgren#259, decision #260): the job layout of
+# quality.yml and the merge of the jobs' reports into the one Quality report.
+quality jobs pin|Scripts/test_quality_jobs.sh|pre|
+merge quality report self-test|Scripts/test_merge_quality_report.sh|pre|
+#
 step summary isolation|Scripts/test_step_summary_isolation.sh|pre|
 git sandbox isolation self-test|Scripts/test_git_sandbox_isolation.sh|pre|
 git sandbox isolation scope self-test|Scripts/test_git_sandbox_isolation_scope.sh|pre|

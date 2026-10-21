@@ -15,6 +15,16 @@
 # A red row here is the same row sfl prints, so `./sfl.sh pre` (or post)
 # reproduces it locally.
 #
+# JOBS (forsgren#259, decision #260). One workflow, parallel jobs, ONE Quality
+# verdict: the run's conclusion is success only when every job succeeded, which
+# is what Scripts/release_quality.sh reads (the run, never a job). The main job
+# `quality` runs every gate that Scripts/ci_job_groups.txt does not give to
+# another job; the `isolation` job runs the git sandbox isolation self-test and
+# the step summary isolation gate with the same setup; the `report` job merges
+# what each job handed over (an artifact quality-report-<job>) into the one
+# Quality report; `preview` needs them all. Scripts/test_quality_jobs.sh pins
+# the layout.
+#
 # CHECK-ONLY. Nothing here fixes: gofmt runs as `gofmt -l` (the gofmt row),
 # never with --fix, and Scripts/run_ci_phase.sh turns any gate that changes
 # the checked-out tree into a red row (npm_audit_check.sh's local heal, for
@@ -59,6 +69,14 @@ jobs:
   quality:
     name: Quality gates
     runs-on: macos-latest
+    # What the report job needs of this job's steps (forsgren#259): the
+    # outcome of each phase's step, the secret-class stop and the start time.
+    outputs:
+      pre: ${{ steps.pre.outcome }}
+      build: ${{ steps.build.outcome }}
+      post: ${{ steps.post.outcome }}
+      secret_block: ${{ steps.pre.outputs.secret_block }}
+      started_at: ${{ steps.setup.outputs.started_at }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -74,13 +92,15 @@ jobs:
       # Homebrew's when it does not; either downloads the pinned toolchain
       # on its first run.
       - name: Set up the gate environment
+        id: setup
         shell: bash
         run: |
           set -euo pipefail
           # The run summary's duration counts from here (forsgren#8): the
           # first step that runs a shell, so only the checkout before it is
-          # not counted. First, so a failure below still leaves it set.
-          echo "QS_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
+          # not counted. First, so a failure below still leaves it set. It
+          # leaves this job as the output started_at, for the report job.
+          echo "started_at=$(date +%s)" >> "$GITHUB_OUTPUT"
           echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
           echo "/usr/local/bin" >> "$GITHUB_PATH"
           toolchain="$(./Scripts/go_toolchain.sh)"
@@ -164,7 +184,7 @@ jobs:
           FORSGREN_PRIVATE_NAMES_EXTRA: ${{ secrets.FORSGREN_PRIVATE_NAMES_EXTRA }}
         run: |
           set -uo pipefail
-          ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" && rc=0 || rc=$?
+          ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" main && rc=0 || rc=$?
           if [ "$rc" -eq 2 ]; then
             echo "secret_block=true" >> "$GITHUB_OUTPUT"
           fi
@@ -190,46 +210,30 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          ./Scripts/run_ci_phase.sh post "$ROWS" "$DETAILS"
+          ./Scripts/run_ci_phase.sh post "$ROWS" "$DETAILS" main
 
-      # Renders whatever ran, as the job's LAST step. `if: always()`
-      # matters: the run that most needs a report is the one that failed,
-      # or was cancelled.
-      #
-      # Nothing before this step writes the run page (forsgren#233): GitHub
-      # shows step summaries in step order, so the headline is first only
-      # while no earlier step writes it. Scripts/test_quality_summary_first.sh
-      # pins it. Blocks, in this order, appended to one summary page: first the
-      # run's key numbers (forsgren#8, Scripts/render_quality_summary.sh):
-      # status and how far the run got, gates per phase, Go tests, the total
-      # checks, coverage and floors to raise, pages, version, commit, trigger
-      # and duration;
-      # then the gate table with each gate's output. One step, so the numbers
-      # sit above the table without either renderer knowing about the other.
-      # Gates that never ran are named rather than omitted: a short table
-      # would otherwise read as "fewer checks exist", and a number that does
-      # not exist shows as — with its reason, never as 0.
-      #
-      # Every expression the summary needs comes in through env:, never as
-      # ${{ }} inside run:. job.status is the job's status so far: success,
-      # failure or cancelled. ROWS and DETAILS are unset when the job stopped
-      # before Start report, and the summary then still renders.
-      - name: Render summary and report
+      # Hands over whatever ran (forsgren#259): the rows, the details and the
+      # page count, as the artifact quality-report-quality, for the report job,
+      # which merges every job's hand-over into the one Quality report and
+      # renders it. `if: always()` matters: the run that most needs a report is
+      # the one that failed, or was cancelled. ROWS and DETAILS are unset when
+      # the job stopped before Start report, and the hand-over is then empty,
+      # which the report names.
+      - name: Collect the gate report
         if: always()
         shell: bash
-        env:
-          QS_JOB_STATUS: ${{ job.status }}
-          QS_PRE_OUTCOME: ${{ steps.pre.outcome }}
-          QS_BUILD_OUTCOME: ${{ steps.build.outcome }}
-          QS_POST_OUTCOME: ${{ steps.post.outcome }}
-          QS_SECRET_BLOCK: ${{ steps.pre.outputs.secret_block }}
-          QS_PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -uo pipefail
-          rc=0
-          ./Scripts/render_quality_summary.sh "${ROWS:-}" "${DETAILS:-}" >> "$GITHUB_STEP_SUMMARY" || rc=$?
-          ./Scripts/render_quality_report.sh "${ROWS:-}" "${DETAILS:-}" >> "$GITHUB_STEP_SUMMARY" || rc=$?
-          exit "$rc"
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${RUNNER_TEMP}/handover" .build/site-page-count.log
+
+      - name: Hand over the gate report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: quality-report-quality
+          path: ${{ runner.temp }}/handover
+          retention-days: 1
+          if-no-files-found: error
 
       # What this site has agreed to live with, as markdown tables on the run
       # page, one step per gate so each is easy to find in the job's step list.
@@ -258,6 +262,151 @@ jobs:
           set -uo pipefail
           ./Scripts/report_baselines.sh image
 
+  # The isolation job (forsgren#259, decision #260): the git sandbox isolation
+  # self-test and the step summary isolation gate, the two slowest gates no
+  # other gate waits for (Scripts/ci_job_groups.txt gives them to this job, and
+  # Scripts/run_ci_phase.sh skips them in the main job). The same setup as the
+  # main job, step for step, so the gates see the same environment: its
+  # comments are the main job's. No site build: both are PRE rows. No secret
+  # reaches it: neither gate reads one, and the secret-class stop of PRE stays
+  # in the main job, whose exit 2 skips the build there.
+  isolation:
+    name: Isolation gates
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up the gate environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
+          toolchain="$(./Scripts/go_toolchain.sh)"
+          echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Install tools
+        shell: bash
+        env:
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
+        run: |
+          set -euo pipefail
+          ./Scripts/install_tools.sh
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start report
+        shell: bash
+        run: |
+          set -euo pipefail
+          rows="${RUNNER_TEMP}/quality_rows.md"
+          details="${RUNNER_TEMP}/quality_details"
+          : > "$rows"
+          rm -rf "$details" && mkdir -p "$details"
+          echo "ROWS=${rows}" >> "$GITHUB_ENV"
+          echo "DETAILS=${details}" >> "$GITHUB_ENV"
+
+      # The rows Scripts/ci_job_groups.txt gives to this job, in order-file
+      # order. A failing gate does not stop the phase, as in the main job.
+      - name: Isolation gates
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" isolation
+
+      - name: Collect the gate report
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${RUNNER_TEMP}/handover"
+
+      - name: Hand over the gate report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: quality-report-isolation
+          path: ${{ runner.temp }}/handover
+          retention-days: 1
+          if-no-files-found: error
+
+  # The one Quality report (forsgren#259): merges what every gate job handed
+  # over and renders it, on this job's run page. needs: every gate job (a gate
+  # job added later must be added), `if: always()`: the run that most needs a
+  # report is the one where a job failed, or was cancelled. It judges nothing
+  # itself: a red gate job makes the run red on its own, and the run's
+  # conclusion, which the Release reads, comes from all the jobs.
+  #
+  # Nothing before the Render step writes the run page (forsgren#233):
+  # Scripts/test_quality_summary_first.sh pins it. Blocks, in this order,
+  # appended to one summary page: first the run's key numbers
+  # (forsgren#8, Scripts/render_quality_summary.sh): status and how far the run
+  # got, gates per phase, Go tests, the total checks, coverage and floors to
+  # raise, pages, version, commit, trigger and duration; then the gate table
+  # with each gate's output. Gates that never ran are named rather than
+  # omitted: a job that handed over nothing leaves its gates unmeasured, never
+  # passing, and a number that does not exist shows as - with its reason.
+  #
+  # Every expression the summary needs comes in through env:, never as
+  # expression syntax inside run:. QS_JOB_STATUS is the merge script's status
+  # of the jobs' results (needs.<job>.result), the way job.status was for one
+  # job.
+  report:
+    name: Quality report
+    needs: [quality, isolation]
+    if: always()
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download the gate reports
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          pattern: quality-report-*
+          path: ${{ runner.temp }}/handover
+
+      - name: Render summary and report
+        if: always()
+        shell: bash
+        env:
+          QS_QUALITY_RESULT: ${{ needs.quality.result }}
+          QS_ISOLATION_RESULT: ${{ needs.isolation.result }}
+          QS_PRE_OUTCOME: ${{ needs.quality.outputs.pre }}
+          QS_BUILD_OUTCOME: ${{ needs.quality.outputs.build }}
+          QS_POST_OUTCOME: ${{ needs.quality.outputs.post }}
+          QS_SECRET_BLOCK: ${{ needs.quality.outputs.secret_block }}
+          QS_STARTED_AT: ${{ needs.quality.outputs.started_at }}
+          QS_PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -uo pipefail
+          rc=0
+          art="${RUNNER_TEMP}/handover"
+          rows="${RUNNER_TEMP}/quality_rows.md"
+          details="${RUNNER_TEMP}/quality_details"
+          mkdir -p "$art"
+          ./Scripts/merge_quality_report.sh merge "$art" "$rows" "$details" || rc=$?
+          QS_JOB_STATUS="$(./Scripts/merge_quality_report.sh status "$QS_QUALITY_RESULT" "$QS_ISOLATION_RESULT")"
+          export QS_JOB_STATUS
+          export SITE_PAGE_COUNT_FILE="${art}/quality-report-quality/page-count.log"
+          ./Scripts/render_quality_summary.sh "$rows" "$details" >> "$GITHUB_STEP_SUMMARY" || rc=$?
+          ./Scripts/render_quality_report.sh "$rows" "$details" >> "$GITHUB_STEP_SUMMARY" || rc=$?
+          exit "$rc"
+
   # Starts the preview deploy (forsgren#222), only after every gate job
   # succeeded for this very commit, so a pushed commit that fails Quality
   # never reaches the preview site (Yves's ruling). The preview shows what the
@@ -268,7 +417,7 @@ jobs:
   # This job only starts it: Scripts/dispatch_preview.sh POSTs a
   # workflow_dispatch and requires HTTP 204; any other answer fails the run.
   #
-  # needs: every other job (today quality alone), no `if: always()`: a failed,
+  # needs: every other job (quality, isolation and report), no `if: always()`: a failed,
   # cancelled or skipped gate job skips this one. The condition keeps it off
   # pull requests, where no secret exists. The secret PREVIEW_DISPATCH_TOKEN
   # (Actions read/write on the preview repository only) reaches this job's one
@@ -279,7 +428,7 @@ jobs:
   # Scripts/test_preview_workflow.sh pins this job.
   preview:
     name: Start the preview deploy
-    needs: [quality]
+    needs: [quality, isolation, report]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: macos-latest
     permissions:

@@ -44,9 +44,11 @@ writers() {
     | grep -v '/test_' | grep -v '/lib_' | grep -v 'render_quality_' | sed 's#^Scripts/##'
 }
 
-# step_names <file>: the names of the first job's steps, in order.
+# step_names <file>: the names of the report job's steps, in order. That job
+# holds the summary step: Quality's jobs hand their rows to it (forsgren#259),
+# and it renders the one page.
 step_names() {
-  awk '/^jobs:/ { injobs = 1 } injobs && /^  [A-Za-z_-]+:[[:space:]]*$/ { jobs++ } jobs == 1 && /^      - name: / { sub(/^      - name: /, ""); print }' "$1"
+  awk '/^jobs:/ { injobs = 1 } injobs && /^  [A-Za-z_-]+:[[:space:]]*$/ { on = ($0 == "  report:") } on && /^      - name: / { sub(/^      - name: /, ""); print }' "$1"
 }
 
 # code_of <file> <step>: the step's lines without comment lines, a command
@@ -118,14 +120,20 @@ mutant() {
   fi
 }
 
-mutant "a gate step that writes the summary itself" \
-  "/name: PRE gates/,/run: |/s#run: |#run: |\\n          echo early >> \"\$GITHUB_STEP_SUMMARY\"#" \
-  "writer: step 'PRE gates' writes to GITHUB_STEP_SUMMARY itself"
+mutant "a step before the summary step that writes the summary itself" \
+  's#^      - name: Download the gate reports#      - name: Early\
+        run: echo early >> GITHUB_STEP_SUMMARY\
+\
+      - name: Download the gate reports#' \
+  "writer: step 'Early' writes to GITHUB_STEP_SUMMARY itself"
 mutant "the gate table before the headline" \
   's#render_quality_summary.sh#TMPNAME#;s#render_quality_report.sh#render_quality_summary.sh#;s#TMPNAME#render_quality_report.sh#' \
   "summary: the gate table is written before the headline"
 mutant "a baselines step before the summary step" \
-  's#^      - name: Render summary and report#      - name: Moved#;s#^      - name: Language baselines#      - name: Render summary and report#;s#^      - name: Moved#      - name: Language baselines#' \
-  "writer: step 'Language baselines'"
+  's#^      - name: Download the gate reports#      - name: Language baselines\
+        run: ./Scripts/report_baselines.sh language\
+\
+      - name: Download the gate reports#' \
+  "writer: step 'Language baselines' runs report_baselines.sh"
 
 selftest_end "the quality summary first pin found failures" "quality summary first pin (the real file holds every pin; each mutant is named)"

@@ -111,6 +111,7 @@ order() {
 }
 
 # run_phase <phase> [shell...]: sets RUN_OUT, RUN_RC, RUN_ROWS, RUN_DETAILS.
+# RUN_JOB, when set, is the runner's optional fourth argument, the job.
 run_phase() {
   local phase="$1"
   shift
@@ -119,7 +120,7 @@ run_phase() {
   rm -rf "$RUN_ROWS" "$RUN_DETAILS"
   RUN_RC=0
   RUN_OUT="$(STUB_TRACE="$TRACE" RUN_CI_PHASE_ROOT="$SB" \
-    "$@" "${SB}/Scripts/run_ci_phase.sh" "$phase" "$RUN_ROWS" "$RUN_DETAILS" 2>&1)" || RUN_RC=$?
+    "$@" "${SB}/Scripts/run_ci_phase.sh" "$phase" "$RUN_ROWS" "$RUN_DETAILS" ${RUN_JOB:+"$RUN_JOB"} 2>&1)" || RUN_RC=$?
 }
 
 rows_text() { tr '\n' ' ' < "$RUN_ROWS" 2>/dev/null || true; }
@@ -272,6 +273,59 @@ case_usage() {
   return 0
 }
 
+# groups <lines...>: the sandbox's job group file, one `<job>|<label>` per line.
+groups() {
+  printf '%s\n' "$@" > "${SB}/Scripts/ci_job_groups.txt"
+}
+
+# JOBS (forsgren#259, step 2): Quality runs the gates in parallel jobs. The
+# optional fourth argument names the job; Scripts/ci_job_groups.txt says which
+# job each listed gate belongs to, and every gate it does not list is the main
+# job's. A gate runs in exactly one job.
+case_job_groups() {
+  RUN_JOB=""
+  new_sandbox "$1"
+  order "main one|Scripts/pass_a.sh|pre|" "iso one|Scripts/pass_b.sh|pre|" \
+    "iso two|Scripts/pass_c.sh|pre|" "main two|Scripts/pass_d.sh|pre|" "iso post|Scripts/pass_e.sh|post|"
+  stub Scripts/pass_a.sh 0
+  stub Scripts/pass_b.sh 0
+  stub Scripts/pass_c.sh 0
+  stub Scripts/pass_d.sh 0
+  stub Scripts/pass_e.sh 0
+  groups "isolation|iso one" "isolation|iso two"
+  run_phase pre
+  [[ "$RUN_RC" -eq 0 ]] || echo "no job argument: exit ${RUN_RC}, want 0: ${RUN_OUT}"
+  [[ "$(cat "$TRACE")" == "$(printf 'Scripts/pass_a.sh\nScripts/pass_d.sh')" ]] \
+    || echo "no job argument must mean the main job, which skips the listed gates; it ran: $(tr '\n' ' ' < "$TRACE")"
+  : > "$TRACE"
+  RUN_JOB=main run_phase pre
+  [[ "$(cat "$TRACE")" == "$(printf 'Scripts/pass_a.sh\nScripts/pass_d.sh')" ]] \
+    || echo "job main ran the wrong gates: $(tr '\n' ' ' < "$TRACE")"
+  : > "$TRACE"
+  RUN_JOB=isolation run_phase pre
+  [[ "$RUN_RC" -eq 0 ]] || echo "job isolation: exit ${RUN_RC}, want 0: ${RUN_OUT}"
+  [[ "$(cat "$TRACE")" == "$(printf 'Scripts/pass_b.sh\nScripts/pass_c.sh')" ]] \
+    || echo "job isolation must run only its listed gates; it ran: $(tr '\n' ' ' < "$TRACE")"
+  [[ "$(cat "$RUN_ROWS" 2>/dev/null)" == "$(printf 'iso one|✅\niso two|✅')" ]] || echo "job isolation reported the wrong rows: $(rows_text)"
+  groups "isolation|iso post"
+  RUN_JOB=isolation run_phase pre
+  [[ "$RUN_RC" -eq 1 ]] && grep -qF 'declares no pre row' <<< "$RUN_OUT" \
+    || echo "a job with no gate in the phase must be red, exit ${RUN_RC}: ${RUN_OUT}"
+  RUN_JOB=isolation run_phase post
+  [[ "$RUN_RC" -eq 0 ]] || echo "job isolation, phase post: exit ${RUN_RC}, want 0 for the listed post row: ${RUN_OUT}"
+  RUN_JOB=nope run_phase pre
+  [[ "$RUN_RC" -eq 64 ]] || echo "a job the group file does not name exited ${RUN_RC}, want 64: ${RUN_OUT}"
+  groups "isolation|ghost label"
+  RUN_JOB=main run_phase pre
+  [[ "$RUN_RC" -eq 1 ]] && grep -qF 'ghost label' <<< "$RUN_OUT" \
+    || echo "a group file naming a gate the order file does not have must be red and name it, exit ${RUN_RC}: ${RUN_OUT}"
+  rm -f "${SB}/Scripts/ci_job_groups.txt"
+  RUN_JOB=isolation run_phase pre
+  [[ "$RUN_RC" -ne 0 ]] || echo "job isolation with no group file exited 0: it ran nothing"
+  RUN_JOB=""
+  return 0
+}
+
 # The REAL order file, with a stub for every runnable row: both phases pass and
 # between them run each row exactly once, in its own phase. A real row the
 # runner would call malformed fails here.
@@ -279,21 +333,25 @@ case_real_order_file() {
   local script want got
   new_sandbox "$1"
   cp "$ORDER" "${SB}/Scripts/gate_report_order.txt"
+  cp Scripts/ci_job_groups.txt "${SB}/Scripts/ci_job_groups.txt" 2>/dev/null || echo "Scripts/ci_job_groups.txt is missing: no gate is assigned to a job"
   while IFS='|' read -r _l script _p _c; do
     [[ -n "${script:-}" && "$script" != "n/a" ]] || continue
     stub "$script" 0
   done < <(grep -v '^#' "$ORDER" | grep .)
   run_phase pre
   [[ "$RUN_RC" -eq 0 ]] || echo "pre over the real order file exited ${RUN_RC}: ${RUN_OUT}"
+  RUN_JOB=isolation run_phase pre
+  [[ "$RUN_RC" -eq 0 ]] || echo "pre of the isolation job over the real order file exited ${RUN_RC}: ${RUN_OUT}"
+  RUN_JOB=""
   run_phase post
   [[ "$RUN_RC" -eq 0 ]] || echo "post over the real order file exited ${RUN_RC}: ${RUN_OUT}"
   want="$(grep -v '^#' "$ORDER" | grep . | awk -F'|' '$2 != "n/a" { print $2 }' | LC_ALL=C sort)"
   got="$(LC_ALL=C sort "$TRACE")"
-  [[ "$got" == "$want" ]] || echo "the two phases did not run every runnable row exactly once"
+  [[ "$got" == "$want" ]] || echo "the jobs and phases did not run every runnable row exactly once"
   return 0
 }
 
-CASES=(na_skip phase_filter secret_class dirty_tree empty_phase missing_script non_executable bad_row usage real_order_file)
+CASES=(na_skip phase_filter secret_class dirty_tree empty_phase missing_script non_executable bad_row usage job_groups real_order_file)
 
 # --- 1. the real runner passes every case ------------------------------------
 for c in "${CASES[@]}"; do
@@ -346,6 +404,14 @@ mutation_proof "a runner that does not test executability" \
 mutation_proof "a runner that accepts an empty phase" \
   $'s/^if \[ "\$ran" -eq 0 \]; then$/if false; then/' empty_phase
 
+# The main job runs a gate the group file gives to another job: it runs twice.
+mutation_proof "a runner whose main job runs the gates of other jobs" \
+  $'s/^    \\[ "\\$\\(gate_job "\\$label"\\)" = "\\$JOB" \\] \\|\\| continue$/    true/' job_groups
+
+# A job runs the gates of main, not its own.
+mutation_proof "a runner whose jobs ignore their group" \
+  $'s/^JOB="\\$\\{4:-main\\}"$/JOB="main"/' job_groups
+
 COMPLETED=1
 
 if [[ "$failed" -ne 0 ]]; then
@@ -354,4 +420,4 @@ if [[ "$failed" -ne 0 ]]; then
   exit 1
 fi
 
-echo "OK: run_ci_phase.sh skips n/a rows, filters phases, exits 2 on a secret-class failure, and is red on a dirty tree, an empty phase, a missing or non-executable script and a malformed row (each proved against a weakened runner)"
+echo "OK: run_ci_phase.sh skips n/a rows, filters phases, exits 2 on a secret-class failure, and is red on a dirty tree, an empty phase, a missing or non-executable script and a malformed row, and runs each gate in exactly one job (each proved against a weakened runner)"

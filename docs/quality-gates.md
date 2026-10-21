@@ -418,9 +418,25 @@ Seven PRE gates read the repository's own scripts and files:
   rule back on at once. Today none does, so a Go change selects nothing; the
   gate prints `isolation: Go changes select nothing, no non-test Go file starts
   a program`, or `isolation: Go changes count, <file> starts a program`.
-  `FORSGREN_ISOLATION_FULL=1` forces the full run. Its scope self-test, which also proves the Quality single run (each
+  `FORSGREN_ISOLATION_FULL=1` forces the full run. In Quality this gate runs in
+  its own `isolation` job (forsgren#259). Its scope self-test, which also proves the Quality single run (each
   self-test once; a leaking self-test turns it red naming the self-test, the
   single run and the reason), is `Scripts/test_git_sandbox_isolation_scope.sh`.
+- **quality jobs pin** and **merge quality report self-test**
+  (`Scripts/test_quality_jobs.sh` and `Scripts/test_merge_quality_report.sh`,
+  forsgren's own, forsgren#259): Quality runs its slowest gates in parallel
+  jobs of one workflow (docs/ci.md, Jobs). In CI the git sandbox isolation
+  self-test and the step summary isolation gate run in the `isolation` job
+  (`Scripts/ci_job_groups.txt`; `sfl.sh` and FBP run every row as before).
+  The pin is red when the isolation job is missing, off `macos-latest` or
+  without the main job's setup, when a `run_ci_phase.sh` call lacks its job
+  name, when a step names an isolation gate itself, when a job's hand-over is
+  not `if: always()` or not under its name, when the report job lacks a job in
+  `needs:`, `if: always()`, the merge or the status from the jobs' results,
+  when `continue-on-error` softens a job, when another workflow is named
+  Quality, or when `release_quality.sh` reads a job and not the run. The
+  merge self-test proves the hand-over, the merge, the duplicate refusal and
+  the status (cancelled outranks failure, a skipped job is a failure).
 - **dependabot config** (`Scripts/test_dependabot_config.sh`, forsgren's own,
   forsgren#86): `.github/dependabot.yml` declares `gomod` and `github-actions`,
   each at directory `/`, with `schedule: interval: cron` (04:00 UTC, so a
