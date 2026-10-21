@@ -34,6 +34,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# shellcheck source=Scripts/lib_git_sandbox.sh
+source Scripts/lib_git_sandbox.sh
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
 # shellcheck source=Scripts/lib_workflow_steps.sh
