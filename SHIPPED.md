@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-10-21 — the Go toolchain moves to go1.27.3 ([#250](https://github.com/yveshanoulle/forsgren/issues/250), step 1 of 1)
+
+forsgren issue 250, step 1 of 1, patch. Nothing an installation sees changes. govulncheck reported GO-2026-6809 (crypto/x509, distrust of compromised intermediate certificates), reached through `collect.Report.Render`, fixed in go1.27.3. `go.mod` now says `toolchain go1.27.3` (the one place `sfl.sh` and `FBP.sh` read through `Scripts/go_toolchain.sh`) and the `go-version` of `auto_update.yml`, `metrics.yml` and `starter_page.yml` is `1.27.3`. No other file names the running toolchain.
+
+- Red first: `Scripts/check_govulncheck.sh` run with `GOTOOLCHAIN=go1.27.2` (what go.mod pins) exited non-zero with 1 vulnerability, GO-2026-6809; green after the bump.
+
 ## 2026-10-21 — Dependabot proposes Go module and action updates ([#86](https://github.com/yveshanoulle/forsgren/issues/86), step 1 of 1)
 
 forsgren issue 86, step 1 of 1, patch. Nothing an installation sees changes. `.github/dependabot.yml` is new: `gomod` (go.mod / go.sum) and `github-actions` (the commit-pinned `uses:` lines of `.github/workflows`), each at `/`, on a cron schedule of 04:00 UTC every day (interval `daily` runs Monday to Friday only), with a commit-message prefix (`go`, `actions`), one group per ecosystem for minor and patch updates (a major stays its own pull request) and a 3-day cooldown, each choice with its comment. Dependabot's commits need no sign-off (the DCO check exempts the Bot that opened the pull request) and the file passes yamllint and zizmor. `Scripts/test_dependabot_config.sh` is a PRE row after the workflow node pin, so `MIN_GATES` goes from 148 to 149, and the docs rows (`docs/gate-classification.md`, `docs/quality-gates.md`, `CONTRIBUTING.md`) went with it.
