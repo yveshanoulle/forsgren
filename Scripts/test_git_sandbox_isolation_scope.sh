@@ -24,6 +24,10 @@
 #      twice); a leaking self-test turns that single run red, each leak class
 #      (config, origin refs, own refs, a leak without GIT_WORK_TREE), naming
 #      the self-test, the single run and the reason.
+#  17-19 (forsgren#258) a Go change selects the self-tests that build or run the
+#      tool only while a non-test Go file imports os/exec: none -> 0 of 4 and
+#      the reason; one -> the Go-running self-test and the file; a _test.go
+#      importing os/exec does not count.
 # Mutation proofs (each case is wrong BECAUSE of the line mutated):
 #   A. the scripts a self-test calls not followed: case 3 loses its self-test;
 #   B. the queue not extended (one level only): case 4 loses its self-test;
@@ -32,7 +36,9 @@
 #   E. the 0-selected message removed: case 1 skips without saying so;
 #   F. a change to the harness not widening to all: case 8 runs 1 of 3 or 0;
 #   G. the single-run mode removed: Quality runs each self-test twice;
-#   H. the single run not under the decoy: the leak of case 15a goes unseen.
+#   H. the single run not under the decoy: the leak of case 15a goes unseen;
+#   I. the exec check never true: case 18 loses the Go-running self-test;
+#   J. the exec check always true: case 17 selects the Go-running self-test.
 
 set -euo pipefail
 
@@ -312,4 +318,51 @@ if mutate '/^  run_variant "single run/s/GIT_DIR="/GIT_DIX="/'; then
   restore
 fi
 
-selftest_end "the git sandbox isolation scope self-test failed" "git sandbox isolation scope: every case holds, eight mutations seen"
+# 17-19 (forsgren#258): a Go change selects the self-tests that build or run the
+# tool ONLY while some non-test Go file can start a program (imports os/exec).
+# The fixture gains a fourth, Go-running self-test and a Go file, committed to
+# origin so they are not themselves a change.
+printf '#!/usr/bin/env bash\ngit --version > /dev/null\ngo build ./...\n' > "${FX}/Scripts/test_gorun.sh"
+mkdir -p "${FX}/cmd/app"
+printf 'package main\n\nfunc main() {}\n' > "${FX}/cmd/app/main.go"
+"${G[@]}" -C "$FX" add -A
+publish "go fixture"
+reset
+EXEC_FILE='package main\n\nimport "os/exec"\n\nvar _ = exec.Command\n'
+go_change() { printf '\n// edit\n' >> "${FX}/cmd/app/main.go"; }
+
+go_change
+iso
+want_green "17: a Go-only change, no file starts a program" "isolation: 0 of 4 self-tests affected, full run in Quality"
+want_said "17b: the reason is named" "isolation: Go changes select nothing, no non-test Go file starts a program"
+
+reset
+go_change
+printf %b "$EXEC_FILE" > "${FX}/cmd/app/run.go"
+iso
+want_green "18: the same change plus a non-test file importing os/exec" "isolation: 1 of 4 self-tests affected"
+want_said "18b: the file that starts a program is named" "cmd/app/run.go starts a program"
+
+reset
+go_change
+printf %b "$EXEC_FILE" > "${FX}/cmd/app/run_test.go"
+iso
+want_green "19: a _test.go importing os/exec does not count" "isolation: 0 of 4 self-tests affected, full run in Quality"
+reset
+
+if mutate 's/^  GO_STARTER="[$](go_starter)"$/  GO_STARTER=""/'; then
+  go_change
+  printf %b "$EXEC_FILE" > "${FX}/cmd/app/run.go"
+  iso
+  proof I "isolation: 1 of 4" "without the exec check counting, case 18 loses the Go-running self-test"
+  restore
+fi
+
+if mutate 's/^  GO_STARTER="[$](go_starter)"$/  GO_STARTER="cmd\/app\/main.go"/'; then
+  go_change
+  iso
+  proof J "isolation: 0 of 4" "with the exec check always true, case 17 selects the Go-running self-test"
+  restore
+fi
+
+selftest_end "the git sandbox isolation scope self-test failed" "git sandbox isolation scope: every case holds, ten mutations seen"

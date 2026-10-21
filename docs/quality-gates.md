@@ -409,8 +409,16 @@ Seven PRE gates read the repository's own scripts and files:
   merge base with `origin/main`, counting committed, staged, unstaged and
   untracked changes. A change to the gate or a library it sources, or no
   `origin/main`, runs all; none affected prints `isolation: 0 of N self-tests
-  affected, full run in Quality` and passes. `FORSGREN_ISOLATION_FULL=1`
-  forces the full run. Its scope self-test, which also proves the Quality single run (each
+  affected, full run in Quality` and passes. A Go change (`cmd/`, `internal/`,
+  `go.mod`, `go.sum`) counts for a self-test that builds or runs the tool only
+  while some non-test Go file can start a program (forsgren#258): it imports
+  `os/exec`, or calls `os.StartProcess` or `syscall.Exec`, `ForkExec` or
+  `StartProcess`; `*_test.go` and `testdata` do not count. The check reads the
+  working tree at gate time, so a change that adds such a file turns the old
+  rule back on at once. Today none does, so a Go change selects nothing; the
+  gate prints `isolation: Go changes select nothing, no non-test Go file starts
+  a program`, or `isolation: Go changes count, <file> starts a program`.
+  `FORSGREN_ISOLATION_FULL=1` forces the full run. Its scope self-test, which also proves the Quality single run (each
   self-test once; a leaking self-test turns it red naming the self-test, the
   single run and the reason), is `Scripts/test_git_sandbox_isolation_scope.sh`.
 - **dependabot config** (`Scripts/test_dependabot_config.sh`, forsgren's own,

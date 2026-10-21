@@ -24,6 +24,15 @@
 # self-test. When none is affected the gate says so and passes; it never skips
 # without saying. FORSGREN_ISOLATION_FULL=1 forces the full run.
 #
+# GO CHANGES (forsgren#258). A change to Go code (cmd/*, internal/*, go.mod,
+# go.sum) selects the self-tests that build or run the tool ONLY while some
+# non-test Go file can start a program: it imports "os/exec", or calls
+# os.StartProcess or syscall.Exec, ForkExec or StartProcess (go_starter; test
+# files and testdata do not count). The gate exists to catch git commands that
+# leave a self-test's sandbox, and Go code that starts no program cannot start
+# git. The check reads the working tree at gate time, so a change that adds such
+# a file turns the rule back on at once. The scope line says which case applied.
+#
 # RUNS (forsgren#251, step 2). Locally each selected self-test runs twice under
 # the decoy (the two leak shapes below). In Quality (GITHUB_ACTIONS=true) it runs
 # once, under the decoy with GIT_DIR and GIT_INDEX_FILE, and the leak check is
@@ -156,10 +165,27 @@ changed_files() {
   { git diff --name-only "$base" --; git ls-files --others --exclude-standard; } | { grep -v '[.]md$' || true; } | sort -u
 }
 
+# go_starter: the first non-test Go file under cmd/ or internal/ (not *_test.go,
+# not under testdata) that can start a program, else nothing. Starting a program
+# means one of: importing "os/exec", calling os.StartProcess, or calling
+# syscall.Exec, syscall.ForkExec or syscall.StartProcess. It reads the working
+# tree at gate time, so adding such a file in the same change counts at once. A
+# match in a comment still counts: the error is only ever more self-tests.
+go_starter() {
+  local f
+  while IFS= read -r f; do
+    if grep -qE '"os/exec"|os[.]StartProcess|syscall[.](Exec|ForkExec|StartProcess)' "$f"; then
+      echo "$f"
+      return
+    fi
+  done < <(find cmd internal -name '*.go' ! -name '*_test.go' ! -path '*/testdata/*' 2> /dev/null | sort)
+}
+
 # select_tests: sets SELECTED (the affected self-tests) and SCOPE_NOTE (why).
 select_tests() {
-  local changed t c own
+  local changed t c own go_changed=""
   SELECTED=()
+  GO_NOTE=""
   if [[ "${GITHUB_ACTIONS:-}" == "true" || "${FORSGREN_ISOLATION_FULL:-}" == "1" ]]; then
     SELECTED=("${TESTS[@]}")
     SCOPE_NOTE="full run (Quality, or forced)"
@@ -179,6 +205,15 @@ select_tests() {
       return
     fi
   done <<< "$changed"
+  GO_STARTER="$(go_starter)"
+  while IFS= read -r c; do
+    case "$c" in cmd/* | internal/* | go.mod | go.sum) go_changed=1 ;; esac
+  done <<< "$changed"
+  if [[ -n "$go_changed" && -z "$GO_STARTER" ]]; then
+    GO_NOTE="isolation: Go changes select nothing, no non-test Go file starts a program"
+  elif [[ -n "$go_changed" ]]; then
+    GO_NOTE="isolation: Go changes count, ${GO_STARTER} starts a program"
+  fi
   for t in "${TESTS[@]}"; do
     local files code
     files="$(closure "$t")"
@@ -189,9 +224,10 @@ select_tests() {
         SELECTED+=("$t")
         break
       fi
-      # Go code and go.mod change what a self-test that builds or runs the tool does.
+      # Go code and go.mod change what a self-test that builds or runs the tool
+      # does, but only while some non-test Go file can start a program (forsgren#258).
       case "$c" in cmd/* | internal/* | go.mod | go.sum)
-        if grep -qE 'go (build|run|test|install)|cmd/forsgren' <<< "$code"; then
+        if [[ -n "$GO_STARTER" ]] && grep -qE 'go (build|run|test|install)|cmd/forsgren' <<< "$code"; then
           SELECTED+=("$t")
           break
         fi ;;
@@ -202,6 +238,7 @@ select_tests() {
 }
 
 select_tests
+[[ -n "${GO_NOTE:-}" ]] && echo "$GO_NOTE"
 if [[ "${#SELECTED[@]}" -eq 0 ]]; then
   echo "isolation: 0 of ${#TESTS[@]} self-tests affected, full run in Quality"
   echo "OK: no git-using self-test is affected by the changes; Quality runs all ${#TESTS[@]}"

@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-10-21 — A Go change selects no isolation self-test while forsgren starts no program ([#258](https://github.com/yveshanoulle/forsgren/issues/258), step 1 of 1)
+
+forsgren issue 258, step 1 of 1, patch. Nothing an installation sees changes. `Scripts/test_git_sandbox_isolation.sh` run locally (FBP) now counts a change to Go code (`cmd/`, `internal/`, `go.mod`, `go.sum`) for the self-tests that build or run the tool only while some non-test Go file can start a program: it imports `os/exec`, or calls `os.StartProcess` or `syscall.Exec`, `ForkExec` or `StartProcess` (`*_test.go` and `testdata` do not count). Today none does, so a Go change selects nothing; the check reads the working tree at gate time, so a change that adds such a file turns the old rule back on by itself. The scope line says which case applied: `isolation: Go changes select nothing, no non-test Go file starts a program`, or `isolation: Go changes count, <file> starts a program`. Quality (`GITHUB_ACTIONS=true`) keeps the full run, unchanged.
+
+- Red first: the extended scope self-test failed against the unchanged gate with 4 case failures (17 and 17b a Go-only change still selected 1 of 4 and named no reason, 18b no file named, 19 a `_test.go` importing `os/exec` still selected). Green: the scope self-test. Mutation proofs, each asserting its reason: I the exec check never true (case 18 loses the Go-running self-test), J the exec check always true (case 17 selects it). The scope self-test now proves 10 mutations.
+
 ## 2026-10-21 — config key tbd_page ([#253](https://github.com/yveshanoulle/forsgren/issues/253), step 1 of 7)
 
 forsgren issue 253, step 1 of 7, minor release (decision 257). One thing an installation sees changes: a new optional config key `tbd_page` (true, unlisted or false; default unlisted, like `history_page`). It is read and validated like `history_page`: a value that is not the plain literal true, unlisted or false (yes, a quoted value, a number) is rejected with `use true, unlisted or false`, the default unlisted in force; the settings page lists `tbd_page` after `history_page` with its current value, the three possible values and the default unlisted; `forsgren init` writes `tbd_page: unlisted` after `history_page` in the starter, with the same comment sentence. No page, no template and no metric yet: the key changes nothing else, and the TBD page itself comes in the next steps.
