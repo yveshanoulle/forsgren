@@ -183,7 +183,10 @@ func TestSettingsShowsARejectedDoraDaysLikeTheOtherKeys(t *testing.T) {
 // default, the same whether the file leaves the key out or writes another
 // value, so the settings page can show it beside the current value.
 func TestSettingsExposeTheDefaultOfEveryKey(t *testing.T) {
-	want := []string{"standard", "false", "major", "365", "100", "8", "30", "true", "false", "unlisted", "unlisted", "unlisted"}
+	want := []string{
+		"standard", "false", "major", "365", "100", "8", "30",
+		"true", "false", "unlisted", "unlisted", "unlisted",
+	}
 	for _, file := range []string{"", "history_days: 90\nview: numbers\n"} {
 		got, err := parse([]byte(file + valid))
 		if err != nil {
