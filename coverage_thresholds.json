@@ -647,7 +647,7 @@
     "github.com/yveshanoulle/forsgren/internal/page/page.go:PageNames": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:viewShown": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:Render": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/page/page.go:WriteSite": 92.2,
+    "github.com/yveshanoulle/forsgren/internal/page/page.go:WriteSite": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:hides": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:writeOrRemovePage": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/page.go:removePage": 100.0,
@@ -822,6 +822,14 @@
     "github.com/yveshanoulle/forsgren/internal/page/historychart.go:DotRadius": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/menu.go:rootEntries": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/scoring.go:overall": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/page/description.go:Description": 100.0
+    "github.com/yveshanoulle/forsgren/internal/page/description.go:Description": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/mainline.go:HasInterval": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/mainline.go:HasDeviation": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/mainline.go:Cell": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/mainline.go:MainlineIntervals": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/mainline.go:admits": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/mainline.go:mainlineOver": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/mainline.go:meanOf": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/mainline.go:sampleDeviation": 100.0
   }
 }
