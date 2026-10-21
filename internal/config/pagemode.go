@@ -1,7 +1,7 @@
 package config
 
 // The page keys (forsgren#159, #200): issues_page, days_page,
-// numbers_scoring_page and history_page, each true, unlisted or false.
+// numbers_scoring_page, history_page and tbd_page, each true, unlisted or false.
 
 import (
 	"slices"
@@ -34,17 +34,18 @@ type pageKey struct {
 }
 
 // The page keys and their defaults (forsgren#200): the issues page is listed,
-// the days page is not generated, and the numbers and scoring page and the
-// history page are unlisted.
+// the days page is not generated, and the numbers and scoring page, the
+// history page and the TBD page (forsgren#253) are unlisted.
 var (
 	issuesPage         = pageKey{ErrIssuesPage, "issues_page", PageOn}
 	daysPage           = pageKey{ErrDaysPage, "days_page", PageOff}
 	numbersScoringPage = pageKey{ErrNumbersScoringPage, "numbers_scoring_page", PageUnlisted}
 	historyPage        = pageKey{ErrHistoryPage, "history_page", PageUnlisted}
+	tbdPage            = pageKey{ErrTbdPage, "tbd_page", PageUnlisted}
 )
 
 // pageKeys are the page keys, in the order of the settings page.
-var pageKeys = []pageKey{issuesPage, daysPage, numbersScoringPage, historyPage}
+var pageKeys = []pageKey{issuesPage, daysPage, numbersScoringPage, historyPage, tbdPage}
 
 // isPageKey says whether key is one of the page keys.
 func isPageKey(key string) bool {

@@ -157,10 +157,44 @@ func TestHistoryPageIsUnlistedByDefaultAndRejectsOtherValues(t *testing.T) {
 	}
 }
 
+// TestTbdPageIsUnlistedByDefaultAndRejectsOtherValues (forsgren#253): the
+// optional tbd_page key is unlisted when it is left out or has no value, as
+// history_page is, and as written otherwise; a value that is not true, unlisted
+// or false is not accepted: the page stays unlisted, the key counts as not
+// written, and the rejection names the key, the valid values and the default
+// unlisted.
+func TestTbdPageIsUnlistedByDefaultAndRejectsOtherValues(t *testing.T) {
+	cases := []struct {
+		name, file, rejected string
+		want                 PageMode
+	}{
+		{"absent", valid, "", PageUnlisted},
+		{"on", "tbd_page: true\n" + valid, "", PageOn},
+		{"unlisted", "tbd_page: unlisted\n" + valid, "", PageUnlisted},
+		{"off", "tbd_page: false\n" + valid, "", PageOff},
+		{"after the projects", valid + "tbd_page: true\n", "", PageOn},
+		{"no value", "tbd_page:\n" + valid, "", PageUnlisted},
+		{"yes", "tbd_page: yes\n" + valid, "yes", PageUnlisted},
+		{"quoted", "tbd_page: \"true\"\n" + valid, "true", PageUnlisted},
+		{"a number", "tbd_page: 1\n" + valid, "1", PageUnlisted},
+		{"quoted unlisted", "tbd_page: \"unlisted\"\n" + valid, "unlisted", PageUnlisted},
+	}
+	for _, tc := range cases {
+		got, err := parse([]byte(tc.file))
+		if err != nil || got.TbdPage != tc.want {
+			t.Errorf("%s: want tbd_page %v and no error, got %v, %v", tc.name, tc.want, got.TbdPage, err)
+		}
+		if tc.rejected != "" {
+			wantRejection(t, got.Rejected, ErrTbdPage,
+				[4]string{"tbd_page", tc.rejected, "use true, unlisted or false", "unlisted"})
+		}
+	}
+}
+
 // pageModeOf is the PageMode the config holds for the page key.
 func pageModeOf(cfg Config, key string) PageMode {
 	return map[string]PageMode{"issues_page": cfg.IssuesPage, "days_page": cfg.DaysPage,
-		"numbers_scoring_page": cfg.NumbersScoringPage, "history_page": cfg.HistoryPage}[key]
+		"numbers_scoring_page": cfg.NumbersScoringPage, "history_page": cfg.HistoryPage, "tbd_page": cfg.TbdPage}[key]
 }
 
 // TestEveryPageKeyReadsUnlisted (forsgren#200): the literal unlisted is a value

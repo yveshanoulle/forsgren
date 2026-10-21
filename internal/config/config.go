@@ -198,6 +198,9 @@ type Config struct {
 	// HistoryPage is how the history page is handled, PageUnlisted when the file
 	// has no history_page key (forsgren#68, #199, #200).
 	HistoryPage PageMode
+	// TbdPage is how the TBD page is handled, PageUnlisted when the file has no
+	// tbd_page key (forsgren#253).
+	TbdPage PageMode
 	// written is the optional keys the file writes, by key (forsgren#74).
 	written  map[string]bool
 	Projects []Project
@@ -265,6 +268,7 @@ var (
 	ErrDaysPage            = errors.New("invalid days_page")
 	ErrNumbersScoringPage  = errors.New("invalid numbers_scoring_page")
 	ErrHistoryPage         = errors.New("invalid history_page")
+	ErrTbdPage             = errors.New("invalid tbd_page")
 )
 
 // Load reads and validates the config file at path. Every error names the
@@ -324,6 +328,7 @@ type fileConfig struct {
 	DaysPage           yaml.Node     `yaml:"days_page"`
 	NumbersScoringPage yaml.Node     `yaml:"numbers_scoring_page"`
 	HistoryPage        yaml.Node     `yaml:"history_page"`
+	TbdPage            yaml.Node     `yaml:"tbd_page"`
 	Projects           []fileProject `yaml:"projects"`
 }
 
@@ -431,6 +436,7 @@ var settingKeys = []settingKey{
 	{"numbers_scoring_page", string(numbersScoringPage.def),
 		func(c Config) string { return string(c.NumbersScoringPage) }},
 	{"history_page", string(historyPage.def), func(c Config) string { return string(c.HistoryPage) }},
+	{"tbd_page", string(tbdPage.def), func(c Config) string { return string(c.TbdPage) }},
 }
 
 // Settings lists every optional key in the order of settingKeys: the value

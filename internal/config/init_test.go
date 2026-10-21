@@ -35,6 +35,7 @@ const starterConfig = "version: 1\nview: standard\nauto_update: true\n" +
 	"days_page: false  # the Daily page. " + pageValuesComment + "\n" +
 	"numbers_scoring_page: unlisted  # the Numbers and scoring page. " + pageValuesComment + "\n" +
 	"history_page: unlisted  # the History page. " + pageValuesComment + "\n" +
+	"tbd_page: unlisted  # the Trunk-based development (TBD) page. " + pageValuesComment + "\n" +
 	"projects: []\n"
 
 // isStarterLine says whether a line may stand in the starter: blank, a
@@ -481,11 +482,24 @@ func TestStarterWritesHistoryPageUnlisted(t *testing.T) {
 	}
 }
 
+// tbdPageLine is the starter's tbd_page line (forsgren#253).
+const tbdPageLine = "tbd_page: unlisted  # the Trunk-based development (TBD) page. " + pageValuesComment
+
+// TestStarterWritesTbdPageUnlisted (forsgren#253): the starter writes
+// tbd_page: unlisted right after history_page, with its comment.
+func TestStarterWritesTbdPageUnlisted(t *testing.T) {
+	lines := starterLines()
+	i := slices.Index(lines, historyPageLine)
+	if i < 0 || slices.Index(lines, tbdPageLine) != i+1 {
+		t.Errorf("want the line %q right after history_page in the starter", tbdPageLine)
+	}
+}
+
 // TestEveryPageKeyOfTheStarterExplainsTheThreeValues (forsgren#200): the
 // comment of each of the four page keys ends in the same sentence on true,
 // unlisted and false.
 func TestEveryPageKeyOfTheStarterExplainsTheThreeValues(t *testing.T) {
-	for _, key := range []string{"issues_page:", "days_page:", "numbers_scoring_page:", "history_page:"} {
+	for _, key := range []string{"issues_page:", "days_page:", "numbers_scoring_page:", "history_page:", "tbd_page:"} {
 		i := slices.IndexFunc(starterLines(), func(l string) bool { return strings.HasPrefix(l, key) })
 		if i < 0 || !strings.HasSuffix(starterLines()[i], pageValuesComment) {
 			t.Errorf("want the %s line of the starter to end in %q", key, pageValuesComment)

@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-10-21 — config key tbd_page ([#253](https://github.com/yveshanoulle/forsgren/issues/253), step 1 of 7)
+
+forsgren issue 253, step 1 of 7, minor release (decision 257). One thing an installation sees changes: a new optional config key `tbd_page` (true, unlisted or false; default unlisted, like `history_page`). It is read and validated like `history_page`: a value that is not the plain literal true, unlisted or false (yes, a quoted value, a number) is rejected with `use true, unlisted or false`, the default unlisted in force; the settings page lists `tbd_page` after `history_page` with its current value, the three possible values and the default unlisted; `forsgren init` writes `tbd_page: unlisted` after `history_page` in the starter, with the same comment sentence. No page, no template and no metric yet: the key changes nothing else, and the TBD page itself comes in the next steps.
+
+- Red first: the config package failed to build (`Config.TbdPage` and `ErrTbdPage` undefined) and the settings page tests failed (`TestSettingsPageMatchesGolden`, `TestSettingsPageWithRejectedSettingsMatchesGolden`, `TestEveryValueTheConfigAcceptsIsListedOnTheSettingsPage`). Green: `go test ./internal/config ./internal/page ./cmd/...`. The two settings goldens gained the `tbd_page` row.
+
 ## 2026-10-21 — Quality runs each git-using self-test once under the decoy ([#251](https://github.com/yveshanoulle/forsgren/issues/251), step 2 of 2)
 
 forsgren issue 251, step 2 of 2, patch (decision 249, as the owner changed it: the single-run change goes to Quality only). Nothing an installation sees changes. In Quality (`GITHUB_ACTIONS=true`) `Scripts/test_git_sandbox_isolation.sh` runs each git-using self-test ONCE, under the decoy with `GIT_DIR` and `GIT_INDEX_FILE` (the shape without `GIT_WORK_TREE`, which gets a fixture that inits a bare repository past the work-tree check and so reaches every push the all-three shape reaches), and checks the decoy and its origin after that run; it prints `isolation: Quality, each self-test runs once under the decoy`. Locally (FBP, `GITHUB_ACTIONS` unset, or a forced full run) it is unchanged from step 1: the affected self-tests, each twice, once per leak shape. Known limit: a self-test that leaks only when `GIT_WORK_TREE` is set, which no real fixture does, is no longer seen in Quality; locally it still is.
