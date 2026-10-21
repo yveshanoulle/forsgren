@@ -711,16 +711,18 @@ Then check what the run did:
 
    For example `;view;numbers;standard, numbers, scoring;standard;`. The
    last field of each row is the default of the key: `standard`, `false`,
-   `major`, `365`, `100`, `8`, `30`, `true`, `false`, `unlisted`, `unlisted`, for the rows
-   `view` to `history_page` in the page's order.
+   `major`, `365`, `100`, `8`, `30`, `true`, `false`, `unlisted`, `unlisted`, `unlisted`, for the rows
+   `view` to `tbd_page` in the page's order.
    - The rows `view`, `auto_update`, `auto_update_level`,
      `history_days`, `dora_days`, `issues_page`, `days_page`,
      `numbers_scoring_page` and `history_page` show the value of the config,
      without `(not set)` (the file sets the key).
-   - The rows `history_chunk_days` and `working_hours` are left to their
-     defaults: `history_chunk_days` shows `100 (not set)` and `working_hours`
-     shows `8 (not set)`.
-   - Eleven rows in all. A row missing or different: stop and report.
+   - The rows `history_chunk_days`, `working_hours` and `tbd_page` are left to
+     their defaults: `history_chunk_days` shows `100 (not set)`, `working_hours`
+     shows `8 (not set)` and `tbd_page` shows `unlisted (not set)` (the TBD
+     page, `tbd.html`, is generated and unlisted; the installer does not ask
+     about it).
+   - Twelve rows in all. A row missing or different: stop and report.
 9. The footer names the pinned version:
    `curl -fsS SITE | grep -o 'Forsgren</a> [0-9.]*'`
    prints `Forsgren</a>` and `VERSION` without its `v`.
@@ -986,7 +988,7 @@ Anything else: report it to the person.
 For an install that exists, you can change one setting: a top-level key of
 `forsgren.config.yml` (`view`, `auto_update`, `auto_update_level`,
 `history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
-`issues_page`, `days_page`, `numbers_scoring_page`, `history_page`), or the update wait
+`issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`), or the update wait
 (`default-days` in `.github/dependabot.yml`, in days). Changes to the
 projects and repositories are not covered here. Follow these steps alone;
 the install steps above do not apply.

@@ -121,8 +121,9 @@ projects:
   (see [Collecting deployments](data-files.md#collecting-deployments-collect)).
   The days and issues pages keep their own periods. The starter that
   `init-config` writes includes `dora_days: 30`.
-- **The page keys** `issues_page`, `days_page`, `numbers_scoring_page` and
-  `history_page` are optional (forsgren#159, #55, #68, #200, from 1.8.2):
+- **The page keys** `issues_page`, `days_page`, `numbers_scoring_page`,
+  `history_page` and `tbd_page` are optional (forsgren#159, #55, #68, #200,
+  from 1.8.2; `tbd_page`, forsgren#253):
   each says how one optional page is handled, written at the top level, for
   example `history_page: true`. Each takes one of three values:
   - `true`: the page is generated and has an entry in the menu.
@@ -137,8 +138,8 @@ projects:
     has no entry in the menu.
 
   Left out, or without a value, `issues_page` is `true`, `days_page` is
-  `false`, and `numbers_scoring_page` and `history_page` are `unlisted`
-  (forsgren#200, from 1.8.2; before 1.8.2 both were `false`, see
+  `false`, and `numbers_scoring_page`, `history_page` and `tbd_page` are
+  `unlisted` (forsgren#200, from 1.8.2; before 1.8.2 both were `false`, see
   [Installing and updating](updating-and-releases.md#installing-and-updating)).
   Only the plain literals `true`, `unlisted` and `false` are accepted; a
   quoted value, `yes`, a number or other text is not accepted: forsgren uses
@@ -149,7 +150,8 @@ projects:
   `true` removes it. A render without a config writes and lists every page.
   The legend explains the three values and the defaults. The starter that
   `init-config` writes includes `issues_page: true`, `days_page: false`,
-  `numbers_scoring_page: unlisted` and `history_page: unlisted`. The pages:
+  `numbers_scoring_page: unlisted`, `history_page: unlisted` and
+  `tbd_page: unlisted`. The pages:
   - **`issues_page`**: the Issues page (`issues.html`, forsgren#159).
   - **`days_page`**: the Daily page (`days.html`, forsgren#159). From 1.3.0
     an installation that does not set `days_page` has no Daily page.
@@ -164,14 +166,20 @@ projects:
     the last 6 months (see [The History page](pages-and-views.md#the-history-page));
     `dora_days` does not change it. In 1.8.0 it defaulted to `true` and in
     1.8.1 to `false`.
+  - **`tbd_page`**: the TBD page (`tbd.html`, forsgren#253). It shows the
+    Mainline Interval of each project, the mean and the sample standard
+    deviation of the time between commits that deployments shipped, from
+    `data/commits.csv`, over the `dora_days` window (see
+    [The TBD page](pages-and-views.md#the-tbd-page)); it says that Mainline Lead
+    Time is coming later.
 - **The settings page** (`settings.html`, forsgren#74, moved out of the legend
   in forsgren#84, a table since forsgren#141) tabulates every optional key,
   `view`, `auto_update`, `auto_update_level`, `history_days`,
-  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page`, `numbers_scoring_page` and `history_page`, eleven rows in four columns: **Parameter**;
+  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page`, `numbers_scoring_page`, `history_page` and `tbd_page`, twelve rows in four columns: **Parameter**;
   **Current value**, the value in use (`major` for an unset
   `auto_update_level`); **Possible values**, built from the config package's
   own constants and limits so the page cannot drift from what `check-config`
-  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `30 to 1825`; `1 to 365`; `1 to 24`; `30, 90, 180`; `true, unlisted, false` for each of the four page keys),
+  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `30 to 1825`; `1 to 365`; `1 to 24`; `30, 90, 180`; `true, unlisted, false` for each of the five page keys),
   a test holds the lists to the config loader; and **Default**, the value
   used when `forsgren.config.yml` does not set the key (forsgren#169):
   `standard`, `false`, `major`, `365`, `100`, `8`, `30`, `true`, `false`,
@@ -246,7 +254,7 @@ commit. Neither is configured per repository in version 1.
 
 A setting with a default (`view`, `auto_update`, `auto_update_level`,
 `history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
-`issues_page`, `days_page`, `numbers_scoring_page` and `history_page`) whose value forsgren
+`issues_page`, `days_page`, `numbers_scoring_page`, `history_page` and `tbd_page`) whose value forsgren
 does not accept, a list or
 a mapping included, does not stop the run (forsgren#183): forsgren uses that
 key's default instead, and says so in three places. The settings page's row
@@ -295,7 +303,7 @@ example with made-up `acme` names (the default deployment, `workflow=` and
 `auto_update_level: major`, `history_days: 365`,
 `history_chunk_days: 100`, `working_hours: 8`, `dora_days: 30`,
 `issues_page: true`, `days_page: false`, `numbers_scoring_page: unlisted`,
-`history_page: unlisted` and `projects: []`, so
+`history_page: unlisted`, `tbd_page: unlisted` and `projects: []`, so
 `check-config` accepts it as it is: `projects: 0, repositories: 0`. When the file exists,
 whatever it holds (even an invalid or an empty file), it is left byte for
 byte and the command prints `kept forsgren.config.yml`; both exit 0. The file
@@ -313,7 +321,7 @@ the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
 `/standard/`, `/numbers/` and `/scoring/`, and, unless their key is `false`, the Numbers and scoring page at
-`/numbers-scoring/` and the History page at `history.html`, both unlisted by
+`/numbers-scoring/`, the History page at `history.html` and the TBD page at `tbd.html`, all unlisted by
 default (see [The page](pages-and-views.md#the-page)). That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
 it with `-ldflags "-X main.version=<version>"`. `forsgren collect` reads

@@ -74,6 +74,7 @@ version never overwrites them.
    days_page: false            # the Daily page: true, unlisted or false (default false)
    numbers_scoring_page: unlisted   # the Numbers and scoring page: true, unlisted or false (default unlisted)
    history_page: unlisted          # the History page: true, unlisted or false (default unlisted)
+   tbd_page: unlisted              # the TBD page: true, unlisted or false (default unlisted)
    projects:
      - name: Acme Shop
        repositories:
@@ -91,7 +92,7 @@ version never overwrites them.
    refuses an invalid file with a one-line message; a setting it does not accept is not an invalid file: the run uses the default and the settings page and the log say so.
 
    The Daily page is hidden by default (forsgren 1.3.0): set `days_page: true`
-   to show it. The Issues page is shown unless you set `issues_page: false`. The History page and the Numbers and scoring page are generated but left out of the menu by default (`unlisted`); set `true` to list them or `false` to leave them out.
+   to show it. The Issues page is shown unless you set `issues_page: false`. The History page, the Numbers and scoring page and the TBD page are generated but left out of the menu by default (`unlisted`); set `true` to list them or `false` to leave them out.
 
 From then on it runs every day by itself: it collects the new deployments,
 commits them to `data/`, keeps this README current for the forsgren version it

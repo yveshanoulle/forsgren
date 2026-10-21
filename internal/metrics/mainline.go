@@ -121,11 +121,7 @@ func mainlineOver(project string, dates []time.Time) MainlineInterval {
 	if len(dates) < 2 {
 		return m
 	}
-	slices.SortFunc(dates, time.Time.Compare)
-	gaps := make([]float64, len(dates)-1)
-	for i := range gaps {
-		gaps[i] = float64(dates[i+1].Sub(dates[i]))
-	}
+	gaps := gapsOf(dates)
 	m.Gaps = len(gaps)
 	mean := meanOf(gaps)
 	m.Mean = time.Duration(math.Round(mean))
@@ -133,6 +129,17 @@ func mainlineOver(project string, dates []time.Time) MainlineInterval {
 		m.Deviation = time.Duration(math.Round(sampleDeviation(gaps, mean)))
 	}
 	return m
+}
+
+// gapsOf are the gaps in nanoseconds between neighbouring dates once sorted, so
+// one fewer than dates, which hold at least two.
+func gapsOf(dates []time.Time) []float64 {
+	slices.SortFunc(dates, time.Time.Compare)
+	gaps := make([]float64, len(dates)-1)
+	for i := range gaps {
+		gaps[i] = float64(dates[i+1].Sub(dates[i]))
+	}
+	return gaps
 }
 
 // meanOf is the mean of values, which hold at least one.

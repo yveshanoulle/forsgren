@@ -412,8 +412,8 @@ a path on github.com (forsgren#172):
   and the count it is over, "Less than one day · 2 h 7 min (48)"; the
   weekend deployments have their own column. Durations are in min, h and d,
   each part cut down, never rounded up.
-- **Pages:** up to eleven pages are written: `index.html`, `legend.html`, `settings.html`, `issues.html`, `days.html`, `history.html`, `tbd.html`, the three views and the Numbers and scoring page. Every page opens with one menu, "View: Standard · Numbers · Scoring · Numbers and scoring · Issues · Daily · History" (forsgren#128, decision #133, forsgren#55, forsgren#68): the three views, then the Numbers and scoring page, `numbers-scoring/`, then the issues page, `issues.html`, the days page, `days.html`, labelled Daily, and the History page, `history.html`; one folder down its links go through `../`. The current page is plain text marked `aria-current="page"`; the root marks the view it shows `aria-current="true"` (see Views), and the settings and legend pages mark none. No page has a link back to the table, since the menu reaches it, and every page ends with the same footer, the version line and then Settings and Legend. Four pages have a key that takes `true`, `unlisted` or `false` (forsgren#159, #55, #68, #200; see [Configuration](configuration.md#configuration)): `issues_page` for `issues.html`, `days_page` for `days.html`, `numbers_scoring_page` for `numbers-scoring/` and `history_page` for `history.html`. `true` generates the page and lists it in the menu. `false` does not generate it, removes it from the site if an earlier run wrote it (the Numbers and scoring page's folder too, once empty), and leaves it out of the menu. The defaults are `issues_page: true`, `days_page: false`, `numbers_scoring_page: unlisted` and `history_page: unlisted` (from 1.8.2). A render without a config, as forsgren's own build, writes and lists all eleven. The legend explains the four keys and their three values on every page set.
-- **Unlisted pages** (forsgren#200, from 1.8.2): a page whose key is `unlisted` is generated, but no menu names it, not even its own, and its `<head>` carries `<meta name="robots" content="noindex">`. It is reachable by its address, `history.html` or `numbers-scoring/`, so you can look at it before you list it. Unlisted is discoverable, not private: noindex asks compliant search engines not to index the page; it does not enforce access control. Anyone who knows or guesses the address can open it. Only an unlisted page carries the tag; set the key to `true` and the next run lists the page and drops the tag. Up to 0.8.3 the days page was `issues.html` and the issues page `months.html`; 0.8.4 renamed them with no redirect (decision #133), and `months.html` is gone.
+- **Pages:** up to eleven pages are written: `index.html`, `legend.html`, `settings.html`, `issues.html`, `days.html`, `history.html`, `tbd.html`, the three views and the Numbers and scoring page. Every page opens with one menu, "View: Standard · Numbers · Scoring · Numbers and scoring · Issues · Daily · History · TBD" (forsgren#128, decision #133, forsgren#55, forsgren#68, forsgren#253): the three views, then the Numbers and scoring page, `numbers-scoring/`, then the issues page, `issues.html`, the days page, `days.html`, labelled Daily, the History page, `history.html`, and the TBD page, `tbd.html`, labelled TBD; one folder down its links go through `../`. The current page is plain text marked `aria-current="page"`; the root marks the view it shows `aria-current="true"` (see Views), and the settings and legend pages mark none. No page has a link back to the table, since the menu reaches it, and every page ends with the same footer, the version line and then Settings and Legend. Five pages have a key that takes `true`, `unlisted` or `false` (forsgren#159, #55, #68, #200, #253; see [Configuration](configuration.md#configuration)): `issues_page` for `issues.html`, `days_page` for `days.html`, `numbers_scoring_page` for `numbers-scoring/`, `history_page` for `history.html` and `tbd_page` for `tbd.html`. `true` generates the page and lists it in the menu. `false` does not generate it, removes it from the site if an earlier run wrote it (the Numbers and scoring page's folder too, once empty), and leaves it out of the menu. The defaults are `issues_page: true`, `days_page: false`, `numbers_scoring_page: unlisted`, `history_page: unlisted` (from 1.8.2) and `tbd_page: unlisted`. A render without a config, as forsgren's own build, writes and lists all eleven. The legend explains the five keys and their three values on every page set.
+- **Unlisted pages** (forsgren#200, from 1.8.2): a page whose key is `unlisted` is generated, but no menu names it, not even its own, and its `<head>` carries `<meta name="robots" content="noindex">`. It is reachable by its address, `history.html`, `tbd.html` or `numbers-scoring/`, so you can look at it before you list it. Unlisted is discoverable, not private: noindex asks compliant search engines not to index the page; it does not enforce access control. Anyone who knows or guesses the address can open it. Only an unlisted page carries the tag; set the key to `true` and the next run lists the page and drops the tag. Up to 0.8.3 the days page was `issues.html` and the issues page `months.html`; 0.8.4 renamed them with no redirect (decision #133), and `months.html` is gone.
 - **Meta description** (forsgren#208, from 1.9.2): every page's `<head>` carries `<meta name="description">`, the text a search result shows under the page's title. It is one fixed sentence per page, chosen by the page's name alone: it names no project, repository, number, date or title, so the head shows nothing the page does not, and two installations get the same sentences. Every sentence ends with the same words, " generated by Forsgren", with no comma before them and no closing period. The root, `index.html`, takes the sentence of the view it shows, so a root set to the numbers view has the numbers sentence, and a root without a view the standard one; the placeholder and no-projects pages read as their page does:
 
   | Page | Description |
@@ -425,6 +425,7 @@ a path on github.com (forsgren#172):
   | `issues.html` | Issues opened, closed and reopened, by week, month and year generated by Forsgren |
   | `days.html` | Issues opened, closed and reopened on each of the last 30 days generated by Forsgren |
   | `history.html` | The history of the DORA metrics per project: each half-year and the last 6 months generated by Forsgren |
+  | `tbd.html` | Trunk-based development: the Mainline Interval per project generated by Forsgren |
   | `legend.html` | How the DORA numbers are counted and scored: the window, the bands and the scores generated by Forsgren |
   | `settings.html` | The settings of forsgren.config.yml and the value in use for each generated by Forsgren |
 
@@ -790,6 +791,45 @@ it last in the menu, "History"; `false` leaves it out.
   fail rate of an old period can count a failure issue that lost its label
   long ago, because the one-time catch-up of withdrawn failure issues
   re-reads only the `dora_days` window.
+
+### The TBD page
+
+The TBD page (`tbd.html`, titled "Trunk-based development (TBD)", forsgren#253)
+shows the Mainline Interval of each project: how long it is, on average, between
+two commits that deployments shipped, and how much that varies. It is unlisted
+by default: generated and reachable at `tbd.html`, with no menu entry and a
+noindex tag (see Unlisted pages under [The page](#the-page), and
+[Configuration](configuration.md#configuration)). `tbd_page: true` lists it
+last in the menu, "TBD"; `false` leaves it out.
+
+- **The table.** A row per project and one column, Mainline Interval; the cell
+  reads `mean ± deviation (gaps)`, for example `2 h ± 1 h (3)`, with the
+  durations written as on the other pages. It is per project: the label rows of
+  the table page have no row here.
+- **What is counted.** The commits `forsgren collect` stores in
+  `data/commits.csv`, the commits that deployments shipped, so it is an
+  interval between deployed commits, not between every commit of the mainline.
+  A commit counts when its deployment was created in the DORA window
+  (`dora_days`, both ends included), as for lead time; its author date does not
+  decide that. A commit counts once, by repository (ignoring case) and SHA, even
+  when two deployments shipped it. A project's repositories are one sequence.
+- **The gaps.** The commits are put in the order of their author dates,
+  whatever the order they are stored in, and a gap is the time between two
+  neighbours; two commits with the same author date have a gap of 0. The mean is
+  the mean of the gaps, the deviation their sample standard deviation (the sum
+  of the squared differences from the mean over the number of gaps less one),
+  and the count in brackets is the number of gaps.
+- **A dash.** Fewer than two commits have no gap, so the whole cell is `-`. One
+  gap has a mean but no sample deviation, which needs two gaps, so the cell reads
+  `2 h ± - (1)`. A zero deviation reads `less than 1 min`.
+- **Without data.** With no projects the page says so in one line, and so it
+  does when no data was given to the render ("No commits have been collected
+  yet, so there is no Mainline Interval to show."); with data and a project
+  that has no commit in the window, the project's row is `-`.
+- **Later.** A line under the heading says Mainline Lead Time is coming later;
+  there is no column for it yet.
+
+The legend's TBD page section says the same on the page itself.
 
 ## Privacy
 

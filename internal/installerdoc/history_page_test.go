@@ -38,21 +38,19 @@ func TestInstallerAsksForTheHistoryPage(t *testing.T) {
 	}
 }
 
-// TestInstallerProvesElevenSettingsRows (forsgren#68): the settings page proof
-// lists history_page as written in the config, eleven rows in all, and
-// "Changing a setting later" names the key.
-func TestInstallerProvesElevenSettingsRows(t *testing.T) {
+// TestInstallerProvesTwelveSettingsRows (forsgren#68, #253): the settings page
+// proof lists history_page as written in the config, tbd_page as left to its
+// default, unlisted, twelve rows in all, and "Changing a setting later" names
+// both keys.
+func TestInstallerProvesTwelveSettingsRows(t *testing.T) {
 	proof := asOneLine(section(t, installerFile, "Step 12."))
-	for _, text := range []string{"`history_page`", "Eleven rows in all"} {
-		if !strings.Contains(proof, text) {
-			t.Errorf("agent-installer.md step 12 does not say %q", text)
+	wantAll(t, "agent-installer.md step 12", proof, "`history_page`", "Twelve rows in all",
+		"`tbd_page` shows `unlisted (not set)`")
+	for _, stale := range []string{"Ten rows in all", "Eleven rows in all"} {
+		if strings.Contains(proof, stale) {
+			t.Errorf("agent-installer.md step 12 still says %q", stale)
 		}
 	}
-	if strings.Contains(proof, "Ten rows in all") {
-		t.Error("agent-installer.md step 12 still says ten rows")
-	}
 	later := asOneLine(section(t, installerFile, "Changing a setting later"))
-	if !strings.Contains(later, "`history_page`") {
-		t.Error("agent-installer.md 'Changing a setting later' does not list history_page")
-	}
+	wantAll(t, "agent-installer.md 'Changing a setting later'", later, "`history_page`", "`tbd_page`")
 }

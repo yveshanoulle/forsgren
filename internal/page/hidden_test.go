@@ -145,13 +145,13 @@ func wantMenuWithout(t *testing.T, name, html string, gone []string) {
 
 // legendPagesText is the legend's explanation of the page keys (forsgren#159, #200).
 const legendPagesText = "<p>Each optional page has a key in forsgren.config.yml: issues_page, days_page, " +
-	"numbers_scoring_page and history_page. A key takes true (the page is generated and in the " +
+	"numbers_scoring_page, history_page and tbd_page. A key takes true (the page is generated and in the " +
 	"menu), unlisted (generated, with no menu entry, and search engines are asked to skip it) " +
 	"or false (the page is not generated). An unlisted page can still be opened by its address." +
 	" By default the Issues page is listed (issues_page: true), the Daily page is not generated" +
-	" (days_page: false), and the History page and the Numbers and scoring page are unlisted " +
-	"(history_page: unlisted, numbers_scoring_page: unlisted). To put the Daily page in the " +
-	"menu, set days_page: true and run forsgren again to regenerate the report."
+	" (days_page: false), and the History page, the Numbers and scoring page and the TBD page are " +
+	"unlisted (history_page: unlisted, numbers_scoring_page: unlisted, tbd_page: unlisted). " +
+	"To put the Daily page in the menu, set days_page: true and run forsgren again to regenerate the report."
 
 // TestLegendExplainsTheTwoPageKeysWhateverIsHidden (forsgren#159, Yves's
 // ruling on decision #165): the legend keeps its Issues pages section and says
