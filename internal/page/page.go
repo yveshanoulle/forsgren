@@ -105,6 +105,10 @@ type Data struct {
 	HistoryDays int
 	// History are the columns of the history page, oldest first (forsgren#68).
 	History []metrics.Column
+	// Mainline are the Mainline Intervals of the TBD page, one per project in
+	// the config's order; none while the render has not read them
+	// (forsgren#253).
+	Mainline []metrics.MainlineInterval
 	// FirstDeployment is when the oldest successful deployment of the listed
 	// repositories was created, zero when there is none; the history page
 	// says when its first half-year appears (forsgren#198).
