@@ -9,6 +9,20 @@ Active work lives in
 
 ---
 
+## 2026-10-21 — Mainline Interval, the metric ([#253](https://github.com/yveshanoulle/forsgren/issues/253), step 3 of 7)
+
+forsgren issue 253, step 3 of 7, minor release (decision 257). Nothing an installation sees changes yet: `metrics.MainlineIntervals(projects, data, now)` (`internal/metrics/mainline.go`) is a pure function like the other metrics, not wired to a page until steps 4 and 5. Per project it gives `MainlineInterval{Commits, Gaps, Mean, Deviation}` and a `Cell()`, `2 h ± 1 h (3)`: the mean of the gaps, their sample standard deviation and the count of gaps, `-` below two commits. The reading, from how lead time reads the stored commits:
+
+- Which commits: those of `data/commits.csv` whose deployment was created in the DORA window (`Data.window()`, `dora_days`, both ends included, 0 is 30), whatever their author date, as `LeadTimes` does. They are commits a deployment shipped, so this is an interval between deployed commits, not every mainline commit.
+- Which date: the author date. The commits of a project, over all its repositories (compared ignoring case), are one sequence sorted by author date, whatever the stored order; a gap is the time between two consecutive ones.
+- Distinct: by repository (ignoring case) and SHA. A commit shipped by two deployments counts once (lead time counts each line); the same SHA in two repositories is two commits; two commits with one author date have a gap of 0.
+- Deviation: the sample standard deviation, over n-1 with n the count of gaps. Two commits have one gap, so a mean but no deviation: the cell is `2 h ± - (1)`. Below two commits there is no gap and the cell is `-`.
+- Per project only; the label rows get theirs when the page is wired.
+
+- Red first: with the type and function stubbed (all zero), `go test ./internal/metrics/...` failed in all seven new tests (every case showed `Commits:0 Gaps:0`, the cells empty). Green: `go test ./internal/metrics/...`. Mutation proof: dividing the squares by n instead of n-1 turns the gaps 1, 2, 3 and the gaps 1 and 3 hours red (`Deviation:48m59s`, `1h0m0s`) and `TestMainlineIntervalDeviationDividesByNMinusOne` fails.
+
+---
+
 ## 2026-10-21 — the TBD page, tbd.html ([#253](https://github.com/yveshanoulle/forsgren/issues/253), step 2 of 7)
 
 forsgren issue 253, step 2 of 7, minor release (decision 257). One thing an installation sees changes: a new root page `tbd.html`, "Trunk-based development (TBD)", handled by the `tbd_page` key of step 1 like the History page. Unlisted by default: written, no menu entry, `<meta name="robots" content="noindex">` in its head. With `tbd_page: true` it is the last entry of the menu, labelled "TBD", after History; with `tbd_page: false` it is not written and a `tbd.html` left in a reused out dir is removed. The page has its `<h1 id="tbd-heading">` and, for now, one line that says the metrics are coming and none are shown yet; the metrics come in steps 3 to 5. Its meta description is the fixed sentence "Trunk-based development metrics per project, coming to this page" and the suffix every page has. `tbd` is in `rootPages` (`page.TbdPage`) and `pageModes` (`render.go`), `tbd.html` in `internal/page/required-pages.json`, and every golden page gained the menu entry, plus the new `tbd.golden.html`. The site now has eleven pages (the placeholder build and the fixture build write `tbd.html`, as its key defaults to unlisted), so `Scripts/test_build_site.sh` expects 11.

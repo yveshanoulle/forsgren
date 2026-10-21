@@ -417,6 +417,18 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/metrics/mainline.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-21",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/mainline_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-21",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/metrics/leadtime_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-04",
