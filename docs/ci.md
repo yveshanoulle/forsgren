@@ -67,6 +67,12 @@ and page count as the artifact `quality-report-<job>`; the `report` job
 red, a job that handed over nothing is named and its gates read as unmeasured)
 and the two renderers write the one Quality report to its run page, with the
 status taken from the jobs' results. The `preview` job `needs:` all of them.
+The `browser` job (step 3) runs the browser gate self-test, the browser gate
+and the browser gate on the fixture site with its self-test, with the same
+setup (the hosted image's Chrome, puppeteer-core and axe-core from `npm ci`).
+The browser gate reads the built site, so the job runs its PRE rows, builds
+its own site with `Scripts/build_site.sh`, then runs its POST rows, all with
+the job name `browser`.
 The three baselines steps stay in the main job: they read the built site.
 `Scripts/test_quality_jobs.sh` pins the layout.
 

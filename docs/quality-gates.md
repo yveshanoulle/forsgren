@@ -419,7 +419,8 @@ Seven PRE gates read the repository's own scripts and files:
   gate prints `isolation: Go changes select nothing, no non-test Go file starts
   a program`, or `isolation: Go changes count, <file> starts a program`.
   `FORSGREN_ISOLATION_FULL=1` forces the full run. In Quality this gate runs in
-  its own `isolation` job (forsgren#259). Its scope self-test, which also proves the Quality single run (each
+  its own `isolation` job (forsgren#259); the browser gates and their
+  self-tests run in the `browser` job. Its scope self-test, which also proves the Quality single run (each
   self-test once; a leaking self-test turns it red naming the self-test, the
   single run and the reason), is `Scripts/test_git_sandbox_isolation_scope.sh`.
 - **quality jobs pin** and **merge quality report self-test**
@@ -429,7 +430,8 @@ Seven PRE gates read the repository's own scripts and files:
   self-test and the step summary isolation gate run in the `isolation` job
   (`Scripts/ci_job_groups.txt`; `sfl.sh` and FBP run every row as before).
   The pin is red when the isolation job is missing, off `macos-latest` or
-  without the main job's setup, when a `run_ci_phase.sh` call lacks its job
+  without the main job's setup (the browser job likewise, and it must run
+  PRE, its own site build, then POST), when a `run_ci_phase.sh` call lacks its job
   name, when a step names an isolation gate itself, when a job's hand-over is
   not `if: always()` or not under its name, when the report job lacks a job in
   `needs:`, `if: always()`, the merge or the status from the jobs' results,

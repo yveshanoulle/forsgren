@@ -17,3 +17,11 @@
 # SCOPE self-test stays in the main job: it is short.
 isolation|git sandbox isolation self-test
 isolation|step summary isolation
+#
+# The browser job (forsgren#259, step 3): the browser gate self-test and the
+# browser gate, and the same pair for the fixture site, about 295 s together.
+# The job builds its own site between its pre and post rows.
+browser|browser gate self-test
+browser|browser gate
+browser|browser gate (fixture site) self-test
+browser|browser gate (fixture site)

@@ -3,8 +3,9 @@
 #
 # Pins the job layout of .github/workflows/quality.yml (forsgren#259, decision
 # #260), forsgren's own: Quality runs its slowest gates in parallel jobs of ONE
-# workflow, and stays one verdict. Step 2: the isolation job. The pins, each
-# proved by a mutant of the real file that breaks it and must be named:
+# workflow, and stays one verdict. Steps 2 and 3: the isolation job and the
+# browser job. The pins, each proved by a mutant of the real file that breaks it
+# and must be named:
 #   1. an isolation job exists, on macos-latest, with the same setup as the
 #      main job: checkout at the same pin, the gate environment, Node, tool
 #      install and npm ci, in that order
@@ -15,6 +16,11 @@
 #   3. Scripts/ci_job_groups.txt gives the isolation job exactly the git
 #      sandbox isolation self-test and the step summary isolation gate, both
 #      rows of the order file
+#   3b. the browser job (step 3) has the same setup, runs run_ci_phase.sh pre,
+#      then Scripts/build_site.sh (its own site build), then run_ci_phase.sh
+#      post, both for the job `browser`; no step names a browser gate itself;
+#      the group file gives it the browser gate self-test, the browser gate and
+#      the browser gate (fixture site) with its self-test
 #   4. the job hands its rows over: an upload of quality-report-isolation,
 #      `if: always()`, and the main job does the same under quality-report-main
 #   5. a report job needs EVERY gate job (not the preview), `if: always()`,
@@ -120,17 +126,36 @@ phase_calls() {
 
 # job_findings <file>: pins 1 to 5.
 job_findings() {
-  local wf="$1" main iso rep calls id others needs listed
+  local wf="$1" main iso brw rep calls id others needs listed pre_line build_line post_line
   main="${TMP}/main.yml"
   iso="${TMP}/isolation.yml"
+  brw="${TMP}/browser.yml"
   rep="${TMP}/report.yml"
   job_of "$wf" quality > "$main"
   job_of "$wf" isolation > "$iso"
+  job_of "$wf" browser > "$brw"
   job_of "$wf" report > "$rep"
 
   setup_findings "$iso" isolation
+  setup_findings "$brw" browser
   handover_findings "$main" quality
   handover_findings "$iso" isolation
+  handover_findings "$brw" browser
+
+  if [[ -s "$brw" ]]; then
+    calls="$(phase_calls "$brw")"
+    [[ "$(grep -cE " \"[$]DETAILS\" browser( |\$)" <<< "$calls")" == 2 && "$(wc -l <<< "$calls" | tr -d ' ')" == 2 ]] \
+      || echo "browser: the browser job must run run_ci_phase.sh pre and post, each ending with the job name browser, got: ${calls:-none}"
+    pre_line="$(line_of "$brw" './Scripts/run_ci_phase.sh pre')"
+    build_line="$(line_of "$brw" './Scripts/build_site.sh')"
+    post_line="$(line_of "$brw" './Scripts/run_ci_phase.sh post')"
+    if [[ -z "$build_line" ]] || ! later "$build_line" "$pre_line" || ! later "$post_line" "$build_line"; then
+      echo "browser: the browser job must run PRE, then its own site build (Scripts/build_site.sh), then POST: the browser gate reads the built site"
+    fi
+  fi
+  if code "$wf" | grep -qE 'test_gate_browser|gate_browser'; then
+    echo "browser: a step names a browser gate itself; ${GROUPS_FILE} and the order file decide which gates a job runs"
+  fi
 
   calls="$(phase_calls "$main")"
   [[ "$(grep -cE " \"[$]DETAILS\" main( |\$)" <<< "$calls")" == 2 ]] \
@@ -178,14 +203,16 @@ job_findings() {
 # groups_findings: pin 3.
 groups_findings() {
   local rows labels
+  labels="$(printf '%s\n' 'isolation|git sandbox isolation self-test' 'isolation|step summary isolation' \
+    'browser|browser gate self-test' 'browser|browser gate' 'browser|browser gate (fixture site) self-test' 'browser|browser gate (fixture site)' \
+    | LC_ALL=C sort | tr '\n' ';')"
   [[ -f "$GROUPS_FILE" ]] || { echo "groups: ${GROUPS_FILE} does not exist"; return 0; }
   rows="$(grep -v '^#' "$GROUPS_FILE" | grep . | LC_ALL=C sort | tr '\n' ';')"
-  labels='isolation|git sandbox isolation self-test;isolation|step summary isolation;'
   [[ "$rows" == "$labels" ]] \
-    || echo "groups: ${GROUPS_FILE} must give the isolation job exactly the git sandbox isolation self-test and the step summary isolation gate, got: ${rows:-none}"
+    || echo "groups: ${GROUPS_FILE} must give the isolation job exactly the git sandbox isolation self-test and the step summary isolation gate, and the browser job the two browser gates and their self-tests, got: ${rows:-none}"
   while IFS='|' read -r _job label; do
-    awk -F'|' -v l="$label" '$1 == l && $3 == "pre"' <(grep -v '^#' "$ORDER") | grep -q . \
-      || echo "groups: '${label}' is no pre row of ${ORDER}"
+    awk -F'|' -v l="$label" '$1 == l && ($3 == "pre" || $3 == "post")' <(grep -v '^#' "$ORDER") | grep -q . \
+      || echo "groups: '${label}' is no pre or post row of ${ORDER}"
   done < <(grep -v '^#' "$GROUPS_FILE" | grep .)
 }
 
@@ -234,7 +261,8 @@ mutant() {
   fi
 }
 
-I='/^  isolation:/,/^  report:/'
+I='/^  isolation:/,/^  browser:/'
+B='/^  browser:/,/^  report:/'
 R='/^  report:/,/^  preview:/'
 mutant "no isolation job" 's/^  isolation:/  isolation_gone:/' "job: the file has no isolation job"
 mutant "isolation on another runner" "${I}"'s/runs-on: macos-latest/runs-on: ubuntu-latest/' "runs-on: the isolation job is not on macos-latest"
@@ -245,7 +273,15 @@ mutant "main without its job name" "/^  quality:/,/^  isolation:/s/run_ci_phase.
 mutant "a step naming an isolation gate" "${I}"'s#\./Scripts/install_tools.sh#./Scripts/install_tools.sh; ./Scripts/test_git_sandbox_isolation.sh#' "isolation: a step names an isolation gate itself"
 mutant "isolation hand-over not always" "${I}"'{/Hand over the gate report/,/uses:/s/if: always()/if: success()/;}' "handover: the isolation job's"
 mutant "main hand-over under another name" '/^  quality:/,/^  isolation:/s/name: quality-report-quality/name: quality-report-other/' "handover: the quality job does not upload the artifact quality-report-quality"
-mutant "report without isolation in needs" "${R}"'s/needs: \[quality, isolation\]/needs: [quality]/' "report: the gate job isolation is not in the report job's needs:"
+mutant "report without isolation in needs" "${R}"'s/needs: \[quality, isolation, browser\]/needs: [quality, browser]/' "report: the gate job isolation is not in the report job's needs:"
+mutant "report without browser in needs" "${R}"'s/needs: \[quality, isolation, browser\]/needs: [quality, isolation]/' "report: the gate job browser is not in the report job's needs:"
+mutant "no browser job" 's/^  browser:/  browser_gone:/' "job: the file has no browser job"
+mutant "browser on another runner" "${B}"'s/runs-on: macos-latest/runs-on: ubuntu-latest/' "runs-on: the browser job is not on macos-latest"
+mutant "browser without npm ci" "${B}"'s/run: npm ci/run: true/' "setup: the browser job does not run npm ci"
+mutant "browser without its site build" "${B}"'s#\./Scripts/build_site.sh#./Scripts/other.sh#' "browser: the browser job must run PRE, then its own site build"
+mutant "browser running the main job's gates" "${B}s/run_ci_phase.sh post \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" browser/run_ci_phase.sh post \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" main/" "browser: the browser job must run run_ci_phase.sh pre and post"
+mutant "a step naming a browser gate" "${B}"'s#\./Scripts/install_tools.sh#./Scripts/install_tools.sh; ./Scripts/gate_browser.sh#' "browser: a step names a browser gate itself"
+mutant "browser hand-over not always" "${B}"'{/Hand over the gate report/,/uses:/s/if: always()/if: success()/;}' "handover: the browser job's"
 mutant "report not always" "${R}"'s/^    if: always()/    if: success()/' "report: the report job is not if: always()"
 mutant "report without the merge" "${R}"'s#merge_quality_report.sh merge#merge_quality_report.sh combine#' "report: the report job does not merge the hand-overs"
 mutant "report status not merged" "${R}"'s#merge_quality_report.sh status#merge_quality_report.sh state#' "report: QS_JOB_STATUS is not taken from"
