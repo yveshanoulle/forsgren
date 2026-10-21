@@ -6,8 +6,10 @@
 # made under the Developer Certificate of Origin 1.1 (CONTRIBUTING.md), so
 # every commit carries a Signed-off-by trailer from its author.
 # .github/workflows/dco.yml runs this on every pull request and on every push
-# to main (forsgren#81), on that push's commits only, with no exemption; sfl
-# and Quality do not run it (Quality runs its self-test).
+# to main (forsgren#81), on that push's commits only, with no exemption (on a
+# push Scripts/dco_push_check.sh runs it, after leaving the commits of a
+# merged pull request whose own DCO run succeeded to that run, forsgren#267);
+# sfl and Quality do not run it (Quality runs its self-test).
 #
 # INPUT, one line per commit, from a file or stdin:
 #   <sha> <author account> <base64 of the author email> <base64 of the message>

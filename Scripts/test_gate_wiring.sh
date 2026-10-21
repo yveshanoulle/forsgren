@@ -650,6 +650,17 @@ for path in Scripts/*.sh; do
         || fail "${DCO_WF} never lists a push with ${base} --fresh — a new branch or a force-push would be checked on its head commit alone"
       ;;
 
+    # HELPER OF THE DCO CHECK (forsgren#267): the push path's judge, which
+    # leaves a merged pull request's commits to its own DCO run and hands every
+    # other commit to check_dco.sh. Scripts/test_check_dco.sh, an order-file
+    # row, is its test and must still run it; dco.yml runs it on a push.
+    dco_push_check.sh)
+      runs_script "Scripts/test_check_dco.sh" "$base" \
+        || fail "${base} judges a push for the DCO check and Scripts/test_check_dco.sh never runs it — the push check would be unproven"
+      runs_script "$DCO_WF" "$base" \
+        || fail "${base} judges a push for the DCO check and ${DCO_WF} never invokes it — a push to main would not be checked"
+      ;;
+
     # HAND-RUN BY THE LOOP, never by sfl or a workflow: a thin exec wrapper
     # around FBP.sh under the agent-Friend identity. Requiring a runner to
     # invoke it would mean FBP invoking itself. CLAUDE.md declares it.
@@ -1186,6 +1197,10 @@ if ! is_mutation_rerun; then
     's|^([[:space:]]*)(\./Scripts/dco_push_commits\.sh )|\1# \2|' \
     "dco_push_commits.sh lists a push's commits for the DCO check and" \
     "a dco.yml whose dco_push_commits.sh call is a comment"
+  mutation_proof GATE_WIRING_DCO_OVERRIDE "Scripts/dco_push_check.sh" \
+    's|^([[:space:]]*)(\./Scripts/dco_push_check\.sh )|\1# \2|' \
+    "dco_push_check.sh judges a push for the DCO check and" \
+    "a dco.yml whose dco_push_check.sh call is a comment"
   mutation_proof GATE_WIRING_DCO_OVERRIDE "Scripts/dco_push_commits.sh" \
     's|^  push:|  workflow_dispatch:|' \
     "has no push trigger on main" \

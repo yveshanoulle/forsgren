@@ -170,7 +170,7 @@ files: no gate can see them.
 `.github/workflows/dco.yml` triggers on `pull_request` (never
 `pull_request_target`), as Quality does, and may because its one job runs
 on a GitHub-hosted runner (`ubuntu-latest`), with a read-only token
-(`contents: read`, `pull-requests: read`), and on every push to `main`
+(`contents: read`, `pull-requests: read`, `checks: read`), and on every push to `main`
 (forsgren#81: forsgren does not work through pull requests, so until then
 no commit on `main` was checked). It holds every commit of the pull
 request, and every commit the push brings, to the
@@ -196,15 +196,32 @@ only the pushed range, `before..after` (the two shas through `env:`),
 oldest first, in the check's input lines; a push that creates a branch is
 checked on its head commit, and a range with no commit in it is red, never
 an empty pass. Commits of an earlier push are not judged again. A push names
-no account and no one opened it, so no commit of a push is exempt, a bot's
-included. Runs on pull requests share a group and a new push cancels the
+no account and no one opened it, so no commit of a push is exempt as a bot's,
+a direct push included. A pull request merged with GitHub's merge button
+lands its commits and a merge commit on `main` (forsgren#267), so
+`Scripts/dco_push_check.sh` first asks the API which pull requests each
+pushed commit belongs to (`GET /repos/{repo}/commits/{sha}/pulls`, `gh api`,
+with the job token and the repository through `env:`). A commit of a merged
+pull request of this repository whose **DCO sign-off** check run (made by
+GitHub Actions) succeeded on that pull request's head is already judged by
+that run, which knew who opened the pull request, so it is not judged again
+and the output says so; the merge commit GitHub made for it (committed by
+GitHub, verified by GitHub, its second parent that head) is exempt, and the
+output says so. Every other pushed commit gets the strict rule above: a
+commit of a pull request whose DCO run failed or is missing, a pull request
+that is not merged or is another repository's, a squash or rebase commit
+(not one of the pull request's commits), a merge commit that GitHub did not
+make, verify or whose second parent is another, and every direct push. A
+failed API call is red with its reason, never a pass. The workflow's token
+reads `contents`, `pull-requests` and `checks` and writes nothing. Runs on pull requests share a group and a new push cancels the
 one in flight; runs on `main` are never cancelled, each commit gets its
 own. The check does not run in `sfl` or Quality, since it judges the
 commits a pull request or a push brings; its
 self-test does (**DCO sign-off self-test**, `Scripts/test_check_dco.sh`,
 offline, with mutation proofs for the last-paragraph rule, the email
-comparison, the account-type rule and the opener comparison, and a
-throwaway repository for the push listing), and **gate wiring** is red when
+comparison, the account-type rule and the opener comparison, a
+throwaway repository for the push listing, and a stub `gh` for the push
+check, one mutation proof per condition of its two exemptions), and **gate wiring** is red when
 `dco.yml` stops running the check or the push listing, loses its push
 trigger on `main`, or the self-test loses its row.
 

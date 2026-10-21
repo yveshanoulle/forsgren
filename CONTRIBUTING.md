@@ -259,6 +259,17 @@ decides on what GitHub reports, the account type and who opened the pull
 request, never on a commit's author name or email: anyone can write a
 bot's address into a commit. Your own commit in a bot's pull request is
 held to the rule. A push to `main` has no one who opened it, so no commit
-of a push is exempt. To fix a red check, sign the
+of a push is exempt as a bot's.
+
+A pull request merged with GitHub's merge button (a Dependabot pull request,
+say) is judged once, by its own DCO run, not again on the push to `main`:
+the push check asks GitHub which pull requests each pushed commit belongs
+to, and a commit of a merged pull request of this repository whose DCO run
+succeeded is not judged again, and the merge commit GitHub made for it
+(committed by GitHub, verified, its second parent that pull request's head)
+is exempt; the output of the run names each. Every other pushed commit is
+held to the rule: a direct push, a commit of a pull request whose DCO run
+failed, a squash or rebase commit, a merge commit made any other way. A
+failed lookup is red, never a pass. To fix a red check, sign the
 commits off and force-push the branch: `git commit --amend -s` for the
 last commit, `git rebase --signoff main` for all of them.

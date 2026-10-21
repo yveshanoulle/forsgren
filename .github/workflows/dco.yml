@@ -14,7 +14,13 @@
 # On a push the commits are those of before..after, listed from git by
 # Scripts/dco_push_commits.sh (a new branch: its head commit; an empty range
 # is red), with no account and so no bot exemption. Commits of an earlier
-# push are not judged again. The second job, private-names (forsgren#213),
+# push are not judged again. Merging a pull request on GitHub puts its
+# commits and a merge commit on main (forsgren#267, decision #268):
+# Scripts/dco_push_check.sh asks the API which pull requests each pushed
+# commit belongs to; a commit of a merged pull request of this repository
+# whose own DCO run succeeded is not judged again, the merge commit GitHub
+# made for it is exempt, every other commit gets the strict rule, and a
+# failed API call is red. The second job, private-names (forsgren#213),
 # judges the messages of the same commits with the private-names matcher.
 #
 # It triggers on pull_request, as quality.yml does, and safely:
@@ -39,7 +45,8 @@ on:
 
 permissions:
   contents: read        # the checkout of Scripts/check_dco.sh at the base commit
-  pull-requests: read   # the pull request's commit list
+  pull-requests: read   # the pull request's commit list; the pull requests of a pushed commit
+  checks: read          # a merged pull request's DCO check run (Scripts/dco_push_check.sh)
 
 # One run per pull request, a new push to it cancels the run in flight. Never
 # on main: every push there is checked, so its group is the commit.
@@ -63,6 +70,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             Scripts/check_dco.sh
+            Scripts/dco_push_check.sh
             Scripts/dco_push_commits.sh
             Scripts/dco_pr_commits.sh
           sparse-checkout-cone-mode: false
@@ -90,19 +98,24 @@ jobs:
           ./Scripts/check_dco.sh "$commits" "$PR_OPENER"
 
       # A push to main: the commits of before..after, from git (fetch-depth
-      # 0 above), with the same check. The two shas reach the shell through
-      # env:, never as ${{ }} inside run:.
+      # 0 above), with the same check, except that a commit of a merged pull
+      # request whose own DCO run succeeded is not judged again and GitHub's
+      # merge commit for it is exempt (Scripts/dco_push_check.sh, which reads
+      # the API with the job token). The token, the repository and the two
+      # shas reach the shell through env:, never as ${{ }} inside run:.
       - name: Check every pushed commit is signed off by its author
         if: ${{ github.event_name == 'push' }}
         shell: bash
         env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.event.after }}
         run: |
           set -euo pipefail
           commits="${RUNNER_TEMP}/dco_push_commits.txt"
           ./Scripts/dco_push_commits.sh "$BEFORE" "$AFTER" > "$commits"
-          ./Scripts/check_dco.sh "$commits"
+          ./Scripts/dco_push_check.sh "$REPO" "$commits"
 
   # The private names in commit messages (forsgren#213). This repository is
   # public and a commit message is published with the commit; FBP.sh refuses a
