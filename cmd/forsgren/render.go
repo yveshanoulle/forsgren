@@ -130,7 +130,8 @@ func pagesInMode(cfg config.Config, mode config.PageMode) map[string]bool {
 // a page is tied to its key.
 func pageModes(cfg config.Config) map[string]config.PageMode {
 	return map[string]config.PageMode{page.IssuesPage: cfg.IssuesPage, page.DaysPage: cfg.DaysPage,
-		page.NumbersScoringPage: cfg.NumbersScoringPage, page.HistoryPage: cfg.HistoryPage}
+		page.NumbersScoringPage: cfg.NumbersScoringPage, page.HistoryPage: cfg.HistoryPage,
+		page.TbdPage: cfg.TbdPage}
 }
 
 // issueDays is how many UTC days the days page shows, ending yesterday

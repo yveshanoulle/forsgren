@@ -161,10 +161,10 @@ check_file 17 "issues.html is the golden placeholder issues page" "internal/page
 check_file 3 "styles.css is copied as authored" "$STYLES" "${HAPPY_OUTPUT}/styles.css"
 check_file 19 "favicon.svg is copied as authored" "internal/page/favicon.svg" "${HAPPY_OUTPUT}/favicon.svg"
 
-if [[ -f "$HAPPY_SINK" ]] && [[ "$(cat "$HAPPY_SINK")" == "10" ]]; then
-  pass 4 "writes the page count (10) to SITE_PAGE_COUNT_FILE"
+if [[ -f "$HAPPY_SINK" ]] && [[ "$(cat "$HAPPY_SINK")" == "11" ]]; then
+  pass 4 "writes the page count (11) to SITE_PAGE_COUNT_FILE"
 else
-  fail_check 4 "writes the page count (10) to SITE_PAGE_COUNT_FILE — found: $(cat "$HAPPY_SINK" 2>/dev/null || echo MISSING)"
+  fail_check 4 "writes the page count (11) to SITE_PAGE_COUNT_FILE — found: $(cat "$HAPPY_SINK" 2>/dev/null || echo MISSING)"
 fi
 
 new_case "again"
@@ -232,10 +232,10 @@ check 20 "builds the site from the fixture" 0 "$RC"
 if [[ "$RC" -ne 0 ]]; then cat "$FIXTURE_LOG"; fi
 FIXTURE_HAPPY="$FIXTURE_OUT"
 FIXTURE_PAGES="$( (find "$FIXTURE_HAPPY" -type f -name '*.html' 2>/dev/null || true) | wc -l | tr -d '[:space:]')"
-if [[ "$FIXTURE_PAGES" == "10" ]]; then
-  pass 21 "the fixture site has the ten pages of the manifest"
+if [[ "$FIXTURE_PAGES" == "11" ]]; then
+  pass 21 "the fixture site has the eleven pages of the manifest"
 else
-  fail_check 21 "the fixture site has the ten pages of the manifest — found ${FIXTURE_PAGES}"
+  fail_check 21 "the fixture site has the eleven pages of the manifest — found ${FIXTURE_PAGES}"
 fi
 
 if [[ -f "${FIXTURE_HAPPY}/history.html" ]] && grep -qF '<svg' "${FIXTURE_HAPPY}/history.html" \

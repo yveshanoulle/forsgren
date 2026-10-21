@@ -251,7 +251,7 @@ func TestChartBreaksAtAGapAndDrawsASinglePointAsADot(t *testing.T) {
 func TestHistoryPageIsMarkedBeta(t *testing.T) {
 	history := rendered(t, "history.html", historyData())
 	wantAll(t, "history.html", history, "<title>History (beta) · ", `<h1 id="history-heading">History (beta)</h1>`,
-		`<a href="days.html">Daily</a> · <span aria-current="page">History</span></nav>`)
+		`<a href="days.html">Daily</a> · <span aria-current="page">History</span> · <a href="tbd.html">TBD</a></nav>`)
 	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()), "<h2>History page (beta)</h2>")
 	wantNone(t, "index.html", rendered(t, "index.html", calculated()), "(beta)")
 }

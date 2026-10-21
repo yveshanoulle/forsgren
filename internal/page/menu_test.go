@@ -14,7 +14,7 @@ type menuEntry struct{ href, label string }
 var menuEntries = []menuEntry{
 	{"standard/", "Standard"}, {"numbers/", "Numbers"}, {"scoring/", "Scoring"},
 	{"numbers-scoring/", "Numbers and scoring"},
-	{"issues.html", "Issues"}, {"days.html", "Daily"}, {"history.html", "History"},
+	{"issues.html", "Issues"}, {"days.html", "Daily"}, {"history.html", "History"}, {"tbd.html", "TBD"},
 }
 
 // wantMenu is the menu of a page whose links start with base: the label of
@@ -48,6 +48,7 @@ func menuCases(root menuCase) map[string]menuCase {
 		"issues.html":                {"", "Issues", "page"},
 		"days.html":                  {"", "Daily", "page"},
 		"history.html":               {"", "History", "page"},
+		"tbd.html":                   {"", "TBD", "page"},
 		"settings.html":              {},
 		"legend.html":                {},
 	}
@@ -156,16 +157,19 @@ func TestLegendPageIsTitledLegend(t *testing.T) {
 	wantNone(t, "legend.html", got, "What the bands mean", `class="site-name"`)
 }
 
-// TestMenuEndsWithHistoryAndOmitsItWhenHidden (forsgren#68): the entry is the
-// last, after Daily, a link from the root and from every folder, plain text
+// TestMenuEndsWithHistoryAndOmitsItWhenHidden (forsgren#68, #253): the entry is
+// after Daily and before TBD, a link from the root and from every folder, plain text
 // with aria-current="page" on its own page; a site that hides the history
 // page has no entry for it in any page's menu, and the others stay.
 func TestMenuEndsWithHistoryAndOmitsItWhenHidden(t *testing.T) {
 	data := viewData()
 	for page, want := range map[string]string{
-		"index.html":         `<a href="days.html">Daily</a> · <a href="history.html">History</a></nav>`,
-		"scoring/index.html": `<a href="../days.html">Daily</a> · <a href="../history.html">History</a></nav>`,
-		"history.html":       `<a href="days.html">Daily</a> · <span aria-current="page">History</span></nav>`,
+		"index.html": `<a href="days.html">Daily</a> · <a href="history.html">History</a> · ` +
+			`<a href="tbd.html">TBD</a></nav>`,
+		"scoring/index.html": `<a href="../days.html">Daily</a> · <a href="../history.html">History</a> · ` +
+			`<a href="../tbd.html">TBD</a></nav>`,
+		"history.html": `<a href="days.html">Daily</a> · <span aria-current="page">History</span> · ` +
+			`<a href="tbd.html">TBD</a></nav>`,
 	} {
 		wantAll(t, page, rendered(t, page, data), want)
 	}

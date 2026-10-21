@@ -251,8 +251,9 @@ type rootPage struct{ Name, Label string }
 // rootPages are the pages at the root, in the order the menu names them
 // after the folderPages: the issues page (forsgren#123, forsgren#128: the
 // weeks, months and years), the days page (forsgren#76, forsgren#128: the
-// last 30 days, labelled Daily) and the history page (forsgren#68).
-var rootPages = []rootPage{{IssuesPage, "Issues"}, {DaysPage, "Daily"}, {HistoryPage, "History"}}
+// last 30 days, labelled Daily), the history page (forsgren#68) and the TBD
+// page (forsgren#253, labelled TBD).
+var rootPages = []rootPage{{IssuesPage, "Issues"}, {DaysPage, "Daily"}, {HistoryPage, "History"}, {TbdPage, "TBD"}}
 
 // IssuesPage and DaysPage are the names of the two issue pages, keys of
 // Data.Hidden (forsgren#159).
@@ -268,6 +269,10 @@ const NumbersScoringPage = viewNumbersScoring
 // HistoryPage is the name of the history page, history.html, a key of Data.Hidden
 // (forsgren#68).
 const HistoryPage = "history"
+
+// TbdPage is the name of the TBD page, tbd.html, a key of Data.Hidden
+// (forsgren#253).
+const TbdPage = "tbd"
 
 // The names of the pages no setting hides: the table page, index.html at the
 // root and in each view's folder, and the legend and settings pages.

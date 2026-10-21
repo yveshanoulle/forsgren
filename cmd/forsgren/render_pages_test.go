@@ -20,11 +20,15 @@ const numbersScoringOn = "numbers_scoring_page: true\n"
 // leaves unlisted unless it sets history_page: true (forsgren#68, #200).
 const historyOn = "history_page: true\n"
 
-// writeAllPagesConfig writes the config content with daysOn, numbersScoringOn
-// and historyOn added, so every page is written, and returns its path.
+// tbdOn is the config line that lists the TBD page, which a config leaves
+// unlisted unless it sets tbd_page: true (forsgren#253).
+const tbdOn = "tbd_page: true\n"
+
+// writeAllPagesConfig writes the config content with daysOn, numbersScoringOn,
+// historyOn and tbdOn added, so every page is written, and returns its path.
 func writeAllPagesConfig(t *testing.T, content string) string {
 	t.Helper()
-	return writeConfig(t, content+daysOn+numbersScoringOn+historyOn)
+	return writeConfig(t, content+daysOn+numbersScoringOn+historyOn+tbdOn)
 }
 
 // TestRenderLeavesOutThePagesTheConfigHides (forsgren#159): with --config the

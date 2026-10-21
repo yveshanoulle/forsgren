@@ -26,6 +26,7 @@ func menuOf(t *testing.T, name, html string) string {
 func TestAnUnlistedRootPageIsWrittenWithoutAMenuEntry(t *testing.T) {
 	cases := map[string]menuEntry{
 		"issues": {"issues.html", "Issues"}, "days": {"days.html", "Daily"}, "history": {"history.html", "History"},
+		"tbd": {"tbd.html", "TBD"},
 	}
 	for name, entry := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -71,7 +72,7 @@ const noindex = `<meta name="robots" content="noindex">`
 // other page of the site, the unlisted page's neighbours and a page that is
 // listed, does not.
 func TestAnUnlistedRootPageAsksSearchEnginesToSkipIt(t *testing.T) {
-	for _, unlisted := range []string{"issues", "days", "history"} {
+	for _, unlisted := range []string{"issues", "days", "history", "tbd"} {
 		t.Run(unlisted, func(t *testing.T) {
 			data := viewData()
 			data.Unlisted = map[string]bool{unlisted: true}

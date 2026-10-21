@@ -19,11 +19,12 @@ type modePage struct {
 	def             config.PageMode
 }
 
-// modePages are the four pages with a page key (forsgren#159, #55, #68, #200).
+// modePages are the five pages with a page key (forsgren#159, #55, #68, #200, #253).
 var modePages = []modePage{
 	{"issues_page", "issues.html", "issues.html", config.PageOn},
 	{"days_page", "days.html", "days.html", config.PageOff},
 	{"history_page", "history.html", "history.html", config.PageUnlisted},
+	{"tbd_page", "tbd.html", "tbd.html", config.PageUnlisted},
 	{"numbers_scoring_page", "numbers-scoring/index.html", "numbers-scoring/", config.PageUnlisted},
 }
 
@@ -116,7 +117,7 @@ func renderModeInto(t *testing.T, dir string, p modePage, mode config.PageMode) 
 
 // linkToAnOptionalPage finds a link to the history page or the numbers and
 // scoring page, from the root or from a folder.
-var linkToAnOptionalPage = regexp.MustCompile(`href="[^"]*(history\.html|numbers-scoring/)`)
+var linkToAnOptionalPage = regexp.MustCompile(`href="[^"]*(history\.html|tbd\.html|numbers-scoring/)`)
 
 // TestNoGeneratedPageLinksToAnUnlistedPageOutsideTheMenu (forsgren#200): with
 // the History and the Numbers and scoring page unlisted, no file the render
@@ -124,8 +125,8 @@ var linkToAnOptionalPage = regexp.MustCompile(`href="[^"]*(history\.html|numbers
 // true, the same pages are linked, so the scan is not blind.
 func TestNoGeneratedPageLinksToAnUnlistedPageOutsideTheMenu(t *testing.T) {
 	for mode, wantLinks := range map[config.PageMode]bool{config.PageUnlisted: false, config.PageOn: true} {
-		file := writeConfig(t, validConfig+daysOn+"history_page: "+string(mode)+"\nnumbers_scoring_page: "+
-			string(mode)+"\n")
+		file := writeConfig(t, validConfig+daysOn+"history_page: "+string(mode)+"\ntbd_page: "+string(mode)+
+			"\nnumbers_scoring_page: "+string(mode)+"\n")
 		found := linksToOptionalPages(t, renderInto(t, "--config", file))
 		if wantLinks != (len(found) > 0) {
 			t.Errorf("%s: want links to the two pages: %v, got %v", mode, wantLinks, found)
