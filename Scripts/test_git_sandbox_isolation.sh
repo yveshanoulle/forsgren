@@ -13,6 +13,16 @@
 # self-tests run with them pointing at the decoy; afterwards the decoy's
 # config, HEAD, refs, packed-refs and branch list, and the decoy origin's
 # refs and HEAD, must be byte-for-byte what they were.
+#
+# SCOPE (forsgren#251, decision 249). Quality in CI runs every git-using
+# self-test. FBP, and any local run (GITHUB_ACTIONS unset), runs only the
+# AFFECTED ones: a self-test is affected when its own file changed, or any file it
+# names (the Scripts/ scripts, libraries and data files it calls, followed
+# transitively) changed, against the merge base with origin/main, counting
+# committed, staged, unstaged and untracked changes. A change to this script or
+# to a library it sources, or no origin/main to compare against, means every
+# self-test. When none is affected the gate says so and passes; it never skips
+# without saying. FORSGREN_ISOLATION_FULL=1 forces the full run.
 
 set -uo pipefail
 
@@ -95,6 +105,105 @@ done
 if [[ "${#TESTS[@]}" -lt 3 ]]; then
   fail "only ${#TESTS[@]} git-using self-tests found: the detector is broken, not the repository"
 fi
+
+# named_files <file>: the repository files a script's non-comment lines name,
+# one path per line. A token that looks like a file name is resolved to
+# Scripts/<name>, .github/workflows/<name>, or the path itself when it exists.
+named_files() {
+  local code token
+  code="$(grep -v '^[[:space:]]*#' "$1" || true)"
+  while IFS= read -r token; do
+    [[ -z "$token" ]] && continue
+    if [[ -f "$token" ]]; then
+      echo "$token"
+    elif [[ -f "Scripts/${token##*/}" ]]; then
+      echo "Scripts/${token##*/}"
+    elif [[ -f ".github/workflows/${token##*/}" ]]; then
+      echo ".github/workflows/${token##*/}"
+    fi
+  done < <(grep -oE '[A-Za-z0-9_./-]+[.](sh|mjs|js|py|txt|json|yml|yaml|go)' <<< "$code" | sort -u)
+}
+
+# closure <file>: the file and every file it names, transitively.
+closure() {
+  local seen=$'\n'"$1"$'\n' queue=("$1") i=0 f n
+  while [[ "$i" -lt "${#queue[@]}" ]]; do
+    f="${queue[$i]}"
+    i=$((i + 1))
+    case "$f" in *.sh | *.mjs | *.js | *.py) ;; *) continue ;; esac
+    while IFS= read -r n; do
+      [[ -z "$n" ]] && continue
+      if [[ "$seen" != *$'\n'"$n"$'\n'* ]]; then
+        seen+="${n}"$'\n'
+        queue+=("$n")
+      fi
+    done < <(named_files "$f")
+  done
+  printf '%s' "$seen" | sed '/^$/d'
+}
+
+# changed_files: against the merge base with origin/main, the tracked changes
+# (committed, staged and unstaged) and the untracked files git does not ignore.
+# Non-zero when there is no origin/main to compare against. Markdown is prose.
+changed_files() {
+  local base
+  base="$(git merge-base HEAD origin/main 2> /dev/null)" || return 1
+  { git diff --name-only "$base" --; git ls-files --others --exclude-standard; } | { grep -v '[.]md$' || true; } | sort -u
+}
+
+# select_tests: sets SELECTED (the affected self-tests) and SCOPE_NOTE (why).
+select_tests() {
+  local changed t c own
+  SELECTED=()
+  if [[ "${GITHUB_ACTIONS:-}" == "true" || "${FORSGREN_ISOLATION_FULL:-}" == "1" ]]; then
+    SELECTED=("${TESTS[@]}")
+    SCOPE_NOTE="full run (Quality, or forced)"
+    return
+  fi
+  if ! changed="$(changed_files)"; then
+    SELECTED=("${TESTS[@]}")
+    SCOPE_NOTE="full run (no origin/main to compare against)"
+    return
+  fi
+  own="$(closure Scripts/test_git_sandbox_isolation.sh)"
+  while IFS= read -r c; do
+    [[ -z "$c" ]] && continue
+    if grep -qxF -- "$c" <<< "$own"; then
+      SELECTED=("${TESTS[@]}")
+      SCOPE_NOTE="full run (${c} is part of this gate)"
+      return
+    fi
+  done <<< "$changed"
+  for t in "${TESTS[@]}"; do
+    local files code
+    files="$(closure "$t")"
+    code="$(while IFS= read -r c; do cat "$c"; done <<< "$files")"
+    while IFS= read -r c; do
+      [[ -z "$c" ]] && continue
+      if grep -qxF -- "$c" <<< "$files"; then
+        SELECTED+=("$t")
+        break
+      fi
+      # Go code and go.mod change what a self-test that builds or runs the tool does.
+      case "$c" in cmd/* | internal/* | go.mod | go.sum)
+        if grep -qE 'go (build|run|test|install)|cmd/forsgren' <<< "$code"; then
+          SELECTED+=("$t")
+          break
+        fi ;;
+      esac
+    done <<< "$changed"
+  done
+  SCOPE_NOTE="changed or affected only; Quality runs all"
+}
+
+select_tests
+if [[ "${#SELECTED[@]}" -eq 0 ]]; then
+  echo "isolation: 0 of ${#TESTS[@]} self-tests affected, full run in Quality"
+  echo "OK: no git-using self-test is affected by the changes; Quality runs all ${#TESTS[@]}"
+  exit 0
+fi
+echo "isolation: ${#SELECTED[@]} of ${#TESTS[@]} self-tests affected (${SCOPE_NOTE})"
+TESTS=("${SELECTED[@]}")
 
 # Two shapes of the leak: all three variables (the 2026-10-18 shell), and
 # GIT_DIR with GIT_INDEX_FILE only, which lets fixtures that init a bare

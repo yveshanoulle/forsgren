@@ -160,6 +160,7 @@ run report shows how many checks each of them ran.
 - quality summary first (`Scripts/test_quality_summary_first.sh`, pre)
 - step summary isolation (`Scripts/test_step_summary_isolation.sh`, pre)
 - git sandbox isolation self-test (`Scripts/test_git_sandbox_isolation.sh`, pre)
+- git sandbox isolation scope self-test (`Scripts/test_git_sandbox_isolation_scope.sh`, pre)
 - git sandbox guard self-test (`Scripts/test_git_sandbox_guard.sh`, pre)
 - precheck self-test (`Scripts/test_precheck.sh`, pre)
 - static block self-test (`Scripts/test_sfl_static_block.sh`, pre)
