@@ -17,8 +17,8 @@
 # byte-identical.
 #
 # After the render the script checks that the pages it exists for carry data,
-# and is red when they do not: the History page has a chart, and the Daily and
-# Issues pages have rows. A fixture that stopped showing data would otherwise
+# and is red when they do not: the History page has a chart, the Daily and
+# Issues pages have rows, and the TBD page has a Mainline Interval row. A fixture that stopped showing data would otherwise
 # let the browser gate go back to checking the placeholder.
 #
 # Usage: Scripts/build_fixture_site.sh [out-dir]   (default .build/site-fixture)
@@ -80,6 +80,13 @@ history_shows_chart() {
 }
 if ! history_shows_chart; then
   fail "history.html shows no chart: the fixture has no history the page can show"
+fi
+# The TBD page has a Mainline Interval cell with a number, not only dashes (forsgren#253).
+tbd_shows_interval() {
+  [[ -f "${STAGE}/tbd.html" ]] && grep -qE '<td>[^<-][^<]* ± [^<]* \([0-9]+\)</td>' "${STAGE}/tbd.html"
+}
+if ! tbd_shows_interval; then
+  fail "tbd.html shows no Mainline Interval: the fixture has no commits the page can show"
 fi
 for page in days issues; do
   if [[ ! -f "${STAGE}/${page}.html" ]] || grep -qF 'No issues were opened' "${STAGE}/${page}.html" \

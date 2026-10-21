@@ -258,6 +258,16 @@ else
   fail_check 24 "index.html has the table of both made-up projects"
 fi
 
+# 31: the TBD page (forsgren#253) has a Mainline Interval row for a project, not
+# the no-data line: the fixture has commits deployed in the last 30 days.
+if [[ -f "${FIXTURE_HAPPY}/tbd.html" ]] && grep -qF '<th scope="row">Acme Shop</th>' "${FIXTURE_HAPPY}/tbd.html" \
+  && grep -qE '<td>[^<-][^<]* ± [^<]* \([0-9]+\)</td>' "${FIXTURE_HAPPY}/tbd.html" \
+  && ! grep -qF 'No commits have been collected yet' "${FIXTURE_HAPPY}/tbd.html"; then
+  pass 31 "tbd.html has a Mainline Interval row and not the no-data line"
+else
+  fail_check 31 "tbd.html has a Mainline Interval row and not the no-data line"
+fi
+
 run_fixture "fixture-again"
 if [[ "$RC" -eq 0 ]] && diff -r "$FIXTURE_HAPPY" "$FIXTURE_OUT" > /dev/null; then
   pass 25 "two fixture builds are byte-identical"
@@ -280,8 +290,10 @@ else
 fi
 
 # 27, 28: a fixture that shows no data is red, naming the page. 27 has no
-# reach.csv (every row unread, so no history column), 28 no issues.csv.
-for dropped in "27:reach:history.html shows no chart" "28:issues:days.html shows no rows"; do
+# reach.csv (every row unread, so no history column), 28 no issues.csv, 32 no
+# commits.csv (no Mainline Interval, forsgren#253).
+for dropped in "27:reach:history.html shows no chart" "28:issues:days.html shows no rows" \
+  "32:commits:tbd.html shows no Mainline Interval"; do
   number="${dropped%%:*}"
   rest="${dropped#*:}"
   file="${rest%%:*}"
@@ -324,6 +336,25 @@ else
   RC=$?
   set -e
   check 30 "mutation proof: without the data check the fixture with no history is green" 0 "$RC"
+fi
+
+# 33: mutation proof for the TBD check (forsgren#253), as case 30: the check
+# removed from a copy of the script, the fixture of case 32 (no commits) turns
+# green, so case 32 was red BECAUSE of the check.
+MUTANT_TBD="${TEMP_ROOT}/mutant-tbd"
+mkdir -p "${MUTANT_TBD}/Scripts"
+sed 's/^if ! tbd_shows_interval; then/if false; then/' "$FIXTURE_BUILD" > "${MUTANT_TBD}/Scripts/build_fixture_site.sh"
+chmod +x "${MUTANT_TBD}/Scripts/build_fixture_site.sh"
+if cmp -s "$FIXTURE_BUILD" "${MUTANT_TBD}/Scripts/build_fixture_site.sh"; then
+  fail_check 33 "mutation proof: the mutation changed nothing, the proof would be vacuous"
+else
+  set +e
+  PATH="${STUB_GO_DIR}:$PATH" STUB_GO_MODE=prebuilt STUB_PREBUILT="${TEMP_ROOT}/fixture/bin/forsgren" \
+    FORSGREN_BIN_DIR="${MUTANT_TBD}/bin" FORSGREN_FIXTURE_DIR="$(cd "${TEMP_ROOT}/fx-commits" && pwd)" \
+    "${MUTANT_TBD}/Scripts/build_fixture_site.sh" "${MUTANT_TBD}/site" > "${MUTANT_TBD}/log" 2>&1
+  RC=$?
+  set -e
+  check 33 "mutation proof: without the TBD check the fixture with no commits is green" 0 "$RC"
 fi
 
 FOUND_FAILED_SINKS=""
