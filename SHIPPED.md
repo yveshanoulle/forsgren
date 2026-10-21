@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-10-21 — mutation proof K of the browser gate self-test no longer depends on the machine's speed ([#252](https://github.com/yveshanoulle/forsgren/issues/252), step 1 of 1)
+
+forsgren issue 252, step 1 of 1, patch. Nothing an installation sees changes. Mutation proof K (a shift case on a too short setting turns green) ran the 200 ms shift fixture with 1 load at 1 ms and expected the gate to miss the shift; on a fast runner (Quality run 39542802573) the 1 ms read still came after the shift and the proof went red with `CLS 0.0269 ... interval 1 ms, largest of 1 cold loads`. `Scripts/test_gate_browser.sh` now gives K its own fixture that shifts at 500 ms, the middle: about 500 ms of margin on both sides, so a browser timer slipping under heavy load still cannot cross either read. It is far under the default 1000 ms read, so the real setting sees it, and far over the 1 ms read. K asserts the reason and not a race: the OK line says `interval 1 ms` (the short setting was the one used) and a control run of the same page on the real setting is red with a CLS value, so only the setting hid the shift; a gate that ignored the short setting would say `interval 1000 ms` and fail K.
+
+- Red first: with the shift fixture moved to 30 ms (a fast machine), the old proof K failed three runs in three with the CI line. Green: the new K passed three runs in three.
+
 ## 2026-10-21 — the browser gate self-test measures layout shift briefly where no case asserts on it ([#247](https://github.com/yveshanoulle/forsgren/issues/247), step 1 of 2)
 
 forsgren issue 247, step 1 of 3, patch (decision 249). Nothing an installation sees changes. `Scripts/browser_gate.mjs` reads the layout-shift loads and interval from `FORSGREN_CLS_LOADS` and `FORSGREN_CLS_INTERVAL_MS`; unset, the defaults stay 5 loads at 1000 ms (the real gate and the site check are unchanged), and a value that is no positive integer stops the gate with exit 2. `Scripts/test_gate_browser.sh` runs its cases with 1 load at 300 ms (longer than the 200 ms of the shift fixture) except the clean page that records the interval, the layout-shift cases 8 and 19-23 and the mutation runs, which keep the real values; `Scripts/test_gate_browser_fixture.sh` does the same for its non-mutation cases. Measured locally: the browser gate self-test 321 s before, 132 s after; the fixture-site self-test about 70 s (CI log) before, 23 s after.

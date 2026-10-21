@@ -67,7 +67,8 @@
 #   H. the override ignored: case 37 stops saying 50 ms;
 #   I. the default interval changed: case 15 loses 1000 ms;
 #   J. the default loads changed: case 8 loses 5 cold loads;
-#   K. a layout-shift case given a too short setting (1 ms) turns green.
+#   K. a layout-shift case given a too short setting (1 ms) turns green; the
+#      shift is at 500 ms, the middle of 1 and 1000 ms, so the proof does not depend on the machine's speed.
 
 set -euo pipefail
 
@@ -147,6 +148,7 @@ make_site nocharset "$(page '' '' '<!doctype html>' '')"
 make_site console "$(page '<script>console.error("fixture boom")</script>' '')"
 make_site notfound "$(page '<img src="/missing.png" alt="absent">' '')"
 make_site shift "$(page '' '<script>setTimeout(function () { var d = document.createElement("div"); d.style.height = "120px"; d.textContent = "late"; document.querySelector("main").prepend(d); }, 200);</script>')"
+make_site lateshift "$(page '' '<script>setTimeout(function () { var d = document.createElement("div"); d.style.height = "120px"; d.textContent = "late"; document.querySelector("main").prepend(d); }, 500);</script>')"
 make_site external "$(page '<img src="http://example.invalid/x.png" alt="away">' '')"
 make_site nopage "$(page '' '')"
 printf '{"requiredPages": ["/", "/nope.html"]}\n' > "${TMP}/nopage/manifest.json"
@@ -451,10 +453,17 @@ if selftest_mutant "$ENGINE" "${MUT}/j.mjs" "s/envPositive('FORSGREN_CLS_LOADS',
   fi
 fi
 
-# K: a layout-shift case given a too short setting (1 ms, before the shift
-# at 200 ms) turns green: why cases 8 and 19-23 keep the real values.
-: > "${TMP}/shift/baseline.txt"
-FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL_MS=1 capture "$GATE" "${TMP}/shift/site" "${TMP}/shift/manifest.json" "${TMP}/shift/exceptions.txt" "${TMP}/shift/baseline.txt" "${TMP}/shift/variants.txt"
-want_green "mutation proof K: a shift case on a too short setting turns green" "OK:"
+# K: a layout-shift case given a too short setting turns green: why cases 8 and
+# 19-23 keep the real values. Timing-independent (forsgren#252): the fixture
+# shifts at 500 ms, the middle: about 500 ms of margin on both sides, far under the default 1000 ms read (so the real setting always
+# sees it: the read comes later than the shift on any machine) and far over the
+# 1 ms read of the short setting. K asserts the reason, not a race: the short
+# setting is the one the gate ran with (the OK line says 1 ms) and the same page
+# on the real setting is red, so only the setting hid the shift.
+: > "${TMP}/lateshift/baseline.txt"
+FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL_MS=1 capture "$GATE" "${TMP}/lateshift/site" "${TMP}/lateshift/manifest.json" "${TMP}/lateshift/exceptions.txt" "${TMP}/lateshift/baseline.txt" "${TMP}/lateshift/variants.txt"
+want_green "mutation proof K: a shift case on a too short setting turns green" "interval 1 ms)"
+run_gate_real lateshift
+want_red "mutation proof K, control: the same page on the real setting is red" "CLS 0."
 
 selftest_end "the browser gate self-test failed" "browser gate: every case holds, eleven mutations seen"
