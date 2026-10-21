@@ -20,13 +20,19 @@
 #  10. GITHUB_ACTIONS=true, nothing changed -> all 3 (Quality is full)
 #  11. no origin/main                       -> all 3, naming why
 #  12. FORSGREN_ISOLATION_FULL=1            -> all 3
+#  13-16 (step 2) Quality runs each self-test once under the decoy (locally
+#      twice); a leaking self-test turns that single run red, each leak class
+#      (config, origin refs, own refs, a leak without GIT_WORK_TREE), naming
+#      the self-test, the single run and the reason.
 # Mutation proofs (each case is wrong BECAUSE of the line mutated):
 #   A. the scripts a self-test calls not followed: case 3 loses its self-test;
 #   B. the queue not extended (one level only): case 4 loses its self-test;
 #   C. the CI path filtered too: case 10 runs 0 of 3 in Quality;
 #   D. untracked files ignored: case 6 loses the new self-test;
 #   E. the 0-selected message removed: case 1 skips without saying so;
-#   F. a change to the harness not widening to all: case 8 runs 1 of 3 or 0.
+#   F. a change to the harness not widening to all: case 8 runs 1 of 3 or 0;
+#   G. the single-run mode removed: Quality runs each self-test twice;
+#   H. the single run not under the decoy: the leak of case 15a goes unseen.
 
 set -euo pipefail
 
@@ -146,6 +152,76 @@ iso
 want_green "11: no origin/main" "full run (no origin/main to compare against)"
 git -C "$FX" fetch -q origin
 
+# 13-16 (forsgren#251, step 2): in Quality each git-using self-test runs ONCE,
+# under the decoy, with the leak check inside that one run; locally the two
+# leak variants keep their two runs. The seam is GITHUB_ACTIONS, as for the
+# scope. The three fixture self-tests count their runs.
+RUNS="${TMP}/runs"
+count_runs() {
+  if [[ -f "${RUNS}/$1" ]]; then wc -l < "${RUNS}/$1" | tr -d ' '; else echo 0; fi
+}
+# counting: makes the fixture self-tests a, b and c record each run.
+counting() {
+  mkdir -p "$RUNS"
+  rm -f "${RUNS}"/*
+  for t in a b c; do
+    printf 'echo run >> "%s/%s"\n' "$RUNS" "$t" >> "${FX}/Scripts/test_${t}.sh"
+  done
+}
+# leaker <name> <body>: an untracked git-using self-test that leaks.
+leaker() {
+  printf '#!/usr/bin/env bash\ngit --version > /dev/null\n%s\n' "$2" > "${FX}/Scripts/test_${1}.sh"
+}
+ci() {
+  capture env GITHUB_ACTIONS=true bash "${FX}/Scripts/test_git_sandbox_isolation.sh"
+}
+want_runs() {
+  local t got
+  for t in a b c; do
+    got="$(count_runs "$t")"
+    if [[ "$got" == "$2" ]]; then
+      echo "  ok: $1: self-test ${t} ran ${got} time(s)"
+    else
+      fail "$1: self-test ${t} ran ${got} time(s), wanted $2. Output: ${OUT}"
+    fi
+  done
+}
+
+reset
+counting
+ci
+want_green "13: Quality, clean self-tests" "OK: 3 git-using self-tests leave a repository named by GIT_DIR untouched"
+want_said "13b: says each runs once" "isolation: Quality, each self-test runs once under the decoy"
+want_runs "13c: Quality runs each once" 1
+
+reset
+counting
+capture env -u GITHUB_ACTIONS FORSGREN_ISOLATION_FULL=1 bash "${FX}/Scripts/test_git_sandbox_isolation.sh"
+want_green "14: local full run, clean self-tests" "OK: 3 git-using self-tests"
+want_runs "14b: local keeps the two leak-variant runs" 2
+
+# 15: each leak class turns the single run red, naming the self-test, the
+# single run and the reason.
+IDENT='-c user.name=leak -c user.email=leak@example.test'
+reset
+leaker leak_config 'git config leak.key 1'
+ci
+want_red "15a: Quality, a self-test that changes the decoy config" "test_leak_config.sh (single run under the decoy: GIT_DIR, GIT_INDEX_FILE): the decoy repository: the config changed"
+reset
+leaker leak_origin "git ${IDENT} commit -q --allow-empty -m leak; git push -q origin main"
+ci
+want_red "15b: Quality, a self-test that pushes to the decoy origin" "test_leak_origin.sh (single run under the decoy: GIT_DIR, GIT_INDEX_FILE): the decoy origin: the refs changed"
+reset
+leaker leak_ref "git ${IDENT} commit -q --allow-empty -m leak"
+ci
+want_red "15c: Quality, a self-test that commits into the decoy" "test_leak_ref.sh (single run under the decoy: GIT_DIR, GIT_INDEX_FILE): the decoy repository: the refs changed"
+# 16: the leak that only shows with GIT_DIR and GIT_INDEX_FILE (no work tree).
+reset
+leaker leak_bare "if [[ -z \"\${GIT_WORK_TREE:-}\" ]]; then git config leak.bare 1; fi"
+ci
+want_red "16: Quality, a self-test that leaks only without GIT_WORK_TREE" "test_leak_bare.sh (single run under the decoy: GIT_DIR, GIT_INDEX_FILE): the decoy repository: the config changed"
+reset
+
 # Mutation proofs: the isolation script of the fixture is mutated and pushed to
 # the fixture's origin (so the mutation is not itself a change), the change a
 # case needs is made, and the case must no longer hold.
@@ -218,4 +294,22 @@ if mutate 's/if grep -qxF -- "[$]c" <<< "[$]own"/if false/'; then
   restore
 fi
 
-selftest_end "the git sandbox isolation scope self-test failed" "git sandbox isolation scope: every case holds, six mutations seen"
+if mutate 's/^if \[\[ "[$]{GITHUB_ACTIONS:-}" = "true" \]\]; then/if false; then/'; then
+  counting
+  capture env GITHUB_ACTIONS=true bash "$MUT"
+  if [[ "$(count_runs a)" == 1 ]]; then
+    fail "mutation proof G: with the single run removed, Quality still ran self-test a once. Output: ${OUT}"
+  else
+    echo "  ok: mutation proof G: without the single-run mode, Quality runs each self-test $(count_runs a) times, case 13c is red"
+  fi
+  restore
+fi
+
+if mutate '/^  run_variant "single run/s/GIT_DIR="/GIT_DIX="/'; then
+  leaker leak_config 'git config leak.key 1'
+  capture env GITHUB_ACTIONS=true bash "$MUT"
+  proof H "the config changed" "with the single run not under the decoy, case 15a no longer sees the leak"
+  restore
+fi
+
+selftest_end "the git sandbox isolation scope self-test failed" "git sandbox isolation scope: every case holds, eight mutations seen"

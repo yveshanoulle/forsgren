@@ -399,15 +399,20 @@ Seven PRE gates read the repository's own scripts and files:
   tag.
 - **git sandbox isolation** (`Scripts/test_git_sandbox_isolation.sh`, forsgren#228,
   scope forsgren#251): every git-using self-test runs with `GIT_DIR` and its
-  companions pointing at a decoy repository. Quality runs all of them. Locally
-  (FBP, `GITHUB_ACTIONS` unset) only the affected ones run: a self-test whose
+  companions pointing at a decoy repository. Quality runs all of them, each
+  ONCE, under the decoy with `GIT_DIR` and `GIT_INDEX_FILE` (the shape that
+  reaches every push the all-three shape reaches), the leak check done after
+  that single run (`isolation: Quality, each self-test runs once under the
+  decoy`, forsgren#251 step 2); locally each runs twice, once per leak shape.
+  Locally (FBP, `GITHUB_ACTIONS` unset) only the affected ones run: a self-test whose
   own file, or any file it names (followed transitively), changed against the
   merge base with `origin/main`, counting committed, staged, unstaged and
   untracked changes. A change to the gate or a library it sources, or no
   `origin/main`, runs all; none affected prints `isolation: 0 of N self-tests
   affected, full run in Quality` and passes. `FORSGREN_ISOLATION_FULL=1`
-  forces the full run. Its scope self-test is
-  `Scripts/test_git_sandbox_isolation_scope.sh`.
+  forces the full run. Its scope self-test, which also proves the Quality single run (each
+  self-test once; a leaking self-test turns it red naming the self-test, the
+  single run and the reason), is `Scripts/test_git_sandbox_isolation_scope.sh`.
 - **dependabot config** (`Scripts/test_dependabot_config.sh`, forsgren's own,
   forsgren#86): `.github/dependabot.yml` declares `gomod` and `github-actions`,
   each at directory `/`, with `schedule: interval: cron` (04:00 UTC, so a

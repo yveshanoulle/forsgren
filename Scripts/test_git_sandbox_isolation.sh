@@ -23,6 +23,11 @@
 # to a library it sources, or no origin/main to compare against, means every
 # self-test. When none is affected the gate says so and passes; it never skips
 # without saying. FORSGREN_ISOLATION_FULL=1 forces the full run.
+#
+# RUNS (forsgren#251, step 2). Locally each selected self-test runs twice under
+# the decoy (the two leak shapes below). In Quality (GITHUB_ACTIONS=true) it runs
+# once, under the decoy with GIT_DIR and GIT_INDEX_FILE, and the leak check is
+# done after that run.
 
 set -uo pipefail
 
@@ -205,7 +210,7 @@ fi
 echo "isolation: ${#SELECTED[@]} of ${#TESTS[@]} self-tests affected (${SCOPE_NOTE})"
 TESTS=("${SELECTED[@]}")
 
-# Two shapes of the leak: all three variables (the 2026-10-18 shell), and
+# Two shapes of the leak (locally both run; Quality runs the second only, once): all three variables (the 2026-10-18 shell), and
 # GIT_DIR with GIT_INDEX_FILE only, which lets fixtures that init a bare
 # repository get past the work-tree check and reach their push.
 run_variant() {
@@ -231,10 +236,19 @@ run_variant() {
   done
 }
 
-run_variant "GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE" \
-  GIT_DIR="${DECOY}/.git" GIT_WORK_TREE="$DECOY" GIT_INDEX_FILE="${DECOY}/.git/index"
-run_variant "GIT_DIR, GIT_INDEX_FILE" \
-  GIT_DIR="${DECOY}/.git" GIT_INDEX_FILE="${DECOY}/.git/index"
+if [[ "${GITHUB_ACTIONS:-}" = "true" ]]; then
+  # Quality (forsgren#251, step 2): each self-test runs ONCE, under the decoy,
+  # and the leak check is inside that run. The shape without GIT_WORK_TREE is
+  # the one that lets a fixture that inits a bare repository get past the
+  # work-tree check, so it reaches every push the all-three shape reaches.
+  echo "isolation: Quality, each self-test runs once under the decoy"
+  run_variant "single run under the decoy: GIT_DIR, GIT_INDEX_FILE" GIT_DIR="${DECOY}/.git" GIT_INDEX_FILE="${DECOY}/.git/index"
+else
+  run_variant "GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE" \
+    GIT_DIR="${DECOY}/.git" GIT_WORK_TREE="$DECOY" GIT_INDEX_FILE="${DECOY}/.git/index"
+  run_variant "GIT_DIR, GIT_INDEX_FILE" \
+    GIT_DIR="${DECOY}/.git" GIT_INDEX_FILE="${DECOY}/.git/index"
+fi
 
 if [[ "$failed" -ne 0 ]]; then
   echo ""
