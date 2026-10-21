@@ -172,11 +172,12 @@ fi
 # (forsgren#237, step 5a), and to 153 for the self-test of release_agent_proofs.sh
 # (forsgren#237, step 5b), and down to 148 when the five self-tests of the
 # bump, commit, bump diff, short Quality and quality scope pins went with the
-# scripts they proved (forsgren#237, step 6).
+# scripts they proved (forsgren#237, step 6), and up to 149 for the Dependabot
+# configuration self-test (forsgren#86).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=148
+MIN_GATES=149
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true

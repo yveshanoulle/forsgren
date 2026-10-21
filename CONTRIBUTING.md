@@ -127,6 +127,7 @@ run report shows how many checks each of them ran.
 - starter page links self-test (`Scripts/test_check_starter_links.sh`, pre)
 - starter page gates self-test (`Scripts/test_starter_page_gates.sh`, pre)
 - workflow node pin (`Scripts/test_workflow_node_pin.sh`, pre)
+- dependabot config (`Scripts/test_dependabot_config.sh`, pre)
 - npm lockfile sync self-test (`Scripts/test_check_npm_lock_sync.sh`, pre)
 - npm lockfile sync (`Scripts/check_npm_lock_sync.sh`, pre)
 - workflow-triggers self-test (`Scripts/test_check_workflow_triggers.sh`, pre)

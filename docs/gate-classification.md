@@ -143,6 +143,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 108 | starter page links self-test | `test_check_starter_links.sh` | pre | required |
 | 109 | starter page gates self-test | `test_starter_page_gates.sh` | pre | required |
 | 110 | workflow node pin | `test_workflow_node_pin.sh` | pre | required, `test_workflow_node_pin v1` |
+| 152 | dependabot config | `test_dependabot_config.sh` | pre | required; forsgren's own (forsgren#86): `.github/dependabot.yml` has `gomod` and `github-actions` at `/`, a cron schedule, a commit-message prefix, groups, a cooldown and a comment per choice; 3 mutations (comments, cooldown, groups) |
 | 111 | npm lockfile sync self-test | `test_check_npm_lock_sync.sh` | pre | required, `test_check_npm_lock_sync v1` |
 | 112 | npm lockfile sync | `check_npm_lock_sync.sh` | pre | required, `check_npm_lock_sync v1` |
 | 113 | workflow-triggers self-test | `test_check_workflow_triggers.sh` | pre | required, `test_check_workflow_triggers v1` |
@@ -319,7 +320,7 @@ malformed row fails the step. Its self-test is the PRE row 124.
 
 ## The ratchet today
 
-`MIN_GATES` is 148, which equals the 148 rows of the order file (144 with a
+`MIN_GATES` is 149, which equals the 149 rows of the order file (145 with a
 script and 4 `n/a` rows). forsgren#215 brought it to 115 and the Go tool
 helper self-test of forsgren#216 is the 116th; the browser gate and its
 self-test (forsgren#205) made 118, and the live check self-test
@@ -334,4 +335,4 @@ sandbox (forsgren#228) made 137, and the bump diff self-test (forsgren#230,
 step 1) made 138, and the short Quality (forsgren#230, step 2: its runner and the pin
 of the scope) made 140, and the preview deploy
 script's self-test and the preview workflow pin (forsgren#222) made 142, and the
-pre-check's self-test (forsgren#231, step 1) made 143, and the static block's self-test (forsgren#231, step 2) made 144, and the release pre-check's self-test (forsgren#231, step 3) made 145, and the pin that the run summary comes first (forsgren#233) made 146, and the isolation of the self-tests from the run summary (forsgren#233) made 147, and the Quality runner pins gate (forsgren#240, step 1) made 148, and the self-test and the gate of the browser gate on the fixture site (forsgren#226) made 150, and the commit messages self-test (forsgren#213) made 151. The self-tests of the install check and the agent proofs (forsgren#237, steps 5a and 5b) made 153. The five self-tests of the bump, the commit, the bump diff, the short Quality and its scope pin (rows 128, 130, 140, 141, 142) went with the scripts they proved (forsgren#237, step 6), which brought it down to 148.
+pre-check's self-test (forsgren#231, step 1) made 143, and the static block's self-test (forsgren#231, step 2) made 144, and the release pre-check's self-test (forsgren#231, step 3) made 145, and the pin that the run summary comes first (forsgren#233) made 146, and the isolation of the self-tests from the run summary (forsgren#233) made 147, and the Quality runner pins gate (forsgren#240, step 1) made 148, and the self-test and the gate of the browser gate on the fixture site (forsgren#226) made 150, and the commit messages self-test (forsgren#213) made 151. The self-tests of the install check and the agent proofs (forsgren#237, steps 5a and 5b) made 153. The five self-tests of the bump, the commit, the bump diff, the short Quality and its scope pin (rows 128, 130, 140, 141, 142) went with the scripts they proved (forsgren#237, step 6), which brought it down to 148. The Dependabot configuration self-test (forsgren#86) made 149.
