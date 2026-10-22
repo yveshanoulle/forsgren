@@ -54,6 +54,11 @@ type MainlineInterval struct {
 	// Deviation is the sample standard deviation of the gaps; zero below
 	// two gaps (see HasDeviation).
 	Deviation time.Duration
+	// Median is the median gap; zero below two gaps (see HasMedian).
+	Median time.Duration
+	// P90 is the 90th percentile of the gaps, nearest rank; zero below ten
+	// gaps (see HasP90).
+	P90 time.Duration
 }
 
 // HasInterval says whether there is a gap, so a mean to show.
@@ -63,17 +68,34 @@ func (m MainlineInterval) HasInterval() bool { return m.Gaps > 0 }
 // two gaps.
 func (m MainlineInterval) HasDeviation() bool { return m.Gaps > 1 }
 
-// Cell is the mean, the deviation and the count of gaps, "2 h ± 1 h (3)", the
-// deviation "-" below two gaps; "-" below two commits.
+// minP90Gaps is how many gaps the 90th percentile needs: under ten, the
+// nearest rank is the longest gap, which says nothing the maximum does not.
+const minP90Gaps = 10
+
+// HasMedian says whether the median is shown: it needs two gaps, as the
+// deviation does (one gap is the mean).
+func (m MainlineInterval) HasMedian() bool { return m.Gaps > 1 }
+
+// HasP90 says whether the 90th percentile is shown: it needs minP90Gaps gaps.
+func (m MainlineInterval) HasP90() bool { return m.Gaps >= minP90Gaps }
+
+// Cell is the mean, the deviation, the count of gaps, the median and the 90th
+// percentile, "2 h ± 1 h (3) · median 2 h · p90 -", each of the last three a
+// dash while it is not shown; "-" below two commits.
 func (m MainlineInterval) Cell() string {
 	if !m.HasInterval() {
 		return noNumber
 	}
-	deviation := noNumber
-	if m.HasDeviation() {
-		deviation = shortDuration(m.Deviation)
+	return fmt.Sprintf("%s ± %s (%d) · median %s · p90 %s", shortDuration(m.Mean),
+		m.shown(m.HasDeviation(), m.Deviation), m.Gaps, m.shown(m.HasMedian(), m.Median), m.shown(m.HasP90(), m.P90))
+}
+
+// shown is d written for the cell when there is one, else a dash.
+func (m MainlineInterval) shown(has bool, d time.Duration) string {
+	if !has {
+		return noNumber
 	}
-	return fmt.Sprintf("%s ± %s (%d)", shortDuration(m.Mean), deviation, m.Gaps)
+	return shortDuration(d)
 }
 
 // MainlineIntervals returns the Mainline Interval of each project, in the
@@ -128,7 +150,28 @@ func mainlineOver(project string, dates []time.Time) MainlineInterval {
 	if m.HasDeviation() {
 		m.Deviation = time.Duration(math.Round(sampleDeviation(gaps, mean)))
 	}
+	m.Median, m.P90 = medianAndP90(gaps)
 	return m
+}
+
+// medianAndP90 are the median of the gaps, when there are two, and their 90th
+// percentile by nearest rank, when there are minP90Gaps: the gap at position
+// ceil(0.9 n) of the n gaps sorted from the shortest, so nine tenths of them are
+// no longer. The rank is worked in integers, (9n + 9) / 10, so no float rounds
+// it. Each is zero while it is not shown.
+func medianAndP90(gaps []float64) (median, p90 time.Duration) {
+	sorted := make([]time.Duration, len(gaps))
+	for i, g := range gaps {
+		sorted[i] = time.Duration(math.Round(g))
+	}
+	slices.Sort(sorted)
+	if len(sorted) > 1 {
+		median = middleOf(sorted)
+	}
+	if len(sorted) >= minP90Gaps {
+		p90 = sorted[(9*len(sorted)+9)/10-1]
+	}
+	return median, p90
 }
 
 // gapsOf are the gaps in nanoseconds between neighbouring dates once sorted, so

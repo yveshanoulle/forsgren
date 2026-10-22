@@ -429,6 +429,12 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/metrics/mainline_percentile_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-22",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/metrics/mainline_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-21",

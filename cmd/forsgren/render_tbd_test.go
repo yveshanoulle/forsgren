@@ -30,7 +30,7 @@ func TestRenderShowsTheMainlineIntervalOfEachProject(t *testing.T) {
 	pinNow(t)
 	got := tbdSiteOf(t, validConfig, writeData(t, acmeHistory(), acmeCommits()))
 	for _, want := range []string{
-		"<th scope=\"row\">Acme Shop</th>\n            <td>2 d 22 h ± 4 d 3 h (2)</td>",
+		"<th scope=\"row\">Acme Shop</th>\n            <td>2 d 22 h ± 4 d 3 h (2) · median 2 d 22 h · p90 -</td>",
 		"<th scope=\"row\">Acme Tools</th>\n            <td>-</td>",
 	} {
 		if !strings.Contains(got, want) {
@@ -51,7 +51,8 @@ func TestRenderTbdPageUsesTheDoraWindow(t *testing.T) {
 	pinNow(t)
 	dir := renderInto(t, "--config", writeConfig(t, validConfig+"dora_days: 90\n"+tbdOn),
 		"--data", writeData(t, acmeHistory(), acmeCommits()))
-	if got := readSite(t, dir, "tbd.html"); !strings.Contains(got, "<td>14 d 7 h ± 19 d 22 h (3)</td>") {
+	const cell = "<td>14 d 7 h ± 19 d 22 h (3) · median 5 d 21 h · p90 -</td>"
+	if got := readSite(t, dir, "tbd.html"); !strings.Contains(got, cell) {
 		t.Errorf("want Acme Shop's three gaps over 90 days, got:\n%s", got)
 	}
 	if got := readSite(t, dir, "legend.html"); !strings.Contains(got, "deployments of the last 90 days shipped") {

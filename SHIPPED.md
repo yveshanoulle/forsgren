@@ -9,6 +9,15 @@ Active work lives in
 
 ---
 
+## 2026-10-22 — the Mainline Interval shows the median and the 90th percentile of the gaps ([#272](https://github.com/yveshanoulle/forsgren/issues/272), step 1 of 1)
+
+forsgren issue 272, step 1 of 1, as Yves asked: a deviation several times the mean needs the median and the 90th percentile to tell typical commit spacing from occasional long gaps. `MainlineInterval` (`internal/metrics/mainline.go`) has `Median` and `P90` over the same gaps as the mean and the deviation. Median: the middle gap, or the mean of the two middle ones (`middleOf`, now shared with lead time's `median`), from two gaps. 90th percentile: nearest rank, the gap at position ceil(0.9 n) of the sorted gaps, worked in integers as (9n + 9) / 10, so it is always an observed gap and no float rounds the rank; from ten gaps (`minP90Gaps`), because under ten the nearest rank is the longest gap, which tells nothing the maximum does not. Linear interpolation was not chosen: it invents a gap that never happened. The cell on the TBD page is `mean ± deviation (gaps) · median M · p90 P`, for example `24 min ± 2 h 24 min (12) · median 5 min · p90 1 h`, a dash for a part not shown (`2 h ± 1 h (3) · median 2 h · p90 -`). It stays one line in the existing two-column table: that table is already `no-wrap` inside its scrolling region, so a long cell scrolls sideways on a narrow screen like the other tables, and no column was added. The legend's TBD section explains the median, the nearest rank, the two minimums and how to read a mean far above the median; `docs/pages-and-views.md` and CLAUDE.md say the same.
+
+- Red first: the tests with hand-computed values failed at runtime against `HasMedian` and `HasP90` returning false and the cell unchanged. By hand: gaps 1 to 10 h give a median of 5.5 h and p90 9 h (rank 9); 1 to 11 h give 6 h and 10 h (rank ceil(9.9) = 10); nine gaps of 1 h and one of 91 h give a median of 1 h and a p90 of 1 h while the mean is 10 h; 1 h and 3 h give a median of 2 h and no p90. Green: `go test ./...`; the `tbd` and legend goldens changed by the cell format, the new "Acme Web" row (12 gaps, with a p90) and the new legend paragraph only. `Scripts/test_build_site.sh` (fixture cases 31 to 33, whose cell pattern now allows the new suffix) is green.
+- Coverage floors at 100.0 for `HasMedian`, `HasP90`, `shown`, `medianAndP90` and `middleOf`. The language gate found 0 new findings on the legend and TBD pages.
+
+---
+
 ## 2026-10-22 — the browser gate self-test's shift fixtures are anchored to the page load ([#275](https://github.com/yveshanoulle/forsgren/issues/275), step 1 of 1)
 
 forsgren issue 275, step 1 of 1, patch. Nothing an installation sees changes. `Scripts/test_gate_browser.sh` cases 8, 19 to 23, 38 and mutation proof K race the gate's measurement window, and Quality failed on it twice: run 39700100601, case 38 "the short setting still catches the shift fixture" got exit 0 (`CLS worst 0`), and run 39676284969, proof K got `CLS 0.0269` with exit 1. The cause, in both: the shift fixtures moved the page with `setTimeout` from the script's parse (200 ms for the shift, 500 ms for the late shift), while the gate starts its interval at the load event and reads after it. A load that the machine delays breaks both premises. (1) The move can come before the first paint, and a move before the first paint is no layout shift: the short setting sees CLS 0 (case 38). (2) The move can come before the 1 ms read of proof K, which should have missed it (K). #252 had moved K's shift to 500 ms, which only widened the margin on the fast side. The premise of those cases, a wall-clock delay from the parse, was timing-based itself.
@@ -17,6 +26,7 @@ The fix keeps every case's assertion and changes the fixtures, not the gate (the
 
 - Red first, by running the cases in a loop (30 runs each, the same fixtures and engine as the self-test; a loop that runs one gate call per case): the race did not show on this machine on its own, 30 of 30 for both cases unloaded and 30 of 30 with 16 CPU burners on 12 cores, so it was shown with the delay seam. Old fixtures after a load delayed 800 ms: case 38 held 17 of 30 (13 times exit 0, `CLS worst 0`), proof K held 10 of 30 (20 times `CLS 0.0269`, exit 1), the two signatures of the two failed runs. New fixtures: delayed load 30 of 30 for both, no delay 30 of 30, 16 CPU burners 30 of 30.
 - Green: the whole self-test, four times in a row (once, then three more): `OK: browser gate: every case holds, eleven mutations seen`.
+
 ---
 
 ## 2026-10-22 — the TBD page keeps its table, the explanation moves to the legend, and the title reads BETA ([#271](https://github.com/yveshanoulle/forsgren/issues/271), step 1 of 1)

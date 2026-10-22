@@ -18,6 +18,13 @@ var legendTbdText = []string{
 	"A dash means fewer than two commits",
 	"With one gap the mean is shown, and the deviation is a dash",
 	"between deployed commits, not every commit of the mainline",
+	"Next to them the cell gives the median and the 90th percentile (p90) of the gaps, written median 5 min · p90 1 h",
+	"The median is the middle gap, or the mean of the two middle gaps when there is an even number of them",
+	"p90 is the nearest-rank percentile: the gap at position 0.9 × the number of gaps, rounded up, of the gaps " +
+		"sorted from the shortest, so nine tenths of the gaps are no longer than it",
+	"The median needs two gaps and p90 needs ten gaps",
+	"With fewer than ten gaps p90 would only be the longest gap",
+	"A mean far above the median, and a deviation far above the mean, point at a few long gaps among short ones",
 	"The two metrics are read together",
 	"The Mainline Interval shows how often the commits that were deployed were made, by author date, in the window",
 	"It will show how long a commit takes from its creation to reaching the main branch",

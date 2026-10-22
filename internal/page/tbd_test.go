@@ -13,9 +13,11 @@ import (
 func tbdData() Data {
 	data := calculated()
 	data.Mainline = []metrics.MainlineInterval{
-		{Project: "Acme Shop", Commits: 4, Gaps: 3, Mean: 2 * time.Hour, Deviation: time.Hour},
+		{Project: "Acme Shop", Commits: 4, Gaps: 3, Mean: 2 * time.Hour, Deviation: time.Hour, Median: 2 * time.Hour},
 		{Project: "Acme Tools", Commits: 2, Gaps: 1, Mean: 2 * time.Hour},
 		{Project: "Acme Docs"},
+		{Project: "Acme Web", Commits: 13, Gaps: 12, Mean: 24 * time.Minute, Deviation: 2*time.Hour + 24*time.Minute,
+			Median: 5 * time.Minute, P90: time.Hour},
 	}
 	return data
 }
@@ -42,9 +44,10 @@ func TestTbdPageHasItsHeadingAndTable(t *testing.T) {
 	wantAll(t, "tbd.html", got, "<title>Trunk-based development [TBD] (BETA) · ",
 		`<h1 id="tbd-heading">Trunk-based development [TBD] (BETA)</h1>`, `aria-labelledby="tbd-heading"`,
 		`<th scope="col">Project</th>`, `<th scope="col">Mainline Interval</th>`,
-		`<th scope="row">Acme Shop</th>`, "<td>2 h ± 1 h (3)</td>",
-		`<th scope="row">Acme Tools</th>`, "<td>2 h ± - (1)</td>",
-		`<th scope="row">Acme Docs</th>`, "<td>-</td>")
+		`<th scope="row">Acme Shop</th>`, "<td>2 h ± 1 h (3) · median 2 h · p90 -</td>",
+		`<th scope="row">Acme Tools</th>`, "<td>2 h ± - (1) · median - · p90 -</td>",
+		`<th scope="row">Acme Docs</th>`, "<td>-</td>",
+		`<th scope="row">Acme Web</th>`, "<td>24 min ± 2 h 24 min (12) · median 5 min · p90 1 h</td>")
 	wantNone(t, "tbd.html", got, "<caption", "Mainline Lead Time", "metrics are coming to this page")
 }
 

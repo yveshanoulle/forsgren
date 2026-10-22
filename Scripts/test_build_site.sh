@@ -261,7 +261,7 @@ fi
 # 31: the TBD page (forsgren#253) has a Mainline Interval row for a project, not
 # the no-data line: the fixture has commits deployed in the last 30 days.
 if [[ -f "${FIXTURE_HAPPY}/tbd.html" ]] && grep -qF '<th scope="row">Acme Shop</th>' "${FIXTURE_HAPPY}/tbd.html" \
-  && grep -qE '<td>[^<-][^<]* ± [^<]* \([0-9]+\)</td>' "${FIXTURE_HAPPY}/tbd.html" \
+  && grep -qE '<td>[^<-][^<]* ± [^<]* \([0-9]+\) · median [^<]*</td>' "${FIXTURE_HAPPY}/tbd.html" \
   && ! grep -qF 'No commits have been collected yet' "${FIXTURE_HAPPY}/tbd.html"; then
   pass 31 "tbd.html has a Mainline Interval row and not the no-data line"
 else

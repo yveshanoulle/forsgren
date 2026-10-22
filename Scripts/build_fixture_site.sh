@@ -83,7 +83,7 @@ if ! history_shows_chart; then
 fi
 # The TBD page has a Mainline Interval cell with a number, not only dashes (forsgren#253).
 tbd_shows_interval() {
-  [[ -f "${STAGE}/tbd.html" ]] && grep -qE '<td>[^<-][^<]* ± [^<]* \([0-9]+\)</td>' "${STAGE}/tbd.html"
+  [[ -f "${STAGE}/tbd.html" ]] && grep -qE '<td>[^<-][^<]* ± [^<]* \([0-9]+\) · median [^<]*</td>' "${STAGE}/tbd.html"
 }
 if ! tbd_shows_interval; then
   fail "tbd.html shows no Mainline Interval: the fixture has no commits the page can show"

@@ -804,8 +804,10 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
 last in the menu, "TBD"; `false` leaves it out.
 
 - **The table.** A row per project and one column, Mainline Interval; the cell
-  reads `mean ± deviation (gaps)`, for example `2 h ± 1 h (3)`, with the
-  durations written as on the other pages. It is per project: the label rows of
+  reads `mean ± deviation (gaps) · median M · p90 P`, for example
+  `24 min ± 2 h 24 min (12) · median 5 min · p90 1 h`, with the durations
+  written as on the other pages. The cell stays one line (the table scrolls
+  sideways in its region on a narrow screen, as the other tables do). It is per project: the label rows of
   the table page have no row here.
 - **What is counted.** The commits `forsgren collect` stores in
   `data/commits.csv`, the commits that deployments shipped, so it is an
@@ -819,10 +821,19 @@ last in the menu, "TBD"; `false` leaves it out.
   neighbours; two commits with the same author date have a gap of 0. The mean is
   the mean of the gaps, the deviation their sample standard deviation (the sum
   of the squared differences from the mean over the number of gaps less one),
-  and the count in brackets is the number of gaps.
+  and the count in brackets is the number of gaps. The median is the middle
+  gap, or the mean of the two middle gaps when their number is even. The 90th
+  percentile (p90) is the nearest-rank one: the gap at position 0.9 times the
+  number of gaps, rounded up (in integers, (9n + 9) / 10), of the gaps sorted
+  from the shortest, so an actual gap and nine tenths of the gaps are no longer
+  than it. They tell the typical spacing from occasional long gaps: a mean far
+  above the median, and a deviation far above the mean, point at a few long
+  gaps among short ones.
 - **A dash.** Fewer than two commits have no gap, so the whole cell is `-`. One
   gap has a mean but no sample deviation, which needs two gaps, so the cell reads
-  `2 h ± - (1)`. A zero deviation reads `less than 1 min`.
+  `2 h ± - (1) · median - · p90 -`. The median needs two gaps, and p90 needs ten
+  (under ten, the nearest rank is the longest gap, which the maximum already
+  says); each is a dash until then. A zero deviation reads `less than 1 min`.
 - **Without data.** With no projects the page says so in one line, and so it
   does when no data was given to the render ("No commits have been collected
   yet, so there is no Mainline Interval to show."); with data and a project

@@ -87,7 +87,12 @@ func leadTimeOf(c history.Commit) time.Duration {
 // median is the middle of leads, which holds at least one, or the mean of
 // the two middle ones when the count is even.
 func median(leads []time.Duration) time.Duration {
-	sorted := slices.Sorted(slices.Values(leads))
+	return middleOf(slices.Sorted(slices.Values(leads)))
+}
+
+// middleOf is the middle of sorted, which holds at least one, or the mean of
+// the two middle ones when the count is even.
+func middleOf(sorted []time.Duration) time.Duration {
 	mid := len(sorted) / 2
 	if len(sorted)%2 == 1 {
 		return sorted[mid]
