@@ -20,9 +20,17 @@
 #   5. the token reaches gh as GH_TOKEN, and as nothing else
 #   6. a repository that already pins the version -> red, nothing committed
 #   7. usage errors
+#   8. the template README is the release's own (forsgren#286): the text
+#      `forsgren install-readme` of the binary `go install`ed at the released
+#      sha writes, byte for byte, the daily run's command; a body line the
+#      template's README lacks arrives in the same commit as the pins; the
+#      metrics step never installs; a failed install or a README that does not
+#      name the release is a red with nothing committed
 # Mutation proofs: a copy that skips the README, one that falls back to the
 # job's token, one that forces the ref move and one that opens no pull request
-# must each let their case pass.
+# must each let their case pass; and for 8, one that rewrites the old README's
+# version line again, one that installs another ref than the released sha and
+# one that skips the early version check of the released README.
 
 set -euo pipefail
 
@@ -108,21 +116,60 @@ case "$path" in
 esac
 STUB
 chmod +x "${STUBS}/gh"
+# A stub go: `go install <module>@<sha>` logs its arguments and GOBIN and puts
+# a forsgren in GOBIN whose `install-readme --out <path>` writes
+# ${STUB_STATE}/released.md, the text the released binary writes.
+cat > "${STUBS}/go" <<'STUB'
+#!/usr/bin/env bash
+printf '%s|%s\n' "${GOBIN-unset}" "$*" >> "${STUB_GO_LOG:?}"
+[ "${1:-}" = install ] || exit 1
+[ -f "${STUB_STATE}/go_fails" ] && { echo "go: module lookup disabled" >&2; exit 1; }
+mkdir -p "${GOBIN:?}"
+cat > "${GOBIN}/forsgren" <<'BIN'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "${STUB_GO_LOG:?}"
+[ "${1:-}" = install-readme ] && [ "${2:-}" = --out ] || exit 2
+cp "${STUB_STATE}/released.md" "$3" || exit 1
+echo "created $3"
+BIN
+chmod +x "${GOBIN}/forsgren"
+STUB
+chmod +x "${STUBS}/go"
+# The README the release writes: install/README.md with the version filled
+# in, as install.Text does. Its body is not the template fixture's.
+RELEASED="${TMP}/released.md"
+perl -pe "s/\\{\\{version\\}\\}/${VERSION}/g" install/README.md > "$RELEASED"
+RELEASED_LINE="This repository publishes a [forsgren](https://github.com/yveshanoulle/forsgren)"
+grep -qF "$RELEASED_LINE" "$RELEASED" || selftest_abort "install/README.md no longer holds the line this self-test expects: ${RELEASED_LINE}"
 
 # world <withreadme>: the files of the target repository, a clean log.
 world() {
-  rm -rf "$STATE" "${TMP}/gh.log"
+  rm -rf "$STATE" "${TMP}/gh.log" "${TMP}/go.log"
   mkdir -p "${STATE}/files/.github/workflows"
   cp "${FIX}/forsgren.yml.fixture" "${STATE}/files/.github/workflows/forsgren.yml"
   cp "${FIX}/forsgren-update.yml.fixture" "${STATE}/files/.github/workflows/forsgren-update.yml"
   cp "${FIX}/README.md.fixture" "${STATE}/files/README.md"
+  cp "$RELEASED" "${STATE}/released.md"
   : > "${TMP}/gh.log"
+  : > "${TMP}/go.log"
 }
 pins() {
-  PATH="${STUBS}:${PATH}" STUB_LOG="${TMP}/gh.log" STUB_STATE="$STATE" GITHUB_REPOSITORY="yveshanoulle/forsgren" \
+  PATH="${STUBS}:${PATH}" STUB_LOG="${TMP}/gh.log" STUB_GO_LOG="${TMP}/go.log" STUB_STATE="$STATE" GITHUB_REPOSITORY="yveshanoulle/forsgren" \
     RELEASE_TEMPLATE_REPO="acme/tpl" RELEASE_METRICS_REPO="acme/met" capture "${SCRIPT:-$PINS}" "$@"
 }
 body_of() { cat "${STATE}"/bodies/*"$1"* 2> /dev/null; }
+# readme_blob: the content of the blob that holds the README, exactly.
+readme_blob() {
+  local f
+  for f in "${STATE}"/bodies/*git_blobs*; do
+    [[ -f "$f" ]] || continue
+    if jq -r '.content' "$f" | grep -qF "written by the daily run"; then
+      jq -j '.content' "$f"
+      return 0
+    fi
+  done
+  return 1
+}
 
 # 1: rewrite
 world
@@ -192,6 +239,44 @@ else
 fi
 if ! grep -v '^rt-token|' "${TMP}/gh.log" | grep -q .; then echo "  ok: every gh call got the release token as GH_TOKEN"; else fail "a gh call ran with another token: $(grep -v '^rt-token|' "${TMP}/gh.log")"; fi
 
+# 8: the template README is the release's own (forsgren#286)
+world
+FORSGREN_RELEASE_TOKEN="rt-token" pins template "$VERSION" "$SHA"
+want_green "template with the released README" "OK: acme/tpl main now pins ${VERSION} (NEWCOMMIT)"
+readme_blob > "${TMP}/written.md" || : > "${TMP}/written.md"
+if grep -qF "$RELEASED_LINE" "${TMP}/written.md" && ! grep -qF "The rest is the installation's own text." "${TMP}/written.md"; then
+  echo "  ok: the README carries the released body, not the template's old one"
+else
+  fail "the README blob does not carry the released body line '${RELEASED_LINE}': only the version line moved. Blob: $(head -c 400 "${TMP}/written.md")"
+fi
+if cmp -s "$RELEASED" "${TMP}/written.md"; then
+  echo "  ok: the README is byte for byte what install-readme of the release writes"
+else
+  fail "the README blob is not byte for byte what install-readme of ${VERSION} writes"
+fi
+if [[ "$(grep -c "|install github.com/yveshanoulle/forsgren/cmd/forsgren@${SHA}${D}" "${TMP}/go.log")" -eq 1 ]] && grep -qE '^install-readme --out ' "${TMP}/go.log"; then
+  echo "  ok: the README comes from go install at the released sha and its install-readme, the daily run's commands"
+else
+  fail "the README was not written by install-readme of the binary installed at ${SHA}. go log: $(cat "${TMP}/go.log")"
+fi
+if [[ "$(grep -c 'git/commits --input' "${TMP}/gh.log")" -eq 1 ]]; then echo "  ok: pins and README in one commit"; else fail "want one commit for pins and README. Log: $(cat "${TMP}/gh.log")"; fi
+world
+FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
+if [[ -s "${TMP}/go.log" ]]; then fail "the metrics step installed forsgren: $(cat "${TMP}/go.log")"; else echo "  ok: the metrics step installs nothing"; fi
+world
+touch "${STATE}/go_fails"
+FORSGREN_RELEASE_TOKEN="rt-token" pins template "$VERSION" "$SHA"
+want_red "a failed install of the release" "cannot install forsgren at ${SHA}"
+nothing_committed() {
+  if grep -q 'git/blobs\|git/commits --input\|PATCH' "${TMP}/gh.log"; then fail "$1: something was written. Log: $(cat "${TMP}/gh.log")"; else echo "  ok: $1: nothing was written"; fi
+}
+nothing_committed "a failed install"
+world
+perl -pi -e "s/forsgren ${VERSION}:/forsgren 1.9.4-0.20261022-89abcdef0123:/" "${STATE}/released.md"
+FORSGREN_RELEASE_TOKEN="rt-token" pins template "$VERSION" "$SHA"
+want_red "a released README that does not name the release" "the README of the release does not name ${VERSION}"
+nothing_committed "a README of another version"
+
 # 3: metrics
 world
 FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
@@ -225,7 +310,7 @@ world
 cp "${FIX}/forsgren.yml.fixture" "${TMP}/f.yml"
 GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite workflow "$VERSION" "$SHA" < "${TMP}/f.yml" > "${STATE}/files/.github/workflows/forsgren.yml"
 GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite workflow "$VERSION" "$SHA" < "${FIX}/forsgren-update.yml.fixture" > "${STATE}/files/.github/workflows/forsgren-update.yml"
-GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite readme "$VERSION" "$SHA" < "${FIX}/README.md.fixture" > "${STATE}/files/README.md"
+cp "$RELEASED" "${STATE}/files/README.md"
 FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
 want_green "metrics already on the pin is already done" "already done: acme/met already pins ${VERSION}"
 FORSGREN_RELEASE_TOKEN="rt-token" pins template "$VERSION" "$SHA"
@@ -330,7 +415,7 @@ mutant() {
 }
 
 world
-if mutant noreadme 's/readme:README.md//'; then
+if mutant noreadme 's/released:README.md//'; then
   FORSGREN_RELEASE_TOKEN="rt-token" pins template "$VERSION" "$SHA"
   if [[ "$(grep -c 'git/blobs' "${TMP}/gh.log")" -eq 3 ]]; then fail "mutation proof: the mutant still moves the README"; else echo "  ok: mutation proof: without the README entry only two files move"; fi
 fi
@@ -353,7 +438,7 @@ world
 cp "${FIX}/forsgren.yml.fixture" "${TMP}/f.yml"
 GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite workflow "$VERSION" "$SHA" < "${TMP}/f.yml" > "${STATE}/files/.github/workflows/forsgren.yml"
 GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite workflow "$VERSION" "$SHA" < "${FIX}/forsgren-update.yml.fixture" > "${STATE}/files/.github/workflows/forsgren-update.yml"
-GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite readme "$VERSION" "$SHA" < "${FIX}/README.md.fixture" > "${STATE}/files/README.md"
+cp "$RELEASED" "${STATE}/files/README.md"
 if mutant notidempotent "s/echo \"OK: already done: .{TARGET} already pins .{VERSION}\"/red \"no file of ${D}{TARGET} needed a change\"/"; then
   FORSGREN_RELEASE_TOKEN="rt-token" pins template "$VERSION" "$SHA"
   want_red "mutation proof: a template step that fails on an already-moved pin" "needed a change"
@@ -369,6 +454,35 @@ prs "${P18} CLOSED" "${P19} MERGED"
 if mutant firstonly "s/'\\.\\[\\] | \\[\\.url/'.[0] | [.url/"; then
   FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
   if grep -qF "pr create" "${TMP}/gh.log"; then echo "  ok: mutation proof: picking the first listed pull request opens a duplicate next to a merged one"; else fail "mutation proof: the first-only mutant did not open a duplicate. Output: ${OUT}"; fi
+fi
+world
+if mutant oldreadme 's/released:README.md/readme:README.md/'; then
+  FORSGREN_RELEASE_TOKEN="rt-token" pins template "$VERSION" "$SHA"
+  readme_blob > "${TMP}/written.md" || : > "${TMP}/written.md"
+  if [[ "$RC" -eq 0 ]] && ! grep -qF "$RELEASED_LINE" "${TMP}/written.md" && grep -qF "The rest is the installation's own text." "${TMP}/written.md"; then
+    echo "  ok: mutation proof: rewriting the old README's version line commits the old body, which case 8 sees"
+  else
+    fail "mutation proof: the old-README mutant did not commit the old body (exit ${RC}). Output: ${OUT}"
+  fi
+fi
+world
+if mutant otherref "s#/cmd/forsgren@.{SHA}#/cmd/forsgren@latest#"; then
+  FORSGREN_RELEASE_TOKEN="rt-token" pins template "$VERSION" "$SHA"
+  if grep -qF "|install github.com/yveshanoulle/forsgren/cmd/forsgren@latest" "${TMP}/go.log" && ! grep -qF "@${SHA}" "${TMP}/go.log"; then
+    echo "  ok: mutation proof: an install of another ref shows in the go log, which case 8 pins to the released sha"
+  else
+    fail "mutation proof: the other-ref mutant did not install @latest. go log: $(cat "${TMP}/go.log")"
+  fi
+fi
+world
+perl -pi -e "s/forsgren ${VERSION}:/forsgren 1.9.4-0.20261022-89abcdef0123:/" "${STATE}/released.md"
+if mutant noversioncheck 's/^  pinned released "..WORK.\/released.md" \\$/  true \\/'; then
+  FORSGREN_RELEASE_TOKEN="rt-token" pins template "$VERSION" "$SHA"
+  if ! grep -qF "the README of the release does not name" <<< "$OUT" && grep -q 'git/blobs' "${TMP}/gh.log"; then
+    echo "  ok: mutation proof: without the early version check blobs are written before a pseudo-version README is refused, which case 8 sees"
+  else
+    fail "mutation proof: the no-version-check mutant still refused before writing (exit ${RC}). Output: ${OUT}"
+  fi
 fi
 unset SCRIPT
 

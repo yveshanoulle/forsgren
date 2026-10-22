@@ -22,6 +22,14 @@
 #       forsgren-template: its two workflow files and its README in ONE commit
 #       ("forsgren X.Y.Z: pin and README") on the default branch, through the
 #       git-data API (blobs, tree, commit, then a fast-forward of the branch).
+#       The README is the release's own (forsgren#286): first thing, before
+#       any read of the template, `go install` of this repository's
+#       cmd/forsgren at <sha> (GOBIN a temporary directory) and that binary's
+#       `forsgren install-readme --out <file>`, the two commands the daily run
+#       (metrics.yml) runs, so the commit holds byte for byte the README the
+#       next daily run writes, not the old body with a new version line. A
+#       failed install, or a README that does not name <version> (a
+#       pseudo-version build), is a red and nothing is written.
 #   Scripts/release_pins.sh metrics <version> <sha>
 #       forsgren-metrics: its two workflow files in one commit on a new branch
 #       forsgren-release-vX.Y.Z, and a pull request into the default branch.
@@ -75,6 +83,7 @@ SHA="${3:-}"
 REPO="${GITHUB_REPOSITORY:-}"
 [ "$MODE" = token ] || [[ "$REPO" =~ ^([A-Za-z0-9_.-]+)/[A-Za-z0-9_.-]+$ ]] || usage
 OWNER="${BASH_REMATCH[1]:-}"
+VERSION_RE="$(printf '%s' "$VERSION" | sed 's/\./\\./g')"
 
 # rewrite <kind>: stdin to stdout.
 rewrite() {
@@ -96,11 +105,13 @@ rewrite() {
   esac
 }
 
-# pinned <kind> <file>: 0 when the rewritten file holds the new pin.
+# pinned <kind> <file>: 0 when the rewritten file holds the new pin. The
+# README's version must end there: 1.9.4 is not 1.9.4-0.2026... (a
+# pseudo-version) or 1.9.40.
 pinned() {
   case "$1" in
     workflow | pins) grep -qF "@${SHA} # v${VERSION}" "$2" ;;
-    readme) grep -qF "written by the daily run for forsgren ${VERSION}" "$2" ;;
+    readme | released) grep -qE "written by the daily run for forsgren ${VERSION_RE}([^0-9A-Za-z.+-]|$)" "$2" ;;
   esac
 }
 
@@ -153,10 +164,24 @@ hint() {
 }
 trap 'rm -rf "$WORK"; [ "$COMPLETED" -eq 1 ] || { echo "❌ FAIL: release_pins.sh aborted before completing (COMPLETED was never set)" >&2; exit 1; }' EXIT
 
+# released_readme: the README of the release in ${WORK}/released.md, written
+# by install-readme of the binary installed at the released sha, the daily
+# run's two commands; the kind `released` takes it as the new file.
+released_readme() {
+  if ! (cd "$WORK" && GOBIN="${WORK}/bin" go install "github.com/${REPO}/cmd/forsgren@${SHA}" > "${WORK}/install.log" 2>&1); then
+    red "cannot install forsgren at ${SHA} to write the template README, nothing was changed: $(tail -n 5 "${WORK}/install.log")"
+  fi
+  "${WORK}/bin/forsgren" install-readme --out "${WORK}/released.md" > "${WORK}/install.log" 2>&1 \
+    || red "install-readme of the release could not write the template README, nothing was changed: $(tail -n 5 "${WORK}/install.log")"
+  pinned released "${WORK}/released.md" \
+    || red "the README of the release does not name ${VERSION}: the binary installed at ${SHA} reports another version, nothing was changed"
+}
+
 if [ "$MODE" = template ]; then
   TARGET="${RELEASE_TEMPLATE_REPO:-${OWNER}/forsgren-template}"
-  FILES="workflow:.github/workflows/forsgren.yml workflow:.github/workflows/forsgren-update.yml readme:README.md"
+  FILES="workflow:.github/workflows/forsgren.yml workflow:.github/workflows/forsgren-update.yml released:README.md"
   MESSAGE="forsgren ${VERSION}: pin and README"
+  released_readme
 else
   TARGET="${RELEASE_METRICS_REPO:-${OWNER}/forsgren-metrics}"
   FILES="pins:.github/workflows/forsgren.yml pins:.github/workflows/forsgren-update.yml"
@@ -174,7 +199,11 @@ for spec in $FILES; do
   path="${spec#*:}"
   ghr api "repos/${TARGET}/contents/${path}?ref=${BASE}" --jq '.content' | base64 --decode > "${WORK}/old" \
     || red "cannot read ${path} of ${TARGET}"
-  rewrite "$kind" < "${WORK}/old" > "${WORK}/new" || red "perl failed on ${path}"
+  if [ "$kind" = released ]; then
+    cp "${WORK}/released.md" "${WORK}/new" || red "cannot copy the README of the release"
+  else
+    rewrite "$kind" < "${WORK}/old" > "${WORK}/new" || red "perl failed on ${path}"
+  fi
   pinned "$kind" "${WORK}/new" || red "${TARGET}:${path} has no place that names the release: a pin would be skipped, nothing was changed"
   if cmp -s "${WORK}/old" "${WORK}/new"; then
     echo "  unchanged: ${path} (already at ${VERSION})"

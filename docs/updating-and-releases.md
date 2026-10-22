@@ -516,7 +516,13 @@ and stops at the first step that fails:
 7. **The template**: the pins of both caller workflows and the README of
    forsgren-template move to the new release in one commit, through the
    git-data API, the way the manual release did it
-   (`Scripts/release_pins.sh template`).
+   (`Scripts/release_pins.sh template`). The README is the release's own:
+   the step installs forsgren at the released commit with `go install`, as
+   the daily run does, and writes the README with that binary's
+   `forsgren install-readme`, so the commit holds byte for byte the text the
+   next daily run writes, not the previous release's text with a new version
+   line. A failed install, or a README that does not name the release, stops
+   the step before anything is written, and `resume: pins` runs it again.
 8. **The metrics installation**: a pull request in forsgren-metrics that moves
    the pins of its two workflows to the new release
    (`Scripts/release_pins.sh metrics`; it changes the `uses:` lines only, as
