@@ -15,6 +15,10 @@
 #      the last release require, checked against the requested one; stops when
 #      nothing was closed, an issue has no label, the bump is too low, or a
 #      major is asked while an agent file lacks its proof run on the new major.
+#      When only tools issues were closed (forsgren#289: a tooling update
+#      needs no release) the plan says `release=none`: every step below is
+#      skipped (`steps.plan.outputs.release != 'none'`), nothing is tagged and
+#      the run ends green, the last step saying there was nothing to release.
 #   c. The version is new (no tag, no release).
 #   d. Main's head has not moved since Quality was proved green on it
 #      (Scripts/release_quality.sh head), the step right before the publish.
@@ -183,12 +187,16 @@ jobs:
         run: |
           set -euo pipefail
           ./Scripts/release_plan.sh "$BUMP" --notes "${RUNNER_TEMP}/notes.md" | tee "${RUNNER_TEMP}/plan.txt"
-          grep -E '^(version|tag|issues)=' "${RUNNER_TEMP}/plan.txt" >> "$GITHUB_OUTPUT"
-          echo "plan: $(grep '^version=' "${RUNNER_TEMP}/plan.txt") for $(grep '^issues=' "${RUNNER_TEMP}/plan.txt")" >> "$RELEASE_LOG"
+          grep -E '^(version|tag|issues|tools|release)=' "${RUNNER_TEMP}/plan.txt" >> "$GITHUB_OUTPUT"
+          if grep -qxF 'release=none' "${RUNNER_TEMP}/plan.txt"; then
+            echo "plan: nothing to release, only tools issues since the latest release: $(grep '^tools=' "${RUNNER_TEMP}/plan.txt" | cut -d= -f2)" >> "$RELEASE_LOG"
+          else
+            echo "plan: $(grep '^version=' "${RUNNER_TEMP}/plan.txt") for $(grep '^issues=' "${RUNNER_TEMP}/plan.txt")" >> "$RELEASE_LOG"
+          fi
 
       - name: Check the version is new
         id: free
-        if: ${{ inputs.resume == 'none' }}
+        if: ${{ inputs.resume == 'none' && steps.plan.outputs.release != 'none' }}
         shell: bash
         env:
           VERSION: ${{ steps.plan.outputs.version }}
@@ -199,7 +207,7 @@ jobs:
 
       - name: Check main has not moved
         id: head
-        if: ${{ inputs.resume == 'none' }}
+        if: ${{ inputs.resume == 'none' && steps.plan.outputs.release != 'none' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -208,7 +216,7 @@ jobs:
 
       - name: Create the tag and the release
         id: publish
-        if: ${{ inputs.resume == 'none' }}
+        if: ${{ inputs.resume == 'none' && steps.plan.outputs.release != 'none' }}
         shell: bash
         env:
           VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
@@ -223,6 +231,7 @@ jobs:
       # release before any pin moves onto it. Also run by resume: pins.
       - name: Check an install of the release reports its version
         id: verify-install
+        if: ${{ steps.plan.outputs.release != 'none' }}
         shell: bash
         env:
           VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
@@ -234,6 +243,7 @@ jobs:
 
       - name: Move the pins and README of forsgren-template
         id: template
+        if: ${{ steps.plan.outputs.release != 'none' }}
         shell: bash
         env:
           VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
@@ -246,6 +256,7 @@ jobs:
 
       - name: Open the pin pull request in forsgren-metrics
         id: metrics-pr
+        if: ${{ steps.plan.outputs.release != 'none' }}
         shell: bash
         env:
           VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
@@ -258,6 +269,7 @@ jobs:
 
       - name: Merge the pin pull request and run forsgren in forsgren-metrics
         id: metrics
+        if: ${{ steps.plan.outputs.release != 'none' }}
         shell: bash
         env:
           VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}
@@ -270,6 +282,7 @@ jobs:
 
       - name: Start the preview deploy of the release
         id: preview
+        if: ${{ steps.plan.outputs.release != 'none' }}
         shell: bash
         env:
           VERSION: ${{ steps.plan.outputs.version || steps.resume.outputs.version }}

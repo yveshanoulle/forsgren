@@ -15,9 +15,13 @@
 #      (Scripts/release_report.sh on the plan's output): the same lines
 #   5. read-only: the working tree is unchanged by a run
 #   6. a bump that is none of patch, minor, major: usage, exit 2
+#   7. only tools issues closed (forsgren#289): exit 0 and "nothing to
+#      release", never "would pass the plan", the tools issues listed as ready
+#      with the bump tools
 # Mutation proofs: a pre-check that does not ask the plan for every block
 # (no --all), one that ignores open issues with commits, one that exits 0
-# whatever the plan said, and one with its own hand-written table.
+# whatever the plan said, one with its own hand-written table, and one that
+# ignores the plan's release=none.
 
 set -uo pipefail
 
@@ -151,6 +155,14 @@ if [[ "$(git status --porcelain)" == "$before" ]]; then echo "  ok: 5. a run lea
 precheck "$PRECHECK" huge
 want_exit "6. an unknown bump is a usage error" 2 "usage: Scripts/release_precheck.sh"
 
+# 7. only tools issues: nothing to release
+data "$(issue 60 'Gate tweak' tools)"
+no_open
+precheck "$PRECHECK"
+want_exit "7. only tools issues: exit 0, nothing to release" 0 "✅ nothing to release: only tools issues were closed since the latest release, a Release now would tag nothing"
+want_said "7. the tools issue is listed as ready" "- ✅ #60 Gate tweak (tools)"
+if grep -qF "would pass the plan" <<< "$OUT"; then fail "7. a tools-only set is said to pass the plan. Output: ${OUT}"; else echo "  ok: 7. a tools-only set is not said to pass as a release"; fi
+
 # Mutation proofs: each must make the case it exists for fail.
 # mutate <name> <sed expr>: a copy of the pre-check run on the all-blocks fixture.
 mutate() {
@@ -186,6 +198,19 @@ if mutate ownTable 's#^RELEASE_PLAN_OUTPUT=.* || {$#echo "| X | own table |"; tr
     fail "mutation proof: a hand-written table still named the issues"
   else
     echo "  ok: mutation proof: a pre-check with its own table does not print the Release page's table, which the parity cases catch"
+  fi
+fi
+
+# Nothing to release (forsgren#289): a pre-check that does not read release=none
+# says a tools-only set would pass as a release.
+if selftest_mutant "$PRECHECK" "${TMP}/mut/nothing/release_precheck.sh" "s/grep -qxF 'release=none' \"\$PLAN_OUT\"/false/"; then
+  data "$(issue 60 'Gate tweak' tools)"
+  no_open
+  capture env "${REPO_ENV[@]}" RELEASE_PRECHECK_SCRIPTS="${REPO}/Scripts" RELEASE_PLAN_DATA="${TMP}/data.tsv" RELEASE_PLAN_OPEN="${TMP}/open.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits.txt" "${TMP}/mut/nothing/release_precheck.sh"
+  if grep -qF "would pass the plan" <<< "$OUT" && ! grep -qF "✅ nothing to release" <<< "$OUT"; then
+    echo "  ok: mutation proof: a pre-check that ignores release=none says a tools-only set would pass, which case 7 catches"
+  else
+    fail "mutation proof: the mutant still said nothing to release. Output: ${OUT}"
   fi
 fi
 

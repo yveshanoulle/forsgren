@@ -33,8 +33,21 @@
 #  13. a major (asked, or required with auto under --all) is refused until every
 #      agent file has a proof run on the new major (forsgren#237, step 5b)
 #  10. usage errors, a latest tag that is no vX.Y.Z -> exit 2
+#  14. tools issues (forsgren#289, Yves's ruling: a tooling update needs no
+#      release): an issue labelled tools and none of patch, minor or major
+#      needs no bump and is not unlabelled; only tools issues closed -> exit 0,
+#      nothing to release, every one named, `release=none` and `tools=#N ...`,
+#      no version and no tag; tools with a feature issue -> the feature's bump,
+#      the tools issues under ### Tooling after the bump headings (notes file
+#      too) and in `tools=`; tools plus a bump label counts by the bump label;
+#      an OPEN tools issue with commits is no red, an open feature issue (or
+#      tools plus a bump label) still is (RELEASE_PLAN_OPEN's optional third
+#      field: the labels, comma separated); --all prints a ready line per tools
+#      issue with the bump `tools`
 # Mutation proofs: a copy that accepts a lower bump, one that accepts nothing
-# closed, one without the exclusion, one without the publish-time filter, one
+# closed, one without the exclusion, one that judges a tools issue unlabelled,
+# one that releases a tools-only set, one without the ### Tooling notes, one
+# that lets an open tools issue with commits stop the plan, one without the publish-time filter, one
 # that lets an unlabelled issue pass and one that lists an issue an earlier
 # release named, one that names only the first open issue with commits and one
 # that ignores the earlier releases for open issues, and one that never asks for
@@ -152,7 +165,7 @@ want_green "excluded issues never raise the required bump" "OK: next version 1.9
 if grep -qE '#20|#25' <<< "$OUT"; then fail "an excluded issue is in the output. Output: ${OUT}"; fi
 
 # 8
-data "$(issue 30 'No label' '')" "$(issue 31 'Other label' 'tools')" "$(issue 5 'Fix the thing' patch)"
+data "$(issue 30 'No label' '')" "$(issue 31 'Other label' 'docs')" "$(issue 5 'Fix the thing' patch)"
 plan "$PLAN" patch
 want_red "issues without a bump label" "#30 No label: label it patch, minor or major"
 want_said "every unlabelled issue is named" "#31 Other label: label it patch, minor or major"
@@ -249,7 +262,7 @@ want_exit "no latest release at all" 2 "no latest release"
 # 11: one machine line per blocking issue, besides the human line:
 # blocking=<N> TAB <kind> TAB <title> TAB <latest tag>
 blocking() { printf 'blocking=%s%s%s%s%s%s%s' "$1" "$TAB" "$2" "$TAB" "$3" "$TAB" "v1.9.3"; }
-data "$(issue 30 'No label' '')" "$(issue 31 'Other label' 'tools')" "$(issue 5 'Fix the thing' patch)"
+data "$(issue 30 'No label' '')" "$(issue 31 'Other label' 'docs')" "$(issue 5 'Fix the thing' patch)"
 plan "$PLAN" patch
 want_said "unlabelled: the human line is unchanged" "release plan: #30 No label: label it patch, minor or major"
 want_said "unlabelled: the first machine line" "$(blocking 30 unlabelled 'No label')"
@@ -278,6 +291,62 @@ if grep -qF 'blocking=' <<< "$OUT"; then fail "nothing closed names an issue. Ou
 data "$(issue 5 'Fix the thing' patch)"
 plan "$PLAN" patch
 if grep -qF 'blocking=' <<< "$OUT"; then fail "a green plan has a machine line. Output: ${OUT}"; fi
+
+# 14. tools issues need no release (forsgren#289)
+data "$(issue 60 'Gate tweak' tools)" "$(issue 61 'CI fix' tools)"
+plan "$PLAN" patch
+want_exit "only tools issues closed: nothing to release, not a failure" 0 "OK: nothing to release: only tools issues were closed since v1.9.3: #60 Gate tweak, #61 CI fix"
+want_said "only tools issues: the machine line says there is no release" "release=none"
+want_said "only tools issues: they are named in a machine line" "tools=#60 #61"
+if grep -qE '^(version|tag|issues)=|label it' <<< "$OUT"; then fail "a tools-only set planned a version or called a tools issue unlabelled. Output: ${OUT}"; else echo "  ok: a tools-only set plans no version and no tag"; fi
+plan "$PLAN" major
+want_exit "only tools issues, major asked: still nothing to release" 0 "OK: nothing to release"
+data "$(issue 60 'Gate tweak' tools)"
+plan "$PLAN" patch --notes "${TMP}/notes_tools_only.md"
+want_exit "only tools issues with --notes" 0 "OK: nothing to release"
+if [[ -e "${TMP}/notes_tools_only.md" ]]; then fail "nothing to release still wrote a notes file"; else echo "  ok: nothing to release writes no notes file"; fi
+data "$(issue 5 'Fix the thing' patch)" "$(issue 60 'Gate tweak' tools)" "$(issue 4 'Old CI fix' tools)"
+plan "$PLAN" patch --notes "${TMP}/notes_tools.md"
+want_green "a patch issue and tools issues: a patch" "OK: next version 1.9.4"
+want_said "a patch and tools: the patch issue is listed" "- #5 Fix the thing"
+want_said "a patch and tools: the tools issues are listed" "- #60 Gate tweak"
+want_said "a patch and tools: the issues line holds the patch issue" "issues=#5"
+want_said "a patch and tools: the tools line holds the tools issues" "tools=#4 #60"
+if [[ "$(cat "${TMP}/notes_tools.md" 2> /dev/null)" != $'### Patch\n- #5 Fix the thing\n### Tooling\n- #4 Old CI fix\n- #60 Gate tweak' ]]; then
+  fail "the notes do not put the tools issues under ### Tooling after the bump headings. File: $(cat "${TMP}/notes_tools.md" 2> /dev/null)"
+else
+  echo "  ok: the notes put the tools issues under ### Tooling, after the bump headings"
+fi
+data "$(issue 62 'Both' 'tools,minor')" "$(issue 60 'Gate tweak' tools)"
+plan "$PLAN" minor
+want_green "tools and minor on one issue: it counts by the bump label" "OK: next version 1.10.0"
+if [[ "$(grep -A1 -xF '### Minor' <<< "$OUT" | tail -n 1)" == "- #62 Both" ]]; then echo "  ok: tools and minor on one issue: listed under Minor"; else fail "tools and minor on one issue: #62 is not under ### Minor. Output: ${OUT}"; fi
+plan "$PLAN" patch
+want_red "tools and minor on one issue, patch asked" "requested patch is lower than required minor: #62 (minor) Both"
+data "$(issue 5 'Fix the thing' patch)"
+printf '70\tTooling work\ttools\n' > "${TMP}/open_tools.tsv"
+printf 'forsgren#70 (1/2): gate work\n' > "${TMP}/commits_tools.txt"
+RELEASE_PLAN_OPEN="${TMP}/open_tools.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits_tools.txt" plan "$PLAN" patch
+want_green "an open tools issue with commits is no red" "OK: next version 1.9.4"
+if grep -qF '#70' <<< "$OUT"; then fail "an open tools issue with commits is named. Output: ${OUT}"; fi
+printf '71\tFeature work\tminor\n72\tBoth work\ttools,patch\n73\tNo labels\t\n' > "${TMP}/open_feature.tsv"
+printf 'forsgren#71 (1/2): view\nforsgren#72 (1/2): both\nforsgren#73 (1/2): bare\n' > "${TMP}/commits_feature.txt"
+RELEASE_PLAN_OPEN="${TMP}/open_feature.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits_feature.txt" plan "$PLAN" patch
+want_red "an open feature issue with commits is still red" "release plan: #71 Feature work is still open but has commits on main since v1.9.3"
+want_said "an open tools and patch issue with commits is still red" "release plan: #72 Both work is still open but has commits on main since v1.9.3"
+want_said "an open issue without labels is still red" "release plan: #73 No labels is still open but has commits on main since v1.9.3"
+data "$(issue 60 'Gate tweak' tools)"
+RELEASE_PLAN_OPEN="${TMP}/open_feature.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits_feature.txt" plan "$PLAN" patch
+want_red "only tools closed but an open feature issue with commits: still red" "release plan: #71 Feature work is still open"
+if grep -qF 'release=none' <<< "$OUT"; then fail "a red plan also said nothing to release. Output: ${OUT}"; fi
+data "$(issue 5 'Fix the thing' patch)" "$(issue 60 'Gate tweak' tools)"
+plan "$PLAN" auto --all
+want_green "--all: a tools issue is ready" "ready=60${TAB}tools${TAB}Gate tweak${TAB}v1.9.3"
+want_said "--all: the patch issue is ready" "ready=5${TAB}patch${TAB}Fix the thing${TAB}v1.9.3"
+data "$(issue 60 'Gate tweak' tools)"
+plan "$PLAN" auto --all
+want_exit "--all, only tools issues: nothing to release" 0 "release=none"
+want_said "--all, only tools issues: the ready line" "ready=60${TAB}tools${TAB}Gate tweak${TAB}v1.9.3"
 
 # Mutation proofs: each mutant must let its case pass.
 mutant_runs() {
@@ -427,6 +496,37 @@ data "$(issue 9 'Rename a flag' major)"
 if selftest_mutant "$PLAN" "${TMP}/mut/noproofs/release_plan.sh" 's/^if \[ "[$]REQUESTED" = major \]; then$/if false; then/'; then
   RELEASE_AGENT_FILES="${TMP}/agents_old/agent-one.md" RELEASE_PLAN_DATA="${TMP}/data.tsv" capture "${TMP}/mut/noproofs/release_plan.sh" major
   want_green "mutation proof: without the agent proof check a major is planned on stale agent files" "OK: next version 2.0.0"
+fi
+
+# Tools issues (forsgren#289): each mutant must let its case pass, for the reason.
+data "$(issue 60 'Gate tweak' tools)"
+if mutant_runs toolsUnlabelled 's/^  if is_tools_only "[$]labels"; then$/  if false; then/' patch; then
+  want_red "mutation proof: without the tools rule a tools issue is unlabelled" "release plan: #60 Gate tweak: label it patch, minor or major"
+fi
+if mutant_runs toolsReleased 's/^  nothing_to_release$/  :/' patch; then
+  if [[ "$RC" -eq 0 ]] && grep -qxF "version=1.9.4" <<< "$OUT" && ! grep -qxF "release=none" <<< "$OUT"; then
+    echo "  ok: mutation proof: without nothing to release a tools-only set is released as 1.9.4"
+  else
+    fail "mutation proof: the mutant without nothing to release did not release the tools-only set (exit ${RC}). Output: ${OUT}"
+  fi
+fi
+data "$(issue 5 'Fix the thing' patch)" "$(issue 60 'Gate tweak' tools)"
+if mutant_runs noTooling 's/^if \[ -n "[$]tools_rows" \]; then$/if false; then/' patch --notes "${TMP}/notes_mut.md"; then
+  if [[ "$RC" -eq 0 ]] && grep -qxF '### Patch' "${TMP}/notes_mut.md" && ! grep -qF '### Tooling' "${TMP}/notes_mut.md"; then
+    echo "  ok: mutation proof: without the Tooling notes the tools issue is missing from the notes"
+  else
+    fail "mutation proof: the mutant without the Tooling notes still wrote them (exit ${RC}). File: $(cat "${TMP}/notes_mut.md" 2> /dev/null)"
+  fi
+fi
+printf '70\tTooling work\ttools\n' > "${TMP}/open_tools.tsv"
+printf 'forsgren#70 (1/2): gate work\n' > "${TMP}/commits_tools.txt"
+if selftest_mutant "$PLAN" "${TMP}/mut/openTools/release_plan.sh" 's/^  if is_tools_only "[$]labels"; then continue; fi$/  :/'; then
+  RELEASE_PLAN_OPEN="${TMP}/open_tools.tsv" RELEASE_PLAN_COMMITS="${TMP}/commits_tools.txt" RELEASE_PLAN_DATA="${TMP}/data.tsv" capture "${TMP}/mut/openTools/release_plan.sh" patch
+  want_red "mutation proof: without the open tools rule an open tools issue with commits stops the plan" "release plan: #70 Tooling work is still open but has commits on main since v1.9.3"
+fi
+data "$(issue 62 'Both' 'tools,minor')" "$(issue 60 'Gate tweak' tools)"
+if mutant_runs toolsWins 's/^  \[ "[$](label_bump "[$]1")" = other \] || return 1$/  :/' minor; then
+  want_exit "mutation proof: when tools wins over a bump label the minor issue is lost" 0 "OK: nothing to release: only tools issues were closed since v1.9.3: #60 Gate tweak, #62 Both"
 fi
 
 selftest_end "the release plan does not hold" "release plan: the bump check, the closed-issue filter, the notes and the version arithmetic all held"

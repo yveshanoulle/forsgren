@@ -462,7 +462,9 @@ issue since it without a `patch`, `minor` or `major` label and every issue that
 needs a higher bump than the one asked, in the shape of the Release run page
 (`Scripts/release_report.sh --table`, the same code), and a ✅ list of the
 issues that are ready with their label. With no bump it judges the bump the
-labels require. Exit 0: a Release with that bump would pass its plan; exit 1:
+labels require. Exit 0: a Release with that bump would pass its plan, or,
+when only `tools` issues were closed, there is nothing to release (it says
+so: a Release now would tag nothing); exit 1:
 it would stop, and the table says what to do first; exit 2: the plan could not
 judge. It writes nothing. `Scripts/test_release_precheck.sh` feeds the pre-check
 and the Release's report the same data and compares the tables.
@@ -477,25 +479,34 @@ and stops at the first step that fails:
 2. **The plan** (`Scripts/release_plan.sh`), before anything changes. It reads
    the latest release and the issues closed after its publish time. Each
    issue requires the bump of its label, `patch`, `minor` or `major`; the
-   highest wins. These issues are not part of a release: the ones labelled
+   highest wins. **A tooling update needs no release** (forsgren#289): an
+   issue labelled `tools` (CI, release scripts, build gates, self-tests) and
+   none of the three needs no bump; it is listed in the notes of the next
+   release under its own heading, Tooling, after the bump headings. An issue
+   with `tools` and a bump label counts by its bump label. When only `tools`
+   issues were closed since the latest release, the plan names them and says
+   there is nothing to release (`release=none`): the run skips every later
+   step, tags nothing and ends green, and its summary says nothing was
+   released. These issues are not part of a release: the ones labelled
    `decision`, `duplicate`, `invalid`, `wontfix` or `question`, the ones closed
    as not planned, and the ones that the notes of an earlier release already
    name (an issue closed after its release was published is never listed
    twice). The plan stops on every open issue of the repository that has a
    commit on main since the latest release (a `#N` or `forsgren#N` in a commit
-   subject; the release-bump commits and issues an earlier release named do
-   not count): the release tags main as it is, so its landed code would ship
+   subject; the release-bump commits, issues an earlier release named and
+   open `tools` issues without a bump label, whose code ships in the tag with
+   no user-facing change, do not count): the release tags main as it is, so its landed code would ship
    while its notes and bump miss it. Every such issue is named, followed by
    "close it, or split it (close the landed part as its own issue, move the
    rest to a new one)". The plan stops when nothing is left, and when an issue has none of
-   the three labels: every such issue is named, followed by "label it patch,
+   the three labels and no `tools` label: every such issue is named, followed by "label it patch,
    minor or major". It stops when the requested bump is lower than the
    required one and names the issues that require more, so a minor change is
    never released as a patch. It stops on a major while an agent file has no
    proof run on the new major, and names each such file
    (`Scripts/release_agent_proofs.sh`). Otherwise it prints the next version
    and the release notes, one `- #N title` line per issue, grouped under Major,
-   Minor and Patch.
+   Minor, Patch and Tooling.
 3. **The version is new**, no tag and no release of that name
    (`Scripts/release_publish.sh free`).
 4. **Main has not moved** (`Scripts/release_quality.sh head`), the step right

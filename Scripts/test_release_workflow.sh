@@ -35,6 +35,13 @@
 #   9. the last step runs `if: ${{ always() }}`, reports the job's status and
 #      gets the outcome of every step (steps.<id>.outcome), every step has its
 #      id, and the token check and the test record themselves in the log
+#  11. nothing to release (forsgren#289): the plan step passes `release=none`
+#      and `tools=` on to its outputs and logs `plan: nothing to release`, and
+#      every step after it that makes or spreads a release (the version check,
+#      the head check, the publish, the install check, the template, the
+#      metrics pull request and merge, the preview) is skipped by exactly
+#      `steps.plan.outputs.release != 'none'`, so a tools-only run ends green
+#      with nothing tagged; a resumed run (the plan skipped) still runs them
 
 set -euo pipefail
 
@@ -106,14 +113,23 @@ id_findings() {
 # resume_findings: with `resume: pins` only the install check, the template and
 # metrics steps run for the release that exists; every step that makes a
 # release is skipped. There is no resume: publish (forsgren#237).
+# NOTHING_GATE (forsgren#289): the condition that skips a step when the plan
+# has nothing to release; a resumed run skips the plan, whose output is then
+# empty, so the step still runs.
+NOTHING_GATE="steps.plan.outputs.release != 'none'"
 resume_findings() {
   local name
-  for name in "Quality is green on main" "Plan the release" "Check the version is new" "Check main has not moved" "Create the tag and the release"; do
+  for name in "Quality is green on main" "Plan the release"; do
     step_text "$1" "$name" | grep -qxF "        if: ${DOLLAR}{{ inputs.resume == 'none' }}" || echo "resume: the step '${name}' is not skipped by resume: pins"
   done
-  for name in "Check an install of the release reports its version" "Move the pins and README of forsgren-template" "Open the pin pull request in forsgren-metrics" "Merge the pin pull request and run forsgren in forsgren-metrics" "Check the release token is set"; do
-    if step_text "$1" "$name" | grep -qE '^        if:'; then echo "resume: the step '${name}' must run also when resuming"; fi
+  for name in "Check the version is new" "Check main has not moved" "Create the tag and the release"; do
+    step_text "$1" "$name" | grep -qxF "        if: ${DOLLAR}{{ inputs.resume == 'none' && ${NOTHING_GATE} }}" || echo "resume: the step '${name}' is not skipped by resume: pins, or not by nothing to release"
   done
+  for name in "Check an install of the release reports its version" "Move the pins and README of forsgren-template" "Open the pin pull request in forsgren-metrics" "Merge the pin pull request and run forsgren in forsgren-metrics" "Start the preview deploy of the release"; do
+    if step_text "$1" "$name" | grep -E '^        if:' | grep -vqxF "        if: ${DOLLAR}{{ ${NOTHING_GATE} }}"; then echo "resume: the step '${name}' must run also when resuming"; fi
+    step_text "$1" "$name" | grep -qxF "        if: ${DOLLAR}{{ ${NOTHING_GATE} }}" || echo "nothing: the step '${name}' runs when the plan has nothing to release"
+  done
+  if step_text "$1" "Check the release token is set" | grep -qE '^        if:'; then echo "resume: the step 'Check the release token is set' must run also when resuming"; fi
   code "$1" | grep -qxF '        options: [none, pins]' || echo "input: resume is not a choice of none, pins"
   awk '/^      resume:/ { r=1 } r && /default:/ { print; exit }' "$1" | grep -qxF '        default: none' || echo "input: the default resume is not none"
 }
@@ -199,6 +215,9 @@ Quality is green on main@@          echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 Quality is green on main@@          ./Scripts/release_quality.sh check "$GITHUB_SHA"
 Plan the release@@          ./Scripts/release_plan.sh "$BUMP" --notes "${RUNNER_TEMP}/notes.md" | tee "${RUNNER_TEMP}/plan.txt"
 Plan the release@@          BUMP: ${{ inputs.bump }}
+Plan the release@@          grep -E '^(version|tag|issues|tools|release)=' "${RUNNER_TEMP}/plan.txt" >> "$GITHUB_OUTPUT"
+Plan the release@@          if grep -qxF 'release=none' "${RUNNER_TEMP}/plan.txt"; then
+Plan the release@@            echo "plan: nothing to release, only tools issues since the latest release: $(grep '^tools=' "${RUNNER_TEMP}/plan.txt" | cut -d= -f2)" >> "$RELEASE_LOG"
 Check the version is new@@          ./Scripts/release_publish.sh free "$VERSION"
 Check main has not moved@@          ./Scripts/release_quality.sh head "$GITHUB_SHA"
 Check main has not moved@@          echo "head: main's head is still ${GITHUB_SHA}" >> "$RELEASE_LOG"
@@ -260,7 +279,7 @@ preview_findings() {
   local name="Start the preview deploy of the release" count
   count="$(code "$1" | grep -c 'secrets.PREVIEW_DISPATCH_TOKEN' || true)"
   [[ "$count" -eq 1 ]] || echo "preview: PREVIEW_DISPATCH_TOKEN appears ${count} times, want 1 (the preview step)"
-  if step_text "$1" "$name" | grep -qE 'continue-on-error|\|\| *true|^        if:'; then
+  if step_text "$1" "$name" | grep -vxF "        if: ${DOLLAR}{{ ${NOTHING_GATE} }}" | grep -qE 'continue-on-error|\|\| *true|^        if:'; then
     echo "preview: the step '${name}' can pass or skip when the start fails"
   fi
   if [[ -n "$(line_of "$1" "- name: ${name}")" && "$(line_of "$1" "- name: ${name}")" -lt "$(line_of "$1" "- name: Create the tag and the release")" ]]; then
@@ -334,8 +353,16 @@ mutant "a template step skipped by resume" "/name: Move the pins and README of f
         if: ${DOLLAR}{{ inputs.resume != 'pins' }}/" "resume: the step 'Move the pins and README of forsgren-template' must run"
 mutant "a resume by default" 's/^        default: none/        default: pins/' "input: the default resume is not none"
 mutant "a publish that also runs when resuming pins" "/name: Create the tag and the release/,/shell:/s/inputs.resume == 'none'/inputs.resume != 'pins'/" "resume: the step 'Create the tag and the release' is not skipped by resume: pins"
-mutant "a resume: pins that publishes again" "/name: Create the tag and the release/,/shell:/{/if: .{{ inputs.resume == 'none' }}/d;}" "resume: the step 'Create the tag and the release' is not skipped by resume: pins"
-mutant "a resume: pins that checks the head again" "/name: Check main has not moved/,/shell:/{/if: .{{ inputs.resume == 'none' }}/d;}" "resume: the step 'Check main has not moved' is not skipped by resume: pins"
+mutant "a resume: pins that publishes again" "/name: Create the tag and the release/,/shell:/{/if: .{{ inputs.resume == 'none'/d;}" "resume: the step 'Create the tag and the release' is not skipped by resume: pins"
+mutant "a resume: pins that checks the head again" "/name: Check main has not moved/,/shell:/{/if: .{{ inputs.resume == 'none'/d;}" "resume: the step 'Check main has not moved' is not skipped by resume: pins"
+mutant "a publish when there is nothing to release" "/name: Create the tag and the release/,/shell:/s/ \&\& steps.plan.outputs.release != 'none'//" "resume: the step 'Create the tag and the release' is not skipped by resume: pins, or not by nothing to release"
+mutant "a version check when there is nothing to release" "/name: Check the version is new/,/shell:/s/ \&\& steps.plan.outputs.release != 'none'//" "resume: the step 'Check the version is new' is not skipped by resume: pins, or not by nothing to release"
+mutant "template pins moved when there is nothing to release" "/name: Move the pins and README of forsgren-template/,/shell:/{/if: .{{ steps.plan.outputs.release != 'none' }}/d;}" "nothing: the step 'Move the pins and README of forsgren-template' runs when the plan has nothing to release"
+mutant "a metrics merge when there is nothing to release" "/name: Merge the pin pull request and run forsgren in forsgren-metrics/,/shell:/{/if: .{{ steps.plan.outputs.release != 'none' }}/d;}" "nothing: the step 'Merge the pin pull request and run forsgren in forsgren-metrics' runs when the plan has nothing to release"
+mutant "a preview when there is nothing to release" "/name: Start the preview deploy of the release/,/shell:/{/if: .{{ steps.plan.outputs.release != 'none' }}/d;}" "nothing: the step 'Start the preview deploy of the release' runs when the plan has nothing to release"
+mutant "an install check gated on the wrong output" "/name: Check an install of the release reports its version/,/shell:/s/steps.plan.outputs.release != 'none'/steps.plan.outputs.version != ''/" "resume: the step 'Check an install of the release reports its version' must run also when resuming"
+mutant "a plan step that drops the release line" "s/(version|tag|issues|tools|release)=/(version|tag|issues)=/" "step 'Plan the release': want the line"
+mutant "a plan step that logs nothing for nothing to release" '/echo "plan: nothing to release/d' "step 'Plan the release': want the line"
 mutant "a resume: publish back" 's/options: \[none, pins\]/options: [none, pins, publish]/' "input: resume is not a choice of none, pins"
 mutant "a git push added back" 's/^          set -euo pipefail$/          set -euo pipefail\
           git push origin main/' "release: the workflow still bumps, commits, pushes"

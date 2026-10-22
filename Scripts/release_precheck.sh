@@ -20,7 +20,10 @@
 # is no second implementation of either, so the pre-check and the Release
 # cannot disagree: Scripts/test_release_precheck.sh feeds both the same data.
 #
-# Exit 0: a Release with that bump would pass the plan. Exit 1: it would stop.
+# Exit 0: a Release with that bump would pass the plan, or, when only tools
+# issues were closed since the latest release (the plan's `release=none`,
+# forsgren#289), there is nothing to release and a Release would tag nothing.
+# Exit 1: it would stop.
 # Exit 2: the plan could not judge (gh or git could not be read, a latest tag
 # that is no vX.Y.Z, a usage error).
 #
@@ -81,6 +84,11 @@ RELEASE_PLAN_OUTPUT="$PLAN_OUT" RELEASE_BUMP="$ASKED" "${SCRIPTS}/release_report
 }
 echo
 
+if [ "$rc" -eq 0 ] && grep -qxF 'release=none' "$PLAN_OUT"; then
+  echo "✅ nothing to release: only tools issues were closed since the latest release, a Release now would tag nothing"
+  COMPLETED=1
+  exit 0
+fi
 case "$rc" in
   0) echo "✅ a Release with this bump would pass the plan" ;;
   1) echo "❌ a Release with this bump would stop at its plan: do what the table says first" ;;

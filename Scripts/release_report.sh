@@ -30,7 +30,10 @@
 # issues and the list of ready issues, rendered from the plan's output by the
 # same functions the run summary uses, and exits 0. Scripts/release_precheck.sh
 # calls it, so the pre-check and the Release run page cannot differ in shape.
-# On success it prints the done steps. On any other status it prints an
+# On success it prints the done steps; when the plan logged `plan: nothing to
+# release` (only tools issues closed, forsgren#289) it says first that there
+# was nothing to release, naming them, and that nothing was tagged and no pin
+# moved. On any other status it prints an
 # ::error:: line that names the first step whose outcome is failure (or
 # cancelled), its id in brackets, then what was already done and what was not
 # (the logged steps without a line). With no outcomes, or none that failed, it
@@ -274,7 +277,12 @@ if [ "$STATUS" != success ]; then
   fi
 fi
 BODY=""
-if [ "$STATUS" = success ]; then
+NOTHING_LINE="$(line_value '^plan: nothing to release')"
+if [ "$STATUS" = success ] && [ -n "$NOTHING_LINE" ]; then
+  BODY="Nothing to release: only tools issues were closed since the last release (${NOTHING_LINE##*: }), so nothing was tagged and no pin moved. Done:
+${DONE%
+}"
+elif [ "$STATUS" = success ]; then
   BODY="Release run finished. Done:
 ${DONE%
 }"

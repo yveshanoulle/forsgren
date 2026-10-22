@@ -23,10 +23,13 @@
 #      links when the repo is known; the annotation names the numbers; the
 #      generic cause only when no issue is named
 #   5. the same text goes to GITHUB_STEP_SUMMARY; usage
+#   6. nothing to release (forsgren#289): a successful run whose plan logged
+#      `plan: nothing to release` says so first, that nothing was tagged and no
+#      pin moved, then the done steps; no ::error::, no advice
 # The failed step is read from the outcomes of the steps (RELEASE_STEP_OUTCOMES,
 # one `<id>=<outcome>` line per step, the workflow passes steps.<id>.outcome).
-# Mutation proofs: a copy that reports a failure as success, one that forgets
-# the not-done list and one that infers the failed step from the log (a failed
+# Mutation proofs: a copy that reports a failure as success, one that says
+# nothing to release as a finished release, one that forgets the not-done list and one that infers the failed step from the log (a failed
 # token check reported as "quality") must each be caught.
 
 set -euo pipefail
@@ -353,6 +356,17 @@ if mutant notdone '/^Not done: /d'; then
   report "$LOG" failure
   if grep -q 'Not done' <<< "$OUT"; then fail "mutation proof: the mutant still lists what was not done"; else echo "  ok: mutation proof: without the list a half-made release is a guess"; fi
 fi
+# Nothing to release (forsgren#289): without its line the run reads as a release.
+: > "$LOG"
+echo "plan: nothing to release, only tools issues since the latest release: #60" >> "$LOG"
+outcomes
+if mutant nothing 's/^NOTHING_LINE=.*$/NOTHING_LINE=""/'; then
+  report "$LOG" success
+  if grep -qF "Release run finished" <<< "$OUT" && ! grep -qF "Nothing to release" <<< "$OUT"; then echo "  ok: mutation proof: without the nothing-to-release line a tools-only run reads as a finished release, which case 6 catches"; else fail "mutation proof: the mutant still said nothing to release. Output: ${OUT}"; fi
+fi
+unset SCRIPT
+logged token quality
+outcomes plan failure
 # The old inference: the first step the log does not show, over the steps
 # that were logged then (no token check). A failed token check, with an empty
 # log, is then reported as the quality wait.
@@ -423,6 +437,17 @@ if mutant nocross "s/}| ❌ | /}| /"; then
   if grep -qF '#221' <<< "$found"; then echo "  ok: mutation proof: a row without the red cross is caught, naming #221"; else fail "mutation proof: the row without the red cross was not caught. Findings: ${found}"; fi
 fi
 unset SCRIPT RELEASE_STEP_OUTCOMES
+
+# 6. nothing to release (forsgren#289)
+printf '%s\n' "token: did token" "quality: did quality" "plan: nothing to release, only tools issues since the latest release: #60 #61" > "$LOG"
+outcomes
+report "$LOG" success
+want_green "nothing to release: a green run" "Nothing to release: only tools issues were closed since the last release (#60 #61), so nothing was tagged and no pin moved."
+want_said "nothing to release: the done steps follow" "- plan: nothing to release, only tools issues since the latest release: #60 #61"
+if grep -qE '::error::|::notice::|What to do next|Release run finished' <<< "$OUT"; then fail "nothing to release reads as a release or a failure. Output: ${OUT}"; else echo "  ok: nothing to release is neither a finished release nor a failure"; fi
+printf 'ready=60\ttools\tGate tweak\tv1.9.3\n' > "${TMP}/table-tools.txt"
+capture env GH_REPO= GITHUB_REPOSITORY= "$REPORT" --table "${TMP}/table-tools.txt"
+want_green "--table lists a tools issue as ready" "- ✅ #60 Gate tweak (tools)"
 
 # --table (forsgren#231, step 3): only the table and the ready list.
 printf 'blocking=6\tunlabelled\tUnlabelled thing\tv1.9.3\nready=5\tpatch\tFix the thing\tv1.9.3\n' > "${TMP}/table-plan.txt"
