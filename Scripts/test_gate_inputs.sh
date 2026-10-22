@@ -26,7 +26,7 @@
 #   F. a go:embed of a _test.go file in a temp copy     -> red, naming the file.
 #
 # named_files and closure are copies of the ones in the sandbox isolation
-# self-test; step 2 of forsgren#262 moves both into Scripts/lib_gate_select.sh
+# self-test; step 2 of forsgren#262 moves both into a shared gate-selection library
 # and this self-test sources them from there.
 
 set -euo pipefail

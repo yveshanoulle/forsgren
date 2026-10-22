@@ -1,6 +1,6 @@
 # Scripts/gate_inputs.txt (forsgren#262, step 1 of 3)
 #
-# What each of the four browser gates reads, so a later step (Scripts/lib_gate_select.sh,
+# What each of the four browser gates reads, so a later step (the shared gate-selection library,
 # step 2) can run a gate only when a commit touches one of its inputs. This step
 # only lists and proves the list: nothing in sfl.sh or FBP.sh reads this file yet.
 #
