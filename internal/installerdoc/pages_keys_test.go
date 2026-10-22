@@ -47,6 +47,22 @@ func TestDocsAndInstallerStateTheStartersPageKeys(t *testing.T) {
 	}
 }
 
+// TestNewInstallationsStartWithTheIssuesPageOff (forsgren#285): the starter
+// writes issues_page: false, the agent installer's step 2 gives it as the
+// default of question 10, and its step 9 example config writes it.
+func TestNewInstallationsStartWithTheIssuesPageOff(t *testing.T) {
+	const want = "issues_page: false"
+	if issues, _ := starterPages(t); issues != want {
+		t.Errorf("want the starter to write %q, got %q", want, issues)
+	}
+	if !strings.Contains(asOneLine(section(t, installerFile, "Step 2.")), "Default: `"+want+"`") {
+		t.Errorf("agent-installer.md step 2 does not give %q as the default", want)
+	}
+	if !strings.Contains(section(t, installerFile, "Step 9."), "\n"+want+"\n") {
+		t.Errorf("agent-installer.md step 9 does not write the line %q", want)
+	}
+}
+
 // TestUpdatingDocSaysTheDailyPageGoesAt130 (forsgren#159): the update notes
 // say plainly that from 1.3.0 an installation without days_page loses its
 // Daily page until it sets days_page: true.

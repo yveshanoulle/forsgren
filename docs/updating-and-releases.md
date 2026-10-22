@@ -279,7 +279,8 @@ verification record and, on route B, the fine-grained token (forsgren#174).
 **Upgrading to 1.3.0 hides the Daily page** (forsgren#159). From 1.3.0 an
 installation that does not set days_page loses its Daily page until it sets
 days_page: true. The Issues page stays (issues_page: true is the default; the
-starter writes issues_page: true and days_page: false). With auto-update on,
+starter then wrote issues_page: true and days_page: false, and since
+forsgren#285 it writes issues_page: false). With auto-update on,
 the merged update removes `days.html` from the site at the next run. To keep
 the Daily page, add `days_page: true` to `forsgren.config.yml` before or
 after the update, and the next run generates it again. An agent following

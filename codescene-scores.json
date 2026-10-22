@@ -629,13 +629,13 @@
   {
    "path": "internal/config/init_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-22",
    "minScore": 10.0
   },
   {
    "path": "internal/config/pages_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-22",
    "minScore": 10.0
   },
   {
@@ -1433,7 +1433,7 @@
   {
    "path": "internal/installerdoc/pages_keys_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-22",
    "minScore": 10.0
   },
   {

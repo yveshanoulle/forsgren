@@ -223,12 +223,14 @@ Then wait for the answers.
    verified already, then a DNS record they add at their DNS provider, and
    HTTPS can take up to a day after that.
 10. **The Issues page and the Daily page**, which of the two the site
-    shows. Default: `issues_page: true` (the Issues page is shown) and
-    `days_page: false` (the Daily page is not generated). Each is `true`
+    shows. Default: `issues_page: false` (the Issues page is not generated)
+    and `days_page: false` (the Daily page is not generated), as the
+    starter writes them. Each is `true`
     (generated and in the menu), `unlisted` (generated, with no menu entry,
     and search engines are asked to skip it) or `false` (not generated). The
-    person can put the Daily page in the menu later by setting
-    `days_page: true`; the legend of the published site says so.
+    person can put either page in the menu later by setting
+    `issues_page: true` or `days_page: true`; the legend of the published
+    site says so.
 11. **The DORA window**, over how many days the five metrics count back.
     Default: `dora_days: 30`. One of 30, 90 or 180; DORA usually
     reports 180 days, so a person who wants to compare with other reports
@@ -420,7 +422,7 @@ auto_update: true
 auto_update_level: major
 history_days: 365
 dora_days: 30
-issues_page: true
+issues_page: false
 days_page: false
 numbers_scoring_page: unlisted
 history_page: unlisted
@@ -438,7 +440,7 @@ projects:
 ```
 
 - Write `issues_page` and `days_page` with the answers to question 10
-  (the defaults are `true` and `false`), and `dora_days` with the answer to
+  (the defaults are `false` and `false`, as the starter writes them), and `dora_days` with the answer to
   question 11 (the default is `30`) and `numbers_scoring_page` with the
   answer to question 12 (the default is `unlisted`), and `history_page` with the
   answer to question 13 (the default is `unlisted`).

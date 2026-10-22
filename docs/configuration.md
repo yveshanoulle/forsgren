@@ -141,6 +141,11 @@ projects:
   `false`, and `numbers_scoring_page`, `history_page` and `tbd_page` are
   `unlisted` (forsgren#200, from 1.8.2; before 1.8.2 both were `false`, see
   [Installing and updating](updating-and-releases.md#installing-and-updating)).
+  These built-in defaults are not the starter's values: a new installation
+  starts with the Issues page off, because the starter writes
+  `issues_page: false` (forsgren#285), while an installation whose config
+  leaves `issues_page` out keeps its Issues page, so no page disappears after
+  an update without the owner asking for it.
   Only the plain literals `true`, `unlisted` and `false` are accepted; a
   quoted value, `yes`, a number or other text is not accepted: forsgren uses
   the key's default instead and says so (see
@@ -149,7 +154,7 @@ projects:
   noindex tag is only ever on an unlisted page: switching a page back to
   `true` removes it. A render without a config writes and lists every page.
   The legend explains the three values and the defaults. The starter that
-  `init-config` writes includes `issues_page: true`, `days_page: false`,
+  `init-config` writes includes `issues_page: false`, `days_page: false`,
   `numbers_scoring_page: unlisted`, `history_page: unlisted` and
   `tbd_page: unlisted`. The pages:
   - **`issues_page`**: the Issues page (`issues.html`, forsgren#159).
@@ -302,7 +307,7 @@ example with made-up `acme` names (the default deployment, `workflow=` and
 `release`), followed by `version: 1`, `view: standard`, `auto_update: true`,
 `auto_update_level: major`, `history_days: 365`,
 `history_chunk_days: 100`, `working_hours: 8`, `dora_days: 30`,
-`issues_page: true`, `days_page: false`, `numbers_scoring_page: unlisted`,
+`issues_page: false`, `days_page: false`, `numbers_scoring_page: unlisted`,
 `history_page: unlisted`, `tbd_page: unlisted` and `projects: []`, so
 `check-config` accepts it as it is: `projects: 0, repositories: 0`. When the file exists,
 whatever it holds (even an invalid or an empty file), it is left byte for

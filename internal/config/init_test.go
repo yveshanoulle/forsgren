@@ -31,7 +31,7 @@ const starterConfig = "version: 1\nview: standard\nauto_update: true\n" +
 	"1 to 365\n" +
 	"working_hours: 8  # a working day is configured as this many hours, 1 to 24\n" +
 	"dora_days: 30  # the window of the DORA numbers in days: 30, 90 or 180\n" +
-	"issues_page: true  # the Issues page. " + pageValuesComment + "\n" +
+	"issues_page: false  # the Issues page. " + pageValuesComment + "\n" +
 	"days_page: false  # the Daily page. " + pageValuesComment + "\n" +
 	"numbers_scoring_page: unlisted  # the Numbers and scoring page. " + pageValuesComment + "\n" +
 	"history_page: unlisted  # the History page. " + pageValuesComment + "\n" +
@@ -220,14 +220,14 @@ func TestStarterPassesLoad(t *testing.T) {
 	wantPageKeysWritten(t, cfg)
 }
 
-// wantPageKeysWritten (forsgren#159, #200): the starter writes issues_page: true,
-// days_page: false and numbers_scoring_page: unlisted itself (forsgren#55), so
-// the settings page marks all three as set.
+// wantPageKeysWritten (forsgren#159, #200, #285): the starter writes
+// issues_page: false, days_page: false and numbers_scoring_page: unlisted
+// itself (forsgren#55), so the settings page marks all three as set.
 func wantPageKeysWritten(t *testing.T, cfg Config) {
 	t.Helper()
 	got := map[string]PageMode{"issues_page": cfg.IssuesPage, "days_page": cfg.DaysPage,
 		"numbers_scoring_page": cfg.NumbersScoringPage}
-	for key, want := range map[string]PageMode{"issues_page": PageOn, "days_page": PageOff,
+	for key, want := range map[string]PageMode{"issues_page": PageOff, "days_page": PageOff,
 		"numbers_scoring_page": PageUnlisted} {
 		if got[key] != want || !cfg.written[key] {
 			t.Errorf("want %s %v and written, got %v, written %v", key, want, got[key], cfg.written[key])

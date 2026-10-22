@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-22 — new installations start with the Issues page off ([#285](https://github.com/yveshanoulle/forsgren/issues/285), step 1 of 1)
+
+forsgren issue 285, step 1 of 1. The starter that `init-config` writes (`internal/config/starter.yml`) and the agent installer (question 10 of step 2, the example config and the instruction of step 9) set `issues_page: false` instead of `issues_page: true`, so a new installation starts with the Issues page off. The built-in default for a config that leaves the key out stays `true`: an installation that never set `issues_page` keeps its Issues page after an automatic update. `docs/configuration.md` (the page keys and `init-config`), `docs/pages-and-views.md`, the 1.3.0 note of `docs/updating-and-releases.md` and the installation README's example config say so; the legend and the settings page, which state the built-in default, are unchanged.
+
+- Red first: the starter test (`TestStarterIsACommentedGuideThenAnEmptyConfig`, `TestStarterPassesLoad`) expected `issues_page: false` and failed on the starter's `true`; the new `TestNewInstallationsStartWithTheIssuesPageOff` (`internal/installerdoc`) failed on the starter's value and on the installer's step 2 default and step 9 line. The new pin `TestIssuesPageDefaultStaysOnWithoutTheKey` passed on arrival; its mutation, the built-in default flipped to `false`, was seen red with `got "false"`.
+
+---
+
 ## 2026-10-22 — sfl skips a browser row whose inputs a commit did not touch ([#262](https://github.com/yveshanoulle/forsgren/issues/262), step 3 of 3)
 
 forsgren issue 262, step 3 of 3. Before a row whose label has `in` rows in `Scripts/gate_inputs.txt` (the four browser rows: the browser gate self-test, the browser gate, the fixture self-test and the fixture gate) runs, `sfl.sh` (v7) asks `gate_select`. On a skip the script does not run; as with the static-block skip the step is still counted, it is printed `⏭ skipped: <label> (<reason>)` and is a `⏭ skip` row of the step table (`skip_step`, now shared by both), and `<label><TAB><reason>` is appended to `.build/sfl-skips.log`, which `sfl.sh pre` empties and post appends to, for the FBP summary of #266. A selected row prints `▶ selected: <label> (<reason>)` and runs. `Scripts/run_ci_phase.sh` is untouched: Quality runs every row. A commit that touches only workflows, docs, release scripts or other gates' scripts skips the four rows, about 285 s of an FBP.

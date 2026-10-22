@@ -29,6 +29,23 @@ func TestIssuesAndDaysPagesAreRead(t *testing.T) {
 	}
 }
 
+// TestIssuesPageDefaultStaysOnWithoutTheKey (forsgren#285): the starter writes
+// issues_page: false, but a config that leaves the key out still gets the
+// Issues page, listed and not marked as written, so an installation that never
+// set the key keeps its Issues page after an update.
+func TestIssuesPageDefaultStaysOnWithoutTheKey(t *testing.T) {
+	got, err := parse([]byte(valid))
+	if err != nil {
+		t.Fatalf("want no error, got %v", err)
+	}
+	if got.IssuesPage != PageOn {
+		t.Errorf("want issues_page true by default, got %q", got.IssuesPage)
+	}
+	if got.written["issues_page"] {
+		t.Error("want issues_page not written when the key is left out")
+	}
+}
+
 // TestNumbersScoringPageIsRead (forsgren#55): the optional numbers_scoring_page
 // key, as written; the page is unlisted when the key is left out or has no value.
 func TestNumbersScoringPageIsRead(t *testing.T) {
@@ -124,6 +141,47 @@ func TestRejectedNumbersScoringPageIsListedLast(t *testing.T) {
 	}
 }
 
+// unlistedPageCase is one file for a page key whose default is unlisted, the
+// PageMode it must give and the value it must reject, if any.
+type unlistedPageCase struct {
+	name, file, rejected string
+	want                 PageMode
+}
+
+// unlistedPageCases are the files every page key whose default is unlisted is
+// read from: left out, as written, after the projects, without a value, and
+// four values that are not accepted.
+func unlistedPageCases(key string) []unlistedPageCase {
+	return []unlistedPageCase{
+		{"absent", valid, "", PageUnlisted},
+		{"on", key + ": true\n" + valid, "", PageOn},
+		{"off", key + ": false\n" + valid, "", PageOff},
+		{"after the projects", valid + key + ": true\n", "", PageOn},
+		{"no value", key + ":\n" + valid, "", PageUnlisted},
+		{"yes", key + ": yes\n" + valid, "yes", PageUnlisted},
+		{"quoted", key + ": \"true\"\n" + valid, "true", PageUnlisted},
+		{"a number", key + ": 1\n" + valid, "1", PageUnlisted},
+		{"quoted unlisted", key + ": \"unlisted\"\n" + valid, "unlisted", PageUnlisted},
+	}
+}
+
+// wantUnlistedPageKey runs the cases against the key: each file gives its
+// PageMode and no error, and a value that is not accepted is rejected naming
+// the key, the valid values and the default unlisted.
+func wantUnlistedPageKey(t *testing.T, key string, sentinel error, cases []unlistedPageCase) {
+	t.Helper()
+	for _, tc := range cases {
+		got, err := parse([]byte(tc.file))
+		if mode := pageModeOf(got, key); err != nil || mode != tc.want {
+			t.Errorf("%s: want %s %v and no error, got %v, %v", tc.name, key, tc.want, mode, err)
+		}
+		if tc.rejected != "" {
+			wantRejection(t, got.Rejected, sentinel,
+				[4]string{key, tc.rejected, "use true, unlisted or false", "unlisted"})
+		}
+	}
+}
+
 // TestHistoryPageIsUnlistedByDefaultAndRejectsOtherValues (forsgren#68, #199,
 // #200): the optional history_page key is unlisted when it is left out or has
 // no value, as numbers_scoring_page is, and as written otherwise; a value that
@@ -131,64 +189,19 @@ func TestRejectedNumbersScoringPageIsListedLast(t *testing.T) {
 // key counts as not written, and the rejection names the key, the valid values
 // and the default unlisted.
 func TestHistoryPageIsUnlistedByDefaultAndRejectsOtherValues(t *testing.T) {
-	cases := []struct {
-		name, file, rejected string
-		want                 PageMode
-	}{
-		{"absent", valid, "", PageUnlisted},
-		{"on", "history_page: true\n" + valid, "", PageOn},
-		{"off", "history_page: false\n" + valid, "", PageOff},
-		{"after the projects", valid + "history_page: true\n", "", PageOn},
-		{"no value", "history_page:\n" + valid, "", PageUnlisted},
-		{"yes", "history_page: yes\n" + valid, "yes", PageUnlisted},
-		{"quoted", "history_page: \"true\"\n" + valid, "true", PageUnlisted},
-		{"a number", "history_page: 1\n" + valid, "1", PageUnlisted},
-		{"quoted unlisted", "history_page: \"unlisted\"\n" + valid, "unlisted", PageUnlisted},
-	}
-	for _, tc := range cases {
-		got, err := parse([]byte(tc.file))
-		if err != nil || got.HistoryPage != tc.want {
-			t.Errorf("%s: want history_page %v and no error, got %v, %v", tc.name, tc.want, got.HistoryPage, err)
-		}
-		if tc.rejected != "" {
-			wantRejection(t, got.Rejected, ErrHistoryPage,
-				[4]string{"history_page", tc.rejected, "use true, unlisted or false", "unlisted"})
-		}
-	}
+	wantUnlistedPageKey(t, "history_page", ErrHistoryPage, unlistedPageCases("history_page"))
 }
 
 // TestTbdPageIsUnlistedByDefaultAndRejectsOtherValues (forsgren#253): the
 // optional tbd_page key is unlisted when it is left out or has no value, as
-// history_page is, and as written otherwise; a value that is not true, unlisted
-// or false is not accepted: the page stays unlisted, the key counts as not
-// written, and the rejection names the key, the valid values and the default
-// unlisted.
+// history_page is, and as written otherwise, tbd_page: unlisted included; a
+// value that is not true, unlisted or false is not accepted: the page stays
+// unlisted, the key counts as not written, and the rejection names the key,
+// the valid values and the default unlisted.
 func TestTbdPageIsUnlistedByDefaultAndRejectsOtherValues(t *testing.T) {
-	cases := []struct {
-		name, file, rejected string
-		want                 PageMode
-	}{
-		{"absent", valid, "", PageUnlisted},
-		{"on", "tbd_page: true\n" + valid, "", PageOn},
-		{"unlisted", "tbd_page: unlisted\n" + valid, "", PageUnlisted},
-		{"off", "tbd_page: false\n" + valid, "", PageOff},
-		{"after the projects", valid + "tbd_page: true\n", "", PageOn},
-		{"no value", "tbd_page:\n" + valid, "", PageUnlisted},
-		{"yes", "tbd_page: yes\n" + valid, "yes", PageUnlisted},
-		{"quoted", "tbd_page: \"true\"\n" + valid, "true", PageUnlisted},
-		{"a number", "tbd_page: 1\n" + valid, "1", PageUnlisted},
-		{"quoted unlisted", "tbd_page: \"unlisted\"\n" + valid, "unlisted", PageUnlisted},
-	}
-	for _, tc := range cases {
-		got, err := parse([]byte(tc.file))
-		if err != nil || got.TbdPage != tc.want {
-			t.Errorf("%s: want tbd_page %v and no error, got %v, %v", tc.name, tc.want, got.TbdPage, err)
-		}
-		if tc.rejected != "" {
-			wantRejection(t, got.Rejected, ErrTbdPage,
-				[4]string{"tbd_page", tc.rejected, "use true, unlisted or false", "unlisted"})
-		}
-	}
+	cases := append(unlistedPageCases("tbd_page"),
+		unlistedPageCase{"unlisted", "tbd_page: unlisted\n" + valid, "", PageUnlisted})
+	wantUnlistedPageKey(t, "tbd_page", ErrTbdPage, cases)
 }
 
 // pageModeOf is the PageMode the config holds for the page key.
