@@ -143,6 +143,7 @@ run report shows how many checks each of them ran.
 - browser gate (`Scripts/gate_browser.sh`, post)
 - browser gate (fixture site) self-test (`Scripts/test_gate_browser_fixture.sh`, pre)
 - browser gate (fixture site) (`Scripts/gate_browser_fixture.sh`, post)
+- browser gate inputs self-test (`Scripts/test_gate_inputs.sh`, pre)
 - live check self-test (`Scripts/test_live_check.sh`, pre)
 - release plan self-test (`Scripts/test_release_plan.sh`, pre)
 - release quality self-test (`Scripts/test_release_quality.sh`, pre)

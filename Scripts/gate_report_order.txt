@@ -791,6 +791,16 @@ browser gate|Scripts/gate_browser.sh|post|
 browser gate (fixture site) self-test|Scripts/test_gate_browser_fixture.sh|pre|
 browser gate (fixture site)|Scripts/gate_browser_fixture.sh|post|
 #
+# The list of what the four browser rows read (forsgren#262, step 1 of 3, not canon:
+# forsgren only). Scripts/gate_inputs.txt names each gate's inputs, the script ones
+# by closure, with *_test.go and testdata/ excluded for the Go trees (decision
+# forsgren#281); this self-test holds it true (every label has a row, every
+# path exists, every closure is listed) and holds the guard that makes the
+# exclusion safe (no go:embed line and no build script reads testdata/ or a test
+# file), with six mutation proofs. Nothing selects a gate from the list yet. It sits
+# right after the rows it describes and, a pure file check, runs in pre.
+browser gate inputs self-test|Scripts/test_gate_inputs.sh|pre|
+#
 # --- Live check self-test (forsgren#205, step 2 of 2) --------------------
 # Shared canon (live_check v1, forsgren#223). Scripts/live_check.sh checks the
 # DEPLOYED forsgren.be with curl (http redirects to https, certificate

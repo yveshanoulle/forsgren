@@ -1,0 +1,127 @@
+# Scripts/gate_inputs.txt (forsgren#262, step 1 of 3)
+#
+# What each of the four browser gates reads, so a later step (Scripts/lib_gate_select.sh,
+# step 2) can run a gate only when a commit touches one of its inputs. This step
+# only lists and proves the list: nothing in sfl.sh or FBP.sh reads this file yet.
+#
+# One line per input:
+# <label>|<kind>|<path>
+#
+# label: the gate's label exactly as Scripts/gate_report_order.txt writes it.
+# kind:  in  = a file, or a directory (ends in /) with everything under it, that
+#              the gate reads or builds from;
+#        out = a pattern the gate never reads, excluded from the `in` trees above it
+#              (forsgren#281): *_test.go is never compiled into the binary that
+#              go build makes, and a testdata/ file (the goldens included) reaches
+#              the site only through a go:embed line or a build script, which
+#              Scripts/test_gate_inputs.sh holds to be none.
+# path:  relative to the repository root.
+#
+# The script inputs are the closure of the gate's script: every Scripts/ file it
+# names, followed transitively. Scripts/test_gate_inputs.sh derives the closure and
+# is red when a script or data file of it is not listed here. The non-script
+# inputs are written out: cmd/ and internal/ (the Go the site is built from),
+# go.mod and go.sum, package.json and package-lock.json (node_modules, from
+# npm ci), the fixture data and the required-pages manifest.
+#
+# NOT LISTED, ON PURPOSE: install/README.md is embedded (install/install.go) but is
+# not part of the rendered site, so no browser gate reads its content. It is left
+# to the fail-safe of step 2: a file no list names selects every gate.
+# Scripts/testdata/fixture_site/ is under testdata/ but is listed: it is the
+# data the fixture gate builds its site from, by design, and the guard allows
+# that one path.
+#
+# The closure follows every name, comments included, so it is wide: browser_gate.mjs
+# names its own self-test, which sources lib_selftest.sh. A wider list only selects a
+# gate more often, never less.
+#
+# Each of the self-tests starts Chrome on pages it writes itself, so it reads no
+# Go tree; the fixture self-test's case 7 builds the fixture site, so it does.
+
+# --- browser gate self-test ---------------------------------------------
+browser gate self-test|in|Scripts/test_gate_browser.sh
+browser gate self-test|in|Scripts/gate_browser.sh
+browser gate self-test|in|Scripts/browser_gate.mjs
+browser gate self-test|in|Scripts/lib_selftest.sh
+browser gate self-test|in|Scripts/lib_site_settings.sh
+browser gate self-test|in|Scripts/site_settings.txt
+browser gate self-test|in|Scripts/browser_gate_baseline.txt
+browser gate self-test|in|Scripts/browser_gate_exceptions.txt
+browser gate self-test|in|Scripts/browser_gate_variants.txt
+browser gate self-test|in|package.json
+browser gate self-test|in|package-lock.json
+browser gate self-test|in|internal/page/required-pages.json
+
+# --- browser gate -------------------------------------------------------
+# It opens the site the build wrote (Scripts/build_site.sh builds ./cmd/forsgren and renders).
+browser gate|in|Scripts/gate_browser.sh
+browser gate|in|Scripts/test_gate_browser.sh
+browser gate|in|Scripts/lib_selftest.sh
+browser gate|in|Scripts/build_site.sh
+browser gate|in|Scripts/browser_gate.mjs
+browser gate|in|Scripts/lib_site_settings.sh
+browser gate|in|Scripts/site_settings.txt
+browser gate|in|Scripts/browser_gate_baseline.txt
+browser gate|in|Scripts/browser_gate_exceptions.txt
+browser gate|in|Scripts/browser_gate_variants.txt
+browser gate|in|internal/page/required-pages.json
+browser gate|in|cmd/
+browser gate|in|internal/
+browser gate|in|go.mod
+browser gate|in|go.sum
+browser gate|in|package.json
+browser gate|in|package-lock.json
+browser gate|out|*_test.go
+browser gate|out|cmd/**/testdata/
+browser gate|out|internal/**/testdata/
+
+# --- browser gate (fixture site) self-test -------------------------------
+browser gate (fixture site) self-test|in|Scripts/test_gate_browser_fixture.sh
+browser gate (fixture site) self-test|in|Scripts/test_gate_browser.sh
+browser gate (fixture site) self-test|in|Scripts/gate_browser.sh
+browser gate (fixture site) self-test|in|Scripts/browser_gate_baseline.txt
+browser gate (fixture site) self-test|in|Scripts/gate_browser_fixture.sh
+browser gate (fixture site) self-test|in|Scripts/build_fixture_site.sh
+browser gate (fixture site) self-test|in|Scripts/browser_gate.mjs
+browser gate (fixture site) self-test|in|Scripts/lib_selftest.sh
+browser gate (fixture site) self-test|in|Scripts/lib_site_settings.sh
+browser gate (fixture site) self-test|in|Scripts/site_settings.txt
+browser gate (fixture site) self-test|in|Scripts/browser_gate_exceptions.txt
+browser gate (fixture site) self-test|in|Scripts/browser_gate_fixture_baseline.txt
+browser gate (fixture site) self-test|in|Scripts/browser_gate_variants.txt
+browser gate (fixture site) self-test|in|Scripts/testdata/fixture_site/
+browser gate (fixture site) self-test|in|internal/page/required-pages.json
+browser gate (fixture site) self-test|in|cmd/
+browser gate (fixture site) self-test|in|internal/
+browser gate (fixture site) self-test|in|go.mod
+browser gate (fixture site) self-test|in|go.sum
+browser gate (fixture site) self-test|in|package.json
+browser gate (fixture site) self-test|in|package-lock.json
+browser gate (fixture site) self-test|out|*_test.go
+browser gate (fixture site) self-test|out|cmd/**/testdata/
+browser gate (fixture site) self-test|out|internal/**/testdata/
+
+# --- browser gate (fixture site) ----------------------------------------
+browser gate (fixture site)|in|Scripts/gate_browser_fixture.sh
+browser gate (fixture site)|in|Scripts/gate_browser.sh
+browser gate (fixture site)|in|Scripts/test_gate_browser.sh
+browser gate (fixture site)|in|Scripts/lib_selftest.sh
+browser gate (fixture site)|in|Scripts/browser_gate_baseline.txt
+browser gate (fixture site)|in|Scripts/build_fixture_site.sh
+browser gate (fixture site)|in|Scripts/browser_gate.mjs
+browser gate (fixture site)|in|Scripts/lib_site_settings.sh
+browser gate (fixture site)|in|Scripts/site_settings.txt
+browser gate (fixture site)|in|Scripts/browser_gate_exceptions.txt
+browser gate (fixture site)|in|Scripts/browser_gate_fixture_baseline.txt
+browser gate (fixture site)|in|Scripts/browser_gate_variants.txt
+browser gate (fixture site)|in|Scripts/testdata/fixture_site/
+browser gate (fixture site)|in|internal/page/required-pages.json
+browser gate (fixture site)|in|cmd/
+browser gate (fixture site)|in|internal/
+browser gate (fixture site)|in|go.mod
+browser gate (fixture site)|in|go.sum
+browser gate (fixture site)|in|package.json
+browser gate (fixture site)|in|package-lock.json
+browser gate (fixture site)|out|*_test.go
+browser gate (fixture site)|out|cmd/**/testdata/
+browser gate (fixture site)|out|internal/**/testdata/

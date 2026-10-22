@@ -665,6 +665,27 @@ The POST gates, on the generated site:
   clean, a finding only on a data page, the baseline, stale rows, exit 2 cases,
   the default build, mutation proofs H and I).
 
+- **browser gate inputs** (`Scripts/test_gate_inputs.sh`, forsgren#262 step 1
+  of 3, forsgren only, not canon): `Scripts/gate_inputs.txt` lists what each of
+  the four browser rows reads, so a later step can run a browser gate only when
+  a commit touches one of its inputs. The non-script inputs are written out
+  (`cmd/`, `internal/`, `go.mod`, `go.sum`, `package.json`,
+  `package-lock.json`, `Scripts/testdata/fixture_site/`,
+  `internal/page/required-pages.json`, the `browser_gate_*` data files), with
+  `*_test.go` and the `testdata/` of the Go trees excluded (decision
+  forsgren#281); the script inputs are the closure of each gate's script. The
+  self-test is red when a label has no row, a listed path does not exist, a
+  script or data file of a gate's closure is not listed, or a gate that lists
+  the Go trees does not exclude tests. It also holds the guard that makes the
+  exclusion safe: no `go:embed` line of a non-test Go file and neither
+  `Scripts/build_site.sh` nor `Scripts/build_fixture_site.sh` may read
+  `testdata/` or a `_test.go` file. Six mutation proofs: a script dropped from
+  a list, a nonexistent path, a missing exclusion, a `go:embed` of a testdata
+  file, a `go:embed` of a test file, and a build script reading a testdata
+  file. `install/README.md` is embedded but not part of the rendered site; it
+  is left to the fail-safe of step 2. Nothing in sfl.sh or FBP.sh reads the
+  list yet.
+
 - **live check** (`Scripts/live_check.sh`, self-test `Scripts/test_live_check.sh`,
   forsgren#205 step 2 of 2, ruling item 3): after every forsgren.be deploy, the
   `live-check` job of `starter_page.yml` (needs `deploy`, runs only when the
