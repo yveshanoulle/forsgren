@@ -61,7 +61,7 @@ ORIGIN="${TMP}/origin.git"
 git init -q --bare "$ORIGIN"
 git init -q -b main "$FX"
 mkdir -p "${FX}/Scripts"
-cp "$ISO" Scripts/lib_git_sandbox.sh "${FX}/Scripts/"
+cp "$ISO" Scripts/lib_git_sandbox.sh Scripts/lib_gate_select.sh "${FX}/Scripts/"
 for t in a b c; do
   printf '#!/usr/bin/env bash\ngit --version > /dev/null\nbash Scripts/helper_%s.sh\n' "$t" > "${FX}/Scripts/test_${t}.sh"
 done
@@ -252,6 +252,23 @@ restore() {
   publish restore
   reset
 }
+# The same for the shared library (forsgren#262: changed_files, named_files and
+# closure live in Scripts/lib_gate_select.sh, which the isolation script sources).
+LIBMUT="${FX}/Scripts/lib_gate_select.sh"
+cp "$LIBMUT" "${TMP}/lib.orig"
+mutate_lib() {
+  if selftest_mutant "${TMP}/lib.orig" "$LIBMUT" "$1"; then
+    publish mutant
+    reset
+    return 0
+  fi
+  return 1
+}
+restore_lib() {
+  cp "${TMP}/lib.orig" "$LIBMUT"
+  publish restore
+  reset
+}
 proof() {
   if grep -qF -- "$2" <<< "$OUT"; then
     fail "mutation proof $1: the output still said '$2'. Output: ${OUT}"
@@ -260,18 +277,18 @@ proof() {
   fi
 }
 
-if mutate 's/done < <(named_files "[$]f")/done < <(:)/'; then
+if mutate_lib 's/done < <(named_files "[$]f")/done < <(:)/'; then
   echo '# edit' >> "${FX}/Scripts/helper_b.sh"
   iso
   proof A "isolation: 1 of 3" "without following the scripts a self-test calls, case 3 loses its self-test"
-  restore
+  restore_lib
 fi
 
-if mutate 's/^        queue+=("[$]n")$/        :/'; then
+if mutate_lib 's/^        queue+=("[$]n")$/        :/'; then
   echo 'echo edit' >> "${FX}/Scripts/deeper_b.sh"
   iso
   proof B "isolation: 1 of 3" "without extending the queue, case 4 loses the transitive self-test"
-  restore
+  restore_lib
 fi
 
 if mutate 's/"[$]{GITHUB_ACTIONS:-}" == "true"/"never" == "true"/'; then
@@ -280,11 +297,11 @@ if mutate 's/"[$]{GITHUB_ACTIONS:-}" == "true"/"never" == "true"/'; then
   restore
 fi
 
-if mutate 's/; git ls-files --others --exclude-standard;/;/'; then
+if mutate_lib 's/; git ls-files --others --exclude-standard;/;/'; then
   printf '#!/usr/bin/env bash\ngit --version > /dev/null\n' > "${FX}/Scripts/test_e.sh"
   iso
   proof D "isolation: 1 of 4" "with untracked files ignored, case 6 loses the new self-test"
-  restore
+  restore_lib
 fi
 
 if mutate '/^  echo "isolation: 0 of /d'; then

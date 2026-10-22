@@ -679,12 +679,32 @@ The POST gates, on the generated site:
   the Go trees does not exclude tests. It also holds the guard that makes the
   exclusion safe: no `go:embed` line of a non-test Go file and neither
   `Scripts/build_site.sh` nor `Scripts/build_fixture_site.sh` may read
-  `testdata/` or a `_test.go` file. Six mutation proofs: a script dropped from
-  a list, a nonexistent path, a missing exclusion, a `go:embed` of a testdata
-  file, a `go:embed` of a test file, and a build script reading a testdata
-  file. `install/README.md` is embedded but not part of the rendered site; it
-  is left to the fail-safe of step 2. Nothing in sfl.sh or FBP.sh reads the
-  list yet.
+  `testdata/` or a `_test.go` file; `go list` is read as well, so a directory
+  pattern that comes to hold a testdata file is caught. Seven mutation proofs: a
+  script dropped from a list, a nonexistent path, a missing exclusion, a
+  `go:embed` of a testdata file, a `go:embed` of a test file, a build script
+  reading a testdata file, and a directory pattern holding one.
+  `install/README.md` is embedded but not part of the rendered site; markdown is
+  never a change for the selector, so it selects nothing.
+
+- **browser gate selection** (`Scripts/lib_gate_select.sh`, self-test
+  `Scripts/test_gate_select.sh`, forsgren#262 step 2 of 3, forsgren only, not
+  canon): `gate_select <label>` prints `run: <reason>` or `skip: <reason>` from the
+  files changed against the merge base with origin/main (committed, staged,
+  unstaged and untracked; markdown is prose) and `Scripts/gate_inputs.txt`. A
+  changed file under one of the gate's inputs, and matching none of its
+  exclusions, selects it. FAIL-SAFE: a changed file that no gate's list names,
+  neither as an input nor as an excluded pattern, selects every listed gate. Files
+  known to be unrelated select nothing: the `none|out|...` rows of the list
+  (workflows, docs, markdown, the release scripts) and a file under `Scripts/`
+  that is in the closure of no gate's script, so a commit that touches only
+  those skips all four; a new top-level file or directory still runs them.
+  `GITHUB_ACTIONS=true` (Quality), `FORSGREN_GATE_SELECT_FULL=1`, a missing
+  origin/main and a label no list holds select all. `changed_files`, `named_files`
+  and `closure` live there and the git sandbox isolation gate sources them. The
+  self-test runs it in throwaway repositories (twenty-one cases) with ten
+  mutation proofs, each asserting the reason text. sfl.sh does not call it yet
+  (step 3).
 
 - **live check** (`Scripts/live_check.sh`, self-test `Scripts/test_live_check.sh`,
   forsgren#205 step 2 of 2, ruling item 3): after every forsgren.be deploy, the

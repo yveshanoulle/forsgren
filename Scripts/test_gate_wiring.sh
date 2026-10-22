@@ -175,11 +175,12 @@ fi
 # scripts they proved (forsgren#237, step 6), and up to 149 for the Dependabot
 # configuration self-test (forsgren#86), and up to 152 for the Quality job
 # layout pin and the self-test of the report merge (forsgren#259, step 2), and up
-# to 153 for the browser gate inputs self-test (forsgren#262, step 1 of 3).
+# to 153 for the browser gate inputs self-test (forsgren#262, step 1 of 3), and 154
+# for the gate selection self-test (step 2 of 3).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=153
+MIN_GATES=154
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -477,6 +478,17 @@ for path in Scripts/*.sh; do
     lib_git_sandbox.sh)
       runs_script "Scripts/test_git_sandbox_guard.sh" "$base" \
         || fail "${base} isolates the self-tests from an exported GIT_DIR and Scripts/test_git_sandbox_guard.sh never sources it"
+      ;;
+
+    # SOURCED HELPER, not a gate (forsgren#262): the changed files, the script
+    # closure and gate_select. Scripts/test_gate_select.sh is its test, and the
+    # inputs self-test and the git sandbox isolation gate are the other two
+    # that must source it, as no copy of its functions is left in them.
+    lib_gate_select.sh)
+      for consumer in test_gate_select.sh test_gate_inputs.sh test_git_sandbox_isolation.sh; do
+        runs_script "Scripts/${consumer}" "$base" \
+          || fail "${base} holds the gate selection and Scripts/${consumer} never sources it"
+      done
       ;;
 
     # SOURCED HELPER, not a gate (konenki issue #18): runs_script, the one

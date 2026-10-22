@@ -1,8 +1,8 @@
 # Scripts/gate_inputs.txt (forsgren#262, step 1 of 3)
 #
-# What each of the four browser gates reads, so a later step (the shared gate-selection library,
-# step 2) can run a gate only when a commit touches one of its inputs. This step
-# only lists and proves the list: nothing in sfl.sh or FBP.sh reads this file yet.
+# What each of the four browser gates reads, so a gate runs only when a commit touches one of its inputs.
+# Scripts/lib_gate_select.sh (step 2) reads it: gate_select <label> says run or
+# skip. Nothing in sfl.sh or FBP.sh calls that yet (step 3).
 #
 # One line per input:
 # <label>|<kind>|<path>
@@ -24,6 +24,19 @@
 # go.mod and go.sum, package.json and package-lock.json (node_modules, from
 # npm ci), the fixture data and the required-pages manifest.
 #
+# UNRELATED FILES. The label `none` holds `out` rows for the files no browser gate
+# reads: workflows, docs, markdown and the release scripts. A changed file one of
+# those rows names is known and selects nothing, instead of falling to the
+# fail-safe. A file under Scripts/ that is in the closure of no gate's script is
+# unrelated too (gate_unrelated_script in Scripts/lib_gate_select.sh), so another
+# gate's script selects nothing. Everything else that no row names (a new
+# top-level directory, a root file not listed) still selects every gate.
+none|out|.github/**
+none|out|docs/**
+none|out|*.md
+none|out|Scripts/release_*.sh
+none|out|Scripts/test_release_*.sh
+
 # NOT LISTED, ON PURPOSE: install/README.md is embedded (install/install.go) but is
 # not part of the rendered site, so no browser gate reads its content. It is left
 # to the fail-safe of step 2: a file no list names selects every gate.

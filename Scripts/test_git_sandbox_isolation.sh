@@ -20,7 +20,8 @@
 # names (the Scripts/ scripts, libraries and data files it calls, followed
 # transitively) changed, against the merge base with origin/main, counting
 # committed, staged, unstaged and untracked changes. A change to this script or
-# to a library it sources, or no origin/main to compare against, means every
+# to a library it sources (Scripts/lib_gate_select.sh, which also holds changed_files,
+# named_files and closure since forsgren#262), or no origin/main to compare against, means every
 # self-test. When none is affected the gate says so and passes; it never skips
 # without saying. FORSGREN_ISOLATION_FULL=1 forces the full run.
 #
@@ -44,6 +45,8 @@ cd "$(dirname "$0")/.." || exit 1
 
 # shellcheck source=Scripts/lib_git_sandbox.sh
 source Scripts/lib_git_sandbox.sh
+# shellcheck source=Scripts/lib_gate_select.sh
+source Scripts/lib_gate_select.sh
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -119,51 +122,6 @@ done
 if [[ "${#TESTS[@]}" -lt 3 ]]; then
   fail "only ${#TESTS[@]} git-using self-tests found: the detector is broken, not the repository"
 fi
-
-# named_files <file>: the repository files a script's non-comment lines name,
-# one path per line. A token that looks like a file name is resolved to
-# Scripts/<name>, .github/workflows/<name>, or the path itself when it exists.
-named_files() {
-  local code token
-  code="$(grep -v '^[[:space:]]*#' "$1" || true)"
-  while IFS= read -r token; do
-    [[ -z "$token" ]] && continue
-    if [[ -f "$token" ]]; then
-      echo "$token"
-    elif [[ -f "Scripts/${token##*/}" ]]; then
-      echo "Scripts/${token##*/}"
-    elif [[ -f ".github/workflows/${token##*/}" ]]; then
-      echo ".github/workflows/${token##*/}"
-    fi
-  done < <(grep -oE '[A-Za-z0-9_./-]+[.](sh|mjs|js|py|txt|json|yml|yaml|go)' <<< "$code" | sort -u)
-}
-
-# closure <file>: the file and every file it names, transitively.
-closure() {
-  local seen=$'\n'"$1"$'\n' queue=("$1") i=0 f n
-  while [[ "$i" -lt "${#queue[@]}" ]]; do
-    f="${queue[$i]}"
-    i=$((i + 1))
-    case "$f" in *.sh | *.mjs | *.js | *.py) ;; *) continue ;; esac
-    while IFS= read -r n; do
-      [[ -z "$n" ]] && continue
-      if [[ "$seen" != *$'\n'"$n"$'\n'* ]]; then
-        seen+="${n}"$'\n'
-        queue+=("$n")
-      fi
-    done < <(named_files "$f")
-  done
-  printf '%s' "$seen" | sed '/^$/d'
-}
-
-# changed_files: against the merge base with origin/main, the tracked changes
-# (committed, staged and unstaged) and the untracked files git does not ignore.
-# Non-zero when there is no origin/main to compare against. Markdown is prose.
-changed_files() {
-  local base
-  base="$(git merge-base HEAD origin/main 2> /dev/null)" || return 1
-  { git diff --name-only "$base" --; git ls-files --others --exclude-standard; } | { grep -v '[.]md$' || true; } | sort -u
-}
 
 # go_starter: the first non-test Go file under cmd/ or internal/ (not *_test.go,
 # not under testdata) that can start a program, else nothing. Starting a program

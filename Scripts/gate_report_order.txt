@@ -797,9 +797,18 @@ browser gate (fixture site)|Scripts/gate_browser_fixture.sh|post|
 # forsgren#281); this self-test holds it true (every label has a row, every
 # path exists, every closure is listed) and holds the guard that makes the
 # exclusion safe (no go:embed line and no build script reads testdata/ or a test
-# file), with six mutation proofs. Nothing selects a gate from the list yet. It sits
-# right after the rows it describes and, a pure file check, runs in pre.
+# file; the go list of what go build embeds is read too), with seven mutation proofs. It
+# sits right after the rows it describes and, a pure file check, runs in pre.
 browser gate inputs self-test|Scripts/test_gate_inputs.sh|pre|
+#
+# The selector over that list (forsgren#262, step 2 of 3, not canon: forsgren only).
+# Scripts/lib_gate_select.sh holds changed_files, named_files, closure and
+# gate_select <label>, which says `run: <reason>` or `skip: <reason>` from the files
+# a commit changed; a changed file no list names selects every gate (fail-safe), and
+# Quality, FORSGREN_GATE_SELECT_FULL=1 and a missing origin/main select all. This
+# self-test runs it in throwaway repositories, with ten mutation proofs. Nothing
+# calls gate_select from sfl.sh yet (step 3).
+browser gate selection self-test|Scripts/test_gate_select.sh|pre|
 #
 # --- Live check self-test (forsgren#205, step 2 of 2) --------------------
 # Shared canon (live_check v1, forsgren#223). Scripts/live_check.sh checks the
