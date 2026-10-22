@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-22 — the quality-run summary's older mutation proofs check their own case ([#288](https://github.com/yveshanoulle/forsgren/issues/288), step 1 of 1)
+
+forsgren issue 288, step 1 of 1. In `Scripts/test_render_quality_summary.sh` the four mutation proofs that predate #282 (0 for a missing input, a Total summed over the parts it has, verdict lines counted, the unknown-format guard dropped) asserted the bare case name, which the `ok:` line of a run red for any other reason carries too. Each now asserts its case's own failure line, `FAIL: <case>: no row`, the shape of the #282 proofs. A new helper, `want_own_case`, pins it: the run of a mutant that breaks another case (the unguarded mutant for the first three, the partial-sum mutant for the fourth) is red, passes the proof's case on an `ok:` line and never says the proof's needle. Test-only: the renderer and the workflows are unchanged.
+
+- Red first: the four `want_own_case` pins, with the needles still the bare names, failed on four expectations: each other-case mutant run said the proof's case name. Then green with the needles on the cases' own FAIL lines; each proof is still met by its own mutant.
+
+---
+
 ## 2026-10-22 — tools issues need no release ([#289](https://github.com/yveshanoulle/forsgren/issues/289), step 1 of 1)
 
 forsgren issue 289, step 1 of 1. Yves's ruling: a tooling update (CI, release scripts, build gates, self-tests) needs no release; a release comes with a feature change labelled patch, minor or major. `Scripts/release_plan.sh` now treats an issue labelled `tools` and none of patch, minor or major as needing no bump, never as unlabelled; an issue with `tools` and a bump label counts by its bump label. When only tools issues were closed since the latest release the plan says `OK: nothing to release`, names them, prints `release=none` and `tools=#N ...` and exits 0 with no version, no tag and no notes file. A release with feature issues lists the tools issues closed since the last one under `### Tooling`, after the bump headings, and in a `tools=` line. An open tools issue with commits since the latest release no longer stops the plan (the open-issue seam and the gh read carry the labels now); an open feature issue still does. `release.yml` passes `release` and `tools` on to the plan step's outputs, logs `plan: nothing to release`, and skips the version check, the head check, the publish, the install check, the template, the metrics pull request and merge and the preview on `steps.plan.outputs.release != 'none'` (a resumed run, whose plan is skipped, still runs them), so a tools-only run ends green with nothing tagged; no permission or secret change. `Scripts/release_report.sh` says nothing was released and no pin moved, and `Scripts/release_precheck.sh` says nothing to release instead of "would pass the plan". `docs/updating-and-releases.md` says tools issues need no release.

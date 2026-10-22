@@ -34,7 +34,8 @@
 #      it has, that counts verdict lines, that drops the unknown-format
 #      guard, that does not name a red gate job, that names a cancelled job
 #      as red, or that names the jobs in another order, is red, and says
-#      why.
+#      why: each proof asserts its own case's FAIL line, and a mutant that
+#      breaks another case does not meet the first four (forsgren#288).
 #  10. red, cancelled and skipped gate jobs (forsgren#282) -> the status
 #      names a red gate job (in Scripts/ci_job_groups.txt's order) in its
 #      red list, with the red phase steps; a cancelled or skipped job is
@@ -192,6 +193,23 @@ want_ordered() {
 want_absent() {
   if grep -qF -- "$2" <<< "$OUT"; then
     fail "$1: the output says '$2'. Output: ${OUT}"
+  else
+    echo "  ok: $1"
+  fi
+}
+
+# want_own_case <case> <needle> <bare case> <rc> <output>: a mutation
+# proof's <needle> is its own case's failure line (forsgren#288). The run of
+# a mutant that breaks ANOTHER case (<rc>, <output>) is red and passes
+# <bare case>, so an `ok:` line carries the bare name, and it never says
+# <needle>: the proof is met only when its own case fails.
+want_own_case() {
+  if [[ "$4" -eq 0 ]]; then
+    fail "$1: the other case's mutant run exited 0 (or never ran). Output: $5"
+  elif ! grep -qxF -- "  ok: $3" <<< "$5"; then
+    fail "$1: the other case's mutant run does not pass '$3'. Output: $5"
+  elif grep -qF -- "$2" <<< "$5"; then
+    fail "$1: a mutant that breaks another case says '$2'. Output: $5"
   else
     echo "  ok: $1"
   fi
@@ -375,36 +393,47 @@ want_absent "a skipped job is never named as red" "red in: isolation job"
 # red, and red for THAT reason (case 4's), not for an unrelated one. Then
 # three mutants of Total checks and three of the gate jobs in the status,
 # each red for its own case's reason.
+# The four older proofs' cases, and the needle each proof asserts: the
+# case's own failure line (want_row's `FAIL: <case>: no row`), never the
+# bare name, which the `ok:` line of a run red for another reason carries
+# too (forsgren#288).
+zero_case="missing coverage output shows — with its reason, never a number"
+partial_case="the Total names the part it is missing, never a partial sum"
+verdicts_case="the Total checks count every case line once, and no verdict line"
+unguarded_case="case lines in an unknown format are named, never silently counted as 1"
+zero_needle="FAIL: ${zero_case}: no row"
+partial_needle="FAIL: ${partial_case}: no row"
+verdicts_needle="FAIL: ${verdicts_case}: no row"
+unguarded_needle="FAIL: ${unguarded_case}: no row"
+partial_rc=0 partial_out="" unguarded_rc=0 unguarded_out=""
 if [[ -z "${QS_SELFTEST_RENDER_OVERRIDE:-}" ]]; then
   mutant="${TMP}/mutant/render_quality_summary.sh"
   if selftest_mutant "$RENDER" "$mutant" "s|printf '— (%s)' \"\$1\"|printf '0'|"; then
     capture env QS_SELFTEST_RENDER_OVERRIDE="$mutant" "$0"
-    want_red "a renderer that writes 0 for a missing input is caught" \
-      "missing coverage output shows — with its reason, never a number"
+    want_red "a renderer that writes 0 for a missing input is caught" "$zero_needle"
   fi
   # Total checks with its missing-part refusal dropped: a partial sum, shown
   # as if complete. Red for case 2's reason.
   partial="${TMP}/partial/render_quality_summary.sh"
   if selftest_mutant "$RENDER" "$partial" "s|^\\(  *\\)\\[ -z \"\\\$absent\" \\] \\|\\| { missing .*|\\1:|"; then
     capture env QS_SELFTEST_RENDER_OVERRIDE="$partial" "$0"
-    want_red "a renderer whose Total sums the parts it has is caught" \
-      "the Total names the part it is missing, never a partial sum"
+    want_red "a renderer whose Total sums the parts it has is caught" "$partial_needle"
+    partial_rc="$RC" partial_out="$OUT"
   fi
   # Verdict lines counted as passed cases: the number inflates. Red for
   # case 1's reason.
   verdicts="${TMP}/verdicts/render_quality_summary.sh"
   if selftest_mutant "$RENDER" "$verdicts" "s|verdict(\\\$0) { next }|verdict(\\\$0) { p++; next }|"; then
     capture env QS_SELFTEST_RENDER_OVERRIDE="$verdicts" "$0"
-    want_red "a renderer that counts verdict lines is caught" \
-      "the Total checks count every case line once, and no verdict line"
+    want_red "a renderer that counts verdict lines is caught" "$verdicts_needle"
   fi
   # The unknown-format guard dropped: omega silently counts as 1. Red for
   # case 8's reason.
   unguarded="${TMP}/unguarded/render_quality_summary.sh"
   if selftest_mutant "$RENDER" "$unguarded" "/marker(\\\$0) { u++ }/d"; then
     capture env QS_SELFTEST_RENDER_OVERRIDE="$unguarded" "$0"
-    want_red "a renderer without the unknown-format guard is caught" \
-      "case lines in an unknown format are named, never silently counted as 1"
+    want_red "a renderer without the unknown-format guard is caught" "$unguarded_needle"
+    unguarded_rc="$RC" unguarded_out="$OUT"
   fi
   # forsgren#282: a gate job's red not named, back to `no phase step`. Red
   # for case 10's lint-only reason.
@@ -430,6 +459,18 @@ if [[ -z "${QS_SELFTEST_RENDER_OVERRIDE:-}" ]]; then
     want_red "a renderer that names the jobs in another order is caught" \
       "FAIL: a browser and isolation red names both jobs, in a stable order: the output does not say"
   fi
+  # forsgren#288: each older proof is met only by its own case's failure.
+  # The unguarded mutant breaks case 8 alone, the partial mutant case 2's
+  # Totals alone (the zero mutant breaks case 2 too, and the verdicts
+  # mutant case 8 too, so neither is another case's mutant there).
+  want_own_case "the 0-for-missing proof is not met by another case's mutant" \
+    "$zero_needle" "$zero_case" "$unguarded_rc" "$unguarded_out"
+  want_own_case "the partial-sum proof is not met by another case's mutant" \
+    "$partial_needle" "$partial_case" "$unguarded_rc" "$unguarded_out"
+  want_own_case "the verdict-count proof is not met by another case's mutant" \
+    "$verdicts_needle" "$verdicts_case" "$unguarded_rc" "$unguarded_out"
+  want_own_case "the unknown-format proof is not met by another case's mutant" \
+    "$unguarded_needle" "$unguarded_case" "$partial_rc" "$partial_out"
 fi
 
 selftest_end "quality-run summary self-test" \
