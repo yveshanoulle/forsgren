@@ -18,7 +18,11 @@ var legendTbdText = []string{
 	"A dash means fewer than two commits",
 	"With one gap the mean is shown, and the deviation is a dash",
 	"between deployed commits, not every commit of the mainline",
-	"Mainline Lead Time is coming later.",
+	"The two metrics are read together",
+	"The Mainline Interval shows how often the commits that were deployed were made, by author date, in the window",
+	"It will show how long a commit takes from its creation to reaching the main branch",
+	"A short interval with a long lead time points at long-lived branches",
+	"Mainline Lead Time is not on this page yet",
 	"The TBD page is unlisted by default (tbd_page: unlisted): it is " +
 		"generated and can be opened at tbd.html, but it has no menu entry and search" +
 		" engines are asked to skip it. Set tbd_page: true to put it in the menu, or " +
@@ -31,7 +35,7 @@ var legendTbdText = []string{
 // default.
 func TestLegendExplainsTheTbdPage(t *testing.T) {
 	got := rendered(t, "legend.html", calculated())
-	_, section, found := strings.Cut(got, "<h2>TBD page</h2>")
+	_, section, found := strings.Cut(got, "<h2>Trunk-based development [TBD] (BETA)</h2>")
 	if !found {
 		t.Fatal("want a TBD page section in the legend")
 	}
@@ -46,7 +50,22 @@ func TestLegendExplainsTheTbdPage(t *testing.T) {
 	if !strings.Contains(rendered(t, "legend.html", data), "deployments of the last 90 days shipped") {
 		t.Error("want the TBD section to name the window in force")
 	}
-	if strings.Index(got, "<h2>TBD page</h2>") < strings.Index(got, "<h2>History page (beta)</h2>") {
+	tbdHeading, historyHeading := "<h2>Trunk-based development [TBD] (BETA)</h2>", "<h2>History page (BETA)</h2>"
+	if strings.Index(got, tbdHeading) < strings.Index(got, historyHeading) {
 		t.Error("want the TBD page section after the History page section")
+	}
+}
+
+// TestLegendSaysEachTbdSentenceOnce (forsgren#271): the explanation of the
+// Mainline Interval and the Mainline Lead Time line are in the legend once,
+// and the TBD page does not repeat them.
+func TestLegendSaysEachTbdSentenceOnce(t *testing.T) {
+	got := rendered(t, "legend.html", calculated())
+	for _, once := range []string{"Mainline Lead Time is not on this page yet", "each commit once",
+		"A dash means fewer than two commits", "sample standard deviation of the time between commits",
+		"deployments of the last 30 days shipped"} {
+		if n := strings.Count(got, once); n != 1 {
+			t.Errorf("want %q once in the legend, got %d", once, n)
+		}
 	}
 }

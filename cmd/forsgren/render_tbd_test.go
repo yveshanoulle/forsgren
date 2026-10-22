@@ -42,17 +42,20 @@ func TestRenderShowsTheMainlineIntervalOfEachProject(t *testing.T) {
 	}
 }
 
-// TestRenderTbdPageUsesTheDoraWindow (forsgren#253, step 5): dora_days reaches
-// the Mainline Interval as it reaches lead time: over 90 days the commit
-// deployed on 2026-08-20 (authored 2026-08-19 10:00) counts too, so three gaps
-// of 890 h, 141 h 13 min and 22 min, and the page names the window.
+// TestRenderTbdPageUsesTheDoraWindow (forsgren#253, step 5; forsgren#271):
+// dora_days reaches the Mainline Interval as it reaches lead time: over 90 days
+// the commit deployed on 2026-08-20 (authored 2026-08-19 10:00) counts too, so
+// three gaps of 890 h, 141 h 13 min and 22 min; the legend, not the page, names
+// the window.
 func TestRenderTbdPageUsesTheDoraWindow(t *testing.T) {
 	pinNow(t)
-	got := tbdSiteOf(t, validConfig+"dora_days: 90\n", writeData(t, acmeHistory(), acmeCommits()))
-	for _, want := range []string{"<td>14 d 7 h ± 19 d 22 h (3)</td>", "deployments of the last 90 days"} {
-		if !strings.Contains(got, want) {
-			t.Errorf("want %q (three gaps over 90 days, the window named), got:\n%s", want, got)
-		}
+	dir := renderInto(t, "--config", writeConfig(t, validConfig+"dora_days: 90\n"+tbdOn),
+		"--data", writeData(t, acmeHistory(), acmeCommits()))
+	if got := readSite(t, dir, "tbd.html"); !strings.Contains(got, "<td>14 d 7 h ± 19 d 22 h (3)</td>") {
+		t.Errorf("want Acme Shop's three gaps over 90 days, got:\n%s", got)
+	}
+	if got := readSite(t, dir, "legend.html"); !strings.Contains(got, "deployments of the last 90 days shipped") {
+		t.Errorf("want the legend to name the 90 days, got:\n%s", got)
 	}
 }
 

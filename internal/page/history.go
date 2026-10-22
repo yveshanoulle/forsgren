@@ -13,7 +13,7 @@ import (
 // betaMarker is what marks the History page while it is in beta (forsgren#198):
 // its title, its heading and the legend's section heading. Leaving beta is
 // setting it to the empty string.
-const betaMarker = " (beta)"
+const betaMarker = " (BETA)"
 
 // historyBeta is betaMarker, for the templates that name the History page.
 func historyBeta() string { return betaMarker }

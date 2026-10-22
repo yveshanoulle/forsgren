@@ -699,17 +699,18 @@ or a task's own name, a SHA or a commit message.
 
 ### The History page
 
-The History page (`history.html`, titled "History (beta)", forsgren#68, from 1.8.0)
+The History page (`history.html`, titled "History (BETA)", forsgren#68, from 1.8.0)
 shows how the five metrics and Overall Performance moved over time. It is
 unlisted by default (forsgren#200, from 1.8.2): generated and reachable at
 `history.html`, with no menu entry and a noindex tag (see Unlisted pages
 under [The page](#the-page), and
 [Configuration](configuration.md#configuration)). `history_page: true` lists
-it last in the menu, "History"; `false` leaves it out.
+it in the menu after Daily, "History"; `false` leaves it out.
 
 - **Beta.** The page is marked beta (forsgren#198, from 1.8.2): its title,
   its heading and the legend's History section heading read "History
-  (beta)"; the menu entry stays "History". When the page leaves beta, all
+  (BETA)", in capitals as the TBD page's title does (one marker, `betaMarker`,
+  forsgren#271); the menu entry stays "History". When the page leaves beta, all
   three go back together.
 - **How to read it.** Under the heading one line says how to read the page:
   "Each column is a period: the calendar half-years, then the last 6 months.
@@ -794,7 +795,7 @@ it last in the menu, "History"; `false` leaves it out.
 
 ### The TBD page
 
-The TBD page (`tbd.html`, titled "Trunk-based development (TBD)", forsgren#253)
+The TBD page (`tbd.html`, titled "Trunk-based development [TBD] (BETA)", forsgren#253, forsgren#271)
 shows the Mainline Interval of each project: how long it is, on average, between
 two commits that deployments shipped, and how much that varies. It is unlisted
 by default: generated and reachable at `tbd.html`, with no menu entry and a
@@ -826,10 +827,17 @@ last in the menu, "TBD"; `false` leaves it out.
   does when no data was given to the render ("No commits have been collected
   yet, so there is no Mainline Interval to show."); with data and a project
   that has no commit in the window, the project's row is `-`.
-- **Later.** A line under the heading says Mainline Lead Time is coming later;
-  there is no column for it yet.
+- **Later.** There is no column for Mainline Lead Time yet. The legend says the
+  two metrics are read together: the Mainline Interval shows how often the
+  commits that were deployed were made, by author date, in the window;
+  Mainline Lead Time will show how long a commit takes from its creation to
+  reaching the main branch; a short interval with a long lead time points at
+  long-lived branches.
 
-The legend's TBD page section says the same on the page itself.
+The page itself has the heading and the table, or its one line. The
+explanation above, with the window in force, is the legend's section for the
+page, headed with the same title; the menu entry stays "TBD". The BETA marker
+is the History page's too, written in capitals.
 
 ## Privacy
 

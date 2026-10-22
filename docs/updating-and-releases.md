@@ -365,7 +365,7 @@ defaults to `true` and `days_page` to `false`. A value the keys do not
 accept now says `use true, unlisted or false`, and the settings page lists
 `true, unlisted, false` and the new defaults. The starter that `init-config`
 writes includes `numbers_scoring_page: unlisted` and
-`history_page: unlisted`. The History page is marked beta, "History (beta)",
+`history_page: unlisted`. The History page is marked beta, "History (beta)" then (and "History (BETA)" since forsgren#271),
 and explains itself: a line under its heading says how to read it; while the
 last 6 months are its only period, a second line says why, with the date of
 the first deployment and the day the first half-year appears; and with one

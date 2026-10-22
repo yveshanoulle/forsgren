@@ -246,14 +246,14 @@ func TestChartBreaksAtAGapAndDrawsASinglePointAsADot(t *testing.T) {
 }
 
 // TestHistoryPageIsMarkedBeta (forsgren#198): the History page's title and
-// heading say "History (beta)", the legend's section heading says "History
-// page (beta)", and the menu label stays "History".
+// heading say "History (BETA)", the legend's section heading says "History
+// page (BETA)", and the menu label stays "History".
 func TestHistoryPageIsMarkedBeta(t *testing.T) {
 	history := rendered(t, "history.html", historyData())
-	wantAll(t, "history.html", history, "<title>History (beta) · ", `<h1 id="history-heading">History (beta)</h1>`,
+	wantAll(t, "history.html", history, "<title>History (BETA) · ", `<h1 id="history-heading">History (BETA)</h1>`,
 		`<a href="days.html">Daily</a> · <span aria-current="page">History</span> · <a href="tbd.html">TBD</a></nav>`)
-	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()), "<h2>History page (beta)</h2>")
-	wantNone(t, "index.html", rendered(t, "index.html", calculated()), "(beta)")
+	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()), "<h2>History page (BETA)</h2>")
+	wantNone(t, "index.html", rendered(t, "index.html", calculated()), "(BETA)")
 }
 
 // historyHowToRead is the line under the History heading (forsgren#198).
@@ -276,7 +276,7 @@ func TestHistoryPageSaysHowToReadItUnderTheHeading(t *testing.T) {
 		"none":        {calculated(), historyHowToRead + historyTrendToRead + "</p>"},
 	} {
 		wantAll(t, name, rendered(t, "history.html", tc.data),
-			`<h1 id="history-heading">History (beta)</h1>`+"\n    "+tc.line)
+			`<h1 id="history-heading">History (BETA)</h1>`+"\n    "+tc.line)
 	}
 }
 

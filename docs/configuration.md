@@ -170,8 +170,8 @@ projects:
     Mainline Interval of each project, the mean and the sample standard
     deviation of the time between commits that deployments shipped, from
     `data/commits.csv`, over the `dora_days` window (see
-    [The TBD page](pages-and-views.md#the-tbd-page)); it says that Mainline Lead
-    Time is coming later.
+    [The TBD page](pages-and-views.md#the-tbd-page)); the legend explains it
+    and says that Mainline Lead Time is not on the page yet.
 - **The settings page** (`settings.html`, forsgren#74, moved out of the legend
   in forsgren#84, a table since forsgren#141) tabulates every optional key,
   `view`, `auto_update`, `auto_update_level`, `history_days`,

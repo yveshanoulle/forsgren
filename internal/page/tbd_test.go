@@ -39,24 +39,35 @@ func TestTbdPageGolden(t *testing.T) {
 // Time column; each project's cell is the metric's own, "-" below two commits.
 func TestTbdPageHasItsHeadingAndTable(t *testing.T) {
 	got := rendered(t, "tbd.html", tbdData())
-	wantAll(t, "tbd.html", got, "<title>Trunk-based development (TBD) · ",
-		`<h1 id="tbd-heading">Trunk-based development (TBD)</h1>`, `aria-labelledby="tbd-heading"`,
+	wantAll(t, "tbd.html", got, "<title>Trunk-based development [TBD] (BETA) · ",
+		`<h1 id="tbd-heading">Trunk-based development [TBD] (BETA)</h1>`, `aria-labelledby="tbd-heading"`,
 		`<th scope="col">Project</th>`, `<th scope="col">Mainline Interval</th>`,
 		`<th scope="row">Acme Shop</th>`, "<td>2 h ± 1 h (3)</td>",
 		`<th scope="row">Acme Tools</th>`, "<td>2 h ± - (1)</td>",
 		`<th scope="row">Acme Docs</th>`, "<td>-</td>")
-	wantNone(t, "tbd.html", got, "<caption", `<th scope="col">Mainline Lead Time`, "metrics are coming to this page")
+	wantNone(t, "tbd.html", got, "<caption", "Mainline Lead Time", "metrics are coming to this page")
 }
 
-// TestTbdPageSaysWhatItCountsAndWhatComesLater (forsgren#253): under the
-// heading, one line names the window (the DORA window in force) and that the
-// commits are the deployed ones; another says Mainline Lead Time is coming.
-func TestTbdPageSaysWhatItCountsAndWhatComesLater(t *testing.T) {
-	data := tbdData()
-	data.DoraDays = 90
-	wantAll(t, "tbd.html", rendered(t, "tbd.html", data), "commits that deployments of the last 90 days shipped",
-		"<p>Mainline Lead Time is coming later.</p>")
-	wantAll(t, "tbd.html", rendered(t, "tbd.html", tbdData()), "deployments of the last 30 days")
+// TestTbdPageHasNoExplanationAndNoLeadTimeLine (forsgren#271): the h1 is
+// followed by the table, or by its one line; the explanation of the Mainline
+// Interval and the line on Mainline Lead Time are the legend's, not the page's.
+func TestTbdPageHasNoExplanationAndNoLeadTimeLine(t *testing.T) {
+	for name, data := range map[string]Data{"data": tbdData(), "no data": calculated()} {
+		wantNone(t, name, rendered(t, "tbd.html", data), "sample standard deviation", "deployments of the last",
+			"Mainline Lead Time", "A dash is", "each commit once")
+	}
+}
+
+// TestTbdTitleIsYvesWording (forsgren#271): the title and the h1 of the TBD
+// page read exactly "Trunk-based development [TBD] (BETA)", the BETA in
+// capitals as Yves wrote it, the same marker the History page reads (forsgren#198).
+func TestTbdTitleIsYvesWording(t *testing.T) {
+	const want = "Trunk-based development [TBD] (BETA)"
+	if got := calculated().TbdTitle(); got != want {
+		t.Errorf("want the title %q, got %q", want, got)
+	}
+	history := rendered(t, "history.html", historyData())
+	wantAll(t, "history.html", history, `<h1 id="history-heading">History (BETA)</h1>`)
 }
 
 // TestTbdPageSaysWhyItHasNoTable (forsgren#253): with no projects, or no
@@ -72,7 +83,7 @@ func TestTbdPageSaysWhyItHasNoTable(t *testing.T) {
 		"no data":     {calculated(), "No commits have been collected yet, so there is no Mainline Interval to show."},
 	} {
 		got := rendered(t, "tbd.html", c.data)
-		wantAll(t, name, got, "<p>"+c.want+"</p>", "<p>Mainline Lead Time is coming later.</p>")
+		wantAll(t, name, got, "<p>"+c.want+"</p>")
 		wantNone(t, name, got, "<table")
 	}
 }

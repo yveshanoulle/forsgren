@@ -21,7 +21,7 @@ func TestLegendExplainsTheHistoryPage(t *testing.T) {
 	for name, tc := range cases {
 		data := calculated()
 		data.WorkingHours = tc.hours
-		_, section, found := strings.Cut(rendered(t, "legend.html", data), "<h2>History page (beta)</h2>")
+		_, section, found := strings.Cut(rendered(t, "legend.html", data), "<h2>History page (BETA)</h2>")
 		if !found {
 			t.Fatalf("%s: want a History page section in the legend", name)
 		}

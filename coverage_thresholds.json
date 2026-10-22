@@ -832,6 +832,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/mainline.go:gapsOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/mainline.go:meanOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/mainline.go:sampleDeviation": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdTitle": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdMessage": 100.0
   }
 }
