@@ -225,7 +225,14 @@ commit of a pull request whose DCO run failed or is missing, a pull request
 that is not merged or is another repository's, a squash or rebase commit
 (not one of the pull request's commits), a merge commit that GitHub did not
 make, verify or whose second parent is another, and every direct push. A
-failed API call is red with its reason, never a pass. The workflow's token
+failed API call is asked once more after a short pause (forsgren#287:
+GitHub once answered a pull request lookup with an empty body, and a
+signed-off push turned red): `Scripts/lib_dco_api.sh`, which the push check
+and the pull request listing (`Scripts/dco_pr_commits.sh`) share, waits
+`DCO_RETRY_PAUSE` seconds (default 5) and asks again. A retry that answers
+goes on with one `⚠️` line naming the first failure; a second failure is red
+naming both reasons, never a pass, so an outage or a missing permission
+still shows its cause. The workflow's token
 reads `contents`, `pull-requests` and `checks` and writes nothing. Runs on pull requests share a group and a new push cancels the
 one in flight; runs on `main` are never cancelled, each commit gets its
 own. The check does not run in `sfl` or Quality, since it judges the
@@ -234,9 +241,11 @@ self-test does (**DCO sign-off self-test**, `Scripts/test_check_dco.sh`,
 offline, with mutation proofs for the last-paragraph rule, the email
 comparison, the account-type rule and the opener comparison, a
 throwaway repository for the push listing, and a stub `gh` for the push
-check, one mutation proof per condition of its two exemptions), and **gate wiring** is red when
+check, one mutation proof per condition of its two exemptions, and one for
+the retry), and **gate wiring** is red when
 `dco.yml` stops running the check or the push listing, loses its push
-trigger on `main`, or the self-test loses its row.
+trigger on `main`, does not check out `Scripts/lib_dco_api.sh` in both jobs,
+or the self-test loses its row.
 
 **Private names in commit messages (forsgren#213).** This repository is
 public and a commit message is published with its commit. `FBP.sh` refuses a

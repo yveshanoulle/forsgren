@@ -28,8 +28,10 @@
 # another repository's, a squash or rebase commit (not one of the pull
 # request's commits), and a merge commit not made by GitHub, not verified or
 # with another second parent, are judged strictly.
-# Any failed API call is red with its reason, never a pass: a commit that
-# cannot be looked up is not a commit judged.
+# A failed API call is asked once more after a short pause (forsgren#287,
+# Scripts/lib_dco_api.sh): one that answers then goes on with one warning
+# naming the first failure; a second failure is red naming both reasons,
+# never a pass: a commit that cannot be looked up is not a commit judged.
 #
 # The commits come from a file in check_dco.sh's input shape (one line per
 # commit, see Scripts/check_dco.sh). Reading the API needs, for the token,
@@ -39,7 +41,8 @@
 # needs no jq.
 #
 # Seams (the self-test needs no network): DCO_GH is the gh command (default
-# gh), DCO_CHECK the strict check (default Scripts/check_dco.sh).
+# gh), DCO_CHECK the strict check (default Scripts/check_dco.sh),
+# DCO_RETRY_PAUSE the seconds before the retry of a failed call (default 5).
 #
 # Usage: Scripts/dco_push_check.sh <owner/repo> <commits-file>
 # Exit: check_dco.sh's status for the commits not already judged; 0 when
@@ -65,27 +68,24 @@ if [ ! -f "$INPUT" ]; then
   echo "❌ FAIL: DCO: input file not found: ${INPUT}"
   exit 2
 fi
-GH="${DCO_GH:-gh}"
+# shellcheck source=Scripts/lib_dco_api.sh
+source Scripts/lib_dco_api.sh
 CHECK="${DCO_CHECK:-./Scripts/check_dco.sh}"
 REPO_LOWER="$(printf '%s' "$REPO" | tr '[:upper:]' '[:lower:]')"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-# api <what> <gh api arguments...>: the answer on stdout. A failed call is a
-# red line with gh's own first line of reason, and the status 1; the callers
-# run it as `x="$(api ...)" || exit 1`. The mutation proof in
-# Scripts/test_check_dco.sh rewrites the `exit 1` line below: keep it alone.
+# api <what> <gh api arguments...>: the answer on stdout, from dco_api
+# (Scripts/lib_dco_api.sh: a failed call is asked once more, and a second
+# failure is a red line naming both reasons). A call that failed twice exits
+# with status 1; the callers run it as `x="$(api ...)" || exit 1`. The
+# mutation proof in Scripts/test_check_dco.sh rewrites the `exit 1` line
+# below: keep it alone.
 api() {
-  local what="$1" reason
-  shift
-  if ! "$GH" api "$@" > "$WORK/answer" 2> "$WORK/reason"; then
-    reason="$(head -n 1 "$WORK/reason" | tr -d '\r')"
-    [ -n "$reason" ] || reason="gh exited with an error"
-    echo "❌ FAIL: DCO: the GitHub API call for ${what} failed: ${reason} — a commit that cannot be looked up is not judged, so this is red" >&2
+  if ! dco_api "$@"; then
     exit 1
   fi
-  cat "$WORK/answer"
 }
 
 # dco_green <head sha>: the pull request's head carries a DCO check run of

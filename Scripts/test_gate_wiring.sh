@@ -537,6 +537,20 @@ for path in Scripts/*.sh; do
       done
       ;;
 
+    # SOURCED HELPER, not a gate (forsgren#287): the GitHub API call of the
+    # DCO workflow's two listings, asked once more when it fails. Their
+    # self-tests are its test; both must still source it, and both jobs of
+    # dco.yml must check it out beside them, or the sparse checkout would
+    # leave the push check and the pull request listing without it.
+    lib_dco_api.sh)
+      for consumer in dco_push_check.sh dco_pr_commits.sh; do
+        grep -qE '^source .*lib_dco_api\.sh"?$' "Scripts/${consumer}" \
+          || fail "${base} holds the DCO scripts' API call and Scripts/${consumer} never sources it"
+      done
+      [[ "$(grep -cE '^[[:space:]]+Scripts/lib_dco_api\.sh$' "$DCO_WF")" -eq 2 ]] \
+        || fail "${base} is sourced by the DCO listings and ${DCO_WF} does not check it out in both jobs — the job would stop on a missing file"
+      ;;
+
     # SOURCED HELPER, not a gate (forsgren#59, refactor): the awk readers of
     # a workflow file the pins of the two reusable workflows share. Those
     # pins are its test, and both must still source it.

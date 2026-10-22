@@ -73,6 +73,7 @@ jobs:
             Scripts/dco_push_check.sh
             Scripts/dco_push_commits.sh
             Scripts/dco_pr_commits.sh
+            Scripts/lib_dco_api.sh
           sparse-checkout-cone-mode: false
 
       # One line per commit, <sha> <author account> <base64 author email>
@@ -153,6 +154,7 @@ jobs:
             Scripts/lib_private_names.sh
             Scripts/dco_push_commits.sh
             Scripts/dco_pr_commits.sh
+            Scripts/lib_dco_api.sh
           sparse-checkout-cone-mode: false
 
       - name: Check no commit message of the pull request names a private name

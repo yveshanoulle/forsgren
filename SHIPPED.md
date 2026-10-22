@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-22 — the DCO check asks a failed GitHub API call once more ([#287](https://github.com/yveshanoulle/forsgren/issues/287), step 1 of 1)
+
+forsgren issue 287, step 1 of 1. A DCO run on a signed-off push turned red because GitHub answered the pull request lookup of the commit with an empty body (`unexpected end of JSON input`); the re-run was green. The API calls of `Scripts/dco_push_check.sh` and the pull request listing `Scripts/dco_pr_commits.sh` now share one helper, `Scripts/lib_dco_api.sh` (`dco_api`): a failed call is asked once more after `DCO_RETRY_PAUSE` seconds (default 5; the self-tests set 0). A retry that answers goes on with one `⚠️` line on stderr naming the first failure, never in the commit list; a second failure is red naming both reasons, so an outage or a missing permission still turns the check red and shows its cause. `dco.yml` checks the helper out in both jobs' sparse checkouts; no new secret or permission. **gate wiring** holds that both scripts source it and both jobs check it out. `docs/ci.md` describes the retry.
+
+- Red first: `Scripts/test_check_dco.sh` cases 39e to 39g (a stub gh that fails once and then answers, fails twice with two reasons, answers at once) and `Scripts/test_check_commit_messages.sh` cases 10b and 10c failed on eight expectations: the push check and the listing red on one failure, naming only the first reason, gh asked once. Then green with a new mutation proof: without the retry, case 39e is red naming the empty answer.
+
+---
+
 ## 2026-10-22 — the template README comes from the released source ([#286](https://github.com/yveshanoulle/forsgren/issues/286), step 1 of 1)
 
 forsgren issue 286, step 1 of 1. The release's template commit used to fetch forsgren-template's README and rewrite only its "written by the daily run for forsgren X.Y.Z" line, so the body stayed the previous release's until the next daily run. `Scripts/release_pins.sh template` now first runs `go install` of `cmd/forsgren` at the released sha (GOBIN a temporary directory) and that binary's `forsgren install-readme --out <file>`, the two commands the daily run (`metrics.yml`) runs, and commits that file byte for byte as `README.md` with the pins, in the one commit as before. A failed install, or a README whose version line does not name the release exactly (a pseudo-version build), is a red before anything is read or written. The version check of the README no longer takes `1.9.4-0.…` or `1.9.40` for `1.9.4`. The metrics step, the `rewrite` and `token` modes and the resume path are unchanged; a resumed run finds the README already equal and says already done. The Release job already has Go set up for the install check, so `release.yml` is unchanged: no new secret or permission. `docs/updating-and-releases.md` (step 7) says so.

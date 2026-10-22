@@ -29,6 +29,9 @@
 #   8. a before the checkout does not have (a force-push): the same rule
 #   9. a hit in a commit already on another branch -> not judged again
 #  10. Scripts/dco_pr_commits.sh asks gh for the pull request's commits
+#      once for a call that answers; a call that fails once and then answers
+#      lists the commits with one warning, one that fails twice is red
+#      naming both reasons (forsgren#287)
 # Mutation proofs: a check that judges only the LAST commit turns case 1
 # green, so it is red because every commit is judged; a listing that skips the
 # range when before is not available turns case 8 into something that does not
@@ -234,16 +237,30 @@ want_red "8. without --fresh an unavailable before is still the DCO listing's er
 # commits; its --jq is gh's own, so the stub only shows what it was asked.
 STUB="$TMP/stub"
 mkdir -p "$STUB"
+# GH_MODE (forsgren#287): once fails the first call with an empty answer's
+# error, twice fails every call, the first and the later ones with two
+# reasons; unset answers every call. One line per call in GH_ARGS_FILE.
 cat > "$STUB/gh" <<'STUBEOF'
 #!/usr/bin/env bash
-printf '%s\n' "$*" > "${GH_ARGS_FILE}"
+printf '%s\n' "$*" >> "${GH_ARGS_FILE}"
+n="$(wc -l < "${GH_ARGS_FILE}" | tr -d ' ')"
+case "${GH_MODE:-ok}:${n}" in
+  once:1) echo "unexpected end of JSON input" >&2; exit 1 ;;
+  twice:1) echo "gh: HTTP 502: Bad Gateway" >&2; exit 1 ;;
+  twice:*) echo "gh: HTTP 504: Gateway Timeout" >&2; exit 1 ;;
+esac
 printf 'abc1234 - Zm9v YmFy\n'
 STUBEOF
 chmod +x "$STUB/gh"
 # The listing run with the stub gh first on PATH; a function, so the call
-# stands where a command stands.
+# stands where a command stands. The retry does not sleep here.
 pr_list() {
-  PATH="${STUB}:${PATH}" GH_ARGS_FILE="$TMP/gh_args" GH_TOKEN=x ./Scripts/dco_pr_commits.sh "$@"
+  rm -f "$TMP/gh_args"
+  PATH="${STUB}:${PATH}" GH_ARGS_FILE="$TMP/gh_args" GH_TOKEN=x DCO_RETRY_PAUSE=0 ./Scripts/dco_pr_commits.sh "$@"
+}
+# gh_calls: how often the last pr_list asked gh.
+gh_calls() {
+  wc -l < "$TMP/gh_args" 2>/dev/null | tr -d ' ' || echo 0
 }
 capture pr_list acme/web 7
 want_green "10. the pull request's commit list is gh's output" "abc1234 - Zm9v YmFy"
@@ -252,8 +269,37 @@ if grep -q "api --paginate repos/acme/web/pulls/7/commits --jq" "$TMP/gh_args" 2
 else
   fail "10. gh was not asked for the pull request's commits. Arguments: $(cat "$TMP/gh_args" 2>/dev/null)"
 fi
+if [[ "$(gh_calls)" == "1" ]]; then
+  echo "  ok: 10. a call that answers is asked once"
+else
+  fail "10. gh was asked $(gh_calls) times for a call that answered"
+fi
 capture pr_list acme/web
 want_red "10. a wrong call is an error" "usage"
+
+# 10b to 10c (forsgren#287): the listing asks a failed call once more. One
+# that answers on the retry lists the commits, with one warning on stderr
+# naming the first failure, never in the list; a second failure is red
+# naming both reasons.
+export GH_MODE=once
+capture pr_list acme/web 7
+want_green "10b. a listing that fails once and answers on the retry is gh's output" "abc1234 - Zm9v YmFy"
+want_said "10b. and its warning names the first failure" "⚠️  DCO: the GitHub API call for the commits of pull request #7 failed: unexpected end of JSON input; the retry answered"
+LISTED="$(pr_list acme/web 7 2>/dev/null)" || true
+if [[ "$LISTED" == "abc1234 - Zm9v YmFy" ]] && [[ "$(grep -c '⚠️' <<< "$OUT" || true)" -eq 1 ]] && [[ "$(gh_calls)" == "2" ]]; then
+  echo "  ok: 10b. the list holds the commit line alone, one warning line, gh asked twice"
+else
+  fail "10b. wanted the commit line alone on stdout, one warning and two calls. stdout: ${LISTED}; calls: $(gh_calls). Output: ${OUT}"
+fi
+export GH_MODE=twice
+capture pr_list acme/web 7
+want_red "10c. a listing that fails twice is red naming both reasons" "the GitHub API call for the commits of pull request #7 failed: gh: HTTP 502: Bad Gateway; the retry failed too: gh: HTTP 504: Gateway Timeout"
+if [[ "$(gh_calls)" == "2" ]]; then
+  echo "  ok: 10c. gh was asked twice, not more"
+else
+  fail "10c. gh was asked $(gh_calls) times for a call that failed twice"
+fi
+unset GH_MODE
 
 # --- Mutation proof for case 1: a check that judges only the last commit.
 # The mutant needs the gate and its library beside it.

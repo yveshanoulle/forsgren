@@ -71,12 +71,16 @@
 #      committer email                                -> judged strictly
 #  38. not one of the pull request's commits          -> judged strictly
 #  39. a failed API call (any of the four)            -> red with its reason
+#  39e-g. a call that fails once and then answers -> green, one warning
+#      naming the first failure; fails twice -> red naming both reasons; a
+#      call that answers is asked once (forsgren#287)
 #  40. a mixed push                                   -> the direct commit alone named
 #  41. no commit, a malformed line, a wrong call      -> red
 # One mutation proof per condition (the DCO run's success, merged, this
 # repository, membership, committer, verification, second parent, committer
 # email, a failed call not an exit): without it its case is green, so the
-# case is red BECAUSE of it.
+# case is red BECAUSE of it. And one for the retry (forsgren#287): without it
+# case 39e is red, naming the first failure.
 # Mutation proofs: case 4 against a copy of the check that reads every
 # paragraph after the subject as trailers must turn green, so case 4 is red
 # BECAUSE only the last paragraph counts; case 7 against a copy that skips
@@ -301,22 +305,36 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+# n: this call's number for this path (forsgren#287: the retry asks again).
+n="$(grep -cxF -- "$path" "${GH_FX}/.calls" 2>/dev/null)"
+n=$(( ${n:-0} + 1 ))
 printf '%s\n' "$path" >> "${GH_FX}/.calls"
 file="${GH_FX}/$(printf '%s' "$path" | tr '/?=&' '____')"
 if [ ! -f "$file" ]; then
   echo "gh: Not Found (HTTP 404)" >&2
   exit 1
 fi
-if grep -q '^FAIL ' "$file"; then
-  sed 's/^FAIL //' "$file" >&2
+# ONCE <reason>: the first call fails with it, a later one gets the answer
+# below it. FAIL <reason> lines: every call fails, call n with the n-th
+# line, a call after the last line with the last one.
+if [ "$n" -eq 1 ] && grep -q '^ONCE ' "$file"; then
+  sed -n 's/^ONCE //p' "$file" >&2
   exit 1
 fi
-jq -r "$expr" "$file"
+fails="$(grep -c '^FAIL ' "$file")"
+if [ "$fails" -gt 0 ]; then
+  [ "$n" -le "$fails" ] || n="$fails"
+  sed -n 's/^FAIL //p' "$file" | sed -n "${n}p" >&2
+  exit 1
+fi
+grep -v '^ONCE ' "$file" | jq -r "$expr"
 STUBEOF
 chmod +x "$PSTUB/gh"
 
 # push_check <commits-file> [script]: the push check with the stub gh.
-export DCO_GH="$PSTUB/gh" GH_FX="$FX" DCO_CHECK="$PWD/Scripts/check_dco.sh" GH_TOKEN=x
+# DCO_RETRY_PAUSE=0: the retry after a failed call (forsgren#287) does not
+# sleep here.
+export DCO_GH="$PSTUB/gh" GH_FX="$FX" DCO_CHECK="$PWD/Scripts/check_dco.sh" GH_TOKEN=x DCO_RETRY_PAUSE=0
 push_check() {
   # The real script is written out in its own branch: Scripts/test_gate_wiring.sh
   # looks for it as a command word here.
@@ -468,6 +486,50 @@ fx_put "repos/acme/app/pulls/7/commits" "FAIL gh: HTTP 500: Server Error"
 capture push_check "$TMP/pull-dep.txt"
 want_red "39d. a failed pull request commit lookup is red" "the GitHub API call for the commits of pull request #7 failed: gh: HTTP 500: Server Error"
 
+# 39e to 39g (forsgren#287): a failed call is asked once more. One empty
+# answer from GitHub (gh --jq: unexpected end of JSON input) turned a signed
+# push red; a retry that answers goes on, with one warning naming the first
+# failure; a second failure is red naming both; a call that answers is asked
+# once.
+# warnings: the number of warning lines in the last capture.
+warnings() {
+  grep -c '⚠️' <<< "$OUT" || true
+}
+# calls <api path>: how often the stub gh was asked for it since the last
+# fx_merged_pull.
+calls() {
+  grep -cxF -- "$1" "$FX/.calls" || true
+}
+DIRECT_PULLS="repos/acme/app/commits/${APP_DIRECT}/pulls"
+fx_merged_pull
+fx_put "$DIRECT_PULLS" $'ONCE unexpected end of JSON input\n[]'
+capture push_check "$TMP/direct-signed.txt"
+want_green "39e. a pull request lookup that fails once and answers on the retry is green" "every one signed off"
+want_said "39e. and its warning names the first failure" "⚠️  DCO: the GitHub API call for the pull requests of commit d1d1d1d1d1d1 failed: unexpected end of JSON input; the retry answered"
+if [[ "$(warnings)" -eq 1 ]] && [[ "$(calls "$DIRECT_PULLS")" -eq 2 ]]; then
+  echo "  ok: 39e. exactly one warning line, and gh was asked twice"
+else
+  fail "39e. wanted one warning line and two calls, got $(warnings) and $(calls "$DIRECT_PULLS"). Output: ${OUT}"
+fi
+fx_merged_pull
+fx_put "$DIRECT_PULLS" $'FAIL gh: HTTP 502: Bad Gateway\nFAIL gh: HTTP 504: Gateway Timeout'
+capture push_check "$TMP/direct-signed.txt"
+want_red "39f. a pull request lookup that fails twice is red naming both reasons" "the GitHub API call for the pull requests of commit d1d1d1d1d1d1 failed: gh: HTTP 502: Bad Gateway; the retry failed too: gh: HTTP 504: Gateway Timeout"
+if [[ "$(warnings)" -eq 0 ]] && [[ "$(calls "$DIRECT_PULLS")" -eq 2 ]]; then
+  echo "  ok: 39f. no warning line, and gh was asked twice, not more"
+else
+  fail "39f. wanted no warning line and two calls, got $(warnings) and $(calls "$DIRECT_PULLS"). Output: ${OUT}"
+fi
+fx_merged_pull
+fx_put "$DIRECT_PULLS" "[]"
+capture push_check "$TMP/direct-signed.txt"
+want_green "39g. a pull request lookup that answers at once is green" "every one signed off"
+if [[ "$(warnings)" -eq 0 ]] && [[ "$(calls "$DIRECT_PULLS")" -eq 1 ]]; then
+  echo "  ok: 39g. no warning line, and gh was asked once"
+else
+  fail "39g. wanted no warning line and one call, got $(warnings) and $(calls "$DIRECT_PULLS"). Output: ${OUT}"
+fi
+
 # 40: one commit already judged, one direct and unsigned: the direct one is
 # named alone, and the other said to be skipped.
 fx_merged_pull
@@ -550,9 +612,11 @@ fi
 # exact text of its line, and must turn green on the case that condition
 # makes red: the case is then red BECAUSE of that condition.
 # mutant_green <name> <sed expression> <commits file> <ok text> <fail text>
+# The mutant sources Scripts/lib_dco_api.sh from beside it: a plain copy.
 mutant_green() {
   local mutant="$TMP/mutant-$1/Scripts/dco_push_check.sh"
   if selftest_mutant ./Scripts/dco_push_check.sh "$mutant" "$2"; then
+    cp Scripts/lib_dco_api.sh "$(dirname "$mutant")/"
     capture push_check "$3" "$mutant"
     if [[ "$RC" -eq 0 ]]; then
       echo "  ok: mutation proof: $4"
@@ -618,6 +682,18 @@ fx_put "repos/acme/app/commits/${APP_DIRECT}/pulls" "FAIL gh: HTTP 502: Bad Gate
 mutant_green "apifail" 's/^    exit 1$/    return 0/' "$TMP/direct-signed.txt" \
   "when a failed API call is not an exit, case 39 is green, so it is red because the call failed" \
   "a push check that goes on after a failed API call is still red on case 39"
+
+# Mutation proof for case 39e (forsgren#287): a copy of the helper whose
+# first failure is final, the retry line made `if true`, is red on it, naming
+# the empty answer: case 39e is green BECAUSE the call is asked once more.
+fx_merged_pull
+fx_put "$DIRECT_PULLS" $'ONCE unexpected end of JSON input\n[]'
+if selftest_lib_mutant ./Scripts/dco_push_check.sh ./Scripts/lib_dco_api.sh "$TMP/mutant-retry" \
+  's/^    if ! dco_api_try "[$]dir" "[$]@"; then$/    if true; then/'; then
+  capture push_check "$TMP/direct-signed.txt" "$MUTANT"
+  want_red "mutation proof: without the retry, case 39e is red because the first call failed" \
+    "the GitHub API call for the pull requests of commit d1d1d1d1d1d1 failed: unexpected end of JSON input"
+fi
 
 selftest_end "the DCO check does not hold every commit to a Signed-off-by trailer from its author, or exempts a commit on anything but the Bot account that opened the pull request, or does not judge a push as the push check says" \
   "DCO check is green on commits signed off by their authors (any case, among other trailers, CRLF), red naming the unsigned commit alone, on no commit, on a Signed-off-by in the body, mid-line or as the subject, on a sign-off by someone else (no email printed), on no author email and on a malformed line, exits 2 on a missing file, reads stdin, exempts only the unsigned commits of the Bot account that opened the pull request (never by a bot-looking email, for a User or no account, another opener or none), names the human commit alone in a mixed pull request, and its last-paragraph rule, email comparison, account rule and opener comparison are what redden cases 4, 7, 15 and 17"
