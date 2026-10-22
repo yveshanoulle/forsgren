@@ -60,15 +60,18 @@
 # The layout-shift override (forsgren#247, decision 249): the loads and the
 # interval are read from FORSGREN_CLS_LOADS and FORSGREN_CLS_INTERVAL_MS, the
 # default stays 5 loads at 1000 ms. Every case but the layout-shift ones runs with
-# the short setting (1 load, 300 ms, longer than the 200 ms of the shift fixture):
+# the short setting (1 load, 300 ms, long after the shift fixture moves, which is
+# two animation frames after the load):
 #  37. the override is honoured (2 loads, 50 ms)        -> the OK line says 50 ms
 #  38. the short setting still catches the shift fixture -> red, 1 cold loads
 #  39. an override that is no positive integer           -> exit 2
+#  40. a load delayed 800 ms (forsgren#275)              -> the short setting is still red
 #   H. the override ignored: case 37 stops saying 50 ms;
 #   I. the default interval changed: case 15 loses 1000 ms;
 #   J. the default loads changed: case 8 loses 5 cold loads;
 #   K. a layout-shift case given a too short setting (1 ms) turns green; the
-#      shift is at 500 ms, the middle of 1 and 1000 ms, so the proof does not depend on the machine's speed.
+#      shift is 500 ms after the load, the middle of 1 and 1000 ms, so the proof
+#      does not depend on the machine's speed (forsgren#252, #275).
 
 set -euo pipefail
 
@@ -127,7 +130,8 @@ make_site() {
 }
 
 # The short setting: the cases that never assert on layout shift. The shift
-# fixture moves at 200 ms, so 300 ms still sees it (case 38).
+# fixture moves two animation frames after the load, so 300 ms still sees it
+# (case 38).
 SHORT_CLS_LOADS=1
 SHORT_CLS_INTERVAL_MS=300
 run_gate() {
@@ -147,8 +151,27 @@ make_site nodoctype "$(page '' '' '')"
 make_site nocharset "$(page '' '' '<!doctype html>' '')"
 make_site console "$(page '<script>console.error("fixture boom")</script>' '')"
 make_site notfound "$(page '<img src="/missing.png" alt="absent">' '')"
-make_site shift "$(page '' '<script>setTimeout(function () { var d = document.createElement("div"); d.style.height = "120px"; d.textContent = "late"; document.querySelector("main").prepend(d); }, 200);</script>')"
-make_site lateshift "$(page '' '<script>setTimeout(function () { var d = document.createElement("div"); d.style.height = "120px"; d.textContent = "late"; document.querySelector("main").prepend(d); }, 500);</script>')"
+# The two shift fixtures are anchored to the page's load, the moment the gate
+# starts its interval, and not to the parse of the script (forsgren#275): a load
+# that the machine delays no longer moves the shift before the gate's read.
+#  - shift: two animation frames after load, so after the first paint (a move
+#    before it is no shift) and at once, long before the 300 ms of the short
+#    setting ends. No wall-clock delay is left to lose a race.
+#  - lateshift: 500 ms after load, the middle of the 1 ms and the 1000 ms reads
+#    of mutation proof K.
+SHIFT_JS='<script>window.addEventListener("load", function () { requestAnimationFrame(function () { requestAnimationFrame(function () { var d = document.createElement("div"); d.style.height = "120px"; d.textContent = "late"; document.querySelector("main").prepend(d); }); }); });</script>'
+LATE_JS='<script>window.addEventListener("load", function () { setTimeout(function () { var d = document.createElement("div"); d.style.height = "120px"; d.textContent = "late"; document.querySelector("main").prepend(d); }, 500); });</script>'
+make_site shift "$(page '' "$SHIFT_JS")"
+make_site lateshift "$(page '' "$LATE_JS")"
+# The delay seam (forsgren#275): the same two pages after a script that blocks
+# the parse for 800 ms, as a starved machine delays the load. With the shift
+# timed from the script's parse (the fixtures as they were up to #252) the
+# short setting then missed the shift in 13 of 30 runs (the move came before
+# the first paint) and the 1 ms read of proof K saw it in 20 of 30 (the move
+# came before the read); anchored to the load, neither can happen.
+BUSY_JS='<script>var t0 = Date.now(); while (Date.now() - t0 < 800) {}</script>'
+make_site shiftslow "$(page '' "${SHIFT_JS}${BUSY_JS}")"
+make_site lateshiftslow "$(page '' "${LATE_JS}${BUSY_JS}")"
 make_site external "$(page '<img src="http://example.invalid/x.png" alt="away">' '')"
 make_site nopage "$(page '' '')"
 printf '{"requiredPages": ["/", "/nope.html"]}\n' > "${TMP}/nopage/manifest.json"
@@ -361,6 +384,8 @@ FORSGREN_CLS_LOADS=2 FORSGREN_CLS_INTERVAL_MS=50 capture "$GATE" "${TMP}/clean/s
 want_green "37: the override is honoured" "interval 50 ms"
 run_gate shift
 want_red "38: the short setting still catches the shift fixture" "largest of 1 cold loads"
+run_gate shiftslow
+want_red "40: a delayed load, the short setting still catches the shift fixture" "largest of 1 cold loads"
 FORSGREN_CLS_LOADS=0 capture "$GATE" "${TMP}/clean/site" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
 want_exit "39a: zero loads" 2 "FORSGREN_CLS_LOADS must be a positive integer"
 FORSGREN_CLS_INTERVAL_MS=fast capture "$GATE" "${TMP}/clean/site" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
@@ -454,8 +479,10 @@ if selftest_mutant "$ENGINE" "${MUT}/j.mjs" "s/envPositive('FORSGREN_CLS_LOADS',
 fi
 
 # K: a layout-shift case given a too short setting turns green: why cases 8 and
-# 19-23 keep the real values. Timing-independent (forsgren#252): the fixture
-# shifts at 500 ms, the middle: about 500 ms of margin on both sides, far under the default 1000 ms read (so the real setting always
+# 19-23 keep the real values. Timing-independent (forsgren#252, #275): the
+# fixture shifts 500 ms after the load event, the moment the gate's interval
+# starts, not after the script's parse (a load delayed past 500 ms had moved the
+# shift before the 1 ms read): the middle: about 500 ms of margin on both sides, far under the default 1000 ms read (so the real setting always
 # sees it: the read comes later than the shift on any machine) and far over the
 # 1 ms read of the short setting. K asserts the reason, not a race: the short
 # setting is the one the gate ran with (the OK line says 1 ms) and the same page
@@ -465,5 +492,10 @@ FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL_MS=1 capture "$GATE" "${TMP}/lateshif
 want_green "mutation proof K: a shift case on a too short setting turns green" "interval 1 ms)"
 run_gate_real lateshift
 want_red "mutation proof K, control: the same page on the real setting is red" "CLS 0."
+# K with a delayed load (forsgren#275): the 1 ms read still misses a shift
+# that comes 500 ms after the load, whatever the load took.
+: > "${TMP}/lateshiftslow/baseline.txt"
+FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL_MS=1 capture "$GATE" "${TMP}/lateshiftslow/site" "${TMP}/lateshiftslow/manifest.json" "${TMP}/lateshiftslow/exceptions.txt" "${TMP}/lateshiftslow/baseline.txt" "${TMP}/lateshiftslow/variants.txt"
+want_green "mutation proof K, delayed load: a 1 ms read still misses the shift" "interval 1 ms)"
 
 selftest_end "the browser gate self-test failed" "browser gate: every case holds, eleven mutations seen"
