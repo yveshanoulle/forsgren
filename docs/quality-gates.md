@@ -703,8 +703,21 @@ The POST gates, on the generated site:
   origin/main and a label no list holds select all. `changed_files`, `named_files`
   and `closure` live there and the git sandbox isolation gate sources them. The
   self-test runs it in throwaway repositories (twenty-one cases) with ten
-  mutation proofs, each asserting the reason text. sfl.sh does not call it yet
-  (step 3).
+  mutation proofs, each asserting the reason text.
+
+- **browser gate skip** (`sfl.sh`, self-test `Scripts/test_sfl_gate_skip.sh`,
+  forsgren#262 step 3 of 3, forsgren only, not canon): before a row whose label
+  has `in` rows in `Scripts/gate_inputs.txt` (the four browser rows) runs,
+  `sfl.sh` asks `gate_select`. On a skip the row's script does not run: the step
+  is still counted, printed `⏭ skipped: <label> (<reason>)`, a `⏭ skip` row of
+  the step table, and `<label><TAB><reason>` is appended to
+  `.build/sfl-skips.log` (`sfl.sh pre` empties it, post appends; forsgren#266
+  reads it). A selected row prints `▶ selected: <label> (<reason>)` and runs.
+  CI (`Scripts/run_ci_phase.sh`) does not select: Quality runs every row. The
+  self-test runs the real `sfl.sh` in throwaway repositories (a docs-only
+  change, a change to the gates' inputs, a forced full run, CI) with three
+  mutation proofs, each asserting the reason: the skip ignored, the log line
+  dropped, the log never emptied.
 
 - **live check** (`Scripts/live_check.sh`, self-test `Scripts/test_live_check.sh`,
   forsgren#205 step 2 of 2, ruling item 3): after every forsgren.be deploy, the

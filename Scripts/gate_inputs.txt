@@ -2,7 +2,8 @@
 #
 # What each of the four browser gates reads, so a gate runs only when a commit touches one of its inputs.
 # Scripts/lib_gate_select.sh (step 2) reads it: gate_select <label> says run or
-# skip. Nothing in sfl.sh or FBP.sh calls that yet (step 3).
+# skip, and sfl.sh asks it before each of the four rows (step 3): a skipped row is
+# not run, named with the reason and logged in .build/sfl-skips.log. CI runs all.
 #
 # One line per input:
 # <label>|<kind>|<path>

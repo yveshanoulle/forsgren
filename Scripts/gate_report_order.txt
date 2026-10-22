@@ -806,9 +806,18 @@ browser gate inputs self-test|Scripts/test_gate_inputs.sh|pre|
 # gate_select <label>, which says `run: <reason>` or `skip: <reason>` from the files
 # a commit changed; a changed file no list names selects every gate (fail-safe), and
 # Quality, FORSGREN_GATE_SELECT_FULL=1 and a missing origin/main select all. This
-# self-test runs it in throwaway repositories, with ten mutation proofs. Nothing
-# calls gate_select from sfl.sh yet (step 3).
+# self-test runs it in throwaway repositories, with ten mutation proofs. sfl.sh
+# calls gate_select before each browser row (step 3, the row below).
 browser gate selection self-test|Scripts/test_gate_select.sh|pre|
+#
+# sfl.sh skips an unselected browser row (forsgren#262, step 3 of 3, not canon:
+# forsgren only). Before a row whose label has `in` rows in Scripts/gate_inputs.txt
+# runs, sfl.sh asks gate_select; on a skip it does not run the script, counts the
+# step, prints `⏭ skipped: <label> (<reason>)`, shows `⏭ skip` in the step table
+# and appends the reason to .build/sfl-skips.log (forsgren#266). CI
+# (Scripts/run_ci_phase.sh) runs every row. This self-test runs the real sfl.sh in
+# throwaway repositories, with three mutation proofs.
+browser gate skip self-test|Scripts/test_sfl_gate_skip.sh|pre|
 #
 # --- Live check self-test (forsgren#205, step 2 of 2) --------------------
 # Shared canon (live_check v1, forsgren#223). Scripts/live_check.sh checks the

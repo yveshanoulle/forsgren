@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-22 — sfl skips a browser row whose inputs a commit did not touch ([#262](https://github.com/yveshanoulle/forsgren/issues/262), step 3 of 3)
+
+forsgren issue 262, step 3 of 3. Before a row whose label has `in` rows in `Scripts/gate_inputs.txt` (the four browser rows: the browser gate self-test, the browser gate, the fixture self-test and the fixture gate) runs, `sfl.sh` (v7) asks `gate_select`. On a skip the script does not run; as with the static-block skip the step is still counted, it is printed `⏭ skipped: <label> (<reason>)` and is a `⏭ skip` row of the step table (`skip_step`, now shared by both), and `<label><TAB><reason>` is appended to `.build/sfl-skips.log`, which `sfl.sh pre` empties and post appends to, for the FBP summary of #266. A selected row prints `▶ selected: <label> (<reason>)` and runs. `Scripts/run_ci_phase.sh` is untouched: Quality runs every row. A commit that touches only workflows, docs, release scripts or other gates' scripts skips the four rows, about 285 s of an FBP.
+
+- Red first: the new self-test `Scripts/test_sfl_gate_skip.sh` (its own order row; `MIN_GATES` 155) against the previous `sfl.sh` failed on every skip: the four rows ran on a docs-only change, no row was named as skipped, `.build/sfl-skips.log` was never written and a stale one was not emptied; the CI case (all four run by `run_ci_phase.sh`) already held and pins it. Then green with four cases and three mutation proofs, each asserting the reason: the skip ignored (the self-test runs and its reason is gone), the log line dropped, the log never emptied.
+
+---
+
 ## 2026-10-22 — a selector says which browser gates a commit needs ([#262](https://github.com/yveshanoulle/forsgren/issues/262), step 2 of 3)
 
 forsgren issue 262, step 2 of 3. `Scripts/lib_gate_select.sh` (sourced, never run) holds `changed_files`, `named_files` and `closure`, moved out of the git sandbox isolation gate and out of `Scripts/test_gate_inputs.sh`, which both source it now (no copy is left), and `gate_select <label>`: one line, `run: <reason>` or `skip: <reason>`, from the files changed against the merge base with origin/main and `Scripts/gate_inputs.txt`. A changed file under one of the gate's inputs, and matching none of its exclusions, selects it. Fail-safe: a changed file that no gate's list names, neither as an input nor as an excluded pattern, selects every listed gate and says which file. `GITHUB_ACTIONS=true`, `FORSGREN_GATE_SELECT_FULL=1`, a missing origin/main and a label with no list select all. `*_test.go` and `testdata/` of the Go trees are known and excluded, so they select nothing and are not unknown either (decision 281). Nothing in sfl.sh calls it yet: that is step 3.

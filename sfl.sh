@@ -16,7 +16,7 @@ cd "$(dirname "$0")" || exit 1
 # Scripts/*.sh that sfl merely calls does not require a bump.
 # Form ported from another estate repository 2026-08-31: it names the file, so a pasted log
 # says which script produced it, not just "the script".
-VERSION=6
+VERSION=7
 
 # forsgren#214: FBP.sh FIXES what the gates can fix (the npm audit heal runs
 # only under GATE_FIX=1); CI never sets it and only checks.
@@ -146,6 +146,23 @@ STOP_SENTENCE="stopped after the static block"
 STOP_SINK=".build/sfl-static-stop.log"
 rm -f "$STOP_SINK"
 
+# forsgren#262, step 3 of 3: GATE SELECTION. A row whose label has `in` rows in
+# Scripts/gate_inputs.txt (the four browser rows) is asked gate_select
+# (Scripts/lib_gate_select.sh) before it runs. On `skip: <reason>` its script
+# does not run: the step is counted, printed `⏭ skipped: <label> (<reason>)`,
+# a `⏭ skip` row of the step table, and `<label><TAB><reason>` is appended to
+# SKIPS_SINK, which pre empties and post appends to (forsgren#266 reads it).
+# CI (Scripts/run_ci_phase.sh) does not select: Quality runs every row.
+# Fixture: Scripts/test_sfl_gate_skip.sh.
+# shellcheck source=Scripts/lib_gate_select.sh
+source Scripts/lib_gate_select.sh
+GATE_INPUTS="Scripts/gate_inputs.txt"
+SKIPS_SINK=".build/sfl-skips.log"
+mkdir -p .build
+if [[ "$PHASE" == "pre" ]]; then
+  : > "$SKIPS_SINK"
+fi
+
 # Unit 404. Each gate's output is teed to a log so the block at the end can
 # quote the REASON, not just the name. Naming the gate was never enough: it
 # says WHICH one, and the why stays up the log among every passing gate.
@@ -214,6 +231,15 @@ run_gate() {
   else
     printf '%s\t%s\t%s\n' "$name" "✅ pass" "$((SECONDS - t0))" >> "$STEP_ROWS"
   fi
+}
+
+# skip_step <label> <reason>: a row that is not run, still counted, named and
+# a row of the step table.
+skip_step() {
+  STEP=$((STEP + 1))
+  printf '[%d/%d] ==> %s\n' "$STEP" "$TOTAL_STEPS" "$1"
+  echo "⏭ skipped: $1 ($2)"
+  printf '%s\t%s\t%s\n' "$1" "⏭ skip" "0" >> "$STEP_ROWS"
 }
 
 # sfl-INTERNAL steps: counted in the progress counter and shown in the table,
@@ -342,12 +368,20 @@ while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:
   fi
 
   if [ "$STOPPED" -eq 1 ]; then
-    STEP=$((STEP + 1))
     SKIPPED_GATES=$((SKIPPED_GATES + 1))
-    printf '[%d/%d] ==> %s\n' "$STEP" "$TOTAL_STEPS" "$label"
-    echo "⏭ skipped: ${label} (${STOP_SENTENCE})"
-    printf '%s\t%s\t%s\n' "$label" "⏭ skip" "0" >> "$STEP_ROWS"
+    skip_step "$label" "$STOP_SENTENCE"
     continue
+  fi
+
+  if [[ -n "$(gate_input_rows "$GATE_INPUTS" "$label" in)" ]]; then
+    selected="$(gate_select "$label")"
+    if [[ "$selected" == skip:* ]]; then
+      skip_step "$label" "${selected#skip: }"
+      printf '%s\t%s\n' "$label" "${selected#skip: }" >> "$SKIPS_SINK"
+      continue
+    fi
+    echo
+    echo "▶ selected: ${label} (${selected#run: })"
   fi
 
   if [ "${gate_class:-}" = "secret-class" ]; then

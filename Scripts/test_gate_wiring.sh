@@ -176,11 +176,12 @@ fi
 # configuration self-test (forsgren#86), and up to 152 for the Quality job
 # layout pin and the self-test of the report merge (forsgren#259, step 2), and up
 # to 153 for the browser gate inputs self-test (forsgren#262, step 1 of 3), and 154
-# for the gate selection self-test (step 2 of 3).
+# for the gate selection self-test (step 2 of 3), and 155 for the sfl gate skip
+# self-test (step 3 of 3).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=154
+MIN_GATES=155
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
