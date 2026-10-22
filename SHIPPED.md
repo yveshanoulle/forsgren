@@ -9,6 +9,15 @@ Active work lives in
 
 ---
 
+## 2026-10-22 — sfl's opening pull rebases when it cannot fast-forward and nothing overlaps ([#283](https://github.com/yveshanoulle/forsgren/issues/283), step 2 of 2)
+
+forsgren issue 283, step 2 of 2, ported from the estate canon. When sfl's opening `git pull --ff-only` cannot fast-forward (local commits not on the remote, typically a local RED commit), `Scripts/sfl_pull.sh` now fetches and asks step 1's `fbp_overlap_files` (sourced from `Scripts/fbp_push_or_rebase.sh`, no second copy) which files the incoming commits changed that the local commits or the staged, unstaged or untracked changes changed too. None: the changes are stashed, the local commits rebased onto the upstream and the stash popped with `--index`, so staged stays staged, and only the stash this run created is popped (the stash ref compared before and after); the line names the incoming short shas, and the gates run on the rebased tree, so what is pushed is what was tested. An overlap, no upstream, a failed fetch or a failed rebase: `❌` lines naming the files, `git pull --rebase --autostash` to run, exit 3 as before, HEAD, the staged and unstaged changes and the stash list untouched. sfl.sh v8.
+
+- Red first: `Scripts/test_sfl_pull_rebase.sh` (a temp bare remote and two clones) failed on its expectations only: the unrelated case exit 3 instead of a rebase, the overlap cases without the file named on a `❌` line, the overlap-check line missing for the mutation proof. Then green, with two mutation proofs, each asserting its reason: without the overlap check the local commit's file is rebased, without the working-tree part of the overlap list the staged file is rebased.
+- Registered: an order-file row after the sfl pull contract, `MIN_GATES` 157, CONTRIBUTING.md, docs/gate-classification.md, docs/quality-gates.md, docs/development.md, CLAUDE.md. `Scripts/test_sfl_pull.sh` (v3) puts its mutants beside a copy of the shared helper.
+
+---
+
 ## 2026-10-22 — FBP rebases and pushes when the push is refused and the incoming commits touch other files ([#283](https://github.com/yveshanoulle/forsgren/issues/283), step 1 of 2)
 
 forsgren issue 283, step 1 of 2, ported from the estate canon. When the final `git push` of `FBP.sh` is refused because the remote moved during the run, `Scripts/fbp_push_or_rebase.sh` fetches and compares the files changed by the incoming commits with those of the local commits. No file in both: the local commits are rebased onto the remote (author and message kept, so the Signed-off-by trailer stays), pushed, and the git row reads `⚠️ (pushed after rebasing onto <shas>; this combination is tested by CI, not by this run)`; a remote that moves again is rebased over again, at most 3 pushes. A file in both, a rebase conflict, a third refused push or a refusal with nothing incoming: any rebase aborted, the local commits unchanged, `❌` lines naming the files and `git pull --rebase --autostash`, and the run is red. The helper is sourceable, so step 2 (sfl's opening pull) can reuse `fbp_overlap_files`. The opening pull is unchanged. FBP_VERSION 10.

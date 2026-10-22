@@ -35,8 +35,9 @@
 # true, that the pushed combination was not tested by this run.
 #
 # The overlap list (fbp_overlap_files) and the sha list (fbp_join_shas) are
-# meant for sfl's opening pull too, which is to rebase the same way when it
-# cannot fast-forward (forsgren#283, step 2). So this file is also SOURCED:
+# shared with sfl's opening pull, which rebases the same way when it cannot
+# fast-forward (Scripts/sfl_pull.sh, forsgren#283, step 2). So this file is
+# also SOURCED:
 # sourced, it defines the functions and runs nothing; run, it handles the
 # refused push.
 

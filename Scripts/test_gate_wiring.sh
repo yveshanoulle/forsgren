@@ -178,11 +178,12 @@ fi
 # to 153 for the browser gate inputs self-test (forsgren#262, step 1 of 3), and 154
 # for the gate selection self-test (step 2 of 3), and 155 for the sfl gate skip
 # self-test (step 3 of 3), and 156 for the FBP push-or-rebase self-test
-# (forsgren#283, step 1 of 2).
+# (forsgren#283, step 1 of 2), and 157 for the sfl pull rebase self-test
+# (forsgren#283, step 2 of 2).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=156
+MIN_GATES=157
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -447,11 +448,12 @@ for path in Scripts/*.sh; do
       ;;
 
     # PRE-FLIGHT SYNCHRONISATION, not a gate. sfl sources it before PRE so
-    # the run starts from the latest fast-forwardable upstream state. CI
+    # the run starts from the latest upstream state: a fast-forward, or a
+    # rebase over incoming commits on other files (forsgren#283, step 2). CI
     # checks out the exact commit it evaluates and must not pull another.
     sfl_pull.sh)
       runs_script "$SFL" "$base" \
-        || fail "${base} provides sfl's opening ff-only pull and sfl never sources it"
+        || fail "${base} provides sfl's opening pull and sfl never sources it"
       require_fixture "$base" "the pull contract would be untested"
       ;;
 
@@ -1203,7 +1205,7 @@ if ! is_mutation_rerun; then
   # sfl.sh: the pull source line becomes a comment.
   mutation_proof GATE_WIRING_SFL_OVERRIDE "Scripts/sfl_pull.sh" \
     's|^([[:space:]]*)(source Scripts/sfl_pull\.sh)|\1# \2|' \
-    "sfl_pull.sh provides sfl's opening ff-only pull and sfl never sources it" \
+    "sfl_pull.sh provides sfl's opening pull and sfl never sources it" \
     "an sfl.sh that mentions sfl_pull.sh only in comments"
 
   # sfl.sh: the phase filter becomes a comment, so sfl would run every row in

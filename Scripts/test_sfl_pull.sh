@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_sfl_pull v2
+# canon: test_sfl_pull v3
 set -euo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
@@ -11,7 +11,10 @@ source Scripts/lib_git_sandbox.sh
 #
 # The sfl pull contract, shared by every repo of the estate: `git pull --ff-only`;
 # on anything else, print the manual recovery command to stderr and stop with
-# exit 3, never warn-and-continue.
+# exit 3, never warn-and-continue. Since forsgren#283 step 2 a pull that cannot
+# fast-forward is rebased instead when the incoming commits touch none of the
+# local files; that path is Scripts/test_sfl_pull_rebase.sh's, and against this
+# fixture's failing git stub it stops with exit 3 as before.
 #
 # THIS FIXTURE ALSO PINS THE WIRING. It is not enough for Scripts/sfl_pull.sh
 # to behave correctly in isolation (cases 1/2/3 below) if sfl.sh never calls it, or if the old warn-and-continue
@@ -125,6 +128,9 @@ fi
 # --- Mutation proof: weakened copies of Scripts/sfl_pull.sh must be red here.
 if [ $# -eq 0 ]; then
   MUT="$(mktemp -d)"
+  # Scripts/sfl_pull.sh sources the shared overlap list from its own
+  # directory, so each mutant sits beside a plain copy of it.
+  cp Scripts/fbp_push_or_rebase.sh "$MUT/"
   mutant_must_fail() { # <label> <sed-expression>
     local m="$MUT/sfl_pull_$RANDOM.sh"
     sed "$2" "$SRC" > "$m"

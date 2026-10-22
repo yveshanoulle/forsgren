@@ -64,9 +64,9 @@ rebase conflicts, it aborts any rebase, leaves the local commits as they were,
 names the files and the command to run (`git pull --rebase --autostash`, then
 FBP again) in `❌` lines, and the run is red. A remote that moves again is
 rebased over again, at most 3 pushes in all, then the run stops red with the
-commits rebased. A push refused for any other reason is red too. The opening
-pull of sfl is unchanged: it still stops when it cannot fast-forward.
-`Scripts/test_fbp_push_or_rebase.sh` pins it.
+commits rebased. A push refused for any other reason is red too.
+`Scripts/test_fbp_push_or_rebase.sh` pins it. sfl's opening pull rebases the
+same way (step 2 of 2, see `./sfl.sh` below).
 
 Its closing summary prints the message, one row per phase with the
 gate counts and the page count, and every failure's reason. A run ended by
@@ -96,8 +96,16 @@ It changes, commits and pushes nothing, and FBP and CI remain the verdict.
 order file.
 
 **`./sfl.sh pre|post`** runs one phase of the gates. Before PRE it runs
-`git pull --ff-only` and stops (exit 3) when that cannot fast-forward, then
-installs the tools (see [The tools](#the-tools)), checks the Node pin, runs
+`git pull --ff-only`. When that cannot fast-forward (local commits not on the
+remote, a local RED commit say), it rebases the local commits onto the
+upstream if the files the incoming commits changed overlap neither the local
+commits nor the staged, unstaged or untracked changes (the same
+`fbp_overlap_files` as FBP's refused push; the changes are stashed and popped
+with `--index`, so staged stays staged, and only the stash this run made is
+popped), and the gates run on the rebased tree (forsgren#283, step 2 of 2,
+`Scripts/sfl_pull.sh`). Any overlap or failure stops it (exit 3) with the
+files named and `git pull --rebase --autostash` to run, the commits and the
+changes as they were. Then it installs the tools (see [The tools](#the-tools)), checks the Node pin, runs
 `npm ci` when `node_modules` is missing or stale (see [The tools](#the-tools)),
 and exports the Go pin. It runs every gate of the
 phase even after a failure, prints a step table and an `Errors:` block with
@@ -279,7 +287,10 @@ broken runner cannot report green:
 
 - **sfl pull contract** (`Scripts/test_sfl_pull.sh`): sfl pulls with
   `--ff-only` and stops with exit 3, naming the recovery command, when it
-  cannot fast-forward.
+  can neither fast-forward nor rebase.
+- **sfl pull rebase self-test** (`Scripts/test_sfl_pull_rebase.sh`): the
+  opening pull's rebase over unrelated incoming commits, and its stop on an
+  overlap with the local side untouched, in a temp bare remote and two clones.
 - **npm manifest policy self-test**, **npm-audit self-test** and the other
   `... self-test` rows: each drives its gate on made-up input before the
   gate runs.

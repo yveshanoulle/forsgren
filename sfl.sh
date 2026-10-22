@@ -16,7 +16,7 @@ cd "$(dirname "$0")" || exit 1
 # Scripts/*.sh that sfl merely calls does not require a bump.
 # Form ported from another estate repository 2026-08-31: it names the file, so a pasted log
 # says which script produced it, not just "the script".
-VERSION=7
+VERSION=8
 
 # forsgren#214: FBP.sh FIXES what the gates can fix (the npm audit heal runs
 # only under GATE_FIX=1); CI never sets it and only checks.
@@ -39,11 +39,14 @@ echo "sfl.sh v${VERSION} — ${PHASE} — Started at $(date '+%Y-%m-%d %H:%M:%S'
 
 # forsgren runs sfl in two phases around the build. Synchronise only before
 # PRE: pulling again before POST could change the source after .build/site has
-# already been built. A pull that cannot fast-forward is a hard stop, never an
-# auto-rebase — rewriting local commits is the person's decision, not sfl's.
+# already been built. A pull that cannot fast-forward rebases the local commits
+# onto the upstream when the incoming commits touch none of the files of the
+# local commits or of the staged, unstaged or untracked changes (staged stays
+# staged), so the gates below run on the rebased tree (forsgren#283, step 2 of
+# 2). Any overlap or failure is a hard stop, the local side left as it was.
 # Exit 3 is reserved for this condition so FBP.sh can distinguish it later;
 # FBP.sh does not handle that exit specially yet.
-# Fixture: Scripts/test_sfl_pull.sh.
+# Fixtures: Scripts/test_sfl_pull.sh, Scripts/test_sfl_pull_rebase.sh.
 if [[ "$PHASE" == "pre" ]]; then
   echo
   echo "Pulling latest from remote..."

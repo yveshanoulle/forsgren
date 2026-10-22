@@ -741,10 +741,29 @@ The POST gates, on the generated site:
   nothing incoming: any rebase aborted, `❌` lines naming the files and
   `git pull --rebase --autostash`, the git row `❌ (push refused, remote moved —
   see above)`, exit 1. Sourced, it only defines `fbp_overlap_files` and
-  `fbp_join_shas`, for sfl's opening pull (step 2). The self-test drives a copy
+  `fbp_join_shas`, for sfl's opening pull (step 2, the next item). The self-test drives a copy
   of the real FBP.sh in throwaway repositories whose bare origin moves during the
   run (six cases) with one mutation proof: without the overlap check the
   same-file case is pushed and the scenario fails on the missing file name.
+
+- **sfl pull rebase** (`Scripts/sfl_pull.sh`, self-test
+  `Scripts/test_sfl_pull_rebase.sh`, forsgren#283 step 2 of 2, ported from the
+  estate canon): when sfl's opening `git pull --ff-only` cannot fast-forward
+  (local commits not on the remote, typically a local RED commit), it sources
+  `Scripts/fbp_push_or_rebase.sh` and asks `fbp_overlap_files` which files the
+  incoming commits changed that the local side changed too: the local commits
+  and the staged, unstaged and untracked changes. None: the changes are stashed
+  (`--include-untracked`), the local commits rebased onto `@{u}`, and the stash
+  popped with `--index`, so staged stays staged; only the stash this run
+  created is popped (the stash ref compared before and after). The line names
+  the incoming short shas and says the gates run on the rebased tree. An
+  overlap, no upstream, a failed fetch, nothing incoming or a failed rebase:
+  `❌` lines naming the files, `git pull --rebase --autostash` to run, exit 3,
+  HEAD, the staged and unstaged changes and the stash list as they were. The
+  self-test drives the real `sfl_pull_or_stop` in a temp bare remote and two
+  clones (three cases) with two mutation proofs, each asserting its reason:
+  without the overlap check the local commit's file is rebased, and without the
+  working-tree part of the overlap list the staged file is rebased.
 
 - **live check** (`Scripts/live_check.sh`, self-test `Scripts/test_live_check.sh`,
   forsgren#205 step 2 of 2, ruling item 3): after every forsgren.be deploy, the

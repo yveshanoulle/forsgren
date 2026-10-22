@@ -41,6 +41,7 @@ run report shows how many checks each of them ran.
 - private-names secret sync self-test (`Scripts/test_sync_private_names_secrets.sh`, pre)
 - private-names local file self-test (`Scripts/test_ensure_private_names_file.sh`, pre)
 - sfl pull contract (`Scripts/test_sfl_pull.sh`, pre)
+- sfl pull rebase self-test (`Scripts/test_sfl_pull_rebase.sh`, pre)
 - npm manifest policy self-test (`Scripts/test_check_guardrail_packages.sh`, pre)
 - npm manifest policy (`Scripts/check_guardrail_packages.sh`, pre)
 - tool install self-test (`Scripts/test_install_tools.sh`, pre)

@@ -21,7 +21,7 @@ not close it.
 ## The order file, row by row
 
 [Scripts/gate_report_order.txt](../Scripts/gate_report_order.txt) is the one
-list sfl and CI both run. It has 156 rows: 152 with a script and 4 `n/a`
+list sfl and CI both run. It has 157 rows: 153 with a script and 4 `n/a`
 rows. All scripts are in `Scripts/`. The phase is `pre` (repository inputs and
 checker behaviour) or `post` (the generated site). `secret-class` means a
 finding blocks the commit as well as the push. A row for a self-test is
@@ -54,7 +54,8 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 19 | zizmor | `check_zizmor.sh` | pre | required |
 | 20 | private-names secret sync self-test | `test_sync_private_names_secrets.sh` | pre | required |
 | 21 | private-names local file self-test | `test_ensure_private_names_file.sh` | pre | required |
-| 22 | sfl pull contract | `test_sfl_pull.sh` | pre | required, `test_sfl_pull v1` |
+| 22 | sfl pull contract | `test_sfl_pull.sh` | pre | required, `test_sfl_pull v3` (the mutants sit beside a copy of `fbp_push_or_rebase.sh`, which `sfl_pull v2` sources) |
+| 160 | sfl pull rebase self-test | `test_sfl_pull_rebase.sh` | pre | required; ported from the estate canon (`test_sfl_pull_rebase v1`) on `lib_selftest.sh`: `sfl_pull.sh` (`sfl_pull v2`) in a temp bare remote and two clones: an unrelated incoming commit rebased with the staged change still staged, the unstaged one kept and no stash left; an incoming commit on the staged file or on the local commit's file stopped with exit 3, the file named, the local side untouched; 2 mutation proofs, each asserting the reason (forsgren#283, step 2 of 2) |
 | 23 | npm manifest policy self-test | `test_check_guardrail_packages.sh` | pre | required, `test_check_guardrail_packages v1` |
 | 24 | npm manifest policy | `check_guardrail_packages.sh` | pre | required, `check_guardrail_packages v1` |
 | 25 | tool install self-test | `test_install_tools.sh` | pre | required, `test_install_tools v1` |
@@ -221,7 +222,8 @@ ruling; a missing file is exit 2.
 ## Checks outside the order file
 
 - **gofmt fix**: `FBP.sh` runs `gofmt -w` before sfl; sfl and CI only check.
-- **Tool install, npm install sync, git pull --ff-only**: sfl only, local
+- **Tool install, npm install sync, the opening pull** (`git pull --ff-only`,
+  or a rebase when nothing overlaps, forsgren#283): sfl only, local
   steps with their own self-tests in the order file (`install_tools`,
   `npm_sync_install`, `sfl_pull`).
 - **DCO sign-off**: `.github/workflows/dco.yml` on pull requests and pushes
@@ -327,7 +329,7 @@ malformed row fails the step. Its self-test is the PRE row 124.
 
 ## The ratchet today
 
-`MIN_GATES` is 156, which equals the 156 rows of the order file (152 with a
+`MIN_GATES` is 157, which equals the 157 rows of the order file (153 with a
 script and 4 `n/a` rows). forsgren#215 brought it to 115 and the Go tool
 helper self-test of forsgren#216 is the 116th; the browser gate and its
 self-test (forsgren#205) made 118, and the live check self-test
@@ -342,4 +344,4 @@ sandbox (forsgren#228) made 137, and the bump diff self-test (forsgren#230,
 step 1) made 138, and the short Quality (forsgren#230, step 2: its runner and the pin
 of the scope) made 140, and the preview deploy
 script's self-test and the preview workflow pin (forsgren#222) made 142, and the
-pre-check's self-test (forsgren#231, step 1) made 143, and the static block's self-test (forsgren#231, step 2) made 144, and the release pre-check's self-test (forsgren#231, step 3) made 145, and the pin that the run summary comes first (forsgren#233) made 146, and the isolation of the self-tests from the run summary (forsgren#233) made 147, and the Quality runner pins gate (forsgren#240, step 1) made 148, and the self-test and the gate of the browser gate on the fixture site (forsgren#226) made 150, and the commit messages self-test (forsgren#213) made 151, and the browser gate inputs self-test (forsgren#262, step 1 of 3) made 153, and the gate selection self-test (step 2 of 3) made 154, and the sfl gate skip self-test (step 3 of 3) made 155, and the FBP push-or-rebase self-test (forsgren#283, step 1 of 2) made 156. The self-tests of the install check and the agent proofs (forsgren#237, steps 5a and 5b) made 153. The five self-tests of the bump, the commit, the bump diff, the short Quality and its scope pin (rows 128, 130, 140, 141, 142) went with the scripts they proved (forsgren#237, step 6), which brought it down to 148. The Dependabot configuration self-test (forsgren#86) made 149. The isolation scope self-test (forsgren#251, step 1) made 150.
+pre-check's self-test (forsgren#231, step 1) made 143, and the static block's self-test (forsgren#231, step 2) made 144, and the release pre-check's self-test (forsgren#231, step 3) made 145, and the pin that the run summary comes first (forsgren#233) made 146, and the isolation of the self-tests from the run summary (forsgren#233) made 147, and the Quality runner pins gate (forsgren#240, step 1) made 148, and the self-test and the gate of the browser gate on the fixture site (forsgren#226) made 150, and the commit messages self-test (forsgren#213) made 151, and the browser gate inputs self-test (forsgren#262, step 1 of 3) made 153, and the gate selection self-test (step 2 of 3) made 154, and the sfl gate skip self-test (step 3 of 3) made 155, and the FBP push-or-rebase self-test (forsgren#283, step 1 of 2) made 156, and the sfl pull rebase self-test (forsgren#283, step 2 of 2) made 157. The self-tests of the install check and the agent proofs (forsgren#237, steps 5a and 5b) made 153. The five self-tests of the bump, the commit, the bump diff, the short Quality and its scope pin (rows 128, 130, 140, 141, 142) went with the scripts they proved (forsgren#237, step 6), which brought it down to 148. The Dependabot configuration self-test (forsgren#86) made 149. The isolation scope self-test (forsgren#251, step 1) made 150.
