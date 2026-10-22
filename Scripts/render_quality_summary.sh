@@ -20,6 +20,8 @@
 #     Scripts/check_coverage.sh).
 #   - Scripts/build_site.sh's page-count sink, SITE_PAGE_COUNT_FILE (default
 #     .build/site-page-count.log), written only by a build that succeeded.
+#   - the gate jobs of Scripts/ci_job_groups.txt (QS_JOB_GROUPS moves it,
+#     for the fixture), for the status.
 #   - the version in cmd/forsgren/main.go (QS_MAIN_GO moves it, for the
 #     fixture), the one source of the version.
 #   - env, from quality.yml, never from `${{ }}` inside run:
@@ -27,6 +29,12 @@
 #       QS_PRE_OUTCOME, QS_BUILD_OUTCOME, QS_POST_OUTCOME
 #                       the outcome of each phase's step: success, failure,
 #                       cancelled, skipped, or empty when never reached
+#       QS_<JOB>_RESULT the result of each gate job outside the main job,
+#                       one per job of Scripts/ci_job_groups.txt
+#                       (QS_ISOLATION_RESULT, QS_BROWSER_RESULT,
+#                       QS_LINT_RESULT; needs.<job>.result, forsgren#282):
+#                       success, failure, cancelled, skipped, or empty when
+#                       not given (a local run)
 #       QS_SECRET_BLOCK true when PRE had a secret-class finding
 #       QS_PR_NUMBER    the pull request's number, on a pull_request run
 #       QS_STARTED_AT   epoch seconds, written by the job's first shell step
@@ -75,6 +83,7 @@ DETAILS="$2"
 ORDER="${3:-Scripts/gate_report_order.txt}"
 MAIN_GO="${QS_MAIN_GO:-cmd/forsgren/main.go}"
 PAGE_SINK="${SITE_PAGE_COUNT_FILE:-.build/site-page-count.log}"
+JOB_GROUPS="${QS_JOB_GROUPS:-Scripts/ci_job_groups.txt}"
 
 JOB_STATUS="${QS_JOB_STATUS:-}"
 PRE_OUTCOME="${QS_PRE_OUTCOME:-}"
@@ -114,16 +123,47 @@ red=""
 [ "$BUILD_OUTCOME" = "failure" ] && red="${red:+${red}, }the build"
 [ "$POST_OUTCOME" = "failure" ] && red="${red:+${red}, }POST"
 
+# The gate jobs outside the main job (forsgren#282): their gates run in no
+# phase step of the main job, so a red there is named by its job, after the
+# red phase steps. The jobs are the ones Scripts/ci_job_groups.txt names, in
+# its order, each read from QS_<JOB>_RESULT, so a gate job added there is
+# named too. A cancelled or skipped job is named as such in `unjudged`,
+# never as red; an empty result (not given: a local run) is not named.
+unjudged=""
+job_result() {
+  case "$2" in
+    ''|success) ;;
+    cancelled|skipped) unjudged="${unjudged:+${unjudged}, }$1 job $2" ;;
+    *) red="${red:+${red}, }$1 job" ;;
+  esac
+}
+gate_jobs() {
+  [ -f "$JOB_GROUPS" ] || return 0
+  awk -F'|' '$0 !~ /^#/ && $1 != "" && !seen[$1]++ { print $1 }' "$JOB_GROUPS"
+}
+while read -r gate_job; do
+  [ -n "$gate_job" ] || continue
+  result_var="QS_$(printf '%s' "$gate_job" | tr '[:lower:]-' '[:upper:]_')_RESULT"
+  job_result "$gate_job" "${!result_var:-}"
+done <<< "$(gate_jobs)"
+
+# where: the clauses after the dash, `<how far>; red in: …; <unjudged jobs>`.
+where() {
+  printf '%s%s%s' "$1" "${red:+; red in: ${red}}" "${unjudged:+; ${unjudged}}"
+}
+
 case "$JOB_STATUS" in
   success)
     status="**✅ Succeeded** — PRE, build and POST all ran." ;;
   cancelled)
-    status="**⏹️ Cancelled** — stopped in ${furthest}." ;;
+    status="**⏹️ Cancelled** — $(where "stopped in ${furthest}")." ;;
   failure)
-    if [ "$furthest" = "POST" ]; then
-      status="**❌ Failed** — every phase ran; red in: ${red:-no phase step}."
+    if [ "$furthest" != "POST" ]; then
+      status="**❌ Failed** — $(where "stopped in ${furthest}")."
+    elif [ -z "${red}${unjudged}" ]; then
+      status="**❌ Failed** — every phase ran; red in: no phase step."
     else
-      status="**❌ Failed** — stopped in ${furthest}${red:+; red in: ${red}}."
+      status="**❌ Failed** — $(where "every phase ran")."
     fi ;;
   *)
     status="**❔ Status unknown** — QS_JOB_STATUS is ${JOB_STATUS:-not set}." ;;

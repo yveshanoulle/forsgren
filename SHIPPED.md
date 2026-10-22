@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-22 — the run summary names the red gate job ([#282](https://github.com/yveshanoulle/forsgren/issues/282), step 2 of 2)
+
+forsgren issue 282, step 2 of 2. Since step 1 a lint-only red left every phase step of the main job green, and the run summary's status read `❌ Failed — every phase ran; red in: no phase step.`; the same gap was already there for an isolation or browser red. `Scripts/render_quality_summary.sh` now reads the gate jobs from `Scripts/ci_job_groups.txt` (isolation, browser, lint, in its order; `QS_JOB_GROUPS` moves it for the fixture) and each one's `QS_<JOB>_RESULT`: a red job joins the red list after the red phase steps (`red in: lint job`, `red in: PRE, lint job`, `red in: isolation job, browser job`), a cancelled or skipped job is named as such (`stopped in POST; browser job cancelled`, `every phase ran; isolation job skipped`), never as red, and a run whose every job and phase is green keeps its line. A gate job added to the groups file is named without a change here. The report job already passes the three results to the render step, so `quality.yml` is unchanged: no new secret or permission. `docs/ci.md` describes the line.
+
+- Red first: `Scripts/test_render_quality_summary.sh` case 10 (a lint-only red, a browser and isolation red, a PRE and lint red, an all-green run, a cancelled job, a skipped job) failed on six expectations, the renderer saying `red in: no phase step`, `red in: PRE` and `stopped in POST.`. Then green with three new mutation proofs, each asserting its own case's failure line: a red gate job left unnamed, a cancelled job named as red, and the jobs read in another order (sorted by name).
+
+---
+
 ## 2026-10-22 — the lint block runs as its own Quality job ([#282](https://github.com/yveshanoulle/forsgren/issues/282), step 1 of 2)
 
 forsgren issue 282, step 1 of 2. `Scripts/ci_job_groups.txt` gives the nine lint rows (actionlint, its two self-tests, shellcheck, yamllint and zizmor with their self-tests) to a new `lint` job, the mechanism of the isolation and browser jobs, so the main `quality` job no longer runs them. `.github/workflows/quality.yml` has the `lint` job (Lint gates) in parallel with `quality`, `isolation` and `browser`, with the same setup, `Scripts/run_ci_phase.sh pre ... lint` and its hand-over `quality-report-lint`; the report job needs it and passes `QS_LINT_RESULT` to the status, and the preview job needs it. The order file is unchanged: the rows keep their pre phase and their place in the static block, so `sfl.sh` and `FBP.sh` run them, and stop after the block, as before. No new secret or permission.

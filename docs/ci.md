@@ -106,8 +106,9 @@ Gates that did not run are counted as unmeasured, never as passing.
 
 **The run summary.** Above that table, every run page opens with the run's
 key numbers (forsgren#8), written by the report job's step, which runs after a
-failure or a cancel too: the status (succeeded, failed or cancelled, and the
-phase it stopped in), the gates passed, failed and skipped in PRE and in
+failure or a cancel too: the status (succeeded, failed or cancelled, the
+phase it stopped in, and what was red: the phase steps and the gate jobs
+outside the main job, `red in: PRE, lint job`; forsgren#282), the gates passed, failed and skipped in PRE and in
 POST, the Go tests passed, the total checks (every individual check that
 ran, counted once: each case of every self-test and gate, each Go test, and
 a gate with no case lines as one; passed and failed), the coverage total
@@ -116,7 +117,12 @@ forsgren version, the commit and trigger (push, pull request with its
 number, or by hand) and the duration. `Scripts/render_quality_summary.sh`
 reads them from what the run already wrote (the gate rows and outputs, the
 page-count sink, `cmd/forsgren/main.go`) and from the job's status and step
-outcomes, passed through `env:`. A number that does not exist, from a phase
+outcomes, passed through `env:`. The gate jobs are the jobs of
+`Scripts/ci_job_groups.txt`, in its order, each read from its
+`QS_<JOB>_RESULT` (`needs.<job>.result`): a red one is named in the red list
+(`red in: isolation job, browser job`), a cancelled or skipped one as such
+(`browser job cancelled`), never as red, and a run whose every job and phase
+is green keeps its line. A number that does not exist, from a phase
 that never ran or an output that is missing, shows as `—` with the reason,
 never as 0. The total checks read each gate's output with one case-line
 grammar, written out in the renderer: a closing verdict (`OK: …`,
@@ -610,12 +616,14 @@ Nine PRE gates keep the CI honest:
 - **quality-run summary** (`Scripts/test_render_quality_summary.sh`,
   forsgren's own): the run summary (`Scripts/render_quality_summary.sh`)
   renders every number of a green run, says where a red, cancelled or
-  setup-stopped run stopped, names a pull request's number, exits 0 on
+  setup-stopped run stopped, names a red gate job in its red list and a
+  cancelled or skipped one as such, names a pull request's number, exits 0 on
   whatever it is given, and shows `—` with the reason for a phase that
   never ran or an output that is missing, never 0; its total checks count
   every case-line format of the real gates once, each Go test once, no
   verdict line, a red gate's failures, and name a phase they are missing, a
   gate that never reported and a case-line format they do not know; shown
   failing, each with its own reason, on mutants that write 0 instead, that
-  sum only the phases they have, that count verdict lines, and that drop
-  the unknown-format guard.
+  sum only the phases they have, that count verdict lines, that drop
+  the unknown-format guard, that leave a red gate job unnamed, that name a
+  cancelled job as red, and that name the jobs in another order.

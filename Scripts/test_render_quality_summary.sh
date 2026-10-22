@@ -31,8 +31,15 @@
 #      counted silently
 #   9. MUTATION PROOFS: this self-test, re-run against a renderer that
 #      writes 0 for a missing input, that sums Total checks over the parts
-#      it has, that counts verdict lines, or that drops the unknown-format
-#      guard, is red, and says why.
+#      it has, that counts verdict lines, that drops the unknown-format
+#      guard, that does not name a red gate job, that names a cancelled job
+#      as red, or that names the jobs in another order, is red, and says
+#      why.
+#  10. red, cancelled and skipped gate jobs (forsgren#282) -> the status
+#      names a red gate job (in Scripts/ci_job_groups.txt's order) in its
+#      red list, with the red phase steps; a cancelled or skipped job is
+#      named as such, never as red; a run where every job and phase is
+#      green keeps its line
 #
 # The renderer is presentation, so like Scripts/render_quality_report.sh it
 # must exit 0 on whatever it is given: a summary step that fails turns a
@@ -66,6 +73,17 @@ ORDER="${TMP}/order.txt"
   echo "psi|Scripts/psi.sh|post|"
   echo "privacy pages|n/a|nothing is collected here"
 } > "$ORDER"
+
+# The gate jobs outside the main job, as Scripts/ci_job_groups.txt lists
+# them: a job once per row, in the order of its first row.
+JOB_GROUPS="${TMP}/ci_job_groups.txt"
+{
+  echo "# comment"
+  echo "isolation|alpha"
+  echo "browser|omega"
+  echo "browser|psi"
+  echo "lint|Go coverage"
+} > "$JOB_GROUPS"
 
 MAIN_GO="${TMP}/main.go"
 printf 'package main\n\n// version is the release.\nvar version = "9.8.7"\n' > "$MAIN_GO"
@@ -130,6 +148,7 @@ green_run() {
 # green push on main, started 252 seconds before "now".
 reset_env() {
   JOB=success PRE=success BUILD=success POST=success SECRET=""
+  LINT=success ISOLATION=success BROWSER=success
   EVENT=push SHA=0123456789abcdef0123456789abcdef01234567 REF=main PR=""
   STARTED=1000 NOW=1252
 }
@@ -142,9 +161,11 @@ render() {
   capture env \
     QS_JOB_STATUS="$JOB" QS_PRE_OUTCOME="$PRE" QS_BUILD_OUTCOME="$BUILD" \
     QS_POST_OUTCOME="$POST" QS_SECRET_BLOCK="$SECRET" QS_PR_NUMBER="$PR" \
+    QS_LINT_RESULT="$LINT" QS_ISOLATION_RESULT="$ISOLATION" \
+    QS_BROWSER_RESULT="$BROWSER" \
     QS_STARTED_AT="$STARTED" QS_NOW="$NOW" \
     GITHUB_EVENT_NAME="$EVENT" GITHUB_SHA="$SHA" GITHUB_REF_NAME="$REF" \
-    QS_MAIN_GO="$MAIN_GO" SITE_PAGE_COUNT_FILE="${dir}/pages.log" \
+    QS_JOB_GROUPS="$JOB_GROUPS" QS_MAIN_GO="$MAIN_GO" SITE_PAGE_COUNT_FILE="${dir}/pages.log" \
     "$RENDER" "${dir}/rows.md" "${dir}/details" "$ORDER"
 }
 
@@ -308,11 +329,52 @@ render "${TMP}/unknown"
 want_row "case lines in an unknown format are named, never silently counted as 1" \
   "| Total checks | 20 passed · 0 failed · 1 gate skipped, its checks not counted · ⚠️ case lines in an unknown format in 1 gate (omega), not counted |"
 
+# --- 10. red, cancelled and skipped gate jobs (forsgren#282) -------------------
+# The lint, isolation and browser jobs run gates outside the main job's
+# phase steps: a red there leaves every phase step green, so the status
+# names the job, in the order of Scripts/ci_job_groups.txt (the fixture's:
+# isolation, browser, lint).
+reset_env
+green_run "${TMP}/jobs"
+JOB=failure LINT=failure
+render "${TMP}/jobs"
+want_said "a lint-only red names the lint job" \
+  "**❌ Failed** — every phase ran; red in: lint job."
+want_absent "a lint-only red is never no phase step" "no phase step"
+reset_env
+JOB=failure BROWSER=failure ISOLATION=failure
+render "${TMP}/jobs"
+want_said "a browser and isolation red names both jobs, in a stable order" \
+  "**❌ Failed** — every phase ran; red in: isolation job, browser job."
+reset_env
+JOB=failure PRE=failure LINT=failure
+render "${TMP}/jobs"
+want_said "a PRE red and a lint red name the phase step and the job" \
+  "**❌ Failed** — every phase ran; red in: PRE, lint job."
+reset_env
+render "${TMP}/jobs"
+want_said "every job and phase green keeps the line" \
+  "**✅ Succeeded** — PRE, build and POST all ran."
+want_absent "a green run names no job" " job"
+reset_env
+JOB=cancelled BROWSER=cancelled
+render "${TMP}/jobs"
+want_said "a cancelled job is named as cancelled" \
+  "**⏹️ Cancelled** — stopped in POST; browser job cancelled."
+want_absent "a cancelled job is never named as red" "red in: browser job"
+reset_env
+JOB=failure ISOLATION=skipped
+render "${TMP}/jobs"
+want_said "a skipped job is named as skipped, not as red" \
+  "**❌ Failed** — every phase ran; isolation job skipped."
+want_absent "a skipped job is never named as red" "red in: isolation job"
+
 # --- 9. MUTATION PROOFS -------------------------------------------------------
 # The renderer with every missing-input reason replaced by a 0: the shape
 # this self-test exists to refuse. Re-run against it, this self-test must be
 # red, and red for THAT reason (case 4's), not for an unrelated one. Then
-# three mutants of Total checks, each red for its own case's reason.
+# three mutants of Total checks and three of the gate jobs in the status,
+# each red for its own case's reason.
 if [[ -z "${QS_SELFTEST_RENDER_OVERRIDE:-}" ]]; then
   mutant="${TMP}/mutant/render_quality_summary.sh"
   if selftest_mutant "$RENDER" "$mutant" "s|printf '— (%s)' \"\$1\"|printf '0'|"; then
@@ -344,7 +406,31 @@ if [[ -z "${QS_SELFTEST_RENDER_OVERRIDE:-}" ]]; then
     want_red "a renderer without the unknown-format guard is caught" \
       "case lines in an unknown format are named, never silently counted as 1"
   fi
+  # forsgren#282: a gate job's red not named, back to `no phase step`. Red
+  # for case 10's lint-only reason.
+  unnamed="${TMP}/unnamed/render_quality_summary.sh"
+  if selftest_mutant "$RENDER" "$unnamed" "s|^\\(  *\\)\\*) red=.* job\" ;;\$|\\1*) ;;|"; then
+    capture env QS_SELFTEST_RENDER_OVERRIDE="$unnamed" "$0"
+    want_red "a renderer that does not name a red gate job is caught" \
+      "FAIL: a lint-only red names the lint job: the output does not say"
+  fi
+  # A cancelled or skipped job counted as red. Red for case 10's cancelled
+  # reason.
+  unjudged="${TMP}/unjudged/render_quality_summary.sh"
+  if selftest_mutant "$RENDER" "$unjudged" '/^ *cancelled|skipped) unjudged=/d'; then
+    capture env QS_SELFTEST_RENDER_OVERRIDE="$unjudged" "$0"
+    want_red "a renderer that names a cancelled job as red is caught" \
+      "FAIL: a cancelled job is never named as red: the output says 'red in: browser job'"
+  fi
+  # The jobs read in another order than Scripts/ci_job_groups.txt's: sorted
+  # by name. Red for case 10's stable-order reason.
+  reordered="${TMP}/reordered/render_quality_summary.sh"
+  if selftest_mutant "$RENDER" "$reordered" "s|\\(print \\\$1 }' \"\\\$JOB_GROUPS\"\\)\$|\\1 \\| sort|"; then
+    capture env QS_SELFTEST_RENDER_OVERRIDE="$reordered" "$0"
+    want_red "a renderer that names the jobs in another order is caught" \
+      "FAIL: a browser and isolation red names both jobs, in a stable order: the output does not say"
+  fi
 fi
 
 selftest_end "quality-run summary self-test" \
-  "quality-run summary (green, red PRE, cancelled, setup-stopped, red-gate and pull-request runs; Total checks counts every case line once, never a verdict, and names an unknown case-line format and a part it is missing; a missing input shows — with its reason, never 0)"
+  "quality-run summary (green, red PRE, cancelled, setup-stopped, red-gate and pull-request runs; red, cancelled and skipped gate jobs named in the status; Total checks counts every case line once, never a verdict, and names an unknown case-line format and a part it is missing; a missing input shows — with its reason, never 0)"
