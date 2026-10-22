@@ -311,6 +311,16 @@ golden pages|Scripts/check_golden_pages.sh|pre|
 # throwaway repository with a bare origin. Repository source, so it runs in pre.
 FBP --no-push self-test|Scripts/test_fbp_no_push.sh|pre|
 #
+# The push wrapper's refused-push handling (forsgren#283, step 1 of 2, ported
+# from the estate canon): a push refused because the remote moved during the
+# run is rebased over incoming commits that touch other files, the sign-off
+# kept, and pushed with a ⚠️ git row; it is stopped, local commits untouched,
+# when they touch the same files, and after 3 pushes. Drives a copy of FBP.sh
+# with Scripts/fbp_push_or_rebase.sh in a throwaway repository with a bare
+# origin that moves during the run, with a mutation proof that the overlap
+# check is what stops it. Repository source, so it runs in pre.
+FBP push-or-rebase self-test|Scripts/test_fbp_push_or_rebase.sh|pre|
+#
 # Gate wiring, the sfl/CI parity guard (forsgren#1, ladder step 14), at its
 # canon position after the html-duplication rows. Another estate repository's fixture,
 # adapted: konenki names every gate in its own workflow step and checks the

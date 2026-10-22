@@ -52,6 +52,22 @@ Certificate of Origin sign-off the DCO check on pull requests and on every
 push to `main` asks for (see [CI](ci.md) and
 [CONTRIBUTING.md](../CONTRIBUTING.md)).
 
+A push refused because the remote moved during the run (a pull request merged
+while the gates ran) no longer ends the run (forsgren#283, step 1 of 2,
+`Scripts/fbp_push_or_rebase.sh`): FBP fetches and compares the files the
+incoming commits changed with the files the local commits changed. When none
+is in both, it rebases the local commits onto the remote (`git rebase` keeps
+each commit's author and message, so the sign-off stays), pushes, and the git
+row of the summary reads `⚠️ (pushed after rebasing onto <shas>; this
+combination is tested by CI, not by this run)`. When a file is in both, or the
+rebase conflicts, it aborts any rebase, leaves the local commits as they were,
+names the files and the command to run (`git pull --rebase --autostash`, then
+FBP again) in `❌` lines, and the run is red. A remote that moves again is
+rebased over again, at most 3 pushes in all, then the run stops red with the
+commits rebased. A push refused for any other reason is red too. The opening
+pull of sfl is unchanged: it still stops when it cannot fast-forward.
+`Scripts/test_fbp_push_or_rebase.sh` pins it.
+
 Its closing summary prints the message, one row per phase with the
 gate counts and the page count, and every failure's reason. A run ended by
 TERM, INT or HUP ends with `Aborted ❌ (<signal>, exit <n>)` (143, 130, 129),

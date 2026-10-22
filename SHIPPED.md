@@ -9,6 +9,15 @@ Active work lives in
 
 ---
 
+## 2026-10-22 — FBP rebases and pushes when the push is refused and the incoming commits touch other files ([#283](https://github.com/yveshanoulle/forsgren/issues/283), step 1 of 2)
+
+forsgren issue 283, step 1 of 2, ported from the estate canon. When the final `git push` of `FBP.sh` is refused because the remote moved during the run, `Scripts/fbp_push_or_rebase.sh` fetches and compares the files changed by the incoming commits with those of the local commits. No file in both: the local commits are rebased onto the remote (author and message kept, so the Signed-off-by trailer stays), pushed, and the git row reads `⚠️ (pushed after rebasing onto <shas>; this combination is tested by CI, not by this run)`; a remote that moves again is rebased over again, at most 3 pushes. A file in both, a rebase conflict, a third refused push or a refusal with nothing incoming: any rebase aborted, the local commits unchanged, `❌` lines naming the files and `git pull --rebase --autostash`, and the run is red. The helper is sourceable, so step 2 (sfl's opening pull) can reuse `fbp_overlap_files`. The opening pull is unchanged. FBP_VERSION 10.
+
+- Red first: `Scripts/test_fbp_push_or_rebase.sh` drives a copy of the real FBP.sh in throwaway repositories whose bare origin moves during the run; on the red it failed on its expectations: the helper missing, the unrelated case exit 1 with the git row `⏭️`, nothing pushed, the same-file case without the file named, no 3-push stop. Then green, with a mutation proof: without the overlap check the same-file case is pushed and the scenario fails on the missing file name.
+- Registered: an order-file row after the FBP --no-push self-test, `MIN_GATES` 156, the gate wiring case for the helper, CONTRIBUTING.md, docs/gate-classification.md, docs/quality-gates.md, docs/development.md.
+
+---
+
 ## 2026-10-22 — the quality-run summary's older mutation proofs check their own case ([#288](https://github.com/yveshanoulle/forsgren/issues/288), step 1 of 1)
 
 forsgren issue 288, step 1 of 1. In `Scripts/test_render_quality_summary.sh` the four mutation proofs that predate #282 (0 for a missing input, a Total summed over the parts it has, verdict lines counted, the unknown-format guard dropped) asserted the bare case name, which the `ok:` line of a run red for any other reason carries too. Each now asserts its case's own failure line, `FAIL: <case>: no row`, the shape of the #282 proofs. A new helper, `want_own_case`, pins it: the run of a mutant that breaks another case (the unguarded mutant for the first three, the partial-sum mutant for the fourth) is red, passes the proof's case on an `ok:` line and never says the proof's needle. Test-only: the renderer and the workflows are unchanged.

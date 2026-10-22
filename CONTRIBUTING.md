@@ -70,6 +70,7 @@ run report shows how many checks each of them ran.
 - golden-pages self-test (`Scripts/test_check_golden_pages.sh`, pre)
 - golden pages (`Scripts/check_golden_pages.sh`, pre)
 - FBP --no-push self-test (`Scripts/test_fbp_no_push.sh`, pre)
+- FBP push-or-rebase self-test (`Scripts/test_fbp_push_or_rebase.sh`, pre)
 - gate wiring (`Scripts/test_gate_wiring.sh`, pre)
 - CI phase runner self-test (`Scripts/test_run_ci_phase.sh`, pre)
 - go mod tidy self-test (`Scripts/test_check_go_mod_tidy.sh`, pre)

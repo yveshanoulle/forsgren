@@ -177,11 +177,12 @@ fi
 # layout pin and the self-test of the report merge (forsgren#259, step 2), and up
 # to 153 for the browser gate inputs self-test (forsgren#262, step 1 of 3), and 154
 # for the gate selection self-test (step 2 of 3), and 155 for the sfl gate skip
-# self-test (step 3 of 3).
+# self-test (step 3 of 3), and 156 for the FBP push-or-rebase self-test
+# (forsgren#283, step 1 of 2).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=155
+MIN_GATES=156
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -705,6 +706,18 @@ for path in Scripts/*.sh; do
       require_fixture "$base" "the secret sync would be untested"
       order_names "test_${base}" \
         || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the secret sync"
+      ;;
+
+    # FBP'S REFUSED PUSH, not a gate (forsgren#283, step 1 of 2): FBP.sh runs
+    # it when its final push is refused (rebase over incoming commits on other
+    # files, or stop). CI never pushes, so only FBP runs it. It must carry a
+    # fixture, and that fixture must be an order-file row.
+    fbp_push_or_rebase.sh)
+      runs_script "$FBP" "$base" \
+        || fail "${base} handles a refused push and ${FBP} never invokes it — a push refused because the remote moved would stop the run again"
+      require_fixture "$base" "the rebase on a refused push would be untested"
+      order_names "test_${base}" \
+        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the refused-push handling"
       ;;
 
     # LOCAL PRE-FLIGHT, not a gate (forsgren#52): FBP.sh calls it before the

@@ -728,6 +728,24 @@ The POST gates, on the generated site:
   mutation proofs, each asserting the reason: the skip ignored, the log line
   dropped, the log never emptied.
 
+- **FBP push-or-rebase** (`Scripts/fbp_push_or_rebase.sh`, self-test
+  `Scripts/test_fbp_push_or_rebase.sh`, forsgren#283 step 1 of 2, ported from
+  the estate canon): when FBP.sh's final push is refused because the remote moved
+  during the run, the helper fetches and compares the files changed by the
+  incoming commits (merge base to `@{u}`) with those of the local commits. No
+  file in both: `git rebase @{u}` (author and message kept, so the
+  Signed-off-by trailer the DCO check matches to the author stays), push, and the
+  git row `⚠️ (pushed after rebasing onto <shas>; this combination is tested by
+  CI, not by this run)`; a remote that moves again is rebased over again, at most
+  3 pushes. A file in both, a rebase conflict, a third refused push or a refusal with
+  nothing incoming: any rebase aborted, `❌` lines naming the files and
+  `git pull --rebase --autostash`, the git row `❌ (push refused, remote moved —
+  see above)`, exit 1. Sourced, it only defines `fbp_overlap_files` and
+  `fbp_join_shas`, for sfl's opening pull (step 2). The self-test drives a copy
+  of the real FBP.sh in throwaway repositories whose bare origin moves during the
+  run (six cases) with one mutation proof: without the overlap check the
+  same-file case is pushed and the scenario fails on the missing file name.
+
 - **live check** (`Scripts/live_check.sh`, self-test `Scripts/test_live_check.sh`,
   forsgren#205 step 2 of 2, ruling item 3): after every forsgren.be deploy, the
   `live-check` job of `starter_page.yml` (needs `deploy`, runs only when the

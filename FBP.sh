@@ -110,7 +110,7 @@ fi
 # repo because two FBP runs back to back were otherwise
 # indistinguishable from their first line (Yves, 2026-08-31). Mirrors
 # sfl.sh's banner; editing a Scripts/*.sh does not require a bump.
-FBP_VERSION=9
+FBP_VERSION=10
 
 STARTED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
 START_EPOCH="$(date +%s)"
@@ -628,8 +628,23 @@ else
 
       if [ "$AHEAD" -gt 0 ]; then
         echo "Pushing ${AHEAD} commit(s) to ${UPSTREAM}..."
-        git push
-        PUSH_DONE=true
+        # forsgren#283, step 1 of 2 (estate canon): a push refused because the
+        # remote moved during the run is rebased over incoming commits that
+        # touch other files and pushed, at most 3 pushes, the git row then the
+        # ⚠️ one naming the commits rebased onto; on an overlap, a conflict or
+        # a remote that keeps moving it stops with ❌, the run red.
+        # Scripts/fbp_push_or_rebase.sh; Scripts/test_fbp_push_or_rebase.sh.
+        # canon-block: rebase-on-refused-push v1 begin (push)
+        PUSH_NOTE_FILE="$(mktemp)"
+        if git push || ./Scripts/fbp_push_or_rebase.sh "$PUSH_NOTE_FILE"; then
+          PUSH_NOTE="$(cat "$PUSH_NOTE_FILE")"
+        else
+          PUSH_NOTE="❌ (push refused, remote moved — see above)"
+          FAILED=true
+        fi
+        rm -f "$PUSH_NOTE_FILE"
+        # canon-block: rebase-on-refused-push v1 end
+        $FAILED || PUSH_DONE=true
       else
         echo "Nothing to push — branch is up to date with ${UPSTREAM}."
       fi
@@ -639,7 +654,11 @@ else
       PUSH_DONE=true
     fi
 
-    if $FAILED && $COMMIT_DONE; then
+    # canon-block: rebase-on-refused-push v1 begin (status)
+    if [ -n "${PUSH_NOTE:-}" ]; then
+      GIT_STATUS="$PUSH_NOTE"
+    # canon-block: rebase-on-refused-push v1 end
+    elif $FAILED && $COMMIT_DONE; then
       GIT_STATUS="⚠️ (committed locally, push skipped — earlier ❌)"
     elif $FAILED; then
       GIT_STATUS="➖ (nothing to commit; push skipped — earlier ❌)"

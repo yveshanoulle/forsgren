@@ -21,7 +21,7 @@ not close it.
 ## The order file, row by row
 
 [Scripts/gate_report_order.txt](../Scripts/gate_report_order.txt) is the one
-list sfl and CI both run. It has 155 rows: 151 with a script and 4 `n/a`
+list sfl and CI both run. It has 156 rows: 152 with a script and 4 `n/a`
 rows. All scripts are in `Scripts/`. The phase is `pre` (repository inputs and
 checker behaviour) or `post` (the generated site). `secret-class` means a
 finding blocks the commit as well as the push. A row for a self-test is
@@ -86,6 +86,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 51 | golden-pages self-test | `test_check_golden_pages.sh` | pre | required |
 | 52 | golden pages | `check_golden_pages.sh` | pre | required |
 | 53 | FBP --no-push self-test | `test_fbp_no_push.sh` | pre | required, `test_fbp_no_push v2` |
+| 159 | FBP push-or-rebase self-test | `test_fbp_push_or_rebase.sh` | pre | required; ported from the estate canon (`test_fbp_push_or_rebase v2`), forsgren's form: a copy of the real `FBP.sh` with `fbp_push_or_rebase.sh` (`fbp_push_or_rebase v3`) in a throwaway repository whose bare origin moves during the run: unrelated incoming file rebased, signed off and pushed with the ⚠️ row, same file stopped with the local commit untouched, nothing incoming, another refusal, moved again, moved every time (3 pushes); 1 mutation proof (forsgren#283, step 1 of 2) |
 | 54 | gate wiring | `test_gate_wiring.sh` | pre | required |
 | 55 | CI phase runner self-test | `test_run_ci_phase.sh` | pre | required, `test_run_ci_phase v1` |
 | 56 | go mod tidy self-test | `test_check_go_mod_tidy.sh` | pre | required |
@@ -326,7 +327,7 @@ malformed row fails the step. Its self-test is the PRE row 124.
 
 ## The ratchet today
 
-`MIN_GATES` is 155, which equals the 155 rows of the order file (151 with a
+`MIN_GATES` is 156, which equals the 156 rows of the order file (152 with a
 script and 4 `n/a` rows). forsgren#215 brought it to 115 and the Go tool
 helper self-test of forsgren#216 is the 116th; the browser gate and its
 self-test (forsgren#205) made 118, and the live check self-test
@@ -341,4 +342,4 @@ sandbox (forsgren#228) made 137, and the bump diff self-test (forsgren#230,
 step 1) made 138, and the short Quality (forsgren#230, step 2: its runner and the pin
 of the scope) made 140, and the preview deploy
 script's self-test and the preview workflow pin (forsgren#222) made 142, and the
-pre-check's self-test (forsgren#231, step 1) made 143, and the static block's self-test (forsgren#231, step 2) made 144, and the release pre-check's self-test (forsgren#231, step 3) made 145, and the pin that the run summary comes first (forsgren#233) made 146, and the isolation of the self-tests from the run summary (forsgren#233) made 147, and the Quality runner pins gate (forsgren#240, step 1) made 148, and the self-test and the gate of the browser gate on the fixture site (forsgren#226) made 150, and the commit messages self-test (forsgren#213) made 151, and the browser gate inputs self-test (forsgren#262, step 1 of 3) made 153, and the gate selection self-test (step 2 of 3) made 154, and the sfl gate skip self-test (step 3 of 3) made 155. The self-tests of the install check and the agent proofs (forsgren#237, steps 5a and 5b) made 153. The five self-tests of the bump, the commit, the bump diff, the short Quality and its scope pin (rows 128, 130, 140, 141, 142) went with the scripts they proved (forsgren#237, step 6), which brought it down to 148. The Dependabot configuration self-test (forsgren#86) made 149. The isolation scope self-test (forsgren#251, step 1) made 150.
+pre-check's self-test (forsgren#231, step 1) made 143, and the static block's self-test (forsgren#231, step 2) made 144, and the release pre-check's self-test (forsgren#231, step 3) made 145, and the pin that the run summary comes first (forsgren#233) made 146, and the isolation of the self-tests from the run summary (forsgren#233) made 147, and the Quality runner pins gate (forsgren#240, step 1) made 148, and the self-test and the gate of the browser gate on the fixture site (forsgren#226) made 150, and the commit messages self-test (forsgren#213) made 151, and the browser gate inputs self-test (forsgren#262, step 1 of 3) made 153, and the gate selection self-test (step 2 of 3) made 154, and the sfl gate skip self-test (step 3 of 3) made 155, and the FBP push-or-rebase self-test (forsgren#283, step 1 of 2) made 156. The self-tests of the install check and the agent proofs (forsgren#237, steps 5a and 5b) made 153. The five self-tests of the bump, the commit, the bump diff, the short Quality and its scope pin (rows 128, 130, 140, 141, 142) went with the scripts they proved (forsgren#237, step 6), which brought it down to 148. The Dependabot configuration self-test (forsgren#86) made 149. The isolation scope self-test (forsgren#251, step 1) made 150.
