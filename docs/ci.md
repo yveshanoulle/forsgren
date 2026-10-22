@@ -73,6 +73,13 @@ setup (the hosted image's Chrome, puppeteer-core and axe-core from `npm ci`).
 The browser gate reads the built site, so the job runs its PRE rows, builds
 its own site with `Scripts/build_site.sh`, then runs its POST rows, all with
 the job name `browser`.
+The `lint` job (forsgren#282) runs actionlint, shellcheck, yamllint and zizmor
+with their self-tests, the lint rows of the order file's static block, with the
+same setup and the job name `lint`, so a lint finding is its own red check on
+the run. It builds no site: all are PRE rows. The order file is unchanged: the
+rows keep their pre phase and their place, so `sfl.sh` and `FBP.sh` run them,
+and stop after the static block, as before. The report job's status takes the
+lint job's result with the others'.
 The three baselines steps stay in the main job: they read the built site.
 `Scripts/test_quality_jobs.sh` pins the layout.
 

@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-22 — the lint block runs as its own Quality job ([#282](https://github.com/yveshanoulle/forsgren/issues/282), step 1 of 2)
+
+forsgren issue 282, step 1 of 2. `Scripts/ci_job_groups.txt` gives the nine lint rows (actionlint, its two self-tests, shellcheck, yamllint and zizmor with their self-tests) to a new `lint` job, the mechanism of the isolation and browser jobs, so the main `quality` job no longer runs them. `.github/workflows/quality.yml` has the `lint` job (Lint gates) in parallel with `quality`, `isolation` and `browser`, with the same setup, `Scripts/run_ci_phase.sh pre ... lint` and its hand-over `quality-report-lint`; the report job needs it and passes `QS_LINT_RESULT` to the status, and the preview job needs it. The order file is unchanged: the rows keep their pre phase and their place in the static block, so `sfl.sh` and `FBP.sh` run them, and stop after the block, as before. No new secret or permission.
+
+- Red first: `Scripts/test_quality_jobs.sh` failed on the real workflow (`job: the file has no lint job`, and the group file without the lint rows); `Scripts/test_run_ci_phase.sh` failed its real order file case (the lint job had no gate); `Scripts/test_preview_workflow.sh`'s needs mutants, aimed at the new needs line, changed nothing. Then green with 38 mutation proofs in the jobs pin (12 new: the lint job gone, off macos-latest, without npm ci, running the main job's gates, a step naming a lint gate, its hand-over not always or under another name, the report without lint in needs, without `QS_LINT_RESULT` or without it in the status call, a group file without the lint rows, a lint row moved to post), each asserting its finding, and one new preview mutant (lint missing from the preview's needs).
+
+---
+
 ## 2026-10-22 — new installations start with the Issues page off ([#285](https://github.com/yveshanoulle/forsgren/issues/285), step 1 of 1)
 
 forsgren issue 285, step 1 of 1. The starter that `init-config` writes (`internal/config/starter.yml`) and the agent installer (question 10 of step 2, the example config and the instruction of step 9) set `issues_page: false` instead of `issues_page: true`, so a new installation starts with the Issues page off. The built-in default for a config that leaves the key out stays `true`: an installation that never set `issues_page` keeps its Issues page after an automatic update. `docs/configuration.md` (the page keys and `init-config`), `docs/pages-and-views.md`, the 1.3.0 note of `docs/updating-and-releases.md` and the installation README's example config say so; the legend and the settings page, which state the built-in default, are unchanged.

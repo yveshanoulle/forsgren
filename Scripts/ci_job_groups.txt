@@ -25,3 +25,17 @@ browser|browser gate self-test
 browser|browser gate
 browser|browser gate (fixture site) self-test
 browser|browser gate (fixture site)
+#
+# The lint job (forsgren#282): the fast static lint gates and their self-tests,
+# so a lint finding is its own red check on the Quality run. The order file is
+# unchanged: the rows keep their pre phase and their place in the static block,
+# so sfl.sh and FBP.sh run them, and stop after them, as before.
+lint|actionlint self-test
+lint|actionlint forsgren cases self-test
+lint|actionlint
+lint|shellcheck self-test
+lint|shellcheck
+lint|yamllint self-test
+lint|yamllint
+lint|zizmor self-test
+lint|zizmor

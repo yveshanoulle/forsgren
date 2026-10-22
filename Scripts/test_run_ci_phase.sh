@@ -340,6 +340,8 @@ case_real_order_file() {
   done < <(grep -v '^#' "$ORDER" | grep .)
   run_phase pre
   [[ "$RUN_RC" -eq 0 ]] || echo "pre over the real order file exited ${RUN_RC}: ${RUN_OUT}"
+  RUN_JOB=lint run_phase pre
+  [[ "$RUN_RC" -eq 0 ]] || echo "pre of the lint job over the real order file exited ${RUN_RC}: ${RUN_OUT}"
   RUN_JOB=isolation run_phase pre
   [[ "$RUN_RC" -eq 0 ]] || echo "pre of the isolation job over the real order file exited ${RUN_RC}: ${RUN_OUT}"
   RUN_JOB=browser run_phase pre

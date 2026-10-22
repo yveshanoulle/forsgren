@@ -10,7 +10,10 @@ phase and its order; a gate's self-test always runs in PRE, before the gate
 it validates. The six static gates (gofmt, Go lint, actionlint, shellcheck,
 yamllint, zizmor) and their self-tests form the static block, right after the
 secret-class rows; a red row in it stops the run early with every later gate
-skipped and named (forsgren#231; [development.md](development.md)).
+skipped and named (forsgren#231; [development.md](development.md)). On
+Quality, actionlint, shellcheck, yamllint and zizmor with their self-tests run
+in their own `lint` job, its own red/green check (forsgren#282;
+[ci.md](ci.md)); gofmt and Go lint stay in the main job.
 
 Three PRE gates come first and are secret-class, so a finding blocks the
 commit itself:
@@ -427,14 +430,20 @@ Seven PRE gates read the repository's own scripts and files:
   (`Scripts/test_quality_jobs.sh` and `Scripts/test_merge_quality_report.sh`,
   forsgren's own, forsgren#259): Quality runs its slowest gates in parallel
   jobs of one workflow (docs/ci.md, Jobs). In CI the git sandbox isolation
-  self-test and the step summary isolation gate run in the `isolation` job
-  (`Scripts/ci_job_groups.txt`; `sfl.sh` and FBP run every row as before).
+  self-test and the step summary isolation gate run in the `isolation` job,
+  and actionlint, shellcheck, yamllint and zizmor with their self-tests in the
+  `lint` job (forsgren#282; `Scripts/ci_job_groups.txt`; the order file is
+  unchanged, and `sfl.sh` and FBP run every row as before).
   The pin is red when the isolation job is missing, off `macos-latest` or
-  without the main job's setup (the browser job likewise, and it must run
+  without the main job's setup (the lint and browser jobs likewise, the lint
+  job running exactly its PRE rows, and the browser job must run
   PRE, its own site build, then POST), when a `run_ci_phase.sh` call lacks its job
-  name, when a step names an isolation gate itself, when a job's hand-over is
+  name, when a step names an isolation or lint gate itself, when the group
+  file does not give the lint job exactly its nine rows or a lint row is no
+  pre row, when a job's hand-over is
   not `if: always()` or not under its name, when the report job lacks a job in
-  `needs:`, `if: always()`, the merge or the status from the jobs' results,
+  `needs:`, `if: always()`, the merge, or a gate job's `QS_<JOB>_RESULT` in
+  the status from the jobs' results,
   when `continue-on-error` softens a job, when another workflow is named
   Quality, or when `release_quality.sh` reads a job and not the run. The
   merge self-test proves the hand-over, the merge, the duplicate refusal and
