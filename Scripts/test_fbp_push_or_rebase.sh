@@ -66,8 +66,12 @@ mkdir -p "${TMP}/bin"
 printf '#!/bin/sh\nexit 0\n' > "${TMP}/bin/say"
 chmod +x "${TMP}/bin/say"
 
-# Commits and pushes in the sandbox use only what is set here.
-export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
+# Commits and pushes in the sandbox use only what is set here. GIT_CONFIG_NOSYSTEM
+# too (forsgren#292): Apple's git reads a built-in gitconfig of its own (Xcode's,
+# init.defaultBranch=main) that GIT_CONFIG_SYSTEM=/dev/null does not turn off,
+# so without it the fixture passed on a Mac with Apple's git and failed on
+# GitHub's hosted Mac, whose Homebrew git has no such file.
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME=tester GIT_AUTHOR_EMAIL=tester@example.invalid
 export GIT_COMMITTER_NAME=tester GIT_COMMITTER_EMAIL=tester@example.invalid
 SIGNOFF="Signed-off-by: tester <tester@example.invalid>"
@@ -104,7 +108,11 @@ world() {
   local dir="${TMP}/$1"
   local root="${dir}/work"
   mkdir -p "$root"
-  git init -q --bare "${dir}/origin.git"
+  # main named on the bare origin too, never git's default (forsgren#292):
+  # with an origin HEAD on an unborn master, the "other" clone checks out
+  # nothing, its incoming commit is a root commit on master and its push of
+  # main is refused, so the remote never moves.
+  git init -q --bare -b main "${dir}/origin.git"
   git -C "$root" init -q -b main
   cp "$FBP_SRC" "${root}/${FBP}"
   chmod +x "${root}/${FBP}"
