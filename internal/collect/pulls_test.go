@@ -19,7 +19,7 @@ import (
 
 const (
 	pullsPath   = "/repos/acme/app/pulls"
-	pullsHeader = "# forsgren pulls v1\nrepository,number,head_branch,created_at,merged_at,merge_commit,updated_at," +
+	pullsHeader = "# forsgren pulls v1\nrepository,number,created_at,merged_at,merge_commit,updated_at," +
 		"first_commit_at,first_commit_cut,created_stands_in\n"
 	pullsReadHeader = "# forsgren pulls read v1\nrepository,read_at\n"
 	// readNow is the pulls read file after a run that moved acme/app's mark
@@ -53,7 +53,7 @@ func (p pull) json() string {
 // line is the pull request's line in pulls.csv with the first commit time
 // first, empty when the created time stands in, and the cut flag.
 func (p pull) line(first string, cut bool) string {
-	return fmt.Sprintf("acme/app,%d,feature/%d,%s,%s,%s,%s,%s,%t,%t\n", p.n, p.n, p.created, p.merged, shaA,
+	return fmt.Sprintf("acme/app,%d,%s,%s,%s,%s,%s,%t,%t\n", p.n, p.created, p.merged, shaA,
 		p.updated, first, cut, first == "")
 }
 

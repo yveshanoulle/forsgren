@@ -332,16 +332,15 @@ format version (the pulls format v1):
 
 ```
 # forsgren pulls v1
-repository,number,head_branch,created_at,merged_at,merge_commit,updated_at,first_commit_at,first_commit_cut,created_stands_in
-acme/app,42,feature/checkout,2026-09-01T10:00:00Z,2026-09-03T15:00:00Z,<40 hex>,2026-09-03T15:01:00Z,2026-08-30T09:00:00Z,false,false
-acme/app,43,fix/typo,2026-09-02T08:00:00Z,2026-09-02T09:00:00Z,<40 hex>,2026-09-02T09:00:00Z,,false,true
+repository,number,created_at,merged_at,merge_commit,updated_at,first_commit_at,first_commit_cut,created_stands_in
+acme/app,42,2026-09-01T10:00:00Z,2026-09-03T15:00:00Z,<40 hex>,2026-09-03T15:01:00Z,2026-08-30T09:00:00Z,false,false
+acme/app,43,2026-09-02T08:00:00Z,2026-09-02T09:00:00Z,<40 hex>,2026-09-02T09:00:00Z,,false,true
 ```
 
 - One line per merged pull request. A pull request closed without a merge is
-  not stored. No title, no body and no author is stored.
+  not stored. No title, no body, no author and no branch name is stored: a
+  branch name can identify people, and no metric uses it (decision #305).
 - `repository` is `owner/name` and `number` the pull request's number.
-- `head_branch` is the branch the pull request was opened from (GitHub's
-  `head.ref`), as GitHub names it.
 - `created_at`, `merged_at` and `updated_at` are the pull request's created,
   merged and updated time, UTC, to the second. `updated_at` is GitHub's
   updated time when `collect` read the pull request: a stored line is never
@@ -366,8 +365,10 @@ acme/app,43,fix/typo,2026-09-02T08:00:00Z,2026-09-02T09:00:00Z,<40 hex>,2026-09-
   read): then `first_commit_at` is empty and the pull request's created time
   stands in for its first commit time (decisions #300, #303, #313). It is
   never `true` because the list was cut, so a line is never cut and standing
-  in at once, and `first_commit_at` is empty exactly when it is `true`.
-  Otherwise `false`.
+  in at once. `first_commit_at` is empty exactly when it is `true`, and a
+  valid time exactly when it is `false`: a line with a stand-in and a time,
+  or with neither, is refused when it is read and never written (decision
+  #303). Otherwise `false`.
 - Held by repository (ignoring case) and number, as GitHub numbers a
   repository's issues and pull requests from one sequence: a pull request
   already in the file is skipped, the first line staying whatever a later read

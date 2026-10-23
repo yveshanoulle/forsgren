@@ -11,10 +11,10 @@ import (
 )
 
 const (
-	pullsHead = "# forsgren pulls v1\nrepository,number,head_branch,created_at,merged_at,merge_commit,updated_at," +
+	pullsHead = "# forsgren pulls v1\nrepository,number,created_at,merged_at,merge_commit,updated_at," +
 		"first_commit_at,first_commit_cut,created_stands_in\n"
 	mergeSHA   = "abcdef0123456789abcdef0123456789abcdef01"
-	pullsLine1 = "acme/app,45,feature/login,2026-09-01T08:00:00Z,2026-09-02T10:00:00Z," + mergeSHA +
+	pullsLine1 = "acme/app,45,2026-09-01T08:00:00Z,2026-09-02T10:00:00Z," + mergeSHA +
 		",2026-09-03T12:00:00Z,2026-08-31T07:00:00Z,false,false\n"
 )
 
@@ -25,7 +25,7 @@ var pullCreated = time.Date(2026, 9, 1, 8, 0, 0, 0, time.UTC)
 // created.
 func pull(number int64, hours int) PullRequest {
 	return PullRequest{
-		Repository: "acme/app", Number: number, HeadBranch: "feature/login", CreatedAt: pullCreated,
+		Repository: "acme/app", Number: number, CreatedAt: pullCreated,
 		MergedAt:    time.Date(2026, 9, 2, hours, 0, 0, 0, time.UTC),
 		MergeCommit: mergeSHA, UpdatedAt: time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC),
 		FirstCommitAt: time.Date(2026, 8, 31, 7, 0, 0, 0, time.UTC),
@@ -95,9 +95,9 @@ func TestThePullsFileKeepsHowTheFirstCommitTimeWasFound(t *testing.T) {
 		t.Fatalf("want 3 lines written, got %d, %v", n, err)
 	}
 	wantFile(t, path, pullsHead+pullsLine1+
-		"acme/app,46,feature/login,2026-09-01T08:00:00Z,2026-09-02T11:00:00Z,"+mergeSHA+
+		"acme/app,46,2026-09-01T08:00:00Z,2026-09-02T11:00:00Z,"+mergeSHA+
 		",2026-09-03T12:00:00Z,2026-08-31T07:00:00Z,true,false\n"+
-		"acme/app,47,feature/login,2026-09-01T08:00:00Z,2026-09-02T12:00:00Z,"+mergeSHA+
+		"acme/app,47,2026-09-01T08:00:00Z,2026-09-02T12:00:00Z,"+mergeSHA+
 		",2026-09-03T12:00:00Z,,false,true\n")
 	wantPulls(t, path, in)
 }
@@ -155,8 +155,6 @@ func TestAPullRequestThatCannotBeStoredIsRefused(t *testing.T) {
 		{`repository "app"`, func(p *PullRequest) { p.Repository = "app" }},
 		{"line break", func(p *PullRequest) { p.Repository = "acme/a\npp" }},
 		{"number is not positive", func(p *PullRequest) { p.Number = 0 }},
-		{"head_branch is empty", func(p *PullRequest) { p.HeadBranch = "" }},
-		{"line break", func(p *PullRequest) { p.HeadBranch = "a\nb" }},
 		{"created_at", func(p *PullRequest) { p.CreatedAt = p.CreatedAt.Add(time.Millisecond) }},
 		{"created_at", func(p *PullRequest) { p.CreatedAt = time.Time{} }},
 		{"updated_at", func(p *PullRequest) { p.UpdatedAt = time.Time{} }},
@@ -192,15 +190,14 @@ func pullsLineWith(i int, value string) string {
 // and the reason names the column or the rule.
 func TestAMalformedPullsLineIsRefused(t *testing.T) {
 	for name, line := range map[string]string{
-		"number":             pullsLineWith(1, "x"),
-		"created_at":         pullsLineWith(3, "yesterday"),
-		"merged_at":          pullsLineWith(4, ""),
-		"updated_at":         pullsLineWith(6, ""),
-		"first_commit_at":    pullsLineWith(7, "soon"),
-		"first_commit_cut":   pullsLineWith(8, "yes"),
-		"created_stands_in":  pullsLineWith(9, "no"),
-		"empty exactly when": pullsLineWith(9, "true"),
-		"10 comma-separated": strings.TrimSuffix(pullsLineWith(9, ""), ","),
+		"number":            pullsLineWith(1, "x"),
+		"created_at":        pullsLineWith(2, "yesterday"),
+		"merged_at":         pullsLineWith(3, ""),
+		"updated_at":        pullsLineWith(5, ""),
+		"first_commit_at":   pullsLineWith(6, "soon"),
+		"first_commit_cut":  pullsLineWith(7, "yes"),
+		"created_stands_in": pullsLineWith(8, "no"),
+		"9 comma-separated": strings.TrimSuffix(pullsLineWith(8, ""), ","),
 	} {
 		t.Run(name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "pulls.csv")
@@ -209,6 +206,27 @@ func TestAMalformedPullsLineIsRefused(t *testing.T) {
 			}
 			if _, err := LoadPullRequests(path); !malformedOn(err, 4, name) {
 				t.Errorf("want a MalformedError on line 4 naming %s, got %v", name, err)
+			}
+		})
+	}
+}
+
+// TestAStandInThatDisagreesWithTheFirstCommitTimeIsNotRead (forsgren#303): on
+// read as on write, created_stands_in true has no first_commit_at and false
+// has one; a line with a stand-in and a time, or neither, is refused, named
+// by its number.
+func TestAStandInThatDisagreesWithTheFirstCommitTimeIsNotRead(t *testing.T) {
+	for name, line := range map[string]string{
+		"stands in with a time":   pullsLineWith(8, "true"),
+		"no stand-in and no time": pullsLineWith(6, ""),
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "pulls.csv")
+			if err := os.WriteFile(path, []byte(pullsHead+pullsLine1+line+"\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := LoadPullRequests(path); !malformedOn(err, 4, "empty exactly when") {
+				t.Errorf("want a MalformedError on line 4 naming the stand-in rule, got %v", err)
 			}
 		})
 	}

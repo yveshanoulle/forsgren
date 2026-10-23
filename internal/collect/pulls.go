@@ -155,7 +155,7 @@ func (o Options) pullOf(ctx context.Context, repo string, p github.ClosedPullReq
 	}
 	first, cut, err := o.Client.FirstCommitTime(ctx, repo, p.Number)
 	pull := history.PullRequest{
-		Repository: repo, Number: p.Number, HeadBranch: p.HeadBranch, CreatedAt: wholeSecond(p.CreatedAt),
+		Repository: repo, Number: p.Number, CreatedAt: wholeSecond(p.CreatedAt),
 		MergedAt: wholeSecond(p.MergedAt), MergeCommit: p.MergeCommit, UpdatedAt: wholeSecond(p.UpdatedAt),
 		FirstCommitAt: wholeSecond(first), FirstCommitCut: cut,
 	}

@@ -14,13 +14,13 @@ import (
 // without a merge is not. No title and no author is stored.
 //
 // The format is "# forsgren pulls v1", the column line
-// "repository,number,head_branch,created_at,merged_at,merge_commit,updated_at,
+// "repository,number,created_at,merged_at,merge_commit,updated_at,
 // first_commit_at,first_commit_cut,created_stands_in" (one line, broken here),
-// every time in UTC to the second, the two flags "true" or "false".
+// every time in UTC to the second, the two flags "true" or "false". No head
+// branch is stored either (forsgren#305): a branch name can identify people.
 type PullRequest struct {
 	Repository  string // owner/name
 	Number      int64  // the pull request number
-	HeadBranch  string // the branch it was opened from (head.ref)
 	CreatedAt   time.Time
 	MergedAt    time.Time
 	MergeCommit string // the SHA of the commit the merge made, lower-case hex
@@ -43,7 +43,7 @@ type PullRequest struct {
 // pulls is the format of data/pulls.csv, the pulls format v1.
 var pulls = format[PullRequest, IssueKey]{
 	versionLine: "# forsgren pulls v1",
-	columnLine: "repository,number,head_branch,created_at,merged_at,merge_commit,updated_at," +
+	columnLine: "repository,number,created_at,merged_at,merge_commit,updated_at," +
 		"first_commit_at,first_commit_cut,created_stands_in",
 	decode:   toPullRequest,
 	encode:   PullRequest.fields,
@@ -80,23 +80,23 @@ func comparePullRequests(a, b PullRequest) int {
 // column.
 func (p PullRequest) fields() []string {
 	return []string{
-		p.Repository, strconv.FormatInt(p.Number, 10), p.HeadBranch, formatTime(p.CreatedAt),
+		p.Repository, strconv.FormatInt(p.Number, 10), formatTime(p.CreatedAt),
 		formatTime(p.MergedAt), p.MergeCommit, formatTime(p.UpdatedAt), formatTime(p.FirstCommitAt),
 		strconv.FormatBool(p.FirstCommitCut), strconv.FormatBool(p.CreatedStandsIn),
 	}
 }
 
-// toPullRequest reads the ten fields of a line.
+// toPullRequest reads the nine fields of a line.
 func toPullRequest(f []string) (PullRequest, error) {
-	p := PullRequest{Repository: f[0], HeadBranch: f[2], MergeCommit: f[5]}
+	p := PullRequest{Repository: f[0], MergeCommit: f[4]}
 	var errs [7]error
 	p.Number, errs[0] = parseNumber("number", f[1])
-	p.CreatedAt, errs[1] = parseTime("created_at", f[3])
-	p.MergedAt, errs[2] = parseTime("merged_at", f[4])
-	p.UpdatedAt, errs[3] = parseTime("updated_at", f[6])
-	p.FirstCommitAt, errs[4] = parseOptionalTime("first_commit_at", f[7])
-	p.FirstCommitCut, errs[5] = parseFlag("first_commit_cut", f[8])
-	p.CreatedStandsIn, errs[6] = parseFlag("created_stands_in", f[9])
+	p.CreatedAt, errs[1] = parseTime("created_at", f[2])
+	p.MergedAt, errs[2] = parseTime("merged_at", f[3])
+	p.UpdatedAt, errs[3] = parseTime("updated_at", f[5])
+	p.FirstCommitAt, errs[4] = parseOptionalTime("first_commit_at", f[6])
+	p.FirstCommitCut, errs[5] = parseFlag("first_commit_cut", f[7])
+	p.CreatedStandsIn, errs[6] = parseFlag("created_stands_in", f[8])
 	for _, err := range errs {
 		if err != nil {
 			return PullRequest{}, err
@@ -118,8 +118,7 @@ func (p PullRequest) validate() error {
 	return firstFailure(
 		check{isRepository(p.Repository), fmt.Sprintf("repository %q is not owner/name", p.Repository)},
 		check{p.Number > 0, "number is not positive"},
-		check{p.HeadBranch != "", "head_branch is empty"},
-		check{!strings.ContainsAny(p.Repository+p.HeadBranch, "\r\n"), "a field has a line break"},
+		check{!strings.ContainsAny(p.Repository, "\r\n"), "repository has a line break"},
 		check{isWholeSecond(p.CreatedAt), "created_at is empty or has a fraction of a second"},
 		check{isWholeSecond(p.MergedAt), "merged_at is empty or has a fraction of a second"},
 		check{isSHA(p.MergeCommit), fmt.Sprintf("merge_commit %q is not 40 or 64 lower-case hex digits", p.MergeCommit)},
