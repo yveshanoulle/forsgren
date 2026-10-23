@@ -8,7 +8,7 @@
     forsgren can open its setup issue. forsgren requires permissions to be declared explicitly on that
     job: `write-all` and `read-all` are intentionally unsupported, because forsgren follows
     least-privilege security practice.
-- version: 1.16.0
+- version: 1.15.0
   kind: permission
   workflow: .github/workflows/forsgren.yml
   permission: pull-requests

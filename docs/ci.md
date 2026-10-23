@@ -577,8 +577,10 @@ Nine PRE gates keep the CI honest:
   unreadable date, or unknown), `--collect-report
   "${RUNNER_TEMP}/collect-report"`, the report collect writes, for the
   Collected line (complete, or incomplete with the repositories the request
-  budget cut short and those that failed on a rate limit; unknown, never
-  complete, without the file; forsgren#64), and `--latest-published
+  budget cut short, `issues and pull requests not read`, those whose pull
+  requests alone it cut short, `<repo> pull requests cut short (deployments
+  and issues read)` (forsgren#320), and those that failed on a rate limit;
+  unknown, never complete, without the file; forsgren#64), and `--latest-published
   "${RUNNER_TEMP}/latest-published"`, the file the lookup step writes, for
   the Update line's Dependabot cooldown, and `--readme <word>` only when the
   README step's `readme` output is set (forsgren#110); the step "Write the

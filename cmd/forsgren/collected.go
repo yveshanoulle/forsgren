@@ -71,8 +71,8 @@ var failedWords = map[string]string{
 }
 
 // cutWords describe one cut repository: how far it kept, what became of the
-// recent read, that its issues were not read, and whether it is not
-// progressing.
+// recent read, that its issues and pull requests were not read (forsgren#320,
+// decision #327), and whether it is not progressing.
 func cutWords(c collect.Cut) string {
 	kept := "kept nothing"
 	switch {
@@ -85,7 +85,7 @@ func cutWords(c collect.Cut) string {
 	if c.Recent == collect.RecentDiscarded {
 		parts = append(parts, "recent read discarded")
 	}
-	parts = append(parts, "issues not read")
+	parts = append(parts, "issues and pull requests not read")
 	name := c.Repository + " cut short"
 	if c.Progress == collect.ProgressStalled {
 		name += " and not progressing"

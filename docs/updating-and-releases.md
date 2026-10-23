@@ -84,6 +84,15 @@ a false alarm is possible but never a silent pass.
   that `metrics.yml` passes to forsgren can be declared.
 - **A file** is checked in the run's checkout, so `check-needs` runs at the
   checkout root; the `metrics.yml` step pins it.
+- **A token's own permissions** cannot be seen, and here the check does not
+  report them as missing: it reads the calling workflow, so it names a
+  forsgren job without `pull-requests: read`, which is the permission when
+  `FORSGREN_TOKEN` is the job's own token (route A of
+  [agent-installer.md](../agent-installer.md)), but not a fine-grained
+  `FORSGREN_TOKEN` without Pull requests (read) (route B). Such a token gives
+  no setup item, only `collect`'s stderr line in the run. The setup issue
+  never claims the pull request read works because the workflow line is there
+  (decision #314).
 
 ## Auto-update (`check-update`)
 
@@ -432,7 +441,7 @@ a required meta charset and meta description; see
 [Quality gates](quality-gates.md)); nothing changes in what a page shows. No
 new permission, secret or config key is needed.
 
-**Upgrading to 1.16.0** (forsgren#255). A minor release. `collect` also
+**Upgrading to 1.15.0** (forsgren#254, #255). A minor release. `collect` also
 reads the merged pull requests of every measured repository, with each one's
 first commit time, into a new data file, `data/pulls.csv`, with its read mark
 in `data/pulls_read.csv` (see [History](data-files.md#history)); the first
@@ -444,11 +453,25 @@ measured repositories. **Without them nothing stops or fails:** every other
 number is still collected and published, `collect` names the missing
 permission on stderr, and the setup issue lists the `pull-requests: read`
 line (it reads the calling workflow, so it cannot see the token's own
-permissions). No config key or secret is new. An agent following
+permissions and never claims the pull request read works; decision #314).
+No config key or secret is new. An agent following
 [agent-upgrade.md](../agent-upgrade.md) reads this as a new permission in
 `.github/workflows/forsgren.yml`, brings over the template's line when yours
 lacks it, and asks you about the token's permission, which only you can
 change.
+
+The same release brings forsgren#254: `data/commits.csv` becomes the commits
+format v3, with each commit's parents and committer date (see
+[History](data-files.md#history)). A v1 or v2 file is still read, and the
+next `collect` rewrites it once as v3; the commits stored before v3 keep
+their parents and committer date empty for good, since a stored deployment is
+never compared again (decision 293 of forsgren#254). The TBD page's Mainline
+Interval now follows each deployment's first-parent chain, each commit placed
+at its committer date. A deployment stored before v3 with two commits or more
+keeps the old approximation, every commit at its author date, and the cell
+names those commits, ` · 3 commits timed by author date` (decision 294 of
+forsgren#254; see [The TBD page](pages-and-views.md#the-tbd-page)). Nothing
+new is needed for it.
 
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the

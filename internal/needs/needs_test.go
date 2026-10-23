@@ -85,21 +85,22 @@ const wantPullRequestsReadSteps = "Add `pull-requests: read` to the `permissions
 	"requests are not read."
 
 // TestFromTheMergedPullRequestsReleaseTheCallerGrantsPullRequestsRead
-// (forsgren#255, Yves's ruling on the issue): from 1.16.0, the release that
-// collects the merged pull requests, a caller workflow without
-// pull-requests: read is named in the setup issue; the template's caller,
-// which grants it, needs nothing, and 1.15.0 does not ask for it.
+// (forsgren#255, Yves's ruling on the issue): from 1.15.0, the release that
+// collects the merged pull requests (one release with forsgren#254,
+// forsgren#319), a caller workflow without pull-requests: read is named in the
+// setup issue; the template's caller, which grants it, needs nothing, and
+// 1.14.0 does not ask for it.
 func TestFromTheMergedPullRequestsReleaseTheCallerGrantsPullRequestsRead(t *testing.T) {
-	want := Need{Version: "1.16.0", Kind: "permission", Workflow: callerWorkflow,
+	want := Need{Version: "1.15.0", Kind: "permission", Workflow: callerWorkflow,
 		Permission: "pull-requests", Access: "read", Steps: wantPullRequestsReadSteps}
-	before, err := For("1.15.0")
+	before, err := For("1.14.0")
 	asksForPulls := slices.ContainsFunc(before, func(n Need) bool { return n.Permission == want.Permission })
 	if err != nil || asksForPulls {
-		t.Errorf("For(1.15.0): want no pull-requests need and no error, got %v, %v", before, err)
+		t.Errorf("For(1.14.0): want no pull-requests need and no error, got %v, %v", before, err)
 	}
-	from, err := For("1.16.0")
+	from, err := For("1.15.0")
 	if err != nil || !slices.Contains(from, want) {
-		t.Fatalf("For(1.16.0): want %v among the needs and no error, got %v, %v", want, from, err)
+		t.Fatalf("For(1.15.0): want %v among the needs and no error, got %v, %v", want, from, err)
 	}
 	cases := []permissionCase{
 		{"template shape, grants it", want, templateWorkflow, true},

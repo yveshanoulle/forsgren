@@ -110,7 +110,8 @@ needs, each permission declared explicitly:
   Mainline Lead Time, and the page footer name Dependabot's waiting pull
   request for a newer forsgren release. Without it the run still succeeds;
   the setup issue names it. A fine-grained `FORSGREN_TOKEN` needs Pull
-  requests (read) as well.
+  requests (read) as well, which the setup issue cannot see, so it never
+  says the pull request read works.
 - `issues: write`: lets forsgren open its setup issue (below). Without it the
   run still succeeds; its job summary and the page footer say what is missing.
 

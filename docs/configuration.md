@@ -461,9 +461,12 @@ four only with its flag:
   a green run means collection ran correctly, not that all requested history
   was collected (forsgren#64). "complete" only for a report that says so;
   otherwise "incomplete" with `budget reached;` and each repository cut short
-  (how far it kept, `issues not read`, `recent read discarded`, and
-  `and not progressing` when it was cut short with nothing kept on
-  consecutive runs), the time the budget resets, and each repository that
+  (how far it kept, `issues and pull requests not read`, `recent read
+  discarded`, and `and not progressing` when it was cut short with nothing
+  kept on consecutive runs; decision #327), then each repository whose pull
+  requests alone the budget cut short, `acme/app pull requests cut short
+  (deployments and issues read)` (forsgren#320, decision #307), the time the
+  budget resets, and each repository that
   failed on GitHub's "primary rate limit" or "secondary rate limit". A missing
   file is "unknown: collect wrote no report: see the failed collect step",
   and a file that is no report "unknown: collect's report cannot be read: see
@@ -653,7 +656,7 @@ jobs:
   that adds the starter and collect, change `contents: read` to
   `contents: write` and add the `secrets:` block** in the calling workflow
   (and in the template's copy of it).
-- **`pull-requests: read` is needed from 1.16.0, and the caller's to grant
+- **`pull-requests: read` is needed from 1.15.0, and the caller's to grant
   too** (forsgren#255). forsgren then reads the merged pull requests of the
   measured repositories for the Mainline Lead Time (see [The merged pull
   requests](data-files.md#collecting-deployments-collect)). A caller without
@@ -661,8 +664,10 @@ jobs:
   collected, and the setup issue names the line (see [The setup
   issue](updating-and-releases.md)). It grants the run's own token; a
   fine-grained `FORSGREN_TOKEN` needs Pull requests (read) of its own (see
-  [The token](data-files.md#collecting-deployments-collect)). The template's
-  calling workflow carries the line.
+  [The token](data-files.md#collecting-deployments-collect)), which the setup
+  issue cannot see: it reads the calling workflow only, so it never claims
+  the pull request read works because the line is there (decision #314). The
+  template's calling workflow carries the line.
   It also names the waiting update (forsgren#40). With it, when a newer forsgren release exists and
   Dependabot has an open pull request in your repository that bumps the
   `uses:` pin to exactly that release, the page footer says "Forsgren <version>

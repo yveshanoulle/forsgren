@@ -340,11 +340,15 @@ acme/app,43,2026-09-02T08:00:00Z,2026-09-02T09:00:00Z,<40 hex>,2026-09-02T09:00:
 - One line per merged pull request. A pull request closed without a merge is
   not stored. No title, no body, no author and no branch name is stored: a
   branch name can identify people, and no metric uses it (decision #305).
+  `collect` does not read the branch name either (decision #322).
 - `repository` is `owner/name` and `number` the pull request's number.
 - `created_at`, `merged_at` and `updated_at` are the pull request's created,
-  merged and updated time, UTC, to the second. `updated_at` is GitHub's
-  updated time when `collect` read the pull request: a stored line is never
-  written again, so a later comment or label does not move it.
+  merged and updated time, UTC, to the second. `updated_at` is a snapshot:
+  GitHub's updated time when `collect` first stored the pull request. It is
+  not kept current and is never the pull request's latest update on GitHub: a
+  stored line is never written again, so a later comment or label does not
+  move it. Where the next read starts is never taken from this file: the read
+  mark in `data/pulls_read.csv` alone decides that (decision #304).
 - `merge_commit` is the SHA of the commit the merge made, 40 or 64 lower-case
   hex digits.
 - `first_commit_at` is the pull request's first commit time, UTC, to the
@@ -359,7 +363,11 @@ acme/app,43,2026-09-02T08:00:00Z,2026-09-02T09:00:00Z,<40 hex>,2026-09-02T09:00:
   list that stopped at the page limit. The time is kept: it is the earliest of
   the commits read, so the lead time it gives is a lower bound, never exact
   (decisions #299, #301). The flag stays even when all the dates read are
-  equal. Otherwise `false`.
+  equal. Otherwise `false`. A pull request is marked as cut when a page or
+  GitHub limit prevents reading its complete commit history. If the request
+  budget is exhausted during that read, the pull request is not stored and is
+  retried on the next collection run. Budget exhaustion is a resumable
+  interruption, not a permanent data cut (decision #308).
 - `created_stands_in` is `true` when the commit list gave no usable date (no
   commit, or a commit without an author date, or an answer forsgren cannot
   read): then `first_commit_at` is empty and the pull request's created time
@@ -372,8 +380,12 @@ acme/app,43,2026-09-02T08:00:00Z,2026-09-02T09:00:00Z,<40 hex>,2026-09-02T09:00:
 - Held by repository (ignoring case) and number, as GitHub numbers a
   repository's issues and pull requests from one sequence: a pull request
   already in the file is skipped, the first line staying whatever a later read
-  says (decision #306). The new lines of a run are in merge order (merged
-  time, repository, number).
+  says (decision #306). `first_commit_cut` and `created_stands_in` describe
+  the quality of the stored measurement, not a state waiting for a
+  correction: both stay for that record for good. A correction, if one is
+  ever needed, is an explicit, versioned migration, never a rewrite of a
+  pulls v1 line. The new lines of a run are in merge order (merged time,
+  repository, number).
 - Otherwise the same rules as `deployments.csv`: created with its version
   line, appended only, refused untouched when its version is unknown or a line
   is malformed, naming the line. A run with nothing to store still writes the
@@ -396,11 +408,14 @@ acme/app,2026-10-23T06:00:00Z
   pull requests, in UTC, to the second. Lines are sorted by repository.
 - The next run reads the pull requests updated since that time less a day
   (never before `history_days` back), and a repository without a line reads
-  back to `history_days` (decision #304).
-- The line moves only after a read that ended: a read that a missing
-  `pull-requests` permission or the request budget stopped keeps the line as
-  it was, so the next run reads the rest. A read cut at the page limit moves
-  it (decision #309).
+  back to `history_days` (decision #304). This line alone decides where the
+  read resumes; `pulls.csv` is never read for it.
+- The line moves only after a read that ended, and only after the pull
+  requests it read are stored: a read that a missing `pull-requests`
+  permission or the request budget stopped keeps the line as it was, so the
+  next run reads the rest, the interrupted pull request included, and no pull
+  request is skipped (decisions #304, #308). A read cut at the page limit
+  moves it (decision #309).
 - Rewritten whole like `data/reach.csv`, and only when a line changed. A
   missing file notes no repository. An unknown version or a malformed line
   refuses the collect run before GitHub is asked anything, naming the file.
@@ -427,8 +442,9 @@ stored by a later run, `commits` is the commits stored for the new
 deployments. A deployment already in the history is skipped without a
 count. When it stored failure issues the line goes on with
 `, 2 failure issues`, the issues new or changed since the last run, and when
-it stored merged pull requests with `, 4 merged pull requests` (decision #311;
-see The merged pull requests below).
+it stored merged pull requests with `, 4 merged pull requests`: the pull
+requests newly stored by this run, never the repository's total, and nothing
+when it stored none (decision #311; see The merged pull requests below).
 
 - **`environment=<name>`** (the default, `production`): the GitHub
   Deployments to that environment, and each one's statuses. A deployment is
@@ -736,16 +752,28 @@ first, and stores the merged ones in `data/pulls.csv` (see
   for all their pages (3 at most). At the budget the pull requests read whole
   are stored and the mark stays, so the next run reads the rest; one whose
   commit list the budget would stop is not stored and is read again next run
-  (decision #308). The repository is not cut short by it (decision #307).
-- A commit list that gives no usable date has the created time stand in,
-  named on stderr; a cut one keeps its time with `first_commit_cut`.
+  (decision #308). Its deployments and issues are already stored, so the
+  repository is reported as incomplete, never failed: a `pulls-cut` line in
+  the cut report (see below) and `acme/app pull requests cut short
+  (deployments and issues read)` on the job summary's Collected line
+  (decision #307).
+- The created time stands in for the first commit time in two cases, each
+  named on stderr: the commit list gives no usable date (no commit, or a
+  commit without an author date), or a commit page forsgren cannot read,
+  whose warning names the repository and the pull request, `collect: acme/app:
+  pull request 14: the answer for its commits is malformed or unreadable`
+  (decision #313). A server error, a rate limit or a 403 is never a stand-in:
+  a 403 is the missing permission below, and the others fail the repository
+  as the last point says. A cut list keeps its time with `first_commit_cut`.
 - **Without the pull requests permission** (a 403 that is not the rate limit)
   nothing fails: the pull requests read so far are stored, the mark stays,
   stderr names the missing permission and the rest of the repository is
   collected (Yves's ruling on #255). The setup issue names it (see
   [The setup issue](updating-and-releases.md)).
-- A list cut at the page limit is named on stderr and the mark moves (the
-  list is newest first, so the same mark would read the same pages again).
+- A list cut at the page limit is an incomplete read: stderr says so, and
+  that older pull requests may be skipped for good, since the mark moves (the
+  list is newest first, so the same mark would read the same pages again;
+  decision #309).
 - Any other error fails the repository, after its deployments and issues are
   stored.
 
@@ -769,10 +797,13 @@ access`: add Issues (read) to the token before updating to a forsgren that
 reads failure issues.
 
 Every rule also reads the repository's merged pull requests, for the
-Mainline Lead Time (forsgren#255, from 1.16.0), which needs Pull requests
+Mainline Lead Time (forsgren#255, from 1.15.0), which needs Pull requests
 (read) as well. A token without it fails nothing: `collect` stores everything
 else and names the missing permission on stderr (see The merged pull
-requests above). An installation whose caller passes the run's own token as
+requests above). The setup issue cannot see a fine-grained token's
+permissions, so it gives no item for one without Pull requests (read), and it
+never claims the pull request read works (decision #314; see
+[The setup issue](updating-and-releases.md#the-setup-issue-check-needs)). An installation whose caller passes the run's own token as
 `FORSGREN_TOKEN` (every measured repository public, route A of
 [agent-installer.md](../agent-installer.md)) has the permissions its caller's
 job grants, so there the caller's `pull-requests: read` is that permission.
@@ -796,17 +827,24 @@ history), so no file is unknown, never complete. The file is text:
 # forsgren collect report v1
 incomplete resets=2026-10-01T01:00:00Z
 cut acme/app kept=2026-06-22 recent=discarded issues=unread progress=stalled
+pulls-cut acme/shop
 failed acme/web secondary-rate-limit
 ```
 
 - The second line is `complete`, or `incomplete resets=<UTC RFC 3339>` when
-  any repository was cut short at the request budget.
+  any repository, or its pull requests, was cut short at the request budget.
 - A `cut` line names such a repository: `kept` is the UTC day its read mark
   moved to (`none` when it kept no day), `recent` what became of the read of
   what is new (`read` whole, `kept` in part, `discarded`), `issues` is always
-  `unread` (a cut repository stores nothing of its issues) and `progress` is
-  `yes` when it kept something, `no` the first run it kept nothing, and
-  `stalled` when it kept nothing again (the cut runs note above).
+  `unread` (a cut repository stores nothing of its issues, and its pull
+  requests are not read either) and `progress` is `yes` when it kept
+  something, `no` the first run it kept nothing, and `stalled` when it kept
+  nothing again (the cut runs note above). The job summary says `issues and
+  pull requests not read` for it (decision #327).
+- A `pulls-cut` line names a repository whose deployments and issues were
+  read whole but whose pull requests the request budget cut short:
+  incomplete, never failed, and the rest is read by the next run (decision
+  #307).
 - A `failed` line names a repository that failed: `primary-rate-limit`,
   `secondary-rate-limit` or `error`.
 

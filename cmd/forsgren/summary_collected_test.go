@@ -34,9 +34,9 @@ func TestRunSummaryTellsCollectedCompleteOnlyForACompleteReport(t *testing.T) {
 }
 
 // TestRunSummaryNamesWhatTheBudgetCutShort: each cut repository with how far
-// it kept, that its issues were not read, the recent read when it was
-// discarded, and a repository that made no progress named as such, then the
-// time the budget resets.
+// it kept, that its issues and pull requests were not read (forsgren#320,
+// decision #327), the recent read when it was discarded, and a repository
+// that made no progress named as such, then the time the budget resets.
 func TestRunSummaryNamesWhatTheBudgetCutShort(t *testing.T) {
 	pinNow(t)
 	report := reportHead + "incomplete resets=2026-10-01T11:00:00Z\n" +
@@ -44,9 +44,10 @@ func TestRunSummaryNamesWhatTheBudgetCutShort(t *testing.T) {
 		"cut acme/docs kept=none recent=discarded issues=unread progress=stalled\n" +
 		"cut acme/api kept=none recent=kept issues=unread progress=no\n"
 	want := summaryOf(version, "up to date") + "- Collected: incomplete, budget reached; " +
-		"acme/app cut short (kept up to 2026-06-22, issues not read), " +
-		"acme/docs cut short and not progressing (kept nothing, recent read discarded, issues not read), " +
-		"acme/api cut short (kept the newest days, issues not read); resets 2026-10-01 11:00 UTC\n"
+		"acme/app cut short (kept up to 2026-06-22, issues and pull requests not read), " +
+		"acme/docs cut short and not progressing (kept nothing, recent read discarded, " +
+		"issues and pull requests not read), " +
+		"acme/api cut short (kept the newest days, issues and pull requests not read); resets 2026-10-01 11:00 UTC\n"
 	if got := collectedSummary(t, report, false); got != want {
 		t.Errorf("want %q, got %q", want, got)
 	}
@@ -61,7 +62,8 @@ func TestRunSummaryNamesARepositoryWhosePullRequestsWereCutShort(t *testing.T) {
 	for name, c := range map[string]struct{ cuts, words string }{
 		"alone": {"", ""},
 		"after a cut repository": {"cut acme/docs kept=none recent=discarded issues=unread progress=stalled\n",
-			"acme/docs cut short and not progressing (kept nothing, recent read discarded, issues not read), "},
+			"acme/docs cut short and not progressing (kept nothing, recent read discarded, " +
+				"issues and pull requests not read), "},
 	} {
 		t.Run(name, func(t *testing.T) {
 			report := reportHead + "incomplete resets=2026-10-01T11:00:00Z\n" + c.cuts + "pulls-cut acme/app\n"
