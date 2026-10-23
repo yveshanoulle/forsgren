@@ -2,7 +2,6 @@ package collect
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -48,20 +47,14 @@ func comparison(status string, total int, commits ...authored) string {
 	return comparisonBy(status, total, by...)
 }
 
-// comparisonBy is comparison with each commit's author login.
+// comparisonBy is comparison with each commit's author login, each commit
+// without parents or a committer.
 func comparisonBy(status string, total int, commits ...authoredBy) string {
-	items := make([]string, 0, len(commits))
-	for _, c := range commits {
-		account := "null"
-		if c.login != "" {
-			account = fmt.Sprintf(`{"login": %q, "type": "User"}`, c.login)
-		}
-		items = append(items, fmt.Sprintf(`{"sha": %q, "author": %s, "commit": {"author": {"name": "Acme Dev", `+
-			`"email": "dev@acme.example", "date": %q}, "committer": {"date": "2026-09-30T00:00:00Z"}, "message": "More"}}`,
-			c.sha, account, c.date.Format(time.RFC3339)))
+	of := make([]lineage, len(commits))
+	for i, c := range commits {
+		of[i] = lineage{authoredBy: c}
 	}
-	return fmt.Sprintf(`{"status": %q, "ahead_by": %d, "behind_by": 0, "total_commits": %d, "commits": %s, `+
-		`"files": []}`, status, total, total, list(items...))
+	return comparisonOf(status, total, of...)
 }
 
 // ahead is a comparison GitHub gives whole: the head is ahead of the base

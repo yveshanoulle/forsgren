@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"path/filepath"
 	"slices"
-	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/github"
 	"github.com/yveshanoulle/forsgren/internal/history"
@@ -176,13 +175,16 @@ func (o Options) warn(format string, a ...any) { _, _ = fmt.Fprintf(o.Stderr, fo
 
 // deployed is commits as the commits of the deployment r: each with its
 // author date (UTC, whole seconds), its author's GitHub login (empty when
-// GitHub links the commit to no account) and r's created_at.
+// GitHub links the commit to no account), r's created_at, its parents in
+// GitHub's order, the first parent first, and its committer date (UTC, whole
+// seconds; zero when GitHub gave none, never the author date; forsgren#254).
 func deployed(r history.Record, commits []github.Commit) []history.Commit {
 	out := make([]history.Commit, 0, len(commits))
 	for _, c := range commits {
 		out = append(out, history.Commit{
 			Repository: r.Repository, Kind: r.Kind, DeploymentID: r.ID, SHA: c.SHA,
-			AuthoredAt: c.AuthoredAt.UTC().Truncate(time.Second), DeployedAt: r.CreatedAt, Author: c.Author,
+			AuthoredAt: wholeSecond(c.AuthoredAt), DeployedAt: r.CreatedAt, Author: c.Author,
+			Parents: c.Parents, CommittedAt: wholeSecond(c.CommittedAt),
 		})
 	}
 	return out

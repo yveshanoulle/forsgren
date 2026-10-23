@@ -9,6 +9,18 @@ Active work lives in
 
 ---
 
+## 2026-10-23 — collect stores each commit's parents and committer date ([#254](https://github.com/yveshanoulle/forsgren/issues/254), step 3 of 5)
+
+forsgren issue 254, step 3 of 5, minor release. `collect` now fills the two v3 columns of `data/commits.csv`: `deployed` (`internal/collect/commits.go`) copies each compared commit's parents as `Compare` read them, in GitHub's order, the first parent first, and its committer date in UTC cut to the whole second (`wholeSecond`, which the failure issues already used; the author date now goes through it too). A commit GitHub gives no committer date for is stored with an empty `committed_at`, never the author date. No page changes yet (step 4).
+
+- Commits stored before v3 keep their empty parents and committer date on a later collect: a deployment already stored is never compared again (its statuses are not read, and `fresh` leaves it out), so nothing is looked up again, and the held rule of `AppendCommits` keeps a stored line as it is. The file is still rewritten once as v3. Stored history stays stable; step 4 names the commits without parents as the old approximation.
+- Red first, seen failing at runtime against the step 2 code: `TestCollectStoresEachCommitsParentsInOrderAndItsCommitterDate` (a merge whose first parent sorts after its second, a committer date given in CEST with half a second, a commit without a committer) and `TestACommitStoredBeforeV3KeepsItsEmptyParentsOnALaterCollect` (a v2 file whose held commit stays empty while the new deployment's commit is filled, the stored deployment not compared again, the file rewritten as v3), both in the new `internal/collect/commits_lineage_test.go`. The fake comparison answer (`comparisonOf`, `lineage`) now gives parents and a committer only when a test names them, so the other tests' commits have none.
+- Mutations seen red: the parents sorted, the parents reversed, the parents dropped, the committer date dropped, the author date taken for a missing committer date, the committer date not cut to the second (the append refuses it), and the held deployments read and compared again (both guards removed together; either one alone still keeps them out).
+- Docs: `docs/data-files.md` describes the `parents` and `committed_at` columns, their order, separator and empty meanings, and the one-time upgrade of v1 and v2 files; CLAUDE.md.
+- Coverage: no new function; total 99.8%. CodeScene: `internal/collect/commits.go`, `commits_test.go` and the new `commits_lineage_test.go` at 10.0, a row added for the new file.
+
+---
+
 ## 2026-10-23 — the commits format v3 with each commit's parents and committer date ([#254](https://github.com/yveshanoulle/forsgren/issues/254), step 2 of 5)
 
 forsgren issue 254, step 2 of 5, minor release. The format only: `collect` does not fill the new columns yet (step 3), and no page changes (step 4). `data/commits.csv` is now the commits format v3, v3 and not the v2 the issue named, since #273 made v2: two columns after `author`. `parents` holds the SHAs of the commit's parents in the order they were given, the first parent first, parted by one space, as git lists them; empty means none known (a commit stored before v3, or a root commit, which a comparison of two deployments does not reach). `committed_at` is the git committer date in UTC, empty when unknown; never the author date in its place. `history.Commit` has `Parents` and `CommittedAt`. Only SHAs are accepted as parents (so no parent can hold the separator) and only whole seconds as the committer date; the key and the held rule are unchanged, neither column is part of the key.

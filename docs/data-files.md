@@ -70,15 +70,16 @@ names the line.
 
 **The commits of each deployment**, for lead time (forsgren#16), are kept
 next to it in `data/commits.csv`, with its own format version (the commits
-format v2, with the author of each commit, forsgren#273; v1 files are still
+format v3, with each commit's parents and committer date, forsgren#254; v2
+added the author of each commit, forsgren#273; v1 and v2 files are still
 read); `data/deployments.csv` does not change. `collect` writes it,
 always next to the `--data` file (see [Collecting deployments](#collecting-deployments-collect), The commits
 of each deployment):
 
 ```
-# forsgren commits v2
-repository,kind,deployment_id,commit,authored_at,deployed_at,author
-acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z,ada-dev
+# forsgren commits v3
+repository,kind,deployment_id,commit,authored_at,deployed_at,author,parents,committed_at
+acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z,ada-dev,<40 hex> <40 hex>,2026-09-01T09:30:00Z
 ```
 
 - One line per commit per deployment. `repository`, `kind` and
@@ -96,22 +97,36 @@ acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z,ada
   as GitHub names it, `dependabot[bot]`: leaving bots out is the job of what
   counts developers, not of the file. One person with several email addresses
   is one login. The login is already public on GitHub next to the commit.
+- `parents` (format v3, forsgren#254) are the SHAs of the commit's parents,
+  taken from the `parents` of GitHub's comparison answer in GitHub's order,
+  the first parent first, parted by one space, as `git log` lists them: a
+  merge's first parent is the line it was made on, the second the line it
+  brought in. Empty means none known: a commit stored before v3, or a root
+  commit, which a comparison of two deployments does not reach. Only SHAs are
+  accepted.
+- `committed_at` (format v3, forsgren#254) is the commit's git committer date
+  (`commit.committer.date` of the answer), UTC, whole seconds: when the commit
+  landed where it is now. Empty when GitHub gives none or the commit was stored
+  before v3; never the author date in its place.
 - The project and the task are not repeated: the project comes from the
   config, as for deployment frequency, and the task is the deployment's own.
 - The same rules as `deployments.csv`: created with its version line,
   appended only, refused untouched when its version is unknown or a line is
   malformed. A commit already there for the same deployment (repository
   ignoring case, kind, ID and the same SHA) is skipped; a call with nothing
-  new leaves the file alone. The author is not part of the key: a commit
-  already held keeps the author it was stored with.
-- **v1 files.** A `commits.csv` written before the author column (the commits
-  format v1, six columns) is still read, every author empty. The first
-  `collect` that appends to it, also when it has no new commit, writes it again
-  once as v2: every line kept as it was with an empty `author`, then the new
-  lines with theirs, through a temporary file in the same directory and a
-  rename, so an interrupted run leaves the old file. The authors of commits
-  stored before are not known and stay empty; forsgren does not look them up
-  again. A file with a version it does not know, or a line that is not in the
+  new leaves the file alone. The author, the parents and the committer date
+  are not part of the key: a commit already held keeps the ones it was stored
+  with.
+- **v1 and v2 files.** A `commits.csv` written before the author column (the
+  commits format v1, six columns) or before the parents and committer date (the
+  commits format v2, seven columns) is still read, what it lacks empty. The
+  first `collect` that appends to it, also when it has no new commit, writes it
+  again once as v3: every line kept as it was with the columns it lacks empty,
+  then the new lines with theirs, through a temporary file in the same
+  directory and a rename, so an interrupted run leaves the old file. The
+  authors, parents and committer dates of commits stored before are not known
+  and stay empty: a stored deployment is never compared again, so forsgren
+  does not look them up again. A file with a version it does not know, or a line that is not in the
   format, is still refused untouched.
 
 **The failure issues**, for change fail rate (forsgren#18), are kept next to
@@ -416,8 +431,9 @@ successful deployment `collect` stores is compared with the previous
 successful one of its stream, `compare/{previous commit}...{its commit}`,
 and the commits after the previous one's commit up to its own are stored
 in `data/commits.csv`, each with its author date, its author's GitHub login
-(empty when GitHub links the commit to no account; forsgren#273) and the
-deployment's `created_at`.
+(empty when GitHub links the commit to no account; forsgren#273), the
+deployment's `created_at`, its parents in GitHub's order, the first parent
+first, and its committer date (empty when GitHub gives none; forsgren#254).
 
 - **A stream** is a repository's deployments by one rule with the same
   environment or workflow and the same `task`: a repository deploying
