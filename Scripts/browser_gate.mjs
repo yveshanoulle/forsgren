@@ -328,14 +328,27 @@ function serve(siteDir) {
 
 // What scrolls sideways on the page as it is laid out now: the page itself,
 // then each table's box, in document order, each with its overflow in pixels.
+// The room a vertical scrollbar takes from every box on the page is the
+// system's choice, not the page's: a classic scrollbar is 15 px and, with the
+// page's `scrollbar-gutter: stable` (forsgren#153), reserved even where Chrome
+// hides it; an overlay scrollbar takes none. The same page measured 15 px
+// wider or narrower after the system's scrollbar style changed, and after the
+// #377 reorder (forsgren#377, .1). So the measurement takes the gutter and the
+// vertical overflow away first and gives them back: the number is the layout
+// without any scrollbar room, the same on every machine and in every order.
 function measureSideways() {
   const found = [];
   const root = document.scrollingElement;
+  const html = document.documentElement;
+  html.style.setProperty('scrollbar-gutter', 'auto', 'important');
+  html.style.setProperty('overflow-y', 'hidden', 'important');
   found.push({ what: 'the page', box: 'the window', px: root.scrollWidth - root.clientWidth });
   document.querySelectorAll('table').forEach((table, index) => {
     const box = table.parentElement;
     found.push({ what: `table ${index + 1}`, box: 'its box', px: box.scrollWidth - box.clientWidth });
   });
+  html.style.removeProperty('overflow-y');
+  html.style.removeProperty('scrollbar-gutter');
   return found;
 }
 

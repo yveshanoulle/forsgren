@@ -96,6 +96,10 @@
 # The CLS interval starts at the load (forsgren#377):
 #  50. a page that reports a shift when it is read after the axe run -> green
 #   P. the CLS read moved back after the axe run: case 50 turns red.
+# The sideways measurement does not depend on a scrollbar (forsgren#377, .1):
+#  51. case 41's table on a page that shows a 15 px page scrollbar -> red, still
+#      210 px (a measurement that reads the box beside the scrollbar says 225)
+#   Q. the scrollbar not hidden while measuring: case 51 says 225.
 
 set -euo pipefail
 
@@ -428,6 +432,13 @@ SCROLL_BOX='<div style="overflow-x: auto" role="region" aria-label="wide table" 
 make_site phonewide "$(page "${SCROLL_BOX}<table style=\"width: 600px\"><tr><th scope=\"col\">wide</th></tr></table></div>" '<style>body { margin: 0; }</style>')"
 make_site laptopwide "$(page "${SCROLL_BOX}<table style=\"width: 1500px\"><tr><th scope=\"col\">wide</th></tr></table></div>" '<style>body { margin: 0; }</style>')"
 make_site pagewide "$(page '<div style="width: 1500px">wide</div>' '<style>body { margin: 0; }</style>')"
+# 51: case 41's table on a page that always shows a 15 px page scrollbar.
+# Whether Chrome gives a page scrollbar room is the system's choice (classic or
+# overlay scrollbars) and headless Chrome hides them, so the page makes its own
+# 15 px: it leaves the room a classic scrollbar takes unless the root's
+# scrollbar-gutter is set inline on <html>, which is what the gate does.
+SCROLLBAR_CSS='<style>body { margin: 0; min-height: 2000px; } html:not([style*="scrollbar-gutter"]) body { padding-right: 15px; }</style>'
+make_site scrollbar "$(page "${SCROLL_BOX}<table style=\"width: 600px\"><tr><th scope=\"col\">wide</th></tr></table></div>" "$SCROLLBAR_CSS")"
 LONG_CELL="$(printf 'note %.0s' {1..120})"
 make_site wraps "$(page "${SCROLL_BOX}<table><tr><th scope=\"row\">Acme</th><td>${LONG_CELL}</td></tr></table></div>" '')"
 run_gate phonewide
@@ -480,6 +491,11 @@ want_exit "49d: a sideways row listed twice" 2 "listed twice"
 : > "${TMP}/readorder/baseline.txt"
 run_gate readorder
 want_green "50: the CLS is read before the axe run, not after it" "OK:"
+
+# 51: the same table, a page scrollbar of 15 px: the overflow is the table's
+# width less the window's, 210 px, with or without the scrollbar (forsgren#377).
+run_gate scrollbar
+want_red "51: a page scrollbar does not change the measurement" "FAIL: light /: scrolls sideways at 390x844: table 1 is 210 px wider than its box"
 
 # Mutation proofs: the engine copy is run directly, with the real node_modules.
 MUT="${TMP}/mutants"
@@ -622,4 +638,10 @@ if selftest_mutant "$ENGINE" "${MUT}/p.mjs" "s/^    await check.checkLayoutShift
   want_red "mutation proof P: a CLS read after the axe run turns case 50 red" "CLS 0.5"
 fi
 
-selftest_end "the browser gate self-test failed" "browser gate: every case holds, sixteen mutations seen"
+# Q: the page scrollbar not taken away while measuring -> case 51 says 225.
+if selftest_mutant "$ENGINE" "${MUT}/q.mjs" "s/^  html.style.setProperty('scrollbar-gutter', 'auto', 'important');/  \/\/ kept/"; then
+  run_mutant "${MUT}/q.mjs" scrollbar
+  want_said "mutation proof Q: with the scrollbar kept, case 51 measures 225 px" "table 1 is 225 px wider than its box"
+fi
+
+selftest_end "the browser gate self-test failed" "browser gate: every case holds, seventeen mutations seen"
