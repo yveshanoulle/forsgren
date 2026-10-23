@@ -94,8 +94,11 @@ acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z,ada
   email address and never a name: only the shape of a login is accepted (letters,
   digits, hyphens and underscores, and for a bot account the suffix `[bot]`).
   A commit that GitHub links to no account, because its email belongs to no
-  user, has an empty `author`: unknown, never guessed. A bot account is stored
-  as GitHub names it, `dependabot[bot]`: leaving bots out is the job of what
+  user, has an empty `author`: unknown, never guessed. When GitHub answers
+  such a commit with its placeholder login `invalid-email-address` instead,
+  the line keeps that login as GitHub gave it, and what counts developers
+  takes it for an unknown author, never a person (forsgren#355), so a line
+  stored before reads the same. A bot account is stored as GitHub names it, `dependabot[bot]`: leaving bots out is the job of what
   counts developers, not of the file. One person with several email addresses
   is one login. The login is already public on GitHub next to the commit.
 - `parents` (format v3, forsgren#254) are the SHAs of the commit's parents,

@@ -881,7 +881,10 @@ last in the menu, "TBD"; `false` leaves it out.
   developer and its commits are left out. A commit without a login (GitHub
   links its email to no account, or it was stored by the commits format v1) is
   not guessed to be anyone's: the count leaves it out and its note says how
-  many. The cell is the count, then the note after ` · ` as the recovery cell
+  many. GitHub's placeholder login `invalid-email-address`, its answer for an
+  author email it links to no account, is such a commit too, ignoring case,
+  and never legacy data, which is a commit without a login stored before the
+  commits format v3 (forsgren#355). The cell is the count, then the note after ` · ` as the recovery cell
   names its recoveries not completed yet: `3`, or
   `3 · 2 commits without a known author are not counted` (singular for one);
   a project with no counted commit reads `0`, a count, not a dash. The

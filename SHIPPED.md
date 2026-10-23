@@ -9,6 +9,16 @@ Active work lives in
 
 ---
 
+## 2026-10-23 — GitHub's placeholder author is never a developer ([#355](https://github.com/yveshanoulle/forsgren/issues/355), step 1 of 1)
+
+forsgren issue 355, step 1 of 1, patch release (with #256, #337, #345). GitHub answers a commit whose author email links to no account with the placeholder login `invalid-email-address`, which collect stored as the author like any login, so the Developers count took it for a person. `MainlineDevelopers` now counts a commit by that login (`placeholderLogin`, compared ignoring case in `noteAuthor`) with the other commits without a known author, never as a developer. Such a commit is never legacy data: `Developers.add` counts as legacy only a commit without a login stored before the commits format v3, so the legacy cell says `(3 of them legacy data)` when placeholder commits are among the unknown ones. The stored lines keep the login as GitHub gave it (no rewrite, #293): the counting side decides, so the lines stored before stop counting as a developer too. GitHub documents no list of placeholder logins; `invalid-email-address` is the one seen. The legend's sentence on commits whose author GitHub links to no account already covers it, so no golden changes. `docs/data-files.md` and `docs/pages-and-views.md` name the placeholder.
+
+- Red first, seen failing at runtime: `TestDevelopersTakeGitHubsPlaceholderForAnUnknownAuthor` (two placeholder commits, one with another case, one stored before v3, and a person: 2 developers and 0 unknown before the fix, want 1 and 3; and a mostly legacy project with one placeholder commit called all legacy data).
+- Mutations seen red: the placeholder counted as a developer again; the placeholder called legacy data; the placeholder compared with case.
+- Coverage: no new function, `noteAuthor` and `Developers.add` stay at 100.0, total 99.8. CodeScene: `developers.go` and `developers_test.go` 10.0, unchanged.
+
+---
+
 ## 2026-10-23 — The TBD page names legacy data plainly when it is most of a figure ([#345](https://github.com/yveshanoulle/forsgren/issues/345), step 3 of 3)
 
 forsgren issue 345, step 3 of 3, minor release (before #256 step 3 and its release; Yves's answer on #344, Option C; #355 noted). The Mainline Interval cell's note becomes `Mostly estimated: 1121 of 1134 commits timed by author date.` when more than half of the commits counted are timed by author date (`MainlineInterval.Note`, `mostOf`); at half or below it stays `1121 commits timed by author date`. `Developers` now holds `Commits`, the window's distinct deployed commits, bots' included, and `Legacy`, the commits without a known author stored before the commits format v3 (`storedBeforeLineage`: no parents and no committer date). When `Legacy` is more than half of `Commits`, the Developers cell is `3 developers · 1099 commits without a known author excluded (legacy data).` (`legacyCell`); when some of the unknown ones were stored with their lineage, GitHub linking them to no account, it says how many are legacy data, `(3 of them legacy data)`, so none is called legacy data that is not. At half or below the plain note stays. Mainline Interval speaks of an estimate, measurement accuracy; Developers never does, incomplete attribution (#344). No backfill (#293). The legend is #256 step 3.

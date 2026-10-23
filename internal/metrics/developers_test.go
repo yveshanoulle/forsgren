@@ -145,3 +145,27 @@ func TestDevelopersCell(t *testing.T) {
 		}
 	}
 }
+
+// TestDevelopersTakeGitHubsPlaceholderForAnUnknownAuthor (forsgren#355): GitHub
+// answers a commit whose author email links to no account with the
+// placeholder login invalid-email-address; that is no person, so it is no
+// developer: its commits are counted with the other unknown-author ones,
+// ignoring case as logins do, whatever commits format stored them. They are
+// no legacy data either, which is an empty author stored before the commits
+// format v3, so the legacy cell says how many of the unknown ones are.
+func TestDevelopersTakeGitHubsPlaceholderForAnUnknownAuthor(t *testing.T) {
+	commits := []history.Commit{
+		by("invalid-email-address", "a1"), by("Invalid-Email-Address", "a2"), by("octo-dev", "a3"),
+		legacyBy("invalid-email-address", "a4"),
+	}
+	want := Developers{Project: "Acme Shop", Count: 1, Unknown: 3, Commits: 4}
+	if got := shopDevelopers(commits...); got != want {
+		t.Errorf("want %+v, got %+v", want, got)
+	}
+	mostlyLegacy := shopDevelopers(legacyBy("", "a1"), legacyBy("", "a2"), legacyBy("", "a3"),
+		by("invalid-email-address", "a4"))
+	cell := "0 developers · 4 commits without a known author excluded (3 of them legacy data)."
+	if got := mostlyLegacy.Cell(); got != cell {
+		t.Errorf("want the cell %q, got %q (%+v)", cell, got, mostlyLegacy)
+	}
+}

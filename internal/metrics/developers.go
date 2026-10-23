@@ -18,8 +18,14 @@ package metrics
 //   - a commit without a login (GitHub links it to no account, or it was
 //     stored by the commits format v1) is not guessed to be anyone's: it is
 //     counted as unknown, and the note says how many;
-//   - such a commit stored before the commits format v3, with neither parents
-//     nor a committer date, is legacy data (forsgren#345, step 3): when those
+//   - so is a commit by GitHub's placeholder login invalid-email-address
+//     (placeholderLogin, ignoring case), GitHub's answer for an author email
+//     it links to no account, which is no person (forsgren#355); the stored
+//     line keeps the login, so the counting side decides, for the lines
+//     stored before as for the new ones;
+//   - a commit without a login stored before the commits format v3, with
+//     neither parents nor a committer date, is legacy data (forsgren#345,
+//     step 3), a placeholder one never, since GitHub named it: when those
 //     are more than half of the deployed commits, the cell says so plainly
 //     (Yves's wording on #344). It is incomplete attribution, never called an
 //     estimate; the unknown commits stored with their lineage, which GitHub
@@ -54,6 +60,10 @@ type Developers struct {
 
 // botSuffix ends the login of every GitHub bot account.
 const botSuffix = "[bot]"
+
+// placeholderLogin is the login GitHub answers for a commit author whose
+// email links to no account (forsgren#355): no person, so no developer.
+const placeholderLogin = "invalid-email-address"
 
 // Note names the commits whose author is not known, which the count leaves
 // out: "2 commits without a known author are not counted"; empty when there
@@ -121,13 +131,12 @@ func MainlineDevelopers(projects []config.Project, data Data, now time.Time) []D
 }
 
 // add counts the deployed commit c, its author in logins, and whether it is
-// unknown, and legacy data.
+// unknown, and legacy data: no login stored before the commits format v3.
 func (d *Developers) add(logins map[string]bool, c history.Commit) {
 	d.Commits++
-	unknown := noteAuthor(logins, c.Author)
-	d.Unknown += unknown
-	if storedBeforeLineage(c) {
-		d.Legacy += unknown
+	d.Unknown += noteAuthor(logins, c.Author)
+	if c.Author == "" && storedBeforeLineage(c) {
+		d.Legacy++
 	}
 }
 
@@ -138,10 +147,11 @@ func storedBeforeLineage(c history.Commit) bool {
 }
 
 // noteAuthor adds a human login to logins, ignoring case, and returns 1 for a
-// commit without one, 0 otherwise; a bot's login is left out.
+// commit without one or with GitHub's placeholder, 0 otherwise; a bot's login
+// is left out.
 func noteAuthor(logins map[string]bool, login string) int {
 	switch {
-	case login == "":
+	case login == "", strings.EqualFold(login, placeholderLogin):
 		return 1
 	case !strings.HasSuffix(login, botSuffix):
 		logins[strings.ToLower(login)] = true
