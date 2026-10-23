@@ -19,7 +19,7 @@ var descriptions = map[string]string{
 	IssuesPage:         "Issues opened, closed and reopened, by week, month and year",
 	DaysPage:           "Issues opened, closed and reopened on each of the last 30 days",
 	HistoryPage:        "The history of the DORA metrics per project: each half-year and the last 6 months",
-	TbdPage:            "Trunk-based development: the Mainline Interval per project",
+	TbdPage:            "Trunk-based development: the Mainline Interval and the developers per project",
 	legendPage:         "How the DORA numbers are counted and scored: the window, the bands and the scores",
 	settingsPage:       "The settings of forsgren.config.yml and the value in use for each",
 }

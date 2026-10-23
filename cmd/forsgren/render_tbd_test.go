@@ -42,6 +42,30 @@ func TestRenderShowsTheMainlineIntervalOfEachProject(t *testing.T) {
 	}
 }
 
+// TestRenderShowsTheDevelopersOfEachProject (forsgren#273, step 3): with the
+// authors in the commits file, tbd.html shows each project's Developers next
+// to its Mainline Interval: of Acme Shop's three commits in the 30 days, one
+// is by a made-up developer, one by a bot (left out) and one without a known
+// author (named in the note); the developer of the commit deployed before the
+// window is not counted. Acme Tools has no commit, so 0.
+func TestRenderShowsTheDevelopersOfEachProject(t *testing.T) {
+	pinNow(t)
+	commits := acmeCommits()
+	commits[0].Author, commits[1].Author = "acme-dev-one", "dependabot[bot]"
+	commits[3].Author = "acme-dev-two"
+	got := tbdSiteOf(t, validConfig, writeData(t, acmeHistory(), commits))
+	for _, want := range []string{
+		"<th scope=\"col\">Developers</th>",
+		"<td>2 d 22 h ± 4 d 3 h (2) · median 2 d 22 h · p90 -</td>\n" +
+			"            <td>1 · 1 commit without a known author is not counted</td>",
+		"<th scope=\"row\">Acme Tools</th>\n            <td>-</td>\n            <td>0</td>",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("want %q in tbd.html, got:\n%s", want, got)
+		}
+	}
+}
+
 // TestRenderTbdPageUsesTheDoraWindow (forsgren#253, step 5; forsgren#271):
 // dora_days reaches the Mainline Interval as it reaches lead time: over 90 days
 // the commit deployed on 2026-08-20 (authored 2026-08-19 10:00) counts too, so

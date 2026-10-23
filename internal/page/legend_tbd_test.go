@@ -25,6 +25,14 @@ var legendTbdText = []string{
 	"The median needs two gaps and p90 needs ten gaps",
 	"With fewer than ten gaps p90 would only be the longest gap",
 	"A mean far above the median, and a deviation far above the mean, point at a few long gaps among short ones",
+	"Next to the Mainline Interval, Developers is the number of people who made the commits it counts: " +
+		"the distinct GitHub accounts of their authors, so a person who commits from several email addresses counts once",
+	"A bot account, whose GitHub login ends in [bot], is not a developer, and its commits are left out",
+	"A commit whose author GitHub links to no account is not guessed to be anyone's: the number leaves it out " +
+		"and the cell says how many, written 3 · 2 commits without a known author are not counted",
+	"A project with no counted commit has 0 developers",
+	"The page shows the number only, never who the developers are",
+	"The interval is not divided by it: a team of ten makes more commits than one person with the same habits",
 	"The two metrics are read together",
 	"The Mainline Interval shows how often the commits that were deployed were made, by author date, in the window",
 	"It will show how long a commit takes from its creation to reaching the main branch",
@@ -36,8 +44,9 @@ var legendTbdText = []string{
 		"tbd_page: false to not generate it.",
 }
 
-// TestLegendExplainsTheTbdPage (forsgren#253): the legend has a TBD page
-// section after the History page's, whose sentences name the window in force;
+// TestLegendExplainsTheTbdPage (forsgren#253, forsgren#273): the legend has a
+// TBD page section after the History page's, whose sentences name the window
+// in force and say what the Developers column counts;
 // the Issues pages paragraph lists tbd_page among the page keys and its
 // default.
 func TestLegendExplainsTheTbdPage(t *testing.T) {

@@ -151,6 +151,7 @@ func withHistory(data page.Data, cfg config.Config, path string, at time.Time) (
 	data.History = metrics.History(cfg.Projects, metricsData, at, cfg.HistoryDays)
 	data.FirstDeployment, _ = metrics.FirstDeployment(cfg.Projects, metricsData)
 	data.Mainline = metrics.MainlineIntervals(cfg.Projects, metricsData, at)
+	data.Developers = metrics.MainlineDevelopers(cfg.Projects, metricsData, at)
 	events, err := issueEventsOf(path)
 	if err != nil {
 		return data, err

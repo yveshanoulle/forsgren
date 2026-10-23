@@ -109,6 +109,9 @@ type Data struct {
 	// the config's order; none while the render has not read them
 	// (forsgren#253).
 	Mainline []metrics.MainlineInterval
+	// Developers are the Developers counts next to the Mainline Intervals,
+	// one per project in the same order (forsgren#273).
+	Developers []metrics.Developers
 	// FirstDeployment is when the oldest successful deployment of the listed
 	// repositories was created, zero when there is none; the history page
 	// says when its first half-year appears (forsgren#198).

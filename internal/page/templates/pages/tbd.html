@@ -7,12 +7,14 @@
           <tr>
             <th scope="col">Project</th>
             <th scope="col">Mainline Interval</th>
+            <th scope="col">Developers</th>
           </tr>
         </thead>
         <tbody>
-{{range .Mainline}}          <tr>
-            <th scope="row">{{.Project}}</th>
-            <td>{{.Cell}}</td>
+{{range .TbdRows}}          <tr>
+            <th scope="row">{{.Interval.Project}}</th>
+            <td>{{.Interval.Cell}}</td>
+            <td>{{.Developers.Cell}}</td>
           </tr>
 {{end}}        </tbody>
       </table>

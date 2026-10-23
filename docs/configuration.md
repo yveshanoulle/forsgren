@@ -174,8 +174,9 @@ projects:
   - **`tbd_page`**: the TBD page (`tbd.html`, forsgren#253). It shows the
     Mainline Interval of each project, the mean and the sample standard
     deviation of the time between commits that deployments shipped, from
-    `data/commits.csv`, over the `dora_days` window (see
-    [The TBD page](pages-and-views.md#the-tbd-page)); the legend explains it
+    `data/commits.csv`, over the `dora_days` window, and next to it the
+    number of developers who made those commits (forsgren#273; see
+    [The TBD page](pages-and-views.md#the-tbd-page)); the legend explains both
     and says that Mainline Lead Time is not on the page yet.
 - **The settings page** (`settings.html`, forsgren#74, moved out of the legend
   in forsgren#84, a table since forsgren#141) tabulates every optional key,

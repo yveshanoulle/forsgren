@@ -53,6 +53,18 @@ func (d Developers) Note() string {
 	return fmt.Sprintf("%d commits without a known author are not counted", d.Unknown)
 }
 
+// Cell is the TBD page's Developers cell (forsgren#273, step 3): the count,
+// then the Note after the cells' separator when there is one, "3 · 2 commits
+// without a known author are not counted"; "0" for a project without a
+// counted commit, a count rather than a dash.
+func (d Developers) Cell() string {
+	count := fmt.Sprint(d.Count)
+	if note := d.Note(); note != "" {
+		return count + cellSeparator + note
+	}
+	return count
+}
+
 // MainlineDevelopers returns the Developers of each project, in the order of
 // projects, from the data's stored commits at the render time now, over its
 // DORA window: the commits MainlineIntervals counts.

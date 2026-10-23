@@ -119,7 +119,10 @@ func TestRenderShowsNoCommitSHA(t *testing.T) {
 const authorLogin = "acme-dev-login"
 
 // TestRenderShowsNoCommitAuthor (forsgren#273, decision 274): the commits
-// file holds each commit's GitHub login, and no page of the site shows one.
+// file holds each commit's GitHub login, and no page of the site shows one,
+// the TBD page's Developers column included: it counts these logins (Acme
+// Shop's three commits in the window are one developer), so the cell the
+// login would reach is on the page.
 func TestRenderShowsNoCommitAuthor(t *testing.T) {
 	pinNow(t)
 	commits := acmeCommits()
@@ -130,7 +133,12 @@ func TestRenderShowsNoCommitAuthor(t *testing.T) {
 	if stored := readFile(t, filepath.Join(filepath.Dir(data), "commits.csv")); !strings.Contains(stored, authorLogin) {
 		t.Fatalf("want the login in the commits file, got:\n%s", stored)
 	}
-	wantNoPageShows(t, renderSite(t, "--config", writeAllPagesConfig(t, validConfig), "--data", data), authorLogin)
+	site := renderSite(t, "--config", writeAllPagesConfig(t, validConfig), "--data", data)
+	const shopDevelopers = "<td>2 d 22 h ± 4 d 3 h (2) · median 2 d 22 h · p90 -</td>\n            <td>1</td>"
+	if got := readSite(t, site, "tbd.html"); !strings.Contains(got, shopDevelopers) {
+		t.Errorf("want Acme Shop's Developers counted from the logins, got:\n%s", got)
+	}
+	wantNoPageShows(t, site, authorLogin)
 }
 
 // renderSite renders with extra arguments into a new directory and returns

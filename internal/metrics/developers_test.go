@@ -123,3 +123,23 @@ func TestDevelopersHoldNoLogin(t *testing.T) {
 		t.Errorf("want 1 developer and 1 unknown, got %+v", got)
 	}
 }
+
+// TestDevelopersCell (forsgren#273, step 3): the TBD page's Developers cell is
+// the count, then the note after the cells' separator when commits without a
+// known author were left out, as the recovery cell names its open recoveries;
+// a project without a counted commit has 0 developers, a count, not a dash.
+func TestDevelopersCell(t *testing.T) {
+	for _, c := range []struct {
+		in   Developers
+		want string
+	}{
+		{Developers{Count: 3}, "3"},
+		{Developers{Count: 1, Unknown: 1}, "1 · 1 commit without a known author is not counted"},
+		{Developers{Count: 0, Unknown: 2}, "0 · 2 commits without a known author are not counted"},
+		{Developers{}, "0"},
+	} {
+		if got := c.in.Cell(); got != c.want {
+			t.Errorf("%+v: want the cell %q, got %q", c.in, c.want, got)
+		}
+	}
+}

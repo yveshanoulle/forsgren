@@ -1,6 +1,7 @@
 package page
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
@@ -9,7 +10,8 @@ import (
 
 // tbdData is the TBD page's data: Acme Shop with 4 commits and a deviation,
 // Acme Tools with 2 commits, so a mean and no deviation, and Acme Docs with
-// no commit.
+// no commit; their Developers, with commits without a known author for Acme
+// Tools and Acme Web.
 func tbdData() Data {
 	data := calculated()
 	data.Mainline = []metrics.MainlineInterval{
@@ -19,7 +21,54 @@ func tbdData() Data {
 		{Project: "Acme Web", Commits: 13, Gaps: 12, Mean: 24 * time.Minute, Deviation: 2*time.Hour + 24*time.Minute,
 			Median: 5 * time.Minute, P90: time.Hour},
 	}
+	data.Developers = []metrics.Developers{
+		{Project: "Acme Shop", Count: 3},
+		{Project: "Acme Tools", Count: 1, Unknown: 1},
+		{Project: "Acme Docs"},
+		{Project: "Acme Web", Count: 12, Unknown: 2},
+	}
 	return data
+}
+
+// tbdRow is the TBD page's row of project, its Mainline Interval cell then its
+// Developers cell, as the template writes it.
+func tbdRow(project, interval, developers string) string {
+	return "<th scope=\"row\">" + project + "</th>\n            <td>" + interval + "</td>\n            <td>" +
+		developers + "</td>\n"
+}
+
+// TestTbdPageShowsTheDevelopersNextToTheInterval (forsgren#273, step 3): a
+// Developers column follows the Mainline Interval, each project's cell its
+// count, then the note on the commits without a known author when there are,
+// in the same row as the project's interval.
+func TestTbdPageShowsTheDevelopersNextToTheInterval(t *testing.T) {
+	got := rendered(t, "tbd.html", tbdData())
+	wantAll(t, "tbd.html", got,
+		"<th scope=\"col\">Mainline Interval</th>\n            <th scope=\"col\">Developers</th>\n",
+		tbdRow("Acme Shop", "2 h ± 1 h (3) · median 2 h · p90 -", "3"),
+		tbdRow("Acme Tools", "2 h ± - (1) · median - · p90 -", "1 · 1 commit without a known author is not counted"),
+		tbdRow("Acme Docs", "-", "0"),
+		tbdRow("Acme Web", "24 min ± 2 h 24 min (12) · median 5 min · p90 1 h",
+			"12 · 2 commits without a known author are not counted"))
+}
+
+// TestTbdPageRefusesDevelopersOfOtherProjects (forsgren#273, step 3): the
+// Developers are paired with the Mainline Intervals by project, so a render
+// whose Developers are missing, one too many, or name another project in a
+// row, fails instead of showing a count in the wrong row.
+func TestTbdPageRefusesDevelopersOfOtherProjects(t *testing.T) {
+	missing := tbdData()
+	missing.Developers = missing.Developers[:3]
+	extra := tbdData()
+	extra.Developers = append(extra.Developers, metrics.Developers{Project: "Acme Gone", Count: 1})
+	swapped := tbdData()
+	swapped.Developers[0], swapped.Developers[1] = swapped.Developers[1], swapped.Developers[0]
+	for name, data := range map[string]Data{"missing": missing, "extra": extra, "swapped": swapped} {
+		var got bytes.Buffer
+		if err := Render(&got, "tbd.html", data); err == nil {
+			t.Errorf("%s: want the render to fail, got:\n%s", name, got.String())
+		}
+	}
 }
 
 // TestTbdPageGolden (forsgren#253, step 4 of 7): the TBD page is a root page,
@@ -37,8 +86,8 @@ func TestTbdPageGolden(t *testing.T) {
 
 // TestTbdPageHasItsHeadingAndTable (forsgren#253): the title and the h1 (id
 // tbd-heading) name trunk-based development; the table is the h1's region,
-// with no caption, columns Project and Mainline Interval and no Mainline Lead
-// Time column; each project's cell is the metric's own, "-" below two commits.
+// with no caption, columns Project and Mainline Interval (and Developers,
+// forsgren#273) and no Mainline Lead Time column; each project's cell is the metric's own, "-" below two commits.
 func TestTbdPageHasItsHeadingAndTable(t *testing.T) {
 	got := rendered(t, "tbd.html", tbdData())
 	wantAll(t, "tbd.html", got, "<title>Trunk-based development [TBD] (BETA) · ",
