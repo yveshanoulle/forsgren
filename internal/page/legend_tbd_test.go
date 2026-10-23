@@ -50,13 +50,72 @@ var legendTbdText = []string{
 	"The two metrics are read together",
 	"The Mainline Interval shows how often the deployed commits landed on the main branch, " +
 		"by committer date, in the window",
-	"It will show how long a commit takes from its creation to reaching the main branch",
 	"A short interval with a long lead time points at long-lived branches",
-	"Mainline Lead Time is not on this page yet",
 	"The TBD page is unlisted by default (tbd_page: unlisted): it is " +
 		"generated and can be opened at tbd.html, but it has no menu entry and search" +
 		" engines are asked to skip it. Set tbd_page: true to put it in the menu, or " +
 		"tbd_page: false to not generate it.",
+}
+
+// legendLeadText are the sentences that say what each number of the Mainline
+// Lead Time column counts (forsgren#256 step 3): the scope of #342, the cell's
+// parts, the lower bound and the stand-ins, the people of #349 and #355, the
+// legacy format as Yves worded it on #356, and what not readable means.
+var legendLeadText = []string{
+	"Mainline Lead Time covers merged human pull requests only, not every change that reaches the trunk",
+	"Work pushed straight to the main branch is not in it, so a pull request stands in for the life of a branch",
+	"In a workflow that mixes both, the figure covers only the changes that came through pull requests",
+	"Each pull request merged in the last 30 days, counted by its merge time, gives one lead time: from its first commit, " +
+		"the earliest author date of its commits, to the merge",
+	"A first commit dated after the merge counts as 0",
+	"mean ± deviation (pull requests), for example 3 h ± 1 h (4)",
+	"the deviation the sample standard deviation (n-1)",
+	"50% (2 of 4) pull requests merged within 24 hours of their first commit",
+	"The share is rounded down, and 24 hours or less counts as within, the same boundary everywhere",
+	"There is no pass or fail verdict",
+	"The Mainline Interval uses the committer date: how often changes reach the main branch",
+	"Mainline Lead Time uses the author date of the first commit up to the merge time",
+	"That lead time is a lower bound: the count reads (4, 1 cut) and the cell adds the mean is a lower bound",
+	"A cut pull request can make the mean too low and the share merged within 24 hours too high",
+	"the created time of the pull request stands in for the first commit time",
+	"1 pull request timed by its created time, or 2 pull requests timed by their created time",
+	"Only a GitHub account of the type User is a person",
+	"3 bot pull requests not counted",
+	"2 pull requests of unknown author not counted",
+	"a pull request in the legacy format has no known author type",
+	"The placeholder author invalid-email-address",
+	"is an unknown author, not a developer",
+	"Commits in the legacy format have no known author and are not counted",
+	"the legacy format says how a record was stored, not why the author is missing",
+	"3 developers · 1099 commits without a known author excluded (legacy data)",
+	"Mostly estimated: 7 of 13 commits timed by author date.",
+	"No human pull requests in this period; changes may go directly to the trunk",
+	"That is not proof of direct commits",
+	"Pull requests not readable means the token forsgren collects with was refused the pull request read",
+	"recorded in data/pulls_denied.csv",
+	"No pull requests have been collected yet means the collection has not read any pull request yet",
+	"A long interval with a short lead time means few changes, each integrated quickly",
+}
+
+// legendLeadNever are claims the data cannot establish: the legacy format is
+// not said to be commits stored before v3 (Yves on forsgren#356).
+var legendLeadNever = []string{"stored before v3", "stored before the commits format v3"}
+
+// TestLegendSaysWhatEachLeadTimeNumberCounts (forsgren#256 step 3): the TBD
+// section of the rendered legend carries every sentence of legendLeadText and
+// none of legendLeadNever.
+func TestLegendSaysWhatEachLeadTimeNumberCounts(t *testing.T) {
+	section := legendTbdSection(t, rendered(t, "legend.html", calculated()))
+	for _, want := range legendLeadText {
+		if !strings.Contains(section, want) {
+			t.Errorf("want %q in the TBD page section", want)
+		}
+	}
+	for _, never := range legendLeadNever {
+		if strings.Contains(section, never) {
+			t.Errorf("want no %q in the TBD page section", never)
+		}
+	}
 }
 
 // legendTbdRetired are the wordings the TBD page section no longer says
@@ -67,6 +126,8 @@ var legendTbdRetired = []string{
 	"next to each other by author date",
 	"were made, by author date",
 	"who made the commits it counts",
+	"Mainline Lead Time is not on this page yet",
+	"It will show how long a commit takes",
 }
 
 // TestLegendExplainsTheTbdPage (forsgren#253, forsgren#273): the legend has a
@@ -122,7 +183,7 @@ func legendTbdSection(t *testing.T, legend string) string {
 // and the TBD page does not repeat them.
 func TestLegendSaysEachTbdSentenceOnce(t *testing.T) {
 	got := rendered(t, "legend.html", calculated())
-	for _, once := range []string{"Mainline Lead Time is not on this page yet", "each commit once",
+	for _, once := range []string{"Mainline Lead Time covers merged human pull requests only", "each commit once",
 		"A dash means fewer than two commits", "sample standard deviation of the time between commits",
 		"deployments of the last 30 days shipped"} {
 		if n := strings.Count(got, once); n != 1 {

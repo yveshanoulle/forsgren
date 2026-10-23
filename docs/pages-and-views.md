@@ -796,7 +796,7 @@ it in the menu after Daily, "History"; `false` leaves it out.
 ### The TBD page
 
 The TBD page (`tbd.html`, titled "Trunk-based development [TBD] (BETA)", forsgren#253, forsgren#271)
-shows the Mainline Interval of each project: how long it is, on average, between
+shows the Mainline Interval and the Mainline Lead Time of each project: how long it is, on average, between
 two commits that deployments shipped landing on the main branch, and how much
 that varies. It is unlisted
 by default: generated and reachable at `tbd.html`, with no menu entry and a
@@ -804,8 +804,8 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
 [Configuration](configuration.md#configuration)). `tbd_page: true` lists it
 last in the menu, "TBD"; `false` leaves it out.
 
-- **The table.** A row per project and two columns, Mainline Interval and
-  Developers (see below); the Mainline Interval cell reads `mean ± deviation (gaps) · median M · p90 P`, for example
+- **The table.** A row per project and three columns, Mainline Interval,
+  Mainline Lead Time and Developers (see below); the Mainline Interval cell reads `mean ± deviation (gaps) · median M · p90 P`, for example
   `24 min ± 2 h 24 min (12) · median 5 min · p90 1 h`, with the durations
   written as on the other pages, then, when some commits are timed by their
   author date (see The old approximation below), the note after ` · `:
@@ -896,12 +896,57 @@ last in the menu, "TBD"; `false` leaves it out.
   Developers cell counted from it). The legend's TBD section explains the
   column: what a developer is, bots left out, commits without a known author
   named, never who the developers are.
-- **Later.** There is no column for Mainline Lead Time yet. The legend says the
-  two metrics are read together: the Mainline Interval shows how often the
-  deployed commits landed on the main branch, by committer date, in the window;
-  Mainline Lead Time will show how long a commit takes from its creation to
-  reaching the main branch; a short interval with a long lead time points at
-  long-lived branches.
+- **Mainline Lead Time** (forsgren#256), the column between the Mainline
+  Interval and Developers: how old a change is when it reaches the main
+  branch. It covers merged human pull requests only, not every change that
+  reaches the trunk (forsgren#342): work pushed straight to the main branch is
+  not in it, so a pull request stands in for the life of a branch, and in a
+  workflow that mixes both the figure covers only the pull-request changes.
+  - *What is counted.* One lead time per pull request merged in the DORA
+    window, counted by its merge time: from its first commit, the earliest
+    author date of its commits, to the merge. A first commit dated after the
+    merge counts as 0. The pull requests come from `data/pulls.csv`.
+  - *The cell* reads `mean ± deviation (pull requests)`, for example
+    `3 h ± 1 h (4)`, the deviation the sample standard deviation (n-1), then
+    `50% (2 of 4) pull requests merged within 24 hours of their first commit`.
+    The share is rounded down; 24 hours or less counts as within, the same
+    boundary everywhere. A dash is the deviation of a single pull request.
+    There is no pass or fail verdict: the figure is supporting evidence.
+  - *Two dates.* The Mainline Interval uses the committer date (how often
+    changes reach the trunk); Mainline Lead Time uses the author date of the
+    first commit up to the merge time (how old changes are when they reach it).
+    Read together: short interval and short lead time is frequent, fresh
+    integration; short interval and long lead time points at long-lived
+    branches; long interval and short lead time is few changes, each integrated
+    quickly; long and long is rare, old changes.
+  - *Cut and stood in.* When GitHub lists only part of a pull request's
+    commits, its first commit time may be too late: the count reads
+    `(4, 1 cut)` and the cell adds `the mean is a lower bound`. A cut pull
+    request can make the mean too low and the share within 24 hours too high.
+    When the commit list gave no usable date, the created time stands in, and
+    the cell says how many: `1 pull request timed by its created time`.
+  - *People.* Only a GitHub account of the type `User` is a person. Pull
+    requests opened by a bot are not counted (`3 bot pull requests not
+    counted`), and neither are those whose author is not known to be a user,
+    such as a pull request in the legacy format (pulls format v1), which has no
+    known author type (`2 pull requests of unknown author not counted`). A
+    project with no human pull request reads `No human pull requests in this
+    period; changes may go directly to the trunk`, which is not proof of
+    direct commits.
+  - *Not readable and not collected.* `Pull requests not readable` means the
+    token was refused the pull request read for a repository of the project
+    (a 403, kept in `data/pulls_denied.csv`, see
+    [Data files](data-files.md#history)); it replaces the whole cell and is
+    cleared by the next read that succeeds. `No pull requests have been
+    collected yet` means `data/pulls.csv` does not exist yet.
+  - *Legacy format.* Records in the legacy format have no known author: the
+    data establishes that format, not when or why the record was stored. In
+    Developers, commits in the legacy format have no known author and are not
+    counted, and when most of the deployed commits are of that kind the cell
+    says `(legacy data)`. GitHub's placeholder author `invalid-email-address`
+    is an unknown author too, not a developer. In the Mainline Interval, when
+    more than half of the commits are timed by author date the note reads
+    `Mostly estimated: 7 of 13 commits timed by author date.`
 
 The page itself has the heading and the table, or its one line. The
 explanation above, with the window in force, is the legend's section for the

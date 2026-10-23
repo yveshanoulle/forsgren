@@ -178,7 +178,7 @@ projects:
     first-parent chain at the committer date (forsgren#254), and next to it the
     number of developers who made those commits (forsgren#273; see
     [The TBD page](pages-and-views.md#the-tbd-page)); the legend explains both
-    and says that Mainline Lead Time is not on the page yet.
+    and says what Mainline Lead Time counts: merged human pull requests only.
 - **The settings page** (`settings.html`, forsgren#74, moved out of the legend
   in forsgren#84, a table since forsgren#141) tabulates every optional key,
   `view`, `auto_update`, `auto_update_level`, `history_days`,
