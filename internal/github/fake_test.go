@@ -145,6 +145,10 @@ func calls(repo string) map[string]func(*Client) error {
 			_, _, err := c.OpenPullRequests(ctx, repo)
 			return err
 		},
+		"closed pull requests": func(c *Client) error {
+			_, _, err := c.ClosedPullRequests(ctx, repo, since)
+			return err
+		},
 		"latest release": func(c *Client) error {
 			_, err := c.LatestRelease(ctx, repo)
 			return err
