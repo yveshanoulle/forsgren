@@ -1,4 +1,4 @@
-// canon: browser_gate v3
+// canon: browser_gate v4
 // Scripts/browser_gate.mjs (forsgren#205)
 //
 // The browser gate's engine: serves a built site on 127.0.0.1 (loopback only),
@@ -7,6 +7,18 @@
 // the exit-trap idiom; self-test: Scripts/test_gate_browser.sh.
 //
 //   node Scripts/browser_gate.mjs <site-dir> <manifest.json> <exceptions.txt> <baseline.txt> <variants.txt>
+//
+// Changelog of the canon (the baseline format is the same in every version, so
+// no version needs a migration):
+//   v4 = v3 plus the CLS interval from the load (forsgren#377, decision #380):
+//        the observation interval (default 1000 ms) starts right after the
+//        page load, whatever the document checks and axe take, with no second
+//        read after axe; and the sideways measurement without scrollbar room
+//        (scrollbar-gutter off while measuring), so it no longer depends on
+//        the machine's scrollbar style.
+//   v3 = v2 plus the sideways measurement at two widths (forsgren#350,
+//        decision #365).
+//   v2 = v1 plus the variants (estate issue 305).
 //
 // Per page: axe-core serious and critical violations, a doctype, a charset
 // declared by the document itself (the server sends none), zero console

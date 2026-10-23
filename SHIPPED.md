@@ -9,6 +9,13 @@ Active work lives in
 
 ---
 
+## 2026-10-24 — The browser gate engine is canon v4 ([#377](https://github.com/yveshanoulle/forsgren/issues/377), step 1 of 1)
+
+forsgren issue 377, decisions #379 and #380 (A). The engine `Scripts/browser_gate.mjs` changed what it observes, so it is now canon `browser_gate` v4: the layout shift (CLS) interval, default 1000 ms, starts right after the page load, with no second read after axe, and the sideways measurement ignores scrollbar room. The baseline format is unchanged, no migration. The engine header carries the changelog; `docs/quality-gates.md`, `docs/gate-classification.md` and CLAUDE.md name v4. No self-test pins the version line, so there was no red.
+- Lenka B
+
+---
+
 ## 2026-10-23 — The legend and the docs say what Mainline Lead Time counts ([#256](https://github.com/yveshanoulle/forsgren/issues/256), step 3 of 3)
 
 forsgren issue 256, step 3 of 3, minor release (with steps 1 and 2, #337, #345 and #355). The legend's TBD section no longer says Mainline Lead Time is not on the page yet. It says: the scope (merged human pull requests only, work pushed straight to the main branch not in it, a pull request standing in for a branch, mixed workflows covered only for pull-request changes; #342); what is counted (one lead time per pull request merged in the window, first commit author date to merge, a negative one as 0) and the cell (mean ± deviation (pull requests), the share within 24 hours rounded down, no verdict); the two dates of the Mainline Interval and Mainline Lead Time and how the four combinations read (#297); the lower bound for cut pull requests, which can also push the 24-hour share too high, and the created-time stand-ins; that only a GitHub User is a person, bot and unknown-author notes, the placeholder author `invalid-email-address` not a developer; the legacy format worded as Yves ruled on #356 (commits in the legacy format have no known author and are not counted; never claimed to be stored before v3); the Mostly estimated note; and what the no-human-pull-request, not readable and not collected cells mean. `docs/pages-and-views.md` (The TBD page) and `docs/configuration.md` carry the same, and CLAUDE.md names the legend as the page's explanation.
