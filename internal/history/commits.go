@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -31,29 +32,55 @@ type Commit struct {
 	// links it to none or the commit was stored before this column. Never an
 	// email address and never a name.
 	Author string
+	// Parents are the SHAs of the commit's parents as GitHub gives them, the
+	// first parent first (forsgren#254): the line a merge was made on, then
+	// the line it brought in. None when none is known: a commit stored before
+	// this column, or a root commit, which a comparison of two deployments
+	// does not reach.
+	Parents []string
+	// CommittedAt is the commit's git committer date, UTC, whole seconds
+	// (forsgren#254): when it landed where it is now. Zero when GitHub gave
+	// none or the commit was stored before this column; never the author
+	// date in its place.
+	CommittedAt time.Time
 }
 
-// commits is the format of data/commits.csv, the commits format v2 (the
-// author column, forsgren#273); v1, without it, is still read, every author
-// empty, and rewritten as v2 by the first append.
+// commits is the format of data/commits.csv, the commits format v3 (the
+// parents and committed_at columns, forsgren#254); v2 (the author column,
+// forsgren#273) and v1, without them, are still read, what they lack empty,
+// and rewritten as v3 by the first append.
 var commits = format[Commit, commitKey]{
-	versionLine: "# forsgren commits v2",
-	columnLine:  "repository,kind,deployment_id,commit,authored_at,deployed_at,author",
+	versionLine: "# forsgren commits v3",
+	columnLine:  "repository,kind,deployment_id,commit,authored_at,deployed_at,author,parents,committed_at",
 	decode:      toCommit,
 	encode:      Commit.fields,
 	validate:    Commit.validate,
 	key:         Commit.key,
 	compare:     compareCommits,
-	legacy:      []legacyFormat{commitsV1},
+	legacy:      []legacyFormat{commitsV1, commitsV2},
 }
 
 // commitsV1 is the commits format v1, before the author column: its six
-// columns are the first six of v2, the author empty.
+// columns are the first six of v3, the author, parents and committer date
+// empty.
 var commitsV1 = legacyFormat{
 	versionLine: "# forsgren commits v1",
 	columnLine:  "repository,kind,deployment_id,commit,authored_at,deployed_at",
-	lift:        func(fields []string) []string { return append(fields, "") },
+	lift:        func(fields []string) []string { return append(fields, "", "", "") },
 }
+
+// commitsV2 is the commits format v2, before the parents and committed_at
+// columns: its seven columns are the first seven of v3, the parents and the
+// committer date empty.
+var commitsV2 = legacyFormat{
+	versionLine: "# forsgren commits v2",
+	columnLine:  "repository,kind,deployment_id,commit,authored_at,deployed_at,author",
+	lift:        func(fields []string) []string { return append(fields, "", "") },
+}
+
+// parentSeparator parts the parents in their column: a SHA holds no space,
+// and the git log lists a commit's parents the same way.
+const parentSeparator = " "
 
 // LoadCommits reads the commits at path, in file order, with Load's errors.
 func LoadCommits(path string) ([]Commit, error) { return commits.load(path) }
@@ -88,10 +115,11 @@ func (c Commit) fields() []string {
 	return []string{
 		c.Repository, string(c.Kind), strconv.FormatInt(c.DeploymentID, 10), c.SHA,
 		c.AuthoredAt.UTC().Format(timeLayout), c.DeployedAt.UTC().Format(timeLayout), c.Author,
+		strings.Join(c.Parents, parentSeparator), formatTime(c.CommittedAt),
 	}
 }
 
-// toCommit reads the seven fields of a line.
+// toCommit reads the nine fields of a line.
 func toCommit(f []string) (Commit, error) {
 	id, err := parseNumber("deployment_id", f[2])
 	if err != nil {
@@ -105,10 +133,24 @@ func toCommit(f []string) (Commit, error) {
 	if err != nil {
 		return Commit{}, err
 	}
+	committed, err := parseOptionalTime("committed_at", f[8])
+	if err != nil {
+		return Commit{}, err
+	}
 	return Commit{
 		Repository: f[0], Kind: Kind(f[1]), DeploymentID: id, SHA: f[3],
 		AuthoredAt: authored, DeployedAt: deployed, Author: f[6],
+		Parents: parentsOf(f[7]), CommittedAt: committed,
 	}, nil
+}
+
+// parentsOf reads the parents column: none when it is empty, else every SHA
+// between the separators, an empty one included, so validate refuses it.
+func parentsOf(s string) []string {
+	if s == "" {
+		return nil
+	}
+	return strings.Split(s, parentSeparator)
 }
 
 // validate says why c cannot be stored, or nil.
@@ -122,8 +164,14 @@ func (c Commit) validate() error {
 		check{isWholeSecond(c.AuthoredAt), "authored_at is empty or has a fraction of a second"},
 		check{isWholeSecond(c.DeployedAt), "deployed_at is empty or has a fraction of a second"},
 		check{c.Author == "" || isLogin(c.Author), fmt.Sprintf("author %q is not a GitHub login", c.Author)},
+		check{!slices.ContainsFunc(c.Parents, isNotSHA),
+			fmt.Sprintf("parents %q are not each 40 or 64 lower-case hex digits", c.Parents)},
+		check{isOptionalWholeSecond(c.CommittedAt), "committed_at has a fraction of a second"},
 	)
 }
+
+// isNotSHA says whether s is not a git object name in lower-case hex.
+func isNotSHA(s string) bool { return !isSHA(s) }
 
 // loginShape is a GitHub login: letters, digits, hyphens and underscores (the
 // underscore for Enterprise Managed Users), starting with a letter or digit,

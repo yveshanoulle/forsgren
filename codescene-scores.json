@@ -11,7 +11,7 @@
   {
    "path": "internal/collect/cutshort_test.go",
    "score": 9.38,
-   "checkedAt": "2026-10-19",
+   "checkedAt": "2026-10-23",
    "minScore": 9.28
   },
   {
@@ -340,6 +340,12 @@
   },
   {
    "path": "internal/history/commits_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/commits_lineage_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-23",
    "minScore": 10.0

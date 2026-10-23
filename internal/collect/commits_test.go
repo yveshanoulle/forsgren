@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -79,6 +80,11 @@ func commit(id int64, sha string, authoredAt, deployed time.Time) history.Commit
 		AuthoredAt: authoredAt, DeployedAt: deployed}
 }
 
+// sameCommit says whether a and b are the same commit, field for field: a
+// commit's parents are a list, so commits do not compare with ==
+// (forsgren#254).
+func sameCommit(a, b history.Commit) bool { return reflect.DeepEqual(a, b) }
+
 // wantCommits fails unless the commits file next to the history at path
 // holds want, in order.
 func wantCommits(t *testing.T, path string, want ...history.Commit) {
@@ -87,7 +93,7 @@ func wantCommits(t *testing.T, path string, want ...history.Commit) {
 	if err != nil {
 		t.Fatalf("want a commits file, got %v", err)
 	}
-	if !slices.Equal(got, want) {
+	if !slices.EqualFunc(got, want, sameCommit) {
 		t.Errorf("want the commits\n%v\ngot\n%v", want, got)
 	}
 }

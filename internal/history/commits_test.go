@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -13,10 +14,11 @@ import (
 
 const (
 	sha3        = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	commitsHead = "# forsgren commits v2\n" +
-		"repository,kind,deployment_id,commit,authored_at,deployed_at,author\n"
-	// commitLine is the file line of cmt(1001, sha1, 0), whose author is unknown.
-	commitLine = "acme/app,environment,1001," + sha1 + ",2026-09-01T10:00:00Z,2026-09-01T11:00:00Z,\n"
+	commitsHead = "# forsgren commits v3\n" +
+		"repository,kind,deployment_id,commit,authored_at,deployed_at,author,parents,committed_at\n"
+	// commitLine is the file line of cmt(1001, sha1, 0), whose author, parents
+	// and committer date are unknown.
+	commitLine = "acme/app,environment,1001," + sha1 + ",2026-09-01T10:00:00Z,2026-09-01T11:00:00Z,,,\n"
 	// commitsHeadV1 and commitLineV1 are the same file as the commits format v1
 	// wrote it, before forsgren stored the author (forsgren#273).
 	commitsHeadV1 = "# forsgren commits v1\n" +
@@ -96,7 +98,7 @@ func TestAppendCommitsAddsToAnExistingFile(t *testing.T) {
 	if after := readFile(t, path); !strings.HasPrefix(after, before) || strings.Count(after, "\n") != 4 {
 		t.Errorf("want the old content then one new line, got\n%q", after)
 	}
-	if got := mustLoadCommits(t, path); !slices.Equal(got, []Commit{cmt(1001, sha1, 0), cmt(1002, sha2, 5)}) {
+	if got := mustLoadCommits(t, path); !reflect.DeepEqual(got, []Commit{cmt(1001, sha1, 0), cmt(1002, sha2, 5)}) {
 		t.Errorf("want both commits in file order, got %v", got)
 	}
 }
@@ -119,7 +121,7 @@ func TestAppendCommitsSkipsWhatIsAlreadyThere(t *testing.T) {
 		t.Errorf("want 4 new commits stored, got %d", n)
 	}
 	got := mustLoadCommits(t, path)
-	if len(got) != 5 || got[0] != cmt(1001, sha1, 0) {
+	if len(got) != 5 || !reflect.DeepEqual(got[0], cmt(1001, sha1, 0)) {
 		t.Errorf("want the first line kept and 4 new ones, got %v", got)
 	}
 }
@@ -141,7 +143,7 @@ func TestAppendCommitsWritesInDeploymentThenAuthorOrder(t *testing.T) {
 	path := commitsPath(t)
 	mustAppendCommits(t, path, cmt(1002, sha1, 30), cmt(1001, sha2, 5), cmt(1001, sha1, 5), cmt(1001, sha3, 0))
 	want := []Commit{cmt(1001, sha3, 0), cmt(1001, sha1, 5), cmt(1001, sha2, 5), cmt(1002, sha1, 30)}
-	if got := mustLoadCommits(t, path); !slices.Equal(got, want) {
+	if got := mustLoadCommits(t, path); !reflect.DeepEqual(got, want) {
 		t.Errorf("want %v, got %v", want, got)
 	}
 }
@@ -159,7 +161,7 @@ func TestLoadCommitsAfterAppendReturnsTheCommits(t *testing.T) {
 	local.AuthoredAt, local.DeployedAt = local.AuthoredAt.In(cest), local.DeployedAt.In(cest)
 	mustAppendCommits(t, path, release, local, workflow)
 	want := []Commit{cmt(1001, sha1, 0), workflow, release}
-	if got := mustLoadCommits(t, path); !slices.Equal(got, want) {
+	if got := mustLoadCommits(t, path); !reflect.DeepEqual(got, want) {
 		t.Errorf("want %v, got %v", want, got)
 	}
 }
@@ -167,7 +169,7 @@ func TestLoadCommitsAfterAppendReturnsTheCommits(t *testing.T) {
 // TestTheCommitsFileRefusesAnUnknownVersionUntouched: both calls refuse it;
 // a deployments history is not a commits file either.
 func TestTheCommitsFileRefusesAnUnknownVersionUntouched(t *testing.T) {
-	content := "# forsgren commits v3\nrepository,whatever\n"
+	content := "# forsgren commits v4\nrepository,whatever\n"
 	path := writeFile(t, content)
 	if _, err := AppendCommits(path, []Commit{cmt(1001, sha1, 0)}); !errors.Is(err, ErrUnknownVersion) {
 		t.Errorf("want ErrUnknownVersion from AppendCommits, got %v", err)
@@ -193,7 +195,7 @@ func TestAMalformedCommitsFileIsRefusedWithItsLineNumber(t *testing.T) {
 		content string
 		line    int
 	}{
-		"no column line":    {"# forsgren commits v2\n" + commitLine, 2},
+		"no column line":    {"# forsgren commits v3\n" + commitLine, 2},
 		"too few fields":    {commitsHead + commitLine + "acme/app,environment\n", 4},
 		"blank line":        {commitsHead + "\n" + commitLine, 3},
 		"bad deployment ID": {edit(",1001,", ",10x1,"), 3},
@@ -202,7 +204,7 @@ func TestAMalformedCommitsFileIsRefusedWithItsLineNumber(t *testing.T) {
 		"bad authored_at":   {edit("2026-09-01T10:00:00Z", "2026-09-01 10:00"), 3},
 		"bad deployed_at":   {edit("T11:00:00Z", "T11:00:00+02:00"), 3},
 		"bad repository":    {edit("acme/app", "app"), 3},
-		"v1 line in a v2":   {commitsHead + commitLineV1, 3},
+		"v1 line in a v3":   {commitsHead + commitLineV1, 3},
 	} {
 		t.Run(name, func(t *testing.T) {
 			path := writeFile(t, c.content)
@@ -270,20 +272,21 @@ func v1File(t *testing.T, lines ...string) string {
 func TestLoadCommitsReadsAV1FileWithNoAuthors(t *testing.T) {
 	path := v1File(t, commitLineV1)
 	got := mustLoadCommits(t, path)
-	if want := []Commit{cmt(1001, sha1, 0)}; !slices.Equal(got, want) {
+	if want := []Commit{cmt(1001, sha1, 0)}; !reflect.DeepEqual(got, want) {
 		t.Errorf("want %v with an empty author, got %v", want, got)
 	}
 	assertUntouched(t, path, commitsHeadV1+commitLineV1)
 }
 
-// TestAppendCommitsUpgradesAV1FileToV2 (forsgren#273): the first append to a v1
-// file rewrites it once as v2, every old line kept with an empty author, then
-// adds the new commits (with their authors) as v2 lines. It never leaves a
+// TestAppendCommitsUpgradesAV1FileToV3 (forsgren#273, forsgren#254): the first
+// append to a v1 file rewrites it once in the current version, v3, every old
+// line kept with an empty author, parents and committer date, then adds the new
+// commits (with their authors) as v3 lines. It never leaves a
 // file that mixes the formats, and the rewrite goes through a temporary file,
 // so no temporary file is left behind. The choice, made once and pinned: the
 // authors of the old commits are not known and stay empty, which is honest;
 // appending v1 lines would lose the authors of every new commit.
-func TestAppendCommitsUpgradesAV1FileToV2(t *testing.T) {
+func TestAppendCommitsUpgradesAV1FileToV3(t *testing.T) {
 	path := v1File(t, commitLineV1)
 	added := cmt(1002, sha2, 1)
 	added.Author = "ada-dev"
@@ -291,7 +294,7 @@ func TestAppendCommitsUpgradesAV1FileToV2(t *testing.T) {
 		t.Errorf("want 1 commit stored, got %d", n)
 	}
 	want := commitsHead + commitLine + "acme/app,environment,1002," + sha2 +
-		",2026-09-01T10:01:00Z,2026-09-01T12:00:00Z,ada-dev\n"
+		",2026-09-01T10:01:00Z,2026-09-01T12:00:00Z,ada-dev,,\n"
 	assertContent(t, path, want)
 	wantAlone(t, path)
 	got := mustLoadCommits(t, path)
@@ -311,7 +314,7 @@ func wantAlone(t *testing.T, path string) {
 }
 
 // TestAppendCommitsWithNothingNewStillUpgradesAV1File (forsgren#273): the file
-// is v2 after one collect run, whether or not the run stored a commit.
+// is v3 after one collect run, whether or not the run stored a commit.
 func TestAppendCommitsWithNothingNewStillUpgradesAV1File(t *testing.T) {
 	path := v1File(t, commitLineV1)
 	if n := mustAppendCommits(t, path, cmt(1001, sha1, 0)); n != 0 {

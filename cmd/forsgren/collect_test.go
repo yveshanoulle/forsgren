@@ -94,7 +94,8 @@ func TestCollectStoresDeploymentsAndSaysHowMany(t *testing.T) {
 	// One deployment, and no commit: the first deployment has no previous.
 	wantFile(t, data, "# forsgren history v1\n", 3)
 	wantFile(t, filepath.Join(filepath.Dir(data), "commits.csv"),
-		"# forsgren commits v2\nrepository,kind,deployment_id,commit,authored_at,deployed_at,author\n", 2)
+		"# forsgren commits v3\n"+
+			"repository,kind,deployment_id,commit,authored_at,deployed_at,author,parents,committed_at\n", 2)
 	wantFile(t, filepath.Join(filepath.Dir(data), "failures.csv"), "# forsgren failures v1\n", 2)
 }
 

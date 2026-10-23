@@ -9,15 +9,17 @@
 //	shop,acme/app,environment,production,1001,<40 hex>,2026-09-01T10:00:00Z,success,
 //
 // The commits of each successful deployment, data/commits.csv (the commits
-// format v2, forsgren#16, step 1; v2 adds the author, forsgren#273), one line
-// per commit per deployment, for lead time and the Mainline Interval:
+// format v3, forsgren#16, step 1; v2 adds the author, forsgren#273; v3 the
+// parents, space-separated, first parent first, and the committer date,
+// forsgren#254), one line per commit per deployment, for lead time and the
+// Mainline Interval:
 //
-//	# forsgren commits v2
-//	repository,kind,deployment_id,commit,authored_at,deployed_at,author
-//	acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z,ada-dev
+//	# forsgren commits v3
+//	repository,kind,deployment_id,commit,authored_at,deployed_at,author,parents,committed_at
+//	acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z,ada-dev,<40 hex>,2026-09-01T09:30:00Z
 //
-// A v1 file, without the author column, is still read (every author empty)
-// and is written again as v2 once, by the first append.
+// A v1 or v2 file, without the columns that came later, is still read (what
+// it lacks empty) and is written again as v3 once, by the first append.
 //
 // The failure issues of the configured repositories, data/failures.csv (the
 // failures format v1, forsgren#18, step 1), one line per state of an issue
@@ -31,8 +33,8 @@
 // In all three, the first line states the format version, the second names
 // the columns, and every later line is one record. A file only grows: a
 // line, once written, is never rewritten or removed, apart from that one
-// upgrade of a v1 commits file, which keeps every line and adds an empty
-// author.
+// upgrade of a v1 or v2 commits file, which keeps every line and adds the
+// columns it lacks, empty.
 package history
 
 import (

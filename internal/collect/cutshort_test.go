@@ -229,7 +229,7 @@ func wantSameEnd(t *testing.T, whole, path string) {
 		t.Errorf("want the deployments\n%v\ngot\n%v", want, got)
 	}
 	gotCommits, wantCommits := sortedCommits(t, path), sortedCommits(t, whole)
-	if !slices.Equal(gotCommits, wantCommits) {
+	if !slices.EqualFunc(gotCommits, wantCommits, sameCommit) {
 		t.Errorf("want the commits\n%v\ngot\n%v", wantCommits, gotCommits)
 	}
 	reachWhole, _ := history.LoadReach(reachFileOf(whole))
