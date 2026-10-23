@@ -58,6 +58,7 @@ var acmeApp = map[string]string{
 	  "environment": "production", "created_at": "2026-09-21T10:00:00Z"}]`,
 	"/repos/acme/app/deployments/1001/statuses": `[{"id": 6, "state": "success", "created_at": "2026-09-21T10:05:00Z"}]`,
 	"/repos/acme/app/issues":                    `[]`,
+	"/repos/acme/app/pulls":                     `[]`,
 }
 
 type outcome struct {

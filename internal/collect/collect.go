@@ -116,9 +116,10 @@ type Options struct {
 
 // Run collects every repository of cfg: one line per repository on stdout,
 // `<repo>: <n> new, <m> skipped (not final), <c> commits`, followed by
-// `, <f> failure issues` when it stored any, and an error on stderr for
-// each that failed. A history, a commits file, a failures file or an issues
-// file that cannot be read is refused before GitHub is asked anything.
+// `, <f> failure issues` when it stored any and `, <p> merged pull requests`
+// when it stored any (forsgren#255), and an error on stderr for each that
+// failed. A history, a commits file, a failures file, an issues file or a
+// pulls file that cannot be read is refused before GitHub is asked anything.
 func Run(ctx context.Context, cfg config.Config, o Options) error {
 	o = o.windowOf(cfg)
 	o.Client.WithBudgetMargin()
@@ -129,10 +130,7 @@ func Run(ctx context.Context, cfg config.Config, o Options) error {
 	if err := checkCommits(o.commitsFile()); err != nil {
 		return err
 	}
-	if h, err = o.loadIssueFiles(h); err != nil {
-		return err
-	}
-	if h, err = o.loadMarks(h); err != nil {
+	if h, err = o.loadFiles(h); err != nil {
 		return err
 	}
 	before := o.marks(h)
@@ -142,6 +140,19 @@ func Run(ctx context.Context, cfg config.Config, o Options) error {
 	}
 	o.closeReport()
 	return o.finish(h, before, done, cfg.RepositoryCount())
+}
+
+// loadFiles is h with what the issue files, the pulls file and the mark files
+// hold; one that cannot be read refuses the run before GitHub is asked.
+func (o Options) loadFiles(h held) (held, error) {
+	h, err := o.loadIssueFiles(h)
+	if err != nil {
+		return h, err
+	}
+	if h, err = o.loadPulls(h); err != nil {
+		return h, err
+	}
+	return o.loadMarks(h)
 }
 
 // tally is how a run's repositories ended besides done: failed, or cut short
@@ -176,7 +187,8 @@ func (o Options) collectProject(ctx context.Context, h held, p config.Project) t
 
 // collectRepository reads one repository and appends its final deployments,
 // the commits of the new successes, its new or changed failure issues and
-// the new events of its issues.
+// the new events of its issues, and then its new merged pull requests
+// (pulls.go), which take back nothing stored before them.
 func (o Options) collectRepository(ctx context.Context, h held, project string, r config.Repository) error {
 	d, err := o.deploymentsOf(ctx, h, project, r)
 	if err != nil {
@@ -197,8 +209,9 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	h.noteFull(r.Name, o.Now)
 	h.noteBugsCut(r.Name, lines.bugsCut, o.Now)
 	h.noteStartsDone(r.Name)
+	stored.pulls, err = o.collectPulls(ctx, h, r.Name)
 	o.report(r.Name, d.found, stored)
-	return nil
+	return err
 }
 
 // issueLines is what one repository's issues give to store: its failure
@@ -246,6 +259,9 @@ func (o Options) report(repo string, f found, stored counts) {
 	if stored.failures > 0 {
 		line += fmt.Sprintf(", %d failure issues", stored.failures)
 	}
+	if stored.pulls > 0 {
+		line += fmt.Sprintf(", %d merged pull requests", stored.pulls)
+	}
 	_, _ = fmt.Fprintln(o.Stdout, line)
 }
 
@@ -259,8 +275,9 @@ type batch struct {
 	bugs        []history.IssueBug
 }
 
-// counts is how many lines of each file a batch stored.
-type counts struct{ deployments, commits, failures int }
+// counts is how many lines of each file a batch stored, and how many merged
+// pull requests the repository stored after it.
+type counts struct{ deployments, commits, failures, pulls int }
 
 // store appends one repository's commits, then its failure issues, then its
 // issue events, then their bug flags, then its deployments, and says how many
@@ -515,6 +532,8 @@ type held struct {
 	cut        history.Reach             // see bugflags.go
 	cutRuns    history.Reach             // see report.go
 	checked    history.Reach             // see startscatchup.go
+	pullsRead  history.Reach             // see pulls.go
+	pulls      map[history.IssueKey]bool // the pull requests pulls.csv holds
 	startsDone map[string]bool           // the repositories caught up in this run
 	partial    map[string]bool
 }
