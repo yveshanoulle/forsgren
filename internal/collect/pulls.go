@@ -169,21 +169,25 @@ func (o Options) toStore(h held, repo string, p github.ClosedPullRequest) bool {
 	return !p.MergedAt.Before(o.earliest) && !h.pulls[history.IssueKeyOf(repo, p.Number)]
 }
 
-// botUserType is GitHub's account type of a bot account (user.type), every
-// GitHub App's bot among them.
-const botUserType = "Bot"
+// The account types of GitHub (user.type) that say who opened a pull
+// request: a bot account, every GitHub App's bot among them, and a person.
+const (
+	botUserType    = "Bot"
+	personUserType = "User"
+)
 
 // botOf is the bot status of a pull request whose author's account type is
-// userType (forsgren#345): a bot for "Bot", unknown when GitHub named no
-// type, never guessed to be a person, and a person for any other type.
+// userType (forsgren#345, Yves's answer on #349, Option B): a bot for "Bot",
+// a person for "User" only, and unknown for any other type (Organization,
+// Mannequin) or none, never guessed to be a person.
 func botOf(userType string) history.BotStatus {
 	switch userType {
 	case botUserType:
 		return history.ByBot
-	case "":
-		return history.BotUnknown
+	case personUserType:
+		return history.ByHuman
 	}
-	return history.ByHuman
+	return history.BotUnknown
 }
 
 // pullOf is p with its first commit time and its bot status, read only while the request budget

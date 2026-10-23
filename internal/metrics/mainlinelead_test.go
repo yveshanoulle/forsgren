@@ -8,15 +8,16 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
-// mergedPull is pull request number of repository, merged mergedAgo before
-// now, its first commit authored lead before the merge and created a minute
-// before that commit.
+// mergedPull is pull request number of repository, opened by a person,
+// merged mergedAgo before now, its first commit authored lead before the
+// merge and created a minute before that commit.
 func mergedPull(repository string, number int64, lead, mergedAgo time.Duration) history.PullRequest {
 	merged := now.Add(-mergedAgo)
 	first := merged.Add(-lead)
 	return history.PullRequest{
 		Repository: repository, Number: number, CreatedAt: first.Add(-time.Minute), MergedAt: merged,
 		MergeCommit: "0123456789abcdef0123456789abcdef01234567", UpdatedAt: merged, FirstCommitAt: first,
+		Bot: history.ByHuman,
 	}
 }
 

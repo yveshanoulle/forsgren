@@ -11,11 +11,12 @@ type BotStatus int
 
 const (
 	// BotUnknown is a pull request whose author's account type is not known:
-	// one stored by the pulls format v1, before the bot column, or one GitHub
-	// named no author for.
+	// one stored by the pulls format v1, before the bot column, one GitHub
+	// named no author or no type for, or one of any type but "User" and
+	// "Bot" (Yves's answer on #349).
 	BotUnknown BotStatus = iota
-	// ByHuman is a pull request opened by an account GitHub does not type as
-	// a bot.
+	// ByHuman is a pull request opened by an account GitHub types as a
+	// person (user.type "User").
 	ByHuman
 	// ByBot is a pull request opened by an account GitHub types as a bot
 	// (user.type "Bot": dependabot[bot] among them).

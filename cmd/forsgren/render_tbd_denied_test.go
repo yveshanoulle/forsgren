@@ -40,7 +40,7 @@ func TestRenderTbdPageSaysThePullRequestsAreNotReadable(t *testing.T) {
 		tools+leadRow("<td>-</td>", "No pull requests have been collected yet"))
 	writePulls(t, data, acmePulls(t))
 	wantIn(t, tbdSiteOf(t, validConfig, data), leadRow(shopCell, notReadableCell),
-		tools+leadRow("<td>-</td>", "-"))
+		tools+leadRow("<td>-</td>", noHumanPulls))
 }
 
 // TestRenderRefusesABadPullsDeniedFile (forsgren#337, step 2): a malformed

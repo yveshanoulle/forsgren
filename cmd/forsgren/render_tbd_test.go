@@ -85,7 +85,8 @@ func utcAt(t *testing.T, s string) time.Time {
 // is by a made-up developer, one by a bot (left out) and one without a known
 // author (named in the note); the developer of the commit deployed before the
 // window is not counted. Acme Tools has no commit, so 0. The Mainline Lead
-// Time is between them (forsgren#256, step 2), a dash without a pull request.
+// Time is between them (forsgren#256, step 2), without a pull request the
+// no-human sentence (forsgren#345, step 2).
 func TestRenderShowsTheDevelopersOfEachProject(t *testing.T) {
 	pinNow(t)
 	commits := acmeCommits()
@@ -96,9 +97,10 @@ func TestRenderShowsTheDevelopersOfEachProject(t *testing.T) {
 	got := tbdSiteOf(t, validConfig, data)
 	for _, want := range []string{
 		"<th scope=\"col\">Developers</th>",
-		shopCell + "\n            <td>-</td>\n" +
+		shopCell + "\n            <td>" + noHumanPulls + "</td>\n" +
 			"            <td>1 · 1 commit without a known author is not counted</td>",
-		"<th scope=\"row\">Acme Tools</th>\n            <td>-</td>\n            <td>-</td>\n            <td>0</td>",
+		"<th scope=\"row\">Acme Tools</th>\n            <td>-</td>\n            <td>" + noHumanPulls +
+			"</td>\n            <td>0</td>",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("want %q in tbd.html, got:\n%s", want, got)

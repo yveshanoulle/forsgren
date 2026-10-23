@@ -18,15 +18,16 @@ func tbdData() Data {
 
 // tbdLeads are the Mainline Lead Times of tbdData (forsgren#256, step 2):
 // Acme Shop's 5 pull requests all within 24 hours, Acme Tools' one cut pull
-// request, none for Acme Docs, and Acme Web's 12 with one timed by its
-// created time.
+// request, no human one for Acme Docs but 2 of bots, and Acme Web's 12 with
+// one timed by its created time, next to 3 of bots and 1 of unknown author
+// (forsgren#345, step 2).
 func tbdLeads() []metrics.MainlineLeadTime {
 	return []metrics.MainlineLeadTime{
 		{Project: "Acme Shop", PullRequests: 5, Mean: 3 * time.Hour, Deviation: time.Hour, WithinReference: 5},
 		{Project: "Acme Tools", PullRequests: 1, Mean: 30 * time.Hour, Cut: 1},
-		{Project: "Acme Docs"},
+		{Project: "Acme Docs", Bots: 2},
 		{Project: "Acme Web", PullRequests: 12, Mean: 20 * time.Hour, Deviation: 10 * time.Hour, WithinReference: 7,
-			CreatedStandsIn: 1},
+			CreatedStandsIn: 1, Bots: 3, UnknownAuthors: 1},
 	}
 }
 
@@ -86,10 +87,15 @@ func tbdRow(project, interval, lead, developers string) string {
 }
 
 // share is the end of a Mainline Lead Time cell after its count: the share of
-// the pull requests merged within 24 hours in whole percent.
-func share(percent string) string {
-	return " · " + percent + "% of pull requests merged within 24 hours of their first commit"
+// the pull requests merged within 24 hours in whole percent, then how many of
+// how many (forsgren#345, step 2, #343).
+func share(percent, counts string) string {
+	return " · " + percent + "% (" + counts + ") pull requests merged within 24 hours of their first commit"
 }
+
+// noHumanPulls is the Mainline Lead Time cell of a project without a human
+// pull request in the window, Yves's wording on #342 (forsgren#345, step 2).
+const noHumanPulls = "No human pull requests in this period; changes may go directly to the trunk"
 
 // TestTbdPageShowsTheDevelopersNextToTheInterval (forsgren#273, step 3): a
 // Developers column follows the Mainline Interval and its Mainline Lead Time
@@ -101,13 +107,14 @@ func TestTbdPageShowsTheDevelopersNextToTheInterval(t *testing.T) {
 	wantAll(t, "tbd.html", got,
 		"<th scope=\"col\">Mainline Interval</th>\n            <th scope=\"col\">Mainline Lead Time</th>\n"+
 			"            <th scope=\"col\">Developers</th>\n",
-		tbdRow("Acme Shop", "2 h ± 1 h (3) · median 2 h · p90 -", "3 h ± 1 h (5)"+share("100"), "3"),
+		tbdRow("Acme Shop", "2 h ± 1 h (3) · median 2 h · p90 -", "3 h ± 1 h (5)"+share("100", "5 of 5"), "3"),
 		tbdRow("Acme Tools", "2 h ± - (1) · median - · p90 -",
-			"1 d 6 h ± - (1, 1 cut)"+share("0")+" · the mean is a lower bound",
+			"1 d 6 h ± - (1, 1 cut)"+share("0", "0 of 1")+" · the mean is a lower bound",
 			"1 · 1 commit without a known author is not counted"),
-		tbdRow("Acme Docs", "-", "-", "0"),
+		tbdRow("Acme Docs", "-", noHumanPulls+" · 2 bot pull requests not counted", "0"),
 		tbdRow("Acme Web", "24 min ± 2 h 24 min (12) · median 5 min · p90 1 h",
-			"20 h ± 10 h (12)"+share("58")+" · 1 pull request timed by its created time",
+			"20 h ± 10 h (12)"+share("58", "7 of 12")+" · 1 pull request timed by its created time"+
+				" · 3 bot pull requests not counted · 1 pull request of unknown author not counted",
 			"12 · 2 commits without a known author are not counted"))
 }
 
@@ -120,7 +127,9 @@ func TestTbdPageSaysThePullRequestsAreNotCollectedYet(t *testing.T) {
 	got := rendered(t, "tbd.html", uncollected())
 	wantAll(t, "uncollected", got, tbdRow("Acme Shop", "2 h ± 1 h (3) · median 2 h · p90 -", notYet, "3"),
 		tbdRow("Acme Docs", "-", notYet, "0"))
-	wantNone(t, "collected, none in the window", rendered(t, "tbd.html", tbdDataWith(noLeads())), notYet)
+	noneInWindow := rendered(t, "tbd.html", tbdDataWith(noLeads()))
+	wantNone(t, "collected, none in the window", noneInWindow, notYet)
+	wantAll(t, "collected, none in the window", noneInWindow, tbdRow("Acme Docs", "-", noHumanPulls, "0"))
 }
 
 // TestTbdPageSaysThePullRequestsAreNotReadable (forsgren#337, step 2): a
@@ -133,7 +142,7 @@ func TestTbdPageSaysThePullRequestsAreNotReadable(t *testing.T) {
 	got := rendered(t, "tbd.html", notReadable())
 	wantAll(t, "not readable", got, tbdRow("Acme Tools", "2 h ± - (1) · median - · p90 -", refused,
 		"1 · 1 commit without a known author is not counted"), tbdRow("Acme Docs", "-", refused, "0"),
-		tbdRow("Acme Shop", "2 h ± 1 h (3) · median 2 h · p90 -", "3 h ± 1 h (5)"+share("100"), "3"))
+		tbdRow("Acme Shop", "2 h ± 1 h (3) · median 2 h · p90 -", "3 h ± 1 h (5)"+share("100", "5 of 5"), "3"))
 	uncollectedRefused := notReadable()
 	uncollectedRefused.PullsUncollected = true
 	got = rendered(t, "tbd.html", uncollectedRefused)

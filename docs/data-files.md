@@ -381,10 +381,14 @@ acme/app,44,2026-09-02T10:00:00Z,2026-09-02T11:00:00Z,<40 hex>,2026-09-02T11:00:
   #303). Otherwise `false`.
 - `bot` says whether a bot account opened the pull request (forsgren#345):
   `true` when GitHub's account type of the author (`user.type`) is `Bot`,
-  Dependabot among them, `false` for any other type, and empty when the
-  author's type is not known: GitHub named no author, or the line was stored
-  before this column. Empty is never read as a person. The login itself is
-  never read or stored (#255's no-authors rule).
+  Dependabot among them, `false` only when it is `User`, and empty when the
+  author's type is not known: GitHub named no author or no type, it is any
+  other type (`Organization`, `Mannequin`; #349), or the line was stored
+  before this column. Such a pull request is still stored. Empty is never
+  read as a person. The login itself is
+  never read or stored (#255's no-authors rule). Mainline Lead Time counts
+  the `false` lines only; a `true` line and an empty one are left out of it
+  and counted apart in its cell (forsgren#345).
 - A file of the pulls format v1, without the `bot` column, is still read,
   every pull request's `bot` empty (not known). The first `collect` run that
   appends to it, whether or not it stores a pull request, rewrites it once as

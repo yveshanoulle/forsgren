@@ -37,6 +37,23 @@ func TestCollectStoresWhetherABotOpenedEachPullRequest(t *testing.T) {
 	wantNoLogin(t, filepath.Join(string(data), "pulls.csv"))
 }
 
+// TestCollectStoresAnAuthorOfAnotherTypeAsUnknown (forsgren#345, Yves's
+// answer on #349, Option B): only the account type "User" is a person; an
+// Organization, a Mannequin or a user GitHub gives no type for is stored with
+// the bot column empty, unknown, never as a person's, and the pull request is
+// stored all the same.
+func TestCollectStoresAnAuthorOfAnotherTypeAsUnknown(t *testing.T) {
+	g := pullsOnly(t, pull15, pull14, pull12)
+	g.bodies[pullsPath] = list(pull15.jsonBy(`{"login": "someone", "type": "Organization"}`),
+		pull14.jsonBy(`{"login": "someone", "type": "Mannequin"}`), pull12.jsonBy(`{"login": "someone"}`))
+	path := historyPath(t)
+	if r := g.collect(t, shop(production), path, github.DefaultMaxPages); r.err != nil {
+		t.Fatalf("want no error, got %v (stderr %q)", r.err, r.stderr)
+	}
+	dataOf(path).want(t, "pulls.csv", pullsHeader+pull12.lineBy("2026-09-21T10:00:00Z", false, "")+
+		pull14.lineBy("2026-09-23T10:00:00Z", false, "")+pull15.lineBy("2026-09-24T10:00:00Z", false, ""))
+}
+
 // wantNoLogin fails unless the file at path names neither login of the
 // fake's pull requests.
 func wantNoLogin(t *testing.T, path string) {
