@@ -4,11 +4,15 @@
 # Moves the forsgren pins of the two public repositories that follow a release
 # (forsgren#221, step 2 of 2), the way the manual release does it today:
 #
-#   Scripts/release_pins.sh rewrite <workflow|pins|readme> <version> <sha>
+#   Scripts/release_pins.sh rewrite <workflow|caller|pins|readme> <version> <sha>
 #       stdin to stdout, the pure part. A workflow file: each `uses:` line of
 #       this repository's reusable workflows becomes `@<sha> # vX.Y.Z`, and
 #       "pinned by the commit of release vX.Y.Z" in the comments names the new
-#       release (also when the comment wraps after "release"). A README: "written
+#       release (also when the comment wraps after "release"), and the comment
+#       of a `pull-requests: read` line becomes PR_READ_COMMENT, the wording
+#       of decision #315 (forsgren#320 step 4). The kind `caller` (the
+#       template's forsgren.yml) is a workflow file that must also have that
+#       line: without it the comment would be skipped, a red. A README: "written
 #       by the daily run for forsgren X.Y.Z" names the new version. A file with
 #       no such place is a red: a changed layout must never skip a pin silently.
 #   Scripts/release_pins.sh token
@@ -58,7 +62,7 @@ COMPLETED=0
 trap '[ "$COMPLETED" -eq 1 ] || { echo "❌ FAIL: release_pins.sh aborted before completing (COMPLETED was never set)" >&2; exit 1; }' EXIT
 
 usage() {
-  echo "usage: Scripts/release_pins.sh token | rewrite <workflow|pins|readme> <version> <sha> | template <version> <sha> | metrics <version> <sha>" >&2
+  echo "usage: Scripts/release_pins.sh token | rewrite <workflow|caller|pins|readme> <version> <sha> | template <version> <sha> | metrics <version> <sha>" >&2
   COMPLETED=1
   exit 2
 }
@@ -85,13 +89,19 @@ REPO="${GITHUB_REPOSITORY:-}"
 OWNER="${BASH_REMATCH[1]:-}"
 VERSION_RE="$(printf '%s' "$VERSION" | sed 's/\./\\./g')"
 
+# The comment of the calling workflow's `pull-requests: read` line, which the
+# kind `workflow` writes whatever the line said before (forsgren#320 step 4,
+# decision #315): the permission serves two reads since 1.15.0.
+PR_READ_COMMENT="lets forsgren collect merged pull requests for Mainline Lead Time (from 1.15.0) and the page footer name Dependabot's waiting pull request; without it collect still stores everything else and the setup issue names it"
+
 # rewrite <kind>: stdin to stdout.
 rewrite() {
   case "$1" in
-    workflow)
-      PIN_REPO="$REPO" PIN_VERSION="$VERSION" PIN_SHA="$SHA" perl -0777 -pe '
+    workflow | caller)
+      PIN_REPO="$REPO" PIN_VERSION="$VERSION" PIN_SHA="$SHA" PIN_PR_READ="$PR_READ_COMMENT" perl -0777 -pe '
         s{(uses:\s*\Q$ENV{PIN_REPO}\E/\.github/workflows/[A-Za-z_]+\.yml)@[0-9a-f]{40}\s+#\s*v[0-9]+\.[0-9]+\.[0-9]+}{$1\@$ENV{PIN_SHA} # v$ENV{PIN_VERSION}}g;
-        s{(commit of release\s+(?:#\s+)?)v[0-9]+\.[0-9]+\.[0-9]+}{$1v$ENV{PIN_VERSION}}g;'
+        s{(commit of release\s+(?:#\s+)?)v[0-9]+\.[0-9]+\.[0-9]+}{$1v$ENV{PIN_VERSION}}g;
+        s{^([ \t]*pull-requests:[ \t]*read[ \t]+#)[^\n]*}{$1 $ENV{PIN_PR_READ}}mg;'
       ;;
     pins)
       # the uses lines only, as Dependabot moves them: no comment is touched
@@ -110,19 +120,29 @@ rewrite() {
 # pseudo-version) or 1.9.40.
 pinned() {
   case "$1" in
-    workflow | pins) grep -qF "@${SHA} # v${VERSION}" "$2" ;;
+    workflow | pins | caller) grep -qF "@${SHA} # v${VERSION}" "$2" ;;
     readme | released) grep -qE "written by the daily run for forsgren ${VERSION_RE}([^0-9A-Za-z.+-]|$)" "$2" ;;
   esac
 }
 
+# pr_read <kind> <file>: 0 when the kind is not `caller`, or the rewritten
+# file has a `pull-requests: read` line with the comment PR_READ_COMMENT. A
+# calling workflow without that line is a red, never a silent skip
+# (forsgren#320 step 4).
+pr_read() {
+  [ "$1" = caller ] || return 0
+  grep -E '^[[:space:]]*pull-requests:[[:space:]]*read[[:space:]]+#' "$2" | grep -qF -- "# ${PR_READ_COMMENT}"
+}
+
 if [ "$MODE" = rewrite ]; then
-  case "$KIND" in workflow | pins | readme) ;; *) usage ;; esac
+  case "$KIND" in workflow | pins | readme | caller) ;; *) usage ;; esac
   TMPIN="$(mktemp)"
   TMPOUT="$(mktemp)"
   trap 'rm -f "$TMPIN" "$TMPOUT"; [ "$COMPLETED" -eq 1 ] || { echo "❌ FAIL: release_pins.sh aborted before completing (COMPLETED was never set)" >&2; exit 1; }' EXIT
   cat > "$TMPIN"
   rewrite "$KIND" < "$TMPIN" > "$TMPOUT" || red "perl failed"
   pinned "$KIND" "$TMPOUT" || red "the ${KIND} file has no place that names the release: a pin would be skipped"
+  pr_read "$KIND" "$TMPOUT" || red "the ${KIND} file has no pull-requests: read line to carry the comment of decision #315: it would be skipped"
   cat "$TMPOUT"
   COMPLETED=1
   exit 0
@@ -179,7 +199,7 @@ released_readme() {
 
 if [ "$MODE" = template ]; then
   TARGET="${RELEASE_TEMPLATE_REPO:-${OWNER}/forsgren-template}"
-  FILES="workflow:.github/workflows/forsgren.yml workflow:.github/workflows/forsgren-update.yml released:README.md"
+  FILES="caller:.github/workflows/forsgren.yml workflow:.github/workflows/forsgren-update.yml released:README.md"
   MESSAGE="forsgren ${VERSION}: pin and README"
   released_readme
 else
@@ -205,6 +225,7 @@ for spec in $FILES; do
     rewrite "$kind" < "${WORK}/old" > "${WORK}/new" || red "perl failed on ${path}"
   fi
   pinned "$kind" "${WORK}/new" || red "${TARGET}:${path} has no place that names the release: a pin would be skipped, nothing was changed"
+  pr_read "$kind" "${WORK}/new" || red "${TARGET}:${path} has no pull-requests: read line to carry the comment of decision #315 (forsgren#320): it would be skipped, nothing was changed"
   if cmp -s "${WORK}/old" "${WORK}/new"; then
     echo "  unchanged: ${path} (already at ${VERSION})"
     continue

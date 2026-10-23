@@ -568,7 +568,12 @@ and stops at the first step that fails:
 7. **The template**: the pins of both caller workflows and the README of
    forsgren-template move to the new release in one commit, through the
    git-data API, the way the manual release did it
-   (`Scripts/release_pins.sh template`). The README is the release's own:
+   (`Scripts/release_pins.sh template`). The same commit gives the
+   `pull-requests: read` line of the calling workflow its comment, which names
+   both reads it serves since 1.15.0, the merged pull requests and the
+   footer's waiting update; the permission itself is unchanged, and a second
+   run changes nothing. A calling workflow without that line stops the step
+   before anything is written. The README is the release's own:
    the step installs forsgren at the released commit with `go install`, as
    the daily run does, and writes the README with that binary's
    `forsgren install-readme`, so the commit holds byte for byte the text the

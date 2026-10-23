@@ -8,6 +8,11 @@
 #   1. rewrite: the workflow files get the new sha and version in the `uses:`
 #      line and in the comment (also the comment that wraps after "release");
 #      the README names the new version; a file with no such place is a red
+#   1c. the calling workflow's `pull-requests: read` comment gets the wording of
+#      decision #315 (forsgren#320 step 4), every other line unchanged, a
+#      second rewrite a no-op, the pins kind and the update workflow untouched
+#   8b. a template forsgren.yml (kind `caller`) with no `pull-requests: read`
+#      line is a red with nothing written; the pins kind needs no such line
 #   2. template: ONE commit with the three files, built from blobs, a tree on
 #      the base tree and a commit on the base commit; the branch is moved with
 #      a fast-forward PATCH, never forced
@@ -30,7 +35,9 @@
 # job's token, one that forces the ref move and one that opens no pull request
 # must each let their case pass; and for 8, one that rewrites the old README's
 # version line again, one that installs another ref than the released sha and
-# one that skips the early version check of the released README.
+# one that skips the early version check of the released README; and for 1c,
+# one without the comment rewrite and one that is right once but not stable;
+# and for 8b, one without the check of the line.
 
 set -euo pipefail
 
@@ -185,6 +192,38 @@ if grep -qF "metrics.yml@${SHA} # v${VERSION}" <<< "$OUT" && grep -qF "pinned by
 else
   fail "the calling workflow was not rewritten right. Output: ${OUT}"
 fi
+# 1c: the comment of the pull-requests: read line (forsgren#320 step 4,
+# decision #315): the release brings it to the agreed wording, every other
+# line byte for byte the same, and a second run changes nothing.
+PR_OLD="pull-requests: read  # optional: lets the page footer name Dependabot's waiting pull request for a newer forsgren release; without it the footer only says the release is available"
+PR_NEW="      pull-requests: read  # lets forsgren collect merged pull requests for Mainline Lead Time (from 1.15.0) and the page footer name Dependabot's waiting pull request; without it collect still stores everything else and the setup issue names it"
+grep -qF "$PR_OLD" "${FIX}/forsgren.yml.fixture" || selftest_abort "the forsgren.yml fixture no longer holds the old pull-requests: read comment this self-test expects"
+GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite workflow "$VERSION" "$SHA" < "${FIX}/forsgren.yml.fixture" > "${TMP}/once.yml"
+if grep -qxF "$PR_NEW" "${TMP}/once.yml" && ! grep -qF "$PR_OLD" "${TMP}/once.yml"; then
+  echo "  ok: the calling workflow's pull-requests: read comment gets the agreed wording"
+else
+  fail "the pull-requests: read comment was not brought to the agreed wording. Line: $(grep -F 'pull-requests:' "${TMP}/once.yml")"
+fi
+# every line but the pin, the release comment and the pull-requests line is unchanged
+if diff <(grep -vE 'metrics\.yml@|commit of release|pull-requests:' "${FIX}/forsgren.yml.fixture") \
+  <(grep -vE 'metrics\.yml@|commit of release|pull-requests:' "${TMP}/once.yml") > /dev/null \
+  && [[ "$(wc -l < "${FIX}/forsgren.yml.fixture")" -eq "$(wc -l < "${TMP}/once.yml")" ]]; then
+  echo "  ok: every other line of the calling workflow is byte for byte the same"
+else
+  fail "the rewrite changed another line of the calling workflow: $(diff "${FIX}/forsgren.yml.fixture" "${TMP}/once.yml")"
+fi
+GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite workflow "$VERSION" "$SHA" < "${TMP}/once.yml" > "${TMP}/twice.yml"
+if cmp -s "${TMP}/once.yml" "${TMP}/twice.yml"; then
+  echo "  ok: a second rewrite of the calling workflow changes nothing"
+else
+  fail "a second rewrite changed the calling workflow: $(diff "${TMP}/once.yml" "${TMP}/twice.yml")"
+fi
+OUT="$(GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite workflow "$VERSION" "$SHA" < "${FIX}/forsgren-update.yml.fixture")"
+if grep -qxF "      pull-requests: write  # merge the pull request" <<< "$OUT"; then
+  echo "  ok: the update workflow's pull-requests: write line keeps its comment"
+else
+  fail "the update workflow's pull-requests: write comment changed. Output: ${OUT}"
+fi
 OUT="$(GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite readme "$VERSION" "$SHA" < "${FIX}/README.md.fixture")"
 if grep -qF "daily run for forsgren ${VERSION}:" <<< "$OUT" && grep -qF "The rest is the installation's own text." <<< "$OUT"; then
   echo "  ok: the README names the new version and keeps the rest"
@@ -200,7 +239,7 @@ want_red "a README with no version sentence" "would be skipped"
 
 # 1b: the pins kind (forsgren-metrics): the uses lines only, as Dependabot moves them
 OUT="$(GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite pins "$VERSION" "$SHA" < "${FIX}/forsgren.yml.fixture")"
-if grep -qF "metrics.yml@${SHA} # v${VERSION}" <<< "$OUT" && grep -qF "pinned by the commit of release v1.9.3" <<< "$OUT"; then
+if grep -qF "metrics.yml@${SHA} # v${VERSION}" <<< "$OUT" && grep -qF "pinned by the commit of release v1.9.3" <<< "$OUT" && grep -qF "$PR_OLD" <<< "$OUT"; then
   echo "  ok: the pins kind moves the pin and leaves the comment"
 else
   fail "the pins kind did not leave the comment alone. Output: ${OUT}"
@@ -276,6 +315,31 @@ perl -pi -e "s/forsgren ${VERSION}:/forsgren 1.9.4-0.20261022-89abcdef0123:/" "$
 FORSGREN_RELEASE_TOKEN="rt-token" pins template "$VERSION" "$SHA"
 want_red "a released README that does not name the release" "the README of the release does not name ${VERSION}"
 nothing_committed "a README of another version"
+
+# 8b: a calling workflow with no pull-requests: read line is a red, nothing
+# written (forsgren#320 step 4): the comment of decision #315 would be skipped
+# silently. The kind `caller` is forsgren.yml's; the update workflow and the
+# pins kind (forsgren-metrics) need no such line.
+grep -vF "pull-requests: read" "${FIX}/forsgren.yml.fixture" > "${TMP}/noprread.yml"
+OUT="$(GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite caller "$VERSION" "$SHA" < "${TMP}/noprread.yml" 2>&1)" && RC=0 || RC=$?
+want_red "a calling workflow with no pull-requests: read line" "has no pull-requests: read line"
+OUT="$(GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite caller "$VERSION" "$SHA" < "${FIX}/forsgren.yml.fixture" 2>&1)" && RC=0 || RC=$?
+if [[ "$RC" -eq 0 ]] && grep -qxF "$PR_NEW" <<< "$OUT" && grep -qF "metrics.yml@${SHA} # v${VERSION}" <<< "$OUT"; then
+  echo "  ok: the caller kind moves the pin and writes the comment"
+else
+  fail "the caller kind did not rewrite the calling workflow (exit ${RC}). Output: ${OUT}"
+fi
+OUT="$(GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite pins "$VERSION" "$SHA" < "${TMP}/noprread.yml" 2>&1)" && RC=0 || RC=$?
+want_green "the pins kind needs no pull-requests: read line" "metrics.yml@${SHA} # v${VERSION}"
+world
+cp "${TMP}/noprread.yml" "${STATE}/files/.github/workflows/forsgren.yml"
+FORSGREN_RELEASE_TOKEN="rt-token" pins template "$VERSION" "$SHA"
+want_red "a template whose forsgren.yml has no pull-requests: read line" "acme/tpl:.github/workflows/forsgren.yml has no pull-requests: read line"
+nothing_committed "a template with no pull-requests: read line"
+world
+cp "${TMP}/noprread.yml" "${STATE}/files/.github/workflows/forsgren.yml"
+FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
+want_green "metrics with no pull-requests: read line still moves its pins" "OK: acme/met pull request for ${VERSION}"
 
 # 3: metrics
 world
@@ -482,6 +546,40 @@ if mutant noversioncheck 's/^  pinned released "..WORK.\/released.md" \\$/  true
     echo "  ok: mutation proof: without the early version check blobs are written before a pseudo-version README is refused, which case 8 sees"
   else
     fail "mutation proof: the no-version-check mutant still refused before writing (exit ${RC}). Output: ${OUT}"
+  fi
+fi
+unset SCRIPT
+# 1c's proofs: without the pull-requests rewrite the old comment stays, and a
+# rewrite that is right once but changes a line it already rewrote is caught
+# by the second run.
+if selftest_mutant "$PINS" "${TMP}/mut/noprcomment/release_pins.sh" 's/pull-requests:\[ \\t\]\*read/never-matches/'; then
+  GITHUB_REPOSITORY=yveshanoulle/forsgren "${TMP}/mut/noprcomment/release_pins.sh" rewrite workflow "$VERSION" "$SHA" < "${FIX}/forsgren.yml.fixture" > "${TMP}/mut.yml"
+  if grep -qF "$PR_OLD" "${TMP}/mut.yml" && ! grep -qxF "$PR_NEW" "${TMP}/mut.yml"; then
+    echo "  ok: mutation proof: without the pull-requests rewrite the old comment stays, which 1c sees"
+  else
+    fail "mutation proof: the no-comment mutant still rewrote the pull-requests: read comment"
+  fi
+fi
+NOTIDEM=$'/pull-requests:\\[ \\\\t\\]\\*read/{s/^ *s{/        $x = \\/names it$\\/m; s{/;s/mg;\'$/mg; s{(names it)$}{$1 again}m if $x;\'/;}'
+if selftest_mutant "$PINS" "${TMP}/mut/notidem/release_pins.sh" "$NOTIDEM"; then
+  GITHUB_REPOSITORY=yveshanoulle/forsgren "${TMP}/mut/notidem/release_pins.sh" rewrite workflow "$VERSION" "$SHA" < "${FIX}/forsgren.yml.fixture" > "${TMP}/mut1.yml"
+  GITHUB_REPOSITORY=yveshanoulle/forsgren "${TMP}/mut/notidem/release_pins.sh" rewrite workflow "$VERSION" "$SHA" < "${TMP}/mut1.yml" > "${TMP}/mut2.yml"
+  if grep -qxF "$PR_NEW" "${TMP}/mut1.yml" && ! cmp -s "${TMP}/mut1.yml" "${TMP}/mut2.yml"; then
+    echo "  ok: mutation proof: a rewrite right once but not stable changes the file on the second run, which 1c sees"
+  else
+    fail "mutation proof: the not-idempotent mutant was not right once and different twice. Once: $(grep -F 'pull-requests:' "${TMP}/mut1.yml")"
+  fi
+fi
+# 8b's proof: without the check a template with no pull-requests: read line
+# is committed, the comment skipped silently.
+world
+cp "${TMP}/noprread.yml" "${STATE}/files/.github/workflows/forsgren.yml"
+if mutant noprcheck 's/pr_read ".kind" "..WORK.\/new" ||/true ||/'; then
+  FORSGREN_RELEASE_TOKEN="rt-token" pins template "$VERSION" "$SHA"
+  if [[ "$RC" -eq 0 ]] && grep -q 'git/commits --input' "${TMP}/gh.log"; then
+    echo "  ok: mutation proof: without the check a template with no pull-requests: read line is committed, which 8b sees"
+  else
+    fail "mutation proof: the no-check mutant still refused (exit ${RC}). Output: ${OUT}"
   fi
 fi
 unset SCRIPT
