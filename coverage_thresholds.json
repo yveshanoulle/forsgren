@@ -842,6 +842,9 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/leadtime.go:middleOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/mainline.go:meanOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/mainline.go:sampleDeviation": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/developers.go:Note": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/developers.go:MainlineDevelopers": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/developers.go:noteAuthor": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdTitle": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdMessage": 100.0
   }

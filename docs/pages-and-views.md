@@ -838,6 +838,18 @@ last in the menu, "TBD"; `false` leaves it out.
   does when no data was given to the render ("No commits have been collected
   yet, so there is no Mainline Interval to show."); with data and a project
   that has no commit in the window, the project's row is `-`.
+- **Developers (not on the page yet).** forsgren#273 puts a Developers number
+  next to the Mainline Interval, because a team of ten makes more commits than
+  one person with the same habits; the interval itself is not divided by it.
+  It counts the distinct GitHub logins of the authors of the commits the
+  Mainline Interval counts (same window, each commit once), ignoring case, so
+  one person is one developer across the email addresses they commit with. A
+  bot account (a login ending in `[bot]`, such as `dependabot[bot]`) is no
+  developer and its commits are left out. A commit without a login (GitHub
+  links its email to no account, or it was stored by the commits format v1) is
+  not guessed to be anyone's: the count leaves it out and its note says how
+  many, for example `2 commits without a known author are not counted`. The
+  number and the note are counts only; no login reaches a page.
 - **Later.** There is no column for Mainline Lead Time yet. The legend says the
   two metrics are read together: the Mainline Interval shows how often the
   commits that were deployed were made, by author date, in the window;

@@ -9,6 +9,16 @@ Active work lives in
 
 ---
 
+## 2026-10-23 — the Developers count per project, bots left out, unknown authors named ([#273](https://github.com/yveshanoulle/forsgren/issues/273), step 2 of 3)
+
+forsgren issue 273, step 2 of 3, minor release. Nothing on a page changes yet: the column, the legend and the page docs are step 3. `metrics.MainlineDevelopers(projects, data, now)` (`internal/metrics/developers.go`) gives each project's `Developers`: over the commits the Mainline Interval counts (the same `distinctInWindow`: deployed in the DORA window, each commit once by repository ignoring case and SHA, in the project whose config lists the repository), `Count` is the number of distinct GitHub logins, compared ignoring case as GitHub does, so one person is one developer across their email addresses. A login ending in `[bot]` (`dependabot[bot]` among them) is no developer and its commits are left out, not unknown. A commit without a login (GitHub links it to no account, or a v1 file stored it) is not guessed: it is counted in `Unknown`, and `Developers.Note` names it, `1 commit without a known author is not counted` or `2 commits without a known author are not counted`, empty when there is none. The result holds counts only, never a login (decision 274).
+
+- Red first: the tests failed at runtime against a stub that returned every project with a zero count and no note (`TestDevelopersCountEachLoginOnce`, `TestDevelopersLeaveBotsOut`, `TestDevelopersNameTheUnknownAuthors`, `TestDevelopersCountTheMainlineCommits`, `TestDevelopersHoldNoLogin`). Mutations seen red: bots counted, an empty author counted as a person, every commit's login counted (the same login twice counted twice), logins compared with case, a login kept on the result, the window ignored, the distinct rule dropped (window kept), the singular note dropped. `TestRenderShowsNoCommitAuthor` is unchanged and still green; it covers the number once step 3 puts it on the page.
+- Docs: `docs/pages-and-views.md` (The TBD page: what the number counts, marked not on the page yet), the package comment and CLAUDE.md.
+- Coverage: `Note`, `MainlineDevelopers` and `noteAuthor` at 100.0. CodeScene: `developers.go` and `developers_test.go` 10.0.
+
+---
+
 ## 2026-10-23 — the commits format v2 with the author's GitHub login ([#273](https://github.com/yveshanoulle/forsgren/issues/273), step 1 of 3)
 
 forsgren issue 273, step 1 of 3, minor release (decision 274, option 1). Nothing on a page changes yet: the Developers count is step 2. `data/commits.csv` is now the commits format v2 and has an `author` column: the GitHub login of the commit's author, empty when GitHub links the commit to no account (its email belongs to no user), a bot as GitHub names it (`dependabot[bot]`; leaving bots out is step 2's job). `internal/github.Compare` reads it from the top-level `author.login` of GitHub's comparison answer, null meaning empty, and never from `commit.author`, which holds the git name and email; `collect` stores it. Only the shape of a GitHub login is accepted when a commit is stored (letters, digits, hyphens, underscores, the `[bot]` suffix), so an email or a name cannot reach the file, and no page shows a login. The key and the held rule are unchanged: the author is not part of the key, a held commit keeps the author it was stored with.
