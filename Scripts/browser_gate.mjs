@@ -573,9 +573,12 @@ async function checkPage(browser, origin, variant, pagePath, exceptions, baselin
   check.listen();
   try {
     await page.goto(origin + pagePath, { waitUntil: 'load', timeout: NAV_TIMEOUT_MS });
+    // The CLS interval starts at the load (forsgren#377), before the document
+    // and axe checks, whose duration is the machine's: read after them, a slow
+    // machine saw shifts a fast one had not yet had.
+    await check.checkLayoutShift();
     await check.checkDocument();
     await check.checkAxe();
-    await check.checkLayoutShift();
     await check.checkSideways();
   } catch (error) {
     check.find(`could not be checked: ${error.message}`);

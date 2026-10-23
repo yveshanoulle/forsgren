@@ -93,6 +93,9 @@
 #      green;
 #   N. the growth comparison dropped: case 46 turns green;
 #   O. the stale check of the sideways rows removed: case 48 turns green.
+# The CLS interval starts at the load (forsgren#377):
+#  50. a page that reports a shift when it is read after the axe run -> green
+#   P. the CLS read moved back after the axe run: case 50 turns red.
 
 set -euo pipefail
 
@@ -193,6 +196,13 @@ make_site lateshift "$(page '' "$LATE_JS")"
 BUSY_JS='<script>var t0 = Date.now(); while (Date.now() - t0 < 800) {}</script>'
 make_site shiftslow "$(page '' "${SHIFT_JS}${BUSY_JS}")"
 make_site lateshiftslow "$(page '' "${LATE_JS}${BUSY_JS}")"
+# The read-order seam (forsgren#377): the gate reads the shifts through
+# window.__shifts. This page turns that read into a fake shift of 0.5 when axe
+# is already on the page, i.e. when the read came after the axe run. A gate
+# that starts its interval at the load, before the document and axe checks,
+# reads first and is green; the speed of the machine decides nothing.
+AFTER_AXE_JS='<script>(function () { var real = window.__shifts; Object.defineProperty(window, "__shifts", { configurable: true, get: function () { return window.axe ? [0.5] : real; } }); })();</script>'
+make_site readorder "$(page '' "$AFTER_AXE_JS")"
 make_site external "$(page '<img src="http://example.invalid/x.png" alt="away">' '')"
 make_site nopage "$(page '' '')"
 printf '{"requiredPages": ["/", "/nope.html"]}\n' > "${TMP}/nopage/manifest.json"
@@ -463,6 +473,14 @@ run_gate phonewide
 want_exit "49d: a sideways row listed twice" 2 "listed twice"
 : > "${TMP}/phonewide/baseline.txt"
 
+# 50: the CLS interval starts at the load, before the document and axe checks
+# (forsgren#377). Those take as long as the machine takes: a hosted runner was
+# slow enough that a 1 ms read, started after axe, saw a shift 500 ms after the
+# load (proof K). The page reports a shift when it is read after axe ran.
+: > "${TMP}/readorder/baseline.txt"
+run_gate readorder
+want_green "50: the CLS is read before the axe run, not after it" "OK:"
+
 # Mutation proofs: the engine copy is run directly, with the real node_modules.
 MUT="${TMP}/mutants"
 run_mutant() {
@@ -597,4 +615,11 @@ if selftest_mutant "$ENGINE" "${MUT}/o.mjs" "s/if (!row.seen) findings.push(\`FA
 fi
 : > "${TMP}/phonewide/baseline.txt"
 
-selftest_end "the browser gate self-test failed" "browser gate: every case holds, fifteen mutations seen"
+# P: the CLS read moved back after the axe run (the order before forsgren#377)
+# -> case 50 turns red. Asserted the other way round: the mutant is red on it.
+if selftest_mutant "$ENGINE" "${MUT}/p.mjs" "s/^    await check.checkLayoutShift();/    \/\/ moved/;s/^    await check.checkAxe();/    await check.checkAxe(); await check.checkLayoutShift();/"; then
+  FORSGREN_NODE_ROOT="$REPO_ROOT" FORSGREN_CLS_LOADS="$SHORT_CLS_LOADS" FORSGREN_CLS_INTERVAL_MS="$SHORT_CLS_INTERVAL_MS" capture node "${MUT}/p.mjs" "${TMP}/readorder/site" "${TMP}/readorder/manifest.json" "${TMP}/readorder/exceptions.txt" "${TMP}/readorder/baseline.txt" "${TMP}/readorder/variants.txt"
+  want_red "mutation proof P: a CLS read after the axe run turns case 50 red" "CLS 0.5"
+fi
+
+selftest_end "the browser gate self-test failed" "browser gate: every case holds, sixteen mutations seen"
