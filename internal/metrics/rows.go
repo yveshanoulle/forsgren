@@ -57,11 +57,14 @@ type Row struct {
 func (r Row) HasDeployments() bool { return r.Frequency.HasDeployments() || r.Recovery.Unrecovered > 0 }
 
 // Data is what the rows are counted from: the stored deployments, their
-// commits and the failure issues.
+// commits, the failure issues and the merged pull requests.
 type Data struct {
 	Records  []history.Record
 	Commits  []history.Commit
 	Failures []history.Failure
+	// Pulls are the merged pull requests of data/pulls.csv, for Mainline
+	// Lead Time (forsgren#256).
+	Pulls []history.PullRequest
 	// WorkingHours is the hours of a working day, which sets where the
 	// deployment frequency bands begin (forsgren#71).
 	WorkingHours int
