@@ -37,6 +37,8 @@
 #      block) elsewhere
 #  16. a pulls.csv and a pulls_read.csv           -> red, each named
 #      elsewhere (forsgren#255)
+#  17. a pulls_denied.csv elsewhere               -> red, named
+#      (forsgren#337)
 # Mutation proofs, each against a copy of the gate (the patterns are `case`
 # arms of guarded_reason, one per line):
 #   - case 2: with the history.csv arm deleted, case 2's repository must turn
@@ -63,6 +65,8 @@
 #     as case 14 shows.
 #   - case 16: with the pulls.csv or pulls_read.csv arm deleted, a repository
 #     holding only ops/ of that file must turn green.
+#   - case 17: with the pulls_denied.csv arm deleted, a repository holding
+#     only ops/pulls_denied.csv must turn green.
 #   - case 6: with every arm whose pattern holds a `*` quoted (so it matches
 #     only the literal text), case 6's repository must turn green with none
 #     of its three files named, while case 2's repository stays red. Every
@@ -290,6 +294,11 @@ write_file "ops/pulls.csv" $'# forsgren pulls v1\n' track
 new_repo "pulls-elsewhere-read"
 write_file "ops/pulls_read.csv" $'# forsgren pulls read v1\n' track
 
+new_repo "pulls-denied-elsewhere"
+write_file "ops/pulls_denied.csv" $'# forsgren pulls denied v1\n' track
+run_gate
+want_red "a pulls_denied.csv outside data/ is red and named (forsgren#337)" "❌ FAIL: ops/pulls_denied.csv"
+
 new_repo "history-fixtures"
 write_file "internal/history/testdata/deployments.csv" $'# forsgren history v1\n' track
 write_file "internal/history/testdata/commits.csv" $'# forsgren commits v1\n' track
@@ -372,6 +381,8 @@ arm_deleted_proof 16 "pulls.csv" '^[[:space:]]*pulls\.csv\) why=' \
   "${TMP}/check_data_guard_nopulls.sh" "pulls-elsewhere-pulls" "ops/pulls.csv"
 arm_deleted_proof 16 "pulls_read.csv" '^[[:space:]]*pulls_read\.csv\) why=' \
   "${TMP}/check_data_guard_nopullsread.sh" "pulls-elsewhere-read" "ops/pulls_read.csv"
+arm_deleted_proof 17 "pulls_denied.csv" '^[[:space:]]*pulls_denied\.csv\) why=' \
+  "${TMP}/check_data_guard_nopullsdenied.sh" "pulls-denied-elsewhere" "ops/pulls_denied.csv"
 
 # ---------------------------------------------------------------------------
 # Mutation proof for case 6: a copy of the gate with every arm whose pattern

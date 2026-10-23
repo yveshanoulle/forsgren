@@ -14,7 +14,13 @@ package collect
 //
 //   - a missing pull-requests: read stores none and moves no mark, with a note
 //     on stderr, and never fails the run (Yves's ruling on #255; the needs
-//     mechanism names it in the setup issue);
+//     mechanism names it in the setup issue); the repository's line in
+//     data/pulls_denied.csv says so, its name and the run's time, so the
+//     page can tell a refused read from no pull requests (forsgren#337,
+//     decision #332), and a later read that ends without an error, a list
+//     cut at the page limit included, removes it; a budget stop or any
+//     other error leaves the file as it was, since neither says whether the
+//     pull requests can be read;
 //   - a pull request's commits are read only while the request budget has
 //     room for all their pages; at its margin the pull requests read whole
 //     are stored and the mark stays, so the next run reads the rest, the one
@@ -49,6 +55,10 @@ const (
 	// PullsReadFile is the name, next to the history, of the file that notes
 	// when each repository's closed pull requests were last read.
 	PullsReadFile = "pulls_read.csv"
+	// PullsDeniedFile is the name, next to the history, of the file that
+	// notes each repository whose pull request read GitHub refused with a
+	// 403 in its latest read (forsgren#337, decision #332).
+	PullsDeniedFile = "pulls_denied.csv"
 	// pullCommitPagesAfterFirst is how many more requests a pull request's
 	// commits can take after the first: GitHub lists at most 250, 100 a page.
 	pullCommitPagesAfterFirst = 2
@@ -59,6 +69,11 @@ func (o Options) pullsFile() string { return filepath.Join(filepath.Dir(o.Histor
 
 // pullsReadFile is the path of the pulls read file next to o's history.
 func (o Options) pullsReadFile() string { return filepath.Join(filepath.Dir(o.History), PullsReadFile) }
+
+// pullsDeniedFile is the path of the pulls denied file next to o's history.
+func (o Options) pullsDeniedFile() string {
+	return filepath.Join(filepath.Dir(o.History), PullsDeniedFile)
+}
 
 // loadPulls is h with the pull requests the pulls file holds; a missing file
 // holds none, one that cannot be read refuses the run.
@@ -94,12 +109,13 @@ func (o Options) collectPulls(ctx context.Context, h held, repo string) (int, er
 	return stored, o.endPulls(h, repo, read.truncated, err)
 }
 
-// endPulls moves repo's mark after a read that ended on err, nil included,
+// endPulls moves repo's marks after a read that ended on err, nil included,
 // and says what fails the repository.
 func (o Options) endPulls(h held, repo string, truncated bool, err error) error {
 	switch {
 	case errors.Is(err, github.ErrPullRequestsDenied):
 		o.warn("collect: %v; its pull requests are not read, the rest is collected\n", err)
+		h.denied[strings.ToLower(repo)] = wholeSecond(o.Now)
 		return nil
 	case errors.Is(err, github.ErrBudget):
 		o.warn("collect: %s: the pull requests were cut short: %v; those read whole are stored, "+
@@ -114,6 +130,7 @@ func (o Options) endPulls(h held, repo string, truncated bool, err error) error 
 			"and older pull requests may be skipped for good, since the read mark moves on\n", repo, o.Client.MaxPages())
 	}
 	h.pullsRead[strings.ToLower(repo)] = wholeSecond(o.Now)
+	delete(h.denied, strings.ToLower(repo))
 	return nil
 }
 

@@ -533,6 +533,7 @@ type held struct {
 	cutRuns    history.Reach             // see report.go
 	checked    history.Reach             // see startscatchup.go
 	pullsRead  history.Reach             // see pulls.go
+	denied     history.Reach             // see pulls.go: the refused pull request reads
 	pulls      map[history.IssueKey]bool // the pull requests pulls.csv holds
 	startsDone map[string]bool           // the repositories caught up in this run
 	partial    map[string]bool

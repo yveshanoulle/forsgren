@@ -33,9 +33,10 @@ func (f markFile) checkRoundTrip(t *testing.T) {
 	}
 }
 
-// TestMarkFilesKeepTheirOwnHeaderAndRoundTrip (forsgren#67, #76, #255): each
-// mark file, failures_read.csv, issues_full.csv and pulls_read.csv among them, has its own version and column
-// lines, and is read back as written.
+// TestMarkFilesKeepTheirOwnHeaderAndRoundTrip (forsgren#67, #76, #255, #337):
+// each mark file, failures_read.csv, issues_full.csv, pulls_read.csv and
+// pulls_denied.csv among them, has its own version and column lines, and is
+// read back as written.
 func TestMarkFilesKeepTheirOwnHeaderAndRoundTrip(t *testing.T) {
 	for _, f := range []markFile{
 		{"failures_read.csv", "# forsgren failures read v1\nrepository,read_at\n", SaveReadAt, LoadReadAt},
@@ -44,6 +45,7 @@ func TestMarkFilesKeepTheirOwnHeaderAndRoundTrip(t *testing.T) {
 		{"cut_runs.csv", "# forsgren cut runs v1\nrepository,first_cut_at\n", SaveCutRuns, LoadCutRuns},
 		{"starts_checked.csv", "# forsgren starts checked v1\nrepository,checked_at\n", SaveStartsChecked, LoadStartsChecked},
 		{"pulls_read.csv", "# forsgren pulls read v1\nrepository,read_at\n", SavePullsRead, LoadPullsRead},
+		{"pulls_denied.csv", "# forsgren pulls denied v1\nrepository,denied_at\n", SavePullsDenied, LoadPullsDenied},
 	} {
 		t.Run(f.name, f.checkRoundTrip)
 	}

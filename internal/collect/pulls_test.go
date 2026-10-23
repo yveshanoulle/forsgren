@@ -362,11 +362,11 @@ func TestAPullRequestListGitHubAnswersWronglyFailsTheRepository(t *testing.T) {
 	dataOf(path).want(t, "pulls_read.csv", "")
 }
 
-// TestAPullsFileThatCannotBeReadRefusesTheRun: a pulls.csv or a
-// pulls_read.csv not in its format is an error naming it, before GitHub is
-// asked anything.
+// TestAPullsFileThatCannotBeReadRefusesTheRun: a pulls.csv, a pulls_read.csv
+// or a pulls_denied.csv (forsgren#337) not in its format is an error naming
+// it, before GitHub is asked anything.
 func TestAPullsFileThatCannotBeReadRefusesTheRun(t *testing.T) {
-	for _, name := range []string{"pulls.csv", "pulls_read.csv"} {
+	for _, name := range []string{"pulls.csv", "pulls_read.csv", "pulls_denied.csv"} {
 		t.Run(name, func(t *testing.T) {
 			g := pullsOnly(t)
 			path := historyPath(t)

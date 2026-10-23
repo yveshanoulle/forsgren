@@ -1813,6 +1813,18 @@
    "score": 10.0,
    "checkedAt": "2026-10-23",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/history/pullsdenied.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/pullsdenied_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
   }
  ]
 }
