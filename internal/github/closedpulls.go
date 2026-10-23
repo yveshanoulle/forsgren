@@ -10,8 +10,9 @@ import (
 
 // ClosedPullRequest is one closed pull request of a repository, merged or
 // not (forsgren#255, step 1): what Mainline Lead Time needs of it. Nothing
-// else is read: no title, no body, no author, and no head branch, which
-// nothing uses (forsgren#320, decision #322).
+// else is read: no title, no body, no author's login, only its account type
+// (forsgren#345), and no head branch, which nothing uses (forsgren#320,
+// decision #322).
 type ClosedPullRequest struct {
 	Number    int64
 	CreatedAt time.Time
@@ -23,16 +24,24 @@ type ClosedPullRequest struct {
 	// read.
 	MergeCommit string
 	UpdatedAt   time.Time
+	// UserType is GitHub's account type of the pull request's author
+	// (user.type: "User", "Bot", "Organization"), empty when GitHub names no
+	// author (forsgren#345). The login is never read.
+	UserType string
 }
 
 // closedPull is one item of GitHub's answer, the fields ClosedPullRequests
-// reads. A null merged_at is a pull request closed without a merge.
+// reads. A null merged_at is a pull request closed without a merge; a null
+// user is no author named, its type empty.
 type closedPull struct {
 	Number         int64      `json:"number"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
 	MergedAt       *time.Time `json:"merged_at"`
 	MergeCommitSHA string     `json:"merge_commit_sha"`
+	User           struct {
+		Type string `json:"type"`
+	} `json:"user"`
 }
 
 // ClosedPullRequests lists the closed pull requests of repo updated at or
@@ -92,7 +101,8 @@ func (p closedPull) toClosedPullRequest() (ClosedPullRequest, error) {
 		return ClosedPullRequest{}, fmt.Errorf("pull request %d has no number, created_at or updated_at",
 			p.Number)
 	}
-	out := ClosedPullRequest{Number: p.Number, CreatedAt: p.CreatedAt.UTC(), UpdatedAt: p.UpdatedAt.UTC()}
+	out := ClosedPullRequest{Number: p.Number, CreatedAt: p.CreatedAt.UTC(), UpdatedAt: p.UpdatedAt.UTC(),
+		UserType: p.User.Type}
 	if p.MergedAt == nil {
 		return out, nil
 	}

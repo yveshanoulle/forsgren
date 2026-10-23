@@ -169,7 +169,24 @@ func (o Options) toStore(h held, repo string, p github.ClosedPullRequest) bool {
 	return !p.MergedAt.Before(o.earliest) && !h.pulls[history.IssueKeyOf(repo, p.Number)]
 }
 
-// pullOf is p with its first commit time, read only while the request budget
+// botUserType is GitHub's account type of a bot account (user.type), every
+// GitHub App's bot among them.
+const botUserType = "Bot"
+
+// botOf is the bot status of a pull request whose author's account type is
+// userType (forsgren#345): a bot for "Bot", unknown when GitHub named no
+// type, never guessed to be a person, and a person for any other type.
+func botOf(userType string) history.BotStatus {
+	switch userType {
+	case botUserType:
+		return history.ByBot
+	case "":
+		return history.BotUnknown
+	}
+	return history.ByHuman
+}
+
+// pullOf is p with its first commit time and its bot status, read only while the request budget
 // has room for every page of its commits. A commit list that gives no usable
 // date (github.ErrNoCommitDate: no commit, or one without an author date) has
 // the created time stand in, named on stderr (forsgren#300), and so does one
@@ -185,7 +202,7 @@ func (o Options) pullOf(ctx context.Context, repo string, p github.ClosedPullReq
 	pull := history.PullRequest{
 		Repository: repo, Number: p.Number, CreatedAt: wholeSecond(p.CreatedAt),
 		MergedAt: wholeSecond(p.MergedAt), MergeCommit: p.MergeCommit, UpdatedAt: wholeSecond(p.UpdatedAt),
-		FirstCommitAt: wholeSecond(first), FirstCommitCut: cut,
+		FirstCommitAt: wholeSecond(first), FirstCommitCut: cut, Bot: botOf(p.UserType),
 	}
 	switch {
 	case errors.Is(err, github.ErrNoCommitDate):

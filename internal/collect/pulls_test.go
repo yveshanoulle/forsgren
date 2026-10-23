@@ -20,8 +20,8 @@ import (
 
 const (
 	pullsPath   = "/repos/acme/app/pulls"
-	pullsHeader = "# forsgren pulls v1\nrepository,number,created_at,merged_at,merge_commit,updated_at," +
-		"first_commit_at,first_commit_cut,created_stands_in\n"
+	pullsHeader = "# forsgren pulls v2\nrepository,number,created_at,merged_at,merge_commit,updated_at," +
+		"first_commit_at,first_commit_cut,created_stands_in,bot\n"
 	pullsReadHeader = "# forsgren pulls read v1\nrepository,read_at\n"
 	// readNow is the pulls read file after a run that moved acme/app's mark
 	// to now.
@@ -39,23 +39,31 @@ type pull struct {
 // commitsPath is the path of the pull request's commits.
 func (p pull) commitsPath() string { return pullsPath + "/" + strconv.Itoa(p.n) + "/commits" }
 
-// json is the pull request as GitHub lists it: one closed without a merge has
-// a null merged_at and a test-merge SHA.
-func (p pull) json() string {
+// json is the pull request as GitHub lists it, opened by a person: one closed
+// without a merge has a null merged_at and a test-merge SHA.
+func (p pull) json() string { return p.jsonBy(`{"login": "someone", "type": "User"}`) }
+
+// jsonBy is json with the user the JSON value user (forsgren#345).
+func (p pull) jsonBy(user string) string {
 	m, sha := "null", shaC
 	if p.merged != "" {
 		m, sha = fmt.Sprintf("%q", p.merged), shaA
 	}
-	return fmt.Sprintf(`{"number": %d, "title": "Change %d", "user": {"login": "someone"}, `+
+	return fmt.Sprintf(`{"number": %d, "title": "Change %d", "user": %s, `+
 		`"head": {"ref": "feature/%d"}, "created_at": %q, "updated_at": %q, "closed_at": %q, `+
-		`"merged_at": %s, "merge_commit_sha": %q}`, p.n, p.n, p.n, p.created, p.updated, p.updated, m, sha)
+		`"merged_at": %s, "merge_commit_sha": %q}`, p.n, p.n, user, p.n, p.created, p.updated, p.updated, m, sha)
 }
 
 // line is the pull request's line in pulls.csv with the first commit time
-// first, empty when the created time stands in, and the cut flag.
-func (p pull) line(first string, cut bool) string {
-	return fmt.Sprintf("acme/app,%d,%s,%s,%s,%s,%s,%t,%t\n", p.n, p.created, p.merged, shaA,
-		p.updated, first, cut, first == "")
+// first, empty when the created time stands in, and the cut flag, opened by
+// a person.
+func (p pull) line(first string, cut bool) string { return p.lineBy(first, cut, "false") }
+
+// lineBy is line with the bot column bot (forsgren#345): true, false or
+// empty.
+func (p pull) lineBy(first string, cut bool, bot string) string {
+	return fmt.Sprintf("acme/app,%d,%s,%s,%s,%s,%s,%t,%t,%s\n", p.n, p.created, p.merged, shaA,
+		p.updated, first, cut, first == "", bot)
 }
 
 // commitAt is one commit of a pull request as GitHub lists it, authored at

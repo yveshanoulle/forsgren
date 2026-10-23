@@ -11,24 +11,24 @@ import (
 )
 
 const (
-	pullsHead = "# forsgren pulls v1\nrepository,number,created_at,merged_at,merge_commit,updated_at," +
-		"first_commit_at,first_commit_cut,created_stands_in\n"
+	pullsHead = "# forsgren pulls v2\nrepository,number,created_at,merged_at,merge_commit,updated_at," +
+		"first_commit_at,first_commit_cut,created_stands_in,bot\n"
 	mergeSHA   = "abcdef0123456789abcdef0123456789abcdef01"
 	pullsLine1 = "acme/app,45,2026-09-01T08:00:00Z,2026-09-02T10:00:00Z," + mergeSHA +
-		",2026-09-03T12:00:00Z,2026-08-31T07:00:00Z,false,false\n"
+		",2026-09-03T12:00:00Z,2026-08-31T07:00:00Z,false,false,false\n"
 )
 
 var pullCreated = time.Date(2026, 9, 1, 8, 0, 0, 0, time.UTC)
 
 // pull is merged pull request number of acme/app, merged hours after
 // 2026-09-02T00:00:00Z, its first commit time complete, a day before it was
-// created.
+// created, opened by a person.
 func pull(number int64, hours int) PullRequest {
 	return PullRequest{
 		Repository: "acme/app", Number: number, CreatedAt: pullCreated,
 		MergedAt:    time.Date(2026, 9, 2, hours, 0, 0, 0, time.UTC),
 		MergeCommit: mergeSHA, UpdatedAt: time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC),
-		FirstCommitAt: time.Date(2026, 8, 31, 7, 0, 0, 0, time.UTC),
+		FirstCommitAt: time.Date(2026, 8, 31, 7, 0, 0, 0, time.UTC), Bot: ByHuman,
 	}
 }
 
@@ -96,9 +96,9 @@ func TestThePullsFileKeepsHowTheFirstCommitTimeWasFound(t *testing.T) {
 	}
 	wantFile(t, path, pullsHead+pullsLine1+
 		"acme/app,46,2026-09-01T08:00:00Z,2026-09-02T11:00:00Z,"+mergeSHA+
-		",2026-09-03T12:00:00Z,2026-08-31T07:00:00Z,true,false\n"+
+		",2026-09-03T12:00:00Z,2026-08-31T07:00:00Z,true,false,false\n"+
 		"acme/app,47,2026-09-01T08:00:00Z,2026-09-02T12:00:00Z,"+mergeSHA+
-		",2026-09-03T12:00:00Z,,false,true\n")
+		",2026-09-03T12:00:00Z,,false,true,false\n")
 	wantPulls(t, path, in)
 }
 
@@ -190,14 +190,15 @@ func pullsLineWith(i int, value string) string {
 // and the reason names the column or the rule.
 func TestAMalformedPullsLineIsRefused(t *testing.T) {
 	for name, line := range map[string]string{
-		"number":            pullsLineWith(1, "x"),
-		"created_at":        pullsLineWith(2, "yesterday"),
-		"merged_at":         pullsLineWith(3, ""),
-		"updated_at":        pullsLineWith(5, ""),
-		"first_commit_at":   pullsLineWith(6, "soon"),
-		"first_commit_cut":  pullsLineWith(7, "yes"),
-		"created_stands_in": pullsLineWith(8, "no"),
-		"9 comma-separated": strings.TrimSuffix(pullsLineWith(8, ""), ","),
+		"number":             pullsLineWith(1, "x"),
+		"created_at":         pullsLineWith(2, "yesterday"),
+		"merged_at":          pullsLineWith(3, ""),
+		"updated_at":         pullsLineWith(5, ""),
+		"first_commit_at":    pullsLineWith(6, "soon"),
+		"first_commit_cut":   pullsLineWith(7, "yes"),
+		"created_stands_in":  pullsLineWith(8, "no"),
+		"bot":                pullsLineWith(9, "yes"),
+		"10 comma-separated": strings.TrimSuffix(pullsLineWith(9, ""), ","),
 	} {
 		t.Run(name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "pulls.csv")
@@ -236,7 +237,7 @@ func TestAStandInThatDisagreesWithTheFirstCommitTimeIsNotRead(t *testing.T) {
 // does not know is ErrUnknownVersion, and an append leaves it as it was.
 func TestAnotherPullsVersionIsRefused(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "pulls.csv")
-	content := "# forsgren pulls v2\nrepository,number\n"
+	content := "# forsgren pulls v3\nrepository,number\n"
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}

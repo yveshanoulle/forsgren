@@ -42,9 +42,9 @@
     "locked": false,
     "title": "Not read: closed without a merge",
     "user": {
-      "login": "acme-dev",
-      "id": 2,
-      "type": "User"
+      "login": "dependabot[bot]",
+      "id": 49699333,
+      "type": "Bot"
     },
     "body": null,
     "created_at": "2026-09-19T08:00:00Z",

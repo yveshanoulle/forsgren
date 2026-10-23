@@ -1837,6 +1837,30 @@
    "score": 10.0,
    "checkedAt": "2026-10-23",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/history/pullbot.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/pulls_bot_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/closedpulls_user_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/pulls_bot_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
   }
  ]
 }

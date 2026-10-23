@@ -328,19 +328,21 @@ acme/app,2026-10-21T06:00:00Z
 
 **The merged pull requests**, for the Mainline Lead Time (forsgren#255,
 forsgren#256), are kept in `data/pulls.csv`, next to the history, with its own
-format version (the pulls format v1):
+format version (the pulls format v2, forsgren#345):
 
 ```
-# forsgren pulls v1
-repository,number,created_at,merged_at,merge_commit,updated_at,first_commit_at,first_commit_cut,created_stands_in
-acme/app,42,2026-09-01T10:00:00Z,2026-09-03T15:00:00Z,<40 hex>,2026-09-03T15:01:00Z,2026-08-30T09:00:00Z,false,false
-acme/app,43,2026-09-02T08:00:00Z,2026-09-02T09:00:00Z,<40 hex>,2026-09-02T09:00:00Z,,false,true
+# forsgren pulls v2
+repository,number,created_at,merged_at,merge_commit,updated_at,first_commit_at,first_commit_cut,created_stands_in,bot
+acme/app,42,2026-09-01T10:00:00Z,2026-09-03T15:00:00Z,<40 hex>,2026-09-03T15:01:00Z,2026-08-30T09:00:00Z,false,false,false
+acme/app,43,2026-09-02T08:00:00Z,2026-09-02T09:00:00Z,<40 hex>,2026-09-02T09:00:00Z,,false,true,true
+acme/app,44,2026-09-02T10:00:00Z,2026-09-02T11:00:00Z,<40 hex>,2026-09-02T11:00:00Z,2026-09-02T09:00:00Z,false,false,
 ```
 
 - One line per merged pull request. A pull request closed without a merge is
   not stored. No title, no body, no author and no branch name is stored: a
   branch name can identify people, and no metric uses it (decision #305).
-  `collect` does not read the branch name either (decision #322).
+  `collect` does not read the branch name either (decision #322), nor the
+  author's login: only the author's account type, for the `bot` column.
 - `repository` is `owner/name` and `number` the pull request's number.
 - `created_at`, `merged_at` and `updated_at` are the pull request's created,
   merged and updated time, UTC, to the second. `updated_at` is a snapshot:
@@ -377,14 +379,27 @@ acme/app,43,2026-09-02T08:00:00Z,2026-09-02T09:00:00Z,<40 hex>,2026-09-02T09:00:
   valid time exactly when it is `false`: a line with a stand-in and a time,
   or with neither, is refused when it is read and never written (decision
   #303). Otherwise `false`.
+- `bot` says whether a bot account opened the pull request (forsgren#345):
+  `true` when GitHub's account type of the author (`user.type`) is `Bot`,
+  Dependabot among them, `false` for any other type, and empty when the
+  author's type is not known: GitHub named no author, or the line was stored
+  before this column. Empty is never read as a person. The login itself is
+  never read or stored (#255's no-authors rule).
+- A file of the pulls format v1, without the `bot` column, is still read,
+  every pull request's `bot` empty (not known). The first `collect` run that
+  appends to it, whether or not it stores a pull request, rewrites it once as
+  v2, whole, through a temporary file: every old line kept as it was, its
+  `bot` column empty, then the new lines. Nothing is backfilled: an old line
+  stays not known for good (#293).
 - Held by repository (ignoring case) and number, as GitHub numbers a
   repository's issues and pull requests from one sequence: a pull request
   already in the file is skipped, the first line staying whatever a later read
   says (decision #306). `first_commit_cut` and `created_stands_in` describe
   the quality of the stored measurement, not a state waiting for a
   correction: both stay for that record for good. A correction, if one is
-  ever needed, is an explicit, versioned migration, never a rewrite of a
-  pulls v1 line. The new lines of a run are in merge order (merged time,
+  ever needed, is an explicit, versioned migration, never a silent change to
+  a stored line's values (the v2 upgrade above keeps every value of every
+  line, `bot` empty). The new lines of a run are in merge order (merged time,
   repository, number).
 - Otherwise the same rules as `deployments.csv`: created with its version
   line, appended only, refused untouched when its version is unknown or a line

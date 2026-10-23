@@ -112,7 +112,7 @@ func TestRenderRefusesABadPullsFile(t *testing.T) {
 	head := "# forsgren pulls v1\nrepository,number,created_at,merged_at,merge_commit,updated_at," +
 		"first_commit_at,first_commit_cut,created_stands_in\n"
 	wantBadFileRefused(t, "pulls.csv", map[string]badFile{
-		"unknown version": {"# forsgren pulls v2\n", "unknown history format version"},
+		"unknown version": {"# forsgren pulls v3\n", "unknown history format version"},
 		"malformed line":  {head + "acme/api,7\n", "line 3: malformed history"},
 	})
 }

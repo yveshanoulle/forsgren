@@ -11,13 +11,15 @@ import (
 // PullRequest is one merged pull request (forsgren#255, step 3): a line of
 // data/pulls.csv, for Mainline Lead Time, merged time minus first commit
 // time (forsgren#256). Only merged pull requests are stored; one closed
-// without a merge is not. No title and no author is stored.
+// without a merge is not. No title and no author is stored: whether a bot
+// opened it is, never the login (forsgren#345).
 //
-// The format is "# forsgren pulls v1", the column line
+// The format is "# forsgren pulls v2", the column line
 // "repository,number,created_at,merged_at,merge_commit,updated_at,
-// first_commit_at,first_commit_cut,created_stands_in" (one line, broken here),
-// every time in UTC to the second, the two flags "true" or "false". No head
-// branch is stored either (forsgren#305): a branch name can identify people.
+// first_commit_at,first_commit_cut,created_stands_in,bot" (one line, broken
+// here), every time in UTC to the second, the two flags "true" or "false",
+// the bot column "true", "false" or empty for unknown. No head branch is
+// stored either (forsgren#305): a branch name can identify people.
 type PullRequest struct {
 	Repository  string // owner/name
 	Number      int64  // the pull request number
@@ -38,18 +40,32 @@ type PullRequest struct {
 	// one without an author date (forsgren#300), so the created time stands
 	// in for the first commit time; never because the list was cut.
 	CreatedStandsIn bool
+	// Bot is whether a bot account opened the pull request (forsgren#345):
+	// BotUnknown for a line of the pulls format v1.
+	Bot BotStatus
 }
 
-// pulls is the format of data/pulls.csv, the pulls format v1.
+// pulls is the format of data/pulls.csv, the pulls format v2 (the bot
+// column, forsgren#345); v1, without it, is still read, every bot status
+// unknown, and rewritten as v2 by the first append, unknown kept unknown.
 var pulls = format[PullRequest, IssueKey]{
+	versionLine: "# forsgren pulls v2",
+	columnLine:  pullsV1.columnLine + ",bot",
+	decode:      toPullRequest,
+	encode:      PullRequest.fields,
+	validate:    PullRequest.validate,
+	key:         PullRequest.Key,
+	compare:     comparePullRequests,
+	legacy:      []legacyFormat{pullsV1},
+}
+
+// pullsV1 is the pulls format v1, before the bot column: its nine columns
+// are the first nine of v2, the bot column empty, unknown, never a person.
+var pullsV1 = legacyFormat{
 	versionLine: "# forsgren pulls v1",
 	columnLine: "repository,number,created_at,merged_at,merge_commit,updated_at," +
 		"first_commit_at,first_commit_cut,created_stands_in",
-	decode:   toPullRequest,
-	encode:   PullRequest.fields,
-	validate: PullRequest.validate,
-	key:      PullRequest.Key,
-	compare:  comparePullRequests,
+	lift: func(fields []string) []string { return append(fields, BotUnknown.String()) },
 }
 
 // LoadPullRequests reads the pull requests at path, in file order, with
@@ -82,14 +98,14 @@ func (p PullRequest) fields() []string {
 	return []string{
 		p.Repository, strconv.FormatInt(p.Number, 10), formatTime(p.CreatedAt),
 		formatTime(p.MergedAt), p.MergeCommit, formatTime(p.UpdatedAt), formatTime(p.FirstCommitAt),
-		strconv.FormatBool(p.FirstCommitCut), strconv.FormatBool(p.CreatedStandsIn),
+		strconv.FormatBool(p.FirstCommitCut), strconv.FormatBool(p.CreatedStandsIn), p.Bot.String(),
 	}
 }
 
-// toPullRequest reads the nine fields of a line.
+// toPullRequest reads the ten fields of a line.
 func toPullRequest(f []string) (PullRequest, error) {
 	p := PullRequest{Repository: f[0], MergeCommit: f[4]}
-	var errs [7]error
+	var errs [8]error
 	p.Number, errs[0] = parseNumber("number", f[1])
 	p.CreatedAt, errs[1] = parseTime("created_at", f[2])
 	p.MergedAt, errs[2] = parseTime("merged_at", f[3])
@@ -97,6 +113,7 @@ func toPullRequest(f []string) (PullRequest, error) {
 	p.FirstCommitAt, errs[4] = parseOptionalTime("first_commit_at", f[6])
 	p.FirstCommitCut, errs[5] = parseFlag("first_commit_cut", f[7])
 	p.CreatedStandsIn, errs[6] = parseFlag("created_stands_in", f[8])
+	p.Bot, errs[7] = parseBot(f[9])
 	for _, err := range errs {
 		if err != nil {
 			return PullRequest{}, err
@@ -127,5 +144,6 @@ func (p PullRequest) validate() error {
 		check{p.FirstCommitAt.IsZero() == p.CreatedStandsIn,
 			"first_commit_at is empty exactly when the created time stands in"},
 		check{!p.FirstCommitCut || !p.CreatedStandsIn, "a cut first commit time keeps its time, no stand-in"},
+		check{isBotStatus(p.Bot), fmt.Sprintf("bot status %d is not unknown, a person or a bot", p.Bot)},
 	)
 }

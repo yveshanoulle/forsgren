@@ -24,7 +24,7 @@ type closedItem struct {
 // json is the item as GitHub answers it, with fields that are not read.
 func (i closedItem) json() string {
 	return `{"number": ` + strconv.Itoa(i.number) + `, "state": "closed", "title": "not read", ` +
-		`"user": {"login": "acme-dev"}, "head": {"ref": "` + i.ref + `", "sha": "` + shaHead + `"}, ` +
+		`"user": {"login": "acme-dev", "type": "User"}, "head": {"ref": "` + i.ref + `", "sha": "` + shaHead + `"}, ` +
 		`"created_at": "2026-07-01T08:00:00Z", "updated_at": "` + i.updated + `", ` +
 		`"merged_at": ` + i.merged + `, "merge_commit_sha": ` + i.sha + `}`
 }
@@ -64,9 +64,10 @@ func closedPulls(t *testing.T, f *fakeGitHub, maxPages int) ([]ClosedPullRequest
 // TestClosedPullRequestsReadsTheClosedOnesNewestUpdatedFirst (forsgren#255,
 // step 1): GET /repos/{o}/{r}/pulls with state=closed, sort=updated,
 // direction=desc, following Link rel="next"; each pull request's number,
-// created, merged and updated time in UTC, and its merge commit. One closed
-// without a merge is read too, with no merge time and no merge commit, never
-// the test merge GitHub still names for it.
+// created, merged and updated time in UTC, its merge commit, and its
+// author's account type (forsgren#345). One closed without a merge is read
+// too, with no merge time and no merge commit, never the test merge GitHub
+// still names for it.
 func TestClosedPullRequestsReadsTheClosedOnesNewestUpdatedFirst(t *testing.T) {
 	f := newFake(t)
 	f.on(closedPullsPath, reply{header: next(closedPullsPath, "2"), body: fixture(t, "closed-pulls.json")})
@@ -78,11 +79,12 @@ func TestClosedPullRequestsReadsTheClosedOnesNewestUpdatedFirst(t *testing.T) {
 	want := []ClosedPullRequest{
 		{Number: 48, CreatedAt: utcOf(t, "2026-09-20T08:00:00Z"),
 			MergedAt: utcOf(t, "2026-09-22T08:30:00Z"), MergeCommit: "4848484848484848484848484848484848484848",
-			UpdatedAt: utcOf(t, "2026-09-22T11:00:00Z")},
+			UpdatedAt: utcOf(t, "2026-09-22T11:00:00Z"), UserType: "User"},
 		{Number: 47, CreatedAt: utcOf(t, "2026-09-19T08:00:00Z"),
-			UpdatedAt: utcOf(t, "2026-09-21T09:00:00Z")},
+			UpdatedAt: utcOf(t, "2026-09-21T09:00:00Z"), UserType: "Bot"},
 		{Number: 45, CreatedAt: utcOf(t, "2026-07-01T08:00:00Z"),
-			MergedAt: utcOf(t, "2026-08-02T08:00:00Z"), MergeCommit: shaBase, UpdatedAt: utcOf(t, "2026-08-02T09:00:00Z")},
+			MergedAt: utcOf(t, "2026-08-02T08:00:00Z"), MergeCommit: shaBase, UpdatedAt: utcOf(t, "2026-08-02T09:00:00Z"),
+			UserType: "User"},
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("want %+v,\n got %+v", want, got)
@@ -184,17 +186,18 @@ func TestClosedPullRequestsRefuseAnAnswerTheyCannotStore(t *testing.T) {
 func TestClosedPullRequestsReadOneWithoutAHeadBranch(t *testing.T) {
 	noRef := merged45
 	noRef.ref = ""
-	for name, item := range map[string]string{
-		"an empty head.ref": noRef.json(),
-		"no head": `{"number": 45, "created_at": "2026-07-01T08:00:00Z", "updated_at": "2026-08-02T09:00:00Z", ` +
-			`"merged_at": "2026-08-02T08:00:00Z", "merge_commit_sha": "` + shaBase + `"}`,
+	for name, c := range map[string]struct{ item, userType string }{
+		"an empty head.ref": {noRef.json(), "User"},
+		"no head": {`{"number": 45, "created_at": "2026-07-01T08:00:00Z", "updated_at": "2026-08-02T09:00:00Z", ` +
+			`"merged_at": "2026-08-02T08:00:00Z", "merge_commit_sha": "` + shaBase + `"}`, ""},
 	} {
 		t.Run(name, func(t *testing.T) {
 			f := newFake(t)
-			f.on(closedPullsPath, reply{body: "[" + item + "]"})
+			f.on(closedPullsPath, reply{body: "[" + c.item + "]"})
 			got, _, err := closedPulls(t, f, DefaultMaxPages)
 			want := []ClosedPullRequest{{Number: 45, CreatedAt: utcOf(t, "2026-07-01T08:00:00Z"),
-				MergedAt: utcOf(t, "2026-08-02T08:00:00Z"), MergeCommit: shaBase, UpdatedAt: utcOf(t, "2026-08-02T09:00:00Z")}}
+				MergedAt: utcOf(t, "2026-08-02T08:00:00Z"), MergeCommit: shaBase, UpdatedAt: utcOf(t, "2026-08-02T09:00:00Z"),
+				UserType: c.userType}}
 			if !slices.Equal(got, want) {
 				t.Errorf("want %+v, got %+v (%v)", want, got, err)
 			}
