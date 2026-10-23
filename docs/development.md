@@ -131,8 +131,9 @@ of the four browser rows, sfl asks `gate_select` (`Scripts/lib_gate_select.sh`,
 over `Scripts/gate_inputs.txt` and the files changed against origin/main). An
 unselected row is not run: it is printed `⏭ skipped: <label> (<reason>)`, is a
 `⏭ skip` row of the step table and still counts as a step, and its reason is
-appended to `.build/sfl-skips.log` (emptied by `sfl.sh pre`). A file no list
-names runs all four; `FORSGREN_GATE_SELECT_FULL=1` forces a full run. CI runs
+appended to `.build/sfl-skips.log` (emptied by `sfl.sh pre`). A change to
+`sfl.sh` or `FBP.sh` alone skips all four (no browser gate reads them;
+forsgren#284). A file no list names runs all four; `FORSGREN_GATE_SELECT_FULL=1` forces a full run. CI runs
 every row. `Scripts/test_sfl_gate_skip.sh` pins it.
 
 **`Scripts/gate_report_order.txt`** declares every gate, one row

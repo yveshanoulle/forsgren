@@ -24,7 +24,7 @@
 #      listed gate, naming the file. What is not known to be irrelevant is
 #      assumed relevant. Known to be irrelevant: a file an `out` row names (the
 #      `none|out|...` rows of the list are the files no gate reads: workflows,
-#      docs, the release scripts), and a file under Scripts/ that is in the
+#      docs, the release scripts, sfl.sh and FBP.sh), and a file under Scripts/ that is in the
 #      closure of no gate's script (gate_unrelated_script).
 #   6. a changed file under one of the label's `in` paths and matching none of its
 #      `out` patterns          run  (naming the file)

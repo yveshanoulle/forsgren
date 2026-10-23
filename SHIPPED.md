@@ -9,6 +9,15 @@ Active work lives in
 
 ---
 
+## 2026-10-23 — a commit that changes only sfl.sh or FBP.sh skips the four browser rows ([#284](https://github.com/yveshanoulle/forsgren/issues/284), step 1 of 1)
+
+forsgren issue 284. `sfl.sh` and `FBP.sh` were in no list of `Scripts/gate_inputs.txt`, so the fail-safe of the browser gate selection ran all four browser rows (about 285 s) on every commit that changed them. Both are now `none|out` rows: they run the browser rows, but no browser gate reads them (neither is in the closure of a browser gate's script), and their effect stays covered by the gate wiring, sfl and FBP self-tests. The scripts #283 added (`Scripts/sfl_pull.sh`, `Scripts/fbp_push_or_rebase.sh`) need no row: they are under `Scripts/` and in no browser gate's closure, so they already select nothing. The fail-safe for a file no list names is unchanged.
+
+- Red first: cases 22 to 24 of `Scripts/test_gate_select.sh` run `gate_select` on the real list in its throwaway repository; on the red, only `sfl.sh` and only `FBP.sh` said `run: ... is named by no gate's list` instead of skipping, for each of the four labels (expectation mismatches only), and a file no list names ran all four (the fail-safe pin, green on both). Then green, with mutation proof K: the real list without the `sfl.sh` row makes the sfl-only commit run the browser gate again, asserting the fail-safe reason.
+- Docs: docs/quality-gates.md, docs/development.md, docs/gate-classification.md, the comments of `Scripts/gate_inputs.txt` and `Scripts/lib_gate_select.sh`.
+
+---
+
 ## 2026-10-22 — sfl's opening pull rebases when it cannot fast-forward and nothing overlaps ([#283](https://github.com/yveshanoulle/forsgren/issues/283), step 2 of 2)
 
 forsgren issue 283, step 2 of 2, ported from the estate canon. When sfl's opening `git pull --ff-only` cannot fast-forward (local commits not on the remote, typically a local RED commit), `Scripts/sfl_pull.sh` now fetches and asks step 1's `fbp_overlap_files` (sourced from `Scripts/fbp_push_or_rebase.sh`, no second copy) which files the incoming commits changed that the local commits or the staged, unstaged or untracked changes changed too. None: the changes are stashed, the local commits rebased onto the upstream and the stash popped with `--index`, so staged stays staged, and only the stash this run created is popped (the stash ref compared before and after); the line names the incoming short shas, and the gates run on the rebased tree, so what is pushed is what was tested. An overlap, no upstream, a failed fetch or a failed rebase: `❌` lines naming the files, `git pull --rebase --autostash` to run, exit 3 as before, HEAD, the staged and unstaged changes and the stash list untouched. sfl.sh v8.

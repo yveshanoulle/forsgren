@@ -705,13 +705,16 @@ The POST gates, on the generated site:
   exclusions, selects it. FAIL-SAFE: a changed file that no gate's list names,
   neither as an input nor as an excluded pattern, selects every listed gate. Files
   known to be unrelated select nothing: the `none|out|...` rows of the list
-  (workflows, docs, markdown, the release scripts) and a file under `Scripts/`
+  (workflows, docs, markdown, the release scripts, and the runners `sfl.sh` and
+  `FBP.sh`, which run the browser rows but which no browser gate reads;
+  forsgren#284) and a file under `Scripts/`
   that is in the closure of no gate's script, so a commit that touches only
   those skips all four; a new top-level file or directory still runs them.
   `GITHUB_ACTIONS=true` (Quality), `FORSGREN_GATE_SELECT_FULL=1`, a missing
   origin/main and a label no list holds select all. `changed_files`, `named_files`
   and `closure` live there and the git sandbox isolation gate sources them. The
-  self-test runs it in throwaway repositories (twenty-one cases) with ten
+  self-test runs it in throwaway repositories (twenty-four cases; 22 to 24 on the
+  real list: only `sfl.sh`, only `FBP.sh`, and a file no list names) with eleven
   mutation proofs, each asserting the reason text.
 
 - **browser gate skip** (`sfl.sh`, self-test `Scripts/test_sfl_gate_skip.sh`,

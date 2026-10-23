@@ -31,9 +31,14 @@
 #   H. untracked files ignored:             case 8 loses its run;
 #   I. no `none` rows in the list:          case 16a runs because the workflow is named by no list;
 #   J. the Scripts/ closure check removed:  case 21 loses its run for a script in a closure.
+#   K. the sfl.sh row removed from the real list: case 22 runs every browser row
+#      again, because sfl.sh is named by no list (forsgren#284).
 # Cases 16-21: a workflow, a docs file, a release script and a script in no gate's
 # closure select nothing; a new top-level file, and a script in a closure that the
 # list forgot, select every gate (the fail-safe).
+# Cases 22-24 (forsgren#284) run on the real Scripts/gate_inputs.txt: a commit that
+# changes only sfl.sh, or only FBP.sh, skips all four browser rows with the reason,
+# and a file no list names still runs all four (the fail-safe).
 
 set -euo pipefail
 
@@ -86,6 +91,8 @@ echo 'package src' > "${FX}/src/a.go"
 echo 'x' > "${FX}/data/d.csv"
 echo 'x' > "${FX}/other/o.txt"
 echo 'notes' > "${FX}/NOTES.md"
+echo 'echo sfl' > "${FX}/sfl.sh"
+echo 'echo fbp' > "${FX}/FBP.sh"
 "${G[@]}" -C "$FX" add -A
 "${G[@]}" -C "$FX" commit -q -m fixture
 git -C "$FX" remote add origin "$ORIGIN"
@@ -235,6 +242,33 @@ sel beta
 want_exit "21: a script in alpha's closure that its list forgot (fail-safe)" 0 "run: Scripts/helper.sh is named by no gate's list, so every gate runs"
 reset
 
+# 22-24 (forsgren#284): the real list, in the fixture. A commit that changes only
+# sfl.sh, or only FBP.sh, skips all four browser rows with the reason; a file no
+# list names still runs all four (the fail-safe holds on the real list too).
+REAL_INPUTS="${REPO_ROOT}/Scripts/gate_inputs.txt"
+BROWSER_LABELS=("browser gate self-test" "browser gate" "browser gate (fixture site) self-test" "browser gate (fixture site)")
+# sel_real <label> [inputs-file]: gate_select of the fixture over the real list (or another).
+sel_real() {
+  capture env -u GITHUB_ACTIONS -u FORSGREN_GATE_SELECT_FULL FORSGREN_GATE_INPUTS="${2:-$REAL_INPUTS}" bash "${TMP}/drive.sh" "$FX" Scripts/lib_gate_select.sh "$1"
+}
+# real_case <case> <file> <want-prefix>: the file alone changed; each browser label says the wanted line.
+real_case() {
+  local label
+  echo '# edit' >> "${FX}/$2"
+  for label in "${BROWSER_LABELS[@]}"; do
+    sel_real "$label"
+    if [[ "$3" == skip ]]; then
+      want_exit "$1: only $2 changed, ${label}" 0 "skip: none of the 1 changed files is an input of ${label}"
+    else
+      want_exit "$1: only $2 changed, ${label} (fail-safe)" 0 "run: $2 is named by no gate's list, so every gate runs"
+    fi
+  done
+  reset
+}
+real_case 22 sfl.sh skip
+real_case 23 FBP.sh skip
+real_case 24 other/o.txt run
+
 # 15: the real list: every browser label has input rows the library reads, and the
 # real library covers the engine and excludes a test file, as the list says.
 for label in "browser gate self-test" "browser gate" "browser gate (fixture site) self-test" "browser gate (fixture site)"; do
@@ -334,4 +368,13 @@ if mutant J 's/grep -qxF -- "[$]1" <<< "[$]related"/false/'; then
 fi
 reset
 
-selftest_end "the gate select self-test failed" "gate_select: twenty-one cases hold, ten mutations seen"
+# K: the real list without its sfl.sh row: a commit that changes only sfl.sh runs
+# the browser rows again, because sfl.sh is then named by no list.
+grep -vxF 'none|out|sfl.sh' "$REAL_INPUTS" > "${TMP}/no_sfl.txt"
+if cmp -s "$REAL_INPUTS" "${TMP}/no_sfl.txt"; then fail "mutation K changed nothing: the proof would be vacuous"; fi
+echo '# edit' >> "${FX}/sfl.sh"
+sel_real "browser gate" "${TMP}/no_sfl.txt"
+want_exit "mutation proof K: without the sfl.sh row, the sfl-only commit runs the browser gate" 0 "run: sfl.sh is named by no gate's list, so every gate runs"
+reset
+
+selftest_end "the gate select self-test failed" "gate_select: twenty-four cases hold, eleven mutations seen"

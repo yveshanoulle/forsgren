@@ -26,7 +26,10 @@
 # npm ci), the fixture data and the required-pages manifest.
 #
 # UNRELATED FILES. The label `none` holds `out` rows for the files no browser gate
-# reads: workflows, docs, markdown and the release scripts. A changed file one of
+# reads: workflows, docs, markdown, the release scripts, and the two runners
+# sfl.sh and FBP.sh (forsgren#284): they run the browser rows, but no browser gate
+# reads them, so their effect is covered by the gate wiring, sfl and FBP
+# self-tests, not by the browser rows. A changed file one of
 # those rows names is known and selects nothing, instead of falling to the
 # fail-safe. A file under Scripts/ that is in the closure of no gate's script is
 # unrelated too (gate_unrelated_script in Scripts/lib_gate_select.sh), so another
@@ -37,6 +40,8 @@ none|out|docs/**
 none|out|*.md
 none|out|Scripts/release_*.sh
 none|out|Scripts/test_release_*.sh
+none|out|sfl.sh
+none|out|FBP.sh
 
 # NOT LISTED, ON PURPOSE: install/README.md is embedded (install/install.go) but is
 # not part of the rendered site, so no browser gate reads its content. It is left
