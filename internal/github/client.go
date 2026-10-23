@@ -51,6 +51,11 @@ var (
 	ErrCommitSHA            = errors.New("not a 40-hex commit SHA")
 	ErrNotAncestor          = errors.New("the base is not an ancestor of the head")
 	ErrMissingCommit        = errors.New("a commit of the comparison is missing")
+
+	// ErrNoCommitDate is an ErrAnswer whose pull request has no commit with
+	// an author date, told apart from an answer that cannot be read
+	// (forsgren#320, decision #313).
+	ErrNoCommitDate = errors.New("no commit with an author date")
 )
 
 // limitError is one of GitHub's two rate limits: the primary one, with no

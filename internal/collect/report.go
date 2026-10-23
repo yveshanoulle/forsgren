@@ -9,6 +9,7 @@ package collect
 //	# forsgren collect report v1
 //	incomplete resets=2026-10-01T01:00:00Z
 //	cut acme/app kept=2026-06-22 recent=discarded issues=unread progress=stalled
+//	pulls-cut acme/shop
 //	failed acme/web secondary-rate-limit
 //
 // The second line is `complete` or `incomplete resets=<UTC RFC 3339>`. A
@@ -18,6 +19,9 @@ package collect
 // `discarded`), `issues` is always `unread` (a cut repository stores nothing
 // of its issues) and `progress` is `yes` when it kept something, `no` the
 // first run it kept nothing, `stalled` when it kept nothing again.
+// A `pulls-cut` line names a repository whose deployments and issues were
+// read whole but whose pull requests the budget cut short: incomplete, never
+// failed, the rest read by the next run (forsgren#320, decision #307).
 // A `failed` line names a repository that failed on a rate limit.
 
 import (
@@ -64,10 +68,13 @@ type Failed struct{ Repository, Kind string }
 
 // Report is what a run left incomplete or failed.
 type Report struct {
-	Cuts   []Cut
-	Failed []Failed
+	Cuts []Cut
+	// PullsCut names the repositories whose pull requests alone were cut
+	// short at the request budget (forsgren#320, decision #307).
+	PullsCut []string
+	Failed   []Failed
 	// Reset is when the request budget starts over, UTC; zero when no
-	// repository was cut short.
+	// repository, nor its pull requests, was cut short.
 	Reset time.Time
 }
 
@@ -75,23 +82,35 @@ type Report struct {
 func (r Report) Render() string {
 	var b strings.Builder
 	b.WriteString(reportVersion + "\n")
-	if len(r.Cuts) == 0 {
+	if !r.incomplete() {
 		b.WriteString("complete\n")
 	} else {
 		fmt.Fprintf(&b, "incomplete resets=%s\n", r.Reset.UTC().Format(time.RFC3339))
 	}
 	for _, c := range r.Cuts {
-		kept := "none"
-		if !c.Kept.IsZero() {
-			kept = c.Kept.UTC().Format(time.DateOnly)
-		}
-		fmt.Fprintf(&b, "cut %s kept=%s recent=%s issues=unread progress=%s\n", c.Repository, kept, c.Recent, c.Progress)
+		b.WriteString(c.line())
+	}
+	for _, repo := range r.PullsCut {
+		fmt.Fprintf(&b, "pulls-cut %s\n", repo)
 	}
 	for _, f := range r.Failed {
 		fmt.Fprintf(&b, "failed %s %s\n", f.Repository, f.Kind)
 	}
 	return b.String()
 }
+
+// line is the cut line of c.
+func (c Cut) line() string {
+	kept := "none"
+	if !c.Kept.IsZero() {
+		kept = c.Kept.UTC().Format(time.DateOnly)
+	}
+	return fmt.Sprintf("cut %s kept=%s recent=%s issues=unread progress=%s\n", c.Repository, kept, c.Recent, c.Progress)
+}
+
+// incomplete says whether the budget cut a repository, or its pull requests,
+// short.
+func (r Report) incomplete() bool { return len(r.Cuts) > 0 || len(r.PullsCut) > 0 }
 
 // ParseReport is the report in text, the reverse of Render; anything else is
 // ErrReport.
@@ -126,20 +145,42 @@ func (r *Report) parseStatus(line string) error {
 	return nil
 }
 
-// parseLine reads a cut or failed line.
+// lineKind is one kind of line after the status: how many fields it has,
+// its first word included, and how the fields after that word are read.
+type lineKind struct {
+	fields int
+	read   func(r *Report, f []string) error
+}
+
+// lineKinds are the lines a report holds after its status, by first word.
+var lineKinds = map[string]lineKind{
+	"cut": {6, func(r *Report, f []string) error {
+		c, err := parseCut(f)
+		r.Cuts = append(r.Cuts, c)
+		return err
+	}},
+	"pulls-cut": {2, func(r *Report, f []string) error {
+		r.PullsCut = append(r.PullsCut, f[0])
+		return nil
+	}},
+	"failed": {3, func(r *Report, f []string) error {
+		r.Failed = append(r.Failed, Failed{f[0], f[1]})
+		return nil
+	}},
+}
+
+// parseLine reads a cut, pulls-cut or failed line.
 func (r *Report) parseLine(line string) error {
 	f := strings.Fields(line)
-	switch {
-	case len(f) == 3 && f[0] == "failed":
-		r.Failed = append(r.Failed, Failed{f[1], f[2]})
-	case len(f) == 6 && f[0] == "cut":
-		c, err := parseCut(f[1:])
-		if err != nil {
-			return fmt.Errorf("%w: %q: %w", ErrReport, line, err)
-		}
-		r.Cuts = append(r.Cuts, c)
-	default:
+	if len(f) == 0 {
 		return fmt.Errorf("%w: line %q", ErrReport, line)
+	}
+	kind, ok := lineKinds[f[0]]
+	if !ok || len(f) != kind.fields {
+		return fmt.Errorf("%w: line %q", ErrReport, line)
+	}
+	if err := kind.read(r, f[1:]); err != nil {
+		return fmt.Errorf("%w: %q: %w", ErrReport, line, err)
 	}
 	return nil
 }

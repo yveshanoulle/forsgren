@@ -42,6 +42,14 @@ func (o Options) reportCut(err error) {
 	}
 }
 
+// reportPullsCut adds repo, whose pull requests alone the budget cut short,
+// to the report (decision #307).
+func (o Options) reportPullsCut(repo string) {
+	if o.Report != nil {
+		o.Report.PullsCut = append(o.Report.PullsCut, repo)
+	}
+}
+
 // reportFailed adds repo, failed with err, to the report, by which rate limit
 // it was.
 func (o Options) reportFailed(repo string, err error) {
@@ -59,9 +67,9 @@ func (o Options) reportFailed(repo string, err error) {
 }
 
 // closeReport ends the report: the time the budget resets, when a repository
-// was cut short.
+// or its pull requests were cut short.
 func (o Options) closeReport() {
-	if o.Report == nil || len(o.Report.Cuts) == 0 {
+	if o.Report == nil || !o.Report.incomplete() {
 		return
 	}
 	if reset, ok := o.Client.BudgetReset(); ok {

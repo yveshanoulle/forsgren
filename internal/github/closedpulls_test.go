@@ -64,9 +64,9 @@ func closedPulls(t *testing.T, f *fakeGitHub, maxPages int) ([]ClosedPullRequest
 // TestClosedPullRequestsReadsTheClosedOnesNewestUpdatedFirst (forsgren#255,
 // step 1): GET /repos/{o}/{r}/pulls with state=closed, sort=updated,
 // direction=desc, following Link rel="next"; each pull request's number,
-// head branch, created, merged and updated time in UTC, and its merge
-// commit. One closed without a merge is read too, with no merge time and no
-// merge commit, never the test merge GitHub still names for it.
+// created, merged and updated time in UTC, and its merge commit. One closed
+// without a merge is read too, with no merge time and no merge commit, never
+// the test merge GitHub still names for it.
 func TestClosedPullRequestsReadsTheClosedOnesNewestUpdatedFirst(t *testing.T) {
 	f := newFake(t)
 	f.on(closedPullsPath, reply{header: next(closedPullsPath, "2"), body: fixture(t, "closed-pulls.json")})
@@ -76,12 +76,12 @@ func TestClosedPullRequestsReadsTheClosedOnesNewestUpdatedFirst(t *testing.T) {
 		t.Fatalf("want the closed pull requests, got truncated=%v, %v", truncated, err)
 	}
 	want := []ClosedPullRequest{
-		{Number: 48, HeadBranch: "feature/checkout", CreatedAt: utcOf(t, "2026-09-20T08:00:00Z"),
+		{Number: 48, CreatedAt: utcOf(t, "2026-09-20T08:00:00Z"),
 			MergedAt: utcOf(t, "2026-09-22T08:30:00Z"), MergeCommit: "4848484848484848484848484848484848484848",
 			UpdatedAt: utcOf(t, "2026-09-22T11:00:00Z")},
-		{Number: 47, HeadBranch: "spike/cache", CreatedAt: utcOf(t, "2026-09-19T08:00:00Z"),
+		{Number: 47, CreatedAt: utcOf(t, "2026-09-19T08:00:00Z"),
 			UpdatedAt: utcOf(t, "2026-09-21T09:00:00Z")},
-		{Number: 45, HeadBranch: "fix/login", CreatedAt: utcOf(t, "2026-07-01T08:00:00Z"),
+		{Number: 45, CreatedAt: utcOf(t, "2026-07-01T08:00:00Z"),
 			MergedAt: utcOf(t, "2026-08-02T08:00:00Z"), MergeCommit: shaBase, UpdatedAt: utcOf(t, "2026-08-02T09:00:00Z")},
 	}
 	if !slices.Equal(got, want) {
@@ -153,9 +153,8 @@ func TestClosedPullRequestsTellTheRateLimitFromTheMissingPermission(t *testing.T
 }
 
 // TestClosedPullRequestsRefuseAnAnswerTheyCannotStore: a pull request with no
-// number, no head branch, no created or updated time, or merged without a
-// merge commit SHA, is ErrAnswer naming the path, never a pull request with
-// a hole in it.
+// number, no created or updated time, or merged without a merge commit SHA,
+// is ErrAnswer naming the path, never a pull request with a hole in it.
 func TestClosedPullRequestsRefuseAnAnswerTheyCannotStore(t *testing.T) {
 	with := func(change func(*closedItem)) string {
 		item := merged45
@@ -164,7 +163,6 @@ func TestClosedPullRequestsRefuseAnAnswerTheyCannotStore(t *testing.T) {
 	}
 	for name, item := range map[string]string{
 		"no number":       with(func(i *closedItem) { i.number = 0 }),
-		"no head branch":  with(func(i *closedItem) { i.ref = "" }),
 		"no updated time": with(func(i *closedItem) { i.updated = "0001-01-01T00:00:00Z" }),
 		"no created time": `{"number": 45, "head": {"ref": "fix/login"}, ` +
 			`"updated_at": "2026-08-02T09:00:00Z", "merged_at": null}`,
@@ -176,6 +174,30 @@ func TestClosedPullRequestsRefuseAnAnswerTheyCannotStore(t *testing.T) {
 			f.on(closedPullsPath, reply{body: "[" + item + "]"})
 			_, _, err := closedPulls(t, f, DefaultMaxPages)
 			wantError(t, err, ErrAnswer, "acme/app: ", closedPullsPath, "pull request")
+		})
+	}
+}
+
+// TestClosedPullRequestsReadOneWithoutAHeadBranch (forsgren#320, decision
+// #322): the head branch is not read, so a pull request whose head.ref is
+// empty, or that has no head at all, is read like any other.
+func TestClosedPullRequestsReadOneWithoutAHeadBranch(t *testing.T) {
+	noRef := merged45
+	noRef.ref = ""
+	for name, item := range map[string]string{
+		"an empty head.ref": noRef.json(),
+		"no head": `{"number": 45, "created_at": "2026-07-01T08:00:00Z", "updated_at": "2026-08-02T09:00:00Z", ` +
+			`"merged_at": "2026-08-02T08:00:00Z", "merge_commit_sha": "` + shaBase + `"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFake(t)
+			f.on(closedPullsPath, reply{body: "[" + item + "]"})
+			got, _, err := closedPulls(t, f, DefaultMaxPages)
+			want := []ClosedPullRequest{{Number: 45, CreatedAt: utcOf(t, "2026-07-01T08:00:00Z"),
+				MergedAt: utcOf(t, "2026-08-02T08:00:00Z"), MergeCommit: shaBase, UpdatedAt: utcOf(t, "2026-08-02T09:00:00Z")}}
+			if !slices.Equal(got, want) {
+				t.Errorf("want %+v, got %+v (%v)", want, got, err)
+			}
 		})
 	}
 }

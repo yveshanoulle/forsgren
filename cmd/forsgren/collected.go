@@ -30,14 +30,11 @@ func (in summaryInput) collected() string {
 }
 
 // collectedWords are what the line says of report: complete, or incomplete
-// with the cut repositories and the reset time, then the failed ones.
+// with the cut repositories, those whose pull requests alone were cut short
+// (forsgren#320, decision #307) and the reset time, then the failed ones.
 func collectedWords(report collect.Report) string {
 	var parts []string
-	if len(report.Cuts) > 0 {
-		cuts := make([]string, len(report.Cuts))
-		for i, c := range report.Cuts {
-			cuts[i] = cutWords(c)
-		}
+	if cuts := budgetWords(report); len(cuts) > 0 {
 		parts = append(parts, "budget reached; "+strings.Join(cuts, ", ")+"; resets "+report.Reset.UTC().Format(runLayout))
 	}
 	if len(report.Failed) > 0 {
@@ -51,6 +48,19 @@ func collectedWords(report collect.Report) string {
 		return "complete"
 	}
 	return "incomplete, " + strings.Join(parts, "; ")
+}
+
+// budgetWords describe each repository the budget cut short, then each whose
+// pull requests alone it cut short.
+func budgetWords(report collect.Report) []string {
+	words := make([]string, 0, len(report.Cuts)+len(report.PullsCut))
+	for _, c := range report.Cuts {
+		words = append(words, cutWords(c))
+	}
+	for _, repo := range report.PullsCut {
+		words = append(words, repo+" pull requests cut short (deployments and issues read)")
+	}
+	return words
 }
 
 // failedWords say how a repository failed, by the report's word.

@@ -52,7 +52,29 @@ func TestRunSummaryNamesWhatTheBudgetCutShort(t *testing.T) {
 	}
 }
 
-// TestRunSummaryNamesTheRateLimitsApart: a repository that failed on GitHub's
+// TestRunSummaryNamesARepositoryWhosePullRequestsWereCutShort (forsgren#320,
+// decision #307): a repository whose pull requests alone the budget cut
+// short makes the run incomplete, never failed, named after the repositories
+// cut short, with what it did read, then the time the budget resets.
+func TestRunSummaryNamesARepositoryWhosePullRequestsWereCutShort(t *testing.T) {
+	pinNow(t)
+	for name, c := range map[string]struct{ cuts, words string }{
+		"alone": {"", ""},
+		"after a cut repository": {"cut acme/docs kept=none recent=discarded issues=unread progress=stalled\n",
+			"acme/docs cut short and not progressing (kept nothing, recent read discarded, issues not read), "},
+	} {
+		t.Run(name, func(t *testing.T) {
+			report := reportHead + "incomplete resets=2026-10-01T11:00:00Z\n" + c.cuts + "pulls-cut acme/app\n"
+			want := summaryOf(version, "up to date") + "- Collected: incomplete, budget reached; " + c.words +
+				"acme/app pull requests cut short (deployments and issues read); resets 2026-10-01 11:00 UTC\n"
+			if got := collectedSummary(t, report, false); got != want {
+				t.Errorf("want %q, got %q", want, got)
+			}
+		})
+	}
+}
+
+// TestRunSummaryNamesTheRateLimitsApart:a repository that failed on GitHub's
 // primary limit, its secondary limit or something else is named with which,
 // and makes the run incomplete even when no repository was cut short.
 func TestRunSummaryNamesTheRateLimitsApart(t *testing.T) {

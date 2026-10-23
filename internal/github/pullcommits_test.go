@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -115,7 +116,8 @@ func TestFirstCommitTimeNamesTheMissingPermission(t *testing.T) {
 
 // TestFirstCommitTimeRefusesAnAnswerWithoutOne: a pull request with no
 // commit, or a commit with no author date, has no first commit time: it is
-// ErrAnswer naming the path, never a zero time.
+// ErrAnswer naming the path, never a zero time, and ErrNoCommitDate, which
+// tells it from an answer that cannot be read (forsgren#320, decision #313).
 func TestFirstCommitTimeRefusesAnAnswerWithoutOne(t *testing.T) {
 	for name, body := range map[string]string{
 		"no commits":     "[]",
@@ -126,6 +128,29 @@ func TestFirstCommitTimeRefusesAnAnswerWithoutOne(t *testing.T) {
 			f.on(pullCommitsPath, reply{body: body})
 			_, _, err := firstCommit(t, f, DefaultMaxPages)
 			wantError(t, err, ErrAnswer, "acme/app: ", pullCommitsPath, "pull request 45")
+			wantError(t, err, ErrNoCommitDate)
+		})
+	}
+}
+
+// TestFirstCommitTimeTellsAnUnreadableAnswerFromAMissingDate (forsgren#320,
+// decision #313): a page that is not a list of commits, or a commit whose
+// fields have the wrong shape, is ErrAnswer naming the path, never
+// ErrNoCommitDate, so collect can warn about it apart.
+func TestFirstCommitTimeTellsAnUnreadableAnswerFromAMissingDate(t *testing.T) {
+	for name, body := range map[string]string{
+		"not a list":     `{"message": "not a list"}`,
+		"not JSON":       `[{"sha": `,
+		"a date of text": `[{"sha": "` + shaHead + `", "commit": {"author": {"date": "yesterday"}}}]`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFake(t)
+			f.on(pullCommitsPath, reply{body: body})
+			_, _, err := firstCommit(t, f, DefaultMaxPages)
+			wantError(t, err, ErrAnswer, "acme/app: ", pullCommitsPath)
+			if errors.Is(err, ErrNoCommitDate) {
+				t.Errorf("want an unreadable answer, not a missing date, got %v", err)
+			}
 		})
 	}
 }

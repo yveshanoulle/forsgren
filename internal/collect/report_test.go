@@ -21,8 +21,9 @@ func sampleReport() Report {
 			{"acme/app", time.Date(2026, 6, 22, 0, 0, 0, 0, time.UTC), RecentRead, ProgressYes},
 			{"acme/docs", time.Time{}, RecentDiscarded, ProgressStalled},
 		},
-		Failed: []Failed{{"acme/web", FailedSecondary}},
-		Reset:  time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC),
+		PullsCut: []string{"acme/shop"},
+		Failed:   []Failed{{"acme/web", FailedSecondary}},
+		Reset:    time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC),
 	}
 }
 
@@ -30,11 +31,13 @@ const sampleText = "# forsgren collect report v1\n" +
 	"incomplete resets=2026-10-01T01:00:00Z\n" +
 	"cut acme/app kept=2026-06-22 recent=read issues=unread progress=yes\n" +
 	"cut acme/docs kept=none recent=discarded issues=unread progress=stalled\n" +
+	"pulls-cut acme/shop\n" +
 	"failed acme/web secondary-rate-limit\n"
 
 // TestAReportIsWrittenAsItsFileAndReadBack (forsgren#64, step 3b): the file
 // says complete or incomplete with the reset time, one line per repository cut
-// short or failed, and reads back as it was written.
+// short, whose pull requests alone were cut short (forsgren#320, decision
+// #307), or failed, and reads back as it was written.
 func TestAReportIsWrittenAsItsFileAndReadBack(t *testing.T) {
 	if got := sampleReport().Render(); got != sampleText {
 		t.Errorf("want\n%q\ngot\n%q", sampleText, got)
@@ -45,6 +48,11 @@ func TestAReportIsWrittenAsItsFileAndReadBack(t *testing.T) {
 	}
 	if got := (Report{}).Render(); got != "# forsgren collect report v1\ncomplete\n" {
 		t.Errorf("want a complete report, got %q", got)
+	}
+	pullsOnly := Report{PullsCut: []string{"acme/app"}, Reset: time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC)}
+	want := "# forsgren collect report v1\nincomplete resets=2026-10-01T01:00:00Z\npulls-cut acme/app\n"
+	if got := pullsOnly.Render(); got != want {
+		t.Errorf("want a report incomplete for the pull requests alone\n%q\ngot\n%q", want, got)
 	}
 }
 
@@ -64,6 +72,9 @@ func TestAFileThatIsNoReportIsRefused(t *testing.T) {
 		"bad date":      head + "complete\ncut acme/app kept=June recent=read issues=unread progress=yes\n",
 		"another line":  head + "complete\nnote hello\n",
 		"short failure": head + "complete\nfailed acme/web\n",
+		"short pulls":   head + "complete\npulls-cut\n",
+		"an empty line": head + "complete\n\nfailed acme/web error\n",
+		"long pulls":    head + "complete\npulls-cut acme/app kept=none\n",
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := ParseReport(text); !errors.Is(err, ErrReport) {

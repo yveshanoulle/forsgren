@@ -10,13 +10,11 @@ import (
 
 // ClosedPullRequest is one closed pull request of a repository, merged or
 // not (forsgren#255, step 1): what Mainline Lead Time needs of it. Nothing
-// else is read: no title, no body, no author.
+// else is read: no title, no body, no author, and no head branch, which
+// nothing uses (forsgren#320, decision #322).
 type ClosedPullRequest struct {
-	Number int64
-	// HeadBranch is the name of the branch the pull request was opened from
-	// (head.ref).
-	HeadBranch string
-	CreatedAt  time.Time
+	Number    int64
+	CreatedAt time.Time
 	// MergedAt is zero for a pull request closed without a merge.
 	MergedAt time.Time
 	// MergeCommit is the SHA of the commit the merge made (merge_commit_sha),
@@ -30,10 +28,7 @@ type ClosedPullRequest struct {
 // closedPull is one item of GitHub's answer, the fields ClosedPullRequests
 // reads. A null merged_at is a pull request closed without a merge.
 type closedPull struct {
-	Number int64 `json:"number"`
-	Head   struct {
-		Ref string `json:"ref"`
-	} `json:"head"`
+	Number         int64      `json:"number"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
 	MergedAt       *time.Time `json:"merged_at"`
@@ -48,8 +43,8 @@ type closedPull struct {
 // request updated before since, which is left out. A 403 is the token missing
 // pull-requests: read, ErrAccess and ErrPullRequestsDenied (explainDenied),
 // unless it is GitHub's rate limit, which stays ErrRateLimit. A pull request
-// with no number, head branch, created_at or updated_at, or merged without a
-// merge commit SHA, is ErrAnswer.
+// with no number, created_at or updated_at, or merged without a merge commit
+// SHA, is ErrAnswer.
 func (c *Client) ClosedPullRequests(ctx context.Context, repo string, since time.Time) (
 	[]ClosedPullRequest, bool, error,
 ) {
@@ -94,11 +89,10 @@ func readClosedPulls(body []byte) ([]ClosedPullRequest, error) {
 // or the error of an item that cannot be stored.
 func (p closedPull) toClosedPullRequest() (ClosedPullRequest, error) {
 	if !p.complete() {
-		return ClosedPullRequest{}, fmt.Errorf("pull request %d has no number, head branch, created_at or updated_at",
+		return ClosedPullRequest{}, fmt.Errorf("pull request %d has no number, created_at or updated_at",
 			p.Number)
 	}
-	out := ClosedPullRequest{Number: p.Number, HeadBranch: p.Head.Ref, CreatedAt: p.CreatedAt.UTC(),
-		UpdatedAt: p.UpdatedAt.UTC()}
+	out := ClosedPullRequest{Number: p.Number, CreatedAt: p.CreatedAt.UTC(), UpdatedAt: p.UpdatedAt.UTC()}
 	if p.MergedAt == nil {
 		return out, nil
 	}
@@ -111,5 +105,5 @@ func (p closedPull) toClosedPullRequest() (ClosedPullRequest, error) {
 
 // complete says whether the item has what every closed pull request needs.
 func (p closedPull) complete() bool {
-	return p.Number > 0 && p.Head.Ref != "" && !p.CreatedAt.IsZero() && !p.UpdatedAt.IsZero()
+	return p.Number > 0 && !p.CreatedAt.IsZero() && !p.UpdatedAt.IsZero()
 }

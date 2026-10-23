@@ -35,7 +35,8 @@ type pullCommit struct {
 // with 250 commits or more read, GitHub's cap for this list, where the first
 // commit may be left out. A 403 is ErrAccess and ErrPullRequestsDenied
 // (explainDenied), a rate limit stays ErrRateLimit. No commit, or a commit
-// with no author date, is ErrAnswer naming the pull request.
+// with no author date, is ErrAnswer and ErrNoCommitDate naming the pull
+// request; a page that cannot be read is ErrAnswer alone (decision #313).
 func (c *Client) FirstCommitTime(ctx context.Context, repo string, number int64) (time.Time, bool, error) {
 	t, err := c.endpoint(repo, url.Values{}, "pulls", strconv.FormatInt(number, 10), "commits")
 	if err != nil {
@@ -66,7 +67,8 @@ func (r *firstCommitReader) page(body []byte) (bool, error) {
 	for _, pc := range page {
 		authored := pc.Commit.Author.Date
 		if authored.IsZero() {
-			return false, fmt.Errorf("commit %q of pull request %d has no author date", pc.SHA, r.number)
+			return false, fmt.Errorf("%w: commit %q of pull request %d has no author date", ErrNoCommitDate, pc.SHA,
+				r.number)
 		}
 		if r.read == 0 || authored.Before(r.first) {
 			r.first = authored.UTC()
@@ -77,11 +79,12 @@ func (r *firstCommitReader) page(body []byte) (bool, error) {
 }
 
 // result is the earliest author date read, cut when the pages were or when
-// GitHub's cap was reached; a pull request with no commit is ErrAnswer.
+// GitHub's cap was reached; a pull request with no commit is ErrAnswer and
+// ErrNoCommitDate.
 func (r *firstCommitReader) result(t target, truncated bool) (time.Time, bool, error) {
 	if r.read == 0 {
-		return time.Time{}, false, fmt.Errorf("%s: %w for %s: pull request %d has no commits",
-			t.repo, ErrAnswer, t.path(), r.number)
+		return time.Time{}, false, fmt.Errorf("%s: %w for %s: %w: pull request %d has no commits",
+			t.repo, ErrAnswer, t.path(), ErrNoCommitDate, r.number)
 	}
 	return r.first, truncated || r.read >= pullCommitsCap, nil
 }

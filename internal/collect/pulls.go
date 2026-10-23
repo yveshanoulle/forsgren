@@ -17,10 +17,17 @@ package collect
 //     mechanism names it in the setup issue);
 //   - a pull request's commits are read only while the request budget has
 //     room for all their pages; at its margin the pull requests read whole
-//     are stored and the mark stays, so the next run reads the rest, again
-//     without failing the run;
-//   - a list cut at the page limit is named on stderr and the mark moves:
-//     the list is newest first, so the same mark would read the same pages;
+//     are stored and the mark stays, so the next run reads the rest, the one
+//     interrupted included, again without failing the run; the report names
+//     the repository as incomplete for its pull requests (forsgren#320,
+//     decisions #304, #307, #308);
+//   - a pull request merged before history_days back is skipped, never a
+//     stop: the list is by updated time, and a later one can be in the
+//     window (decision #310);
+//   - a list cut at the page limit is named on stderr as an incomplete read
+//     that may skip older pull requests for good, and the mark moves: the
+//     list is newest first, so the same mark would read the same pages
+//     (decision #309);
 //   - any other error stores what was read whole and fails the repository.
 
 import (
@@ -97,13 +104,14 @@ func (o Options) endPulls(h held, repo string, truncated bool, err error) error 
 	case errors.Is(err, github.ErrBudget):
 		o.warn("collect: %s: the pull requests were cut short: %v; those read whole are stored, "+
 			"the rest is read again by the next run\n", repo, err)
+		o.reportPullsCut(repo)
 		return nil
 	case err != nil:
 		return err
 	}
 	if truncated {
-		o.warn("collect: %s: read the newest %d page(s) of pull requests only; older ones were not read\n",
-			repo, o.Client.MaxPages())
+		o.warn("collect: %s: the pull request read is incomplete: only the newest %d page(s) were read, "+
+			"and older pull requests may be skipped for good, since the read mark moves on\n", repo, o.Client.MaxPages())
 	}
 	h.pullsRead[strings.ToLower(repo)] = wholeSecond(o.Now)
 	return nil
@@ -146,9 +154,12 @@ func (o Options) toStore(h held, repo string, p github.ClosedPullRequest) bool {
 
 // pullOf is p with its first commit time, read only while the request budget
 // has room for every page of its commits. A commit list that gives no usable
-// date (github.ErrAnswer: no commit, or one without an author date) has the
-// created time stand in, named on stderr (forsgren#300); a cut one keeps its
-// time with the cut flag (forsgren#299).
+// date (github.ErrNoCommitDate: no commit, or one without an author date) has
+// the created time stand in, named on stderr (forsgren#300), and so does one
+// GitHub's answer for cannot be read (github.ErrAnswer), with its own warning
+// naming the repository and the pull request (decision #313); a cut one keeps
+// its time with the cut flag (forsgren#299). Every other error, a rate limit
+// or GitHub's error answer, is returned.
 func (o Options) pullOf(ctx context.Context, repo string, p github.ClosedPullRequest) (history.PullRequest, error) {
 	if err := o.Client.Reserve(repo, pullCommitPagesAfterFirst); err != nil {
 		return history.PullRequest{}, err
@@ -160,11 +171,16 @@ func (o Options) pullOf(ctx context.Context, repo string, p github.ClosedPullReq
 		FirstCommitAt: wholeSecond(first), FirstCommitCut: cut,
 	}
 	switch {
-	case errors.Is(err, github.ErrAnswer):
+	case errors.Is(err, github.ErrNoCommitDate):
 		o.warn("collect: %v; its created time stands in for its first commit time\n", err)
-		pull.FirstCommitAt, pull.FirstCommitCut, pull.CreatedStandsIn = time.Time{}, false, true
+	case errors.Is(err, github.ErrAnswer):
+		o.warn("collect: %s: pull request %d: the answer for its commits is malformed or unreadable: %v; "+
+			"its created time stands in for its first commit time\n", repo, p.Number, err)
 	case err != nil:
 		return history.PullRequest{}, err
+	default:
+		return pull, nil
 	}
+	pull.FirstCommitAt, pull.FirstCommitCut, pull.CreatedStandsIn = time.Time{}, false, true
 	return pull, nil
 }

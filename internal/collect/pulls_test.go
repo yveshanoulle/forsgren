@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -159,6 +160,9 @@ func TestCollectStoresMergedPullRequestsWithTheirFirstCommitTime(t *testing.T) {
 			t.Errorf("want stderr to name %s and its created time standing in, got %q", n, r.stderr)
 		}
 	}
+	if strings.Contains(r.stderr, unreadableCommits) {
+		t.Errorf("want a missing date never called an unreadable answer (decision #313), got %q", r.stderr)
+	}
 }
 
 // TestThePullRequestsAreReadFromWhereTheLastReadEnded: the read asks for the
@@ -232,16 +236,20 @@ func TestACutCommitListKeepsItsTimeWithTheCutFlag(t *testing.T) {
 }
 
 // TestAPullRequestListCutAtThePageLimitIsNamedAndTheMarkMoves: the read
-// stores what it read, says on stderr that older pull requests were not
-// read, and moves its mark: the list is newest first, so reading it again
-// from the same mark would read the same pages.
+// stores what it read, says on stderr that the read is incomplete and that
+// older pull requests may be skipped (forsgren#320, decision #309), and
+// moves its mark: the list is newest first, so reading it again from the
+// same mark would read the same pages.
 func TestAPullRequestListCutAtThePageLimitIsNamedAndTheMarkMoves(t *testing.T) {
 	g := pullsOnly(t, pull12)
 	g.paged[pullsPath] = true
 	path := historyPath(t)
 	r := g.collect(t, shop(production), path, 1)
-	if r.err != nil || !strings.Contains(r.stderr, "acme/app: read the newest 1 page(s) of pull requests only") {
-		t.Errorf("want stderr to name the cut pull request list, got %q, %v", r.stderr, r.err)
+	for _, part := range []string{"acme/app: the pull request read is incomplete", "the newest 1 page(s)",
+		"older pull requests may be skipped"} {
+		if r.err != nil || !strings.Contains(r.stderr, part) {
+			t.Errorf("want stderr to hold %q, got %q, %v", part, r.stderr, r.err)
+		}
 	}
 	dataOf(path).want(t, "pulls.csv", pullsHeader+pull12.line("2026-09-21T10:00:00Z", false))
 	dataOf(path).want(t, "pulls_read.csv", readNow)
@@ -301,7 +309,9 @@ func TestADeniedCommitListKeepsThePullRequestsReadWhole(t *testing.T) {
 // pages; at the margin the pull requests read whole are stored, the mark
 // stays, so the next run reads the rest, stderr says so and the run does not
 // fail. The repository is not cut short: its deployments and issues were
-// stored whole, so the one-time catch-up of its failure starts is done.
+// stored whole, so the one-time catch-up of its failure starts is done. The
+// report names it as incomplete for its pull requests, never failed, with
+// the time the budget resets (forsgren#320, decision #307).
 func TestThePullRequestsStopWithinTheRequestBudget(t *testing.T) {
 	g := pullsOnly(t, pull14, pull12)
 	g.left[pullsPath] = 300
@@ -321,6 +331,18 @@ func TestThePullRequestsStopWithinTheRequestBudget(t *testing.T) {
 	}
 	data.want(t, "starts_checked.csv",
 		"# forsgren starts checked v1\nrepository,checked_at\nacme/app,2026-10-01T00:00:00Z\n")
+	g.wantPullsCutAlone(t)
+}
+
+// wantPullsCutAlone fails unless the report names acme/app as incomplete for
+// its pull requests alone, nothing cut short or failed, with the time the
+// budget resets (decision #307).
+func (g *gitHub) wantPullsCutAlone(t *testing.T) {
+	t.Helper()
+	want := Report{PullsCut: []string{"acme/app"}, Reset: g.resetAt.UTC()}
+	if !reflect.DeepEqual(g.report, want) {
+		t.Errorf("want the report %+v, got %+v", want, g.report)
+	}
 }
 
 // TestAPullRequestListGitHubAnswersWronglyFailsTheRepository: any other error
