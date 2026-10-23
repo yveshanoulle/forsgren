@@ -121,6 +121,7 @@
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:markBugs": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:beside": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:metricsDataOf": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:absent": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:loadReach": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:failuresOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/collect.go:Run": 100.0,
@@ -897,8 +898,14 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/mainlinelead.go:note": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/mainlinelead.go:spread": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/mainlinelead.go:boolCount": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/mainlineleadcell.go:Cell": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/mainlineleadcell.go:deviation": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/mainlineleadcell.go:counts": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/mainlineleadcell.go:standInNote": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdTitle": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdMessage": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdRows": 100.0
+    "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdRows": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/tbd.go:LeadCell": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/tbd.go:pairedWithMainline": 100.0
   }
 }

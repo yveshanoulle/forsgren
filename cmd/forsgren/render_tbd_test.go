@@ -84,18 +84,21 @@ func utcAt(t *testing.T, s string) time.Time {
 // to its Mainline Interval: of Acme Shop's three commits in the 30 days, one
 // is by a made-up developer, one by a bot (left out) and one without a known
 // author (named in the note); the developer of the commit deployed before the
-// window is not counted. Acme Tools has no commit, so 0.
+// window is not counted. Acme Tools has no commit, so 0. The Mainline Lead
+// Time is between them (forsgren#256, step 2), a dash without a pull request.
 func TestRenderShowsTheDevelopersOfEachProject(t *testing.T) {
 	pinNow(t)
 	commits := acmeCommits()
 	commits[0].Author, commits[1].Author = "acme-dev-one", "dependabot[bot]"
 	commits[3].Author = "acme-dev-two"
-	got := tbdSiteOf(t, validConfig, writeData(t, acmeHistory(), commits))
+	data := writeData(t, acmeHistory(), commits)
+	writePulls(t, data, nil)
+	got := tbdSiteOf(t, validConfig, data)
 	for _, want := range []string{
 		"<th scope=\"col\">Developers</th>",
-		shopCell + "\n" +
+		shopCell + "\n            <td>-</td>\n" +
 			"            <td>1 · 1 commit without a known author is not counted</td>",
-		"<th scope=\"row\">Acme Tools</th>\n            <td>-</td>\n            <td>0</td>",
+		"<th scope=\"row\">Acme Tools</th>\n            <td>-</td>\n            <td>-</td>\n            <td>0</td>",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("want %q in tbd.html, got:\n%s", want, got)

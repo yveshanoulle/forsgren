@@ -219,6 +219,12 @@
    "minScore": 10.0
   },
   {
+   "path": "cmd/forsgren/render_tbd_lead_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
    "path": "cmd/forsgren/render.go",
    "score": 10.0,
    "checkedAt": "2026-10-23",
@@ -490,6 +496,18 @@
   },
   {
    "path": "internal/metrics/mainlinelead_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/mainlineleadcell.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/mainlineleadcell_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-23",
    "minScore": 10.0

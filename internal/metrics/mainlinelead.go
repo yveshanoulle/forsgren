@@ -34,7 +34,8 @@ package metrics
 //     #302), and WithinReferenceShare is their share in whole percent rounded
 //     down. There is no pass or fail verdict.
 //
-// The result is per project; the page column is step 2.
+// The result is per project; the TBD page's column (step 2) writes it with
+// Cell, mainlineleadcell.go.
 
 import (
 	"math"

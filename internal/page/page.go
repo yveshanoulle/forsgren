@@ -109,6 +109,13 @@ type Data struct {
 	// the config's order; none while the render has not read them
 	// (forsgren#253).
 	Mainline []metrics.MainlineInterval
+	// MainlineLead are the Mainline Lead Times next to the Mainline
+	// Intervals, one per project in the same order (forsgren#256, step 2).
+	MainlineLead []metrics.MainlineLeadTime
+	// PullsUncollected says there is no data/pulls.csv beside the history:
+	// no collect has stored pull requests yet, so the TBD page says so in
+	// place of each Mainline Lead Time (forsgren#256, step 2).
+	PullsUncollected bool
 	// Developers are the Developers counts next to the Mainline Intervals,
 	// one per project in the same order (forsgren#273).
 	Developers []metrics.Developers
