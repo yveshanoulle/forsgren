@@ -137,7 +137,7 @@
   {
    "path": "internal/github/client_test.go",
    "score": 9.68,
-   "checkedAt": "2026-10-07",
+   "checkedAt": "2026-10-23",
    "minScore": 9.58
   },
   {
@@ -454,6 +454,18 @@
   },
   {
    "path": "internal/github/closedpulls_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/pullcommits.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/pullcommits_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-23",
    "minScore": 10.0
