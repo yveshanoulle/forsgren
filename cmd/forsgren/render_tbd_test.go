@@ -5,8 +5,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
+	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
 // tbdSiteOf renders validConfig with tbd_page: true and the config line
@@ -20,6 +22,11 @@ func tbdSiteOf(t *testing.T, extra, path string) string {
 	return readSite(t, renderInto(t, args...), "tbd.html")
 }
 
+// shopCell is Acme Shop's Mainline Interval cell over acmeCommits in the
+// 30 days: two gaps, and its three commits, stored without their lineage,
+// timed by author date (forsgren#254, step 4).
+const shopCell = "<td>2 d 22 h ± 4 d 3 h (2) · median 2 d 22 h · p90 - · 3 commits timed by author date</td>"
+
 // TestRenderShowsTheMainlineIntervalOfEachProject (forsgren#253, step 5): with
 // the commits beside --data, tbd.html has a row per project with its Mainline
 // Interval over the DORA window, counted as lead time is: Acme Shop's three
@@ -30,7 +37,7 @@ func TestRenderShowsTheMainlineIntervalOfEachProject(t *testing.T) {
 	pinNow(t)
 	got := tbdSiteOf(t, validConfig, writeData(t, acmeHistory(), acmeCommits()))
 	for _, want := range []string{
-		"<th scope=\"row\">Acme Shop</th>\n            <td>2 d 22 h ± 4 d 3 h (2) · median 2 d 22 h · p90 -</td>",
+		"<th scope=\"row\">Acme Shop</th>\n            " + shopCell,
 		"<th scope=\"row\">Acme Tools</th>\n            <td>-</td>",
 	} {
 		if !strings.Contains(got, want) {
@@ -40,6 +47,36 @@ func TestRenderShowsTheMainlineIntervalOfEachProject(t *testing.T) {
 	if strings.Contains(got, "no Mainline Interval to show") || strings.Contains(got, shaPrefix) {
 		t.Errorf("want the table and no SHA, got:\n%s", got)
 	}
+}
+
+// TestRenderMainlineIntervalFollowsTheStoredLineage (forsgren#254, step 4):
+// with the parents and committer dates in the commits file, tbd.html counts
+// the first-parent commits at their committer dates: of deployment 1's two
+// commits, the branch commit its merge brought in is left out, so Acme Shop
+// has deployment 3's commit, committed 2026-09-26 11:00, and the merge,
+// committed 2026-10-01 09:25: one gap of 4 d 22 h, none by author date.
+func TestRenderMainlineIntervalFollowsTheStoredLineage(t *testing.T) {
+	pinNow(t)
+	base := shippedWith("Acme/API", 3, "2026-09-25T12:00:00Z", "2026-09-26T12:00:00Z")
+	branch := shippedWith("acme/api", 1, "2026-09-30T10:00:00Z", "2026-10-01T09:30:00Z")
+	merge := shippedWith("acme/api", 1, "2026-10-01T09:20:00Z", "2026-10-01T09:30:00Z")
+	base.Parents, base.CommittedAt = []string{shaPrefix + strings.Repeat("0", 34)}, utcAt(t, "2026-09-26T11:00:00Z")
+	branch.Parents, branch.CommittedAt = []string{base.SHA}, branch.AuthoredAt
+	merge.Parents, merge.CommittedAt = []string{base.SHA, branch.SHA}, utcAt(t, "2026-10-01T09:25:00Z")
+	got := tbdSiteOf(t, validConfig, writeData(t, acmeHistory(), []history.Commit{base, branch, merge}))
+	if want := "<td>4 d 22 h ± - (1) · median - · p90 -</td>"; !strings.Contains(got, want) {
+		t.Errorf("want %q in tbd.html, got:\n%s", want, got)
+	}
+}
+
+// utcAt is the UTC time s, 2006-01-02T15:04:05Z.
+func utcAt(t *testing.T, s string) time.Time {
+	t.Helper()
+	v, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return v
 }
 
 // TestRenderShowsTheDevelopersOfEachProject (forsgren#273, step 3): with the
@@ -56,7 +93,7 @@ func TestRenderShowsTheDevelopersOfEachProject(t *testing.T) {
 	got := tbdSiteOf(t, validConfig, writeData(t, acmeHistory(), commits))
 	for _, want := range []string{
 		"<th scope=\"col\">Developers</th>",
-		"<td>2 d 22 h ± 4 d 3 h (2) · median 2 d 22 h · p90 -</td>\n" +
+		shopCell + "\n" +
 			"            <td>1 · 1 commit without a known author is not counted</td>",
 		"<th scope=\"row\">Acme Tools</th>\n            <td>-</td>\n            <td>0</td>",
 	} {
@@ -75,7 +112,7 @@ func TestRenderTbdPageUsesTheDoraWindow(t *testing.T) {
 	pinNow(t)
 	dir := renderInto(t, "--config", writeConfig(t, validConfig+"dora_days: 90\n"+tbdOn),
 		"--data", writeData(t, acmeHistory(), acmeCommits()))
-	const cell = "<td>14 d 7 h ± 19 d 22 h (3) · median 5 d 21 h · p90 -</td>"
+	const cell = "<td>14 d 7 h ± 19 d 22 h (3) · median 5 d 21 h · p90 - · 4 commits timed by author date</td>"
 	if got := readSite(t, dir, "tbd.html"); !strings.Contains(got, cell) {
 		t.Errorf("want Acme Shop's three gaps over 90 days, got:\n%s", got)
 	}

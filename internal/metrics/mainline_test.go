@@ -2,20 +2,29 @@ package metrics
 
 import (
 	"fmt"
+	"hash/fnv"
 	"math"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
-// authored is a commit of repository with the given sha, authored ago before
-// now and shipped by a deployment created deployedAgo before now.
+// authored is a commit of repository with the given sha, authored and
+// committed ago before now and shipped by a deployment created deployedAgo
+// before now. It is the only commit of its deployment (its ID made from the
+// repository and the sha) and has a parent outside it, so its lineage is
+// known and it is on the first-parent chain (forsgren#254), placed at its
+// committer date, the same as its author date.
 func authored(repository, sha string, ago, deployedAgo time.Duration) history.Commit {
+	id := fnv.New32a()
+	_, _ = id.Write([]byte(strings.ToLower(repository) + "@" + sha))
 	return history.Commit{
-		Repository: repository, Kind: history.KindEnvironment, DeploymentID: 1, SHA: sha,
+		Repository: repository, Kind: history.KindEnvironment, DeploymentID: int64(id.Sum32()) + 1000, SHA: sha,
 		AuthoredAt: now.Add(-ago), DeployedAt: now.Add(-deployedAgo),
+		Parents: []string{"parent-of-" + sha}, CommittedAt: now.Add(-ago),
 	}
 }
 

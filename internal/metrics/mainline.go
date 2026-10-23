@@ -5,8 +5,10 @@ package metrics
 // the mean and the spread of the time between those changes. It reads the
 // commits `forsgren collect` stores in data/commits.csv, which are the
 // commits a deployment shipped, so it is an interval between deployed
-// commits, not between every commit of the mainline (a later issue stores the
-// commit parents and the committer date).
+// commits, not between every commit of the mainline. Since forsgren#254 it
+// counts only the commits of each deployment's first-parent chain, placed at
+// their committer dates, and keeps the old approximation, every commit at its
+// author date, for the deployments whose lineage is not known (lineage.go).
 //
 //   - a commit counts when its deployment was created in the DORA window
 //     (dora_days, both ends included), the rule of lead time for changes
@@ -18,9 +20,14 @@ package metrics
 //     shipped by two deployments, two tasks of one repository, counts once,
 //     unlike lead time, which counts each line; the same SHA in two
 //     repositories is two commits;
-//   - the commits are put in the order of their author dates, whatever the
-//     order they are stored in, and a gap is the time between two
-//     consecutive ones; two commits with the same author date have a gap of 0;
+//   - a commit counts when it is on its deployment's first-parent chain, or
+//     when that deployment's lineage is not known (lineage.go), and the
+//     commits are distinct only among those that count;
+//   - the commits are put in the order of the times they are placed at (the
+//     committer date, or the author date: lineage.go), whatever the order they
+//     are stored in, and a gap is the time between two consecutive ones; two
+//     commits placed at the same time have a gap of 0;
+//   - the cell names the commits placed at their author date (ByAuthorDate);
 //   - the mean is the mean of the gaps and the deviation their sample
 //     standard deviation, the sum of the squares of the differences from the
 //     mean over n-1, n the count of gaps; the count shown is the count of gaps;
@@ -44,9 +51,12 @@ import (
 // MainlineInterval is one project's Mainline Interval at the render time.
 type MainlineInterval struct {
 	Project string
-	// Commits counts the distinct commits deployed in the DORA window.
+	// Commits counts the distinct commits deployed in the DORA window that
+	// count (on the first-parent chain, or of a deployment without a known
+	// lineage).
 	Commits int
-	// Gaps counts the gaps between consecutive commits by author date: one
+	// Gaps counts the gaps between consecutive commits by the time they are
+	// placed at: one
 	// fewer than Commits, none below two commits.
 	Gaps int
 	// Mean is the mean gap; zero without a gap.
@@ -59,6 +69,22 @@ type MainlineInterval struct {
 	// P90 is the 90th percentile of the gaps, nearest rank; zero below ten
 	// gaps (see HasP90).
 	P90 time.Duration
+	// ByAuthorDate counts the commits placed by their author date, the old
+	// approximation (forsgren#254): those of a deployment without a known
+	// lineage, and those of the first-parent chain without a committer date.
+	ByAuthorDate int
+}
+
+// Note names the commits placed by their author date: "2 commits timed by
+// author date"; empty when there are none.
+func (m MainlineInterval) Note() string {
+	switch m.ByAuthorDate {
+	case 0:
+		return ""
+	case 1:
+		return "1 commit timed by author date"
+	}
+	return fmt.Sprintf("%d commits timed by author date", m.ByAuthorDate)
 }
 
 // HasInterval says whether there is a gap, so a mean to show.
@@ -81,13 +107,19 @@ func (m MainlineInterval) HasP90() bool { return m.Gaps >= minP90Gaps }
 
 // Cell is the mean, the deviation, the count of gaps, the median and the 90th
 // percentile, "2 h ± 1 h (3) · median 2 h · p90 -", each of the last three a
-// dash while it is not shown; "-" below two commits.
+// dash while it is not shown, then the Note after the cells' separator when
+// there is one, "· 3 commits timed by author date" (forsgren#254); "-" below
+// two commits.
 func (m MainlineInterval) Cell() string {
 	if !m.HasInterval() {
 		return noNumber
 	}
-	return fmt.Sprintf("%s ± %s (%d) · median %s · p90 %s", shortDuration(m.Mean),
+	cell := fmt.Sprintf("%s ± %s (%d) · median %s · p90 %s", shortDuration(m.Mean),
 		m.shown(m.HasDeviation(), m.Deviation), m.Gaps, m.shown(m.HasMedian(), m.Median), m.shown(m.HasP90(), m.P90))
+	if note := m.Note(); note != "" {
+		return cell + cellSeparator + note
+	}
+	return cell
 }
 
 // shown is d written for the cell when there is one, else a dash.
@@ -103,18 +135,39 @@ func (m MainlineInterval) shown(has bool, d time.Duration) string {
 // over its DORA window (30, 90 or 180 days).
 func MainlineIntervals(projects []config.Project, data Data, now time.Time) []MainlineInterval {
 	index := indexOf(projects)
-	authored := make([][]time.Time, len(projects))
+	times := make([]projectTimes, len(projects))
+	lines := lineageOf(data.Commits)
 	counted := distinctInWindow{window: data.window(), now: now, seen: map[string]bool{}}
 	for _, c := range data.Commits {
-		if i, ok := index.of(c.Repository); ok && counted.admits(c) {
-			authored[i] = append(authored[i], c.AuthoredAt)
+		i, ok := index.of(c.Repository)
+		if !ok {
+			continue
+		}
+		if p, counts := lines.place(c); counts && counted.admits(c) {
+			times[i].add(p)
 		}
 	}
 	out := make([]MainlineInterval, len(projects))
 	for i, p := range projects {
-		out[i] = mainlineOver(p.Name, authored[i])
+		out[i] = mainlineOver(p.Name, times[i].at)
+		out[i].ByAuthorDate = times[i].byAuthor
 	}
 	return out
+}
+
+// projectTimes are the times of one project's counted commits, and how many
+// of them are author dates.
+type projectTimes struct {
+	at       []time.Time
+	byAuthor int
+}
+
+// add counts the commit placed at p.
+func (t *projectTimes) add(p placed) {
+	t.at = append(t.at, p.at)
+	if p.byAuthor {
+		t.byAuthor++
+	}
 }
 
 // distinctInWindow admits the commits whose deployment was created in the
@@ -136,8 +189,8 @@ func (d distinctInWindow) admits(c history.Commit) bool {
 	return true
 }
 
-// mainlineOver is project's MainlineInterval over the author dates of its
-// distinct commits.
+// mainlineOver is project's MainlineInterval over the times its distinct
+// counted commits are placed at.
 func mainlineOver(project string, dates []time.Time) MainlineInterval {
 	m := MainlineInterval{Project: project, Commits: len(dates)}
 	if len(dates) < 2 {

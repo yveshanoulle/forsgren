@@ -5,9 +5,11 @@ package metrics
 // makes more commits than one person with the same habits. The interval
 // itself is not divided by it.
 //
-//   - the commits are the Mainline Interval's (distinctInWindow): deployed in
-//     the DORA window, each once by repository (ignoring case) and SHA, in the
-//     project whose config lists the repository;
+//   - the commits are the Mainline Interval's window (distinctInWindow):
+//     deployed in the DORA window, each once by repository (ignoring case) and
+//     SHA, in the project whose config lists the repository; the first-parent
+//     judgement of the interval (forsgren#254) does not apply, so the authors
+//     of the commits a merge brought in count too;
 //   - a developer is a distinct GitHub login among them (history.Commit's
 //     Author), compared ignoring case as GitHub compares logins, so one person
 //     is one developer across the email addresses they commit with;
@@ -27,8 +29,8 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/config"
 )
 
-// Developers is one project's count of the authors of its Mainline Interval's
-// commits.
+// Developers is one project's count of the authors of the commits deployed in
+// its Mainline Interval's window.
 type Developers struct {
 	Project string
 	// Count is the number of distinct human logins.
@@ -67,7 +69,8 @@ func (d Developers) Cell() string {
 
 // MainlineDevelopers returns the Developers of each project, in the order of
 // projects, from the data's stored commits at the render time now, over its
-// DORA window: the commits MainlineIntervals counts.
+// DORA window: every distinct deployed commit of it, those a merge brought in
+// included, which MainlineIntervals leaves out (forsgren#254).
 func MainlineDevelopers(projects []config.Project, data Data, now time.Time) []Developers {
 	index := indexOf(projects)
 	logins := make([]map[string]bool, len(projects))
