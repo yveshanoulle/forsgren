@@ -20,10 +20,21 @@ import (
 // GitHub links to no account (forsgren#273, decision 274). It is never read
 // from commit.author, which holds the name and the email as git records them:
 // neither is read or stored.
+//
+// Parents are the SHAs of the commit's parents in GitHub's order, the first
+// parent first: the line a merge was made on, then the line it brought in;
+// none for a root commit (forsgren#254). CommittedAt is the git committer
+// date (commit.committer.date) in UTC, when the commit was made where it is
+// now (a rebase, a merge button); zero when GitHub gives none, which its
+// schema allows. Following first parents with the committer date is how
+// mainline commits and their landing are told apart from the branch commits
+// a merge brought in.
 type Commit struct {
-	SHA        string
-	AuthoredAt time.Time
-	Author     string
+	SHA         string
+	AuthoredAt  time.Time
+	Author      string
+	Parents     []string
+	CommittedAt time.Time
 }
 
 // The statuses of a comparison GitHub documents.
@@ -36,19 +47,29 @@ const (
 
 // comparison is one page of GitHub's answer, the fields Compare reads.
 type comparison struct {
-	Status       string `json:"status"`
-	TotalCommits int    `json:"total_commits"`
-	Commits      []struct {
-		SHA    string `json:"sha"`
-		Author *struct {
-			Login string `json:"login"`
+	Status       string         `json:"status"`
+	TotalCommits int            `json:"total_commits"`
+	Commits      []answerCommit `json:"commits"`
+}
+
+// answerCommit is one commit of GitHub's answer, the fields Compare reads.
+// A null committer, or a null date, leaves the date zero.
+type answerCommit struct {
+	SHA    string `json:"sha"`
+	Author *struct {
+		Login string `json:"login"`
+	} `json:"author"`
+	Commit struct {
+		Author struct {
+			Date time.Time `json:"date"`
 		} `json:"author"`
-		Commit struct {
-			Author struct {
-				Date time.Time `json:"date"`
-			} `json:"author"`
-		} `json:"commit"`
-	} `json:"commits"`
+		Committer struct {
+			Date time.Time `json:"date"`
+		} `json:"committer"`
+	} `json:"commit"`
+	Parents []struct {
+		SHA string `json:"sha"`
+	} `json:"parents"`
 }
 
 // Compare lists the commits after base up to and including head, oldest
@@ -125,19 +146,42 @@ func (r *comparisonReader) page(body []byte) (bool, error) {
 	return len(page.Commits) > 0, r.add(page)
 }
 
-// add keeps the commits of one page; each needs a SHA and an author date.
+// add keeps the commits of one page; each needs a SHA and an author date,
+// and every parent a SHA.
 func (r *comparisonReader) add(page comparison) error {
 	for _, pc := range page.Commits {
 		if !isSHA(pc.SHA) || pc.Commit.Author.Date.IsZero() {
 			return fmt.Errorf("commit %q has no SHA or no author date", pc.SHA)
 		}
-		c := Commit{SHA: pc.SHA, AuthoredAt: pc.Commit.Author.Date.UTC()}
-		if pc.Author != nil {
-			c.Author = pc.Author.Login
+		parents, err := pc.parents()
+		if err != nil {
+			return err
 		}
-		r.commits = append(r.commits, c)
+		r.commits = append(r.commits, Commit{SHA: pc.SHA, AuthoredAt: pc.Commit.Author.Date.UTC(),
+			Author: pc.login(), Parents: parents, CommittedAt: pc.Commit.Committer.Date.UTC()})
 	}
 	return nil
+}
+
+// login is the login of the commit's GitHub author, empty when it is null.
+func (pc answerCommit) login() string {
+	if pc.Author == nil {
+		return ""
+	}
+	return pc.Author.Login
+}
+
+// parents is the SHAs of the commit's parents in GitHub's order, none for a
+// root commit; a parent without a SHA refuses the answer.
+func (pc answerCommit) parents() ([]string, error) {
+	var shas []string
+	for _, p := range pc.Parents {
+		if !isSHA(p.SHA) {
+			return nil, fmt.Errorf("commit %s has a parent %q that is no SHA", pc.SHA, p.SHA)
+		}
+		shas = append(shas, p.SHA)
+	}
+	return shas, nil
 }
 
 // result is the commits read, cut when the pages were or when fewer were

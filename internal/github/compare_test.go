@@ -50,8 +50,10 @@ func compareOf(c *Client, base, head string) compared {
 }
 
 // TestCompareReadsTheCommitsOldestFirst: GET .../compare/{base}...{head},
-// 100 per page; each commit's SHA and its author date, not its committer
-// date, in GitHub's order, oldest first.
+// 100 per page; each commit's SHA, its author date, its author's login, its
+// parents and its committer date (forsgren#254), in GitHub's order, oldest
+// first. The committer date (the merge button's, a day later) is its own
+// field, never the author date.
 func TestCompareReadsTheCommitsOldestFirst(t *testing.T) {
 	f := newFake(t)
 	f.on(comparePath, reply{body: fixture(t, "compare.json")})
@@ -59,9 +61,13 @@ func TestCompareReadsTheCommitsOldestFirst(t *testing.T) {
 	if err != nil || truncated {
 		t.Fatalf("want the commits, got truncated=%v, %v", truncated, err)
 	}
-	want := []Commit{{SHA: shaMiddle, AuthoredAt: at(1, 8, 0, 0), Author: "acme-dev"},
-		{SHA: shaHead, AuthoredAt: at(1, 9, 30, 0), Author: "acme-dev"}}
-	if !slices.Equal(got, want) {
+	want := []Commit{
+		{SHA: shaMiddle, AuthoredAt: at(1, 8, 0, 0), Author: "acme-dev", Parents: []string{shaBase},
+			CommittedAt: at(2, 12, 0, 0)},
+		{SHA: shaHead, AuthoredAt: at(1, 9, 30, 0), Author: "acme-dev", Parents: []string{shaMiddle},
+			CommittedAt: at(2, 12, 0, 5)},
+	}
+	if !slices.EqualFunc(got, want, sameCommit) {
 		t.Errorf("want %v, got %v", want, got)
 	}
 	wantQuery(t, f, url.Values{"per_page": {"100"}})
@@ -196,10 +202,12 @@ func TestCompareChecksTheSHAsBeforeAnyRequest(t *testing.T) {
 func TestCompareRefusesAnAnswerItCannotStore(t *testing.T) {
 	page := comparePage("ahead", 1, shaMiddle)
 	for name, body := range map[string]string{
-		"no SHA":         strings.Replace(page, shaMiddle, "", 1),
-		"no author date": strings.Replace(page, `"date": "2026-09-03T07:00:00Z"`, `"date": null`, 1),
-		"unknown status": comparePage("sideways", 1, shaMiddle),
-		"not JSON":       `{"status": "ahead", "commits": [`,
+		"no SHA":             strings.Replace(page, shaMiddle, "", 1),
+		"no author date":     strings.Replace(page, `"date": "2026-09-03T07:00:00Z"`, `"date": null`, 1),
+		"a parent not a SHA": answerOf(answerEntry{shaMiddle, authoredJSON, parentsJSON("main")}),
+		"a parent no SHA":    answerOf(answerEntry{shaMiddle, authoredJSON, `[{"url": "x"}]`}),
+		"unknown status":     comparePage("sideways", 1, shaMiddle),
+		"not JSON":           `{"status": "ahead", "commits": [`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			f := newFake(t)

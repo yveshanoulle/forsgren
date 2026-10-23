@@ -353,6 +353,8 @@
     "github.com/yveshanoulle/forsgren/internal/github/compare.go:check": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/compare.go:page": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/compare.go:add": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/github/compare.go:login": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/github/compare.go:parents": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/compare.go:result": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/compare.go:isStatus": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/compare.go:missing": 100.0,
