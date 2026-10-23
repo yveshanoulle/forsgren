@@ -909,7 +909,7 @@ last in the menu, "TBD"; `false` leaves it out.
   - *The cell* reads `mean ± deviation (pull requests)`, for example
     `3 h ± 1 h (4)`, the deviation the sample standard deviation (n-1), then
     `50% (2 of 4) pull requests merged within 24 hours of their first commit`.
-    The share is rounded down; 24 hours or less counts as within, the same
+    The share is rounded down; a lead time of at most 24 hours counts as within, the same
     boundary everywhere. A dash is the deviation of a single pull request.
     There is no pass or fail verdict: the figure is supporting evidence.
   - *Two dates.* The Mainline Interval uses the committer date (how often

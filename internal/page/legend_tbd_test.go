@@ -63,7 +63,7 @@ var legendTbdText = []string{
 // legacy format as Yves worded it on #356, and what not readable means.
 var legendLeadText = []string{
 	"Mainline Lead Time covers merged human pull requests only, " +
-		"not every change that reaches the trunk",
+		"not every change that reaches the main branch",
 	"Work pushed straight to the main branch is not in it, " +
 		"so a pull request stands in for the life of a branch",
 	"In a workflow that mixes both, the figure covers only the changes that came through pull requests",
@@ -74,12 +74,12 @@ var legendLeadText = []string{
 	"mean ± deviation (pull requests), for example 3 h ± 1 h (4)",
 	"the deviation the sample standard deviation (n-1)",
 	"50% (2 of 4) pull requests merged within 24 hours of their first commit",
-	"The share is rounded down, and 24 hours or less counts as within, the same boundary everywhere",
+	"The share is rounded down, and a lead time of at most 24 hours counts as within, the same boundary everywhere",
 	"There is no pass or fail verdict",
 	"The Mainline Interval uses the committer date: how often changes reach the main branch",
 	"Mainline Lead Time uses the author date of the first commit up to the merge time",
 	"That lead time is a lower bound: the count reads (4, 1 cut) and the cell adds the mean is a lower bound",
-	"A cut pull request can make the mean too low and the share merged within 24 hours too high",
+	"A cut pull request can make the mean too low, and it can make the share merged within 24 hours too high",
 	"the created time of the pull request stands in for the first commit time",
 	"1 pull request timed by its created time, or 2 pull requests timed by their created time",
 	"Only a GitHub account of the type User is a person",
@@ -92,7 +92,7 @@ var legendLeadText = []string{
 	"the legacy format says how a record was stored, not why the author is missing",
 	"3 developers · 1099 commits without a known author excluded (legacy data)",
 	"Mostly estimated: 7 of 13 commits timed by author date.",
-	"No human pull requests in this period; changes may go directly to the trunk",
+	"no human pull request was merged in this period and that changes may go straight to the main branch",
 	"That is not proof of direct commits",
 	"Pull requests not readable means the token forsgren collects with was refused the pull request read",
 	"recorded in data/pulls_denied.csv",
