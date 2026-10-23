@@ -64,9 +64,11 @@ var legendTbdText = []string{
 var legendLeadText = []string{
 	"Mainline Lead Time covers merged human pull requests only, " +
 		"not every change that reaches the trunk",
-	"Work pushed straight to the main branch is not in it, so a pull request stands in for the life of a branch",
+	"Work pushed straight to the main branch is not in it, " +
+		"so a pull request stands in for the life of a branch",
 	"In a workflow that mixes both, the figure covers only the changes that came through pull requests",
-	"Each pull request merged in the last 30 days, counted by its merge time, gives one lead time: from its first commit, " +
+	"Each pull request merged in the last 30 days, counted by its merge time, " +
+		"gives one lead time: from its first commit, " +
 		"the earliest author date of its commits, to the merge",
 	"A first commit dated after the merge counts as 0",
 	"mean ± deviation (pull requests), for example 3 h ± 1 h (4)",
