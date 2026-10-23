@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v2
+# canon: test_gate_browser v3
 # Scripts/test_gate_browser.sh (forsgren#205)
 #
 # Self-test for Scripts/gate_browser.sh, the browser gate, run in PRE before the
@@ -72,6 +72,27 @@
 #   K. a layout-shift case given a too short setting (1 ms) turns green; the
 #      shift is 500 ms after the load, the middle of 1 and 1000 ms, so the proof
 #      does not depend on the machine's speed (forsgren#252, #275).
+# Sideways scrolling (forsgren#350): every page at a laptop and a phone width,
+# 1280x800 and 390x844, is red when the page, or the box a table sits in,
+# scrolls sideways (scrollWidth above clientWidth), naming the page, the width
+# and the overflow in pixels; one rule for every page with a table:
+#  41. a table wider than its scroll box at the phone width only -> red, 390x844
+#  42. a table wider than its scroll box at the laptop width too -> red, 1280x800
+#  43. a page wider than the window (no scroll box)              -> red, the page
+#  44. a long cell that wraps inside its table                   -> green
+# The sideways baseline (v3, decision #364: today's overflow outside the TBD
+# page, shrink-only), sideways|<variant>|<page>|<viewport>|<what>|<px>|reason:
+#  45. the overflow equal to its row        -> green, a WARN, counted
+#  46. the overflow above its row           -> red, grew
+#  47. the overflow below its row           -> red, shrink the row
+#  48. a row whose overflow is gone         -> red, stale
+#  49. a row without a reason, a px that is no positive whole number, a
+#      viewport the gate does not measure, a row listed twice -> exit 2
+#   L. the check removed: case 41 turns green;
+#   M. the comparison loosened (an overflow of 1000 px allowed): case 41 turns
+#      green;
+#   N. the growth comparison dropped: case 46 turns green;
+#   O. the stale check of the sideways rows removed: case 48 turns green.
 
 set -euo pipefail
 
@@ -219,12 +240,12 @@ want_exit "14: a missing exceptions file" 2 "exceptions file not found"
 : > "${TMP}/clean/exceptions.txt"
 
 # 15: what is recorded.
-for need in "CLS worst 0 " "viewport 1280x800" "variants (light)" "Chrome/" "interval 1000 ms"; do
+for need in "CLS worst 0 " "viewport 1280x800" "variants (light)" "Chrome/" "interval 1000 ms" "no new sideways scroll at 1280x800 and 390x844 (0 baselined)"; do
   if ! grep -qF -- "$need" <<< "$CLEAN_OUT"; then
     fail "15: the OK line does not record '${need}'. Output: ${CLEAN_OUT}"
   fi
 done
-echo "  ok: 15: the OK line records the CLS, viewport, browser version and interval"
+echo "  ok: 15: the OK line records the CLS, viewport, browser version, interval and the sideways-scroll widths"
 
 # The baseline. Two pale paragraphs, #a and #b, both color-contrast serious.
 REASON="fixture, shrink-only"
@@ -391,6 +412,57 @@ want_exit "39a: zero loads" 2 "FORSGREN_CLS_LOADS must be a positive integer"
 FORSGREN_CLS_INTERVAL_MS=fast capture "$GATE" "${TMP}/clean/site" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
 want_exit "39b: an interval that is no number" 2 "FORSGREN_CLS_INTERVAL_MS must be a positive integer"
 
+# 41-44: sideways scrolling (forsgren#350). The body has no margin, so the
+# overflow is the table's width less the window's: 600 - 390 = 210 px.
+SCROLL_BOX='<div style="overflow-x: auto" role="region" aria-label="wide table" tabindex="0">'
+make_site phonewide "$(page "${SCROLL_BOX}<table style=\"width: 600px\"><tr><th scope=\"col\">wide</th></tr></table></div>" '<style>body { margin: 0; }</style>')"
+make_site laptopwide "$(page "${SCROLL_BOX}<table style=\"width: 1500px\"><tr><th scope=\"col\">wide</th></tr></table></div>" '<style>body { margin: 0; }</style>')"
+make_site pagewide "$(page '<div style="width: 1500px">wide</div>' '<style>body { margin: 0; }</style>')"
+LONG_CELL="$(printf 'note %.0s' {1..120})"
+make_site wraps "$(page "${SCROLL_BOX}<table><tr><th scope=\"row\">Acme</th><td>${LONG_CELL}</td></tr></table></div>" '')"
+run_gate phonewide
+want_red "41: a table wider than its box at the phone width" "FAIL: light /: scrolls sideways at 390x844: table 1 is 210 px wider than its box"
+if grep -qF -- "at 1280x800" <<< "$OUT"; then
+  fail "41b: the laptop width was blamed for a table that fits it. Output: ${OUT}"
+else
+  echo "  ok: 41b: the laptop width is clean"
+fi
+run_gate laptopwide
+want_red "42: a table wider than its box at the laptop width" "FAIL: light /: scrolls sideways at 1280x800: table 1 is 220 px wider than its box"
+want_said "42b: and at the phone width" "FAIL: light /: scrolls sideways at 390x844: table 1 is 1110 px wider than its box"
+run_gate pagewide
+want_red "43: a page wider than the window" "FAIL: light /: scrolls sideways at 1280x800: the page is 220 px wider than the window"
+run_gate wraps
+want_green "44: a long cell that wraps inside its table" "no new sideways scroll at 1280x800 and 390x844 (0 baselined)"
+
+# 45-49: the sideways baseline, on case 41's page (210 px at 390x844).
+printf 'sideways|light|/|390x844|table 1|210|%s\n' "$REASON" > "${TMP}/phonewide/baseline.txt"
+run_gate phonewide
+want_green "45: an overflow equal to its row" "WARN: baselined sideways scroll: light /: at 390x844 table 1 is 210 px wider than its box"
+want_said "45b: and counted" "no new sideways scroll at 1280x800 and 390x844 (1 baselined)"
+printf 'sideways|light|/|390x844|table 1|209|%s\n' "$REASON" > "${TMP}/phonewide/baseline.txt"
+run_gate phonewide
+want_red "46: an overflow above its row" "FAIL: light /: scrolls sideways at 390x844: table 1 is 210 px wider than its box, above the recorded 209 px (grew)"
+printf 'sideways|light|/|390x844|table 1|211|%s\n' "$REASON" > "${TMP}/phonewide/baseline.txt"
+run_gate phonewide
+want_red "47: an overflow below its row" "FAIL: light /: scrolls sideways at 390x844: table 1 is 210 px wider than its box, below the recorded 211 px: shrink the row"
+printf 'sideways|light|/|390x844|table 1|210|%s\nsideways|light|/|1280x800|table 1|5|%s\n' "$REASON" "$REASON" > "${TMP}/phonewide/baseline.txt"
+run_gate phonewide
+want_red "48: a row whose overflow is gone" "FAIL: stale baseline row: sideways|light|/|1280x800|table 1|5 no longer scrolls sideways; remove it"
+printf 'sideways|light|/|390x844|table 1|210|\n' > "${TMP}/phonewide/baseline.txt"
+run_gate phonewide
+want_exit "49a: a sideways row without a reason" 2 "has no reason"
+printf 'sideways|light|/|390x844|table 1|0|%s\n' "$REASON" > "${TMP}/phonewide/baseline.txt"
+run_gate phonewide
+want_exit "49b: a px that is no positive whole number" 2 "must be a positive whole number of pixels"
+printf 'sideways|light|/|800x600|table 1|210|%s\n' "$REASON" > "${TMP}/phonewide/baseline.txt"
+run_gate phonewide
+want_exit "49c: a viewport the gate does not measure" 2 "is not a viewport the gate measures"
+printf 'sideways|light|/|390x844|table 1|210|%s\nsideways|light|/|390x844|table 1|210|%s\n' "$REASON" "$REASON" > "${TMP}/phonewide/baseline.txt"
+run_gate phonewide
+want_exit "49d: a sideways row listed twice" 2 "listed twice"
+: > "${TMP}/phonewide/baseline.txt"
+
 # Mutation proofs: the engine copy is run directly, with the real node_modules.
 MUT="${TMP}/mutants"
 run_mutant() {
@@ -498,4 +570,31 @@ want_red "mutation proof K, control: the same page on the real setting is red" "
 FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL_MS=1 capture "$GATE" "${TMP}/lateshiftslow/site" "${TMP}/lateshiftslow/manifest.json" "${TMP}/lateshiftslow/exceptions.txt" "${TMP}/lateshiftslow/baseline.txt" "${TMP}/lateshiftslow/variants.txt"
 want_green "mutation proof K, delayed load: a 1 ms read still misses the shift" "interval 1 ms)"
 
-selftest_end "the browser gate self-test failed" "browser gate: every case holds, eleven mutations seen"
+# L: the sideways-scroll check removed -> case 41 turns green.
+if selftest_mutant "$ENGINE" "${MUT}/l.mjs" "s/^    await check.checkSideways();/    \/\/ removed/"; then
+  run_mutant "${MUT}/l.mjs" phonewide
+  want_green "mutation proof L: without the sideways-scroll check case 41 turns green" "OK:"
+fi
+
+# M: the comparison loosened -> an overflow of 210 px passes, case 41 turns green.
+if selftest_mutant "$ENGINE" "${MUT}/m.mjs" "s/^const scrollsSideways = .*/const scrollsSideways = (px) => px > 1000;/"; then
+  run_mutant "${MUT}/m.mjs" phonewide
+  want_green "mutation proof M: a loosened comparison turns case 41 green" "OK:"
+fi
+
+# N: the growth comparison dropped -> case 46 turns green.
+printf 'sideways|light|/|390x844|table 1|209|%s\n' "$REASON" > "${TMP}/phonewide/baseline.txt"
+if selftest_mutant "$ENGINE" "${MUT}/n.mjs" "s/^    if (px > row.px) {/    if (false) {/"; then
+  run_mutant "${MUT}/n.mjs" phonewide
+  want_green "mutation proof N: without the growth comparison case 46 turns green" "OK:"
+fi
+
+# O: the stale check of the sideways rows removed -> case 48 turns green.
+printf 'sideways|light|/|390x844|table 1|210|%s\nsideways|light|/|1280x800|table 1|5|%s\n' "$REASON" "$REASON" > "${TMP}/phonewide/baseline.txt"
+if selftest_mutant "$ENGINE" "${MUT}/o.mjs" "s/if (!row.seen) findings.push(\`FAIL: stale baseline row: \${row.key}|\${row.text} no longer/if (false) findings.push(\`FAIL: stale baseline row: \${row.key}|\${row.text} no longer/"; then
+  run_mutant "${MUT}/o.mjs" phonewide
+  want_green "mutation proof O: without the sideways stale check case 48 turns green" "OK:"
+fi
+: > "${TMP}/phonewide/baseline.txt"
+
+selftest_end "the browser gate self-test failed" "browser gate: every case holds, fifteen mutations seen"

@@ -201,3 +201,18 @@ td svg.swatch {
 td svg.swatch line {
   stroke-width: 2;
 }
+
+/* A table with class wraps (the TBD page, forsgren#350) has long notes in its
+   cells: it drops the minimum width, so its cells break and its columns share
+   the page's width, at a laptop and at a phone width alike. Every other table
+   keeps the minimum width and scrolls inside its box (forsgren#38). Its cells
+   keep half the side padding, so the longest words of its four columns
+   (Developers, estimated:) fit a phone's width. */
+table.wraps {
+  min-width: 0;
+}
+
+table.wraps th,
+table.wraps td {
+  padding-inline: 0.25rem;
+}

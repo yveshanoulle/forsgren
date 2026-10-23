@@ -10,7 +10,8 @@
 #
 # The fixture is a config (two made-up projects, acme/api, acme/ios-app and
 # acme/cli) and the files `forsgren collect` keeps beside the history
-# (deployments, commits, failures, issues, issue bugs and reach), all in the
+# (deployments, commits, failures, issues, issue bugs, reach and merged pull
+# requests, forsgren#350, decision #336), all in the
 # formats of internal/history. Nothing is read from GitHub or from an
 # installation's data. The render time is pinned (SOURCE_DATE_EPOCH, the
 # moment of the golden files, 2026-10-03 12:00 UTC), so two builds are
@@ -18,7 +19,8 @@
 #
 # After the render the script checks that the pages it exists for carry data,
 # and is red when they do not: the History page has a chart, the Daily and
-# Issues pages have rows, and the TBD page has a Mainline Interval row. A fixture that stopped showing data would otherwise
+# Issues pages have rows, and the TBD page has a Mainline Interval row and a
+# Mainline Lead Time with pull requests. A fixture that stopped showing data would otherwise
 # let the browser gate go back to checking the placeholder.
 #
 # Usage: Scripts/build_fixture_site.sh [out-dir]   (default .build/site-fixture)
@@ -87,6 +89,15 @@ tbd_shows_interval() {
 }
 if ! tbd_shows_interval; then
   fail "tbd.html shows no Mainline Interval: the fixture has no commits the page can show"
+fi
+# The TBD page has a Mainline Lead Time cell with pull requests and its notes,
+# not 'not collected yet' (forsgren#350, decision #336).
+tbd_shows_lead_time() {
+  grep -qE '<td>[^<]* pull requests merged within 24 hours of their first commit[^<]*</td>' "${STAGE}/tbd.html" \
+    && ! grep -qF 'No pull requests have been collected yet' "${STAGE}/tbd.html"
+}
+if ! tbd_shows_lead_time; then
+  fail "tbd.html shows no Mainline Lead Time: the fixture has no pull requests the page can show"
 fi
 for page in days issues; do
   if [[ ! -f "${STAGE}/${page}.html" ]] || grep -qF 'No issues were opened' "${STAGE}/${page}.html" \

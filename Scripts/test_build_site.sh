@@ -268,6 +268,16 @@ else
   fail_check 31 "tbd.html has a Mainline Interval row and not the no-data line"
 fi
 
+# 34: the TBD page has a Mainline Lead Time with pull requests (forsgren#350,
+# decision #336): the fixture's made-up pulls.csv, its long notes included, so
+# the browser gate opens the cell with data and not 'not collected yet'.
+if grep -qE '<td>[^<]* pull requests merged within 24 hours of their first commit[^<]*bot pull requests not counted[^<]*</td>' "${FIXTURE_HAPPY}/tbd.html" 2>/dev/null \
+  && ! grep -qF 'No pull requests have been collected yet' "${FIXTURE_HAPPY}/tbd.html"; then
+  pass 34 "tbd.html has a Mainline Lead Time with pull requests and not the not-collected line"
+else
+  fail_check 34 "tbd.html has a Mainline Lead Time with pull requests and not the not-collected line"
+fi
+
 run_fixture "fixture-again"
 if [[ "$RC" -eq 0 ]] && diff -r "$FIXTURE_HAPPY" "$FIXTURE_OUT" > /dev/null; then
   pass 25 "two fixture builds are byte-identical"
@@ -278,7 +288,7 @@ fi
 # 26: every repository of the fixture is made up (acme/...), never a real one.
 NOT_MADE_UP="$(cd "$FIXTURE_DIR" && {
   awk -F, '!/^#/ && !/^project,/ && !/^repository,/ { print $2 }' data/deployments.csv
-  for f in commits failures issues issue_bugs reach; do
+  for f in commits failures issues issue_bugs reach pulls; do
     awk -F, '!/^#/ && !/^repository,/ { print $1 }' "data/${f}.csv"
   done
   grep -E '^ +- name: ' forsgren.config.yml | sed 's/^ *- name: //' | grep '/'
@@ -291,9 +301,10 @@ fi
 
 # 27, 28: a fixture that shows no data is red, naming the page. 27 has no
 # reach.csv (every row unread, so no history column), 28 no issues.csv, 32 no
-# commits.csv (no Mainline Interval, forsgren#253).
+# commits.csv (no Mainline Interval, forsgren#253), 35 no pulls.csv (no
+# Mainline Lead Time, forsgren#350).
 for dropped in "27:reach:history.html shows no chart" "28:issues:days.html shows no rows" \
-  "32:commits:tbd.html shows no Mainline Interval"; do
+  "32:commits:tbd.html shows no Mainline Interval" "35:pulls:tbd.html shows no Mainline Lead Time"; do
   number="${dropped%%:*}"
   rest="${dropped#*:}"
   file="${rest%%:*}"
@@ -355,6 +366,24 @@ else
   RC=$?
   set -e
   check 33 "mutation proof: without the TBD check the fixture with no commits is green" 0 "$RC"
+fi
+
+# 36: mutation proof for the lead-time check (forsgren#350), as case 33: the
+# fixture of case 35 (no pulls) turns green without it.
+MUTANT_LEAD="${TEMP_ROOT}/mutant-lead"
+mkdir -p "${MUTANT_LEAD}/Scripts"
+sed 's/^if ! tbd_shows_lead_time; then/if false; then/' "$FIXTURE_BUILD" > "${MUTANT_LEAD}/Scripts/build_fixture_site.sh"
+chmod +x "${MUTANT_LEAD}/Scripts/build_fixture_site.sh"
+if cmp -s "$FIXTURE_BUILD" "${MUTANT_LEAD}/Scripts/build_fixture_site.sh"; then
+  fail_check 36 "mutation proof: the mutation changed nothing, the proof would be vacuous"
+else
+  set +e
+  PATH="${STUB_GO_DIR}:$PATH" STUB_GO_MODE=prebuilt STUB_PREBUILT="${TEMP_ROOT}/fixture/bin/forsgren" \
+    FORSGREN_BIN_DIR="${MUTANT_LEAD}/bin" FORSGREN_FIXTURE_DIR="$(cd "${TEMP_ROOT}/fx-pulls" && pwd)" \
+    "${MUTANT_LEAD}/Scripts/build_fixture_site.sh" "${MUTANT_LEAD}/site" > "${MUTANT_LEAD}/log" 2>&1
+  RC=$?
+  set -e
+  check 36 "mutation proof: without the lead-time check the fixture with no pulls is green" 0 "$RC"
 fi
 
 FOUND_FAILED_SINKS=""

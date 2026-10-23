@@ -275,3 +275,12 @@ func TestTbdPageIsAfterHistoryInTheRootPages(t *testing.T) {
 		t.Errorf("want the last root page %q labelled TBD, got %+v", TbdPage, last)
 	}
 }
+
+// TestTbdTableWrapsItsCells (forsgren#350): the TBD table's cells carry long
+// notes, so the table is class wraps, never no-wrap: its cells break and its
+// columns share the page's width, at a laptop and at a phone width alike.
+func TestTbdTableWrapsItsCells(t *testing.T) {
+	got := rendered(t, "tbd.html", tbdData())
+	wantAll(t, "tbd.html", got, `<table class="wraps">`)
+	wantNone(t, "tbd.html", got, `class="no-wrap"`)
+}

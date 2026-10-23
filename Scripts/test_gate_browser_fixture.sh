@@ -113,8 +113,11 @@ want_exit "5: a missing baseline file" 2 "baseline file not found"
 capture "$GATE" "${TMP}/nowhere" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
 want_exit "6: a site directory that does not exist" 2 "site dir not found"
 
-# 7: the default site is the fixture site; only "/" and "/history.html" are asked for.
-FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL_MS=300 capture "$GATE" "" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
+# 7: the default site is the fixture site; only "/" and "/history.html" are asked for,
+# with the rows of the real fixture baseline for those two pages: their tables scroll
+# inside their box at a phone's width, recorded there (forsgren#350, decision #364).
+awk -F'|' '$1 == "sideways" && ($3 == "/" || $3 == "/history.html")' Scripts/browser_gate_fixture_baseline.txt > "${TMP}/clean/fixture_rows.txt"
+FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL_MS=300 capture "$GATE" "" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/fixture_rows.txt" "${TMP}/clean/variants.txt"
 want_green "7: the gate builds the fixture site and its History page passes" "OK: browser gate: 2 pages x 1 variants (light)"
 
 FORSGREN_FIXTURE_DIR="${TMP}/nowhere" FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL_MS=300 capture "$GATE" "" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"

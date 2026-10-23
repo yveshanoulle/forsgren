@@ -10,7 +10,8 @@
 # built into a temporary directory): the same checks (axe serious and critical,
 # doctype, charset, console errors, failed requests, CLS exactly 0), the same
 # manifest, exceptions and variants, and its own shrink-only baseline,
-# Scripts/browser_gate_fixture_baseline.txt (empty; only a ruling adds a row).
+# Scripts/browser_gate_fixture_baseline.txt (only a ruling adds a row: today the
+# sideways rows of decision #364, forsgren#350).
 # Self-test: Scripts/test_gate_browser_fixture.sh.
 #
 # axe-core is an automated accessibility gate, not proof of complete WCAG

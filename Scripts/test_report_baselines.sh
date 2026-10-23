@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_report_baselines v3
+# canon: test_report_baselines v4
 # Scripts/test_report_baselines.sh (estate issue 300)
 #
 # Self-test for Scripts/report_baselines.sh, which renders the baseline data
@@ -12,7 +12,7 @@
 #      neither empty and neither a failure; LanguageTool is never run
 #   2. language: an empty baseline and an empty allowlist             -> "no rows (empty baseline)"
 #   3. language: no files                                             -> a line saying so, exit 0
-#   4. browser: axe and CLS rows, a selector with a pipe, the counts by rule and by page, then the fixture site baseline
+#   4. browser: axe, CLS and (v4, forsgren#350) sideways rows, a selector with a pipe, the counts by rule and by page, then the fixture site baseline
 #   5. browser: an empty baseline, no file
 #   6. image: the rows (path, bytes, reason) and the limit; empty; no file
 #   7. an unknown section, and none                                   -> exit 2
@@ -32,7 +32,8 @@
 #   F. an empty file prints a table: case 2 no longer says "no rows (empty baseline)";
 #   G. a malformed row is printed: case 9 no longer fails naming the row format;
 #   H. an unknown section exits 0: case 7 no longer exits 2;
-#   I. a selector with a pipe is not escaped: case 4 no longer has the escaped cell.
+#   I. a selector with a pipe is not escaped: case 4 no longer has the escaped cell;
+#   P. the sideways rows not printed (v4): case 4i no longer lists the row.
 
 set -euo pipefail
 
@@ -89,6 +90,7 @@ axe|light|/|color-contrast|.nav-link|reason one
 axe|dark|/|color-contrast|a[href|=x]|reason two
 axe|light|/b.html|aria-required-parent|ul|reason three
 cls|light|/|0.5|reason four
+sideways|light|/b.html|390x844|table 1|361|reason five
 DATA
 cat > "$D/browser_gate_fixture_baseline.txt" <<'DATA'
 # Browser baseline: a second site
@@ -142,8 +144,10 @@ want_green "4a: an axe row" "| light | / | color-contrast | \`.nav-link\` | reas
 want_said "4b: a selector with a pipe is escaped" "| dark | / | color-contrast | \`a[href\\|=x]\` | reason two |"
 want_said "4c: a CLS row" "| light | / | 0.5 | reason four |"
 want_said "4d: the count by rule" "| color-contrast | 2 |"
-want_said "4e: the count by page" "| / | 2 | 1 |"
-want_said "4f: the second page" "| /b.html | 1 | 0 |"
+want_said "4e: the count by page" "| / | 2 | 1 | 0 |"
+want_said "4f: the second page" "| /b.html | 1 | 0 | 1 |"
+want_said "4i: a sideways row (v4)" "| light | /b.html | 390x844 | table 1 | 361 | reason five |"
+want_said "4j: the sideways count in the summary line" "1 CLS rows, 1 sideways rows."
 want_said "4g: the fixture site's baseline is listed after it (forsgren#226)" "| light | /history.html | color-contrast | \`.chart-legend\` | fixture reason |"
 want_said "4h: under a heading from its first comment line" "**Browser baseline: a second site** ("
 run browser "$E"
@@ -154,8 +158,8 @@ O="${TMP}/mainonly"; mkdir -p "$O"; cp "$D/browser_gate_baseline.txt" "$O/"
 run browser "$O"
 want_green "5c: a site with only the main baseline prints its table" "| light | / | color-contrast | \`.nav-link\` | reason one |"
 want_lacks "5d: and no further heading (v3)" "second site"
-if [[ "$(grep -c '^\*\*' <<< "$OUT")" == "5" && "$(grep -c '^### ' <<< "$OUT")" == "1" ]]; then
-  echo "  ok: 5e: and only its own five labels and one section heading, nothing extra"
+if [[ "$(grep -c '^\*\*' <<< "$OUT")" == "6" && "$(grep -c '^### ' <<< "$OUT")" == "1" ]]; then
+  echo "  ok: 5e: and only its own six labels and one section heading, nothing extra"
 else
   fail "5e: a main-only site prints something extra. Output: ${OUT}"
 fi
@@ -192,7 +196,7 @@ want_exit "9a: a malformed language row" 1 "line 1: a row is page|lang|rule|matc
 want_lacks "9b: no table on a malformed file" "| page |"
 printf 'zzz|x\n' > "$M/browser_gate_baseline.txt"
 run browser "$M"
-want_exit "9c: a browser row of an unknown kind" 1 "a row starts with axe or cls"
+want_exit "9c: a browser row of an unknown kind" 1 "a row starts with axe, cls or sideways"
 printf 'a.png|many|why\n' > "$M/image_size_exceptions.txt"
 run image "$M"
 want_exit "9d: an image row with bad bytes" 1 "a row needs whole bytes and a reason"
@@ -277,5 +281,10 @@ if selftest_mutant "$TOOL" "$MUT" 's/^BOUNDARIES = ".!?"$/BOUNDARIES = ""/'; the
   want_lacks "mutation proof L: without the sentence boundaries the whole paragraph is shown (case 1a)" "| Dit is een Foo bar hier! |"
 fi
 
+if selftest_mutant "$TOOL" "$MUT" 's/for (i = 1; i <= side; i++) print side_line\[i\]/side = side/'; then
+  TARGET="$MUT"; run browser "$D"
+  want_lacks "mutation proof P: without the sideways rows printed the row is gone (case 4i)" "| light | /b.html | 390x844 | table 1 | 361 | reason five |"
+fi
+
 rm -f "$MUT"
-selftest_end "the report_baselines self-test failed" "report_baselines: every case holds, twelve mutations seen"
+selftest_end "the report_baselines self-test failed" "report_baselines: every case holds, thirteen mutations seen"

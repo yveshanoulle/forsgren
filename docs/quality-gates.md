@@ -646,11 +646,23 @@ The POST gates, on the generated site:
   once per variant of `Scripts/browser_gate_variants.txt` (one: `light|scheme:light`).
   Red on an axe serious or critical finding, a missing doctype or charset, a
   console or page error, a failed request, a request that leaves loopback, and a
-  layout shift (CLS) other than exactly 0, the largest of five cold loads. Chrome
+  layout shift (CLS) other than exactly 0, the largest of five cold loads, and
+  sideways scrolling (forsgren#350): at 1280x800 and at 390x844 the page may not
+  be wider than the window, nor any table wider than the box it sits in
+  (scrollWidth above clientWidth), each finding naming the page, the width and
+  the overflow in pixels; one rule for every page with a table (the engine
+  `browser_gate v3`, decision #365; the CLS stays measured at 1280x800 alone).
+  The TBD table (class `wraps`) has no minimum width and wraps its cells; every
+  other table keeps its minimum width and scrolls inside its box (forsgren#38),
+  and today's overflow of those is in the baselines as `sideways` rows
+  (`sideways|<variant>|<page>|<viewport>|<what>|<px>|reason`, decision #364):
+  an overflow above its row is red, one below it is red until the row shrinks,
+  a row whose overflow is gone is red, and an overflow with no row is red. Chrome
   runs with a fresh temporary profile, the sandbox on, a scrubbed environment and
   a loopback-only resolver. The shrink-only baseline
-  (`Scripts/browser_gate_baseline.txt`) and the exceptions
-  (`Scripts/browser_gate_exceptions.txt`) have no rows; a missing file is exit 2.
+  (`Scripts/browser_gate_baseline.txt`) holds one sideways row (the settings
+  table at 390x844) and the exceptions (`Scripts/browser_gate_exceptions.txt`)
+  have no rows; a missing file is exit 2.
   axe-core is an automated gate, not proof of WCAG conformance. No new workflow,
   trigger, secret or permission.
 
@@ -661,16 +673,19 @@ The POST gates, on the generated site:
   `Scripts/build_fixture_site.sh` renders `forsgren render` with the made-up
   fixture of `Scripts/testdata/fixture_site/` (a config of two projects, the
   repositories acme/api, acme/ios-app and acme/cli, and the files `collect` keeps:
-  deployments, commits, failures, issues, issue bugs and reach; the render time
+  deployments, commits, failures, issues, issue bugs, reach and merged pull
+  requests, forsgren#350, decision #336; the render time
   pinned to the goldens' 2026-10-03 12:00 UTC) into a temporary directory, and is
-  red when the History page has no chart or the Daily or Issues page no rows, so
+  red when the History page has no chart, the Daily or Issues page no rows, or
+  the TBD page no Mainline Interval or no Mainline Lead Time with pull requests, so
   the fixture cannot go back to the placeholder. This gate then runs the browser
   gate's engine (`Scripts/browser_gate.mjs`) on that site: the same checks, the
   same manifest, exceptions and variants, and its own shrink-only baseline,
-  `Scripts/browser_gate_fixture_baseline.txt` (empty; only a ruling adds a row;
+  `Scripts/browser_gate_fixture_baseline.txt` (only a ruling adds a row: today
+  the sideways rows of decision #364, every table but the TBD one;
   `Scripts/report_baselines.sh browser` shows it on the Quality page). The
   canon `gate_browser.sh` is unchanged. The fixture build is checked by cases 20
-  to 30 of `Scripts/test_build_site.sh`, the gate by its self-test (the data site
+  to 36 of `Scripts/test_build_site.sh`, the gate by its self-test (the data site
   clean, a finding only on a data page, the baseline, stale rows, exit 2 cases,
   the default build, mutation proofs H and I).
 

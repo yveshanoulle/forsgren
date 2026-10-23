@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: report_baselines v3
+# canon: report_baselines v4
 # Scripts/report_baselines.sh <language|browser|image> [data-dir] (estate issue 300)
 #
 # Renders one gate's baseline data as markdown tables, so what a site has
@@ -12,7 +12,9 @@
 #              Scripts/browser_gate_*_baseline.txt, each under a heading (its first
 #              comment line, else its name), each as: the axe rows (variant | page |
 #              rule | selector | reason), the CLS rows (variant | page | value |
-#              reason), then a summary by rule and by page with counts
+#              reason), the sideways rows (v4, forsgren#350: variant | page |
+#              viewport | what | px | reason), then a summary by rule and by page
+#              with counts
 #   image      Scripts/image_size_exceptions.txt (path | bytes | reason)
 #
 # THE SENTENCE (v2). The baseline stores a row's recorded context, never the
@@ -311,11 +313,19 @@ render_browser_file() {
       page_cls[trim($3)]++; pages[trim($3)] = 1
       next
     }
-    { bad("a row starts with axe or cls"); next }
+    $1 == "sideways" {
+      if (NF != 7) { bad("a sideways row is sideways|variant|page|viewport|what|px|reason"); next }
+      if (trim($7) == "") { bad("a row needs a reason"); next }
+      side++
+      side_line[side] = "| " cell(trim($2)) " | " cell(trim($3)) " | " cell(trim($4)) " | " cell(trim($5)) " | " cell(trim($6)) " | " cell(trim($7)) " |"
+      page_side[trim($3)]++; pages[trim($3)] = 1
+      next
+    }
+    { bad("a row starts with axe, cls or sideways"); next }
     END {
       if (failed) exit 1
-      if (axe + cls == 0) { print "**Baseline** (\140'"$base"'\140): no rows (empty baseline)."; exit 0 }
-      print "**Baseline** (\140'"$base"'\140): " axe + 0 " axe rows, " cls + 0 " CLS rows. The baseline only shrinks; the gate is red for a new finding and for a stale row."
+      if (axe + cls + side == 0) { print "**Baseline** (\140'"$base"'\140): no rows (empty baseline)."; exit 0 }
+      print "**Baseline** (\140'"$base"'\140): " axe + 0 " axe rows, " cls + 0 " CLS rows, " side + 0 " sideways rows. The baseline only shrinks; the gate is red for a new finding and for a stale row."
       print ""
       print "**axe findings** (" axe + 0 ")"
       print ""
@@ -335,6 +345,15 @@ render_browser_file() {
         for (i = 1; i <= cls; i++) print cls_line[i]
       }
       print ""
+      print "**Sideways overflow** (" side + 0 ")"
+      print ""
+      if (side == 0) print "no rows (empty baseline)"
+      else {
+        print "| variant | page | viewport | what | px | reason |"
+        print "|---|---|---|---|---|---|"
+        for (i = 1; i <= side; i++) print side_line[i]
+      }
+      print ""
       print "**By rule** (axe rows)"
       print ""
       nr = sorted(by_rule, rkeys)
@@ -347,11 +366,11 @@ render_browser_file() {
       print ""
       print "**By page**"
       print ""
-      for (p in pages) total[p] = page_axe[p] + page_cls[p]
+      for (p in pages) total[p] = page_axe[p] + page_cls[p] + page_side[p]
       np = sorted(total, pkeys)
-      print "| page | axe rows | CLS rows |"
-      print "|---|---|---|"
-      for (i = 1; i <= np; i++) print "| " cell(pkeys[i]) " | " page_axe[pkeys[i]] + 0 " | " page_cls[pkeys[i]] + 0 " |"
+      print "| page | axe rows | CLS rows | sideways rows |"
+      print "|---|---|---|---|"
+      for (i = 1; i <= np; i++) print "| " cell(pkeys[i]) " | " page_axe[pkeys[i]] + 0 " | " page_cls[pkeys[i]] + 0 " | " page_side[pkeys[i]] + 0 " |"
     }
   ' "$base" || exit 1
 }

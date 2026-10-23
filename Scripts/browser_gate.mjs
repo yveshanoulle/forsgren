@@ -1,4 +1,4 @@
-// canon: browser_gate v2
+// canon: browser_gate v3
 // Scripts/browser_gate.mjs (forsgren#205)
 //
 // The browser gate's engine: serves a built site on 127.0.0.1 (loopback only),
@@ -14,7 +14,12 @@
 // RESPONSE, plus network failures, plus any request that leaves loopback), and
 // a layout shift (CLS), observed for a fixed interval at a fixed viewport. The
 // CLS is printed unrounded with the viewport, the browser version and the
-// interval.
+// interval. Then sideways scrolling (forsgren#350): at a laptop and a phone
+// width (SIDEWAYS_VIEWPORTS), the page must not be wider than the window and no
+// table wider than the box it sits in (its parent, the scroll box when it has
+// one): scrollWidth above clientWidth is red, naming the width and the overflow
+// in pixels. One rule for every page with a table. The CLS is measured at
+// VIEWPORT alone, as in v2.
 //
 // Variants (v2, estate issue 305): every page is checked once per variant, each
 // on its own, because a site may have more than one look. A variant is a row of
@@ -38,14 +43,23 @@
 //   axe|<variant>|<page>|<rule>|<selector>|reason   one serious or critical axe
 //                                                   finding, in that variant;
 //   cls|<variant>|<page>|<value>|reason             the page's CLS in that
-//                                                   variant, as measured.
+//                                                   variant, as measured;
+//   sideways|<variant>|<page>|<viewport>|<what>|<px>|reason
+//                                                   one sideways overflow (v3,
+//                                                   forsgren#350, decision
+//                                                   #364): <viewport> one of
+//                                                   SIDEWAYS_VIEWPORTS (390x844),
+//                                                   <what> `the page` or
+//                                                   `table N`, <px> as measured.
 // A row names a variant of the variants file, or it is exit 2: a row without a
 // variant is malformed, there is no default.
 // Every baselined finding is printed as a WARN and counted. A finding that is
 // not in the baseline is red (new); a baselined axe finding that is gone is red
 // (stale); a CLS above its recorded value is red (grew), a CLS below it is red
-// (lower the row), and a CLS above 0 with no row is red. A missing baseline
-// file is exit 2.
+// (lower the row), and a CLS above 0 with no row is red. A sideways overflow
+// is judged as a CLS: above its row red (grew), below it red (shrink the row),
+// equal a WARN, with no row red, and a row whose overflow is gone red (stale).
+// A missing baseline file is exit 2.
 //
 // axe-core is an automated accessibility gate, not proof of complete WCAG
 // compliance.
@@ -72,6 +86,12 @@ const puppeteer = require('puppeteer-core');
 const axe = require('axe-core');
 
 const VIEWPORT = { width: 1280, height: 800, deviceScaleFactor: 1 };
+// The widths sideways scrolling is measured at (forsgren#350): a laptop and a
+// phone. The first is VIEWPORT, the one the other checks use.
+const SIDEWAYS_VIEWPORTS = [VIEWPORT, { width: 390, height: 844, deviceScaleFactor: 1 }];
+const sizeOf = (viewport) => `${viewport.width}x${viewport.height}`;
+// An overflow in whole pixels scrolls sideways when it is above 0.
+const scrollsSideways = (px) => px > 0;
 // The layout-shift measurement: this many cold loads, each read after this
 // interval. The defaults are the real gate. A self-test case that never asserts
 // on layout shift shortens them through the environment (forsgren#247); an unset
@@ -91,6 +111,7 @@ const NAV_TIMEOUT_MS = 30000;
 // is matched on, and how two CLS values are compared (exactly).
 const axeKey = (variant, page, rule, selector) => `axe|${variant}|${page}|${rule}|${selector}`;
 const clsKey = (variant, page) => `${variant}|${page}`;
+const sidewaysKey = (variant, page, viewport, what) => `sideways|${variant}|${page}|${viewport}|${what}`;
 const compared = (value) => value;
 const GATING_IMPACTS = ['serious', 'critical'];
 const CHROME_CANDIDATES = [
@@ -229,6 +250,7 @@ function readBaseline(file, variants) {
   if (!fs.existsSync(file)) die(`baseline file not found: ${file}`);
   const axeRows = new Map();
   const clsRows = new Map();
+  const sidewaysRows = new Map();
   const knownVariant = (at, variant) => {
     if (!variants.has(variant)) die(`${at}: '${variant}' is not a variant of the variants file (a row starts with its variant)`);
   };
@@ -257,11 +279,30 @@ function readBaseline(file, variants) {
       const key = clsKey(variant, page);
       if (clsRows.has(key)) die(`${at}: ${variant} ${page} CLS is listed twice`);
       clsRows.set(key, { variant, page, text, value: Number(text), reason, seen: false });
+    } else if (fields[0] === 'sideways') {
+      readSidewaysRow(at, fields, knownVariant, sidewaysRows);
     } else {
-      die(`${at}: unknown row kind (axe or cls)`);
+      die(`${at}: unknown row kind (axe, cls or sideways)`);
     }
   });
-  return { axeRows, clsRows };
+  return { axeRows, clsRows, sidewaysRows };
+}
+
+// One `sideways|<variant>|<page>|<viewport>|<what>|<px>|reason` row (v3).
+function readSidewaysRow(at, fields, knownVariant, rows) {
+  if (fields.length !== 7) die(`${at}: a row is sideways|<variant>|<page>|<viewport>|<what>|<px>|reason`);
+  const [, variant, page, viewport, what, text, reason] = fields;
+  knownVariant(at, variant);
+  if (!page.startsWith('/')) die(`${at}: the page must start with /`);
+  if (!SIDEWAYS_VIEWPORTS.some((known) => sizeOf(known) === viewport)) {
+    die(`${at}: '${viewport}' is not a viewport the gate measures (${SIDEWAYS_VIEWPORTS.map(sizeOf).join(', ')})`);
+  }
+  if (what === '') die(`${at}: a sideways row names what scrolls (the page, or table N)`);
+  if (!/^[1-9][0-9]*$/.test(text)) die(`${at}: ${page} ${viewport} ${what}: the overflow must be a positive whole number of pixels`);
+  if (reason === '') die(`${at}: ${variant} ${page} ${viewport} ${what} has no reason; a baseline row names its reason`);
+  const key = sidewaysKey(variant, page, viewport, what);
+  if (rows.has(key)) die(`${at}: ${key} is listed twice`);
+  rows.set(key, { key, text, px: Number(text), reason, seen: false });
 }
 
 function serve(siteDir) {
@@ -283,6 +324,19 @@ function serve(siteDir) {
   return new Promise((resolve) => {
     server.listen(0, '127.0.0.1', () => resolve(server));
   });
+}
+
+// What scrolls sideways on the page as it is laid out now: the page itself,
+// then each table's box, in document order, each with its overflow in pixels.
+function measureSideways() {
+  const found = [];
+  const root = document.scrollingElement;
+  found.push({ what: 'the page', box: 'the window', px: root.scrollWidth - root.clientWidth });
+  document.querySelectorAll('table').forEach((table, index) => {
+    const box = table.parentElement;
+    found.push({ what: `table ${index + 1}`, box: 'its box', px: box.scrollWidth - box.clientWidth });
+  });
+  return found;
 }
 
 const OBSERVE_SHIFTS = `
@@ -309,6 +363,7 @@ class PageCheck {
     this.warnings = [];
     this.baselinedAxe = 0;
     this.baselinedCls = 0;
+    this.baselinedSideways = 0;
     this.externalBlocked = 0;
     this.blocked = new Set();
     this.exceptedUrls = new Set();
@@ -461,6 +516,35 @@ class PageCheck {
       this.warn(`baselined CLS ${this.label}: ${cls} (${conditions})`);
     }
   }
+
+  // Sideways scrolling at each width (forsgren#350), after the layout shift
+  // was read, so the resize moves nothing that is measured.
+  async checkSideways() {
+    for (const viewport of SIDEWAYS_VIEWPORTS) {
+      await this.page.setViewport(viewport);
+      for (const { what, box, px } of await this.page.evaluate(measureSideways)) {
+        if (scrollsSideways(px)) this.judgeSideways(sizeOf(viewport), what, `${what} is ${px} px wider than ${box}`, px);
+      }
+    }
+  }
+
+  // One sideways overflow against the baseline (v3), as a CLS is judged.
+  judgeSideways(viewport, what, overflow, px) {
+    const row = this.baseline.sidewaysRows.get(sidewaysKey(this.variant, this.pagePath, viewport, what));
+    if (!row) {
+      this.find(`scrolls sideways at ${viewport}: ${overflow}`);
+      return;
+    }
+    row.seen = true;
+    if (px > row.px) {
+      this.find(`scrolls sideways at ${viewport}: ${overflow}, above the recorded ${row.text} px (grew)`);
+    } else if (px < row.px) {
+      this.find(`scrolls sideways at ${viewport}: ${overflow}, below the recorded ${row.text} px: shrink the row`);
+    } else {
+      this.baselinedSideways += 1;
+      this.warn(`baselined sideways scroll: ${this.label}: at ${viewport} ${overflow}`);
+    }
+  }
 }
 
 // The script that sets the variant's attribute on <html> before the page's own
@@ -492,6 +576,7 @@ async function checkPage(browser, origin, variant, pagePath, exceptions, baselin
     await check.checkDocument();
     await check.checkAxe();
     await check.checkLayoutShift();
+    await check.checkSideways();
   } catch (error) {
     check.find(`could not be checked: ${error.message}`);
   }
@@ -544,6 +629,9 @@ async function main() {
   for (const row of baseline.clsRows.values()) {
     if (!row.seen) findings.push(`FAIL: stale baseline row: cls|${row.variant}|${row.page}|${row.text} was not measured; remove it`);
   }
+  for (const row of baseline.sidewaysRows.values()) {
+    if (!row.seen) findings.push(`FAIL: stale baseline row: ${row.key}|${row.text} no longer scrolls sideways; remove it`);
+  }
   const warnings = checks.flatMap((check) => check.warnings);
   if (warnings.length > 0) console.log(warnings.join('\n'));
   if (findings.length > 0) {
@@ -556,7 +644,8 @@ async function main() {
     `OK: browser gate: ${pages.length} pages x ${variants.size} variants (${[...variants.keys()].join(', ')}), ${checks.length} checks, axe serious+critical 0 new (${sum('baselinedAxe')} axe findings baselined, ${sum('nonGating')} moderate or minor not gated), ` +
     `doctype and charset present, console errors 0, failed requests 0 (${sum('excepted')} excepted), ` +
     `${sum('externalBlocked')} external requests blocked (listed), ` +
-    `CLS worst ${clsWorst} (${sum('baselinedCls')} pages with a baselined CLS) ` +
+    `CLS worst ${clsWorst} (${sum('baselinedCls')} pages with a baselined CLS), ` +
+    `no new sideways scroll at ${SIDEWAYS_VIEWPORTS.map(sizeOf).join(' and ')} (${sum('baselinedSideways')} baselined) ` +
     `(viewport ${VIEWPORT.width}x${VIEWPORT.height}, ${version}, interval ${CLS_INTERVAL_MS} ms)`,
   );
 }

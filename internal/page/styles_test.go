@@ -284,3 +284,16 @@ func checkChartRules(t *testing.T, sheet cssSheet) {
 		}
 	}
 }
+
+// TestWrappingTablesHaveNoMinimumWidth (forsgren#350): a table with class
+// wraps sets the tables' minimum width of 44rem aside, so it fits a phone's
+// width; every other table keeps it and scrolls inside its box (forsgren#38).
+func TestWrappingTablesHaveNoMinimumWidth(t *testing.T) {
+	sheet := stylesSheet(t)
+	if !sheet.declares("table.wraps", "min-width: 0") {
+		t.Errorf("want a table.wraps rule with min-width: 0 in styles.css, got:\n%s", sheet.text)
+	}
+	if !sheet.declares("table", "min-width: 44rem") {
+		t.Errorf("want the table rule to keep min-width: 44rem, got:\n%s", sheet.text)
+	}
+}

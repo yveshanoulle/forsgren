@@ -73,7 +73,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 37 | language gate self-test | `test_gate_language.sh` | pre | required, `test_gate_language v2`; LanguageTool stubbed, 9 mutations |
 | 38 | language pages wrapper self-test | `test_gate_language_pages.sh` | pre | required; the wrapper's own, the canon gate stubbed, 3 mutations |
 | 39 | language gate | `gate_language_pages.sh` | post | required; runs `gate_language.sh` (`gate_language v2`) over the metrics site and the starter page; LanguageTool 6.8 run locally and offline; mode `enforce` in `language_settings.txt`; the allowlist and the baseline are data files (see below) |
-| 40 | baseline report self-test | `test_report_baselines.sh` | pre | required, `test_report_baselines v3`; the report itself, `report_baselines.sh` (`report_baselines v2`), is presentation, not a gate: Quality calls it in three steps (see below) |
+| 40 | baseline report self-test | `test_report_baselines.sh` | pre | required, `test_report_baselines v4`; the report itself, `report_baselines.sh` (`report_baselines v4`, sideways rows since forsgren#350), is presentation, not a gate: Quality calls it in three steps (see below) |
 | 41 | deployed-pages self-test | n/a | n/a | n/a: forsgren does not deploy its generated pages from this repository, so there is no deployed-pages verification to self-test |
 | 42 | required-pages self-test | `test_validate_required_pages.sh` | pre | required, `test_validate_required_pages v1` |
 | 43 | required-pages manifest | `validate_required_pages.sh` | post | required, `validate_required_pages v1` |
@@ -157,8 +157,8 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 119 | vulncheck workflow | `test_vulncheck_workflow.sh` | pre | required |
 | 120 | dispatch preview self-test | `test_dispatch_preview.sh` | pre | required; stub curl, no network, 3 mutation proofs. `dispatch_preview.sh` itself is run by the `preview` job of `quality.yml` (forsgren#222) |
 | 121 | preview workflow | `test_preview_workflow.sh` | pre | required; pins the `preview` job of `quality.yml`, each pin proved by a mutant of the real file |
-| 122 | browser gate self-test | `test_gate_browser.sh` | pre | required, `test_gate_browser v2`; real Chrome and axe-core, fixture sites on 127.0.0.1 |
-| 123 | browser gate | `gate_browser.sh` | post | required, `gate_browser v2`; baseline and exceptions are empty, one variant (see below) |
+| 122 | browser gate self-test | `test_gate_browser.sh` | pre | required, `test_gate_browser v3`; real Chrome and axe-core, fixture sites on 127.0.0.1 |
+| 123 | browser gate | `gate_browser.sh` | post | required, `gate_browser v2` on the engine `browser_gate v3` (sideways scrolling, forsgren#350); the exceptions are empty, the baseline holds one sideways row (decision #364), one variant (see below) |
 | 124 | browser gate (fixture site) self-test | `test_gate_browser_fixture.sh` | pre | required; real Chrome and axe-core, fixture sites on 127.0.0.1, 2 mutation proofs (forsgren#226, forsgren only, not canon) |
 | 125 | browser gate (fixture site) | `gate_browser_fixture.sh` | post | required; the browser gate's engine on the site rendered from the made-up fixture of `Scripts/testdata/fixture_site/` by `build_fixture_site.sh`, with its own empty baseline (forsgren#226, forsgren only, not canon) |
 | 156 | browser gate inputs self-test | `test_gate_inputs.sh` | pre | required; forsgren's own (forsgren#262, step 1 of 3, not canon): `Scripts/gate_inputs.txt` lists what each of the four browser rows reads (the non-script inputs written out, `*_test.go` and `testdata/` of the Go trees excluded, the script inputs by closure); every label has a row, every listed path exists, every gate's script closure is listed, and the guard holds that no `go:embed` line, nothing `go list` says go build embeds, and no build script reads `testdata/` or a test file; 7 mutation proofs |
@@ -309,12 +309,12 @@ wrapper puts both in one temporary directory, the starter page as
 
 ## The baselines on the Quality run page (forsgren#220)
 
-`Scripts/report_baselines.sh <section>` (`report_baselines v2`) renders one
+`Scripts/report_baselines.sh <section>` (`report_baselines v4`) renders one
 gate's baseline data as markdown tables, to stdout and to `$GITHUB_STEP_SUMMARY`.
 Quality has one step per section after the report, each `if: always()` so it shows
 when a gate is red, pinned by name in `Scripts/test_gate_wiring.sh` (pin 2b):
 `Language baselines` (rows with the sentence where the text is used, and the allowlist words), `Browser baselines` (axe rows,
-CLS rows, counts by rule and by page) and `Image baselines`. forsgren has no image
+CLS rows, sideways rows, counts by rule and by page) and `Image baselines`. forsgren has no image
 size gate, so that step prints that this site has no such file; that is correct
 and stays. The sentence is not stored in the baseline: the report finds each row's recorded
 context in the visible text of the row's own page, extracted by the gate itself

@@ -4,9 +4,15 @@
 # starts with its variant (Scripts/browser_gate_variants.txt):
 #   axe|<variant>|<page>|<rule>|<selector>|reason   one serious or critical axe finding
 #   cls|<variant>|<page>|<value>|reason             the page's CLS, as measured
+#   sideways|<variant>|<page>|<viewport>|<what>|<px>|reason
+#                                                   one sideways overflow (v3, forsgren#350):
+#                                                   the page or table N wider than its box
 # A new finding is red, a CLS above its row is red, a CLS below it is red (lower the
 # row), a row whose finding is gone is red (remove it). This list only shrinks: add no
 # row to clear a red.
 #
 # forsgren on 2026-10-17: no axe serious or critical finding and a CLS of 0, so this
-# baseline has no rows.
+# baseline had no rows. Sideways scrolling (forsgren#350, decision #364): the site built
+# without data has one table that scrolls inside its box at a phone's width, recorded
+# here as temporary debt; any increase is red, a decrease is red until the row shrinks.
+sideways|light|/settings.html|390x844|table 1|361|the settings table scrolls inside its box by design (forsgren#38); shrink-only until its follow-up issue of forsgren#350 (decision #364)
