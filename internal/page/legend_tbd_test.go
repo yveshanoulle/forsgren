@@ -62,7 +62,8 @@ var legendTbdText = []string{
 // parts, the lower bound and the stand-ins, the people of #349 and #355, the
 // legacy format as Yves worded it on #356, and what not readable means.
 var legendLeadText = []string{
-	"Mainline Lead Time covers merged human pull requests only, not every change that reaches the trunk",
+	"Mainline Lead Time covers merged human pull requests only, " +
+		"not every change that reaches the trunk",
 	"Work pushed straight to the main branch is not in it, so a pull request stands in for the life of a branch",
 	"In a workflow that mixes both, the figure covers only the changes that came through pull requests",
 	"Each pull request merged in the last 30 days, counted by its merge time, gives one lead time: from its first commit, " +
