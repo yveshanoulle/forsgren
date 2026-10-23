@@ -7,6 +7,10 @@ import (
 	"time"
 )
 
+// notReadableCell is the cell of a project whose pull request read GitHub
+// refused (forsgren#337, step 2).
+const notReadableCell = "Pull requests not readable"
+
 // Cell is the TBD page's Mainline Lead Time cell (forsgren#256, step 2): the
 // mean, the deviation and the count of pull requests as the Mainline Interval
 // writes them, the cut ones next to the count (decision #299), then the share
@@ -15,8 +19,13 @@ import (
 // commit"; then, with a cut one, "the mean is a lower bound", so the mean is
 // never shown as exact, and the pull requests the created time stood in for
 // (decision #300), "1 pull request timed by its created time"; "-" without a
-// pull request.
+// pull request; "Pull requests not readable" for a project collect was
+// refused the pull request read of (forsgren#337, step 2), never a lead time
+// of what was read nor the dash.
 func (m MainlineLeadTime) Cell() string {
+	if m.NotReadable {
+		return notReadableCell
+	}
 	if !m.HasLeadTime() {
 		return noNumber
 	}

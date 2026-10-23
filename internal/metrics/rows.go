@@ -65,6 +65,9 @@ type Data struct {
 	// Pulls are the merged pull requests of data/pulls.csv, for Mainline
 	// Lead Time (forsgren#256).
 	Pulls []history.PullRequest
+	// PullsDenied are the repositories whose pull request read GitHub
+	// refused, from data/pulls_denied.csv (forsgren#337).
+	PullsDenied history.Reach
 	// WorkingHours is the hours of a working day, which sets where the
 	// deployment frequency bands begin (forsgren#71).
 	WorkingHours int

@@ -1825,6 +1825,18 @@
    "score": 10.0,
    "checkedAt": "2026-10-23",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/mainlineleadnotreadable_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_tbd_denied_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
   }
  ]
 }

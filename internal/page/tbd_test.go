@@ -68,6 +68,16 @@ func uncollected() Data {
 	return data
 }
 
+// notReadable is tbdData with collect refused the pull request read of a
+// repository of Acme Tools and of Acme Docs (forsgren#337, step 2): Acme
+// Tools' cut pull request stays read, Acme Docs has none.
+func notReadable() Data {
+	data := tbdData()
+	data.MainlineLead[1].NotReadable = true
+	data.MainlineLead[2].NotReadable = true
+	return data
+}
+
 // tbdRow is the TBD page's row of project, its Mainline Interval cell, its
 // Mainline Lead Time cell then its Developers cell, as the template writes it.
 func tbdRow(project, interval, lead, developers string) string {
@@ -113,6 +123,24 @@ func TestTbdPageSaysThePullRequestsAreNotCollectedYet(t *testing.T) {
 	wantNone(t, "collected, none in the window", rendered(t, "tbd.html", tbdDataWith(noLeads())), notYet)
 }
 
+// TestTbdPageSaysThePullRequestsAreNotReadable (forsgren#337, step 2): a
+// project collect was refused the pull request read of shows "Pull requests
+// not readable" in its Mainline Lead Time cell, never the lead time of what
+// was read nor the dash of no pull request, also while data/pulls.csv is
+// absent; the other projects keep their cell.
+func TestTbdPageSaysThePullRequestsAreNotReadable(t *testing.T) {
+	const refused, notYet = "Pull requests not readable", "No pull requests have been collected yet"
+	got := rendered(t, "tbd.html", notReadable())
+	wantAll(t, "not readable", got, tbdRow("Acme Tools", "2 h ± - (1) · median - · p90 -", refused,
+		"1 · 1 commit without a known author is not counted"), tbdRow("Acme Docs", "-", refused, "0"),
+		tbdRow("Acme Shop", "2 h ± 1 h (3) · median 2 h · p90 -", "3 h ± 1 h (5)"+share("100"), "3"))
+	uncollectedRefused := notReadable()
+	uncollectedRefused.PullsUncollected = true
+	got = rendered(t, "tbd.html", uncollectedRefused)
+	wantAll(t, "not collected yet", got, tbdRow("Acme Docs", "-", refused, "0"),
+		tbdRow("Acme Shop", "2 h ± 1 h (3) · median 2 h · p90 -", notYet, "3"))
+}
+
 // TestTbdPageRefusesDevelopersOfOtherProjects (forsgren#273, step 3): the
 // Developers, and the Mainline Lead Times (forsgren#256, step 2), are paired
 // with the Mainline Intervals by project, so a render whose Developers or
@@ -145,8 +173,8 @@ func TestTbdPageRefusesDevelopersOfOtherProjects(t *testing.T) {
 // tbd.html, with a table of a row per project; with no projects, or no
 // Mainline Interval read yet, one line says why in place of the table. Its
 // Mainline Lead Time column (forsgren#256, step 2) has a golden with data,
-// one with no pull request in the window and one before the pull requests
-// were collected.
+// one with no pull request in the window, one before the pull requests were
+// collected and one with refused pull request reads (forsgren#337, step 2).
 func TestTbdPageGolden(t *testing.T) {
 	noProjects := calculated()
 	noProjects.NoProjects = true
@@ -155,6 +183,7 @@ func TestTbdPageGolden(t *testing.T) {
 	checkPageGolden(t, "tbd.html", "testdata/tbd.no-projects.golden.html", noProjects)
 	checkPageGolden(t, "tbd.html", "testdata/tbd.lead-no-data.golden.html", tbdDataWith(noLeads()))
 	checkPageGolden(t, "tbd.html", "testdata/tbd.lead-not-collected.golden.html", uncollected())
+	checkPageGolden(t, "tbd.html", "testdata/tbd.lead-not-readable.golden.html", notReadable())
 }
 
 // TestTbdPageHasItsHeadingAndTable (forsgren#253): the title and the h1 (id

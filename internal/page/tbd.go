@@ -43,9 +43,11 @@ type TbdRow struct {
 }
 
 // LeadCell is the row's Mainline Lead Time cell: MainlineLeadTime.Cell, or
-// pullsUncollectedCell while the pull requests have not been collected.
+// pullsUncollectedCell while the pull requests have not been collected,
+// unless a refused read makes the project not readable (forsgren#337, step
+// 2), which Cell says.
 func (r TbdRow) LeadCell() string {
-	if r.pullsUncollected {
+	if r.pullsUncollected && !r.Lead.NotReadable {
 		return pullsUncollectedCell
 	}
 	return r.Lead.Cell()

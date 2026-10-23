@@ -217,19 +217,14 @@ func markBugs(events []history.IssueEvent, bugs []history.IssueBug) []history.Is
 // failure issues that count (failuresOf; with the history change fail rate,
 // forsgren#18, and rework rate, forsgren#39) and the reach beside it
 // (data/reach.csv, how far back each repository was read; none when missing,
-// then nothing is read for the history page, forsgren#68) and the merged pull
-// requests beside it (data/pulls.csv, Mainline Lead Time, forsgren#256; none
-// when missing, which the TBD page says, see absent).
+// then nothing is read for the history page, forsgren#68) and the pull
+// request files beside it (withPulls).
 func metricsDataOf(cfg config.Config, path string) (metrics.Data, error) {
 	records, err := loadOrNone(path, history.Load)
 	if err != nil {
 		return metrics.Data{}, err
 	}
 	commits, err := loadOrNone(beside(path, collect.CommitsFile), history.LoadCommits)
-	if err != nil {
-		return metrics.Data{}, err
-	}
-	pulls, err := loadOrNone(beside(path, collect.PullsFile), history.LoadPullRequests)
 	if err != nil {
 		return metrics.Data{}, err
 	}
@@ -241,8 +236,26 @@ func metricsDataOf(cfg config.Config, path string) (metrics.Data, error) {
 	if err != nil {
 		return metrics.Data{}, err
 	}
-	return metrics.Data{Records: records, Commits: commits, Failures: failures, Pulls: pulls,
-		WorkingHours: cfg.WorkingHours, DoraDays: cfg.DoraDays, Reach: reach}, nil
+	return withPulls(metrics.Data{Records: records, Commits: commits, Failures: failures,
+		WorkingHours: cfg.WorkingHours, DoraDays: cfg.DoraDays, Reach: reach}, path)
+}
+
+// withPulls is data with what Mainline Lead Time reads beside the history at
+// path: the merged pull requests (data/pulls.csv, forsgren#256; none when
+// missing, which the TBD page says, see absent) and the repositories whose
+// pull request read GitHub refused (data/pulls_denied.csv, forsgren#337; none
+// when missing). An unknown or malformed file of either fails the render.
+func withPulls(data metrics.Data, path string) (metrics.Data, error) {
+	pulls, err := loadOrNone(beside(path, collect.PullsFile), history.LoadPullRequests)
+	if err != nil {
+		return metrics.Data{}, err
+	}
+	denied, err := history.LoadPullsDenied(beside(path, collect.PullsDeniedFile))
+	if err != nil {
+		return metrics.Data{}, err
+	}
+	data.Pulls, data.PullsDenied = pulls, denied
+	return data, nil
 }
 
 // absent says whether no file is at path. metricsDataOf has read the file

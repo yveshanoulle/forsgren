@@ -32,7 +32,10 @@ package metrics
 //     pull requests merged 24 hours or less after their first commit,
 //     exactly 24 hours included, the same boundary everywhere (decision
 //     #302), and WithinReferenceShare is their share in whole percent rounded
-//     down. There is no pass or fail verdict.
+//     down. There is no pass or fail verdict;
+//   - a project with a repository whose pull request read GitHub refused
+//     (Data.PullsDenied, data/pulls_denied.csv, forsgren#337) is NotReadable
+//     as a whole, whatever was read of its other repositories.
 //
 // The result is per project; the TBD page's column (step 2) writes it with
 // Cell, mainlineleadcell.go.
@@ -68,6 +71,9 @@ type MainlineLeadTime struct {
 	// CreatedStandsIn counts the pull requests whose created time stood in
 	// for the first commit time (decision #300).
 	CreatedStandsIn int
+	// NotReadable says collect was refused the pull request read of one of
+	// the project's repositories (data/pulls_denied.csv, forsgren#337).
+	NotReadable bool
 }
 
 // HasLeadTime says whether a pull request counted, so a mean to show.
@@ -97,6 +103,7 @@ func MainlineLeadTimes(projects []config.Project, data Data, now time.Time) []Ma
 	for i, p := range projects {
 		out[i].Project = p.Name
 	}
+	markNotReadable(out, index, data.PullsDenied)
 	in := data.window()
 	for _, p := range data.Pulls {
 		i, ok := index.of(p.Repository)
@@ -111,6 +118,18 @@ func MainlineLeadTimes(projects []config.Project, data Data, now time.Time) []Ma
 		out[i].spread(leads[i])
 	}
 	return out
+}
+
+// markNotReadable sets NotReadable on the project of each repository whose
+// pull request read was refused (forsgren#337, step 2), compared ignoring
+// case (decision #339); one refused repository makes its project's whole
+// cell not readable, and a repository no project lists is left out.
+func markNotReadable(out []MainlineLeadTime, index projectIndex, denied history.Reach) {
+	for repository := range denied {
+		if i, ok := index.of(repository); ok {
+			out[i].NotReadable = true
+		}
+	}
 }
 
 // pullLeadOf is p's lead time: merged minus first commit time, the created time
