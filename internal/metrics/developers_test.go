@@ -32,7 +32,7 @@ func TestDevelopersCountEachLoginOnce(t *testing.T) {
 	commits := []history.Commit{
 		by("octo-dev", "a1"), by("mona-dev", "a2"), by("octo-dev", "a3"), by("Octo-Dev", "a4"),
 	}
-	want := Developers{Project: "Acme Shop", Count: 2}
+	want := Developers{Project: "Acme Shop", Count: 2, Commits: 4}
 	if got := shopDevelopers(commits...); got != want {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
@@ -45,7 +45,7 @@ func TestDevelopersLeaveBotsOut(t *testing.T) {
 	commits := []history.Commit{
 		by("dependabot[bot]", "a1"), by("acme-helper[bot]", "a2"), by("octo-dev", "a3"),
 	}
-	want := Developers{Project: "Acme Shop", Count: 1}
+	want := Developers{Project: "Acme Shop", Count: 1, Commits: 3}
 	if got := shopDevelopers(commits...); got != want || got.Note() != "" {
 		t.Errorf("want %+v and no note, got %+v and note %q", want, got, got.Note())
 	}
@@ -65,12 +65,12 @@ func TestDevelopersNameTheUnknownAuthors(t *testing.T) {
 		want    Developers
 		note    string
 	}{
-		{"none unknown", []history.Commit{by("octo-dev", "a1")}, Developers{Count: 1}, ""},
-		{"one unknown", []history.Commit{by("octo-dev", "a1"), by("", "a2")}, Developers{Count: 1, Unknown: 1},
+		{"none unknown", []history.Commit{by("octo-dev", "a1")}, Developers{Count: 1, Commits: 1}, ""},
+		{"one unknown", []history.Commit{by("octo-dev", "a1"), by("", "a2")}, Developers{Count: 1, Unknown: 1, Commits: 2},
 			"1 commit without a known author is not counted"},
 		{"two unknown", []history.Commit{by("", "a1"), by("octo-dev", "a2"), by("", "a3")},
-			Developers{Count: 1, Unknown: 2}, "2 commits without a known author are not counted"},
-		{"only unknown", []history.Commit{by("", "a1"), by("", "a2")}, Developers{Unknown: 2},
+			Developers{Count: 1, Unknown: 2, Commits: 3}, "2 commits without a known author are not counted"},
+		{"only unknown", []history.Commit{by("", "a1"), by("", "a2")}, Developers{Unknown: 2, Commits: 2},
 			"2 commits without a known author are not counted"},
 	}
 	for _, c := range cases {
@@ -100,7 +100,9 @@ func TestDevelopersCountTheMainlineCommits(t *testing.T) {
 	gone := authored("acme/gone", "d1", day, time.Hour)
 	gone.Author = "gone-dev"
 	commits := []history.Commit{by("octo-dev", "a1"), by("", "a2"), unknownTwice, unknownUpper, old, tools, gone}
-	want := []Developers{{Project: "Acme Shop", Count: 1, Unknown: 1}, {Project: "Acme Tools", Count: 1}}
+	want := []Developers{
+		{Project: "Acme Shop", Count: 1, Unknown: 1, Commits: 2}, {Project: "Acme Tools", Count: 1, Commits: 1},
+	}
 	if got := MainlineDevelopers(projects, Data{Commits: commits}, now); !slices.Equal(got, want) {
 		t.Errorf("want %+v, got %+v", want, got)
 	}

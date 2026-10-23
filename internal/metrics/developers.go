@@ -17,7 +17,13 @@ package metrics
 //     is no developer, and its commits are left out;
 //   - a commit without a login (GitHub links it to no account, or it was
 //     stored by the commits format v1) is not guessed to be anyone's: it is
-//     counted as unknown, and the note says how many.
+//     counted as unknown, and the note says how many;
+//   - such a commit stored before the commits format v3, with neither parents
+//     nor a committer date, is legacy data (forsgren#345, step 3): when those
+//     are more than half of the deployed commits, the cell says so plainly
+//     (Yves's wording on #344). It is incomplete attribution, never called an
+//     estimate; the unknown commits stored with their lineage, which GitHub
+//     links to no account, are not called legacy data.
 //
 // The result holds counts only, never a login (decision 274).
 
@@ -27,6 +33,7 @@ import (
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
+	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
 // Developers is one project's count of the authors of the commits deployed in
@@ -37,6 +44,12 @@ type Developers struct {
 	Count int
 	// Unknown counts the commits without a login, which Count leaves out.
 	Unknown int
+	// Legacy counts the Unknown commits stored before the commits format v3,
+	// with neither parents nor a committer date (forsgren#345, step 3).
+	Legacy int
+	// Commits counts the distinct commits deployed in the window, the bots'
+	// included.
+	Commits int
 }
 
 // botSuffix ends the login of every GitHub bot account.
@@ -58,13 +71,30 @@ func (d Developers) Note() string {
 // Cell is the TBD page's Developers cell (forsgren#273, step 3): the count,
 // then the Note after the cells' separator when there is one, "3 · 2 commits
 // without a known author are not counted"; "0" for a project without a
-// counted commit, a count rather than a dash.
+// counted commit, a count rather than a dash. When the legacy commits are more
+// than half of the deployed ones, it is legacyCell.
 func (d Developers) Cell() string {
+	if mostOf(d.Legacy, d.Commits) {
+		return d.legacyCell()
+	}
 	count := fmt.Sprint(d.Count)
 	if note := d.Note(); note != "" {
 		return count + cellSeparator + note
 	}
 	return count
+}
+
+// legacyCell is the Developers cell while legacy data is most of the
+// deployed commits (forsgren#345, step 3): "3 developers · 1099 commits
+// without a known author excluded (legacy data).", and when some of the
+// unknown ones are not legacy data, how many are: "(3 of them legacy data)".
+func (d Developers) legacyCell() string {
+	which := "legacy data"
+	if d.Legacy < d.Unknown {
+		which = fmt.Sprintf("%d of them legacy data", d.Legacy)
+	}
+	return fmt.Sprintf("%s · %s without a known author excluded (%s).",
+		plural(d.Count, "developer"), plural(d.Unknown, "commit"), which)
 }
 
 // MainlineDevelopers returns the Developers of each project, in the order of
@@ -81,13 +111,30 @@ func MainlineDevelopers(projects []config.Project, data Data, now time.Time) []D
 	counted := distinctInWindow{window: data.window(), now: now, seen: map[string]bool{}}
 	for _, c := range data.Commits {
 		if i, ok := index.of(c.Repository); ok && counted.admits(c) {
-			out[i].Unknown += noteAuthor(logins[i], c.Author)
+			out[i].add(logins[i], c)
 		}
 	}
 	for i := range out {
 		out[i].Count = len(logins[i])
 	}
 	return out
+}
+
+// add counts the deployed commit c, its author in logins, and whether it is
+// unknown, and legacy data.
+func (d *Developers) add(logins map[string]bool, c history.Commit) {
+	d.Commits++
+	unknown := noteAuthor(logins, c.Author)
+	d.Unknown += unknown
+	if storedBeforeLineage(c) {
+		d.Legacy += unknown
+	}
+}
+
+// storedBeforeLineage says whether c was stored before the commits format v3:
+// it has neither parents nor a committer date.
+func storedBeforeLineage(c history.Commit) bool {
+	return len(c.Parents) == 0 && c.CommittedAt.IsZero()
 }
 
 // noteAuthor adds a human login to logins, ignoring case, and returns 1 for a

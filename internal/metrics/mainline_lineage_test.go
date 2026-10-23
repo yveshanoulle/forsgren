@@ -85,13 +85,15 @@ func TestMainlineIntervalPlacesACommitAtItsCommitterDate(t *testing.T) {
 // (forsgren#254, step 4, decision #293): the commits of a deployment stored
 // before the commits format v3 have no parents, so the first-parent chain is
 // not known: every one of them counts, placed at its author date, and the cell
-// says how many are: here all three, 5, 4 and 1 hours ago.
+// says how many are: here all three, 5, 4 and 1 hours ago, more than half,
+// so the note says the figure is mostly estimated (forsgren#345, step 3).
 func TestMainlineIntervalKeepsTheOldApproximationForCommitsWithoutLineage(t *testing.T) {
 	got := mainlineOf(lined(1, "a1", hoursAgo{5, -1}), lined(1, "a2", hoursAgo{4, -1}), lined(1, "a3", hoursAgo{1, -1}))
 	if want := (placing{3, 2, 2 * time.Hour, 3}); placingOf(got) != want {
 		t.Errorf("want the 3 commits by author date, a mean of 2 h, got %+v", got)
 	}
-	if want := "2 h ± 1 h 24 min (2) · median 2 h · p90 - · 3 commits timed by author date"; got.Cell() != want {
+	want := "2 h ± 1 h 24 min (2) · median 2 h · p90 - · Mostly estimated: 3 of 3 commits timed by author date."
+	if got.Cell() != want {
 		t.Errorf("want cell %q, got %q", want, got.Cell())
 	}
 }
@@ -147,10 +149,10 @@ func TestMainlineIntervalJudgesTheChainBeforeCountingACommitOnce(t *testing.T) {
 }
 
 // TestMainlineIntervalNote (forsgren#254, step 4): none, one or several
-// commits by author date.
+// commits by author date, of 4 counted, so half or fewer (forsgren#345, step 3).
 func TestMainlineIntervalNote(t *testing.T) {
 	for n, want := range map[int]string{0: "", 1: "1 commit timed by author date", 2: "2 commits timed by author date"} {
-		if got := (MainlineInterval{ByAuthorDate: n}).Note(); got != want {
+		if got := (MainlineInterval{Commits: 4, ByAuthorDate: n}).Note(); got != want {
 			t.Errorf("%d: want %q, got %q", n, want, got)
 		}
 	}

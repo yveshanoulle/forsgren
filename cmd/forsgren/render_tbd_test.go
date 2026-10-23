@@ -24,8 +24,10 @@ func tbdSiteOf(t *testing.T, extra, path string) string {
 
 // shopCell is Acme Shop's Mainline Interval cell over acmeCommits in the
 // 30 days: two gaps, and its three commits, stored without their lineage,
-// timed by author date (forsgren#254, step 4).
-const shopCell = "<td>2 d 22 h ± 4 d 3 h (2) · median 2 d 22 h · p90 - · 3 commits timed by author date</td>"
+// timed by author date (forsgren#254, step 4), all of them, so the figure is
+// mostly estimated (forsgren#345, step 3).
+const shopCell = "<td>2 d 22 h ± 4 d 3 h (2) · median 2 d 22 h · p90 - · " +
+	"Mostly estimated: 3 of 3 commits timed by author date.</td>"
 
 // TestRenderShowsTheMainlineIntervalOfEachProject (forsgren#253, step 5): with
 // the commits beside --data, tbd.html has a row per project with its Mainline
@@ -117,7 +119,8 @@ func TestRenderTbdPageUsesTheDoraWindow(t *testing.T) {
 	pinNow(t)
 	dir := renderInto(t, "--config", writeConfig(t, validConfig+"dora_days: 90\n"+tbdOn),
 		"--data", writeData(t, acmeHistory(), acmeCommits()))
-	const cell = "<td>14 d 7 h ± 19 d 22 h (3) · median 5 d 21 h · p90 - · 4 commits timed by author date</td>"
+	const cell = "<td>14 d 7 h ± 19 d 22 h (3) · median 5 d 21 h · p90 - · " +
+		"Mostly estimated: 4 of 4 commits timed by author date.</td>"
 	if got := readSite(t, dir, "tbd.html"); !strings.Contains(got, cell) {
 		t.Errorf("want Acme Shop's three gaps over 90 days, got:\n%s", got)
 	}

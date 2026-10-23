@@ -76,16 +76,23 @@ type MainlineInterval struct {
 }
 
 // Note names the commits placed by their author date: "2 commits timed by
-// author date"; empty when there are none.
+// author date"; empty when there are none. When they are more than half of
+// the commits counted, the figure is mostly the old approximation, and the
+// note says so (forsgren#345, step 3, Yves's wording on #344): "Mostly
+// estimated: 1121 of 1134 commits timed by author date."
 func (m MainlineInterval) Note() string {
-	switch m.ByAuthorDate {
-	case 0:
+	switch {
+	case m.ByAuthorDate == 0:
 		return ""
-	case 1:
-		return "1 commit timed by author date"
+	case mostOf(m.ByAuthorDate, m.Commits):
+		return fmt.Sprintf("Mostly estimated: %d of %s timed by author date.", m.ByAuthorDate, plural(m.Commits, "commit"))
 	}
-	return fmt.Sprintf("%d commits timed by author date", m.ByAuthorDate)
+	return plural(m.ByAuthorDate, "commit") + " timed by author date"
 }
+
+// mostOf says whether part is more than half of whole: at half, or below, it
+// is not (forsgren#345, step 3, #344).
+func mostOf(part, whole int) bool { return 2*part > whole }
 
 // HasInterval says whether there is a gap, so a mean to show.
 func (m MainlineInterval) HasInterval() bool { return m.Gaps > 0 }

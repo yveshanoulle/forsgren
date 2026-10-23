@@ -11,7 +11,10 @@ import (
 // tbdData is the TBD page's data: Acme Shop with 4 commits and a deviation,
 // Acme Tools with 2 commits, so a mean and no deviation, and Acme Docs with
 // no commit; their Mainline Lead Times (tbdLeads) and their Developers, with
-// commits without a known author for Acme Tools and Acme Web.
+// commits without a known author for Acme Tools and Acme Web. Acme Shop has
+// half of its commits timed by author date and Acme Tools half of its
+// commits legacy data without a known author, so their plain notes; Acme Web
+// has more than half of both, so the cells say so (forsgren#345, step 3).
 func tbdData() Data {
 	return tbdDataWith(tbdLeads())
 }
@@ -35,17 +38,18 @@ func tbdLeads() []metrics.MainlineLeadTime {
 func tbdDataWith(leads []metrics.MainlineLeadTime) Data {
 	data := calculated()
 	data.Mainline = []metrics.MainlineInterval{
-		{Project: "Acme Shop", Commits: 4, Gaps: 3, Mean: 2 * time.Hour, Deviation: time.Hour, Median: 2 * time.Hour},
+		{Project: "Acme Shop", Commits: 4, Gaps: 3, Mean: 2 * time.Hour, Deviation: time.Hour, Median: 2 * time.Hour,
+			ByAuthorDate: 2},
 		{Project: "Acme Tools", Commits: 2, Gaps: 1, Mean: 2 * time.Hour},
 		{Project: "Acme Docs"},
 		{Project: "Acme Web", Commits: 13, Gaps: 12, Mean: 24 * time.Minute, Deviation: 2*time.Hour + 24*time.Minute,
-			Median: 5 * time.Minute, P90: time.Hour},
+			Median: 5 * time.Minute, P90: time.Hour, ByAuthorDate: 7},
 	}
 	data.Developers = []metrics.Developers{
-		{Project: "Acme Shop", Count: 3},
-		{Project: "Acme Tools", Count: 1, Unknown: 1},
+		{Project: "Acme Shop", Count: 3, Commits: 4},
+		{Project: "Acme Tools", Count: 1, Unknown: 1, Legacy: 1, Commits: 2},
 		{Project: "Acme Docs"},
-		{Project: "Acme Web", Count: 12, Unknown: 2},
+		{Project: "Acme Web", Count: 12, Unknown: 11, Legacy: 11, Commits: 20},
 	}
 	data.MainlineLead = leads
 	return data
@@ -93,6 +97,15 @@ func share(percent, counts string) string {
 	return " · " + percent + "% (" + counts + ") pull requests merged within 24 hours of their first commit"
 }
 
+// shopInterval and webInterval are the Mainline Interval cells of Acme Shop,
+// half of its commits timed by author date, and of Acme Web, more than half
+// (forsgren#345, step 3).
+const (
+	shopInterval = "2 h ± 1 h (3) · median 2 h · p90 - · 2 commits timed by author date"
+	webInterval  = "24 min ± 2 h 24 min (12) · median 5 min · p90 1 h · " +
+		"Mostly estimated: 7 of 13 commits timed by author date."
+)
+
 // noHumanPulls is the Mainline Lead Time cell of a project without a human
 // pull request in the window, Yves's wording on #342 (forsgren#345, step 2).
 const noHumanPulls = "No human pull requests in this period; changes may go directly to the trunk"
@@ -101,21 +114,22 @@ const noHumanPulls = "No human pull requests in this period; changes may go dire
 // Developers column follows the Mainline Interval and its Mainline Lead Time
 // (forsgren#256, step 2), each project's cell its count, then the note on the
 // commits without a known author when there are, in the same row as the
-// project's interval.
+// project's interval; Acme Web's, more than half of its commits legacy data
+// without a known author, says so (forsgren#345, step 3).
 func TestTbdPageShowsTheDevelopersNextToTheInterval(t *testing.T) {
 	got := rendered(t, "tbd.html", tbdData())
 	wantAll(t, "tbd.html", got,
 		"<th scope=\"col\">Mainline Interval</th>\n            <th scope=\"col\">Mainline Lead Time</th>\n"+
 			"            <th scope=\"col\">Developers</th>\n",
-		tbdRow("Acme Shop", "2 h ± 1 h (3) · median 2 h · p90 -", "3 h ± 1 h (5)"+share("100", "5 of 5"), "3"),
+		tbdRow("Acme Shop", shopInterval, "3 h ± 1 h (5)"+share("100", "5 of 5"), "3"),
 		tbdRow("Acme Tools", "2 h ± - (1) · median - · p90 -",
 			"1 d 6 h ± - (1, 1 cut)"+share("0", "0 of 1")+" · the mean is a lower bound",
 			"1 · 1 commit without a known author is not counted"),
 		tbdRow("Acme Docs", "-", noHumanPulls+" · 2 bot pull requests not counted", "0"),
-		tbdRow("Acme Web", "24 min ± 2 h 24 min (12) · median 5 min · p90 1 h",
+		tbdRow("Acme Web", webInterval,
 			"20 h ± 10 h (12)"+share("58", "7 of 12")+" · 1 pull request timed by its created time"+
 				" · 3 bot pull requests not counted · 1 pull request of unknown author not counted",
-			"12 · 2 commits without a known author are not counted"))
+			"12 developers · 11 commits without a known author excluded (legacy data)."))
 }
 
 // TestTbdPageSaysThePullRequestsAreNotCollectedYet (forsgren#256, step 2):
@@ -125,7 +139,7 @@ func TestTbdPageShowsTheDevelopersNextToTheInterval(t *testing.T) {
 func TestTbdPageSaysThePullRequestsAreNotCollectedYet(t *testing.T) {
 	const notYet = "No pull requests have been collected yet"
 	got := rendered(t, "tbd.html", uncollected())
-	wantAll(t, "uncollected", got, tbdRow("Acme Shop", "2 h ± 1 h (3) · median 2 h · p90 -", notYet, "3"),
+	wantAll(t, "uncollected", got, tbdRow("Acme Shop", shopInterval, notYet, "3"),
 		tbdRow("Acme Docs", "-", notYet, "0"))
 	noneInWindow := rendered(t, "tbd.html", tbdDataWith(noLeads()))
 	wantNone(t, "collected, none in the window", noneInWindow, notYet)
@@ -142,12 +156,12 @@ func TestTbdPageSaysThePullRequestsAreNotReadable(t *testing.T) {
 	got := rendered(t, "tbd.html", notReadable())
 	wantAll(t, "not readable", got, tbdRow("Acme Tools", "2 h ± - (1) · median - · p90 -", refused,
 		"1 · 1 commit without a known author is not counted"), tbdRow("Acme Docs", "-", refused, "0"),
-		tbdRow("Acme Shop", "2 h ± 1 h (3) · median 2 h · p90 -", "3 h ± 1 h (5)"+share("100", "5 of 5"), "3"))
+		tbdRow("Acme Shop", shopInterval, "3 h ± 1 h (5)"+share("100", "5 of 5"), "3"))
 	uncollectedRefused := notReadable()
 	uncollectedRefused.PullsUncollected = true
 	got = rendered(t, "tbd.html", uncollectedRefused)
 	wantAll(t, "not collected yet", got, tbdRow("Acme Docs", "-", refused, "0"),
-		tbdRow("Acme Shop", "2 h ± 1 h (3) · median 2 h · p90 -", notYet, "3"))
+		tbdRow("Acme Shop", shopInterval, notYet, "3"))
 }
 
 // TestTbdPageRefusesDevelopersOfOtherProjects (forsgren#273, step 3): the
@@ -206,10 +220,10 @@ func TestTbdPageHasItsHeadingAndTable(t *testing.T) {
 		`<h1 id="tbd-heading">Trunk-based development [TBD] (BETA)</h1>`, `aria-labelledby="tbd-heading"`,
 		`<th scope="col">Project</th>`, `<th scope="col">Mainline Interval</th>`,
 		`<th scope="col">Mainline Lead Time</th>`,
-		`<th scope="row">Acme Shop</th>`, "<td>2 h ± 1 h (3) · median 2 h · p90 -</td>",
+		`<th scope="row">Acme Shop</th>`, "<td>"+shopInterval+"</td>",
 		`<th scope="row">Acme Tools</th>`, "<td>2 h ± - (1) · median - · p90 -</td>",
 		`<th scope="row">Acme Docs</th>`, "<td>-</td>",
-		`<th scope="row">Acme Web</th>`, "<td>24 min ± 2 h 24 min (12) · median 5 min · p90 1 h</td>")
+		`<th scope="row">Acme Web</th>`, "<td>"+webInterval+"</td>")
 	wantNone(t, "tbd.html", got, "<caption", "metrics are coming to this page")
 }
 
