@@ -11,10 +11,19 @@ import (
 
 // Commit is one commit of a comparison (forsgren#16, step 2): its SHA and
 // its author date (commit.author.date, the git author date, not the
-// committer date, which a rebase or a merge button moves).
+// committer date, which a rebase or a merge button moves) and its author's
+// GitHub login.
+//
+// Author is the login of the top-level author object of GitHub's answer, the
+// account GitHub links the commit to, a bot as GitHub names it
+// (dependabot[bot]); empty when that object is null, a commit whose email
+// GitHub links to no account (forsgren#273, decision 274). It is never read
+// from commit.author, which holds the name and the email as git records them:
+// neither is read or stored.
 type Commit struct {
 	SHA        string
 	AuthoredAt time.Time
+	Author     string
 }
 
 // The statuses of a comparison GitHub documents.
@@ -31,6 +40,9 @@ type comparison struct {
 	TotalCommits int    `json:"total_commits"`
 	Commits      []struct {
 		SHA    string `json:"sha"`
+		Author *struct {
+			Login string `json:"login"`
+		} `json:"author"`
 		Commit struct {
 			Author struct {
 				Date time.Time `json:"date"`
@@ -119,7 +131,11 @@ func (r *comparisonReader) add(page comparison) error {
 		if !isSHA(pc.SHA) || pc.Commit.Author.Date.IsZero() {
 			return fmt.Errorf("commit %q has no SHA or no author date", pc.SHA)
 		}
-		r.commits = append(r.commits, Commit{SHA: pc.SHA, AuthoredAt: pc.Commit.Author.Date.UTC()})
+		c := Commit{SHA: pc.SHA, AuthoredAt: pc.Commit.Author.Date.UTC()}
+		if pc.Author != nil {
+			c.Author = pc.Author.Login
+		}
+		r.commits = append(r.commits, c)
 	}
 	return nil
 }

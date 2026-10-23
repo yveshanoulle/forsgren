@@ -12,6 +12,7 @@ import (
 // store is what an append found at the path.
 type store[R any] struct {
 	exists        bool
+	legacy        bool // a file of an older version, to be rewritten in the current one
 	records       []R
 	endsInNewline bool
 }
@@ -51,6 +52,9 @@ func (f format[R, K]) append(path string, records []R) (int, error) {
 		return 0, err
 	}
 	fresh := f.newRecords(st.records, records)
+	if st.legacy {
+		return len(fresh), f.upgrade(path, st.records, fresh)
+	}
 	if st.exists && len(fresh) == 0 {
 		return 0, nil
 	}
@@ -77,8 +81,18 @@ func (f format[R, K]) read(path string) (store[R], error) {
 	if err != nil {
 		return store[R]{}, fmt.Errorf("%s: %w", path, err)
 	}
-	records, err := f.parse(path, data)
-	return store[R]{exists: true, records: records, endsInNewline: bytes.HasSuffix(data, []byte("\n"))}, err
+	records, legacy, err := f.parseAs(path, data)
+	return store[R]{exists: true, legacy: legacy, records: records,
+		endsInNewline: bytes.HasSuffix(data, []byte("\n"))}, err
+}
+
+// upgrade writes the file of an older version again in the current one
+// (forsgren#273): the version and column lines, every held record in file
+// order (the columns an older version lacked empty), then the fresh ones. It
+// is the one rewrite of a file, whole, through replaceWhole, so an interrupted
+// run leaves the old file, never a half-written one.
+func (f format[R, K]) upgrade(path string, held, fresh []R) error {
+	return replaceWhole(path, f.payload(store[R]{}, slices.Concat(held, fresh)))
 }
 
 // newRecords is the records that held does not have, once each, in the

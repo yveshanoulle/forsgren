@@ -13,10 +13,15 @@ import (
 
 const (
 	sha3        = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	commitsHead = "# forsgren commits v1\n" +
+	commitsHead = "# forsgren commits v2\n" +
+		"repository,kind,deployment_id,commit,authored_at,deployed_at,author\n"
+	// commitLine is the file line of cmt(1001, sha1, 0), whose author is unknown.
+	commitLine = "acme/app,environment,1001," + sha1 + ",2026-09-01T10:00:00Z,2026-09-01T11:00:00Z,\n"
+	// commitsHeadV1 and commitLineV1 are the same file as the commits format v1
+	// wrote it, before forsgren stored the author (forsgren#273).
+	commitsHeadV1 = "# forsgren commits v1\n" +
 		"repository,kind,deployment_id,commit,authored_at,deployed_at\n"
-	// commitLine is the file line of cmt(1001, sha1, 0).
-	commitLine = "acme/app,environment,1001," + sha1 + ",2026-09-01T10:00:00Z,2026-09-01T11:00:00Z\n"
+	commitLineV1 = "acme/app,environment,1001," + sha1 + ",2026-09-01T10:00:00Z,2026-09-01T11:00:00Z\n"
 )
 
 // cmt is a valid commit of deployment id of the made-up acme/app: authored
@@ -162,7 +167,7 @@ func TestLoadCommitsAfterAppendReturnsTheCommits(t *testing.T) {
 // TestTheCommitsFileRefusesAnUnknownVersionUntouched: both calls refuse it;
 // a deployments history is not a commits file either.
 func TestTheCommitsFileRefusesAnUnknownVersionUntouched(t *testing.T) {
-	content := "# forsgren commits v2\nrepository,whatever\n"
+	content := "# forsgren commits v3\nrepository,whatever\n"
 	path := writeFile(t, content)
 	if _, err := AppendCommits(path, []Commit{cmt(1001, sha1, 0)}); !errors.Is(err, ErrUnknownVersion) {
 		t.Errorf("want ErrUnknownVersion from AppendCommits, got %v", err)
@@ -188,7 +193,7 @@ func TestAMalformedCommitsFileIsRefusedWithItsLineNumber(t *testing.T) {
 		content string
 		line    int
 	}{
-		"no column line":    {"# forsgren commits v1\n" + commitLine, 2},
+		"no column line":    {"# forsgren commits v2\n" + commitLine, 2},
 		"too few fields":    {commitsHead + commitLine + "acme/app,environment\n", 4},
 		"blank line":        {commitsHead + "\n" + commitLine, 3},
 		"bad deployment ID": {edit(",1001,", ",10x1,"), 3},
@@ -197,6 +202,7 @@ func TestAMalformedCommitsFileIsRefusedWithItsLineNumber(t *testing.T) {
 		"bad authored_at":   {edit("2026-09-01T10:00:00Z", "2026-09-01 10:00"), 3},
 		"bad deployed_at":   {edit("T11:00:00Z", "T11:00:00+02:00"), 3},
 		"bad repository":    {edit("acme/app", "app"), 3},
+		"v1 line in a v2":   {commitsHead + commitLineV1, 3},
 	} {
 		t.Run(name, func(t *testing.T) {
 			path := writeFile(t, c.content)
@@ -248,5 +254,155 @@ func TestLoadCommitsOfAMissingFileIsNotExist(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Dir(path)); !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("want nothing created, got %v", err)
+	}
+}
+
+// v1File writes a commits file in the format v1 (no author column) with the
+// lines, and returns its path.
+func v1File(t *testing.T, lines ...string) string {
+	t.Helper()
+	return writeFile(t, commitsHeadV1+strings.Join(lines, ""))
+}
+
+// TestLoadCommitsReadsAV1FileWithNoAuthors (forsgren#273, decision 274): a
+// file written before the author column is read as it is, every author empty,
+// the other fields as they were.
+func TestLoadCommitsReadsAV1FileWithNoAuthors(t *testing.T) {
+	path := v1File(t, commitLineV1)
+	got := mustLoadCommits(t, path)
+	if want := []Commit{cmt(1001, sha1, 0)}; !slices.Equal(got, want) {
+		t.Errorf("want %v with an empty author, got %v", want, got)
+	}
+	assertUntouched(t, path, commitsHeadV1+commitLineV1)
+}
+
+// TestAppendCommitsUpgradesAV1FileToV2 (forsgren#273): the first append to a v1
+// file rewrites it once as v2, every old line kept with an empty author, then
+// adds the new commits (with their authors) as v2 lines. It never leaves a
+// file that mixes the formats, and the rewrite goes through a temporary file,
+// so no temporary file is left behind. The choice, made once and pinned: the
+// authors of the old commits are not known and stay empty, which is honest;
+// appending v1 lines would lose the authors of every new commit.
+func TestAppendCommitsUpgradesAV1FileToV2(t *testing.T) {
+	path := v1File(t, commitLineV1)
+	added := cmt(1002, sha2, 1)
+	added.Author = "ada-dev"
+	if n := mustAppendCommits(t, path, added); n != 1 {
+		t.Errorf("want 1 commit stored, got %d", n)
+	}
+	want := commitsHead + commitLine + "acme/app,environment,1002," + sha2 +
+		",2026-09-01T10:01:00Z,2026-09-01T12:00:00Z,ada-dev\n"
+	assertContent(t, path, want)
+	wantAlone(t, path)
+	got := mustLoadCommits(t, path)
+	if authors := []string{got[0].Author, got[1].Author}; !slices.Equal(authors, []string{"", "ada-dev"}) {
+		t.Errorf("want the old commit with no author and the new one with its login, got %q", authors)
+	}
+}
+
+// wantAlone fails unless the file at path is the only entry of its directory:
+// no temporary file of the upgrade is left behind.
+func wantAlone(t *testing.T, path string) {
+	t.Helper()
+	entries, err := os.ReadDir(filepath.Dir(path))
+	if err != nil || len(entries) != 1 {
+		t.Errorf("want the file alone in its directory, got %v, %v", entries, err)
+	}
+}
+
+// TestAppendCommitsWithNothingNewStillUpgradesAV1File (forsgren#273): the file
+// is v2 after one collect run, whether or not the run stored a commit.
+func TestAppendCommitsWithNothingNewStillUpgradesAV1File(t *testing.T) {
+	path := v1File(t, commitLineV1)
+	if n := mustAppendCommits(t, path, cmt(1001, sha1, 0)); n != 0 {
+		t.Errorf("want 0 commits stored, got %d", n)
+	}
+	assertContent(t, path, commitsHead+commitLine)
+}
+
+// TestAV1FileThatIsMalformedIsRefusedUntouchedOnAppend (forsgren#273): the
+// upgrade rewrites only a file that read cleanly.
+func TestAV1FileThatIsMalformedIsRefusedUntouchedOnAppend(t *testing.T) {
+	content := commitsHeadV1 + commitLineV1 + "acme/app,environment\n"
+	path := writeFile(t, content)
+	if _, err := AppendCommits(path, []Commit{cmt(1002, sha2, 1)}); !errors.Is(err, ErrMalformed) {
+		t.Errorf("want ErrMalformed, got %v", err)
+	}
+	assertUntouched(t, path, content)
+}
+
+// TestAFailedUpgradeLeavesTheV1FileUntouched (forsgren#273): when the
+// rewrite cannot be written (a directory where its temporary file goes), the
+// append fails naming the file, and the v1 file keeps its bytes.
+func TestAFailedUpgradeLeavesTheV1FileUntouched(t *testing.T) {
+	path := v1File(t, commitLineV1)
+	mustMkdir(t, path+".tmp")
+	_, err := AppendCommits(path, []Commit{cmt(1002, sha2, 1)})
+	if err == nil || !strings.Contains(err.Error(), path) {
+		t.Errorf("want an error naming %s, got %v", path, err)
+	}
+	assertUntouched(t, path, commitsHeadV1+commitLineV1)
+}
+
+// TestCommitsKeepTheGitHubLoginAsItIs (forsgren#273, decision 274): a login, an
+// unknown author (empty) and a bot account are stored and read back exactly;
+// leaving bots out is the count's job, not the file's.
+func TestCommitsKeepTheGitHubLoginAsItIs(t *testing.T) {
+	path := commitsPath(t)
+	var commits []Commit
+	for i, author := range []string{"ada-dev", "", "dependabot[bot]", "octo_cat-EMU"} {
+		c := cmt(1001, "a"+strings.Repeat("0", 38)+string(rune('1'+i)), i)
+		c.Author = author
+		commits = append(commits, c)
+	}
+	mustAppendCommits(t, path, commits...)
+	got := mustLoadCommits(t, path)
+	for i, c := range commits {
+		if got[i].Author != c.Author {
+			t.Errorf("commit %d: want author %q, got %q", i, c.Author, got[i].Author)
+		}
+	}
+}
+
+// TestAppendCommitsRefusesAnAuthorThatIsNotALogin (forsgren#273): no email and
+// no name ever reaches the file: only GitHub's login shape is stored.
+func TestAppendCommitsRefusesAnAuthorThatIsNotALogin(t *testing.T) {
+	for _, author := range []string{"dev@acme.example", "Acme Dev", "ada,dev", "ada\ndev", "-ada", "ada[bot", "[bot]"} {
+		path := commitsPath(t)
+		c := cmt(1001, sha1, 0)
+		c.Author = author
+		if _, err := AppendCommits(path, []Commit{c}); !errors.Is(err, ErrInvalidRecord) {
+			t.Errorf("author %q: want ErrInvalidRecord, got %v", author, err)
+		}
+		if _, err := os.Stat(path); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("author %q: want no file written, got %v", author, err)
+		}
+	}
+}
+
+// TestAppendCommitsKeepsTheFirstAuthorOfAHeldCommit (forsgren#273): the key and
+// the held rule are unchanged, the author is not part of the key, so a held
+// commit is not written again with another author.
+func TestAppendCommitsKeepsTheFirstAuthorOfAHeldCommit(t *testing.T) {
+	path := commitsPath(t)
+	first := cmt(1001, sha1, 0)
+	first.Author = "ada-dev"
+	mustAppendCommits(t, path, first)
+	again := first
+	again.Author = "bob-dev"
+	if n := mustAppendCommits(t, path, again); n != 0 {
+		t.Errorf("want the held commit skipped, got %d stored", n)
+	}
+	if got := mustLoadCommits(t, path); len(got) != 1 || got[0].Author != "ada-dev" {
+		t.Errorf("want the first author kept, got %v", got)
+	}
+}
+
+// assertContent fails unless the file at path holds exactly want.
+func assertContent(t *testing.T, path, want string) {
+	t.Helper()
+	got, err := os.ReadFile(filepath.Clean(path))
+	if err != nil || string(got) != want {
+		t.Errorf("want the file to hold\n%s\ngot\n%s (%v)", want, got, err)
 	}
 }

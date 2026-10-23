@@ -860,8 +860,8 @@ generated page on every run, privacy posture for the requests, cookies and
 tracking, and repository links for the links (see [Quality gates](quality-gates.md)). No gate
 checks for issue titles yet: that rests on the renderer, which is given
 the project names of the owner's own config, numbers, durations and dates
-only: no repository name, commit SHA or message, tag, environment,
+only: no repository name, commit SHA, message or author, tag, environment,
 workflow or task reaches the page, which `cmd/forsgren/render_data_test.go`
-and, for the commits of lead time, `cmd/forsgren/render_leadtime_test.go`
-pin. A finding is fixed in the template, never by
+and, for the commits of lead time and their authors' GitHub logins
+(forsgren#273), `cmd/forsgren/render_leadtime_test.go` pin. A finding is fixed in the template, never by
 loosening the gate.

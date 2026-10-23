@@ -59,7 +59,8 @@ func TestCompareReadsTheCommitsOldestFirst(t *testing.T) {
 	if err != nil || truncated {
 		t.Fatalf("want the commits, got truncated=%v, %v", truncated, err)
 	}
-	want := []Commit{{SHA: shaMiddle, AuthoredAt: at(1, 8, 0, 0)}, {SHA: shaHead, AuthoredAt: at(1, 9, 30, 0)}}
+	want := []Commit{{SHA: shaMiddle, AuthoredAt: at(1, 8, 0, 0), Author: "acme-dev"},
+		{SHA: shaHead, AuthoredAt: at(1, 9, 30, 0), Author: "acme-dev"}}
 	if !slices.Equal(got, want) {
 		t.Errorf("want %v, got %v", want, got)
 	}
@@ -206,5 +207,46 @@ func TestCompareRefusesAnAnswerItCannotStore(t *testing.T) {
 			_, _, err := compare(f.client(t, DefaultMaxPages), shaBase, shaHead)
 			wantError(t, err, ErrAnswer, "acme/app: ", comparePath)
 		})
+	}
+}
+
+// authorPage is a page of a comparison whose commits carry GitHub's
+// top-level author object as given: a login, a bot, or null for a commit
+// whose email GitHub links to no account. The git author (commit.author) has
+// a name and an email in every one, which Compare must never read as the author.
+func authorPage(authors ...string) string {
+	commits := make([]string, 0, len(authors))
+	shas := []string{shaMiddle, shaHead, shaLater}
+	for i, author := range authors {
+		commits = append(commits, `{"sha": "`+shas[i]+`", "author": `+author+`, "commit": {"author": {"name": "Acme Dev", `+
+			`"email": "dev@acme.example", "date": "2026-09-03T07:00:00Z"}, "message": "More"}}`)
+	}
+	return `{"status": "ahead", "ahead_by": 3, "behind_by": 0, "total_commits": ` + strconv.Itoa(len(authors)) +
+		`, "commits": [` + strings.Join(commits, ", ") + `], "files": []}`
+}
+
+// TestCompareReadsTheAuthorsLogin (forsgren#273, decision 274): each commit's
+// Author is the login of GitHub's top-level author object, empty when it is
+// null, and a bot account is kept as GitHub names it. Neither the name nor
+// the email of the git author is read.
+func TestCompareReadsTheAuthorsLogin(t *testing.T) {
+	f := newFake(t)
+	f.on(comparePath, reply{body: authorPage(`{"login": "ada-dev", "id": 7, "type": "User"}`, `null`,
+		`{"login": "dependabot[bot]", "type": "Bot"}`)})
+	got, _, err := compare(f.client(t, DefaultMaxPages), shaBase, shaHead)
+	if err != nil {
+		t.Fatalf("want the commits, got %v", err)
+	}
+	var authors []string
+	for _, c := range got {
+		authors = append(authors, c.Author)
+	}
+	if want := []string{"ada-dev", "", "dependabot[bot]"}; !slices.Equal(authors, want) {
+		t.Errorf("want the authors %q, got %q", want, authors)
+	}
+	for _, c := range got {
+		if strings.ContainsAny(c.Author, "@ ") {
+			t.Errorf("want a login and never an email or a name, got %q", c.Author)
+		}
 	}
 }

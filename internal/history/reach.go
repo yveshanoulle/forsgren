@@ -108,8 +108,16 @@ func saveReach(path string, r Reach, f format[reachRow, string]) error {
 		rows = append(rows, reachRow{repository, at})
 	}
 	slices.SortFunc(rows, f.compare)
+	return replaceWhole(path, f.payload(store[reachRow]{}, rows))
+}
+
+// replaceWhole writes data to path whole, replacing a file that is there: to
+// a temporary file next to it, synced, then renamed over path, so a crash
+// never leaves half a file. The mark files and the one upgrade of a file of
+// an older version (forsgren#273) write this way.
+func replaceWhole(path string, data []byte) error {
 	temporary := path + ".tmp"
-	if err := writeSynced(temporary, f.payload(store[reachRow]{}, rows)); err != nil {
+	if err := writeSynced(temporary, data); err != nil {
 		return err
 	}
 	if err := os.Rename(temporary, path); err != nil {

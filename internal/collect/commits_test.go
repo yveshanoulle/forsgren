@@ -30,14 +30,34 @@ type authored struct {
 	date time.Time
 }
 
+// authoredBy is an authored commit with its author's GitHub login, "" for a
+// commit GitHub links to no account (its author object is null).
+type authoredBy struct {
+	authored
+	login string
+}
+
 // comparison is GitHub's answer to a comparison with status and
-// total_commits, listing commits oldest first.
+// total_commits, listing commits oldest first, every author null.
 func comparison(status string, total int, commits ...authored) string {
+	by := make([]authoredBy, len(commits))
+	for i, c := range commits {
+		by[i] = authoredBy{authored: c}
+	}
+	return comparisonBy(status, total, by...)
+}
+
+// comparisonBy is comparison with each commit's author login.
+func comparisonBy(status string, total int, commits ...authoredBy) string {
 	items := make([]string, 0, len(commits))
 	for _, c := range commits {
-		items = append(items, fmt.Sprintf(`{"sha": %q, "commit": {"author": {"name": "Acme Dev", `+
-			`"date": %q}, "committer": {"date": "2026-09-30T00:00:00Z"}, "message": "More"}}`,
-			c.sha, c.date.Format(time.RFC3339)))
+		account := "null"
+		if c.login != "" {
+			account = fmt.Sprintf(`{"login": %q, "type": "User"}`, c.login)
+		}
+		items = append(items, fmt.Sprintf(`{"sha": %q, "author": %s, "commit": {"author": {"name": "Acme Dev", `+
+			`"email": "dev@acme.example", "date": %q}, "committer": {"date": "2026-09-30T00:00:00Z"}, "message": "More"}}`,
+			c.sha, account, c.date.Format(time.RFC3339)))
 	}
 	return fmt.Sprintf(`{"status": %q, "ahead_by": %d, "behind_by": 0, "total_commits": %d, "commits": %s, `+
 		`"files": []}`, status, total, total, list(items...))
@@ -378,4 +398,38 @@ func TestTheCountIsPerRepository(t *testing.T) {
 	cfg := shop(production, repository("acme/api", config.Environment, "production"))
 	wantStdout(t, g.collect(t, cfg, historyPath(t), github.DefaultMaxPages),
 		"acme/app: 2 new, 0 skipped (not final), 2 commits\nacme/api: 1 new, 0 skipped (not final), 0 commits\n")
+}
+
+// TestACommitsAuthorIsStoredAsItsGitHubLogin (forsgren#273, decision 274): each
+// stored commit has the login of its author, empty for a commit GitHub links to
+// no account, and a bot account as GitHub names it (leaving bots out is the
+// count's job, not the file's). The git name and email of the answer are in no
+// line of the file.
+func TestACommitsAuthorIsStoredAsItsGitHubLogin(t *testing.T) {
+	path := historyPath(t)
+	held := record(history.KindEnvironment, "production", 1001, shaA, at(20, 10, 0), history.StateSuccess, "deploy")
+	if _, err := history.Append(path, []history.Record{held}); err != nil {
+		t.Fatal(err)
+	}
+	g := newGitHub(t)
+	g.bodies[deploymentsPath] = list(deployment(1002, shaB, "deploy", "2026-09-22T10:00:00Z"))
+	g.succeeded("1002")
+	g.bodies[comparePath(shaA, shaB)] = comparisonBy("ahead", 3,
+		authoredBy{authored{shaC, at(21, 9, 0)}, "ada-dev"}, authoredBy{authored{shaD, at(21, 10, 0)}, ""},
+		authoredBy{authored{shaB, at(22, 8, 0)}, "dependabot[bot]"})
+	g.collect(t, shop(production), path, github.DefaultMaxPages)
+	deployed := at(22, 10, 0)
+	first, second, third := commit(1002, shaC, at(21, 9, 0), deployed), commit(1002, shaD, at(21, 10, 0), deployed),
+		commit(1002, shaB, at(22, 8, 0), deployed)
+	first.Author, third.Author = "ada-dev", "dependabot[bot]"
+	wantCommits(t, path, first, second, third)
+	file, err := os.ReadFile(commitsPath(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, private := range []string{"@acme.example", "Acme Dev"} {
+		if strings.Contains(string(file), private) {
+			t.Errorf("want no %q in the commits file, got\n%s", private, file)
+		}
+	}
 }

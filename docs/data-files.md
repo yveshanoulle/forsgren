@@ -70,27 +70,49 @@ names the line.
 
 **The commits of each deployment**, for lead time (forsgren#16), are kept
 next to it in `data/commits.csv`, with its own format version (the commits
-format v1); `data/deployments.csv` does not change. `collect` writes it,
+format v2, with the author of each commit, forsgren#273; v1 files are still
+read); `data/deployments.csv` does not change. `collect` writes it,
 always next to the `--data` file (see [Collecting deployments](#collecting-deployments-collect), The commits
 of each deployment):
 
 ```
-# forsgren commits v1
-repository,kind,deployment_id,commit,authored_at,deployed_at
-acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z
+# forsgren commits v2
+repository,kind,deployment_id,commit,authored_at,deployed_at,author
+acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z,ada-dev
 ```
 
 - One line per commit per deployment. `repository`, `kind` and
   `deployment_id` are the deployment's key in `deployments.csv`;
   `authored_at` is the commit's author date and `deployed_at` the
   deployment's `created_at`, copied so lead time needs no join. Both are UTC.
+- `author` (format v2, decision 274 of forsgren#273) is the GitHub login of
+  the commit's author: the account GitHub links the commit to, taken from the
+  top-level `author` of GitHub's comparison answer (not from `commit.author`,
+  which holds the name and the email as git records them). It is never an
+  email address and never a name: only the shape of a login is accepted (letters,
+  digits, hyphens and underscores, and for a bot account the suffix `[bot]`).
+  A commit that GitHub links to no account, because its email belongs to no
+  user, has an empty `author`: unknown, never guessed. A bot account is stored
+  as GitHub names it, `dependabot[bot]`: leaving bots out is the job of what
+  counts developers, not of the file. One person with several email addresses
+  is one login. The login is already public on GitHub next to the commit.
 - The project and the task are not repeated: the project comes from the
   config, as for deployment frequency, and the task is the deployment's own.
 - The same rules as `deployments.csv`: created with its version line,
   appended only, refused untouched when its version is unknown or a line is
   malformed. A commit already there for the same deployment (repository
   ignoring case, kind, ID and the same SHA) is skipped; a call with nothing
-  new leaves the file alone.
+  new leaves the file alone. The author is not part of the key: a commit
+  already held keeps the author it was stored with.
+- **v1 files.** A `commits.csv` written before the author column (the commits
+  format v1, six columns) is still read, every author empty. The first
+  `collect` that appends to it, also when it has no new commit, writes it again
+  once as v2: every line kept as it was with an empty `author`, then the new
+  lines with theirs, through a temporary file in the same directory and a
+  rename, so an interrupted run leaves the old file. The authors of commits
+  stored before are not known and stay empty; forsgren does not look them up
+  again. A file with a version it does not know, or a line that is not in the
+  format, is still refused untouched.
 
 **The failure issues**, for change fail rate (forsgren#18), are kept next to
 it in `data/failures.csv`, with its own format version (the failures format
@@ -393,8 +415,9 @@ count. When it stored failure issues the line goes on with
 successful deployment `collect` stores is compared with the previous
 successful one of its stream, `compare/{previous commit}...{its commit}`,
 and the commits after the previous one's commit up to its own are stored
-in `data/commits.csv`, each with its author date and the deployment's
-`created_at`.
+in `data/commits.csv`, each with its author date, its author's GitHub login
+(empty when GitHub links the commit to no account; forsgren#273) and the
+deployment's `created_at`.
 
 - **A stream** is a repository's deployments by one rule with the same
   environment or workflow and the same `task`: a repository deploying

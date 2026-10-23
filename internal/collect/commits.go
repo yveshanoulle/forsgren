@@ -175,13 +175,14 @@ func (o Options) compare(ctx context.Context, prev, r history.Record) ([]history
 func (o Options) warn(format string, a ...any) { _, _ = fmt.Fprintf(o.Stderr, format, a...) }
 
 // deployed is commits as the commits of the deployment r: each with its
-// author date (UTC, whole seconds) and r's created_at.
+// author date (UTC, whole seconds), its author's GitHub login (empty when
+// GitHub links the commit to no account) and r's created_at.
 func deployed(r history.Record, commits []github.Commit) []history.Commit {
 	out := make([]history.Commit, 0, len(commits))
 	for _, c := range commits {
 		out = append(out, history.Commit{
 			Repository: r.Repository, Kind: r.Kind, DeploymentID: r.ID, SHA: c.SHA,
-			AuthoredAt: c.AuthoredAt.UTC().Truncate(time.Second), DeployedAt: r.CreatedAt,
+			AuthoredAt: c.AuthoredAt.UTC().Truncate(time.Second), DeployedAt: r.CreatedAt, Author: c.Author,
 		})
 	}
 	return out

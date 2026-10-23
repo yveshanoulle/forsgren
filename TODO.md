@@ -14,3 +14,4 @@ in the same commit — see
 - Render golden tests no longer depend on SOURCE_DATE_EPOCH in the environment — [#163](https://github.com/yveshanoulle/forsgren/issues/163)
 - A gate for relative links and anchors in the Markdown docs — [#147](https://github.com/yveshanoulle/forsgren/issues/147)
 - npm: keep `node_modules` in sync with the lockfile (reinstall on a lockfile change) and pin node — [#2](https://github.com/yveshanoulle/forsgren/issues/2)
+- Developers next to the Mainline Interval: the distinct human authors of the deployed commits — [#273](https://github.com/yveshanoulle/forsgren/issues/273)

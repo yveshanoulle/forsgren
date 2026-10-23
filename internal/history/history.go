@@ -9,12 +9,15 @@
 //	shop,acme/app,environment,production,1001,<40 hex>,2026-09-01T10:00:00Z,success,
 //
 // The commits of each successful deployment, data/commits.csv (the commits
-// format v1, forsgren#16, step 1), one line per commit per deployment, for
-// lead time:
+// format v2, forsgren#16, step 1; v2 adds the author, forsgren#273), one line
+// per commit per deployment, for lead time and the Mainline Interval:
 //
-//	# forsgren commits v1
-//	repository,kind,deployment_id,commit,authored_at,deployed_at
-//	acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z
+//	# forsgren commits v2
+//	repository,kind,deployment_id,commit,authored_at,deployed_at,author
+//	acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z,ada-dev
+//
+// A v1 file, without the author column, is still read (every author empty)
+// and is written again as v2 once, by the first append.
 //
 // The failure issues of the configured repositories, data/failures.csv (the
 // failures format v1, forsgren#18, step 1), one line per state of an issue
@@ -27,7 +30,9 @@
 //
 // In all three, the first line states the format version, the second names
 // the columns, and every later line is one record. A file only grows: a
-// line, once written, is never rewritten or removed.
+// line, once written, is never rewritten or removed, apart from that one
+// upgrade of a v1 commits file, which keeps every line and adds an empty
+// author.
 package history
 
 import (

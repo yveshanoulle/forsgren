@@ -59,7 +59,7 @@
   {
    "path": "cmd/forsgren/collect_test.go",
    "score": 9.68,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-23",
    "minScore": 9.58
   },
   {
@@ -239,7 +239,7 @@
   {
    "path": "cmd/forsgren/render_leadtime_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-14",
+   "checkedAt": "2026-10-23",
    "minScore": 10.0
   },
   {
@@ -293,13 +293,13 @@
   {
    "path": "internal/github/compare.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-23",
    "minScore": 10.0
   },
   {
    "path": "internal/github/compare_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-23",
    "minScore": 10.0
   },
   {
@@ -323,19 +323,19 @@
   {
    "path": "internal/history/append.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-23",
    "minScore": 10.0
   },
   {
    "path": "internal/history/commits.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-23",
    "minScore": 10.0
   },
   {
    "path": "internal/history/commits_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-23",
    "minScore": 10.0
   },
   {
@@ -353,13 +353,13 @@
   {
    "path": "internal/history/file.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-23",
    "minScore": 10.0
   },
   {
    "path": "internal/history/history.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-23",
    "minScore": 10.0
   },
   {
@@ -467,13 +467,13 @@
   {
    "path": "internal/collect/commits.go",
    "score": 10.0,
-   "checkedAt": "2026-10-19",
+   "checkedAt": "2026-10-23",
    "minScore": 10.0
   },
   {
    "path": "internal/collect/commits_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-03",
+   "checkedAt": "2026-10-23",
    "minScore": 10.0
   },
   {
@@ -887,7 +887,7 @@
   {
    "path": "internal/history/reach.go",
    "score": 10.0,
-   "checkedAt": "2026-10-14",
+   "checkedAt": "2026-10-23",
    "minScore": 10.0
   },
   {

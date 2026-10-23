@@ -113,3 +113,71 @@ func TestRenderShowsNoCommitSHA(t *testing.T) {
 		}
 	}
 }
+
+// authorLogin is the made-up GitHub login of every fixture commit of
+// TestRenderShowsNoCommitAuthor: it may reach no page.
+const authorLogin = "acme-dev-login"
+
+// TestRenderShowsNoCommitAuthor (forsgren#273, decision 274): the commits
+// file holds each commit's GitHub login, and no page of the site shows one.
+func TestRenderShowsNoCommitAuthor(t *testing.T) {
+	pinNow(t)
+	commits := acmeCommits()
+	for i := range commits {
+		commits[i].Author = authorLogin
+	}
+	data := writeData(t, acmeHistory(), commits)
+	if stored := readFile(t, filepath.Join(filepath.Dir(data), "commits.csv")); !strings.Contains(stored, authorLogin) {
+		t.Fatalf("want the login in the commits file, got:\n%s", stored)
+	}
+	wantNoPageShows(t, renderSite(t, "--config", writeAllPagesConfig(t, validConfig), "--data", data), authorLogin)
+}
+
+// renderSite renders with extra arguments into a new directory and returns
+// it, failing the test unless render exits 0.
+func renderSite(t *testing.T, extra ...string) string {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), "site")
+	if code, _, stderr := runCommand(append([]string{"render", "--out", dir}, extra...)...); code != 0 {
+		t.Fatalf("want render to exit 0, got %d: %s", code, stderr)
+	}
+	return dir
+}
+
+// wantNoPageShows fails the test for every file of the site in dir that
+// holds private.
+func wantNoPageShows(t *testing.T, dir, private string) {
+	t.Helper()
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		if strings.Contains(readFile(t, path), private) {
+			t.Errorf("%s shows %q", path, private)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestRenderReadsAV1CommitsFile (forsgren#273): a commits file written before
+// the author column, as an installation that has not collected since holds,
+// still gives the lead time.
+func TestRenderReadsAV1CommitsFile(t *testing.T) {
+	pinNow(t)
+	data := writeHistory(t, acmeHistory())
+	lines := "# forsgren commits v1\nrepository,kind,deployment_id,commit,authored_at,deployed_at\n"
+	for _, c := range acmeCommits() {
+		lines += fmt.Sprintf("%s,%s,%d,%s,%s,%s\n", c.Repository, c.Kind, c.DeploymentID, c.SHA,
+			c.AuthoredAt.Format(time.RFC3339), c.DeployedAt.Format(time.RFC3339))
+	}
+	if err := os.WriteFile(filepath.Join(filepath.Dir(data), "commits.csv"), []byte(lines), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, stderr, index := renderWith(t, "--config", writeAllPagesConfig(t, validConfig), "--data", data)
+	if !strings.Contains(index, "Less than one hour · 17 min (3)") {
+		t.Errorf("want the lead time from the v1 file, got %s:\n%s", stderr, index)
+	}
+}
