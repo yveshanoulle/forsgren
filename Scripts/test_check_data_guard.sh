@@ -33,7 +33,10 @@
 #      elsewhere (forsgren#143, forsgren#140)
 #  15. drift check: every data file the Go code   -> red, each named
 #      names (const <Name>File = "<name>.csv" in
-#      internal/collect) elsewhere
+#      internal/collect, alone or in a const
+#      block) elsewhere
+#  16. a pulls.csv and a pulls_read.csv           -> red, each named
+#      elsewhere (forsgren#255)
 # Mutation proofs, each against a copy of the gate (the patterns are `case`
 # arms of guarded_reason, one per line):
 #   - case 2: with the history.csv arm deleted, case 2's repository must turn
@@ -58,6 +61,8 @@
 #     drift check is the case that holds its arm. The drift check needs no
 #     other proof: it reads the Go constants, and a deleted arm turns it red,
 #     as case 14 shows.
+#   - case 16: with the pulls.csv or pulls_read.csv arm deleted, a repository
+#     holding only ops/ of that file must turn green.
 #   - case 6: with every arm whose pattern holds a `*` quoted (so it matches
 #     only the literal text), case 6's repository must turn green with none
 #     of its three files named, while case 2's repository stays red. Every
@@ -238,7 +243,10 @@ want_said "an issue_bugs_cut.csv outside data/ is red and named (forsgren#140)" 
 # file added later cannot be forgotten. The names are read from the source, one
 # source of truth; a read that finds fewer than the eight there are is itself
 # red, so a changed constant shape cannot make this case pass over nothing.
-GO_DATA_FILES="$(grep -rhoE --exclude='*_test.go' '^const [A-Za-z]+File += "[a-z_]+\.csv"' internal/collect \
+# A constant inside a `const (` block counts too, `<Name>File = "<name>.csv"`
+# on its own indented line (forsgren#255: PullsFile and PullsReadFile are
+# declared that way, and the single-line form alone missed them).
+GO_DATA_FILES="$(grep -rhoE --exclude='*_test.go' '^(const +|[[:space:]]+)[A-Za-z]+File += "[a-z_]+\.csv"' internal/collect \
   | sed -E 's/.*"([a-z_]+\.csv)"/\1/' | sort -u)"
 go_data_count="$(grep -c . <<< "$GO_DATA_FILES" || true)"
 if [[ "$go_data_count" -lt 8 ]]; then
@@ -270,6 +278,17 @@ new_repo "other-data-elsewhere-cutruns"
 write_file "ops/cut_runs.csv" $'# forsgren cut runs v1\n' track
 new_repo "other-data-elsewhere-startschecked"
 write_file "ops/starts_checked.csv" $'# forsgren starts checked v1\n' track
+
+new_repo "pulls-elsewhere"
+write_file "ops/pulls.csv" $'# forsgren pulls v1\n' track
+write_file "ops/pulls_read.csv" $'# forsgren pulls read v1\n' track
+run_gate
+want_red "a pulls.csv outside data/ is red and named (forsgren#255)" "❌ FAIL: ops/pulls.csv"
+want_said "a pulls_read.csv outside data/ is red and named (forsgren#255)" "❌ FAIL: ops/pulls_read.csv"
+new_repo "pulls-elsewhere-pulls"
+write_file "ops/pulls.csv" $'# forsgren pulls v1\n' track
+new_repo "pulls-elsewhere-read"
+write_file "ops/pulls_read.csv" $'# forsgren pulls read v1\n' track
 
 new_repo "history-fixtures"
 write_file "internal/history/testdata/deployments.csv" $'# forsgren history v1\n' track
@@ -349,6 +368,10 @@ arm_deleted_proof 15 "cut_runs.csv" '^[[:space:]]*cut_runs\.csv\) why=' \
   "${TMP}/check_data_guard_nocutruns.sh" "other-data-elsewhere-cutruns" "ops/cut_runs.csv"
 arm_deleted_proof 15 "starts_checked.csv" '^[[:space:]]*starts_checked\.csv\) why=' \
   "${TMP}/check_data_guard_nostartschecked.sh" "other-data-elsewhere-startschecked" "ops/starts_checked.csv"
+arm_deleted_proof 16 "pulls.csv" '^[[:space:]]*pulls\.csv\) why=' \
+  "${TMP}/check_data_guard_nopulls.sh" "pulls-elsewhere-pulls" "ops/pulls.csv"
+arm_deleted_proof 16 "pulls_read.csv" '^[[:space:]]*pulls_read\.csv\) why=' \
+  "${TMP}/check_data_guard_nopullsread.sh" "pulls-elsewhere-read" "ops/pulls_read.csv"
 
 # ---------------------------------------------------------------------------
 # Mutation proof for case 6: a copy of the gate with every arm whose pattern

@@ -31,8 +31,9 @@ Not in this repository. It holds code only. An installation keeps its
 configuration (which repositories and services, workflow names, labels, the
 health URL) and its data (`data/deployments.csv`, the deployments fetched
 from GitHub, `data/commits.csv`, their commits, `data/failures.csv`,
-the failure issues, `data/issues.csv`, what happened to every issue, and
-`data/issue_bugs.csv`, which issues carry the `bug` label) in a separate private
+the failure issues, `data/issues.csv`, what happened to every issue,
+`data/issue_bugs.csv`, which issues carry the `bug` label, and `data/pulls.csv`,
+the merged pull requests) in a separate private
 data repository, made from a template, and
 passes them to forsgren as paths. Test fixtures are made up (`acme/app`) and live only
 under `testdata/`.
@@ -325,6 +326,87 @@ acme/app,2026-10-21T06:00:00Z
   does not ignore, outside `testdata/` blocks the commit, like the other data
   files.
 
+**The merged pull requests**, for the Mainline Lead Time (forsgren#255,
+forsgren#256), are kept in `data/pulls.csv`, next to the history, with its own
+format version (the pulls format v1):
+
+```
+# forsgren pulls v1
+repository,number,head_branch,created_at,merged_at,merge_commit,updated_at,first_commit_at,first_commit_cut,created_stands_in
+acme/app,42,feature/checkout,2026-09-01T10:00:00Z,2026-09-03T15:00:00Z,<40 hex>,2026-09-03T15:01:00Z,2026-08-30T09:00:00Z,false,false
+acme/app,43,fix/typo,2026-09-02T08:00:00Z,2026-09-02T09:00:00Z,<40 hex>,2026-09-02T09:00:00Z,,false,true
+```
+
+- One line per merged pull request. A pull request closed without a merge is
+  not stored. No title, no body and no author is stored.
+- `repository` is `owner/name` and `number` the pull request's number.
+- `head_branch` is the branch the pull request was opened from (GitHub's
+  `head.ref`), as GitHub names it.
+- `created_at`, `merged_at` and `updated_at` are the pull request's created,
+  merged and updated time, UTC, to the second. `updated_at` is GitHub's
+  updated time when `collect` read the pull request: a stored line is never
+  written again, so a later comment or label does not move it.
+- `merge_commit` is the SHA of the commit the merge made, 40 or 64 lower-case
+  hex digits.
+- `first_commit_at` is the pull request's first commit time, UTC, to the
+  second. First commit time is the earliest Git author timestamp among the
+  commits in the pull request. Cherry-picked commits retain their original
+  author timestamps. No age cut-off is applied. It approximates when the work
+  began; it is not a guaranteed measurement of branch lifetime (decision
+  #298).
+- `first_commit_cut` is `true` when the commit list was cut, so the first
+  commit may be missing from what was read: GitHub lists at most 250 commits
+  of a pull request, so 250 commits read is cut (249 is complete), and so is a
+  list that stopped at the page limit. The time is kept: it is the earliest of
+  the commits read, so the lead time it gives is a lower bound, never exact
+  (decisions #299, #301). The flag stays even when all the dates read are
+  equal. Otherwise `false`.
+- `created_stands_in` is `true` when the commit list gave no usable date (no
+  commit, or a commit without an author date, or an answer forsgren cannot
+  read): then `first_commit_at` is empty and the pull request's created time
+  stands in for its first commit time (decisions #300, #303, #313). It is
+  never `true` because the list was cut, so a line is never cut and standing
+  in at once, and `first_commit_at` is empty exactly when it is `true`.
+  Otherwise `false`.
+- Held by repository (ignoring case) and number, as GitHub numbers a
+  repository's issues and pull requests from one sequence: a pull request
+  already in the file is skipped, the first line staying whatever a later read
+  says (decision #306). The new lines of a run are in merge order (merged
+  time, repository, number).
+- Otherwise the same rules as `deployments.csv`: created with its version
+  line, appended only, refused untouched when its version is unknown or a line
+  is malformed, naming the line. A run with nothing to store still writes the
+  file with its two header lines (decision #312). An unreadable file refuses
+  the collect run before GitHub is asked anything.
+- The data guard knows its name: a `pulls.csv` that git tracks or does not
+  ignore, outside `testdata/` blocks the commit, like the other data files.
+
+**The pulls read mark** (forsgren#255) is kept in `data/pulls_read.csv`, next
+to the history, with its own format version (the pulls read format v1): one
+line per repository whose closed pull requests were read to the end.
+
+```
+# forsgren pulls read v1
+repository,read_at
+acme/app,2026-10-23T06:00:00Z
+```
+
+- `read_at` is the start of the run that last read the repository's closed
+  pull requests, in UTC, to the second. Lines are sorted by repository.
+- The next run reads the pull requests updated since that time less a day
+  (never before `history_days` back), and a repository without a line reads
+  back to `history_days` (decision #304).
+- The line moves only after a read that ended: a read that a missing
+  `pull-requests` permission or the request budget stopped keeps the line as
+  it was, so the next run reads the rest. A read cut at the page limit moves
+  it (decision #309).
+- Rewritten whole like `data/reach.csv`, and only when a line changed. A
+  missing file notes no repository. An unknown version or a malformed line
+  refuses the collect run before GitHub is asked anything, naming the file.
+- The data guard knows its name: a `pulls_read.csv` that git tracks or does
+  not ignore, outside `testdata/` blocks the commit, like the other data
+  files.
+
 ## Collecting deployments (`collect`)
 
 ```
@@ -343,7 +425,9 @@ what was appended, `skipped (not final)` is what is still running and is
 stored by a later run, `commits` is the commits stored for the new
 deployments. A deployment already in the history is skipped without a
 count. When it stored failure issues the line goes on with
-`, 2 failure issues`, the issues new or changed since the last run.
+`, 2 failure issues`, the issues new or changed since the last run, and when
+it stored merged pull requests with `, 4 merged pull requests` (decision #311;
+see The merged pull requests below).
 
 - **`environment=<name>`** (the default, `production`): the GitHub
   Deployments to that environment, and each one's statuses. A deployment is
@@ -638,6 +722,32 @@ requests (about 2 per deployment: its statuses and its comparison) is never
 finished; the way out is a smaller `history_chunk_days`, which makes the
 chunk read per run smaller.
 
+**The merged pull requests** (forsgren#255). After a repository's
+deployments and issues are stored, `collect` reads its closed pull requests
+updated since its line in `data/pulls_read.csv` less a day, newest updated
+first, and stores the merged ones in `data/pulls.csv` (see
+[History](#history)), each with its first commit time from its commits.
+
+- A pull request closed without a merge, merged before `history_days` back
+  (even when it was updated inside it, decision #310), or already stored is
+  not asked for its commits and not stored.
+- A pull request's commits are read only while the request budget has room
+  for all their pages (3 at most). At the budget the pull requests read whole
+  are stored and the mark stays, so the next run reads the rest; one whose
+  commit list the budget would stop is not stored and is read again next run
+  (decision #308). The repository is not cut short by it (decision #307).
+- A commit list that gives no usable date has the created time stand in,
+  named on stderr; a cut one keeps its time with `first_commit_cut`.
+- **Without the pull requests permission** (a 403 that is not the rate limit)
+  nothing fails: the pull requests read so far are stored, the mark stays,
+  stderr names the missing permission and the rest of the repository is
+  collected (Yves's ruling on #255). The setup issue names it (see
+  [The setup issue](updating-and-releases.md)).
+- A list cut at the page limit is named on stderr and the mark moves (the
+  list is newest first, so the same mark would read the same pages again).
+- Any other error fails the repository, after its deployments and issues are
+  stored.
+
 **The token.** `collect` reads the token from the environment variable
 `FORSGREN_TOKEN` only (never a flag) and sends it only as an
 `Authorization: Bearer` header to `api.github.com`: never in a URL, never in
@@ -656,6 +766,15 @@ change fail rate, which needs Issues (read) as well. A token without it
 fails every repository, deployments included, with `check FORSGREN_TOKEN's
 access`: add Issues (read) to the token before updating to a forsgren that
 reads failure issues.
+
+Every rule also reads the repository's merged pull requests, for the
+Mainline Lead Time (forsgren#255, from 1.16.0), which needs Pull requests
+(read) as well. A token without it fails nothing: `collect` stores everything
+else and names the missing permission on stderr (see The merged pull
+requests above). An installation whose caller passes the run's own token as
+`FORSGREN_TOKEN` (every measured repository public, route A of
+[agent-installer.md](../agent-installer.md)) has the permissions its caller's
+job grants, so there the caller's `pull-requests: read` is that permission.
 
 Comparing two commits, for the commits of each deployment, needs Contents
 with every rule. A token without it fails the repository from its second

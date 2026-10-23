@@ -562,7 +562,7 @@ in:
 >    the measured repositories of that owner. (The token reads every public
 >    repository by itself.)
 > 6. **Permissions → Repository permissions**, every one **Read-only**:
->    - **Contents** and **Issues**: always.
+>    - **Contents**, **Issues** and **Pull requests**: always.
 >    - **Deployments**: when a repository uses `environment=`.
 >    - **Actions**: when a repository uses `workflow=`.
 >    - **Metadata** is added by itself.

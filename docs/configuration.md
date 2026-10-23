@@ -531,7 +531,7 @@ jobs:
       contents: write
       pages: write
       id-token: write
-      pull-requests: read   # optional, see below
+      pull-requests: read   # the merged pull requests and the waiting update, see below
       issues: write         # lets forsgren open its setup issue, see below
     uses: yveshanoulle/forsgren/.github/workflows/metrics.yml@<commit> # vX.Y.Z
     secrets:
@@ -653,8 +653,17 @@ jobs:
   that adds the starter and collect, change `contents: read` to
   `contents: write` and add the `secrets:` block** in the calling workflow
   (and in the template's copy of it).
-- **`pull-requests: read` is optional, and the caller's to grant too**
-  (forsgren#40). With it, when a newer forsgren release exists and
+- **`pull-requests: read` is needed from 1.16.0, and the caller's to grant
+  too** (forsgren#255). forsgren then reads the merged pull requests of the
+  measured repositories for the Mainline Lead Time (see [The merged pull
+  requests](data-files.md#collecting-deployments-collect)). A caller without
+  the line keeps working: nothing fails, every other number is still
+  collected, and the setup issue names the line (see [The setup
+  issue](updating-and-releases.md)). It grants the run's own token; a
+  fine-grained `FORSGREN_TOKEN` needs Pull requests (read) of its own (see
+  [The token](data-files.md#collecting-deployments-collect)). The template's
+  calling workflow carries the line.
+  It also names the waiting update (forsgren#40). With it, when a newer forsgren release exists and
   Dependabot has an open pull request in your repository that bumps the
   `uses:` pin to exactly that release, the page footer says "Forsgren <version>
   · 0.3.9 is waiting in pull request #7 (merge it to update)", with the

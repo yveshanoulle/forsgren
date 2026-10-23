@@ -101,7 +101,7 @@ in_testdata() {
 # mutates this list by that shape (it deletes the history.csv arm, then the
 # deployments.csv arm, then the commits.csv arm, then the failures.csv arm,
 # then the issues.csv arm, then the issues_full.csv, failures_read.csv,
-# failures_withdrawn.csv, issue_bugs.csv, issue_bugs_cut.csv, reach.csv, cut_runs.csv and starts_checked.csv arms, and quotes every arm whose pattern holds a
+# failures_withdrawn.csv, issue_bugs.csv, issue_bugs_cut.csv, reach.csv, cut_runs.csv, starts_checked.csv, pulls.csv and pulls_read.csv arms, and quotes every arm whose pattern holds a
 # `*` so that it matches only literally).
 guarded_reason() {
   local why=""
@@ -119,6 +119,8 @@ guarded_reason() {
     cut_runs.csv) why="since when each repository has been cut short at the request budget without progress, which forsgren collect keeps (data/cut_runs.csv in an installation)" ;;
     starts_checked.csv) why="which repositories had their failure starts caught up from the issues' comments, which forsgren collect keeps (data/starts_checked.csv in an installation)" ;;
     reach.csv) why="how far back each repository's deployments were read, which forsgren collect keeps (data/reach.csv in an installation)" ;;
+    pulls.csv) why="the merged pull requests forsgren collect keeps for Mainline Lead Time (data/pulls.csv in an installation)" ;;
+    pulls_read.csv) why="when each repository's closed pull requests were last read, which forsgren collect keeps (data/pulls_read.csv in an installation)" ;;
     *.history.csv) why="a per-service or per-installation history file" ;;
     forsgren.config.*) why="an installation's forsgren configuration, by its own name" ;;
     forsgren-config.*) why="the same configuration, hyphenated" ;;

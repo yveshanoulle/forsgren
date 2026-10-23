@@ -432,6 +432,24 @@ a required meta charset and meta description; see
 [Quality gates](quality-gates.md)); nothing changes in what a page shows. No
 new permission, secret or config key is needed.
 
+**Upgrading to 1.16.0** (forsgren#255). A minor release. `collect` also
+reads the merged pull requests of every measured repository, with each one's
+first commit time, into a new data file, `data/pulls.csv`, with its read mark
+in `data/pulls_read.csv` (see [History](data-files.md#history)); the first
+run reads back to `history_days`. They are the data for the Mainline Lead Time
+on the TBD page (forsgren#256). The forsgren job of your calling workflow now
+needs `pull-requests: read` (the template's calling workflow already carries
+it), and a fine-grained `FORSGREN_TOKEN` needs Pull requests (read) on the
+measured repositories. **Without them nothing stops or fails:** every other
+number is still collected and published, `collect` names the missing
+permission on stderr, and the setup issue lists the `pull-requests: read`
+line (it reads the calling workflow, so it cannot see the token's own
+permissions). No config key or secret is new. An agent following
+[agent-upgrade.md](../agent-upgrade.md) reads this as a new permission in
+`.github/workflows/forsgren.yml`, brings over the template's line when yours
+lacks it, and asks you about the token's permission, which only you can
+change.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`

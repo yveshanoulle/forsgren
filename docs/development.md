@@ -11,13 +11,15 @@ Over the files git tracks and the untracked ones it does not ignore
 - a file that looks like installation config or data sits outside
   `testdata/`: anything under a top-level `data/`, `deployments.csv`,
   `commits.csv`, `failures.csv`, `failures_read.csv`, `failures_withdrawn.csv`, `issues.csv`, `issues_full.csv`,
-  `issue_bugs.csv`, `issue_bugs_cut.csv`, `reach.csv`, `cut_runs.csv`, `starts_checked.csv`, `history.csv`, `*.history.csv`, `forsgren.config.*`,
+  `issue_bugs.csv`, `issue_bugs_cut.csv`, `reach.csv`, `cut_runs.csv`, `starts_checked.csv`, `pulls.csv`, `pulls_read.csv`, `history.csv`, `*.history.csv`, `forsgren.config.*`,
   `forsgren-config.*`, `config.yml`/`.yaml`/`.json` at any depth, or a
   `*.jsonl` events file.
   Every data file the Go code names (a constant `<Name>File = "<name>.csv"` in
-  `internal/collect`) must be on that list: the gate's self-test reads those
-  constants and fails when one is not guarded, so a data file added later
-  cannot be forgotten (forsgren#143).
+  `internal/collect`, on its own `const` line or inside a `const (` block)
+  must be on that list: the gate's self-test reads those constants and fails
+  when one is not guarded, so a data file added later cannot be forgotten
+  (forsgren#143; the block form since forsgren#255, whose two pull request
+  files are declared in one).
 
 Private names are not this gate's business: the private-names gate
 (`Scripts/check_private_names.sh`, in [Quality gates](quality-gates.md)) searches every tracked and every untracked,
