@@ -797,7 +797,8 @@ it in the menu after Daily, "History"; `false` leaves it out.
 
 The TBD page (`tbd.html`, titled "Trunk-based development [TBD] (BETA)", forsgren#253, forsgren#271)
 shows the Mainline Interval of each project: how long it is, on average, between
-two commits that deployments shipped, and how much that varies. It is unlisted
+two commits that deployments shipped landing on the main branch, and how much
+that varies. It is unlisted
 by default: generated and reachable at `tbd.html`, with no menu entry and a
 noindex tag (see Unlisted pages under [The page](#the-page), and
 [Configuration](configuration.md#configuration)). `tbd_page: true` lists it
@@ -806,7 +807,10 @@ last in the menu, "TBD"; `false` leaves it out.
 - **The table.** A row per project and two columns, Mainline Interval and
   Developers (see below); the Mainline Interval cell reads `mean ± deviation (gaps) · median M · p90 P`, for example
   `24 min ± 2 h 24 min (12) · median 5 min · p90 1 h`, with the durations
-  written as on the other pages. The cell stays one line (the table scrolls
+  written as on the other pages, then, when some commits are timed by their
+  author date (see The old approximation below), the note after ` · `:
+  `2 d 22 h ± 4 d 3 h (2) · median 2 d 22 h · p90 - · 3 commits timed by author date`.
+  The cell stays one line (the table scrolls
   sideways in its region on a narrow screen, as the other tables do). It is per project: the label rows of
   the table page have no row here.
 - **What is counted.** The commits `forsgren collect` stores in
@@ -816,9 +820,35 @@ last in the menu, "TBD"; `false` leaves it out.
   (`dora_days`, both ends included), as for lead time; its author date does not
   decide that. A commit counts once, by repository (ignoring case) and SHA, even
   when two deployments shipped it. A project's repositories are one sequence.
-- **The gaps.** The commits are put in the order of their author dates,
-  whatever the order they are stored in, and a gap is the time between two
-  neighbours; two commits with the same author date have a gap of 0. The mean is
+- **The first-parent chain** (forsgren#254). Of each deployment's commits only
+  those of its first-parent chain count: the chain starts at the deployment's
+  tip, the one stored commit of the deployment that none of its other commits
+  names as a parent (the deployed commit), and goes through each commit's
+  first parent (`parents` in [data-files.md](data-files.md#history)) while that
+  parent is one of the deployment's commits. Those are the commits that landed
+  on the main branch one after another. A merge's other parents, and the
+  commits a merge brought in from a branch, are left out; the merge commit
+  counts. The chain is judged before a commit is counted once, so a commit two
+  deployments shipped counts when it is on the chain of one of them.
+- **The committer date.** A commit of the chain is placed at its committer date
+  (`committed_at`), when it landed where it is now: a rebase or a merge button
+  moves it, the author date stays when the change was first written. A commit of
+  the chain GitHub gave no committer date for is placed at its author date,
+  never at an empty time.
+- **The old approximation.** A deployment without exactly one tip keeps the
+  Mainline Interval's first rule (forsgren#253): every one of its commits
+  counts, at its author date. That is every deployment of two commits or more
+  stored before the commits format v3, whose commits have no parents; a
+  deployment of one such commit is its own chain, without a committer date, so
+  at its author date as well. Those commits are never looked up again
+  (decision 293 of forsgren#254), so this lasts until their deployments leave the
+  window. The cell names how many commits are placed at their author date, by
+  either rule: ` · 3 commits timed by author date`, `1 commit timed by author date`
+  for one, nothing when there are none.
+- **The gaps.** The commits are put in the order of the times they are placed
+  at (the committer date, or the author date as above), whatever the order they
+  are stored in, and a gap is the time between two neighbours; two commits
+  placed at the same time have a gap of 0. The mean is
   the mean of the gaps, the deviation their sample standard deviation (the sum
   of the squared differences from the mean over the number of gaps less one),
   and the count in brackets is the number of gaps. The median is the middle
@@ -840,9 +870,13 @@ last in the menu, "TBD"; `false` leaves it out.
   that has no commit in the window, the project's row is `-`.
 - **Developers.** The column next to the Mainline Interval (forsgren#273),
   because a team of ten makes more commits than one person with the same
-  habits; the interval itself is not divided by it. It counts the distinct GitHub logins of the authors of the commits the
-  Mainline Interval counts (same window, each commit once), ignoring case, so
-  one person is one developer across the email addresses they commit with. A
+  habits; the interval itself is not divided by it. It counts the distinct GitHub logins of the authors of the commits
+  deployed in the window (the Mainline Interval's window, each commit once),
+  ignoring case, so
+  one person is one developer across the email addresses they commit with. The
+  first-parent chain does not apply here: the authors of the commits a merge
+  brought in count too, since on the chain alone it would count whoever merged
+  (decision 294 of forsgren#254). A
   bot account (a login ending in `[bot]`, such as `dependabot[bot]`) is no
   developer and its commits are left out. A commit without a login (GitHub
   links its email to no account, or it was stored by the commits format v1) is
@@ -861,7 +895,7 @@ last in the menu, "TBD"; `false` leaves it out.
   named, never who the developers are.
 - **Later.** There is no column for Mainline Lead Time yet. The legend says the
   two metrics are read together: the Mainline Interval shows how often the
-  commits that were deployed were made, by author date, in the window;
+  deployed commits landed on the main branch, by committer date, in the window;
   Mainline Lead Time will show how long a commit takes from its creation to
   reaching the main branch; a short interval with a long lead time points at
   long-lived branches.

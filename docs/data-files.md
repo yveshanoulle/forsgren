@@ -103,7 +103,8 @@ acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z,ada
   merge's first parent is the line it was made on, the second the line it
   brought in. Empty means none known: a commit stored before v3, or a root
   commit, which a comparison of two deployments does not reach. Only SHAs are
-  accepted.
+  accepted. The Mainline Interval follows the first parents and places those
+  commits at `committed_at` (see [The TBD page](pages-and-views.md#the-tbd-page)).
 - `committed_at` (format v3, forsgren#254) is the commit's git committer date
   (`commit.committer.date` of the answer), UTC, whole seconds: when the commit
   landed where it is now. Empty when GitHub gives none or the commit was stored
