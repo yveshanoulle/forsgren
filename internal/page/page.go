@@ -123,6 +123,11 @@ type Data struct {
 	// no collect has stored pull requests yet, so the TBD page says so in
 	// place of each Mainline Lead Time (forsgren#256, step 2).
 	PullsUncollected bool
+	// PushMeasures and DeployMeasures are the push and deployment measures
+	// of the TBD page's new columns, one per project in the same order; no
+	// template reads them yet (forsgren#397, step 4).
+	PushMeasures   []metrics.PushMeasures
+	DeployMeasures []metrics.DeployMeasures
 	// Developers are the Developers counts next to the Mainline Intervals,
 	// one per project in the same order (forsgren#273).
 	Developers []metrics.Developers

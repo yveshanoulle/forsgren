@@ -68,6 +68,15 @@ type Data struct {
 	// PullsDenied are the repositories whose pull request read GitHub
 	// refused, from data/pulls_denied.csv (forsgren#337).
 	PullsDenied history.Reach
+	// Pushes and PushCommits are the pushes to main of data/pushes.csv and
+	// the first-parent commits they brought, data/push_commits.csv, for the
+	// push measures (forsgren#397); PushesDenied are the repositories whose
+	// push read GitHub refused, from data/pushes_denied.csv, and
+	// PushesUncollected says there is no data/pushes.csv at all.
+	Pushes            []history.Push
+	PushCommits       []history.PushCommit
+	PushesDenied      history.Reach
+	PushesUncollected bool
 	// WorkingHours is the hours of a working day, which sets where the
 	// deployment frequency bands begin (forsgren#71).
 	WorkingHours int

@@ -65,8 +65,14 @@ type directTime struct {
 func MainlineDirects(projects []config.Project, data Data, now time.Time) []MainlineDirect {
 	counting := directCounting{index: indexOf(projects), lines: lineageOf(data.Commits),
 		pulled: mergeCommitsOf(data.Pulls)}
+	return directsOf(projects, firstDeployments(data.Commits, counting), data.window(), now)
+}
+
+// firstDeployments are the commits that counting accepts, by commitKey, each
+// at the earliest deployment that contains it.
+func firstDeployments(commits []history.Commit, counting directCounting) map[string]directTime {
 	first := map[string]directTime{}
-	for _, c := range data.Commits {
+	for _, c := range commits {
 		i, ok := counting.project(c)
 		key := commitKey(c.Repository, c.SHA)
 		if !ok {
@@ -76,7 +82,7 @@ func MainlineDirects(projects []config.Project, data Data, now time.Time) []Main
 			first[key] = directTime{c.DeployedAt, leadTimeOf(c), !counting.lines.known(c), i}
 		}
 	}
-	return directsOf(projects, first, data.window(), now)
+	return first
 }
 
 // directCounting is what says whether a stored commit is direct: the
@@ -167,10 +173,15 @@ type batch struct {
 // projects, from the data's stored commits at the render time now, over its
 // DORA window.
 func BatchSizes(projects []config.Project, data Data, now time.Time) []BatchSize {
-	index := indexOf(projects)
-	lines := lineageOf(data.Commits)
+	return batchSizesOf(projects, batchesOf(data.Commits, indexOf(projects)), data.window(), now)
+}
+
+// batchesOf are the deployments of the listed repositories' commits, each with
+// its first-parent commits.
+func batchesOf(commits []history.Commit, index projectIndex) map[deploymentKey]*batch {
+	lines := lineageOf(commits)
 	batches := map[deploymentKey]*batch{}
-	for _, c := range data.Commits {
+	for _, c := range commits {
 		i, ok := index.of(c.Repository)
 		if !ok {
 			continue
@@ -182,7 +193,7 @@ func BatchSizes(projects []config.Project, data Data, now time.Time) []BatchSize
 		_, counts := lines.place(c)
 		batches[k].commits += boolCount(counts)
 	}
-	return batchSizesOf(projects, batches, data.window(), now)
+	return batches
 }
 
 // batchSizesOf are the projects' BatchSizes over the deployments created in

@@ -156,6 +156,8 @@ func withHistory(data page.Data, cfg config.Config, path string, at time.Time) (
 	data.BatchSize = metrics.BatchSizes(cfg.Projects, metricsData, at)
 	data.PullsUncollected = absent(beside(path, collect.PullsFile))
 	data.Developers = metrics.MainlineDevelopers(cfg.Projects, metricsData, at, cfg.SameDeveloper)
+	data.PushMeasures = metrics.PushMeasuresOf(cfg.Projects, metricsData, at)
+	data.DeployMeasures = metrics.DeployMeasuresOf(cfg.Projects, metricsData, at)
 	events, err := issueEventsOf(path)
 	if err != nil {
 		return data, err
@@ -238,8 +240,12 @@ func metricsDataOf(cfg config.Config, path string) (metrics.Data, error) {
 	if err != nil {
 		return metrics.Data{}, err
 	}
-	return withPulls(metrics.Data{Records: records, Commits: commits, Failures: failures,
+	data, err := withPulls(metrics.Data{Records: records, Commits: commits, Failures: failures,
 		WorkingHours: cfg.WorkingHours, DoraDays: cfg.DoraDays, Reach: reach}, path)
+	if err != nil {
+		return metrics.Data{}, err
+	}
+	return withPushes(data, path)
 }
 
 // withPulls is data with what Mainline Lead Time reads beside the history at

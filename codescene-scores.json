@@ -81,6 +81,24 @@
    "minScore": 9.58
   },
   {
+   "path": "internal/metrics/pushmeasures.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-24",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/metrics/deploymeasures_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-24",
+   "minScore": 9.58
+  },
+  {
+   "path": "cmd/forsgren/render_pushes_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-24",
+   "minScore": 9.58
+  },
+  {
    "path": "internal/page/legend_history_test.go",
    "score": 9.92,
    "checkedAt": "2026-10-16",
@@ -2038,6 +2056,30 @@
   },
   {
    "path": "internal/history/pushcommits_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-24",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/pushmeasures_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-24",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/spread.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-24",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/renderpushes.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-24",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/deploymeasures.go",
    "score": 10.0,
    "checkedAt": "2026-10-24",
    "minScore": 10.0
