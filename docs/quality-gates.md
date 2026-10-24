@@ -651,10 +651,14 @@ The POST gates, on the generated site:
   be wider than the window, nor any table wider than the box it sits in
   (scrollWidth above clientWidth), each finding naming the page, the width and
   the overflow in pixels; one rule for every page with a table (the engine
-  `browser_gate v4`, decisions #365 and #380; the CLS stays measured at 1280x800 alone).
+  `browser_gate v5`, decisions #365 and #380; the CLS stays measured at 1280x800 alone).
   v4 = v3 plus the CLS interval from the load (default 1000 ms, no second read
   after axe) and the sideways measurement without scrollbar room (forsgren#377);
   the baseline format is unchanged, no migration.
+  v5 = v4 plus the exits (forsgren#381): Chrome is closed and its profile folder
+  removed on the end, an error, and SIGINT, SIGTERM or SIGHUP (exit 130, 143,
+  129); Chrome runs on a pipe; the wrapper forwards the signals to node and
+  waits. The findings and the exit statuses 0, 1 and 2 are unchanged.
   The TBD table (class `wraps`) has no minimum width and wraps its cells; every
   other table keeps its minimum width and scrolls inside its box (forsgren#38),
   and today's overflow of those is in the baselines as `sideways` rows

@@ -1,4 +1,4 @@
-// canon: browser_gate v4
+// canon: browser_gate v5
 // Scripts/browser_gate.mjs (forsgren#205)
 //
 // The browser gate's engine: serves a built site on 127.0.0.1 (loopback only),
@@ -10,6 +10,14 @@
 //
 // Changelog of the canon (the baseline format is the same in every version, so
 // no version needs a migration):
+//   v5 = v4 plus the exits (forsgren#381, found by another estate repository):
+//        Chrome is closed and its profile folder removed on every way out: the
+//        end, an error, and SIGINT, SIGTERM or SIGHUP (exit 130, 143, 129),
+//        through one idempotent release() (the browser closed in 5 s, then
+//        killed; the server; the profile). The mkdtemp and the launch sit
+//        inside the try, puppeteer's own signal handlers are off, and Chrome
+//        runs on a pipe, so it ends by itself if this process is killed with
+//        SIGKILL. The findings and the exit statuses 0, 1 and 2 are unchanged.
 //   v4 = v3 plus the CLS interval from the load (forsgren#377, decision #380):
 //        the observation interval (default 1000 ms) starts right after the
 //        page load, whatever the document checks and axe take, with no second
@@ -585,6 +593,38 @@ function attributeScript(attr) {
   })();`;
 }
 
+// What main() has open, so that every way out closes it: the end, an error
+// (release() in main's finally) and a signal (below). Whoever made the profile
+// directory removes it.
+const live = { browser: null, server: null, profile: null };
+const CLOSE_TIMEOUT_MS = 5000;
+let releasing = null;
+
+function release() {
+  releasing ||= (async () => {
+    const { browser, server, profile } = live;
+    if (browser) {
+      const child = browser.process();
+      let timer;
+      const closed = browser.close().catch(() => {});
+      const late = new Promise((resolve) => { timer = setTimeout(resolve, CLOSE_TIMEOUT_MS); });
+      await Promise.race([closed, late]);
+      clearTimeout(timer);
+      if (child && child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+    }
+    if (server) server.close();
+    if (profile) fs.rmSync(profile, { recursive: true, force: true });
+  })();
+  return releasing;
+}
+
+// A signal ends the run like an error would: close, remove, exit 128 + number.
+for (const [name, code] of [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]]) {
+  process.on(name, () => {
+    release().finally(() => process.exit(code));
+  });
+}
+
 async function checkPage(browser, origin, variant, pagePath, exceptions, baseline) {
   const page = await browser.newPage();
   await page.setViewport(VIEWPORT);
@@ -623,25 +663,31 @@ async function main() {
   const executablePath = chromePath();
 
   const server = await serve(siteDir);
+  live.server = server;
   const origin = `http://127.0.0.1:${server.address().port}`;
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-gate-'));
-  const browser = await puppeteer.launch({
-    executablePath,
-    headless: true,
-    userDataDir: profile,
-    args: CHROME_ARGS,
-    env: { PATH: '/usr/bin:/bin', HOME: profile, TMPDIR: profile, LANG: 'C' },
-  });
-  const version = await browser.version();
   const checks = [];
+  let version;
   try {
+    live.profile = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-gate-'));
+    live.browser = await puppeteer.launch({
+      executablePath,
+      headless: true,
+      userDataDir: live.profile,
+      args: CHROME_ARGS,
+      env: { PATH: '/usr/bin:/bin', HOME: live.profile, TMPDIR: live.profile, LANG: 'C' },
+      // The signals are handled above, once, with the profile; the pipe makes
+      // Chrome end by itself when this process dies without a chance to close it.
+      handleSIGINT: false,
+      handleSIGTERM: false,
+      handleSIGHUP: false,
+      pipe: true,
+    });
+    version = await live.browser.version();
     for (const variant of variants.values()) {
-      for (const pagePath of pages) checks.push(await checkPage(browser, origin, variant, pagePath, exceptions, baseline));
+      for (const pagePath of pages) checks.push(await checkPage(live.browser, origin, variant, pagePath, exceptions, baseline));
     }
   } finally {
-    await browser.close();
-    server.close();
-    fs.rmSync(profile, { recursive: true, force: true });
+    await release();
   }
 
   const findings = checks.flatMap((check) => check.findings);

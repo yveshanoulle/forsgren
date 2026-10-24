@@ -27,6 +27,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 OUT_FILE="$(mktemp)"
+FIFO_DIR="$(mktemp -d)"
+NODE_PID=""
 BUILT_SITE=""
 # On bash 3.2 an abort ends a script with an EXIT trap with status 0. COMPLETED,
 # set as the very last statement, is the only way out with 0 (forsgren#137).
@@ -34,6 +36,7 @@ COMPLETED=0
 finish() {
   local rc=$?
   rm -f "$OUT_FILE"
+  rm -rf "$FIFO_DIR"
   if [[ -n "$BUILT_SITE" ]]; then rm -rf "$BUILT_SITE"; fi
   if [ "$rc" -eq 0 ] && [ "$COMPLETED" -ne 1 ]; then
     echo "FAIL: gate_browser_fixture.sh aborted before completing (COMPLETED was never set)" >&2
@@ -41,6 +44,22 @@ finish() {
   fi
 }
 trap finish EXIT
+
+# A signal to this script goes to node, which closes Chrome and removes its
+# profile folder (forsgren#381); this script waits for it, then ends with 128
+# plus the signal number. Without that a killed wrapper leaves node and its
+# Chrome running.
+forward_signal() {
+  local name="$1" code="$2"
+  if [[ -n "$NODE_PID" ]]; then
+    kill -s "$name" "$NODE_PID" 2>/dev/null || true
+    wait "$NODE_PID" 2>/dev/null || true
+  fi
+  exit "$code"
+}
+trap 'forward_signal INT 130' INT
+trap 'forward_signal TERM 143' TERM
+trap 'forward_signal HUP 129' HUP
 
 # shellcheck source=Scripts/lib_site_settings.sh
 source Scripts/lib_site_settings.sh
@@ -73,9 +92,17 @@ if [[ -z "$SITE_DIR" ]]; then
 fi
 
 echo "browser gate: the site rendered from fixture data (forsgren#226)"
+# node runs in the background, its output through a fifo to tee, so that a
+# signal reaches this script's traps while it waits.
+mkfifo "$FIFO_DIR/out"
+tee "$OUT_FILE" < "$FIFO_DIR/out" &
+TEE_PID=$!
+node Scripts/browser_gate.mjs "$SITE_DIR" "$MANIFEST" "$EXCEPTIONS" "$BASELINE" "$VARIANTS" > "$FIFO_DIR/out" 2>&1 &
+NODE_PID=$!
 set +e
-node Scripts/browser_gate.mjs "$SITE_DIR" "$MANIFEST" "$EXCEPTIONS" "$BASELINE" "$VARIANTS" 2>&1 | tee "$OUT_FILE"
-rc=${PIPESTATUS[0]}
+wait "$NODE_PID"
+rc=$?
+wait "$TEE_PID"
 set -e
 
 if [[ "$rc" -ne 0 ]]; then

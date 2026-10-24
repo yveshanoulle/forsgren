@@ -9,6 +9,18 @@ Active work lives in
 
 ---
 
+## 2026-10-24 — The browser gate closes its Chrome and removes its profile on every exit ([#381](https://github.com/yveshanoulle/forsgren/issues/381), step 1 of 1)
+
+Another estate repository found a headless Chrome of the browser gate still running 25 hours after its run, with its profile folder. The engine closed the browser only in a `finally` after the pages, a signal skipped that, the launch sat outside the `try`, and the wrapper ran node in a pipe to `tee` with no trap. The same engine and wrapper pattern were here. The engine is now canon `browser_gate` v5, the wrapper `gate_browser` v3, its self-test `test_gate_browser` v4.
+- **Engine.** One `release()` closes the browser (five seconds, then a kill), the server and the profile folder, once. It runs in `finally` and on SIGINT, SIGTERM and SIGHUP, which exit 130, 143 and 129. The profile folder and the launch are inside the `try`, puppeteer's own signal handlers are off, and Chrome runs on a pipe, so it also ends when node is killed with SIGKILL. The findings and the exit statuses 0, 1 and 2 are unchanged.
+- **Wrappers.** `Scripts/gate_browser.sh` and `Scripts/gate_browser_fixture.sh` run node in the background, its output through a fifo to `tee`, forward SIGINT, SIGTERM and SIGHUP to it, wait, and exit 128 plus the signal number.
+- Red first: `Scripts/test_gate_browser.sh` cases 52a to 52f and 53 start the gate on a ten-look fixture, signal it once a page is open, and look for Chrome processes of that profile and for the profile folder. On v4: 52a, 52d and 52f left 7 Chrome processes, 52b and 52e exited 2, 52c ran to the end with 0. Mutations R (no handler: the profile folder stays) and S (no forwarding: Chrome stays alive) are red for those reasons. Nineteen mutations in all.
+- The two sites move to v5 in their own port issues.
+
+-- Lenka B
+
+---
+
 ## 2026-10-24 — The browser gate engine is canon v4 ([#377](https://github.com/yveshanoulle/forsgren/issues/377), step 1 of 1)
 
 forsgren issue 377, decisions #379 and #380 (A). The engine `Scripts/browser_gate.mjs` changed what it observes, so it is now canon `browser_gate` v4: the layout shift (CLS) interval, default 1000 ms, starts right after the page load, with no second read after axe, and the sideways measurement ignores scrollbar room. The baseline format is unchanged, no migration. The engine header carries the changelog; `docs/quality-gates.md`, `docs/gate-classification.md` and CLAUDE.md name v4. No self-test pins the version line, so there was no red.

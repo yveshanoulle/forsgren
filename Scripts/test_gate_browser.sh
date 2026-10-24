@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v3
+# canon: test_gate_browser v4
 # Scripts/test_gate_browser.sh (forsgren#205)
 #
 # Self-test for Scripts/gate_browser.sh, the browser gate, run in PRE before the
@@ -100,6 +100,14 @@
 #  51. case 41's table on a page that shows a 15 px page scrollbar -> red, still
 #      210 px (a measurement that reads the box beside the scrollbar says 225)
 #   Q. the scrollbar not hidden while measuring: case 51 says 225.
+# The exits (forsgren#381, browser_gate v5): Chrome closed and its profile
+# folder removed on every way out:
+#  52. SIGTERM, SIGINT, SIGHUP to the wrapper, SIGTERM to node (under the wrapper
+#      and alone) -> exit 143, 130, 129; no Chrome, no profile folder; SIGKILL
+#      to node -> Chrome ends with its pipe
+#  53. Chrome killed mid-run (an error) -> exit 2; no Chrome, no profile folder
+#   R. no signal handler in the engine: case 52e leaves the profile folder;
+#   S. the wrapper not forwarding the signal: case 52a leaves Chrome alive.
 
 set -euo pipefail
 
@@ -497,6 +505,118 @@ want_green "50: the CLS is read before the axe run, not after it" "OK:"
 run_gate scrollbar
 want_red "51: a page scrollbar does not change the measurement" "FAIL: light /: scrolls sideways at 390x844: table 1 is 210 px wider than its box"
 
+# 52-53: the browser is closed and its profile removed on every way out
+# (forsgren#381): a signal to the wrapper or to node, and an error.
+# A slow fixture (ten looks) keeps the gate busy; the signal comes once Chrome
+# is up. Every Chrome here is found by its own case's profile folder.
+make_site slow "$(page '' '')"
+: > "${TMP}/slow/variants.txt"
+for n in 1 2 3 4 5 6 7 8 9 10; do printf 'look%s|scheme:light\n' "$n" >> "${TMP}/slow/variants.txt"; done
+
+# signal_case <label> <target: self|node> <signal|error> <command...>: runs the
+# command on the slow fixture with its own TMPDIR, waits for Chrome, sends the
+# signal to the command (self) or to the node process under it (node), or kills
+# the Chrome (error), then waits for the end. Sets SIG_RC, SIG_CHROME (alive),
+# SIG_PROFILE (folders left), SIG_ENDED and SIG_OUT.
+signal_case() {
+  local label="$1" target="$2" sig="$3" tmpd pid target_pid
+  shift 3
+  tmpd="${TMP}/sig_${label}"
+  mkdir -p "$tmpd"
+  TMPDIR="$tmpd" perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' "$@" "${TMP}/slow/site" "${TMP}/slow/manifest.json" "${TMP}/slow/exceptions.txt" "${TMP}/slow/baseline.txt" "${TMP}/slow/variants.txt" > "${tmpd}.out" 2>&1 &
+  pid=$!
+  for _ in $(seq 1 150); do
+    # Up means a page is open: its renderer exists, the launch is over.
+    if pgrep -f -- "--user-data-dir=${tmpd}/browser-gate-.*--type=renderer" > /dev/null; then break; fi
+    sleep 0.2
+  done
+  target_pid="$pid"
+  if [[ "$target" == "node" ]]; then
+    target_pid="$(pgrep -f -- "node .*mjs ${TMP}/slow/site" | head -1)" || target_pid="$pid"
+  fi
+  if [[ "$sig" == "error" ]]; then
+    pkill -9 -f -- "--user-data-dir=${tmpd}/browser-gate-" || true
+  else
+    kill -s "$sig" "$target_pid" || true
+  fi
+  SIG_ENDED=1
+  for _ in $(seq 1 100); do
+    if ! kill -0 "$pid" 2> /dev/null; then break; fi
+    sleep 0.2
+  done
+  if kill -0 "$pid" 2> /dev/null; then
+    SIG_ENDED=0
+    kill -9 "$pid" || true
+  fi
+  wait "$pid" 2>/dev/null && SIG_RC=0 || SIG_RC=$?
+  for _ in $(seq 1 50); do
+    if ! pgrep -f -- "--user-data-dir=${tmpd}/browser-gate-" > /dev/null; then break; fi
+    sleep 0.2
+  done
+  SIG_CHROME="$({ pgrep -f -- "--user-data-dir=${tmpd}/browser-gate-" || true; } | wc -l | tr -d ' ')"
+  SIG_PROFILE="$(find "$tmpd" -maxdepth 1 -name 'browser-gate-*' | wc -l | tr -d ' ')"
+  SIG_OUT="$(cat "${tmpd}.out")"
+  # Whatever a failed case left behind is ours (found by its folder): clean up.
+  pkill -9 -f -- "--user-data-dir=${tmpd}/browser-gate-" || true
+  rm -rf "$tmpd"
+}
+
+# closed_verdict: "" when the last signal_case ended with status $1 and left no
+# Chrome and no profile folder, else the reason.
+closed_verdict() {
+  if [[ "$SIG_ENDED" -ne 1 ]]; then
+    echo "the gate was still running 20 s after the signal"
+  elif [[ "$SIG_RC" != "$1" ]]; then
+    echo "expected exit $1, got ${SIG_RC}"
+  elif [[ "$SIG_CHROME" -ne 0 ]]; then
+    echo "${SIG_CHROME} Chrome processes of the gate are still alive"
+  elif [[ "$SIG_PROFILE" -ne 0 ]]; then
+    echo "the profile folder is still there"
+  fi
+}
+
+# want_closed <case> <rc>: the last signal_case is closed_verdict-clean.
+want_closed() {
+  local why
+  why="$(closed_verdict "$2")"
+  if [[ -n "$why" ]]; then
+    fail "$1: ${why}. Output: ${SIG_OUT}"
+  else
+    echo "  ok: $1"
+  fi
+}
+
+# want_left <case> <rc> <reason>: the last signal_case is NOT clean, for that
+# reason (the mutation proofs: red BECAUSE of the line mutated).
+want_left() {
+  local why
+  why="$(closed_verdict "$2")"
+  if [[ "$why" == *"$3"* ]]; then
+    echo "  ok: $1"
+  else
+    fail "$1: wanted the reason '$3', got '${why}'. Output: ${SIG_OUT}"
+  fi
+}
+
+signal_case term_wrapper self TERM "$GATE"
+want_closed "52a: SIGTERM to the wrapper closes Chrome, removes the profile, exits 143" 143
+signal_case term_node node TERM "$GATE"
+want_closed "52b: SIGTERM to node under the wrapper: the same, exit 143" 143
+signal_case int_wrapper self INT "$GATE"
+want_closed "52c: SIGINT to the wrapper: exit 130" 130
+signal_case hup_wrapper self HUP "$GATE"
+want_closed "52d: SIGHUP to the wrapper: exit 129" 129
+signal_case term_engine self TERM node "$ENGINE"
+want_closed "52e: SIGTERM to the engine run by itself: exit 143" 143
+signal_case kill_node node KILL "$GATE"
+if [[ "$SIG_CHROME" -eq 0 ]]; then
+  echo "  ok: 52f: SIGKILL to node cannot be handled, but Chrome ends with its pipe"
+else
+  fail "52f: ${SIG_CHROME} Chrome processes outlived a killed node"
+fi
+signal_case chrome_killed self error "$GATE"
+want_closed "53: Chrome killed mid-run is an error (exit 2) and leaves no Chrome and no profile" 2
+
 # Mutation proofs: the engine copy is run directly, with the real node_modules.
 MUT="${TMP}/mutants"
 run_mutant() {
@@ -644,4 +764,21 @@ if selftest_mutant "$ENGINE" "${MUT}/q.mjs" "s/^  html.style.setProperty('scroll
   want_said "mutation proof Q: with the scrollbar kept, case 51 measures 225 px" "table 1 is 225 px wider than its box"
 fi
 
-selftest_end "the browser gate self-test failed" "browser gate: every case holds, seventeen mutations seen"
+# R: no signal handler in the engine (the event name is one no signal sends) ->
+# a SIGTERM kills the engine; Chrome ends with its pipe, the profile stays.
+if selftest_mutant "$ENGINE" "${MUT}/r.mjs" "s/process.on(name, /process.on(name + 'x', /"; then
+  signal_case mutant_r self TERM env FORSGREN_NODE_ROOT="$REPO_ROOT" node "${MUT}/r.mjs"
+  want_left "mutation proof R: without the handler case 52e leaves the profile" 143 "the profile folder is still there"
+fi
+
+# S: the wrapper does not forward the signal -> it ends, node and Chrome stay.
+WMUT="${TMP}/wmut"
+mkdir -p "${WMUT}/Scripts"
+cp Scripts/browser_gate.mjs Scripts/lib_site_settings.sh "${WMUT}/Scripts/"
+ln -s "${REPO_ROOT}/node_modules" "${WMUT}/node_modules"
+if selftest_mutant Scripts/gate_browser.sh "${WMUT}/Scripts/gate_browser.sh" 's/if \[\[ -n "[$]NODE_PID" \]\]; then/if false; then/'; then
+  signal_case mutant_s self TERM "${WMUT}/Scripts/gate_browser.sh"
+  want_left "mutation proof S: without forwarding case 52a leaves Chrome alive" 143 "Chrome processes of the gate are still alive"
+fi
+
+selftest_end "the browser gate self-test failed" "browser gate: every case holds, nineteen mutations seen"
