@@ -576,6 +576,41 @@ acme/app,2026-10-23T12:00:00Z,<40 hex>,<40 hex>,force_push,,
 - The data guard knows its name: a `pushes.csv` that git tracks or does not
   ignore, outside `testdata/` blocks the commit, like the other data files.
 
+**The commits of each push** (forsgren#397, step 3) are kept in
+`data/push_commits.csv`, next to the history, with its own format version
+(the push commits format v1):
+
+```
+# forsgren push commits v1
+repository,after,sha,author,authored_at
+acme/app,<40 hex>,<40 hex>,acme-dev,2026-10-23T09:30:00Z
+```
+
+- One line per commit a push brought to the first-parent chain: exactly the
+  commits that make the `commits` count of the push's line in `pushes.csv`,
+  from the same compare (no extra request), oldest first. `after` is the
+  push's `after` SHA, which with `repository` and `pushed_at` keys the push;
+  `sha` is the commit.
+- `author` is the GitHub login of the commit's author, empty when GitHub
+  links the commit to no account, only a login's shape accepted; never a name
+  or an email address. `authored_at` is the git author date, UTC, to the
+  second.
+- Held by repository (ignoring case), `after` and `sha`: a commit already in
+  the file is skipped. A push whose `commits` is empty (a force push, a
+  compare that failed or was cut) has no lines.
+- `collect` writes it before `pushes.csv` for the same repository, so a push
+  is never stored without its commits: when this file cannot be written, the
+  repository fails and its pushes are read again by the next run.
+- Pushes stored before this file existed have no lines and are not read
+  again for them: there is no backfill.
+- Otherwise the same rules as `commits.csv`: created with its version line,
+  appended only, refused untouched when its version is unknown or a line is
+  malformed, naming the line. An unreadable file refuses the collect run
+  before GitHub is asked anything.
+- The data guard knows its name: a `push_commits.csv` that git tracks or does
+  not ignore, outside `testdata/` blocks the commit, like the other data
+  files.
+
 **The pushes read mark** (forsgren#397) is kept in `data/pushes_read.csv`,
 next to the history, with its own format version (the pushes read format
 v1): one line per repository whose pushes were read to the end.
@@ -992,7 +1027,8 @@ default branch (`GET /repos/{owner}/{repo}/activity?ref=refs/heads/<branch>`,
 newest first) since its line in `data/pushes_read.csv` less a day, and stores
 the pushes, pull request merges and force pushes in `data/pushes.csv` (see
 [History](#history)), each with the number of commits it added to the
-first-parent chain from the compare of its two tips. A push already stored is
+first-parent chain from the compare of its two tips, and those commits in
+`data/push_commits.csv` (see [History](#history)). A push already stored is
 not compared again.
 
 - A compare that fails or is cut leaves `commits` empty and is named on

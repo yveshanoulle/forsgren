@@ -66,6 +66,14 @@ func linePush(when, before, after, kind, bot, commits string) string {
 	return fmt.Sprintf("acme/app,%s,%s,%s,%s,%s,%s\n", when, before, after, kind, bot, commits)
 }
 
+const pushCommitsHeader = "# forsgren push commits v1\nrepository,after,sha,author,authored_at\n"
+
+// linePC is the push_commits.csv line of the commit sha of the push of
+// acme/app that ended at after.
+func linePC(after, sha, author, authored string) string {
+	return fmt.Sprintf("acme/app,%s,%s,%s,%s\n", after, sha, author, authored)
+}
+
 const (
 	pushTime1 = "2026-09-20T10:00:00Z"
 	pushTime2 = "2026-09-21T10:00:00Z"
@@ -85,7 +93,7 @@ func TestCollectStoresEachPushWithTheCommitsItAddedToTheFirstParentChain(t *test
 	g.bodies[comparePath(shaA, shaD)] = chain(shaA, shaB, shaC, shaD)
 	g.bodies[comparePath(shaD, shaF)] = comparisonOf("ahead", 2,
 		lineage{authoredBy{authored{shaE, at(21, 8, 0)}, ""}, []string{shaD}, ""},
-		lineage{authoredBy{authored{shaF, at(21, 9, 0)}, ""}, []string{shaD, shaE}, ""})
+		lineage{authoredBy{authored{shaF, at(21, 9, 0)}, "acme-dev"}, []string{shaD, shaE}, ""})
 	path := historyPath(t)
 	r := g.collect(t, shop(production), path, github.DefaultMaxPages)
 	wantStdout(t, r, "acme/app: 0 new, 0 skipped (not final), 0 commits, 2 pushes\n")
@@ -94,6 +102,9 @@ func TestCollectStoresEachPushWithTheCommitsItAddedToTheFirstParentChain(t *test
 		linePush(pushTime2, shaD, shaF, "pr_merge", "true", "1"))
 	data.want(t, PushesReadFile, pushesReadNow)
 	data.want(t, PushesDeniedFile, "")
+	data.want(t, PushCommitsFile, pushCommitsHeader+
+		linePC(shaD, shaB, "", "2026-09-20T08:00:00Z")+linePC(shaD, shaC, "", "2026-09-20T09:00:00Z")+
+		linePC(shaD, shaD, "", "2026-09-20T10:00:00Z")+linePC(shaF, shaF, "acme-dev", "2026-09-21T09:00:00Z"))
 	if got := g.seen(activityPath); len(got) != 1 || !strings.Contains(got[0], "ref=refs%2Fheads%2Fmain") {
 		t.Errorf("want one read of main's activity, got %v", got)
 	}
@@ -349,7 +360,7 @@ func TestTheFirstParentCountEndsAtARootCommitAndAtACycle(t *testing.T) {
 		"cycle":     {[]github.Commit{loop}, shaC, 1},
 		"not in it": {[]github.Commit{root}, shaD, 0},
 	} {
-		if got := firstParentCommits(c.commits, c.tip); got != c.want {
+		if got := int64(len(firstParentChain(c.commits, c.tip))); got != c.want {
 			t.Errorf("%s: want %d, got %d", name, c.want, got)
 		}
 	}
