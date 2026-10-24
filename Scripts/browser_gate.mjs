@@ -18,8 +18,10 @@
 //        inside the try, puppeteer's own signal handlers are off, and Chrome
 //        runs on a pipe, so it ends by itself if this process is killed with
 //        SIGKILL. The profile folder is removed with retries, since Chrome's
-//        helpers can still write into it a moment after a signal that came
-//        during the first page (forsgren#383, before any copy took v5). The
+//        helpers can still write into it after the browser closed: the whole
+//        process group of Chrome is killed and the folder removed only when
+//        the group is empty, bounded and loud, and a signal during the launch
+//        waits for the launch (forsgren#383, before any copy took v5). The
 //        findings and the exit statuses 0, 1 and 2 are unchanged.
 //   v4 = v3 plus the CLS interval from the load (forsgren#377, decision #380):
 //        the observation interval (default 1000 ms) starts right after the
@@ -599,13 +601,50 @@ function attributeScript(attr) {
 // What main() has open, so that every way out closes it: the end, an error
 // (release() in main's finally) and a signal (below). Whoever made the profile
 // directory removes it.
-const live = { browser: null, server: null, profile: null };
+const live = { browser: null, launching: null, server: null, profile: null };
 const CLOSE_TIMEOUT_MS = 5000;
 let releasing = null;
 
+// Chrome's helper processes (GPU, network, renderers) belong to the process
+// group of the browser, which puppeteer starts as its own group leader. The
+// browser closing does not mean they are gone: one that is still running writes
+// into the profile folder again after it was removed (forsgren#383). So the
+// whole group is killed, and the folder is removed only once the group is empty.
+const GROUP_GONE_TIMEOUT_MS = 10000;
+
+function groupAlive(pgid) {
+  try {
+    process.kill(-pgid, 0);
+    return true;
+  } catch (error) {
+    return error.code === 'EPERM';
+  }
+}
+
+async function endChromeGroup(pgid) {
+  try { process.kill(-pgid, 'SIGKILL'); } catch { /* the group is already gone */ }
+  const deadline = Date.now() + GROUP_GONE_TIMEOUT_MS;
+  while (groupAlive(pgid)) {
+    if (Date.now() > deadline) throw new Error(`Chrome processes of group ${pgid} still run ${GROUP_GONE_TIMEOUT_MS / 1000} s after SIGKILL`);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
+// A signal during the launch finds no browser yet, although Chrome runs: wait
+// for the launch (bounded), so that this browser is closed too.
+async function launched() {
+  if (!live.launching) return null;
+  let timer;
+  const late = new Promise((resolve) => { timer = setTimeout(() => resolve(null), GROUP_GONE_TIMEOUT_MS * 3); });
+  const browser = await Promise.race([live.launching.catch(() => null), late]);
+  clearTimeout(timer);
+  return browser;
+}
+
 function release() {
   releasing ||= (async () => {
-    const { browser, server, profile } = live;
+    const { server, profile } = live;
+    const browser = live.browser || await launched();
     if (browser) {
       const child = browser.process();
       let timer;
@@ -613,12 +652,12 @@ function release() {
       const late = new Promise((resolve) => { timer = setTimeout(resolve, CLOSE_TIMEOUT_MS); });
       await Promise.race([closed, late]);
       clearTimeout(timer);
-      if (child && child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+      if (child && child.pid) await endChromeGroup(child.pid);
     }
     if (server) server.close();
-    // Chrome's helper processes can still write into the profile for a moment
-    // after the browser closed (a signal during the first page): retry, so the
-    // folder is gone when the run ends (forsgren#383).
+    // No Chrome process of the group is left (endChromeGroup), so nothing writes
+    // into the profile any more; the retries cover only a slow file system
+    // (forsgren#383).
     if (profile) fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   })();
   return releasing;
@@ -627,7 +666,10 @@ function release() {
 // A signal ends the run like an error would: close, remove, exit 128 + number.
 for (const [name, code] of [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]]) {
   process.on(name, () => {
-    release().finally(() => process.exit(code));
+    release().then(() => process.exit(code), (error) => {
+      console.error(`browser gate: cleanup after ${name} failed: ${error.message}`);
+      process.exit(2);
+    });
   });
 }
 
@@ -675,7 +717,7 @@ async function main() {
   let version;
   try {
     live.profile = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-gate-'));
-    live.browser = await puppeteer.launch({
+    live.launching = puppeteer.launch({
       executablePath,
       headless: true,
       userDataDir: live.profile,
@@ -688,6 +730,7 @@ async function main() {
       handleSIGHUP: false,
       pipe: true,
     });
+    live.browser = await live.launching;
     version = await live.browser.version();
     for (const variant of variants.values()) {
       for (const pagePath of pages) checks.push(await checkPage(live.browser, origin, variant, pagePath, exceptions, baseline));
