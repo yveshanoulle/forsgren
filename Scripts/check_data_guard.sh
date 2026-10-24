@@ -101,7 +101,7 @@ in_testdata() {
 # mutates this list by that shape (it deletes the history.csv arm, then the
 # deployments.csv arm, then the commits.csv arm, then the failures.csv arm,
 # then the issues.csv arm, then the issues_full.csv, failures_read.csv,
-# failures_withdrawn.csv, issue_bugs.csv, issue_bugs_cut.csv, reach.csv, cut_runs.csv, starts_checked.csv, commits_backfilled.csv, pulls.csv, pulls_read.csv and pulls_denied.csv arms, and quotes every arm whose pattern holds a
+# failures_withdrawn.csv, issue_bugs.csv, issue_bugs_cut.csv, reach.csv, cut_runs.csv, starts_checked.csv, commits_backfilled.csv, pulls.csv, pulls_read.csv, pulls_denied.csv, pushes.csv, pushes_read.csv and pushes_denied.csv arms, and quotes every arm whose pattern holds a
 # `*` so that it matches only literally).
 guarded_reason() {
   local why=""
@@ -123,6 +123,9 @@ guarded_reason() {
     pulls.csv) why="the merged pull requests forsgren collect keeps for Mainline Lead Time (data/pulls.csv in an installation)" ;;
     pulls_read.csv) why="when each repository's closed pull requests were last read, which forsgren collect keeps (data/pulls_read.csv in an installation)" ;;
     pulls_denied.csv) why="which repositories' pull request reads GitHub refused, which forsgren collect keeps (data/pulls_denied.csv in an installation)" ;;
+    pushes.csv) why="the pushes to each repository's main branch forsgren collect keeps for time to main and batch size (data/pushes.csv in an installation)" ;;
+    pushes_read.csv) why="when each repository's pushes were last read, which forsgren collect keeps (data/pushes_read.csv in an installation)" ;;
+    pushes_denied.csv) why="which repositories' push reads GitHub refused, which forsgren collect keeps (data/pushes_denied.csv in an installation)" ;;
     *.history.csv) why="a per-service or per-installation history file" ;;
     forsgren.config.*) why="an installation's forsgren configuration, by its own name" ;;
     forsgren-config.*) why="the same configuration, hyphenated" ;;

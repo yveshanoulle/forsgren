@@ -23,6 +23,7 @@ func sampleReport() Report {
 		},
 		PullsCut:    []string{"acme/shop"},
 		BackfillCut: []string{"acme/lib"},
+		PushesCut:   []string{"acme/api"},
 		Failed:      []Failed{{"acme/web", FailedSecondary}},
 		Reset:       time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC),
 	}
@@ -34,6 +35,7 @@ const sampleText = "# forsgren collect report v1\n" +
 	"cut acme/docs kept=none recent=discarded issues=unread progress=stalled\n" +
 	"pulls-cut acme/shop\n" +
 	"backfill-cut acme/lib\n" +
+	"pushes-cut acme/api\n" +
 	"failed acme/web secondary-rate-limit\n"
 
 // TestAReportIsWrittenAsItsFileAndReadBack (forsgren#64, step 3b): the file
@@ -63,6 +65,7 @@ func TestAReportIsIncompleteForOneKindOfCutAlone(t *testing.T) {
 	for line, r := range map[string]Report{
 		"pulls-cut acme/app\n":    {PullsCut: []string{"acme/app"}, Reset: reset},
 		"backfill-cut acme/app\n": {BackfillCut: []string{"acme/app"}, Reset: reset},
+		"pushes-cut acme/app\n":   {PushesCut: []string{"acme/app"}, Reset: reset},
 	} {
 		if got := r.Render(); got != head+line {
 			t.Errorf("want\n%q\ngot\n%q", head+line, got)
@@ -91,6 +94,8 @@ func TestAFileThatIsNoReportIsRefused(t *testing.T) {
 		"long pulls":     head + "complete\npulls-cut acme/app kept=none\n",
 		"short backfill": head + "complete\nbackfill-cut\n",
 		"long backfill":  head + "complete\nbackfill-cut acme/app kept=none\n",
+		"short pushes":   head + "complete\npushes-cut\n",
+		"long pushes":    head + "complete\npushes-cut acme/app kept=none\n",
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := ParseReport(text); !errors.Is(err, ErrReport) {

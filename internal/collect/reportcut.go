@@ -56,6 +56,14 @@ func (o Options) reportPullsCut(repo string) {
 	}
 }
 
+// reportPushesCut adds repo, whose pushes alone the budget cut short, to the
+// report (forsgren#397).
+func (o Options) reportPushesCut(repo string) {
+	if o.Report != nil {
+		o.Report.PushesCut = append(o.Report.PushesCut, repo)
+	}
+}
+
 // reportFailed adds repo, failed with err, to the report, by which rate limit
 // it was.
 func (o Options) reportFailed(repo string, err error) {

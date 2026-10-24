@@ -32,8 +32,8 @@ configuration (which repositories and services, workflow names, labels, the
 health URL) and its data (`data/deployments.csv`, the deployments fetched
 from GitHub, `data/commits.csv`, their commits, `data/failures.csv`,
 the failure issues, `data/issues.csv`, what happened to every issue,
-`data/issue_bugs.csv`, which issues carry the `bug` label, and `data/pulls.csv`,
-the merged pull requests) in a separate private
+`data/issue_bugs.csv`, which issues carry the `bug` label, `data/pulls.csv`,
+the merged pull requests, and `data/pushes.csv`, the pushes to main) in a separate private
 data repository, made from a template, and
 passes them to forsgren as paths. Test fixtures are made up (`acme/app`) and live only
 under `testdata/`.
@@ -534,6 +534,102 @@ acme/app,2026-10-23T06:00:00Z
   not ignore, outside `testdata/` blocks the commit, like the other data
   files.
 
+**The pushes to main**, for time to main and batch size per push
+(forsgren#397, decision #400), are kept in `data/pushes.csv`, next to the
+history, with its own format version (the pushes format v1):
+
+```
+# forsgren pushes v1
+repository,pushed_at,before,after,kind,bot,commits
+acme/app,2026-10-23T10:00:00Z,<40 hex>,<40 hex>,push,false,3
+acme/app,2026-10-23T11:30:00Z,<40 hex>,<40 hex>,pr_merge,true,1
+acme/app,2026-10-23T12:00:00Z,<40 hex>,<40 hex>,force_push,,
+```
+
+- One line per push to the repository's default branch, from GitHub's
+  repository activity list. No login and no actor name is stored: only
+  whether a bot made the push.
+- `repository` is `owner/name`; `pushed_at` is the push's time, UTC, to the
+  second; `before` and `after` are the branch's tip before and after the
+  push, 40 or 64 lower-case hex digits.
+- `kind` is `push` (a direct push), `pr_merge` (a pull request merge) or
+  `force_push`; GitHub's other kinds of activity (a branch created or
+  deleted, a merge queue merge) are not stored.
+- `bot` is `true` when GitHub's account type of the actor is `Bot`, `false`
+  only for `User`, and empty when it is not known. Empty is never read as a
+  person.
+- `commits` is the number of commits the push added to the first-parent
+  chain: the compare of `before...after`, walked from `after` through each
+  first parent while it is a commit of the compare. A straight push of three
+  commits is 3, a merge commit that brought a branch in is 1. It is empty
+  when the number cannot be told, never a guessed one: the compare failed
+  (no ancestor, a commit GitHub does not have), was cut at GitHub's or the
+  page limit, or did not reach `after`; and always for a `force_push`, which
+  asks for no compare. `collect` names each such push on stderr.
+- Held by repository (ignoring case), `after` and `pushed_at`: a push
+  already in the file is skipped, the first line staying whatever a later
+  read says. The new lines of a run are in time order.
+- Otherwise the same rules as `pulls.csv`: created with its version line,
+  appended only, refused untouched when its version is unknown or a line is
+  malformed, naming the line. An unreadable file refuses the collect run
+  before GitHub is asked anything.
+- The data guard knows its name: a `pushes.csv` that git tracks or does not
+  ignore, outside `testdata/` blocks the commit, like the other data files.
+
+**The pushes read mark** (forsgren#397) is kept in `data/pushes_read.csv`,
+next to the history, with its own format version (the pushes read format
+v1): one line per repository whose pushes were read to the end.
+
+```
+# forsgren pushes read v1
+repository,read_at
+acme/app,2026-10-23T06:00:00Z
+```
+
+- `read_at` is the start of the run that last read the repository's pushes,
+  in UTC, to the second. Lines are sorted by repository.
+- The next run reads the pushes since that time less a day (never before
+  `history_days` back); a repository without a line reads back to
+  `history_days`.
+- The line moves only after a read that ended: a read that a missing
+  permission, the request budget or an error stopped keeps the line as it
+  was. A list cut at the page limit moves it, with a note on stderr that
+  older pushes may be skipped for good.
+- Rewritten whole like `data/reach.csv`, and only when a line changed. A
+  missing file notes no repository. An unknown version or a malformed line
+  refuses the collect run before GitHub is asked anything, naming the file.
+- The data guard knows its name: a `pushes_read.csv` that git tracks or does
+  not ignore, outside `testdata/` blocks the commit, like the other data
+  files.
+
+**The pushes denied mark** (forsgren#397) is kept in `data/pushes_denied.csv`,
+next to the history, with its own format version (the pushes denied format
+v1): one line per repository whose push read GitHub refused.
+
+```
+# forsgren pushes denied v1
+repository,denied_at
+acme/app,2026-10-23T06:00:00Z
+```
+
+- `repository` is `owner/name` in lower case; `denied_at` is the start of the
+  run that GitHub last refused the read, in UTC, to the second. No token and
+  no error text is stored. Lines are sorted by repository.
+- Written when GitHub answers the activity list with a 403 that is not the
+  rate limit: the token cannot read the repository's contents (no
+  `contents: read`). A later refused run moves the time.
+- Cleared, the repository's line removed, after a push read that ends without
+  an error: pushes, none, or a list cut at the page limit. A budget stop or
+  any other error leaves the file as it was.
+- No page reads it yet: a later step shows the push columns as not readable
+  for a project with a repository named here.
+- Rewritten whole like `data/reach.csv`, and only when a line changed. A
+  missing file notes no repository. An unknown version or a malformed line
+  refuses the collect run before GitHub is asked anything, naming the file.
+- The data guard knows its name: a `pushes_denied.csv` that git tracks or does
+  not ignore, outside `testdata/` blocks the commit, like the other data
+  files.
+
 ## Collecting deployments (`collect`)
 
 ```
@@ -890,6 +986,36 @@ first, and stores the merged ones in `data/pulls.csv` (see
 - Any other error fails the repository, after its deployments and issues are
   stored.
 
+**The pushes to main** (forsgren#397). After a repository's deployments,
+issues and pull requests are stored, `collect` reads the activity of its
+default branch (`GET /repos/{owner}/{repo}/activity?ref=refs/heads/<branch>`,
+newest first) since its line in `data/pushes_read.csv` less a day, and stores
+the pushes, pull request merges and force pushes in `data/pushes.csv` (see
+[History](#history)), each with the number of commits it added to the
+first-parent chain from the compare of its two tips. A push already stored is
+not compared again.
+
+- A compare that fails or is cut leaves `commits` empty and is named on
+  stderr, with the repository and the two tips; it never fails the repository.
+  A force push is stored without a compare.
+- **Without the contents permission** (a 403 that is not the rate limit)
+  nothing fails: stderr names the missing permission, the mark stays, and the
+  repository gets a line in `data/pushes_denied.csv` (see
+  [History](#history)). Contents (read) is the permission every rule already
+  needs for comparing commits (GitHub's reference lists it for the repository
+  activity list, for fine-grained tokens and for the job token alike), so no
+  new grant is asked for and the setup issue has no new item.
+- At the request budget the pushes compared so far are stored and the mark
+  stays, so the next run reads the rest; the repository is not failed, and a
+  `pushes-cut` line of the cut report says so (see below). A
+  first read of a busy repository costs one compare request per push.
+- A list cut at the page limit is an incomplete read: stderr says so, and
+  that older pushes may be skipped for good, since the mark moves.
+- Any other error fails the repository, after its deployments, issues and
+  pull requests were stored.
+- The branch read is the repository's default branch, asked of GitHub once
+  per repository and run (the `workflow=` rule shares the request).
+
 **The token.** `collect` reads the token from the environment variable
 `FORSGREN_TOKEN` only (never a flag) and sends it only as an
 `Authorization: Bearer` header to `api.github.com`: never in a URL, never in
@@ -942,12 +1068,13 @@ incomplete resets=2026-10-01T01:00:00Z
 cut acme/app kept=2026-06-22 recent=discarded issues=unread progress=stalled
 pulls-cut acme/shop
 backfill-cut acme/lib
+pushes-cut acme/api
 failed acme/web secondary-rate-limit
 ```
 
 - The second line is `complete`, or `incomplete resets=<UTC RFC 3339>` when
-  any repository, its pull requests or its backfill of the legacy commits was
-  cut short at the request budget.
+  any repository, its pull requests, its backfill of the legacy commits or its
+  pushes was cut short at the request budget.
 - A `cut` line names such a repository: `kept` is the UTC day its read mark
   moved to (`none` when it kept no day), `recent` what became of the read of
   what is new (`read` whole, `kept` in part, `discarded`), `issues` is always
@@ -965,6 +1092,12 @@ failed acme/web secondary-rate-limit
   request budget cut short (forsgren#385): incomplete, never failed, and the
   job summary says `acme/lib legacy commits cut short (deployments, issues and
   pull requests read)`. What it filled is stored, and the next run continues.
+- A `pushes-cut` line names a repository whose deployments, issues and pull
+  requests were read whole but whose pushes to the default branch the request
+  budget cut short (forsgren#397): incomplete, never failed, and the job
+  summary says `acme/api pushes cut short (deployments, issues and pull
+  requests read)`. The pushes compared are stored, and the next run reads the
+  rest.
 - A `failed` line names a repository that failed: `primary-rate-limit`,
   `secondary-rate-limit` or `error`.
 

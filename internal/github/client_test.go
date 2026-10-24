@@ -210,7 +210,7 @@ func TestMalformedJSONNamesTheRepository(t *testing.T) {
 			f := newFake(t)
 			paths := []string{deploymentsPath, statusesPath, "/repos/acme/app", runsPath, releasesPath, comparePath,
 				issuesPath, commentsPath, "/repos/acme/app/releases/latest",
-				"/repos/acme/app/pulls", pullCommitsPath}
+				"/repos/acme/app/pulls", pullCommitsPath, "/repos/acme/app/activity"}
 			for _, path := range paths {
 				f.on(path, reply{body: `[{"id": "not a number"`})
 			}

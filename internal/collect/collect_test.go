@@ -3,6 +3,7 @@ package collect
 import (
 	"errors"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -275,6 +276,9 @@ func TestEachFailingCallFailsItsRepository(t *testing.T) {
 			g := newGitHub(t)
 			for path, body := range c.bodies {
 				g.bodies[path] = body
+			}
+			if name == "default branch" {
+				g.bodies["/repos/acme/app"], g.status["/repos/acme/app"] = `{"message":"Not Found"}`, http.StatusNotFound
 			}
 			path := historyPath(t)
 			r := g.collect(t, shop(repository("acme/app", c.kind, "deploy.yml")), path, github.DefaultMaxPages)

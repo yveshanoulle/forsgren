@@ -9,6 +9,12 @@
    "minScore": 9.0
   },
   {
+   "path": "internal/collect/pushes_test.go",
+   "score": 9.09,
+   "checkedAt": "2026-10-24",
+   "minScore": 9.0
+  },
+  {
    "path": "internal/collect/cutshort_test.go",
    "score": 9.38,
    "checkedAt": "2026-10-23",
@@ -1972,6 +1978,42 @@
   },
   {
    "path": "internal/metrics/mainlinecells_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-24",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/pushes.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-24",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/pushes.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-24",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/pushes_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-24",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/pushes.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-24",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/pushesmarks.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-24",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/pushes_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-24",
    "minScore": 10.0

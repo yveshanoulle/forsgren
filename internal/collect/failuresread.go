@@ -37,7 +37,7 @@ type markFile struct {
 	save func(path string, r history.Reach) error
 }
 
-// markFiles are h's nine marks, in the order they are loaded and saved: how
+// markFiles are h's eleven marks, in the order they are loaded and saved: how
 // far each repository was read (reach, chunk.go), when its issues were last
 // read (read), whether they were read in full (full, issueevents.go) and
 // where its bug read was cut (cut, bugflags.go) and since when it has been
@@ -45,7 +45,9 @@ type markFile struct {
 // which repositories had their failure starts caught up from the comments
 // (checked, startscatchup.go) and when its closed pull requests were last
 // read (pullsRead, pulls.go) and whether that read was last refused (denied,
-// pulls.go) and which repositories had their legacy commits backfilled
+// pulls.go) and when its pushes to main were last read (pushesRead,
+// pushes.go) and whether that read was last refused (pushesDenied,
+// pushes.go) and which repositories had their legacy commits backfilled
 // (backfilled, legacybackfill.go).
 func (o Options) markFiles(h *held) []markFile {
 	return []markFile{
@@ -57,6 +59,8 @@ func (o Options) markFiles(h *held) []markFile {
 		{&h.checked, o.startsCheckedFile(), history.LoadStartsChecked, history.SaveStartsChecked},
 		{&h.pullsRead, o.pullsReadFile(), history.LoadPullsRead, history.SavePullsRead},
 		{&h.denied, o.pullsDeniedFile(), history.LoadPullsDenied, history.SavePullsDenied},
+		{&h.pushesRead, o.pushesReadFile(), history.LoadPushesRead, history.SavePushesRead},
+		{&h.pushesDenied, o.pushesDeniedFile(), history.LoadPushesDenied, history.SavePushesDenied},
 		{&h.backfilled, o.commitsBackfilledFile(), history.LoadCommitsBackfilled, history.SaveCommitsBackfilled},
 	}
 }

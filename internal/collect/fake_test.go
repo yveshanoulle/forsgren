@@ -94,8 +94,8 @@ func (g *gitHub) serve(w http.ResponseWriter, r *http.Request) {
 	g.used++
 	key := keyOf(r)
 	body, ok := g.bodies[key]
-	if !ok && listsNothingByDefault(r.URL.Path) {
-		body, ok = "[]", true
+	if !ok {
+		body, ok = answerByDefault(r.URL.Path)
 	}
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
@@ -111,10 +111,10 @@ func (g *gitHub) serve(w http.ResponseWriter, r *http.Request) {
 
 // listsNothingByDefault says whether the fake answers an empty list to the
 // path when it has no body for it: a repository's issues, an issue's
-// comments and a repository's pull requests (forsgren#255).
+// comments, a repository's pull requests (forsgren#255) and its activity (forsgren#397).
 func listsNothingByDefault(path string) bool {
 	return strings.HasSuffix(path, "/issues") || strings.HasSuffix(path, "/comments") ||
-		strings.HasSuffix(path, "/pulls")
+		strings.HasSuffix(path, "/pulls") || strings.HasSuffix(path, "/activity")
 }
 
 // allIssues marks the fake's answers to a repository's issues listed
@@ -274,4 +274,23 @@ func record(kind history.Kind, name string, id int64, commit string, created tim
 	task string) history.Record {
 	return history.Record{Project: "Shop", Repository: "acme/app", Kind: kind, Name: name, ID: id, Commit: commit,
 		CreatedAt: created, State: state, Task: task}
+}
+
+// isRepositoryPath says whether path is a repository itself, /repos/<owner>/<name>.
+func isRepositoryPath(path string) bool {
+	rest, ok := strings.CutPrefix(path, "/repos/")
+	return ok && strings.Count(rest, "/") == 1
+}
+
+// answerByDefault is the fake's answer to a path it has no body for: an
+// empty list where collect reads a list, and a default branch of main for a
+// repository itself (forsgren#397: the push read asks for it).
+func answerByDefault(path string) (string, bool) {
+	switch {
+	case listsNothingByDefault(path):
+		return "[]", true
+	case isRepositoryPath(path):
+		return `{"default_branch": "main"}`, true
+	}
+	return "", false
 }

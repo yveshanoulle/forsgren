@@ -152,6 +152,9 @@ func (o Options) loadFiles(h held) (held, error) {
 	if h, err = o.loadPulls(h); err != nil {
 		return h, err
 	}
+	if h, err = o.loadPushes(h); err != nil {
+		return h, err
+	}
 	return o.loadMarks(h)
 }
 
@@ -210,6 +213,9 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	h.noteBugsCut(r.Name, lines.bugsCut, o.Now)
 	h.noteStartsDone(r.Name)
 	stored.pulls, err = o.collectPulls(ctx, h, r.Name)
+	if err == nil {
+		stored.pushes, err = o.collectPushes(ctx, h, r.Name)
+	}
 	o.report(r.Name, d.found, stored)
 	if err != nil {
 		return err
@@ -265,6 +271,9 @@ func (o Options) report(repo string, f found, stored counts) {
 	if stored.pulls > 0 {
 		line += fmt.Sprintf(", %d merged pull requests", stored.pulls)
 	}
+	if stored.pushes > 0 {
+		line += fmt.Sprintf(", %d pushes", stored.pushes)
+	}
 	_, _ = fmt.Fprintln(o.Stdout, line)
 }
 
@@ -279,8 +288,8 @@ type batch struct {
 }
 
 // counts is how many lines of each file a batch stored, and how many merged
-// pull requests the repository stored after it.
-type counts struct{ deployments, commits, failures, pulls int }
+// pull requests and pushes the repository stored after it.
+type counts struct{ deployments, commits, failures, pulls, pushes int }
 
 // store appends one repository's commits, then its failure issues, then its
 // issue events, then their bug flags, then its deployments, and says how many
@@ -432,7 +441,7 @@ func newer(a, b github.DeploymentStatus) bool {
 
 // workflow reads the runs of one workflow on the default branch.
 func (o Options) workflow(ctx context.Context, h held, base history.Record, span github.Span) (found, error) {
-	branch, err := o.Client.DefaultBranch(ctx, base.Repository)
+	branch, err := o.defaultBranch(ctx, h, base.Repository)
 	if err != nil {
 		return found{}, cutAt(err, time.Time{})
 	}
@@ -521,27 +530,31 @@ type entry struct {
 // issueevents.go); and the repositories whose full read stopped at its page
 // cap this run (partial).
 type held struct {
-	ids        map[entry]bool
-	newest     map[source]time.Time
-	oldest     map[source]time.Time // the oldest stored deployment of each source
-	successes  map[history.Stream][]history.Record
-	failures   map[history.IssueKey]history.Failure
-	lastEvents map[history.IssueKey]history.IssueEvent
-	withdrawn  map[history.IssueKey]bool // the failure issues their newest withdrawal line withdraws
-	catchUp    *catchUp                  // nil, or the catch-up of a run that found no withdrawn file
-	reach      history.Reach             // see chunk.go
-	read       history.Reach             // see failuresread.go
-	full       history.Reach             // see issueevents.go
-	cut        history.Reach             // see bugflags.go
-	cutRuns    history.Reach             // see report.go
-	checked    history.Reach             // see startscatchup.go
-	pullsRead  history.Reach             // see pulls.go
-	denied     history.Reach             // see pulls.go: the refused pull request reads
-	backfilled history.Reach             // see legacybackfill.go
-	pulls      map[history.IssueKey]bool // the pull requests pulls.csv holds
-	startsDone map[string]bool           // the repositories caught up in this run
-	filledDone map[string]bool           // the repositories whose legacy commits were backfilled in this run
-	partial    map[string]bool
+	ids          map[entry]bool
+	newest       map[source]time.Time
+	oldest       map[source]time.Time // the oldest stored deployment of each source
+	successes    map[history.Stream][]history.Record
+	failures     map[history.IssueKey]history.Failure
+	lastEvents   map[history.IssueKey]history.IssueEvent
+	withdrawn    map[history.IssueKey]bool // the failure issues their newest withdrawal line withdraws
+	catchUp      *catchUp                  // nil, or the catch-up of a run that found no withdrawn file
+	reach        history.Reach             // see chunk.go
+	read         history.Reach             // see failuresread.go
+	full         history.Reach             // see issueevents.go
+	cut          history.Reach             // see bugflags.go
+	cutRuns      history.Reach             // see report.go
+	checked      history.Reach             // see startscatchup.go
+	pullsRead    history.Reach             // see pulls.go
+	denied       history.Reach             // see pulls.go: the refused pull request reads
+	pushesRead   history.Reach             // see pushes.go
+	pushesDenied history.Reach             // see pushes.go: the refused push reads
+	backfilled   history.Reach             // see legacybackfill.go
+	pulls        map[history.IssueKey]bool // the pull requests pulls.csv holds
+	branches     map[string]string         // the default branch of each repository asked this run, by lower-case name
+	pushes       map[history.PushKey]bool  // the pushes pushes.csv holds
+	startsDone   map[string]bool           // the repositories caught up in this run
+	filledDone   map[string]bool           // the repositories whose legacy commits were backfilled in this run
+	partial      map[string]bool
 }
 
 // loadHeld reads the history at path; a missing file holds nothing.
@@ -552,7 +565,7 @@ func loadHeld(path string) (held, error) {
 	}
 	h := held{ids: map[entry]bool{}, newest: map[source]time.Time{}, oldest: map[source]time.Time{},
 		successes: map[history.Stream][]history.Record{}, partial: map[string]bool{}, startsDone: map[string]bool{},
-		filledDone: map[string]bool{}}
+		filledDone: map[string]bool{}, branches: map[string]string{}}
 	for _, r := range records {
 		h.hold(r)
 	}
@@ -585,4 +598,18 @@ func later(a, b time.Time) time.Time {
 		return a
 	}
 	return b
+}
+
+// defaultBranch is repo's default branch, asked of GitHub once per run for
+// the workflow rule and the push read alike.
+func (o Options) defaultBranch(ctx context.Context, h held, repo string) (string, error) {
+	key := strings.ToLower(repo)
+	if branch, ok := h.branches[key]; ok {
+		return branch, nil
+	}
+	branch, err := o.Client.DefaultBranch(ctx, repo)
+	if err == nil {
+		h.branches[key] = branch
+	}
+	return branch, err
 }
