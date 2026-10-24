@@ -9,6 +9,18 @@ Active work lives in
 
 ---
 
+## 2026-10-24 — The browser gate self-test's CLS cases are ordered by the test, not the clock ([#384](https://github.com/yveshanoulle/forsgren/issues/384), step 1 of 1)
+
+- **Why:** Quality on main went red on a hosted runner: case 38 (the 300 ms setting must catch the shift fixture) saw no shift, because the fixture shifted two animation frames after the load and a loaded machine delivered those frames after the 300 ms read. Proof K had the same race before (#377, #280).
+- **Hit cases** 38, 38b (new, a fixture that delays its own shift by 800 ms without blocking) and 40 read with a 2500 ms interval (`run_gate_hit`), seconds of margin.
+- **Proof K** and its delayed-load variant: the late-shift page moves one tick after the engine's first read of `window.__shifts`, so the read comes first on any machine; its control is a separate `earlyshift` site that moves two frames after the load.
+- **Engine unchanged:** the CLS contract of #379 (interval from the load, default 1000 ms) stands. `test_gate_browser` canon v5 to v6.
+- **Proof:** 38b failed before the fix; the full self-test passed normally and under 36 CPU burners. Closes the cause of #280 as well.
+
+Signed: Lenka B
+
+---
+
 ## 2026-10-24 — The browser gate self-test sends its signals once Chrome is up ([#383](https://github.com/yveshanoulle/forsgren/issues/383), step 1 of 1)
 
 Quality went red on the first push of browser_gate v5: on the hosted runner mutation proof S (no signal forwarding) found no Chrome left and no reason. The signal cases 52a to 52f and 53 sent their signal on a timing guess, and the gate had run its pages by then. A run with one look reproduces it: every case ends with exit 0 and the mutations R and S get the reason `expected exit 143, got 0`.
