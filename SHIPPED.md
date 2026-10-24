@@ -9,6 +9,16 @@ Active work lives in
 
 ---
 
+## 2026-10-24 — The browser gate self-test sends its signals once Chrome is up ([#383](https://github.com/yveshanoulle/forsgren/issues/383), step 1 of 1)
+
+Quality went red on the first push of browser_gate v5: on the hosted runner mutation proof S (no signal forwarding) found no Chrome left and no reason. The signal cases 52a to 52f and 53 sent their signal on a timing guess, and the gate had run its pages by then. A run with one look reproduces it: every case ends with exit 0 and the mutations R and S get the reason `expected exit 143, got 0`.
+- **Cause.** The wait for a page used a pattern that never matched: a renderer's command line has `--type=renderer` before `--user-data-dir`, not after. So every case waited its full 30 s and signalled then, a fixed delay that a fast machine outran. The cases also did not check that the gate was still running when the signal came, and ten looks were too few.
+- **Fix.** `signal_case` waits (30 s) for the profile folder of its own case and a Chrome renderer with that profile, then checks that the gate is still running, then sends the signal. If Chrome is not up, or the gate ended first, the case is red with that reason. The fixture has forty looks. The first real signal at the first page then showed a race in the engine: Chrome's helpers still wrote into the profile while it was removed, so 52b and 52e left the folder. `release()` now removes the profile with retries (`maxRetries` 10, 200 ms). The engine stays `browser_gate` v5 (no copy took v5 yet; findings and exit statuses unchanged, no marker line), the wrapper is unchanged. The self-test is canon `test_gate_browser` v5: other copies take the new waiting.
+
+-- Lenka B
+
+---
+
 ## 2026-10-24 — The browser gate closes its Chrome and removes its profile on every exit ([#381](https://github.com/yveshanoulle/forsgren/issues/381), step 1 of 1)
 
 Another estate repository found a headless Chrome of the browser gate still running 25 hours after its run, with its profile folder. The engine closed the browser only in a `finally` after the pages, a signal skipped that, the launch sat outside the `try`, and the wrapper ran node in a pipe to `tee` with no trap. The same engine and wrapper pattern were here. The engine is now canon `browser_gate` v5, the wrapper `gate_browser` v3, its self-test `test_gate_browser` v4.

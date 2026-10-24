@@ -17,7 +17,10 @@
 //        killed; the server; the profile). The mkdtemp and the launch sit
 //        inside the try, puppeteer's own signal handlers are off, and Chrome
 //        runs on a pipe, so it ends by itself if this process is killed with
-//        SIGKILL. The findings and the exit statuses 0, 1 and 2 are unchanged.
+//        SIGKILL. The profile folder is removed with retries, since Chrome's
+//        helpers can still write into it a moment after a signal that came
+//        during the first page (forsgren#383, before any copy took v5). The
+//        findings and the exit statuses 0, 1 and 2 are unchanged.
 //   v4 = v3 plus the CLS interval from the load (forsgren#377, decision #380):
 //        the observation interval (default 1000 ms) starts right after the
 //        page load, whatever the document checks and axe take, with no second
@@ -613,7 +616,10 @@ function release() {
       if (child && child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
     }
     if (server) server.close();
-    if (profile) fs.rmSync(profile, { recursive: true, force: true });
+    // Chrome's helper processes can still write into the profile for a moment
+    // after the browser closed (a signal during the first page): retry, so the
+    // folder is gone when the run ends (forsgren#383).
+    if (profile) fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   })();
   return releasing;
 }

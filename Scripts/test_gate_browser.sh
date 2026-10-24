@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v4
+# canon: test_gate_browser v5
 # Scripts/test_gate_browser.sh (forsgren#205)
 #
 # Self-test for Scripts/gate_browser.sh, the browser gate, run in PRE before the
@@ -106,6 +106,10 @@
 #      and alone) -> exit 143, 130, 129; no Chrome, no profile folder; SIGKILL
 #      to node -> Chrome ends with its pipe
 #  53. Chrome killed mid-run (an error) -> exit 2; no Chrome, no profile folder
+#      The signal comes once the gate's profile folder exists and a page is open
+#      in its Chrome, never after a delay; the fixture has forty looks so the
+#      gate is still running; a gate not up in 30 s, or ended before the signal,
+#      is red with that reason (forsgren#383).
 #   R. no signal handler in the engine: case 52e leaves the profile folder;
 #   S. the wrapper not forwarding the signal: case 52a leaves Chrome alive.
 
@@ -507,17 +511,21 @@ want_red "51: a page scrollbar does not change the measurement" "FAIL: light /: 
 
 # 52-53: the browser is closed and its profile removed on every way out
 # (forsgren#381): a signal to the wrapper or to node, and an error.
-# A slow fixture (ten looks) keeps the gate busy; the signal comes once Chrome
-# is up. Every Chrome here is found by its own case's profile folder.
+# A slow fixture (forty looks, minutes of work) keeps the gate busy; the signal
+# comes once the gate's profile folder exists and a page is open in its Chrome,
+# not after a delay: on a fast machine a delay outlasted the whole run
+# (forsgren#383). Every Chrome here is found by its own case's profile folder.
 make_site slow "$(page '' '')"
 : > "${TMP}/slow/variants.txt"
-for n in 1 2 3 4 5 6 7 8 9 10; do printf 'look%s|scheme:light\n' "$n" >> "${TMP}/slow/variants.txt"; done
+for n in $(seq 1 40); do printf 'look%s|scheme:light\n' "$n" >> "${TMP}/slow/variants.txt"; done
 
 # signal_case <label> <target: self|node> <signal|error> <command...>: runs the
-# command on the slow fixture with its own TMPDIR, waits for Chrome, sends the
-# signal to the command (self) or to the node process under it (node), or kills
-# the Chrome (error), then waits for the end. Sets SIG_RC, SIG_CHROME (alive),
-# SIG_PROFILE (folders left), SIG_ENDED and SIG_OUT.
+# command on the slow fixture with its own TMPDIR, waits until its profile
+# folder exists and a page is open in its Chrome (30 s, else SIG_UP=0), sends
+# the signal to the command (self) or to the node process under it (node), or
+# kills the Chrome (error), then waits for the end. Sets SIG_RC, SIG_CHROME
+# (alive), SIG_PROFILE (folders left), SIG_UP, SIG_EARLY (the gate had ended
+# before the signal), SIG_ENDED and SIG_OUT.
 signal_case() {
   local label="$1" target="$2" sig="$3" tmpd pid target_pid
   shift 3
@@ -525,16 +533,28 @@ signal_case() {
   mkdir -p "$tmpd"
   TMPDIR="$tmpd" perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' "$@" "${TMP}/slow/site" "${TMP}/slow/manifest.json" "${TMP}/slow/exceptions.txt" "${TMP}/slow/baseline.txt" "${TMP}/slow/variants.txt" > "${tmpd}.out" 2>&1 &
   pid=$!
+  SIG_UP=0
   for _ in $(seq 1 150); do
-    # Up means a page is open: its renderer exists, the launch is over.
-    if pgrep -f -- "--user-data-dir=${tmpd}/browser-gate-.*--type=renderer" > /dev/null; then break; fi
+    # Up means the profile folder exists and a page is open: its renderer runs,
+    # the launch is over. A renderer's command line has --type before the
+    # profile (the order made the old pattern never match: it always waited the
+    # full 30 s, a fixed delay that a fast machine outran, forsgren#383).
+    if [[ -n "$(find "$tmpd" -maxdepth 1 -name 'browser-gate-*' 2> /dev/null)" ]] \
+      && pgrep -f -- "--type=renderer.*--user-data-dir=${tmpd}/browser-gate-" > /dev/null; then
+      SIG_UP=1
+      break
+    fi
     sleep 0.2
   done
+  SIG_EARLY=0
+  if [[ "$SIG_UP" -eq 1 ]] && ! kill -0 "$pid" 2> /dev/null; then SIG_EARLY=1; fi
   target_pid="$pid"
   if [[ "$target" == "node" ]]; then
     target_pid="$(pgrep -f -- "node .*mjs ${TMP}/slow/site" | head -1)" || target_pid="$pid"
   fi
-  if [[ "$sig" == "error" ]]; then
+  if [[ "$SIG_UP" -eq 0 || "$SIG_EARLY" -eq 1 ]]; then
+    : # no signal: the verdict names the missing precondition
+  elif [[ "$sig" == "error" ]]; then
     pkill -9 -f -- "--user-data-dir=${tmpd}/browser-gate-" || true
   else
     kill -s "$sig" "$target_pid" || true
@@ -564,7 +584,11 @@ signal_case() {
 # closed_verdict: "" when the last signal_case ended with status $1 and left no
 # Chrome and no profile folder, else the reason.
 closed_verdict() {
-  if [[ "$SIG_ENDED" -ne 1 ]]; then
+  if [[ "$SIG_UP" -ne 1 ]]; then
+    echo "the gate had no Chrome page open 30 s after its start"
+  elif [[ "$SIG_EARLY" -eq 1 ]]; then
+    echo "the gate ended before the signal was sent"
+  elif [[ "$SIG_ENDED" -ne 1 ]]; then
     echo "the gate was still running 20 s after the signal"
   elif [[ "$SIG_RC" != "$1" ]]; then
     echo "expected exit $1, got ${SIG_RC}"
@@ -609,7 +633,9 @@ want_closed "52d: SIGHUP to the wrapper: exit 129" 129
 signal_case term_engine self TERM node "$ENGINE"
 want_closed "52e: SIGTERM to the engine run by itself: exit 143" 143
 signal_case kill_node node KILL "$GATE"
-if [[ "$SIG_CHROME" -eq 0 ]]; then
+if [[ "$SIG_UP" -ne 1 || "$SIG_EARLY" -eq 1 ]]; then
+  fail "52f: the signal was not sent while the gate ran: $(closed_verdict 0)"
+elif [[ "$SIG_CHROME" -eq 0 ]]; then
   echo "  ok: 52f: SIGKILL to node cannot be handled, but Chrome ends with its pipe"
 else
   fail "52f: ${SIG_CHROME} Chrome processes outlived a killed node"
