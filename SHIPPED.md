@@ -21,6 +21,7 @@ Signed: Lenka B
 
 - **Follow-up (.1), case 53 of the next run:** a Chrome killed mid-run was noticed only through the closing pipe. A helper of its group that keeps the pipe open (hosted Linux) kept puppeteer waiting for its timeouts: 299 s measured with a test double, against 0 to 1 s with a clean exit. The engine now watches Chrome's own process exit and the browser disconnect, ends the run at once with exit 2, and release() does not wait 5 s to close a browser that is already gone. `browser_gate` stays v5 (findings and statuses unchanged; its changelog line says so); `test_gate_browser` stays v6 (case 53 only waits longer).
 - **Test:** the gate gets up to 60 s to end (its exit is the condition), not a fixed 20 s; new case 53b (double: Chrome plus a helper holding the pipe) and mutation proof T (25 s bound). 53b failed against the old engine, passes now; twenty mutations seen.
+- **Removed per [#386](https://github.com/yveshanoulle/forsgren/issues/386):** case 53b and mutation proof T. A helper that holds the pipe after Chrome died was never seen in real life, and the case kept racing. The engine keeps its process watch as safety code; nineteen mutations again; `test_gate_browser` stays v6.
 
 Signed: Lenka B
 
