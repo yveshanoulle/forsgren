@@ -2,6 +2,7 @@ package page
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 	"time"
 
@@ -52,8 +53,35 @@ func tbdDataWith(leads []metrics.MainlineLeadTime) Data {
 		{Project: "Acme Web", Count: 12, Unknown: 11, Legacy: 11, Commits: 20},
 	}
 	data.MainlineLead = leads
+	data.MainlineDirect = []metrics.MainlineDirect{
+		{Project: "Acme Shop", Commits: 4, Median: 20 * time.Minute},
+		{Project: "Acme Tools", Commits: 2, Median: 2 * time.Hour, ByAuthorDate: 1},
+		{Project: "Acme Docs"},
+		{Project: "Acme Web", Commits: 30, Median: 5 * time.Minute, ByAuthorDate: 20},
+	}
+	data.BatchSize = []metrics.BatchSize{
+		{Project: "Acme Shop", Deployments: 45, Median: 1.5},
+		{Project: "Acme Tools", Deployments: 2, Median: 2, Legacy: 1},
+		{Project: "Acme Docs", Legacy: 2},
+		{Project: "Acme Web", Deployments: 10, Median: 3},
+	}
 	return data
 }
+
+// tbdDirect and tbdBatch are the direct and batch size cells of tbdData's
+// projects (forsgren#390, step 2): Acme Tools has one of two commits timed by
+// author date and a deployment of unknown lineage, Acme Docs nothing but two
+// such deployments, Acme Web more than half of its commits by author date.
+var (
+	tbdDirect = map[string]string{
+		"Acme Shop": "20 min (4)", "Acme Tools": "2 h (2) · 1 commit timed by author date", "Acme Docs": "-",
+		"Acme Web": "5 min (30) · Mostly estimated: 20 of 30 commits timed by author date.",
+	}
+	tbdBatch = map[string]string{
+		"Acme Shop": "1.5 (45)", "Acme Tools": "2 (2) · 1 deployment of unknown lineage not counted",
+		"Acme Docs": "- · 2 deployments of unknown lineage not counted", "Acme Web": "3 (10)",
+	}
+)
 
 // noLeads are the Mainline Lead Times of tbdData's projects without a pull
 // request merged in the window.
@@ -84,10 +112,34 @@ func notReadable() Data {
 }
 
 // tbdRow is the TBD page's row of project, its Mainline Interval cell, its
-// Mainline Lead Time cell then its Developers cell, as the template writes it.
+// direct cell, its pull requests cell lead, its batch size cell then its
+// Developers cell, as the template writes it.
 func tbdRow(project, interval, lead, developers string) string {
-	return "<th scope=\"row\">" + project + "</th>\n            <td>" + interval + "</td>\n            <td>" + lead +
+	return "<th scope=\"row\">" + project + "</th>\n            <td>" + interval + "</td>\n            <td>" +
+		tbdDirect[project] + "</td>\n            <td>" + lead + "</td>\n            <td>" + tbdBatch[project] +
 		"</td>\n            <td>" + developers + "</td>\n"
+}
+
+// uncollectedNote ends the direct cell of a project with direct commits while
+// data/pulls.csv is absent (forsgren#390, step 3): the pull request merges
+// among them cannot be told apart yet.
+const uncollectedNote = " · pull request merges cannot be told apart yet"
+
+// withUncollectedNote is a tbdRow while the pull requests have not been
+// collected: the direct cell of a project with commits ends with
+// uncollectedNote, a dash does not.
+var withUncollectedNote = uncollectedNotes().Replace
+
+// uncollectedNotes puts uncollectedNote after each direct cell of tbdDirect
+// that has commits.
+func uncollectedNotes() *strings.Replacer {
+	var pairs []string
+	for _, direct := range tbdDirect {
+		if direct != "-" {
+			pairs = append(pairs, direct+"</td>", direct+uncollectedNote+"</td>")
+		}
+	}
+	return strings.NewReplacer(pairs...)
 }
 
 // share is the end of a Mainline Lead Time cell after its count: the share of
@@ -106,9 +158,9 @@ const (
 		"Mostly estimated: 7 of 13 commits timed by author date."
 )
 
-// noHumanPulls is the Mainline Lead Time cell of a project without a human
-// pull request in the window, Yves's wording on #342 (forsgren#345, step 2).
-const noHumanPulls = "No human pull requests in this period; changes may go directly to the trunk"
+// noHumanPulls is the pull requests cell of a project without a human pull
+// request in the window: a dash (forsgren#390, step 2).
+const noHumanPulls = "-"
 
 // TestTbdPageShowsTheDevelopersNextToTheInterval (forsgren#273, step 3): a
 // Developers column follows the Mainline Interval and its Mainline Lead Time
@@ -119,8 +171,11 @@ const noHumanPulls = "No human pull requests in this period; changes may go dire
 func TestTbdPageShowsTheDevelopersNextToTheInterval(t *testing.T) {
 	got := rendered(t, "tbd.html", tbdData())
 	wantAll(t, "tbd.html", got,
-		"<th scope=\"col\">Mainline Interval</th>\n            <th scope=\"col\">Mainline Lead Time</th>\n"+
-			"            <th scope=\"col\">Developers</th>\n",
+		"<th scope=\"col\" rowspan=\"2\">Mainline Interval</th>\n"+
+			"            <th scope=\"colgroup\" colspan=\"3\">Mainline Lead Time</th>\n"+
+			"            <th scope=\"col\" rowspan=\"2\">Developers</th>\n          </tr>\n          <tr>\n"+
+			"            <th scope=\"col\">direct</th>\n            <th scope=\"col\">pull requests</th>\n"+
+			"            <th scope=\"col\">batch size</th>\n",
 		tbdRow("Acme Shop", shopInterval, "3 h ± 1 h (5)"+share("100", "5 of 5"), "3"),
 		tbdRow("Acme Tools", "2 h ± - (1) · median - · p90 -",
 			"1 d 6 h ± - (1, 1 cut)"+share("0", "0 of 1")+" · the mean is a lower bound",
@@ -139,11 +194,14 @@ func TestTbdPageShowsTheDevelopersNextToTheInterval(t *testing.T) {
 func TestTbdPageSaysThePullRequestsAreNotCollectedYet(t *testing.T) {
 	const notYet = "No pull requests have been collected yet"
 	got := rendered(t, "tbd.html", uncollected())
-	wantAll(t, "uncollected", got, tbdRow("Acme Shop", shopInterval, notYet, "3"),
-		tbdRow("Acme Docs", "-", notYet, "0"))
+	wantAll(t, "uncollected", got, withUncollectedNote(tbdRow("Acme Shop", shopInterval, notYet, "3")),
+		withUncollectedNote(tbdRow("Acme Docs", "-", notYet, "0")),
+		withUncollectedNote(tbdRow("Acme Web", webInterval, notYet, "12 developers · 11 commits "+
+			"without a known author excluded (legacy data).")))
 	noneInWindow := rendered(t, "tbd.html", tbdDataWith(noLeads()))
 	wantNone(t, "collected, none in the window", noneInWindow, notYet)
 	wantAll(t, "collected, none in the window", noneInWindow, tbdRow("Acme Docs", "-", noHumanPulls, "0"))
+	wantNone(t, "collected, none in the window", noneInWindow, uncollectedNote)
 }
 
 // TestTbdPageSaysThePullRequestsAreNotReadable (forsgren#337, step 2): a
@@ -161,7 +219,7 @@ func TestTbdPageSaysThePullRequestsAreNotReadable(t *testing.T) {
 	uncollectedRefused.PullsUncollected = true
 	got = rendered(t, "tbd.html", uncollectedRefused)
 	wantAll(t, "not collected yet", got, tbdRow("Acme Docs", "-", refused, "0"),
-		tbdRow("Acme Shop", shopInterval, notYet, "3"))
+		withUncollectedNote(tbdRow("Acme Shop", shopInterval, notYet, "3")))
 }
 
 // TestTbdPageRefusesDevelopersOfOtherProjects (forsgren#273, step 3): the
@@ -180,7 +238,13 @@ func TestTbdPageRefusesDevelopersOfOtherProjects(t *testing.T) {
 		"leads extra": func(d *Data) {
 			d.MainlineLead = append(d.MainlineLead, metrics.MainlineLeadTime{Project: "Acme Gone"})
 		},
-		"leads swapped": func(d *Data) { d.MainlineLead[0], d.MainlineLead[1] = d.MainlineLead[1], d.MainlineLead[0] },
+		"leads swapped":   func(d *Data) { d.MainlineLead[0], d.MainlineLead[1] = d.MainlineLead[1], d.MainlineLead[0] },
+		"directs missing": func(d *Data) { d.MainlineDirect = d.MainlineDirect[:3] },
+		"directs swapped": func(d *Data) {
+			d.MainlineDirect[0], d.MainlineDirect[1] = d.MainlineDirect[1], d.MainlineDirect[0]
+		},
+		"batches missing": func(d *Data) { d.BatchSize = d.BatchSize[:3] },
+		"batches swapped": func(d *Data) { d.BatchSize[0], d.BatchSize[1] = d.BatchSize[1], d.BatchSize[0] },
 	}
 	for name, change := range cases {
 		data := tbdData()
@@ -218,8 +282,9 @@ func TestTbdPageHasItsHeadingAndTable(t *testing.T) {
 	got := rendered(t, "tbd.html", tbdData())
 	wantAll(t, "tbd.html", got, "<title>Trunk-based development [TBD] (BETA) · ",
 		`<h1 id="tbd-heading">Trunk-based development [TBD] (BETA)</h1>`, `aria-labelledby="tbd-heading"`,
-		`<th scope="col">Project</th>`, `<th scope="col">Mainline Interval</th>`,
-		`<th scope="col">Mainline Lead Time</th>`,
+		`<th scope="col" rowspan="2">Project</th>`, `<th scope="col" rowspan="2">Mainline Interval</th>`,
+		`<th scope="colgroup" colspan="3">Mainline Lead Time</th>`, `<th scope="col">direct</th>`,
+		`<th scope="col">pull requests</th>`, `<th scope="col">batch size</th>`,
 		`<th scope="row">Acme Shop</th>`, "<td>"+shopInterval+"</td>",
 		`<th scope="row">Acme Tools</th>`, "<td>2 h ± - (1) · median - · p90 -</td>",
 		`<th scope="row">Acme Docs</th>`, "<td>-</td>",

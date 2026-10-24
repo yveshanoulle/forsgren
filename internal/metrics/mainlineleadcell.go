@@ -11,11 +11,6 @@ import (
 // refused (forsgren#337, step 2).
 const notReadableCell = "Pull requests not readable"
 
-// noHumanPullsCell is the cell of a project without a human pull request
-// merged in the window, Yves's wording on #342 (forsgren#345, step 2): no
-// human pull request does not prove the changes went straight to the trunk.
-const noHumanPullsCell = "No human pull requests in this period; changes may go directly to the trunk"
-
 // Cell is the TBD page's Mainline Lead Time cell (forsgren#256, step 2), of
 // the human pull requests only (forsgren#345, step 2): the mean, the
 // deviation and the count of pull requests as the Mainline Interval writes
@@ -25,7 +20,8 @@ const noHumanPullsCell = "No human pull requests in this period; changes may go 
 // 24 hours of their first commit"; then, with a cut one, "the mean is a lower
 // bound", so the mean is never shown as exact, and the pull requests the
 // created time stood in for (decision #300), "1 pull request timed by its
-// created time"; without a human pull request, noHumanPullsCell; last, either
+// created time"; without a human pull request, a dash (forsgren#390, step 2: the legend says what
+// it means); last, either
 // way, the bot pull requests and those of unknown author not counted, "3 bot
 // pull requests not counted" (#341); "Pull requests not readable" for a
 // project collect was refused the pull request read of (forsgren#337, step
@@ -38,10 +34,10 @@ func (m MainlineLeadTime) Cell() string {
 }
 
 // counted are the cell's parts on the human pull requests: the lead time and
-// its notes, or noHumanPullsCell without one.
+// its notes, or a dash without one.
 func (m MainlineLeadTime) counted() []string {
 	if !m.HasLeadTime() {
-		return []string{noHumanPullsCell}
+		return []string{noNumber}
 	}
 	parts := []string{
 		fmt.Sprintf("%s ± %s (%s)", shortDuration(m.Mean), m.deviation(), m.counts()),

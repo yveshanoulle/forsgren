@@ -9,6 +9,18 @@ Active work lives in
 
 ---
 
+## 2026-10-24 — Mainline Lead Time in three columns: direct, pull requests, batch size ([#390](https://github.com/yveshanoulle/forsgren/issues/390), steps 1 to 3 of 3)
+
+forsgren issue 390, feature, minor release with #264 and #387. A project that commits straight to the trunk showed nothing in Mainline Lead Time, which measured pull requests only. The TBD page's Mainline Lead Time is now a group of three columns: direct (the time from a commit's author date to the first deployment that contains it, for commits on the first-parent chain that are no pull request's merge commit; the time to main measured at the deployment, as forsgren sees no push time), pull requests (as before, a dash when there is no human pull request) and batch size (the median number of first-parent commits per deployment). Decisions #391 to #393: legacy commits count as direct at their author date with a note, pull-request commits are recognised by the `merge_commit` of `data/pulls.csv`, batch size counts every first-parent commit and leaves legacy deployments out with a note.
+
+- Red first: `maindirect_test.go` (direct median, pull-request commits left out, a negative time as 0, the first deployment of a commit, batch size with a legacy deployment) against stubs; the uncollected note was a red page test before its code.
+- Green: `MainlineDirects`, `BatchSizes`, `lineage.known`, the cells in `maindirectcell.go`, `TbdRow.DirectCell`, the grouped header of `tbd.html`, `render.go` passing `Data.MainlineDirect` and `Data.BatchSize`; goldens of the TBD page and the legend.
+- Docs: the legend's TBD section says what each column measures and the push-time limit, and now carries the sentence that changes may go directly to the trunk; `docs/pages-and-views.md` and `CLAUDE.md`.
+
+- Lenka B
+
+---
+
 ## 2026-10-24 — FBP names each gate it skipped, and why ([#266](https://github.com/yveshanoulle/forsgren/issues/266), step 1 of 1)
 
 forsgren issue 266, tools issue, no release. A gate skipped by the selector of #262 and #263 (the browser gates and the release workflow gate) was only a count in the summary, which reads like a pass. The step table row of a selector skip now says why (`⏭ skip: no changed file is an input`), and the FBP summary lists them under the git row: `gates skipped by selection: N (no changed file is an input of them; counted in the skipped totals above)`, then one `  ⏭ skipped: <label> (<reason>)` line each, from `.build/sfl-skips.log` (FBP removes it before PRE; nothing is printed when no gate was skipped). `sfl.sh` v9, `FBP.sh` v11.

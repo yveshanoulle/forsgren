@@ -64,11 +64,29 @@ var legendTbdText = []string{
 // parts, the lower bound and the stand-ins, the people of #349 and #355, the
 // legacy format as Yves worded it on #356, and what not readable means.
 var legendLeadText = []string{
-	"Mainline Lead Time covers merged human pull requests only, " +
+	"Mainline Lead Time has three columns: direct, pull requests and batch size",
+	"The direct column is the time to main of the commits pushed straight to the main branch, measured at the deployment",
+	"forsgren sees no push time, so it takes the time from a commit's author date to the first deployment " +
+		"that contains it",
+	"On a repository that deploys every push, that is minutes after the push",
+	"A commit is direct when it is on the first-parent chain of its deployment and is not the merge commit of " +
+		"a pull request; the commits a merge brought in belong to the pull request",
+	"A commit authored after its deployment counts as 0",
+	"The cell is written median (commits), for example 20 min (4)",
+	"It is a dash when no commit went straight to the main branch",
+	"They count as direct, at their author date, and the cell says how many, as the Mainline Interval does",
+	"While no pull request has been collected yet, the direct cell adds pull request merges cannot be told " +
+		"apart yet",
+	"The batch size column is how many commits a deployment brought to the first-parent chain of the main branch, " +
+		"the merge commit of a pull request included",
+	"The cell is written median (deployments), for example 1.5 (45)",
+	"A deployment without a known chain is left out, and the cell says how many, written 2 deployments of " +
+		"unknown lineage not counted",
+	"The pull requests column covers merged human pull requests only, " +
 		"not every change that reaches the main branch",
-	"Work pushed straight to the main branch is not in it, " +
+	"Work pushed straight to the main branch is in the direct column, " +
 		"so a pull request stands in for the life of a branch",
-	"In a workflow that mixes both, the figure covers only the changes that came through pull requests",
+	"In a workflow that mixes both, this column covers only the changes that came through pull requests",
 	"Each pull request merged in the last 30 days, counted by its merge time, " +
 		"gives one lead time: from its first commit, " +
 		"the earliest author date of its commits, to the merge",
@@ -94,7 +112,8 @@ var legendLeadText = []string{
 	"the legacy format says how a record was stored, not why the author is missing",
 	"3 developers · 1099 commits without a known author excluded (legacy data)",
 	"Mostly estimated: 7 of 13 commits timed by author date.",
-	"no human pull request was merged in this period and that changes may go straight to the main branch",
+	"shows a dash in pull requests: no human pull request was merged in this period, and its changes may go " +
+		"directly to the main branch, which the direct column shows",
 	"That is not proof of direct commits",
 	"Pull requests not readable means the token forsgren collects with was refused the pull request read",
 	"recorded in data/pulls_denied.csv",
@@ -141,6 +160,8 @@ var legendTbdRetired = []string{
 	"who made the commits it counts",
 	"Mainline Lead Time is not on this page yet",
 	"It will show how long a commit takes",
+	"Work pushed straight to the main branch is not in it",
+	"and that changes may go straight to the main branch",
 }
 
 // TestLegendExplainsTheTbdPage (forsgren#253, forsgren#273): the legend has a
@@ -196,7 +217,7 @@ func legendTbdSection(t *testing.T, legend string) string {
 // and the TBD page does not repeat them.
 func TestLegendSaysEachTbdSentenceOnce(t *testing.T) {
 	got := rendered(t, "legend.html", calculated())
-	for _, once := range []string{"Mainline Lead Time covers merged human pull requests only", "each commit once",
+	for _, once := range []string{"The pull requests column covers merged human pull requests only", "each commit once",
 		"A dash means fewer than two commits", "sample standard deviation of the time between commits",
 		"deployments of the last 30 days shipped"} {
 		if n := strings.Count(got, once); n != 1 {

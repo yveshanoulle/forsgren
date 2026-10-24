@@ -920,6 +920,19 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/lineage.go:namedParents": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/lineage.go:firstParentChain": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/lineage.go:place": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/lineage.go:known": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/maindirect.go:HasDirect": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/maindirect.go:MainlineDirects": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/maindirect.go:directsOf": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/maindirect.go:medianOrZero": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/maindirect.go:project": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/maindirect.go:commitKey": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/maindirect.go:mergeCommitsOf": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/maindirect.go:HasBatch": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/maindirect.go:BatchSizes": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/maindirect.go:batchSizesOf": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/maindirect.go:medianCount": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/maindirectcell.go:Cell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/developers.go:Note": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/developers.go:MainlineDevelopers": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/developers.go:noteAuthor": 100.0,
@@ -950,6 +963,7 @@
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdMessage": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdRows": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:LeadCell": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/tbd.go:DirectCell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:pairedWithMainline": 100.0
   }
 }

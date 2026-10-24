@@ -98,11 +98,11 @@ func TestRenderShowsTheDevelopersOfEachProject(t *testing.T) {
 	writePulls(t, data, nil)
 	got := tbdSiteOf(t, validConfig, data)
 	for _, want := range []string{
-		"<th scope=\"col\">Developers</th>",
-		shopCell + "\n            <td>" + noHumanPulls + "</td>\n" +
+		"<th scope=\"col\" rowspan=\"2\">Developers</th>",
+		leadRow(shopCell, noHumanPulls) +
 			"            <td>1 · 1 commit without a known author is not counted</td>",
-		"<th scope=\"row\">Acme Tools</th>\n            <td>-</td>\n            <td>" + noHumanPulls +
-			"</td>\n            <td>0</td>",
+		"<th scope=\"row\">Acme Tools</th>\n            " + leadRow("<td>-</td>", noHumanPulls) +
+			"            <td>0</td>",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("want %q in tbd.html, got:\n%s", want, got)
@@ -120,11 +120,11 @@ func TestRenderCountsTheLoginsOfASameDeveloperGroupOnce(t *testing.T) {
 	data := writeData(t, acmeHistory(), commits)
 	writePulls(t, data, nil)
 	grouped := tbdSiteOf(t, validConfig+"same_developer: [[acme-dev-one, acme-dev-two]]\n", data)
-	if want := noHumanPulls + "</td>\n            <td>1</td>"; !strings.Contains(grouped, want) {
+	if want := shopBatch + "\n            <td>1</td>"; !strings.Contains(grouped, want) {
 		t.Errorf("want one developer for the group in tbd.html, got:\n%s", grouped)
 	}
 	alone := tbdSiteOf(t, validConfig, data)
-	if want := noHumanPulls + "</td>\n            <td>2</td>"; !strings.Contains(alone, want) {
+	if want := shopBatch + "\n            <td>2</td>"; !strings.Contains(alone, want) {
 		t.Errorf("want two developers without the key in tbd.html, got:\n%s", alone)
 	}
 }

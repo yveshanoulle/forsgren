@@ -111,6 +111,13 @@ func firstParentChain(parents map[string][]string, tip string) map[string]bool {
 	return chain
 }
 
+// known says whether the lineage of c's deployment is known, so its
+// first-parent chain is.
+func (l lineage) known(c history.Commit) bool {
+	_, known := l[keyOf(c.Repository, c.Kind, c.DeploymentID)]
+	return known
+}
+
 // place says whether c counts in the Mainline Interval, and when.
 func (l lineage) place(c history.Commit) (placed, bool) {
 	chain, known := l[keyOf(c.Repository, c.Kind, c.DeploymentID)]

@@ -5,17 +5,24 @@
       <table class="wraps">
         <thead>
           <tr>
-            <th scope="col">Project</th>
-            <th scope="col">Mainline Interval</th>
-            <th scope="col">Mainline Lead Time</th>
-            <th scope="col">Developers</th>
+            <th scope="col" rowspan="2">Project</th>
+            <th scope="col" rowspan="2">Mainline Interval</th>
+            <th scope="colgroup" colspan="3">Mainline Lead Time</th>
+            <th scope="col" rowspan="2">Developers</th>
+          </tr>
+          <tr>
+            <th scope="col">direct</th>
+            <th scope="col">pull requests</th>
+            <th scope="col">batch size</th>
           </tr>
         </thead>
         <tbody>
 {{range .TbdRows}}          <tr>
             <th scope="row">{{.Interval.Project}}</th>
             <td>{{.Interval.Cell}}</td>
+            <td>{{.DirectCell}}</td>
             <td>{{.LeadCell}}</td>
+            <td>{{.Batch.Cell}}</td>
             <td>{{.Developers.Cell}}</td>
           </tr>
 {{end}}        </tbody>

@@ -808,8 +808,10 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
 [Configuration](configuration.md#configuration)). `tbd_page: true` lists it
 last in the menu, "TBD"; `false` leaves it out.
 
-- **The table.** A row per project and three columns, Mainline Interval,
-  Mainline Lead Time and Developers (see below); the Mainline Interval cell reads `mean ± deviation (gaps) · median M · p90 P`, for example
+- **The table.** A row per project and, under a header of two rows, the
+  columns Mainline Interval, Mainline Lead Time (a group of three columns,
+  direct, pull requests and batch size, forsgren#390) and Developers (see
+  below); the Mainline Interval cell reads `mean ± deviation (gaps) · median M · p90 P`, for example
   `24 min ± 2 h 24 min (12) · median 5 min · p90 1 h`, with the durations
   written as on the other pages, then, when some commits are timed by their
   author date (see The old approximation below), the note after ` · `:
@@ -902,12 +904,39 @@ last in the menu, "TBD"; `false` leaves it out.
   Developers cell counted from it). The legend's TBD section explains the
   column: what a developer is, how listed logins count as one, bots left out, commits without a known author
   named, never who the developers are.
-- **Mainline Lead Time** (forsgren#256), the column between the Mainline
+- **Mainline Lead Time** (forsgren#256), the group between the Mainline
   Interval and Developers: how old a change is when it reaches the main
-  branch. It covers merged human pull requests only, not every change that
-  reaches the trunk (forsgren#342): work pushed straight to the main branch is
-  not in it, so a pull request stands in for the life of a branch, and in a
-  workflow that mixes both the figure covers only the pull-request changes.
+  branch, in three columns (forsgren#390): direct, pull requests and batch
+  size. The pull requests column covers merged human pull requests only, not
+  every change that reaches the trunk (forsgren#342): work pushed straight to
+  the main branch is in the direct column, so a pull request stands in for the
+  life of a branch, and in a workflow that mixes both this column covers only
+  the pull-request changes.
+  - *direct.* The time to main of the commits pushed straight to the main
+    branch, measured at the deployment: forsgren sees no push time, so it is
+    the time from a commit's author date to the first deployment that contains
+    it (on a repository that deploys every push, minutes after the push), a
+    time below 0 counted as 0. A commit is direct when it is on the
+    first-parent chain of its deployment and is not the merge commit
+    (`merge_commit` of `data/pulls.csv`, compared by repository ignoring case
+    and SHA) of a pull request; the commits a merge brought in are off the
+    chain and the pull request's own. Each commit counts once, at the earliest
+    deployment that counts it, when that deployment was created in the DORA
+    window. The cell reads `median (commits)`, for example `20 min (4)`, a
+    dash without a direct commit. The commits of a deployment without a known
+    lineage (stored before the commits format v3) count as direct at their
+    author date and are named as the Mainline Interval names them: `2 commits
+    timed by author date`, `Mostly estimated: ...` above half. While
+    `data/pulls.csv` does not exist yet the cell adds `pull request merges
+    cannot be told apart yet`, because the merges cannot be recognised.
+  - *batch size.* The number of commits a deployment brought to the
+    first-parent chain of the main branch, direct commits and merge commits
+    alike, as the median over the deployments created in the DORA window (the
+    mean of the two middle ones for an even number, so `1.5` is possible). The
+    cell reads `median (deployments)`, for example `1.5 (45)`. A deployment
+    without a known lineage is left out and named: `2 deployments of unknown
+    lineage not counted`.
+  - *pull requests.* What the rest of this entry describes.
   - *What is counted.* One lead time per pull request merged in the DORA
     window, counted by its merge time: from its first commit, the earliest
     author date of its commits, to the merge. A first commit dated after the
@@ -936,9 +965,10 @@ last in the menu, "TBD"; `false` leaves it out.
     counted`), and neither are those whose author is not known to be a user,
     such as a pull request in the legacy format (pulls format v1), which has no
     known author type (`2 pull requests of unknown author not counted`). A
-    project with no human pull request reads `No human pull requests in this
-    period; changes may go directly to the trunk`, which is not proof of
-    direct commits.
+    project with no human pull request shows a dash in pull requests (it read
+    `No human pull requests in this period; changes may go directly to the
+    trunk` until forsgren#390; the sentence is now the legend's), which is not
+    proof of direct commits.
   - *Not readable and not collected.* `Pull requests not readable` means the
     token was refused the pull request read for a repository of the project
     (a 403, kept in `data/pulls_denied.csv`, see

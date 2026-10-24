@@ -114,6 +114,11 @@ type Data struct {
 	// MainlineLead are the Mainline Lead Times next to the Mainline
 	// Intervals, one per project in the same order (forsgren#256, step 2).
 	MainlineLead []metrics.MainlineLeadTime
+	// MainlineDirect and BatchSize are the direct and batch size columns of
+	// the Mainline Lead Time group, one per project in the same order
+	// (forsgren#390, step 2).
+	MainlineDirect []metrics.MainlineDirect
+	BatchSize      []metrics.BatchSize
 	// PullsUncollected says there is no data/pulls.csv beside the history:
 	// no collect has stored pull requests yet, so the TBD page says so in
 	// place of each Mainline Lead Time (forsgren#256, step 2).

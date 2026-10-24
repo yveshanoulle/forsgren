@@ -32,17 +32,40 @@ func (d Data) TbdMessage() string {
 }
 
 // TbdRow is one project's row of the TBD page: its Mainline Interval, its
-// Mainline Lead Time (forsgren#256, step 2) and its Developers (forsgren#273,
+// Mainline Lead Time group (forsgren#256, step 2; direct, pull requests and
+// batch size since forsgren#390, step 2) and its Developers (forsgren#273,
 // step 3).
 type TbdRow struct {
-	Interval   metrics.MainlineInterval
-	Lead       metrics.MainlineLeadTime
+	Interval metrics.MainlineInterval
+	Lead     metrics.MainlineLeadTime
+	// Direct and Batch are the other two columns of the Mainline Lead Time
+	// group (forsgren#390, step 2): the time to main of the commits pushed
+	// straight to the trunk, and the commits per deployment.
+	Direct     metrics.MainlineDirect
+	Batch      metrics.BatchSize
 	Developers metrics.Developers
 	// pullsUncollected is Data.PullsUncollected.
 	pullsUncollected bool
 }
 
-// LeadCell is the row's Mainline Lead Time cell: MainlineLeadTime.Cell, or
+// pullsUncollectedNote ends the direct cell while data/pulls.csv is absent
+// (forsgren#390, step 3): without the pull requests' merge commits, the merges
+// among the commits cannot be told from direct ones.
+const pullsUncollectedNote = "pull request merges cannot be told apart yet"
+
+// DirectCell is the row's direct cell: MainlineDirect.Cell, with
+// pullsUncollectedNote after it while the pull requests have not been
+// collected, when there is a direct commit to qualify.
+func (r TbdRow) DirectCell() string {
+	cell := r.Direct.Cell()
+	if r.pullsUncollected && r.Direct.HasDirect() {
+		return cell + " · " + pullsUncollectedNote
+	}
+	return cell
+}
+
+// LeadCell is the row's pull requests cell, in the Mainline Lead Time group:
+// MainlineLeadTime.Cell, or
 // pullsUncollectedCell while the pull requests have not been collected,
 // unless a refused read makes the project not readable (forsgren#337, step
 // 2), which Cell says.
@@ -53,14 +76,22 @@ func (r TbdRow) LeadCell() string {
 	return r.Lead.Cell()
 }
 
-// TbdRows pairs each Mainline Interval with the Mainline Lead Time and the
-// Developers of its project, in the Mainline's order. All three come from the
-// config's projects in its order, so a Mainline Lead Time or Developers that
-// is missing or names another project in a row is an error, which fails the
+// TbdRows pairs each Mainline Interval with the Mainline Lead Time, direct
+// time to main, batch size and Developers of its project, in the Mainline's
+// order. All come from the config's projects in its order, so one that is
+// missing or names another project in a row is an error, which fails the
 // render, never a number shown in the wrong row.
 func (d Data) TbdRows() ([]TbdRow, error) {
 	if err := pairedWithMainline(d.Mainline, "Mainline Lead Times", d.MainlineLead,
 		func(m metrics.MainlineLeadTime) string { return m.Project }); err != nil {
+		return nil, err
+	}
+	if err := pairedWithMainline(d.Mainline, "Mainline Directs", d.MainlineDirect,
+		func(m metrics.MainlineDirect) string { return m.Project }); err != nil {
+		return nil, err
+	}
+	if err := pairedWithMainline(d.Mainline, "Batch Sizes", d.BatchSize,
+		func(m metrics.BatchSize) string { return m.Project }); err != nil {
 		return nil, err
 	}
 	if err := pairedWithMainline(d.Mainline, "Developers", d.Developers,
@@ -69,7 +100,8 @@ func (d Data) TbdRows() ([]TbdRow, error) {
 	}
 	rows := make([]TbdRow, len(d.Mainline))
 	for i, m := range d.Mainline {
-		rows[i] = TbdRow{Interval: m, Lead: d.MainlineLead[i], Developers: d.Developers[i],
+		rows[i] = TbdRow{Interval: m, Lead: d.MainlineLead[i], Direct: d.MainlineDirect[i],
+			Batch: d.BatchSize[i], Developers: d.Developers[i],
 			pullsUncollected: d.PullsUncollected}
 	}
 	return rows, nil

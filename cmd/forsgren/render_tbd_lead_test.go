@@ -71,12 +71,38 @@ func writePulls(t *testing.T, data string, pulls []history.PullRequest) {
 }
 
 // noHumanPulls is the Mainline Lead Time cell of a project without a human
-// pull request in the window, Yves's wording on #342 (forsgren#345, step 2).
-const noHumanPulls = "No human pull requests in this period; changes may go directly to the trunk"
+// pull request in the window, a dash (forsgren#390, step 2).
+const noHumanPulls = "-"
+
+// shopDirect and shopBatch are Acme Shop's direct and batch size cells over
+// acmeCommits (forsgren#390, step 2): its three commits in the window are
+// direct, two of them timed by author date because their deployment has no
+// known lineage, and the one deployment with a known lineage brought one
+// commit to the chain; Acme Tools has no commit, so a dash in both.
+const (
+	shopDirect = "<td>17 min (3) · Mostly estimated: 2 of 3 commits timed by author date.</td>"
+	shopBatch  = "<td>1 (1) · 1 deployment of unknown lineage not counted</td>"
+)
 
 // leadRow is the end of a project's TBD row from its Mainline Interval cell:
-// interval, then the Mainline Lead Time cell lead.
-func leadRow(interval, lead string) string { return interval + "\n            <td>" + lead + "</td>\n" }
+// interval, its direct cell, the pull requests cell lead, its batch size cell.
+func leadRow(interval, lead string) string {
+	direct, batch := "<td>-</td>", "<td>-</td>"
+	if interval == shopCell {
+		direct, batch = shopDirect, shopBatch
+	}
+	return interval + "\n            " + direct + "\n            <td>" + lead + "</td>\n            " + batch + "\n"
+}
+
+// shopDirectUncollected is Acme Shop's direct cell while data/pulls.csv is
+// absent (forsgren#390, step 3): the pull request merges among its commits
+// cannot be told apart yet; Acme Tools has no direct commit, so no note.
+const shopDirectUncollected = "<td>17 min (3) · Mostly estimated: 2 of 3 commits timed by author date." +
+	" · pull request merges cannot be told apart yet</td>"
+
+// uncollected is row, a leadRow, while the pull requests have not been
+// collected.
+var uncollected = strings.NewReplacer(shopDirect, shopDirectUncollected).Replace
 
 // TestRenderShowsTheMainlineLeadTimeOfEachProject (forsgren#256, step 2): with
 // data/pulls.csv beside --data, tbd.html shows each project's Mainline Lead
@@ -91,7 +117,7 @@ func TestRenderShowsTheMainlineLeadTimeOfEachProject(t *testing.T) {
 	data := writeData(t, acmeHistory(), acmeCommits())
 	writePulls(t, data, acmePulls(t))
 	got := tbdSiteOf(t, validConfig, data)
-	wantIn(t, got, "<th scope=\"col\">Mainline Lead Time</th>",
+	wantIn(t, got, "<th scope=\"colgroup\" colspan=\"3\">Mainline Lead Time</th>",
 		leadRow(shopCell, "11 h ± 16 h 27 min (3, 1 cut) · 66% (2 of 3) pull requests merged within 24 hours of "+
 			"their first commit · the mean is a lower bound · 1 pull request timed by its created time"+
 			" · 1 bot pull request not counted · 1 pull request of unknown author not counted"),
@@ -107,7 +133,7 @@ func TestRenderTbdPageBeforeThePullRequestsAreCollected(t *testing.T) {
 	pinNow(t)
 	const notYet = "No pull requests have been collected yet"
 	data := writeData(t, acmeHistory(), acmeCommits())
-	wantIn(t, tbdSiteOf(t, validConfig, data), leadRow(shopCell, notYet),
+	wantIn(t, tbdSiteOf(t, validConfig, data), uncollected(leadRow(shopCell, notYet)),
 		"<th scope=\"row\">Acme Tools</th>\n            "+leadRow("<td>-</td>", notYet))
 	writePulls(t, data, nil)
 	got := tbdSiteOf(t, validConfig, data)

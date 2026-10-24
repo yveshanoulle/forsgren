@@ -6,8 +6,8 @@ import (
 )
 
 // noHumanPulls is the cell of a project without a human pull request in the
-// window, Yves's wording on #342 (forsgren#345, step 2).
-const noHumanPulls = "No human pull requests in this period; changes may go directly to the trunk"
+// window, a dash (forsgren#390, step 2).
+const noHumanPulls = "-"
 
 // TestMainlineLeadTimeCellShowsMeanCountAndShare (forsgren#256, step 2): the
 // cell is the mean, the deviation and the count of pull requests, as the

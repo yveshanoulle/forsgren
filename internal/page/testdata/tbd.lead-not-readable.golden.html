@@ -16,35 +16,48 @@
       <table class="wraps">
         <thead>
           <tr>
-            <th scope="col">Project</th>
-            <th scope="col">Mainline Interval</th>
-            <th scope="col">Mainline Lead Time</th>
-            <th scope="col">Developers</th>
+            <th scope="col" rowspan="2">Project</th>
+            <th scope="col" rowspan="2">Mainline Interval</th>
+            <th scope="colgroup" colspan="3">Mainline Lead Time</th>
+            <th scope="col" rowspan="2">Developers</th>
+          </tr>
+          <tr>
+            <th scope="col">direct</th>
+            <th scope="col">pull requests</th>
+            <th scope="col">batch size</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <th scope="row">Acme Shop</th>
             <td>2 h ± 1 h (3) · median 2 h · p90 - · 2 commits timed by author date</td>
+            <td>20 min (4)</td>
             <td>3 h ± 1 h (5) · 100% (5 of 5) pull requests merged within 24 hours of their first commit</td>
+            <td>1.5 (45)</td>
             <td>3</td>
           </tr>
           <tr>
             <th scope="row">Acme Tools</th>
             <td>2 h ± - (1) · median - · p90 -</td>
+            <td>2 h (2) · 1 commit timed by author date</td>
             <td>Pull requests not readable</td>
+            <td>2 (2) · 1 deployment of unknown lineage not counted</td>
             <td>1 · 1 commit without a known author is not counted</td>
           </tr>
           <tr>
             <th scope="row">Acme Docs</th>
             <td>-</td>
+            <td>-</td>
             <td>Pull requests not readable</td>
+            <td>- · 2 deployments of unknown lineage not counted</td>
             <td>0</td>
           </tr>
           <tr>
             <th scope="row">Acme Web</th>
             <td>24 min ± 2 h 24 min (12) · median 5 min · p90 1 h · Mostly estimated: 7 of 13 commits timed by author date.</td>
+            <td>5 min (30) · Mostly estimated: 20 of 30 commits timed by author date.</td>
             <td>20 h ± 10 h (12) · 58% (7 of 12) pull requests merged within 24 hours of their first commit · 1 pull request timed by its created time · 3 bot pull requests not counted · 1 pull request of unknown author not counted</td>
+            <td>3 (10)</td>
             <td>12 developers · 11 commits without a known author excluded (legacy data).</td>
           </tr>
         </tbody>
