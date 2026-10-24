@@ -504,8 +504,10 @@ four only with its flag:
   discarded`, and `and not progressing` when it was cut short with nothing
   kept on consecutive runs; decision #327), then each repository whose pull
   requests alone the budget cut short, `acme/app pull requests cut short
-  (deployments and issues read)` (forsgren#320, decision #307), the time the
-  budget resets, and each repository that
+  (deployments and issues read)` (forsgren#320, decision #307), then each
+  repository whose backfill of the legacy commits it cut short, `acme/app
+  legacy commits cut short (deployments, issues and pull requests read)`
+  (forsgren#385), the time the budget resets, and each repository that
   failed on GitHub's "primary rate limit" or "secondary rate limit". A missing
   file is "unknown: collect wrote no report: see the failed collect step",
   and a file that is no report "unknown: collect's report cannot be read: see

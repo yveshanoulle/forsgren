@@ -9,6 +9,13 @@ Active work lives in
 
 ---
 
+## 2026-10-24 — Collect backfills the author, parents and committer date of legacy commits once ([#385](https://github.com/yveshanoulle/forsgren/issues/385), steps 1 to 4 of 4)
+
+forsgren issue 385, minor release. An installation that ran forsgren before the commits format v3 had lines in `data/commits.csv` with no author, no parents and no committer date, so the TBD page said `1123 commits without a known author excluded (1099 of them legacy data)` and timed those commits by author date. Step 1 was the red tests. Step 2 is the backfill, inside the daily collect and once per repository: `Commit.Legacy` (no parents and no committer date, the old `storedBeforeLineage` moved to `history`), `history.BackfillCommits` (fills only the empty columns of legacy lines from the known commit of the same deployment and SHA, whole-file rewrite in file order through `replaceWhole`, nothing written when no line changed), one Compare per stored deployment that has legacy lines against the previous success of its stream, newest first, `Client.Reserve(repo, 1)` before each, and the ninth mark file `data/commits_backfilled.csv` (also known to the data guard), moved only when no repository failed or was cut short. A previous that is not an ancestor, a missing commit or a cut list leaves the lines legacy with a `collect: backfill:` warning and the backfill still marked; a commit GitHub links to no account keeps an empty login. Step 3 is the report: a backfill the budget cut short is a `backfill-cut` line of the collect report and `<repo> legacy commits cut short (deployments, issues and pull requests read)` on the job summary's Collected line, incomplete and never failed, and the next run continues. Step 4 is `CLAUDE.md`, `docs/data-files.md`, `docs/configuration.md`, `docs/ci.md`, the installation README and an upgrade note in `docs/updating-and-releases.md`.
+- Lenka B
+
+---
+
 ## 2026-10-24 — The browser gate self-test's CLS cases are ordered by the test, not the clock ([#384](https://github.com/yveshanoulle/forsgren/issues/384), step 1 of 1)
 
 - **Why:** Quality on main went red on a hosted runner: case 38 (the 300 ms setting must catch the shift fixture) saw no shift, because the fixture shifted two animation frames after the load and a loaded machine delivered those frames after the 300 ms read. Proof K had the same race before (#377, #280).

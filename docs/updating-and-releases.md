@@ -472,8 +472,9 @@ The same release brings forsgren#254: `data/commits.csv` becomes the commits
 format v3, with each commit's parents and committer date (see
 [History](data-files.md#history)). A v1 or v2 file is still read, and the
 next `collect` rewrites it once as v3; the commits stored before v3 keep
-their parents and committer date empty for good, since a stored deployment is
-never compared again (decision 293 of forsgren#254). The TBD page's Mainline
+their parents and committer date empty until the backfill of 1.18.0 (below)
+fills them (decision 293 of forsgren#254 kept them empty; forsgren#385
+changed that). The TBD page's Mainline
 Interval now follows each deployment's first-parent chain, each commit placed
 at its committer date. A deployment stored before v3 with two commits or more
 keeps the old approximation, every commit at its author date, and the cell
@@ -493,6 +494,22 @@ value that is not accepted falls back to `[]` with a warning, like every other
 setting. No permission, secret or data file is new, and the stored commits
 keep each login. An agent following [agent-upgrade.md](../agent-upgrade.md)
 needs to ask you nothing about it.
+
+**Upgrading to 1.18.0, which backfills the legacy commits** (forsgren#385). A
+minor release. The first `collect` after the update asks GitHub once for the
+author, the parents and the committer date of the commits stored before the
+commits format v3 and fills them in `data/commits.csv` (see
+[History](data-files.md#history)), so those commits count as developers on the
+TBD page and the Mainline Interval stops using the author date for them. It
+makes one comparison per stored deployment that has such commits, inside the
+daily run, and notes each repository it finished in the new
+`data/commits_backfilled.csv`. It stays inside the request budget, so with
+much history it can take more than one day: the run's summary says `legacy
+commits cut short` for a repository it has not finished, and the next run
+continues. Nothing is cut or failed by it, and nothing needs to be
+configured. A commit GitHub links to no account keeps an empty author. An
+agent following [agent-upgrade.md](../agent-upgrade.md) needs to ask you
+nothing about it.
 
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the

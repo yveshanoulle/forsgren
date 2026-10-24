@@ -130,9 +130,28 @@ acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z,ada
   then the new lines with theirs, through a temporary file in the same
   directory and a rename, so an interrupted run leaves the old file. The
   authors, parents and committer dates of commits stored before are not known
-  and stay empty: a stored deployment is never compared again, so forsgren
-  does not look them up again. A file with a version it does not know, or a line that is not in the
+  when the file is rewritten: the legacy backfill below asks GitHub for them
+  once. A file with a version it does not know, or a line that is not in the
   format, is still refused untouched.
+- **The legacy backfill** (forsgren#385). A line of a commit stored before v3
+  has no parents and no committer date, and one stored before v2 no author
+  either (`Commit.Legacy`). The first `collect` of a release that has the
+  backfill compares, once per repository, each stored deployment that has such
+  lines with the previous success of its stream, the comparison it uses for a
+  new deployment (one request for up to 250 commits, not one per commit), and
+  fills only the empty author, parents and committer date of the matching
+  lines, whatever the age of the deployment. A commit GitHub links to no
+  account keeps an empty author, and nothing is invented. The file is
+  rewritten whole, in file order, through a temporary file and a rename, and
+  only when a line changed. A deployment with no previous success is not
+  compared, and a deployment GitHub no longer lists (a rewritten history, a
+  list cut at the page limit) keeps its legacy lines; stderr says `collect:
+  backfill: deployment 1002: ...; its legacy commits stay without author`,
+  and the repository still counts as done. The request budget applies: before
+  each comparison one request is reserved, and a repository cut short keeps
+  what it filled and continues on the next run, which can take more than one
+  day (see the cut report below). The note of the repositories done is
+  `data/commits_backfilled.csv`, described after the starts catch-up note.
 
 **The failure issues**, for change fail rate (forsgren#18), are kept next to
 it in `data/failures.csv`, with its own format version (the failures format
@@ -326,6 +345,33 @@ acme/app,2026-10-21T06:00:00Z
   missing file notes no repository. An unknown version or a malformed line
   refuses the collect run before GitHub is asked anything, naming the file.
 - The data guard knows its name: a `starts_checked.csv` that git tracks or
+  does not ignore, outside `testdata/` blocks the commit, like the other data
+  files.
+
+**The commits backfill note** (forsgren#385) is kept in
+`data/commits_backfilled.csv`, next to the history, with its own format version
+(the commits backfilled format v1): one line per repository whose legacy
+commits had their author, parents and committer date backfilled (see the
+commits above).
+
+```
+# forsgren commits backfilled v1
+repository,backfilled_at
+acme/app,2026-10-25T06:00:00Z
+```
+
+- A repository without a line is backfilled; once every one of its comparisons
+  was tried, it is noted, also when some lines stayed legacy because GitHub no
+  longer lists their commits.
+- The lines are written only when every repository of the run finished: a run
+  that failed or was cut short anywhere, a cut backfill included, writes none,
+  and the backfill continues on the next run, which compares only deployments
+  that still have legacy lines. An installation that has done it gets no second
+  one; a repository added to the configuration later gets its own.
+- Rewritten whole like `data/reach.csv`, and only when a line changed. A
+  missing file notes no repository. An unknown version or a malformed line
+  refuses the collect run before GitHub is asked anything, naming the file.
+- The data guard knows its name: a `commits_backfilled.csv` that git tracks or
   does not ignore, outside `testdata/` blocks the commit, like the other data
   files.
 
@@ -895,11 +941,13 @@ history), so no file is unknown, never complete. The file is text:
 incomplete resets=2026-10-01T01:00:00Z
 cut acme/app kept=2026-06-22 recent=discarded issues=unread progress=stalled
 pulls-cut acme/shop
+backfill-cut acme/lib
 failed acme/web secondary-rate-limit
 ```
 
 - The second line is `complete`, or `incomplete resets=<UTC RFC 3339>` when
-  any repository, or its pull requests, was cut short at the request budget.
+  any repository, its pull requests or its backfill of the legacy commits was
+  cut short at the request budget.
 - A `cut` line names such a repository: `kept` is the UTC day its read mark
   moved to (`none` when it kept no day), `recent` what became of the read of
   what is new (`read` whole, `kept` in part, `discarded`), `issues` is always
@@ -912,6 +960,11 @@ failed acme/web secondary-rate-limit
   read whole but whose pull requests the request budget cut short:
   incomplete, never failed, and the rest is read by the next run (decision
   #307).
+- A `backfill-cut` line names a repository whose deployments, issues and pull
+  requests were read whole but whose backfill of the legacy commits the
+  request budget cut short (forsgren#385): incomplete, never failed, and the
+  job summary says `acme/lib legacy commits cut short (deployments, issues and
+  pull requests read)`. What it filled is stored, and the next run continues.
 - A `failed` line names a repository that failed: `primary-rate-limit`,
   `secondary-rate-limit` or `error`.
 
