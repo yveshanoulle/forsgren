@@ -877,7 +877,9 @@ last in the menu, "TBD"; `false` leaves it out.
   habits; the interval itself is not divided by it. It counts the distinct GitHub logins of the authors of the commits
   deployed in the window (the Mainline Interval's window, each commit once),
   ignoring case, so
-  one person is one developer across the email addresses they commit with. The
+  one person is one developer across the email addresses they commit with. Logins that the config's `same_developer` lists together count as one
+  developer too, also ignoring case, and the stored commits keep each login
+  (see [Configuration](configuration.md)). The
   first-parent chain does not apply here: the authors of the commits a merge
   brought in count too, since on the chain alone it would count whoever merged
   (decision 294 of forsgren#254). A
@@ -898,7 +900,7 @@ last in the menu, "TBD"; `false` leaves it out.
   login reaches a page (`TestRenderShowsNoCommitAuthor` renders every page
   from commits that all carry one login and finds it on none, the TBD page's
   Developers cell counted from it). The legend's TBD section explains the
-  column: what a developer is, bots left out, commits without a known author
+  column: what a developer is, how listed logins count as one, bots left out, commits without a known author
   named, never who the developers are.
 - **Mainline Lead Time** (forsgren#256), the column between the Mainline
   Interval and Developers: how old a change is when it reaches the main

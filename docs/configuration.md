@@ -179,18 +179,57 @@ projects:
     number of developers who made those commits (forsgren#273; see
     [The TBD page](pages-and-views.md#the-tbd-page)); the legend explains both
     and says what Mainline Lead Time counts: merged human pull requests only.
+- **`same_developer`** is optional (forsgren#361, decision #360): groups of
+  GitHub logins that count as one developer in the TBD page's Developers
+  column, for an assistant account that works on someone's behalf or a person
+  with two accounts. It is a list of lists, each group two or more logins:
+
+  ```
+  same_developer:
+    - [maintainer, assistant-account]
+    - [mona-dev, mona-work]
+  ```
+
+  Left out, or written `[]`, no logins are joined. The logins of a group count
+  as one developer; the first login of a group names it, though the page shows
+  a count only, never a login. Logins are compared without case, as GitHub
+  compares them, so `Maintainer` and `maintainer` are the same login. A login
+  that is in no group counts as before. A login that never appears in the
+  data is allowed, and a group none of whose logins appears counts nothing.
+  A login ending in `[bot]` may be listed, but it stays left out of the count,
+  grouped or not; in flow YAML such a login needs quotes, because the
+  brackets would otherwise end the list: `[maintainer, "helper[bot]"]`. Only
+  the Developers count changes: `data/commits.csv` keeps each commit's real
+  login, and Mainline Lead Time counts pull requests, not people, so it does
+  not change.
+
+  A value that is not accepted is not an error that stops the run: as for
+  every key with a default, forsgren uses the default `[]` instead and says so
+  (see [A setting that is not accepted](#a-setting-that-is-not-accepted)), in
+  the settings page, the `config: warning:` line and `check-config`'s count,
+  so no group is half applied. The refusals, each naming the key: the value
+  is not a list of lists (`use a list of lists of GitHub logins, such as
+  [[maintainer, assistant-account]]`); a group is empty (`group 1 is empty;
+  list two or more logins`) or has one login (`group 1 has one login,
+  "maintainer"; list two or more logins`); an item is not the shape of a
+  GitHub login (`"a b" in group 1 is not a GitHub login`); a login is listed
+  twice in a group (`login "maintainer" is listed twice in group 1 (case is
+  ignored)`); a login is in two groups (`login "maintainer" is in group 2 and
+  in group 1 (case is ignored)`). An existing installation can add the key
+  after updating; see
+  [Installing and updating](updating-and-releases.md#installing-and-updating).
 - **The settings page** (`settings.html`, forsgren#74, moved out of the legend
   in forsgren#84, a table since forsgren#141) tabulates every optional key,
   `view`, `auto_update`, `auto_update_level`, `history_days`,
-  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page`, `numbers_scoring_page`, `history_page` and `tbd_page`, twelve rows in four columns: **Parameter**;
+  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page` and `same_developer`, thirteen rows in four columns: **Parameter**;
   **Current value**, the value in use (`major` for an unset
   `auto_update_level`); **Possible values**, built from the config package's
   own constants and limits so the page cannot drift from what `check-config`
-  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `30 to 1825`; `1 to 365`; `1 to 24`; `30, 90, 180`; `true, unlisted, false` for each of the five page keys),
+  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `30 to 1825`; `1 to 365`; `1 to 24`; `30, 90, 180`; `true, unlisted, false` for each of the five page keys; `groups of two or more GitHub logins`),
   a test holds the lists to the config loader; and **Default**, the value
   used when `forsgren.config.yml` does not set the key (forsgren#169):
   `standard`, `false`, `major`, `365`, `100`, `8`, `30`, `true`, `false`,
-  `unlisted` and `unlisted`, in the order of the rows. A
+  `unlisted`, `unlisted` and `[]`, in the order of the rows. A
   Current value followed by `(not set)` means the file does not set the key,
   so the default applies; a Current value without it is set in the file, even
   to the default's value. For a value that is not accepted the Current value
@@ -261,7 +300,7 @@ commit. Neither is configured per repository in version 1.
 
 A setting with a default (`view`, `auto_update`, `auto_update_level`,
 `history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
-`issues_page`, `days_page`, `numbers_scoring_page`, `history_page` and `tbd_page`) whose value forsgren
+`issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page` and `same_developer`) whose value forsgren
 does not accept, a list or
 a mapping included, does not stop the run (forsgren#183): forsgren uses that
 key's default instead, and says so in three places. The settings page's row

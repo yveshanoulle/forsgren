@@ -481,6 +481,19 @@ names those commits, ` · 3 commits timed by author date` (decision 294 of
 forsgren#254; see [The TBD page](pages-and-views.md#the-tbd-page)). Nothing
 new is needed for it.
 
+**Upgrading to the release that adds `same_developer`** (forsgren#361, decision
+#360; a minor release after 1.16.1). A new optional key, `same_developer`,
+joins GitHub logins into one developer in the TBD page's Developers count, for
+an assistant account that works for someone or a person with two accounts. It
+is a list of lists, such as `same_developer: [[maintainer, assistant-account]]`
+(see [Configuration](configuration.md)). Nothing changes until you add it: left
+out, the key is `[]` and every count stays as it was. An installation can add
+the key after updating, and the settings page shows it as a thirteenth row. A
+value that is not accepted falls back to `[]` with a warning, like every other
+setting. No permission, secret or data file is new, and the stored commits
+keep each login. An agent following [agent-upgrade.md](../agent-upgrade.md)
+needs to ask you nothing about it.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`

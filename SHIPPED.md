@@ -32,6 +32,13 @@ Another estate repository found a headless Chrome of the browser gate still runn
 
 ---
 
+## 2026-10-24 — Logins of one person count as one developer ([#361](https://github.com/yveshanoulle/forsgren/issues/361), steps 1 to 3 of 3)
+
+forsgren issue 361, decisions #360 and #378, minor release. A new optional config key, `same_developer`, lists groups of GitHub logins that count as one developer in the TBD page's Developers column: a list of lists, two or more logins each, compared without case, the first login naming the developer, a login in one group only. A value that is not accepted is not used at all: the default `[]` stays in force with a warning and the settings page says why, so no group is half applied. Step 1 is the key, its validation and the settings row (thirteen rows). Step 2 is the count: `MainlineDevelopers` merges each group into one developer, a `[bot]` login stays left out even when grouped, a login in no group counts as before, a group none of whose logins appears counts nothing, and `data/commits.csv` keeps the real login; the legend's TBD section says in one sentence how aliases count. Mainline Lead Time counts pull requests, not people, so it does not change. Step 3 is `docs/configuration.md` (the key, its refusals, the bot quoting rule, the thirteen rows), `docs/pages-and-views.md` and an upgrade note in `docs/updating-and-releases.md`.
+- Lenka B
+
+---
+
 ## 2026-10-24 — The browser gate engine is canon v4 ([#377](https://github.com/yveshanoulle/forsgren/issues/377), step 1 of 1)
 
 forsgren issue 377, decisions #379 and #380 (A). The engine `Scripts/browser_gate.mjs` changed what it observes, so it is now canon `browser_gate` v4: the layout shift (CLS) interval, default 1000 ms, starts right after the page load, with no second read after axe, and the sideways measurement ignores scrollbar room. The baseline format is unchanged, no migration. The engine header carries the changelog; `docs/quality-gates.md`, `docs/gate-classification.md` and CLAUDE.md name v4. No self-test pins the version line, so there was no red.
