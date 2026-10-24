@@ -153,7 +153,7 @@ func withHistory(data page.Data, cfg config.Config, path string, at time.Time) (
 	data.Mainline = metrics.MainlineIntervals(cfg.Projects, metricsData, at)
 	data.MainlineLead = metrics.MainlineLeadTimes(cfg.Projects, metricsData, at)
 	data.PullsUncollected = absent(beside(path, collect.PullsFile))
-	data.Developers = metrics.MainlineDevelopers(cfg.Projects, metricsData, at)
+	data.Developers = metrics.MainlineDevelopers(cfg.Projects, metricsData, at, cfg.SameDeveloper)
 	events, err := issueEventsOf(path)
 	if err != nil {
 		return data, err

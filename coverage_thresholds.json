@@ -910,6 +910,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/developers.go:legacyCell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/developers.go:add": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/developers.go:storedBeforeLineage": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/developers.go:developerNames": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/mainline.go:mostOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/mainlinelead.go:HasLeadTime": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/mainlinelead.go:HasDeviation": 100.0,

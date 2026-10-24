@@ -41,6 +41,8 @@ var legendTbdText = []string{
 	"Next to the Mainline Interval, Developers is the number of people who made the commits deployed in the " +
 		"window, those a merge brought in included: the distinct GitHub accounts of their authors, " +
 		"so a person who commits from several email addresses counts once",
+	"Logins listed together in a same_developer group of the config count as one developer, " +
+		"with or without capital letters; the stored commits keep each login",
 	"A bot account, whose GitHub login ends in [bot], is not a developer, and its commits are left out",
 	"A commit whose author GitHub links to no account is not guessed to be anyone's: the number leaves it out " +
 		"and the cell says how many, written 3 · 2 commits without a known author are not counted",
@@ -109,16 +111,24 @@ var legendLeadNever = []string{"stored before v3", "stored before the commits fo
 // none of legendLeadNever.
 func TestLegendSaysWhatEachLeadTimeNumberCounts(t *testing.T) {
 	section := legendTbdSection(t, rendered(t, "legend.html", calculated()))
-	for _, want := range legendLeadText {
-		if !strings.Contains(section, want) {
-			t.Errorf("want %q in the TBD page section", want)
+	for _, want := range wordingWhere(legendLeadText, section, false) {
+		t.Errorf("want %q in the TBD page section", want)
+	}
+	for _, never := range wordingWhere(legendLeadNever, section, true) {
+		t.Errorf("want no %q in the TBD page section", never)
+	}
+}
+
+// wordingWhere are the sentences of wordings whose presence in section is
+// present, so the sentences missing or the ones that should not be there.
+func wordingWhere(wordings []string, section string, present bool) []string {
+	var found []string
+	for _, w := range wordings {
+		if strings.Contains(section, w) == present {
+			found = append(found, w)
 		}
 	}
-	for _, never := range legendLeadNever {
-		if strings.Contains(section, never) {
-			t.Errorf("want no %q in the TBD page section", never)
-		}
-	}
+	return found
 }
 
 // legendTbdRetired are the wordings the TBD page section no longer says

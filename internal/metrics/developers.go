@@ -13,6 +13,10 @@ package metrics
 //   - a developer is a distinct GitHub login among them (history.Commit's
 //     Author), compared ignoring case as GitHub compares logins, so one person
 //     is one developer across the email addresses they commit with;
+//   - the logins of one same_developer group (forsgren#361) are one developer,
+//     compared ignoring case, the first login of the group naming it; a login
+//     in no group is its own developer, and a group none of whose logins
+//     appears counts nothing; the stored commits keep the real login;
 //   - a bot account, whose login ends in [bot] (dependabot[bot] among them),
 //     is no developer, and its commits are left out;
 //   - a commit without a login (GitHub links it to no account, or it was
@@ -110,18 +114,20 @@ func (d Developers) legacyCell() string {
 // MainlineDevelopers returns the Developers of each project, in the order of
 // projects, from the data's stored commits at the render time now, over its
 // DORA window: every distinct deployed commit of it, those a merge brought in
-// included, which MainlineIntervals leaves out (forsgren#254).
-func MainlineDevelopers(projects []config.Project, data Data, now time.Time) []Developers {
+// included, which MainlineIntervals leaves out (forsgren#254). The logins of
+// each of groups (the config's same_developer) count as one developer.
+func MainlineDevelopers(projects []config.Project, data Data, now time.Time, groups [][]string) []Developers {
 	index := indexOf(projects)
 	logins := make([]map[string]bool, len(projects))
 	out := make([]Developers, len(projects))
 	for i, p := range projects {
 		logins[i], out[i] = map[string]bool{}, Developers{Project: p.Name}
 	}
+	named := developerNames(groups)
 	counted := distinctInWindow{window: data.window(), now: now, seen: map[string]bool{}}
 	for _, c := range data.Commits {
 		if i, ok := index.of(c.Repository); ok && counted.admits(c) {
-			out[i].add(logins[i], c)
+			out[i].add(logins[i], named, c)
 		}
 	}
 	for i := range out {
@@ -130,11 +136,24 @@ func MainlineDevelopers(projects []config.Project, data Data, now time.Time) []D
 	return out
 }
 
-// add counts the deployed commit c, its author in logins, and whether it is
-// unknown, and legacy data: no login stored before the commits format v3.
-func (d *Developers) add(logins map[string]bool, c history.Commit) {
+// developerNames maps each lower-cased login of groups to the lower-cased
+// first login of its group, the name its developer counts under.
+func developerNames(groups [][]string) map[string]string {
+	named := map[string]string{}
+	for _, g := range groups {
+		for _, login := range g {
+			named[strings.ToLower(login)] = strings.ToLower(g[0])
+		}
+	}
+	return named
+}
+
+// add counts the deployed commit c, its author in logins under the name named
+// gives it, and whether it is unknown, and legacy data: no login stored before
+// the commits format v3.
+func (d *Developers) add(logins map[string]bool, named map[string]string, c history.Commit) {
 	d.Commits++
-	d.Unknown += noteAuthor(logins, c.Author)
+	d.Unknown += noteAuthor(logins, named, c.Author)
 	if c.Author == "" && storedBeforeLineage(c) {
 		d.Legacy++
 	}
@@ -146,15 +165,19 @@ func storedBeforeLineage(c history.Commit) bool {
 	return len(c.Parents) == 0 && c.CommittedAt.IsZero()
 }
 
-// noteAuthor adds a human login to logins, ignoring case, and returns 1 for a
-// commit without one or with GitHub's placeholder, 0 otherwise; a bot's login
-// is left out.
-func noteAuthor(logins map[string]bool, login string) int {
+// noteAuthor adds a human login to logins, ignoring case and under the name
+// named gives it, and returns 1 for a commit without one or with GitHub's
+// placeholder, 0 otherwise; a bot's login is left out, grouped or not.
+func noteAuthor(logins map[string]bool, named map[string]string, login string) int {
 	switch {
 	case login == "", strings.EqualFold(login, placeholderLogin):
 		return 1
 	case !strings.HasSuffix(login, botSuffix):
-		logins[strings.ToLower(login)] = true
+		key := strings.ToLower(login)
+		if name, grouped := named[key]; grouped {
+			key = name
+		}
+		logins[key] = true
 	}
 	return 0
 }

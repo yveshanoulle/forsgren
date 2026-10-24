@@ -110,6 +110,25 @@ func TestRenderShowsTheDevelopersOfEachProject(t *testing.T) {
 	}
 }
 
+// TestRenderCountsTheLoginsOfASameDeveloperGroupOnce (forsgren#361, step 2):
+// two made-up logins listed in one same_developer group are one developer in
+// the Developers cell, whatever their case; without the key they are two.
+func TestRenderCountsTheLoginsOfASameDeveloperGroupOnce(t *testing.T) {
+	pinNow(t)
+	commits := acmeCommits()
+	commits[0].Author, commits[1].Author, commits[2].Author = "acme-dev-one", "dependabot[bot]", "Acme-Dev-Two"
+	data := writeData(t, acmeHistory(), commits)
+	writePulls(t, data, nil)
+	grouped := tbdSiteOf(t, validConfig+"same_developer: [[acme-dev-one, acme-dev-two]]\n", data)
+	if want := noHumanPulls + "</td>\n            <td>1</td>"; !strings.Contains(grouped, want) {
+		t.Errorf("want one developer for the group in tbd.html, got:\n%s", grouped)
+	}
+	alone := tbdSiteOf(t, validConfig, data)
+	if want := noHumanPulls + "</td>\n            <td>2</td>"; !strings.Contains(alone, want) {
+		t.Errorf("want two developers without the key in tbd.html, got:\n%s", alone)
+	}
+}
+
 // TestRenderTbdPageUsesTheDoraWindow (forsgren#253, step 5; forsgren#271):
 // dora_days reaches the Mainline Interval as it reaches lead time: over 90 days
 // the commit deployed on 2026-08-20 (authored 2026-08-19 10:00) counts too, so

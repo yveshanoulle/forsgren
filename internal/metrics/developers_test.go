@@ -21,7 +21,12 @@ func by(login, sha string) history.Commit {
 // shopDevelopers is Acme Shop's Developers over the commits, in the 30 day
 // window.
 func shopDevelopers(commits ...history.Commit) Developers {
-	return MainlineDevelopers(projects, Data{Commits: commits}, now)[0]
+	return shopDevelopersGrouped(nil, commits...)
+}
+
+// shopDevelopersGrouped is shopDevelopers with the same_developer groups.
+func shopDevelopersGrouped(groups [][]string, commits ...history.Commit) Developers {
+	return MainlineDevelopers(projects, Data{Commits: commits}, now, groups)[0]
 }
 
 // TestDevelopersCountEachLoginOnce (forsgren#273, step 2): the developers are
@@ -103,10 +108,10 @@ func TestDevelopersCountTheMainlineCommits(t *testing.T) {
 	want := []Developers{
 		{Project: "Acme Shop", Count: 1, Unknown: 1, Commits: 2}, {Project: "Acme Tools", Count: 1, Commits: 1},
 	}
-	if got := MainlineDevelopers(projects, Data{Commits: commits}, now); !slices.Equal(got, want) {
+	if got := MainlineDevelopers(projects, Data{Commits: commits}, now, nil); !slices.Equal(got, want) {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
-	if got := MainlineDevelopers(projects[:1], Data{Commits: commits, DoraDays: 90}, now)[0]; got.Count != 2 {
+	if got := MainlineDevelopers(projects[:1], Data{Commits: commits, DoraDays: 90}, now, nil)[0]; got.Count != 2 {
 		t.Errorf("90 days: want the commit deployed 40 days ago counted, got %+v", got)
 	}
 }
@@ -167,5 +172,52 @@ func TestDevelopersTakeGitHubsPlaceholderForAnUnknownAuthor(t *testing.T) {
 	cell := "0 developers · 4 commits without a known author excluded (3 of them legacy data)."
 	if got := mostlyLegacy.Cell(); got != cell {
 		t.Errorf("want the cell %q, got %q (%+v)", cell, got, mostlyLegacy)
+	}
+}
+
+// TestDevelopersMergeEachSameDeveloperGroup (forsgren#361, step 2): the logins
+// of one group are one developer, compared without case; a login outside
+// every group counts as before; a group of which one login appears counts
+// that one, and a group none of whose logins appears counts nothing.
+func TestDevelopersMergeEachSameDeveloperGroup(t *testing.T) {
+	pair := [][]string{{"maintainer", "assistant-account"}}
+	cases := []struct {
+		name    string
+		groups  [][]string
+		commits []history.Commit
+		want    int
+	}{
+		{"two logins of a group", pair, []history.Commit{by("maintainer", "a1"), by("assistant-account", "a2")}, 1},
+		{"without case", pair, []history.Commit{by("Maintainer", "a1"), by("ASSISTANT-account", "a2")}, 1},
+		{"group written in other case", [][]string{{"Maintainer", "Assistant-Account"}},
+			[]history.Commit{by("maintainer", "a1"), by("assistant-account", "a2")}, 1},
+		{"a login outside every group", pair,
+			[]history.Commit{by("maintainer", "a1"), by("assistant-account", "a2"), by("mona-dev", "a3")}, 2},
+		{"only one login of the group", pair, []history.Commit{by("assistant-account", "a1")}, 1},
+		{"no login of the group", pair, []history.Commit{by("mona-dev", "a1")}, 1},
+		{"no groups", nil, []history.Commit{by("maintainer", "a1"), by("assistant-account", "a2")}, 2},
+		{"two groups", [][]string{{"a-one", "a-two"}, {"b-one", "b-two"}},
+			[]history.Commit{by("a-one", "a1"), by("a-two", "a2"), by("b-two", "a3"), by("b-one", "a4")}, 2},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := shopDevelopersGrouped(c.groups, c.commits...); got.Count != c.want || got.Commits != len(c.commits) {
+				t.Errorf("want %d developers over %d commits, got %+v", c.want, len(c.commits), got)
+			}
+		})
+	}
+}
+
+// TestDevelopersKeepBotsOutOfGroups (forsgren#361, step 2): a bot login stays
+// no developer when a group lists it, and the human it is grouped with still
+// counts once.
+func TestDevelopersKeepBotsOutOfGroups(t *testing.T) {
+	groups := [][]string{{"maintainer", "helper[bot]"}}
+	got := shopDevelopersGrouped(groups, by("helper[bot]", "a1"))
+	if got.Count != 0 || got.Unknown != 0 {
+		t.Errorf("a grouped bot alone is no developer, got %+v", got)
+	}
+	if got := shopDevelopersGrouped(groups, by("helper[bot]", "a1"), by("maintainer", "a2")); got.Count != 1 {
+		t.Errorf("the human of the group counts once, got %+v", got)
 	}
 }

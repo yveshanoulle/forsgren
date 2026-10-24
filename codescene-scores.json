@@ -215,7 +215,7 @@
   {
    "path": "cmd/forsgren/render_tbd_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-24",
    "minScore": 10.0
   },
   {
@@ -227,7 +227,7 @@
   {
    "path": "cmd/forsgren/render.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-24",
    "minScore": 10.0
   },
   {
@@ -443,13 +443,13 @@
   {
    "path": "internal/metrics/developers.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-24",
    "minScore": 10.0
   },
   {
    "path": "internal/metrics/developers_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-24",
    "minScore": 10.0
   },
   {
@@ -1583,7 +1583,7 @@
   {
    "path": "internal/page/legend_tbd_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-24",
    "minScore": 10.0
   },
   {
