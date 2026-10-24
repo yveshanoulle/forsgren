@@ -21,8 +21,12 @@
 //        helpers can still write into it after the browser closed: the whole
 //        process group of Chrome is killed and the folder removed only when
 //        the group is empty, bounded and loud, and a signal during the launch
-//        waits for the launch (forsgren#383, before any copy took v5). The
-//        findings and the exit statuses 0, 1 and 2 are unchanged.
+//        waits for the launch (forsgren#383, before any copy took v5). A
+//        Chrome that dies mid-run ends the run at once with exit 2: the
+//        process's own exit and the browser's disconnect are watched, since
+//        a helper that still holds the pipe keeps it from closing and puppeteer
+//        would wait for its timeout (forsgren#384). The findings and the exit
+//        statuses 0, 1 and 2 are unchanged.
 //   v4 = v3 plus the CLS interval from the load (forsgren#377, decision #380):
 //        the observation interval (default 1000 ms) starts right after the
 //        page load, whatever the document checks and axe take, with no second
@@ -647,11 +651,16 @@ function release() {
     const browser = live.browser || await launched();
     if (browser) {
       const child = browser.process();
-      let timer;
-      const closed = browser.close().catch(() => {});
-      const late = new Promise((resolve) => { timer = setTimeout(resolve, CLOSE_TIMEOUT_MS); });
-      await Promise.race([closed, late]);
-      clearTimeout(timer);
+      // A browser process that has ended has nothing to close: with a helper
+      // still on the pipe, close() would wait its whole 5 s (forsgren#384).
+      const ended = child && (child.exitCode !== null || child.signalCode !== null);
+      if (!ended) {
+        let timer;
+        const closed = browser.close().catch(() => {});
+        const late = new Promise((resolve) => { timer = setTimeout(resolve, CLOSE_TIMEOUT_MS); });
+        await Promise.race([closed, late]);
+        clearTimeout(timer);
+      }
       if (child && child.pid) await endChromeGroup(child.pid);
     }
     if (server) server.close();
@@ -671,6 +680,25 @@ for (const [name, code] of [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]])
       process.exit(2);
     });
   });
+}
+
+// Rejects when Chrome is gone: its process ended, or puppeteer lost the
+// connection. The pipe alone is not enough: a helper of the group that still
+// holds it keeps it open after the browser process died, and a pending page
+// operation then waits for its timeout instead of failing (forsgren#384).
+function chromeGone(browser) {
+  const gone = new Promise((resolve, reject) => {
+    browser.process()?.once('exit', (code, signal) => reject(new Error(`Chrome ended during the run (exit ${code}, signal ${signal})`)));
+    browser.once('disconnected', () => reject(new Error('Chrome disconnected during the run')));
+  });
+  gone.catch(() => {}); // seen only while a check races it; the normal end is no error
+  return gone;
+}
+
+// A check that loses the race to a dead Chrome may still reject later.
+function unlessGone(work, gone) {
+  work.catch(() => {});
+  return Promise.race([work, gone]);
 }
 
 async function checkPage(browser, origin, variant, pagePath, exceptions, baseline) {
@@ -731,9 +759,10 @@ async function main() {
       pipe: true,
     });
     live.browser = await live.launching;
-    version = await live.browser.version();
+    const gone = chromeGone(live.browser);
+    version = await unlessGone(live.browser.version(), gone);
     for (const variant of variants.values()) {
-      for (const pagePath of pages) checks.push(await checkPage(live.browser, origin, variant, pagePath, exceptions, baseline));
+      for (const pagePath of pages) checks.push(await unlessGone(checkPage(live.browser, origin, variant, pagePath, exceptions, baseline), gone));
     }
   } finally {
     await release();

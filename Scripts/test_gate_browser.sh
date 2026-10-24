@@ -111,9 +111,16 @@
 #      The signal comes once the gate's profile folder exists and a page is open
 #      in its Chrome, never after a delay; the fixture has forty looks so the
 #      gate is still running; a gate not up in 30 s, or ended before the signal,
-#      is red with that reason (forsgren#383).
+#      is red with that reason (forsgren#383). The gate gets up to 60 s to end
+#      (an observable condition, its exit; a fixed 20 s failed on a slow hosted
+#      runner, forsgren#384).
+#  53b. the same with a helper of Chrome's group that holds the pipe open (a test
+#      double): the pipe never closes, so the engine must see Chrome's process
+#      end by itself -> exit 2 within seconds, no Chrome, no profile folder
 #   R. no signal handler in the engine: case 52e leaves the profile folder;
 #   S. the wrapper not forwarding the signal: case 52a leaves Chrome alive.
+#   T. the engine not watching Chrome's process (forsgren#384): case 53b is
+#      still running after 25 s.
 
 set -euo pipefail
 
@@ -549,7 +556,7 @@ for n in $(seq 1 40); do printf 'look%s|scheme:light\n' "$n" >> "${TMP}/slow/var
 # the signal to the command (self) or to the node process under it (node), or
 # kills the Chrome (error), then waits for the end. Sets SIG_RC, SIG_CHROME
 # (alive), SIG_PROFILE (folders left), SIG_UP, SIG_EARLY (the gate had ended
-# before the signal), SIG_ENDED and SIG_OUT.
+# before the signal), SIG_ENDED, SIG_WAITED (the bound, SIG_WAIT_S or 60 s) and SIG_OUT.
 signal_case() {
   local label="$1" target="$2" sig="$3" tmpd pid target_pid
   shift 3
@@ -584,7 +591,8 @@ signal_case() {
     kill -s "$sig" "$target_pid" || true
   fi
   SIG_ENDED=1
-  for _ in $(seq 1 100); do
+  SIG_WAITED="${SIG_WAIT_S:-60}"
+  for _ in $(seq 1 $((SIG_WAITED * 5))); do
     if ! kill -0 "$pid" 2> /dev/null; then break; fi
     sleep 0.2
   done
@@ -613,7 +621,7 @@ closed_verdict() {
   elif [[ "$SIG_EARLY" -eq 1 ]]; then
     echo "the gate ended before the signal was sent"
   elif [[ "$SIG_ENDED" -ne 1 ]]; then
-    echo "the gate was still running 20 s after the signal"
+    echo "the gate was still running ${SIG_WAITED} s after the signal"
   elif [[ "$SIG_RC" != "$1" ]]; then
     echo "expected exit $1, got ${SIG_RC}"
   elif [[ "$SIG_CHROME" -ne 0 ]]; then
@@ -666,6 +674,22 @@ else
 fi
 signal_case chrome_killed self error "$GATE"
 want_closed "53: Chrome killed mid-run is an error (exit 2) and leaves no Chrome and no profile" 2
+
+# 53b: a Chrome whose helper keeps the pipe open. The double is Chrome plus a
+# sleep of its group, started by the same script, which inherits the pipe's file
+# descriptors; it carries no profile folder on its command line, so the kill of
+# the case does not reach it. The pipe stays open after Chrome died, as it does
+# on a hosted runner where a helper outlives the browser (forsgren#384). The gate
+# must see Chrome's process end and exit 2 at once, not after puppeteer's timeout.
+REAL_CHROME="${FORSGREN_CHROME:-}"
+for candidate in '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' /usr/bin/google-chrome /usr/bin/google-chrome-stable /usr/bin/chromium /usr/bin/chromium-browser; do
+  if [[ -z "$REAL_CHROME" && -e "$candidate" ]]; then REAL_CHROME="$candidate"; fi
+done
+PIPE_HOLDER="${TMP}/chrome_pipe_holder.sh"
+printf '#!/bin/bash\nsleep 120 &\nexec "%s" "$@"\n' "$REAL_CHROME" > "$PIPE_HOLDER"
+chmod +x "$PIPE_HOLDER"
+FORSGREN_CHROME="$PIPE_HOLDER" signal_case pipe_held self error "$GATE"
+want_closed "53b: Chrome killed while a helper holds the pipe: exit 2 at once, no Chrome, no profile" 2
 
 # Mutation proofs: the engine copy is run directly, with the real node_modules.
 MUT="${TMP}/mutants"
@@ -829,4 +853,11 @@ if selftest_mutant Scripts/gate_browser.sh "${WMUT}/Scripts/gate_browser.sh" 's/
   want_left "mutation proof S: without forwarding case 52a leaves Chrome alive" 143 "Chrome processes of the gate are still alive"
 fi
 
-selftest_end "the browser gate self-test failed" "browser gate: every case holds, nineteen mutations seen"
+# T: the engine not watching Chrome's process -> with the pipe held open, case
+# 53b waits for puppeteer's timeouts (30 s and more); 25 s is bound enough.
+if selftest_mutant "$ENGINE" "${MUT}/t.mjs" "s/browser.process()?.once('exit', /browser.process()?.once('exit-never', /"; then
+  SIG_WAIT_S=25 FORSGREN_CHROME="$PIPE_HOLDER" signal_case mutant_t self error env FORSGREN_NODE_ROOT="$REPO_ROOT" node "${MUT}/t.mjs"
+  want_left "mutation proof T: without the process watch case 53b is still running" 2 "the gate was still running 25 s"
+fi
+
+selftest_end "the browser gate self-test failed" "browser gate: every case holds, twenty mutations seen"
