@@ -9,6 +9,18 @@ Active work lives in
 
 ---
 
+## 2026-10-24 — sfl skips the release workflow gate when a commit touches none of the files it reads ([#263](https://github.com/yveshanoulle/forsgren/issues/263), steps 1 and 2 of 2)
+
+forsgren issue 263, tools issue, no release. The release workflow gate took 165 s of an FBP and read nothing a documentation or browser change touches. `Scripts/gate_inputs.txt` now lists the files it reads (its script's closure: the four workflows, the release scripts it names, the libraries it sources), and `sfl.sh` asks the selector of #262 before the row, so the row is skipped when none of them changed; a file no list names still runs it, and Quality runs it always. Deriving the list found that the gate also searched every tracked file for the removed bump machinery, which no list can state. That scan is now its own always-run row, `release removed names`, one search per name (about 3 s), so the gate itself reads only listed files (a copy holding only the listed files passes it, 29 s against 106 s).
+
+- Red first: `Scripts/test_gate_inputs.sh` was red for a missing input list and for the gate listing the tracked files; cases 25 to 31 of `Scripts/test_gate_select.sh` said `has no input list` instead of run or skip.
+- Green: the list, the new row and script, `named_files` dropping a leading `./`, `MIN_GATES` 158; `Scripts/test_gate_inputs.sh` has a check that the gate does not enumerate the repository (mutation H); cases 25 to 32 hold the selection (workflow, its pin and a release script run it; another release self-test, another workflow, sfl.sh skip it; an unknown file runs it; CI runs it).
+- Docs: docs/quality-gates.md, docs/gate-classification.md, CONTRIBUTING.md, the comments of `Scripts/gate_inputs.txt`, `Scripts/gate_report_order.txt` and `Scripts/test_release_workflow.sh`.
+
+- Lenka B
+
+---
+
 ## 2026-10-24 — Collect backfills the author, parents and committer date of legacy commits once ([#385](https://github.com/yveshanoulle/forsgren/issues/385), steps 1 to 4 of 4)
 
 forsgren issue 385, minor release. An installation that ran forsgren before the commits format v3 had lines in `data/commits.csv` with no author, no parents and no committer date, so the TBD page said `1123 commits without a known author excluded (1099 of them legacy data)` and timed those commits by author date. Step 1 was the red tests. Step 2 is the backfill, inside the daily collect and once per repository: `Commit.Legacy` (no parents and no committer date, the old `storedBeforeLineage` moved to `history`), `history.BackfillCommits` (fills only the empty columns of legacy lines from the known commit of the same deployment and SHA, whole-file rewrite in file order through `replaceWhole`, nothing written when no line changed), one Compare per stored deployment that has legacy lines against the previous success of its stream, newest first, `Client.Reserve(repo, 1)` before each, and the ninth mark file `data/commits_backfilled.csv` (also known to the data guard), moved only when no repository failed or was cut short. A previous that is not an ancestor, a missing commit or a cut list leaves the lines legacy with a `collect: backfill:` warning and the backfill still marked; a commit GitHub links to no account keeps an empty login. Step 3 is the report: a backfill the budget cut short is a `backfill-cut` line of the collect report and `<repo> legacy commits cut short (deployments, issues and pull requests read)` on the job summary's Collected line, incomplete and never failed, and the next run continues. Step 4 is `CLAUDE.md`, `docs/data-files.md`, `docs/configuration.md`, `docs/ci.md`, the installation README and an upgrade note in `docs/updating-and-releases.md`.

@@ -1,6 +1,6 @@
 # Scripts/gate_inputs.txt (forsgren#262, step 1 of 3)
 #
-# What each of the four browser gates reads, so a gate runs only when a commit touches one of its inputs.
+# What each of the four browser gates and the release workflow gate (forsgren#263) read, so a gate runs only when a commit touches one of its inputs.
 # Scripts/lib_gate_select.sh (step 2) reads it: gate_select <label> says run or
 # skip, and sfl.sh asks it before each of the four rows (step 3): a skipped row is
 # not run, named with the reason and logged in .build/sfl-skips.log. CI runs all.
@@ -144,3 +144,32 @@ browser gate (fixture site)|in|package-lock.json
 browser gate (fixture site)|out|*_test.go
 browser gate (fixture site)|out|cmd/**/testdata/
 browser gate (fixture site)|out|internal/**/testdata/
+
+# --- release workflow (forsgren#263) -------------------------------------
+# Scripts/test_release_workflow.sh pins .github/workflows/release.yml against
+# metrics.yml, quality.yml and auto_update.yml. It reads no Go tree and no other
+# tracked file: its scan of every tracked file for the removed bump machinery is
+# Scripts/test_release_removed_names.sh, a gate of its own that is never skipped.
+# The list is the closure of the script. Scripts/test_gate_inputs.sh derives it and
+# is red when a file of it is missing here, or when the script lists or searches
+# the repository. The self-tests of the release scripts are other rows.
+release workflow|in|.github/workflows/auto_update.yml
+release workflow|in|.github/workflows/metrics.yml
+release workflow|in|.github/workflows/quality.yml
+release workflow|in|.github/workflows/release.yml
+release workflow|in|Scripts/dispatch_preview.sh
+release workflow|in|Scripts/lib_git_sandbox.sh
+release workflow|in|Scripts/lib_selftest.sh
+release workflow|in|Scripts/lib_workflow_steps.sh
+release workflow|in|Scripts/release_agent_proofs.sh
+release workflow|in|Scripts/release_metrics.sh
+release workflow|in|Scripts/release_pins.sh
+release workflow|in|Scripts/release_plan.sh
+release workflow|in|Scripts/release_publish.sh
+release workflow|in|Scripts/release_quality.sh
+release workflow|in|Scripts/release_report.sh
+release workflow|in|Scripts/release_resume.sh
+release workflow|in|Scripts/release_token_expiry.sh
+release workflow|in|Scripts/release_verify_install.sh
+release workflow|in|Scripts/release_verify_pin.sh
+release workflow|in|Scripts/test_release_workflow.sh

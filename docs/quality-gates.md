@@ -753,6 +753,21 @@ The POST gates, on the generated site:
   mutation proofs, each asserting the reason: the skip ignored, the log line
   dropped, the log never emptied.
 
+- **release workflow gate skip and the removed names gate** (forsgren#263,
+  forsgren only, not canon): the `release workflow` row
+  (`Scripts/test_release_workflow.sh`) has `in` rows in
+  `Scripts/gate_inputs.txt` too: the workflow, the three workflows it is pinned
+  against, the release scripts it names and the libraries it sources, the closure
+  of its script, which `Scripts/test_gate_inputs.sh` derives and holds. That
+  self-test also fails when the gate's script lists or searches the repository
+  (`git ls-files`, `git grep`, `find`, `grep -r`), because then it reads files no
+  list can name. The scan of every tracked file for the removed bump machinery
+  (forsgren#237) was the last section of that pin and read all of them; it is now
+  the always-run row `release removed names`
+  (`Scripts/test_release_removed_names.sh`, one search per name, about 3 s,
+  five mutation proofs in a throwaway repository). Quality runs both rows
+  always.
+
 - **FBP push-or-rebase** (`Scripts/fbp_push_or_rebase.sh`, self-test
   `Scripts/test_fbp_push_or_rebase.sh`, forsgren#283 step 1 of 2, ported from
   the estate canon): when FBP.sh's final push is refused because the remote moved

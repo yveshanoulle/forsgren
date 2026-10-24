@@ -179,11 +179,12 @@ fi
 # for the gate selection self-test (step 2 of 3), and 155 for the sfl gate skip
 # self-test (step 3 of 3), and 156 for the FBP push-or-rebase self-test
 # (forsgren#283, step 1 of 2), and 157 for the sfl pull rebase self-test
-# (forsgren#283, step 2 of 2).
+# (forsgren#283, step 2 of 2), and 158 for the removed names gate that left the
+# release workflow pin (forsgren#263).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=157
+MIN_GATES=158
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true

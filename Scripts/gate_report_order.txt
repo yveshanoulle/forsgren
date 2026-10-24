@@ -882,6 +882,10 @@ release verify install self-test|Scripts/test_release_verify_install.sh|pre|
 release agent proofs self-test|Scripts/test_release_agent_proofs.sh|pre|
 release metrics self-test|Scripts/test_release_metrics.sh|pre|
 release workflow|Scripts/test_release_workflow.sh|pre|
+# The scan of every tracked file for the removed bump machinery (forsgren#263): it
+# reads every file, so it is not part of the row above, which sfl skips when a
+# commit touches none of the files Scripts/gate_inputs.txt lists for it.
+release removed names|Scripts/test_release_removed_names.sh|pre|
 quality summary first|Scripts/test_quality_summary_first.sh|pre|
 #
 # Quality's parallel jobs (forsgren#259, decision #260): the job layout of

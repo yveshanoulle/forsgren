@@ -40,6 +40,7 @@ named_files() {
   local code token
   code="$(grep -v '^[[:space:]]*#' "$1" || true)"
   while IFS= read -r token; do
+    token="${token#./}"
     [[ -z "$token" ]] && continue
     if [[ -f "$token" ]]; then
       echo "$token"

@@ -162,6 +162,7 @@ run report shows how many checks each of them ran.
 - release agent proofs self-test (`Scripts/test_release_agent_proofs.sh`, pre)
 - release metrics self-test (`Scripts/test_release_metrics.sh`, pre)
 - release workflow (`Scripts/test_release_workflow.sh`, pre)
+- release removed names (`Scripts/test_release_removed_names.sh`, pre)
 - quality summary first (`Scripts/test_quality_summary_first.sh`, pre)
 - quality jobs pin (`Scripts/test_quality_jobs.sh`, pre)
 - merge quality report self-test (`Scripts/test_merge_quality_report.sh`, pre)

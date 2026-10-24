@@ -33,6 +33,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
+# shellcheck source=Scripts/lib_git_sandbox.sh
+source Scripts/lib_git_sandbox.sh
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
 # shellcheck source=Scripts/lib_gate_select.sh
@@ -46,7 +48,15 @@ LABELS=(
   "browser gate"
   "browser gate (fixture site) self-test"
   "browser gate (fixture site)"
+  "release workflow"
 )
+
+# Gates that must not enumerate the repository (forsgren#263): a gate that lists
+# the tracked files and searches them reads every file, which no list of inputs
+# can state, so the selector could never skip it. Its script is searched for the
+# commands that do.
+NO_ENUMERATION=("release workflow")
+ENUMERATING='git (ls-files|grep|ls-tree)|find (\.|\$|"|Scripts|cmd|internal)|grep (-[A-Za-z]*[rR][A-Za-z]* )'
 
 if [[ ! -f "$INPUTS" ]]; then
   selftest_abort "browser gate inputs self-test: ${INPUTS} is missing"
@@ -91,6 +101,22 @@ check_inputs() {
           bad=1
         fi
       done
+    fi
+  done
+  return "$bad"
+}
+
+# check_enumeration <order-file>: prints one `problem:` line per gate of NO_ENUMERATION
+# whose script (comments left out) lists or searches the repository.
+check_enumeration() {
+  local label script hit bad=0
+  for label in "${NO_ENUMERATION[@]}"; do
+    script="$(awk -F'|' -v l="$label" '$1 == l { print $2 }' "$1")"
+    [[ -f "$script" ]] || continue
+    hit="$(grep -v '^[[:space:]]*#' "$script" | grep -E "$ENUMERATING" | head -1 || true)"
+    if [[ -n "$hit" ]]; then
+      echo "problem: '${label}' (${script}) enumerates the repository, so it reads files no list can name: ${hit}"
+      bad=1
     fi
   done
   return "$bad"
@@ -141,7 +167,18 @@ done
 capture guard "."
 want_green "5: no go:embed and no build script reads testdata/ or a test file"
 
+# 6
+capture check_enumeration "$ORDER"
+want_green "6: no gate that must stay listable lists or searches the repository"
+
 # Mutation proofs.
+# H: a gate that lists the tracked files and searches them.
+printf '%s\n' '#!/usr/bin/env bash' 'git ls-files | grep -F removed_name' > "${TMP}/h_script.sh"
+sed "s#^release workflow|[^|]*|#release workflow|${TMP}/h_script.sh|#" "$ORDER" > "${TMP}/h_order.txt"
+if cmp -s "$ORDER" "${TMP}/h_order.txt"; then fail "mutation H changed nothing: the proof would be vacuous"; fi
+capture check_enumeration "${TMP}/h_order.txt"
+want_red "mutation proof H: a gate that lists the tracked files" "problem: 'release workflow' (${TMP}/h_script.sh) enumerates the repository"
+
 # A: a script dropped from a gate's rows.
 sed '/^browser gate|in|Scripts\/lib_site_settings.sh$/d' "$INPUTS" > "${TMP}/a.txt"
 if cmp -s "$INPUTS" "${TMP}/a.txt"; then fail "mutation A changed nothing: the proof would be vacuous"; fi
@@ -190,4 +227,4 @@ if cmp -s Scripts/build_site.sh "${ROOT}/Scripts/build_site.sh"; then fail "muta
 capture guard "$ROOT"
 want_red "mutation proof D: a build script reading a testdata file" "problem: Scripts/build_site.sh reads a test file or testdata: cp internal/page/testdata/legend.golden"
 
-selftest_end "the browser gate inputs self-test failed" "browser gate inputs: four labels listed, every path exists, every closure listed, the guard holds, seven mutations seen"
+selftest_end "the browser gate inputs self-test failed" "gate inputs: five labels listed, every path exists, every closure listed, the release workflow gate does not enumerate the repository, the guard holds, eight mutations seen"

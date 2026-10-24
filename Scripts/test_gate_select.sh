@@ -84,6 +84,10 @@ printf 'echo alpha\nbash Scripts/helper.sh\n' > "${FX}/Scripts/alpha.sh"
 echo 'echo helper' > "${FX}/Scripts/helper.sh"
 echo 'echo other check' > "${FX}/Scripts/check_other.sh"
 echo 'echo release' > "${FX}/Scripts/release_x.sh"
+echo "echo plan" > "${FX}/Scripts/release_plan.sh"
+echo "echo plan test" > "${FX}/Scripts/test_release_plan.sh"
+echo "echo pin" > "${FX}/Scripts/test_release_workflow.sh"
+echo "on: dispatch" > "${FX}/.github/workflows/release.yml"
 echo 'on: push' > "${FX}/.github/workflows/w.yml"
 echo 'guide' > "${FX}/docs/guide.txt"
 echo 'echo beta' > "${FX}/Scripts/beta.sh"
@@ -269,6 +273,29 @@ real_case 22 sfl.sh skip
 real_case 23 FBP.sh skip
 real_case 24 other/o.txt run
 
+# 25-30 (forsgren#263): the release workflow gate, on the real list. It runs for the
+# workflow, its pin and the release scripts it calls; it skips for a release
+# script it does not read, for another workflow, for sfl.sh and FBP.sh; a file no list
+# names runs it (fail-safe); Quality (GITHUB_ACTIONS) runs it always.
+RW="release workflow"
+rw_case() {
+  echo "# edit" >> "${FX}/$2"
+  sel_real "$RW"
+  want_exit "$1: only $2 changed, $RW" 0 "$3"
+  reset
+}
+rw_case 25 .github/workflows/release.yml "run: .github/workflows/release.yml is an input of $RW"
+rw_case 26 Scripts/test_release_workflow.sh "run: Scripts/test_release_workflow.sh is an input of $RW"
+rw_case 27 Scripts/release_plan.sh "run: Scripts/release_plan.sh is an input of $RW"
+rw_case 28 Scripts/test_release_plan.sh "skip: none of the 1 changed files is an input of $RW"
+rw_case 29 .github/workflows/w.yml "skip: none of the 1 changed files is an input of $RW"
+rw_case 30 sfl.sh "skip: none of the 1 changed files is an input of $RW"
+rw_case 31 other/o.txt "run: other/o.txt is named by no gate's list, so every gate runs"
+echo "# edit" >> "${FX}/Scripts/release_plan.sh"
+capture env -u FORSGREN_GATE_SELECT_FULL GITHUB_ACTIONS=true FORSGREN_GATE_INPUTS="$REAL_INPUTS" bash "${TMP}/drive.sh" "$FX" Scripts/lib_gate_select.sh "$RW"
+want_exit "32: CI runs the release workflow gate whatever changed" 0 "run: full run (Quality runs every gate)"
+reset
+
 # 15: the real list: every browser label has input rows the library reads, and the
 # real library covers the engine and excludes a test file, as the list says.
 for label in "browser gate self-test" "browser gate" "browser gate (fixture site) self-test" "browser gate (fixture site)"; do
@@ -377,4 +404,4 @@ sel_real "browser gate" "${TMP}/no_sfl.txt"
 want_exit "mutation proof K: without the sfl.sh row, the sfl-only commit runs the browser gate" 0 "run: sfl.sh is named by no gate's list, so every gate runs"
 reset
 
-selftest_end "the gate select self-test failed" "gate_select: twenty-four cases hold, eleven mutations seen"
+selftest_end "the gate select self-test failed" "gate_select: thirty-two cases hold, eleven mutations seen"
