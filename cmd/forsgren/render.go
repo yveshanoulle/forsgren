@@ -152,12 +152,11 @@ func withHistory(data page.Data, cfg config.Config, path string, at time.Time) (
 	data.FirstDeployment, _ = metrics.FirstDeployment(cfg.Projects, metricsData)
 	data.Mainline = metrics.MainlineIntervals(cfg.Projects, metricsData, at)
 	data.MainlineLead = metrics.MainlineLeadTimes(cfg.Projects, metricsData, at)
-	data.MainlineDirect = metrics.MainlineDirects(cfg.Projects, metricsData, at)
-	data.BatchSize = metrics.BatchSizes(cfg.Projects, metricsData, at)
 	data.PullsUncollected = absent(beside(path, collect.PullsFile))
 	data.Developers = metrics.MainlineDevelopers(cfg.Projects, metricsData, at, cfg.SameDeveloper)
 	data.PushMeasures = metrics.PushMeasuresOf(cfg.Projects, metricsData, at)
 	data.DeployMeasures = metrics.DeployMeasuresOf(cfg.Projects, metricsData, at)
+	data.DeploymentVolumes = metrics.DeploymentVolumes(cfg.Projects, metricsData, at)
 	events, err := issueEventsOf(path)
 	if err != nil {
 		return data, err

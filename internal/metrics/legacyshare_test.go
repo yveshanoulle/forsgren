@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -56,52 +55,4 @@ func legacyBy(login, sha string) history.Commit {
 	c := by(login, sha)
 	c.Parents, c.CommittedAt = nil, time.Time{}
 	return c
-}
-
-// TestDevelopersCountTheCommitsAndTheLegacyUnknownOnes (forsgren#345, step
-// 3): the Developers hold how many distinct commits were deployed in the
-// window, bots' included, and how many of those without a known author are
-// legacy data: stored before the commits format v3, with neither parents nor
-// a committer date. A commit stored with its lineage and no author, GitHub
-// linking it to no account, is unknown but not legacy data.
-func TestDevelopersCountTheCommitsAndTheLegacyUnknownOnes(t *testing.T) {
-	commits := []history.Commit{
-		legacyBy("", "a1"), legacyBy("", "a2"), by("", "a3"), legacyBy("octo-dev", "a4"),
-		by("dependabot[bot]", "a5"), legacyBy("", "a1"),
-	}
-	want := Developers{Project: "Acme Shop", Count: 1, Unknown: 3, Legacy: 2, Commits: 5}
-	if got := shopDevelopers(commits...); got != want {
-		t.Errorf("want %+v, got %+v", want, got)
-	}
-}
-
-// TestDevelopersUnknownCellNamesTheLegacyDataAboveHalf (forsgren#345, step 3;
-// forsgren#387, step 2): when the legacy commits without a known author are
-// more than half of the deployed commits, the unknown authors cell ends with
-// legacy data, and when some of the unknown ones are not legacy data, with how
-// many are: they were stored with their lineage, GitHub linking them to no
-// account, and are not called so. At half or below, or when the unknown ones
-// are most of the commits but the legacy ones are not, the cell keeps its
-// plain figure. The developers cell is the count alone, never an estimate.
-func TestDevelopersUnknownCellNamesTheLegacyDataAboveHalf(t *testing.T) {
-	for _, c := range []struct {
-		in   Developers
-		want string
-	}{
-		{Developers{Count: 3, Unknown: 1099, Legacy: 1099, Commits: 1134}, "1099 (96%) · legacy data"},
-		{Developers{Count: 1, Unknown: 3, Legacy: 3, Commits: 5}, "3 (60%) · legacy data"},
-		{Developers{Count: 0, Unknown: 1, Legacy: 1, Commits: 1}, "1 (100%) · legacy data"},
-		{Developers{Count: 2, Unknown: 5, Legacy: 3, Commits: 5}, "5 (100%) · 3 of them legacy data"},
-		{Developers{Count: 1, Unknown: 2, Legacy: 2, Commits: 4}, "2 (50%)"},
-		{Developers{Count: 1, Unknown: 3, Legacy: 1, Commits: 4}, "3 (75%)"},
-		{Developers{Count: 3, Commits: 3}, "0 (0%)"},
-	} {
-		got := c.in.UnknownCell()
-		if got != c.want {
-			t.Errorf("%+v: want the cell %q, got %q", c.in, c.want, got)
-		}
-		if strings.Contains(strings.ToLower(got+c.in.CountCell()), "estimat") {
-			t.Errorf("%+v: the Developers cells are about attribution, never an estimate: %q", c.in, got)
-		}
-	}
 }

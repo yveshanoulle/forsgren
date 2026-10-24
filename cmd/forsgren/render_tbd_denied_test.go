@@ -33,14 +33,13 @@ func writePullsDenied(t *testing.T, data, lines string) {
 // missing pulls_denied.csv refuses nothing, which the other TBD tests show.
 func TestRenderTbdPageSaysThePullRequestsAreNotReadable(t *testing.T) {
 	pinNow(t)
-	const tools = "<th scope=\"row\">Acme Tools</th>\n            "
 	data := writeData(t, acmeHistory(), acmeCommits())
 	writePullsDenied(t, data, "ACME/Api,2026-10-01T00:00:00Z\n")
-	wantIn(t, tbdSiteOf(t, validConfig, data), uncollected(leadRow(shopCell, notReadableCell)),
-		tools+leadRow(noCells, "No pull requests have been collected yet"))
+	wantIn(t, tbdSiteOf(t, validConfig, data), leadRow(shopCell, notReadableCell),
+		leadRow(noCells, "No pull requests have been collected yet"))
 	writePulls(t, data, acmePulls(t))
 	wantIn(t, tbdSiteOf(t, validConfig, data), leadRow(shopCell, notReadableCell),
-		tools+leadRow(noCells, noHumanPulls))
+		leadRow(noCells, noHumanPulls))
 }
 
 // TestRenderRefusesABadPullsDeniedFile (forsgren#337, step 2): a malformed

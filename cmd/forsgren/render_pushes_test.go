@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -118,4 +119,29 @@ func TestRenderRefusesABadPushFile(t *testing.T) {
 		"unknown version": {"# forsgren pushes denied v2\n", "unknown history format version"},
 		"malformed line":  {pushesDeniedH + "acme/api\n", "line 3: malformed history"},
 	})
+}
+
+// TestRenderShowsThePushGroupsAndTheirStatesOnTheTbdPage (forsgren#397, step
+// 5): with the pushes beside --data, Acme Shop's row has its commits and
+// pushes, the shares, 25 min to main from one commit and, for lack of a
+// second value, dashes for the median and p90; Acme Tools, with no push, 0
+// commits and dashes for the shares; without pushes.csv every project says the
+// pushes are not collected yet; a refused repository says its push activity is
+// not readable, never deployment numbers in its place.
+func TestRenderShowsThePushGroupsAndTheirStatesOnTheTbdPage(t *testing.T) {
+	pinNow(t)
+	data := writeData(t, acmeHistory(), acmeCommits())
+	wantIn(t, tbdSiteOf(t, validConfig, data), `<td colspan="9">Pushes not collected yet</td>`)
+	writePushes(t, data)
+	got := tbdSiteOf(t, validConfig, data)
+	wantIn(t, got, tdRow("1", "1")+"\n            <td>", tdRow("100%", "0%", "0%", "25 min", "-", "-", "1", "-", "-"),
+		tdRow("0", "0")+"\n            <td>", tdRow("-", "-", "-", "-", "-", "-", "-", "-", "-"))
+	if strings.Contains(got, "Pushes not collected yet") {
+		t.Errorf("want no state with the pushes collected, got:\n%s", got)
+	}
+	denied := pushesDeniedH + "ACME/Api,2026-10-01T00:00:00Z\n"
+	if err := os.WriteFile(filepath.Join(filepath.Dir(data), "pushes_denied.csv"), []byte(denied), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	wantIn(t, tbdSiteOf(t, validConfig, data), `<td colspan="9">Push activity not readable</td>`)
 }

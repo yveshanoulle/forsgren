@@ -74,11 +74,14 @@ func TestDeployMeasuresStartFromTenForAP90(t *testing.T) {
 	}
 }
 
-// TestDeployMeasuresGiveEveryProjectARow: acme/cli is Acme Tools'.
+// TestDeployMeasuresGiveEveryProjectARow: acme/cli is Acme Tools'; acme/gone is
+// no project's, so none of its commits counts.
 func TestDeployMeasuresGiveEveryProjectARow(t *testing.T) {
 	c := trunkCommit(1, "c1", time.Hour, time.Minute, "base")
 	c.Repository = "ACME/cli"
-	got := DeployMeasuresOf(projects, Data{Commits: []history.Commit{c}}, now)
+	gone := trunkCommit(2, "c2", time.Hour, time.Minute, "base")
+	gone.Repository = "acme/gone"
+	got := DeployMeasuresOf(projects, Data{Commits: []history.Commit{c, gone}}, now)
 	if len(got) != 2 || [2]int{got[0].Commits, got[1].Commits} != [2]int{0, 1} || got[1].Project != "Acme Tools" {
 		t.Errorf("want the commit in Acme Tools alone, got %+v", got)
 	}

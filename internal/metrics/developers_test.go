@@ -51,8 +51,8 @@ func TestDevelopersLeaveBotsOut(t *testing.T) {
 		by("dependabot[bot]", "a1"), by("acme-helper[bot]", "a2"), by("octo-dev", "a3"),
 	}
 	want := Developers{Project: "Acme Shop", Count: 1, Commits: 3}
-	if got := shopDevelopers(commits...); got != want || got.UnknownCell() != "0 (0%)" {
-		t.Errorf("want %+v and no unknown author, got %+v and the cell %q", want, got, got.UnknownCell())
+	if got := shopDevelopers(commits...); got != want {
+		t.Errorf("want %+v and no unknown author, got %+v", want, got)
 	}
 	if got := shopDevelopers(by("dependabot[bot]", "a1")); got.Count != 0 {
 		t.Errorf("a project with only bot commits has no developer, got %+v", got)
@@ -61,29 +61,25 @@ func TestDevelopersLeaveBotsOut(t *testing.T) {
 
 // TestDevelopersNameTheUnknownAuthors (forsgren#273, step 2): a commit without
 // a login (GitHub links it to no account, or it was stored by the commits
-// format v1) is not guessed to be anyone's: it is counted as unknown and the
-// unknown authors cell names how many and their share (forsgren#387, step 2).
+// format v1) is not guessed to be anyone's: it is counted as unknown.
 func TestDevelopersNameTheUnknownAuthors(t *testing.T) {
 	cases := []struct {
 		name    string
 		commits []history.Commit
 		want    Developers
-		cell    string
 	}{
-		{"none unknown", []history.Commit{by("octo-dev", "a1")}, Developers{Count: 1, Commits: 1}, "0 (0%)"},
-		{"one unknown", []history.Commit{by("octo-dev", "a1"), by("", "a2")}, Developers{Count: 1, Unknown: 1, Commits: 2},
-			"1 (50%)"},
+		{"none unknown", []history.Commit{by("octo-dev", "a1")}, Developers{Count: 1, Commits: 1}},
+		{"one unknown", []history.Commit{by("octo-dev", "a1"), by("", "a2")}, Developers{Count: 1, Commits: 2}},
 		{"two unknown", []history.Commit{by("", "a1"), by("octo-dev", "a2"), by("", "a3")},
-			Developers{Count: 1, Unknown: 2, Commits: 3}, "2 (66%)"},
-		{"only unknown", []history.Commit{by("", "a1"), by("", "a2")}, Developers{Unknown: 2, Commits: 2},
-			"2 (100%)"},
+			Developers{Count: 1, Commits: 3}},
+		{"only unknown", []history.Commit{by("", "a1"), by("", "a2")}, Developers{Commits: 2}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			got := shopDevelopers(c.commits...)
 			c.want.Project = "Acme Shop"
-			if got != c.want || got.UnknownCell() != c.cell {
-				t.Errorf("want %+v and cell %q, got %+v and cell %q", c.want, c.cell, got, got.UnknownCell())
+			if got != c.want {
+				t.Errorf("want %+v, got %+v", c.want, got)
 			}
 		})
 	}
@@ -106,7 +102,7 @@ func TestDevelopersCountTheMainlineCommits(t *testing.T) {
 	gone.Author = "gone-dev"
 	commits := []history.Commit{by("octo-dev", "a1"), by("", "a2"), unknownTwice, unknownUpper, old, tools, gone}
 	want := []Developers{
-		{Project: "Acme Shop", Count: 1, Unknown: 1, Commits: 2}, {Project: "Acme Tools", Count: 1, Commits: 1},
+		{Project: "Acme Shop", Count: 1, Commits: 2}, {Project: "Acme Tools", Count: 1, Commits: 1},
 	}
 	if got := MainlineDevelopers(projects, Data{Commits: commits}, now, nil); !slices.Equal(got, want) {
 		t.Errorf("want %+v, got %+v", want, got)
@@ -120,66 +116,49 @@ func TestDevelopersCountTheMainlineCommits(t *testing.T) {
 // cells are numbers and words, never a login, so no page can show one.
 func TestDevelopersHoldNoLogin(t *testing.T) {
 	got := shopDevelopers(by("octo-dev", "a1"), by("", "a2"), by("dependabot[bot]", "a3"))
-	shown := fmt.Sprintf("%+v %s %s", got, got.CountCell(), got.UnknownCell())
+	shown := fmt.Sprintf("%+v %s", got, got.CountCell())
 	for _, login := range []string{"octo-dev", "dependabot"} {
 		if strings.Contains(shown, login) {
 			t.Errorf("the developers show the login %q: %s", login, shown)
 		}
 	}
-	if got.Count != 1 || got.Unknown != 1 {
+	if got.Count != 1 || got.Commits != 3 {
 		t.Errorf("want 1 developer and 1 unknown, got %+v", got)
 	}
 }
 
-// TestDevelopersCells (forsgren#387, step 2): the Developers group is two
-// cells, the count of developers, and the unknown authors, their commits and
-// their share of the window's distinct deployed commits, bots' included, in
-// whole percent rounded down, "170 (14%)"; a project without a deployed commit
-// has no data, a dash in both, while a project whose commits are all bots' has
-// 0 developers, a count.
-func TestDevelopersCells(t *testing.T) {
+// TestDevelopersCountCell (forsgren#387, step 2; forsgren#397, step 5): the
+// Developers column is the count of developers; a project without a deployed
+// commit has no data, a dash, while one whose commits are all bots' has 0
+// developers, a count.
+func TestDevelopersCountCell(t *testing.T) {
 	for _, c := range []struct {
 		name string
 		in   Developers
 		want string
 	}{
-		{"none", Developers{}, "- | -"},
-		{"all known", Developers{Count: 3, Commits: 4}, "3 | 0 (0%)"},
-		{"one unknown", Developers{Count: 1, Unknown: 1, Commits: 2}, "1 | 1 (50%)"},
-		{"only unknown", Developers{Count: 0, Unknown: 2, Commits: 2}, "0 | 2 (100%)"},
-		{"only bots", Developers{Commits: 3}, "0 | 0 (0%)"},
-		{"rounded down", Developers{Count: 5, Unknown: 170, Commits: 1200}, "5 | 170 (14%)"},
-		{"two of three", Developers{Count: 1, Unknown: 2, Commits: 3}, "1 | 2 (66%)"},
-		{"just under all", Developers{Count: 1, Unknown: 199, Commits: 200}, "1 | 199 (99%)"},
-		{"under one percent", Developers{Count: 9, Unknown: 1, Commits: 150}, "9 | 1 (0%)"},
+		{"none", Developers{}, "-"},
+		{"all known", Developers{Count: 3, Commits: 4}, "3"},
+		{"only unknown", Developers{Count: 0, Commits: 2}, "0"},
+		{"only bots", Developers{Commits: 3}, "0"},
 	} {
-		if got := c.in.CountCell() + " | " + c.in.UnknownCell(); got != c.want {
-			t.Errorf("%s: %+v: want the cells %q, got %q", c.name, c.in, c.want, got)
+		if got := c.in.CountCell(); got != c.want {
+			t.Errorf("%s: %+v: want the cell %q, got %q", c.name, c.in, c.want, got)
 		}
 	}
 }
 
-// TestDevelopersTakeGitHubsPlaceholderForAnUnknownAuthor (forsgren#355): GitHub
+// TestDevelopersTakeGitHubsPlaceholderForNoDeveloper (forsgren#355): GitHub
 // answers a commit whose author email links to no account with the
 // placeholder login invalid-email-address; that is no person, so it is no
-// developer: its commits are counted with the other unknown-author ones,
-// ignoring case as logins do, whatever commits format stored them. They are
-// no legacy data either, which is an empty author stored before the commits
-// format v3, so the legacy cell says how many of the unknown ones are.
-func TestDevelopersTakeGitHubsPlaceholderForAnUnknownAuthor(t *testing.T) {
+// developer, ignoring case as logins do, whatever commits format stored it.
+func TestDevelopersTakeGitHubsPlaceholderForNoDeveloper(t *testing.T) {
 	commits := []history.Commit{
 		by("invalid-email-address", "a1"), by("Invalid-Email-Address", "a2"), by("octo-dev", "a3"),
 		legacyBy("invalid-email-address", "a4"),
 	}
-	want := Developers{Project: "Acme Shop", Count: 1, Unknown: 3, Commits: 4}
-	if got := shopDevelopers(commits...); got != want {
-		t.Errorf("want %+v, got %+v", want, got)
-	}
-	mostlyLegacy := shopDevelopers(legacyBy("", "a1"), legacyBy("", "a2"), legacyBy("", "a3"),
-		by("invalid-email-address", "a4"))
-	cell := "4 (100%) · 3 of them legacy data"
-	if got := mostlyLegacy.UnknownCell(); got != cell {
-		t.Errorf("want the cell %q, got %q (%+v)", cell, got, mostlyLegacy)
+	if got := shopDevelopers(commits...); got.Count != 1 || got.Commits != 4 {
+		t.Errorf("want 1 developer over 4 commits, got %+v", got)
 	}
 }
 
@@ -222,7 +201,7 @@ func TestDevelopersMergeEachSameDeveloperGroup(t *testing.T) {
 func TestDevelopersKeepBotsOutOfGroups(t *testing.T) {
 	groups := [][]string{{"maintainer", "helper[bot]"}}
 	got := shopDevelopersGrouped(groups, by("helper[bot]", "a1"))
-	if got.Count != 0 || got.Unknown != 0 {
+	if got.Count != 0 {
 		t.Errorf("a grouped bot alone is no developer, got %+v", got)
 	}
 	if got := shopDevelopersGrouped(groups, by("helper[bot]", "a1"), by("maintainer", "a2")); got.Count != 1 {

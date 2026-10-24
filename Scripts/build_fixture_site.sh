@@ -84,10 +84,11 @@ if ! history_shows_chart; then
   fail "history.html shows no chart: the fixture has no history the page can show"
 fi
 # The TBD page has a Mainline Interval row with a mean and a count of gaps, not
-# only dashes (forsgren#253; five cells since forsgren#387).
+# only dashes (forsgren#253; five cells since forsgren#387), found at the end of
+# its row, before the developers cell, since the push groups came first (forsgren#397).
 tbd_shows_interval() {
   [[ -f "${STAGE}/tbd.html" ]] && tr -d '\n' <"${STAGE}/tbd.html" \
-    | grep -qE '<th scope="row">[^<]*</th> *<td>[^<-][^<]*</td> *(<td>[^<]*</td> *){3}<td>[0-9]+[^<]*</td>'
+    | grep -qE '<td>[^<-][^<]*</td> *(<td>[^<]*</td> *){3}<td>[0-9]+[^<]*</td> *<td>[^<]*</td> *</tr>'
 }
 if ! tbd_shows_interval; then
   fail "tbd.html shows no Mainline Interval: the fixture has no commits the page can show"

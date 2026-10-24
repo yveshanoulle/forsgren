@@ -50,8 +50,8 @@ func TestRenderShowsTheMainlineIntervalOfEachProject(t *testing.T) {
 	pinNow(t)
 	got := tbdSiteOf(t, validConfig, writeData(t, acmeHistory(), acmeCommits()))
 	for _, want := range []string{
-		"<th scope=\"row\">Acme Shop</th>\n            " + shopCell,
-		"<th scope=\"row\">Acme Tools</th>\n            " + noCells,
+		shopCell,
+		noCells,
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("want %q in tbd.html, got:\n%s", want, got)
@@ -96,10 +96,11 @@ func utcAt(t *testing.T, s string) time.Time {
 // authors in the commits file, tbd.html shows each project's Developers next
 // to its Mainline Interval: of Acme Shop's three commits in the 30 days, one
 // is by a made-up developer, one by a bot (left out) and one without a known
-// author (the unknown authors cell: 1, a third of the three commits); the developer of the commit deployed before the
-// window is not counted. Acme Tools has no commit, so a dash in both. The Mainline Lead
-// Time is between them (forsgren#256, step 2), without a pull request the
-// no-human sentence (forsgren#345, step 2).
+// author (counted by the shares of the commits since forsgren#397, step 5);
+// the developer of the commit deployed before the window is not counted.
+// Acme Tools has no commit, so a dash. The Mainline Lead Time comes before
+// the interval (forsgren#256, step 2), without a pull request the dash
+// (forsgren#345, step 2).
 func TestRenderShowsTheDevelopersOfEachProject(t *testing.T) {
 	pinNow(t)
 	commits := acmeCommits()
@@ -109,11 +110,9 @@ func TestRenderShowsTheDevelopersOfEachProject(t *testing.T) {
 	writePulls(t, data, nil)
 	got := tbdSiteOf(t, validConfig, data)
 	for _, want := range []string{
-		"<th scope=\"colgroup\" colspan=\"2\">Developers</th>",
-		leadRow(shopCell, noHumanPulls) +
-			"            " + tdRow("1", "1 (33%)"),
-		"<th scope=\"row\">Acme Tools</th>\n            " + leadRow(noCells, noHumanPulls) +
-			"            " + tdRow("-", "-"),
+		"<th scope=\"colgroup\" colspan=\"1\">Developers</th>",
+		leadRow(shopCell, noHumanPulls) + "            " + tdRow("1"),
+		leadRow(noCells, noHumanPulls) + "            " + tdRow("-"),
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("want %q in tbd.html, got:\n%s", want, got)
@@ -131,11 +130,11 @@ func TestRenderCountsTheLoginsOfASameDeveloperGroupOnce(t *testing.T) {
 	data := writeData(t, acmeHistory(), commits)
 	writePulls(t, data, nil)
 	grouped := tbdSiteOf(t, validConfig+"same_developer: [[acme-dev-one, acme-dev-two]]\n", data)
-	if want := shopBatch + "\n            " + tdRow("1", "0 (0%)"); !strings.Contains(grouped, want) {
+	if want := shopCell + "\n            " + tdRow("1"); !strings.Contains(grouped, want) {
 		t.Errorf("want one developer for the group in tbd.html, got:\n%s", grouped)
 	}
 	alone := tbdSiteOf(t, validConfig, data)
-	if want := shopBatch + "\n            " + tdRow("2", "0 (0%)"); !strings.Contains(alone, want) {
+	if want := shopCell + "\n            " + tdRow("2"); !strings.Contains(alone, want) {
 		t.Errorf("want two developers without the key in tbd.html, got:\n%s", alone)
 	}
 }

@@ -75,12 +75,6 @@
    "minScore": 9.58
   },
   {
-   "path": "internal/metrics/maindirect_test.go",
-   "score": 9.68,
-   "checkedAt": "2026-10-24",
-   "minScore": 9.58
-  },
-  {
    "path": "internal/metrics/pushmeasures.go",
    "score": 9.68,
    "checkedAt": "2026-10-24",
@@ -94,6 +88,18 @@
   },
   {
    "path": "cmd/forsgren/render_pushes_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-24",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/metrics/tbdcells_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-24",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/metrics/trunkdata_test.go",
    "score": 9.68,
    "checkedAt": "2026-10-24",
    "minScore": 9.58
@@ -1983,18 +1989,6 @@
    "minScore": 10.0
   },
   {
-   "path": "internal/metrics/maindirectcell.go",
-   "score": 10.0,
-   "checkedAt": "2026-10-24",
-   "minScore": 10.0
-  },
-  {
-   "path": "internal/metrics/maindirectcell_test.go",
-   "score": 10.0,
-   "checkedAt": "2026-10-24",
-   "minScore": 10.0
-  },
-  {
    "path": "internal/metrics/mainlinecells_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-24",
@@ -2080,6 +2074,12 @@
   },
   {
    "path": "internal/metrics/deploymeasures.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-24",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/tbdcells.go",
    "score": 10.0,
    "checkedAt": "2026-10-24",
    "minScore": 10.0

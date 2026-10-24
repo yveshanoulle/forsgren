@@ -2,6 +2,7 @@ package page
 
 import (
 	"bytes"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -11,11 +12,12 @@ import (
 
 // tbdData is the TBD page's data: Acme Shop with 4 commits and a deviation,
 // Acme Tools with 2 commits, so a mean and no deviation, and Acme Docs with
-// no commit; their Mainline Lead Times (tbdLeads) and their Developers, with
-// commits without a known author for Acme Tools and Acme Web. Acme Shop has
-// half of its commits timed by author date and Acme Tools half of its
-// commits legacy data without a known author, so their plain notes; Acme Web
-// has more than half of both, so the cells say so (forsgren#345, step 3).
+// no commit; their Mainline Lead Times (tbdLeads), their Developers, and the
+// push and deployment groups of forsgren#397, step 5: Acme Shop with every
+// figure, Acme Tools with a mean only, Acme Docs with its push read refused
+// and Acme Web with no push collected yet. Acme Shop has half of its commits
+// timed by author date, so a plain note; Acme Web has more than half, so the
+// cell says so (forsgren#345, step 3).
 func tbdData() Data {
 	return tbdDataWith(tbdLeads())
 }
@@ -48,40 +50,66 @@ func tbdDataWith(leads []metrics.MainlineLeadTime) Data {
 	}
 	data.Developers = []metrics.Developers{
 		{Project: "Acme Shop", Count: 3, Commits: 4},
-		{Project: "Acme Tools", Count: 1, Unknown: 1, Legacy: 1, Commits: 2},
-		{Project: "Acme Docs"},
-		{Project: "Acme Web", Count: 12, Unknown: 11, Legacy: 11, Commits: 20},
+		{Project: "Acme Tools", Count: 1, Commits: 2},
+		{Project: "Acme Docs", Count: 1, Commits: 1},
+		{Project: "Acme Web", Count: 12, Commits: 20},
 	}
 	data.MainlineLead = leads
-	data.MainlineDirect = []metrics.MainlineDirect{
-		{Project: "Acme Shop", Commits: 4, Median: 20 * time.Minute},
-		{Project: "Acme Tools", Commits: 2, Median: 2 * time.Hour, ByAuthorDate: 1},
-		{Project: "Acme Docs"},
-		{Project: "Acme Web", Commits: 30, Median: 5 * time.Minute, ByAuthorDate: 20},
-	}
-	data.BatchSize = []metrics.BatchSize{
-		{Project: "Acme Shop", Deployments: 45, Median: 1.5},
-		{Project: "Acme Tools", Deployments: 2, Median: 2, Legacy: 1},
-		{Project: "Acme Docs", Legacy: 2},
-		{Project: "Acme Web", Deployments: 10, Median: 3},
+	data.PushMeasures = tbdPushes()
+	data.DeployMeasures = tbdDeploys()
+	data.DeploymentVolumes = []metrics.DeploymentVolume{
+		{Project: "Acme Shop", Count: 85, Releases: true}, {Project: "Acme Tools", Count: 7},
+		{Project: "Acme Docs", Count: 2}, {Project: "Acme Web", Count: 1, Releases: true},
 	}
 	return data
 }
 
-// tbdDirect and tbdBatch are the direct and batch size cells of tbdData's
-// projects (forsgren#390, step 2): Acme Tools has one of two commits timed by
-// author date and a deployment of unknown lineage, Acme Docs nothing but two
-// such deployments, Acme Web more than half of its commits by author date.
-var (
-	tbdDirect = map[string]string{
-		"Acme Shop": "20 min (4)", "Acme Tools": "2 h (2) · 1 commit timed by author date", "Acme Docs": "-",
-		"Acme Web": "5 min (30) · Mostly estimated: 20 of 30 commits timed by author date.",
+// tbdPushes are the push measures of tbdData's projects.
+func tbdPushes() []metrics.PushMeasures {
+	return []metrics.PushMeasures{
+		{Project: "Acme Shop", Pushes: 20, Commits: 40, PullRequests: 10, Direct: 30, UnknownAuthors: 4,
+			TimeToMain: metrics.DurationSpread{Count: 40, Mean: time.Hour, Median: 30 * time.Minute, P90: 3 * time.Hour},
+			PerPush:    metrics.CountSpread{Count: 20, Mean: 2, Median: 1.5, P90: 6}},
+		{Project: "Acme Tools", Pushes: 1, Commits: 1, Direct: 1,
+			TimeToMain: metrics.DurationSpread{Count: 1, Mean: 2 * time.Hour},
+			PerPush:    metrics.CountSpread{Count: 1, Mean: 1}},
+		{Project: "Acme Docs", NotReadable: true},
+		{Project: "Acme Web", Uncollected: true},
 	}
-	tbdBatch = map[string]string{
-		"Acme Shop": "1.5 (45)", "Acme Tools": "2 (2) · 1 deployment of unknown lineage not counted",
-		"Acme Docs": "- · 2 deployments of unknown lineage not counted", "Acme Web": "3 (10)",
+}
+
+// tbdDeploys are the deployment measures of tbdData's projects: Acme Shop
+// with ten deployments, so every figure, Acme Tools with one, Acme Docs with
+// two and Acme Web with one.
+func tbdDeploys() []metrics.DeployMeasures {
+	return []metrics.DeployMeasures{
+		{Project: "Acme Shop", Commits: 50, Deployments: 10,
+			TimeToDeploy:  metrics.DurationSpread{Count: 50, Mean: 2 * time.Hour, Median: time.Hour, P90: 5 * time.Hour},
+			PerDeployment: metrics.CountSpread{Count: 10, Mean: 5, Median: 4.5, P90: 12}},
+		{Project: "Acme Tools", Commits: 3, Deployments: 1,
+			TimeToDeploy:  metrics.DurationSpread{Count: 3, Mean: time.Hour, Median: time.Hour},
+			PerDeployment: metrics.CountSpread{Count: 1, Mean: 3}},
+		{Project: "Acme Docs", Commits: 2, Deployments: 2,
+			TimeToDeploy:  metrics.DurationSpread{Count: 2, Mean: 30 * time.Minute, Median: 30 * time.Minute},
+			PerDeployment: metrics.CountSpread{Count: 2, Mean: 1, Median: 1}},
+		{Project: "Acme Web", Commits: 1, Deployments: 1,
+			TimeToDeploy:  metrics.DurationSpread{Count: 1, Mean: 10 * time.Minute},
+			PerDeployment: metrics.CountSpread{Count: 1, Mean: 2}},
 	}
-)
+}
+
+// tbdPushCells are the cells of tbdData's projects before the pull requests
+// cell, parted by " | ": volume (commits, pushes, deployments), shares
+// (direct, pull requests, unknown authors), time to main, commits per push,
+// time to deploy, commits per deployment (mean, median, p90 each). A cell
+// starting with @ is the one cell across the push groups, nine columns wide.
+var tbdPushCells = map[string]string{
+	"Acme Shop": "40 | 20 | 85 releases | 75% | 25% | 10% | 1 h | 30 min | 3 h | 2 | 1.5 | 6 | " +
+		"2 h | 1 h | 5 h | 5 | 4.5 | 12",
+	"Acme Tools": "1 | 1 | 7 | 100% | 0% | 0% | 2 h | - | - | 1 | - | - | 1 h | 1 h | - | 3 | - | -",
+	"Acme Docs":  "- | - | 2 | @Push activity not readable | 30 min | 30 min | - | 1 | 1 | -",
+	"Acme Web":   "- | - | 1 release | @Pushes not collected yet | 10 min | - | - | 2 | - | -",
+}
 
 // noLeads are the Mainline Lead Times of tbdData's projects without a pull
 // request merged in the window.
@@ -111,49 +139,72 @@ func notReadable() Data {
 	return data
 }
 
-// tbdRow is the TBD page's row of project, its five Mainline Interval cells
-// (interval, parted by " | ", forsgren#387, step 1), its direct cell, its pull
-// requests cell lead, its batch size cell then its two Developers cells
-// (developers, parted by " | ", forsgren#387, step 2), as the template writes
-// it.
+// tbdRow is the TBD page's row of project, as the template writes it: the
+// cells of tbdPushCells, its pull requests cell lead, its five Mainline
+// Interval cells (interval, parted by " | ", forsgren#387, step 1) and its
+// Developers count (forsgren#397, step 5).
 func tbdRow(project, interval, lead, developers string) string {
-	return "<th scope=\"row\">" + project + "</th>\n            " + tds(interval) + "\n            <td>" +
-		tbdDirect[project] + "</td>\n            <td>" + lead + "</td>\n            <td>" + tbdBatch[project] +
-		"</td>\n            " + tds(developers) + "\n"
+	return "<th scope=\"row\">" + project + "</th>\n            " + tds(tbdPushCells[project]) +
+		"\n            <td>" + lead + "</td>\n            " + tds(interval) + "\n            " + tds(developers) + "\n"
 }
 
 // tds are the cells of cells, parted by " | ", as the template writes a row's
-// cells: one td on each line.
+// cells: one td on each line; a cell starting with @ is the push groups' one
+// cell across nine columns.
 func tds(cells string) string {
-	return "<td>" + strings.Join(strings.Split(cells, " | "), "</td>\n            <td>") + "</td>"
-}
-
-// uncollectedNote ends the direct cell of a project with direct commits while
-// data/pulls.csv is absent (forsgren#390, step 3): the pull request merges
-// among them cannot be told apart yet.
-const uncollectedNote = " · pull request merges cannot be told apart yet"
-
-// withUncollectedNote is a tbdRow while the pull requests have not been
-// collected: the direct cell of a project with commits ends with
-// uncollectedNote, a dash does not.
-var withUncollectedNote = uncollectedNotes().Replace
-
-// uncollectedNotes puts uncollectedNote after each direct cell of tbdDirect
-// that has commits.
-func uncollectedNotes() *strings.Replacer {
-	var pairs []string
-	for _, direct := range tbdDirect {
-		if direct != "-" {
-			pairs = append(pairs, direct+"</td>", direct+uncollectedNote+"</td>")
+	parts := strings.Split(cells, " | ")
+	for i, c := range parts {
+		if text, spans := strings.CutPrefix(c, "@"); spans {
+			parts[i] = "<td colspan=\"9\">" + text + "</td>"
+		} else {
+			parts[i] = "<td>" + c + "</td>"
 		}
 	}
-	return strings.NewReplacer(pairs...)
+	return strings.Join(parts, "\n            ")
 }
 
-// share is the end of a Mainline Lead Time cell after its count: the share of
+// tbdGroups are the group headers of the TBD table in order, each with its
+// columns' headers (forsgren#397, step 5, Yves's ruling on #401): the units
+// are in the names, durations and counts of commits.
+var tbdGroups = []struct {
+	name    string
+	columns []string
+	hidden  string // the measure, said after each column's word in its accessible name
+}{
+	{"Volume", []string{"Commits", "Pushes", "Deployments"}, ""},
+	{"Shares of commits", []string{"Direct", "Pull requests", "Unknown authors"}, ""},
+	{"Time to main per commit (duration)", []string{"mean", "median", "p90"}, "time to main"},
+	{"Commits per push", []string{"mean", "median", "p90"}, "commits per push"},
+	{"Time to deploy per commit (duration)", []string{"mean", "median", "p90"}, "time to deploy"},
+	{"Commits per deployment", []string{"mean", "median", "p90"}, "commits per deployment"},
+	{"Mainline Lead Time", []string{"pull requests"}, ""},
+	{"Mainline Interval", []string{"mean", "deviation", "median", "p90", "gaps"}, ""},
+	{"Developers", []string{"developers"}, ""},
+}
+
+// tbdHeaders are the two header rows' cells of the TBD table as the template
+// writes them: Project over both, the groups on top, their columns beneath.
+func tbdHeaders() (top, beneath string) {
+	const indent = "\n            "
+	tops := []string{`<th scope="col" rowspan="2">Project</th>`}
+	var columns []string
+	for _, g := range tbdGroups {
+		tops = append(tops, `<th scope="colgroup" colspan="`+strconv.Itoa(len(g.columns))+`">`+g.name+`</th>`)
+		for _, c := range g.columns {
+			label := ""
+			if g.hidden != "" {
+				label = ` aria-label="` + c + ` ` + g.hidden + `"`
+			}
+			columns = append(columns, `<th scope="col"`+label+`>`+c+`</th>`)
+		}
+	}
+	return strings.Join(tops, indent), strings.Join(columns, indent)
+}
+
+// within is the end of a Mainline Lead Time cell after its count: the share of
 // the pull requests merged within 24 hours in whole percent, then how many of
 // how many (forsgren#345, step 2, #343).
-func share(percent, counts string) string {
+func within(percent, counts string) string {
 	return " · " + percent + "% (" + counts + ") pull requests merged within 24 hours of their first commit"
 }
 
@@ -172,33 +223,38 @@ const (
 // request in the window: a dash (forsgren#390, step 2).
 const noHumanPulls = "-"
 
-// TestTbdPageShowsTheDevelopersNextToTheInterval (forsgren#273, step 3): a
-// Developers column follows the Mainline Interval and its Mainline Lead Time
-// (forsgren#256, step 2), each project's cell its count, then the note on the
-// commits without a known author when there are, in the same row as the
-// project's interval; Acme Web's, more than half of its commits legacy data
-// without a known author, says so (forsgren#345, step 3).
-func TestTbdPageShowsTheDevelopersNextToTheInterval(t *testing.T) {
+// TestTbdPageHasTwoLevelHeadersWithTheUnitsInTheGroupNames (forsgren#397,
+// step 5, Yves's ruling on #401): the groups on top in the order of the
+// ruling, each scoped as a column group, mean, median and p90 beneath each
+// measure; durations say so, batch sizes are commits per push and per
+// deployment; the old direct and batch size columns and the unknown authors
+// of Developers are gone.
+func TestTbdPageHasTwoLevelHeadersWithTheUnitsInTheGroupNames(t *testing.T) {
+	top, beneath := tbdHeaders()
+	got := rendered(t, "tbd.html", tbdData())
+	const open, between, end = "<thead>\n          <tr>\n            ", "\n          </tr>\n          <tr>\n            ",
+		"\n          </tr>\n        </thead>"
+	wantAll(t, "tbd.html", got, open+top+between+beneath+end)
+	wantNone(t, "tbd.html", got, `<th scope="col">direct</th>`, `<th scope="col">batch size</th>`,
+		`<th scope="col">unknown authors</th>`)
+}
+
+// TestTbdPageShowsTheRowsOfEachProject (forsgren#397, step 5): volume,
+// shares, the four measures, the pull requests lead time, the Mainline
+// Interval and the developers count; a project whose push read was refused,
+// or with no push collected yet, has one cell across the push groups and no
+// deployment number in its place; releases are named in the Deployments cell
+// of a project measured by them alone.
+func TestTbdPageShowsTheRowsOfEachProject(t *testing.T) {
 	got := rendered(t, "tbd.html", tbdData())
 	wantAll(t, "tbd.html", got,
-		"<th scope=\"colgroup\" colspan=\"5\">Mainline Interval</th>\n"+
-			"            <th scope=\"colgroup\" colspan=\"3\">Mainline Lead Time</th>\n"+
-			"            <th scope=\"colgroup\" colspan=\"2\">Developers</th>\n          </tr>\n          <tr>\n"+
-			"            <th scope=\"col\">mean</th>\n            <th scope=\"col\">deviation</th>\n"+
-			"            <th scope=\"col\">median</th>\n            <th scope=\"col\">p90</th>\n"+
-			"            <th scope=\"col\">gaps</th>\n"+
-			"            <th scope=\"col\">direct</th>\n            <th scope=\"col\">pull requests</th>\n"+
-			"            <th scope=\"col\">batch size</th>\n"+
-			"            <th scope=\"col\">developers</th>\n            <th scope=\"col\">unknown authors</th>\n",
-		tbdRow("Acme Shop", shopInterval, "3 h ± 1 h (5)"+share("100", "5 of 5"), "3 | 0 (0%)"),
+		tbdRow("Acme Shop", shopInterval, "3 h ± 1 h (5)"+within("100", "5 of 5"), "3"),
 		tbdRow("Acme Tools", toolsInterval,
-			"1 d 6 h ± - (1, 1 cut)"+share("0", "0 of 1")+" · the mean is a lower bound",
-			"1 | 1 (50%)"),
-		tbdRow("Acme Docs", noInterval, noHumanPulls+" · 2 bot pull requests not counted", "- | -"),
+			"1 d 6 h ± - (1, 1 cut)"+within("0", "0 of 1")+" · the mean is a lower bound", "1"),
+		tbdRow("Acme Docs", noInterval, noHumanPulls+" · 2 bot pull requests not counted", "1"),
 		tbdRow("Acme Web", webInterval,
-			"20 h ± 10 h (12)"+share("58", "7 of 12")+" · 1 pull request timed by its created time"+
-				" · 3 bot pull requests not counted · 1 pull request of unknown author not counted",
-			"12 | 11 (55%) · legacy data"))
+			"20 h ± 10 h (12)"+within("58", "7 of 12")+" · 1 pull request timed by its created time"+
+				" · 3 bot pull requests not counted · 1 pull request of unknown author not counted", "12"))
 }
 
 // TestTbdPageSaysThePullRequestsAreNotCollectedYet (forsgren#256, step 2):
@@ -208,13 +264,11 @@ func TestTbdPageShowsTheDevelopersNextToTheInterval(t *testing.T) {
 func TestTbdPageSaysThePullRequestsAreNotCollectedYet(t *testing.T) {
 	const notYet = "No pull requests have been collected yet"
 	got := rendered(t, "tbd.html", uncollected())
-	wantAll(t, "uncollected", got, withUncollectedNote(tbdRow("Acme Shop", shopInterval, notYet, "3 | 0 (0%)")),
-		withUncollectedNote(tbdRow("Acme Docs", noInterval, notYet, "- | -")),
-		withUncollectedNote(tbdRow("Acme Web", webInterval, notYet, "12 | 11 (55%) · legacy data")))
+	wantAll(t, "uncollected", got, tbdRow("Acme Shop", shopInterval, notYet, "3"),
+		tbdRow("Acme Docs", noInterval, notYet, "1"), tbdRow("Acme Web", webInterval, notYet, "12"))
 	noneInWindow := rendered(t, "tbd.html", tbdDataWith(noLeads()))
 	wantNone(t, "collected, none in the window", noneInWindow, notYet)
-	wantAll(t, "collected, none in the window", noneInWindow, tbdRow("Acme Docs", noInterval, noHumanPulls, "- | -"))
-	wantNone(t, "collected, none in the window", noneInWindow, uncollectedNote)
+	wantAll(t, "collected, none in the window", noneInWindow, tbdRow("Acme Docs", noInterval, noHumanPulls, "1"))
 }
 
 // TestTbdPageSaysThePullRequestsAreNotReadable (forsgren#337, step 2): a
@@ -225,22 +279,23 @@ func TestTbdPageSaysThePullRequestsAreNotCollectedYet(t *testing.T) {
 func TestTbdPageSaysThePullRequestsAreNotReadable(t *testing.T) {
 	const refused, notYet = "Pull requests not readable", "No pull requests have been collected yet"
 	got := rendered(t, "tbd.html", notReadable())
-	wantAll(t, "not readable", got, tbdRow("Acme Tools", toolsInterval, refused,
-		"1 | 1 (50%)"), tbdRow("Acme Docs", noInterval, refused, "- | -"),
-		tbdRow("Acme Shop", shopInterval, "3 h ± 1 h (5)"+share("100", "5 of 5"), "3 | 0 (0%)"))
+	wantAll(t, "not readable", got, tbdRow("Acme Tools", toolsInterval, refused, "1"),
+		tbdRow("Acme Docs", noInterval, refused, "1"),
+		tbdRow("Acme Shop", shopInterval, "3 h ± 1 h (5)"+within("100", "5 of 5"), "3"))
 	uncollectedRefused := notReadable()
 	uncollectedRefused.PullsUncollected = true
 	got = rendered(t, "tbd.html", uncollectedRefused)
-	wantAll(t, "not collected yet", got, tbdRow("Acme Docs", noInterval, refused, "- | -"),
-		withUncollectedNote(tbdRow("Acme Shop", shopInterval, notYet, "3 | 0 (0%)")))
+	wantAll(t, "not collected yet", got, tbdRow("Acme Docs", noInterval, refused, "1"),
+		tbdRow("Acme Shop", shopInterval, notYet, "3"))
 }
 
-// TestTbdPageRefusesDevelopersOfOtherProjects (forsgren#273, step 3): the
-// Developers, and the Mainline Lead Times (forsgren#256, step 2), are paired
-// with the Mainline Intervals by project, so a render whose Developers or
-// Mainline Lead Times are missing, one too many, or name another project in a
-// row, fails instead of showing a number in the wrong row.
-func TestTbdPageRefusesDevelopersOfOtherProjects(t *testing.T) {
+// TestTbdPageRefusesMeasuresOfOtherProjects (forsgren#273, step 3;
+// forsgren#397, step 5): the Developers, the Mainline Lead Times, the push and
+// deployment measures and the deployment volumes are paired with the Mainline
+// Intervals by project, so a render whose any of them is missing, one too
+// many, or names another project in a row, fails instead of showing a number
+// in the wrong row.
+func TestTbdPageRefusesMeasuresOfOtherProjects(t *testing.T) {
 	cases := map[string]func(*Data){
 		"developers missing": func(d *Data) { d.Developers = d.Developers[:3] },
 		"developers extra": func(d *Data) {
@@ -252,12 +307,16 @@ func TestTbdPageRefusesDevelopersOfOtherProjects(t *testing.T) {
 			d.MainlineLead = append(d.MainlineLead, metrics.MainlineLeadTime{Project: "Acme Gone"})
 		},
 		"leads swapped":   func(d *Data) { d.MainlineLead[0], d.MainlineLead[1] = d.MainlineLead[1], d.MainlineLead[0] },
-		"directs missing": func(d *Data) { d.MainlineDirect = d.MainlineDirect[:3] },
-		"directs swapped": func(d *Data) {
-			d.MainlineDirect[0], d.MainlineDirect[1] = d.MainlineDirect[1], d.MainlineDirect[0]
+		"pushes missing":  func(d *Data) { d.PushMeasures = d.PushMeasures[:3] },
+		"pushes swapped":  func(d *Data) { d.PushMeasures[0], d.PushMeasures[1] = d.PushMeasures[1], d.PushMeasures[0] },
+		"deploys missing": func(d *Data) { d.DeployMeasures = d.DeployMeasures[:3] },
+		"deploys swapped": func(d *Data) {
+			d.DeployMeasures[0], d.DeployMeasures[1] = d.DeployMeasures[1], d.DeployMeasures[0]
 		},
-		"batches missing": func(d *Data) { d.BatchSize = d.BatchSize[:3] },
-		"batches swapped": func(d *Data) { d.BatchSize[0], d.BatchSize[1] = d.BatchSize[1], d.BatchSize[0] },
+		"volumes missing": func(d *Data) { d.DeploymentVolumes = d.DeploymentVolumes[:3] },
+		"volumes swapped": func(d *Data) {
+			d.DeploymentVolumes[0], d.DeploymentVolumes[1] = d.DeploymentVolumes[1], d.DeploymentVolumes[0]
+		},
 	}
 	for name, change := range cases {
 		data := tbdData()
@@ -274,7 +333,9 @@ func TestTbdPageRefusesDevelopersOfOtherProjects(t *testing.T) {
 // Mainline Interval read yet, one line says why in place of the table. Its
 // Mainline Lead Time column (forsgren#256, step 2) has a golden with data,
 // one with no pull request in the window, one before the pull requests were
-// collected and one with refused pull request reads (forsgren#337, step 2).
+// collected and one with refused pull request reads (forsgren#337, step 2);
+// the golden with data holds the push groups of forsgren#397, step 5, with
+// both of their states.
 func TestTbdPageGolden(t *testing.T) {
 	noProjects := calculated()
 	noProjects.NoProjects = true
@@ -288,22 +349,13 @@ func TestTbdPageGolden(t *testing.T) {
 
 // TestTbdPageHasItsHeadingAndTable (forsgren#253): the title and the h1 (id
 // tbd-heading) name trunk-based development; the table is the h1's region,
-// with no caption, columns Project, Mainline Interval, Mainline Lead Time
-// (forsgren#256) and Developers (forsgren#273); each project's cell is the
-// metric's own, "-" below two commits.
+// with no caption, and a row header for each project.
 func TestTbdPageHasItsHeadingAndTable(t *testing.T) {
 	got := rendered(t, "tbd.html", tbdData())
 	wantAll(t, "tbd.html", got, "<title>Trunk-based development [TBD] (BETA) · ",
 		`<h1 id="tbd-heading">Trunk-based development [TBD] (BETA)</h1>`, `aria-labelledby="tbd-heading"`,
-		`<th scope="col" rowspan="2">Project</th>`, `<th scope="colgroup" colspan="5">Mainline Interval</th>`,
-		`<th scope="col">mean</th>`, `<th scope="col">deviation</th>`, `<th scope="col">median</th>`,
-		`<th scope="col">p90</th>`, `<th scope="col">gaps</th>`,
-		`<th scope="colgroup" colspan="3">Mainline Lead Time</th>`, `<th scope="col">direct</th>`,
-		`<th scope="col">pull requests</th>`, `<th scope="col">batch size</th>`,
-		`<th scope="row">Acme Shop</th>`, tds(shopInterval),
-		`<th scope="row">Acme Tools</th>`, tds(toolsInterval),
-		`<th scope="row">Acme Docs</th>`, "<td>-</td>",
-		`<th scope="row">Acme Web</th>`, tds(webInterval))
+		`<th scope="col" rowspan="2">Project</th>`, `<th scope="row">Acme Shop</th>`,
+		`<th scope="row">Acme Tools</th>`, `<th scope="row">Acme Docs</th>`, `<th scope="row">Acme Web</th>`)
 	wantNone(t, "tbd.html", got, "<caption", "metrics are coming to this page")
 }
 

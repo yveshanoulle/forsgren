@@ -114,20 +114,16 @@ type Data struct {
 	// MainlineLead are the Mainline Lead Times next to the Mainline
 	// Intervals, one per project in the same order (forsgren#256, step 2).
 	MainlineLead []metrics.MainlineLeadTime
-	// MainlineDirect and BatchSize are the direct and batch size columns of
-	// the Mainline Lead Time group, one per project in the same order
-	// (forsgren#390, step 2).
-	MainlineDirect []metrics.MainlineDirect
-	BatchSize      []metrics.BatchSize
 	// PullsUncollected says there is no data/pulls.csv beside the history:
 	// no collect has stored pull requests yet, so the TBD page says so in
 	// place of each Mainline Lead Time (forsgren#256, step 2).
 	PullsUncollected bool
-	// PushMeasures and DeployMeasures are the push and deployment measures
-	// of the TBD page's new columns, one per project in the same order; no
-	// template reads them yet (forsgren#397, step 4).
-	PushMeasures   []metrics.PushMeasures
-	DeployMeasures []metrics.DeployMeasures
+	// PushMeasures, DeployMeasures and DeploymentVolumes are the volume, share,
+	// push and deployment groups of the TBD page, one per project in the same
+	// order (forsgren#397, steps 4 and 5).
+	PushMeasures      []metrics.PushMeasures
+	DeployMeasures    []metrics.DeployMeasures
+	DeploymentVolumes []metrics.DeploymentVolume
 	// Developers are the Developers counts next to the Mainline Intervals,
 	// one per project in the same order (forsgren#273).
 	Developers []metrics.Developers

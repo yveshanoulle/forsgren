@@ -6,36 +6,73 @@
         <thead>
           <tr>
             <th scope="col" rowspan="2">Project</th>
+            <th scope="colgroup" colspan="3">Volume</th>
+            <th scope="colgroup" colspan="3">Shares of commits</th>
+            <th scope="colgroup" colspan="3">Time to main per commit (duration)</th>
+            <th scope="colgroup" colspan="3">Commits per push</th>
+            <th scope="colgroup" colspan="3">Time to deploy per commit (duration)</th>
+            <th scope="colgroup" colspan="3">Commits per deployment</th>
+            <th scope="colgroup" colspan="1">Mainline Lead Time</th>
             <th scope="colgroup" colspan="5">Mainline Interval</th>
-            <th scope="colgroup" colspan="3">Mainline Lead Time</th>
-            <th scope="colgroup" colspan="2">Developers</th>
+            <th scope="colgroup" colspan="1">Developers</th>
           </tr>
           <tr>
+            <th scope="col">Commits</th>
+            <th scope="col">Pushes</th>
+            <th scope="col">Deployments</th>
+            <th scope="col">Direct</th>
+            <th scope="col">Pull requests</th>
+            <th scope="col">Unknown authors</th>
+            <th scope="col" aria-label="mean time to main">mean</th>
+            <th scope="col" aria-label="median time to main">median</th>
+            <th scope="col" aria-label="p90 time to main">p90</th>
+            <th scope="col" aria-label="mean commits per push">mean</th>
+            <th scope="col" aria-label="median commits per push">median</th>
+            <th scope="col" aria-label="p90 commits per push">p90</th>
+            <th scope="col" aria-label="mean time to deploy">mean</th>
+            <th scope="col" aria-label="median time to deploy">median</th>
+            <th scope="col" aria-label="p90 time to deploy">p90</th>
+            <th scope="col" aria-label="mean commits per deployment">mean</th>
+            <th scope="col" aria-label="median commits per deployment">median</th>
+            <th scope="col" aria-label="p90 commits per deployment">p90</th>
+            <th scope="col">pull requests</th>
             <th scope="col">mean</th>
             <th scope="col">deviation</th>
             <th scope="col">median</th>
             <th scope="col">p90</th>
             <th scope="col">gaps</th>
-            <th scope="col">direct</th>
-            <th scope="col">pull requests</th>
-            <th scope="col">batch size</th>
             <th scope="col">developers</th>
-            <th scope="col">unknown authors</th>
           </tr>
         </thead>
         <tbody>
 {{range .TbdRows}}          <tr>
             <th scope="row">{{.Interval.Project}}</th>
+            <td>{{.Push.CommitsCell}}</td>
+            <td>{{.Push.PushesCell}}</td>
+            <td>{{.Volume.Cell}}</td>
+{{if .Push.State}}            <td colspan="9">{{.Push.State}}</td>
+{{else}}            <td>{{.Push.DirectCell}}</td>
+            <td>{{.Push.PullRequestCell}}</td>
+            <td>{{.Push.UnknownAuthorCell}}</td>
+            <td>{{.Push.TimeToMain.MeanCell}}</td>
+            <td>{{.Push.TimeToMain.MedianCell}}</td>
+            <td>{{.Push.TimeToMain.P90Cell}}</td>
+            <td>{{.Push.PerPush.MeanCell}}</td>
+            <td>{{.Push.PerPush.MedianCell}}</td>
+            <td>{{.Push.PerPush.P90Cell}}</td>
+{{end}}            <td>{{.Deploy.TimeToDeploy.MeanCell}}</td>
+            <td>{{.Deploy.TimeToDeploy.MedianCell}}</td>
+            <td>{{.Deploy.TimeToDeploy.P90Cell}}</td>
+            <td>{{.Deploy.PerDeployment.MeanCell}}</td>
+            <td>{{.Deploy.PerDeployment.MedianCell}}</td>
+            <td>{{.Deploy.PerDeployment.P90Cell}}</td>
+            <td>{{.LeadCell}}</td>
             <td>{{.Interval.MeanCell}}</td>
             <td>{{.Interval.DeviationCell}}</td>
             <td>{{.Interval.MedianCell}}</td>
             <td>{{.Interval.P90Cell}}</td>
             <td>{{.Interval.GapsCell}}</td>
-            <td>{{.DirectCell}}</td>
-            <td>{{.LeadCell}}</td>
-            <td>{{.Batch.Cell}}</td>
             <td>{{.Developers.CountCell}}</td>
-            <td>{{.Developers.UnknownCell}}</td>
           </tr>
 {{end}}        </tbody>
       </table>

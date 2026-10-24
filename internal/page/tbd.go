@@ -1,15 +1,19 @@
 package page
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/yveshanoulle/forsgren/internal/metrics"
 )
 
-// The TBD page (forsgren#253): a table of the Mainline Interval of each
-// project (five columns, forsgren#387, step 1), its Mainline Lead Time
-// (forsgren#256) and its Developers (forsgren#273; developers and unknown
-// authors, forsgren#387, step 2), or one line that says why there is none.
+// The TBD page (forsgren#253): one table with a row per project, in column
+// groups under two-level headers (forsgren#397, step 5, Yves's ruling on
+// #401): volume, shares of the commits, time to main per commit, commits per
+// push, time to deploy per commit and commits per deployment, then the
+// Mainline Lead Time (forsgren#256), the Mainline Interval (five columns,
+// forsgren#387, step 1) and the Developers count (forsgren#273); or one line
+// that says why there is none.
 
 // tbdTitle is the TBD page's title, its h1 and the legend's heading for it,
 // as Yves wrote it (forsgren#271): the name, then the beta marker the History
@@ -32,37 +36,19 @@ func (d Data) TbdMessage() string {
 	return "No commits have been collected yet, so there is no Mainline Interval to show."
 }
 
-// TbdRow is one project's row of the TBD page: its Mainline Interval, its
-// Mainline Lead Time group (forsgren#256, step 2; direct, pull requests and
-// batch size since forsgren#390, step 2) and its Developers (forsgren#273,
-// step 3).
+// TbdRow is one project's row of the TBD page (forsgren#397, step 5): its
+// volume, shares and push and deployment measures, its Mainline Lead Time
+// (forsgren#256, step 2; the pull requests column alone), its Mainline
+// Interval and its Developers count (forsgren#273).
 type TbdRow struct {
-	Interval metrics.MainlineInterval
-	Lead     metrics.MainlineLeadTime
-	// Direct and Batch are the other two columns of the Mainline Lead Time
-	// group (forsgren#390, step 2): the time to main of the commits pushed
-	// straight to the trunk, and the commits per deployment.
-	Direct     metrics.MainlineDirect
-	Batch      metrics.BatchSize
+	Interval   metrics.MainlineInterval
+	Lead       metrics.MainlineLeadTime
 	Developers metrics.Developers
+	Push       metrics.PushMeasures
+	Deploy     metrics.DeployMeasures
+	Volume     metrics.DeploymentVolume
 	// pullsUncollected is Data.PullsUncollected.
 	pullsUncollected bool
-}
-
-// pullsUncollectedNote ends the direct cell while data/pulls.csv is absent
-// (forsgren#390, step 3): without the pull requests' merge commits, the merges
-// among the commits cannot be told from direct ones.
-const pullsUncollectedNote = "pull request merges cannot be told apart yet"
-
-// DirectCell is the row's direct cell: MainlineDirect.Cell, with
-// pullsUncollectedNote after it while the pull requests have not been
-// collected, when there is a direct commit to qualify.
-func (r TbdRow) DirectCell() string {
-	cell := r.Direct.Cell()
-	if r.pullsUncollected && r.Direct.HasDirect() {
-		return cell + " · " + pullsUncollectedNote
-	}
-	return cell
 }
 
 // LeadCell is the row's pull requests cell, in the Mainline Lead Time group:
@@ -77,35 +63,40 @@ func (r TbdRow) LeadCell() string {
 	return r.Lead.Cell()
 }
 
-// TbdRows pairs each Mainline Interval with the Mainline Lead Time, direct
-// time to main, batch size and Developers of its project, in the Mainline's
-// order. All come from the config's projects in its order, so one that is
-// missing or names another project in a row is an error, which fails the
-// render, never a number shown in the wrong row.
+// TbdRows pairs each Mainline Interval with the Mainline Lead Time, push and
+// deployment measures, deployment volume and Developers of its project, in the
+// Mainline's order. All come from the config's projects in its order, so one
+// that is missing or names another project in a row is an error, which fails
+// the render, never a number shown in the wrong row.
 func (d Data) TbdRows() ([]TbdRow, error) {
-	if err := pairedWithMainline(d.Mainline, "Mainline Lead Times", d.MainlineLead,
-		func(m metrics.MainlineLeadTime) string { return m.Project }); err != nil {
-		return nil, err
-	}
-	if err := pairedWithMainline(d.Mainline, "Mainline Directs", d.MainlineDirect,
-		func(m metrics.MainlineDirect) string { return m.Project }); err != nil {
-		return nil, err
-	}
-	if err := pairedWithMainline(d.Mainline, "Batch Sizes", d.BatchSize,
-		func(m metrics.BatchSize) string { return m.Project }); err != nil {
-		return nil, err
-	}
-	if err := pairedWithMainline(d.Mainline, "Developers", d.Developers,
-		func(m metrics.Developers) string { return m.Project }); err != nil {
+	if err := d.pairedProjects(); err != nil {
 		return nil, err
 	}
 	rows := make([]TbdRow, len(d.Mainline))
 	for i, m := range d.Mainline {
-		rows[i] = TbdRow{Interval: m, Lead: d.MainlineLead[i], Direct: d.MainlineDirect[i],
-			Batch: d.BatchSize[i], Developers: d.Developers[i],
+		rows[i] = TbdRow{Interval: m, Lead: d.MainlineLead[i], Developers: d.Developers[i],
+			Push: d.PushMeasures[i], Deploy: d.DeployMeasures[i], Volume: d.DeploymentVolumes[i],
 			pullsUncollected: d.PullsUncollected}
 	}
 	return rows, nil
+}
+
+// pairedProjects says why the TBD page's measures do not name the Mainline's
+// projects one each in its order, or nil when they do.
+func (d Data) pairedProjects() error {
+	checks := []error{
+		pairedWithMainline(d.Mainline, "Mainline Lead Times", d.MainlineLead,
+			func(m metrics.MainlineLeadTime) string { return m.Project }),
+		pairedWithMainline(d.Mainline, "push measures", d.PushMeasures,
+			func(m metrics.PushMeasures) string { return m.Project }),
+		pairedWithMainline(d.Mainline, "deployment measures", d.DeployMeasures,
+			func(m metrics.DeployMeasures) string { return m.Project }),
+		pairedWithMainline(d.Mainline, "deployment volumes", d.DeploymentVolumes,
+			func(m metrics.DeploymentVolume) string { return m.Project }),
+		pairedWithMainline(d.Mainline, "Developers", d.Developers,
+			func(m metrics.Developers) string { return m.Project }),
+	}
+	return errors.Join(checks...)
 }
 
 // pairedWithMainline says why others, kind on the page, do not name the

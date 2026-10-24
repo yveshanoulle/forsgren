@@ -289,7 +289,7 @@ fi
 # 26: every repository of the fixture is made up (acme/...), never a real one.
 NOT_MADE_UP="$(cd "$FIXTURE_DIR" && {
   awk -F, '!/^#/ && !/^project,/ && !/^repository,/ { print $2 }' data/deployments.csv
-  for f in commits failures issues issue_bugs reach pulls; do
+  for f in commits failures issues issue_bugs reach pulls pushes push_commits pushes_denied; do
     awk -F, '!/^#/ && !/^repository,/ { print $1 }' "data/${f}.csv"
   done
   grep -E '^ +- name: ' forsgren.config.yml | sed 's/^ *- name: //' | grep '/'
