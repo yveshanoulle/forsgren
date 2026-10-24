@@ -64,17 +64,3 @@ func TestAStoredPushIsNotReadAgainForItsCommits(t *testing.T) {
 		t.Errorf("want no compare, got %v", got)
 	}
 }
-
-// TestAnUnreadablePushCommitsFileRefusesTheRun: before GitHub is asked.
-func TestAnUnreadablePushCommitsFileRefusesTheRun(t *testing.T) {
-	g := pushesOnly(t)
-	path := historyPath(t)
-	dataOf(path).write(t, PushCommitsFile, "# forsgren push commits v9\n")
-	r := g.collect(t, shop(production), path, github.DefaultMaxPages)
-	if r.err == nil || !strings.Contains(r.err.Error(), PushCommitsFile) {
-		t.Errorf("want the run refused naming %s, got %v", PushCommitsFile, r.err)
-	}
-	if got := g.seen(""); len(got) != 0 {
-		t.Errorf("want GitHub not asked, got %v", got)
-	}
-}

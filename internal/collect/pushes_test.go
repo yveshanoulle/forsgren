@@ -298,17 +298,25 @@ func TestABudgetStopKeepsThePushesReadWholeAndTheMark(t *testing.T) {
 	data.want(t, PushesReadFile, pushesReadNow)
 }
 
-// TestAnUnreadablePushesFileRefusesTheRunBeforeGitHubIsAsked.
-func TestAnUnreadablePushesFileRefusesTheRunBeforeGitHubIsAsked(t *testing.T) {
-	g := pushesOnly(t)
-	path := historyPath(t)
-	dataOf(path).write(t, PushesFile, "# forsgren pushes v9\n")
-	r := g.collect(t, shop(production), path, github.DefaultMaxPages)
-	if r.err == nil || !strings.Contains(r.err.Error(), PushesFile) {
-		t.Errorf("want the run refused naming %s, got %v", PushesFile, r.err)
-	}
-	if got := g.seen(""); len(got) != 0 {
-		t.Errorf("want GitHub not asked, got %v", got)
+// TestAnUnreadablePushFileRefusesTheRunBeforeGitHubIsAsked: the pushes file
+// and the push commits file (forsgren#397, step 3) alike.
+func TestAnUnreadablePushFileRefusesTheRunBeforeGitHubIsAsked(t *testing.T) {
+	for file, unknown := range map[string]string{
+		PushesFile:      "# forsgren pushes v9\n",
+		PushCommitsFile: "# forsgren push commits v9\n",
+	} {
+		t.Run(file, func(t *testing.T) {
+			g := pushesOnly(t)
+			path := historyPath(t)
+			dataOf(path).write(t, file, unknown)
+			r := g.collect(t, shop(production), path, github.DefaultMaxPages)
+			if r.err == nil || !strings.Contains(r.err.Error(), file) {
+				t.Errorf("want the run refused naming %s, got %v", file, r.err)
+			}
+			if got := g.seen(""); len(got) != 0 {
+				t.Errorf("want GitHub not asked, got %v", got)
+			}
+		})
 	}
 }
 
