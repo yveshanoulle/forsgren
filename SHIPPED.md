@@ -9,6 +9,23 @@ Active work lives in
 
 ---
 
+## 2026-10-24 — The TBD table shows pushes, shares and deployments side by side ([#397](https://github.com/yveshanoulle/forsgren/issues/397), steps 1 to 6 of 6)
+
+forsgren issue 397, feature, minor release. The TBD page measured everything at deployments: for a project measured by releases, a batch size of 11 was commits per release and a direct time of 1 h 35 min was a commit's age at its release, not at main. The page now reads the pushes to the main branch. Per project it shows, in one table under two-level headers (decisions #400 and #401, Yves 2026-10-24): Volume (Commits, Pushes, Deployments, `85 releases` for a project measured by releases alone), Shares of commits (Direct, Pull requests, Unknown authors, Bots, each of the same commit base, whole percent rounded down), Time to main per commit, Commits per push, Time to deploy per commit and Commits per deployment (mean, median, p90 each), then the Mainline Lead Time of pull requests, the Mainline Interval and the Developers count. A project whose push read was refused says `Push activity not readable`, one with no push collected yet `Pushes not collected yet`, in one cell across the push groups, never deployment numbers in their place.
+
+- Step 1: the decisions, the push signal (GitHub's repository activity list, #400) and the layout (#401).
+- Step 2: `collect` reads each repository's pushes to its default branch into `data/pushes.csv` (push, pull request merge, force push; the actor's account type, never a login), with `data/pushes_read.csv` and `data/pushes_denied.csv`; the token need is Contents: read, which every rule already has, so `needs.yml` is unchanged. A 403 stores nothing and never fails the repository; a budget stop shows as a `pushes-cut` line of the cut report and in the run summary.
+- Step 3: `data/push_commits.csv`, the first-parent commits each push brought (author login, author date), from the compare collect already makes, written before the pushes; pushes stored before are not read again for them.
+- Step 4: the metrics: `PushMeasuresOf`, `DeployMeasuresOf` and their spreads (mean, median from two values, p90 by nearest rank from ten), no page change.
+- Step 5: the page: the two-level header, the cells, the two push states, a made-up fixture with pushes, the goldens; the direct and batch size columns and the unknown authors column of Developers are gone; the browser gate's baseline grew for the wider TBD table (about 26 columns, accepted without mobile work on #401).
+- Step 6: the Bots share, the legend's TBD section rewritten for the new table, `docs/pages-and-views.md` and `docs/configuration.md`.
+- Red first at every step; the HTML duplication ratchet of the golden pages turned out to forbid repeated headers and long runs of identical cells, so the stat headers carry their measure in an `aria-label` and the test data differ per row.
+- Push data starts with the release that collects it: older pushes are not looked up afterwards.
+
+- Lenka B
+
+---
+
 ## 2026-10-24 — The TBD table as columns: Mainline Interval in five, Developers in two ([#387](https://github.com/yveshanoulle/forsgren/issues/387), steps 1 to 3 of 3)
 
 forsgren issue 387, feature, minor release with #264 and #390. The Mainline Interval and Developers cells of the TBD page had grown into long lines of several numbers. Each number is now a column of its own under a grouped header: Mainline Interval is mean, deviation (the sample standard deviation of the gaps), median, p90 and gaps (how many gaps the other four rest on); Developers is developers (the count) and unknown authors, written `170 (14%)`: the commits without a known author and their share of the window's distinct deployed commits, bots included, in whole percent rounded down. Decisions #388 (mean first, no plus-minus) and #389 (the gap count stays its own figure). A figure not shown yet, and a project without data, is a dash in its own cell. The notes moved: the author-date note ends the gaps cell, and the legacy-data note ends the unknown authors cell. A project with no deployed commit now shows a dash in developers, not 0. The TBD table no longer fits a phone: its sideways overflow at 390x844 is a row of the fixture browser baseline, until the project screen (#91) gives the phone its own view; at 1280x800 it fits.

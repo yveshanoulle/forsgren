@@ -30,7 +30,7 @@ func shopPushMeasures(data Data) PushMeasures { return PushMeasuresOf(projects, 
 // three commits (30, 20 and 10 minutes old, the last by GitHub's placeholder
 // login, any case), p2 a pull request merge of one commit a day old, p3 a
 // direct push of two commits, x the merge commit of a pull request of the
-// data and y by no login, authored after the push.
+// data and y by no login, authored after the push; c1 is by a bot.
 func pushesData() Data {
 	m := time.Minute
 	p1 := pushed("p1", history.PushKindPush, 2*time.Hour, 3)
@@ -39,7 +39,7 @@ func pushesData() Data {
 	return Data{
 		Pushes: []history.Push{p1, p2, p3},
 		PushCommits: []history.PushCommit{
-			brought(p1, "c1", "acme-dev", 30*m), brought(p1, "c2", "acme-dev", 20*m),
+			brought(p1, "c1", "dependabot[bot]", 30*m), brought(p1, "c2", "acme-dev", 20*m),
 			brought(p1, "c3", "Invalid-Email-Address", 10*m), brought(p2, "m", "acme-dev", 24*time.Hour),
 			brought(p3, "x", "acme-dev", 5*m), brought(p3, "y", "", -10*m),
 		},
@@ -50,13 +50,14 @@ func pushesData() Data {
 // TestPushMeasuresCountTheCommitsTheirSharesTheTimeToMainAndThePerPush
 // (forsgren#397, step 4): 3 pushes, 6 distinct commits; pull requests 2 (the
 // pr_merge push's commit and the pull request's merge commit), direct 4,
-// unknown authors 2 (no login, placeholder); time to main per commit, push
+// unknown authors 2 (no login, placeholder), bots 1 (a login ending in [bot]); time to main per commit, push
 // time minus author date, 0 for the one authored after the push: 0, 5, 10,
 // 20, 30 min and 24 h, so mean 4 h 10 min 50 s and median 15 min, no p90
 // under ten; commits per push 3, 1 and 2: mean 2, median 2.
 func TestPushMeasuresCountTheCommitsTheirSharesTheTimeToMainAndThePerPush(t *testing.T) {
 	got := shopPushMeasures(pushesData())
-	want := PushMeasures{Project: "Acme Shop", Pushes: 3, Commits: 6, PullRequests: 2, Direct: 4, UnknownAuthors: 2,
+	want := PushMeasures{Project: "Acme Shop", Pushes: 3, Commits: 6, PullRequests: 2, Direct: 4,
+		UnknownAuthors: 2, Bots: 1,
 		TimeToMain: DurationSpread{Count: 6, Mean: 4*time.Hour + 10*time.Minute + 50*time.Second,
 			Median: 15 * time.Minute},
 		PerPush: CountSpread{Count: 3, Mean: 2, Median: 2}}
@@ -65,13 +66,13 @@ func TestPushMeasuresCountTheCommitsTheirSharesTheTimeToMainAndThePerPush(t *tes
 	}
 }
 
-// TestPushMeasuresShareTheCommitsInWholePercentRoundedDown: 2, 4 and 2 of 6
-// are 33, 66 and 33 percent.
+// TestPushMeasuresShareTheCommitsInWholePercentRoundedDown: 2, 4, 2 and 1 of
+// 6 are 33, 66, 33 and 16 percent.
 func TestPushMeasuresShareTheCommitsInWholePercentRoundedDown(t *testing.T) {
 	got := shopPushMeasures(pushesData())
-	shares := [3]int{got.PullRequestShare(), got.DirectShare(), got.UnknownAuthorShare()}
-	if shares != [3]int{33, 66, 33} {
-		t.Errorf("want shares 33, 66 and 33, got %v", shares)
+	shares := [4]int{got.PullRequestShare(), got.DirectShare(), got.UnknownAuthorShare(), got.BotShare()}
+	if shares != [4]int{33, 66, 33, 16} {
+		t.Errorf("want shares 33, 66, 33 and 16, got %v", shares)
 	}
 }
 
@@ -187,8 +188,8 @@ func TestPushMeasuresGiveEachProjectItsOwnRepositories(t *testing.T) {
 // state.
 func TestPushMeasuresHaveNoSharesWithoutACommit(t *testing.T) {
 	got := shopPushMeasures(Data{})
-	shares := [3]int{got.PullRequestShare(), got.DirectShare(), got.UnknownAuthorShare()}
-	if got != (PushMeasures{Project: "Acme Shop"}) || shares != [3]int{} {
+	shares := [4]int{got.PullRequestShare(), got.DirectShare(), got.UnknownAuthorShare(), got.BotShare()}
+	if got != (PushMeasures{Project: "Acme Shop"}) || shares != [4]int{} {
 		t.Errorf("want nothing, got %+v, %v", got, shares)
 	}
 }

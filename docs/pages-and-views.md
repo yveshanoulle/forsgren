@@ -800,31 +800,93 @@ it in the menu after Daily, "History"; `false` leaves it out.
 ### The TBD page
 
 The TBD page (`tbd.html`, titled "Trunk-based development [TBD] (BETA)", forsgren#253, forsgren#271)
-shows the Mainline Interval and the Mainline Lead Time of each project: how long it is, on average, between
-two commits that deployments shipped landing on the main branch, and how much
-that varies. It is unlisted
+shows, for each project, how often and how fast work reaches the main branch
+and how it is deployed: the commits the pushes brought, their shares, the time
+to main and the time to deploy, the commits per push and per deployment, then
+the Mainline Lead Time, the Mainline Interval and the Developers (forsgren#397,
+Yves's ruling on #401). It is unlisted
 by default: generated and reachable at `tbd.html`, with no menu entry and a
 noindex tag (see Unlisted pages under [The page](#the-page), and
 [Configuration](configuration.md#configuration)). `tbd_page: true` lists it
 last in the menu, "TBD"; `false` leaves it out.
 
-- **The table.** A row per project and, under a header of two rows, the
-  columns Project, then three groups under one grouped header (`colgroup`).
-  Mainline Interval is five columns of one number each (forsgren#387, Yves's
-  decisions #388 and #389): `mean`, `deviation` (the sample standard deviation
-  of the gaps), `median`, `p90` and `gaps` (how many gaps the other four rest
-  on), for example `24 min`, `2 h 24 min`, `5 min`, `1 h` and `12`, with the
-  durations written as on the other pages. When some commits are timed by their
-  author date (see The old approximation below), the note ends the gaps cell
-  after ` · `: `2 · Mostly estimated: 3 of 3 commits timed by author date.` or
-  `3 · 2 commits timed by author date`. Mainline Lead Time is three columns
-  (direct, pull requests and batch size, forsgren#390) and Developers two
-  (developers and unknown authors, see below). A figure that is not shown yet is
-  a dash in its own cell, and a project with fewer than two commits has a dash
-  in all five Mainline Interval cells. The table is wider than a phone: at 390
-  pixels it scrolls sideways inside its region until the project screen
-  (forsgren#91) gives the phone its own view. It is per project: the label rows
-  of the table page have no row here.
+- **The table.** A row per project and, under two rows of headers (every
+  group header `scope="colgroup"`, mean, median and p90 beneath each measure),
+  the columns Project, then nine groups in this order (forsgren#397):
+  *Volume* (Commits, Pushes, Deployments); *Shares of commits* (Direct, Pull
+  requests, Unknown authors, Bots); *Time to main per commit (duration)*;
+  *Commits per push*; *Time to deploy per commit (duration)*; *Commits per
+  deployment* (each of these four: mean, median, p90); *Mainline Lead Time*
+  (the pull requests column alone); *Mainline Interval*; and *Developers* (the
+  count). The units are in the names: durations say so, and the others are
+  counts of commits. The stat headers carry the measure in an `aria-label`,
+  such as "mean time to main". Mainline Interval is five columns of one
+  number each (forsgren#387, Yves's decisions #388 and #389): `mean`,
+  `deviation` (the sample standard deviation of the gaps), `median`, `p90` and
+  `gaps` (how many gaps the other four rest on), for example `24 min`,
+  `2 h 24 min`, `5 min`, `1 h` and `12`, with the durations written as on the
+  other pages. When some commits are timed by their author date (see The old
+  approximation below), the note ends the gaps cell after ` · `: `2 · Mostly
+  estimated: 3 of 3 commits timed by author date.` or `3 · 2 commits timed by
+  author date`. Cells are numbers only: durations are written as on the other
+  pages, a count has one decimal where it is not whole (`1.5`), a share is a
+  whole percent like `99%`. A value that is not shown is a dash in its own
+  cell: a median below two values, a p90 below ten, a mean without a value, a
+  share without a commit. A project with fewer than two commits has a dash in
+  all five Mainline Interval cells. The table is about 26 columns wide, wider
+  than a phone, and scrolls sideways inside its region (Yves accepted that on
+  #401; the project screen, forsgren#91, may give the phone its own view). It
+  is per project: the label rows of the table page have no row here.
+- **The push groups** (forsgren#397). They read `data/pushes.csv` and
+  `data/push_commits.csv` ([Data files](data-files.md#history)), the pushes to
+  the default branch of each repository, never the deployments. A push counts
+  when it was pushed in the DORA window. Push data starts with the release that
+  collects it: pushes made before are not looked up afterwards, so a project
+  shows the pushes since the first collection.
+  - *Volume.* Commits are the distinct first-parent commits the pushes
+    brought, by repository (ignoring case) and SHA, each counted once at its
+    first push; Pushes the pushes of the window; Deployments the successful
+    deployments of the window, as the table page counts them, written for a
+    project measured by releases alone as `85 releases` (`1 release`), a bare
+    number for any other (Yves's ruling on #397).
+  - *Shares of commits.* Each is a share of the Commits number, in whole
+    percent rounded down. Pull requests: the commit is the merge commit
+    (`merge_commit` of `data/pulls.csv`) of a pull request, or a pull request
+    merge (kind `pr_merge`) brought it. Direct: every other commit. Unknown
+    authors: the commit has no login, or GitHub's placeholder login
+    `invalid-email-address` (ignoring case). Bots: the author login ends in
+    `[bot]`, as the developer count tells a bot (Yves's ruling on #397). The
+    last two are counted whatever else the commit is, so Direct and Pull
+    requests add up to 100% (give or take the rounding) and the others
+    overlap them. The counts are kept in the metrics.
+  - *Time to main per commit.* The push time minus the author date of the
+    commit, a negative time counted as 0, for each distinct commit, at its
+    first push.
+  - *Commits per push.* The `commits` column of each push with a known count;
+    a force push, or a push whose compare failed or was cut, has none and is
+    left out here (it still counts in Pushes).
+  - *Time to deploy per commit.* For every commit of the first-parent chain of
+    the deployments created in the window (merge commits of pull requests
+    included, no longer only the direct ones), each at its earliest
+    deployment: the deployment time minus the author date, a negative time 0.
+    The deployment time is the record's `created_at`: for an environment the
+    deployment's creation, for a workflow the run's start, for a release its
+    publication. The commits of a deployment without a known lineage count at
+    their author date.
+  - *Commits per deployment.* The first-parent commits each deployment brought,
+    merge commits included; a deployment without a known lineage is left out.
+  - *Mean, median, p90.* The same rules as the Mainline Interval's: the median
+    is the middle value, or the mean of the two middle ones, and needs two
+    values; p90 is the nearest rank, the value at position `(9n + 9) / 10` of
+    the sorted values, and needs ten.
+  - *Not readable and not collected.* A project with a repository whose push
+    read GitHub refused (a 403, kept in `data/pushes_denied.csv`) shows `Push
+    activity not readable`, a project with no `data/pushes.csv` yet `Pushes not
+    collected yet`: one cell across the shares, time to main and commits per
+    push groups (ten columns), a dash for Commits and Pushes, and never
+    deployment numbers in its place. The Deployments column and the deployment
+    groups keep their numbers. A repository is matched to its project ignoring
+    case. The legend names both states.
 - **What is counted.** The commits `forsgren collect` stores in
   `data/commits.csv`, the commits that deployments shipped, so it is an
   interval between deployed commits, not between every commit of the mainline.
@@ -882,8 +944,7 @@ last in the menu, "TBD"; `false` leaves it out.
   yet, so there is no Mainline Interval to show."); with data and a project
   that has no commit in the window, the project's Mainline Interval and
   Developers cells are `-`.
-- **Developers.** Two columns next to the Mainline Interval (forsgren#273;
-  developers and unknown authors, forsgren#387, step 2),
+- **Developers.** One column next to the Mainline Interval (forsgren#273),
   because a team of ten makes more commits than one person with the same
   habits; the interval itself is not divided by it. It counts the distinct GitHub logins of the authors of the commits
   deployed in the window (the Mainline Interval's window, each commit once),
@@ -897,58 +958,30 @@ last in the menu, "TBD"; `false` leaves it out.
   bot account (a login ending in `[bot]`, such as `dependabot[bot]`) is no
   developer and its commits are left out. A commit without a login (GitHub
   links its email to no account, or it was stored by the commits format v1) is
-  an unknown author. It is not guessed to be anyone's: the developers column
-  leaves it out and the unknown authors column counts it. GitHub's placeholder login `invalid-email-address`, its answer for an
-  author email it links to no account, is such a commit too, ignoring case,
-  and never legacy data, which is a commit without a login stored before the
-  commits format v3 (forsgren#355). The developers cell is the count, `3`. The
-  unknown authors cell is the number of those commits and their share of the
-  window's distinct deployed commits, bots' commits included, in whole percent
-  rounded down: `170 (14%)`; when the legacy commits are most of the deployed
-  ones it ends with ` · legacy data`, or ` · 3 of them legacy data` when some
-  unknown authors were stored with their lineage. A project with no deployed
-  commit shows a dash in both cells; a project whose commits are all by bots
-  has 0 developers and `0 (0%)`. The
+  not guessed to be anyone's, and GitHub's placeholder login
+  `invalid-email-address`, ignoring case, is no developer either
+  (forsgren#355). The unknown authors are a share of the pushed commits now
+  (see The push groups). The cell is the count, `3`; a project with no
+  deployed commit shows a dash, and a project whose commits are all by bots
+  has 0 developers. The
   Developers are paired with the Mainline Intervals by project: Developers that
   are missing or name another project in a row fail the render rather than
-  show a count in the wrong row. The number and the note are counts only; no
+  show a count in the wrong row. The number is a count only; no
   login reaches a page (`TestRenderShowsNoCommitAuthor` renders every page
   from commits that all carry one login and finds it on none, the TBD page's
   Developers cell counted from it). The legend's TBD section explains the
-  column: what a developer is, how listed logins count as one, bots left out, commits without a known author
-  named, never who the developers are.
-- **Mainline Lead Time** (forsgren#256), the group between the Mainline
-  Interval and Developers: how old a change is when it reaches the main
-  branch, in three columns (forsgren#390): direct, pull requests and batch
-  size. The pull requests column covers merged human pull requests only, not
-  every change that reaches the trunk (forsgren#342): work pushed straight to
-  the main branch is in the direct column, so a pull request stands in for the
-  life of a branch, and in a workflow that mixes both this column covers only
-  the pull-request changes.
-  - *direct.* The time to main of the commits pushed straight to the main
-    branch, measured at the deployment: forsgren sees no push time, so it is
-    the time from a commit's author date to the first deployment that contains
-    it (on a repository that deploys every push, minutes after the push), a
-    time below 0 counted as 0. A commit is direct when it is on the
-    first-parent chain of its deployment and is not the merge commit
-    (`merge_commit` of `data/pulls.csv`, compared by repository ignoring case
-    and SHA) of a pull request; the commits a merge brought in are off the
-    chain and the pull request's own. Each commit counts once, at the earliest
-    deployment that counts it, when that deployment was created in the DORA
-    window. The cell reads `median (commits)`, for example `20 min (4)`, a
-    dash without a direct commit. The commits of a deployment without a known
-    lineage (stored before the commits format v3) count as direct at their
-    author date and are named as the Mainline Interval names them: `2 commits
-    timed by author date`, `Mostly estimated: ...` above half. While
-    `data/pulls.csv` does not exist yet the cell adds `pull request merges
-    cannot be told apart yet`, because the merges cannot be recognised.
-  - *batch size.* The number of commits a deployment brought to the
-    first-parent chain of the main branch, direct commits and merge commits
-    alike, as the median over the deployments created in the DORA window (the
-    mean of the two middle ones for an even number, so `1.5` is possible). The
-    cell reads `median (deployments)`, for example `1.5 (45)`. A deployment
-    without a known lineage is left out and named: `2 deployments of unknown
-    lineage not counted`.
+  column: what a developer is, how listed logins count as one, bots left out,
+  never who the developers are.
+- **Mainline Lead Time** (forsgren#256), the group between Commits per
+  deployment and the Mainline Interval: how old a change is when it reaches
+  the main branch, in one column since forsgren#397: pull requests. The first
+  version had direct and batch size columns beside it (forsgren#390); the push
+  and deployment groups replaced them. The pull requests column covers merged
+  human pull requests only, not every change that reaches the trunk
+  (forsgren#342): work pushed straight to the main branch is in the push
+  groups and the Direct share, so a pull request stands in for the life of a
+  branch, and in a workflow that mixes both this column covers only the
+  pull-request changes.
   - *pull requests.* What the rest of this entry describes.
   - *What is counted.* One lead time per pull request merged in the DORA
     window, counted by its merge time: from its first commit, the earliest
@@ -981,7 +1014,7 @@ last in the menu, "TBD"; `false` leaves it out.
     project with no human pull request shows a dash in pull requests (it read
     `No human pull requests in this period; changes may go directly to the
     trunk` until forsgren#390; the sentence is now the legend's), which is not
-    proof of direct commits.
+    proof of direct commits; the Direct share shows them.
   - *Not readable and not collected.* `Pull requests not readable` means the
     token was refused the pull request read for a repository of the project
     (a 403, kept in `data/pulls_denied.csv`, see
@@ -989,11 +1022,9 @@ last in the menu, "TBD"; `false` leaves it out.
     cleared by the next read that succeeds. `No pull requests have been
     collected yet` means `data/pulls.csv` does not exist yet.
   - *Legacy format.* Records in the legacy format have no known author: the
-    data establishes that format, not when or why the record was stored. In
-    Developers, commits in the legacy format have no known author and count as
-    unknown authors, and when most of the deployed commits are of that kind the
-    unknown authors cell ends with `legacy data`. GitHub's placeholder author `invalid-email-address`
-    is an unknown author too, not a developer. In the Mainline Interval, when
+    data establishes that format, not when or why the record was stored. A
+    pull request in the legacy format (pulls format v1) has no known author
+    type and is not counted in the lead time. In the Mainline Interval, when
     more than half of the commits are timed by author date the note in the gaps
     cell reads `Mostly estimated: 7 of 13 commits timed by author date.`
 

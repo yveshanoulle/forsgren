@@ -55,15 +55,16 @@ func TestCountSpreadCells(t *testing.T) {
 // TestPushMeasuresCells: the volume, the shares in whole percent like 99%,
 // dashes without a commit.
 func TestPushMeasuresCells(t *testing.T) {
-	m := PushMeasures{Pushes: 12, Commits: 200, PullRequests: 20, Direct: 180, UnknownAuthors: 199}
-	got := [5]string{m.CommitsCell(), m.PushesCell(), m.DirectCell(), m.PullRequestCell(), m.UnknownAuthorCell()}
-	if want := [5]string{"200", "12", "90%", "10%", "99%"}; got != want {
+	m := PushMeasures{Pushes: 12, Commits: 200, PullRequests: 20, Direct: 180, UnknownAuthors: 199, Bots: 4}
+	got := [6]string{m.CommitsCell(), m.PushesCell(), m.DirectCell(), m.PullRequestCell(), m.UnknownAuthorCell(),
+		m.BotCell()}
+	if want := [6]string{"200", "12", "90%", "10%", "99%", "2%"}; got != want {
 		t.Errorf("want %v, got %v", want, got)
 	}
 	none := PushMeasures{Pushes: 3}
-	got = [5]string{none.CommitsCell(), none.PushesCell(), none.DirectCell(), none.PullRequestCell(),
-		none.UnknownAuthorCell()}
-	if want := [5]string{"0", "3", "-", "-", "-"}; got != want {
+	got = [6]string{none.CommitsCell(), none.PushesCell(), none.DirectCell(), none.PullRequestCell(),
+		none.UnknownAuthorCell(), none.BotCell()}
+	if want := [6]string{"0", "3", "-", "-", "-", "-"}; got != want {
 		t.Errorf("without a commit: want %v, got %v", want, got)
 	}
 }

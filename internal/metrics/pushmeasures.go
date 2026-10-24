@@ -13,7 +13,9 @@ package metrics
 //     commits a pr_merge push brought or that are the merge commit of a pull
 //     request of data/pulls.csv; Direct, all the others; UnknownAuthors, the
 //     commits with no login or GitHub's placeholder login (placeholderLogin),
-//     whatever else they are; the counts are kept with the shares;
+//     whatever else they are; Bots, the commits whose author login ends in
+//     [bot] (as the developer count tells a bot), whatever else they are; the
+//     counts are kept with the shares;
 //   - the time to main of a commit is its push time minus its author date, a
 //     negative one counted as 0 (a clock ahead of the push), as lead time for
 //     changes counts one; its mean, median and 90th percentile (spread.go);
@@ -39,8 +41,8 @@ type PushMeasures struct {
 	// Pushes counts the pushes in the DORA window.
 	Pushes int
 	// Commits counts the distinct commits those pushes brought; PullRequests,
-	// Direct and UnknownAuthors are the counts behind the shares.
-	Commits, PullRequests, Direct, UnknownAuthors int
+	// Direct, UnknownAuthors and Bots are the counts behind the shares.
+	Commits, PullRequests, Direct, UnknownAuthors, Bots int
 	// TimeToMain is the spread of the commits' times to main; its Count is
 	// Commits.
 	TimeToMain DurationSpread
@@ -58,6 +60,9 @@ func (m PushMeasures) PullRequestShare() int { return share(m.PullRequests, m.Co
 
 // DirectShare is the share of the commits pushed straight to main.
 func (m PushMeasures) DirectShare() int { return share(m.Direct, m.Commits) }
+
+// BotShare is the share of the commits whose author is a bot.
+func (m PushMeasures) BotShare() int { return share(m.Bots, m.Commits) }
 
 // UnknownAuthorShare is the share of the commits of an unknown author.
 func (m PushMeasures) UnknownAuthorShare() int { return share(m.UnknownAuthors, m.Commits) }
@@ -86,6 +91,7 @@ type pushedCommit struct {
 	authored time.Time
 	pull     bool
 	unknown  bool
+	bot      bool
 }
 
 // PushMeasuresOf returns the push measures of each project, in the order of
@@ -184,7 +190,8 @@ func (c pushedCommit) merged(seen bool, project int, pc history.PushCommit, tip 
 ) pushedCommit {
 	return pushedCommit{project: project, at: earlierOf(c.at, tip.at, seen), authored: pc.AuthoredAt,
 		pull:    c.pull || tip.merge || pulled,
-		unknown: pc.Author == "" || strings.EqualFold(pc.Author, placeholderLogin)}
+		unknown: pc.Author == "" || strings.EqualFold(pc.Author, placeholderLogin),
+		bot:     strings.HasSuffix(pc.Author, botSuffix)}
 }
 
 // add counts the commit c in m.
@@ -193,4 +200,5 @@ func (m *PushMeasures) add(c pushedCommit) {
 	m.PullRequests += boolCount(c.pull)
 	m.Direct += boolCount(!c.pull)
 	m.UnknownAuthors += boolCount(c.unknown)
+	m.Bots += boolCount(c.bot)
 }

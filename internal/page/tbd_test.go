@@ -67,7 +67,7 @@ func tbdDataWith(leads []metrics.MainlineLeadTime) Data {
 // tbdPushes are the push measures of tbdData's projects.
 func tbdPushes() []metrics.PushMeasures {
 	return []metrics.PushMeasures{
-		{Project: "Acme Shop", Pushes: 20, Commits: 40, PullRequests: 10, Direct: 30, UnknownAuthors: 4,
+		{Project: "Acme Shop", Pushes: 20, Commits: 40, PullRequests: 10, Direct: 30, UnknownAuthors: 4, Bots: 2,
 			TimeToMain: metrics.DurationSpread{Count: 40, Mean: time.Hour, Median: 30 * time.Minute, P90: 3 * time.Hour},
 			PerPush:    metrics.CountSpread{Count: 20, Mean: 2, Median: 1.5, P90: 6}},
 		{Project: "Acme Tools", Pushes: 1, Commits: 1, Direct: 1,
@@ -102,11 +102,11 @@ func tbdDeploys() []metrics.DeployMeasures {
 // cell, parted by " | ": volume (commits, pushes, deployments), shares
 // (direct, pull requests, unknown authors), time to main, commits per push,
 // time to deploy, commits per deployment (mean, median, p90 each). A cell
-// starting with @ is the one cell across the push groups, nine columns wide.
+// starting with @ is the one cell across the push groups, ten columns wide.
 var tbdPushCells = map[string]string{
-	"Acme Shop": "40 | 20 | 85 releases | 75% | 25% | 10% | 1 h | 30 min | 3 h | 2 | 1.5 | 6 | " +
+	"Acme Shop": "40 | 20 | 85 releases | 75% | 25% | 10% | 5% | 1 h | 30 min | 3 h | 2 | 1.5 | 6 | " +
 		"2 h | 1 h | 5 h | 5 | 4.5 | 12",
-	"Acme Tools": "1 | 1 | 7 | 100% | 0% | 0% | 2 h | - | - | 1 | - | - | 1 h | 1 h | - | 3 | - | -",
+	"Acme Tools": "1 | 1 | 7 | 100% | 0% | 0% | 0% | 2 h | - | - | 1 | - | - | 1 h | 1 h | - | 3 | - | -",
 	"Acme Docs":  "- | - | 2 | @Push activity not readable | 30 min | 30 min | - | 1 | 1 | -",
 	"Acme Web":   "- | - | 1 release | @Pushes not collected yet | 10 min | - | - | 2 | - | -",
 }
@@ -150,12 +150,12 @@ func tbdRow(project, interval, lead, developers string) string {
 
 // tds are the cells of cells, parted by " | ", as the template writes a row's
 // cells: one td on each line; a cell starting with @ is the push groups' one
-// cell across nine columns.
+// cell across ten columns.
 func tds(cells string) string {
 	parts := strings.Split(cells, " | ")
 	for i, c := range parts {
 		if text, spans := strings.CutPrefix(c, "@"); spans {
-			parts[i] = "<td colspan=\"9\">" + text + "</td>"
+			parts[i] = "<td colspan=\"10\">" + text + "</td>"
 		} else {
 			parts[i] = "<td>" + c + "</td>"
 		}
@@ -172,7 +172,7 @@ var tbdGroups = []struct {
 	hidden  string // the measure, said after each column's word in its accessible name
 }{
 	{"Volume", []string{"Commits", "Pushes", "Deployments"}, ""},
-	{"Shares of commits", []string{"Direct", "Pull requests", "Unknown authors"}, ""},
+	{"Shares of commits", []string{"Direct", "Pull requests", "Unknown authors", "Bots"}, ""},
 	{"Time to main per commit (duration)", []string{"mean", "median", "p90"}, "time to main"},
 	{"Commits per push", []string{"mean", "median", "p90"}, "commits per push"},
 	{"Time to deploy per commit (duration)", []string{"mean", "median", "p90"}, "time to deploy"},

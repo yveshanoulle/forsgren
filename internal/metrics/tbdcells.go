@@ -48,12 +48,15 @@ func (m PushMeasures) volume(n int) string {
 	return strconv.Itoa(n)
 }
 
-// DirectCell, PullRequestCell and UnknownAuthorCell are the shares of the
+// DirectCell, PullRequestCell, UnknownAuthorCell and BotCell are the shares of the
 // commits, "99%", a dash without a commit.
 func (m PushMeasures) DirectCell() string { return m.shareCell(m.DirectShare()) }
 
 // PullRequestCell is the share of the commits that came through a pull request.
 func (m PushMeasures) PullRequestCell() string { return m.shareCell(m.PullRequestShare()) }
+
+// BotCell is the share of the commits whose author is a bot.
+func (m PushMeasures) BotCell() string { return m.shareCell(m.BotShare()) }
 
 // UnknownAuthorCell is the share of the commits of an unknown author.
 func (m PushMeasures) UnknownAuthorCell() string { return m.shareCell(m.UnknownAuthorShare()) }

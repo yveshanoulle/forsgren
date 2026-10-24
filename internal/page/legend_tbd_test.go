@@ -10,8 +10,56 @@ import (
 // chain at the committer date, and the old approximation the cell names,
 // forsgren#254), what a dash is, what comes later and the default of tbd_page.
 var legendTbdText = []string{
-	"the Mainline Interval of each project",
-	"in five columns: mean, deviation, median, p90 and gaps, one number each",
+	"The TBD page (trunk-based development) is one table with a row for each project",
+	"Its columns are in groups, and the name of a group says what it counts",
+	"First come Volume, Shares of commits, Time to main per commit, Commits per push, Time to deploy per " +
+		"commit and Commits per deployment. Then come Mainline Lead Time, Mainline Interval and Developers",
+	"Every number is of the last 30 days",
+	"The push groups read the pushes to the main branch, from GitHub's activity list of the default branch " +
+		"of each repository",
+	"Push data starts with the release that collects it: a project shows the pushes from the day forsgren first " +
+		"collected them, and older pushes are not looked up afterwards",
+	"Volume has three columns",
+	"Commits is the number of commits the pushes brought to the main branch, each commit is counted a single " +
+		"time, at its first push",
+	"Only the first-parent chain of a push counts, so the commits a merge brought in from a branch are left " +
+		"out and the merge commit counts",
+	"Pushes is the number of pushes. Deployments is the number of successful deployments",
+	"A deployment is a GitHub release, a deployment to an environment or a run of a workflow, as the project " +
+		"is measured. A project measured by releases alone reads, for example, 85 releases",
+	"Shares of commits has four columns: Direct, Pull requests, Unknown authors and Bots",
+	"All four are shares of the same Commits number, in whole percent rounded down, so they read alike",
+	"A commit is a pull request commit when it is the merge commit of a merged pull request, or when a pull " +
+		"request merge brought it to the main branch",
+	"Every other commit is direct, so these two shares add up to 100%, give or take the rounding",
+	"Unknown authors and Bots are counted in addition, whatever else the commit is",
+	"An unknown author is a commit whose author GitHub links to no account, or the placeholder author " +
+		"invalid-email-address. A bot is a commit whose author login ends in [bot]",
+	"Time to main per commit is a duration. For each commit it runs from the author date of the commit to " +
+		"the push that brought it to the main branch",
+	"A commit authored after its push counts as 0",
+	"Commits per push is a count of commits, not a duration: how many commits each push brought to the " +
+		"first-parent chain",
+	"A push whose commits could not be counted, such as a force push, is left out of these three columns",
+	"Time to deploy per commit is a duration. For each commit it runs from the author date of the commit " +
+		"to the first deployment that contains it",
+	"for a deployment to an environment, when the deployment was created; for a workflow, when its run " +
+		"started; for a release, when the release was published",
+	"A commit authored after its deployment counts as 0",
+	"Commits per deployment is a count of commits: how many commits each deployment brought to the " +
+		"first-parent chain, the merge commit of a pull request included",
+	"A deployment without a known chain is left out",
+	"In each group of three columns the mean is the average",
+	"The median is the middle value, or the mean of the two middle values when there is an even number of them",
+	"p90 is the nearest-rank percentile: the value at position 0.9 × the number of values, rounded up, of " +
+		"the values sorted from the smallest, so nine tenths of the values are no larger than it",
+	"The median needs two values and p90 needs ten values, and each is a dash until then",
+	"A duration is written like 2 h 5 min. A count has one decimal when it is not whole, for example 1.5",
+	"Push activity not readable means the token forsgren collects with was refused the read of the pushes " +
+		"of a repository of the project (a 403, recorded in data/pushes_denied.csv)",
+	"Deployment numbers are never shown in its place",
+	"Pushes not collected yet means no push has been collected yet",
+	"The Mainline Interval of each project is in five columns: mean, deviation, median, p90 and gaps, one number each",
 	"The mean is the average, and the deviation is the sample standard deviation of the time between " +
 		"commits landing on the main branch, by their committer date",
 	"The column gaps is how many gaps the other four columns are made from, for example 1162",
@@ -41,21 +89,16 @@ var legendTbdText = []string{
 	"The median needs two gaps and p90 needs ten gaps",
 	"With fewer than ten gaps p90 would only be the longest gap",
 	"A mean far above the median, and a deviation far above the mean, point at a few long gaps among short ones",
-	"Next to the Mainline Interval, Developers has two columns: developers and unknown authors",
+	"Next to the Mainline Interval, Developers has one column: developers",
 	"The column developers is the number of people who made the commits deployed in the " +
 		"window, those a merge brought in included: the distinct GitHub accounts of their authors, " +
 		"so a person who commits from several email addresses counts once",
 	"Logins listed together in a same_developer group of the config count as one developer, " +
 		"with or without capital letters; the stored commits keep each login",
 	"A bot account, whose GitHub login ends in [bot], is not a developer, and its commits are left out",
-	"An unknown author is a commit whose author GitHub links to no account. It is not guessed to be anyone's: " +
-		"it is left out of the column developers and counted in the column unknown authors",
-	"The column is written 170 (14%): the number of those commits, and their share of all the commits " +
-		"deployed in the window, the commits of bots included, in whole percent rounded down",
-	"When most of the deployed commits are of that kind, the cell ends with legacy data, or with " +
-		"3 of them legacy data when some of the unknown authors are not of the legacy format",
-	"A project with no deployed commit shows a dash in both columns, and a project whose commits are all by " +
-		"bots has 0 developers",
+	"A commit whose author GitHub links to no account is not guessed to be anyone's, and GitHub's " +
+		"placeholder author invalid-email-address is not a developer either",
+	"A project with no deployed commit shows a dash, and a project whose commits are all by bots has 0 developers",
 	"The page shows the number only, never who the developers are",
 	"The interval is not divided by it: a team of ten makes more commits than one person with the same habits",
 	"The two metrics are read together",
@@ -73,27 +116,10 @@ var legendTbdText = []string{
 // parts, the lower bound and the stand-ins, the people of #349 and #355, the
 // legacy format as Yves worded it on #356, and what not readable means.
 var legendLeadText = []string{
-	"Mainline Lead Time has three columns: direct, pull requests and batch size",
-	"The direct column is the time to main of the commits pushed straight to the main branch, measured at the deployment",
-	"forsgren sees no push time, so it takes the time from a commit's author date to the first deployment " +
-		"that contains it",
-	"On a repository that deploys every push, that is minutes after the push",
-	"A commit is direct when it is on the first-parent chain of its deployment and is not the merge commit of " +
-		"a pull request; the commits a merge brought in belong to the pull request",
-	"A commit authored after its deployment counts as 0",
-	"The cell is written median (commits), for example 20 min (4)",
-	"It is a dash when no commit went straight to the main branch",
-	"They count as direct, at their author date, and the cell says how many, as the Mainline Interval does",
-	"While no pull request has been collected yet, the direct cell adds pull request merges cannot be told " +
-		"apart yet",
-	"The batch size column is how many commits a deployment brought to the first-parent chain of the main branch, " +
-		"the merge commit of a pull request included",
-	"The cell is written median (deployments), for example 1.5 (45)",
-	"A deployment without a known chain is left out, and the cell says how many, written 2 deployments of " +
-		"unknown lineage not counted",
+	"Mainline Lead Time has one column: pull requests",
 	"The pull requests column covers merged human pull requests only, " +
 		"not every change that reaches the main branch",
-	"Work pushed straight to the main branch is in the direct column, " +
+	"Work pushed straight to the main branch is in the push groups and the Direct share, " +
 		"so a pull request stands in for the life of a branch",
 	"In a workflow that mixes both, this column covers only the changes that came through pull requests",
 	"Each pull request merged in the last 30 days, counted by its merge time, " +
@@ -117,11 +143,9 @@ var legendLeadText = []string{
 	"a pull request in the legacy format has no known author type",
 	"The placeholder author invalid-email-address",
 	"is an unknown author, not a developer",
-	"Commits in the legacy format have no known author and count as unknown authors",
-	"the legacy format says how a record was stored, not why the author is missing",
 	"Mostly estimated: 7 of 13 commits timed by author date.",
 	"shows a dash in pull requests: no human pull request was merged in this period, and its changes may go " +
-		"directly to the main branch, which the direct column shows",
+		"directly to the main branch, which the Direct share shows",
 	"That is not proof of direct commits",
 	"Pull requests not readable means the token forsgren collects with was refused the pull request read",
 	"recorded in data/pulls_denied.csv",
@@ -176,6 +200,18 @@ var legendTbdRetired = []string{
 	"median 5 min · p90 1 h",
 	"A dash means fewer than two commits",
 	"the number leaves it out and the cell says how many",
+	"Developers has two columns",
+	"counted in the column unknown authors",
+	"The column is written 170 (14%)",
+	"the cell ends with legacy data",
+	"Commits in the legacy format have no known author and count as unknown authors",
+	"Mainline Lead Time has three columns: direct, pull requests and batch size",
+	"The direct column is",
+	"The batch size column is",
+	"forsgren sees no push time",
+	"pull request merges cannot be told apart yet",
+	"2 deployments of unknown lineage not counted",
+	"which the direct column shows",
 }
 
 // TestLegendExplainsTheTbdPage (forsgren#253, forsgren#273): the legend has a

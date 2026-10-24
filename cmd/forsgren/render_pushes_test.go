@@ -131,11 +131,12 @@ func TestRenderRefusesABadPushFile(t *testing.T) {
 func TestRenderShowsThePushGroupsAndTheirStatesOnTheTbdPage(t *testing.T) {
 	pinNow(t)
 	data := writeData(t, acmeHistory(), acmeCommits())
-	wantIn(t, tbdSiteOf(t, validConfig, data), `<td colspan="9">Pushes not collected yet</td>`)
+	wantIn(t, tbdSiteOf(t, validConfig, data), `<td colspan="10">Pushes not collected yet</td>`)
 	writePushes(t, data)
 	got := tbdSiteOf(t, validConfig, data)
-	wantIn(t, got, tdRow("1", "1")+"\n            <td>", tdRow("100%", "0%", "0%", "25 min", "-", "-", "1", "-", "-"),
-		tdRow("0", "0")+"\n            <td>", tdRow("-", "-", "-", "-", "-", "-", "-", "-", "-"))
+	wantIn(t, got, tdRow("1", "1")+"\n            <td>",
+		tdRow("100%", "0%", "0%", "0%", "25 min", "-", "-", "1", "-", "-"),
+		tdRow("0", "0")+"\n            <td>", tdRow("-", "-", "-", "-", "-", "-", "-", "-", "-", "-"))
 	if strings.Contains(got, "Pushes not collected yet") {
 		t.Errorf("want no state with the pushes collected, got:\n%s", got)
 	}
@@ -143,5 +144,5 @@ func TestRenderShowsThePushGroupsAndTheirStatesOnTheTbdPage(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(filepath.Dir(data), "pushes_denied.csv"), []byte(denied), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	wantIn(t, tbdSiteOf(t, validConfig, data), `<td colspan="9">Push activity not readable</td>`)
+	wantIn(t, tbdSiteOf(t, validConfig, data), `<td colspan="10">Push activity not readable</td>`)
 }

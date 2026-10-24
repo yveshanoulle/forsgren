@@ -977,6 +977,8 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/spread.go:HasMedian": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/pushmeasures.go:add": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/pushmeasures.go:merged": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/tbdcells.go:BotCell": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/pushmeasures.go:BotShare": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/developers.go:isPerson": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/tbdcells.go:byReleases": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/tbdcells.go:DeploymentVolumes": 100.0,
