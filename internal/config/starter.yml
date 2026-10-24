@@ -55,6 +55,17 @@
 # auto_update: false switches it off, and you merge each update by hand.
 # auto_update_level: is optional and is major when left out.
 #
+# same_developer: is optional. It lists groups of GitHub logins that count as
+# one developer, for an assistant account that works on someone's behalf or a
+# person with two accounts. The first login of a group names the developer,
+# logins are compared without case, and a login can be in one group only. Each
+# group needs two or more logins; a group that breaks a rule is not used, and
+# the settings page says why. Remove the "# " in front of the two lines to use
+# it, with your own logins:
+#
+# same_developer:
+#   - [maintainer, assistant-account]
+#
 # Example, with made-up names. To use it, remove the five lines version: 1,
 # view: standard, auto_update: true, auto_update_level: major and projects: []
 # below, then remove the "# " in front of the example:

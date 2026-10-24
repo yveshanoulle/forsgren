@@ -35,7 +35,7 @@
   {
    "path": "internal/config/settings_test.go",
    "score": 9.38,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-23",
    "minScore": 9.28
   },
   {
@@ -131,7 +131,7 @@
   {
    "path": "internal/config/validate.go",
    "score": 10.0,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-23",
    "minScore": 10.0
   },
   {
@@ -281,7 +281,7 @@
   {
    "path": "internal/config/config.go",
    "score": 10.0,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-23",
    "minScore": 10.0
   },
   {
@@ -1337,13 +1337,13 @@
   {
    "path": "internal/page/settings.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-23",
    "minScore": 10.0
   },
   {
    "path": "internal/page/settings_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-23",
    "minScore": 10.0
   },
   {
@@ -1875,6 +1875,12 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/config/samedeveloper.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/buildversion/buildversion_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-23",
@@ -1888,6 +1894,12 @@
   },
   {
    "path": "cmd/forsgren/devversion_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/same_developer_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-23",
    "minScore": 10.0

@@ -163,7 +163,7 @@ func (c Commit) validate() error {
 		check{isSHA(c.SHA), fmt.Sprintf("commit %q is not 40 or 64 lower-case hex digits", c.SHA)},
 		check{isWholeSecond(c.AuthoredAt), "authored_at is empty or has a fraction of a second"},
 		check{isWholeSecond(c.DeployedAt), "deployed_at is empty or has a fraction of a second"},
-		check{c.Author == "" || isLogin(c.Author), fmt.Sprintf("author %q is not a GitHub login", c.Author)},
+		check{c.Author == "" || IsLogin(c.Author), fmt.Sprintf("author %q is not a GitHub login", c.Author)},
 		check{!slices.ContainsFunc(c.Parents, isNotSHA),
 			fmt.Sprintf("parents %q are not each 40 or 64 lower-case hex digits", c.Parents)},
 		check{isOptionalWholeSecond(c.CommittedAt), "committed_at has a fraction of a second"},
@@ -179,5 +179,5 @@ func isNotSHA(s string) bool { return !isSHA(s) }
 // characters that are not allowed, so neither can be stored as an author.
 var loginShape = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*(\[bot\])?$`)
 
-// isLogin says whether s is the shape of a GitHub login.
-func isLogin(s string) bool { return loginShape.MatchString(s) }
+// IsLogin says whether s is the shape of a GitHub login.
+func IsLogin(s string) bool { return loginShape.MatchString(s) }

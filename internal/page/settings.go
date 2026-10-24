@@ -28,6 +28,7 @@ var possibleValues = map[string]string{
 	"numbers_scoring_page": pageValues,
 	"history_page":         pageValues,
 	"tbd_page":             pageValues,
+	"same_developer":       groupsOfLogins,
 }
 
 // doraWindows are the windows dora_days can name, as the page lists them.
@@ -39,6 +40,10 @@ var booleanValues = list(strconv.FormatBool(true), strconv.FormatBool(false))
 
 // pageValues are the values of a page key, as the page lists them (forsgren#200).
 var pageValues = list(string(config.PageOn), string(config.PageUnlisted), string(config.PageOff))
+
+// groupsOfLogins is what same_developer takes, as the page lists it
+// (forsgren#361).
+const groupsOfLogins = "groups of two or more GitHub logins"
 
 // list is names written as the page lists them.
 func list(names ...string) string { return strings.Join(names, ", ") }

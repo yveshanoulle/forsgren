@@ -24,6 +24,11 @@ func TestPossibleValuesAreExactlyWhatCheckConfigAccepts(t *testing.T) {
 		if possible == "" {
 			t.Fatalf("want possible values for %s on the settings page, got none", setting.Key)
 		}
+		if setting.Key == "same_developer" {
+			wantLoads(t, setting.Key, "[[maintainer, assistant-account]]", true)
+			wantLoads(t, setting.Key, "[[maintainer]]", false)
+			continue
+		}
 		accepted, refused := probesOf(t, possible)
 		for _, value := range accepted {
 			wantLoads(t, setting.Key, value, true)
