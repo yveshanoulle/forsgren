@@ -152,6 +152,14 @@ FBP_SANDBOX_ORDER_FILE=""
 #     the signal reaches FBP.sh, not only sfl.sh. No pid is looked up.
 FBP_SANDBOX_SFL_PRE_SIGNAL=""
 
+# forsgren#266: one more seam, for the gate-selection case of
+# Scripts/test_sfl_gate_skip.sh, set and reset the same way.
+#   FBP_SANDBOX_SFL_SKIPS: when non-empty, the stub sfl.sh, run as sfl.sh pre,
+#     writes this text (`<label><TAB><reason>` lines) to .build/sfl-skips.log,
+#     the sink the real sfl.sh fills with the gates its selection skipped, so
+#     FBP.sh reads a run that skipped gates.
+FBP_SANDBOX_SFL_SKIPS=""
+
 # Road to public, step 4 (the DCO sign-off FBP.sh adds to its commits): one
 # more seam, for case 5 of Scripts/test_fbp_commit_message.sh, set and reset
 # the same way.
@@ -313,6 +321,7 @@ fbp_sandbox_write_sfl() {
     fbp_sandbox_sfl_static_stop_line
     fbp_sandbox_sfl_pre_red_line
     fbp_sandbox_sfl_pre_signal_line
+    fbp_sandbox_sfl_skips_line
     printf 'exit 0\n'
   } > sfl.sh
   chmod +x sfl.sh
@@ -325,6 +334,16 @@ fbp_sandbox_sfl_static_stop_line() {
   local phase_arg="\"\$1\""
   if [ -n "$FBP_SANDBOX_SFL_STATIC_STOP" ]; then
     printf 'if [ %s = pre ]; then mkdir -p .build; printf %%s\\n %q > .build/sfl-static-stop.log; fi\n' "$phase_arg" "$FBP_SANDBOX_SFL_STATIC_STOP"
+  fi
+}
+
+# fbp_sandbox_sfl_skips_line — forsgren#266: prints the stub sfl.sh line that,
+# when the stub runs as sfl.sh pre, writes FBP_SANDBOX_SFL_SKIPS to
+# .build/sfl-skips.log; prints nothing when that is empty.
+fbp_sandbox_sfl_skips_line() {
+  local phase_arg="\"\$1\""
+  if [ -n "$FBP_SANDBOX_SFL_SKIPS" ]; then
+    printf 'if [ %s = pre ]; then mkdir -p .build; %s %q > .build/sfl-skips.log; fi\n' "$phase_arg" "printf '%s\n'" "$FBP_SANDBOX_SFL_SKIPS"
   fi
 }
 

@@ -19,10 +19,13 @@
 #   3. FORSGREN_GATE_SELECT_FULL=1       -> all four run, nothing logged; a stale log is emptied
 #   4. CI (run_ci_phase.sh), docs change -> all four run
 # The optional first argument is the sfl.sh under test (default: the real one).
+#   5. FBP.sh's summary (forsgren#266): the gates the selection skipped, counted and
+#      each named with its reason; nothing when none were skipped.
 # Mutation proofs (each asserts the reason the real sfl.sh gives is gone):
 #   A. the skip ignored:       case 1 runs the self-test and no longer names the reason;
 #   B. no line in the log:     case 1 leaves no reason in .build/sfl-skips.log;
-#   C. the log never emptied:  case 3 keeps a stale reason in .build/sfl-skips.log.
+#   C. the log never emptied:  case 3 keeps a stale reason in .build/sfl-skips.log;
+#   D. FBP.sh never reads the log: case 5 names no skipped gate.
 
 set -uo pipefail
 
@@ -33,6 +36,8 @@ REPO="$(pwd)"
 source Scripts/lib_git_sandbox.sh
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# shellcheck source=Scripts/lib_fbp_sandbox.sh
+source Scripts/lib_fbp_sandbox.sh
 selftest_begin "sfl gate skip self-test"
 
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
@@ -146,6 +151,7 @@ check_ran "1." other-pre "other pre"
 check_ran "1." other-post "other post"
 if [[ "$PRE_RC" == 0 && "$POST_RC" == 0 ]]; then echo "  ok: 1. both phases are green (the skipped steps are counted)"; else fail "1. sfl exited pre ${PRE_RC}, post ${POST_RC}. Output: ${OUT}"; fi
 want_said "1. the step table counts the skipped rows" "2 skipped"
+want_said "1. a skipped row of the step table says why" "⏭ skip: no changed file is an input"
 if [[ "$(skips_log "$root" | grep -c .)" == 4 ]]; then echo "  ok: 1. the log holds the four skips of pre and post"; else fail "1. .build/sfl-skips.log does not hold four lines: $(skips_log "$root")"; fi
 
 # Case 2: a file under the gates' inputs: the gates run, the self-tests skip.
@@ -186,6 +192,21 @@ else
   echo "  ok: 4. Scripts/run_ci_phase.sh names no gate selection"
 fi
 
+# Case 5 (forsgren#266): FBP.sh's summary lists the gates sfl skipped by selection, each
+# with its reason, so a skipped gate is never read as a passed one. The stub sfl.sh
+# writes .build/sfl-skips.log; the real FBP.sh prints the summary.
+SKIP_LINES="${BST}"$'\t'"none of the 3 changed files is an input of ${BST}"$'\n'"${BG}"$'\t'"none of the 3 changed files is an input of ${BG}"
+fbp_summary() {
+  FBP_SANDBOX_SFL_SKIPS="$1" fbp_sandbox_run 3 --no-commit
+  OUT="$FBP_SANDBOX_OUT"
+}
+fbp_summary "$SKIP_LINES"
+want_said "5. the FBP summary counts the gates skipped by selection" "gates skipped by selection: 2 (no changed file is an input of them; counted in the skipped totals above)"
+want_said "5. the FBP summary names the first skipped gate with its reason" "  ⏭ skipped: ${BST} (none of the 3 changed files is an input of ${BST})"
+want_said "5. the FBP summary names the second skipped gate with its reason" "  ⏭ skipped: ${BG} (none of the 3 changed files is an input of ${BG})"
+fbp_summary ""
+if grep -qF "skipped by selection" <<< "$OUT"; then fail "5. the FBP summary names skipped gates although sfl skipped none"; else echo "  ok: 5. a run that skipped nothing names nothing"; fi
+
 # Mutation proofs. mutant_case1 <sed> / mutant_case3 <sed>: the case run against a mutant.
 mutant_root() {
   local real="$SFL_UNDER_TEST"
@@ -223,6 +244,15 @@ if selftest_mutant "$SFL_UNDER_TEST" "${TMP}/mC/sfl.sh" '/^  : > ".SKIPS_SINK"$/
     echo "  ok: mutation proof C: a log pre never empties keeps a stale reason, which case 3 catches"
   else
     fail "mutation proof C: the stale reason is gone although nothing empties the log"
+  fi
+fi
+
+if selftest_mutant "${REPO}/FBP.sh" "${TMP}/mD/FBP.sh" '/sfl-skips[.]log/d'; then
+  FBP_SANDBOX_FBP_OVERRIDE="${TMP}/mD/FBP.sh" fbp_summary "$SKIP_LINES"
+  if grep -qF "⏭ skipped: ${BST} (" <<< "$OUT"; then
+    fail "mutation proof D: a FBP.sh that never reads .build/sfl-skips.log still named the skipped gate"
+  else
+    echo "  ok: mutation proof D: a FBP.sh that never reads .build/sfl-skips.log names no skipped gate, which case 5 catches"
   fi
 fi
 

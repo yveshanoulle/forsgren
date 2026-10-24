@@ -9,6 +9,18 @@ Active work lives in
 
 ---
 
+## 2026-10-24 — FBP names each gate it skipped, and why ([#266](https://github.com/yveshanoulle/forsgren/issues/266), step 1 of 1)
+
+forsgren issue 266, tools issue, no release. A gate skipped by the selector of #262 and #263 (the browser gates and the release workflow gate) was only a count in the summary, which reads like a pass. The step table row of a selector skip now says why (`⏭ skip: no changed file is an input`), and the FBP summary lists them under the git row: `gates skipped by selection: N (no changed file is an input of them; counted in the skipped totals above)`, then one `  ⏭ skipped: <label> (<reason>)` line each, from `.build/sfl-skips.log` (FBP removes it before PRE; nothing is printed when no gate was skipped). `sfl.sh` v9, `FBP.sh` v11.
+
+- Red first: cases 1 and 5 of `Scripts/test_sfl_gate_skip.sh` wanted the reason in the table row and the named lines in the FBP summary (the real `FBP.sh` in the sandbox, a stub `sfl.sh` writing the log through the new `FBP_SANDBOX_SFL_SKIPS` seam of `Scripts/lib_fbp_sandbox.sh`).
+- Green: `skip_step` takes the short reason; `print_selection_skips` in `FBP.sh`. Mutation proof D: an `FBP.sh` that never reads the log names no skipped gate.
+- The stale comment in `sfl.sh` that said the four browser rows now names the browser rows and the release workflow gate.
+
+- Lenka B
+
+---
+
 ## 2026-10-24 — sfl skips the release workflow gate when a commit touches none of the files it reads ([#263](https://github.com/yveshanoulle/forsgren/issues/263), steps 1 and 2 of 2)
 
 forsgren issue 263, tools issue, no release. The release workflow gate took 165 s of an FBP and read nothing a documentation or browser change touches. `Scripts/gate_inputs.txt` now lists the files it reads (its script's closure: the four workflows, the release scripts it names, the libraries it sources), and `sfl.sh` asks the selector of #262 before the row, so the row is skipped when none of them changed; a file no list names still runs it, and Quality runs it always. Deriving the list found that the gate also searched every tracked file for the removed bump machinery, which no list can state. That scan is now its own always-run row, `release removed names`, one search per name (about 3 s), so the gate itself reads only listed files (a copy holding only the listed files passes it, 29 s against 106 s).

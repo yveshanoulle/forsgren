@@ -110,7 +110,7 @@ fi
 # repo because two FBP runs back to back were otherwise
 # indistinguishable from their first line (Yves, 2026-08-31). Mirrors
 # sfl.sh's banner; editing a Scripts/*.sh does not require a bump.
-FBP_VERSION=10
+FBP_VERSION=11
 
 STARTED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
 START_EPOCH="$(date +%s)"
@@ -130,6 +130,11 @@ GIT_DURATION=0
 SFL_COUNTS_FILE=".build/sfl-counts.log"
 PRE_COUNTS=""
 POST_COUNTS=""
+# forsgren#266: the gates sfl.sh skipped because no changed file is one of
+# their inputs, one `<label><TAB><reason>` line each (pre empties it, post
+# appends). The summary names them, so a skipped gate is never read as a
+# passed one.
+SFL_SKIPS_FILE=".build/sfl-skips.log"
 # Issue #8: default tail for the build-site row, same shape as PRE/POST
 # before their own counts arrive. Overwritten with "<N> pages generated
 # (<duration>s)" once build_site.sh's page count is confirmed good.
@@ -238,6 +243,24 @@ gate_row_tail() {
   esac
 }
 
+# print_selection_skips: the gates sfl.sh skipped by gate selection, counted
+# and each named with its reason (forsgren#266). Nothing when it skipped none.
+# The skips are already in the skipped totals of the pre and post rows; this
+# says which gates they were.
+print_selection_skips() {
+  local label reason n=0 lines=""
+  [ -s "$SFL_SKIPS_FILE" ] || return 0
+  while IFS=$'\t' read -r label reason; do
+    [ -n "$label" ] || continue
+    n=$((n + 1))
+    lines="${lines}  ⏭ skipped: ${label} (${reason})"$'\n'
+  done < "$SFL_SKIPS_FILE"
+  [ "$n" -gt 0 ] || return 0
+  echo
+  echo "gates skipped by selection: ${n} (no changed file is an input of them; counted in the skipped totals above)"
+  printf '%s' "$lines"
+}
+
 # build_fails_with <reason> — the build step fails with <reason> named in
 # its summary row, and POST is skipped as for any failed build.
 build_fails_with() {
@@ -311,6 +334,8 @@ print_summary() {
   printf "  %-16s %s  %s\n" "post gates" "$POST_STATUS" "$post_tail"
   printf "  %-16s %s  (%ss)\n" "git" "$GIT_STATUS" "$GIT_DURATION"
 
+  print_selection_skips
+
   # The reasons, not just the glyphs. Reprint sfl's own failure blocks rather
   # than recomputing them so the summary cannot disagree with either phase.
   print_log_errors "PRE gate failures" "$PRE_LOG"
@@ -379,6 +404,8 @@ fi
 if ! GATE_FIX=1 ./Scripts/fix_source_css.sh; then
   echo "⚠️ stylelint --fix could not fix every finding in internal/page/styles.css — the Stylelint gate below says what is left."
 fi
+
+rm -f "$SFL_SKIPS_FILE"
 
 # Remove a previous run's sink before starting this phase. Otherwise an sfl
 # failure before rendering could make PRE inherit stale counts from an earlier

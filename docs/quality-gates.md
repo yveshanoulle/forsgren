@@ -743,10 +743,10 @@ The POST gates, on the generated site:
   forsgren#262 step 3 of 3, forsgren only, not canon): before a row whose label
   has `in` rows in `Scripts/gate_inputs.txt` (the four browser rows) runs,
   `sfl.sh` asks `gate_select`. On a skip the row's script does not run: the step
-  is still counted, printed `⏭ skipped: <label> (<reason>)`, a `⏭ skip` row of
-  the step table, and `<label><TAB><reason>` is appended to
-  `.build/sfl-skips.log` (`sfl.sh pre` empties it, post appends; forsgren#266
-  reads it). A selected row prints `▶ selected: <label> (<reason>)` and runs.
+  is still counted, printed `⏭ skipped: <label> (<reason>)`, a
+  `⏭ skip: no changed file is an input` row of the step table, and `<label><TAB><reason>` is appended to
+  `.build/sfl-skips.log` (`sfl.sh pre` empties it, post appends; `FBP.sh`'s summary
+  lists it, with the count and each reason, forsgren#266). A selected row prints `▶ selected: <label> (<reason>)` and runs.
   CI (`Scripts/run_ci_phase.sh`) does not select: Quality runs every row. The
   self-test runs the real `sfl.sh` in throwaway repositories (a docs-only
   change, a change to the gates' inputs, a forced full run, CI) with three
