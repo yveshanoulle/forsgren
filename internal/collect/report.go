@@ -10,6 +10,7 @@ package collect
 //	incomplete resets=2026-10-01T01:00:00Z
 //	cut acme/app kept=2026-06-22 recent=discarded issues=unread progress=stalled
 //	pulls-cut acme/shop
+//	backfill-cut acme/lib
 //	failed acme/web secondary-rate-limit
 //
 // The second line is `complete` or `incomplete resets=<UTC RFC 3339>`. A
@@ -22,6 +23,9 @@ package collect
 // A `pulls-cut` line names a repository whose deployments and issues were
 // read whole but whose pull requests the budget cut short: incomplete, never
 // failed, the rest read by the next run (forsgren#320, decision #307).
+// A `backfill-cut` line names a repository whose deployments, issues and pull
+// requests were read whole but whose backfill of the legacy commits the budget
+// cut short: incomplete, never failed, continued by the next run (forsgren#385).
 // A `failed` line names a repository that failed on a rate limit.
 
 import (
@@ -72,7 +76,10 @@ type Report struct {
 	// PullsCut names the repositories whose pull requests alone were cut
 	// short at the request budget (forsgren#320, decision #307).
 	PullsCut []string
-	Failed   []Failed
+	// BackfillCut names the repositories whose backfill of the legacy commits
+	// was cut short at the request budget (forsgren#385).
+	BackfillCut []string
+	Failed      []Failed
 	// Reset is when the request budget starts over, UTC; zero when no
 	// repository, nor its pull requests, was cut short.
 	Reset time.Time
@@ -90,13 +97,19 @@ func (r Report) Render() string {
 	for _, c := range r.Cuts {
 		b.WriteString(c.line())
 	}
-	for _, repo := range r.PullsCut {
-		fmt.Fprintf(&b, "pulls-cut %s\n", repo)
-	}
+	writeRepositories(&b, "pulls-cut", r.PullsCut)
+	writeRepositories(&b, "backfill-cut", r.BackfillCut)
 	for _, f := range r.Failed {
 		fmt.Fprintf(&b, "failed %s %s\n", f.Repository, f.Kind)
 	}
 	return b.String()
+}
+
+// writeRepositories writes one line of kind for each of repos.
+func writeRepositories(b *strings.Builder, kind string, repos []string) {
+	for _, repo := range repos {
+		fmt.Fprintf(b, "%s %s\n", kind, repo)
+	}
 }
 
 // line is the cut line of c.
@@ -108,9 +121,11 @@ func (c Cut) line() string {
 	return fmt.Sprintf("cut %s kept=%s recent=%s issues=unread progress=%s\n", c.Repository, kept, c.Recent, c.Progress)
 }
 
-// incomplete says whether the budget cut a repository, or its pull requests,
-// short.
-func (r Report) incomplete() bool { return len(r.Cuts) > 0 || len(r.PullsCut) > 0 }
+// incomplete says whether the budget cut a repository, its pull requests or
+// its backfill of the legacy commits short.
+func (r Report) incomplete() bool {
+	return len(r.Cuts) > 0 || len(r.PullsCut) > 0 || len(r.BackfillCut) > 0
+}
 
 // ParseReport is the report in text, the reverse of Render; anything else is
 // ErrReport.
@@ -163,13 +178,17 @@ var lineKinds = map[string]lineKind{
 		r.PullsCut = append(r.PullsCut, f[0])
 		return nil
 	}},
+	"backfill-cut": {2, func(r *Report, f []string) error {
+		r.BackfillCut = append(r.BackfillCut, f[0])
+		return nil
+	}},
 	"failed": {3, func(r *Report, f []string) error {
 		r.Failed = append(r.Failed, Failed{f[0], f[1]})
 		return nil
 	}},
 }
 
-// parseLine reads a cut, pulls-cut or failed line.
+// parseLine reads a cut, pulls-cut, backfill-cut or failed line.
 func (r *Report) parseLine(line string) error {
 	f := strings.Fields(line)
 	if len(f) == 0 {

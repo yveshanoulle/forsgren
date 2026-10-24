@@ -1,12 +1,16 @@
 package collect
 
 import (
+	"errors"
+	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/yveshanoulle/forsgren/internal/config"
 	"github.com/yveshanoulle/forsgren/internal/github"
 )
 
@@ -87,6 +91,37 @@ func TestTheBackfillCutShortAtTheBudgetKeepsWhatItFilledAndIsNotMarked(t *testin
 	wantNoBackfillMark(t, path)
 	if got := g.seen("/repos/acme/app/compare/"); len(got) != 1 {
 		t.Errorf("want the one comparison the budget allowed, got %v", got)
+	}
+	want := Report{BackfillCut: []string{"acme/app"}, Reset: g.resetAt.UTC()}
+	if !reflect.DeepEqual(g.report, want) {
+		t.Errorf("want the report %+v, got %+v", want, g.report)
+	}
+}
+
+// TestTheBackfillIsNotMarkedWhileAnotherRepositoryFailed (forsgren#385, step
+// 3): acme/app is backfilled whole, but acme/web failed in the same run, so no
+// mark is written and the backfill is tried again; the next run, with acme/web
+// well, notes both. The lines already filled are not compared again.
+func TestTheBackfillIsNotMarkedWhileAnotherRepositoryFailed(t *testing.T) {
+	g, path := withLegacyCommits(t)
+	web := repository("acme/web", config.Environment, "production")
+	g.bodies["/repos/acme/web/deployments"] = `{"message": "Server Error"}`
+	g.status["/repos/acme/web/deployments"] = http.StatusInternalServerError
+	if r := g.collect(t, shop(production, web), path, github.DefaultMaxPages); !errors.Is(r.err, ErrFailed) {
+		t.Fatalf("want acme/web failed, got %v", r.err)
+	}
+	wantNoBackfillMark(t, path)
+	if g.comparisonsAsked() != 1 {
+		t.Fatalf("want acme/app compared once, got %d", g.comparisonsAsked())
+	}
+	delete(g.status, "/repos/acme/web/deployments")
+	g.bodies["/repos/acme/web/deployments"] = list()
+	if r := g.collect(t, shop(production, web), path, github.DefaultMaxPages); r.err != nil {
+		t.Fatal(r.err)
+	}
+	wantBackfillMark(t, path)
+	if g.comparisonsAsked() != 1 {
+		t.Errorf("want the filled lines not compared again, got %d comparisons", g.comparisonsAsked())
 	}
 }
 

@@ -21,9 +21,10 @@ func sampleReport() Report {
 			{"acme/app", time.Date(2026, 6, 22, 0, 0, 0, 0, time.UTC), RecentRead, ProgressYes},
 			{"acme/docs", time.Time{}, RecentDiscarded, ProgressStalled},
 		},
-		PullsCut: []string{"acme/shop"},
-		Failed:   []Failed{{"acme/web", FailedSecondary}},
-		Reset:    time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC),
+		PullsCut:    []string{"acme/shop"},
+		BackfillCut: []string{"acme/lib"},
+		Failed:      []Failed{{"acme/web", FailedSecondary}},
+		Reset:       time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC),
 	}
 }
 
@@ -32,6 +33,7 @@ const sampleText = "# forsgren collect report v1\n" +
 	"cut acme/app kept=2026-06-22 recent=read issues=unread progress=yes\n" +
 	"cut acme/docs kept=none recent=discarded issues=unread progress=stalled\n" +
 	"pulls-cut acme/shop\n" +
+	"backfill-cut acme/lib\n" +
 	"failed acme/web secondary-rate-limit\n"
 
 // TestAReportIsWrittenAsItsFileAndReadBack (forsgren#64, step 3b): the file
@@ -49,10 +51,22 @@ func TestAReportIsWrittenAsItsFileAndReadBack(t *testing.T) {
 	if got := (Report{}).Render(); got != "# forsgren collect report v1\ncomplete\n" {
 		t.Errorf("want a complete report, got %q", got)
 	}
-	pullsOnly := Report{PullsCut: []string{"acme/app"}, Reset: time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC)}
-	want := "# forsgren collect report v1\nincomplete resets=2026-10-01T01:00:00Z\npulls-cut acme/app\n"
-	if got := pullsOnly.Render(); got != want {
-		t.Errorf("want a report incomplete for the pull requests alone\n%q\ngot\n%q", want, got)
+}
+
+// TestAReportIsIncompleteForOneKindOfCutAlone: a repository whose pull
+// requests alone (forsgren#320), or whose backfill of the legacy commits alone
+// (forsgren#385), the budget cut short makes the report incomplete, with the
+// reset time, and nothing else in it.
+func TestAReportIsIncompleteForOneKindOfCutAlone(t *testing.T) {
+	reset := time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC)
+	head := "# forsgren collect report v1\nincomplete resets=2026-10-01T01:00:00Z\n"
+	for line, r := range map[string]Report{
+		"pulls-cut acme/app\n":    {PullsCut: []string{"acme/app"}, Reset: reset},
+		"backfill-cut acme/app\n": {BackfillCut: []string{"acme/app"}, Reset: reset},
+	} {
+		if got := r.Render(); got != head+line {
+			t.Errorf("want\n%q\ngot\n%q", head+line, got)
+		}
 	}
 }
 
@@ -62,19 +76,21 @@ func TestAReportIsWrittenAsItsFileAndReadBack(t *testing.T) {
 func TestAFileThatIsNoReportIsRefused(t *testing.T) {
 	head := "# forsgren collect report v1\n"
 	for name, text := range map[string]string{
-		"empty":         "",
-		"another file":  "repository,reach\n",
-		"no status":     head,
-		"bad status":    head + "done\n",
-		"bad reset":     head + "incomplete resets=soon\n",
-		"short cut":     head + "complete\ncut acme/app kept=none\n",
-		"wrong key":     head + "complete\ncut acme/app since=none recent=read issues=unread progress=yes\n",
-		"bad date":      head + "complete\ncut acme/app kept=June recent=read issues=unread progress=yes\n",
-		"another line":  head + "complete\nnote hello\n",
-		"short failure": head + "complete\nfailed acme/web\n",
-		"short pulls":   head + "complete\npulls-cut\n",
-		"an empty line": head + "complete\n\nfailed acme/web error\n",
-		"long pulls":    head + "complete\npulls-cut acme/app kept=none\n",
+		"empty":          "",
+		"another file":   "repository,reach\n",
+		"no status":      head,
+		"bad status":     head + "done\n",
+		"bad reset":      head + "incomplete resets=soon\n",
+		"short cut":      head + "complete\ncut acme/app kept=none\n",
+		"wrong key":      head + "complete\ncut acme/app since=none recent=read issues=unread progress=yes\n",
+		"bad date":       head + "complete\ncut acme/app kept=June recent=read issues=unread progress=yes\n",
+		"another line":   head + "complete\nnote hello\n",
+		"short failure":  head + "complete\nfailed acme/web\n",
+		"short pulls":    head + "complete\npulls-cut\n",
+		"an empty line":  head + "complete\n\nfailed acme/web error\n",
+		"long pulls":     head + "complete\npulls-cut acme/app kept=none\n",
+		"short backfill": head + "complete\nbackfill-cut\n",
+		"long backfill":  head + "complete\nbackfill-cut acme/app kept=none\n",
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := ParseReport(text); !errors.Is(err, ErrReport) {

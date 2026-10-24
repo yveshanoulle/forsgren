@@ -34,11 +34,17 @@ func (h held) cutOf(repo string, w whole, now time.Time) Cut {
 // noteCutDone takes repo's cut runs mark away: it was read to the end.
 func (h held) noteCutDone(repo string) { delete(h.cutRuns, strings.ToLower(repo)) }
 
-// reportCut adds the Cut that err (a budget cut) carries to the report.
+// reportCut adds the Cut that err (a budget cut) carries to the report, or
+// the repository whose backfill of the legacy commits it cut short.
 func (o Options) reportCut(err error) {
 	var c *cutReport
-	if o.Report != nil && errors.As(err, &c) {
+	var b *backfillCut
+	switch {
+	case o.Report == nil:
+	case errors.As(err, &c):
 		o.Report.Cuts = append(o.Report.Cuts, c.Cut)
+	case errors.As(err, &b):
+		o.Report.BackfillCut = append(o.Report.BackfillCut, b.repo)
 	}
 }
 

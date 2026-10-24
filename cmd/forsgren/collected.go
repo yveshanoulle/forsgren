@@ -51,14 +51,18 @@ func collectedWords(report collect.Report) string {
 }
 
 // budgetWords describe each repository the budget cut short, then each whose
-// pull requests alone it cut short.
+// pull requests alone it cut short, then each whose backfill of the legacy
+// commits it cut short (forsgren#385).
 func budgetWords(report collect.Report) []string {
-	words := make([]string, 0, len(report.Cuts)+len(report.PullsCut))
+	words := make([]string, 0, len(report.Cuts)+len(report.PullsCut)+len(report.BackfillCut))
 	for _, c := range report.Cuts {
 		words = append(words, cutWords(c))
 	}
 	for _, repo := range report.PullsCut {
 		words = append(words, repo+" pull requests cut short (deployments and issues read)")
+	}
+	for _, repo := range report.BackfillCut {
+		words = append(words, repo+" legacy commits cut short (deployments, issues and pull requests read)")
 	}
 	return words
 }

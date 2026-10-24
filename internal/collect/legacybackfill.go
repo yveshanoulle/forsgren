@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/yveshanoulle/forsgren/internal/github"
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
@@ -44,6 +45,16 @@ type deploymentOf struct {
 	id   int64
 }
 
+// backfillCut is the budget's cut of repo's backfill: the deployments, issues
+// and pull requests were read, the legacy commits not all (forsgren#385).
+type backfillCut struct {
+	repo string
+	err  error
+}
+
+func (c *backfillCut) Error() string { return c.err.Error() }
+func (c *backfillCut) Unwrap() error { return c.err }
+
 // backfillLegacy fills the legacy commits of repo once. It reads the commits
 // file, compares each stored deployment of repo that has legacy lines, newest
 // first, and writes what the comparisons gave before it returns, whether they
@@ -57,6 +68,9 @@ func (o Options) backfillLegacy(ctx context.Context, h held, repo string) error 
 	// BackfillCommits, which reads it again, reports why.
 	stored, _ := history.LoadCommits(o.commitsFile())
 	known, err := o.legacyKnown(ctx, h, repo, legacyDeployments(stored, repo))
+	if errors.Is(err, github.ErrBudget) {
+		err = &backfillCut{repo, err}
+	}
 	_, werr := history.BackfillCommits(o.commitsFile(), known)
 	if err = errors.Join(err, werr); err == nil {
 		h.filledDone[lower] = true
