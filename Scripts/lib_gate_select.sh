@@ -26,6 +26,8 @@
 #      `none|out|...` rows of the list are the files no gate reads: workflows,
 #      docs, the release scripts, sfl.sh and FBP.sh), and a file under Scripts/ that is in the
 #      closure of no gate's script (gate_unrelated_script).
+#   6a. a changed script of Scripts/ whose text matches a `grep` row of the label
+#      (forsgren#264: the gate finds its inputs by what a file says) run
 #   6. a changed file under one of the label's `in` paths and matching none of its
 #      `out` patterns          run  (naming the file)
 #   7. otherwise                      skip (saying how many files changed)
@@ -118,6 +120,19 @@ gate_input_excluded() {
   return 1
 }
 
+# gate_input_grepped <inputs-file> <label> <path>: the path is a script of Scripts/
+# that exists and whose text matches a `grep` row of the label (forsgren#264). It is
+# for a gate that discovers its inputs by what a file says (the scripts that write
+# the step summary), so a file added tomorrow, in no list yet, still selects it.
+gate_input_grepped() {
+  local re
+  [[ "$3" == Scripts/*.sh && -f "$3" ]] || return 1
+  while IFS= read -r re; do
+    if grep -qE -- "$re" "$3"; then return 0; fi
+  done < <(gate_input_rows "$1" "$2" grep)
+  return 1
+}
+
 # gate_unrelated_script <file>: a file under Scripts/ that is in the closure of no
 # listed gate's script (the scripts come from the order file; FORSGREN_GATE_ORDER
 # names another). A script a browser gate reads is in its closure; a new one only
@@ -167,6 +182,10 @@ gate_select() {
     [[ -z "$c" ]] && continue
     if gate_input_covered "$inputs" "$label" "$c" && ! gate_input_excluded "$inputs" "$label" "$c"; then
       echo "run: ${c} is an input of ${label}"
+      return 0
+    fi
+    if gate_input_grepped "$inputs" "$label" "$c"; then
+      echo "run: ${c} says what ${label} discovers its inputs by"
       return 0
     fi
   done <<< "$changed"

@@ -1,6 +1,6 @@
 # Scripts/gate_inputs.txt (forsgren#262, step 1 of 3)
 #
-# What each of the four browser gates and the release workflow gate (forsgren#263) read, so a gate runs only when a commit touches one of its inputs.
+# What each of the four browser gates, the release workflow gate (forsgren#263) and the step summary isolation gate (forsgren#264) read, so a gate runs only when a commit touches one of its inputs.
 # Scripts/lib_gate_select.sh (step 2) reads it: gate_select <label> says run or
 # skip, and sfl.sh asks it before each of the four rows (step 3): a skipped row is
 # not run, named with the reason and logged in .build/sfl-skips.log. CI runs all.
@@ -173,3 +173,84 @@ release workflow|in|Scripts/release_token_expiry.sh
 release workflow|in|Scripts/release_verify_install.sh
 release workflow|in|Scripts/release_verify_pin.sh
 release workflow|in|Scripts/test_release_workflow.sh
+
+# --- step summary isolation (forsgren#264) --------------------------------
+# Scripts/test_step_summary_isolation.sh finds the scripts of Scripts/ that write
+# the step summary and runs every self-test that names one of them
+# (Scripts/lib_summary_writers.sh). So what it reads is not the closure of its own
+# script but the closure of those writers and of those self-tests, which
+# Scripts/test_gate_inputs.sh derives with the gate's own discovery and holds
+# listed. It is wide on purpose: the closure follows every name. The one exception is
+# Scripts/test_gate_wiring.sh, which names most gate scripts, greps them and runs none (SUMMARY_TEXT_ONLY): it counts with what it sources.
+# THE BLIND SPOT is a script added later. The `grep` row below is the gate's own
+# discovery rule as a selector rule: a changed script of Scripts/ whose text says
+# GITHUB_STEP_SUMMARY selects the gate even before the list names it. A new
+# self-test that names a writer is not caught by that rule; Scripts/test_gate_inputs.sh
+# is red for it, so the commit that adds it cannot land without listing it.
+step summary isolation|grep|GITHUB_STEP_SUMMARY
+step summary isolation|in|.github/workflows/auto_update.yml
+step summary isolation|in|.github/workflows/metrics.yml
+step summary isolation|in|.github/workflows/quality.yml
+step summary isolation|in|.github/workflows/release.yml
+step summary isolation|in|coverage_thresholds.json
+step summary isolation|in|package.json
+step summary isolation|in|Scripts/browser_gate_baseline.txt
+step summary isolation|in|Scripts/browser_gate_exceptions.txt
+step summary isolation|in|Scripts/browser_gate_fixture_baseline.txt
+step summary isolation|in|Scripts/browser_gate_variants.txt
+step summary isolation|in|Scripts/browser_gate.mjs
+step summary isolation|in|Scripts/build_site.sh
+step summary isolation|in|Scripts/check_shellcheck.sh
+step summary isolation|in|Scripts/ci_job_groups.txt
+step summary isolation|in|Scripts/dispatch_preview.sh
+step summary isolation|in|Scripts/gate_browser.sh
+step summary isolation|in|Scripts/gate_inputs.txt
+step summary isolation|in|Scripts/gate_language.sh
+step summary isolation|in|Scripts/gate_report_order.txt
+step summary isolation|in|Scripts/install_tools.sh
+step summary isolation|in|Scripts/language_allowlist.txt
+step summary isolation|in|Scripts/language_baseline.txt
+step summary isolation|in|Scripts/language_settings.txt
+step summary isolation|in|Scripts/lib_gate_select.sh
+step summary isolation|in|Scripts/lib_git_sandbox.sh
+step summary isolation|in|Scripts/lib_repo_files.sh
+step summary isolation|in|Scripts/lib_runs_script.sh
+step summary isolation|in|Scripts/lib_selftest.sh
+step summary isolation|in|Scripts/lib_site_settings.sh
+step summary isolation|in|Scripts/lib_summary_writers.sh
+step summary isolation|in|Scripts/lib_workflow_steps.sh
+step summary isolation|in|Scripts/merge_quality_report.sh
+step summary isolation|in|Scripts/release_agent_proofs.sh
+step summary isolation|in|Scripts/release_metrics.sh
+step summary isolation|in|Scripts/release_pins.sh
+step summary isolation|in|Scripts/release_plan.sh
+step summary isolation|in|Scripts/release_precheck.sh
+step summary isolation|in|Scripts/release_publish.sh
+step summary isolation|in|Scripts/release_quality.sh
+step summary isolation|in|Scripts/release_report.sh
+step summary isolation|in|Scripts/release_resume.sh
+step summary isolation|in|Scripts/release_token_expiry.sh
+step summary isolation|in|Scripts/release_verify_install.sh
+step summary isolation|in|Scripts/release_verify_pin.sh
+step summary isolation|in|Scripts/render_gate_list.sh
+step summary isolation|in|Scripts/render_quality_report.sh
+step summary isolation|in|Scripts/render_quality_summary.sh
+step summary isolation|in|Scripts/report_baselines.sh
+step summary isolation|in|Scripts/required_tools.txt
+step summary isolation|in|Scripts/run_ci_phase.sh
+step summary isolation|in|Scripts/shellcheck_exclusions.txt
+step summary isolation|in|Scripts/site_settings.txt
+step summary isolation|in|Scripts/test_gate_browser.sh
+step summary isolation|in|Scripts/test_gate_wiring.sh
+step summary isolation|in|Scripts/test_git_sandbox_guard.sh
+step summary isolation|in|Scripts/test_git_sandbox_isolation.sh
+step summary isolation|in|Scripts/test_quality_jobs.sh
+step summary isolation|in|Scripts/test_quality_summary_first.sh
+step summary isolation|in|Scripts/test_release_precheck.sh
+step summary isolation|in|Scripts/test_release_report.sh
+step summary isolation|in|Scripts/test_release_token_expiry.sh
+step summary isolation|in|Scripts/test_release_workflow.sh
+step summary isolation|in|Scripts/test_render_quality_report.sh
+step summary isolation|in|Scripts/test_render_quality_summary.sh
+step summary isolation|in|Scripts/test_report_baselines.sh
+step summary isolation|in|Scripts/test_step_summary_isolation.sh

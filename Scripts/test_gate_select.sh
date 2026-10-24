@@ -85,6 +85,7 @@ echo 'echo helper' > "${FX}/Scripts/helper.sh"
 echo 'echo other check' > "${FX}/Scripts/check_other.sh"
 echo 'echo release' > "${FX}/Scripts/release_x.sh"
 echo "echo plan" > "${FX}/Scripts/release_plan.sh"
+echo "echo discover" > "${FX}/Scripts/lib_summary_writers.sh"
 echo "echo plan test" > "${FX}/Scripts/test_release_plan.sh"
 echo "echo pin" > "${FX}/Scripts/test_release_workflow.sh"
 echo "on: dispatch" > "${FX}/.github/workflows/release.yml"
@@ -296,6 +297,36 @@ capture env -u FORSGREN_GATE_SELECT_FULL GITHUB_ACTIONS=true FORSGREN_GATE_INPUT
 want_exit "32: CI runs the release workflow gate whatever changed" 0 "run: full run (Quality runs every gate)"
 reset
 
+# 33-41 (forsgren#264): the step summary isolation gate, on the real list. It runs for
+# a script that writes the step summary and for a file its self-tests read; it skips
+# for a script no gate reads and for docs; a script ADDED later that says
+# GITHUB_STEP_SUMMARY runs it though no list names it yet (the gate discovers its
+# inputs by what a file says); an unknown file runs it; CI runs it always.
+SI="step summary isolation"
+si_case() {
+  echo "# edit" >> "${FX}/$2"
+  sel_real "$SI"
+  want_exit "$1: only $2 changed, $SI" 0 "$3"
+  reset
+}
+si_new() {
+  printf '%s\n' "$3" > "${FX}/$2"
+  sel_real "$SI" "${5:-}"
+  want_exit "$1: only the new $2, $SI" 0 "$4"
+  rm -f "${FX}/$2"
+}
+si_case 33 Scripts/lib_summary_writers.sh "run: Scripts/lib_summary_writers.sh is an input of $SI"
+si_case 34 Scripts/release_plan.sh "run: Scripts/release_plan.sh is an input of $SI"
+si_case 35 Scripts/check_other.sh "skip: none of the 1 changed files is an input of $SI"
+si_case 36 docs/guide.txt "skip: none of the 1 changed files is an input of $SI"
+si_new 37 Scripts/zz_new_writer.sh "echo x >> \"\$GITHUB_STEP_SUMMARY\"" "run: Scripts/zz_new_writer.sh says what $SI discovers its inputs by"
+si_new 38 Scripts/zz_quiet.sh 'echo quiet' "skip: none of the 1 changed files is an input of $SI"
+si_case 39 other/o.txt "run: other/o.txt is named by no gate's list, so every gate runs"
+echo "# edit" >> "${FX}/Scripts/check_other.sh"
+capture env -u FORSGREN_GATE_SELECT_FULL GITHUB_ACTIONS=true FORSGREN_GATE_INPUTS="$REAL_INPUTS" bash "${TMP}/drive.sh" "$FX" Scripts/lib_gate_select.sh "$SI"
+want_exit "40: CI runs the step summary isolation gate whatever changed" 0 "run: full run (Quality runs every gate)"
+reset
+
 # 15: the real list: every browser label has input rows the library reads, and the
 # real library covers the engine and excludes a test file, as the list says.
 for label in "browser gate self-test" "browser gate" "browser gate (fixture site) self-test" "browser gate (fixture site)"; do
@@ -404,4 +435,13 @@ sel_real "browser gate" "${TMP}/no_sfl.txt"
 want_exit "mutation proof K: without the sfl.sh row, the sfl-only commit runs the browser gate" 0 "run: sfl.sh is named by no gate's list, so every gate runs"
 reset
 
-selftest_end "the gate select self-test failed" "gate_select: thirty-two cases hold, eleven mutations seen"
+# L (forsgren#264): without the `grep` row the gate's own discovery is not a selector
+# rule, and a script added later that writes the step summary skips the gate.
+grep -v '^step summary isolation|grep|' "$REAL_INPUTS" > "${TMP}/no_grep.txt"
+if cmp -s "$REAL_INPUTS" "${TMP}/no_grep.txt"; then fail "mutation L changed nothing: the proof would be vacuous"; fi
+printf 'echo x >> "$%s"\n' GITHUB_STEP_SUMMARY > "${FX}/Scripts/zz_new_writer.sh"
+sel_real "$SI" "${TMP}/no_grep.txt"
+want_exit "mutation proof L: without the grep row, a new summary writer skips the gate" 0 "skip: none of the 1 changed files is an input of $SI"
+rm -f "${FX}/Scripts/zz_new_writer.sh"
+
+selftest_end "the gate select self-test failed" "gate_select: forty cases hold, twelve mutations seen"

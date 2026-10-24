@@ -768,6 +768,23 @@ The POST gates, on the generated site:
   five mutation proofs in a throwaway repository). Quality runs both rows
   always.
 
+- **step summary isolation gate skip** (forsgren#264, forsgren only, not canon):
+  the `step summary isolation` row (`Scripts/test_step_summary_isolation.sh`)
+  has `in` rows in `Scripts/gate_inputs.txt` too, so sfl skips it, named with its
+  reason, when a commit touches none of them. What it reads is not its own
+  closure: it finds the scripts of `Scripts/` that write the step summary and
+  runs every self-test that names one (`Scripts/lib_summary_writers.sh`, which
+  the gate and `Scripts/test_gate_inputs.sh` both use). The rows are the
+  closure of those writers and of those self-tests; `Scripts/test_gate_wiring.sh`
+  counts with the files it sources only, because it greps the other scripts and
+  runs none of them. `Scripts/test_gate_inputs.sh` is red when a file the
+  discovery finds is not listed. The blind spot is a script added later: a
+  `grep` row (`step summary isolation|grep|GITHUB_STEP_SUMMARY`) is the gate's
+  own discovery rule as a selector rule, so a changed script of `Scripts/`
+  that says `GITHUB_STEP_SUMMARY` selects the gate before any list names it.
+  A new self-test that names a writer is caught by the inputs self-test, which
+  is red for it. Quality runs the gate always.
+
 - **FBP push-or-rebase** (`Scripts/fbp_push_or_rebase.sh`, self-test
   `Scripts/test_fbp_push_or_rebase.sh`, forsgren#283 step 1 of 2, ported from
   the estate canon): when FBP.sh's final push is refused because the remote moved

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Scripts/test_step_summary_isolation.sh
 #
+# sfl skips this gate when a commit touches none of the files Scripts/gate_inputs.txt
+# lists for it (forsgren#264); Quality runs it always.
+#
 # forsgren's own (forsgren#233). In CI the runner exports GITHUB_STEP_SUMMARY,
 # and the Quality run runs the self-tests inside a gate step. A self-test that
 # runs a script which appends to $GITHUB_STEP_SUMMARY (the release report, the
@@ -28,28 +31,18 @@ cd "$(dirname "$0")/.." || exit 1
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# shellcheck source=Scripts/lib_summary_writers.sh
+source Scripts/lib_summary_writers.sh
 selftest_begin "step summary isolation"
 
 SELF="test_step_summary_isolation.sh"
 
-# The scripts that write the step summary: every non-test script of Scripts/
-# that mentions it (the libraries aside), and the two renderers whose output
-# the caller redirects.
-writer_names() {
-  { grep -l 'GITHUB_STEP_SUMMARY' Scripts/*.sh | grep -v '/test_' | grep -v '/lib_'; } | sed 's#^Scripts/##'
-}
-
-# self_tests <names...>: the self-tests that name one of those scripts,
-# except this one.
-self_tests() {
-  local t name
-  for t in Scripts/test_*.sh; do
-    [[ "$(basename "$t")" == "$SELF" ]] && continue
-    for name in "$@"; do
-      if grep -qF -- "$name" "$t"; then echo "$t"; break; fi
-    done
-  done
-}
+# The scripts that write the step summary and the self-tests that name them are
+# found by Scripts/lib_summary_writers.sh (forsgren#264), which
+# Scripts/test_gate_inputs.sh uses too, to hold Scripts/gate_inputs.txt to list
+# everything this gate runs.
+writer_names() { summary_writer_names; }
+self_tests() { summary_selftests "$SELF" "$@"; }
 
 # leak <script>: run it with GITHUB_STEP_SUMMARY on a decoy, in the child
 # only; print the number of bytes that reached the decoy.

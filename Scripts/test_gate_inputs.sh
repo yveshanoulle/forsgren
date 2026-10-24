@@ -37,6 +37,8 @@ cd "$(dirname "$0")/.." || exit 1
 source Scripts/lib_git_sandbox.sh
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# shellcheck source=Scripts/lib_summary_writers.sh
+source Scripts/lib_summary_writers.sh
 # shellcheck source=Scripts/lib_gate_select.sh
 source Scripts/lib_gate_select.sh
 selftest_begin "browser gate inputs self-test"
@@ -49,7 +51,13 @@ LABELS=(
   "browser gate (fixture site) self-test"
   "browser gate (fixture site)"
   "release workflow"
+  "step summary isolation"
 )
+
+# The gate that discovers its inputs (forsgren#264): the scripts that write the step
+# summary and the self-tests that name them are found by Scripts/lib_summary_writers.sh,
+# as the gate finds them, and the closure of each is a read of the gate.
+DISCOVERING="step summary isolation"
 
 # Gates that must not enumerate the repository (forsgren#263): a gate that lists
 # the tracked files and searches them reads every file, which no list of inputs
@@ -104,6 +112,24 @@ check_inputs() {
     fi
   done
   return "$bad"
+}
+
+# check_discovered <inputs-file> [<dir>]: prints one `problem:` line per file the
+# discovering gate runs or reads (summary_reads of Scripts/lib_summary_writers.sh) that
+# its rows do not list. <dir> is a
+# repository root to look in (the default is this one).
+check_discovered() {
+  local found
+  found="$(
+    cd "${2:-.}" || exit 0
+    summary_reads "$(basename "$(script_of "$DISCOVERING")")" | sort -u | while IFS=$'\t' read -r t p; do
+      if ! gate_input_covered "$1" "$DISCOVERING" "$t"; then
+        echo "problem: '${DISCOVERING}' runs or reads ${t} (found through ${p}, a script that writes the step summary or a self-test that names one) but does not list it"
+      fi
+    done
+  )"
+  [[ -z "$found" ]] || echo "$found"
+  [[ -z "$found" ]]
 }
 
 # check_enumeration <order-file>: prints one `problem:` line per gate of NO_ENUMERATION
@@ -167,6 +193,10 @@ done
 capture guard "."
 want_green "5: no go:embed and no build script reads testdata/ or a test file"
 
+# 6b
+capture check_discovered "$INPUTS"
+want_green "6b: everything the step summary isolation gate discovers and runs is listed"
+
 # 6
 capture check_enumeration "$ORDER"
 want_green "6: no gate that must stay listable lists or searches the repository"
@@ -178,6 +208,25 @@ sed "s#^release workflow|[^|]*|#release workflow|${TMP}/h_script.sh|#" "$ORDER" 
 if cmp -s "$ORDER" "${TMP}/h_order.txt"; then fail "mutation H changed nothing: the proof would be vacuous"; fi
 capture check_enumeration "${TMP}/h_order.txt"
 want_red "mutation proof H: a gate that lists the tracked files" "problem: 'release workflow' (${TMP}/h_script.sh) enumerates the repository"
+
+# I: a script the discovery finds, dropped from the rows.
+W1="$(summary_writer_names | head -1)"
+sed "/^step summary isolation|in|Scripts\/${W1}\$/d" "$INPUTS" > "${TMP}/i.txt"
+if cmp -s "$INPUTS" "${TMP}/i.txt"; then fail "mutation I changed nothing: the proof would be vacuous"; fi
+capture check_discovered "${TMP}/i.txt"
+want_red "mutation proof I: a step summary writer dropped from the rows" "problem: 'step summary isolation' runs or reads Scripts/${W1} (found through Scripts/${W1},"
+
+# J, K: a new writer, and a new self-test that names a writer, in a copy of Scripts/.
+DISC="${TMP}/disc"
+mkdir -p "${DISC}"
+cp -R Scripts "${DISC}/Scripts"
+printf '#!/usr/bin/env bash\necho x >> "$%s"\n' GITHUB_STEP_SUMMARY > "${DISC}/Scripts/zz_new_writer.sh"
+capture check_discovered "$INPUTS" "$DISC"
+want_red "mutation proof J: a new script that writes the step summary" "problem: 'step summary isolation' runs or reads Scripts/zz_new_writer.sh (found through Scripts/zz_new_writer.sh,"
+rm -f "${DISC}/Scripts/zz_new_writer.sh"
+printf '#!/usr/bin/env bash\nbash Scripts/%s\n' "$W1" > "${DISC}/Scripts/test_zz_new.sh"
+capture check_discovered "$INPUTS" "$DISC"
+want_red "mutation proof K: a new self-test that runs a step summary writer" "problem: 'step summary isolation' runs or reads Scripts/test_zz_new.sh (found through Scripts/test_zz_new.sh,"
 
 # A: a script dropped from a gate's rows.
 sed '/^browser gate|in|Scripts\/lib_site_settings.sh$/d' "$INPUTS" > "${TMP}/a.txt"
@@ -227,4 +276,4 @@ if cmp -s Scripts/build_site.sh "${ROOT}/Scripts/build_site.sh"; then fail "muta
 capture guard "$ROOT"
 want_red "mutation proof D: a build script reading a testdata file" "problem: Scripts/build_site.sh reads a test file or testdata: cp internal/page/testdata/legend.golden"
 
-selftest_end "the browser gate inputs self-test failed" "gate inputs: five labels listed, every path exists, every closure listed, the release workflow gate does not enumerate the repository, the guard holds, eight mutations seen"
+selftest_end "the browser gate inputs self-test failed" "gate inputs: six labels listed, every path exists, every closure listed, everything the step summary isolation gate discovers is listed, the release workflow gate does not enumerate the repository, the guard holds, eleven mutations seen"

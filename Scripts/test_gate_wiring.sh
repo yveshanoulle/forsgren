@@ -496,6 +496,16 @@ for path in Scripts/*.sh; do
       done
       ;;
 
+    # SOURCED HELPER, not a gate (forsgren#264): the scripts that write the step
+    # summary and the self-tests that name them. The step summary isolation gate
+    # and the inputs self-test must source it, so the two find the same files.
+    lib_summary_writers.sh)
+      for consumer in test_step_summary_isolation.sh test_gate_inputs.sh; do
+        runs_script "Scripts/${consumer}" "$base" \
+          || fail "${base} finds the step summary writers and Scripts/${consumer} never sources it"
+      done
+      ;;
+
     # SOURCED HELPER, not a gate (konenki issue #18): runs_script, the one
     # definition of what counts as running a script. Its test is the matcher
     # self-proof in part 5 of this file, which sources it.

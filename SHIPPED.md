@@ -21,6 +21,18 @@ forsgren issue 266, tools issue, no release. A gate skipped by the selector of #
 
 ---
 
+## 2026-10-24 — sfl skips the step summary isolation gate when a commit touches none of the files it reads ([#264](https://github.com/yveshanoulle/forsgren/issues/264), steps 1 and 2 of 2)
+
+forsgren issue 264, tools issue, no release. The step summary isolation gate took 136 s of an FBP and only needs to run when a commit touches a script that writes the step summary, a self-test that runs one, or what those read. It finds those by searching `Scripts/`, so its inputs are not the closure of its own script. `Scripts/lib_summary_writers.sh` is that discovery, shared by the gate and `Scripts/test_gate_inputs.sh`; `Scripts/gate_inputs.txt` lists the closure of the writers and of the self-tests the discovery finds (66 files; `Scripts/test_gate_wiring.sh` counts with the files it sources only, since it greps the other scripts and runs none). A script added later is the blind spot, and it is closed in the selector: a new kind of row, `grep`, selects the gate for a changed script of `Scripts/` whose text says `GITHUB_STEP_SUMMARY`, before any list names it; a new self-test that names a writer makes `Scripts/test_gate_inputs.sh` red. sfl asks the selector as it does for the other listed rows, and the FBP summary of #266 names the skip.
+
+- Red: mutations I, J and K of `Scripts/test_gate_inputs.sh` and L of `Scripts/test_gate_select.sh` were seen red, each for its named reason; the list and the `grep` row came after them.
+- Green: the list, the `grep` row and `gate_input_grepped` in `Scripts/lib_gate_select.sh`; check 6b and mutations I, J and K in `Scripts/test_gate_inputs.sh` (a writer dropped from the rows, a new writer, a new self-test that runs one); cases 33 to 40 and mutation L in `Scripts/test_gate_select.sh` (a listed file runs, a script nobody reads and a docs file skip, a new summary writer runs, a quiet new script skips, an unknown file runs, CI runs it; without the `grep` row a new writer skips).
+- Docs: docs/quality-gates.md, docs/gate-classification.md, the comments of `Scripts/gate_inputs.txt` and `Scripts/test_step_summary_isolation.sh`.
+
+- Lenka B
+
+---
+
 ## 2026-10-24 — sfl skips the release workflow gate when a commit touches none of the files it reads ([#263](https://github.com/yveshanoulle/forsgren/issues/263), steps 1 and 2 of 2)
 
 forsgren issue 263, tools issue, no release. The release workflow gate took 165 s of an FBP and read nothing a documentation or browser change touches. `Scripts/gate_inputs.txt` now lists the files it reads (its script's closure: the four workflows, the release scripts it names, the libraries it sources), and `sfl.sh` asks the selector of #262 before the row, so the row is skipped when none of them changed; a file no list names still runs it, and Quality runs it always. Deriving the list found that the gate also searched every tracked file for the removed bump machinery, which no list can state. That scan is now its own always-run row, `release removed names`, one search per name (about 3 s), so the gate itself reads only listed files (a copy holding only the listed files passes it, 29 s against 106 s).
