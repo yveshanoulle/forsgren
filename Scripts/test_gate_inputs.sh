@@ -52,6 +52,10 @@ LABELS=(
   "browser gate (fixture site)"
   "release workflow"
   "step summary isolation"
+  "metrics workflow"
+  "CI phase runner self-test"
+  "mutation: checkout pins"
+  "git sandbox isolation self-test"
 )
 
 # The gate that discovers its inputs (forsgren#264): the scripts that write the step
@@ -276,4 +280,4 @@ if cmp -s Scripts/build_site.sh "${ROOT}/Scripts/build_site.sh"; then fail "muta
 capture guard "$ROOT"
 want_red "mutation proof D: a build script reading a testdata file" "problem: Scripts/build_site.sh reads a test file or testdata: cp internal/page/testdata/legend.golden"
 
-selftest_end "the browser gate inputs self-test failed" "gate inputs: six labels listed, every path exists, every closure listed, everything the step summary isolation gate discovers is listed, the release workflow gate does not enumerate the repository, the guard holds, eleven mutations seen"
+selftest_end "the browser gate inputs self-test failed" "gate inputs: ten labels listed, every path exists, every closure listed, everything the step summary isolation gate discovers is listed, the release workflow gate does not enumerate the repository, the guard holds, eleven mutations seen"

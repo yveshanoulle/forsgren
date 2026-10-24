@@ -31,8 +31,9 @@
 #   H. untracked files ignored:             case 8 loses its run;
 #   I. no `none` rows in the list:          case 16a runs because the workflow is named by no list;
 #   J. the Scripts/ closure check removed:  case 21 loses its run for a script in a closure.
-#   K. the sfl.sh row removed from the real list: case 22 runs every browser row
-#      again, because sfl.sh is named by no list (forsgren#284).
+#   K. the codescene-scores.json row removed from the real list: a ledger-only change
+#      runs the browser gate again, because the file is named by no list (forsgren#402;
+#      it was the sfl.sh row until the metrics workflow rows named sfl.sh).
 # Cases 16-21: a workflow, a docs file, a release script and a script in no gate's
 # closure select nothing; a new top-level file, and a script in a closure that the
 # list forgot, select every gate (the fail-safe).
@@ -327,6 +328,77 @@ capture env -u FORSGREN_GATE_SELECT_FULL GITHUB_ACTIONS=true FORSGREN_GATE_INPUT
 want_exit "40: CI runs the step summary isolation gate whatever changed" 0 "run: full run (Quality runs every gate)"
 reset
 
+# 41-54 (forsgren#402): a Go step that touches the score ledger and the coverage
+# floors. The ledger is a data file no gate reads; codescene-scores.json alone fired
+# the fail-safe and ran every gate. A Go-only step skips the step summary isolation
+# gate and the four gates that read no Go tree; a changed script of a gate still runs it.
+ALL_SIX=("browser gate self-test" "browser gate" "browser gate (fixture site) self-test" "browser gate (fixture site)" "release workflow" "step summary isolation")
+SLOW_FIVE=("step summary isolation" "metrics workflow" "CI phase runner self-test" "mutation: checkout pins" "git sandbox isolation self-test")
+# skips <case> <what changed> <count> <label>...: each label skips, naming the count.
+skips() {
+  local c="$1" what="$2" n="$3" label
+  shift 3
+  for label in "$@"; do
+    sel_real "$label"
+    want_exit "$c: ${what}, ${label}" 0 "skip: none of the ${n} changed files is an input of ${label}"
+  done
+}
+echo '{}' >> "${FX}/codescene-scores.json"
+skips 41 "only codescene-scores.json changed" 1 "${ALL_SIX[@]}" "${SLOW_FIVE[@]:1}"
+reset
+
+mkdir -p "${FX}/internal"
+echo 'package x' > "${FX}/internal/x.go"
+echo '{}' >> "${FX}/coverage_thresholds.json"
+echo '{}' >> "${FX}/codescene-scores.json"
+skips 42 "a Go-only step (internal/x.go, coverage_thresholds.json, codescene-scores.json)" 3 "${SLOW_FIVE[@]}" "release workflow" "browser gate self-test"
+# The fixture self-test builds the fixture site from the Go tree (its case 7), so it runs too.
+for label in "browser gate" "browser gate (fixture site)" "browser gate (fixture site) self-test"; do
+  sel_real "$label"
+  want_exit "42b: the same Go-only step still runs ${label}, which builds or opens the Go tree site" 0 "run: internal/x.go is an input of ${label}"
+done
+reset
+
+# own_script <case> <label> <file>: a change to the gate's own input selects it.
+own_script() {
+  mkdir -p "${FX}/$(dirname "$3")"
+  echo '# edit' >> "${FX}/$3"
+  sel_real "$2"
+  want_exit "$1: only $3 changed, $2" 0 "run: $3 is an input of $2"
+  reset
+}
+own_script 43 "metrics workflow" Scripts/test_metrics_workflow.sh
+own_script 44 "metrics workflow" .github/workflows/metrics.yml
+own_script 45 "CI phase runner self-test" Scripts/test_run_ci_phase.sh
+own_script 46 "CI phase runner self-test" Scripts/run_ci_phase.sh
+own_script 47 "mutation: checkout pins" Scripts/test_workflow_checkout_pins_mutations.sh
+own_script 48 "mutation: checkout pins" Scripts/test_workflow_checkout_pins.sh
+own_script 49 "mutation: checkout pins" .github/workflows/w.yml
+own_script 50 "git sandbox isolation self-test" Scripts/test_git_sandbox_isolation.sh
+own_script 51 "git sandbox isolation self-test" Scripts/gate_report_order.txt
+own_script 52 "git sandbox isolation self-test" Scripts/gate_inputs.txt
+own_script 53 "step summary isolation" Scripts/test_step_summary_isolation.sh
+# The floors are not read by the step summary isolation test: its row is gone.
+echo '{}' >> "${FX}/coverage_thresholds.json"
+skips 54 "only coverage_thresholds.json changed" 1 "step summary isolation"
+reset
+
+# 55 (forsgren#402): install/install.go is Go source of the binary the browser gates
+# render with, so it selects the three rows that build the site, like internal/; its
+# _test.go does not; the others skip.
+mkdir -p "${FX}/install"
+echo 'package install' > "${FX}/install/install.go"
+for label in "browser gate" "browser gate (fixture site)" "browser gate (fixture site) self-test"; do
+  sel_real "$label"
+  want_exit "55a: only install/install.go changed, ${label}" 0 "run: install/install.go is an input of ${label}"
+done
+skips 55b "only install/install.go changed" 1 "browser gate self-test" "release workflow" "${SLOW_FIVE[@]}"
+reset
+mkdir -p "${FX}/install"
+echo 'package install' > "${FX}/install/install_test.go"
+skips 55c "only install/install_test.go changed" 1 "browser gate" "browser gate (fixture site)" "browser gate (fixture site) self-test"
+reset
+
 # 15: the real list: every browser label has input rows the library reads, and the
 # real library covers the engine and excludes a test file, as the list says.
 for label in "browser gate self-test" "browser gate" "browser gate (fixture site) self-test" "browser gate (fixture site)"; do
@@ -426,13 +498,15 @@ if mutant J 's/grep -qxF -- "[$]1" <<< "[$]related"/false/'; then
 fi
 reset
 
-# K: the real list without its sfl.sh row: a commit that changes only sfl.sh runs
-# the browser rows again, because sfl.sh is then named by no list.
-grep -vxF 'none|out|sfl.sh' "$REAL_INPUTS" > "${TMP}/no_sfl.txt"
-if cmp -s "$REAL_INPUTS" "${TMP}/no_sfl.txt"; then fail "mutation K changed nothing: the proof would be vacuous"; fi
-echo '# edit' >> "${FX}/sfl.sh"
-sel_real "browser gate" "${TMP}/no_sfl.txt"
-want_exit "mutation proof K: without the sfl.sh row, the sfl-only commit runs the browser gate" 0 "run: sfl.sh is named by no gate's list, so every gate runs"
+# K (forsgren#402): the real list without its codescene-scores.json row: a commit that
+# changes only the score ledger runs the browser gate again, because the file is then
+# named by no list. (sfl.sh is named by the metrics workflow rows since forsgren#402, so
+# its own none row no longer decides the fail-safe; the ledger's does.)
+grep -vxF 'none|out|codescene-scores.json' "$REAL_INPUTS" > "${TMP}/no_scores.txt"
+if cmp -s "$REAL_INPUTS" "${TMP}/no_scores.txt"; then fail "mutation K changed nothing: the proof would be vacuous"; fi
+echo '{}' >> "${FX}/codescene-scores.json"
+sel_real "browser gate" "${TMP}/no_scores.txt"
+want_exit "mutation proof K: without the ledger row, a ledger-only commit runs the browser gate" 0 "run: codescene-scores.json is named by no gate's list, so every gate runs"
 reset
 
 # L (forsgren#264): without the `grep` row the gate's own discovery is not a selector
@@ -444,4 +518,4 @@ sel_real "$SI" "${TMP}/no_grep.txt"
 want_exit "mutation proof L: without the grep row, a new summary writer skips the gate" 0 "skip: none of the 1 changed files is an input of $SI"
 rm -f "${FX}/Scripts/zz_new_writer.sh"
 
-selftest_end "the gate select self-test failed" "gate_select: forty cases hold, twelve mutations seen"
+selftest_end "the gate select self-test failed" "gate_select: fifty-four cases hold, twelve mutations seen"

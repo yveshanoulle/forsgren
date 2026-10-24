@@ -9,6 +9,19 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — The gate selector stops running slow checks whose inputs did not change ([#402](https://github.com/yveshanoulle/forsgren/issues/402), steps 1 to 3 of 3)
+
+forsgren issue 402, tools issue, no release. A typical Go-only FBP ran about 640 s of checks whose inputs had not changed. Findings and Yves's ruling (steps 1 to 3 in one commit, gate wiring left out) are on the issue.
+
+- Step 1: `codescene-scores.json` was named by no list, so every Go step that moved the score ledger fired the fail-safe and ran every gate. It is a `none|out` row now, as is `coverage_thresholds.json`. The audit of the files changed by the last 30 commits found two files that fire the fail-safe: the ledger, fixed, and `install/install.go`, which is Go source built into the binary the browser gates render with and is now an `in` tree (`install/`) of the three rows that build the site, like `internal/`; the audit list is empty.
+- Step 2: the `step summary isolation|in|coverage_thresholds.json` row (added in #264) is gone. No script of the gate's closure opens the file; `Scripts/test_render_quality_summary.sh` prints its name in a message. The closure takes every name for a read, so the message in `Scripts/test_render_quality_summary.sh` now says the coverage floors file instead of naming it; no exemption in `Scripts/test_gate_inputs.sh`.
+- Step 3: `in` rows from the closure of the script for `metrics workflow` (30 files), `CI phase runner self-test` (5), `mutation: checkout pins` (2 and the workflow directory) and `git sandbox isolation self-test` (7). `sfl.sh` and `FBP.sh` stay `in` for the metrics workflow, which names them. The git sandbox isolation row is its own closure only: the self-tests it runs under the decoy are scoped by the script itself, and Quality runs it in full.
+- Red first: `Scripts/test_gate_select.sh` cases 41 to 54 (a ledger-only change skips the six rows, a Go-only step skips the step summary isolation gate and the four gates, a change to each gate's own script selects it) and the four labels in `Scripts/test_gate_inputs.sh`, each seen failing before the rows. Mutation proof K now removes the ledger row.
+
+- Lenka B
+
+---
+
 ## 2026-10-24 — The TBD table shows pushes, shares and deployments side by side ([#397](https://github.com/yveshanoulle/forsgren/issues/397), steps 1 to 6 of 6)
 
 forsgren issue 397, feature, minor release. The TBD page measured everything at deployments: for a project measured by releases, a batch size of 11 was commits per release and a direct time of 1 h 35 min was a commit's age at its release, not at main. The page now reads the pushes to the main branch. Per project it shows, in one table under two-level headers (decisions #400 and #401, Yves 2026-10-24): Volume (Commits, Pushes, Deployments, `85 releases` for a project measured by releases alone), Shares of commits (Direct, Pull requests, Unknown authors, Bots, each of the same commit base, whole percent rounded down), Time to main per commit, Commits per push, Time to deploy per commit and Commits per deployment (mean, median, p90 each), then the Mainline Lead Time of pull requests, the Mainline Interval and the Developers count. A project whose push read was refused says `Push activity not readable`, one with no push collected yet `Pushes not collected yet`, in one cell across the push groups, never deployment numbers in their place.

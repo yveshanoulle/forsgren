@@ -135,7 +135,7 @@ green_run() {
     "  ✅ example.com/m/a.go:One: 100.0% (floor 100.0%)" \
     "  ✅ total: 63.2% (floor 63.1%)" "" \
     "  ⬆️  example.com/m/a.go:Two: 80.0%, floor 0.0% — raise it to 79.9" \
-    "FLOORWARN: 2 coverage floor(s) should be raised in coverage_thresholds.json" "" \
+    "FLOORWARN: 2 coverage floor(s) should be raised in the coverage floors file" "" \
     "OK: coverage — total 63.2%, 2 function(s) measured, 1 enforced at or above their floors"
   details_file "${dir}/details" "omega" "test_omega" \
     "  ✅ rejects a bad file" "  ✅ accepts a good one" "  ✅ exits 3 on nothing, never 0" "" \

@@ -735,7 +735,7 @@ The POST gates, on the generated site:
   `GITHUB_ACTIONS=true` (Quality), `FORSGREN_GATE_SELECT_FULL=1`, a missing
   origin/main and a label no list holds select all. `changed_files`, `named_files`
   and `closure` live there and the git sandbox isolation gate sources them. The
-  self-test runs it in throwaway repositories (twenty-four cases; 22 to 24 on the
+  self-test runs it in throwaway repositories (fifty-four cases; 22 to 54 on the
   real list: only `sfl.sh`, only `FBP.sh`, and a file no list names) with eleven
   mutation proofs, each asserting the reason text.
 
@@ -783,7 +783,20 @@ The POST gates, on the generated site:
   own discovery rule as a selector rule, so a changed script of `Scripts/`
   that says `GITHUB_STEP_SUMMARY` selects the gate before any list names it.
   A new self-test that names a writer is caught by the inputs self-test, which
-  is red for it. Quality runs the gate always.
+  is red for it. Quality runs the gate always. It does not list
+  `coverage_thresholds.json` (forsgren#402): no script of its closure opens it.
+
+- **slow self-tests skipped by selection** (forsgren#402, forsgren only, not
+  canon): `metrics workflow`, `CI phase runner self-test`, `mutation: checkout
+  pins` and `git sandbox isolation self-test` have `in` rows in
+  `Scripts/gate_inputs.txt` too, each the closure of its script, which
+  `Scripts/test_gate_inputs.sh` derives and holds. The checkout pins rows list
+  `.github/workflows/` whole, since the pin reads every workflow. The git sandbox
+  isolation row is its own closure; the self-tests it runs under the decoy are
+  chosen by the script from the changes, and Quality runs it in full.
+  `codescene-scores.json` and `coverage_thresholds.json` are `none|out` rows:
+  a Go step that moves the score ledger or the floors no longer fires the
+  fail-safe. `Scripts/test_gate_select.sh` cases 41 to 54 pin it.
 
 - **FBP push-or-rebase** (`Scripts/fbp_push_or_rebase.sh`, self-test
   `Scripts/test_fbp_push_or_rebase.sh`, forsgren#283 step 1 of 2, ported from

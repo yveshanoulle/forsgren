@@ -1,4 +1,4 @@
-# Scripts/gate_inputs.txt (forsgren#262, step 1 of 3)
+# Scripts/gate_inputs.txt (forsgren#262, step 1 of 3; rows for four more gates forsgren#402)
 #
 # What each of the four browser gates, the release workflow gate (forsgren#263) and the step summary isolation gate (forsgren#264) read, so a gate runs only when a commit touches one of its inputs.
 # Scripts/lib_gate_select.sh (step 2) reads it: gate_select <label> says run or
@@ -42,10 +42,17 @@ none|out|Scripts/release_*.sh
 none|out|Scripts/test_release_*.sh
 none|out|sfl.sh
 none|out|FBP.sh
+# The two ledgers a Go step moves (forsgren#402): the CodeScene score ledger and the
+# coverage floors are data for the Code Health review and the Go coverage gate, which
+# no row here is. The step summary isolation gate once listed the floors (forsgren#264)
+# though none of its scripts opens the file: test_render_quality_summary.sh only
+# prints its name in a message.
+none|out|codescene-scores.json
+none|out|coverage_thresholds.json
 
-# NOT LISTED, ON PURPOSE: install/README.md is embedded (install/install.go) but is
-# not part of the rendered site, so no browser gate reads its content. It is left
-# to the fail-safe of step 2: a file no list names selects every gate.
+# install/ (forsgren#402) is listed as a Go tree like internal/: install/install.go is
+# built into the binary that renders the site. install/README.md is embedded but is
+# Markdown, which changed_files drops, and not part of the rendered site.
 # Scripts/testdata/fixture_site/ is under testdata/ but is listed: it is the
 # data the fixture gate builds its site from, by design, and the guard allows
 # that one path.
@@ -86,6 +93,7 @@ browser gate|in|Scripts/browser_gate_variants.txt
 browser gate|in|internal/page/required-pages.json
 browser gate|in|cmd/
 browser gate|in|internal/
+browser gate|in|install/
 browser gate|in|go.mod
 browser gate|in|go.sum
 browser gate|in|package.json
@@ -112,6 +120,7 @@ browser gate (fixture site) self-test|in|Scripts/testdata/fixture_site/
 browser gate (fixture site) self-test|in|internal/page/required-pages.json
 browser gate (fixture site) self-test|in|cmd/
 browser gate (fixture site) self-test|in|internal/
+browser gate (fixture site) self-test|in|install/
 browser gate (fixture site) self-test|in|go.mod
 browser gate (fixture site) self-test|in|go.sum
 browser gate (fixture site) self-test|in|package.json
@@ -137,6 +146,7 @@ browser gate (fixture site)|in|Scripts/testdata/fixture_site/
 browser gate (fixture site)|in|internal/page/required-pages.json
 browser gate (fixture site)|in|cmd/
 browser gate (fixture site)|in|internal/
+browser gate (fixture site)|in|install/
 browser gate (fixture site)|in|go.mod
 browser gate (fixture site)|in|go.sum
 browser gate (fixture site)|in|package.json
@@ -192,7 +202,6 @@ step summary isolation|in|.github/workflows/auto_update.yml
 step summary isolation|in|.github/workflows/metrics.yml
 step summary isolation|in|.github/workflows/quality.yml
 step summary isolation|in|.github/workflows/release.yml
-step summary isolation|in|coverage_thresholds.json
 step summary isolation|in|package.json
 step summary isolation|in|Scripts/browser_gate_baseline.txt
 step summary isolation|in|Scripts/browser_gate_exceptions.txt
@@ -254,3 +263,67 @@ step summary isolation|in|Scripts/test_render_quality_report.sh
 step summary isolation|in|Scripts/test_render_quality_summary.sh
 step summary isolation|in|Scripts/test_report_baselines.sh
 step summary isolation|in|Scripts/test_step_summary_isolation.sh
+
+# --- metrics workflow (forsgren#402) --------------------------------------
+# Scripts/test_metrics_workflow.sh pins metrics.yml, runs its steps with stubs and
+# names the runners sfl.sh and FBP.sh, the starter config and the lockfile. The rows
+# are the closure of the script; Scripts/test_gate_inputs.sh holds them listed.
+metrics workflow|in|.github/workflows/metrics.yml
+metrics workflow|in|.github/workflows/quality.yml
+metrics workflow|in|FBP.sh
+metrics workflow|in|internal/config/starter.yml
+metrics workflow|in|package-lock.json
+metrics workflow|in|Scripts/build_site.sh
+metrics workflow|in|Scripts/check_gofmt.sh
+metrics workflow|in|Scripts/check_node_pin.sh
+metrics workflow|in|Scripts/check_private_names.sh
+metrics workflow|in|Scripts/ensure_private_names_file.sh
+metrics workflow|in|Scripts/fbp_push_or_rebase.sh
+metrics workflow|in|Scripts/fix_source_css.sh
+metrics workflow|in|Scripts/gate_inputs.txt
+metrics workflow|in|Scripts/gate_report_order.txt
+metrics workflow|in|Scripts/go_toolchain.sh
+metrics workflow|in|Scripts/install_tools.sh
+metrics workflow|in|Scripts/lib_gate_select.sh
+metrics workflow|in|Scripts/lib_git_sandbox.sh
+metrics workflow|in|Scripts/lib_private_names.sh
+metrics workflow|in|Scripts/lib_selftest.sh
+metrics workflow|in|Scripts/lib_workflow_steps.sh
+metrics workflow|in|Scripts/node_pin.sh
+metrics workflow|in|Scripts/npm_sync_install.sh
+metrics workflow|in|Scripts/render_step_table.sh
+metrics workflow|in|Scripts/required_tools.txt
+metrics workflow|in|Scripts/sfl_pull.sh
+metrics workflow|in|Scripts/summarize_gate_failure.sh
+metrics workflow|in|Scripts/sync_private_names_secrets.sh
+metrics workflow|in|Scripts/test_metrics_workflow.sh
+metrics workflow|in|sfl.sh
+
+# --- CI phase runner self-test (forsgren#402) -----------------------------
+# Scripts/test_run_ci_phase.sh runs Scripts/run_ci_phase.sh in a sandbox over the
+# order file and the job groups: its closure and nothing else.
+CI phase runner self-test|in|Scripts/ci_job_groups.txt
+CI phase runner self-test|in|Scripts/gate_report_order.txt
+CI phase runner self-test|in|Scripts/lib_git_sandbox.sh
+CI phase runner self-test|in|Scripts/run_ci_phase.sh
+CI phase runner self-test|in|Scripts/test_run_ci_phase.sh
+
+# --- mutation: checkout pins (forsgren#402) -------------------------------
+# The pin and its mutation test read every workflow of .github/workflows/ (a glob,
+# so the directory is listed) and no other tracked file.
+mutation: checkout pins|in|Scripts/test_workflow_checkout_pins_mutations.sh
+mutation: checkout pins|in|Scripts/test_workflow_checkout_pins.sh
+mutation: checkout pins|in|.github/workflows/
+
+# --- git sandbox isolation self-test (forsgren#402) -----------------------
+# The closure of Scripts/test_git_sandbox_isolation.sh. The self-tests it runs under
+# the decoy are scoped by the script itself (a run that changed none of them says so
+# and passes); Quality runs it in full. A git-using self-test changed alone is
+# therefore checked by the next full run, not by this row.
+git sandbox isolation self-test|in|Scripts/gate_inputs.txt
+git sandbox isolation self-test|in|Scripts/gate_report_order.txt
+git sandbox isolation self-test|in|Scripts/lib_gate_select.sh
+git sandbox isolation self-test|in|Scripts/lib_git_sandbox.sh
+git sandbox isolation self-test|in|Scripts/lib_selftest.sh
+git sandbox isolation self-test|in|Scripts/test_git_sandbox_guard.sh
+git sandbox isolation self-test|in|Scripts/test_git_sandbox_isolation.sh
