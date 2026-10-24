@@ -566,11 +566,22 @@ stopped_text() {
   ' "$1"
 }
 
-# The real forsgren, built once from this checkout for pin 11.
+# The real forsgren, built once from this checkout for pin 11, as a release:
+# its version is given with -ldflags, as a release build's is, because a build
+# with no version information is a development build (forsgren#340) and says
+# so in the run summary instead of the release behaviour the pins check.
 REAL="${TMP}/real"
 mkdir -p "$REAL"
-if ! go build -o "${REAL}/forsgren" ./cmd/forsgren > "${TMP}/build.log" 2>&1; then
+if ! go build -o "${REAL}/forsgren" -ldflags "-X main.version=9.9.9" ./cmd/forsgren > "${TMP}/build.log" 2>&1; then
   selftest_abort "cannot build ./cmd/forsgren for the end-to-end config step: $(cat "${TMP}/build.log")"
+fi
+
+# The development build, with no version and no build information (forsgren#340):
+# the pin on the run summary of a build that names no release.
+DEVBUILD="${TMP}/dev"
+mkdir -p "$DEVBUILD"
+if ! go build -o "${DEVBUILD}/forsgren" -buildvcs=false ./cmd/forsgren > "${TMP}/build-dev.log" 2>&1; then
+  selftest_abort "cannot build ./cmd/forsgren as a development build: $(cat "${TMP}/build-dev.log")"
 fi
 
 # real_config_step <script> <config>: runs the config step with the real
@@ -1289,6 +1300,21 @@ judge_waiting_path() {
     LATEST="99.0.0" WAITING="" PR_CHECK="$check" NEEDS_CHECK="" README="" RUNNER_TEMP="${TMP}/runner" \
     bash "$summary") > /dev/null 2>&1 || true
   grep -qF -- "99.0.0 is available; unknown (pull request list truncated)" "${TMP}/path.md" || echo "the run summary does not say the pull request is unknown for a cut list (it holds: $(paste -sd'|' - < "${TMP}/path.md"))"
+  judge_dev_summary "$summary"
+}
+
+# judge_dev_summary <summary script>: the run summary step run with a build
+# that names no release (forsgren#340) says so: Built with dev, and an update
+# that is unknown, never up to date and never a release it cannot know.
+judge_dev_summary() {
+  local line
+  : > "${TMP}/dev.md"
+  (cd "$INSTALL" && PATH="${DEVBUILD}:${PATH}" GITHUB_STEP_SUMMARY="${TMP}/dev.md" GITHUB_REPOSITORY="acme/data" \
+    LATEST="99.0.0" WAITING="" PR_CHECK="ok" NEEDS_CHECK="" README="" RUNNER_TEMP="${TMP}/runner" \
+    bash "$1") > /dev/null 2>&1 || true
+  for line in "- Built with: forsgren dev" "- Update: unknown (a development build)"; do
+    grep -qxF -- "$line" "${TMP}/dev.md" || echo "the run summary of a development build does not say '${line}' (it holds: $(paste -sd'|' - < "${TMP}/dev.md"))"
+  done
 }
 
 # judge_render_waiting <workflow-file>: pin 32, the render step passes the
