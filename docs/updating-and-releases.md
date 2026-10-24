@@ -481,8 +481,8 @@ names those commits, ` · 3 commits timed by author date` (decision 294 of
 forsgren#254; see [The TBD page](pages-and-views.md#the-tbd-page)). Nothing
 new is needed for it.
 
-**Upgrading to the release that adds `same_developer`** (forsgren#361, decision
-#360; a minor release after 1.16.1). A new optional key, `same_developer`,
+**Upgrading to 1.17.0, which adds `same_developer`** (forsgren#361, decision
+#360). A new optional key, `same_developer`,
 joins GitHub logins into one developer in the TBD page's Developers count, for
 an assistant account that works for someone or a person with two accounts. It
 is a list of lists, such as `same_developer: [[maintainer, assistant-account]]`

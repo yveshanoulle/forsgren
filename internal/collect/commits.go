@@ -155,19 +155,47 @@ func (h held) newerSuccess(r history.Record) (history.Record, bool) {
 // that is the history's shape, not access, so the repository goes on. Any
 // other error fails the repository.
 func (o Options) compare(ctx context.Context, prev, r history.Record) ([]history.Commit, error) {
+	commits, why, err := o.comparison(ctx, prev, r)
+	if why != nil {
+		o.warn("%s", leadTimeWarning(r, why))
+	}
+	return commits, err
+}
+
+// noCommits is the reason a comparison gave no commits, which is no failure:
+// err says why, and cut whether GitHub's list of them was cut, in which case
+// read is how many commits were read.
+type noCommits struct {
+	err  error
+	cut  bool
+	read int
+}
+
+// comparison is the commits of r since prev, or why it has none: a previous
+// that is not an ancestor, a commit GitHub does not have, or a list GitHub
+// cut. Any other error is returned as the error, and fails the repository.
+func (o Options) comparison(ctx context.Context, prev, r history.Record) ([]history.Commit, *noCommits, error) {
 	commits, cut, err := o.Client.Compare(ctx, r.Repository, prev.Commit, r.Commit)
 	switch {
 	case errors.Is(err, github.ErrNotAncestor), errors.Is(err, github.ErrMissingCommit):
-		o.warn("collect: %v; lead time skips deployment %d\n", err, r.ID)
-		return nil, nil
+		return nil, &noCommits{err: err}, nil
 	case err != nil:
-		return nil, err
+		return nil, nil, err
 	case cut:
-		o.warn("collect: %s: deployment %d: %d commits compared, list cut; lead time skips this deployment\n",
-			r.Repository, r.ID, len(commits))
-		return nil, nil
+		return nil, &noCommits{err: fmt.Errorf("%s: %d commits compared, list cut", r.Repository, len(commits)),
+			cut: true, read: len(commits)}, nil
 	}
-	return deployed(r, commits), nil
+	return deployed(r, commits), nil, nil
+}
+
+// leadTimeWarning is the line for a new deployment r that has no commits
+// because of why: lead time skips it.
+func leadTimeWarning(r history.Record, why *noCommits) string {
+	if why.cut {
+		return fmt.Sprintf("collect: %s: deployment %d: %d commits compared, list cut; "+
+			"lead time skips this deployment\n", r.Repository, r.ID, why.read)
+	}
+	return fmt.Sprintf("collect: %v; lead time skips deployment %d\n", why.err, r.ID)
 }
 
 // warn prints a warning on stderr.

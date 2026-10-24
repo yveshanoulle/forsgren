@@ -113,7 +113,7 @@
   {
    "path": "internal/collect/collect.go",
    "score": 9.68,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-24",
    "minScore": 9.58
   },
   {
@@ -563,7 +563,7 @@
   {
    "path": "internal/collect/commits.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-24",
    "minScore": 10.0
   },
   {
@@ -575,7 +575,7 @@
   {
    "path": "internal/collect/commits_lineage_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-24",
    "minScore": 10.0
   },
   {
@@ -1013,7 +1013,7 @@
   {
    "path": "internal/collect/chunk.go",
    "score": 9.68,
-   "checkedAt": "2026-10-19",
+   "checkedAt": "2026-10-24",
    "minScore": 9.58
   },
   {
@@ -1043,7 +1043,7 @@
   {
    "path": "internal/collect/failuresread.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-24",
    "minScore": 10.0
   },
   {
@@ -1902,6 +1902,48 @@
    "path": "internal/config/same_developer_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/legacybackfill.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-24",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/commitsbackfill.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-24",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/commitsbackfilled.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-24",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/legacy_backfill_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-24",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/legacy_backfill_stop_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-24",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/history/commitsbackfill_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-24",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/commitsbackfilled_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-24",
    "minScore": 10.0
   }
  ]

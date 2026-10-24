@@ -78,12 +78,16 @@ func TestCollectStoresEachCommitsParentsInOrderAndItsCommitterDate(t *testing.T)
 		landed(commit(1002, shaB, at(22, 8, 0), deployed), time.Time{}, shaD))
 }
 
-// TestACommitStoredBeforeV3KeepsItsEmptyParentsOnALaterCollect
-// (forsgren#254, step 3): a deployment stored by an earlier run is not
-// compared again, so its commits from a v2 file keep their empty parents
-// and committer date (unknown, not made up) while the file is rewritten as
-// v3; the newer deployment's commits get theirs.
-func TestACommitStoredBeforeV3KeepsItsEmptyParentsOnALaterCollect(t *testing.T) {
+// TestACommitStoredBeforeV3IsBackfilledOnALaterCollect (forsgren#254, step
+// 3; changed by forsgren#385, step 2): a deployment stored by an earlier run
+// is not compared as a new deployment again, but its commits from a v2 file
+// are legacy (no parents, no committer date), so the one-time backfill
+// compares the deployment once with its previous success and fills the
+// parents and the committer date from GitHub, keeping the author the line has,
+// while the file is rewritten as v3; the newer deployment's commits get theirs
+// from its own comparison. Before #385 the stored line kept its empty parents
+// and committer date (unknown) and the comparison was never made.
+func TestACommitStoredBeforeV3IsBackfilledOnALaterCollect(t *testing.T) {
 	path := historyPath(t)
 	held := []history.Record{
 		record(history.KindEnvironment, "production", 1001, shaA, at(20, 10, 0), history.StateSuccess, "deploy"),
@@ -108,9 +112,10 @@ func TestACommitStoredBeforeV3KeepsItsEmptyParentsOnALaterCollect(t *testing.T) 
 	g.collect(t, shop(production), path, github.DefaultMaxPages)
 	stored := commit(1002, shaB, at(21, 9, 0), at(22, 10, 0))
 	stored.Author = "ada-dev"
-	wantCommits(t, path, stored, landed(commit(1003, shaD, at(23, 8, 0), at(23, 10, 0)), at(23, 8, 30), shaB))
-	if asked := g.seen(comparePath(shaA, shaB)); len(asked) != 0 {
-		t.Errorf("want the stored deployment 1002 not compared again, got %v", asked)
+	wantCommits(t, path, landed(stored, at(21, 9, 0), shaA),
+		landed(commit(1003, shaD, at(23, 8, 0), at(23, 10, 0)), at(23, 8, 30), shaB))
+	if asked := g.seen(comparePath(shaA, shaB)); len(asked) != 1 {
+		t.Errorf("want the stored deployment 1002 compared once, by the backfill, got %v", asked)
 	}
 	file, err := os.ReadFile(commitsPath(path))
 	if err != nil {

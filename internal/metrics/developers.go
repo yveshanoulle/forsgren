@@ -154,15 +154,9 @@ func developerNames(groups [][]string) map[string]string {
 func (d *Developers) add(logins map[string]bool, named map[string]string, c history.Commit) {
 	d.Commits++
 	d.Unknown += noteAuthor(logins, named, c.Author)
-	if c.Author == "" && storedBeforeLineage(c) {
+	if c.Author == "" && c.Legacy() {
 		d.Legacy++
 	}
-}
-
-// storedBeforeLineage says whether c was stored before the commits format v3:
-// it has neither parents nor a committer date.
-func storedBeforeLineage(c history.Commit) bool {
-	return len(c.Parents) == 0 && c.CommittedAt.IsZero()
 }
 
 // noteAuthor adds a human login to logins, ignoring case and under the name

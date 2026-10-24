@@ -10,6 +10,7 @@ in the same commit — see
 - Open bugs: the dash for no change is blue — [#152](https://github.com/yveshanoulle/forsgren/issues/152)
 - A view with the numbers and the DORA Quick Check scores side by side — [#55](https://github.com/yveshanoulle/forsgren/issues/55)
 - Open bugs: a 0 is green — [#151](https://github.com/yveshanoulle/forsgren/issues/151)
+- Collect backfills the author, parents and committer date of legacy commits once — [#385](https://github.com/yveshanoulle/forsgren/issues/385)
 - The settings page Default column shows the default value, not True/False — [#169](https://github.com/yveshanoulle/forsgren/issues/169)
 - Render golden tests no longer depend on SOURCE_DATE_EPOCH in the environment — [#163](https://github.com/yveshanoulle/forsgren/issues/163)
 - A gate for relative links and anchors in the Markdown docs — [#147](https://github.com/yveshanoulle/forsgren/issues/147)

@@ -211,7 +211,10 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	h.noteStartsDone(r.Name)
 	stored.pulls, err = o.collectPulls(ctx, h, r.Name)
 	o.report(r.Name, d.found, stored)
-	return err
+	if err != nil {
+		return err
+	}
+	return o.backfillLegacy(ctx, h, r.Name)
 }
 
 // issueLines is what one repository's issues give to store: its failure
@@ -534,8 +537,10 @@ type held struct {
 	checked    history.Reach             // see startscatchup.go
 	pullsRead  history.Reach             // see pulls.go
 	denied     history.Reach             // see pulls.go: the refused pull request reads
+	backfilled history.Reach             // see legacybackfill.go
 	pulls      map[history.IssueKey]bool // the pull requests pulls.csv holds
 	startsDone map[string]bool           // the repositories caught up in this run
+	filledDone map[string]bool           // the repositories whose legacy commits were backfilled in this run
 	partial    map[string]bool
 }
 
@@ -546,7 +551,8 @@ func loadHeld(path string) (held, error) {
 		return held{}, err
 	}
 	h := held{ids: map[entry]bool{}, newest: map[source]time.Time{}, oldest: map[source]time.Time{},
-		successes: map[history.Stream][]history.Record{}, partial: map[string]bool{}, startsDone: map[string]bool{}}
+		successes: map[history.Stream][]history.Record{}, partial: map[string]bool{}, startsDone: map[string]bool{},
+		filledDone: map[string]bool{}}
 	for _, r := range records {
 		h.hold(r)
 	}
