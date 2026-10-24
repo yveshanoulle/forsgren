@@ -172,11 +172,13 @@ projects:
     `dora_days` does not change it. In 1.8.0 it defaulted to `true` and in
     1.8.1 to `false`.
   - **`tbd_page`**: the TBD page (`tbd.html`, forsgren#253). It shows the
-    Mainline Interval of each project, the mean and the sample standard
-    deviation of the time between commits that deployments shipped, from
+    Mainline Interval of each project, as the mean, the sample standard
+    deviation, the median, the 90th percentile and the number of gaps of the
+    time between commits that deployments shipped, from
     `data/commits.csv`, over the `dora_days` window, each deployment's
     first-parent chain at the committer date (forsgren#254), and next to it the
-    number of developers who made those commits (forsgren#273; see
+    number of developers who made those commits and the share of unknown
+    authors (forsgren#273, forsgren#387; see
     [The TBD page](pages-and-views.md#the-tbd-page)); the legend explains both
     and says what Mainline Lead Time counts: merged human pull requests only.
 - **`same_developer`** is optional (forsgren#361, decision #360): groups of

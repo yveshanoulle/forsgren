@@ -121,7 +121,7 @@ func TestRenderShowsTheMainlineLeadTimeOfEachProject(t *testing.T) {
 		leadRow(shopCell, "11 h ± 16 h 27 min (3, 1 cut) · 66% (2 of 3) pull requests merged within 24 hours of "+
 			"their first commit · the mean is a lower bound · 1 pull request timed by its created time"+
 			" · 1 bot pull request not counted · 1 pull request of unknown author not counted"),
-		"<th scope=\"row\">Acme Tools</th>\n            "+leadRow("<td>-</td>", noHumanPulls))
+		"<th scope=\"row\">Acme Tools</th>\n            "+leadRow(noCells, noHumanPulls))
 }
 
 // TestRenderTbdPageBeforeThePullRequestsAreCollected (forsgren#256, step 2):
@@ -134,7 +134,7 @@ func TestRenderTbdPageBeforeThePullRequestsAreCollected(t *testing.T) {
 	const notYet = "No pull requests have been collected yet"
 	data := writeData(t, acmeHistory(), acmeCommits())
 	wantIn(t, tbdSiteOf(t, validConfig, data), uncollected(leadRow(shopCell, notYet)),
-		"<th scope=\"row\">Acme Tools</th>\n            "+leadRow("<td>-</td>", notYet))
+		"<th scope=\"row\">Acme Tools</th>\n            "+leadRow(noCells, notYet))
 	writePulls(t, data, nil)
 	got := tbdSiteOf(t, validConfig, data)
 	wantIn(t, got, leadRow(shopCell, noHumanPulls))

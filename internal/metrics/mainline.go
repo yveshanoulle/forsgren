@@ -27,7 +27,7 @@ package metrics
 //     committer date, or the author date: lineage.go), whatever the order they
 //     are stored in, and a gap is the time between two consecutive ones; two
 //     commits placed at the same time have a gap of 0;
-//   - the cell names the commits placed at their author date (ByAuthorDate);
+//   - the gaps cell names the commits placed at their author date (ByAuthorDate);
 //   - the mean is the mean of the gaps and the deviation their sample
 //     standard deviation, the sum of the squares of the differences from the
 //     mean over n-1, n the count of gaps; the count shown is the count of gaps;
@@ -112,24 +112,39 @@ func (m MainlineInterval) HasMedian() bool { return m.Gaps > 1 }
 // HasP90 says whether the 90th percentile is shown: it needs minP90Gaps gaps.
 func (m MainlineInterval) HasP90() bool { return m.Gaps >= minP90Gaps }
 
-// Cell is the mean, the deviation, the count of gaps, the median and the 90th
-// percentile, "2 h ± 1 h (3) · median 2 h · p90 -", each of the last three a
-// dash while it is not shown, then the Note after the cells' separator when
-// there is one, "· 3 commits timed by author date" (forsgren#254); "-" below
-// two commits.
-func (m MainlineInterval) Cell() string {
+// The Mainline Interval is five columns of the TBD page, one number each
+// (forsgren#387, step 1, Yves's decisions #388 and #389): the mean, the
+// deviation, the median, the p90 and the gaps. A figure that is not shown yet
+// is a dash in its own cell, and so is every cell of a project with no gap.
+
+// MeanCell is the mean gap, "2 h"; "-" without a gap.
+func (m MainlineInterval) MeanCell() string { return m.shown(m.HasInterval(), m.Mean) }
+
+// DeviationCell is the sample standard deviation of the gaps, "1 h 24 min";
+// "-" below two gaps.
+func (m MainlineInterval) DeviationCell() string { return m.shown(m.HasDeviation(), m.Deviation) }
+
+// MedianCell is the median gap; "-" below two gaps.
+func (m MainlineInterval) MedianCell() string { return m.shown(m.HasMedian(), m.Median) }
+
+// P90Cell is the 90th percentile of the gaps; "-" below ten gaps.
+func (m MainlineInterval) P90Cell() string { return m.shown(m.HasP90(), m.P90) }
+
+// GapsCell is the number of gaps the other four cells rest on, "1162", then
+// the Note after the cells' separator when there is one, "3 · 2 commits timed
+// by author date" (forsgren#254); "-" without a gap.
+func (m MainlineInterval) GapsCell() string {
 	if !m.HasInterval() {
 		return noNumber
 	}
-	cell := fmt.Sprintf("%s ± %s (%d) · median %s · p90 %s", shortDuration(m.Mean),
-		m.shown(m.HasDeviation(), m.Deviation), m.Gaps, m.shown(m.HasMedian(), m.Median), m.shown(m.HasP90(), m.P90))
+	cell := fmt.Sprint(m.Gaps)
 	if note := m.Note(); note != "" {
 		return cell + cellSeparator + note
 	}
 	return cell
 }
 
-// shown is d written for the cell when there is one, else a dash.
+// shown is d written for a cell when there is one, else a dash.
 func (m MainlineInterval) shown(has bool, d time.Duration) string {
 	if !has {
 		return noNumber

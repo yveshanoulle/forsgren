@@ -809,16 +809,22 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
 last in the menu, "TBD"; `false` leaves it out.
 
 - **The table.** A row per project and, under a header of two rows, the
-  columns Mainline Interval, Mainline Lead Time (a group of three columns,
-  direct, pull requests and batch size, forsgren#390) and Developers (see
-  below); the Mainline Interval cell reads `mean ± deviation (gaps) · median M · p90 P`, for example
-  `24 min ± 2 h 24 min (12) · median 5 min · p90 1 h`, with the durations
-  written as on the other pages, then, when some commits are timed by their
-  author date (see The old approximation below), the note after ` · `:
-  `2 d 22 h ± 4 d 3 h (2) · median 2 d 22 h · p90 - · 3 commits timed by author date`.
-  The cell stays one line (the table scrolls
-  sideways in its region on a narrow screen, as the other tables do). It is per project: the label rows of
-  the table page have no row here.
+  columns Project, then three groups under one grouped header (`colgroup`).
+  Mainline Interval is five columns of one number each (forsgren#387, Yves's
+  decisions #388 and #389): `mean`, `deviation` (the sample standard deviation
+  of the gaps), `median`, `p90` and `gaps` (how many gaps the other four rest
+  on), for example `24 min`, `2 h 24 min`, `5 min`, `1 h` and `12`, with the
+  durations written as on the other pages. When some commits are timed by their
+  author date (see The old approximation below), the note ends the gaps cell
+  after ` · `: `2 · Mostly estimated: 3 of 3 commits timed by author date.` or
+  `3 · 2 commits timed by author date`. Mainline Lead Time is three columns
+  (direct, pull requests and batch size, forsgren#390) and Developers two
+  (developers and unknown authors, see below). A figure that is not shown yet is
+  a dash in its own cell, and a project with fewer than two commits has a dash
+  in all five Mainline Interval cells. The table is wider than a phone: at 390
+  pixels it scrolls sideways inside its region until the project screen
+  (forsgren#91) gives the phone its own view. It is per project: the label rows
+  of the table page have no row here.
 - **What is counted.** The commits `forsgren collect` stores in
   `data/commits.csv`, the commits that deployments shipped, so it is an
   interval between deployed commits, not between every commit of the mainline.
@@ -848,7 +854,7 @@ last in the menu, "TBD"; `false` leaves it out.
   deployment of one such commit is its own chain, without a committer date, so
   at its author date as well. Those commits are never looked up again
   (decision 293 of forsgren#254), so this lasts until their deployments leave the
-  window. The cell names how many commits are placed at their author date, by
+  window. The gaps cell names how many commits are placed at their author date, by
   either rule: ` · 3 commits timed by author date`, `1 commit timed by author date`
   for one, nothing when there are none.
 - **The gaps.** The commits are put in the order of the times they are placed
@@ -857,7 +863,7 @@ last in the menu, "TBD"; `false` leaves it out.
   placed at the same time have a gap of 0. The mean is
   the mean of the gaps, the deviation their sample standard deviation (the sum
   of the squared differences from the mean over the number of gaps less one),
-  and the count in brackets is the number of gaps. The median is the middle
+  and the gaps column is the number of gaps. The median is the middle
   gap, or the mean of the two middle gaps when their number is even. The 90th
   percentile (p90) is the nearest-rank one: the gap at position 0.9 times the
   number of gaps, rounded up (in integers, (9n + 9) / 10), of the gaps sorted
@@ -865,16 +871,19 @@ last in the menu, "TBD"; `false` leaves it out.
   than it. They tell the typical spacing from occasional long gaps: a mean far
   above the median, and a deviation far above the mean, point at a few long
   gaps among short ones.
-- **A dash.** Fewer than two commits have no gap, so the whole cell is `-`. One
-  gap has a mean but no sample deviation, which needs two gaps, so the cell reads
-  `2 h ± - (1) · median - · p90 -`. The median needs two gaps, and p90 needs ten
+- **A dash.** Fewer than two commits have no gap, so all five cells are `-`. One
+  gap has a mean and a count of gaps but no sample deviation, which needs two
+  gaps, so the cells read `2 h`, `-`, `-`, `-` and `1`. The median needs two
+  gaps, and p90 needs ten
   (under ten, the nearest rank is the longest gap, which the maximum already
   says); each is a dash until then. A zero deviation reads `less than 1 min`.
 - **Without data.** With no projects the page says so in one line, and so it
   does when no data was given to the render ("No commits have been collected
   yet, so there is no Mainline Interval to show."); with data and a project
-  that has no commit in the window, the project's row is `-`.
-- **Developers.** The column next to the Mainline Interval (forsgren#273),
+  that has no commit in the window, the project's Mainline Interval and
+  Developers cells are `-`.
+- **Developers.** Two columns next to the Mainline Interval (forsgren#273;
+  developers and unknown authors, forsgren#387, step 2),
   because a team of ten makes more commits than one person with the same
   habits; the interval itself is not divided by it. It counts the distinct GitHub logins of the authors of the commits
   deployed in the window (the Mainline Interval's window, each commit once),
@@ -888,14 +897,18 @@ last in the menu, "TBD"; `false` leaves it out.
   bot account (a login ending in `[bot]`, such as `dependabot[bot]`) is no
   developer and its commits are left out. A commit without a login (GitHub
   links its email to no account, or it was stored by the commits format v1) is
-  not guessed to be anyone's: the count leaves it out and its note says how
-  many. GitHub's placeholder login `invalid-email-address`, its answer for an
+  an unknown author. It is not guessed to be anyone's: the developers column
+  leaves it out and the unknown authors column counts it. GitHub's placeholder login `invalid-email-address`, its answer for an
   author email it links to no account, is such a commit too, ignoring case,
   and never legacy data, which is a commit without a login stored before the
-  commits format v3 (forsgren#355). The cell is the count, then the note after ` · ` as the recovery cell
-  names its recoveries not completed yet: `3`, or
-  `3 · 2 commits without a known author are not counted` (singular for one);
-  a project with no counted commit reads `0`, a count, not a dash. The
+  commits format v3 (forsgren#355). The developers cell is the count, `3`. The
+  unknown authors cell is the number of those commits and their share of the
+  window's distinct deployed commits, bots' commits included, in whole percent
+  rounded down: `170 (14%)`; when the legacy commits are most of the deployed
+  ones it ends with ` · legacy data`, or ` · 3 of them legacy data` when some
+  unknown authors were stored with their lineage. A project with no deployed
+  commit shows a dash in both cells; a project whose commits are all by bots
+  has 0 developers and `0 (0%)`. The
   Developers are paired with the Mainline Intervals by project: Developers that
   are missing or name another project in a row fail the render rather than
   show a count in the wrong row. The number and the note are counts only; no
@@ -977,12 +990,12 @@ last in the menu, "TBD"; `false` leaves it out.
     collected yet` means `data/pulls.csv` does not exist yet.
   - *Legacy format.* Records in the legacy format have no known author: the
     data establishes that format, not when or why the record was stored. In
-    Developers, commits in the legacy format have no known author and are not
-    counted, and when most of the deployed commits are of that kind the cell
-    says `(legacy data)`. GitHub's placeholder author `invalid-email-address`
+    Developers, commits in the legacy format have no known author and count as
+    unknown authors, and when most of the deployed commits are of that kind the
+    unknown authors cell ends with `legacy data`. GitHub's placeholder author `invalid-email-address`
     is an unknown author too, not a developer. In the Mainline Interval, when
-    more than half of the commits are timed by author date the note reads
-    `Mostly estimated: 7 of 13 commits timed by author date.`
+    more than half of the commits are timed by author date the note in the gaps
+    cell reads `Mostly estimated: 7 of 13 commits timed by author date.`
 
 The page itself has the heading and the table, or its one line. The
 explanation above, with the window in force, is the legend's section for the

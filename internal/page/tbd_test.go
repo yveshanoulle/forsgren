@@ -111,13 +111,21 @@ func notReadable() Data {
 	return data
 }
 
-// tbdRow is the TBD page's row of project, its Mainline Interval cell, its
-// direct cell, its pull requests cell lead, its batch size cell then its
-// Developers cell, as the template writes it.
+// tbdRow is the TBD page's row of project, its five Mainline Interval cells
+// (interval, parted by " | ", forsgren#387, step 1), its direct cell, its pull
+// requests cell lead, its batch size cell then its two Developers cells
+// (developers, parted by " | ", forsgren#387, step 2), as the template writes
+// it.
 func tbdRow(project, interval, lead, developers string) string {
-	return "<th scope=\"row\">" + project + "</th>\n            <td>" + interval + "</td>\n            <td>" +
+	return "<th scope=\"row\">" + project + "</th>\n            " + tds(interval) + "\n            <td>" +
 		tbdDirect[project] + "</td>\n            <td>" + lead + "</td>\n            <td>" + tbdBatch[project] +
-		"</td>\n            <td>" + developers + "</td>\n"
+		"</td>\n            " + tds(developers) + "\n"
+}
+
+// tds are the cells of cells, parted by " | ", as the template writes a row's
+// cells: one td on each line.
+func tds(cells string) string {
+	return "<td>" + strings.Join(strings.Split(cells, " | "), "</td>\n            <td>") + "</td>"
 }
 
 // uncollectedNote ends the direct cell of a project with direct commits while
@@ -153,8 +161,10 @@ func share(percent, counts string) string {
 // half of its commits timed by author date, and of Acme Web, more than half
 // (forsgren#345, step 3).
 const (
-	shopInterval = "2 h ± 1 h (3) · median 2 h · p90 - · 2 commits timed by author date"
-	webInterval  = "24 min ± 2 h 24 min (12) · median 5 min · p90 1 h · " +
+	shopInterval  = "2 h | 1 h | 2 h | - | 3 · 2 commits timed by author date"
+	toolsInterval = "2 h | - | - | - | 1"
+	noInterval    = "- | - | - | - | -"
+	webInterval   = "24 min | 2 h 24 min | 5 min | 1 h | 12 · " +
 		"Mostly estimated: 7 of 13 commits timed by author date."
 )
 
@@ -171,20 +181,24 @@ const noHumanPulls = "-"
 func TestTbdPageShowsTheDevelopersNextToTheInterval(t *testing.T) {
 	got := rendered(t, "tbd.html", tbdData())
 	wantAll(t, "tbd.html", got,
-		"<th scope=\"col\" rowspan=\"2\">Mainline Interval</th>\n"+
+		"<th scope=\"colgroup\" colspan=\"5\">Mainline Interval</th>\n"+
 			"            <th scope=\"colgroup\" colspan=\"3\">Mainline Lead Time</th>\n"+
-			"            <th scope=\"col\" rowspan=\"2\">Developers</th>\n          </tr>\n          <tr>\n"+
+			"            <th scope=\"colgroup\" colspan=\"2\">Developers</th>\n          </tr>\n          <tr>\n"+
+			"            <th scope=\"col\">mean</th>\n            <th scope=\"col\">deviation</th>\n"+
+			"            <th scope=\"col\">median</th>\n            <th scope=\"col\">p90</th>\n"+
+			"            <th scope=\"col\">gaps</th>\n"+
 			"            <th scope=\"col\">direct</th>\n            <th scope=\"col\">pull requests</th>\n"+
-			"            <th scope=\"col\">batch size</th>\n",
-		tbdRow("Acme Shop", shopInterval, "3 h ± 1 h (5)"+share("100", "5 of 5"), "3"),
-		tbdRow("Acme Tools", "2 h ± - (1) · median - · p90 -",
+			"            <th scope=\"col\">batch size</th>\n"+
+			"            <th scope=\"col\">developers</th>\n            <th scope=\"col\">unknown authors</th>\n",
+		tbdRow("Acme Shop", shopInterval, "3 h ± 1 h (5)"+share("100", "5 of 5"), "3 | 0 (0%)"),
+		tbdRow("Acme Tools", toolsInterval,
 			"1 d 6 h ± - (1, 1 cut)"+share("0", "0 of 1")+" · the mean is a lower bound",
-			"1 · 1 commit without a known author is not counted"),
-		tbdRow("Acme Docs", "-", noHumanPulls+" · 2 bot pull requests not counted", "0"),
+			"1 | 1 (50%)"),
+		tbdRow("Acme Docs", noInterval, noHumanPulls+" · 2 bot pull requests not counted", "- | -"),
 		tbdRow("Acme Web", webInterval,
 			"20 h ± 10 h (12)"+share("58", "7 of 12")+" · 1 pull request timed by its created time"+
 				" · 3 bot pull requests not counted · 1 pull request of unknown author not counted",
-			"12 developers · 11 commits without a known author excluded (legacy data)."))
+			"12 | 11 (55%) · legacy data"))
 }
 
 // TestTbdPageSaysThePullRequestsAreNotCollectedYet (forsgren#256, step 2):
@@ -194,13 +208,12 @@ func TestTbdPageShowsTheDevelopersNextToTheInterval(t *testing.T) {
 func TestTbdPageSaysThePullRequestsAreNotCollectedYet(t *testing.T) {
 	const notYet = "No pull requests have been collected yet"
 	got := rendered(t, "tbd.html", uncollected())
-	wantAll(t, "uncollected", got, withUncollectedNote(tbdRow("Acme Shop", shopInterval, notYet, "3")),
-		withUncollectedNote(tbdRow("Acme Docs", "-", notYet, "0")),
-		withUncollectedNote(tbdRow("Acme Web", webInterval, notYet, "12 developers · 11 commits "+
-			"without a known author excluded (legacy data).")))
+	wantAll(t, "uncollected", got, withUncollectedNote(tbdRow("Acme Shop", shopInterval, notYet, "3 | 0 (0%)")),
+		withUncollectedNote(tbdRow("Acme Docs", noInterval, notYet, "- | -")),
+		withUncollectedNote(tbdRow("Acme Web", webInterval, notYet, "12 | 11 (55%) · legacy data")))
 	noneInWindow := rendered(t, "tbd.html", tbdDataWith(noLeads()))
 	wantNone(t, "collected, none in the window", noneInWindow, notYet)
-	wantAll(t, "collected, none in the window", noneInWindow, tbdRow("Acme Docs", "-", noHumanPulls, "0"))
+	wantAll(t, "collected, none in the window", noneInWindow, tbdRow("Acme Docs", noInterval, noHumanPulls, "- | -"))
 	wantNone(t, "collected, none in the window", noneInWindow, uncollectedNote)
 }
 
@@ -212,14 +225,14 @@ func TestTbdPageSaysThePullRequestsAreNotCollectedYet(t *testing.T) {
 func TestTbdPageSaysThePullRequestsAreNotReadable(t *testing.T) {
 	const refused, notYet = "Pull requests not readable", "No pull requests have been collected yet"
 	got := rendered(t, "tbd.html", notReadable())
-	wantAll(t, "not readable", got, tbdRow("Acme Tools", "2 h ± - (1) · median - · p90 -", refused,
-		"1 · 1 commit without a known author is not counted"), tbdRow("Acme Docs", "-", refused, "0"),
-		tbdRow("Acme Shop", shopInterval, "3 h ± 1 h (5)"+share("100", "5 of 5"), "3"))
+	wantAll(t, "not readable", got, tbdRow("Acme Tools", toolsInterval, refused,
+		"1 | 1 (50%)"), tbdRow("Acme Docs", noInterval, refused, "- | -"),
+		tbdRow("Acme Shop", shopInterval, "3 h ± 1 h (5)"+share("100", "5 of 5"), "3 | 0 (0%)"))
 	uncollectedRefused := notReadable()
 	uncollectedRefused.PullsUncollected = true
 	got = rendered(t, "tbd.html", uncollectedRefused)
-	wantAll(t, "not collected yet", got, tbdRow("Acme Docs", "-", refused, "0"),
-		withUncollectedNote(tbdRow("Acme Shop", shopInterval, notYet, "3")))
+	wantAll(t, "not collected yet", got, tbdRow("Acme Docs", noInterval, refused, "- | -"),
+		withUncollectedNote(tbdRow("Acme Shop", shopInterval, notYet, "3 | 0 (0%)")))
 }
 
 // TestTbdPageRefusesDevelopersOfOtherProjects (forsgren#273, step 3): the
@@ -282,13 +295,15 @@ func TestTbdPageHasItsHeadingAndTable(t *testing.T) {
 	got := rendered(t, "tbd.html", tbdData())
 	wantAll(t, "tbd.html", got, "<title>Trunk-based development [TBD] (BETA) · ",
 		`<h1 id="tbd-heading">Trunk-based development [TBD] (BETA)</h1>`, `aria-labelledby="tbd-heading"`,
-		`<th scope="col" rowspan="2">Project</th>`, `<th scope="col" rowspan="2">Mainline Interval</th>`,
+		`<th scope="col" rowspan="2">Project</th>`, `<th scope="colgroup" colspan="5">Mainline Interval</th>`,
+		`<th scope="col">mean</th>`, `<th scope="col">deviation</th>`, `<th scope="col">median</th>`,
+		`<th scope="col">p90</th>`, `<th scope="col">gaps</th>`,
 		`<th scope="colgroup" colspan="3">Mainline Lead Time</th>`, `<th scope="col">direct</th>`,
 		`<th scope="col">pull requests</th>`, `<th scope="col">batch size</th>`,
-		`<th scope="row">Acme Shop</th>`, "<td>"+shopInterval+"</td>",
-		`<th scope="row">Acme Tools</th>`, "<td>2 h ± - (1) · median - · p90 -</td>",
+		`<th scope="row">Acme Shop</th>`, tds(shopInterval),
+		`<th scope="row">Acme Tools</th>`, tds(toolsInterval),
 		`<th scope="row">Acme Docs</th>`, "<td>-</td>",
-		`<th scope="row">Acme Web</th>`, "<td>"+webInterval+"</td>")
+		`<th scope="row">Acme Web</th>`, tds(webInterval))
 	wantNone(t, "tbd.html", got, "<caption", "metrics are coming to this page")
 }
 

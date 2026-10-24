@@ -17,48 +17,75 @@
         <thead>
           <tr>
             <th scope="col" rowspan="2">Project</th>
-            <th scope="col" rowspan="2">Mainline Interval</th>
+            <th scope="colgroup" colspan="5">Mainline Interval</th>
             <th scope="colgroup" colspan="3">Mainline Lead Time</th>
-            <th scope="col" rowspan="2">Developers</th>
+            <th scope="colgroup" colspan="2">Developers</th>
           </tr>
           <tr>
+            <th scope="col">mean</th>
+            <th scope="col">deviation</th>
+            <th scope="col">median</th>
+            <th scope="col">p90</th>
+            <th scope="col">gaps</th>
             <th scope="col">direct</th>
             <th scope="col">pull requests</th>
             <th scope="col">batch size</th>
+            <th scope="col">developers</th>
+            <th scope="col">unknown authors</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <th scope="row">Acme Shop</th>
-            <td>2 h ± 1 h (3) · median 2 h · p90 - · 2 commits timed by author date</td>
+            <td>2 h</td>
+            <td>1 h</td>
+            <td>2 h</td>
+            <td>-</td>
+            <td>3 · 2 commits timed by author date</td>
             <td>20 min (4)</td>
             <td>3 h ± 1 h (5) · 100% (5 of 5) pull requests merged within 24 hours of their first commit</td>
             <td>1.5 (45)</td>
             <td>3</td>
+            <td>0 (0%)</td>
           </tr>
           <tr>
             <th scope="row">Acme Tools</th>
-            <td>2 h ± - (1) · median - · p90 -</td>
+            <td>2 h</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>1</td>
             <td>2 h (2) · 1 commit timed by author date</td>
             <td>1 d 6 h ± - (1, 1 cut) · 0% (0 of 1) pull requests merged within 24 hours of their first commit · the mean is a lower bound</td>
             <td>2 (2) · 1 deployment of unknown lineage not counted</td>
-            <td>1 · 1 commit without a known author is not counted</td>
+            <td>1</td>
+            <td>1 (50%)</td>
           </tr>
           <tr>
             <th scope="row">Acme Docs</th>
             <td>-</td>
             <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
             <td>- · 2 bot pull requests not counted</td>
             <td>- · 2 deployments of unknown lineage not counted</td>
-            <td>0</td>
+            <td>-</td>
+            <td>-</td>
           </tr>
           <tr>
             <th scope="row">Acme Web</th>
-            <td>24 min ± 2 h 24 min (12) · median 5 min · p90 1 h · Mostly estimated: 7 of 13 commits timed by author date.</td>
+            <td>24 min</td>
+            <td>2 h 24 min</td>
+            <td>5 min</td>
+            <td>1 h</td>
+            <td>12 · Mostly estimated: 7 of 13 commits timed by author date.</td>
             <td>5 min (30) · Mostly estimated: 20 of 30 commits timed by author date.</td>
             <td>20 h ± 10 h (12) · 58% (7 of 12) pull requests merged within 24 hours of their first commit · 1 pull request timed by its created time · 3 bot pull requests not counted · 1 pull request of unknown author not counted</td>
             <td>3 (10)</td>
-            <td>12 developers · 11 commits without a known author excluded (legacy data).</td>
+            <td>12</td>
+            <td>11 (55%) · legacy data</td>
           </tr>
         </tbody>
       </table>

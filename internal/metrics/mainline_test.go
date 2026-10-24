@@ -71,20 +71,20 @@ func TestMainlineIntervalMeanDeviationAndCount(t *testing.T) {
 		want    MainlineInterval
 		cell    string
 	}{
-		{"no commit", nil, MainlineInterval{}, "-"},
-		{"one commit", shopAt(5), MainlineInterval{Commits: 1}, "-"},
+		{"no commit", nil, MainlineInterval{}, "- | - | - | - | -"},
+		{"one commit", shopAt(5), MainlineInterval{Commits: 1}, "- | - | - | - | -"},
 		{"two commits", shopAt(5, 3), MainlineInterval{Commits: 2, Gaps: 1, Mean: 2 * h},
-			"2 h ± - (1) · median - · p90 -"},
+			"2 h | - | - | - | 1"},
 		{"gaps 1, 2 and 3 hours", shopAt(10, 9, 7, 4), MainlineInterval{Commits: 4, Gaps: 3, Mean: 2 * h,
-			Deviation: h, Median: 2 * h}, "2 h ± 1 h (3) · median 2 h · p90 -"},
+			Deviation: h, Median: 2 * h}, "2 h | 1 h | 2 h | - | 3"},
 		{"out of order", shopAt(4, 10, 7, 9), MainlineInterval{Commits: 4, Gaps: 3, Mean: 2 * h,
-			Deviation: h, Median: 2 * h}, "2 h ± 1 h (3) · median 2 h · p90 -"},
+			Deviation: h, Median: 2 * h}, "2 h | 1 h | 2 h | - | 3"},
 		{"equal gaps", shopAt(8, 6, 4, 2), MainlineInterval{Commits: 4, Gaps: 3, Mean: 2 * h, Median: 2 * h},
-			"2 h ± less than 1 min (3) · median 2 h · p90 -"},
+			"2 h | less than 1 min | 2 h | - | 3"},
 		{"gaps 1 and 3 hours", shopAt(5, 4, 1), MainlineInterval{Commits: 3, Gaps: 2, Mean: 2 * h,
-			Deviation: dev, Median: 2 * h}, "2 h ± 1 h 24 min (2) · median 2 h · p90 -"},
+			Deviation: dev, Median: 2 * h}, "2 h | 1 h 24 min | 2 h | - | 2"},
 		{"same author date twice", shopAt(5, 5, 3), MainlineInterval{Commits: 3, Gaps: 2, Mean: h, Deviation: dev, Median: h},
-			"1 h ± 1 h 24 min (2) · median 1 h · p90 -"},
+			"1 h | 1 h 24 min | 1 h | - | 2"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -93,8 +93,8 @@ func TestMainlineIntervalMeanDeviationAndCount(t *testing.T) {
 			if got != c.want {
 				t.Errorf("want %+v, got %+v", c.want, got)
 			}
-			if got.Cell() != c.cell {
-				t.Errorf("want cell %q, got %q", c.cell, got.Cell())
+			if intervalCells(got) != c.cell {
+				t.Errorf("want cell %q, got %q", c.cell, intervalCells(got))
 			}
 		})
 	}

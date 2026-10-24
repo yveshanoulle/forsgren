@@ -21,7 +21,8 @@ package metrics
 //     is no developer, and its commits are left out;
 //   - a commit without a login (GitHub links it to no account, or it was
 //     stored by the commits format v1) is not guessed to be anyone's: it is
-//     counted as unknown, and the note says how many;
+//     counted as unknown, and the unknown authors cell says how many and
+//     their share of the deployed commits;
 //   - so is a commit by GitHub's placeholder login invalid-email-address
 //     (placeholderLogin, ignoring case), GitHub's answer for an author email
 //     it links to no account, which is no person (forsgren#355); the stored
@@ -30,7 +31,7 @@ package metrics
 //   - a commit without a login stored before the commits format v3, with
 //     neither parents nor a committer date, is legacy data (forsgren#345,
 //     step 3), a placeholder one never, since GitHub named it: when those
-//     are more than half of the deployed commits, the cell says so plainly
+//     are more than half of the deployed commits, the unknown cell says so plainly
 //     (Yves's wording on #344). It is incomplete attribution, never called an
 //     estimate; the unknown commits stored with their lineage, which GitHub
 //     links to no account, are not called legacy data.
@@ -69,46 +70,45 @@ const botSuffix = "[bot]"
 // email links to no account (forsgren#355): no person, so no developer.
 const placeholderLogin = "invalid-email-address"
 
-// Note names the commits whose author is not known, which the count leaves
-// out: "2 commits without a known author are not counted"; empty when there
-// are none.
-func (d Developers) Note() string {
-	switch d.Unknown {
-	case 0:
-		return ""
-	case 1:
-		return "1 commit without a known author is not counted"
+// The Developers are two columns of the TBD page (forsgren#387, step 2):
+// developers, the count, and unknown authors, the commits left out of it and
+// their share. A project without a deployed commit has no data, a dash in
+// both; one whose commits are all bots' has 0 developers, a count.
+
+// CountCell is the count of developers, "3"; "-" for a project without a
+// deployed commit.
+func (d Developers) CountCell() string {
+	if d.Commits == 0 {
+		return noNumber
 	}
-	return fmt.Sprintf("%d commits without a known author are not counted", d.Unknown)
+	return fmt.Sprint(d.Count)
 }
 
-// Cell is the TBD page's Developers cell (forsgren#273, step 3): the count,
-// then the Note after the cells' separator when there is one, "3 · 2 commits
-// without a known author are not counted"; "0" for a project without a
-// counted commit, a count rather than a dash. When the legacy commits are more
-// than half of the deployed ones, it is legacyCell.
-func (d Developers) Cell() string {
+// UnknownCell is the commits without a known author and their share of the
+// window's distinct deployed commits, bots' included, in whole percent rounded
+// down, "170 (14%)"; "-" for a project without a deployed commit. When the
+// legacy commits are more than half of the deployed ones it ends with
+// legacyNote (forsgren#345, step 3, Yves's wording on #344).
+func (d Developers) UnknownCell() string {
+	if d.Commits == 0 {
+		return noNumber
+	}
+	cell := fmt.Sprintf("%d (%d%%)", d.Unknown, 100*d.Unknown/d.Commits)
 	if mostOf(d.Legacy, d.Commits) {
-		return d.legacyCell()
+		return cell + cellSeparator + d.legacyNote()
 	}
-	count := fmt.Sprint(d.Count)
-	if note := d.Note(); note != "" {
-		return count + cellSeparator + note
-	}
-	return count
+	return cell
 }
 
-// legacyCell is the Developers cell while legacy data is most of the
-// deployed commits (forsgren#345, step 3): "3 developers · 1099 commits
-// without a known author excluded (legacy data).", and when some of the
-// unknown ones are not legacy data, how many are: "(3 of them legacy data)".
-func (d Developers) legacyCell() string {
-	which := "legacy data"
+// legacyNote says the unknown authors are legacy data, "legacy data", and when
+// some of them are not, how many are: "3 of them legacy data", the others
+// stored with their lineage, which GitHub links to no account. It is
+// incomplete attribution, never called an estimate.
+func (d Developers) legacyNote() string {
 	if d.Legacy < d.Unknown {
-		which = fmt.Sprintf("%d of them legacy data", d.Legacy)
+		return fmt.Sprintf("%d of them legacy data", d.Legacy)
 	}
-	return fmt.Sprintf("%s · %s without a known author excluded (%s).",
-		plural(d.Count, "developer"), plural(d.Unknown, "commit"), which)
+	return "legacy data"
 }
 
 // MainlineDevelopers returns the Developers of each project, in the order of

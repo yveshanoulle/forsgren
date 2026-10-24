@@ -461,7 +461,7 @@
   {
    "path": "internal/metrics/legacyshare_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-24",
    "minScore": 10.0
   },
   {
@@ -497,7 +497,7 @@
   {
    "path": "internal/metrics/mainline_lineage_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-24",
    "minScore": 10.0
   },
   {
@@ -527,19 +527,19 @@
   {
    "path": "internal/metrics/mainline.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-24",
    "minScore": 10.0
   },
   {
    "path": "internal/metrics/mainline_percentile_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-22",
+   "checkedAt": "2026-10-24",
    "minScore": 10.0
   },
   {
    "path": "internal/metrics/mainline_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-24",
    "minScore": 10.0
   },
   {
@@ -1966,6 +1966,12 @@
   },
   {
    "path": "internal/metrics/maindirectcell_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-24",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/mainlinecells_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-24",
    "minScore": 10.0

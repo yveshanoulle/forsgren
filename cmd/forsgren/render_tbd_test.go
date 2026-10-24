@@ -22,12 +22,23 @@ func tbdSiteOf(t *testing.T, extra, path string) string {
 	return readSite(t, renderInto(t, args...), "tbd.html")
 }
 
-// shopCell is Acme Shop's Mainline Interval cell over acmeCommits in the
-// 30 days: two gaps, and its three commits, stored without their lineage,
-// timed by author date (forsgren#254, step 4), all of them, so the figure is
-// mostly estimated (forsgren#345, step 3).
-const shopCell = "<td>2 d 22 h ± 4 d 3 h (2) · median 2 d 22 h · p90 - · " +
-	"Mostly estimated: 3 of 3 commits timed by author date.</td>"
+// tdRow is the cells, each a td on a line of its own, as the template writes
+// the cells of a row.
+func tdRow(cells ...string) string {
+	return "<td>" + strings.Join(cells, "</td>\n            <td>") + "</td>"
+}
+
+// shopCell is Acme Shop's five Mainline Interval cells over acmeCommits in
+// the 30 days (forsgren#387, step 1): the mean, the deviation, the median, no
+// p90 and two gaps; its three commits, stored without their lineage, are timed
+// by author date (forsgren#254, step 4), all of them, so the figure is mostly
+// estimated (forsgren#345, step 3), which the gaps cell says. noCells is a
+// project without a gap.
+var (
+	shopCell = tdRow("2 d 22 h", "4 d 3 h", "2 d 22 h", "-",
+		"2 · Mostly estimated: 3 of 3 commits timed by author date.")
+	noCells = tdRow("-", "-", "-", "-", "-")
+)
 
 // TestRenderShowsTheMainlineIntervalOfEachProject (forsgren#253, step 5): with
 // the commits beside --data, tbd.html has a row per project with its Mainline
@@ -40,7 +51,7 @@ func TestRenderShowsTheMainlineIntervalOfEachProject(t *testing.T) {
 	got := tbdSiteOf(t, validConfig, writeData(t, acmeHistory(), acmeCommits()))
 	for _, want := range []string{
 		"<th scope=\"row\">Acme Shop</th>\n            " + shopCell,
-		"<th scope=\"row\">Acme Tools</th>\n            <td>-</td>",
+		"<th scope=\"row\">Acme Tools</th>\n            " + noCells,
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("want %q in tbd.html, got:\n%s", want, got)
@@ -66,7 +77,7 @@ func TestRenderMainlineIntervalFollowsTheStoredLineage(t *testing.T) {
 	branch.Parents, branch.CommittedAt = []string{base.SHA}, branch.AuthoredAt
 	merge.Parents, merge.CommittedAt = []string{base.SHA, branch.SHA}, utcAt(t, "2026-10-01T09:25:00Z")
 	got := tbdSiteOf(t, validConfig, writeData(t, acmeHistory(), []history.Commit{base, branch, merge}))
-	if want := "<td>4 d 22 h ± - (1) · median - · p90 -</td>"; !strings.Contains(got, want) {
+	if want := tdRow("4 d 22 h", "-", "-", "-", "1"); !strings.Contains(got, want) {
 		t.Errorf("want %q in tbd.html, got:\n%s", want, got)
 	}
 }
@@ -85,8 +96,8 @@ func utcAt(t *testing.T, s string) time.Time {
 // authors in the commits file, tbd.html shows each project's Developers next
 // to its Mainline Interval: of Acme Shop's three commits in the 30 days, one
 // is by a made-up developer, one by a bot (left out) and one without a known
-// author (named in the note); the developer of the commit deployed before the
-// window is not counted. Acme Tools has no commit, so 0. The Mainline Lead
+// author (the unknown authors cell: 1, a third of the three commits); the developer of the commit deployed before the
+// window is not counted. Acme Tools has no commit, so a dash in both. The Mainline Lead
 // Time is between them (forsgren#256, step 2), without a pull request the
 // no-human sentence (forsgren#345, step 2).
 func TestRenderShowsTheDevelopersOfEachProject(t *testing.T) {
@@ -98,11 +109,11 @@ func TestRenderShowsTheDevelopersOfEachProject(t *testing.T) {
 	writePulls(t, data, nil)
 	got := tbdSiteOf(t, validConfig, data)
 	for _, want := range []string{
-		"<th scope=\"col\" rowspan=\"2\">Developers</th>",
+		"<th scope=\"colgroup\" colspan=\"2\">Developers</th>",
 		leadRow(shopCell, noHumanPulls) +
-			"            <td>1 · 1 commit without a known author is not counted</td>",
-		"<th scope=\"row\">Acme Tools</th>\n            " + leadRow("<td>-</td>", noHumanPulls) +
-			"            <td>0</td>",
+			"            " + tdRow("1", "1 (33%)"),
+		"<th scope=\"row\">Acme Tools</th>\n            " + leadRow(noCells, noHumanPulls) +
+			"            " + tdRow("-", "-"),
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("want %q in tbd.html, got:\n%s", want, got)
@@ -120,11 +131,11 @@ func TestRenderCountsTheLoginsOfASameDeveloperGroupOnce(t *testing.T) {
 	data := writeData(t, acmeHistory(), commits)
 	writePulls(t, data, nil)
 	grouped := tbdSiteOf(t, validConfig+"same_developer: [[acme-dev-one, acme-dev-two]]\n", data)
-	if want := shopBatch + "\n            <td>1</td>"; !strings.Contains(grouped, want) {
+	if want := shopBatch + "\n            " + tdRow("1", "0 (0%)"); !strings.Contains(grouped, want) {
 		t.Errorf("want one developer for the group in tbd.html, got:\n%s", grouped)
 	}
 	alone := tbdSiteOf(t, validConfig, data)
-	if want := shopBatch + "\n            <td>2</td>"; !strings.Contains(alone, want) {
+	if want := shopBatch + "\n            " + tdRow("2", "0 (0%)"); !strings.Contains(alone, want) {
 		t.Errorf("want two developers without the key in tbd.html, got:\n%s", alone)
 	}
 }
@@ -138,8 +149,8 @@ func TestRenderTbdPageUsesTheDoraWindow(t *testing.T) {
 	pinNow(t)
 	dir := renderInto(t, "--config", writeConfig(t, validConfig+"dora_days: 90\n"+tbdOn),
 		"--data", writeData(t, acmeHistory(), acmeCommits()))
-	const cell = "<td>14 d 7 h ± 19 d 22 h (3) · median 5 d 21 h · p90 - · " +
-		"Mostly estimated: 4 of 4 commits timed by author date.</td>"
+	cell := tdRow("14 d 7 h", "19 d 22 h", "5 d 21 h", "-",
+		"3 · Mostly estimated: 4 of 4 commits timed by author date.")
 	if got := readSite(t, dir, "tbd.html"); !strings.Contains(got, cell) {
 		t.Errorf("want Acme Shop's three gaps over 90 days, got:\n%s", got)
 	}

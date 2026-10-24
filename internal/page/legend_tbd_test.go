@@ -11,8 +11,10 @@ import (
 // forsgren#254), what a dash is, what comes later and the default of tbd_page.
 var legendTbdText = []string{
 	"the Mainline Interval of each project",
-	"written mean ± deviation (gaps), for example 2 h ± 1 h (3)",
-	"the sample standard deviation",
+	"in five columns: mean, deviation, median, p90 and gaps, one number each",
+	"The mean is the average, and the deviation is the sample standard deviation of the time between " +
+		"commits landing on the main branch, by their committer date",
+	"The column gaps is how many gaps the other four columns are made from, for example 1162",
 	"the commits that deployments of the last 30 days shipped",
 	"each commit once",
 	"the time between commits landing on the main branch, by their committer date",
@@ -25,28 +27,35 @@ var legendTbdText = []string{
 	"Commits stored before forsgren kept their parents and committer date have no known chain",
 	"For a deployment with those, every commit counts at its author date, the old approximation, and so does a " +
 		"commit of the chain that GitHub gave no committer date for",
-	"The cell then ends with how many commits are timed this way, written " +
-		"2 h ± 1 h (3) · median 2 h · p90 - · 3 commits timed by author date, or 1 commit timed by author date",
+	"The cell in gaps then ends with how many commits are timed this way, written " +
+		"3 · 2 commits timed by author date, or 3 · 1 commit timed by author date",
 	"Those commits are not looked up again, so the note stays until their deployments leave the window",
-	"A dash means fewer than two commits",
-	"With one gap the mean is shown, and the deviation is a dash",
+	"A dash in all five columns means fewer than two commits",
+	"With one gap the mean and the gaps are shown, and the deviation and the median are dashes, " +
+		"because a sample deviation and a median need two gaps",
 	"between deployed commits, not every commit of the mainline",
-	"Next to them the cell gives the median and the 90th percentile (p90) of the gaps, written median 5 min · p90 1 h",
+	"The median and the 90th percentile (p90) of the gaps are columns of their own",
 	"The median is the middle gap, or the mean of the two middle gaps when there is an even number of them",
 	"p90 is the nearest-rank percentile: the gap at position 0.9 × the number of gaps, rounded up, of the gaps " +
 		"sorted from the shortest, so nine tenths of the gaps are no longer than it",
 	"The median needs two gaps and p90 needs ten gaps",
 	"With fewer than ten gaps p90 would only be the longest gap",
 	"A mean far above the median, and a deviation far above the mean, point at a few long gaps among short ones",
-	"Next to the Mainline Interval, Developers is the number of people who made the commits deployed in the " +
+	"Next to the Mainline Interval, Developers has two columns: developers and unknown authors",
+	"The column developers is the number of people who made the commits deployed in the " +
 		"window, those a merge brought in included: the distinct GitHub accounts of their authors, " +
 		"so a person who commits from several email addresses counts once",
 	"Logins listed together in a same_developer group of the config count as one developer, " +
 		"with or without capital letters; the stored commits keep each login",
 	"A bot account, whose GitHub login ends in [bot], is not a developer, and its commits are left out",
-	"A commit whose author GitHub links to no account is not guessed to be anyone's: the number leaves it out " +
-		"and the cell says how many, written 3 · 2 commits without a known author are not counted",
-	"A project with no counted commit has 0 developers",
+	"An unknown author is a commit whose author GitHub links to no account. It is not guessed to be anyone's: " +
+		"it is left out of the column developers and counted in the column unknown authors",
+	"The column is written 170 (14%): the number of those commits, and their share of all the commits " +
+		"deployed in the window, the commits of bots included, in whole percent rounded down",
+	"When most of the deployed commits are of that kind, the cell ends with legacy data, or with " +
+		"3 of them legacy data when some of the unknown authors are not of the legacy format",
+	"A project with no deployed commit shows a dash in both columns, and a project whose commits are all by " +
+		"bots has 0 developers",
 	"The page shows the number only, never who the developers are",
 	"The interval is not divided by it: a team of ten makes more commits than one person with the same habits",
 	"The two metrics are read together",
@@ -108,9 +117,8 @@ var legendLeadText = []string{
 	"a pull request in the legacy format has no known author type",
 	"The placeholder author invalid-email-address",
 	"is an unknown author, not a developer",
-	"Commits in the legacy format have no known author and are not counted",
+	"Commits in the legacy format have no known author and count as unknown authors",
 	"the legacy format says how a record was stored, not why the author is missing",
-	"3 developers · 1099 commits without a known author excluded (legacy data)",
 	"Mostly estimated: 7 of 13 commits timed by author date.",
 	"shows a dash in pull requests: no human pull request was merged in this period, and its changes may go " +
 		"directly to the main branch, which the direct column shows",
@@ -162,6 +170,12 @@ var legendTbdRetired = []string{
 	"It will show how long a commit takes",
 	"Work pushed straight to the main branch is not in it",
 	"and that changes may go straight to the main branch",
+	"mean ± deviation (gaps)",
+	"2 commits without a known author are not counted",
+	"excluded (legacy data)",
+	"median 5 min · p90 1 h",
+	"A dash means fewer than two commits",
+	"the number leaves it out and the cell says how many",
 }
 
 // TestLegendExplainsTheTbdPage (forsgren#253, forsgren#273): the legend has a
@@ -218,7 +232,7 @@ func legendTbdSection(t *testing.T, legend string) string {
 func TestLegendSaysEachTbdSentenceOnce(t *testing.T) {
 	got := rendered(t, "legend.html", calculated())
 	for _, once := range []string{"The pull requests column covers merged human pull requests only", "each commit once",
-		"A dash means fewer than two commits", "sample standard deviation of the time between commits",
+		"A dash in all five columns means fewer than two commits", "sample standard deviation of the time between commits",
 		"deployments of the last 30 days shipped"} {
 		if n := strings.Count(got, once); n != 1 {
 			t.Errorf("want %q once in the legend, got %d", once, n)

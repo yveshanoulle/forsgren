@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -53,11 +52,11 @@ func TestMainlineIntervalMedianAndNinetiethPercentile(t *testing.T) {
 		cellEnd string
 	}{
 		{"1 to 10 hours", []int{7, 3, 10, 1, 9, 2, 8, 4, 6, 5}, gapSpread{10, 5*h + 30*time.Minute, 9 * h},
-			"median 5 h 30 min · p90 9 h"},
-		{"1 to 11 hours", []int{11, 1, 5, 2, 10, 3, 9, 4, 8, 6, 7}, gapSpread{11, 6 * h, 10 * h}, "median 6 h · p90 10 h"},
-		{"one long gap", []int{1, 1, 1, 91, 1, 1, 1, 1, 1, 1}, gapSpread{10, h, h}, "median 1 h · p90 1 h"},
-		{"two gaps", []int{3, 1}, gapSpread{2, 2 * h, 0}, "median 2 h · p90 -"},
-		{"nine gaps", []int{1, 2, 3, 4, 5, 6, 7, 8, 9}, gapSpread{9, 5 * h, 0}, "median 5 h · p90 -"},
+			"5 h 30 min | 9 h"},
+		{"1 to 11 hours", []int{11, 1, 5, 2, 10, 3, 9, 4, 8, 6, 7}, gapSpread{11, 6 * h, 10 * h}, "6 h | 10 h"},
+		{"one long gap", []int{1, 1, 1, 91, 1, 1, 1, 1, 1, 1}, gapSpread{10, h, h}, "1 h | 1 h"},
+		{"two gaps", []int{3, 1}, gapSpread{2, 2 * h, 0}, "2 h | -"},
+		{"nine gaps", []int{1, 2, 3, 4, 5, 6, 7, 8, 9}, gapSpread{9, 5 * h, 0}, "5 h | -"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -65,8 +64,8 @@ func TestMainlineIntervalMedianAndNinetiethPercentile(t *testing.T) {
 			if gapSpreadOf(got) != c.want {
 				t.Errorf("want %+v, got %+v", c.want, gapSpreadOf(got))
 			}
-			if cell := got.Cell(); !strings.HasSuffix(cell, c.cellEnd) {
-				t.Errorf("want the cell to end with %q, got %q", c.cellEnd, cell)
+			if cells := got.MedianCell() + " | " + got.P90Cell(); cells != c.cellEnd {
+				t.Errorf("want the median and p90 cells %q, got %q", c.cellEnd, cells)
 			}
 		})
 	}

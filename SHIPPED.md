@@ -9,6 +9,19 @@ Active work lives in
 
 ---
 
+## 2026-10-24 — The TBD table as columns: Mainline Interval in five, Developers in two ([#387](https://github.com/yveshanoulle/forsgren/issues/387), steps 1 to 3 of 3)
+
+forsgren issue 387, feature, minor release with #264 and #390. The Mainline Interval and Developers cells of the TBD page had grown into long lines of several numbers. Each number is now a column of its own under a grouped header: Mainline Interval is mean, deviation (the sample standard deviation of the gaps), median, p90 and gaps (how many gaps the other four rest on); Developers is developers (the count) and unknown authors, written `170 (14%)`: the commits without a known author and their share of the window's distinct deployed commits, bots included, in whole percent rounded down. Decisions #388 (mean first, no plus-minus) and #389 (the gap count stays its own figure). A figure not shown yet, and a project without data, is a dash in its own cell. The notes moved: the author-date note ends the gaps cell, and the legacy-data note ends the unknown authors cell. A project with no deployed commit now shows a dash in developers, not 0. The TBD table no longer fits a phone: its sideways overflow at 390x844 is a row of the fixture browser baseline, until the project screen (#91) gives the phone its own view; at 1280x800 it fits.
+
+- Step 1: `MainlineInterval.MeanCell`, `DeviationCell`, `MedianCell`, `P90Cell` and `GapsCell` replace `Cell`; the template has the five columns under a `colgroup`.
+- Step 2: `Developers.CountCell` and `UnknownCell` replace `Cell`, `Note` and `legacyCell`; the Developers `colgroup`.
+- Step 3: the legend says what mean, deviation, median, p90, a gap and an unknown author are; `docs/pages-and-views.md`, `docs/configuration.md` and `CLAUDE.md`.
+- Red first: the cell tests (`TestMainlineIntervalCells`, `TestDevelopersCells`, `TestDevelopersUnknownCellNamesTheLegacyDataAboveHalf`) failed to compile against the old API, the page, render and legend tests failed on the old table; goldens of the TBD page and the legend changed, nothing else.
+
+- Lenka B
+
+---
+
 ## 2026-10-24 — Mainline Lead Time in three columns: direct, pull requests, batch size ([#390](https://github.com/yveshanoulle/forsgren/issues/390), steps 1 to 3 of 3)
 
 forsgren issue 390, feature, minor release with #264 and #387. A project that commits straight to the trunk showed nothing in Mainline Lead Time, which measured pull requests only. The TBD page's Mainline Lead Time is now a group of three columns: direct (the time from a commit's author date to the first deployment that contains it, for commits on the first-parent chain that are no pull request's merge commit; the time to main measured at the deployment, as forsgren sees no push time), pull requests (as before, a dash when there is no human pull request) and batch size (the median number of first-parent commits per deployment). Decisions #391 to #393: legacy commits count as direct at their author date with a note, pull-request commits are recognised by the `merge_commit` of `data/pulls.csv`, batch size counts every first-parent commit and leaves legacy deployments out with a note.

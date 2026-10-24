@@ -7,8 +7,9 @@ import (
 )
 
 // The TBD page (forsgren#253): a table of the Mainline Interval of each
-// project, its Mainline Lead Time (forsgren#256) and its Developers
-// (forsgren#273), or one line that says why there is none.
+// project (five columns, forsgren#387, step 1), its Mainline Lead Time
+// (forsgren#256) and its Developers (forsgren#273; developers and unknown
+// authors, forsgren#387, step 2), or one line that says why there is none.
 
 // tbdTitle is the TBD page's title, its h1 and the legend's heading for it,
 // as Yves wrote it (forsgren#271): the name, then the beta marker the History

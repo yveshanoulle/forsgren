@@ -76,8 +76,8 @@ func TestMainlineIntervalPlacesACommitAtItsCommitterDate(t *testing.T) {
 	if want := (placing{3, 2, 15 * time.Hour, 0}); placingOf(got) != want {
 		t.Errorf("want a mean of 15 h by committer date and no commit by author date, got %+v", got)
 	}
-	if strings.Contains(got.Cell(), "author date") {
-		t.Errorf("want no note in the cell, got %q", got.Cell())
+	if strings.Contains(got.GapsCell(), "author date") {
+		t.Errorf("want no note in the cell, got %q", got.GapsCell())
 	}
 }
 
@@ -92,9 +92,9 @@ func TestMainlineIntervalKeepsTheOldApproximationForCommitsWithoutLineage(t *tes
 	if want := (placing{3, 2, 2 * time.Hour, 3}); placingOf(got) != want {
 		t.Errorf("want the 3 commits by author date, a mean of 2 h, got %+v", got)
 	}
-	want := "2 h ± 1 h 24 min (2) · median 2 h · p90 - · Mostly estimated: 3 of 3 commits timed by author date."
-	if got.Cell() != want {
-		t.Errorf("want cell %q, got %q", want, got.Cell())
+	want := "2 · Mostly estimated: 3 of 3 commits timed by author date."
+	if got.GapsCell() != want {
+		t.Errorf("want cell %q, got %q", want, got.GapsCell())
 	}
 }
 
@@ -108,8 +108,8 @@ func TestMainlineIntervalMixesBothKindsOfDeployment(t *testing.T) {
 	if want := (placing{4, 3, 50 * time.Hour / 3, 1}); placingOf(got) != want {
 		t.Errorf("want 4 commits, 1 by author date, got %+v", got)
 	}
-	if want := " · 1 commit timed by author date"; !strings.HasSuffix(got.Cell(), want) {
-		t.Errorf("want the cell to end with %q, got %q", want, got.Cell())
+	if want := " · 1 commit timed by author date"; !strings.HasSuffix(got.GapsCell(), want) {
+		t.Errorf("want the cell to end with %q, got %q", want, got.GapsCell())
 	}
 }
 

@@ -44,9 +44,9 @@ func TestMainlineIntervalCellSaysMostlyEstimated(t *testing.T) {
 	got := MainlineInterval{
 		Commits: 3, Gaps: 2, Mean: 2 * time.Hour, Deviation: time.Hour, Median: time.Hour, ByAuthorDate: 2,
 	}
-	want := "2 h ± 1 h (2) · median 1 h · p90 - · Mostly estimated: 2 of 3 commits timed by author date."
-	if got.Cell() != want {
-		t.Errorf("want the cell %q, got %q", want, got.Cell())
+	want := "2 · Mostly estimated: 2 of 3 commits timed by author date."
+	if got.GapsCell() != want {
+		t.Errorf("want the cell %q, got %q", want, got.GapsCell())
 	}
 }
 
@@ -75,36 +75,33 @@ func TestDevelopersCountTheCommitsAndTheLegacyUnknownOnes(t *testing.T) {
 	}
 }
 
-// TestDevelopersCellNamesTheLegacyDataAboveHalf (forsgren#345, step 3): when
-// the legacy commits without a known author are more than half of the
-// deployed commits, the cell is Yves's sentence, the count named in
-// developers and the commits excluded; the commits without a known author
-// that are not legacy data are not called so. At half or below, or when the
-// unknown ones are most of the commits but the legacy ones are not, the cell
-// keeps its plain note.
-func TestDevelopersCellNamesTheLegacyDataAboveHalf(t *testing.T) {
+// TestDevelopersUnknownCellNamesTheLegacyDataAboveHalf (forsgren#345, step 3;
+// forsgren#387, step 2): when the legacy commits without a known author are
+// more than half of the deployed commits, the unknown authors cell ends with
+// legacy data, and when some of the unknown ones are not legacy data, with how
+// many are: they were stored with their lineage, GitHub linking them to no
+// account, and are not called so. At half or below, or when the unknown ones
+// are most of the commits but the legacy ones are not, the cell keeps its
+// plain figure. The developers cell is the count alone, never an estimate.
+func TestDevelopersUnknownCellNamesTheLegacyDataAboveHalf(t *testing.T) {
 	for _, c := range []struct {
 		in   Developers
 		want string
 	}{
-		{Developers{Count: 3, Unknown: 1099, Legacy: 1099, Commits: 1134},
-			"3 developers · 1099 commits without a known author excluded (legacy data)."},
-		{Developers{Count: 1, Unknown: 3, Legacy: 3, Commits: 5},
-			"1 developer · 3 commits without a known author excluded (legacy data)."},
-		{Developers{Count: 0, Unknown: 1, Legacy: 1, Commits: 1},
-			"0 developers · 1 commit without a known author excluded (legacy data)."},
-		{Developers{Count: 2, Unknown: 5, Legacy: 3, Commits: 5},
-			"2 developers · 5 commits without a known author excluded (3 of them legacy data)."},
-		{Developers{Count: 1, Unknown: 2, Legacy: 2, Commits: 4}, "1 · 2 commits without a known author are not counted"},
-		{Developers{Count: 1, Unknown: 3, Legacy: 1, Commits: 4}, "1 · 3 commits without a known author are not counted"},
-		{Developers{Count: 3, Commits: 3}, "3"},
+		{Developers{Count: 3, Unknown: 1099, Legacy: 1099, Commits: 1134}, "1099 (96%) · legacy data"},
+		{Developers{Count: 1, Unknown: 3, Legacy: 3, Commits: 5}, "3 (60%) · legacy data"},
+		{Developers{Count: 0, Unknown: 1, Legacy: 1, Commits: 1}, "1 (100%) · legacy data"},
+		{Developers{Count: 2, Unknown: 5, Legacy: 3, Commits: 5}, "5 (100%) · 3 of them legacy data"},
+		{Developers{Count: 1, Unknown: 2, Legacy: 2, Commits: 4}, "2 (50%)"},
+		{Developers{Count: 1, Unknown: 3, Legacy: 1, Commits: 4}, "3 (75%)"},
+		{Developers{Count: 3, Commits: 3}, "0 (0%)"},
 	} {
-		got := c.in.Cell()
+		got := c.in.UnknownCell()
 		if got != c.want {
 			t.Errorf("%+v: want the cell %q, got %q", c.in, c.want, got)
 		}
-		if strings.Contains(strings.ToLower(got), "estimat") {
-			t.Errorf("%+v: the Developers cell is about attribution, never an estimate: %q", c.in, got)
+		if strings.Contains(strings.ToLower(got+c.in.CountCell()), "estimat") {
+			t.Errorf("%+v: the Developers cells are about attribution, never an estimate: %q", c.in, got)
 		}
 	}
 }

@@ -6,24 +6,36 @@
         <thead>
           <tr>
             <th scope="col" rowspan="2">Project</th>
-            <th scope="col" rowspan="2">Mainline Interval</th>
+            <th scope="colgroup" colspan="5">Mainline Interval</th>
             <th scope="colgroup" colspan="3">Mainline Lead Time</th>
-            <th scope="col" rowspan="2">Developers</th>
+            <th scope="colgroup" colspan="2">Developers</th>
           </tr>
           <tr>
+            <th scope="col">mean</th>
+            <th scope="col">deviation</th>
+            <th scope="col">median</th>
+            <th scope="col">p90</th>
+            <th scope="col">gaps</th>
             <th scope="col">direct</th>
             <th scope="col">pull requests</th>
             <th scope="col">batch size</th>
+            <th scope="col">developers</th>
+            <th scope="col">unknown authors</th>
           </tr>
         </thead>
         <tbody>
 {{range .TbdRows}}          <tr>
             <th scope="row">{{.Interval.Project}}</th>
-            <td>{{.Interval.Cell}}</td>
+            <td>{{.Interval.MeanCell}}</td>
+            <td>{{.Interval.DeviationCell}}</td>
+            <td>{{.Interval.MedianCell}}</td>
+            <td>{{.Interval.P90Cell}}</td>
+            <td>{{.Interval.GapsCell}}</td>
             <td>{{.DirectCell}}</td>
             <td>{{.LeadCell}}</td>
             <td>{{.Batch.Cell}}</td>
-            <td>{{.Developers.Cell}}</td>
+            <td>{{.Developers.CountCell}}</td>
+            <td>{{.Developers.UnknownCell}}</td>
           </tr>
 {{end}}        </tbody>
       </table>
