@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/yveshanoulle/forsgren/internal/buildversion"
 )
 
 // TestWriteCreatesTheReadmeOfTheVersion: a missing file is created with the
@@ -36,7 +38,17 @@ func TestTextNamesTheVersionAndHoldsNoPlaceholder(t *testing.T) {
 	}
 }
 
-// TestWriteFailsWithoutADirectory: a directory that is not there is an error
+// TestTextOfADevelopmentBuildSaysSo (forsgren#340): a development build has no
+// release to name, so the README says it is written for a development build
+// and invents no version number.
+func TestTextOfADevelopmentBuildSaysSo(t *testing.T) {
+	got := Text(buildversion.Dev)
+	if !strings.Contains(got, "for forsgren dev (a development build):") || strings.Contains(got, "{{") {
+		t.Errorf("want the development build named and no placeholder left, got %q", got)
+	}
+}
+
+// TestWriteFailsWithoutADirectory:a directory that is not there is an error
 // that names the path and wraps ErrWrite, and nothing is created.
 func TestWriteFailsWithoutADirectory(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "typo", "README.md")

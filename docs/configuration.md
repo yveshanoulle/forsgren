@@ -487,7 +487,9 @@ into forsgren (`install/README.md` in this repository) with the version
 written into it, so it describes exactly the version that wrote it. It
 prints one word and the path: `created` when there was no file, `replaced`
 when there was a different one (a hand-edited README is overwritten),
-`unchanged` when the file already holds the text, which it then leaves
+`unchanged` when the file already holds the text (a development build, which
+names no release, writes "for forsgren dev (a development build)" where a
+release writes its version, forsgren#340), which it then leaves
 untouched, its modification time included. The file is written whole,
 through a temporary file in the same directory and a rename; the directory
 must exist. Exit 0, 1 when the file cannot be read or written (with the

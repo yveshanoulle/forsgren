@@ -48,11 +48,12 @@ const usage = `usage: forsgren render --out <dir> [--config <path>] [--data <pat
        forsgren check-update --config <path> --repo <owner/name> --pull <number>
        forsgren install-update --repo <owner/name> --branch <branch> --version <vX.Y.Z> --sha <40-hex>`
 
-// version is the forsgren release this binary is, shown on every page it
-// renders. It is the one source of the version: a var, not a const, so a
-// release build can set it with
-// -ldflags "-X main.version=<version>"; the default is the next release.
-var version = "1.11.1"
+// version is the forsgren release a build was told it is, with
+// -ldflags "-X main.version=<version>"; a var, not a const, so the flag can
+// set it. It has no default (forsgren#340): a release is read from the build
+// information, and a build that has neither says dev (runningVersion), never
+// an older release written here.
+var version string
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))

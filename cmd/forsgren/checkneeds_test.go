@@ -188,7 +188,7 @@ func TestCheckNeedsFailuresAreStatusesNeverARedRun(t *testing.T) {
 		{"no config", nil, []string{"--repository", "acme/data"}, 2, "--config <path> is required", ""},
 		{"unreadable config", nil, []string{"--config", "nope.yml", "--repository", "acme/data",
 			"--status", "needs-status.txt"}, 0, "the config keys are unknown", statusOK},
-		{"unknown version", func(t *testing.T) { setVersion(t, "dev") },
+		{"unreadable version", func(t *testing.T) { setVersion(t, "banana") },
 			[]string{"--config", "forsgren.config.yml", "--repository", "acme/data", "--status", "needs-status.txt"}, 0,
 			"is not three dot-separated numbers", statusFailed},
 		{"bad api address", func(t *testing.T) { setGithubAPI(t, "not a url") },

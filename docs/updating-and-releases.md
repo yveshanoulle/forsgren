@@ -58,6 +58,14 @@ is then the failed run.
   missing and the issue open: it closes it with the comment "All items are in
   place as of forsgren <version>.". Nothing missing and no issue, or a closed
   one: nothing.
+- **A development build checks nothing** (forsgren#340). A build that names no
+  release (the version is `dev`: no `-ldflags` value and no release tag in its
+  build information) does not know what it needs, and an unknown version is not
+  an older release. `check-needs` says so on stderr, records the status
+  `skipped`, makes no request and so opens, updates, reopens or closes no setup
+  issue; the run summary's Setup line says "not checked, a development build
+  does not know what it needs", and its Update line "unknown (a development
+  build)". An installation runs a release, so it is never affected.
 - **Without `issues: write`** the write is refused, and the run does not fail:
   the job summary of the run says "the setup issue could not be written" and
   lists what this version needs, and the page footer says "needs more

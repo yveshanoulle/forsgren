@@ -12,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/yveshanoulle/forsgren/internal/buildversion"
 )
 
 // versionToken stands in README.md for the forsgren version the text is
@@ -23,8 +25,13 @@ var readme string
 
 // Text is the installation README for forsgren version: README.md with
 // versionToken replaced by version, so the text names the version it was
-// written by and cannot drift from it.
+// written by and cannot drift from it. A development build has no release to
+// name (forsgren#340): the README then says it is written for a development
+// build, and invents no version number.
 func Text(version string) string {
+	if version == buildversion.Dev {
+		version += " (a development build)"
+	}
 	return strings.ReplaceAll(readme, versionToken, version)
 }
 

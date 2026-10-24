@@ -35,10 +35,23 @@ func checkNeeds(args []string, stdout, stderr io.Writer) int {
 	if !ok {
 		return 2
 	}
-	status := reportNeeds(o, stdout, stderr)
+	status := statusSkipped
+	if isDevelopment() {
+		noteDevelopment(stderr)
+	} else {
+		status = reportNeeds(o, stdout, stderr)
+	}
 	_, _ = fmt.Fprintf(stdout, "check-needs: %s\n", status)
 	writeStatus(o.status, status, stderr)
 	return 0
+}
+
+// noteDevelopment says on stderr why a development build checks nothing: it
+// does not know what it needs, an unknown version being no older release, so
+// the setup issue is neither written nor closed (forsgren#340).
+func noteDevelopment(stderr io.Writer) {
+	_, _ = fmt.Fprintln(stderr, "check-needs: a development build does not know what it needs; "+
+		"the setup issue is neither written nor closed (forsgren#340)")
 }
 
 // checkNeedsFlags parses check-needs' arguments: the required --config and

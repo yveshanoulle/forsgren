@@ -372,7 +372,11 @@ was it (forsgren#203; see
 [Running forsgren](configuration.md#running-forsgren)). A development build, such as the
 [preview](ci.md)'s, adds `+dev` and the short commit it is built from to its
 version, "Forsgren <version>+dev (c41db9e)", where the version is the last release tag (no release bumps the version in the code, so it is read from the module version the go tool records for a checkout build), as text: the page links into no
-repository (forsgren#224); a release build shows its version alone. The numbers are compared as numbers, so 0.0.10
+repository (forsgren#224); a release build shows its version alone. A build whose
+version information names no release (no `-ldflags` value and no release tag the
+go tool recorded, as `Scripts/build_site.sh`'s `-buildvcs=false` build) says "Forsgren dev
+(c41db9e)", or "Forsgren dev" when it records no commit: it never names a release number
+it cannot know, builds on no release it names, and promises no update (forsgren#340). The numbers are compared as numbers, so 0.0.10
 is newer than 0.0.9. On every page the footer's paragraph is followed by
 two links on one line, "Settings" and "Legend", to the settings page and the legend (forsgren#83, #84, #128). The footer is the same on every page, so the settings page and the legend link to themselves too (Yves's ruling on decision #133).
 

@@ -37,6 +37,15 @@ forsgren issue 350, steps 1 and 2 of 2 in one build (red and green together), pa
 
 ---
 
+## 2026-10-23 — A build with no version information says dev, never a stale release ([#340](https://github.com/yveshanoulle/forsgren/issues/340), step 2 of 2)
+
+forsgren issue 340, step 2 of 2, patch release (Yves chose option C on #367). `var version = "1.11.1"` in `main.go` was a fallback nothing moved, since releases make no commit (#237), so the preview footer named 1.11.1 while the latest release was 1.15.0. The fallback is gone: `var version` is empty and only an ldflags value sets it. `runningVersion` gives the ldflags value, else a clean release tag of the build information, else the last tag of a checkout build (`lastTagOfCheckout`, still `1.15.0+dev (commit)`), else `buildversion.Dev`, `dev`. The footer reads `dev (<commit>)`, or `dev` with no commit, and promises no update; the run summary says `Update: unknown (a development build)` and `Setup: not checked, a development build does not know what it needs`; `check-needs` records `skipped`, makes no request and so opens, updates, reopens or closes no setup issue; the installation README says `for forsgren dev (a development build)`. `Scripts/release_verify_install.sh` says installations show `dev` meanwhile. `TestNoTestPinsTheReleasedVersion` went with the value it pinned, and the docs test looks only for running-version strings. #237 stays: a release makes no commit.
+
+- Red first, seen failing at runtime: the resolver cases that returned an empty version, the dev footer (three builds), the run summary, `check-needs` (stderr, status, no request), the README, and `var version` empty.
+- No new script: the step 1 idea of `check_version_fallback.sh` was dropped with the fallback it pinned; Go tests replace it (tagged, untagged, checkout, no VCS, version-dependent behaviour).
+
+---
+
 ## 2026-10-23 — GitHub's placeholder author is never a developer ([#355](https://github.com/yveshanoulle/forsgren/issues/355), step 1 of 1)
 
 forsgren issue 355, step 1 of 1, patch release (with #256, #337, #345). GitHub answers a commit whose author email links to no account with the placeholder login `invalid-email-address`, which collect stored as the author like any login, so the Developers count took it for a person. `MainlineDevelopers` now counts a commit by that login (`placeholderLogin`, compared ignoring case in `noteAuthor`) with the other commits without a known author, never as a developer. Such a commit is never legacy data: `Developers.add` counts as legacy only a commit without a login stored before the commits format v3, so the legacy cell says `(3 of them legacy data)` when placeholder commits are among the unknown ones. The stored lines keep the login as GitHub gave it (no rewrite, #293): the counting side decides, so the lines stored before stop counting as a developer too. GitHub documents no list of placeholder logins; `invalid-email-address` is the one seen. The legend's sentence on commits whose author GitHub links to no account already covers it, so no golden changes. `docs/data-files.md` and `docs/pages-and-views.md` name the placeholder.

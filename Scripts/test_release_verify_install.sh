@@ -8,7 +8,7 @@
 # `go version -m` with the module version the case sets (STUB_MOD).
 #   1. the release version                                 -> OK, installed by the sha
 #   2. a pseudo-version                                    -> red, and the ::error:: says
-#      what installations show meanwhile (the fallback version of main.go),
+#      what installations show meanwhile (dev, a development build),
 #      that resume: pins reruns the check and that no pin must move
 #   3. a pseudo-version first, the release on the 2nd try  -> OK (the proxy catches up)
 #   4. a pseudo-version every time                         -> red after exactly the tries
@@ -32,8 +32,6 @@ VERIFY="Scripts/release_verify_install.sh"
 D='$'
 SHA="0123456789abcdef0123456789abcdef01234567"
 PSEUDO="v1.11.2-0.20261020113112-0123456789ab"
-FALLBACK="$(sed -n 's/^var version = "\([0-9.]*\)"$/\1/p' cmd/forsgren/main.go)"
-[[ -n "$FALLBACK" ]] || selftest_abort "cmd/forsgren/main.go has no var version"
 
 STUBS="${TMP}/bin"
 mkdir -p "$STUBS"
@@ -90,8 +88,8 @@ setup "$PSEUDO"
 run 1.12.0 "$SHA"
 want_red "a pseudo-version" "::error::"
 want_said "it names what go reports" "reports ${PSEUDO}, not v1.12.0"
-want_said "it says what installations show meanwhile" "installations show ${FALLBACK}"
-want_said "it names the fallback" "the fallback version of cmd/forsgren/main.go"
+want_said "it says what installations show meanwhile" "installations show dev (a development build"
+want_said "it names no release" "that names no release; forsgren#340"
 want_said "it says resume pins reruns the check" "resume: pins"
 want_said "it says no pin may move" "Do not move any pin"
 

@@ -130,9 +130,9 @@ Two PRE gates run the Go tests and the formatting:
   - **Docs name no running version** (`cmd/forsgren/docs_version_test.go`,
     forsgren#237): no "Forsgren X.Y.Z" and no "forsgren X.Y.Z needs more
     configuration" in `README.md` and `docs/*.md`, wrapped lines joined, with
-    any X.Y.Z (the docs write `<version>`), and the version of `main.go` appears
-    nowhere except in a history phrase ("since", "from", "in", "upgrading to"
-    before it). Other versions ("From 1.3.0", "v0.8.7 to v1.0.0") name past
+    any X.Y.Z (the docs write `<version>`). Since forsgren#340 `main.go` holds
+    no version (a build without version information says `dev`), so the test
+    no longer looks for the released version. Other versions ("From 1.3.0", "v0.8.7 to v1.0.0") name past
     releases on purpose and are allowed. `TestDocsStillSayWhereTheVersionIs`
     keeps the pin from going vacuous.
   - **Tested-with major** moved to the release plan (forsgren#237, step 5b):

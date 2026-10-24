@@ -196,6 +196,9 @@ func (in summaryInput) setup(stderr io.Writer) string {
 	if in.needsCheck == statusOK {
 		return "- Setup: in place, or the setup issue says what is missing\n"
 	}
+	if in.needsCheck == statusSkipped {
+		return "- Setup: not checked, a development build does not know what it needs\n"
+	}
 	reason, known := setupFailures[in.needsCheck]
 	if !known {
 		return ""
@@ -237,6 +240,9 @@ func (in summaryInput) readmeLine() string {
 
 // update says where the update stands.
 func (in summaryInput) update() string {
+	if isDevelopment() {
+		return "unknown (a development build)"
+	}
 	latest, known := in.latestRelease()
 	if !known {
 		return "unknown (the latest release could not be read)"

@@ -12,8 +12,8 @@
 # The install goes to a temporary GOBIN, GOPATH and GOCACHE, never the caller's.
 # The module proxy may lag the tag: the check is repeated RELEASE_VERIFY_TRIES
 # times (default 5), RELEASE_VERIFY_DELAY seconds apart (default 30). A failure
-# prints an ::error:: that says what installations show meanwhile (the
-# fallback version of cmd/forsgren/main.go), that `resume: pins` reruns the
+# prints an ::error:: that says what installations show meanwhile (dev, a
+# development build that names no release), that `resume: pins` reruns the
 # check and that no pin may move before it passes.
 # Exit: 0 reports the release, 1 red, 2 usage. Self-test:
 # Scripts/test_release_verify_install.sh (a stub go).
@@ -41,7 +41,6 @@ DELAY="${RELEASE_VERIFY_DELAY:-30}"
 [[ "$TRIES" =~ ^[1-9][0-9]*$ && "$DELAY" =~ ^[0-9]+$ ]] || usage
 cd "$(dirname "$0")/.." || exit 1
 
-FALLBACK="$(sed -n 's/^var version = "\([0-9.]*\)"$/\1/p' cmd/forsgren/main.go | head -n 1)"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/forsgren-verify.XXXXXX")"
 trap 'rm -rf "$WORK"; [ "$COMPLETED" -eq 1 ] || { echo "❌ FAIL: release_verify_install.sh aborted before completing (COMPLETED was never set)" >&2; exit 1; }' EXIT
 
@@ -68,5 +67,5 @@ while [ "$try" -lt "$TRIES" ]; do
   fi
   if [ "$try" -lt "$TRIES" ]; then sleep "$DELAY"; fi
 done
-echo "::error::❌ go install of ${REPO} at ${SHA} reports ${found:-no module version}, not v${VERSION}, after ${TRIES} tries. Until it reports the release, installations show ${FALLBACK:-the fallback} (the fallback version of cmd/forsgren/main.go), not ${VERSION}. Do not move any pin onto this sha: run the release again with resume: pins, which reruns this check, once the module proxy knows the tag."
+echo "::error::❌ go install of ${REPO} at ${SHA} reports ${found:-no module version}, not v${VERSION}, after ${TRIES} tries. Until it reports the release, installations show dev (a development build that names no release; forsgren#340), not ${VERSION}. Do not move any pin onto this sha: run the release again with resume: pins, which reruns this check, once the module proxy knows the tag."
 fail "❌ FAIL: release verify install: ${SHA} reports ${found:-no module version}, not v${VERSION}, after ${TRIES} tries"

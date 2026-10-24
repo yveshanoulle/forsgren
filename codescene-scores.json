@@ -1791,12 +1791,6 @@
    "minScore": 10.0
   },
   {
-   "path": "cmd/forsgren/pinnedversion_test.go",
-   "score": 10.0,
-   "checkedAt": "2026-10-20",
-   "minScore": 10.0
-  },
-  {
    "path": "internal/collect/pulls.go",
    "score": 10.0,
    "checkedAt": "2026-10-23",
@@ -1870,6 +1864,30 @@
   },
   {
    "path": "internal/metrics/mainlineleadhuman_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/buildversion/buildversion.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/buildversion/buildversion_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/development_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/devversion_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-23",
    "minScore": 10.0

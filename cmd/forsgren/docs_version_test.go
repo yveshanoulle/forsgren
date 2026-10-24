@@ -62,6 +62,9 @@ func namesRunningVersion(name, text, released string) []string {
 	for _, m := range runningVersionString.FindAllStringIndex(d.text, -1) {
 		found = append(found, fmt.Sprintf("%s:%d: %q", name, d.lineAt(m[0]), d.text[m[0]:m[1]]))
 	}
+	if released == "" {
+		return found
+	}
 	released = `(^|[^0-9.])(` + regexp.QuoteMeta(released) + `)($|[^0-9]|\.($|[^0-9]))`
 	for _, m := range regexp.MustCompile(released).FindAllStringSubmatchIndex(d.text, -1) {
 		if !historyPhrase.MatchString(d.text[:m[4]]) {
@@ -99,12 +102,13 @@ func docFiles(t *testing.T) []string {
 }
 
 // TestDocsNameNoRunningVersion (forsgren#237, ruling Q4): no doc names the
-// running version, so a release rewrites no doc. The released version may
-// appear after a history phrase only.
+// running version, so a release rewrites no doc. Since forsgren#340 no file
+// holds the released version, so only the running-version strings are looked
+// for.
 func TestDocsNameNoRunningVersion(t *testing.T) {
 	for _, file := range docFiles(t) {
 		name := strings.TrimPrefix(file, "../../")
-		for _, found := range namesRunningVersion(name, readFile(t, file), releasedVersion) {
+		for _, found := range namesRunningVersion(name, readFile(t, file), "") {
 			t.Errorf("%s: write <version>, not the version of the day", found)
 		}
 	}

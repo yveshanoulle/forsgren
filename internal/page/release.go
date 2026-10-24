@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/yveshanoulle/forsgren/internal/buildversion"
 )
 
 // releaseVersion matches a release's version, "0.0.10" or "v0.0.10": three
@@ -47,6 +49,12 @@ func newer(current, latest string) bool {
 	want, okWant := numbers(latest)
 	return okHave && okWant && slices.Compare(want[:], have[:]) > 0
 }
+
+// Development is whether the page is of a build with no release to name
+// (forsgren#340): the footer then reads "dev (<commit>)", or "dev" when the go
+// tool recorded no commit, and not "<release>+dev (<commit>)". It builds on no
+// release it names.
+func (d Data) Development() bool { return d.Version == buildversion.Dev }
 
 // Update is the version of a newer forsgren release than Version, which the
 // footer names (forsgren#40); empty when Latest is unknown, not a version,

@@ -5,6 +5,8 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+
+	"github.com/yveshanoulle/forsgren/internal/buildversion"
 )
 
 // buildInfo reads how this binary was built; a var so a test can say it was
@@ -69,11 +71,13 @@ func lastTagOfCheckout(info *debug.BuildInfo) string {
 // (forsgren#237): an ldflags value of var version as is; else the build
 // information's module version when it is a clean vX.Y.Z, without its v; else
 // the last release tag of a build made from a checkout (the footer adds +dev
-// and the commit); else var version.
+// and the commit); else the development build, buildversion.Dev, which names
+// no release (forsgren#340): a build whose version information is missing
+// never reports a release number.
 func runningVersion() string {
 	info := usableBuildInfo()
 	if info == nil {
-		return version
+		return givenOrDev()
 	}
 	if m := cleanRelease.FindStringSubmatch(info.Main.Version); m != nil {
 		return m[1]
@@ -81,7 +85,21 @@ func runningVersion() string {
 	if tag := lastTagOfCheckout(info); tag != "" {
 		return tag
 	}
-	return version
+	return givenOrDev()
+}
+
+// givenOrDev is the ldflags value of var version, or dev when none was given.
+func givenOrDev() string {
+	if version != "" {
+		return version
+	}
+	return buildversion.Dev
+}
+
+// isDevelopment is whether the running version is the development build, which
+// is no release and so has no needs, no update and no release to name.
+func isDevelopment() bool {
+	return runningVersion() == buildversion.Dev
 }
 
 // usableBuildInfo is the build information the version may be read from: none

@@ -15,9 +15,12 @@ collects, so any difference from the live metrics site comes from the code
 alone, and the footer says so: the preview is built from the checkout with
 `go install ./cmd/forsgren`, which records the commit in the binary, so its
 footer reads "Forsgren <last release tag>+dev (c41db9e)" (forsgren#224, forsgren#237). A release is
-installed as a module at a pinned commit, which records none, and
-`Scripts/build_site.sh` builds with `-buildvcs=false`, so both keep the plain
-version. The deploy itself lives in the preview repository,
+installed as a module at a pinned commit, which records none, so it keeps the
+plain version. `Scripts/build_site.sh` builds with `-buildvcs=false`, which
+records neither a commit nor a release tag, so its pages read "Forsgren dev"
+(forsgren#340) unless `FORSGREN_BUILD_VERSION` sets a version. A preview built
+without a usable tag reads "Forsgren dev (c41db9e)" and never a stale release
+number. The deploy itself lives in the preview repository,
 `yveshanoulle/forsgren-metrics-feta`, whose `preview.yml` takes the pushed sha
 as its one input. The job only starts it: `Scripts/dispatch_preview.sh <sha>`
 POSTs a `workflow_dispatch` with the Actions secret `PREVIEW_DISPATCH_TOKEN`,
