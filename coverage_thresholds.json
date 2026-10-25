@@ -1063,6 +1063,10 @@
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:pairedWithMainline": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:pairedProjects": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:LeadState": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdAll": 100.0
+    "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdAll": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/nodata.go:NoData": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/tbd.go:NoData": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/tbd.go:NoDataSentence": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdColumnsAfterProject": 100.0
   }
 }
