@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v7
+# canon: test_gate_browser v8
 # Scripts/test_gate_browser.sh (forsgren#205)
 #
 # Self-test for Scripts/gate_browser.sh, the browser gate, run in PRE before the
@@ -125,9 +125,12 @@
 # Each ok and FAIL line ends with the seconds since the line before it, the
 # case's own duration, so the CI log shows what is slow (forsgren#386).
 #   R. no signal handler in the engine: case 52e leaves the profile folder;
-#   S. the wrapper not forwarding the signal: case 52a leaves Chrome alive;
-#   U. the launch waiting for Chrome's initial page again (browser_gate v5):
-#      case 53c still runs 15 s after the kill.
+#   S. the wrapper not forwarding the signal: case 52a leaves Chrome alive.
+# There is no mutation proof for case 53c (forsgren#443). Proof U, the old engine
+# with waitForInitialPage: true kept running in case 53c, went: it raced on a
+# hosted runner, where the kill marker (the profile folder) can come before
+# Chrome connects, so even the old engine ended at once. Case 53c stays as a pin;
+# it was seen failing against the v5 engine when it was written (forsgren#386).
 
 set -euo pipefail
 
@@ -931,12 +934,5 @@ if selftest_mutant Scripts/gate_browser.sh "${WMUT}/Scripts/gate_browser.sh" 's/
   want_left "mutation proof S: without forwarding case 52a leaves Chrome alive" 143 "Chrome processes of the gate are still alive"
 fi
 
-# U: the launch waits for Chrome's initial page again (the engine of v5) -> a
-# Chrome killed during the launch is noticed only after puppeteer's 30 s.
-if selftest_mutant "$ENGINE" "${MUT}/u.mjs" "s/waitForInitialPage: false,/waitForInitialPage: true,/"; then
-  SIG_WAIT_S=15 signal_case mutant_u self launch env "FORSGREN_CHROME=${NOWINDOW_CHROME}" FORSGREN_NODE_ROOT="$REPO_ROOT" node "${MUT}/u.mjs"
-  want_left "mutation proof U: waiting for the initial page, case 53c is still running 15 s after the kill" 2 "still running 15 s after the signal"
-fi
-
 echo "browser gate self-test: ${SECONDS} s in total"
-selftest_end "the browser gate self-test failed" "browser gate: every case holds, twenty mutations seen"
+selftest_end "the browser gate self-test failed" "browser gate: every case holds, nineteen mutations seen"
