@@ -26,7 +26,7 @@ func TestMainlineLeadTimeCellShowsMeanCountAndShare(t *testing.T) {
 		"one": {MainlineLeadTime{PullRequests: 1, Mean: 5 * h, WithinReference: 1},
 			"5 h ± - (1) · 100% (1 of 1) pull requests merged within 24 hours of their first commit"},
 		"three, two within": {MainlineLeadTime{PullRequests: 3, Mean: 30 * h, Deviation: 2*h + 30*time.Minute,
-			WithinReference: 2}, "1 d 6 h ± 2 h 30 min (3) · 66% (2 of 3) pull requests merged within 24 hours of " +
+			WithinReference: 2}, "1 d 6 h ± 2 h 30 (3) · 66% (2 of 3) pull requests merged within 24 hours of " +
 			"their first commit"},
 	}
 	for name, c := range cases {
@@ -67,30 +67,26 @@ func TestMainlineLeadTimeCellSaysWhatIsNotExact(t *testing.T) {
 }
 
 // TestMainlineLeadTimeCellNamesThePullRequestsNotCounted (forsgren#345, step
-// 2, #341): the bot pull requests and those of unknown author are named last,
-// each when there are any, one and many; without a human pull request they
-// follow #342's sentence; a project not readable stays "Pull requests not
+// 2, #341): the bot pull requests are named last, when there are any, one and
+// many; those of unknown author are not named (forsgren#403, #405 closed);
+// without a human pull request they follow the dash; a project not readable stays "Pull requests not
 // readable".
 func TestMainlineLeadTimeCellNamesThePullRequestsNotCounted(t *testing.T) {
 	const counted = "3 h ± - (1) · 100% (1 of 1) pull requests merged within 24 hours of their first commit"
 	human := MainlineLeadTime{PullRequests: 1, Mean: 3 * time.Hour, WithinReference: 1}
-	withNotes := func(m MainlineLeadTime, bots, unknown int) MainlineLeadTime {
-		m.Bots, m.UnknownAuthors = bots, unknown
+	withBots := func(m MainlineLeadTime, bots int) MainlineLeadTime {
+		m.Bots = bots
 		return m
 	}
 	cases := map[string]struct {
 		lead MainlineLeadTime
 		want string
 	}{
-		"one bot":     {withNotes(human, 1, 0), counted + " · 1 bot pull request not counted"},
-		"bots":        {withNotes(human, 3, 0), counted + " · 3 bot pull requests not counted"},
-		"one unknown": {withNotes(human, 0, 1), counted + " · 1 pull request of unknown author not counted"},
-		"bots, unknowns": {withNotes(human, 2, 4), counted + " · 2 bot pull requests not counted" +
-			" · 4 pull requests of unknown author not counted"},
-		"no human, bots": {withNotes(MainlineLeadTime{}, 3, 0), noHumanPulls + " · 3 bot pull requests not counted"},
-		"no human, both": {withNotes(MainlineLeadTime{}, 1, 2), noHumanPulls + " · 1 bot pull request not counted" +
-			" · 2 pull requests of unknown author not counted"},
-		"not readable": {withNotes(MainlineLeadTime{NotReadable: true}, 2, 1), "Pull requests not readable"},
+		"one bot":        {withBots(human, 1), counted + " · 1 bot pull request not counted"},
+		"bots":           {withBots(human, 3), counted + " · 3 bot pull requests not counted"},
+		"no human, bots": {withBots(MainlineLeadTime{}, 3), noHumanPulls + " · 3 bot pull requests not counted"},
+		"no human, none": {MainlineLeadTime{}, noHumanPulls},
+		"not readable":   {withBots(MainlineLeadTime{NotReadable: true}, 2), "Pull requests not readable"},
 	}
 	for name, c := range cases {
 		if got := c.lead.Cell(); got != c.want {

@@ -803,7 +803,7 @@ The TBD page (`tbd.html`, titled "Trunk-based development [TBD] (BETA)", forsgre
 shows, for each project, how often and how fast work reaches the main branch
 and how it is deployed: the commits the pushes brought, their shares, the time
 to main and the time to deploy, the commits per push and per deployment, then
-the Mainline Lead Time, the Mainline Interval and the Developers (forsgren#397,
+the PR Lead Time, the Mainline Interval and the Developers (forsgren#397,
 Yves's ruling on #401). It is unlisted
 by default: generated and reachable at `tbd.html`, with no menu entry and a
 noindex tag (see Unlisted pages under [The page](#the-page), and
@@ -813,23 +813,26 @@ last in the menu, "TBD"; `false` leaves it out.
 - **The table.** A row per project and, under two rows of headers (every
   group header `scope="colgroup"`, mean, median and p90 beneath each measure),
   the columns Project, then nine groups in this order (forsgren#397):
-  *Volume* (Commits, Pushes, Deployments); *Shares of commits* (Direct, Pull
-  requests, Unknown authors, Bots); *Time to main per commit (duration)*;
+  *Volume* (Commits, Pushes, Deployments); *Shares of commits* (Direct, PR,
+  Unknown, Bots; forsgren#403 shortened the two headers, each keeps the full
+  meaning in an `aria-label`); *Time to main per commit (duration)*;
   *Commits per push*; *Time to deploy per commit (duration)*; *Commits per
-  deployment* (each of these four: mean, median, p90); *Mainline Lead Time*
+  deployment* (each of these four: mean, median, p90); *PR Lead Time*
   (the pull requests column alone); *Mainline Interval*; and *Developers* (the
   count). The units are in the names: durations say so, and the others are
   counts of commits. The stat headers carry the measure in an `aria-label`,
   such as "mean time to main". Mainline Interval is five columns of one
   number each (forsgren#387, Yves's decisions #388 and #389): `mean`,
   `deviation` (the sample standard deviation of the gaps), `median`, `p90` and
-  `gaps` (how many gaps the other four rest on), for example `24 min`,
-  `2 h 24 min`, `5 min`, `1 h` and `12`, with the durations written as on the
-  other pages. When some commits are timed by their author date (see The old
+  `gaps` (how many gaps the other four rest on), for example `24 m`,
+  `2 h 24`, `5 m`, `1 h` and `12`. When some commits are timed by their author date (see The old
   approximation below), the note ends the gaps cell after ` · `: `2 · Mostly
   estimated: 3 of 3 commits timed by author date.` or `3 · 2 commits timed by
-  author date`. Cells are numbers only: durations are written as on the other
-  pages, a count has one decimal where it is not whole (`1.5`), a share is a
+  author date`. Cells are numbers only: every duration of the page is written in
+  the TBD form (forsgren#403, `tbdDuration`; the other pages keep their own):
+  hours and minutes `3 h 22`, whole hours `2 h` (never `2 h 0`), minutes alone
+  `7 m`, under a minute `< 1 m`, a day or more as on the other pages (`1 d
+  6 h`), each part cut down, never rounded up. A count has one decimal where it is not whole (`1.5`), a share is a
   whole percent like `99%`. A value that is not shown is a dash in its own
   cell: a median below two values, a p90 below ten, a mean without a value, a
   share without a commit. A project with fewer than two commits has a dash in
@@ -846,14 +849,14 @@ last in the menu, "TBD"; `false` leaves it out.
   - *Volume.* Commits are the distinct first-parent commits the pushes
     brought, by repository (ignoring case) and SHA, each counted once at its
     first push; Pushes the pushes of the window; Deployments the successful
-    deployments of the window, as the table page counts them, written for a
-    project measured by releases alone as `85 releases` (`1 release`), a bare
-    number for any other (Yves's ruling on #397).
+    deployments of the window, as the table page counts them, the number
+    only, `85`, whatever the kind of deployment (forsgren#403; it read
+    `85 releases` for a project measured by releases alone before).
   - *Shares of commits.* Each is a share of the Commits number, in whole
-    percent rounded down. Pull requests: the commit is the merge commit
+    percent rounded down. PR (the pull request share): the commit is the merge commit
     (`merge_commit` of `data/pulls.csv`) of a pull request, or a pull request
     merge (kind `pr_merge`) brought it. Direct: every other commit. Unknown
-    authors: the commit has no login, or GitHub's placeholder login
+    (the unknown author share): the commit has no login, or GitHub's placeholder login
     `invalid-email-address` (ignoring case). Bots: the author login ends in
     `[bot]`, as the developer count tells a bot (Yves's ruling on #397). The
     last two are counted whatever else the commit is, so Direct and Pull
@@ -972,7 +975,7 @@ last in the menu, "TBD"; `false` leaves it out.
   Developers cell counted from it). The legend's TBD section explains the
   column: what a developer is, how listed logins count as one, bots left out,
   never who the developers are.
-- **Mainline Lead Time** (forsgren#256), the group between Commits per
+- **PR Lead Time** (forsgren#256, named Mainline Lead Time until forsgren#403), the group between Commits per
   deployment and the Mainline Interval: how old a change is when it reaches
   the main branch, in one column since forsgren#397: pull requests. The first
   version had direct and batch size columns beside it (forsgren#390); the push
@@ -994,7 +997,7 @@ last in the menu, "TBD"; `false` leaves it out.
     boundary everywhere. A dash is the deviation of a single pull request.
     There is no pass or fail verdict: the figure is supporting evidence.
   - *Two dates.* The Mainline Interval uses the committer date (how often
-    changes reach the trunk); Mainline Lead Time uses the author date of the
+    changes reach the trunk); PR Lead Time uses the author date of the
     first commit up to the merge time (how old changes are when they reach it).
     Read together: short interval and short lead time is frequent, fresh
     integration; short interval and long lead time points at long-lived
@@ -1010,7 +1013,8 @@ last in the menu, "TBD"; `false` leaves it out.
     requests opened by a bot are not counted (`3 bot pull requests not
     counted`), and neither are those whose author is not known to be a user,
     such as a pull request in the legacy format (pulls format v1), which has no
-    known author type (`2 pull requests of unknown author not counted`). A
+    known author type; the cell no longer says how many of the second kind
+    (forsgren#403). A
     project with no human pull request shows a dash in pull requests (it read
     `No human pull requests in this period; changes may go directly to the
     trunk` until forsgren#390; the sentence is now the legend's), which is not

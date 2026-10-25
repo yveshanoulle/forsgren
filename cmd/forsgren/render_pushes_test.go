@@ -123,7 +123,7 @@ func TestRenderRefusesABadPushFile(t *testing.T) {
 
 // TestRenderShowsThePushGroupsAndTheirStatesOnTheTbdPage (forsgren#397, step
 // 5): with the pushes beside --data, Acme Shop's row has its commits and
-// pushes, the shares, 25 min to main from one commit and, for lack of a
+// pushes, the shares, 25 m to main from one commit and, for lack of a
 // second value, dashes for the median and p90; Acme Tools, with no push, 0
 // commits and dashes for the shares; without pushes.csv every project says the
 // pushes are not collected yet; a refused repository says its push activity is
@@ -135,7 +135,7 @@ func TestRenderShowsThePushGroupsAndTheirStatesOnTheTbdPage(t *testing.T) {
 	writePushes(t, data)
 	got := tbdSiteOf(t, validConfig, data)
 	wantIn(t, got, tdRow("1", "1")+"\n            <td>",
-		tdRow("100%", "0%", "0%", "0%", "25 min", "-", "-", "1", "-", "-"),
+		tdRow("100%", "0%", "0%", "0%", "25 m", "-", "-", "1", "-", "-"),
 		tdRow("0", "0")+"\n            <td>", tdRow("-", "-", "-", "-", "-", "-", "-", "-", "-", "-"))
 	if strings.Contains(got, "Pushes not collected yet") {
 		t.Errorf("want no state with the pushes collected, got:\n%s", got)

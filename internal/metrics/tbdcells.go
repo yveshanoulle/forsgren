@@ -4,7 +4,7 @@ package metrics
 // 5, Yves's ruling on #401): numbers only, no sentence but the two states, a
 // dash where a value is not shown (a median below two values, a 90th
 // percentile below ten, a share without a commit). Durations are
-// shortDuration's, counts have one decimal where not whole, shares are whole
+// tbdDuration's, counts have one decimal where not whole, shares are whole
 // percent like 99%.
 
 import (
@@ -78,12 +78,12 @@ func (s DurationSpread) MedianCell() string { return s.cell(s.HasMedian(), s.Med
 // P90Cell is the 90th percentile, a dash below ten times.
 func (s DurationSpread) P90Cell() string { return s.cell(s.HasP90(), s.P90) }
 
-// cell is d in shortDuration's words, a dash when it is not shown.
+// cell is d in tbdDuration's words, a dash when it is not shown.
 func (s DurationSpread) cell(shown bool, d time.Duration) string {
 	if !shown {
 		return noNumber
 	}
-	return shortDuration(d)
+	return tbdDuration(d)
 }
 
 // MeanCell is the mean count, a dash for none.
@@ -108,22 +108,15 @@ func (s CountSpread) cell(shown bool, v float64) string {
 }
 
 // DeploymentVolume is one project's deployments of the DORA window for the
-// TBD page's Deployments column: the successful ones, and whether the
-// project is measured by releases alone.
+// TBD page's Deployments column: the successful ones.
 type DeploymentVolume struct {
-	Project  string
-	Count    int
-	Releases bool
+	Project string
+	Count   int
 }
 
-// Cell is the count, "85 releases" for a project measured by releases (Yves's
-// ruling on #397), a bare number for any other.
-func (v DeploymentVolume) Cell() string {
-	if v.Releases {
-		return plural(v.Count, "release")
-	}
-	return strconv.Itoa(v.Count)
-}
+// Cell is the count, a bare number for every project (forsgren#403: 87,
+// never "87 releases").
+func (v DeploymentVolume) Cell() string { return strconv.Itoa(v.Count) }
 
 // DeploymentVolumes returns the deployment volume of each project, in the
 // order of projects, over the data's DORA window at the render time now.
@@ -131,17 +124,7 @@ func DeploymentVolumes(projects []config.Project, data Data, now time.Time) []De
 	frequencies := DeploymentFrequency(projects, data, now)
 	out := make([]DeploymentVolume, len(projects))
 	for i, p := range projects {
-		out[i] = DeploymentVolume{Project: p.Name, Count: frequencies[i].InWindow, Releases: byReleases(p)}
+		out[i] = DeploymentVolume{Project: p.Name, Count: frequencies[i].InWindow}
 	}
 	return out
-}
-
-// byReleases says whether every repository of p is measured by releases.
-func byReleases(p config.Project) bool {
-	for _, r := range p.Repositories {
-		if r.Deployment.Kind != config.Release {
-			return false
-		}
-	}
-	return len(p.Repositories) > 0
 }

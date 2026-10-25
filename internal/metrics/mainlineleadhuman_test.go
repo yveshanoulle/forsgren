@@ -30,7 +30,7 @@ func TestMainlineLeadTimeCountsHumanPullRequestsOnly(t *testing.T) {
 		openedBy(mergedPull("acme/cli", 8, h, h), history.ByBot))
 	got := MainlineLeadTimes(projects, Data{Pulls: pulls}, now)
 	want := MainlineLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * h, Deviation: sqrt2Hours(),
-		WithinReference: 2, Bots: 2, UnknownAuthors: 1}
+		WithinReference: 2, Bots: 2}
 	if got[0] != want {
 		t.Errorf("Acme Shop: want %+v, got %+v", want, got[0])
 	}
@@ -41,12 +41,12 @@ func TestMainlineLeadTimeCountsHumanPullRequestsOnly(t *testing.T) {
 
 // TestMainlineLeadTimeWithoutAHumanPullRequestHasNoLeadTime (forsgren#345,
 // step 2): pull requests of bots and of unknown authors alone give no lead
-// time, no deviation and no share, only their counts.
+// time, no deviation and no share, only the bots count.
 func TestMainlineLeadTimeWithoutAHumanPullRequestHasNoLeadTime(t *testing.T) {
 	bot := openedBy(mergedPull("acme/app", 1, time.Hour, time.Hour), history.ByBot)
 	unknown := openedBy(mergedPull("acme/app", 2, time.Hour, time.Hour), history.BotUnknown)
 	got := shopMainlineLead(bot, unknown)
-	want := MainlineLeadTime{Project: "Acme Shop", Bots: 1, UnknownAuthors: 1}
+	want := MainlineLeadTime{Project: "Acme Shop", Bots: 1}
 	if got != want {
 		t.Errorf("want %+v, got %+v", want, got)
 	}

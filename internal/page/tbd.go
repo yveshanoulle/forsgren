@@ -11,7 +11,7 @@ import (
 // groups under two-level headers (forsgren#397, step 5, Yves's ruling on
 // #401): volume, shares of the commits, time to main per commit, commits per
 // push, time to deploy per commit and commits per deployment, then the
-// Mainline Lead Time (forsgren#256), the Mainline Interval (five columns,
+// PR Lead Time (forsgren#256), the Mainline Interval (five columns,
 // forsgren#387, step 1) and the Developers count (forsgren#273); or one line
 // that says why there is none.
 

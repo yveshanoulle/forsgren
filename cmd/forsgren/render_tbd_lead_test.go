@@ -85,7 +85,7 @@ func leadRow(interval, lead string) string {
 // Time next to its Mainline Interval: Acme Shop's human lead times of 2, 30
 // and 1 hours have a mean of 11 h and a sample deviation of sqrt(271) h, 2 of
 // the 3 within 24 hours, the cut one making the mean a lower bound, the one of
-// the created time named, then the bot's and the unknown author's named as
+// the created time named, then the bot's named as
 // not counted (forsgren#345, step 2); Acme Tools has no pull request, so the
 // no-human sentence.
 func TestRenderShowsTheMainlineLeadTimeOfEachProject(t *testing.T) {
@@ -93,10 +93,10 @@ func TestRenderShowsTheMainlineLeadTimeOfEachProject(t *testing.T) {
 	data := writeData(t, acmeHistory(), acmeCommits())
 	writePulls(t, data, acmePulls(t))
 	got := tbdSiteOf(t, validConfig, data)
-	wantIn(t, got, "<th scope=\"colgroup\" colspan=\"1\">Mainline Lead Time</th>",
-		leadRow(shopCell, "11 h ± 16 h 27 min (3, 1 cut) · 66% (2 of 3) pull requests merged within 24 hours of "+
+	wantIn(t, got, "<th scope=\"colgroup\" colspan=\"1\">PR Lead Time</th>",
+		leadRow(shopCell, "11 h ± 16 h 27 (3, 1 cut) · 66% (2 of 3) pull requests merged within 24 hours of "+
 			"their first commit · the mean is a lower bound · 1 pull request timed by its created time"+
-			" · 1 bot pull request not counted · 1 pull request of unknown author not counted"),
+			" · 1 bot pull request not counted"),
 		leadRow(noCells, noHumanPulls))
 }
 

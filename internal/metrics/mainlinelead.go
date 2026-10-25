@@ -38,8 +38,8 @@ package metrics
 //     the deviation, the count and the share; one a bot opened (ByBot) and
 //     one whose author's account type is not known (BotUnknown, every line
 //     of the pulls format v1 among them) are left out, never taken as human,
-//     and counted apart in Bots and UnknownAuthors, merged in the window like
-//     the others;
+//     and the bots' counted apart in Bots (the others are not counted at all,
+//     forsgren#403), merged in the window like the others;
 //   - a project with a repository whose pull request read GitHub refused
 //     (Data.PullsDenied, data/pulls_denied.csv, forsgren#337) is NotReadable
 //     as a whole, whatever was read of its other repositories.
@@ -82,10 +82,6 @@ type MainlineLeadTime struct {
 	// Bots counts the pull requests merged in the DORA window that a bot
 	// opened (history.ByBot, forsgren#345, step 2): never in the lead time.
 	Bots int
-	// UnknownAuthors counts the pull requests merged in the DORA window whose
-	// author's account type is not known (history.BotUnknown): never taken as
-	// human, so never in the lead time.
-	UnknownAuthors int
 	// NotReadable says collect was refused the pull request read of one of
 	// the project's repositories (data/pulls_denied.csv, forsgren#337).
 	NotReadable bool
@@ -160,22 +156,12 @@ func pullLeadOf(p history.PullRequest) time.Duration {
 // any other is left out of the lead time, leads returned as they were.
 func (m *MainlineLeadTime) add(p history.PullRequest, leads []float64) []float64 {
 	if p.Bot != history.ByHuman {
-		m.leaveOut(p.Bot)
+		m.Bots += boolCount(p.Bot == history.ByBot)
 		return leads
 	}
 	lead := pullLeadOf(p)
 	m.note(p, lead)
 	return append(leads, float64(lead))
-}
-
-// leaveOut counts a pull request not opened by a person, of bot status
-// status, in m's Bots or UnknownAuthors, never in its lead time.
-func (m *MainlineLeadTime) leaveOut(status history.BotStatus) {
-	if status == history.ByBot {
-		m.Bots++
-		return
-	}
-	m.UnknownAuthors++
 }
 
 // note counts p, whose lead time is lead, in m's counts.

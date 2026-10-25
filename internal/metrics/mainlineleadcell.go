@@ -40,7 +40,7 @@ func (m MainlineLeadTime) counted() []string {
 		return []string{noNumber}
 	}
 	parts := []string{
-		fmt.Sprintf("%s ± %s (%s)", shortDuration(m.Mean), m.deviation(), m.counts()),
+		fmt.Sprintf("%s ± %s (%s)", tbdDuration(m.Mean), m.deviation(), m.counts()),
 		fmt.Sprintf("%d%% (%d of %d) pull requests merged within %d hours of their first commit",
 			m.WithinReferenceShare(), m.WithinReference, m.PullRequests, leadReference/time.Hour),
 	}
@@ -60,10 +60,6 @@ func (m MainlineLeadTime) notCountedNotes() []string {
 	if m.Bots > 0 {
 		notes = append(notes, pullRequests(m.Bots, "bot pull request", "bot pull requests")+" not counted")
 	}
-	if m.UnknownAuthors > 0 {
-		notes = append(notes, pullRequests(m.UnknownAuthors, "pull request", "pull requests")+
-			" of unknown author not counted")
-	}
 	return notes
 }
 
@@ -82,7 +78,7 @@ func (m MainlineLeadTime) deviation() string {
 	if !m.HasDeviation() {
 		return noNumber
 	}
-	return shortDuration(m.Deviation)
+	return tbdDuration(m.Deviation)
 }
 
 // counts is the count of pull requests, "4", and with cut ones "4, 1 cut".

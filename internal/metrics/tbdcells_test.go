@@ -20,11 +20,11 @@ func TestDurationSpreadCells(t *testing.T) {
 		want [3]string
 	}{
 		"none": {DurationSpread{}, [3]string{"-", "-", "-"}},
-		"one":  {DurationSpread{Count: 1, Mean: 7 * m}, [3]string{"7 min", "-", "-"}},
-		"two":  {DurationSpread{Count: 2, Mean: 15 * m, Median: 15 * m}, [3]string{"15 min", "15 min", "-"}},
+		"one":  {DurationSpread{Count: 1, Mean: 7 * m}, [3]string{"7 m", "-", "-"}},
+		"two":  {DurationSpread{Count: 2, Mean: 15 * m, Median: 15 * m}, [3]string{"15 m", "15 m", "-"}},
 		"ten": {DurationSpread{Count: 10, Mean: 90 * m, Median: 3 * time.Hour, P90: 2 * day},
-			[3]string{"1 h 30 min", "3 h", "2 d"}},
-		"a clock": {DurationSpread{Count: 3, Mean: 0, Median: 0}, [3]string{"less than 1 min", "less than 1 min", "-"}},
+			[3]string{"1 h 30", "3 h", "2 d"}},
+		"a clock": {DurationSpread{Count: 3, Mean: 0, Median: 0}, [3]string{"< 1 m", "< 1 m", "-"}},
 	} {
 		got := [3]string{c.in.MeanCell(), c.in.MedianCell(), c.in.P90Cell()}
 		if got != c.want {
@@ -100,11 +100,11 @@ func projectOf(name string, kinds ...config.DeploymentKind) config.Project {
 	return p
 }
 
-// TestDeploymentVolumesCountTheSuccessesOfTheWindowAndNameReleases (forsgren#397
+// TestDeploymentVolumesAreTheSuccessesOfTheWindowAsANumber (forsgren#397
 // ruling): the Deployments cell is the successful deployments of the DORA
-// window; a project measured by releases alone says so, "2 releases", "1
-// release"; any other project, mixed ones included, a bare number.
-func TestDeploymentVolumesCountTheSuccessesOfTheWindowAndNameReleases(t *testing.T) {
+// window, a bare number for every project, releases included (forsgren#403:
+// 87, never "87 releases").
+func TestDeploymentVolumesAreTheSuccessesOfTheWindowAsANumber(t *testing.T) {
 	ps := []config.Project{
 		projectOf("Rel", config.Release), projectOf("Mix", config.Release, config.Workflow),
 		projectOf("Env", config.Environment), projectOf("One", config.Release),
@@ -124,7 +124,7 @@ func TestDeploymentVolumesCountTheSuccessesOfTheWindowAndNameReleases(t *testing
 	records = append(records, deployed(ps[0].Repositories[0].Name, history.StateSuccess, 40*day))
 	got := DeploymentVolumes(ps, Data{Records: records}, now)
 	cells := [4]string{got[0].Cell(), got[1].Cell(), got[2].Cell(), got[3].Cell()}
-	if want := [4]string{"2 releases", "3", "4", "1 release"}; cells != want {
+	if want := [4]string{"2", "3", "4", "1"}; cells != want {
 		t.Errorf("want %v, got %v", want, cells)
 	}
 	if got[0].Project != "Rel" {

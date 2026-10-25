@@ -80,11 +80,11 @@ func TestMainlineIntervalMeanDeviationAndCount(t *testing.T) {
 		{"out of order", shopAt(4, 10, 7, 9), MainlineInterval{Commits: 4, Gaps: 3, Mean: 2 * h,
 			Deviation: h, Median: 2 * h}, "2 h | 1 h | 2 h | - | 3"},
 		{"equal gaps", shopAt(8, 6, 4, 2), MainlineInterval{Commits: 4, Gaps: 3, Mean: 2 * h, Median: 2 * h},
-			"2 h | less than 1 min | 2 h | - | 3"},
+			"2 h | < 1 m | 2 h | - | 3"},
 		{"gaps 1 and 3 hours", shopAt(5, 4, 1), MainlineInterval{Commits: 3, Gaps: 2, Mean: 2 * h,
-			Deviation: dev, Median: 2 * h}, "2 h | 1 h 24 min | 2 h | - | 2"},
+			Deviation: dev, Median: 2 * h}, "2 h | 1 h 24 | 2 h | - | 2"},
 		{"same author date twice", shopAt(5, 5, 3), MainlineInterval{Commits: 3, Gaps: 2, Mean: h, Deviation: dev, Median: h},
-			"1 h | 1 h 24 min | 1 h | - | 2"},
+			"1 h | 1 h 24 | 1 h | - | 2"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

@@ -31,7 +31,7 @@ func TestMainlineIntervalCells(t *testing.T) {
 		"two gaps": {MainlineInterval{Commits: 3, Gaps: 2, Mean: 2 * h, Deviation: h, Median: 2 * h},
 			"2 h | 1 h | 2 h | - | 2"},
 		"ten gaps": {MainlineInterval{Commits: 11, Gaps: 10, Mean: 27 * time.Minute, Deviation: 2*h + 19*time.Minute,
-			Median: 7 * time.Minute, P90: 45 * time.Minute}, "27 min | 2 h 19 min | 7 min | 45 min | 10"},
+			Median: 7 * time.Minute, P90: 45 * time.Minute}, "27 m | 2 h 19 | 7 m | 45 m | 10"},
 		"a big count": {MainlineInterval{Commits: 1163, Gaps: 1162, Mean: h, Deviation: h, Median: h, P90: h},
 			"1 h | 1 h | 1 h | 1 h | 1162"},
 		"some by author date": {MainlineInterval{Commits: 4, Gaps: 3, Mean: h, Deviation: h, Median: h, ByAuthorDate: 2},

@@ -13,7 +13,7 @@ var legendTbdText = []string{
 	"The TBD page (trunk-based development) is one table with a row for each project",
 	"Its columns are in groups, and the name of a group says what it counts",
 	"First come Volume, Shares of commits, Time to main per commit, Commits per push, Time to deploy per " +
-		"commit and Commits per deployment. Then come Mainline Lead Time, Mainline Interval and Developers",
+		"commit and Commits per deployment. Then come PR Lead Time, Mainline Interval and Developers",
 	"Every number is of the last 30 days",
 	"The push groups read the pushes to the main branch, from GitHub's activity list of the default branch " +
 		"of each repository",
@@ -26,13 +26,14 @@ var legendTbdText = []string{
 		"out and the merge commit counts",
 	"Pushes is the number of pushes. Deployments is the number of successful deployments",
 	"A deployment is a GitHub release, a deployment to an environment or a run of a workflow, as the project " +
-		"is measured. A project measured by releases alone reads, for example, 85 releases",
-	"Shares of commits has four columns: Direct, Pull requests, Unknown authors and Bots",
+		"is measured. It is shown as the number only, for example 85",
+	"Shares of commits has four columns: Direct, PR, Unknown and Bots",
+	"PR is the share of pull request commits, and Unknown the share of commits of an unknown author",
 	"All four are shares of the same Commits number, in whole percent rounded down, so they read alike",
 	"A commit is a pull request commit when it is the merge commit of a merged pull request, or when a pull " +
 		"request merge brought it to the main branch",
 	"Every other commit is direct, so these two shares add up to 100%, give or take the rounding",
-	"Unknown authors and Bots are counted in addition, whatever else the commit is",
+	"Unknown and Bots are counted in addition, whatever else the commit is",
 	"An unknown author is a commit whose author GitHub links to no account, or the placeholder author " +
 		"invalid-email-address. A bot is a commit whose author login ends in [bot]",
 	"Time to main per commit is a duration. For each commit it runs from the author date of the commit to " +
@@ -54,7 +55,9 @@ var legendTbdText = []string{
 	"p90 is the nearest-rank percentile: the value at position 0.9 × the number of values, rounded up, of " +
 		"the values sorted from the smallest, so nine tenths of the values are no larger than it",
 	"The median needs two values and p90 needs ten values, and each is a dash until then",
-	"A duration is written like 2 h 5 min. A count has one decimal when it is not whole, for example 1.5",
+	"A duration is written like 3 h 22, which is 3 hours and 22 minutes, 2 h for whole hours, 7 m for " +
+		"minutes, &lt; 1 m under a minute and 1 d 6 h from a day on, each part cut down, never rounded up. " +
+		"A count has one decimal when it is not whole, for example 1.5",
 	"Push activity not readable means the token forsgren collects with was refused the read of the pushes " +
 		"of a repository of the project (a 403, recorded in data/pushes_denied.csv)",
 	"Deployment numbers are never shown in its place",
@@ -116,7 +119,7 @@ var legendTbdText = []string{
 // parts, the lower bound and the stand-ins, the people of #349 and #355, the
 // legacy format as Yves worded it on #356, and what not readable means.
 var legendLeadText = []string{
-	"Mainline Lead Time has one column: pull requests",
+	"PR Lead Time has one column: pull requests",
 	"The pull requests column covers merged human pull requests only, " +
 		"not every change that reaches the main branch",
 	"Work pushed straight to the main branch is in the push groups and the Direct share, " +
@@ -132,14 +135,14 @@ var legendLeadText = []string{
 	"The share is rounded down, and a lead time of at most 24 hours counts as within, the same boundary everywhere",
 	"There is no pass or fail verdict",
 	"The Mainline Interval uses the committer date: how often changes reach the main branch",
-	"Mainline Lead Time uses the author date of the first commit up to the merge time",
+	"PR Lead Time uses the author date of the first commit up to the merge time",
 	"That lead time is a lower bound: the count reads (4, 1 cut) and the cell adds the mean is a lower bound",
 	"A cut pull request can make the mean too low, and it can make the share merged within 24 hours too high",
 	"the created time of the pull request stands in for the first commit time",
 	"1 pull request timed by its created time, or 2 pull requests timed by their created time",
 	"Only a GitHub account of the type User is a person",
 	"3 bot pull requests not counted",
-	"2 pull requests of unknown author not counted",
+	"is not counted either, and the cell does not say how many",
 	"a pull request in the legacy format has no known author type",
 	"The placeholder author invalid-email-address",
 	"is an unknown author, not a developer",
@@ -212,6 +215,15 @@ var legendTbdRetired = []string{
 	"pull request merges cannot be told apart yet",
 	"2 deployments of unknown lineage not counted",
 	"which the direct column shows",
+	"Then come Mainline Lead Time, Mainline Interval and Developers",
+	"A project measured by releases alone reads, for example, 85 releases",
+	"Direct, Pull requests, Unknown authors and Bots",
+	"Unknown authors and Bots are counted in addition",
+	"A duration is written like 2 h 5 min",
+	"Mainline Lead Time has one column: pull requests",
+	"Mainline Lead Time uses the author date of the first commit up to the merge time",
+	"Mainline Lead Time shows how long the changes",
+	"written 2 pull requests of unknown author not counted",
 }
 
 // TestLegendExplainsTheTbdPage (forsgren#253, forsgren#273): the legend has a

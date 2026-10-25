@@ -149,7 +149,7 @@ func (m MainlineInterval) shown(has bool, d time.Duration) string {
 	if !has {
 		return noNumber
 	}
-	return shortDuration(d)
+	return tbdDuration(d)
 }
 
 // MainlineIntervals returns the Mainline Interval of each project, in the

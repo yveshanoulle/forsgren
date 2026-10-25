@@ -33,7 +33,7 @@ func tbdLeads() []metrics.MainlineLeadTime {
 		{Project: "Acme Tools", PullRequests: 1, Mean: 30 * time.Hour, Cut: 1},
 		{Project: "Acme Docs", Bots: 2},
 		{Project: "Acme Web", PullRequests: 12, Mean: 20 * time.Hour, Deviation: 10 * time.Hour, WithinReference: 7,
-			CreatedStandsIn: 1, Bots: 3, UnknownAuthors: 1},
+			CreatedStandsIn: 1, Bots: 3},
 	}
 }
 
@@ -58,8 +58,8 @@ func tbdDataWith(leads []metrics.MainlineLeadTime) Data {
 	data.PushMeasures = tbdPushes()
 	data.DeployMeasures = tbdDeploys()
 	data.DeploymentVolumes = []metrics.DeploymentVolume{
-		{Project: "Acme Shop", Count: 85, Releases: true}, {Project: "Acme Tools", Count: 7},
-		{Project: "Acme Docs", Count: 2}, {Project: "Acme Web", Count: 1, Releases: true},
+		{Project: "Acme Shop", Count: 85}, {Project: "Acme Tools", Count: 7},
+		{Project: "Acme Docs", Count: 2}, {Project: "Acme Web", Count: 1},
 	}
 	return data
 }
@@ -100,15 +100,15 @@ func tbdDeploys() []metrics.DeployMeasures {
 
 // tbdPushCells are the cells of tbdData's projects before the pull requests
 // cell, parted by " | ": volume (commits, pushes, deployments), shares
-// (direct, pull requests, unknown authors), time to main, commits per push,
+// (direct, PR, unknown), time to main, commits per push,
 // time to deploy, commits per deployment (mean, median, p90 each). A cell
 // starting with @ is the one cell across the push groups, ten columns wide.
 var tbdPushCells = map[string]string{
-	"Acme Shop": "40 | 20 | 85 releases | 75% | 25% | 10% | 5% | 1 h | 30 min | 3 h | 2 | 1.5 | 6 | " +
+	"Acme Shop": "40 | 20 | 85 | 75% | 25% | 10% | 5% | 1 h | 30 m | 3 h | 2 | 1.5 | 6 | " +
 		"2 h | 1 h | 5 h | 5 | 4.5 | 12",
 	"Acme Tools": "1 | 1 | 7 | 100% | 0% | 0% | 0% | 2 h | - | - | 1 | - | - | 1 h | 1 h | - | 3 | - | -",
-	"Acme Docs":  "- | - | 2 | @Push activity not readable | 30 min | 30 min | - | 1 | 1 | -",
-	"Acme Web":   "- | - | 1 release | @Pushes not collected yet | 10 min | - | - | 2 | - | -",
+	"Acme Docs":  "- | - | 2 | @Push activity not readable | 30 m | 30 m | - | 1 | 1 | -",
+	"Acme Web":   "- | - | 1 | @Pushes not collected yet | 10 m | - | - | 2 | - | -",
 }
 
 // noLeads are the Mainline Lead Times of tbdData's projects without a pull
@@ -172,14 +172,21 @@ var tbdGroups = []struct {
 	hidden  string // the measure, said after each column's word in its accessible name
 }{
 	{"Volume", []string{"Commits", "Pushes", "Deployments"}, ""},
-	{"Shares of commits", []string{"Direct", "Pull requests", "Unknown authors", "Bots"}, ""},
+	{"Shares of commits", []string{"Direct", "PR", "Unknown", "Bots"}, ""},
 	{"Time to main per commit (duration)", []string{"mean", "median", "p90"}, "time to main"},
 	{"Commits per push", []string{"mean", "median", "p90"}, "commits per push"},
 	{"Time to deploy per commit (duration)", []string{"mean", "median", "p90"}, "time to deploy"},
 	{"Commits per deployment", []string{"mean", "median", "p90"}, "commits per deployment"},
-	{"Mainline Lead Time", []string{"pull requests"}, ""},
+	{"PR Lead Time", []string{"pull requests"}, ""},
 	{"Mainline Interval", []string{"mean", "deviation", "median", "p90", "gaps"}, ""},
 	{"Developers", []string{"developers"}, ""},
+}
+
+// shortHeaders are the column headers written short (forsgren#403), each with
+// the accessible name that says the full meaning.
+var shortHeaders = map[string]string{
+	"PR":      "pull request share of commits",
+	"Unknown": "unknown author share of commits",
 }
 
 // tbdHeaders are the two header rows' cells of the TBD table as the template
@@ -192,7 +199,9 @@ func tbdHeaders() (top, beneath string) {
 		tops = append(tops, `<th scope="colgroup" colspan="`+strconv.Itoa(len(g.columns))+`">`+g.name+`</th>`)
 		for _, c := range g.columns {
 			label := ""
-			if g.hidden != "" {
+			if full, ok := shortHeaders[c]; ok {
+				label = ` aria-label="` + full + `"`
+			} else if g.hidden != "" {
 				label = ` aria-label="` + c + ` ` + g.hidden + `"`
 			}
 			columns = append(columns, `<th scope="col"`+label+`>`+c+`</th>`)
@@ -215,7 +224,7 @@ const (
 	shopInterval  = "2 h | 1 h | 2 h | - | 3 · 2 commits timed by author date"
 	toolsInterval = "2 h | - | - | - | 1"
 	noInterval    = "- | - | - | - | -"
-	webInterval   = "24 min | 2 h 24 min | 5 min | 1 h | 12 · " +
+	webInterval   = "24 m | 2 h 24 | 5 m | 1 h | 12 · " +
 		"Mostly estimated: 7 of 13 commits timed by author date."
 )
 
@@ -243,8 +252,8 @@ func TestTbdPageHasTwoLevelHeadersWithTheUnitsInTheGroupNames(t *testing.T) {
 // shares, the four measures, the pull requests lead time, the Mainline
 // Interval and the developers count; a project whose push read was refused,
 // or with no push collected yet, has one cell across the push groups and no
-// deployment number in its place; releases are named in the Deployments cell
-// of a project measured by them alone.
+// deployment number in its place; the Deployments cell is a number, releases
+// included (forsgren#403).
 func TestTbdPageShowsTheRowsOfEachProject(t *testing.T) {
 	got := rendered(t, "tbd.html", tbdData())
 	wantAll(t, "tbd.html", got,
@@ -254,7 +263,7 @@ func TestTbdPageShowsTheRowsOfEachProject(t *testing.T) {
 		tbdRow("Acme Docs", noInterval, noHumanPulls+" · 2 bot pull requests not counted", "1"),
 		tbdRow("Acme Web", webInterval,
 			"20 h ± 10 h (12)"+within("58", "7 of 12")+" · 1 pull request timed by its created time"+
-				" · 3 bot pull requests not counted · 1 pull request of unknown author not counted", "12"))
+				" · 3 bot pull requests not counted", "12"))
 }
 
 // TestTbdPageSaysThePullRequestsAreNotCollectedYet (forsgren#256, step 2):

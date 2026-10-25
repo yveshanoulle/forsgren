@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — The TBD table: shorter headers and durations, PR Lead Time, deployments as a number ([#403](https://github.com/yveshanoulle/forsgren/issues/403), 1/1)
+
+forsgren issue 403, feature. Yves's rulings on the live TBD table: the Deployments cell is the number only (`87`, never `87 releases`); the headers Pull requests and Unknown authors of Shares of commits are PR and Unknown, each keeping its full meaning in an `aria-label` for screen readers; the group Mainline Lead Time is PR Lead Time; Time to main per commit (duration) stays. Every duration in the table is written in one TBD-only form (`tbdDuration`, one table test of every boundary): `3 h 22`, whole hours `2 h` (never `2 h 0`), minutes `7 m`, under a minute `< 1 m`, a day or more as before (`1 d 6 h`), each part cut down as before; the other pages keep their format. The PR Lead Time cell no longer says how many pull requests of unknown author were not counted. The legend follows (retired sentences are in `legendTbdRetired`), and so do the goldens, docs and CLAUDE.md.
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The gate selector stops running slow checks whose inputs did not change ([#402](https://github.com/yveshanoulle/forsgren/issues/402), steps 1 to 3 of 3)
 
 forsgren issue 402, tools issue, no release. A typical Go-only FBP ran about 640 s of checks whose inputs had not changed. Findings and Yves's ruling (steps 1 to 3 in one commit, gate wiring left out) are on the issue.
