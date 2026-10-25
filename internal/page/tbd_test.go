@@ -361,8 +361,8 @@ func TestTbdPageGolden(t *testing.T) {
 // with no caption, and a row header for each project.
 func TestTbdPageHasItsHeadingAndTable(t *testing.T) {
 	got := rendered(t, "tbd.html", tbdData())
-	wantAll(t, "tbd.html", got, "<title>Trunk-based development [TBD] (BETA) · ",
-		`<h1 id="tbd-heading">Trunk-based development [TBD] (BETA)</h1>`, `aria-labelledby="tbd-heading"`,
+	wantAll(t, "tbd.html", got, "<title>Trunk-based development [TBD] · ",
+		`<h1 id="tbd-heading">Trunk-based development [TBD]</h1>`, `aria-labelledby="tbd-heading"`,
 		`<th scope="col" rowspan="2">Project</th>`, `<th scope="row">Acme Shop</th>`,
 		`<th scope="row">Acme Tools</th>`, `<th scope="row">Acme Docs</th>`, `<th scope="row">Acme Web</th>`)
 	wantNone(t, "tbd.html", got, "<caption", "metrics are coming to this page")
@@ -378,14 +378,16 @@ func TestTbdPageHasNoExplanationAndNoLeadTimeLine(t *testing.T) {
 	}
 }
 
-// TestTbdTitleIsYvesWording (forsgren#271): the title and the h1 of the TBD
-// page read exactly "Trunk-based development [TBD] (BETA)", the BETA in
-// capitals as Yves wrote it, the same marker the History page reads (forsgren#198).
+// TestTbdTitleIsYvesWording (forsgren#271, forsgren#409): the title and the
+// h1 of the TBD page read exactly "Trunk-based development [TBD]", with no
+// beta marker since the page left beta; the History page keeps its marker
+// (forsgren#198).
 func TestTbdTitleIsYvesWording(t *testing.T) {
-	const want = "Trunk-based development [TBD] (BETA)"
+	const want = "Trunk-based development [TBD]"
 	if got := calculated().TbdTitle(); got != want {
 		t.Errorf("want the title %q, got %q", want, got)
 	}
+	wantNone(t, "tbd.html", rendered(t, "tbd.html", tbdData()), "(BETA)")
 	history := rendered(t, "history.html", historyData())
 	wantAll(t, "history.html", history, `<h1 id="history-heading">History (BETA)</h1>`)
 }

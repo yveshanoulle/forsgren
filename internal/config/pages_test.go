@@ -151,17 +151,21 @@ type unlistedPageCase struct {
 // unlistedPageCases are the files every page key whose default is unlisted is
 // read from: left out, as written, after the projects, without a value, and
 // four values that are not accepted.
-func unlistedPageCases(key string) []unlistedPageCase {
+func unlistedPageCases(key string) []unlistedPageCase { return pageCasesWithDefault(key, PageUnlisted) }
+
+// pageCasesWithDefault are the cases of unlistedPageCases for a key whose
+// default is def: what is left out, has no value or is not accepted reads def.
+func pageCasesWithDefault(key string, def PageMode) []unlistedPageCase {
 	return []unlistedPageCase{
-		{"absent", valid, "", PageUnlisted},
+		{"absent", valid, "", def},
 		{"on", key + ": true\n" + valid, "", PageOn},
 		{"off", key + ": false\n" + valid, "", PageOff},
 		{"after the projects", valid + key + ": true\n", "", PageOn},
-		{"no value", key + ":\n" + valid, "", PageUnlisted},
-		{"yes", key + ": yes\n" + valid, "yes", PageUnlisted},
-		{"quoted", key + ": \"true\"\n" + valid, "true", PageUnlisted},
-		{"a number", key + ": 1\n" + valid, "1", PageUnlisted},
-		{"quoted unlisted", key + ": \"unlisted\"\n" + valid, "unlisted", PageUnlisted},
+		{"no value", key + ":\n" + valid, "", def},
+		{"yes", key + ": yes\n" + valid, "yes", def},
+		{"quoted", key + ": \"true\"\n" + valid, "true", def},
+		{"a number", key + ": 1\n" + valid, "1", def},
+		{"quoted unlisted", key + ": \"unlisted\"\n" + valid, "unlisted", def},
 	}
 }
 
@@ -170,6 +174,12 @@ func unlistedPageCases(key string) []unlistedPageCase {
 // the key, the valid values and the default unlisted.
 func wantUnlistedPageKey(t *testing.T, key string, sentinel error, cases []unlistedPageCase) {
 	t.Helper()
+	wantPageKey(t, key, sentinel, PageUnlisted, cases)
+}
+
+// wantPageKey is wantUnlistedPageKey for a key whose default is def.
+func wantPageKey(t *testing.T, key string, sentinel error, def PageMode, cases []unlistedPageCase) {
+	t.Helper()
 	for _, tc := range cases {
 		got, err := parse([]byte(tc.file))
 		if mode := pageModeOf(got, key); err != nil || mode != tc.want {
@@ -177,7 +187,7 @@ func wantUnlistedPageKey(t *testing.T, key string, sentinel error, cases []unlis
 		}
 		if tc.rejected != "" {
 			wantRejection(t, got.Rejected, sentinel,
-				[4]string{key, tc.rejected, "use true, unlisted or false", "unlisted"})
+				[4]string{key, tc.rejected, "use true, unlisted or false", string(def)})
 		}
 	}
 }
@@ -192,16 +202,16 @@ func TestHistoryPageIsUnlistedByDefaultAndRejectsOtherValues(t *testing.T) {
 	wantUnlistedPageKey(t, "history_page", ErrHistoryPage, unlistedPageCases("history_page"))
 }
 
-// TestTbdPageIsUnlistedByDefaultAndRejectsOtherValues (forsgren#253): the
-// optional tbd_page key is unlisted when it is left out or has no value, as
-// history_page is, and as written otherwise, tbd_page: unlisted included; a
-// value that is not true, unlisted or false is not accepted: the page stays
-// unlisted, the key counts as not written, and the rejection names the key,
-// the valid values and the default unlisted.
-func TestTbdPageIsUnlistedByDefaultAndRejectsOtherValues(t *testing.T) {
-	cases := append(unlistedPageCases("tbd_page"),
+// TestTbdPageIsOnByDefaultAndRejectsOtherValues (forsgren#253, forsgren#409):
+// the optional tbd_page key is true when it is left out or has no value, and
+// as written otherwise, tbd_page: unlisted and false included; a value that is
+// not true, unlisted or false is not accepted: the page stays on, the key
+// counts as not written, and the rejection names the key, the valid values
+// and the default true.
+func TestTbdPageIsOnByDefaultAndRejectsOtherValues(t *testing.T) {
+	cases := append(pageCasesWithDefault("tbd_page", PageOn),
 		unlistedPageCase{"unlisted", "tbd_page: unlisted\n" + valid, "", PageUnlisted})
-	wantUnlistedPageKey(t, "tbd_page", ErrTbdPage, cases)
+	wantPageKey(t, "tbd_page", ErrTbdPage, PageOn, cases)
 }
 
 // pageModeOf is the PageMode the config holds for the page key.

@@ -138,9 +138,11 @@ projects:
     has no entry in the menu.
 
   Left out, or without a value, `issues_page` is `true`, `days_page` is
-  `false`, and `numbers_scoring_page`, `history_page` and `tbd_page` are
-  `unlisted` (forsgren#200, from 1.8.2; before 1.8.2 both were `false`, see
-  [Installing and updating](updating-and-releases.md#installing-and-updating)).
+  `false`, `numbers_scoring_page` and `history_page` are `unlisted`
+  (forsgren#200, from 1.8.2; before 1.8.2 both were `false`, see
+  [Installing and updating](updating-and-releases.md#installing-and-updating)),
+  and `tbd_page` is `true` (forsgren#409: the TBD page left beta and is on by
+  default; it was `unlisted` before).
   These built-in defaults are not the starter's values: a new installation
   starts with the Issues page off, because the starter writes
   `issues_page: false` (forsgren#285), while an installation whose config
@@ -156,7 +158,7 @@ projects:
   The legend explains the three values and the defaults. The starter that
   `init-config` writes includes `issues_page: false`, `days_page: false`,
   `numbers_scoring_page: unlisted`, `history_page: unlisted` and
-  `tbd_page: unlisted`. The pages:
+  `tbd_page: true`. The pages:
   - **`issues_page`**: the Issues page (`issues.html`, forsgren#159).
   - **`days_page`**: the Daily page (`days.html`, forsgren#159). From 1.3.0
     an installation that does not set `days_page` has no Daily page.
@@ -350,7 +352,7 @@ example with made-up `acme` names (the default deployment, `workflow=` and
 `auto_update_level: major`, `history_days: 365`,
 `history_chunk_days: 100`, `working_hours: 8`, `dora_days: 30`,
 `issues_page: false`, `days_page: false`, `numbers_scoring_page: unlisted`,
-`history_page: unlisted`, `tbd_page: unlisted` and `projects: []`, so
+`history_page: unlisted`, `tbd_page: true` and `projects: []`, so
 `check-config` accepts it as it is: `projects: 0, repositories: 0`. When the file exists,
 whatever it holds (even an invalid or an empty file), it is left byte for
 byte and the command prints `kept forsgren.config.yml`; both exit 0. The file
@@ -368,8 +370,8 @@ the forsgren that rendered it, and shows each project's deployment frequency,
 lead time for changes, failed deployment recovery time and change fail
 rate (and the deployment rework rate); every run writes the page in each view too, at
 `/standard/`, `/numbers/` and `/scoring/`, and, unless their key is `false`, the Numbers and scoring page at
-`/numbers-scoring/`, the History page at `history.html` and the TBD page at `tbd.html`, all unlisted by
-default (see [The page](pages-and-views.md#the-page)). That version has one source,
+`/numbers-scoring/`, the History page at `history.html` (unlisted by default) and the TBD page at `tbd.html` (listed by
+default) (see [The page](pages-and-views.md#the-page)). That version has one source,
 the `version` variable in `cmd/forsgren/main.go`; a release build can set
 it with `-ldflags "-X main.version=<version>"`. `forsgren collect` reads
 GitHub into the history file (see [Collecting deployments](data-files.md#collecting-deployments-collect)); the daily run

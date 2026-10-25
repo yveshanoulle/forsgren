@@ -16,9 +16,9 @@ import (
 // that says why there is none.
 
 // tbdTitle is the TBD page's title, its h1 and the legend's heading for it,
-// as Yves wrote it (forsgren#271): the name, then the beta marker the History
-// page has too (betaMarker, " (BETA)", in capitals).
-const tbdTitle = "Trunk-based development [TBD]" + betaMarker
+// as Yves wrote it (forsgren#271): the name alone since the page left beta
+// (forsgren#409); the History page keeps its beta marker (betaMarker).
+const tbdTitle = "Trunk-based development [TBD]"
 
 // pullsUncollectedCell is the Mainline Lead Time cell while data/pulls.csv
 // is absent: no collect has stored pull requests yet (forsgren#256, step 2).

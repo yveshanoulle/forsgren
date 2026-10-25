@@ -9,6 +9,19 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — The TBD page leaves beta and is on by default ([#409](https://github.com/yveshanoulle/forsgren/issues/409), 1 step)
+
+forsgren issue 409, feature, minor release, as Yves worded it. Two things an installation sees change. (1) The TBD page has no BETA marker: its title and h1 read "Trunk-based development [TBD]" (`tbdTitle` in `tbd.go` no longer adds `betaMarker`), and so does the legend's TBD section heading. The History page keeps its marker. (2) `tbd_page` defaults to `true` instead of `unlisted` (`tbdPage` in `pagemode.go`): an installation whose config has no `tbd_page` key gets the TBD page in its menu, after History, and the page no longer carries the noindex tag. `unlisted` and `false` work as before, and the accepted values are unchanged.
+- Follows the default: the settings page Default column (`true`, from the config), the starter config (`tbd_page: true`), the legend's sentences on the default (the TBD section and the page-keys paragraph), `docs/configuration.md`, `docs/pages-and-views.md`, `install/README.md`, `agent-installer.md` (the settings proof reads `true (not set)` for `tbd_page`), and `CLAUDE.md`.
+- `docs/updating-and-releases.md` has an upgrade note: an installation without `tbd_page` in its config gets the TBD page in its menu with this release.
+- Red first: the TBD title and h1 without BETA, the legend heading, the config default and its rejection default, the settings defaults, the render of an absent `tbd_page` (menu entry, no noindex) and the installer proof, each seen failing before the change. Goldens regenerated: `tbd*`, `legend`, `settings*`.
+
+Signed: Lenka B
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The setup issue names a FORSGREN_TOKEN that was refused the pull request read ([#321](https://github.com/yveshanoulle/forsgren/issues/321), 2 steps)
 
 forsgren issue 321, bug, patch release. On route B (a fine-grained `FORSGREN_TOKEN`) the setup issue could not see that the token lacked Pull requests (read); a refusal only showed on stderr during collect. Step 1: `data/pulls_denied.csv` is the pulls denied format v2, `repository,denied_at,token`: the token column is the name of the token that was refused (`FORSGREN_TOKEN`, `GITHUB_TOKEN`), never its value (a column that is not an upper-case variable name refuses the file on read and on write, without quoting it). A v1 file is still read, every token name empty, and written again as v2 by the next save; render reads both. Step 2: `forsgren check-needs` reads the file (`--pulls-denied`, `data/pulls_denied.csv` by default) and adds one setup issue item per refused repository: for `GITHUB_TOKEN` the `pull-requests: read` line for the forsgren job, for any other token its own repository permission Pull requests: Read, for a v1 line both fixes, each with its token. The item goes away on the run after a read of the repository worked, because collect then clears its line. A file in no known format is a note on stderr and no item (#395 makes a corrupt file fail; not done here). The push read (`data/pushes_denied.csv`) gets no token column and no item in this issue: it stays on its own follow-up.

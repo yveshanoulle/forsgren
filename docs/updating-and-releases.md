@@ -537,6 +537,17 @@ configured. A commit GitHub links to no account keeps an empty author. An
 agent following [agent-upgrade.md](../agent-upgrade.md) needs to ask you
 nothing about it.
 
+**Upgrading to 1.21.0, which puts the TBD page in the menu** (forsgren#409). A
+minor release. The TBD page leaves beta: its title, its heading and the
+legend's section heading no longer say BETA, and `tbd_page` is now `true` by
+default instead of `unlisted`. An installation whose `forsgren.config.yml` has
+no `tbd_page` key gets the TBD page in its menu, after History, with this
+release, and the page no longer asks search engines to skip it. To keep it out
+of the menu as before, set `tbd_page: unlisted`; `tbd_page: false` does not
+generate it. A config that already sets the key is not changed. Nothing new is
+needed: no permission, secret or file. An agent following
+[agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing about it.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`

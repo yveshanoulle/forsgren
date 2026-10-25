@@ -713,7 +713,7 @@ Then check what the run did:
 
    For example `;view;numbers;standard, numbers, scoring;standard;`. The
    last field of each row is the default of the key: `standard`, `false`,
-   `major`, `365`, `100`, `8`, `30`, `true`, `false`, `unlisted`, `unlisted`, `unlisted`, for the rows
+   `major`, `365`, `100`, `8`, `30`, `true`, `false`, `unlisted`, `unlisted`, `true`, for the rows
    `view` to `tbd_page` in the page's order.
    - The rows `view`, `auto_update`, `auto_update_level`,
      `history_days`, `dora_days`, `issues_page`, `days_page`,
@@ -721,8 +721,8 @@ Then check what the run did:
      without `(not set)` (the file sets the key).
    - The rows `history_chunk_days`, `working_hours` and `tbd_page` are left to
      their defaults: `history_chunk_days` shows `100 (not set)`, `working_hours`
-     shows `8 (not set)` and `tbd_page` shows `unlisted (not set)` (the TBD
-     page, `tbd.html`, is generated and unlisted; the installer does not ask
+     shows `8 (not set)` and `tbd_page` shows `true (not set)` (the TBD
+     page, `tbd.html`, is generated and in the menu; the installer does not ask
      about it).
    - Twelve rows in all. A row missing or different: stop and report.
 9. The footer names the pinned version:

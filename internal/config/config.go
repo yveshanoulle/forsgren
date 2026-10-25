@@ -198,8 +198,8 @@ type Config struct {
 	// HistoryPage is how the history page is handled, PageUnlisted when the file
 	// has no history_page key (forsgren#68, #199, #200).
 	HistoryPage PageMode
-	// TbdPage is how the TBD page is handled, PageUnlisted when the file has no
-	// tbd_page key (forsgren#253).
+	// TbdPage is how the TBD page is handled, PageOn when the file has no
+	// tbd_page key (forsgren#253, forsgren#409).
 	TbdPage PageMode
 	// SameDeveloper is the groups of GitHub logins that count as one developer,
 	// as written, nil when the file has none (forsgren#361).

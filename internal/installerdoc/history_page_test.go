@@ -40,12 +40,12 @@ func TestInstallerAsksForTheHistoryPage(t *testing.T) {
 
 // TestInstallerProvesTwelveSettingsRows (forsgren#68, #253): the settings page
 // proof lists history_page as written in the config, tbd_page as left to its
-// default, unlisted, twelve rows in all, and "Changing a setting later" names
+// default, true, twelve rows in all, and "Changing a setting later" names
 // both keys.
 func TestInstallerProvesTwelveSettingsRows(t *testing.T) {
 	proof := asOneLine(section(t, installerFile, "Step 12."))
 	wantAll(t, "agent-installer.md step 12", proof, "`history_page`", "Twelve rows in all",
-		"`tbd_page` shows `unlisted (not set)`")
+		"`tbd_page` shows `true (not set)`")
 	for _, stale := range []string{"Ten rows in all", "Eleven rows in all"} {
 		if strings.Contains(proof, stale) {
 			t.Errorf("agent-installer.md step 12 still says %q", stale)

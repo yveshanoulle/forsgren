@@ -24,7 +24,7 @@ var modePages = []modePage{
 	{"issues_page", "issues.html", "issues.html", config.PageOn},
 	{"days_page", "days.html", "days.html", config.PageOff},
 	{"history_page", "history.html", "history.html", config.PageUnlisted},
-	{"tbd_page", "tbd.html", "tbd.html", config.PageUnlisted},
+	{"tbd_page", "tbd.html", "tbd.html", config.PageOn},
 	{"numbers_scoring_page", "numbers-scoring/index.html", "numbers-scoring/", config.PageUnlisted},
 }
 

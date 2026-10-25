@@ -35,7 +35,7 @@ const starterConfig = "version: 1\nview: standard\nauto_update: true\n" +
 	"days_page: false  # the Daily page. " + pageValuesComment + "\n" +
 	"numbers_scoring_page: unlisted  # the Numbers and scoring page. " + pageValuesComment + "\n" +
 	"history_page: unlisted  # the History page. " + pageValuesComment + "\n" +
-	"tbd_page: unlisted  # the Trunk-based development (TBD) page. " + pageValuesComment + "\n" +
+	"tbd_page: true  # the Trunk-based development (TBD) page. " + pageValuesComment + "\n" +
 	"projects: []\n"
 
 // isStarterLine says whether a line may stand in the starter: blank, a
@@ -483,11 +483,11 @@ func TestStarterWritesHistoryPageUnlisted(t *testing.T) {
 }
 
 // tbdPageLine is the starter's tbd_page line (forsgren#253).
-const tbdPageLine = "tbd_page: unlisted  # the Trunk-based development (TBD) page. " + pageValuesComment
+const tbdPageLine = "tbd_page: true  # the Trunk-based development (TBD) page. " + pageValuesComment
 
-// TestStarterWritesTbdPageUnlisted (forsgren#253): the starter writes
-// tbd_page: unlisted right after history_page, with its comment.
-func TestStarterWritesTbdPageUnlisted(t *testing.T) {
+// TestStarterWritesTbdPageOn (forsgren#253, forsgren#409): the starter writes
+// tbd_page: true right after history_page, with its comment.
+func TestStarterWritesTbdPageOn(t *testing.T) {
 	lines := starterLines()
 	i := slices.Index(lines, historyPageLine)
 	if i < 0 || slices.Index(lines, tbdPageLine) != i+1 {

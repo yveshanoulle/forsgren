@@ -34,14 +34,15 @@ type pageKey struct {
 }
 
 // The page keys and their defaults (forsgren#200): the issues page is listed,
-// the days page is not generated, and the numbers and scoring page, the
-// history page and the TBD page (forsgren#253) are unlisted.
+// the days page is not generated, the numbers and scoring page and the
+// history page are unlisted, and the TBD page (forsgren#253) is listed
+// since forsgren#409.
 var (
 	issuesPage         = pageKey{ErrIssuesPage, "issues_page", PageOn}
 	daysPage           = pageKey{ErrDaysPage, "days_page", PageOff}
 	numbersScoringPage = pageKey{ErrNumbersScoringPage, "numbers_scoring_page", PageUnlisted}
 	historyPage        = pageKey{ErrHistoryPage, "history_page", PageUnlisted}
-	tbdPage            = pageKey{ErrTbdPage, "tbd_page", PageUnlisted}
+	tbdPage            = pageKey{ErrTbdPage, "tbd_page", PageOn}
 )
 
 // pageKeys are the page keys, in the order of the settings page.

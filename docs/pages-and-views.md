@@ -416,7 +416,7 @@ a path on github.com (forsgren#172):
   and the count it is over, "Less than one day · 2 h 7 min (48)"; the
   weekend deployments have their own column. Durations are in min, h and d,
   each part cut down, never rounded up.
-- **Pages:** up to eleven pages are written: `index.html`, `legend.html`, `settings.html`, `issues.html`, `days.html`, `history.html`, `tbd.html`, the three views and the Numbers and scoring page. Every page opens with one menu, "View: Standard · Numbers · Scoring · Numbers and scoring · Issues · Daily · History · TBD" (forsgren#128, decision #133, forsgren#55, forsgren#68, forsgren#253): the three views, then the Numbers and scoring page, `numbers-scoring/`, then the issues page, `issues.html`, the days page, `days.html`, labelled Daily, the History page, `history.html`, and the TBD page, `tbd.html`, labelled TBD; one folder down its links go through `../`. The current page is plain text marked `aria-current="page"`; the root marks the view it shows `aria-current="true"` (see Views), and the settings and legend pages mark none. No page has a link back to the table, since the menu reaches it, and every page ends with the same footer, the version line and then Settings and Legend. Five pages have a key that takes `true`, `unlisted` or `false` (forsgren#159, #55, #68, #200, #253; see [Configuration](configuration.md#configuration)): `issues_page` for `issues.html`, `days_page` for `days.html`, `numbers_scoring_page` for `numbers-scoring/`, `history_page` for `history.html` and `tbd_page` for `tbd.html`. `true` generates the page and lists it in the menu. `false` does not generate it, removes it from the site if an earlier run wrote it (the Numbers and scoring page's folder too, once empty), and leaves it out of the menu. The defaults are `issues_page: true`, `days_page: false`, `numbers_scoring_page: unlisted`, `history_page: unlisted` (from 1.8.2) and `tbd_page: unlisted`; the starter that `init-config` writes sets `issues_page: false` and `days_page: false`, so a new installation starts with both off (forsgren#285). A render without a config, as forsgren's own build, writes and lists all eleven. The legend explains the five keys and their three values on every page set.
+- **Pages:** up to eleven pages are written: `index.html`, `legend.html`, `settings.html`, `issues.html`, `days.html`, `history.html`, `tbd.html`, the three views and the Numbers and scoring page. Every page opens with one menu, "View: Standard · Numbers · Scoring · Numbers and scoring · Issues · Daily · History · TBD" (forsgren#128, decision #133, forsgren#55, forsgren#68, forsgren#253): the three views, then the Numbers and scoring page, `numbers-scoring/`, then the issues page, `issues.html`, the days page, `days.html`, labelled Daily, the History page, `history.html`, and the TBD page, `tbd.html`, labelled TBD; one folder down its links go through `../`. The current page is plain text marked `aria-current="page"`; the root marks the view it shows `aria-current="true"` (see Views), and the settings and legend pages mark none. No page has a link back to the table, since the menu reaches it, and every page ends with the same footer, the version line and then Settings and Legend. Five pages have a key that takes `true`, `unlisted` or `false` (forsgren#159, #55, #68, #200, #253; see [Configuration](configuration.md#configuration)): `issues_page` for `issues.html`, `days_page` for `days.html`, `numbers_scoring_page` for `numbers-scoring/`, `history_page` for `history.html` and `tbd_page` for `tbd.html`. `true` generates the page and lists it in the menu. `false` does not generate it, removes it from the site if an earlier run wrote it (the Numbers and scoring page's folder too, once empty), and leaves it out of the menu. The defaults are `issues_page: true`, `days_page: false`, `numbers_scoring_page: unlisted`, `history_page: unlisted` (from 1.8.2) and `tbd_page: true` (it was `unlisted` before forsgren#409); the starter that `init-config` writes sets `issues_page: false` and `days_page: false`, so a new installation starts with both off (forsgren#285). A render without a config, as forsgren's own build, writes and lists all eleven. The legend explains the five keys and their three values on every page set.
 - **Unlisted pages** (forsgren#200, from 1.8.2): a page whose key is `unlisted` is generated, but no menu names it, not even its own, and its `<head>` carries `<meta name="robots" content="noindex">`. It is reachable by its address, `history.html`, `tbd.html` or `numbers-scoring/`, so you can look at it before you list it. Unlisted is discoverable, not private: noindex asks compliant search engines not to index the page; it does not enforce access control. Anyone who knows or guesses the address can open it. Only an unlisted page carries the tag; set the key to `true` and the next run lists the page and drops the tag. Up to 0.8.3 the days page was `issues.html` and the issues page `months.html`; 0.8.4 renamed them with no redirect (decision #133), and `months.html` is gone.
 - **Meta description** (forsgren#208, from 1.9.2): every page's `<head>` carries `<meta name="description">`, the text a search result shows under the page's title. It is one fixed sentence per page, chosen by the page's name alone: it names no project, repository, number, date or title, so the head shows nothing the page does not, and two installations get the same sentences. Every sentence ends with the same words, " generated by Forsgren", with no comma before them and no closing period. The root, `index.html`, takes the sentence of the view it shows, so a root set to the numbers view has the numbers sentence, and a root without a view the standard one; the placeholder and no-projects pages read as their page does:
 
@@ -713,9 +713,9 @@ it in the menu after Daily, "History"; `false` leaves it out.
 
 - **Beta.** The page is marked beta (forsgren#198, from 1.8.2): its title,
   its heading and the legend's History section heading read "History
-  (BETA)", in capitals as the TBD page's title does (one marker, `betaMarker`,
-  forsgren#271); the menu entry stays "History". When the page leaves beta, all
-  three go back together.
+  (BETA)", in capitals (one marker, `betaMarker`, forsgren#271); the menu entry
+  stays "History". When the page leaves beta, all three go back together. The
+  TBD page left beta in forsgren#409 and has no marker.
 - **How to read it.** Under the heading one line says how to read the page:
   "Each column is a period: the calendar half-years, then the last 6 months.
   A cell is the number and its score (0 to 10), number · score. The chart
@@ -799,16 +799,17 @@ it in the menu after Daily, "History"; `false` leaves it out.
 
 ### The TBD page
 
-The TBD page (`tbd.html`, titled "Trunk-based development [TBD] (BETA)", forsgren#253, forsgren#271)
+The TBD page (`tbd.html`, titled "Trunk-based development [TBD]", forsgren#253, forsgren#271, forsgren#409)
 shows, for each project, how often and how fast work reaches the main branch
 and how it is deployed: the commits the pushes brought, their shares, the time
 to main and the time to deploy, the commits per push and per deployment, then
 the PR Lead Time, the Mainline Interval and the Developers (forsgren#397,
-Yves's ruling on #401). It is unlisted
-by default: generated and reachable at `tbd.html`, with no menu entry and a
+Yves's ruling on #401). It is listed
+by default (forsgren#409; before, it was unlisted): generated, in the menu and
+without a noindex tag; `tbd_page: unlisted` gives it no menu entry and a
 noindex tag (see Unlisted pages under [The page](#the-page), and
-[Configuration](configuration.md#configuration)). `tbd_page: true` lists it
-last in the menu, "TBD"; `false` leaves it out.
+[Configuration](configuration.md#configuration)). It is last in the menu,
+"TBD"; `false` leaves it out.
 
 - **The table.** A row per project and, under two rows of headers (every
   group header `scope="colgroup"`, mean, median and p90 beneath each measure),
@@ -1034,8 +1035,8 @@ last in the menu, "TBD"; `false` leaves it out.
 
 The page itself has the heading and the table, or its one line. The
 explanation above, with the window in force, is the legend's section for the
-page, headed with the same title; the menu entry stays "TBD". The BETA marker
-is the History page's too, written in capitals.
+page, headed with the same title; the menu entry stays "TBD". The page has no
+BETA marker since forsgren#409; the History page keeps its marker.
 
 ## Privacy
 

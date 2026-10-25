@@ -108,10 +108,9 @@ var legendTbdText = []string{
 	"The Mainline Interval shows how often the deployed commits landed on the main branch, " +
 		"by committer date, in the window",
 	"A short interval with a long lead time points at long-lived branches",
-	"The TBD page is unlisted by default (tbd_page: unlisted): it is " +
-		"generated and can be opened at tbd.html, but it has no menu entry and search" +
-		" engines are asked to skip it. Set tbd_page: true to put it in the menu, or " +
-		"tbd_page: false to not generate it.",
+	"The TBD page is listed by default (tbd_page: true): it is generated and in the menu. " +
+		"Set tbd_page: unlisted to generate it with no menu entry, so that search engines are asked to skip it, " +
+		"or tbd_page: false to not generate it.",
 }
 
 // legendLeadText are the sentences that say what each number of the Mainline
@@ -244,7 +243,7 @@ func TestLegendExplainsTheTbdPage(t *testing.T) {
 	if !strings.Contains(rendered(t, "legend.html", data), "deployments of the last 90 days shipped") {
 		t.Error("want the TBD section to name the window in force")
 	}
-	tbdHeading, historyHeading := "<h2>Trunk-based development [TBD] (BETA)</h2>", "<h2>History page (BETA)</h2>"
+	tbdHeading, historyHeading := "<h2>Trunk-based development [TBD]</h2>", "<h2>History page (BETA)</h2>"
 	if strings.Index(got, tbdHeading) < strings.Index(got, historyHeading) {
 		t.Error("want the TBD page section after the History page section")
 	}
@@ -266,7 +265,7 @@ func TestLegendRetiresTheAuthorDateWording(t *testing.T) {
 // the next heading.
 func legendTbdSection(t *testing.T, legend string) string {
 	t.Helper()
-	_, section, found := strings.Cut(legend, "<h2>Trunk-based development [TBD] (BETA)</h2>")
+	_, section, found := strings.Cut(legend, "<h2>Trunk-based development [TBD]</h2>")
 	if !found {
 		t.Fatal("want a TBD page section in the legend")
 	}

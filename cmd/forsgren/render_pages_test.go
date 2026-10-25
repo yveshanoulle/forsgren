@@ -20,8 +20,8 @@ const numbersScoringOn = "numbers_scoring_page: true\n"
 // leaves unlisted unless it sets history_page: true (forsgren#68, #200).
 const historyOn = "history_page: true\n"
 
-// tbdOn is the config line that lists the TBD page, which a config leaves
-// unlisted unless it sets tbd_page: true (forsgren#253).
+// tbdOn is the config line that lists the TBD page, which a config lists
+// unless it sets tbd_page: unlisted or false (forsgren#253, forsgren#409).
 const tbdOn = "tbd_page: true\n"
 
 // writeAllPagesConfig writes the config content with daysOn, numbersScoringOn,

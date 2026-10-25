@@ -22,7 +22,7 @@ func TestSettingsListsEveryKeyWithItsDefault(t *testing.T) {
 		{Key: "days_page", Value: "false", Default: "false"},
 		{Key: "numbers_scoring_page", Value: "unlisted", Default: "unlisted"},
 		{Key: "history_page", Value: "unlisted", Default: "unlisted"},
-		{Key: "tbd_page", Value: "unlisted", Default: "unlisted"},
+		{Key: "tbd_page", Value: "true", Default: "true"},
 		{Key: "same_developer", Value: "[]", Default: "[]"},
 	})
 }
@@ -45,7 +45,7 @@ func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 		{Key: "days_page", Value: "true", Default: "false", Set: true},
 		{Key: "numbers_scoring_page", Value: "true", Default: "unlisted", Set: true},
 		{Key: "history_page", Value: "false", Default: "unlisted", Set: true},
-		{Key: "tbd_page", Value: "true", Default: "unlisted", Set: true},
+		{Key: "tbd_page", Value: "true", Default: "true", Set: true},
 		{Key: "same_developer", Value: "[[maintainer, assistant-account]]", Default: "[]", Set: true},
 	})
 }
@@ -92,7 +92,7 @@ func TestAListOrMappingForASettingIsRejectedNotSyntax(t *testing.T) {
 		{"days_page", "use true, unlisted or false", "false", ErrDaysPage},
 		{"numbers_scoring_page", "use true, unlisted or false", "unlisted", ErrNumbersScoringPage},
 		{"history_page", "use true, unlisted or false", "unlisted", ErrHistoryPage},
-		{"tbd_page", "use true, unlisted or false", "unlisted", ErrTbdPage},
+		{"tbd_page", "use true, unlisted or false", "true", ErrTbdPage},
 		{"same_developer", sameDeveloperShape, "[]", ErrSameDeveloper},
 	}
 	for _, k := range keys {
@@ -151,7 +151,7 @@ func TestSettingsCarriesEachRejection(t *testing.T) {
 		{Key: "days_page", Value: "false", Default: "false"},
 		{Key: "numbers_scoring_page", Value: "unlisted", Default: "unlisted"},
 		{Key: "history_page", Value: "unlisted", Default: "unlisted"},
-		{Key: "tbd_page", Value: "unlisted", Default: "unlisted"},
+		{Key: "tbd_page", Value: "true", Default: "true"},
 		{Key: "same_developer", Value: "[]", Default: "[]"},
 	})
 }
@@ -189,7 +189,7 @@ func TestSettingsShowsARejectedDoraDaysLikeTheOtherKeys(t *testing.T) {
 func TestSettingsExposeTheDefaultOfEveryKey(t *testing.T) {
 	want := []string{
 		"standard", "false", "major", "365", "100", "8", "30",
-		"true", "false", "unlisted", "unlisted", "unlisted", "[]",
+		"true", "false", "unlisted", "unlisted", "true", "[]",
 	}
 	for _, file := range []string{"", "history_days: 90\nview: numbers\n"} {
 		got, err := parse([]byte(file + valid))
