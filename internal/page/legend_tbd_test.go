@@ -325,3 +325,35 @@ func TestLegendTbdSectionHasASubHeadingForEachGroup(t *testing.T) {
 		}
 	}
 }
+
+// legendLeadVersusDeployText are the sentences of the legend's Time to deploy
+// per commit part that say how it differs from Lead time for changes
+// (forsgren#421), as the code does it: leadtime.go counts every stored commit
+// once for each deployment, deploymeasures.go and maindirect.go only the
+// first-parent chain, each commit once at its first deployment.
+var legendLeadVersusDeployText = []string{
+	"Lead time for changes (the DORA pages) and Time to deploy per commit both time a commit from its author " +
+		"date to a deployment, over the same last 30 days, and a negative time counts as 0",
+	"Lead time for changes counts every commit a deployment brought, also the commits a merge brought in from " +
+		"a branch, once for each deployment that shipped it, and shows the median with its DORA Quick Check level",
+	"Time to deploy per commit counts only the commits of the first-parent chain, a merge as its merge commit, " +
+		"each once, at its first deployment, and shows the mean, the median and the p90",
+	"With several services the same commit is deployed several times, and Lead time for changes, which counts " +
+		"the later deployments too, comes out longer",
+}
+
+// TestLegendSaysHowLeadTimeAndTimeToDeployDiffer (forsgren#421): the Time to
+// deploy per commit part carries the paragraph, and the Lead time for changes
+// part points to it by the heading id.
+func TestLegendSaysHowLeadTimeAndTimeToDeployDiffer(t *testing.T) {
+	got := rendered(t, "legend.html", calculated())
+	section := legendTbdSection(t, got)
+	for _, want := range wordingWhere(legendLeadVersusDeployText, section, false) {
+		t.Errorf("want %q in the TBD page section", want)
+	}
+	_, lead, _ := strings.Cut(got, "<h2>Lead time for changes</h2>")
+	lead, _, _ = strings.Cut(lead, "<h2>")
+	if !strings.Contains(lead, `<a href="#tbd-time-to-deploy-per-commit">Time to deploy per commit</a>`) {
+		t.Errorf("want a link to #tbd-time-to-deploy-per-commit in the Lead time for changes part, got %q", lead)
+	}
+}

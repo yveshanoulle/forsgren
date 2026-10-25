@@ -9,6 +9,17 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — The legend says how Lead time for changes and Time to deploy per commit differ ([#421](https://github.com/yveshanoulle/forsgren/issues/421), 1 step)
+
+forsgren issue 421, feature, patch release; it ships with #398, #399, #417, #422, #423 and #426. The two measures looked alike and gave different numbers, and the legend did not say why. Checked against the code first (`internal/metrics`: `LeadTimes` in `leadtime.go`, `firstDeployments` in `maindirect.go`, `DeployMeasuresOf` in `deploymeasures.go`), and the code agrees on every point: both time a commit from its author date to a deployment in the same window, a negative time as 0; Lead time for changes takes every stored commit of a deployment (also those a merge brought in), once for each deployment that shipped it, and shows the median and its band; Time to deploy takes the first-parent chain only, each commit once at its first deployment, and shows mean, median and p90. So a commit shipped by several deployments is counted at each by Lead time for changes and at the first only by Time to deploy.
+
+- The legend: a paragraph under the Time to deploy per commit heading of the TBD section, and a sentence in the Lead time for changes part that links to the heading id `tbd-time-to-deploy-per-commit`. Kinds only, no project names. The agent documents do not describe these metrics and are unchanged.
+- Red first: `TestLegendSaysHowLeadTimeAndTimeToDeployDiffer`, seen failing for the four sentences and the link before the text. Golden regenerated: `legend`.
+
+Signed: Lenka B
+
+---
+
 ## 2026-10-25 — The TBD table has a new order of column groups ([#418](https://github.com/yveshanoulle/forsgren/issues/418), 1 step)
 
 forsgren issue 418, feature, patch release, as Yves worded it; it ships in 1.21.0 with #409. The TBD table lists its groups in this order after Project: Mainline Interval, Time to main per commit (duration), Time to deploy per commit (duration), PR Lead Time, Volume, Commits per push, Commits per deployment, Shares of commits, Developers. The columns inside each group keep their order. The two header rows, the column groups, the scopes and the aria-labels follow, and so do the cells of a row.
