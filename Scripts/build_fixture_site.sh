@@ -20,7 +20,7 @@
 # After the render the script checks that the pages it exists for carry data,
 # and is red when they do not: the History page has a chart, the Daily and
 # Issues pages have rows, and the TBD page has a Mainline Interval row and a
-# Mainline Lead Time with pull requests. A fixture that stopped showing data would otherwise
+# PR Lead Time with pull requests. A fixture that stopped showing data would otherwise
 # let the browser gate go back to checking the placeholder.
 #
 # Usage: Scripts/build_fixture_site.sh [out-dir]   (default .build/site-fixture)
@@ -83,20 +83,22 @@ history_shows_chart() {
 if ! history_shows_chart; then
   fail "history.html shows no chart: the fixture has no history the page can show"
 fi
-# The TBD page has a Mainline Interval row with a mean and a count of gaps, not
-# only dashes (forsgren#253; five cells since forsgren#387), found at the start of
-# its row, right after the project, since the Mainline Interval group comes first (forsgren#418).
+# The TBD page has a Mainline Interval row with a mean, not only dashes
+# (forsgren#253; the fixture config sets tbd_figures: all, so three cells since
+# forsgren#423), found at the start of its row, right after the project, since
+# the Mainline Interval group comes first (forsgren#418).
 tbd_shows_interval() {
   [[ -f "${STAGE}/tbd.html" ]] && tr -d '\n' <"${STAGE}/tbd.html" \
-    | grep -qE '<th scope="row">[^<]*</th> *<td[^>]*>[^<-][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td>[^<]*</td> *){3}<td>[0-9]+[^<]*</td>'
+    | grep -qE '<th scope="row">[^<]*</th> *<td[^>]*>[^<-][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td>[^<]*</td> *){2}<td>[^<]*</td>'
 }
 if ! tbd_shows_interval; then
   fail "tbd.html shows no Mainline Interval: the fixture has no commits the page can show"
 fi
-# The TBD page has a Mainline Lead Time cell with pull requests and its notes,
-# not 'not collected yet' (forsgren#350, decision #336).
+# The TBD page has a PR Lead Time mean with a duration and the note on the bot
+# pull requests the fixture has, not 'not collected yet' (forsgren#350, decision
+# #336; the cell has no sentence since forsgren#423).
 tbd_shows_lead_time() {
-  grep -qE '<td[^>]*>[^<]* pull requests merged within 24 hours of their first commit[^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>' "${STAGE}/tbd.html" \
+  grep -qE '<td aria-describedby="[^"]*tbd-note-5[^"]*">[0-9][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>' "${STAGE}/tbd.html" \
     && ! grep -qF 'No pull requests have been collected yet' "${STAGE}/tbd.html"
 }
 if ! tbd_shows_lead_time; then

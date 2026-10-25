@@ -68,17 +68,16 @@ func TestMainlineLeadTimeComparesRefusedRepositoriesWithoutCase(t *testing.T) {
 	}
 }
 
-// TestMainlineLeadTimeCellSaysNotReadable (forsgren#337, step 2): a project
-// not readable shows "Pull requests not readable", never a lead time of the
-// repositories that were read nor the dash of no pull request.
-func TestMainlineLeadTimeCellSaysNotReadable(t *testing.T) {
+// TestMainlineLeadTimeStateSaysNotReadable (forsgren#337, step 2): a project
+// not readable has the state "Pull requests not readable", never a lead time of
+// the repositories that were read nor the dash of no pull request.
+func TestMainlineLeadTimeStateSaysNotReadable(t *testing.T) {
 	const want = "Pull requests not readable"
 	for name, lead := range map[string]MainlineLeadTime{
-		"no pull request": {NotReadable: true},
-		"pull requests read": {NotReadable: true, PullRequests: 2, Mean: time.Hour, Deviation: time.Minute,
-			WithinReference: 2},
+		"no pull request":    {NotReadable: true},
+		"pull requests read": {NotReadable: true, PullRequests: 2, Mean: time.Hour, Median: time.Hour},
 	} {
-		if got := lead.Cell().Value; got != want {
+		if got := lead.State(); got != want {
 			t.Errorf("%s: want %q, got %q", name, want, got)
 		}
 	}

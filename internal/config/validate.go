@@ -52,16 +52,17 @@ func (f fileConfig) settings() Config {
 	numbersScoring, numbersScoringRejection := numbersScoringPage.mode(f.NumbersScoringPage)
 	historyOn, historyRejection := historyPage.mode(f.HistoryPage)
 	tbdOn, tbdRejection := tbdPage.mode(f.TbdPage)
+	figures, figuresRejection := checkTbdFigures(f.TbdFigures)
 	groups, groupsRejection := checkSameDeveloper(f.SameDeveloper)
 	rejected := rejections(viewRejection, autoRejection, levelRejection, daysRejection, chunkRejection, hoursRejection,
 		doraRejection, issuesRejection, daysOnRejection, numbersScoringRejection, historyRejection, tbdRejection,
-		groupsRejection)
+		figuresRejection, groupsRejection)
 	written := f.written(rejected)
 	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level,
 		HistoryDays: days, HistoryChunkDays: chunk, WorkingHours: hours, WorkingHoursSet: written["working_hours"],
 		DoraDays: doraDays, DoraDaysSet: written["dora_days"], IssuesPage: issues, DaysPage: daysOn,
 		NumbersScoringPage: numbersScoring, HistoryPage: historyOn, TbdPage: tbdOn,
-		SameDeveloper: groups, written: written, Rejected: rejected}
+		TbdFigures: figures, SameDeveloper: groups, written: written, Rejected: rejected}
 }
 
 // rejections are the non-nil rejections, in the order of settingKeys, the
@@ -87,7 +88,8 @@ func (f fileConfig) written(rejected []Rejection) map[string]bool {
 		"auto_update_level": f.AutoUpdateLevel, "history_days": f.HistoryDays,
 		"history_chunk_days": f.HistoryChunkDays, "working_hours": f.WorkingHours, "dora_days": f.DoraDays,
 		"issues_page": f.IssuesPage, "days_page": f.DaysPage, "numbers_scoring_page": f.NumbersScoringPage,
-		"history_page": f.HistoryPage, "tbd_page": f.TbdPage, "same_developer": f.SameDeveloper} {
+		"history_page": f.HistoryPage, "tbd_page": f.TbdPage, "tbd_figures": f.TbdFigures,
+		"same_developer": f.SameDeveloper} {
 		keys = mark(keys, key, hasValue(node))
 	}
 	for _, r := range rejected {

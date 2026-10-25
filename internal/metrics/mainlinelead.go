@@ -25,17 +25,14 @@ package metrics
 //   - a first commit authored after the merge (a clock, a rewritten date) is
 //     a lead time of 0, as lead time for changes counts one: the pull request
 //     is a real integration and stays in the count;
-//   - the mean is the mean of the lead times and the deviation their sample
-//     standard deviation (n-1); one pull request has a mean but no deviation;
-//   - next to the mean, the reference of 24 hours (Yves's ruling on #256,
-//     DORA's branches that live less than a day): WithinReference counts the
-//     pull requests merged 24 hours or less after their first commit,
-//     exactly 24 hours included, the same boundary everywhere (decision
-//     #302), and WithinReferenceShare is their share in whole percent rounded
-//     down. There is no pass or fail verdict;
+//   - the mean is the mean of the lead times, their median (the mean of the two
+//     middle ones for an even count) is shown from two pull requests and their
+//     90th percentile, by nearest rank, from minP90Gaps (forsgren#423, Yves on
+//     #432), as every other spread of the TBD page; the deviation and the share
+//     merged within 24 hours are gone from the page (forsgren#423);
 //   - only the pull requests a person opened count (forsgren#345, step 2,
 //     Yves's answers on #341, #348 and #349: history.ByHuman), in the mean,
-//     the deviation, the count and the share; one a bot opened (ByBot) and
+//     the median, the count and the notes; one a bot opened (ByBot) and
 //     one whose author's account type is not known (BotUnknown, every line
 //     of the pulls format v1 among them) are left out, never taken as human,
 //     and the bots' counted apart in Bots (the others are not counted at all,
@@ -45,7 +42,7 @@ package metrics
 //     as a whole, whatever was read of its other repositories.
 //
 // The result is per project; the TBD page's column (step 2) writes it with
-// Cell, mainlineleadcell.go.
+// its cells, mainlineleadcell.go.
 
 import (
 	"math"
@@ -55,10 +52,6 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
-// leadReference is Mainline Lead Time's reference: a pull request merged this
-// long or less after its first commit counts as within it (forsgren#256).
-const leadReference = 24 * time.Hour
-
 // MainlineLeadTime is one project's Mainline Lead Time at the render time.
 type MainlineLeadTime struct {
 	Project string
@@ -67,12 +60,12 @@ type MainlineLeadTime struct {
 	PullRequests int
 	// Mean is the mean lead time; zero without a pull request.
 	Mean time.Duration
-	// Deviation is the sample standard deviation of the lead times; zero
-	// below two pull requests (see HasDeviation).
-	Deviation time.Duration
-	// WithinReference counts the pull requests merged leadReference or less
-	// after their first commit.
-	WithinReference int
+	// Median is the median lead time; zero below two pull requests (see
+	// HasMedian).
+	Median time.Duration
+	// P90 is the 90th percentile of the lead times, nearest rank; zero below
+	// minP90Gaps pull requests (see HasP90).
+	P90 time.Duration
 	// Cut counts the pull requests whose first commit time came from a cut
 	// commit list, each lead time a lower bound (decision #299).
 	Cut int
@@ -90,19 +83,12 @@ type MainlineLeadTime struct {
 // HasLeadTime says whether a pull request counted, so a mean to show.
 func (m MainlineLeadTime) HasLeadTime() bool { return m.PullRequests > 0 }
 
-// HasDeviation says whether the sample standard deviation exists: it needs
-// two pull requests.
-func (m MainlineLeadTime) HasDeviation() bool { return m.PullRequests > 1 }
+// HasMedian says whether the median is shown: it needs two pull requests.
+func (m MainlineLeadTime) HasMedian() bool { return m.PullRequests > 1 }
 
-// WithinReferenceShare is the share of the counted pull requests merged
-// within the reference, in whole percent rounded down, so 100 only when every
-// one was; 0 without a pull request.
-func (m MainlineLeadTime) WithinReferenceShare() int {
-	if !m.HasLeadTime() {
-		return 0
-	}
-	return m.WithinReference * 100 / m.PullRequests
-}
+// HasP90 says whether the 90th percentile is shown: it needs minP90Gaps pull
+// requests.
+func (m MainlineLeadTime) HasP90() bool { return m.PullRequests >= minP90Gaps }
 
 // MainlineLeadTimes returns the Mainline Lead Time of each project, in the
 // order of projects, from the data's merged pull requests at the render time
@@ -167,22 +153,18 @@ func (m *MainlineLeadTime) add(p history.PullRequest, leads []float64) []float64
 // note counts p, whose lead time is lead, in m's counts.
 func (m *MainlineLeadTime) note(p history.PullRequest, lead time.Duration) {
 	m.PullRequests++
-	m.WithinReference += boolCount(lead <= leadReference)
 	m.Cut += boolCount(p.FirstCommitCut)
 	m.CreatedStandsIn += boolCount(p.CreatedStandsIn)
 }
 
-// spread sets m's mean and, from two, sample deviation of the lead times in
-// nanoseconds.
+// spread sets m's mean, median and 90th percentile of the lead times in
+// nanoseconds, the last two while they are shown (forsgren#423).
 func (m *MainlineLeadTime) spread(leads []float64) {
 	if len(leads) == 0 {
 		return
 	}
-	mean := meanOf(leads)
-	m.Mean = time.Duration(math.Round(mean))
-	if m.HasDeviation() {
-		m.Deviation = time.Duration(math.Round(sampleDeviation(leads, mean)))
-	}
+	m.Mean = time.Duration(math.Round(meanOf(leads)))
+	m.Median, m.P90 = medianAndP90(leads)
 }
 
 // boolCount is 1 for true, 0 for false.

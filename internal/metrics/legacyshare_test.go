@@ -39,18 +39,14 @@ func TestMainlineIntervalSaysMostlyEstimatedAboveHalf(t *testing.T) {
 }
 
 // TestMainlineIntervalMeanCellCarriesTheNote (forsgren#394, step 2): the note
-// is on the mean cell, so the gaps can leave the table (forsgren#423) without
-// losing it; the gaps cell is the number alone; a project without a gap has a
-// dash and no note.
+// is on the mean cell, and (forsgren#423) on the median cell in the table that
+// shows the median alone; a project without a gap has a dash and no note.
 func TestMainlineIntervalMeanCellCarriesTheNote(t *testing.T) {
 	got := MainlineInterval{
-		Commits: 3, Gaps: 2, Mean: 2 * time.Hour, Deviation: time.Hour, Median: time.Hour, ByAuthorDate: 2,
+		Commits: 3, Gaps: 2, Mean: 2 * time.Hour, Median: time.Hour, ByAuthorDate: 2,
 	}
 	if want := (NotedCell{"2 h", []Note{{NoteMostlyEstimated, 2, 3}}}); !reflect.DeepEqual(got.MeanCell(), want) {
 		t.Errorf("want the mean cell %v, got %v", want, got.MeanCell())
-	}
-	if got.GapsCell() != "2" {
-		t.Errorf("want the gaps cell 2, got %q", got.GapsCell())
 	}
 	if none := (MainlineInterval{Commits: 1, ByAuthorDate: 1}).MeanCell(); none.Value != "-" || len(none.Notes) != 0 {
 		t.Errorf("want a dash and no note without a gap, got %v", none)

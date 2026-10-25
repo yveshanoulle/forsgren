@@ -9,6 +9,29 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — The TBD table shows the median only by default, and the key tbd_figures shows mean, median and p90 ([#423](https://github.com/yveshanoulle/forsgren/issues/423), 1 step)
+
+forsgren issue 423, feature, minor release 1.22.0 (a new config key; the documentation of 1.22.0 rides with #417). Yves's decisions #424 (C: the Mainline Interval's gaps leave the table in both modes) and #432 (the PR Lead Time follows the other groups). The new key `tbd_figures` is `median` (the default) or `all` (`internal/config/tbdfigures.go`, `checkTbdFigures`, `Config.TbdFigures`; `Accepted`, `settingKeys` before `same_developer`, the settings page row with its possible values, a commented line in `starter.yml`); any other value is rejected, the default is in force and the settings page says why.
+
+- `median`: one column per measure and one header row; each header says it is the median, the shares are `Direct share`, `PR share`, `Unknown share` and `Bots share` (their groups' header row is gone). `all`: mean, median and p90 per measure under two header rows, as before.
+- The Mainline Interval and the PR Lead Time lose their deviation; the interval loses its gaps column; the PR Lead Time loses the count, the cut count and the share merged within 24 hours (`MainlineLeadTime.WithinReference` and `Deviation` are gone, with `sampleDeviation`). `MainlineLeadTime` gets a median (from 2 pull requests) and a p90 (nearest rank, from 10), by `medianAndP90`'s rules. A project whose pull requests are not readable or not collected yet has its sentence in one cell, three wide in `all`.
+- The notes are the same in both modes: on the mean cell in `all`, on the median cell in `median` (`MedianNotedCell`, for the interval and the PR Lead Time), where the mean is hidden. Decision #424's estimate note therefore stays on a cell the table shows.
+- Red first, seen failing at runtime: `internal/metrics/mainleadspread_test.go` against stubs, `internal/config/tbd_figures_test.go` against a config without the key, the page tests against the old template, the settings drift tests (`TestPossibleValuesAreExactlyWhatCheckConfigAccepts`), and `cmd/forsgren/render_tbd_figures_test.go` before `render.go` set `Data.TbdFigures`.
+- Decision #438 (A): note (3) reads `A lower bound: a first commit time of a pull request was cut` (number unchanged), as it now sits on a median cell too; `TestNoteKindsKeepTheirNumbersAndTexts` and `TestTbdPageListsTheNotesThatOccurBelowTheTable` changed on purpose, seen red first.
+- Goldens: `tbd`, `tbd.lead-no-data`, `tbd.lead-not-collected`, `tbd.lead-not-readable`, `settings`, `settings.rejected` regenerated; new `tbd.all` and `tbd.all-lead-not-readable`.
+- Browser gate (fixture site, which sets `tbd_figures: all`): the TBD sideways numbers shrank, 1280x800 table 359 to 312 px and 390x844 table 1249 to 1202 px; `Scripts/browser_gate_fixture_baseline.txt` follows. With the median only the table has no sideways scroll at 1280x800 and 787 px at 390x844 (measured, not gated). `Scripts/build_fixture_site.sh` and `Scripts/test_build_site.sh` read the new cells.
+- CodeScene: the changed or new Go files 10.0, except `internal/config/config_test.go` 9.68 and `internal/config/settings_test.go` 9.38, unchanged and above their floors.
+
+Signed: Lenka B
+
+---
+
+## 2026-10-25 — npm: fast-uri 3.1.9 and the stale braces audit exception removed ([#419](https://github.com/yveshanoulle/forsgren/issues/419), 1 step)
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The git sandbox isolation self-test runs in two shards, as two jobs ([#426](https://github.com/yveshanoulle/forsgren/issues/426), step 1 of 1)
 
 forsgren issue 426, tools issue, in the release after 1.21.0. Step 2 of #425: with the step summary gate gone, the Isolation job was still the longest (the self-test 9 min 27 s plus 1.5 minutes of setup). `Scripts/test_git_sandbox_isolation.sh` (canon v2) takes `--shard N/M` and runs the self-tests at positions N, N+M, N+2M of its sorted list (index modulo M), so each runs in exactly one shard and a new one lands in one by itself; no argument runs all, as FBP does; a bad shard (`0/2`, `3/2`, `x`, a missing value, an unknown argument) is exit 64. `Scripts/ci_job_groups.txt` rows may now carry a third field, the arguments of the job (`isolation_1|git sandbox isolation self-test|--shard 1/2`, `isolation_2|...|--shard 2/2`); `Scripts/run_ci_phase.sh` (canon v2) runs the gate in each job named, in no other, with those arguments, and records `<label> (shard N/M)`, so a red names its shard. `Scripts/merge_quality_report.sh` joins the shard rows into the gate's one row under its order-file label: green only when every shard is green, red naming a failed shard or one that reported no row, the details holding every shard. `quality.yml` has the jobs `isolation_1` and `isolation_2` (hand-overs `quality-report-isolation_1` and `_2`, `QS_ISOLATION_1_RESULT` and `QS_ISOLATION_2_RESULT`); the report and preview jobs `needs:` both. Expected: about 6 to 7 minutes per shard job (1.5 setup plus half of 9.5), so every Quality job is under 10 minutes. Every gate still runs in CI exactly once (the real-order-file case counts a split gate once per shard). `Scripts/gate_inputs.txt` is unchanged. Red first: `Scripts/test_git_sandbox_isolation_scope.sh` (cases 20 to 24, canon v2, mutations K and L), `Scripts/test_run_ci_phase.sh` (case shards, canon v3, two mutations), `Scripts/test_merge_quality_report.sh` (cases 3b to 3e, two mutations), `Scripts/test_quality_jobs.sh` and `Scripts/test_preview_workflow.sh` (both jobs, group rows, report wiring, mutants). Docs: `docs/ci.md` (Jobs, Shards) and `docs/quality-gates.md`.

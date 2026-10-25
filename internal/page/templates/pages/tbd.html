@@ -1,15 +1,15 @@
 {{define "title"}}{{.TbdTitle}} · {{.Title}}{{end -}}
 {{template "header" .}}  <main>
     <h1 id="tbd-heading">{{.TbdTitle}}</h1>
-{{if .Mainline}}    <div class="table-scroll" role="region" aria-labelledby="tbd-heading" tabindex="0">
+{{if .Mainline}}{{$all := .TbdAll}}    <div class="table-scroll" role="region" aria-labelledby="tbd-heading" tabindex="0">
       <table class="wraps">
         <thead>
-          <tr>
+{{if $all}}          <tr>
             <th scope="col" rowspan="2">Project</th>
-            <th scope="colgroup" colspan="5">Mainline Interval</th>
+            <th scope="colgroup" colspan="3">Mainline Interval</th>
             <th scope="colgroup" colspan="3">Time to main per commit (duration)</th>
             <th scope="colgroup" colspan="3">Time to deploy per commit (duration)</th>
-            <th scope="colgroup" colspan="1">PR Lead Time</th>
+            <th scope="colgroup" colspan="3">PR Lead Time</th>
             <th scope="colgroup" colspan="3">Volume</th>
             <th scope="colgroup" colspan="3">Commits per push</th>
             <th scope="colgroup" colspan="3">Commits per deployment</th>
@@ -18,17 +18,17 @@
           </tr>
           <tr>
             <th scope="col">mean</th>
-            <th scope="col">deviation</th>
             <th scope="col">median</th>
             <th scope="col">p90</th>
-            <th scope="col">gaps</th>
             <th scope="col" aria-label="mean time to main">mean</th>
             <th scope="col" aria-label="median time to main">median</th>
             <th scope="col" aria-label="p90 time to main">p90</th>
             <th scope="col" aria-label="mean time to deploy">mean</th>
             <th scope="col" aria-label="median time to deploy">median</th>
             <th scope="col" aria-label="p90 time to deploy">p90</th>
-            <th scope="col">pull requests</th>
+            <th scope="col">mean</th>
+            <th scope="col">median</th>
+            <th scope="col">p90</th>
             <th scope="col">Commits</th>
             <th scope="col">Pushes</th>
             <th scope="col">Deployments</th>
@@ -44,34 +44,58 @@
             <th scope="col">Bots</th>
             <th scope="col">developers</th>
           </tr>
-        </thead>
+{{else}}          <tr>
+            <th scope="col">Project</th>
+            <th scope="col">Mainline Interval (median)</th>
+            <th scope="col">Time to main per commit (median duration)</th>
+            <th scope="col">Time to deploy per commit (median duration)</th>
+            <th scope="col">PR Lead Time (median)</th>
+            <th scope="col">Commits</th>
+            <th scope="col">Pushes</th>
+            <th scope="col">Deployments</th>
+            <th scope="col">Commits per push (median)</th>
+            <th scope="col">Commits per deployment (median)</th>
+            <th scope="col" aria-label="direct share of commits">Direct share</th>
+            <th scope="col" aria-label="pull request share of commits">PR share</th>
+            <th scope="col" aria-label="unknown author share of commits">Unknown share</th>
+            <th scope="col" aria-label="bot share of commits">Bots share</th>
+            <th scope="col">Developers</th>
+          </tr>
+{{end}}        </thead>
         <tbody>
 {{range .TbdRows}}          <tr>
             <th scope="row">{{.Interval.Project}}</th>
-            {{template "notedcell" .Interval.MeanCell}}
-            <td>{{.Interval.DeviationCell}}</td>
+{{if $all}}            {{template "notedcell" .Interval.MeanCell}}
             <td>{{.Interval.MedianCell}}</td>
             <td>{{.Interval.P90Cell}}</td>
-            <td>{{.Interval.GapsCell}}</td>
-{{if .Push.State}}            <td colspan="3">{{.Push.State}}</td>
-{{else}}            <td>{{.Push.TimeToMain.MeanCell}}</td>
+{{else}}            {{template "notedcell" .Interval.MedianNotedCell}}
+{{end}}{{if .Push.State}}            <td{{if $all}} colspan="3"{{end}}>{{.Push.State}}</td>
+{{else if $all}}            <td>{{.Push.TimeToMain.MeanCell}}</td>
             <td>{{.Push.TimeToMain.MedianCell}}</td>
             <td>{{.Push.TimeToMain.P90Cell}}</td>
-{{end}}            <td>{{.Deploy.TimeToDeploy.MeanCell}}</td>
+{{else}}            <td>{{.Push.TimeToMain.MedianCell}}</td>
+{{end}}{{if $all}}            <td>{{.Deploy.TimeToDeploy.MeanCell}}</td>
             <td>{{.Deploy.TimeToDeploy.MedianCell}}</td>
             <td>{{.Deploy.TimeToDeploy.P90Cell}}</td>
-            {{template "notedcell" .LeadCell}}
-            <td>{{.Push.CommitsCell}}</td>
+{{else}}            <td>{{.Deploy.TimeToDeploy.MedianCell}}</td>
+{{end}}{{if .LeadState}}            <td{{if $all}} colspan="3"{{end}}>{{.LeadState}}</td>
+{{else if $all}}            {{template "notedcell" .Lead.MeanCell}}
+            <td>{{.Lead.MedianCell}}</td>
+            <td>{{.Lead.P90Cell}}</td>
+{{else}}            {{template "notedcell" .Lead.MedianNotedCell}}
+{{end}}            <td>{{.Push.CommitsCell}}</td>
             <td>{{.Push.PushesCell}}</td>
             <td>{{.Volume.Cell}}</td>
-{{if .Push.State}}            <td colspan="3">{{.Push.State}}</td>
-{{else}}            <td>{{.Push.PerPush.MeanCell}}</td>
+{{if .Push.State}}            <td{{if $all}} colspan="3"{{end}}>{{.Push.State}}</td>
+{{else if $all}}            <td>{{.Push.PerPush.MeanCell}}</td>
             <td>{{.Push.PerPush.MedianCell}}</td>
             <td>{{.Push.PerPush.P90Cell}}</td>
-{{end}}            <td>{{.Deploy.PerDeployment.MeanCell}}</td>
+{{else}}            <td>{{.Push.PerPush.MedianCell}}</td>
+{{end}}{{if $all}}            <td>{{.Deploy.PerDeployment.MeanCell}}</td>
             <td>{{.Deploy.PerDeployment.MedianCell}}</td>
             <td>{{.Deploy.PerDeployment.P90Cell}}</td>
-{{if .Push.State}}            <td colspan="4">{{.Push.State}}</td>
+{{else}}            <td>{{.Deploy.PerDeployment.MedianCell}}</td>
+{{end}}{{if .Push.State}}            <td colspan="4">{{.Push.State}}</td>
 {{else}}            <td>{{.Push.DirectCell}}</td>
             <td>{{.Push.PullRequestCell}}</td>
             <td>{{.Push.UnknownAuthorCell}}</td>

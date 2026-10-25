@@ -37,26 +37,24 @@ func shopMainlineLead(pulls ...history.PullRequest) MainlineLeadTime {
 	return MainlineLeadTimes(projects, Data{Pulls: pulls}, now)[0]
 }
 
-// TestMainlineLeadTimeMeanDeviationAndCount (forsgren#256, step 1): per
-// merged pull request, the merged time minus its first commit time; the mean,
-// the sample standard deviation (n-1) and the count. No pull request has no
-// lead time; one has a mean and no deviation (n-1 is 0).
-func TestMainlineLeadTimeMeanDeviationAndCount(t *testing.T) {
+// TestMainlineLeadTimeMeanMedianAndCount (forsgren#256, step 1): per merged
+// pull request, the merged time minus its first commit time; the mean, the
+// median and the count. No pull request has no lead time; one has a mean and
+// no median.
+func TestMainlineLeadTimeMeanMedianAndCount(t *testing.T) {
 	h := time.Hour
 	cases := []struct {
 		name  string
 		pulls []history.PullRequest
 		want  MainlineLeadTime
-		has   [2]bool // HasLeadTime, HasDeviation
+		has   [2]bool // HasLeadTime, HasMedian
 	}{
 		{"none", nil, MainlineLeadTime{}, [2]bool{false, false}},
-		{"one", shopPulls(5), MainlineLeadTime{PullRequests: 1, Mean: 5 * h, WithinReference: 1}, [2]bool{true, false}},
-		// 1, 2 and 3 hours: squares 1, 0 and 1 over n-1 = 2 is 1 h; over n it
-		// would be sqrt(2/3) h.
-		{"1, 2 and 3 hours", shopPulls(3, 1, 2), MainlineLeadTime{PullRequests: 3, Mean: 2 * h, Deviation: h,
-			WithinReference: 3}, [2]bool{true, true}},
-		{"1 and 3 hours", shopPulls(1, 3), MainlineLeadTime{PullRequests: 2, Mean: 2 * h, Deviation: sqrt2Hours(),
-			WithinReference: 2}, [2]bool{true, true}},
+		{"one", shopPulls(5), MainlineLeadTime{PullRequests: 1, Mean: 5 * h}, [2]bool{true, false}},
+		{"1, 2 and 3 hours", shopPulls(3, 1, 2), MainlineLeadTime{PullRequests: 3, Mean: 2 * h, Median: 2 * h},
+			[2]bool{true, true}},
+		{"1 and 3 hours", shopPulls(1, 3), MainlineLeadTime{PullRequests: 2, Mean: 2 * h, Median: 2 * h},
+			[2]bool{true, true}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -65,49 +63,22 @@ func TestMainlineLeadTimeMeanDeviationAndCount(t *testing.T) {
 			if got != c.want {
 				t.Errorf("want %+v, got %+v", c.want, got)
 			}
-			if has := [2]bool{got.HasLeadTime(), got.HasDeviation()}; has != c.has {
-				t.Errorf("want HasLeadTime, HasDeviation %v, got %v", c.has, has)
+			if has := [2]bool{got.HasLeadTime(), got.HasMedian()}; has != c.has {
+				t.Errorf("want HasLeadTime, HasMedian %v, got %v", c.has, has)
 			}
 		})
 	}
 }
 
-// TestMainlineLeadTimeReferenceIsTwentyFourHoursOrLess (forsgren#256, Yves's
-// ruling on #302): the share is of the pull requests merged 24 hours or less
-// after their first commit, exactly 24 hours included, a second more not, in
-// whole percent rounded down; no share without a pull request.
-func TestMainlineLeadTimeReferenceIsTwentyFourHoursOrLess(t *testing.T) {
-	exactly := mergedPull("acme/app", 1, 24*time.Hour, time.Hour)
-	over := mergedPull("acme/app", 2, 24*time.Hour+time.Second, time.Hour)
-	short := mergedPull("acme/app", 3, time.Hour, time.Hour)
-	cases := []struct {
-		name          string
-		pulls         []history.PullRequest
-		within, share int
-	}{
-		{"2 of 3, rounded down", []history.PullRequest{exactly, over, short}, 2, 66},
-		{"exactly 24 hours", []history.PullRequest{exactly}, 1, 100},
-		{"24 hours and a second", []history.PullRequest{over}, 0, 0},
-		{"no pull request", nil, 0, 0},
-	}
-	for _, c := range cases {
-		got := shopMainlineLead(c.pulls...)
-		if got.WithinReference != c.within || got.WithinReferenceShare() != c.share {
-			t.Errorf("%s: want %d within 24 hours, %d%%, got %+v, %d%%", c.name, c.within, c.share, got,
-				got.WithinReferenceShare())
-		}
-	}
-}
-
 // TestMainlineLeadTimeCountsCutValues (forsgren#256, decision #299): a pull
 // request whose commit list was cut keeps its first commit time, a lower
-// bound: it counts in the mean, the deviation and the share like any other,
+// bound: it counts in the mean and the median like any other,
 // and Cut says how many did.
 func TestMainlineLeadTimeCountsCutValues(t *testing.T) {
 	pulls := shopPulls(1, 3)
 	pulls[1].FirstCommitCut = true
-	want := MainlineLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * time.Hour, Deviation: sqrt2Hours(),
-		WithinReference: 2, Cut: 1}
+	want := MainlineLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * time.Hour, Median: 2 * time.Hour,
+		Cut: 1}
 	if got := shopMainlineLead(pulls...); got != want {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
@@ -122,8 +93,8 @@ func TestMainlineLeadTimeStandInUsesTheCreatedTime(t *testing.T) {
 	standIn.CreatedAt = standIn.MergedAt.Add(-3 * time.Hour)
 	standIn.FirstCommitAt, standIn.CreatedStandsIn = time.Time{}, true
 	pulls := append(shopPulls(1), standIn)
-	want := MainlineLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * time.Hour, Deviation: sqrt2Hours(),
-		WithinReference: 2, CreatedStandsIn: 1}
+	want := MainlineLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * time.Hour, Median: 2 * time.Hour,
+		CreatedStandsIn: 1}
 	if got := shopMainlineLead(pulls...); got != want {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
@@ -135,8 +106,7 @@ func TestMainlineLeadTimeStandInUsesTheCreatedTime(t *testing.T) {
 // integration and stays in the count.
 func TestMainlineLeadTimeCountsANegativeOneAsZero(t *testing.T) {
 	ahead := mergedPull("acme/app", 2, -5*time.Hour, time.Hour)
-	want := MainlineLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: time.Hour, Deviation: sqrt2Hours(),
-		WithinReference: 2}
+	want := MainlineLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: time.Hour, Median: time.Hour}
 	if got := shopMainlineLead(append(shopPulls(2), ahead)...); got != want {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
@@ -167,7 +137,7 @@ func TestMainlineLeadTimeCountsThePullRequestsMergedInTheWindow(t *testing.T) {
 	if got[0].Mean != (2*h+60*day)/2 {
 		t.Errorf("Acme Shop: want the mean of the edge and acme/api, got %+v", got[0])
 	}
-	want := MainlineLeadTime{Project: "Acme Tools", PullRequests: 1, Mean: 4 * h, WithinReference: 1}
+	want := MainlineLeadTime{Project: "Acme Tools", PullRequests: 1, Mean: 4 * h}
 	if got[1] != want {
 		t.Errorf("Acme Tools: want %+v, got %+v", want, got[1])
 	}

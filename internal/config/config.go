@@ -63,6 +63,17 @@ const (
 	DefaultLevel = LevelMajor
 )
 
+// The figures of the TBD table's measures (forsgren#423): the median alone,
+// one column per measure (the default), or the mean, the median and the 90th
+// percentile.
+const (
+	TbdFiguresMedian = "median"
+	TbdFiguresAll    = "all"
+
+	// DefaultTbdFigures is the figures shown when the file writes none.
+	DefaultTbdFigures = TbdFiguresMedian
+)
+
 // The days the first run collects (forsgren#57): the default, and the most
 // history_days can name (five years).
 const (
@@ -201,6 +212,11 @@ type Config struct {
 	// TbdPage is how the TBD page is handled, PageOn when the file has no
 	// tbd_page key (forsgren#253, forsgren#409).
 	TbdPage PageMode
+	// TbdFigures is the figures the TBD table shows for each measure, as
+	// written: "median" or "all", DefaultTbdFigures when the file has no
+	// tbd_figures key, or an empty string in a Config not loaded from a file
+	// (forsgren#423).
+	TbdFigures string
 	// SameDeveloper is the groups of GitHub logins that count as one developer,
 	// as written, nil when the file has none (forsgren#361).
 	SameDeveloper [][]string
@@ -272,6 +288,7 @@ var (
 	ErrNumbersScoringPage  = errors.New("invalid numbers_scoring_page")
 	ErrHistoryPage         = errors.New("invalid history_page")
 	ErrTbdPage             = errors.New("invalid tbd_page")
+	ErrTbdFigures          = errors.New("invalid tbd_figures")
 	ErrSameDeveloper       = errors.New("invalid same_developer")
 )
 
@@ -333,6 +350,9 @@ type fileConfig struct {
 	NumbersScoringPage yaml.Node `yaml:"numbers_scoring_page"`
 	HistoryPage        yaml.Node `yaml:"history_page"`
 	TbdPage            yaml.Node `yaml:"tbd_page"`
+	// TbdFigures is the node as written, so a value that is not median or all
+	// is rejected by name (forsgren#423).
+	TbdFigures yaml.Node `yaml:"tbd_figures"`
 	// SameDeveloper is the node as written, so a value that is not a list of
 	// lists is rejected by name (forsgren#361).
 	SameDeveloper yaml.Node     `yaml:"same_developer"`
@@ -444,6 +464,7 @@ var settingKeys = []settingKey{
 		func(c Config) string { return string(c.NumbersScoringPage) }},
 	{"history_page", string(historyPage.def), func(c Config) string { return string(c.HistoryPage) }},
 	{"tbd_page", string(tbdPage.def), func(c Config) string { return string(c.TbdPage) }},
+	{"tbd_figures", DefaultTbdFigures, func(c Config) string { return c.TbdFigures }},
 	{"same_developer", sameDeveloperKey.def, func(c Config) string { return flowGroups(c.SameDeveloper) }},
 }
 

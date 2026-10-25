@@ -27,18 +27,18 @@ package metrics
 //     committer date, or the author date: lineage.go), whatever the order they
 //     are stored in, and a gap is the time between two consecutive ones; two
 //     commits placed at the same time have a gap of 0;
-//   - the gaps cell names the commits placed at their author date (ByAuthorDate);
-//   - the mean is the mean of the gaps and the deviation their sample
-//     standard deviation, the sum of the squares of the differences from the
-//     mean over n-1, n the count of gaps; the count shown is the count of gaps;
+//   - the mean cell names the commits placed at their author date
+//     (ByAuthorDate), and in the table that shows the median alone the median
+//     cell does (forsgren#423);
+//   - the mean is the mean of the gaps; the deviation and the count of gaps
+//     are not on the page any more (forsgren#423, decision #424);
 //   - fewer than two commits have no gap, so no interval, "-"; two commits
-//     have one gap, a mean but no deviation (n-1 is 0), shown as "-".
+//     have one gap, a mean but no median (shown as "-").
 //
 // The result is per project; the label rows of the table get theirs when the
 // page is wired.
 
 import (
-	"fmt"
 	"math"
 	"slices"
 	"strings"
@@ -61,9 +61,6 @@ type MainlineInterval struct {
 	Gaps int
 	// Mean is the mean gap; zero without a gap.
 	Mean time.Duration
-	// Deviation is the sample standard deviation of the gaps; zero below
-	// two gaps (see HasDeviation).
-	Deviation time.Duration
 	// Median is the median gap; zero below two gaps (see HasMedian).
 	Median time.Duration
 	// P90 is the 90th percentile of the gaps, nearest rank; zero below ten
@@ -97,25 +94,22 @@ func mostOf(part, whole int) bool { return 2*part > whole }
 // HasInterval says whether there is a gap, so a mean to show.
 func (m MainlineInterval) HasInterval() bool { return m.Gaps > 0 }
 
-// HasDeviation says whether the sample standard deviation exists: it needs
-// two gaps.
-func (m MainlineInterval) HasDeviation() bool { return m.Gaps > 1 }
-
 // minP90Gaps is how many gaps the 90th percentile needs: under ten, the
 // nearest rank is the longest gap, which says nothing the maximum does not.
 const minP90Gaps = 10
 
-// HasMedian says whether the median is shown: it needs two gaps, as the
-// deviation does (one gap is the mean).
+// HasMedian says whether the median is shown: it needs two gaps (one gap is
+// the mean).
 func (m MainlineInterval) HasMedian() bool { return m.Gaps > 1 }
 
 // HasP90 says whether the 90th percentile is shown: it needs minP90Gaps gaps.
 func (m MainlineInterval) HasP90() bool { return m.Gaps >= minP90Gaps }
 
-// The Mainline Interval is five columns of the TBD page, one number each
-// (forsgren#387, step 1, Yves's decisions #388 and #389): the mean, the
-// deviation, the median, the p90 and the gaps. A figure that is not shown yet
-// is a dash in its own cell, and so is every cell of a project with no gap.
+// The Mainline Interval is three columns of the TBD page, one number each,
+// the mean, the median and the p90, or the median alone (forsgren#423, Yves's
+// decision #424 C: the deviation and the gaps left the table, they were five
+// columns from forsgren#387). A figure that is not shown yet is a dash in its
+// own cell, and so is every cell of a project with no gap.
 
 // MeanCell is the mean gap, "2 h"; "-" without a gap. It carries the Notes,
 // so the note stays on the mean when the gaps leave the table (forsgren#423).
@@ -126,23 +120,20 @@ func (m MainlineInterval) MeanCell() NotedCell {
 	return NotedCell{Value: tbdDuration(m.Mean), Notes: m.Notes()}
 }
 
-// DeviationCell is the sample standard deviation of the gaps, "1 h 24 min";
-// "-" below two gaps.
-func (m MainlineInterval) DeviationCell() string { return m.shown(m.HasDeviation(), m.Deviation) }
-
 // MedianCell is the median gap; "-" below two gaps.
 func (m MainlineInterval) MedianCell() string { return m.shown(m.HasMedian(), m.Median) }
 
 // P90Cell is the 90th percentile of the gaps; "-" below ten gaps.
 func (m MainlineInterval) P90Cell() string { return m.shown(m.HasP90(), m.P90) }
 
-// GapsCell is the number of gaps the other four cells rest on, "1162"; "-"
-// without a gap.
-func (m MainlineInterval) GapsCell() string {
+// MedianNotedCell is the median gap with the Notes, for the table that shows
+// the median alone, where the mean cell is not there to carry them
+// (forsgren#423): a dash below two gaps, the notes while there is a gap.
+func (m MainlineInterval) MedianNotedCell() NotedCell {
 	if !m.HasInterval() {
-		return noNumber
+		return NotedCell{Value: noNumber}
 	}
-	return fmt.Sprint(m.Gaps)
+	return NotedCell{Value: m.MedianCell(), Notes: m.Notes()}
 }
 
 // shown is d written for a cell when there is one, else a dash.
@@ -223,9 +214,6 @@ func mainlineOver(project string, dates []time.Time) MainlineInterval {
 	m.Gaps = len(gaps)
 	mean := meanOf(gaps)
 	m.Mean = time.Duration(math.Round(mean))
-	if m.HasDeviation() {
-		m.Deviation = time.Duration(math.Round(sampleDeviation(gaps, mean)))
-	}
 	m.Median, m.P90 = medianAndP90(gaps)
 	return m
 }
@@ -268,14 +256,4 @@ func meanOf(values []float64) float64 {
 		sum += v
 	}
 	return sum / float64(len(values))
-}
-
-// sampleDeviation is the sample standard deviation of values around their
-// mean: the squares of the differences over n-1, so values hold at least two.
-func sampleDeviation(values []float64, mean float64) float64 {
-	squares := 0.0
-	for _, v := range values {
-		squares += (v - mean) * (v - mean)
-	}
-	return math.Sqrt(squares / float64(len(values)-1))
 }

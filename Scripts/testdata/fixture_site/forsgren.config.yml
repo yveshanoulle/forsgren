@@ -1,6 +1,7 @@
 version: 1
 history_days: 730
 days_page: true
+tbd_figures: all
 projects:
   - name: Acme Shop
     repositories:

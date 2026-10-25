@@ -55,6 +55,14 @@
 # auto_update: false switches it off, and you merge each update by hand.
 # auto_update_level: is optional and is major when left out.
 #
+# tbd_figures: is optional. The TBD page shows the median of each measure, one
+# column per measure; that is the default. To write the key, remove the "# " in
+# front of the next line, and change median to all to show the mean, the median
+# and the 90th percentile of each measure instead. A value that is neither is
+# not used, and the settings page says why.
+#
+# tbd_figures: median  # the TBD table's figures: median (default) or all
+#
 # same_developer: is optional. It lists groups of GitHub logins that count as
 # one developer, for an assistant account that works on someone's behalf or a
 # person with two accounts. The first login of a group names the developer,

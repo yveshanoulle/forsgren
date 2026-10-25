@@ -129,7 +129,7 @@ func TestSettingsPageMarksAnUnsetKey(t *testing.T) {
 // set; its range is held by the probes of the test above.
 func TestEveryValueTheConfigAcceptsIsListedOnTheSettingsPage(t *testing.T) {
 	enumerated := []string{"view", "auto_update", "auto_update_level", "dora_days", "issues_page", "days_page",
-		"numbers_scoring_page", "history_page", "tbd_page"}
+		"numbers_scoring_page", "history_page", "tbd_page", "tbd_figures"}
 	for _, key := range enumerated {
 		wantListed(t, key, config.Accepted(key))
 	}

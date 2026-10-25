@@ -11,11 +11,13 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
-// tbdSiteOf renders validConfig with tbd_page: true and the config line
-// extra, over the data at path (none when empty), and returns tbd.html.
+// tbdSiteOf renders validConfig with tbd_page: true, tbd_figures: all (the
+// tests below read the mean, the median and the p90 of each measure; the
+// median only is in render_tbd_figures_test.go, forsgren#423) and the config
+// line extra, over the data at path (none when empty), and returns tbd.html.
 func tbdSiteOf(t *testing.T, extra, path string) string {
 	t.Helper()
-	args := []string{"--config", writeConfig(t, extra+tbdOn)}
+	args := []string{"--config", writeConfig(t, extra+tbdOn+figuresAll)}
 	if path != "" {
 		args = append(args, "--data", path)
 	}
@@ -28,15 +30,15 @@ func tdRow(cells ...string) string {
 	return "<td>" + strings.Join(cells, "</td>\n            <td>") + "</td>"
 }
 
-// shopCell is Acme Shop's five Mainline Interval cells over acmeCommits in
-// the 30 days (forsgren#387, step 1): the mean, the deviation, the median, no
-// p90 and two gaps; its three commits, stored without their lineage, are timed
+// shopCell is Acme Shop's three Mainline Interval cells over acmeCommits in
+// the 30 days (forsgren#387, step 1; forsgren#423): the mean, the median and
+// no p90; its three commits, stored without their lineage, are timed
 // by author date (forsgren#254, step 4), all of them, so the figure is mostly
 // estimated (forsgren#345, step 3), which the mean cell notes (1). noCells is a
 // project without a gap.
 var (
-	shopCell = notedTd(notedCell{"2 d 22 h", []int{1}}) + "\n            " + tdRow("4 d 3 h", "2 d 22 h", "-", "2")
-	noCells  = tdRow("-", "-", "-", "-", "-")
+	shopCell = notedTd(notedCell{"2 d 22 h", []int{1}}) + "\n            " + tdRow("2 d 22 h", "-")
+	noCells  = tdRow("-", "-", "-")
 	// shopTimes and noTimes are their time to deploy cells (forsgren#418).
 	shopTimes = tdRow("8 h 5", "17 m", "-")
 	noTimes   = tdRow("-", "-", "-")
@@ -81,7 +83,7 @@ func TestRenderMainlineIntervalFollowsTheStoredLineage(t *testing.T) {
 	branch.Parents, branch.CommittedAt = []string{base.SHA}, branch.AuthoredAt
 	merge.Parents, merge.CommittedAt = []string{base.SHA, branch.SHA}, utcAt(t, "2026-10-01T09:25:00Z")
 	got := tbdSiteOf(t, validConfig, writeData(t, acmeHistory(), []history.Commit{base, branch, merge}))
-	if want := tdRow("4 d 22 h", "-", "-", "-", "1"); !strings.Contains(got, want) {
+	if want := tdRow("4 d 22 h", "-", "-"); !strings.Contains(got, want) {
 		t.Errorf("want %q in tbd.html, got:\n%s", want, got)
 	}
 }
@@ -150,9 +152,9 @@ func TestRenderCountsTheLoginsOfASameDeveloperGroupOnce(t *testing.T) {
 // the window.
 func TestRenderTbdPageUsesTheDoraWindow(t *testing.T) {
 	pinNow(t)
-	dir := renderInto(t, "--config", writeConfig(t, validConfig+"dora_days: 90\n"+tbdOn),
+	dir := renderInto(t, "--config", writeConfig(t, validConfig+"dora_days: 90\n"+tbdOn+figuresAll),
 		"--data", writeData(t, acmeHistory(), acmeCommits()))
-	cell := notedTd(notedCell{"14 d 7 h", []int{1}}) + "\n            " + tdRow("19 d 22 h", "5 d 21 h", "-", "3")
+	cell := notedTd(notedCell{"14 d 7 h", []int{1}}) + "\n            " + tdRow("5 d 21 h", "-")
 	if got := readSite(t, dir, "tbd.html"); !strings.Contains(got, cell) {
 		t.Errorf("want Acme Shop's three gaps over 90 days, got:\n%s", got)
 	}

@@ -41,7 +41,7 @@
   {
    "path": "internal/config/settings_test.go",
    "score": 9.38,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 9.28
   },
   {
@@ -167,13 +167,13 @@
   {
    "path": "internal/config/config_test.go",
    "score": 9.68,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-25",
    "minScore": 9.58
   },
   {
    "path": "internal/config/validate.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -323,7 +323,7 @@
   {
    "path": "internal/config/config.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -539,23 +539,17 @@
   {
    "path": "internal/metrics/mainlinelead.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
    "path": "internal/metrics/mainlinelead_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
-   "minScore": 10.0
-  },
-  {
-   "path": "internal/metrics/mainlineleadcell.go",
-   "score": 10.0,
    "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
-   "path": "internal/metrics/mainlineleadcell_test.go",
+   "path": "internal/metrics/mainlineleadcell.go",
    "score": 10.0,
    "checkedAt": "2026-10-25",
    "minScore": 10.0
@@ -587,7 +581,7 @@
   {
    "path": "internal/page/page.go",
    "score": 10.0,
-   "checkedAt": "2026-10-24",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -1385,13 +1379,13 @@
   {
    "path": "internal/page/settings.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
    "path": "internal/page/settings_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -1613,7 +1607,7 @@
   {
    "path": "internal/config/accepted.go",
    "score": 10.0,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -1913,7 +1907,7 @@
   {
    "path": "internal/metrics/mainlineleadhuman_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -2164,6 +2158,30 @@
   },
   {
    "path": "internal/page/tbdnotes_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-25",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_tbd_figures_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-25",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/tbd_figures_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-25",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/tbdfigures.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-25",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/mainleadspread_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-25",
    "minScore": 10.0

@@ -29,8 +29,8 @@ func TestMainlineLeadTimeCountsHumanPullRequestsOnly(t *testing.T) {
 		openedBy(mergedPull("acme/app", 7, h, 40*day), history.BotUnknown),
 		openedBy(mergedPull("acme/cli", 8, h, h), history.ByBot))
 	got := MainlineLeadTimes(projects, Data{Pulls: pulls}, now)
-	want := MainlineLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * h, Deviation: sqrt2Hours(),
-		WithinReference: 2, Bots: 2}
+	want := MainlineLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * h, Median: 2 * h,
+		Bots: 2}
 	if got[0] != want {
 		t.Errorf("Acme Shop: want %+v, got %+v", want, got[0])
 	}

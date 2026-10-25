@@ -14,7 +14,7 @@ func TestNoteKindsKeepTheirNumbersAndTexts(t *testing.T) {
 	want := map[int]string{
 		1: "Mostly estimated: commits timed by author date",
 		2: "Commits timed by author date",
-		3: "The mean is a lower bound: a first commit time of a pull request was cut",
+		3: "A lower bound: a first commit time of a pull request was cut",
 		4: "Pull requests timed by their created time",
 		5: "Bot pull requests not counted",
 	}

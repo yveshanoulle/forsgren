@@ -23,7 +23,7 @@ func TestLoadValid(t *testing.T) {
 				HistoryChunkDays: DefaultHistoryChunkDays, WorkingHours: DefaultWorkingHours,
 				DoraDays:   DefaultDoraDays,
 				IssuesPage: PageOn, DaysPage: PageOff, NumbersScoringPage: PageUnlisted,
-				HistoryPage: PageUnlisted, TbdPage: PageOn, Projects: []Project{{
+				HistoryPage: PageUnlisted, TbdPage: PageOn, TbdFigures: TbdFiguresMedian, Projects: []Project{{
 					Name: "Acme",
 					Repositories: []Repository{
 						{Name: "acme/app", Deployment: Deployment{Kind: Environment, Name: "production"}},
@@ -37,7 +37,7 @@ func TestLoadValid(t *testing.T) {
 				HistoryChunkDays: DefaultHistoryChunkDays, WorkingHours: DefaultWorkingHours,
 				DoraDays:   DefaultDoraDays,
 				IssuesPage: PageOn, DaysPage: PageOff, NumbersScoringPage: PageUnlisted,
-				HistoryPage: PageUnlisted, TbdPage: PageOn, Projects: []Project{
+				HistoryPage: PageUnlisted, TbdPage: PageOn, TbdFigures: TbdFiguresMedian, Projects: []Project{
 					{Name: "Acme Shop", Repositories: []Repository{
 						{Name: "acme/api", Deployment: Deployment{Kind: Environment, Name: "production"}},
 						{Name: "acme/ios-app", Deployment: Deployment{Kind: Workflow, Name: "testflight.yml"}},

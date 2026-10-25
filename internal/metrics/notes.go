@@ -38,7 +38,7 @@ var noteTexts = []struct {
 }{
 	{NoteMostlyEstimated, "Mostly estimated: commits timed by author date"},
 	{NoteByAuthorDate, "Commits timed by author date"},
-	{NoteLowerBound, "The mean is a lower bound: a first commit time of a pull request was cut"},
+	{NoteLowerBound, "A lower bound: a first commit time of a pull request was cut"},
 	{NoteCreatedTime, "Pull requests timed by their created time"},
 	{NoteBotsNotCounted, "Bot pull requests not counted"},
 }

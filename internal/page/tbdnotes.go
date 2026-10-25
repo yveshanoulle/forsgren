@@ -30,10 +30,16 @@ func (n TbdNote) Number() int { return n.Kind.Number() }
 // Text is the note's generic text.
 func (n TbdNote) Text() string { return n.Kind.Text() }
 
-// notes are the notes of the row's cells: the Mainline Interval's mean cell
-// first, then the pull requests cell.
+// notes are the notes of the row's cells: the Mainline Interval's first, then
+// the pull requests'; a project whose pull requests cells are a sentence has
+// none of those. They are the same whichever figures the table shows
+// (forsgren#423): the mean cell has them, or the median cell where it is alone.
 func (r TbdRow) notes() []metrics.Note {
-	return append(append([]metrics.Note{}, r.Interval.MeanCell().Notes...), r.LeadCell().Notes...)
+	notes := append([]metrics.Note{}, r.Interval.MeanCell().Notes...)
+	if r.LeadState() != "" {
+		return notes
+	}
+	return append(notes, r.Lead.Notes()...)
 }
 
 // TbdNotes are the kinds of note the TBD page's cells have, in the order of

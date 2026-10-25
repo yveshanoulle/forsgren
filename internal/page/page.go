@@ -118,6 +118,11 @@ type Data struct {
 	// no collect has stored pull requests yet, so the TBD page says so in
 	// place of each Mainline Lead Time (forsgren#256, step 2).
 	PullsUncollected bool
+	// TbdFigures are the figures of the key tbd_figures, "median" or "all": the
+	// TBD table shows the median of each measure, or the mean, the median and
+	// the 90th percentile; empty, as in a Data not made from a config, is the
+	// median (forsgren#423).
+	TbdFigures string
 	// PushMeasures, DeployMeasures and DeploymentVolumes are the volume, share,
 	// push and deployment groups of the TBD page, one per project in the same
 	// order (forsgren#397, steps 4 and 5).

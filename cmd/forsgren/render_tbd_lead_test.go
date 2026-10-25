@@ -71,9 +71,10 @@ func writePulls(t *testing.T, data string, pulls []history.PullRequest) {
 	}
 }
 
-// noHumanPulls is the Mainline Lead Time cell of a project without a human
-// pull request in the window, a dash (forsgren#390, step 2).
-const noHumanPulls = "-"
+// noHumanPulls is the PR Lead Time cells of a project without a human pull
+// request in the window, a dash in each of the three (forsgren#390, step 2;
+// forsgren#423).
+const noHumanPulls = "- | - | -"
 
 // projectCells are the cells of a project's TBD row before its pull requests
 // cell: its Mainline Interval cells and its time to deploy cells (forsgren#418).
@@ -87,12 +88,40 @@ func leadRow(row projectCells, lead string) string {
 		"\n            " + leadTd(lead) + "\n"
 }
 
-// leadTd is the pull requests cell of lead as the template writes it; a lead
-// starting with {3,4} has the notes 3 and 4 (forsgren#394, step 2).
-func leadTd(lead string) string {
-	rest, noted := strings.CutPrefix(lead, "{")
+// leadCells are the pull requests cells of a project written for a test: the
+// mean, the median and the p90 parted by " | ", or one sentence (a state) that
+// stands in place of the three; a cell starting with {3,4} has the notes 3 and
+// 4 (forsgren#394, step 2).
+type leadCells string
+
+// leadTd is the cells of lead as the template writes them.
+func leadTd(lead string) string { return leadCells(lead).td() }
+
+// td is the cells as the template writes them: one td on each line, or the
+// state across the three.
+func (l leadCells) td() string {
+	if l.isState() {
+		return "<td colspan=\"3\">" + string(l) + "</td>"
+	}
+	cells := strings.Split(string(l), " | ")
+	for i, cell := range cells {
+		cells[i] = leadCells(cell).cell()
+	}
+	return strings.Join(cells, "\n            ")
+}
+
+// isState says whether the cells are a sentence that stands in place of the
+// three, not the cells themselves.
+func (l leadCells) isState() bool {
+	text := string(l)
+	return !strings.Contains(text, " | ") && !strings.HasPrefix(text, "{") && text != "-"
+}
+
+// cell is one of the cells, with its notes if it starts with them.
+func (l leadCells) cell() string {
+	rest, noted := strings.CutPrefix(string(l), "{")
 	if !noted {
-		return "<td>" + lead + "</td>"
+		return "<td>" + string(l) + "</td>"
 	}
 	list, value, _ := strings.Cut(rest, "}")
 	cell := notedCell{value: value}
@@ -136,19 +165,18 @@ func developersRow(developers string) string {
 // TestRenderShowsTheMainlineLeadTimeOfEachProject (forsgren#256, step 2): with
 // data/pulls.csv beside --data, tbd.html shows each project's Mainline Lead
 // Time next to its Mainline Interval: Acme Shop's human lead times of 2, 30
-// and 1 hours have a mean of 11 h and a sample deviation of sqrt(271) h, 2 of
-// the 3 within 24 hours, the cut one making the mean a lower bound, the one of
-// the created time named, then the bot's named as
-// not counted (forsgren#345, step 2); Acme Tools has no pull request, so the
-// no-human sentence.
+// and 1 hours have a mean of 11 h and a median of 2 h, no p90 under ten, the
+// cut one making the mean a lower bound, the one of the created time named,
+// then the bot's named as not counted (forsgren#345, step 2); the notes are on
+// the mean cell (forsgren#394, step 2); Acme Tools has no pull request, so
+// dashes (forsgren#423: no deviation, count or share any more).
 func TestRenderShowsTheMainlineLeadTimeOfEachProject(t *testing.T) {
 	pinNow(t)
 	data := writeData(t, acmeHistory(), acmeCommits())
 	writePulls(t, data, acmePulls(t))
 	got := tbdSiteOf(t, validConfig, data)
-	wantIn(t, got, "<th scope=\"colgroup\" colspan=\"1\">PR Lead Time</th>",
-		leadRow(shopRow, "{3,4,5}11 h ± 16 h 27 · 3 (1 cut) · 66% (2 of 3) pull requests merged within 24 hours of "+
-			"their first commit"),
+	wantIn(t, got, "<th scope=\"colgroup\" colspan=\"3\">PR Lead Time</th>",
+		leadRow(shopRow, "{3,4,5}11 h | 2 h | -"),
 		leadRow(noRow, noHumanPulls))
 }
 

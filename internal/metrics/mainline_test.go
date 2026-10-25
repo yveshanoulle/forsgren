@@ -3,7 +3,6 @@ package metrics
 import (
 	"fmt"
 	"hash/fnv"
-	"math"
 	"slices"
 	"strings"
 	"testing"
@@ -50,41 +49,31 @@ func mainlineOf(commits ...history.Commit) MainlineInterval {
 	return MainlineIntervals(projects, Data{Commits: commits}, now)[0]
 }
 
-// sqrt2Hours is the square root of 2 hours, to the nanosecond: the sample
-// deviation of gaps of 1 and 3 hours (mean 2 h, squares 1 and 1, over n-1 = 1,
-// in hours squared: 2).
-func sqrt2Hours() time.Duration {
-	hour := float64(time.Hour)
-	return time.Duration(math.Round(math.Sqrt2 * hour))
-}
-
-// TestMainlineIntervalMeanDeviationAndCount (forsgren#253, step 3): the gaps
+// TestMainlineIntervalMeanMedianAndCount (forsgren#253, step 3): the gaps
 // between the commits sorted by author date, whatever the order they are
-// stored in; the mean, the sample standard deviation (n-1) and the count of
-// gaps. Fewer than two commits have no gap, "-"; two commits have a gap and
-// no deviation.
-func TestMainlineIntervalMeanDeviationAndCount(t *testing.T) {
-	h, dev := time.Hour, sqrt2Hours()
+// stored in; the mean, the median and the count of gaps. Fewer than two
+// commits have no gap, "-"; two commits have a gap and no median.
+func TestMainlineIntervalMeanMedianAndCount(t *testing.T) {
+	h := time.Hour
 	cases := []struct {
 		name    string
 		commits []history.Commit
 		want    MainlineInterval
 		cell    string
 	}{
-		{"no commit", nil, MainlineInterval{}, "- | - | - | - | -"},
-		{"one commit", shopAt(5), MainlineInterval{Commits: 1}, "- | - | - | - | -"},
-		{"two commits", shopAt(5, 3), MainlineInterval{Commits: 2, Gaps: 1, Mean: 2 * h},
-			"2 h | - | - | - | 1"},
+		{"no commit", nil, MainlineInterval{}, "- | - | -"},
+		{"one commit", shopAt(5), MainlineInterval{Commits: 1}, "- | - | -"},
+		{"two commits", shopAt(5, 3), MainlineInterval{Commits: 2, Gaps: 1, Mean: 2 * h}, "2 h | - | -"},
 		{"gaps 1, 2 and 3 hours", shopAt(10, 9, 7, 4), MainlineInterval{Commits: 4, Gaps: 3, Mean: 2 * h,
-			Deviation: h, Median: 2 * h}, "2 h | 1 h | 2 h | - | 3"},
+			Median: 2 * h}, "2 h | 2 h | -"},
 		{"out of order", shopAt(4, 10, 7, 9), MainlineInterval{Commits: 4, Gaps: 3, Mean: 2 * h,
-			Deviation: h, Median: 2 * h}, "2 h | 1 h | 2 h | - | 3"},
+			Median: 2 * h}, "2 h | 2 h | -"},
 		{"equal gaps", shopAt(8, 6, 4, 2), MainlineInterval{Commits: 4, Gaps: 3, Mean: 2 * h, Median: 2 * h},
-			"2 h | < 1 m | 2 h | - | 3"},
+			"2 h | 2 h | -"},
 		{"gaps 1 and 3 hours", shopAt(5, 4, 1), MainlineInterval{Commits: 3, Gaps: 2, Mean: 2 * h,
-			Deviation: dev, Median: 2 * h}, "2 h | 1 h 24 | 2 h | - | 2"},
-		{"same author date twice", shopAt(5, 5, 3), MainlineInterval{Commits: 3, Gaps: 2, Mean: h, Deviation: dev, Median: h},
-			"1 h | 1 h 24 | 1 h | - | 2"},
+			Median: 2 * h}, "2 h | 2 h | -"},
+		{"same author date twice", shopAt(5, 5, 3), MainlineInterval{Commits: 3, Gaps: 2, Mean: h, Median: h},
+			"1 h | 1 h | -"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -100,28 +89,14 @@ func TestMainlineIntervalMeanDeviationAndCount(t *testing.T) {
 	}
 }
 
-// TestMainlineIntervalHasIntervalAndDeviationFromTheGaps (forsgren#253): an
-// interval needs a gap, so two commits; a deviation needs two gaps (n-1 is 0
-// for one).
-func TestMainlineIntervalHasIntervalAndDeviationFromTheGaps(t *testing.T) {
+// TestMainlineIntervalHasIntervalAndMedianFromTheGaps (forsgren#253): an
+// interval needs a gap, so two commits; a median needs two gaps.
+func TestMainlineIntervalHasIntervalAndMedianFromTheGaps(t *testing.T) {
 	for commits, want := range map[int][2]bool{0: {false, false}, 1: {false, false}, 2: {true, false}, 3: {true, true}} {
 		got := mainlineOf(shopAt(9, 7, 4)[:commits]...)
-		if [2]bool{got.HasInterval(), got.HasDeviation()} != want {
-			t.Errorf("%d commits: want interval and deviation %v, got %+v", commits, want, got)
+		if [2]bool{got.HasInterval(), got.HasMedian()} != want {
+			t.Errorf("%d commits: want interval and median %v, got %+v", commits, want, got)
 		}
-	}
-}
-
-// TestMainlineIntervalDeviationDividesByNMinusOne (forsgren#253): the
-// deviation of gaps 1 and 3 hours is sqrt(2) hours with n-1, a population
-// deviation (n) would be exactly 1 hour; a mutation to n fails here.
-func TestMainlineIntervalDeviationDividesByNMinusOne(t *testing.T) {
-	got := mainlineOf(shopAt(5, 4, 1)...)
-	if got.Deviation == time.Hour {
-		t.Fatalf("the deviation is the population deviation (n), 1 h; want the sample deviation (n-1)")
-	}
-	if want := sqrt2Hours(); got.Deviation != want {
-		t.Errorf("want the sample deviation %v, got %v", want, got.Deviation)
 	}
 }
 

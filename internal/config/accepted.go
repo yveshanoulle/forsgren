@@ -15,20 +15,22 @@ var (
 	doraWindows = []int{DefaultDoraDays, DoraDays90, DoraDays180}
 )
 
+// acceptedSets are the fixed sets of the keys that are not page keys, by key.
+var acceptedSets = map[string][]string{
+	"view":              viewValues,
+	"auto_update":       slices.Sorted(maps.Keys(booleans)),
+	"auto_update_level": levelValues,
+	"dora_days":         numbersOf(doraWindows),
+	"tbd_figures":       tbdFiguresValues,
+}
+
 // Accepted is the values the key accepts when they are a fixed set, sorted
 // as written in the settings page's list, nil for a key that takes a number
 // of days or hours. The loader checks against the same sets, so the settings
-// page can be held to list every one (forsgren#79, #200).
+// page can be held to list every one (forsgren#79, #200, #423).
 func Accepted(key string) []string {
-	switch key {
-	case "view":
-		return slices.Clone(viewValues)
-	case "auto_update":
-		return slices.Sorted(maps.Keys(booleans))
-	case "auto_update_level":
-		return slices.Clone(levelValues)
-	case "dora_days":
-		return numbersOf(doraWindows)
+	if set, ok := acceptedSets[key]; ok {
+		return slices.Clone(set)
 	}
 	if isPageKey(key) {
 		return pageModeNames()

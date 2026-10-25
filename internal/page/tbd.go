@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/yveshanoulle/forsgren/internal/config"
 	"github.com/yveshanoulle/forsgren/internal/metrics"
 )
 
@@ -11,9 +12,11 @@ import (
 // groups under two-level headers (forsgren#397, step 5, Yves's ruling on
 // #401): volume, shares of the commits, time to main per commit, commits per
 // push, time to deploy per commit and commits per deployment, then the
-// PR Lead Time (forsgren#256), the Mainline Interval (five columns,
-// forsgren#387, step 1) and the Developers count (forsgren#273); or one line
-// that says why there is none.
+// PR Lead Time (forsgren#256), the Mainline Interval and the Developers count
+// (forsgren#273); or one line that says why there is none. The key tbd_figures
+// (forsgren#423) chooses the figures of each measure: the median alone, one
+// column each and one header row (the default), or the mean, the median and the
+// 90th percentile under two-level headers.
 
 // tbdTitle is the TBD page's title, its h1 and the legend's heading for it,
 // as Yves wrote it (forsgren#271): the name alone since the page left beta
@@ -51,17 +54,25 @@ type TbdRow struct {
 	pullsUncollected bool
 }
 
-// LeadCell is the row's pull requests cell, in the Mainline Lead Time group:
-// MainlineLeadTime.Cell, or
-// pullsUncollectedCell while the pull requests have not been collected,
-// unless a refused read makes the project not readable (forsgren#337, step
-// 2), which Cell says.
-func (r TbdRow) LeadCell() metrics.NotedCell {
-	if r.pullsUncollected && !r.Lead.NotReadable {
-		return metrics.NotedCell{Value: pullsUncollectedCell}
+// LeadState is the sentence in place of the row's pull requests cells, in the
+// PR Lead Time group, or empty when the group has its figures: "Pull requests
+// not readable" for a project a refused read makes not readable (forsgren#337,
+// step 2), else pullsUncollectedCell while the pull requests have not been
+// collected (forsgren#256, step 2).
+func (r TbdRow) LeadState() string {
+	switch {
+	case r.Lead.NotReadable:
+		return r.Lead.State()
+	case r.pullsUncollected:
+		return pullsUncollectedCell
 	}
-	return r.Lead.Cell()
+	return ""
 }
+
+// TbdAll says whether the TBD table shows the mean, the median and the 90th
+// percentile of each measure (tbd_figures: all) or the median alone, the
+// default (forsgren#423).
+func (d Data) TbdAll() bool { return d.TbdFigures == config.TbdFiguresAll }
 
 // TbdRows pairs each Mainline Interval with the Mainline Lead Time, push and
 // deployment measures, deployment volume and Developers of its project, in the
