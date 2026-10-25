@@ -102,14 +102,14 @@ func TestFirstCommitTimeNamesTheMissingPermission(t *testing.T) {
 	f := newFake(t)
 	f.on(pullCommitsPath, reply{status: 403, body: `{"message":"Resource not accessible by integration"}`})
 	_, _, err := firstCommit(t, f, DefaultMaxPages)
-	wantError(t, err, ErrPullRequestsDenied, "acme/app", pullCommitsPath, "pull-requests: read")
+	wantError(t, err, ErrPullRequestsDenied, "acme/app", pullCommitsPath, "Pull requests: Read")
 	wantError(t, err, ErrAccess)
 
 	limited := newFake(t)
 	limited.on(pullCommitsPath, reply{status: 403, header: http.Header{"Retry-After": {"60"}}})
 	_, _, err = firstCommit(t, limited, DefaultMaxPages)
 	wantError(t, err, ErrRateLimit, "acme/app")
-	if strings.Contains(err.Error(), "pull-requests: read") {
+	if strings.Contains(err.Error(), "Pull requests: Read") {
 		t.Errorf("want no missing permission for a rate limit, got %v", err)
 	}
 }

@@ -182,7 +182,7 @@ func TestCheckUpdateNamesTheMissingPermissionWhenThePullRequestCannotBeRead(t *t
 	answerPaths(t, answers)
 	flags := updateFlags(t)
 	wantExit2(t, checkUpdateRun(argsOf(flags, "config", "repo", "pull")...), "check-update",
-		"403 Forbidden for /repos/acme/data/pulls/7; the job's token needs pull-requests: read")
+		"403 Forbidden for /repos/acme/data/pulls/7; GITHUB_TOKEN was refused: the job's token needs pull-requests: read")
 }
 
 // TestCheckUpdateIsExit2WhenTheFileListIsCutAtThePageLimit: files that were

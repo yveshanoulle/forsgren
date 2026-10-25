@@ -95,6 +95,9 @@ type Client struct {
 // otherwise: the installation's own, the one collect reads with.
 const defaultTokenName = "FORSGREN_TOKEN"
 
+// jobVariable is the workflow job's token, whose permissions the job sets.
+const jobVariable = "GITHUB_TOKEN"
+
 // New is a client of the API at baseURL (https://api.github.com, or a test
 // server) that reads at most maxPages pages per list, and at least one. A
 // refusal names FORSGREN_TOKEN as the token to check; WithTokenName names

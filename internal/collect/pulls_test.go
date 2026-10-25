@@ -287,8 +287,8 @@ func TestAMissingPullRequestsPermissionNeverFailsTheCollection(t *testing.T) {
 	path := historyPath(t)
 	r := g.collect(t, shop(production), path, github.DefaultMaxPages)
 	wantStdout(t, r, "acme/app: 1 new, 0 skipped (not final), 0 commits\n")
-	if !strings.Contains(r.stderr, "pull-requests: read") {
-		t.Errorf("want stderr to name the missing pull-requests: read, got %q", r.stderr)
+	if !strings.Contains(r.stderr, "Pull requests: Read") {
+		t.Errorf("want stderr to name the missing Pull requests: Read, got %q", r.stderr)
 	}
 	dataOf(path).want(t, "pulls_read.csv", "")
 	if len(g.report.Failed) != 0 || len(g.report.Cuts) != 0 {
@@ -305,8 +305,8 @@ func TestADeniedCommitListKeepsThePullRequestsReadWhole(t *testing.T) {
 	path := historyPath(t)
 	r := g.collect(t, shop(production), path, github.DefaultMaxPages)
 	wantStdout(t, r, "acme/app: 0 new, 0 skipped (not final), 0 commits, 1 merged pull requests\n")
-	if !strings.Contains(r.stderr, "pull-requests: read") {
-		t.Errorf("want stderr to name the missing pull-requests: read, got %q", r.stderr)
+	if !strings.Contains(r.stderr, "Pull requests: Read") {
+		t.Errorf("want stderr to name the missing Pull requests: Read, got %q", r.stderr)
 	}
 	dataOf(path).want(t, "pulls.csv", pullsHeader+pull14.line("2026-09-23T10:00:00Z", false))
 	dataOf(path).want(t, "pulls_read.csv", "")

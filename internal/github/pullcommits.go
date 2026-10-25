@@ -45,7 +45,7 @@ func (c *Client) FirstCommitTime(ctx context.Context, repo string, number int64)
 	r := firstCommitReader{number: number}
 	truncated, err := c.list(ctx, t, r.page)
 	if err != nil {
-		return time.Time{}, false, explainDenied(repo, t, err)
+		return time.Time{}, false, c.explainDenied(repo, t, err)
 	}
 	return r.result(t, truncated)
 }

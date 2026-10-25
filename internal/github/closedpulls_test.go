@@ -137,7 +137,7 @@ func TestClosedPullRequestsNameTheMissingPermission(t *testing.T) {
 	f := newFake(t)
 	f.on(closedPullsPath, reply{status: 403, body: `{"message":"Resource not accessible by integration"}`})
 	_, _, err := closedPulls(t, f, DefaultMaxPages)
-	wantError(t, err, ErrPullRequestsDenied, "acme/app", "pull-requests: read")
+	wantError(t, err, ErrPullRequestsDenied, "acme/app", "Pull requests: Read")
 	wantError(t, err, ErrAccess)
 }
 

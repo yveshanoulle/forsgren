@@ -11,7 +11,7 @@
   {
    "path": "internal/collect/pushes_test.go",
    "score": 9.09,
-   "checkedAt": "2026-10-24",
+   "checkedAt": "2026-10-25",
    "minScore": 9.0
   },
   {
@@ -329,7 +329,7 @@
   {
    "path": "internal/github/client.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -497,25 +497,25 @@
   {
    "path": "internal/github/closedpulls.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
    "path": "internal/github/closedpulls_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
    "path": "internal/github/pullcommits.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
    "path": "internal/github/pullcommits_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -797,13 +797,13 @@
   {
    "path": "internal/github/pulls.go",
    "score": 10.0,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
    "path": "internal/github/pulls_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -863,19 +863,19 @@
   {
    "path": "cmd/forsgren/checkupdate_errors_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
    "path": "internal/github/pullfiles.go",
    "score": 10.0,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
    "path": "internal/github/pullfiles_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -1841,7 +1841,7 @@
   {
    "path": "internal/collect/pulls_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -2015,13 +2015,13 @@
   {
    "path": "internal/github/pushes.go",
    "score": 10.0,
-   "checkedAt": "2026-10-24",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
    "path": "internal/github/pushes_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-24",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {

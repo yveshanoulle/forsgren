@@ -44,21 +44,48 @@ func (c *Client) OpenPullRequests(ctx context.Context, repo string) ([]PullReque
 	var pulls []PullRequest
 	truncated, err := c.list(ctx, t, readPullRequests(&pulls))
 	if err != nil {
-		return nil, false, explainDenied(repo, t, err)
+		return nil, false, c.explainDenied(repo, t, err)
 	}
 	return pulls, truncated, nil
 }
 
 // explainDenied is err, or, when err is the 403 of a token without
 // pull-requests: read (not GitHub's rate limit), the error that says so:
-// ErrAccess and ErrPullRequestsDenied, naming that permission.
-func explainDenied(repo string, t target, err error) error {
+// ErrAccess and ErrPullRequestsDenied, naming the token that was refused and
+// the permission it needs, where that token has it (forsgren#318).
+func (c *Client) explainDenied(repo string, t target, err error) error {
+	return c.explainRefusal(repo, t, err, permission{"pull-requests", "Pull requests", ErrPullRequestsDenied})
+}
+
+// permission is one read permission under its two spellings: the key a
+// workflow job sets (pull-requests) and the name of a fine-grained token's
+// repository permission (Pull requests), with the error its refusal is.
+type permission struct {
+	job, repository string
+	denied          error
+}
+
+// explainRefusal is err, or, when err is the 403 of a token without p (not
+// GitHub's rate limit), ErrAccess and p's error, naming the token that was
+// refused and the fix that token needs.
+func (c *Client) explainRefusal(repo string, t target, err error, p permission) error {
 	forbidden, ok := errors.AsType[*answerError](err)
 	if !ok || !isDenied(forbidden) {
 		return err
 	}
-	return fmt.Errorf("%s: %w: %w: %s for %s; the job's token needs pull-requests: read",
-		repo, ErrAccess, ErrPullRequestsDenied, forbidden.status(), t.path())
+	return fmt.Errorf("%s: %w: %w: %s for %s; %s", repo, ErrAccess, p.denied,
+		forbidden.status(), t.path(), c.deniedFix(p))
+}
+
+// deniedFix says which token was refused and how to grant it p: the workflow
+// job's permissions for GITHUB_TOKEN, else the repository permission of a
+// fine-grained token such as FORSGREN_TOKEN.
+func (c *Client) deniedFix(p permission) string {
+	if c.tokenName == jobVariable {
+		return c.tokenName + " was refused: the job's token needs " + p.job + ": read " +
+			"in the permissions of the workflow job"
+	}
+	return c.tokenName + " was refused: it needs the repository permission " + p.repository + ": Read"
 }
 
 // isDenied says whether GitHub's error answer to a pull request read is the

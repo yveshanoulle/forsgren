@@ -86,13 +86,33 @@ func TestBranchActivitiesSayTheyStoppedAtThePageLimit(t *testing.T) {
 	}
 }
 
+// TestARefusedPushReadNamesTheTokenAndItsFix (forsgren#318): as for the pull
+// request read, a 403 names the token that was refused and where it gets
+// Contents: read, the job's permissions or its own repository permission.
+func TestARefusedPushReadNamesTheTokenAndItsFix(t *testing.T) {
+	for _, c := range []deniedCase{
+		{"GITHUB_TOKEN", "GITHUB_TOKEN was refused: the job's token needs contents: read " +
+			"in the permissions of the workflow job", "Contents: Read"},
+		{"FORSGREN_TOKEN", "FORSGREN_TOKEN was refused: it needs the repository permission " +
+			"Contents: Read", "contents: read"},
+	} {
+		t.Run(c.tokenName, func(t *testing.T) {
+			f := newFake(t)
+			f.on(activityPath, reply{status: 403, body: `{"message":"Resource not accessible by integration"}`})
+			client := f.client(t, DefaultMaxPages).WithTokenName(c.tokenName)
+			_, _, err := client.BranchActivities(context.Background(), "acme/app", "main", since)
+			wantDeniedFix(t, c, err, ErrPushesDenied)
+		})
+	}
+}
+
 // TestBranchActivitiesNameTheMissingPermission: a 403 is the token without
 // Contents: read, ErrAccess and ErrPushesDenied naming it.
 func TestBranchActivitiesNameTheMissingPermission(t *testing.T) {
 	f := newFake(t)
 	f.on(activityPath, reply{status: 403, body: `{"message":"Resource not accessible by integration"}`})
 	_, _, err := activities(t, f, DefaultMaxPages)
-	wantError(t, err, ErrPushesDenied, "acme/app", "contents: read")
+	wantError(t, err, ErrPushesDenied, "acme/app", "Contents: Read")
 	wantError(t, err, ErrAccess)
 	if errors.Is(err, ErrPullRequestsDenied) {
 		t.Errorf("want no pull request permission named, got %v", err)

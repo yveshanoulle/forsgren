@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -42,6 +43,41 @@ func TestOpenPullRequestsReadsEveryPageOfTheOpenOnes(t *testing.T) {
 	}
 }
 
+// deniedCase is a refused read made with the token tokenName: the message
+// wants the fix of that token (want) and never the other's (wantNot).
+type deniedCase struct{ tokenName, want, wantNot string }
+
+// wantDeniedFix fails when err does not name the fix of c's token.
+func wantDeniedFix(t *testing.T, c deniedCase, err, denied error) {
+	t.Helper()
+	wantError(t, err, ErrAccess, c.want)
+	if !errors.Is(err, denied) || strings.Contains(err.Error(), c.wantNot) {
+		t.Errorf("want %v and no %q, got %v", denied, c.wantNot, err)
+	}
+}
+
+// TestARefusedPullRequestReadNamesTheTokenAndItsFix (forsgren#318, the
+// message of forsgren#40 step 5): a 403 names the token that was refused and
+// the permission that token needs, where it is set: the job's permissions for
+// GITHUB_TOKEN, the token's own repository permission for FORSGREN_TOKEN, a
+// fine-grained token. Never the other token's fix.
+func TestARefusedPullRequestReadNamesTheTokenAndItsFix(t *testing.T) {
+	for _, c := range []deniedCase{
+		{"GITHUB_TOKEN", "GITHUB_TOKEN was refused: the job's token needs pull-requests: read " +
+			"in the permissions of the workflow job", "Pull requests: Read"},
+		{"FORSGREN_TOKEN", "FORSGREN_TOKEN was refused: it needs the repository permission " +
+			"Pull requests: Read", "pull-requests: read"},
+	} {
+		t.Run(c.tokenName, func(t *testing.T) {
+			f := newFake(t)
+			f.on(pullsPath, reply{status: 403, body: `{"message":"Resource not accessible by integration"}`})
+			client := f.client(t, DefaultMaxPages).WithTokenName(c.tokenName)
+			_, _, err := client.OpenPullRequests(context.Background(), "acme/data")
+			wantDeniedFix(t, c, err, ErrPullRequestsDenied)
+		})
+	}
+}
+
 // TestOpenPullRequestsNamesTheMissingPermission (forsgren#40, step 5): a 403
 // is the job token without pull-requests: read, an access error that says
 // so, not FORSGREN_TOKEN's access.
@@ -49,7 +85,7 @@ func TestOpenPullRequestsNamesTheMissingPermission(t *testing.T) {
 	f := newFake(t)
 	f.on(pullsPath, reply{status: 403, body: `{"message":"Resource not accessible by integration"}`})
 	_, _, err := f.client(t, DefaultMaxPages).OpenPullRequests(context.Background(), "acme/data")
-	wantError(t, err, ErrAccess, "acme/data", "pull-requests: read")
+	wantError(t, err, ErrAccess, "acme/data", "Pull requests: Read")
 }
 
 // TestOpenPullRequestsTellsTheRateLimitFromTheMissingPermission

@@ -73,20 +73,16 @@ func (c *Client) BranchActivities(ctx context.Context, repo, branch string, sinc
 		return keep(&all, page, Span{Since: since}, at), nil
 	})
 	if err != nil {
-		return nil, false, explainPushesDenied(repo, t, err)
+		return nil, false, c.explainPushesDenied(repo, t, err)
 	}
 	return wantedActivities(all), truncated, nil
 }
 
 // explainPushesDenied is err, or, when err is the 403 of a token without
-// Contents: read (not GitHub's rate limit), the error that says so.
-func explainPushesDenied(repo string, t target, err error) error {
-	forbidden, ok := errors.AsType[*answerError](err)
-	if !ok || !isDenied(forbidden) {
-		return err
-	}
-	return fmt.Errorf("%s: %w: %w: %s for %s; the token needs contents: read",
-		repo, ErrAccess, ErrPushesDenied, forbidden.status(), t.path())
+// Contents: read (not GitHub's rate limit), the error that says so, naming
+// the token that was refused and its fix (forsgren#318).
+func (c *Client) explainPushesDenied(repo string, t target, err error) error {
+	return c.explainRefusal(repo, t, err, permission{"contents", "Contents", ErrPushesDenied})
 }
 
 // wantedActivities is the activities of the kinds forsgren stores.

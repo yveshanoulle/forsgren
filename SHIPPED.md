@@ -9,6 +9,17 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — A refused pull request read names the token that was refused, and its fix ([#318](https://github.com/yveshanoulle/forsgren/issues/318), step 1 of 1)
+
+forsgren issue 318, bug, patch release. `explainDenied` always said the job's token needs `pull-requests: read`, also when the refused token was `FORSGREN_TOKEN`, a fine-grained token on route B, so the fix it named was the wrong one. It is now a method of the client and names the client's token. For `GITHUB_TOKEN`: `GITHUB_TOKEN was refused: the job's token needs pull-requests: read in the permissions of the workflow job`. For any other token, `FORSGREN_TOKEN` by default: `FORSGREN_TOKEN was refused: it needs the repository permission Pull requests: Read`. The sentence is the same for the open pull request list, the closed list, a pull request's commits, files and author. The push read of collect (`explainPushesDenied`, which said only `the token needs contents: read`) gets the same two sentences with `contents: read` and `Contents: Read`: it is the same defect, and collect reads it with `FORSGREN_TOKEN`.
+
+- Red first: `TestARefusedPullRequestReadNamesTheTokenAndItsFix` and `TestARefusedPushReadNamesTheTokenAndItsFix` (a refused call with each token name; the message names its own fix and never the other's), seen failing against the old messages.
+- Green: `Client.explainRefusal`, `deniedFix` and `permission` in `internal/github/pulls.go`, `jobVariable` in `client.go`; the tests of the other callers, collect's stderr tests and check-update's message test name the new sentences. `docs/configuration.md` describes them.
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The legacy commit backfill runs before the push read, so the first push read cannot starve it ([#416](https://github.com/yveshanoulle/forsgren/issues/416), 1 step)
 
 forsgren issue 416, bug, patch. On an installation whose stored commits predate commits format v3, the push read (#397) ran before the legacy backfill (#385) and spent one comparison per push, so the request budget ran out there and the backfill never ran: `commits_backfilled.csv` was never written and the TBD page showed estimated lead figures and no developers. `collectRepository` now calls `backfillThenPushes`: the backfill goes first, and a backfill that is cut short or fails stops the repository's run, so the push read sends no request after it. A pushes cut after a finished backfill is no cut of the backfill, so the repository is noted done. Tests: a budget that covers the backfill but not both pushes fills the legacy commits, stores the newer push, reports the pushes cut and marks the backfill; a cut backfill sends no push request.

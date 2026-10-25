@@ -27,7 +27,7 @@ func (c *Client) PullRequestAuthor(ctx context.Context, repo string, number int6
 	}
 	body, _, err := c.get(ctx, t, jsonMedia)
 	if err != nil {
-		return "", explainDenied(repo, t, err)
+		return "", c.explainDenied(repo, t, err)
 	}
 	var p pullRequest
 	if err := json.Unmarshal(body, &p); err != nil {
@@ -49,7 +49,7 @@ func (c *Client) PullRequestFiles(ctx context.Context, repo string, number int64
 	var files []ChangedFile
 	truncated, err := c.list(ctx, t, readChangedFiles(&files))
 	if err != nil {
-		return nil, false, explainDenied(repo, t, err)
+		return nil, false, c.explainDenied(repo, t, err)
 	}
 	return files, truncated, nil
 }

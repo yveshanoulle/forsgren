@@ -738,6 +738,16 @@ jobs:
   read, the lookup is unknown as for the list: a 403 is `no-access` (the
   token needs `pull-requests: read`), GitHub's rate limit is
   `rate-limited`, and anything else is `failed`.
+  **A refused read names the token that was refused**
+  ([#318](https://github.com/yveshanoulle/forsgren/issues/318)): the message
+  of a 403 on a pull request read, or on the push read of collect, says
+  `GITHUB_TOKEN was refused: the job's token needs pull-requests: read in the
+  permissions of the workflow job` when the job's token was refused, and
+  `FORSGREN_TOKEN was refused: it needs the repository permission Pull
+  requests: Read` when the installation's own fine-grained token was (for the
+  push read: `contents: read` and `Contents: Read`). The fix is where that
+  token gets the permission: the workflow job for `GITHUB_TOKEN`, the token
+  itself for `FORSGREN_TOKEN`.
 - **`issues: write` lets forsgren open its setup issue** (forsgren#73). When
   the running version needs more configuration, `forsgren check-needs` writes
   one issue in the data repository with the job's token. Without the

@@ -72,7 +72,7 @@ func (c *Client) ClosedPullRequests(ctx context.Context, repo string, since time
 		return keep(&pulls, page, Span{Since: since}, updated), nil
 	})
 	if err != nil {
-		return nil, false, explainDenied(repo, t, err)
+		return nil, false, c.explainDenied(repo, t, err)
 	}
 	return pulls, truncated, nil
 }

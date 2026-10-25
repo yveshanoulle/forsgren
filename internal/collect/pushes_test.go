@@ -234,7 +234,7 @@ func TestAMissingContentsPermissionNeverFailsThePushRead(t *testing.T) {
 	data.want(t, PushesReadFile, "")
 	data.want(t, PushesDeniedFile, pushesDeniedNow)
 	data.wantNoToken(t, PushesDeniedFile)
-	if !strings.Contains(r.stderr, "pushes are not readable") || !strings.Contains(r.stderr, "contents: read") {
+	if !strings.Contains(r.stderr, "pushes are not readable") || !strings.Contains(r.stderr, "Contents: Read") {
 		t.Errorf("want stderr to name the missing permission, got %q", r.stderr)
 	}
 	g.status = map[string]int{}

@@ -158,7 +158,7 @@ func wantPermissionExplained(t *testing.T, path string, call func(*Client) error
 	f := newFake(t)
 	f.on(path, reply{status: 403, body: `{"message":"Resource not accessible by integration"}`})
 	err := call(f.client(t, DefaultMaxPages))
-	wantError(t, err, ErrAccess, "acme/data", "pull-requests: read")
+	wantError(t, err, ErrAccess, "acme/data", "Pull requests: Read")
 	if !errors.Is(err, ErrPullRequestsDenied) {
 		t.Errorf("want ErrPullRequestsDenied, got %v", err)
 	}
