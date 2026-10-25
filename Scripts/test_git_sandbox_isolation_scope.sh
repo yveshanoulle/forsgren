@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_git_sandbox_isolation_scope v2
+# canon: test_git_sandbox_isolation_scope v3
+# v3 (forsgren#446): cases 25 to 28 over the real list (weights balance the shards within 10 seconds, each self-test once, a new one in one shard, no stale weight row), mutations K (retargeted), M and N.
 # v2 (forsgren#426): cases 20 to 24 and mutations K and L for the --shard argument.
 # Scripts/test_git_sandbox_isolation_scope.sh (forsgren#251, decision 249)
 #
@@ -66,7 +67,8 @@ ORIGIN="${TMP}/origin.git"
 git init -q --bare "$ORIGIN"
 git init -q -b main "$FX"
 mkdir -p "${FX}/Scripts"
-cp "$ISO" Scripts/lib_git_sandbox.sh Scripts/lib_gate_select.sh "${FX}/Scripts/"
+cp "$ISO" Scripts/lib_git_sandbox.sh Scripts/lib_gate_select.sh Scripts/lib_isolation_shard.sh "${FX}/Scripts/"
+printf 'default 5\n' > "${FX}/Scripts/git_sandbox_isolation_weights.txt"
 for t in a b c; do
   printf '#!/usr/bin/env bash\ngit --version > /dev/null\nbash Scripts/helper_%s.sh\n' "$t" > "${FX}/Scripts/test_${t}.sh"
 done
@@ -293,6 +295,87 @@ capture env GITHUB_ACTIONS=true bash "${FX}/Scripts/test_git_sandbox_isolation.s
 want_usage "24c: an unknown argument is a usage error"
 reset
 
+# 25-28 (forsgren#446): the split is balanced by the seconds in the weights file
+# (a default for the rest), not by position. Over the REAL list of git-using
+# self-tests, derived with the guard's own detector: the two shards weigh within
+# 10 of each other (25), together hold every self-test exactly once (26), a new
+# self-test that is not in the file lands in exactly one shard (27), and no row
+# of the file names a self-test that is gone (28).
+# shellcheck source=Scripts/lib_isolation_shard.sh
+source Scripts/lib_isolation_shard.sh
+WEIGHTS="${REPO_ROOT}/Scripts/git_sandbox_isolation_weights.txt"
+REAL=()
+for t in Scripts/test_*.sh; do
+  case "$t" in
+    Scripts/test_git_sandbox_isolation.sh | Scripts/test_git_sandbox_guard.sh) continue ;;
+  esac
+  if git_sandbox_uses_git "$t"; then
+    REAL+=("$t")
+  fi
+done
+REAL_SORTED="$(printf '%s\n' "${REAL[@]}" | LC_ALL=C sort)"
+# weight_of <self-test>: its row in the file, else the default row.
+weight_of() {
+  local w
+  w="$(awk -v t="$1" '$1 == t { print $2 }' "$WEIGHTS")"
+  [[ -n "$w" ]] || w="$(awk '$1 == "default" { print $2 }' "$WEIGHTS")"
+  echo "$w"
+}
+# shard_weight <n> <m> <sorted list>: the summed weight of shard n of m.
+shard_weight() {
+  local sum=0 t
+  while IFS= read -r t; do
+    [[ -z "$t" ]] && continue
+    sum=$((sum + $(weight_of "$t")))
+  done < <(shard_assign "$1" "$2" "$WEIGHTS" <<< "$3")
+  echo "$sum"
+}
+w1="$(shard_weight 1 2 "$REAL_SORTED")"
+w2="$(shard_weight 2 2 "$REAL_SORTED")"
+gap=$((w1 > w2 ? w1 - w2 : w2 - w1))
+if [[ "$gap" -le 10 ]]; then
+  echo "  ok: 25: the two shards weigh ${w1} and ${w2}, within 10 of each other"
+else
+  fail "25: the two shards weigh ${w1} and ${w2} seconds, ${gap} apart, wanted at most 10"
+fi
+
+dealt="$( { shard_assign 1 2 "$WEIGHTS" <<< "$REAL_SORTED"; shard_assign 2 2 "$WEIGHTS" <<< "$REAL_SORTED"; } | LC_ALL=C sort)"
+if [[ "$dealt" == "$REAL_SORTED" ]]; then
+  echo "  ok: 26: the two shards together hold each of the ${#REAL[@]} self-tests exactly once"
+else
+  fail "26: the two shards do not hold each of the ${#REAL[@]} self-tests exactly once"
+fi
+
+NEWT="Scripts/test_zz_new_self_test.sh"
+WITH_NEW="$(printf '%s\n%s\n' "$REAL_SORTED" "$NEWT" | LC_ALL=C sort)"
+hits=0
+for n in 1 2; do
+  shard_assign "$n" 2 "$WEIGHTS" <<< "$WITH_NEW" > "${TMP}/shard.out"
+  if grep -qxF -- "$NEWT" "${TMP}/shard.out"; then
+    hits=$((hits + 1))
+  fi
+done
+if [[ "$hits" -eq 1 ]]; then
+  echo "  ok: 27: a new self-test, not in the weights file, lands in exactly one shard"
+else
+  fail "27: a new self-test landed in ${hits} shards, wanted 1"
+fi
+
+stale=""
+while read -r name secs; do
+  [[ -z "$name" || "$name" == "#"* || "$name" == default ]] && continue
+  if ! grep -qxF -- "$name" <<< "$REAL_SORTED"; then
+    stale="${stale} ${name}"
+  fi
+  [[ "$secs" =~ ^[1-9][0-9]*$ ]] || fail "28: the weight of ${name} is not a whole number of seconds: ${secs}"
+done < "$WEIGHTS"
+if [[ -z "$stale" ]]; then
+  echo "  ok: 28: every row of the weights file names a git-using self-test that exists"
+else
+  fail "28: the weights file names self-tests that are gone or not git-using:${stale}"
+fi
+reset
+
 # Mutation proofs: the isolation script of the fixture is mutated and pushed to
 # the fixture's origin (so the mutation is not itself a change), the change a
 # case needs is made, and the case must no longer hold.
@@ -448,10 +531,16 @@ if mutate 's/^  GO_STARTER="[$](go_starter)"$/  GO_STARTER="cmd\/app\/main.go"/'
 fi
 
 # K and L (forsgren#426): the fixture has four self-tests by now (a, b, c, gorun).
-if mutate 's/-eq [$]((SHARD_N - 1))/-ge 0/'; then
+SHARDLIB="${FX}/Scripts/lib_isolation_shard.sh"
+cp "$SHARDLIB" "${TMP}/shardlib.orig"
+if selftest_mutant "${TMP}/shardlib.orig" "$SHARDLIB" 's/if (shard\[i\] == n) print name\[i\]/print name[i]/'; then
+  publish mutant
+  reset
   shard 2/2
-  proof K "shard 2/2: 2 of 4" "with the modulo ignored, shard 2/2 runs more than its own half, case 21 is red"
-  restore
+  proof K "shard 2/2: 2 of 4" "with the shard test removed, shard 2/2 runs more than its own half, case 21 is red"
+  cp "${TMP}/shardlib.orig" "$SHARDLIB"
+  publish restore
+  reset
 fi
 
 if mutate 's/\[\[ "[$]SHARD_N" -le "[$]SHARD_M" \]\] || usage/:/'; then
@@ -464,4 +553,26 @@ if mutate 's/\[\[ "[$]SHARD_N" -le "[$]SHARD_M" \]\] || usage/:/'; then
   restore
 fi
 
-selftest_end "the git sandbox isolation scope self-test failed" "git sandbox isolation scope: every case holds, twelve mutations seen"
+# M and N (forsgren#446): the real shard library, mutated in the temp root and
+# sourced in a subshell, must make case 25 red (M: the weights ignored, so the
+# split is by position again; N: every self-test to the first shard).
+for spec in "M|s/wt\\[c\\] = (\\\$1 in w) ? w\\[\\\$1\\] : def/wt[c] = def/|the weights ignored, the split is by name again and the gap is" \
+  "N|s/low = 1\$/low = 1; load[1] = -1000000/|the first shard always the lightest, the gap is"; do
+  IFS='|' read -r tag expr what <<< "$spec"
+  if selftest_mutant Scripts/lib_isolation_shard.sh "${TMP}/mutant_shard_${tag}.sh" "$expr"; then
+    mgap="$( (
+      # shellcheck disable=SC1090
+      source "${TMP}/mutant_shard_${tag}.sh"
+      a="$(shard_weight 1 2 "$REAL_SORTED")"
+      b="$(shard_weight 2 2 "$REAL_SORTED")"
+      echo $((a > b ? a - b : b - a))
+    ))"
+    if [[ "$mgap" -gt 10 ]]; then
+      echo "  ok: mutation proof ${tag}: with ${what} ${mgap}, case 25 is red"
+    else
+      fail "mutation proof ${tag}: with ${what} still ${mgap} (at most 10), case 25 would stay green"
+    fi
+  fi
+done
+
+selftest_end "the git sandbox isolation scope self-test failed" "git sandbox isolation scope: every case holds, fourteen mutations seen"

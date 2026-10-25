@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_git_sandbox_isolation v2
+# canon: test_git_sandbox_isolation v3
+# v3 (forsgren#446): --shard deals the self-tests out by their seconds (Scripts/git_sandbox_isolation_weights.txt), greedy, not by index.
 # v2 (forsgren#426): an optional --shard N/M runs every M-th self-test of the sorted list.
 # Scripts/test_git_sandbox_isolation.sh
 #
@@ -40,10 +41,14 @@
 # once, under the decoy with GIT_DIR and GIT_INDEX_FILE, and the leak check is
 # done after that run.
 #
-# SHARDS (forsgren#426). `--shard N/M` (1 <= N <= M) runs only the self-tests at
-# positions N, N+M, N+2M, ... of the sorted list of git-using self-tests (index
-# modulo M), so M runs with N = 1..M together run every self-test exactly once,
-# and a new self-test lands in one shard by itself, with no list to edit.
+# SHARDS (forsgren#426, #446). `--shard N/M` (1 <= N <= M) runs only the self-tests
+# that Scripts/lib_isolation_shard.sh deals to shard N of the sorted list of
+# git-using self-tests: greedy by the seconds in Scripts/git_sandbox_isolation_weights.txt
+# (heaviest first, each to the shard that weighs least so far, a default weight for a
+# self-test with no row), so M runs with N = 1..M together run every self-test
+# exactly once, the shards weigh about the same, and a new self-test lands in one
+# shard by itself, with no list to edit. (#426 dealt by index modulo M, which put
+# the slow ones together: 2 minutes against 7.)
 # Quality runs the two shards as two jobs (Scripts/ci_job_groups.txt); without
 # the argument every self-test runs, as FBP does. The sharding applies to the
 # whole list before the scope above picks the affected ones, so the split does
@@ -72,6 +77,8 @@ fi
 source Scripts/lib_git_sandbox.sh
 # shellcheck source=Scripts/lib_gate_select.sh
 source Scripts/lib_gate_select.sh
+# shellcheck source=Scripts/lib_isolation_shard.sh
+source Scripts/lib_isolation_shard.sh
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -148,24 +155,26 @@ if [[ "${#TESTS[@]}" -lt 3 ]]; then
   fail "only ${#TESTS[@]} git-using self-tests found: the detector is broken, not the repository"
 fi
 
-# shard_tests: keeps the self-tests at positions N, N+M, ... of the list sorted
-# in the C locale (index modulo M), so the split does not depend on the locale.
+# shard_tests: keeps the self-tests dealt to shard N of M, from the list sorted in
+# the C locale, so the split does not depend on the locale.
 shard_tests() {
-  local sorted t i=0 kept=()
+  local sorted kept t
   sorted="$(printf '%s\n' "${TESTS[@]}" | LC_ALL=C sort)"
+  SHARD_TOTAL="${#TESTS[@]}"
+  if ! kept="$(shard_assign "$SHARD_N" "$SHARD_M" Scripts/git_sandbox_isolation_weights.txt <<< "$sorted")"; then
+    fail "the shards cannot be dealt: see the line above"
+    TESTS=()
+    return
+  fi
+  TESTS=()
   while IFS= read -r t; do
-    [[ -z "$t" ]] && continue
-    if [[ $((i % SHARD_M)) -eq $((SHARD_N - 1)) ]]; then
-      kept+=("$t")
-    fi
-    i=$((i + 1))
-  done <<< "$sorted"
-  SHARD_TOTAL="$i"
-  TESTS=("${kept[@]+"${kept[@]}"}")
+    [[ -n "$t" ]] && TESTS+=("$t")
+  done <<< "$kept"
 }
 SHARD_NOTE=""
 if [[ -n "$SHARD_N" ]]; then
   shard_tests
+  [[ "$failed" -eq 0 ]] || exit 1
   SHARD_NOTE="shard ${SHARD_N}/${SHARD_M}: ${#TESTS[@]} of ${SHARD_TOTAL} self-tests"
   echo "isolation: ${SHARD_NOTE}"
   if [[ "${#TESTS[@]}" -eq 0 && "$failed" -eq 0 ]]; then

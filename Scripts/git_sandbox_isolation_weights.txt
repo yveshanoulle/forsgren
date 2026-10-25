@@ -1,0 +1,25 @@
+# Scripts/git_sandbox_isolation_weights.txt (forsgren#446)
+#
+# Seconds each slow git-using self-test takes, measured on 2026-10-25 (one run of
+# each, GITHUB_ACTIONS=true). Scripts/lib_isolation_shard.sh deals the self-tests
+# of Scripts/test_git_sandbox_isolation.sh --shard N/M out by these weights, the
+# heaviest first, each to the shard that weighs least so far. A self-test with no
+# row weighs the default, so a new self-test needs no row; add one when it is slow.
+# Scripts/test_git_sandbox_isolation_scope.sh holds the two shards within 10 seconds
+# of each other and every row to a self-test that exists.
+#
+# <self-test> <seconds>
+default 5
+Scripts/test_metrics_workflow.sh 71
+Scripts/test_quality_jobs.sh 64
+Scripts/test_release_workflow.sh 31
+Scripts/test_run_ci_phase.sh 30
+Scripts/test_git_sandbox_isolation_scope.sh 24
+Scripts/test_check_shellcheck.sh 24
+Scripts/test_gate_inputs.sh 23
+Scripts/test_fbp_no_push.sh 19
+Scripts/test_sfl_static_block.sh 11
+Scripts/test_release_precheck.sh 10
+Scripts/test_gate_select.sh 10
+Scripts/test_fbp_push_or_rebase.sh 10
+Scripts/test_fbp_aborted.sh 10

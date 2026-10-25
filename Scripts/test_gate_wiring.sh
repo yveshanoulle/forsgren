@@ -487,6 +487,16 @@ for path in Scripts/*.sh; do
         || fail "${base} isolates the self-tests from an exported GIT_DIR and Scripts/test_git_sandbox_guard.sh never sources it"
       ;;
 
+    # SOURCED HELPER, not a gate (forsgren#446): deals the git sandbox isolation
+    # self-tests to the shards by their weights. The isolation gate runs the
+    # shards, and its scope self-test sources it to hold the balance.
+    lib_isolation_shard.sh)
+      for consumer in test_git_sandbox_isolation.sh test_git_sandbox_isolation_scope.sh; do
+        runs_script "Scripts/${consumer}" "$base" \
+          || fail "${base} deals the isolation shards and Scripts/${consumer} never sources it"
+      done
+      ;;
+
     # SOURCED HELPER, not a gate (forsgren#262): the changed files, the script
     # closure and gate_select. Scripts/test_gate_select.sh is its test, and the
     # inputs self-test and the git sandbox isolation gate are the other two

@@ -15,6 +15,18 @@ forsgren issue 445, tools, no release of its own. `Scripts/release_check.sh` run
 
 ---
 
+## 2026-10-25 — The two isolation shards are dealt by the seconds each self-test takes ([#446](https://github.com/yveshanoulle/forsgren/issues/446), step 1 of 1)
+
+forsgren issue 446, tools issue, follow-up of #426, no release of its own. In Quality run 40220840433 the shards took 2 and 7 minutes: index modulo over the sorted list put the slow self-tests together. `Scripts/test_git_sandbox_isolation.sh` (canon v3) now deals them with `shard_assign` (`Scripts/lib_isolation_shard.sh`): greedy by weight, heaviest first, each to the shard that weighs least so far, from `Scripts/git_sandbox_isolation_weights.txt` (seconds of the 13 slowest, measured one run each; a default of 5 for every other, so a new self-test needs no row). Every self-test is still in exactly one shard and the split depends on the list and the file alone, not on the commit. Over the real 33 self-tests the shards weigh 219 and 218 seconds (before: 155 and 282 measured locally); a local Quality-style run took 237 and 228 seconds.
+
+The CI log holds no per-test time (the self-test prints its ok lines at the end), so the weights are local timings of each self-test run alone; the ratio matches the 2 to 7 of the run.
+
+- Red first: `Scripts/test_git_sandbox_isolation_scope.sh` (canon v3) cases 25 to 28 over the real list (the shards within 10 seconds of each other, each self-test once, a new one in exactly one shard, no weight row for a self-test that is gone), case 25 seen failing against the index rule (155 and 282); mutations K (shard test removed), M (weights ignored) and N (all to one shard) seen red.
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The manual, the legend and the agent documents follow the 1.22.0 changes, and say where to find the logins for same_developer ([#417](https://github.com/yveshanoulle/forsgren/issues/417), 1 step)
 
 forsgren issue 417, feature, patch release, shipped with #398, #399, #421, #422 and #423 in the release after 1.21.0. `docs/configuration.md`, the `same_developer` entry, says the page shows counts only and the logins are in the `author` column of `data/commits.csv` or in the repository's commit list on GitHub, with the typical cases (an assistant or agent account, one person with a work and a private account); the outdated sentence that Mainline Lead Time counts pull requests now says PR Lead Time (since #403). `agent-installer.md` asks one question (14) about commits from more than one account or an assistant account and writes `same_developer` only with the person's yes; `agent-upgrade.md` step 5 asks the same. `agent-delete.md` was checked: it describes no config key, so it is unchanged.

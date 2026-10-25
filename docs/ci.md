@@ -65,7 +65,7 @@ step summary isolation gate with the same setup: the two gates took 15 minutes
 in one job (the self-test 9 min 27 s, the gate 4 min 15 s, the setup 1.5
 minutes) and now run side by side, about 11 and 6 minutes; the self-test's own
 9 min 27 s is then halved by the two shards, about 6 to 7 minutes per shard job
-with its setup (forsgren#426). The report job's status takes the results of the
+with its setup (forsgren#426); the self-tests are dealt to the shards by their seconds, heaviest first to the lighter shard (`Scripts/git_sandbox_isolation_weights.txt`, a default weight for a self-test with no row, forsgren#446), so the two shards take about the same time. The report job's status takes the results of the
 isolation jobs and of the summary job too, and the `preview` job `needs:` them.
 
 **Shards** (forsgren#426). A gate that is too long for one job runs in several,
