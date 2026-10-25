@@ -138,8 +138,16 @@ handover_findings() {
 # LINT_GATES: the scripts of the lint job's rows, which no step may name.
 LINT_GATES='(test_)?check_(actionlint|shellcheck|yamllint|zizmor)|test_check_actionlint_forsgren'
 
-# WORKFLOWS_GATES: the scripts of the workflows job's rows, which no step may name.
-WORKFLOWS_GATES='test_(gate_wiring|workflow_checkout_pins(_mutations)?|metrics_workflow|release_workflow|starter_page_workflow|quality_jobs|preview_workflow|vulncheck_workflow|auto_update_workflow)'
+# workflows_gates: the scripts of the workflows job's rows, read from the group
+# file and the order file, so this file names none of them (a name written here
+# would put that script in the closure of the step summary isolation gate).
+workflows_gates() {
+  local job label
+  while IFS='|' read -r job label; do
+    [[ "$job" == workflows ]] || continue
+    awk -F'|' -v l="$label" '$1 == l { print $2 }' <(grep -v '^#' "$ORDER") | sed -E 's#^Scripts/##; s#\.sh$##'
+  done < <(grep -v '^#' "$GROUPS_FILE" | grep .)
+}
 
 # phase_calls <job file>: the run_ci_phase.sh call lines.
 phase_calls() {
@@ -205,7 +213,7 @@ job_findings() {
     [[ "$calls" == *"run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" workflows" && "$(wc -l <<< "$calls" | tr -d ' ')" == 1 ]] \
       || echo "workflows: the workflows job must run exactly ./Scripts/run_ci_phase.sh pre \"\$ROWS\" \"\$DETAILS\" workflows, got: ${calls:-none}"
   fi
-  if code "$wf" | grep -qE "$WORKFLOWS_GATES"; then
+  if code "$wf" | grep -qE "($(workflows_gates | paste -sd'|' -))"; then
     echo "workflows: a step names a workflows gate itself; ${GROUPS_FILE} and the order file decide which gates a job runs"
   fi
   if code "$wf" | grep -qE "$LINT_GATES"; then
@@ -373,7 +381,8 @@ mutant "no workflows job" 's/^  workflows:/  workflows_gone:/' "job: the file ha
 mutant "workflows on another runner" "${W}"'s/runs-on: macos-latest/runs-on: ubuntu-latest/' "runs-on: the workflows job is not on macos-latest"
 mutant "workflows without npm ci" "${W}"'s/run: npm ci/run: true/' "setup: the workflows job does not run npm ci"
 mutant "workflows runs the main job's gates" "${W}s/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" workflows/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" main/" "workflows: the workflows job must run exactly"
-mutant "a step naming a workflows gate" "${W}"'s#\./Scripts/install_tools.sh#./Scripts/install_tools.sh; ./Scripts/test_gate_wiring.sh#' "workflows: a step names a workflows gate itself"
+FIRST_WF_GATE="$(workflows_gates | sed -n 1p)"
+mutant "a step naming a workflows gate" "${W}"'s#\./Scripts/install_tools.sh#./Scripts/install_tools.sh; ./Scripts/'"${FIRST_WF_GATE}"'.sh#' "workflows: a step names a workflows gate itself"
 mutant "workflows hand-over not always" "${W}"'{/Hand over the gate report/,/uses:/s/if: always()/if: success()/;}' "handover: the workflows job's"
 mutant "workflows hand-over under another name" "${W}"'s/name: quality-report-workflows/name: quality-report-other/' "handover: the workflows job does not upload the artifact quality-report-workflows"
 mutant "report not always" "${R}"'s/^    if: always()/    if: success()/' "report: the report job is not if: always()"
