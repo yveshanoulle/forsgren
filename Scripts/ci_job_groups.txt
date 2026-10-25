@@ -39,3 +39,18 @@ lint|yamllint self-test
 lint|yamllint
 lint|zizmor self-test
 lint|zizmor
+#
+# The workflows job (forsgren#408): the gates that read only the workflows and
+# the wiring of the gates, about 260 s together (measured in forsgren#408,
+# step 1, on three green Quality runs of main: the main job took 15 minutes,
+# its PRE step 11 to 14 minutes). None needs the built site or a secret. They
+# keep their pre phase and their place in the order file.
+workflows|gate wiring
+workflows|mutation: checkout pins
+workflows|metrics workflow
+workflows|release workflow
+workflows|starter page workflow
+workflows|quality jobs pin
+workflows|preview workflow
+workflows|vulncheck workflow
+workflows|auto-update workflow

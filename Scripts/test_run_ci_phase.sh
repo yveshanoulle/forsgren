@@ -348,6 +348,8 @@ case_real_order_file() {
   [[ "$RUN_RC" -eq 0 ]] || echo "pre of the browser job over the real order file exited ${RUN_RC}: ${RUN_OUT}"
   RUN_JOB=browser run_phase post
   [[ "$RUN_RC" -eq 0 ]] || echo "post of the browser job over the real order file exited ${RUN_RC}: ${RUN_OUT}"
+  RUN_JOB=workflows run_phase pre
+  [[ "$RUN_RC" -eq 0 ]] || echo "pre of the workflows job over the real order file exited ${RUN_RC}: ${RUN_OUT}"
   RUN_JOB=""
   run_phase post
   [[ "$RUN_RC" -eq 0 ]] || echo "post over the real order file exited ${RUN_RC}: ${RUN_OUT}"

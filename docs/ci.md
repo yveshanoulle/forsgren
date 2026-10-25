@@ -83,6 +83,16 @@ the run. It builds no site: all are PRE rows. The order file is unchanged: the
 rows keep their pre phase and their place, so `sfl.sh` and `FBP.sh` run them,
 and stop after the static block, as before. The report job's status takes the
 lint job's result with the others'.
+The `workflows` job (forsgren#408) runs the gates that read only the workflows
+and the wiring of the gates: gate wiring, the checkout pins and their
+mutations, the pins of the metrics, release, starter page, vulncheck,
+auto-update and preview workflows, and the quality jobs pin. It has the same
+setup, builds no site (all are PRE rows) and has the job name `workflows`. They
+were measured at about 260 s of the main job's PRE step, which took 11 to 14
+minutes, so the main job was the critical path at 13 to 15 minutes against 8
+for the next job; with them in their own job the main job is about 10 minutes.
+The order file is unchanged. The report job's status takes its result too, and
+the `preview` job `needs:` it.
 The three baselines steps stay in the main job: they read the built site.
 `Scripts/test_quality_jobs.sh` pins the layout.
 

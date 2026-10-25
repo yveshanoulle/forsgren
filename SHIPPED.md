@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — Quality gets a workflows job, so the main job is no longer the critical path ([#408](https://github.com/yveshanoulle/forsgren/issues/408), 2 steps)
+
+forsgren issue 408, tools issue, no release. The Quality gates job took 15 to 20 minutes on main, 5 to 9 minutes longer than the next job. Step 1 measured the per-gate seconds from the logs of three green Quality runs (the main job's PRE step took 11 to 14 minutes, POST 10 to 14 seconds, the setup 71 seconds). The slowest gates were gate wiring (75 s), the metrics workflow pin (68 s), Go lint self-test (60 s), mutation: checkout pins (45 s) and the release workflow pin (40 s). Step 2: `Scripts/ci_job_groups.txt` gives nine workflow and wiring gates (about 262 s) to a new `workflows` job in `quality.yml`, with the setup of the other group jobs, its hand-over `quality-report-workflows`, and the report and preview jobs `needs:` it (`QS_WORKFLOWS_RESULT` in the report status). Expected: the main job about 10 minutes, the new job about 6, Isolation unchanged. Every gate still runs in one job. Red first: `Scripts/test_run_ci_phase.sh` (the workflows job over the real order file), `Scripts/test_quality_jobs.sh` (the job, its setup, hand-over, group rows and report wiring, with mutants) and `Scripts/test_preview_workflow.sh` (the needs list).
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The browser gate self-test knows when the run is mid-run, and a Chrome that dies during the launch ends it at once ([#386](https://github.com/yveshanoulle/forsgren/issues/386), step 2a)
 
 forsgren issue 386, tools issue, no release. Step 1 found why case 53 raced: its "up" wait (a renderer of Chrome's first about:blank page) is true while `puppeteer.launch` is still pending, so the test could kill Chrome before the engine had attached its process watch, and puppeteer then waited its own 30 s for an initial page that never came. Decision #410 (answer C): the engine and the test are both fixed. Step 2a; the split into a second self-test (#411) is a later step.

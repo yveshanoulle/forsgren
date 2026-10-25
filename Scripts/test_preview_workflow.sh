@@ -193,11 +193,12 @@ mutant "a gate job missing from needs" 's/^  preview:/  extra_gate:\
       - run: true\
 \
   preview:/' "needs: the gate job extra_gate"
-mutant "the report job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, browser, report\]/needs: [quality, lint, isolation, browser]/' "needs: the gate job report is not in the preview job's needs:"
-mutant "the isolation job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, browser, report\]/needs: [quality, lint, browser, report]/' "needs: the gate job isolation is not in the preview job's needs:"
-mutant "the browser job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, browser, report\]/needs: [quality, lint, isolation, report]/' "needs: the gate job browser is not in the preview job's needs:"
-mutant "the lint job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, browser, report\]/needs: [quality, isolation, browser, report]/' "needs: the gate job lint is not in the preview job's needs:"
-mutant "a needs for a job that is not there" "${P}"'s/needs: \[quality, lint, isolation, browser, report\]/needs: [quality, lint, isolation, browser, report, ghost]/' "needs: ghost is not a job"
+mutant "the report job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, browser, workflows, report\]/needs: [quality, lint, isolation, browser, workflows]/' "needs: the gate job report is not in the preview job's needs:"
+mutant "the isolation job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, browser, workflows, report\]/needs: [quality, lint, browser, workflows, report]/' "needs: the gate job isolation is not in the preview job's needs:"
+mutant "the browser job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, browser, workflows, report\]/needs: [quality, lint, isolation, workflows, report]/' "needs: the gate job browser is not in the preview job's needs:"
+mutant "the lint job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, browser, workflows, report\]/needs: [quality, isolation, browser, workflows, report]/' "needs: the gate job lint is not in the preview job's needs:"
+mutant "the workflows job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, browser, workflows, report\]/needs: [quality, lint, isolation, browser, report]/' "needs: the gate job workflows is not in the preview job's needs:"
+mutant "a needs for a job that is not there" "${P}"'s/needs: \[quality, lint, isolation, browser, workflows, report\]/needs: [quality, lint, isolation, browser, workflows, report, ghost]/' "needs: ghost is not a job"
 mutant "no push-only condition" "${P}"'{/^    if: /d;}' "if: the condition is not exactly"
 mutant "a pull request condition" "${P}"'s/github.event_name == .push./github.event_name != '"'"'push'"'"'/' "if: the condition is not exactly"
 mutant "another branch" "${P}"'s#refs/heads/main#refs/heads/dev#' "if: the condition is not exactly"
