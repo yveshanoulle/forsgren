@@ -21,6 +21,8 @@ type checkNeedsOptions struct {
 	config, repository, status string
 	// tokenExpiry is the file collect wrote the token's expiry date to, "" for none.
 	tokenExpiry string
+	// pullsDenied is the file collect noted the refused pull request reads in.
+	pullsDenied string
 }
 
 // checkNeeds checks the needs of the running version against the
@@ -66,6 +68,8 @@ func checkNeedsFlags(args []string, stderr io.Writer) (checkNeedsOptions, bool) 
 		"a file to write how the setup issue went to: ok, no-access, rate-limited or failed (optional)")
 	flags.StringVar(&o.tokenExpiry, "token-expiry", "",
 		"the file collect --token-expiry wrote the token's expiry date to; a date near makes a setup issue item (optional)")
+	flags.StringVar(&o.pullsDenied, "pulls-denied", defaultPullsDenied,
+		"the file collect noted the refused pull request reads in; each makes a setup issue item (optional)")
 	if err := flags.Parse(args); err != nil {
 		return o, false
 	}
@@ -87,6 +91,7 @@ func reportNeeds(o checkNeedsOptions, stdout, stderr io.Writer) string {
 	if n, near := renewalNeed(expiry, now()); known && near {
 		missing = append(missing, n)
 	}
+	missing = append(missing, refusedNeeds(o.pullsDenied, stderr)...)
 	for _, n := range missing {
 		_, _ = fmt.Fprintln(stdout, n.Steps)
 	}

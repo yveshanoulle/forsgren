@@ -5,7 +5,7 @@
   {
    "path": "internal/collect/fake_test.go",
    "score": 9.09,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 9.0
   },
   {
@@ -105,6 +105,12 @@
    "minScore": 9.58
   },
   {
+   "path": "cmd/forsgren/checkneeds_denied_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-25",
+   "minScore": 9.58
+  },
+  {
    "path": "internal/page/legend_history_test.go",
    "score": 9.92,
    "checkedAt": "2026-10-16",
@@ -173,7 +179,7 @@
   {
    "path": "internal/github/client_test.go",
    "score": 9.68,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 9.58
   },
   {
@@ -263,7 +269,7 @@
   {
    "path": "cmd/forsgren/render.go",
    "score": 10.0,
-   "checkedAt": "2026-10-24",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -1079,7 +1085,7 @@
   {
    "path": "internal/collect/failuresread.go",
    "score": 10.0,
-   "checkedAt": "2026-10-24",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -1097,7 +1103,7 @@
   {
    "path": "internal/history/readat_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -1193,7 +1199,7 @@
   {
    "path": "cmd/forsgren/checkneeds.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -1835,7 +1841,7 @@
   {
    "path": "internal/collect/pulls.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -1859,13 +1865,13 @@
   {
    "path": "internal/history/pullsdenied.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
    "path": "internal/collect/pullsdenied_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -1877,7 +1883,7 @@
   {
    "path": "cmd/forsgren/render_tbd_denied_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-24",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -2045,7 +2051,7 @@
   {
    "path": "internal/collect/held.go",
    "score": 10.0,
-   "checkedAt": "2026-10-24",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -2104,6 +2110,36 @@
   },
   {
    "path": "internal/metrics/tbdduration_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-25",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/pullsdenied_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-25",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/deniedmark.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-25",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/deniedneeds.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-25",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/needs/denied.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-25",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/needs/denied_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-25",
    "minScore": 10.0

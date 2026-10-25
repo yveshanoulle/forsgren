@@ -120,6 +120,10 @@ func (c *Client) WithTokenName(name string) *Client {
 	return c
 }
 
+// TokenName is the environment variable the client's token came from, the name
+// a refusal says (never the token's value).
+func (c *Client) TokenName() string { return c.tokenName }
+
 // isWebURL says whether u is an absolute http or https URL with a host.
 func isWebURL(u *url.URL) bool {
 	switch u.Scheme {

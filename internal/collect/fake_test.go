@@ -52,7 +52,9 @@ type gitHub struct {
 	report Report
 	// noReport makes the run pass no Report (the option is optional).
 	noReport bool
-	requests []string // path?query
+	// tokenName, when set, is the name the client's token goes by.
+	tokenName string
+	requests  []string // path?query
 }
 
 func newGitHub(t *testing.T) *gitHub {
@@ -229,6 +231,9 @@ func (g *gitHub) collect(t *testing.T, cfg config.Config, path string, maxPages 
 	client, err := github.New(g.srv.URL, "sesame-sesame-sesame", maxPages)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if g.tokenName != "" {
+		client.WithTokenName(g.tokenName)
 	}
 	g.used = 0
 	var stdout, stderr bytes.Buffer

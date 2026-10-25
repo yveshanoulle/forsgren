@@ -15,15 +15,20 @@ import (
 // repository with no pull requests.
 
 const (
-	pullsDeniedHeader = "# forsgren pulls denied v1\nrepository,denied_at\n"
+	pullsDeniedHeader = "# forsgren pulls denied v2\nrepository,denied_at,token\n"
 	// deniedNow is the pulls denied file after a run that was refused
-	// acme/app's pull requests.
-	deniedNow = pullsDeniedHeader + "acme/app,2026-10-01T00:00:00Z\n"
+	// acme/app's pull requests, with the client's FORSGREN_TOKEN.
+	deniedNow = pullsDeniedHeader + "acme/app,2026-10-01T00:00:00Z,FORSGREN_TOKEN\n"
 	// deniedBefore is the pulls denied file of an earlier refused run, with
 	// a line of another repository that the run does not read.
-	deniedBefore = pullsDeniedHeader + "acme/app,2026-09-20T08:00:00Z\nacme/lib,2026-09-20T08:00:00Z\n"
+	deniedBefore = pullsDeniedHeader + "acme/app,2026-09-20T08:00:00Z,GITHUB_TOKEN\n" +
+		"acme/lib,2026-09-20T08:00:00Z,GITHUB_TOKEN\n"
+	// deniedBeforeV1 is deniedBefore as the pulls denied format v1 wrote it:
+	// no token name (forsgren#321).
+	deniedBeforeV1 = "# forsgren pulls denied v1\nrepository,denied_at\n" +
+		"acme/app,2026-09-20T08:00:00Z\nacme/lib,2026-09-20T08:00:00Z\n"
 	// otherDenied is deniedBefore with acme/app's line cleared.
-	otherDenied = pullsDeniedHeader + "acme/lib,2026-09-20T08:00:00Z\n"
+	otherDenied = pullsDeniedHeader + "acme/lib,2026-09-20T08:00:00Z,GITHUB_TOKEN\n"
 )
 
 // wantNoToken fails when the file name in d holds the fake's token value.
@@ -43,11 +48,29 @@ func (d dataDir) wantNoToken(t *testing.T, name string) {
 func TestARefusedPullRequestReadIsNotedWithItsTime(t *testing.T) {
 	for _, c := range []refusal{
 		{"the list, no file yet", "", pullsPath, deniedNow},
-		{"the list, an older refusal", deniedBefore, pullsPath, deniedNow + "acme/lib,2026-09-20T08:00:00Z\n"},
+		{"the list, an older refusal", deniedBefore, pullsPath, deniedNow + "acme/lib,2026-09-20T08:00:00Z,GITHUB_TOKEN\n"},
+		{"the list, an older refusal of format v1", deniedBeforeV1, pullsPath,
+			deniedNow + "acme/lib,2026-09-20T08:00:00Z,\n"},
 		{"a commit list", "", pull12.commitsPath(), deniedNow},
 	} {
 		t.Run(c.name, c.check)
 	}
+}
+
+// TestARefusalNotesTheNameOfTheTokenThatWasRefused (forsgren#321, step 1):
+// the token column is the client's token name, GITHUB_TOKEN for the job's
+// token, never the token's value.
+func TestARefusalNotesTheNameOfTheTokenThatWasRefused(t *testing.T) {
+	g := pullsOnly(t, pull12)
+	g.deny(pullsPath)
+	g.tokenName = "GITHUB_TOKEN"
+	path := historyPath(t)
+	data := dataOf(path)
+	if r := g.collect(t, shop(production), path, github.DefaultMaxPages); r.err != nil {
+		t.Fatalf("want no error, got %v (stderr %q)", r.err, r.stderr)
+	}
+	data.want(t, PullsDeniedFile, pullsDeniedHeader+"acme/app,2026-10-01T00:00:00Z,GITHUB_TOKEN\n")
+	data.wantNoToken(t, PullsDeniedFile)
 }
 
 // refusal is a run GitHub refuses a path of acme/app's pull requests in:

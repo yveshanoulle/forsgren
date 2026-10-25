@@ -261,7 +261,7 @@ func withPulls(data metrics.Data, path string) (metrics.Data, error) {
 	if err != nil {
 		return metrics.Data{}, err
 	}
-	data.Pulls, data.PullsDenied = pulls, denied
+	data.Pulls, data.PullsDenied = pulls, denied.Times()
 	return data, nil
 }
 

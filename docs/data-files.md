@@ -499,18 +499,24 @@ acme/app,2026-10-23T06:00:00Z
 
 **The pulls denied mark** (forsgren#337) is kept in `data/pulls_denied.csv`,
 next to the history, with its own format version (the pulls denied format
-v1): one line per repository whose pull request read GitHub refused.
+v2, forsgren#321): one line per repository whose pull request read GitHub
+refused.
 
 ```
-# forsgren pulls denied v1
-repository,denied_at
-acme/app,2026-10-23T06:00:00Z
+# forsgren pulls denied v2
+repository,denied_at,token
+acme/app,2026-10-23T06:00:00Z,FORSGREN_TOKEN
 ```
 
 - `repository` is `owner/name` in lower case (decision #339); `denied_at` is
   the start of the run that GitHub last refused the read, in UTC, to the
-  second. No token, no token value and no error text is stored. Lines are
-  sorted by repository.
+  second. `token` is the name of the token that was refused,
+  `FORSGREN_TOKEN` or `GITHUB_TOKEN` (the job's own), so the setup issue can
+  name the right fix. Only a name: no token value and no error text is stored,
+  and a `token` column that is not an upper-case variable name refuses the
+  file on read and on write, without quoting it. Lines are sorted by
+  repository. The v1 format, without the `token` column, is still read, every
+  token name empty, and the next save writes the file again as v2.
 - Written when GitHub answers the pull request read with a 403 that is not
   the rate limit: the token cannot read the repository's pull requests (no
   `pull-requests: read`). A later refused run moves the time.
@@ -531,6 +537,11 @@ acme/app,2026-10-23T06:00:00Z
   project's whole cell not readable. The names are compared with the config's
   ignoring case (decision #339), and a line of a repository no project lists
   is left out.
+- `forsgren check-needs` reads it (`--pulls-denied`, this file by default) and
+  adds one setup issue item per repository named here, with the token's name
+  and the permission it needs; the item goes away once the line is cleared
+  (see [The setup issue](updating-and-releases.md#the-setup-issue-check-needs),
+  forsgren#321).
 - Rewritten whole like `data/reach.csv`, and only when a line changed. A
   missing file notes no repository, so nothing is not readable. An unknown
   version or a malformed line refuses the collect run before GitHub is asked

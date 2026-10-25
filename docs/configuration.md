@@ -403,7 +403,7 @@ usage: forsgren render --out <dir> [--config <path>] [--data <path>]
        forsgren latest-release [--published <path>]
        forsgren waiting-pull-request --version <x.y.z> [--status <path>]
        forsgren check-needs --config <path> --repository <owner/name> [--status <path>]
-                            [--token-expiry <path>]
+                            [--token-expiry <path>] [--pulls-denied <path>]
        forsgren run-summary --latest <version> --waiting-pr <number>
                             --pr-check <ok|no-access|rate-limited|truncated|failed|skipped> --repository <owner/name>
                             [--needs-check <status>] [--readme <status>] [--token-expiry <path>]

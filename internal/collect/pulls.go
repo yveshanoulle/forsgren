@@ -116,6 +116,7 @@ func (o Options) endPulls(h held, repo string, truncated bool, err error) error 
 	case errors.Is(err, github.ErrPullRequestsDenied):
 		o.warn("collect: %v; its pull requests are not read, the rest is collected\n", err)
 		h.denied[strings.ToLower(repo)] = wholeSecond(o.Now)
+		h.deniedBy[strings.ToLower(repo)] = o.Client.TokenName()
 		return nil
 	case errors.Is(err, github.ErrBudget):
 		o.warn("collect: %s: the pull requests were cut short: %v; those read whole are stored, "+
@@ -131,6 +132,7 @@ func (o Options) endPulls(h held, repo string, truncated bool, err error) error 
 	}
 	h.pullsRead[strings.ToLower(repo)] = wholeSecond(o.Now)
 	delete(h.denied, strings.ToLower(repo))
+	delete(h.deniedBy, strings.ToLower(repo))
 	return nil
 }
 

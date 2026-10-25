@@ -55,6 +55,7 @@ type held struct {
 	checked      history.Reach             // see startscatchup.go
 	pullsRead    history.Reach             // see pulls.go
 	denied       history.Reach             // see pulls.go: the refused pull request reads
+	deniedBy     map[string]string         // see pulls.go: the token name of each, with denied
 	pushesRead   history.Reach             // see pushes.go
 	pushesDenied history.Reach             // see pushes.go: the refused push reads
 	backfilled   history.Reach             // see legacybackfill.go

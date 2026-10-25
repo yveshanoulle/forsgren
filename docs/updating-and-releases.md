@@ -13,6 +13,7 @@ in the step "Check what this forsgren version needs":
 
 ```
 forsgren check-needs --config <path> --repository <owner/name> [--status <path>] [--token-expiry <path>]
+                     [--pulls-denied <path>]
 ```
 
 `--config` is the installation's `forsgren.config.yml` (the config keys a need
@@ -98,9 +99,34 @@ a false alarm is possible but never a silent pass.
   `FORSGREN_TOKEN` is the job's own token (route A of
   [agent-installer.md](../agent-installer.md)), but not a fine-grained
   `FORSGREN_TOKEN` without Pull requests (read) (route B). Such a token gives
-  no setup item, only `collect`'s stderr line in the run. The setup issue
+  no setup item in advance. The setup issue
   never claims the pull request read works because the workflow line is there
-  (decision #314).
+  (decision #314). What it can show is a refusal `collect` saw, below.
+
+**A refused pull request read** (forsgren#321). `--pulls-denied` is the file
+`collect` noted the refusals in, `data/pulls_denied.csv` unless the flag names
+another (see [Data files](data-files.md#collecting-deployments-collect)). For
+each repository it lists, the setup issue gets one item, about a refusal that
+was seen and no claim about what works:
+
+- **The job's token (`GITHUB_TOKEN`) was refused**: "forsgren was refused the
+  pull request read of acme/app with GITHUB_TOKEN, the job's token. Add
+  `pull-requests: read` to the `permissions:` of the forsgren job in
+  .github/workflows/forsgren.yml."
+- **Another token was refused** (`FORSGREN_TOKEN`, a fine-grained token):
+  "forsgren was refused the pull request read of acme/app with FORSGREN_TOKEN.
+  Give FORSGREN_TOKEN the repository permission Pull requests: Read for
+  acme/app."
+- **A line of an older forsgren** (the file's v1, no token name): "forsgren was
+  refused the pull request read of acme/app; the file that notes it does not
+  name the token." and both fixes, each with the token it is for.
+
+Each item ends with where it comes from and when it goes: it goes away on the
+next run after a read of the repository worked, because `collect` then removes
+its line. The item names the token by its name only, never its value. A file
+that is in no known format is a note on stderr and no item; a missing file
+notes no refusal. The push read (`data/pushes_denied.csv`) has no such item
+yet.
 
 ## Auto-update (`check-update`)
 

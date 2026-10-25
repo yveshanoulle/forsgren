@@ -354,3 +354,16 @@ func wantLimit(t *testing.T, err, limit error, want bool) {
 		t.Errorf("want errors.Is(%v) %v, got %v for %v", limit, want, got, err)
 	}
 }
+
+// TestTheClientSaysTheNameOfItsToken (forsgren#321): FORSGREN_TOKEN unless a
+// name is given, the name a refusal and collect's denied mark say.
+func TestTheClientSaysTheNameOfItsToken(t *testing.T) {
+	f := newFake(t)
+	client := f.client(t, DefaultMaxPages)
+	if got := client.TokenName(); got != "FORSGREN_TOKEN" {
+		t.Errorf("want FORSGREN_TOKEN by default, got %q", got)
+	}
+	if got := client.WithTokenName("GITHUB_TOKEN").TokenName(); got != "GITHUB_TOKEN" {
+		t.Errorf("want GITHUB_TOKEN once named, got %q", got)
+	}
+}

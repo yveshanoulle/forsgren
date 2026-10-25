@@ -122,7 +122,7 @@ guarded_reason() {
     reach.csv) why="how far back each repository's deployments were read, which forsgren collect keeps (data/reach.csv in an installation)" ;;
     pulls.csv) why="the merged pull requests forsgren collect keeps for Mainline Lead Time (data/pulls.csv in an installation)" ;;
     pulls_read.csv) why="when each repository's closed pull requests were last read, which forsgren collect keeps (data/pulls_read.csv in an installation)" ;;
-    pulls_denied.csv) why="which repositories' pull request reads GitHub refused, which forsgren collect keeps (data/pulls_denied.csv in an installation)" ;;
+    pulls_denied.csv) why="which repositories' pull request reads GitHub refused, and which token, which forsgren collect keeps (data/pulls_denied.csv in an installation)" ;;
     pushes.csv) why="the pushes to each repository's main branch forsgren collect keeps for time to main and batch size (data/pushes.csv in an installation)" ;;
     pushes_read.csv) why="when each repository's pushes were last read, which forsgren collect keeps (data/pushes_read.csv in an installation)" ;;
     pushes_denied.csv) why="which repositories' push reads GitHub refused, which forsgren collect keeps (data/pushes_denied.csv in an installation)" ;;
