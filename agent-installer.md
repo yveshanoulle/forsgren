@@ -263,6 +263,15 @@ Then wait for the answers.
     `history_page` later; the legend of the published
     site says so.
 
+14. **Several accounts.** Does anyone commit with more than one GitHub
+    account, or through an assistant account? Default: no. If yes, ask for
+    the logins (they are in the `author` column of `data/commits.csv` once
+    there is data, or in the repository's commit list on GitHub), show the
+    `same_developer` lines you would write, such as
+    `same_developer: [[maintainer, assistant-account]]`, and write them
+    only with the person's yes. The key is described in
+    [docs/configuration.md](docs/configuration.md).
+
 ## Step 3. Look at every measured repository (read only)
 
 For every repository the person named, replacing `acme/app`:
@@ -467,6 +476,8 @@ projects:
   question 11 (the default is `30`) and `numbers_scoring_page` with the
   answer to question 12 (the default is `unlisted`), and `history_page` with the
   answer to question 13 (the default is `unlisted`).
+- Write `same_developer` (question 14) only when the person said yes to
+  the lines you showed; otherwise leave the key out.
 - Write every repository's `deployment:` line, also for
   `environment=production`, so the file says what was chosen.
 - Indent with spaces only, as shown.
@@ -736,18 +747,23 @@ Then check what the run did:
 
    For example `;view;numbers;standard, numbers, scoring;standard;`. The
    last field of each row is the default of the key: `standard`, `false`,
-   `major`, `365`, `100`, `8`, `30`, `true`, `false`, `unlisted`, `unlisted`, `true`, for the rows
-   `view` to `tbd_page` in the page's order.
+   `major`, `365`, `100`, `8`, `30`, `true`, `false`, `unlisted`, `unlisted`, `true`, `median`, `[]`, for the rows
+   `view` to `same_developer` in the page's order.
    - The rows `view`, `auto_update`, `auto_update_level`,
      `history_days`, `dora_days`, `issues_page`, `days_page`,
      `numbers_scoring_page` and `history_page` show the value of the config,
      without `(not set)` (the file sets the key).
-   - The rows `history_chunk_days`, `working_hours` and `tbd_page` are left to
-     their defaults: `history_chunk_days` shows `100 (not set)`, `working_hours`
-     shows `8 (not set)` and `tbd_page` shows `true (not set)` (the TBD
-     page, `tbd.html`, is generated and in the menu; the installer does not ask
-     about it).
-   - Twelve rows in all. A row missing or different: stop and report.
+   - The rows `history_chunk_days`, `working_hours`, `tbd_page` and
+     `tbd_figures` are left to their defaults: `history_chunk_days` shows
+     `100 (not set)`, `working_hours` shows `8 (not set)`, `tbd_page` shows
+     `true (not set)` (the TBD page, `tbd.html`, is generated and in the menu)
+     and `tbd_figures` shows `median (not set)` (the TBD table shows the median
+     of each measure; `tbd_figures: all` shows the mean, the median and the
+     90th percentile). The installer does not ask about these.
+   - The row `same_developer` shows `[] (not set)` when the person said no to
+     question 14, and the lines you wrote, without `(not set)`, when they said
+     yes.
+   - Fourteen rows in all. A row missing or different: stop and report.
 9. The footer names the pinned version:
    `curl -fsS SITE | grep -o 'Forsgren</a> [0-9.]*'`
    prints `Forsgren</a>` and `VERSION` without its `v`.
@@ -1013,7 +1029,8 @@ Anything else: report it to the person.
 For an install that exists, you can change one setting: a top-level key of
 `forsgren.config.yml` (`view`, `auto_update`, `auto_update_level`,
 `history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
-`issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`), or the update wait
+`issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`,
+`tbd_figures`, `same_developer`), or the update wait
 (`default-days` in `.github/dependabot.yml`, in days). Changes to the
 projects and repositories are not covered here. Follow these steps alone;
 the install steps above do not apply.

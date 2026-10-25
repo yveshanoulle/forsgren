@@ -13,7 +13,7 @@ in the step "Check what this forsgren version needs":
 
 ```
 forsgren check-needs --config <path> --repository <owner/name> [--status <path>] [--token-expiry <path>]
-                     [--pulls-denied <path>]
+                     [--pulls-denied <path>] [--pushes-denied <path>]
 ```
 
 `--config` is the installation's `forsgren.config.yml` (the config keys a need
@@ -125,8 +125,26 @@ Each item ends with where it comes from and when it goes: it goes away on the
 next run after a read of the repository worked, because `collect` then removes
 its line. The item names the token by its name only, never its value. A file
 that is in no known format is a note on stderr and no item; a missing file
-notes no refusal. The push read (`data/pushes_denied.csv`) has no such item
-yet.
+notes no refusal.
+
+**A refused push read** (forsgren#414). `--pushes-denied` is the file
+`collect` noted the refused push reads in, `data/pushes_denied.csv` unless the
+flag names another. It works like the pull request one: one item for each
+repository it lists, about a refusal that was seen, with the same file rules.
+The two item texts:
+
+- **The job's token (`GITHUB_TOKEN`) was refused**: "forsgren was refused the
+  push read of acme/app with GITHUB_TOKEN, the job's token. Add
+  `contents: read` to the `permissions:` of the forsgren job in
+  .github/workflows/forsgren.yml."
+- **Another token was refused** (`FORSGREN_TOKEN`, a fine-grained token):
+  "forsgren was refused the push read of acme/app with FORSGREN_TOKEN. Give
+  FORSGREN_TOKEN the repository permission Contents: Read for acme/app."
+
+A line of an older forsgren (the file's v1, no token name) gets both fixes, as
+the pull request item does. Each item ends with where it comes from and when it
+goes: it goes away on the next run after a read of the pushes of the repository
+worked.
 
 ## Auto-update (`check-update`)
 
@@ -546,6 +564,31 @@ release, and the page no longer asks search engines to skip it. To keep it out
 of the menu as before, set `tbd_page: unlisted`; `tbd_page: false` does not
 generate it. A config that already sets the key is not changed. Nothing new is
 needed: no permission, secret or file. An agent following
+[agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing about it.
+
+**Upgrading to 1.22.0, which shows the median on the TBD page** (forsgren#423,
+#444, #394, #414). Without the key `tbd_figures` in `forsgren.config.yml`, the
+TBD table shows the median of each measure only after this release: one
+column for each measure, where it showed the mean, the median and the 90th
+percentile before. To keep all three figures, add `tbd_figures: all` (see
+[Configuration](configuration.md#configuration)). The settings page shows the
+key as a new row. Also with this release:
+
+- The headers no longer say (median) or (duration), and the Mainline Interval
+  and PR Lead Time lose their deviation, count and share columns. What was in
+  their cells is now a numbered note below the table, open by default.
+- A project with no deployed commit, no final deployment, no push and no
+  merged pull request in the window shows one sentence across its row,
+  `currently no data for this project in the last 30 days`, with 30 the
+  `dora_days` in force.
+- A push read that GitHub refused now gives the setup issue an item, which
+  names the refused token and its fix (see
+  [The setup issue](#the-setup-issue-check-needs)). It appears on the first run
+  after the update that sees a refusal, and goes away when a run reads the
+  pushes again. `data/pushes_denied.csv` is written as format v2; a file in
+  format v1 is read and written again.
+
+No new permission, secret or config key is required. An agent following
 [agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing about it.
 
 **An installation's page names a newer release** (forsgren#40). The page

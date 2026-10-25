@@ -41,7 +41,7 @@ var legendTbdText = []string{
 	"A commit authored after its push counts as 0",
 	"Commits per push is a count of commits, not a duration: how many commits each push brought to the " +
 		"first-parent chain",
-	"A push whose commits could not be counted, such as a force push, is left out of these three columns",
+	"A push whose commits could not be counted, such as a force push, is left out",
 	"Time to deploy per commit is a duration. For each commit it runs from the author date of the commit " +
 		"to the first deployment that contains it",
 	"for a deployment to an environment, when the deployment was created; for a workflow, when its run " +
@@ -50,7 +50,28 @@ var legendTbdText = []string{
 	"Commits per deployment is a count of commits: how many commits each deployment brought to the " +
 		"first-parent chain, the merge commit of a pull request included",
 	"A deployment without a known chain is left out",
-	"In each group of three columns the mean is the average",
+	"The table shows the median of each measure by default, one column each",
+	"Set tbd_figures: all in forsgren.config.yml to show the mean, the median and p90 of each measure " +
+		"instead, three columns each",
+	"With the median alone, PR Lead Time shows its median only",
+	"tbd_figures takes median (the default) or all",
+	"With tbd_figures: all, each measure has three columns: the mean, the median and p90",
+	"The mean is the average",
+	"Some cells carry a note marker, a number in brackets such as (3)",
+	"Below the table the list Notes, open by default, has one line for each kind of note that occurs, " +
+		"with the projects it applies to and their counts",
+	"The numbers are fixed, so they mean the same everywhere",
+	"(1) Mostly estimated: commits timed by author date",
+	"(2) Commits timed by author date",
+	"(3) A lower bound: a first commit time of a pull request was cut",
+	"(4) Pull requests timed by their created time",
+	"(5) Bot pull requests not counted",
+	"A project with no deployed commit, no final deployment (a failed one counts), no push and no merged " +
+		"pull request in the last 30 days shows one sentence across its row: " +
+		"currently no data for this project in the last 30 days",
+	"It has no note markers",
+	"A project with data in any one of these keeps its figures, and a single column without data keeps its dash",
+	"If the project has no data at all, that sentence is shown instead",
 	"The median is the middle value, or the mean of the two middle values when there is an even number of them",
 	"p90 is the nearest-rank percentile: the value at position 0.9 × the number of values, rounded up, of " +
 		"the values sorted from the smallest, so nine tenths of the values are no larger than it",
@@ -62,10 +83,9 @@ var legendTbdText = []string{
 		"of a repository of the project (a 403, recorded in data/pushes_denied.csv)",
 	"Deployment numbers are never shown in its place",
 	"Pushes not collected yet means no push has been collected yet",
-	"The Mainline Interval of each project is in five columns: mean, deviation, median, p90 and gaps, one number each",
-	"The mean is the average, and the deviation is the sample standard deviation of the time between " +
-		"commits landing on the main branch, by their committer date",
-	"The column gaps is how many gaps the other four columns are made from, for example 1162",
+	"The Mainline Interval of each project is how often commits land on the main branch",
+	"The mean is the average of the time between commits landing on the main branch, by their committer date",
+	"Fewer than two commits make no gap, so every Mainline Interval cell is a dash",
 	"the commits that deployments of the last 30 days shipped",
 	"each commit once",
 	"the time between commits landing on the main branch, by their committer date",
@@ -78,20 +98,21 @@ var legendTbdText = []string{
 	"Commits stored before forsgren kept their parents and committer date have no known chain",
 	"For a deployment with those, every commit counts at its author date, the old approximation, and so does a " +
 		"commit of the chain that GitHub gave no committer date for",
-	"The cell in gaps then ends with how many commits are timed this way, written " +
-		"3 · 2 commits timed by author date, or 3 · 1 commit timed by author date",
+	"The cell then carries note (2), Commits timed by author date, and the Notes list gives the count of " +
+		"the project, for example Acme Shop 3",
+	"the interval is mostly an estimate, and the note is (1), Mostly estimated: commits " +
+		"timed by author date, with the count and the commits it is of, for example Acme Web 7 of 13",
 	"Those commits are not looked up again, so the note stays until their deployments leave the window",
-	"A dash in all five columns means fewer than two commits",
-	"With one gap the mean and the gaps are shown, and the deviation and the median are dashes, " +
-		"because a sample deviation and a median need two gaps",
+	"With one gap the mean is shown with tbd_figures: all, and the median and p90 are dashes, " +
+		"because a median needs two gaps",
 	"between deployed commits, not every commit of the mainline",
-	"The median and the 90th percentile (p90) of the gaps are columns of their own",
+	"The median and the 90th percentile (p90) of the gaps are figures of their own",
 	"The median is the middle gap, or the mean of the two middle gaps when there is an even number of them",
 	"p90 is the nearest-rank percentile: the gap at position 0.9 × the number of gaps, rounded up, of the gaps " +
 		"sorted from the shortest, so nine tenths of the gaps are no longer than it",
 	"The median needs two gaps and p90 needs ten gaps",
 	"With fewer than ten gaps p90 would only be the longest gap",
-	"A mean far above the median, and a deviation far above the mean, point at a few long gaps among short ones",
+	"A mean far above the median points at a few long gaps among short ones",
 	"Developers has one column: developers",
 	"The column developers is the number of people who made the commits deployed in the " +
 		"window, those a merge brought in included: the distinct GitHub accounts of their authors, " +
@@ -118,7 +139,7 @@ var legendTbdText = []string{
 // parts, the lower bound and the stand-ins, the people of #349 and #355, the
 // legacy format as Yves worded it on #356, and what not readable means.
 var legendLeadText = []string{
-	"PR Lead Time has one column: pull requests",
+	"PR Lead Time is one measure: merged pull requests",
 	"The pull requests column covers merged human pull requests only, " +
 		"not every change that reaches the main branch",
 	"Work pushed straight to the main branch is in the push groups and the Direct share, " +
@@ -128,24 +149,21 @@ var legendLeadText = []string{
 		"gives one lead time: from its first commit, " +
 		"the earliest author date of its commits, to the merge",
 	"A first commit dated after the merge counts as 0",
-	"mean ± deviation (pull requests), for example 3 h ± 1 h (4)",
-	"the deviation the sample standard deviation (n-1)",
-	"50% (2 of 4) pull requests merged within 24 hours of their first commit",
-	"The share is rounded down, and a lead time of at most 24 hours counts as within, the same boundary everywhere",
+	"The cell is the median of those lead times, a duration such as 3 h 22; with tbd_figures: all it is " +
+		"the mean, the median and p90",
+	"The median needs two pull requests and p90 needs ten pull requests, and each is a dash until then",
 	"There is no pass or fail verdict",
 	"The Mainline Interval uses the committer date: how often changes reach the main branch",
 	"PR Lead Time uses the author date of the first commit up to the merge time",
-	"That lead time is a lower bound: the count reads (4, 1 cut) and the cell adds the mean is a lower bound",
-	"A cut pull request can make the mean too low, and it can make the share merged within 24 hours too high",
-	"the created time of the pull request stands in for the first commit time",
-	"1 pull request timed by its created time, or 2 pull requests timed by their created time",
+	"That lead time is a lower bound, and the cell carries note (3)",
+	"A cut pull request can make the figures too low",
+	"the created time of the pull request stands in for the first commit time, and note (4) says how many",
 	"Only a GitHub account of the type User is a person",
-	"3 bot pull requests not counted",
+	"A pull request opened by a bot is not counted, and note (5) says how many",
 	"is not counted either, and the cell does not say how many",
 	"a pull request in the legacy format has no known author type",
 	"The placeholder author invalid-email-address",
 	"is an unknown author, not a developer",
-	"Mostly estimated: 7 of 13 commits timed by author date.",
 	"shows a dash in pull requests: no human pull request was merged in this period, and its changes may go " +
 		"directly to the main branch, which the Direct share shows",
 	"That is not proof of direct commits",
@@ -223,6 +241,21 @@ var legendTbdRetired = []string{
 	"Mainline Lead Time uses the author date of the first commit up to the merge time",
 	"Mainline Lead Time shows how long the changes",
 	"written 2 pull requests of unknown author not counted",
+	"In each group of three columns the mean is the average",
+	"is in five columns: mean, deviation, median, p90 and gaps",
+	"The column gaps is how many gaps",
+	"A dash in all five columns",
+	"deviation",
+	"commits timed by author date, or 3 · 1 commit timed by author date",
+	"The cell in gaps",
+	"Mostly estimated: 7 of 13 commits timed by author date.",
+	"mean ± deviation (pull requests)",
+	"pull requests merged within 24 hours of their first commit",
+	"the count reads (4, 1 cut)",
+	"1 pull request timed by its created time",
+	"3 bot pull requests not counted",
+	"PR Lead Time has one column: pull requests",
+	"are columns of their own",
 }
 
 // TestLegendExplainsTheTbdPage (forsgren#253, forsgren#273): the legend has a
@@ -279,7 +312,8 @@ func legendTbdSection(t *testing.T, legend string) string {
 func TestLegendSaysEachTbdSentenceOnce(t *testing.T) {
 	got := rendered(t, "legend.html", calculated())
 	for _, once := range []string{"The pull requests column covers merged human pull requests only", "each commit once",
-		"A dash in all five columns means fewer than two commits", "sample standard deviation of the time between commits",
+		"Fewer than two commits make no gap, so every Mainline Interval cell is a dash",
+		"the time between commits landing on the main branch, by their committer date",
 		"deployments of the last 30 days shipped"} {
 		if n := strings.Count(got, once); n != 1 {
 			t.Errorf("want %q once in the legend, got %d", once, n)
@@ -293,10 +327,10 @@ func TestLegendSaysEachTbdSentenceOnce(t *testing.T) {
 // and one sentence of its group that must follow it.
 var legendTbdGroups = []struct{ id, title, sentence string }{
 	{"tbd-general", "General", "Every number is of the last 30 days"},
-	{"tbd-mainline-interval", "Mainline Interval", "The Mainline Interval of each project is in five columns"},
+	{"tbd-mainline-interval", "Mainline Interval", "The Mainline Interval of each project is how often commits land"},
 	{"tbd-time-to-main-per-commit", "Time to main per commit", "Time to main per commit is a duration"},
 	{"tbd-time-to-deploy-per-commit", "Time to deploy per commit", "Time to deploy per commit is a duration"},
-	{"tbd-pr-lead-time", "PR Lead Time", "PR Lead Time has one column"},
+	{"tbd-pr-lead-time", "PR Lead Time", "PR Lead Time is one measure"},
 	{"tbd-volume", "Volume", "Volume has three columns"},
 	{"tbd-commits-per-push", "Commits per push", "Commits per push is a count of commits"},
 	{"tbd-commits-per-deployment", "Commits per deployment", "Commits per deployment is a count of commits"},
@@ -337,7 +371,7 @@ var legendLeadVersusDeployText = []string{
 	"Lead time for changes counts every commit a deployment brought, also the commits a merge brought in from " +
 		"a branch, once for each deployment that shipped it, and shows the median with its DORA Quick Check level",
 	"Time to deploy per commit counts only the commits of the first-parent chain, a merge as its merge commit, " +
-		"each once, at its first deployment, and shows the mean, the median and the p90",
+		"each once, at its first deployment, and shows the median, or the mean, the median and the p90 with tbd_figures: all",
 	"With several services the same commit is deployed several times, and Lead time for changes, which counts " +
 		"the later deployments too, comes out longer",
 }

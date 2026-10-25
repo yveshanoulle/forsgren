@@ -811,37 +811,63 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
 [Configuration](configuration.md#configuration)). It is last in the menu,
 "TBD"; `false` leaves it out.
 
-- **The table.** A row per project and, under two rows of headers (every
-  group header `scope="colgroup"`, mean, median and p90 beneath each measure),
-  the columns Project, then nine groups in this order (forsgren#397,
-  reordered by forsgren#418): *Mainline Interval*; *Time to main per commit
-  (duration)*; *Time to deploy per commit (duration)*; *PR Lead Time* (the
-  pull requests column alone); *Volume* (Commits, Pushes, Deployments);
-  *Commits per push*; *Commits per deployment* (the two time groups and these two: mean,
-  median, p90); *Shares of commits* (Direct, PR, Unknown, Bots; forsgren#403
-  shortened the two headers, each keeps the full meaning in an `aria-label`);
-  and *Developers* (the
-  count). The units are in the names: durations say so, and the others are
-  counts of commits. The stat headers carry the measure in an `aria-label`,
-  such as "mean time to main". Mainline Interval is five columns of one
-  number each (forsgren#387, Yves's decisions #388 and #389): `mean`,
-  `deviation` (the sample standard deviation of the gaps), `median`, `p90` and
-  `gaps` (how many gaps the other four rest on), for example `24 m`,
-  `2 h 24`, `5 m`, `1 h` and `12`. When some commits are timed by their author date (see The old
-  approximation below), the note ends the gaps cell after ` · `: `2 · Mostly
-  estimated: 3 of 3 commits timed by author date.` or `3 · 2 commits timed by
-  author date`. Cells are numbers only: every duration of the page is written in
+- **The table.** A row per project, with the columns Project, then nine
+  groups in this order (forsgren#397, reordered by forsgren#418): *Mainline
+  Interval*; *Time to main per commit*; *Time to deploy per commit*; *PR Lead
+  Time* (the pull requests column alone); *Volume* (Commits, Pushes,
+  Deployments); *Commits per push*; *Commits per deployment*; *Shares of
+  commits* (Direct, PR, Unknown, Bots; forsgren#403 shortened the two headers,
+  each keeps the full meaning in an `aria-label`); and *Developers* (the
+  count). The key `tbd_figures` (forsgren#423, see
+  [Configuration](configuration.md#configuration)) chooses the figures:
+  - `median`, the default: one column for each measure and one row of headers.
+    The table has 15 columns, the project and 14 more. The headers are the
+    plain names, such as *Time to main per commit*, with no (median) and no
+    (duration) in them (forsgren#444); the median is in an `aria-label`, such
+    as "median time to main per commit". In this mode PR Lead Time shows its
+    median only, and Mainline Interval its median.
+  - `all`: the mean, the median and the p90 of each measure, under two rows of
+    headers (every group header `scope="colgroup"`, mean, median and p90
+    beneath each measure). The table has 27 columns, wider than a phone, and
+    scrolls sideways inside its region (Yves accepted that on #401; the
+    project screen, forsgren#91, may give the phone its own view). The stat
+    headers carry the measure in an `aria-label`, such as "mean time to main".
+
+  The units are in the names: durations say so, and the others are counts of
+  commits. Cells are numbers only: every duration of the page is written in
   the TBD form (forsgren#403, `tbdDuration`; the other pages keep their own):
   hours and minutes `3 h 22`, whole hours `2 h` (never `2 h 0`), minutes alone
   `7 m`, under a minute `< 1 m`, a day or more as on the other pages (`1 d
-  6 h`), each part cut down, never rounded up. A count has one decimal where it is not whole (`1.5`), a share is a
-  whole percent like `99%`. A value that is not shown is a dash in its own
-  cell: a median below two values, a p90 below ten, a mean without a value, a
-  share without a commit. A project with fewer than two commits has a dash in
-  all five Mainline Interval cells. The table is about 26 columns wide, wider
-  than a phone, and scrolls sideways inside its region (Yves accepted that on
-  #401; the project screen, forsgren#91, may give the phone its own view). It
-  is per project: the label rows of the table page have no row here.
+  6 h`), each part cut down, never rounded up. A count has one decimal where
+  it is not whole (`1.5`), a share is a whole percent like `99%`. A value that
+  is not shown is a dash in its own cell: a median below two values, a p90
+  below ten, a mean without a value, a share without a commit. A project with
+  fewer than two commits has a dash in its Mainline Interval cells. The mean
+  and the median of the Mainline Interval and of PR Lead Time have no
+  deviation, count or share beside them any more (forsgren#423): what the
+  count said is in the notes below the table. The table is per project: the
+  label rows of the table page have no row here.
+- **The notes** (forsgren#394, decisions #430 and #431). A cell that needs a
+  caveat carries a marker, `(N)`, with `aria-describedby` pointing to the
+  matching line of the list headed *Notes* below the table. The list is open
+  by default and holds one line for each kind of note that occurs, in the
+  order of its number, with the projects it applies to and their counts:
+  `(1) Mostly estimated: commits timed by author date: Acme Web 7 of 13`. The
+  numbers are fixed, so (1) means the same on every page and in the legend:
+  1. Mostly estimated: more than half of the commits of the Mainline Interval
+     are timed by author date.
+  2. Commits timed by author date: some, at most half, of them are.
+  3. A lower bound: a first commit time of a pull request was cut (decision
+     #438), so the PR Lead Time is a lower bound.
+  4. Pull requests timed by their created time: the created time stands in for
+     a first commit time.
+  5. Bot pull requests not counted.
+
+  The notes are the same in both modes: the marker sits on the mean cell when
+  the table shows all three figures, and on the median cell when it shows the
+  median alone. A new kind is appended at the next number; no number is
+  reused. A project that shows only a sentence in its PR Lead Time cell has no
+  notes of that group, and a project without data has none.
 - **The push groups** (forsgren#397). They read `data/pushes.csv` and
   `data/push_commits.csv` ([Data files](data-files.md#history)), the pushes to
   the default branch of each repository, never the deployments. A push counts
@@ -888,9 +914,11 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     read GitHub refused (a 403, kept in `data/pushes_denied.csv`) shows `Push
     activity not readable`, a project with no `data/pushes.csv` yet `Pushes not
     collected yet`: one cell under each of the time to main, commits per push
-    and shares groups (three, three and four columns, the same text in
-    each), a dash for Commits and Pushes, and never
-    deployment numbers in its place. The Deployments column and the deployment
+    and shares groups (with `tbd_figures: all` three, three and four columns,
+    with the median alone one, one and four, the same text in each), a dash
+    for Commits and Pushes, and never deployment numbers in its place. If the
+    project also has no data at all (see Without data below), the sentence of
+    the no-data row wins and the row shows that alone. The Deployments column and the deployment
     groups keep their numbers. A repository is matched to its project ignoring
     case. The legend names both states.
 - **What is counted.** The commits `forsgren collect` stores in
@@ -922,34 +950,47 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
   deployment of one such commit is its own chain, without a committer date, so
   at its author date as well. Those commits are never looked up again
   (decision 293 of forsgren#254), so this lasts until their deployments leave the
-  window. The gaps cell names how many commits are placed at their author date, by
-  either rule: ` · 3 commits timed by author date`, `1 commit timed by author date`
-  for one, nothing when there are none.
+  window. The Mainline Interval cell carries a note for them, by either rule: note
+  (2), `Commits timed by author date`, with the project's count, such as
+  `Acme Shop 3`, and nothing when there are none. When more than half of the
+  commits are timed this way, the note is (1), `Mostly estimated`, with
+  the count and the commits it is of, such as `Acme Web 7 of 13`.
 - **The gaps.** The commits are put in the order of the times they are placed
   at (the committer date, or the author date as above), whatever the order they
   are stored in, and a gap is the time between two neighbours; two commits
-  placed at the same time have a gap of 0. The mean is
-  the mean of the gaps, the deviation their sample standard deviation (the sum
-  of the squared differences from the mean over the number of gaps less one),
-  and the gaps column is the number of gaps. The median is the middle
-  gap, or the mean of the two middle gaps when their number is even. The 90th
-  percentile (p90) is the nearest-rank one: the gap at position 0.9 times the
-  number of gaps, rounded up (in integers, (9n + 9) / 10), of the gaps sorted
-  from the shortest, so an actual gap and nine tenths of the gaps are no longer
-  than it. They tell the typical spacing from occasional long gaps: a mean far
-  above the median, and a deviation far above the mean, point at a few long
-  gaps among short ones.
-- **A dash.** Fewer than two commits have no gap, so all five cells are `-`. One
-  gap has a mean and a count of gaps but no sample deviation, which needs two
-  gaps, so the cells read `2 h`, `-`, `-`, `-` and `1`. The median needs two
-  gaps, and p90 needs ten
-  (under ten, the nearest rank is the longest gap, which the maximum already
-  says); each is a dash until then. A zero deviation reads `less than 1 min`.
+  placed at the same time have a gap of 0. The mean is the mean of the gaps.
+  The median is the middle gap, or the mean of the two middle gaps when their
+  number is even. The 90th percentile (p90) is the nearest-rank one: the gap at
+  position 0.9 times the number of gaps, rounded up (in integers, (9n + 9) /
+  10), of the gaps sorted from the shortest, so an actual gap and nine tenths
+  of the gaps are no longer than it. They tell the typical spacing from
+  occasional long gaps: a mean far above the median points at a few long gaps
+  among short ones. The page has no column for the deviation or for the number
+  of gaps since forsgren#423 (the column `gaps` and the deviation were the
+  first version's, forsgren#387); the sample standard deviation and the count
+  are not shown.
+- **A dash.** Fewer than two commits have no gap, so every Mainline Interval
+  cell is `-`. One gap has a mean but no median, which needs two gaps: with
+  `tbd_figures: all` the cells read `2 h` for the mean and `-` for the median
+  and the p90, and with the median alone the cell is `-`. The p90
+  needs ten gaps (under ten, the nearest rank is the longest gap, which the
+  maximum already says); each is a dash until then.
 - **Without data.** With no projects the page says so in one line, and so it
   does when no data was given to the render ("No commits have been collected
-  yet, so there is no Mainline Interval to show."); with data and a project
-  that has no commit in the window, the project's Mainline Interval and
-  Developers cells are `-`.
+  yet, so there is no Mainline Interval to show.").
+- **A project with no data** (forsgren#394, decisions #433 and #442). A
+  project that has no deployed commit, no final deployment in the window (a
+  failed one counts as one), no push and no merged pull request in the window
+  (a bot's pull request included) shows its name and one cell across the whole
+  row: `currently no data for this project in the last 30 days`, where 30 is
+  the `dora_days` in force. The cell spans all the columns after the project,
+  14 with `tbd_figures: median` and 26 with `all`, and has no note marker. A
+  project with data in any one of the four keeps its row of figures, and a
+  single measure without a value keeps its dash: a project with a deployment
+  but no commit shows a dash in the Mainline Interval and in Developers. When
+  the push read was refused or no push was collected, the project is judged
+  without pushes, so the sentence wins over the push states above only when
+  the other three are absent too.
 - **Developers.** One column next to the Mainline Interval (forsgren#273),
   because a team of ten makes more commits than one person with the same
   habits; the interval itself is not divided by it. It counts the distinct GitHub logins of the authors of the commits
@@ -978,8 +1019,8 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
   Developers cell counted from it). The legend's TBD section explains the
   column: what a developer is, how listed logins count as one, bots left out,
   never who the developers are.
-- **PR Lead Time** (forsgren#256, named Mainline Lead Time until forsgren#403), the group between Commits per
-  deployment and the Mainline Interval: how old a change is when it reaches
+- **PR Lead Time** (forsgren#256, named Mainline Lead Time until forsgren#403), the group after Time to deploy per commit
+  and before Volume: how old a change is when it reaches
   the main branch, in one column since forsgren#397: pull requests. The first
   version had direct and batch size columns beside it (forsgren#390); the push
   and deployment groups replaced them. The pull requests column covers merged
@@ -993,11 +1034,14 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     window, counted by its merge time: from its first commit, the earliest
     author date of its commits, to the merge. A first commit dated after the
     merge counts as 0. The pull requests come from `data/pulls.csv`.
-  - *The cell* reads `mean ± deviation (pull requests)`, for example
-    `3 h ± 1 h (4)`, the deviation the sample standard deviation (n-1), then
-    `50% (2 of 4) pull requests merged within 24 hours of their first commit`.
-    The share is rounded down; a lead time of at most 24 hours counts as within, the same
-    boundary everywhere. A dash is the deviation of a single pull request.
+  - *The cell* is a duration, such as `3 h 22`: the median of the lead times
+    with `tbd_figures: median`, the default, or the mean, the median and the
+    p90 in three cells with `all` (forsgren#423, Yves on #432). The median
+    needs two pull requests and the p90 ten, and each is a dash until then;
+    with no human pull request all are dashes. The deviation, the count in
+    brackets and the share of pull requests merged within 24 hours were in the
+    cell before forsgren#423 (`3 h ± 1 h (4)` and `50% (2 of 4) pull requests
+    merged within 24 hours of their first commit`) and are not shown any more.
     There is no pass or fail verdict: the figure is supporting evidence.
   - *Two dates.* The Mainline Interval uses the committer date (how often
     changes reach the trunk); PR Lead Time uses the author date of the
@@ -1007,14 +1051,15 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     branches; long interval and short lead time is few changes, each integrated
     quickly; long and long is rare, old changes.
   - *Cut and stood in.* When GitHub lists only part of a pull request's
-    commits, its first commit time may be too late: the count reads
-    `(4, 1 cut)` and the cell adds `the mean is a lower bound`. A cut pull
-    request can make the mean too low and the share within 24 hours too high.
-    When the commit list gave no usable date, the created time stands in, and
-    the cell says how many: `1 pull request timed by its created time`.
+    commits, its first commit time may be too late. The cell then carries note
+    (3), `A lower bound: a first commit time of a pull request was cut`, with
+    the number of pull requests (decision #438): the figures of the cell can
+    be too low. When the commit list gave no usable date, the created time
+    stands in, and note (4) says how many: `Pull requests timed by their
+    created time`, such as `Acme Web 1`.
   - *People.* Only a GitHub account of the type `User` is a person. Pull
-    requests opened by a bot are not counted (`3 bot pull requests not
-    counted`), and neither are those whose author is not known to be a user,
+    requests opened by a bot are not counted (note (5), `Bot pull requests
+    not counted`, with the number), and neither are those whose author is not known to be a user,
     such as a pull request in the legacy format (pulls format v1), which has no
     known author type; the cell no longer says how many of the second kind
     (forsgren#403). A
@@ -1032,8 +1077,8 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     data establishes that format, not when or why the record was stored. A
     pull request in the legacy format (pulls format v1) has no known author
     type and is not counted in the lead time. In the Mainline Interval, when
-    more than half of the commits are timed by author date the note in the gaps
-    cell reads `Mostly estimated: 7 of 13 commits timed by author date.`
+    more than half of the commits are timed by author date the note reads
+    (1), `Mostly estimated: commits timed by author date`, `Acme Web 7 of 13`.
 
 The page itself has the heading and the table, or its one line. The
 explanation above, with the window in force, is the legend's section for the

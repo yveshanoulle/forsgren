@@ -656,25 +656,37 @@ acme/app,2026-10-23T06:00:00Z
 
 **The pushes denied mark** (forsgren#397) is kept in `data/pushes_denied.csv`,
 next to the history, with its own format version (the pushes denied format
-v1): one line per repository whose push read GitHub refused.
+v2, forsgren#414): one line per repository whose push read GitHub refused.
 
 ```
-# forsgren pushes denied v1
-repository,denied_at
-acme/app,2026-10-23T06:00:00Z
+# forsgren pushes denied v2
+repository,denied_at,token
+acme/app,2026-10-23T06:00:00Z,FORSGREN_TOKEN
 ```
 
 - `repository` is `owner/name` in lower case; `denied_at` is the start of the
-  run that GitHub last refused the read, in UTC, to the second. No token and
-  no error text is stored. Lines are sorted by repository.
+  run that GitHub last refused the read, in UTC, to the second. `token` is the
+  name of the token that was refused, `FORSGREN_TOKEN` or `GITHUB_TOKEN` (the
+  job's own), so the setup issue can name the right fix. Only a name: no token
+  value and no error text is stored, and a `token` column that is not an
+  upper-case variable name refuses the file on read and on write. Lines are
+  sorted by repository. The v1 format, without the `token` column, is still
+  read, every token name empty, and the next save writes the file again as v2.
 - Written when GitHub answers the activity list with a 403 that is not the
   rate limit: the token cannot read the repository's contents (no
   `contents: read`). A later refused run moves the time.
 - Cleared, the repository's line removed, after a push read that ends without
   an error: pushes, none, or a list cut at the page limit. A budget stop or
   any other error leaves the file as it was.
-- No page reads it yet: a later step shows the push columns as not readable
-  for a project with a repository named here.
+- The TBD page reads it: a project with a repository named here shows `Push
+  activity not readable` in the push groups (see
+  [The TBD page](pages-and-views.md#the-tbd-page)).
+- `forsgren check-needs` reads it too (`--pushes-denied`, this file by
+  default) and adds one setup issue item per repository named here, with the
+  token's name and the permission it needs; the item goes away once the line is
+  cleared (see
+  [The setup issue](updating-and-releases.md#the-setup-issue-check-needs),
+  forsgren#414).
 - Rewritten whole like `data/reach.csv`, and only when a line changed. A
   missing file notes no repository. An unknown version or a malformed line
   refuses the collect run before GitHub is asked anything, naming the file.
@@ -1056,11 +1068,14 @@ not compared again.
   A force push is stored without a compare.
 - **Without the contents permission** (a 403 that is not the rate limit)
   nothing fails: stderr names the missing permission, the mark stays, and the
-  repository gets a line in `data/pushes_denied.csv` (see
-  [History](#history)). Contents (read) is the permission every rule already
-  needs for comparing commits (GitHub's reference lists it for the repository
-  activity list, for fine-grained tokens and for the job token alike), so no
-  new grant is asked for and the setup issue has no new item.
+  repository gets a line in `data/pushes_denied.csv` with the name of the
+  token that was refused (see [History](#history)). The setup issue names the
+  refused token and its fix as an item (see
+  [The setup issue](updating-and-releases.md#the-setup-issue-check-needs)).
+  Contents (read) is the permission every rule already needs for comparing
+  commits (GitHub's reference lists it for the repository activity list, for
+  fine-grained tokens and for the job token alike), so an installation that
+  collects deployments has it already.
 - At the request budget the pushes compared so far are stored and the mark
   stays, so the next run reads the rest; the repository is not failed, and a
   `pushes-cut` line of the cut report says so (see below). A

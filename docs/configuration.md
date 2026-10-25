@@ -181,7 +181,27 @@ projects:
     from the deployments, the Mainline Lead Time of merged human pull
     requests, the Mainline Interval and the number of developers
     (forsgren#397; see [The TBD page](pages-and-views.md#the-tbd-page)); the
-    legend explains every group.
+    legend explains every group. Which figures each measure shows is the key
+    `tbd_figures`, below.
+- **`tbd_figures`** is optional (forsgren#423, from 1.22.0): which figures the
+  TBD table shows for each measure. It takes one of two values, written as
+  plain literals:
+  - `median`: the median of each measure, one column each. This is the default.
+    In this mode PR Lead Time shows its median only.
+  - `all`: the mean, the median and the 90th percentile of each measure, under
+    two rows of headers.
+
+  Left out, or without a value, the key is `median`. So an installation that
+  does not set it sees the median alone on the TBD page after updating to
+  1.22.0 (see
+  [Installing and updating](updating-and-releases.md#installing-and-updating)).
+  A value that is neither is not accepted: forsgren uses `median` and says so
+  (see [A setting that is not accepted](#a-setting-that-is-not-accepted)),
+  naming the key: `invalid tbd_figures "mean": use median or all`. The key
+  changes the table only; the figures are the same ones, and the notes below
+  the table are the same in both modes. The starter that `init-config` writes
+  shows the key commented out, so a new installation has the default. The
+  legend explains both modes.
 - **`same_developer`** is optional (forsgren#361, decision #360): groups of
   GitHub logins that count as one developer in the TBD page's Developers
   column, for an assistant account that works on someone's behalf or a person
@@ -203,8 +223,16 @@ projects:
   grouped or not; in flow YAML such a login needs quotes, because the
   brackets would otherwise end the list: `[maintainer, "helper[bot]"]`. Only
   the Developers count changes: `data/commits.csv` keeps each commit's real
-  login, and Mainline Lead Time counts pull requests, not people, so it does
+  login, and PR Lead Time counts pull requests, not people, so it does
   not change.
+
+  Finding the logins to group: the TBD page shows counts only, so the logins
+  are not on the page. They are in the `author` column of `data/commits.csv`
+  in the installation's data repository, or in the commit list of the
+  repository on GitHub (each commit shows its linked account). The typical cases:
+  an assistant or agent account that commits for a person (for example
+  `maintainer` and `assistant-account`), and one person with a work account
+  and a private account (for example `mona-work` and `mona-dev`).
 
   A value that is not accepted is not an error that stops the run: as for
   every key with a default, forsgren uses the default `[]` instead and says so
@@ -224,15 +252,15 @@ projects:
 - **The settings page** (`settings.html`, forsgren#74, moved out of the legend
   in forsgren#84, a table since forsgren#141) tabulates every optional key,
   `view`, `auto_update`, `auto_update_level`, `history_days`,
-  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page` and `same_developer`, thirteen rows in four columns: **Parameter**;
+  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `tbd_figures` and `same_developer`, fourteen rows in four columns: **Parameter**;
   **Current value**, the value in use (`major` for an unset
   `auto_update_level`); **Possible values**, built from the config package's
   own constants and limits so the page cannot drift from what `check-config`
-  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `30 to 1825`; `1 to 365`; `1 to 24`; `30, 90, 180`; `true, unlisted, false` for each of the five page keys; `groups of two or more GitHub logins`),
+  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `30 to 1825`; `1 to 365`; `1 to 24`; `30, 90, 180`; `true, unlisted, false` for each of the five page keys; `median, all`; `groups of two or more GitHub logins`),
   a test holds the lists to the config loader; and **Default**, the value
   used when `forsgren.config.yml` does not set the key (forsgren#169):
   `standard`, `false`, `major`, `365`, `100`, `8`, `30`, `true`, `false`,
-  `unlisted`, `unlisted` and `[]`, in the order of the rows. A
+  `unlisted`, `unlisted`, `true`, `median` and `[]`, in the order of the rows. A
   Current value followed by `(not set)` means the file does not set the key,
   so the default applies; a Current value without it is set in the file, even
   to the default's value. For a value that is not accepted the Current value
@@ -353,7 +381,7 @@ them. For `workflow=`, look at the Actions tab; for `release`, run
 
 A setting with a default (`view`, `auto_update`, `auto_update_level`,
 `history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
-`issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page` and `same_developer`) whose value forsgren
+`issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `tbd_figures` and `same_developer`) whose value forsgren
 does not accept, a list or
 a mapping included, does not stop the run (forsgren#183): forsgren uses that
 key's default instead, and says so in three places. The settings page's row

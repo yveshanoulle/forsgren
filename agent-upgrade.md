@@ -415,6 +415,13 @@ applies:
    `default-days` says now, or `3` when `dependabot.yml` is missing; `0` means
    as soon as a release is out). Offer the starter's setting, `auto_update:
    true` with `major`, only as information.
+4. **Several accounts**, only when `forsgren.config.yml` has no
+   `same_developer` yet. Does anyone commit with more than one GitHub
+   account, or through an assistant account? Default: no. If yes, ask for the
+   logins (the `author` column of `data/commits.csv` in the data repository,
+   or the repository's commit list on GitHub), show the `same_developer`
+   lines you would write, such as `same_developer: [[maintainer,
+   assistant-account]]`, and write them in step 8 only with the person's yes.
 
 Then show the plan, in one message: `OWNER/REPO`, `VERSION` to `LATEST`, how
 step 6 moves the pins, each file you will write and each line that changes in

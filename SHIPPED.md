@@ -9,6 +9,23 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — The manual, the legend and the agent documents follow the 1.22.0 changes, and say where to find the logins for same_developer ([#417](https://github.com/yveshanoulle/forsgren/issues/417), 1 step)
+
+forsgren issue 417, feature, patch release, shipped with #398, #399, #421, #422 and #423 in the release after 1.21.0. `docs/configuration.md`, the `same_developer` entry, says the page shows counts only and the logins are in the `author` column of `data/commits.csv` or in the repository's commit list on GitHub, with the typical cases (an assistant or agent account, one person with a work and a private account); the outdated sentence that Mainline Lead Time counts pull requests now says PR Lead Time (since #403). `agent-installer.md` asks one question (14) about commits from more than one account or an assistant account and writes `same_developer` only with the person's yes; `agent-upgrade.md` step 5 asks the same. `agent-delete.md` was checked: it describes no config key, so it is unchanged.
+
+By Yves's ruling the documentation of the other 1.22.0 issues rides here:
+
+- **#423 and #444 (median by default, no (median) or (duration) in the headers):** the legend says the table shows the median of each measure by default, `tbd_figures: all` shows the mean, the median and p90, and in the median table PR Lead Time shows its median only; the deviation, gaps, count and share-within-24-hours sentences are retired (`legendTbdText`, `legendTbdRetired`, golden). `docs/configuration.md` has the key `tbd_figures` and the settings page as fourteen rows; `docs/pages-and-views.md` describes the table in both modes (15 and 27 columns); `docs/updating-and-releases.md` has the upgrade note for 1.22.0 (without the key the TBD table shows the median only). `CLAUDE.md` follows (the Mainline Interval and PR Lead Time cells, `MedianNotedCell`, `tbd_figures`, the headers, the fixture site).
+- **#394 steps 2 and 3 (numbered notes, no-data row):** the legend and the manual describe the five numbered notes with their fixed texts (note 3 is `A lower bound: a first commit time of a pull request was cut`, decision #438), the Notes list below the table, open by default, the markers, and the no-data row with `colspan` 14 or 26. Where the list and the code disagreed, the code was followed: a refused or uncollected push read gives way to the no-data sentence only when the other three signs of data are absent too.
+- **#414 (push read token naming):** `docs/data-files.md` has the pushes denied format v2 with the token column, the v1 read, and that the TBD page and `check-needs --pushes-denied` read the file; `docs/updating-and-releases.md` has `A refused push read` with the two item texts.
+- **Agent documents:** `agent-installer.md` step 12 now proves fourteen settings rows (`tbd_figures` shows `median (not set)`, `same_developer` follows question 14) and names `tbd_figures` and `same_developer` among the keys it can change later; `agent-upgrade.md` and `agent-delete.md` were checked against the changed manual and describe nothing that changed.
+
+- Red first: `TestConfigurationSaysWhereToFindTheLoginsToGroup` and `TestInstallerAndUpgraderAskAboutSeveralAccounts`, seen failing before the text; the legend pins of `legend_tbd_test.go` (51 findings against the old template) and the installer pins of step 12 (seen failing against the old file). `TestManualDescribesTheTbdFiguresAndTheRefusedPushRead` was written after the text and not seen red.
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The setup issue names a token that was refused the push read ([#414](https://github.com/yveshanoulle/forsgren/issues/414), 1 step)
 
 forsgren issue 414, feature, patch release, in the release after 1.21.0 (1.22.0), the same as #321 did for pull requests. `data/pushes_denied.csv` is the denied format v2, `repository,denied_at,token`: the token column is the name of the token that was refused (`FORSGREN_TOKEN`, `GITHUB_TOKEN`), never a value (a name that is not an upper-case variable name refuses the file on read and on save); a v1 file is still read, every name empty, and written again as v2. `collect` writes the refused token's name with the refusal. `check-needs` adds one setup issue item per repository whose push read was refused, naming the token and its fix (`FORSGREN_TOKEN`: the repository permission Contents: Read; `GITHUB_TOKEN`: `contents: read` on the forsgren job), `--pushes-denied` names the file (`data/pushes_denied.csv` by default), and the item goes away when a later read clears the line. The code is shared with #321: `history.Denied` (was `PullsDenied`), `deniedFormat`, `loadDenied`/`saveDenied`, `collect.deniedFile`, `needs.deniedRead` and `refusedItems` serve both files. Code and tests only; the docs, `CLAUDE.md`, the legend and the agent documents ride with #417.
@@ -32,6 +49,26 @@ forsgren issue 394, step 3: Yves's decision #433 (A) with his wording of 2026-10
 - CodeScene: the changed or new Go files 10.0 except `cmd/forsgren/render_pushes_test.go` 9.68 (floor 9.58); rows added for the three new files.
 
 Signed: Lenka B
+
+- Lenka B
+
+---
+
+## 2026-10-25 — The browser gate self-test loses mutation proof U, which raced on a hosted runner ([#386](https://github.com/yveshanoulle/forsgren/issues/386), step 2b)
+
+forsgren issue 386, tools issue, no release. Proof U put `waitForInitialPage: true` back and expected case 53c to still run 15 s after the kill. On a hosted runner the kill marker (the profile folder) can come before Chrome connects, so even the old engine ended at once and the proof raced (forsgren#443). Proof U is removed; case 53c stays as a pin, and it was seen failing against the v5 engine when it was written. `test_gate_browser` goes from v7 to v8 and the self-test ends with nineteen mutations seen instead of twenty; `docs/gate-classification.md` row 122 follows.
+
+- Red first: not applicable, a removal (commit 687ade3).
+
+- Lenka B
+
+---
+
+## 2026-10-25 — FBP and sfl stop at the first red gate ([#441](https://github.com/yveshanoulle/forsgren/issues/441), 1 step)
+
+forsgren issue 441, tools issue, no release. Decision #440 (A): `sfl.sh pre` and `post` stop at the first red gate by default, each later gate printed skipped and named, and the summary says where the phase stopped. `FBP.sh` skips the build or the post phase after a red pre phase, as it already did after the static block, commits the RED commit locally and does not push. `./FBP.sh --all` and `./sfl.sh --all` run every gate. CI (`Scripts/run_ci_phase.sh`) still runs every gate. The static block still runs to its own end first. `sfl.sh` goes from v9 to v10. `docs/development.md` and `CLAUDE.md` describe the run order (commit deed363).
+
+- Red first: `Scripts/test_sfl_static_block.sh`, a red gate stops its phase, the skipped gates are listed as skipped and never as passed, `--all` runs everything, and a secret-class red still commits nothing.
 
 - Lenka B
 
