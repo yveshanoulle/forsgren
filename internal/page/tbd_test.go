@@ -153,7 +153,7 @@ func notReadable() Data {
 // forsgren#418).
 func tbdRow(project, interval, lead, developers string) string {
 	return "<th scope=\"row\">" + project + "</th>\n            " + tds(interval) + "\n            " +
-		tds(tbdTimeCells[project]) + "\n            <td>" + lead + "</td>\n            " +
+		tds(tbdTimeCells[project]) + "\n            " + tds(lead) + "\n            " +
 		tds(tbdCountCells[project]) + "\n            " + tds(developers) + "\n"
 }
 
@@ -165,11 +165,43 @@ func tds(cells string) string {
 	for i, c := range parts {
 		if rest, spans := strings.CutPrefix(c, "@"); spans {
 			parts[i] = "<td colspan=\"" + rest[:1] + "\">" + rest[1:] + "</td>"
+		} else if rest, noted := strings.CutPrefix(c, "{"); noted {
+			parts[i] = notedTd(notedOf(rest))
 		} else {
 			parts[i] = "<td>" + c + "</td>"
 		}
 	}
 	return strings.Join(parts, "\n            ")
+}
+
+// notedCell is a cell of a test's cells string with notes: its value and the
+// numbers of its notes (forsgren#394, step 2).
+type notedCell struct {
+	value   string
+	numbers []int
+}
+
+// notedOf reads a cell written {2,5}value: the notes 2 and 5 on value.
+func notedOf(rest string) notedCell {
+	list, value, _ := strings.Cut(rest, "}")
+	cell := notedCell{value: value}
+	for _, n := range strings.Split(list, ",") {
+		number, _ := strconv.Atoi(n)
+		cell.numbers = append(cell.numbers, number)
+	}
+	return cell
+}
+
+// notedTd is the cell as the template writes it (forsgren#394, step 2):
+// described by each note's line, the marker (N) after the value with a
+// visually hidden "note" before it.
+func notedTd(c notedCell) string {
+	ids, marks := make([]string, len(c.numbers)), ""
+	for i, n := range c.numbers {
+		ids[i] = "tbd-note-" + strconv.Itoa(n)
+		marks += ` <span class="visually-hidden">note</span> (` + strconv.Itoa(n) + `)`
+	}
+	return `<td aria-describedby="` + strings.Join(ids, " ") + `">` + c.value + marks + `</td>`
 }
 
 // tbdGroups are the group headers of the TBD table in order, each with its
@@ -230,11 +262,10 @@ func within(percent, counts string) string {
 // half of its commits timed by author date, and of Acme Web, more than half
 // (forsgren#345, step 3).
 const (
-	shopInterval  = "2 h | 1 h | 2 h | - | 3 · 2 commits timed by author date"
+	shopInterval  = "{2}2 h | 1 h | 2 h | - | 3"
 	toolsInterval = "2 h | - | - | - | 1"
 	noInterval    = "- | - | - | - | -"
-	webInterval   = "24 m | 2 h 24 | 5 m | 1 h | 12 · " +
-		"Mostly estimated: 7 of 13 commits timed by author date."
+	webInterval   = "{1}24 m | 2 h 24 | 5 m | 1 h | 12"
 )
 
 // noHumanPulls is the pull requests cell of a project without a human pull
@@ -266,13 +297,12 @@ func TestTbdPageHasTwoLevelHeadersWithTheUnitsInTheGroupNames(t *testing.T) {
 func TestTbdPageShowsTheRowsOfEachProject(t *testing.T) {
 	got := rendered(t, "tbd.html", tbdData())
 	wantAll(t, "tbd.html", got,
-		tbdRow("Acme Shop", shopInterval, "3 h ± 1 h (5)"+within("100", "5 of 5"), "3"),
+		tbdRow("Acme Shop", shopInterval, "3 h ± 1 h · 5"+within("100", "5 of 5"), "3"),
 		tbdRow("Acme Tools", toolsInterval,
-			"1 d 6 h ± - (1, 1 cut)"+within("0", "0 of 1")+" · the mean is a lower bound", "1"),
-		tbdRow("Acme Docs", noInterval, noHumanPulls+" · 2 bot pull requests not counted", "1"),
+			"{3}1 d 6 h ± - · 1 (1 cut)"+within("0", "0 of 1"), "1"),
+		tbdRow("Acme Docs", noInterval, "{5}"+noHumanPulls, "1"),
 		tbdRow("Acme Web", webInterval,
-			"20 h ± 10 h (12)"+within("58", "7 of 12")+" · 1 pull request timed by its created time"+
-				" · 3 bot pull requests not counted", "12"))
+			"{4,5}20 h ± 10 h · 12"+within("58", "7 of 12"), "12"))
 }
 
 // TestTbdPageSaysThePullRequestsAreNotCollectedYet (forsgren#256, step 2):
@@ -299,7 +329,7 @@ func TestTbdPageSaysThePullRequestsAreNotReadable(t *testing.T) {
 	got := rendered(t, "tbd.html", notReadable())
 	wantAll(t, "not readable", got, tbdRow("Acme Tools", toolsInterval, refused, "1"),
 		tbdRow("Acme Docs", noInterval, refused, "1"),
-		tbdRow("Acme Shop", shopInterval, "3 h ± 1 h (5)"+within("100", "5 of 5"), "3"))
+		tbdRow("Acme Shop", shopInterval, "3 h ± 1 h · 5"+within("100", "5 of 5"), "3"))
 	uncollectedRefused := notReadable()
 	uncollectedRefused.PullsUncollected = true
 	got = rendered(t, "tbd.html", uncollectedRefused)

@@ -84,7 +84,41 @@ type projectCells struct{ interval, deploy string }
 // and the pull requests cell lead (forsgren#418: the order of the groups).
 func leadRow(row projectCells, lead string) string {
 	return row.interval + "\n            " + pushesNotCollected(3) + "\n            " + row.deploy +
-		"\n            <td>" + lead + "</td>\n"
+		"\n            " + leadTd(lead) + "\n"
+}
+
+// leadTd is the pull requests cell of lead as the template writes it; a lead
+// starting with {3,4} has the notes 3 and 4 (forsgren#394, step 2).
+func leadTd(lead string) string {
+	rest, noted := strings.CutPrefix(lead, "{")
+	if !noted {
+		return "<td>" + lead + "</td>"
+	}
+	list, value, _ := strings.Cut(rest, "}")
+	cell := notedCell{value: value}
+	for _, n := range strings.Split(list, ",") {
+		number, _ := strconv.Atoi(n)
+		cell.numbers = append(cell.numbers, number)
+	}
+	return notedTd(cell)
+}
+
+// notedCell is a cell with notes: its value and the numbers of its notes.
+type notedCell struct {
+	value   string
+	numbers []int
+}
+
+// notedTd is the cell as the template writes it: described by each note's
+// line, the marker (N) after the value with a visually hidden "note" before
+// it (forsgren#394, step 2).
+func notedTd(c notedCell) string {
+	ids, marks := make([]string, len(c.numbers)), ""
+	for i, n := range c.numbers {
+		ids[i] = "tbd-note-" + strconv.Itoa(n)
+		marks += ` <span class="visually-hidden">note</span> (` + strconv.Itoa(n) + `)`
+	}
+	return `<td aria-describedby="` + strings.Join(ids, " ") + `">` + c.value + marks + `</td>`
 }
 
 // pushesNotCollected is the state cell of a push group n columns wide, with
@@ -113,9 +147,8 @@ func TestRenderShowsTheMainlineLeadTimeOfEachProject(t *testing.T) {
 	writePulls(t, data, acmePulls(t))
 	got := tbdSiteOf(t, validConfig, data)
 	wantIn(t, got, "<th scope=\"colgroup\" colspan=\"1\">PR Lead Time</th>",
-		leadRow(shopRow, "11 h ± 16 h 27 (3, 1 cut) · 66% (2 of 3) pull requests merged within 24 hours of "+
-			"their first commit · the mean is a lower bound · 1 pull request timed by its created time"+
-			" · 1 bot pull request not counted"),
+		leadRow(shopRow, "{3,4,5}11 h ± 16 h 27 · 3 (1 cut) · 66% (2 of 3) pull requests merged within 24 hours of "+
+			"their first commit"),
 		leadRow(noRow, noHumanPulls))
 }
 

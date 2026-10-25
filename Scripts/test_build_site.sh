@@ -262,7 +262,7 @@ fi
 # the no-data line: the fixture has commits deployed in the last 30 days.
 if [[ -f "${FIXTURE_HAPPY}/tbd.html" ]] && grep -qF '<th scope="row">Acme Shop</th>' "${FIXTURE_HAPPY}/tbd.html" \
   && tr -d '\n' <"${FIXTURE_HAPPY}/tbd.html" \
-    | grep -qE '<th scope="row">[^<]*</th> *<td>[^<-][^<]*</td> *(<td>[^<]*</td> *){3}<td>[0-9]+[^<]*</td>' \
+    | grep -qE '<th scope="row">[^<]*</th> *<td[^>]*>[^<-][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td>[^<]*</td> *){3}<td>[0-9]+[^<]*</td>' \
   && ! grep -qF 'No commits have been collected yet' "${FIXTURE_HAPPY}/tbd.html"; then
   pass 31 "tbd.html has a Mainline Interval row and not the no-data line"
 else
@@ -272,7 +272,8 @@ fi
 # 34: the TBD page has a Mainline Lead Time with pull requests (forsgren#350,
 # decision #336): the fixture's made-up pulls.csv, its long notes included, so
 # the browser gate opens the cell with data and not 'not collected yet'.
-if grep -qE '<td>[^<]* pull requests merged within 24 hours of their first commit[^<]*bot pull requests not counted[^<]*</td>' "${FIXTURE_HAPPY}/tbd.html" 2>/dev/null \
+if grep -qE '<td aria-describedby="[^"]*tbd-note-5[^"]*">[^<]* pull requests merged within 24 hours of their first commit[^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>' "${FIXTURE_HAPPY}/tbd.html" 2>/dev/null \
+  && grep -qF '<li id="tbd-note-5">' "${FIXTURE_HAPPY}/tbd.html" 2>/dev/null \
   && ! grep -qF 'No pull requests have been collected yet' "${FIXTURE_HAPPY}/tbd.html"; then
   pass 34 "tbd.html has a Mainline Lead Time with pull requests and not the not-collected line"
 else

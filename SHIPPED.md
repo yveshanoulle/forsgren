@@ -9,6 +9,21 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — The TBD cells carry numbered notes instead of sentences ([#394](https://github.com/yveshanoulle/forsgren/issues/394), step 2 of 3)
+
+forsgren issue 394, feature, minor release with step 3 (the legend and the no-data row sentence of #433 are step 3). `metrics.NoteKind` (`internal/metrics/notes.go`) has five kinds with fixed numbers and one table of generic texts: (1) Mostly estimated: commits timed by author date, (2) Commits timed by author date, (3) The mean is a lower bound, (4) Pull requests timed by their created time, (5) Bot pull requests not counted; a new kind appends from (6). `MainlineInterval.MeanCell` and `MainlineLeadTime.Cell` return a `NotedCell` (value and `Note`s with counts); the interval note sits on the mean cell, so #423 can drop the gaps and the deviation, and the gaps cell is the number alone. The PR cell is written per #432 (`3 h ± 1 h · 4 (1 cut)`, then the share sentence). The TBD page writes the marker `(N)` with a visually hidden `note` before it and `aria-describedby="tbd-note-N"` on the cell (`templates/layout/notedcell.html`), and below the table a `details` element, summary Notes, open by default (#430, #431), with one list item `tbd-note-N` per kind that occurs and its projects with counts (`internal/page/tbdnotes.go`, `Data.TbdNotes`).
+
+- `styles.css`: `.table-scroll` is `position: relative`, so the absolutely positioned hidden word stays in the scroll box; it also removed the History page's whole-page sideways overflow of 105 px on the fixture site.
+- Red first, seen failing at runtime: the note and cell tests of `internal/metrics` against stubs that returned no notes, the page tests against the old template, `TestTheScrollBoxHoldsTheVisuallyHiddenNotes` before the rule. `TestNoteKindsKeepTheirNumbersAndTexts` pins the numbers and texts; seen red with one text changed and with two kinds swapped.
+- Browser gate (fixture site): the TBD sideways numbers shrank, 1280x800 table 397 to 359 px and 390x844 table 1287 to 1249 px; the history page row (105) is gone. `Scripts/browser_gate_fixture_baseline.txt` follows. The fixture site shows four kinds of note (1, 3, 4, 5). `Scripts/build_fixture_site.sh` and `Scripts/test_build_site.sh` read the noted cells. Goldens regenerated: `tbd`, `tbd.lead-no-data`, `tbd.lead-not-collected`, `tbd.lead-not-readable`.
+- CodeScene: all 16 changed or new Go files 10.0.
+
+Signed: Lenka B
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — npm: fast-uri 3.1.9 and the stale braces audit exception removed ([#419](https://github.com/yveshanoulle/forsgren/issues/419), 1 step)
 
 forsgren issue 419, tools issue, ships in 1.21.0. Dependabot reported 4 alerts (2 moderate, 2 low) for `fast-uri` 3.1.8, a dev dependency of the check tooling (stylelint, table, ajv). The npm audit gate passed because it is red on high and critical advisories only (`npm audit` itself lists all four as one moderate finding). `package-lock.json` now holds `fast-uri` 3.1.9 (`npm update fast-uri`: a transitive package, no override, no pin in `package.json` changed); `npm ci` and `npm audit` report 0 vulnerabilities. The exception for GHSA-vfj7-8cjw-p6xm (braces, forsgren#13) is removed from `Scripts/npm_audit_exceptions.txt`, which npm audit no longer reports; the two docs that named it are updated. The gate still ignores moderate and low advisories; that gap is not changed here.

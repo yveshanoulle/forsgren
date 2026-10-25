@@ -35,6 +35,7 @@ body.starter main {
    a narrow screen, so the page itself never scrolls sideways. */
 .table-scroll {
   overflow-x: auto;
+  position: relative;
 }
 
 /* The example config of the no-projects page (forsgren#41) scrolls inside its

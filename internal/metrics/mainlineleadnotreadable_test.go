@@ -78,7 +78,7 @@ func TestMainlineLeadTimeCellSaysNotReadable(t *testing.T) {
 		"pull requests read": {NotReadable: true, PullRequests: 2, Mean: time.Hour, Deviation: time.Minute,
 			WithinReference: 2},
 	} {
-		if got := lead.Cell(); got != want {
+		if got := lead.Cell().Value; got != want {
 			t.Errorf("%s: want %q, got %q", name, want, got)
 		}
 	}

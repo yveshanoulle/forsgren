@@ -32,12 +32,11 @@ func tdRow(cells ...string) string {
 // the 30 days (forsgren#387, step 1): the mean, the deviation, the median, no
 // p90 and two gaps; its three commits, stored without their lineage, are timed
 // by author date (forsgren#254, step 4), all of them, so the figure is mostly
-// estimated (forsgren#345, step 3), which the gaps cell says. noCells is a
+// estimated (forsgren#345, step 3), which the mean cell notes (1). noCells is a
 // project without a gap.
 var (
-	shopCell = tdRow("2 d 22 h", "4 d 3 h", "2 d 22 h", "-",
-		"2 · Mostly estimated: 3 of 3 commits timed by author date.")
-	noCells = tdRow("-", "-", "-", "-", "-")
+	shopCell = notedTd(notedCell{"2 d 22 h", []int{1}}) + "\n            " + tdRow("4 d 3 h", "2 d 22 h", "-", "2")
+	noCells  = tdRow("-", "-", "-", "-", "-")
 	// shopTimes and noTimes are their time to deploy cells (forsgren#418).
 	shopTimes = tdRow("8 h 5", "17 m", "-")
 	noTimes   = tdRow("-", "-", "-")
@@ -153,8 +152,7 @@ func TestRenderTbdPageUsesTheDoraWindow(t *testing.T) {
 	pinNow(t)
 	dir := renderInto(t, "--config", writeConfig(t, validConfig+"dora_days: 90\n"+tbdOn),
 		"--data", writeData(t, acmeHistory(), acmeCommits()))
-	cell := tdRow("14 d 7 h", "19 d 22 h", "5 d 21 h", "-",
-		"3 · Mostly estimated: 4 of 4 commits timed by author date.")
+	cell := notedTd(notedCell{"14 d 7 h", []int{1}}) + "\n            " + tdRow("19 d 22 h", "5 d 21 h", "-", "3")
 	if got := readSite(t, dir, "tbd.html"); !strings.Contains(got, cell) {
 		t.Errorf("want Acme Shop's three gaps over 90 days, got:\n%s", got)
 	}

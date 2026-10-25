@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -13,39 +14,46 @@ import (
 // is about how accurately the commits are timed, so it says "estimated"; the
 // Developers' note is about the authors not known, never an estimate.
 
-// TestMainlineIntervalSaysMostlyEstimatedAboveHalf (forsgren#345, step 3):
-// when more than half of the commits counted are timed by author date, the
-// note is Yves's sentence, the count of the commits counted in it; at half
-// and below it is the plain count, as before.
+// TestMainlineIntervalSaysMostlyEstimatedAboveHalf (forsgren#345, step 3;
+// forsgren#394, step 2): when more than half of the commits counted are timed
+// by author date, the note is kind 1 with the commits it is part of; at half
+// and below it is kind 2, the plain count; none without one.
 func TestMainlineIntervalSaysMostlyEstimatedAboveHalf(t *testing.T) {
 	for _, c := range []struct {
 		commits, byAuthor int
-		want              string
+		want              []Note
 	}{
-		{1134, 1121, "Mostly estimated: 1121 of 1134 commits timed by author date."},
-		{5, 3, "Mostly estimated: 3 of 5 commits timed by author date."},
-		{3, 3, "Mostly estimated: 3 of 3 commits timed by author date."},
-		{4, 2, "2 commits timed by author date"},
-		{2, 1, "1 commit timed by author date"},
-		{5, 2, "2 commits timed by author date"},
-		{4, 0, ""},
+		{1134, 1121, []Note{{NoteMostlyEstimated, 1121, 1134}}},
+		{5, 3, []Note{{NoteMostlyEstimated, 3, 5}}},
+		{3, 3, []Note{{NoteMostlyEstimated, 3, 3}}},
+		{4, 2, []Note{{NoteByAuthorDate, 2, 0}}},
+		{2, 1, []Note{{NoteByAuthorDate, 1, 0}}},
+		{5, 2, []Note{{NoteByAuthorDate, 2, 0}}},
+		{4, 0, nil},
 	} {
 		got := MainlineInterval{Commits: c.commits, ByAuthorDate: c.byAuthor}
-		if got.Note() != c.want {
-			t.Errorf("%d of %d by author date: want the note %q, got %q", c.byAuthor, c.commits, c.want, got.Note())
+		if !reflect.DeepEqual(got.Notes(), c.want) {
+			t.Errorf("%d of %d by author date: want the notes %v, got %v", c.byAuthor, c.commits, c.want, got.Notes())
 		}
 	}
 }
 
-// TestMainlineIntervalCellSaysMostlyEstimated (forsgren#345, step 3): the
-// sentence takes the plain note's place in the cell, after the separator.
-func TestMainlineIntervalCellSaysMostlyEstimated(t *testing.T) {
+// TestMainlineIntervalMeanCellCarriesTheNote (forsgren#394, step 2): the note
+// is on the mean cell, so the gaps can leave the table (forsgren#423) without
+// losing it; the gaps cell is the number alone; a project without a gap has a
+// dash and no note.
+func TestMainlineIntervalMeanCellCarriesTheNote(t *testing.T) {
 	got := MainlineInterval{
 		Commits: 3, Gaps: 2, Mean: 2 * time.Hour, Deviation: time.Hour, Median: time.Hour, ByAuthorDate: 2,
 	}
-	want := "2 · Mostly estimated: 2 of 3 commits timed by author date."
-	if got.GapsCell() != want {
-		t.Errorf("want the cell %q, got %q", want, got.GapsCell())
+	if want := (NotedCell{"2 h", []Note{{NoteMostlyEstimated, 2, 3}}}); !reflect.DeepEqual(got.MeanCell(), want) {
+		t.Errorf("want the mean cell %v, got %v", want, got.MeanCell())
+	}
+	if got.GapsCell() != "2" {
+		t.Errorf("want the gaps cell 2, got %q", got.GapsCell())
+	}
+	if none := (MainlineInterval{Commits: 1, ByAuthorDate: 1}).MeanCell(); none.Value != "-" || len(none.Notes) != 0 {
+		t.Errorf("want a dash and no note without a gap, got %v", none)
 	}
 }
 

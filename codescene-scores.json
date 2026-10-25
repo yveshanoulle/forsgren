@@ -497,7 +497,7 @@
   {
    "path": "internal/metrics/legacyshare_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-24",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -533,7 +533,7 @@
   {
    "path": "internal/metrics/mainline_lineage_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-24",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -1223,7 +1223,7 @@
   {
    "path": "internal/page/styles_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -1877,7 +1877,7 @@
   {
    "path": "internal/metrics/mainlineleadnotreadable_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-23",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -2140,6 +2140,30 @@
   },
   {
    "path": "internal/needs/denied_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-25",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/notes.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-25",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/notes_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-25",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/tbdnotes.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-25",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/tbdnotes_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-25",
    "minScore": 10.0

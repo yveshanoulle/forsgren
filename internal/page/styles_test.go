@@ -285,6 +285,21 @@ func checkChartRules(t *testing.T, sheet cssSheet) {
 	}
 }
 
+// TestTheScrollBoxHoldsTheVisuallyHiddenNotes (forsgren#394, step 2): the
+// visually hidden "note" before a marker is absolutely positioned, so it is
+// placed against the nearest positioned box; the table's scroll box is that
+// box, or the word sits at its cell's place in the page and makes the page
+// itself scroll sideways.
+func TestTheScrollBoxHoldsTheVisuallyHiddenNotes(t *testing.T) {
+	sheet := stylesSheet(t)
+	if !sheet.declares(".table-scroll", "position: relative") {
+		t.Errorf("want a .table-scroll rule with position: relative in styles.css, got:\n%s", sheet.text)
+	}
+	if !sheet.declares(".visually-hidden", "position: absolute") {
+		t.Errorf("want .visually-hidden to stay position: absolute, got:\n%s", sheet.text)
+	}
+}
+
 // TestWrappingTablesHaveNoMinimumWidth (forsgren#350): a table with class
 // wraps sets the tables' minimum width of 44rem aside, so it fits a phone's
 // width; every other table keeps it and scrolls inside its box (forsgren#38).

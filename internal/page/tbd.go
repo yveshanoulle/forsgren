@@ -56,9 +56,9 @@ type TbdRow struct {
 // pullsUncollectedCell while the pull requests have not been collected,
 // unless a refused read makes the project not readable (forsgren#337, step
 // 2), which Cell says.
-func (r TbdRow) LeadCell() string {
+func (r TbdRow) LeadCell() metrics.NotedCell {
 	if r.pullsUncollected && !r.Lead.NotReadable {
-		return pullsUncollectedCell
+		return metrics.NotedCell{Value: pullsUncollectedCell}
 	}
 	return r.Lead.Cell()
 }

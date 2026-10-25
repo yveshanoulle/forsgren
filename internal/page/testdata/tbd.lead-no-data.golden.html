@@ -59,11 +59,11 @@
         <tbody>
           <tr>
             <th scope="row">Acme Shop</th>
-            <td>2 h</td>
+            <td aria-describedby="tbd-note-2">2 h <span class="visually-hidden">note</span> (2)</td>
             <td>1 h</td>
             <td>2 h</td>
             <td>-</td>
-            <td>3 · 2 commits timed by author date</td>
+            <td>3</td>
             <td>1 h</td>
             <td>30 m</td>
             <td>3 h</td>
@@ -139,11 +139,11 @@
           </tr>
           <tr>
             <th scope="row">Acme Web</th>
-            <td>24 m</td>
+            <td aria-describedby="tbd-note-1">24 m <span class="visually-hidden">note</span> (1)</td>
             <td>2 h 24</td>
             <td>5 m</td>
             <td>1 h</td>
-            <td>12 · Mostly estimated: 7 of 13 commits timed by author date.</td>
+            <td>12</td>
             <td colspan="3">Pushes not collected yet</td>
             <td>10 m</td>
             <td>-</td>
@@ -162,6 +162,13 @@
         </tbody>
       </table>
     </div>
+    <details class="tbd-notes" open>
+      <summary>Notes</summary>
+      <ul>
+        <li id="tbd-note-1">(1) Mostly estimated: commits timed by author date: Acme Web 7 of 13</li>
+        <li id="tbd-note-2">(2) Commits timed by author date: Acme Shop 2</li>
+      </ul>
+    </details>
   </main>
   <footer>
     <p><a href="https://forsgren.be/">Forsgren</a> 9.9.9 Metrics from GitHub data. Calculated at 2026-10-03 12:00 UTC</p>

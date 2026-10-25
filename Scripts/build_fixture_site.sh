@@ -88,7 +88,7 @@ fi
 # its row, right after the project, since the Mainline Interval group comes first (forsgren#418).
 tbd_shows_interval() {
   [[ -f "${STAGE}/tbd.html" ]] && tr -d '\n' <"${STAGE}/tbd.html" \
-    | grep -qE '<th scope="row">[^<]*</th> *<td>[^<-][^<]*</td> *(<td>[^<]*</td> *){3}<td>[0-9]+[^<]*</td>'
+    | grep -qE '<th scope="row">[^<]*</th> *<td[^>]*>[^<-][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td>[^<]*</td> *){3}<td>[0-9]+[^<]*</td>'
 }
 if ! tbd_shows_interval; then
   fail "tbd.html shows no Mainline Interval: the fixture has no commits the page can show"
@@ -96,7 +96,7 @@ fi
 # The TBD page has a Mainline Lead Time cell with pull requests and its notes,
 # not 'not collected yet' (forsgren#350, decision #336).
 tbd_shows_lead_time() {
-  grep -qE '<td>[^<]* pull requests merged within 24 hours of their first commit[^<]*</td>' "${STAGE}/tbd.html" \
+  grep -qE '<td[^>]*>[^<]* pull requests merged within 24 hours of their first commit[^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>' "${STAGE}/tbd.html" \
     && ! grep -qF 'No pull requests have been collected yet' "${STAGE}/tbd.html"
 }
 if ! tbd_shows_lead_time; then

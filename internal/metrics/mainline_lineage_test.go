@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"strings"
+	"reflect"
 	"testing"
 	"time"
 
@@ -76,8 +76,8 @@ func TestMainlineIntervalPlacesACommitAtItsCommitterDate(t *testing.T) {
 	if want := (placing{3, 2, 15 * time.Hour, 0}); placingOf(got) != want {
 		t.Errorf("want a mean of 15 h by committer date and no commit by author date, got %+v", got)
 	}
-	if strings.Contains(got.GapsCell(), "author date") {
-		t.Errorf("want no note in the cell, got %q", got.GapsCell())
+	if notes := got.MeanCell().Notes; len(notes) != 0 {
+		t.Errorf("want no note on the cell, got %v", notes)
 	}
 }
 
@@ -92,9 +92,8 @@ func TestMainlineIntervalKeepsTheOldApproximationForCommitsWithoutLineage(t *tes
 	if want := (placing{3, 2, 2 * time.Hour, 3}); placingOf(got) != want {
 		t.Errorf("want the 3 commits by author date, a mean of 2 h, got %+v", got)
 	}
-	want := "2 · Mostly estimated: 3 of 3 commits timed by author date."
-	if got.GapsCell() != want {
-		t.Errorf("want cell %q, got %q", want, got.GapsCell())
+	if want := []Note{{NoteMostlyEstimated, 3, 3}}; !reflect.DeepEqual(got.MeanCell().Notes, want) {
+		t.Errorf("want the notes %v, got %v", want, got.MeanCell().Notes)
 	}
 }
 
@@ -108,8 +107,8 @@ func TestMainlineIntervalMixesBothKindsOfDeployment(t *testing.T) {
 	if want := (placing{4, 3, 50 * time.Hour / 3, 1}); placingOf(got) != want {
 		t.Errorf("want 4 commits, 1 by author date, got %+v", got)
 	}
-	if want := " · 1 commit timed by author date"; !strings.HasSuffix(got.GapsCell(), want) {
-		t.Errorf("want the cell to end with %q, got %q", want, got.GapsCell())
+	if want := []Note{{NoteByAuthorDate, 1, 0}}; !reflect.DeepEqual(got.MeanCell().Notes, want) {
+		t.Errorf("want the notes %v, got %v", want, got.MeanCell().Notes)
 	}
 }
 
@@ -151,9 +150,9 @@ func TestMainlineIntervalJudgesTheChainBeforeCountingACommitOnce(t *testing.T) {
 // TestMainlineIntervalNote (forsgren#254, step 4): none, one or several
 // commits by author date, of 4 counted, so half or fewer (forsgren#345, step 3).
 func TestMainlineIntervalNote(t *testing.T) {
-	for n, want := range map[int]string{0: "", 1: "1 commit timed by author date", 2: "2 commits timed by author date"} {
-		if got := (MainlineInterval{Commits: 4, ByAuthorDate: n}).Note(); got != want {
-			t.Errorf("%d: want %q, got %q", n, want, got)
+	for n, want := range map[int][]Note{0: nil, 1: {{NoteByAuthorDate, 1, 0}}, 2: {{NoteByAuthorDate, 2, 0}}} {
+		if got := (MainlineInterval{Commits: 4, Gaps: 3, ByAuthorDate: n}).Notes(); !reflect.DeepEqual(got, want) {
+			t.Errorf("%d: want %v, got %v", n, want, got)
 		}
 	}
 }
