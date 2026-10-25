@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — The gate selector skips the gate wiring check on a Go-only change ([#406](https://github.com/yveshanoulle/forsgren/issues/406), 1/1)
+
+forsgren issue 406, tools issue, no release. Follow-up of #402: the gate wiring check (42 s) had no `in` rows, so FBP ran it on every commit. It now has rows from the closure of `Scripts/test_gate_wiring.sh`: the `Scripts/` directory (the test globs it, so a new script selects it), the six workflows, `sfl.sh`, `FBP.sh`, the manifests, the lint configs and the starter config. Red first: the Go-only case skipped it and each kind of input (a closure script, a workflow, the order file, `sfl.sh`, `FBP.sh`, a new script) selected it; `Scripts/test_gate_inputs.sh` checks the label. No exemption: `Scripts/test_gate_select.sh` takes its ledger and Go fixture paths from the list rows instead of spelling them. Quality still runs the gate in full.
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The legend's TBD section has a sub-heading for each group of the table ([#404](https://github.com/yveshanoulle/forsgren/issues/404), 1/1)
 
 forsgren issue 404, feature, patch. The TBD section of the legend was one long run of paragraphs. It now has h3 sub-headings under its h2, each with an id so it can be linked: General (`tbd-general`: the window, the push groups, the mean, median and p90 rules, the duration format and the unlisted default), then in table order Volume, Shares of commits, Time to main per commit, Commits per push, Time to deploy per commit, Commits per deployment, PR Lead Time, Mainline Interval and Developers (`tbd-volume`, `tbd-shares-of-commits`, `tbd-time-to-main-per-commit`, `tbd-commits-per-push`, `tbd-time-to-deploy-per-commit`, `tbd-commits-per-deployment`, `tbd-pr-lead-time`, `tbd-mainline-interval`, `tbd-developers`), and Push states (`tbd-push-states`). Each existing sentence sits under the heading it belongs to; the sentences of the PR Lead Time paragraphs now follow the table order, and the one paragraph about the two intervals is split between PR Lead Time and Mainline Interval, words kept.

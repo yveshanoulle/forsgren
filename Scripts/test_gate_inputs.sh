@@ -56,6 +56,7 @@ LABELS=(
   "CI phase runner self-test"
   "mutation: checkout pins"
   "git sandbox isolation self-test"
+  "gate wiring"
 )
 
 # The gate that discovers its inputs (forsgren#264): the scripts that write the step

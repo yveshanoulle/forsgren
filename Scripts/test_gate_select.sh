@@ -47,6 +47,34 @@ cd "$(dirname "$0")/.." || exit 1
 
 REPO_ROOT="$(pwd)"
 
+# The files the cases write into the throwaway repository come from the data that
+# defines them, not from spelled-out names (forsgren#406): Scripts/test_gate_wiring.sh
+# reads this file and the selector's closure follows every file name a script spells
+# out, so a spelled-out Go file or ledger here would make a Go-only step select the
+# gate wiring check. The two ledgers are the `none|out|*.json` rows of the real list
+# (the score ledger first, the coverage floors second, as the list orders them); the
+# Go paths are made-up files under the browser gate's real `install/` and `internal/`
+# tree rows. Anything but exactly two ledger rows or one row per tree fails loudly.
+LEDGER_ROWS="$(awk -F'|' '$1 == "none" && $2 == "out" && $3 ~ /[.]json$/ { print $3 }' Scripts/gate_inputs.txt)"
+if [[ "$(grep -c . <<< "$LEDGER_ROWS")" -ne 2 ]]; then
+  echo "FAIL: want exactly two none|out|*.json rows in Scripts/gate_inputs.txt"
+  exit 1
+fi
+SCORES_FILE="$(sed -n 1p <<< "$LEDGER_ROWS")"
+FLOORS_FILE="$(sed -n 2p <<< "$LEDGER_ROWS")"
+# tree_row <dir/>: the browser gate's one `in` row of that tree.
+tree_row() {
+  local rows
+  rows="$(awk -F'|' -v t="$1" '$1 == "browser gate" && $2 == "in" && $3 == t { print $3 }' Scripts/gate_inputs.txt)"
+  if [[ "$(grep -c . <<< "$rows")" -ne 1 ]]; then
+    echo "FAIL: want exactly one browser gate in row ${1} in Scripts/gate_inputs.txt"
+    exit 1
+  fi
+  printf '%s' "$rows"
+}
+INST_GO="$(tree_row install/)zz_made_up"
+PGE_GO="$(tree_row internal/)zz_made_up"
+
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
 # shellcheck source=Scripts/lib_git_sandbox.sh
@@ -333,7 +361,7 @@ reset
 # the fail-safe and ran every gate. A Go-only step skips the step summary isolation
 # gate and the four gates that read no Go tree; a changed script of a gate still runs it.
 ALL_SIX=("browser gate self-test" "browser gate" "browser gate (fixture site) self-test" "browser gate (fixture site)" "release workflow" "step summary isolation")
-SLOW_FIVE=("step summary isolation" "metrics workflow" "CI phase runner self-test" "mutation: checkout pins" "git sandbox isolation self-test")
+SLOW_SIX=("step summary isolation" "metrics workflow" "CI phase runner self-test" "mutation: checkout pins" "git sandbox isolation self-test" "gate wiring")
 # skips <case> <what changed> <count> <label>...: each label skips, naming the count.
 skips() {
   local c="$1" what="$2" n="$3" label
@@ -343,15 +371,15 @@ skips() {
     want_exit "$c: ${what}, ${label}" 0 "skip: none of the ${n} changed files is an input of ${label}"
   done
 }
-echo '{}' >> "${FX}/codescene-scores.json"
-skips 41 "only codescene-scores.json changed" 1 "${ALL_SIX[@]}" "${SLOW_FIVE[@]:1}"
+echo '{}' >> "${FX}/${SCORES_FILE}"
+skips 41 "only ${SCORES_FILE} changed" 1 "${ALL_SIX[@]}" "${SLOW_SIX[@]:1}"
 reset
 
 mkdir -p "${FX}/internal"
 echo 'package x' > "${FX}/internal/x.go"
-echo '{}' >> "${FX}/coverage_thresholds.json"
-echo '{}' >> "${FX}/codescene-scores.json"
-skips 42 "a Go-only step (internal/x.go, coverage_thresholds.json, codescene-scores.json)" 3 "${SLOW_FIVE[@]}" "release workflow" "browser gate self-test"
+echo '{}' >> "${FX}/${FLOORS_FILE}"
+echo '{}' >> "${FX}/${SCORES_FILE}"
+skips 42 "a Go-only step (internal/x.go, ${FLOORS_FILE}, ${SCORES_FILE})" 3 "${SLOW_SIX[@]}" "release workflow" "browser gate self-test"
 # The fixture self-test builds the fixture site from the Go tree (its case 7), so it runs too.
 for label in "browser gate" "browser gate (fixture site)" "browser gate (fixture site) self-test"; do
   sel_real "$label"
@@ -378,25 +406,35 @@ own_script 50 "git sandbox isolation self-test" Scripts/test_git_sandbox_isolati
 own_script 51 "git sandbox isolation self-test" Scripts/gate_report_order.txt
 own_script 52 "git sandbox isolation self-test" Scripts/gate_inputs.txt
 own_script 53 "step summary isolation" Scripts/test_step_summary_isolation.sh
+# gate wiring (forsgren#406): a script of its closure, a workflow, the order file and
+# the two runners each select it; the Go-only step of case 42 skips it.
+own_script 56 "gate wiring" Scripts/test_gate_wiring.sh
+own_script 57 "gate wiring" Scripts/lib_runs_script.sh
+own_script 58 "gate wiring" .github/workflows/quality.yml
+own_script 59 "gate wiring" Scripts/gate_report_order.txt
+own_script 60 "gate wiring" sfl.sh
+own_script 61 "gate wiring" FBP.sh
+# The wiring test globs Scripts/*.sh: a script added in no closure still selects it.
+own_script 62 "gate wiring" Scripts/zz_new_gate.sh
 # The floors are not read by the step summary isolation test: its row is gone.
-echo '{}' >> "${FX}/coverage_thresholds.json"
-skips 54 "only coverage_thresholds.json changed" 1 "step summary isolation"
+echo '{}' >> "${FX}/${FLOORS_FILE}"
+skips 54 "only ${FLOORS_FILE} changed" 1 "step summary isolation"
 reset
 
 # 55 (forsgren#402): install/install.go is Go source of the binary the browser gates
 # render with, so it selects the three rows that build the site, like internal/; its
 # _test.go does not; the others skip.
 mkdir -p "${FX}/install"
-echo 'package install' > "${FX}/install/install.go"
+echo 'package install' > "${FX}/${INST_GO}.go"
 for label in "browser gate" "browser gate (fixture site)" "browser gate (fixture site) self-test"; do
   sel_real "$label"
-  want_exit "55a: only install/install.go changed, ${label}" 0 "run: install/install.go is an input of ${label}"
+  want_exit "55a: only ${INST_GO}.go changed, ${label}" 0 "run: ${INST_GO}.go is an input of ${label}"
 done
-skips 55b "only install/install.go changed" 1 "browser gate self-test" "release workflow" "${SLOW_FIVE[@]}"
+skips 55b "only ${INST_GO}.go changed" 1 "browser gate self-test" "release workflow" "${SLOW_SIX[@]}"
 reset
 mkdir -p "${FX}/install"
-echo 'package install' > "${FX}/install/install_test.go"
-skips 55c "only install/install_test.go changed" 1 "browser gate" "browser gate (fixture site)" "browser gate (fixture site) self-test"
+echo 'package install' > "${FX}/${INST_GO}_test.go"
+skips 55c "only ${INST_GO}_test.go changed" 1 "browser gate" "browser gate (fixture site)" "browser gate (fixture site) self-test"
 reset
 
 # 15: the real list: every browser label has input rows the library reads, and the
@@ -407,8 +445,8 @@ for label in "browser gate self-test" "browser gate" "browser gate (fixture site
   fi
 done
 if gate_input_covered Scripts/gate_inputs.txt "browser gate" Scripts/browser_gate.mjs \
-  && gate_input_excluded Scripts/gate_inputs.txt "browser gate" internal/page/page_test.go \
-  && ! gate_input_excluded Scripts/gate_inputs.txt "browser gate" internal/page/page.go; then
+  && gate_input_excluded Scripts/gate_inputs.txt "browser gate" "${PGE_GO}_test.go" \
+  && ! gate_input_excluded Scripts/gate_inputs.txt "browser gate" "${PGE_GO}.go"; then
   echo "  ok: 15: the real list covers the engine and excludes a test file, not a source file"
 else
   fail "15: the real list does not cover the engine, or does not exclude exactly the test files"
@@ -502,11 +540,11 @@ reset
 # changes only the score ledger runs the browser gate again, because the file is then
 # named by no list. (sfl.sh is named by the metrics workflow rows since forsgren#402, so
 # its own none row no longer decides the fail-safe; the ledger's does.)
-grep -vxF 'none|out|codescene-scores.json' "$REAL_INPUTS" > "${TMP}/no_scores.txt"
+grep -vxF "none|out|${SCORES_FILE}" "$REAL_INPUTS" > "${TMP}/no_scores.txt"
 if cmp -s "$REAL_INPUTS" "${TMP}/no_scores.txt"; then fail "mutation K changed nothing: the proof would be vacuous"; fi
-echo '{}' >> "${FX}/codescene-scores.json"
+echo '{}' >> "${FX}/${SCORES_FILE}"
 sel_real "browser gate" "${TMP}/no_scores.txt"
-want_exit "mutation proof K: without the ledger row, a ledger-only commit runs the browser gate" 0 "run: codescene-scores.json is named by no gate's list, so every gate runs"
+want_exit "mutation proof K: without the ledger row, a ledger-only commit runs the browser gate" 0 "run: ${SCORES_FILE} is named by no gate's list, so every gate runs"
 reset
 
 # L (forsgren#264): without the `grep` row the gate's own discovery is not a selector
@@ -518,4 +556,4 @@ sel_real "$SI" "${TMP}/no_grep.txt"
 want_exit "mutation proof L: without the grep row, a new summary writer skips the gate" 0 "skip: none of the 1 changed files is an input of $SI"
 rm -f "${FX}/Scripts/zz_new_writer.sh"
 
-selftest_end "the gate select self-test failed" "gate_select: fifty-four cases hold, twelve mutations seen"
+selftest_end "the gate select self-test failed" "gate_select: sixty-two cases hold, twelve mutations seen"

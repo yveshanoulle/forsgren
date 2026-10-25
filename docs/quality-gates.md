@@ -798,6 +798,23 @@ The POST gates, on the generated site:
   a Go step that moves the score ledger or the floors no longer fires the
   fail-safe. `Scripts/test_gate_select.sh` cases 41 to 54 pin it.
 
+- **gate wiring skipped by selection** (forsgren#406, forsgren only, not canon):
+  `gate wiring` (about 42 s) has `in` rows in `Scripts/gate_inputs.txt`, so a
+  Go-only change (a Go file, `coverage_thresholds.json`, `codescene-scores.json`)
+  skips it. Its test globs `Scripts/*.sh`, so the whole `Scripts/` directory is
+  one row, a new or removed script included; the others are the files outside
+  it that the closure names: the six workflows it pins, `sfl.sh`, `FBP.sh`,
+  `package.json`, `package-lock.json`, `.yamllint.yml`, `.actionlint.yaml` and
+  `internal/config/starter.yml`. No exemption: the closure of
+  `Scripts/test_gate_wiring.sh` reaches `Scripts/test_gate_select.sh`, which
+  uses real Go files and the two ledgers as fixtures, so that test takes them
+  from the data that defines them (the two `none|out|*.json` rows of
+  `Scripts/gate_inputs.txt`, and made-up files under the browser gate's
+  `install/` and `internal/` rows; anything but exactly two rows or one row per
+  tree fails) and spells none out. `Scripts/test_gate_inputs.sh` lists the label and is red without
+  rows or with an unlisted closure file; `Scripts/test_gate_select.sh` cases 56
+  to 62 pin the selecting inputs and case 42 the skip.
+
 - **FBP push-or-rebase** (`Scripts/fbp_push_or_rebase.sh`, self-test
   `Scripts/test_fbp_push_or_rebase.sh`, forsgren#283 step 1 of 2, ported from
   the estate canon): when FBP.sh's final push is refused because the remote moved

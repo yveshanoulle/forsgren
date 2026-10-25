@@ -327,3 +327,27 @@ git sandbox isolation self-test|in|Scripts/lib_git_sandbox.sh
 git sandbox isolation self-test|in|Scripts/lib_selftest.sh
 git sandbox isolation self-test|in|Scripts/test_git_sandbox_guard.sh
 git sandbox isolation self-test|in|Scripts/test_git_sandbox_isolation.sh
+
+# --- gate wiring (forsgren#406) -------------------------------------------
+# Scripts/test_gate_wiring.sh walks every Scripts/*.sh (a script that is neither a
+# self-test nor in the order file must be a declared exemption), reads the order file,
+# sfl.sh, FBP.sh and the workflows it pins, and greps the scripts of its closure (about
+# a hundred files, so the whole directory: it globs it). A new or removed script is a
+# change of the directory, which only a directory row sees. The rest are the files
+# outside Scripts/ that its closure names. It reads no Go tree, the ledgers or the
+# floors; Scripts/test_gate_select.sh, which the wiring test reads, takes those
+# paths from the rows of this list instead of spelling them (forsgren#406).
+gate wiring|in|Scripts/
+gate wiring|in|.github/workflows/auto_update.yml
+gate wiring|in|.github/workflows/dco.yml
+gate wiring|in|.github/workflows/metrics.yml
+gate wiring|in|.github/workflows/quality.yml
+gate wiring|in|.github/workflows/release.yml
+gate wiring|in|.github/workflows/starter_page.yml
+gate wiring|in|.actionlint.yaml
+gate wiring|in|.yamllint.yml
+gate wiring|in|FBP.sh
+gate wiring|in|internal/config/starter.yml
+gate wiring|in|package-lock.json
+gate wiring|in|package.json
+gate wiring|in|sfl.sh
