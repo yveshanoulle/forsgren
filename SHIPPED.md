@@ -9,6 +9,23 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — A project with no data in the window has one sentence for its TBD row ([#394](https://github.com/yveshanoulle/forsgren/issues/394), step 3 of 3)
+
+forsgren issue 394, step 3: Yves's decision #433 (A) with his wording of 2026-10-24. The documentation and the legend ride with #417.
+
+- `metrics.NoData(volume, deploy, push, lead)` (`internal/metrics/nodata.go`): a project has no data when it has no deployed commit, no final deployment in the window, a failed one included (decision #442, A; `DeploymentVolume.Final` from `ChangeFailRates`), no push and no merged pull request (a bot's included). Each of the four alone keeps the data row.
+- The TBD row of such a project is its name and one cell across every column after it, `currently no data for this project in the last 30 days`, 30 being the config's dora_days (`TbdRow.NoData`, `NoDataSentence`; `colspan` 14 with the median only, 26 with `tbd_figures: all`, pinned against the header). No note marker and no line of the Notes list comes from such a row. A single column without data keeps its dash.
+- Red first, seen failing at runtime: `TestNoDataNeedsAllFourAbsent` against a stub and the page tests against the old template (`internal/page/tbdnodata_test.go`). Acme Tools in the `cmd/forsgren` tests, whose only deployment failed, stays a data row, so those tests are unchanged.
+- Goldens: new `tbd.project-no-data` and `tbd.all-project-no-data`; the others unchanged.
+- Fixture site: a made-up project Acme Archive (`acme/archive`, no records) so the browser gate sees the row; `reach.csv` follows.
+- CodeScene: the changed or new Go files 10.0 except `cmd/forsgren/render_pushes_test.go` 9.68 (floor 9.58); rows added for the three new files.
+
+Signed: Lenka B
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The writer pre-check is retired, FBP fails fast and is the check ([#439](https://github.com/yveshanoulle/forsgren/issues/439), 1 step)
 
 forsgren issue 439, tools, no release. With FBP stopping a phase at its first red gate (forsgren#441), `precheck.sh` and its self-test `test_precheck.sh` are removed, with the order-file row, the wiring case, the CONTRIBUTING.md gate list line, the `gate-classification.md` row and the passages in `CLAUDE.md` and `docs/development.md`; one sentence replaces them: writers run their tests red first, and FBP (fail fast) is the check. `MIN_GATES` goes from 158 to 157 with the retired row. `Scripts/gate_inputs.txt` had no row for either script.

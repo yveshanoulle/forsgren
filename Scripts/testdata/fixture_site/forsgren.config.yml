@@ -12,3 +12,7 @@ projects:
     repositories:
       - name: acme/cli
         deployment: release
+  - name: Acme Archive
+    repositories:
+      - name: acme/archive
+        deployment: release

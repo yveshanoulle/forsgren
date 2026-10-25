@@ -3,6 +3,7 @@ package page
 import (
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
 	"github.com/yveshanoulle/forsgren/internal/metrics"
@@ -52,6 +53,36 @@ type TbdRow struct {
 	Volume     metrics.DeploymentVolume
 	// pullsUncollected is Data.PullsUncollected.
 	pullsUncollected bool
+	// window is Data.Window, the DORA window in days.
+	window int
+}
+
+// NoData says the project has no data in the DORA window (forsgren#394,
+// step 3, decision #433): its row is then one sentence, NoDataSentence.
+func (r TbdRow) NoData() bool {
+	return metrics.NoData(r.Volume, r.Deploy, r.Push, r.Lead)
+}
+
+// NoDataSentence is the one cell of a row without data, naming the window of
+// the config's dora_days.
+func (r TbdRow) NoDataSentence() string {
+	return "currently no data for this project in the last " + strconv.Itoa(r.window) + " days"
+}
+
+// The columns of the table after the project: the median alone, or the mean,
+// the median and the 90th percentile (the shares have four, the developers one).
+const (
+	tbdColumnsMedian = 14
+	tbdColumnsAll    = 26
+)
+
+// TbdColumnsAfterProject is how many columns the row of a project without data
+// spans: those after the project's own.
+func (d Data) TbdColumnsAfterProject() int {
+	if d.TbdAll() {
+		return tbdColumnsAll
+	}
+	return tbdColumnsMedian
 }
 
 // LeadState is the sentence in place of the row's pull requests cells, in the
@@ -87,7 +118,7 @@ func (d Data) TbdRows() ([]TbdRow, error) {
 	for i, m := range d.Mainline {
 		rows[i] = TbdRow{Interval: m, Lead: d.MainlineLead[i], Developers: d.Developers[i],
 			Push: d.PushMeasures[i], Deploy: d.DeployMeasures[i], Volume: d.DeploymentVolumes[i],
-			pullsUncollected: d.PullsUncollected}
+			pullsUncollected: d.PullsUncollected, window: d.Window()}
 	}
 	return rows, nil
 }

@@ -529,6 +529,9 @@ func TestTbdPageGolden(t *testing.T) {
 	checkPageGolden(t, "tbd.html", "testdata/tbd.lead-not-readable.golden.html", notReadable())
 	checkPageGolden(t, "tbd.html", "testdata/tbd.all.golden.html", inFigures(tbdData(), true))
 	checkPageGolden(t, "tbd.html", "testdata/tbd.all-lead-not-readable.golden.html", inFigures(notReadable(), true))
+	// A project without data in the window (forsgren#394, step 3).
+	checkPageGolden(t, "tbd.html", "testdata/tbd.project-no-data.golden.html", withoutData(false))
+	checkPageGolden(t, "tbd.html", "testdata/tbd.all-project-no-data.golden.html", withoutData(true))
 }
 
 // TestTbdPageHasItsHeadingAndTable (forsgren#253): the title and the h1 (id

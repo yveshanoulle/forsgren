@@ -112,6 +112,9 @@ func (s CountSpread) cell(shown bool, v float64) string {
 type DeploymentVolume struct {
 	Project string
 	Count   int
+	// Final counts the final deployments of the window, failures included
+	// (forsgren#394, step 3, decision #442): any one is data.
+	Final int
 }
 
 // Cell is the count, a bare number for every project (forsgren#403: 87,
@@ -122,9 +125,10 @@ func (v DeploymentVolume) Cell() string { return strconv.Itoa(v.Count) }
 // order of projects, over the data's DORA window at the render time now.
 func DeploymentVolumes(projects []config.Project, data Data, now time.Time) []DeploymentVolume {
 	frequencies := DeploymentFrequency(projects, data, now)
+	rates := ChangeFailRates(projects, data, now)
 	out := make([]DeploymentVolume, len(projects))
 	for i, p := range projects {
-		out[i] = DeploymentVolume{Project: p.Name, Count: frequencies[i].InWindow}
+		out[i] = DeploymentVolume{Project: p.Name, Count: frequencies[i].InWindow, Final: rates[i].Deployments}
 	}
 	return out
 }

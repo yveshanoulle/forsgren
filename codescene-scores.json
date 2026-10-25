@@ -2185,6 +2185,24 @@
    "score": 10.0,
    "checkedAt": "2026-10-25",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/nodata.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-25",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/nodata_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-25",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/tbdnodata_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-25",
+   "minScore": 10.0
   }
  ]
 }
