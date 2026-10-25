@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — Scripts/release_check.sh runs the release plan's rules locally before the last FBP of a release ([#445](https://github.com/yveshanoulle/forsgren/issues/445), 1 step)
+
+forsgren issue 445, tools, no release of its own. `Scripts/release_check.sh` runs the Release workflow's own `release_plan.sh` with `auto --all` on the maintainer's machine (no second copy of its rules): a closed issue since the last release tag without `patch`, `minor`, `major` or `tools`, an open non-tools issue named by `#N` in a commit subject, nothing closed and the bump the labels require are findings, and it adds one the plan does not make, a commit on main since the tag whose subject is `*** RED ****` alone, naming the issue its body names. One line per finding and exit 1, else `release check: OK, bump=<kind>`; read-only. `Scripts/test_release_check.sh` (order-file row) uses the plan's seams and six mutation proofs; `docs/updating-and-releases.md` and `CLAUDE.md` say to run it before the last FBP of a release.
+
+---
+
 ## 2026-10-25 — The manual, the legend and the agent documents follow the 1.22.0 changes, and say where to find the logins for same_developer ([#417](https://github.com/yveshanoulle/forsgren/issues/417), 1 step)
 
 forsgren issue 417, feature, patch release, shipped with #398, #399, #421, #422 and #423 in the release after 1.21.0. `docs/configuration.md`, the `same_developer` entry, says the page shows counts only and the logins are in the `author` column of `data/commits.csv` or in the repository's commit list on GitHub, with the typical cases (an assistant or agent account, one person with a work and a private account); the outdated sentence that Mainline Lead Time counts pull requests now says PR Lead Time (since #403). `agent-installer.md` asks one question (14) about commits from more than one account or an assistant account and writes `same_developer` only with the person's yes; `agent-upgrade.md` step 5 asks the same. `agent-delete.md` was checked: it describes no config key, so it is unchanged.

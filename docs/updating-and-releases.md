@@ -628,6 +628,13 @@ it would stop, and the table says what to do first; exit 2: the plan could not
 judge. It writes nothing. `Scripts/test_release_precheck.sh` feeds the pre-check
 and the Release's report the same data and compares the tables.
 
+**Before the last FBP of a release: `./Scripts/release_check.sh`** (forsgren#445).
+Run it with your own `gh` login: it runs the same `release_plan.sh` the Release
+runs (`auto --all`) and adds one check the plan does not make, a `*** RED ****`
+commit on main since the latest tag, and it prints one line per finding and exits 1,
+or `release check: OK, bump=<kind>`. It writes nothing; `Scripts/test_release_check.sh`
+is its self-test.
+
 `.github/workflows/release.yml` (forsgren#221) cuts a release in one run. Start
 it from the Actions page (Release, Run workflow, on `main`) with the kind of
 release, `patch`, `minor` or `major` (the default is `patch`), or through the

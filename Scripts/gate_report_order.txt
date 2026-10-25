@@ -877,6 +877,7 @@ release publish self-test|Scripts/test_release_publish.sh|pre|
 release pins self-test|Scripts/test_release_pins.sh|pre|
 release report self-test|Scripts/test_release_report.sh|pre|
 release precheck self-test|Scripts/test_release_precheck.sh|pre|
+release check self-test|Scripts/test_release_check.sh|pre|
 release resume self-test|Scripts/test_release_resume.sh|pre|
 release token expiry self-test|Scripts/test_release_token_expiry.sh|pre|
 release verify pin self-test|Scripts/test_release_verify_pin.sh|pre|
