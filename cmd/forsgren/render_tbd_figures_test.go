@@ -26,7 +26,8 @@ func TestRenderTbdFiguresChoosesTheColumnsOfTheTbdTable(t *testing.T) {
 	data := writeData(t, acmeHistory(), acmeCommits())
 	for name, figures := range map[string]string{"default": "", "median": "tbd_figures: median\n"} {
 		got := tbdSiteIn(t, figures, data)
-		wantIn(t, got, `<th scope="col">Mainline Interval (median)</th>`, `<th scope="col">PR Lead Time (median)</th>`)
+		wantIn(t, got, `<th scope="col" aria-label="median mainline interval">Mainline Interval</th>`,
+			`<th scope="col" aria-label="median PR lead time">PR Lead Time</th>`)
 		for _, not := range []string{"rowspan", "colgroup", ">mean<", ">deviation<", ">gaps<"} {
 			if strings.Contains(got, not) {
 				t.Errorf("%s: want no %q in tbd.html, got:\n%s", name, not, got)
@@ -51,7 +52,7 @@ func TestRenderTbdFiguresThatIsNotAcceptedShowsTheMedianAndSaysWhy(t *testing.T)
 	pinNow(t)
 	data := writeData(t, acmeHistory(), acmeCommits())
 	dir := renderInto(t, "--config", writeConfig(t, validConfig+tbdOn+"tbd_figures: both\n"), "--data", data)
-	wantIn(t, readSite(t, dir, "tbd.html"), `<th scope="col">Mainline Interval (median)</th>`)
+	wantIn(t, readSite(t, dir, "tbd.html"), `<th scope="col" aria-label="median mainline interval">Mainline Interval</th>`)
 	settings := readSite(t, dir, "settings.html")
 	wants := []string{`<th scope="row">tbd_figures</th>`,
 		`<span class="written">both</span> is not accepted: use median or all.`, "median, all"}

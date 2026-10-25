@@ -275,8 +275,8 @@ var tbdGroups = []struct {
 	hidden  string // the measure, said after each column's word in its accessible name
 }{
 	{"Mainline Interval", []string{"mean", "median", "p90"}, ""},
-	{"Time to main per commit (duration)", []string{"mean", "median", "p90"}, "time to main"},
-	{"Time to deploy per commit (duration)", []string{"mean", "median", "p90"}, "time to deploy"},
+	{"Time to main per commit", []string{"mean", "median", "p90"}, "time to main"},
+	{"Time to deploy per commit", []string{"mean", "median", "p90"}, "time to deploy"},
 	{"PR Lead Time", []string{"mean", "median", "p90"}, ""},
 	{"Volume", []string{"Commits", "Pushes", "Deployments"}, ""},
 	{"Commits per push", []string{"mean", "median", "p90"}, "commits per push"},
@@ -315,17 +315,18 @@ func tbdHeaders() (top, beneath string) {
 }
 
 // medianHeaders are the headers of the TBD table with the median only, in one
-// row (forsgren#423): a header for each measure that says it is the median, the
+// row (forsgren#423): a header for each measure without a suffix, its accessible name saying it
+// is the median (forsgren#444), the
 // shares named by what they are shares of in the accessible name.
 var medianHeaders = []struct{ text, label string }{
 	{"Project", ""},
-	{"Mainline Interval (median)", ""},
-	{"Time to main per commit (median duration)", ""},
-	{"Time to deploy per commit (median duration)", ""},
-	{"PR Lead Time (median)", ""},
+	{"Mainline Interval", "median mainline interval"},
+	{"Time to main per commit", "median time to main per commit"},
+	{"Time to deploy per commit", "median time to deploy per commit"},
+	{"PR Lead Time", "median PR lead time"},
 	{"Commits", ""}, {"Pushes", ""}, {"Deployments", ""},
-	{"Commits per push (median)", ""},
-	{"Commits per deployment (median)", ""},
+	{"Commits per push", "median commits per push"},
+	{"Commits per deployment", "median commits per deployment"},
 	{"Direct share", "direct share of commits"},
 	{"PR share", "pull request share of commits"},
 	{"Unknown share", "unknown author share of commits"},

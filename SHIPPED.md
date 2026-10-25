@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — The TBD table headers lose (median), (median duration) and (duration) ([#444](https://github.com/yveshanoulle/forsgren/issues/444), 1 step)
+
+forsgren issue 444, feature, patch release (in 1.22.0, with #423; #435 folded in). Yves's ruling on the live median table. In median mode the headers are Mainline Interval, Time to main per commit, Time to deploy per commit, PR Lead Time, Commits per push and Commits per deployment, each with an `aria-label` that keeps the meaning (`median time to main per commit`); in `all` mode Time to main per commit and Time to deploy per commit lose `(duration)`. Red first: `TestTbdPageHasOneHeaderRowWithTheMedianOnly`, `TestTbdPageHasTwoLevelHeadersWithAllTheFigures` and the two `cmd/forsgren` header tests failed on the old template; the six TBD goldens follow. The legend and the docs (`docs/pages-and-views.md` line 818, `CLAUDE.md` line 22) ride with #417.
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The installer and the upgrader help a repository that has no deployments to count ([#399](https://github.com/yveshanoulle/forsgren/issues/399), 1 step)
 
 forsgren issue 399, feature, patch release, shipped with #398, #417, #421, #422 and #423 in the release after 1.21.0. `agent-installer.md` step 3 (item 4) helps when nothing is found or a deploy job has no environment: propose `environment: production` on the deploy job, or a record step after a deploy outside Actions (the two API calls and the permission), each only with the person's yes, never pushing to a product repository, then check that the next deploy shows. `agent-upgrade.md` step 9 gives the same help where "No deployments" shows. `agent-delete.md` was checked: it says nothing about deployments, so it is unchanged.
