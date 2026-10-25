@@ -109,10 +109,16 @@ popped), and the gates run on the rebased tree (forsgren#283, step 2 of 2,
 files named and `git pull --rebase --autostash` to run, the commits and the
 changes as they were. Then it installs the tools (see [The tools](#the-tools)), checks the Node pin, runs
 `npm ci` when `node_modules` is missing or stale (see [The tools](#the-tools)),
-and exports the Go pin. It runs every gate of the
-phase even after a failure, prints a step table and an `Errors:` block with
+and exports the Go pin. **It stops at the first red gate**
+(forsgren#441, decision #440): each later gate of the phase is printed
+`⏭ skipped: <label> (stopped after <label of the red gate>)`, is a `⏭ skip` row
+of the step table (never counted as passed), and the last line says
+`sfl pre failed, stopped after <label>`; `./sfl.sh --all pre|post` (and
+`./FBP.sh --all`) runs every gate, also past a red static block, as CI does. It
+prints a step table and an `Errors:` block with
 each failed gate's reason, and exits 0 green, 1 red, 2 on a secret-class
-red. One exception, the **static block** (forsgren#231): the fast static checks
+red (which stops too and writes no stop sink, so FBP.sh commits nothing). The
+**static block** (forsgren#231) is the one place that runs on after a red: the fast static checks
 (gofmt check, Go lint, actionlint, shellcheck, yamllint, zizmor, each after its
 self-test) sit in the order file between the marker lines
 `#! static-block-start` and `#! static-block-end`, straight after the
@@ -120,12 +126,13 @@ secret-class rows. The block always runs to its end, so every static finding is
 reported; when one is red, sfl runs no later gate: each is printed as
 `⏭ skipped: <label> (stopped after the static block)`, is a `⏭ skip` row of the
 step table, and the last line says `sfl pre failed, stopped after the static
-block`. sfl writes `.build/sfl-static-stop.log`; FBP.sh reads it, skips the
-build and the POST gates (the POST gates named), and commits the RED commit as
-for any red. FBP.sh runs the formatters (`gofmt -w`, the source CSS fix) before
+block`. Whatever gate stopped the phase, sfl writes
+`.build/sfl-static-stop.log` (`<sentence>: N gate(s) skipped`); FBP.sh reads it,
+skips the build and the POST gates (the POST gates named, the sentence in the
+summary), and commits the RED commit locally as for any red, no push. FBP.sh runs the formatters (`gofmt -w`, the source CSS fix) before
 sfl, so the block checks the formatted tree. **CI does not stop early**:
 `Scripts/run_ci_phase.sh` runs every row of the phase, so a pull request shows
-all its reds in one run; the markers start with `#!`, a comment to every reader
+all its reds in one run (pinned by `Scripts/test_sfl_static_block.sh`); the markers start with `#!`, a comment to every reader
 but sfl. `Scripts/test_sfl_static_block.sh` pins both.
 
 **Browser rows run only when their inputs changed** (forsgren#262). Before each

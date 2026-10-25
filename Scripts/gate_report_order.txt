@@ -110,7 +110,9 @@ private names|Scripts/check_private_names.sh|pre|secret-class
 # reads them. When a row between them is red, sfl.sh runs no further row: each
 # later row of the phase is reported as skipped by name and the summary says
 # `stopped after the static block` (FBP.sh then skips the build and the POST
-# gates, named, and commits the RED commit as for any red). CI does NOT stop
+# gates, named, and commits the RED commit as for any red). Since forsgren#441
+# sfl stops after ANY red gate that way (`stopped after <label>`) unless run with
+# --all; the block alone runs to its end first. CI does NOT stop
 # early: run_ci_phase.sh runs every row, so a pull request shows all its reds.
 # Scripts/test_sfl_static_block.sh pins both. A row added to the block goes
 # between the markers; Scripts/precheck.sh runs the same scripts.

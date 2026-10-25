@@ -152,6 +152,11 @@ FBP_SANDBOX_ORDER_FILE=""
 #     the signal reaches FBP.sh, not only sfl.sh. No pid is looked up.
 FBP_SANDBOX_SFL_PRE_SIGNAL=""
 
+# forsgren#441: FBP_SANDBOX_SFL_LOG_ARGS: when non-empty, the stub sfl.sh first
+# prints `stub sfl args: <its arguments>`, so a fixture sees whether FBP.sh
+# handed --all on to sfl pre and post.
+FBP_SANDBOX_SFL_LOG_ARGS=""
+
 # forsgren#266: one more seam, for the gate-selection case of
 # Scripts/test_sfl_gate_skip.sh, set and reset the same way.
 #   FBP_SANDBOX_SFL_SKIPS: when non-empty, the stub sfl.sh, run as sfl.sh pre,
@@ -316,6 +321,9 @@ fbp_sandbox_write_build_site() {
 fbp_sandbox_write_sfl() {
   {
     printf '#!/usr/bin/env bash\n'
+    if [ -n "$FBP_SANDBOX_SFL_LOG_ARGS" ]; then
+      printf 'echo "stub sfl args: $*"\n'
+    fi
     fbp_sandbox_sfl_counts_line pre "$FBP_SANDBOX_SFL_COUNTS_PRE"
     fbp_sandbox_sfl_counts_line post "$FBP_SANDBOX_SFL_COUNTS_POST"
     fbp_sandbox_sfl_static_stop_line

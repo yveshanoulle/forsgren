@@ -16,7 +16,9 @@ cd "$(dirname "$0")" || exit 1
 # Scripts/*.sh that sfl merely calls does not require a bump.
 # Form ported from another estate repository 2026-08-31: it names the file, so a pasted log
 # says which script produced it, not just "the script".
-VERSION=9
+# Changelog: v10 (forsgren#441) stops the phase at the first red gate by
+# default, every later gate printed skipped and named; --all runs every gate.
+VERSION=10
 
 # forsgren#214: FBP.sh FIXES what the gates can fix (the npm audit heal runs
 # only under GATE_FIX=1); CI never sets it and only checks.
@@ -24,11 +26,22 @@ export GATE_FIX=1
 
 usage() {
   echo "Usage:"
-  echo "  $0 pre    run PRE-BUILD quality gates"
-  echo "  $0 post   run POST-BUILD quality gates"
+  echo "  $0 [--all] pre    run PRE-BUILD quality gates"
+  echo "  $0 [--all] post   run POST-BUILD quality gates"
+  echo
+  echo "A phase stops at its first red gate: each later gate is printed skipped,"
+  echo "named, and the summary says where it stopped. --all runs every gate."
 }
 
-PHASE="${1:-}"
+# forsgren#441 (decision #440): the stop is the default, --all lifts it.
+RUN_ALL=0
+PHASE=""
+for arg in "$@"; do
+  case "$arg" in
+    --all) RUN_ALL=1 ;;
+    *) [ -z "$PHASE" ] && PHASE="$arg" ;;
+  esac
+done
 
 if [[ "$PHASE" != "pre" && "$PHASE" != "post" ]]; then
   usage
@@ -36,6 +49,9 @@ if [[ "$PHASE" != "pre" && "$PHASE" != "post" ]]; then
 fi
 
 echo "sfl.sh v${VERSION} — ${PHASE} — Started at $(date '+%Y-%m-%d %H:%M:%S')"
+if [ "$RUN_ALL" -eq 1 ]; then
+  echo "--all: every gate of the phase runs, no early stop."
+fi
 
 # forsgren runs sfl in two phases around the build. Synchronise only before
 # PRE: pulling again before POST could change the source after .build/site has
@@ -144,6 +160,11 @@ run_gate_secret() {
 # the same way. CI (Scripts/run_ci_phase.sh) does not stop: it runs every row.
 # Fixture: Scripts/test_sfl_static_block.sh.
 BLOCK_FAIL_FROM=0
+IN_BLOCK=0
+# forsgren#441: outside --all a phase stops at its FIRST red gate, by the same
+# mechanism: STOPPED, the sentence, the skip rows, the sink. FIRST_RED is the
+# label of that gate. The static block still runs to its own end first.
+FIRST_RED=""
 STOPPED=0
 STOP_SENTENCE="stopped after the static block"
 STOP_SINK=".build/sfl-static-stop.log"
@@ -228,6 +249,7 @@ run_gate() {
 
   if [ "$rc" -ne 0 ]; then
     FAIL=1
+    FIRST_RED="${FIRST_RED:-$name}"
     FAILED_GATES="${FAILED_GATES}  ${name} ❌"$'\n'
     FAILED_GATES="${FAILED_GATES}$(./Scripts/summarize_gate_failure.sh "$log")"$'\n'
     printf '%s\t%s\t%s\n' "$name" "❌ FAIL" "$((SECONDS - t0))" >> "$STEP_ROWS"
@@ -299,10 +321,12 @@ while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:
   case "$label" in
     "#! static-block-start")
       BLOCK_FAIL_FROM=$FAIL
+      IN_BLOCK=1
       continue
       ;;
     "#! static-block-end")
-      if [ "$FAIL" -ne "$BLOCK_FAIL_FROM" ]; then
+      IN_BLOCK=0
+      if [ "$FAIL" -ne "$BLOCK_FAIL_FROM" ] && [ "$RUN_ALL" -eq 0 ] && [ "$STOPPED" -eq 0 ]; then
         STOPPED=1
         echo
         echo "❌ The static block is red: ${STOP_SENTENCE}. The later gates of this phase are skipped, named below."
@@ -351,6 +375,7 @@ while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:
   if [ -n "$bad" ]; then
     echo "❌ ${label} is a malformed row of Scripts/gate_report_order.txt: ${bad}"
     FAIL=1
+    FIRST_RED="${FIRST_RED:-$label}"
     FAILED_GATES="${FAILED_GATES}  ${label} ❌"$'\n'
     FAILED_GATES="${FAILED_GATES}    malformed order-file row: ${bad}"$'\n'
     continue
@@ -359,6 +384,7 @@ while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:
   if [ ! -e "$script" ]; then
     echo "❌ ${label} declares ${script}, which does not exist"
     FAIL=1
+    FIRST_RED="${FIRST_RED:-$label}"
     FAILED_GATES="${FAILED_GATES}  ${label} ❌"$'\n'
     FAILED_GATES="${FAILED_GATES}    declared script does not exist: ${script}"$'\n'
     continue
@@ -367,9 +393,20 @@ while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:
   if [ ! -x "$script" ]; then
     echo "❌ ${label} declares ${script}, which is not an executable script"
     FAIL=1
+    FIRST_RED="${FIRST_RED:-$label}"
     FAILED_GATES="${FAILED_GATES}  ${label} ❌"$'\n'
     FAILED_GATES="${FAILED_GATES}    declared script is not executable: ${script}"$'\n'
     continue
+  fi
+
+  # forsgren#441: a red gate before this row stops the phase, except inside the
+  # static block, which runs to its own end (a red from before the block counts).
+  if [ "$RUN_ALL" -eq 0 ] && [ "$STOPPED" -eq 0 ] && [ "$FAIL" -ne 0 ] \
+    && { [ "$IN_BLOCK" -eq 0 ] || [ "$BLOCK_FAIL_FROM" -ne 0 ]; }; then
+    STOPPED=1
+    STOP_SENTENCE="stopped after ${FIRST_RED}"
+    echo
+    echo "❌ ${FIRST_RED} is red: ${STOP_SENTENCE}. The later gates of this phase are skipped, named below (--all runs every gate)."
   fi
 
   if [ "$STOPPED" -eq 1 ]; then

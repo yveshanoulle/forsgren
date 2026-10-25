@@ -18,6 +18,9 @@ cd "$(dirname "$0")"
 
 NO_COMMIT=false
 NO_PUSH=false
+# canon-block: stop-at-first-red v1 begin (state)
+SFL_ALL_ARG=()
+# canon-block: stop-at-first-red v1 end
 COMMIT_MSG=""
 POSITIONAL=()
 
@@ -34,6 +37,12 @@ usage() {
   echo "                            -nopush, /noPush, /no-push)"
   echo "                           not combinable with --no-commit"
   # canon-block: no-push v1 end
+  # canon-block: stop-at-first-red v1 begin (usage)
+  echo "  $0 --all [...]           run every gate: no stop at the first red gate"
+  echo "                           (default: sfl stops at its first red gate, the later"
+  echo "                           gates are skipped and named, no build or POST phase,"
+  echo "                           the RED commit is made, nothing is pushed)"
+  # canon-block: stop-at-first-red v1 end
   echo
   echo "On ordinary red the script continues where safe, then commits locally so"
   echo "WIP isn't lost, but skips the push. The subject becomes '*** RED ****'"
@@ -53,11 +62,17 @@ while [ "$#" -gt 0 ]; do
       shift
       ;;
     # canon-block: no-push v1 end
+    # canon-block: stop-at-first-red v1 begin (parse)
+    --all|-all)
+      SFL_ALL_ARG=(--all)
+      shift
+      ;;
+    # canon-block: stop-at-first-red v1 end
     -*|/*)
       # The argument is NOT printed back (forsgren#54): it may be a commit
       # message, and this runs before the private-names check.
       echo "❌ ERROR: unrecognised option; usage: $0 \"<commit message>\" or $0 --no-commit"
-      echo "Did you mean --no-commit or --no-push?"
+      echo "Did you mean --no-commit, --no-push or --all?"
       echo "(Commit messages cannot start with '-' or '/' — quote your message if needed.)"
       exit 1
       ;;
@@ -110,7 +125,9 @@ fi
 # repo because two FBP runs back to back were otherwise
 # indistinguishable from their first line (Yves, 2026-08-31). Mirrors
 # sfl.sh's banner; editing a Scripts/*.sh does not require a bump.
-FBP_VERSION=11
+# Changelog: v12 (forsgren#441) sfl stops at the first red gate and FBP skips the
+# build and POST phase after it, as after a red static block; --all runs everything.
+FBP_VERSION=12
 
 STARTED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
 START_EPOCH="$(date +%s)"
@@ -426,9 +443,11 @@ rm -f "$SFL_COUNTS_FILE"
 STATIC_STOP_SINK=".build/sfl-static-stop.log"
 rm -f "$STATIC_STOP_SINK"
 STATIC_STOP=false
+STOP_SENTENCE=""
 
 set +e
-./sfl.sh pre 2>&1 | tee "$PRE_LOG"
+# :- guard: an empty array under set -u is fatal on bash 3.2.
+./sfl.sh pre ${SFL_ALL_ARG[@]+"${SFL_ALL_ARG[@]}"} 2>&1 | tee "$PRE_LOG"
 PRE_EXIT=${PIPESTATUS[0]}
 set -e
 
@@ -436,6 +455,9 @@ PRE_DURATION="$(($(date +%s) - PRE_START))"
 
 if [ -s "$STATIC_STOP_SINK" ]; then
   STATIC_STOP=true
+  # forsgren#441: the sink holds "<sentence>: N gate(s) skipped"; the sentence
+  # is "stopped after the static block" or "stopped after <label>".
+  STOP_SENTENCE="$(sed -e 's/: [0-9]* gate(s) skipped$//' -e 1q "$STATIC_STOP_SINK")"
 fi
 
 PRE_COUNTS="$(sfl_counts)"
@@ -469,8 +491,8 @@ if $SECRET_BLOCK; then
   echo "⏭️ Skipping build because PRE has a secret-class failure."
   BUILD_STATUS="⏭️ (secret-class)"
 elif $STATIC_STOP; then
-  echo "⏭️ Skipping build: stopped after the static block."
-  BUILD_STATUS="⏭️ (stopped after the static block)"
+  echo "⏭️ Skipping build: ${STOP_SENTENCE}."
+  BUILD_STATUS="⏭️ (${STOP_SENTENCE})"
 else
   BUILD_START="$(date +%s)"
 
@@ -560,9 +582,9 @@ if $SECRET_BLOCK; then
   echo "⏭️ Skipping POST gates because PRE has a secret-class failure."
   POST_STATUS="⏭️ (secret-class)"
 elif $STATIC_STOP; then
-  echo "⏭️ Skipping POST gates: stopped after the static block. Skipped, by name:"
+  echo "⏭️ Skipping POST gates: ${STOP_SENTENCE}. Skipped, by name:"
   awk -F'|' '$0 !~ /^#/ && NF >= 3 && $3 == "post" && $2 != "n/a" { print "  ⏭ skipped: " $1 }' Scripts/gate_report_order.txt
-  POST_STATUS="⏭️ (stopped after the static block)"
+  POST_STATUS="⏭️ (${STOP_SENTENCE})"
 elif [ "${BUILD_EXIT:-1}" -ne 0 ]; then
   echo "⏭️ Skipping POST gates because the site build failed."
   POST_STATUS="⏭️ (build failed)"
@@ -574,7 +596,7 @@ else
   rm -f "$SFL_COUNTS_FILE"
 
   set +e
-  ./sfl.sh post 2>&1 | tee "$POST_LOG"
+  ./sfl.sh post ${SFL_ALL_ARG[@]+"${SFL_ALL_ARG[@]}"} 2>&1 | tee "$POST_LOG"
   POST_EXIT=${PIPESTATUS[0]}
   set -e
 
