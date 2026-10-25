@@ -17,7 +17,7 @@ forsgren issue 394, step 3: Yves's decision #433 (A) with his wording of 2026-10
 - The TBD row of such a project is its name and one cell across every column after it, `currently no data for this project in the last 30 days`, 30 being the config's dora_days (`TbdRow.NoData`, `NoDataSentence`; `colspan` 14 with the median only, 26 with `tbd_figures: all`, pinned against the header). No note marker and no line of the Notes list comes from such a row. A single column without data keeps its dash.
 - Red first, seen failing at runtime: `TestNoDataNeedsAllFourAbsent` against a stub and the page tests against the old template (`internal/page/tbdnodata_test.go`). Acme Tools in the `cmd/forsgren` tests, whose only deployment failed, stays a data row, so those tests are unchanged.
 - Goldens: new `tbd.project-no-data` and `tbd.all-project-no-data`; the others unchanged.
-- Fixture site: a made-up project Acme Archive (`acme/archive`, no records) so the browser gate sees the row; `reach.csv` follows.
+- Fixture site: a made-up project Acme Old (`acme/archive`, no records) so the browser gate sees the row; `reach.csv` follows.
 - CodeScene: the changed or new Go files 10.0 except `cmd/forsgren/render_pushes_test.go` 9.68 (floor 9.58); rows added for the three new files.
 
 Signed: Lenka B
