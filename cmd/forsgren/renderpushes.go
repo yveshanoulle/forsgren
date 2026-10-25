@@ -25,7 +25,7 @@ func withPushes(data metrics.Data, path string) (metrics.Data, error) {
 	if err != nil {
 		return metrics.Data{}, err
 	}
-	data.Pushes, data.PushCommits, data.PushesDenied = pushes, commits, denied
+	data.Pushes, data.PushCommits, data.PushesDenied = pushes, commits, denied.Times()
 	data.PushesUncollected = absent(beside(path, collect.PushesFile))
 	return data, nil
 }

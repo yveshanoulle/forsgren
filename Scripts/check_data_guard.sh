@@ -125,7 +125,7 @@ guarded_reason() {
     pulls_denied.csv) why="which repositories' pull request reads GitHub refused, and which token, which forsgren collect keeps (data/pulls_denied.csv in an installation)" ;;
     pushes.csv) why="the pushes to each repository's main branch forsgren collect keeps for time to main and batch size (data/pushes.csv in an installation)" ;;
     pushes_read.csv) why="when each repository's pushes were last read, which forsgren collect keeps (data/pushes_read.csv in an installation)" ;;
-    pushes_denied.csv) why="which repositories' push reads GitHub refused, which forsgren collect keeps (data/pushes_denied.csv in an installation)" ;;
+    pushes_denied.csv) why="which repositories' push reads GitHub refused, and which token, which forsgren collect keeps (data/pushes_denied.csv in an installation)" ;;
     push_commits.csv) why="the commits each push to a repository's main branch brought, which forsgren collect keeps (data/push_commits.csv in an installation)" ;;
     *.history.csv) why="a per-service or per-installation history file" ;;
     forsgren.config.*) why="an installation's forsgren configuration, by its own name" ;;

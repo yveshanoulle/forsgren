@@ -129,6 +129,7 @@ func (o Options) endPushes(h held, repo string, truncated bool, err error) error
 	case errors.Is(err, github.ErrPushesDenied):
 		o.warn("collect: %v; its pushes are not read, the rest is collected\n", err)
 		h.pushesDenied[key] = wholeSecond(o.Now)
+		h.pushesDeniedBy[key] = o.Client.TokenName()
 		return nil
 	case errors.Is(err, github.ErrBudget):
 		o.warn("collect: %s: the pushes were cut short: %v; those compared are stored, "+
@@ -144,6 +145,7 @@ func (o Options) endPushes(h held, repo string, truncated bool, err error) error
 	}
 	h.pushesRead[key] = wholeSecond(o.Now)
 	delete(h.pushesDenied, key)
+	delete(h.pushesDeniedBy, key)
 	return nil
 }
 

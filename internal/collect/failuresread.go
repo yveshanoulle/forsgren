@@ -58,9 +58,10 @@ func (o Options) markFiles(h *held) []markFile {
 		{&h.cutRuns, o.cutRunsFile(), history.LoadCutRuns, history.SaveCutRuns},
 		{&h.checked, o.startsCheckedFile(), history.LoadStartsChecked, history.SaveStartsChecked},
 		{&h.pullsRead, o.pullsReadFile(), history.LoadPullsRead, history.SavePullsRead},
-		{&h.denied, o.pullsDeniedFile(), h.loadDenied, h.saveDenied},
+		deniedFile(&h.denied, &h.deniedBy, o.pullsDeniedFile(), history.LoadPullsDenied, history.SavePullsDenied),
 		{&h.pushesRead, o.pushesReadFile(), history.LoadPushesRead, history.SavePushesRead},
-		{&h.pushesDenied, o.pushesDeniedFile(), history.LoadPushesDenied, history.SavePushesDenied},
+		deniedFile(&h.pushesDenied, &h.pushesDeniedBy, o.pushesDeniedFile(),
+			history.LoadPushesDenied, history.SavePushesDenied),
 		{&h.backfilled, o.commitsBackfilledFile(), history.LoadCommitsBackfilled, history.SaveCommitsBackfilled},
 	}
 }

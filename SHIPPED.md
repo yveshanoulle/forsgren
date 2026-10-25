@@ -9,6 +9,17 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — The setup issue names a token that was refused the push read ([#414](https://github.com/yveshanoulle/forsgren/issues/414), 1 step)
+
+forsgren issue 414, feature, patch release, in the release after 1.21.0 (1.22.0), the same as #321 did for pull requests. `data/pushes_denied.csv` is the denied format v2, `repository,denied_at,token`: the token column is the name of the token that was refused (`FORSGREN_TOKEN`, `GITHUB_TOKEN`), never a value (a name that is not an upper-case variable name refuses the file on read and on save); a v1 file is still read, every name empty, and written again as v2. `collect` writes the refused token's name with the refusal. `check-needs` adds one setup issue item per repository whose push read was refused, naming the token and its fix (`FORSGREN_TOKEN`: the repository permission Contents: Read; `GITHUB_TOKEN`: `contents: read` on the forsgren job), `--pushes-denied` names the file (`data/pushes_denied.csv` by default), and the item goes away when a later read clears the line. The code is shared with #321: `history.Denied` (was `PullsDenied`), `deniedFormat`, `loadDenied`/`saveDenied`, `collect.deniedFile`, `needs.deniedRead` and `refusedItems` serve both files. Code and tests only; the docs, `CLAUDE.md`, the legend and the agent documents ride with #417.
+
+- Red first, seen failing at runtime against stubs, the push cases of: `TestDeniedV2RoundTripsWithTheTokenName`, `TestDeniedV1IsReadWithNoTokenAndWrittenAsV2`, `TestDeniedHoldsATokenNameNeverAValue`, `TestRefusedNamesTheTokenAndItsFix`, `TestRefusedHasOneItemPerRepositorySorted`, `TestAMissingContentsPermissionNeverFailsThePushRead`, `TestAPushRefusalNotesTheNameOfTheTokenThatWasRefused`, `TestCheckNeedsMakesAnItemOfARefusedRead`, `TestCheckNeedsReadsTheDeniedFileItIsGiven`, `TestCheckNeedsNotesADeniedFileItCannotRead`, `TestRenderRefusesABadPushFile`, `TestConfigurationDocHoldsTheUsageText`.
+- Green: the generic denied code above, `needs.RefusedPushes`, `h.pushesDeniedBy` in collect, the data guard reason of `pushes_denied.csv`.
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — A project with no data in the window has one sentence for its TBD row ([#394](https://github.com/yveshanoulle/forsgren/issues/394), step 3 of 3)
 
 forsgren issue 394, step 3: Yves's decision #433 (A) with his wording of 2026-10-24. The documentation and the legend ride with #417.

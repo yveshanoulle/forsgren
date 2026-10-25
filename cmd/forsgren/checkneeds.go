@@ -23,6 +23,8 @@ type checkNeedsOptions struct {
 	tokenExpiry string
 	// pullsDenied is the file collect noted the refused pull request reads in.
 	pullsDenied string
+	// pushesDenied is the file collect noted the refused push reads in.
+	pushesDenied string
 }
 
 // checkNeeds checks the needs of the running version against the
@@ -70,6 +72,8 @@ func checkNeedsFlags(args []string, stderr io.Writer) (checkNeedsOptions, bool) 
 		"the file collect --token-expiry wrote the token's expiry date to; a date near makes a setup issue item (optional)")
 	flags.StringVar(&o.pullsDenied, "pulls-denied", defaultPullsDenied,
 		"the file collect noted the refused pull request reads in; each makes a setup issue item (optional)")
+	flags.StringVar(&o.pushesDenied, "pushes-denied", defaultPushesDenied,
+		"the file collect noted the refused push reads in; each makes a setup issue item (optional)")
 	if err := flags.Parse(args); err != nil {
 		return o, false
 	}
@@ -91,7 +95,7 @@ func reportNeeds(o checkNeedsOptions, stdout, stderr io.Writer) string {
 	if n, near := renewalNeed(expiry, now()); known && near {
 		missing = append(missing, n)
 	}
-	missing = append(missing, refusedNeeds(o.pullsDenied, stderr)...)
+	missing = append(missing, refusedNeeds(o.pullsDenied, o.pushesDenied, stderr)...)
 	for _, n := range missing {
 		_, _ = fmt.Fprintln(stdout, n.Steps)
 	}

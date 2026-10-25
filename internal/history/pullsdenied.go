@@ -19,8 +19,8 @@ type Denial struct {
 	Token string
 }
 
-// PullsDenied is data/pulls_denied.csv: per repository, its last refused read.
-type PullsDenied map[string]Denial
+// Denied is data/pulls_denied.csv: per repository, its last refused read.
+type Denied map[string]Denial
 
 // deniedRow is one line of data/pulls_denied.csv.
 type deniedRow struct {
@@ -28,30 +28,41 @@ type deniedRow struct {
 	Denial
 }
 
-// pullsDeniedFile is the format of data/pulls_denied.csv, the pulls denied
-// format v2 (forsgren#321, step 1): the rows of the reach format (forsgren#337,
+// deniedFormat is the format of the denied file of the read named kind
+// (pulls, pushes), the denied format v2 (forsgren#321, step 1, and
+// forsgren#414 for the pushes): the rows of the reach format (forsgren#337,
 // decision #332: a repository and when GitHub last refused the read of its
 // pull requests, a 403, the token without pull-requests: read) and a token
 // column, the name of the token that was refused. The v1, without the column,
 // is still read, every token name empty, and written again as v2 by the next
 // save. It holds names and times only.
-var pullsDeniedFile = format[deniedRow, string]{
-	versionLine: "# forsgren pulls denied v2",
-	columnLine:  "repository,denied_at,token",
-	decode:      toDeniedRow,
-	encode:      deniedRow.fields,
-	validate:    deniedRow.validate,
-	key:         func(r deniedRow) string { return r.Repository },
-	compare:     func(a, b deniedRow) int { return cmp.Compare(a.Repository, b.Repository) },
-	legacy:      []legacyFormat{pullsDeniedV1},
+func deniedFormat(kind string) format[deniedRow, string] {
+	return format[deniedRow, string]{
+		versionLine: "# forsgren " + kind + " denied v2",
+		columnLine:  "repository,denied_at,token",
+		decode:      toDeniedRow,
+		encode:      deniedRow.fields,
+		validate:    deniedRow.validate,
+		compare:     func(a, b deniedRow) int { return cmp.Compare(a.Repository, b.Repository) },
+		legacy:      []legacyFormat{deniedV1(kind)},
+	}
 }
 
-// pullsDeniedV1 is the pulls denied format v1, before the token column: no
-// token name is known.
-var pullsDeniedV1 = legacyFormat{
-	versionLine: "# forsgren pulls denied v1",
-	columnLine:  "repository,denied_at",
-	lift:        func(fields []string) []string { return append(fields, "") },
+// pullsDeniedFile and pushesDeniedFile are the formats of data/pulls_denied.csv
+// and data/pushes_denied.csv.
+var (
+	pullsDeniedFile  = deniedFormat("pulls")
+	pushesDeniedFile = deniedFormat("pushes")
+)
+
+// deniedV1 is the denied format v1 of the read named kind, before the token
+// column: no token name is known.
+func deniedV1(kind string) legacyFormat {
+	return legacyFormat{
+		versionLine: "# forsgren " + kind + " denied v1",
+		columnLine:  "repository,denied_at",
+		lift:        func(fields []string) []string { return append(fields, "") },
+	}
 }
 
 // tokenName is the shape of an environment variable name that holds a token:
@@ -81,7 +92,7 @@ func (r deniedRow) validate() error {
 }
 
 // Times is the time of each denial, as the mark files keep it.
-func (d PullsDenied) Times() Reach {
+func (d Denied) Times() Reach {
 	times := make(Reach, len(d))
 	for repository, denial := range d {
 		times[repository] = denial.At
@@ -90,7 +101,7 @@ func (d PullsDenied) Times() Reach {
 }
 
 // Tokens is the token name of each denial.
-func (d PullsDenied) Tokens() map[string]string {
+func (d Denied) Tokens() map[string]string {
 	tokens := make(map[string]string, len(d))
 	for repository, denial := range d {
 		tokens[repository] = denial.Token
@@ -100,8 +111,8 @@ func (d PullsDenied) Tokens() map[string]string {
 
 // DeniedOf is the denials of times, each with its token name in tokens, empty
 // for a repository tokens does not name.
-func DeniedOf(times Reach, tokens map[string]string) PullsDenied {
-	denied := make(PullsDenied, len(times))
+func DeniedOf(times Reach, tokens map[string]string) Denied {
+	denied := make(Denied, len(times))
 	for repository, at := range times {
 		denied[repository] = Denial{At: at, Token: tokens[repository]}
 	}
@@ -111,15 +122,21 @@ func DeniedOf(times Reach, tokens map[string]string) PullsDenied {
 // LoadPullsDenied reads data/pulls_denied.csv at path. A missing file is
 // empty, like LoadReach; a first line stating another version is
 // ErrUnknownVersion; a line that is not in the format is a *MalformedError.
-func LoadPullsDenied(path string) (PullsDenied, error) {
-	rows, err := pullsDeniedFile.load(path)
+func LoadPullsDenied(path string) (Denied, error) { return loadDenied(path, pullsDeniedFile) }
+
+// LoadPushesDenied reads data/pushes_denied.csv at path, like LoadPullsDenied.
+func LoadPushesDenied(path string) (Denied, error) { return loadDenied(path, pushesDeniedFile) }
+
+// loadDenied reads the denied file at path in the format f.
+func loadDenied(path string, f format[deniedRow, string]) (Denied, error) {
+	rows, err := f.load(path)
 	if notExist(err) {
-		return PullsDenied{}, nil
+		return Denied{}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	denied := make(PullsDenied, len(rows))
+	denied := make(Denied, len(rows))
 	for _, row := range rows {
 		denied[row.Repository] = row.Denial
 	}
@@ -129,7 +146,14 @@ func LoadPullsDenied(path string) (PullsDenied, error) {
 // SavePullsDenied writes d to path whole, in the pulls denied format v2,
 // sorted by repository, like SaveReach. A denial the format cannot store is
 // refused before anything is written.
-func SavePullsDenied(path string, d PullsDenied) error {
+func SavePullsDenied(path string, d Denied) error { return saveDenied(path, d, pullsDeniedFile) }
+
+// SavePushesDenied writes d to data/pushes_denied.csv at path, like
+// SavePullsDenied.
+func SavePushesDenied(path string, d Denied) error { return saveDenied(path, d, pushesDeniedFile) }
+
+// saveDenied writes d to path in the format f.
+func saveDenied(path string, d Denied, f format[deniedRow, string]) error {
 	rows := make([]deniedRow, 0, len(d))
 	for repository, denial := range d {
 		row := deniedRow{repository, denial}
@@ -138,9 +162,9 @@ func SavePullsDenied(path string, d PullsDenied) error {
 		}
 		rows = append(rows, row)
 	}
-	slices.SortFunc(rows, pullsDeniedFile.compare)
+	slices.SortFunc(rows, f.compare)
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
-	return replaceWhole(path, pullsDeniedFile.payload(store[deniedRow]{}, rows))
+	return replaceWhole(path, f.payload(store[deniedRow]{}, rows))
 }

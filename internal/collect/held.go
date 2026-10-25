@@ -39,32 +39,33 @@ type entry struct {
 // issueevents.go); and the repositories whose full read stopped at its page
 // cap this run (partial).
 type held struct {
-	ids          map[entry]bool
-	newest       map[source]time.Time
-	oldest       map[source]time.Time // the oldest stored deployment of each source
-	successes    map[history.Stream][]history.Record
-	failures     map[history.IssueKey]history.Failure
-	lastEvents   map[history.IssueKey]history.IssueEvent
-	withdrawn    map[history.IssueKey]bool // the failure issues their newest withdrawal line withdraws
-	catchUp      *catchUp                  // nil, or the catch-up of a run that found no withdrawn file
-	reach        history.Reach             // see chunk.go
-	read         history.Reach             // see failuresread.go
-	full         history.Reach             // see issueevents.go
-	cut          history.Reach             // see bugflags.go
-	cutRuns      history.Reach             // see report.go
-	checked      history.Reach             // see startscatchup.go
-	pullsRead    history.Reach             // see pulls.go
-	denied       history.Reach             // see pulls.go: the refused pull request reads
-	deniedBy     map[string]string         // see pulls.go: the token name of each, with denied
-	pushesRead   history.Reach             // see pushes.go
-	pushesDenied history.Reach             // see pushes.go: the refused push reads
-	backfilled   history.Reach             // see legacybackfill.go
-	pulls        map[history.IssueKey]bool // the pull requests pulls.csv holds
-	branches     map[string]string         // the default branch of each repository asked this run, by lower-case name
-	pushes       map[history.PushKey]bool  // the pushes pushes.csv holds
-	startsDone   map[string]bool           // the repositories caught up in this run
-	filledDone   map[string]bool           // the repositories whose legacy commits were backfilled in this run
-	partial      map[string]bool
+	ids            map[entry]bool
+	newest         map[source]time.Time
+	oldest         map[source]time.Time // the oldest stored deployment of each source
+	successes      map[history.Stream][]history.Record
+	failures       map[history.IssueKey]history.Failure
+	lastEvents     map[history.IssueKey]history.IssueEvent
+	withdrawn      map[history.IssueKey]bool // the failure issues their newest withdrawal line withdraws
+	catchUp        *catchUp                  // nil, or the catch-up of a run that found no withdrawn file
+	reach          history.Reach             // see chunk.go
+	read           history.Reach             // see failuresread.go
+	full           history.Reach             // see issueevents.go
+	cut            history.Reach             // see bugflags.go
+	cutRuns        history.Reach             // see report.go
+	checked        history.Reach             // see startscatchup.go
+	pullsRead      history.Reach             // see pulls.go
+	denied         history.Reach             // see pulls.go: the refused pull request reads
+	deniedBy       map[string]string         // see pulls.go: the token name of each, with denied
+	pushesRead     history.Reach             // see pushes.go
+	pushesDenied   history.Reach             // see pushes.go: the refused push reads
+	pushesDeniedBy map[string]string         // see pushes.go: the token name of each, with pushesDenied
+	backfilled     history.Reach             // see legacybackfill.go
+	pulls          map[history.IssueKey]bool // the pull requests pulls.csv holds
+	branches       map[string]string         // the default branch of each repository asked this run, by lower-case name
+	pushes         map[history.PushKey]bool  // the pushes pushes.csv holds
+	startsDone     map[string]bool           // the repositories caught up in this run
+	filledDone     map[string]bool           // the repositories whose legacy commits were backfilled in this run
+	partial        map[string]bool
 }
 
 // loadHeld reads the history at path; a missing file holds nothing.

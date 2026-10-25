@@ -36,7 +36,7 @@ func (f markFile) checkRoundTrip(t *testing.T) {
 // TestMarkFilesKeepTheirOwnHeaderAndRoundTrip (forsgren#67, #76, #255): each
 // mark file, failures_read.csv, issues_full.csv and pulls_read.csv among
 // them, has its own version and column lines, and is read back as written.
-// pulls_denied.csv has a token column since forsgren#321, see
+// pulls_denied.csv and pushes_denied.csv have a token column (forsgren#321, #414), see
 // pullsdenied_test.go.
 func TestMarkFilesKeepTheirOwnHeaderAndRoundTrip(t *testing.T) {
 	for _, f := range []markFile{
@@ -47,7 +47,6 @@ func TestMarkFilesKeepTheirOwnHeaderAndRoundTrip(t *testing.T) {
 		{"starts_checked.csv", "# forsgren starts checked v1\nrepository,checked_at\n", SaveStartsChecked, LoadStartsChecked},
 		{"pulls_read.csv", "# forsgren pulls read v1\nrepository,read_at\n", SavePullsRead, LoadPullsRead},
 		{"pushes_read.csv", "# forsgren pushes read v1\nrepository,read_at\n", SavePushesRead, LoadPushesRead},
-		{"pushes_denied.csv", "# forsgren pushes denied v1\nrepository,denied_at\n", SavePushesDenied, LoadPushesDenied},
 	} {
 		t.Run(f.name, f.checkRoundTrip)
 	}

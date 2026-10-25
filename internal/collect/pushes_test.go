@@ -23,9 +23,9 @@ const (
 	// pushesReadNow is the pushes read file after a run that moved acme/app's
 	// mark to now.
 	pushesReadNow = pushesReadHdr + "acme/app,2026-10-01T00:00:00Z\n"
-	pushesDeniedH = "# forsgren pushes denied v1\nrepository,denied_at\n"
+	pushesDeniedH = "# forsgren pushes denied v2\nrepository,denied_at,token\n"
 	// pushesDeniedNow is the pushes denied file after a run that was refused.
-	pushesDeniedNow = pushesDeniedH + "acme/app,2026-10-01T00:00:00Z\n"
+	pushesDeniedNow = pushesDeniedH + "acme/app,2026-10-01T00:00:00Z,FORSGREN_TOKEN\n"
 )
 
 // activityOf is one item of GitHub's activity list: kind, time, the two
@@ -429,4 +429,24 @@ func TestAPushReadThatCannotAskForTheDefaultBranchFailsTheRepository(t *testing.
 		t.Errorf("want the repository failed and no activity read, got %v, %v", r.err, g.seen(activityPath))
 	}
 	dataOf(path).want(t, PushesReadFile, "")
+}
+
+// TestAPushRefusalNotesTheNameOfTheTokenThatWasRefused (forsgren#414): the
+// token column is the client's token name, GITHUB_TOKEN for the job's token,
+// never the token's value, and a line of the pushes denied format v1 that is
+// refused again is written as v2 with the name.
+func TestAPushRefusalNotesTheNameOfTheTokenThatWasRefused(t *testing.T) {
+	g := pushesOnly(t)
+	g.deny(activityPath)
+	g.tokenName = "GITHUB_TOKEN"
+	path := historyPath(t)
+	data := dataOf(path)
+	data.write(t, PushesDeniedFile, "# forsgren pushes denied v1\nrepository,denied_at\n"+
+		"acme/app,2026-09-20T08:00:00Z\nacme/lib,2026-09-20T08:00:00Z\n")
+	if r := g.collect(t, shop(production), path, github.DefaultMaxPages); r.err != nil {
+		t.Fatalf("want no error, got %v (stderr %q)", r.err, r.stderr)
+	}
+	data.want(t, PushesDeniedFile, pushesDeniedH+"acme/app,2026-10-01T00:00:00Z,GITHUB_TOKEN\n"+
+		"acme/lib,2026-09-20T08:00:00Z,\n")
+	data.wantNoToken(t, PushesDeniedFile)
 }

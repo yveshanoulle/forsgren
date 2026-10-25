@@ -14,17 +14,7 @@ func LoadPushesRead(path string) (Reach, error) { return loadReach(path, pushesR
 // SaveReach.
 func SavePushesRead(path string, r Reach) error { return saveReach(path, r, pushesReadFile) }
 
-// pushesDeniedFile is the format of data/pushes_denied.csv, the pushes denied
-// format v1 (forsgren#397, step 2): the rows of the reach format, with a
-// version line and a column that say what the time is, when GitHub last
+// data/pushes_denied.csv (forsgren#397, step 2; the token column since
+// forsgren#414) is the denied format of pullsdenied.go: when GitHub last
 // refused the read of the repository's pushes (a 403, the token without
-// contents: read). It holds a repository name and a time only.
-var pushesDeniedFile = markFormat("# forsgren pushes denied v1", "repository,denied_at")
-
-// LoadPushesDenied reads data/pushes_denied.csv at path: per repository, when
-// its push read was last refused. Missing is empty, like LoadReach.
-func LoadPushesDenied(path string) (Reach, error) { return loadReach(path, pushesDeniedFile) }
-
-// SavePushesDenied writes r to path whole, in the pushes denied format v1,
-// like SaveReach.
-func SavePushesDenied(path string, r Reach) error { return saveReach(path, r, pushesDeniedFile) }
+// contents: read), and the name of the token that was refused.

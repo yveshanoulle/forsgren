@@ -23,6 +23,8 @@ const (
 	pushesHead    = "# forsgren pushes v1\nrepository,pushed_at,before,after,kind,bot,commits\n"
 	pushCommitsH  = "# forsgren push commits v1\nrepository,after,sha,author,authored_at\n"
 	pushesDeniedH = "# forsgren pushes denied v1\nrepository,denied_at\n"
+	// pushesDeniedH2 is the head of the pushes denied format v2 (forsgren#414), read as v1 is.
+	pushesDeniedH2 = "# forsgren pushes denied v2\nrepository,denied_at,token\n"
 )
 
 // pushesProject is the one project of these tests, Acme Shop, listing acme/api.
@@ -94,7 +96,7 @@ func TestRenderSaysThePushesAreUncollectedWithoutAPushesFile(t *testing.T) {
 func TestRenderSaysThePushesAreNotReadableForARefusedRepository(t *testing.T) {
 	data := writeHistory(t, acmeHistory())
 	writePushes(t, data)
-	denied := pushesDeniedH + "ACME/Api,2026-10-01T00:00:00Z\n"
+	denied := pushesDeniedH2 + "ACME/Api,2026-10-01T00:00:00Z,FORSGREN_TOKEN\n"
 	if err := os.WriteFile(filepath.Join(filepath.Dir(data), "pushes_denied.csv"), []byte(denied), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -116,8 +118,9 @@ func TestRenderRefusesABadPushFile(t *testing.T) {
 		"malformed line":  {pushCommitsH + "acme/api,x\n", "line 3: malformed history"},
 	})
 	wantBadFileRefused(t, "pushes_denied.csv", map[string]badFile{
-		"unknown version": {"# forsgren pushes denied v2\n", "unknown history format version"},
+		"unknown version": {"# forsgren pushes denied v3\n", "unknown history format version"},
 		"malformed line":  {pushesDeniedH + "acme/api\n", "line 3: malformed history"},
+		"a token value":   {pushesDeniedH2 + "acme/api,2026-10-01T00:00:00Z,ghp_abc\n", "line 3: malformed history"},
 	})
 }
 
