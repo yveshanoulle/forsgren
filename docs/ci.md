@@ -56,10 +56,14 @@ succeeded, and that conclusion is what the Release reads
 (`Scripts/release_quality.sh` lists the runs of `quality.yml` and reads each
 run's status and conclusion, never a job). The main job `quality` runs every gate that
 `Scripts/ci_job_groups.txt` does not give to another job. The `isolation` job
-runs the git sandbox isolation self-test and the step summary isolation gate
-(the two rows that file lists) with the same setup as the main job: checkout,
-the gate environment, Node, `Scripts/install_tools.sh` and `npm ci`. It builds
-no site, since both are PRE rows. `Scripts/run_ci_phase.sh <pre|post> <rows>
+runs the git sandbox isolation self-test (the one row that file lists for it)
+with the same setup as the main job: checkout, the gate environment, Node,
+`Scripts/install_tools.sh` and `npm ci`. It builds no site, since it is a PRE
+row. The `summary` job (forsgren#425, named `Summary isolation gates`) runs the
+step summary isolation gate with the same setup: the two gates took 15 minutes
+in one job (the self-test 9 min 27 s, the gate 4 min 15 s, the setup 1.5
+minutes) and now run side by side, about 11 and 6 minutes. The report job's
+status takes its result too, and the `preview` job `needs:` it. `Scripts/run_ci_phase.sh <pre|post> <rows>
 <details> [job]` takes the job as its fourth argument (default `main`): a gate
 the group file lists runs in that job only, every other gate in the main job,
 so a gate is never in two jobs or none, and a group file that names a gate the

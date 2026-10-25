@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — Quality runs the two isolation gates in two jobs ([#425](https://github.com/yveshanoulle/forsgren/issues/425), step 1 of 1)
+
+forsgren issue 425, tools issue, no release. The Isolation gates job took 15 minutes in Quality run 40183200190 (setup 1.5 minutes, step summary isolation 4 min 15 s, git sandbox isolation self-test 9 min 27 s, one after another). `Scripts/ci_job_groups.txt` now gives the step summary isolation gate to a new `summary` job (name `Summary isolation gates`, hand-over `quality-report-summary`, `QS_SUMMARY_RESULT` in the report status) and leaves the git sandbox isolation self-test in the `isolation` job; the setup is the same step for step, and the report and preview jobs `needs:` it. Expected: the `isolation` job about 11 minutes, the `summary` job about 6, in line with the Quality gates job. Every gate still runs in one job. Red first: `Scripts/test_run_ci_phase.sh` (the summary job over the real order file), `Scripts/test_quality_jobs.sh` (the job, its setup, hand-over, group rows and report wiring, with mutants; the gate names a step may not spell now come from the group file) and `Scripts/test_preview_workflow.sh` (the needs list). The preview pin's trigger check read a found `workflow_run` as not found once the workflow file outgrew the pipe (`producer | grep -q` under pipefail: grep leaves at its first match and the writer gets SIGPIPE); the three tests above now pipe into a helper `has` that reads all of its input first. Step 2 (two shards of the git sandbox self-test) is only needed if this leaves Isolation the longest job.
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The legend says how Lead time for changes and Time to deploy per commit differ ([#421](https://github.com/yveshanoulle/forsgren/issues/421), 1 step)
 
 forsgren issue 421, feature, patch release; it ships with #398, #399, #417, #422, #423 and #426. The two measures looked alike and gave different numbers, and the legend did not say why. Checked against the code first (`internal/metrics`: `LeadTimes` in `leadtime.go`, `firstDeployments` in `maindirect.go`, `DeployMeasuresOf` in `deploymeasures.go`), and the code agrees on every point: both time a commit from its author date to a deployment in the same window, a negative time as 0; Lead time for changes takes every stored commit of a deployment (also those a merge brought in), once for each deployment that shipped it, and shows the median and its band; Time to deploy takes the first-parent chain only, each commit once at its first deployment, and shows mean, median and p90. So a commit shipped by several deployments is counted at each by Lead time for changes and at the first only by Time to deploy.

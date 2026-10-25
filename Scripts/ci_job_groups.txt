@@ -12,11 +12,16 @@
 # comes from the order file. sfl.sh and FBP.sh run every row, this file or not.
 # Scripts/test_quality_jobs.sh pins the rows below and quality.yml's jobs.
 #
-# The isolation job: the two slowest gates that no other gate waits for, about
-# 294 s together (measured in forsgren#259, step 1). The git sandbox isolation
-# SCOPE self-test stays in the main job: it is short.
+# The isolation job: the slowest gate that no other gate waits for (measured in
+# forsgren#259, step 1). The git sandbox isolation SCOPE self-test stays in the
+# main job: it is short. Since forsgren#425 the step summary isolation gate has
+# its own job, below: together the two took 15 minutes (the git sandbox
+# self-test 9 min 27 s, the step summary gate 4 min 15 s, the setup 1.5 min).
 isolation|git sandbox isolation self-test
-isolation|step summary isolation
+#
+# The summary job (forsgren#425): the step summary isolation gate alone, so it
+# runs beside the git sandbox self-test and not after it.
+summary|step summary isolation
 #
 # The browser job (forsgren#259, step 3): the browser gate self-test and the
 # browser gate, and the same pair for the fixture site, about 295 s together.

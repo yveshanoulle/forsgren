@@ -29,6 +29,11 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# has <grep args>: grep -q on stdin that reads all of it first. A plain pipe into
+# grep -q lets grep leave at its first match, and under pipefail the writer's
+# SIGPIPE then turns a found pattern into a failed test (forsgren#425).
+has() { local in; in="$(cat)"; grep -q "$@" <<< "$in"; }
+
 # shellcheck source=Scripts/lib_git_sandbox.sh
 source Scripts/lib_git_sandbox.sh
 
@@ -52,7 +57,7 @@ fail() { echo "❌ FAIL: $*"; failed=1; }
 [[ -f "$ORDER" ]] || { echo "FAIL: ${ORDER} not found" >&2; exit 1; }
 
 # The runner's canon line must be in its first 40 lines.
-head -40 "$RUNNER" | grep -qxF '# canon: run_ci_phase v1' \
+head -40 "$RUNNER" | has -xF '# canon: run_ci_phase v1' \
   || fail "${RUNNER} has no '# canon: run_ci_phase v1' line in its first 40 lines"
 
 REAL_RUNNER="$(pwd)/${RUNNER}"
@@ -344,6 +349,8 @@ case_real_order_file() {
   [[ "$RUN_RC" -eq 0 ]] || echo "pre of the lint job over the real order file exited ${RUN_RC}: ${RUN_OUT}"
   RUN_JOB=isolation run_phase pre
   [[ "$RUN_RC" -eq 0 ]] || echo "pre of the isolation job over the real order file exited ${RUN_RC}: ${RUN_OUT}"
+  RUN_JOB=summary run_phase pre
+  [[ "$RUN_RC" -eq 0 ]] || echo "pre of the summary job over the real order file exited ${RUN_RC}: ${RUN_OUT}"
   RUN_JOB=browser run_phase pre
   [[ "$RUN_RC" -eq 0 ]] || echo "pre of the browser job over the real order file exited ${RUN_RC}: ${RUN_OUT}"
   RUN_JOB=browser run_phase post

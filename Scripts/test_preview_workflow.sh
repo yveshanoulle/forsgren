@@ -35,6 +35,11 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
+# has <grep args>: grep -q on stdin that reads all of it first. A plain pipe into
+# grep -q lets grep leave at its first match, and under pipefail the writer's
+# SIGPIPE then turns a found pattern into a failed test (forsgren#425).
+has() { local in; in="$(cat)"; grep -q "$@" <<< "$in"; }
+
 WORKFLOW=".github/workflows/quality.yml"
 METRICS=".github/workflows/metrics.yml"
 
@@ -97,15 +102,15 @@ job_findings() {
   fi
   grep -qxF "    if: github.event_name == 'push' && github.ref == 'refs/heads/main'" "$job" \
     || echo "if: the condition is not exactly the push-to-main one"
-  if grep -E '^    if:' "$job" | grep -qE 'workflow_dispatch|inputs\.|[|][|]'; then
+  if grep -E '^    if:' "$job" | has -E 'workflow_dispatch|inputs\.|[|][|]'; then
     echo "dispatch: the if: lets a workflow_dispatch run (scope bump or full) start the preview, or an || widens it"
   fi
-  if grep -E '^    if:' "$job" | grep -qE 'always\(\)|failure\(\)|cancelled\(\)|success\(\)'; then
+  if grep -E '^    if:' "$job" | has -E 'always\(\)|failure\(\)|cancelled\(\)|success\(\)'; then
     echo "status: the if: holds a status function, so a failed gate may not skip the job"
   fi
   grep -qxF '    runs-on: macos-latest' "$job" || echo "runs-on: the preview job is not on macos-latest"
   grep -qxF '      contents: read   # the checkout of Scripts/dispatch_preview.sh' "$job" || echo "permissions: the job does not hold contents: read"
-  if grep -qE ': write|write-all|read-all' "$job" || [[ "$(grep -cE '^      [a-z-]+: ' "$job")" != 1 ]] && grep -E '^      [a-z-]+: ' "$job" | grep -vqE '^      (contents: read|group:|cancel-in-progress)'; then
+  if grep -qE ': write|write-all|read-all' "$job" || [[ "$(grep -cE '^      [a-z-]+: ' "$job")" != 1 ]] && grep -E '^      [a-z-]+: ' "$job" | has -vE '^      (contents: read|group:|cancel-in-progress)'; then
     echo "permissions: the job grants more than contents: read"
   fi
   grep -qxF '      group: preview-deploy' "$job" || echo "concurrency: the group is not the fixed preview-deploy"
@@ -118,20 +123,20 @@ step_findings() {
   [[ -s "$1" ]] || return 0
   used="$(grep -E '^[[:space:]]+(- )?uses:' "$1" | sed -E 's/.*uses:[[:space:]]*([^@ ]+)@.*/\1/' | LC_ALL=C sort -u | tr '\n' ' ')"
   [[ "$used" == "actions/checkout " ]] || echo "actions: want checkout only in the job, got: ${used}"
-  if grep -E 'uses:' "$1" | grep -vqE '@[0-9a-f]{40}  # v[0-9]'; then
+  if grep -E 'uses:' "$1" | has -vE '@[0-9a-f]{40}  # v[0-9]'; then
     echo "pins: an action is not pinned by a full commit with its version comment"
   fi
   want="$(pin_of "$METRICS" checkout)"
   got="$(pin_of "$1" checkout)"
   [[ -n "$want" && "$got" == "$want" ]] || echo "pin of checkout: ${got:-none} is not metrics.yml's ${want:-none}"
   grep -qF 'persist-credentials: false' "$1" || echo "checkout: credentials are persisted"
-  step_text "$1" "$step" | grep -qxF "        run: ./Scripts/dispatch_preview.sh \"${DOLLAR}SHA\"" \
+  step_text "$1" "$step" | has -xF "        run: ./Scripts/dispatch_preview.sh \"${DOLLAR}SHA\"" \
     || echo "start: the step does not run exactly ./Scripts/dispatch_preview.sh \"\$SHA\""
-  step_text "$1" "$step" | grep -qxF "          PREVIEW_DISPATCH_TOKEN: ${DOLLAR}{{ secrets.PREVIEW_DISPATCH_TOKEN }}" \
+  step_text "$1" "$step" | has -xF "          PREVIEW_DISPATCH_TOKEN: ${DOLLAR}{{ secrets.PREVIEW_DISPATCH_TOKEN }}" \
     || echo "token: the step's env does not take PREVIEW_DISPATCH_TOKEN from secrets.PREVIEW_DISPATCH_TOKEN"
-  step_text "$1" "$step" | grep -qxF "          SHA: ${DOLLAR}{{ github.sha }}" \
+  step_text "$1" "$step" | has -xF "          SHA: ${DOLLAR}{{ github.sha }}" \
     || echo "sha: the step's env does not take SHA from github.sha"
-  if run_blocks "$1" | grep -qF -- "\${{"; then
+  if run_blocks "$1" | has -F -- "\${{"; then
     echo "injection: a run: block expands a \${{ }} expression"
   fi
   if grep -qE 'continue-on-error|\|\| *(true|:)|set \+e' "$1"; then
@@ -146,7 +151,7 @@ step_findings() {
 # file_findings <whole file> — pins 8 and 11.
 file_findings() {
   [[ "$(code "$1" | grep -c 'secrets\.PREVIEW_DISPATCH_TOKEN')" == 1 ]] || echo "secrets: want exactly one reference to the token, in the start step's env"
-  if code "$1" | grep -qE 'workflow_run|pull_request_target'; then
+  if code "$1" | has -E 'workflow_run|pull_request_target'; then
     echo "triggers: workflow_run or pull_request_target appears"
   fi
 }
@@ -193,12 +198,13 @@ mutant "a gate job missing from needs" 's/^  preview:/  extra_gate:\
       - run: true\
 \
   preview:/' "needs: the gate job extra_gate"
-mutant "the report job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, browser, workflows, report\]/needs: [quality, lint, isolation, browser, workflows]/' "needs: the gate job report is not in the preview job's needs:"
-mutant "the isolation job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, browser, workflows, report\]/needs: [quality, lint, browser, workflows, report]/' "needs: the gate job isolation is not in the preview job's needs:"
-mutant "the browser job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, browser, workflows, report\]/needs: [quality, lint, isolation, workflows, report]/' "needs: the gate job browser is not in the preview job's needs:"
-mutant "the lint job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, browser, workflows, report\]/needs: [quality, isolation, browser, workflows, report]/' "needs: the gate job lint is not in the preview job's needs:"
-mutant "the workflows job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, browser, workflows, report\]/needs: [quality, lint, isolation, browser, report]/' "needs: the gate job workflows is not in the preview job's needs:"
-mutant "a needs for a job that is not there" "${P}"'s/needs: \[quality, lint, isolation, browser, workflows, report\]/needs: [quality, lint, isolation, browser, workflows, report, ghost]/' "needs: ghost is not a job"
+mutant "the report job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, summary, browser, workflows, report\]/needs: [quality, lint, isolation, summary, browser, workflows]/' "needs: the gate job report is not in the preview job's needs:"
+mutant "the isolation job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, summary, browser, workflows, report\]/needs: [quality, lint, summary, browser, workflows, report]/' "needs: the gate job isolation is not in the preview job's needs:"
+mutant "the summary job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, summary, browser, workflows, report\]/needs: [quality, lint, isolation, browser, workflows, report]/' "needs: the gate job summary is not in the preview job's needs:"
+mutant "the browser job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, summary, browser, workflows, report\]/needs: [quality, lint, isolation, summary, workflows, report]/' "needs: the gate job browser is not in the preview job's needs:"
+mutant "the lint job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, summary, browser, workflows, report\]/needs: [quality, isolation, summary, browser, workflows, report]/' "needs: the gate job lint is not in the preview job's needs:"
+mutant "the workflows job missing from needs" "${P}"'s/needs: \[quality, lint, isolation, summary, browser, workflows, report\]/needs: [quality, lint, isolation, summary, browser, report]/' "needs: the gate job workflows is not in the preview job's needs:"
+mutant "a needs for a job that is not there" "${P}"'s/needs: \[quality, lint, isolation, summary, browser, workflows, report\]/needs: [quality, lint, isolation, summary, browser, workflows, report, ghost]/' "needs: ghost is not a job"
 mutant "no push-only condition" "${P}"'{/^    if: /d;}' "if: the condition is not exactly"
 mutant "a pull request condition" "${P}"'s/github.event_name == .push./github.event_name != '"'"'push'"'"'/' "if: the condition is not exactly"
 mutant "another branch" "${P}"'s#refs/heads/main#refs/heads/dev#' "if: the condition is not exactly"
