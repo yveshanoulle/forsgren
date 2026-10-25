@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v6
+# canon: test_gate_browser v7
 # Scripts/test_gate_browser.sh (forsgren#205)
 #
 # Self-test for Scripts/gate_browser.sh, the browser gate, run in PRE before the
@@ -60,8 +60,10 @@
 # The layout-shift override (forsgren#247, decision 249): the loads and the
 # interval are read from FORSGREN_CLS_LOADS and FORSGREN_CLS_INTERVAL_MS, the
 # default stays 5 loads at 1000 ms. Every case but the layout-shift ones runs with
-# the short setting (1 load, 300 ms); the cases that need a shift caught under an
-# override read after 2500 ms, so no machine delay can lose the race (forsgren#384):
+# the short setting (1 load, 300 ms). The layout-shift fixtures set a flag after
+# the page moved and answer the gate's read of the shifts once it is set (30 s
+# bound), so no clock decides whether the read sees the shift (forsgren#386);
+# the cases that need a shift caught under an override read after 50 ms:
 #  37. the override is honoured (2 loads, 50 ms)        -> the OK line says 50 ms
 #  38. an override still catches the shift fixture      -> red, 1 cold loads
 #  38b. a page that stalls 800 ms after the load         -> still red under the override
@@ -102,20 +104,30 @@
 #  51. case 41's table on a page that shows a 15 px page scrollbar -> red, still
 #      210 px (a measurement that reads the box beside the scrollbar says 225)
 #   Q. the scrollbar not hidden while measuring: case 51 says 225.
-# The exits (forsgren#381, browser_gate v5): Chrome closed and its profile
-# folder removed on every way out:
+# The exits (forsgren#381, browser_gate v5, v6 since forsgren#386): Chrome closed
+# and its profile folder removed on every way out:
 #  52. SIGTERM, SIGINT, SIGHUP to the wrapper, SIGTERM to node (under the wrapper
 #      and alone) -> exit 143, 130, 129; no Chrome, no profile folder; SIGKILL
 #      to node -> Chrome ends with its pipe
 #  53. Chrome killed mid-run (an error) -> exit 2; no Chrome, no profile folder
-#      The signal comes once the gate's profile folder exists and a page is open
-#      in its Chrome, never after a delay; the fixture has forty looks so the
-#      gate is still running; a gate not up in 30 s, or ended before the signal,
-#      is red with that reason (forsgren#383). The gate gets up to 60 s to end
-#      (an observable condition, its exit; a fixed 20 s failed on a slow hosted
-#      runner, forsgren#384).
+#  53c. Chrome killed while the run starts (a Chrome that opens no initial page,
+#      through FORSGREN_CHROME) -> exit 2 within 15 s with the usual error; no
+#      Chrome, no profile folder (forsgren#386, browser_gate v6)
+#      The signal comes once the run is provably mid-run: the profile folder
+#      exists and Chrome holds a connection to the gate's own server, i.e. it
+#      is loading a fixture page, which only happens after the launch resolved
+#      and the engine's Chrome watch is attached (Chrome's first about:blank
+#      renderer, the old "up", exists during the launch, forsgren#386); never
+#      after a delay. The fixture has forty looks so the gate is still running;
+#      a gate not up in 60 s, or ended before the signal, is red with that
+#      reason (forsgren#383). The gate gets up to 60 s to end, and Chrome up to
+#      60 s to be gone: observable conditions, never a fixed window (forsgren#384).
+# Each ok and FAIL line ends with the seconds since the line before it, the
+# case's own duration, so the CI log shows what is slow (forsgren#386).
 #   R. no signal handler in the engine: case 52e leaves the profile folder;
-#   S. the wrapper not forwarding the signal: case 52a leaves Chrome alive.
+#   S. the wrapper not forwarding the signal: case 52a leaves Chrome alive;
+#   U. the launch waiting for Chrome's initial page again (browser_gate v5):
+#      case 53c still runs 15 s after the kill.
 
 set -euo pipefail
 
@@ -127,6 +139,20 @@ ENGINE="${REPO_ROOT}/Scripts/browser_gate.mjs"
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# Seconds per case: every ok and FAIL line of this run ends with the seconds
+# since the line before it, which is the duration of the case it reports, so the
+# CI log shows what is slow (forsgren#386). echo is shadowed here, so the
+# helpers of lib_selftest.sh (want_*, fail) report through it too.
+LAP=$SECONDS
+echo() {
+  case "${1-}" in
+    "  ok: "* | "❌ FAIL: "*)
+      builtin echo "$* ($((SECONDS - LAP)) s)"
+      LAP=$SECONDS
+      ;;
+    *) builtin echo "$@" ;;
+  esac
+}
 selftest_begin "browser gate self-test"
 
 for need in "$GATE" "$ENGINE" "${REPO_ROOT}/node_modules/puppeteer-core" "${REPO_ROOT}/node_modules/axe-core"; do
@@ -181,10 +207,11 @@ run_gate() {
 }
 
 # run_gate_hit: one load read after HIT_CLS_INTERVAL_MS, for the cases that
-# need a shift fixture to be caught under an override (38, 38b, 40). The shift
-# is at most about a second after the load even on a stalled machine (shiftstall
-# adds 800 ms), so 2500 ms leaves a margin of seconds (forsgren#384).
-HIT_CLS_INTERVAL_MS=2500
+# need a shift fixture to be caught under an override (38, 38b, 40). The
+# interval is short on purpose: the fixture answers the read only once it has
+# moved (WAIT_JS), so the interval decides nothing (forsgren#386; it was a
+# fixed 2500 ms, a margin of 1.7 s, forsgren#384).
+HIT_CLS_INTERVAL_MS=50
 run_gate_hit() {
   FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL_MS="$HIT_CLS_INTERVAL_MS" capture "$GATE" "${TMP}/$1/site" "${TMP}/$1/manifest.json" "${TMP}/$1/exceptions.txt" "${TMP}/$1/baseline.txt" "${TMP}/$1/variants.txt"
 }
@@ -202,30 +229,41 @@ make_site nodoctype "$(page '' '' '')"
 make_site nocharset "$(page '' '' '<!doctype html>' '')"
 make_site console "$(page '<script>console.error("fixture boom")</script>' '')"
 make_site notfound "$(page '<img src="/missing.png" alt="absent">' '')"
-# The shift fixtures never race the gate's read (forsgren#384). A shift that
-# the page moves on a clock is a race against the machine: a hosted runner
-# delayed the frames of a load past the 300 ms read of case 38. So each fixture
-# is ordered by something the test controls:
+# The shift fixtures never race the gate's read (forsgren#384, #386). A shift
+# that the page moves on a clock is a race against the machine: a hosted runner
+# delayed the frames of a load past the 300 ms read of case 38, and a fixed
+# 2500 ms was only a margin. So each fixture is ordered by something the test
+# controls:
 #  - shift: two animation frames after the load event (after the first paint,
-#    since a move before it is no shift). Cases 38, 38b and 40 read it after
-#    HIT_CLS_INTERVAL_MS (2500 ms), a margin of seconds; cases 8 and 19-23 after
-#    the real 1000 ms. shiftstall delays it a further 800 ms, the machine's own
-#    delay made on purpose, and the hit setting still reads after it.
+#    since a move before it is no shift). The page sets a flag (window.__moved)
+#    after it moved and two frames more (the observer has delivered the shift),
+#    and answers the gate's read of window.__shifts only then (WAIT_JS: the
+#    read is a promise, which the gate's evaluate waits for), at most 30 s. So
+#    cases 8 and 19-23 (the real 1000 ms) and 38, 38b and 40 (50 ms) read the
+#    shift on any machine, whatever the interval. shiftstall delays the move a
+#    further 800 ms, the machine's own delay made on purpose.
 #  - lateshift (proof K): the page moves one tick after the first read of
 #    window.__shifts, so the read is before the shift on any machine: no clock
 #    decides it.
 #  - earlyshift (proof K control): the same code, but it moves two animation
-#    frames after the load, so the real setting reads it.
+#    frames after the load and sets the flag like shift, so the real setting
+#    reads it.
 # lateshift_js <read|frames>: when the page moves.
 lateshift_js() {
-  printf '%s' '<script>(function () { var mode = "'"$1"'"; var real = window.__shifts; var moved = false; function move() { if (moved) return; moved = true; var d = document.createElement("div"); d.style.height = "120px"; d.textContent = "late"; document.querySelector("main").prepend(d); } if (mode === "read") { Object.defineProperty(window, "__shifts", { configurable: true, get: function () { setTimeout(move, 0); return real; } }); } else { window.addEventListener("load", function () { requestAnimationFrame(function () { requestAnimationFrame(move); }); }); } })();</script>'
+  printf '%s' '<script>(function () { var mode = "'"$1"'"; var real = window.__shifts; var moved = false; function move() { if (moved) return; moved = true; var d = document.createElement("div"); d.style.height = "120px"; d.textContent = "late"; document.querySelector("main").prepend(d); if (window.__markMoved) window.__markMoved(); } if (mode === "read") { Object.defineProperty(window, "__shifts", { configurable: true, get: function () { setTimeout(move, 0); return real; } }); } else { window.addEventListener("load", function () { requestAnimationFrame(function () { requestAnimationFrame(move); }); }); } })();</script>'
 }
 LATE_JS="$(lateshift_js read)"
-SHIFT_JS='<script>window.addEventListener("load", function () { requestAnimationFrame(function () { requestAnimationFrame(function () { var d = document.createElement("div"); d.style.height = "120px"; d.textContent = "late"; document.querySelector("main").prepend(d); }); }); });</script>'
+# WAIT_JS: window.__shifts answers the gate's read with a promise that resolves
+# with the observed shifts once the page called __markMoved (it moved, and two
+# frames have passed so the observer has the entry), or after 30 s. The
+# observer still pushes into window.__shifts, so the promise has a push that
+# forwards to the real array.
+WAIT_JS='<script>(function () { var real = window.__shifts; window.__moved = false; var answer = new Promise(function (resolve) { window.__markMoved = function () { window.__moved = true; requestAnimationFrame(function () { requestAnimationFrame(function () { resolve(real); }); }); }; setTimeout(function () { resolve(real); }, 30000); }); answer.push = function (value) { return real.push(value); }; Object.defineProperty(window, "__shifts", { configurable: true, get: function () { return answer; } }); })();</script>'
+SHIFT_JS="${WAIT_JS}"'<script>window.addEventListener("load", function () { requestAnimationFrame(function () { requestAnimationFrame(function () { var d = document.createElement("div"); d.style.height = "120px"; d.textContent = "late"; document.querySelector("main").prepend(d); window.__markMoved(); }); }); });</script>'
 make_site shift "$(page '' "$SHIFT_JS")"
 make_site lateshift "$(page '' "$LATE_JS")"
-make_site earlyshift "$(page '' "$(lateshift_js frames)")"
-STALL_JS='<script>window.addEventListener("load", function () { setTimeout(function () { requestAnimationFrame(function () { requestAnimationFrame(function () { var d = document.createElement("div"); d.style.height = "120px"; d.textContent = "late"; document.querySelector("main").prepend(d); }); }); }, 800); });</script>'
+make_site earlyshift "$(page '' "${WAIT_JS}$(lateshift_js frames)")"
+STALL_JS="${WAIT_JS}"'<script>window.addEventListener("load", function () { setTimeout(function () { requestAnimationFrame(function () { requestAnimationFrame(function () { var d = document.createElement("div"); d.style.height = "120px"; d.textContent = "late"; document.querySelector("main").prepend(d); window.__markMoved(); }); }); }, 800); });</script>'
 make_site shiftstall "$(page '' "$STALL_JS")"
 # The delay seam (forsgren#275): the same two pages after a script that blocks
 # the parse for 800 ms, as a starved machine delays the load. With the shift
@@ -545,28 +583,72 @@ make_site slow "$(page '' '')"
 : > "${TMP}/slow/variants.txt"
 for n in $(seq 1 40); do printf 'look%s|scheme:light\n' "$n" >> "${TMP}/slow/variants.txt"; done
 
-# signal_case <label> <target: self|node> <signal|error> <command...>: runs the
-# command on the slow fixture with its own TMPDIR, waits until its profile
-# folder exists and a page is open in its Chrome (30 s, else SIG_UP=0), sends
-# the signal to the command (self) or to the node process under it (node), or
-# kills the Chrome (error), then waits for the end. Sets SIG_RC, SIG_CHROME
-# (alive), SIG_PROFILE (folders left), SIG_UP, SIG_EARLY (the gate had ended
+# node_pid: the engine of the signal cases (its command line names the slow site).
+node_pid() {
+  pgrep -f -- "node .*mjs ${TMP}/slow/site" | head -1 || true
+}
+
+# engine_up <dir>: the run is provably mid-run: the profile folder of the case
+# exists and Chrome holds a connection to the engine's own server, i.e. it is
+# loading a fixture page. That happens only after puppeteer.launch resolved and
+# the engine's Chrome watch is attached; the renderer of Chrome's first
+# about:blank page (the old condition) exists during the launch (forsgren#386).
+# A fixture page cannot reach a listener of the test (the engine blocks every
+# request that leaves its own server, and answers the exception row of a
+# blocked one without sending it), so the connection to the engine's server is
+# the hit that can be observed.
+engine_up() {
+  local npid
+  [[ -n "$(find "$1" -maxdepth 1 -name 'browser-gate-*' 2> /dev/null)" ]] || return 1
+  npid="$(node_pid)"
+  [[ -n "$npid" ]] || return 1
+  lsof -nP -a -p "$npid" -iTCP -sTCP:ESTABLISHED 2> /dev/null | grep -q ESTABLISHED
+}
+
+# launch_up <dir>: the profile of the case's Chrome has its Local Storage
+# folder, the last thing Chrome's start creates (measured: about 15 ms after
+# puppeteer.launch resolved with no initial page to wait for, 4 of 4 kills with
+# it ended in 30 s on the v5 engine; with the first helper process or the
+# Local State file as the condition the kill came before the connection and
+# ended in 1 s, so they are no proof). The kill comes with the launch over or
+# nearly over, and no page exists.
+launch_up() {
+  [[ -n "$(find "$1" -maxdepth 3 -path '*/browser-gate-*/Default/Local Storage' 2> /dev/null)" ]]
+}
+
+# real_chrome: the Chrome the engine finds (FORSGREN_CHROME, else its candidates).
+real_chrome() {
+  local candidate
+  if [[ -n "${FORSGREN_CHROME:-}" ]]; then
+    echo "$FORSGREN_CHROME"
+    return
+  fi
+  for candidate in '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' /usr/bin/google-chrome /usr/bin/google-chrome-stable /usr/bin/chromium /usr/bin/chromium-browser; do
+    if [[ -e "$candidate" ]]; then
+      echo "$candidate"
+      return
+    fi
+  done
+}
+
+# signal_case <label> <target: self|node> <signal|error|launch> <command...>:
+# runs the command on the slow fixture with its own TMPDIR, waits until it is
+# up (engine_up; for launch: launch_up) for up to 60 s, sends the signal to the
+# command (self) or to the node process under it (node), or kills the Chrome
+# (error, launch), then waits for the end. Sets SIG_RC, SIG_CHROME (alive, polled
+# up to 60 s), SIG_PROFILE (folders left), SIG_UP, SIG_EARLY (the gate had ended
 # before the signal), SIG_ENDED, SIG_WAITED (the bound, SIG_WAIT_S or 60 s) and SIG_OUT.
 signal_case() {
-  local label="$1" target="$2" sig="$3" tmpd pid target_pid
+  local label="$1" target="$2" sig="$3" tmpd pid target_pid up=engine_up
   shift 3
+  if [[ "$sig" == "launch" ]]; then up=launch_up; fi
   tmpd="${TMP}/sig_${label}"
   mkdir -p "$tmpd"
   TMPDIR="$tmpd" perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' "$@" "${TMP}/slow/site" "${TMP}/slow/manifest.json" "${TMP}/slow/exceptions.txt" "${TMP}/slow/baseline.txt" "${TMP}/slow/variants.txt" > "${tmpd}.out" 2>&1 &
   pid=$!
   SIG_UP=0
-  for _ in $(seq 1 150); do
-    # Up means the profile folder exists and a page is open: its renderer runs,
-    # the launch is over. A renderer's command line has --type before the
-    # profile (the order made the old pattern never match: it always waited the
-    # full 30 s, a fixed delay that a fast machine outran, forsgren#383).
-    if [[ -n "$(find "$tmpd" -maxdepth 1 -name 'browser-gate-*' 2> /dev/null)" ]] \
-      && pgrep -f -- "--type=renderer.*--user-data-dir=${tmpd}/browser-gate-" > /dev/null; then
+  for _ in $(seq 1 300); do
+    if "$up" "$tmpd"; then
       SIG_UP=1
       break
     fi
@@ -576,11 +658,12 @@ signal_case() {
   if [[ "$SIG_UP" -eq 1 ]] && ! kill -0 "$pid" 2> /dev/null; then SIG_EARLY=1; fi
   target_pid="$pid"
   if [[ "$target" == "node" ]]; then
-    target_pid="$(pgrep -f -- "node .*mjs ${TMP}/slow/site" | head -1)" || target_pid="$pid"
+    target_pid="$(node_pid)"
+    if [[ -z "$target_pid" ]]; then target_pid="$pid"; fi
   fi
   if [[ "$SIG_UP" -eq 0 || "$SIG_EARLY" -eq 1 ]]; then
     : # no signal: the verdict names the missing precondition
-  elif [[ "$sig" == "error" ]]; then
+  elif [[ "$sig" == "error" || "$sig" == "launch" ]]; then
     pkill -9 -f -- "--user-data-dir=${tmpd}/browser-gate-" || true
   else
     kill -s "$sig" "$target_pid" || true
@@ -596,7 +679,9 @@ signal_case() {
     kill -9 "$pid" || true
   fi
   wait "$pid" 2>/dev/null && SIG_RC=0 || SIG_RC=$?
-  for _ in $(seq 1 50); do
+  # Chrome gone: one poll of the condition itself, up to 60 s, not a fixed
+  # window (a fixed 10 s was a clock, forsgren#386).
+  for _ in $(seq 1 300); do
     if ! pgrep -f -- "--user-data-dir=${tmpd}/browser-gate-" > /dev/null; then break; fi
     sleep 0.2
   done
@@ -612,7 +697,7 @@ signal_case() {
 # Chrome and no profile folder, else the reason.
 closed_verdict() {
   if [[ "$SIG_UP" -ne 1 ]]; then
-    echo "the gate had no Chrome page open 30 s after its start"
+    echo "the gate was not mid-run 60 s after its start (no profile folder, or no connection from Chrome to its server)"
   elif [[ "$SIG_EARLY" -eq 1 ]]; then
     echo "the gate ended before the signal was sent"
   elif [[ "$SIG_ENDED" -ne 1 ]]; then
@@ -669,6 +754,20 @@ else
 fi
 signal_case chrome_killed self error "$GATE"
 want_closed "53: Chrome killed mid-run is an error (exit 2) and leaves no Chrome and no profile" 2
+
+# 53c: Chrome killed while the run starts (forsgren#386, browser_gate v6): a
+# Chrome that opens no initial page (FORSGREN_CHROME, the engine's own setting)
+# is killed once its helpers run. The engine used to wait 30 s for that page
+# whatever happened to Chrome; now its watch is on from the launch, so the run
+# ends within seconds with the usual error.
+NOWINDOW_CHROME="${TMP}/nowindow_chrome.sh"
+printf '#!/bin/sh\nexec "%s" "$@" --no-startup-window\n' "$(real_chrome)" > "$NOWINDOW_CHROME"
+chmod +x "$NOWINDOW_CHROME"
+SIG_WAIT_S=15 signal_case chrome_killed_launch self launch env "FORSGREN_CHROME=${NOWINDOW_CHROME}" "$GATE"
+want_closed "53c: Chrome killed during the launch ends the run within 15 s: exit 2, no Chrome, no profile" 2
+if ! grep -qE "Chrome (ended|disconnected) during the run|Target closed" <<< "$SIG_OUT"; then
+  fail "53c: the usual error is missing. Output: ${SIG_OUT}"
+fi
 
 # Mutation proofs: the engine copy is run directly, with the real node_modules.
 MUT="${TMP}/mutants"
@@ -832,4 +931,12 @@ if selftest_mutant Scripts/gate_browser.sh "${WMUT}/Scripts/gate_browser.sh" 's/
   want_left "mutation proof S: without forwarding case 52a leaves Chrome alive" 143 "Chrome processes of the gate are still alive"
 fi
 
-selftest_end "the browser gate self-test failed" "browser gate: every case holds, nineteen mutations seen"
+# U: the launch waits for Chrome's initial page again (the engine of v5) -> a
+# Chrome killed during the launch is noticed only after puppeteer's 30 s.
+if selftest_mutant "$ENGINE" "${MUT}/u.mjs" "s/waitForInitialPage: false,/waitForInitialPage: true,/"; then
+  SIG_WAIT_S=15 signal_case mutant_u self launch env "FORSGREN_CHROME=${NOWINDOW_CHROME}" FORSGREN_NODE_ROOT="$REPO_ROOT" node "${MUT}/u.mjs"
+  want_left "mutation proof U: waiting for the initial page, case 53c is still running 15 s after the kill" 2 "still running 15 s after the signal"
+fi
+
+echo "browser gate self-test: ${SECONDS} s in total"
+selftest_end "the browser gate self-test failed" "browser gate: every case holds, twenty mutations seen"

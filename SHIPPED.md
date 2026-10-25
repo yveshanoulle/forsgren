@@ -9,6 +9,22 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — The browser gate self-test knows when the run is mid-run, and a Chrome that dies during the launch ends it at once ([#386](https://github.com/yveshanoulle/forsgren/issues/386), step 2a)
+
+forsgren issue 386, tools issue, no release. Step 1 found why case 53 raced: its "up" wait (a renderer of Chrome's first about:blank page) is true while `puppeteer.launch` is still pending, so the test could kill Chrome before the engine had attached its process watch, and puppeteer then waited its own 30 s for an initial page that never came. Decision #410 (answer C): the engine and the test are both fixed. Step 2a; the split into a second self-test (#411) is a later step.
+- **Engine, `browser_gate` v5 to v6.** The launch passes `waitForInitialPage: false`, so it resolves as soon as Chrome answers on its pipe and the process and connection watch (`chromeGone`) is attached then; `chromeGone` also sees a Chrome that had already ended before it was attached. The pages are opened with `newPage`, which never needed the initial page. A Chrome killed while the run starts now ends it within seconds with the usual error (exit 2, Chrome and profile gone); before, it took puppeteer's 30 s.
+- **Test, "up".** The signal comes once the profile folder exists and Chrome holds a connection to the engine's own server (`lsof` on the engine's pid), i.e. it is loading a fixture page, which is only possible after the launch resolved. The listener of the test that step 1 proposed cannot work: the engine blocks every request that leaves its server (even one with an exception row is aborted in Chrome, and never sent), so the connection to the engine's own server is the observable hit. 60 s bound; no engine seam.
+- **Test, Chrome gone.** The fixed 10 s window after the end of a signal case (proof R, case 52f) is one 60 s poll of the condition itself.
+- **Test, CLS.** The shift fixtures set a flag (`window.__moved`) after the page moved and two frames more; `window.__shifts` answers the gate's read as a promise that resolves then (30 s bound), which the gate's `evaluate` waits for. Cases 8, 8a/8b, 19-23, 38, 38b, 40 and the proof K control no longer depend on 1000 or 2500 ms; the override cases read after 50 ms. Case 15's default-interval text and proof K's read-order trick are unchanged. No change to the engine's read was needed.
+- **Test, durations.** Every ok and FAIL line ends with the seconds the case took, and the run ends with the total.
+- **New case 53c and proof U.** A Chrome that opens no initial page (`FORSGREN_CHROME` names a wrapper that adds `--no-startup-window`) is killed once its helpers run: exit 2 within 15 s, the usual error, no Chrome, no profile. Seen failing against the v5 engine (30 s timeout); proof U puts `waitForInitialPage: true` back and sees case 53c still running after 15 s. Twenty mutations. `test_gate_browser` v6 to v7.
+
+Signed: Lenka B
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The gate selector skips the gate wiring check on a Go-only change ([#406](https://github.com/yveshanoulle/forsgren/issues/406), 1/1)
 
 forsgren issue 406, tools issue, no release. Follow-up of #402: the gate wiring check (42 s) had no `in` rows, so FBP ran it on every commit. It now has rows from the closure of `Scripts/test_gate_wiring.sh`: the `Scripts/` directory (the test globs it, so a new script selects it), the six workflows, `sfl.sh`, `FBP.sh`, the manifests, the lint configs and the starter config. Red first: the Go-only case skipped it and each kind of input (a closure script, a workflow, the order file, `sfl.sh`, `FBP.sh`, a new script) selected it; `Scripts/test_gate_inputs.sh` checks the label. No exemption: `Scripts/test_gate_select.sh` takes its ledger and Go fixture paths from the list rows instead of spelling them. Quality still runs the gate in full.

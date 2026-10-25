@@ -1,4 +1,4 @@
-// canon: browser_gate v5
+// canon: browser_gate v6
 // Scripts/browser_gate.mjs (forsgren#205)
 //
 // The browser gate's engine: serves a built site on 127.0.0.1 (loopback only),
@@ -10,6 +10,13 @@
 //
 // Changelog of the canon (the baseline format is the same in every version, so
 // no version needs a migration):
+//   v6 = v5 plus the watch from the start (forsgren#386, decision #410): the
+//        launch no longer waits for Chrome's initial page (puppeteer's own
+//        wait is 30 s and ignores a Chrome that died meanwhile), so the watch
+//        on Chrome's process and connection is attached the moment the launch
+//        resolves, and a Chrome that died before that is seen at once. A
+//        Chrome that dies while the run starts ends it within seconds with
+//        the usual error, exit 2, Chrome and profile gone.
 //   v5 = v4 plus the exits (forsgren#381, found by another estate repository):
 //        Chrome is closed and its profile folder removed on every way out: the
 //        end, an error, and SIGINT, SIGTERM or SIGHUP (exit 130, 143, 129),
@@ -688,7 +695,17 @@ for (const [name, code] of [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]])
 // operation then waits for its timeout instead of failing (forsgren#384).
 function chromeGone(browser) {
   const gone = new Promise((resolve, reject) => {
-    browser.process()?.once('exit', (code, signal) => reject(new Error(`Chrome ended during the run (exit ${code}, signal ${signal})`)));
+    const child = browser.process();
+    // Already ended before the watch was attached: its 'exit' was missed.
+    if (child && (child.exitCode !== null || child.signalCode !== null)) {
+      reject(new Error(`Chrome ended during the run (exit ${child.exitCode}, signal ${child.signalCode})`));
+      return;
+    }
+    if (!browser.connected) {
+      reject(new Error('Chrome disconnected during the run'));
+      return;
+    }
+    child?.once('exit', (code, signal) => reject(new Error(`Chrome ended during the run (exit ${code}, signal ${signal})`)));
     browser.once('disconnected', () => reject(new Error('Chrome disconnected during the run')));
   });
   gone.catch(() => {}); // seen only while a check races it; the normal end is no error
@@ -757,6 +774,10 @@ async function main() {
       handleSIGTERM: false,
       handleSIGHUP: false,
       pipe: true,
+      // The initial page is not waited for: puppeteer waits 30 s for it even
+      // when Chrome has died meanwhile. The pages are opened with newPage, and
+      // the watch below is attached as soon as the launch resolves (v6).
+      waitForInitialPage: false,
     });
     live.browser = await live.launching;
     const gone = chromeGone(live.browser);
