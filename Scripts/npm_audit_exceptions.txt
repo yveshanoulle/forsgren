@@ -18,15 +18,3 @@
 # on one further out. A re-check means looking for a fix: when one is out,
 # remove the entry and update; when there is none, move the date forward by
 # at most 7 days and add one line to the entry's history below.
-#
-# GHSA-vfj7-8cjw-p6xm (braces <= 3.0.3, no patched version) reaches forsgren
-# only through jscpd and stylelint, via fast-glob and micromatch.
-# History:
-#   2026-10-03 ruled by Yves on forsgren#13 (option 1, re-checked weekly);
-#              no patched braces; first re-check 2026-10-10.
-#   2026-10-11 re-checked: braces 3.0.3 is still the newest release, no patched
-#              version; micromatch and fast-glob still need braces ^3.0.3; next
-#              re-check 2026-10-17.
-#   2026-10-16 re-checked a day early (forsgren#209): braces 3.0.3 is still the
-#              newest release, no patched version; next re-check 2026-10-23.
-GHSA-vfj7-8cjw-p6xm|braces|2026-10-23|forsgren#13|dev tooling only (jscpd, stylelint via fast-glob and micromatch); braces has no patched version

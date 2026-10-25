@@ -266,10 +266,11 @@ days after today, and the gate is red on one further out, so nobody can set
 an exception a month ahead. A re-check means looking for a fix. When one is
 out, remove the line and update. When there is none, move the date forward
 by at most 7 days and add one line to the entry's history comment in the
-file (or note it on the issue). Today's one exception is
-GHSA-vfj7-8cjw-p6xm (braces `<= 3.0.3`, no patched version), which reaches
-forsgren only through jscpd and stylelint via fast-glob and micromatch
-([forsgren#13](https://github.com/yveshanoulle/forsgren/issues/13)).
+file (or note it on the issue). Today there is no exception: the file holds
+no row (the braces row of forsgren#13 was removed in forsgren#419, when npm
+audit stopped reporting it). The gate is red on a high or critical advisory
+only; a moderate or low one, which Dependabot also reports, is not a gate
+finding and is fixed by updating the lockfile.
 
 **To move a linter to a new version,** change its exact pin and the lockfile
 together, then run `./FBP.sh`:

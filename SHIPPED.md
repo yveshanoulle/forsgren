@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — npm: fast-uri 3.1.9 and the stale braces audit exception removed ([#419](https://github.com/yveshanoulle/forsgren/issues/419), 1 step)
+
+forsgren issue 419, tools issue, ships in 1.21.0. Dependabot reported 4 alerts (2 moderate, 2 low) for `fast-uri` 3.1.8, a dev dependency of the check tooling (stylelint, table, ajv). The npm audit gate passed because it is red on high and critical advisories only (`npm audit` itself lists all four as one moderate finding). `package-lock.json` now holds `fast-uri` 3.1.9 (`npm update fast-uri`: a transitive package, no override, no pin in `package.json` changed); `npm ci` and `npm audit` report 0 vulnerabilities. The exception for GHSA-vfj7-8cjw-p6xm (braces, forsgren#13) is removed from `Scripts/npm_audit_exceptions.txt`, which npm audit no longer reports; the two docs that named it are updated. The gate still ignores moderate and low advisories; that gap is not changed here.
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — Quality runs the two isolation gates in two jobs ([#425](https://github.com/yveshanoulle/forsgren/issues/425), step 1 of 1)
 
 forsgren issue 425, tools issue, no release. The Isolation gates job took 15 minutes in Quality run 40183200190 (setup 1.5 minutes, step summary isolation 4 min 15 s, git sandbox isolation self-test 9 min 27 s, one after another). `Scripts/ci_job_groups.txt` now gives the step summary isolation gate to a new `summary` job (name `Summary isolation gates`, hand-over `quality-report-summary`, `QS_SUMMARY_RESULT` in the report status) and leaves the git sandbox isolation self-test in the `isolation` job; the setup is the same step for step, and the report and preview jobs `needs:` it. Expected: the `isolation` job about 11 minutes, the `summary` job about 6, in line with the Quality gates job. Every gate still runs in one job. Red first: `Scripts/test_run_ci_phase.sh` (the summary job over the real order file), `Scripts/test_quality_jobs.sh` (the job, its setup, hand-over, group rows and report wiring, with mutants; the gate names a step may not spell now come from the group file) and `Scripts/test_preview_workflow.sh` (the needs list). The preview pin's trigger check read a found `workflow_run` as not found once the workflow file outgrew the pipe (`producer | grep -q` under pipefail: grep leaves at its first match and the writer gets SIGPIPE); the three tests above now pipe into a helper `has` that reads all of its input first. Step 2 (two shards of the git sandbox self-test) is only needed if this leaves Isolation the longest job.

@@ -199,7 +199,6 @@ else, and a row without a reason is red.
 
 | Gate | What is excused | Where it is recorded |
 |------|-----------------|----------------------|
-| npm audit | GHSA-vfj7-8cjw-p6xm on braces, dev tooling only, with no patched release. The exception holds up to and including 2026-10-23, then the gate is red again | [Scripts/npm_audit_exceptions.txt](../Scripts/npm_audit_exceptions.txt), against forsgren#13 |
 | Go vulnerabilities | when the vulnerability database does not answer, the gate prints a SKIP line and exits 0, never the OK line of a pass. The scheduled run sets `FORSGREN_VULN_DB_REQUIRED=1`, which turns the skip into a red | the header of [Scripts/check_govulncheck.sh](../Scripts/check_govulncheck.sh) and [.github/workflows/vulncheck.yml](../.github/workflows/vulncheck.yml), against forsgren#87 |
 
 The other exception files are empty, with the rule for a row in their header:
