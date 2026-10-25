@@ -12,8 +12,8 @@ import (
 var legendTbdText = []string{
 	"The TBD page (trunk-based development) is one table with a row for each project",
 	"Its columns are in groups, and the name of a group says what it counts",
-	"First come Volume, Shares of commits, Time to main per commit, Commits per push, Time to deploy per " +
-		"commit and Commits per deployment. Then come PR Lead Time, Mainline Interval and Developers",
+	"First come Mainline Interval, Time to main per commit, Time to deploy per commit and PR Lead Time. " +
+		"Then come Volume, Commits per push, Commits per deployment, Shares of commits and Developers",
 	"Every number is of the last 30 days",
 	"The push groups read the pushes to the main branch, from GitHub's activity list of the default branch " +
 		"of each repository",
@@ -92,7 +92,7 @@ var legendTbdText = []string{
 	"The median needs two gaps and p90 needs ten gaps",
 	"With fewer than ten gaps p90 would only be the longest gap",
 	"A mean far above the median, and a deviation far above the mean, point at a few long gaps among short ones",
-	"Next to the Mainline Interval, Developers has one column: developers",
+	"Developers has one column: developers",
 	"The column developers is the number of people who made the commits deployed in the " +
 		"window, those a merge brought in included: the distinct GitHub accounts of their authors, " +
 		"so a person who commits from several email addresses counts once",
@@ -293,14 +293,14 @@ func TestLegendSaysEachTbdSentenceOnce(t *testing.T) {
 // and one sentence of its group that must follow it.
 var legendTbdGroups = []struct{ id, title, sentence string }{
 	{"tbd-general", "General", "Every number is of the last 30 days"},
-	{"tbd-volume", "Volume", "Volume has three columns"},
-	{"tbd-shares-of-commits", "Shares of commits", "Shares of commits has four columns"},
-	{"tbd-time-to-main-per-commit", "Time to main per commit", "Time to main per commit is a duration"},
-	{"tbd-commits-per-push", "Commits per push", "Commits per push is a count of commits"},
-	{"tbd-time-to-deploy-per-commit", "Time to deploy per commit", "Time to deploy per commit is a duration"},
-	{"tbd-commits-per-deployment", "Commits per deployment", "Commits per deployment is a count of commits"},
-	{"tbd-pr-lead-time", "PR Lead Time", "PR Lead Time has one column"},
 	{"tbd-mainline-interval", "Mainline Interval", "The Mainline Interval of each project is in five columns"},
+	{"tbd-time-to-main-per-commit", "Time to main per commit", "Time to main per commit is a duration"},
+	{"tbd-time-to-deploy-per-commit", "Time to deploy per commit", "Time to deploy per commit is a duration"},
+	{"tbd-pr-lead-time", "PR Lead Time", "PR Lead Time has one column"},
+	{"tbd-volume", "Volume", "Volume has three columns"},
+	{"tbd-commits-per-push", "Commits per push", "Commits per push is a count of commits"},
+	{"tbd-commits-per-deployment", "Commits per deployment", "Commits per deployment is a count of commits"},
+	{"tbd-shares-of-commits", "Shares of commits", "Shares of commits has four columns"},
 	{"tbd-developers", "Developers", "The column developers is the number of people"},
 	{"tbd-push-states", "Push states", "Pushes not collected yet means no push has been collected yet"},
 }

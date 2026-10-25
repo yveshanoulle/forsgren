@@ -257,7 +257,7 @@
   {
    "path": "cmd/forsgren/render_tbd_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-24",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -287,7 +287,7 @@
   {
    "path": "cmd/forsgren/render_leadtime_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-24",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {

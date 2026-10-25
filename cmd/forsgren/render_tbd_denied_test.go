@@ -39,11 +39,11 @@ func TestRenderTbdPageSaysThePullRequestsAreNotReadable(t *testing.T) {
 	pinNow(t)
 	data := writeData(t, acmeHistory(), acmeCommits())
 	writePullsDenied(t, data, "ACME/Api,2026-10-01T00:00:00Z\n")
-	wantIn(t, tbdSiteOf(t, validConfig, data), leadRow(shopCell, notReadableCell),
-		leadRow(noCells, "No pull requests have been collected yet"))
+	wantIn(t, tbdSiteOf(t, validConfig, data), leadRow(shopRow, notReadableCell),
+		leadRow(noRow, "No pull requests have been collected yet"))
 	writePulls(t, data, acmePulls(t))
-	wantIn(t, tbdSiteOf(t, validConfig, data), leadRow(shopCell, notReadableCell),
-		leadRow(noCells, noHumanPulls))
+	wantIn(t, tbdSiteOf(t, validConfig, data), leadRow(shopRow, notReadableCell),
+		leadRow(noRow, noHumanPulls))
 }
 
 // TestRenderReadsAPullsDeniedFileOfFormatV2 (forsgren#321, step 1): the token

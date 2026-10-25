@@ -134,7 +134,7 @@ func TestRenderShowsNoCommitAuthor(t *testing.T) {
 		t.Fatalf("want the login in the commits file, got:\n%s", stored)
 	}
 	site := renderSite(t, "--config", writeAllPagesConfig(t, validConfig), "--data", data)
-	shopDevelopers := leadRow(shopCell, "No pull requests have been collected yet") + "            <td>1</td>"
+	shopDevelopers := developersRow("1")
 	if got := readSite(t, site, "tbd.html"); !strings.Contains(got, shopDevelopers) {
 		t.Errorf("want Acme Shop's Developers counted from the logins, got:\n%s", got)
 	}

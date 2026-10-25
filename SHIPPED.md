@@ -9,6 +9,30 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — The TBD table has a new order of column groups ([#418](https://github.com/yveshanoulle/forsgren/issues/418), 1 step)
+
+forsgren issue 418, feature, patch release, as Yves worded it; it ships in 1.21.0 with #409. The TBD table lists its groups in this order after Project: Mainline Interval, Time to main per commit (duration), Time to deploy per commit (duration), PR Lead Time, Volume, Commits per push, Commits per deployment, Shares of commits, Developers. The columns inside each group keep their order. The two header rows, the column groups, the scopes and the aria-labels follow, and so do the cells of a row.
+
+- The push state (`Push activity not readable`, `Pushes not collected yet`): the three push groups (Time to main, Commits per push, Shares of commits) are no longer next to each other, so each has its own state cell with the same text, `colspan` 3, 3 and 4, in place of the one cell of ten columns. Volume keeps its Commits and Pushes dashes, and the deployment groups keep their numbers.
+- The legend: the TBD sub-headings and their sections (h3 ids of #404) follow the table order, every sentence kept; the general paragraph names the groups in the new order, the Developers sentence no longer says it is next to the Mainline Interval, and the push states sentence says one cell under each push group. `docs/pages-and-views.md` and `CLAUDE.md` list the groups in the new order.
+- Red first: the header order test, the row cell order tests (shop, lead time states) and the legend h3 order test, seen failing before the change. Goldens regenerated: `tbd*`, `legend`.
+
+Signed: Lenka B
+
+---
+
+## 2026-10-25 — The coverage gate parses its floors file as JSON ([#415](https://github.com/yveshanoulle/forsgren/issues/415), 1 step)
+
+forsgren issue 415, tools issue, no release. `coverage_thresholds.json` had not been valid JSON since forsgren#397 step 5 (a missing comma after the `tbd.go:pairedWithMainline` row, a comma after the last row), and `Scripts/check_coverage.sh` passed every run because it reads the file line by line in a fixed shape and never parsed it. Red first: case 11b of `Scripts/test_check_coverage.sh` (every line in the fixed shape, but a missing comma and a trailing comma) was seen passing the gate, exit 0. The gate now runs `jq empty` on the file before anything else (jq is in `Scripts/required_tools.txt`, so sfl installs it and the hosted image has it): red naming the file and jq's line and column, exit 1; no jq is exit 2. The file is fixed, no floor changed. No other script reads `coverage_thresholds.json`; `codescene-scores.json` is read by no script (a ledger, valid JSON today), so it gets no parse.
+
+- Lenka B
+
+---
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The TBD page leaves beta and is on by default ([#409](https://github.com/yveshanoulle/forsgren/issues/409), 1 step)
 
 forsgren issue 409, feature, minor release, as Yves worded it. Two things an installation sees change. (1) The TBD page has no BETA marker: its title and h1 read "Trunk-based development [TBD]" (`tbdTitle` in `tbd.go` no longer adds `betaMarker`), and so does the legend's TBD section heading. The History page keeps its marker. (2) `tbd_page` defaults to `true` instead of `unlisted` (`tbdPage` in `pagemode.go`): an installation whose config has no `tbd_page` key gets the TBD page in its menu, after History, and the page no longer carries the noindex tag. `unlisted` and `false` work as before, and the accepted values are unchanged.

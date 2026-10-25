@@ -38,6 +38,11 @@ var (
 	shopCell = tdRow("2 d 22 h", "4 d 3 h", "2 d 22 h", "-",
 		"2 · Mostly estimated: 3 of 3 commits timed by author date.")
 	noCells = tdRow("-", "-", "-", "-", "-")
+	// shopTimes and noTimes are their time to deploy cells (forsgren#418).
+	shopTimes = tdRow("8 h 5", "17 m", "-")
+	noTimes   = tdRow("-", "-", "-")
+	shopRow   = projectCells{shopCell, shopTimes}
+	noRow     = projectCells{noCells, noTimes}
 )
 
 // TestRenderShowsTheMainlineIntervalOfEachProject (forsgren#253, step 5): with
@@ -111,8 +116,8 @@ func TestRenderShowsTheDevelopersOfEachProject(t *testing.T) {
 	got := tbdSiteOf(t, validConfig, data)
 	for _, want := range []string{
 		"<th scope=\"colgroup\" colspan=\"1\">Developers</th>",
-		leadRow(shopCell, noHumanPulls) + "            " + tdRow("1"),
-		leadRow(noCells, noHumanPulls) + "            " + tdRow("-"),
+		developersRow("1"),
+		developersRow("-"),
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("want %q in tbd.html, got:\n%s", want, got)
@@ -130,11 +135,11 @@ func TestRenderCountsTheLoginsOfASameDeveloperGroupOnce(t *testing.T) {
 	data := writeData(t, acmeHistory(), commits)
 	writePulls(t, data, nil)
 	grouped := tbdSiteOf(t, validConfig+"same_developer: [[acme-dev-one, acme-dev-two]]\n", data)
-	if want := shopCell + "\n            " + tdRow("1"); !strings.Contains(grouped, want) {
+	if want := developersRow("1"); !strings.Contains(grouped, want) {
 		t.Errorf("want one developer for the group in tbd.html, got:\n%s", grouped)
 	}
 	alone := tbdSiteOf(t, validConfig, data)
-	if want := shopCell + "\n            " + tdRow("2"); !strings.Contains(alone, want) {
+	if want := developersRow("2"); !strings.Contains(alone, want) {
 		t.Errorf("want two developers without the key in tbd.html, got:\n%s", alone)
 	}
 }

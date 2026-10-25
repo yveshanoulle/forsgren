@@ -98,17 +98,24 @@ func tbdDeploys() []metrics.DeployMeasures {
 	}
 }
 
-// tbdPushCells are the cells of tbdData's projects before the pull requests
-// cell, parted by " | ": volume (commits, pushes, deployments), shares
-// (direct, PR, unknown), time to main, commits per push,
-// time to deploy, commits per deployment (mean, median, p90 each). A cell
-// starting with @ is the one cell across the push groups, ten columns wide.
-var tbdPushCells = map[string]string{
-	"Acme Shop": "40 | 20 | 85 | 75% | 25% | 10% | 5% | 1 h | 30 m | 3 h | 2 | 1.5 | 6 | " +
-		"2 h | 1 h | 5 h | 5 | 4.5 | 12",
-	"Acme Tools": "1 | 1 | 7 | 100% | 0% | 0% | 0% | 2 h | - | - | 1 | - | - | 1 h | 1 h | - | 3 | - | -",
-	"Acme Docs":  "- | - | 2 | @Push activity not readable | 30 m | 30 m | - | 1 | 1 | -",
-	"Acme Web":   "- | - | 1 | @Pushes not collected yet | 10 m | - | - | 2 | - | -",
+// tbdTimeCells and tbdCountCells are the cells of tbdData's projects around
+// the pull requests cell, parted by " | ". Before it: time to main, then time
+// to deploy (mean, median, p90 each). After it: volume (commits, pushes,
+// deployments), commits per push, commits per deployment (mean, median, p90
+// each) and the shares (direct, PR, unknown, bots). A cell starting with @N is
+// the push group's state cell, N columns wide (forsgren#418).
+var tbdTimeCells = map[string]string{
+	"Acme Shop":  "1 h | 30 m | 3 h | 2 h | 1 h | 5 h",
+	"Acme Tools": "2 h | - | - | 1 h | 1 h | -",
+	"Acme Docs":  "@3Push activity not readable | 30 m | 30 m | -",
+	"Acme Web":   "@3Pushes not collected yet | 10 m | - | -",
+}
+
+var tbdCountCells = map[string]string{
+	"Acme Shop":  "40 | 20 | 85 | 2 | 1.5 | 6 | 5 | 4.5 | 12 | 75% | 25% | 10% | 5%",
+	"Acme Tools": "1 | 1 | 7 | 1 | - | - | 3 | - | - | 100% | 0% | 0% | 0%",
+	"Acme Docs":  "- | - | 2 | @3Push activity not readable | 1 | 1 | - | @4Push activity not readable",
+	"Acme Web":   "- | - | 1 | @3Pushes not collected yet | 2 | - | - | @4Pushes not collected yet",
 }
 
 // noLeads are the Mainline Lead Times of tbdData's projects without a pull
@@ -139,23 +146,25 @@ func notReadable() Data {
 	return data
 }
 
-// tbdRow is the TBD page's row of project, as the template writes it: the
-// cells of tbdPushCells, its pull requests cell lead, its five Mainline
-// Interval cells (interval, parted by " | ", forsgren#387, step 1) and its
-// Developers count (forsgren#397, step 5).
+// tbdRow is the TBD page's row of project, as the template writes it: its
+// five Mainline Interval cells (interval, parted by " | ", forsgren#387,
+// step 1), the cells of tbdTimeCells, its pull requests cell lead, the cells of
+// tbdCountCells and its Developers count (forsgren#397, step 5; order of
+// forsgren#418).
 func tbdRow(project, interval, lead, developers string) string {
-	return "<th scope=\"row\">" + project + "</th>\n            " + tds(tbdPushCells[project]) +
-		"\n            <td>" + lead + "</td>\n            " + tds(interval) + "\n            " + tds(developers) + "\n"
+	return "<th scope=\"row\">" + project + "</th>\n            " + tds(interval) + "\n            " +
+		tds(tbdTimeCells[project]) + "\n            <td>" + lead + "</td>\n            " +
+		tds(tbdCountCells[project]) + "\n            " + tds(developers) + "\n"
 }
 
 // tds are the cells of cells, parted by " | ", as the template writes a row's
-// cells: one td on each line; a cell starting with @ is the push groups' one
-// cell across ten columns.
+// cells: one td on each line; a cell starting with @N is a state cell across
+// N columns.
 func tds(cells string) string {
 	parts := strings.Split(cells, " | ")
 	for i, c := range parts {
-		if text, spans := strings.CutPrefix(c, "@"); spans {
-			parts[i] = "<td colspan=\"10\">" + text + "</td>"
+		if rest, spans := strings.CutPrefix(c, "@"); spans {
+			parts[i] = "<td colspan=\"" + rest[:1] + "\">" + rest[1:] + "</td>"
 		} else {
 			parts[i] = "<td>" + c + "</td>"
 		}
@@ -171,14 +180,14 @@ var tbdGroups = []struct {
 	columns []string
 	hidden  string // the measure, said after each column's word in its accessible name
 }{
-	{"Volume", []string{"Commits", "Pushes", "Deployments"}, ""},
-	{"Shares of commits", []string{"Direct", "PR", "Unknown", "Bots"}, ""},
-	{"Time to main per commit (duration)", []string{"mean", "median", "p90"}, "time to main"},
-	{"Commits per push", []string{"mean", "median", "p90"}, "commits per push"},
-	{"Time to deploy per commit (duration)", []string{"mean", "median", "p90"}, "time to deploy"},
-	{"Commits per deployment", []string{"mean", "median", "p90"}, "commits per deployment"},
-	{"PR Lead Time", []string{"pull requests"}, ""},
 	{"Mainline Interval", []string{"mean", "deviation", "median", "p90", "gaps"}, ""},
+	{"Time to main per commit (duration)", []string{"mean", "median", "p90"}, "time to main"},
+	{"Time to deploy per commit (duration)", []string{"mean", "median", "p90"}, "time to deploy"},
+	{"PR Lead Time", []string{"pull requests"}, ""},
+	{"Volume", []string{"Commits", "Pushes", "Deployments"}, ""},
+	{"Commits per push", []string{"mean", "median", "p90"}, "commits per push"},
+	{"Commits per deployment", []string{"mean", "median", "p90"}, "commits per deployment"},
+	{"Shares of commits", []string{"Direct", "PR", "Unknown", "Bots"}, ""},
 	{"Developers", []string{"developers"}, ""},
 }
 

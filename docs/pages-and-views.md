@@ -801,10 +801,10 @@ it in the menu after Daily, "History"; `false` leaves it out.
 
 The TBD page (`tbd.html`, titled "Trunk-based development [TBD]", forsgren#253, forsgren#271, forsgren#409)
 shows, for each project, how often and how fast work reaches the main branch
-and how it is deployed: the commits the pushes brought, their shares, the time
-to main and the time to deploy, the commits per push and per deployment, then
-the PR Lead Time, the Mainline Interval and the Developers (forsgren#397,
-Yves's ruling on #401). It is listed
+and how it is deployed: the Mainline Interval, the time to main and the time
+to deploy, the PR Lead Time, then the commits the pushes brought, the commits
+per push and per deployment, their shares and the Developers (forsgren#397,
+Yves's ruling on #401; the order of forsgren#418). It is listed
 by default (forsgren#409; before, it was unlisted): generated, in the menu and
 without a noindex tag; `tbd_page: unlisted` gives it no menu entry and a
 noindex tag (see Unlisted pages under [The page](#the-page), and
@@ -813,13 +813,14 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
 
 - **The table.** A row per project and, under two rows of headers (every
   group header `scope="colgroup"`, mean, median and p90 beneath each measure),
-  the columns Project, then nine groups in this order (forsgren#397):
-  *Volume* (Commits, Pushes, Deployments); *Shares of commits* (Direct, PR,
-  Unknown, Bots; forsgren#403 shortened the two headers, each keeps the full
-  meaning in an `aria-label`); *Time to main per commit (duration)*;
-  *Commits per push*; *Time to deploy per commit (duration)*; *Commits per
-  deployment* (each of these four: mean, median, p90); *PR Lead Time*
-  (the pull requests column alone); *Mainline Interval*; and *Developers* (the
+  the columns Project, then nine groups in this order (forsgren#397,
+  reordered by forsgren#418): *Mainline Interval*; *Time to main per commit
+  (duration)*; *Time to deploy per commit (duration)*; *PR Lead Time* (the
+  pull requests column alone); *Volume* (Commits, Pushes, Deployments);
+  *Commits per push*; *Commits per deployment* (the two time groups and these two: mean,
+  median, p90); *Shares of commits* (Direct, PR, Unknown, Bots; forsgren#403
+  shortened the two headers, each keeps the full meaning in an `aria-label`);
+  and *Developers* (the
   count). The units are in the names: durations say so, and the others are
   counts of commits. The stat headers carry the measure in an `aria-label`,
   such as "mean time to main". Mainline Interval is five columns of one
@@ -847,12 +848,28 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
   when it was pushed in the DORA window. Push data starts with the release that
   collects it: pushes made before are not looked up afterwards, so a project
   shows the pushes since the first collection.
+  - *Time to main per commit.* The push time minus the author date of the
+    commit, a negative time counted as 0, for each distinct commit, at its
+    first push.
+  - *Time to deploy per commit.* For every commit of the first-parent chain of
+    the deployments created in the window (merge commits of pull requests
+    included, no longer only the direct ones), each at its earliest
+    deployment: the deployment time minus the author date, a negative time 0.
+    The deployment time is the record's `created_at`: for an environment the
+    deployment's creation, for a workflow the run's start, for a release its
+    publication. The commits of a deployment without a known lineage count at
+    their author date.
   - *Volume.* Commits are the distinct first-parent commits the pushes
     brought, by repository (ignoring case) and SHA, each counted once at its
     first push; Pushes the pushes of the window; Deployments the successful
     deployments of the window, as the table page counts them, the number
     only, `85`, whatever the kind of deployment (forsgren#403; it read
     `85 releases` for a project measured by releases alone before).
+  - *Commits per push.* The `commits` column of each push with a known count;
+    a force push, or a push whose compare failed or was cut, has none and is
+    left out here (it still counts in Pushes).
+  - *Commits per deployment.* The first-parent commits each deployment brought,
+    merge commits included; a deployment without a known lineage is left out.
   - *Shares of commits.* Each is a share of the Commits number, in whole
     percent rounded down. PR (the pull request share): the commit is the merge commit
     (`merge_commit` of `data/pulls.csv`) of a pull request, or a pull request
@@ -863,22 +880,6 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     last two are counted whatever else the commit is, so Direct and Pull
     requests add up to 100% (give or take the rounding) and the others
     overlap them. The counts are kept in the metrics.
-  - *Time to main per commit.* The push time minus the author date of the
-    commit, a negative time counted as 0, for each distinct commit, at its
-    first push.
-  - *Commits per push.* The `commits` column of each push with a known count;
-    a force push, or a push whose compare failed or was cut, has none and is
-    left out here (it still counts in Pushes).
-  - *Time to deploy per commit.* For every commit of the first-parent chain of
-    the deployments created in the window (merge commits of pull requests
-    included, no longer only the direct ones), each at its earliest
-    deployment: the deployment time minus the author date, a negative time 0.
-    The deployment time is the record's `created_at`: for an environment the
-    deployment's creation, for a workflow the run's start, for a release its
-    publication. The commits of a deployment without a known lineage count at
-    their author date.
-  - *Commits per deployment.* The first-parent commits each deployment brought,
-    merge commits included; a deployment without a known lineage is left out.
   - *Mean, median, p90.* The same rules as the Mainline Interval's: the median
     is the middle value, or the mean of the two middle ones, and needs two
     values; p90 is the nearest rank, the value at position `(9n + 9) / 10` of
@@ -886,8 +887,9 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
   - *Not readable and not collected.* A project with a repository whose push
     read GitHub refused (a 403, kept in `data/pushes_denied.csv`) shows `Push
     activity not readable`, a project with no `data/pushes.csv` yet `Pushes not
-    collected yet`: one cell across the shares, time to main and commits per
-    push groups (ten columns), a dash for Commits and Pushes, and never
+    collected yet`: one cell under each of the time to main, commits per push
+    and shares groups (three, three and four columns, the same text in
+    each), a dash for Commits and Pushes, and never
     deployment numbers in its place. The Deployments column and the deployment
     groups keep their numbers. A repository is matched to its project ignoring
     case. The legend names both states.

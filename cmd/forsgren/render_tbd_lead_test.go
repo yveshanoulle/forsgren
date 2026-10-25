@@ -2,6 +2,7 @@ package main
 
 import (
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -74,10 +75,28 @@ func writePulls(t *testing.T, data string, pulls []history.PullRequest) {
 // pull request in the window, a dash (forsgren#390, step 2).
 const noHumanPulls = "-"
 
-// leadRow is the end of a project's TBD row from its pull requests cell lead
-// (forsgren#397, step 5): the cell, then the Mainline Interval cells, interval.
-func leadRow(interval, lead string) string {
-	return "<td>" + lead + "</td>\n            " + interval + "\n"
+// projectCells are the cells of a project's TBD row before its pull requests
+// cell: its Mainline Interval cells and its time to deploy cells (forsgren#418).
+type projectCells struct{ interval, deploy string }
+
+// leadRow is the middle of a project's TBD row: the Mainline Interval cells,
+// the time to main (the push state without pushes), the time to deploy cells
+// and the pull requests cell lead (forsgren#418: the order of the groups).
+func leadRow(row projectCells, lead string) string {
+	return row.interval + "\n            " + pushesNotCollected(3) + "\n            " + row.deploy +
+		"\n            <td>" + lead + "</td>\n"
+}
+
+// pushesNotCollected is the state cell of a push group n columns wide, with
+// no pushes.csv beside the history.
+func pushesNotCollected(n int) string {
+	return "<td colspan=\"" + strconv.Itoa(n) + "\">Pushes not collected yet</td>"
+}
+
+// developersRow is the end of a project's TBD row without pushes: the shares
+// state cell, then its Developers cell.
+func developersRow(developers string) string {
+	return pushesNotCollected(4) + "\n            " + tdRow(developers)
 }
 
 // TestRenderShowsTheMainlineLeadTimeOfEachProject (forsgren#256, step 2): with
@@ -94,10 +113,10 @@ func TestRenderShowsTheMainlineLeadTimeOfEachProject(t *testing.T) {
 	writePulls(t, data, acmePulls(t))
 	got := tbdSiteOf(t, validConfig, data)
 	wantIn(t, got, "<th scope=\"colgroup\" colspan=\"1\">PR Lead Time</th>",
-		leadRow(shopCell, "11 h ± 16 h 27 (3, 1 cut) · 66% (2 of 3) pull requests merged within 24 hours of "+
+		leadRow(shopRow, "11 h ± 16 h 27 (3, 1 cut) · 66% (2 of 3) pull requests merged within 24 hours of "+
 			"their first commit · the mean is a lower bound · 1 pull request timed by its created time"+
 			" · 1 bot pull request not counted"),
-		leadRow(noCells, noHumanPulls))
+		leadRow(noRow, noHumanPulls))
 }
 
 // TestRenderTbdPageBeforeThePullRequestsAreCollected (forsgren#256, step 2):
@@ -109,10 +128,10 @@ func TestRenderTbdPageBeforeThePullRequestsAreCollected(t *testing.T) {
 	pinNow(t)
 	const notYet = "No pull requests have been collected yet"
 	data := writeData(t, acmeHistory(), acmeCommits())
-	wantIn(t, tbdSiteOf(t, validConfig, data), leadRow(shopCell, notYet), leadRow(noCells, notYet))
+	wantIn(t, tbdSiteOf(t, validConfig, data), leadRow(shopRow, notYet), leadRow(noRow, notYet))
 	writePulls(t, data, nil)
 	got := tbdSiteOf(t, validConfig, data)
-	wantIn(t, got, leadRow(shopCell, noHumanPulls))
+	wantIn(t, got, leadRow(shopRow, noHumanPulls))
 	if strings.Contains(got, notYet) {
 		t.Errorf("want no %q with pulls.csv, got:\n%s", notYet, got)
 	}
