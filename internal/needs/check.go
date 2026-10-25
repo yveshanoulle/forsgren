@@ -89,9 +89,20 @@ type workflowFile struct {
 // grants its permission at its access, or write for a need of read. A
 // workflow that cannot be read or parsed is not in place.
 func permissionInPlace(n Need, at Installation) bool {
-	data, err := os.ReadFile(filepath.Join(at.Root, n.Workflow))
+	data, err := readInRoot(at.Root, n.Workflow)
 	var wf workflowFile
 	return err == nil && yaml.Unmarshal(data, &wf) == nil && grantsPermission(wf, n)
+}
+
+// readInRoot reads the file name through root, so a name with .., an absolute
+// name or a symlink that leaves root is refused (forsgren#407).
+func readInRoot(root, name string) ([]byte, error) {
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = r.Close() }() // read-only: a close error loses nothing
+	return r.ReadFile(name)
 }
 
 // grantsPermission reports whether some job of wf grants the permission of

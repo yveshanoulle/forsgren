@@ -1127,7 +1127,7 @@
   {
    "path": "internal/needs/check.go",
    "score": 10.0,
-   "checkedAt": "2026-10-07",
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
@@ -1140,6 +1140,12 @@
    "path": "internal/needs/needs_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-23",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/needs/check_root_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {

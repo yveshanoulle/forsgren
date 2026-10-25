@@ -9,6 +9,17 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — check-needs reads the workflow inside the checkout only ([#407](https://github.com/yveshanoulle/forsgren/issues/407), step 1 of 1)
+
+forsgren issue 407, bug, patch release. A code scanner flagged `internal/needs/check.go` for path traversal. Not exploitable today (the workflow of every need in the built-in `needs.yml` is `.github/workflows/forsgren.yml`), but nothing enforced it: an entry with `../` or an absolute path would have read outside the checkout silently.
+
+- The permission check reads the workflow through `os.OpenRoot` on the checkout (`readInRoot`), so `..`, an absolute path and a symlink leaving the checkout are refused by Go; a workflow that cannot be read stays not in place.
+- Red first: a need with workflow `../outside.yml`, with a granting file outside the checkout, was read and counted as in place; a symlink in `.github/workflows` to a granting file outside was followed. A third test holds every `workflow:` of `needs.yml` to a clean relative path under `.github/workflows/`.
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The TBD table: shorter headers and durations, PR Lead Time, deployments as a number ([#403](https://github.com/yveshanoulle/forsgren/issues/403), 1/1)
 
 forsgren issue 403, feature. Yves's rulings on the live TBD table: the Deployments cell is the number only (`87`, never `87 releases`); the headers Pull requests and Unknown authors of Shares of commits are PR and Unknown, each keeping its full meaning in an `aria-label` for screen readers; the group Mainline Lead Time is PR Lead Time; Time to main per commit (duration) stays. Every duration in the table is written in one TBD-only form (`tbdDuration`, one table test of every boundary): `3 h 22`, whole hours `2 h` (never `2 h 0`), minutes `7 m`, under a minute `< 1 m`, a day or more as before (`1 d 6 h`), each part cut down as before; the other pages keep their format. The PR Lead Time cell no longer says how many pull requests of unknown author were not counted. The legend follows (retired sentences are in `legendTbdRetired`), and so do the goldens, docs and CLAUDE.md.
