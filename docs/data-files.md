@@ -689,7 +689,10 @@ FORSGREN_TOKEN=<token> forsgren collect --config forsgren.config.yml --data data
 ```
 
 `collect` reads, for every repository in the config, that repository's
-deployments from GitHub's REST API by its `deployment` rule, and appends the
+deployments from GitHub's REST API by its `deployment` rule (what a
+repository must hold for each rule, and how to check it, is in
+[Giving a repository the deployments forsgren counts](configuration.md#giving-a-repository-the-deployments-forsgren-counts)),
+and appends the
 final ones to the history (see [History](#history)), the commits of each new
 successful one to `data/commits.csv` next to it, the repository's
 failure issues to `data/failures.csv` next to it, and the events of all its

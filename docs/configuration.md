@@ -299,6 +299,56 @@ A **failure** is an issue labelled `failure` whose body carries the failure
 record block (see [How it gets its data](data-files.md#how-it-gets-its-data)); lead time runs from a change's first
 commit. Neither is configured per repository in version 1.
 
+### Giving a repository the deployments forsgren counts
+
+forsgren counts what GitHub holds. A repository has to hold the records its
+`deployment` rule reads. What that means, per kind:
+
+- **`environment=<name>`**: GitHub must hold a deployment to the environment
+  `<name>` with a success status. When the deploy runs in a workflow, a
+  workflow job with `environment: production` makes GitHub record one:
+
+  ```yaml
+  jobs:
+    deploy:
+      runs-on: ubuntu-latest
+      environment: production
+      steps:
+        - run: ./deploy.sh
+  ```
+
+  When the deploy runs elsewhere (a script on a server, another service),
+  record it with the REST API after the deploy: create a deployment for the
+  commit that went live, then give it a success status. The first call
+  answers with the deployment's `id`.
+
+  ```
+  gh api repos/acme/app/deployments -f ref=COMMIT_SHA -f environment=production -F auto_merge=false
+  gh api repos/acme/app/deployments/DEPLOYMENT_ID/statuses -f state=success
+  ```
+
+  The token that makes the calls needs the repository permission
+  Deployments: Read and write (in a workflow, `deployments: write` in the
+  job's permissions). The deployment must name the commit that went live:
+  `ref` is the commit's SHA, not a branch name, because lead time is
+  measured from that commit.
+- **`workflow=<file>.yml`**: successful runs of that workflow on the default
+  branch. There is nothing to add: the runs are the records.
+- **`release`**: publish a GitHub Release (not a draft, not a prerelease).
+
+To check that a repository has the records, look at its Deployments (the
+front page) or Environments (Settings) on GitHub, or ask the API:
+
+```
+gh api repos/acme/app/deployments --jq '.[] | {environment, sha}'
+gh api repos/acme/app/deployments/DEPLOYMENT_ID/statuses --jq '.[].state'
+```
+
+The first call lists the environment and the commit of each deployment; the
+second lists the states of one deployment, and `success` must be among
+them. For `workflow=`, look at the Actions tab; for `release`, run
+`gh release list -R acme/app`.
+
 ### A setting that is not accepted
 
 A setting with a default (`view`, `auto_update`, `auto_update_level`,

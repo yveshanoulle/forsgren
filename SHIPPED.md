@@ -9,6 +9,16 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — The configuration page says what a repository must hold for each deployment kind ([#398](https://github.com/yveshanoulle/forsgren/issues/398), 1 step)
+
+forsgren issue 398, feature, patch release, shipped with #399, #417, #421, #422 and #423 in the release after 1.21.0. `docs/configuration.md` has a section, Giving a repository the deployments forsgren counts: per kind, `environment=<name>` (a workflow job with `environment: <name>`, or two REST calls after a deploy elsewhere, a deployment for the commit that went live and a success status, with the token permission Deployments: Read and write), `workflow=<file>` (successful runs on the default branch, nothing to add) and `release` (publish a GitHub Release); how to check a repository has them; and that the deployment must name the commit that went live. `docs/data-files.md` links to it where collecting deployments is described. Made-up names only (`acme/app`).
+
+- Red first: `TestConfigurationExplainsWhatEachDeploymentKindNeeds`, seen failing before the text.
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The TBD cells carry numbered notes instead of sentences ([#394](https://github.com/yveshanoulle/forsgren/issues/394), step 2 of 3)
 
 forsgren issue 394, feature, minor release with step 3 (the legend and the no-data row sentence of #433 are step 3). `metrics.NoteKind` (`internal/metrics/notes.go`) has five kinds with fixed numbers and one table of generic texts: (1) Mostly estimated: commits timed by author date, (2) Commits timed by author date, (3) The mean is a lower bound, (4) Pull requests timed by their created time, (5) Bot pull requests not counted; a new kind appends from (6). `MainlineInterval.MeanCell` and `MainlineLeadTime.Cell` return a `NotedCell` (value and `Note`s with counts); the interval note sits on the mean cell, so #423 can drop the gaps and the deviation, and the gaps cell is the number alone. The PR cell is written per #432 (`3 h ± 1 h · 4 (1 cut)`, then the share sentence). The TBD page writes the marker `(N)` with a visually hidden `note` before it and `aria-describedby="tbd-note-N"` on the cell (`templates/layout/notedcell.html`), and below the table a `details` element, summary Notes, open by default (#430, #431), with one list item `tbd-note-N` per kind that occurs and its projects with counts (`internal/page/tbdnotes.go`, `Data.TbdNotes`).
