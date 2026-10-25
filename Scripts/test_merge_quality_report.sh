@@ -14,6 +14,9 @@
 #      a cancelled job is cancelled, whatever else happened; no result is a
 #      usage error
 #   5. usage errors exit 64
+#   3b-3e (forsgren#426). the shard rows of one gate (`<gate> (shard N/M)`) are
+#      joined into the gate's one row: green only when every shard is green,
+#      red naming the shard that failed or reported no row
 #   (also: what a job hands over, full and empty, and merged back)
 # Each is proved against a mutant of the script that breaks it.
 
@@ -109,6 +112,64 @@ capture "$SCRIPT" merge "$C" "${TMP}/three.rows" "${TMP}/three.details"
 want_green "a job with no rows still merges the others" "1 gates from 2 jobs"
 want_said "the job that handed nothing over is named" "quality-report-isolation handed over no rows"
 
+# --- 3b. shards (forsgren#426): the jobs that run one gate in shards each hand
+# over a row named for their shard, `<gate> (shard N/M)`, and the merge joins
+# them into the one row of the gate, under the gate's own label, which is what
+# the order file declares and the renderers look up.
+D="${TMP}/shards"
+hand_over "$D" quality-report-main "gate a|✅" "gate z|✅"
+hand_over "$D" quality-report-part_1 "split gate (shard 1/2)|✅"
+hand_over "$D" quality-report-part_2 "split gate (shard 2/2)|✅"
+capture "$SCRIPT" merge "$D" "${TMP}/d.rows" "${TMP}/d.details"
+want_green "3b: two green shards merge" "merged 3 gates from 3 jobs"
+if [[ "$(tr '\n' ' ' < "${TMP}/d.rows")" == "gate a|✅ gate z|✅ split gate|✅ " ]]; then
+  echo "  ok: 3b: the two shard rows are one row under the gate's own label"
+else
+  fail "3b: the merged rows are $(tr '\n' ' ' < "${TMP}/d.rows")"
+fi
+if grep -qF 'out of quality-report-part_1' "${TMP}/d.details/split_gate.md" 2> /dev/null \
+  && grep -qF 'out of quality-report-part_2' "${TMP}/d.details/split_gate.md" 2> /dev/null; then
+  echo "  ok: 3b: the gate's details hold the output of both shards"
+else
+  fail "3b: the gate's details do not hold both shards: $(cat "${TMP}/d.details/split_gate.md" 2> /dev/null)"
+fi
+
+E="${TMP}/shards-red"
+hand_over "$E" quality-report-part_1 "split gate (shard 1/2)|✅"
+hand_over "$E" quality-report-part_2 "split gate (shard 2/2)|❌"
+capture "$SCRIPT" merge "$E" "${TMP}/e.rows" "${TMP}/e.details"
+want_green "3c: a red shard still merges" "merged 1 gates from 2 jobs"
+want_said "3c: the output names the red shard" "split gate: shard 2/2 failed"
+if [[ "$(cat "${TMP}/e.rows")" == "split gate|❌" ]]; then
+  echo "  ok: 3c: one red shard makes the gate's row red"
+else
+  fail "3c: the merged row is $(cat "${TMP}/e.rows")"
+fi
+if grep -qF '#### split gate (shard 2/2)|❌' "${TMP}/e.details/split_gate.md" 2> /dev/null; then
+  echo "  ok: 3c: the gate's details hold the red shard's output"
+else
+  fail "3c: the details lack the red shard: $(cat "${TMP}/e.details/split_gate.md" 2> /dev/null)"
+fi
+
+# A shard that handed over nothing must not leave the gate green.
+F="${TMP}/shards-missing"
+hand_over "$F" quality-report-part_1 "split gate (shard 1/2)|✅"
+mkdir -p "${F}/quality-report-part_2"
+capture "$SCRIPT" merge "$F" "${TMP}/f.rows" "${TMP}/f.details"
+want_said "3d: the missing shard is named" "split gate: shard 2/2 reported no row"
+if [[ "$(cat "${TMP}/f.rows")" == "split gate|❌" ]]; then
+  echo "  ok: 3d: a shard that reported nothing makes the gate's row red, never green"
+else
+  fail "3d: the merged row is $(cat "${TMP}/f.rows")"
+fi
+
+# The same shard reported by two jobs is the duplicate of case 2.
+G="${TMP}/shards-twice"
+hand_over "$G" quality-report-part_1 "split gate (shard 1/2)|✅"
+hand_over "$G" quality-report-part_2 "split gate (shard 1/2)|✅"
+capture "$SCRIPT" merge "$G" "${TMP}/g.rows" "${TMP}/g.details"
+want_red "3e: a shard reported by two jobs is red" "split gate (shard 1/2)"
+
 # --- 4. status
 capture "$SCRIPT" status success success
 want_green "all success is success" "success"
@@ -144,6 +205,17 @@ fi
 if run_mutant cancel 's/^ *cancelled) any_cancelled=1 ;;$/cancelled) any_failed=1 ;;/'; then
   capture "$MUT" status failure cancelled
   if [[ "$OUT" != "cancelled" ]]; then echo "  ok: mutation proof: a status that lets failure outrank cancelled is caught"; else fail "mutation proof: the cancel mutant still printed cancelled"; fi
+fi
+
+# Shards (forsgren#426): a merge that never joins leaves the shard rows apart,
+# and one that forgives a red or missing shard leaves the gate green.
+if run_mutant nojoin 's/^  join_shards "[$]rows_out" "[$]details_out"$/  :/'; then
+  capture "$MUT" merge "$D" "${TMP}/m3.rows" "${TMP}/m3.details"
+  if ! grep -qxF 'split gate|✅' "${TMP}/m3.rows"; then echo "  ok: mutation proof: a merge that never joins the shards is caught by case 3b"; else fail "mutation proof: the no-join mutant still joined the shards"; fi
+fi
+if run_mutant forgive 's/^    \[ "[$]state" = "ok" \] [|][|] mark="❌"$/    :/'; then
+  capture "$MUT" merge "$F" "${TMP}/m4.rows" "${TMP}/m4.details"
+  if grep -qxF 'split gate|✅' "${TMP}/m4.rows"; then echo "  ok: mutation proof: a merge that forgives a missing shard leaves the gate green, so cases 3c and 3d catch it"; else fail "mutation proof: the forgiving mutant still made the gate red"; fi
 fi
 
 selftest_end "the quality report merge does not hold" "merge_quality_report.sh merges the jobs' rows and details, refuses a gate reported twice and judges the run's status (each proved against a mutant)"

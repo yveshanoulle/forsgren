@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_git_sandbox_isolation_scope v1
+# canon: test_git_sandbox_isolation_scope v2
+# v2 (forsgren#426): cases 20 to 24 and mutations K and L for the --shard argument.
 # Scripts/test_git_sandbox_isolation_scope.sh (forsgren#251, decision 249)
 #
 # Self-test for the scope of Scripts/test_git_sandbox_isolation.sh: run locally
@@ -39,6 +40,10 @@
 #   H. the single run not under the decoy: the leak of case 15a goes unseen;
 #   I. the exec check never true: case 18 loses the Go-running self-test;
 #   J. the exec check always true: case 17 selects the Go-running self-test.
+# Shards (forsgren#426): cases 20 to 24 run --shard N/M over the fixture (two
+# shards together run each self-test once, a new one lands in one shard, a bad
+# shard is exit 64); K. the modulo ignored: shard 2/2 runs everything;
+# L. the N <= M check removed: shard 3/2 is accepted.
 
 set -euo pipefail
 
@@ -228,6 +233,66 @@ ci
 want_red "16: Quality, a self-test that leaks only without GIT_WORK_TREE" "test_leak_bare.sh (single run under the decoy: GIT_DIR, GIT_INDEX_FILE): the decoy repository: the config changed"
 reset
 
+# 20-24 (forsgren#426): a shard argument runs every n-th self-test of the sorted
+# list (index modulo n, from 1), so two shards together run each self-test
+# exactly once, a new self-test lands in one shard on its own, and a bad shard
+# is a usage error (64). The three fixture self-tests a, b and c count their
+# runs; sorted they are a, b, c, so shard 1/2 is a and c, shard 2/2 is b.
+shard() {
+  capture env GITHUB_ACTIONS=true bash "${FX}/Scripts/test_git_sandbox_isolation.sh" --shard "$1"
+}
+want_usage() {
+  if [[ "$RC" -ne 64 ]]; then
+    fail "$1: the exit code is ${RC}, wanted 64. Output: ${OUT}"
+  else
+    want_said "$1" "usage"
+  fi
+}
+reset
+counting
+shard 1/2
+want_green "20: shard 1/2 of three self-tests" "isolation: shard 1/2: 2 of 3 self-tests"
+want_said "20b: the shard's run is over its own self-tests" "OK: 2 git-using self-tests"
+if [[ "$(count_runs a)$(count_runs b)$(count_runs c)" == "101" ]]; then
+  echo "  ok: 20c: shard 1/2 ran a and c once, b not"
+else
+  fail "20c: shard 1/2 ran a $(count_runs a), b $(count_runs b), c $(count_runs c) time(s), wanted 1, 0, 1"
+fi
+shard 2/2
+want_green "21: shard 2/2 of three self-tests" "isolation: shard 2/2: 1 of 3 self-tests"
+want_runs "21b: the two shards together ran each self-test exactly once" 1
+
+reset
+counting
+shard 1/1
+want_green "22: shard 1/1 is the whole list" "isolation: shard 1/1: 3 of 3 self-tests"
+want_runs "22b: shard 1/1 ran each once" 1
+
+# 23: a new self-test (sorted last) lands in exactly one shard, with no list edited.
+reset
+counting
+printf '#!/usr/bin/env bash\ngit --version > /dev/null\necho run >> "%s/e"\n' "$RUNS" > "${FX}/Scripts/test_e.sh"
+shard 1/2
+shard 2/2
+if [[ "$(count_runs e)" == 1 ]]; then
+  echo "  ok: 23: a new self-test ran in exactly one of the two shards"
+else
+  fail "23: the new self-test ran $(count_runs e) time(s) over the two shards, wanted 1"
+fi
+rm -f "${FX}/Scripts/test_e.sh"
+
+# 24: a bad shard is a usage error, not a run.
+reset
+for bad in 0/2 3/2 x 1/0 1/2/3 -1/2 ""; do
+  shard "$bad"
+  want_usage "24: shard '${bad}' is a usage error"
+done
+capture env GITHUB_ACTIONS=true bash "${FX}/Scripts/test_git_sandbox_isolation.sh" --shard
+want_usage "24b: --shard without a value is a usage error"
+capture env GITHUB_ACTIONS=true bash "${FX}/Scripts/test_git_sandbox_isolation.sh" --nope
+want_usage "24c: an unknown argument is a usage error"
+reset
+
 # Mutation proofs: the isolation script of the fixture is mutated and pushed to
 # the fixture's origin (so the mutation is not itself a change), the change a
 # case needs is made, and the case must no longer hold.
@@ -382,4 +447,21 @@ if mutate 's/^  GO_STARTER="[$](go_starter)"$/  GO_STARTER="cmd\/app\/main.go"/'
   restore
 fi
 
-selftest_end "the git sandbox isolation scope self-test failed" "git sandbox isolation scope: every case holds, ten mutations seen"
+# K and L (forsgren#426): the fixture has four self-tests by now (a, b, c, gorun).
+if mutate 's/-eq [$]((SHARD_N - 1))/-ge 0/'; then
+  shard 2/2
+  proof K "shard 2/2: 2 of 4" "with the modulo ignored, shard 2/2 runs more than its own half, case 21 is red"
+  restore
+fi
+
+if mutate 's/\[\[ "[$]SHARD_N" -le "[$]SHARD_M" \]\] || usage/:/'; then
+  shard 3/2
+  if [[ "$RC" -eq 64 ]]; then
+    fail "mutation proof L: with the N <= M check removed, shard 3/2 was still a usage error"
+  else
+    echo "  ok: mutation proof L: without the N <= M check, shard 3/2 is accepted, case 24 is red"
+  fi
+  restore
+fi
+
+selftest_end "the git sandbox isolation scope self-test failed" "git sandbox isolation scope: every case holds, twelve mutations seen"

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_run_ci_phase v2
+# canon: test_run_ci_phase v3
+# v3 (forsgren#426): the shards case (group rows with arguments) and two mutations; the jobs of the real-order case come from the group file.
 # Scripts/test_run_ci_phase.sh
 #
 # Self-test for Scripts/run_ci_phase.sh, the loop CI runs over the rows of
@@ -57,8 +58,8 @@ fail() { echo "❌ FAIL: $*"; failed=1; }
 [[ -f "$ORDER" ]] || { echo "FAIL: ${ORDER} not found" >&2; exit 1; }
 
 # The runner's canon line must be in its first 40 lines.
-head -40 "$RUNNER" | has -xF '# canon: run_ci_phase v1' \
-  || fail "${RUNNER} has no '# canon: run_ci_phase v1' line in its first 40 lines"
+head -40 "$RUNNER" | has -xF '# canon: run_ci_phase v2' \
+  || fail "${RUNNER} has no '# canon: run_ci_phase v2' line in its first 40 lines"
 
 REAL_RUNNER="$(pwd)/${RUNNER}"
 TMP="$(mktemp -d)"
@@ -92,6 +93,7 @@ stub() {
     cat <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "${0#./}" >> "$STUB_TRACE"
+printf '%s|%s\n' "${0#./}" "$*" >> "${STUB_TRACE}.args"
 STUB
     printf 'echo "stub output of %s"\n' "$path"
     [[ -z "$writes" ]] || printf 'echo changed >> tracked.txt\n'
@@ -278,7 +280,7 @@ case_usage() {
   return 0
 }
 
-# groups <lines...>: the sandbox's job group file, one `<job>|<label>` per line.
+# groups <lines...>: the sandbox's job group file, one `<job>|<label>[|<args>]` per line.
 groups() {
   printf '%s\n' "$@" > "${SB}/Scripts/ci_job_groups.txt"
 }
@@ -331,6 +333,47 @@ case_job_groups() {
   return 0
 }
 
+# SHARDS (forsgren#426). A group row may carry a third field, the arguments the
+# job runs the gate with: `<job>|<label>|<args>`. Two jobs may then name the
+# same label, each with its own arguments (--shard 1/2, --shard 2/2): the main
+# job skips the gate, each job runs it with its arguments, and the row it
+# records names the shard, `<label> (shard 1/2)`, so a red names its shard.
+case_shards() {
+  RUN_JOB=""
+  new_sandbox "$1"
+  order "main one|Scripts/pass_a.sh|pre|" "split one|Scripts/pass_b.sh|pre|" "split post|Scripts/pass_c.sh|post|"
+  stub Scripts/pass_a.sh 0
+  stub Scripts/pass_b.sh 0
+  stub Scripts/pass_c.sh 0
+  groups "part_1|split one|--shard 1/2" "part_2|split one|--shard 2/2" "other|split post"
+  run_phase pre
+  [[ "$RUN_RC" -eq 0 ]] || echo "the main job over a split gate: exit ${RUN_RC}, want 0: ${RUN_OUT}"
+  [[ "$(cat "$TRACE")" == "Scripts/pass_a.sh" ]] || echo "the main job must skip a gate the group file splits; it ran: $(tr '\n' ' ' < "$TRACE")"
+  : > "$TRACE"
+  rm -f "${TRACE}.args"
+  RUN_JOB=part_1 run_phase pre
+  [[ "$RUN_RC" -eq 0 ]] || echo "job part_1: exit ${RUN_RC}, want 0: ${RUN_OUT}"
+  [[ "$(cat "$TRACE")" == "Scripts/pass_b.sh" ]] || echo "job part_1 must run the split gate once; it ran: $(tr '\n' ' ' < "$TRACE")"
+  [[ "$(cat "${TRACE}.args" 2>/dev/null)" == "Scripts/pass_b.sh|--shard 1/2" ]] \
+    || echo "job part_1 must run the gate with its arguments as two words; the stub was called: $(tr '\n' ' ' < "${TRACE}.args" 2>/dev/null)"
+  [[ "$(cat "$RUN_ROWS" 2>/dev/null)" == "split one (shard 1/2)|✅" ]] || echo "job part_1 must record a row that names its shard; it recorded: $(rows_text)"
+  [[ -f "${RUN_DETAILS}/split_one__shard_1_2_.md" ]] || echo "job part_1 must write the details under the shard row's slug; it wrote: $(find "$RUN_DETAILS" -type f | tr "\n" " ")"
+  rm -f "${TRACE}.args"
+  RUN_JOB=part_2 run_phase pre
+  [[ "$(cat "${TRACE}.args" 2>/dev/null)" == "Scripts/pass_b.sh|--shard 2/2" ]] \
+    || echo "job part_2 must run the gate with its own arguments; the stub was called: $(tr '\n' ' ' < "${TRACE}.args" 2>/dev/null)"
+  [[ "$(cat "$RUN_ROWS" 2>/dev/null)" == "split one (shard 2/2)|✅" ]] || echo "job part_2 must record its shard row; it recorded: $(rows_text)"
+  RUN_JOB=other run_phase post
+  [[ "$(cat "$RUN_ROWS" 2>/dev/null)" == "split post|✅" ]] || echo "a group row without arguments keeps the plain label; it recorded: $(rows_text)"
+  stub Scripts/pass_b.sh 1
+  RUN_JOB=part_2 run_phase pre
+  [[ "$RUN_RC" -eq 1 ]] && grep -qF 'split one (shard 2/2) failed' <<< "$RUN_OUT" \
+    || echo "a red shard must name its shard in the error line, exit ${RUN_RC}: ${RUN_OUT}"
+  [[ "$(cat "$RUN_ROWS" 2>/dev/null)" == "split one (shard 2/2)|❌" ]] || echo "a red shard must record a red row naming its shard; it recorded: $(rows_text)"
+  RUN_JOB=""
+  return 0
+}
+
 # The REAL order file, with a stub for every runnable row: both phases pass and
 # between them run each row exactly once, in its own phase. A real row the
 # runner would call malformed fails here.
@@ -345,28 +388,29 @@ case_real_order_file() {
   done < <(grep -v '^#' "$ORDER" | grep .)
   run_phase pre
   [[ "$RUN_RC" -eq 0 ]] || echo "pre over the real order file exited ${RUN_RC}: ${RUN_OUT}"
-  RUN_JOB=lint run_phase pre
-  [[ "$RUN_RC" -eq 0 ]] || echo "pre of the lint job over the real order file exited ${RUN_RC}: ${RUN_OUT}"
-  RUN_JOB=isolation run_phase pre
-  [[ "$RUN_RC" -eq 0 ]] || echo "pre of the isolation job over the real order file exited ${RUN_RC}: ${RUN_OUT}"
-  RUN_JOB=summary run_phase pre
-  [[ "$RUN_RC" -eq 0 ]] || echo "pre of the summary job over the real order file exited ${RUN_RC}: ${RUN_OUT}"
-  RUN_JOB=browser run_phase pre
-  [[ "$RUN_RC" -eq 0 ]] || echo "pre of the browser job over the real order file exited ${RUN_RC}: ${RUN_OUT}"
-  RUN_JOB=browser run_phase post
-  [[ "$RUN_RC" -eq 0 ]] || echo "post of the browser job over the real order file exited ${RUN_RC}: ${RUN_OUT}"
-  RUN_JOB=workflows run_phase pre
-  [[ "$RUN_RC" -eq 0 ]] || echo "pre of the workflows job over the real order file exited ${RUN_RC}: ${RUN_OUT}"
+  # Every job the group file names, in every phase it has a row in (the jobs
+  # are read from the data file, not spelled here).
+  while IFS='|' read -r job; do
+    [[ -n "$job" ]] || continue
+    for phase in pre post; do
+      awk -F'|' -v j="$job" -v ph="$phase" 'NR == FNR { if ($0 !~ /^#/ && $1 == j) want[$2] = 1; next } $0 !~ /^#/ && ($1 in want) && $3 == ph { f = 1 } END { exit !f }' \
+        Scripts/ci_job_groups.txt "$ORDER" || continue
+      RUN_JOB="$job" run_phase "$phase"
+      [[ "$RUN_RC" -eq 0 ]] || echo "${phase} of the job ${job} over the real order file exited ${RUN_RC}: ${RUN_OUT}"
+    done
+  done < <(awk -F'|' '$0 !~ /^#/ && $1 != "" && !seen[$1]++ { print $1 }' Scripts/ci_job_groups.txt)
   RUN_JOB=""
   run_phase post
   [[ "$RUN_RC" -eq 0 ]] || echo "post over the real order file exited ${RUN_RC}: ${RUN_OUT}"
-  want="$(grep -v '^#' "$ORDER" | grep . | awk -F'|' '$2 != "n/a" { print $2 }' | LC_ALL=C sort)"
+  # Each runnable row runs once, or once per group row that names it (a split
+  # gate runs once in each of its shard jobs).
+  want="$(awk -F'|' 'NR == FNR { if ($0 !~ /^#/ && $2 != "") n[$2]++; next } $0 !~ /^#/ && $2 != "" && $2 != "n/a" { for (i = 0; i < (n[$1] ? n[$1] : 1); i++) print $2 }' Scripts/ci_job_groups.txt "$ORDER" | LC_ALL=C sort)"
   got="$(LC_ALL=C sort "$TRACE")"
   [[ "$got" == "$want" ]] || echo "the jobs and phases did not run every runnable row exactly once"
   return 0
 }
 
-CASES=(na_skip phase_filter secret_class dirty_tree empty_phase missing_script non_executable bad_row usage job_groups real_order_file)
+CASES=(na_skip phase_filter secret_class dirty_tree empty_phase missing_script non_executable bad_row usage job_groups shards real_order_file)
 
 # --- 1. the real runner passes every case ------------------------------------
 for c in "${CASES[@]}"; do
@@ -421,11 +465,19 @@ mutation_proof "a runner that accepts an empty phase" \
 
 # The main job runs a gate the group file gives to another job: it runs twice.
 mutation_proof "a runner whose main job runs the gates of other jobs" \
-  $'s/^    \\[ "\\$\\(gate_job "\\$label"\\)" = "\\$JOB" \\] \\|\\| continue$/    true/' job_groups
+  $'s/^    in_job "\$label" \|\| continue$/    true/' job_groups
 
 # A job runs the gates of main, not its own.
 mutation_proof "a runner whose jobs ignore their group" \
   $'s/^JOB="\\$\\{4:-main\\}"$/JOB="main"/' job_groups
+
+# A shard job runs its gate without the group row's arguments.
+mutation_proof "a runner that drops the arguments of a group row" \
+  $'s/" \\$args </" </' shards
+
+# A shard row keeps the plain label, so a red cannot name its shard.
+mutation_proof "a runner that does not name the shard in the row" \
+  $'s/^    label="\\$\\{label\\} \\(.*$/    :/' shards
 
 COMPLETED=1
 

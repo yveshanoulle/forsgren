@@ -423,8 +423,12 @@ Seven PRE gates read the repository's own scripts and files:
   rule back on at once. Today none does, so a Go change selects nothing; the
   gate prints `isolation: Go changes select nothing, no non-test Go file starts
   a program`, or `isolation: Go changes count, <file> starts a program`.
-  `FORSGREN_ISOLATION_FULL=1` forces the full run. In Quality this gate runs in
-  its own `isolation` job (forsgren#259); the browser gates and their
+  `FORSGREN_ISOLATION_FULL=1` forces the full run. `--shard N/M` (forsgren#426,
+  canon v2) runs every M-th self-test of the sorted list (index modulo M,
+  1 <= N <= M; a bad shard is exit 64) and says `isolation: shard N/M: k of n
+  self-tests`; Quality runs the two shards as the jobs `isolation_1` and
+  `isolation_2` (forsgren#259, forsgren#426), `FBP.sh` and `sfl.sh` run all. The
+  browser gates and their
   self-tests run in the `browser` job. Its scope self-test, which also proves the Quality single run (each
   self-test once; a leaking self-test turns it red naming the self-test, the
   single run and the reason), is `Scripts/test_git_sandbox_isolation_scope.sh`.
@@ -432,16 +436,20 @@ Seven PRE gates read the repository's own scripts and files:
   (`Scripts/test_quality_jobs.sh` and `Scripts/test_merge_quality_report.sh`,
   forsgren's own, forsgren#259): Quality runs its slowest gates in parallel
   jobs of one workflow (docs/ci.md, Jobs). In CI the git sandbox isolation
-  self-test and the step summary isolation gate run in the `isolation` job,
-  and actionlint, shellcheck, yamllint and zizmor with their self-tests in the
+  self-test runs in two shards in the jobs `isolation_1` and `isolation_2`
+  (forsgren#426; the merge joins their rows into the gate's one row, red naming
+  the shard that failed or reported nothing), the step summary isolation gate
+  in the `summary` job, and actionlint, shellcheck, yamllint and zizmor with their self-tests in the
   `lint` job (forsgren#282; `Scripts/ci_job_groups.txt`; the order file is
   unchanged, and `sfl.sh` and FBP run every row as before).
-  The pin is red when the isolation job is missing, off `macos-latest` or
+  The pin is red when an isolation job is missing, off `macos-latest` or
   without the main job's setup (the lint and browser jobs likewise, the lint
   job running exactly its PRE rows, and the browser job must run
   PRE, its own site build, then POST), when a `run_ci_phase.sh` call lacks its job
   name, when a step names an isolation or lint gate itself, when the group
-  file does not give the lint job exactly its nine rows or a lint row is no
+  file does not give the two isolation jobs the git sandbox isolation
+  self-test, one shard each (`--shard 1/2` and `--shard 2/2`), or the lint job
+  exactly its nine rows or a lint row is no
   pre row, when a job's hand-over is
   not `if: always()` or not under its name, when the report job lacks a job in
   `needs:`, `if: always()`, the merge, or a gate job's `QS_<JOB>_RESULT` in

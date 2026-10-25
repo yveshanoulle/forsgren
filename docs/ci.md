@@ -55,15 +55,43 @@ jobs and one verdict: the run's conclusion is success only when every job
 succeeded, and that conclusion is what the Release reads
 (`Scripts/release_quality.sh` lists the runs of `quality.yml` and reads each
 run's status and conclusion, never a job). The main job `quality` runs every gate that
-`Scripts/ci_job_groups.txt` does not give to another job. The `isolation` job
-runs the git sandbox isolation self-test (the one row that file lists for it)
+`Scripts/ci_job_groups.txt` does not give to another job. The jobs `isolation_1`
+and `isolation_2` (forsgren#426, named `Isolation gates 1/2` and `Isolation
+gates 2/2`) run the git sandbox isolation self-test in two shards, one each,
 with the same setup as the main job: checkout, the gate environment, Node,
-`Scripts/install_tools.sh` and `npm ci`. It builds no site, since it is a PRE
+`Scripts/install_tools.sh` and `npm ci`. They build no site, since it is a PRE
 row. The `summary` job (forsgren#425, named `Summary isolation gates`) runs the
 step summary isolation gate with the same setup: the two gates took 15 minutes
 in one job (the self-test 9 min 27 s, the gate 4 min 15 s, the setup 1.5
-minutes) and now run side by side, about 11 and 6 minutes. The report job's
-status takes its result too, and the `preview` job `needs:` it. `Scripts/run_ci_phase.sh <pre|post> <rows>
+minutes) and now run side by side, about 11 and 6 minutes; the self-test's own
+9 min 27 s is then halved by the two shards, about 6 to 7 minutes per shard job
+with its setup (forsgren#426). The report job's status takes the results of the
+isolation jobs and of the summary job too, and the `preview` job `needs:` them.
+
+**Shards** (forsgren#426). A gate that is too long for one job runs in several,
+each with a shard of its own. A row of `Scripts/ci_job_groups.txt` may carry a
+third field, `<job>|<label>|<args>`, the arguments the job runs the gate with,
+and the same label may stand in several jobs: `isolation_1|git sandbox
+isolation self-test|--shard 1/2` and `isolation_2|git sandbox isolation
+self-test|--shard 2/2`. The main job skips the gate, each shard job runs it with
+its arguments, and `Scripts/run_ci_phase.sh` records its row as `<label> (shard
+N/M)` (the arguments without their dashes), so a red names its shard in the
+error line, the row and the details. `Scripts/test_git_sandbox_isolation.sh`
+takes `--shard N/M` and runs the self-tests at positions N, N+M, N+2M of the
+sorted list of git-using self-tests (index modulo M, in the C locale): every
+self-test runs in exactly one shard and a new one lands in one by itself, with
+no list to edit; a bad shard (`0/2`, `3/2`, `x`) is a usage error, exit 64. The
+sharding is of the whole list, before the scope picks the affected ones, so the
+split does not move with the commit. Without the argument the gate runs all, as
+`FBP.sh` and `sfl.sh` do: they run every order-file row once, never a shard.
+`Scripts/merge_quality_report.sh merge` joins the shard rows of one gate into
+the one row under the gate's own label, the one the order file declares: green
+only when every shard reported green, red naming the shard that failed
+(`<gate>: shard 2/2 failed`) or reported no row (`reported no row`), so a shard
+job that died early never leaves the gate green. The gate's details hold the
+output of every shard. Another long gate shards the same way: its rows get
+`--shard` in the group file, one job each in `quality.yml`, and a test of
+`--shard` in the gate's own script. `Scripts/run_ci_phase.sh <pre|post> <rows>
 <details> [job]` takes the job as its fourth argument (default `main`): a gate
 the group file lists runs in that job only, every other gate in the main job,
 so a gate is never in two jobs or none, and a group file that names a gate the
@@ -137,7 +165,7 @@ page-count sink, `cmd/forsgren/main.go`) and from the job's status and step
 outcomes, passed through `env:`. The gate jobs are the jobs of
 `Scripts/ci_job_groups.txt`, in its order, each read from its
 `QS_<JOB>_RESULT` (`needs.<job>.result`): a red one is named in the red list
-(`red in: isolation job, browser job`), a cancelled or skipped one as such
+(`red in: isolation_2 job, browser job`), a cancelled or skipped one as such
 (`browser job cancelled`), never as red, and a run whose every job and phase
 is green keeps its line. A number that does not exist, from a phase
 that never ran or an output that is missing, shows as `—` with the reason,

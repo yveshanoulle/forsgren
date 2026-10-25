@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_git_sandbox_isolation v1
+# canon: test_git_sandbox_isolation v2
+# v2 (forsgren#426): an optional --shard N/M runs every M-th self-test of the sorted list.
 # Scripts/test_git_sandbox_isolation.sh
 #
 # Self-test: a self-test run with GIT_DIR, GIT_WORK_TREE and
@@ -38,10 +39,34 @@
 # the decoy (the two leak shapes below). In Quality (GITHUB_ACTIONS=true) it runs
 # once, under the decoy with GIT_DIR and GIT_INDEX_FILE, and the leak check is
 # done after that run.
+#
+# SHARDS (forsgren#426). `--shard N/M` (1 <= N <= M) runs only the self-tests at
+# positions N, N+M, N+2M, ... of the sorted list of git-using self-tests (index
+# modulo M), so M runs with N = 1..M together run every self-test exactly once,
+# and a new self-test lands in one shard by itself, with no list to edit.
+# Quality runs the two shards as two jobs (Scripts/ci_job_groups.txt); without
+# the argument every self-test runs, as FBP does. The sharding applies to the
+# whole list before the scope above picks the affected ones, so the split does
+# not move when a commit changes. A bad shard is a usage error (exit 64).
 
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
+
+usage() {
+  echo "usage: test_git_sandbox_isolation.sh [--shard N/M]  (1 <= N <= M)" >&2
+  exit 64
+}
+
+SHARD_N=""
+SHARD_M=""
+if [[ "$#" -gt 0 ]]; then
+  [[ "$#" -eq 2 && "$1" == "--shard" ]] || usage
+  [[ "$2" =~ ^([1-9][0-9]*)/([1-9][0-9]*)$ ]] || usage
+  SHARD_N="${BASH_REMATCH[1]}"
+  SHARD_M="${BASH_REMATCH[2]}"
+  [[ "$SHARD_N" -le "$SHARD_M" ]] || usage
+fi
 
 # shellcheck source=Scripts/lib_git_sandbox.sh
 source Scripts/lib_git_sandbox.sh
@@ -121,6 +146,32 @@ for t in Scripts/test_*.sh; do
 done
 if [[ "${#TESTS[@]}" -lt 3 ]]; then
   fail "only ${#TESTS[@]} git-using self-tests found: the detector is broken, not the repository"
+fi
+
+# shard_tests: keeps the self-tests at positions N, N+M, ... of the list sorted
+# in the C locale (index modulo M), so the split does not depend on the locale.
+shard_tests() {
+  local sorted t i=0 kept=()
+  sorted="$(printf '%s\n' "${TESTS[@]}" | LC_ALL=C sort)"
+  while IFS= read -r t; do
+    [[ -z "$t" ]] && continue
+    if [[ $((i % SHARD_M)) -eq $((SHARD_N - 1)) ]]; then
+      kept+=("$t")
+    fi
+    i=$((i + 1))
+  done <<< "$sorted"
+  SHARD_TOTAL="$i"
+  TESTS=("${kept[@]+"${kept[@]}"}")
+}
+SHARD_NOTE=""
+if [[ -n "$SHARD_N" ]]; then
+  shard_tests
+  SHARD_NOTE="shard ${SHARD_N}/${SHARD_M}: ${#TESTS[@]} of ${SHARD_TOTAL} self-tests"
+  echo "isolation: ${SHARD_NOTE}"
+  if [[ "${#TESTS[@]}" -eq 0 && "$failed" -eq 0 ]]; then
+    echo "OK: ${SHARD_NOTE%%:*} holds no git-using self-test; the other shards run all ${SHARD_TOTAL}"
+    exit 0
+  fi
 fi
 
 # go_starter: the first non-test Go file under cmd/ or internal/ (not *_test.go,

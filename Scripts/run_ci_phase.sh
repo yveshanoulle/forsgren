@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: run_ci_phase v1
+# canon: run_ci_phase v2
+# v2 (forsgren#426): a group row may carry arguments, so one gate runs as shards in several jobs.
 # Scripts/run_ci_phase.sh <pre|post> <rows-file> <details-dir> [job]
 #
 # CI's gate loop. .github/workflows/quality.yml calls it
@@ -57,6 +58,15 @@
 # job, and a job the group file does not name is a usage error (64). A
 # malformed row is red in the main job only.
 #
+# SHARDS (forsgren#426). A group row may carry a third field, the arguments the
+# job runs the gate with: `<job>|<label>|--shard 1/2`. Several jobs may name the
+# same label, each with its own arguments; the gate then runs in each of those
+# jobs and in no other, with the arguments as separate words, and the row it
+# records is named for them, `<label> (shard 1/2)` (the arguments without their
+# leading dashes), so a red names its shard and the report job can join the
+# shards of one gate (Scripts/merge_quality_report.sh). A row with no third
+# field is the plain `<job>|<label>` it always was.
+#
 # Exit: 0 all rows of the phase passed; 1 a row failed, or the phase has no
 # row at all (a phase that ran nothing is not green); 2 a secret-class row
 # failed; 64 bad usage.
@@ -94,13 +104,21 @@ if [ ! -f "$ORDER" ]; then
   exit 1
 fi
 
-# gate_job <label>: the job the gate runs in, main unless the group file lists it.
-gate_job() {
-  local job=""
-  if [ -f "$JOB_GROUPS" ]; then
-    job="$(awk -F'|' -v l="$1" '$0 !~ /^#/ && $2 == l { print $1; exit }' "$JOB_GROUPS")"
+# in_job <label>: succeeds when the gate runs in this job. The main job runs
+# every gate the group file does not list; another job runs the gates it lists.
+in_job() {
+  if [ "$JOB" = "main" ]; then
+    [ ! -f "$JOB_GROUPS" ] || ! awk -F'|' -v l="$1" '$0 !~ /^#/ && $2 == l { f = 1 } END { exit !f }' "$JOB_GROUPS"
+  else
+    [ -f "$JOB_GROUPS" ] && awk -F'|' -v j="$JOB" -v l="$1" '$0 !~ /^#/ && $1 == j && $2 == l { f = 1 } END { exit !f }' "$JOB_GROUPS"
   fi
-  printf '%s\n' "${job:-main}"
+}
+
+# job_args <label>: the arguments this job runs the gate with (the group row's
+# third field), empty for the main job and for a row without one.
+job_args() {
+  [ "$JOB" != "main" ] && [ -f "$JOB_GROUPS" ] || return 0
+  awk -F'|' -v j="$JOB" -v l="$1" '$0 !~ /^#/ && $1 == j && $2 == l { print $3; exit }' "$JOB_GROUPS"
 }
 
 # The job must exist, and every gate the group file names must be a row of
@@ -112,7 +130,7 @@ if [ "$JOB" != "main" ]; then
   fi
 fi
 if [ -f "$JOB_GROUPS" ]; then
-  while IFS='|' read -r group_job group_label || [ -n "${group_job:-}${group_label:-}" ]; do
+  while IFS='|' read -r group_job group_label _group_args || [ -n "${group_job:-}${group_label:-}" ]; do
     case "$group_job" in \#*|'') continue ;; esac
     if [ -z "${group_label:-}" ] || ! awk -F'|' -v l="$group_label" '$0 !~ /^#/ && $1 == l && $2 != "" { f = 1 } END { exit !f }' "$ORDER"; then
       echo "❌ FAIL: ${JOB_GROUPS} names the gate '${group_label:-}' for the job ${group_job}, which is no row of ${ORDER} — the gate would run in no job" >&2
@@ -155,6 +173,7 @@ ran=0
 failed=0
 secret_failed=0
 failed_labels=""
+args=""
 
 while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:-}" ]; do
   case "$label" in
@@ -192,12 +211,16 @@ while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:
   fi
   if [ -z "$bad" ]; then
     [ "$phase" = "$PHASE" ] || continue
-    [ "$(gate_job "$label")" = "$JOB" ] || continue
+    in_job "$label" || continue
   else
     [ "$JOB" = "main" ] || continue
   fi
 
   ran=$((ran + 1))
+  args="$(job_args "$label")"
+  if [ -n "$args" ]; then
+    label="${label} ($(printf '%s' "$args" | sed 's/^-*//'))"
+  fi
   echo "::group::${label}"
 
   if [ -n "$bad" ]; then
@@ -210,7 +233,8 @@ while IFS='|' read -r label script phase gate_class || [ -n "${label:-}${script:
     out="❌ ${label} declares ${script}, which is not an executable script"
     rc=1
   else
-    out="$("./${script}" < /dev/null 2>&1)" && rc=0 || rc=$?
+    # shellcheck disable=SC2086 # the group row's arguments are words on purpose
+    out="$("./${script}" $args < /dev/null 2>&1)" && rc=0 || rc=$?
 
     if ! tree_after="$(git status --porcelain 2>&1)"; then
       out="${out}"$'\n'"❌ FAIL: git status failed after ${label}: ${tree_after}"

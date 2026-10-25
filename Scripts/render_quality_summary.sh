@@ -31,7 +31,7 @@
 #                       cancelled, skipped, or empty when never reached
 #       QS_<JOB>_RESULT the result of each gate job outside the main job,
 #                       one per job of Scripts/ci_job_groups.txt
-#                       (QS_ISOLATION_RESULT, QS_BROWSER_RESULT,
+#                       (QS_ISOLATION_1_RESULT, QS_ISOLATION_2_RESULT, QS_BROWSER_RESULT,
 #                       QS_LINT_RESULT, QS_WORKFLOWS_RESULT;
 #                       needs.<job>.result, forsgren#282, #408):
 #                       success, failure, cancelled, skipped, or empty when
