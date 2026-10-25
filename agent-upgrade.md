@@ -791,6 +791,26 @@ minute and run that check again, at most 5 times, before you report it.
 Numbers such as "No deployments" are not a failure: they show what GitHub
 holds for the history.
 
+A repository that shows "No deployments" although it ships may have no
+records for forsgren to count. Look at its `deployment:` line in
+`forsgren.config.yml` (read only) and at what GitHub holds for it (the
+commands of step 3 of [agent-installer.md](agent-installer.md)). Then offer
+the person the help below. Only with the person's yes, for each:
+
+- The deploy runs in a workflow job without an environment: propose
+  `environment: production` on the deploy job, and show the lines.
+- The deploy runs outside GitHub Actions: propose a record step after the
+  deploy, the two calls of
+  [Giving a repository the deployments forsgren counts](docs/configuration.md#giving-a-repository-the-deployments-forsgren-counts)
+  (made-up names `acme/app`; the token needs the permission
+  Deployments: Read and write, `deployments: write` in a workflow).
+
+Never push to a product repository on your own: show the change and let the
+person make it. When the person has made it, check that the next deploy
+shows: `gh api repos/acme/app/deployments --jq '.[0] | {environment, sha}'`
+names the commit that went live. Do not wait for it; this upgrade is done
+without it.
+
 Then go on to step 10.
 
 ## Step 10. Tell the person it is done

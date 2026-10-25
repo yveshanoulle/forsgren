@@ -296,7 +296,30 @@ For every repository the person named, replacing `acme/app`:
      Ask the person which workflow it is when more than one could be.
    - Otherwise published releases exist: `release`.
    - None of these: tell the person forsgren will find nothing to count for
-     that repository, and ask whether to keep it.
+     that repository, ask whether to keep it, and offer the help in item 4.
+4. Nothing is found, or a deploy job has no environment (a workflow of item 2
+   that deploys, whose deploy job has no `environment:` line). Offer the
+   help below, each only with the person's yes, and say which repository it
+   is for:
+   - The deploy runs in a workflow job: propose `environment: production` on
+     the deploy job, and show the lines. GitHub then records each deploy of
+     that job as a deployment.
+   - The deploy runs outside GitHub Actions: propose a record step after the
+     deploy. It makes the two calls of
+     [Giving a repository the deployments forsgren counts](docs/configuration.md#giving-a-repository-the-deployments-forsgren-counts)
+     (made-up names `acme/app`): create a deployment for the commit that went
+     live (`gh api repos/acme/app/deployments -f ref=COMMIT_SHA -f
+     environment=production`, `ref` is the commit SHA), then a status
+     `success` on it. The token that
+     makes them needs the repository permission Deployments: Read and write,
+     or `deployments: write` in the job's permissions.
+
+   Only with the person's yes, and show the change as text. Never push to a
+   product repository on your own: the person makes the change. When it is
+   made, check that the next deploy shows:
+   `gh api repos/acme/app/deployments --jq '.[0] | {environment, sha}'` names
+   the commit that went live. Do not hold the setup for it: write the
+   `deployment:` line the person chose and go on.
 
 Then decide the token route:
 

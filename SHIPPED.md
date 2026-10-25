@@ -9,6 +9,16 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — The installer and the upgrader help a repository that has no deployments to count ([#399](https://github.com/yveshanoulle/forsgren/issues/399), 1 step)
+
+forsgren issue 399, feature, patch release, shipped with #398, #417, #421, #422 and #423 in the release after 1.21.0. `agent-installer.md` step 3 (item 4) helps when nothing is found or a deploy job has no environment: propose `environment: production` on the deploy job, or a record step after a deploy outside Actions (the two API calls and the permission), each only with the person's yes, never pushing to a product repository, then check that the next deploy shows. `agent-upgrade.md` step 9 gives the same help where "No deployments" shows. `agent-delete.md` was checked: it says nothing about deployments, so it is unchanged.
+
+- Red first: `TestInstallerHelpsWhenNoDeploymentIsFound`, `TestUpgraderHelpsWhenNoDeploymentShows`, seen failing before the text; `TestDeleterSaysNothingAboutDeploymentSetup` pins the check.
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The TBD table shows the median only by default, and the key tbd_figures shows mean, median and p90 ([#423](https://github.com/yveshanoulle/forsgren/issues/423), 1 step)
 
 forsgren issue 423, feature, minor release 1.22.0 (a new config key; the documentation of 1.22.0 rides with #417). Yves's decisions #424 (C: the Mainline Interval's gaps leave the table in both modes) and #432 (the PR Lead Time follows the other groups). The new key `tbd_figures` is `median` (the default) or `all` (`internal/config/tbdfigures.go`, `checkTbdFigures`, `Config.TbdFigures`; `Accepted`, `settingKeys` before `same_developer`, the settings page row with its possible values, a commented line in `starter.yml`); any other value is rejected, the default is in force and the settings page says why.
