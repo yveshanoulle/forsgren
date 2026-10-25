@@ -287,3 +287,42 @@ func TestLegendSaysEachTbdSentenceOnce(t *testing.T) {
 		}
 	}
 }
+
+// legendTbdGroups are the sub-headings of the legend's TBD page section
+// (forsgren#404): a general part first, then one for each group of the TBD
+// table in table order, with the push states last. Each has its id, its text
+// and one sentence of its group that must follow it.
+var legendTbdGroups = []struct{ id, title, sentence string }{
+	{"tbd-general", "General", "Every number is of the last 30 days"},
+	{"tbd-volume", "Volume", "Volume has three columns"},
+	{"tbd-shares-of-commits", "Shares of commits", "Shares of commits has four columns"},
+	{"tbd-time-to-main-per-commit", "Time to main per commit", "Time to main per commit is a duration"},
+	{"tbd-commits-per-push", "Commits per push", "Commits per push is a count of commits"},
+	{"tbd-time-to-deploy-per-commit", "Time to deploy per commit", "Time to deploy per commit is a duration"},
+	{"tbd-commits-per-deployment", "Commits per deployment", "Commits per deployment is a count of commits"},
+	{"tbd-pr-lead-time", "PR Lead Time", "PR Lead Time has one column"},
+	{"tbd-mainline-interval", "Mainline Interval", "The Mainline Interval of each project is in five columns"},
+	{"tbd-developers", "Developers", "The column developers is the number of people"},
+	{"tbd-push-states", "Push states", "Pushes not collected yet means no push has been collected yet"},
+}
+
+// TestLegendTbdSectionHasASubHeadingForEachGroup (forsgren#404): the TBD
+// section has exactly these h3 headings with their ids in this order, and a
+// sentence of each group follows its heading before the next one.
+func TestLegendTbdSectionHasASubHeadingForEachGroup(t *testing.T) {
+	section := legendTbdSection(t, rendered(t, "legend.html", calculated()))
+	parts := strings.Split(section, "<h3 ")
+	if len(parts)-1 != len(legendTbdGroups) {
+		t.Fatalf("want %d h3 headings in the TBD section, got %d", len(legendTbdGroups), len(parts)-1)
+	}
+	for i, g := range legendTbdGroups {
+		part := parts[i+1]
+		head := `id="` + g.id + `">` + g.title + "</h3>"
+		if !strings.HasPrefix(part, head) {
+			t.Errorf("want heading %d to be %q, got %.60q", i+1, head, part)
+		}
+		if !strings.Contains(part, g.sentence) {
+			t.Errorf("want %q after the heading %q", g.sentence, g.title)
+		}
+	}
+}

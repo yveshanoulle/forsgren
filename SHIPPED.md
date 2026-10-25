@@ -9,6 +9,16 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — The legend's TBD section has a sub-heading for each group of the table ([#404](https://github.com/yveshanoulle/forsgren/issues/404), 1/1)
+
+forsgren issue 404, feature, patch. The TBD section of the legend was one long run of paragraphs. It now has h3 sub-headings under its h2, each with an id so it can be linked: General (`tbd-general`: the window, the push groups, the mean, median and p90 rules, the duration format and the unlisted default), then in table order Volume, Shares of commits, Time to main per commit, Commits per push, Time to deploy per commit, Commits per deployment, PR Lead Time, Mainline Interval and Developers (`tbd-volume`, `tbd-shares-of-commits`, `tbd-time-to-main-per-commit`, `tbd-commits-per-push`, `tbd-time-to-deploy-per-commit`, `tbd-commits-per-deployment`, `tbd-pr-lead-time`, `tbd-mainline-interval`, `tbd-developers`), and Push states (`tbd-push-states`). Each existing sentence sits under the heading it belongs to; the sentences of the PR Lead Time paragraphs now follow the table order, and the one paragraph about the two intervals is split between PR Lead Time and Mainline Interval, words kept.
+
+- Red first: `TestLegendTbdSectionHasASubHeadingForEachGroup` (the eleven h3 headings, their ids and order, and one sentence of each group after its heading), seen failing before the template change. `legend.golden.html` regenerated.
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — check-needs reads the workflow inside the checkout only ([#407](https://github.com/yveshanoulle/forsgren/issues/407), step 1 of 1)
 
 forsgren issue 407, bug, patch release. A code scanner flagged `internal/needs/check.go` for path traversal. Not exploitable today (the workflow of every need in the built-in `needs.yml` is `.github/workflows/forsgren.yml`), but nothing enforced it: an entry with `../` or an absolute path would have read outside the checkout silently.
