@@ -56,7 +56,7 @@ func TestRenderReadsAPullsDeniedFileOfFormatV2(t *testing.T) {
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	wantIn(t, tbdSiteOf(t, validConfig, data), leadRow(shopCell, notReadableCell))
+	wantIn(t, tbdSiteOf(t, validConfig, data), leadRow(shopRow, notReadableCell))
 }
 
 // TestRenderRefusesABadPullsDeniedFile (forsgren#337, step 2): a malformed
