@@ -29,7 +29,7 @@
 #   - bash and awk, not Python: python3 is not in Scripts/required_tools.txt,
 #     and listing it there would make every sfl run `brew upgrade` a
 #     machine-wide Python. Without Python there is no JSON parser either
-#     (jq was not listed when this was ported; it is since forsgren#2), so the thresholds file is read line by line in ONE
+#     (jq was not listed when this was ported; it is since forsgren#2, and since forsgren#415 it checks that the file is valid JSON first), so the thresholds file is read line by line in ONE
 #     fixed shape, the shape another estate repository's files already have:
 #         {
 #           "_comment": "...",
@@ -57,7 +57,8 @@
 # Exit codes:
 #   0 — every function at or above its floor, and the total too
 #   1 — a function below its floor or unregistered, the total below its
-#       floor, no coverage data, or an unreadable or missing thresholds file
+#       floor, no coverage data, or an unreadable, missing or not valid JSON
+#       thresholds file (jq parses it first, forsgren#415)
 #   2 — tooling error (no module directory, go tool cover failed)
 #
 # Usage: Scripts/check_coverage.sh [module-dir] [thresholds-file]
@@ -83,6 +84,19 @@ cd "$ROOT" 2>/dev/null || {
 # then take the cover output for the thresholds.
 if [ ! -s "$THRESHOLDS" ]; then
   echo "❌ FAIL: no thresholds file: ${THRESHOLDS} is missing or empty in ${ROOT}"
+  exit 1
+fi
+
+# forsgren#415: the line reader below checks the shape, not JSON (a missing
+# comma between rows, a comma after the last row, passed it for a day). jq is
+# in Scripts/required_tools.txt, so it is there locally (sfl installs it) and
+# on the hosted image; its parse error names the line and column.
+if ! command -v jq >/dev/null 2>&1; then
+  echo "❌ FAIL: jq is not installed: it parses ${THRESHOLDS} (Scripts/required_tools.txt lists it)" >&2
+  exit 2
+fi
+if ! JQ_ERR="$(jq empty "$THRESHOLDS" 2>&1)"; then
+  echo "❌ FAIL: ${THRESHOLDS} is not valid JSON: ${JQ_ERR}"
   exit 1
 fi
 

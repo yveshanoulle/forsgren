@@ -1036,7 +1036,7 @@
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdMessage": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:TbdRows": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:LeadCell": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/page/tbd.go:pairedWithMainline": 100.0
-    "github.com/yveshanoulle/forsgren/internal/page/tbd.go:pairedProjects": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/tbd.go:pairedWithMainline": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/tbd.go:pairedProjects": 100.0
   }
 }

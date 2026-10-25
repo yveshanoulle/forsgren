@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — The coverage gate parses its floors file as JSON ([#415](https://github.com/yveshanoulle/forsgren/issues/415), 1 step)
+
+forsgren issue 415, tools issue, no release. `coverage_thresholds.json` had not been valid JSON since forsgren#397 step 5 (a missing comma after the `tbd.go:pairedWithMainline` row, a comma after the last row), and `Scripts/check_coverage.sh` passed every run because it reads the file line by line in a fixed shape and never parsed it. Red first: case 11b of `Scripts/test_check_coverage.sh` (every line in the fixed shape, but a missing comma and a trailing comma) was seen passing the gate, exit 0. The gate now runs `jq empty` on the file before anything else (jq is in `Scripts/required_tools.txt`, so sfl installs it and the hosted image has it): red naming the file and jq's line and column, exit 1; no jq is exit 2. The file is fixed, no floor changed. No other script reads `coverage_thresholds.json`; `codescene-scores.json` is read by no script (a ledger, valid JSON today), so it gets no parse.
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — Quality gets a workflows job, so the main job is no longer the critical path ([#408](https://github.com/yveshanoulle/forsgren/issues/408), 2 steps)
 
 forsgren issue 408, tools issue, no release. The Quality gates job took 15 to 20 minutes on main, 5 to 9 minutes longer than the next job. Step 1 measured the per-gate seconds from the logs of three green Quality runs (the main job's PRE step took 11 to 14 minutes, POST 10 to 14 seconds, the setup 71 seconds). The slowest gates were gate wiring (75 s), the metrics workflow pin (68 s), Go lint self-test (60 s), mutation: checkout pins (45 s) and the release workflow pin (40 s). Step 2: `Scripts/ci_job_groups.txt` gives nine workflow and wiring gates (about 262 s) to a new `workflows` job in `quality.yml`, with the setup of the other group jobs, its hand-over `quality-report-workflows`, and the report and preview jobs `needs:` it (`QS_WORKFLOWS_RESULT` in the report status). Expected: the main job about 10 minutes, the new job about 6, Isolation unchanged. Every gate still runs in one job. Red first: `Scripts/test_run_ci_phase.sh` (the workflows job over the real order file), `Scripts/test_quality_jobs.sh` (the job, its setup, hand-over, group rows and report wiring, with mutants) and `Scripts/test_preview_workflow.sh` (the needs list).

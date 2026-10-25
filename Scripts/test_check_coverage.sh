@@ -38,7 +38,8 @@
 #  10. go test red                                    -> the Go-tests gate leaves no
 #                                                        profile, coverage is red
 #  11. a thresholds line outside the shape            -> exit 1, naming the line
-#  12. no thresholds file                             -> exit 1
+#  11b. a thresholds file that is not valid JSON     -> exit 1, naming the file and the parser's line (forsgren#415)
+#  12. no thresholds file                            -> exit 1
 #  13. MUTATION PROOF: the gate with `actual < floor` turned into
 #      `actual <= floor` is red on case 1, naming Pick at its floor: the
 #      comparison is what keeps a function AT its floor green
@@ -195,6 +196,15 @@ printf '{"total": 75.0}\n' > "${MOD}/coverage_thresholds.json"
 run_gate "$GATE" "$MOD"
 want_exit "a thresholds line outside the shape is red, naming the line" 1 \
   "coverage_thresholds.json:1: cannot read"
+
+# --- Case 11b (forsgren#415): a thresholds file that is not valid JSON. Every
+# line is in the fixed shape (a missing comma between rows, a comma after the
+# last row), so the line reader alone passes it; the JSON parse must not.
+printf '{\n  "_comment": "fixture floors",\n  "total": 75.0,\n  "functions": {\n    "example.com/m/m.go:Two": 100.0\n    "example.com/m/m.go:Pick": 66.7,\n  }\n}\n' > "${MOD}/coverage_thresholds.json"
+run_gate "$GATE" "$MOD"
+want_exit "a thresholds file that is not valid JSON is red, naming the file" 1 \
+  "coverage_thresholds.json is not valid JSON"
+want_exit "and the line the parser stopped at" 1 "at line 6"
 
 # --- Case 12: no thresholds file.
 rm -f "${MOD}/coverage_thresholds.json"

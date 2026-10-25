@@ -202,7 +202,9 @@ Seven more PRE gates check the Go code:
   testing, never by lowering a number. It reads the profile the Go-tests gate
   writes (`.build/go-coverage.out`), so the tests run once; that gate removes
   the profile when it is red, and no profile is red here. The thresholds
-  file is read in one fixed shape, one `"key": number` per line, and a line
+  file must first be valid JSON (`jq`, which `Scripts/required_tools.txt`
+  lists; red naming the file and jq's line and column, forsgren#415), then
+  it is read in one fixed shape, one `"key": number` per line, and a line
   outside it is red. Its self-test (`Scripts/test_check_coverage.sh`) shows
   each of those cases and, by mutation, that the floor comparison, the 0.1
   buffer and the Go-tests gate's removal of a red run's profile are what
