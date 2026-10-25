@@ -1971,6 +1971,12 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/collect/legacy_backfill_order_test.go",
+   "score": 10,
+   "checkedAt": "2026-10-25",
+   "minScore": 10
+  },
+  {
    "path": "internal/collect/legacy_backfill_stop_test.go",
    "score": 9.68,
    "checkedAt": "2026-10-24",

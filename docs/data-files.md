@@ -150,7 +150,13 @@ acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z,ada
   and the repository still counts as done. The request budget applies: before
   each comparison one request is reserved, and a repository cut short keeps
   what it filled and continues on the next run, which can take more than one
-  day (see the cut report below). The note of the repositories done is
+  day (see the cut report below). Within a repository the backfill runs after
+  its pull requests and before its push read (forsgren#416): the first push
+  read costs one comparison per push and could spend the whole budget, so a
+  repair of data the page already shows goes first. A backfill that is cut
+  short or fails stops the repository's run, so the push read sends no
+  request after it; a push read cut short afterwards is no cut of the
+  backfill, which is then noted done. The note of the repositories done is
   `data/commits_backfilled.csv`, described after the starts catch-up note.
 
 **The failure issues**, for change fail rate (forsgren#18), are kept next to

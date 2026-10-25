@@ -138,6 +138,7 @@
     "github.com/yveshanoulle/forsgren/internal/github/budget.go:number": 100.0,
     "github.com/yveshanoulle/forsgren/internal/github/client.go:send": 94.3,
     "github.com/yveshanoulle/forsgren/internal/collect/collect.go:collectRepository": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/collect.go:backfillThenPushes": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/collect.go:collectAndNoteFiles": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/cutreport.go:removeCutReport": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/cutreport.go:writeCutReport": 100.0,

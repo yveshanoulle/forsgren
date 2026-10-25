@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — The legacy commit backfill runs before the push read, so the first push read cannot starve it ([#416](https://github.com/yveshanoulle/forsgren/issues/416), 1 step)
+
+forsgren issue 416, bug, patch. On an installation whose stored commits predate commits format v3, the push read (#397) ran before the legacy backfill (#385) and spent one comparison per push, so the request budget ran out there and the backfill never ran: `commits_backfilled.csv` was never written and the TBD page showed estimated lead figures and no developers. `collectRepository` now calls `backfillThenPushes`: the backfill goes first, and a backfill that is cut short or fails stops the repository's run, so the push read sends no request after it. A pushes cut after a finished backfill is no cut of the backfill, so the repository is noted done. Tests: a budget that covers the backfill but not both pushes fills the legacy commits, stores the newer push, reports the pushes cut and marks the backfill; a cut backfill sends no push request.
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The coverage gate parses its floors file as JSON ([#415](https://github.com/yveshanoulle/forsgren/issues/415), 1 step)
 
 forsgren issue 415, tools issue, no release. `coverage_thresholds.json` had not been valid JSON since forsgren#397 step 5 (a missing comma after the `tbd.go:pairedWithMainline` row, a comma after the last row), and `Scripts/check_coverage.sh` passed every run because it reads the file line by line in a fixed shape and never parsed it. Red first: case 11b of `Scripts/test_check_coverage.sh` (every line in the fixed shape, but a missing comma and a trailing comma) was seen passing the gate, exit 0. The gate now runs `jq empty` on the file before anything else (jq is in `Scripts/required_tools.txt`, so sfl installs it and the hosted image has it): red naming the file and jq's line and column, exit 1; no jq is exit 2. The file is fixed, no floor changed. No other script reads `coverage_thresholds.json`; `codescene-scores.json` is read by no script (a ledger, valid JSON today), so it gets no parse.

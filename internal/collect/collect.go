@@ -213,13 +213,22 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	h.noteStartsDone(r.Name)
 	stored.pulls, err = o.collectPulls(ctx, h, r.Name)
 	if err == nil {
-		stored.pushes, err = o.collectPushes(ctx, h, r.Name)
+		stored.pushes, err = o.backfillThenPushes(ctx, h, r.Name)
 	}
 	o.report(r.Name, d.found, stored)
-	if err != nil {
-		return err
+	return err
+}
+
+// backfillThenPushes runs the one-time legacy backfill and then the push read
+// (forsgren#416): a repair of data the page already shows goes before the
+// first fill of a new column, which costs one comparison per push and could
+// spend the whole request budget. A backfill that fails or is cut short ends
+// the repository's run, so the push read sends no request after it.
+func (o Options) backfillThenPushes(ctx context.Context, h held, repo string) (int, error) {
+	if err := o.backfillLegacy(ctx, h, repo); err != nil {
+		return 0, err
 	}
-	return o.backfillLegacy(ctx, h, r.Name)
+	return o.collectPushes(ctx, h, repo)
 }
 
 // issueLines is what one repository's issues give to store: its failure
