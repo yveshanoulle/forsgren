@@ -54,7 +54,7 @@ var legendTbdText = []string{
 	"Set tbd_figures: all in forsgren.config.yml to show the mean, the median and p90 of each measure " +
 		"instead, three columns each",
 	"With the median alone, PR Lead Time shows its median only",
-	"tbd_figures takes median (the default) or all",
+	"The key tbd_figures takes median (the default) or all",
 	"With tbd_figures: all, each measure has three columns: the mean, the median and p90",
 	"The mean is the average",
 	"Some cells carry a note marker, a number in brackets such as (3)",
