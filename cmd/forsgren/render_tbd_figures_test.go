@@ -53,8 +53,9 @@ func TestRenderTbdFiguresThatIsNotAcceptedShowsTheMedianAndSaysWhy(t *testing.T)
 	dir := renderInto(t, "--config", writeConfig(t, validConfig+tbdOn+"tbd_figures: both\n"), "--data", data)
 	wantIn(t, readSite(t, dir, "tbd.html"), `<th scope="col">Mainline Interval (median)</th>`)
 	settings := readSite(t, dir, "settings.html")
-	for _, want := range []string{`<th scope="row">tbd_figures</th>`, `<span class="written">both</span> is not accepted: use median or all.`,
-		"median, all"} {
+	wants := []string{`<th scope="row">tbd_figures</th>`,
+		`<span class="written">both</span> is not accepted: use median or all.`, "median, all"}
+	for _, want := range wants {
 		if !strings.Contains(settings, want) {
 			t.Errorf("want %q in settings.html, got:\n%s", want, settings)
 		}

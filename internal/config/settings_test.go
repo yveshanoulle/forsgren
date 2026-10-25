@@ -33,7 +33,8 @@ func TestSettingsListsEveryKeyWithItsDefault(t *testing.T) {
 func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 	all := "view: numbers\nauto_update: true\nauto_update_level: minor\n" +
 		"history_days: 30\nhistory_chunk_days: 10\nworking_hours: 6\ndora_days: 30\nissues_page: false\ndays_page: true\n" +
-		"numbers_scoring_page: true\nhistory_page: false\ntbd_page: true\ntbd_figures: all\nsame_developer: [[maintainer, assistant-account]]\n"
+		"numbers_scoring_page: true\nhistory_page: false\ntbd_page: true\ntbd_figures: all\n" +
+		"same_developer: [[maintainer, assistant-account]]\n"
 	wantSettings(t, all, []Setting{
 		{Key: "view", Value: "numbers", Default: "standard", Set: true},
 		{Key: "auto_update", Value: "true", Default: "false", Set: true},
