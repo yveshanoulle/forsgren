@@ -181,7 +181,7 @@ fi
 # (forsgren#283, step 1 of 2), and 157 for the sfl pull rebase self-test
 # (forsgren#283, step 2 of 2), and 158 for the removed names gate that left the
 # release workflow pin (forsgren#263), and down to 157 for the precheck
-# self-test that went with the retired Scripts/precheck.sh (forsgren#439).
+# self-test that went with the retired precheck.sh (forsgren#439).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.

@@ -11,7 +11,7 @@ Active work lives in
 
 ## 2026-10-25 — The writer pre-check is retired, FBP fails fast and is the check ([#439](https://github.com/yveshanoulle/forsgren/issues/439), 1 step)
 
-forsgren issue 439, tools, no release. With FBP stopping a phase at its first red gate (forsgren#441), `Scripts/precheck.sh` and its self-test `Scripts/test_precheck.sh` are removed, with the order-file row, the wiring case, the CONTRIBUTING.md gate list line, the `gate-classification.md` row and the passages in `CLAUDE.md` and `docs/development.md`; one sentence replaces them: writers run their tests red first, and FBP (fail fast) is the check. `MIN_GATES` goes from 158 to 157 with the retired row. `Scripts/gate_inputs.txt` had no row for either script.
+forsgren issue 439, tools, no release. With FBP stopping a phase at its first red gate (forsgren#441), `precheck.sh` and its self-test `test_precheck.sh` are removed, with the order-file row, the wiring case, the CONTRIBUTING.md gate list line, the `gate-classification.md` row and the passages in `CLAUDE.md` and `docs/development.md`; one sentence replaces them: writers run their tests red first, and FBP (fail fast) is the check. `MIN_GATES` goes from 158 to 157 with the retired row. `Scripts/gate_inputs.txt` had no row for either script.
 
 - Red first: not applicable, a removal; `Scripts/test_gate_wiring.sh`, `test_gate_inputs.sh`, `test_gate_select.sh` and `test_sfl_drives_from_order_file.sh` stay green without exemptions.
 
@@ -1217,7 +1217,7 @@ FBP ran all 117 steps for 22 minutes after a shellcheck red that appeared about 
 
 ## 2026-10-18 — a writer's pre-check runs the fast gates and the tests that read the changed files ([#231](https://github.com/yveshanoulle/forsgren/issues/231), step 1)
 
-`Scripts/precheck.sh` is what a writer runs before handing a change back: the checks FBP would find red after minutes, on the changed files, in seconds.
+`precheck.sh` is what a writer runs before handing a change back: the checks FBP would find red after minutes, on the changed files, in seconds.
 
 - The changed files are the tracked changes against HEAD plus the untracked files git does not ignore. It runs the gates' own scripts: shellcheck, actionlint, zizmor, yamllint, gofmt and Go lint, the gate wiring test when `Scripts/` or the order file changed, the markdown link gate for a changed `.md`, the git sandbox guard for a changed `Scripts/test_*.sh`, and every `Scripts/test_*.sh` whose source names the basename of a changed file (`SHIPPED.md`, `CLAUDE.md`, `README.md` and `TODO.md` are left out as too broad).
 - One line per check, `precheck: N checks, M failed`, the elapsed seconds, exit 1 on any failure. A missing tool is a red line, never a skip.
