@@ -115,7 +115,7 @@ private names|Scripts/check_private_names.sh|pre|secret-class
 # --all; the block alone runs to its end first. CI does NOT stop
 # early: run_ci_phase.sh runs every row, so a pull request shows all its reds.
 # Scripts/test_sfl_static_block.sh pins both. A row added to the block goes
-# between the markers; Scripts/precheck.sh runs the same scripts.
+# between the markers.
 #! static-block-start
 gofmt self-test|Scripts/test_check_gofmt.sh|pre|
 gofmt|Scripts/check_gofmt.sh|pre|
@@ -899,7 +899,6 @@ step summary isolation|Scripts/test_step_summary_isolation.sh|pre|
 git sandbox isolation self-test|Scripts/test_git_sandbox_isolation.sh|pre|
 git sandbox isolation scope self-test|Scripts/test_git_sandbox_isolation_scope.sh|pre|
 git sandbox guard self-test|Scripts/test_git_sandbox_guard.sh|pre|
-precheck self-test|Scripts/test_precheck.sh|pre|
 static block self-test|Scripts/test_sfl_static_block.sh|pre|
 #
 # The commit messages of a push or a pull request (forsgren#213): the same

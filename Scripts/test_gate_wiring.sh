@@ -180,11 +180,12 @@ fi
 # self-test (step 3 of 3), and 156 for the FBP push-or-rebase self-test
 # (forsgren#283, step 1 of 2), and 157 for the sfl pull rebase self-test
 # (forsgren#283, step 2 of 2), and 158 for the removed names gate that left the
-# release workflow pin (forsgren#263).
+# release workflow pin (forsgren#263), and down to 157 for the precheck
+# self-test that went with the retired Scripts/precheck.sh (forsgren#439).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=158
+MIN_GATES=157
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -785,25 +786,14 @@ for path in Scripts/*.sh; do
         || fail "Scripts/test_lib_go_tool.sh is not an order-file row — the Go tool resolver would be unproven"
       ;;
 
-    # WRITER TOOL, not a gate (forsgren#231): the pre-check a writer runs
-    # before handing a change back. It runs gates' own scripts on the changed
-    # files and judges nothing FBP and CI do not; FBP.sh and quality.yml never
-    # call it. Required to have a fixture, and its self-test is an order-file
-    # row (which also pins that every gate it runs is an order-file row).
     # WRITER/MAINTAINER TOOL, not a gate (forsgren#231, step 3): the read-only
     # check before a Release starts. It runs release_plan.sh and
-    # release_report.sh, which the Release workflow runs too. Same terms as
-    # precheck.sh: a fixture, and its self-test is an order-file row.
+    # release_report.sh, which the Release workflow runs too. A fixture,
+    # and its self-test is an order-file row.
     release_precheck.sh)
       require_fixture "$base" "the release pre-check would be unproven"
       order_names "test_${base}" \
         || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the release pre-check"
-      ;;
-
-    precheck.sh)
-      require_fixture "$base" "the pre-check would be unproven"
-      order_names "test_${base}" \
-        || fail "Scripts/test_${base} is not an order-file row — sfl and Quality would never prove the pre-check"
       ;;
 
     # GENERATOR, not a gate (forsgren#219): prints the "What we check" list of

@@ -9,6 +9,16 @@ Active work lives in
 
 ---
 
+## 2026-10-25 — The writer pre-check is retired, FBP fails fast and is the check ([#439](https://github.com/yveshanoulle/forsgren/issues/439), 1 step)
+
+forsgren issue 439, tools, no release. With FBP stopping a phase at its first red gate (forsgren#441), `Scripts/precheck.sh` and its self-test `Scripts/test_precheck.sh` are removed, with the order-file row, the wiring case, the CONTRIBUTING.md gate list line, the `gate-classification.md` row and the passages in `CLAUDE.md` and `docs/development.md`; one sentence replaces them: writers run their tests red first, and FBP (fail fast) is the check. `MIN_GATES` goes from 158 to 157 with the retired row. `Scripts/gate_inputs.txt` had no row for either script.
+
+- Red first: not applicable, a removal; `Scripts/test_gate_wiring.sh`, `test_gate_inputs.sh`, `test_gate_select.sh` and `test_sfl_drives_from_order_file.sh` stay green without exemptions.
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The TBD table headers lose (median), (median duration) and (duration) ([#444](https://github.com/yveshanoulle/forsgren/issues/444), 1 step)
 
 forsgren issue 444, feature, patch release (in 1.22.0, with #423; #435 folded in). Yves's ruling on the live median table. In median mode the headers are Mainline Interval, Time to main per commit, Time to deploy per commit, PR Lead Time, Commits per push and Commits per deployment, each with an `aria-label` that keeps the meaning (`median time to main per commit`); in `all` mode Time to main per commit and Time to deploy per commit lose `(duration)`. Red first: `TestTbdPageHasOneHeaderRowWithTheMedianOnly`, `TestTbdPageHasTwoLevelHeadersWithAllTheFigures` and the two `cmd/forsgren` header tests failed on the old template; the six TBD goldens follow. The legend and the docs (`docs/pages-and-views.md` line 818, `CLAUDE.md` line 22) ride with #417.

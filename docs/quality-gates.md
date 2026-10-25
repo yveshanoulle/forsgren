@@ -13,7 +13,8 @@ secret-class rows; a red row in it stops the run early with every later gate
 skipped and named (forsgren#231; [development.md](development.md)). On
 Quality, actionlint, shellcheck, yamllint and zizmor with their self-tests run
 in their own `lint` job, its own red/green check (forsgren#282;
-[ci.md](ci.md)); gofmt and Go lint stay in the main job.
+[ci.md](ci.md)); gofmt and Go lint stay in the main job. Writers run their tests
+red first, and FBP (fail fast, forsgren#441) is the check (forsgren#439).
 
 Three PRE gates come first and are secret-class, so a finding blocks the
 commit itself:

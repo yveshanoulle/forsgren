@@ -170,7 +170,6 @@ run report shows how many checks each of them ran.
 - git sandbox isolation self-test (`Scripts/test_git_sandbox_isolation.sh`, pre)
 - git sandbox isolation scope self-test (`Scripts/test_git_sandbox_isolation_scope.sh`, pre)
 - git sandbox guard self-test (`Scripts/test_git_sandbox_guard.sh`, pre)
-- precheck self-test (`Scripts/test_precheck.sh`, pre)
 - static block self-test (`Scripts/test_sfl_static_block.sh`, pre)
 - commit messages self-test (`Scripts/test_check_commit_messages.sh`, pre)
 <!-- gate-list:end -->
