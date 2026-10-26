@@ -14,10 +14,22 @@ import (
 // have left commits out, the first one among them.
 const pullCommitsCap = 250
 
-// pullCommit is one item of GitHub's answer, the fields FirstCommitTime
-// reads: the SHA, for an error only, and the git author date.
+// PullCommit is one commit of a pull request's commit list (forsgren#463,
+// step 5): its SHA, the login of GitHub's top-level author object, empty when
+// it is null (never the name or email of commit.author), and the git author
+// date in UTC.
+type PullCommit struct {
+	SHA        string
+	Author     string
+	AuthoredAt time.Time
+}
+
+// pullCommit is one item of GitHub's answer, the fields PullCommits reads.
 type pullCommit struct {
 	SHA    string `json:"sha"`
+	Author *struct {
+		Login string `json:"login"`
+	} `json:"author"`
 	Commit struct {
 		Author struct {
 			Date time.Time `json:"date"`
@@ -25,11 +37,36 @@ type pullCommit struct {
 	} `json:"commit"`
 }
 
+// login is the login of the commit's GitHub author, empty when it is null.
+func (pc pullCommit) login() string {
+	if pc.Author == nil {
+		return ""
+	}
+	return pc.Author.Login
+}
+
 // FirstCommitTime is the first commit time of pull request number of repo
 // (forsgren#255, step 2), for PR Lead Time, merged time minus first
-// commit time: the earliest git author date (commit.author.date, when the
-// commit was made, never the committer date, which a rebase or a merge
-// button moves) of its commits, in UTC. GET
+// commit time: the earliest git author date of its PullCommits, in UTC, and
+// whether that answer is cut, with PullCommits' errors.
+func (c *Client) FirstCommitTime(ctx context.Context, repo string, number int64) (time.Time, bool, error) {
+	commits, cut, err := c.PullCommits(ctx, repo, number)
+	if err != nil {
+		return time.Time{}, false, err
+	}
+	first := commits[0].AuthoredAt
+	for _, pc := range commits {
+		if pc.AuthoredAt.Before(first) {
+			first = pc.AuthoredAt
+		}
+	}
+	return first, cut, nil
+}
+
+// PullCommits are the commits of pull request number of repo, in the list's
+// order, each with its git author date (commit.author.date, when the commit
+// was made, never the committer date, which a rebase or a merge button
+// moves) in UTC and the login of its GitHub author. GET
 // /repos/{owner}/{repo}/pulls/{number}/commits, 100 per page, every page up
 // to the limit. It says whether the answer is cut: at the page limit, or
 // with 250 commits or more read, GitHub's cap for this list, where the first
@@ -37,29 +74,27 @@ type pullCommit struct {
 // (explainDenied), a rate limit stays ErrRateLimit. No commit, or a commit
 // with no author date, is ErrAnswer and ErrNoCommitDate naming the pull
 // request; a page that cannot be read is ErrAnswer alone (decision #313).
-func (c *Client) FirstCommitTime(ctx context.Context, repo string, number int64) (time.Time, bool, error) {
+func (c *Client) PullCommits(ctx context.Context, repo string, number int64) ([]PullCommit, bool, error) {
 	t, err := c.endpoint(repo, url.Values{}, "pulls", strconv.FormatInt(number, 10), "commits")
 	if err != nil {
-		return time.Time{}, false, err
+		return nil, false, err
 	}
-	r := firstCommitReader{number: number}
+	r := pullCommitReader{number: number}
 	truncated, err := c.list(ctx, t, r.page)
 	if err != nil {
-		return time.Time{}, false, c.explainDenied(repo, t, err)
+		return nil, false, c.explainDenied(repo, t, err)
 	}
 	return r.result(t, truncated)
 }
 
-// firstCommitReader gathers the pages of one pull request's commits: how
-// many were read and the earliest author date among them.
-type firstCommitReader struct {
-	number int64
-	read   int
-	first  time.Time
+// pullCommitReader gathers the pages of one pull request's commits.
+type pullCommitReader struct {
+	number  int64
+	commits []PullCommit
 }
 
 // page reads one page and asks for the next while pages are not empty.
-func (r *firstCommitReader) page(body []byte) (bool, error) {
+func (r *pullCommitReader) page(body []byte) (bool, error) {
 	var page []pullCommit
 	if err := json.Unmarshal(body, &page); err != nil {
 		return false, err
@@ -70,21 +105,18 @@ func (r *firstCommitReader) page(body []byte) (bool, error) {
 			return false, fmt.Errorf("%w: commit %q of pull request %d has no author date", ErrNoCommitDate, pc.SHA,
 				r.number)
 		}
-		if r.read == 0 || authored.Before(r.first) {
-			r.first = authored.UTC()
-		}
-		r.read++
+		r.commits = append(r.commits, PullCommit{SHA: pc.SHA, Author: pc.login(), AuthoredAt: authored.UTC()})
 	}
 	return len(page) > 0, nil
 }
 
-// result is the earliest author date read, cut when the pages were or when
-// GitHub's cap was reached; a pull request with no commit is ErrAnswer and
+// result is the commits read, cut when the pages were or when GitHub's cap
+// was reached; a pull request with no commit is ErrAnswer and
 // ErrNoCommitDate.
-func (r *firstCommitReader) result(t target, truncated bool) (time.Time, bool, error) {
-	if r.read == 0 {
-		return time.Time{}, false, fmt.Errorf("%s: %w for %s: %w: pull request %d has no commits",
+func (r *pullCommitReader) result(t target, truncated bool) ([]PullCommit, bool, error) {
+	if len(r.commits) == 0 {
+		return nil, false, fmt.Errorf("%s: %w for %s: %w: pull request %d has no commits",
 			t.repo, ErrAnswer, t.path(), ErrNoCommitDate, r.number)
 	}
-	return r.first, truncated || r.read >= pullCommitsCap, nil
+	return r.commits, truncated || len(r.commits) >= pullCommitsCap, nil
 }
