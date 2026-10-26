@@ -102,7 +102,7 @@ func TestTheFillStopsWithinTheRequestBudgetAndTheNextRunContinues(t *testing.T) 
 	data := dataOf(path)
 	data.want(t, PullCommitsFile, twoCommitLines())
 	data.want(t, PullCommitsFilledFile, "")
-	g.wantPullsCutAlone(t)
+	g.wantReportOf(t, Report{PullFillCut: []string{"acme/app"}, Reset: g.resetAt.UTC()})
 	delete(g.left, pull12.commitsPath())
 	if r := g.collect(t, shop(production), path, github.DefaultMaxPages); r.err != nil {
 		t.Fatal(r.err)

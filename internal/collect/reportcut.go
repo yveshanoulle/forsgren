@@ -64,6 +64,22 @@ func (o Options) reportPushesCut(repo string) {
 	}
 }
 
+// reportPullFillCut adds repo, whose fill of the pull request commits the
+// budget cut short, to the report (forsgren#470).
+func (o Options) reportPullFillCut(repo string) {
+	if o.Report != nil {
+		o.Report.PullFillCut = append(o.Report.PullFillCut, repo)
+	}
+}
+
+// reportPushFillCut adds repo, whose fill of the merge push lines the budget
+// cut short, to the report (forsgren#470).
+func (o Options) reportPushFillCut(repo string) {
+	if o.Report != nil {
+		o.Report.PushFillCut = append(o.Report.PushFillCut, repo)
+	}
+}
+
 // reportFailed adds repo, failed with err, to the report, by which rate limit
 // it was.
 func (o Options) reportFailed(repo string, err error) {

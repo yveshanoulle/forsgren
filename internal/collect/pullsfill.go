@@ -22,7 +22,7 @@ package collect
 //   - a missing pull-requests: read (ErrPullRequestsDenied) stores what was
 //     filled, notes no fill, writes the denied mark and never fails the run;
 //   - a budget stop stores what was filled, notes no fill, adds the
-//     repository to the report's pulls-cut lines and never fails the run, so
+//     repository to the report's pull-commits-fill-cut lines and never fails the run, so
 //     the next run continues with the pull requests still without lines;
 //   - any other error stores what was filled, notes no fill and fails the
 //     repository.
@@ -113,7 +113,7 @@ func (o Options) endFill(h held, repo string, err error) error {
 	case errors.Is(err, github.ErrBudget):
 		o.warn("collect: %s: the pull request commits were cut short: %v; those filled are stored, "+
 			"the rest is filled by the next run\n", repo, err)
-		o.reportPullsCut(repo)
+		o.reportPullFillCut(repo)
 		return nil
 	case err != nil:
 		return err

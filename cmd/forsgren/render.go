@@ -248,8 +248,10 @@ func metricsDataOf(cfg config.Config, path string) (metrics.Data, error) {
 // missing, which the TBD page says, see absent) and the repositories whose
 // pull request read GitHub refused (data/pulls_denied.csv, forsgren#337; none
 // when missing) and the commits of the merged pull requests
-// (data/pull_commits.csv, forsgren#463; none when missing). An unknown or
-// malformed file of any fails the render.
+// (data/pull_commits.csv, forsgren#463; none when missing) and the
+// repositories whose fill of them is done (data/pull_commits_filled.csv,
+// forsgren#470; none when missing). An unknown or malformed file of any
+// fails the render.
 func withPulls(data metrics.Data, path string) (metrics.Data, error) {
 	pulls, err := loadOrNone(beside(path, collect.PullsFile), history.LoadPullRequests)
 	if err != nil {
@@ -263,7 +265,11 @@ func withPulls(data metrics.Data, path string) (metrics.Data, error) {
 	if err != nil {
 		return metrics.Data{}, err
 	}
-	data.Pulls, data.PullsDenied, data.PullCommits = pulls, denied.Times(), commits
+	filled, err := history.LoadPullCommitsFilled(beside(path, collect.PullCommitsFilledFile))
+	if err != nil {
+		return metrics.Data{}, err
+	}
+	data.Pulls, data.PullsDenied, data.PullCommits, data.PullsFilled = pulls, denied.Times(), commits, filled
 	return data, nil
 }
 

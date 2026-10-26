@@ -80,6 +80,11 @@ type Data struct {
 	// PullCommits are the commits of the merged pull requests of
 	// data/pull_commits.csv, for Mainline Lead Time (forsgren#463).
 	PullCommits []history.PullCommit
+	// PullsFilled and PushesFilled are the repositories whose one-time fill
+	// of the stored pull requests' commits, or of the merge pushes' lines, is
+	// done (data/pull_commits_filled.csv, data/push_commits_filled.csv,
+	// forsgren#470): note 7 ignores what such a fill could not read.
+	PullsFilled, PushesFilled history.Reach
 	// WorkingHours is the hours of a working day, which sets where the
 	// deployment frequency bands begin (forsgren#71).
 	WorkingHours int

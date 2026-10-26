@@ -154,7 +154,7 @@ func TestTheMergePushFillStopsWithinTheRequestBudgetAndTheNextRunContinues(t *te
 	data.want(t, PushCommitsFile, pushCommitsHeader+linePCUnknown(shaD, shaD, "", "2026-09-20T10:00:00Z")+
 		mergeFilled()+linePCUnknown(shaC, shaC, "", "2026-09-20T08:00:00Z"))
 	data.want(t, PushCommitsFilledFile, "")
-	if want := (Report{PushesCut: []string{"acme/app"}, Reset: g.resetAt.UTC()}); !reflect.DeepEqual(g.report, want) {
+	if want := (Report{PushFillCut: []string{"acme/app"}, Reset: g.resetAt.UTC()}); !reflect.DeepEqual(g.report, want) {
 		t.Errorf("want the report %+v, got %+v", want, g.report)
 	}
 	if got := g.seen(activityPath); len(got) != 0 {

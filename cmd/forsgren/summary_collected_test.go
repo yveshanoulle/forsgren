@@ -80,15 +80,20 @@ func TestRunSummaryNamesARepositoryWhosePullRequestsWereCutShort(t *testing.T) {
 // step 3): a repository whose backfill of the legacy commits the budget cut
 // short makes the run incomplete, never failed, named after the pull requests
 // cut ones, with what it did read, then the time the budget resets; a
-// repository whose pushes were cut short (forsgren#397) comes last of them.
+// repository whose pushes were cut short (forsgren#397) comes next, then one
+// whose fill of the pull request commits or of the merge push lines was cut
+// short (forsgren#470, step 3), saying the next run continues.
 func TestRunSummaryNamesARepositoryWhoseLegacyCommitsWereCutShort(t *testing.T) {
 	pinNow(t)
 	report := reportHead + "incomplete resets=2026-10-01T11:00:00Z\n" +
-		"pulls-cut acme/docs\nbackfill-cut acme/app\npushes-cut acme/api\n"
+		"pulls-cut acme/docs\nbackfill-cut acme/app\npushes-cut acme/api\n" +
+		"pull-commits-fill-cut acme/lib\npush-commits-fill-cut acme/web\n"
 	want := summaryOf(version, "up to date") + "- Collected: incomplete, budget reached; " +
 		"acme/docs pull requests cut short (deployments and issues read), " +
 		"acme/app legacy commits cut short (deployments, issues and pull requests read), " +
-		"acme/api pushes cut short (deployments, issues and pull requests read); " +
+		"acme/api pushes cut short (deployments, issues and pull requests read), " +
+		"acme/lib history fill cut short (the next run continues), " +
+		"acme/web history fill cut short (the next run continues); " +
 		"resets 2026-10-01 11:00 UTC\n"
 	if got := collectedSummary(t, report, false); got != want {
 		t.Errorf("want %q, got %q", want, got)

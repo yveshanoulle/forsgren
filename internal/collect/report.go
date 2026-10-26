@@ -12,6 +12,8 @@ package collect
 //	pulls-cut acme/shop
 //	backfill-cut acme/lib
 //	pushes-cut acme/api
+//	pull-commits-fill-cut acme/lib
+//	push-commits-fill-cut acme/lib
 //	failed acme/web secondary-rate-limit
 //
 // The second line is `complete` or `incomplete resets=<UTC RFC 3339>`. A
@@ -30,6 +32,10 @@ package collect
 // A `pushes-cut` line names a repository whose deployments, issues and pull
 // requests were read whole but whose pushes to the default branch the budget
 // cut short: incomplete, never failed, read again by the next run (forsgren#397).
+// A `pull-commits-fill-cut` and a `push-commits-fill-cut` line name a
+// repository whose one-time fill of the stored pull requests' commits, or of
+// the stored merge pushes' lines, the budget cut short: incomplete, never
+// failed, continued by the next run (forsgren#470).
 // A `failed` line names a repository that failed on a rate limit.
 
 import (
@@ -86,7 +92,11 @@ type Report struct {
 	// PushesCut names the repositories whose pushes alone were cut short at
 	// the request budget (forsgren#397).
 	PushesCut []string
-	Failed    []Failed
+	// PullFillCut and PushFillCut name the repositories whose one-time fill
+	// of the stored pull requests' commits, or of the merge pushes' lines,
+	// was cut short at the request budget (forsgren#470, step 3).
+	PullFillCut, PushFillCut []string
+	Failed                   []Failed
 	// Reset is when the request budget starts over, UTC; zero when no
 	// repository, nor its pull requests, was cut short.
 	Reset time.Time
@@ -107,6 +117,8 @@ func (r Report) Render() string {
 	writeRepositories(&b, "pulls-cut", r.PullsCut)
 	writeRepositories(&b, "backfill-cut", r.BackfillCut)
 	writeRepositories(&b, "pushes-cut", r.PushesCut)
+	writeRepositories(&b, "pull-commits-fill-cut", r.PullFillCut)
+	writeRepositories(&b, "push-commits-fill-cut", r.PushFillCut)
 	for _, f := range r.Failed {
 		fmt.Fprintf(&b, "failed %s %s\n", f.Repository, f.Kind)
 	}
@@ -133,7 +145,7 @@ func (c Cut) line() string {
 // its backfill of the legacy commits or its pushes short.
 func (r Report) incomplete() bool {
 	return len(r.Cuts) > 0 || len(r.PullsCut) > 0 || len(r.BackfillCut) > 0 ||
-		len(r.PushesCut) > 0
+		len(r.PushesCut) > 0 || len(r.PullFillCut) > 0 || len(r.PushFillCut) > 0
 }
 
 // ParseReport is the report in text, the reverse of Render; anything else is
@@ -195,13 +207,21 @@ var lineKinds = map[string]lineKind{
 		r.PushesCut = append(r.PushesCut, f[0])
 		return nil
 	}},
+	"pull-commits-fill-cut": {2, func(r *Report, f []string) error {
+		r.PullFillCut = append(r.PullFillCut, f[0])
+		return nil
+	}},
+	"push-commits-fill-cut": {2, func(r *Report, f []string) error {
+		r.PushFillCut = append(r.PushFillCut, f[0])
+		return nil
+	}},
 	"failed": {3, func(r *Report, f []string) error {
 		r.Failed = append(r.Failed, Failed{f[0], f[1]})
 		return nil
 	}},
 }
 
-// parseLine reads a cut, pulls-cut, backfill-cut, pushes-cut or failed line.
+// parseLine reads a line of one of the lineKinds.
 func (r *Report) parseLine(line string) error {
 	f := strings.Fields(line)
 	if len(f) == 0 {

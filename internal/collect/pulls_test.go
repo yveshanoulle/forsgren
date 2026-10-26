@@ -348,7 +348,12 @@ func TestThePullRequestsStopWithinTheRequestBudget(t *testing.T) {
 // budget resets (decision #307).
 func (g *gitHub) wantPullsCutAlone(t *testing.T) {
 	t.Helper()
-	want := Report{PullsCut: []string{"acme/app"}, Reset: g.resetAt.UTC()}
+	g.wantReportOf(t, Report{PullsCut: []string{"acme/app"}, Reset: g.resetAt.UTC()})
+}
+
+// wantReportOf fails unless the run's report is want.
+func (g *gitHub) wantReportOf(t *testing.T, want Report) {
+	t.Helper()
 	if !reflect.DeepEqual(g.report, want) {
 		t.Errorf("want the report %+v, got %+v", want, g.report)
 	}

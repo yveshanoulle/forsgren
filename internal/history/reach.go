@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -22,6 +23,16 @@ import (
 //	repository,reach
 //	acme/app,2026-06-01T00:00:00Z
 type Reach map[string]time.Time
+
+// Holds says r has a line for repository, compared ignoring case (forsgren#470).
+func (r Reach) Holds(repository string) bool {
+	for held := range r {
+		if strings.EqualFold(held, repository) {
+			return true
+		}
+	}
+	return false
+}
 
 // reachRow is one line of data/reach.csv.
 type reachRow struct {

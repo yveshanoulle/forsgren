@@ -27,7 +27,7 @@ package collect
 //     notes no fill, writes the denied mark of the push read and never fails
 //     the run;
 //   - a budget stop stores what was filled, notes no fill, adds the
-//     repository to the report's pushes-cut lines and never fails the run, so
+//     repository to the report's push-commits-fill-cut lines and never fails the run, so
 //     the next run continues with the merge pushes still unknown;
 //   - any other error stores what was filled, notes no fill and fails the
 //     repository.
@@ -125,7 +125,7 @@ func (o Options) endMergeFill(h held, repo string, err error) (bool, error) {
 	case errors.Is(err, github.ErrBudget):
 		o.warn("collect: %s: the push commits were cut short: %v; those filled are stored, "+
 			"the rest is filled by the next run\n", repo, err)
-		o.reportPushesCut(repo)
+		o.reportPushFillCut(repo)
 		return true, nil
 	case err != nil:
 		return false, err

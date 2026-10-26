@@ -24,6 +24,8 @@ func sampleReport() Report {
 		PullsCut:    []string{"acme/shop"},
 		BackfillCut: []string{"acme/lib"},
 		PushesCut:   []string{"acme/api"},
+		PullFillCut: []string{"acme/fill"},
+		PushFillCut: []string{"acme/fill"},
 		Failed:      []Failed{{"acme/web", FailedSecondary}},
 		Reset:       time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC),
 	}
@@ -36,6 +38,8 @@ const sampleText = "# forsgren collect report v1\n" +
 	"pulls-cut acme/shop\n" +
 	"backfill-cut acme/lib\n" +
 	"pushes-cut acme/api\n" +
+	"pull-commits-fill-cut acme/fill\n" +
+	"push-commits-fill-cut acme/fill\n" +
 	"failed acme/web secondary-rate-limit\n"
 
 // TestAReportIsWrittenAsItsFileAndReadBack (forsgren#64, step 3b): the file
@@ -63,9 +67,11 @@ func TestAReportIsIncompleteForOneKindOfCutAlone(t *testing.T) {
 	reset := time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC)
 	head := "# forsgren collect report v1\nincomplete resets=2026-10-01T01:00:00Z\n"
 	for line, r := range map[string]Report{
-		"pulls-cut acme/app\n":    {PullsCut: []string{"acme/app"}, Reset: reset},
-		"backfill-cut acme/app\n": {BackfillCut: []string{"acme/app"}, Reset: reset},
-		"pushes-cut acme/app\n":   {PushesCut: []string{"acme/app"}, Reset: reset},
+		"pulls-cut acme/app\n":             {PullsCut: []string{"acme/app"}, Reset: reset},
+		"backfill-cut acme/app\n":          {BackfillCut: []string{"acme/app"}, Reset: reset},
+		"pushes-cut acme/app\n":            {PushesCut: []string{"acme/app"}, Reset: reset},
+		"pull-commits-fill-cut acme/app\n": {PullFillCut: []string{"acme/app"}, Reset: reset},
+		"push-commits-fill-cut acme/app\n": {PushFillCut: []string{"acme/app"}, Reset: reset},
 	} {
 		if got := r.Render(); got != head+line {
 			t.Errorf("want\n%q\ngot\n%q", head+line, got)
@@ -79,23 +85,27 @@ func TestAReportIsIncompleteForOneKindOfCutAlone(t *testing.T) {
 func TestAFileThatIsNoReportIsRefused(t *testing.T) {
 	head := "# forsgren collect report v1\n"
 	for name, text := range map[string]string{
-		"empty":          "",
-		"another file":   "repository,reach\n",
-		"no status":      head,
-		"bad status":     head + "done\n",
-		"bad reset":      head + "incomplete resets=soon\n",
-		"short cut":      head + "complete\ncut acme/app kept=none\n",
-		"wrong key":      head + "complete\ncut acme/app since=none recent=read issues=unread progress=yes\n",
-		"bad date":       head + "complete\ncut acme/app kept=June recent=read issues=unread progress=yes\n",
-		"another line":   head + "complete\nnote hello\n",
-		"short failure":  head + "complete\nfailed acme/web\n",
-		"short pulls":    head + "complete\npulls-cut\n",
-		"an empty line":  head + "complete\n\nfailed acme/web error\n",
-		"long pulls":     head + "complete\npulls-cut acme/app kept=none\n",
-		"short backfill": head + "complete\nbackfill-cut\n",
-		"long backfill":  head + "complete\nbackfill-cut acme/app kept=none\n",
-		"short pushes":   head + "complete\npushes-cut\n",
-		"long pushes":    head + "complete\npushes-cut acme/app kept=none\n",
+		"empty":           "",
+		"another file":    "repository,reach\n",
+		"no status":       head,
+		"bad status":      head + "done\n",
+		"bad reset":       head + "incomplete resets=soon\n",
+		"short cut":       head + "complete\ncut acme/app kept=none\n",
+		"wrong key":       head + "complete\ncut acme/app since=none recent=read issues=unread progress=yes\n",
+		"bad date":        head + "complete\ncut acme/app kept=June recent=read issues=unread progress=yes\n",
+		"another line":    head + "complete\nnote hello\n",
+		"short failure":   head + "complete\nfailed acme/web\n",
+		"short pulls":     head + "complete\npulls-cut\n",
+		"an empty line":   head + "complete\n\nfailed acme/web error\n",
+		"long pulls":      head + "complete\npulls-cut acme/app kept=none\n",
+		"short backfill":  head + "complete\nbackfill-cut\n",
+		"long backfill":   head + "complete\nbackfill-cut acme/app kept=none\n",
+		"short pushes":    head + "complete\npushes-cut\n",
+		"long pushes":     head + "complete\npushes-cut acme/app kept=none\n",
+		"short pull fill": head + "complete\npull-commits-fill-cut\n",
+		"long pull fill":  head + "complete\npull-commits-fill-cut acme/app kept=none\n",
+		"short push fill": head + "complete\npush-commits-fill-cut\n",
+		"long push fill":  head + "complete\npush-commits-fill-cut acme/app kept=none\n",
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := ParseReport(text); !errors.Is(err, ErrReport) {

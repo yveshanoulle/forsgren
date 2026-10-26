@@ -139,7 +139,8 @@ var legendTbdText = []string{
 	"the merge and squash branch commits of that time are missing, so the figure may read short (note 7)",
 	"Only merge pushes and merged pull requests from before the change set it; a direct push lost nothing " +
 		"and does not",
-	"The note goes away by itself once the whole window lies after the change",
+	"The note goes away by itself once the whole window lies after the change, and also once forsgren has " +
+		"filled in the history of the repository (the run after this release does it once)",
 	"a dash below two commits for the median and below ten for the p90, and a negative time counts as 0",
 	"The full Mainline Lead Time covers every commit that reached main",
 	"(6) Pushes left out: their commits are not known (incomplete data), not counted as 0. It applies to " +

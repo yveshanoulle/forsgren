@@ -38,7 +38,10 @@ package metrics
 //     pull request merged in the window, not CreatedStandsIn, with no line in
 //     data.PullCommits. A direct push with unknown parents lost nothing and
 //     does not set it. It ends by itself once the window lies after the
-//     change; no state is kept;
+//     change, or for a repository whose one-time fill is done: a pull request
+//     of a repository in Data.PullsFilled, and a merge push's lines of
+//     unknown parents of one in Data.PushesFilled, no longer set it (#470,
+//     decision #484 A; what the fill could not read stays missing);
 //   - NotReadable (a repository in Data.PushesDenied) and Uncollected
 //     (Data.PushesUncollected, unless NotReadable) are as PushMeasures'.
 
@@ -203,7 +206,8 @@ func (r *leadReading) take(pc history.PushCommit, at time.Time) {
 // lostBranch says the line pc has unknown parents and belongs to a merge
 // push, which lost its branch commits before the change (#476).
 func (r *leadReading) lostBranch(pc history.PushCommit) bool {
-	return pc.Parents == history.ParentsUnknown && r.mergeTips[commitKey(pc.Repository, pc.After)]
+	return pc.Parents == history.ParentsUnknown && r.mergeTips[commitKey(pc.Repository, pc.After)] &&
+		!r.data.PushesFilled.Holds(pc.Repository)
 }
 
 // takeOriginals counts the originals of a squash commit of project i pushed
@@ -235,10 +239,16 @@ func (r *leadReading) count(i int, k string, at, authored time.Time) {
 func (r *leadReading) markPullsFilling(now time.Time) {
 	in := r.data.window()
 	for _, p := range r.data.Pulls {
-		if i, ok := r.index.of(p.Repository); ok && in.holds(p.MergedAt, now) {
-			r.out[i].Filling = r.out[i].Filling || r.squash.unlisted(p)
+		if i, ok := r.index.of(p.Repository); ok && r.stillFilling(p, in.holds(p.MergedAt, now)) {
+			r.out[i].Filling = true
 		}
 	}
+}
+
+// stillFilling says the pull request p, merged in the window or not, is
+// unlisted and its repository's fill of the pull commits is not done.
+func (r *leadReading) stillFilling(p history.PullRequest, inWindow bool) bool {
+	return inWindow && r.squash.unlisted(p) && !r.data.PullsFilled.Holds(p.Repository)
 }
 
 // finish counts the commits into the projects' spreads and returns them.

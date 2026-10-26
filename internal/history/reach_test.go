@@ -156,3 +156,17 @@ func TestSaveReachFailsWithoutLeavingAHalfFile(t *testing.T) {
 		})
 	}
 }
+
+// TestReachHoldsARepositoryIgnoringCase (forsgren#470): a nil Reach holds
+// none, and a line of Acme/App is acme/app's.
+func TestReachHoldsARepositoryIgnoringCase(t *testing.T) {
+	r := Reach{"Acme/App": time.Time{}}
+	for repository, want := range map[string]bool{"acme/app": true, "acme/cli": false} {
+		if got := r.Holds(repository); got != want {
+			t.Errorf("want Holds(%s) %v, got %v", repository, want, got)
+		}
+	}
+	if (Reach(nil)).Holds("acme/app") {
+		t.Error("want a nil Reach to hold none")
+	}
+}

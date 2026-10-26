@@ -77,11 +77,47 @@ func TestMainlineLeadTimeIsNotFillingOnceTheWindowLiesAfterTheChange(t *testing.
 	}
 }
 
+// TestMainlineLeadTimeIsNotFillingOnceTheFillOfTheRepositoryIsDone (#470,
+// decision #484 A): a repository in PullsFilled no longer sets Filling by a
+// pull request without pull commits, one in PushesFilled not by a merge
+// push's line of unknown parents, each fill ruling its own source, and the
+// repository name compared ignoring case.
+func TestMainlineLeadTimeIsNotFillingOnceTheFillOfTheRepositoryIsDone(t *testing.T) {
+	done := history.Reach{"acme/app": now}
+	pulls := Data{Pulls: []history.PullRequest{pullMerging(3, "m")}}
+	pushes := unknownParentsData(history.PushKindPRMerge)
+	for name, c := range map[string]struct {
+		data Data
+		want bool
+	}{
+		"pull fill done":              {withFilled(pulls, done, nil), false},
+		"pull fill done, other case":  {withFilled(pulls, history.Reach{"ACME/App": now}, nil), false},
+		"push fill done for pulls":    {withFilled(pulls, nil, done), true},
+		"push fill done":              {withFilled(pushes, nil, done), false},
+		"push fill done, other case":  {withFilled(pushes, nil, history.Reach{"ACME/App": now}), false},
+		"pull fill done for pushes":   {withFilled(pushes, done, nil), true},
+		"another repository is done":  {withFilled(pulls, history.Reach{"acme/cli": now}, nil), true},
+		"another repository is done2": {withFilled(pushes, nil, history.Reach{"acme/cli": now}), true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := mainLeadOf(c.data).Filling; got != c.want {
+				t.Errorf("want Filling %v, got %v", c.want, got)
+			}
+		})
+	}
+}
+
+// withFilled is data with the fill marks pulls and pushes.
+func withFilled(data Data, pulls, pushes history.Reach) Data {
+	data.PullsFilled, data.PushesFilled = pulls, pushes
+	return data
+}
+
 // TestMainlineLeadTimeIsNotReadableOrUncollected: a project with a repository
 // in PushesDenied (any case) is NotReadable, and with no pushes file every
 // other project is Uncollected.
 func TestMainlineLeadTimeIsNotReadableOrUncollected(t *testing.T) {
-	got := MainlineLeadTimesOf(projects, Data{PushesUncollected: true, PushesDenied: history.Reach{"ACME/Api": now}}, now)
+	got := MainlineLeadTimesOf(projects, Data{PushesUncollected: true, PushesDenied: history.Reach{"ACME/App": now}}, now)
 	states := [4]bool{got[0].NotReadable, got[0].Uncollected, got[1].NotReadable, got[1].Uncollected}
 	if states != [4]bool{true, false, false, true} {
 		t.Errorf("want Acme Shop not readable and Acme Tools uncollected, got %v", states)
