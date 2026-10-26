@@ -66,6 +66,7 @@ none|out|coverage_thresholds.json
 
 # --- browser gate self-test ---------------------------------------------
 browser gate self-test|in|Scripts/test_gate_browser.sh
+browser gate self-test|in|Scripts/lib_gate_browser_selftest.sh
 browser gate self-test|in|Scripts/gate_browser.sh
 browser gate self-test|in|Scripts/browser_gate.mjs
 browser gate self-test|in|Scripts/lib_selftest.sh
@@ -79,10 +80,31 @@ browser gate self-test|in|package-lock.json
 browser gate self-test|in|internal/page/required-pages.json
 browser gate self-test|in|Scripts/lib_has.sh
 
+# --- browser gate process self-test --------------------------------------
+# The exits of the browser gate (forsgren#386, decision #411 A): the wrapper, the
+# engine and the helpers they source, so it runs when the engine or the wrapper
+# change, not when only a fixture page or a baseline row does.
+browser gate process self-test|in|Scripts/test_gate_browser_process.sh
+browser gate process self-test|in|Scripts/lib_gate_browser_selftest.sh
+browser gate process self-test|in|Scripts/test_gate_browser.sh
+browser gate process self-test|in|Scripts/gate_browser.sh
+browser gate process self-test|in|Scripts/browser_gate.mjs
+browser gate process self-test|in|Scripts/lib_selftest.sh
+browser gate process self-test|in|Scripts/lib_site_settings.sh
+browser gate process self-test|in|Scripts/site_settings.txt
+browser gate process self-test|in|package.json
+browser gate process self-test|in|package-lock.json
+browser gate process self-test|in|internal/page/required-pages.json
+browser gate process self-test|in|Scripts/lib_has.sh
+browser gate process self-test|in|Scripts/browser_gate_baseline.txt
+browser gate process self-test|in|Scripts/browser_gate_exceptions.txt
+browser gate process self-test|in|Scripts/browser_gate_variants.txt
+
 # --- browser gate -------------------------------------------------------
 # It opens the site the build wrote (Scripts/build_site.sh builds ./cmd/forsgren and renders).
 browser gate|in|Scripts/gate_browser.sh
 browser gate|in|Scripts/test_gate_browser.sh
+browser gate|in|Scripts/lib_gate_browser_selftest.sh
 browser gate|in|Scripts/lib_selftest.sh
 browser gate|in|Scripts/build_site.sh
 browser gate|in|Scripts/browser_gate.mjs
@@ -107,6 +129,7 @@ browser gate|out|internal/**/testdata/
 # --- browser gate (fixture site) self-test -------------------------------
 browser gate (fixture site) self-test|in|Scripts/test_gate_browser_fixture.sh
 browser gate (fixture site) self-test|in|Scripts/test_gate_browser.sh
+browser gate (fixture site) self-test|in|Scripts/lib_gate_browser_selftest.sh
 browser gate (fixture site) self-test|in|Scripts/gate_browser.sh
 browser gate (fixture site) self-test|in|Scripts/browser_gate_baseline.txt
 browser gate (fixture site) self-test|in|Scripts/gate_browser_fixture.sh
@@ -136,6 +159,7 @@ browser gate (fixture site) self-test|out|internal/**/testdata/
 browser gate (fixture site)|in|Scripts/gate_browser_fixture.sh
 browser gate (fixture site)|in|Scripts/gate_browser.sh
 browser gate (fixture site)|in|Scripts/test_gate_browser.sh
+browser gate (fixture site)|in|Scripts/lib_gate_browser_selftest.sh
 browser gate (fixture site)|in|Scripts/lib_selftest.sh
 browser gate (fixture site)|in|Scripts/browser_gate_baseline.txt
 browser gate (fixture site)|in|Scripts/build_fixture_site.sh
@@ -258,6 +282,7 @@ step summary isolation|in|Scripts/run_ci_phase.sh
 step summary isolation|in|Scripts/shellcheck_exclusions.txt
 step summary isolation|in|Scripts/site_settings.txt
 step summary isolation|in|Scripts/test_gate_browser.sh
+step summary isolation|in|Scripts/lib_gate_browser_selftest.sh
 step summary isolation|in|Scripts/test_gate_wiring.sh
 step summary isolation|in|Scripts/test_git_sandbox_guard.sh
 step summary isolation|in|Scripts/test_git_sandbox_isolation.sh

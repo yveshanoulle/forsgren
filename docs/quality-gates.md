@@ -669,7 +669,8 @@ The POST gates, on the generated site:
   LanguageTool with the other Homebrew tools (`Scripts/required_tools.txt`).
   `Scripts/report_baselines.sh` shows the baselines on the Quality run page.
 - **browser gate** (`Scripts/gate_browser.sh`, engine `Scripts/browser_gate.mjs`,
-  self-test `Scripts/test_gate_browser.sh`, forsgren#205, the estate's shared
+  self-test `Scripts/test_gate_browser.sh` and, for the exits, `Scripts/test_gate_browser_process.sh`
+  (forsgren#386, decision #411 A), forsgren#205, the estate's shared
   gate): after the build, every page of `internal/page/required-pages.json` is
   opened from `.build/site`, served on 127.0.0.1, in the installed Chrome
   (puppeteer-core 25.14.0, axe-core 4.14.0, exact devDependencies) at 1280x800,

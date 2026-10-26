@@ -21,7 +21,7 @@ not close it.
 ## The order file, row by row
 
 [Scripts/gate_report_order.txt](../Scripts/gate_report_order.txt) is the one
-list sfl and CI both run. It has 161 rows: 157 with a script and 4 `n/a`
+list sfl and CI both run. It has 162 rows: 158 with a script and 4 `n/a`
 rows. All scripts are in `Scripts/`. The phase is `pre` (repository inputs and
 checker behaviour) or `post` (the generated site). `secret-class` means a
 finding blocks the commit as well as the push. A row for a self-test is
@@ -160,7 +160,8 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 119 | vulncheck workflow | `test_vulncheck_workflow.sh` | pre | required |
 | 120 | dispatch preview self-test | `test_dispatch_preview.sh` | pre | required; stub curl, no network, 3 mutation proofs. `dispatch_preview.sh` itself is run by the `preview` job of `quality.yml` (forsgren#222) |
 | 121 | preview workflow | `test_preview_workflow.sh` | pre | required; pins the `preview` job of `quality.yml`, each pin proved by a mutant of the real file |
-| 122 | browser gate self-test | `test_gate_browser.sh` | pre | required, `test_gate_browser v8`; real Chrome and axe-core, fixture sites on 127.0.0.1, 19 mutations, among them the exits: Chrome closed and its profile removed on a signal or an error (forsgren#381), a Chrome killed during the launch, a pin without a mutation proof (forsgren#386, #443); the run is mid-run before any signal, the layout-shift fixtures answer once they moved, the log shows seconds per case |
+| 122 | browser gate self-test | `test_gate_browser.sh` | pre | required, `test_gate_browser v9`; real Chrome and axe-core, fixture sites on 127.0.0.1, 17 mutations; the layout-shift fixtures answer once they moved, the log shows seconds per case (forsgren#386). The exit cases moved to row 122a (forsgren#386, decision #411 A); the shared helpers are `lib_gate_browser_selftest.sh` (`lib_gate_browser_selftest v1`) |
+| 122a | browser gate process self-test | `test_gate_browser_process.sh` | pre | required, `test_gate_browser_process v1`; the exits of the browser gate, split from row 122 (forsgren#386, decision #411 A) and run after it in the same `browser` job: SIGTERM, SIGINT, SIGHUP to the wrapper, SIGTERM to node, SIGKILL to node (52a-52f), Chrome killed mid-run (53) and during the launch (53c), each with no Chrome and no profile folder left, and 2 mutation proofs (R, S); the run is mid-run before any signal (forsgren#381, #383, #386, #443) |
 | 123 | browser gate | `gate_browser.sh` | post | required, `gate_browser v3` on the engine `browser_gate v6` (sideways scrolling, forsgren#350; CLS interval from the load, forsgren#377; Chrome closed on every exit, forsgren#381; Chrome watched from the launch, forsgren#386); the exceptions are empty, the baseline holds one sideways row (decision #364), one variant (see below) |
 | 124 | browser gate (fixture site) self-test | `test_gate_browser_fixture.sh` | pre | required; real Chrome and axe-core, fixture sites on 127.0.0.1, 2 mutation proofs (forsgren#226, forsgren only, not canon) |
 | 125 | browser gate (fixture site) | `gate_browser_fixture.sh` | post | required; the browser gate's engine on the site rendered from the made-up fixture of `Scripts/testdata/fixture_site/` by `build_fixture_site.sh`, with its own empty baseline (forsgren#226, forsgren only, not canon) |
@@ -332,9 +333,10 @@ malformed row fails the step. Its self-test is the PRE row 124.
 
 ## The ratchet today
 
-`MIN_GATES` is 160, which equals the 160 rows of the order file (156 with a
+`MIN_GATES` is 162, which equals the 162 rows of the order file (158 with a
 script and 4 `n/a` rows; the pipe into grep -q gate and its self-test, forsgren#428,
-made 160). forsgren#215 brought it to 115 and the Go tool
+made 160, the Linux tool install self-test, forsgren#427, made 161, and the browser
+gate process self-test, forsgren#386, made 162). forsgren#215 brought it to 115 and the Go tool
 helper self-test of forsgren#216 is the 116th; the browser gate and its
 self-test (forsgren#205) made 118, and the live check self-test
 (forsgren#205, step 2 of 2) made 119; the language gate, the pages wrapper's

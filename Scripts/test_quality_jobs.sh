@@ -27,7 +27,8 @@
 #   3b. the browser job (step 3) has the same setup, runs run_ci_phase.sh pre,
 #      then Scripts/build_site.sh (its own site build), then run_ci_phase.sh
 #      post, both for the job `browser`; no step names a browser gate itself;
-#      the group file gives it the browser gate self-test, the browser gate and
+#      the group file gives it the browser gate self-test, its process self-test
+#      (forsgren#386), the browser gate and
 #      the browser gate (fixture site) with its self-test
 #   4. the job hands its rows over: an upload of quality-report-isolation_1 and quality-report-isolation_2,
 #      `if: always()`, and the main job does the same under quality-report-main
@@ -310,7 +311,7 @@ status_findings() {
 groups_findings() {
   local rows labels
   labels="$(printf '%s\n' 'isolation_1|git sandbox isolation self-test|--shard 1/2' 'isolation_2|git sandbox isolation self-test|--shard 2/2' 'summary|step summary isolation' \
-    'browser|browser gate self-test' 'browser|browser gate' 'browser|browser gate (fixture site) self-test' 'browser|browser gate (fixture site)' \
+    'browser|browser gate self-test' 'browser|browser gate process self-test' 'browser|browser gate' 'browser|browser gate (fixture site) self-test' 'browser|browser gate (fixture site)' \
     'lint|actionlint self-test' 'lint|actionlint forsgren cases self-test' 'lint|actionlint' \
     'lint|shellcheck self-test' 'lint|shellcheck' 'lint|yamllint self-test' 'lint|yamllint' \
     'lint|zizmor self-test' 'lint|zizmor' \

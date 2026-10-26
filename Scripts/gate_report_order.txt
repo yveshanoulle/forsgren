@@ -816,6 +816,14 @@ preview workflow|Scripts/test_preview_workflow.sh|pre|
 # proof of WCAG conformance. The self-test runs first, in pre; the gate opens the
 # site that the build wrote, so it is post.
 browser gate self-test|Scripts/test_gate_browser.sh|pre|
+#
+# The exits of the browser gate, split from its self-test (forsgren#386, decision
+# #411 A): the signal cases 52a-52f, the Chrome killed mid-run and during the
+# launch (53, 53c) and mutation proofs R and S, in their own script and row, so a
+# race in a process case no longer hides the deterministic cases above. Same
+# canon family and the same helpers (Scripts/lib_gate_browser_selftest.sh); the
+# second pre row of the browser job.
+browser gate process self-test|Scripts/test_gate_browser_process.sh|pre|
 browser gate|Scripts/gate_browser.sh|post|
 #
 # The same engine on the site rendered from the made-up fixture (forsgren#226,

@@ -147,6 +147,7 @@ run report shows how many checks each of them ran.
 - dispatch preview self-test (`Scripts/test_dispatch_preview.sh`, pre)
 - preview workflow (`Scripts/test_preview_workflow.sh`, pre)
 - browser gate self-test (`Scripts/test_gate_browser.sh`, pre)
+- browser gate process self-test (`Scripts/test_gate_browser_process.sh`, pre)
 - browser gate (`Scripts/gate_browser.sh`, post)
 - browser gate (fixture site) self-test (`Scripts/test_gate_browser_fixture.sh`, pre)
 - browser gate (fixture site) (`Scripts/gate_browser_fixture.sh`, post)

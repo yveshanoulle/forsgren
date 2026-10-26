@@ -185,12 +185,14 @@ fi
 # release workflow pin (forsgren#263), and down to 157 for the precheck
 # self-test that went with the retired precheck.sh (forsgren#439), and up to 158
 # for the release check self-test (forsgren#445), and up to 160 for the pipe
-# into grep -q gate and its self-test (forsgren#428), and up to 161 for the Linux
-# tool install self-test (forsgren#427).
+# into grep -q gate and its self-test (forsgren#428), up to 161 for the Linux
+# tool install self-test (forsgren#427), and up to 162 for the browser gate
+# process self-test split from the browser gate self-test (forsgren#386,
+# decision #411 A).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=161
+MIN_GATES=162
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -852,6 +854,18 @@ the Lint gates job would have no way to install a tool"
         grep -qE '^source .*lib_has\.sh"?$' "$consumer" \
           || fail "${consumer} ends a pipe in has and never sources ${base}"
       done < <(grep -lE '^[^#]*[|][[:space:]]*has ' Scripts/*.sh)
+      ;;
+
+    # SOURCED HELPER, not a gate (forsgren#386, decision #411 A): what the two
+    # browser gate self-tests share. Both are order-file rows and both must
+    # still source it, else the page and site helpers they call would be missing.
+    lib_gate_browser_selftest.sh)
+      for consumer in test_gate_browser.sh test_gate_browser_process.sh; do
+        runs_script "Scripts/${consumer}" "$base" \
+          || fail "${base} holds the helpers of the browser gate self-tests and Scripts/${consumer} never sources it"
+        order_names "$consumer" \
+          || fail "Scripts/${consumer} is not an order-file row — the browser gate helpers would be unproven"
+      done
       ;;
 
     *)

@@ -9,6 +9,17 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — The browser gate self-test splits: its process cases get their own self-test ([#386](https://github.com/yveshanoulle/forsgren/issues/386), decision #411 A, last step)
+
+forsgren issue 386, tools issue, no release. The exit cases of `Scripts/test_gate_browser.sh` (52a to 52f, 53, 53c and mutation proofs R and S) moved to `Scripts/test_gate_browser_process.sh`, a second self-test of the same `browser` job, so a race in a process case no longer hides the deterministic cases and the selector can skip it when only the checks of the gate changed.
+
+- The shared helpers (seconds per case, the check that the gate and its dependencies exist, the clean fixture page, the fixture site) are `Scripts/lib_gate_browser_selftest.sh` (canon `lib_gate_browser_selftest v1`), sourced by both. `test_gate_browser` canon v8 to v9; `test_gate_browser_process` is v1. Every case keeps its assertion; the union of the case ids is the old set.
+- New order-file row `browser gate process self-test` (pre) and the `browser` group row in `Scripts/ci_job_groups.txt` (the job's PRE step runs it after the first); `Scripts/gate_inputs.txt` gets the label and the new lib on the rows that list the self-test; `MIN_GATES` 160 to 161; `docs/gate-classification.md` row 122a.
+
+Signed: Lenka B
+
+---
+
 ## 2026-10-26 — The Lint gates job runs on ubuntu-latest ([#427](https://github.com/yveshanoulle/forsgren/issues/427), 1 step)
 
 forsgren issue 427 (tools): actionlint, shellcheck, yamllint and zizmor with their self-tests no longer queue

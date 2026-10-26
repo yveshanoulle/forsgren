@@ -49,6 +49,7 @@ INPUTS="Scripts/gate_inputs.txt"
 ORDER="Scripts/gate_report_order.txt"
 LABELS=(
   "browser gate self-test"
+  "browser gate process self-test"
   "browser gate"
   "browser gate (fixture site) self-test"
   "browser gate (fixture site)"
@@ -283,4 +284,4 @@ if cmp -s Scripts/build_site.sh "${ROOT}/Scripts/build_site.sh"; then fail "muta
 capture guard "$ROOT"
 want_red "mutation proof D: a build script reading a testdata file" "problem: Scripts/build_site.sh reads a test file or testdata: cp internal/page/testdata/legend.golden"
 
-selftest_end "the browser gate inputs self-test failed" "gate inputs: ten labels listed, every path exists, every closure listed, everything the step summary isolation gate discovers is listed, the release workflow gate does not enumerate the repository, the guard holds, eleven mutations seen"
+selftest_end "the browser gate inputs self-test failed" "gate inputs: twelve labels listed, every path exists, every closure listed, everything the step summary isolation gate discovers is listed, the release workflow gate does not enumerate the repository, the guard holds, eleven mutations seen"

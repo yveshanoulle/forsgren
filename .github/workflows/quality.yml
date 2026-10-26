@@ -591,7 +591,7 @@ jobs:
           if-no-files-found: error
 
   # The browser job (forsgren#259, decision #260): the browser gate self-test,
-  # the browser gate, and the browser gate on the fixture site with its
+  # its process self-test (forsgren#386), the browser gate, and the browser gate on the fixture site with its
   # self-test (Scripts/ci_job_groups.txt gives them to this job, and
   # Scripts/run_ci_phase.sh skips them in the main job), about 295 s of gates.
   # The same setup as the main job, step for step: the hosted image's Chrome is
