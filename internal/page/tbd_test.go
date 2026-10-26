@@ -325,7 +325,7 @@ func tbdHeaders() (top, beneath string) {
 			if full, ok := shortHeaders[c]; ok {
 				label = ` aria-label="` + full + `"`
 			} else if g.hidden != "" {
-				label = ` aria-label="` + c + ` ` + g.hidden + `"`
+				label = ` aria-label="the ` + c + ` of ` + g.hidden + `"`
 			}
 			columns = append(columns, `<th scope="col"`+label+`>`+c+`</th>`)
 		}

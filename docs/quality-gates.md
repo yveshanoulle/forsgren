@@ -654,7 +654,9 @@ The POST gates, on the generated site:
   `Scripts/gate_language.sh`, self-tests `Scripts/test_gate_language.sh` and
   `Scripts/test_gate_language_pages.sh`, forsgren#220): after the build and the
   starter page build, the text a visitor reads on every page of `.build/site` and
-  `.build/starter` (the latter as `starter/index.html`), plus `alt`, `title` and
+  `.build/starter` (the latter as `starter/index.html`) and the golden page of the
+  TBD table with all the figures (as `golden/tbd.all.html`, forsgren#452: the
+  built site shows the median default), plus `alt`, `title` and
   `aria-label`, is checked by LanguageTool 6.8 in `en-GB`. It runs on this
   machine under `sandbox-exec` with the network denied, never against a remote
   service. Mode `enforce` (`Scripts/language_settings.txt`): red for a finding

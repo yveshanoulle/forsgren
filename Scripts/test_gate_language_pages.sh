@@ -5,10 +5,10 @@
 # canon language gate over the metrics site and the starter page together. The
 # canon gate is a STUB here (it lists the files of the directory it is given and
 # exits as told), so the test needs no LanguageTool.
-#   1. the directory the gate gets holds the site pages and starter/index.html
+#   1. the directory the gate gets holds the site pages, golden/tbd.all.html and starter/index.html
 #   2. the gate's exit status and output pass through (0, 1 and 2)
 #   3. the temporary directory is gone afterwards
-#   4. a missing site directory, a missing starter page   -> exit 2, the gate not run
+#   4. a missing site directory, starter page or golden page -> exit 2, the gate not run
 # Mutation proofs (each fixture is red BECAUSE of the line mutated):
 #   A. the starter page not copied: case 1 loses starter/index.html;
 #   B. the gate's status swallowed: case 2 turns green on a red gate;
@@ -43,19 +43,21 @@ echo '<html lang="en"></html>' > "${TMP}/site/index.html"
 echo '<html lang="en"></html>' > "${TMP}/site/numbers/index.html"
 echo '<html lang="en"></html>' > "${TMP}/starter/index.html"
 echo 'body{}' > "${TMP}/starter/styles.css"
+echo '<html lang="en"></html>' > "${TMP}/golden.html"
 
 TARGET="$WRAPPER"
 # run [VAR=value ...]
 run() {
   rm -f "${TMP}/list" "${TMP}/dir"
   capture env GATE_LANGUAGE_PAGES_GATE="${TMP}/stub_gate.sh" STUB_LIST="${TMP}/list" STUB_DIR="${TMP}/dir" "$@" \
-    "$TARGET" "${TMP}/site" "${TMP}/starter"
+    "$TARGET" "${TMP}/site" "${TMP}/starter" "${TMP}/golden.html"
 }
 
 run
 want_green "2a: a green gate passes through" "stub gate ran on a directory"
-if [[ "$(cat "${TMP}/list")" == "$(printf './index.html\n./numbers/index.html\n./starter/index.html')" ]]; then
-  echo "  ok: 1: the gate gets the site pages and starter/index.html, and no other starter file"
+WANT_LIST="$(printf './golden/tbd.all.html\n./index.html\n./numbers/index.html\n./starter/index.html')"
+if [[ "$(cat "${TMP}/list")" == "$WANT_LIST" ]]; then
+  echo "  ok: 1: the gate gets the site pages, golden/tbd.all.html (forsgren#452) and starter/index.html only"
 else
   fail "1: the gate's directory holds: $(tr '\n' ' ' < "${TMP}/list" 2>/dev/null)"
 fi
@@ -70,10 +72,13 @@ want_exit "2b: a red gate (1) passes through" 1 "stub gate ran on a directory"
 run STUB_RC=2
 want_exit "2c: a gate that could not run (2) passes through" 2 "stub gate ran on a directory"
 
-capture env GATE_LANGUAGE_PAGES_GATE="${TMP}/stub_gate.sh" "$TARGET" "${TMP}/absent" "${TMP}/starter"
+capture env GATE_LANGUAGE_PAGES_GATE="${TMP}/stub_gate.sh" "$TARGET" \
+  "${TMP}/absent" "${TMP}/starter" "${TMP}/golden.html"
 want_exit "4a: a missing site directory" 2 "site dir not found"
-capture env GATE_LANGUAGE_PAGES_GATE="${TMP}/stub_gate.sh" "$TARGET" "${TMP}/site" "${TMP}/absent"
+capture env GATE_LANGUAGE_PAGES_GATE="${TMP}/stub_gate.sh" "$TARGET" "${TMP}/site" "${TMP}/absent" "${TMP}/golden.html"
 want_exit "4b: a missing starter page" 2 "starter page not found"
+capture env GATE_LANGUAGE_PAGES_GATE="${TMP}/stub_gate.sh" "$TARGET" "${TMP}/site" "${TMP}/starter" "${TMP}/absent"
+want_exit "4c: a missing all-figures golden page" 2 "golden page not found"
 
 MUT="${REPO_ROOT}/Scripts/.language_pages_mutant.$$.sh"
 trap 'rm -f "$MUT"; selftest_cleanup' EXIT

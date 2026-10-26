@@ -9,6 +9,15 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — The language gate reads the TBD table with all the figures, and its header labels pass it ([#452](https://github.com/yveshanoulle/forsgren/issues/452))
+
+forsgren issue 452: the aria-labels of the all-figures TBD headers read `mean time to main` and `mean time to deploy`, which LanguageTool flags (`IN_THE_MEAN_TIME_PHRASE`); the gate never saw them, since the site it reads is built with the median default.
+
+- The stat headers are now `the mean of time to main`, `the median of ...`, `the p90 of ...`, for all four measures of the group (time to main, time to deploy, commits per push, commits per deployment), so they stay alike. Red first: `TestTbdPageHasTwoLevelHeadersWithAllTheFigures` against the old template. The goldens `tbd.all*` change in those labels only.
+- `Scripts/gate_language_pages.sh` also stages `internal/page/testdata/tbd.all.golden.html` as `golden/tbd.all.html` (a third optional argument), so the gate reads the all-figures table with no extra build and no change to the order of the gates. Seen red on that page (two `IN_THE_MEAN_TIME_PHRASE` findings) before the labels were reworded, green after. Its self-test holds the page and the missing-file exit 2.
+
+---
+
 ## 2026-10-26 — The npm audit gate is red from moderate severity up, and a low advisory is listed ([#434](https://github.com/yveshanoulle/forsgren/issues/434), 1 step)
 
 forsgren issue 434, tools, no release of its own, decision #420 (A). `Scripts/npm_audit_check.sh` (canon v3) was red on high and critical advisories only, so the moderate `fast-uri` findings of #419 passed. It is now red on moderate, high and critical, development dependencies included; a low advisory is printed as `low: npm-audit: <GHSA> (<package> <range>) is listed, not red: <title>` and the gate stays green. No exception or suppression is added. Red first in `Scripts/test_npm_audit_check.sh` (v2) with fixtures `moderate.json` and `low.json`: a moderate advisory is red, a low one green and listed, seen failing against the old gate; mutation proofs: without the moderate level the moderate case is green, a gate that blocks on low is red on the low case, and without the listing the low advisory goes unmentioned. `docs/development.md` and `docs/gate-classification.md` say so. No change to `FBP.sh`, `sfl.sh`, the order file or `Scripts/gate_inputs.txt`. The other repositories take canon v3 in later work.

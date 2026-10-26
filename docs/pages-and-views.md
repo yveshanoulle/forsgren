@@ -831,7 +831,7 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     beneath each measure). The table has 27 columns, wider than a phone, and
     scrolls sideways inside its region (Yves accepted that on #401; the
     project screen, forsgren#91, may give the phone its own view). The stat
-    headers carry the measure in an `aria-label`, such as "mean time to main".
+    headers carry the measure in an `aria-label`, such as "the mean of time to main".
 
   The units are in the names: durations say so, and the others are counts of
   commits. Cells are numbers only: every duration of the page is written in

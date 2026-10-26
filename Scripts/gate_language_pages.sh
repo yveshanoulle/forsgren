@@ -10,8 +10,15 @@
 # is keyed by the page starter/index.html. The exit status and the output are
 # the gate's own.
 #
-# Usage: Scripts/gate_language_pages.sh [site-dir [starter-dir]]
-#        (default: .build/site and .build/starter)
+# The built site renders the TBD page with the median only (the default), so
+# the all-figures table, with its own header aria-labels, was never read
+# (forsgren#452). The golden page of that table (internal/page/testdata, pinned
+# byte for byte to what forsgren renders with tbd_figures: all) goes in too, as
+# golden/tbd.all.html: no extra build, so no change of the order of the gates.
+#
+# Usage: Scripts/gate_language_pages.sh [site-dir [starter-dir [golden-page]]]
+#        (default: .build/site, .build/starter and
+#        internal/page/testdata/tbd.all.golden.html)
 # Fixture: Scripts/test_gate_language_pages.sh.
 
 set -euo pipefail
@@ -20,6 +27,7 @@ cd "$(dirname "$0")/.." || exit 1
 
 SITE="${1:-.build/site}"
 STARTER="${2:-.build/starter}"
+GOLDEN="${3:-internal/page/testdata/tbd.all.golden.html}"
 
 PAGES="$(mktemp -d)"
 # On bash 3.2 an abort (an unbound variable under set -eu) ends a script with
@@ -38,10 +46,13 @@ trap finish EXIT
 
 [[ -d "$SITE" ]] || { echo "❌ language gate: site dir not found: ${SITE}" >&2; exit 2; }
 [[ -f "${STARTER}/index.html" ]] || { echo "❌ language gate: starter page not found: ${STARTER}/index.html" >&2; exit 2; }
+[[ -f "$GOLDEN" ]] || { echo "❌ language gate: all-figures TBD golden page not found: ${GOLDEN}" >&2; exit 2; }
 
 cp -R "${SITE}/." "$PAGES/"
 mkdir -p "${PAGES}/starter"
 cp "${STARTER}/index.html" "${PAGES}/starter/index.html"
+mkdir -p "${PAGES}/golden"
+cp "$GOLDEN" "${PAGES}/golden/tbd.all.html"
 
 # GATE_LANGUAGE_PAGES_GATE is the testing seam: the self-test points it at a
 # stub that records the directory it is given.
