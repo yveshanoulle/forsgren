@@ -72,8 +72,9 @@ const perRepository = "Per repository"
 // it, with the median only or with all the figures (decision #450, C): its own
 // deployment cells, and one cell across each run of the cells that are per
 // repository, which are, in the order of the columns, the Mainline Interval,
-// Mainline Lead Time and Time to main (3 columns, 9 with all), PR Lead Time,
-// Commits and Pushes (3, 5), Commits per push (1, 3) and the four shares (4).
+// Mainline Lead Time, Time to main and PR Lead Time (4 columns, 12 with all),
+// then after the service's own Time to deploy, Commits and Pushes (2),
+// Commits per push (1, 3) and the four shares (4) (forsgren#485).
 func apiRow(all bool) string {
 	span := func(median, every int) string {
 		if all {
@@ -81,9 +82,9 @@ func apiRow(all bool) string {
 		}
 		return "@" + strconv.Itoa(median) + perRepository
 	}
-	cells := []string{span(3, 9), "1 h", span(3, 5), "5", span(1, 3), "2", span(4, 4), "2"}
+	cells := []string{span(4, 12), "1 h", span(2, 2), "5", span(1, 3), "2", span(4, 4), "2"}
 	if all {
-		cells = []string{span(3, 9), "&lt; 1 m | 1 h | -", span(3, 5), "5", span(1, 3), "0 | 2 | -", span(4, 4), "2"}
+		cells = []string{span(4, 12), "&lt; 1 m | 1 h | -", span(2, 2), "5", span(1, 3), "0 | 2 | -", span(4, 4), "2"}
 	}
 	return "<th scope=\"row\"><span class=\"visually-hidden\">Acme Shop: </span>API</th>\n            " +
 		tds(strings.Join(cells, " | ")) + "\n"

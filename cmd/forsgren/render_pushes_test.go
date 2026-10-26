@@ -137,7 +137,8 @@ func TestRenderShowsThePushGroupsAndTheirStatesOnTheTbdPage(t *testing.T) {
 	wantIn(t, tbdSiteOf(t, validConfig, data), pushesNotCollected(3), pushesNotCollected(4))
 	writePushes(t, data)
 	got := tbdSiteOf(t, validConfig, data)
-	wantIn(t, got, tdRow("25 m", "-", "-")+"\n            "+shopTimes,
+	wantIn(t, got, tdRow("25 m", "-", "-")+"\n            "+
+		`<td colspan="3">No pull requests have been collected yet</td>`+"\n            "+shopTimes,
 		tdRow("1", "1", "12", "1", "-", "-", "1", "-", "-", "100%", "0%", "0%", "0%", "0"),
 		tdRow("0", "0", "0", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"))
 	if strings.Contains(got, "Pushes not collected yet") {

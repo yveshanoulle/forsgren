@@ -10,13 +10,14 @@ package metrics
 //     (ignoring case) and SHA, a commit brought by two pushes counted once,
 //     at the earlier; a line that is not first-parent (a branch commit,
 //     forsgren#463 step 4) is left out of every measure;
-//   - the shares of Commits, in whole percent rounded down: PullRequests, the
+//   - the shares of Commits (shown by the cells in tbdcells.go): PullRequests, the
 //     commits a pr_merge push brought or that are the merge commit of a pull
 //     request of data/pulls.csv; Direct, all the others; UnknownAuthors, the
 //     commits with no login or GitHub's placeholder login (placeholderLogin),
 //     whatever else they are; Bots, the commits whose author login ends in
 //     [bot] (as the developer count tells a bot), whatever else they are; the
-//     counts are kept with the shares;
+//     counts are kept, and the cells compute each share from them,
+//     never from a rounded figure;
 //   - the time to main of a commit is its push time minus its author date, a
 //     negative one counted as 0 (a clock ahead of the push), as lead time for
 //     changes counts one; its mean, median and 90th percentile (spread.go);
@@ -53,27 +54,6 @@ type PushMeasures struct {
 	// NotReadable says collect was refused the push read of one of the
 	// project's repositories; Uncollected that no push file exists.
 	NotReadable, Uncollected bool
-}
-
-// PullRequestShare is the share of the commits that came through a pull
-// request, in whole percent rounded down; 0 without a commit.
-func (m PushMeasures) PullRequestShare() int { return share(m.PullRequests, m.Commits) }
-
-// DirectShare is the share of the commits pushed straight to main.
-func (m PushMeasures) DirectShare() int { return share(m.Direct, m.Commits) }
-
-// BotShare is the share of the commits whose author is a bot.
-func (m PushMeasures) BotShare() int { return share(m.Bots, m.Commits) }
-
-// UnknownAuthorShare is the share of the commits of an unknown author.
-func (m PushMeasures) UnknownAuthorShare() int { return share(m.UnknownAuthors, m.Commits) }
-
-// share is part out of whole in whole percent rounded down; 0 for no whole.
-func share(part, whole int) int {
-	if whole == 0 {
-		return 0
-	}
-	return part * 100 / whole
 }
 
 // pushTime is when the pushes that ended at one tip happened (the earliest)

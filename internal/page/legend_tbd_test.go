@@ -27,6 +27,8 @@ var legendTbdText = []string{
 		"after another",
 	"A commit that a merge brought in from a branch is not on the main line, but the merge " +
 		"commit is",
+	"A merge commit and a squash each add one commit to the main line. A rebase merge adds each rebased " +
+		"commit as its own step",
 	"Each commit is placed at the time it landed, its committer date",
 	"Only commits that deployments of the last 30 days shipped are measured, each once",
 	"Fewer than two commits make no interval, so the cell is a dash",
@@ -42,9 +44,22 @@ var legendTbdText = []string{
 	"It stops at the push to main that brought the commit, at the time GitHub records for " +
 		"that push",
 	"A commit counts once, at its first push. A commit written after its push counts as 0",
+	"Every lead time on this page starts at the author date of a commit, so work before the first commit " +
+		"is never visible",
+	"When a tool commits and pushes in one go, the commit and the push are seconds apart, except for a " +
+		"commit whose build fails: it waits locally until the fix on top of it is pushed",
+	"Time to main counts the commits of the main line, merge commits included",
+	"Mainline Lead Time uses the same clock over every commit that reached main: the commits a merge " +
+		"brought in from a branch count, merge commits are left out, and a squash commit is replaced by " +
+		"the original commits of its pull request",
 	"The Mainline Interval is about how often changes land on main",
 	"Time to main per commit is about how old one change is when it lands",
 	"One is a rhythm and the other is an age",
+	"Mainline Lead Time, described below, is a third number: an age like Time to main, but over every " +
+		"commit that reached main",
+	"The Mainline Interval counts deployed commits, so a repository without deployments shows a dash. " +
+		"Time to main and Mainline Lead Time count what was pushed to main, and PR Lead Time counts " +
+		"merged pull requests",
 	"Time to deploy per commit is how old one change is when it is first deployed",
 	"For each commit it runs from the author date of the commit to the first deployment that " +
 		"contains it",
@@ -60,7 +75,10 @@ var legendTbdText = []string{
 	"The commits a merge brought in from a branch count as the one merge commit",
 	"Smaller batches are generally easier to review, test and troubleshoot",
 	"Shares of commits shows how the commits of Volume reached main",
-	"All four are shares of the same Commits number, in whole percent rounded down",
+	"All four are shares of the same Commits number, shown with two significant digits, rounded down",
+	"From 10% a share is a whole percent, such as 19% or 100%. From 1% to under 10% it has one decimal, " +
+		"always shown, such as 1.3% or 3.0%. Under 1% it has two decimals, such as 0.63%, " +
+		"and under 0.01% it reads &lt; 0.01%. None at all is 0%",
 	"Direct: commits that did not come through a pull request",
 	"a branch merged locally and then pushed",
 	"PR: commits that came through a pull request",
@@ -109,6 +127,9 @@ var legendTbdText = []string{
 		"Indicator",
 	"This page shows PR Lead Time for the work that goes through pull requests, and Time to main for " +
 		"every change, direct pushes included",
+	"Time to main is forsgren's own term. PR Lead Time as the only Mainline Lead Time did not fit teams " +
+		"that push straight to main, which is trunk-based development, so forsgren added a second number " +
+		"for the commits pushed directly",
 	"Time to main is described in its own part",
 	"Time to main is the stretch of a change's lead time from its commit to the main branch",
 	"The Mainline Throughput Indicator has one lead time, the Mainline Lead Time",
@@ -227,7 +248,6 @@ func wordingWhere(wordings []string, section string, present bool) []string {
 // longer counts only the commits the interval counts.
 var legendTbdRetired = []string{
 	"is the name this page gives to the Mainline Lead Time",
-	"forsgren's own",
 	"Forsgren uses no abbreviation",
 	"by their author date",
 	"next to each other by author date",

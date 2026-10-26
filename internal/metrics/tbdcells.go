@@ -53,25 +53,38 @@ func (m PushMeasures) volume(n int) string {
 	return strconv.Itoa(n)
 }
 
-// DirectCell, PullRequestCell, UnknownAuthorCell and BotCell are the shares of the
-// commits, "99%", a dash without a commit.
-func (m PushMeasures) DirectCell() string { return m.shareCell(m.DirectShare()) }
+// DirectCell is the share of the commits pushed straight to main, shown as
+// shareCell does.
+func (m PushMeasures) DirectCell() string { return m.shareCell(m.Direct) }
 
 // PullRequestCell is the share of the commits that came through a pull request.
-func (m PushMeasures) PullRequestCell() string { return m.shareCell(m.PullRequestShare()) }
+func (m PushMeasures) PullRequestCell() string { return m.shareCell(m.PullRequests) }
 
 // BotCell is the share of the commits whose author is a bot.
-func (m PushMeasures) BotCell() string { return m.shareCell(m.BotShare()) }
+func (m PushMeasures) BotCell() string { return m.shareCell(m.Bots) }
 
 // UnknownAuthorCell is the share of the commits of an unknown author.
-func (m PushMeasures) UnknownAuthorCell() string { return m.shareCell(m.UnknownAuthorShare()) }
+func (m PushMeasures) UnknownAuthorCell() string { return m.shareCell(m.UnknownAuthors) }
 
-// shareCell is percent as a cell, a dash without a commit.
-func (m PushMeasures) shareCell(percent int) string {
-	if m.Commits == 0 {
+// shareCell is part out of the commits to two significant digits, rounded
+// down and computed from the counts (forsgren#477): from 10% a whole percent
+// ("19%"), from 1% one decimal always shown ("3.0%"), under 1% two decimals
+// ("0.63%", "< 0.01%" below that), exactly none "0%"; a dash without a commit.
+func (m PushMeasures) shareCell(part int) string {
+	switch hundredths := part * 10000 / max(m.Commits, 1); {
+	case m.Commits == 0:
 		return noNumber
+	case part == 0:
+		return "0%"
+	case hundredths == 0:
+		return "< 0.01%"
+	case hundredths >= 1000:
+		return fmt.Sprintf("%d%%", hundredths/100)
+	case hundredths >= 100:
+		return fmt.Sprintf("%d.%d%%", hundredths/100, hundredths/10%10)
+	default:
+		return fmt.Sprintf("%d.%02d%%", hundredths/100, hundredths%100)
 	}
-	return fmt.Sprintf("%d%%", percent)
 }
 
 // MeanCell is the mean time, a dash for none.

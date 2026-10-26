@@ -1093,7 +1093,6 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/pushmeasures.go:share": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/pushmeasures.go:UnknownAuthorShare": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/pushmeasures.go:DirectShare": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/metrics/pushmeasures.go:PullRequestShare": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/deploymeasures.go:DeployMeasuresOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/deploymeasures.go:timesToDeploy": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/deploymeasures.go:commitsPerDeployment": 100.0,

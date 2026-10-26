@@ -66,13 +66,13 @@ func TestPushMeasuresCountTheCommitsTheirSharesTheTimeToMainAndThePerPush(t *tes
 	}
 }
 
-// TestPushMeasuresShareTheCommitsInWholePercentRoundedDown: 2, 4, 2 and 1 of
-// 6 are 33, 66, 33 and 16 percent.
-func TestPushMeasuresShareTheCommitsInWholePercentRoundedDown(t *testing.T) {
+// TestPushMeasuresShareTheCommitsRoundedDown: 2, 4, 2 and 1 of 6 are 33, 66,
+// 33 and 16 percent.
+func TestPushMeasuresShareTheCommitsRoundedDown(t *testing.T) {
 	got := shopPushMeasures(pushesData())
-	shares := [4]int{got.PullRequestShare(), got.DirectShare(), got.UnknownAuthorShare(), got.BotShare()}
-	if shares != [4]int{33, 66, 33, 16} {
-		t.Errorf("want shares 33, 66, 33 and 16, got %v", shares)
+	shares := [4]string{got.PullRequestCell(), got.DirectCell(), got.UnknownAuthorCell(), got.BotCell()}
+	if shares != [4]string{"33%", "66%", "33%", "16%"} {
+		t.Errorf("want shares 33, 66, 33 and 16 percent, got %v", shares)
 	}
 }
 
@@ -184,13 +184,12 @@ func TestPushMeasuresGiveEachProjectItsOwnRepositories(t *testing.T) {
 	}
 }
 
-// TestPushMeasuresHaveNoSharesWithoutACommit: no commit, shares of 0, and no
+// TestPushMeasuresHaveNoSharesWithoutACommit: no commit, no counts, and no
 // state.
 func TestPushMeasuresHaveNoSharesWithoutACommit(t *testing.T) {
 	got := shopPushMeasures(Data{})
-	shares := [4]int{got.PullRequestShare(), got.DirectShare(), got.UnknownAuthorShare(), got.BotShare()}
-	if got != (PushMeasures{Project: "Acme Shop"}) || shares != [4]int{} {
-		t.Errorf("want nothing, got %+v, %v", got, shares)
+	if got != (PushMeasures{Project: "Acme Shop"}) {
+		t.Errorf("want nothing, got %+v", got)
 	}
 }
 

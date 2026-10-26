@@ -86,8 +86,8 @@ type projectCells struct{ interval, deploy string }
 // and the pull requests cell lead (forsgren#418: the order of the groups).
 func leadRow(row projectCells, lead string) string {
 	return row.interval + "\n            " + pushesNotCollected(3) + "\n            " + pushesNotCollected(3) +
-		"\n            " + row.deploy +
-		"\n            " + leadTd(lead) + "\n"
+		"\n            " + leadTd(lead) +
+		"\n            " + row.deploy + "\n"
 }
 
 // leadCells are the pull requests cells of a project written for a test: the

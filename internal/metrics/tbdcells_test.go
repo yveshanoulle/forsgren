@@ -52,13 +52,13 @@ func TestCountSpreadCells(t *testing.T) {
 	}
 }
 
-// TestPushMeasuresCells: the volume, the shares in whole percent like 99%,
-// dashes without a commit.
+// TestPushMeasuresCells: the volume, the shares like 99%, dashes without a
+// commit.
 func TestPushMeasuresCells(t *testing.T) {
 	m := PushMeasures{Pushes: 12, Commits: 200, PullRequests: 20, Direct: 180, UnknownAuthors: 199, Bots: 4}
 	got := [6]string{m.CommitsCell(), m.PushesCell(), m.DirectCell(), m.PullRequestCell(), m.UnknownAuthorCell(),
 		m.BotCell()}
-	if want := [6]string{"200", "12", "90%", "10%", "99%", "2%"}; got != want {
+	if want := [6]string{"200", "12", "90%", "10%", "99%", "2.0%"}; got != want {
 		t.Errorf("want %v, got %v", want, got)
 	}
 	none := PushMeasures{Pushes: 3}
@@ -66,6 +66,40 @@ func TestPushMeasuresCells(t *testing.T) {
 		none.UnknownAuthorCell(), none.BotCell()}
 	if want := [6]string{"0", "3", "-", "-", "-", "-"}; got != want {
 		t.Errorf("without a commit: want %v, got %v", want, got)
+	}
+}
+
+// TestShareCellsShowTwoSignificantDigitsRoundedDown (forsgren#477): from 10% a
+// whole percent, from 1% one decimal always shown, under 1% two decimals, 0
+// as 0%, each from the counts, never from a rounded figure, at every edge of
+// a band.
+func TestShareCellsShowTwoSignificantDigitsRoundedDown(t *testing.T) {
+	for _, c := range []struct {
+		part, whole int
+		want        string
+	}{
+		{0, 1722, "0%"},
+		{1, 20000, "< 0.01%"},
+		{1, 10000, "0.01%"},
+		{11, 1722, "0.63%"},
+		{99, 10000, "0.99%"},
+		{999, 100000, "0.99%"},
+		{1, 100, "1.0%"},
+		{13, 1000, "1.3%"},
+		{3, 100, "3.0%"},
+		{999, 10000, "9.9%"},
+		{99, 1000, "9.9%"},
+		{1, 10, "10%"},
+		{19, 100, "19%"},
+		{199, 1000, "19%"},
+		{9999, 10000, "99%"},
+		{100, 100, "100%"},
+	} {
+		m := PushMeasures{Commits: c.whole, Direct: c.part, PullRequests: c.part, UnknownAuthors: c.part, Bots: c.part}
+		got := [4]string{m.DirectCell(), m.PullRequestCell(), m.UnknownAuthorCell(), m.BotCell()}
+		if want := [4]string{c.want, c.want, c.want, c.want}; got != want {
+			t.Errorf("%d of %d: want %s, got %v", c.part, c.whole, c.want, got)
+		}
 	}
 }
 

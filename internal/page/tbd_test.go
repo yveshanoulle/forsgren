@@ -141,20 +141,29 @@ func tbdDeploys() []metrics.DeployMeasures {
 // N columns wide (forsgren#418; one column wide is a plain cell), one starting
 // with {N,M} carries the notes N and M.
 //
-// tbdTimeCells are the cells around the pull requests cell on its left: time
-// to main, then time to deploy. tbdCountCells are the cells on its right:
+// tbdTimeCells are the time to main cells, on the left of the pull requests
+// cell. tbdDeployCells follow it (forsgren#485), then tbdCountCells:
 // volume (commits, pushes, deployments), commits per push, commits per
 // deployment and the shares (direct, PR, unknown, bots).
 var tbdTimeCells = map[string][2]string{
-	"Acme Shop":  {"30 m | 1 h", "1 h | 30 m | 3 h | 2 h | 1 h | 5 h"},
-	"Acme Tools": {"- | 1 h", "2 h | - | - | 1 h | 1 h | -"},
-	"Acme Docs":  {"@1Push activity not readable | 30 m", "@3Push activity not readable | 30 m | 30 m | -"},
-	"Acme Web":   {"@1Pushes not collected yet | -", "@3Pushes not collected yet | 10 m | - | -"},
+	"Acme Shop":  {"30 m", "1 h | 30 m | 3 h"},
+	"Acme Tools": {"-", "2 h | - | -"},
+	"Acme Docs":  {"@1Push activity not readable", "@3Push activity not readable"},
+	"Acme Web":   {"@1Pushes not collected yet", "@3Pushes not collected yet"},
+}
+
+// tbdDeployCells are the Time to deploy per commit cells, the group after the
+// pull requests (forsgren#485).
+var tbdDeployCells = map[string][2]string{
+	"Acme Shop":  {"1 h", "2 h | 1 h | 5 h"},
+	"Acme Tools": {"1 h", "1 h | 1 h | -"},
+	"Acme Docs":  {"30 m", "30 m | 30 m | -"},
+	"Acme Web":   {"-", "10 m | - | -"},
 }
 
 var tbdCountCells = map[string][2]string{
-	"Acme Shop": {"40 | 20 | 85 | 1.5 | 4.5 | 75% | 25% | 10% | 5%",
-		"40 | 20 | 85 | 2 | 1.5 | 6 | 5 | 4.5 | 12 | 75% | 25% | 10% | 5%"},
+	"Acme Shop": {"40 | 20 | 85 | 1.5 | 4.5 | 75% | 25% | 10% | 5.0%",
+		"40 | 20 | 85 | 2 | 1.5 | 6 | 5 | 4.5 | 12 | 75% | 25% | 10% | 5.0%"},
 	"Acme Tools": {"1 | 1 | 7 | - | - | 100% | 0% | 0% | 0%",
 		"1 | 1 | 7 | 1 | - | - | 3 | - | - | 100% | 0% | 0% | 0%"},
 	"Acme Docs": {"- | - | 2 | @1Push activity not readable | 1 | @4Push activity not readable",
@@ -248,7 +257,8 @@ func tbdRow(all bool, project, lead, developers string) string {
 	return "<th scope=\"row\">" + project + "</th>\n            " + tds(at(tbdIntervalCells[project], all)) +
 		"\n            " + tds(at(tbdMainLeadCells[project], all)) +
 		"\n            " + tds(at(tbdTimeCells[project], all)) + "\n            " + tds(lead) + "\n            " +
-		tds(at(tbdCountCells[project], all)) + "\n            " + tds(developers) + "\n"
+		tds(at(tbdDeployCells[project], all)) + "\n            " + tds(at(tbdCountCells[project], all)) +
+		"\n            " + tds(developers) + "\n"
 }
 
 // tds are the cells of cells, parted by " | ", as the template writes a row's
@@ -274,10 +284,11 @@ func tdOf(c string) string {
 	return "<td>" + c + "</td>"
 }
 
-// stateTd is the state cell rest, N columns wide and then its text; across one it is a plain
+// stateTd is the state cell rest, N columns wide (any number of digits) and then its text; across one it is a plain
 // cell (forsgren#423).
 func stateTd(rest string) string {
-	columns, text := rest[:1], rest[1:]
+	text := strings.TrimLeft(rest, "0123456789")
+	columns := rest[:len(rest)-len(text)]
 	if columns == "1" {
 		return "<td>" + text + "</td>"
 	}
@@ -326,8 +337,8 @@ var tbdGroups = []struct {
 	{"Mainline Interval", []string{"mean", "median", "p90"}, ""},
 	{"Mainline Lead Time", []string{"mean", "median", "p90"}, "Mainline Lead Time"},
 	{"Time to main per commit", []string{"mean", "median", "p90"}, "time to main"},
-	{"Time to deploy per commit", []string{"mean", "median", "p90"}, "time to deploy"},
 	{"PR Lead Time", []string{"mean", "median", "p90"}, ""},
+	{"Time to deploy per commit", []string{"mean", "median", "p90"}, "time to deploy"},
 	{"Volume", []string{"Commits", "Pushes", "Deployments"}, ""},
 	{"Commits per push", []string{"mean", "median", "p90"}, "commits per push"},
 	{"Commits per deployment", []string{"mean", "median", "p90"}, "commits per deployment"},
@@ -373,8 +384,8 @@ var medianHeaders = []struct{ text, label string }{
 	{"Mainline Interval", "median mainline interval"},
 	{"Mainline Lead Time", "median mainline lead time"},
 	{"Time to main per commit", "median time to main per commit"},
-	{"Time to deploy per commit", "median time to deploy per commit"},
 	{"PR Lead Time", "median PR lead time"},
+	{"Time to deploy per commit", "median time to deploy per commit"},
 	{"Commits", ""}, {"Pushes", ""}, {"Deployments", ""},
 	{"Commits per push", "median commits per push"},
 	{"Commits per deployment", "median commits per deployment"},
