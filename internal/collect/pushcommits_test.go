@@ -64,3 +64,27 @@ func TestAStoredPushIsNotReadAgainForItsCommits(t *testing.T) {
 		t.Errorf("want no compare, got %v", got)
 	}
 }
+
+// TestAPushWhoseCountCannotBeToldStoresNoBranchCommitsEither (forsgren#463,
+// step 4, decision #468): a cut compare and a compare that does not reach the
+// push's tip store no line, the branch commits included; a branch commit is
+// never stored without its chain. (TestAPushWithNoCountGetsNoCommitLines
+// already pins the force push and a cut compare of one commit.)
+func TestAPushWhoseCountCannotBeToldStoresNoBranchCommitsEither(t *testing.T) {
+	g := pushesOnly(t,
+		activityOf("push", pushTime2, shaB, shaC),
+		activityOf("push", pushTime1, shaA, shaB))
+	// Cut: three commits listed of five, a branch commit among them.
+	g.bodies[comparePath(shaA, shaB)] = comparisonOf("ahead", 5,
+		lineage{authoredBy{authored{shaE, at(20, 7, 0)}, ""}, []string{shaA}, ""},
+		lineage{authoredBy{authored{shaD, at(20, 8, 0)}, ""}, []string{shaA}, ""},
+		lineage{authoredBy{authored{shaB, at(20, 9, 0)}, ""}, []string{shaA, shaE}, ""})
+	// Whole but not reaching the tip shaC: a branch commit only.
+	g.bodies[comparePath(shaB, shaC)] = comparisonOf("ahead", 1,
+		lineage{authoredBy{authored{shaE, at(21, 8, 0)}, ""}, []string{shaB}, ""})
+	path := historyPath(t)
+	if r := g.collect(t, shop(production), path, github.DefaultMaxPages); r.err != nil {
+		t.Fatalf("want no error, got %v (stderr %q)", r.err, r.stderr)
+	}
+	dataOf(path).want(t, PushCommitsFile, pushCommitsHeader)
+}

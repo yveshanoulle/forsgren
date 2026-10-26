@@ -42,7 +42,7 @@ func writePushes(t *testing.T, data string) {
 	push := history.Push{Repository: "acme/api", PushedAt: time.Date(2026, 10, 2, 10, 0, 0, 0, time.UTC),
 		Before: pushShaBefore, After: pushShaAfter, Kind: history.PushKindPush, Bot: history.ByHuman, Commits: 1}
 	commit := history.PushCommit{Repository: "acme/api", After: pushShaAfter, SHA: pushShaCommit,
-		Author: "acme-dev", AuthoredAt: push.PushedAt.Add(-25 * time.Minute)}
+		Author: "acme-dev", AuthoredAt: push.PushedAt.Add(-25 * time.Minute), FirstParent: true, Parents: 1}
 	dir := filepath.Dir(data)
 	if _, err := history.AppendPushes(filepath.Join(dir, "pushes.csv"), []history.Push{push}); err != nil {
 		t.Fatal(err)

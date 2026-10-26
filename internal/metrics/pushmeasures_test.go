@@ -20,7 +20,7 @@ func pushed(after, kind string, pushedAgo time.Duration, commits int64) history.
 // the push.
 func brought(push history.Push, sha, login string, lead time.Duration) history.PushCommit {
 	return history.PushCommit{Repository: push.Repository, After: push.After, SHA: sha, Author: login,
-		AuthoredAt: push.PushedAt.Add(-lead)}
+		AuthoredAt: push.PushedAt.Add(-lead), FirstParent: true, Parents: 1}
 }
 
 // shopPushMeasures is PushMeasuresOf for Acme Shop of data.
@@ -215,5 +215,23 @@ func TestAProjectWithoutAPushesFileIsUncollected(t *testing.T) {
 	states := [4]bool{got[0].Uncollected, got[0].NotReadable, got[1].Uncollected, got[1].NotReadable}
 	if states != [4]bool{true, false, false, true} {
 		t.Errorf("want Acme Shop uncollected and Acme Tools not readable, got %v", states)
+	}
+}
+
+// TestAPushCommitOffTheFirstParentChainIsNotCounted (forsgren#463, step 4):
+// a push that brought a chain commit and a branch commit (first_parent
+// false, authored days earlier) has the Commits, the shares and the time to
+// main of the chain commit alone.
+func TestAPushCommitOffTheFirstParentChainIsNotCounted(t *testing.T) {
+	p := pushed("p1", history.PushKindPush, time.Hour, 1)
+	branch := brought(p, "b1", "acme-dev", 72*time.Hour)
+	branch.FirstParent = false
+	data := Data{Pushes: []history.Push{p},
+		PushCommits: []history.PushCommit{branch, brought(p, "c1", "acme-dev", 7*time.Minute)}}
+	got := shopPushMeasures(data)
+	want := PushMeasures{Project: "Acme Shop", Pushes: 1, Commits: 1, Direct: 1,
+		TimeToMain: DurationSpread{Count: 1, Mean: 7 * time.Minute}, PerPush: CountSpread{Count: 1, Mean: 1}}
+	if got != want {
+		t.Errorf("want %+v, got %+v", want, got)
 	}
 }

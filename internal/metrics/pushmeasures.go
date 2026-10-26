@@ -8,7 +8,8 @@ package metrics
 //     (ignoring case) when it was pushed in the DORA window; Commits are the
 //     distinct first-parent commits those pushes brought, by repository
 //     (ignoring case) and SHA, a commit brought by two pushes counted once,
-//     at the earlier;
+//     at the earlier; a line that is not first-parent (a branch commit,
+//     forsgren#463 step 4) is left out of every measure;
 //   - the shares of Commits, in whole percent rounded down: PullRequests, the
 //     commits a pr_merge push brought or that are the merge commit of a pull
 //     request of data/pulls.csv; Direct, all the others; UnknownAuthors, the
@@ -170,6 +171,9 @@ func commitsOfPushes(index projectIndex, data Data, tips map[string]pushTime) ma
 	pulled := mergeCommitsOf(data.Pulls)
 	commits := map[string]pushedCommit{}
 	for _, pc := range data.PushCommits {
+		if !pc.FirstParent {
+			continue
+		}
 		tip, pushed := tips[commitKey(pc.Repository, pc.After)]
 		i, listed := index.of(pc.Repository)
 		if !pushed || !listed {

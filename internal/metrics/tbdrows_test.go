@@ -49,8 +49,10 @@ func tbdData() Data {
 	}
 	data.Pushes = []history.Push{push("acme/web", "w1"), push("acme/app", "a1")}
 	data.PushCommits = []history.PushCommit{
-		{Repository: "acme/web", After: "w1", SHA: "w1", AuthoredAt: now.Add(-2 * time.Hour), Author: "acme-dev"},
-		{Repository: "acme/app", After: "a1", SHA: "a1", AuthoredAt: now.Add(-2 * time.Hour), Author: "acme-dev"},
+		{Repository: "acme/web", After: "w1", SHA: "w1", AuthoredAt: now.Add(-2 * time.Hour), Author: "acme-dev",
+			FirstParent: true, Parents: 1},
+		{Repository: "acme/app", After: "a1", SHA: "a1", AuthoredAt: now.Add(-2 * time.Hour), Author: "acme-dev",
+			FirstParent: true, Parents: 1},
 	}
 	return data
 }

@@ -68,6 +68,12 @@ func linePush(when, before, after, kind, bot, commits string) string {
 
 const pushCommitsHeader = "# forsgren push commits v2\nrepository,after,sha,author,authored_at,first_parent,parents\n"
 
+// linePCBranch is linePC for a commit off the first-parent chain, first_parent
+// false (forsgren#463, step 4).
+func linePCBranch(after, sha, author, authored string, parents int) string {
+	return fmt.Sprintf("acme/app,%s,%s,%s,%s,false,%d\n", after, sha, author, authored, parents)
+}
+
 // linePC is the push_commits.csv line of the commit sha of the push of
 // acme/app that ended at after.
 func linePC(after, sha, author, authored string, parents int) string {
@@ -104,7 +110,8 @@ func TestCollectStoresEachPushWithTheCommitsItAddedToTheFirstParentChain(t *test
 	data.want(t, PushesDeniedFile, "")
 	data.want(t, PushCommitsFile, pushCommitsHeader+
 		linePC(shaD, shaB, "", "2026-09-20T08:00:00Z", 1)+linePC(shaD, shaC, "", "2026-09-20T09:00:00Z", 1)+
-		linePC(shaD, shaD, "", "2026-09-20T10:00:00Z", 1)+linePC(shaF, shaF, "acme-dev", "2026-09-21T09:00:00Z", 2))
+		linePC(shaD, shaD, "", "2026-09-20T10:00:00Z", 1)+
+		linePCBranch(shaF, shaE, "", "2026-09-21T08:00:00Z", 1)+linePC(shaF, shaF, "acme-dev", "2026-09-21T09:00:00Z", 2))
 	if got := g.seen(activityPath); len(got) != 1 || !strings.Contains(got[0], "ref=refs%2Fheads%2Fmain") {
 		t.Errorf("want one read of main's activity, got %v", got)
 	}

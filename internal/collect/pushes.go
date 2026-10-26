@@ -15,12 +15,16 @@ package collect
 //   - a push, a pull request merge and a force push are stored; each other
 //     kind of activity is left out, and a push already stored (repository,
 //     after SHA and time) is neither stored nor compared again;
-//   - the commits themselves, the first-parent chain oldest first, each with
-//     its author's login and author date, go in data/push_commits.csv from the
-//     same compare, written before the repository's pushes so a push is never
-//     stored without its commits (forsgren#397, step 3); a push whose count is
-//     empty has no lines there, and a push stored by an earlier version is not
-//     read again for them;
+//   - the commits themselves, every commit of the compare oldest first, each
+//     with its author's login, author date, parent count and whether it is on
+//     the first-parent chain (the branch commits of a merge are first_parent
+//     false, for Mainline Lead Time, forsgren#463 step 4; the chain alone
+//     counts for commits), go in data/push_commits.csv from the same compare,
+//     written before the repository's pushes so a push is never stored
+//     without its commits (forsgren#397, step 3); a push whose count is empty
+//     (a cut or failed compare, one that does not reach the tip, a force push)
+//     has no lines there, branch commits included, and a push stored by an
+//     earlier version is not read again for them;
 //   - commits is the number of commits the push added to the first-parent
 //     chain, from the compare of before...after (a walk from after through
 //     each first parent while it is a commit of the compare); a compare that
@@ -213,19 +217,25 @@ func (o Options) countCommits(ctx context.Context, p history.Push) (history.Push
 	chain := firstParentChain(commits, p.After)
 	if len(chain) == 0 {
 		o.noCount(p, "the compare does not reach the push's tip")
+		return p, nil, nil
 	}
 	p.Commits = int64(len(chain))
-	return p, pushCommitsOf(p, chain), nil
+	return p, pushCommitsOf(p, commits, chain), nil
 }
 
-// pushCommitsOf is the commits of chain (the tip first) as lines of p's
-// push, oldest first.
-func pushCommitsOf(p history.Push, chain []github.Commit) []history.PushCommit {
-	lines := make([]history.PushCommit, 0, len(chain))
-	for i := len(chain) - 1; i >= 0; i-- {
-		lines = append(lines, history.PushCommit{Repository: p.Repository, After: p.After, SHA: chain[i].SHA,
-			Author: chain[i].Author, AuthoredAt: wholeSecond(chain[i].AuthoredAt),
-			FirstParent: true, Parents: len(chain[i].Parents)})
+// pushCommitsOf is every commit of the compare (oldest first, as GitHub lists
+// them) as lines of p's push: the commits of chain (the tip first) marked
+// first_parent, the others not (forsgren#463, step 4).
+func pushCommitsOf(p history.Push, commits, chain []github.Commit) []history.PushCommit {
+	onChain := make(map[string]bool, len(chain))
+	for _, c := range chain {
+		onChain[c.SHA] = true
+	}
+	lines := make([]history.PushCommit, 0, len(commits))
+	for _, c := range commits {
+		lines = append(lines, history.PushCommit{Repository: p.Repository, After: p.After, SHA: c.SHA,
+			Author: c.Author, AuthoredAt: wholeSecond(c.AuthoredAt),
+			FirstParent: onChain[c.SHA], Parents: len(c.Parents)})
 	}
 	return lines
 }
