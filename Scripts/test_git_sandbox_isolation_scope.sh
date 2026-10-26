@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # canon: test_git_sandbox_isolation_scope v3
-# v3 (forsgren#446): cases 25 to 28 over the real list (weights balance the shards within 10 seconds, each self-test once, a new one in one shard, no stale weight row), mutations K (retargeted), M and N.
+# v3 (forsgren#446): cases 25 to 28 over the real list, case 29 over a fixture where only the weights balance (weights balance the shards within 10 seconds, each self-test once, a new one in one shard, no stale weight row), mutations K (retargeted), M and N.
 # v2 (forsgren#426): cases 20 to 24 and mutations K and L for the --shard argument.
 # Scripts/test_git_sandbox_isolation_scope.sh (forsgren#251, decision 249)
 #
@@ -339,6 +339,32 @@ else
   fail "25: the two shards weigh ${w1} and ${w2} seconds, ${gap} apart, wanted at most 10"
 fi
 
+# 29 (forsgren#446): the same on a small fixture where the weights alone decide. Four
+# made-up self-tests, a and c heavy (10 s), b and d light (1 s). Dealt by name with
+# equal weights, a and c share a shard (20 against 2); dealt by weight they part
+# (11 against 11). So ignoring the weights, which case 25 cannot tell on the real
+# list, makes this case red.
+FIXTURE_LIST="$(printf '%s\n' Scripts/test_fx_a.sh Scripts/test_fx_b.sh Scripts/test_fx_c.sh Scripts/test_fx_d.sh)"
+FIXTURE_WEIGHTS="${TMP}/fixture_weights.txt"
+printf '%s\n' "default 1" "Scripts/test_fx_a.sh 10" "Scripts/test_fx_c.sh 10" > "$FIXTURE_WEIGHTS"
+# fixture_gap: the seconds between the two shards of the fixture, by its own weights.
+fixture_gap() {
+  local n sum out=()
+  for n in 1 2; do
+    sum="$(shard_assign "$n" 2 "$FIXTURE_WEIGHTS" <<< "$FIXTURE_LIST" |
+      awk -v f="$FIXTURE_WEIGHTS" 'BEGIN { while ((getline l < f) > 0) { split(l, p, " "); w[p[1]] = p[2] } }
+        { s += ($1 in w) ? w[$1] : w["default"] } END { print s + 0 }')"
+    out+=("$sum")
+  done
+  echo $((out[0] > out[1] ? out[0] - out[1] : out[1] - out[0]))
+}
+fgap="$(fixture_gap)"
+if [[ "$fgap" -le 2 ]]; then
+  echo "  ok: 29: on the fixture the weights part the two heavy self-tests, the shards are ${fgap} apart (at most 2)"
+else
+  fail "29: on the fixture the shards are ${fgap} seconds apart, wanted at most 2"
+fi
+
 dealt="$( { shard_assign 1 2 "$WEIGHTS" <<< "$REAL_SORTED"; shard_assign 2 2 "$WEIGHTS" <<< "$REAL_SORTED"; } | LC_ALL=C sort)"
 if [[ "$dealt" == "$REAL_SORTED" ]]; then
   echo "  ok: 26: the two shards together hold each of the ${#REAL[@]} self-tests exactly once"
@@ -554,23 +580,28 @@ if mutate 's/\[\[ "[$]SHARD_N" -le "[$]SHARD_M" \]\] || usage/:/'; then
 fi
 
 # M and N (forsgren#446): the real shard library, mutated in the temp root and
-# sourced in a subshell, must make case 25 red (M: the weights ignored, so the
-# split is by position again; N: every self-test to the first shard).
-for spec in "M|s/wt\\[c\\] = (\\\$1 in w) ? w\\[\\\$1\\] : def/wt[c] = def/|the weights ignored, the split is by name again and the gap is" \
-  "N|s/low = 1\$/low = 1; load[1] = -1000000/|the first shard always the lightest, the gap is"; do
-  IFS='|' read -r tag expr what <<< "$spec"
+# sourced in a subshell, must make a case red (M: the weights ignored, so the split is
+# by name again; case 29, as case 25 stays green on the real list by luck; N: every
+# self-test to the first shard, case 25).
+for spec in "M|s/wt\\[c\\] = (\\\$1 in w) ? w\\[\\\$1\\] : def/wt[c] = def/|the weights ignored, the split is by name again and the fixture gap is|29|2" \
+  "N|s/low = 1\$/low = 1; load[1] = -1000000/|the first shard always the lightest, the gap is|25|10"; do
+  IFS='|' read -r tag expr what case_no limit <<< "$spec"
   if selftest_mutant Scripts/lib_isolation_shard.sh "${TMP}/mutant_shard_${tag}.sh" "$expr"; then
     mgap="$( (
       # shellcheck disable=SC1090
       source "${TMP}/mutant_shard_${tag}.sh"
-      a="$(shard_weight 1 2 "$REAL_SORTED")"
-      b="$(shard_weight 2 2 "$REAL_SORTED")"
-      echo $((a > b ? a - b : b - a))
+      if [[ "$case_no" == 29 ]]; then
+        fixture_gap
+      else
+        a="$(shard_weight 1 2 "$REAL_SORTED")"
+        b="$(shard_weight 2 2 "$REAL_SORTED")"
+        echo $((a > b ? a - b : b - a))
+      fi
     ))"
-    if [[ "$mgap" -gt 10 ]]; then
-      echo "  ok: mutation proof ${tag}: with ${what} ${mgap}, case 25 is red"
+    if [[ "$mgap" -gt "$limit" ]]; then
+      echo "  ok: mutation proof ${tag}: with ${what} ${mgap}, case ${case_no} is red"
     else
-      fail "mutation proof ${tag}: with ${what} still ${mgap} (at most 10), case 25 would stay green"
+      fail "mutation proof ${tag}: with ${what} still ${mgap} (at most ${limit}), case ${case_no} would stay green"
     fi
   fi
 done
