@@ -603,8 +603,8 @@ before. Also with this release:
 
 - A service row shows its own Time to deploy per commit, Deployments, Commits
   per deployment and Developers. Where a figure is per repository, the
-  Mainline Interval, the pushes and the pull requests, it says `Per
-  repository: see the project row`. With no final deployment and no deployed
+  Mainline Interval, the pushes and the pull requests, it says
+  `Per repository`. With no final deployment and no deployed
   commit in the window it says `currently no data for this service in the
   last 30 days`. The Notes below the table name such a row `Project: label`.
 - With `tbd_figures: all`, the headers of the columns of time to main, time to

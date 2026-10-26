@@ -974,7 +974,7 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     A project whose push read was refused or not collected shows the push
     states (`Push activity not readable`, `Pushes not collected yet`) in its
     cells, the same words as the push groups. A service row has none of it
-    (`Per repository: see the project row`).
+    (`Per repository`).
   - *Time to deploy per commit.* For every commit of the first-parent chain of
     the deployments created in the window (merge commits of pull requests
     included, no longer only the direct ones), each at its earliest

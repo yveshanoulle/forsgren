@@ -66,7 +66,7 @@ func TestTbdSubRowsAreInTheDoraForm(t *testing.T) {
 
 // perRepository is the sentence in place of the cells of a service row that are
 // per repository (decision #450, C).
-const perRepository = "Per repository: see the project row"
+const perRepository = "Per repository"
 
 // apiRow is the row of the service API of subRowsData as the template writes
 // it, with the median only or with all the figures (decision #450, C): its own

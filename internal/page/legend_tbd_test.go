@@ -158,7 +158,7 @@ var legendTbdText = []string{
 	"A service row is one deployment task of a repository",
 	"Time to deploy per commit, Deployments, Commits per deployment and Developers, counted over the " +
 		"deployments of that task and the commits they shipped",
-	"Per repository: see the project row",
+	"a service row says Per repository, once across each run of those columns",
 	"The Notes list gives the name of such a row as Project: label, for example Acme Shop: Website",
 	"(1) Mostly estimated: commits timed by author date. It applies to the Mainline Interval",
 	"(2) Commits timed by author date. It applies to the Mainline Interval",
@@ -238,6 +238,7 @@ var legendTbdRetired = []string{
 	"and that changes may go straight to the main branch",
 	"mean ± deviation (gaps)",
 	"2 commits without a known author are not counted",
+	"Per repository: see the project row",
 	"excluded (legacy data)",
 	"median 5 min · p90 1 h",
 	"A dash means fewer than two commits",

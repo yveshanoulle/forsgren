@@ -42,7 +42,7 @@ func TestTheFixtureSiteShowsAServiceSubRow(t *testing.T) {
 	page := fixtureTbd(t)
 	for _, service := range []string{"Admin", "Web"} {
 		row := rowOf(page, "Acme Shop", service)
-		if got := strings.Count(row, "Per repository: see the project row"); got != 4 {
+		if got := strings.Count(row, "Per repository"); got != 4 {
 			t.Errorf("%s: want 4 per-repository cells in the service row, got %d in %q", service, got, row)
 		}
 	}

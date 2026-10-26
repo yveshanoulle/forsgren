@@ -9,6 +9,16 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — TBD service row: the per-repository cells read Per repository ([#475](https://github.com/yveshanoulle/forsgren/issues/475), step 1 of 1)
+
+forsgren issue 475, patch.
+
+- On a TBD service row the cell across each per-repository run reads `Per repository`, no longer `Per repository: see the project row`: `perRepositorySentence` in `internal/page/tbd.go`, the legend's TBD rows part (`legend.html`, the old sentence now in `legendTbdRetired`), `docs/pages-and-views.md`, `docs/updating-and-releases.md` and `CLAUDE.md`; the `legend`, `tbd.sub-rows` and `tbd.all-sub-rows` goldens change by this text only.
+- Tested red first: the legend pin, the retired-wording test and the service-row tests failed on the old sentence before the code changed.
+- The fixture site's TBD sideways baseline is unchanged at 467 and 1357 px (measured, the table did not narrow).
+
+---
+
 ## 2026-10-26 — TBD: a Mainline Lead Time column, every commit from its author date until it is on main ([#463](https://github.com/yveshanoulle/forsgren/issues/463), steps 1–11)
 
 forsgren issue 463, minor.

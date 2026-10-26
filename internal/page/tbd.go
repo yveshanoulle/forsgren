@@ -70,7 +70,7 @@ func (r TbdRow) NoDataSentence() string {
 
 // perRepositorySentence is the cell in place of each run of cells that are per
 // repository on a service row (forsgren#422, step 4, decision #450, C).
-const perRepositorySentence = "Per repository: see the project row"
+const perRepositorySentence = "Per repository"
 
 // PerRepository says the row's Mainline Interval, Mainline Lead Time and push
 // and pull request cells are not its own: a service row, whose measures of them are absent.
