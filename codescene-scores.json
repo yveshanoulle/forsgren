@@ -1641,6 +1641,48 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/config/switches.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/switches_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/switches_starter_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_switches_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/tbdhidden_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/subrowshidden_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/tbdgroups.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/page/tbd.go",
    "score": 10.0,
    "checkedAt": "2026-10-26",

@@ -220,6 +220,14 @@ type Config struct {
 	// SameDeveloper is the groups of GitHub logins that count as one developer,
 	// as written, nil when the file has none (forsgren#361).
 	SameDeveloper [][]string
+	// HideTbdTimeToMain, HideTbdPRLeadTime and HideTbdBotPRLeadTime say that the
+	// TBD table leaves out the Time to main, PR Lead Time and Bot PR Lead Time
+	// columns, and HideSubRows that every table leaves out its label and
+	// service rows: true only when the file writes the key tbd_time_to_main,
+	// tbd_pr_lead_time, tbd_bot_pr_lead_time or sub_rows as false, so the zero
+	// value, as in a Config not loaded from a file, shows everything
+	// (forsgren#482, decisions #480, #481, #488).
+	HideTbdTimeToMain, HideTbdPRLeadTime, HideTbdBotPRLeadTime, HideSubRows bool
 	// written is the optional keys the file writes, by key (forsgren#74).
 	written  map[string]bool
 	Projects []Project
@@ -290,6 +298,10 @@ var (
 	ErrTbdPage             = errors.New("invalid tbd_page")
 	ErrTbdFigures          = errors.New("invalid tbd_figures")
 	ErrSameDeveloper       = errors.New("invalid same_developer")
+	ErrTbdTimeToMain       = errors.New("invalid tbd_time_to_main")
+	ErrTbdPRLeadTime       = errors.New("invalid tbd_pr_lead_time")
+	ErrTbdBotPRLeadTime    = errors.New("invalid tbd_bot_pr_lead_time")
+	ErrSubRows             = errors.New("invalid sub_rows")
 )
 
 // Load reads and validates the config file at path. Every error names the
@@ -355,8 +367,15 @@ type fileConfig struct {
 	TbdFigures yaml.Node `yaml:"tbd_figures"`
 	// SameDeveloper is the node as written, so a value that is not a list of
 	// lists is rejected by name (forsgren#361).
-	SameDeveloper yaml.Node     `yaml:"same_developer"`
-	Projects      []fileProject `yaml:"projects"`
+	SameDeveloper yaml.Node `yaml:"same_developer"`
+	// TbdTimeToMain, TbdPRLeadTime, TbdBotPRLeadTime and SubRows are the nodes
+	// as written, so a value that is not true or false is rejected by name
+	// (forsgren#482).
+	TbdTimeToMain    yaml.Node     `yaml:"tbd_time_to_main"`
+	TbdPRLeadTime    yaml.Node     `yaml:"tbd_pr_lead_time"`
+	TbdBotPRLeadTime yaml.Node     `yaml:"tbd_bot_pr_lead_time"`
+	SubRows          yaml.Node     `yaml:"sub_rows"`
+	Projects         []fileProject `yaml:"projects"`
 }
 
 type fileProject struct {
@@ -451,6 +470,7 @@ type settingKey struct {
 // them, so a new key is listed by adding it here.
 var settingKeys = []settingKey{
 	{"view", ViewStandard, func(c Config) string { return c.View }},
+	{"sub_rows", "true", func(c Config) string { return strconv.FormatBool(!c.HideSubRows) }},
 	{"auto_update", "false", func(c Config) string { return strconv.FormatBool(c.AutoUpdate) }},
 	{"auto_update_level", DefaultLevel, func(c Config) string { return c.AutoUpdateLevel }},
 	{"history_days", strconv.Itoa(DefaultHistoryDays), func(c Config) string { return strconv.Itoa(c.HistoryDays) }},
@@ -465,6 +485,9 @@ var settingKeys = []settingKey{
 	{"history_page", string(historyPage.def), func(c Config) string { return string(c.HistoryPage) }},
 	{"tbd_page", string(tbdPage.def), func(c Config) string { return string(c.TbdPage) }},
 	{"tbd_figures", DefaultTbdFigures, func(c Config) string { return c.TbdFigures }},
+	{"tbd_time_to_main", "true", func(c Config) string { return strconv.FormatBool(!c.HideTbdTimeToMain) }},
+	{"tbd_pr_lead_time", "true", func(c Config) string { return strconv.FormatBool(!c.HideTbdPRLeadTime) }},
+	{"tbd_bot_pr_lead_time", "true", func(c Config) string { return strconv.FormatBool(!c.HideTbdBotPRLeadTime) }},
 	{"same_developer", sameDeveloperKey.def, func(c Config) string { return flowGroups(c.SameDeveloper) }},
 }
 

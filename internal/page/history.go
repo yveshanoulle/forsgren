@@ -56,6 +56,9 @@ func (d Data) HistoryGroups() []HistoryGroup {
 	}
 	var groups []HistoryGroup
 	for r, heading := range Table(d.History[0].Rows) {
+		if d.leavesOut(heading.Level) {
+			continue
+		}
 		if heading.Level == metrics.ProjectRow || len(groups) == 0 {
 			groups = append(groups, HistoryGroup{Title: heading.Name, Span: d.historySpan(), Chart: d.historyChart(heading, r)})
 		}

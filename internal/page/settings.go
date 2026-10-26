@@ -29,6 +29,10 @@ var possibleValues = map[string]string{
 	"history_page":         pageValues,
 	"tbd_page":             pageValues,
 	"tbd_figures":          list(config.TbdFiguresMedian, config.TbdFiguresAll),
+	"sub_rows":             booleanValues,
+	"tbd_time_to_main":     booleanValues,
+	"tbd_pr_lead_time":     booleanValues,
+	"tbd_bot_pr_lead_time": booleanValues,
 	"same_developer":       groupsOfLogins,
 }
 

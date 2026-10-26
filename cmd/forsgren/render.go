@@ -108,6 +108,8 @@ func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error
 	data.DoraDays, data.DoraDaysSet = cfg.DoraDays, cfg.DoraDaysSet
 	data.Settings = cfg.Settings()
 	data.TbdFigures = cfg.TbdFigures
+	data.HideTbdTimeToMain, data.HideTbdPRLeadTime = cfg.HideTbdTimeToMain, cfg.HideTbdPRLeadTime
+	data.HideTbdBotPRLeadTime, data.HideSubRows = cfg.HideTbdBotPRLeadTime, cfg.HideSubRows
 	data.HistoryDays = cfg.HistoryDays
 	data.Hidden, data.Unlisted = pagesInMode(cfg, config.PageOff), pagesInMode(cfg, config.PageUnlisted)
 	if o.data == "" {

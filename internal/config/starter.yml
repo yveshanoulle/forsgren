@@ -63,6 +63,19 @@
 #
 # tbd_figures: median  # the TBD table's figures: median (default) or all
 #
+# tbd_time_to_main:, tbd_pr_lead_time:, tbd_bot_pr_lead_time: and sub_rows: are
+# optional and all true when left out. Each hides one thing when set to false:
+# the Time to main column, the PR Lead Time column, the Bot PR Lead Time column
+# of the TBD table, and the label and service rows under each project in every
+# table. Measuring goes on either way. To write a key, remove the "# " in front
+# of its line and change true to false. A value that is neither true nor false
+# is not used, and the settings page says why.
+#
+# tbd_time_to_main: true  # the TBD table's Time to main column: true (default) or false
+# tbd_pr_lead_time: true  # the TBD table's PR Lead Time column: true (default) or false
+# tbd_bot_pr_lead_time: true  # the TBD table's Bot PR Lead Time column: true (default) or false
+# sub_rows: true  # the label and service rows of every table: true (default) or false
+#
 # same_developer: is optional. It lists groups of GitHub logins that count as
 # one developer, for an assistant account that works on someone's behalf or a
 # person with two accounts. The first login of a group names the developer,

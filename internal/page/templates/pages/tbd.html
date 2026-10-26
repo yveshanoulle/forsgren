@@ -5,47 +5,15 @@
       <table class="wraps">
         <thead>
 {{if $all}}          <tr>
-            <th scope="col" rowspan="2">Project</th>
-            <th scope="colgroup" colspan="3">Mainline Interval</th>
-            <th scope="colgroup" colspan="3">Mainline Lead Time</th>
-            <th scope="colgroup" colspan="3">Time to main per commit</th>
-            <th scope="colgroup" colspan="3">PR Lead Time</th>
-            <th scope="colgroup" colspan="3">Bot PR Lead Time</th>
-            <th scope="colgroup" colspan="3">Time to deploy per commit</th>
-            <th scope="colgroup" colspan="3">Volume</th>
-            <th scope="colgroup" colspan="3">Commits per push</th>
-            <th scope="colgroup" colspan="3">Commits per deployment</th>
+            <th scope="col" rowspan="2">Project</th>{{range .TbdGroupHeads}}{{template "spreadheadtop" .}}{{end}}
+            <th scope="colgroup" colspan="3">Volume</th>{{range .TbdBatchHeads}}{{template "spreadheadtop" .}}{{end}}
             <th scope="colgroup" colspan="4">Shares of commits</th>
             <th scope="colgroup" colspan="1">Developers</th>
           </tr>
-          <tr>
-            <th scope="col">mean</th>
-            <th scope="col">median</th>
-            <th scope="col">p90</th>
-            <th scope="col" aria-label="the mean of Mainline Lead Time">mean</th>
-            <th scope="col" aria-label="the median of Mainline Lead Time">median</th>
-            <th scope="col" aria-label="the p90 of Mainline Lead Time">p90</th>
-            <th scope="col" aria-label="the mean of time to main">mean</th>
-            <th scope="col" aria-label="the median of time to main">median</th>
-            <th scope="col" aria-label="the p90 of time to main">p90</th>
-            <th scope="col">mean</th>
-            <th scope="col">median</th>
-            <th scope="col">p90</th>
-            <th scope="col" aria-label="the mean of bot PR lead time">mean</th>
-            <th scope="col" aria-label="the median of bot PR lead time">median</th>
-            <th scope="col" aria-label="the p90 of bot PR lead time">p90</th>
-            <th scope="col" aria-label="the mean of time to deploy">mean</th>
-            <th scope="col" aria-label="the median of time to deploy">median</th>
-            <th scope="col" aria-label="the p90 of time to deploy">p90</th>
+          <tr>{{range .TbdGroupHeads}}{{template "spreadheadall" .}}{{end}}
             <th scope="col">Commits</th>
             <th scope="col">Pushes</th>
-            <th scope="col">Deployments</th>
-            <th scope="col" aria-label="the mean of commits per push">mean</th>
-            <th scope="col" aria-label="the median of commits per push">median</th>
-            <th scope="col" aria-label="the p90 of commits per push">p90</th>
-            <th scope="col" aria-label="the mean of commits per deployment">mean</th>
-            <th scope="col" aria-label="the median of commits per deployment">median</th>
-            <th scope="col" aria-label="the p90 of commits per deployment">p90</th>
+            <th scope="col">Deployments</th>{{range .TbdBatchHeads}}{{template "spreadheadall" .}}{{end}}
             <th scope="col">Direct</th>
             <th scope="col" aria-label="pull request share of commits">PR</th>
             <th scope="col" aria-label="unknown author share of commits">Unknown</th>
@@ -53,18 +21,10 @@
             <th scope="col">developers</th>
           </tr>
 {{else}}          <tr>
-            <th scope="col">Project</th>
-            <th scope="col" aria-label="median mainline interval">Mainline Interval</th>
-            <th scope="col" aria-label="median mainline lead time">Mainline Lead Time</th>
-            <th scope="col" aria-label="median time to main per commit">Time to main per commit</th>
-            <th scope="col" aria-label="median PR lead time">PR Lead Time</th>
-            <th scope="col" aria-label="median bot PR lead time">Bot PR Lead Time</th>
-            <th scope="col" aria-label="median time to deploy per commit">Time to deploy per commit</th>
+            <th scope="col">Project</th>{{range .TbdGroupHeads}}{{template "spreadheadone" .}}{{end}}
             <th scope="col">Commits</th>
             <th scope="col">Pushes</th>
-            <th scope="col">Deployments</th>
-            <th scope="col" aria-label="median commits per push">Commits per push</th>
-            <th scope="col" aria-label="median commits per deployment">Commits per deployment</th>
+            <th scope="col">Deployments</th>{{range .TbdBatchHeads}}{{template "spreadheadone" .}}{{end}}
             <th scope="col" aria-label="direct share of commits">Direct share</th>
             <th scope="col" aria-label="pull request share of commits">PR share</th>
             <th scope="col" aria-label="unknown author share of commits">Unknown share</th>
@@ -77,50 +37,12 @@
             <th scope="row">{{if .IsLabel}}<span class="visually-hidden">{{.Project}}: </span>{{end}}{{.Name}}</th>
 {{if .NoData}}            <td colspan="{{$.TbdColumnsAfterProject}}">{{.NoDataSentence}}</td>
           </tr>
-{{else}}{{if .PerRepository}}            <td colspan="{{if $all}}15{{else}}5{{end}}">{{.PerRepositorySentence}}</td>
-{{else}}{{if $all}}            {{template "notedcell" .Interval.MeanCell}}
-            <td>{{.Interval.MedianCell}}</td>
-            <td>{{.Interval.P90Cell}}</td>
-{{else}}            {{template "notedcell" .Interval.MedianNotedCell}}
-{{end}}{{if .MainLead.State}}            <td{{if $all}} colspan="3"{{end}}>{{.MainLead.State}}</td>
-{{else if $all}}            {{template "notedcell" .MainLead.MeanCell}}
-            <td>{{.MainLead.Lead.MedianCell}}</td>
-            <td>{{.MainLead.Lead.P90Cell}}</td>
-{{else}}            {{template "notedcell" .MainLead.MedianNotedCell}}
-{{end}}{{if .Push.State}}            <td{{if $all}} colspan="3"{{end}}>{{.Push.State}}</td>
-{{else if $all}}            <td>{{.Push.TimeToMain.MeanCell}}</td>
-            <td>{{.Push.TimeToMain.MedianCell}}</td>
-            <td>{{.Push.TimeToMain.P90Cell}}</td>
-{{else}}            <td>{{.Push.TimeToMain.MedianCell}}</td>
-{{end}}{{if .LeadState}}            <td{{if $all}} colspan="3"{{end}}>{{.LeadState}}</td>
-{{else if $all}}            {{template "notedcell" .Lead.MeanCell}}
-            <td>{{.Lead.MedianCell}}</td>
-            <td>{{.Lead.P90Cell}}</td>
-{{else}}            {{template "notedcell" .Lead.MedianNotedCell}}
-{{end}}{{if .BotLeadState}}            <td{{if $all}} colspan="3"{{end}}>{{.BotLeadState}}</td>
-{{else if $all}}            {{template "notedcell" .BotLead.MeanCell}}
-            <td>{{.BotLead.MedianCell}}</td>
-            <td>{{.BotLead.P90Cell}}</td>
-{{else}}            {{template "notedcell" .BotLead.MedianNotedCell}}
-{{end}}{{end}}{{if $all}}            <td>{{.Deploy.TimeToDeploy.MeanCell}}</td>
-            <td>{{.Deploy.TimeToDeploy.MedianCell}}</td>
-            <td>{{.Deploy.TimeToDeploy.P90Cell}}</td>
-{{else}}            <td>{{.Deploy.TimeToDeploy.MedianCell}}</td>
-{{end}}{{if .PerRepository}}            <td colspan="2">{{.PerRepositorySentence}}</td>
+{{else}}{{if .PerRepository}}            <td colspan="{{.MainSpan}}">{{.PerRepositorySentence}}</td>
+{{else}}{{range .MainGroups}}{{template "spreadgroup" .}}{{end}}{{end}}{{range .DeployGroups}}{{template "spreadgroup" .}}{{end}}{{if .PerRepository}}            <td colspan="2">{{.PerRepositorySentence}}</td>
 {{else}}            <td>{{.Push.CommitsCell}}</td>
             <td>{{.Push.PushesCell}}</td>
 {{end}}            <td>{{.Volume.Cell}}</td>
-{{if .PerRepository}}            <td{{if $all}} colspan="3"{{end}}>{{.PerRepositorySentence}}</td>
-{{else if .Push.State}}            <td{{if $all}} colspan="3"{{end}}>{{.Push.State}}</td>
-{{else if $all}}            <td>{{.Push.PerPush.MeanCell}}</td>
-            <td>{{.Push.PerPush.MedianCell}}</td>
-            <td>{{.Push.PerPush.P90Cell}}</td>
-{{else}}            <td>{{.Push.PerPush.MedianCell}}</td>
-{{end}}{{if $all}}            <td>{{.Deploy.PerDeployment.MeanCell}}</td>
-            <td>{{.Deploy.PerDeployment.MedianCell}}</td>
-            <td>{{.Deploy.PerDeployment.P90Cell}}</td>
-{{else}}            <td>{{.Deploy.PerDeployment.MedianCell}}</td>
-{{end}}{{if .PerRepository}}            <td colspan="4">{{.PerRepositorySentence}}</td>
+{{range .BatchGroups}}{{template "spreadgroup" .}}{{end}}{{if .PerRepository}}            <td colspan="4">{{.PerRepositorySentence}}</td>
 {{else if .Push.State}}            <td colspan="4">{{.Push.State}}</td>
 {{else}}            <td>{{.Push.DirectCell}}</td>
             <td>{{.Push.PullRequestCell}}</td>

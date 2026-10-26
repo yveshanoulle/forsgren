@@ -49,13 +49,17 @@ func (r TbdRow) notes() []metrics.Note {
 	if r.MainLead.State() == "" {
 		notes = append(notes, r.MainLead.Notes()...)
 	}
-	if r.LeadState() == "" {
-		notes = append(notes, r.Lead.Notes()...)
+	notes = append(notes, leadNotes(r.LeadState(), r.hidden.prLeadTime, r.Lead)...)
+	return append(notes, leadNotes(r.BotLeadState(), r.hidden.botPRLeadTime, r.BotLead)...)
+}
+
+// leadNotes are the notes of a pull request lead time's cells: none while the
+// group is a sentence (state) or turned off (forsgren#482).
+func leadNotes(state string, hidden bool, m metrics.PRLeadTime) []metrics.Note {
+	if state != "" || hidden {
+		return nil
 	}
-	if r.BotLeadState() == "" {
-		notes = append(notes, r.BotLead.Notes()...)
-	}
-	return notes
+	return m.Notes()
 }
 
 // TbdNotes are the kinds of note the TBD page's cells have, in the order of

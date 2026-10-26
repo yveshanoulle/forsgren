@@ -51,6 +51,11 @@ type TbdRow struct {
 	pullsUncollected bool
 	// window is Data.Window, the DORA window in days.
 	window int
+	// all is Data.TbdAll, whether the groups show the mean, the median and the
+	// 90th percentile.
+	all bool
+	// hidden are the groups the config turns off (forsgren#482).
+	hidden hiddenGroups
 }
 
 // IsLabel says whether the row is a label's or a service's, under its
@@ -92,9 +97,9 @@ const (
 // spans: those after the project's own.
 func (d Data) TbdColumnsAfterProject() int {
 	if d.TbdAll() {
-		return tbdColumnsAll
+		return tbdColumnsAll - spreadColspan*d.hiddenGroups().count()
 	}
-	return tbdColumnsMedian
+	return tbdColumnsMedian - d.hiddenGroups().count()
 }
 
 // LeadState is the sentence in place of the row's pull requests cells, in the
@@ -125,11 +130,16 @@ func (r TbdRow) stateOf(m metrics.PRLeadTime) string {
 func (d Data) TbdAll() bool { return d.TbdFigures == config.TbdFiguresAll }
 
 // TbdRows are the rows of the TBD table, in the order of Data.TbdMetrics: each
-// project's total, then its label rows.
+// project's total, then its label rows, which sub_rows: false leaves out
+// (forsgren#482, step 4).
 func (d Data) TbdRows() []TbdRow {
-	rows := make([]TbdRow, len(d.TbdMetrics))
-	for i, m := range d.TbdMetrics {
-		rows[i] = TbdRow{TbdRow: withoutAbsent(m), pullsUncollected: d.PullsUncollected, window: d.Window()}
+	var rows []TbdRow
+	for _, m := range d.TbdMetrics {
+		if d.leavesOut(m.Level) {
+			continue
+		}
+		rows = append(rows, TbdRow{TbdRow: withoutAbsent(m), pullsUncollected: d.PullsUncollected,
+			window: d.Window(), all: d.TbdAll(), hidden: d.hiddenGroups()})
 	}
 	return rows
 }

@@ -13,7 +13,7 @@
 {{end}}          </tr>
         </thead>
         <tbody>
-{{range .Rows}}          <tr{{if .IsLabel}} class="label"{{end}}>
+{{range .ShownRows}}          <tr{{if .IsLabel}} class="label"{{end}}>
 {{template "rowheader" .}}
 {{if $.Scored}}{{range $.ScoredCells .}}            <td>{{.}}</td>
 {{end}}            <td>{{.OverallCell}}</td>

@@ -9,7 +9,9 @@
 # lower-case command and repository name), the name of the standard the numbers
 # come from, the surname of one of its authors, the template repository name,
 # an HTML robots keyword, and tbd: trunk-based development, as in the tbd_page
-# key on the settings page (forsgren#253).
+# key on the settings page (forsgren#253), and pr: pull request, as in the
+# tbd_pr_lead_time and tbd_bot_pr_lead_time keys on the settings page
+# (forsgren#482).
 dora
 Forsgren
 forsgren
@@ -17,3 +19,4 @@ forsgren-template
 Jez
 noindex
 tbd
+pr

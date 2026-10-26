@@ -17,11 +17,15 @@ var (
 
 // acceptedSets are the fixed sets of the keys that are not page keys, by key.
 var acceptedSets = map[string][]string{
-	"view":              viewValues,
-	"auto_update":       slices.Sorted(maps.Keys(booleans)),
-	"auto_update_level": levelValues,
-	"dora_days":         numbersOf(doraWindows),
-	"tbd_figures":       tbdFiguresValues,
+	"view":                 viewValues,
+	"auto_update":          slices.Sorted(maps.Keys(booleans)),
+	"sub_rows":             slices.Sorted(maps.Keys(booleans)),
+	"tbd_time_to_main":     slices.Sorted(maps.Keys(booleans)),
+	"tbd_pr_lead_time":     slices.Sorted(maps.Keys(booleans)),
+	"tbd_bot_pr_lead_time": slices.Sorted(maps.Keys(booleans)),
+	"auto_update_level":    levelValues,
+	"dora_days":            numbersOf(doraWindows),
+	"tbd_figures":          tbdFiguresValues,
 }
 
 // Accepted is the values the key accepts when they are a fixed set, sorted

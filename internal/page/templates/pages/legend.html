@@ -3,6 +3,7 @@
     <h1>Legend</h1>
     <p>Every number counts back from the time in the footer: deployment frequency from the successful deployments, lead time for changes from the commits they shipped, failed deployment recovery time from the failed deployments and the successful ones after them, change fail rate from the failed deployments and the issues labelled failure, deployment rework rate from the successful deployments that came after a failed deployment or while a failure issue was open.</p>
     <p>{{if .DoraDaysSet}}The window is {{.Window}} days (dora_days in forsgren.config.yml).{{else}}The window is {{.Window}} days (the default; dora_days is not set in forsgren.config.yml).{{end}}</p>
+    <p>The rows under a project's total are shown unless the settings turn them off.</p>
     <p>A project's total row counts all its repositories; a row under it counts what its label names in the project's config. Durations: min is minutes, h hours, d days, each cut down, never rounded up.</p>
     <h2>Deployment frequency</h2>
     <p>The DORA band, then the successful deployments of the last {{.Window}} days, or of the last 180 days when the {{.Window}} days hold none:</p>
@@ -80,11 +81,12 @@
     <p>Trunk-based development means integrating small changes into the main branch often, rather than keeping changes on separate branches for a long time. These measures show how often changes are integrated, how long they take and how large they are. The TBD page is one table with a row for each project, and under it a row for each label or service. All figures cover the last {{.Window}} days, the DORA window.</p>
     <h3 id="tbd-general">How do I read the numbers?</h3>
     <p>By default, the table shows the median of each measure, the middle value. Forsgren can show the mean, the median and p90 of each measure instead; the settings page names the key. The mean is the average. p90 is the value that nine tenths of the values are no larger than. When all three figures are shown, the columns of time to main, time to deploy, commits per push and commits per deployment carry their measure for a screen reader, such as the mean of time to main.</p>
+    <p>A column that the settings turn off is not shown, and neither are the notes of its cells.</p>
     <p>A dash means there is not enough data to calculate the figure. It does not mean zero.</p>
     <p>Some cells carry a note marker, a number in brackets such as (3). The Notes below the table say what each number means. They explain estimates, a lower bound and a stand-in time. Missing data is shown as a dash, a no-data row or a not-readable cell, not as a note.</p>
     <h3 id="tbd-rows">What are the rows under a project?</h3>
     <p>The first row of a project is its total, over all of its repositories and deployments. A project has a row under its total for each label and each service that the configuration gives it. The rows under the total are sorted by label, ignoring case. The header of such a row is the label. The Notes list gives the name of such a row as Project: label, for example Acme Shop: Website.</p>
-    <p>A label row is one repository, with every measure of that repository. A service row is one deployment task of a repository. It has its own Time to deploy per commit, Deployments, Commits per deployment and Developers, counted over the deployments of that task and the commits they shipped.</p>
+    <p>A label row is one repository, with every measure of that repository. A service row is one deployment task of a repository. It has its own Time to deploy per commit, Deployments, Commits per deployment and Developers, counted over the deployments of that task and the commits they shipped. The rows under a total are shown unless the settings turn them off.</p>
     <p>Pushes and pull requests belong to a repository, and the Mainline Interval to the project, not to a task. So in their place a service row says Per repository, once across each run of those columns.</p>
     <h3 id="tbd-mainline-interval">Mainline Interval (How often do changes reach main?)</h3>
     <p>The Mainline Interval is the time between commits reaching the main branch. A shorter interval means changes are integrated more often. A longer interval means more time passes between integrations.</p>

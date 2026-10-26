@@ -120,6 +120,11 @@ type Data struct {
 	// the 90th percentile; empty, as in a Data not made from a config, is the
 	// median (forsgren#423).
 	TbdFigures string
+	// HideTbdTimeToMain, HideTbdPRLeadTime, HideTbdBotPRLeadTime and
+	// HideSubRows are true when the config turns the key tbd_time_to_main,
+	// tbd_pr_lead_time, tbd_bot_pr_lead_time or sub_rows off; the zero value
+	// shows everything (forsgren#482).
+	HideTbdTimeToMain, HideTbdPRLeadTime, HideTbdBotPRLeadTime, HideSubRows bool
 	// FirstDeployment is when the oldest successful deployment of the listed
 	// repositories was created, zero when there is none; the history page
 	// says when its first half-year appears (forsgren#198).
@@ -158,6 +163,29 @@ func Table(rows []metrics.Row) []Row {
 		case total != nil:
 			out[i].Project = total.Name
 			total.Heading = total.Name + " (total)"
+		}
+	}
+	return out
+}
+
+// leavesOut says whether a table leaves out the rows of the level: the label
+// and service rows, with sub_rows turned off (forsgren#482, step 4).
+func (d Data) leavesOut(level metrics.Level) bool {
+	return d.HideSubRows && level == metrics.LabelRow
+}
+
+// ShownRows are the rows the DORA table writes: all of Rows, or with sub_rows
+// turned off (HideSubRows) the totals alone, each headed by its project's name
+// (forsgren#482, step 4, decision #488 A).
+func (d Data) ShownRows() []Row {
+	if !d.HideSubRows {
+		return d.Rows
+	}
+	var out []Row
+	for _, r := range d.Rows {
+		if !d.leavesOut(r.Level) {
+			r.Heading = r.Name
+			out = append(out, r)
 		}
 	}
 	return out
