@@ -10,18 +10,40 @@ import (
 // Filling, NotReadable and Uncollected of the Mainline Lead Time (forsgren#463,
 // step 7).
 
-// unknownParentsData is a push in the window with a line of unknown parents.
-func unknownParentsData() Data {
-	p := pushed("p", history.PushKindPush, time.Hour, 1)
+// unknownParentsData is a push of the kind in the window with a line of
+// unknown parents.
+func unknownParentsData(kind string) Data {
+	p := pushed("p", kind, time.Hour, 1)
 	c := brought(p, "c", "acme-dev", time.Minute)
 	c.Parents = history.ParentsUnknown
 	return Data{Pushes: []history.Push{p}, PushCommits: []history.PushCommit{c}}
 }
 
-// TestMainlineLeadTimeIsFillingWithALineOfUnknownParents (#469).
-func TestMainlineLeadTimeIsFillingWithALineOfUnknownParents(t *testing.T) {
-	if !mainLeadOf(unknownParentsData()).Filling {
-		t.Error("want Filling with a line of unknown parents in the window")
+// TestMainlineLeadTimeIsFillingWithAMergePushWithALineOfUnknownParents (#469,
+// #476): a merge push lost its branch commits before the change.
+func TestMainlineLeadTimeIsFillingWithAMergePushWithALineOfUnknownParents(t *testing.T) {
+	if !mainLeadOf(unknownParentsData(history.PushKindPRMerge)).Filling {
+		t.Error("want Filling with a pr_merge push with a line of unknown parents in the window")
+	}
+}
+
+// TestMainlineLeadTimeIsNotFillingWithADirectPushWithALineOfUnknownParents
+// (#476): a direct push lost nothing in the change.
+func TestMainlineLeadTimeIsNotFillingWithADirectPushWithALineOfUnknownParents(t *testing.T) {
+	if mainLeadOf(unknownParentsData(history.PushKindPush)).Filling {
+		t.Error("want no Filling with a direct push with a line of unknown parents")
+	}
+}
+
+// TestMainlineLeadTimeIsFillingWhenOneOfThePushesOfATipIsAMergePush (#476):
+// several pushes can share a tip, and one merge push is enough.
+func TestMainlineLeadTimeIsFillingWhenOneOfThePushesOfATipIsAMergePush(t *testing.T) {
+	data := unknownParentsData(history.PushKindPRMerge)
+	direct := data.Pushes[0]
+	direct.Kind = history.PushKindPush
+	data.Pushes = append(data.Pushes, direct)
+	if !mainLeadOf(data).Filling {
+		t.Error("want Filling when one of two pushes of the same tip is a pr_merge push")
 	}
 }
 
@@ -37,7 +59,7 @@ func TestMainlineLeadTimeIsFillingWithAMergedPullRequestWithoutPullCommits(t *te
 // of the window, a line of unknown parents of a push out of the window, and
 // a pull request of another project have no say.
 func TestMainlineLeadTimeIsNotFillingOnceTheWindowLiesAfterTheChange(t *testing.T) {
-	data := unknownParentsData()
+	data := unknownParentsData(history.PushKindPRMerge)
 	data.Pushes[0].PushedAt = now.Add(-40 * day)
 	stood := pullMerging(2, "s")
 	stood.CreatedStandsIn = true

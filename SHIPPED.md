@@ -9,6 +9,16 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — Note 7 is set by merge pushes, not by direct pushes ([#476](https://github.com/yveshanoulle/forsgren/issues/476), step 1 of 1)
+
+forsgren issue 476, patch.
+
+- `MainlineLeadTime.Filling` (note 7, History still filling) is set by a line of unknown parents only in a `pr_merge` push of the window (a tip several pushes share counts as a merge push when any of them is one), no longer by a direct push, which lost nothing in the change; the pull request rule is as before. `internal/metrics/mainlinelead.go` (`mergeTips`, `lostBranch`); the note's own text is unchanged (decision #472).
+- Text: the top comment of `mainlinelead.go`, the legend's note 7 paragraph (pinned in `legend_tbd_test.go`), `docs/pages-and-views.md` and `CLAUDE.md`; the legend golden changes by this sentence only.
+- Tested red first: a direct push with unknown-parent lines was Filling. Mutations seen red: the merge-push condition replaced by true, and a later direct push overwriting a merge push of the same tip.
+
+---
+
 ## 2026-10-26 — TBD service row: the per-repository cells read Per repository ([#475](https://github.com/yveshanoulle/forsgren/issues/475), step 1 of 1)
 
 forsgren issue 475, patch.

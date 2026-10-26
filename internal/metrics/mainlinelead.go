@@ -31,10 +31,13 @@ package metrics
 //     cut or failed compare, a force push) bring no commits and are counted
 //     in UnknownPushes: their commits are left out because the data is
 //     incomplete, not counted as 0 (#468);
-//   - Filling (#469) is true while the window holds data from before the
-//     change: a push of the window with a line of unknown parents, or a
+//   - Filling (#469, #476) is true while the window holds data from before
+//     the change that lost something: a pr_merge push of the window with a
+//     line of unknown parents (its branch commits are missing; a tip several
+//     pushes share counts as a merge push when any of them is one), or a
 //     pull request merged in the window, not CreatedStandsIn, with no line in
-//     data.PullCommits. It ends by itself once the window lies after the
+//     data.PullCommits. A direct push with unknown parents lost nothing and
+//     does not set it. It ends by itself once the window lies after the
 //     change; no state is kept;
 //   - NotReadable (a repository in Data.PushesDenied) and Uncollected
 //     (Data.PushesUncollected, unless NotReadable) are as PushMeasures'.
@@ -68,7 +71,7 @@ type MainlineLeadTime struct {
 
 // leadReading is the state of one reading of the data: the projects' lead
 // times so far (out), the earliest push time by tip (commitKey of the
-// repository and the after SHA), what tells the squash commits (squash), the
+// repository and the after SHA), the tips of the merge pushes (mergeTips), what tells the squash commits (squash), the
 // distinct commits in main by commitKey, and the originals and merge commits
 // already counted.
 type leadReading struct {
@@ -76,6 +79,7 @@ type leadReading struct {
 	data             Data
 	out              []MainlineLeadTime
 	tips             map[string]time.Time
+	mergeTips        map[string]bool
 	squash           squashes
 	commits          map[string]mainArrival
 	squashed, merges map[string]bool
@@ -110,8 +114,8 @@ func MainlineLeadTimesOf(projects []config.Project, data Data, now time.Time) []
 // nothing read yet.
 func newLeadReading(projects []config.Project, data Data) *leadReading {
 	r := &leadReading{index: indexOf(projects), data: data, out: make([]MainlineLeadTime, len(projects)),
-		tips: map[string]time.Time{}, squash: squashesOf(data), commits: map[string]mainArrival{},
-		squashed: map[string]bool{}, merges: map[string]bool{}}
+		tips: map[string]time.Time{}, mergeTips: map[string]bool{}, squash: squashesOf(data),
+		commits: map[string]mainArrival{}, squashed: map[string]bool{}, merges: map[string]bool{}}
 	for i, s := range pushStatesOf(r.index, data, len(projects)) {
 		r.out[i] = MainlineLeadTime{Project: projects[i].Name, NotReadable: s.notReadable, Uncollected: s.uncollected}
 	}
@@ -168,14 +172,15 @@ func (r *leadReading) readPushes(now time.Time) {
 	}
 }
 
-// notePushes notes the time of each push of the window by its tip, and the
-// pushes whose commits are unknown.
+// notePushes notes the time of each push of the window by its tip, the tips
+// of merge pushes, and the pushes whose commits are unknown.
 func (r *leadReading) notePushes(now time.Time) {
 	forPushesInWindow(r.index, r.data, now, func(i int, p history.Push) {
 		r.out[i].UnknownPushes += boolCount(p.Commits == 0)
 		k := commitKey(p.Repository, p.After)
 		held, seen := r.tips[k]
 		r.tips[k] = earlierOf(held, p.PushedAt, seen)
+		r.mergeTips[k] = r.mergeTips[k] || p.Kind == history.PushKindPRMerge
 	})
 }
 
@@ -184,7 +189,7 @@ func (r *leadReading) notePushes(now time.Time) {
 // commit counts.
 func (r *leadReading) take(pc history.PushCommit, at time.Time) {
 	i, _ := r.index.of(pc.Repository)
-	r.out[i].Filling = r.out[i].Filling || pc.Parents == history.ParentsUnknown
+	r.out[i].Filling = r.out[i].Filling || r.lostBranch(pc)
 	switch originals := r.squash.originalsOf(pc); {
 	case pc.Parents >= 2:
 		r.out[i].MergesLeftOut += firstMark(r.merges, commitKey(pc.Repository, pc.SHA))
@@ -193,6 +198,12 @@ func (r *leadReading) take(pc history.PushCommit, at time.Time) {
 	default:
 		r.count(i, commitKey(pc.Repository, pc.SHA), at, pc.AuthoredAt)
 	}
+}
+
+// lostBranch says the line pc has unknown parents and belongs to a merge
+// push, which lost its branch commits before the change (#476).
+func (r *leadReading) lostBranch(pc history.PushCommit) bool {
+	return pc.Parents == history.ParentsUnknown && r.mergeTips[commitKey(pc.Repository, pc.After)]
 }
 
 // takeOriginals counts the originals of a squash commit of project i pushed

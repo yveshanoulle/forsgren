@@ -137,6 +137,8 @@ var legendTbdText = []string{
 	"Pushes whose commits are not known, such as a force push or a push with too many commits to read, are " +
 		"left out: their data is incomplete, so their commits are not counted, not even as 0 (note 6)",
 	"the merge and squash branch commits of that time are missing, so the figure may read short (note 7)",
+	"Only merge pushes and merged pull requests from before the change set it; a direct push lost nothing " +
+		"and does not",
 	"The note goes away by itself once the whole window lies after the change",
 	"a dash below two commits for the median and below ten for the p90, and a negative time counts as 0",
 	"The full Mainline Lead Time covers every commit that reached main",

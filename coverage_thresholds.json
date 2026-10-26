@@ -1025,6 +1025,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/mainlinelead.go:readPushes": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/mainlinelead.go:notePushes": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/mainlinelead.go:take": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/mainlinelead.go:lostBranch": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/mainlinelead.go:originalsOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/mainlinelead.go:count": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/mainlinelead.go:markPullsFilling": 100.0,

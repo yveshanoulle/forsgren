@@ -898,8 +898,11 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
      Mainline Lead Time may read short. It sits on the Mainline Lead Time, with
      no count, and is listed with the project. It goes away by itself once the
      whole `dora_days` window lies after the first collection in the new
-     formats: the window holds no push with a commit of unknown parents (the
-     push commits written before format v2) and no merged pull request, not
+     formats: the window holds no merge push (`pr_merge`) with a commit of
+     unknown parents (the push commits written before format v2; a direct
+     push with such a commit lost nothing and does not set the note, a tip
+     several pushes share counts as a merge push when any of them is one,
+     forsgren#476) and no merged pull request, not
      timed by its created time, without lines in `data/pull_commits.csv`. The
      historical fill is a separate issue (no backfill in #463).
 
