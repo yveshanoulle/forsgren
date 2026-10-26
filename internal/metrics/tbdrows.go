@@ -12,9 +12,9 @@ package metrics
 //   - a service's label row has its own deployment measures, over the
 //     deployments of its task and the commits they shipped (Data.ofTask): Time
 //     to deploy, Deployments, Commits per deployment and Developers. Mainline
-//     Interval (decision #449) and the pushes and pull requests (decision
-//     #450) name no service, so they are marked absent and left empty, for the
-//     page to show a dash.
+//     Interval (decision #449) and the pushes, pull requests and Mainline
+//     Lead Time (decision #450, forsgren#463) name no service, so they are
+//     marked absent and left empty, for the page to show a dash.
 
 import (
 	"slices"
@@ -30,18 +30,19 @@ type TbdRow struct {
 	Level   Level
 	Name    string
 	Project string
-	// Interval is the Mainline Interval, Lead the PR Lead Time and Push
-	// the push measures, which are per repository; Developers, Deploy and
-	// Volume are per deployment.
+	// Interval is the Mainline Interval, Lead the PR Lead Time, Push the
+	// push measures and MainLead the Mainline Lead Time (forsgren#463), which
+	// are per repository; Developers, Deploy and Volume are per deployment.
 	Interval   MainlineInterval
 	Lead       PRLeadTime
 	Developers Developers
 	Push       PushMeasures
+	MainLead   MainlineLeadTime
 	Deploy     DeployMeasures
 	Volume     DeploymentVolume
 	// IntervalAbsent says the Mainline Interval is not the row's, and
-	// PushAbsent that the push and pull request measures are not (Lead and
-	// Push): a service row.
+	// PushAbsent that the push and pull request measures are not (Lead, Push
+	// and MainLead): a service row.
 	IntervalAbsent, PushAbsent bool
 	// Service says the row is a service's: its measures are over the
 	// deployments of one task.
@@ -97,6 +98,7 @@ func (s tbdSource) row(level Level, p config.Project, project string) TbdRow {
 	row.Interval = MainlineIntervals(only, s.data, s.now)[0]
 	row.Lead = PRLeadTimes(only, s.data, s.now)[0]
 	row.Push = PushMeasuresOf(only, s.data, s.now)[0]
+	row.MainLead = MainlineLeadTimesOf(only, s.data, s.now)[0]
 	return row
 }
 
