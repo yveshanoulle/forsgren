@@ -15,6 +15,8 @@
 #     `go tool -n golangci-lint` in this repository (see
 #     Scripts/check_go_lint.sh), never Homebrew's.
 #   - forsgren's FAIL lines, and an OK line on green.
+#   - --allow-parallel-runners (forsgren#437), and a lock refusal that still
+#     comes is a tooling error naming golangci-lint's machine-wide lock.
 #   - red on a module with no _test.go file: a scan over no test code is no
 #     pass (another estate repository reports that as clean).
 #
@@ -97,11 +99,17 @@ linters:
 YAML
 
 status=0
-out="$(go_tool_run run -c "$CONFIG" ./...)" || status=$?
+out="$(go_tool_run run --allow-parallel-runners -c "$CONFIG" ./...)" || status=$?
 
 # golangci-lint exits 0 (clean) or 1 (issues found; see the (dupl) check
 # below). Any other code is a real error — never mistake a non-running linter for a clean result.
 if [ "$status" -ne 0 ] && [ "$status" -ne 1 ]; then
+  # golangci-lint's machine-wide lock (forsgren#437): named, never a verdict.
+  if grep -qF -- "parallel golangci-lint is running" <<< "$out"; then
+    echo "❌ FAIL: another golangci-lint run holds golangci-lint's machine-wide lock (exit $status):" \
+    "a tooling error, not a verdict on the code; run the gate again when that run has ended" >&2
+    exit 2
+  fi
   echo "❌ FAIL: golangci-lint error (exit $status):" >&2
   printf '%s\n' "$out" >&2
   exit 2

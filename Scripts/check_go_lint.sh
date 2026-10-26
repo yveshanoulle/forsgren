@@ -16,6 +16,10 @@
 #   - the module and the config are arguments, so
 #     Scripts/test_check_go_lint.sh can hand it fixture modules and mutated
 #     configs.
+#   - --allow-parallel-runners (forsgren#437): golangci-lint takes a
+#     machine-wide file lock by default, so two gates in two checkouts at once
+#     refused each other; the flag lets them run side by side. A lock refusal
+#     that still comes is a tooling error naming the lock, never a verdict.
 #   - red on a module with no Go package (a lint over nothing is no pass),
 #     and on a golangci-lint that did not run (exit other than 0 or 1, as
 #     source-repo/Scripts/common/check_test_dupl.sh guards it): a linter that
@@ -69,7 +73,7 @@ if [ -z "$(go list ./... 2>/dev/null)" ]; then
   exit 1
 fi
 
-out="$(go_tool_run run -c "$CONFIG" ./...)"
+out="$(go_tool_run run --allow-parallel-runners -c "$CONFIG" ./...)"
 rc=$?
 
 if [ "$rc" -eq 0 ]; then
@@ -78,6 +82,14 @@ if [ "$rc" -eq 0 ]; then
 fi
 
 printf '%s\n' "$out"
+# golangci-lint's machine-wide lock (forsgren#437): another run holds it, so
+# this one never looked at the code. --allow-parallel-runners above keeps that
+# from happening; a refusal that still comes is named, never counted as lint.
+if grep -qF -- "parallel golangci-lint is running" <<< "$out"; then
+  echo "❌ FAIL: another golangci-lint run holds golangci-lint's machine-wide lock (exit ${rc}):" \
+    "a tooling error, not a verdict on the code; run the gate again when that run has ended"
+  exit 1
+fi
 if [ "$rc" -ne 1 ]; then
   echo "❌ FAIL: golangci-lint could not run (exit ${rc}) — a linter that did not run is not a clean result"
   exit 1

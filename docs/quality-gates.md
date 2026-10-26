@@ -170,7 +170,10 @@ Seven more PRE gates check the Go code:
   `shared/`, gosec's G101 (a hardcoded credential) is not excluded. A
   finding is fixed in the code: an exclusion or `//nolint` needs Yves's
   approved issue. Red on a module with no Go package, and when golangci-lint
-  could not run. Its self-test (`Scripts/test_check_go_lint.sh`) shows
+  could not run. It runs with `--allow-parallel-runners` (forsgren#437), so
+  two checkouts linting at once do not refuse each other on golangci-lint's
+  machine-wide lock; a lock refusal that still comes is a tooling error naming
+  the lock, never a lint verdict. Its self-test (`Scripts/test_check_go_lint.sh`) shows
   complexity 7 red (in a test file too) and 6 green, a credential red under
   G101, and, by mutation, that the threshold and the missing G101 exclusion
   in `.golangci.yml` are what decide those cases.
@@ -178,7 +181,8 @@ Seven more PRE gates check the Go code:
   same `dupl` rule pointed at `_test.go` files only, which `.golangci.yml`
   leaves to it, so test code is judged once. Red on a module with no test
   file, and a tooling error (exit 2) when the tool exits 1 without a `(dupl)`
-  line (forsgren#217).
+  line (forsgren#217). It too runs with `--allow-parallel-runners`, and a
+  lock refusal is exit 2 naming the lock (forsgren#437).
 - **Go file length** (`Scripts/check_file_length.sh`, another estate repository's
   `check_file_length.py` rewritten in bash and awk): red when a Go
   production file is longer than 600 lines, each such file named with its

@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — Two golangci-lint gates in two checkouts no longer fail each other on its machine-wide lock ([#437](https://github.com/yveshanoulle/forsgren/issues/437), 1 step)
+
+forsgren issue 437, tools, no release of its own. golangci-lint takes a machine-wide file lock on start, so the Go lint and Go test duplication gates run at once in two checkouts refused each other ("parallel golangci-lint is running", exit 3) and read as a gate failure. Both now pass `--allow-parallel-runners`, and a lock refusal that still comes is a tooling error naming the lock and saying it is not a verdict on the code (Go lint: the FAIL line, exit 1 as for any run that did not happen; Go test duplication: exit 2). Red first, with a stub tool that refuses with the lock message unless given the flag: both self-tests showed the gate refused, and a mutation proof (the flag removed) turns the green case red naming the lock. No change to `FBP.sh`, `sfl.sh`, the order file or `Scripts/gate_inputs.txt`. `docs/quality-gates.md` and `CLAUDE.md` say so.
+
+---
+
 ## 2026-10-26 — A TBD service row has its own no-data rule, and a label row is named Project: label ([#422](https://github.com/yveshanoulle/forsgren/issues/422), step 3 of 5)
 
 forsgren issue 422, step 3: decision #451 (A) and D4. The page is not switched to it yet (step 4), so no golden changes and no page text changed.

@@ -223,6 +223,49 @@ if selftest_lib_mutant "$GATE" Scripts/lib_go_tool.sh "${TMP}/swallowed" '/BIN" 
   want_green_ok "mutation: a helper that swallows the exit code lets the failing tool pass"
 fi
 
+# --- Lock (forsgren#437): golangci-lint takes a machine-wide file lock on
+# start, so two gates in two checkouts at once refused each other ("parallel
+# golangci-lint is running", exit 3) and read as a lint verdict. A stub
+# stands in for the tool (the real one is never run here): it refuses with
+# the lock message unless it is given --allow-parallel-runners, or always
+# when $STUB_LOCK_ALWAYS is set. The gate must pass the flag, and a refusal
+# that still comes must read as a tooling error naming the lock.
+cat > "${TMP}/lock-tool" <<'EOF'
+#!/bin/sh
+if [ -z "${STUB_LOCK_ALWAYS:-}" ]; then
+  for a in "$@"; do
+    if [ "$a" = "--allow-parallel-runners" ]; then exit 0; fi
+  done
+fi
+echo "Error: parallel golangci-lint is running"
+exit 3
+EOF
+chmod +x "${TMP}/lock-tool"
+cat > "${SHIM}/go" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1 \$2 \$3" == "tool -n golangci-lint" ]]; then
+  echo "${TMP}/lock-tool"
+  exit 0
+fi
+exec "$REAL_GO" "\$@"
+EOF
+capture env PATH="${SHIM}:${PATH}" "$GATE" "$MOD" "$CONFIG"
+want_green_ok "two runs at once: the gate passes --allow-parallel-runners, so the lock never refuses it"
+capture env PATH="${SHIM}:${PATH}" STUB_LOCK_ALWAYS=1 "$GATE" "$MOD" "$CONFIG"
+want_red "a lock refusal is a tooling error naming the lock" "holds golangci-lint's machine-wide lock"
+want_said "  ... and says it is no verdict on the code" "not a verdict on the code"
+want_said "  ... with the red cross FAIL line" "❌ FAIL"
+if grep -qF -- "issue(s)" <<< "$OUT"; then
+  fail "a lock refusal was counted as lint issues. Output: ${OUT}"
+fi
+
+# MUTATION PROOF: the gate without --allow-parallel-runners is refused by the
+# lock, so the flag is what keeps two runs from failing each other.
+if selftest_lib_mutant Scripts/lib_go_tool.sh "$GATE" "${TMP}/no-flag" 's/ --allow-parallel-runners//'; then
+  capture env PATH="${SHIM}:${PATH}" "${TMP}/no-flag/Scripts/check_go_lint.sh" "$MOD" "$(pwd)/${CONFIG}"
+  want_red "mutation: without the flag the lock refuses the gate" "holds golangci-lint's machine-wide lock"
+fi
+
 # --- Case 8: no Go package.
 new_module "no-package"
 rm "${MOD}/m.go"
