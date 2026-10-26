@@ -1,6 +1,8 @@
 package page
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,15 +25,31 @@ func subRowsData() Data {
 		Volume: metrics.DeploymentVolume{Count: 5, Final: 5}}
 	ios := metrics.TbdRow{Level: metrics.LabelRow, Name: "IOS", Project: shop, Service: true,
 		IntervalAbsent: true, PushAbsent: true}
-	website := metrics.TbdRow{Level: metrics.LabelRow, Name: "Website", Project: shop,
-		Interval: metrics.MainlineInterval{Project: "Website", Commits: 4, Gaps: 3, Mean: 2 * hour, Median: 2 * hour,
-			ByAuthorDate: 2},
-		Push: metrics.PushMeasures{Pushes: 2, Commits: 4, Direct: 4}, Volume: metrics.DeploymentVolume{Count: 1}}
-	total := metrics.TbdRow{Level: metrics.ProjectRow, Name: shop, Project: shop,
-		Push: metrics.PushMeasures{Pushes: 20, Commits: 40, Direct: 40}, Volume: metrics.DeploymentVolume{Count: 85}}
+	total := tbdData().TbdMetrics[0]
+	total.Interval.ByAuthorDate = 0
 	data := calculated()
-	data.TbdMetrics = []metrics.TbdRow{total, api, ios, website}
+	data.TbdMetrics = []metrics.TbdRow{total, api, ios, websiteRow(total)}
 	return data
+}
+
+// websiteRow is the row of the repository label Website: a one-repository
+// project with every measure of its own, two of its four commits timed by
+// author date, none of them the total's.
+func websiteRow(total metrics.TbdRow) metrics.TbdRow {
+	site := total
+	site.Level, site.Name = metrics.LabelRow, "Website"
+	site.Interval = metrics.MainlineInterval{Project: "Website", Commits: 4, Gaps: 3, Mean: 3 * time.Hour,
+		Median: 2 * time.Hour, P90: 5 * time.Hour, ByAuthorDate: 2}
+	site.Lead.Median, site.Lead.Mean = 5*time.Hour, 6*time.Hour
+	site.Push = metrics.PushMeasures{Pushes: 7, Commits: 12, PullRequests: 3, Direct: 9, UnknownAuthors: 1,
+		TimeToMain: metrics.DurationSpread{Count: 12, Mean: 20 * time.Minute, Median: 10 * time.Minute,
+			P90: time.Hour},
+		PerPush: metrics.CountSpread{Count: 7, Mean: 1.7, Median: 1, P90: 3}}
+	site.Deploy.TimeToDeploy = metrics.DurationSpread{Count: 12, Mean: time.Hour, Median: 45 * time.Minute,
+		P90: 4 * time.Hour}
+	site.Deploy.PerDeployment = metrics.CountSpread{Count: 9, Mean: 1.3, Median: 1, P90: 3}
+	site.Volume.Count, site.Developers = 9, metrics.Developers{Count: 2, Commits: 12}
+	return site
 }
 
 // TestTbdSubRowsAreInTheDoraForm: a label or service row is class label, its
@@ -44,16 +62,42 @@ func TestTbdSubRowsAreInTheDoraForm(t *testing.T) {
 		"<th scope=\"row\"><span class=\"visually-hidden\">Acme Shop: </span>Website</th>")
 }
 
-// TestAServiceRowHasDashesWhereTheMeasuresAreAbsent: a service row shows its own
-// deployment cells and a dash in the Mainline Interval and in every push and
-// pull request cell, also while the pull requests are not collected yet.
-func TestAServiceRowHasDashesWhereTheMeasuresAreAbsent(t *testing.T) {
-	want := "<th scope=\"row\"><span class=\"visually-hidden\">Acme Shop: </span>API</th>\n            " +
-		tds("- | - | 1 h | - | - | - | 5 | - | 2 | - | - | - | - | 2") + "\n"
-	data := subRowsData()
-	wantAll(t, "collected", rendered(t, "tbd.html", data), want)
-	data.PullsUncollected = true
-	wantAll(t, "not collected", rendered(t, "tbd.html", data), want)
+// perRepository is the sentence in place of the cells of a service row that are
+// per repository (decision #450, C).
+const perRepository = "Per repository: see the project row"
+
+// apiRow is the row of the service API of subRowsData as the template writes
+// it, with the median only or with all the figures (decision #450, C): its own
+// deployment cells, and one cell across each run of the cells that are per
+// repository, which are, in the order of the columns, the Mainline Interval and
+// Time to main (2 columns, 6 with all), PR Lead Time, Commits and Pushes (3, 5),
+// Commits per push (1, 3) and the four shares (4).
+func apiRow(all bool) string {
+	span := func(median, every int) string {
+		if all {
+			median = every
+		}
+		return "@" + strconv.Itoa(median) + perRepository
+	}
+	cells := []string{span(2, 6), "1 h", span(3, 5), "5", span(1, 3), "2", span(4, 4), "2"}
+	if all {
+		cells = []string{span(2, 6), "&lt; 1 m | 1 h | -", span(3, 5), "5", span(1, 3), "0 | 2 | -", span(4, 4), "2"}
+	}
+	return "<th scope=\"row\"><span class=\"visually-hidden\">Acme Shop: </span>API</th>\n            " +
+		tds(strings.Join(cells, " | ")) + "\n"
+}
+
+// TestAServiceRowHasOneSentenceWhereTheMeasuresAreAbsent: a service row shows
+// its own deployment cells and, in place of each run of cells that are per
+// repository, one cell across the run saying so, in both figure modes, also
+// while the pull requests are not collected yet.
+func TestAServiceRowHasOneSentenceWhereTheMeasuresAreAbsent(t *testing.T) {
+	for _, all := range []bool{false, true} {
+		data := inFigures(subRowsData(), all)
+		wantAll(t, "collected", rendered(t, "tbd.html", data), apiRow(all))
+		data.PullsUncollected = true
+		wantAll(t, "not collected", rendered(t, "tbd.html", data), apiRow(all))
+	}
 }
 
 // TestAServiceWithoutDataHasItsOwnSentence: a service with no deployment and
@@ -91,9 +135,7 @@ func TestAnAbsentMeasureIsADashBecauseTheRowSaysAbsent(t *testing.T) {
 	api.Lead = metrics.MainlineLeadTime{PullRequests: 5, Mean: time.Hour, Median: time.Hour, Bots: 1}
 	api.Push = metrics.PushMeasures{Pushes: 9, Commits: 9, Direct: 9,
 		TimeToMain: metrics.DurationSpread{Count: 9, Median: time.Hour}}
-	want := "<th scope=\"row\"><span class=\"visually-hidden\">Acme Shop: </span>API</th>\n            " +
-		tds("- | - | 1 h | - | - | - | 5 | - | 2 | - | - | - | - | 2") + "\n"
-	wantAll(t, "tbd.html", rendered(t, "tbd.html", data), want)
+	wantAll(t, "tbd.html", rendered(t, "tbd.html", data), apiRow(false))
 	for _, note := range data.TbdNotes() {
 		for _, p := range note.Projects {
 			if p.Name == "Acme Shop: API" {

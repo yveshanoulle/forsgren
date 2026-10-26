@@ -67,23 +67,17 @@ func (r TbdRow) NoDataSentence() string {
 	return "currently no data for this " + kind + " in the last " + strconv.Itoa(r.window) + " days"
 }
 
-// CommitsCell and PushesCell are the commits and pushes of the push groups, a
-// dash on a service row.
-func (r TbdRow) CommitsCell() string { return r.pushed(r.Push.CommitsCell()) }
+// perRepositorySentence is the cell in place of each run of cells that are per
+// repository on a service row (forsgren#422, step 4, decision #450, C).
+const perRepositorySentence = "Per repository: see the project row"
 
-// PushesCell is the pushes of the window, a dash on a service row.
-func (r TbdRow) PushesCell() string { return r.pushed(r.Push.PushesCell()) }
+// PerRepository says the row's Mainline Interval and push and pull request
+// cells are not its own: a service row, whose measures of them are absent.
+func (r TbdRow) PerRepository() bool { return r.IntervalAbsent && r.PushAbsent }
 
-// pushed is cell, a dash on a service row.
-func (r TbdRow) pushed(cell string) string {
-	if r.PushAbsent {
-		return noCell
-	}
-	return cell
-}
-
-// noCell is the dash of a cell without a value.
-const noCell = "-"
+// PerRepositorySentence is the one cell across each run of the cells a service
+// row has no figures for, in place of a dash in each.
+func (r TbdRow) PerRepositorySentence() string { return perRepositorySentence }
 
 // The columns of the table after the project: the median alone, or the mean,
 // the median and the 90th percentile (the shares have four, the developers one).
@@ -108,8 +102,6 @@ func (d Data) TbdColumnsAfterProject() int {
 // collected (forsgren#256, step 2).
 func (r TbdRow) LeadState() string {
 	switch {
-	case r.PushAbsent:
-		return ""
 	case r.Lead.NotReadable:
 		return r.Lead.State()
 	case r.pullsUncollected:
