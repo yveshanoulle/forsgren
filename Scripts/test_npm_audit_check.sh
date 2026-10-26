@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# canon: test_npm_audit_check v1
+# canon: test_npm_audit_check v2
+# v2 (forsgren#434): moderate and above is red, a low advisory is listed and green.
 # test_npm_audit_check.sh — fixture test for npm_audit_check.sh.
 #
 # Ported from another estate repository's admin gate — unit 393. This repo ships htmlhint and
@@ -42,7 +43,8 @@
 #  11. the advisory on a production path       -> red: dev dependencies only
 #  12. a non-forced fix: fixAvailable true     -> red: a fix exists
 #  13. a non-forced fix: not SemVer-major      -> red: a fix exists
-#  14. a moderate advisory, not listed         -> green (audit level high)
+#  14. a moderate advisory, not listed         -> red (the level is moderate)
+#  14b. a low advisory, not listed             -> green, listed as `low:`
 #  15. a stale exception                       -> green with a warning
 #  16. a re-check date 8 days ahead            -> red: re-check weekly
 #  17. a malformed exception file (4 fields, an impossible date, a
@@ -204,7 +206,7 @@ export NPM_FAKE_HEAL=yes
 run_check
 export NPM_FAKE_HEAL=no
 want_exit "a fixable advisory is red in a default run" 1 "npm audit fix runs only under GATE_FIX=1"
-want_said "  ... naming the advisory report" "npm-audit: high-severity advisory found"
+want_said "  ... naming the advisory report" "npm-audit: moderate-or-higher advisory found"
 no_heal "  ... and npm audit fix never ran"
 
 # --- Case 3: an advisory the heal leaves -> exit 1, report + summary line.
@@ -294,10 +296,20 @@ serve "$(variant fixminor '.vulnerabilities["acme-braces"].fixAvailable = {name:
 run_check
 want_red "a fix (not SemVer-major) is red" "a fix exists for ${ADV} (acme-braces): remove the exception and update"
 
-# --- Case 14: an unlisted moderate advisory -> green (audit level high).
-serve "$(variant moderate '.vulnerabilities["acme-yaml"] = {name: "acme-yaml", severity: "moderate", isDirect: true, via: [{source: 1000004, name: "acme-yaml", dependency: "acme-yaml", title: "acme-yaml is slow", url: "https://github.com/advisories/GHSA-p3p3-q4q4-r5r5", severity: "moderate", range: "<2.4.0"}], effects: [], range: "<2.4.0", nodes: ["node_modules/acme-yaml"], fixAvailable: false}')"
+# --- Case 14: an unlisted moderate advisory -> red (audit level moderate).
+except_ruled
+serve "${FIXTURES}/moderate.json"
 run_check
-want_green "an unlisted moderate advisory is green, as below the audit level" "$NOTICE"
+want_red "an unlisted moderate advisory is red" "GHSA-p3p3-q4q4-r5r5 (acme-yaml <2.4.0, moderate) is not excepted"
+
+# --- Case 14b: an unlisted low advisory -> green, and listed, never silent.
+serve "${FIXTURES}/low.json"
+run_check
+want_green_ok "an unlisted low advisory is green"
+want_said "  ... and listed" "low: npm-audit: GHSA-l1l1-o2o2-w3w3 (acme-yaml <2.4.0) is listed, not red"
+if grep -q "❌" <<< "$OUT"; then
+  fail "the low advisory carries a red cross. Output: ${OUT}"
+fi
 
 # --- Case 15: a stale exception -> green with a warning.
 serve "${FIXTURES}/clean.json"
@@ -365,6 +377,44 @@ prove "dev paths only" 's/^def on_prod_path(/def on_prod_path(a): false; def unu
 prove "no fix exists" 's/^def fix_exists(/def fix_exists(e): false; def unused_fix_exists(/' setup_fix
 prove "weekly re-check" 's/^def too_far_ahead(/def too_far_ahead(e): false; def unused_too_far_ahead(/' setup_weekly
 prove "well-formed file" 's/^def problems:/def problems: empty; def unused_problems:/' setup_malformed
+
+# The moderate level: without it, a moderate advisory is green (the audit level
+# was high), which case 14 refuses.
+if selftest_mutant "$CHECK" "${TMP}/mutant-moderate/npm_audit_check.sh" 's/\.severity == "moderate" or //'; then
+  export NPM_AUDIT_TODAY="2026-10-03"
+  except_ruled
+  serve "${FIXTURES}/moderate.json"
+  run_check
+  if [[ "$RC" -eq 0 ]]; then
+    fail "mutation moderate: the real gate is green on a moderate advisory, so the proof shows nothing"
+  else
+    run_check "${TMP}/mutant-moderate/npm_audit_check.sh"
+    want_green_ok "mutation moderate: without it, a moderate advisory is green, which case 14 refuses"
+  fi
+fi
+
+# The low level: a mutant that blocks on low is red on case 14b's advisory,
+# and one that stops listing it says nothing of it.
+low_red='s/^def blocking: /def blocking: .severity == "low" or /'
+if selftest_mutant "$CHECK" "${TMP}/mutant-low-red/npm_audit_check.sh" "$low_red"; then
+  export NPM_AUDIT_TODAY="2026-10-03"
+  except_ruled
+  serve "${FIXTURES}/low.json"
+  run_check "${TMP}/mutant-low-red/npm_audit_check.sh"
+  want_red "mutation low-red: a gate that blocks on low is red on case 14b's advisory" \
+    "GHSA-l1l1-o2o2-w3w3 (acme-yaml <2.4.0, low) is not excepted"
+fi
+if selftest_mutant "$CHECK" "${TMP}/mutant-low-silent/npm_audit_check.sh" 's/select(blocking | not)/select(false)/'; then
+  export NPM_AUDIT_TODAY="2026-10-03"
+  except_ruled
+  serve "${FIXTURES}/low.json"
+  run_check "${TMP}/mutant-low-silent/npm_audit_check.sh"
+  if [[ "$RC" -eq 0 ]] && ! grep -q "GHSA-l1l1-o2o2-w3w3" <<< "$OUT"; then
+    echo "  ok: mutation low-silent: without the listing, a low advisory goes unmentioned"
+  else
+    fail "mutation low-silent: the mutant still listed it, or went red. Output: ${OUT}"
+  fi
+fi
 
 # The stale rule warns instead of refusing: without it, no warning.
 if selftest_mutant "$CHECK" "${TMP}/mutant-stale/npm_audit_check.sh" 's/^def stale(/def stale(e): false; def unused_stale(/'; then

@@ -107,8 +107,8 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 70 | Go dead code | `check_deadcode.sh` | pre | required |
 | 71 | lint-coverage self-test | `test_check_lint_coverage.sh` | pre | required, `test_check_lint_coverage v1` |
 | 72 | lint coverage | `check_lint_coverage.sh` | post | required, `check_lint_coverage v1` |
-| 73 | npm-audit self-test | `test_npm_audit_check.sh` | pre | required, `test_npm_audit_check v1`; documented exception: one dated advisory (see below) |
-| 74 | npm audit | `npm_audit_check.sh` | pre | required, `npm_audit_check v1`; documented exception: one dated advisory (see below) |
+| 73 | npm-audit self-test | `test_npm_audit_check.sh` | pre | required, `test_npm_audit_check v2`; documented exception: one dated advisory (see below) |
+| 74 | npm audit | `npm_audit_check.sh` | pre | required, `npm_audit_check v3`; documented exception: one dated advisory (see below) |
 | 75 | manifest-covers-site self-test | `test_required_pages_covers_site_selftest.sh` | pre | required, `test_required_pages_covers_site_selftest v1` |
 | 76 | manifest covers site | `test_required_pages_covers_site.sh` | post | required, `test_required_pages_covers_site v1` |
 | 77 | quality trigger scope | `test_quality_trigger_scope.sh` | pre | required, `test_quality_trigger_scope v3` |

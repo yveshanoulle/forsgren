@@ -1,0 +1,50 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "acme-yaml": {
+      "name": "acme-yaml",
+      "severity": "low",
+      "isDirect": true,
+      "via": [
+        {
+          "source": 1000005,
+          "name": "acme-yaml",
+          "dependency": "acme-yaml",
+          "title": "acme-yaml prints a verbose debug line",
+          "url": "https://github.com/advisories/GHSA-l1l1-o2o2-w3w3",
+          "severity": "low",
+          "cwe": [],
+          "cvss": {
+            "score": 3.1,
+            "vectorString": null
+          },
+          "range": "<2.4.0"
+        }
+      ],
+      "effects": [],
+      "range": "<2.4.0",
+      "nodes": [
+        "node_modules/acme-yaml"
+      ],
+      "fixAvailable": false
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 1,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 1
+    },
+    "dependencies": {
+      "prod": 1,
+      "dev": 12,
+      "optional": 0,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 12
+    }
+  }
+}

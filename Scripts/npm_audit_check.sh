@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# canon: npm_audit_check v2
+# canon: npm_audit_check v3
+# v3 (forsgren#434, ruling on #420): red from moderate severity up; a low one is listed, green.
 # npm_audit_check.sh — npm-audit gate with one-shot self-heal (GATE_FIX=1 only)
 # and ruled, weekly exceptions.
 #
-# The estate's npm-audit gate: a high or critical advisory is red, one
-# self-heal is allowed under GATE_FIX=1, and a transitive finding no fix reaches
-# is a ruled, dated exception.
+# The estate's npm-audit gate: a moderate, high or critical advisory is red,
+# a low one is listed as `low: npm-audit: ...` and stays green (development
+# dependencies are in scope), one self-heal is allowed under GATE_FIX=1, and a
+# transitive finding no fix reaches is a ruled, dated exception.
 #
 # Contract (pinned by test_npm_audit_check.sh):
 #
-#   exit 0 — no high or critical advisory outside a ruled exception, possibly
+#   exit 0 — no moderate, high or critical advisory outside a ruled exception, possibly
 #            after ONE `npm audit fix` (re-verified) when GATE_FIX=1; a heal
 #            reports the package-lock.json change, which rides into the commit
 #            (sqlc-generate precedent). CI never sets GATE_FIX, so it only
@@ -116,7 +118,7 @@ input as $full | input as $prod |
 def advisory_id: ([(.url // "") | capture("(?<g>GHSA(-[a-z0-9]{4}){3})") | .g] | .[0]) // "npm advisory \(.source)";
 def advisories: [.vulnerabilities[] | .via[] | objects
   | {id: advisory_id, name, title, severity, range}] | unique_by([.id, .name]);
-def high: .severity == "high" or .severity == "critical";
+def blocking: .severity == "moderate" or .severity == "high" or .severity == "critical";
 def entry_of($a): [ $entries[]
   | select(.id == $a.id)          # rule: listed advisory
   | select(.package == $a.name)   # rule: listed package
@@ -134,7 +136,9 @@ def verdict($a; $e):
     ] as $reds
     | if ($reds | length) > 0 then $reds[] else "excepted: \($a.id) (\($a.name)) until \($e.date), \($e.issue)" end
   end;
-($full | advisories[] | select(high) | verdict(.; entry_of(.))),
+($full | advisories[] | select(blocking) | verdict(.; entry_of(.))),
+($full | advisories[] | select(blocking | not)
+  | "\(.severity): npm-audit: \(.id) (\(.name) \(.range)) is listed, not red: \(.title)"),
 ($entries[] | select(stale(.)) | "warning: npm-audit: remove the stale exception \(.id) (\(.package)), \(.issue): npm audit no longer reports it")
 JQ
 }
@@ -189,7 +193,7 @@ evaluate() {
   if grep -q '^❌' <<< "$lines"; then
     return 1
   fi
-  echo "npm-audit: OK: no high-severity advisory outside a ruled exception"
+  echo "npm-audit: OK: no moderate-or-higher advisory outside a ruled exception"
 }
 
 first="$(evaluate)" && rc=0 || rc=$?
@@ -206,12 +210,12 @@ fi
 # FullBuildAndPush heals; CI never sets it and never changes a file.
 if [[ "${GATE_FIX:-}" != "1" ]]; then
   printf '%s\n' "$first"
-  echo "npm-audit: high-severity advisory found"
+  echo "npm-audit: moderate-or-higher advisory found"
   echo "❌ npm-audit: nothing was changed: npm audit fix runs only under GATE_FIX=1 (FullBuildAndPush); run it there and commit package-lock.json"
   exit 1
 fi
 
-echo "npm-audit: high-severity advisory found — attempting npm audit fix"
+echo "npm-audit: moderate-or-higher advisory found — attempting npm audit fix"
 npm audit fix >/dev/null 2>&1 || true
 
 second="$(evaluate)" && rc=0 || rc=$?

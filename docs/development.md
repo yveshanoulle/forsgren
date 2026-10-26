@@ -232,8 +232,10 @@ Three gates keep it that way: **npm lockfile sync**
 (`Scripts/check_guardrail_packages.sh`) is red on a version range in
 `package.json`, on a missing or gitignored `package.json` or
 `package-lock.json`, and on a `node_modules/` git tracks or does not ignore; **npm audit**
-(`Scripts/npm_audit_check.sh`) is red on a high-severity advisory that one
-`npm audit fix` cannot heal and no ruled exception covers. When that fix does
+(`Scripts/npm_audit_check.sh`) is red on a moderate, high or critical advisory
+(development dependencies included) that one `npm audit fix` cannot heal and
+no ruled exception covers; a low advisory is listed as `low: npm-audit: ...`
+and stays green. When that fix does
 heal it, the changed `package-lock.json` rides into the commit. The heal runs
 only under `GATE_FIX=1`, which `sfl.sh` exports and CI never sets; in CI the gate
 only checks and is red on the advisory.
@@ -264,9 +266,9 @@ out, remove the line and update. When there is none, move the date forward
 by at most 7 days and add one line to the entry's history comment in the
 file (or note it on the issue). Today there is no exception: the file holds
 no row (the braces row of forsgren#13 was removed in forsgren#419, when npm
-audit stopped reporting it). The gate is red on a high or critical advisory
-only; a moderate or low one, which Dependabot also reports, is not a gate
-finding and is fixed by updating the lockfile.
+audit stopped reporting it). The gate is red on a moderate, high or critical
+advisory (forsgren#434, decision #420); a low one is listed, not red, and is
+fixed by updating the lockfile.
 
 **To move a linter to a new version,** change its exact pin and the lockfile
 together, then run `./FBP.sh`:

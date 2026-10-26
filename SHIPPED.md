@@ -9,6 +9,14 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — The npm audit gate is red from moderate severity up, and a low advisory is listed ([#434](https://github.com/yveshanoulle/forsgren/issues/434), 1 step)
+
+forsgren issue 434, tools, no release of its own, decision #420 (A). `Scripts/npm_audit_check.sh` (canon v3) was red on high and critical advisories only, so the moderate `fast-uri` findings of #419 passed. It is now red on moderate, high and critical, development dependencies included; a low advisory is printed as `low: npm-audit: <GHSA> (<package> <range>) is listed, not red: <title>` and the gate stays green. No exception or suppression is added. Red first in `Scripts/test_npm_audit_check.sh` (v2) with fixtures `moderate.json` and `low.json`: a moderate advisory is red, a low one green and listed, seen failing against the old gate; mutation proofs: without the moderate level the moderate case is green, a gate that blocks on low is red on the low case, and without the listing the low advisory goes unmentioned. `docs/development.md` and `docs/gate-classification.md` say so. No change to `FBP.sh`, `sfl.sh`, the order file or `Scripts/gate_inputs.txt`. The other repositories take canon v3 in later work.
+
+Signed: Lenka B
+
+---
+
 ## 2026-10-26 — The TBD page shows a total row and a sub-row per label or service ([#422](https://github.com/yveshanoulle/forsgren/issues/422), step 4 of 5)
 
 forsgren issue 422, step 4: the page switches to `metrics.TbdRows`, by decisions #449, #450 and #451 (A each) and D4.
