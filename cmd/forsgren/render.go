@@ -243,7 +243,7 @@ func metricsDataOf(cfg config.Config, path string) (metrics.Data, error) {
 	return withPushes(data, path)
 }
 
-// withPulls is data with what Mainline Lead Time reads beside the history at
+// withPulls is data with what PR Lead Time reads beside the history at
 // path: the merged pull requests (data/pulls.csv, forsgren#256; none when
 // missing, which the TBD page says, see absent) and the repositories whose
 // pull request read GitHub refused (data/pulls_denied.csv, forsgren#337; none

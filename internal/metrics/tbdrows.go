@@ -30,11 +30,11 @@ type TbdRow struct {
 	Level   Level
 	Name    string
 	Project string
-	// Interval is the Mainline Interval, Lead the Mainline Lead Time and Push
+	// Interval is the Mainline Interval, Lead the PR Lead Time and Push
 	// the push measures, which are per repository; Developers, Deploy and
 	// Volume are per deployment.
 	Interval   MainlineInterval
-	Lead       MainlineLeadTime
+	Lead       PRLeadTime
 	Developers Developers
 	Push       PushMeasures
 	Deploy     DeployMeasures
@@ -95,7 +95,7 @@ func (s tbdSource) row(level Level, p config.Project, project string) TbdRow {
 	only := []config.Project{p}
 	row := s.deployed(only, level, project)
 	row.Interval = MainlineIntervals(only, s.data, s.now)[0]
-	row.Lead = MainlineLeadTimes(only, s.data, s.now)[0]
+	row.Lead = PRLeadTimes(only, s.data, s.now)[0]
 	row.Push = PushMeasuresOf(only, s.data, s.now)[0]
 	return row
 }

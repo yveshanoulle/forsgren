@@ -14,7 +14,7 @@ const pullsDeniedHead = "# forsgren pulls denied v1\nrepository,denied_at\n"
 // which render reads as it reads v1.
 const pullsDeniedHeadV2 = "# forsgren pulls denied v2\nrepository,denied_at,token\n"
 
-// notReadableCell is the Mainline Lead Time cell of a project collect was
+// notReadableCell is the PR Lead Time cell of a project collect was
 // refused the pull request read of (forsgren#337, step 2).
 const notReadableCell = "Pull requests not readable"
 

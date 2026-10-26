@@ -1,7 +1,7 @@
 package collect
 
 // The merged pull requests of each repository (forsgren#255, step 4), for
-// Mainline Lead Time (forsgren#256): data/pulls.csv next to the history
+// PR Lead Time (forsgren#256): data/pulls.csv next to the history
 // (history.PullRequest), each with its first commit time.
 //
 // The read is incremental by updated time: a run asks for the closed pull

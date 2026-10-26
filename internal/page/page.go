@@ -113,7 +113,7 @@ type Data struct {
 	TbdMetrics []metrics.TbdRow
 	// PullsUncollected says there is no data/pulls.csv beside the history:
 	// no collect has stored pull requests yet, so the TBD page says so in
-	// place of each Mainline Lead Time (forsgren#256, step 2).
+	// place of each PR Lead Time (forsgren#256, step 2).
 	PullsUncollected bool
 	// TbdFigures are the figures of the key tbd_figures, "median" or "all": the
 	// TBD table shows the median of each measure, or the mean, the median and

@@ -1,6 +1,6 @@
 package metrics
 
-// Mainline Lead Time (forsgren#256, step 1 of 3) is the second number of the
+// PR Lead Time (forsgren#256, step 1 of 3) is the second number of the
 // TBD page: how old a change is when it reaches the trunk, read with the
 // Mainline Interval (short/short, short/long: long-lived branches, and so
 // on). It reads the merged pull requests `forsgren collect` stores in
@@ -42,7 +42,7 @@ package metrics
 //     as a whole, whatever was read of its other repositories.
 //
 // The result is per project; the TBD page's column (step 2) writes it with
-// its cells, mainlineleadcell.go.
+// its cells, prleadtimecell.go.
 
 import (
 	"math"
@@ -52,8 +52,8 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/history"
 )
 
-// MainlineLeadTime is one project's Mainline Lead Time at the render time.
-type MainlineLeadTime struct {
+// PRLeadTime is one project's PR Lead Time at the render time.
+type PRLeadTime struct {
 	Project string
 	// PullRequests counts the human pull requests merged in the DORA window,
 	// the ones every other number here is of.
@@ -81,22 +81,22 @@ type MainlineLeadTime struct {
 }
 
 // HasLeadTime says whether a pull request counted, so a mean to show.
-func (m MainlineLeadTime) HasLeadTime() bool { return m.PullRequests > 0 }
+func (m PRLeadTime) HasLeadTime() bool { return m.PullRequests > 0 }
 
 // HasMedian says whether the median is shown: it needs two pull requests.
-func (m MainlineLeadTime) HasMedian() bool { return m.PullRequests > 1 }
+func (m PRLeadTime) HasMedian() bool { return m.PullRequests > 1 }
 
 // HasP90 says whether the 90th percentile is shown: it needs minP90Gaps pull
 // requests.
-func (m MainlineLeadTime) HasP90() bool { return m.PullRequests >= minP90Gaps }
+func (m PRLeadTime) HasP90() bool { return m.PullRequests >= minP90Gaps }
 
-// MainlineLeadTimes returns the Mainline Lead Time of each project, in the
+// PRLeadTimes returns the PR Lead Time of each project, in the
 // order of projects, from the data's merged pull requests at the render time
 // now, over its DORA window (30, 90 or 180 days).
-func MainlineLeadTimes(projects []config.Project, data Data, now time.Time) []MainlineLeadTime {
+func PRLeadTimes(projects []config.Project, data Data, now time.Time) []PRLeadTime {
 	index := indexOf(projects)
 	leads := make([][]float64, len(projects))
-	out := make([]MainlineLeadTime, len(projects))
+	out := make([]PRLeadTime, len(projects))
 	for i, p := range projects {
 		out[i].Project = p.Name
 	}
@@ -119,7 +119,7 @@ func MainlineLeadTimes(projects []config.Project, data Data, now time.Time) []Ma
 // pull request read was refused (forsgren#337, step 2), compared ignoring
 // case (decision #339); one refused repository makes its project's whole
 // cell not readable, and a repository no project lists is left out.
-func markNotReadable(out []MainlineLeadTime, index projectIndex, denied history.Reach) {
+func markNotReadable(out []PRLeadTime, index projectIndex, denied history.Reach) {
 	for repository := range denied {
 		if i, ok := index.of(repository); ok {
 			out[i].NotReadable = true
@@ -140,7 +140,7 @@ func pullLeadOf(p history.PullRequest) time.Duration {
 // add counts p, a pull request of m's project merged in the window, and
 // returns leads with its lead time in nanoseconds when a person opened it;
 // any other is left out of the lead time, leads returned as they were.
-func (m *MainlineLeadTime) add(p history.PullRequest, leads []float64) []float64 {
+func (m *PRLeadTime) add(p history.PullRequest, leads []float64) []float64 {
 	if p.Bot != history.ByHuman {
 		m.Bots += boolCount(p.Bot == history.ByBot)
 		return leads
@@ -151,7 +151,7 @@ func (m *MainlineLeadTime) add(p history.PullRequest, leads []float64) []float64
 }
 
 // note counts p, whose lead time is lead, in m's counts.
-func (m *MainlineLeadTime) note(p history.PullRequest, lead time.Duration) {
+func (m *PRLeadTime) note(p history.PullRequest, lead time.Duration) {
 	m.PullRequests++
 	m.Cut += boolCount(p.FirstCommitCut)
 	m.CreatedStandsIn += boolCount(p.CreatedStandsIn)
@@ -159,7 +159,7 @@ func (m *MainlineLeadTime) note(p history.PullRequest, lead time.Duration) {
 
 // spread sets m's mean, median and 90th percentile of the lead times in
 // nanoseconds, the last two while they are shown (forsgren#423).
-func (m *MainlineLeadTime) spread(leads []float64) {
+func (m *PRLeadTime) spread(leads []float64) {
 	if len(leads) == 0 {
 		return
 	}

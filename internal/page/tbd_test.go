@@ -11,7 +11,7 @@ import (
 
 // tbdData is the TBD page's data: Acme Shop with 4 commits and a deviation,
 // Acme Tools with 2 commits, so a mean and no deviation, and Acme Docs with
-// no commit; their Mainline Lead Times (tbdLeads), their Developers, and the
+// no commit; their PR Lead Times (tbdLeads), their Developers, and the
 // push and deployment groups of forsgren#397, step 5: Acme Shop with every
 // figure, Acme Tools with a mean only, Acme Docs with its push read refused
 // and Acme Web with no push collected yet. Acme Shop has half of its commits
@@ -21,13 +21,13 @@ func tbdData() Data {
 	return tbdDataWith(tbdLeads())
 }
 
-// tbdLeads are the Mainline Lead Times of tbdData (forsgren#256, step 2):
+// tbdLeads are the PR Lead Times of tbdData (forsgren#256, step 2):
 // Acme Shop's 5 pull requests with a median, Acme Tools' one cut pull
 // request, no human one for Acme Docs but 2 of bots, and Acme Web's 12 with
 // one timed by its created time, next to 3 of bots and 1 of unknown author
 // (forsgren#345, step 2).
-func tbdLeads() []metrics.MainlineLeadTime {
-	return []metrics.MainlineLeadTime{
+func tbdLeads() []metrics.PRLeadTime {
+	return []metrics.PRLeadTime{
 		{Project: "Acme Shop", PullRequests: 5, Mean: 3 * time.Hour, Median: 2 * time.Hour},
 		{Project: "Acme Tools", PullRequests: 1, Mean: 30 * time.Hour, Cut: 1},
 		{Project: "Acme Docs", Bots: 2},
@@ -36,8 +36,8 @@ func tbdLeads() []metrics.MainlineLeadTime {
 	}
 }
 
-// tbdDataWith is tbdData with the Mainline Lead Times leads.
-func tbdDataWith(leads []metrics.MainlineLeadTime) Data {
+// tbdDataWith is tbdData with the PR Lead Times leads.
+func tbdDataWith(leads []metrics.PRLeadTime) Data {
 	intervals := []metrics.MainlineInterval{
 		{Project: "Acme Shop", Commits: 4, Gaps: 3, Mean: 2 * time.Hour, Median: 2 * time.Hour, ByAuthorDate: 2},
 		{Project: "Acme Tools", Commits: 2, Gaps: 1, Mean: 2 * time.Hour},
@@ -64,7 +64,7 @@ func tbdDataWith(leads []metrics.MainlineLeadTime) Data {
 // order, as the TBD page's columns.
 type tbdColumns struct {
 	intervals  []metrics.MainlineInterval
-	leads      []metrics.MainlineLeadTime
+	leads      []metrics.PRLeadTime
 	developers []metrics.Developers
 	pushes     []metrics.PushMeasures
 	deploys    []metrics.DeployMeasures
@@ -182,12 +182,12 @@ func at(cells [2]string, all bool) string {
 	return cells[0]
 }
 
-// noLeads are the Mainline Lead Times of tbdData's projects without a pull
+// noLeads are the PR Lead Times of tbdData's projects without a pull
 // request merged in the window.
-func noLeads() []metrics.MainlineLeadTime {
+func noLeads() []metrics.PRLeadTime {
 	leads := tbdLeads()
 	for i := range leads {
-		leads[i] = metrics.MainlineLeadTime{Project: leads[i].Project}
+		leads[i] = metrics.PRLeadTime{Project: leads[i].Project}
 	}
 	return leads
 }
@@ -491,7 +491,7 @@ func TestTbdPageSaysThePullRequestsAreNotReadable(t *testing.T) {
 // TestTbdPageGolden (forsgren#253, step 4 of 7): the TBD page is a root page,
 // tbd.html, with a table of a row per project; with no projects, or no
 // Mainline Interval read yet, one line says why in place of the table. Its
-// Mainline Lead Time column (forsgren#256, step 2) has a golden with data,
+// PR Lead Time column (forsgren#256, step 2) has a golden with data,
 // one with no pull request in the window, one before the pull requests were
 // collected and one with refused pull request reads (forsgren#337, step 2);
 // the golden with data holds the push groups of forsgren#397, step 5, with
@@ -528,7 +528,7 @@ func TestTbdPageHasItsHeadingAndTable(t *testing.T) {
 
 // TestTbdPageHasNoExplanationAndNoLeadTimeLine (forsgren#271): the h1 is
 // followed by the table, or by its one line; the explanation of the Mainline
-// Interval and of the Mainline Lead Time is the legend's, not the page's.
+// Interval and of the PR Lead Time is the legend's, not the page's.
 func TestTbdPageHasNoExplanationAndNoLeadTimeLine(t *testing.T) {
 	for name, data := range map[string]Data{"data": tbdData(), "no data": calculated()} {
 		wantNone(t, name, rendered(t, "tbd.html", data), "sample standard deviation", "deployments of the last",

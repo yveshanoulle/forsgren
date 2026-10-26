@@ -132,7 +132,7 @@ func TestAnAbsentMeasureIsADashBecauseTheRowSaysAbsent(t *testing.T) {
 	api := &data.TbdMetrics[1]
 	api.Interval = metrics.MainlineInterval{Project: "API", Commits: 4, Gaps: 3, Mean: time.Hour, Median: time.Hour,
 		ByAuthorDate: 2}
-	api.Lead = metrics.MainlineLeadTime{PullRequests: 5, Mean: time.Hour, Median: time.Hour, Bots: 1}
+	api.Lead = metrics.PRLeadTime{PullRequests: 5, Mean: time.Hour, Median: time.Hour, Bots: 1}
 	api.Push = metrics.PushMeasures{Pushes: 9, Commits: 9, Direct: 9,
 		TimeToMain: metrics.DurationSpread{Count: 9, Median: time.Hour}}
 	wantAll(t, "tbd.html", rendered(t, "tbd.html", data), apiRow(false))

@@ -162,7 +162,7 @@ func developersRow(developers string) string {
 	return pushesNotCollected(4) + "\n            " + tdRow(developers)
 }
 
-// TestRenderShowsTheMainlineLeadTimeOfEachProject (forsgren#256, step 2): with
+// TestRenderShowsThePRLeadTimeOfEachProject (forsgren#256, step 2): with
 // data/pulls.csv beside --data, tbd.html shows each project's Mainline Lead
 // Time next to its Mainline Interval: Acme Shop's human lead times of 2, 30
 // and 1 hours have a mean of 11 h and a median of 2 h, no p90 under ten, the
@@ -170,7 +170,7 @@ func developersRow(developers string) string {
 // then the bot's named as not counted (forsgren#345, step 2); the notes are on
 // the mean cell (forsgren#394, step 2); Acme Tools has no pull request, so
 // dashes (forsgren#423: no deviation, count or share any more).
-func TestRenderShowsTheMainlineLeadTimeOfEachProject(t *testing.T) {
+func TestRenderShowsThePRLeadTimeOfEachProject(t *testing.T) {
 	pinNow(t)
 	data := writeData(t, acmeHistory(), acmeCommits())
 	writePulls(t, data, acmePulls(t))
@@ -181,7 +181,7 @@ func TestRenderShowsTheMainlineLeadTimeOfEachProject(t *testing.T) {
 }
 
 // TestRenderTbdPageBeforeThePullRequestsAreCollected (forsgren#256, step 2):
-// without data/pulls.csv every Mainline Lead Time cell says the pull requests
+// without data/pulls.csv every PR Lead Time cell says the pull requests
 // have not been collected yet; with the file and no pull request in the
 // window, the one collect writes when there was none to store, each cell is
 // the no-human sentence (forsgren#345, step 2).

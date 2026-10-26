@@ -31,34 +31,34 @@ func shopPulls(hours ...int) []history.PullRequest {
 	return pulls
 }
 
-// shopMainlineLead is Acme Shop's Mainline Lead Time over the pull requests, in
+// shopPRLead is Acme Shop's PR Lead Time over the pull requests, in
 // the 30 day window.
-func shopMainlineLead(pulls ...history.PullRequest) MainlineLeadTime {
-	return MainlineLeadTimes(projects, Data{Pulls: pulls}, now)[0]
+func shopPRLead(pulls ...history.PullRequest) PRLeadTime {
+	return PRLeadTimes(projects, Data{Pulls: pulls}, now)[0]
 }
 
-// TestMainlineLeadTimeMeanMedianAndCount (forsgren#256, step 1): per merged
+// TestPRLeadTimeMeanMedianAndCount (forsgren#256, step 1): per merged
 // pull request, the merged time minus its first commit time; the mean, the
 // median and the count. No pull request has no lead time; one has a mean and
 // no median.
-func TestMainlineLeadTimeMeanMedianAndCount(t *testing.T) {
+func TestPRLeadTimeMeanMedianAndCount(t *testing.T) {
 	h := time.Hour
 	cases := []struct {
 		name  string
 		pulls []history.PullRequest
-		want  MainlineLeadTime
+		want  PRLeadTime
 		has   [2]bool // HasLeadTime, HasMedian
 	}{
-		{"none", nil, MainlineLeadTime{}, [2]bool{false, false}},
-		{"one", shopPulls(5), MainlineLeadTime{PullRequests: 1, Mean: 5 * h}, [2]bool{true, false}},
-		{"1, 2 and 3 hours", shopPulls(3, 1, 2), MainlineLeadTime{PullRequests: 3, Mean: 2 * h, Median: 2 * h},
+		{"none", nil, PRLeadTime{}, [2]bool{false, false}},
+		{"one", shopPulls(5), PRLeadTime{PullRequests: 1, Mean: 5 * h}, [2]bool{true, false}},
+		{"1, 2 and 3 hours", shopPulls(3, 1, 2), PRLeadTime{PullRequests: 3, Mean: 2 * h, Median: 2 * h},
 			[2]bool{true, true}},
-		{"1 and 3 hours", shopPulls(1, 3), MainlineLeadTime{PullRequests: 2, Mean: 2 * h, Median: 2 * h},
+		{"1 and 3 hours", shopPulls(1, 3), PRLeadTime{PullRequests: 2, Mean: 2 * h, Median: 2 * h},
 			[2]bool{true, true}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := shopMainlineLead(c.pulls...)
+			got := shopPRLead(c.pulls...)
 			c.want.Project = "Acme Shop"
 			if got != c.want {
 				t.Errorf("want %+v, got %+v", c.want, got)
@@ -70,55 +70,55 @@ func TestMainlineLeadTimeMeanMedianAndCount(t *testing.T) {
 	}
 }
 
-// TestMainlineLeadTimeCountsCutValues (forsgren#256, decision #299): a pull
+// TestPRLeadTimeCountsCutValues (forsgren#256, decision #299): a pull
 // request whose commit list was cut keeps its first commit time, a lower
 // bound: it counts in the mean and the median like any other,
 // and Cut says how many did.
-func TestMainlineLeadTimeCountsCutValues(t *testing.T) {
+func TestPRLeadTimeCountsCutValues(t *testing.T) {
 	pulls := shopPulls(1, 3)
 	pulls[1].FirstCommitCut = true
-	want := MainlineLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * time.Hour, Median: 2 * time.Hour,
+	want := PRLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * time.Hour, Median: 2 * time.Hour,
 		Cut: 1}
-	if got := shopMainlineLead(pulls...); got != want {
+	if got := shopPRLead(pulls...); got != want {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
 }
 
-// TestMainlineLeadTimeStandInUsesTheCreatedTime (forsgren#256, decision
+// TestPRLeadTimeStandInUsesTheCreatedTime (forsgren#256, decision
 // #300): a pull request whose commit list gave no usable date has no first
 // commit time, and its created time stands in: the lead time is merged minus
 // created, counted, and CreatedStandsIn says how many.
-func TestMainlineLeadTimeStandInUsesTheCreatedTime(t *testing.T) {
+func TestPRLeadTimeStandInUsesTheCreatedTime(t *testing.T) {
 	standIn := mergedPull("acme/app", 2, 0, time.Hour)
 	standIn.CreatedAt = standIn.MergedAt.Add(-3 * time.Hour)
 	standIn.FirstCommitAt, standIn.CreatedStandsIn = time.Time{}, true
 	pulls := append(shopPulls(1), standIn)
-	want := MainlineLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * time.Hour, Median: 2 * time.Hour,
+	want := PRLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * time.Hour, Median: 2 * time.Hour,
 		CreatedStandsIn: 1}
-	if got := shopMainlineLead(pulls...); got != want {
+	if got := shopPRLead(pulls...); got != want {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
 }
 
-// TestMainlineLeadTimeCountsANegativeOneAsZero (forsgren#256): a first commit
+// TestPRLeadTimeCountsANegativeOneAsZero (forsgren#256): a first commit
 // authored after the merge (a clock, a rewritten date) is a lead time of 0, as
 // lead time for changes counts one (LeadTimes): the pull request is a real
 // integration and stays in the count.
-func TestMainlineLeadTimeCountsANegativeOneAsZero(t *testing.T) {
+func TestPRLeadTimeCountsANegativeOneAsZero(t *testing.T) {
 	ahead := mergedPull("acme/app", 2, -5*time.Hour, time.Hour)
-	want := MainlineLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: time.Hour, Median: time.Hour}
-	if got := shopMainlineLead(append(shopPulls(2), ahead)...); got != want {
+	want := PRLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: time.Hour, Median: time.Hour}
+	if got := shopPRLead(append(shopPulls(2), ahead)...); got != want {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
 }
 
-// TestMainlineLeadTimeCountsThePullRequestsMergedInTheWindow (forsgren#256):
+// TestPRLeadTimeCountsThePullRequestsMergedInTheWindow (forsgren#256):
 // a pull request counts when it was merged in the DORA window (dora_days,
 // both ends included), whatever its first commit's age, in the project whose
 // config lists its repository, compared ignoring case, in the order of
 // projects; one with no merged time, or merged after the render time, is not
 // counted.
-func TestMainlineLeadTimeCountsThePullRequestsMergedInTheWindow(t *testing.T) {
+func TestPRLeadTimeCountsThePullRequestsMergedInTheWindow(t *testing.T) {
 	h := time.Hour
 	edge := mergedPull("ACME/App", 1, 2*h, 30*day)
 	early := mergedPull("acme/app", 2, h, 30*day+time.Second)
@@ -130,25 +130,25 @@ func TestMainlineLeadTimeCountsThePullRequestsMergedInTheWindow(t *testing.T) {
 	tools := mergedPull("acme/cli", 7, 4*h, time.Hour)
 	gone := mergedPull("acme/gone", 8, h, time.Hour)
 	pulls := []history.PullRequest{edge, early, old, unmerged, ahead, api, tools, gone}
-	got := MainlineLeadTimes(projects, Data{Pulls: pulls}, now)
+	got := PRLeadTimes(projects, Data{Pulls: pulls}, now)
 	if counts := pullRequestsOf(got); !slices.Equal(counts, []int{2, 1}) {
 		t.Errorf("want 2 pull requests for Acme Shop, the edge and acme/api, and 1 for Acme Tools, got %v", counts)
 	}
 	if got[0].Mean != (2*h+60*day)/2 {
 		t.Errorf("Acme Shop: want the mean of the edge and acme/api, got %+v", got[0])
 	}
-	want := MainlineLeadTime{Project: "Acme Tools", PullRequests: 1, Mean: 4 * h}
+	want := PRLeadTime{Project: "Acme Tools", PullRequests: 1, Mean: 4 * h}
 	if got[1] != want {
 		t.Errorf("Acme Tools: want %+v, got %+v", want, got[1])
 	}
-	wide := MainlineLeadTimes(projects[:1], Data{Pulls: pulls, DoraDays: 90}, now)
+	wide := PRLeadTimes(projects[:1], Data{Pulls: pulls, DoraDays: 90}, now)
 	if counts := pullRequestsOf(wide); !slices.Equal(counts, []int{4}) {
 		t.Errorf("90 days: want the edge, the second after it, the one 40 days ago and acme/api, got %v", counts)
 	}
 }
 
 // pullRequestsOf are the counts of pull requests of leads, in order.
-func pullRequestsOf(leads []MainlineLeadTime) []int {
+func pullRequestsOf(leads []PRLeadTime) []int {
 	counts := make([]int, len(leads))
 	for i, l := range leads {
 		counts[i] = l.PullRequests
@@ -156,11 +156,11 @@ func pullRequestsOf(leads []MainlineLeadTime) []int {
 	return counts
 }
 
-// TestMainlineLeadTimesGiveEveryProject (forsgren#256): every project has its
+// TestPRLeadTimesGiveEveryProject (forsgren#256): every project has its
 // row, in config order, one without a pull request a zero one.
-func TestMainlineLeadTimesGiveEveryProject(t *testing.T) {
-	got := MainlineLeadTimes(projects, Data{}, now)
-	want := []MainlineLeadTime{{Project: "Acme Shop"}, {Project: "Acme Tools"}}
+func TestPRLeadTimesGiveEveryProject(t *testing.T) {
+	got := PRLeadTimes(projects, Data{}, now)
+	want := []PRLeadTime{{Project: "Acme Shop"}, {Project: "Acme Tools"}}
 	if !slices.Equal(got, want) {
 		t.Errorf("want %+v, got %+v", want, got)
 	}

@@ -9,7 +9,7 @@ import (
 )
 
 // PullRequest is one merged pull request (forsgren#255, step 3): a line of
-// data/pulls.csv, for Mainline Lead Time, merged time minus first commit
+// data/pulls.csv, for PR Lead Time, merged time minus first commit
 // time (forsgren#256). Only merged pull requests are stored; one closed
 // without a merge is not. No title and no author is stored: whether a bot
 // opened it is, never the login (forsgren#345).

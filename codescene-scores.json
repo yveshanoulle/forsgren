@@ -531,19 +531,19 @@
    "minScore": 10.0
   },
   {
-   "path": "internal/metrics/mainlinelead.go",
+   "path": "internal/metrics/prleadtime.go",
    "score": 10.0,
    "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
-   "path": "internal/metrics/mainlinelead_test.go",
+   "path": "internal/metrics/prleadtime_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-25",
    "minScore": 10.0
   },
   {
-   "path": "internal/metrics/mainlineleadcell.go",
+   "path": "internal/metrics/prleadtimecell.go",
    "score": 10.0,
    "checkedAt": "2026-10-25",
    "minScore": 10.0
@@ -1863,7 +1863,7 @@
    "minScore": 10.0
   },
   {
-   "path": "internal/metrics/mainlineleadnotreadable_test.go",
+   "path": "internal/metrics/prleadtimenotreadable_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-25",
    "minScore": 10.0
@@ -1899,7 +1899,7 @@
    "minScore": 10.0
   },
   {
-   "path": "internal/metrics/mainlineleadhuman_test.go",
+   "path": "internal/metrics/prleadtimehuman_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-25",
    "minScore": 10.0
@@ -2175,7 +2175,7 @@
    "minScore": 10.0
   },
   {
-   "path": "internal/metrics/mainleadspread_test.go",
+   "path": "internal/metrics/prleadspread_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-25",
    "minScore": 10.0

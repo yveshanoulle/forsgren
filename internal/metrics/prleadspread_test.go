@@ -5,11 +5,11 @@ import (
 	"time"
 )
 
-// TestMainlineLeadTimeMedianAndP90 (forsgren#423, Yves on #432): the pull
+// TestPRLeadTimeMedianAndP90 (forsgren#423, Yves on #432): the pull
 // request lead time has a median from two pull requests (the mean of the two
 // middle ones for an even count) and a 90th percentile by nearest rank from
 // ten, as the other spreads have; below that they are zero and not shown.
-func TestMainlineLeadTimeMedianAndP90(t *testing.T) {
+func TestPRLeadTimeMedianAndP90(t *testing.T) {
 	h := time.Hour
 	cases := map[string]struct {
 		hours             []int
@@ -26,7 +26,7 @@ func TestMainlineLeadTimeMedianAndP90(t *testing.T) {
 		"unsorted": {[]int{30, 1, 2, 3, 4, 5, 6, 7, 8, 9}, 5*h + 30*time.Minute, 9 * h, true, true},
 	}
 	for name, c := range cases {
-		got := shopMainlineLead(shopPulls(c.hours...)...)
+		got := shopPRLead(shopPulls(c.hours...)...)
 		if got.Median != c.median || got.HasMedian() != c.hasMedian {
 			t.Errorf("%s: want median %v (%t), got %v (%t)", name, c.median, c.hasMedian, got.Median, got.HasMedian())
 		}
@@ -36,26 +36,26 @@ func TestMainlineLeadTimeMedianAndP90(t *testing.T) {
 	}
 }
 
-// TestMainlineLeadTimeCellsShowMeanMedianAndP90 (forsgren#423): the cells are
+// TestPRLeadTimeCellsShowMeanMedianAndP90 (forsgren#423): the cells are
 // the three figures like the other groups, a dash while one is not shown; the
 // mean carries the notes, and the median alone carries them in the table that
 // shows the median only (MedianNotedCell); the count, the cut count and the
 // share are not in a cell any more.
-func TestMainlineLeadTimeCellsShowMeanMedianAndP90(t *testing.T) {
+func TestPRLeadTimeCellsShowMeanMedianAndP90(t *testing.T) {
 	h := time.Hour
 	cases := map[string]struct {
-		lead              MainlineLeadTime
+		lead              PRLeadTime
 		mean, median, p90 string
 		notes             []Note
 	}{
-		"none": {MainlineLeadTime{}, "-", "-", "-", nil},
-		"one, cut": {MainlineLeadTime{PullRequests: 1, Mean: 5 * h, Cut: 1}, "5 h", "-", "-",
+		"none": {PRLeadTime{}, "-", "-", "-", nil},
+		"one, cut": {PRLeadTime{PullRequests: 1, Mean: 5 * h, Cut: 1}, "5 h", "-", "-",
 			[]Note{{NoteLowerBound, 1, 0}}},
-		"two": {MainlineLeadTime{PullRequests: 2, Mean: 2 * h, Median: 2 * h}, "2 h", "2 h", "-", nil},
-		"ten, bots": {MainlineLeadTime{PullRequests: 10, Mean: 3 * h, Median: 2 * h, P90: 9 * h, Bots: 3},
+		"two": {PRLeadTime{PullRequests: 2, Mean: 2 * h, Median: 2 * h}, "2 h", "2 h", "-", nil},
+		"ten, bots": {PRLeadTime{PullRequests: 10, Mean: 3 * h, Median: 2 * h, P90: 9 * h, Bots: 3},
 			"3 h", "2 h", "9 h", []Note{{NoteBotsNotCounted, 3, 0}}},
-		"no human, bots": {MainlineLeadTime{Bots: 2}, "-", "-", "-", []Note{{NoteBotsNotCounted, 2, 0}}},
-		"all three kinds": {MainlineLeadTime{PullRequests: 3, Mean: h, Median: h, Cut: 1, CreatedStandsIn: 2, Bots: 3},
+		"no human, bots": {PRLeadTime{Bots: 2}, "-", "-", "-", []Note{{NoteBotsNotCounted, 2, 0}}},
+		"all three kinds": {PRLeadTime{PullRequests: 3, Mean: h, Median: h, Cut: 1, CreatedStandsIn: 2, Bots: 3},
 			"1 h", "1 h", "-", []Note{{NoteLowerBound, 1, 0}, {NoteCreatedTime, 2, 0}, {NoteBotsNotCounted, 3, 0}}},
 	}
 	for name, c := range cases {
@@ -85,15 +85,15 @@ func sameNotes(a, b []Note) bool {
 	return true
 }
 
-// TestMainlineLeadTimeStateIsNotReadable (forsgren#423): a project whose
+// TestPRLeadTimeStateIsNotReadable (forsgren#423): a project whose
 // pull request read was refused has the state sentence in place of the cells,
 // and any other project has no state.
-func TestMainlineLeadTimeStateIsNotReadable(t *testing.T) {
-	refused := MainlineLeadTime{NotReadable: true, PullRequests: 2, Mean: time.Hour, Bots: 2}
+func TestPRLeadTimeStateIsNotReadable(t *testing.T) {
+	refused := PRLeadTime{NotReadable: true, PullRequests: 2, Mean: time.Hour, Bots: 2}
 	if got := refused.State(); got != "Pull requests not readable" {
 		t.Errorf("want the state %q, got %q", "Pull requests not readable", got)
 	}
-	if got := (MainlineLeadTime{PullRequests: 2}).State(); got != "" {
+	if got := (PRLeadTime{PullRequests: 2}).State(); got != "" {
 		t.Errorf("want no state, got %q", got)
 	}
 }

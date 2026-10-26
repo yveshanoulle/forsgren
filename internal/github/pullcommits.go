@@ -26,7 +26,7 @@ type pullCommit struct {
 }
 
 // FirstCommitTime is the first commit time of pull request number of repo
-// (forsgren#255, step 2), for Mainline Lead Time, merged time minus first
+// (forsgren#255, step 2), for PR Lead Time, merged time minus first
 // commit time: the earliest git author date (commit.author.date, when the
 // commit was made, never the committer date, which a rebase or a merge
 // button moves) of its commits, in UTC. GET

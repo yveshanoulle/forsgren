@@ -9,7 +9,7 @@ import (
 )
 
 // ClosedPullRequest is one closed pull request of a repository, merged or
-// not (forsgren#255, step 1): what Mainline Lead Time needs of it. Nothing
+// not (forsgren#255, step 1): what PR Lead Time needs of it. Nothing
 // else is read: no title, no body, no author's login, only its account type
 // (forsgren#345), and no head branch, which nothing uses (forsgren#320,
 // decision #322).

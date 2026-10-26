@@ -22,7 +22,7 @@ import (
 // (forsgren#409); the History page keeps its beta marker (betaMarker).
 const tbdTitle = "Trunk-based development [TBD]"
 
-// pullsUncollectedCell is the Mainline Lead Time cell while data/pulls.csv
+// pullsUncollectedCell is the PR Lead Time cell while data/pulls.csv
 // is absent: no collect has stored pull requests yet (forsgren#256, step 2).
 const pullsUncollectedCell = "No pull requests have been collected yet"
 
@@ -41,7 +41,7 @@ func (d Data) TbdMessage() string {
 // TbdRow is one row of the TBD page (forsgren#397, step 5; forsgren#422, step
 // 4): a project's total or a label's or service's row, with the measures
 // metrics.TbdRows gives it: the volume, shares and push and deployment
-// measures, the Mainline Lead Time (forsgren#256, step 2; the pull requests
+// measures, the PR Lead Time (forsgren#256, step 2; the pull requests
 // column alone), the Mainline Interval and the Developers count
 // (forsgren#273). Its NoData rule and its NotesName are the metrics row's.
 type TbdRow struct {
@@ -133,7 +133,7 @@ func withoutAbsent(m metrics.TbdRow) metrics.TbdRow {
 		m.Interval = metrics.MainlineInterval{}
 	}
 	if m.PushAbsent {
-		m.Lead, m.Push = metrics.MainlineLeadTime{}, metrics.PushMeasures{}
+		m.Lead, m.Push = metrics.PRLeadTime{}, metrics.PushMeasures{}
 	}
 	return m
 }

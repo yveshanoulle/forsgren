@@ -12,9 +12,9 @@ import (
 var refusedAt = time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 
 // notReadableOf is, per project of projects in its order, whether its
-// Mainline Lead Time is not readable with pulls and the refusals denied.
+// PR Lead Time is not readable with pulls and the refusals denied.
 func notReadableOf(projects []config.Project, pulls []history.PullRequest, denied history.Reach) []bool {
-	leads := MainlineLeadTimes(projects, Data{Pulls: pulls, PullsDenied: denied}, now)
+	leads := PRLeadTimes(projects, Data{Pulls: pulls, PullsDenied: denied}, now)
 	got := make([]bool, len(leads))
 	for i, l := range leads {
 		got[i] = l.NotReadable
@@ -22,7 +22,7 @@ func notReadableOf(projects []config.Project, pulls []history.PullRequest, denie
 	return got
 }
 
-// TestMainlineLeadTimeIsNotReadableWhenARepositoryWasRefused (forsgren#337,
+// TestPRLeadTimeIsNotReadableWhenARepositoryWasRefused (forsgren#337,
 // step 2): a project with a repository whose pull request read collect was
 // refused (data/pulls_denied.csv) is not readable as a whole, even with the
 // merged pull requests of its other repositories (decision: one refused
@@ -30,7 +30,7 @@ func notReadableOf(projects []config.Project, pulls []history.PullRequest, denie
 // touched; a refused repository whose earlier pull requests are stored is
 // not readable all the same; a refusal of a repository no project lists any
 // more is ignored; no refusal, nothing not readable.
-func TestMainlineLeadTimeIsNotReadableWhenARepositoryWasRefused(t *testing.T) {
+func TestPRLeadTimeIsNotReadableWhenARepositoryWasRefused(t *testing.T) {
 	pulls := append(shopPulls(5, 30), mergedPull("acme/cli", 9, time.Hour, time.Hour))
 	cases := map[string]struct {
 		denied history.Reach
@@ -52,11 +52,11 @@ func TestMainlineLeadTimeIsNotReadableWhenARepositoryWasRefused(t *testing.T) {
 	}
 }
 
-// TestMainlineLeadTimeComparesRefusedRepositoriesWithoutCase (forsgren#337,
+// TestPRLeadTimeComparesRefusedRepositoriesWithoutCase (forsgren#337,
 // step 2, decision #339): pulls_denied.csv keys a repository in lower case,
 // and the config may write it otherwise, so they are compared without case,
 // whichever side has the capitals.
-func TestMainlineLeadTimeComparesRefusedRepositoriesWithoutCase(t *testing.T) {
+func TestPRLeadTimeComparesRefusedRepositoriesWithoutCase(t *testing.T) {
 	mixed := []config.Project{{Name: "Acme Shop", Repositories: []config.Repository{{Name: "Acme/API"}}}}
 	for name, denied := range map[string]history.Reach{
 		"config in capitals": {"acme/api": refusedAt},
@@ -68,12 +68,12 @@ func TestMainlineLeadTimeComparesRefusedRepositoriesWithoutCase(t *testing.T) {
 	}
 }
 
-// TestMainlineLeadTimeStateSaysNotReadable (forsgren#337, step 2): a project
+// TestPRLeadTimeStateSaysNotReadable (forsgren#337, step 2): a project
 // not readable has the state "Pull requests not readable", never a lead time of
 // the repositories that were read nor the dash of no pull request.
-func TestMainlineLeadTimeStateSaysNotReadable(t *testing.T) {
+func TestPRLeadTimeStateSaysNotReadable(t *testing.T) {
 	const want = "Pull requests not readable"
-	for name, lead := range map[string]MainlineLeadTime{
+	for name, lead := range map[string]PRLeadTime{
 		"no pull request":    {NotReadable: true},
 		"pull requests read": {NotReadable: true, PullRequests: 2, Mean: time.Hour, Median: time.Hour},
 	} {

@@ -104,7 +104,7 @@ func utcAt(t *testing.T, s string) time.Time {
 // is by a made-up developer, one by a bot (left out) and one without a known
 // author (counted by the shares of the commits since forsgren#397, step 5);
 // the developer of the commit deployed before the window is not counted.
-// Acme Tools has no commit, so a dash. The Mainline Lead Time comes before
+// Acme Tools has no commit, so a dash. The PR Lead Time comes before
 // the interval (forsgren#256, step 2), without a pull request the dash
 // (forsgren#345, step 2).
 func TestRenderShowsTheDevelopersOfEachProject(t *testing.T) {

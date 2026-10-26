@@ -11,7 +11,7 @@ func TestNoDataNeedsAllFourAbsent(t *testing.T) {
 		volume DeploymentVolume
 		deploy DeployMeasures
 		push   PushMeasures
-		lead   MainlineLeadTime
+		lead   PRLeadTime
 		want   bool
 	}{
 		"all four absent":           {want: true},
@@ -19,8 +19,8 @@ func TestNoDataNeedsAllFourAbsent(t *testing.T) {
 		"a deployment alone":        {volume: DeploymentVolume{Count: 1}, want: false},
 		"a failed deployment alone": {volume: DeploymentVolume{Final: 1}, want: false},
 		"a push alone":              {push: PushMeasures{Pushes: 1}, want: false},
-		"a merged human pull alone": {lead: MainlineLeadTime{PullRequests: 1}, want: false},
-		"a merged bot pull alone":   {lead: MainlineLeadTime{Bots: 1}, want: false},
+		"a merged human pull alone": {lead: PRLeadTime{PullRequests: 1}, want: false},
+		"a merged bot pull alone":   {lead: PRLeadTime{Bots: 1}, want: false},
 	} {
 		if got := NoData(c.volume, c.deploy, c.push, c.lead); got != c.want {
 			t.Errorf("%s: want %v, got %v", name, c.want, got)
