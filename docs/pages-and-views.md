@@ -876,7 +876,18 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
   shows the pushes since the first collection.
   - *Time to main per commit.* The push time minus the author date of the
     commit, a negative time counted as 0, for each distinct commit, at its
-    first push.
+    first push. The clock starts at the author date, when the commit was
+    written, and stops at the push to the default branch that brought it, at
+    the time GitHub records for that push in the branch's activity list. The
+    Mainline Interval is a different measure: the gaps between consecutive
+    commits of the main line at the time they landed (the committer date),
+    how often changes land, where this one is how old a change is when it
+    lands (forsgren#448).
+  - *The names* (forsgren#448). Mainline Interval and Mainline Lead Time (PR
+    Lead Time since forsgren#403) are the two metrics of the Mainline
+    Throughput Indicator (forsgren#56). Time to main per commit is forsgren's
+    own name (forsgren#397). Forsgren uses no abbreviation for it; with the
+    median by default the figure is the median time to main.
   - *Time to deploy per commit.* For every commit of the first-parent chain of
     the deployments created in the window (merge commits of pull requests
     included, no longer only the direct ones), each at its earliest
@@ -1080,9 +1091,11 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     more than half of the commits are timed by author date the note reads
     (1), `Mostly estimated: commits timed by author date`, `Acme Web 7 of 13`.
 
-The page itself has the heading and the table, or its one line. The
-explanation above, with the window in force, is the legend's section for the
-page, headed with the same title; the menu entry stays "TBD". The page has no
+The page itself has the heading and the table, or its one line. The legend's
+section for the page, headed with the same title, is the reader's page
+(forsgren#448): question headings, what the numbers mean, the window in force,
+the names, the five numbered notes and a link to this section. The
+calculation detail above stays here; the menu entry stays "TBD". The page has no
 BETA marker since forsgren#409; the History page keeps its marker.
 
 ## Privacy

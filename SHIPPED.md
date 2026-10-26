@@ -27,6 +27,18 @@ The CI log holds no per-test time (the self-test prints its ok lines at the end)
 
 ---
 
+## 2026-10-25 — The legend's TBD section is a reader's page, and the calculation detail stays in the manual ([#448](https://github.com/yveshanoulle/forsgren/issues/448), 1 step)
+
+forsgren issue 448, feature, patch release, in 1.23.0. The legend's TBD section is rewritten after a reviewer's proposal and Yves's three reader questions: question headings (how to read the numbers, how often changes reach main, how long a change takes to reach main, when the Time to main clock starts and stops, how the Mainline Interval differs from Time to main, how long to be deployed, how long a pull request takes to merge, how much work is integrated at once, how work reaches main, how many developers contribute, what to look for, what if data is missing, where the names come from, the Notes, where the calculation is explained). The window is named from the config. The five numbered note texts stay, each with the measure it applies to. The section links to the documentation on forsgren.be, since the repository-links gate refuses a github.com repository path on a page.
+
+The seven corrections of the review are applied: the window is the DORA window; the Mainline Interval measures the commits on the main line at their committer date; Commits per deployment counts the commits on the main line; Commits is what the pushes of the window brought; PR is a pull request merge commit or a commit a pull request merge brought, and a branch merged locally and pushed is Direct; the notes cover estimates, a lower bound, a stand-in time and bots, missing data is a dash, a no-data row or a not-readable cell; the key `tbd_figures` is no longer named on the legend (the settings page and `docs/configuration.md` have it). `docs/pages-and-views.md`, The TBD page, gains the clock of Time to main per commit, the difference from the Mainline Interval and the names; the rest of the calculation detail was there.
+
+- Red first: the legend pins of `legend_tbd_test.go` (`legendTbdText`, `legendLeadText`, `legendTbdRetired`, `legendTbdGroups`, `legendLeadVersusDeployText`, the once test) seen failing against the old template (94 findings in six tests), then the template; the legend golden regenerated.
+
+- Lenka B
+
+---
+
 ## 2026-10-25 — The manual, the legend and the agent documents follow the 1.22.0 changes, and say where to find the logins for same_developer ([#417](https://github.com/yveshanoulle/forsgren/issues/417), 1 step)
 
 forsgren issue 417, feature, patch release, shipped with #398, #399, #421, #422 and #423 in the release after 1.21.0. `docs/configuration.md`, the `same_developer` entry, says the page shows counts only and the logins are in the `author` column of `data/commits.csv` or in the repository's commit list on GitHub, with the typical cases (an assistant or agent account, one person with a work and a private account); the outdated sentence that Mainline Lead Time counts pull requests now says PR Lead Time (since #403). `agent-installer.md` asks one question (14) about commits from more than one account or an assistant account and writes `same_developer` only with the person's yes; `agent-upgrade.md` step 5 asks the same. `agent-delete.md` was checked: it describes no config key, so it is unchanged.

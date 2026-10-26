@@ -5,172 +5,134 @@ import (
 	"testing"
 )
 
-// legendTbdText are the sentences of the legend's TBD page section
-// (forsgren#253): the cell format, what is counted and how (the first-parent
-// chain at the committer date, and the old approximation the cell names,
-// forsgren#254), what a dash is, what comes later and the default of tbd_page.
+// legendTbdText are the sentences of the legend's TBD page section as a reader's page (forsgren#448):
+// question headings, what the numbers mean, the names, the five notes and the link to the technical
+// reference. The calculation detail is in docs/pages-and-views.md.
 var legendTbdText = []string{
-	"The TBD page (trunk-based development) is one table with a row for each project",
-	"Its columns are in groups, and the name of a group says what it counts",
-	"First come Mainline Interval, Time to main per commit, Time to deploy per commit and PR Lead Time. " +
-		"Then come Volume, Commits per push, Commits per deployment, Shares of commits and Developers",
-	"Every number is of the last 30 days",
-	"The push groups read the pushes to the main branch, from GitHub's activity list of the default branch " +
-		"of each repository",
-	"Push data starts with the release that collects it: a project shows the pushes from the day forsgren first " +
-		"collected them, and older pushes are not looked up afterwards",
-	"Volume has three columns",
-	"Commits is the number of commits the pushes brought to the main branch, each commit is counted a single " +
-		"time, at its first push",
-	"Only the first-parent chain of a push counts, so the commits a merge brought in from a branch are left " +
-		"out and the merge commit counts",
+	"Trunk-based development means integrating small changes into the main branch often",
+	"The TBD page is one table with a row for each project",
+	"All figures cover the last 30 days, the DORA window",
+	"By default the table shows the median of each measure, the middle value",
+	"The mean is the average. p90 is the value that nine tenths of the values are no larger " +
+		"than",
+	"A dash means there is not enough data to calculate the figure. It does not mean zero",
+	"The Notes below the table say what each number means",
+	"They explain estimates, a lower bound, a stand-in time and bots that are not counted",
+	"Missing data is shown as a dash, a no-data row or a not-readable cell, not as a note",
+	"The Mainline Interval is the time between commits reaching the main branch",
+	"A shorter interval means changes are integrated more often",
+	"It measures the commits on the main line: the commits that landed on the main branch one " +
+		"after another",
+	"A commit that a merge brought in from a branch is not on the main line, but the merge " +
+		"commit is",
+	"Each commit is placed at the time it landed, its committer date",
+	"Only commits that deployments of the last 30 days shipped are measured, each once",
+	"Fewer than two commits make no interval, so the cell is a dash",
+	"When forsgren does not know the committer date of a commit, it places the commit at its " +
+		"author date",
+	"Time to main per commit is how old one change is when it reaches the main branch",
+	"For each commit it runs from the author date of the commit to the push that brought it " +
+		"to main",
+	"The pushes come from GitHub's activity list of the default branch of each repository",
+	"Push data starts when forsgren first collects it, so older pushes are not looked up " +
+		"afterwards",
+	"The clock starts at the author date of the commit: when the commit was written",
+	"It stops at the push to main that brought the commit, at the time GitHub records for " +
+		"that push",
+	"A commit counts once, at its first push. A commit written after its push counts as 0",
+	"The Mainline Interval is about how often changes land on main",
+	"Time to main per commit is about how old one change is when it lands",
+	"One is a rhythm and the other is an age",
+	"Time to deploy per commit is how old one change is when it is first deployed",
+	"For each commit it runs from the author date of the commit to the first deployment that " +
+		"contains it",
+	"A commit written after its deployment counts as 0",
+	"Volume shows three numbers",
+	"Commits is the number of commits the pushes of the window brought to the main branch, " +
+		"each counted once",
+	"Only the main line of a push counts, so a merge counts as its merge commit",
 	"Pushes is the number of pushes. Deployments is the number of successful deployments",
-	"A deployment is a GitHub release, a deployment to an environment or a run of a workflow, as the project " +
-		"is measured. It is shown as the number only, for example 85",
-	"Shares of commits has four columns: Direct, PR, Unknown and Bots",
-	"PR is the share of pull request commits, and Unknown the share of commits of an unknown author",
-	"All four are shares of the same Commits number, in whole percent rounded down, so they read alike",
-	"A commit is a pull request commit when it is the merge commit of a merged pull request, or when a pull " +
-		"request merge brought it to the main branch",
-	"Every other commit is direct, so these two shares add up to 100%, give or take the rounding",
-	"Unknown and Bots are counted in addition, whatever else the commit is",
-	"An unknown author is a commit whose author GitHub links to no account, or the placeholder author " +
-		"invalid-email-address. A bot is a commit whose author login ends in [bot]",
-	"Time to main per commit is a duration. For each commit it runs from the author date of the commit to " +
-		"the push that brought it to the main branch",
-	"A commit authored after its push counts as 0",
-	"Commits per push is a count of commits, not a duration: how many commits each push brought to the " +
-		"first-parent chain",
+	"Commits per push is how many commits reach main in each push",
 	"A push whose commits could not be counted, such as a force push, is left out",
-	"Time to deploy per commit is a duration. For each commit it runs from the author date of the commit " +
-		"to the first deployment that contains it",
-	"for a deployment to an environment, when the deployment was created; for a workflow, when its run " +
-		"started; for a release, when the release was published",
-	"A commit authored after its deployment counts as 0",
-	"Commits per deployment is a count of commits: how many commits each deployment brought to the " +
-		"first-parent chain, the merge commit of a pull request included",
-	"A deployment without a known chain is left out",
-	"The table shows the median of each measure by default, one column each",
-	"Set tbd_figures: all in forsgren.config.yml to show the mean, the median and p90 of each measure " +
-		"instead, three columns each",
-	"With the median alone, PR Lead Time shows its median only",
-	"The key tbd_figures takes median (the default) or all",
-	"With tbd_figures: all, each measure has three columns: the mean, the median and p90",
-	"The mean is the average",
-	"Some cells carry a note marker, a number in brackets such as (3)",
-	"Below the table the list Notes, open by default, has one line for each kind of note that occurs, " +
-		"with the projects it applies to and their counts",
-	"The numbers are fixed, so they mean the same everywhere",
-	"(1) Mostly estimated: commits timed by author date",
-	"(2) Commits timed by author date",
-	"(3) A lower bound: a first commit time of a pull request was cut",
-	"(4) Pull requests timed by their created time",
-	"(5) Bot pull requests not counted",
-	"A project with no deployed commit, no final deployment (a failed one counts), no push and no merged " +
-		"pull request in the last 30 days shows one sentence across its row: " +
+	"Commits per deployment is how many commits on the main line a deployment brought",
+	"The commits a merge brought in from a branch count as the one merge commit",
+	"Smaller batches are generally easier to review, test and troubleshoot",
+	"Shares of commits shows how the commits of Volume reached main",
+	"All four are shares of the same Commits number, in whole percent rounded down",
+	"Direct: commits that did not come through a pull request",
+	"a branch merged locally and then pushed",
+	"PR: commits that came through a pull request",
+	"A commit counts as PR when it is the merge commit of a merged pull request, or when a " +
+		"pull request merge brought it to main",
+	"Unknown: commits whose author GitHub links to no account",
+	"Bots: commits made by automated accounts",
+	"Direct and PR add up to 100%, give or take the rounding",
+	"Unknown and Bots overlap Direct and PR; they are not additional categories",
+	"Developers is the number of distinct people who authored the commits deployed in the " +
+		"last 30 days",
+	"including the commits a merge brought in from a branch",
+	"A person who commits from several email addresses counts once",
+	"Several GitHub accounts can be configured to count as one person",
+	"Bots and commits whose author GitHub links to no account are left out",
+	"The page shows the number only, never who the developers are",
+	"a larger team may naturally integrate more commits",
+	"Short Mainline Interval and short PR Lead Time: changes are integrated often and quickly",
+	"Short Mainline Interval and long PR Lead Time: changes reach main often, but some spend " +
+		"a long time on branches",
+	"Long Mainline Interval and short PR Lead Time: changes are integrated quickly when they " +
+		"happen, but integration is rare",
+	"Long Mainline Interval and long PR Lead Time: changes are integrated rarely and spend a " +
+		"long time waiting",
+	"No single number proves that a team practises trunk-based development",
+	"A project with no deployed commit, no final deployment (a failed one counts), no push " +
+		"and no merged pull request in the last 30 days shows one sentence across its row: " +
 		"currently no data for this project in the last 30 days",
 	"It has no note markers",
-	"A project with data in any one of these keeps its figures, and a single column without data keeps its dash",
-	"If the project has no data at all, that sentence is shown instead",
-	"The median is the middle value, or the mean of the two middle values when there is an even number of them",
-	"p90 is the nearest-rank percentile: the value at position 0.9 × the number of values, rounded up, of " +
-		"the values sorted from the smallest, so nine tenths of the values are no larger than it",
-	"The median needs two values and p90 needs ten values, and each is a dash until then",
-	"A duration is written like 3 h 22, which is 3 hours and 22 minutes, 2 h for whole hours, 7 m for " +
-		"minutes, &lt; 1 m under a minute and 1 d 6 h from a day on, each part cut down, never rounded up. " +
-		"A count has one decimal when it is not whole, for example 1.5",
-	"Push activity not readable means the token forsgren collects with was refused the read of the pushes " +
-		"of a repository of the project (a 403, recorded in data/pushes_denied.csv)",
-	"Deployment numbers are never shown in its place",
+	"A project with data in any one of these keeps its figures, and a single column without " +
+		"data keeps its dash",
+	"Some figures are estimates when stored information is incomplete",
+	"Push activity not readable means the token forsgren collects with was refused the read " +
+		"of the pushes of a repository of the project",
+	"Pull requests not readable means the token forsgren collects with was refused the pull " +
+		"request read",
+	"Deployment numbers are never shown in their place",
 	"Pushes not collected yet means no push has been collected yet",
-	"The Mainline Interval of each project is how often commits land on the main branch",
-	"The mean is the average of the time between commits landing on the main branch, by their committer date",
-	"Fewer than two commits make no gap, so every Mainline Interval cell is a dash",
-	"the commits that deployments of the last 30 days shipped",
-	"each commit once",
-	"the time between commits landing on the main branch, by their committer date",
-	"A gap is the time between two commits that are next to each other by committer date",
-	"Of the commits a deployment shipped, only those of its first-parent chain count: from the deployed commit " +
-		"back through the first parent of each commit, the commits that landed on the main branch one after another",
-	"The commits a merge brought in from a branch are left out; the merge commit counts, at the time it landed",
-	"The committer date is when a commit landed where it is now, after a rebase or a merge; the author date is " +
-		"when the change was first written",
-	"Commits stored before forsgren kept their parents and committer date have no known chain",
-	"For a deployment with those, every commit counts at its author date, the old approximation, and so does a " +
-		"commit of the chain that GitHub gave no committer date for",
-	"The cell then carries note (2), Commits timed by author date, and the Notes list gives the count of " +
-		"the project, for example Acme Shop 3",
-	"the interval is mostly an estimate, and the note is (1), Mostly estimated: commits " +
-		"timed by author date, with the count and the commits it is of, for example Acme Web 7 of 13",
-	"Those commits are not looked up again, so the note stays until their deployments leave the window",
-	"With one gap the mean is shown with tbd_figures: all, and the median and p90 are dashes, " +
-		"because a median needs two gaps",
-	"between deployed commits, not every commit of the mainline",
-	"The median and the 90th percentile (p90) of the gaps are figures of their own",
-	"The median is the middle gap, or the mean of the two middle gaps when there is an even number of them",
-	"p90 is the nearest-rank percentile: the gap at position 0.9 × the number of gaps, rounded up, of the gaps " +
-		"sorted from the shortest, so nine tenths of the gaps are no longer than it",
-	"The median needs two gaps and p90 needs ten gaps",
-	"With fewer than ten gaps p90 would only be the longest gap",
-	"A mean far above the median points at a few long gaps among short ones",
-	"Developers has one column: developers",
-	"The column developers is the number of people who made the commits deployed in the " +
-		"window, those a merge brought in included: the distinct GitHub accounts of their authors, " +
-		"so a person who commits from several email addresses counts once",
-	"Logins listed together in a same_developer group of the config count as one developer, " +
-		"with or without capital letters; the stored commits keep each login",
-	"A bot account, whose GitHub login ends in [bot], is not a developer, and its commits are left out",
-	"A commit whose author GitHub links to no account is not guessed to be anyone's, and GitHub's " +
-		"placeholder author invalid-email-address is not a developer either",
-	"A project with no deployed commit shows a dash, and a project whose commits are all by bots has 0 developers",
-	"The page shows the number only, never who the developers are",
-	"The interval is not divided by it: a team of ten makes more commits than one person with the same habits",
-	"The two metrics are read together",
-	"The Mainline Interval shows how often the deployed commits landed on the main branch, " +
-		"by committer date, in the window",
-	"A short interval with a long lead time points at long-lived branches",
-	"The TBD page is listed by default (tbd_page: true): it is generated and in the menu. " +
-		"Set tbd_page: unlisted to generate it with no menu entry, so that search engines are asked to skip it, " +
-		"or tbd_page: false to not generate it.",
+	"No pull requests have been collected yet means the collection has not read any pull " +
+		"request yet",
+	"Mainline Interval and Mainline Lead Time are the two metrics of the Mainline Throughput " +
+		"Indicator",
+	"PR Lead Time is the name this page gives to the Mainline Lead Time",
+	"Time to main per commit is forsgren's own name",
+	"Forsgren uses no abbreviation for it",
+	"The table shows the median by default, so the figure is the median time to main",
+	"(1) Mostly estimated: commits timed by author date. It applies to the Mainline Interval",
+	"(2) Commits timed by author date. It applies to the Mainline Interval",
+	"(3) A lower bound: a first commit time of a pull request was cut. It applies to PR Lead " +
+		"Time",
+	"(4) Pull requests timed by their created time. It applies to PR Lead Time",
+	"(5) Bot pull requests not counted. It applies to PR Lead Time",
+	"one line for each kind of note that occurs, with the projects it applies to and their " +
+		"counts",
+	"The exact calculations are in the technical reference",
+	"Pages and views, the section The TBD page",
 }
 
-// legendLeadText are the sentences that say what each number of the Mainline
-// Lead Time column counts (forsgren#256 step 3): the scope of #342, the cell's
-// parts, the lower bound and the stand-ins, the people of #349 and #355, the
-// legacy format as Yves worded it on #356, and what not readable means.
+// legendLeadText are the sentences that say what PR Lead Time counts (forsgren#256 step 3, worded again in
+// forsgren#448): the scope of #342, the cut and stood-in times, and the people of #349 and #355.
 var legendLeadText = []string{
-	"PR Lead Time is one measure: merged pull requests",
-	"The pull requests column covers merged human pull requests only, " +
-		"not every change that reaches the main branch",
-	"Work pushed straight to the main branch is in the push groups and the Direct share, " +
-		"so a pull request stands in for the life of a branch",
-	"In a workflow that mixes both, this column covers only the changes that came through pull requests",
-	"Each pull request merged in the last 30 days, counted by its merge time, " +
-		"gives one lead time: from its first commit, " +
-		"the earliest author date of its commits, to the merge",
+	"PR Lead Time is the time from the first commit of a pull request to its merge",
+	"the earliest author date of its commits",
+	"It counts the pull requests merged in the last 30 days, by their merge time",
 	"A first commit dated after the merge counts as 0",
-	"The cell is the median of those lead times, a duration such as 3 h 22; with tbd_figures: all it is " +
-		"the mean, the median and p90",
-	"The median needs two pull requests and p90 needs ten pull requests, and each is a dash until then",
-	"There is no pass or fail verdict",
-	"The Mainline Interval uses the committer date: how often changes reach the main branch",
-	"PR Lead Time uses the author date of the first commit up to the merge time",
-	"That lead time is a lower bound, and the cell carries note (3)",
-	"A cut pull request can make the figures too low",
-	"the created time of the pull request stands in for the first commit time, and note (4) says how many",
-	"Only a GitHub account of the type User is a person",
-	"A pull request opened by a bot is not counted, and note (5) says how many",
-	"is not counted either, and the cell does not say how many",
-	"a pull request in the legacy format has no known author type",
-	"The placeholder author invalid-email-address",
-	"is an unknown author, not a developer",
-	"shows a dash in pull requests: no human pull request was merged in this period, and its changes may go " +
-		"directly to the main branch, which the Direct share shows",
+	"It includes only merged pull requests opened by people",
+	"Pull requests opened by bots and changes pushed directly to main are not included",
+	"In a workflow that mixes both, this column covers only the changes that came through " +
+		"pull requests",
+	"the Direct share shows how many",
 	"That is not proof of direct commits",
-	"Pull requests not readable means the token forsgren collects with was refused the pull request read",
-	"recorded in data/pulls_denied.csv",
-	"No pull requests have been collected yet means the collection has not read any pull request yet",
-	"A long interval with a short lead time means few changes, each integrated quickly",
+	"so the lead time is a lower bound (note 3)",
+	"the created time of the pull request stands in for the first commit time (note 4)",
+	"Pull requests opened by bots are not counted (note 5)",
 }
 
 // legendLeadNever are claims the data cannot establish: the legacy format is
@@ -256,6 +218,17 @@ var legendTbdRetired = []string{
 	"3 bot pull requests not counted",
 	"PR Lead Time has one column: pull requests",
 	"are columns of their own",
+	"tbd_figures",
+	"tbd_page",
+	"first-parent",
+	"pushes_denied.csv",
+	"pulls_denied.csv",
+	"nearest-rank",
+	"3 h 22",
+	"legacy",
+	"a 403",
+	"Every number is of the last 30 days",
+	"Work pushed straight to the main branch is in the push groups",
 }
 
 // TestLegendExplainsTheTbdPage (forsgren#253, forsgren#273): the legend has a
@@ -307,13 +280,12 @@ func legendTbdSection(t *testing.T, legend string) string {
 }
 
 // TestLegendSaysEachTbdSentenceOnce (forsgren#271): the explanation of the
-// Mainline Interval and the Mainline Lead Time line are in the legend once,
-// and the TBD page does not repeat them.
+// Mainline Interval and PR Lead Time are in the legend once, and the TBD page does not repeat them.
 func TestLegendSaysEachTbdSentenceOnce(t *testing.T) {
 	got := rendered(t, "legend.html", calculated())
-	for _, once := range []string{"The pull requests column covers merged human pull requests only", "each commit once",
-		"Fewer than two commits make no gap, so every Mainline Interval cell is a dash",
-		"the time between commits landing on the main branch, by their committer date",
+	for _, once := range []string{"It includes only merged pull requests opened by people",
+		"Fewer than two commits make no interval, so the cell is a dash",
+		"Each commit is placed at the time it landed, its committer date",
 		"deployments of the last 30 days shipped"} {
 		if n := strings.Count(got, once); n != 1 {
 			t.Errorf("want %q once in the legend, got %d", once, n)
@@ -321,22 +293,30 @@ func TestLegendSaysEachTbdSentenceOnce(t *testing.T) {
 	}
 }
 
-// legendTbdGroups are the sub-headings of the legend's TBD page section
-// (forsgren#404): a general part first, then one for each group of the TBD
-// table in table order, with the push states last. Each has its id, its text
-// and one sentence of its group that must follow it.
+// legendTbdGroups are the sub-headings of the legend's TBD page section (forsgren#404, forsgren#448): the
+// question headings in reading order. Each has its id, its text and one sentence of its part that must
+// follow it.
 var legendTbdGroups = []struct{ id, title, sentence string }{
-	{"tbd-general", "General", "Every number is of the last 30 days"},
-	{"tbd-mainline-interval", "Mainline Interval", "The Mainline Interval of each project is how often commits land"},
-	{"tbd-time-to-main-per-commit", "Time to main per commit", "Time to main per commit is a duration"},
-	{"tbd-time-to-deploy-per-commit", "Time to deploy per commit", "Time to deploy per commit is a duration"},
-	{"tbd-pr-lead-time", "PR Lead Time", "PR Lead Time is one measure"},
-	{"tbd-volume", "Volume", "Volume has three columns"},
-	{"tbd-commits-per-push", "Commits per push", "Commits per push is a count of commits"},
-	{"tbd-commits-per-deployment", "Commits per deployment", "Commits per deployment is a count of commits"},
-	{"tbd-shares-of-commits", "Shares of commits", "Shares of commits has four columns"},
-	{"tbd-developers", "Developers", "The column developers is the number of people"},
-	{"tbd-push-states", "Push states", "Pushes not collected yet means no push has been collected yet"},
+	{"tbd-general", "How do I read the numbers?", "A dash means there is not enough data"},
+	{"tbd-mainline-interval", "How often do changes reach main?", "The Mainline Interval is the time between commits"},
+	{"tbd-time-to-main-per-commit", "How long does a change take to reach main?",
+		"Time to main per commit is how old one change"},
+	{"tbd-time-to-main-clock", "When does the Time to main clock start and stop?",
+		"The clock starts at the author date"},
+	{"tbd-interval-versus-time-to-main", "How does the Mainline Interval differ from Time to main?",
+		"One is a rhythm and the other is an age"},
+	{"tbd-time-to-deploy-per-commit", "How long does a change take to be deployed?",
+		"Time to deploy per commit is how old one change"},
+	{"tbd-pr-lead-time", "How long does a pull request take to merge?",
+		"PR Lead Time is the time from the first commit"},
+	{"tbd-volume", "How much work is integrated at once?", "Volume shows three numbers"},
+	{"tbd-shares-of-commits", "How does work reach main?", "Shares of commits shows how the commits"},
+	{"tbd-developers", "How many developers contribute?", "Developers is the number of distinct people"},
+	{"tbd-what-to-look-for", "What should I look for?", "No single number proves"},
+	{"tbd-missing-data", "What if data is missing or incomplete?", "Some figures are estimates"},
+	{"tbd-names", "Where do the names come from?", "Time to main per commit is forsgren's own name"},
+	{"tbd-notes", "Notes", "(1) Mostly estimated"},
+	{"tbd-reference", "Where is the calculation explained?", "The exact calculations are in the technical reference"},
 }
 
 // TestLegendTbdSectionHasASubHeadingForEachGroup (forsgren#404): the TBD
@@ -360,20 +340,20 @@ func TestLegendTbdSectionHasASubHeadingForEachGroup(t *testing.T) {
 	}
 }
 
-// legendLeadVersusDeployText are the sentences of the legend's Time to deploy
-// per commit part that say how it differs from Lead time for changes
-// (forsgren#421), as the code does it: leadtime.go counts every stored commit
-// once for each deployment, deploymeasures.go and maindirect.go only the
-// first-parent chain, each commit once at its first deployment.
+// legendLeadVersusDeployText are the sentences of the legend's Time to deploy per commit part that say how it
+// differs from Lead time for changes (forsgren#421, worded for the main line in forsgren#448).
 var legendLeadVersusDeployText = []string{
-	"Lead time for changes (the DORA pages) and Time to deploy per commit both time a commit from its author " +
-		"date to a deployment, over the same last 30 days, and a negative time counts as 0",
-	"Lead time for changes counts every commit a deployment brought, also the commits a merge brought in from " +
-		"a branch, once for each deployment that shipped it, and shows the median with its DORA Quick Check level",
-	"Time to deploy per commit counts only the commits of the first-parent chain, a merge as its merge commit, " +
-		"each once, at its first deployment, and shows the median, or the mean, the median and the p90 with tbd_figures: all",
-	"With several services the same commit is deployed several times, and Lead time for changes, which counts " +
-		"the later deployments too, comes out longer",
+	"Lead time for changes (the DORA pages) and Time to deploy per commit both time a commit " +
+		"from its author date to a deployment, over the same last 30 days, and a negative time " +
+		"counts as 0",
+	"Lead time for changes counts every commit a deployment brought, also the commits a merge " +
+		"brought in from a branch, once for each deployment that shipped it, and shows the median " +
+		"with its DORA Quick Check level",
+	"Time to deploy per commit counts only the commits of the main line, a merge as its merge " +
+		"commit, each once, at its first deployment, and shows the median, or the mean, the " +
+		"median and the p90 when all three are shown",
+	"With several services the same commit is deployed several times, and Lead time for " +
+		"changes, which counts the later deployments too, comes out longer",
 }
 
 // TestLegendSaysHowLeadTimeAndTimeToDeployDiffer (forsgren#421): the Time to
