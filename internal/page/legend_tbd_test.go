@@ -12,7 +12,7 @@ var legendTbdText = []string{
 	"Trunk-based development means integrating small changes into the main branch often",
 	"The TBD page is one table with a row for each project",
 	"All figures cover the last 30 days, the DORA window",
-	"By default the table shows the median of each measure, the middle value",
+	"By default, the table shows the median of each measure, the middle value",
 	"The mean is the average. p90 is the value that nine tenths of the values are no larger " +
 		"than",
 	"A dash means there is not enough data to calculate the figure. It does not mean zero",

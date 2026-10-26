@@ -90,7 +90,7 @@
     <h2>Trunk-based development [TBD]</h2>
     <p>Trunk-based development means integrating small changes into the main branch often, rather than keeping changes on separate branches for a long time. These measures show how often changes are integrated, how long they take and how large they are. The TBD page is one table with a row for each project. All figures cover the last 30 days, the DORA window.</p>
     <h3 id="tbd-general">How do I read the numbers?</h3>
-    <p>By default the table shows the median of each measure, the middle value. Forsgren can show the mean, the median and p90 of each measure instead; the settings page names the key. The mean is the average. p90 is the value that nine tenths of the values are no larger than.</p>
+    <p>By default, the table shows the median of each measure, the middle value. Forsgren can show the mean, the median and p90 of each measure instead; the settings page names the key. The mean is the average. p90 is the value that nine tenths of the values are no larger than.</p>
     <p>A dash means there is not enough data to calculate the figure. It does not mean zero.</p>
     <p>Some cells carry a note marker, a number in brackets such as (3). The Notes below the table say what each number means. They explain estimates, a lower bound, a stand-in time and bots that are not counted. Missing data is shown as a dash, a no-data row or a not-readable cell, not as a note.</p>
     <h3 id="tbd-mainline-interval">How often do changes reach main?</h3>
@@ -106,7 +106,7 @@
     <p>A commit counts once, at its first push. A commit written after its push counts as 0.</p>
     <h3 id="tbd-interval-versus-time-to-main">How does the Mainline Interval differ from Time to main?</h3>
     <p>The Mainline Interval is about how often changes land on main. It is the time between one commit and the next on the main line. Time to main per commit is about how old one change is when it lands. It is the time from the author date of the commit to the push that brought it.</p>
-    <p>One is a rhythm and the other is an age. A team can have a short interval and a long time to main: changes land often, but each was written long before.</p>
+    <p>One is a rhythm and the other is an age. A team can have a short interval and a long time to main: changes often land, but each was written long before.</p>
     <h3 id="tbd-time-to-deploy-per-commit">How long does a change take to be deployed?</h3>
     <p>Time to deploy per commit is how old one change is when it is first deployed. For each commit it runs from the author date of the commit to the first deployment that contains it. A commit written after its deployment counts as 0.</p>
     <p>Lead time for changes (the DORA pages) and Time to deploy per commit both time a commit from its author date to a deployment, over the same last 30 days, and a negative time counts as 0. Lead time for changes counts every commit a deployment brought, also the commits a merge brought in from a branch, once for each deployment that shipped it, and shows the median with its DORA Quick Check level. Time to deploy per commit counts only the commits of the main line, a merge as its merge commit, each once, at its first deployment, and shows the median, or the mean, the median and the p90 when all three are shown. With several services the same commit is deployed several times, and Lead time for changes, which counts the later deployments too, comes out longer.</p>
