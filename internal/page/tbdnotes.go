@@ -31,8 +31,10 @@ func (n TbdNote) Number() int { return n.Kind.Number() }
 func (n TbdNote) Text() string { return n.Kind.Text() }
 
 // notes are the notes of the row's cells: the Mainline Interval's first, then
-// the pull requests'; a project without data (forsgren#394, step 3) has none,
-// and a project whose pull requests cells are a sentence has none of those.
+// the Mainline Lead Time's (forsgren#463, step 9), then the pull requests'; a
+// project without data (forsgren#394, step 3) has none, a project whose pull
+// requests cells are a sentence has none of those, and one whose Mainline Lead
+// Time cell is a push state has none of that.
 // They are the same whichever figures the table shows (forsgren#423): the mean
 // cell has them, or the median cell where it is alone.
 func (r TbdRow) notes() []metrics.Note {
@@ -40,7 +42,13 @@ func (r TbdRow) notes() []metrics.Note {
 		return nil
 	}
 	notes := append([]metrics.Note{}, r.Interval.MeanCell().Notes...)
-	if r.LeadState() != "" || r.PushAbsent {
+	if r.PushAbsent {
+		return notes
+	}
+	if r.MainLead.State() == "" {
+		notes = append(notes, r.MainLead.Notes()...)
+	}
+	if r.LeadState() != "" {
 		return notes
 	}
 	return append(notes, r.Lead.Notes()...)

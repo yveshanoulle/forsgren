@@ -57,7 +57,25 @@ func tbdDataWith(leads []metrics.PRLeadTime) Data {
 	}
 	data := calculated()
 	data.TbdMetrics = tbdColumns{intervals, leads, developers, tbdPushes(), tbdDeploys(), volumes}.rows()
+	for i, m := range tbdMainLeads() {
+		data.TbdMetrics[i].MainLead = m
+	}
 	return data
+}
+
+// tbdMainLeads are the Mainline Lead Times of tbdData's projects (forsgren#463,
+// step 9): Acme Shop's 12 commits with every figure, two pushes of unknown
+// commits and a history still filling, Acme Tools' one commit, Acme Docs with
+// its push read refused (and a push of unknown commits, which a state cell
+// does not note) and Acme Web with no push collected yet.
+func tbdMainLeads() []metrics.MainlineLeadTime {
+	return []metrics.MainlineLeadTime{
+		{Project: "Acme Shop", Commits: 12, UnknownPushes: 2, Filling: true,
+			Lead: metrics.DurationSpread{Count: 12, Mean: 4 * time.Hour, Median: 3 * time.Hour, P90: 9 * time.Hour}},
+		{Project: "Acme Tools", Commits: 1, Lead: metrics.DurationSpread{Count: 1, Mean: 2 * time.Hour}},
+		{Project: "Acme Docs", NotReadable: true, UnknownPushes: 1},
+		{Project: "Acme Web", Uncollected: true},
+	}
 }
 
 // tbdColumns are the measures of projects, one of each per project in the same
@@ -165,6 +183,17 @@ var tbdLeadCells = map[string][2]string{
 	"Acme Web":   {"{4,5}10 h", "{4,5}20 h | 10 h | 1 d 6 h"},
 }
 
+// tbdMainLeadCells are the Mainline Lead Time cells of tbdData's projects
+// (forsgren#463, step 9), the second group: the notes 6 and 7 on the median
+// cell, or on the mean cell with all; a state cell for a push read refused or
+// no push collected.
+var tbdMainLeadCells = map[string][2]string{
+	"Acme Shop":  {"{6,7}3 h", "{6,7}4 h | 3 h | 9 h"},
+	"Acme Tools": {"-", "2 h | - | -"},
+	"Acme Docs":  {"@1Push activity not readable", "@3Push activity not readable"},
+	"Acme Web":   {"@1Pushes not collected yet", "@3Pushes not collected yet"},
+}
+
 // leadState is the pull requests state cell for the figures: one column, or
 // three across the group of all of them.
 func leadState(all bool, text string) string {
@@ -217,6 +246,7 @@ func notReadable() Data {
 // forsgren#418; forsgren#423).
 func tbdRow(all bool, project, lead, developers string) string {
 	return "<th scope=\"row\">" + project + "</th>\n            " + tds(at(tbdIntervalCells[project], all)) +
+		"\n            " + tds(at(tbdMainLeadCells[project], all)) +
 		"\n            " + tds(at(tbdTimeCells[project], all)) + "\n            " + tds(lead) + "\n            " +
 		tds(at(tbdCountCells[project], all)) + "\n            " + tds(developers) + "\n"
 }
@@ -294,6 +324,7 @@ var tbdGroups = []struct {
 	hidden  string // the measure, said after each column's word in its accessible name
 }{
 	{"Mainline Interval", []string{"mean", "median", "p90"}, ""},
+	{"Mainline Lead Time", []string{"mean", "median", "p90"}, "Mainline Lead Time"},
 	{"Time to main per commit", []string{"mean", "median", "p90"}, "time to main"},
 	{"Time to deploy per commit", []string{"mean", "median", "p90"}, "time to deploy"},
 	{"PR Lead Time", []string{"mean", "median", "p90"}, ""},
@@ -340,6 +371,7 @@ func tbdHeaders() (top, beneath string) {
 var medianHeaders = []struct{ text, label string }{
 	{"Project", ""},
 	{"Mainline Interval", "median mainline interval"},
+	{"Mainline Lead Time", "median mainline lead time"},
 	{"Time to main per commit", "median time to main per commit"},
 	{"Time to deploy per commit", "median time to deploy per commit"},
 	{"PR Lead Time", "median PR lead time"},

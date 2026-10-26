@@ -27,14 +27,14 @@ func noDataRow(columns int, days int) string {
 }
 
 // TestTbdRowWithoutDataIsOneSentenceAcrossTheColumns (forsgren#394, step 3,
-// decision #433): the whole row is one cell spanning the 14 columns after the
-// project with the median only, the 26 with all the figures, saying the
+// decision #433): the whole row is one cell spanning the 15 columns after the
+// project with the median only, the 29 with all the figures, saying the
 // window's days from the config; the other rows are unchanged.
 func TestTbdRowWithoutDataIsOneSentenceAcrossTheColumns(t *testing.T) {
 	for name, c := range map[string]struct {
 		all     bool
 		columns int
-	}{"median": {false, 14}, "all": {true, 26}} {
+	}{"median": {false, 15}, "all": {true, 29}} {
 		data := withoutData(c.all)
 		got := rendered(t, "tbd.html", data)
 		wantAll(t, name, got, noDataRow(c.columns, 30),
@@ -47,12 +47,12 @@ func TestTbdRowWithoutDataIsOneSentenceAcrossTheColumns(t *testing.T) {
 // TestTbdColumnsAcrossMatchTheHeader: the sentence cell spans exactly the
 // header's columns after Project, in both figure modes.
 func TestTbdColumnsAcrossMatchTheHeader(t *testing.T) {
-	if got := strings.Count(medianHead(), "<th ") - 1; got != 14 {
-		t.Errorf("median header has %d columns after the project, want 14", got)
+	if got := strings.Count(medianHead(), "<th ") - 1; got != 15 {
+		t.Errorf("median header has %d columns after the project, want 15", got)
 	}
 	_, beneath := tbdHeaders()
-	if got := strings.Count(beneath, "<th "); got != 26 {
-		t.Errorf("all-figures header has %d columns after the project, want 26", got)
+	if got := strings.Count(beneath, "<th "); got != 29 {
+		t.Errorf("all-figures header has %d columns after the project, want 29", got)
 	}
 }
 
@@ -67,7 +67,7 @@ func TestTbdRowWithAnyOneOfTheFourKeepsItsDataRow(t *testing.T) {
 	} {
 		data := withoutData(false)
 		change(&data)
-		wantNone(t, name, rendered(t, "tbd.html", data), "currently no data", "colspan=\"14\"")
+		wantNone(t, name, rendered(t, "tbd.html", data), "currently no data", "colspan=\"15\"")
 	}
 }
 

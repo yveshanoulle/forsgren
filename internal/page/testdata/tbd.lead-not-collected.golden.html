@@ -18,6 +18,7 @@
           <tr>
             <th scope="col">Project</th>
             <th scope="col" aria-label="median mainline interval">Mainline Interval</th>
+            <th scope="col" aria-label="median mainline lead time">Mainline Lead Time</th>
             <th scope="col" aria-label="median time to main per commit">Time to main per commit</th>
             <th scope="col" aria-label="median time to deploy per commit">Time to deploy per commit</th>
             <th scope="col" aria-label="median PR lead time">PR Lead Time</th>
@@ -37,6 +38,7 @@
           <tr>
             <th scope="row">Acme Shop</th>
             <td aria-describedby="tbd-note-2">2 h <span class="visually-hidden">note</span> (2)</td>
+            <td aria-describedby="tbd-note-6 tbd-note-7">3 h <span class="visually-hidden">note</span> (6) <span class="visually-hidden">note</span> (7)</td>
             <td>30 m</td>
             <td>1 h</td>
             <td>No pull requests have been collected yet</td>
@@ -53,6 +55,7 @@
           </tr>
           <tr>
             <th scope="row">Acme Tools</th>
+            <td>-</td>
             <td>-</td>
             <td>-</td>
             <td>1 h</td>
@@ -72,6 +75,7 @@
             <th scope="row">Acme Docs</th>
             <td>-</td>
             <td>Push activity not readable</td>
+            <td>Push activity not readable</td>
             <td>30 m</td>
             <td>No pull requests have been collected yet</td>
             <td>-</td>
@@ -85,6 +89,7 @@
           <tr>
             <th scope="row">Acme Web</th>
             <td aria-describedby="tbd-note-1">5 m <span class="visually-hidden">note</span> (1)</td>
+            <td>Pushes not collected yet</td>
             <td>Pushes not collected yet</td>
             <td>-</td>
             <td>No pull requests have been collected yet</td>
@@ -104,6 +109,8 @@
       <ul>
         <li id="tbd-note-1">(1) Mostly estimated: commits timed by author date: Acme Web 7 of 13</li>
         <li id="tbd-note-2">(2) Commits timed by author date: Acme Shop 2</li>
+        <li id="tbd-note-6">(6) Pushes left out: their commits are not known (incomplete data), not counted as 0: Acme Shop 2</li>
+        <li id="tbd-note-7">(7) History still filling: merge and squash branch commits from before this version are missing: Acme Shop</li>
       </ul>
     </details>
   </main>

@@ -81,10 +81,12 @@ const noHumanPulls = "- | - | -"
 type projectCells struct{ interval, deploy string }
 
 // leadRow is the middle of a project's TBD row: the Mainline Interval cells,
-// the time to main (the push state without pushes), the time to deploy cells
+// the Mainline Lead Time and the time to main (the push state without pushes,
+// forsgren#463, step 9), the time to deploy cells
 // and the pull requests cell lead (forsgren#418: the order of the groups).
 func leadRow(row projectCells, lead string) string {
-	return row.interval + "\n            " + pushesNotCollected(3) + "\n            " + row.deploy +
+	return row.interval + "\n            " + pushesNotCollected(3) + "\n            " + pushesNotCollected(3) +
+		"\n            " + row.deploy +
 		"\n            " + leadTd(lead) + "\n"
 }
 

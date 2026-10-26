@@ -69,9 +69,9 @@ const perRepository = "Per repository: see the project row"
 // apiRow is the row of the service API of subRowsData as the template writes
 // it, with the median only or with all the figures (decision #450, C): its own
 // deployment cells, and one cell across each run of the cells that are per
-// repository, which are, in the order of the columns, the Mainline Interval and
-// Time to main (2 columns, 6 with all), PR Lead Time, Commits and Pushes (3, 5),
-// Commits per push (1, 3) and the four shares (4).
+// repository, which are, in the order of the columns, the Mainline Interval,
+// Mainline Lead Time and Time to main (3 columns, 9 with all), PR Lead Time,
+// Commits and Pushes (3, 5), Commits per push (1, 3) and the four shares (4).
 func apiRow(all bool) string {
 	span := func(median, every int) string {
 		if all {
@@ -79,9 +79,9 @@ func apiRow(all bool) string {
 		}
 		return "@" + strconv.Itoa(median) + perRepository
 	}
-	cells := []string{span(2, 6), "1 h", span(3, 5), "5", span(1, 3), "2", span(4, 4), "2"}
+	cells := []string{span(3, 9), "1 h", span(3, 5), "5", span(1, 3), "2", span(4, 4), "2"}
 	if all {
-		cells = []string{span(2, 6), "&lt; 1 m | 1 h | -", span(3, 5), "5", span(1, 3), "0 | 2 | -", span(4, 4), "2"}
+		cells = []string{span(3, 9), "&lt; 1 m | 1 h | -", span(3, 5), "5", span(1, 3), "0 | 2 | -", span(4, 4), "2"}
 	}
 	return "<th scope=\"row\"><span class=\"visually-hidden\">Acme Shop: </span>API</th>\n            " +
 		tds(strings.Join(cells, " | ")) + "\n"
@@ -104,7 +104,7 @@ func TestAServiceRowHasOneSentenceWhereTheMeasuresAreAbsent(t *testing.T) {
 // no deployed commit has one sentence across the row, worded for a service.
 func TestAServiceWithoutDataHasItsOwnSentence(t *testing.T) {
 	got := rendered(t, "tbd.html", subRowsData())
-	wantAll(t, "tbd.html", got, "</span>IOS</th>\n            <td colspan=\"14\">"+
+	wantAll(t, "tbd.html", got, "</span>IOS</th>\n            <td colspan=\"15\">"+
 		"currently no data for this service in the last 30 days</td>")
 }
 
@@ -135,6 +135,8 @@ func TestAnAbsentMeasureIsADashBecauseTheRowSaysAbsent(t *testing.T) {
 	api.Lead = metrics.PRLeadTime{PullRequests: 5, Mean: time.Hour, Median: time.Hour, Bots: 1}
 	api.Push = metrics.PushMeasures{Pushes: 9, Commits: 9, Direct: 9,
 		TimeToMain: metrics.DurationSpread{Count: 9, Median: time.Hour}}
+	api.MainLead = metrics.MainlineLeadTime{Commits: 9, UnknownPushes: 1, Filling: true,
+		Lead: metrics.DurationSpread{Count: 9, Median: time.Hour}}
 	wantAll(t, "tbd.html", rendered(t, "tbd.html", data), apiRow(false))
 	for _, note := range data.TbdNotes() {
 		for _, p := range note.Projects {

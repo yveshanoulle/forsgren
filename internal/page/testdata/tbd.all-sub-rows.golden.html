@@ -18,6 +18,7 @@
           <tr>
             <th scope="col" rowspan="2">Project</th>
             <th scope="colgroup" colspan="3">Mainline Interval</th>
+            <th scope="colgroup" colspan="3">Mainline Lead Time</th>
             <th scope="colgroup" colspan="3">Time to main per commit</th>
             <th scope="colgroup" colspan="3">Time to deploy per commit</th>
             <th scope="colgroup" colspan="3">PR Lead Time</th>
@@ -31,6 +32,9 @@
             <th scope="col">mean</th>
             <th scope="col">median</th>
             <th scope="col">p90</th>
+            <th scope="col" aria-label="the mean of Mainline Lead Time">mean</th>
+            <th scope="col" aria-label="the median of Mainline Lead Time">median</th>
+            <th scope="col" aria-label="the p90 of Mainline Lead Time">p90</th>
             <th scope="col" aria-label="the mean of time to main">mean</th>
             <th scope="col" aria-label="the median of time to main">median</th>
             <th scope="col" aria-label="the p90 of time to main">p90</th>
@@ -62,6 +66,9 @@
             <td>2 h</td>
             <td>2 h</td>
             <td>-</td>
+            <td aria-describedby="tbd-note-6 tbd-note-7">4 h <span class="visually-hidden">note</span> (6) <span class="visually-hidden">note</span> (7)</td>
+            <td>3 h</td>
+            <td>9 h</td>
             <td>1 h</td>
             <td>30 m</td>
             <td>3 h</td>
@@ -88,7 +95,7 @@
           </tr>
           <tr class="label">
             <th scope="row"><span class="visually-hidden">Acme Shop: </span>API</th>
-            <td colspan="6">Per repository: see the project row</td>
+            <td colspan="9">Per repository: see the project row</td>
             <td>&lt; 1 m</td>
             <td>1 h</td>
             <td>-</td>
@@ -103,13 +110,16 @@
           </tr>
           <tr class="label">
             <th scope="row"><span class="visually-hidden">Acme Shop: </span>IOS</th>
-            <td colspan="26">currently no data for this service in the last 30 days</td>
+            <td colspan="29">currently no data for this service in the last 30 days</td>
           </tr>
           <tr class="label">
             <th scope="row"><span class="visually-hidden">Acme Shop: </span>Website</th>
             <td aria-describedby="tbd-note-2">3 h <span class="visually-hidden">note</span> (2)</td>
             <td>2 h</td>
             <td>-</td>
+            <td aria-describedby="tbd-note-6 tbd-note-7">4 h <span class="visually-hidden">note</span> (6) <span class="visually-hidden">note</span> (7)</td>
+            <td>3 h</td>
+            <td>9 h</td>
             <td>20 m</td>
             <td>10 m</td>
             <td>1 h</td>
@@ -141,6 +151,8 @@
       <summary>Notes</summary>
       <ul>
         <li id="tbd-note-2">(2) Commits timed by author date: Acme Shop: Website 2</li>
+        <li id="tbd-note-6">(6) Pushes left out: their commits are not known (incomplete data), not counted as 0: Acme Shop 2, Acme Shop: Website 2</li>
+        <li id="tbd-note-7">(7) History still filling: merge and squash branch commits from before this version are missing: Acme Shop, Acme Shop: Website</li>
       </ul>
     </details>
   </main>

@@ -10,7 +10,7 @@ package metrics
 
 import "fmt"
 
-// NoteKind is the number of one kind of note, 1 to 5 today.
+// NoteKind is the number of one kind of note, 1 to 7 today.
 type NoteKind int
 
 // The kinds of note, by their fixed numbers.
@@ -28,6 +28,14 @@ const (
 	NoteCreatedTime NoteKind = 4
 	// NoteBotsNotCounted: bot pull requests are left out of the lead time.
 	NoteBotsNotCounted NoteKind = 5
+	// NoteUnknownPushes: pushes of the window whose commits are not known (a
+	// cut or failed compare, a force push) are left out of the Mainline Lead
+	// Time (forsgren#463, decision #468).
+	NoteUnknownPushes NoteKind = 6
+	// NoteFilling: the window holds data from before the commits of merges and
+	// squashes were stored, so the Mainline Lead Time may be short
+	// (forsgren#463, decision #469).
+	NoteFilling NoteKind = 7
 )
 
 // noteTexts is the one table of the kinds and their generic texts, in the
@@ -41,6 +49,8 @@ var noteTexts = []struct {
 	{NoteLowerBound, "A lower bound: a first commit time of a pull request was cut"},
 	{NoteCreatedTime, "Pull requests timed by their created time"},
 	{NoteBotsNotCounted, "Bot pull requests not counted"},
+	{NoteUnknownPushes, "Pushes left out: their commits are not known (incomplete data), not counted as 0"},
+	{NoteFilling, "History still filling: merge and squash branch commits from before this version are missing"},
 }
 
 // NoteKinds are all the kinds, in the order of their numbers.

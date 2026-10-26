@@ -7,6 +7,7 @@
 {{if $all}}          <tr>
             <th scope="col" rowspan="2">Project</th>
             <th scope="colgroup" colspan="3">Mainline Interval</th>
+            <th scope="colgroup" colspan="3">Mainline Lead Time</th>
             <th scope="colgroup" colspan="3">Time to main per commit</th>
             <th scope="colgroup" colspan="3">Time to deploy per commit</th>
             <th scope="colgroup" colspan="3">PR Lead Time</th>
@@ -20,6 +21,9 @@
             <th scope="col">mean</th>
             <th scope="col">median</th>
             <th scope="col">p90</th>
+            <th scope="col" aria-label="the mean of Mainline Lead Time">mean</th>
+            <th scope="col" aria-label="the median of Mainline Lead Time">median</th>
+            <th scope="col" aria-label="the p90 of Mainline Lead Time">p90</th>
             <th scope="col" aria-label="the mean of time to main">mean</th>
             <th scope="col" aria-label="the median of time to main">median</th>
             <th scope="col" aria-label="the p90 of time to main">p90</th>
@@ -47,6 +51,7 @@
 {{else}}          <tr>
             <th scope="col">Project</th>
             <th scope="col" aria-label="median mainline interval">Mainline Interval</th>
+            <th scope="col" aria-label="median mainline lead time">Mainline Lead Time</th>
             <th scope="col" aria-label="median time to main per commit">Time to main per commit</th>
             <th scope="col" aria-label="median time to deploy per commit">Time to deploy per commit</th>
             <th scope="col" aria-label="median PR lead time">PR Lead Time</th>
@@ -67,11 +72,16 @@
             <th scope="row">{{if .IsLabel}}<span class="visually-hidden">{{.Project}}: </span>{{end}}{{.Name}}</th>
 {{if .NoData}}            <td colspan="{{$.TbdColumnsAfterProject}}">{{.NoDataSentence}}</td>
           </tr>
-{{else}}{{if .PerRepository}}            <td colspan="{{if $all}}6{{else}}2{{end}}">{{.PerRepositorySentence}}</td>
+{{else}}{{if .PerRepository}}            <td colspan="{{if $all}}9{{else}}3{{end}}">{{.PerRepositorySentence}}</td>
 {{else}}{{if $all}}            {{template "notedcell" .Interval.MeanCell}}
             <td>{{.Interval.MedianCell}}</td>
             <td>{{.Interval.P90Cell}}</td>
 {{else}}            {{template "notedcell" .Interval.MedianNotedCell}}
+{{end}}{{if .MainLead.State}}            <td{{if $all}} colspan="3"{{end}}>{{.MainLead.State}}</td>
+{{else if $all}}            {{template "notedcell" .MainLead.MeanCell}}
+            <td>{{.MainLead.Lead.MedianCell}}</td>
+            <td>{{.MainLead.Lead.P90Cell}}</td>
+{{else}}            {{template "notedcell" .MainLead.MedianNotedCell}}
 {{end}}{{if .Push.State}}            <td{{if $all}} colspan="3"{{end}}>{{.Push.State}}</td>
 {{else if $all}}            <td>{{.Push.TimeToMain.MeanCell}}</td>
             <td>{{.Push.TimeToMain.MedianCell}}</td>
@@ -114,7 +124,7 @@
 {{with .TbdNotes}}    <details class="tbd-notes" open>
       <summary>Notes</summary>
       <ul>
-{{range .}}        <li id="{{.ID}}">({{.Number}}) {{.Text}}: {{range $i, $p := .Projects}}{{if $i}}, {{end}}{{$p.Name}} {{$p.Count}}{{with $p.Of}} of {{.}}{{end}}{{end}}</li>
+{{range .}}        <li id="{{.ID}}">({{.Number}}) {{.Text}}: {{range $i, $p := .Projects}}{{if $i}}, {{end}}{{$p.Name}}{{with $p.Count}} {{.}}{{end}}{{with $p.Of}} of {{.}}{{end}}{{end}}</li>
 {{end}}      </ul>
     </details>
 {{end}}{{else}}    <p>{{.TbdMessage}}</p>

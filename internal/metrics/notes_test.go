@@ -7,9 +7,9 @@ import (
 )
 
 // TestNoteKindsKeepTheirNumbersAndTexts (forsgren#394, step 2, Yves's ruling:
-// the numbers are fixed forever, the legend uses them too): the five kinds
-// have these numbers and these generic texts; a new kind appends from (6), and
-// changing a line below is changing what (1) to (5) mean on every page.
+// the numbers are fixed forever, the legend uses them too): the seven kinds
+// have these numbers and these generic texts; a new kind appends from (8), and
+// changing a line below is changing what (1) to (7) mean on every page.
 func TestNoteKindsKeepTheirNumbersAndTexts(t *testing.T) {
 	want := map[int]string{
 		1: "Mostly estimated: commits timed by author date",
@@ -17,6 +17,8 @@ func TestNoteKindsKeepTheirNumbersAndTexts(t *testing.T) {
 		3: "A lower bound: a first commit time of a pull request was cut",
 		4: "Pull requests timed by their created time",
 		5: "Bot pull requests not counted",
+		6: "Pushes left out: their commits are not known (incomplete data), not counted as 0",
+		7: "History still filling: merge and squash branch commits from before this version are missing",
 	}
 	kinds := NoteKinds()
 	if len(kinds) != len(want) {
@@ -25,8 +27,8 @@ func TestNoteKindsKeepTheirNumbersAndTexts(t *testing.T) {
 	for i, k := range kinds {
 		wantKind(t, k, i+1, want[i+1])
 	}
-	if (NoteKind(6)).Text() != "" {
-		t.Errorf("want no text for a number that is no kind, got %q", NoteKind(6).Text())
+	if (NoteKind(8)).Text() != "" {
+		t.Errorf("want no text for a number that is no kind, got %q", NoteKind(8).Text())
 	}
 }
 

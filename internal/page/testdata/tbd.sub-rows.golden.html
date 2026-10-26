@@ -18,6 +18,7 @@
           <tr>
             <th scope="col">Project</th>
             <th scope="col" aria-label="median mainline interval">Mainline Interval</th>
+            <th scope="col" aria-label="median mainline lead time">Mainline Lead Time</th>
             <th scope="col" aria-label="median time to main per commit">Time to main per commit</th>
             <th scope="col" aria-label="median time to deploy per commit">Time to deploy per commit</th>
             <th scope="col" aria-label="median PR lead time">PR Lead Time</th>
@@ -37,6 +38,7 @@
           <tr>
             <th scope="row">Acme Shop</th>
             <td>2 h</td>
+            <td aria-describedby="tbd-note-6 tbd-note-7">3 h <span class="visually-hidden">note</span> (6) <span class="visually-hidden">note</span> (7)</td>
             <td>30 m</td>
             <td>1 h</td>
             <td>2 h</td>
@@ -53,7 +55,7 @@
           </tr>
           <tr class="label">
             <th scope="row"><span class="visually-hidden">Acme Shop: </span>API</th>
-            <td colspan="2">Per repository: see the project row</td>
+            <td colspan="3">Per repository: see the project row</td>
             <td>1 h</td>
             <td colspan="3">Per repository: see the project row</td>
             <td>5</td>
@@ -64,11 +66,12 @@
           </tr>
           <tr class="label">
             <th scope="row"><span class="visually-hidden">Acme Shop: </span>IOS</th>
-            <td colspan="14">currently no data for this service in the last 30 days</td>
+            <td colspan="15">currently no data for this service in the last 30 days</td>
           </tr>
           <tr class="label">
             <th scope="row"><span class="visually-hidden">Acme Shop: </span>Website</th>
             <td aria-describedby="tbd-note-2">2 h <span class="visually-hidden">note</span> (2)</td>
+            <td aria-describedby="tbd-note-6 tbd-note-7">3 h <span class="visually-hidden">note</span> (6) <span class="visually-hidden">note</span> (7)</td>
             <td>10 m</td>
             <td>45 m</td>
             <td>5 h</td>
@@ -90,6 +93,8 @@
       <summary>Notes</summary>
       <ul>
         <li id="tbd-note-2">(2) Commits timed by author date: Acme Shop: Website 2</li>
+        <li id="tbd-note-6">(6) Pushes left out: their commits are not known (incomplete data), not counted as 0: Acme Shop 2, Acme Shop: Website 2</li>
+        <li id="tbd-note-7">(7) History still filling: merge and squash branch commits from before this version are missing: Acme Shop, Acme Shop: Website</li>
       </ul>
     </details>
   </main>

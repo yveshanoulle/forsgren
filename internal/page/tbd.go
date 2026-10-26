@@ -9,10 +9,11 @@ import (
 
 // The TBD page (forsgren#253): one table with a row per project, in column
 // groups under two-level headers (forsgren#397, step 5, Yves's ruling on
-// #401): volume, shares of the commits, time to main per commit, commits per
-// push, time to deploy per commit and commits per deployment, then the
-// PR Lead Time (forsgren#256), the Mainline Interval and the Developers count
-// (forsgren#273); or one line that says why there is none. The key tbd_figures
+// #401): the Mainline Interval, the Mainline Lead Time (forsgren#463, its
+// second column), time to main per commit, time to deploy per commit, the
+// PR Lead Time (forsgren#256), volume, commits per push, commits per
+// deployment, shares of the commits and the Developers count (forsgren#273);
+// or one line that says why there is none. The key tbd_figures
 // (forsgren#423) chooses the figures of each measure: the median alone, one
 // column each and one header row (the default), or the mean, the median and the
 // 90th percentile under two-level headers.
@@ -71,8 +72,8 @@ func (r TbdRow) NoDataSentence() string {
 // repository on a service row (forsgren#422, step 4, decision #450, C).
 const perRepositorySentence = "Per repository: see the project row"
 
-// PerRepository says the row's Mainline Interval and push and pull request
-// cells are not its own: a service row, whose measures of them are absent.
+// PerRepository says the row's Mainline Interval, Mainline Lead Time and push
+// and pull request cells are not its own: a service row, whose measures of them are absent.
 func (r TbdRow) PerRepository() bool { return r.IntervalAbsent && r.PushAbsent }
 
 // PerRepositorySentence is the one cell across each run of the cells a service
@@ -82,8 +83,8 @@ func (r TbdRow) PerRepositorySentence() string { return perRepositorySentence }
 // The columns of the table after the project: the median alone, or the mean,
 // the median and the 90th percentile (the shares have four, the developers one).
 const (
-	tbdColumnsMedian = 14
-	tbdColumnsAll    = 26
+	tbdColumnsMedian = 15
+	tbdColumnsAll    = 29
 )
 
 // TbdColumnsAfterProject is how many columns the row of a project without data
@@ -133,7 +134,7 @@ func withoutAbsent(m metrics.TbdRow) metrics.TbdRow {
 		m.Interval = metrics.MainlineInterval{}
 	}
 	if m.PushAbsent {
-		m.Lead, m.Push = metrics.PRLeadTime{}, metrics.PushMeasures{}
+		m.Lead, m.Push, m.MainLead = metrics.PRLeadTime{}, metrics.PushMeasures{}, metrics.MainlineLeadTime{}
 	}
 	return m
 }

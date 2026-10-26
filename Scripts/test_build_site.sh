@@ -265,7 +265,7 @@ fi
 # the no-data line: the fixture has commits deployed in the last 30 days.
 if [[ -f "${FIXTURE_HAPPY}/tbd.html" ]] && grep -qF '<th scope="row">Acme Shop</th>' "${FIXTURE_HAPPY}/tbd.html" \
   && tr -d '\n' <"${FIXTURE_HAPPY}/tbd.html" \
-    | has -qE '<th scope="row">[^<]*</th> *<td[^>]*>[^<-][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td>[^<]*</td> *){2}<td>[^<]*</td>' \
+    | has -qE '<th scope="row">[^<]*</th> *<td[^>]*>[^<-][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td>[^<]*</td> *){2}<td[^>]*>[^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>' \
   && ! grep -qF 'No commits have been collected yet' "${FIXTURE_HAPPY}/tbd.html"; then
   pass 31 "tbd.html has a Mainline Interval row and not the no-data line"
 else
@@ -293,7 +293,7 @@ fi
 # 26: every repository of the fixture is made up (acme/...), never a real one.
 NOT_MADE_UP="$(cd "$FIXTURE_DIR" && {
   awk -F, '!/^#/ && !/^project,/ && !/^repository,/ { print $2 }' data/deployments.csv
-  for f in commits failures issues issue_bugs reach pulls pushes push_commits pushes_denied; do
+  for f in commits failures issues issue_bugs reach pulls pull_commits pushes push_commits pushes_denied; do
     awk -F, '!/^#/ && !/^repository,/ { print $1 }' "data/${f}.csv"
   done
   grep -E '^ +- name: ' forsgren.config.yml | sed 's/^ *- name: //' | grep '/'

@@ -89,7 +89,7 @@ fi
 # the Mainline Interval group comes first (forsgren#418).
 tbd_shows_interval() {
   local tbd_text re
-  re='<th scope="row">[^<]*</th> *<td[^>]*>[^<-][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td>[^<]*</td> *){2}<td>[^<]*</td>'
+  re='<th scope="row">[^<]*</th> *<td[^>]*>[^<-][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td>[^<]*</td> *){2}<td[^>]*>[^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>'
   [[ -f "${STAGE}/tbd.html" ]] || return 1
   tbd_text="$(tr -d '\n' <"${STAGE}/tbd.html")"
   grep -qE "$re" <<< "$tbd_text"
