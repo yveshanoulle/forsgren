@@ -1,5 +1,7 @@
 # Contributing to forsgren
 
+New here? Start with [Getting started](docs/getting-started.md).
+
 ## Proposing a change
 
 Open an issue first for anything larger than a typo, so the change can be

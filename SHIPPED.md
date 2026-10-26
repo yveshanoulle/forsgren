@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — A short getting-started page for a new contributor ([#436](https://github.com/yveshanoulle/forsgren/issues/436), 1 step)
+
+forsgren issue 436, feature, patch release. `docs/getting-started.md` is one screen for the first hour: what forsgren is, what to install, the first run (`./Scripts/install_tools.sh`, `npm ci`, `./FBP.sh --no-commit`), a change (tests first, then `./FBP.sh "<message>"`), the order FBP runs in, stop at the first red gate and `--all`, the `*** RED ****` commit, the three secret-class reds that commit nothing, `--no-commit` and `--no-push`, how CI relates, pull requests from forks, and links to the reference pages. `README.md` lists it in Documentation and `CONTRIBUTING.md` links it at the top. Docs only.
+
+---
+
 ## 2026-10-26 — A corrupt pulls_denied.csv or pushes_denied.csv no longer closes the setup issue's refused-read items ([#395](https://github.com/yveshanoulle/forsgren/issues/395), 1 step)
 
 forsgren issue 395, bug, patch release. `check-needs` used to print a note on stderr and build no refused-read items when `--pulls-denied` or `--pushes-denied` named a file in no known format, so an open setup issue that carried the items closed although the refusal might still stand. A failed operation fails: `refusedNeeds` and `refusedItems` (`cmd/forsgren/deniedneeds.go`) now return the error, naming the read and the file, and `reportNeeds` (via the new `gatherNeeds`) notes it on stderr, writes and closes nothing and returns the status `failed`. A missing file still notes no refusal. `CLAUDE.md` and `docs/updating-and-releases.md` say so.
@@ -32,7 +38,7 @@ Signed: Lenka B
 
 ---
 
-# 2026-10-25 — Scripts/release_check.sh runs the release plan's rules locally before the last FBP of a release ([#445](https://github.com/yveshanoulle/forsgren/issues/445), 1 step)
+## 2026-10-25 — Scripts/release_check.sh runs the release plan's rules locally before the last FBP of a release ([#445](https://github.com/yveshanoulle/forsgren/issues/445), 1 step)
 
 forsgren issue 445, tools, no release of its own. `Scripts/release_check.sh` runs the Release workflow's own `release_plan.sh` with `auto --all` on the maintainer's machine (no second copy of its rules): a closed issue since the last release tag without `patch`, `minor`, `major` or `tools`, an open non-tools issue named by `#N` in a commit subject, nothing closed and the bump the labels require are findings, and it adds one the plan does not make, a commit on main since the tag whose subject is `*** RED ****` alone, naming the issue its body names. One line per finding and exit 1, else `release check: OK, bump=<kind>`; read-only. `Scripts/test_release_check.sh` (order-file row) uses the plan's seams and six mutation proofs; `docs/updating-and-releases.md` and `CLAUDE.md` say to run it before the last FBP of a release.
 

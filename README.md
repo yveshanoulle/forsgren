@@ -89,6 +89,7 @@ Every `forsgren.config.yml` key is described in [docs/configuration.md](docs/con
 
 ## Documentation
 
+- [Getting started](docs/getting-started.md): a short page for a new contributor.
 - [Configuration](docs/configuration.md): every `forsgren.config.yml` key, and running forsgren from an installation's workflow.
 - [Pages and views](docs/pages-and-views.md): the five metrics in full, the page and its views, what each cell means, and privacy.
 - [Data files](docs/data-files.md): how forsgren gets its data, the `data/*.csv` formats, and collecting deployments.
