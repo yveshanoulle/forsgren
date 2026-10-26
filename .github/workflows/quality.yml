@@ -276,9 +276,12 @@ jobs:
   # its own red check on the run. The same setup as the main job, step for
   # step: its comments are the main job's. No site build: all are PRE rows.
   # No secret reaches it: none of its gates reads one or is secret-class.
+  # It runs on ubuntu-latest (forsgren#427): the four tools behave the same on
+  # Linux and read files only. Its tools come from pinned, checksum-verified
+  # builds (Scripts/install_tools_linux.sh), not Homebrew.
   lint:
     name: Lint gates
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -301,14 +304,14 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
+      # The four lint tools from their pinned release builds, checksum
+      # verified (Scripts/linux_tool_pins.txt), not Homebrew, by
+      # Scripts/install_tools_linux.sh.
       - name: Install tools
         shell: bash
-        env:
-          HOMEBREW_NO_INSTALL_CLEANUP: "1"
-          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
         run: |
           set -euo pipefail
-          ./Scripts/install_tools.sh
+          ./Scripts/install_tools_linux.sh Scripts/required_tools_linux.txt
 
       - name: Install dependencies
         run: npm ci

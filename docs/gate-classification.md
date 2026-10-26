@@ -21,7 +21,7 @@ not close it.
 ## The order file, row by row
 
 [Scripts/gate_report_order.txt](../Scripts/gate_report_order.txt) is the one
-list sfl and CI both run. It has 157 rows: 153 with a script and 4 `n/a`
+list sfl and CI both run. It has 161 rows: 157 with a script and 4 `n/a`
 rows. All scripts are in `Scripts/`. The phase is `pre` (repository inputs and
 checker behaviour) or `post` (the generated site). `secret-class` means a
 finding blocks the commit as well as the push. A row for a self-test is
@@ -59,6 +59,7 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 23 | npm manifest policy self-test | `test_check_guardrail_packages.sh` | pre | required, `test_check_guardrail_packages v1` |
 | 24 | npm manifest policy | `check_guardrail_packages.sh` | pre | required, `check_guardrail_packages v1` |
 | 25 | tool install self-test | `test_install_tools.sh` | pre | required, `test_install_tools v1` |
+| 161 | Linux tool install self-test | `test_install_tools_linux.sh` | pre | required; forsgren's own (forsgren#427, not canon): `install_tools_linux.sh`, the Linux installer the Lint gates job calls on ubuntu-latest, with the download and Python stubbed: four pinned tools installed and run at their pinned version, a wrong sha256 refused with nothing installed, another version, a tool with no pin, an empty list, another CPU and an unhashed requirements file red, the real pin list checked, 2 mutations |
 | 26 | npm install sync self-test | `test_npm_sync_install.sh` | pre | required, `test_npm_sync_install v1` |
 | 27 | site-settings self-test | `test_lib_site_settings.sh` | pre | required, `test_lib_site_settings v2` |
 | 28 | HTMLHint self-test | `test_gate_htmlhint.sh` | pre | required, `test_gate_htmlhint v1` |

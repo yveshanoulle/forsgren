@@ -44,7 +44,10 @@ cd "$(dirname "$0")/.."
 #   3. a pull_request trigger on main exists, also with no `paths:` and no
 #      `paths-ignore:` filter, and there is no pull_request_target;
 #   4. workflow_dispatch exists, so a run can be started by hand;
-#   5. every job runs on `macos-latest`, GitHub's hosted macOS image.
+#   5. every job runs on `macos-latest`, GitHub's hosted macOS image, except
+#      the `lint` job (forsgren#427), which may run on `ubuntu-latest`: its
+#      four tools and their self-tests behave the same on Linux and read files
+#      only. No other job and no other image is allowed there.
 #
 # PINS 3 AND 5 GO TOGETHER (Yves's rulings on forsgren#1, road to public,
 # the runner swap). Quality runs on GitHub's `macos-latest`, a throwaway
@@ -120,10 +123,26 @@ judge_event() {
   fi
 }
 
+# job_runners <workflow-file>: one line per job, `<job> TAB <runs-on>`: the
+# job is the two-space key under `jobs:`, the runs-on its four-space key.
+job_runners() {
+  awk '
+    /^jobs:/ { injobs = 1; next }
+    injobs && /^[^[:space:]]/ { injobs = 0 }
+    injobs && /^  [A-Za-z0-9_-]+:[[:space:]]*$/ { job = $1; sub(/:$/, "", job) }
+    injobs && /^    runs-on:/ {
+      r = $0
+      sub(/^    runs-on:[[:space:]]*/, "", r)
+      sub(/[[:space:]]+$/, "", r)
+      print job "\t" r
+    }
+  ' "$1"
+}
+
 # judge <workflow-file> -> prints one problem per line; silent when the
 # trigger and the runner are right.
 judge() {
-  local wf="$1" runners runner
+  local wf="$1" runners job runner
   if ! grep -qE '^  push:[[:space:]]*$' "$wf"; then
     echo "has no push trigger — nothing runs on a push to main, and a CI that never ran looks exactly like a CI that passed"
   else
@@ -143,15 +162,21 @@ judge() {
     echo "has no workflow_dispatch trigger — a run cannot be started by hand, so checking the runner means pushing a commit"
   fi
 
-  runners="$(sed -nE 's/^    runs-on:[[:space:]]*(.*[^[:space:]])[[:space:]]*$/\1/p' "$wf")"
+  runners="$(job_runners "$wf")"
   if [[ -z "$runners" ]]; then
     echo "has no job with a runs-on this check can read — Quality must run on macos-latest"
   fi
-  while IFS= read -r runner; do
-    [[ -n "$runner" ]] || continue
-    if [[ "$runner" != "macos-latest" ]]; then
-      echo "has a job on runs-on: ${runner}, not macos-latest — Quality runs on GitHub's hosted macOS image (forsgren#1, the runner swap), a throwaway machine per run, which is what makes its pull_request trigger safe"
+  while IFS=$'\t' read -r job runner; do
+    [[ -n "$job" ]] || continue
+    if [[ "$runner" == "macos-latest" ]]; then
+      continue
     fi
+    if [[ "$job" == "lint" && "$runner" == "ubuntu-latest" ]]; then
+      continue
+    fi
+    echo "has a job (${job}) on runs-on: ${runner}, not macos-latest — Quality runs on GitHub's hosted macOS" \
+      "image (forsgren#1, the runner swap), a throwaway machine per run, which is what makes its pull_request" \
+      "trigger safe; only the lint job may run on ubuntu-latest (forsgren#427)"
   done <<< "$runners"
 }
 
@@ -167,22 +192,24 @@ if [[ -n "$out" ]]; then
     [[ -n "$line" ]] && fail "${WF} ${line}"
   done <<< "$out"
 else
-  echo "  ok: ${WF} runs on every push to and pull request into main, with no paths filter, and by hand, on macos-latest"
+  echo "  ok: ${WF} runs on every push to and pull request into main, with no paths filter, and by hand," \
+    "on macos-latest (the lint job on ubuntu-latest)"
 fi
 
 # --- Self-proof: each wrong shape MUST be rejected, the right one accepted.
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"; finish' EXIT
 
-# write_workflow <name> <on-block> [runs-on]: a minimal workflow with that
-# `on:` block, its one job on macos-latest unless a runs-on is given.
+# write_workflow <name> <on-block> [runs-on] [job]: a minimal workflow with
+# that `on:` block, its one job (lint unless a job is given) on macos-latest
+# unless a runs-on is given.
 write_workflow() {
   {
     echo "name: Sample"
     echo "on:"
     printf '%s\n' "$2"
     echo "jobs:"
-    echo "  lint:"
+    echo "  ${4:-lint}:"
     echo "    runs-on: ${3:-macos-latest}"
     echo "    steps:"
     echo "      - run: echo hi"
@@ -232,7 +259,17 @@ write_workflow selfhosted '  push:
   pull_request:
     branches: ["main"]
   workflow_dispatch:' '[self-hosted, macOS, ARM64]'
-write_workflow ubuntu '  push:
+write_workflow ubuntuquality '  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:' 'ubuntu-latest' quality
+write_workflow ubuntu2204 '  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:' 'ubuntu-22.04'
+write_workflow lintubuntu '  push:
     branches: ["main"]
   pull_request:
     branches: ["main"]
@@ -262,7 +299,8 @@ rejects nopr       "has no pull_request trigger"   "no pull_request trigger"
 rejects prnarrow   "pull_request: has a paths filter" "a paths filter on pull_request"
 rejects prtarget   "has a pull_request_target"     "a pull_request_target trigger"
 rejects selfhosted "not macos-latest"              "a self-hosted runner"
-rejects ubuntu     "runs-on: ubuntu-latest, not macos-latest" "another GitHub-hosted image"
+rejects ubuntuquality "(quality) on runs-on: ubuntu-latest, not macos-latest" "another job than lint on ubuntu-latest"
+rejects ubuntu2204 "(lint) on runs-on: ubuntu-22.04, not macos-latest" "the lint job on another hosted image"
 
 right_verdict="$(judge "${TMP}/right.yml")"
 if [[ -z "$right_verdict" ]]; then
@@ -271,12 +309,23 @@ else
   fail "the synthetic workflow with the right trigger was REJECTED (${right_verdict}) — the judge would keep this check red on a correct quality.yml"
 fi
 
+lint_verdict="$(judge "${TMP}/lintubuntu.yml")"
+if [[ -z "$lint_verdict" ]]; then
+  echo "  ok: the lint job on ubuntu-latest is accepted (forsgren#427)"
+else
+  fail "the synthetic workflow with the lint job on ubuntu-latest was REJECTED (${lint_verdict}) —" \
+    "the allowance for forsgren#427 does not work"
+fi
+
 COMPLETED=1
 
 if [[ "$failed" -ne 0 ]]; then
   echo ""
-  echo "FAIL: quality.yml's trigger or runner is not the shape forsgren#1 rules: every push to and pull request into main, and by hand, on macos-latest"
+  echo "FAIL: quality.yml's trigger or runner is not the shape forsgren#1 rules: every push to and pull" \
+    "request into main, and by hand, on macos-latest (the lint job may use ubuntu-latest)"
   exit 1
 fi
 
-echo "OK: quality.yml runs on every push to main, every pull request into it and by hand, on macos-latest, with no paths filter to leave a change unchecked (and each wrong shape is still detected)"
+echo "OK: quality.yml runs on every push to main, every pull request into it and by hand, on macos-latest" \
+  "(the lint job on ubuntu-latest or macos-latest), with no paths filter to leave a change unchecked" \
+  "(and each wrong shape is still detected)"

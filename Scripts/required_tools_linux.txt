@@ -1,0 +1,13 @@
+# Tools the Lint gates job needs on its Linux runner, one per line (forsgren#427).
+# Read by Scripts/install_tools_linux.sh (the lint job calls it directly,
+# Scripts/install_tools.sh stays the estate's Homebrew installer); every name here needs a row in
+# Scripts/linux_tool_pins.txt, or the install is red.
+#
+# ONLY the four lint tools. The rest of Scripts/required_tools.txt is not
+# needed by the lint job's gates: go, node and jq ship with the hosted Linux
+# image (and Node is set up by actions/setup-node), and gitleaks and
+# languagetool belong to gates that stay on macOS.
+shellcheck
+yamllint
+actionlint
+zizmor

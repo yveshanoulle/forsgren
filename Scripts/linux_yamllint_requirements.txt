@@ -1,0 +1,17 @@
+# yamllint and its two dependencies, pinned with the sha256 of the wheels
+# PyPI publishes (forsgren#427). Read by Scripts/install_tools_linux.sh through
+# `pip install --require-hashes --only-binary=:all: --no-deps`, so a wheel that
+# is not listed, or whose bytes differ, is refused. PyYAML lists the
+# manylinux x86_64 wheels of the Python versions a hosted Ubuntu image has had
+# (3.12, 3.13, 3.14); on another one pip finds no matching wheel and the
+# install is red, never a build from source. Versions: yamllint 1.38.0 is the
+# one Homebrew installs today; pathspec and PyYAML are the newest releases
+# PyPI listed when this file was written.
+yamllint==1.38.0 \
+    --hash=sha256:fc394a5b3be980a4062607b8fdddc0843f4fa394152b6da21722f5d59013c220
+pathspec==1.1.1 \
+    --hash=sha256:a00ce642f577bf7f473932318056212bc4f8bfdf53128c78bbd5af0b9b20b189
+pyyaml==6.0.3 \
+    --hash=sha256:ba1cc08a7ccde2d2ec775841541641e4548226580ab850948cbfda66a1befcdc \
+    --hash=sha256:0f29edc409a6392443abf94b9cf89ce99889a1dd5376d94316ae5145dfedd5d6 \
+    --hash=sha256:c458b6d084f9b935061bc36216e8a69a7e293a2f1e68bf956dcd9e6cbcd143f5

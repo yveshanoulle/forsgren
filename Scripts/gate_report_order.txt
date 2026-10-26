@@ -164,6 +164,10 @@ npm manifest policy|Scripts/check_guardrail_packages.sh|pre|
 # estate). The tools it provides govern every gate after it, so its fixture
 # runs before the build.
 tool install self-test|Scripts/test_install_tools.sh|pre|
+# The Linux path of that installer (forsgren#427, forsgren's own, not canon):
+# the pinned, checksum-verified builds the Lint gates job installs on
+# ubuntu-latest, with the download and the Python seams stubbed.
+Linux tool install self-test|Scripts/test_install_tools_linux.sh|pre|
 #
 # sfl's npm install step (forsgren#2, ladder step 2): `npm ci` when
 # node_modules is missing or was installed from another lockfile. A

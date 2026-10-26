@@ -31,7 +31,7 @@ never falls back to another token or login. The job `needs:` every other job,
 with no status function in its `if:`, so a commit that fails a gate never
 reaches the preview; its `if:` keeps it off pull requests, where no secret
 exists; it holds `contents: read` and runs on `macos-latest` like every job
-of the file. Its own concurrency group never cancels a run in flight (the
+of the file but the lint job. Its own concurrency group never cancels a run in flight (the
 shas are started in push order; of several waiting runs GitHub keeps the
 newest). It is not a `workflow_run` workflow: that is a dangerous trigger.
 
@@ -67,6 +67,31 @@ minutes) and now run side by side, about 11 and 6 minutes; the self-test's own
 9 min 27 s is then halved by the two shards, about 6 to 7 minutes per shard job
 with its setup (forsgren#426); the self-tests are dealt to the shards by their seconds, heaviest first to the lighter shard (`Scripts/git_sandbox_isolation_weights.txt`, a default weight for a self-test with no row, forsgren#446), so the two shards take about the same time. The report job's status takes the results of the
 isolation jobs and of the summary job too, and the `preview` job `needs:` them.
+
+**The Lint gates job runs on Linux** (forsgren#427). The `lint` job (actionlint,
+shellcheck, yamllint and zizmor with their self-tests) runs on `ubuntu-latest`,
+not `macos-latest`: these tools behave the same on Linux and read files only, and
+a Linux runner starts without the queue GitHub warns of for macOS arm64. Every
+other job stays on macOS, where the language gate needs `sandbox-exec`, the
+gates meet bash 3.2 and BSD tools, and the browser gates meet Chrome. The job
+keeps the steps of the others, but its Install tools step is
+`Scripts/install_tools_linux.sh Scripts/required_tools_linux.txt` (the estate's
+`Scripts/install_tools.sh` stays the Homebrew installer, unchanged), which installs the
+four tools from the builds pinned in `Scripts/linux_tool_pins.txt`, no Homebrew
+and no piped script. Each download's sha256 is compared with the pin before
+anything is unpacked, yamllint (Python) is installed with `pip install
+--require-hashes` from `Scripts/linux_yamllint_requirements.txt`, and every tool
+is run and must report the pinned version, since the image ships its own
+shellcheck. The versions are the ones Homebrew installs on the Mac today
+(actionlint 1.7.12, shellcheck 0.11.0, yamllint 1.38.0, zizmor 1.31.1), so a
+finding on CI is the finding `./sfl.sh` shows; the checksums are actionlint's
+published `checksums.txt` line and, for shellcheck and zizmor, which publish
+none, the sha256 of the release file when the pin was written. Raising a pin
+means changing its row there and the Homebrew formula's version in the same
+change. The runner pins gate allows `ubuntu-latest` for the `lint` job and for
+no other job; `Scripts/test_install_tools_linux.sh` runs the Linux installer on
+the Mac with the download stubbed. The workflow's permissions are unchanged
+(`contents: read`) and no secret is read by this job, as before.
 
 **Shards** (forsgren#426). A gate that is too long for one job runs in several,
 each with a shard of its own. A row of `Scripts/ci_job_groups.txt` may carry a
@@ -201,7 +226,8 @@ from a fork runs its own code here, which is safe only because of the two
 things the ruling pairs with the trigger: the machine is GitHub's and is
 thrown away after the job, and a fork's `pull_request` run gets a read-only
 token (`contents: read`) and no secrets. The **quality runner pins** gate
-pins this job to `macos-latest`, and the rule holds for every workflow: the
+pins this job to `macos-latest` (the lint job may use `ubuntu-latest`, forsgren#427),
+and the rule holds for every workflow: the
 **workflow triggers** gate below is red on any of them that triggers on a
 pull-request event while one of its jobs runs anywhere but on a
 GitHub-hosted runner. A new push to a pull request cancels its run in

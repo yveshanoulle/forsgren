@@ -9,6 +9,35 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — The Lint gates job runs on ubuntu-latest ([#427](https://github.com/yveshanoulle/forsgren/issues/427), 1 step)
+
+forsgren issue 427 (tools): actionlint, shellcheck, yamllint and zizmor with their self-tests no longer queue
+for a macOS arm64 runner. The other Quality jobs stay on `macos-latest`.
+
+- The lint job runs the new `Scripts/install_tools_linux.sh` (`Scripts/install_tools.sh` is unchanged), which installs
+  the pinned builds of `Scripts/linux_tool_pins.txt`: actionlint 1.7.12, shellcheck 0.11.0, yamllint 1.38.0
+  and zizmor 1.31.1, the versions Homebrew installs today. Each download's sha256 is compared with the pin
+  before it is unpacked (actionlint's from its published checksums file, shellcheck's and zizmor's from the
+  release file when the pin was written); yamllint is installed with `pip install --require-hashes` from
+  `Scripts/linux_yamllint_requirements.txt`; each tool is run and must report the pinned version. No Homebrew,
+  no piped script, no package manager.
+- `Scripts/test_quality_runner_pins.sh` allows `ubuntu-latest` for the `lint` job and no other job or image.
+  Red first, seen: with the job moved, the pin was red; it passes after the allowance, and a synthetic
+  workflow with another job on `ubuntu-latest` and one with the lint job on `ubuntu-22.04` are still refused.
+  `Scripts/test_quality_jobs.sh` pins the lint job on `ubuntu-latest` with the Linux tool list.
+- `Scripts/test_install_tools_linux.sh` (a new row, run on the Mac with the download stubbed) covers the
+  install, a wrong checksum, another version, a tool with no pin, an empty list, another CPU, an unhashed
+  requirements file, with 2 mutation proofs.
+- The scripts of the Lint job were read for macOS-only assumptions: none found (no `sed -i`, `stat -f`,
+  `readlink -f`, BSD-only flags; `mktemp -d` and `sed` on stdout only; the PATH prefix `/opt/homebrew/bin` is
+  absent on Linux and harmless).
+- No secret is newly read or no longer read; the workflow's permissions stay `contents: read`. `FBP.sh` and
+  `sfl.sh` are unchanged.
+
+Each lint self-test is to be seen green on Linux in the first CI run.
+
+---
+
 ## 2026-10-26 — The language gate reads the TBD table with all the figures, and its header labels pass it ([#452](https://github.com/yveshanoulle/forsgren/issues/452))
 
 forsgren issue 452: the aria-labels of the all-figures TBD headers read `mean time to main` and `mean time to deploy`, which LanguageTool flags (`IN_THE_MEAN_TIME_PHRASE`); the gate never saw them, since the site it reads is built with the median default.

@@ -37,7 +37,8 @@
 #      QS_JOB_STATUS comes from the merge script's status of the jobs' results
 #   6. the preview job needs every job, the report included (the generic pin of
 #      Scripts/test_preview_workflow.sh, held here for the new jobs by name)
-#   3c. the lint job (forsgren#282) has the same setup and runs exactly
+#   3c. the lint job (forsgren#282) has the same setup (on ubuntu-latest since
+#      forsgren#427, installing from Scripts/required_tools_linux.txt) and runs exactly
 #      run_ci_phase.sh pre for the job `lint`; no step names a lint gate
 #      itself; the group file gives it actionlint, shellcheck, yamllint and
 #      zizmor with their self-tests, so the main job no longer runs them (the
@@ -110,14 +111,18 @@ pin_of() {
   grep -E 'uses: actions/checkout@' "$1" | grep -vE '^[[:space:]]*#' | head -1 | sed -E 's/.*@([0-9a-f]{40}).*/\1/'
 }
 
-# setup_findings <job file> <id>: pin 1.
+# setup_findings <job file> <id> [runner] [install-command]: pin 1. The runner
+# is macos-latest unless given, the install command Scripts/install_tools.sh.
+# The lint job runs on ubuntu-latest (forsgren#427) and installs its four tools
+# with Scripts/install_tools_linux.sh and the Linux list.
 setup_findings() {
-  local job="$1" id="$2" names want got
+  local job="$1" id="$2" runner="${3:-macos-latest}" installer names want got
+  installer="          ./${4:-Scripts/install_tools.sh}"
   if [[ ! -s "$job" ]]; then
     echo "job: the file has no ${id} job"
     return 0
   fi
-  grep -qxF '    runs-on: macos-latest' "$job" || echo "runs-on: the ${id} job is not on macos-latest"
+  grep -qxF "    runs-on: ${runner}" "$job" || echo "runs-on: the ${id} job is not on ${runner}"
   want="$(pin_of "${TMP}/main.yml")"
   got="$(pin_of "$job")"
   [[ -n "$want" && "$got" == "$want" ]] || echo "pin of checkout: the ${id} job has ${got:-none}, the main job ${want:-none}"
@@ -127,7 +132,7 @@ setup_findings() {
   [[ "$names" == "Set up the gate environment|Set up Node|Install tools|Install dependencies|"* ]] \
     || echo "setup: the ${id} job's steps start ${names}, not the main job's gate environment, Node, tools and dependencies"
   code "$job" | has -F 'uses: actions/setup-node@' || echo "setup: the ${id} job does not set up Node"
-  code "$job" | has -xF '          ./Scripts/install_tools.sh' || echo "setup: the ${id} job does not run Scripts/install_tools.sh"
+  code "$job" | has -xF "$installer" || echo "setup: the ${id} job does not run ${4:-Scripts/install_tools.sh}"
   code "$job" | has -xF '        run: npm ci' || echo "setup: the ${id} job does not run npm ci"
 }
 
@@ -185,7 +190,7 @@ job_findings() {
   job_of "$wf" workflows > "$wfl"
   job_of "$wf" report > "$rep"
 
-  setup_findings "$lnt" lint
+  setup_findings "$lnt" lint ubuntu-latest "Scripts/install_tools_linux.sh Scripts/required_tools_linux.txt"
   for n in 1 2; do
     setup_findings "${TMP}/isolation_${n}.yml" "isolation_${n}"
   done
@@ -414,10 +419,17 @@ mutant "report without lint in needs" "${R}"'s/needs: \[quality, lint, isolation
 mutant "report without the lint result" "${R}"'{/QS_LINT_RESULT:/d;}' "report: the report job has no QS_LINT_RESULT from needs.lint.result"
 mutant "status without the lint result" "${R}"'s/ "[$]QS_LINT_RESULT"//' "report: the status call does not pass"
 mutant "no lint job" 's/^  lint:/  lint_gone:/' "job: the file has no lint job"
-mutant "lint on another runner" "${L}"'s/runs-on: macos-latest/runs-on: ubuntu-latest/' "runs-on: the lint job is not on macos-latest"
+mutant "lint on another runner" "${L}"'s/runs-on: ubuntu-latest/runs-on: macos-latest/' \
+  "runs-on: the lint job is not on ubuntu-latest"
+mutant "lint on another Linux image" "${L}"'s/runs-on: ubuntu-latest/runs-on: ubuntu-22.04/' \
+  "runs-on: the lint job is not on ubuntu-latest"
+mutant "lint using the Homebrew installer" "${L}"'s#install_tools_linux\.sh#install_tools.sh#' \
+  "setup: the lint job does not run Scripts/install_tools_linux.sh Scripts/required_tools_linux.txt"
 mutant "lint without npm ci" "${L}"'s/run: npm ci/run: true/' "setup: the lint job does not run npm ci"
 mutant "lint runs the main job's gates" "${L}s/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" lint/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" main/" "lint: the lint job must run exactly"
-mutant "a step naming a lint gate" "${L}"'s#\./Scripts/install_tools.sh#./Scripts/install_tools.sh; ./Scripts/check_shellcheck.sh#' "lint: a step names a lint gate itself"
+mutant "a step naming a lint gate" \
+  "${L}"'s#\./Scripts/install_tools_linux.sh#./Scripts/install_tools_linux.sh; ./Scripts/check_shellcheck.sh#' \
+  "lint: a step names a lint gate itself"
 mutant "lint hand-over not always" "${L}"'{/Hand over the gate report/,/uses:/s/if: always()/if: success()/;}' "handover: the lint job's"
 mutant "lint hand-over under another name" "${L}"'s/name: quality-report-lint/name: quality-report-other/' "handover: the lint job does not upload the artifact quality-report-lint"
 mutant "no browser job" 's/^  browser:/  browser_gone:/' "job: the file has no browser job"

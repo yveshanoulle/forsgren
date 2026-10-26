@@ -185,11 +185,12 @@ fi
 # release workflow pin (forsgren#263), and down to 157 for the precheck
 # self-test that went with the retired precheck.sh (forsgren#439), and up to 158
 # for the release check self-test (forsgren#445), and up to 160 for the pipe
-# into grep -q gate and its self-test (forsgren#428).
+# into grep -q gate and its self-test (forsgren#428), and up to 161 for the Linux
+# tool install self-test (forsgren#427).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=160
+MIN_GATES=161
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -432,6 +433,17 @@ for path in Scripts/*.sh; do
         || fail "${base} installs the tools the gates need and sfl never invokes it — the gates then run against whatever this machine happens to have"
       runs_script "$CI" "$base" \
         || fail "${base} installs the tools the gates need and ${CI} never invokes it — on a fresh hosted runner every gate needing a Homebrew tool would fail with command not found"
+      require_fixture "$base" "an installer with no fixture fails by leaving a machine looking correctly configured"
+      ;;
+
+    # THE LINUX PATH OF THE INSTALLER (forsgren#427), not a gate: forsgren's
+    # own. Only the lint job of quality.yml runs it, in its Install tools step
+    # (the estate's install_tools.sh stays byte-identical). Its own fixture
+    # runs as a row of the order file.
+    install_tools_linux.sh)
+      runs_script "$CI" "$base" \
+        || fail "${base} installs the pinned Linux tools and ${CI} never invokes it — \
+the Lint gates job would have no way to install a tool"
       require_fixture "$base" "an installer with no fixture fails by leaving a machine looking correctly configured"
       ;;
 

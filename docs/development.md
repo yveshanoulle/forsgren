@@ -301,6 +301,11 @@ broken runner cannot report green:
   installer installs a missing tool, upgrades a present one, and is red when
   Homebrew reports success but the tool is still not runnable, or the list
   is empty.
+- **Linux tool install self-test** (`Scripts/test_install_tools_linux.sh`,
+  forsgren#427): the Linux counterpart of that installer, which the Lint gates job
+  runs on `ubuntu-latest`, with the download stubbed: it installs the pinned
+  builds of `Scripts/linux_tool_pins.txt`, refuses a wrong sha256, and is red
+  for another version, a tool with no pin, an empty list or another CPU.
 - **Go toolchain pin self-test** (`Scripts/test_go_toolchain.sh`):
   `Scripts/go_toolchain.sh` prints go.mod's `toolchain` version and is red
   without one.

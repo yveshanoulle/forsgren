@@ -47,6 +47,7 @@ run report shows how many checks each of them ran.
 - npm manifest policy self-test (`Scripts/test_check_guardrail_packages.sh`, pre)
 - npm manifest policy (`Scripts/check_guardrail_packages.sh`, pre)
 - tool install self-test (`Scripts/test_install_tools.sh`, pre)
+- Linux tool install self-test (`Scripts/test_install_tools_linux.sh`, pre)
 - npm install sync self-test (`Scripts/test_npm_sync_install.sh`, pre)
 - site-settings self-test (`Scripts/test_lib_site_settings.sh`, pre)
 - HTMLHint self-test (`Scripts/test_gate_htmlhint.sh`, pre)

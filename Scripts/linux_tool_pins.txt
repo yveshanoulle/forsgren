@@ -1,0 +1,49 @@
+# Scripts/linux_tool_pins.txt (forsgren#427)
+#
+# The Linux build of each tool the Lint gates job needs, pinned. Read by
+# Scripts/install_tools_linux.sh. One row per field of a tool:
+#
+#   <tool>|<field>|<value>
+#
+#   version  the version the tool must report after it is installed
+#   kind     archive, or pip (yamllint is Python, with no standalone binary)
+#   release  archive: the release's download directory (a URL)
+#   file     archive: the x86_64 Linux file in it; release/file is downloaded
+#   source   pip: a requirements file with --hash lines
+#   sha256   archive only: the sha256 of that file. Nothing is installed
+#            when the checksum differs.
+#   member   archive only: the path of the tool inside the .tar.gz
+#
+# VERSIONS equal what Homebrew installs on the Mac today (read with
+# `brew list --versions`, 2026-10-26): actionlint 1.7.12, shellcheck 0.11.0,
+# yamllint 1.38.0, zizmor 1.31.1. No gate compares a version, but one version
+# on both machines means a finding on CI is a finding in sfl. A bump is made
+# here and in Homebrew's formula's time, deliberately.
+#
+# CHECKSUMS. actionlint: the project's published actionlint_1.7.12_checksums.txt
+# (the value below is its linux_amd64 line, and the downloaded file matched).
+# shellcheck and zizmor publish no checksum file: the values below are the
+# sha256 of the release file as downloaded from the project's GitHub release
+# when this file was written, so a later change of the file behind the URL is
+# refused. PyPI's hashes are in Scripts/linux_yamllint_requirements.txt.
+shellcheck|version|0.11.0
+shellcheck|kind|archive
+shellcheck|release|https://github.com/koalaman/shellcheck/releases/download/v0.11.0
+shellcheck|file|shellcheck-v0.11.0.linux.x86_64.tar.gz
+shellcheck|sha256|b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6
+shellcheck|member|shellcheck-v0.11.0/shellcheck
+actionlint|version|1.7.12
+actionlint|kind|archive
+actionlint|release|https://github.com/rhysd/actionlint/releases/download/v1.7.12
+actionlint|file|actionlint_1.7.12_linux_amd64.tar.gz
+actionlint|sha256|8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+actionlint|member|actionlint
+zizmor|version|1.31.1
+zizmor|kind|archive
+zizmor|release|https://github.com/zizmorcore/zizmor/releases/download/v1.31.1
+zizmor|file|zizmor-x86_64-unknown-linux-gnu.tar.gz
+zizmor|sha256|d185f726bdaf92df78273217dfdd24ebcd6b0ef48cf3ce776ff5762b6e138c99
+zizmor|member|zizmor
+yamllint|version|1.38.0
+yamllint|kind|pip
+yamllint|source|Scripts/linux_yamllint_requirements.txt
