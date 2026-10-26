@@ -15,6 +15,12 @@
    "minScore": 9.0
   },
   {
+   "path": "internal/metrics/mainlinelead.go",
+   "score": 9.09,
+   "checkedAt": "2026-10-26",
+   "minScore": 9.0
+  },
+  {
    "path": "internal/collect/cutshort_test.go",
    "score": 9.38,
    "checkedAt": "2026-10-23",
@@ -102,6 +108,12 @@
    "path": "cmd/forsgren/checkneeds_denied_test.go",
    "score": 9.68,
    "checkedAt": "2026-10-25",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/metrics/mainlinelead_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-26",
    "minScore": 9.58
   },
   {
@@ -2248,6 +2260,12 @@
   },
   {
    "path": "cmd/forsgren/render_fixture_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/mainlineleadstates_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-26",
    "minScore": 10.0

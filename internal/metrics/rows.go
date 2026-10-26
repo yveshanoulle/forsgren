@@ -77,6 +77,9 @@ type Data struct {
 	PushCommits       []history.PushCommit
 	PushesDenied      history.Reach
 	PushesUncollected bool
+	// PullCommits are the commits of the merged pull requests of
+	// data/pull_commits.csv, for Mainline Lead Time (forsgren#463).
+	PullCommits []history.PullCommit
 	// WorkingHours is the hours of a working day, which sets where the
 	// deployment frequency bands begin (forsgren#71).
 	WorkingHours int
