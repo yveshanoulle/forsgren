@@ -179,26 +179,40 @@ func wantClosed(t *testing.T, fake *recordingIssueServer) {
 func TestCheckNeedsFailsOnADeniedFileItCannotRead(t *testing.T) {
 	t.Setenv("GITHUB_REPOSITORY", "acme/data")
 	eachRefusedRead(t, func(t *testing.T, r refusedRead) {
-		fake := newRecordingIssueServer(t, "open", needs.Marker+"\n\n- [ ] "+r.job)
-		setVersion(t, "0.4.0")
-		t.Setenv("GITHUB_TOKEN", testToken)
-		installationWithIssuesWrite(t)
-		if err := os.WriteFile("bad.csv", []byte("not a denied file\n"), 0o600); err != nil {
-			t.Fatal(err)
-		}
-		code, stdout, stderr := runCommand("check-needs", "--config", "forsgren.config.yml",
-			"--repository", "acme/data", r.flag, "bad.csv")
+		code, got, writes := checkNeedsWithCorruptDenied(t, r)
 		if code != 0 {
 			t.Errorf("want exit 0, got %d", code)
 		}
-		got := stdout + stderr
-		for _, want := range []string{"check-needs: failed", "the refused " + r.noun + " reads are unknown", "bad.csv"} {
-			if !strings.Contains(got, want) {
-				t.Errorf("want %q in %q", want, got)
-			}
-		}
-		if len(fake.writes) != 0 {
-			t.Errorf("want the setup issue left as it is, got %q", fake.writes)
+		wantAllIn(t, got, "check-needs: failed", "the refused "+r.noun+" reads are unknown", "bad.csv")
+		if len(writes) != 0 {
+			t.Errorf("want the setup issue left as it is, got %q", writes)
 		}
 	})
+}
+
+// checkNeedsWithCorruptDenied runs check-needs with r's flag naming a file in
+// no known format, against an open setup issue that carries r's item. It
+// returns the exit code, stdout and stderr together, and the issue writes.
+func checkNeedsWithCorruptDenied(t *testing.T, r refusedRead) (int, string, []string) {
+	t.Helper()
+	fake := newRecordingIssueServer(t, "open", needs.Marker+"\n\n- [ ] "+r.job)
+	setVersion(t, "0.4.0")
+	t.Setenv("GITHUB_TOKEN", testToken)
+	installationWithIssuesWrite(t)
+	if err := os.WriteFile("bad.csv", []byte("not a denied file\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr := runCommand("check-needs", "--config", "forsgren.config.yml",
+		"--repository", "acme/data", r.flag, "bad.csv")
+	return code, stdout + stderr, fake.writes
+}
+
+// wantAllIn fails t unless got has every one of wants.
+func wantAllIn(t *testing.T, got string, wants ...string) {
+	t.Helper()
+	for _, want := range wants {
+		if !strings.Contains(got, want) {
+			t.Errorf("want %q in %q", want, got)
+		}
+	}
 }
