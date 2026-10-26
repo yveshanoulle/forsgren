@@ -9,7 +9,24 @@ Active work lives in
 
 ---
 
-## 2026-10-25 — Scripts/release_check.sh runs the release plan's rules locally before the last FBP of a release ([#445](https://github.com/yveshanoulle/forsgren/issues/445), 1 step)
+## 2026-10-25 — One function builds every TBD table row, with all its measures ([#422](https://github.com/yveshanoulle/forsgren/issues/422), step 2 of 5)
+
+forsgren issue 422, step 2: decisions #449 (A), #450 (A). The page is not switched to it yet (step 4), so no golden changes.
+
+- `metrics.TbdRows(projects, data, now, groups)` (`internal/metrics/tbdrows.go`): the rows and the order of `Rows` (each project's total, then its label rows by name ignoring case), as `TbdRow{Level, Name, Project, Interval, Lead, Developers, Push, Deploy, Volume, IntervalAbsent, PushAbsent}`, instead of the parallel slices the page pairs by position.
+- The total row has every measure over all of its project's data, each commit once at its first deployment of any service. A repository's label row is a project of that one repository with every measure. A service's label row has its own Time to deploy, Deployments, Commits per deployment and Developers, over the deployments of its task and the commits they shipped (`Data.ofTask`); the Mainline Interval and the push and pull request measures (Time to main, PR Lead Time, Commits, Pushes, Commits per push, the four shares) are empty and marked `IntervalAbsent` and `PushAbsent`, for the page to show a dash in step 4.
+- Red first, seen failing at runtime against a stub returning no rows: `TestTbdRowsAreTotalsThenLabelsLikeTheDoraTable`, `TestAServiceTbdRowCountsItsOwnDeployments`, `TestTheTotalTbdRowCountsACommitOnceAtItsFirstDeploymentOfAnyService` and `TestARepositoryLabelTbdRowIsAOneRepositoryProject`.
+- Coverage: five rows in `coverage_thresholds.json`, 100.0 each. CodeScene: `tbdrows.go` and `tbdrows_test.go` 10.0.
+
+Steps left: 3 no-data and names; 4 page and goldens; 5 fixture with services; 6 docs with the release's docs issue.
+
+Signed: Lenka B
+
+- Lenka B
+
+---
+
+# 2026-10-25 — Scripts/release_check.sh runs the release plan's rules locally before the last FBP of a release ([#445](https://github.com/yveshanoulle/forsgren/issues/445), 1 step)
 
 forsgren issue 445, tools, no release of its own. `Scripts/release_check.sh` runs the Release workflow's own `release_plan.sh` with `auto --all` on the maintainer's machine (no second copy of its rules): a closed issue since the last release tag without `patch`, `minor`, `major` or `tools`, an open non-tools issue named by `#N` in a commit subject, nothing closed and the bump the labels require are findings, and it adds one the plan does not make, a commit on main since the tag whose subject is `*** RED ****` alone, naming the issue its body names. One line per finding and exit 1, else `release check: OK, bump=<kind>`; read-only. `Scripts/test_release_check.sh` (order-file row) uses the plan's seams and six mutation proofs; `docs/updating-and-releases.md` and `CLAUDE.md` say to run it before the last FBP of a release.
 
