@@ -36,6 +36,22 @@ PYTHON3="${PYTHON3:-python3}"
 ARCH="${INSTALL_TOOLS_ARCH:-$(uname -m)}"
 BIN="${INSTALL_TOOLS_BIN:-${RUNNER_TEMP:-/tmp}/pinned-tools/bin}"
 
+WORK="$(mktemp -d)"
+# The trap is set before any check, so every exit, a refusal included, cleans up.
+# COMPLETED is the last statement of a finished run. The trap turns an abort
+# that would otherwise end with exit 0 (bash 3.2 under set -e) into exit 1.
+COMPLETED=0
+cleanup() {
+  local rc=$?
+  rm -rf "$WORK"
+  if [ "$COMPLETED" -ne 1 ]; then
+    echo "❌ FAIL: the Linux tool install aborted before completing" >&2
+    [ "$rc" -ne 0 ] || rc=1
+    exit "$rc"
+  fi
+}
+trap cleanup EXIT
+
 die() {
   echo "❌ FAIL: $*" >&2
   exit 1
@@ -87,20 +103,6 @@ pin_get() {
   done < "$PINS_FILE"
 }
 
-WORK="$(mktemp -d)"
-# COMPLETED is the last statement of a finished run. The trap turns an abort
-# that would otherwise end with exit 0 (bash 3.2 under set -e) into exit 1.
-COMPLETED=0
-cleanup() {
-  local rc=$?
-  rm -rf "$WORK"
-  if [ "$COMPLETED" -ne 1 ]; then
-    echo "❌ FAIL: the Linux tool install aborted before completing" >&2
-    [ "$rc" -ne 0 ] || rc=1
-    exit "$rc"
-  fi
-}
-trap cleanup EXIT
 mkdir -p "$BIN"
 
 install_archive() {
