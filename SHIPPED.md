@@ -9,6 +9,16 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — release_check.sh no longer flags a RED commit that a green commit replaced ([#458](https://github.com/yveshanoulle/forsgren/issues/458), 1 step)
+
+forsgren issue 458, tools issue, no release. `Scripts/release_check.sh` reported every `*** RED ****` commit since the tag, also those with a green commit of the same issue on top. A RED commit is now a finding only when no later commit since the tag has a subject naming the issue its body names (`#394` does not match `#3940`); a RED whose body names no issue stays a finding.
+
+- Red first in `Scripts/test_release_check.sh`: a RED followed by a green of the same issue (no finding), followed by a green of another issue or of a longer number, and after the last green of its issue (all findings); a mutation proof for the later-commit rule.
+
+Signed: Lenka B
+
+---
+
 ## 2026-10-26 — The fixture site has a service and a repository label, so the sub-rows show end to end ([#422](https://github.com/yveshanoulle/forsgren/issues/422), step 5 of 5)
 
 forsgren issue 422, step 5.

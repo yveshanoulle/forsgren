@@ -16,7 +16,9 @@
 #   - nothing closed since the tag, a bump the labels do not allow, a major
 #     without the agent proofs,
 # and, which the plan does not say, every commit on main since the tag whose
-# subject is `*** RED ****` alone, naming the issue its body names.
+# subject is `*** RED ****` alone, naming the issue its body names, and no later
+# commit since the tag has a subject naming that issue (forsgren#458: a green
+# commit on top replaces the red; a red whose body names no issue stays a finding).
 #
 # Exit 0: `release check: OK, bump=<kind>` (the bump the labels require; none
 # when only tools issues were closed, the plan's release=none).
@@ -83,9 +85,10 @@ log_since() {
 }
 
 # red_findings <tag>: a finding per commit whose subject is `*** RED ****`
-# alone, naming the issue its body names.
+# alone, unless a later commit (earlier in the log, which is newest first) has
+# a subject naming the issue its body names.
 red_findings() {
-  local log rec sha rest subject body issue
+  local log rec sha rest subject body issue number later=""
   log="$(log_since "$1")" || { finding "git could not read the commits since ${1}"; return; }
   while IFS= read -r -d $'\036' rec; do
     rec="${rec#"${rec%%[!$'\n']*}"}"
@@ -94,9 +97,13 @@ red_findings() {
     rest="${rec#*$'\037'}"
     subject="${rest%%$'\037'*}"
     body="${rest#*$'\037'}"
-    [ "$subject" = "*** RED ****" ] || continue
+    if [ "$subject" != "*** RED ****" ]; then later+="${subject}"$'\n'; continue; fi
     issue="no issue"
-    if [[ "$body" =~ \#([0-9]+) ]]; then issue="#${BASH_REMATCH[1]}"; fi
+    if [[ "$body" =~ \#([0-9]+) ]]; then
+      number="${BASH_REMATCH[1]}"
+      issue="#${number}"
+      if [[ "$later" =~ \#${number}([^0-9]|$) ]]; then continue; fi
+    fi
     finding "commit ${sha} on main since ${1} is a *** RED **** commit alone, its body names ${issue}: the red was never replaced by a green commit"
   done <<< "$log"
 }

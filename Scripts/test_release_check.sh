@@ -17,7 +17,10 @@
 #   4. a commit whose subject is `*** RED ****` alone -> one line naming the
 #      commit and the issue its body names (`no issue` when it names none),
 #      exit 1; a subject that holds more than the marker, and a body that
-#      mentions the marker, are no finding
+#      mentions the marker, are no finding; a RED followed (later on main) by
+#      a commit whose subject names the issue its body names is no finding
+#      (forsgren#458), a RED alone, one followed only by a commit of another
+#      issue, or one after the last commit of its issue still is
 #   5. several findings at once -> one line each, exit 1
 #   6. only tools issues closed -> OK, bump=none; nothing closed -> a finding
 #   7. read-only: the working tree is as it was; arguments -> usage, exit 2;
@@ -121,6 +124,19 @@ want_red "a RED commit whose body names no issue" "its body names no issue"
 log abc1234 "${RED} forsgren#5: fix" 'forsgren#5: fix' def5678 'forsgren#5: fix' "this one once was a ${RED} commit, forsgren#394"
 run "$CHECK"
 want_green "a subject that holds more than the marker, a body that mentions it" "release check: OK, bump=patch"
+# the log is newest first: a later commit stands above the RED one
+log def5678 'forsgren#394 (3/3): a project with no data' '' abc1234 "$RED" 'forsgren#394 (2/3): x'
+run "$CHECK"
+want_green "a RED commit followed by a green commit of the same issue" "release check: OK, bump=patch"
+log def5678 'forsgren#395: another issue' '' abc1234 "$RED" 'forsgren#394: x'
+run "$CHECK"
+want_red "a RED commit followed by a green commit of another issue" "${RED} commit alone, its body names #394"
+log def5678 'forsgren#3940: a longer number' '' abc1234 "$RED" 'forsgren#394: x'
+run "$CHECK"
+want_red "a RED commit followed by a commit of an issue that merely starts with its number" "its body names #394"
+log abc1234 "$RED" 'forsgren#394: x' def5678 'forsgren#394: older green' ''
+run "$CHECK"
+want_red "a RED commit after the last green commit of its issue" "its body names #394"
 
 # 5
 data "$(issue 5 'Fix the thing' patch)" "$(issue 31 'Forgot the label' '')"
@@ -168,15 +184,19 @@ if mutant_runs nored 's/^if \[ -n "[$]TAG" \]; then red_findings "[$]TAG"; fi$/:
 fi
 log abc1234 "${RED} forsgren#5: fix" 'forsgren#5: fix'
 HOLDS_EXPR="$(cat <<'SED'
-s/\[ "[$]subject" = "[*][*][*] RED [*][*][*][*]" \] || continue/[[ "$subject" == *RED* ]] || continue/
+s/if \[ "[$]subject" != "[*][*][*] RED [*][*][*][*]" \]; then/if [[ "$subject" != *RED* ]]; then/
 SED
 )"
 if mutant_runs holds "$HOLDS_EXPR"; then
   want_red "mutation proof: a subject that merely holds the marker is taken for the marker alone" "is a ${RED} commit alone"
 fi
 log abc1234 "$RED" 'forsgren#394: x'
-if mutant_runs noissue 's/issue="#[$]{BASH_REMATCH\[1\]}"/issue="no issue"/'; then
+if mutant_runs noissue 's/issue="#[$]{number}"/issue="no issue"/'; then
   want_red "mutation proof: the issue of the RED body is not named" "its body names no issue"
+fi
+log def5678 'forsgren#394: green' '' abc1234 "$RED" 'forsgren#394: x'
+if mutant_runs nolater 's/^      if \[\[ "[$]later" =~ .*; then continue; fi$/      :/'; then
+  want_red "mutation proof: a green commit after the RED one does not replace it" "its body names #394"
 fi
 log
 data "$(issue 31 'Forgot the label' '')"
