@@ -45,6 +45,8 @@ func websiteRow(total metrics.TbdRow) metrics.TbdRow {
 		TimeToMain: metrics.DurationSpread{Count: 12, Mean: 20 * time.Minute, Median: 10 * time.Minute,
 			P90: time.Hour},
 		PerPush: metrics.CountSpread{Count: 7, Mean: 1.7, Median: 1, P90: 3}}
+	site.MainLead = metrics.MainlineLeadTime{Project: "Website", Commits: 7, UnknownPushes: 1,
+		Lead: metrics.DurationSpread{Count: 7, Mean: 90 * time.Minute, Median: time.Hour, P90: 0}}
 	site.Deploy.TimeToDeploy = metrics.DurationSpread{Count: 12, Mean: time.Hour, Median: 45 * time.Minute,
 		P90: 4 * time.Hour}
 	site.Deploy.PerDeployment = metrics.CountSpread{Count: 9, Mean: 1.3, Median: 1, P90: 3}
