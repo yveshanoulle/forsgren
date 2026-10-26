@@ -124,8 +124,10 @@ was seen and no claim about what works:
 Each item ends with where it comes from and when it goes: it goes away on the
 next run after a read of the repository worked, because `collect` then removes
 its line. The item names the token by its name only, never its value. A file
-that is in no known format is a note on stderr and no item; a missing file
-notes no refusal.
+that is in no known format fails the check (forsgren#395): the note on stderr
+names the file, the status is `failed` and the setup issue is left as it is,
+neither written nor closed, because the refusal may still stand; a missing
+file notes no refusal.
 
 **A refused push read** (forsgren#414). `--pushes-denied` is the file
 `collect` noted the refused push reads in, `data/pushes_denied.csv` unless the

@@ -85,17 +85,13 @@ func checkNeedsFlags(args []string, stderr io.Writer) (checkNeedsOptions, bool) 
 // renewal item when the expiry date collect wrote is near (renewalNeed),
 // prints their steps, writes the setup issue and returns how that went:
 // failed, with a note on stderr, when the running version's needs cannot be
-// read or the client cannot be made.
+// read, a file of refused reads cannot be read (the setup issue is then left
+// as it is, forsgren#395) or the client cannot be made.
 func reportNeeds(o checkNeedsOptions, stdout, stderr io.Writer) string {
-	missing, err := missingNeeds("check-needs", o.config, stderr)
+	missing, known, err := gatherNeeds(o, stderr)
 	if err != nil {
 		return noteFailed(stderr, err)
 	}
-	expiry, known := readTokenExpiry(o.tokenExpiry)
-	if n, near := renewalNeed(expiry, now()); known && near {
-		missing = append(missing, n)
-	}
-	missing = append(missing, refusedNeeds(o.pullsDenied, o.pushesDenied, stderr)...)
 	for _, n := range missing {
 		_, _ = fmt.Fprintln(stdout, n.Steps)
 	}
@@ -104,6 +100,24 @@ func reportNeeds(o checkNeedsOptions, stdout, stderr io.Writer) string {
 		return noteFailed(stderr, err)
 	}
 	return writeSetup(setupReport{issues: client, repo: o.repository, version: runningVersion()}, missing, known, stderr)
+}
+
+// gatherNeeds are the needs missing from the checkout, the token's renewal
+// item when its expiry date is near and an item for each refused read, with
+// whether the token's expiry date is known. The error is that of the needs
+// of the running version, or of a file of refused reads that cannot be read
+// (forsgren#395): none of them may be taken for no needs.
+func gatherNeeds(o checkNeedsOptions, stderr io.Writer) ([]needs.Need, bool, error) {
+	missing, err := missingNeeds("check-needs", o.config, stderr)
+	if err != nil {
+		return nil, false, err
+	}
+	expiry, known := readTokenExpiry(o.tokenExpiry)
+	if n, near := renewalNeed(expiry, now()); known && near {
+		missing = append(missing, n)
+	}
+	refused, err := refusedNeeds(o.pullsDenied, o.pushesDenied)
+	return append(missing, refused...), known, err
 }
 
 // writeSetup writes the setup issue for the missing needs, looking it up

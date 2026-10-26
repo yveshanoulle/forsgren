@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — A corrupt pulls_denied.csv or pushes_denied.csv no longer closes the setup issue's refused-read items ([#395](https://github.com/yveshanoulle/forsgren/issues/395), 1 step)
+
+forsgren issue 395, bug, patch release. `check-needs` used to print a note on stderr and build no refused-read items when `--pulls-denied` or `--pushes-denied` named a file in no known format, so an open setup issue that carried the items closed although the refusal might still stand. A failed operation fails: `refusedNeeds` and `refusedItems` (`cmd/forsgren/deniedneeds.go`) now return the error, naming the read and the file, and `reportNeeds` (via the new `gatherNeeds`) notes it on stderr, writes and closes nothing and returns the status `failed`. A missing file still notes no refusal. `CLAUDE.md` and `docs/updating-and-releases.md` say so.
+
+---
+
 ## 2026-10-25 — One function builds every TBD table row, with all its measures ([#422](https://github.com/yveshanoulle/forsgren/issues/422), step 2 of 5)
 
 forsgren issue 422, step 2: decisions #449 (A), #450 (A). The page is not switched to it yet (step 4), so no golden changes.

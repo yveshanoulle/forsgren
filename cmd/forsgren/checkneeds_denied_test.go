@@ -172,24 +172,33 @@ func wantClosed(t *testing.T, fake *recordingIssueServer) {
 	}
 }
 
-// TestCheckNeedsNotesADeniedFileItCannotRead: a file in no known format is a
-// note on stderr, never a failure, and makes no item.
-func TestCheckNeedsNotesADeniedFileItCannotRead(t *testing.T) {
+// TestCheckNeedsFailsOnADeniedFileItCannotRead: a file in no known format
+// fails the check, named on stderr, with the status failed (forsgren#395):
+// the open setup issue that carried the item is neither written nor closed,
+// as the refusal may still stand.
+func TestCheckNeedsFailsOnADeniedFileItCannotRead(t *testing.T) {
+	t.Setenv("GITHUB_REPOSITORY", "acme/data")
 	eachRefusedRead(t, func(t *testing.T, r refusedRead) {
-		fake := newSetupServer(t, 201)
+		fake := newRecordingIssueServer(t, "open", needs.Marker+"\n\n- [ ] "+r.job)
 		setVersion(t, "0.4.0")
 		t.Setenv("GITHUB_TOKEN", testToken)
 		installationWithIssuesWrite(t)
 		if err := os.WriteFile("bad.csv", []byte("not a denied file\n"), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		code, _, stderr := runCommand("check-needs", "--config", "forsgren.config.yml",
+		code, stdout, stderr := runCommand("check-needs", "--config", "forsgren.config.yml",
 			"--repository", "acme/data", r.flag, "bad.csv")
-		if code != 0 || !strings.Contains(stderr, "the refused "+r.noun+" reads are unknown") {
-			t.Errorf("want exit 0 and a note, got %d, %q", code, stderr)
+		if code != 0 {
+			t.Errorf("want exit 0, got %d", code)
 		}
-		if len(fake.posts) != 0 {
-			t.Errorf("want no issue, got %q", fake.posts)
+		got := stdout + stderr
+		for _, want := range []string{"check-needs: failed", "the refused " + r.noun + " reads are unknown", "bad.csv"} {
+			if !strings.Contains(got, want) {
+				t.Errorf("want %q in %q", want, got)
+			}
+		}
+		if len(fake.writes) != 0 {
+			t.Errorf("want the setup issue left as it is, got %q", fake.writes)
 		}
 	})
 }
