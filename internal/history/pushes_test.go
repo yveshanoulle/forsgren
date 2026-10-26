@@ -2,7 +2,6 @@ package history
 
 import (
 	"path/filepath"
-	"slices"
 	"testing"
 	"time"
 )
@@ -24,10 +23,7 @@ func push(hours int) Push {
 // wantPushes fails unless the pushes at path are want, in file order.
 func wantPushes(t *testing.T, path string, want []Push) {
 	t.Helper()
-	got, err := LoadPushes(path)
-	if err != nil || !slices.Equal(got, want) {
-		t.Errorf("want %v, got %v, %v", want, got, err)
-	}
+	wantLoaded(t, path, LoadPushes, want)
 }
 
 // TestAPushIsWrittenOnceByRepositoryAfterAndTime (forsgren#397, step 2):

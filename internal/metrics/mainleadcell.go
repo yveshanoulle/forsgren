@@ -33,12 +33,4 @@ func (m MainlineLeadTime) Notes() []Note {
 // State is PushesNotReadable for a project whose push read was refused,
 // PushesNotCollected when no push has been collected, else empty: the same
 // words as the push measures', since the lead time is read from the pushes.
-func (m MainlineLeadTime) State() string {
-	switch {
-	case m.NotReadable:
-		return PushesNotReadable
-	case m.Uncollected:
-		return PushesNotCollected
-	}
-	return ""
-}
+func (m MainlineLeadTime) State() string { return pushState{m.NotReadable, m.Uncollected}.words() }

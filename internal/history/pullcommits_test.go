@@ -2,7 +2,6 @@ package history
 
 import (
 	"path/filepath"
-	"slices"
 	"testing"
 	"time"
 )
@@ -23,10 +22,7 @@ func pullCommit() PullCommit {
 // wantPullCommits fails unless the pull commits at path are want.
 func wantPullCommits(t *testing.T, path string, want []PullCommit) {
 	t.Helper()
-	got, err := LoadPullCommits(path)
-	if err != nil || !slices.Equal(got, want) {
-		t.Errorf("want %v, got %v, %v", want, got, err)
-	}
+	wantLoaded(t, path, LoadPullCommits, want)
 }
 
 // wantAppended fails unless appending c to the file at path stores n lines.

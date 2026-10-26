@@ -179,7 +179,8 @@ projects:
     the main branch brought (`data/pushes.csv`, `data/push_commits.csv`), their
     shares (direct, pull requests, unknown authors, bots), the time to main and
     the commits per push, the time to deploy and the commits per deployment
-    from the deployments, the PR Lead Time of merged human pull
+    from the deployments, the Mainline Lead Time of every commit that
+    reached main and its view, the PR Lead Time of merged human pull
     requests, the Mainline Interval and the number of developers
     (forsgren#397; see [The TBD page](pages-and-views.md#the-tbd-page)); the
     legend explains every group. Which figures each measure shows is the key
@@ -188,7 +189,7 @@ projects:
   TBD table shows for each measure. It takes one of two values, written as
   plain literals:
   - `median`: the median of each measure, one column each. This is the default.
-    In this mode PR Lead Time shows its median only.
+    In this mode PR Lead Time and Mainline Lead Time show their median only.
   - `all`: the mean, the median and the 90th percentile of each measure, under
     two rows of headers.
 

@@ -177,7 +177,7 @@ func (o Options) readPushes(ctx context.Context, h held, repo string) (pushesRea
 		if h.pushes[push.Key()] {
 			continue
 		}
-		counted, commits, err := o.countCommits(ctx, push)
+		counted, commits, err := o.comparePush(ctx, push)
 		if err != nil {
 			return read, truncated, err
 		}
@@ -193,11 +193,12 @@ func pushOf(repo string, a github.Activity) history.Push {
 		Kind: a.Kind, Bot: botOf(a.ActorType)}
 }
 
-// countCommits is p with the commits it added to the first-parent chain and
-// those commits, oldest first, or with none when the count cannot be told,
-// named on stderr. Only a rate limit or an error answer of GitHub is
+// comparePush is p with the count of the commits it added to the first-parent
+// chain, and every commit of its compare as lines of data/push_commits.csv
+// (pushCommitsOf), or with no count and no line when the count cannot be
+// told, named on stderr. Only a rate limit or an error answer of GitHub is
 // returned.
-func (o Options) countCommits(ctx context.Context, p history.Push) (history.Push, []history.PushCommit, error) {
+func (o Options) comparePush(ctx context.Context, p history.Push) (history.Push, []history.PushCommit, error) {
 	if p.Kind == github.ActivityForcePush {
 		o.warn("collect: %s: force push at %s (%s...%s); its commits column stays empty\n",
 			p.Repository, p.PushedAt.Format(time.RFC3339), p.Before, p.After)

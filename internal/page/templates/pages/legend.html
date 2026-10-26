@@ -108,13 +108,21 @@
     <p>It includes only merged pull requests opened by people. Pull requests opened by bots and changes pushed directly to main are not included. In a workflow that mixes both, this column covers only the changes that came through pull requests. Directly pushed changes are in the push columns, and the Direct share shows how many there are.</p>
     <p>When GitHub lists only part of the commits of a pull request, its first commit time may be too late, so the lead time is a lower bound (note 3). When no commit date can be read, the created time of the pull request stands in for the first commit time (note 4). Pull requests opened by bots are not counted (note 5).</p>
     <p>A project with no merged pull request from a person shows a dash. That is not proof of direct commits: it only says no such pull request was merged.</p>
-    <h3 id="tbd-mainline-lead-time">Mainline Lead Time (Why are there two lead times?)</h3>
-    <p>The Mainline Throughput Indicator has one lead time, the Mainline Lead Time. Measured on pull requests alone, it leaves out teams that push straight to main, and pushing straight to main is very much what trunk-based development is about. So this page shows the Mainline Lead Time as two numbers:</p>
+    <h3 id="tbd-mainline-lead-time">Mainline Lead Time (Why are there three lead times?)</h3>
+    <p>The Mainline Throughput Indicator has one lead time, the Mainline Lead Time. Measured on pull requests alone, it leaves out teams that push straight to main, and pushing straight to main is very much what trunk-based development is about. So this page shows the Mainline Lead Time in full, and two views of it:</p>
     <ul>
-      <li><strong>PR Lead Time</strong>, for work that goes through a pull request: from the first commit of the pull request to its merge.</li>
+      <li><strong>Mainline Lead Time</strong>, the full measure: every commit that reached main in the last {{.Window}} days, from its author date to the earliest push that brought it to main. It does not matter how the commit got there: pushed directly, brought by a merge commit, rebased or squashed.</li>
+      <li><strong>PR Lead Time</strong>, for work that goes through a pull request: from the first commit of the pull request to its merge. It is a view of the merged pull requests, and it counts people only.</li>
       <li><strong>Time to main</strong>, for the commits on the main line that a push brought to main, direct pushes included: from the author date of the commit to the push that brought it. The commits a merge brought in from a branch are not counted there; the merge commit is.</li>
     </ul>
-    <p>A team that works with pull requests reads PR Lead Time first. A team that pushes to main reads Time to main first. A team that works both ways has both.</p>
+    <p>A team that works with pull requests reads PR Lead Time first. A team that pushes to main reads Time to main first. A team that works both ways has both. Mainline Lead Time is the one number for all of it.</p>
+    <p>Mainline Lead Time and Time to main count different commits. The full measure leaves the merge commits themselves out: a merge commit is written at the moment of the merge, so its time would be about 0 and pull the figure down. The commits that the merge brought in from the branch stay, each from its own author date. Time to main keeps the merge commit and leaves the branch commits out. The conflict resolution inside a merge commit is not measured.</p>
+    <p>A squash merge replaces the commits of its pull request by one new commit, written at the moment of the merge. So Mainline Lead Time takes the commits of the pull request in place of the squash commit, each from its own author date, never both. A squash commit is detected when it has one parent, is the merge commit of its pull request and its push brought one commit. A squash inside a push of several commits is not detected, and counts as an ordinary commit.</p>
+    <p>The original commits of a squash count at the push of the squash commit. The merge time of the pull request never stands in for it: without that push, the originals are not counted at all.</p>
+    <p>Bots count in Mainline Lead Time, as in Time to main. PR Lead Time does not count them, so it covers another population. The Bots share shows how many commits come from bots.</p>
+    <p>Pushes whose commits are not known, such as a force push or a push with too many commits to read, are left out: their data is incomplete, so their commits are not counted, not even as 0 (note 6).</p>
+    <p>While the last {{.Window}} days still hold data from before this measure existed, the merge and squash branch commits of that time are missing, so the figure may read short (note 7). The note goes away by itself once the whole window lies after the change.</p>
+    <p>Its mean, median and p90 follow the same rules as the other spreads: a dash below two commits for the median and below ten for the p90, and a negative time counts as 0.</p>
     <h3 id="tbd-volume">Volume (How much work is integrated at once?)</h3>
     <p>Volume shows three numbers. Commits is the number of commits the pushes of the window brought to the main branch, each counted once. It is not every commit of the repository. Only the main line of a push counts, so a merge counts as its merge commit. Pushes is the number of pushes. Deployments is the number of successful deployments. A deployment is a GitHub release, a deployment to an environment or a run of a workflow, as the project is measured.</p>
     <p>Commits per push is how many commits reach main in each push. A push whose commits could not be counted, such as a force push, is left out.</p>
@@ -148,7 +156,7 @@
     <p>Push activity not readable means the token forsgren collects with was refused the read of the pushes of a repository of the project. Pull requests not readable means the token forsgren collects with was refused the pull request read. The affected cells say so. Deployment numbers are never shown in their place. Granting the permission and a later collection removes the message.</p>
     <p>Pushes not collected yet means no push has been collected yet. No pull requests have been collected yet means the collection has not read any pull request yet.</p>
     <h3 id="tbd-names">Where do the names come from?</h3>
-    <p>Mainline Interval and Mainline Lead Time are the two metrics of the Mainline Throughput Indicator. This page shows PR Lead Time for the work that goes through pull requests, and Time to main for every change, direct pushes included.</p>
+    <p>Mainline Interval and Mainline Lead Time are the two metrics of the Mainline Throughput Indicator. This page shows PR Lead Time for the work that goes through pull requests, and Time to main for every change, direct pushes included. The full Mainline Lead Time covers every commit that reached main.</p>
     <p>Time to main is described in its own part above. The table shows the median by default, so the figure is the median time to main.</p>
     <h3 id="tbd-notes">Notes</h3>
     <p>Below the table the list Notes, open by default, has one line for each kind of note that occurs, with the projects it applies to and their counts. The numbers are fixed, so they mean the same everywhere.</p>
@@ -158,6 +166,8 @@
       <li>(3) A lower bound: a first commit time of a pull request was cut. It applies to PR Lead Time.</li>
       <li>(4) Pull requests timed by their created time. It applies to PR Lead Time.</li>
       <li>(5) Bot pull requests not counted. It applies to PR Lead Time.</li>
+      <li>(6) Pushes left out: their commits are not known (incomplete data), not counted as 0. It applies to Mainline Lead Time.</li>
+      <li>(7) History still filling: merge and squash branch commits from before this version are missing. It applies to Mainline Lead Time.</li>
     </ul>
     <h3 id="tbd-reference">Where is the calculation explained?</h3>
     <p>The exact calculations are in the technical reference: <a href="https://forsgren.be/#documentation">the documentation</a>, Pages and views, the section The TBD page. It covers the main line, the author and committer dates, the percentiles and the least number of values each needs, the way durations are written, the push and pull request states and the configuration keys.</p>

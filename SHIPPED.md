@@ -9,6 +9,25 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — TBD: a Mainline Lead Time column, every commit from its author date until it is on main ([#463](https://github.com/yveshanoulle/forsgren/issues/463), steps 1–11)
+
+forsgren issue 463, minor.
+
+- The TBD table's second group, after Mainline Interval and before Time to main (Yves's placement): Mainline Lead Time, the median alone by default, mean / median / p90 with `tbd_figures: all`; 15 columns after the project, or 29. Total row and repository label rows each over their own pushes; a service row is part of the `Per repository: see the project row` run (decision #450). A refused push read or no push collected shows the push state, as Time to main.
+- The measure (`metrics.MainlineLeadTimesOf`): every distinct commit of the window's pushes, first-parent or not, at its earliest push (#466), its time in main minus its author date, a negative one 0. A merge commit itself is left out, its branch commits stay (#464); a squash commit (one parent, the only first-parent line of its push, the `merge_commit` of a pull request) is replaced by that pull request's commits, never both, and without a stored push its originals are left out, `merged_at` never stands in (#465, #466); bots count (#467); a push with no known commit count is left out, not counted as 0 (#468); no backfill (#469).
+- The PR measure is `PRLeadTime` in the code (files `prleadtime*.go`), freeing the name.
+- Data: `push_commits.csv` is the push commits format v2 (`first_parent`, `parents`; a v1 file is read as first-parent with unknown parents and rewritten by the first append); collect stores every commit of a whole compare, the branch commits `first_parent` false, while Time to main, the shares and commits per push still count the first-parent chain only; the new `data/pull_commits.csv` (pull commits format v1) holds each newly stored merged pull request's commits, written before `pulls.csv`, and the first commit time is the earliest of them; `github.FirstCommitTime` is gone (`PullCommits` reads the list); the data guard knows the file.
+- Notes: 6, pushes left out (wording #471), with the count; 7, history still filling (wording #472), set while the window holds a line of unknown parents or a merged pull request without pull commits, gone by itself once the window lies after the change.
+- The fixture site's TBD sideways baseline follows the 29 columns (decision #473 A).
+- Docs: the legend's Mainline Lead Time part now names three lead times and says why the full measure and Time to main count different commits, the squash rule, bots, notes 6 and 7; data-files.md (push commits v2, pull_commits.csv), pages-and-views.md, configuration.md, development.md and CLAUDE.md.
+- Left to #470: the historical fill (branch commits of stored merge pushes, commit lists of stored pull requests).
+- Step 11, refactor (structure only, goldens unchanged): `mainlinelead.go` 9.09 to 10.0 on CodeScene (the squash lookups in their own type, `take` split, the predicates named); the push state words and the windowed push walk shared with the push measures; collect's `readPull` / `pullLineOf` and `comparePush`; github's `commitHead` shared by the compare and the pull commit list.
+- Tested red first, seen failing at runtime, step by step; mutation proofs on the refactored measure, each seen red: the squash rule's one-parent, first-parent and alone-on-chain conditions, the earliest arrival, the created-stands-in exception of the filling flag, and the once-only count of merge commits and originals; goldens change by the new column, its notes and the legend only.
+
+Signed: Lenka B
+
+---
+
 ## 2026-10-26 — The TBD legend: headings name the term, two lead times explained, no claim of a source ([#460](https://github.com/yveshanoulle/forsgren/issues/460), 1 step)
 
 forsgren issue 460, patch (folds in #368).

@@ -40,22 +40,36 @@ func twoCommits() string {
 	return list(commitBy(shaD, "", "2026-09-21T10:00:00Z"), commitBy(shaE, "acme-dev", "2026-09-20T10:00:00Z"))
 }
 
+// twoCommitLines is pull_commits.csv once twoCommits is stored: oldest first.
+func twoCommitLines() string {
+	return pullCommitsHeader + linePullCommit(12, shaE, "acme-dev", "2026-09-20T10:00:00Z") +
+		linePullCommit(12, shaD, "", "2026-09-21T10:00:00Z")
+}
+
 // TestAMergedPullRequestWritesItsCommits (forsgren#463, step 6): each commit
 // of a merged pull request is a line of pull_commits.csv with its login (empty
 // for no account) and author date, oldest first; the pull request's own line
 // is what it was.
-func TestAMergedPullRequestWritesItsCommits(t *testing.T) {
+func TestAMergedPullRequestWritesItsCommits(t *testing.T) { wantTwoCommitsWritten(t, false) }
+
+// wantTwoCommitsWritten collects pull request 12 listing twoCommits, the list
+// paged and read up to one page when cut, and fails unless both commits are
+// written and the pull request's line says cut or not.
+func wantTwoCommitsWritten(t *testing.T, cut bool) {
+	t.Helper()
 	g := pullsOnly(t, pull12)
 	g.bodies[pull12.commitsPath()] = twoCommits()
+	maxPages := github.DefaultMaxPages
+	if cut {
+		g.paged[pull12.commitsPath()], maxPages = true, 1
+	}
 	path := historyPath(t)
-	if r := g.collect(t, shop(production), path, github.DefaultMaxPages); r.err != nil {
+	if r := g.collect(t, shop(production), path, maxPages); r.err != nil {
 		t.Fatalf("want no error, got %v (stderr %q)", r.err, r.stderr)
 	}
 	data := dataOf(path)
-	data.want(t, PullCommitsFile, pullCommitsHeader+
-		linePullCommit(12, shaE, "acme-dev", "2026-09-20T10:00:00Z")+
-		linePullCommit(12, shaD, "", "2026-09-21T10:00:00Z"))
-	data.want(t, "pulls.csv", pullsHeader+pull12.line("2026-09-20T10:00:00Z", false))
+	data.want(t, PullCommitsFile, twoCommitLines())
+	data.want(t, "pulls.csv", pullsHeader+pull12.line("2026-09-20T10:00:00Z", cut))
 }
 
 // TestABotsPullRequestWritesItsCommitsToo (decision #467): every commit
@@ -89,20 +103,7 @@ func TestAPullRequestWhoseCreatedTimeStandsInWritesNoCommits(t *testing.T) {
 
 // TestACutCommitListStoresTheCommitsItRead: a list cut at the page limit
 // writes the commits of the page read; the pulls line says it is cut.
-func TestACutCommitListStoresTheCommitsItRead(t *testing.T) {
-	g := pullsOnly(t, pull12)
-	g.bodies[pull12.commitsPath()] = twoCommits()
-	g.paged[pull12.commitsPath()] = true
-	path := historyPath(t)
-	if r := g.collect(t, shop(production), path, 1); r.err != nil {
-		t.Fatalf("want no error, got %v (stderr %q)", r.err, r.stderr)
-	}
-	data := dataOf(path)
-	data.want(t, PullCommitsFile, pullCommitsHeader+
-		linePullCommit(12, shaE, "acme-dev", "2026-09-20T10:00:00Z")+
-		linePullCommit(12, shaD, "", "2026-09-21T10:00:00Z"))
-	data.want(t, "pulls.csv", pullsHeader+pull12.line("2026-09-20T10:00:00Z", true))
-}
+func TestACutCommitListStoresTheCommitsItRead(t *testing.T) { wantTwoCommitsWritten(t, true) }
 
 // TestThePullCommitsAreWrittenBeforeThePulls: a pulls.csv that cannot be
 // written fails the repository after the commits are written, so a pull
@@ -119,9 +120,7 @@ func TestThePullCommitsAreWrittenBeforeThePulls(t *testing.T) {
 	if !errors.Is(r.err, ErrFailed) || !strings.Contains(r.stderr, "pulls.csv") {
 		t.Errorf("want ErrFailed and stderr naming pulls.csv, got %v, %q", r.err, r.stderr)
 	}
-	dataOf(path).want(t, PullCommitsFile, pullCommitsHeader+
-		linePullCommit(12, shaE, "acme-dev", "2026-09-20T10:00:00Z")+
-		linePullCommit(12, shaD, "", "2026-09-21T10:00:00Z"))
+	dataOf(path).want(t, PullCommitsFile, twoCommitLines())
 	dataOf(path).want(t, "pulls_read.csv", "")
 }
 

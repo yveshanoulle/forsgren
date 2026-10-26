@@ -801,7 +801,7 @@ it in the menu after Daily, "History"; `false` leaves it out.
 
 The TBD page (`tbd.html`, titled "Trunk-based development [TBD]", forsgren#253, forsgren#271, forsgren#409)
 shows, for each project and for each label or service of it (forsgren#422),
-how often and how fast work reaches the main branch and how it is deployed: the Mainline Interval, the time to main and the time
+how often and how fast work reaches the main branch and how it is deployed: the Mainline Interval, the Mainline Lead Time, the time to main and the time
 to deploy, the PR Lead Time, then the commits the pushes brought, the commits
 per push and per deployment, their shares and the Developers (forsgren#397,
 Yves's ruling on #401; the order of forsgren#418). It is listed
@@ -812,9 +812,10 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
 "TBD"; `false` leaves it out.
 
 - **The table.** A total row per project, then a row under it for each of
-  its labels and services (see *The rows* below), with the columns Project, then nine
-  groups in this order (forsgren#397, reordered by forsgren#418): *Mainline
-  Interval*; *Time to main per commit*; *Time to deploy per commit*; *PR Lead
+  its labels and services (see *The rows* below), with the columns Project, then ten
+  groups in this order (forsgren#397, reordered by forsgren#418; *Mainline Lead
+  Time* is the second, right after the Mainline Interval, forsgren#463): *Mainline
+  Interval*; *Mainline Lead Time*; *Time to main per commit*; *Time to deploy per commit*; *PR Lead
   Time* (the pull requests column alone); *Volume* (Commits, Pushes,
   Deployments); *Commits per push*; *Commits per deployment*; *Shares of
   commits* (Direct, PR, Unknown, Bots; forsgren#403 shortened the two headers,
@@ -822,14 +823,14 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
   count). The key `tbd_figures` (forsgren#423, see
   [Configuration](configuration.md#configuration)) chooses the figures:
   - `median`, the default: one column for each measure and one row of headers.
-    The table has 15 columns, the project and 14 more. The headers are the
+    The table has 16 columns, the project and 15 more. The headers are the
     plain names, such as *Time to main per commit*, with no (median) and no
     (duration) in them (forsgren#444); the median is in an `aria-label`, such
-    as "median time to main per commit". In this mode PR Lead Time shows its
+    as "median time to main per commit". In this mode PR Lead Time and Mainline Lead Time show their
     median only, and Mainline Interval its median.
   - `all`: the mean, the median and the p90 of each measure, under two rows of
     headers (every group header `scope="colgroup"`, mean, median and p90
-    beneath each measure). The table has 27 columns, wider than a phone, and
+    beneath each measure). The table has 30 columns, wider than a phone, and
     scrolls sideways inside its region (Yves accepted that on #401; the
     project screen, forsgren#91, may give the phone its own view). The stat
     headers carry the measure in an `aria-label`, such as "the mean of time to main".
@@ -844,7 +845,7 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
   is not shown is a dash in its own cell: a median below two values, a p90
   below ten, a mean without a value, a share without a commit. A project with
   fewer than two commits has a dash in its Mainline Interval cells. The mean
-  and the median of the Mainline Interval and of PR Lead Time have no
+  and the median of the Mainline Interval, of the Mainline Lead Time and of PR Lead Time have no
   deviation, count or share beside them any more (forsgren#423): what the
   count said is in the notes below the table.
 - **The rows** (forsgren#422, decisions #449, #450 and #451). `metrics.TbdRows`
@@ -862,9 +863,9 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     #449) and the pushes and pull requests (decision #450) name no service,
     so they are not the row's: one cell, `Per repository: see the project
     row`, stands across each run of those columns, not a dash in each. With
-    the median alone the four runs are 2 columns (Mainline Interval and Time
-    to main), 3 (PR Lead Time, Commits and Pushes), 1 (Commits per push) and 4
-    (the shares); with `all` they are 6, 5, 3 and 4.
+    the median alone the four runs are 3 columns (Mainline Interval, Mainline
+    Lead Time and Time to main), 3 (PR Lead Time, Commits and Pushes), 1
+    (Commits per push) and 4 (the shares); with `all` they are 9, 5, 3 and 4.
   - *The order and the header.* The rows under a project are sorted by label,
     ignoring case, as on the other tables. A label or service row is
     `class="label"`, its header is the label alone and the project is in a
@@ -888,6 +889,19 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
   4. Pull requests timed by their created time: the created time stands in for
      a first commit time.
   5. Bot pull requests not counted.
+  6. Pushes left out: their commits are not known (incomplete data), not
+     counted as 0. It sits on the Mainline Lead Time, with the number of
+     pushes of the window whose commits are unknown (a cut or failed compare, a
+     force push; forsgren#463, decision #468).
+  7. History still filling: merge and squash branch commits from before this
+     version are missing (decision #469; wording decision #472), so the
+     Mainline Lead Time may read short. It sits on the Mainline Lead Time, with
+     no count, and is listed with the project. It goes away by itself once the
+     whole `dora_days` window lies after the first collection in the new
+     formats: the window holds no push with a commit of unknown parents (the
+     push commits written before format v2) and no merged pull request, not
+     timed by its created time, without lines in `data/pull_commits.csv`. The
+     historical fill is a separate issue (no backfill in #463).
 
   The notes are the same in both modes: the marker sits on the mean cell when
   the table shows all three figures, and on the median cell when it shows the
@@ -914,15 +928,53 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     shows PR Lead Time for the work that goes through pull requests, and Time
     to main for every change, direct pushes included; with the median by
     default the figure is the median time to main.
-  - *Two lead times* (forsgren#460). The Mainline Throughput Indicator has one
-    lead time, the Mainline Lead Time. Measured on pull requests alone, it
-    leaves out teams that push straight to main, so the page shows it as two
-    numbers: PR Lead Time, from the first commit of a pull request to its
-    merge, and Time to main, from the author date of a commit on the main line
-    to the push that brought it, direct pushes included. A merge counts as its
-    merge commit in Time to main, not as the commits it brought in from a
-    branch. Time to main is the stretch of a change's lead time from its commit
-    to the main branch.
+  - *Three lead times* (forsgren#460, forsgren#463). The Mainline Throughput
+    Indicator has one lead time, the Mainline Lead Time. Measured on pull
+    requests alone, it leaves out teams that push straight to main, so the page
+    shows it in full and as two views: PR Lead Time, from the first commit of a
+    pull request to its merge (people only), and Time to main, from the author
+    date of a commit on the main line to the push that brought it, direct
+    pushes included. A merge counts as its merge commit in Time to main, not
+    as the commits it brought in from a branch. Time to main is the stretch of
+    a change's lead time from its commit to the main branch.
+  - *Mainline Lead Time* (forsgren#463), the full measure, the second group
+    after the Mainline Interval. It reads `data/pushes.csv`,
+    `data/push_commits.csv` and `data/pull_commits.csv`
+    ([Data files](data-files.md#history)). Every commit that reached main in
+    the DORA window counts once, whether it was pushed directly, brought by a
+    merge commit, rebased or squashed: its time in main minus its author date,
+    a negative time counted as 0, with the median alone or the mean, median
+    and p90 under `tbd_figures: all` (the median needs two commits, the p90
+    ten, as every spread). The rules, by the decisions that made them:
+    - *Merge commits are left out* (#464): a commit with two parents or more.
+      Its branch commits stay. So it counts other commits than Time to main,
+      which keeps the merge commit and leaves the branch commits out. A merge
+      commit's own conflict resolution is not measured. A line whose parents
+      are unknown (a push commit stored before format v2) counts.
+    - *A squash commit is replaced by its pull request's commits* (#465): the
+      commit has one parent, is the pull request's `merge_commit` in
+      `data/pulls.csv` (not just any `pr_merge` push) and is the only
+      first-parent commit its push brought. The pull request's commits from
+      `data/pull_commits.csv` then stand in for it, never both, each from its
+      own author date, never the squash commit's. A squash inside a push of
+      several first-parent commits stays unrecognised and counts as an ordinary
+      commit; so does a squash whose pull request has no stored pull commits.
+    - *In-main time* (#466): the earliest push that brought the commit. The
+      originals of a squash arrive at the push of the squash commit; with no
+      stored push of it they are left out, and `merged_at` never stands in.
+    - *Bots count* (#467), as in Time to main. PR Lead Time counts people
+      only, so the two cover another population; the Bots share gives context.
+    - *Unknown pushes* (#468): a push of the window whose commit count is
+      unknown (a cut or failed compare, a force push) brings no commits; note
+      (6) gives their number and says they are left out because the data is
+      incomplete, not counted as 0.
+    - *History* (#469): no backfill. Merge and squash branch commits from
+      before the change are missing; note (7) says so while the window still
+      holds such data.
+    A project whose push read was refused or not collected shows the push
+    states (`Push activity not readable`, `Pushes not collected yet`) in its
+    cells, the same words as the push groups. A service row has none of it
+    (`Per repository: see the project row`).
   - *Time to deploy per commit.* For every commit of the first-parent chain of
     the deployments created in the window (merge commits of pull requests
     included, no longer only the direct ones), each at its earliest

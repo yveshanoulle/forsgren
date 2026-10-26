@@ -178,7 +178,7 @@ func (o Options) readPulls(ctx context.Context, h held, repo string) (pullsRead,
 		if !o.toStore(h, repo, p) {
 			continue
 		}
-		pull, commits, err := o.pullOf(ctx, repo, p)
+		pull, commits, err := o.readPull(ctx, repo, p)
 		if err != nil {
 			return read, err
 		}
@@ -216,9 +216,9 @@ func botOf(userType string) history.BotStatus {
 	return history.BotUnknown
 }
 
-// pullOf is p with its first commit time and its bot status, and its
-// commits, read only while the request budget has room for every page of
-// them. The first commit time is the earliest author date of the commits,
+// readPull is p's line of data/pulls.csv, with its first commit time and its
+// bot status, and its commits, read only while the request budget has room
+// for every page of them. The first commit time is the earliest author date of the commits,
 // and the commits are lines of data/pull_commits.csv, bots' pull requests
 // included, a cut list's too (its pull request line says it is cut;
 // forsgren#463, step 6). A commit list that gives no usable date
@@ -228,18 +228,13 @@ func botOf(userType string) history.BotStatus {
 // naming the repository and the pull request (decision #313); neither gives
 // commit lines. A cut one keeps its time with the cut flag (forsgren#299).
 // Every other error, a rate limit or GitHub's error answer, is returned.
-func (o Options) pullOf(ctx context.Context, repo string, p github.ClosedPullRequest,
+func (o Options) readPull(ctx context.Context, repo string, p github.ClosedPullRequest,
 ) (history.PullRequest, []history.PullCommit, error) {
 	if err := o.Client.Reserve(repo, pullCommitPagesAfterFirst); err != nil {
 		return history.PullRequest{}, nil, err
 	}
 	listed, cut, err := o.Client.PullCommits(ctx, repo, p.Number)
-	first := earliestAuthored(listed)
-	pull := history.PullRequest{
-		Repository: repo, Number: p.Number, CreatedAt: wholeSecond(p.CreatedAt),
-		MergedAt: wholeSecond(p.MergedAt), MergeCommit: p.MergeCommit, UpdatedAt: wholeSecond(p.UpdatedAt),
-		FirstCommitAt: wholeSecond(first), FirstCommitCut: cut, Bot: botOf(p.UserType),
-	}
+	pull := pullLineOf(repo, p, earliestAuthored(listed), cut)
 	switch {
 	case errors.Is(err, github.ErrNoCommitDate):
 		o.warn("collect: %v; its created time stands in for its first commit time\n", err)
@@ -253,6 +248,16 @@ func (o Options) pullOf(ctx context.Context, repo string, p github.ClosedPullReq
 	}
 	pull.FirstCommitAt, pull.FirstCommitCut, pull.CreatedStandsIn = time.Time{}, false, true
 	return pull, nil, nil
+}
+
+// pullLineOf is p of repo as a line of data/pulls.csv, its first commit time
+// first, cut or not, its bot status from its author's account type.
+func pullLineOf(repo string, p github.ClosedPullRequest, first time.Time, cut bool) history.PullRequest {
+	return history.PullRequest{
+		Repository: repo, Number: p.Number, CreatedAt: wholeSecond(p.CreatedAt),
+		MergedAt: wholeSecond(p.MergedAt), MergeCommit: p.MergeCommit, UpdatedAt: wholeSecond(p.UpdatedAt),
+		FirstCommitAt: wholeSecond(first), FirstCommitCut: cut, Bot: botOf(p.UserType),
+	}
 }
 
 // earliestAuthored is the earliest author date of commits, zero for none.

@@ -66,30 +66,29 @@ type MainlineLeadTime struct {
 	NotReadable, Uncollected bool
 }
 
-// leadCommit is a distinct commit in main: its project, its earliest time
-// there and its author date.
-type leadCommit struct {
-	project  int
-	at       time.Time
-	authored time.Time
+// leadReading is the state of one reading of the data: the projects' lead
+// times so far (out), the earliest push time by tip (commitKey of the
+// repository and the after SHA), what tells the squash commits (squash), the
+// distinct commits in main by commitKey, and the originals and merge commits
+// already counted.
+type leadReading struct {
+	index            projectIndex
+	data             Data
+	out              []MainlineLeadTime
+	tips             map[string]time.Time
+	squash           squashes
+	commits          map[string]mainArrival
+	squashed, merges map[string]bool
 }
 
-// leadReading is the state of one reading of the data.
-type leadReading struct {
-	index projectIndex
-	data  Data
-	out   []MainlineLeadTime
-	// tips is the earliest push time by commitKey(repository, after), chain
-	// the first-parent lines by the same key, squashes the pull request
-	// number by the key of its merge commit, pullCommits the pull commits by
-	// pullKey.
-	tips        map[string]time.Time
+// squashes is what tells a squash commit and its originals apart: the
+// first-parent lines of each push by its tip's commitKey (chain), the pull
+// request number by the commitKey of its merge commit (merged), and the pull
+// commits by pullKey.
+type squashes struct {
 	chain       map[string]int
-	squashes    map[string]int64
+	merged      map[string]int64
 	pullCommits map[string][]history.PullCommit
-	commits     map[string]leadCommit
-	squashed    map[string]bool
-	merges      map[string]bool
 }
 
 // pullKey is a pull request's identity: its repository, lower-case, and number.
@@ -102,50 +101,66 @@ func pullKey(repository string, number int64) string {
 // render time now, over its DORA window.
 func MainlineLeadTimesOf(projects []config.Project, data Data, now time.Time) []MainlineLeadTime {
 	r := newLeadReading(projects, data)
-	r.markStates()
 	r.readPushes(now)
 	r.markPullsFilling(now)
 	return r.finish()
 }
 
-// newLeadReading is a reading of data for projects, nothing read yet.
+// newLeadReading is a reading of data for projects, their push states set,
+// nothing read yet.
 func newLeadReading(projects []config.Project, data Data) *leadReading {
 	r := &leadReading{index: indexOf(projects), data: data, out: make([]MainlineLeadTime, len(projects)),
-		tips: map[string]time.Time{}, chain: map[string]int{}, squashes: map[string]int64{},
-		pullCommits: map[string][]history.PullCommit{}, commits: map[string]leadCommit{},
+		tips: map[string]time.Time{}, squash: squashesOf(data), commits: map[string]mainArrival{},
 		squashed: map[string]bool{}, merges: map[string]bool{}}
-	for i, p := range projects {
-		r.out[i].Project = p.Name
-	}
-	for _, p := range data.Pulls {
-		r.squashes[commitKey(p.Repository, p.MergeCommit)] = p.Number
-	}
-	for _, c := range data.PullCommits {
-		k := pullKey(c.Repository, c.Number)
-		r.pullCommits[k] = append(r.pullCommits[k], c)
+	for i, s := range pushStatesOf(r.index, data, len(projects)) {
+		r.out[i] = MainlineLeadTime{Project: projects[i].Name, NotReadable: s.notReadable, Uncollected: s.uncollected}
 	}
 	return r
 }
 
-// markStates sets NotReadable and Uncollected as markPushStates does.
-func (r *leadReading) markStates() {
-	for repository := range r.data.PushesDenied {
-		if i, ok := r.index.of(repository); ok {
-			r.out[i].NotReadable = true
-		}
+// squashesOf is the squash lookups of data's pull requests, pull commits and
+// push commits.
+func squashesOf(data Data) squashes {
+	s := squashes{chain: map[string]int{}, merged: map[string]int64{}, pullCommits: map[string][]history.PullCommit{}}
+	for _, p := range data.Pulls {
+		s.merged[commitKey(p.Repository, p.MergeCommit)] = p.Number
 	}
-	for i := range r.out {
-		r.out[i].Uncollected = r.data.PushesUncollected && !r.out[i].NotReadable
+	for _, c := range data.PullCommits {
+		k := pullKey(c.Repository, c.Number)
+		s.pullCommits[k] = append(s.pullCommits[k], c)
 	}
+	for _, pc := range data.PushCommits {
+		s.chain[commitKey(pc.Repository, pc.After)] += boolCount(pc.FirstParent)
+	}
+	return s
+}
+
+// originalsOf are the pull request commits that stand in for the line pc, if
+// it is a squash commit with some; none otherwise.
+func (s squashes) originalsOf(pc history.PushCommit) []history.PullCommit {
+	number, merged := s.merged[commitKey(pc.Repository, pc.SHA)]
+	if !merged || !s.aloneOnChain(pc) {
+		return nil
+	}
+	return s.pullCommits[pullKey(pc.Repository, number)]
+}
+
+// aloneOnChain says the line pc is a commit of one parent and the only
+// first-parent line of its push.
+func (s squashes) aloneOnChain(pc history.PushCommit) bool {
+	return pc.FirstParent && pc.Parents == 1 && s.chain[commitKey(pc.Repository, pc.After)] == 1
+}
+
+// unlisted says the pull request p has no pull commits stored and its first
+// commit time is not the created time's: it was stored before the change.
+func (s squashes) unlisted(p history.PullRequest) bool {
+	return !p.CreatedStandsIn && len(s.pullCommits[pullKey(p.Repository, p.Number)]) == 0
 }
 
 // readPushes notes the pushes of the window, then takes the commits of their
 // lines.
 func (r *leadReading) readPushes(now time.Time) {
 	r.notePushes(now)
-	for _, pc := range r.data.PushCommits {
-		r.chain[commitKey(pc.Repository, pc.After)] += boolCount(pc.FirstParent)
-	}
 	for _, pc := range r.data.PushCommits {
 		if at, pushed := r.tips[commitKey(pc.Repository, pc.After)]; pushed {
 			r.take(pc, at)
@@ -156,17 +171,12 @@ func (r *leadReading) readPushes(now time.Time) {
 // notePushes notes the time of each push of the window by its tip, and the
 // pushes whose commits are unknown.
 func (r *leadReading) notePushes(now time.Time) {
-	in := r.data.window()
-	for _, p := range r.data.Pushes {
-		i, ok := r.index.of(p.Repository)
-		if !ok || !in.holds(p.PushedAt, now) {
-			continue
-		}
+	forPushesInWindow(r.index, r.data, now, func(i int, p history.Push) {
 		r.out[i].UnknownPushes += boolCount(p.Commits == 0)
 		k := commitKey(p.Repository, p.After)
 		held, seen := r.tips[k]
 		r.tips[k] = earlierOf(held, p.PushedAt, seen)
-	}
+	})
 }
 
 // take counts the line pc of a push at the time at: a merge commit is left
@@ -175,49 +185,47 @@ func (r *leadReading) notePushes(now time.Time) {
 func (r *leadReading) take(pc history.PushCommit, at time.Time) {
 	i, _ := r.index.of(pc.Repository)
 	r.out[i].Filling = r.out[i].Filling || pc.Parents == history.ParentsUnknown
-	k := commitKey(pc.Repository, pc.SHA)
-	if pc.Parents >= 2 {
-		r.out[i].MergesLeftOut += boolCount(!r.merges[k])
-		r.merges[k] = true
-		return
+	switch originals := r.squash.originalsOf(pc); {
+	case pc.Parents >= 2:
+		r.out[i].MergesLeftOut += firstMark(r.merges, commitKey(pc.Repository, pc.SHA))
+	case len(originals) > 0:
+		r.takeOriginals(i, originals, at)
+	default:
+		r.count(i, commitKey(pc.Repository, pc.SHA), at, pc.AuthoredAt)
 	}
-	if originals := r.originalsOf(pc); len(originals) > 0 {
-		for _, o := range originals {
-			r.count(i, commitKey(o.Repository, o.SHA), at, o.AuthoredAt)
-			r.out[i].Squashed += boolCount(!r.squashed[commitKey(o.Repository, o.SHA)])
-			r.squashed[commitKey(o.Repository, o.SHA)] = true
-		}
-		return
-	}
-	r.count(i, k, at, pc.AuthoredAt)
 }
 
-// originalsOf are the pull request commits that stand in for the line pc, if
-// it is a squash commit with some; none otherwise.
-func (r *leadReading) originalsOf(pc history.PushCommit) []history.PullCommit {
-	number, merged := r.squashes[commitKey(pc.Repository, pc.SHA)]
-	if !merged || !pc.FirstParent || pc.Parents != 1 || r.chain[commitKey(pc.Repository, pc.After)] != 1 {
-		return nil
+// takeOriginals counts the originals of a squash commit of project i pushed
+// at at, each from its own author date.
+func (r *leadReading) takeOriginals(i int, originals []history.PullCommit, at time.Time) {
+	for _, o := range originals {
+		k := commitKey(o.Repository, o.SHA)
+		r.count(i, k, at, o.AuthoredAt)
+		r.out[i].Squashed += firstMark(r.squashed, k)
 	}
-	return r.pullCommits[pullKey(pc.Repository, number)]
+}
+
+// firstMark marks k in marked: 1 the first time, 0 after.
+func firstMark(marked map[string]bool, k string) int {
+	first := !marked[k]
+	marked[k] = true
+	return boolCount(first)
 }
 
 // count notes the commit k of project i reaching main at at, authored at
 // authored; the earliest arrival stays.
 func (r *leadReading) count(i int, k string, at, authored time.Time) {
 	held, seen := r.commits[k]
-	r.commits[k] = leadCommit{project: i, at: earlierOf(held.at, at, seen), authored: authored}
+	r.commits[k] = mainArrival{project: i, at: earlierOf(held.at, at, seen), authored: authored}
 }
 
 // markPullsFilling sets Filling on the project of each pull request merged
-// in the window, not created-stood-in, with no pull commits stored.
+// in the window that is unlisted.
 func (r *leadReading) markPullsFilling(now time.Time) {
 	in := r.data.window()
 	for _, p := range r.data.Pulls {
-		i, ok := r.index.of(p.Repository)
-		listed := len(r.pullCommits[pullKey(p.Repository, p.Number)]) > 0
-		if ok && in.holds(p.MergedAt, now) && !p.CreatedStandsIn && !listed {
-			r.out[i].Filling = true
+		if i, ok := r.index.of(p.Repository); ok && in.holds(p.MergedAt, now) {
+			r.out[i].Filling = r.out[i].Filling || r.squash.unlisted(p)
 		}
 	}
 }
@@ -226,7 +234,7 @@ func (r *leadReading) markPullsFilling(now time.Time) {
 func (r *leadReading) finish() []MainlineLeadTime {
 	times := make([][]float64, len(r.out))
 	for _, c := range r.commits {
-		times[c.project] = append(times[c.project], float64(max(c.at.Sub(c.authored), 0)))
+		times[c.project] = append(times[c.project], c.timeInMain())
 	}
 	for i := range r.out {
 		r.out[i].Lead = durationSpreadOf(times[i])

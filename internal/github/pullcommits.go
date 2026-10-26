@@ -26,23 +26,12 @@ type PullCommit struct {
 
 // pullCommit is one item of GitHub's answer, the fields PullCommits reads.
 type pullCommit struct {
-	SHA    string `json:"sha"`
-	Author *struct {
-		Login string `json:"login"`
-	} `json:"author"`
+	commitHead
 	Commit struct {
 		Author struct {
 			Date time.Time `json:"date"`
 		} `json:"author"`
 	} `json:"commit"`
-}
-
-// login is the login of the commit's GitHub author, empty when it is null.
-func (pc pullCommit) login() string {
-	if pc.Author == nil {
-		return ""
-	}
-	return pc.Author.Login
 }
 
 // PullCommits are the commits of pull request number of repo (forsgren#255,

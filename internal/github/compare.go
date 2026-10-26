@@ -55,10 +55,7 @@ type comparison struct {
 // answerCommit is one commit of GitHub's answer, the fields Compare reads.
 // A null committer, or a null date, leaves the date zero.
 type answerCommit struct {
-	SHA    string `json:"sha"`
-	Author *struct {
-		Login string `json:"login"`
-	} `json:"author"`
+	commitHead
 	Commit struct {
 		Author struct {
 			Date time.Time `json:"date"`
@@ -163,12 +160,22 @@ func (r *comparisonReader) add(page comparison) error {
 	return nil
 }
 
+// commitHead is what a commit of GitHub's answers (a comparison, a pull
+// request's commit list) carries first: its SHA and the top-level author
+// object, the account GitHub links the commit to, null when it links none.
+type commitHead struct {
+	SHA    string `json:"sha"`
+	Author *struct {
+		Login string `json:"login"`
+	} `json:"author"`
+}
+
 // login is the login of the commit's GitHub author, empty when it is null.
-func (pc answerCommit) login() string {
-	if pc.Author == nil {
+func (h commitHead) login() string {
+	if h.Author == nil {
 		return ""
 	}
-	return pc.Author.Login
+	return h.Author.Login
 }
 
 // parents is the SHAs of the commit's parents in GitHub's order, none for a

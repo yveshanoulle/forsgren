@@ -109,3 +109,12 @@ func (c NotedCell) DescribedBy() string {
 	}
 	return ids
 }
+
+// appendNote adds a note of kind for count items (pull requests, pushes)
+// when there are any.
+func appendNote(notes []Note, kind NoteKind, count int) []Note {
+	if count == 0 {
+		return notes
+	}
+	return append(notes, Note{Kind: kind, Count: count})
+}

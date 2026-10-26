@@ -2,7 +2,6 @@ package history
 
 import (
 	"path/filepath"
-	"slices"
 	"testing"
 	"time"
 )
@@ -45,10 +44,7 @@ func TestAPushCommitIsWrittenOnceByRepositoryAfterAndSHA(t *testing.T) {
 // wantPushCommits fails unless the push commits at path are want.
 func wantPushCommits(t *testing.T, path string, want []PushCommit) {
 	t.Helper()
-	got, err := LoadPushCommits(path)
-	if err != nil || !slices.Equal(got, want) {
-		t.Errorf("want %v, got %v, %v", want, got, err)
-	}
+	wantLoaded(t, path, LoadPushCommits, want)
 }
 
 // TestPushCommitsAreWrittenOldestFirstAndKeepNoAuthor: the new lines of a

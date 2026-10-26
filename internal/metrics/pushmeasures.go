@@ -83,16 +83,25 @@ type pushTime struct {
 	merge bool
 }
 
-// pushedCommit is a distinct commit the pushes brought: its project, its
-// earliest push time and author date, and whether it is a pull request's or
-// of an unknown author.
-type pushedCommit struct {
+// mainArrival is a distinct commit's arrival in main: its project, its
+// earliest time there and its author date.
+type mainArrival struct {
 	project  int
 	at       time.Time
 	authored time.Time
-	pull     bool
-	unknown  bool
-	bot      bool
+}
+
+// timeInMain is how long the commit took from its author date to main, a
+// negative one counted as 0 (a clock ahead), as a spread value.
+func (a mainArrival) timeInMain() float64 { return float64(max(a.at.Sub(a.authored), 0)) }
+
+// pushedCommit is a distinct commit the pushes brought: its arrival, and
+// whether it is a pull request's, of an unknown author or of a bot.
+type pushedCommit struct {
+	mainArrival
+	pull    bool
+	unknown bool
+	bot     bool
 }
 
 // PushMeasuresOf returns the push measures of each project, in the order of
@@ -104,12 +113,14 @@ func PushMeasuresOf(projects []config.Project, data Data, now time.Time) []PushM
 	for i, p := range projects {
 		out[i].Project = p.Name
 	}
-	markPushStates(out, index, data)
+	for i, s := range pushStatesOf(index, data, len(out)) {
+		out[i].NotReadable, out[i].Uncollected = s.notReadable, s.uncollected
+	}
 	tips, perPush := pushesInWindow(out, index, data, now)
 	times := make([][]float64, len(out))
 	for _, c := range commitsOfPushes(index, data, tips) {
 		out[c.project].add(c)
-		times[c.project] = append(times[c.project], float64(max(c.at.Sub(c.authored), 0)))
+		times[c.project] = append(times[c.project], c.timeInMain())
 	}
 	for i := range out {
 		out[i].TimeToMain, out[i].PerPush = durationSpreadOf(times[i]), countSpreadOf(perPush[i])
@@ -117,18 +128,25 @@ func PushMeasuresOf(projects []config.Project, data Data, now time.Time) []PushM
 	return out
 }
 
-// markPushStates sets NotReadable on the project of each repository whose
-// push read was refused, compared ignoring case, and Uncollected on every
-// other project when there is no pushes file.
-func markPushStates(out []PushMeasures, index projectIndex, data Data) {
+// pushState is what a project's push read says before any push is counted:
+// refused (notReadable) or never collected (uncollected).
+type pushState struct{ notReadable, uncollected bool }
+
+// pushStatesOf is the push state of each of n projects: notReadable for the
+// project of each repository whose push read was refused, compared ignoring
+// case, and uncollected for every other project when there is no pushes
+// file. The push measures and the Mainline Lead Time share it.
+func pushStatesOf(index projectIndex, data Data, n int) []pushState {
+	states := make([]pushState, n)
 	for repository := range data.PushesDenied {
 		if i, ok := index.of(repository); ok {
-			out[i].NotReadable = true
+			states[i].notReadable = true
 		}
 	}
-	for i := range out {
-		out[i].Uncollected = data.PushesUncollected && !out[i].NotReadable
+	for i := range states {
+		states[i].uncollected = data.PushesUncollected && !states[i].notReadable
 	}
+	return states
 }
 
 // pushesInWindow counts the pushes of the window per project and gives the
@@ -138,12 +156,7 @@ func pushesInWindow(out []PushMeasures, index projectIndex, data Data, now time.
 ) (map[string]pushTime, [][]float64) {
 	tips := map[string]pushTime{}
 	perPush := make([][]float64, len(out))
-	in := data.window()
-	for _, p := range data.Pushes {
-		i, ok := index.of(p.Repository)
-		if !ok || !in.holds(p.PushedAt, now) {
-			continue
-		}
+	forPushesInWindow(index, data, now, func(i int, p history.Push) {
 		out[i].Pushes++
 		if p.Commits > 0 {
 			perPush[i] = append(perPush[i], float64(p.Commits))
@@ -152,8 +165,20 @@ func pushesInWindow(out []PushMeasures, index projectIndex, data Data, now time.
 		held, seen := tips[k]
 		tips[k] = pushTime{at: earlierOf(held.at, p.PushedAt, seen),
 			merge: held.merge || p.Kind == history.PushKindPRMerge}
-	}
+	})
 	return tips, perPush
+}
+
+// forPushesInWindow calls visit with the project of each push pushed in the
+// data's DORA window at now in a listed repository (ignoring case), in file
+// order.
+func forPushesInWindow(index projectIndex, data Data, now time.Time, visit func(int, history.Push)) {
+	in := data.window()
+	for _, p := range data.Pushes {
+		if i, ok := index.of(p.Repository); ok && in.holds(p.PushedAt, now) {
+			visit(i, p)
+		}
+	}
 }
 
 // earlierOf is the earlier of a and b, b when there is no a (seen is false).
@@ -192,7 +217,8 @@ func commitsOfPushes(index projectIndex, data Data, tips map[string]pushTime) ma
 // request's merge commit.
 func (c pushedCommit) merged(seen bool, project int, pc history.PushCommit, tip pushTime, pulled bool,
 ) pushedCommit {
-	return pushedCommit{project: project, at: earlierOf(c.at, tip.at, seen), authored: pc.AuthoredAt,
+	at := earlierOf(c.at, tip.at, seen)
+	return pushedCommit{mainArrival: mainArrival{project: project, at: at, authored: pc.AuthoredAt},
 		pull:    c.pull || tip.merge || pulled,
 		unknown: pc.Author == "" || strings.EqualFold(pc.Author, placeholderLogin),
 		bot:     strings.HasSuffix(pc.Author, botSuffix)}

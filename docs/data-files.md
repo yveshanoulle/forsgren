@@ -594,21 +594,28 @@ acme/app,2026-10-23T12:00:00Z,<40 hex>,<40 hex>,force_push,,
 - The data guard knows its name: a `pushes.csv` that git tracks or does not
   ignore, outside `testdata/` blocks the commit, like the other data files.
 
-**The commits of each push** (forsgren#397, step 3) are kept in
-`data/push_commits.csv`, next to the history, with its own format version
-(the push commits format v1):
+**The commits of each push** (forsgren#397, step 3; format v2 forsgren#463) are
+kept in `data/push_commits.csv`, next to the history, with its own format
+version (the push commits format v2):
 
 ```
-# forsgren push commits v1
-repository,after,sha,author,authored_at
-acme/app,<40 hex>,<40 hex>,acme-dev,2026-10-23T09:30:00Z
+# forsgren push commits v2
+repository,after,sha,author,authored_at,first_parent,parents
+acme/app,<40 hex>,<40 hex>,acme-dev,2026-10-23T09:30:00Z,true,1
+acme/app,<40 hex>,<40 hex>,acme-dev,2026-10-23T08:10:00Z,false,1
 ```
 
-- One line per commit a push brought to the first-parent chain: exactly the
-  commits that make the `commits` count of the push's line in `pushes.csv`,
-  from the same compare (no extra request), oldest first. `after` is the
-  push's `after` SHA, which with `repository` and `pushed_at` keys the push;
-  `sha` is the commit.
+- One line per commit of the compare of a push, from the same compare (no
+  extra request), oldest first: every commit of a whole compare, not only the
+  first-parent chain. `first_parent` is `true` for the commits that make the
+  `commits` count of the push's line in `pushes.csv` and `false` for the
+  branch commits a merge brought in. `after` is the push's `after` SHA, which
+  with `repository` and `pushed_at` keys the push; `sha` is the commit.
+- `parents` is the commit's parent count, a decimal (a root commit has 0). It
+  is empty when unknown: a line of the format v1 is read with `first_parent`
+  true and `parents` empty, and the first append rewrites the whole file as v2.
+  The empty `parents` is what tells data from before the change; the page's
+  note 7 reads it (see [Pages and views](pages-and-views.md#the-tbd-page)).
 - `author` is the GitHub login of the commit's author, empty when GitHub
   links the commit to no account, only a login's shape accepted; never a name
   or an email address. `authored_at` is the git author date, UTC, to the
@@ -616,16 +623,52 @@ acme/app,<40 hex>,<40 hex>,acme-dev,2026-10-23T09:30:00Z
 - Held by repository (ignoring case), `after` and `sha`: a commit already in
   the file is skipped. A push whose `commits` is empty (a force push, a
   compare that failed or was cut) has no lines.
+- The Time to main and the shares count the `first_parent` lines only; the
+  Mainline Lead Time counts the others too, and leaves the commits with two
+  parents or more out.
 - `collect` writes it before `pushes.csv` for the same repository, so a push
   is never stored without its commits: when this file cannot be written, the
   repository fails and its pushes are read again by the next run.
-- Pushes stored before this file existed have no lines and are not read
-  again for them: there is no backfill.
+- Pushes stored earlier are not read again for their commits: there is no
+  backfill, so their branch commits are missing.
 - Otherwise the same rules as `commits.csv`: created with its version line,
   appended only, refused untouched when its version is unknown or a line is
   malformed, naming the line. An unreadable file refuses the collect run
   before GitHub is asked anything.
 - The data guard knows its name: a `push_commits.csv` that git tracks or does
+  not ignore, outside `testdata/` blocks the commit, like the other data
+  files.
+
+**The commits of each merged pull request** (forsgren#463, steps 5 and 6) are
+kept in `data/pull_commits.csv`, next to the history, with its own format
+version (the pull commits format v1):
+
+```
+# forsgren pull commits v1
+repository,number,sha,author,authored_at
+acme/app,42,<40 hex>,acme-dev,2026-08-30T09:00:00Z
+```
+
+- One line per commit of the commit list of a merged pull request, from the
+  request `collect` already makes for its first commit time (no extra
+  request). `number` is the pull request's number; `sha` the commit. They are
+  there for the Mainline Lead Time of a squash merge, where the originals'
+  own author dates stand in for the squash commit's.
+- `author` is the GitHub login of the commit's author, empty when GitHub
+  links the commit to no account; login only, never a name or an email
+  address. `authored_at` is the git author date, UTC, to the second.
+- Held by repository (ignoring case), `number` and `sha`.
+- `collect` writes a pull request's lines before its line in `pulls.csv`, so
+  a pull request is never stored without its commits. A list GitHub cut (250
+  commits) is stored as read. A pull request whose created time stands in for
+  its first commit time (no usable commit list) has no lines.
+- Pull requests stored before this file existed have no lines and are not read
+  again for them: there is no backfill (forsgren#470 may fill it later).
+- Otherwise the same rules as `commits.csv`: created with its version line,
+  appended only, refused untouched when its version is unknown or a line is
+  malformed, naming the line. An unreadable file refuses the collect run
+  before GitHub is asked anything.
+- The data guard knows its name: a `pull_commits.csv` that git tracks or does
   not ignore, outside `testdata/` blocks the commit, like the other data
   files.
 
@@ -1019,7 +1062,9 @@ chunk read per run smaller.
 deployments and issues are stored, `collect` reads its closed pull requests
 updated since its line in `data/pulls_read.csv` less a day, newest updated
 first, and stores the merged ones in `data/pulls.csv` (see
-[History](#history)), each with its first commit time from its commits.
+[History](#history)), each with its first commit time from its commits, and
+those commits in `data/pull_commits.csv` (see [History](#history)), written
+before the pull request's own line.
 
 - A pull request closed without a merge, merged before `history_days` back
   (even when it was updated inside it, decision #310), or already stored is
@@ -1061,7 +1106,8 @@ default branch (`GET /repos/{owner}/{repo}/activity?ref=refs/heads/<branch>`,
 newest first) since its line in `data/pushes_read.csv` less a day, and stores
 the pushes, pull request merges and force pushes in `data/pushes.csv` (see
 [History](#history)), each with the number of commits it added to the
-first-parent chain from the compare of its two tips, and those commits in
+first-parent chain from the compare of its two tips, and every commit of that
+compare, the branch commits of a merge too, in
 `data/push_commits.csv` (see [History](#history)). A push already stored is
 not compared again.
 

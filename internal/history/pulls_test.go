@@ -57,13 +57,20 @@ func wantFile(t *testing.T, path, want string) {
 	}
 }
 
-// wantPulls fails unless the pull requests at path are want, in file order.
-func wantPulls(t *testing.T, path string, want []PullRequest) {
+// wantLoaded fails unless load reads want from the file at path, in file
+// order: the pull requests, the pull commits, the pushes, the push commits.
+func wantLoaded[T comparable](t *testing.T, path string, load func(string) ([]T, error), want []T) {
 	t.Helper()
-	got, err := LoadPullRequests(path)
+	got, err := load(path)
 	if err != nil || !slices.Equal(got, want) {
 		t.Errorf("want %v, got %v, %v", want, got, err)
 	}
+}
+
+// wantPulls fails unless the pull requests at path are want, in file order.
+func wantPulls(t *testing.T, path string, want []PullRequest) {
+	t.Helper()
+	wantLoaded(t, path, LoadPullRequests, want)
 }
 
 // TestAPullRequestIsWrittenOnceByRepositoryAndNumber (forsgren#255, step 3):

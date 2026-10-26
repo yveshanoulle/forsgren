@@ -22,17 +22,22 @@ const (
 	PushesNotCollected = "Pushes not collected yet"
 )
 
-// State is PushesNotReadable for a project whose push read was refused,
-// PushesNotCollected when no push has been collected, else empty.
-func (m PushMeasures) State() string {
+// words is PushesNotReadable for a refused push read, PushesNotCollected when
+// no push has been collected, else empty: the State of every measure read
+// from the pushes (the push measures, the Mainline Lead Time).
+func (s pushState) words() string {
 	switch {
-	case m.NotReadable:
+	case s.notReadable:
 		return PushesNotReadable
-	case m.Uncollected:
+	case s.uncollected:
 		return PushesNotCollected
 	}
 	return ""
 }
+
+// State is PushesNotReadable for a project whose push read was refused,
+// PushesNotCollected when no push has been collected, else empty.
+func (m PushMeasures) State() string { return pushState{m.NotReadable, m.Uncollected}.words() }
 
 // CommitsCell is the distinct commits the pushes brought; a dash in a state.
 func (m PushMeasures) CommitsCell() string { return m.volume(m.Commits) }

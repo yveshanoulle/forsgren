@@ -62,11 +62,3 @@ func (m PRLeadTime) Notes() []Note {
 	}
 	return appendNote(notes, NoteBotsNotCounted, m.Bots)
 }
-
-// appendNote adds a note of kind for count pull requests when there are any.
-func appendNote(notes []Note, kind NoteKind, count int) []Note {
-	if count == 0 {
-		return notes
-	}
-	return append(notes, Note{Kind: kind, Count: count})
-}
