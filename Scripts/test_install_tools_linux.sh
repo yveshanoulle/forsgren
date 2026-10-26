@@ -31,6 +31,8 @@ cd "$(dirname "$0")/.."
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
 selftest_begin "Linux tool install self-test"
 
 INSTALLER="${PWD}/Scripts/install_tools_linux.sh"
@@ -205,7 +207,7 @@ for t in "${real_tools[@]}"; do
     reqs="$(pin "$t" source)"
     [[ -f "$reqs" ]] || fail "${t}: the requirements file ${reqs} does not exist"
     grep -q -- "^${t}==${version} " "$reqs" || fail "${t}: ${reqs} does not pin ${t}==${version}"
-    if grep -v '^#' "$reqs" | grep -E '^[A-Za-z]' | grep -vqE '==[0-9]'; then
+    if grep -v '^#' "$reqs" | grep -E '^[A-Za-z]' | has -vE '==[0-9]'; then
       fail "${reqs}: a requirement is not pinned with =="
     fi
     grep -q -- '--hash=sha256:[0-9a-f]\{64\}' "$reqs" || fail "${t}: ${reqs} carries no sha256 hash"
@@ -216,6 +218,13 @@ for t in "${real_tools[@]}"; do
     || fail "${t} is in ${LIST} but not in Scripts/required_tools.txt: the machines would install different tools"
 done
 echo "  ok: the real pin list covers the ${#real_tools[@]} tools of ${LIST}"
+
+# --- Case 9: an abort after the trap is set exits non-zero (bash 3.2 can end such an abort with 0).
+mkdir -p "${TMP}/abort/Scripts"
+selftest_mutant "$INSTALLER" "${TMP}/abort/Scripts/install_tools_linux.sh" \
+  's/^mkdir -p "[$]BIN"$/&; false/'
+RUN_INSTALLER="${TMP}/abort/Scripts/install_tools_linux.sh" run_installer "${TMP}/pins_good.txt" "${TMP}/tools4.txt"
+want_red "an unexpected abort after the cleanup trap is set exits non-zero" "aborted before completing"
 
 # --- Mutation proof: a blind installer accepts the bad fixture.
 MROOT="${TMP}/mut"
