@@ -3,20 +3,22 @@ package metrics
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"testing"
 )
 
 // TestNoteKindsKeepTheirNumbersAndTexts (forsgren#394, step 2, Yves's ruling:
-// the numbers are fixed forever, the legend uses them too): the seven kinds
-// have these numbers and these generic texts; a new kind appends from (8), and
-// changing a line below is changing what (1) to (7) mean on every page.
+// the numbers are fixed forever, the legend uses them too): the six kinds
+// have these numbers and these generic texts; (5) is retired (forsgren#479:
+// the Bot PR Lead Time column took its place), its number reserved forever and
+// never listed; a new kind appends from (8), and changing a line below is
+// changing what (1) to (7) mean on every page.
 func TestNoteKindsKeepTheirNumbersAndTexts(t *testing.T) {
 	want := map[int]string{
 		1: "Mostly estimated: commits timed by author date",
 		2: "Commits timed by author date",
 		3: "A lower bound: a first commit time of a pull request was cut",
 		4: "Pull requests timed by their created time",
-		5: "Bot pull requests not counted",
 		6: "Pushes left out: their commits are not known (incomplete data), not counted as 0",
 		7: "History still filling: merge and squash branch commits from before this version are missing",
 	}
@@ -24,11 +26,13 @@ func TestNoteKindsKeepTheirNumbersAndTexts(t *testing.T) {
 	if len(kinds) != len(want) {
 		t.Fatalf("want %d kinds, got %d", len(want), len(kinds))
 	}
-	for i, k := range kinds {
-		wantKind(t, k, i+1, want[i+1])
+	for _, k := range kinds {
+		wantKind(t, k, k.Number(), want[k.Number()])
 	}
-	if (NoteKind(8)).Text() != "" {
-		t.Errorf("want no text for a number that is no kind, got %q", NoteKind(8).Text())
+	for _, retired := range []NoteKind{5, 8} {
+		if retired.Text() != "" || slices.Contains(kinds, retired) {
+			t.Errorf("want (%d) no kind with no text, got %q", retired, retired.Text())
+		}
 	}
 }
 
@@ -53,7 +57,7 @@ func TestNotedCellDescribedByNamesEachNote(t *testing.T) {
 	}{
 		"none": {NotedCell{Value: "-"}, ""},
 		"one":  {NotedCell{Notes: []Note{{Kind: NoteByAuthorDate}}}, "tbd-note-2"},
-		"two":  {NotedCell{Notes: []Note{{Kind: NoteLowerBound}, {Kind: NoteBotsNotCounted}}}, "tbd-note-3 tbd-note-5"},
+		"two":  {NotedCell{Notes: []Note{{Kind: NoteLowerBound}, {Kind: NoteUnknownPushes}}}, "tbd-note-3 tbd-note-6"},
 	}
 	for name, c := range cases {
 		if got := c.cell.DescribedBy(); got != c.want {

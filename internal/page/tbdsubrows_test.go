@@ -72,7 +72,8 @@ const perRepository = "Per repository"
 // it, with the median only or with all the figures (decision #450, C): its own
 // deployment cells, and one cell across each run of the cells that are per
 // repository, which are, in the order of the columns, the Mainline Interval,
-// Mainline Lead Time, Time to main and PR Lead Time (4 columns, 12 with all),
+// Mainline Lead Time, Time to main, PR Lead Time and Bot PR Lead Time (5 columns, 15
+// with all),
 // then after the service's own Time to deploy, Commits and Pushes (2),
 // Commits per push (1, 3) and the four shares (4) (forsgren#485).
 func apiRow(all bool) string {
@@ -82,9 +83,9 @@ func apiRow(all bool) string {
 		}
 		return "@" + strconv.Itoa(median) + perRepository
 	}
-	cells := []string{span(4, 12), "1 h", span(2, 2), "5", span(1, 3), "2", span(4, 4), "2"}
+	cells := []string{span(5, 15), "1 h", span(2, 2), "5", span(1, 3), "2", span(4, 4), "2"}
 	if all {
-		cells = []string{span(4, 12), "&lt; 1 m | 1 h | -", span(2, 2), "5", span(1, 3), "0 | 2 | -", span(4, 4), "2"}
+		cells = []string{span(5, 15), "&lt; 1 m | 1 h | -", span(2, 2), "5", span(1, 3), "0 | 2 | -", span(4, 4), "2"}
 	}
 	return "<th scope=\"row\"><span class=\"visually-hidden\">Acme Shop: </span>API</th>\n            " +
 		tds(strings.Join(cells, " | ")) + "\n"
@@ -107,7 +108,7 @@ func TestAServiceRowHasOneSentenceWhereTheMeasuresAreAbsent(t *testing.T) {
 // no deployed commit has one sentence across the row, worded for a service.
 func TestAServiceWithoutDataHasItsOwnSentence(t *testing.T) {
 	got := rendered(t, "tbd.html", subRowsData())
-	wantAll(t, "tbd.html", got, "</span>IOS</th>\n            <td colspan=\"15\">"+
+	wantAll(t, "tbd.html", got, "</span>IOS</th>\n            <td colspan=\"16\">"+
 		"currently no data for this service in the last 30 days</td>")
 }
 
@@ -135,7 +136,8 @@ func TestAnAbsentMeasureIsADashBecauseTheRowSaysAbsent(t *testing.T) {
 	api := &data.TbdMetrics[1]
 	api.Interval = metrics.MainlineInterval{Project: "API", Commits: 4, Gaps: 3, Mean: time.Hour, Median: time.Hour,
 		ByAuthorDate: 2}
-	api.Lead = metrics.PRLeadTime{PullRequests: 5, Mean: time.Hour, Median: time.Hour, Bots: 1}
+	api.Lead = metrics.PRLeadTime{PullRequests: 5, Mean: time.Hour, Median: time.Hour}
+	api.BotLead = metrics.PRLeadTime{PullRequests: 2, Mean: time.Hour, Median: time.Hour}
 	api.Push = metrics.PushMeasures{Pushes: 9, Commits: 9, Direct: 9,
 		TimeToMain: metrics.DurationSpread{Count: 9, Median: time.Hour}}
 	api.MainLead = metrics.MainlineLeadTime{Commits: 9, UnknownPushes: 1, Filling: true,

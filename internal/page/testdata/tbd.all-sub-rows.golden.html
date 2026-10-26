@@ -21,6 +21,7 @@
             <th scope="colgroup" colspan="3">Mainline Lead Time</th>
             <th scope="colgroup" colspan="3">Time to main per commit</th>
             <th scope="colgroup" colspan="3">PR Lead Time</th>
+            <th scope="colgroup" colspan="3">Bot PR Lead Time</th>
             <th scope="colgroup" colspan="3">Time to deploy per commit</th>
             <th scope="colgroup" colspan="3">Volume</th>
             <th scope="colgroup" colspan="3">Commits per push</th>
@@ -41,6 +42,9 @@
             <th scope="col">mean</th>
             <th scope="col">median</th>
             <th scope="col">p90</th>
+            <th scope="col" aria-label="the mean of bot PR lead time">mean</th>
+            <th scope="col" aria-label="the median of bot PR lead time">median</th>
+            <th scope="col" aria-label="the p90 of bot PR lead time">p90</th>
             <th scope="col" aria-label="the mean of time to deploy">mean</th>
             <th scope="col" aria-label="the median of time to deploy">median</th>
             <th scope="col" aria-label="the p90 of time to deploy">p90</th>
@@ -75,6 +79,9 @@
             <td>3 h</td>
             <td>2 h</td>
             <td>-</td>
+            <td>40 m</td>
+            <td>30 m</td>
+            <td>-</td>
             <td>2 h</td>
             <td>1 h</td>
             <td>5 h</td>
@@ -95,7 +102,7 @@
           </tr>
           <tr class="label">
             <th scope="row"><span class="visually-hidden">Acme Shop: </span>API</th>
-            <td colspan="12">Per repository</td>
+            <td colspan="15">Per repository</td>
             <td>&lt; 1 m</td>
             <td>1 h</td>
             <td>-</td>
@@ -110,7 +117,7 @@
           </tr>
           <tr class="label">
             <th scope="row"><span class="visually-hidden">Acme Shop: </span>IOS</th>
-            <td colspan="29">currently no data for this service in the last 30 days</td>
+            <td colspan="32">currently no data for this service in the last 30 days</td>
           </tr>
           <tr class="label">
             <th scope="row"><span class="visually-hidden">Acme Shop: </span>Website</th>
@@ -125,6 +132,9 @@
             <td>1 h</td>
             <td>6 h</td>
             <td>5 h</td>
+            <td>-</td>
+            <td>40 m</td>
+            <td>30 m</td>
             <td>-</td>
             <td>1 h</td>
             <td>45 m</td>

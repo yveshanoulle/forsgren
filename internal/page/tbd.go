@@ -11,7 +11,7 @@ import (
 // groups under two-level headers (forsgren#397, step 5, Yves's ruling on
 // #401): the Mainline Interval, the Mainline Lead Time (forsgren#463, its
 // second column), time to main per commit, time to deploy per commit, the
-// PR Lead Time (forsgren#256), volume, commits per push, commits per
+// PR Lead Time (forsgren#256) and the Bot PR Lead Time (forsgren#479), volume, commits per push, commits per
 // deployment, shares of the commits and the Developers count (forsgren#273);
 // or one line that says why there is none. The key tbd_figures
 // (forsgren#423) chooses the figures of each measure: the median alone, one
@@ -73,7 +73,8 @@ func (r TbdRow) NoDataSentence() string {
 const perRepositorySentence = "Per repository"
 
 // PerRepository says the row's Mainline Interval, Mainline Lead Time and push
-// and pull request cells are not its own: a service row, whose measures of them are absent.
+// and pull request cells (the Bot PR Lead Time's included) are not its own: a
+// service row, whose measures of them are absent.
 func (r TbdRow) PerRepository() bool { return r.IntervalAbsent && r.PushAbsent }
 
 // PerRepositorySentence is the one cell across each run of the cells a service
@@ -83,8 +84,8 @@ func (r TbdRow) PerRepositorySentence() string { return perRepositorySentence }
 // The columns of the table after the project: the median alone, or the mean,
 // the median and the 90th percentile (the shares have four, the developers one).
 const (
-	tbdColumnsMedian = 15
-	tbdColumnsAll    = 29
+	tbdColumnsMedian = 16
+	tbdColumnsAll    = 32
 )
 
 // TbdColumnsAfterProject is how many columns the row of a project without data
@@ -101,10 +102,17 @@ func (d Data) TbdColumnsAfterProject() int {
 // not readable" for a project a refused read makes not readable (forsgren#337,
 // step 2), else pullsUncollectedCell while the pull requests have not been
 // collected (forsgren#256, step 2).
-func (r TbdRow) LeadState() string {
+func (r TbdRow) LeadState() string { return r.stateOf(r.Lead) }
+
+// BotLeadState is LeadState for the Bot PR Lead Time group (forsgren#479): the
+// same two sentences, from the same read.
+func (r TbdRow) BotLeadState() string { return r.stateOf(r.BotLead) }
+
+// stateOf is the sentence in place of the cells of the lead time m, or empty.
+func (r TbdRow) stateOf(m metrics.PRLeadTime) string {
 	switch {
-	case r.Lead.NotReadable:
-		return r.Lead.State()
+	case m.NotReadable:
+		return m.State()
 	case r.pullsUncollected:
 		return pullsUncollectedCell
 	}
@@ -127,14 +135,16 @@ func (d Data) TbdRows() []TbdRow {
 }
 
 // withoutAbsent is the row without the measures it says are absent
-// (IntervalAbsent, PushAbsent), so that its cells show a dash because the row
-// says so, never because a measure happens to be empty.
+// (IntervalAbsent, PushAbsent; the Bot PR Lead Time goes with PushAbsent), so
+// that its cells show a dash because the row says so, never because a measure
+// happens to be empty.
 func withoutAbsent(m metrics.TbdRow) metrics.TbdRow {
 	if m.IntervalAbsent {
 		m.Interval = metrics.MainlineInterval{}
 	}
 	if m.PushAbsent {
-		m.Lead, m.Push, m.MainLead = metrics.PRLeadTime{}, metrics.PushMeasures{}, metrics.MainlineLeadTime{}
+		m.Lead, m.BotLead = metrics.PRLeadTime{}, metrics.PRLeadTime{}
+		m.Push, m.MainLead = metrics.PushMeasures{}, metrics.MainlineLeadTime{}
 	}
 	return m
 }

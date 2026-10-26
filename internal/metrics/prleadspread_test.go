@@ -52,11 +52,10 @@ func TestPRLeadTimeCellsShowMeanMedianAndP90(t *testing.T) {
 		"one, cut": {PRLeadTime{PullRequests: 1, Mean: 5 * h, Cut: 1}, "5 h", "-", "-",
 			[]Note{{NoteLowerBound, 1, 0}}},
 		"two": {PRLeadTime{PullRequests: 2, Mean: 2 * h, Median: 2 * h}, "2 h", "2 h", "-", nil},
-		"ten, bots": {PRLeadTime{PullRequests: 10, Mean: 3 * h, Median: 2 * h, P90: 9 * h, Bots: 3},
-			"3 h", "2 h", "9 h", []Note{{NoteBotsNotCounted, 3, 0}}},
-		"no human, bots": {PRLeadTime{Bots: 2}, "-", "-", "-", []Note{{NoteBotsNotCounted, 2, 0}}},
-		"all three kinds": {PRLeadTime{PullRequests: 3, Mean: h, Median: h, Cut: 1, CreatedStandsIn: 2, Bots: 3},
-			"1 h", "1 h", "-", []Note{{NoteLowerBound, 1, 0}, {NoteCreatedTime, 2, 0}, {NoteBotsNotCounted, 3, 0}}},
+		"ten": {PRLeadTime{PullRequests: 10, Mean: 3 * h, Median: 2 * h, P90: 9 * h},
+			"3 h", "2 h", "9 h", nil},
+		"cut and created": {PRLeadTime{PullRequests: 3, Mean: h, Median: h, Cut: 1, CreatedStandsIn: 2},
+			"1 h", "1 h", "-", []Note{{NoteLowerBound, 1, 0}, {NoteCreatedTime, 2, 0}}},
 	}
 	for name, c := range cases {
 		l := c.lead
@@ -89,7 +88,7 @@ func sameNotes(a, b []Note) bool {
 // pull request read was refused has the state sentence in place of the cells,
 // and any other project has no state.
 func TestPRLeadTimeStateIsNotReadable(t *testing.T) {
-	refused := PRLeadTime{NotReadable: true, PullRequests: 2, Mean: time.Hour, Bots: 2}
+	refused := PRLeadTime{NotReadable: true, PullRequests: 2, Mean: time.Hour}
 	if got := refused.State(); got != "Pull requests not readable" {
 		t.Errorf("want the state %q, got %q", "Pull requests not readable", got)
 	}

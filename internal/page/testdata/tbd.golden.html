@@ -21,6 +21,7 @@
             <th scope="col" aria-label="median mainline lead time">Mainline Lead Time</th>
             <th scope="col" aria-label="median time to main per commit">Time to main per commit</th>
             <th scope="col" aria-label="median PR lead time">PR Lead Time</th>
+            <th scope="col" aria-label="median bot PR lead time">Bot PR Lead Time</th>
             <th scope="col" aria-label="median time to deploy per commit">Time to deploy per commit</th>
             <th scope="col">Commits</th>
             <th scope="col">Pushes</th>
@@ -41,6 +42,7 @@
             <td aria-describedby="tbd-note-6 tbd-note-7">3 h <span class="visually-hidden">note</span> (6) <span class="visually-hidden">note</span> (7)</td>
             <td>30 m</td>
             <td>2 h</td>
+            <td>30 m</td>
             <td>1 h</td>
             <td>40</td>
             <td>20</td>
@@ -59,6 +61,7 @@
             <td>-</td>
             <td>-</td>
             <td aria-describedby="tbd-note-3">- <span class="visually-hidden">note</span> (3)</td>
+            <td aria-describedby="tbd-note-3 tbd-note-4">3 h <span class="visually-hidden">note</span> (3) <span class="visually-hidden">note</span> (4)</td>
             <td>1 h</td>
             <td>1</td>
             <td>1</td>
@@ -76,7 +79,8 @@
             <td>-</td>
             <td>Push activity not readable</td>
             <td>Push activity not readable</td>
-            <td aria-describedby="tbd-note-5">- <span class="visually-hidden">note</span> (5)</td>
+            <td>-</td>
+            <td>-</td>
             <td>30 m</td>
             <td>-</td>
             <td>-</td>
@@ -91,7 +95,8 @@
             <td aria-describedby="tbd-note-1">5 m <span class="visually-hidden">note</span> (1)</td>
             <td>Pushes not collected yet</td>
             <td>Pushes not collected yet</td>
-            <td aria-describedby="tbd-note-4 tbd-note-5">10 h <span class="visually-hidden">note</span> (4) <span class="visually-hidden">note</span> (5)</td>
+            <td aria-describedby="tbd-note-4">10 h <span class="visually-hidden">note</span> (4)</td>
+            <td>1 h</td>
             <td>-</td>
             <td>-</td>
             <td>-</td>
@@ -109,9 +114,8 @@
       <ul>
         <li id="tbd-note-1">(1) Mostly estimated: commits timed by author date: Acme Web 7 of 13</li>
         <li id="tbd-note-2">(2) Commits timed by author date: Acme Shop 2</li>
-        <li id="tbd-note-3">(3) A lower bound: a first commit time of a pull request was cut: Acme Tools 1</li>
-        <li id="tbd-note-4">(4) Pull requests timed by their created time: Acme Web 1</li>
-        <li id="tbd-note-5">(5) Bot pull requests not counted: Acme Docs 2, Acme Web 3</li>
+        <li id="tbd-note-3">(3) A lower bound: a first commit time of a pull request was cut: Acme Tools 2</li>
+        <li id="tbd-note-4">(4) Pull requests timed by their created time: Acme Tools 1, Acme Web 1</li>
         <li id="tbd-note-6">(6) Pushes left out: their commits are not known (incomplete data), not counted as 0: Acme Shop 2</li>
         <li id="tbd-note-7">(7) History still filling: merge and squash branch commits from before this version are missing: Acme Shop</li>
       </ul>

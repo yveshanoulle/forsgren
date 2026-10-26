@@ -16,9 +16,9 @@ func openedBy(p history.PullRequest, status history.BotStatus) history.PullReque
 // TestPRLeadTimeCountsHumanPullRequestsOnly (forsgren#345, step 2,
 // Yves's answers on #341 and #348): only the pull requests a person opened
 // count in the mean, the deviation, the count and the 24-hour share; a bot's
-// and one of unknown author are left out of them, never taken as human, and
-// counted apart; those merged before the window or in another project's
-// repository are not counted at all.
+// and one of unknown author are left out of them, never taken as human (a
+// bot's have the Bot PR Lead Time, forsgren#479); those merged before the
+// window or in another project's repository are not counted at all.
 func TestPRLeadTimeCountsHumanPullRequestsOnly(t *testing.T) {
 	h := time.Hour
 	pulls := append(shopPulls(1, 3),
@@ -29,24 +29,23 @@ func TestPRLeadTimeCountsHumanPullRequestsOnly(t *testing.T) {
 		openedBy(mergedPull("acme/app", 7, h, 40*day), history.BotUnknown),
 		openedBy(mergedPull("acme/cli", 8, h, h), history.ByBot))
 	got := PRLeadTimes(projects, Data{Pulls: pulls}, now)
-	want := PRLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * h, Median: 2 * h,
-		Bots: 2}
+	want := PRLeadTime{Project: "Acme Shop", PullRequests: 2, Mean: 2 * h, Median: 2 * h}
 	if got[0] != want {
 		t.Errorf("Acme Shop: want %+v, got %+v", want, got[0])
 	}
-	if tools := (PRLeadTime{Project: "Acme Tools", Bots: 1}); got[1] != tools {
+	if tools := (PRLeadTime{Project: "Acme Tools"}); got[1] != tools {
 		t.Errorf("Acme Tools: want %+v, got %+v", tools, got[1])
 	}
 }
 
 // TestPRLeadTimeWithoutAHumanPullRequestHasNoLeadTime (forsgren#345,
 // step 2): pull requests of bots and of unknown authors alone give no lead
-// time, no deviation and no share, only the bots count.
+// time, no deviation and no share.
 func TestPRLeadTimeWithoutAHumanPullRequestHasNoLeadTime(t *testing.T) {
 	bot := openedBy(mergedPull("acme/app", 1, time.Hour, time.Hour), history.ByBot)
 	unknown := openedBy(mergedPull("acme/app", 2, time.Hour, time.Hour), history.BotUnknown)
 	got := shopPRLead(bot, unknown)
-	want := PRLeadTime{Project: "Acme Shop", Bots: 1}
+	want := PRLeadTime{Project: "Acme Shop"}
 	if got != want {
 		t.Errorf("want %+v, got %+v", want, got)
 	}

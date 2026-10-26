@@ -30,13 +30,13 @@ package metrics
 //     90th percentile, by nearest rank, from minP90Gaps (forsgren#423, Yves on
 //     #432), as every other spread of the TBD page; the deviation and the share
 //     merged within 24 hours are gone from the page (forsgren#423);
-//   - only the pull requests a person opened count (forsgren#345, step 2,
-//     Yves's answers on #341, #348 and #349: history.ByHuman), in the mean,
-//     the median, the count and the notes; one a bot opened (ByBot) and
-//     one whose author's account type is not known (BotUnknown, every line
-//     of the pulls format v1 among them) are left out, never taken as human,
-//     and the bots' counted apart in Bots (the others are not counted at all,
-//     forsgren#403), merged in the window like the others;
+//   - PR Lead Time counts the pull requests a person opened (forsgren#345,
+//     step 2, Yves's answers on #341, #348 and #349: history.ByHuman) and the
+//     Bot PR Lead Time the ones a bot opened (history.ByBot, forsgren#479, in
+//     place of note 5), each the same measure over its own population
+//     (prLeadTimesOf); one whose author's account type is not known
+//     (BotUnknown, every line of the pulls format v1 among them) is in
+//     neither, never taken as human or as a bot (forsgren#403);
 //   - a project with a repository whose pull request read GitHub refused
 //     (Data.PullsDenied, data/pulls_denied.csv, forsgren#337) is NotReadable
 //     as a whole, whatever was read of its other repositories.
@@ -46,6 +46,7 @@ package metrics
 
 import (
 	"math"
+	"slices"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
@@ -55,8 +56,9 @@ import (
 // PRLeadTime is one project's PR Lead Time at the render time.
 type PRLeadTime struct {
 	Project string
-	// PullRequests counts the human pull requests merged in the DORA window,
-	// the ones every other number here is of.
+	// PullRequests counts the pull requests of the measure's population (a
+	// person's or a bot's) merged in the DORA window, the ones every other
+	// number here is of.
 	PullRequests int
 	// Mean is the mean lead time; zero without a pull request.
 	Mean time.Duration
@@ -72,9 +74,6 @@ type PRLeadTime struct {
 	// CreatedStandsIn counts the pull requests whose created time stood in
 	// for the first commit time (decision #300).
 	CreatedStandsIn int
-	// Bots counts the pull requests merged in the DORA window that a bot
-	// opened (history.ByBot, forsgren#345, step 2): never in the lead time.
-	Bots int
 	// NotReadable says collect was refused the pull request read of one of
 	// the project's repositories (data/pulls_denied.csv, forsgren#337).
 	NotReadable bool
@@ -91,9 +90,21 @@ func (m PRLeadTime) HasMedian() bool { return m.PullRequests > 1 }
 func (m PRLeadTime) HasP90() bool { return m.PullRequests >= minP90Gaps }
 
 // PRLeadTimes returns the PR Lead Time of each project, in the
-// order of projects, from the data's merged pull requests at the render time
-// now, over its DORA window (30, 90 or 180 days).
+// order of projects, from the data's merged pull requests a person opened at
+// the render time now, over its DORA window (30, 90 or 180 days).
 func PRLeadTimes(projects []config.Project, data Data, now time.Time) []PRLeadTime {
+	return prLeadTimesOf(projects, data, now, history.ByHuman)
+}
+
+// BotPRLeadTimes returns the Bot PR Lead Time of each project (forsgren#479):
+// PRLeadTimes over the pull requests a bot opened.
+func BotPRLeadTimes(projects []config.Project, data Data, now time.Time) []PRLeadTime {
+	return prLeadTimesOf(projects, data, now, history.ByBot)
+}
+
+// prLeadTimesOf is the lead time of each project over the merged pull requests
+// opened by opener.
+func prLeadTimesOf(projects []config.Project, data Data, now time.Time, opener history.BotStatus) []PRLeadTime {
 	index := indexOf(projects)
 	leads := make([][]float64, len(projects))
 	out := make([]PRLeadTime, len(projects))
@@ -102,7 +113,7 @@ func PRLeadTimes(projects []config.Project, data Data, now time.Time) []PRLeadTi
 	}
 	markNotReadable(out, index, data.PullsDenied)
 	in := data.window()
-	for _, p := range data.Pulls {
+	for _, p := range pullsOpenedBy(data.Pulls, opener) {
 		i, ok := index.of(p.Repository)
 		if !ok || !in.holds(p.MergedAt, now) {
 			continue
@@ -113,6 +124,11 @@ func PRLeadTimes(projects []config.Project, data Data, now time.Time) []PRLeadTi
 		out[i].spread(leads[i])
 	}
 	return out
+}
+
+// pullsOpenedBy are the pull requests opened by opener, in their order.
+func pullsOpenedBy(pulls []history.PullRequest, opener history.BotStatus) []history.PullRequest {
+	return slices.DeleteFunc(slices.Clone(pulls), func(p history.PullRequest) bool { return p.Bot != opener })
 }
 
 // markNotReadable sets NotReadable on the project of each repository whose
@@ -137,14 +153,9 @@ func pullLeadOf(p history.PullRequest) time.Duration {
 	return max(p.MergedAt.Sub(first), 0)
 }
 
-// add counts p, a pull request of m's project merged in the window, and
-// returns leads with its lead time in nanoseconds when a person opened it;
-// any other is left out of the lead time, leads returned as they were.
+// add counts p, a pull request of m's project merged in the window and opened
+// by m's population, and returns leads with its lead time in nanoseconds.
 func (m *PRLeadTime) add(p history.PullRequest, leads []float64) []float64 {
-	if p.Bot != history.ByHuman {
-		m.Bots += boolCount(p.Bot == history.ByBot)
-		return leads
-	}
 	lead := pullLeadOf(p)
 	m.note(p, lead)
 	return append(leads, float64(lead))

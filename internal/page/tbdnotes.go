@@ -31,7 +31,8 @@ func (n TbdNote) Number() int { return n.Kind.Number() }
 func (n TbdNote) Text() string { return n.Kind.Text() }
 
 // notes are the notes of the row's cells: the Mainline Interval's first, then
-// the Mainline Lead Time's (forsgren#463, step 9), then the pull requests'; a
+// the Mainline Lead Time's (forsgren#463, step 9), then the pull requests' and
+// the bots' (forsgren#479); a
 // project without data (forsgren#394, step 3) has none, a project whose pull
 // requests cells are a sentence has none of those, and one whose Mainline Lead
 // Time cell is a push state has none of that.
@@ -48,10 +49,13 @@ func (r TbdRow) notes() []metrics.Note {
 	if r.MainLead.State() == "" {
 		notes = append(notes, r.MainLead.Notes()...)
 	}
-	if r.LeadState() != "" {
-		return notes
+	if r.LeadState() == "" {
+		notes = append(notes, r.Lead.Notes()...)
 	}
-	return append(notes, r.Lead.Notes()...)
+	if r.BotLeadState() == "" {
+		notes = append(notes, r.BotLead.Notes()...)
+	}
+	return notes
 }
 
 // TbdNotes are the kinds of note the TBD page's cells have, in the order of
@@ -71,13 +75,19 @@ func (d Data) TbdNotes() []TbdNote {
 	return out
 }
 
-// projectsWith is the row's project once for each of its notes of kind.
+// projectsWith is the row's project for its notes of kind, once with their
+// counts added: the PR Lead Time and the Bot PR Lead Time may both carry one
+// (forsgren#479), and the line names the project once.
 func projectsWith(kind metrics.NoteKind, row TbdRow) []TbdNoteProject {
 	var out []TbdNoteProject
 	for _, n := range row.notes() {
-		if n.Kind == kind {
-			out = append(out, TbdNoteProject{Name: row.NotesName(), Count: n.Count, Of: n.Of})
+		if n.Kind != kind {
+			continue
 		}
+		if len(out) == 0 {
+			out = append(out, TbdNoteProject{Name: row.NotesName(), Of: n.Of})
+		}
+		out[0].Count += n.Count
 	}
 	return out
 }

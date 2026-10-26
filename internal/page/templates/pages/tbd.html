@@ -10,6 +10,7 @@
             <th scope="colgroup" colspan="3">Mainline Lead Time</th>
             <th scope="colgroup" colspan="3">Time to main per commit</th>
             <th scope="colgroup" colspan="3">PR Lead Time</th>
+            <th scope="colgroup" colspan="3">Bot PR Lead Time</th>
             <th scope="colgroup" colspan="3">Time to deploy per commit</th>
             <th scope="colgroup" colspan="3">Volume</th>
             <th scope="colgroup" colspan="3">Commits per push</th>
@@ -30,6 +31,9 @@
             <th scope="col">mean</th>
             <th scope="col">median</th>
             <th scope="col">p90</th>
+            <th scope="col" aria-label="the mean of bot PR lead time">mean</th>
+            <th scope="col" aria-label="the median of bot PR lead time">median</th>
+            <th scope="col" aria-label="the p90 of bot PR lead time">p90</th>
             <th scope="col" aria-label="the mean of time to deploy">mean</th>
             <th scope="col" aria-label="the median of time to deploy">median</th>
             <th scope="col" aria-label="the p90 of time to deploy">p90</th>
@@ -54,6 +58,7 @@
             <th scope="col" aria-label="median mainline lead time">Mainline Lead Time</th>
             <th scope="col" aria-label="median time to main per commit">Time to main per commit</th>
             <th scope="col" aria-label="median PR lead time">PR Lead Time</th>
+            <th scope="col" aria-label="median bot PR lead time">Bot PR Lead Time</th>
             <th scope="col" aria-label="median time to deploy per commit">Time to deploy per commit</th>
             <th scope="col">Commits</th>
             <th scope="col">Pushes</th>
@@ -72,7 +77,7 @@
             <th scope="row">{{if .IsLabel}}<span class="visually-hidden">{{.Project}}: </span>{{end}}{{.Name}}</th>
 {{if .NoData}}            <td colspan="{{$.TbdColumnsAfterProject}}">{{.NoDataSentence}}</td>
           </tr>
-{{else}}{{if .PerRepository}}            <td colspan="{{if $all}}12{{else}}4{{end}}">{{.PerRepositorySentence}}</td>
+{{else}}{{if .PerRepository}}            <td colspan="{{if $all}}15{{else}}5{{end}}">{{.PerRepositorySentence}}</td>
 {{else}}{{if $all}}            {{template "notedcell" .Interval.MeanCell}}
             <td>{{.Interval.MedianCell}}</td>
             <td>{{.Interval.P90Cell}}</td>
@@ -92,6 +97,11 @@
             <td>{{.Lead.MedianCell}}</td>
             <td>{{.Lead.P90Cell}}</td>
 {{else}}            {{template "notedcell" .Lead.MedianNotedCell}}
+{{end}}{{if .BotLeadState}}            <td{{if $all}} colspan="3"{{end}}>{{.BotLeadState}}</td>
+{{else if $all}}            {{template "notedcell" .BotLead.MeanCell}}
+            <td>{{.BotLead.MedianCell}}</td>
+            <td>{{.BotLead.P90Cell}}</td>
+{{else}}            {{template "notedcell" .BotLead.MedianNotedCell}}
 {{end}}{{end}}{{if $all}}            <td>{{.Deploy.TimeToDeploy.MeanCell}}</td>
             <td>{{.Deploy.TimeToDeploy.MedianCell}}</td>
             <td>{{.Deploy.TimeToDeploy.P90Cell}}</td>

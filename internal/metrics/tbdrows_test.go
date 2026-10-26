@@ -101,7 +101,8 @@ func TestAServiceTbdRowCountsItsOwnDeployments(t *testing.T) {
 	if got := figuresOf(api); got != want {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
-	if absent := [3]int{api.Push.Commits, api.Lead.PullRequests, api.Interval.Commits}; absent != [3]int{} {
+	if absent := [4]int{api.Push.Commits, api.Lead.PullRequests, api.BotLead.PullRequests,
+		api.Interval.Commits}; absent != [4]int{} {
 		t.Errorf("want nothing in the absent measures of a service row, got %+v", api)
 	}
 }
@@ -162,5 +163,45 @@ func TestTbdRowNamesInTheNotesList(t *testing.T) {
 	want := []string{"Acme Shop", "Acme Shop: API", "Acme Shop: Website"}
 	if !slices.Equal(got, want) {
 		t.Errorf("want %q, got %q", want, got)
+	}
+}
+
+// TestTbdRowsCarryTheBotPRLeadTimeBesideThePRLeadTime (forsgren#479, step 1): a
+// total row and a repository label row have the lead time of the pull requests
+// a bot opened (BotLead) beside the people's (Lead), each over the row's own
+// repositories, bots of unknown author in neither; a service row leaves it
+// empty, absent like Lead.
+func TestTbdRowsCarryTheBotPRLeadTimeBesideThePRLeadTime(t *testing.T) {
+	h := time.Hour
+	data := tbdData()
+	data.Pulls = []history.PullRequest{
+		mergedPull("acme/web", 1, 2*h, h),
+		openedBy(mergedPull("acme/web", 2, 4*h, h), history.ByBot),
+		openedBy(mergedPull("acme/app", 3, 6*h, h), history.ByBot),
+		openedBy(mergedPull("acme/app", 4, 8*h, h), history.BotUnknown),
+	}
+	rows := TbdRows(tableProjects, data, now, nil)
+	wantPullCounts(t, rows)
+	if web := tbdRowNamed(t, rows, "Website").BotLead; web.Mean != 4*h || web.Project != "Website" {
+		t.Errorf("want the Website bot lead time 4 h, got %+v", web)
+	}
+	if shop := rows[0].BotLead; shop.Mean != 5*h || shop.Median != 5*h {
+		t.Errorf("want the Acme Shop bot lead time 5 h, got %+v", shop)
+	}
+}
+
+// wantPullCounts holds the pull requests of the people and of the bots of three
+// rows of TestTbdRowsCarryTheBotPRLeadTimeBesideThePRLeadTime to their counts.
+func wantPullCounts(t *testing.T, rows []TbdRow) {
+	t.Helper()
+	type pair struct{ human, bots int }
+	got := map[string]pair{}
+	for _, name := range []string{"Acme Shop", "Website", "API"} {
+		r := tbdRowNamed(t, rows, name)
+		got[name] = pair{r.Lead.PullRequests, r.BotLead.PullRequests}
+	}
+	want := map[string]pair{"Acme Shop": {1, 2}, "Website": {1, 1}, "API": {}}
+	if !maps.Equal(got, want) {
+		t.Errorf("want pull requests (people, bots) %v, got %v", want, got)
 	}
 }

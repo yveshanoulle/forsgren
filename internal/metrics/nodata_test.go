@@ -12,6 +12,7 @@ func TestNoDataNeedsAllFourAbsent(t *testing.T) {
 		deploy DeployMeasures
 		push   PushMeasures
 		lead   PRLeadTime
+		bots   PRLeadTime
 		want   bool
 	}{
 		"all four absent":           {want: true},
@@ -20,9 +21,9 @@ func TestNoDataNeedsAllFourAbsent(t *testing.T) {
 		"a failed deployment alone": {volume: DeploymentVolume{Final: 1}, want: false},
 		"a push alone":              {push: PushMeasures{Pushes: 1}, want: false},
 		"a merged human pull alone": {lead: PRLeadTime{PullRequests: 1}, want: false},
-		"a merged bot pull alone":   {lead: PRLeadTime{Bots: 1}, want: false},
+		"a merged bot pull alone":   {bots: PRLeadTime{PullRequests: 1}, want: false},
 	} {
-		if got := NoData(c.volume, c.deploy, c.push, c.lead); got != c.want {
+		if got := NoData(c.volume, c.deploy, c.push, c.lead.PullRequests+c.bots.PullRequests); got != c.want {
 			t.Errorf("%s: want %v, got %v", name, c.want, got)
 		}
 	}

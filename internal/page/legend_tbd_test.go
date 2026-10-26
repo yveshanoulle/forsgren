@@ -19,7 +19,7 @@ var legendTbdText = []string{
 	"When all three figures are shown, the columns of time to main, time to deploy, commits per push and commits " +
 		"per deployment carry their measure for a screen reader, such as the mean of time to main",
 	"The Notes below the table say what each number means",
-	"They explain estimates, a lower bound, a stand-in time and bots that are not counted",
+	"They explain estimates, a lower bound and a stand-in time",
 	"Missing data is shown as a dash, a no-data row or a not-readable cell, not as a note",
 	"The Mainline Interval is the time between commits reaching the main branch",
 	"A shorter interval means changes are integrated more often",
@@ -154,7 +154,8 @@ var legendTbdText = []string{
 	"The original commits of a squash count at the push of the squash commit",
 	"The merge time of the pull request never stands in for it: without that push, the originals are not " +
 		"counted at all",
-	"Bots count in Mainline Lead Time, as in Time to main. PR Lead Time does not count them",
+	"Bots count in Mainline Lead Time, as in Time to main. PR Lead Time counts people only, and Bot PR " +
+		"Lead Time counts the pull requests that bots opened",
 	"Pushes whose commits are not known, such as a force push or a push with too many commits to read, are " +
 		"left out: their data is incomplete, so their commits are not counted, not even as 0 (note 6)",
 	"the merge and squash branch commits of that time are missing, so the figure may read short (note 7)",
@@ -186,10 +187,9 @@ var legendTbdText = []string{
 	"The Notes list gives the name of such a row as Project: label, for example Acme Shop: Website",
 	"(1) Mostly estimated: commits timed by author date. It applies to the Mainline Interval",
 	"(2) Commits timed by author date. It applies to the Mainline Interval",
-	"(3) A lower bound: a first commit time of a pull request was cut. It applies to PR Lead " +
-		"Time",
-	"(4) Pull requests timed by their created time. It applies to PR Lead Time",
-	"(5) Bot pull requests not counted. It applies to PR Lead Time",
+	"(3) A lower bound: a first commit time of a pull request was cut. It applies to PR Lead Time " +
+		"and Bot PR Lead Time",
+	"(4) Pull requests timed by their created time. It applies to PR Lead Time and Bot PR Lead Time",
 	"one line for each kind of note that occurs, with the projects it applies to and their " +
 		"counts",
 	"The exact calculations are in the technical reference",
@@ -204,14 +204,21 @@ var legendLeadText = []string{
 	"It counts the pull requests merged in the last 30 days, by their merge time",
 	"A first commit dated after the merge counts as 0",
 	"It includes only merged pull requests opened by people",
-	"Pull requests opened by bots and changes pushed directly to main are not included",
+	"Pull requests opened by bots are in the Bot PR Lead Time. Changes pushed directly to main are in " +
+		"neither",
 	"In a workflow that mixes both, this column covers only the changes that came through " +
 		"pull requests",
 	"the Direct share shows how many",
 	"That is not proof of direct commits",
 	"so the lead time is a lower bound (note 3)",
 	"the created time of the pull request stands in for the first commit time (note 4)",
-	"Pull requests opened by bots are not counted (note 5)",
+	"Bot PR Lead Time is the same measure as PR Lead Time, over the merged pull requests that a bot " +
+		"opened instead of a person",
+	"It follows the same rules as PR Lead Time",
+	"It has its own column right after PR Lead Time",
+	"Pull requests whose author is not known are in neither column",
+	"A project whose pull requests are all opened by bots, such as dependency updates, shows a dash under " +
+		"PR Lead Time and its figures under Bot PR Lead Time",
 }
 
 // legendLeadNever are claims the data cannot establish: the legacy format is
@@ -247,6 +254,12 @@ func wordingWhere(wordings []string, section string, present bool) []string {
 // (forsgren#254): the interval is no longer by author date, and Developers no
 // longer counts only the commits the interval counts.
 var legendTbdRetired = []string{
+	"and bots that are not counted",
+	"Bot pull requests not counted",
+	"(5)",
+	"Pull requests opened by bots are not counted (note 5)",
+	"Pull requests opened by bots and changes pushed directly to main are not included",
+	"PR Lead Time does not count them",
 	"is the name this page gives to the Mainline Lead Time",
 	"Forsgren uses no abbreviation",
 	"by their author date",
@@ -395,6 +408,8 @@ var legendTbdGroups = []struct{ id, title, sentence string }{
 		"Time to deploy per commit is how old one change"},
 	{"tbd-pr-lead-time", "PR Lead Time (How long does a pull request take to merge?)",
 		"PR Lead Time is the time from the first commit"},
+	{"tbd-bot-pr-lead-time", "Bot PR Lead Time (How long does a pull request of a bot take to merge?)",
+		"Bot PR Lead Time is the same measure as PR Lead Time"},
 	{"tbd-mainline-lead-time", "Mainline Lead Time (Why are there three lead times?)",
 		"The Mainline Throughput Indicator has one lead time"},
 	{"tbd-volume", "Volume (How much work is integrated at once?)", "Volume shows three numbers"},

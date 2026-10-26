@@ -42,10 +42,10 @@ func (m mergedPull) stored(t *testing.T) history.PullRequest {
 
 // acmePulls are Acme Shop's merged pull requests: in the 30 days, of people,
 // 2 hours (acme/api), 30 hours with a cut commit list (Acme/API, the case
-// ignored) and 1 hour from the created time (acme/ios-app), and, not counted
-// in the lead time (forsgren#345, step 2), one of a bot and one of unknown
-// author; one merged before the window is not counted at all. Acme Tools has
-// none.
+// ignored) and 1 hour from the created time (acme/ios-app), and, not in the
+// lead time of people (forsgren#345, step 2), one of a bot (the Bot PR Lead
+// Time's, forsgren#479) and one of unknown author (in neither); one merged
+// before the window is not counted at all. Acme Tools has none.
 func acmePulls(t *testing.T) []history.PullRequest {
 	pulls := []mergedPull{
 		{"acme/api", 1, "2026-10-01T08:00:00Z", "2026-10-01T10:00:00Z", false, history.ByHuman},
@@ -83,10 +83,18 @@ type projectCells struct{ interval, deploy string }
 // leadRow is the middle of a project's TBD row: the Mainline Interval cells,
 // the Mainline Lead Time and the time to main (the push state without pushes,
 // forsgren#463, step 9), the time to deploy cells
-// and the pull requests cell lead (forsgren#418: the order of the groups).
-func leadRow(row projectCells, lead string) string {
+// and the pull requests cell lead (forsgren#418: the order of the groups) with
+// the Bot PR Lead Time cells after it (forsgren#479): bot when given, else the
+// same sentence for a state and the dashes of no pull request for any figures.
+func leadRow(row projectCells, lead string, bot ...string) string {
+	botCells := noHumanPulls
+	if len(bot) > 0 {
+		botCells = bot[0]
+	} else if leadCells(lead).isState() {
+		botCells = lead
+	}
 	return row.interval + "\n            " + pushesNotCollected(3) + "\n            " + pushesNotCollected(3) +
-		"\n            " + leadTd(lead) +
+		"\n            " + leadTd(lead) + "\n            " + leadTd(botCells) +
 		"\n            " + row.deploy + "\n"
 }
 
@@ -169,7 +177,7 @@ func developersRow(developers string) string {
 // Time next to its Mainline Interval: Acme Shop's human lead times of 2, 30
 // and 1 hours have a mean of 11 h and a median of 2 h, no p90 under ten, the
 // cut one making the mean a lower bound, the one of the created time named,
-// then the bot's named as not counted (forsgren#345, step 2); the notes are on
+// the bots left out (forsgren#479); the notes are on
 // the mean cell (forsgren#394, step 2); Acme Tools has no pull request, so
 // dashes (forsgren#423: no deviation, count or share any more).
 func TestRenderShowsThePRLeadTimeOfEachProject(t *testing.T) {
@@ -178,7 +186,8 @@ func TestRenderShowsThePRLeadTimeOfEachProject(t *testing.T) {
 	writePulls(t, data, acmePulls(t))
 	got := tbdSiteOf(t, validConfig, data)
 	wantIn(t, got, "<th scope=\"colgroup\" colspan=\"3\">PR Lead Time</th>",
-		leadRow(shopRow, "{3,4,5}11 h | 2 h | -"),
+		"<th scope=\"colgroup\" colspan=\"3\">Bot PR Lead Time</th>",
+		leadRow(shopRow, "{3,4}11 h | 2 h | -", "12 d | - | -"),
 		leadRow(noRow, noHumanPulls))
 }
 

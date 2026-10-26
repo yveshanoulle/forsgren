@@ -17,14 +17,15 @@ func (m PRLeadTime) State() string {
 }
 
 // The TBD page's PR Lead Time cells (forsgren#256, step 2; forsgren#423, Yves
-// on #432), of the human pull requests only (forsgren#345, step 2): the mean,
+// on #432), of the pull requests a person opened (forsgren#345, step 2) or, for
+// the Bot PR Lead Time, a bot (forsgren#479): the mean,
 // the median and the 90th percentile, a dash while one is not shown (the median
 // below two pull requests, the 90th percentile below ten, all three without a
 // human pull request, forsgren#390, step 2). The deviation, the count, the cut
 // count and the share merged within 24 hours are not in a cell any more. What
 // the cells do not say in words are notes (forsgren#394, step 2): the mean is a
 // lower bound with a cut one, the created time stood in for some (decision
-// #300), and the bot pull requests are not counted (#341).
+// #300); the bot pull requests have their own column (forsgren#479).
 
 // MeanCell is the mean lead time with the notes, which sit on it when the table
 // shows all three figures.
@@ -60,5 +61,5 @@ func (m PRLeadTime) Notes() []Note {
 		notes = appendNote(notes, NoteLowerBound, m.Cut)
 		notes = appendNote(notes, NoteCreatedTime, m.CreatedStandsIn)
 	}
-	return appendNote(notes, NoteBotsNotCounted, m.Bots)
+	return notes
 }

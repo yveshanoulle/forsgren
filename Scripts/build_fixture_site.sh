@@ -97,11 +97,13 @@ tbd_shows_interval() {
 if ! tbd_shows_interval; then
   fail "tbd.html shows no Mainline Interval: the fixture has no commits the page can show"
 fi
-# The TBD page has a PR Lead Time mean with a duration and the note on the bot
-# pull requests the fixture has, not 'not collected yet' (forsgren#350, decision
-# #336; the cell has no sentence since forsgren#423).
+# The TBD page has a PR Lead Time mean with a duration and the note on the cut
+# first commit time the fixture has, its Bot PR Lead Time group beside it
+# (forsgren#479, which took the place of note 5), not 'not collected yet'
+# (forsgren#350, decision #336; the cell has no sentence since forsgren#423).
 tbd_shows_lead_time() {
-  grep -qE '<td aria-describedby="[^"]*tbd-note-5[^"]*">[0-9][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>' "${STAGE}/tbd.html" \
+  grep -qE '<td aria-describedby="[^"]*tbd-note-3[^"]*">[0-9][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>' "${STAGE}/tbd.html" \
+    && grep -qF '>Bot PR Lead Time</th>' "${STAGE}/tbd.html" \
     && ! grep -qF 'No pull requests have been collected yet' "${STAGE}/tbd.html"
 }
 if ! tbd_shows_lead_time; then

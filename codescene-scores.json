@@ -269,7 +269,7 @@
   {
    "path": "cmd/forsgren/render_tbd_lead_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {
@@ -545,7 +545,7 @@
   {
    "path": "internal/metrics/prleadtime.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {
@@ -1643,13 +1643,13 @@
   {
    "path": "internal/page/tbd.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {
    "path": "internal/page/tbd_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {
@@ -1925,7 +1925,13 @@
   {
    "path": "internal/metrics/prleadtimehuman_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/prleadtimebot_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {
@@ -2177,19 +2183,19 @@
   {
    "path": "internal/metrics/notes_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {
    "path": "internal/page/tbdnotes.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {
    "path": "internal/page/tbdnotes_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {
@@ -2213,25 +2219,25 @@
   {
    "path": "internal/metrics/prleadspread_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {
    "path": "internal/metrics/nodata.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {
    "path": "internal/metrics/nodata_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {
    "path": "internal/page/tbdnodata_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {
@@ -2243,7 +2249,7 @@
   {
    "path": "internal/metrics/tbdrows_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {

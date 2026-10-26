@@ -272,15 +272,18 @@ else
   fail_check 31 "tbd.html has a Mainline Interval row and not the no-data line"
 fi
 
-# 34: the TBD page has a Mainline Lead Time with pull requests (forsgren#350,
-# decision #336): the fixture's made-up pulls.csv, its long notes included, so
-# the browser gate opens the cell with data and not 'not collected yet'.
-if grep -qE '<td aria-describedby="[^"]*tbd-note-5[^"]*">[0-9][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>' "${FIXTURE_HAPPY}/tbd.html" 2>/dev/null \
-  && grep -qF '<li id="tbd-note-5">' "${FIXTURE_HAPPY}/tbd.html" 2>/dev/null \
+# 34: the TBD page has a PR Lead Time with pull requests and its Bot PR Lead Time
+# group (forsgren#350, decision #336, forsgren#479): the fixture's made-up
+# pulls.csv, its long notes included (note 5 is retired, so the note of a cut
+# first commit time, 3), so the browser gate opens the cell with data and not
+# 'not collected yet'.
+if grep -qE '<td aria-describedby="[^"]*tbd-note-3[^"]*">[0-9][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>' "${FIXTURE_HAPPY}/tbd.html" 2>/dev/null \
+  && grep -qF '<li id="tbd-note-3">' "${FIXTURE_HAPPY}/tbd.html" 2>/dev/null \
+  && grep -qF '>Bot PR Lead Time</th>' "${FIXTURE_HAPPY}/tbd.html" 2>/dev/null \
   && ! grep -qF 'No pull requests have been collected yet' "${FIXTURE_HAPPY}/tbd.html"; then
-  pass 34 "tbd.html has a Mainline Lead Time with pull requests and not the not-collected line"
+  pass 34 "tbd.html has a PR Lead Time and a Bot PR Lead Time with pull requests and not the not-collected line"
 else
-  fail_check 34 "tbd.html has a Mainline Lead Time with pull requests and not the not-collected line"
+  fail_check 34 "tbd.html has a PR Lead Time and a Bot PR Lead Time with pull requests and not the not-collected line"
 fi
 
 run_fixture "fixture-again"

@@ -27,18 +27,18 @@ func noDataRow(columns int, days int) string {
 }
 
 // TestTbdRowWithoutDataIsOneSentenceAcrossTheColumns (forsgren#394, step 3,
-// decision #433): the whole row is one cell spanning the 15 columns after the
-// project with the median only, the 29 with all the figures, saying the
+// decision #433): the whole row is one cell spanning the 16 columns after the
+// project with the median only, the 32 with all the figures, saying the
 // window's days from the config; the other rows are unchanged.
 func TestTbdRowWithoutDataIsOneSentenceAcrossTheColumns(t *testing.T) {
 	for name, c := range map[string]struct {
 		all     bool
 		columns int
-	}{"median": {false, 15}, "all": {true, 29}} {
+	}{"median": {false, 16}, "all": {true, 32}} {
 		data := withoutData(c.all)
 		got := rendered(t, "tbd.html", data)
 		wantAll(t, name, got, noDataRow(c.columns, 30),
-			tbdRow(c.all, "Acme Shop", at(tbdLeadCells["Acme Shop"], c.all), "3"))
+			tbdRow(c.all, "Acme Shop", leadPair(c.all, "Acme Shop"), "3"))
 		data.DoraDays = 90
 		wantAll(t, name+" 90", rendered(t, "tbd.html", data), noDataRow(c.columns, 90))
 	}
@@ -47,12 +47,12 @@ func TestTbdRowWithoutDataIsOneSentenceAcrossTheColumns(t *testing.T) {
 // TestTbdColumnsAcrossMatchTheHeader: the sentence cell spans exactly the
 // header's columns after Project, in both figure modes.
 func TestTbdColumnsAcrossMatchTheHeader(t *testing.T) {
-	if got := strings.Count(medianHead(), "<th ") - 1; got != 15 {
-		t.Errorf("median header has %d columns after the project, want 15", got)
+	if got := strings.Count(medianHead(), "<th ") - 1; got != 16 {
+		t.Errorf("median header has %d columns after the project, want 16", got)
 	}
 	_, beneath := tbdHeaders()
-	if got := strings.Count(beneath, "<th "); got != 29 {
-		t.Errorf("all-figures header has %d columns after the project, want 29", got)
+	if got := strings.Count(beneath, "<th "); got != 32 {
+		t.Errorf("all-figures header has %d columns after the project, want 32", got)
 	}
 }
 
@@ -64,10 +64,11 @@ func TestTbdRowWithAnyOneOfTheFourKeepsItsDataRow(t *testing.T) {
 		"deployment":      func(d *Data) { d.TbdMetrics[2].Volume.Count = 1 },
 		"push":            func(d *Data) { d.TbdMetrics[2].Push.Pushes = 1 },
 		"pull request":    func(d *Data) { d.TbdMetrics[2].Lead.PullRequests = 1 },
+		"bot pull":        func(d *Data) { d.TbdMetrics[2].BotLead.PullRequests = 1 },
 	} {
 		data := withoutData(false)
 		change(&data)
-		wantNone(t, name, rendered(t, "tbd.html", data), "currently no data", "colspan=\"15\"")
+		wantNone(t, name, rendered(t, "tbd.html", data), "currently no data", "colspan=\"16\"")
 	}
 }
 

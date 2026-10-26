@@ -23,16 +23,16 @@ func tbdData() Data {
 
 // tbdLeads are the PR Lead Times of tbdData (forsgren#256, step 2):
 // Acme Shop's 5 pull requests with a median, Acme Tools' one cut pull
-// request, no human one for Acme Docs but 2 of bots, and Acme Web's 12 with
-// one timed by its created time, next to 3 of bots and 1 of unknown author
-// (forsgren#345, step 2).
+// request, no human one for Acme Docs, and Acme Web's 12 with one timed by its
+// created time (forsgren#345, step 2; the bots' have their own measure,
+// forsgren#479).
 func tbdLeads() []metrics.PRLeadTime {
 	return []metrics.PRLeadTime{
 		{Project: "Acme Shop", PullRequests: 5, Mean: 3 * time.Hour, Median: 2 * time.Hour},
 		{Project: "Acme Tools", PullRequests: 1, Mean: 30 * time.Hour, Cut: 1},
-		{Project: "Acme Docs", Bots: 2},
+		{Project: "Acme Docs"},
 		{Project: "Acme Web", PullRequests: 12, Mean: 20 * time.Hour, Median: 10 * time.Hour, P90: 30 * time.Hour,
-			CreatedStandsIn: 1, Bots: 3},
+			CreatedStandsIn: 1},
 	}
 }
 
@@ -60,7 +60,24 @@ func tbdDataWith(leads []metrics.PRLeadTime) Data {
 	for i, m := range tbdMainLeads() {
 		data.TbdMetrics[i].MainLead = m
 	}
+	for i, b := range tbdBotLeads() {
+		data.TbdMetrics[i].BotLead = b
+	}
 	return data
+}
+
+// tbdBotLeads are the Bot PR Lead Times of tbdData's projects (forsgren#479):
+// Acme Shop's 3 pull requests of bots, Acme Tools' 2 with one cut and one timed
+// by its created time (its notes add to the PR Lead Time's), none for Acme Docs
+// and Acme Web's 10 with every figure.
+func tbdBotLeads() []metrics.PRLeadTime {
+	return []metrics.PRLeadTime{
+		{Project: "Acme Shop", PullRequests: 3, Mean: 40 * time.Minute, Median: 30 * time.Minute},
+		{Project: "Acme Tools", PullRequests: 2, Mean: 3 * time.Hour, Median: 3 * time.Hour, Cut: 1,
+			CreatedStandsIn: 1},
+		{Project: "Acme Docs"},
+		{Project: "Acme Web", PullRequests: 10, Mean: 2 * time.Hour, Median: time.Hour, P90: 6 * time.Hour},
+	}
 }
 
 // tbdMainLeads are the Mainline Lead Times of tbdData's projects (forsgren#463,
@@ -188,8 +205,23 @@ var tbdIntervalCells = map[string][2]string{
 var tbdLeadCells = map[string][2]string{
 	"Acme Shop":  {"2 h", "3 h | 2 h | -"},
 	"Acme Tools": {"{3}-", "{3}1 d 6 h | - | -"},
-	"Acme Docs":  {"{5}-", "{5}- | - | -"},
-	"Acme Web":   {"{4,5}10 h", "{4,5}20 h | 10 h | 1 d 6 h"},
+	"Acme Docs":  {"-", "- | - | -"},
+	"Acme Web":   {"{4}10 h", "{4}20 h | 10 h | 1 d 6 h"},
+}
+
+// tbdBotLeadCells are the Bot PR Lead Time cells of tbdData's projects
+// (forsgren#479), right after the PR Lead Time's, with the same notes.
+var tbdBotLeadCells = map[string][2]string{
+	"Acme Shop":  {"30 m", "40 m | 30 m | -"},
+	"Acme Tools": {"{3,4}3 h", "{3,4}3 h | 3 h | -"},
+	"Acme Docs":  {"-", "- | - | -"},
+	"Acme Web":   {"1 h", "2 h | 1 h | 6 h"},
+}
+
+// leadPair is the PR Lead Time cells of project and the Bot PR Lead Time cells
+// beside them, for the figures.
+func leadPair(all bool, project string) string {
+	return at(tbdLeadCells[project], all) + " | " + at(tbdBotLeadCells[project], all)
 }
 
 // tbdMainLeadCells are the Mainline Lead Time cells of tbdData's projects
@@ -203,13 +235,14 @@ var tbdMainLeadCells = map[string][2]string{
 	"Acme Web":   {"@1Pushes not collected yet", "@3Pushes not collected yet"},
 }
 
-// leadState is the pull requests state cell for the figures: one column, or
-// three across the group of all of them.
+// leadState is the pull requests state cell for the figures, of the PR Lead
+// Time and of the Bot PR Lead Time beside it: one column each, or three across
+// the group of all of them.
 func leadState(all bool, text string) string {
 	if all {
-		return "@3" + text
+		return "@3" + text + " | @3" + text
 	}
-	return text
+	return text + " | " + text
 }
 
 // at is the one of the two cells that the figures show.
@@ -230,10 +263,20 @@ func noLeads() []metrics.PRLeadTime {
 	return leads
 }
 
+// noPulls is tbdData with neither a person's nor a bot's pull request merged in
+// the window.
+func noPulls() Data {
+	data := tbdDataWith(noLeads())
+	for i := range data.TbdMetrics {
+		data.TbdMetrics[i].BotLead = metrics.PRLeadTime{Project: data.TbdMetrics[i].BotLead.Project}
+	}
+	return data
+}
+
 // uncollected is tbdData with no data/pulls.csv beside the history: the pull
 // requests have not been collected yet (forsgren#256, step 2).
 func uncollected() Data {
-	data := tbdDataWith(noLeads())
+	data := noPulls()
 	data.PullsUncollected = true
 	return data
 }
@@ -243,8 +286,10 @@ func uncollected() Data {
 // Tools' cut pull request stays read, Acme Docs has none.
 func notReadable() Data {
 	data := tbdData()
-	data.TbdMetrics[1].Lead.NotReadable = true
-	data.TbdMetrics[2].Lead.NotReadable = true
+	for _, i := range []int{1, 2} {
+		data.TbdMetrics[i].Lead.NotReadable = true
+		data.TbdMetrics[i].BotLead.NotReadable = true
+	}
 	return data
 }
 
@@ -338,6 +383,7 @@ var tbdGroups = []struct {
 	{"Mainline Lead Time", []string{"mean", "median", "p90"}, "Mainline Lead Time"},
 	{"Time to main per commit", []string{"mean", "median", "p90"}, "time to main"},
 	{"PR Lead Time", []string{"mean", "median", "p90"}, ""},
+	{"Bot PR Lead Time", []string{"mean", "median", "p90"}, "bot PR lead time"},
 	{"Time to deploy per commit", []string{"mean", "median", "p90"}, "time to deploy"},
 	{"Volume", []string{"Commits", "Pushes", "Deployments"}, ""},
 	{"Commits per push", []string{"mean", "median", "p90"}, "commits per push"},
@@ -385,6 +431,7 @@ var medianHeaders = []struct{ text, label string }{
 	{"Mainline Lead Time", "median mainline lead time"},
 	{"Time to main per commit", "median time to main per commit"},
 	{"PR Lead Time", "median PR lead time"},
+	{"Bot PR Lead Time", "median bot PR lead time"},
 	{"Time to deploy per commit", "median time to deploy per commit"},
 	{"Commits", ""}, {"Pushes", ""}, {"Deployments", ""},
 	{"Commits per push", "median commits per push"},
@@ -413,7 +460,7 @@ func medianHead() string {
 // noHumanPulls is the pull requests cell of a project without a human pull
 // request in the window, in the default figures: a dash (forsgren#390, step
 // 2).
-const noHumanPulls = "-"
+const noHumanPulls = "- | -"
 
 // TestTbdPageHasOneHeaderRowWithTheMedianOnly (forsgren#423): by default, and
 // with tbd_figures median, the table has one header row: a column for each
@@ -458,10 +505,10 @@ func TestTbdPageHasTwoLevelHeadersWithAllTheFigures(t *testing.T) {
 func TestTbdPageShowsTheRowsOfEachProject(t *testing.T) {
 	got := rendered(t, "tbd.html", tbdData())
 	wantAll(t, "tbd.html", got,
-		tbdRow(false, "Acme Shop", at(tbdLeadCells["Acme Shop"], false), "3"),
-		tbdRow(false, "Acme Tools", at(tbdLeadCells["Acme Tools"], false), "1"),
-		tbdRow(false, "Acme Docs", at(tbdLeadCells["Acme Docs"], false), "1"),
-		tbdRow(false, "Acme Web", at(tbdLeadCells["Acme Web"], false), "12"))
+		tbdRow(false, "Acme Shop", leadPair(false, "Acme Shop"), "3"),
+		tbdRow(false, "Acme Tools", leadPair(false, "Acme Tools"), "1"),
+		tbdRow(false, "Acme Docs", leadPair(false, "Acme Docs"), "1"),
+		tbdRow(false, "Acme Web", leadPair(false, "Acme Web"), "12"))
 	wantNone(t, "tbd.html", got, "pull requests merged within", "(1 cut)", "±")
 }
 
@@ -472,10 +519,10 @@ func TestTbdPageShowsTheRowsOfEachProject(t *testing.T) {
 func TestTbdPageShowsAllTheFiguresOfEachProject(t *testing.T) {
 	got := rendered(t, "tbd.html", inFigures(tbdData(), true))
 	wantAll(t, "tbd.html", got,
-		tbdRow(true, "Acme Shop", at(tbdLeadCells["Acme Shop"], true), "3"),
-		tbdRow(true, "Acme Tools", at(tbdLeadCells["Acme Tools"], true), "1"),
-		tbdRow(true, "Acme Docs", at(tbdLeadCells["Acme Docs"], true), "1"),
-		tbdRow(true, "Acme Web", at(tbdLeadCells["Acme Web"], true), "12"))
+		tbdRow(true, "Acme Shop", leadPair(true, "Acme Shop"), "3"),
+		tbdRow(true, "Acme Tools", leadPair(true, "Acme Tools"), "1"),
+		tbdRow(true, "Acme Docs", leadPair(true, "Acme Docs"), "1"),
+		tbdRow(true, "Acme Web", leadPair(true, "Acme Web"), "12"))
 	wantNone(t, "tbd.html", got, "pull requests merged within", "(1 cut)", "±")
 }
 
@@ -500,11 +547,11 @@ func TestTbdPageSaysThePullRequestsAreNotCollectedYet(t *testing.T) {
 		got := rendered(t, "tbd.html", inFigures(uncollected(), all))
 		wantAll(t, "uncollected", got, tbdRow(all, "Acme Shop", state, "3"),
 			tbdRow(all, "Acme Docs", state, "1"), tbdRow(all, "Acme Web", state, "12"))
-		noneInWindow := rendered(t, "tbd.html", inFigures(tbdDataWith(noLeads()), all))
+		noneInWindow := rendered(t, "tbd.html", inFigures(noPulls(), all))
 		wantNone(t, "collected, none in the window", noneInWindow, notYet)
 		dashes := noHumanPulls
 		if all {
-			dashes = "- | - | -"
+			dashes = "- | - | - | - | - | -"
 		}
 		wantAll(t, "collected, none in the window", noneInWindow, tbdRow(all, "Acme Docs", dashes, "1"))
 	}
@@ -522,7 +569,7 @@ func TestTbdPageSaysThePullRequestsAreNotReadable(t *testing.T) {
 		got := rendered(t, "tbd.html", inFigures(notReadable(), all))
 		wantAll(t, "not readable", got, tbdRow(all, "Acme Tools", state, "1"),
 			tbdRow(all, "Acme Docs", state, "1"),
-			tbdRow(all, "Acme Shop", at(tbdLeadCells["Acme Shop"], all), "3"))
+			tbdRow(all, "Acme Shop", leadPair(all, "Acme Shop"), "3"))
 		uncollectedRefused := inFigures(notReadable(), all)
 		uncollectedRefused.PullsUncollected = true
 		got = rendered(t, "tbd.html", uncollectedRefused)
@@ -547,7 +594,7 @@ func TestTbdPageGolden(t *testing.T) {
 	checkPageGolden(t, "tbd.html", "testdata/tbd.golden.html", tbdData())
 	checkPageGolden(t, "tbd.html", "testdata/tbd.no-data.golden.html", calculated())
 	checkPageGolden(t, "tbd.html", "testdata/tbd.no-projects.golden.html", noProjects)
-	checkPageGolden(t, "tbd.html", "testdata/tbd.lead-no-data.golden.html", tbdDataWith(noLeads()))
+	checkPageGolden(t, "tbd.html", "testdata/tbd.lead-no-data.golden.html", noPulls())
 	checkPageGolden(t, "tbd.html", "testdata/tbd.lead-not-collected.golden.html", uncollected())
 	checkPageGolden(t, "tbd.html", "testdata/tbd.lead-not-readable.golden.html", notReadable())
 	checkPageGolden(t, "tbd.html", "testdata/tbd.all.golden.html", inFigures(tbdData(), true))

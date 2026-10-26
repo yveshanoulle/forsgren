@@ -10,7 +10,7 @@ package metrics
 
 import "fmt"
 
-// NoteKind is the number of one kind of note, 1 to 7 today.
+// NoteKind is the number of one kind of note, 1 to 7 today, 5 retired.
 type NoteKind int
 
 // The kinds of note, by their fixed numbers.
@@ -26,8 +26,9 @@ const (
 	// NoteCreatedTime: the created time of pull requests stands in for a
 	// first commit time.
 	NoteCreatedTime NoteKind = 4
-	// NoteBotsNotCounted: bot pull requests are left out of the lead time.
-	NoteBotsNotCounted NoteKind = 5
+	// Number 5 is retired (forsgren#479: the Bot PR Lead Time column took the
+	// place of "Bot pull requests not counted"): its number stays reserved
+	// forever, no cell shows it and the Notes list never lists it.
 	// NoteUnknownPushes: pushes of the window whose commits are not known (a
 	// cut or failed compare, a force push) are left out of the Mainline Lead
 	// Time (forsgren#463, decision #468).
@@ -48,7 +49,6 @@ var noteTexts = []struct {
 	{NoteByAuthorDate, "Commits timed by author date"},
 	{NoteLowerBound, "A lower bound: a first commit time of a pull request was cut"},
 	{NoteCreatedTime, "Pull requests timed by their created time"},
-	{NoteBotsNotCounted, "Bot pull requests not counted"},
 	{NoteUnknownPushes, "Pushes left out: their commits are not known (incomplete data), not counted as 0"},
 	{NoteFilling, "History still filling: merge and squash branch commits from before this version are missing"},
 }

@@ -16,9 +16,9 @@ func TestTbdPageListsTheNotesThatOccurBelowTheTable(t *testing.T) {
 	list := "        <li id=\"tbd-note-1\">(1) Mostly estimated: commits timed by author date: Acme Web 7 of 13</li>\n" +
 		"        <li id=\"tbd-note-2\">(2) Commits timed by author date: Acme Shop 2</li>\n" +
 		"        <li id=\"tbd-note-3\">(3) A lower bound: a first commit time of a pull request was cut: " +
-		"Acme Tools 1</li>\n" +
-		"        <li id=\"tbd-note-4\">(4) Pull requests timed by their created time: Acme Web 1</li>\n" +
-		"        <li id=\"tbd-note-5\">(5) Bot pull requests not counted: Acme Docs 2, Acme Web 3</li>\n" +
+		"Acme Tools 2</li>\n" +
+		"        <li id=\"tbd-note-4\">(4) Pull requests timed by their created time: " +
+		"Acme Tools 1, Acme Web 1</li>\n" +
 		"        <li id=\"tbd-note-6\">(6) Pushes left out: their commits are not known (incomplete data), " +
 		"not counted as 0: Acme Shop 2</li>\n" +
 		"        <li id=\"tbd-note-7\">(7) History still filling: merge and squash branch commits from before " +
@@ -45,13 +45,13 @@ func TestTbdPageListsTheMainlineLeadTimeNotesOnlyWhileTheyApply(t *testing.T) {
 // note there is no Notes element at all, and a kind that no cell has is not
 // listed.
 func TestTbdPageListsOnlyTheKindsThatOccur(t *testing.T) {
-	none := tbdDataWith(noLeads())
+	none := noPulls()
 	for i := range none.TbdMetrics {
 		none.TbdMetrics[i].Interval.ByAuthorDate = 0
 		none.TbdMetrics[i].MainLead.UnknownPushes, none.TbdMetrics[i].MainLead.Filling = 0, false
 	}
 	wantNone(t, "no note", rendered(t, "tbd.html", none), "<details", "Notes", "tbd-note-", "visually-hidden")
-	partial := tbdDataWith(noLeads())
+	partial := noPulls()
 	partial.TbdMetrics[3].Interval.ByAuthorDate = 0
 	got := rendered(t, "tbd.html", partial)
 	wantAll(t, "kind 2 stays", got, `id="tbd-note-2"`)
