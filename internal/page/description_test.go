@@ -17,7 +17,8 @@ const (
 	daysSentence    = "Issues opened, closed and reopened on each of the last 30 days"
 	historySentence = "The history of the DORA metrics per project: " +
 		"each half-year and the last 6 months"
-	tbdSentence    = "Trunk-based development: the Mainline Interval and the developers per project"
+	tbdSentence = "Trunk-based development per project: PR Lead Time, Time to main and Time to deploy, " +
+		"commits per push and per deployment, the Mainline Interval and the developers"
 	legendSentence = "How the DORA numbers are counted and scored: " +
 		"the window, the bands and the scores"
 	settingsSentence = "The settings of forsgren.config.yml and the value in use for each"

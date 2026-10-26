@@ -381,7 +381,7 @@ acme/app,2026-10-25T06:00:00Z
   does not ignore, outside `testdata/` blocks the commit, like the other data
   files.
 
-**The merged pull requests**, for the Mainline Lead Time (forsgren#255,
+**The merged pull requests**, for the PR Lead Time (forsgren#255,
 forsgren#256), are kept in `data/pulls.csv`, next to the history, with its own
 format version (the pulls format v2, forsgren#345):
 
@@ -441,7 +441,7 @@ acme/app,44,2026-09-02T10:00:00Z,2026-09-02T11:00:00Z,<40 hex>,2026-09-02T11:00:
   other type (`Organization`, `Mannequin`; #349), or the line was stored
   before this column. Such a pull request is still stored. Empty is never
   read as a person. The login itself is
-  never read or stored (#255's no-authors rule). Mainline Lead Time counts
+  never read or stored (#255's no-authors rule). PR Lead Time counts
   the `false` lines only; a `true` line and an empty one are left out of it
   and counted apart in its cell (forsgren#345).
 - A file of the pulls format v1, without the `bot` column, is still read,
@@ -531,7 +531,7 @@ acme/app,2026-10-23T06:00:00Z,FORSGREN_TOKEN
   repository with no merged pull request in the window has no line, so it
   shows `-`.
 - The TBD page reads it: a project with a repository named here shows
-  `Pull requests not readable` in its Mainline Lead Time cell, in place of a
+  `Pull requests not readable` in its PR Lead Time cell, in place of a
   lead time, of `-` and of `No pull requests have been collected yet`, even
   when its other repositories were read: one refused repository makes the
   project's whole cell not readable. The names are compared with the config's
@@ -1109,7 +1109,7 @@ access`: add Issues (read) to the token before updating to a forsgren that
 reads failure issues.
 
 Every rule also reads the repository's merged pull requests, for the
-Mainline Lead Time (forsgren#255, from 1.15.0), which needs Pull requests
+PR Lead Time (forsgren#255, from 1.15.0), which needs Pull requests
 (read) as well. A token without it fails nothing: `collect` stores everything
 else and names the missing permission on stderr (see The merged pull
 requests above). The setup issue cannot see a fine-grained token's

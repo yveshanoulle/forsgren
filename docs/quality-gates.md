@@ -720,7 +720,7 @@ The POST gates, on the generated site:
   requests, forsgren#350, decision #336; the render time
   pinned to the goldens' 2026-10-03 12:00 UTC) into a temporary directory, and is
   red when the History page has no chart, the Daily or Issues page no rows, or
-  the TBD page no Mainline Interval or no Mainline Lead Time with pull requests, so
+  the TBD page no Mainline Interval or no PR Lead Time with pull requests, so
   the fixture cannot go back to the placeholder. This gate then runs the browser
   gate's engine (`Scripts/browser_gate.mjs`) on that site: the same checks, the
   same manifest, exceptions and variants, and its own shrink-only baseline,

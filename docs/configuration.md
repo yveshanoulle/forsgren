@@ -179,7 +179,7 @@ projects:
     the main branch brought (`data/pushes.csv`, `data/push_commits.csv`), their
     shares (direct, pull requests, unknown authors, bots), the time to main and
     the commits per push, the time to deploy and the commits per deployment
-    from the deployments, the Mainline Lead Time of merged human pull
+    from the deployments, the PR Lead Time of merged human pull
     requests, the Mainline Interval and the number of developers
     (forsgren#397; see [The TBD page](pages-and-views.md#the-tbd-page)); the
     legend explains every group. Which figures each measure shows is the key
@@ -793,7 +793,7 @@ jobs:
   (and in the template's copy of it).
 - **`pull-requests: read` is needed from 1.15.0, and the caller's to grant
   too** (forsgren#255). forsgren then reads the merged pull requests of the
-  measured repositories for the Mainline Lead Time (see [The merged pull
+  measured repositories for the PR Lead Time (see [The merged pull
   requests](data-files.md#collecting-deployments-collect)). A caller without
   the line keeps working: nothing fails, every other number is still
   collected, and the setup issue names the line (see [The setup

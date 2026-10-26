@@ -909,11 +909,20 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     commits of the main line at the time they landed (the committer date),
     how often changes land, where this one is how old a change is when it
     lands (forsgren#448).
-  - *The names* (forsgren#448). Mainline Interval and Mainline Lead Time (PR
-    Lead Time since forsgren#403) are the two metrics of the Mainline
-    Throughput Indicator (forsgren#56). Time to main per commit is forsgren's
-    own name (forsgren#397). Forsgren uses no abbreviation for it; with the
-    median by default the figure is the median time to main.
+  - *The names* (forsgren#448). Mainline Interval and Mainline Lead Time are
+    the two metrics of the Mainline Throughput Indicator (forsgren#56). The page
+    shows PR Lead Time for the work that goes through pull requests, and Time
+    to main for every change, direct pushes included; with the median by
+    default the figure is the median time to main.
+  - *Two lead times* (forsgren#460). The Mainline Throughput Indicator has one
+    lead time, the Mainline Lead Time. Measured on pull requests alone, it
+    leaves out teams that push straight to main, so the page shows it as two
+    numbers: PR Lead Time, from the first commit of a pull request to its
+    merge, and Time to main, from the author date of a commit on the main line
+    to the push that brought it, direct pushes included. A merge counts as its
+    merge commit in Time to main, not as the commits it brought in from a
+    branch. Time to main is the stretch of a change's lead time from its commit
+    to the main branch.
   - *Time to deploy per commit.* For every commit of the first-parent chain of
     the deployments created in the window (merge commits of pull requests
     included, no longer only the direct ones), each at its earliest
@@ -1062,7 +1071,7 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
   Developers cell counted from it). The legend's TBD section explains the
   column: what a developer is, how listed logins count as one, bots left out,
   never who the developers are.
-- **PR Lead Time** (forsgren#256, named Mainline Lead Time until forsgren#403), the group after Time to deploy per commit
+- **PR Lead Time** (forsgren#256, forsgren#403), the group after Time to deploy per commit
   and before Volume: how old a change is when it reaches
   the main branch, in one column since forsgren#397: pull requests. The first
   version had direct and batch size columns beside it (forsgren#390); the push

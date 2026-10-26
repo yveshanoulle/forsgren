@@ -107,7 +107,7 @@ needs, each permission declared explicitly:
   this README and the collected history in `data/`.
 - `pages: write` and `id-token: write`: publish to your GitHub Pages.
 - `pull-requests: read`: lets forsgren read the merged pull requests for the
-  Mainline Lead Time, and the page footer name Dependabot's waiting pull
+  PR Lead Time, and the page footer name Dependabot's waiting pull
   request for a newer forsgren release. Without it the run still succeeds;
   the setup issue names it. A fine-grained `FORSGREN_TOKEN` needs Pull
   requests (read) as well, which the setup issue cannot see, so it never

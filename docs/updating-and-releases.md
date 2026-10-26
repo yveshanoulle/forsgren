@@ -499,7 +499,7 @@ new permission, secret or config key is needed.
 reads the merged pull requests of every measured repository, with each one's
 first commit time, into a new data file, `data/pulls.csv`, with its read mark
 in `data/pulls_read.csv` (see [History](data-files.md#history)); the first
-run reads back to `history_days`. They are the data for the Mainline Lead Time
+run reads back to `history_days`. They are the data for the PR Lead Time
 on the TBD page (forsgren#256). The forsgren job of your calling workflow now
 needs `pull-requests: read` (the template's calling workflow already carries
 it), and a fine-grained `FORSGREN_TOKEN` needs Pull requests (read) on the

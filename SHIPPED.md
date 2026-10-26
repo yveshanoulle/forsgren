@@ -9,6 +9,19 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — The TBD legend: headings name the term, two lead times explained, no claim of a source ([#460](https://github.com/yveshanoulle/forsgren/issues/460), 1 step)
+
+forsgren issue 460, patch (folds in #368).
+
+- Headings: the TBD parts that define a measure read Term (question), for example `Time to main (How long does a change take to reach main?)`; the parts about the rows, reading the table, missing data, the names, the notes and the calculation keep their wording. The ids stay.
+- New part `Mainline Lead Time (Why are there two lead times?)` (`tbd-mainline-lead-time`) after PR Lead Time: the indicator has one lead time; the page shows PR Lead Time (pull requests, first commit to merge) and Time to main (commits of the main line a push brought to main, direct pushes included, author date to push; a merge counts as its merge commit).
+- Removed: `PR Lead Time is the name this page gives to the Mainline Lead Time`, `Time to main per commit is forsgren's own name` and `Forsgren uses no abbreviation for it`. The Time to main part says only that it is the stretch of a change's lead time from the commit to main; no source is claimed (#457 holds the citations).
+- Docs: the pull request measure is PR Lead Time in configuration.md, data-files.md, pages-and-views.md, updating-and-releases.md and quality-gates.md; code identifiers stay.
+- The TBD page's meta description names PR Lead Time, Time to main and Time to deploy, commits per push and per deployment, the Mainline Interval and the developers (#368).
+- Red first in `internal/page/legend_tbd_test.go` and `description_test.go`, seen failing at runtime; the goldens of the legend and the TBD pages change by these texts and the description only.
+
+---
+
 ## 2026-10-26 — The gate selector no longer loses output on bash 3.2 ([#459](https://github.com/yveshanoulle/forsgren/issues/459), step 1 of 1)
 
 forsgren issue 459 (tools).

@@ -80,7 +80,7 @@ func TestEveryNeedIsIntroducedInAMinorOrMajor(t *testing.T) {
 // not grant pull-requests: read (forsgren#255).
 const wantPullRequestsReadSteps = "Add `pull-requests: read` to the `permissions:` of the forsgren job in " +
 	".github/workflows/forsgren.yml, so forsgren can read the merged pull requests of the measured " +
-	"repositories for the Mainline Lead Time. When FORSGREN_TOKEN is a fine-grained token, give it " +
+	"repositories for the PR Lead Time. When FORSGREN_TOKEN is a fine-grained token, give it " +
 	"Pull requests (read) as well. Without it everything else is still collected: only the pull " +
 	"requests are not read."
 
