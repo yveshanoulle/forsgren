@@ -224,7 +224,8 @@ func pushCommitsOf(p history.Push, chain []github.Commit) []history.PushCommit {
 	lines := make([]history.PushCommit, 0, len(chain))
 	for i := len(chain) - 1; i >= 0; i-- {
 		lines = append(lines, history.PushCommit{Repository: p.Repository, After: p.After, SHA: chain[i].SHA,
-			Author: chain[i].Author, AuthoredAt: wholeSecond(chain[i].AuthoredAt)})
+			Author: chain[i].Author, AuthoredAt: wholeSecond(chain[i].AuthoredAt),
+			FirstParent: true, Parents: len(chain[i].Parents)})
 	}
 	return lines
 }

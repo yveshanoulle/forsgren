@@ -21,7 +21,7 @@ const (
 	pushShaAfter  = "2222222222222222222222222222222222222222"
 	pushShaCommit = "3333333333333333333333333333333333333333"
 	pushesHead    = "# forsgren pushes v1\nrepository,pushed_at,before,after,kind,bot,commits\n"
-	pushCommitsH  = "# forsgren push commits v1\nrepository,after,sha,author,authored_at\n"
+	pushCommitsH  = "# forsgren push commits v2\nrepository,after,sha,author,authored_at,first_parent,parents\n"
 	pushesDeniedH = "# forsgren pushes denied v1\nrepository,denied_at\n"
 	// pushesDeniedH2 is the head of the pushes denied format v2 (forsgren#414), read as v1 is.
 	pushesDeniedH2 = "# forsgren pushes denied v2\nrepository,denied_at,token\n"
@@ -114,7 +114,7 @@ func TestRenderRefusesABadPushFile(t *testing.T) {
 		"malformed line":  {pushesHead + "acme/api,2026-10-02T10:00:00Z\n", "line 3: malformed history"},
 	})
 	wantBadFileRefused(t, "push_commits.csv", map[string]badFile{
-		"unknown version": {"# forsgren push commits v2\n", "unknown history format version"},
+		"unknown version": {"# forsgren push commits v3\n", "unknown history format version"},
 		"malformed line":  {pushCommitsH + "acme/api,x\n", "line 3: malformed history"},
 	})
 	wantBadFileRefused(t, "pushes_denied.csv", map[string]badFile{
