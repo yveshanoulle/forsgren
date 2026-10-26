@@ -6,11 +6,15 @@ projects:
   - name: Acme Shop
     repositories:
       - name: acme/api
+        services:
+          deploy-web: Web
+          deploy-admin: Admin
       - name: acme/ios-app
         deployment: workflow=testflight.yml
   - name: Acme Tools
     repositories:
       - name: acme/cli
+        label: CLI
         deployment: release
   - name: Acme Old
     repositories:

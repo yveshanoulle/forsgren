@@ -9,6 +9,22 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — The fixture site has a service and a repository label, so the sub-rows show end to end ([#422](https://github.com/yveshanoulle/forsgren/issues/422), step 5 of 5)
+
+forsgren issue 422, step 5.
+
+- `Scripts/testdata/fixture_site`: Acme Shop's `acme/api` has `services:` Web (`deploy-web`) and Admin (`deploy-admin`), and the `task` column of its deployments is set (about every seventh left empty, so it counts in the total only); Acme Tools' `acme/cli` has `label: CLI`. Made-up names only.
+- The fixture site's pages change by the rows alone: the DORA tables (index, standard, numbers, scoring, numbers and scoring) and the History table gain the label rows (and the totals read `Acme Shop (total)`), the TBD table gains Admin, Web and CLI.
+- `cmd/forsgren/render_fixture_test.go`: renders the fixture through the real pipeline and pins the two service rows (four per-repository cells each) and the CLI row (none). Red first, seen failing at runtime: no such row.
+- Goldens: none changes (the golden pages are the page tests' own data); `Scripts/check_golden_pages.sh` stays green on the 42 pages.
+- The browser gate on the fixture site: the longer row headers of the label rows widen six sideways rows of `Scripts/browser_gate_fixture_baseline.txt` (numbers, scoring, numbers and scoring at two sizes, history); the seven rows are raised to the new widths by decision #453 (A); #454 makes the row headers wrap and lowers them again.
+
+Signed: Lenka B
+
+- Lenka B
+
+---
+
 ## 2026-10-26 — The legend, the manual and CLAUDE.md follow the 1.23.0 changes ([#455](https://github.com/yveshanoulle/forsgren/issues/455), 1 step)
 
 forsgren issue 455, feature, patch release, shipped with #422, #452, #395 and #436 in the release after 1.22.0, as #417 did for 1.22.0. Every reader-facing description follows what the code does now.
