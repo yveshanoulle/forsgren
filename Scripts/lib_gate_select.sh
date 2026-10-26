@@ -13,6 +13,10 @@
 # changed_files, named_files and closure were Scripts/test_git_sandbox_isolation.sh's
 # (forsgren#251); it sources them from here now, as Scripts/test_gate_inputs.sh does.
 #
+# No loop here reads a process substitution (forsgren#459): on bash 3.2 that, called hundreds of
+# times inside a captured pipeline, silently cut the tail of the captured output. A producer is
+# read into a variable first and looped over with `done <<< "$rows"`; an empty row is skipped.
+#
 # gate_select reads Scripts/gate_inputs.txt (FORSGREN_GATE_INPUTS names another file).
 # The order of its answers:
 #   1. GITHUB_ACTIONS=true            run  (Quality runs every gate)
@@ -39,8 +43,9 @@
 # one path per line. A token that looks like a file name is resolved to
 # Scripts/<name>, .github/workflows/<name>, or the path itself when it exists.
 named_files() {
-  local code token
+  local code token tokens
   code="$(grep -v '^[[:space:]]*#' "$1" || true)"
+  tokens="$(grep -oE '[A-Za-z0-9_./-]+[.](sh|mjs|js|py|txt|json|yml|yaml|go)' <<< "$code" | sort -u)"
   while IFS= read -r token; do
     token="${token#./}"
     [[ -z "$token" ]] && continue
@@ -51,23 +56,24 @@ named_files() {
     elif [[ -f ".github/workflows/${token##*/}" ]]; then
       echo ".github/workflows/${token##*/}"
     fi
-  done < <(grep -oE '[A-Za-z0-9_./-]+[.](sh|mjs|js|py|txt|json|yml|yaml|go)' <<< "$code" | sort -u)
+  done <<< "$tokens"
 }
 
 # closure <file>: the file and every file it names, transitively.
 closure() {
-  local seen=$'\n'"$1"$'\n' queue=("$1") i=0 f n
+  local seen=$'\n'"$1"$'\n' queue=("$1") i=0 f n names
   while [[ "$i" -lt "${#queue[@]}" ]]; do
     f="${queue[$i]}"
     i=$((i + 1))
     case "$f" in *.sh | *.mjs | *.js | *.py) ;; *) continue ;; esac
+    names="$(named_files "$f")"
     while IFS= read -r n; do
       [[ -z "$n" ]] && continue
       if [[ "$seen" != *$'\n'"$n"$'\n'* ]]; then
         seen+="${n}"$'\n'
         queue+=("$n")
       fi
-    done < <(named_files "$f")
+    done <<< "$names"
   done
   printf '%s' "$seen" | sed '/^$/d'
 }
@@ -90,10 +96,12 @@ gate_input_rows() {
 # gate_input_covered <inputs-file> <label> <path>: the path is a listed `in`
 # file of the label, or under a listed directory (a path ending in /).
 gate_input_covered() {
-  local p
+  local p rows
+  rows="$(gate_input_rows "$1" "$2" in)"
   while IFS= read -r p; do
+    [[ -z "$p" ]] && continue
     if [[ "$p" == "$3" ]] || { [[ "$p" == */ ]] && [[ "$3" == "$p"* ]]; }; then return 0; fi
-  done < <(gate_input_rows "$1" "$2" in)
+  done <<< "$rows"
   return 1
 }
 
@@ -101,8 +109,10 @@ gate_input_covered() {
 # pattern of the label. `*_test.go` matches at any depth; `a/**/testdata/` is a
 # testdata directory anywhere under a/.
 gate_input_excluded() {
-  local p re star='[^/]*' deep='(.*/)?'
+  local p re rows star='[^/]*' deep='(.*/)?'
+  rows="$(gate_input_rows "$1" "$2" out)"
   while IFS= read -r p; do
+    [[ -z "$p" ]] && continue
     re="${p%/}"
     re="${re//./\\.}"
     re="${re//\*\*\//@@}"
@@ -116,7 +126,7 @@ gate_input_excluded() {
       re="(^|/)${re}\$"
     fi
     if [[ "$3" =~ $re ]]; then return 0; fi
-  done < <(gate_input_rows "$1" "$2" out)
+  done <<< "$rows"
   return 1
 }
 
@@ -125,11 +135,13 @@ gate_input_excluded() {
 # for a gate that discovers its inputs by what a file says (the scripts that write
 # the step summary), so a file added tomorrow, in no list yet, still selects it.
 gate_input_grepped() {
-  local re
+  local re rows
   [[ "$3" == Scripts/*.sh && -f "$3" ]] || return 1
+  rows="$(gate_input_rows "$1" "$2" grep)"
   while IFS= read -r re; do
+    [[ -z "$re" ]] && continue
     if grep -qE -- "$re" "$3"; then return 0; fi
-  done < <(gate_input_rows "$1" "$2" grep)
+  done <<< "$rows"
   return 1
 }
 
@@ -139,12 +151,15 @@ gate_input_grepped() {
 # becomes read when a closure file changes, which itself selects the gate. A file
 # that is in a closure is not unrelated, even when the list forgot it.
 gate_unrelated_script() {
-  local inputs="${FORSGREN_GATE_INPUTS:-Scripts/gate_inputs.txt}" order="${FORSGREN_GATE_ORDER:-Scripts/gate_report_order.txt}" label script related=""
+  local inputs="${FORSGREN_GATE_INPUTS:-Scripts/gate_inputs.txt}"
+  local order="${FORSGREN_GATE_ORDER:-Scripts/gate_report_order.txt}" label script related="" labels
   [[ "$1" == Scripts/* ]] || return 1
+  labels="$(awk -F'|' '/^[[:space:]]*#/ || NF == 0 { next } $2 == "in" { print $1 }' "$inputs" | sort -u)"
   while IFS= read -r label; do
+    [[ -z "$label" ]] && continue
     script="$(awk -F'|' -v l="$label" '$1 == l { print $2; exit }' "$order" 2> /dev/null)"
     [[ -f "$script" ]] && related+="$(closure "$script")"$'\n'
-  done < <(awk -F'|' '/^[[:space:]]*#/ || NF == 0 { next } $2 == "in" { print $1 }' "$inputs" | sort -u)
+  done <<< "$labels"
   if grep -qxF -- "$1" <<< "$related"; then return 1; fi
   return 0
 }

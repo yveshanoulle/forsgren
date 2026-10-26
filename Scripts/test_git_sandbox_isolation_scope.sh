@@ -451,7 +451,7 @@ proof() {
   fi
 }
 
-if mutate_lib 's/done < <(named_files "[$]f")/done < <(:)/'; then
+if mutate_lib 's/done <<< "[$]names"/done <<< ""/'; then
   echo '# edit' >> "${FX}/Scripts/helper_b.sh"
   iso
   proof A "isolation: 1 of 3" "without following the scripts a self-test calls, case 3 loses its self-test"

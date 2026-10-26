@@ -138,12 +138,14 @@ probe_exempt() {
 # probe_require_all <root>: every script the gate's rule covers has a probe_case
 # or a probe_exempt, and none was named that the rule does not cover.
 probe_require_all() {
-  local root="$1" rel
+  local root="$1" rel rels
+  rels="$(probe_trapped_scripts "$root")"
   while IFS= read -r rel; do
+    [[ -z "$rel" ]] && continue
     case "$PROBE_SEEN" in
       *" ${rel} "*) ;;
       *) fail "${rel} is in the gate's scope (set -e, then a top-level EXIT trap) and has no probe_case or probe_exempt" ;;
     esac
-  done < <(probe_trapped_scripts "$root")
+  done <<< "$rels"
   echo "  ok: every script the gate's rule covers has a case or an exemption"
 }

@@ -41,19 +41,25 @@ SUMMARY_TEXT_ONLY=("test_gate_wiring")
 # per file the gate runs or reads, `<file><TAB><through>`: each writer, each self-test
 # that names one, and the closure of each (the sourced files only for a text-only one).
 summary_reads() {
-  local skip="$1" names=() w t f text
-  while IFS= read -r w; do names+=("$w"); done < <(summary_writer_names)
+  local skip="$1" names=() w t f text rows tests
+  rows="$(summary_writer_names)"
+  while IFS= read -r w; do [[ -n "$w" ]] && names+=("$w"); done <<< "$rows"
   for w in "${names[@]}"; do
-    while IFS= read -r f; do printf '%s\t%s\n' "$f" "Scripts/${w}"; done < <(closure "Scripts/${w}")
+    rows="$(closure "Scripts/${w}")"
+    while IFS= read -r f; do [[ -n "$f" ]] && printf '%s\t%s\n' "$f" "Scripts/${w}"; done <<< "$rows"
   done
+  tests="$(summary_selftests "$skip" "${names[@]}")"
   while IFS= read -r t; do
+    [[ -z "$t" ]] && continue
     text=0
     for f in "${SUMMARY_TEXT_ONLY[@]}"; do [[ "$(basename "$t" .sh)" == "$f" ]] && text=1; done
     if [[ "$text" == 1 ]]; then
       printf '%s\t%s\n' "$t" "$t"
-      while IFS= read -r f; do printf '%s\t%s\n' "$f" "$t"; done < <(grep -E '^source Scripts/' "$t" | awk '{ print $2 }')
+      rows="$(grep -E '^source Scripts/' "$t" | awk '{ print $2 }')"
+      while IFS= read -r f; do [[ -n "$f" ]] && printf '%s\t%s\n' "$f" "$t"; done <<< "$rows"
     else
-      while IFS= read -r f; do printf '%s\t%s\n' "$f" "$t"; done < <(closure "$t")
+      rows="$(closure "$t")"
+      while IFS= read -r f; do [[ -n "$f" ]] && printf '%s\t%s\n' "$f" "$t"; done <<< "$rows"
     fi
-  done < <(summary_selftests "$skip" "${names[@]}")
+  done <<< "$tests"
 }

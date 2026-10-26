@@ -19,6 +19,8 @@
 #   12. FORSGREN_GATE_SELECT_FULL=1              -> run, forced
 #   13. no origin/main                           -> run, naming why
 #   14. a label with no list                     -> run, naming why
+#   22. no loop of the library reads a process substitution (forsgren#459); a label with no rows
+#       covers, excludes and greps nothing
 # Mutation proofs (each is wrong BECAUSE of the line mutated; the mutant must no
 # longer say the reason the real library gives):
 #   A. the Quality path removed:            case 11 loses "Quality runs every gate";
@@ -28,6 +30,7 @@
 #   E. the out patterns ignored for a gate: case 4 loses its skip;
 #   F. out files counted as unknown:        case 4 runs every gate instead of skipping;
 #   G. a listed directory not covering its files: case 2 loses its run;
+#   M. a process substitution loop back in the library: the pin of case 22 fails;
 #   H. untracked files ignored:             case 8 loses its run;
 #   I. no `none` rows in the list:          case 16a runs because the workflow is named by no list;
 #   J. the Scripts/ closure check removed:  case 21 loses its run for a script in a closure.
@@ -556,4 +559,32 @@ sel_real "$SI" "${TMP}/no_grep.txt"
 want_exit "mutation proof L: without the grep row, a new summary writer skips the gate" 0 "skip: none of the 1 changed files is an input of $SI"
 rm -f "${FX}/Scripts/zz_new_writer.sh"
 
-selftest_end "the gate select self-test failed" "gate_select: sixty-two cases hold, twelve mutations seen"
+# 22 (forsgren#459): the library reads no loop's rows through a process substitution.
+# On bash 3.2 (macOS /bin/bash) `done < <(producer)` called hundreds of times inside a
+# captured pipeline silently cut the tail of the captured output, so a gate problem line
+# was lost at random. The rows are read into a variable and looped over as a here-string.
+no_proc_subst_loop() { ! grep -qE 'done[[:space:]]*<[[:space:]]*<[(]' "$1"; }
+if no_proc_subst_loop "$LIB"; then
+  echo "  ok: 22: the library has no loop reading a process substitution"
+else
+  fail "22: Scripts/lib_gate_select.sh has a done < <(...) loop (bash 3.2 can cut its captured output)"
+fi
+# 22b: an empty row list is no iteration (a here-string of an empty string is one empty line).
+if ! gate_input_covered "$REAL_INPUTS" "no such label" Scripts/x.sh \
+  && ! gate_input_excluded "$REAL_INPUTS" "no such label" Scripts/x.sh \
+  && ! gate_input_grepped "$REAL_INPUTS" "no such label" Scripts/lib_gate_select.sh; then
+  echo "  ok: 22b: a label with no rows covers, excludes and greps nothing"
+else
+  fail "22b: a label with no rows matched a path (an empty row must not iterate)"
+fi
+
+# M (forsgren#459): a loop that reads a process substitution again fails the pin of case 22.
+if mutant M 's/done <<< "[$]tokens"/done < <(cat)/'; then
+  if no_proc_subst_loop "${FX}/Scripts/mutant_M.sh"; then
+    fail "mutation proof M: the pin accepted a done < <(...) loop"
+  else
+    echo "  ok: mutation proof M: with a process substitution loop back, the pin of case 22 fails"
+  fi
+fi
+
+selftest_end "the gate select self-test failed" "gate_select: sixty-four cases hold, thirteen mutations seen"

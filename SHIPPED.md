@@ -9,6 +9,19 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — The gate selector no longer loses output on bash 3.2 ([#459](https://github.com/yveshanoulle/forsgren/issues/459), step 1 of 1)
+
+forsgren issue 459 (tools).
+
+- Cause: `Scripts/lib_gate_select.sh` read its rows through `done < <(producer)`. Called about 250 times inside a captured pipeline, bash 3.2 (macOS `/bin/bash`) silently cut the tail of the captured output, so one problem line of the browser gate inputs self-test (mutation proof J) was lost in one CI attempt and not in the next.
+- Fix: every such loop in `Scripts/lib_gate_select.sh`, `Scripts/lib_summary_writers.sh` and `Scripts/lib_exit_trap_probe.sh` reads its producer into a variable and loops over a here-string; an empty row is skipped, so an empty producer still means no iteration.
+- `Scripts/test_gate_select.sh`: case 22 pins that the library has no `done < <(` loop and that a label with no rows matches nothing; mutation proof M puts such a loop back and the pin fails. `Scripts/test_git_sandbox_isolation_scope.sh` mutation A follows the renamed loop.
+- Unchanged: `FBP.sh`, `sfl.sh`, `Scripts/gate_report_order.txt`, `Scripts/gate_inputs.txt`. The first FBP after this is `--no-push`, as the selector drives which gates it runs.
+
+Signed: Lenka B
+
+---
+
 ## 2026-10-26 — release_check.sh no longer flags a RED commit that a green commit replaced ([#458](https://github.com/yveshanoulle/forsgren/issues/458), 1 step)
 
 forsgren issue 458, tools issue, no release. `Scripts/release_check.sh` reported every `*** RED ****` commit since the tag, also those with a green commit of the same issue on top. A RED commit is now a finding only when no later commit since the tag has a subject naming the issue its body names (`#394` does not match `#3940`); a RED whose body names no issue stays a finding.
