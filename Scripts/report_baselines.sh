@@ -216,7 +216,7 @@ render_language() {
     sentence_file="${TMPD}/sentences.txt"
     : > "$sentence_file"
     if grep -vE '^[[:space:]]*(#|$)' "$base" | awk -F'|' 'NF != 7 { bad = 1 } END { exit bad }'; then
-      if grep -vE '^[[:space:]]*(#|$)' "$base" | grep -q .; then sentences_for "$base" "$sentence_file"; fi
+      if grep -qvE '^[[:space:]]*(#|$)' "$base"; then sentences_for "$base" "$sentence_file"; fi
     fi
     awk -F'|' -v SENT="$sentence_file" "${AWK_COMMON}"'
       skip() { next }

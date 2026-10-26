@@ -105,10 +105,12 @@ done
 # runs_script <file> <script>: defined once, in the sourced helper.
 # shellcheck source=Scripts/lib_runs_script.sh
 source Scripts/lib_runs_script.sh
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
 
 # order_names <script-basename>: an order-file row names Scripts/<basename>.
 order_names() {
-  grep -v '^#' "$ORDER" | cut -d'|' -f2 | grep -qxF "Scripts/$1"
+  grep -v '^#' "$ORDER" | cut -d'|' -f2 | has -qxF "Scripts/$1"
 }
 
 # require_fixture <script> [consequence]: an exempted script that must still
@@ -182,11 +184,12 @@ fi
 # (forsgren#283, step 2 of 2), and 158 for the removed names gate that left the
 # release workflow pin (forsgren#263), and down to 157 for the precheck
 # self-test that went with the retired precheck.sh (forsgren#439), and up to 158
-# for the release check self-test (forsgren#445).
+# for the release check self-test (forsgren#445), and up to 160 for the pipe
+# into grep -q gate and its self-test (forsgren#428).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=158
+MIN_GATES=160
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -262,7 +265,7 @@ phases_in_order "$CI" \
 # they are shell text, compared as text, never expanded.
 while IFS= read -r rule; do
   for runner in "$SFL" "$CI_RUNNER"; do
-    sed 's/^[[:space:]]*//' "$runner" | grep -qxF -- "$rule" \
+    sed 's/^[[:space:]]*//' "$runner" | has -qxF -- "$rule" \
       || fail "${runner} no longer has the row rule: ${rule} — sfl.sh and ${CI_RUNNER} read ${ORDER} with the same rules, so they run the same rows; change both or neither"
   done
 done <<'RULES'
@@ -301,7 +304,7 @@ baseline_step_problems() {
     fi
     grep -qE '^[[:space:]]+if: always\(\)[[:space:]]*$' <<< "$block" \
       || echo "the step '${name}' is not 'if: always()', so it would vanish when a gate is red"
-    grep -vE '^[[:space:]]*#' <<< "$block" | grep -qE "^[[:space:]]*\./Scripts/report_baselines\.sh ${arg}[[:space:]]*$" \
+    grep -vE '^[[:space:]]*#' <<< "$block" | has -qE "^[[:space:]]*\./Scripts/report_baselines\.sh ${arg}[[:space:]]*$" \
       || echo "the step '${name}' does not run ./Scripts/report_baselines.sh ${arg}"
   done
 }
@@ -815,7 +818,7 @@ for path in Scripts/*.sh; do
         || fail "${base} generates the CONTRIBUTING.md gate list and Scripts/test_render_quality_report.sh, the row that keeps the two in sync, never runs it"
       # Shared with the sites (forsgren#240): a shared helper carries its canon
       # line, which the estate's parity check reads.
-      head -5 "Scripts/${base}" | grep -qxF '# canon: render_gate_list v1' \
+      head -5 "Scripts/${base}" | has -qxF '# canon: render_gate_list v1' \
         || fail "Scripts/${base} has no '# canon: render_gate_list v1' line in its first 5 lines — the sites' parity check could not tell it is the shared copy"
       ;;
 
@@ -824,6 +827,19 @@ for path in Scripts/*.sh; do
     lib_exit_trap_probe.sh)
       runs_script "Scripts/test_exit_trap_completion_behaviour.sh" "$base" \
         || fail "${base} holds the exit-trap probe engine and Scripts/test_exit_trap_completion_behaviour.sh never sources it"
+      ;;
+
+    # SOURCED HELPER, not a gate (forsgren#428): has, a quiet grep that reads
+    # all of stdin first. The self-test of the pipe into grep -q gate is its
+    # test, and every script that ends a pipe in has must still source it
+    # (without it the call would be a command not found, read as "no match").
+    lib_has.sh)
+      runs_script "Scripts/test_check_pipe_grep_q.sh" "$base" \
+        || fail "${base} holds has and Scripts/test_check_pipe_grep_q.sh, its test, never sources it"
+      while IFS= read -r consumer; do
+        grep -qE '^source .*lib_has\.sh"?$' "$consumer" \
+          || fail "${consumer} ends a pipe in has and never sources ${base}"
+      done < <(grep -lE '^[^#]*[|][[:space:]]*has ' Scripts/*.sh)
       ;;
 
     *)

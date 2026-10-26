@@ -131,7 +131,9 @@ pinned() {
 # (forsgren#320 step 4).
 pr_read() {
   [ "$1" = caller ] || return 0
-  grep -E '^[[:space:]]*pull-requests:[[:space:]]*read[[:space:]]+#' "$2" | grep -qF -- "# ${PR_READ_COMMENT}"
+  local lines
+  lines="$(grep -E '^[[:space:]]*pull-requests:[[:space:]]*read[[:space:]]+#' "$2")" || return 1
+  grep -qF -- "# ${PR_READ_COMMENT}" <<< "$lines"
 }
 
 if [ "$MODE" = rewrite ]; then

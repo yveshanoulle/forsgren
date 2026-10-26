@@ -54,6 +54,8 @@ cd "$(dirname "$0")/.." || exit 1
 
 # shellcheck source=Scripts/lib_git_sandbox.sh
 source Scripts/lib_git_sandbox.sh
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
 
 WORKFLOW=".github/workflows/release.yml"
 METRICS=".github/workflows/metrics.yml"
@@ -75,7 +77,7 @@ pin_of() { code "$1" | grep -E "uses: actions/$2@" | head -1 | sed -E 's/.*@([0-
 
 # want_line <file> <step> <exact line>: that step holds that line.
 step_has() {
-  step_text "$1" "$2" | grep -qxF -- "$3" || echo "step '$2': want the line: $3"
+  step_text "$1" "$2" | has -qxF -- "$3" || echo "step '$2': want the line: $3"
 }
 
 NAMES=(
@@ -108,11 +110,11 @@ id_findings() {
     name="${NAMES[$i]}"
     id="${IDS[$i]:-}"
     [[ -n "$id" ]] || continue
-    step_text "$1" "$name" | grep -qxF "        id: ${id}" || echo "ids: the step '${name}' has no id '${id}'"
-    step_text "$1" "Say what was done" | grep -qxF "            ${id}=${DOLLAR}{{ steps.${id}.outcome }}" \
+    step_text "$1" "$name" | has -qxF "        id: ${id}" || echo "ids: the step '${name}' has no id '${id}'"
+    step_text "$1" "Say what was done" | has -qxF "            ${id}=${DOLLAR}{{ steps.${id}.outcome }}" \
       || echo "outcomes: the report step does not get steps.${id}.outcome"
   done
-  step_text "$1" "Say what was done" | grep -qxF '          RELEASE_STEP_OUTCOMES: |' || echo "outcomes: the report step has no RELEASE_STEP_OUTCOMES"
+  step_text "$1" "Say what was done" | has -qxF '          RELEASE_STEP_OUTCOMES: |' || echo "outcomes: the report step has no RELEASE_STEP_OUTCOMES"
 }
 
 # resume_findings: with `resume: pins` only the install check, the template and
@@ -125,18 +127,18 @@ NOTHING_GATE="steps.plan.outputs.release != 'none'"
 resume_findings() {
   local name
   for name in "Quality is green on main" "Plan the release"; do
-    step_text "$1" "$name" | grep -qxF "        if: ${DOLLAR}{{ inputs.resume == 'none' }}" || echo "resume: the step '${name}' is not skipped by resume: pins"
+    step_text "$1" "$name" | has -qxF "        if: ${DOLLAR}{{ inputs.resume == 'none' }}" || echo "resume: the step '${name}' is not skipped by resume: pins"
   done
   for name in "Check the version is new" "Check main has not moved" "Create the tag and the release"; do
-    step_text "$1" "$name" | grep -qxF "        if: ${DOLLAR}{{ inputs.resume == 'none' && ${NOTHING_GATE} }}" || echo "resume: the step '${name}' is not skipped by resume: pins, or not by nothing to release"
+    step_text "$1" "$name" | has -qxF "        if: ${DOLLAR}{{ inputs.resume == 'none' && ${NOTHING_GATE} }}" || echo "resume: the step '${name}' is not skipped by resume: pins, or not by nothing to release"
   done
   for name in "Check an install of the release reports its version" "Move the pins and README of forsgren-template" "Open the pin pull request in forsgren-metrics" "Merge the pin pull request and run forsgren in forsgren-metrics" "Start the preview deploy of the release"; do
-    if step_text "$1" "$name" | grep -E '^        if:' | grep -vqxF "        if: ${DOLLAR}{{ ${NOTHING_GATE} }}"; then echo "resume: the step '${name}' must run also when resuming"; fi
-    step_text "$1" "$name" | grep -qxF "        if: ${DOLLAR}{{ ${NOTHING_GATE} }}" || echo "nothing: the step '${name}' runs when the plan has nothing to release"
+    if step_text "$1" "$name" | grep -E '^        if:' | has -vqxF "        if: ${DOLLAR}{{ ${NOTHING_GATE} }}"; then echo "resume: the step '${name}' must run also when resuming"; fi
+    step_text "$1" "$name" | has -qxF "        if: ${DOLLAR}{{ ${NOTHING_GATE} }}" || echo "nothing: the step '${name}' runs when the plan has nothing to release"
   done
-  if step_text "$1" "Check the release token is set" | grep -qE '^        if:'; then echo "resume: the step 'Check the release token is set' must run also when resuming"; fi
-  code "$1" | grep -qxF '        options: [none, pins]' || echo "input: resume is not a choice of none, pins"
-  awk '/^      resume:/ { r=1 } r && /default:/ { print; exit }' "$1" | grep -qxF '        default: none' || echo "input: the default resume is not none"
+  if step_text "$1" "Check the release token is set" | has -qE '^        if:'; then echo "resume: the step 'Check the release token is set' must run also when resuming"; fi
+  code "$1" | has -qxF '        options: [none, pins]' || echo "input: resume is not a choice of none, pins"
+  awk '/^      resume:/ { r=1 } r && /default:/ { print; exit }' "$1" | has -qxF '        default: none' || echo "input: the default resume is not none"
 }
 
 # release_findings (forsgren#237): the release tags the Quality-green head of
@@ -144,7 +146,7 @@ resume_findings() {
 # workflow, and the sha is RELEASE_SHA; the head check is the step right before
 # the publish.
 release_findings() {
-  if code "$1" | grep -qE 'git (commit|push|add|config)|release_bump|release_commit|dispatch-bump|BUMP_SHA|resume: publish|quality-bump|quality-resumed'; then
+  if code "$1" | has -qE 'git (commit|push|add|config)|release_bump|release_commit|dispatch-bump|BUMP_SHA|resume: publish|quality-bump|quality-resumed'; then
     echo "release: the workflow still bumps, commits, pushes or names a bump commit"
   fi
   local following
@@ -156,11 +158,11 @@ trigger_findings() {
   local events
   events="$(on_events "$1" | LC_ALL=C sort | tr '\n' ' ')"
   [[ "$events" == "workflow_dispatch " ]] || echo "triggers: want workflow_dispatch only, got: ${events:-none}"
-  code "$1" | grep -qxF '        options: [patch, minor, major]' || echo "input: bump is not a choice of patch, minor, major"
-  code "$1" | grep -qxF '        default: patch' || echo "input: the default bump is not patch"
-  code "$1" | grep -qxF '        type: choice' || echo "input: bump is not a choice"
-  code "$1" | grep -qxF '  group: release' || echo "concurrency: the group is not release"
-  code "$1" | grep -qxF '  cancel-in-progress: false' || echo "concurrency: a release in flight can be cancelled"
+  code "$1" | has -qxF '        options: [patch, minor, major]' || echo "input: bump is not a choice of patch, minor, major"
+  code "$1" | has -qxF '        default: patch' || echo "input: the default bump is not patch"
+  code "$1" | has -qxF '        type: choice' || echo "input: bump is not a choice"
+  code "$1" | has -qxF '  group: release' || echo "concurrency: the group is not release"
+  code "$1" | has -qxF '  cancel-in-progress: false' || echo "concurrency: a release in flight can be cancelled"
 }
 
 permission_findings() {
@@ -178,7 +180,7 @@ action_findings() {
   local used action want got
   used="$(code "$1" | grep -E '^[[:space:]]+(- )?uses:' | sed -E 's/.*uses:[[:space:]]*([^@ ]+)@.*/\1/' | LC_ALL=C sort -u | tr '\n' ' ')"
   [[ "$used" == "actions/checkout actions/setup-go " ]] || echo "actions: want checkout and setup-go only, got: ${used}"
-  if code "$1" | grep -E 'uses:' | grep -vqE '@[0-9a-f]{40}  # v[0-9]'; then
+  if code "$1" | grep -E 'uses:' | has -vqE '@[0-9a-f]{40}  # v[0-9]'; then
     echo "pins: an action is not pinned by a full commit with its version comment"
   fi
   for action in checkout setup-go; do
@@ -201,7 +203,7 @@ step_findings() {
       previous="$line"
     fi
   done
-  if run_blocks "$1" | grep -qF -- "\${{"; then
+  if run_blocks "$1" | has -qF -- "\${{"; then
     echo "injection: a run: block expands a \${{ }} expression"
   fi
 }
@@ -272,7 +274,7 @@ secret_findings() {
   count="$(code "$1" | grep -c 'secrets.FORSGREN_RELEASE_TOKEN' || true)"
   [[ "$count" -eq 4 ]] || echo "secret: FORSGREN_RELEASE_TOKEN appears ${count} times, want 4 (token check, template, the metrics pull request, the metrics merge and run)"
   for where in "Check the release token is set" "Move the pins and README of forsgren-template" "Open the pin pull request in forsgren-metrics" "Merge the pin pull request and run forsgren in forsgren-metrics"; do
-    step_text "$1" "$where" | grep -qF "FORSGREN_RELEASE_TOKEN: ${DOLLAR}{{ secrets.FORSGREN_RELEASE_TOKEN }}" \
+    step_text "$1" "$where" | has -qF "FORSGREN_RELEASE_TOKEN: ${DOLLAR}{{ secrets.FORSGREN_RELEASE_TOKEN }}" \
       || echo "secret: the step '${where}' does not get FORSGREN_RELEASE_TOKEN"
   done
 }
@@ -284,7 +286,7 @@ preview_findings() {
   local name="Start the preview deploy of the release" count
   count="$(code "$1" | grep -c 'secrets.PREVIEW_DISPATCH_TOKEN' || true)"
   [[ "$count" -eq 1 ]] || echo "preview: PREVIEW_DISPATCH_TOKEN appears ${count} times, want 1 (the preview step)"
-  if step_text "$1" "$name" | grep -vxF "        if: ${DOLLAR}{{ ${NOTHING_GATE} }}" | grep -qE 'continue-on-error|\|\| *true|^        if:'; then
+  if step_text "$1" "$name" | grep -vxF "        if: ${DOLLAR}{{ ${NOTHING_GATE} }}" | has -qE 'continue-on-error|\|\| *true|^        if:'; then
     echo "preview: the step '${name}' can pass or skip when the start fails"
   fi
   if [[ -n "$(line_of "$1" "- name: ${name}")" && "$(line_of "$1" "- name: ${name}")" -lt "$(line_of "$1" "- name: Create the tag and the release")" ]]; then
@@ -293,10 +295,10 @@ preview_findings() {
 }
 
 tag_findings() {
-  if code "$1" | grep -qE 'git tag|git push|git remote|gh release|--tags|gh api .*git/(refs|tags)'; then
+  if code "$1" | has -qE 'git tag|git push|git remote|gh release|--tags|gh api .*git/(refs|tags)'; then
     echo "tag: the workflow makes a tag, a push or a release itself, not only through the scripts"
   fi
-  if code "$1" | grep -qE 'echo .*.remote|echo .*GH_TOKEN'; then
+  if code "$1" | has -qE 'echo .*.remote|echo .*GH_TOKEN'; then
     echo "token: the workflow echoes a token"
   fi
 }

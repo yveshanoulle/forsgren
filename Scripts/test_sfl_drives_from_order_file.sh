@@ -13,6 +13,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
+
 # sfl derives its SEQUENCE AND ITS COMMANDS from Scripts/gate_report_order.txt
 # — unit 409 step 3.
 #
@@ -117,7 +120,7 @@ fi
 for f in Scripts/test_*.sh; do
   [ -f "$f" ] || continue
 
-  grep -v '^#' "$ORDER" | cut -d'|' -f2 | grep -qxF "$f" \
+  grep -v '^#' "$ORDER" | cut -d'|' -f2 | has -qxF "$f" \
     || fail "${f} is not named by any row in ${ORDER} — it would run unlabelled and appear in no report"
 done
 

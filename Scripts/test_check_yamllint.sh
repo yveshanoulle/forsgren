@@ -38,6 +38,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # shellcheck source=Scripts/lib_git_sandbox.sh
 source "${ROOT}/Scripts/lib_git_sandbox.sh"
+# shellcheck source=Scripts/lib_has.sh
+source "${ROOT}/Scripts/lib_has.sh"
 SCRIPT_UNDER_TEST="${ROOT}/Scripts/check_yamllint.sh"
 
 # An inherited GIT_DIR / GIT_WORK_TREE / GIT_INDEX_FILE (a hook, a wrapper)
@@ -112,7 +114,7 @@ make_case "$B"
 add_file "$B" "config.yml" "$CLEAN_YML"
 add_file "$B" "broken.yml" "$BROKEN_YML"
 run_guard "$B"
-if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -q 'broken.yml'; then
+if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | has -q 'broken.yml'; then
   ok "a yamllint finding in a tracked .yml fails the gate, named"
 else
   fail "a tracked .yml with a duplicate key should fail the gate and be named, got exit $RC"
@@ -125,7 +127,7 @@ make_case "$C"
 add_file "$C" "config.yml" "$CLEAN_YML"
 add_file "$C" "a/b/workflow.yaml" "$BROKEN_YML"
 run_guard "$C"
-if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -q 'a/b/workflow.yaml'; then
+if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | has -q 'a/b/workflow.yaml'; then
   ok "a yamllint finding in a nested tracked .yaml fails the gate, named"
 else
   fail "a nested tracked .yaml with a duplicate key should fail the gate and be named, got exit $RC"
@@ -140,7 +142,7 @@ make_case "$D"
 add_file "$D" "config.yml" "$CLEAN_YML"
 write_file "$D" "new/scratch.yml" "$BROKEN_YML"
 run_guard "$D"
-if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -q 'new/scratch.yml'; then
+if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | has -q 'new/scratch.yml'; then
   ok "an untracked, not-ignored broken .yml fails the gate, named"
 else
   fail "an untracked .yml with a duplicate key should fail the gate and be named, got exit $RC"
@@ -168,7 +170,7 @@ make_case "$E"
 add_file "$E" "README.md" "no yaml here
 "
 run_guard "$E"
-if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -q 'no .yml or .yaml file found'; then
+if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | has -q 'no .yml or .yaml file found'; then
   ok "a tree with no tracked YAML is red, with the reason"
 else
   fail "zero tracked YAML should be red and say so, got exit $RC"

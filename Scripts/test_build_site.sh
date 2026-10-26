@@ -15,6 +15,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
+
 VERSION=1
 BUILD="./Scripts/build_site.sh"
 GOLDEN="internal/page/testdata/index.golden.html"
@@ -262,7 +265,7 @@ fi
 # the no-data line: the fixture has commits deployed in the last 30 days.
 if [[ -f "${FIXTURE_HAPPY}/tbd.html" ]] && grep -qF '<th scope="row">Acme Shop</th>' "${FIXTURE_HAPPY}/tbd.html" \
   && tr -d '\n' <"${FIXTURE_HAPPY}/tbd.html" \
-    | grep -qE '<th scope="row">[^<]*</th> *<td[^>]*>[^<-][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td>[^<]*</td> *){2}<td>[^<]*</td>' \
+    | has -qE '<th scope="row">[^<]*</th> *<td[^>]*>[^<-][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td>[^<]*</td> *){2}<td>[^<]*</td>' \
   && ! grep -qF 'No commits have been collected yet' "${FIXTURE_HAPPY}/tbd.html"; then
   pass 31 "tbd.html has a Mainline Interval row and not the no-data line"
 else

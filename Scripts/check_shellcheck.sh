@@ -104,7 +104,7 @@ if [ "$#" -gt 0 ]; then
       echo "❌ FAIL: shellcheck: listed file not found: ${f}" >&2
       exit 1
     fi
-    if printf '%s\n' "$EXCLUDE_ALLOWED" | grep -qxF "$f"; then
+    if grep -qxF "$f" <<< "$EXCLUDE_ALLOWED"; then
       continue
     fi
     targets+=("$f")
@@ -116,7 +116,7 @@ if [ "$#" -gt 0 ]; then
 else
   while IFS= read -r f; do
     [ -n "$f" ] || continue
-    if printf '%s\n' "$EXCLUDE_ALLOWED" | grep -qxF "$f"; then
+    if grep -qxF "$f" <<< "$EXCLUDE_ALLOWED"; then
       continue
     fi
     targets+=("$f")

@@ -632,6 +632,19 @@ The POST gates, on the generated site:
   requires a non-zero exit, the probe named, the "aborted before completing"
   line and no temporary directory left behind. Its self-test is
   `Scripts/test_check_exit_trap_completion.sh`.
+- **pipe into grep -q** (`Scripts/check_pipe_grep_q.sh`, forsgren's own,
+  forsgren#428, found by #425): a shell script, at the repository root or
+  directly in `Scripts/`, that pipes a producer into `grep` with a quiet flag
+  (`-q` alone or in a cluster such as `-qE` or `-vqxF`, `--quiet`,
+  `--silent`; a line ending in a pipe or a backslash is read with the next
+  one; comments are not read) is red, naming `file:line`. Under `set -o
+  pipefail` grep leaves at its first match and the producer, still writing,
+  dies of SIGPIPE, so a pattern that is there reads as missing once the
+  producer writes more than a pipe holds (about 16 KB). The cure is `has` of
+  `Scripts/lib_has.sh` (sourced, never run), which reads all of stdin before
+  it matches: `producer | has -qE pattern`. A `grep -q` that names a file or
+  reads a here-string has no producer and stays. Its self-test is
+  `Scripts/test_check_pipe_grep_q.sh`, which also proves `has` on 300 KB.
 
 - **language gate** (`Scripts/gate_language_pages.sh` running the canon
   `Scripts/gate_language.sh`, self-tests `Scripts/test_gate_language.sh` and

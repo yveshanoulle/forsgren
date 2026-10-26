@@ -39,6 +39,8 @@ CONFIG="${REPO_ROOT}/.stylelintrc.json"
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
 selftest_begin "source CSS fix self-test"
 
 for need in "$FIX" "$CONFIG" "${REPO_ROOT}/node_modules/.bin/stylelint" FBP.sh; do
@@ -143,7 +145,7 @@ ci_problems() {
   if grep -rqF 'fix_source_css' "$wf"; then echo "a workflow names fix_source_css.sh"; fi
   if grep -rqF 'GATE_FIX' "$wf"; then echo "a workflow mentions GATE_FIX"; fi
   if grep -qF 'fix_source_css' "$runner"; then echo "the CI phase runner names fix_source_css.sh"; fi
-  if grep -v '^#' "$order" | cut -d'|' -f2 | grep -qxF 'Scripts/fix_source_css.sh'; then
+  if grep -v '^#' "$order" | cut -d'|' -f2 | has -qxF 'Scripts/fix_source_css.sh'; then
     echo "an order-file row runs fix_source_css.sh, so sfl and CI would both run it"
   fi
 }

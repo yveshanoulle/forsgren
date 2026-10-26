@@ -66,7 +66,7 @@ while IFS= read -r name; do
 done <<< "$NAMES"
 
 for caller in $CALLERS; do
-  if ! printf '%s\n' "$NAMES" | grep -qxF "$caller"; then
+  if ! grep -qxF "$caller" <<< "$NAMES"; then
     find_out "the pull request does not change ${caller}"
     continue
   fi

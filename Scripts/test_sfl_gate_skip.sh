@@ -34,6 +34,8 @@ REPO="$(pwd)"
 
 # shellcheck source=Scripts/lib_git_sandbox.sh
 source Scripts/lib_git_sandbox.sh
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
 # shellcheck source=Scripts/lib_fbp_sandbox.sh
@@ -162,7 +164,7 @@ check_ran "2." bg "$BG"
 check_ran "2." fg "$FG"
 check_skipped "2." "$root" bst "$BST"
 check_skipped "2." "$root" fst "$FST"
-if skips_log "$root" | grep -q "^${BG}"$'\t'; then fail "2. a selected gate is in .build/sfl-skips.log"; else echo "  ok: 2. no selected gate is logged as skipped"; fi
+if skips_log "$root" | has -q "^${BG}"$'\t'; then fail "2. a selected gate is in .build/sfl-skips.log"; else echo "  ok: 2. no selected gate is logged as skipped"; fi
 
 # Case 3: forced full run: all four run, and pre empties a stale log.
 root="$(make_root full)"
@@ -229,7 +231,7 @@ if selftest_mutant "$SFL_UNDER_TEST" "${TMP}/mB/sfl.sh" '/>> ".SKIPS_SINK"/d'; t
   mutant_root mB "${TMP}/mB/sfl.sh"
   echo 'changed' >> "${root}/docs/note.txt"
   run_both "$root"
-  if skips_log "$root" | grep -qF "$REASON_BST"; then
+  if skips_log "$root" | has -qF "$REASON_BST"; then
     fail "mutation proof B: the reason reached .build/sfl-skips.log without the line that writes it"
   else
     echo "  ok: mutation proof B: without the log line no reason reaches .build/sfl-skips.log, which case 1 catches"
@@ -240,7 +242,7 @@ if selftest_mutant "$SFL_UNDER_TEST" "${TMP}/mC/sfl.sh" '/^  : > ".SKIPS_SINK"$/
   echo 'changed' >> "${root}/docs/note.txt"
   printf 'stale gate\tstale reason\n' > "${root}/.build/sfl-skips.log"
   run_both "$root" FORSGREN_GATE_SELECT_FULL=1
-  if skips_log "$root" | grep -qF "stale reason"; then
+  if skips_log "$root" | has -qF "stale reason"; then
     echo "  ok: mutation proof C: a log pre never empties keeps a stale reason, which case 3 catches"
   else
     fail "mutation proof C: the stale reason is gone although nothing empties the log"

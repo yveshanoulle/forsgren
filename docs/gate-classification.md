@@ -132,6 +132,8 @@ later gate, named; CI runs them all (see [development.md](development.md)).
 | 95 | exit-trap completion self-test | `test_check_exit_trap_completion.sh` | pre | required, `test_check_exit_trap_completion v1` |
 | 96 | exit-trap completion | `check_exit_trap_completion.sh` | pre | required, `check_exit_trap_completion v1` |
 | 97 | exit-trap completion behaviour | `test_exit_trap_completion_behaviour.sh` | pre | required, `test_exit_trap_completion_behaviour v1` |
+| 97a | pipe into grep -q self-test | `test_check_pipe_grep_q.sh` | pre | required; forsgren's own (forsgren#428, not canon): 16 fixture trees (every shape of a producer piped into a quiet grep red, `has`, a file operand, a here-string, `\|\|`, a comment, no quiet flag green), 4 mutation proofs, and `has` of `lib_has.sh` finding a pattern after 300 KB of output where the plain pipe loses it |
+| 97b | pipe into grep -q | `check_pipe_grep_q.sh` | pre | required; forsgren's own (forsgren#428, found by #425): red when a script at the root or in `Scripts/` pipes a producer into `grep -q` (any flag cluster with q, `--quiet`); under pipefail grep leaving at its first match can kill the producer with SIGPIPE and a present pattern reads as missing. The cure is `has` from `Scripts/lib_has.sh` |
 | 98 | markdown-links self-test | `test_check_markdown_links.sh` | pre | required, `test_check_markdown_links v1` |
 | 99 | markdown links | `check_markdown_links.sh` | pre | required, `check_markdown_links v1` |
 | 100 | script references self-test | `test_check_script_references.sh` | pre | required, `test_check_script_references v1` |
@@ -329,8 +331,9 @@ malformed row fails the step. Its self-test is the PRE row 124.
 
 ## The ratchet today
 
-`MIN_GATES` is 157, which equals the 157 rows of the order file (153 with a
-script and 4 `n/a` rows). forsgren#215 brought it to 115 and the Go tool
+`MIN_GATES` is 160, which equals the 160 rows of the order file (156 with a
+script and 4 `n/a` rows; the pipe into grep -q gate and its self-test, forsgren#428,
+made 160). forsgren#215 brought it to 115 and the Go tool
 helper self-test of forsgren#216 is the 116th; the browser gate and its
 self-test (forsgren#205) made 118, and the live check self-test
 (forsgren#205, step 2 of 2) made 119; the language gate, the pages wrapper's

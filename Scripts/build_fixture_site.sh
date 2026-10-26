@@ -88,8 +88,11 @@ fi
 # forsgren#423), found at the start of its row, right after the project, since
 # the Mainline Interval group comes first (forsgren#418).
 tbd_shows_interval() {
-  [[ -f "${STAGE}/tbd.html" ]] && tr -d '\n' <"${STAGE}/tbd.html" \
-    | grep -qE '<th scope="row">[^<]*</th> *<td[^>]*>[^<-][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td>[^<]*</td> *){2}<td>[^<]*</td>'
+  local tbd_text re
+  re='<th scope="row">[^<]*</th> *<td[^>]*>[^<-][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td>[^<]*</td> *){2}<td>[^<]*</td>'
+  [[ -f "${STAGE}/tbd.html" ]] || return 1
+  tbd_text="$(tr -d '\n' <"${STAGE}/tbd.html")"
+  grep -qE "$re" <<< "$tbd_text"
 }
 if ! tbd_shows_interval; then
   fail "tbd.html shows no Mainline Interval: the fixture has no commits the page can show"

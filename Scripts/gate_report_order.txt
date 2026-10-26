@@ -616,6 +616,16 @@ exit-trap completion self-test|Scripts/test_check_exit_trap_completion.sh|pre|
 exit-trap completion|Scripts/check_exit_trap_completion.sh|pre|
 exit-trap completion behaviour|Scripts/test_exit_trap_completion_behaviour.sh|pre|
 #
+# THE PIPE INTO GREP -Q RULE (forsgren#428, found by #425). Not canon: forsgren's own.
+# Red when a script pipes a producer into a quiet grep: under pipefail grep
+# leaving at its first match can kill the producer with SIGPIPE, and a pattern
+# that is there reads as missing once the producer writes more than a pipe
+# holds. The cure is has from Scripts/lib_has.sh. It reads repository files,
+# so it is pre. Self-test right before the gate, with a mutation proof per
+# pattern and the helper proven on 300 KB of output.
+pipe into grep -q self-test|Scripts/test_check_pipe_grep_q.sh|pre|
+pipe into grep -q|Scripts/check_pipe_grep_q.sh|pre|
+#
 # THE MARKDOWN LINKS (forsgren#147). Not canon: forsgren's own. Red when a
 # relative link in a tracked Markdown file (inline or reference definition,
 # outside code) names no tracked file or directory. It reads repository

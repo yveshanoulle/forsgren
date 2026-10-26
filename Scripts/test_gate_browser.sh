@@ -142,6 +142,8 @@ ENGINE="${REPO_ROOT}/Scripts/browser_gate.mjs"
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
 # Seconds per case: every ok and FAIL line of this run ends with the seconds
 # since the line before it, which is the duration of the case it reports, so the
 # CI log shows what is slow (forsgren#386). echo is shadowed here, so the
@@ -605,7 +607,7 @@ engine_up() {
   [[ -n "$(find "$1" -maxdepth 1 -name 'browser-gate-*' 2> /dev/null)" ]] || return 1
   npid="$(node_pid)"
   [[ -n "$npid" ]] || return 1
-  lsof -nP -a -p "$npid" -iTCP -sTCP:ESTABLISHED 2> /dev/null | grep -q ESTABLISHED
+  lsof -nP -a -p "$npid" -iTCP -sTCP:ESTABLISHED 2> /dev/null | has -q ESTABLISHED
 }
 
 # launch_up <dir>: the profile of the case's Chrome has its Local Storage

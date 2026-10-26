@@ -97,6 +97,8 @@ cd "$(dirname "$0")/.." || exit 1
 
 # shellcheck source=Scripts/lib_git_sandbox.sh
 source Scripts/lib_git_sandbox.sh
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
 
 CHECK="./Scripts/check_dco.sh"
 
@@ -218,7 +220,7 @@ want_red "19. linked to a Bot account, no opener given" "commit 171717171717 (Bu
 } > "$TMP/mixed.txt"
 capture "$CHECK" "$TMP/mixed.txt" "$DEPENDABOT"
 want_red "20. the opening bot's unsigned commit and an unsigned human commit" "commit 212121212121 (Tidy the template) has no Signed-off-by trailer"
-if grep 'FAIL' <<< "$OUT" | grep -q '202020202020'; then
+if grep 'FAIL' <<< "$OUT" | has -q '202020202020'; then
   fail "20. a FAIL line names the bot's exempt commit too. Output: ${OUT}"
 else
   echo "  ok: 20. only the human commit is named as a failure"
@@ -538,7 +540,7 @@ cat "$TMP/pull-dep.txt" "$TMP/direct-unsigned.txt" > "$TMP/pull-mixed.txt"
 capture push_check "$TMP/pull-mixed.txt"
 want_red "40. a mixed push names the direct unsigned commit" "commit d1d1d1d1d1d1 (Tidy the template) has no Signed-off-by trailer"
 want_said "40. and says the pull request's commit is not judged again" "commit ${SHORT_HEAD} (${DEP_SUBJECT}) is not judged again"
-if grep 'FAIL' <<< "$OUT" | grep -q "${SHORT_HEAD}"; then
+if grep 'FAIL' <<< "$OUT" | has -q "${SHORT_HEAD}"; then
   fail "40. a FAIL line names the commit already judged too. Output: ${OUT}"
 else
   echo "  ok: 40. only the direct commit is named as a failure"
@@ -628,7 +630,7 @@ mutant_green() {
 
 fx_merged_pull
 fx_runs "$APP_HEAD" failure
-mutant_green "success" 's/^\( *\)if printf .*grep -qx .success.; then$/\1if true; then/' "$TMP/pull-dep.txt" \
+mutant_green "success" 's/^\( *\)if grep -qx .success. <<< .*; then$/\1if true; then/' "$TMP/pull-dep.txt" \
   "without the DCO-success check, case 32 is green, so it is red because that pull request's DCO run failed" \
   "a push check that never reads the DCO run is still red on case 32"
 

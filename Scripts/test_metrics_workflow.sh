@@ -297,6 +297,8 @@ cd "$(dirname "$0")/.."
 
 # shellcheck source=Scripts/lib_git_sandbox.sh
 source Scripts/lib_git_sandbox.sh
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
 
 # The cases own their environment for the starter step: an identity or config
 # inherited from whoever runs this (fbp_agent_friend.sh exports both) never
@@ -875,7 +877,7 @@ judge_readme_tag() {
   new_install
   got="$(git_step_outcome "$script" real "refs/tags/v1" "$TRUNK") output=$(readme_output)"
   [[ "$got" == "$want" ]] || echo "for a README that differs on a ref that is not a branch (refs/tags/v1) the README step gives '${got}', not '${want}' — it must refuse by name and go on, there is no branch to commit to"
-  if ! grep -E '^::error' "${TMP}/step.log" | grep -qF -- "can be committed only on a branch"; then
+  if ! grep -E '^::error' "${TMP}/step.log" | has -qF -- "can be committed only on a branch"; then
     echo "on a tag the README step does not name the cause in an ::error saying 'can be committed only on a branch' (log: $(paste -sd'|' - < "${TMP}/step.log"))"
   fi
   new_install
@@ -908,7 +910,7 @@ judge_readme_moved() {
   if [[ "$(iso_out -C "$ORIGIN" rev-parse "$TRUNK")" != "$tip" ]]; then
     echo "with the branch moved since the checkout the README step replaced the commit another pushed — it must never force"
   fi
-  if ! grep -E '^::error' "${TMP}/step.log" | grep -qF -- "$MOVED"; then
+  if ! grep -E '^::error' "${TMP}/step.log" | has -qF -- "$MOVED"; then
     echo "with the branch moved since the checkout the README step does not name the cause in an ::error saying '${MOVED}' (log: $(paste -sd'|' - < "${TMP}/step.log"))"
   fi
 }
@@ -919,7 +921,7 @@ protect_readme() {
   cat > "${ORIGIN}/hooks/pre-receive" <<'HOOK'
 #!/bin/sh
 while read old new ref; do
-  if git diff-tree --no-commit-id --name-only -r "$old" "$new" | grep -qx README.md; then
+  if [ -n "$(git diff-tree --no-commit-id --name-only -r "$old" "$new" -- README.md)" ]; then
     echo "README.md is protected" >&2
     exit 1
   fi
@@ -955,14 +957,14 @@ judge_readme_failure() {
   got="$(git_step_outcome "$readme" real "refs/heads/${TRUNK}" "$TRUNK") output=$(readme_output)"
   want="exit=0 commits=1 output=failed"
   [[ "$got" == "$want" ]] || echo "with README.md refused by the remote the README step gives '${got}', not '${want}' — a refused push is an ::error and the job goes on"
-  grep -E '^::error' "${TMP}/step.log" | grep -qF -- "was refused" || echo "with README.md refused by the remote the README step does not say so in an ::error"
+  grep -E '^::error' "${TMP}/step.log" | has -qF -- "was refused" || echo "with README.md refused by the remote the README step does not say so in an ::error"
   new_install
   rm -f "${INSTALL}/README.md"
   mkdir "${INSTALL}/README.md"
   got="$(git_step_outcome "$readme" real "refs/heads/${TRUNK}" "$TRUNK") output=$(readme_output)"
   want="exit=0 commits=1 output=failed"
   [[ "$got" == "$want" ]] || echo "with a README.md that install-readme cannot write the README step gives '${got}', not '${want}' — it must say so and go on"
-  grep -E '^::error' "${TMP}/step.log" | grep -qF -- "could not write README.md" || echo "with a README.md that install-readme cannot write the README step does not say 'could not write README.md' in an ::error"
+  grep -E '^::error' "${TMP}/step.log" | has -qF -- "could not write README.md" || echo "with a README.md that install-readme cannot write the README step does not say 'could not write README.md' in an ::error"
   new_install
   protect_readme
   git_step_outcome "$readme" real "refs/heads/${TRUNK}" "$TRUNK" > /dev/null
@@ -1217,7 +1219,7 @@ judge_needs_check() {
     return 0
   fi
   judge_job_token "$1" "$NEEDS_STEP" "the needs step" "the setup issue is opened with it"
-  if step_text "$1" "$NEEDS_STEP" | grep -qE '^        working-directory:'; then
+  if step_text "$1" "$NEEDS_STEP" | has -qE '^        working-directory:'; then
     echo "the needs step sets a working-directory — check-needs checks the checkout root"
   fi
   step_block "$1" "$NEEDS_STEP" run > "$script"
@@ -1391,7 +1393,7 @@ judge_permissions() {
   fi
   if ! grep -qE '^#[[:space:]]+issues: write[[:space:]]' "$1"; then
     echo "the documented caller permissions do not list 'issues: write' — a caller must grant it for forsgren to open its setup issue"
-  elif ! grep -A3 -E '^#[[:space:]]+issues: write[[:space:]]' "$1" | grep -qF 'setup issue'; then
+  elif ! grep -A3 -E '^#[[:space:]]+issues: write[[:space:]]' "$1" | has -qF 'setup issue'; then
     echo "the documented 'issues: write' does not give its reason, the setup issue — it lets forsgren open it when this version needs more configuration; without it, the job summary and page footer say so"
   fi
 }
@@ -1583,7 +1585,7 @@ bot_findings() {
   [[ "$who" == "$BOT_IDENTITY" ]] || echo "$1 the $2's author is '${who}', not '${BOT_IDENTITY}'"
   who="$(iso_out -C "$ORIGIN" log -1 --format='%cn <%ce>' "$3")"
   [[ "$who" == "$BOT_IDENTITY" ]] || echo "$1 the $2's committer is '${who}', not '${BOT_IDENTITY}'"
-  if iso_out -C "$ORIGIN" cat-file commit "$3" | grep -q '^gpgsig'; then
+  if iso_out -C "$ORIGIN" cat-file commit "$3" | has -q '^gpgsig'; then
     echo "$1 the $2 is signed — it must be unsigned"
   fi
 }
@@ -1674,7 +1676,7 @@ judge_data_moved() {
   if [[ "$(iso_out -C "$ORIGIN" rev-parse "$TRUNK")" != "$tip" ]]; then
     echo "with the branch moved since the checkout the data step replaced the commit another pushed — it must never force"
   fi
-  if ! grep -E '^::error' "${TMP}/step.log" | grep -qF -- "$MOVED"; then
+  if ! grep -E '^::error' "${TMP}/step.log" | has -qF -- "$MOVED"; then
     echo "with the branch moved since the checkout the data step does not name the cause in an ::error saying '${MOVED}' (log: $(paste -sd'|' - < "${TMP}/step.log"))"
   fi
 }
@@ -1702,7 +1704,7 @@ judge_fail_step() {
   if ! grep -qxF -- "COLLECT_STATUS: ${EXPR_OPEN} steps.collect.outputs.status }}" <<< "$env"; then
     echo "the fail step's COLLECT_STATUS is not ${EXPR_OPEN} steps.collect.outputs.status }} — it cannot know collect's exit status"
   fi
-  if ! step_text "$1" "$COLLECT_STEP" | grep -qx '        id: collect'; then
+  if ! step_text "$1" "$COLLECT_STEP" | has -qx '        id: collect'; then
     echo "the collect step has no id: collect — steps.collect.outputs.status would be empty"
   fi
   for v in 0 1 2 ''; do

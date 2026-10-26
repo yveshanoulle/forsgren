@@ -24,6 +24,8 @@ cd "$(dirname "$0")/.." || exit 1
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
 selftest_begin "release publish self-test"
 
 PUBLISH="Scripts/release_publish.sh"
@@ -87,7 +89,7 @@ if grep -qxF "release create v1.9.4 --repo acme/app --target ${SHA} --title fors
 else
   fail "the release create call is not as pinned. Log: $(cat "${TMP}/gh.log")"
 fi
-if grep -E 'git/refs|git/tags|tag create' "${TMP}/gh.log" | grep -q .; then fail "a tag was made by another call than release create. Log: $(cat "${TMP}/gh.log")"; else echo "  ok: no other call makes a tag"; fi
+if grep -E 'git/refs|git/tags|tag create' "${TMP}/gh.log" | has -q .; then fail "a tag was made by another call than release create. Log: $(cat "${TMP}/gh.log")"; else echo "  ok: no other call makes a tag"; fi
 
 reset
 touch "${STATE}/create_fails"

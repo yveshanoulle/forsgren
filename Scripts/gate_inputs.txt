@@ -77,6 +77,7 @@ browser gate self-test|in|Scripts/browser_gate_variants.txt
 browser gate self-test|in|package.json
 browser gate self-test|in|package-lock.json
 browser gate self-test|in|internal/page/required-pages.json
+browser gate self-test|in|Scripts/lib_has.sh
 
 # --- browser gate -------------------------------------------------------
 # It opens the site the build wrote (Scripts/build_site.sh builds ./cmd/forsgren and renders).
@@ -98,6 +99,7 @@ browser gate|in|go.mod
 browser gate|in|go.sum
 browser gate|in|package.json
 browser gate|in|package-lock.json
+browser gate|in|Scripts/lib_has.sh
 browser gate|out|*_test.go
 browser gate|out|cmd/**/testdata/
 browser gate|out|internal/**/testdata/
@@ -125,6 +127,7 @@ browser gate (fixture site) self-test|in|go.mod
 browser gate (fixture site) self-test|in|go.sum
 browser gate (fixture site) self-test|in|package.json
 browser gate (fixture site) self-test|in|package-lock.json
+browser gate (fixture site) self-test|in|Scripts/lib_has.sh
 browser gate (fixture site) self-test|out|*_test.go
 browser gate (fixture site) self-test|out|cmd/**/testdata/
 browser gate (fixture site) self-test|out|internal/**/testdata/
@@ -151,6 +154,7 @@ browser gate (fixture site)|in|go.mod
 browser gate (fixture site)|in|go.sum
 browser gate (fixture site)|in|package.json
 browser gate (fixture site)|in|package-lock.json
+browser gate (fixture site)|in|Scripts/lib_has.sh
 browser gate (fixture site)|out|*_test.go
 browser gate (fixture site)|out|cmd/**/testdata/
 browser gate (fixture site)|out|internal/**/testdata/
@@ -183,6 +187,7 @@ release workflow|in|Scripts/release_token_expiry.sh
 release workflow|in|Scripts/release_verify_install.sh
 release workflow|in|Scripts/release_verify_pin.sh
 release workflow|in|Scripts/test_release_workflow.sh
+release workflow|in|Scripts/lib_has.sh
 
 # --- step summary isolation (forsgren#264) --------------------------------
 # Scripts/test_step_summary_isolation.sh finds the scripts of Scripts/ that write
@@ -263,6 +268,7 @@ step summary isolation|in|Scripts/test_render_quality_report.sh
 step summary isolation|in|Scripts/test_render_quality_summary.sh
 step summary isolation|in|Scripts/test_report_baselines.sh
 step summary isolation|in|Scripts/test_step_summary_isolation.sh
+step summary isolation|in|Scripts/lib_has.sh
 
 # --- metrics workflow (forsgren#402) --------------------------------------
 # Scripts/test_metrics_workflow.sh pins metrics.yml, runs its steps with stubs and
@@ -298,6 +304,7 @@ metrics workflow|in|Scripts/summarize_gate_failure.sh
 metrics workflow|in|Scripts/sync_private_names_secrets.sh
 metrics workflow|in|Scripts/test_metrics_workflow.sh
 metrics workflow|in|sfl.sh
+metrics workflow|in|Scripts/lib_has.sh
 
 # --- CI phase runner self-test (forsgren#402) -----------------------------
 # Scripts/test_run_ci_phase.sh runs Scripts/run_ci_phase.sh in a sandbox over the
@@ -307,6 +314,7 @@ CI phase runner self-test|in|Scripts/gate_report_order.txt
 CI phase runner self-test|in|Scripts/lib_git_sandbox.sh
 CI phase runner self-test|in|Scripts/run_ci_phase.sh
 CI phase runner self-test|in|Scripts/test_run_ci_phase.sh
+CI phase runner self-test|in|Scripts/lib_has.sh
 
 # --- mutation: checkout pins (forsgren#402) -------------------------------
 # The pin and its mutation test read every workflow of .github/workflows/ (a glob,

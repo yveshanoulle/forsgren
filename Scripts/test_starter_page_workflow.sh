@@ -54,6 +54,8 @@ METRICS=".github/workflows/metrics.yml"
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
 # shellcheck source=Scripts/lib_workflow_steps.sh
 source Scripts/lib_workflow_steps.sh
 selftest_begin "starter page workflow pin"
@@ -79,15 +81,15 @@ trigger_findings() {
   local events
   events="$(on_events "$1" | LC_ALL=C sort | tr '\n' ' ')"
   [[ "$events" == "push release workflow_dispatch " ]] || echo "triggers: want push, release and workflow_dispatch, got: ${events:-none}"
-  if code "$1" | grep -qE 'pull_request'; then
+  if code "$1" | has -qE 'pull_request'; then
     echo "pull_request: a pull-request event appears in the workflow"
   fi
-  code "$1" | grep -qxF '    branches: [main]' || echo "push branches: the push is not to main only"
-  code "$1" | grep -qxF '    types: [published]' || echo "release types: the release is not limited to published"
+  code "$1" | has -qxF '    branches: [main]' || echo "push branches: the push is not to main only"
+  code "$1" | has -qxF '    types: [published]' || echo "release types: the release is not limited to published"
   local path
   for path in README.md 'cmd/readmepage/**' 'internal/readmepage/**' internal/page/styles.css \
     Scripts/build_starter_page.sh .github/workflows/starter_page.yml; do
-    code "$1" | grep -qxF "      - ${path}" || echo "push paths: ${path} is not in the filter"
+    code "$1" | has -qxF "      - ${path}" || echo "push paths: ${path} is not in the filter"
   done
 }
 
@@ -100,7 +102,7 @@ permission_findings() {
   if ! awk '/^  deploy:/ { d=1 } d && /pages: write/ { p=1 } d && /id-token: write/ { i=1 } END { exit !(p && i) }' "$1"; then
     echo "deploy permissions: the deploy job lacks pages: write or id-token: write"
   fi
-  if code "$1" | grep -qE 'write-all|pull-requests:'; then
+  if code "$1" | has -qE 'write-all|pull-requests:'; then
     echo "permissions: write-all or pull-requests appears"
   fi
   local hosts
@@ -114,7 +116,7 @@ action_findings() {
   used="$(code "$1" | grep -E '^[[:space:]]+(- )?uses:' | sed -E 's/.*uses:[[:space:]]*([^@ ]+)@.*/\1/' | LC_ALL=C sort -u | tr '\n' ' ')"
   [[ "$used" == "actions/checkout actions/deploy-pages actions/setup-go actions/upload-pages-artifact " ]] \
     || echo "actions: want checkout, setup-go, upload-pages-artifact and deploy-pages only, got: ${used}"
-  if code "$1" | grep -E 'uses:' | grep -vqE '@[0-9a-f]{40}  # v[0-9]'; then
+  if code "$1" | grep -E 'uses:' | has -vqE '@[0-9a-f]{40}  # v[0-9]'; then
     echo "pins: an action is not pinned by a full commit with its version comment"
   fi
   for action in checkout setup-go upload-pages-artifact deploy-pages; do
@@ -122,23 +124,23 @@ action_findings() {
     got="$(pin_of "$1" "$action")"
     [[ -n "$want" && "$got" == "$want" ]] || echo "pin of ${action}: ${got:-none} is not metrics.yml's ${want:-none}"
   done
-  step_text "$1" "Check out" | grep -qF 'persist-credentials: false' || echo "checkout: credentials are persisted"
-  step_text "$1" "Set up Go" | grep -qF "go-version: '${GO_VERSION}'" || echo "setup-go: not Go ${GO_VERSION} from go.mod's toolchain"
-  step_text "$1" "Set up Go" | grep -qF 'cache: false' || echo "setup-go: a cache is restored"
+  step_text "$1" "Check out" | has -qF 'persist-credentials: false' || echo "checkout: credentials are persisted"
+  step_text "$1" "Set up Go" | has -qF "go-version: '${GO_VERSION}'" || echo "setup-go: not Go ${GO_VERSION} from go.mod's toolchain"
+  step_text "$1" "Set up Go" | has -qF 'cache: false' || echo "setup-go: a cache is restored"
 }
 
 # step_findings <file> — pins 9 to 13.
 step_findings() {
-  step_text "$1" "Build the starter page" | grep -qxF '        run: ./Scripts/build_starter_page.sh' \
+  step_text "$1" "Build the starter page" | has -qxF '        run: ./Scripts/build_starter_page.sh' \
     || echo "build: the step does not run exactly ./Scripts/build_starter_page.sh"
-  step_text "$1" "Upload the page" | grep -qxF '          path: .build/starter' || echo "upload: the path is not .build/starter"
-  if run_blocks "$1" | grep -qF -- "\${{"; then
+  step_text "$1" "Upload the page" | has -qxF '          path: .build/starter' || echo "upload: the path is not .build/starter"
+  if run_blocks "$1" | has -qF -- "\${{"; then
     echo "injection: a run: block expands a \${{ }} expression"
   fi
-  code "$1" | grep -qxF '    needs: build' || echo "deploy: the job does not need the build job"
-  code "$1" | grep -qxF '      name: github-pages' || echo "deploy: the environment is not github-pages"
-  code "$1" | grep -qxF '  group: pages' || echo "concurrency: the group is not pages"
-  code "$1" | grep -qxF '  cancel-in-progress: false' || echo "concurrency: a run in flight is cancelled"
+  code "$1" | has -qxF '    needs: build' || echo "deploy: the job does not need the build job"
+  code "$1" | has -qxF '      name: github-pages' || echo "deploy: the environment is not github-pages"
+  code "$1" | has -qxF '  group: pages' || echo "concurrency: the group is not pages"
+  code "$1" | has -qxF '  cancel-in-progress: false' || echo "concurrency: a run in flight is cancelled"
   local checkout gosetup build upload deploy
   checkout="$(line_of "$1" "name: Check out")"
   gosetup="$(line_of "$1" "name: Set up Go")"
@@ -180,12 +182,12 @@ STUB
 # release_findings <file> — pin 14.
 release_findings() {
   local name="Check that GitHub Pages is enabled" token="\${{ github.token }}" repo="\${{ github.repository }}"
-  step_text "$1" "$name" | grep -qxF "        if: github.event_name == 'release'" || echo "pages check: the step does not run only for a release"
-  step_text "$1" "$name" | grep -qxF "          GH_TOKEN: ${token}" || echo "pages check: the job token does not reach gh through env:"
-  step_text "$1" "$name" | grep -qxF "          REPOSITORY: ${repo}" || echo "pages check: the repository does not reach the shell through env:"
-  step_text "$1" "$name" | grep -qxF '        id: pages' || echo "pages check: the step has no id: pages"
+  step_text "$1" "$name" | has -qxF "        if: github.event_name == 'release'" || echo "pages check: the step does not run only for a release"
+  step_text "$1" "$name" | has -qxF "          GH_TOKEN: ${token}" || echo "pages check: the job token does not reach gh through env:"
+  step_text "$1" "$name" | has -qxF "          REPOSITORY: ${repo}" || echo "pages check: the repository does not reach the shell through env:"
+  step_text "$1" "$name" | has -qxF '        id: pages' || echo "pages check: the step has no id: pages"
   step_text "$1" "Publish to GitHub Pages" \
-    | grep -qxF "        if: github.event_name != 'release' || steps.pages.outputs.enabled == 'true'" \
+    | has -qxF "        if: github.event_name != 'release' || steps.pages.outputs.enabled == 'true'" \
     || echo "pages check: the deploy step is not skipped for a release with Pages not enabled"
   later "$(line_of "$1" "name: Publish to GitHub Pages")" "$(line_of "$1" "name: ${name}")" \
     || echo "pages check: the check does not come before the deploy step"

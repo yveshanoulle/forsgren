@@ -32,6 +32,8 @@ METRICS=".github/workflows/metrics.yml"
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
 # shellcheck source=Scripts/lib_workflow_steps.sh
 source Scripts/lib_workflow_steps.sh
 selftest_begin "vulncheck workflow pin"
@@ -59,7 +61,7 @@ trigger_findings() {
   local events crons
   events="$(on_events "$1" | LC_ALL=C sort | tr '\n' ' ')"
   [[ "$events" == "schedule workflow_dispatch " ]] || echo "triggers: want schedule and workflow_dispatch, got: ${events:-none}"
-  if code "$1" | grep -qE 'pull_request|push:'; then
+  if code "$1" | has -qE 'pull_request|push:'; then
     echo "push or pull_request: such an event appears in the workflow"
   fi
   crons="$(code "$1" | grep -E '^[[:space:]]+- cron:')"
@@ -73,7 +75,7 @@ permission_findings() {
   if ! awk '/^permissions:/ { getline; if ($0 == "  contents: read") ok=1 } END { exit !ok }' "$1"; then
     echo "permissions: the top level is not contents: read"
   fi
-  if code "$1" | grep -qE ': write|write-all'; then
+  if code "$1" | has -qE ': write|write-all'; then
     echo "write permissions: a write permission appears"
   fi
   local hosts
@@ -86,7 +88,7 @@ action_findings() {
   local action want got used
   used="$(code "$1" | grep -E '^[[:space:]]+(- )?uses:' | sed -E 's/.*uses:[[:space:]]*([^@ ]+)@.*/\1/' | LC_ALL=C sort -u | tr '\n' ' ')"
   [[ "$used" == "actions/checkout actions/setup-go " ]] || echo "actions: want checkout and setup-go only, got: ${used}"
-  if code "$1" | grep -E 'uses:' | grep -vqE '@[0-9a-f]{40}  # v[0-9]'; then
+  if code "$1" | grep -E 'uses:' | has -vqE '@[0-9a-f]{40}  # v[0-9]'; then
     echo "pins: an action is not pinned by a full commit with its version comment"
   fi
   for action in checkout setup-go; do
@@ -94,22 +96,22 @@ action_findings() {
     got="$(pin_of "$1" "$action")"
     [[ -n "$want" && "$got" == "$want" ]] || echo "pin of ${action}: ${got:-none} is not metrics.yml's ${want:-none}"
   done
-  step_text "$1" "Check out" | grep -qF 'persist-credentials: false' || echo "checkout: credentials are persisted"
-  step_text "$1" "Set up Go" | grep -qxF '          go-version-file: go.mod' || echo "setup-go: it does not read go.mod"
-  step_text "$1" "Set up Go" | grep -qxF '          cache: false' || echo "setup-go: a cache is restored"
+  step_text "$1" "Check out" | has -qF 'persist-credentials: false' || echo "checkout: credentials are persisted"
+  step_text "$1" "Set up Go" | has -qxF '          go-version-file: go.mod' || echo "setup-go: it does not read go.mod"
+  step_text "$1" "Set up Go" | has -qxF '          cache: false' || echo "setup-go: a cache is restored"
 }
 
 # step_findings <file> — pins 8 to 11.
 step_findings() {
-  step_block "$1" "Pin the Go toolchain" run | grep -qF "toolchain=\"${DOLLAR}(./Scripts/go_toolchain.sh)\"" \
+  step_block "$1" "Pin the Go toolchain" run | has -qF "toolchain=\"${DOLLAR}(./Scripts/go_toolchain.sh)\"" \
     || echo "toolchain: it is not read from Scripts/go_toolchain.sh"
-  step_block "$1" "Pin the Go toolchain" run | grep -qF "echo \"GOTOOLCHAIN=${DOLLAR}{toolchain}\" >> \"${DOLLAR}GITHUB_ENV\"" \
+  step_block "$1" "Pin the Go toolchain" run | has -qF "echo \"GOTOOLCHAIN=${DOLLAR}{toolchain}\" >> \"${DOLLAR}GITHUB_ENV\"" \
     || echo "toolchain: GOTOOLCHAIN is not written to GITHUB_ENV"
-  step_text "$1" "Scan for vulnerabilities" | grep -qxF '        run: ./Scripts/check_govulncheck.sh' \
+  step_text "$1" "Scan for vulnerabilities" | has -qxF '        run: ./Scripts/check_govulncheck.sh' \
     || echo "scan: the step does not run exactly ./Scripts/check_govulncheck.sh"
-  step_text "$1" "Scan for vulnerabilities" | grep -qxF "          FORSGREN_VULN_DB_REQUIRED: '1'" \
+  step_text "$1" "Scan for vulnerabilities" | has -qxF "          FORSGREN_VULN_DB_REQUIRED: '1'" \
     || echo "required: the scan step does not set FORSGREN_VULN_DB_REQUIRED to 1"
-  if run_blocks "$1" | grep -qF -- "\${{"; then
+  if run_blocks "$1" | has -qF -- "\${{"; then
     echo "injection: a run: block expands a \${{ }} expression"
   fi
   local checkout gosetup toolchain scan

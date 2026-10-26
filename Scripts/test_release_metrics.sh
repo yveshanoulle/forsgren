@@ -30,6 +30,8 @@ cd "$(dirname "$0")/.." || exit 1
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
 selftest_begin "release metrics self-test"
 D='$'
 
@@ -118,7 +120,7 @@ want_said "the run is a line" "run=https://example.test/run/101"
 if called "^rt-token\|pr merge 19 --repo acme/met --squash --delete-branch"; then echo "  ok: squash-merged with its branch deleted, with the release token"; else fail "the merge call is not as pinned. Log: $(cat "${TMP}/gh.log")"; fi
 if called "^rt-token\|workflow run forsgren.yml --repo acme/met --ref main"; then echo "  ok: forsgren.yml is started on the default branch"; else fail "forsgren.yml was not started. Log: $(cat "${TMP}/gh.log")"; fi
 if [[ "$(grep -c '^[^|]*|workflow run' "${TMP}/gh.log")" -eq 1 ]]; then echo "  ok: one run is started"; else fail "want one dispatch"; fi
-if grep -v '^rt-token|' "${TMP}/gh.log" | grep -q .; then fail "a call ran with another token"; else echo "  ok: every call used the release token"; fi
+if grep -v '^rt-token|' "${TMP}/gh.log" | has -q .; then fail "a call ran with another token"; else echo "  ok: every call used the release token"; fi
 
 # 2: more than the pins.
 world

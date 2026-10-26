@@ -118,6 +118,8 @@ run report shows how many checks each of them ran.
 - exit-trap completion self-test (`Scripts/test_check_exit_trap_completion.sh`, pre)
 - exit-trap completion (`Scripts/check_exit_trap_completion.sh`, pre)
 - exit-trap completion behaviour (`Scripts/test_exit_trap_completion_behaviour.sh`, pre)
+- pipe into grep -q self-test (`Scripts/test_check_pipe_grep_q.sh`, pre)
+- pipe into grep -q (`Scripts/check_pipe_grep_q.sh`, pre)
 - markdown-links self-test (`Scripts/test_check_markdown_links.sh`, pre)
 - markdown links (`Scripts/check_markdown_links.sh`, pre)
 - script references self-test (`Scripts/test_check_script_references.sh`, pre)

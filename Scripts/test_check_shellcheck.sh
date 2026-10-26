@@ -55,6 +55,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # shellcheck source=Scripts/lib_git_sandbox.sh
 source "${ROOT}/Scripts/lib_git_sandbox.sh"
+# shellcheck source=Scripts/lib_has.sh
+source "${ROOT}/Scripts/lib_has.sh"
 SCRIPT_UNDER_TEST="${ROOT}/Scripts/check_shellcheck.sh"
 
 TMP="$(mktemp -d)"
@@ -139,7 +141,7 @@ make_case "$B"
 add_file "$B" "Scripts/ok.sh" "$CLEAN_SH"
 add_file "$B" "server/sbin/webinfra-example.sh" "$BROKEN_SH"
 run_guard "$B"
-if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -q 'server/sbin/webinfra-example.sh'; then
+if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | has -q 'server/sbin/webinfra-example.sh'; then
   ok "a shellcheck error under server/sbin/ fails the guard, named"
 else
   fail "server/sbin error should fail the guard and be named, got exit $RC"
@@ -152,7 +154,7 @@ C="$TMP/scripts_broken"
 make_case "$C"
 add_file "$C" "Scripts/broken.sh" "$BROKEN_SH"
 run_guard "$C"
-if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -q 'Scripts/broken.sh'; then
+if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | has -q 'Scripts/broken.sh'; then
   ok "a shellcheck error under Scripts/ still fails the guard, named"
 else
   fail "Scripts/ error should fail the guard and be named, got exit $RC"
@@ -165,7 +167,7 @@ D="$TMP/extensionless_broken"
 make_case "$D"
 add_file "$D" "server/sbin/webinfra-wrapper" "$BROKEN_SH"
 run_guard "$D"
-if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -q 'server/sbin/webinfra-wrapper'; then
+if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | has -q 'server/sbin/webinfra-wrapper'; then
   ok "an extension-less bash-shebang file with a finding fails the guard, named"
 else
   fail "extension-less shebang file should fail the guard and be named, got exit $RC"
@@ -208,7 +210,7 @@ fi
 # 7. Empty EXCLUDE_ALLOWED does not trip an unbound-variable error on
 #    bash 3.2 (checked against the last run's output — any of the passing
 #    cases above already exercised this path).
-if printf '%s\n' "$OUT" | grep -qi "unbound variable"; then
+if printf '%s\n' "$OUT" | has -qi "unbound variable"; then
   fail "empty EXCLUDE_ALLOWED tripped an unbound-variable error"
   indent_out "$OUT"
 else
@@ -225,7 +227,7 @@ add_file "$G" "Scripts/ok.sh" "$CLEAN_SH"
 write_file "$G" "Scripts/new_broken.sh" "$BROKEN_SH"
 write_file "$G" "Scripts/new-wrapper" "$BROKEN_SH"
 run_guard "$G"
-if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -q 'Scripts/new_broken.sh' && printf '%s\n' "$OUT" | grep -q 'Scripts/new-wrapper'; then
+if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | has -q 'Scripts/new_broken.sh' && printf '%s\n' "$OUT" | has -q 'Scripts/new-wrapper'; then
   ok "an untracked script with a finding fails the guard, both forms named"
 else
   fail "an untracked .sh and an untracked extension-less script with a finding should fail the guard and be named, got exit $RC"
@@ -276,7 +278,7 @@ fi
 
 # 10b. The same tree without the entry is red: the exclusion, not the tree, made it green.
 run_copy "$X" ""
-if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -q 'legacy/broken.sh'; then
+if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | has -q 'legacy/broken.sh'; then
   ok "without the entry the same script is red, named"
 else
   fail "the script should be red without its exclusion entry, got exit $RC"
@@ -288,7 +290,7 @@ M="$TMP/no_exclusions_file"
 make_case "$M"
 add_file "$M" "Scripts/ok.sh" "$CLEAN_SH"
 run_copy "$M" "-"
-if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -q 'shellcheck_exclusions.txt'; then
+if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | has -q 'shellcheck_exclusions.txt'; then
   ok "a missing exclusions file is red, named"
 else
   fail "a missing exclusions file should be red, got exit $RC"
@@ -302,7 +304,7 @@ for bad in "two words" "../outside.sh" "does/not/exist.sh"; do
   add_file "$N" "Scripts/ok.sh" "$CLEAN_SH"
   run_copy "$N" "${bad}
 "
-  if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -qF "'${bad}'"; then
+  if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | has -qF "'${bad}'"; then
     ok "the exclusions entry '${bad}' is red, named"
   else
     fail "the exclusions entry '${bad}' should be red, got exit $RC"
@@ -333,7 +335,7 @@ make_case "$Z"
 add_file "$Z" "README.md" "no shell here
 "
 run_guard "$Z"
-if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | grep -q 'no shell scripts found'; then
+if [ "$RC" -ne 0 ] && printf '%s\n' "$OUT" | has -q 'no shell scripts found'; then
   ok "a tree with no shell script is red, with the reason"
 else
   fail "zero shell scripts should be red and say so, got exit $RC"

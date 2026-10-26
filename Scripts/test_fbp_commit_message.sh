@@ -51,6 +51,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # shellcheck source=Scripts/lib_git_sandbox.sh
 source "${ROOT}/Scripts/lib_git_sandbox.sh"
+# shellcheck source=Scripts/lib_has.sh
+source "${ROOT}/Scripts/lib_has.sh"
 # shellcheck source=Scripts/lib_fbp_sandbox.sh
 source "${ROOT}/Scripts/lib_fbp_sandbox.sh"
 
@@ -479,7 +481,7 @@ if FORSGREN_PRIVATE_NAMES="$PRIVATE_NAME" run_fbp "6.a: touch the Pre-ACME-Secre
   if [ "$(fbp_sandbox_rc)" -eq 0 ]; then
     fail "6.a. FBP.sh exited 0 on a commit message that names a private name"
   fi
-  if grep '❌' <<< "$OUT" | grep -Fqi "commit message"; then
+  if grep '❌' <<< "$OUT" | has -Fqi "commit message"; then
     echo "  ok: 6.a. the output has a ❌ line about the commit message"
   else
     fail "6.a. the output has no ❌ line about the commit message. Output: ${OUT}"

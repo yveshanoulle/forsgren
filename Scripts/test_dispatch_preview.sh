@@ -28,6 +28,8 @@ cd "$(dirname "$0")/.." || exit 1
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
 selftest_begin "dispatch preview self-test"
 
 SCRIPT="Scripts/dispatch_preview.sh"
@@ -101,12 +103,12 @@ else
 fi
 
 # 3: no token in the arguments, curlrc disabled.
-if grep '^ARGS:' "$LOG" | grep -qF "tok_secret_value"; then
+if grep '^ARGS:' "$LOG" | has -qF "tok_secret_value"; then
   fail "the token is in curl's arguments, where a process list shows it"
 else
   echo "  ok: the token is not in the arguments"
 fi
-if grep '^ARGS:' "$LOG" | grep -qE '^ARGS: --disable '; then echo "  ok: a curlrc is disabled first"; else fail "curl is not given --disable first. Log: $(cat "$LOG")"; fi
+if grep '^ARGS:' "$LOG" | has -qE '^ARGS: --disable '; then echo "  ok: a curlrc is disabled first"; else fail "curl is not given --disable first. Log: $(cat "$LOG")"; fi
 
 # 4: any status but 204 is red, naming it.
 for status in 200 201 202 302 404 422 500; do

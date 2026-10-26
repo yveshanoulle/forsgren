@@ -35,6 +35,8 @@ cd "$(dirname "$0")/.." || exit 1
 
 # shellcheck source=Scripts/lib_git_sandbox.sh
 source Scripts/lib_git_sandbox.sh
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
 # shellcheck source=Scripts/lib_summary_writers.sh
@@ -107,9 +109,9 @@ check_inputs() {
         bad=1
       fi
     done < <(closure "$script")
-    if gate_input_rows "$inputs" "$label" in | grep -qE '^(cmd|internal)/$'; then
+    if gate_input_rows "$inputs" "$label" in | has -qE '^(cmd|internal)/$'; then
       for p in '*_test.go' 'cmd/**/testdata/' 'internal/**/testdata/'; do
-        if ! gate_input_rows "$inputs" "$label" out | grep -qxF -- "$p"; then
+        if ! gate_input_rows "$inputs" "$label" out | has -qxF -- "$p"; then
           echo "problem: '${label}' lists cmd/ or internal/ but does not exclude ${p}"
           bad=1
         fi

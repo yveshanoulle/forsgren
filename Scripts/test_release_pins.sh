@@ -45,6 +45,8 @@ cd "$(dirname "$0")/.." || exit 1
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
 selftest_begin "release pins self-test"
 D='$'
 
@@ -170,7 +172,7 @@ readme_blob() {
   local f
   for f in "${STATE}"/bodies/*git_blobs*; do
     [[ -f "$f" ]] || continue
-    if jq -r '.content' "$f" | grep -qF "written by the daily run"; then
+    if jq -r '.content' "$f" | has -qF "written by the daily run"; then
       jq -j '.content' "$f"
       return 0
     fi
@@ -276,7 +278,7 @@ if grep -qF "daily run for forsgren ${VERSION}:" "${STATE}"/bodies/*blobs* && gr
 else
   fail "the blobs do not hold the new pins"
 fi
-if ! grep -v '^rt-token|' "${TMP}/gh.log" | grep -q .; then echo "  ok: every gh call got the release token as GH_TOKEN"; else fail "a gh call ran with another token: $(grep -v '^rt-token|' "${TMP}/gh.log")"; fi
+if ! grep -v '^rt-token|' "${TMP}/gh.log" | has -q .; then echo "  ok: every gh call got the release token as GH_TOKEN"; else fail "a gh call ran with another token: $(grep -v '^rt-token|' "${TMP}/gh.log")"; fi
 
 # 8: the template README is the release's own (forsgren#286)
 world

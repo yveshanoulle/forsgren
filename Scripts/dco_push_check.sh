@@ -97,7 +97,7 @@ dco_green() {
     runs="$(api "the check runs of ${head:0:12}" --paginate \
       "repos/${REPO}/commits/${head}/check-runs?per_page=100" \
       --jq '.check_runs[] | select(.name == "DCO sign-off" and .app.slug == "github-actions") | .conclusion // "-"')" || exit 1
-    if printf '%s\n' "$runs" | grep -qx 'success'; then
+    if grep -qx 'success' <<< "$runs"; then
       echo yes > "$WORK/green.${head}"
     else
       echo no > "$WORK/green.${head}"

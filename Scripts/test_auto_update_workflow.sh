@@ -48,6 +48,8 @@ cd "$(dirname "$0")/.."
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
 # shellcheck source=Scripts/lib_workflow_steps.sh
 source Scripts/lib_workflow_steps.sh
 selftest_begin "the auto-update workflow pin"
@@ -419,7 +421,7 @@ if [[ -f "$WF" && -n "$(step_by_id "$WF" guard text)" ]]; then
   else
     fail "pin 8: the guard step exited 0 when check-update exited 2; a failed check must fail the job"
   fi
-  if grep -E '^::error' "${TMP}/fail.stdout" | grep -F 'check-update' | grep -qE '(^|[^0-9])2([^0-9]|$)'; then
+  if grep -E '^::error' "${TMP}/fail.stdout" | grep -F 'check-update' | has -qE '(^|[^0-9])2([^0-9]|$)'; then
     echo "  ok: the guard step prints an ::error naming check-update and exit 2"
   else
     fail "pin 8: the guard step prints no ::error line naming check-update and its exit status 2 (stdout: '$(paste -sd';' "${TMP}/fail.stdout")')"
@@ -644,7 +646,7 @@ if [[ -f "$WF" && -n "$(step_by_id "$WF" guard text)" ]]; then
       fail "pin 14: the guard step exited 0 for the first line '${bad}', which is no install line"
       g14_ok=0
     fi
-    if ! grep -E '^::error' "${TMP}/g14.stdout" | grep -qF 'check-update'; then
+    if ! grep -E '^::error' "${TMP}/g14.stdout" | has -qF 'check-update'; then
       fail "pin 14: the guard step prints no ::error naming check-update for the first line '${bad}'"
       g14_ok=0
     fi

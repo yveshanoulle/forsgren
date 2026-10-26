@@ -6,6 +6,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
+
 # Fixture for check_html_dupl.sh — unit 397, the canon version.
 #
 # A ratchet's essential contract is that duplication above its ceiling fails.
@@ -253,7 +256,7 @@ if [[ -s "${ROOT}/npx.log" ]]; then
 else
   echo "  ✅ the gate never calls npx"
 fi
-if grep -vE '^[[:space:]]*#' "$CHECK" | grep -qE 'npx'; then
+if grep -vE '^[[:space:]]*#' "$CHECK" | has -qE 'npx'; then
   echo "  ❌ the gate's text names npx outside comments"
   failures=$((failures + 1))
 else

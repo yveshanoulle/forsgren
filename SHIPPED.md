@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — No producer is piped into grep -q any more: one helper, and a gate that keeps it out ([#428](https://github.com/yveshanoulle/forsgren/issues/428), 1 step)
+
+forsgren issue 428, tools, no release of its own. Found in #425: under `set -o pipefail`, `producer | grep -q pattern` can read as not found when grep leaves at its first match and the producer dies of SIGPIPE, which shows only once the producer writes more than the pipe buffer. `Scripts/lib_has.sh` (sourced, never run) is `has <grep args>`, which reads all of stdin before it matches; the three local copies of #425 are gone and 26 self-tests source it (about 115 call sites moved). `Scripts/check_pipe_grep_q.sh` is red on a producer piped into `grep` with a quiet flag (`-q`, any cluster with q, `--quiet`), joining a line that ends in a pipe or a backslash with the next, skipping comments; its self-test `Scripts/test_check_pipe_grep_q.sh` has 16 fixture shapes, 4 mutation proofs and proves `has` finds a pattern after 300 KB where the plain pipe returns 141. Red first: on the previous tree the gate named about 115 places in 33 scripts. Seven scripts that run from a sparse or copied checkout (`check_shellcheck.sh`, `check_workflow_triggers.sh`, `dco_push_check.sh`, `release_pins.sh`, `release_verify_pin.sh`, `report_baselines.sh`, `build_fixture_site.sh`) use a here-string instead of sourcing the helper. Two order-file rows (`MIN_GATES` 158 to 160), eight `Scripts/gate_inputs.txt` rows for the helper, a wiring case for it, and the rows in CONTRIBUTING.md, `docs/gate-classification.md`, `docs/quality-gates.md` and CLAUDE.md.
+
+---
+
 ## 2026-10-26 — A short getting-started page for a new contributor ([#436](https://github.com/yveshanoulle/forsgren/issues/436), 1 step)
 
 forsgren issue 436, feature, patch release. `docs/getting-started.md` is one screen for the first hour: what forsgren is, what to install, the first run (`./Scripts/install_tools.sh`, `npm ci`, `./FBP.sh --no-commit`), a change (tests first, then `./FBP.sh "<message>"`), the order FBP runs in, stop at the first red gate and `--all`, the `*** RED ****` commit, the three secret-class reds that commit nothing, `--no-commit` and `--no-push`, how CI relates, pull requests from forks, and links to the reference pages. `README.md` lists it in Documentation and `CONTRIBUTING.md` links it at the top. Docs only.

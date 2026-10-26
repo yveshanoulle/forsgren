@@ -199,7 +199,7 @@ hosted() {
   local label="$1"
   label="${label#\"}"; label="${label%\"}"
   label="${label#\'}"; label="${label%\'}"
-  printf '%s\n' "$label" | grep -qE "$HOSTED_LABEL"
+  grep -qE "$HOSTED_LABEL" <<< "$label"
 }
 
 files=()

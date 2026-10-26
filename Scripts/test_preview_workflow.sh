@@ -35,16 +35,13 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-# has <grep args>: grep -q on stdin that reads all of it first. A plain pipe into
-# grep -q lets grep leave at its first match, and under pipefail the writer's
-# SIGPIPE then turns a found pattern into a failed test (forsgren#425).
-has() { local in; in="$(cat)"; grep -q "$@" <<< "$in"; }
-
 WORKFLOW=".github/workflows/quality.yml"
 METRICS=".github/workflows/metrics.yml"
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
 # shellcheck source=Scripts/lib_workflow_steps.sh
 source Scripts/lib_workflow_steps.sh
 selftest_begin "preview workflow pin"

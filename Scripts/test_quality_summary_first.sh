@@ -28,6 +28,8 @@ cd "$(dirname "$0")/.." || exit 1
 
 # shellcheck source=Scripts/lib_selftest.sh
 source Scripts/lib_selftest.sh
+# shellcheck source=Scripts/lib_has.sh
+source Scripts/lib_has.sh
 # shellcheck source=Scripts/lib_workflow_steps.sh
 source Scripts/lib_workflow_steps.sh
 selftest_begin "quality summary first pin"
@@ -62,11 +64,11 @@ writer_findings() {
   while IFS= read -r name; do
     [[ "$name" == "$SUMMARY_STEP" ]] && break
     text="$(code_of "$1" "$name")"
-    if grep -v 'GITHUB_STEP_SUMMARY=' <<< "$text" | grep -q 'GITHUB_STEP_SUMMARY'; then
+    if grep -v 'GITHUB_STEP_SUMMARY=' <<< "$text" | has -q 'GITHUB_STEP_SUMMARY'; then
       echo "writer: step '${name}' writes to GITHUB_STEP_SUMMARY itself, so its output comes before the headline"
     fi
     while IFS= read -r writer; do
-      if grep -F "$writer" <<< "$text" | grep -v 'GITHUB_STEP_SUMMARY=' | grep -q .; then
+      if grep -F "$writer" <<< "$text" | grep -v 'GITHUB_STEP_SUMMARY=' | has -q .; then
         echo "writer: step '${name}' runs ${writer}, which appends to GITHUB_STEP_SUMMARY, without pointing it at its own file"
       fi
     done < <(writers)
@@ -84,7 +86,7 @@ order_findings() {
   if later "$head" "$table"; then
     echo "summary: the gate table is written before the headline in '${SUMMARY_STEP}'"
   fi
-  if grep -nE 'GITHUB_STEP_SUMMARY' <<< "$run" | head -1 | grep -qvF 'render_quality_summary.sh'; then
+  if grep -nE 'GITHUB_STEP_SUMMARY' <<< "$run" | head -1 | has -qvF 'render_quality_summary.sh'; then
     echo "summary: the first write to GITHUB_STEP_SUMMARY in '${SUMMARY_STEP}' is not the headline"
   fi
 }
