@@ -29,25 +29,27 @@ func wantPullCommits(t *testing.T, path string, want []PullCommit) {
 	}
 }
 
+// wantAppended fails unless appending c to the file at path stores n lines.
+func wantAppended(t *testing.T, path string, c PullCommit, n int) {
+	t.Helper()
+	if got, err := AppendPullCommits(path, []PullCommit{c}); err != nil || got != n {
+		t.Errorf("want %d line written for %v, got %d, %v", n, c, got, err)
+	}
+}
+
 // TestAPullCommitIsWrittenOnceByRepositoryNumberAndSHA (forsgren#463, step
 // 5): data/pull_commits.csv is created with its version and column lines; a
 // commit already held (repository ignoring case, number and commit SHA) is
 // not written again, whatever else it says.
 func TestAPullCommitIsWrittenOnceByRepositoryNumberAndSHA(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data", "pull_commits.csv")
-	if n, err := AppendPullCommits(path, []PullCommit{pullCommit()}); err != nil || n != 1 {
-		t.Fatalf("want 1 line written, got %d, %v", n, err)
-	}
+	wantAppended(t, path, pullCommit(), 1)
 	again := pullCommit()
 	again.Repository, again.Author = "ACME/app", "someone-else"
-	if n, err := AppendPullCommits(path, []PullCommit{again}); err != nil || n != 0 {
-		t.Errorf("want the held commit skipped, got %d, %v", n, err)
-	}
+	wantAppended(t, path, again, 0)
 	other := pullCommit()
 	other.Number = 46
-	if n, err := AppendPullCommits(path, []PullCommit{other}); err != nil || n != 1 {
-		t.Errorf("want the same SHA in another pull request written, got %d, %v", n, err)
-	}
+	wantAppended(t, path, other, 1)
 	wantFile(t, path, pullCommitsHead+pullCommitLine+
 		"acme/app,46,"+pullCommitSHA+",acme-dev,2026-09-01T07:00:00Z\n")
 	wantPullCommits(t, path, []PullCommit{pullCommit(), other})
