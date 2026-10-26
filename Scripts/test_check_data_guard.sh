@@ -35,9 +35,10 @@
 #      names (const <Name>File = "<name>.csv" in
 #      internal/collect, alone or in a const
 #      block) elsewhere
-#  16. a pulls.csv, a pulls_read.csv and a       -> red, each named
-#      pull_commits.csv elsewhere (forsgren#255,
-#      forsgren#463)
+#  16. a pulls.csv, a pulls_read.csv, a          -> red, each named
+#      pull_commits.csv and a
+#      pull_commits_filled.csv elsewhere
+#      (forsgren#255, forsgren#463, forsgren#470)
 #  17. a pulls_denied.csv elsewhere               -> red, named
 #      (forsgren#337)
 #  18. a pushes.csv, a pushes_read.csv, a        -> red, each named
@@ -67,7 +68,7 @@
 #     drift check is the case that holds its arm. The drift check needs no
 #     other proof: it reads the Go constants, and a deleted arm turns it red,
 #     as case 14 shows.
-#   - case 16: with the pulls.csv, pulls_read.csv or pull_commits.csv arm deleted, a repository
+#   - case 16: with the pulls.csv, pulls_read.csv, pull_commits.csv or pull_commits_filled.csv arm deleted, a repository
 #     holding only ops/ of that file must turn green.
 #   - case 17: with the pulls_denied.csv arm deleted, a repository holding
 #     only ops/pulls_denied.csv must turn green.
@@ -293,16 +294,20 @@ new_repo "pulls-elsewhere"
 write_file "ops/pulls.csv" $'# forsgren pulls v1\n' track
 write_file "ops/pull_commits.csv" $'# forsgren pull commits v1\n' track
 write_file "ops/pulls_read.csv" $'# forsgren pulls read v1\n' track
+write_file "ops/pull_commits_filled.csv" $'# forsgren pull commits filled v1\n' track
 run_gate
 want_red "a pulls.csv outside data/ is red and named (forsgren#255)" "❌ FAIL: ops/pulls.csv"
 want_said "a pulls_read.csv outside data/ is red and named (forsgren#255)" "❌ FAIL: ops/pulls_read.csv"
 want_said "a pull_commits.csv outside data/ is red and named (forsgren#463)" "❌ FAIL: ops/pull_commits.csv"
+want_said "a pull_commits_filled.csv outside data/ is red and named (forsgren#470)" "❌ FAIL: ops/pull_commits_filled.csv"
 new_repo "pulls-elsewhere-pulls"
 write_file "ops/pulls.csv" $'# forsgren pulls v1\n' track
 new_repo "pulls-elsewhere-read"
 write_file "ops/pulls_read.csv" $'# forsgren pulls read v1\n' track
 new_repo "pulls-elsewhere-commits"
 write_file "ops/pull_commits.csv" $'# forsgren pull commits v1\n' track
+new_repo "pulls-elsewhere-filled"
+write_file "ops/pull_commits_filled.csv" $'# forsgren pull commits filled v1\n' track
 
 new_repo "pulls-denied-elsewhere"
 write_file "ops/pulls_denied.csv" $'# forsgren pulls denied v1\n' track
@@ -412,6 +417,8 @@ arm_deleted_proof 16 "pulls_read.csv" '^[[:space:]]*pulls_read\.csv\) why=' \
   "${TMP}/check_data_guard_nopullsread.sh" "pulls-elsewhere-read" "ops/pulls_read.csv"
 arm_deleted_proof 16 "pull_commits.csv" '^[[:space:]]*pull_commits\.csv\) why=' \
   "${TMP}/check_data_guard_nopullcommits.sh" "pulls-elsewhere-commits" "ops/pull_commits.csv"
+arm_deleted_proof 16 "pull_commits_filled.csv" '^[[:space:]]*pull_commits_filled\.csv\) why=' \
+  "${TMP}/check_data_guard_nopullcommitsfilled.sh" "pulls-elsewhere-filled" "ops/pull_commits_filled.csv"
 arm_deleted_proof 17 "pulls_denied.csv" '^[[:space:]]*pulls_denied\.csv\) why=' \
   "${TMP}/check_data_guard_nopullsdenied.sh" "pulls-denied-elsewhere" "ops/pulls_denied.csv"
 arm_deleted_proof 18 "pushes.csv" '^[[:space:]]*pushes\.csv\) why=' \

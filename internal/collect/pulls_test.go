@@ -222,6 +222,7 @@ func TestAStoredPullRequestIsNotAskedForItsCommitsAgain(t *testing.T) {
 	g := pullsOnly(t, pull{12, pull12.created, "2026-09-29T09:00:00Z", pull12.merged})
 	path := historyPath(t)
 	dataOf(path).write(t, "pulls.csv", stored)
+	dataOf(path).write(t, PullCommitsFilledFile, filledNow)
 	wantStdout(t, g.collect(t, shop(production), path, github.DefaultMaxPages),
 		"acme/app: 0 new, 0 skipped (not final), 0 commits\n")
 	dataOf(path).want(t, "pulls.csv", stored)

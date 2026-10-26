@@ -80,6 +80,7 @@ func TestCollectUpgradesAV1PullsFileKeepingUnknownAsUnknown(t *testing.T) {
 	path := historyPath(t)
 	data := dataOf(path)
 	data.write(t, "pulls.csv", pullsHeaderV1+v1Line)
+	data.write(t, PullCommitsFilledFile, filledNow)
 	if r := g.collect(t, shop(production), path, github.DefaultMaxPages); r.err != nil {
 		t.Fatalf("want no error, got %v (stderr %q)", r.err, r.stderr)
 	}

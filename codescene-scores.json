@@ -2293,6 +2293,30 @@
    "score": 10.0,
    "checkedAt": "2026-10-26",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/pullsfill.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/pulls_fill_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/pullcommitsfilled.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/pullcommitsfilled_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
   }
  ]
 }

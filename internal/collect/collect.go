@@ -211,12 +211,23 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	h.noteFull(r.Name, o.Now)
 	h.noteBugsCut(r.Name, lines.bugsCut, o.Now)
 	h.noteStartsDone(r.Name)
-	stored.pulls, err = o.collectPulls(ctx, h, r.Name)
-	if err == nil {
-		stored.pushes, err = o.backfillThenPushes(ctx, h, r.Name)
-	}
+	stored.pulls, stored.pushes, err = o.pullsThenPushes(ctx, h, r.Name)
 	o.report(r.Name, d.found, stored)
 	return err
+}
+
+// pullsThenPushes reads repo's merged pull requests, fills the commits of the
+// ones stored without (pullsfill.go) and then runs the backfill and the push
+// read; each step runs only when the ones before it did not fail.
+func (o Options) pullsThenPushes(ctx context.Context, h held, repo string) (pulls, pushes int, err error) {
+	if pulls, err = o.collectPulls(ctx, h, repo); err != nil {
+		return pulls, 0, err
+	}
+	if err = o.fillPullCommits(ctx, h, repo); err != nil {
+		return pulls, 0, err
+	}
+	pushes, err = o.backfillThenPushes(ctx, h, repo)
+	return pulls, pushes, err
 }
 
 // backfillThenPushes runs the one-time legacy backfill and then the push read

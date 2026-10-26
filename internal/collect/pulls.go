@@ -93,18 +93,35 @@ func (o Options) pullsDeniedFile() string {
 // holds none, one that cannot be read refuses the run, and so does a pull
 // commits file that cannot be read.
 func (o Options) loadPulls(h held) (held, error) {
-	if _, err := history.LoadPullCommits(o.pullCommitsFile()); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	lines, err := history.LoadPullCommits(o.pullCommitsFile())
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return h, err
 	}
 	stored, err := history.LoadPullRequests(o.pullsFile())
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return h, err
 	}
-	h.pulls = make(map[history.IssueKey]bool, len(stored))
-	for _, p := range stored {
-		h.pulls[p.Key()] = true
-	}
+	h.storedPulls = stored
+	h.pulls, h.commitsListed = pullKeys(stored), commitKeys(lines)
 	return h, nil
+}
+
+// pullKeys is the keys of pulls.
+func pullKeys(pulls []history.PullRequest) map[history.IssueKey]bool {
+	keys := make(map[history.IssueKey]bool, len(pulls))
+	for _, p := range pulls {
+		keys[p.Key()] = true
+	}
+	return keys
+}
+
+// commitKeys is the keys of the pull requests that lines are commits of.
+func commitKeys(lines []history.PullCommit) map[history.IssueKey]bool {
+	keys := make(map[history.IssueKey]bool, len(lines))
+	for _, c := range lines {
+		keys[history.IssueKeyOf(c.Repository, c.Number)] = true
+	}
+	return keys
 }
 
 // pullsSince is where the read of repo's pull requests starts: its mark less
@@ -135,9 +152,7 @@ func (o Options) collectPulls(ctx context.Context, h held, repo string) (int, er
 func (o Options) endPulls(h held, repo string, truncated bool, err error) error {
 	switch {
 	case errors.Is(err, github.ErrPullRequestsDenied):
-		o.warn("collect: %v; its pull requests are not read, the rest is collected\n", err)
-		h.denied[strings.ToLower(repo)] = wholeSecond(o.Now)
-		h.deniedBy[strings.ToLower(repo)] = o.Client.TokenName()
+		o.noteDenied(h, repo, err)
 		return nil
 	case errors.Is(err, github.ErrBudget):
 		o.warn("collect: %s: the pull requests were cut short: %v; those read whole are stored, "+
@@ -155,6 +170,15 @@ func (o Options) endPulls(h held, repo string, truncated bool, err error) error 
 	delete(h.denied, strings.ToLower(repo))
 	delete(h.deniedBy, strings.ToLower(repo))
 	return nil
+}
+
+// noteDenied warns of the refused pull request read err and notes repo and the
+// refused token in the denied marks, which a read that ends without an error
+// removes.
+func (o Options) noteDenied(h held, repo string, err error) {
+	o.warn("collect: %v; its pull requests are not read, the rest is collected\n", err)
+	h.denied[strings.ToLower(repo)] = wholeSecond(o.Now)
+	h.deniedBy[strings.ToLower(repo)] = o.Client.TokenName()
 }
 
 // pullsRead is what one read of a repository's pull requests gives: the
