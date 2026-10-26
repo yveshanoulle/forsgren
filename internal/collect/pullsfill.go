@@ -51,14 +51,14 @@ func (o Options) pullCommitsFilledFile() string {
 // fillPullCommits fills the commits of repo's stored pull requests once; see
 // the top of this file for what ends it.
 func (o Options) fillPullCommits(ctx context.Context, h held, repo string) error {
-	if _, done := h.pullsFilled[strings.ToLower(repo)]; done {
+	if filledBefore(h.pullsFilled, repo) {
 		return nil
 	}
-	lines, err := o.readFill(ctx, repo, h.pullsWithoutCommits(repo))
+	lines, err := o.readPullFill(ctx, repo, h.pullsWithoutCommits(repo))
 	if _, serr := history.AppendPullCommits(o.pullCommitsFile(), lines); serr != nil {
 		return serr
 	}
-	return o.endFill(h, repo, err)
+	return o.endPullFill(h, repo, err)
 }
 
 // pullsWithoutCommits is the pull requests stored when the run began, of repo
@@ -80,9 +80,9 @@ func (h held) needsCommits(p history.PullRequest) bool {
 	return !p.CreatedStandsIn && !h.commitsListed[p.Key()]
 }
 
-// readFill is the commit lines of the pull requests todo of repo, up to the
-// first error that ends the fill.
-func (o Options) readFill(ctx context.Context, repo string, todo []history.PullRequest,
+// readPullFill is the commit lines of the pull requests todo of repo, up to
+// the first error that ends the fill.
+func (o Options) readPullFill(ctx context.Context, repo string, todo []history.PullRequest,
 ) ([]history.PullCommit, error) {
 	var lines []history.PullCommit
 	for _, p := range todo {
@@ -103,21 +103,20 @@ func (o Options) readFill(ctx context.Context, repo string, todo []history.PullR
 	return lines, nil
 }
 
-// endFill notes repo filled after a fill that ended on err, nil included, and
-// says what fails the repository.
-func (o Options) endFill(h held, repo string, err error) error {
+// endPullFill notes repo filled after a fill that ended on err, nil included,
+// and says what fails the repository.
+func (o Options) endPullFill(h held, repo string, err error) error {
 	switch {
 	case errors.Is(err, github.ErrPullRequestsDenied):
 		o.noteDenied(h, repo, err)
 		return nil
 	case errors.Is(err, github.ErrBudget):
-		o.warn("collect: %s: the pull request commits were cut short: %v; those filled are stored, "+
-			"the rest is filled by the next run\n", repo, err)
+		o.warnFillCut(repo, "pull request commits", err)
 		o.reportPullFillCut(repo)
 		return nil
 	case err != nil:
 		return err
 	}
-	h.pullsFilled[strings.ToLower(repo)] = wholeSecond(o.Now)
+	o.noteFilled(h.pullsFilled, repo)
 	return nil
 }

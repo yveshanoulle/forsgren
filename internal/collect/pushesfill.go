@@ -53,24 +53,16 @@ func (o Options) pushCommitsFilledFile() string {
 	return filepath.Join(filepath.Dir(o.History), PushCommitsFilledFile)
 }
 
-// tipKey is the identity of a push by its tip: the repository, lower-case, and
-// the after SHA.
-func tipKey(repository, after string) string { return strings.ToLower(repository) + "@" + after }
-
 // legacyMerges is the pr_merge pushes among pushes that have a line of
 // unknown parents among lines, once for each tip: several pushes can share
 // one, and its lines are the same.
 func legacyMerges(pushes []history.Push, lines []history.PushCommit) []history.Push {
-	unknown := map[string]bool{}
-	for _, c := range lines {
-		k := tipKey(c.Repository, c.After)
-		unknown[k] = unknown[k] || c.Parents == history.ParentsUnknown
-	}
+	unknown := history.TipsWithUnknownParents(lines)
 	var merges []history.Push
 	for _, p := range pushes {
-		if k := tipKey(p.Repository, p.After); p.Kind == history.PushKindPRMerge && unknown[k] {
+		if p.Kind == history.PushKindPRMerge && unknown[p.Tip()] {
 			merges = append(merges, p)
-			unknown[k] = false
+			unknown[p.Tip()] = false
 		}
 	}
 	return merges
@@ -80,7 +72,7 @@ func legacyMerges(pushes []history.Push, lines []history.PushCommit) []history.P
 // top of this file for what ends it. It says whether the budget cut the fill
 // short, in which case the push read waits for the next run.
 func (o Options) fillMergePushes(ctx context.Context, h held, repo string) (bool, error) {
-	if _, done := h.mergesFilled[strings.ToLower(repo)]; done {
+	if filledBefore(h.mergesFilled, repo) {
 		return false, nil
 	}
 	lines, err := o.readMergeFill(ctx, h, repo)
@@ -123,13 +115,32 @@ func (o Options) endMergeFill(h held, repo string, err error) (bool, error) {
 		o.notePushesDenied(h, repo)
 		return false, nil
 	case errors.Is(err, github.ErrBudget):
-		o.warn("collect: %s: the push commits were cut short: %v; those filled are stored, "+
-			"the rest is filled by the next run\n", repo, err)
+		o.warnFillCut(repo, "push commits", err)
 		o.reportPushFillCut(repo)
 		return true, nil
 	case err != nil:
 		return false, err
 	}
-	h.mergesFilled[strings.ToLower(repo)] = wholeSecond(o.Now)
+	o.noteFilled(h.mergesFilled, repo)
 	return false, nil
+}
+
+// The two fills (pullsfill.go and this file) share their marks and their
+// budget warning.
+
+// filledBefore says marks, a fill's mark file, notes repo as filled.
+func filledBefore(marks history.Reach, repo string) bool {
+	_, done := marks[strings.ToLower(repo)]
+	return done
+}
+
+// noteFilled notes repo as filled now in marks, a fill's mark file.
+func (o Options) noteFilled(marks history.Reach, repo string) {
+	marks[strings.ToLower(repo)] = wholeSecond(o.Now)
+}
+
+// warnFillCut warns that the budget, err, cut repo's fill of what short.
+func (o Options) warnFillCut(repo, what string, err error) {
+	o.warn("collect: %s: the %s were cut short: %v; those filled are stored, "+
+		"the rest is filled by the next run\n", repo, what, err)
 }

@@ -9,6 +9,65 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — Settings turn TBD columns and sub-rows off; one template define for the TBD spread groups ([#482](https://github.com/yveshanoulle/forsgren/issues/482), steps 1–5, with [#474](https://github.com/yveshanoulle/forsgren/issues/474))
+
+forsgren issue 482, minor.
+
+- Step 1, #474 (structure only, goldens byte-identical): the TBD page's eight spread groups (Mainline Interval, Mainline Lead Time, Time to main, PR Lead Time, Bot PR Lead Time, Time to deploy, Commits per push, Commits per deployment) are written by one `spreadgroup` define and the `spreadhead` defines (`templates/layout/spreadgroup.html`) from Go view types in `internal/page/tbdgroups.go` (`spreadGroup`, `spreadHead`, `MainGroups`, `DeployGroups`, `BatchGroups`), so the groups differ in data only and a cell change is made in one place.
+- Step 2: four optional config keys, booleans as `auto_update`, all `true` when left out (decisions #480 A, #481 B, #488 A): `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time` and `sub_rows` (`internal/config/switches.go`, `Config.Hide*`). A value that is not `true` or `false` is a refusal with `true` in force. Settings page rows (eighteen now), the starter shows them commented out, `check-config` counts a refusal.
+- Step 3: a TBD group turned off is gone in both figure modes: headers, cells, state sentence, its share of the service row's `Per repository` cell, its notes, and its columns from `TbdColumnsAfterProject` (`hiddenGroups`, `shown`). The measures are still computed. The legend says a column the settings turn off is not shown, nor the notes of its cells.
+- Step 4: `sub_rows: false` leaves the label and service rows out of the DORA tables (every view), the History page and the TBD page (`Data.leavesOut`, `ShownRows`), the total row headed by the project's name alone, without `(total)` (decision #490 A). Goldens `tbd.hidden`, `tbd.no-sub-rows`, `index.no-sub-rows`, `history.no-sub-rows`.
+- Step 5, docs for the series since 1.24.2 (Yves's ruling: once, here): configuration.md (the four keys, how to turn each on and off), data-files.md (the two fill marks, the history fill, the fill-cut report lines), pages-and-views.md (the column order, the two-digit shares, note 5 retired, note 7's rules, the switches, `sub_rows`), development.md (data guard list), updating-and-releases.md (upgrading to 1.25.0), CLAUDE.md; agent-installer.md proves eighteen settings rows and lists the four keys under "Changing a setting later" (pinned in `internal/installerdoc`); agent-upgrade.md and agent-delete.md unchanged (the upgrade asks of a release's notes find the new keys there; delete names no key).
+- Step 5, refactor (structure only, every golden unchanged): the two history fills share `filledBefore`, `noteFilled` and `warnFillCut`, and `readFill`/`endFill` are `readPullFill`/`endPullFill` beside `readMergeFill`/`endMergeFill`; collect's `tipKey` is gone for `history.PushTip` (`PushCommit.Tip`, `Push.Tip`, `TipsWithUnknownParents`), which the push commits backfill already computed; `hiddenGroups` is an array by `spreadID`, so `has` and `count` no longer list the switches twice; `budgetWords` uses `slices.Concat`; the four stale coverage rows of the removed whole-percent share methods are gone.
+
+---
+
+## 2026-10-26 — TBD: a Bot PR Lead Time column after PR Lead Time, in place of note 5 ([#479](https://github.com/yveshanoulle/forsgren/issues/479), steps 1–3)
+
+forsgren issue 479, patch.
+
+- `metrics.BotPRLeadTimes`: PR Lead Time's measure over the merged pull requests a bot opened (`history.ByBot`); both are `prLeadTimesOf` over their population, and a pull request of unknown author is in neither. `PRLeadTime.Bots` is gone; `NoData` takes the count of both.
+- The TBD table's Bot PR Lead Time group, right after PR Lead Time: the median alone, or mean / median / p90 with `tbd_figures: all` (16 columns after the project, or 32); the same states (`BotLeadState`) and notes 3 and 4; a service row is part of the `Per repository` run; a project carrying one kind of note in both groups is named once, the counts added.
+- Note 5 (`Bot pull requests not counted`) is retired; its number stays reserved. Legend: the new group and note 5's retirement, pinned in `legend_tbd_test.go`.
+- The fixture site's TBD sideways baseline grows to 624 and 1514 px (decision #489 A).
+
+---
+
+## 2026-10-26 — TBD: PR Lead Time before Time to deploy per commit ([#485](https://github.com/yveshanoulle/forsgren/issues/485), step 1 of 1)
+
+forsgren issue 485, patch.
+
+- The TBD column groups read Project, Mainline Interval, Mainline Lead Time, Time to main per commit, PR Lead Time, Time to deploy per commit, Volume, …, so the lead times stand together, in both figure modes; the service row's first `Per repository` run now spans the Mainline Interval to PR Lead Time, and Commits and Pushes are their own run. `templates/pages/tbd.html`; the TBD goldens change by the moved cells only, the fixture sideways baseline is unchanged.
+
+---
+
+## 2026-10-26 — TBD legend: every lead time starts at a commit; the three lead times and their sources ([#478](https://github.com/yveshanoulle/forsgren/issues/478), step 1 of 1)
+
+forsgren issue 478, patch.
+
+- The legend says every lead time on the TBD page starts at a commit, so it measures commit to main, not start of work, and a RED commit of a fail-fast build waits locally for its fix; with decision #483 A also: a rebase merge puts every rebased commit on the main line, Mainline Lead Time is the third number of the comparison and of the clock parts, the Mainline Interval rests on deployed commits and the two others on pushed commits, and Time to main is forsgren's own term (#457). Pinned in `legend_tbd_test.go`, the legend golden, the language gate.
+
+---
+
+## 2026-10-26 — TBD shares with two significant digits ([#477](https://github.com/yveshanoulle/forsgren/issues/477), step 1 of 1)
+
+forsgren issue 477, patch.
+
+- `DirectCell`, `PullRequestCell`, `UnknownAuthorCell` and `BotCell` compute the share from the counts (`shareCell` in `tbdcells.go`): a whole percent from 10% (`19%`), one decimal from 1% (`1.3%`, `5.0%`), two decimals under 1% (`0.65%`), rounded down, `0%` for none and `< 0.01%` for a share above 0 and under 0.01% (decision #487 A). The whole-percent `PullRequestShare`, `DirectShare`, `UnknownAuthorShare` and `BotShare` are gone. The legend's Shares of commits part states the rule.
+- The fixture site's TBD sideways baseline grows by 2 px to 469 and 1359 (decision #486 A).
+
+---
+
+## 2026-10-26 — The history fill: branch commits of stored merge pushes and commit lists of stored pull requests ([#470](https://github.com/yveshanoulle/forsgren/issues/470), steps 1–3)
+
+forsgren issue 470, patch.
+
+- Step 1: `collect` fills, once per repository, the commits of every stored merged pull request that has none in `data/pull_commits.csv` and a real first commit time (`internal/collect/pullsfill.go`), all stored, not only the DORA window (Yves's scope ruling); `data/pull_commits_filled.csv` (pull commits filled format v1) marks a repository done; an unreadable commit list is named on stderr and does not keep the mark from moving.
+- Step 2: each stored `pr_merge` push with a line of unknown parents is compared again (`pushesfill.go`, after the legacy backfill and before the push read) and its lines replaced by today's (`history.BackfillPushCommits`, the file rewritten whole); `data/push_commits_filled.csv` marks it done; a budget stop also leaves the push read to the next run.
+- Step 3: a budget stop of either fill is a `pull-commits-fill-cut` or `push-commits-fill-cut` line of the cut report and `<repo> history fill cut short (the next run continues)` on the Collected line; render reads both marks, and note 7 is no longer set by a repository whose fill is done (decision #484 A); the legend's note 7 part says so. The data guard knows both mark files.
+
+---
+
 ## 2026-10-26 — Note 7 is set by merge pushes, not by direct pushes ([#476](https://github.com/yveshanoulle/forsgren/issues/476), step 1 of 1)
 
 forsgren issue 476, patch.

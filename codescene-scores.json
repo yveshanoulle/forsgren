@@ -47,7 +47,7 @@
   {
    "path": "internal/installerdoc/agent_installer_test.go",
    "score": 9.38,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-26",
    "minScore": 9.28
   },
   {
@@ -1589,7 +1589,7 @@
   {
    "path": "internal/installerdoc/history_page_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {
@@ -1835,7 +1835,7 @@
   {
    "path": "cmd/forsgren/collected.go",
    "score": 10.0,
-   "checkedAt": "2026-10-24",
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {
@@ -2087,7 +2087,7 @@
   {
    "path": "internal/history/pushes.go",
    "score": 10.0,
-   "checkedAt": "2026-10-24",
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {

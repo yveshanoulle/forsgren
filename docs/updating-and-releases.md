@@ -620,6 +620,32 @@ before. Also with this release:
 No new permission, secret or config key is required. An agent following
 [agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing about it.
 
+**Upgrading to 1.25.0, which lets the config turn TBD columns and sub-rows
+off** (forsgren#482, #474; with the patch releases after 1.24.2: forsgren#470,
+#477, #478, #485, #479). Four new optional keys, all `true` when left out, so
+an installation that does not write them sees the page as before (see
+[Configuration](configuration.md#configuration)): `tbd_time_to_main`,
+`tbd_pr_lead_time` and `tbd_bot_pr_lead_time` each hide one TBD column group
+when set to `false`, and `sub_rows: false` shows each project's total row
+alone on every table. The settings page lists the four. Also in this series:
+
+- The first `collect` after the update fills, once per repository, the
+  commit lists of the merged pull requests and the branch commits of the
+  merge pushes stored before 1.24.0 (one request each; see
+  [Data files](data-files.md#collecting-deployments-collect)), noted in
+  `data/pull_commits_filled.csv` and `data/push_commits_filled.csv`. A run the
+  request budget cuts short continues on the next one. Once a repository is
+  filled, note 7 on the TBD page no longer names its project.
+- The TBD shares show two significant digits (`19%`, `1.3%`, `0.65%`), and
+  PR Lead Time now comes before Time to deploy per commit.
+- A Bot PR Lead Time column after PR Lead Time counts the pull requests a bot
+  opened; note 5 (`Bot pull requests not counted`) is retired.
+
+No new permission or secret is required. The four keys are new config keys,
+optional, whose defaults keep the page as it was: an agent following
+[agent-upgrade.md](../agent-upgrade.md) asks whether to turn any of them off,
+with `true` (as today) as the default answer.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`

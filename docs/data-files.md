@@ -629,8 +629,13 @@ acme/app,<40 hex>,<40 hex>,acme-dev,2026-10-23T08:10:00Z,false,1
 - `collect` writes it before `pushes.csv` for the same repository, so a push
   is never stored without its commits: when this file cannot be written, the
   repository fails and its pushes are read again by the next run.
-- Pushes stored earlier are not read again for their commits: there is no
-  backfill, so their branch commits are missing.
+- Pushes stored earlier are not read again for their commits, with one
+  exception: the history fill (forsgren#470, see
+  [Collecting deployments](#collecting-deployments-collect)) compares each
+  stored `pr_merge` push that has a line of unknown parents once more and
+  replaces its lines by the ones a push read writes today, the merge's branch
+  commits included. The file is then rewritten whole, the other lines and the
+  order of the pushes unchanged.
 - Otherwise the same rules as `commits.csv`: created with its version line,
   appended only, refused untouched when its version is unknown or a line is
   malformed, naming the line. An unreadable file refuses the collect run
@@ -662,8 +667,10 @@ acme/app,42,<40 hex>,acme-dev,2026-08-30T09:00:00Z
   a pull request is never stored without its commits. A list GitHub cut (250
   commits) is stored as read. A pull request whose created time stands in for
   its first commit time (no usable commit list) has no lines.
-- Pull requests stored before this file existed have no lines and are not read
-  again for them: there is no backfill (forsgren#470 may fill it later).
+- Pull requests stored before this file existed had no lines. The history fill
+  (forsgren#470, see [Collecting deployments](#collecting-deployments-collect))
+  reads the commit list of each of them once and appends its lines; a pull
+  request whose created time stands in is not read.
 - Otherwise the same rules as `commits.csv`: created with its version line,
   appended only, refused untouched when its version is unknown or a line is
   malformed, naming the line. An unreadable file refuses the collect run
@@ -738,6 +745,43 @@ acme/app,2026-10-23T06:00:00Z,FORSGREN_TOKEN
 - The data guard knows its name: a `pushes_denied.csv` that git tracks or does
   not ignore, outside `testdata/` blocks the commit, like the other data
   files.
+
+**The two history fill marks** (forsgren#470) are kept in
+`data/pull_commits_filled.csv` and `data/push_commits_filled.csv`, next to the
+history, each with its own format version (the pull commits filled format v1
+and the push commits filled format v1): one line per repository whose one-time
+fill is done, the pull requests' commits in the first and the merge pushes'
+lines in the second.
+
+```
+# forsgren pull commits filled v1
+repository,filled_at
+acme/app,2026-10-27T06:00:00Z
+```
+
+```
+# forsgren push commits filled v1
+repository,filled_at
+acme/app,2026-10-27T06:00:00Z
+```
+
+- `filled_at` is the start of the run that finished the repository's fill, in
+  UTC, to the second. Lines are sorted by repository.
+- A repository with a line is not filled again; one without is filled by the
+  next run. A line is written as soon as the repository's fill finished, also
+  when GitHub could not give some of what it asked for (named on stderr). A
+  fill that a missing permission, the request budget or an error stopped
+  writes no line, and the next run continues with what is still missing.
+- The TBD page reads both: note 7 is not set by a repository whose fill is
+  done (decision #484, see
+  [The TBD page](pages-and-views.md#the-tbd-page)), so what the fill could not
+  read does not keep the note on.
+- Rewritten whole like `data/reach.csv`, and only when a line changed. A
+  missing file notes no repository. An unknown version or a malformed line
+  refuses the collect run, and the render, naming the file.
+- The data guard knows their names: a `pull_commits_filled.csv` or a
+  `push_commits_filled.csv` that git tracks or does not ignore, outside
+  `testdata/` blocks the commit, like the other data files.
 
 ## Collecting deployments (`collect`)
 
@@ -1135,6 +1179,36 @@ not compared again.
 - The branch read is the repository's default branch, asked of GitHub once
   per repository and run (the `workflow=` rule shares the request).
 
+**The history fill** (forsgren#470). Data stored before forsgren#463 lacks
+what the Mainline Lead Time needs: the commit lists of merged pull requests
+and the branch commits of merge pushes. `collect` fills both once per
+repository, for everything stored, not only the DORA window, so a wider
+`dora_days` later finds them too. It is noted per repository in the two fill
+marks (see [History](#history)).
+
+- **The pull requests' commits**, after the merged pull requests are read:
+  each stored pull request of the repository with no line in
+  `data/pull_commits.csv` and a real first commit time gets its commit list
+  read (the budget reserved first, as for a new pull request) and its lines
+  appended. A list GitHub answers unreadably is named on stderr and left
+  without lines.
+- **The merge pushes' lines**, after the legacy commits backfill and before
+  the push read: each stored `pr_merge` push with a line of unknown parents in
+  `data/push_commits.csv` is compared again (one request each; pushes that
+  share a tip are compared once) and its lines are replaced. A compare that
+  fails, is cut or does not reach the push's tip leaves its lines as they are,
+  named on stderr.
+- A missing permission (pull requests, or contents for the compares) stores
+  what was filled, writes the denied mark as the read would, and fails
+  nothing.
+- At the request budget what was filled is stored, no fill mark is written
+  and the repository is reported incomplete, never failed: a
+  `pull-commits-fill-cut` or `push-commits-fill-cut` line in the cut report
+  (see below) and `acme/app history fill cut short (the next run continues)`
+  on the job summary's Collected line. A merge push fill cut short also
+  leaves the push read to the next run, so no request is sent after it.
+- Any other error fails the repository, after what was filled is stored.
+
 **The token.** `collect` reads the token from the environment variable
 `FORSGREN_TOKEN` only (never a flag) and sends it only as an
 `Authorization: Bearer` header to `api.github.com`: never in a URL, never in
@@ -1188,12 +1262,14 @@ cut acme/app kept=2026-06-22 recent=discarded issues=unread progress=stalled
 pulls-cut acme/shop
 backfill-cut acme/lib
 pushes-cut acme/api
+pull-commits-fill-cut acme/lib
+push-commits-fill-cut acme/lib
 failed acme/web secondary-rate-limit
 ```
 
 - The second line is `complete`, or `incomplete resets=<UTC RFC 3339>` when
-  any repository, its pull requests, its backfill of the legacy commits or its
-  pushes was cut short at the request budget.
+  any repository, its pull requests, its backfill of the legacy commits, its
+  pushes or one of its history fills was cut short at the request budget.
 - A `cut` line names such a repository: `kept` is the UTC day its read mark
   moved to (`none` when it kept no day), `recent` what became of the read of
   what is new (`read` whole, `kept` in part, `discarded`), `issues` is always
@@ -1217,6 +1293,12 @@ failed acme/web secondary-rate-limit
   summary says `acme/api pushes cut short (deployments, issues and pull
   requests read)`. The pushes compared are stored, and the next run reads the
   rest.
+- A `pull-commits-fill-cut` and a `push-commits-fill-cut` line name a
+  repository whose history fill of the stored pull requests' commits, or of
+  the stored merge pushes' lines, the request budget cut short (forsgren#470):
+  incomplete, never failed, and the job summary says `acme/lib history fill
+  cut short (the next run continues)`. What was filled is stored, and the
+  next run continues.
 - A `failed` line names a repository that failed: `primary-rate-limit`,
   `secondary-rate-limit` or `error`.
 

@@ -76,6 +76,9 @@ type PushKey struct {
 // Key is p's repository (lower-case), after SHA and time.
 func (p Push) Key() PushKey { return PushKey{strings.ToLower(p.Repository), p.After, p.PushedAt} }
 
+// Tip is the tip of p (forsgren#470), as PushCommit.Tip is of a line.
+func (p Push) Tip() PushTip { return PushTip{strings.ToLower(p.Repository), p.After} }
+
 // comparePushes orders new lines by time, then repository, then after SHA.
 func comparePushes(a, b Push) int {
 	return cmp.Or(a.PushedAt.Compare(b.PushedAt), cmp.Compare(a.Repository, b.Repository),

@@ -746,8 +746,8 @@ Then check what the run did:
    ```
 
    For example `;view;numbers;standard, numbers, scoring;standard;`. The
-   last field of each row is the default of the key: `standard`, `false`,
-   `major`, `365`, `100`, `8`, `30`, `true`, `false`, `unlisted`, `unlisted`, `true`, `median`, `[]`, for the rows
+   last field of each row is the default of the key: `standard`, `true`, `false`,
+   `major`, `365`, `100`, `8`, `30`, `true`, `false`, `unlisted`, `unlisted`, `true`, `median`, `true`, `true`, `true`, `[]`, for the rows
    `view` to `same_developer` in the page's order.
    - The rows `view`, `auto_update`, `auto_update_level`,
      `history_days`, `dora_days`, `issues_page`, `days_page`,
@@ -759,11 +759,14 @@ Then check what the run did:
      `true (not set)` (the TBD page, `tbd.html`, is generated and in the menu)
      and `tbd_figures` shows `median (not set)` (the TBD table shows the median
      of each measure; `tbd_figures: all` shows the mean, the median and the
-     90th percentile). The installer does not ask about these.
+     90th percentile). `sub_rows`, `tbd_time_to_main`, `tbd_pr_lead_time` and
+     `tbd_bot_pr_lead_time` each show `true (not set)` (every table shows its
+     label and service rows, and the TBD table its Time to main, PR Lead Time
+     and Bot PR Lead Time columns). The installer does not ask about these.
    - The row `same_developer` shows `[] (not set)` when the person said no to
      question 14, and the lines you wrote, without `(not set)`, when they said
      yes.
-   - Fourteen rows in all. A row missing or different: stop and report.
+   - Eighteen rows in all. A row missing or different: stop and report.
 9. The footer names the pinned version:
    `curl -fsS SITE | grep -o 'Forsgren</a> [0-9.]*'`
    prints `Forsgren</a>` and `VERSION` without its `v`.
@@ -1030,7 +1033,8 @@ For an install that exists, you can change one setting: a top-level key of
 `forsgren.config.yml` (`view`, `auto_update`, `auto_update_level`,
 `history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
 `issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`,
-`tbd_figures`, `same_developer`), or the update wait
+`tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`,
+`sub_rows`, `same_developer`), or the update wait
 (`default-days` in `.github/dependabot.yml`, in days). Changes to the
 projects and repositories are not covered here. Follow these steps alone;
 the install steps above do not apply.

@@ -25,34 +25,28 @@ const (
 	idTimeToDeploy
 	idPerPush
 	idPerDeployment
+	spreadGroups // how many groups there are
 )
 
-// hiddenGroups are the groups the config turns off (forsgren#482, decisions
-// #480 and #481): the one place that maps a switch to its group.
-type hiddenGroups struct{ timeToMain, prLeadTime, botPRLeadTime bool }
+// hiddenGroups says, by group, whether the config turns it off (forsgren#482,
+// decisions #480 and #481).
+type hiddenGroups [spreadGroups]bool
 
-// hiddenGroups are the groups of d that its switches turn off.
+// hiddenGroups are the groups of d that its switches turn off: the one place
+// that maps a switch to its group.
 func (d Data) hiddenGroups() hiddenGroups {
-	return hiddenGroups{d.HideTbdTimeToMain, d.HideTbdPRLeadTime, d.HideTbdBotPRLeadTime}
+	var h hiddenGroups
+	h[idTimeToMain], h[idPRLeadTime], h[idBotPRLeadTime] = d.HideTbdTimeToMain, d.HideTbdPRLeadTime, d.HideTbdBotPRLeadTime
+	return h
 }
 
 // has says whether the group is turned off.
-func (h hiddenGroups) has(id spreadID) bool {
-	switch id {
-	case idTimeToMain:
-		return h.timeToMain
-	case idPRLeadTime:
-		return h.prLeadTime
-	case idBotPRLeadTime:
-		return h.botPRLeadTime
-	}
-	return false
-}
+func (h hiddenGroups) has(id spreadID) bool { return h[id] }
 
 // count is how many groups are turned off.
 func (h hiddenGroups) count() int {
 	n := 0
-	for _, off := range []bool{h.timeToMain, h.prLeadTime, h.botPRLeadTime} {
+	for _, off := range h {
 		if off {
 			n++
 		}

@@ -49,8 +49,8 @@ func (r TbdRow) notes() []metrics.Note {
 	if r.MainLead.State() == "" {
 		notes = append(notes, r.MainLead.Notes()...)
 	}
-	notes = append(notes, leadNotes(r.LeadState(), r.hidden.prLeadTime, r.Lead)...)
-	return append(notes, leadNotes(r.BotLeadState(), r.hidden.botPRLeadTime, r.BotLead)...)
+	notes = append(notes, leadNotes(r.LeadState(), r.hidden.has(idPRLeadTime), r.Lead)...)
+	return append(notes, leadNotes(r.BotLeadState(), r.hidden.has(idBotPRLeadTime), r.BotLead)...)
 }
 
 // leadNotes are the notes of a pull request lead time's cells: none while the

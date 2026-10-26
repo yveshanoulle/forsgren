@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"io/fs"
+	"slices"
 	"strings"
 
 	"github.com/yveshanoulle/forsgren/internal/collect"
@@ -70,7 +71,7 @@ func budgetWords(report collect.Report) []string {
 	for _, repo := range report.PushesCut {
 		words = append(words, repo+" pushes cut short (deployments, issues and pull requests read)")
 	}
-	for _, repo := range append(append([]string{}, report.PullFillCut...), report.PushFillCut...) {
+	for _, repo := range slices.Concat(report.PullFillCut, report.PushFillCut) {
 		words = append(words, repo+" history fill cut short (the next run continues)")
 	}
 	return words

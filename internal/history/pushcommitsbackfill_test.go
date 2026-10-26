@@ -111,3 +111,16 @@ func TestBackfillPushCommitsRefusesAKnownLineThatCannotBeStored(t *testing.T) {
 	}
 	wantFile(t, path, pushCommitsHead+unknownLine)
 }
+
+// A push and the lines it brought share one tip, whatever the case of the
+// repository's name, and a push that ended elsewhere has another
+// (forsgren#470: the fill of collect finds its merge pushes by it).
+func TestAPushHasTheTipOfItsLines(t *testing.T) {
+	line := currentLines()[0]
+	if got := (Push{Repository: "Acme/App", After: pushAfter}).Tip(); got != line.Tip() {
+		t.Errorf("tip of the push = %v, want %v, the tip of its line", got, line.Tip())
+	}
+	if (Push{Repository: "acme/app", After: otherAfter}).Tip() == line.Tip() {
+		t.Error("a push that ended at another SHA has the tip of the line")
+	}
+}

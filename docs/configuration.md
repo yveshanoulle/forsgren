@@ -181,7 +181,7 @@ projects:
     the commits per push, the time to deploy and the commits per deployment
     from the deployments, the Mainline Lead Time of every commit that
     reached main and its view, the PR Lead Time of merged human pull
-    requests, the Mainline Interval and the number of developers
+    requests and the Bot PR Lead Time of the bots' (forsgren#479), the Mainline Interval and the number of developers
     (forsgren#397; see [The TBD page](pages-and-views.md#the-tbd-page)); the
     legend explains every group. Which figures each measure shows is the key
     `tbd_figures`, below.
@@ -204,6 +204,54 @@ projects:
   the table are the same in both modes. The starter that `init-config` writes
   shows the key commented out, so a new installation has the default. The
   legend explains both modes.
+- **`tbd_time_to_main`**, **`tbd_pr_lead_time`** and **`tbd_bot_pr_lead_time`**
+  are optional (forsgren#482, decisions #480 and #481): each shows or hides one
+  column group of the TBD table. `tbd_time_to_main` is Time to main per
+  commit, `tbd_pr_lead_time` PR Lead Time (pull requests a person opened) and
+  `tbd_bot_pr_lead_time` Bot PR Lead Time (pull requests a bot opened). Each
+  is `true` (the column is shown) or `false` (it is not), written as plain
+  YAML literals, as `auto_update`; left out, or without a value, the key is
+  `true`, so an installation that does not set them sees every column.
+
+  To turn a column off, write its key as `false`:
+
+  ```yaml
+  tbd_time_to_main: false
+  tbd_pr_lead_time: false
+  ```
+
+  To turn it on again, write `true` or remove the line. A column turned off is
+  gone from the TBD page in both `tbd_figures` modes: its headers, its cells,
+  the sentence that stands in for them, its share of a service row's
+  `Per repository` cell, and the notes of its cells in the Notes list. Each key
+  controls its own column only: `tbd_pr_lead_time: false` leaves Bot PR Lead
+  Time shown, for an installation whose only pull requests are a bot's. The
+  data is still collected and measured, so turning a column on again shows it
+  at once, with no new collection. A value that is neither `true` nor `false`
+  (`yes`, `"true"` quoted, a number) is not accepted: forsgren uses `true` and
+  says so (see [A setting that is not accepted](#a-setting-that-is-not-accepted)),
+  naming the key: `invalid tbd_pr_lead_time "yes": use true or false`. The
+  starter that `init-config` writes shows the three keys commented out.
+- **`sub_rows`** is optional (forsgren#482, decision #488): whether every
+  table shows the rows under each project's total, its label rows (`label`)
+  and service rows (`services`, see below). `true`, the default, shows them;
+  `false` shows one row per project, on the DORA tables (all four views), the
+  History page and the TBD page alike. Plain YAML literals, as `auto_update`;
+  left out, or without a value, the key is `true`.
+
+  To turn the sub-rows off, write:
+
+  ```yaml
+  sub_rows: false
+  ```
+
+  To turn them on again, write `true` or remove the line. With `sub_rows: false`
+  a project's row is headed by its name alone, without `(total)` (decision
+  #490), and the notes that would name a label row go with it. Only the
+  display changes: `label` and `services` stay valid in the config and the
+  totals count the same data. A value that is not accepted is a refusal with
+  `true` in force, as for the three keys above. The starter shows the key
+  commented out.
 - **`same_developer`** is optional (forsgren#361, decision #360): groups of
   GitHub logins that count as one developer in the TBD page's Developers
   column, for an assistant account that works on someone's behalf or a person
@@ -253,16 +301,16 @@ projects:
   [Installing and updating](updating-and-releases.md#installing-and-updating).
 - **The settings page** (`settings.html`, forsgren#74, moved out of the legend
   in forsgren#84, a table since forsgren#141) tabulates every optional key,
-  `view`, `auto_update`, `auto_update_level`, `history_days`,
-  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `tbd_figures` and `same_developer`, fourteen rows in four columns: **Parameter**;
+  `view`, `sub_rows`, `auto_update`, `auto_update_level`, `history_days`,
+  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time` and `same_developer`, eighteen rows in four columns: **Parameter**;
   **Current value**, the value in use (`major` for an unset
   `auto_update_level`); **Possible values**, built from the config package's
   own constants and limits so the page cannot drift from what `check-config`
-  accepts (`standard, numbers, scoring`; `true, false`; `patch, minor, major`; `30 to 1825`; `1 to 365`; `1 to 24`; `30, 90, 180`; `true, unlisted, false` for each of the five page keys; `median, all`; `groups of two or more GitHub logins`),
+  accepts (`standard, numbers, scoring`; `true, false` for `sub_rows` and `auto_update`; `patch, minor, major`; `30 to 1825`; `1 to 365`; `1 to 24`; `30, 90, 180`; `true, unlisted, false` for each of the five page keys; `median, all`; `true, false` for each of the three TBD column keys; `groups of two or more GitHub logins`),
   a test holds the lists to the config loader; and **Default**, the value
   used when `forsgren.config.yml` does not set the key (forsgren#169):
-  `standard`, `false`, `major`, `365`, `100`, `8`, `30`, `true`, `false`,
-  `unlisted`, `unlisted`, `true`, `median` and `[]`, in the order of the rows. A
+  `standard`, `true`, `false`, `major`, `365`, `100`, `8`, `30`, `true`, `false`,
+  `unlisted`, `unlisted`, `true`, `median`, `true`, `true`, `true` and `[]`, in the order of the rows. A
   Current value followed by `(not set)` means the file does not set the key,
   so the default applies; a Current value without it is set in the file, even
   to the default's value. For a value that is not accepted the Current value
@@ -306,8 +354,8 @@ projects:
   `label` row has every measure of its repository. A `services` row has
   the measures per deployment of its task (Time to deploy, Deployments,
   Commits per deployment and Developers); in the Mainline Interval and the
-  push and pull request columns it says `Per repository: see the project
-  row`, and with no final deployment and no deployed commit in the window it
+  push and pull request columns it says `Per repository` across each run of
+  those cells (forsgren#475), and with no final deployment and no deployed commit in the window it
   says `currently no data for this service in the last 30 days`. The Notes
   below the table name such a row `Project: label`.
 
@@ -326,7 +374,8 @@ projects:
   ```
 
   The rows under a project are sorted by label, ignoring case (ADMIN, API,
-  IOS, Website); a project without labels shows its total row alone.
+  IOS, Website); a project without labels shows its total row alone, and so
+  does every project with `sub_rows: false` (above).
   Refused: an empty label, a label used twice in one project (ignoring
   case), a label or task that is not text (`label: 5`, `deploy-api: true`),
   `services: {}` or a task that is empty, `label` and `services` on one
@@ -393,7 +442,7 @@ them. For `workflow=`, look at the Actions tab; for `release`, run
 
 A setting with a default (`view`, `auto_update`, `auto_update_level`,
 `history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
-`issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `tbd_figures` and `same_developer`) whose value forsgren
+`issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`, `sub_rows` and `same_developer`) whose value forsgren
 does not accept, a list or
 a mapping included, does not stop the run (forsgren#183): forsgren uses that
 key's default instead, and says so in three places. The settings page's row

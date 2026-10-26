@@ -5,12 +5,13 @@ import (
 	"strings"
 )
 
-// pushOfLine is the identity of the push a line belongs to: its repository,
-// lower-case, and its after SHA.
-type pushOfLine struct{ repository, after string }
+// PushTip is the identity of a push by its tip: its repository, lower-case,
+// and its after SHA. Several pushes can share one, and their lines are the
+// same.
+type PushTip struct{ repository, after string }
 
-// push is the push c belongs to.
-func (c PushCommit) push() pushOfLine { return pushOfLine{strings.ToLower(c.Repository), c.After} }
+// Tip is the tip of the push c belongs to.
+func (c PushCommit) Tip() PushTip { return PushTip{strings.ToLower(c.Repository), c.After} }
 
 // BackfillPushCommits replaces the lines of the stored merge pushes in the
 // push commits file at path by known, the lines of the same pushes as a
@@ -33,16 +34,16 @@ func BackfillPushCommits(path string, known []PushCommit) (int, error) {
 // unknown parents replaced by the known lines of that push, and how many
 // pushes that replaced; held is not changed.
 func replacedUnknown(held, known []PushCommit) ([]PushCommit, int) {
-	byPush, unknown := linesByPush(known), pushesWithUnknownParents(held)
+	byPush, unknown := linesByPush(known), TipsWithUnknownParents(held)
 	var out []PushCommit
-	done := map[pushOfLine]bool{}
+	done := map[PushTip]bool{}
 	for _, c := range held {
-		lines, given := byPush[c.push()]
+		lines, given := byPush[c.Tip()]
 		switch {
-		case !given || !unknown[c.push()]:
+		case !given || !unknown[c.Tip()]:
 			out = append(out, c)
-		case !done[c.push()]:
-			done[c.push()] = true
+		case !done[c.Tip()]:
+			done[c.Tip()] = true
 			out = append(out, lines...)
 		}
 	}
@@ -50,20 +51,20 @@ func replacedUnknown(held, known []PushCommit) ([]PushCommit, int) {
 }
 
 // linesByPush is lines by their push, each push's lines oldest first.
-func linesByPush(lines []PushCommit) map[pushOfLine][]PushCommit {
-	byPush := map[pushOfLine][]PushCommit{}
+func linesByPush(lines []PushCommit) map[PushTip][]PushCommit {
+	byPush := map[PushTip][]PushCommit{}
 	for _, l := range slices.SortedStableFunc(slices.Values(lines), comparePushCommits) {
-		byPush[l.push()] = append(byPush[l.push()], l)
+		byPush[l.Tip()] = append(byPush[l.Tip()], l)
 	}
 	return byPush
 }
 
-// pushesWithUnknownParents is the pushes that have a line of unknown parents
-// among lines.
-func pushesWithUnknownParents(lines []PushCommit) map[pushOfLine]bool {
-	unknown := map[pushOfLine]bool{}
+// TipsWithUnknownParents is the tips of the pushes that have a line of
+// unknown parents among lines.
+func TipsWithUnknownParents(lines []PushCommit) map[PushTip]bool {
+	unknown := map[PushTip]bool{}
 	for _, c := range lines {
-		unknown[c.push()] = unknown[c.push()] || c.Parents == ParentsUnknown
+		unknown[c.Tip()] = unknown[c.Tip()] || c.Parents == ParentsUnknown
 	}
 	return unknown
 }
