@@ -15,11 +15,21 @@ type markFile struct {
 	load         func(string) (Reach, error)
 }
 
+// checkMissingIsEmpty fails unless f reads a file that is not there as empty.
+func (f markFile) checkMissingIsEmpty(t *testing.T, path string) {
+	t.Helper()
+	if got, err := f.load(path); err != nil || len(got) != 0 {
+		t.Fatalf("want an empty mark for a missing file, got %v, %v", got, err)
+	}
+}
+
 // checkRoundTrip fails unless f writes acme/app at 2026-09-20T08:00:00Z as its
-// header and one line, and reads it back.
+// header and one line, and reads it back; a missing file reads as empty
+// (forsgren#385, #470).
 func (f markFile) checkRoundTrip(t *testing.T) {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), f.name)
+	f.checkMissingIsEmpty(t, path)
 	at := time.Date(2026, 9, 20, 8, 0, 0, 0, time.UTC)
 	if err := f.save(path, Reach{"acme/app": at}); err != nil {
 		t.Fatal(err)
@@ -45,6 +55,10 @@ func TestMarkFilesKeepTheirOwnHeaderAndRoundTrip(t *testing.T) {
 		{"issue_bugs_cut.csv", "# forsgren bugs cut v1\nrepository,cut_at\n", SaveBugsCut, LoadBugsCut},
 		{"cut_runs.csv", "# forsgren cut runs v1\nrepository,first_cut_at\n", SaveCutRuns, LoadCutRuns},
 		{"starts_checked.csv", "# forsgren starts checked v1\nrepository,checked_at\n", SaveStartsChecked, LoadStartsChecked},
+		{"commits_backfilled.csv", "# forsgren commits backfilled v1\nrepository,backfilled_at\n",
+			SaveCommitsBackfilled, LoadCommitsBackfilled},
+		{"pull_commits_filled.csv", "# forsgren pull commits filled v1\nrepository,filled_at\n",
+			SavePullCommitsFilled, LoadPullCommitsFilled},
 		{"pulls_read.csv", "# forsgren pulls read v1\nrepository,read_at\n", SavePullsRead, LoadPullsRead},
 		{"pushes_read.csv", "# forsgren pushes read v1\nrepository,read_at\n", SavePushesRead, LoadPushesRead},
 	} {
