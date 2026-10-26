@@ -45,25 +45,9 @@ func (pc pullCommit) login() string {
 	return pc.Author.Login
 }
 
-// FirstCommitTime is the first commit time of pull request number of repo
-// (forsgren#255, step 2), for PR Lead Time, merged time minus first
-// commit time: the earliest git author date of its PullCommits, in UTC, and
-// whether that answer is cut, with PullCommits' errors.
-func (c *Client) FirstCommitTime(ctx context.Context, repo string, number int64) (time.Time, bool, error) {
-	commits, cut, err := c.PullCommits(ctx, repo, number)
-	if err != nil {
-		return time.Time{}, false, err
-	}
-	first := commits[0].AuthoredAt
-	for _, pc := range commits {
-		if pc.AuthoredAt.Before(first) {
-			first = pc.AuthoredAt
-		}
-	}
-	return first, cut, nil
-}
-
-// PullCommits are the commits of pull request number of repo, in the list's
+// PullCommits are the commits of pull request number of repo (forsgren#255,
+// step 2, for PR Lead Time, merged time minus first commit time, whose first
+// commit time collect takes as the earliest of them), in the list's
 // order, each with its git author date (commit.author.date, when the commit
 // was made, never the committer date, which a rebase or a merge button
 // moves) in UTC and the login of its GitHub author. GET

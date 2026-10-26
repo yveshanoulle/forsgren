@@ -2,7 +2,13 @@ package collect
 
 // The merged pull requests of each repository (forsgren#255, step 4), for
 // PR Lead Time (forsgren#256): data/pulls.csv next to the history
-// (history.PullRequest), each with its first commit time.
+// (history.PullRequest), each with its first commit time, and the commits of
+// each in data/pull_commits.csv (history.PullCommit; forsgren#463, step 6):
+// every commit of the list read, a bot's pull request and a cut list
+// included, none for a pull request whose created time stands in; they are
+// written before the pull requests, so a pull request is never stored
+// without its commits, and a pull_commits.csv that cannot be read refuses the
+// run before GitHub is asked.
 //
 // The read is incremental by updated time: a run asks for the closed pull
 // requests updated since the repository's mark in data/pulls_read.csv less a
@@ -52,6 +58,9 @@ const (
 	// PullsFile is the name of the pull requests file, kept next to the
 	// history.
 	PullsFile = "pulls.csv"
+	// PullCommitsFile is the name, next to the history, of the file of the
+	// commits of each merged pull request (forsgren#463, step 6).
+	PullCommitsFile = "pull_commits.csv"
 	// PullsReadFile is the name, next to the history, of the file that notes
 	// when each repository's closed pull requests were last read.
 	PullsReadFile = "pulls_read.csv"
@@ -63,6 +72,11 @@ const (
 	// commits can take after the first: GitHub lists at most 250, 100 a page.
 	pullCommitPagesAfterFirst = 2
 )
+
+// pullCommitsFile is the path of the pull commits file next to o's history.
+func (o Options) pullCommitsFile() string {
+	return filepath.Join(filepath.Dir(o.History), PullCommitsFile)
+}
 
 // pullsFile is the path of the pull requests file next to o's history.
 func (o Options) pullsFile() string { return filepath.Join(filepath.Dir(o.History), PullsFile) }
@@ -76,8 +90,12 @@ func (o Options) pullsDeniedFile() string {
 }
 
 // loadPulls is h with the pull requests the pulls file holds; a missing file
-// holds none, one that cannot be read refuses the run.
+// holds none, one that cannot be read refuses the run, and so does a pull
+// commits file that cannot be read.
 func (o Options) loadPulls(h held) (held, error) {
+	if _, err := history.LoadPullCommits(o.pullCommitsFile()); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return h, err
+	}
 	stored, err := history.LoadPullRequests(o.pullsFile())
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return h, err
@@ -102,6 +120,9 @@ func (o Options) pullsSince(h held, repo string) time.Time {
 // says how many it stored; see the top of this file for what ends the read.
 func (o Options) collectPulls(ctx context.Context, h held, repo string) (int, error) {
 	read, err := o.readPulls(ctx, h, repo)
+	if _, serr := history.AppendPullCommits(o.pullCommitsFile(), read.commits); serr != nil {
+		return 0, serr
+	}
 	stored, serr := history.AppendPullRequests(o.pullsFile(), read.pulls)
 	if serr != nil {
 		return stored, serr
@@ -137,9 +158,11 @@ func (o Options) endPulls(h held, repo string, truncated bool, err error) error 
 }
 
 // pullsRead is what one read of a repository's pull requests gives: the
-// merged ones read whole, and whether the list stopped at the page limit.
+// merged ones read whole, their commits, and whether the list stopped at the
+// page limit.
 type pullsRead struct {
 	pulls     []history.PullRequest
+	commits   []history.PullCommit
 	truncated bool
 }
 
@@ -155,11 +178,12 @@ func (o Options) readPulls(ctx context.Context, h held, repo string) (pullsRead,
 		if !o.toStore(h, repo, p) {
 			continue
 		}
-		pull, err := o.pullOf(ctx, repo, p)
+		pull, commits, err := o.pullOf(ctx, repo, p)
 		if err != nil {
 			return read, err
 		}
 		read.pulls = append(read.pulls, pull)
+		read.commits = append(read.commits, commits...)
 	}
 	return read, nil
 }
@@ -192,19 +216,25 @@ func botOf(userType string) history.BotStatus {
 	return history.BotUnknown
 }
 
-// pullOf is p with its first commit time and its bot status, read only while the request budget
-// has room for every page of its commits. A commit list that gives no usable
-// date (github.ErrNoCommitDate: no commit, or one without an author date) has
-// the created time stand in, named on stderr (forsgren#300), and so does one
+// pullOf is p with its first commit time and its bot status, and its
+// commits, read only while the request budget has room for every page of
+// them. The first commit time is the earliest author date of the commits,
+// and the commits are lines of data/pull_commits.csv, bots' pull requests
+// included, a cut list's too (its pull request line says it is cut;
+// forsgren#463, step 6). A commit list that gives no usable date
+// (github.ErrNoCommitDate: no commit, or one without an author date) has the
+// created time stand in, named on stderr (forsgren#300), and so does one
 // GitHub's answer for cannot be read (github.ErrAnswer), with its own warning
-// naming the repository and the pull request (decision #313); a cut one keeps
-// its time with the cut flag (forsgren#299). Every other error, a rate limit
-// or GitHub's error answer, is returned.
-func (o Options) pullOf(ctx context.Context, repo string, p github.ClosedPullRequest) (history.PullRequest, error) {
+// naming the repository and the pull request (decision #313); neither gives
+// commit lines. A cut one keeps its time with the cut flag (forsgren#299).
+// Every other error, a rate limit or GitHub's error answer, is returned.
+func (o Options) pullOf(ctx context.Context, repo string, p github.ClosedPullRequest,
+) (history.PullRequest, []history.PullCommit, error) {
 	if err := o.Client.Reserve(repo, pullCommitPagesAfterFirst); err != nil {
-		return history.PullRequest{}, err
+		return history.PullRequest{}, nil, err
 	}
-	first, cut, err := o.Client.FirstCommitTime(ctx, repo, p.Number)
+	listed, cut, err := o.Client.PullCommits(ctx, repo, p.Number)
+	first := earliestAuthored(listed)
 	pull := history.PullRequest{
 		Repository: repo, Number: p.Number, CreatedAt: wholeSecond(p.CreatedAt),
 		MergedAt: wholeSecond(p.MergedAt), MergeCommit: p.MergeCommit, UpdatedAt: wholeSecond(p.UpdatedAt),
@@ -217,10 +247,31 @@ func (o Options) pullOf(ctx context.Context, repo string, p github.ClosedPullReq
 		o.warn("collect: %s: pull request %d: the answer for its commits is malformed or unreadable: %v; "+
 			"its created time stands in for its first commit time\n", repo, p.Number, err)
 	case err != nil:
-		return history.PullRequest{}, err
+		return history.PullRequest{}, nil, err
 	default:
-		return pull, nil
+		return pull, pullCommitsOf(repo, p.Number, listed), nil
 	}
 	pull.FirstCommitAt, pull.FirstCommitCut, pull.CreatedStandsIn = time.Time{}, false, true
-	return pull, nil
+	return pull, nil, nil
+}
+
+// earliestAuthored is the earliest author date of commits, zero for none.
+func earliestAuthored(commits []github.PullCommit) time.Time {
+	var first time.Time
+	for _, c := range commits {
+		if first.IsZero() || c.AuthoredAt.Before(first) {
+			first = c.AuthoredAt
+		}
+	}
+	return first
+}
+
+// pullCommitsOf is commits as lines of pull request number of repo.
+func pullCommitsOf(repo string, number int64, commits []github.PullCommit) []history.PullCommit {
+	lines := make([]history.PullCommit, 0, len(commits))
+	for _, c := range commits {
+		lines = append(lines, history.PullCommit{Repository: repo, Number: number, SHA: c.SHA, Author: c.Author,
+			AuthoredAt: wholeSecond(c.AuthoredAt)})
+	}
+	return lines
 }

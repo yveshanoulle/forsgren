@@ -1833,6 +1833,12 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/collect/pullcommits_test.go",
+   "score": 9.09,
+   "checkedAt": "2026-10-26",
+   "minScore": 9.0
+  },
+  {
    "path": "internal/collect/pulls_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-25",

@@ -153,8 +153,8 @@ func calls(repo string) map[string]func(*Client) error {
 			_, _, err := c.BranchActivities(ctx, repo, "main", since)
 			return err
 		},
-		"first commit time": func(c *Client) error {
-			_, _, err := c.FirstCommitTime(ctx, repo, 45)
+		"pull commits": func(c *Client) error {
+			_, _, err := c.PullCommits(ctx, repo, 45)
 			return err
 		},
 		"latest release": func(c *Client) error {

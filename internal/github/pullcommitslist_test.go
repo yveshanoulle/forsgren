@@ -39,6 +39,13 @@ func TestPullCommitsReturnsEveryCommitWithItsLoginAndAuthorDate(t *testing.T) {
 	if cut {
 		t.Error("want an uncut answer")
 	}
+	requests := f.seen()
+	if len(requests) != 2 {
+		t.Fatalf("want two pages read, got %d requests", len(requests))
+	}
+	if n := requests[0].URL.Query().Get("per_page"); n != "100" {
+		t.Errorf("want 100 per page, got %q", n)
+	}
 }
 
 // wantCommitsCut holds PullCommits of the fake, read up to maxPages pages,
