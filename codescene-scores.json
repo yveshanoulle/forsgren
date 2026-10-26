@@ -2305,6 +2305,42 @@
    "score": 10.0,
    "checkedAt": "2026-10-26",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/pushesfill.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/pushes_fill_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/pushcommitsbackfill.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/pushcommitsbackfill_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/pushcommitsfilled.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/pushcommitsfilled_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
   }
  ]
 }

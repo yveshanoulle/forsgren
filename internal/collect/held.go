@@ -61,9 +61,11 @@ type held struct {
 	pushesDeniedBy map[string]string         // see pushes.go: the token name of each, with pushesDenied
 	backfilled     history.Reach             // see legacybackfill.go
 	pullsFilled    history.Reach             // see pullsfill.go
+	mergesFilled   history.Reach             // see pushesfill.go
 	pulls          map[history.IssueKey]bool // the pull requests pulls.csv holds
 	storedPulls    []history.PullRequest     // the same, in the order of the file, for the fill (pullsfill.go)
 	commitsListed  map[history.IssueKey]bool // the pull requests pull_commits.csv holds lines of
+	legacyMerges   []history.Push            // the stored merge pushes with a line of unknown parents, for the fill
 	branches       map[string]string         // the default branch of each repository asked this run, by lower-case name
 	pushes         map[history.PushKey]bool  // the pushes pushes.csv holds
 	startsDone     map[string]bool           // the repositories caught up in this run

@@ -42,8 +42,9 @@
 #  17. a pulls_denied.csv elsewhere               -> red, named
 #      (forsgren#337)
 #  18. a pushes.csv, a pushes_read.csv, a        -> red, each named
-#      pushes_denied.csv and a push_commits.csv
-#      elsewhere (forsgren#397)
+#      pushes_denied.csv, a push_commits.csv and
+#      a push_commits_filled.csv elsewhere
+#      (forsgren#397, forsgren#470)
 # Mutation proofs, each against a copy of the gate (the patterns are `case`
 # arms of guarded_reason, one per line):
 #   - case 2: with the history.csv arm deleted, case 2's repository must turn
@@ -73,7 +74,7 @@
 #   - case 17: with the pulls_denied.csv arm deleted, a repository holding
 #     only ops/pulls_denied.csv must turn green.
 #   - case 18: with the pushes.csv, pushes_read.csv, pushes_denied.csv or
-#     push_commits.csv arm deleted, a repository holding only ops/ of that file must turn green.
+#     push_commits.csv or push_commits_filled.csv arm deleted, a repository holding only ops/ of that file must turn green.
 #   - case 6: with every arm whose pattern holds a `*` quoted (so it matches
 #     only the literal text), case 6's repository must turn green with none
 #     of its three files named, while case 2's repository stays red. Every
@@ -319,11 +320,13 @@ write_file "ops/pushes.csv" $'# forsgren pushes v1\n' track
 write_file "ops/pushes_read.csv" $'# forsgren pushes read v1\n' track
 write_file "ops/pushes_denied.csv" $'# forsgren pushes denied v1\n' track
 write_file "ops/push_commits.csv" $'# forsgren push commits v1\n' track
+write_file "ops/push_commits_filled.csv" $'# forsgren push commits filled v1\n' track
 run_gate
 want_red "a pushes.csv outside data/ is red and named (forsgren#397)" "❌ FAIL: ops/pushes.csv"
 want_said "a pushes_read.csv outside data/ is red and named (forsgren#397)" "❌ FAIL: ops/pushes_read.csv"
 want_said "a pushes_denied.csv outside data/ is red and named (forsgren#397)" "❌ FAIL: ops/pushes_denied.csv"
 want_said "a push_commits.csv outside data/ is red and named (forsgren#397)" "❌ FAIL: ops/push_commits.csv"
+want_said "a push_commits_filled.csv outside data/ is red and named (forsgren#470)" "❌ FAIL: ops/push_commits_filled.csv"
 new_repo "pushes-elsewhere-pushes"
 write_file "ops/pushes.csv" $'# forsgren pushes v1\n' track
 new_repo "pushes-elsewhere-read"
@@ -332,6 +335,8 @@ new_repo "pushes-elsewhere-denied"
 write_file "ops/pushes_denied.csv" $'# forsgren pushes denied v1\n' track
 new_repo "pushes-elsewhere-commits"
 write_file "ops/push_commits.csv" $'# forsgren push commits v1\n' track
+new_repo "pushes-elsewhere-filled"
+write_file "ops/push_commits_filled.csv" $'# forsgren push commits filled v1\n' track
 
 new_repo "history-fixtures"
 write_file "internal/history/testdata/deployments.csv" $'# forsgren history v1\n' track
@@ -429,6 +434,8 @@ arm_deleted_proof 18 "pushes_denied.csv" '^[[:space:]]*pushes_denied\.csv\) why=
   "${TMP}/check_data_guard_nopushesdenied.sh" "pushes-elsewhere-denied" "ops/pushes_denied.csv"
 arm_deleted_proof 18 "push_commits.csv" '^[[:space:]]*push_commits\.csv\) why=' \
   "${TMP}/check_data_guard_nopushcommits.sh" "pushes-elsewhere-commits" "ops/push_commits.csv"
+arm_deleted_proof 18 "push_commits_filled.csv" '^[[:space:]]*push_commits_filled\.csv\) why=' \
+  "${TMP}/check_data_guard_nopushcommitsfilled.sh" "pushes-elsewhere-filled" "ops/push_commits_filled.csv"
 
 # ---------------------------------------------------------------------------
 # Mutation proof for case 6: a copy of the gate with every arm whose pattern

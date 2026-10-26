@@ -37,18 +37,30 @@ func (c Commit) filledFrom(known Commit) Commit {
 // the upgrade, so an interrupted run leaves the old file. A known commit that
 // cannot be stored is refused before anything is written (ErrInvalidRecord).
 func BackfillCommits(path string, known []Commit) (int, error) {
-	if err := commits.validateAll(path, known); err != nil {
+	return backfillFile(commits, path, known, filledLegacy)
+}
+
+// backfillFile is the body of the fills of a file (BackfillCommits,
+// BackfillPushCommits): known is refused before anything is written when a
+// record cannot be stored, a missing file is nothing to fill, fill gives the
+// records the file should hold and how many it changed, and a write is the
+// whole file through replaceWhole, only when something changed or the file is
+// of an older version.
+func backfillFile[R any, K comparable](f format[R, K], path string, known []R,
+	fill func(held, known []R) ([]R, int),
+) (int, error) {
+	if err := f.validateAll(path, known); err != nil {
 		return 0, err
 	}
-	st, err := commits.read(path)
+	st, err := f.read(path)
 	if err != nil || !st.exists {
 		return 0, err
 	}
-	records, changed := filledLegacy(st.records, known)
+	records, changed := fill(st.records, known)
 	if changed == 0 && !st.legacy {
 		return 0, nil
 	}
-	return changed, replaceWhole(path, commits.payload(store[Commit]{}, records))
+	return changed, replaceWhole(path, f.payload(store[R]{}, records))
 }
 
 // filledLegacy is held with each legacy line filled from the known commit of

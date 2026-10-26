@@ -92,13 +92,15 @@ func (o Options) loadPushes(h held) (held, error) {
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return h, err
 	}
-	if _, err := history.LoadPushCommits(o.pushCommitsFile()); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	lines, err := history.LoadPushCommits(o.pushCommitsFile())
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return h, err
 	}
 	h.pushes = make(map[history.PushKey]bool, len(stored))
 	for _, p := range stored {
 		h.pushes[p.Key()] = true
 	}
+	h.legacyMerges = legacyMerges(stored, lines)
 	return h, nil
 }
 
@@ -132,8 +134,7 @@ func (o Options) endPushes(h held, repo string, truncated bool, err error) error
 	switch {
 	case errors.Is(err, github.ErrPushesDenied):
 		o.warn("collect: %v; its pushes are not read, the rest is collected\n", err)
-		h.pushesDenied[key] = wholeSecond(o.Now)
-		h.pushesDeniedBy[key] = o.Client.TokenName()
+		o.notePushesDenied(h, repo)
 		return nil
 	case errors.Is(err, github.ErrBudget):
 		o.warn("collect: %s: the pushes were cut short: %v; those compared are stored, "+
@@ -151,6 +152,13 @@ func (o Options) endPushes(h held, repo string, truncated bool, err error) error
 	delete(h.pushesDenied, key)
 	delete(h.pushesDeniedBy, key)
 	return nil
+}
+
+// notePushesDenied notes repo and the refused token in the denied marks of
+// the push read, which a read that ends without an error removes.
+func (o Options) notePushesDenied(h held, repo string) {
+	h.pushesDenied[strings.ToLower(repo)] = wholeSecond(o.Now)
+	h.pushesDeniedBy[strings.ToLower(repo)] = o.Client.TokenName()
 }
 
 // pushesRead is what one read of a repository's pushes gives: the pushes to
@@ -204,24 +212,39 @@ func (o Options) comparePush(ctx context.Context, p history.Push) (history.Push,
 			p.Repository, p.PushedAt.Format(time.RFC3339), p.Before, p.After)
 		return p, nil, nil
 	}
-	commits, cut, err := o.Client.Compare(ctx, p.Repository, p.Before, p.After)
+	commits, chain, why, err := o.pushCompare(ctx, p)
 	switch {
-	case errors.Is(err, github.ErrNotAncestor), errors.Is(err, github.ErrMissingCommit):
-		o.noCount(p, err.Error())
-		return p, nil, nil
 	case err != nil:
 		return p, nil, err
-	case cut:
-		o.noCount(p, "the list of commits is cut")
-		return p, nil, nil
-	}
-	chain := firstParentChain(commits, p.After)
-	if len(chain) == 0 {
-		o.noCount(p, "the compare does not reach the push's tip")
+	case why != "":
+		o.noCount(p, why)
 		return p, nil, nil
 	}
 	p.Commits = int64(len(chain))
 	return p, pushCommitsOf(p, commits, chain), nil
+}
+
+// pushCompare is the compare of p's before...after and its first-parent chain,
+// or the words for why the count cannot be told (a commit GitHub does not
+// have, a cut list, a compare that does not reach p's tip). Only a rate limit
+// or an error answer of GitHub is returned.
+func (o Options) pushCompare(ctx context.Context, p history.Push) (commits, chain []github.Commit, why string,
+	err error,
+) {
+	commits, cut, err := o.Client.Compare(ctx, p.Repository, p.Before, p.After)
+	switch {
+	case errors.Is(err, github.ErrNotAncestor), errors.Is(err, github.ErrMissingCommit):
+		return nil, nil, err.Error(), nil
+	case err != nil:
+		return nil, nil, "", err
+	case cut:
+		return nil, nil, "the list of commits is cut", nil
+	}
+	chain = firstParentChain(commits, p.After)
+	if len(chain) == 0 {
+		return nil, nil, "the compare does not reach the push's tip", nil
+	}
+	return commits, chain, "", nil
 }
 
 // pushCommitsOf is every commit of the compare (oldest first, as GitHub lists

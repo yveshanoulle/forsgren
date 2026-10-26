@@ -239,6 +239,9 @@ func (o Options) backfillThenPushes(ctx context.Context, h held, repo string) (i
 	if err := o.backfillLegacy(ctx, h, repo); err != nil {
 		return 0, err
 	}
+	if cut, err := o.fillMergePushes(ctx, h, repo); cut || err != nil {
+		return 0, err
+	}
 	return o.collectPushes(ctx, h, repo)
 }
 

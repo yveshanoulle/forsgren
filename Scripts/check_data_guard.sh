@@ -101,7 +101,7 @@ in_testdata() {
 # mutates this list by that shape (it deletes the history.csv arm, then the
 # deployments.csv arm, then the commits.csv arm, then the failures.csv arm,
 # then the issues.csv arm, then the issues_full.csv, failures_read.csv,
-# failures_withdrawn.csv, issue_bugs.csv, issue_bugs_cut.csv, reach.csv, cut_runs.csv, starts_checked.csv, commits_backfilled.csv, pulls.csv, pulls_read.csv, pulls_denied.csv, pushes.csv, pushes_read.csv, pushes_denied.csv, push_commits.csv, pull_commits.csv and pull_commits_filled.csv arms, and quotes every arm whose pattern holds a
+# failures_withdrawn.csv, issue_bugs.csv, issue_bugs_cut.csv, reach.csv, cut_runs.csv, starts_checked.csv, commits_backfilled.csv, pulls.csv, pulls_read.csv, pulls_denied.csv, pushes.csv, pushes_read.csv, pushes_denied.csv, push_commits.csv, pull_commits.csv, pull_commits_filled.csv and push_commits_filled.csv arms, and quotes every arm whose pattern holds a
 # `*` so that it matches only literally).
 guarded_reason() {
   local why=""
@@ -128,6 +128,7 @@ guarded_reason() {
     pushes_denied.csv) why="which repositories' push reads GitHub refused, and which token, which forsgren collect keeps (data/pushes_denied.csv in an installation)" ;;
     push_commits.csv) why="the commits each push to a repository's main branch brought, which forsgren collect keeps (data/push_commits.csv in an installation)" ;;
     pull_commits.csv) why="the commits of each merged pull request, which forsgren collect keeps for Mainline Lead Time (data/pull_commits.csv in an installation)" ;;
+    push_commits_filled.csv) why="which repositories had the lines of their stored merge pushes filled, which forsgren collect keeps (data/push_commits_filled.csv in an installation)" ;;
     pull_commits_filled.csv) why="which repositories had the commits of their stored pull requests filled, which forsgren collect keeps (data/pull_commits_filled.csv in an installation)" ;;
     *.history.csv) why="a per-service or per-installation history file" ;;
     forsgren.config.*) why="an installation's forsgren configuration, by its own name" ;;
