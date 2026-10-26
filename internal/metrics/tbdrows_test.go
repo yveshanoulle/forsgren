@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"maps"
 	"slices"
 	"testing"
 	"time"
@@ -129,5 +130,35 @@ func TestARepositoryLabelTbdRowIsAOneRepositoryProject(t *testing.T) {
 	web := tbdRowNamed(t, TbdRows(tableProjects, tbdData(), now, nil), "Website")
 	if want := (tbdFigures{Deployments: 1, Pushes: 1}); figuresOf(web) != want {
 		t.Errorf("want %+v, got %+v", want, figuresOf(web))
+	}
+}
+
+// TestTbdRowsHaveNoDataByTheirOwnRule (forsgren#422, step 3, decision #451):
+// a service with no deployment in the window has none although its repository
+// was pushed to, a repository label and the total use the project rule, and a
+// service that deployed has data.
+func TestTbdRowsHaveNoDataByTheirOwnRule(t *testing.T) {
+	data := tbdData()
+	data.Records = data.Records[:2] // deployments 1 and 2 of deploy-api
+	rows := TbdRows(tableProjects, data, now, nil)
+	got := map[string]bool{}
+	for _, name := range []string{"Acme Shop", "ADMIN", "API", "Website", "Acme Tools"} {
+		got[name] = tbdRowNamed(t, rows, name).NoData()
+	}
+	want := map[string]bool{"Acme Shop": false, "ADMIN": true, "API": false, "Website": false, "Acme Tools": true}
+	if !maps.Equal(got, want) {
+		t.Errorf("want no data in %v, got %v", want, got)
+	}
+}
+
+// TestTbdRowNamesInTheNotesList: a label row is Project: label, a total row
+// its project's name.
+func TestTbdRowNamesInTheNotesList(t *testing.T) {
+	rows := TbdRows(tableProjects, tbdData(), now, nil)
+	got := []string{rows[0].NotesName(), tbdRowNamed(t, rows, "API").NotesName(),
+		tbdRowNamed(t, rows, "Website").NotesName()}
+	want := []string{"Acme Shop", "Acme Shop: API", "Acme Shop: Website"}
+	if !slices.Equal(got, want) {
+		t.Errorf("want %q, got %q", want, got)
 	}
 }

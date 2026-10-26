@@ -9,6 +9,24 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — A TBD service row has its own no-data rule, and a label row is named Project: label ([#422](https://github.com/yveshanoulle/forsgren/issues/422), step 3 of 5)
+
+forsgren issue 422, step 3: decision #451 (A) and D4. The page is not switched to it yet (step 4), so no golden changes and no page text changed.
+
+- `metrics.ServiceNoData(volume, deploy)` (`internal/metrics/nodata.go`): a service has no data when it has no final deployment in the window, a failed one included, and no deployed commit. A push or pull request of its repository does not count.
+- `TbdRow.NoData` uses it for a service row (`TbdRow.Service`), and the project rule `NoData` over the row's own data for the total row and a repository label row. The sentence stays in the page: step 4 words it for a service.
+- `TbdRow.NotesName` is `Project: label` for a label row and the project's name for a total row, for the Notes list and the pairing; the visible header stays the DORA form (D4).
+- Red first, seen failing at runtime against stub bodies: `TestAServiceHasNoDataWithoutADeploymentOrADeployedCommit`, `TestTbdRowsHaveNoDataByTheirOwnRule`, `TestTbdRowNamesInTheNotesList`.
+- Coverage: three rows in `coverage_thresholds.json`, 100.0 each. CodeScene: the four changed files 10.0.
+
+Steps left: 4 page and goldens; 5 fixture with services; 6 docs with the release's docs issue.
+
+Signed: Lenka B
+
+- Lenka B
+
+---
+
 ## 2026-10-26 — No producer is piped into grep -q any more: one helper, and a gate that keeps it out ([#428](https://github.com/yveshanoulle/forsgren/issues/428), 1 step)
 
 forsgren issue 428, tools, no release of its own. Found in #425: under `set -o pipefail`, `producer | grep -q pattern` can read as not found when grep leaves at its first match and the producer dies of SIGPIPE, which shows only once the producer writes more than the pipe buffer. `Scripts/lib_has.sh` (sourced, never run) is `has <grep args>`, which reads all of stdin before it matches; the three local copies of #425 are gone and 26 self-tests source it (about 115 call sites moved). `Scripts/check_pipe_grep_q.sh` is red on a producer piped into `grep` with a quiet flag (`-q`, any cluster with q, `--quiet`), joining a line that ends in a pipe or a backslash with the next, skipping comments; its self-test `Scripts/test_check_pipe_grep_q.sh` has 16 fixture shapes, 4 mutation proofs and proves `has` finds a pattern after 300 KB where the plain pipe returns 141. Red first: on the previous tree the gate named about 115 places in 33 scripts. Seven scripts that run from a sparse or copied checkout (`check_shellcheck.sh`, `check_workflow_triggers.sh`, `dco_push_check.sh`, `release_pins.sh`, `release_verify_pin.sh`, `report_baselines.sh`, `build_fixture_site.sh`) use a here-string instead of sourcing the helper. Two order-file rows (`MIN_GATES` 158 to 160), eight `Scripts/gate_inputs.txt` rows for the helper, a wiring case for it, and the rows in CONTRIBUTING.md, `docs/gate-classification.md`, `docs/quality-gates.md` and CLAUDE.md.

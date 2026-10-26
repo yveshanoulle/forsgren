@@ -27,3 +27,24 @@ func TestNoDataNeedsAllFourAbsent(t *testing.T) {
 		}
 	}
 }
+
+// TestAServiceHasNoDataWithoutADeploymentOrADeployedCommit (forsgren#422, step
+// 3, decision #451): a service has no data when it has no final deployment, a
+// failed one included, and no deployed commit; a push or pull request of its
+// repository does not count.
+func TestAServiceHasNoDataWithoutADeploymentOrADeployedCommit(t *testing.T) {
+	for name, c := range map[string]struct {
+		volume DeploymentVolume
+		deploy DeployMeasures
+		want   bool
+	}{
+		"nothing":                   {want: true},
+		"a deployed commit alone":   {deploy: DeployMeasures{Commits: 1}},
+		"a deployment alone":        {volume: DeploymentVolume{Count: 1}},
+		"a failed deployment alone": {volume: DeploymentVolume{Final: 1}},
+	} {
+		if got := ServiceNoData(c.volume, c.deploy); got != c.want {
+			t.Errorf("%s: want %v, got %v", name, c.want, got)
+		}
+	}
+}

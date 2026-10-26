@@ -43,6 +43,9 @@ type TbdRow struct {
 	// PushAbsent that the push and pull request measures are not (Lead and
 	// Push): a service row.
 	IntervalAbsent, PushAbsent bool
+	// Service says the row is a service's: its measures are over the
+	// deployments of one task.
+	Service bool
 }
 
 // tbdSource is what the TBD rows are counted from.
@@ -103,7 +106,7 @@ func (s tbdSource) row(level Level, p config.Project, project string) TbdRow {
 func (s tbdSource) serviceRow(p config.Project, project, task string) TbdRow {
 	service := tbdSource{data: s.data.ofTask(p.Repositories[0].Name, task), now: s.now, groups: s.groups}
 	row := service.deployed([]config.Project{p}, LabelRow, project)
-	row.IntervalAbsent, row.PushAbsent = true, true
+	row.IntervalAbsent, row.PushAbsent, row.Service = true, true, true
 	return row
 }
 
@@ -116,4 +119,24 @@ func (s tbdSource) deployed(only []config.Project, level Level, project string) 
 		Deploy:     DeployMeasuresOf(only, s.data, s.now)[0],
 		Volume:     DeploymentVolumes(only, s.data, s.now)[0],
 	}
+}
+
+// NotesName is the row's name in the Notes list and the pairing of its
+// measures (decision D4): "Project: label" for a label row, the project's
+// name for a total row. The visible header stays the DORA form.
+func (r TbdRow) NotesName() string {
+	if r.Level == LabelRow {
+		return r.Project + ": " + r.Name
+	}
+	return r.Name
+}
+
+// NoData says whether the row has no data in the DORA window (decision #451,
+// A): a service row by the deployment-only rule (ServiceNoData), any other row
+// by the project rule (NoData) over its own data.
+func (r TbdRow) NoData() bool {
+	if r.Service {
+		return ServiceNoData(r.Volume, r.Deploy)
+	}
+	return NoData(r.Volume, r.Deploy, r.Push, r.Lead)
 }
