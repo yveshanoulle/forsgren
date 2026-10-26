@@ -541,7 +541,8 @@ acme/app,2026-10-23T06:00:00Z,FORSGREN_TOKEN
   adds one setup issue item per repository named here, with the token's name
   and the permission it needs; the item goes away once the line is cleared
   (see [The setup issue](updating-and-releases.md#the-setup-issue-check-needs),
-  forsgren#321).
+  forsgren#321). A file that cannot be read or is in no known format makes the
+  check fail and leaves the setup issue as it is (forsgren#395).
 - Rewritten whole like `data/reach.csv`, and only when a line changed. A
   missing file notes no repository, so nothing is not readable. An unknown
   version or a malformed line refuses the collect run before GitHub is asked
@@ -686,7 +687,8 @@ acme/app,2026-10-23T06:00:00Z,FORSGREN_TOKEN
   token's name and the permission it needs; the item goes away once the line is
   cleared (see
   [The setup issue](updating-and-releases.md#the-setup-issue-check-needs),
-  forsgren#414).
+  forsgren#414). A file that cannot be read or is in no known format makes the
+  check fail and leaves the setup issue as it is (forsgren#395).
 - Rewritten whole like `data/reach.csv`, and only when a line changed. A
   missing file notes no repository. An unknown version or a malformed line
   refuses the collect run before GitHub is asked anything, naming the file.

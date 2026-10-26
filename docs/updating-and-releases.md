@@ -124,8 +124,8 @@ was seen and no claim about what works:
 Each item ends with where it comes from and when it goes: it goes away on the
 next run after a read of the repository worked, because `collect` then removes
 its line. The item names the token by its name only, never its value. A file
-that is in no known format fails the check (forsgren#395): the note on stderr
-names the file, the status is `failed` and the setup issue is left as it is,
+that cannot be read or is in no known format fails the check (forsgren#395):
+the note on stderr names the file, the status is `failed` and the setup issue is left as it is,
 neither written nor closed, because the refusal may still stand; a missing
 file notes no refusal.
 
@@ -589,6 +589,33 @@ key as a new row. Also with this release:
   after the update that sees a refusal, and goes away when a run reads the
   pushes again. `data/pushes_denied.csv` is written as format v2; a file in
   format v1 is read and written again.
+
+No new permission, secret or config key is required. An agent following
+[agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing about it.
+
+**Upgrading to 1.23.0, which gives the TBD page a row per label or service**
+(forsgren#422, #452, #395). A project whose repositories have a `label` or
+`services` in `forsgren.config.yml` (see
+[Configuration](configuration.md#configuration)) gets rows under its total row
+on the TBD page after this release, one for each label or service, sorted by
+label. A project without labels or services shows its total row alone, as
+before. Also with this release:
+
+- A service row shows its own Time to deploy per commit, Deployments, Commits
+  per deployment and Developers. Where a figure is per repository, the
+  Mainline Interval, the pushes and the pull requests, it says `Per
+  repository: see the project row`. With no final deployment and no deployed
+  commit in the window it says `currently no data for this service in the
+  last 30 days`. The Notes below the table name such a row `Project: label`.
+- With `tbd_figures: all`, the headers of the columns of time to main, time to
+  deploy, commits per push and commits per deployment read, for a screen
+  reader, such as "the mean of time to main".
+- `forsgren check-needs` fails, with a note on stderr that names the file, when
+  `data/pulls_denied.csv` or `data/pushes_denied.csv` cannot be read or is in
+  no known format. The setup issue is then left as it is, where before the
+  items of the refused reads were closed (see
+  [The setup issue](#the-setup-issue-check-needs)). Fix the file, or delete
+  it: a missing file notes no refusal, and a later refused read notes it again.
 
 No new permission, secret or config key is required. An agent following
 [agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing about it.

@@ -800,8 +800,8 @@ it in the menu after Daily, "History"; `false` leaves it out.
 ### The TBD page
 
 The TBD page (`tbd.html`, titled "Trunk-based development [TBD]", forsgren#253, forsgren#271, forsgren#409)
-shows, for each project, how often and how fast work reaches the main branch
-and how it is deployed: the Mainline Interval, the time to main and the time
+shows, for each project and for each label or service of it (forsgren#422),
+how often and how fast work reaches the main branch and how it is deployed: the Mainline Interval, the time to main and the time
 to deploy, the PR Lead Time, then the commits the pushes brought, the commits
 per push and per deployment, their shares and the Developers (forsgren#397,
 Yves's ruling on #401; the order of forsgren#418). It is listed
@@ -811,7 +811,8 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
 [Configuration](configuration.md#configuration)). It is last in the menu,
 "TBD"; `false` leaves it out.
 
-- **The table.** A row per project, with the columns Project, then nine
+- **The table.** A total row per project, then a row under it for each of
+  its labels and services (see *The rows* below), with the columns Project, then nine
   groups in this order (forsgren#397, reordered by forsgren#418): *Mainline
   Interval*; *Time to main per commit*; *Time to deploy per commit*; *PR Lead
   Time* (the pull requests column alone); *Volume* (Commits, Pushes,
@@ -845,14 +846,39 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
   fewer than two commits has a dash in its Mainline Interval cells. The mean
   and the median of the Mainline Interval and of PR Lead Time have no
   deviation, count or share beside them any more (forsgren#423): what the
-  count said is in the notes below the table. The table is per project: the
-  label rows of the table page have no row here.
+  count said is in the notes below the table.
+- **The rows** (forsgren#422, decisions #449, #450 and #451). `metrics.TbdRows`
+  builds every row with all the measures it needs, so no measure is paired
+  with a row by position. For each project, in the config's order:
+  - *The total row* has every measure over all of the project's data; a commit
+    counts once, at its first deployment of any service.
+  - *A label row* (`label: Website` on a repository) is that one repository as
+    a project of its own, with every measure: its Mainline Interval, pushes and
+    pull requests too.
+  - *A service row* (`services:` on a repository, one row for each listed
+    task) has the measures per deployment, over the deployments of its task
+    and the commits they shipped: Time to deploy per commit, Deployments,
+    Commits per deployment and Developers. The Mainline Interval (decision
+    #449) and the pushes and pull requests (decision #450) name no service,
+    so they are not the row's: one cell, `Per repository: see the project
+    row`, stands across each run of those columns, not a dash in each. With
+    the median alone the four runs are 2 columns (Mainline Interval and Time
+    to main), 3 (PR Lead Time, Commits and Pushes), 1 (Commits per push) and 4
+    (the shares); with `all` they are 6, 5, 3 and 4.
+  - *The order and the header.* The rows under a project are sorted by label,
+    ignoring case, as on the other tables. A label or service row is
+    `class="label"`, its header is the label alone and the project is in a
+    visually hidden `Acme Shop: ` before it for a screen reader. A project
+    without labels or services has its total row alone, as before 1.23.0.
 - **The notes** (forsgren#394, decisions #430 and #431). A cell that needs a
   caveat carries a marker, `(N)`, with `aria-describedby` pointing to the
   matching line of the list headed *Notes* below the table. The list is open
   by default and holds one line for each kind of note that occurs, in the
   order of its number, with the projects it applies to and their counts:
-  `(1) Mostly estimated: commits timed by author date: Acme Web 7 of 13`. The
+  `(1) Mostly estimated: commits timed by author date: Acme Web 7 of 13`. A
+  label or service row is named `Project: label` there (`NotesName`, decision
+  D4), such as `Acme Shop: Website 2`, though its header shows the label
+  alone. A service row has no PR Lead Time, so no note of that group. The
   numbers are fixed, so (1) means the same on every page and in the legend:
   1. Mostly estimated: more than half of the commits of the Mainline Interval
      are timed by author date.
@@ -1002,6 +1028,13 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
   the push read was refused or no push was collected, the project is judged
   without pushes, so the sentence wins over the push states above only when
   the other three are absent too.
+- **A service with no data** (forsgren#422, decision #451, A). A service row
+  has no data when it has no final deployment in the window (a failed one
+  counts) and no deployed commit (`metrics.ServiceNoData`); its pushes and pull
+  requests do not count, since they name no service. It shows one cell across
+  the row, as a project does, with the word *service*: `currently no data for
+  this service in the last 30 days`. A label row follows the rule for a
+  project, over its own repository, and says *project*.
 - **Developers.** One column next to the Mainline Interval (forsgren#273),
   because a team of ten makes more commits than one person with the same
   habits; the interval itself is not divided by it. It counts the distinct GitHub logins of the authors of the commits
@@ -1021,10 +1054,9 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
   (forsgren#355). The unknown authors are a share of the pushed commits now
   (see The push groups). The cell is the count, `3`; a project with no
   deployed commit shows a dash, and a project whose commits are all by bots
-  has 0 developers. The
-  Developers are paired with the Mainline Intervals by project: Developers that
-  are missing or name another project in a row fail the render rather than
-  show a count in the wrong row. The number is a count only; no
+  has 0 developers. Each
+  row has the Developers of its own data (`metrics.TbdRows`), so a count is
+  never taken from another row. The number is a count only; no
   login reaches a page (`TestRenderShowsNoCommitAuthor` renders every page
   from commits that all carry one login and finds it on none, the TBD page's
   Developers cell counted from it). The legend's TBD section explains the

@@ -10,12 +10,14 @@ import (
 // reference. The calculation detail is in docs/pages-and-views.md.
 var legendTbdText = []string{
 	"Trunk-based development means integrating small changes into the main branch often",
-	"The TBD page is one table with a row for each project",
+	"The TBD page is one table with a row for each project, and under it a row for each label or service",
 	"All figures cover the last 30 days, the DORA window",
 	"By default, the table shows the median of each measure, the middle value",
 	"The mean is the average. p90 is the value that nine tenths of the values are no larger " +
 		"than",
 	"A dash means there is not enough data to calculate the figure. It does not mean zero",
+	"When all three figures are shown, the columns of time to main, time to deploy, commits per push and commits " +
+		"per deployment carry their measure for a screen reader, such as the mean of time to main",
 	"The Notes below the table say what each number means",
 	"They explain estimates, a lower bound, a stand-in time and bots that are not counted",
 	"Missing data is shown as a dash, a no-data row or a not-readable cell, not as a note",
@@ -88,6 +90,10 @@ var legendTbdText = []string{
 		"and no merged pull request in the last 30 days shows one sentence across its row: " +
 		"currently no data for this project in the last 30 days",
 	"It has no note markers",
+	"A service row with no final deployment (a failed one counts) and no deployed commit in the last " +
+		"30 days shows currently no data for this service in the last 30 days",
+	"Pushes and pull requests do not count for a service",
+	"A label row follows the rule for a project",
 	"A project with data in any one of these keeps its figures, and a single column without " +
 		"data keeps its dash",
 	"Some figures are estimates when stored information is incomplete",
@@ -105,6 +111,15 @@ var legendTbdText = []string{
 	"Time to main per commit is forsgren's own name",
 	"Forsgren uses no abbreviation for it",
 	"The table shows the median by default, so the figure is the median time to main",
+	"The first row of a project is its total, over all of its repositories and deployments",
+	"A project has a row under its total for each label and each service that the configuration gives it",
+	"The rows under the total are sorted by label, ignoring case",
+	"A label row is one repository, with every measure of that repository",
+	"A service row is one deployment task of a repository",
+	"Time to deploy per commit, Deployments, Commits per deployment and Developers, counted over the " +
+		"deployments of that task and the commits they shipped",
+	"Per repository: see the project row",
+	"The Notes list gives the name of such a row as Project: label, for example Acme Shop: Website",
 	"(1) Mostly estimated: commits timed by author date. It applies to the Mainline Interval",
 	"(2) Commits timed by author date. It applies to the Mainline Interval",
 	"(3) A lower bound: a first commit time of a pull request was cut. It applies to PR Lead " +
@@ -298,6 +313,7 @@ func TestLegendSaysEachTbdSentenceOnce(t *testing.T) {
 // follow it.
 var legendTbdGroups = []struct{ id, title, sentence string }{
 	{"tbd-general", "How do I read the numbers?", "A dash means there is not enough data"},
+	{"tbd-rows", "What are the rows under a project?", "The first row of a project is its total"},
 	{"tbd-mainline-interval", "How often do changes reach main?", "The Mainline Interval is the time between commits"},
 	{"tbd-time-to-main-per-commit", "How long does a change take to reach main?",
 		"Time to main per commit is how old one change"},

@@ -9,6 +9,16 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — The legend, the manual and CLAUDE.md follow the 1.23.0 changes ([#455](https://github.com/yveshanoulle/forsgren/issues/455), 1 step)
+
+forsgren issue 455, feature, patch release, shipped with #422, #452, #395 and #436 in the release after 1.22.0, as #417 did for 1.22.0. Every reader-facing description follows what the code does now.
+
+- **Legend:** a new part, `What are the rows under a project?` (`tbd-rows`), says the total row, the label row, the service row with its own Time to deploy per commit, Deployments, Commits per deployment and Developers, the `Per repository: see the project row` cell across each run of per-repository columns, and the `Project: label` name in the Notes. The missing-data part says the service no-data sentence and its rule (no final deployment, a failed one counts, and no deployed commit; pushes and pull requests do not count). The reading part says the all-figures headers carry their measure for a screen reader. Red first: `legendTbdText` and `legendTbdGroups` (13 wordings and one heading missing), then the template and the golden. The check of #448 found its wording still true after #422 except that the table is no longer one row per project.
+- **Manual:** `docs/pages-and-views.md` has the rows (total, label, service, the four runs of 2, 3, 1 and 4 columns, or 6, 5, 3 and 4), the notes naming, the service no-data sentence, and no longer says the label rows have no row there or that Developers are paired by project and fail the render; `docs/configuration.md` says what `label` and `services` give the TBD page; `docs/updating-and-releases.md` has the upgrade notes for 1.23.0 and says a file that cannot be read fails `check-needs`; `docs/data-files.md` says it for both denied files.
+- **CLAUDE.md:** the getting-started page (#436), the all-figures header labels (#452) and the legend part. README.md, CONTRIBUTING.md and the agent documents described none of these changes, or already linked the getting-started page.
+
+---
+
 ## 2026-10-26 — The browser gate self-test splits: its process cases get their own self-test ([#386](https://github.com/yveshanoulle/forsgren/issues/386), decision #411 A, last step)
 
 forsgren issue 386, tools issue, no release. The exit cases of `Scripts/test_gate_browser.sh` (52a to 52f, 53, 53c and mutation proofs R and S) moved to `Scripts/test_gate_browser_process.sh`, a second self-test of the same `browser` job, so a race in a process case no longer hides the deterministic cases and the selector can skip it when only the checks of the gate changed.
@@ -17,6 +27,10 @@ forsgren issue 386, tools issue, no release. The exit cases of `Scripts/test_gat
 - New order-file row `browser gate process self-test` (pre) and the `browser` group row in `Scripts/ci_job_groups.txt` (the job's PRE step runs it after the first); `Scripts/gate_inputs.txt` gets the label and the new lib on the rows that list the self-test; `MIN_GATES` 160 to 161; `docs/gate-classification.md` row 122a.
 
 Signed: Lenka B
+
+---
+
+
 
 ---
 

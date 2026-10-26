@@ -174,7 +174,8 @@ projects:
     `dora_days` does not change it. In 1.8.0 it defaulted to `true` and in
     1.8.1 to `false`.
   - **`tbd_page`**: the TBD page (`tbd.html`, forsgren#253). One table with a
-    row per project, over the `dora_days` window: the commits the pushes to
+    total row per project and, from 1.23.0, a row under it for each of its
+    labels and services (below), over the `dora_days` window: the commits the pushes to
     the main branch brought (`data/pushes.csv`, `data/push_commits.csv`), their
     shares (direct, pull requests, unknown authors, bots), the time to main and
     the commits per push, the time to deploy and the commits per deployment
@@ -298,6 +299,16 @@ projects:
     task left out counts in the project's total only.
   - neither: no row of its own; the repository counts in the total only,
     as every repository did before.
+
+  The TBD page shows the same rows (forsgren#422, from 1.23.0), a total row
+  and a row for each label or service, sorted by label ignoring case. A
+  `label` row has every measure of its repository. A `services` row has
+  the measures per deployment of its task (Time to deploy, Deployments,
+  Commits per deployment and Developers); in the Mainline Interval and the
+  push and pull request columns it says `Per repository: see the project
+  row`, and with no final deployment and no deployed commit in the window it
+  says `currently no data for this service in the last 30 days`. The Notes
+  below the table name such a row `Project: label`.
 
   ```yaml
   version: 1
