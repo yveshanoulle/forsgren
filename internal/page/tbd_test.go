@@ -1,7 +1,6 @@
 package page
 
 import (
-	"bytes"
 	"strconv"
 	"strings"
 	"testing"
@@ -39,28 +38,48 @@ func tbdLeads() []metrics.MainlineLeadTime {
 
 // tbdDataWith is tbdData with the Mainline Lead Times leads.
 func tbdDataWith(leads []metrics.MainlineLeadTime) Data {
-	data := calculated()
-	data.Mainline = []metrics.MainlineInterval{
+	intervals := []metrics.MainlineInterval{
 		{Project: "Acme Shop", Commits: 4, Gaps: 3, Mean: 2 * time.Hour, Median: 2 * time.Hour, ByAuthorDate: 2},
 		{Project: "Acme Tools", Commits: 2, Gaps: 1, Mean: 2 * time.Hour},
 		{Project: "Acme Docs"},
 		{Project: "Acme Web", Commits: 13, Gaps: 12, Mean: 24 * time.Minute, Median: 5 * time.Minute, P90: time.Hour,
 			ByAuthorDate: 7},
 	}
-	data.Developers = []metrics.Developers{
+	developers := []metrics.Developers{
 		{Project: "Acme Shop", Count: 3, Commits: 4},
 		{Project: "Acme Tools", Count: 1, Commits: 2},
 		{Project: "Acme Docs", Count: 1, Commits: 1},
 		{Project: "Acme Web", Count: 12, Commits: 20},
 	}
-	data.MainlineLead = leads
-	data.PushMeasures = tbdPushes()
-	data.DeployMeasures = tbdDeploys()
-	data.DeploymentVolumes = []metrics.DeploymentVolume{
+	volumes := []metrics.DeploymentVolume{
 		{Project: "Acme Shop", Count: 85}, {Project: "Acme Tools", Count: 7},
 		{Project: "Acme Docs", Count: 2}, {Project: "Acme Web", Count: 1},
 	}
+	data := calculated()
+	data.TbdMetrics = tbdColumns{intervals, leads, developers, tbdPushes(), tbdDeploys(), volumes}.rows()
 	return data
+}
+
+// tbdColumns are the measures of projects, one of each per project in the same
+// order, as the TBD page's columns.
+type tbdColumns struct {
+	intervals  []metrics.MainlineInterval
+	leads      []metrics.MainlineLeadTime
+	developers []metrics.Developers
+	pushes     []metrics.PushMeasures
+	deploys    []metrics.DeployMeasures
+	volumes    []metrics.DeploymentVolume
+}
+
+// rows are the total rows of the projects.
+func (c tbdColumns) rows() []metrics.TbdRow {
+	rows := make([]metrics.TbdRow, len(c.intervals))
+	for i, m := range c.intervals {
+		rows[i] = metrics.TbdRow{Level: metrics.ProjectRow, Name: m.Project, Project: m.Project, Interval: m,
+			Lead: c.leads[i], Developers: c.developers[i], Push: c.pushes[i], Deploy: c.deploys[i],
+			Volume: c.volumes[i]}
+	}
+	return rows
 }
 
 // tbdPushes are the push measures of tbdData's projects.
@@ -186,8 +205,8 @@ func uncollected() Data {
 // Tools' cut pull request stays read, Acme Docs has none.
 func notReadable() Data {
 	data := tbdData()
-	data.MainlineLead[1].NotReadable = true
-	data.MainlineLead[2].NotReadable = true
+	data.TbdMetrics[1].Lead.NotReadable = true
+	data.TbdMetrics[2].Lead.NotReadable = true
 	return data
 }
 
@@ -466,45 +485,6 @@ func TestTbdPageSaysThePullRequestsAreNotReadable(t *testing.T) {
 		got = rendered(t, "tbd.html", uncollectedRefused)
 		wantAll(t, "not collected yet", got, tbdRow(all, "Acme Docs", state, "1"),
 			tbdRow(all, "Acme Shop", leadState(all, notYet), "3"))
-	}
-}
-
-// TestTbdPageRefusesMeasuresOfOtherProjects (forsgren#273, step 3;
-// forsgren#397, step 5): the Developers, the Mainline Lead Times, the push and
-// deployment measures and the deployment volumes are paired with the Mainline
-// Intervals by project, so a render whose any of them is missing, one too
-// many, or names another project in a row, fails instead of showing a number
-// in the wrong row.
-func TestTbdPageRefusesMeasuresOfOtherProjects(t *testing.T) {
-	cases := map[string]func(*Data){
-		"developers missing": func(d *Data) { d.Developers = d.Developers[:3] },
-		"developers extra": func(d *Data) {
-			d.Developers = append(d.Developers, metrics.Developers{Project: "Acme Gone", Count: 1})
-		},
-		"developers swapped": func(d *Data) { d.Developers[0], d.Developers[1] = d.Developers[1], d.Developers[0] },
-		"leads missing":      func(d *Data) { d.MainlineLead = d.MainlineLead[:3] },
-		"leads extra": func(d *Data) {
-			d.MainlineLead = append(d.MainlineLead, metrics.MainlineLeadTime{Project: "Acme Gone"})
-		},
-		"leads swapped":   func(d *Data) { d.MainlineLead[0], d.MainlineLead[1] = d.MainlineLead[1], d.MainlineLead[0] },
-		"pushes missing":  func(d *Data) { d.PushMeasures = d.PushMeasures[:3] },
-		"pushes swapped":  func(d *Data) { d.PushMeasures[0], d.PushMeasures[1] = d.PushMeasures[1], d.PushMeasures[0] },
-		"deploys missing": func(d *Data) { d.DeployMeasures = d.DeployMeasures[:3] },
-		"deploys swapped": func(d *Data) {
-			d.DeployMeasures[0], d.DeployMeasures[1] = d.DeployMeasures[1], d.DeployMeasures[0]
-		},
-		"volumes missing": func(d *Data) { d.DeploymentVolumes = d.DeploymentVolumes[:3] },
-		"volumes swapped": func(d *Data) {
-			d.DeploymentVolumes[0], d.DeploymentVolumes[1] = d.DeploymentVolumes[1], d.DeploymentVolumes[0]
-		},
-	}
-	for name, change := range cases {
-		data := tbdData()
-		change(&data)
-		var got bytes.Buffer
-		if err := Render(&got, "tbd.html", data); err == nil {
-			t.Errorf("%s: want the render to fail, got:\n%s", name, got.String())
-		}
 	}
 }
 

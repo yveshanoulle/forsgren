@@ -14,12 +14,8 @@ import (
 // line comes from the row (forsgren#394, step 3, decision #433).
 func withoutData(all bool) Data {
 	data := inFigures(tbdData(), all)
-	data.Mainline[2] = metrics.MainlineInterval{Project: "Acme Docs", Commits: 4, Gaps: 3,
-		Mean: 2 * 3600e9, ByAuthorDate: 4}
-	data.MainlineLead[2] = metrics.MainlineLeadTime{Project: "Acme Docs"}
-	data.PushMeasures[2] = metrics.PushMeasures{Project: "Acme Docs"}
-	data.DeployMeasures[2] = metrics.DeployMeasures{Project: "Acme Docs"}
-	data.DeploymentVolumes[2] = metrics.DeploymentVolume{Project: "Acme Docs"}
+	data.TbdMetrics[2] = metrics.TbdRow{Level: metrics.ProjectRow, Name: "Acme Docs", Project: "Acme Docs",
+		Interval: metrics.MainlineInterval{Project: "Acme Docs", Commits: 4, Gaps: 3, Mean: 2 * 3600e9, ByAuthorDate: 4}}
 	return data
 }
 
@@ -64,10 +60,10 @@ func TestTbdColumnsAcrossMatchTheHeader(t *testing.T) {
 // the normal row; a single measure without a value keeps its dash.
 func TestTbdRowWithAnyOneOfTheFourKeepsItsDataRow(t *testing.T) {
 	for name, change := range map[string]func(*Data){
-		"deployed commit": func(d *Data) { d.DeployMeasures[2].Commits = 1 },
-		"deployment":      func(d *Data) { d.DeploymentVolumes[2].Count = 1 },
-		"push":            func(d *Data) { d.PushMeasures[2].Pushes = 1 },
-		"pull request":    func(d *Data) { d.MainlineLead[2].PullRequests = 1 },
+		"deployed commit": func(d *Data) { d.TbdMetrics[2].Deploy.Commits = 1 },
+		"deployment":      func(d *Data) { d.TbdMetrics[2].Volume.Count = 1 },
+		"push":            func(d *Data) { d.TbdMetrics[2].Push.Pushes = 1 },
+		"pull request":    func(d *Data) { d.TbdMetrics[2].Lead.PullRequests = 1 },
 	} {
 		data := withoutData(false)
 		change(&data)

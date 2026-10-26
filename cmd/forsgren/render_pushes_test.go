@@ -71,14 +71,14 @@ func TestRenderReadsThePushMeasuresBesideTheHistory(t *testing.T) {
 	data := writeHistory(t, acmeHistory())
 	writePushes(t, data)
 	got := pushData(t, data)
-	if len(got.PushMeasures) != 1 || len(got.DeployMeasures) != 1 || got.DeployMeasures[0].Project != "Acme Shop" {
-		t.Fatalf("want a measure per project, got %+v and %+v", got.PushMeasures, got.DeployMeasures)
+	if len(got.TbdMetrics) != 1 || got.TbdMetrics[0].Deploy.Project != "Acme Shop" {
+		t.Fatalf("want a row per project, got %+v", got.TbdMetrics)
 	}
 	want := metrics.PushMeasures{Project: "Acme Shop", Pushes: 1, Commits: 1, Direct: 1,
 		TimeToMain: metrics.DurationSpread{Count: 1, Mean: 25 * time.Minute},
 		PerPush:    metrics.CountSpread{Count: 1, Mean: 1}}
-	if got.PushMeasures[0] != want {
-		t.Errorf("want %+v, got %+v", want, got.PushMeasures[0])
+	if got.TbdMetrics[0].Push != want {
+		t.Errorf("want %+v, got %+v", want, got.TbdMetrics[0].Push)
 	}
 }
 
@@ -86,7 +86,7 @@ func TestRenderReadsThePushMeasuresBesideTheHistory(t *testing.T) {
 // its own state, never a fallback to deployments.
 func TestRenderSaysThePushesAreUncollectedWithoutAPushesFile(t *testing.T) {
 	got := pushData(t, writeHistory(t, acmeHistory()))
-	if push := got.PushMeasures[0]; !push.Uncollected || push.Commits != 0 {
+	if push := got.TbdMetrics[0].Push; !push.Uncollected || push.Commits != 0 {
 		t.Errorf("want uncollected with no commit, got %+v", push)
 	}
 }
@@ -100,7 +100,7 @@ func TestRenderSaysThePushesAreNotReadableForARefusedRepository(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(filepath.Dir(data), "pushes_denied.csv"), []byte(denied), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if push := pushData(t, data).PushMeasures[0]; !push.NotReadable || push.Uncollected {
+	if push := pushData(t, data).TbdMetrics[0].Push; !push.NotReadable || push.Uncollected {
 		t.Errorf("want not readable alone, got %+v", push)
 	}
 }

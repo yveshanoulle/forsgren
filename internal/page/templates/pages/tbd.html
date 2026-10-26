@@ -1,7 +1,7 @@
 {{define "title"}}{{.TbdTitle}} · {{.Title}}{{end -}}
 {{template "header" .}}  <main>
     <h1 id="tbd-heading">{{.TbdTitle}}</h1>
-{{if .Mainline}}{{$all := .TbdAll}}    <div class="table-scroll" role="region" aria-labelledby="tbd-heading" tabindex="0">
+{{if .TbdMetrics}}{{$all := .TbdAll}}    <div class="table-scroll" role="region" aria-labelledby="tbd-heading" tabindex="0">
       <table class="wraps">
         <thead>
 {{if $all}}          <tr>
@@ -63,8 +63,8 @@
           </tr>
 {{end}}        </thead>
         <tbody>
-{{range .TbdRows}}          <tr>
-            <th scope="row">{{.Interval.Project}}</th>
+{{range .TbdRows}}          <tr{{if .IsLabel}} class="label"{{end}}>
+            <th scope="row">{{if .IsLabel}}<span class="visually-hidden">{{.Project}}: </span>{{end}}{{.Name}}</th>
 {{if .NoData}}            <td colspan="{{$.TbdColumnsAfterProject}}">{{.NoDataSentence}}</td>
           </tr>
 {{else}}{{if $all}}            {{template "notedcell" .Interval.MeanCell}}
@@ -85,8 +85,8 @@
             <td>{{.Lead.MedianCell}}</td>
             <td>{{.Lead.P90Cell}}</td>
 {{else}}            {{template "notedcell" .Lead.MedianNotedCell}}
-{{end}}            <td>{{.Push.CommitsCell}}</td>
-            <td>{{.Push.PushesCell}}</td>
+{{end}}            <td>{{.CommitsCell}}</td>
+            <td>{{.PushesCell}}</td>
             <td>{{.Volume.Cell}}</td>
 {{if .Push.State}}            <td{{if $all}} colspan="3"{{end}}>{{.Push.State}}</td>
 {{else if $all}}            <td>{{.Push.PerPush.MeanCell}}</td>

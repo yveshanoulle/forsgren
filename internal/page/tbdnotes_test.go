@@ -27,24 +27,13 @@ func TestTbdPageListsTheNotesThatOccurBelowTheTable(t *testing.T) {
 // listed.
 func TestTbdPageListsOnlyTheKindsThatOccur(t *testing.T) {
 	none := tbdDataWith(noLeads())
-	for i := range none.Mainline {
-		none.Mainline[i].ByAuthorDate = 0
+	for i := range none.TbdMetrics {
+		none.TbdMetrics[i].Interval.ByAuthorDate = 0
 	}
 	wantNone(t, "no note", rendered(t, "tbd.html", none), "<details", "Notes", "tbd-note-", "visually-hidden")
 	partial := tbdDataWith(noLeads())
-	partial.Mainline[3].ByAuthorDate = 0
+	partial.TbdMetrics[3].Interval.ByAuthorDate = 0
 	got := rendered(t, "tbd.html", partial)
 	wantAll(t, "kind 2 stays", got, `id="tbd-note-2"`)
 	wantNone(t, "kind 1 gone", got, `id="tbd-note-1"`, `id="tbd-note-3"`)
-}
-
-// TestTbdNotesAreNoneWhereTheRowsDoNotPair (forsgren#394, step 2): measures of
-// other projects fail the render; asked for directly, the notes are none, never
-// a note in the wrong row.
-func TestTbdNotesAreNoneWhereTheRowsDoNotPair(t *testing.T) {
-	data := tbdData()
-	data.MainlineLead = data.MainlineLead[:3]
-	if got := data.TbdNotes(); got != nil {
-		t.Errorf("want no notes, got %v", got)
-	}
 }

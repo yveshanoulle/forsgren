@@ -40,7 +40,7 @@ func (r TbdRow) notes() []metrics.Note {
 		return nil
 	}
 	notes := append([]metrics.Note{}, r.Interval.MeanCell().Notes...)
-	if r.LeadState() != "" {
+	if r.LeadState() != "" || r.PushAbsent {
 		return notes
 	}
 	return append(notes, r.Lead.Notes()...)
@@ -49,10 +49,7 @@ func (r TbdRow) notes() []metrics.Note {
 // TbdNotes are the kinds of note the TBD page's cells have, in the order of
 // their numbers; none when no cell has a note.
 func (d Data) TbdNotes() []TbdNote {
-	rows, err := d.TbdRows()
-	if err != nil {
-		return nil
-	}
+	rows := d.TbdRows()
 	var out []TbdNote
 	for _, kind := range metrics.NoteKinds() {
 		note := TbdNote{Kind: kind}
@@ -71,7 +68,7 @@ func projectsWith(kind metrics.NoteKind, row TbdRow) []TbdNoteProject {
 	var out []TbdNoteProject
 	for _, n := range row.notes() {
 		if n.Kind == kind {
-			out = append(out, TbdNoteProject{Name: row.Interval.Project, Count: n.Count, Of: n.Of})
+			out = append(out, TbdNoteProject{Name: row.NotesName(), Count: n.Count, Of: n.Of})
 		}
 	}
 	return out

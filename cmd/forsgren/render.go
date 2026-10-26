@@ -151,13 +151,8 @@ func withHistory(data page.Data, cfg config.Config, path string, at time.Time) (
 	data.Rows = page.Table(metrics.Rows(cfg.Projects, metricsData, at))
 	data.History = metrics.History(cfg.Projects, metricsData, at, cfg.HistoryDays)
 	data.FirstDeployment, _ = metrics.FirstDeployment(cfg.Projects, metricsData)
-	data.Mainline = metrics.MainlineIntervals(cfg.Projects, metricsData, at)
-	data.MainlineLead = metrics.MainlineLeadTimes(cfg.Projects, metricsData, at)
 	data.PullsUncollected = absent(beside(path, collect.PullsFile))
-	data.Developers = metrics.MainlineDevelopers(cfg.Projects, metricsData, at, cfg.SameDeveloper)
-	data.PushMeasures = metrics.PushMeasuresOf(cfg.Projects, metricsData, at)
-	data.DeployMeasures = metrics.DeployMeasuresOf(cfg.Projects, metricsData, at)
-	data.DeploymentVolumes = metrics.DeploymentVolumes(cfg.Projects, metricsData, at)
+	data.TbdMetrics = metrics.TbdRows(cfg.Projects, metricsData, at, cfg.SameDeveloper)
 	events, err := issueEventsOf(path)
 	if err != nil {
 		return data, err

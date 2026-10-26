@@ -107,13 +107,10 @@ type Data struct {
 	HistoryDays int
 	// History are the columns of the history page, oldest first (forsgren#68).
 	History []metrics.Column
-	// Mainline are the Mainline Intervals of the TBD page, one per project in
-	// the config's order; none while the render has not read them
-	// (forsgren#253).
-	Mainline []metrics.MainlineInterval
-	// MainlineLead are the Mainline Lead Times next to the Mainline
-	// Intervals, one per project in the same order (forsgren#256, step 2).
-	MainlineLead []metrics.MainlineLeadTime
+	// TbdMetrics are the rows of the TBD table: each project's total, then its
+	// label rows, each with all its measures; none while the render has not
+	// read them (forsgren#253, forsgren#422, step 4).
+	TbdMetrics []metrics.TbdRow
 	// PullsUncollected says there is no data/pulls.csv beside the history:
 	// no collect has stored pull requests yet, so the TBD page says so in
 	// place of each Mainline Lead Time (forsgren#256, step 2).
@@ -123,15 +120,6 @@ type Data struct {
 	// the 90th percentile; empty, as in a Data not made from a config, is the
 	// median (forsgren#423).
 	TbdFigures string
-	// PushMeasures, DeployMeasures and DeploymentVolumes are the volume, share,
-	// push and deployment groups of the TBD page, one per project in the same
-	// order (forsgren#397, steps 4 and 5).
-	PushMeasures      []metrics.PushMeasures
-	DeployMeasures    []metrics.DeployMeasures
-	DeploymentVolumes []metrics.DeploymentVolume
-	// Developers are the Developers counts next to the Mainline Intervals,
-	// one per project in the same order (forsgren#273).
-	Developers []metrics.Developers
 	// FirstDeployment is when the oldest successful deployment of the listed
 	// repositories was created, zero when there is none; the history page
 	// says when its first half-year appears (forsgren#198).

@@ -9,6 +9,25 @@ Active work lives in
 
 ---
 
+## 2026-10-26 — The TBD page shows a total row and a sub-row per label or service ([#422](https://github.com/yveshanoulle/forsgren/issues/422), step 4 of 5)
+
+forsgren issue 422, step 4: the page switches to `metrics.TbdRows`, by decisions #449, #450 and #451 (A each) and D4.
+
+- `Data.TbdMetrics` (`[]metrics.TbdRow`) replaces `Data.Mainline`, `MainlineLead`, `PushMeasures`, `DeployMeasures`, `DeploymentVolumes` and `Developers`, and with them the pairing by position (`pairedProjects`, `pairedWithMainline`): a measure can no longer sit in another project's row. `render` fills it from `metrics.TbdRows` with the config's `same_developer` groups.
+- `page.TbdRow` embeds `metrics.TbdRow`. A label or service row is `class="label"`, its header the label with the project visually hidden before it, as the DORA table writes it. A service row shows a dash in the Mainline Interval and in every push and pull request cell (`withoutAbsent` empties the measures a row marks `IntervalAbsent` or `PushAbsent`, so the dash is there because the row says so; `CommitsCell`, `PushesCell` and `LeadState` give a dash or nothing on `PushAbsent`), also while the pull requests are not collected yet. `TestAnAbsentMeasureIsADashBecauseTheRowSaysAbsent` gives an absent row non-empty measures and sees the dashes and no note. The Notes list names a label row `Project: label` (`NotesName`).
+- The no-data rule is the row's (`metrics.TbdRow.NoData`); `NoDataSentence` says `this service` for a service row and `this project` otherwise, in the one place the wording lives.
+- Red first, seen failing at runtime: the five tests of `internal/page/tbdsubrows_test.go` against the old template. The pairing test (`TestTbdPageRefusesMeasuresOfOtherProjects`) and `TestTbdNotesAreNoneWhereTheRowsDoNotPair` are gone with the code they pinned.
+- Goldens: the existing ones are unchanged; new `tbd.sub-rows` and `tbd.all-sub-rows`.
+- Language gate on the built fixture site: no new finding from this change; the two `mean time` findings of the all-figures header's `aria-label`s are the same at the commit before.
+
+Steps left: 5 fixture with services; 6 docs with the release's docs issue.
+
+Signed: Lenka B
+
+- Lenka B
+
+---
+
 ## 2026-10-26 — Two golangci-lint gates in two checkouts no longer fail each other on its machine-wide lock ([#437](https://github.com/yveshanoulle/forsgren/issues/437), 1 step)
 
 forsgren issue 437, tools, no release of its own. golangci-lint takes a machine-wide file lock on start, so the Go lint and Go test duplication gates run at once in two checkouts refused each other ("parallel golangci-lint is running", exit 3) and read as a gate failure. Both now pass `--allow-parallel-runners`, and a lock refusal that still comes is a tooling error naming the lock and saying it is not a verdict on the code (Go lint: the FAIL line, exit 1 as for any run that did not happen; Go test duplication: exit 2). Red first, with a stub tool that refuses with the lock message unless given the flag: both self-tests showed the gate refused, and a mutation proof (the flag removed) turns the green case red naming the lock. No change to `FBP.sh`, `sfl.sh`, the order file or `Scripts/gate_inputs.txt`. `docs/quality-gates.md` and `CLAUDE.md` say so.

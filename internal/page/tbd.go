@@ -1,8 +1,6 @@
 package page
 
 import (
-	"errors"
-	"fmt"
 	"strconv"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
@@ -40,34 +38,52 @@ func (d Data) TbdMessage() string {
 	return "No commits have been collected yet, so there is no Mainline Interval to show."
 }
 
-// TbdRow is one project's row of the TBD page (forsgren#397, step 5): its
-// volume, shares and push and deployment measures, its Mainline Lead Time
-// (forsgren#256, step 2; the pull requests column alone), its Mainline
-// Interval and its Developers count (forsgren#273).
+// TbdRow is one row of the TBD page (forsgren#397, step 5; forsgren#422, step
+// 4): a project's total or a label's or service's row, with the measures
+// metrics.TbdRows gives it: the volume, shares and push and deployment
+// measures, the Mainline Lead Time (forsgren#256, step 2; the pull requests
+// column alone), the Mainline Interval and the Developers count
+// (forsgren#273). Its NoData rule and its NotesName are the metrics row's.
 type TbdRow struct {
-	Interval   metrics.MainlineInterval
-	Lead       metrics.MainlineLeadTime
-	Developers metrics.Developers
-	Push       metrics.PushMeasures
-	Deploy     metrics.DeployMeasures
-	Volume     metrics.DeploymentVolume
+	metrics.TbdRow
 	// pullsUncollected is Data.PullsUncollected.
 	pullsUncollected bool
 	// window is Data.Window, the DORA window in days.
 	window int
 }
 
-// NoData says the project has no data in the DORA window (forsgren#394,
-// step 3, decision #433): its row is then one sentence, NoDataSentence.
-func (r TbdRow) NoData() bool {
-	return metrics.NoData(r.Volume, r.Deploy, r.Push, r.Lead)
-}
+// IsLabel says whether the row is a label's or a service's, under its
+// project's total.
+func (r TbdRow) IsLabel() bool { return r.Level == metrics.LabelRow }
 
 // NoDataSentence is the one cell of a row without data, naming the window of
-// the config's dora_days.
+// the config's dora_days: of the project, or of the service for a service row
+// (forsgren#422, step 4, decision #451).
 func (r TbdRow) NoDataSentence() string {
-	return "currently no data for this project in the last " + strconv.Itoa(r.window) + " days"
+	kind := "project"
+	if r.Service {
+		kind = "service"
+	}
+	return "currently no data for this " + kind + " in the last " + strconv.Itoa(r.window) + " days"
 }
+
+// CommitsCell and PushesCell are the commits and pushes of the push groups, a
+// dash on a service row.
+func (r TbdRow) CommitsCell() string { return r.pushed(r.Push.CommitsCell()) }
+
+// PushesCell is the pushes of the window, a dash on a service row.
+func (r TbdRow) PushesCell() string { return r.pushed(r.Push.PushesCell()) }
+
+// pushed is cell, a dash on a service row.
+func (r TbdRow) pushed(cell string) string {
+	if r.PushAbsent {
+		return noCell
+	}
+	return cell
+}
+
+// noCell is the dash of a cell without a value.
+const noCell = "-"
 
 // The columns of the table after the project: the median alone, or the mean,
 // the median and the 90th percentile (the shares have four, the developers one).
@@ -92,6 +108,8 @@ func (d Data) TbdColumnsAfterProject() int {
 // collected (forsgren#256, step 2).
 func (r TbdRow) LeadState() string {
 	switch {
+	case r.PushAbsent:
+		return ""
 	case r.Lead.NotReadable:
 		return r.Lead.State()
 	case r.pullsUncollected:
@@ -105,55 +123,25 @@ func (r TbdRow) LeadState() string {
 // default (forsgren#423).
 func (d Data) TbdAll() bool { return d.TbdFigures == config.TbdFiguresAll }
 
-// TbdRows pairs each Mainline Interval with the Mainline Lead Time, push and
-// deployment measures, deployment volume and Developers of its project, in the
-// Mainline's order. All come from the config's projects in its order, so one
-// that is missing or names another project in a row is an error, which fails
-// the render, never a number shown in the wrong row.
-func (d Data) TbdRows() ([]TbdRow, error) {
-	if err := d.pairedProjects(); err != nil {
-		return nil, err
+// TbdRows are the rows of the TBD table, in the order of Data.TbdMetrics: each
+// project's total, then its label rows.
+func (d Data) TbdRows() []TbdRow {
+	rows := make([]TbdRow, len(d.TbdMetrics))
+	for i, m := range d.TbdMetrics {
+		rows[i] = TbdRow{TbdRow: withoutAbsent(m), pullsUncollected: d.PullsUncollected, window: d.Window()}
 	}
-	rows := make([]TbdRow, len(d.Mainline))
-	for i, m := range d.Mainline {
-		rows[i] = TbdRow{Interval: m, Lead: d.MainlineLead[i], Developers: d.Developers[i],
-			Push: d.PushMeasures[i], Deploy: d.DeployMeasures[i], Volume: d.DeploymentVolumes[i],
-			pullsUncollected: d.PullsUncollected, window: d.Window()}
-	}
-	return rows, nil
+	return rows
 }
 
-// pairedProjects says why the TBD page's measures do not name the Mainline's
-// projects one each in its order, or nil when they do.
-func (d Data) pairedProjects() error {
-	checks := []error{
-		pairedWithMainline(d.Mainline, "Mainline Lead Times", d.MainlineLead,
-			func(m metrics.MainlineLeadTime) string { return m.Project }),
-		pairedWithMainline(d.Mainline, "push measures", d.PushMeasures,
-			func(m metrics.PushMeasures) string { return m.Project }),
-		pairedWithMainline(d.Mainline, "deployment measures", d.DeployMeasures,
-			func(m metrics.DeployMeasures) string { return m.Project }),
-		pairedWithMainline(d.Mainline, "deployment volumes", d.DeploymentVolumes,
-			func(m metrics.DeploymentVolume) string { return m.Project }),
-		pairedWithMainline(d.Mainline, "Developers", d.Developers,
-			func(m metrics.Developers) string { return m.Project }),
+// withoutAbsent is the row without the measures it says are absent
+// (IntervalAbsent, PushAbsent), so that its cells show a dash because the row
+// says so, never because a measure happens to be empty.
+func withoutAbsent(m metrics.TbdRow) metrics.TbdRow {
+	if m.IntervalAbsent {
+		m.Interval = metrics.MainlineInterval{}
 	}
-	return errors.Join(checks...)
-}
-
-// pairedWithMainline says why others, kind on the page, do not name the
-// Mainline's projects one each in its order, or nil when they do.
-func pairedWithMainline[T any](mainline []metrics.MainlineInterval, kind string, others []T,
-	project func(T) string,
-) error {
-	if len(others) != len(mainline) {
-		return fmt.Errorf("the TBD page has %d Mainline Intervals and %d %s", len(mainline), len(others), kind)
+	if m.PushAbsent {
+		m.Lead, m.Push = metrics.MainlineLeadTime{}, metrics.PushMeasures{}
 	}
-	for i, m := range mainline {
-		if other := project(others[i]); other != m.Project {
-			return fmt.Errorf("the TBD page's row %d has the Mainline Interval of %q and the %s of %q",
-				i+1, m.Project, kind, other)
-		}
-	}
-	return nil
+	return m
 }
