@@ -21,7 +21,7 @@ func perRepositoryDeployRow(all bool) string {
 		}
 		return "@" + strconv.Itoa(median) + perRepository
 	}
-	cells := []string{span(5, 15), span(1, 3), span(2, 2), "5", span(1, 3), span(1, 3), span(4, 4), "2"}
+	cells := []string{span(5, 15), span(1, 3), "@3" + perRepository, "5", span(1, 3), span(1, 3), span(4, 4), "2"}
 	return "<th scope=\"row\"><span class=\"visually-hidden\">Acme Shop: </span>API</th>\n            " +
 		tds(strings.Join(cells, " | ")) + "\n"
 }

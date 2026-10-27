@@ -64,7 +64,7 @@ var legendTbdText = []string{
 	"For each commit it runs from the author date of the commit to the first deployment that " +
 		"contains it",
 	"A commit written after its deployment counts as 0",
-	"Volume shows three numbers",
+	"Volume shows four numbers",
 	"Commits is the number of commits the pushes of the window brought to the main branch, " +
 		"each counted once",
 	"Only the main line of a push counts, so a merge counts as its merge commit",
@@ -432,7 +432,7 @@ var legendTbdGroups = []struct{ id, title, sentence string }{
 		"Bot PR Lead Time is the same measure as PR Lead Time"},
 	{"tbd-mainline-lead-time", "Mainline Lead Time (Why are there three lead times?)",
 		"The Mainline Throughput Indicator has one lead time"},
-	{"tbd-volume", "Volume (How much work is integrated at once?)", "Volume shows three numbers"},
+	{"tbd-volume", "Volume (How much work is integrated at once?)", "Volume shows four numbers"},
 	{"tbd-shares-of-commits", "Shares of commits (How does work reach main?)",
 		"Shares of commits shows how the commits"},
 	{"tbd-developers", "Developers (How many developers contribute?)",

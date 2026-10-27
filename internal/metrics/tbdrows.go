@@ -17,7 +17,6 @@ package metrics
 //     marked absent and left empty, for the page to show a dash.
 
 import (
-	"math"
 	"slices"
 	"strings"
 	"time"
@@ -49,8 +48,9 @@ type TbdRow struct {
 	IntervalAbsent, PushAbsent bool
 	// DeployPerRepository says a service without paths: its Time to deploy and
 	// Commits per deployment are the repository's, which the page words as
-	// Per repository (forsgren#496). DeployedCommits is the sum of a
-	// service's deployed commits, FilesReading says some of its commits have
+	// Per repository (forsgren#496). DeployedCommits is the distinct commits
+	// the row's deployments shipped, each once at its first deployment in the
+	// window, as Time to deploy counts them (forsgren#513); FilesReading says some of its commits have
 	// no stored files yet, so its figures leave them out.
 	DeployPerRepository bool
 	DeployedCommits     int
@@ -129,25 +129,19 @@ func (s tbdSource) serviceRow(p config.Project, project string, data Data, paths
 	row.IntervalAbsent, row.PushAbsent, row.Service = true, true, true
 	row.DeployPerRepository = scope == nil
 	row.FilesReading = row.Deploy.Unread > 0
-	row.DeployedCommits = deployedCommits(row.Deploy)
 	return row
-}
-
-// deployedCommits is the sum of the first-parent commits of the deployments
-// counted (forsgren#496), a whole number: the mean of whole counts times their
-// number.
-func deployedCommits(d DeployMeasures) int {
-	return int(math.Round(d.PerDeployment.Mean * float64(d.PerDeployment.Count)))
 }
 
 // deployed is the row of the only project in only with the measures per
 // deployment, counting the commits that touch scope (every commit for nil).
 func (s tbdSource) deployed(only []config.Project, level Level, project string, scope *pathScope) TbdRow {
+	deploy := deployMeasures(only, s.data, s.now, scope)[0]
 	return TbdRow{
 		Level: level, Name: only[0].Name, Project: project,
-		Developers: MainlineDevelopers(only, s.data, s.now, s.groups)[0],
-		Deploy:     deployMeasures(only, s.data, s.now, scope)[0],
-		Volume:     DeploymentVolumes(only, s.data, s.now)[0],
+		Developers:      MainlineDevelopers(only, s.data, s.now, s.groups)[0],
+		Deploy:          deploy,
+		DeployedCommits: deploy.Commits,
+		Volume:          DeploymentVolumes(only, s.data, s.now)[0],
 	}
 }
 

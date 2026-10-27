@@ -157,8 +157,8 @@ func TestACommitWithoutStoredFilesIsLeftOutAndFlagged(t *testing.T) {
 	if !row.FilesReading {
 		t.Errorf("want the row to say the files are still being read")
 	}
-	if got, want := pathFiguresOf(row), (serviceFigures{timed: 1, reading: true}); got != want {
-		t.Errorf("want 1 commit timed and no deployment counted, got %+v", got)
+	if got, want := pathFiguresOf(row), (serviceFigures{timed: 1, deployed: 1, reading: true}); got != want {
+		t.Errorf("want 1 commit timed and deployed (the unread one left out), no deployment counted, got %+v", got)
 	}
 }
 
@@ -205,7 +205,7 @@ func TestTotalAndLabelRowsKeepEveryCommitOfTheRepository(t *testing.T) {
 	rows := TbdRows(projects, pathsData(), now, nil)
 	for _, name := range []string{"Acme Shop", "App"} {
 		row := tbdRowNamed(t, rows, name)
-		if got, want := pathFiguresOf(row), (serviceFigures{timed: 7, deployments: 2}); got != want {
+		if got, want := pathFiguresOf(row), (serviceFigures{timed: 7, deployed: 7, deployments: 2}); got != want {
 			t.Errorf("%s: want the 7 commits and no service flag, got %+v", name, got)
 		}
 	}
@@ -221,9 +221,9 @@ func TestAServiceWithPathsKeepsItsDeploymentsWhenNoCommitTouchesThem(t *testing.
 	}
 }
 
-// TestTheSumOfDeployedCommitsAddsUpTheDeployments: two deployments of 3 and 1
-// touching commits are 4 deployed commits.
-func TestTheSumOfDeployedCommitsAddsUpTheDeployments(t *testing.T) {
+// TestDeployedCommitsOfTwoDeploymentsAreTheirDistinctCommits: two deployments of 3
+// and 1 touching commits, none shared, are 4 deployed commits.
+func TestDeployedCommitsOfTwoDeploymentsAreTheirDistinctCommits(t *testing.T) {
 	data := pathsData()
 	data.Records = append(data.Records, appDeployment(3, "deploy-api", history.StateSuccess, 2*time.Hour))
 	extra := shippedBy("acme/app", 3, 2*time.Hour, time.Hour)
@@ -233,5 +233,43 @@ func TestTheSumOfDeployedCommitsAddsUpTheDeployments(t *testing.T) {
 	row := apiRow(t, pathsProjects("api/", "go.mod"), data)
 	if row.DeployedCommits != 4 {
 		t.Errorf("want 4 deployed commits, got %d", row.DeployedCommits)
+	}
+}
+
+// sharedCommitData is the commit c1 (api/x.go) shipped by deploy-api (1) and
+// deploy-admin (2) alike, and c2 (web/a.go) by deploy-api alone.
+func sharedCommitData() Data {
+	data := pathsData()
+	data.Commits = []history.Commit{
+		chainCommit(1, "c1", "root"), chainCommit(1, "c2", "c1"), chainCommit(2, "c1", "root"),
+	}
+	data.CommitFiles = append(filesOf("c1", "api/x.go"), filesOf("c2", "web/a.go")...)
+	return data
+}
+
+// TestACommitShippedByTwoDeploymentsOfAServiceIsDeployedOnce (forsgren#513):
+// c1 is in deployments 1 and 3 of deploy-api, a commit counts once, at its
+// first deployment, whatever the number of deployments that carry it.
+func TestACommitShippedByTwoDeploymentsOfAServiceIsDeployedOnce(t *testing.T) {
+	data := sharedCommitData()
+	data.Commits = []history.Commit{chainCommit(1, "c1", "root"), chainCommit(3, "c1", "root")}
+	data.Records = append(data.Records, appDeployment(3, "deploy-api", history.StateSuccess, 2*time.Hour))
+	if got := apiRow(t, pathsProjects("api/"), data).DeployedCommits; got != 1 {
+		t.Errorf("want 1 deployed commit, got %d", got)
+	}
+}
+
+// TestACommitShippedByTwoServicesIsDeployedOnceInTheTotalAndOnceInEach
+// (forsgren#513): the total and the repository label count c1 once, each
+// service row counts it once.
+func TestACommitShippedByTwoServicesIsDeployedOnceInTheTotalAndOnceInEach(t *testing.T) {
+	projects := pathsProjects("api/")
+	projects[0].Repositories[0].Label = "App"
+	projects[0].Repositories[0].Paths["deploy-admin"] = []string{"api/"}
+	rows := TbdRows(projects, sharedCommitData(), now, nil)
+	for name, want := range map[string]int{"Acme Shop": 2, "App": 2, "API": 1, "ADMIN": 1} {
+		if got := tbdRowNamed(t, rows, name).DeployedCommits; got != want {
+			t.Errorf("%s: want %d deployed commits, got %d", name, want, got)
+		}
 	}
 }

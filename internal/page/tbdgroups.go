@@ -1,6 +1,10 @@
 package page
 
-import "github.com/yveshanoulle/forsgren/internal/metrics"
+import (
+	"strconv"
+
+	"github.com/yveshanoulle/forsgren/internal/metrics"
+)
 
 // The TBD page's spread groups (forsgren#474): Mainline Interval, Mainline
 // Lead Time, Time to main, PR Lead Time, Bot PR Lead Time, Time to deploy,
@@ -241,4 +245,21 @@ func (r TbdRow) BatchGroups() []spreadGroup {
 		plainGroup(r.all, state, r.Push.PerPush).as(idPerPush),
 		r.deployGroup(r.Deploy.PerDeployment).as(idPerDeployment),
 	}
+}
+
+// VolumeGroups are the cells of Volume before Deployments: Commits, Deployed
+// commits and Pushes (forsgren#513). A service row writes Per repository for
+// the pushed Commits and Pushes, which are the repository's, and for Deployed
+// commits too when it has no paths; with paths its Deployed commits are its
+// own, between the two, the cell carrying the notes of its files.
+func (r TbdRow) VolumeGroups() []spreadGroup {
+	deployed := metrics.NotedCell{Value: strconv.Itoa(r.DeployedCommits), Notes: r.filesNotes()}
+	if !r.PerRepository() {
+		return []spreadGroup{{Cells: []metrics.NotedCell{plain(r.Push.CommitsCell()), deployed, plain(r.Push.PushesCell())}}}
+	}
+	per := spreadGroup{State: r.PerRepositorySentence()}
+	if r.DeployPerRepository {
+		return []spreadGroup{{State: r.PerRepositorySentence(), Colspan: 3}}
+	}
+	return []spreadGroup{per, {Cells: []metrics.NotedCell{deployed}}, per}
 }

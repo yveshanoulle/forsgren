@@ -2605,6 +2605,12 @@
    "score": 9.53,
    "checkedAt": "2026-10-27",
    "minScore": 9.4
+  },
+  {
+   "path": "internal/page/legend_deployed_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
   }
  ]
 }

@@ -18,7 +18,7 @@ import (
 func subRowsData() Data {
 	shop, hour := "Acme Shop", time.Hour
 	api := metrics.TbdRow{Level: metrics.LabelRow, Name: "API", Project: shop, Service: true,
-		IntervalAbsent: true, PushAbsent: true,
+		IntervalAbsent: true, PushAbsent: true, DeployedCommits: 3,
 		Developers: metrics.Developers{Count: 2, Commits: 3},
 		Deploy: metrics.DeployMeasures{Commits: 3, TimeToDeploy: metrics.DurationSpread{Count: 3, Median: hour},
 			PerDeployment: metrics.CountSpread{Count: 2, Median: 2}},
@@ -74,8 +74,9 @@ const perRepository = "Per repository"
 // repository, which are, in the order of the columns, the Mainline Interval,
 // Mainline Lead Time, Time to main, PR Lead Time and Bot PR Lead Time (5 columns, 15
 // with all),
-// then after the service's own Time to deploy, Commits and Pushes (2),
-// Commits per push (1, 3) and the four shares (4) (forsgren#485).
+// then after the service's own Time to deploy, Commits (1), the service's own
+// Deployed commits and Pushes (1), Commits per push (1, 3) and the four shares
+// (4) (forsgren#485, #513).
 func apiRow(all bool) string {
 	span := func(median, every int) string {
 		if all {
@@ -83,10 +84,11 @@ func apiRow(all bool) string {
 		}
 		return "@" + strconv.Itoa(median) + perRepository
 	}
-	cells := []string{span(5, 15), "1 h", span(2, 2), "5", span(1, 3), "2.0", span(4, 4), "2"}
+	own, per := []string{"1 h", "2.0"}, "@1"+perRepository
 	if all {
-		cells = []string{span(5, 15), "&lt; 1 m | 1 h | -", span(2, 2), "5", span(1, 3), "0.0 | 2.0 | -", span(4, 4), "2"}
+		own = []string{"&lt; 1 m | 1 h | -", "0.0 | 2.0 | -"}
 	}
+	cells := []string{span(5, 15), own[0], per, "3", per, "5", span(1, 3), own[1], span(4, 4), "2"}
 	return "<th scope=\"row\"><span class=\"visually-hidden\">Acme Shop: </span>API</th>\n            " +
 		tds(strings.Join(cells, " | ")) + "\n"
 }
@@ -108,7 +110,7 @@ func TestAServiceRowHasOneSentenceWhereTheMeasuresAreAbsent(t *testing.T) {
 // no deployed commit has one sentence across the row, worded for a service.
 func TestAServiceWithoutDataHasItsOwnSentence(t *testing.T) {
 	got := rendered(t, "tbd.html", subRowsData())
-	wantAll(t, "tbd.html", got, "</span>IOS</th>\n            <td colspan=\"16\">"+
+	wantAll(t, "tbd.html", got, "</span>IOS</th>\n            <td colspan=\"17\">"+
 		"currently no data for this service in the last 30 days</td>")
 }
 

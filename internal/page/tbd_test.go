@@ -112,7 +112,7 @@ func (c tbdColumns) rows() []metrics.TbdRow {
 	for i, m := range c.intervals {
 		rows[i] = metrics.TbdRow{Level: metrics.ProjectRow, Name: m.Project, Project: m.Project, Interval: m,
 			Lead: c.leads[i], Developers: c.developers[i], Push: c.pushes[i], Deploy: c.deploys[i],
-			Volume: c.volumes[i]}
+			Volume: c.volumes[i], DeployedCommits: c.deploys[i].Commits}
 	}
 	return rows
 }
@@ -160,7 +160,7 @@ func tbdDeploys() []metrics.DeployMeasures {
 //
 // tbdTimeCells are the time to main cells, on the left of the pull requests
 // cell. tbdDeployCells follow it (forsgren#485), then tbdCountCells:
-// volume (commits, pushes, deployments), commits per push, commits per
+// volume (commits, deployed commits, pushes, deployments), commits per push, commits per
 // deployment and the shares (direct, PR, unknown, bots).
 var tbdTimeCells = map[string][2]string{
 	"Acme Shop":  {"30 m", "1 h | 30 m | 3 h"},
@@ -179,14 +179,14 @@ var tbdDeployCells = map[string][2]string{
 }
 
 var tbdCountCells = map[string][2]string{
-	"Acme Shop": {"40 | 20 | 85 | 1.5 | 4.5 | 75% | 25% | 10% | 5.0%",
-		"40 | 20 | 85 | 2.0 | 1.5 | 6.0 | 5.0 | 4.5 | 12 | 75% | 25% | 10% | 5.0%"},
-	"Acme Tools": {"1 | 1 | 7 | - | - | 100% | 0% | 0% | 0%",
-		"1 | 1 | 7 | 1.0 | - | - | 3.0 | - | - | 100% | 0% | 0% | 0%"},
-	"Acme Docs": {"- | - | 2 | @1Push activity not readable | 1.0 | @4Push activity not readable",
-		"- | - | 2 | @3Push activity not readable | 1.0 | 1.0 | - | @4Push activity not readable"},
-	"Acme Web": {"- | - | 1 | @1Pushes not collected yet | - | @4Pushes not collected yet",
-		"- | - | 1 | @3Pushes not collected yet | 2.0 | - | - | @4Pushes not collected yet"},
+	"Acme Shop": {"40 | 50 | 20 | 85 | 1.5 | 4.5 | 75% | 25% | 10% | 5.0%",
+		"40 | 50 | 20 | 85 | 2.0 | 1.5 | 6.0 | 5.0 | 4.5 | 12 | 75% | 25% | 10% | 5.0%"},
+	"Acme Tools": {"1 | 3 | 1 | 7 | - | - | 100% | 0% | 0% | 0%",
+		"1 | 3 | 1 | 7 | 1.0 | - | - | 3.0 | - | - | 100% | 0% | 0% | 0%"},
+	"Acme Docs": {"- | 2 | - | 2 | @1Push activity not readable | 1.0 | @4Push activity not readable",
+		"- | 2 | - | 2 | @3Push activity not readable | 1.0 | 1.0 | - | @4Push activity not readable"},
+	"Acme Web": {"- | 1 | - | 1 | @1Pushes not collected yet | - | @4Pushes not collected yet",
+		"- | 1 | - | 1 | @3Pushes not collected yet | 2.0 | - | - | @4Pushes not collected yet"},
 }
 
 // tbdIntervalCells are the Mainline Interval cells of tbdData's projects: Acme
@@ -385,7 +385,7 @@ var tbdGroups = []struct {
 	{"PR Lead Time", []string{"mean", "median", "p90"}, ""},
 	{"Bot PR Lead Time", []string{"mean", "median", "p90"}, "bot PR lead time"},
 	{"Time to deploy per commit", []string{"mean", "median", "p90"}, "time to deploy"},
-	{"Volume", []string{"Commits", "Pushes", "Deployments"}, ""},
+	{"Volume", []string{"Commits", "Deployed commits", "Pushes", "Deployments"}, ""},
 	{"Commits per push", []string{"mean", "median", "p90"}, "commits per push"},
 	{"Commits per deployment", []string{"mean", "median", "p90"}, "commits per deployment"},
 	{"Shares of commits", []string{"Direct", "PR", "Unknown", "Bots"}, ""},
@@ -433,7 +433,7 @@ var medianHeaders = []struct{ text, label string }{
 	{"PR Lead Time", "median PR lead time"},
 	{"Bot PR Lead Time", "median bot PR lead time"},
 	{"Time to deploy per commit", "median time to deploy per commit"},
-	{"Commits", ""}, {"Pushes", ""}, {"Deployments", ""},
+	{"Commits", ""}, {"Deployed commits", ""}, {"Pushes", ""}, {"Deployments", ""},
 	{"Commits per push", "median commits per push"},
 	{"Commits per deployment", "median commits per deployment"},
 	{"Direct share", "direct share of commits"},

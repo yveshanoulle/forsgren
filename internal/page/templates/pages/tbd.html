@@ -6,12 +6,13 @@
         <thead>
 {{if $all}}          <tr>
             <th scope="col" rowspan="2">Project</th>{{range .TbdGroupHeads}}{{template "spreadheadtop" .}}{{end}}
-            <th scope="colgroup" colspan="3">Volume</th>{{range .TbdBatchHeads}}{{template "spreadheadtop" .}}{{end}}
+            <th scope="colgroup" colspan="4">Volume</th>{{range .TbdBatchHeads}}{{template "spreadheadtop" .}}{{end}}
             <th scope="colgroup" colspan="4">Shares of commits</th>
             <th scope="colgroup" colspan="1">Developers</th>
           </tr>
           <tr>{{range .TbdGroupHeads}}{{template "spreadheadall" .}}{{end}}
             <th scope="col">Commits</th>
+            <th scope="col">Deployed commits</th>
             <th scope="col">Pushes</th>
             <th scope="col">Deployments</th>{{range .TbdBatchHeads}}{{template "spreadheadall" .}}{{end}}
             <th scope="col">Direct</th>
@@ -23,6 +24,7 @@
 {{else}}          <tr>
             <th scope="col">Project</th>{{range .TbdGroupHeads}}{{template "spreadheadone" .}}{{end}}
             <th scope="col">Commits</th>
+            <th scope="col">Deployed commits</th>
             <th scope="col">Pushes</th>
             <th scope="col">Deployments</th>{{range .TbdBatchHeads}}{{template "spreadheadone" .}}{{end}}
             <th scope="col" aria-label="direct share of commits">Direct share</th>
@@ -38,10 +40,7 @@
 {{if .NoData}}            <td colspan="{{$.TbdColumnsAfterProject}}">{{.NoDataSentence}}</td>
           </tr>
 {{else}}{{if .PerRepository}}            <td colspan="{{.MainSpan}}">{{.PerRepositorySentence}}</td>
-{{else}}{{range .MainGroups}}{{template "spreadgroup" .}}{{end}}{{end}}{{range .DeployGroups}}{{template "spreadgroup" .}}{{end}}{{if .PerRepository}}            <td colspan="2">{{.PerRepositorySentence}}</td>
-{{else}}            <td>{{.Push.CommitsCell}}</td>
-            <td>{{.Push.PushesCell}}</td>
-{{end}}            <td>{{.Volume.Cell}}</td>
+{{else}}{{range .MainGroups}}{{template "spreadgroup" .}}{{end}}{{end}}{{range .DeployGroups}}{{template "spreadgroup" .}}{{end}}{{range .VolumeGroups}}{{template "spreadgroup" .}}{{end}}            <td>{{.Volume.Cell}}</td>
 {{range .BatchGroups}}{{template "spreadgroup" .}}{{end}}{{if .PerRepository}}            <td colspan="4">{{.PerRepositorySentence}}</td>
 {{else if .Push.State}}            <td colspan="4">{{.Push.State}}</td>
 {{else}}            <td>{{.Push.DirectCell}}</td>

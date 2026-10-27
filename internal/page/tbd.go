@@ -89,8 +89,8 @@ func (r TbdRow) PerRepositorySentence() string { return perRepositorySentence }
 // The columns of the table after the project: the median alone, or the mean,
 // the median and the 90th percentile (the shares have four, the developers one).
 const (
-	tbdColumnsMedian = 16
-	tbdColumnsAll    = 32
+	tbdColumnsMedian = 17
+	tbdColumnsAll    = 33
 )
 
 // TbdColumnsAfterProject is how many columns the row of a project without data

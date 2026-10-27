@@ -79,9 +79,9 @@ func TestHiddenGroupsLeaveTheirHeadersOut(t *testing.T) {
 			head, _, _ := strings.Cut(got, "</thead>")
 			wantNone(t, h.name, head, ">"+h.title+"<")
 			wantAll(t, h.name, head, ">Mainline Lead Time<", ">Time to deploy per commit<")
-			want := 16 - 1
+			want := 17 - 1
 			if all {
-				want = 32 - 3
+				want = 33 - 3
 			}
 			if data.TbdColumnsAfterProject() != want || len(cellsOf(t, got, "Acme Shop")) != want {
 				t.Errorf("%s, all %v: want %d columns after the project, got %d and %d cells", h.name, all, want,
@@ -94,7 +94,7 @@ func TestHiddenGroupsLeaveTheirHeadersOut(t *testing.T) {
 // TestAllThreeHiddenShrinkTheNoDataSentence: a project without data spans the
 // columns that are left.
 func TestAllThreeHiddenShrinkTheNoDataSentence(t *testing.T) {
-	for all, columns := range map[bool]int{false: 13, true: 23} {
+	for all, columns := range map[bool]int{false: 14, true: 24} {
 		data := withoutData(all)
 		data.HideTbdTimeToMain, data.HideTbdPRLeadTime, data.HideTbdBotPRLeadTime = true, true, true
 		wantAll(t, "no data", rendered(t, "tbd.html", data), noDataRow(columns, 30))

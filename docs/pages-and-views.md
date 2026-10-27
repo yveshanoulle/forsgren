@@ -823,8 +823,8 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
   forsgren#485; Bot PR Lead Time right after PR Lead Time, forsgren#479): *Mainline
   Interval*; *Mainline Lead Time*; *Time to main per commit*; *PR Lead
   Time* (pull requests a person opened); *Bot PR Lead Time* (pull requests a
-  bot opened); *Time to deploy per commit*; *Volume* (Commits, Pushes,
-  Deployments); *Commits per push*; *Commits per deployment*; *Shares of
+  bot opened); *Time to deploy per commit*; *Volume* (Commits, Deployed
+  commits, Pushes, Deployments); *Commits per push*; *Commits per deployment*; *Shares of
   commits* (Direct, PR, Unknown, Bots; forsgren#403 shortened the two headers,
   each keeps the full meaning in an `aria-label`); and *Developers* (the
   count). The key `tbd_figures` (forsgren#423, see
@@ -888,9 +888,13 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     so they are not the row's: one cell, `Per repository` (forsgren#475),
     stands across each run of those columns, not a dash in each. With the
     median alone the four runs are 5 columns (Mainline Interval, Mainline Lead
-    Time, Time to main, PR Lead Time and Bot PR Lead Time), 2 (Commits and
-    Pushes), 1 (Commits per push) and 4 (the shares); with `all` they are 15,
-    2, 3 and 4. A group the column switches turn off leaves the first run
+    Time, Time to main, PR Lead Time and Bot PR Lead Time), 5 runs in all
+    (Commits, Deployed commits and Pushes: the pushed Commits and the Pushes
+    are the repository's, the Deployed commits the service's own, so they are
+    cells of one column each, `Per repository` on either side of the number; a
+    service without paths has `Per repository` across the three), 1 (Commits
+    per push) and 4 (the shares); with `all` the runs of the groups are 15, 3
+    and 4. A group the column switches turn off leaves the first run
     shorter by its columns.
 
     The service's own figures are over the commits it owns (forsgren#496,
@@ -1066,7 +1070,15 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     their author date.
   - *Volume.* Commits are the distinct first-parent commits the pushes
     brought, by repository (ignoring case) and SHA, each counted once at its
-    first push; Pushes the pushes of the window; Deployments the successful
+    first push; Deployed commits (forsgren#513, decision #495) are the
+    distinct commits the deployments of the window delivered, a plain number
+    like Commits, each counted once at its first deployment in the window as
+    Time to deploy counts it, never a sum over deployments: a service or rule
+    row with `paths` counts only the commits that touch them (note 8 when
+    their files are still being read), a service without paths says
+    `Per repository`, and the project's total and a repository's label row
+    count the distinct commits of all their deployments, a commit that several
+    services or rules shipped once; Pushes the pushes of the window; Deployments the successful
     deployments of the window, as the table page counts them, the number
     only, `85`, whatever the kind of deployment (forsgren#403; it read
     `85 releases` for a project measured by releases alone before).

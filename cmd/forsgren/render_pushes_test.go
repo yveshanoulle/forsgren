@@ -140,8 +140,8 @@ func TestRenderShowsThePushGroupsAndTheirStatesOnTheTbdPage(t *testing.T) {
 	wantIn(t, got, tdRow("25 m", "-", "-")+"\n            "+
 		`<td colspan="3">No pull requests have been collected yet</td>`+"\n            "+
 		`<td colspan="3">No pull requests have been collected yet</td>`+"\n            "+shopTimes,
-		tdRow("1", "1", "12", "1.0", "-", "-", "1.0", "-", "-", "100%", "0%", "0%", "0%", "0"),
-		tdRow("0", "0", "0", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"))
+		tdRow("1", "3", "1", "12", "1.0", "-", "-", "1.0", "-", "-", "100%", "0%", "0%", "0%", "0"),
+		tdRow("0", "0", "0", "0", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"))
 	if strings.Contains(got, "Pushes not collected yet") {
 		t.Errorf("want no state with the pushes collected, got:\n%s", got)
 	}

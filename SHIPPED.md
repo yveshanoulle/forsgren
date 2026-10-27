@@ -9,6 +9,26 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — TBD: a Deployed commits column after Commits, each distinct commit counted once at its first deployment in the window ([#513](https://github.com/yveshanoulle/forsgren/issues/513), steps 1–2)
+
+`TbdRow.DeployedCommits` summed the first-parent commits over a row's
+deployments, so a commit carried by several deployments counted several times,
+and only service rows had it. It is now the distinct commits of the row's
+deployments, each once at its first deployment in the window, as Time to deploy
+counts it: a service or rule row with paths counts the commits that touch them,
+the project total and a repository label row the distinct commits of all their
+deployments, a commit shared by several services or rules once. The TBD page
+shows it in a new Deployed commits column right after Commits, a plain number
+in both figure modes; a service row keeps `Per repository` for the pushed
+Commits and Pushes around its own number (across all three without paths). The
+legend tells pushed commits from deployed commits, and the fixture browser
+baseline of the TBD table is raised to 726 and 1616 px, the width Yves accepted
+in decision #495.
+
+forsgren issue 513, patch.
+
+---
+
 ## 2026-10-27 — The commit files read looks at a deployment rule's paths too, so a rule row stops saying Files still being read ([#510](https://github.com/yveshanoulle/forsgren/issues/510), step 1 of 1)
 
 `fillCommitFiles` returned at once when no service had paths, so a repository

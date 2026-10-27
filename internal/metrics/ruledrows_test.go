@@ -90,7 +90,7 @@ func TestARuleTbdRowIsAServiceRowWithThePathsOfItsRule(t *testing.T) {
 	want := map[string]ruleFigures{
 		"Releases":  {true, 2, serviceFigures{timed: 1, deployed: 1, deployments: 1, perRepository: true}},
 		"Site":      {true, 1, serviceFigures{timed: 1, deployed: 1, deployments: 1}},
-		"Acme Site": {false, 4, serviceFigures{timed: 3, deployments: 2}},
+		"Acme Site": {false, 4, serviceFigures{timed: 3, deployed: 3, deployments: 2}},
 	}
 	for name, w := range want {
 		if got := ruleFiguresOf(tbdRowNamed(t, rows, name)); got != w {

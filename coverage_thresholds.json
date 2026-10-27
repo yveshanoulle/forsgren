@@ -1188,6 +1188,7 @@
     "github.com/yveshanoulle/forsgren/internal/page/tbd.go:withoutAbsent": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbdgroups.go:TbdGroupHeads": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbdgroups.go:TbdBatchHeads": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/tbdgroups.go:VolumeGroups": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbdgroups.go:plain": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbdgroups.go:colspanOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbdgroups.go:plainGroup": 100.0,
