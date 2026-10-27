@@ -283,9 +283,15 @@ Then go on to step 3.
    newer than `v1.9.0`): print both without their `v`, one per line, and sort
    them with `sort -V`; the last line is the newer one.
    - `VERSION` is the same as `LATEST`: the installation is already the
-     latest release. Tell the person so, and do not stop yet: go to step 9,
-     whose checks show whether the installation really runs it, and skip
-     steps 4 to 8.
+     latest release. Tell the person so, and do not stop yet: skip steps 4, 6
+     and 7 (no release to read, no pin to move, no template change), go
+     through the settings of "Already at the latest release" in step 5 (it
+     may end the settings with nothing to write), and then go to step 9,
+     whose checks show whether the installation really runs it. This is not
+     the end of the upgrade. In this order: the settings items of step 5, then
+     step 9 (start the run with `gh workflow run` and check the published
+     page), then step 10, the report. Never say there is nothing to upgrade
+     and stop, and never remove `WORK`, before step 10.
    - `VERSION` is newer than `LATEST`: stop and report. A pin must never be
      lowered, and a release newer than the latest is not published.
    - `VERSION` is older: go on.
@@ -511,6 +517,36 @@ Any change to an answer: show the plan again. Nothing is committed before that
 reply.
 
 Then go on to step 6.
+
+### Already at the latest release
+
+Only when step 3 found `VERSION` the same as `LATEST`. Steps 4, 6 and 7 are
+skipped, so only the settings that do not depend on a version change are
+asked. Several accounts (item 4), Service folders (item 5) and Several ways to
+deploy (item 6) do not depend on a version change: each looks at what
+`forsgren.config.yml` and GitHub hold today, and `LATEST` already knows the
+keys (the release that brought `paths` and `deployments:` is not newer than
+`LATEST`, so the condition on the release notes in item 5 is met). A waiting
+pull request (item 1) and the asks of the release notes (item 2) need a
+version change, and there is none. Auto-update (item 3) is asked on a move to
+a release, and is not asked again here.
+
+Tell the person in a sentence that the installation is already on `LATEST`
+and that only these settings are offered. For items 4, 5 and 6, ask and
+propose as in the items above, each only when it applies, in one message that
+ends with the "Reply with your answers by number" line given above, word for
+word. Then show the plan:
+`OWNER/REPO`, each line of `forsgren.config.yml` that changes. No pin changes.
+End with this go-question:
+
+> Reply "go: write the settings of OWNER/REPO at LATEST in a commit of their
+> own and commit the forsgren.config.yml change" to let me commit.
+
+Wait for that reply, the sentence as shown, filled in; a bare "go" or any
+other reply is answered as above. When the person accepts any setting and
+gives that go, then go to step 8, and from there to step 9. When none of the
+three applies, or the person skips all of them: go straight to step 9, and
+write nothing.
 
 ## Step 6. Move the pins, in one commit
 
@@ -745,6 +781,11 @@ repository), and the update wait, `default-days` in
 `projects:` and `data/` included. Nothing chosen: skip this step and go on to
 step 9 (every answer was to keep what is there).
 
+Already at the latest release: this step is the only write, in a commit of its
+own, config only, no pin change, with the `forsgren.config.yml` keys of items
+4 to 6 of step 5 and no update wait. Item 1 then has `BRANCH` and `HEADSHA` read
+as in route 6b item 1 of step 6 (steps 6 and 7 were skipped).
+
 1. Read both files as the branch has them now (after steps 6 and 7), with
    `BRANCH` and `HEADSHA` read again as in route 6b item 1 of step 6:
 
@@ -801,7 +842,10 @@ step 9 (every answer was to keep what is there).
      again. Any other error (a download or Go error): stop and report.
    - Without Go: tell the person the first run (step 9) checks the file and
      fails before it publishes anything when it is invalid.
-5. Commit it as route 6b of step 6 does, in one commit for the files that
+5. Already at the latest release: the message `forsgren: set NAMES (settings
+   only, no pin change)` (for example `forsgren: set deployments (settings only, no pin change)`)
+   and the commit holds `forsgren.config.yml` alone; the rest is as below.
+   Commit it as route 6b of step 6 does, in one commit for the files that
    changed: items 1 and 4 to 7 with `WORK/new/` as the source (the tree holds
    `forsgren.config.yml` and `.github/dependabot.yml`, only the ones that
    changed), the message `forsgren: set NAMES for LATEST` with `NAMES` every
@@ -823,8 +867,9 @@ Then go on to step 9.
 
 ## Step 9. Run it and check the published page
 
-Reached from step 8, or from step 3 when the installation was already at the
-latest release (steps 4 to 8 skipped). Start the run yourself: the schedule
+Reached from step 8 (after the settings-only commit as well), or from step 5
+when the installation was already at the latest release and no setting
+applied or the person skipped them all (steps 6 to 8 skipped). Start the run yourself: the schedule
 can run hours late, and the person should see the result now.
 
 1. Start it:
@@ -909,9 +954,11 @@ Then go on to step 10.
 Tell them, in one message:
 
 - what changed: the installation `OWNER/REPO` went from `VERSION` to
-  `LATEST` (or: it was already at `LATEST`), the commits you made (each with
+  `LATEST` (or: it was already at `LATEST`, with or without a settings-only commit), the commits you made (each with
   its short sha and what it changed) or the pull request you merged, and the
   settings that changed with their old and new values;
+- when the installation was already at `LATEST`: the report also names the
+  run you started in step 9 (`RUN`) and what the published page showed;
 - what they can check themselves: the page address (`REPORT`), whose footer
   names `LATEST` without its `v`, and its settings page (`REPORTsettings.html`);
 - what their auto-update choice means now: with `auto_update: true`, the next

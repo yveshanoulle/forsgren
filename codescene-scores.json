@@ -1467,6 +1467,12 @@
    "minScore": 9.28
   },
   {
+   "path": "internal/installerdoc/agent_upgrade_current_test.go",
+   "score": 10,
+   "checkedAt": "2026-10-27",
+   "minScore": 10
+  },
+  {
    "path": "internal/installerdoc/agent_upgrade_test.go",
    "score": 9.68,
    "checkedAt": "2026-10-20",

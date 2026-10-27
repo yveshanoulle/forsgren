@@ -9,6 +9,13 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — The upgrade agent offers the settings also when the installation is already on the latest release ([#505](https://github.com/yveshanoulle/forsgren/issues/505), step 1 of 1)
+
+forsgren issue 505, patch.
+
+- `agent-upgrade.md` step 3 no longer skips steps 4 to 8 for an installation already at `LATEST`: it skips 4, 6 and 7 and goes through the new "Already at the latest release" part of step 5, which asks only the settings that do not depend on a version change (several accounts, service folders, several ways to deploy; the waiting pull request, the release notes' asks and auto-update need a version change). With the person's own go-sentence, step 8 writes them in a commit of their own (config only, no pin change, message `forsgren: set NAMES (settings only, no pin change)`); with nothing to write it goes straight to step 9. Steps 9 and 10 say the new path, step 3 names the order (settings, step 9's run and checks, the report) and forbids stopping or removing `WORK` before the report, and the report of that path names the run and what the page showed.
+- Pinned by `internal/installerdoc/agent_upgrade_current_test.go`.
+
 ## 2026-10-27 — README's Documentation list has an Agents entry ([#504](https://github.com/yveshanoulle/forsgren/issues/504), step 1 of 1)
 
 The Documentation list in `README.md` (and so the starter page) now has an Agents entry, right after Updating and releases, linking `agent-installer.md`, `agent-upgrade.md` and `agent-delete.md` and saying the upgrader also helps with the settings a new release brings, such as service folders and deployment rules. The Installing text is unchanged. Pinned by `internal/installerdoc/readme_agents_entry_test.go`. forsgren issue 504, patch.
