@@ -9,6 +9,10 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — The pull-requests: read comment names PR Lead Time and Bot PR Lead Time ([#461](https://github.com/yveshanoulle/forsgren/issues/461), step 1 of 1)
+
+`Scripts/release_pins.sh`'s `PR_READ_COMMENT` said the permission lets collect read merged pull requests "for Mainline Lead Time", a measure forsgren#460 renamed PR Lead Time and 1.24.5 joined with Bot PR Lead Time. The comment now names both, and a workflow carrying the previous wording gets the new one on its next pin move (pinned in `Scripts/test_release_pins.sh`). The reason string of `pulls.csv` in `Scripts/check_data_guard.sh` was changed to match; `pull_commits.csv` and the Go comments keep Mainline Lead Time, which is still a real measure (forsgren#463). forsgren issue 461, patch.
+
 ## 2026-10-27 — The agents propose a service's folders and a repository's deployment rules ([#503](https://github.com/yveshanoulle/forsgren/issues/503), steps 1–2)
 
 forsgren issue 503, patch.

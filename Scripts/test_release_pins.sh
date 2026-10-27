@@ -198,13 +198,24 @@ fi
 # decision #315): the release brings it to the agreed wording, every other
 # line byte for byte the same, and a second run changes nothing.
 PR_OLD="pull-requests: read  # optional: lets the page footer name Dependabot's waiting pull request for a newer forsgren release; without it the footer only says the release is available"
-PR_NEW="      pull-requests: read  # lets forsgren collect merged pull requests for Mainline Lead Time (from 1.15.0) and the page footer name Dependabot's waiting pull request; without it collect still stores everything else and the setup issue names it"
+PR_NEW="      pull-requests: read  # lets forsgren collect merged pull requests for PR Lead Time and Bot PR Lead Time (from 1.15.0) and the page footer name Dependabot's waiting pull request; without it collect still stores everything else and the setup issue names it"
 grep -qF "$PR_OLD" "${FIX}/forsgren.yml.fixture" || selftest_abort "the forsgren.yml fixture no longer holds the old pull-requests: read comment this self-test expects"
 GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite workflow "$VERSION" "$SHA" < "${FIX}/forsgren.yml.fixture" > "${TMP}/once.yml"
 if grep -qxF "$PR_NEW" "${TMP}/once.yml" && ! grep -qF "$PR_OLD" "${TMP}/once.yml"; then
   echo "  ok: the calling workflow's pull-requests: read comment gets the agreed wording"
 else
   fail "the pull-requests: read comment was not brought to the agreed wording. Line: $(grep -F 'pull-requests:' "${TMP}/once.yml")"
+fi
+# forsgren#461: an installation that got the previous wording (Mainline Lead
+# Time) in an earlier release has it replaced on its next pin move.
+PR_PREV="      pull-requests: read  # lets forsgren collect merged pull requests for Mainline Lead Time (from 1.15.0) and the page footer name Dependabot's waiting pull request; without it collect still stores everything else and the setup issue names it"
+sed "s|^.*pull-requests: read.*\$|${PR_PREV//|/\\|}|" "${FIX}/forsgren.yml.fixture" > "${TMP}/prev.yml"
+grep -qxF "$PR_PREV" "${TMP}/prev.yml" || selftest_abort "could not build the workflow carrying the previous pull-requests: read comment"
+GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite workflow "$VERSION" "$SHA" < "${TMP}/prev.yml" > "${TMP}/prev_out.yml"
+if grep -qxF "$PR_NEW" "${TMP}/prev_out.yml" && ! grep -qF "Mainline Lead Time" "${TMP}/prev_out.yml"; then
+  echo "  ok: a workflow carrying the previous comment gets PR Lead Time and Bot PR Lead Time (forsgren#461)"
+else
+  fail "the previous pull-requests: read comment was not replaced. Line: $(grep -F 'pull-requests:' "${TMP}/prev_out.yml")"
 fi
 # every line but the pin, the release comment and the pull-requests line is unchanged
 if diff <(grep -vE 'metrics\.yml@|commit of release|pull-requests:' "${FIX}/forsgren.yml.fixture") \

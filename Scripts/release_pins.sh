@@ -92,7 +92,7 @@ VERSION_RE="$(printf '%s' "$VERSION" | sed 's/\./\\./g')"
 # The comment of the calling workflow's `pull-requests: read` line, which the
 # kind `workflow` writes whatever the line said before (forsgren#320 step 4,
 # decision #315): the permission serves two reads since 1.15.0.
-PR_READ_COMMENT="lets forsgren collect merged pull requests for Mainline Lead Time (from 1.15.0) and the page footer name Dependabot's waiting pull request; without it collect still stores everything else and the setup issue names it"
+PR_READ_COMMENT="lets forsgren collect merged pull requests for PR Lead Time and Bot PR Lead Time (from 1.15.0) and the page footer name Dependabot's waiting pull request; without it collect still stores everything else and the setup issue names it"
 
 # rewrite <kind>: stdin to stdout.
 rewrite() {

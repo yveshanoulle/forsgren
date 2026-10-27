@@ -120,7 +120,7 @@ guarded_reason() {
     starts_checked.csv) why="which repositories had their failure starts caught up from the issues' comments, which forsgren collect keeps (data/starts_checked.csv in an installation)" ;;
     commits_backfilled.csv) why="which repositories had the author, parents and committer date of their legacy commits backfilled, which forsgren collect keeps (data/commits_backfilled.csv in an installation)" ;;
     reach.csv) why="how far back each repository's deployments were read, which forsgren collect keeps (data/reach.csv in an installation)" ;;
-    pulls.csv) why="the merged pull requests forsgren collect keeps for Mainline Lead Time (data/pulls.csv in an installation)" ;;
+    pulls.csv) why="the merged pull requests forsgren collect keeps for PR Lead Time and Bot PR Lead Time (data/pulls.csv in an installation)" ;;
     pulls_read.csv) why="when each repository's closed pull requests were last read, which forsgren collect keeps (data/pulls_read.csv in an installation)" ;;
     pulls_denied.csv) why="which repositories' pull request reads GitHub refused, and which token, which forsgren collect keeps (data/pulls_denied.csv in an installation)" ;;
     pushes.csv) why="the pushes to each repository's main branch forsgren collect keeps for time to main and batch size (data/pushes.csv in an installation)" ;;
