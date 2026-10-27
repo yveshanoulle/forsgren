@@ -1,6 +1,6 @@
 {
  "note": "Code Health scores from the CodeScene MCP, an in-session check at review time, deliberately not an sfl/CI gate (ported from another estate repository, adopted by Yves for forsgren 2026-10-02). Every Go change gets a CodeScene review before its FBP; the changed files' rows are updated at that hand-off. Floor: every file >= 9.0. minScore is a ratchet: a file below 10 floors at score - 0.1 but never below 9.0; a file at 10.0 floors at 10.0. A change must not drop a file below its minScore; lift minScore when a score improves. A row whose score is below its minScore is debt that must be fixed, not a floor to keep. Rules: .codescene/code-health-rules.json (cyclomatic complexity warning at 7, mirroring gocyclo). Sorted ascending by score.",
- "scoredWith": "CodeScene MCP on babacar, first baseline of all 27 Go files on 2026-10-02 under .codescene/code-health-rules.json. Re-baseline when the rules change, not on an engine bump.",
+ "scoredWith": "CodeScene MCP, first baseline of all 27 Go files on 2026-10-02 under .codescene/code-health-rules.json. Re-baseline when the rules change, not on an engine bump.",
  "files": [
   {
    "path": "internal/collect/fake_test.go",
@@ -2425,6 +2425,24 @@
    "score": 10.0,
    "checkedAt": "2026-10-26",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/weekrows.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/labelrows.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/weekrows_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-27",
+   "minScore": 9.58
   },
   {
    "path": "cmd/forsgren/render_pushes_test.go",

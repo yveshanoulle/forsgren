@@ -9,6 +9,35 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — Label row headers no longer widen the DORA and History tables ([#454](https://github.com/yveshanoulle/forsgren/issues/454))
+
+Found in #422 step 5 (decision #453 A): the fixture's numbers, scoring, numbers
+and scoring and History pages scrolled about 53 px further sideways. The
+measure showed two causes: the " (total)" after a project's name (53 px, in the
+DORA tables) and, in the History table, the long label row header (`– API:
+Overall Performance`). Both sat in `white-space: nowrap` cells of a `no-wrap`
+table. The fix is two CSS rules, `.no-wrap tr.label th` and `.no-wrap .total`,
+both `white-space: normal` (no `nowrap` added); `Row.Total` and a
+`<span class="total"> (total)</span>` replace the heading text "Acme Shop
+(total)", whose words and look are unchanged on a wide screen. The dash stays
+glued to its label (#526). Red first: the seven baseline rows were lowered to
+their widths before #453 (38, 928, 21, 911, 21, 911, 346) and the fixture
+browser gate failed on all seven ("grew": 91, 981, 74, 964, 74, 964, 410), plus
+two CSS pins and the page pin on the new markup; green after the fix with the
+rows exactly at those widths. Patch.
+
+## 2026-10-27 — A machine name in codescene-scores.json and .actionlint.yaml, missed by the private-names gate ([#351](https://github.com/yveshanoulle/forsgren/issues/351))
+
+`codescene-scores.json` said `CodeScene MCP on <machine>` and a comment in
+`.actionlint.yaml` named the self-hosted runner's host label, so public files
+named a machine of the maintainer's setup. The gate needed no code change: it
+reads its names from outside the repository (`~/.config/forsgren/private-names`,
+and the Actions secret `FORSGREN_PRIVATE_NAMES` in CI), and the machine names
+were not on that list. They were added there; the gate was then red on exactly
+those two lines, and both are reworded to name no machine. Tools, no release.
+
+---
+
 ## 2026-10-27 — Figures align on the right and counts get a thousand separator, a narrow no-break space by default, set by thousands_separator ([#528](https://github.com/yveshanoulle/forsgren/issues/528), decisions [#529](https://github.com/yveshanoulle/forsgren/issues/529) B and [#530](https://github.com/yveshanoulle/forsgren/issues/530) A, step 1 of 1)
 
 Asked by Yves: align the numbers on the right and use a thousand separator.

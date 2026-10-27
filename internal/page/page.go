@@ -147,14 +147,18 @@ type Row struct {
 	metrics.Row
 	Heading string
 	Project string
+	// Total says the row is a project's total, followed by its label rows:
+	// the page writes " (total)" after the heading in a span of its own
+	// that may wrap (forsgren#454).
+	Total bool
 }
 
 // IsLabel says whether the row is a label's, under its project's total.
 func (r Row) IsLabel() bool { return r.Level == metrics.LabelRow }
 
 // Table is the page's rows for the metrics' rows, in their order: a
-// project's row is headed by its name, "Acme Shop (total)" when label rows
-// follow it, and a label's row by the label, with its project's name for
+// project's row is headed by its name, with " (total)" after it (Total) when
+// label rows follow it, and a label's row by the label, with its project's name for
 // a screen reader.
 func Table(rows []metrics.Row) []Row {
 	out := make([]Row, len(rows))
@@ -166,7 +170,7 @@ func Table(rows []metrics.Row) []Row {
 			total = &out[i]
 		case total != nil:
 			out[i].Project = total.Name
-			total.Heading = total.Name + " (total)"
+			total.Total = true
 		}
 	}
 	return out
@@ -188,7 +192,7 @@ func (d Data) ShownRows() []Row {
 	var out []Row
 	for _, r := range d.Rows {
 		if !d.leavesOut(r.Level) {
-			r.Heading = r.Name
+			r.Total = false
 			out = append(out, r)
 		}
 	}

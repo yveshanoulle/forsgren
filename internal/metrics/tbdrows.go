@@ -17,8 +17,6 @@ package metrics
 //     marked absent and left empty, for the page to show a dash.
 
 import (
-	"slices"
-	"strings"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
@@ -81,28 +79,13 @@ func TbdRows(projects []config.Project, data Data, now time.Time, groups [][]str
 	return out
 }
 
-// labelRows are the rows of p's labels, sorted: each labelled repository as a
-// project of its own over all the data, each labelled service over its task's.
+// labelRows are the rows of p's labels, sorted by name ignoring case.
 func (s tbdSource) labelRows(p config.Project) []TbdRow {
-	var rows []TbdRow
-	for _, r := range p.Repositories {
-		labelled := config.Project{Name: r.Label, Repositories: []config.Repository{r}}
-		if r.Label != "" {
-			rows = append(rows, s.row(LabelRow, labelled, p.Name))
-		}
-		for task, label := range r.Services {
-			labelled.Name = label
-			rows = append(rows, s.serviceRow(labelled, p.Name, s.data.ofTask(r.Name, task), r.Paths[task]))
-		}
-		for _, rule := range r.Rules {
-			labelled.Name = rule.Label
-			rows = append(rows, s.serviceRow(labelled, p.Name, s.data.ofRule(r.Name, rule.Deployment), rule.Paths))
-		}
-	}
-	slices.SortFunc(rows, func(a, b TbdRow) int {
-		return strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name))
+	return labelledRows(p, s.data, labelBuilders[TbdRow]{
+		repository: func(only config.Project, project string) TbdRow { return s.row(LabelRow, only, project) },
+		service:    s.serviceRow,
+		name:       func(r TbdRow) string { return r.Name },
 	})
-	return rows
 }
 
 // row is the row at level of the project p, p being the only project, with

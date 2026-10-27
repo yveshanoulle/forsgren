@@ -35,4 +35,4 @@
       </table>
     </div>
 {{end}}
-{{define "rowheader"}}            <th scope="row">{{if .IsLabel}}<span class="visually-hidden">{{.Project}}: </span>{{template "labelheader" (labelheader .Heading)}}{{else}}{{.Heading}}{{end}}</th>{{end}}
+{{define "rowheader"}}            <th scope="row">{{if .IsLabel}}<span class="visually-hidden">{{.Project}}: </span>{{template "labelheader" (labelheader .Heading)}}{{else}}{{.Heading}}{{if .Total}}<span class="total"> (total)</span>{{end}}{{end}}</th>{{end}}

@@ -223,6 +223,30 @@ func TestNoWrapCellsAreScopedByClass(t *testing.T) {
 	}
 }
 
+// TestLabelRowHeadersMayWrapInANoWrapTable (forsgren#454): the header of a
+// label row (a project label with its measure, "– Admin: Lead time for
+// changes") is longer than any other row header, so on a no-wrap table it
+// widened the first column. The row of a label gets white-space: normal on its
+// th, so the measure after the label wraps at its spaces; the dash and the
+// label stay one piece (forsgren#526). No rule adds nowrap for this.
+func TestLabelRowHeadersMayWrapInANoWrapTable(t *testing.T) {
+	sheet := stylesSheet(t)
+	if !sheet.declares(".no-wrap tr.label th", "white-space: normal") {
+		t.Errorf("want a .no-wrap tr.label th rule with white-space: normal in styles.css, got:\n%s", sheet.text)
+	}
+}
+
+// TestTotalSuffixMayWrapInANoWrapTable (forsgren#454): the " (total)" after a
+// project's name made the first column of a no-wrap table about 53 px wider
+// than the name alone; its span may wrap, so the column is as wide as the name
+// whenever the table has no room to spare.
+func TestTotalSuffixMayWrapInANoWrapTable(t *testing.T) {
+	sheet := stylesSheet(t)
+	if !sheet.declares(".no-wrap .total", "white-space: normal") {
+		t.Errorf("want a .no-wrap .total rule with white-space: normal in styles.css, got:\n%s", sheet.text)
+	}
+}
+
 // TestRunningTextHasAReadableMeasureWhileTablesKeepTheFullWidth (forsgren#153,
 // decision #160 point 3): paragraphs and list items are capped at 72rem, so a
 // line of the Legend stays readable on a wide screen, while the table rule

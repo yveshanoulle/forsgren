@@ -198,7 +198,11 @@ func TestLabelsPageMatchesGolden(t *testing.T) {
 func TestTableHeadsTheRows(t *testing.T) {
 	var got []string
 	for _, r := range Table(labelledRows()) {
-		got = append(got, r.Project+"|"+r.Heading)
+		heading := r.Heading
+		if r.Total {
+			heading += " (total)"
+		}
+		got = append(got, r.Project+"|"+heading)
 	}
 	want := []string{
 		"|Acme Shop (total)", "Acme Shop|ADMIN", "Acme Shop|API", "Acme Shop|IOS", "Acme Shop|Website",

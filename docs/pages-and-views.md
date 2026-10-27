@@ -409,13 +409,17 @@ a path on github.com (forsgren#172):
 - **The rows** are, per project in the config's order, its total, then a
   row per label its repositories give (see [Configuration](configuration.md#configuration), `label` and
   `services`), sorted by label ignoring case and indented under it. A
-  project with label rows is headed "Acme Shop (total)"; one without is
-  one row with its name. With `sub_rows: false` (forsgren#482, decision #488,
+  project with label rows is headed "Acme Shop (total)", the " (total)"
+  in a span that may wrap so it does not widen the first column
+  (forsgren#454); one without is one row with its name. With `sub_rows: false` (forsgren#482, decision #488,
   see [Configuration](configuration.md#configuration)) every table, the
   History page and the TBD page included, shows each project's total row
   alone, headed by its name without "(total)" (decision #490). A label row's header also carries its project's
   name for a screen reader ("Acme Shop: API"), hidden on screen, and the
   dash drawn before a label has empty alternative text, so it is not read.
+  In the DORA tables and the History table, whose cells stay on one line, the
+  header of a label row may wrap at its spaces (`.no-wrap tr.label th`,
+  forsgren#454); the dash stays glued to the label (forsgren#526).
 - **Each row is counted** by the same five metric functions as a project of
   its own, over its own data: a project's total over all its repositories,
   the numbers the page showed per project before the table; a repository's

@@ -33,7 +33,7 @@ func TestRenderShowsLabelRows(t *testing.T) {
 	_, _, index := renderWith(t, "--config", writeAllPagesConfig(t, labelledConfig),
 		"--data", writeHistory(t, acmeHistory()))
 	for _, want := range []string{
-		`<th scope="row">Acme Shop (total)</th>`,
+		`<th scope="row">Acme Shop<span class="total"> (total)</span></th>`,
 		`<tr class="label">
             ` + labelCell("Acme Shop", "API") + `
             <td>Between once per week and once per month · 3</td>

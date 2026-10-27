@@ -5,7 +5,7 @@
 # NO custom runner label. Every job here runs on a GitHub-hosted image
 # (quality.yml on macos-latest since forsgren#1's runner swap, dco.yml on
 # ubuntu-latest), and actionlint knows those labels without being told. The
-# self-hosted runner's labels, host-babacar and runner-forsgren, were
+# self-hosted runner's labels (a host label and runner-forsgren) were
 # declared here until that swap and are gone with it: the empty list below
 # keeps every custom label red, so a job sent to a self-hosted runner again
 # is a decision made in this file first. Declaring a label is CONFIGURATION,
