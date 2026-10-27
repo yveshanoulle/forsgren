@@ -204,6 +204,25 @@ projects:
   the table are the same in both modes. The starter that `init-config` writes
   shows the key commented out, so a new installation has the default. The
   legend explains both modes.
+- **`thousands_separator`** is optional (forsgren#528, decision #529 B): how the
+  pages write a count of 1000 or more, on every page and view (the DORA table,
+  the TBD page, the History page, the Issues and Daily tables, the legend). It
+  takes one of three values, written as plain literals:
+  - `narrow_space`: a narrow no-break space (U+202F), `1 282`, `12 345`,
+    `1 234 567`. This is the default. The space never breaks a line.
+  - `comma`: `1,282`.
+  - `none`: no separator, `1282`.
+
+  There is no `period`: the pages keep the decimal point (`6.0`, `0.22%`), so a
+  period would clash with it. A decimal keeps its point whatever the key says,
+  and only whole counts get a separator; percentages and durations such as
+  `1 h 19` are unchanged. Left out, or without a value, the key is
+  `narrow_space`. A value that is none of the three is not accepted: forsgren
+  uses `narrow_space` and says so (see
+  [A setting that is not accepted](#a-setting-that-is-not-accepted)), naming the
+  key: `invalid thousands_separator "period": use narrow_space, comma or none`.
+  The pages are not sorted in the browser, so the separator never decides an
+  order. The starter that `init-config` writes shows the key commented out.
 - **`tbd_time_to_main`**, **`tbd_pr_lead_time`** and **`tbd_bot_pr_lead_time`**
   are optional (forsgren#482, decisions #480 and #481): each shows or hides one
   column group of the TBD table. `tbd_time_to_main` is Time to main per
@@ -302,7 +321,7 @@ projects:
 - **The settings page** (`settings.html`, forsgren#74, moved out of the legend
   in forsgren#84, a table since forsgren#141) tabulates every optional key,
   `view`, `sub_rows`, `auto_update`, `auto_update_level`, `history_days`,
-  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time` and `same_developer`, eighteen rows in four columns: **Parameter**;
+  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`, `same_developer` and `thousands_separator`, nineteen rows in four columns: **Parameter**;
   **Current value**, the value in use (`major` for an unset
   `auto_update_level`); **Possible values**, built from the config package's
   own constants and limits so the page cannot drift from what `check-config`
@@ -531,7 +550,7 @@ them. For `workflow=`, look at the Actions tab; for `release`, run
 
 A setting with a default (`view`, `auto_update`, `auto_update_level`,
 `history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
-`issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`, `sub_rows` and `same_developer`) whose value forsgren
+`issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`, `sub_rows`, `same_developer` and `thousands_separator`) whose value forsgren
 does not accept, a list or
 a mapping included, does not stop the run (forsgren#183): forsgren uses that
 key's default instead, and says so in three places. The settings page's row

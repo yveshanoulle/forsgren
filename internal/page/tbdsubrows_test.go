@@ -41,6 +41,7 @@ func websiteRow(total metrics.TbdRow) metrics.TbdRow {
 	site.Interval = metrics.MainlineInterval{Project: "Website", Commits: 4, Gaps: 3, Mean: 3 * time.Hour,
 		Median: 2 * time.Hour, P90: 5 * time.Hour, ByAuthorDate: 2}
 	site.Lead.Median, site.Lead.Mean = 5*time.Hour, 6*time.Hour
+	site.BotLead.Median, site.BotLead.Mean = 35*time.Minute, 50*time.Minute
 	site.Push = metrics.PushMeasures{Pushes: 7, Commits: 12, PullRequests: 3, Direct: 9, UnknownAuthors: 1,
 		TimeToMain: metrics.DurationSpread{Count: 12, Mean: 20 * time.Minute, Median: 10 * time.Minute,
 			P90: time.Hour},

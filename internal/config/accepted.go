@@ -26,6 +26,7 @@ var acceptedSets = map[string][]string{
 	"auto_update_level":    levelValues,
 	"dora_days":            numbersOf(doraWindows),
 	"tbd_figures":          tbdFiguresValues,
+	"thousands_separator":  thousandsSeparatorValues,
 }
 
 // Accepted is the values the key accepts when they are a fixed set, sorted

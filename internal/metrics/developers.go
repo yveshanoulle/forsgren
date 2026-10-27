@@ -30,7 +30,6 @@ package metrics
 // The result holds counts only, never a login (decision 274).
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -68,7 +67,7 @@ func (d Developers) CountCell() string {
 	if d.Commits == 0 {
 		return noNumber
 	}
-	return fmt.Sprint(d.Count)
+	return GroupDigits(d.Count)
 }
 
 // MainlineDevelopers returns the Developers of each project, in the order of

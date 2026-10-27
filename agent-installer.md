@@ -860,7 +860,10 @@ Then check what the run did:
      `history_days`, `dora_days`, `issues_page`, `days_page`,
      `numbers_scoring_page` and `history_page` show the value of the config,
      without `(not set)` (the file sets the key).
-   - The rows `history_chunk_days`, `working_hours`, `tbd_page` and
+   - The row `thousands_separator` shows `narrow_space (not set)` (counts of
+     1000 or more are written with a narrow no-break space; `comma` and `none`
+     are the other values, there is no `period`). The rows `history_chunk_days`,
+     `working_hours`, `tbd_page` and
      `tbd_figures` are left to their defaults: `history_chunk_days` shows
      `100 (not set)`, `working_hours` shows `8 (not set)`, `tbd_page` shows
      `true (not set)` (the TBD page, `tbd.html`, is generated and in the menu)
@@ -1148,7 +1151,7 @@ For an install that exists, you can change one setting: a top-level key of
 `history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
 `issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`,
 `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`,
-`sub_rows`, `same_developer`), or the update wait
+`sub_rows`, `same_developer`, `thousands_separator`), or the update wait
 (`default-days` in `.github/dependabot.yml`, in days). Changes to the
 projects and repositories are not covered here. Follow these steps alone;
 the install steps above do not apply.

@@ -63,6 +63,14 @@
 #
 # tbd_figures: median  # the TBD table's figures: median (default) or all
 #
+# thousands_separator: is optional and narrow_space when left out. It sets how
+# the pages write a count of 1000 or more: narrow_space (1 282, a narrow
+# no-break space), comma (1,282) or none (1282). There is no period, because
+# the pages keep the decimal point. To write the key, remove the "# " in front
+# of the next line.
+#
+# thousands_separator: narrow_space  # narrow_space (default), comma or none
+#
 # tbd_time_to_main:, tbd_pr_lead_time:, tbd_bot_pr_lead_time: and sub_rows: are
 # optional and all true when left out. Each hides one thing when set to false:
 # the Time to main column, the PR Lead Time column, the Bot PR Lead Time column

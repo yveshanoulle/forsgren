@@ -26,8 +26,8 @@ func TestRenderTbdFiguresChoosesTheColumnsOfTheTbdTable(t *testing.T) {
 	data := writeData(t, acmeHistory(), acmeCommits())
 	for name, figures := range map[string]string{"default": "", "median": "tbd_figures: median\n"} {
 		got := tbdSiteIn(t, figures, data)
-		wantIn(t, got, `<th scope="col" aria-label="median mainline interval">Mainline Interval</th>`,
-			`<th scope="col" aria-label="median PR lead time">PR Lead Time</th>`)
+		wantIn(t, got, `<th scope="col" aria-label="median mainline interval" class="num">Mainline Interval</th>`,
+			`<th scope="col" aria-label="median PR lead time" class="num">PR Lead Time</th>`)
 		for _, not := range []string{"rowspan", "colgroup", ">mean<", ">deviation<", ">gaps<"} {
 			if strings.Contains(got, not) {
 				t.Errorf("%s: want no %q in tbd.html, got:\n%s", name, not, got)
@@ -37,9 +37,9 @@ func TestRenderTbdFiguresChoosesTheColumnsOfTheTbdTable(t *testing.T) {
 	got := tbdSiteIn(t, figuresAll, data)
 	wantIn(t, got, `<th scope="colgroup" colspan="3">Mainline Interval</th>`,
 		`<th scope="colgroup" colspan="3">PR Lead Time</th>`,
-		`<th scope="col" aria-label="the mean of mainline interval">mean</th>`,
-		`<th scope="col" aria-label="the p90 of PR lead time">p90</th>`,
-		`<th scope="col" aria-label="the median of mainline lead time">median</th>`)
+		`<th scope="col" aria-label="the mean of mainline interval" class="num">mean</th>`,
+		`<th scope="col" aria-label="the p90 of PR lead time" class="num">p90</th>`,
+		`<th scope="col" aria-label="the median of mainline lead time" class="num">median</th>`)
 	for _, not := range []string{">deviation<", ">gaps<", ">pull requests<"} {
 		if strings.Contains(got, not) {
 			t.Errorf("all: want no %q in tbd.html, got:\n%s", not, got)
@@ -55,7 +55,8 @@ func TestRenderTbdFiguresThatIsNotAcceptedShowsTheMedianAndSaysWhy(t *testing.T)
 	pinNow(t)
 	data := writeData(t, acmeHistory(), acmeCommits())
 	dir := renderInto(t, "--config", writeConfig(t, validConfig+tbdOn+"tbd_figures: both\n"), "--data", data)
-	wantIn(t, readSite(t, dir, "tbd.html"), `<th scope="col" aria-label="median mainline interval">Mainline Interval</th>`)
+	wantIn(t, readSite(t, dir, "tbd.html"),
+		`<th scope="col" aria-label="median mainline interval" class="num">Mainline Interval</th>`)
 	settings := readSite(t, dir, "settings.html")
 	wants := []string{`<th scope="row">tbd_figures</th>`,
 		`<span class="written">both</span> is not accepted: use median or all.`, "median, all"}

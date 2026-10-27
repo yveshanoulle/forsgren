@@ -31,7 +31,7 @@ func numbersOf(t *testing.T, keys string) string {
 // old is counted in the table with dora_days: 90 and not with the default 30.
 func TestRenderCountsTheConfiguredWindow(t *testing.T) {
 	pinNow(t)
-	const counted = "<td>1</td>"
+	const counted = `<td class="num">1</td>`
 	thirty, ninety := numbersOf(t, ""), numbersOf(t, "dora_days: 90\n")
 	if !strings.Contains(ninety, counted) || strings.Contains(thirty, counted) {
 		t.Errorf("want the deployment counted over 90 days only\n--- 30 ---\n%s\n--- 90 ---\n%s", thirty, ninety)

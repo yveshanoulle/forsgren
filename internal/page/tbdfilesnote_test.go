@@ -21,13 +21,13 @@ func filesReadingData(all bool) Data {
 // apiRowReading is apiRow with the note 8 on the first cell of its Time to
 // deploy and its Commits per deployment.
 func apiRowReading(all bool) string {
-	row := strings.Replace(apiRow(all), "<td>3</td>", notedTd(notedCell{"3", []int{8}}), 1)
+	row := strings.Replace(apiRow(all), "<td class=\"num\">3</td>", notedTd(notedCell{"3", []int{8}}), 1)
 	if all {
-		row = strings.Replace(row, "<td>&lt; 1 m</td>", notedTd(notedCell{"&lt; 1 m", []int{8}}), 1)
-		return strings.Replace(row, "<td>0.0</td>", notedTd(notedCell{"0.0", []int{8}}), 1)
+		row = strings.Replace(row, "<td class=\"num\">&lt; 1 m</td>", notedTd(notedCell{"&lt; 1 m", []int{8}}), 1)
+		return strings.Replace(row, "<td class=\"num\">0.0</td>", notedTd(notedCell{"0.0", []int{8}}), 1)
 	}
-	row = strings.Replace(row, "<td>1 h</td>", notedTd(notedCell{"1 h", []int{8}}), 1)
-	return strings.Replace(row, "<td>2.0</td>", notedTd(notedCell{"2.0", []int{8}}), 1)
+	row = strings.Replace(row, "<td class=\"num\">1 h</td>", notedTd(notedCell{"1 h", []int{8}}), 1)
+	return strings.Replace(row, "<td class=\"num\">2.0</td>", notedTd(notedCell{"2.0", []int{8}}), 1)
 }
 
 // TestAServiceStillReadingItsFilesMarksItsDeployCells: the mean cell, or the

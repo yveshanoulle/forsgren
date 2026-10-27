@@ -11,27 +11,27 @@
             <th scope="colgroup" colspan="1">Developers</th>
           </tr>
           <tr>{{range .TbdGroupHeads}}{{template "spreadheadall" .}}{{end}}
-            <th scope="col">Commits</th>
-            <th scope="col">Pushes</th>
-            <th scope="col">Deployments</th>
-            <th scope="col">Deployed commits</th>{{range .TbdBatchHeads}}{{template "spreadheadall" .}}{{end}}
-            <th scope="col">Direct</th>
-            <th scope="col" aria-label="pull request share of commits">PR</th>
-            <th scope="col" aria-label="unknown author share of commits">Unknown</th>
-            <th scope="col">Bots</th>
-            <th scope="col">developers</th>
+            <th scope="col" class="num">Commits</th>
+            <th scope="col" class="num">Pushes</th>
+            <th scope="col" class="num">Deployments</th>
+            <th scope="col" class="num">Deployed commits</th>{{range .TbdBatchHeads}}{{template "spreadheadall" .}}{{end}}
+            <th scope="col" class="num">Direct</th>
+            <th scope="col" aria-label="pull request share of commits" class="num">PR</th>
+            <th scope="col" aria-label="unknown author share of commits" class="num">Unknown</th>
+            <th scope="col" class="num">Bots</th>
+            <th scope="col" class="num">developers</th>
           </tr>
 {{else}}          <tr>
             <th scope="col">Project</th>{{range .TbdGroupHeads}}{{template "spreadheadone" .}}{{end}}
-            <th scope="col">Commits</th>
-            <th scope="col">Pushes</th>
-            <th scope="col">Deployments</th>
-            <th scope="col">Deployed commits</th>{{range .TbdBatchHeads}}{{template "spreadheadone" .}}{{end}}
-            <th scope="col" aria-label="direct share of commits">Direct share</th>
-            <th scope="col" aria-label="pull request share of commits">PR share</th>
-            <th scope="col" aria-label="unknown author share of commits">Unknown share</th>
-            <th scope="col" aria-label="bot share of commits">Bots share</th>
-            <th scope="col">Developers</th>
+            <th scope="col" class="num">Commits</th>
+            <th scope="col" class="num">Pushes</th>
+            <th scope="col" class="num">Deployments</th>
+            <th scope="col" class="num">Deployed commits</th>{{range .TbdBatchHeads}}{{template "spreadheadone" .}}{{end}}
+            <th scope="col" aria-label="direct share of commits" class="num">Direct share</th>
+            <th scope="col" aria-label="pull request share of commits" class="num">PR share</th>
+            <th scope="col" aria-label="unknown author share of commits" class="num">Unknown share</th>
+            <th scope="col" aria-label="bot share of commits" class="num">Bots share</th>
+            <th scope="col" class="num">Developers</th>
           </tr>
 {{end}}        </thead>
         <tbody>
@@ -40,14 +40,14 @@
 {{if .NoData}}            <td colspan="{{$.TbdColumnsAfterProject}}">{{.NoDataSentence}}</td>
           </tr>
 {{else}}{{if .PerRepository}}            <td colspan="{{.MainSpan}}">{{.PerRepositorySentence}}</td>
-{{else}}{{range .MainGroups}}{{template "spreadgroup" .}}{{end}}{{end}}{{range .DeployGroups}}{{template "spreadgroup" .}}{{end}}{{range .VolumeGroups}}{{template "spreadgroup" .}}{{end}}            <td>{{.Volume.Cell}}</td>
+{{else}}{{range .MainGroups}}{{template "spreadgroup" .}}{{end}}{{end}}{{range .DeployGroups}}{{template "spreadgroup" .}}{{end}}{{range .VolumeGroups}}{{template "spreadgroup" .}}{{end}}            <td class="num">{{.Volume.Cell}}</td>
 {{range .DeployedCommitsGroups}}{{template "spreadgroup" .}}{{end}}{{range .BatchGroups}}{{template "spreadgroup" .}}{{end}}{{if .PerRepository}}            <td colspan="4">{{.PerRepositorySentence}}</td>
 {{else if .Push.State}}            <td colspan="4">{{.Push.State}}</td>
-{{else}}            <td>{{.Push.DirectCell}}</td>
-            <td>{{.Push.PullRequestCell}}</td>
-            <td>{{.Push.UnknownAuthorCell}}</td>
-            <td>{{.Push.BotCell}}</td>
-{{end}}            <td>{{.Developers.CountCell}}</td>
+{{else}}            <td class="num">{{.Push.DirectCell}}</td>
+            <td class="num">{{.Push.PullRequestCell}}</td>
+            <td class="num">{{.Push.UnknownAuthorCell}}</td>
+            <td class="num">{{.Push.BotCell}}</td>
+{{end}}            <td class="num">{{.Developers.CountCell}}</td>
           </tr>
 {{end}}{{end}}        </tbody>
       </table>
@@ -55,7 +55,7 @@
 {{with .TbdNotes}}    <details class="tbd-notes" open>
       <summary>Notes</summary>
       <ul>
-{{range .}}        <li id="{{.ID}}">({{.Number}}) {{.Text}}: {{range $i, $p := .Projects}}{{if $i}}, {{end}}{{$p.Name}}{{with $p.Count}} {{.}}{{end}}{{with $p.Of}} of {{.}}{{end}}{{end}}</li>
+{{range .}}        <li id="{{.ID}}">({{.Number}}) {{.Text}}: {{range $i, $p := .Projects}}{{if $i}}, {{end}}{{$p.Name}}{{with $p.Count}} {{count .}}{{end}}{{with $p.Of}} of {{count .}}{{end}}{{end}}</li>
 {{end}}      </ul>
     </details>
 {{end}}{{else}}    <p>{{.TbdMessage}}</p>

@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -120,6 +119,11 @@ type Data struct {
 	// the 90th percentile; empty, as in a Data not made from a config, is the
 	// median (forsgren#423).
 	TbdFigures string
+	// ThousandsSeparator is the config's thousands_separator, "narrow_space",
+	// "comma" or "none": how every count of 1000 or more is written; empty, as
+	// in a Data not made from a config, is the narrow no-break space
+	// (forsgren#528).
+	ThousandsSeparator string
 	// HideTbdTimeToMain, HideTbdPRLeadTime, HideTbdBotPRLeadTime and
 	// HideSubRows are true when the config turns the key tbd_time_to_main,
 	// tbd_pr_lead_time, tbd_bot_pr_lead_time or sub_rows off; the zero value
@@ -417,7 +421,7 @@ var pages = parsePages()
 // (history.go), and "incomplete", the note of a bug column that cannot be
 // trusted (incomplete.go).
 var templateFuncs = template.FuncMap{"trend": trendViewOf, "bugtrend": bugTrendViewOf, "possible": possibleOf,
-	"beta": historyBeta, "incomplete": incompleteViewOf,
+	"beta": historyBeta, "incomplete": incompleteViewOf, "count": metrics.GroupDigits,
 	"labelheader": labelHeaderOf}
 
 // parsePages parses the layout once and clones it per page. A malformed
@@ -460,16 +464,6 @@ func (p page) viewShown(data Data) string {
 		return ""
 	}
 	return cmp.Or(p.view, data.View)
-}
-
-// Render writes the named page, filled with data, to w.
-func Render(w io.Writer, name string, data Data) error {
-	p, ok := pages[name]
-	if !ok {
-		return fmt.Errorf("page %q not found", name)
-	}
-	shown := pageData{Data: data, Base: p.base, View: p.viewShown(data), Page: p.name()}
-	return p.set.ExecuteTemplate(w, p.file, shown)
 }
 
 // WriteSite renders every page and copies styles.css and favicon.svg into dir,

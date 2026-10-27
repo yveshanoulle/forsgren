@@ -183,8 +183,8 @@ func issuesPageOf(t *testing.T, days ...metrics.IssueDay) string {
 // Open, not Total, which the next steps give to the issues ever created.
 func TestIssuesTableHeadsTheOpenIssuesColumnOpen(t *testing.T) {
 	got := issuesPageOf(t, metrics.IssueDay{Date: october(2), New: 1, Open: 5, Active: true})
-	wantAll(t, "issues.html", got, `<th scope="col">Other</th>
-            <th scope="col">Open</th>`)
+	wantAll(t, "issues.html", got, `<th scope="col" class="num">Other</th>
+            <th scope="col" class="num">Open</th>`)
 }
 
 // TestIssuesTableShowsTheIssuesCreatedInATotalColumnAfterOpenBugs (forsgren#134,
@@ -193,17 +193,17 @@ func TestIssuesTableHeadsTheOpenIssuesColumnOpen(t *testing.T) {
 // IssueDay.Total.
 func TestIssuesTableShowsTheIssuesCreatedInATotalColumnAfterOpenBugs(t *testing.T) {
 	got := issuesPageOf(t, openBugsDay)
-	wantAll(t, "issues.html", got, `<th scope="col">Open bugs</th>
-            <th scope="col">Total</th>`, `open bugs unchanged">–</span></td>
-            <td>9</td>`)
+	wantAll(t, "issues.html", got, `<th scope="col" class="num">Open bugs</th>
+            <th scope="col" class="num">Total</th>`, `open bugs unchanged">–</span></td>
+            <td class="num">9</td>`)
 }
 
 // TestIssuesTableShowsTheOpenBugsInAColumnRightAfterOpen (forsgren#126): the
 // column headed Open bugs comes right after Open and shows IssueDay.OpenBugs.
 func TestIssuesTableShowsTheOpenBugsInAColumnRightAfterOpen(t *testing.T) {
-	wantAll(t, "issues.html", issuesPageOf(t, openBugsDay), `<th scope="col">Open</th>
-            <th scope="col">Open bugs</th>`, `–</span></td>
-            <td>2 <span class="trend-flat-bugs" role="img" aria-label="open bugs unchanged">–</span></td>`)
+	wantAll(t, "issues.html", issuesPageOf(t, openBugsDay), `<th scope="col" class="num">Open</th>
+            <th scope="col" class="num">Open bugs</th>`, `–</span></td>
+            <td class="num">2 <span class="trend-flat-bugs" role="img" aria-label="open bugs unchanged">–</span></td>`)
 }
 
 // TestIssuesTableShowsOpenOutOfTotalInAColumnNextToTotal (forsgren#134, step
@@ -215,10 +215,10 @@ func TestIssuesTableShowsOpenOutOfTotalInAColumnNextToTotal(t *testing.T) {
 		{Kind: metrics.KindDay, IssueDay: metrics.IssueDay{Date: october(2), New: 1, Open: 5, Total: 9, Active: true}},
 		{Kind: metrics.KindDay, IssueDay: metrics.IssueDay{Date: october(1), Completed: 1, Active: true}},
 	}
-	wantAll(t, "issues.html", rendered(t, "issues.html", data), `<th scope="col">Total</th>
-            <th scope="col">Open / Total</th>`, `<td>9</td>
-            <td>55%</td>`, `<td>0</td>
-            <td>—</td>`)
+	wantAll(t, "issues.html", rendered(t, "issues.html", data), `<th scope="col" class="num">Total</th>
+            <th scope="col" class="num">Open / Total</th>`, `<td class="num">9</td>
+            <td class="num">55%</td>`, `<td class="num">0</td>
+            <td class="num">—</td>`)
 }
 
 // columnsNote explains the last three columns of the issues tables
@@ -268,7 +268,7 @@ func wantArrows(t *testing.T, what, flat string, set func(day metrics.IssueDay, 
 		set(metrics.IssueDay{Date: october(2), Active: true}, 2, -2),
 		set(metrics.IssueDay{Date: october(1), Active: true}, 4, 0))
 	span := func(count int, class, change, symbol string) string {
-		return fmt.Sprintf(`<td>%d <span class="%s" role="img" aria-label="%s %s">%s</span></td>`,
+		return fmt.Sprintf(`<td class="num">%d <span class="%s" role="img" aria-label="%s %s">%s</span></td>`,
 			count, class, what, change, symbol)
 	}
 	wantAll(t, "issues.html", got,
@@ -316,12 +316,12 @@ func TestAZeroInTheOpenBugsCellIsGreenWhateverTheArrow(t *testing.T) {
 	incomplete := metrics.IssueDay{Date: october(1), BugsIncomplete: true, Active: true}
 	got := issuesPageOf(t, zeroAfterFall, zeroUnchanged, three, incomplete)
 	zero := func(arrow string) string {
-		return `<td><span class="bugs-zero">0</span> <span class="` + arrow + `</span></td>`
+		return `<td class="num"><span class="bugs-zero">0</span> <span class="` + arrow + `</span></td>`
 	}
 	wantAll(t, "issues.html", got,
 		zero(`trend-down" role="img" aria-label="open bugs decreased by 1">▼ −1`),
 		zero(`trend-flat-bugs" role="img" aria-label="open bugs unchanged">–`),
-		`<td>3 <span class="trend-down"`)
+		`<td class="num">3 <span class="trend-down"`)
 	if n := strings.Count(got, `class="bugs-zero"`); n != 2 {
 		t.Errorf("want class bugs-zero on exactly the two zero open bugs counts, got %d in:\n%s", n, got)
 	}
@@ -352,7 +352,7 @@ func TestNoWrapTablesAreTheIssuesNumbersAndScoringTables(t *testing.T) {
 // bugsIncompleteCell is the Open bugs cell of a row whose bug count cannot be
 // trusted (forsgren#140, decision #171): a dash and a word instead of a number
 // and an arrow, explained to the eye by title and to a screen reader by label.
-const bugsIncompleteCell = `<td><span role="img" ` +
+const bugsIncompleteCell = `<td class="num"><span role="img" ` +
 	`aria-label="Open bugs incomplete: a repository's bug list was too long to read in full" ` +
 	`title="A repository's bug list was too long to read in full, so the number of open bugs is not shown">` +
 	`— (incomplete)</span></td>`
@@ -365,7 +365,7 @@ func TestAnIncompleteOpenBugsCellShowsADashAndNoArrow(t *testing.T) {
 	incomplete.BugsIncomplete, incomplete.OpenBugsChange = true, 3
 	got := issuesPageOf(t, incomplete)
 	wantAll(t, "issues.html", got, bugsIncompleteCell)
-	wantNone(t, "issues.html", got, "open bugs increased", "open bugs unchanged", "<td>2 ")
+	wantNone(t, "issues.html", got, "open bugs increased", "open bugs unchanged", `<td class="num">2 `)
 	data := calculated()
 	data.IssueDays = []metrics.IssueDay{incomplete}
 	wantAll(t, "days.html", rendered(t, "days.html", data), bugsIncompleteCell)
@@ -434,14 +434,14 @@ func TestIssuesPageShowsLeadTimeAfterCompleted(t *testing.T) {
 		data.IssueRows = append(data.IssueRows, metrics.IssueRow{Kind: metrics.KindDay, IssueDay: d})
 	}
 	for _, name := range []string{"issues.html", "days.html"} {
-		wantAll(t, name, rendered(t, name, data), `<th scope="col">Completed</th>
-            <th scope="col">Lead time</th>`, `<td>2</td>
-            <td>1 d 1 h</td>
-            <td>—</td>
-            <td>1</td>`, `<td>0</td>
-            <td>—</td>
-            <td>—</td>
-            <td>1</td>`)
+		wantAll(t, name, rendered(t, name, data), `<th scope="col" class="num">Completed</th>
+            <th scope="col" class="num">Lead time</th>`, `<td class="num">2</td>
+            <td class="num">1 d 1 h</td>
+            <td class="num">—</td>
+            <td class="num">1</td>`, `<td class="num">0</td>
+            <td class="num">—</td>
+            <td class="num">—</td>
+            <td class="num">1</td>`)
 	}
 }
 
@@ -464,9 +464,9 @@ const (
 func TestIssuesPageShowsBugsLeadTimeAndItsIncompleteNote(t *testing.T) {
 	lead := metrics.LeadMedian{Median: 25 * time.Hour, Count: 2}
 	bugs := metrics.LeadMedian{Median: 10 * time.Hour, Count: 1}
-	header := `<th scope="col">Lead time</th>
-            <th scope="col">Bugs lead time</th>
-            <th scope="col">Not planned</th>`
+	header := `<th scope="col" class="num">Lead time</th>
+            <th scope="col" class="num">Bugs lead time</th>
+            <th scope="col" class="num">Not planned</th>`
 	for _, name := range []string{"issues.html", "days.html"} {
 		data := calculated()
 		days := []metrics.IssueDay{
@@ -477,11 +477,11 @@ func TestIssuesPageShowsBugsLeadTimeAndItsIncompleteNote(t *testing.T) {
 		for _, d := range days {
 			data.IssueRows = append(data.IssueRows, metrics.IssueRow{Kind: metrics.KindDay, IssueDay: d})
 		}
-		wantAll(t, name, rendered(t, name, data), header, `<td>1 d 1 h</td>
-            <td>10 h</td>
-            <td>1</td>`, `<td>1 d 1 h</td>
-            <td>—</td>
-            <td>1</td>`)
+		wantAll(t, name, rendered(t, name, data), header, `<td class="num">1 d 1 h</td>
+            <td class="num">10 h</td>
+            <td class="num">1</td>`, `<td class="num">1 d 1 h</td>
+            <td class="num">—</td>
+            <td class="num">1</td>`)
 		for i := range days {
 			days[i].BugsIncomplete = true
 		}
@@ -490,10 +490,10 @@ func TestIssuesPageShowsBugsLeadTimeAndItsIncompleteNote(t *testing.T) {
 		for _, d := range days {
 			data.IssueRows = append(data.IssueRows, metrics.IssueRow{Kind: metrics.KindDay, IssueDay: d})
 		}
-		wantAll(t, name, rendered(t, name, data), `<td>1 d 1 h</td>
-            <td>`+bugsLeadTimeIncomplete+`</td>`, openBugsIncomplete)
-		wantNone(t, name, rendered(t, name, data), `<td>1 d 1 h</td>
-            <td><span role="img" aria-label="Open bugs incomplete`)
+		wantAll(t, name, rendered(t, name, data), `<td class="num">1 d 1 h</td>
+            <td class="num">`+bugsLeadTimeIncomplete+`</td>`, openBugsIncomplete)
+		wantNone(t, name, rendered(t, name, data), `<td class="num">1 d 1 h</td>
+            <td class="num"><span role="img" aria-label="Open bugs incomplete`)
 	}
 }
 

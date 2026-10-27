@@ -28,7 +28,7 @@ func TestLegendStatesTheDoraWindow(t *testing.T) {
 		}},
 		{"180 set", 180, true, []string{
 			"The window is 180 days (dora_days in forsgren.config.yml).",
-			"1441 and more in 180 days", "180 to 1440 in 180 days", "30 to 179 in 180 days", "6 to 29 in 180 days",
+			"1\u202f441 and more in 180 days", "180 to 1\u202f440 in 180 days", "30 to 179 in 180 days", "6 to 29 in 180 days",
 			"fewer than 6 in 180 days, 1 and more in 180 days",
 			"over the same 180 days; it is 0 when there are none. The numbers view shows the last 180 days.",
 		}},

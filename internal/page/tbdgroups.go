@@ -1,8 +1,6 @@
 package page
 
 import (
-	"strconv"
-
 	"github.com/yveshanoulle/forsgren/internal/metrics"
 )
 
@@ -265,6 +263,6 @@ func (r TbdRow) DeployedCommitsGroups() []spreadGroup {
 	if r.PerRepository() && r.DeployPerRepository {
 		return []spreadGroup{{State: r.PerRepositorySentence()}}
 	}
-	deployed := metrics.NotedCell{Value: strconv.Itoa(r.DeployedCommits), Notes: r.filesNotes()}
+	deployed := metrics.NotedCell{Value: metrics.GroupDigits(r.DeployedCommits), Notes: r.filesNotes()}
 	return []spreadGroup{{Cells: []metrics.NotedCell{deployed}}}
 }

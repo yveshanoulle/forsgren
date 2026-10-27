@@ -6,8 +6,6 @@ package page
 // styles.css's, hung on the class, and the meaning is also in words.
 
 import (
-	"fmt"
-
 	"github.com/yveshanoulle/forsgren/internal/metrics"
 )
 
@@ -17,7 +15,8 @@ import (
 // sign itself, and the label a screen reader reads.
 type trendView struct {
 	Class, Arrow, Label string
-	Sign, Change        int
+	Sign                int
+	Change              string
 }
 
 // trendViewOf is the view of a count called what ("open issues") that moved
@@ -25,11 +24,13 @@ type trendView struct {
 func trendViewOf(what string, t metrics.Trend, change int) trendView {
 	switch t {
 	case metrics.TrendUp:
-		return trendView{"trend-up", "▲", fmt.Sprintf("%s increased by %d", what, change), 1, change}
+		moved := metrics.GroupDigits(change)
+		return trendView{"trend-up", "▲", what + " increased by " + moved, 1, moved}
 	case metrics.TrendDown:
-		return trendView{"trend-down", "▼", fmt.Sprintf("%s decreased by %d", what, -change), -1, -change}
+		moved := metrics.GroupDigits(-change)
+		return trendView{"trend-down", "▼", what + " decreased by " + moved, -1, moved}
 	}
-	return trendView{"trend-flat", "–", what + " unchanged", 0, 0}
+	return trendView{"trend-flat", "–", what + " unchanged", 0, "0"}
 }
 
 // bugTrendViewOf is the view of the open bugs: trendViewOf's, except that a

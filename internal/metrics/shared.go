@@ -5,7 +5,6 @@ package metrics
 // repository's project, the band names and the text a band is shown with.
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -82,5 +81,5 @@ func counted(n int, one, many string) string {
 	if n == 1 {
 		return "1 " + one
 	}
-	return fmt.Sprintf("%d %s", n, many)
+	return GroupDigits(n) + " " + many
 }

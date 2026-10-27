@@ -27,7 +27,7 @@ func tbdSiteOf(t *testing.T, extra, path string) string {
 // tdRow is the cells, each a td on a line of its own, as the template writes
 // the cells of a row.
 func tdRow(cells ...string) string {
-	return "<td>" + strings.Join(cells, "</td>\n            <td>") + "</td>"
+	return "<td class=\"num\">" + strings.Join(cells, "</td>\n            <td class=\"num\">") + "</td>"
 }
 
 // shopCell is Acme Shop's three Mainline Interval cells over acmeCommits in

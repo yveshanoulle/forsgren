@@ -3,33 +3,33 @@
         <thead>
           <tr>
             <th scope="col">{{template "issuesfirst"}}</th>
-            <th scope="col">New</th>
-            <th scope="col">Completed</th>
-            <th scope="col">Lead time</th>
-            <th scope="col">Bugs lead time</th>
-            <th scope="col">Not planned</th>
-            <th scope="col">Duplicate</th>
-            <th scope="col">Other</th>
-            <th scope="col">Open</th>
-            <th scope="col">Open bugs</th>
-            <th scope="col">Total</th>
-            <th scope="col">Open / Total</th>
+            <th scope="col" class="num">New</th>
+            <th scope="col" class="num">Completed</th>
+            <th scope="col" class="num">Lead time</th>
+            <th scope="col" class="num">Bugs lead time</th>
+            <th scope="col" class="num">Not planned</th>
+            <th scope="col" class="num">Duplicate</th>
+            <th scope="col" class="num">Other</th>
+            <th scope="col" class="num">Open</th>
+            <th scope="col" class="num">Open bugs</th>
+            <th scope="col" class="num">Total</th>
+            <th scope="col" class="num">Open / Total</th>
           </tr>
         </thead>
         <tbody>
 {{template "issuesrows" .}}        </tbody>
       </table>
     </div>
-{{end}}{{define "issuecells"}}            <td>{{.New}}</td>
-            <td>{{.Completed}}</td>
-            <td>{{.LeadTime.Cell}}</td>
-            <td>{{if .BugsIncomplete}}{{template "bugsincomplete" (incomplete "Bugs lead time" "the bugs lead time")}}{{else}}{{.BugsLeadTime.Cell}}{{end}}</td>
-            <td>{{.NotPlanned}}</td>
-            <td>{{.Duplicate}}</td>
-            <td>{{.Other}}</td>
-            <td>{{.Open}} {{template "trend" (trend "open issues" .OpenTrend .OpenChange)}}</td>
-            <td>{{if .BugsIncomplete}}{{template "bugsincomplete" (incomplete "Open bugs" "the number of open bugs")}}{{else}}{{if eq .OpenBugs 0}}<span class="bugs-zero">0</span>{{else}}{{.OpenBugs}}{{end}} {{template "trend" (bugtrend .OpenBugsTrend .OpenBugsChange)}}{{end}}</td>
-            <td>{{.Total}}</td>
-            <td>{{.OpenShare}}</td>
+{{end}}{{define "issuecells"}}            <td class="num">{{count .New}}</td>
+            <td class="num">{{count .Completed}}</td>
+            <td class="num">{{.LeadTime.Cell}}</td>
+            <td class="num">{{if .BugsIncomplete}}{{template "bugsincomplete" (incomplete "Bugs lead time" "the bugs lead time")}}{{else}}{{.BugsLeadTime.Cell}}{{end}}</td>
+            <td class="num">{{count .NotPlanned}}</td>
+            <td class="num">{{count .Duplicate}}</td>
+            <td class="num">{{count .Other}}</td>
+            <td class="num">{{count .Open}} {{template "trend" (trend "open issues" .OpenTrend .OpenChange)}}</td>
+            <td class="num">{{if .BugsIncomplete}}{{template "bugsincomplete" (incomplete "Open bugs" "the number of open bugs")}}{{else}}{{if eq .OpenBugs 0}}<span class="bugs-zero">0</span>{{else}}{{count .OpenBugs}}{{end}} {{template "trend" (bugtrend .OpenBugsTrend .OpenBugsChange)}}{{end}}</td>
+            <td class="num">{{count .Total}}</td>
+            <td class="num">{{.OpenShare}}</td>
           </tr>
 {{end}}{{define "trend"}}<span class="{{.Class}}" role="img" aria-label="{{.Label}}">{{.Arrow}}{{if gt .Sign 0}} +{{.Change}}{{else if lt .Sign 0}} −{{.Change}}{{end}}</span>{{end}}{{define "bugsincomplete"}}<span role="img" aria-label="{{.Column}} incomplete: a repository's bug list was too long to read in full" title="A repository's bug list was too long to read in full, so {{.Hidden}} is not shown">— (incomplete)</span>{{end}}

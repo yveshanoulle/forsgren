@@ -237,6 +237,11 @@ type Config struct {
 	// tbd_figures key, or an empty string in a Config not loaded from a file
 	// (forsgren#423).
 	TbdFigures string
+	// ThousandsSeparator is how the pages write a count of 1000 or more, as
+	// written: "narrow_space", "comma" or "none", DefaultThousandsSeparator when
+	// the file has no thousands_separator key, or an empty string in a Config not
+	// loaded from a file (forsgren#528).
+	ThousandsSeparator string
 	// SameDeveloper is the groups of GitHub logins that count as one developer,
 	// as written, nil when the file has none (forsgren#361).
 	SameDeveloper [][]string
@@ -385,6 +390,9 @@ type fileConfig struct {
 	// TbdFigures is the node as written, so a value that is not median or all
 	// is rejected by name (forsgren#423).
 	TbdFigures yaml.Node `yaml:"tbd_figures"`
+	// ThousandsSeparator is the node as written, so a value that is not
+	// narrow_space, comma or none is rejected by name (forsgren#528).
+	ThousandsSeparator yaml.Node `yaml:"thousands_separator"`
 	// SameDeveloper is the node as written, so a value that is not a list of
 	// lists is rejected by name (forsgren#361).
 	SameDeveloper yaml.Node `yaml:"same_developer"`
@@ -512,6 +520,7 @@ var settingKeys = []settingKey{
 	{"tbd_pr_lead_time", "true", func(c Config) string { return strconv.FormatBool(!c.HideTbdPRLeadTime) }},
 	{"tbd_bot_pr_lead_time", "true", func(c Config) string { return strconv.FormatBool(!c.HideTbdBotPRLeadTime) }},
 	{"same_developer", sameDeveloperKey.def, func(c Config) string { return flowGroups(c.SameDeveloper) }},
+	{"thousands_separator", DefaultThousandsSeparator, func(c Config) string { return c.ThousandsSeparator }},
 }
 
 // Settings lists every optional key in the order of settingKeys: the value

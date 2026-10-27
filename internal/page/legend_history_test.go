@@ -15,8 +15,8 @@ func TestLegendExplainsTheHistoryPage(t *testing.T) {
 		hours int
 		want  []string
 	}{
-		"default working day": {0, []string{"at a working day of 8 hours", "on demand from 1441"}},
-		"6 hours":             {6, []string{"at a working day of 6 hours", "on demand from 1081"}},
+		"default working day": {0, []string{"at a working day of 8 hours", "on demand from 1\u202f441"}},
+		"6 hours":             {6, []string{"at a working day of 6 hours", "on demand from 1\u202f081"}},
 	}
 	for name, tc := range cases {
 		data := calculated()

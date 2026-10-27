@@ -9,6 +9,34 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — Figures align on the right and counts get a thousand separator, a narrow no-break space by default, set by thousands_separator ([#528](https://github.com/yveshanoulle/forsgren/issues/528), decisions [#529](https://github.com/yveshanoulle/forsgren/issues/529) B and [#530](https://github.com/yveshanoulle/forsgren/issues/530) A, step 1 of 1)
+
+Asked by Yves: align the numbers on the right and use a thousand separator.
+Every count of 1000 or more is now written by one formatter,
+`metrics.GroupDigits`, with U+202F NARROW NO-BREAK SPACE (`1 282`), which never
+breaks a line; the decimal point stays, and percentages and durations are
+unchanged. A new optional config key, `thousands_separator`, takes
+`narrow_space` (the default), `comma` or `none`; there is no `period`, because
+the pages keep the decimal point. A value that is not accepted falls back to
+the default and shows on the settings page with its reason, like the other
+keys (`config.Load`, `check-config`, `possibleOf`, the settings row, the
+starter, docs/configuration.md, the agent installer). The page renderer swaps
+the space for the comma or nothing when the key says so
+(`Data.ThousandsSeparator`, `withSeparator`). The legend's band edges (such as
+`1 441` deployments in 180 days) follow it too. Cells that hold only a figure
+carry class `num` (`text-align: right`, `font-variant-numeric: tabular-nums`)
+on the TBD page, the Issues and Daily tables and the numbers view of the DORA
+table, and so do the headers of those figure columns; group headers spanning
+several columns, the first column, the standard and scoring views and the
+History page keep their alignment. Nothing sorts in the browser. Tests:
+`TestGroupDigits`, `TestCountsOfAThousandOrMoreHaveTheSeparator`,
+`TestFigureCellsAreRightAligned`, `TestFigureColumnHeadersAlignWithTheirCells`,
+`TestThousandsSeparatorSettingDecidesTheSeparatorOnEveryPage`, the config
+tests of the key; goldens regenerated, and the made-up TBD data varied so the
+golden pages hold no repeated run of cells (the HTML duplication ceiling).
+
+forsgren issue 528, minor (a new setting).
+
 ## 2026-10-27 — A short label row header no longer breaks after its dash ([#526](https://github.com/yveshanoulle/forsgren/issues/526), step 1 of 1)
 
 Found by Yves on forsgren.forsgren.be: the row header `– Releases` of the TBD

@@ -3,12 +3,12 @@
         <thead>
           <tr>
             <th scope="col">Project</th>
-            <th scope="col">Deployment frequency</th>
-{{if not .Scored}}            <th scope="col">Weekend deployments</th>
-{{end}}            <th scope="col">Lead time for changes</th>
-            <th scope="col">Failed deployment recovery time</th>
-            <th scope="col">Change fail rate</th>
-            <th scope="col">Deployment rework rate</th>
+            <th scope="col"{{if $.Numbers}} class="num"{{end}}>Deployment frequency</th>
+{{if not .Scored}}            <th scope="col"{{if $.Numbers}} class="num"{{end}}>Weekend deployments</th>
+{{end}}            <th scope="col"{{if $.Numbers}} class="num"{{end}}>Lead time for changes</th>
+            <th scope="col"{{if $.Numbers}} class="num"{{end}}>Failed deployment recovery time</th>
+            <th scope="col"{{if $.Numbers}} class="num"{{end}}>Change fail rate</th>
+            <th scope="col"{{if $.Numbers}} class="num"{{end}}>Deployment rework rate</th>
 {{if .Scored}}            <th scope="col">Overall Performance</th>
 {{end}}          </tr>
         </thead>
@@ -17,12 +17,12 @@
 {{template "rowheader" .}}
 {{if $.Scored}}{{range $.ScoredCells .}}            <td>{{.}}</td>
 {{end}}            <td>{{.OverallCell}}</td>
-{{else if $.Numbers}}            <td>{{.Frequency.NumberCell}}</td>
-            <td>{{.Frequency.WeekendNumberCell}}</td>
-            <td>{{.LeadTime.NumberCell}}</td>
-            <td>{{.Recovery.NumberCell}}</td>
-            <td>{{.ChangeFail.NumberCell}}</td>
-            <td>{{.Rework.NumberCell}}</td>
+{{else if $.Numbers}}            <td class="num">{{.Frequency.NumberCell}}</td>
+            <td class="num">{{.Frequency.WeekendNumberCell}}</td>
+            <td class="num">{{.LeadTime.NumberCell}}</td>
+            <td class="num">{{.Recovery.NumberCell}}</td>
+            <td class="num">{{.ChangeFail.NumberCell}}</td>
+            <td class="num">{{.Rework.NumberCell}}</td>
 {{else if .HasDeployments}}            <td>{{.Frequency.Cell}}</td>
             <td>{{.Frequency.WeekendCell}}</td>
             <td>{{.LeadTime.Cell}}</td>

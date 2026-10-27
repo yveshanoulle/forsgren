@@ -7,7 +7,6 @@ package metrics
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 )
 
@@ -19,12 +18,12 @@ const cellSeparator = " · "
 // week · 7"; a row whose deployments all failed shows its band of none,
 // "Less than once per six months · 0" (decision #35).
 func (f Frequency) Cell() string {
-	return cell(f.Band, strconv.Itoa(f.shown().deployments))
+	return cell(f.Band, GroupDigits(f.shown().deployments))
 }
 
 // WeekendCell is how many of the deployments Cell counts were created on a
 // Saturday or a Sunday, UTC, over the same window (forsgren#124).
-func (f Frequency) WeekendCell() string { return strconv.Itoa(f.shown().weekends) }
+func (f Frequency) WeekendCell() string { return GroupDigits(f.shown().weekends) }
 
 // windowCounts are the successful deployments over one window and the
 // weekend ones among them, the two numbers a view shows side by side
@@ -78,7 +77,7 @@ func (r Recovery) Cell() string {
 // failure issues when there are.
 func (r ChangeFailRate) Cell() string {
 	if r.Deployments > 0 {
-		return cell(r.Band, fmt.Sprintf("%d%% (%d of %d)", r.Percent(), r.Failed, r.Deployments))
+		return cell(r.Band, fmt.Sprintf("%d%% (%s of %s)", r.Percent(), GroupDigits(r.Failed), GroupDigits(r.Deployments)))
 	}
 	if r.FailureIssues > 0 {
 		return "No deployments" + cellSeparator + plural(r.FailureIssues, "failure issue")
@@ -91,5 +90,5 @@ func cell(band fmt.Stringer, measure string) string { return band.String() + cel
 
 // timed is a median in short units and the count it is over, "3 h (2)".
 func timed(median time.Duration, count int) string {
-	return fmt.Sprintf("%s (%d)", shortDuration(median), count)
+	return fmt.Sprintf("%s (%s)", shortDuration(median), GroupDigits(count))
 }

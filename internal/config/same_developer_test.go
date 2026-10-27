@@ -80,7 +80,7 @@ func TestSameDeveloperSettingShowsTheGroupsAsWritten(t *testing.T) {
 	}
 	s := got.Settings()
 	want := Setting{Key: "same_developer", Value: "[[maintainer, assistant-account]]", Default: "[]", Set: true}
-	if last := s[len(s)-1]; last != want {
+	if last := s[len(s)-2]; last != want {
 		t.Errorf("want the last setting %+v, got %+v", want, last)
 	}
 }

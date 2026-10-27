@@ -1,1 +1,1 @@
-{{define "notedcell"}}<td{{with .DescribedBy}} aria-describedby="{{.}}"{{end}}>{{.Value}}{{range .Notes}} <span class="visually-hidden">note</span> ({{.Number}}){{end}}</td>{{end}}
+{{define "notedcell"}}<td class="num"{{with .DescribedBy}} aria-describedby="{{.}}"{{end}}>{{.Value}}{{range .Notes}} <span class="visually-hidden">note</span> ({{.Number}}){{end}}</td>{{end}}

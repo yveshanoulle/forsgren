@@ -10,7 +10,6 @@ package metrics
 import (
 	"fmt"
 	"math"
-	"strconv"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
@@ -51,7 +50,7 @@ func (m PushMeasures) volume(n int) string {
 	if m.State() != "" {
 		return noNumber
 	}
-	return strconv.Itoa(n)
+	return GroupDigits(n)
 }
 
 // DirectCell is the share of the commits pushed straight to main, shown as
@@ -133,7 +132,7 @@ func countCell(v float64) string {
 	if tenths := int(math.Floor(v*10 + 0.5)); tenths < 100 {
 		return fmt.Sprintf("%d.%d", tenths/10, tenths%10)
 	}
-	return strconv.Itoa(int(math.Floor(v + 0.5)))
+	return GroupDigits(int(math.Floor(v + 0.5)))
 }
 
 // DeploymentVolume is one project's deployments of the DORA window for the
@@ -148,7 +147,7 @@ type DeploymentVolume struct {
 
 // Cell is the count, a bare number for every project (forsgren#403: 87,
 // never "87 releases").
-func (v DeploymentVolume) Cell() string { return strconv.Itoa(v.Count) }
+func (v DeploymentVolume) Cell() string { return GroupDigits(v.Count) }
 
 // DeploymentVolumes returns the deployment volume of each project, in the
 // order of projects, over the data's DORA window at the render time now.

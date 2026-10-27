@@ -89,7 +89,7 @@ fi
 # the Mainline Interval group comes first (forsgren#418).
 tbd_shows_interval() {
   local tbd_text re
-  re='<th scope="row">[^<]*</th> *<td[^>]*>[^<-][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td>[^<]*</td> *){2}<td[^>]*>[^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>'
+  re='<th scope="row">[^<]*</th> *<td[^>]*>[^<-][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td[^>]*>[^<]*</td> *){2}<td[^>]*>[^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>'
   [[ -f "${STAGE}/tbd.html" ]] || return 1
   tbd_text="$(tr -d '\n' <"${STAGE}/tbd.html")"
   grep -qE "$re" <<< "$tbd_text"
@@ -102,7 +102,7 @@ fi
 # (forsgren#479, which took the place of note 5), not 'not collected yet'
 # (forsgren#350, decision #336; the cell has no sentence since forsgren#423).
 tbd_shows_lead_time() {
-  grep -qE '<td aria-describedby="[^"]*tbd-note-3[^"]*">[0-9][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>' "${STAGE}/tbd.html" \
+  grep -qE '<td[^>]* aria-describedby="[^"]*tbd-note-3[^"]*">[0-9][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>' "${STAGE}/tbd.html" \
     && grep -qF '>Bot PR Lead Time</th>' "${STAGE}/tbd.html" \
     && ! grep -qF 'No pull requests have been collected yet' "${STAGE}/tbd.html"
 }

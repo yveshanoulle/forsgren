@@ -75,7 +75,7 @@ func tbdBotLeads() []metrics.PRLeadTime {
 		{Project: "Acme Shop", PullRequests: 3, Mean: 40 * time.Minute, Median: 30 * time.Minute},
 		{Project: "Acme Tools", PullRequests: 2, Mean: 3 * time.Hour, Median: 3 * time.Hour, Cut: 1,
 			CreatedStandsIn: 1},
-		{Project: "Acme Docs"},
+		{Project: "Acme Docs", PullRequests: 1, Mean: 15 * time.Minute},
 		{Project: "Acme Web", PullRequests: 10, Mean: 2 * time.Hour, Median: time.Hour, P90: 6 * time.Hour},
 	}
 }
@@ -89,7 +89,8 @@ func tbdMainLeads() []metrics.MainlineLeadTime {
 	return []metrics.MainlineLeadTime{
 		{Project: "Acme Shop", Commits: 12, UnknownPushes: 2, Filling: true,
 			Lead: metrics.DurationSpread{Count: 12, Mean: 4 * time.Hour, Median: 3 * time.Hour, P90: 9 * time.Hour}},
-		{Project: "Acme Tools", Commits: 1, Lead: metrics.DurationSpread{Count: 1, Mean: 2 * time.Hour}},
+		{Project: "Acme Tools", Commits: 2,
+			Lead: metrics.DurationSpread{Count: 2, Mean: 90 * time.Minute, Median: 80 * time.Minute}},
 		{Project: "Acme Docs", NotReadable: true, UnknownPushes: 1},
 		{Project: "Acme Web", Uncollected: true},
 	}
@@ -146,7 +147,7 @@ func tbdDeploys() []metrics.DeployMeasures {
 			TimeToDeploy:  metrics.DurationSpread{Count: 2, Mean: 30 * time.Minute, Median: 30 * time.Minute},
 			PerDeployment: metrics.CountSpread{Count: 2, Mean: 1, Median: 1}},
 		{Project: "Acme Web", Commits: 1, Deployments: 1,
-			TimeToDeploy:  metrics.DurationSpread{Count: 1, Mean: 10 * time.Minute},
+			TimeToDeploy:  metrics.DurationSpread{Count: 2, Mean: 10 * time.Minute, Median: 10 * time.Minute},
 			PerDeployment: metrics.CountSpread{Count: 1, Mean: 2}},
 	}
 }
@@ -175,7 +176,7 @@ var tbdDeployCells = map[string][2]string{
 	"Acme Shop":  {"1 h", "2 h | 1 h | 5 h"},
 	"Acme Tools": {"1 h", "1 h | 1 h | -"},
 	"Acme Docs":  {"30 m", "30 m | 30 m | -"},
-	"Acme Web":   {"-", "10 m | - | -"},
+	"Acme Web":   {"10 m", "10 m | 10 m | -"},
 }
 
 var tbdCountCells = map[string][2]string{
@@ -214,7 +215,7 @@ var tbdLeadCells = map[string][2]string{
 var tbdBotLeadCells = map[string][2]string{
 	"Acme Shop":  {"30 m", "40 m | 30 m | -"},
 	"Acme Tools": {"{3,4}3 h", "{3,4}3 h | 3 h | -"},
-	"Acme Docs":  {"-", "- | - | -"},
+	"Acme Docs":  {"-", "15 m | - | -"},
 	"Acme Web":   {"1 h", "2 h | 1 h | 6 h"},
 }
 
@@ -230,7 +231,7 @@ func leadPair(all bool, project string) string {
 // no push collected.
 var tbdMainLeadCells = map[string][2]string{
 	"Acme Shop":  {"{6,7}3 h", "{6,7}4 h | 3 h | 9 h"},
-	"Acme Tools": {"-", "2 h | - | -"},
+	"Acme Tools": {"1 h 20", "1 h 30 | 1 h 20 | -"},
 	"Acme Docs":  {"@1Push activity not readable", "@3Push activity not readable"},
 	"Acme Web":   {"@1Pushes not collected yet", "@3Pushes not collected yet"},
 }
@@ -242,7 +243,7 @@ func leadState(all bool, text string) string {
 	if all {
 		return "@3" + text + " | @3" + text
 	}
-	return text + " | " + text
+	return "@1" + text + " | @1" + text
 }
 
 // at is the one of the two cells that the figures show.
@@ -326,7 +327,7 @@ func tdOf(c string) string {
 	if rest, noted := strings.CutPrefix(c, "{"); noted {
 		return notedTd(notedOf(rest))
 	}
-	return "<td>" + c + "</td>"
+	return "<td class=\"num\">" + c + "</td>"
 }
 
 // stateTd is the state cell rest, N columns wide (any number of digits) and then its text; across one it is a plain
@@ -367,7 +368,7 @@ func notedTd(c notedCell) string {
 		ids[i] = "tbd-note-" + strconv.Itoa(n)
 		marks += ` <span class="visually-hidden">note</span> (` + strconv.Itoa(n) + `)`
 	}
-	return `<td aria-describedby="` + strings.Join(ids, " ") + `">` + c.value + marks + `</td>`
+	return `<td class="num" aria-describedby="` + strings.Join(ids, " ") + `">` + c.value + marks + `</td>`
 }
 
 // tbdGroups are the group headers of the TBD table with all the figures, in
@@ -415,7 +416,7 @@ func tbdHeaders() (top, beneath string) {
 			} else if g.hidden != "" {
 				label = ` aria-label="the ` + c + ` of ` + g.hidden + `"`
 			}
-			columns = append(columns, `<th scope="col"`+label+`>`+c+`</th>`)
+			columns = append(columns, `<th scope="col"`+label+` class="num">`+c+`</th>`)
 		}
 	}
 	return strings.Join(tops, indent), strings.Join(columns, indent)
@@ -451,7 +452,11 @@ func medianHead() string {
 		if h.label != "" {
 			label = ` aria-label="` + h.label + `"`
 		}
-		cells[i] = `<th scope="col"` + label + `>` + h.text + `</th>`
+		class := ` class="num"`
+		if h.text == "Project" {
+			class = ""
+		}
+		cells[i] = `<th scope="col"` + label + class + `>` + h.text + `</th>`
 	}
 	return "<thead>\n          <tr>\n            " + strings.Join(cells, "\n            ") +
 		"\n          </tr>\n        </thead>"

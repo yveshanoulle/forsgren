@@ -46,7 +46,7 @@ func TestNumbersPageShowsOnlyNumbers(t *testing.T) {
 		"Acme Shop":  {"12", "3", "-", "-", "7%", "0%"},
 		"Acme Tools": {"0", "0", "-", "-", "100%", "-"},
 	} {
-		if !row(heading, cells...).MatchString(got) {
+		if !numRow(heading, cells...).MatchString(got) {
 			t.Errorf("want the row of %s to read %v, got:\n%s", heading, cells, got)
 		}
 	}
@@ -244,7 +244,7 @@ func TestViewsShowARowWithoutDeploymentsAsTheirOwnCells(t *testing.T) {
 	data := Placeholder(testVersion)
 	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Empty"}})
 	numbers := rendered(t, "numbers/index.html", data)
-	if !row("Acme Empty", "0", "0", "-", "-", "-", "-").MatchString(numbers) {
+	if !numRow("Acme Empty", "0", "0", "-", "-", "-", "-").MatchString(numbers) {
 		t.Errorf("want the row of Acme Empty to read 0, 0, -, -, -, -, got:\n%s", numbers)
 	}
 	wantNone(t, "numbers/index.html", numbers, "No deployments recorded yet", "colspan")
@@ -327,7 +327,7 @@ func TestRootPageFollowsItsDataView(t *testing.T) {
 		wantNone(t, "index.html", got, "../", `aria-current="page"`)
 	}
 	data.View = "numbers"
-	wantAll(t, "index.html", rendered(t, "index.html", data), "<td>12</td>")
+	wantAll(t, "index.html", rendered(t, "index.html", data), `<td class="num">12</td>`)
 	data.View = "scoring"
 	wantAll(t, "index.html", rendered(t, "index.html", data), `<th scope="col">Overall Performance</th>`, "<td>8.4</td>")
 	data.View = ""

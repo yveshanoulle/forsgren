@@ -108,6 +108,7 @@ func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error
 	data.DoraDays, data.DoraDaysSet = cfg.DoraDays, cfg.DoraDaysSet
 	data.Settings = settingsOf(cfg)
 	data.TbdFigures = cfg.TbdFigures
+	data.ThousandsSeparator = cfg.ThousandsSeparator
 	data.HideTbdTimeToMain, data.HideTbdPRLeadTime = cfg.HideTbdTimeToMain, cfg.HideTbdPRLeadTime
 	data.HideTbdBotPRLeadTime, data.HideSubRows = cfg.HideTbdBotPRLeadTime, cfg.HideSubRows
 	data.HistoryDays = cfg.HistoryDays

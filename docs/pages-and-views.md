@@ -720,6 +720,31 @@ a path on github.com (forsgren#172):
 The page shows project names, labels and numbers only: never a repository's
 or a task's own name, a SHA or a commit message.
 
+### Figures: alignment and thousands (forsgren#528)
+
+- **Alignment by content type** (decision #530 A). A cell that holds only a
+  figure (a count, a duration such as `1 h 19`, a rate, a share, a dash) has
+  class `num` and is aligned on the right with tabular figures, so the digits
+  line up: on the TBD page, the Issues and Daily tables and the numbers view
+  of the DORA table. The header of such a column is aligned on the right too,
+  with its cells; in the two rows of headers of `tbd_figures: all` the mean,
+  median and p90 headers are, while a header that spans several columns (the
+  group name) and the first column (Project, Date, Period) keep their
+  alignment. Cells with words keep theirs too: `Per repository`, the push
+  states, the no-data sentence, the band text of the standard and scoring
+  views, the scores and the History page.
+- **Thousands separator** (decision #529 B). Every count of 1000 or more is
+  written through one formatter with the separator the config key
+  `thousands_separator` names ([configuration](configuration.md)): a narrow
+  no-break space by default (`1 282`, so it never breaks a line), `comma`
+  (`1,282`) or `none` (`1282`). It covers the DORA cells and their `(N)`
+  counts, the TBD volumes, developers and notes, the Issues and Daily tables
+  with their trend changes, and the example figures of the legend (the band
+  edges, such as `1 441` deployments in 180 days at an 8 hour working day).
+  Decimals (`6.0`) keep their point and percentages and durations are
+  unchanged. The docs write figures plain. The pages do not sort in the
+  browser, so no order depends on the text.
+
 ### The History page
 
 The History page (`history.html`, titled "History (BETA)", forsgren#68, from 1.8.0)

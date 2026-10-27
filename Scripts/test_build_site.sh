@@ -265,7 +265,7 @@ fi
 # the no-data line: the fixture has commits deployed in the last 30 days.
 if [[ -f "${FIXTURE_HAPPY}/tbd.html" ]] && grep -qF '<th scope="row">Acme Shop</th>' "${FIXTURE_HAPPY}/tbd.html" \
   && tr -d '\n' <"${FIXTURE_HAPPY}/tbd.html" \
-    | has -qE '<th scope="row">[^<]*</th> *<td[^>]*>[^<-][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td>[^<]*</td> *){2}<td[^>]*>[^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>' \
+    | has -qE '<th scope="row">[^<]*</th> *<td[^>]*>[^<-][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td> *(<td[^>]*>[^<]*</td> *){2}<td[^>]*>[^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>' \
   && ! grep -qF 'No commits have been collected yet' "${FIXTURE_HAPPY}/tbd.html"; then
   pass 31 "tbd.html has a Mainline Interval row and not the no-data line"
 else
@@ -277,7 +277,7 @@ fi
 # pulls.csv, its long notes included (note 5 is retired, so the note of a cut
 # first commit time, 3), so the browser gate opens the cell with data and not
 # 'not collected yet'.
-if grep -qE '<td aria-describedby="[^"]*tbd-note-3[^"]*">[0-9][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>' "${FIXTURE_HAPPY}/tbd.html" 2>/dev/null \
+if grep -qE '<td[^>]* aria-describedby="[^"]*tbd-note-3[^"]*">[0-9][^<]*(<span[^>]*>[^<]*</span>[^<]*)*</td>' "${FIXTURE_HAPPY}/tbd.html" 2>/dev/null \
   && grep -qF '<li id="tbd-note-3">' "${FIXTURE_HAPPY}/tbd.html" 2>/dev/null \
   && grep -qF '>Bot PR Lead Time</th>' "${FIXTURE_HAPPY}/tbd.html" 2>/dev/null \
   && ! grep -qF 'No pull requests have been collected yet' "${FIXTURE_HAPPY}/tbd.html"; then

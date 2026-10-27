@@ -131,7 +131,7 @@ func (l leadCells) isState() bool {
 func (l leadCells) cell() string {
 	rest, noted := strings.CutPrefix(string(l), "{")
 	if !noted {
-		return "<td>" + string(l) + "</td>"
+		return "<td class=\"num\">" + string(l) + "</td>"
 	}
 	list, value, _ := strings.Cut(rest, "}")
 	cell := notedCell{value: value}
@@ -157,7 +157,7 @@ func notedTd(c notedCell) string {
 		ids[i] = "tbd-note-" + strconv.Itoa(n)
 		marks += ` <span class="visually-hidden">note</span> (` + strconv.Itoa(n) + `)`
 	}
-	return `<td aria-describedby="` + strings.Join(ids, " ") + `">` + c.value + marks + `</td>`
+	return `<td class="num" aria-describedby="` + strings.Join(ids, " ") + `">` + c.value + marks + `</td>`
 }
 
 // pushesNotCollected is the state cell of a push group n columns wide, with

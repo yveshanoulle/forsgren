@@ -4,8 +4,8 @@
 {{define "spreadheadtop"}}
             <th scope="colgroup" colspan="3">{{.Title}}</th>{{end}}
 {{define "spreadheadall"}}
-            <th scope="col"{{with .Subject}} aria-label="the mean of {{.}}"{{end}}>mean</th>
-            <th scope="col"{{with .Subject}} aria-label="the median of {{.}}"{{end}}>median</th>
-            <th scope="col"{{with .Subject}} aria-label="the p90 of {{.}}"{{end}}>p90</th>{{end}}
+            <th scope="col"{{with .Subject}} aria-label="the mean of {{.}}"{{end}} class="num">mean</th>
+            <th scope="col"{{with .Subject}} aria-label="the median of {{.}}"{{end}} class="num">median</th>
+            <th scope="col"{{with .Subject}} aria-label="the p90 of {{.}}"{{end}} class="num">p90</th>{{end}}
 {{define "spreadheadone"}}
-            <th scope="col" aria-label="{{.MedianLabel}}">{{.Title}}</th>{{end}}
+            <th scope="col" aria-label="{{.MedianLabel}}" class="num">{{.Title}}</th>{{end}}

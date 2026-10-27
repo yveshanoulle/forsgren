@@ -23,7 +23,7 @@ func TestLoadValid(t *testing.T) {
 				HistoryChunkDays: DefaultHistoryChunkDays, WorkingHours: DefaultWorkingHours,
 				DoraDays:   DefaultDoraDays,
 				IssuesPage: PageOn, DaysPage: PageOff, NumbersScoringPage: PageUnlisted,
-				HistoryPage: PageUnlisted, TbdPage: PageOn, TbdFigures: TbdFiguresMedian,
+				HistoryPage: PageUnlisted, TbdPage: PageOn, TbdFigures: TbdFiguresMedian, ThousandsSeparator: ThousandsNarrowSpace,
 				Projects: []Project{{
 					Name: "Acme",
 					Repositories: []Repository{
@@ -38,7 +38,7 @@ func TestLoadValid(t *testing.T) {
 				HistoryChunkDays: DefaultHistoryChunkDays, WorkingHours: DefaultWorkingHours,
 				DoraDays:   DefaultDoraDays,
 				IssuesPage: PageOn, DaysPage: PageOff, NumbersScoringPage: PageUnlisted,
-				HistoryPage: PageUnlisted, TbdPage: PageOn, TbdFigures: TbdFiguresMedian,
+				HistoryPage: PageUnlisted, TbdPage: PageOn, TbdFigures: TbdFiguresMedian, ThousandsSeparator: ThousandsNarrowSpace,
 				Projects: []Project{
 					{Name: "Acme Shop", Repositories: []Repository{
 						{Name: "acme/api", Deployment: Deployment{Kind: Environment, Name: "production"}},

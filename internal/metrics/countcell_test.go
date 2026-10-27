@@ -12,7 +12,7 @@ func TestCountSpreadCellsShowTwoSignificantDigitsRoundedToTheNearest(t *testing.
 	}{
 		{0, "0.0"}, {1, "1.0"}, {2.45, "2.5"}, {2.449, "2.4"}, {7, "7.0"},
 		{9.94, "9.9"}, {9.95, "10"}, {9.99, "10"}, {10, "10"},
-		{10.49, "10"}, {10.5, "11"}, {55, "55"}, {1234.5, "1235"},
+		{10.49, "10"}, {10.5, "11"}, {55, "55"}, {1234.5, "1\u202f235"},
 	} {
 		s := CountSpread{Count: 1, Mean: c.in}
 		if got := s.MeanCell(); got != c.want {

@@ -67,7 +67,7 @@ func (r ReworkRate) Cell() string {
 	if r.Deployments == 0 {
 		return "No successful deployments"
 	}
-	return cell(r.Band, fmt.Sprintf("%d%% (%d of %d)", r.Percent(), r.Rework, r.Deployments))
+	return cell(r.Band, fmt.Sprintf("%d%% (%s of %s)", r.Percent(), GroupDigits(r.Rework), GroupDigits(r.Deployments)))
 }
 
 // ReworkRates returns the rework rate of each project, in the order of

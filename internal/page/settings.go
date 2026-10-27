@@ -34,6 +34,7 @@ var possibleValues = map[string]string{
 	"tbd_pr_lead_time":     booleanValues,
 	"tbd_bot_pr_lead_time": booleanValues,
 	"same_developer":       groupsOfLogins,
+	"thousands_separator":  list(config.ThousandsNarrowSpace, config.ThousandsComma, config.ThousandsNone),
 	// Not top-level keys: the per-repository rows of config.RepositorySettings
 	// (forsgren#512), outside the drift test over config.Settings.
 	"deployments": "per repository, in projects",
