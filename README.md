@@ -94,7 +94,7 @@ Every `forsgren.config.yml` key is described in [docs/configuration.md](docs/con
 - [Pages and views](docs/pages-and-views.md): the five metrics in full, the page and its views, what each cell means, and privacy.
 - [Data files](docs/data-files.md): how forsgren gets its data, the `data/*.csv` formats, and collecting deployments.
 - [Updating and releases](docs/updating-and-releases.md): the setup issue, auto-update, Dependabot and installing a new version.
-- [Agents](agent-installer.md): three files a coding agent follows with you, installing ([agent-installer.md](agent-installer.md)), upgrading, which also helps with the settings a new release brings, such as service folders and deployment rules ([agent-upgrade.md](agent-upgrade.md)), and deleting an installation ([agent-delete.md](agent-delete.md)).
+- [Agents](agent-installer.md): three files a coding agent follows with you, installing ([agent-installer.md](agent-installer.md)), upgrading, including new settings ([agent-upgrade.md](agent-upgrade.md)), and deleting an installation ([agent-delete.md](agent-delete.md)).
 - [Development](docs/development.md): working on forsgren, the tools and their pins, the data guard.
 - [Quality gates](docs/quality-gates.md): every gate FBP and CI run, and what each one checks.
 - [Gate classification](docs/gate-classification.md): each gate required, not applicable or a documented exception.

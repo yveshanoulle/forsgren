@@ -8,8 +8,8 @@ import (
 // TestReadmeDocumentationListHasAnAgentsEntry (forsgren#504): the
 // Documentation list in README.md has one Agents entry, right after
 // Updating and releases, that links the installer, the upgrader and the
-// deleter and says the upgrader also helps with the settings a new release
-// brings, such as service folders and deployment rules.
+// deleter and says the upgrader covers upgrading, including new settings
+// (forsgren#507).
 func TestReadmeDocumentationListHasAnAgentsEntry(t *testing.T) {
 	readme := readRepoFile(t, "README.md")
 	_, list, ok := strings.Cut(readme, "\n## Documentation\n")
@@ -27,7 +27,7 @@ func TestReadmeDocumentationListHasAnAgentsEntry(t *testing.T) {
 		}
 		wantAll(t, "Agents entry", line,
 			"(agent-installer.md)", "(agent-upgrade.md)", "(agent-delete.md)",
-			"settings a new release brings", "service folders", "deployment rules")
+			"upgrading, including new settings")
 		return
 	}
 	t.Error("the Documentation list has no Agents entry")

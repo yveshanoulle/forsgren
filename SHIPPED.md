@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — README's Agents entry is shorter ([#507](https://github.com/yveshanoulle/forsgren/issues/507), step 1 of 1)
+
+forsgren issue 507, patch.
+
+The Agents entry in the Documentation list of `README.md` (and so the starter page) now reads: three files a coding agent follows with you, installing, upgrading, including new settings, and deleting an installation. Same links, same place. `internal/installerdoc/readme_agents_entry_test.go` pins the new words.
+
 ## 2026-10-27 — The upgrade agent offers the settings also when the installation is already on the latest release ([#505](https://github.com/yveshanoulle/forsgren/issues/505), step 1 of 1)
 
 forsgren issue 505, patch.
