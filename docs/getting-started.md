@@ -15,6 +15,7 @@ See the [README](../README.md) for what it produces.
 
 - macOS with Homebrew. The gates are scripts that use Homebrew tools, and CI
   runs them on macOS too, so a local run gives the result CI gives.
+  If you want to help us out and have a windows machine, contact us and we help you set this up. 
 - Go. You need no particular version: `go.mod` has a `toolchain` line, and
   `FBP.sh` and `sfl.sh` export it, so Go downloads that exact toolchain on first use.
 - Node, the major version in `.nvmrc`. The gates check it and say what to
