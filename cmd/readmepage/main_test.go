@@ -48,6 +48,11 @@ func wantedFromTheReadme() []string {
 	wants := []string{
 		"<title>forsgren</title>", `<h1 id="forsgren">forsgren</h1>`,
 		`<a href="https://forsgren.forsgren.be">`,
+		// forsgren#524: the five DORA metrics, then the two TBD metrics.
+		`<h2 id="the-five-dora-metrics">The five DORA metrics</h2>`,
+		`<h2 id="two-tbd-metrics">Two TBD metrics</h2>`,
+		"<strong>Mainline Lead Time</strong> answers how long a commit takes",
+		"<strong>Mainline Interval</strong> answers how often changes land",
 	}
 	for _, anchor := range []string{
 		"deployment-frequency", "lead-time-for-changes", "failed-deployment-recovery-time",

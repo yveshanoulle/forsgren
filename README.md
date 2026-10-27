@@ -6,7 +6,7 @@ data, and publish them as a small static status page.
 Named after Dr. Nicole Forsgren, whose research with DORA (and the book
 *Accelerate*, with Jez Humble and Gene Kim) defined the first four of these metrics.
 
-## The five metrics
+## The five DORA metrics
 
 forsgren shows each metric as its DORA band next to the figures it comes from,
 for every project. The definitions, with the rulings behind them, are in
@@ -35,6 +35,15 @@ the rate and the failed changes: "20% · 15% (2 of 13)".
 answers what share of deployments is unplanned, made to fix a problem users hit.
 The page shows its band with the rate and the rework deployments:
 "20% · 14% (1 of 7)".
+
+## Two TBD metrics
+
+**Mainline Lead Time** answers how long a commit takes to reach the main
+branch: the time from its author date until it lands on main, over every
+commit that reached main, pushed directly or merged through a pull request.
+
+**Mainline Interval** answers how often changes land on the main branch: the
+time between one deployed commit and the next on the main line.
 
 ## What it produces
 
