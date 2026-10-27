@@ -313,7 +313,7 @@ broken runner cannot report green:
   compiles the binary, renders the site and writes the page count only on
   full success. It also covers `Scripts/build_fixture_site.sh`, which renders the
   site from the made-up fixture of `Scripts/testdata/fixture_site/` for the
-  browser gate (fixture site) (forsgren#226): eleven pages, a History page with charts, a TBD page with a Mainline Interval row, Daily and
+  browser gate (fixture site) (forsgren#226): twelve pages, a History page with charts, a TBD page with a Mainline Interval row, Daily and
   Issues pages with rows, byte-identical twice, only made-up repositories, red
   when the fixture shows no data, two mutation proofs.
 - **gate-failure summary**, **step table**
