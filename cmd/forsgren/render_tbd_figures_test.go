@@ -36,7 +36,10 @@ func TestRenderTbdFiguresChoosesTheColumnsOfTheTbdTable(t *testing.T) {
 	}
 	got := tbdSiteIn(t, figuresAll, data)
 	wantIn(t, got, `<th scope="colgroup" colspan="3">Mainline Interval</th>`,
-		`<th scope="colgroup" colspan="3">PR Lead Time</th>`, `<th scope="col">mean</th>`, `<th scope="col">p90</th>`)
+		`<th scope="colgroup" colspan="3">PR Lead Time</th>`,
+		`<th scope="col" aria-label="the mean of mainline interval">mean</th>`,
+		`<th scope="col" aria-label="the p90 of PR lead time">p90</th>`,
+		`<th scope="col" aria-label="the median of mainline lead time">median</th>`)
 	for _, not := range []string{">deviation<", ">gaps<", ">pull requests<"} {
 		if strings.Contains(got, not) {
 			t.Errorf("all: want no %q in tbd.html, got:\n%s", not, got)

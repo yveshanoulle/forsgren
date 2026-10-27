@@ -839,8 +839,8 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
   forsgren#485; Bot PR Lead Time right after PR Lead Time, forsgren#479): *Mainline
   Interval*; *Mainline Lead Time*; *Time to main per commit*; *PR Lead
   Time* (pull requests a person opened); *Bot PR Lead Time* (pull requests a
-  bot opened); *Time to deploy per commit*; *Volume* (Commits, Deployed
-  commits, Pushes, Deployments); *Commits per push*; *Commits per deployment*; *Shares of
+  bot opened); *Time to deploy per commit*; *Volume* (Commits, Pushes,
+  Deployments, Deployed commits); *Commits per push*; *Commits per deployment*; *Shares of
   commits* (Direct, PR, Unknown, Bots; forsgren#403 shortened the two headers,
   each keeps the full meaning in an `aria-label`); and *Developers* (the
   count). The key `tbd_figures` (forsgren#423, see
@@ -856,7 +856,8 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     beneath each measure). The table has 33 columns, wider than a phone, and
     scrolls sideways inside its region (Yves accepted that on #401; the
     project screen, forsgren#91, may give the phone its own view). The stat
-    headers carry the measure in an `aria-label`, such as "the mean of time to main".
+    headers of every group carry the measure in an `aria-label`, such as "the mean of time to main",
+    "the median of mainline interval" or "the p90 of PR lead time" (forsgren#518).
 
   *The column switches* (forsgren#482, decisions #480 and #481). The keys
   `tbd_time_to_main`, `tbd_pr_lead_time` and `tbd_bot_pr_lead_time` (see
@@ -903,15 +904,14 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     #449) and the pushes and pull requests (decision #450) name no service,
     so they are not the row's: one cell, `Per repository` (forsgren#475),
     stands across each run of those columns, not a dash in each. With the
-    median alone the four runs are 5 columns (Mainline Interval, Mainline Lead
-    Time, Time to main, PR Lead Time and Bot PR Lead Time), 5 runs in all
-    (Commits, Deployed commits and Pushes: the pushed Commits and the Pushes
-    are the repository's, the Deployed commits the service's own, so they are
-    cells of one column each, `Per repository` on either side of the number; a
-    service without paths has `Per repository` across the three), 1 (Commits
-    per push) and 4 (the shares); with `all` the runs of the groups are 15, 3
-    and 4. A group the column switches turn off leaves the first run
-    shorter by its columns.
+    median alone the runs are 5 columns (Mainline Interval, Mainline Lead
+    Time, Time to main, PR Lead Time and Bot PR Lead Time), 2 (Commits and
+    Pushes: the pushed Commits and the Pushes are the repository's, so one
+    cell across the two; Deployments and Deployed commits follow, the
+    service's own, and a service without paths has `Per repository` in the
+    Deployed commits cell), 1 (Commits per push) and 4 (the shares); with
+    `all` the runs of the groups are 15, 2, 3 and 4. A group the column
+    switches turn off leaves the first run shorter by its columns.
 
     The service's own figures are over the commits it owns (forsgren#496,
     decision #497). A service with `paths` counts only the commits that touch them

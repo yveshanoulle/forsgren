@@ -9,6 +9,40 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — The upgrade agent asks about every item, names the paths columns, keeps its files in its work folder and reads each rule's workflow ([#522](https://github.com/yveshanoulle/forsgren/issues/522), [#520](https://github.com/yveshanoulle/forsgren/issues/520), [#521](https://github.com/yveshanoulle/forsgren/issues/521), [#523](https://github.com/yveshanoulle/forsgren/issues/523), step 1 of 1 each)
+
+Found by a fresh upgrade agent going from 1.26.0 to 1.26.8. An answer that
+names some items of a question with several items leaves the others open: the
+agent asks about those and never takes their default silently
+(`agent-upgrade.md` step 5, `agent-installer.md` step 2). Step 9 names the three
+columns that change with `paths` (Time to deploy per commit, Deployed commits,
+Commits per deployment), says the other `Per repository` cells of a service or
+rule row are by design, and calls a paths row working when those three show
+figures or note 8. Every file the agent writes goes inside `WORK`, so removing
+it leaves nothing behind (step 2 of the upgrader, step 8 of the installer). The
+step that proposes deployment rules reads the workflow behind each rule it
+proposes or keeps, for a `release` rule the one that publishes the release,
+before proposing, and proposes its folders; it may not skip the read. Tests:
+`internal/installerdoc/agent_upgrade_found_test.go`.
+
+forsgren issues 522, 520, 521 and 523, patch.
+
+## 2026-10-27 — The TBD volume columns read Commits, Pushes, Deployments, Deployed commits ([#518](https://github.com/yveshanoulle/forsgren/issues/518), step 1 of 1)
+
+On the TBD page Volume now reads Commits, Pushes, Deployments, Deployed
+commits, then Commits per push and Commits per deployment, so a service row
+reads `Per repository` across Commits and Pushes, its own Deployments and
+Deployed commits, `Per repository` for Commits per push and its own Commits per
+deployment (a service or rule without paths: `Per repository` for Deployed
+commits and Commits per deployment too). With `tbd_figures: all` Volume still
+spans the four counts. In the `all` headers the mean, median and p90 of
+Mainline Interval and PR Lead Time carry aria-labels like the other groups, and
+Mainline Lead Time's read in lower case (`the mean of mainline lead time`). The
+legend, the goldens, the fixture site, `docs/pages-and-views.md` and CLAUDE.md
+move with it.
+
+forsgren issue 518, patch.
+
 ## 2026-10-27 — A failure issue can name the service or deployment rule it belongs to ([#515](https://github.com/yveshanoulle/forsgren/issues/515), steps 1 to 4)
 
 A failure issue's record block can carry a line `service: <label>`, the label

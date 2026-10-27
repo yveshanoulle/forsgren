@@ -89,7 +89,7 @@ type spreadHead struct {
 	// Title is the group's header.
 	Title string
 	// Subject names the group in the aria-label of its mean, median and p90
-	// headers (all); empty for a group whose three headers carry none.
+	// headers (all).
 	Subject string
 	// MedianLabel is the aria-label of the header of the median alone.
 	MedianLabel string
@@ -98,10 +98,10 @@ type spreadHead struct {
 // spreadHeads are the headers of the eight groups, in the table's order: the
 // first six sit before Volume, the last two after it.
 var spreadHeads = [...]spreadHead{
-	{idInterval, "Mainline Interval", "", "median mainline interval"},
-	{idMainLead, "Mainline Lead Time", "Mainline Lead Time", "median mainline lead time"},
+	{idInterval, "Mainline Interval", "mainline interval", "median mainline interval"},
+	{idMainLead, "Mainline Lead Time", "mainline lead time", "median mainline lead time"},
 	{idTimeToMain, "Time to main per commit", "time to main", "median time to main per commit"},
-	{idPRLeadTime, "PR Lead Time", "", "median PR lead time"},
+	{idPRLeadTime, "PR Lead Time", "PR lead time", "median PR lead time"},
 	{idBotPRLeadTime, "Bot PR Lead Time", "bot PR lead time", "median bot PR lead time"},
 	{idTimeToDeploy, "Time to deploy per commit", "time to deploy", "median time to deploy per commit"},
 	{idPerPush, "Commits per push", "commits per push", "median commits per push"},
@@ -247,19 +247,24 @@ func (r TbdRow) BatchGroups() []spreadGroup {
 	}
 }
 
-// VolumeGroups are the cells of Volume before Deployments: Commits, Deployed
-// commits and Pushes (forsgren#513). A service row writes Per repository for
-// the pushed Commits and Pushes, which are the repository's, and for Deployed
-// commits too when it has no paths; with paths its Deployed commits are its
-// own, between the two, the cell carrying the notes of its files.
+// VolumeGroups are the cells of Volume before Deployments: Commits and Pushes
+// (forsgren#518). A service row writes Per repository across both, which are
+// the repository's.
 func (r TbdRow) VolumeGroups() []spreadGroup {
-	deployed := metrics.NotedCell{Value: strconv.Itoa(r.DeployedCommits), Notes: r.filesNotes()}
 	if !r.PerRepository() {
-		return []spreadGroup{{Cells: []metrics.NotedCell{plain(r.Push.CommitsCell()), deployed, plain(r.Push.PushesCell())}}}
+		return []spreadGroup{{Cells: []metrics.NotedCell{plain(r.Push.CommitsCell()), plain(r.Push.PushesCell())}}}
 	}
-	per := spreadGroup{State: r.PerRepositorySentence()}
-	if r.DeployPerRepository {
-		return []spreadGroup{{State: r.PerRepositorySentence(), Colspan: 3}}
+	return []spreadGroup{{State: r.PerRepositorySentence(), Colspan: 2}}
+}
+
+// DeployedCommitsGroups are the cells of Volume after Deployments: Deployed
+// commits (forsgren#513, decision #495). A service row writes Per repository
+// when it has no paths; with paths its Deployed commits are its own, the cell
+// carrying the notes of its files.
+func (r TbdRow) DeployedCommitsGroups() []spreadGroup {
+	if r.PerRepository() && r.DeployPerRepository {
+		return []spreadGroup{{State: r.PerRepositorySentence()}}
 	}
-	return []spreadGroup{per, {Cells: []metrics.NotedCell{deployed}}, per}
+	deployed := metrics.NotedCell{Value: strconv.Itoa(r.DeployedCommits), Notes: r.filesNotes()}
+	return []spreadGroup{{Cells: []metrics.NotedCell{deployed}}}
 }

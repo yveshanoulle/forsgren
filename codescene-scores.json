@@ -2677,6 +2677,12 @@
    "score": 10.0,
    "checkedAt": "2026-10-27",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/agent_upgrade_found_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
   }
  ]
 }

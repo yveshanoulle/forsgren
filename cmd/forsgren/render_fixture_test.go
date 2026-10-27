@@ -50,12 +50,12 @@ func rowOf(page, project, label string) string {
 
 // TestTheFixtureSiteShowsAServiceSubRow: Acme Shop's services Web and Admin
 // are rows under its total, each with its own deployment cells and one cell
-// across each of the five runs of per-repository cells; Admin, which has no
-// paths, says Per repository for its Time to deploy and Commits per
-// deployment too (forsgren#496), while Web, with paths, shows its own.
+// across each of the four runs of per-repository cells; Admin, which has no
+// paths, says Per repository for its Time to deploy, Deployed commits and
+// Commits per deployment too (forsgren#496), while Web, with paths, shows its own.
 func TestTheFixtureSiteShowsAServiceSubRow(t *testing.T) {
 	page := fixtureTbd(t)
-	for service, want := range map[string]int{"Admin": 6, "Web": 5} {
+	for service, want := range map[string]int{"Admin": 7, "Web": 4} {
 		row := rowOf(page, "Acme Shop", service)
 		if got := strings.Count(row, "Per repository"); got != want {
 			t.Errorf("%s: want %d per-repository cells in the service row, got %d in %q", service, want, got, row)
@@ -79,7 +79,7 @@ func TestTheFixtureSiteShowsARepositoryLabelRow(t *testing.T) {
 // deployment too, Beta shows its own.
 func TestTheFixtureSiteShowsTheRowsOfSeveralDeploymentRules(t *testing.T) {
 	page := fixtureTbd(t)
-	for rule, want := range map[string]int{"App": 6, "Beta": 5} {
+	for rule, want := range map[string]int{"App": 7, "Beta": 4} {
 		row := rowOf(page, "Acme Shop", rule)
 		if row == "" {
 			t.Fatalf("want a service row %q under Acme Shop", rule)

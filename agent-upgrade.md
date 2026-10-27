@@ -210,6 +210,9 @@ Read the report first, then the repository it comes from.
    grep -n 'uses:' WORK/forsgren.yml
    ```
 
+   Every file you write goes inside `WORK`, never beside it (a list of
+   repositories included), so removing `WORK` at the end leaves nothing behind.
+
    Check: one line that calls
    `yveshanoulle/forsgren/.github/workflows/metrics.yml@` a 40-hex commit and
    ends in `# vX.Y.Z`. That `vX.Y.Z` is `VERSION`. Anything else: stop and
@@ -394,7 +397,9 @@ End the message with this line, word for word:
 > Reply with your answers by number, for example '1: raise the level to
 > minor'. Reply 'defaults' to take every default.
 
-Then wait for the answers. The questions, in this order, each only when it
+Then wait for the answers. An answer that names some items of a question with
+several items leaves the other items open: ask about those, and never take
+their default silently. The questions, in this order, each only when it
 applies:
 
 1. **A waiting pull request.** Only when step 3 found a Dependabot pull request
@@ -510,7 +515,10 @@ applies:
    `environment=<name>`) with a label, and `paths` where item 5 found folders
    for it. Show what you found and why, and the exact lines you would
    write, such as `release: Releases` and
-   `environment=github-pages: {label: Website, paths: [website/]}`. Name the
+   `environment=github-pages: {label: Website, paths: [website/]}`.
+   Read the workflow behind each rule you propose or keep before you propose it
+   (for a `release` rule, the workflow that publishes the release), and propose its folders.
+   Never skip the read, never say you have not read it. Name the
    other triggers of each rule's workflow and propose folders for a rule whose
    deployments have no paths filter (a release that ships the whole program),
    both as item 5 says. Say what changes on the page: each rule is its own row, with its own Deployments,
@@ -961,8 +969,12 @@ minute and run that check again, at most 5 times, before you report it.
    with `https://`, and `curl -fsS -o /dev/null -w '%{http_code}' REPORT`
    prints `200`. The HTTPS enforcement itself is the person's, not part of
    this upgrade; an `http://` address: tell the person.
-9. The TBD page, when step 8 wrote `paths` or a `deployments:` entry: the
-   page to read is `tbd.html` for service and rule rows, that is
+9. The TBD page, when step 8 wrote `paths` or a `deployments:` entry. Three
+   columns change with `paths`: Time to deploy per commit, Deployed commits and
+   Commits per deployment. The other `Per repository` cells of a service or rule row are by design
+   (Mainline Interval, the lead times, Commits, Pushes, Commits per push, the shares),
+   so a row with `paths` works when those three show figures or note 8,
+   and `Per repository` in the others is no failure. The page to read is `tbd.html` for service and rule rows, that is
    `REPORTtbd.html` (the TBD page address of the installation), never another
    page. Be sure to wait until the run's publish has finished before reading
    (step 3 ended and the retries above passed), then read it, and quote in the report

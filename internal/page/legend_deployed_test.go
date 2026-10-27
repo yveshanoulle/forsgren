@@ -7,9 +7,16 @@ import "testing"
 // commits (delivered by deployments of the window), each commit counted once.
 func TestLegendSaysPushedCommitsFromDeployedCommits(t *testing.T) {
 	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()),
-		"Volume shows four numbers.",
+		"Volume shows four numbers, in the order of its columns",
 		"Commits is the number of commits the pushes of the window brought to the main branch",
 		"Deployed commits is the number of distinct commits that the deployments of the window delivered. "+
 			"A commit counts once, at its first deployment in the window, however many deployments or services carry it.",
 		"Commits are pushed commits and Deployed commits are deployed commits:")
+}
+
+// TestLegendListsTheVolumeNumbersInTheTableOrder (forsgren#518): Commits,
+// Pushes, Deployments, then Deployed commits, as the columns read.
+func TestLegendListsTheVolumeNumbersInTheTableOrder(t *testing.T) {
+	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()),
+		"Volume shows four numbers, in the order of its columns: Commits, Pushes, Deployments and Deployed commits.")
 }

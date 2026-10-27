@@ -12,9 +12,9 @@
           </tr>
           <tr>{{range .TbdGroupHeads}}{{template "spreadheadall" .}}{{end}}
             <th scope="col">Commits</th>
-            <th scope="col">Deployed commits</th>
             <th scope="col">Pushes</th>
-            <th scope="col">Deployments</th>{{range .TbdBatchHeads}}{{template "spreadheadall" .}}{{end}}
+            <th scope="col">Deployments</th>
+            <th scope="col">Deployed commits</th>{{range .TbdBatchHeads}}{{template "spreadheadall" .}}{{end}}
             <th scope="col">Direct</th>
             <th scope="col" aria-label="pull request share of commits">PR</th>
             <th scope="col" aria-label="unknown author share of commits">Unknown</th>
@@ -24,9 +24,9 @@
 {{else}}          <tr>
             <th scope="col">Project</th>{{range .TbdGroupHeads}}{{template "spreadheadone" .}}{{end}}
             <th scope="col">Commits</th>
-            <th scope="col">Deployed commits</th>
             <th scope="col">Pushes</th>
-            <th scope="col">Deployments</th>{{range .TbdBatchHeads}}{{template "spreadheadone" .}}{{end}}
+            <th scope="col">Deployments</th>
+            <th scope="col">Deployed commits</th>{{range .TbdBatchHeads}}{{template "spreadheadone" .}}{{end}}
             <th scope="col" aria-label="direct share of commits">Direct share</th>
             <th scope="col" aria-label="pull request share of commits">PR share</th>
             <th scope="col" aria-label="unknown author share of commits">Unknown share</th>
@@ -41,7 +41,7 @@
           </tr>
 {{else}}{{if .PerRepository}}            <td colspan="{{.MainSpan}}">{{.PerRepositorySentence}}</td>
 {{else}}{{range .MainGroups}}{{template "spreadgroup" .}}{{end}}{{end}}{{range .DeployGroups}}{{template "spreadgroup" .}}{{end}}{{range .VolumeGroups}}{{template "spreadgroup" .}}{{end}}            <td>{{.Volume.Cell}}</td>
-{{range .BatchGroups}}{{template "spreadgroup" .}}{{end}}{{if .PerRepository}}            <td colspan="4">{{.PerRepositorySentence}}</td>
+{{range .DeployedCommitsGroups}}{{template "spreadgroup" .}}{{end}}{{range .BatchGroups}}{{template "spreadgroup" .}}{{end}}{{if .PerRepository}}            <td colspan="4">{{.PerRepositorySentence}}</td>
 {{else if .Push.State}}            <td colspan="4">{{.Push.State}}</td>
 {{else}}            <td>{{.Push.DirectCell}}</td>
             <td>{{.Push.PullRequestCell}}</td>

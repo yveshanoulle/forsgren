@@ -150,7 +150,9 @@ End the message with this line, word for word:
 > with acme/api'. Reply 'defaults' to take every default; question 3 has
 > no default, so add your repositories: 'defaults, and 3: …'.
 
-Then wait for the answers.
+Then wait for the answers. An answer that names some items of a question with
+several items leaves the other items open: ask about those, and never take
+their default silently.
 
 1. **Owner of the data repository.** Default: the login from step 1.3. It
    can be an organisation where the person may create repositories.
@@ -525,6 +527,9 @@ gh api -H 'Accept: application/vnd.github.raw' \
   > WORK/forsgren.yml
 grep -n 'uses:' WORK/forsgren.yml
 ```
+
+Every file you write goes inside `WORK`, never beside it (a list of
+repositories included), so removing `WORK` at the end leaves nothing behind.
 
 Check: one line, ending in `# vX.Y.Z`. That `vX.Y.Z` is `VERSION`.
 

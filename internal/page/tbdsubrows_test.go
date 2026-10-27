@@ -74,9 +74,10 @@ const perRepository = "Per repository"
 // repository, which are, in the order of the columns, the Mainline Interval,
 // Mainline Lead Time, Time to main, PR Lead Time and Bot PR Lead Time (5 columns, 15
 // with all),
-// then after the service's own Time to deploy, Commits (1), the service's own
-// Deployed commits and Pushes (1), Commits per push (1, 3) and the four shares
-// (4) (forsgren#485, #513).
+// then after the service's own Time to deploy, Commits and Pushes (2), the
+// service's own Deployments and Deployed commits, Commits per push (1, 3), the
+// service's own Commits per deployment and the four shares (4) (forsgren#485,
+// #513, #518).
 func apiRow(all bool) string {
 	span := func(median, every int) string {
 		if all {
@@ -84,11 +85,11 @@ func apiRow(all bool) string {
 		}
 		return "@" + strconv.Itoa(median) + perRepository
 	}
-	own, per := []string{"1 h", "2.0"}, "@1"+perRepository
+	own := []string{"1 h", "2.0"}
 	if all {
 		own = []string{"&lt; 1 m | 1 h | -", "0.0 | 2.0 | -"}
 	}
-	cells := []string{span(5, 15), own[0], per, "3", per, "5", span(1, 3), own[1], span(4, 4), "2"}
+	cells := []string{span(5, 15), own[0], "@2" + perRepository, "5", "3", span(1, 3), own[1], span(4, 4), "2"}
 	return labelCell("Acme Shop", "API") + "\n            " +
 		tds(strings.Join(cells, " | ")) + "\n"
 }
