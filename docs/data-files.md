@@ -19,6 +19,15 @@ forsgren reads only what is already in GitHub:
   service: Web
   ```
 
+  An example of a whole failure issue body:
+
+  ```
+  Checkout crashed after the 14:00 deploy.
+
+  failure-start: 2030-04-01T09:30+02:00
+  service: Web
+  ```
+
   `failure-start` is when users were first hit; the two builds name the
   deployment that caused the failure and the one that fixed it. forsgren
   stores the issue's opening and closing times and its `failure-start`; an
@@ -27,9 +36,12 @@ forsgren reads only what is already in GitHub:
   deployments](#collecting-deployments-collect), The failure issues). The builds are not used yet.
   `service` (optional, forsgren#515) is a row label as the page shows it, a
   service's or a deployment rule's label, for the failure to be counted in
-  that row; the key is lower case and the line stands alone, like the others;
+  that row, as well as in the project's total; the key is lower case and the
+  line stands alone, like the others; without it, or with a label no single
+  row of the repository has, the failure counts in the total only;
   `collect` stores it (see [Collecting deployments](#collecting-deployments-collect),
-  The failure issues); no row uses it yet.
+  The failure issues); the change fail rate and the rework rate of that
+  row count it (see [Pages and views](pages-and-views.md#change-fail-rate)).
 
 ## Where configuration and data live
 
@@ -182,8 +194,8 @@ acme/app,42,2026-09-01T10:00:00Z,2026-09-01T15:00:00Z,2026-09-01T09:30:00Z,Web
   line (empty when it has none forsgren can read). All are UTC. `service` is
   the label on the issue's `service:` line of its record block (forsgren#515),
   as `collect` resolved it (see Collecting deployments, The failure issues),
-  empty when it has none or when it matched no single row; no row of the page
-  uses it yet. A v1 file (five columns, no `service`) is still
+  empty when it has none or when it matched no single row; the change fail
+  rate and rework rate of that service's or rule's row count it. A v1 file (five columns, no `service`) is still
   read with every service empty and is written again as v2 once, by the first
   append.
 - An issue changes after it is stored: it is closed, or reopened. The file

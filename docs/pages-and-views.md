@@ -277,10 +277,13 @@ can be reverted there):
   repository no project lists is left out. It has at most as many failed
   changes as deployments, so the rate is at most 100%; its counts still
   show what was found.
-- **Failure issues belong to the repository**, not to one service or
-  deployment rule: they count in the project's total row, never in a
-  service or rule row. That is why a total can be higher than every row
-  under it (forsgren#514).
+- **A failure issue counts in the project's total row**, and in the row of a
+  service or deployment rule when its record block has a `service:` line
+  with that row's label as the page shows it, in any case (forsgren#515;
+  see [How it gets its data](data-files.md#how-it-gets-its-data)). Without
+  the line, or with a label the repository does not have or two rows share,
+  it counts in the total only, and the run's output names it. That is why a
+  total can be higher than every row under it (forsgren#514).
 - **The rate** is the failed changes out of the deployments, shown in
   whole percent, rounded down, so the percent shown never reaches a band
   edge the rate has not.
@@ -339,13 +342,14 @@ there):
   so a withdrawal never changes it.
 - **Counted once.** A deployment that is both is one rework deployment.
 - **A project** adds up its repositories, compared ignoring case; a
-  repository no project lists is left out. A failure issue names no task,
-  so a service's row has no issues and only (a) applies there, as for
-  change fail rate.
-- **A failure issue belongs to the repository** too: the deployments
-  made while it was open are rework in the project's total row, never in a
-  service or rule row, so the total rate can be higher than the rate of
-  every row under it (forsgren#514).
+  repository no project lists is left out. A service's or a rule's row reads
+  the issues whose `service:` line names its label, so (b) applies there for
+  them, as for change fail rate.
+- **A failure issue of the repository** makes the deployments made while it
+  was open rework in the project's total row, and in the row its `service:`
+  line names; without the line, or with a label no single row has, only in
+  the total, so the total rate can be higher than the rate of every row
+  under it (forsgren#514, forsgren#515).
 - **The rate** is the rework deployments out of the successful ones, in
   whole percent, rounded down, so the percent shown never reaches a band
   edge the rate has not.
@@ -418,11 +422,13 @@ a path on github.com (forsgren#172):
   label row over all that repository's deployments, commits and failure
   issues; a service's row over the deployments of its task (written
   exactly, the repository ignoring case) and the commits they shipped
-  (joined by repository, kind and deployment ID). A failure issue names no
-  task, so it counts on the total and on a repository's label row, never on
-  a service's row, whose change fail rate is its failed deployments of its
-  final deployments, and whose rework rate counts only the first success
-  after a failed deployment.
+  (joined by repository, kind and deployment ID); a deployment rule's row
+  likewise over its kind and name. A failure issue counts on the total and
+  on a repository's label row, and on the row of the service or rule whose
+  label its `service:` line names (forsgren#515); one without that line, or
+  with a label no single row has, counts on the total only. Failed
+  deployment recovery time reads failed deployments alone, so every row has
+  its own.
 - **Each cell is short**: the DORA band, then the number that decided it
   and the count it is over, "Less than one day · 2 h 7 min (48)"; the
   weekend deployments have their own column. Durations are in min, h and d,

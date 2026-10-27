@@ -473,7 +473,9 @@ projects:
 
 A **failure** is an issue labelled `failure` whose body carries the failure
 record block (see [How it gets its data](data-files.md#how-it-gets-its-data)); lead time runs from a change's first
-commit. Neither is configured per repository in version 1.
+commit. Neither is configured per repository in version 1. A repository with
+`services:` or `deployments:` can name the row a failure belongs to with a
+`service:` line in the record block; nothing in the config changes.
 
 ### Giving a repository the deployments forsgren counts
 

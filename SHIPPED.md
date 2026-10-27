@@ -9,6 +9,26 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — A failure issue can name the service or deployment rule it belongs to ([#515](https://github.com/yveshanoulle/forsgren/issues/515), steps 1 to 4)
+
+A failure issue's record block can carry a line `service: <label>`, the label
+of a service or a deployment rule of its repository as the page shows it, in
+any case. `collect` resolves it against the repository's rows and stores the
+config's spelling in a new `service` column of `failures.csv` (failures format
+v2, v1 still read and rewritten once by the first append). The change fail
+rate and the rework rate of that row then count the issue, over the row's own
+deployments, as well as the project's total, which still counts every failure.
+A failure without the line, with a label the repository does not have or with
+one that two rows share counts in the total only, and the run names it on
+stderr and in the run summary's Collected line, with the repository, the issue
+number and the label; the run never fails for it and no setup issue is made.
+Recovery time reads failed deployments, so it was per row already. The legend,
+the docs and the agent documents say so; `agent-upgrade.md` tells an
+installation with services or deployment rules that its failure issues may
+carry the line, with no config change.
+
+forsgren issue 515, minor.
+
 ## 2026-10-27 — The header of an installation's caller workflows names no release ([#506](https://github.com/yveshanoulle/forsgren/issues/506), step 1 of 1)
 
 Line 2 of `forsgren.yml` and `forsgren-update.yml` said `pinned by the commit of

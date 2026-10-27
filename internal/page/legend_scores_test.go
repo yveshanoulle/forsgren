@@ -84,19 +84,25 @@ func TestLegendReworkListsTheSixLevelsWithScore(t *testing.T) {
 		"<li>Rework of 100%: 90% and more of the deployments, score 1 to 0</li>")
 }
 
-// TestLegendSaysFailureIssuesCountInTheTotalRowOnly (forsgren#514): the change
+// TestLegendSaysWhichRowAFailureIssueCountsIn (forsgren#514, #515): the change
 // fail rate part and the deployment rework rate part each say, worded apart,
-// that a failure issue belongs to the repository, so a total can be higher
-// than every row under it.
-func TestLegendSaysFailureIssuesCountInTheTotalRowOnly(t *testing.T) {
+// that a failure issue counts in the total row, and in the row its service
+// line names, and in the total only otherwise, so a total can be higher than
+// every row under it; the recovery time part says it is per row already.
+func TestLegendSaysWhichRowAFailureIssueCountsIn(t *testing.T) {
 	wantAll(t, "change fail rate section", legendSection(t, "Change fail rate"),
-		"Failure issues belong to the repository, not to one service or deployment rule: "+
-			"they count in the project's total row, never in a service or rule row. "+
-			"That is why a total can be higher than every row under it.")
+		"A failure issue counts in the project's total row. With a line service: and a label in its "+
+			"failure record, the label of a service or deployment rule of its repository as this page "+
+			"shows it, in any case, it counts in that row too. Without the line, or with a label the "+
+			"repository does not have or two rows share, it counts in the total only, and the run's "+
+			"output names it. That is why a total can be higher than every row under it.")
 	wantAll(t, "rework rate section", legendSection(t, "Deployment rework rate"),
-		"A failure issue belongs to the repository too: the deployments made while it was open "+
-			"are rework in the project's total row, never in a service or rule row, "+
-			"so the total rate can be higher than the rate of every row under it.")
+		"A failure issue of the repository counts in the project's total row, and in the row of the "+
+			"service or deployment rule its service: line names, by the rule of change fail rate; "+
+			"the deployments made while it was open are rework there. So the total rate can be "+
+			"higher than the rate of every row under it.")
+	wantAll(t, "recovery time section", legendSection(t, "Failed deployment recovery time"),
+		"Recovery time comes from failed deployments, so a service or deployment rule row has its own.")
 }
 
 // legendLevelScoresText is the sentence under Scores that points at the scores
