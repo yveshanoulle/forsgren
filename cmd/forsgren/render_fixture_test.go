@@ -7,16 +7,16 @@ import (
 	"unicode/utf8"
 )
 
-// labelCell is the header of a label row as the page writes it (forsgren#511):
+// labelCell is the header of a label row as the page writes it (forsgren#511, #526):
 // the project visually hidden, the dash and the label, a label of up to 15
 // characters with non-breaking spaces.
 func labelCell(project, label string) string {
-	space := " "
+	dash, space := "– ", " "
 	if utf8.RuneCountInString(label) <= 15 {
-		space = " "
+		dash, space = "–\u2060\u00a0", "\u00a0"
 	}
 	return `<th scope="row"><span class="visually-hidden">` + project + `: </span>` +
-		`<span aria-hidden="true">–` + space + `</span>` + strings.ReplaceAll(label, " ", space) + "</th>"
+		`<span aria-hidden="true">` + dash + `</span>` + strings.ReplaceAll(label, " ", space) + "</th>"
 }
 
 // The fixture site's TBD page (forsgren#422, step 5): the made-up fixture of

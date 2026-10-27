@@ -5,9 +5,11 @@
 # test_starter_page_workflow.sh pins this file in sfl and Quality on every
 # run: its triggers, permissions, pins and the build command.
 #
-# Triggers (decision forsgren#149): a push to main that touches the README,
-# the renderer, the stylesheet it ships or this workflow; a published release
-# (so the page is rebuilt from the README of the release's day); and by hand.
+# Triggers: a push to main that touches the README, the renderer, the
+# stylesheet it ships, the build script or this workflow; and by hand. Not a
+# published release: the page carries nothing from a release, so a release run
+# only re-published an identical page (Yves's ruling of 2026-10-27,
+# forsgren#527, reversing the release part of decision forsgren#149).
 # NEVER pull_request: nothing here needs to run for a pull request, and the
 # deploy job holds the Pages token. Both jobs run on GitHub's hosted
 # ubuntu-latest, thrown away after the job.
@@ -23,12 +25,11 @@
 # and only when the deploy step really published, runs Scripts/live_check.sh
 # against https://forsgren.be: the http redirect, the validated certificate, a
 # 200 page and its stylesheet as text/css. It holds contents: read only and
-# cannot undo the deploy; a failed check makes the job red. A release run that
-# skipped the deploy (Pages not enabled) skips it too.
+# cannot undo the deploy; a failed check makes the job red.
 #
 # GitHub Pages must be enabled on the repository with the source "GitHub
-# Actions" (Settings, Pages) for the deploy to succeed; a release-triggered
-# run skips the deploy with a notice while it is not.
+# Actions" (Settings, Pages) for the deploy to succeed; with Pages off, the
+# deploy step fails by name, which is what a push or a manual run should do.
 name: Starter page
 
 on:
@@ -41,8 +42,6 @@ on:
       - internal/page/styles.css
       - Scripts/build_starter_page.sh
       - .github/workflows/starter_page.yml
-  release:
-    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -97,38 +96,8 @@ jobs:
       deployed: ${{ steps.deployment.outcome == 'success' }}
 
     steps:
-      # A release-triggered run skips the deploy, with a notice saying why,
-      # while GitHub Pages is not enabled for the repository: it neither
-      # fails nor tries to configure Pages (decision forsgren#149). Only a
-      # 404 means "not enabled"; any other answer fails the step, so a token
-      # or API problem is never read as a skip. The token is the job's own,
-      # which holds pages: write already; no permission is added for this.
-      # A push or a manual run is not checked: with Pages off, deploy-pages
-      # fails by name, which is what those runs should do.
-      - name: Check that GitHub Pages is enabled
-        id: pages
-        if: github.event_name == 'release'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-        run: |
-          set -uo pipefail
-          status=0
-          error="$(gh api "repos/${REPOSITORY}/pages" 2>&1 >/dev/null)" || status=$?
-          if [[ "$status" -eq 0 ]]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          elif [[ "$error" == *"HTTP 404"* ]]; then
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=GitHub Pages is not enabled::Pages is not enabled for ${REPOSITORY}, so this release run skips the deploy. Enable it (Settings, Pages, Source: GitHub Actions)."
-          else
-            echo "::error title=GitHub Pages check failed::gh api repos/${REPOSITORY}/pages exited ${status}; the deploy is not skipped on a guess."
-            exit 1
-          fi
-
       - name: Publish to GitHub Pages
         id: deployment
-        if: github.event_name != 'release' || steps.pages.outputs.enabled == 'true'
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346  # v5.0.1
 
   live-check:

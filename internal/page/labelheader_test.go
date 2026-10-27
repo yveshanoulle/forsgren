@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	dashNB = `<span aria-hidden="true">–` + " " + `</span>`
+	dashNB = `<span aria-hidden="true">–` + "\u2060\u00a0" + `</span>`
 	dashSp = `<span aria-hidden="true">– </span>`
 )
 
@@ -17,17 +17,27 @@ func labelCell(project, label string) string {
 	return `<th scope="row"><span class="visually-hidden">` + project + `: </span>` + dashNB + label + "</th>"
 }
 
+// TestLabelHeaderGluesTheDashToAShortLabel (forsgren#526): U+00A0 after the en
+// dash (line break class BA) is still a break opportunity under UAX #14 LB12a,
+// so a word joiner (U+2060) sits between the dash and the no-break space.
+func TestLabelHeaderGluesTheDashToAShortLabel(t *testing.T) {
+	want := "–\u2060\u00a0Releases"
+	if got := labelHeaderOf("Releases"); got.Dash+got.Text != want {
+		t.Errorf("want %+q, got %+q", want, got.Dash+got.Text)
+	}
+}
+
 // TestLabelHeaderKeepsALabelOfFifteenCharactersOnOneLine (forsgren#511): every
 // space of the visible dash and label is a non-breaking space for a label of
 // up to 15 characters, counted as runes; a longer label keeps its spaces.
 func TestLabelHeaderKeepsALabelOfFifteenCharactersOnOneLine(t *testing.T) {
-	nb := " "
+	nb, wj := "\u00a0", "\u2060"
 	cases := []struct{ name, label, dash, text string }{
-		{"one word of 8", "Releases", nb, "Releases"},
-		{"two words of 15", "Mobile app, iOS", nb, "Mobile" + nb + "app," + nb + "iOS"},
+		{"one word of 8", "Releases", wj + nb, "Releases"},
+		{"two words of 15", "Mobile app, iOS", wj + nb, "Mobile" + nb + "app," + nb + "iOS"},
 		{"two words of 16", "Mobile app, iOS!", " ", "Mobile app, iOS!"},
 		{"16 runes in more bytes", "Zürich service ü", " ", "Zürich service ü"},
-		{"14 runes in more bytes", "Zürich service", nb, "Zürich" + nb + "service"},
+		{"14 runes in more bytes", "Zürich service", wj + nb, "Zürich" + nb + "service"},
 	}
 	for _, c := range cases {
 		want := labelView{Dash: "–" + c.dash, Text: c.text}

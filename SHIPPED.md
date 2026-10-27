@@ -9,6 +9,39 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — A short label row header no longer breaks after its dash ([#526](https://github.com/yveshanoulle/forsgren/issues/526), step 1 of 1)
+
+Found by Yves on forsgren.forsgren.be: the row header `– Releases` of the TBD
+page wrapped to two lines although #511 had made a label of 15 characters or
+fewer unbreakable. The en dash is line break class BA, and UAX #14 rule LB12a
+lets a break stand before a no-break space after a BA, so the no-break space
+alone did not glue the dash to the label. `labelHeaderOf` now writes a word
+joiner (U+2060) between the dash and the no-break space for a label of 15
+characters or fewer; a longer label keeps its ordinary spaces and may wrap, as
+#511 ruled. No `nowrap`, no CSS change. Tests:
+`TestLabelHeaderGluesTheDashToAShortLabel` and the updated pins of
+`internal/page/labelheader_test.go`; goldens regenerated (only those headers).
+
+forsgren issue 526, patch.
+
+## 2026-10-27 — The starter page deploys on a change of its files or by hand, no longer on every release ([#527](https://github.com/yveshanoulle/forsgren/issues/527), step 1 of 1)
+
+The website deployments of forsgren.forsgren.be counted 66 with 38 deployed
+commits: most re-published an identical page, because `starter_page.yml` also
+deployed on every published release (decision #149) although the page carries
+nothing from a release. Yves's ruling of 2026-10-27 reverses that part: the
+workflow now triggers on a push to `main` that touches the README, the
+renderer, the stylesheet, the build script or itself, and by hand. The
+`release` trigger goes, with the release-only "Check that GitHub Pages is
+enabled" step and its notice; the publish step has no condition, so a push or a
+manual run always publishes, and with Pages off `deploy-pages` fails by name.
+The `deployed` output and the live check are unchanged. No secret or
+permission is added or dropped (`pages: write` and `id-token: write` stay for
+the deploy). `Scripts/test_starter_page_workflow.sh` pins push plus
+`workflow_dispatch` only, no release trigger, no Pages check and no condition
+on the publish step; the pins that executed the check step with a stub `gh`,
+and five mutation proofs of it, went. Patch.
+
 ## 2026-10-27 — The upgrade agent proposes folders for an existing deployments rule or service without paths ([#525](https://github.com/yveshanoulle/forsgren/issues/525), step 1 of 1)
 
 Found by a fresh upgrade agent on an installation already on 1.27.0: the item

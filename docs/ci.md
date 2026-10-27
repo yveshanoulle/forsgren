@@ -420,9 +420,9 @@ rendered to one HTML page and published to GitHub Pages at
 <https://forsgren.be>. `.github/workflows/starter_page.yml` builds it on a
 push to `main` that touches the README, the renderer (`cmd/readmepage`,
 `internal/readmepage`), the stylesheet it ships (`internal/page/styles.css`),
-the build script or the workflow itself, on a published release, and by hand.
-A release redeploys the page, so it is always rebuilt from the README of the
-release's day. The build job runs `Scripts/build_starter_page.sh` into
+the build script or the workflow itself, and by hand. A published release does
+not redeploy it: the page carries nothing from a release (forsgren#527). The
+build job runs `Scripts/build_starter_page.sh` into
 `.build/starter` (`index.html`, `styles.css`, the same stylesheet the metrics
 site uses, and a `CNAME` holding `forsgren.be`) and uploads that folder; the
 deploy job, the only one holding `pages: write` and `id-token: write`,
