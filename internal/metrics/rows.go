@@ -8,11 +8,13 @@ package metrics
 //
 //   - a repository's label row: all of the repository's deployments,
 //     commits and failure issues;
-//   - a service's label row: the deployments of the repository with that
-//     task, written exactly, and the commits they shipped, joined by
-//     repository (ignoring case), kind and deployment ID. A failure issue
-//     names no task, so it counts on its project's total row only, and a
-//     service's change fail rate comes from its failed deployments alone;
+//   - a service's label row, and a deployment rule's: the deployments of the
+//     repository with that task, written exactly (or of that rule's kind and
+//     name), and the commits they shipped, joined by repository (ignoring
+//     case), kind and deployment ID. A failure issue counts on the row whose
+//     label its service line names (forsgren#515, Data.failuresOf), and on
+//     its project's total row whatever it names; one naming none counts on
+//     the total row only;
 //   - a deployment of no task, or of a task no label names, counts in the
 //     total only.
 
@@ -176,11 +178,13 @@ func labelRows(p config.Project, data Data, now time.Time) []Row {
 		}
 		for task, label := range r.Services {
 			labelled.Name = label
-			rows = append(rows, rowOf(LabelRow, labelled, data.ofTask(r.Name, task), now))
+			rows = append(rows, rowOf(LabelRow, labelled,
+				data.ofTask(r.Name, task).withFailures(data.failuresOf(r.Name, label)), now))
 		}
 		for _, rule := range r.Rules {
 			labelled.Name = rule.Label
-			rows = append(rows, rowOf(LabelRow, labelled, data.ofRule(r.Name, rule.Deployment), now))
+			rows = append(rows, rowOf(LabelRow, labelled,
+				data.ofRule(r.Name, rule.Deployment).withFailures(data.failuresOf(r.Name, rule.Label)), now))
 		}
 	}
 	slices.SortFunc(rows, byLabel)
@@ -194,12 +198,28 @@ func byLabel(a, b Row) int {
 }
 
 // ofTask is one service's data: the deployments of repository (ignoring
-// case) with task, the commits they shipped, and no failure issue; every
+// case) with task, the commits they shipped, and no failure issue (a row adds
+// its own with withFailures); every
 // other field, the settings of the data, is the parent's.
 func (d Data) ofTask(repository, task string) Data {
 	return d.narrowed(func(r history.Record) bool {
 		return strings.EqualFold(r.Repository, repository) && r.Task == task
 	})
+}
+
+// failuresOf are the failure issues of repository (ignoring case) whose
+// service is label, ignoring case: the ones a service's or a rule's row
+// counts (forsgren#515). An issue with no service counts in the total only.
+func (d Data) failuresOf(repository, label string) []history.Failure {
+	return slices.DeleteFunc(slices.Clone(d.Failures), func(f history.Failure) bool {
+		return !strings.EqualFold(f.Repository, repository) || !strings.EqualFold(f.Service, label)
+	})
+}
+
+// withFailures is d over the failure issues failures.
+func (d Data) withFailures(failures []history.Failure) Data {
+	d.Failures = failures
+	return d
 }
 
 // ofRule is one deployment rule's data (forsgren#498): the deployments of

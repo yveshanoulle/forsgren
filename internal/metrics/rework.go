@@ -18,8 +18,8 @@ package metrics
 // A deployment is counted once, though both apply. The rate is the rework
 // deployments out of the successful deployments created in the window; a
 // deployment created after the render time is not there yet. A service's
-// row has no failure issues (the issues name no task), so only (a) applies
-// there, as for change fail rate.
+// or a rule's row has the failure issues whose stored service is its label
+// (forsgren#515), so (b) reads those and no others, as for change fail rate.
 //
 // DORA's Quick Check asks for rework rate as a percentage, "Approximately
 // what percentage of deployments in the last 6 months were not planned but

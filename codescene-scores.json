@@ -777,6 +777,12 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/metrics/servicefailures_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/metrics/rework.go",
    "score": 10.0,
    "checkedAt": "2026-10-15",
@@ -2430,6 +2436,12 @@
    "path": "cmd/forsgren/render_fixture_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_fixture_service_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
    "minScore": 10.0
   },
   {

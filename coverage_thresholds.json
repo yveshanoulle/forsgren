@@ -1271,6 +1271,8 @@
     "github.com/yveshanoulle/forsgren/internal/collect/rules.go:reachesOr": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:ofRule": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:historyKind": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:narrowed": 100.0
+    "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:narrowed": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:failuresOf": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:withFailures": 100.0
   }
 }
