@@ -11,7 +11,8 @@
 # level, none of which a pull request opened by this workflow has to meet): the
 # changed files are exactly the two caller workflows,
 # .github/workflows/forsgren.yml and .github/workflows/forsgren-update.yml;
-# each has one removed and one added line and nothing else, the removed line a
+# each has one removed and one added line and nothing else (besides the header
+# that names a release becoming the one that names none, forsgren#506), the removed line a
 # pin of the workflow the caller calls (metrics.yml, auto_update.yml) of this
 # repository (GITHUB_REPOSITORY) and the added line the same pin at <sha> with
 # the comment v<version>. Anything else is a red naming it, and the caller
@@ -50,6 +51,12 @@ workflow_of() {
   esac
 }
 
+# The header that names a release (forsgren#506) may change besides the pin:
+# a removed line that names the release (or, wrapped, starts with its version)
+# and an added line with the wording that names none, nothing else.
+HEADER_OLD_RE='^-# (.*pinned by the commit of release( v[0-9]+\.[0-9]+\.[0-9]+.*)?|v[0-9]+\.[0-9]+\.[0-9]+, the same commit as forsgren\.yml: Dependabot moves both lines together\.)$'
+HEADER_NEW_RE='^\+# (.*pinned by a release commit,( named on the uses: line)?|named on the uses: line, the same commit as forsgren\.yml: Dependabot moves both lines together\.)$'
+
 FINDINGS=""
 find_out() { FINDINGS="${FINDINGS}❌ FAIL: release verify pin: $1
 "; }
@@ -74,14 +81,24 @@ for caller in $CALLERS; do
   patch="$(printf '%s' "$FILES" | jq -r --arg f "$caller" '.[] | select(.filename == $f) | .patch // ""')"
   removed=()
   added=()
+  header_removed=0
+  header_added=0
   while IFS= read -r line; do
     case "$line" in
-      -*) removed+=("$line") ;;
-      +*) added+=("$line") ;;
+      -*)
+        if [[ "$line" =~ $HEADER_OLD_RE ]]; then header_removed=$((header_removed + 1)); else removed+=("$line"); fi
+        ;;
+      +*)
+        if [[ "$line" =~ $HEADER_NEW_RE ]]; then header_added=$((header_added + 1)); else added+=("$line"); fi
+        ;;
     esac
   done <<< "$patch"
   if [ "${#removed[@]}" -ne 1 ] || [ "${#added[@]}" -ne 1 ]; then
-    find_out "${caller}: want one removed and one added line, got ${#removed[@]} and ${#added[@]}"
+    find_out "${caller}: want one removed and one added line besides the header, got ${#removed[@]} and ${#added[@]}"
+    continue
+  fi
+  if [ "$header_removed" -ne "$header_added" ]; then
+    find_out "${caller}: the header lines removed (${header_removed}) and added (${header_added}) do not match"
     continue
   fi
   removed_re="^-[[:space:]]*uses: ${REPO_RE}/\\.github/workflows/${wf//./\\.}@[0-9a-f]{40} # [^[:space:]]+\$"

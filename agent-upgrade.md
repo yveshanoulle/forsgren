@@ -793,13 +793,26 @@ Then go on to step 8.
 
 ## Step 8. Write the settings the person chose
 
+One line in the caller files is not a setting but is fixed here (forsgren#506):
+line 2 of `.github/workflows/forsgren.yml` and of
+`.github/workflows/forsgren-update.yml` may still say `pinned by the commit of
+release vX.Y.Z` (the comment may wrap after `release`), a version that was true
+only on the day of the install. In `WORK/new/` change those words, and the
+version after them, to `pinned by a release commit, named on the uses: line`
+(a wrapped comment keeps its break: `pinned by a release commit,` and then
+`named on the uses: line` at the start of the next comment line), and nothing
+else in the file. A caller file whose comment names no version stays as it is.
+Read both caller files in item 1 like the other files, put the changed ones in
+the tree and the commit of item 5, and name `the caller header` in `NAMES`.
+
 Write only the settings the person chose in step 5, and nothing else: a key of
 `forsgren.config.yml` (a new key a release introduced, `auto_update`,
 `auto_update_level`, the `paths` of a service, the `deployments:` of a
 repository), and the update wait, `default-days` in
 `.github/dependabot.yml`. Every other line, key and comment stays as it is,
-`projects:` and `data/` included. Nothing chosen: skip this step and go on to
-step 9 (every answer was to keep what is there).
+`projects:` and `data/` included.
+Nothing chosen and no header to fix: skip this step and go on to step 9 (every
+answer was to keep what is there).
 
 Already at the latest release: this step is the only write, in a commit of its
 own, config only, no pin change, with the `forsgren.config.yml` keys of items
@@ -819,7 +832,15 @@ as in route 6b item 1 of step 6 (steps 6 and 7 were skipped).
      > WORK/cur/dependabot.yml
    cp WORK/cur/forsgren.config.yml WORK/new/forsgren.config.yml
    cp WORK/cur/dependabot.yml WORK/new/dependabot.yml
+   gh api -H 'Accept: application/vnd.github.raw' \
+     'repos/OWNER/REPO/contents/.github/workflows/forsgren.yml?ref=HEADSHA' \
+     > WORK/cur/forsgren.yml
+   cp WORK/cur/forsgren.yml WORK/new/forsgren.yml
    ```
+
+   The same for `.github/workflows/forsgren-update.yml` (into
+   `WORK/cur/forsgren-update.yml` and `WORK/new/forsgren-update.yml`), unless
+   the installation has no such file (a 404).
 
    `dependabot.yml` missing (a 404): the update wait cannot be set; if the
    person chose one, stop and report (step 7 should have brought the file).
@@ -864,13 +885,15 @@ as in route 6b item 1 of step 6 (steps 6 and 7 were skipped).
      fails before it publishes anything when it is invalid.
 5. Already at the latest release: the message `forsgren: set NAMES (settings
    only, no pin change)` (for example `forsgren: set deployments (settings only, no pin change)`)
-   and the commit holds `forsgren.config.yml` alone; the rest is as below.
+   and the commit holds `forsgren.config.yml` alone (and the two caller files
+   whose header was fixed); the rest is as below.
    Commit it as route 6b of step 6 does, in one commit for the files that
    changed: items 1 and 4 to 7 with `WORK/new/` as the source (the tree holds
-   `forsgren.config.yml` and `.github/dependabot.yml`, only the ones that
+   `forsgren.config.yml`, `.github/dependabot.yml` and the two caller files whose header was fixed, only the ones that
    changed), the message `forsgren: set NAMES for LATEST` with `NAMES` every
    setting the commit changes, the update wait included (for example
-   `forsgren: set auto_update, auto_update_level, days_page and the update wait for LATEST`),
+   `forsgren: set auto_update, auto_update_level, days_page and the update wait for LATEST`);
+   a fixed caller header adds `the caller header` to `NAMES`;
    no `Co-Authored-By` and no other trailer, and the branch moved without
    force.
 6. The read back: the head is `NEWCOMMIT`; for each changed file,

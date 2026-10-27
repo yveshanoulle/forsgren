@@ -183,14 +183,17 @@ readme_blob() {
 # 1: rewrite
 world
 OUT="$(GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite workflow "$VERSION" "$SHA" < "${FIX}/forsgren-update.yml.fixture")"
-if grep -qF "auto_update.yml@${SHA} # v${VERSION}" <<< "$OUT" && grep -qF "release" <<< "$OUT" && grep -qE '^# v1\.9\.4, the same commit' <<< "$OUT" && ! grep -qF "$OLDSHA" <<< "$OUT" && ! grep -qF "1.9.3" <<< "$OUT"; then
-  echo "  ok: a workflow file gets the new pin and the wrapped comment names the new release"
+HEADER_UPDATE_1="# It calls forsgren's reusable auto_update.yml, pinned by a release commit,"
+HEADER_UPDATE_2="# named on the uses: line, the same commit as forsgren.yml: Dependabot moves both lines together."
+if grep -qF "auto_update.yml@${SHA} # v${VERSION}" <<< "$OUT" && grep -qxF "$HEADER_UPDATE_1" <<< "$OUT" && grep -qxF "$HEADER_UPDATE_2" <<< "$OUT" && ! grep -qE 'release v[0-9]|commit of release' <<< "$OUT" && ! grep -qF "$OLDSHA" <<< "$OUT" && ! grep -qF "1.9.3" <<< "$OUT"; then
+  echo "  ok: a workflow file gets the new pin and the wrapped header names no version (forsgren#506)"
 else
   fail "the update workflow was not rewritten right. Output: ${OUT}"
 fi
 OUT="$(GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite workflow "$VERSION" "$SHA" < "${FIX}/forsgren.yml.fixture")"
-if grep -qF "metrics.yml@${SHA} # v${VERSION}" <<< "$OUT" && grep -qF "pinned by the commit of release v${VERSION}" <<< "$OUT" && ! grep -qF "1.9.3" <<< "$OUT"; then
-  echo "  ok: the calling workflow gets the new pin and comment"
+HEADER_CALLER="# It calls forsgren's reusable workflow, pinned by a release commit, named on the uses: line"
+if grep -qF "metrics.yml@${SHA} # v${VERSION}" <<< "$OUT" && grep -qxF "$HEADER_CALLER" <<< "$OUT" && ! grep -qE 'release v[0-9]|commit of release' <<< "$OUT" && ! grep -qF "1.9.3" <<< "$OUT"; then
+  echo "  ok: the calling workflow gets the new pin and a header that names no version (forsgren#506)"
 else
   fail "the calling workflow was not rewritten right. Output: ${OUT}"
 fi
@@ -218,8 +221,8 @@ else
   fail "the previous pull-requests: read comment was not replaced. Line: $(grep -F 'pull-requests:' "${TMP}/prev_out.yml")"
 fi
 # every line but the pin, the release comment and the pull-requests line is unchanged
-if diff <(grep -vE 'metrics\.yml@|commit of release|pull-requests:' "${FIX}/forsgren.yml.fixture") \
-  <(grep -vE 'metrics\.yml@|commit of release|pull-requests:' "${TMP}/once.yml") > /dev/null \
+if diff <(grep -vE 'metrics\.yml@|commit of release|pinned by a release commit|pull-requests:' "${FIX}/forsgren.yml.fixture") \
+  <(grep -vE 'metrics\.yml@|commit of release|pinned by a release commit|pull-requests:' "${TMP}/once.yml") > /dev/null \
   && [[ "$(wc -l < "${FIX}/forsgren.yml.fixture")" -eq "$(wc -l < "${TMP}/once.yml")" ]]; then
   echo "  ok: every other line of the calling workflow is byte for byte the same"
 else
@@ -250,12 +253,26 @@ want_red "a pin of another repository is not moved" "would be skipped"
 OUT="$(printf 'hello\n' | GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite readme "$VERSION" "$SHA" 2>&1)" && RC=0 || RC=$?
 want_red "a README with no version sentence" "would be skipped"
 
-# 1b: the pins kind (forsgren-metrics): the uses lines only, as Dependabot moves them
+# 1b: the pins kind (forsgren-metrics): the uses lines, and the header that names a
+# release, which becomes the one that names none (forsgren#506); no other comment
 OUT="$(GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite pins "$VERSION" "$SHA" < "${FIX}/forsgren.yml.fixture")"
-if grep -qF "metrics.yml@${SHA} # v${VERSION}" <<< "$OUT" && grep -qF "pinned by the commit of release v1.9.3" <<< "$OUT" && grep -qF "$PR_OLD" <<< "$OUT"; then
-  echo "  ok: the pins kind moves the pin and leaves the comment"
+if grep -qF "metrics.yml@${SHA} # v${VERSION}" <<< "$OUT" && grep -qxF "$HEADER_CALLER" <<< "$OUT" && ! grep -qE 'release v[0-9]|commit of release' <<< "$OUT" && grep -qF "$PR_OLD" <<< "$OUT"; then
+  echo "  ok: the pins kind moves the pin and the header, and leaves the other comments (forsgren#506)"
 else
-  fail "the pins kind did not leave the comment alone. Output: ${OUT}"
+  fail "the pins kind did not write the new header and leave the other comments. Output: ${OUT}"
+fi
+OUT="$(GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite pins "$VERSION" "$SHA" < "${FIX}/forsgren-update.yml.fixture")"
+if grep -qxF "$HEADER_UPDATE_1" <<< "$OUT" && grep -qxF "$HEADER_UPDATE_2" <<< "$OUT" && ! grep -qE 'release v[0-9]|commit of release' <<< "$OUT"; then
+  echo "  ok: the pins kind writes the wrapped header of the update workflow too (forsgren#506)"
+else
+  fail "the pins kind did not write the wrapped header. Output: ${OUT}"
+fi
+GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite pins "$VERSION" "$SHA" < "${FIX}/forsgren.yml.fixture" > "${TMP}/pins1.yml"
+GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite pins "$VERSION" "$SHA" < "${TMP}/pins1.yml" > "${TMP}/pins2.yml"
+if cmp -s "${TMP}/pins1.yml" "${TMP}/pins2.yml" && [[ "$(wc -l < "${FIX}/forsgren.yml.fixture")" -eq "$(wc -l < "${TMP}/pins1.yml")" ]]; then
+  echo "  ok: a second pins rewrite changes nothing, and no line is added or lost"
+else
+  fail "the pins rewrite is not stable. Diff: $(diff "${TMP}/pins1.yml" "${TMP}/pins2.yml")"
 fi
 OUT="$(printf 'name: x\n' | GITHUB_REPOSITORY=yveshanoulle/forsgren "$PINS" rewrite pins "$VERSION" "$SHA" 2>&1)" && RC=0 || RC=$?
 want_red "the pins kind with no pin" "would be skipped"
@@ -288,6 +305,11 @@ if grep -qF "daily run for forsgren ${VERSION}:" "${STATE}"/bodies/*blobs* && gr
   echo "  ok: the blobs hold the new text"
 else
   fail "the blobs do not hold the new pins"
+fi
+if [[ "$(grep -lF "pinned by a release commit," "${STATE}"/bodies/*blobs* | wc -l)" -eq 2 ]] && ! grep -qE 'commit of release|release v[0-9]' "${STATE}"/bodies/*blobs*; then
+  echo "  ok: both template workflow blobs carry the header that names no version (forsgren#506)"
+else
+  fail "the template blobs still name a release in the header"
 fi
 if ! grep -v '^rt-token|' "${TMP}/gh.log" | has -q .; then echo "  ok: every gh call got the release token as GH_TOKEN"; else fail "a gh call ran with another token: $(grep -v '^rt-token|' "${TMP}/gh.log")"; fi
 
@@ -359,7 +381,7 @@ world
 FORSGREN_RELEASE_TOKEN="rt-token" pins metrics "$VERSION" "$SHA"
 want_green "metrics" "OK: acme/met pull request for ${VERSION}: https://example.test/pull/1"
 if [[ "$(grep -c 'git/blobs' "${TMP}/gh.log")" -eq 2 ]]; then echo "  ok: two blobs, no README"; else fail "want two blobs. Log: $(cat "${TMP}/gh.log")"; fi
-if grep -qF "commit of release v1.9.3" "${STATE}"/bodies/*blobs* && ! grep -qF "commit of release v${VERSION}" "${STATE}"/bodies/*blobs*; then echo "  ok: the metrics pull request changes the pins only, the comments stay"; else fail "the metrics blobs changed a comment"; fi
+if [[ "$(grep -lF "pinned by a release commit," "${STATE}"/bodies/*blobs* | wc -l)" -eq 2 ]] && ! grep -qE 'commit of release|release v[0-9]' "${STATE}"/bodies/*blobs* && grep -qF "pull-requests: read  # optional" "${STATE}"/bodies/*blobs*; then echo "  ok: the metrics pull request changes the pins and the header, the other comments stay (forsgren#506)"; else fail "the metrics blobs do not carry the new header and the old other comments"; fi
 if grep -qF "refs/heads/forsgren-release-v${VERSION}" "${STATE}"/bodies/*git_refs*; then echo "  ok: the branch is forsgren-release-v${VERSION}"; else fail "no branch was created"; fi
 if grep -q 'PATCH' "${TMP}/gh.log"; then fail "the default branch of the metrics repository was moved: it must only get a pull request"; else echo "  ok: the default branch is untouched"; fi
 if grep -qF "pr create --repo acme/met --base main --head forsgren-release-v${VERSION}" "${TMP}/gh.log"; then echo "  ok: the pull request goes into main"; else fail "pr create is not as pinned. Log: $(cat "${TMP}/gh.log")"; fi

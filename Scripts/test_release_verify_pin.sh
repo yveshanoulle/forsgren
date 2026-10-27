@@ -68,12 +68,12 @@ verify 1.9.4 "$SHA"
 want_red "no file" "does not change .github/workflows/forsgren.yml"
 { file .github/workflows/forsgren.yml "$GOOD_MAIN"; jq -n '{filename: ".github/workflows/forsgren-update.yml"}'; } | setfiles
 verify 1.9.4 "$SHA"
-want_red "a file with no patch" ".github/workflows/forsgren-update.yml: want one removed and one added line, got 0 and 0"
+want_red "a file with no patch" ".github/workflows/forsgren-update.yml: want one removed and one added line besides the header, got 0 and 0"
 
 # 3
 { file .github/workflows/forsgren.yml "$(patch metrics.yml "$OLD" "$SHA" v1.9.4 '-# v1.9.2\n+# v1.9.4')"; file .github/workflows/forsgren-update.yml "$GOOD_UPD"; } | setfiles
 verify 1.9.4 "$SHA"
-want_red "a comment line changed too" ".github/workflows/forsgren.yml: want one removed and one added line, got 2 and 2"
+want_red "a comment line changed too" ".github/workflows/forsgren.yml: want one removed and one added line besides the header, got 2 and 2"
 
 # 4
 { file .github/workflows/forsgren.yml "$(patch metrics.yml "$OLD" "$SHA" v1.9.3)"; file .github/workflows/forsgren-update.yml "$GOOD_UPD"; } | setfiles
@@ -91,6 +91,22 @@ want_red "a pin of another repository" ".github/workflows/forsgren.yml: the remo
 { file .github/workflows/forsgren.yml "$(printf '@@ -1 +1 @@\n-name: a\n+uses: %s/.github/workflows/metrics.yml@%s # v1.9.4\n' "$R" "$SHA")"; file .github/workflows/forsgren-update.yml "$GOOD_UPD"; } | setfiles
 verify 1.9.4 "$SHA"
 want_red "a removed line that is no pin" ".github/workflows/forsgren.yml: the removed line is not a pin of metrics.yml"
+# 5 (forsgren#506): the header that names a release becomes the one that names none
+H_OLD='-# It calls forsgren'"'"'s reusable workflow, pinned by the commit of release v1.9.2'
+H_NEW='+# It calls forsgren'"'"'s reusable workflow, pinned by a release commit, named on the uses: line'
+U_OLD1='-# It calls forsgren'"'"'s reusable auto_update.yml, pinned by the commit of release'
+U_OLD2='-# v1.9.2, the same commit as forsgren.yml: Dependabot moves both lines together.'
+U_NEW1='+# It calls forsgren'"'"'s reusable auto_update.yml, pinned by a release commit,'
+U_NEW2='+# named on the uses: line, the same commit as forsgren.yml: Dependabot moves both lines together.'
+HDR_MAIN="$(patch metrics.yml "$OLD" "$SHA" v1.9.4 "${H_OLD}\\n${H_NEW}")"
+HDR_UPD="$(patch auto_update.yml "$OLD" "$SHA" v1.9.4 "${U_OLD1}\\n${U_OLD2}\\n${U_NEW1}\\n${U_NEW2}")"
+{ file .github/workflows/forsgren.yml "$HDR_MAIN"; file .github/workflows/forsgren-update.yml "$HDR_UPD"; } | setfiles
+verify 1.9.4 "$SHA"
+want_green "the pins and the header that names a release replaced by the one that names none" "OK: the pull request only moves the forsgren pins of both callers to v1.9.4 at ${SHA}"
+{ file .github/workflows/forsgren.yml "$(patch metrics.yml "$OLD" "$SHA" v1.9.4 "${H_OLD}\\n+# It calls something else")"; file .github/workflows/forsgren-update.yml "$GOOD_UPD"; } | setfiles
+verify 1.9.4 "$SHA"
+want_red "a header replaced by other words" ".github/workflows/forsgren.yml: want one removed and one added line besides the header"
+
 verify 1.9
 want_exit "a malformed version" 2 "usage"
 (GITHUB_REPOSITORY="" "$VERIFY" 1.9.4 "$SHA" < "${TMP}/files.json" > "${TMP}/o.txt" 2>&1) && RC=0 || RC=$?

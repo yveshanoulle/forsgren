@@ -9,6 +9,19 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — The header of an installation's caller workflows names no release ([#506](https://github.com/yveshanoulle/forsgren/issues/506), step 1 of 1)
+
+Line 2 of `forsgren.yml` and `forsgren-update.yml` said `pinned by the commit of
+release v1.9.4` for ever, since only the `uses:` line and its comment moved.
+The release's pins step (`Scripts/release_pins.sh`, kinds `workflow` and
+`caller`, and `pins` for forsgren-metrics, where `release_verify_pin.sh` accepts exactly that header change besides the two pins) now writes `pinned by a release commit, named on the uses: line` in
+its place, a wrapped comment keeping its break, and leaves a header that
+already says so. Step 8 of `agent-upgrade.md` does the same in an installation
+(and commits the two caller files with its other changes). Tests:
+`Scripts/test_release_pins.sh` and `TestUpgraderStep8FixesTheCallerHeader`.
+
+forsgren issue 506, patch.
+
 ## 2026-10-27 — The legend says failure issues count in the project's total row, never in a service or rule row ([#514](https://github.com/yveshanoulle/forsgren/issues/514), step 1 of 1)
 
 The legend's change fail rate part and its deployment rework rate part each

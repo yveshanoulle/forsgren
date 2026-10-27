@@ -191,7 +191,7 @@ func TestUpgraderSupportsFromV020AndStep8WritesTheChosenSettings(t *testing.T) {
 		"route 6b",
 		"no `Co-Authored-By`",
 		"read back",
-		"Nothing chosen: skip this step")
+		"Nothing chosen and no header to fix: skip this step")
 }
 
 // TestUpgraderStep9StartsARunAndChecksThePublishedPage (forsgren#166, step
@@ -377,6 +377,18 @@ func TestUpgraderStep8NamesEverySettingInTheCommitMessage(t *testing.T) {
 	wantAll(t, "step 8", upgraderSection(t, "Step 8."),
 		"every setting the commit changes, the update wait included",
 		"forsgren: set auto_update, auto_update_level, days_page and the update wait for LATEST")
+}
+
+// TestUpgraderStep8FixesTheCallerHeader (forsgren#506): line 2 of the two
+// caller files may still say which release the install pinned; step 8
+// replaces those words with the wording that names no version.
+func TestUpgraderStep8FixesTheCallerHeader(t *testing.T) {
+	wantAll(t, "step 8", asOneLine(upgraderSection(t, "Step 8.")),
+		"pinned by the commit of release vX.Y.Z",
+		"pinned by a release commit, named on the uses: line",
+		"Nothing chosen and no header to fix: skip this step",
+		"(the tree holds `forsgren.config.yml`, `.github/dependabot.yml` and the two caller files whose header was fixed, only the ones that changed)",
+		"a fixed caller header adds `the caller header` to `NAMES`")
 }
 
 // TestUpgraderStep9ReadsNotSet (forsgren#169): the settings check after the

@@ -809,7 +809,10 @@ and stops at the first step that fails:
    `pull-requests: read` line of the calling workflow its comment, which names
    both reads it serves since 1.15.0, the merged pull requests and the
    footer's waiting update; the permission itself is unchanged, and a second
-   run changes nothing. A calling workflow without that line stops the step
+   run changes nothing. The same holds for the header: a comment that says
+   `pinned by the commit of release vX.Y.Z` becomes `pinned by a release
+   commit, named on the uses: line`, so no file names a version that goes
+   stale (forsgren#506). A calling workflow without that line stops the step
    before anything is written. The README is the release's own:
    the step installs forsgren at the released commit with `go install`, as
    the daily run does, and writes the README with that binary's
@@ -819,14 +822,15 @@ and stops at the first step that fails:
    the step before anything is written, and `resume: pins` runs it again.
 8. **The metrics installation**: a pull request in forsgren-metrics that moves
    the pins of its two workflows to the new release
-   (`Scripts/release_pins.sh metrics`; it changes the `uses:` lines only, as
-   Dependabot does, and leaves the comments). The release is done only when
+   (`Scripts/release_pins.sh metrics`; it changes the `uses:` lines, as
+   Dependabot does, and the header that names a release, as step 7 does
+   (forsgren#506), and leaves the other comments). The release is done only when
    the metrics site runs the new version, so the workflow finishes it
    (`Scripts/release_metrics.sh`): it reads the pull request's files
    (`Scripts/release_verify_pin.sh`, the rule of `forsgren check-update` for the
    changed files: exactly the two caller workflows, each by one removed and one
    added pin line of the workflow it calls, to this release's version and
-   commit; any other change is a red and nothing is merged), squash-merges it
+   commit, besides that header change; any other change is a red and nothing is merged), squash-merges it
    and deletes its branch (as the auto-update workflow does), starts
    `forsgren.yml` in forsgren-metrics on its default branch, which Dependabot's
    merge never does because that workflow runs on a schedule or by hand, and

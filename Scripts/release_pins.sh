@@ -7,8 +7,10 @@
 #   Scripts/release_pins.sh rewrite <workflow|caller|pins|readme> <version> <sha>
 #       stdin to stdout, the pure part. A workflow file: each `uses:` line of
 #       this repository's reusable workflows becomes `@<sha> # vX.Y.Z`, and
-#       "pinned by the commit of release vX.Y.Z" in the comments names the new
-#       release (also when the comment wraps after "release"), and the comment
+#       "pinned by the commit of release vX.Y.Z" in the comments (which names
+#       a version that goes stale, forsgren#506) becomes "pinned by a release
+#       commit, named on the uses: line" (also when the comment wraps after
+#       "release"; a header that already says so is left), and the comment
 #       of a `pull-requests: read` line becomes PR_READ_COMMENT, the wording
 #       of decision #315 (forsgren#320 step 4). The kind `caller` (the
 #       template's forsgren.yml) is a workflow file that must also have that
@@ -19,9 +21,10 @@
 #       Red (::error::) when FORSGREN_RELEASE_TOKEN is not set. The Release
 #       workflow runs it first, so a missing secret stops the run before
 #       anything is pushed, and template and metrics check it again.
-#       The kind `pins` (forsgren-metrics) moves the `uses:` lines only, as
-#       Dependabot does and as Scripts/release_verify_pin.sh requires: no comment
-#       changes.
+#       The kind `pins` (forsgren-metrics) moves the `uses:` lines and
+#       replaces the header that names a release as the kind `workflow` does
+#       (forsgren#506), and no other comment; Scripts/release_verify_pin.sh
+#       accepts exactly that header change besides the two pins.
 #   Scripts/release_pins.sh template <version> <sha>
 #       forsgren-template: its two workflow files and its README in ONE commit
 #       ("forsgren X.Y.Z: pin and README") on the default branch, through the
@@ -100,13 +103,15 @@ rewrite() {
     workflow | caller)
       PIN_REPO="$REPO" PIN_VERSION="$VERSION" PIN_SHA="$SHA" PIN_PR_READ="$PR_READ_COMMENT" perl -0777 -pe '
         s{(uses:\s*\Q$ENV{PIN_REPO}\E/\.github/workflows/[A-Za-z_]+\.yml)@[0-9a-f]{40}\s+#\s*v[0-9]+\.[0-9]+\.[0-9]+}{$1\@$ENV{PIN_SHA} # v$ENV{PIN_VERSION}}g;
-        s{(commit of release\s+(?:#\s+)?)v[0-9]+\.[0-9]+\.[0-9]+}{$1v$ENV{PIN_VERSION}}g;
+        s{pinned by the commit of release(\s+(?:#\s+)?)v[0-9]+\.[0-9]+\.[0-9]+}{pinned by a release commit,${1}named on the uses: line}g;
         s{^([ \t]*pull-requests:[ \t]*read[ \t]+#)[^\n]*}{$1 $ENV{PIN_PR_READ}}mg;'
       ;;
     pins)
-      # the uses lines only, as Dependabot moves them: no comment is touched
+      # the uses lines, as Dependabot moves them, and the header that names a
+      # release (forsgren#506); no other comment is touched
       PIN_REPO="$REPO" PIN_VERSION="$VERSION" PIN_SHA="$SHA" perl -0777 -pe '
-        s{(uses:\s*\Q$ENV{PIN_REPO}\E/\.github/workflows/[A-Za-z_]+\.yml)@[0-9a-f]{40}\s+#\s*v[0-9]+\.[0-9]+\.[0-9]+}{$1\@$ENV{PIN_SHA} # v$ENV{PIN_VERSION}}g;'
+        s{(uses:\s*\Q$ENV{PIN_REPO}\E/\.github/workflows/[A-Za-z_]+\.yml)@[0-9a-f]{40}\s+#\s*v[0-9]+\.[0-9]+\.[0-9]+}{$1\@$ENV{PIN_SHA} # v$ENV{PIN_VERSION}}g;
+        s{pinned by the commit of release(\s+(?:#\s+)?)v[0-9]+\.[0-9]+\.[0-9]+}{pinned by a release commit,${1}named on the uses: line}g;'
       ;;
     readme)
       PIN_VERSION="$VERSION" perl -0777 -pe 's{(written by the daily run for forsgren )[0-9]+\.[0-9]+\.[0-9]+}{$1$ENV{PIN_VERSION}}g;'
