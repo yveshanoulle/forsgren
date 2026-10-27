@@ -387,7 +387,8 @@ func TestUpgraderStep8FixesTheCallerHeader(t *testing.T) {
 		"pinned by the commit of release vX.Y.Z",
 		"pinned by a release commit, named on the uses: line",
 		"Nothing chosen and no header to fix: skip this step",
-		"(the tree holds `forsgren.config.yml`, `.github/dependabot.yml` and the two caller files whose header was fixed, only the ones that changed)",
+		"(the tree holds `forsgren.config.yml`, `.github/dependabot.yml` and "+
+			"the two caller files whose header was fixed, only the ones that changed)",
 		"a fixed caller header adds `the caller header` to `NAMES`")
 }
 
