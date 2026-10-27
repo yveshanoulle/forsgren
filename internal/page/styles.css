@@ -81,20 +81,6 @@ li {
   white-space: nowrap;
 }
 
-/* The header of a label row ("– Admin: Lead time for changes", forsgren#454)
-   is longer than any other row header and widened the first column of a
-   no-wrap table. It may wrap at its spaces; the dash and the label stay one
-   piece (forsgren#526). */
-.no-wrap tr.label th {
-  white-space: normal;
-}
-
-/* The " (total)" after a project's name (forsgren#454) widened the first
-   column by about 53 px; it may wrap, the name stays one piece. */
-.no-wrap .total {
-  white-space: normal;
-}
-
 /* A cell that holds only a figure (forsgren#528, decision #530 A): aligned on
    the right with tabular figures so the digits line up. Cells with words keep
    their alignment. */
@@ -232,4 +218,18 @@ table.wraps {
 table.wraps th,
 table.wraps td {
   padding-inline: 0.25rem;
+}
+
+/* The header of a label row ("– Admin: Lead time for changes", forsgren#454)
+   is longer than any other row header and widened the first column of a
+   no-wrap table. It may wrap at its spaces; the dash and the label stay one
+   piece (forsgren#526). */
+.no-wrap tr.label th {
+  white-space: normal;
+}
+
+/* The " (total)" after a project's name (forsgren#454) widened the first
+   column by about 53 px; it may wrap, the name stays one piece. */
+.no-wrap .total {
+  white-space: normal;
 }
