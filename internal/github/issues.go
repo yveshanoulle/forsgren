@@ -31,15 +31,19 @@ type Issue struct {
 //	failure-start: 2026-09-20T09:12+02:00
 //	failed-build: 12.345
 //	fixed-build: 12.346
+//	service: Web
 //
 // each alone on its line (surrounding spaces and a carriage return
 // ignored), the key in lower case, the first of a repeated line winning.
 // FailureStart is ISO 8601 with an offset, to the minute or the second, in
 // UTC and whole seconds; zero when the line is missing or forsgren cannot
-// read its time. A missing build is "".
+// read its time. A missing build is "". Service (forsgren#515) is the
+// label of a row of the page the failure belongs to, as written, trimmed;
+// "" when the line is missing or empty.
 type FailureRecord struct {
 	FailureStart            time.Time
 	FailedBuild, FixedBuild string
+	Service                 string
 }
 
 // issue is one item of GitHub's answer, the fields FailureIssues and FindIssueByMarker read.
@@ -143,6 +147,7 @@ const (
 	keyFailureStart = "failure-start:"
 	keyFailedBuild  = "failed-build:"
 	keyFixedBuild   = "fixed-build:"
+	keyService      = "service:"
 )
 
 // recordTimeLayouts are the forms of failure-start forsgren reads: to the
@@ -155,7 +160,7 @@ func parseRecord(body string) FailureRecord {
 	values := map[string]string{}
 	for line := range strings.SplitSeq(body, "\n") {
 		line = strings.TrimSpace(line)
-		for _, key := range []string{keyFailureStart, keyFailedBuild, keyFixedBuild} {
+		for _, key := range []string{keyFailureStart, keyFailedBuild, keyFixedBuild, keyService} {
 			if value, ok := strings.CutPrefix(line, key); ok && values[key] == "" {
 				values[key] = strings.TrimSpace(value)
 			}
@@ -165,6 +170,7 @@ func parseRecord(body string) FailureRecord {
 		FailureStart: recordTime(values[keyFailureStart]),
 		FailedBuild:  values[keyFailedBuild],
 		FixedBuild:   values[keyFixedBuild],
+		Service:      values[keyService],
 	}
 }
 

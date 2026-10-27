@@ -25,18 +25,31 @@ type Failure struct {
 	// FailureStart is the issue's `failure-start:` line, when users were
 	// first hit; zero when its body gives none that forsgren can read.
 	FailureStart time.Time
+	// Service is the issue's `service:` label, as written; empty when it
+	// has none (forsgren#515).
+	Service string
 }
 
-// failures is the format of data/failures.csv, the failures format v1.
+// failures is the format of data/failures.csv, the failures format v2; v1,
+// without the service column, is still read, its lines with an empty
+// service, and the first append rewrites the file as v2 (forsgren#515).
 var failures = format[Failure, IssueKey]{
-	versionLine: "# forsgren failures v1",
-	columnLine:  "repository,issue,opened_at,closed_at,failure_start",
+	versionLine: "# forsgren failures v2",
+	columnLine:  failuresV1.columnLine + ",service",
 	decode:      toFailure,
 	encode:      Failure.fields,
 	validate:    Failure.validate,
 	key:         Failure.Key,
 	compare:     compareFailures,
 	revises:     Failure.Revises,
+	legacy:      []legacyFormat{failuresV1},
+}
+
+// failuresV1 is the failures format v1, before the service column.
+var failuresV1 = legacyFormat{
+	versionLine: "# forsgren failures v1",
+	columnLine:  "repository,issue,opened_at,closed_at,failure_start",
+	lift:        func(fields []string) []string { return append(fields, "") },
 }
 
 // LoadFailures reads the failure issues at path, with Load's errors: one
@@ -84,7 +97,7 @@ func (f Failure) Key() IssueKey { return IssueKeyOf(f.Repository, f.Issue) }
 // writes f as a new line exactly then.
 func (f Failure) Revises(held Failure) bool {
 	return !f.OpenedAt.Equal(held.OpenedAt) || !f.ClosedAt.Equal(held.ClosedAt) ||
-		!f.FailureStart.Equal(held.FailureStart)
+		!f.FailureStart.Equal(held.FailureStart) || f.Service != held.Service
 }
 
 // newestLines is one line per issue, its newest, in the order the issues first
@@ -115,7 +128,7 @@ func compareFailures(a, b Failure) int {
 func (f Failure) fields() []string {
 	return []string{
 		f.Repository, strconv.FormatInt(f.Issue, 10), formatTime(f.OpenedAt), formatTime(f.ClosedAt),
-		formatTime(f.FailureStart),
+		formatTime(f.FailureStart), f.Service,
 	}
 }
 
@@ -127,7 +140,7 @@ func formatTime(t time.Time) string {
 	return t.UTC().Format(timeLayout)
 }
 
-// toFailure reads the five fields of a line.
+// toFailure reads the six fields of a line.
 func toFailure(f []string) (Failure, error) {
 	number, err := parseNumber("issue", f[1])
 	if err != nil {
@@ -145,7 +158,8 @@ func toFailure(f []string) (Failure, error) {
 	if err != nil {
 		return Failure{}, err
 	}
-	return Failure{Repository: f[0], Issue: number, OpenedAt: opened, ClosedAt: closedAt, FailureStart: start}, nil
+	return Failure{Repository: f[0], Issue: number, OpenedAt: opened, ClosedAt: closedAt, FailureStart: start,
+		Service: f[5]}, nil
 }
 
 // validate says why f cannot be stored, or nil.
@@ -156,6 +170,7 @@ func (f Failure) validate() error {
 		check{f.Issue > 0, "issue is not positive"},
 		check{isWholeSecond(f.OpenedAt), "opened_at is empty or has a fraction of a second"},
 		check{isOptionalWholeSecond(f.ClosedAt), "closed_at has a fraction of a second"},
+		check{!strings.ContainsAny(f.Service, "\r\n"), "the service has a line break"},
 		check{isOptionalWholeSecond(f.FailureStart), "failure_start has a fraction of a second"},
 	)
 }

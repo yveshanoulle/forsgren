@@ -12,12 +12,17 @@ import (
 )
 
 const (
-	failuresHead = "# forsgren failures v1\n" +
-		"repository,issue,opened_at,closed_at,failure_start\n"
-	// openLine is the file line of issue(42), open.
-	openLine = "acme/app,42,2026-09-01T10:00:00Z,,2026-09-01T09:30:00Z\n"
+	failuresHead = "# forsgren failures v2\n" +
+		"repository,issue,opened_at,closed_at,failure_start,service\n"
+	// openLine is the file line of issue(42), open, with no service.
+	openLine = "acme/app,42,2026-09-01T10:00:00Z,,2026-09-01T09:30:00Z,\n"
 	// closedLine is the file line of closed(issue(42), 5).
-	closedLine = "acme/app,42,2026-09-01T10:00:00Z,2026-09-01T15:00:00Z,2026-09-01T09:30:00Z\n"
+	closedLine = "acme/app,42,2026-09-01T10:00:00Z,2026-09-01T15:00:00Z,2026-09-01T09:30:00Z,\n"
+	// failuresHeadV1 and openLineV1 are the failures format v1, before the
+	// service column.
+	failuresHeadV1 = "# forsgren failures v1\n" +
+		"repository,issue,opened_at,closed_at,failure_start\n"
+	openLineV1 = "acme/app,42,2026-09-01T10:00:00Z,,2026-09-01T09:30:00Z\n"
 )
 
 // issue is an open failure issue of the made-up acme/app, opened number-42
@@ -82,7 +87,7 @@ func TestAnEmptyFailureStartIsStoredEmpty(t *testing.T) {
 	unknown := issue(42)
 	unknown.FailureStart = time.Time{}
 	storeFailures(t, path, unknown)
-	if got := readFile(t, path); got != failuresHead+"acme/app,42,2026-09-01T10:00:00Z,,\n" {
+	if got := readFile(t, path); got != failuresHead+"acme/app,42,2026-09-01T10:00:00Z,,,\n" {
 		t.Errorf("want two empty columns, got\n%q", got)
 	}
 	wantFailures(t, path, unknown)
@@ -168,9 +173,9 @@ func TestLoadFailuresGivesUTC(t *testing.T) {
 }
 
 // TestTheFailuresFileRefusesAnUnknownVersionUntouched: both calls refuse a
-// v2, and a commits file is not a failures file.
+// v3, and a commits file is not a failures file.
 func TestTheFailuresFileRefusesAnUnknownVersionUntouched(t *testing.T) {
-	content := "# forsgren failures v2\nrepository,whatever\n"
+	content := "# forsgren failures v3\nrepository,whatever\n"
 	path := writeFile(t, content)
 	if _, err := AppendFailures(path, []Failure{issue(42)}); !errors.Is(err, ErrUnknownVersion) {
 		t.Errorf("want ErrUnknownVersion from AppendFailures, got %v", err)
@@ -195,7 +200,7 @@ func TestAMalformedFailuresFileIsRefusedWithItsLineNumber(t *testing.T) {
 		content string
 		line    int
 	}{
-		"no column line":      {"# forsgren failures v1\n" + openLine, 2},
+		"no column line":      {"# forsgren failures v2\n" + openLine, 2},
 		"four fields":         {failuresHead + openLine + "acme/app,43,2026-09-01T10:00:00Z,\n", 4},
 		"issue not a number":  {edit(",42,", ",4x2,"), 3},
 		"issue zero":          {edit(",42,", ",0,"), 3},
@@ -254,4 +259,52 @@ func TestLoadFailuresOfAMissingFileIsNotExist(t *testing.T) {
 	if _, err := os.Stat(filepath.Dir(path)); !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("want nothing created, got %v", err)
 	}
+}
+
+// TestAFailureKeepsItsService (forsgren#515, step 1): the service column
+// holds the `service:` label of the issue as written, empty when it has none,
+// and reads back as stored.
+func TestAFailureKeepsItsService(t *testing.T) {
+	path := failuresPath(t)
+	web := issue(42)
+	web.Service = "Web, Admin"
+	plain := issue(43)
+	storeFailures(t, path, web, plain)
+	want := failuresHead +
+		"acme/app,42,2026-09-01T10:00:00Z,,2026-09-01T09:30:00Z,\"Web, Admin\"\n" +
+		"acme/app,43,2026-09-01T11:00:00Z,,2026-09-01T10:30:00Z,\n"
+	if got := readFile(t, path); got != want {
+		t.Errorf("want the service column\n%q\ngot\n%q", want, got)
+	}
+	wantFailures(t, path, web, plain)
+}
+
+// TestAV1FailuresFileIsReadWithAnEmptyServiceAndRewrittenOnTheFirstAppend: a
+// v1 line has no service; the first append rewrites the file as v2, the old
+// line with an empty service.
+func TestAV1FailuresFileIsReadWithAnEmptyServiceAndRewrittenOnTheFirstAppend(t *testing.T) {
+	path := writeFile(t, failuresHeadV1+openLineV1)
+	wantFailures(t, path, issue(42))
+	next := issue(43)
+	next.Service = "Web"
+	if n := storeFailures(t, path, next); n != 1 {
+		t.Errorf("want 1 line written, got %d", n)
+	}
+	want := failuresHead + openLine + "acme/app,43,2026-09-01T11:00:00Z,,2026-09-01T10:30:00Z,Web\n"
+	if got := readFile(t, path); got != want {
+		t.Errorf("want the file rewritten as v2\n%q\ngot\n%q", want, got)
+	}
+}
+
+// TestAChangedServiceIsANewLineOfTheIssue: a service that differs from the
+// newest line is a revision, so the issue gets a new line and the newest wins.
+func TestAChangedServiceIsANewLineOfTheIssue(t *testing.T) {
+	path := failuresPath(t)
+	storeFailures(t, path, issue(42))
+	labelled := issue(42)
+	labelled.Service = "Web"
+	if n := storeFailures(t, path, labelled); n != 1 {
+		t.Errorf("want 1 new line for the changed service, got %d", n)
+	}
+	wantFailures(t, path, labelled)
 }

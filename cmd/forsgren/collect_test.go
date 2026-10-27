@@ -99,7 +99,7 @@ func TestCollectStoresDeploymentsAndSaysHowMany(t *testing.T) {
 	wantFile(t, filepath.Join(filepath.Dir(data), "commits.csv"),
 		"# forsgren commits v3\n"+
 			"repository,kind,deployment_id,commit,authored_at,deployed_at,author,parents,committed_at\n", 2)
-	wantFile(t, filepath.Join(filepath.Dir(data), "failures.csv"), "# forsgren failures v1\n", 2)
+	wantFile(t, filepath.Join(filepath.Dir(data), "failures.csv"), "# forsgren failures v2\n", 2)
 }
 
 // wantFile fails unless the file at path starts with the version line

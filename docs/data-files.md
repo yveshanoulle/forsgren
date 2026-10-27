@@ -16,6 +16,7 @@ forsgren reads only what is already in GitHub:
   failure-start: 2030-04-01T09:30+02:00
   failed-build: 12.345
   fixed-build: 12.346
+  service: Web
   ```
 
   `failure-start` is when users were first hit; the two builds name the
@@ -24,6 +25,10 @@ forsgren reads only what is already in GitHub:
   issue without a `failure-start` it can read is stored all the same and
   named on stderr by `collect`, never silently skipped (see [Collecting
   deployments](#collecting-deployments-collect), The failure issues). The builds are not used yet.
+  `service` (optional, forsgren#515) is a row label as the page shows it, a
+  service's or a deployment rule's label, for the failure to be counted in
+  that row; the key is lower case and the line stands alone, like the others;
+  forsgren stores it, no row uses it yet.
 
 ## Where configuration and data live
 
@@ -161,19 +166,24 @@ acme/app,environment,1001,<40 hex>,2026-09-01T09:00:00Z,2026-09-01T10:00:00Z,ada
 
 **The failure issues**, for change fail rate (forsgren#18), are kept next to
 it in `data/failures.csv`, with its own format version (the failures format
-v1):
+v2):
 
 ```
-# forsgren failures v1
-repository,issue,opened_at,closed_at,failure_start
-acme/app,42,2026-09-01T10:00:00Z,,2026-09-01T09:30:00Z
-acme/app,42,2026-09-01T10:00:00Z,2026-09-01T15:00:00Z,2026-09-01T09:30:00Z
+# forsgren failures v2
+repository,issue,opened_at,closed_at,failure_start,service
+acme/app,42,2026-09-01T10:00:00Z,,2026-09-01T09:30:00Z,Web
+acme/app,42,2026-09-01T10:00:00Z,2026-09-01T15:00:00Z,2026-09-01T09:30:00Z,Web
 ```
 
 - One line per state of an issue labelled `failure`: `issue` is its number,
   `opened_at` and `closed_at` its `created_at` and `closed_at` at GitHub
   (`closed_at` empty while it is open), `failure_start` its `failure-start:`
-  line (empty when it has none forsgren can read). All are UTC.
+  line (empty when it has none forsgren can read). All are UTC. `service` is
+  the label on the issue's `service:` line of its record block (forsgren#515),
+  as written and trimmed, empty when it has none; it is only stored, no row
+  of the page uses it yet. A v1 file (five columns, no `service`) is still
+  read with every service empty and is written again as v2 once, by the first
+  append.
 - An issue changes after it is stored: it is closed, or reopened. The file
   still only grows, so an issue gets a new line whenever it differs from its
   newest line (key: repository, ignoring case, and issue number), and the

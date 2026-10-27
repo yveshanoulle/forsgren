@@ -59,7 +59,7 @@ func TestRenderShowsChangeFailRate(t *testing.T) {
 func TestRenderRefusesABadFailuresFile(t *testing.T) {
 	head := "# forsgren failures v1\nrepository,issue,opened_at,closed_at,failure_start\n"
 	wantBadFileRefused(t, "failures.csv", map[string]badFile{
-		"unknown version": {"# forsgren failures v2\n", "unknown history format version"},
+		"unknown version": {"# forsgren failures v9\n", "unknown history format version"},
 		"malformed line":  {head + "acme/api,41\n", "line 3: malformed history"},
 	})
 }

@@ -22,13 +22,16 @@
 // it lacks empty) and is written again as v3 once, by the first append.
 //
 // The failure issues of the configured repositories, data/failures.csv (the
-// failures format v1, forsgren#18, step 1), one line per state of an issue
+// failures format v2, forsgren#18, step 1, forsgren#515), one line per state of an issue
 // (open, closed, reopened), the newest line of an issue winning, for change
 // fail rate:
 //
-//	# forsgren failures v1
-//	repository,issue,opened_at,closed_at,failure_start
-//	acme/app,42,2026-09-01T10:00:00Z,,2026-09-01T09:30:00Z
+//	# forsgren failures v2
+//	repository,issue,opened_at,closed_at,failure_start,service
+//	acme/app,42,2026-09-01T10:00:00Z,,2026-09-01T09:30:00Z,Web
+//
+// A v1 failures file, without the service column, is still read (the
+// service empty) and is written again as v2 once, by the first append.
 //
 // In all three, the first line states the format version, the second names
 // the columns, and every later line is one record. A file only grows: a

@@ -120,6 +120,7 @@ func TestFailureIssuesRefusesAnIssueItCannotStore(t *testing.T) {
 // cannot read is no time. A missing line is empty.
 func TestTheFailureRecordBlock(t *testing.T) {
 	brussels := FailureRecord{FailureStart: at(20, 7, 12, 0)}
+	brusselsWeb := FailureRecord{FailureStart: at(20, 7, 12, 0), Service: "Web"}
 	builds := FailureRecord{FailedBuild: "12.345", FixedBuild: "12.346"}
 	for name, c := range map[string]struct {
 		body string
@@ -138,6 +139,14 @@ func TestTheFailureRecordBlock(t *testing.T) {
 		"other case":          {"Failure-Start: 2026-09-20T09:12+02:00", FailureRecord{}},
 		"the builds":          {"failed-build: 12.345\nfixed-build:  12.346 ", builds},
 		"fractional second":   {"failure-start: 2026-09-20T09:12:00.700+02:00", brussels},
+		"a service":           {"service: Web", FailureRecord{Service: "Web"}},
+		"service with spaces": {"Crash.\r\n   service:   Web shop  \r\n", FailureRecord{Service: "Web shop"}},
+		"service keeps case":  {"service: WebShop", FailureRecord{Service: "WebShop"}},
+		"first service wins":  {"service: Web\nservice: Admin", FailureRecord{Service: "Web"}},
+		"service key case":    {"Service: Web", FailureRecord{}},
+		"service in a phrase": {"The service: Web is down", FailureRecord{}},
+		"empty service":       {"service:", FailureRecord{}},
+		"service with times":  {"failure-start: 2026-09-20T09:12+02:00\nservice: Web", brusselsWeb},
 		"fixed build pending": {"failed-build: 12.345\nfixed-build:", FailureRecord{FailedBuild: "12.345"}},
 	} {
 		t.Run(name, func(t *testing.T) {
