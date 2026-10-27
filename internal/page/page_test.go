@@ -444,7 +444,7 @@ func TestEveryPageNamesFiveMetrics(t *testing.T) {
 	wantOnEveryPage(t, acmeTable(), " Metrics from GitHub data.")
 }
 
-// TestWriteSiteWritesElevenPagesAndStyles (forsgren#253, #55, #46, #47, #84, #76, #123, #128): the
+// TestWriteSiteWritesTwelvePagesAndStyles (forsgren#253, #55, #46, #47, #84, #76, #123, #128): the
 // root page, the legend, the settings page, the days page and the issues page, and each
 // view's page, standard, numbers and scoring, in its own folder, and the numbers and scoring page.
 func TestWriteSiteWritesElevenPagesAndStyles(t *testing.T) {
@@ -453,12 +453,13 @@ func TestWriteSiteWritesElevenPagesAndStyles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WriteSite: %v", err)
 	}
-	if n != 11 {
-		t.Errorf("want 11 pages written, got %d", n)
+	if n != 12 {
+		t.Errorf("want 12 pages written, got %d", n)
 	}
 	for _, name := range []string{
 		"index.html", "legend.html", "settings.html", "days.html", "issues.html", "standard/index.html",
-		"numbers/index.html", "scoring/index.html", "numbers-scoring/index.html", "history.html", "tbd.html", "styles.css",
+		"numbers/index.html", "scoring/index.html", "numbers-scoring/index.html", "history.html", "tbd.html",
+		"week.html", "styles.css",
 	} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
 			t.Errorf("want %s in the site: %v", name, err)

@@ -1,0 +1,26 @@
+{{define "title"}}{{.WeekTitle}} · {{.Title}}{{end -}}
+{{template "header" .}}  <main>
+    <h1 id="week-heading">{{.WeekTitle}}</h1>
+    <p>Each day shows commits · deployments. Weekend share is the Saturday and Sunday commits out of all the commits of the row.</p>
+{{if .Week.Rows}}    <p>{{.WeekWindow}}</p>
+    <div class="table-scroll" role="region" aria-labelledby="week-heading" tabindex="0">
+      <table class="wraps">
+        <thead>
+          <tr>
+            <th scope="col">Project</th>
+{{range .WeekDays}}            <th scope="col" class="num">{{.}}</th>
+{{end}}            <th scope="col" class="num">Weekend share</th>
+          </tr>
+        </thead>
+        <tbody>
+{{range .WeekRows}}{{$class := .Class}}          <tr{{if .IsLabel}} class="label"{{end}}>
+            <th scope="row">{{if .IsLabel}}<span class="visually-hidden">{{.Project}}: </span>{{template "labelheader" (labelheader .Name)}}{{else}}{{.Name}}{{end}}</th>
+{{range .Cells}}            <td{{if $class}} class="{{$class}}"{{end}}>{{.}}</td>
+{{end}}            <td{{if $class}} class="{{$class}}"{{end}}>{{.WeekendShareCell}}</td>
+          </tr>
+{{end}}        </tbody>
+      </table>
+    </div>
+{{else}}    <p>{{.WeekMessage}}</p>
+{{end}}  </main>
+{{template "footer" .}}

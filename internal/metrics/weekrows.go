@@ -14,7 +14,8 @@ package metrics
 //     at its own author date all the same;
 //   - a service or rule row without paths has no commits of its own: it is
 //     PerRepository, its commit counts stay 0 and the page writes
-//     Per repository (decision #534 A);
+//     Per repository (decision #534 A; its day cells write an en dash for
+//     the commits, decision #539 A);
 //   - a service or rule row with paths counts its own commits, those that
 //     the TBD page's Deployed commits count (the same pathScope over
 //     Data.CommitFiles): the distinct commits of the row's deployments that
@@ -178,4 +179,43 @@ func (s weekSource) deployedCommitDays(p config.Project, data Data, scope *pathS
 		}
 	}
 	return days
+}
+
+// perRepositoryWords is what a service or rule row without paths writes for
+// its commits (decision #534 A).
+const perRepositoryWords = "Per repository"
+
+// notAttributed is what a day cell of a row Per repository writes for its
+// commits: an en dash, the commits being counted at repository level, not
+// zero (decision #539 A, Yves 2026-10-27).
+const notAttributed = "\u2013"
+
+// dayDot joins the commits and the deployments of a day: a middle dot
+// between no-break spaces, so a cell never breaks inside.
+const dayDot = "\u00a0\u00b7\u00a0"
+
+// DayCell is the cell of weekday day (0 Monday to 6 Sunday): the commits,
+// a dot and the deployments, the counts grouped as forsgren#528 groups them,
+// 0 · 0 for no activity; an en dash in place of the commits for a
+// PerRepository row (notAttributed), its deployments still its own.
+func (r WeekRow) DayCell(day int) string {
+	commits := notAttributed
+	if !r.PerRepository {
+		commits = GroupDigits(r.Commits[day])
+	}
+	return commits + dayDot + GroupDigits(r.Deployments[day])
+}
+
+// WeekendShareCell is the weekend share written as the TBD shares are
+// (shareOf): a dash for a row with no commits, Per repository for a
+// PerRepository row.
+func (r WeekRow) WeekendShareCell() string {
+	if r.PerRepository {
+		return perRepositoryWords
+	}
+	total := 0
+	for _, n := range r.Commits {
+		total += n
+	}
+	return shareOf(r.Commits[5]+r.Commits[6], total)
 }

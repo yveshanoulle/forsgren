@@ -70,9 +70,12 @@ func (m PushMeasures) UnknownAuthorCell() string { return m.shareCell(m.UnknownA
 // down and computed from the counts (forsgren#477): from 10% a whole percent
 // ("19%"), from 1% one decimal always shown ("3.0%"), under 1% two decimals
 // ("0.63%", "< 0.01%" below that), exactly none "0%"; a dash without a commit.
-func (m PushMeasures) shareCell(part int) string {
-	switch hundredths := part * 10000 / max(m.Commits, 1); {
-	case m.Commits == 0:
+func (m PushMeasures) shareCell(part int) string { return shareOf(part, m.Commits) }
+
+// shareOf is part out of total as shareCell writes it.
+func shareOf(part, total int) string {
+	switch hundredths := part * 10000 / max(total, 1); {
+	case total == 0:
 		return noNumber
 	case part == 0:
 		return "0%"

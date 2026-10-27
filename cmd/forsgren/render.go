@@ -156,6 +156,7 @@ func withHistory(data page.Data, cfg config.Config, path string, at time.Time) (
 	data.FirstDeployment, _ = metrics.FirstDeployment(cfg.Projects, metricsData)
 	data.PullsUncollected = absent(beside(path, collect.PullsFile))
 	data.TbdMetrics = metrics.TbdRows(cfg.Projects, metricsData, at, cfg.SameDeveloper)
+	data.Week = metrics.WeekOf(cfg.Projects, metricsData, at)
 	events, err := issueEventsOf(path)
 	if err != nil {
 		return data, err

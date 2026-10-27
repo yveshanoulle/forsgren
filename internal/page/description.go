@@ -21,6 +21,7 @@ var descriptions = map[string]string{
 	HistoryPage:        "The history of the DORA metrics per project: each half-year and the last 6 months",
 	TbdPage: "Trunk-based development per project: PR Lead Time, Time to main and Time to deploy, " +
 		"commits per push and per deployment, the Mainline Interval and the developers",
+	WeekPage:     "Commits and deployments per weekday and the weekend share of the commits, per project",
 	legendPage:   "How the DORA numbers are counted and scored: the window, the bands and the scores",
 	settingsPage: "The settings of forsgren.config.yml and the value in use for each",
 }

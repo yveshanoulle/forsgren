@@ -348,7 +348,8 @@ func TestMenuEndsWithIssuesAndDaily(t *testing.T) {
 		"index.html": "", "standard/index.html": "../", "numbers/index.html": "../", "scoring/index.html": "../",
 	} {
 		want := `<a href="` + base + `issues.html">Issues</a> · <a href="` + base + `days.html">Daily</a> · ` +
-			`<a href="` + base + `history.html">History</a> · <a href="` + base + `tbd.html">TBD</a></nav>`
+			`<a href="` + base + `history.html">History</a> · <a href="` + base + `tbd.html">TBD</a>` +
+			` · <a href="` + base + `week.html">Week</a></nav>`
 		wantAll(t, name, rendered(t, name, data), want)
 	}
 }

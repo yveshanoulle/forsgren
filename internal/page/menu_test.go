@@ -15,6 +15,7 @@ var menuEntries = []menuEntry{
 	{"standard/", "Standard"}, {"numbers/", "Numbers"}, {"scoring/", "Scoring"},
 	{"numbers-scoring/", "Numbers and scoring"},
 	{"issues.html", "Issues"}, {"days.html", "Daily"}, {"history.html", "History"}, {"tbd.html", "TBD"},
+	{"week.html", "Week"},
 }
 
 // wantMenu is the menu of a page whose links start with base: the label of
@@ -49,6 +50,7 @@ func menuCases(root menuCase) map[string]menuCase {
 		"days.html":                  {"", "Daily", "page"},
 		"history.html":               {"", "History", "page"},
 		"tbd.html":                   {"", "TBD", "page"},
+		"week.html":                  {"", "Week", "page"},
 		"settings.html":              {},
 		"legend.html":                {},
 	}
@@ -165,11 +167,11 @@ func TestMenuEndsWithHistoryAndOmitsItWhenHidden(t *testing.T) {
 	data := viewData()
 	for page, want := range map[string]string{
 		"index.html": `<a href="days.html">Daily</a> · <a href="history.html">History</a> · ` +
-			`<a href="tbd.html">TBD</a></nav>`,
+			`<a href="tbd.html">TBD</a> · <a href="week.html">Week</a></nav>`,
 		"scoring/index.html": `<a href="../days.html">Daily</a> · <a href="../history.html">History</a> · ` +
-			`<a href="../tbd.html">TBD</a></nav>`,
+			`<a href="../tbd.html">TBD</a> · <a href="../week.html">Week</a></nav>`,
 		"history.html": `<a href="days.html">Daily</a> · <span aria-current="page">History</span> · ` +
-			`<a href="tbd.html">TBD</a></nav>`,
+			`<a href="tbd.html">TBD</a> · <a href="week.html">Week</a></nav>`,
 	} {
 		wantAll(t, page, rendered(t, page, data), want)
 	}
