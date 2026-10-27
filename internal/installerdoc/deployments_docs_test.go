@@ -72,10 +72,10 @@ func TestInstallerAsksWhetherARepositoryDeploysInMoreThanOneWay(t *testing.T) {
 		"never beside `deployment`, `label` or `services`")
 }
 
-// TestUpgraderStaysTheSameForDeployments: the upgrader (checked, forsgren#498)
-// still names a repository's `deployment:` line and asks nothing new, since
-// `deployments:` is optional.
-func TestUpgraderStaysTheSameForDeployments(t *testing.T) {
+// TestUpgraderKeepsTheOneRuleDeploymentLine: the upgrader still names a
+// repository's `deployment:` line (forsgren#498); `deployments:` is optional
+// and the upgrader proposes it only with the person's yes (forsgren#503).
+func TestUpgraderKeepsTheOneRuleDeploymentLine(t *testing.T) {
 	wantAll(t, "agent-upgrade.md", asOneLine(readRepoFile(t, "agent-upgrade.md")),
 		"Look at its `deployment:` line in `forsgren.config.yml`")
 }

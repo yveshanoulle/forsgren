@@ -427,17 +427,73 @@ applies:
    (from the release that brought them). Tell the person that such a service
    shows `Per repository` for the deploy figures until it has `paths`: its
    Time to deploy per commit and its Commits per deployment, while its
-   Deployments stay its own. Ask which folders each service is built from;
-   where to find them: the folders of the repository on GitHub, and the
-   `paths:` filter of its deploy workflow when it has one. Default:
-   leave it as it is. A folder ends in `/`, a file matches exactly, a folder
-   two services share (such as `shared/`) is listed in each service that uses
-   it, files in the root of the repository count for no service. Show the lines
-   you would write, such as `deploy-web: {label: Web, paths: [web/, shared/]}`,
-   and write them in step 8 only with the person's yes. Say that forsgren then
+   Deployments stay its own. Do not only ask: look, propose, ask. Before the
+   message, for each service without `paths`, look yourself (read-only, with
+   the person's `gh`, replacing `acme/app` and the file name):
+
+   ```
+   gh api repos/acme/app/actions/workflows --jq '.workflows[] | .path'
+   gh api -H 'Accept: application/vnd.github.raw' repos/acme/app/contents/.github/workflows/deploy-web.yml
+   gh api repos/acme/app/contents --jq '.[] | select(.type == "dir") | .name'
+   ```
+
+   The first lists the workflows, the second reads one, the third lists
+   the folders of the repository on GitHub. Read the workflow or workflows that deploy that
+   service's task (the service key is the `task` of its deployments): the
+   one whose name or file says it deploys that task, or whose deploy job
+   creates deployments with that task. Ask which workflow it is when more
+   than one could be, and when none can be found say so and go to the
+   default. Propose the folders from three places, in this order:
+   - the `paths:` filter of its deploy workflow, `on.push.paths` and
+     `paths-ignore`: the folders it triggers on (a `paths-ignore` entry is a folder to leave out, never one
+     to add);
+   - the deploy job's `working-directory`;
+   - the build context the job uses, such as the folder of a Dockerfile it
+     builds (a `docker build` argument, or the `context:` and `file:` of a
+     build step).
+
+   Show the person what you found and why, one line per place (for
+   example: "`deploy-web.yml` runs on pushes to `web/**` and `shared/**`;
+   its deploy job runs in `web/`"), and the exact line you would write, such
+   as `deploy-web: {label: Web, paths: [web/, shared/]}`. The person says
+   yes, edits it, or skips it. Default: leave it as it is. A folder ends in
+   `/`, a file matches exactly, a folder two services share (such as
+   `shared/`) is listed in each service that uses it, files in the root of
+   the repository count for no service; say this in plain words when a
+   proposal lists a shared folder or leaves a root file out. Write the lines
+   in step 8 only with the person's yes. Say that forsgren then
    reads the files of each commit once, which needs Contents read on a
    fine-grained `FORSGREN_TOKEN`, and that the service row says `Files still
    being read` until it has.
+6. **Several ways to deploy**, for each repository without `deployments:`,
+   without `label` and without `services:` (a rule is already the split).
+   Skip the question when only one way is in use. Look yourself (read-only,
+   with the person's `gh`, replacing `acme/site`) and list what GitHub
+   records:
+
+   ```
+   gh api 'repos/acme/site/deployments?per_page=100' --jq '.[] | [.environment, .task] | @tsv' | sort | uniq -c
+   gh release list -R acme/site -L 5 --exclude-drafts --exclude-pre-releases
+   gh api repos/acme/site/actions/workflows --jq '.workflows[] | .path'
+   ```
+
+   The first counts the Deployments by environment and task, the second
+   lists the releases, the third the workflows (read the ones that deploy or
+   publish, as item 5 does). When more than one source is in use, for
+   example releases and a `github-pages` environment, propose a
+   `deployments:` entry for the repository: each rule written as
+   `deployment` writes it (`release`, `workflow=<file>.yml` or
+   `environment=<name>`) with a label, and `paths` where item 5 found folders
+   for it. Show what you found and why, and the exact lines you would
+   write, such as `release: Releases` and
+   `environment=github-pages: {label: Website, paths: [website/]}`. Say what
+   changes on the page: each rule is its own row, with its own Deployments,
+   and the total row counts every deployment of the repository; a rule
+   without `paths` shows `Per repository` for its Time to deploy per commit
+   and its Commits per deployment. `deployment:` and `deployments:` never
+   both: the `deployments:` entry takes the place of the repository's
+   `deployment:` line. Default: leave it as it is. Write it in step 8 only
+   with the person's yes.
 
 Then show the plan, in one message: `OWNER/REPO`, `VERSION` to `LATEST`, how
 step 6 moves the pins, each file you will write and each line that changes in
@@ -683,7 +739,8 @@ Then go on to step 8.
 
 Write only the settings the person chose in step 5, and nothing else: a key of
 `forsgren.config.yml` (a new key a release introduced, `auto_update`,
-`auto_update_level`, the `paths` of a service), and the update wait, `default-days` in
+`auto_update_level`, the `paths` of a service, the `deployments:` of a
+repository), and the update wait, `default-days` in
 `.github/dependabot.yml`. Every other line, key and comment stays as it is,
 `projects:` and `data/` included. Nothing chosen: skip this step and go on to
 step 9 (every answer was to keep what is there).
@@ -719,6 +776,11 @@ step 9 (every answer was to keep what is there).
      [web/, shared/]}`, in one line, with the label as it was. A service the
      person gave no folders stays as it is, and `projects:` keeps every other
      line.
+   - Several ways to deploy (step 5 item 6): in place of the repository's
+     `deployment:` line, write the `deployments:` map the person accepted,
+     one rule per line, each as shown in the plan (a label, or the long form
+     with `paths`), indented as the file's other maps are. The repository
+     never keeps both keys; `projects:` keeps every other line.
    - The update wait: the number on the line `default-days:` of
      `WORK/new/dependabot.yml`, and nothing else in that file.
 3. Show the person the change, the same lines the plan of step 5 named:

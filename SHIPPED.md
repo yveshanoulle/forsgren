@@ -9,6 +9,16 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — The agents propose a service's folders and a repository's deployment rules ([#503](https://github.com/yveshanoulle/forsgren/issues/503), steps 1–2)
+
+forsgren issue 503, patch.
+
+- `agent-upgrade.md` step 5 item 5 no longer only asks for a service's folders: for each service without `paths` the agent reads, read-only with the person's `gh`, the workflow that deploys its task, proposes folders from `on.push.paths` and `paths-ignore`, the deploy job's `working-directory` and the build context (a Dockerfile's folder), shows what it found and why and the exact one-line long form, and the person says yes, edits it or skips it. A new item 6, Several ways to deploy, lists the repository's Deployments by environment and task, releases and deploy workflows and, when more than one source is in use, proposes a `deployments:` entry and says what changes on the page; step 8 writes it in place of the `deployment:` line, only with the yes.
+- `agent-installer.md` does the same for a new installation (questions 15 and 16, new step 3 item 5, step 9).
+- `docs/updating-and-releases.md` says the upgrader now proposes them; pins in `internal/installerdoc` (`agent_propose_upgrade_test.go`, `agent_propose_installer_test.go`).
+
+---
+
 ## 2026-10-27 — A repository may list several deployment rules, each its own row ([#498](https://github.com/yveshanoulle/forsgren/issues/498), steps 1–4)
 
 forsgren issue 498, minor.

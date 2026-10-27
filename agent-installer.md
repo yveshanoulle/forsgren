@@ -277,7 +277,9 @@ Then wait for the answers.
     `task` of its deployments, and a label). Default: no `services`, no rows.
     If the person wants them, ask for each service's label and which folders
     each service is built from, in the repository's own layout, for example
-    `api/` and `shared/` for the API. A folder ends in `/`; a file is written
+    `api/` and `shared/` for the API. A person who does not know them says
+    so: you look and propose in step 3 (item 5), from the deploy workflow,
+    and the person says yes, edits it, or skips it. A folder ends in `/`; a file is written
     with its folders and matches exactly; no glob, no absolute path, no `..`.
     A folder two services share, such as `shared/`, is listed in each service
     that uses it, and `shared/` only where the person lists it: forsgren
@@ -297,7 +299,10 @@ Then wait for the answers.
     commit and its Commits per deployment. Show the `deployments:` lines you
     would write, for example `release: Releases` and
     `environment=github-pages: {label: Website, paths: [website/]}`, and write
-    them only with the person's yes. The key is described in
+    them only with the person's yes. Whatever the answer, in step 3 you list
+    what GitHub records for each repository and, when more than one way is in
+    use, propose the `deployments:` lines (item 5); the person says yes,
+    edits it, or skips it. The key is described in
     [docs/configuration.md](docs/configuration.md).
 
 ## Step 3. Look at every measured repository (read only)
@@ -357,6 +362,45 @@ For every repository the person named, replacing `acme/app`:
    `gh api repos/acme/app/deployments --jq '.[0] | {environment, sha}'` names
    the commit that went live. Do not hold the setup for it: write the
    `deployment:` line the person chose and go on.
+
+5. **Propose folders and rules**, for each repository with services (question
+   15) and each repository that may deploy in more than one way (question 16).
+   Look yourself, read-only, as in item 2 (replacing `acme/app`, `acme/site`
+   and the file name):
+
+   ```
+   gh api -H 'Accept: application/vnd.github.raw' repos/acme/app/contents/.github/workflows/deploy-web.yml
+   gh api repos/acme/app/contents --jq '.[] | select(.type == "dir") | .name'
+   gh api 'repos/acme/site/deployments?per_page=100' --jq '.[] | [.environment, .task] | @tsv' | sort | uniq -c
+   ```
+
+   - **Folders of a service.** Read the workflow or workflows that deploy
+     that service's task (the service key is the `task` of its deployments).
+     Ask which workflow it is when more than one could be. Propose the
+     folders from `on.push.paths` and `paths-ignore` (a `paths-ignore` entry
+     is a folder to leave out, never one to add), the deploy job's
+     `working-directory`, and the build context, such as the folder of a
+     Dockerfile it builds. Show what you found and why, one line per place,
+     and the exact line you would write, such as
+     `deploy-web: {label: Web, paths: [web/, shared/]}`. Say in plain words
+     when a proposal lists a shared folder, and that files in the root of
+     the repository count for no service.
+   - **Several ways to deploy.** Use what item 2 listed (Deployments by
+     environment and task, releases, deploy workflows). When more than one
+     source is in use, for example releases and a `github-pages`
+     environment, propose a `deployments:` entry: each rule with a label,
+     and `paths` where the folders above found them, for example
+     `release: Releases` and
+     `environment=github-pages: {label: Website, paths: [website/]}`. Say
+     what changes on the page: each rule is its own row, with its own
+     Deployments, and the total row counts every deployment of the
+     repository; a rule without `paths` shows `Per repository` for its Time
+     to deploy per commit and its Commits per deployment. `deployment:` and
+     `deployments:` never both: the entry takes the place of the repository's
+     `deployment:` line.
+
+   The person says yes, edits it, or skips it, for each repository; the
+   default is to skip. Write the lines in step 9 only with the person's yes.
 
 Then decide the token route:
 
@@ -512,6 +556,8 @@ projects:
   `services:`, and the short form `deploy-api: API` only for a service the
   person gave no folders. A repository has either `label` or `services`,
   never both.
+- Write the lines the person accepted or edited in step 3 item 5, for
+  `services` and `deployments:`; a proposal the person skipped is not written.
 - Write `deployments:` (question 16) only when the person said yes to the
   lines you showed, in place of the repository's `deployment:` line: never
   beside `deployment`, `label` or `services`, each rule's value its label or
