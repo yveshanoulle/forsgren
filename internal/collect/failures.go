@@ -111,6 +111,7 @@ func (o Options) failureToStore(
 // from the comments when the body gives none.
 func (o Options) failureWithComments(ctx context.Context, repo string, i github.Issue) (history.Failure, error) {
 	f := failureOf(repo, i)
+	f.Service = o.serviceOf(repo, i)
 	if !f.FailureStart.IsZero() {
 		return f, nil
 	}

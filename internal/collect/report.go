@@ -49,8 +49,10 @@ package collect
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -88,6 +90,21 @@ type Cut struct {
 // Failed is one repository that failed, and how: a Failed* word.
 type Failed struct{ Repository, Kind string }
 
+// The reasons a failure issue's `service:` label found no row.
+const (
+	ServiceUnknown   = "unknown"
+	ServiceAmbiguous = "ambiguous"
+)
+
+// UnmatchedService is a failure issue whose `service:` label found no single
+// row of its repository: Reason is ServiceUnknown or ServiceAmbiguous.
+type UnmatchedService struct {
+	Repository string
+	Issue      int64
+	Reason     string
+	Label      string
+}
+
 // Report is what a run left incomplete or failed.
 type Report struct {
 	Cuts []Cut
@@ -111,7 +128,11 @@ type Report struct {
 	// FilesCut names the repositories whose read of the files of their
 	// deployed commits was cut short at the request budget (forsgren#496).
 	FilesCut []string
-	Failed   []Failed
+	// ServiceUnmatched names the failure issues whose `service:` label
+	// matched no row of their repository, or more than one: counted in the
+	// total only (forsgren#515, decision #517). Not incomplete, not failed.
+	ServiceUnmatched []UnmatchedService
+	Failed           []Failed
 	// Reset is when the request budget starts over, UTC; zero when no
 	// repository, nor its pull requests, was cut short.
 	Reset time.Time
@@ -136,6 +157,9 @@ func (r Report) Render() string {
 	writeRepositories(&b, "push-commits-fill-cut", r.PushFillCut)
 	writeRepositories(&b, "pulls-bot-fill-cut", r.PullBotFillCut)
 	writeRepositories(&b, "commit-files-cut", r.FilesCut)
+	for _, u := range r.ServiceUnmatched {
+		fmt.Fprintf(&b, "failure-service %s %d %s %s\n", u.Repository, u.Issue, u.Reason, url.QueryEscape(u.Label))
+	}
 	for _, f := range r.Failed {
 		fmt.Fprintf(&b, "failed %s %s\n", f.Repository, f.Kind)
 	}
@@ -245,6 +269,15 @@ var lineKinds = map[string]lineKind{
 	"commit-files-cut": {2, func(r *Report, f []string) error {
 		r.FilesCut = append(r.FilesCut, f[0])
 		return nil
+	}},
+	"failure-service": {5, func(r *Report, f []string) error {
+		issue, err := strconv.ParseInt(f[1], 10, 64)
+		if err != nil {
+			return err
+		}
+		label, err := url.QueryUnescape(f[3])
+		r.ServiceUnmatched = append(r.ServiceUnmatched, UnmatchedService{f[0], issue, f[2], label})
+		return err
 	}},
 	"failed": {3, func(r *Report, f []string) error {
 		r.Failed = append(r.Failed, Failed{f[0], f[1]})

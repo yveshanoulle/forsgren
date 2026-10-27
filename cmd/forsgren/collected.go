@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"slices"
 	"strings"
@@ -45,10 +46,27 @@ func collectedWords(report collect.Report) string {
 		}
 		parts = append(parts, strings.Join(failed, ", "))
 	}
-	if len(parts) == 0 {
-		return "complete"
+	base := "complete"
+	if len(parts) > 0 {
+		base = "incomplete, " + strings.Join(parts, "; ")
 	}
-	return "incomplete, " + strings.Join(parts, "; ")
+	return strings.Join(append([]string{base}, serviceWords(report)...), "; ")
+}
+
+// serviceWords name each failure issue whose service label found no single
+// row of its repository, counted in the total only (forsgren#515, decision
+// #517). They never make the run incomplete.
+func serviceWords(report collect.Report) []string {
+	words := make([]string, len(report.ServiceUnmatched))
+	for i, u := range report.ServiceUnmatched {
+		what := " is unknown"
+		if u.Reason == collect.ServiceAmbiguous {
+			what = " is ambiguous (it matches more than one row)"
+		}
+		words[i] = fmt.Sprintf("failure issue #%d of %s: service %q%s, so the failure was counted in the total only",
+			u.Issue, u.Repository, u.Label, what)
+	}
+	return words
 }
 
 // budgetWords describe each repository the budget cut short, then each whose

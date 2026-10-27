@@ -28,7 +28,8 @@ forsgren reads only what is already in GitHub:
   `service` (optional, forsgren#515) is a row label as the page shows it, a
   service's or a deployment rule's label, for the failure to be counted in
   that row; the key is lower case and the line stands alone, like the others;
-  forsgren stores it, no row uses it yet.
+  `collect` stores it (see [Collecting deployments](#collecting-deployments-collect),
+  The failure issues); no row uses it yet.
 
 ## Where configuration and data live
 
@@ -180,8 +181,9 @@ acme/app,42,2026-09-01T10:00:00Z,2026-09-01T15:00:00Z,2026-09-01T09:30:00Z,Web
   (`closed_at` empty while it is open), `failure_start` its `failure-start:`
   line (empty when it has none forsgren can read). All are UTC. `service` is
   the label on the issue's `service:` line of its record block (forsgren#515),
-  as written and trimmed, empty when it has none; it is only stored, no row
-  of the page uses it yet. A v1 file (five columns, no `service`) is still
+  as `collect` resolved it (see Collecting deployments, The failure issues),
+  empty when it has none or when it matched no single row; no row of the page
+  uses it yet. A v1 file (five columns, no `service`) is still
   read with every service empty and is written again as v2 once, by the first
   append.
 - An issue changes after it is stored: it is closed, or reopened. The file
@@ -1086,9 +1088,23 @@ as issues, with a `pull_request` field).
   `failures_read.csv` that is not in the format refuses the run, like
   `reach.csv`.
 
-- Each issue's number, `created_at`, `closed_at` and the `failure-start:`
-  line of its record block (body, else comments) are stored (see [History](#history)). An issue already stored is
-  stored again only when one of them changed: closed, or reopened.
+- Each issue's number, `created_at`, `closed_at`, the `failure-start:`
+  line of its record block (body, else comments) and its `service` are stored (see [History](#history)). An issue already stored is
+  stored again only when one of them changed: closed, or reopened, or its
+  service.
+- **The `service:` line** (forsgren#515, decisions #516 and #517) of the
+  record block in the body names a row of the issue's repository as the page
+  shows it: a service's label or a deployment rule's label, matched ignoring
+  case, and stored as the config spells it. A label that matches no row of
+  that repository (a repository without services or rules has none), or two
+  or more, is stored with an empty `service`, so the failure counts in the
+  total row only, and is named on stderr, `collect: acme/app: failure issue
+  #43: service "Web shop" is unknown in this repository; the failure was
+  counted in the total only` (or `is ambiguous in this repository (it matches
+  more than one row)`), and in the run summary's Collected line, with the
+  repository, the issue number and the label. The run does not fail, the
+  report stays complete and no setup issue item is made. The line is read
+  from the body only, and an issue is checked each time a run reads it.
 - **The record block is read from the issue's body, then its comments** (forsgren#37), the lines
   `failure-start:`, `failed-build:` and `fixed-build:` alone on their
   line, as forsgren#6 rules. `failure-start` is read as ISO 8601 with an

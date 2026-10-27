@@ -147,3 +147,33 @@ func TestRunSummaryHasNoCollectedLineWithoutTheFlag(t *testing.T) {
 		t.Errorf("want %q, got %q", want, stdout)
 	}
 }
+
+// TestRunSummaryNamesAFailureCountedInTheTotalOnly (forsgren#515, decision
+// #517): a failure issue whose service label found no row is named with its
+// repository, issue and label, and the run stays complete.
+func TestRunSummaryNamesAFailureCountedInTheTotalOnly(t *testing.T) {
+	pinNow(t)
+	report := reportHead + "complete\n" +
+		"failure-service acme/app 43 unknown Web+shop\n" +
+		"failure-service acme/api 7 ambiguous Web\n"
+	want := summaryOf(version, "up to date") + "- Collected: complete; " +
+		"failure issue #43 of acme/app: service \"Web shop\" is unknown, so the failure was counted in the total only; " +
+		"failure issue #7 of acme/api: service \"Web\" is ambiguous (it matches more than one row), " +
+		"so the failure was counted in the total only\n"
+	if got := collectedSummary(t, report, false); got != want {
+		t.Errorf("want %q, got %q", want, got)
+	}
+}
+
+// TestRunSummaryKeepsTheCutWordsBeforeTheServiceWords: a cut run says both.
+func TestRunSummaryKeepsTheCutWordsBeforeTheServiceWords(t *testing.T) {
+	pinNow(t)
+	report := reportHead + "incomplete resets=2026-10-01T11:00:00Z\n" +
+		"pulls-cut acme/app\nfailure-service acme/app 43 unknown Web\n"
+	want := summaryOf(version, "up to date") + "- Collected: incomplete, budget reached; " +
+		"acme/app pull requests cut short (deployments and issues read); resets 2026-10-01 11:00 UTC; " +
+		"failure issue #43 of acme/app: service \"Web\" is unknown, so the failure was counted in the total only\n"
+	if got := collectedSummary(t, report, false); got != want {
+		t.Errorf("want %q, got %q", want, got)
+	}
+}

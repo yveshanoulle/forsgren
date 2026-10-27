@@ -111,6 +111,10 @@ type Options struct {
 	// counting is how far back a closed failure issue was opened to be re-read
 	// by the catch-up: the DORA window, dora_days (forsgren#178). Set by Run.
 	counting time.Duration
+	// repositories are the configured repositories by lower-case name, for
+	// the rows a failure issue's service line can name (forsgren#515). Set
+	// by Run.
+	repositories map[string]config.Repository
 }
 
 // Run collects every repository of cfg: one line per repository on stdout,

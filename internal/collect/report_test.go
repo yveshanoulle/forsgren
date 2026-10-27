@@ -28,8 +28,11 @@ func sampleReport() Report {
 		PushFillCut:    []string{"acme/fill"},
 		PullBotFillCut: []string{"acme/fill"},
 		FilesCut:       []string{"acme/svc"},
-		Failed:         []Failed{{"acme/web", FailedSecondary}},
-		Reset:          time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC),
+		ServiceUnmatched: []UnmatchedService{
+			{"acme/app", 43, ServiceUnknown, "Web shop"}, {"acme/api", 7, ServiceAmbiguous, "Web"},
+		},
+		Failed: []Failed{{"acme/web", FailedSecondary}},
+		Reset:  time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC),
 	}
 }
 
@@ -44,6 +47,8 @@ const sampleText = "# forsgren collect report v1\n" +
 	"push-commits-fill-cut acme/fill\n" +
 	"pulls-bot-fill-cut acme/fill\n" +
 	"commit-files-cut acme/svc\n" +
+	"failure-service acme/app 43 unknown Web+shop\n" +
+	"failure-service acme/api 7 ambiguous Web\n" +
 	"failed acme/web secondary-rate-limit\n"
 
 // TestAReportIsWrittenAsItsFileAndReadBack (forsgren#64, step 3b): the file
@@ -285,5 +290,19 @@ func TestARunNeedsNoReport(t *testing.T) {
 	r := g.collect(t, cfg, historyPath(t), github.DefaultMaxPages)
 	if !errors.Is(r.err, ErrFailed) || !strings.Contains(r.stderr, "cut short: acme/app") {
 		t.Errorf("want a failure and acme/app cut short, got %v (stderr %q)", r.err, r.stderr)
+	}
+}
+
+// TestAnUnmatchedServiceAloneLeavesTheReportComplete (forsgren#515, decision
+// #517): the run is whole, the lines are there to read back.
+func TestAnUnmatchedServiceAloneLeavesTheReportComplete(t *testing.T) {
+	r := Report{ServiceUnmatched: []UnmatchedService{{"acme/app", 43, ServiceUnknown, "Web shop"}}}
+	want := "# forsgren collect report v1\ncomplete\nfailure-service acme/app 43 unknown Web+shop\n"
+	if got := r.Render(); got != want {
+		t.Errorf("want %q, got %q", want, got)
+	}
+	back, err := ParseReport(want)
+	if err != nil || len(back.ServiceUnmatched) != 1 || back.ServiceUnmatched[0] != r.ServiceUnmatched[0] {
+		t.Errorf("want the line read back, got %+v, %v", back, err)
 	}
 }
