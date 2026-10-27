@@ -1653,6 +1653,12 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/installerdoc/readme_agents_entry_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
    "path": "cmd/forsgren/render_history_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-16",

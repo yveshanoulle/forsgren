@@ -9,6 +9,10 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — README's Documentation list has an Agents entry ([#504](https://github.com/yveshanoulle/forsgren/issues/504), step 1 of 1)
+
+The Documentation list in `README.md` (and so the starter page) now has an Agents entry, right after Updating and releases, linking `agent-installer.md`, `agent-upgrade.md` and `agent-delete.md` and saying the upgrader also helps with the settings a new release brings, such as service folders and deployment rules. The Installing text is unchanged. Pinned by `internal/installerdoc/readme_agents_entry_test.go`. forsgren issue 504, patch.
+
 ## 2026-10-27 — The pull-requests: read comment names PR Lead Time and Bot PR Lead Time ([#461](https://github.com/yveshanoulle/forsgren/issues/461), step 1 of 1)
 
 `Scripts/release_pins.sh`'s `PR_READ_COMMENT` said the permission lets collect read merged pull requests "for Mainline Lead Time", a measure forsgren#460 renamed PR Lead Time and 1.24.5 joined with Bot PR Lead Time. The comment now names both, and a workflow carrying the previous wording gets the new one on its next pin move (pinned in `Scripts/test_release_pins.sh`). The reason string of `pulls.csv` in `Scripts/check_data_guard.sh` was changed to match; `pull_commits.csv` and the Go comments keep Mainline Lead Time, which is still a real measure (forsgren#463). forsgren issue 461, patch.
