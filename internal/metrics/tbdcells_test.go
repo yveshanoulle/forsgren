@@ -33,25 +33,6 @@ func TestDurationSpreadCells(t *testing.T) {
 	}
 }
 
-// TestCountSpreadCells: counts with one decimal where not whole, a dash
-// where the value is not shown.
-func TestCountSpreadCells(t *testing.T) {
-	for name, c := range map[string]struct {
-		in   CountSpread
-		want [3]string
-	}{
-		"none":  {CountSpread{}, [3]string{"-", "-", "-"}},
-		"whole": {CountSpread{Count: 3, Mean: 2, Median: 2}, [3]string{"2", "2", "-"}},
-		"half":  {CountSpread{Count: 2, Mean: 1.5, Median: 1.5}, [3]string{"1.5", "1.5", "-"}},
-		"ten":   {CountSpread{Count: 10, Mean: 5.56, Median: 5.5, P90: 9}, [3]string{"5.6", "5.5", "9"}},
-	} {
-		got := [3]string{c.in.MeanCell(), c.in.MedianCell(), c.in.P90Cell()}
-		if got != c.want {
-			t.Errorf("%s: want %v, got %v", name, c.want, got)
-		}
-	}
-}
-
 // TestPushMeasuresCells: the volume, the shares like 99%, dashes without a
 // commit.
 func TestPushMeasuresCells(t *testing.T) {

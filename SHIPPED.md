@@ -9,6 +9,36 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — The opener of stored pull requests of unknown author is filled once ([#500](https://github.com/yveshanoulle/forsgren/issues/500), step 1 of 1)
+
+forsgren issue 500, patch.
+
+- `collect` fills, once per repository, the bot status of every stored merged pull request whose `bot` column is empty (`internal/collect/pullsbotfill.go`): one `GET /repos/{owner}/{repo}/pulls/{number}` each (`Client.PullRequestUserType`, `Reserve` first), `Bot` becomes `true`, `User` `false`, any other type stays empty. All stored pull requests, not only the DORA window. A 404 or 410 is named on stderr and stays unknown.
+- The statuses are written through the history layer (`history.BackfillPullBots`, `internal/history/pullsbotbackfill.go`): `pulls.csv` is rewritten whole once, nothing when nothing changed, the first line of each pull request staying.
+- `data/pulls_bot_filled.csv` (pulls bot filled format v1) marks a repository done, noted only when its fill finished; it is the fourteenth mark of `markFiles`. The fill runs after the pull request read, the two #470 fills and the push read, only when the pull request read ended whole (#491); a budget stop in it never holds back the pushes of the run.
+- A 403 writes the pull request read's denied mark and never fails the run; a budget stop is a `pulls-bot-fill-cut` line of the cut report and `<repo> history fill cut short (the next run continues)` on the Collected line, and the next run continues; any other error fails the repository after what was read is stored.
+- The data guard knows `pulls_bot_filled.csv` (arm, self-test case 19 with its mutation proof). Documented in `docs/data-files.md` and `CLAUDE.md`.
+
+---
+
+## 2026-10-26 — The pull request history fill waits when the pull request read was cut or refused ([#491](https://github.com/yveshanoulle/forsgren/issues/491), step 1 of 1)
+
+forsgren issue 491, patch.
+
+- `collectPulls` and `endPulls` say whether the read ended whole; `pullsThenPushes` starts `fillPullCommits` only then. A repository whose pull request read is cut by the request budget or refused (403) in a run gets no extra `pull request commits were cut short` warning, no `pull-commits-fill-cut` report line and no second refused warning; its fill runs the next time.
+- The merge pushes fill (`fillMergePushes`) runs before the push read, so it has no such pattern and is unchanged.
+
+---
+
+## 2026-10-26 — TBD: Commits per push and Commits per deployment with one decimal under 10 ([#492](https://github.com/yveshanoulle/forsgren/issues/492), step 1 of 1)
+
+forsgren issue 492, patch.
+
+- The mean, median and p90 of Commits per push and Commits per deployment (`CountSpread` cells, `countCell`) show two significant digits, rounded to the nearest with a half rounded up (decision #493 A): under 10 one decimal always (`1.0`, `2.5`), from 10 a whole number (`10`, `11`, `55`); a value that rounds to 10.0 reads `10`; a dash where a figure is not shown, as before. `CountSpread` is used by these two measures only.
+- The legend says it in a sentence after the two measures; docs/pages-and-views.md and CLAUDE.md in place; goldens `tbd*` and `legend` regenerated.
+
+---
+
 ## 2026-10-26 — Settings turn TBD columns and sub-rows off; one template define for the TBD spread groups ([#482](https://github.com/yveshanoulle/forsgren/issues/482), steps 1–5, with [#474](https://github.com/yveshanoulle/forsgren/issues/474))
 
 forsgren issue 482, minor.

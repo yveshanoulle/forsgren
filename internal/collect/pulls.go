@@ -135,32 +135,34 @@ func (o Options) pullsSince(h held, repo string) time.Time {
 
 // collectPulls reads repo's merged pull requests, stores the new ones and
 // says how many it stored; see the top of this file for what ends the read.
-func (o Options) collectPulls(ctx context.Context, h held, repo string) (int, error) {
-	read, err := o.readPulls(ctx, h, repo)
+func (o Options) collectPulls(ctx context.Context, h held, repo string) (stored int, whole bool, err error) {
+	read, readErr := o.readPulls(ctx, h, repo)
 	if _, serr := history.AppendPullCommits(o.pullCommitsFile(), read.commits); serr != nil {
-		return 0, serr
+		return 0, false, serr
 	}
 	stored, serr := history.AppendPullRequests(o.pullsFile(), read.pulls)
 	if serr != nil {
-		return stored, serr
+		return stored, false, serr
 	}
-	return stored, o.endPulls(h, repo, read.truncated, err)
+	whole, err = o.endPulls(h, repo, read.truncated, readErr)
+	return stored, whole, err
 }
 
 // endPulls moves repo's marks after a read that ended on err, nil included,
-// and says what fails the repository.
-func (o Options) endPulls(h held, repo string, truncated bool, err error) error {
+// and says whether the read ended whole (not refused, not cut by the budget:
+// forsgren#491) and what fails the repository.
+func (o Options) endPulls(h held, repo string, truncated bool, err error) (bool, error) {
 	switch {
 	case errors.Is(err, github.ErrPullRequestsDenied):
 		o.noteDenied(h, repo, err)
-		return nil
+		return false, nil
 	case errors.Is(err, github.ErrBudget):
 		o.warn("collect: %s: the pull requests were cut short: %v; those read whole are stored, "+
 			"the rest is read again by the next run\n", repo, err)
 		o.reportPullsCut(repo)
-		return nil
+		return false, nil
 	case err != nil:
-		return err
+		return false, err
 	}
 	if truncated {
 		o.warn("collect: %s: the pull request read is incomplete: only the newest %d page(s) were read, "+
@@ -169,7 +171,7 @@ func (o Options) endPulls(h held, repo string, truncated bool, err error) error 
 	h.pullsRead[strings.ToLower(repo)] = wholeSecond(o.Now)
 	delete(h.denied, strings.ToLower(repo))
 	delete(h.deniedBy, strings.ToLower(repo))
-	return nil
+	return true, nil
 }
 
 // noteDenied warns of the refused pull request read err and notes repo and the

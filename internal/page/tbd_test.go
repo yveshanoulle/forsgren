@@ -180,13 +180,13 @@ var tbdDeployCells = map[string][2]string{
 
 var tbdCountCells = map[string][2]string{
 	"Acme Shop": {"40 | 20 | 85 | 1.5 | 4.5 | 75% | 25% | 10% | 5.0%",
-		"40 | 20 | 85 | 2 | 1.5 | 6 | 5 | 4.5 | 12 | 75% | 25% | 10% | 5.0%"},
+		"40 | 20 | 85 | 2.0 | 1.5 | 6.0 | 5.0 | 4.5 | 12 | 75% | 25% | 10% | 5.0%"},
 	"Acme Tools": {"1 | 1 | 7 | - | - | 100% | 0% | 0% | 0%",
-		"1 | 1 | 7 | 1 | - | - | 3 | - | - | 100% | 0% | 0% | 0%"},
-	"Acme Docs": {"- | - | 2 | @1Push activity not readable | 1 | @4Push activity not readable",
-		"- | - | 2 | @3Push activity not readable | 1 | 1 | - | @4Push activity not readable"},
+		"1 | 1 | 7 | 1.0 | - | - | 3.0 | - | - | 100% | 0% | 0% | 0%"},
+	"Acme Docs": {"- | - | 2 | @1Push activity not readable | 1.0 | @4Push activity not readable",
+		"- | - | 2 | @3Push activity not readable | 1.0 | 1.0 | - | @4Push activity not readable"},
 	"Acme Web": {"- | - | 1 | @1Pushes not collected yet | - | @4Pushes not collected yet",
-		"- | - | 1 | @3Pushes not collected yet | 2 | - | - | @4Pushes not collected yet"},
+		"- | - | 1 | @3Pushes not collected yet | 2.0 | - | - | @4Pushes not collected yet"},
 }
 
 // tbdIntervalCells are the Mainline Interval cells of tbdData's projects: Acme

@@ -218,15 +218,22 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 
 // pullsThenPushes reads repo's merged pull requests, fills the commits of the
 // ones stored without (pullsfill.go) and then runs the backfill and the push
-// read; each step runs only when the ones before it did not fail.
+// read; each step runs only when the ones before it did not fail, and the
+// fill only when the pull request read ended whole: a read cut by the budget
+// or refused leaves it to the next run (forsgren#491). The fill of the openers
+// of the stored pull requests (pullsbotfill.go, forsgren#500) follows the push
+// read, under the same rule, so it never holds fresh data back.
 func (o Options) pullsThenPushes(ctx context.Context, h held, repo string) (pulls, pushes int, err error) {
-	if pulls, err = o.collectPulls(ctx, h, repo); err != nil {
+	var whole bool
+	if pulls, whole, err = o.collectPulls(ctx, h, repo); err != nil {
 		return pulls, 0, err
 	}
-	if err = o.fillPullCommits(ctx, h, repo); err != nil {
-		return pulls, 0, err
+	if whole {
+		if err = o.fillPullCommits(ctx, h, repo); err != nil {
+			return pulls, 0, err
+		}
 	}
-	pushes, err = o.backfillThenPushes(ctx, h, repo)
+	pushes, err = o.backfillThenPushes(ctx, h, repo, whole)
 	return pulls, pushes, err
 }
 
@@ -235,14 +242,18 @@ func (o Options) pullsThenPushes(ctx context.Context, h held, repo string) (pull
 // first fill of a new column, which costs one comparison per push and could
 // spend the whole request budget. A backfill that fails or is cut short ends
 // the repository's run, so the push read sends no request after it.
-func (o Options) backfillThenPushes(ctx context.Context, h held, repo string) (int, error) {
+func (o Options) backfillThenPushes(ctx context.Context, h held, repo string, pullsWhole bool) (int, error) {
 	if err := o.backfillLegacy(ctx, h, repo); err != nil {
 		return 0, err
 	}
 	if cut, err := o.fillMergePushes(ctx, h, repo); cut || err != nil {
 		return 0, err
 	}
-	return o.collectPushes(ctx, h, repo)
+	pushes, err := o.collectPushes(ctx, h, repo)
+	if err != nil {
+		return pushes, err
+	}
+	return pushes, o.fillPullBots(ctx, h, repo, pullsWhole)
 }
 
 // issueLines is what one repository's issues give to store: its failure

@@ -859,9 +859,13 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
   the TBD form (forsgren#403, `tbdDuration`; the other pages keep their own):
   hours and minutes `3 h 22`, whole hours `2 h` (never `2 h 0`), minutes alone
   `7 m`, under a minute `< 1 m`, a day or more as on the other pages (`1 d
-  6 h`), each part cut down, never rounded up. A count has one decimal where
-  it is not whole (`1.5`), a share has two significant digits (see *Shares of
-  commits* below). A value that
+  6 h`), each part cut down, never rounded up. A count (the mean, median
+  and p90 of Commits per push and Commits per deployment) has two significant
+  digits, rounded to the nearest with a half rounded up (forsgren#492,
+  decision #493: unlike the shares, which round down): under 10 one decimal,
+  always shown (`1.0`, `2.5`, `9.9`), from 10 a whole number (`10`, `11`,
+  `55`), so 9.95 reads `10` and 10.5 reads `11`; a share has two significant
+  digits (see *Shares of commits* below). A value that
   is not shown is a dash in its own cell: a median below two values, a p90
   below ten, a mean without a value, a share without a commit. A project with
   fewer than two commits has a dash in its Mainline Interval cells. The mean

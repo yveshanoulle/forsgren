@@ -753,6 +753,12 @@ and the push commits filled format v1): one line per repository whose one-time
 fill is done, the pull requests' commits in the first and the merge pushes'
 lines in the second.
 
+The pull requests fill starts only after the pull request read of the same
+repository ended whole. A read cut short by the request budget or refused
+(403) leaves the fill to the next run, with no warning, report line or request
+of its own (forsgren#491). The merge pushes fill runs before the push read, so
+it has no such wait.
+
 ```
 # forsgren pull commits filled v1
 repository,filled_at
@@ -782,6 +788,51 @@ acme/app,2026-10-27T06:00:00Z
 - The data guard knows their names: a `pull_commits_filled.csv` or a
   `push_commits_filled.csv` that git tracks or does not ignore, outside
   `testdata/` blocks the commit, like the other data files.
+
+**The pulls bot fill mark** (forsgren#500) is kept in
+`data/pulls_bot_filled.csv`, next to the history, in its own format (the pulls
+bot filled format v1): one line per repository whose one-time fill of the
+opener of its stored merged pull requests is done.
+
+A pull request stored before the bot column (forsgren#345) has an empty `bot`
+column in `data/pulls.csv`, unknown, and counts in neither PR Lead Time nor Bot
+PR Lead Time. Once per repository, after its pull requests are read and the
+two fills above and the push read are done, `collect` reads each stored pull request of the
+repository with an unknown `bot` once (`GET /repos/{owner}/{repo}/pulls/{number}`,
+the request budget reserved first) and sets the column from the account type
+of its opener: `Bot` is `true`, `User` is `false`, anything else stays empty.
+Every stored pull request counts, not only those of the DORA window. Like the
+pull requests fill it starts only after the pull request read of the same
+repository ended whole.
+
+```
+# forsgren pulls bot filled v1
+repository,filled_at
+acme/app,2026-10-27T06:00:00Z
+```
+
+- `filled_at` is the start of the run that finished the repository's fill, in
+  UTC, to the second. Lines are sorted by repository.
+- `data/pulls.csv` stays append-only with the first line staying: the fill
+  changes the `bot` column of the lines it read and nothing else, and writes
+  the file whole once, only when a line changed (a file of the version 1 is
+  written once as version 2).
+- A pull request GitHub answers 404 or 410 for is named on stderr and stays
+  unknown; it does not keep the repository from being noted.
+- A missing permission (403) stores what was filled, notes no fill, writes the
+  denied mark of the pull request read and fails nothing. At the request budget
+  what was filled is stored, no mark is written, the repository is reported
+  incomplete, never failed (a `pulls-bot-fill-cut` line in the cut report and
+  `acme/app history fill cut short (the next run continues)` on the job
+  summary's Collected line), nothing else of the run is held back (it runs
+  after the push read), and the next run continues with the pull requests still unknown. Any other error
+  fails the repository, after what was filled is stored.
+- Rewritten whole like `data/reach.csv`, and only when a line changed. A
+  missing file notes no repository. An unknown version or a malformed line
+  refuses the collect run, naming the file.
+- The data guard knows its name: a `pulls_bot_filled.csv` that the repository
+  tracks or does not ignore, outside `testdata/` blocks the commit, like the
+  other data files.
 
 ## Collecting deployments (`collect`)
 
@@ -1264,6 +1315,7 @@ backfill-cut acme/lib
 pushes-cut acme/api
 pull-commits-fill-cut acme/lib
 push-commits-fill-cut acme/lib
+pulls-bot-fill-cut acme/lib
 failed acme/web secondary-rate-limit
 ```
 
@@ -1293,6 +1345,11 @@ failed acme/web secondary-rate-limit
   summary says `acme/api pushes cut short (deployments, issues and pull
   requests read)`. The pushes compared are stored, and the next run reads the
   rest.
+- A `pulls-bot-fill-cut` line names a repository whose one-time fill of the
+  bot status of the stored pull requests the request budget cut short
+  (forsgren#500): incomplete, never failed, and the job summary says `acme/lib
+  history fill cut short (the next run continues)`. What was filled is stored,
+  and the next run continues.
 - A `pull-commits-fill-cut` and a `push-commits-fill-cut` line name a
   repository whose history fill of the stored pull requests' commits, or of
   the stored merge pushes' lines, the request budget cut short (forsgren#470):

@@ -73,6 +73,8 @@ var legendTbdText = []string{
 	"A push whose commits could not be counted, such as a force push, is left out",
 	"Commits per deployment is how many commits on the main line a deployment brought",
 	"The commits a merge brought in from a branch count as the one merge commit",
+	"The mean, median and p90 of both are shown with two significant digits, rounded to the nearest, unlike the shares. " +
+		"Under 10 they have one decimal, always shown, such as 1.0 or 2.5. From 10 they are whole numbers, such as 10 or 55",
 	"Smaller batches are generally easier to review, test and troubleshoot",
 	"Shares of commits shows how the commits of Volume reached main",
 	"All four are shares of the same Commits number, shown with two significant digits, rounded down",

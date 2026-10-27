@@ -62,6 +62,7 @@ type held struct {
 	backfilled     history.Reach             // see legacybackfill.go
 	pullsFilled    history.Reach             // see pullsfill.go
 	mergesFilled   history.Reach             // see pushesfill.go
+	botsFilled     history.Reach             // see pullsbotfill.go
 	pulls          map[history.IssueKey]bool // the pull requests pulls.csv holds
 	storedPulls    []history.PullRequest     // the same, in the order of the file, for the fill (pullsfill.go)
 	commitsListed  map[history.IssueKey]bool // the pull requests pull_commits.csv holds lines of

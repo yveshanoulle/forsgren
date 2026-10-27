@@ -45,6 +45,7 @@
 #      pushes_denied.csv, a push_commits.csv and
 #      a push_commits_filled.csv elsewhere
 #      (forsgren#397, forsgren#470)
+#  19. a pulls_bot_filled.csv elsewhere         -> red, named (forsgren#500)
 # Mutation proofs, each against a copy of the gate (the patterns are `case`
 # arms of guarded_reason, one per line):
 #   - case 2: with the history.csv arm deleted, case 2's repository must turn
@@ -75,6 +76,8 @@
 #     only ops/pulls_denied.csv must turn green.
 #   - case 18: with the pushes.csv, pushes_read.csv, pushes_denied.csv or
 #     push_commits.csv or push_commits_filled.csv arm deleted, a repository holding only ops/ of that file must turn green.
+#   - case 19: with the pulls_bot_filled.csv arm deleted, a repository holding
+#     only ops/pulls_bot_filled.csv must turn green.
 #   - case 6: with every arm whose pattern holds a `*` quoted (so it matches
 #     only the literal text), case 6's repository must turn green with none
 #     of its three files named, while case 2's repository stays red. Every
@@ -338,6 +341,11 @@ write_file "ops/push_commits.csv" $'# forsgren push commits v1\n' track
 new_repo "pushes-elsewhere-filled"
 write_file "ops/push_commits_filled.csv" $'# forsgren push commits filled v1\n' track
 
+new_repo "pulls-bot-filled-elsewhere"
+write_file "ops/pulls_bot_filled.csv" $'# forsgren pulls bot filled v1\n' track
+run_gate
+want_red "a pulls_bot_filled.csv outside data/ is red and named (forsgren#500)" "❌ FAIL: ops/pulls_bot_filled.csv"
+
 new_repo "history-fixtures"
 write_file "internal/history/testdata/deployments.csv" $'# forsgren history v1\n' track
 write_file "internal/history/testdata/commits.csv" $'# forsgren commits v1\n' track
@@ -436,6 +444,8 @@ arm_deleted_proof 18 "push_commits.csv" '^[[:space:]]*push_commits\.csv\) why=' 
   "${TMP}/check_data_guard_nopushcommits.sh" "pushes-elsewhere-commits" "ops/push_commits.csv"
 arm_deleted_proof 18 "push_commits_filled.csv" '^[[:space:]]*push_commits_filled\.csv\) why=' \
   "${TMP}/check_data_guard_nopushcommitsfilled.sh" "pushes-elsewhere-filled" "ops/push_commits_filled.csv"
+arm_deleted_proof 19 "pulls_bot_filled.csv" '^[[:space:]]*pulls_bot_filled\.csv\) why=' \
+  "${TMP}/check_data_guard_nopullsbotfilled.sh" "pulls-bot-filled-elsewhere" "ops/pulls_bot_filled.csv"
 
 # ---------------------------------------------------------------------------
 # Mutation proof for case 6: a copy of the gate with every arm whose pattern

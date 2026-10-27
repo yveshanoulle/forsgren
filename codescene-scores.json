@@ -125,7 +125,7 @@
   {
    "path": "internal/collect/report.go",
    "score": 10.0,
-   "checkedAt": "2026-10-24",
+   "checkedAt": "2026-10-27",
    "minScore": 10.0
   },
   {
@@ -1835,7 +1835,7 @@
   {
    "path": "cmd/forsgren/collected.go",
    "score": 10.0,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-10-27",
    "minScore": 10.0
   },
   {
@@ -1884,6 +1884,12 @@
    "path": "cmd/forsgren/testversion_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-20",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/pulls_fill_after_read_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {
@@ -2169,6 +2175,12 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/metrics/countcell_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/metrics/tbdcells.go",
    "score": 10.0,
    "checkedAt": "2026-10-26",
@@ -2345,7 +2357,7 @@
   {
    "path": "internal/collect/pullsfill.go",
    "score": 10.0,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-10-27",
    "minScore": 10.0
   },
   {
@@ -2394,6 +2406,48 @@
    "path": "internal/history/pushcommitsfilled_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/pullsbotfill.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/collect/pulls_botfill_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/pullopener.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-27",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/github/pullopener_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-27",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/history/pullsbotbackfill.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/pullsbotbackfill_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/pullsbotfilled.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
    "minScore": 10.0
   }
  ]

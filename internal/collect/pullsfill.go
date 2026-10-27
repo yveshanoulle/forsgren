@@ -106,17 +106,34 @@ func (o Options) readPullFill(ctx context.Context, repo string, todo []history.P
 // endPullFill notes repo filled after a fill that ended on err, nil included,
 // and says what fails the repository.
 func (o Options) endPullFill(h held, repo string, err error) error {
+	_, err = o.endPullsFill(h, repo, err, fillEnd{h.pullsFilled, "pull request commits", o.reportPullFillCut})
+	return err
+}
+
+// fillEnd is what a fill of the stored pull requests ends with: its mark
+// file, what it filled in the warning of a budget stop, and the report line
+// of that stop.
+type fillEnd struct {
+	marks history.Reach
+	what  string
+	cut   func(repo string)
+}
+
+// endPullsFill notes repo filled in f's marks after a fill that ended on err,
+// nil included, and says whether the budget cut it short and what fails the
+// repository.
+func (o Options) endPullsFill(h held, repo string, err error, f fillEnd) (bool, error) {
 	switch {
 	case errors.Is(err, github.ErrPullRequestsDenied):
 		o.noteDenied(h, repo, err)
-		return nil
+		return false, nil
 	case errors.Is(err, github.ErrBudget):
-		o.warnFillCut(repo, "pull request commits", err)
-		o.reportPullFillCut(repo)
-		return nil
+		o.warnFillCut(repo, f.what, err)
+		f.cut(repo)
+		return true, nil
 	case err != nil:
-		return err
+		return false, err
 	}
-	o.noteFilled(h.pullsFilled, repo)
-	return nil
+	o.noteFilled(f.marks, repo)
+	return false, nil
 }

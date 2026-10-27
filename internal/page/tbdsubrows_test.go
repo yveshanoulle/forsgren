@@ -83,9 +83,9 @@ func apiRow(all bool) string {
 		}
 		return "@" + strconv.Itoa(median) + perRepository
 	}
-	cells := []string{span(5, 15), "1 h", span(2, 2), "5", span(1, 3), "2", span(4, 4), "2"}
+	cells := []string{span(5, 15), "1 h", span(2, 2), "5", span(1, 3), "2.0", span(4, 4), "2"}
 	if all {
-		cells = []string{span(5, 15), "&lt; 1 m | 1 h | -", span(2, 2), "5", span(1, 3), "0 | 2 | -", span(4, 4), "2"}
+		cells = []string{span(5, 15), "&lt; 1 m | 1 h | -", span(2, 2), "5", span(1, 3), "0.0 | 2.0 | -", span(4, 4), "2"}
 	}
 	return "<th scope=\"row\"><span class=\"visually-hidden\">Acme Shop: </span>API</th>\n            " +
 		tds(strings.Join(cells, " | ")) + "\n"

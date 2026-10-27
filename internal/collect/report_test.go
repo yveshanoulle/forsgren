@@ -21,13 +21,14 @@ func sampleReport() Report {
 			{"acme/app", time.Date(2026, 6, 22, 0, 0, 0, 0, time.UTC), RecentRead, ProgressYes},
 			{"acme/docs", time.Time{}, RecentDiscarded, ProgressStalled},
 		},
-		PullsCut:    []string{"acme/shop"},
-		BackfillCut: []string{"acme/lib"},
-		PushesCut:   []string{"acme/api"},
-		PullFillCut: []string{"acme/fill"},
-		PushFillCut: []string{"acme/fill"},
-		Failed:      []Failed{{"acme/web", FailedSecondary}},
-		Reset:       time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC),
+		PullsCut:       []string{"acme/shop"},
+		BackfillCut:    []string{"acme/lib"},
+		PushesCut:      []string{"acme/api"},
+		PullFillCut:    []string{"acme/fill"},
+		PushFillCut:    []string{"acme/fill"},
+		PullBotFillCut: []string{"acme/fill"},
+		Failed:         []Failed{{"acme/web", FailedSecondary}},
+		Reset:          time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC),
 	}
 }
 
@@ -40,6 +41,7 @@ const sampleText = "# forsgren collect report v1\n" +
 	"pushes-cut acme/api\n" +
 	"pull-commits-fill-cut acme/fill\n" +
 	"push-commits-fill-cut acme/fill\n" +
+	"pulls-bot-fill-cut acme/fill\n" +
 	"failed acme/web secondary-rate-limit\n"
 
 // TestAReportIsWrittenAsItsFileAndReadBack (forsgren#64, step 3b): the file
@@ -72,6 +74,7 @@ func TestAReportIsIncompleteForOneKindOfCutAlone(t *testing.T) {
 		"pushes-cut acme/app\n":            {PushesCut: []string{"acme/app"}, Reset: reset},
 		"pull-commits-fill-cut acme/app\n": {PullFillCut: []string{"acme/app"}, Reset: reset},
 		"push-commits-fill-cut acme/app\n": {PushFillCut: []string{"acme/app"}, Reset: reset},
+		"pulls-bot-fill-cut acme/app\n":    {PullBotFillCut: []string{"acme/app"}, Reset: reset},
 	} {
 		if got := r.Render(); got != head+line {
 			t.Errorf("want\n%q\ngot\n%q", head+line, got)
@@ -106,6 +109,8 @@ func TestAFileThatIsNoReportIsRefused(t *testing.T) {
 		"long pull fill":  head + "complete\npull-commits-fill-cut acme/app kept=none\n",
 		"short push fill": head + "complete\npush-commits-fill-cut\n",
 		"long push fill":  head + "complete\npush-commits-fill-cut acme/app kept=none\n",
+		"short bot fill":  head + "complete\npulls-bot-fill-cut\n",
+		"long bot fill":   head + "complete\npulls-bot-fill-cut acme/app kept=none\n",
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := ParseReport(text); !errors.Is(err, ErrReport) {

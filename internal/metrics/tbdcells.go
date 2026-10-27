@@ -4,11 +4,12 @@ package metrics
 // 5, Yves's ruling on #401): numbers only, no sentence but the two states, a
 // dash where a value is not shown (a median below two values, a 90th
 // percentile below ten, a share without a commit). Durations are
-// tbdDuration's, counts have one decimal where not whole, shares are whole
+// tbdDuration's, counts have two significant digits (countCell), shares are whole
 // percent like 99%.
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -113,16 +114,26 @@ func (s CountSpread) MedianCell() string { return s.cell(s.HasMedian(), s.Median
 // P90Cell is the 90th percentile, a dash below ten counts.
 func (s CountSpread) P90Cell() string { return s.cell(s.HasP90(), s.P90) }
 
-// cell is v with one decimal where it is not whole, a dash when it is not
-// shown.
+// cell is v as countCell writes it, a dash when it is not shown.
 func (s CountSpread) cell(shown bool, v float64) string {
-	switch {
-	case !shown:
+	if !shown {
 		return noNumber
-	case v == float64(int(v)):
-		return strconv.Itoa(int(v))
 	}
-	return strconv.FormatFloat(v, 'f', 1, 64)
+	return countCell(v)
+}
+
+// countCell is a count to two significant digits, rounded to the nearest with
+// a half rounded up (forsgren#492, decision #493 A): under 10 one decimal
+// always shown ("1.0", "2.5"), from 10 a whole number ("10", "11"). A value
+// that rounds to 10.0 is 10. The half is rounded on the value times 10 (or the
+// value itself from 10): a mean or median is a whole number over a whole
+// number, so a half in decimal (2.45, 9.95, 10.5) multiplies to exactly that
+// half in float, which TestCountSpreadCellsShowTwoSignificantDigits pins.
+func countCell(v float64) string {
+	if tenths := int(math.Floor(v*10 + 0.5)); tenths < 100 {
+		return fmt.Sprintf("%d.%d", tenths/10, tenths%10)
+	}
+	return strconv.Itoa(int(math.Floor(v + 0.5)))
 }
 
 // DeploymentVolume is one project's deployments of the DORA window for the

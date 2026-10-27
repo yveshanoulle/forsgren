@@ -72,6 +72,14 @@ func (o Options) reportPullFillCut(repo string) {
 	}
 }
 
+// reportPullBotFillCut adds repo, whose fill of the bot status of the stored
+// pull requests the budget cut short, to the report (forsgren#500).
+func (o Options) reportPullBotFillCut(repo string) {
+	if o.Report != nil {
+		o.Report.PullBotFillCut = append(o.Report.PullBotFillCut, repo)
+	}
+}
+
 // reportPushFillCut adds repo, whose fill of the merge push lines the budget
 // cut short, to the report (forsgren#470).
 func (o Options) reportPushFillCut(repo string) {
