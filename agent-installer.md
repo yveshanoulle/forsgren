@@ -302,7 +302,9 @@ Then wait for the answers.
     them only with the person's yes. Whatever the answer, in step 3 you list
     what GitHub records for each repository and, when more than one way is in
     use, propose the `deployments:` lines (item 5); the person says yes,
-    edits it, or skips it. The key is described in
+    edits it, or skips it. A repository with a `deployment:` line is the
+    normal case: a `deployment:` line does not exclude it. Always run the
+    commands of step 3 first and say what each showed. The key is described in
     [docs/configuration.md](docs/configuration.md).
 
 ## Step 3. Look at every measured repository (read only)
@@ -385,8 +387,12 @@ For every repository the person named, replacing `acme/app`:
      `deploy-web: {label: Web, paths: [web/, shared/]}`. Say in plain words
      when a proposal lists a shared folder, and that files in the root of
      the repository count for no service.
-   - **Several ways to deploy.** Use what item 2 listed (Deployments by
-     environment and task, releases, deploy workflows). When more than one
+   - **Several ways to deploy.** For every repository, also one with a
+     `deployment:` line: a `deployment:` line does not exclude it. Always run
+     the commands first and say what each showed; only from that output
+     decide whether only one way is in use. Use what item 2 listed
+     (Deployments by environment and task, releases, deploy workflows). When
+     more than one
      source is in use, for example releases and a `github-pages`
      environment, propose a `deployments:` entry: each rule with a label,
      and `paths` where the folders above found them, for example

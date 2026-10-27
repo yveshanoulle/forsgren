@@ -9,6 +9,12 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — The upgrade and install agents look before skipping Several ways to deploy ([#508](https://github.com/yveshanoulle/forsgren/issues/508), step 1 of 1)
+
+forsgren issue 508, patch.
+
+A fresh upgrade agent skipped step 5 item 6 for a repository because it already had a `deployment:` line, without running the three commands. `agent-upgrade.md` item 6 now says first that it is for every repository with a `deployment:` line or with none, that a `deployment:` line does not exclude it (only `deployments:`, `label` or `services:` do), and that the agent always runs the three read-only commands first, says what each showed, and decides "only one way is in use" only from that output. `agent-installer.md` says the same in question 16 and step 3. Pinned by `internal/installerdoc/agent_deploy_look_test.go`.
+
 ## 2026-10-27 — README's Agents entry is shorter ([#507](https://github.com/yveshanoulle/forsgren/issues/507), step 1 of 1)
 
 forsgren issue 507, patch.

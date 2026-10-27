@@ -471,11 +471,14 @@ applies:
    reads the files of each commit once, which needs Contents read on a
    fine-grained `FORSGREN_TOKEN`, and that the service row says `Files still
    being read` until it has.
-6. **Several ways to deploy**, for each repository without `deployments:`,
-   without `label` and without `services:` (a rule is already the split).
-   Skip the question when only one way is in use. Look yourself (read-only,
-   with the person's `gh`, replacing `acme/site`) and list what GitHub
-   records:
+6. **Several ways to deploy**, for every repository with a `deployment:` line
+   or with none (the default rule): a `deployment:` line does not exclude it,
+   it is what a `deployments:` entry replaces. Only `deployments:`, `label` or
+   `services:` exclude a repository (they are already the split). Always run
+   the three commands first and say what each showed; only from that output
+   decide whether only one way is in use, and skip the question then, never
+   before you have looked. Look yourself (read-only, with the person's `gh`,
+   replacing `acme/site`) and list what GitHub records:
 
    ```
    gh api 'repos/acme/site/deployments?per_page=100' --jq '.[] | [.environment, .task] | @tsv' | sort | uniq -c
