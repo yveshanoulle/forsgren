@@ -129,7 +129,8 @@ func TestSettingsPageMarksAnUnsetKey(t *testing.T) {
 // set; its range is held by the probes of the test above.
 func TestEveryValueTheConfigAcceptsIsListedOnTheSettingsPage(t *testing.T) {
 	enumerated := []string{"view", "auto_update", "auto_update_level", "dora_days", "issues_page", "days_page",
-		"numbers_scoring_page", "history_page", "tbd_page", "tbd_figures", "tbd_time_to_main", "tbd_pr_lead_time",
+		"numbers_scoring_page", "history_page", "tbd_page", "week_page", "tbd_figures", "tbd_time_to_main",
+		"tbd_pr_lead_time",
 		"tbd_bot_pr_lead_time", "sub_rows", "thousands_separator"}
 	for _, key := range enumerated {
 		wantListed(t, key, config.Accepted(key))
@@ -163,7 +164,7 @@ func TestSettingsPageListsTheSwitches(t *testing.T) {
 	data := Placeholder("1.0.0")
 	data.Settings = (config.Config{}).Settings()
 	html := rendered(t, "settings.html", data)
-	for _, key := range []string{"tbd_time_to_main", "tbd_pr_lead_time", "tbd_bot_pr_lead_time", "sub_rows"} {
+	for _, key := range []string{"tbd_time_to_main", "tbd_pr_lead_time", "tbd_bot_pr_lead_time", "sub_rows", "week_page"} {
 		wantAll(t, "settings.html", html, `<th scope="row">`+key+`</th>
             <td>true (not set)</td>
             <td>true, false</td>

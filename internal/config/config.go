@@ -253,6 +253,10 @@ type Config struct {
 	// value, as in a Config not loaded from a file, shows everything
 	// (forsgren#482, decisions #480, #481, #488).
 	HideTbdTimeToMain, HideTbdPRLeadTime, HideTbdBotPRLeadTime, HideSubRows bool
+	// HideWeekPage says the Week page has no menu entry: true only when the
+	// file writes week_page as false; the page is written all the same
+	// (forsgren#531, step 3, decision #533 A).
+	HideWeekPage bool
 	// written is the optional keys the file writes, by key (forsgren#74).
 	written  map[string]bool
 	Projects []Project
@@ -327,6 +331,7 @@ var (
 	ErrTbdPRLeadTime       = errors.New("invalid tbd_pr_lead_time")
 	ErrTbdBotPRLeadTime    = errors.New("invalid tbd_bot_pr_lead_time")
 	ErrSubRows             = errors.New("invalid sub_rows")
+	ErrWeekPage            = errors.New("invalid week_page")
 )
 
 // Load reads and validates the config file at path. Every error names the
@@ -403,6 +408,7 @@ type fileConfig struct {
 	TbdPRLeadTime    yaml.Node     `yaml:"tbd_pr_lead_time"`
 	TbdBotPRLeadTime yaml.Node     `yaml:"tbd_bot_pr_lead_time"`
 	SubRows          yaml.Node     `yaml:"sub_rows"`
+	WeekPage         yaml.Node     `yaml:"week_page"`
 	Projects         []fileProject `yaml:"projects"`
 }
 
@@ -515,6 +521,7 @@ var settingKeys = []settingKey{
 		func(c Config) string { return string(c.NumbersScoringPage) }},
 	{"history_page", string(historyPage.def), func(c Config) string { return string(c.HistoryPage) }},
 	{"tbd_page", string(tbdPage.def), func(c Config) string { return string(c.TbdPage) }},
+	{"week_page", "true", func(c Config) string { return strconv.FormatBool(!c.HideWeekPage) }},
 	{"tbd_figures", DefaultTbdFigures, func(c Config) string { return c.TbdFigures }},
 	{"tbd_time_to_main", "true", func(c Config) string { return strconv.FormatBool(!c.HideTbdTimeToMain) }},
 	{"tbd_pr_lead_time", "true", func(c Config) string { return strconv.FormatBool(!c.HideTbdPRLeadTime) }},

@@ -24,6 +24,7 @@ func TestSettingsListsEveryKeyWithItsDefault(t *testing.T) {
 		{Key: "numbers_scoring_page", Value: "unlisted", Default: "unlisted"},
 		{Key: "history_page", Value: "unlisted", Default: "unlisted"},
 		{Key: "tbd_page", Value: "true", Default: "true"},
+		{Key: "week_page", Value: "true", Default: "true"},
 		{Key: "tbd_figures", Value: "median", Default: "median"},
 		{Key: "tbd_time_to_main", Value: "true", Default: "true"},
 		{Key: "tbd_pr_lead_time", Value: "true", Default: "true"},
@@ -34,11 +35,11 @@ func TestSettingsListsEveryKeyWithItsDefault(t *testing.T) {
 }
 
 // TestSettingsMarksEveryWrittenKeySet (forsgren#74): a file that writes all
-// nineteen keys has all of them Set, with the written values.
+// twenty keys has all of them Set, with the written values.
 func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 	all := "view: numbers\nauto_update: true\nauto_update_level: minor\n" +
 		"history_days: 30\nhistory_chunk_days: 10\nworking_hours: 6\ndora_days: 30\nissues_page: false\ndays_page: true\n" +
-		"numbers_scoring_page: true\nhistory_page: false\ntbd_page: true\ntbd_figures: all\n" +
+		"numbers_scoring_page: true\nhistory_page: false\ntbd_page: true\nweek_page: false\ntbd_figures: all\n" +
 		"tbd_time_to_main: false\ntbd_pr_lead_time: false\ntbd_bot_pr_lead_time: false\nsub_rows: false\n" +
 		"same_developer: [[maintainer, assistant-account]]\nthousands_separator: comma\n"
 	wantSettings(t, all, []Setting{
@@ -55,6 +56,7 @@ func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 		{Key: "numbers_scoring_page", Value: "true", Default: "unlisted", Set: true},
 		{Key: "history_page", Value: "false", Default: "unlisted", Set: true},
 		{Key: "tbd_page", Value: "true", Default: "true", Set: true},
+		{Key: "week_page", Value: "false", Default: "true", Set: true},
 		{Key: "tbd_figures", Value: "all", Default: "median", Set: true},
 		{Key: "tbd_time_to_main", Value: "false", Default: "true", Set: true},
 		{Key: "tbd_pr_lead_time", Value: "false", Default: "true", Set: true},
@@ -107,6 +109,7 @@ func TestAListOrMappingForASettingIsRejectedNotSyntax(t *testing.T) {
 		{"numbers_scoring_page", "use true, unlisted or false", "unlisted", ErrNumbersScoringPage},
 		{"history_page", "use true, unlisted or false", "unlisted", ErrHistoryPage},
 		{"tbd_page", "use true, unlisted or false", "true", ErrTbdPage},
+		{"week_page", "use true or false", "true", ErrWeekPage},
 		{"tbd_figures", "use median or all", "median", ErrTbdFigures},
 		{"tbd_time_to_main", "use true or false", "true", ErrTbdTimeToMain},
 		{"tbd_pr_lead_time", "use true or false", "true", ErrTbdPRLeadTime},
@@ -173,6 +176,7 @@ func TestSettingsCarriesEachRejection(t *testing.T) {
 		{Key: "numbers_scoring_page", Value: "unlisted", Default: "unlisted"},
 		{Key: "history_page", Value: "unlisted", Default: "unlisted"},
 		{Key: "tbd_page", Value: "true", Default: "true"},
+		{Key: "week_page", Value: "true", Default: "true"},
 		{Key: "tbd_figures", Value: "median", Default: "median"},
 		{Key: "tbd_time_to_main", Value: "true", Default: "true"},
 		{Key: "tbd_pr_lead_time", Value: "true", Default: "true"},
@@ -215,7 +219,7 @@ func TestSettingsShowsARejectedDoraDaysLikeTheOtherKeys(t *testing.T) {
 func TestSettingsExposeTheDefaultOfEveryKey(t *testing.T) {
 	want := []string{
 		"standard", "true", "false", "major", "365", "100", "8", "30",
-		"true", "false", "unlisted", "unlisted", "true", "median", "true", "true", "true", "[]", "narrow_space",
+		"true", "false", "unlisted", "unlisted", "true", "true", "median", "true", "true", "true", "[]", "narrow_space",
 	}
 	for _, file := range []string{"", "history_days: 90\nview: numbers\n"} {
 		got, err := parse([]byte(file + valid))

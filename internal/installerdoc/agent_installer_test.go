@@ -112,13 +112,13 @@ func TestInstallerStep12ReadsTheDefaultColumn(t *testing.T) {
 	wantAll(t, "step 12", proof,
 		"`;view;numbers;standard, numbers, scoring;standard;`",
 		"last field of each row is the default of the key: `standard`, `true`, `false`, `major`, `365`, `100`, "+
-			"`8`, `30`, `true`, `false`, `unlisted`, `unlisted`, `true`, `median`, `true`, `true`, `true`, `[]`",
+			"`8`, `30`, `true`, `false`, `unlisted`, `unlisted`, `true`, `true`, `median`, `true`, `true`, `true`, `[]`",
 		"show the value of the config, without `(not set)`",
 		"`history_chunk_days` shows `100 (not set)`, `working_hours` shows `8 (not set)`, `tbd_page` shows "+
 			"`true (not set)`",
 		"`tbd_figures` shows `median (not set)`",
 		"The row `same_developer` shows `[] (not set)` when the person said no to question 14",
-		"Eighteen rows in all")
+		"Nineteen rows in all")
 	for _, old := range []string{"`True` (the default)", "`False` (set in forsgren.config.yml", ";False;"} {
 		if strings.Contains(proof, old) {
 			t.Errorf("agent-installer.md step 12 still says %q", old)

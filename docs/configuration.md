@@ -271,6 +271,15 @@ projects:
   totals count the same data. A value that is not accepted is a refusal with
   `true` in force, as for the three keys above. The starter shows the key
   commented out.
+- **`week_page`** is optional (forsgren#531, decision #533): whether the Week
+  page is in the menu. `true`, the default, lists the Week page in the menu;
+  `false` takes it out of the menu: the page is still written and reachable by
+  its address, `week.html`, and asks search engines to skip it, as an `unlisted`
+  page does. The key takes the plain YAML literals `true` and `false`, as
+  `sub_rows`; left out, or without a value, it is `true`. A value that is not
+  accepted (`unlisted` is not a value of this key) is a refusal with `true` in
+  force, naming the key: `invalid week_page "unlisted": use true or false`. The
+  starter shows the key commented out.
 - **`same_developer`** is optional (forsgren#361, decision #360): groups of
   GitHub logins that count as one developer in the TBD page's Developers
   column, for an assistant account that works on someone's behalf or a person
@@ -321,15 +330,15 @@ projects:
 - **The settings page** (`settings.html`, forsgren#74, moved out of the legend
   in forsgren#84, a table since forsgren#141) tabulates every optional key,
   `view`, `sub_rows`, `auto_update`, `auto_update_level`, `history_days`,
-  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`, `same_developer` and `thousands_separator`, nineteen rows in four columns: **Parameter**;
+  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `week_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`, `same_developer` and `thousands_separator`, twenty rows in four columns: **Parameter**;
   **Current value**, the value in use (`major` for an unset
   `auto_update_level`); **Possible values**, built from the config package's
   own constants and limits so the page cannot drift from what `check-config`
-  accepts (`standard, numbers, scoring`; `true, false` for `sub_rows` and `auto_update`; `patch, minor, major`; `30 to 1825`; `1 to 365`; `1 to 24`; `30, 90, 180`; `true, unlisted, false` for each of the five page keys; `median, all`; `true, false` for each of the three TBD column keys; `groups of two or more GitHub logins`),
+  accepts (`standard, numbers, scoring`; `true, false` for `sub_rows` and `auto_update`; `patch, minor, major`; `30 to 1825`; `1 to 365`; `1 to 24`; `30, 90, 180`; `true, unlisted, false` for each of the five page keys; `median, all`; `true, false` for each of the three TBD column keys and for `week_page`; `groups of two or more GitHub logins`),
   a test holds the lists to the config loader; and **Default**, the value
   used when `forsgren.config.yml` does not set the key (forsgren#169):
   `standard`, `true`, `false`, `major`, `365`, `100`, `8`, `30`, `true`, `false`,
-  `unlisted`, `unlisted`, `true`, `median`, `true`, `true`, `true` and `[]`, in the order of the rows. A
+  `unlisted`, `unlisted`, `true`, `true`, `median`, `true`, `true`, `true` and `[]`, in the order of the rows. A
   Current value followed by `(not set)` means the file does not set the key,
   so the default applies; a Current value without it is set in the file, even
   to the default's value. For a value that is not accepted the Current value
@@ -550,7 +559,7 @@ them. For `workflow=`, look at the Actions tab; for `release`, run
 
 A setting with a default (`view`, `auto_update`, `auto_update_level`,
 `history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
-`issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`, `sub_rows`, `same_developer` and `thousands_separator`) whose value forsgren
+`issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `week_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`, `sub_rows`, `same_developer` and `thousands_separator`) whose value forsgren
 does not accept, a list or
 a mapping included, does not stop the run (forsgren#183): forsgren uses that
 key's default instead, and says so in three places. The settings page's row

@@ -38,23 +38,26 @@ func TestInstallerAsksForTheHistoryPage(t *testing.T) {
 	}
 }
 
-// TestInstallerProvesEighteenSettingsRows (forsgren#68, #253, #417, #482): the
+// TestInstallerProvesNineteenSettingsRows (forsgren#68, #253, #417, #482): the
 // settings page proof lists history_page as written in the config, tbd_page,
 // tbd_figures and the four switches of forsgren#482 as left to their
-// defaults, same_developer as the person answered, eighteen rows in all, and
+// defaults, same_developer as the person answered, nineteen rows in all, and
 // "Changing a setting later" names the keys.
-func TestInstallerProvesEighteenSettingsRows(t *testing.T) {
+func TestInstallerProvesNineteenSettingsRows(t *testing.T) {
 	proof := asOneLine(section(t, installerFile, "Step 12."))
-	wantAll(t, "agent-installer.md step 12", proof, "`history_page`", "Eighteen rows in all",
-		"`tbd_page` shows `true (not set)`", "`tbd_figures` shows `median (not set)`",
+	wantAll(t, "agent-installer.md step 12", proof, "`history_page`", "Nineteen rows in all",
+		"`tbd_page` shows `true (not set)`", "`week_page` shows `true (not set)`",
+		"`tbd_figures` shows `median (not set)`",
 		"`sub_rows`, `tbd_time_to_main`, `tbd_pr_lead_time` and `tbd_bot_pr_lead_time` each show `true (not set)`")
-	for _, stale := range []string{"Ten rows in all", "Eleven rows in all", "Twelve rows in all", "Fourteen rows in all"} {
+	stales := []string{"Ten rows in all", "Eleven rows in all", "Twelve rows in all", "Fourteen rows in all",
+		"Eighteen rows in all"}
+	for _, stale := range stales {
 		if strings.Contains(proof, stale) {
 			t.Errorf("agent-installer.md step 12 still says %q", stale)
 		}
 	}
 	later := asOneLine(section(t, installerFile, "Changing a setting later"))
-	wantAll(t, "agent-installer.md 'Changing a setting later'", later, "`history_page`", "`tbd_page`",
+	wantAll(t, "agent-installer.md 'Changing a setting later'", later, "`history_page`", "`tbd_page`", "`week_page`",
 		"`tbd_figures`", "`same_developer`", "`sub_rows`", "`tbd_time_to_main`", "`tbd_pr_lead_time`",
 		"`tbd_bot_pr_lead_time`")
 }

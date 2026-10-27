@@ -2469,6 +2469,18 @@
    "minScore": 10.0
   },
   {
+   "path": "cmd/forsgren/render_week_page_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-27",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/installerdoc/week_page_docs_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
    "path": "cmd/forsgren/render_pushes_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-26",

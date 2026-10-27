@@ -1182,6 +1182,7 @@
     "github.com/yveshanoulle/forsgren/internal/page/week.go:Cells": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/week.go:Class": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/week.go:WeekRows": 100.0,
+    "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:weekMode": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/weekrows.go:deployedCommitDays": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/nodata.go:ServiceNoData": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/renderpushes.go:withPushes": 100.0,

@@ -135,7 +135,17 @@ func pagesInMode(cfg config.Config, mode config.PageMode) map[string]bool {
 func pageModes(cfg config.Config) map[string]config.PageMode {
 	return map[string]config.PageMode{page.IssuesPage: cfg.IssuesPage, page.DaysPage: cfg.DaysPage,
 		page.NumbersScoringPage: cfg.NumbersScoringPage, page.HistoryPage: cfg.HistoryPage,
-		page.TbdPage: cfg.TbdPage}
+		page.TbdPage: cfg.TbdPage, page.WeekPage: weekMode(cfg)}
+}
+
+// weekMode is how the Week page is handled (forsgren#531, step 3, decision
+// #533 A): listed, or with week_page: false unlisted, which is written, reachable
+// by its address, out of the menu and asking search engines to skip it.
+func weekMode(cfg config.Config) config.PageMode {
+	if cfg.HideWeekPage {
+		return config.PageUnlisted
+	}
+	return config.PageOn
 }
 
 // issueDays is how many UTC days the days page shows, ending yesterday

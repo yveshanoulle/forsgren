@@ -3,6 +3,7 @@ package config
 import (
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -20,6 +21,7 @@ var switchKeys = []switchCase{
 	{"tbd_pr_lead_time", ErrTbdPRLeadTime, func(c Config) bool { return !c.HideTbdPRLeadTime }},
 	{"tbd_bot_pr_lead_time", ErrTbdBotPRLeadTime, func(c Config) bool { return !c.HideTbdBotPRLeadTime }},
 	{"sub_rows", ErrSubRows, func(c Config) bool { return !c.HideSubRows }},
+	{"week_page", ErrWeekPage, func(c Config) bool { return !c.HideWeekPage }},
 }
 
 // switchLoad is a way a switch is written in the file: the line after its key,
@@ -151,6 +153,31 @@ func TestAConfigNotLoadedFromAFileHidesNothing(t *testing.T) {
 	for _, k := range switchKeys {
 		if !k.field(Config{}) {
 			t.Errorf("%s: want it on in a Config not loaded from a file", k.key)
+		}
+	}
+}
+
+// TestWeekPageFollowsTbdPageInTheSettings (forsgren#531, step 3, decision
+// #533 A): the key week_page is listed right after tbd_page.
+func TestWeekPageFollowsTbdPageInTheSettings(t *testing.T) {
+	var keys []string
+	for _, s := range (Config{}).Settings() {
+		keys = append(keys, s.Key)
+	}
+	if at := slices.Index(keys, "tbd_page"); at < 0 || keys[at+1] != "week_page" {
+		t.Errorf("want week_page right after tbd_page, got %v", keys)
+	}
+}
+
+// TestTheStarterOffersWeekPageCommentedOut (forsgren#531, step 3): the starter
+// names the key, true by default, on a commented line only.
+func TestTheStarterOffersWeekPageCommentedOut(t *testing.T) {
+	if !strings.Contains(Starter, "\n# week_page: true  # the Week page in the menu: true (default) or false\n") {
+		t.Error("want the commented line # week_page: true in the starter")
+	}
+	for _, line := range strings.Split(Starter, "\n") {
+		if strings.HasPrefix(line, "week_page:") {
+			t.Errorf("want week_page only commented out in the starter, got %q", line)
 		}
 	}
 }
