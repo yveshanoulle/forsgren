@@ -165,6 +165,30 @@
    "minScore": 9.58
   },
   {
+   "path": "internal/collect/commitfiles.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-27",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/collect/commit_files_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/commitfiles.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/history/commitfiles_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/collect/collect_test.go",
    "score": 9.68,
    "checkedAt": "2026-10-03",
@@ -342,6 +366,18 @@
    "path": "internal/github/client.go",
    "score": 10.0,
    "checkedAt": "2026-10-25",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/commitchanges.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/github/commitchanges_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {
@@ -672,6 +708,18 @@
    "path": "internal/config/labels_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-04",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/servicepaths.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/servicepaths_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-26",
    "minScore": 10.0
   },
   {
@@ -2446,6 +2494,48 @@
   },
   {
    "path": "internal/history/pullsbotfilled.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/rendercommitfiles.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_commitfiles_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-27",
+   "minScore": 9.58
+  },
+  {
+   "path": "internal/metrics/servicepaths.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/servicepaths_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/tbdservicepaths_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/tbdfilesnote_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/service_paths_docs_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-27",
    "minScore": 10.0

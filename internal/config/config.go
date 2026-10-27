@@ -154,6 +154,10 @@ type Repository struct {
 	// Services maps a deployment task to the label of its row under the
 	// project; nil for none (forsgren#38).
 	Services map[string]string
+	// Paths maps a deployment task of Services to the folders and files
+	// that belong to its service (forsgren#496); a task without paths has
+	// no entry.
+	Paths map[string][]string
 }
 
 // Project groups the repositories that ship one product; the page shows
@@ -384,10 +388,10 @@ type fileProject struct {
 }
 
 type fileRepository struct {
-	Name       string        `yaml:"name"`
-	Deployment string        `yaml:"deployment"`
-	Label      *text         `yaml:"label"`
-	Services   map[text]text `yaml:"services"`
+	Name       string           `yaml:"name"`
+	Deployment string           `yaml:"deployment"`
+	Label      *text            `yaml:"label"`
+	Services   map[text]service `yaml:"services"`
 }
 
 // decode reads exactly one YAML document strictly: an unknown key or a value

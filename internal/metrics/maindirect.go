@@ -33,15 +33,32 @@ type directTime struct {
 type directCounting struct {
 	index projectIndex
 	lines lineage
+	scope *pathScope // the service's paths, nil for every commit (forsgren#496)
 }
 
 // project is the index of the project whose commit c is, and whether it
-// counts: its repository is listed and it is on its deployment's first-parent
-// chain (or the lineage is unknown).
+// counts: its repository is listed, it is on its deployment's first-parent
+// chain (or the lineage is unknown) and it touches the service's paths.
 func (d directCounting) project(c history.Commit) (int, bool) {
+	i, onChain := d.onChain(c)
+	return i, onChain && d.scope.touches(c)
+}
+
+// onChain is the index of the project whose commit c is, and whether its
+// repository is listed and it is on its deployment's first-parent chain (or
+// the lineage is unknown), whatever the service's paths.
+func (d directCounting) onChain(c history.Commit) (int, bool) {
 	i, listed := d.index.of(c.Repository)
 	_, onChain := d.lines.place(c)
 	return i, listed && onChain
+}
+
+// unreadAt is the index of the project whose commit c is, and whether c is a
+// commit of a deployment in the window, on a first-parent chain, whose files
+// are not stored yet (forsgren#496).
+func (d directCounting) unreadAt(c history.Commit, in window, now time.Time) (int, bool) {
+	i, onChain := d.onChain(c)
+	return i, onChain && in.holds(c.DeployedAt, now) && d.scope.unread(c)
 }
 
 // firstDeployments are the commits that counting accepts, by commitKey, each
@@ -80,11 +97,14 @@ type batch struct {
 	deployed time.Time
 	commits  int
 	known    bool
+	// unread says a commit of the first-parent chain has no stored files
+	// yet, so a service's count would be a part (forsgren#496).
+	unread bool
 }
 
 // batchesOf are the deployments of the listed repositories' commits, each with
-// its first-parent commits.
-func batchesOf(commits []history.Commit, index projectIndex) map[deploymentKey]*batch {
+// its first-parent commits that touch scope (every one for the nil scope).
+func batchesOf(commits []history.Commit, index projectIndex, scope *pathScope) map[deploymentKey]*batch {
 	lines := lineageOf(commits)
 	batches := map[deploymentKey]*batch{}
 	for _, c := range commits {
@@ -96,8 +116,15 @@ func batchesOf(commits []history.Commit, index projectIndex) map[deploymentKey]*
 		if batches[k] == nil {
 			batches[k] = &batch{project: i, deployed: c.DeployedAt, known: lines.known(c)}
 		}
-		_, counts := lines.place(c)
-		batches[k].commits += boolCount(counts)
+		_, onChain := lines.place(c)
+		batches[k].add(c, onChain, scope)
 	}
 	return batches
+}
+
+// add counts the commit c of the deployment, on its first-parent chain or
+// not, when it touches scope, and notes whether scope cannot judge it yet.
+func (b *batch) add(c history.Commit, onChain bool, scope *pathScope) {
+	b.commits += boolCount(onChain && scope.touches(c))
+	b.unread = b.unread || onChain && scope.unread(c)
 }

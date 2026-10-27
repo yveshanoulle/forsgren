@@ -834,6 +834,59 @@ acme/app,2026-10-27T06:00:00Z
   tracks or does not ignore, outside `testdata/` blocks the commit, like the
   other data files.
 
+### Commit files (forsgren#496)
+
+A service with `paths` (see [Configuration](configuration.md)) counts only
+the commits that touch them, so `collect` keeps the files each deployed commit
+changed in `data/commit_files.csv`, next to the history (the commit files
+format v1, package `internal/history`, columns `repository,sha,path`):
+
+```
+# forsgren commit files v1
+repository,sha,path
+acme/app,0123456789abcdef0123456789abcdef01234567,api/main.go
+acme/app,0123456789abcdef0123456789abcdef01234567,web/old.go
+```
+
+- One line per file a commit changed; a rename has a line for the new name and
+  one for the previous name. A path is relative to the repository root, never
+  the content of a file.
+- A commit that was read and changes no file is one line with an empty path, so
+  it is not read again; a commit with no line has not been read yet. A commit
+  GitHub lists with more than 3000 files is stored as read, and named on stderr.
+- It costs one `GET /repos/{owner}/{repo}/commits/{sha}` per commit, the request budget
+  reserved first, newest deployment first. Every stored commit of
+  `data/commits.csv` is read, not only those of the DORA window, so a wider
+  `dora_days` later finds them read. The files are read last for a repository,
+  after the fresh data: its deployments, issues, pull requests, the fills, the
+  legacy backfill and the push read are stored first, so the first fill of a big
+  installation, which can cost thousands of requests over several daily runs,
+  never holds back fresh data. It runs only for a repository with a service that
+  has `paths`; any other repository costs no request.
+- Lines are held by repository (ignoring case), commit SHA and path, new lines
+  sorted by them; the file is appended to, never rewritten.
+- A missing `contents: read` permission (403) stores what was read, says so on
+  stderr and fails nothing; it writes no denied mark. At the request budget what
+  was read is stored, the repository is reported incomplete, never failed (a
+  `commit-files-cut` line in the cut report and `acme/app commit files cut
+  short (the next run continues)` on the job summary's Collected line), and the
+  next run continues with the commits still without lines. A commit GitHub no
+  longer has (history rewritten) is named on stderr and stays unread. Any other
+  error fails the repository, after what was read is stored.
+- A missing file is none, so every commit of a service with `paths` is unread.
+  An unknown version or a malformed line refuses the collect run and the
+  render, naming the file.
+
+**The commit files mark** is kept in `data/commit_files_filled.csv`, next to
+the history, in its own format (the commit files filled format v1,
+`repository,filled_at`, a mark file like `data/reach.csv`): one line per
+repository for which a run found every stored commit read, the one-time fill
+done. It does not stop a commit stored later from being read.
+
+- The data guard knows both names: a `commit_files.csv` or a
+  `commit_files_filled.csv` that the repository tracks or does not ignore,
+  outside `testdata/`, blocks the commit, like the other data files.
+
 ## Collecting deployments (`collect`)
 
 ```

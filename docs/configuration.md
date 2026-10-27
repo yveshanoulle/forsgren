@@ -384,6 +384,51 @@ projects:
   `release` repository (its task is the tag, new with every release). A
   `label:` or `services:` without a value is the key left out.
 
+  **The folders of a service** (`paths`, forsgren#496, from 1.26.0). A
+  service is a label alone, or a label with `paths`: the folders and files of
+  the repository that belong to the service.
+
+  ```yaml
+  services:
+    deploy-api: {label: API, paths: [api/, shared/]}
+    deploy-admin: {label: ADMIN, paths: [admin/, shared/]}
+    deploy-ios: IOS
+  ```
+
+  Write a service with folders as `deploy-api: {label: API, paths: [api/,
+  shared/]}`, in one line. A service with `paths` counts only the commits that touch one of them, in
+  its Time to deploy per commit and its Commits per deployment; its
+  Deployments stay its own. A path ending in `/` is a folder and matches
+  everything below it; any other path is a file and matches that file
+  exactly, both compared as written, from the repository root. No glob, no
+  absolute path and no `..`. A rename counts by its new name and by its
+  previous name. The rules of decision #497:
+  - `shared/` counts for a service only where its `paths` list it: a folder
+    two services build from is written in both.
+  - Files in the root of the repository, such as `.github/`, `go.mod`,
+    `Scripts/` and `docs/`, count for no service unless a service lists them.
+  - A commit that touches the paths of several services counts once for each
+    of them. A commit that touches none counts for no service.
+  - There is no `shared_paths` key and no implicit fallback.
+  - The total row and the label rows count every commit of the repository,
+    the commits that no service counts included.
+
+  A service without `paths` says `Per repository` for its Time to deploy per
+  commit and its Commits per deployment: it cannot tell which commits are its
+  own, and the repository's figures are no service's. The short form
+  `deploy-ios: IOS` stays valid. To find the folders of a service, read the
+  folders of the repository on GitHub and the `paths:` filter of the
+  service's deploy workflow, if it has one.
+
+  forsgren reads the files each deployed commit changed, once per commit,
+  after the rest of a run's data (see
+  [Data files](data-files.md#commit-files-forsgren496)). Until it has read
+  them, the commits of a service with `paths` that it has not read are left
+  out of its figures, and the service row says `Files still being read`
+  (note 8). Refused: `paths` empty or without a value, a path that is empty,
+  absolute, has a `..` or `.` part, a backslash or a glob character
+  (`* ? [ {`), and a path listed twice in one service.
+
 A **failure** is an issue labelled `failure` whose body carries the failure
 record block (see [How it gets its data](data-files.md#how-it-gets-its-data)); lead time runs from a change's first
 commit. Neither is configured per repository in version 1.

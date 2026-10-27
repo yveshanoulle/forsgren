@@ -242,7 +242,7 @@ func metricsDataOf(cfg config.Config, path string) (metrics.Data, error) {
 	if err != nil {
 		return metrics.Data{}, err
 	}
-	return withPushes(data, path)
+	return withCommitFiles(data, path)
 }
 
 // withPulls is data with what PR Lead Time reads beside the history at

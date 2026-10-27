@@ -205,13 +205,33 @@ func (r TbdRow) MainSpan() int {
 }
 
 // DeployGroups are the groups after the push and pull request ones: Time to
-// deploy per commit.
+// deploy per commit, which a service without paths writes as Per repository
+// (forsgren#496).
 func (r TbdRow) DeployGroups() []spreadGroup {
-	return []spreadGroup{plainGroup(r.all, "", r.Deploy.TimeToDeploy).as(idTimeToDeploy)}
+	return []spreadGroup{r.deployGroup(r.Deploy.TimeToDeploy).as(idTimeToDeploy)}
+}
+
+// deployGroup is the group of a measure per deployment: Per repository for a
+// service without paths, else its figures, the first cell carrying the notes
+// of the row's files (forsgren#496).
+func (r TbdRow) deployGroup(s figures) spreadGroup {
+	g := plainGroup(r.all, r.deployState(), s)
+	g.Cells[0].Notes = r.filesNotes()
+	return g
+}
+
+// deployState is the sentence in place of the figures of a measure per
+// deployment: Per repository for a service without paths, else none.
+func (r TbdRow) deployState() string {
+	if r.DeployPerRepository {
+		return r.PerRepositorySentence()
+	}
+	return ""
 }
 
 // BatchGroups are the groups after Volume: Commits per push, which a service
-// row writes as Per repository, and Commits per deployment.
+// row writes as Per repository, and Commits per deployment, which a service
+// without paths writes so too.
 func (r TbdRow) BatchGroups() []spreadGroup {
 	state := r.Push.State()
 	if r.PerRepository() {
@@ -219,6 +239,6 @@ func (r TbdRow) BatchGroups() []spreadGroup {
 	}
 	return []spreadGroup{
 		plainGroup(r.all, state, r.Push.PerPush).as(idPerPush),
-		plainGroup(r.all, "", r.Deploy.PerDeployment).as(idPerDeployment),
+		r.deployGroup(r.Deploy.PerDeployment).as(idPerDeployment),
 	}
 }

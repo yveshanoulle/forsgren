@@ -56,24 +56,27 @@ func collectedWords(report collect.Report) string {
 // commits it cut short (forsgren#385), then each whose pushes it cut short
 // (forsgren#397), then each whose fill of the pull request commits, then of
 // the merge push lines, then of the bot status of the stored pull requests, it
-// cut short (forsgren#470, forsgren#500).
+// cut short (forsgren#470, forsgren#500), then each whose read of the commit
+// files it cut short (forsgren#496).
 func budgetWords(report collect.Report) []string {
-	words := make([]string, 0, len(report.Cuts)+len(report.PullsCut)+len(report.BackfillCut)+len(report.PushesCut)+
-		len(report.PullFillCut)+len(report.PushFillCut)+len(report.PullBotFillCut))
+	var words []string
+	fills := slices.Concat(report.PullFillCut, report.PushFillCut, report.PullBotFillCut)
 	for _, c := range report.Cuts {
 		words = append(words, cutWords(c))
 	}
-	for _, repo := range report.PullsCut {
-		words = append(words, repo+" pull requests cut short (deployments and issues read)")
-	}
-	for _, repo := range report.BackfillCut {
-		words = append(words, repo+" legacy commits cut short (deployments, issues and pull requests read)")
-	}
-	for _, repo := range report.PushesCut {
-		words = append(words, repo+" pushes cut short (deployments, issues and pull requests read)")
-	}
-	for _, repo := range slices.Concat(report.PullFillCut, report.PushFillCut, report.PullBotFillCut) {
-		words = append(words, repo+" history fill cut short (the next run continues)")
+	for _, cut := range []struct {
+		repos []string
+		what  string
+	}{
+		{report.PullsCut, " pull requests cut short (deployments and issues read)"},
+		{report.BackfillCut, " legacy commits cut short (deployments, issues and pull requests read)"},
+		{report.PushesCut, " pushes cut short (deployments, issues and pull requests read)"},
+		{fills, " history fill cut short (the next run continues)"},
+		{report.FilesCut, " commit files cut short (the next run continues)"},
+	} {
+		for _, repo := range cut.repos {
+			words = append(words, repo+cut.what)
+		}
 	}
 	return words
 }

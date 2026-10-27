@@ -10,7 +10,7 @@ package metrics
 
 import "fmt"
 
-// NoteKind is the number of one kind of note, 1 to 7 today, 5 retired.
+// NoteKind is the number of one kind of note, 1 to 8 today, 5 retired.
 type NoteKind int
 
 // The kinds of note, by their fixed numbers.
@@ -37,6 +37,10 @@ const (
 	// squashes were stored, so the Mainline Lead Time may be short
 	// (forsgren#463, decision #469).
 	NoteFilling NoteKind = 7
+	// NoteFilesReading: the changed files of some commits of a service with
+	// paths are not stored yet, so they are left out of its figures
+	// (forsgren#496).
+	NoteFilesReading NoteKind = 8
 )
 
 // noteTexts is the one table of the kinds and their generic texts, in the
@@ -51,6 +55,7 @@ var noteTexts = []struct {
 	{NoteCreatedTime, "Pull requests timed by their created time"},
 	{NoteUnknownPushes, "Pushes left out: their commits are not known (incomplete data), not counted as 0"},
 	{NoteFilling, "History still filling: merge and squash branch commits from before this version are missing"},
+	{NoteFilesReading, "Files still being read: commits whose changed files forsgren has not read yet are left out"},
 }
 
 // NoteKinds are all the kinds, in the order of their numbers.

@@ -85,6 +85,10 @@ type Data struct {
 	// done (data/pull_commits_filled.csv, data/push_commits_filled.csv,
 	// forsgren#470): note 7 ignores what such a fill could not read.
 	PullsFilled, PushesFilled history.Reach
+	// CommitFiles are the files the deployed commits changed, from
+	// data/commit_files.csv: the paths of a service count only the commits
+	// that touch them (forsgren#496).
+	CommitFiles []history.CommitFile
 	// WorkingHours is the hours of a working day, which sets where the
 	// deployment frequency bands begin (forsgren#71).
 	WorkingHours int

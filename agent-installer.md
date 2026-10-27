@@ -271,6 +271,23 @@ Then wait for the answers.
     `same_developer: [[maintainer, assistant-account]]`, and write them
     only with the person's yes. The key is described in
     [docs/configuration.md](docs/configuration.md).
+15. **Services and their folders.** Only for a repository whose one deployment
+    rule ships several things, such as an API, an admin site and an app, each
+    its own row on the TBD page (the `services:` key: a deployment task, the
+    `task` of its deployments, and a label). Default: no `services`, no rows.
+    If the person wants them, ask for each service's label and which folders
+    each service is built from, in the repository's own layout, for example
+    `api/` and `shared/` for the API. A folder ends in `/`; a file is written
+    with its folders and matches exactly; no glob, no absolute path, no `..`.
+    A folder two services share, such as `shared/`, is listed in each service
+    that uses it, and `shared/` only where the person lists it: forsgren
+    guesses nothing. Files in the root of the repository (`.github/`, `go.mod`,
+    `Scripts/`, `docs/`) count for no service. Say that a service with no
+    folders shows `Per repository` for its Time to deploy per commit and its
+    Commits per deployment, and that forsgren then reads the files of each
+    commit once (it needs Contents read on the token). Show the `services`
+    lines you would write and write them only with the person's yes. The key
+    is described in [docs/configuration.md](docs/configuration.md).
 
 ## Step 3. Look at every measured repository (read only)
 
@@ -478,6 +495,12 @@ projects:
   answer to question 13 (the default is `unlisted`).
 - Write `same_developer` (question 14) only when the person said yes to
   the lines you showed; otherwise leave the key out.
+- Write `services` (question 15) only when the person said yes to the lines
+  you showed, a service with folders in the long form, for example
+  `deploy-api: {label: API, paths: [api/, shared/]}` under the repository's
+  `services:`, and the short form `deploy-api: API` only for a service the
+  person gave no folders. A repository has either `label` or `services`,
+  never both.
 - Write every repository's `deployment:` line, also for
   `environment=production`, so the file says what was chosen.
 - Indent with spaces only, as shown.

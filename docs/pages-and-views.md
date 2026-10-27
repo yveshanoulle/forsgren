@@ -892,6 +892,24 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     Pushes), 1 (Commits per push) and 4 (the shares); with `all` they are 15,
     2, 3 and 4. A group the column switches turn off leaves the first run
     shorter by its columns.
+
+    The service's own figures are over the commits it owns (forsgren#496,
+    decision #497). A service with `paths` counts only the commits that touch them
+    in Time to deploy per commit and Commits per deployment,
+    each commit once at its earliest deployment: a folder (a path ending in
+    `/`) matches everything below it, a file matches exactly, a rename counts
+    by its previous name too, `shared/` counts only for the services that list
+    it, files in the root of the repository count for no service, a commit that
+    touches several services' paths counts once for each, and a deployment none
+    of whose commits touch the paths is a deployment of 0 commits. A service
+    without `paths` says `Per repository` in those two groups (one cell across
+    the group, 3 columns with `all`), as in the runs above; its Deployments
+    stay its own. The total row and the label rows count every commit of the
+    repository, the commits that no service counts included. The files are read from
+    `data/commit_files.csv` ([Data files](data-files.md#commit-files-forsgren496));
+    until a commit's files are read it is left out of the service's figures,
+    and a deployment with such a commit is left out of Commits per deployment,
+    which the note `(8) Files still being read` says.
   - *The order and the header.* The rows under a project are sorted by label,
     ignoring case, as on the other tables. A label or service row is
     `class="label"`, its header is the label alone and the project is in a
@@ -944,6 +962,12 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
      note, also for what GitHub could not give (decision #484). Without the
      fill, the note goes away once the whole window lies after the first
      collection in the new formats.
+  8. Files still being read (forsgren#496): commits whose changed files
+     forsgren has not read yet are left out. It sits on the first cell of the
+     Time to deploy per commit and Commits per deployment of a service row with
+     `paths` while some commit of the window's deployments has no line in
+     `data/commit_files.csv`, with the number of commits left out, and goes
+     once every such commit is read. A service without `paths` has none.
 
   The notes are the same in both modes: the marker sits on the mean cell when
   the table shows all three figures, and on the median cell when it shows the

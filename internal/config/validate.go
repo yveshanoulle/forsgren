@@ -357,7 +357,8 @@ func (r fileRepository) toRepository(project string, seen *names) (Repository, e
 	if err != nil {
 		return Repository{}, fmt.Errorf("%s: %w: %w", where, ErrLabel, err)
 	}
-	return Repository{Name: r.Name, Deployment: deployment, Label: label, Services: services}, nil
+	return Repository{Name: r.Name, Deployment: deployment, Label: label,
+		Services: services.labels, Paths: services.paths}, nil
 }
 
 var (

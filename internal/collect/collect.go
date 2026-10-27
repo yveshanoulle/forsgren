@@ -129,6 +129,9 @@ func Run(ctx context.Context, cfg config.Config, o Options) error {
 	if err := checkCommits(o.commitsFile()); err != nil {
 		return err
 	}
+	if err := checkCommitFiles(o.commitFilesFile()); err != nil {
+		return err
+	}
 	if h, err = o.loadFiles(h); err != nil {
 		return err
 	}
@@ -190,7 +193,8 @@ func (o Options) collectProject(ctx context.Context, h held, p config.Project) t
 // collectRepository reads one repository and appends its final deployments,
 // the commits of the new successes, its new or changed failure issues and
 // the new events of its issues, and then its new merged pull requests
-// (pulls.go), which take back nothing stored before them.
+// (pulls.go), which take back nothing stored before them; last, the files of
+// its deployed commits (commitfiles.go).
 func (o Options) collectRepository(ctx context.Context, h held, project string, r config.Repository) error {
 	d, err := o.deploymentsOf(ctx, h, project, r)
 	if err != nil {
@@ -212,6 +216,9 @@ func (o Options) collectRepository(ctx context.Context, h held, project string, 
 	h.noteBugsCut(r.Name, lines.bugsCut, o.Now)
 	h.noteStartsDone(r.Name)
 	stored.pulls, stored.pushes, err = o.pullsThenPushes(ctx, h, r.Name)
+	if err == nil {
+		stored.commitFiles, err = o.fillCommitFiles(ctx, h, r)
+	}
 	o.report(r.Name, d.found, stored)
 	return err
 }
@@ -307,6 +314,9 @@ func (o Options) report(repo string, f found, stored counts) {
 	if stored.pushes > 0 {
 		line += fmt.Sprintf(", %d pushes", stored.pushes)
 	}
+	if stored.commitFiles > 0 {
+		line += fmt.Sprintf(", %d commit files", stored.commitFiles)
+	}
 	_, _ = fmt.Fprintln(o.Stdout, line)
 }
 
@@ -322,7 +332,7 @@ type batch struct {
 
 // counts is how many lines of each file a batch stored, and how many merged
 // pull requests and pushes the repository stored after it.
-type counts struct{ deployments, commits, failures, pulls, pushes int }
+type counts struct{ deployments, commits, failures, pulls, pushes, commitFiles int }
 
 // store appends one repository's commits, then its failure issues, then its
 // issue events, then their bug flags, then its deployments, and says how many

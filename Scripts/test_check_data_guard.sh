@@ -46,6 +46,9 @@
 #      a push_commits_filled.csv elsewhere
 #      (forsgren#397, forsgren#470)
 #  19. a pulls_bot_filled.csv elsewhere         -> red, named (forsgren#500)
+#  20. a commit_files.csv and a                  -> red, each named
+#      commit_files_filled.csv elsewhere
+#      (forsgren#496)
 # Mutation proofs, each against a copy of the gate (the patterns are `case`
 # arms of guarded_reason, one per line):
 #   - case 2: with the history.csv arm deleted, case 2's repository must turn
@@ -78,6 +81,8 @@
 #     push_commits.csv or push_commits_filled.csv arm deleted, a repository holding only ops/ of that file must turn green.
 #   - case 19: with the pulls_bot_filled.csv arm deleted, a repository holding
 #     only ops/pulls_bot_filled.csv must turn green.
+#   - case 20: with the commit_files.csv or commit_files_filled.csv arm
+#     deleted, a repository holding only ops/ of that file must turn green.
 #   - case 6: with every arm whose pattern holds a `*` quoted (so it matches
 #     only the literal text), case 6's repository must turn green with none
 #     of its three files named, while case 2's repository stays red. Every
@@ -345,6 +350,16 @@ new_repo "pulls-bot-filled-elsewhere"
 write_file "ops/pulls_bot_filled.csv" $'# forsgren pulls bot filled v1\n' track
 run_gate
 want_red "a pulls_bot_filled.csv outside data/ is red and named (forsgren#500)" "❌ FAIL: ops/pulls_bot_filled.csv"
+new_repo "files-elsewhere"
+write_file "ops/commit_files.csv" $'# forsgren commit files v1\n' track
+write_file "ops/commit_files_filled.csv" $'# forsgren commit files filled v1\n' track
+run_gate
+want_red "a commit_files.csv outside data/ is red and named (forsgren#496)" "❌ FAIL: ops/commit_files.csv"
+want_said "a commit_files_filled.csv outside data/ is red and named (forsgren#496)" "❌ FAIL: ops/commit_files_filled.csv"
+new_repo "files-elsewhere-files"
+write_file "ops/commit_files.csv" $'# forsgren commit files v1\n' track
+new_repo "files-elsewhere-filled"
+write_file "ops/commit_files_filled.csv" $'# forsgren commit files filled v1\n' track
 
 new_repo "history-fixtures"
 write_file "internal/history/testdata/deployments.csv" $'# forsgren history v1\n' track
@@ -446,6 +461,10 @@ arm_deleted_proof 18 "push_commits_filled.csv" '^[[:space:]]*push_commits_filled
   "${TMP}/check_data_guard_nopushcommitsfilled.sh" "pushes-elsewhere-filled" "ops/push_commits_filled.csv"
 arm_deleted_proof 19 "pulls_bot_filled.csv" '^[[:space:]]*pulls_bot_filled\.csv\) why=' \
   "${TMP}/check_data_guard_nopullsbotfilled.sh" "pulls-bot-filled-elsewhere" "ops/pulls_bot_filled.csv"
+arm_deleted_proof 20 "commit_files.csv" '^[[:space:]]*commit_files\.csv\) why=' \
+  "${TMP}/check_data_guard_nocommitfiles.sh" "files-elsewhere-files" "ops/commit_files.csv"
+arm_deleted_proof 20 "commit_files_filled.csv" '^[[:space:]]*commit_files_filled\.csv\) why=' \
+  "${TMP}/check_data_guard_nocommitfilesfilled.sh" "files-elsewhere-filled" "ops/commit_files_filled.csv"
 
 # ---------------------------------------------------------------------------
 # Mutation proof for case 6: a copy of the gate with every arm whose pattern

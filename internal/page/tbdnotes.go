@@ -43,6 +43,7 @@ func (r TbdRow) notes() []metrics.Note {
 		return nil
 	}
 	notes := append([]metrics.Note{}, r.Interval.MeanCell().Notes...)
+	notes = append(notes, r.filesNotes()...)
 	if r.PushAbsent {
 		return notes
 	}
@@ -94,4 +95,14 @@ func projectsWith(kind metrics.NoteKind, row TbdRow) []TbdNoteProject {
 		out[0].Count += n.Count
 	}
 	return out
+}
+
+// filesNotes are the notes of a service row's Time to deploy and Commits per
+// deployment cells: note 8, with the commits left out, while some of its
+// commits have no stored files yet (forsgren#496).
+func (r TbdRow) filesNotes() []metrics.Note {
+	if !r.FilesReading {
+		return nil
+	}
+	return []metrics.Note{{Kind: metrics.NoteFilesReading, Count: r.Deploy.Unread}}
 }

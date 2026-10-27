@@ -1,0 +1,9 @@
+{
+  "sha": "3333333333333333333333333333333333333333",
+  "commit": {"message": "a made-up change", "author": {"name": "Ada", "date": "2026-09-01T10:00:00Z"}},
+  "files": [
+    {"filename": "api/handler.go", "status": "modified", "changes": 4},
+    {"filename": "web/index.html", "previous_filename": "api/index.html", "status": "renamed", "changes": 0},
+    {"filename": "go.mod", "status": "modified", "changes": 1}
+  ]
+}

@@ -17,6 +17,7 @@ package metrics
 //     marked absent and left empty, for the page to show a dash.
 
 import (
+	"math"
 	"slices"
 	"strings"
 	"time"
@@ -46,6 +47,14 @@ type TbdRow struct {
 	// PushAbsent that the push and pull request measures are not (Lead, Push
 	// and MainLead): a service row.
 	IntervalAbsent, PushAbsent bool
+	// DeployPerRepository says a service without paths: its Time to deploy and
+	// Commits per deployment are the repository's, which the page words as
+	// Per repository (forsgren#496). DeployedCommits is the sum of a
+	// service's deployed commits, FilesReading says some of its commits have
+	// no stored files yet, so its figures leave them out.
+	DeployPerRepository bool
+	DeployedCommits     int
+	FilesReading        bool
 	// Service says the row is a service's: its measures are over the
 	// deployments of one task.
 	Service bool
@@ -96,7 +105,7 @@ func (s tbdSource) labelRows(p config.Project) []TbdRow {
 // every measure; project is the project the row belongs to.
 func (s tbdSource) row(level Level, p config.Project, project string) TbdRow {
 	only := []config.Project{p}
-	row := s.deployed(only, level, project)
+	row := s.deployed(only, level, project, nil)
 	row.Interval = MainlineIntervals(only, s.data, s.now)[0]
 	row.Lead = PRLeadTimes(only, s.data, s.now)[0]
 	row.BotLead = BotPRLeadTimes(only, s.data, s.now)[0]
@@ -110,18 +119,29 @@ func (s tbdSource) row(level Level, p config.Project, project string) TbdRow {
 // others absent.
 func (s tbdSource) serviceRow(p config.Project, project, task string) TbdRow {
 	service := tbdSource{data: s.data.ofTask(p.Repositories[0].Name, task), now: s.now, groups: s.groups}
-	row := service.deployed([]config.Project{p}, LabelRow, project)
+	scope := scopeOf(p.Repositories[0].Paths[task], s.data.CommitFiles)
+	row := service.deployed([]config.Project{p}, LabelRow, project, scope)
 	row.IntervalAbsent, row.PushAbsent, row.Service = true, true, true
+	row.DeployPerRepository = scope == nil
+	row.FilesReading = row.Deploy.Unread > 0
+	row.DeployedCommits = deployedCommits(row.Deploy)
 	return row
 }
 
+// deployedCommits is the sum of the first-parent commits of the deployments
+// counted (forsgren#496), a whole number: the mean of whole counts times their
+// number.
+func deployedCommits(d DeployMeasures) int {
+	return int(math.Round(d.PerDeployment.Mean * float64(d.PerDeployment.Count)))
+}
+
 // deployed is the row of the only project in only with the measures per
-// deployment.
-func (s tbdSource) deployed(only []config.Project, level Level, project string) TbdRow {
+// deployment, counting the commits that touch scope (every commit for nil).
+func (s tbdSource) deployed(only []config.Project, level Level, project string, scope *pathScope) TbdRow {
 	return TbdRow{
 		Level: level, Name: only[0].Name, Project: project,
 		Developers: MainlineDevelopers(only, s.data, s.now, s.groups)[0],
-		Deploy:     DeployMeasuresOf(only, s.data, s.now)[0],
+		Deploy:     deployMeasures(only, s.data, s.now, scope)[0],
 		Volume:     DeploymentVolumes(only, s.data, s.now)[0],
 	}
 }

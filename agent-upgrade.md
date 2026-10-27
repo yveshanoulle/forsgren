@@ -422,6 +422,22 @@ applies:
    or the repository's commit list on GitHub), show the `same_developer`
    lines you would write, such as `same_developer: [[maintainer,
    assistant-account]]`, and write them in step 8 only with the person's yes.
+5. **Service folders**, only when `forsgren.config.yml` has `services:` without
+   `paths` for some service and the release notes of `LATEST` name `paths`
+   (from the release that brought them). Tell the person that such a service
+   shows `Per repository` for the deploy figures until it has `paths`: its
+   Time to deploy per commit and its Commits per deployment, while its
+   Deployments stay its own. Ask which folders each service is built from;
+   where to find them: the folders of the repository on GitHub, and the
+   `paths:` filter of its deploy workflow when it has one. Default:
+   leave it as it is. A folder ends in `/`, a file matches exactly, a folder
+   two services share (such as `shared/`) is listed in each service that uses
+   it, files in the root of the repository count for no service. Show the lines
+   you would write, such as `deploy-web: {label: Web, paths: [web/, shared/]}`,
+   and write them in step 8 only with the person's yes. Say that forsgren then
+   reads the files of each commit once, which needs Contents read on a
+   fine-grained `FORSGREN_TOKEN`, and that the service row says `Files still
+   being read` until it has.
 
 Then show the plan, in one message: `OWNER/REPO`, `VERSION` to `LATEST`, how
 step 6 moves the pins, each file you will write and each line that changes in
@@ -667,7 +683,7 @@ Then go on to step 8.
 
 Write only the settings the person chose in step 5, and nothing else: a key of
 `forsgren.config.yml` (a new key a release introduced, `auto_update`,
-`auto_update_level`), and the update wait, `default-days` in
+`auto_update_level`, the `paths` of a service), and the update wait, `default-days` in
 `.github/dependabot.yml`. Every other line, key and comment stays as it is,
 `projects:` and `data/` included. Nothing chosen: skip this step and go on to
 step 9 (every answer was to keep what is there).
@@ -697,6 +713,12 @@ step 9 (every answer was to keep what is there).
      the file's other keys have one.
    - `auto_update` and `auto_update_level`: `true` or `false`, and `patch`,
      `minor` or `major`, as literals, never in quotes.
+   - Service folders (step 5 item 5): in the repository's `services:`, change
+     the line of each service the person gave folders, from the short form
+     `deploy-web: Web` to the long form `deploy-web: {label: Web, paths:
+     [web/, shared/]}`, in one line, with the label as it was. A service the
+     person gave no folders stays as it is, and `projects:` keeps every other
+     line.
    - The update wait: the number on the line `default-days:` of
      `WORK/new/dependabot.yml`, and nothing else in that file.
 3. Show the person the change, the same lines the plan of step 5 named:

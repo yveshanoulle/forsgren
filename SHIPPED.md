@@ -9,6 +9,17 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — A service counts only the commits that touch its folders ([#496](https://github.com/yveshanoulle/forsgren/issues/496), steps 1–5)
+
+forsgren issue 496, minor.
+
+- `services:` takes a label alone or `{label, paths}` (`internal/config/servicepaths.go`, decision #497 A): a path ending in `/` is a folder, any other a file, relative to the repository root, no glob, no absolute path, no `..`; the short form stays valid.
+- `collect` reads the files of each stored commit of a repository with a service that has `paths` (`internal/collect/commitfiles.go`, `Client.CommitChangedFiles`: one `GET commits/{sha}` each, newest deployment first, last for a repository, within the request budget and resumable) into `data/commit_files.csv`, marked in `data/commit_files_filled.csv`; a budget stop is a `commit-files-cut` line of the cut report; the data guard knows both names.
+- A service row with `paths` counts only the commits that touch them in Time to deploy per commit and Commits per deployment (`internal/metrics/servicepaths.go`); a service without `paths` says `Per repository` there; the total and label rows count every commit. Commits whose files are not read yet are left out and note 8, `Files still being read`, says so.
+- The legend, `docs/configuration.md`, `docs/data-files.md`, `docs/pages-and-views.md`, `docs/updating-and-releases.md` (Upgrading to 1.26.0), `install/README.md`, `agent-installer.md` (asks for each service's folders) and `agent-upgrade.md` (an installation with services is told the deploy figures read `Per repository` until it adds `paths`) say so; `agent-delete.md` is unchanged.
+
+---
+
 ## 2026-10-27 — The opener of stored pull requests of unknown author is filled once ([#500](https://github.com/yveshanoulle/forsgren/issues/500), step 1 of 1)
 
 forsgren issue 500, patch.

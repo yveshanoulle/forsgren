@@ -186,6 +186,22 @@ var legendTbdText = []string{
 	"Time to deploy per commit, Deployments, Commits per deployment and Developers, counted over the " +
 		"deployments of that task and the commits they shipped",
 	"a service row says Per repository, once across each run of those columns",
+	"A service with paths counts only the commits that change one of its paths, in Time to deploy per " +
+		"commit and Commits per deployment",
+	"A path ending in / is a folder and matches everything below it. A path without a trailing / is a " +
+		"file and matches that file exactly",
+	"A folder shared by several services, such as shared/, counts only for the services that list it",
+	"Files in the root of the repository, such as Scripts/ or docs, count for no service unless " +
+		"a service lists them",
+	"A commit that changes the paths of several services counts once for each of them. A commit that " +
+		"changes none counts for no service",
+	"The total row and the label rows count every commit of the repository, the commits no service counts " +
+		"included",
+	"A service without paths cannot tell which commits belong to it, so it says Per repository for Time to " +
+		"deploy per commit and Commits per deployment: they are the repository's. The Deployments of the " +
+		"service stay its own",
+	"(8) Files still being read: commits whose changed files forsgren has not read yet are left out. It " +
+		"applies to Time to deploy per commit and Commits per deployment of a service with paths",
 	"The Notes list gives the name of such a row as Project: label, for example Acme Shop: Website",
 	"(1) Mostly estimated: commits timed by author date. It applies to the Mainline Interval",
 	"(2) Commits timed by author date. It applies to the Mainline Interval",

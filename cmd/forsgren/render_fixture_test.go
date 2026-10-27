@@ -37,13 +37,15 @@ func rowOf(page, project, label string) string {
 
 // TestTheFixtureSiteShowsAServiceSubRow: Acme Shop's services Web and Admin
 // are rows under its total, each with its own deployment cells and one cell
-// across each of the four runs of per-repository cells.
+// across each of the four runs of per-repository cells; Admin, which has no
+// paths, says Per repository for its Time to deploy and Commits per
+// deployment too (forsgren#496), while Web, with paths, shows its own.
 func TestTheFixtureSiteShowsAServiceSubRow(t *testing.T) {
 	page := fixtureTbd(t)
-	for _, service := range []string{"Admin", "Web"} {
+	for service, want := range map[string]int{"Admin": 6, "Web": 4} {
 		row := rowOf(page, "Acme Shop", service)
-		if got := strings.Count(row, "Per repository"); got != 4 {
-			t.Errorf("%s: want 4 per-repository cells in the service row, got %d in %q", service, got, row)
+		if got := strings.Count(row, "Per repository"); got != want {
+			t.Errorf("%s: want %d per-repository cells in the service row, got %d in %q", service, want, got, row)
 		}
 	}
 }

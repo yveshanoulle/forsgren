@@ -60,39 +60,67 @@ var (
 
 // labels reads the repository's label or the labels of its services, for a
 // repository deployed as kind.
-func (r fileRepository) labels(kind DeploymentKind) (string, map[string]string, error) {
+func (r fileRepository) labels(kind DeploymentKind) (string, serviceSet, error) {
 	switch {
 	case r.Label != nil && r.Services != nil:
-		return "", nil, errLabelAndTasks
+		return "", serviceSet{}, errLabelAndTasks
 	case r.Label != nil:
-		return string(*r.Label), nil, checkLabel(*r.Label)
+		return string(*r.Label), serviceSet{}, checkLabel(*r.Label)
 	case r.Services != nil:
 		services, err := servicesOf(r.Services, kind)
 		return "", services, err
 	}
-	return "", nil, nil
+	return "", serviceSet{}, nil
 }
 
-// servicesOf checks each task and its label; an empty label names its
-// task, which the owner looks for in the file.
-func servicesOf(services map[text]text, kind DeploymentKind) (map[string]string, error) {
+// serviceSet is what a repository's services give: the label of each task
+// and, for a task that has them, its paths (forsgren#496).
+type serviceSet struct {
+	labels map[string]string
+	paths  map[string][]string
+}
+
+// servicesOf checks each task, its label and its paths; an empty label
+// names its task, which the owner looks for in the file.
+func servicesOf(services map[text]service, kind DeploymentKind) (serviceSet, error) {
 	if kind == Release {
-		return nil, errReleaseTasks
+		return serviceSet{}, errReleaseTasks
 	}
 	if len(services) == 0 {
-		return nil, errNoTasks
+		return serviceSet{}, errNoTasks
 	}
-	out := map[string]string{}
-	for task, label := range services {
+	out := serviceSet{labels: map[string]string{}}
+	for task, svc := range services {
 		if isBlank(task) {
-			return nil, errTaskEmpty
+			return serviceSet{}, errTaskEmpty
 		}
-		if err := checkLabel(label); err != nil {
-			return nil, fmt.Errorf("task %q: %w", task, err)
+		paths, err := svc.check()
+		if err != nil {
+			return serviceSet{}, fmt.Errorf("task %q: %w", task, err)
 		}
-		out[string(task)] = string(label)
+		out.labels[string(task)] = string(svc.label)
+		out.addPaths(string(task), paths)
 	}
 	return out, nil
+}
+
+// check is the service's label and then its paths checked.
+func (s service) check() ([]string, error) {
+	if err := checkLabel(s.label); err != nil {
+		return nil, err
+	}
+	return s.checkPaths()
+}
+
+// addPaths keeps a task's paths; a task without paths gets no entry.
+func (o *serviceSet) addPaths(task string, paths []string) {
+	if paths == nil {
+		return
+	}
+	if o.paths == nil {
+		o.paths = map[string][]string{}
+	}
+	o.paths[task] = paths
 }
 
 // checkLabel refuses an empty label, or one of blanks only.

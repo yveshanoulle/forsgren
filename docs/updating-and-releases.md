@@ -646,6 +646,48 @@ optional, whose defaults keep the page as it was: an agent following
 [agent-upgrade.md](../agent-upgrade.md) asks whether to turn any of them off,
 with `true` (as today) as the default answer.
 
+**Upgrading to 1.26.0, which counts a service's own commits** (forsgren#496,
+decision #497). For an installation with services (`services:` in
+`forsgren.config.yml`, see [Configuration](configuration.md#configuration))
+the service rows change after this release. A service row counted every
+commit of the repository between two of its deployments, whatever folder the
+commit changed, so two services of one repository showed nearly the same
+figures. Now a service names its folders with `paths`, and counts only the
+commits that touch them:
+
+```yaml
+services:
+  deploy-api: {label: API, paths: [api/, shared/]}
+  deploy-admin: {label: ADMIN, paths: [admin/, shared/]}
+```
+
+- A service without `paths` says `Per repository` for the Time to deploy per
+  commit and the Commits per deployment until you add `paths`, written as
+  `deploy-api: {label: API, paths: [api/, shared/]}`. Its
+  Deployments stay its own, and the short form `deploy-ios: IOS` stays valid.
+  Nothing else breaks.
+- A folder ends in `/`, a file matches exactly; write `shared/` in each
+  service that uses it; files in the root of the repository (`.github/`,
+  `go.mod`, `Scripts/`, `docs/`) count for no service. The total row and the
+  label rows still count every commit. To find the folders, read the folders
+  of the repository on GitHub and the `paths:` filter of the service's deploy
+  workflow.
+- The first `collect` after you add `paths` reads the files each stored commit
+  changed, one request per commit (see
+  [Data files](data-files.md#commit-files-forsgren496)), in
+  `data/commit_files.csv` and `data/commit_files_filled.csv`. It reads them
+  last, so fresh data is never held back, and a run the request budget cuts
+  short continues on the next one. Until a service's commits are read, they are
+  left out of its figures and the row carries note 8, `Files still being read`.
+  A repository without a service that has `paths` costs no request. The read
+  needs `Contents: Read` on a fine-grained `FORSGREN_TOKEN`, as the push read
+  does; without it `collect` says so on stderr and fails nothing.
+
+No new permission or secret is required for an installation that adds no
+`paths`; `paths` is a new optional key. An agent following
+[agent-upgrade.md](../agent-upgrade.md) asks, for each installation with
+services, whether to add the folders now.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`

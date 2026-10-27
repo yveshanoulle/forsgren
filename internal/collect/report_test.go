@@ -27,6 +27,7 @@ func sampleReport() Report {
 		PullFillCut:    []string{"acme/fill"},
 		PushFillCut:    []string{"acme/fill"},
 		PullBotFillCut: []string{"acme/fill"},
+		FilesCut:       []string{"acme/svc"},
 		Failed:         []Failed{{"acme/web", FailedSecondary}},
 		Reset:          time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC),
 	}
@@ -42,6 +43,7 @@ const sampleText = "# forsgren collect report v1\n" +
 	"pull-commits-fill-cut acme/fill\n" +
 	"push-commits-fill-cut acme/fill\n" +
 	"pulls-bot-fill-cut acme/fill\n" +
+	"commit-files-cut acme/svc\n" +
 	"failed acme/web secondary-rate-limit\n"
 
 // TestAReportIsWrittenAsItsFileAndReadBack (forsgren#64, step 3b): the file
@@ -75,6 +77,7 @@ func TestAReportIsIncompleteForOneKindOfCutAlone(t *testing.T) {
 		"pull-commits-fill-cut acme/app\n": {PullFillCut: []string{"acme/app"}, Reset: reset},
 		"push-commits-fill-cut acme/app\n": {PushFillCut: []string{"acme/app"}, Reset: reset},
 		"pulls-bot-fill-cut acme/app\n":    {PullBotFillCut: []string{"acme/app"}, Reset: reset},
+		"commit-files-cut acme/app\n":      {FilesCut: []string{"acme/app"}, Reset: reset},
 	} {
 		if got := r.Render(); got != head+line {
 			t.Errorf("want\n%q\ngot\n%q", head+line, got)
@@ -111,6 +114,8 @@ func TestAFileThatIsNoReportIsRefused(t *testing.T) {
 		"long push fill":  head + "complete\npush-commits-fill-cut acme/app kept=none\n",
 		"short bot fill":  head + "complete\npulls-bot-fill-cut\n",
 		"long bot fill":   head + "complete\npulls-bot-fill-cut acme/app kept=none\n",
+		"short files cut": head + "complete\ncommit-files-cut\n",
+		"long files cut":  head + "complete\ncommit-files-cut acme/app kept=none\n",
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := ParseReport(text); !errors.Is(err, ErrReport) {

@@ -39,6 +39,14 @@ the docs; the
 [configuration reference](https://github.com/yveshanoulle/forsgren/blob/main/docs/configuration.md)
 is the one to open first.
 
+A service can name its folders with `paths` in `forsgren.config.yml`, for
+example `deploy-api: {label: API, paths: [api/, shared/]}`. The TBD page then
+counts, for that service, only the commits that touch those folders. A service
+without `paths` says `Per repository` for its Time to deploy per commit and its
+Commits per deployment. forsgren reads the files of each commit once, which
+needs **Contents** read on the token; the service row says `Files still being
+read` until it has.
+
 This template holds only forsgren's own files. Your configuration and your
 history are yours: they are never in the template, so installing a new
 version never overwrites them.

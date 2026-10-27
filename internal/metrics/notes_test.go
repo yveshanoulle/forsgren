@@ -8,11 +8,11 @@ import (
 )
 
 // TestNoteKindsKeepTheirNumbersAndTexts (forsgren#394, step 2, Yves's ruling:
-// the numbers are fixed forever, the legend uses them too): the six kinds
+// the numbers are fixed forever, the legend uses them too): the seven kinds
 // have these numbers and these generic texts; (5) is retired (forsgren#479:
 // the Bot PR Lead Time column took its place), its number reserved forever and
-// never listed; a new kind appends from (8), and changing a line below is
-// changing what (1) to (7) mean on every page.
+// never listed; a new kind appends from (9), and changing a line below is
+// changing what (1) to (8) mean on every page.
 func TestNoteKindsKeepTheirNumbersAndTexts(t *testing.T) {
 	want := map[int]string{
 		1: "Mostly estimated: commits timed by author date",
@@ -21,6 +21,7 @@ func TestNoteKindsKeepTheirNumbersAndTexts(t *testing.T) {
 		4: "Pull requests timed by their created time",
 		6: "Pushes left out: their commits are not known (incomplete data), not counted as 0",
 		7: "History still filling: merge and squash branch commits from before this version are missing",
+		8: "Files still being read: commits whose changed files forsgren has not read yet are left out",
 	}
 	kinds := NoteKinds()
 	if len(kinds) != len(want) {
@@ -29,7 +30,7 @@ func TestNoteKindsKeepTheirNumbersAndTexts(t *testing.T) {
 	for _, k := range kinds {
 		wantKind(t, k, k.Number(), want[k.Number()])
 	}
-	for _, retired := range []NoteKind{5, 8} {
+	for _, retired := range []NoteKind{5, 9} {
 		if retired.Text() != "" || slices.Contains(kinds, retired) {
 			t.Errorf("want (%d) no kind with no text, got %q", retired, retired.Text())
 		}
