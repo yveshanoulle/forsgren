@@ -10,7 +10,7 @@ import (
 // history_days is 0 and whose view is written as written (forsgren#183).
 func withRejected(view string) Data {
 	data := calculated()
-	data.Settings = config.Config{}.Settings()
+	data.Settings = append(config.Config{}.Settings(), config.Config{}.RepositorySettings()...)
 	for i := range data.Settings {
 		switch data.Settings[i].Key {
 		case "history_days":

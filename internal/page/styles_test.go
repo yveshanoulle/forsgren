@@ -90,15 +90,16 @@ func declares(body, declaration string) bool {
 	return regexp.MustCompile(pattern).MatchString(body)
 }
 
-// TestLabelDashIsDecorative (forsgren#38, review): the dash before a label
-// row's heading is drawn for the eye only, with empty alternative text, so
-// a screen reader reads "Acme Shop: API", never "en dash API".
+// TestLabelDashIsDecorative (forsgren#38, review; forsgren#511): the dash
+// before a label row's heading is aria-hidden, so a screen reader reads
+// "Acme Shop: API", never "en dash API"; it is written in the markup, not by
+// the stylesheet, so its space can be a non-breaking one.
 func TestLabelDashIsDecorative(t *testing.T) {
-	css := stylesCSS(t)
-	if want := `.label th::before {
-  content: "– " / "";
-}`; !strings.Contains(css, want) {
-		t.Errorf("want styles.css to hold\n%s\ngot:\n%s", want, css)
+	if got := rendered(t, "tbd.html", subRowsData()); !strings.Contains(got, dashNB+"API") {
+		t.Errorf("want the dash in an aria-hidden span before the label, got:\n%s", got)
+	}
+	if css := stylesCSS(t); strings.Contains(css, "::before") && strings.Contains(css, `"– `) {
+		t.Errorf("want no dash in styles.css, got:\n%s", css)
 	}
 }
 

@@ -84,6 +84,21 @@ func TestLegendReworkListsTheSixLevelsWithScore(t *testing.T) {
 		"<li>Rework of 100%: 90% and more of the deployments, score 1 to 0</li>")
 }
 
+// TestLegendSaysFailureIssuesCountInTheTotalRowOnly (forsgren#514): the change
+// fail rate part and the deployment rework rate part each say, worded apart,
+// that a failure issue belongs to the repository, so a total can be higher
+// than every row under it.
+func TestLegendSaysFailureIssuesCountInTheTotalRowOnly(t *testing.T) {
+	wantAll(t, "change fail rate section", legendSection(t, "Change fail rate"),
+		"Failure issues belong to the repository, not to one service or deployment rule: "+
+			"they count in the project's total row, never in a service or rule row. "+
+			"That is why a total can be higher than every row under it.")
+	wantAll(t, "rework rate section", legendSection(t, "Deployment rework rate"),
+		"A failure issue belongs to the repository too: the deployments made while it was open "+
+			"are rework in the project's total row, never in a service or rule row, "+
+			"so the total rate can be higher than the rate of every row under it.")
+}
+
 // legendLevelScoresText is the sentence under Scores that points at the scores
 // of the levels listed above (forsgren#79, decision #197).
 const legendLevelScoresText = "Each metric's levels above show the score they give; change fail rate and " +

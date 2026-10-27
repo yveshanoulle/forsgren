@@ -19,7 +19,7 @@
             <td colspan="{{.Span}}">{{template "chart" .Chart}}</td>
           </tr>
 {{end}}{{range .Rows}}          <tr{{if .IsLabel}} class="label"{{end}}>
-            <th scope="row">{{if .IsLabel}}<span class="visually-hidden">{{.Project}}: </span>{{.Heading}}: {{end}}{{.Measure}}</th>
+            <th scope="row">{{if .IsLabel}}<span class="visually-hidden">{{.Project}}: </span>{{template "labelheader" (labelheader .Heading)}}: {{end}}{{.Measure}}</th>
 {{range .Cells}}            <td>{{.}}</td>
 {{end}}          </tr>
 {{end}}        </tbody>

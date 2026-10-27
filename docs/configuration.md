@@ -317,6 +317,13 @@ projects:
   says so, with no `(not set)`: `60 is not accepted: use 30, 90 or 180. Using
   the default 30.`, and Default shows that default (forsgren#183). The legend
   explains the Default column and `(not set)`.
+  Two more rows follow them (forsgren#512), `deployments` and `paths`, which are
+  keys of a repository, not of the file: each says only how many are set, as
+  counts (`set on 1 repository (2 rules)`, `set on 3 services and 1 rule`, or
+  `(not set)`), never a repository, label, folder, file, environment, workflow
+  or task name, because the page is public; their Possible values read
+  `per repository, in projects` and `per service or rule, in projects`, their
+  Default `not set`.
 - **`projects`** is required: a list of projects, or `projects: []` for an
   installation that measures nothing yet (it is valid, and `check-config`
   reports `projects: 0, repositories: 0`). A file whose `projects` key is

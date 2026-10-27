@@ -270,7 +270,7 @@ func TestLegendPageMatchesGolden(t *testing.T) {
 // the settings of an empty config, every one a default.
 func TestSettingsPageMatchesGolden(t *testing.T) {
 	data := calculated()
-	data.Settings = config.Config{}.Settings()
+	data.Settings = append(config.Config{}.Settings(), config.Config{}.RepositorySettings()...)
 	checkPageGolden(t, "settings.html", "testdata/settings.golden.html", data)
 }
 
@@ -681,7 +681,7 @@ func TestSettingsPageIsATableOfParameterValuePossibleValuesAndDefault(t *testing
 // optional, so the cell carries no rule.
 func TestSettingsPageHasNoNoteOnTheAutoUpdateLevel(t *testing.T) {
 	data := calculated()
-	data.Settings = config.Config{}.Settings()
+	data.Settings = append(config.Config{}.Settings(), config.Config{}.RepositorySettings()...)
 	html := rendered(t, "settings.html", data)
 	wantAll(t, "settings.html", html, "<td>patch, minor, major</td>")
 	wantNone(t, "settings.html", html, "required when auto_update")

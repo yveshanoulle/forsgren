@@ -86,12 +86,6 @@ li {
   font-weight: normal;
 }
 
-/* The dash is for the eye only: its alternative text is empty, so a screen
-   reader reads the row's hidden project name and its label. */
-.label th::before {
-  content: "– " / "";
-}
-
 .visually-hidden {
   position: absolute;
   width: 1px;

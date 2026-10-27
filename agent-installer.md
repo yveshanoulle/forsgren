@@ -299,7 +299,7 @@ Then wait for the answers.
     commit and its Commits per deployment. Show the `deployments:` lines you
     would write, for example `release: Releases` and
     `environment=github-pages: {label: Website, paths: [website/]}`, and write
-    them only with the person's yes. Whatever the answer, in step 3 you list
+    them only with the person's yes. Note that a release that ships the whole program has no paths filter, so you propose the folders the program is built from in step 3 (item 5). Whatever the answer, in step 3 you list
     what GitHub records for each repository and, when more than one way is in
     use, propose the `deployments:` lines (item 5); the person says yes,
     edits it, or skips it. A repository with a `deployment:` line is the
@@ -382,7 +382,11 @@ For every repository the person named, replacing `acme/app`:
      folders from `on.push.paths` and `paths-ignore` (a `paths-ignore` entry
      is a folder to leave out, never one to add), the deploy job's
      `working-directory`, and the build context, such as the folder of a
-     Dockerfile it builds. Show what you found and why, one line per place,
+     Dockerfile it builds. Read the `on:` of the workflow to the end: when it
+     also starts on other triggers (`release`, `schedule`,
+     `workflow_dispatch`, `workflow_run`), name them, and say that those
+     deployments may ship none of the commits of the proposed paths, so the
+     row counts 0 commits in that row (honest, not an error). Show what you found and why, one line per place,
      and the exact line you would write, such as
      `deploy-web: {label: Web, paths: [web/, shared/]}`. Say in plain words
      when a proposal lists a shared folder, and that files in the root of
@@ -404,6 +408,14 @@ For every repository the person named, replacing `acme/app`:
      to deploy per commit and its Commits per deployment. `deployment:` and
      `deployments:` never both: the entry takes the place of the repository's
      `deployment:` line.
+
+   - **No paths filter.** For a rule or service whose deployments have no
+     paths filter, such as a release that ships the whole program, propose
+     the folders the program is built from, found from the build files
+     (`go.mod`, `cmd/` and `internal/` for Go, a Dockerfile's folder), show
+     what you found and why, and ask. Say plainly that a rule or service
+     without `paths` shows `Per repository` for its Time to deploy per commit
+     and its Commits per deployment, so the person can choose.
 
    The person says yes, edits it, or skips it, for each repository; the
    default is to skip. Write the lines in step 9 only with the person's yes.
@@ -860,7 +872,14 @@ Then check what the run did:
 9. The footer names the pinned version:
    `curl -fsS SITE | grep -o 'Forsgren</a> [0-9.]*'`
    prints `Forsgren</a>` and `VERSION` without its `v`.
-10. No setup issue: `gh issue list -R OWNER/REPO -l forsgren-setup`
+10. The TBD page, when the config has `services` or `deployments:` rows: the
+    page to read is `tbd.html` for service and rule rows, that is
+    `SITEtbd.html`. Be sure to wait until the run's publish has finished before reading
+    (the retries of item 7), then quote in the report the rows it checks and
+    every line of the Notes it sees, such as `Files still being read` (note 8)
+    when it shows. Rule: never say a note is absent without quoting what the page
+    shows.
+11. No setup issue: `gh issue list -R OWNER/REPO -l forsgren-setup`
     lists no issue. An issue there: show the person its title and body
     (`gh issue view NUMBER -R OWNER/REPO`), stop and report.
 

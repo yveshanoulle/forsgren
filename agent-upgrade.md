@@ -458,6 +458,21 @@ applies:
      builds (a `docker build` argument, or the `context:` and `file:` of a
      build step).
 
+   Read the `on:` of that workflow to the end. When it also starts on other
+   triggers (`release`, `schedule`, `workflow_dispatch`, `workflow_run`), name
+   them, and say in plain words that those deployments may ship none of the
+   commits of the proposed paths, and that a deployment shipping none of them counts 0 commits in that row
+   (honest, not an error).
+
+   A service whose deployments have no paths filter, such as a release that
+   ships the whole program, has nothing to read in a workflow: propose the
+   folders the program is built from, found from the build files (`go.mod`,
+   `cmd/` and `internal/` for Go, a Dockerfile's folder, the folders a build
+   file such as `package.json` names), show what you found and why, and ask.
+   Say plainly that a rule or service without `paths` shows `Per repository`
+   for its Time to deploy per commit and its Commits per deployment, so the
+   person can choose.
+
    Show the person what you found and why, one line per place (for
    example: "`deploy-web.yml` runs on pushes to `web/**` and `shared/**`;
    its deploy job runs in `web/`"), and the exact line you would write, such
@@ -495,8 +510,10 @@ applies:
    `environment=<name>`) with a label, and `paths` where item 5 found folders
    for it. Show what you found and why, and the exact lines you would
    write, such as `release: Releases` and
-   `environment=github-pages: {label: Website, paths: [website/]}`. Say what
-   changes on the page: each rule is its own row, with its own Deployments,
+   `environment=github-pages: {label: Website, paths: [website/]}`. Name the
+   other triggers of each rule's workflow and propose folders for a rule whose
+   deployments have no paths filter (a release that ships the whole program),
+   both as item 5 says. Say what changes on the page: each rule is its own row, with its own Deployments,
    and the total row counts every deployment of the repository; a rule
    without `paths` shows `Per repository` for its Time to deploy per commit
    and its Commits per deployment. `deployment:` and `deployments:` never
@@ -921,7 +938,15 @@ minute and run that check again, at most 5 times, before you report it.
    with `https://`, and `curl -fsS -o /dev/null -w '%{http_code}' REPORT`
    prints `200`. The HTTPS enforcement itself is the person's, not part of
    this upgrade; an `http://` address: tell the person.
-9. No setup issue stays open: `gh issue list -R OWNER/REPO -l forsgren-setup`
+9. The TBD page, when step 8 wrote `paths` or a `deployments:` entry: the
+   page to read is `tbd.html` for service and rule rows, that is
+   `REPORTtbd.html` (the TBD page address of the installation), never another
+   page. Be sure to wait until the run's publish has finished before reading
+   (step 3 ended and the retries above passed), then read it, and quote in the report
+   the rows it checks and every line of the Notes it sees, such as note 8
+   `Files still being read` (note 8) when it shows. Rule: never say a note is absent
+   without quoting what the page shows.
+10. No setup issue stays open: `gh issue list -R OWNER/REPO -l forsgren-setup`
    lists no open issue. The run closes it by itself when nothing is missing
    any more. An issue still there: show the person its title and body
    (`gh issue view NUMBER -R OWNER/REPO`, with the number the list shows),

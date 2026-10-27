@@ -4,7 +4,20 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
+
+// labelCell is the header of a label row as the page writes it (forsgren#511):
+// the project visually hidden, the dash and the label, a label of up to 15
+// characters with non-breaking spaces.
+func labelCell(project, label string) string {
+	space := " "
+	if utf8.RuneCountInString(label) <= 15 {
+		space = " "
+	}
+	return `<th scope="row"><span class="visually-hidden">` + project + `: </span>` +
+		`<span aria-hidden="true">–` + space + `</span>` + strings.ReplaceAll(label, " ", space) + "</th>"
+}
 
 // The fixture site's TBD page (forsgren#422, step 5): the made-up fixture of
 // Scripts/testdata/fixture_site rendered through the real pipeline.
@@ -27,7 +40,7 @@ func fixtureTbd(t *testing.T) string {
 // rowOf is the row of the page whose header reads label under project, up to
 // its end; empty when there is none.
 func rowOf(page, project, label string) string {
-	_, rest, found := strings.Cut(page, `<span class="visually-hidden">`+project+`: </span>`+label+"</th>")
+	_, rest, found := strings.Cut(page, labelCell(project, label))
 	row, _, _ := strings.Cut(rest, "</tr>")
 	if !found {
 		return ""

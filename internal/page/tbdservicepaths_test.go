@@ -22,7 +22,7 @@ func perRepositoryDeployRow(all bool) string {
 		return "@" + strconv.Itoa(median) + perRepository
 	}
 	cells := []string{span(5, 15), span(1, 3), "@3" + perRepository, "5", span(1, 3), span(1, 3), span(4, 4), "2"}
-	return "<th scope=\"row\"><span class=\"visually-hidden\">Acme Shop: </span>API</th>\n            " +
+	return labelCell("Acme Shop", "API") + "\n            " +
 		tds(strings.Join(cells, " | ")) + "\n"
 }
 
@@ -51,7 +51,7 @@ func TestTheTotalRowKeepsItsDeployFiguresWhenAServiceIsPerRepository(t *testing.
 	data := subRowsData()
 	data.TbdMetrics[1].DeployPerRepository = true
 	got := rendered(t, "tbd.html", data)
-	total := got[strings.Index(got, ">Acme Shop</th>"):strings.Index(got, "Acme Shop: </span>API")]
+	total := got[strings.Index(got, ">Acme Shop</th>"):strings.Index(got, "Acme Shop: </span><span aria-hidden")]
 	if strings.Contains(total, perRepository) {
 		t.Errorf("want the total row without Per repository, got:\n%s", total)
 	}

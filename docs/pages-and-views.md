@@ -277,6 +277,10 @@ can be reverted there):
   repository no project lists is left out. It has at most as many failed
   changes as deployments, so the rate is at most 100%; its counts still
   show what was found.
+- **Failure issues belong to the repository**, not to one service or
+  deployment rule: they count in the project's total row, never in a
+  service or rule row. That is why a total can be higher than every row
+  under it (forsgren#514).
 - **The rate** is the failed changes out of the deployments, shown in
   whole percent, rounded down, so the percent shown never reaches a band
   edge the rate has not.
@@ -338,6 +342,10 @@ there):
   repository no project lists is left out. A failure issue names no task,
   so a service's row has no issues and only (a) applies there, as for
   change fail rate.
+- **A failure issue belongs to the repository** too: the deployments
+  made while it was open are rework in the project's total row, never in a
+  service or rule row, so the total rate can be higher than the rate of
+  every row under it (forsgren#514).
 - **The rate** is the rework deployments out of the successful ones, in
   whole percent, rounded down, so the percent shown never reaches a band
   edge the rate has not.
@@ -677,7 +685,9 @@ a path on github.com (forsgren#172):
   A value that is not accepted (forsgren#183) shows in its row's Current
   value as written, then why and the default in use: "60 is not accepted:
   use 30, 90 or 180. Using the default 30." (an empty value as "(empty)"),
-  and its Default shows that default.
+  and its Default shows that default. The rows `deployments` and `paths`
+  (forsgren#512) say only how many repositories, services and rules use those
+  per-repository settings, as counts or `(not set)`, never a name or path.
 - **Layout:** no table has a caption: each is named by its page's heading
   ("DORA metrics" on the three views and the root, Issues, Daily, History), and one `h1`
   rule in `styles.css` sets the look of every page's heading (forsgren#135), and every table has `<th scope>` headers; it scrolls

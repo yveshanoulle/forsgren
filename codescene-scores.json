@@ -1431,6 +1431,24 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/config/repository_settings.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/repository_settings_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-27",
+   "minScore": 9.6
+  },
+  {
+   "path": "internal/page/settings_repository_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/page/settings.go",
    "score": 10.0,
    "checkedAt": "2026-10-25",
@@ -1872,6 +1890,18 @@
    "path": "internal/page/incomplete.go",
    "score": 10.0,
    "checkedAt": "2026-10-16",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/labelheader.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/labelheader_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
    "minScore": 10.0
   },
   {
@@ -2548,6 +2578,12 @@
   },
   {
    "path": "internal/page/tbdfilesnote_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-27",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/deploy_triggers_docs_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-27",
    "minScore": 10.0

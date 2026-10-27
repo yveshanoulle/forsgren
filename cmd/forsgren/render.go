@@ -94,7 +94,7 @@ func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error
 	data.AsOf = at.UTC().Format(calculatedLayout)
 	data.Latest, data.WaitingPR = o.latest, o.waitingPR
 	data.NeedsCheck, data.PRListCut = o.needsCheck, o.prCheck == statusTruncated
-	data.Settings = config.Config{}.Settings()
+	data.Settings = settingsOf(config.Config{})
 	if o.config == "" {
 		return data, nil
 	}
@@ -106,7 +106,7 @@ func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error
 	data.View = cfg.View
 	data.WorkingHours, data.WorkingHoursSet = cfg.WorkingHours, cfg.WorkingHoursSet
 	data.DoraDays, data.DoraDaysSet = cfg.DoraDays, cfg.DoraDaysSet
-	data.Settings = cfg.Settings()
+	data.Settings = settingsOf(cfg)
 	data.TbdFigures = cfg.TbdFigures
 	data.HideTbdTimeToMain, data.HideTbdPRLeadTime = cfg.HideTbdTimeToMain, cfg.HideTbdPRLeadTime
 	data.HideTbdBotPRLeadTime, data.HideSubRows = cfg.HideTbdBotPRLeadTime, cfg.HideSubRows
@@ -373,4 +373,10 @@ func isPullRequestNumber(flags *flag.FlagSet, number int) bool {
 	given := false
 	flags.Visit(func(f *flag.Flag) { given = given || f.Name == "waiting-pr" })
 	return !given || number >= 1
+}
+
+// settingsOf are the rows of the settings page: the top-level keys, then the
+// per-repository settings as counts (forsgren#512).
+func settingsOf(cfg config.Config) []config.Setting {
+	return append(cfg.Settings(), cfg.RepositorySettings()...)
 }

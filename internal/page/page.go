@@ -417,7 +417,8 @@ var pages = parsePages()
 // (history.go), and "incomplete", the note of a bug column that cannot be
 // trusted (incomplete.go).
 var templateFuncs = template.FuncMap{"trend": trendViewOf, "bugtrend": bugTrendViewOf, "possible": possibleOf,
-	"beta": historyBeta, "incomplete": incompleteViewOf}
+	"beta": historyBeta, "incomplete": incompleteViewOf,
+	"labelheader": labelHeaderOf}
 
 // parsePages parses the layout once and clones it per page. A malformed
 // template fails at start-up through template.Must, never at render time.

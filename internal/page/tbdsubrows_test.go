@@ -60,8 +60,8 @@ func websiteRow(total metrics.TbdRow) metrics.TbdRow {
 func TestTbdSubRowsAreInTheDoraForm(t *testing.T) {
 	got := rendered(t, "tbd.html", subRowsData())
 	wantAll(t, "tbd.html", got, "<th scope=\"row\">Acme Shop</th>", "<tr class=\"label\">",
-		"<th scope=\"row\"><span class=\"visually-hidden\">Acme Shop: </span>API</th>",
-		"<th scope=\"row\"><span class=\"visually-hidden\">Acme Shop: </span>Website</th>")
+		labelCell("Acme Shop", "API"),
+		labelCell("Acme Shop", "Website"))
 }
 
 // perRepository is the sentence in place of the cells of a service row that are
@@ -89,7 +89,7 @@ func apiRow(all bool) string {
 		own = []string{"&lt; 1 m | 1 h | -", "0.0 | 2.0 | -"}
 	}
 	cells := []string{span(5, 15), own[0], per, "3", per, "5", span(1, 3), own[1], span(4, 4), "2"}
-	return "<th scope=\"row\"><span class=\"visually-hidden\">Acme Shop: </span>API</th>\n            " +
+	return labelCell("Acme Shop", "API") + "\n            " +
 		tds(strings.Join(cells, " | ")) + "\n"
 }
 

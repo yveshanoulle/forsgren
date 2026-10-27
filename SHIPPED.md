@@ -9,6 +9,55 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — The legend says failure issues count in the project's total row, never in a service or rule row ([#514](https://github.com/yveshanoulle/forsgren/issues/514), step 1 of 1)
+
+The legend's change fail rate part and its deployment rework rate part each
+get one sentence, worded apart: a failure issue belongs to the repository, not
+to one service or deployment rule, so it counts in the project's total row and
+never in a service or rule row, which is why a total can be higher than every
+row under it. `docs/pages-and-views.md` says the same in both sections.
+
+forsgren issue 514, patch.
+
+## 2026-10-27 — The settings page says whether deployments: rules and paths are set, with counts only ([#512](https://github.com/yveshanoulle/forsgren/issues/512), step 1 of 1)
+
+The public settings page has two more rows, `deployments` and `paths`, that say
+only that these per-repository settings are used: `set on 1 repository (2
+rules)` and `set on 3 services and 1 rule`, or `(not set)`. Counts only: no
+repository, label, folder, file, environment, workflow or task name reaches the
+page, and a test with made-up private-looking names pins that. The rows come
+from `Config.RepositorySettings`, outside `Settings()`, so the drift tests over
+the file's top-level keys are unchanged.
+
+forsgren issue 512, patch.
+
+## 2026-10-27 — The agent files name other deploy triggers, propose folders for a rule without a paths filter and read tbd.html for the page check ([#509](https://github.com/yveshanoulle/forsgren/issues/509), step 1 of 1)
+
+Both agent files now (1) name the other triggers of a deploy workflow
+(`release`, `schedule`, `workflow_dispatch`, `workflow_run`) and say those
+deployments may ship none of the proposed paths' commits, so the row counts 0
+commits (honest, not an error); (2) propose the folders a program is built from
+(`go.mod`, `cmd/`, `internal/`, a Dockerfile's folder) for a rule or service
+whose deployments have no paths filter, and say it shows `Per repository`
+without `paths`; (3) make the last page check read `tbd.html`, wait for the
+run's publish, and quote the rows and every Notes line it sees.
+
+forsgren issue 509, patch.
+
+## 2026-10-27 — A label row header of up to 15 characters stays on one line ([#511](https://github.com/yveshanoulle/forsgren/issues/511), step 1 of 1)
+
+The dash before a label or service row header was drawn by `styles.css`, with an
+ordinary space that is a break point, so a short label such as `Releases`
+broke over two lines in the narrow Project column. The dash is now written in
+the markup by one helper (`labelHeaderOf`, the `labelheader` template) that
+all three tables use: for a label of 15 characters or fewer (runes), the space
+after the dash and every space in the label are non-breaking; a longer label
+keeps ordinary spaces and may wrap. The dash is aria-hidden, as before.
+
+forsgren issue 511, patch.
+
+---
+
 ## 2026-10-27 — TBD: a Deployed commits column after Commits, each distinct commit counted once at its first deployment in the window ([#513](https://github.com/yveshanoulle/forsgren/issues/513), steps 1–2)
 
 `TbdRow.DeployedCommits` summed the first-parent commits over a row's

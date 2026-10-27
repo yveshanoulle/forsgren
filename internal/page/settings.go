@@ -34,6 +34,10 @@ var possibleValues = map[string]string{
 	"tbd_pr_lead_time":     booleanValues,
 	"tbd_bot_pr_lead_time": booleanValues,
 	"same_developer":       groupsOfLogins,
+	// Not top-level keys: the per-repository rows of config.RepositorySettings
+	// (forsgren#512), outside the drift test over config.Settings.
+	"deployments": "per repository, in projects",
+	"paths":       "per service or rule, in projects",
 }
 
 // doraWindows are the windows dora_days can name, as the page lists them.

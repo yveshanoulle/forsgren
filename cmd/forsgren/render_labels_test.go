@@ -35,11 +35,11 @@ func TestRenderShowsLabelRows(t *testing.T) {
 	for _, want := range []string{
 		`<th scope="row">Acme Shop (total)</th>`,
 		`<tr class="label">
-            <th scope="row"><span class="visually-hidden">Acme Shop: </span>API</th>
+            ` + labelCell("Acme Shop", "API") + `
             <td>Between once per week and once per month · 3</td>
             <td>1</td>`,
 		`<tr class="label">
-            <th scope="row"><span class="visually-hidden">Acme Shop: </span>iOS</th>
+            ` + labelCell("Acme Shop", "iOS") + `
             <td>Between once per day and once per week · 9</td>
             <td>2</td>`,
 		`<th scope="row">Acme Tools</th>`,
