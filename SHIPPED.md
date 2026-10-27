@@ -9,6 +9,51 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — A Week page: commits and deployments per weekday, and the weekend share ([#531](https://github.com/yveshanoulle/forsgren/issues/531), decisions [#532](https://github.com/yveshanoulle/forsgren/issues/532) A, [#533](https://github.com/yveshanoulle/forsgren/issues/533) A, [#534](https://github.com/yveshanoulle/forsgren/issues/534) A and [#539](https://github.com/yveshanoulle/forsgren/issues/539) A, step 4 of 4)
+
+Asked for by Yves: see on which weekdays the work happens and how much of it
+falls on a weekend. A new page, `week.html`, "Week", last in the menu after
+TBD. One table, a row per project and under it a row per label, service or
+rule (`sub_rows: false` leaves those out), with the columns Project, Mon to Sun
+and Weekend share, over the `dora_days` window; a sentence above it names the
+window, for example `The last 30 days, from 2026-09-03 to 2026-10-03, every
+weekday of that window counted (UTC).`, since every weekday of the window is
+counted, not one calendar week. A day cell reads `commits · deployments`
+(`0 · 0` for no activity, a thousands space from 1000, the dot between no-break
+spaces). A commit counts at its author date and a deployment at its time, both
+UTC (#532 A). The commits of a total or repository row are the set of the TBD
+Commits column, the first-parent commits of the pushes of the window; the
+deployments are the successful ones of the window. A service or rule with
+`paths` counts its own commits, the ones Deployed commits counts on the TBD
+page; one without paths cannot tell, so its day cells read `– · 3`, an en dash
+for commits counted at repository level (Yves's ruling on #539, variant c:
+`Per repository` in every cell made the table 516 px wider than its box on a
+phone, the dash 76 px), its Weekend share says `Per repository`. Weekend share
+is the Saturday and Sunday commits out of all the commits of the row,
+deployments never mixed in, a dash for a row with no commits (#534 A). A new
+optional key, `week_page`, `true` by default and when left out, `false` takes the
+page out of the menu while it is still written and reachable at `week.html`
+with the noindex tag, as an unlisted page (#533 A; check-config, the settings
+page now 20 rows, the starter, the installation README, docs/configuration.md,
+the agent installer). The legend has a Week page section that says all of this,
+including that the dash is not zero and not missing data; docs/pages-and-views.md
+has a Week page section.
+
+Four steps. Step 1: `metrics.WeekOf` (`weekrows.go`), `WeekRow` with seven
+commit and seven deployment counts, `WeekendShare`, and the walk over labels
+that `TbdRows` and `WeekOf` now share (`labelrows.go`). Step 2: the page, its
+template, goldens, the menu entry, the cells (`DayCell`, `WeekendShareCell`,
+`shareOf`), the browser baseline row of 76 px at 390x844 (fixture site;
+shrink-only), and the build-site self-test counts (12 pages). Step 3:
+`week_page`. Step 4: the legend, the docs, the agent files (the Week page is not
+read for the paths check) and this entry. Each step was red first: the page
+against a missing template (`TestWeekPage*`), the cells against stubs
+(`TestWeekDayCell*`, `TestWeekendShareCell*`), the key against an unknown key,
+the legend against a missing section (`TestLegendExplainsTheWeekPage`), the
+docs against missing text.
+
+forsgren issue 531, minor (a new page and a new setting).
+
 ## 2026-10-27 — Label row headers no longer widen the DORA and History tables ([#454](https://github.com/yveshanoulle/forsgren/issues/454))
 
 Found in #422 step 5 (decision #453 A): the fixture's numbers, scoring, numbers

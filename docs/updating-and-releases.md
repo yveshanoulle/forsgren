@@ -703,7 +703,7 @@ workflows read-only, shows what it found and the lines it would write, and
 writes them only with your yes; [agent-installer.md](../agent-installer.md)
 does the same for a new installation.
 
-**Upgrading to the release that adds the Week page** (forsgren#531, decision #533). A
+**Upgrading to 1.29.0, which adds the Week page** (forsgren#531, decision #533). A
 minor release. A new page, `week.html`, shows the commits and deployments of
 each weekday of the `dora_days` window and the weekend share of the commits.
 The new key `week_page` is optional and `true` when left out, so an installation without `week_page` in its config gets the Week page in its menu, after TBD, with
