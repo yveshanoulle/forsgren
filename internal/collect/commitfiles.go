@@ -1,9 +1,10 @@
 package collect
 
-// The files of the deployed commits (forsgren#496, step 3). A service with
-// paths counts only the commits that touch them, so for a repository whose
-// services have at least one paths (others never cost a request) every
-// commit of data/commits.csv that has no line in data/commit_files.csv gets
+// The files of the deployed commits (forsgren#496, step 3). A service or a
+// deployment rule with paths counts only the commits that touch them, so for a
+// repository whose services or rules have at least one paths (forsgren#510;
+// others never cost a request) every commit of data/commits.csv that has no
+// line in data/commit_files.csv gets
 // its changed files read, newest deployment first, and appended: the commits
 // stored before this existed as well as those a deployment of this run
 // brought. They are read LAST for a repository, after its pull requests, the
@@ -86,7 +87,7 @@ type fileRead struct {
 // when r has paths, and says how many commits it read; see the top of this
 // file for what ends it.
 func (o Options) fillCommitFiles(ctx context.Context, h held, r config.Repository) (int, error) {
-	if len(r.Paths) == 0 {
+	if !r.HasPaths() {
 		return 0, nil
 	}
 	todo, err := o.commitsWithoutFiles(r.Name)

@@ -1246,6 +1246,7 @@
     "github.com/yveshanoulle/forsgren/internal/config/deployments.go:oneRule": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/deployments.go:DeploymentRules": 100.0,
     "github.com/yveshanoulle/forsgren/internal/config/deployments.go:ruleLabels": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/deployments.go:HasPaths": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/cutshort.go:deploymentsOfRule": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/held.go:idSource": 100.0,
     "github.com/yveshanoulle/forsgren/internal/collect/rules.go:deploymentsOfRules": 100.0,

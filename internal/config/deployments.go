@@ -20,6 +20,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -151,4 +152,13 @@ func (r Repository) ruleLabels() []string {
 		}
 	}
 	return out
+}
+
+// HasPaths is whether any service or any deployment rule of the repository
+// has paths (forsgren#496, #498, #510): the commit files are read for it.
+func (r Repository) HasPaths() bool {
+	if len(r.Paths) > 0 {
+		return true
+	}
+	return slices.ContainsFunc(r.Rules, func(rule Rule) bool { return len(rule.Paths) > 0 })
 }

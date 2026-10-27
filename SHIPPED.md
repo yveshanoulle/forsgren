@@ -9,6 +9,16 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — The commit files read looks at a deployment rule's paths too, so a rule row stops saying Files still being read ([#510](https://github.com/yveshanoulle/forsgren/issues/510), step 1 of 1)
+
+`fillCommitFiles` returned at once when no service had paths, so a repository
+whose only paths were on its `deployments:` rules never had its commit files
+read. `config.Repository.HasPaths()` now says whether any service or any rule
+has paths, and the read uses it. No other place asked: the TBD rows already
+take a service's or a rule's own paths.
+
+forsgren issue 510, patch.
+
 ## 2026-10-27 — The upgrade and install agents look before skipping Several ways to deploy ([#508](https://github.com/yveshanoulle/forsgren/issues/508), step 1 of 1)
 
 forsgren issue 508, patch.

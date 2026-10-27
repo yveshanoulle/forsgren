@@ -127,3 +127,28 @@ func TestParseRefusesWrongDeployments(t *testing.T) {
 		{"not a map", withDeployments("        deployments: release\n"), ErrSyntax, "deployments is a map"},
 	})
 }
+
+// TestARepositoryHasPathsWhenAServiceOrARuleHasThem: a services path or a
+// deployment rule's path counts; a rule or a service without paths does not
+// (forsgren#510).
+func TestARepositoryHasPathsWhenAServiceOrARuleHasThem(t *testing.T) {
+	cases := map[string]struct {
+		repo Repository
+		want bool
+	}{
+		"nothing":       {Repository{}, false},
+		"service paths": {Repository{Paths: map[string][]string{"deploy": {"api/"}}}, true},
+		"rule paths":    {Repository{Rules: []Rule{{Label: "A"}, {Label: "B", Paths: []string{"web/"}}}}, true},
+		"rules without": {Repository{Rules: []Rule{{Label: "A"}, {Label: "B"}}}, false},
+		"service and a rule": {
+			Repository{Paths: map[string][]string{"d": {"a/"}}, Rules: []Rule{{Paths: []string{"b/"}}}}, true,
+		},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			if got := c.repo.HasPaths(); got != c.want {
+				t.Errorf("want HasPaths %v, got %v", c.want, got)
+			}
+		})
+	}
+}

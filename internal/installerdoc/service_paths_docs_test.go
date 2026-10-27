@@ -36,7 +36,7 @@ func TestDataFilesDescribeTheCommitFiles(t *testing.T) {
 		"a rename has a line for the new name and one for the previous name",
 		"`data/commit_files_filled.csv`",
 		"The files are read last for a repository, after the fresh data",
-		"only for a repository with a service that has `paths`",
+		"only for a repository with a service or a deployment rule that has `paths`",
 		"`commit-files-cut`")
 }
 

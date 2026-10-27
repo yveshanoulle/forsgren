@@ -679,7 +679,8 @@ services:
   last, so fresh data is never held back, and a run the request budget cuts
   short continues on the next one. Until a service's commits are read, they are
   left out of its figures and the row carries note 8, `Files still being read`.
-  A repository without a service that has `paths` costs no request. The read
+  A repository without a service or a deployment rule that has `paths` costs
+  no request. The read
   needs `Contents: Read` on a fine-grained `FORSGREN_TOKEN`, as the push read
   does; without it `collect` says so on stderr and fails nothing.
 

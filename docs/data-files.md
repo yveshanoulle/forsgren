@@ -861,8 +861,8 @@ acme/app,0123456789abcdef0123456789abcdef01234567,web/old.go
   after the fresh data: its deployments, issues, pull requests, the fills, the
   legacy backfill and the push read are stored first, so the first fill of a big
   installation, which can cost thousands of requests over several daily runs,
-  never holds back fresh data. It runs only for a repository with a service that
-  has `paths`; any other repository costs no request.
+  never holds back fresh data. It runs only for a repository with a service or a
+  deployment rule that has `paths`; any other repository costs no request.
 - Lines are held by repository (ignoring case), commit SHA and path, new lines
   sorted by them; the file is appended to, never rewritten.
 - A missing `contents: read` permission (403) stores what was read, says so on

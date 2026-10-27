@@ -41,6 +41,27 @@ func withoutPaths() config.Repository {
 	return r
 }
 
+// withRulePaths is acme/app's production written with `deployments:`, one rule
+// of which has paths and no service has (forsgren#510).
+func withRulePaths() config.Repository {
+	r := production
+	r.Rules = []config.Rule{
+		{Deployment: r.Deployment, Label: "Releases"},
+		{
+			Deployment: config.Deployment{Kind: config.Environment, Name: "github-pages"},
+			Label:      "Site", Paths: []string{"website/"},
+		},
+	}
+	return r
+}
+
+// ruleWithoutPaths is written with `deployments:`, no rule having paths.
+func ruleWithoutPaths() config.Repository {
+	r := withRulePaths()
+	r.Rules[1].Paths = nil
+	return r
+}
+
 // filesPath is GitHub's commit sha in acme/app.
 func filesPath(sha string) string { return "/repos/acme/app/commits/" + sha }
 
@@ -116,7 +137,11 @@ func TestTheFilesOfEveryStoredCommitAreReadNewestFirstForAServiceWithPaths(t *te
 // TestARepositoryWithoutPathsNeverAsksForFiles: a repository whose services
 // have no paths, or that has no services, costs no request and writes no file.
 func TestARepositoryWithoutPathsNeverAsksForFiles(t *testing.T) {
-	repositories := map[string]config.Repository{"service without paths": withoutPaths(), "no services": production}
+	repositories := map[string]config.Repository{
+		"service without paths": withoutPaths(),
+		"no services":           production,
+		"rules without paths":   ruleWithoutPaths(),
+	}
 	for name, repo := range repositories {
 		t.Run(name, func(t *testing.T) {
 			g, path := storedCommits(t)
@@ -128,6 +153,19 @@ func TestARepositoryWithoutPathsNeverAsksForFiles(t *testing.T) {
 			dataOf(path).want(t, CommitFilesFilledFile, "")
 		})
 	}
+}
+
+// TestTheFilesAreReadForARepositoryWhoseOnlyPathsAreOnADeploymentRule: with
+// `deployments:` and no service paths, a rule's paths are enough (forsgren#510).
+func TestTheFilesAreReadForARepositoryWhoseOnlyPathsAreOnADeploymentRule(t *testing.T) {
+	g, path := storedCommits(t)
+	g.bodies[filesPath(shaB)] = filesBody("website/b.go")
+	g.bodies[filesPath(shaA)] = filesBody("website/a.go")
+	if r := g.collect(t, shop(withRulePaths()), path, github.DefaultMaxPages); r.err != nil {
+		t.Fatalf("want no error, got %v (stderr %q)", r.err, r.stderr)
+	}
+	g.wantAsked(t, shaB, shaA)
+	dataOf(path).want(t, CommitFilesFilledFile, commitFilesFilledNow)
 }
 
 // TestACommitReadWithNoFilesIsNotReadAgain: a commit that changes no file
