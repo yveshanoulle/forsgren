@@ -1,23 +1,25 @@
 {{define "title"}}{{.WeekTitle}} · {{.Title}}{{end -}}
 {{template "header" .}}  <main>
     <h1 id="week-heading">{{.WeekTitle}}</h1>
-    <p>Each day shows commits · deployments. Weekend share is the Saturday and Sunday commits out of all the commits of the row.</p>
+    <p>Total is the commits and the deployments of the window; each weekday shows its share of them as a percentage.</p>
 {{if .Week.Rows}}    <p>{{.WeekWindow}}</p>
     <div class="table-scroll" role="region" aria-labelledby="week-heading" tabindex="0">
       <table class="wraps">
         <thead>
           <tr>
-            <th scope="col">Project</th>
-{{range .WeekDays}}            <th scope="col" class="num">{{.}}</th>
-{{end}}            <th scope="col" class="num">Weekend share</th>
-          </tr>
+            <th scope="col" rowspan="2">Project</th>
+{{range .WeekGroups}}            <th scope="colgroup" colspan="2">{{.Name}}</th>
+{{end}}          </tr>
+          <tr>
+{{range .WeekGroups}}            <th scope="col" aria-label="{{.CommitsLabel}}" class="num">Commits</th>
+            <th scope="col" aria-label="{{.DeploymentsLabel}}" class="num">Deployments</th>
+{{end}}          </tr>
         </thead>
         <tbody>
-{{range .WeekRows}}{{$class := .Class}}          <tr{{if .IsLabel}} class="label"{{end}}>
+{{range .WeekRows}}          <tr{{if .IsLabel}} class="label"{{end}}>
             <th scope="row">{{if .IsLabel}}<span class="visually-hidden">{{.Project}}: </span>{{template "labelheader" (labelheader .Name)}}{{else}}{{.Name}}{{end}}</th>
-{{range .Cells}}            <td{{if $class}} class="{{$class}}"{{end}}>{{.}}</td>
-{{end}}            <td{{if $class}} class="{{$class}}"{{end}}>{{.WeekendShareCell}}</td>
-          </tr>
+{{range .Cells}}            <td{{if .Class}} class="{{.Class}}"{{end}}>{{.Text}}</td>
+{{end}}          </tr>
 {{end}}        </tbody>
       </table>
     </div>

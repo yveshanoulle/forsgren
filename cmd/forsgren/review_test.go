@@ -11,6 +11,10 @@ import (
 // step 7): a pull request's number is 1 or more, so --waiting-pr 0 or below
 // is a usage error that names the flag, as run-summary's flags are; leaving
 // the flag out is how render is told there is none.
+// footerAtEpoch is the footer's last sentence for a render at second 0
+// (forsgren#542).
+const footerAtEpoch = "Calculated at 1970-01-01 00:00 UTC Report Start 1969-12-02 00:00 Report End 1970-01-01 00:00</p>"
+
 func TestRenderRefusesAWaitingPRThatIsNoPullRequest(t *testing.T) {
 	for _, number := range []string{"0", "-3"} {
 		code, stderr, _ := renderWith(t, "--latest", newerRelease, "--waiting-pr", number)
@@ -26,7 +30,7 @@ func TestRenderRefusesAWaitingPRThatIsNoPullRequest(t *testing.T) {
 // the variable.
 func TestRenderTimeIsNeverBeforeTheEpoch(t *testing.T) {
 	t.Setenv(sourceDateEpoch, "0")
-	if _, _, index := renderWith(t); !strings.Contains(index, "Calculated at 1970-01-01 00:00 UTC</p>") {
+	if _, _, index := renderWith(t); !strings.Contains(index, footerAtEpoch) {
 		t.Errorf("want 1970-01-01 00:00 UTC in the footer, got:\n%s", index)
 	}
 	t.Setenv(sourceDateEpoch, "-1")

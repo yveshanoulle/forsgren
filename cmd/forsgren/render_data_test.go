@@ -16,6 +16,10 @@ import (
 // output, as -update does in internal/page. Use it only after reading the
 // diff the failing golden test printed. (The name updateGoldens: update is
 // the internal/update package in this test package.)
+// footerAt1200 is the footer's last sentence for a render at 2026-10-03 12:00
+// UTC with the default 30-day window (forsgren#542).
+const footerAt1200 = "Calculated at 2026-10-03 12:00 UTC Report Start 2026-09-03 12:00 Report End 2026-10-03 12:00</p>"
+
 var updateGoldens = flag.Bool("update", false, "rewrite the goldens wantGolden compares")
 
 // renderNow is the pinned render time of these tests.
@@ -211,6 +215,17 @@ func TestRenderDataNeedsConfig(t *testing.T) {
 	}
 }
 
+// TestRenderFooterNamesTheReportPeriodOfDoraDays (forsgren#542): the footer
+// gives the window of dora_days 90 back from the render time.
+func TestRenderFooterNamesTheReportPeriodOfDoraDays(t *testing.T) {
+	pinClock(t, time.Date(2026, 10, 27, 22, 29, 59, 0, time.UTC))
+	_, _, index := renderWith(t, "--config", writeAllPagesConfig(t, validConfig+"dora_days: 90\n"))
+	const want = "Calculated at 2026-10-27 22:29 UTC Report Start 2026-07-29 22:29 Report End 2026-10-27 22:29</p>"
+	if !strings.Contains(index, want) {
+		t.Errorf("want %q in the footer, got:\n%s", want, index)
+	}
+}
+
 // TestRenderShowsTheMinuteOfTheCalculationInUTC (forsgren#28): the page of a
 // render with data says when its numbers were calculated, to the minute, in
 // UTC whatever zone the clock is in (here 01:19 on the 4th is still the 3rd
@@ -219,7 +234,7 @@ func TestRenderShowsTheMinuteOfTheCalculationInUTC(t *testing.T) {
 	zone := time.FixedZone("CEST", 2*60*60)
 	pinClock(t, time.Date(2026, 10, 4, 1, 19, 59, 0, zone))
 	_, _, index := renderWith(t, "--config", writeAllPagesConfig(t, validConfig), "--data", writeHistory(t, acmeHistory()))
-	const want = "Calculated at 2026-10-03 23:19 UTC</p>"
+	const want = "Calculated at 2026-10-03 23:19 UTC Report Start 2026-09-03 23:19 Report End 2026-10-03 23:19</p>"
 	if !strings.Contains(index, want) {
 		t.Errorf("want %q in the footer, got:\n%s", want, index)
 	}
@@ -241,7 +256,7 @@ func TestRenderShowsTheCalculationTimeOnEveryRun(t *testing.T) {
 	for name, extra := range cases {
 		t.Run(name, func(t *testing.T) {
 			_, _, index := renderWith(t, extra...)
-			if !strings.Contains(index, "Calculated at 2026-10-03 12:00 UTC</p>") {
+			if !strings.Contains(index, footerAt1200) {
 				t.Errorf("want the calculation time in the footer, got:\n%s", index)
 			}
 		})
@@ -254,7 +269,7 @@ func TestRenderShowsTheCalculationTimeOnEveryRun(t *testing.T) {
 func TestRenderTimeFollowsSourceDateEpoch(t *testing.T) {
 	pinClock(t, time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC))
 	t.Setenv(sourceDateEpoch, strconv.FormatInt(renderNow.Unix(), 10))
-	if _, _, index := renderWith(t); !strings.Contains(index, "Calculated at 2026-10-03 12:00 UTC</p>") {
+	if _, _, index := renderWith(t); !strings.Contains(index, footerAt1200) {
 		t.Errorf("want the pinned time in the footer, got:\n%s", index)
 	}
 	t.Setenv(sourceDateEpoch, "yesterday")
@@ -269,7 +284,7 @@ func TestRenderTimeFollowsSourceDateEpoch(t *testing.T) {
 func TestPinnedClockIgnoresSourceDateEpochInTheEnvironment(t *testing.T) {
 	t.Setenv(sourceDateEpoch, "1")
 	pinNow(t)
-	if _, _, index := renderWith(t); !strings.Contains(index, "Calculated at 2026-10-03 12:00 UTC</p>") {
+	if _, _, index := renderWith(t); !strings.Contains(index, footerAt1200) {
 		t.Errorf("want the pinned clock in the footer, got:\n%s", index)
 	}
 }

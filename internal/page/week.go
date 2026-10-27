@@ -6,10 +6,10 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/metrics"
 )
 
-// The Week page (forsgren#531, decisions #532 A, #533 A, #534 A): one table
-// with a row per project and per label, service and rule, the commits and
-// deployments of the DORA window per weekday, Monday first, UTC, and the
-// weekend share of the commits; or one line that says why there is none.
+// The Week page (forsgren#531, decisions #532 A, #533 A, #534 A; forsgren#540,
+// decision #541): one table with a row per project and per label, service
+// and rule, the commits and deployments of the DORA window as a Total and as
+// the share on each weekday, Monday first, UTC; or one line that says why there is none.
 
 // WeekPage is the name of the Week page, week.html (forsgren#531).
 const WeekPage = "week"
@@ -17,21 +17,38 @@ const WeekPage = "week"
 // weekTitle is the Week page's title and h1.
 const weekTitle = "Week"
 
-// weekDays are the weekday column headers, Monday first.
-var weekDays = []string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
+// minuteLayout is a UTC minute as the footer and the Week page write it.
+const minuteLayout = "2006-01-02 15:04"
+
+// weekGroups are the column groups of the table after Project: Total, then
+// the weekdays in full, Monday first (forsgren#540, decision #541).
+var weekGroups = []string{"Total", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
+
+// weekDays is the number of weekdays among the groups.
+const weekDays = 7
+
+// WeekGroup is a column group of the header: its name, and the labels of its
+// Commits and Deployments headers for a screen reader.
+type WeekGroup struct{ Name, CommitsLabel, DeploymentsLabel string }
 
 // WeekTitle is weekTitle, for the templates that name the Week page.
 func (d Data) WeekTitle() string { return weekTitle }
 
-// WeekDays are the weekday headers of the table.
-func (d Data) WeekDays() []string { return weekDays }
+// WeekGroups are the column groups of the table, Total first.
+func (d Data) WeekGroups() []WeekGroup {
+	groups := make([]WeekGroup, len(weekGroups))
+	for i, name := range weekGroups {
+		groups[i] = WeekGroup{name, name + " commits", name + " deployments"}
+	}
+	return groups
+}
 
 // WeekWindow is the sentence above the table: the DORA window in days and
-// its first and last day, and that every weekday of it counts, not one
+// its first and last minute in UTC, and that every weekday of it counts, not one
 // calendar week.
 func (d Data) WeekWindow() string {
-	return "The last " + strconv.Itoa(d.Window()) + " days, from " + d.Week.Start.Format(dateLayout) + " to " +
-		d.Week.End.Format(dateLayout) + ", every weekday of that window counted (UTC)."
+	return "The last " + strconv.Itoa(d.Window()) + " days, from " + d.Week.Start.Format(minuteLayout) + " to " +
+		d.Week.End.Format(minuteLayout) + ", every weekday of that window counted (UTC)."
 }
 
 // WeekMessage is the one line the Week page shows in place of its table.
@@ -49,22 +66,28 @@ type WeekRow struct{ metrics.WeekRow }
 // project's total.
 func (r WeekRow) IsLabel() bool { return r.Level == metrics.LabelRow }
 
-// Cells are the seven day cells, Monday first.
-func (r WeekRow) Cells() []string {
-	cells := make([]string, len(weekDays))
-	for day := range cells {
-		cells[day] = r.DayCell(day)
-	}
-	return cells
-}
+// WeekCell is a figure cell: its text and its class.
+type WeekCell struct{ Text, Class string }
 
-// Class is the class of the row's figure cells: num, except for a row Per
-// repository, whose cells hold words.
-func (r WeekRow) Class() string {
+// commitsClass is the class of the row's commit cells: num, except for a
+// row Per repository, whose commit cells hold an en dash.
+func (r WeekRow) commitsClass() string {
 	if r.PerRepository {
 		return ""
 	}
 	return "num"
+}
+
+// Cells are the cells after the row header: the
+// Total's Commits and Deployments, then Commits and Deployments of each weekday,
+// Monday first.
+func (r WeekRow) Cells() []WeekCell {
+	cells := []WeekCell{{r.CommitsTotalCell(), r.commitsClass()}, {r.DeploymentsTotalCell(), "num"}}
+	for day := range weekDays {
+		cells = append(cells, WeekCell{r.CommitsShareCell(day), r.commitsClass()},
+			WeekCell{r.DeploymentsShareCell(day), "num"})
+	}
+	return cells
 }
 
 // WeekRows are the rows of the Week table, in the order of Data.Week: each

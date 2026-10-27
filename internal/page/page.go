@@ -58,6 +58,8 @@ type Data struct {
 	// at, which is also the moment their windows were counted back from; the
 	// page shows it whenever it is set, with Rows or without (forsgren#41).
 	AsOf string
+	// ReportStart and ReportEnd are the window's UTC minutes (forsgren#542).
+	ReportStart, ReportEnd string
 	// Latest is the newest forsgren release, "0.0.10" or "v0.0.10", as the
 	// caller looked it up; empty when unknown. The footer names it when it
 	// is newer than Version (forsgren#40, option 2).

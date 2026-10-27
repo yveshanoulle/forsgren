@@ -9,28 +9,72 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — The footer says the report period, start and end to the minute, next to the calculated-at time ([#542](https://github.com/yveshanoulle/forsgren/issues/542), decision [#543](https://github.com/yveshanoulle/forsgren/issues/543) A)
+
+Asked for by Yves: the footer of every page reads `Calculated at 2026-10-27
+22:29 UTC Report Start 2026-09-27 22:29 Report End 2026-10-27 22:29`. Report
+Start and Report End are the real rolling bounds of the DORA window (`dora_days`
+days back from the render time, and the render time), in UTC to the minute,
+from one function the metrics and the page share (`metrics.ReportBounds`), so
+the footer names exactly the window the figures count over; the page does not
+say whole days ending yesterday (the alternative, decision #543 B, was not
+chosen). `SOURCE_DATE_EPOCH` pins them with the calculated-at time. The Week
+page's window sentence uses the same two bounds with the time (`from 2026-09-03
+12:00 to 2026-10-03 12:00`; `Week.Start` and `End` are instants now, not
+dates). The legend says what Report Start and Report End are where it names the
+window; docs/pages-and-views.md, docs/configuration.md and CLAUDE.md follow.
+The fixture browser baseline rows of week.html and the footer-bearing pages
+were checked against the longer footer line. Red first: the bounds against a
+stub (`TestReportBounds*`), the footer on every page, the Week sentence, the
+legend and the render with `dora_days: 90`.
+
+forsgren issue 542, patch.
+
+## 2026-10-27 — The Week table opens with a Total, shows Commits and Deployments per day under the full weekday names, the days as shares ([#540](https://github.com/yveshanoulle/forsgren/issues/540), decision [#541](https://github.com/yveshanoulle/forsgren/issues/541) as Yves answered it)
+
+Asked for by Yves before 1.29.0: the Week table (#531) changed shape. Two
+header rows: Project, then Total and Monday to Sunday in full, each with
+Commits and Deployments under it (the cell headers carry an `aria-label` such
+as `Monday commits`). Total holds the row's commits and deployments of the
+window as counts (a thousands space from 1000, `0` for none). Each weekday
+cell is the share of the row's commits, or deployments, on that weekday, in
+the TBD shares' format (`13%`, `9.3%`, `0.22%`, `0%` for a weekday without
+any), `-` in the seven cells of a row with no commits or no deployments. A
+service or rule without paths keeps the en dash of #539 for its Total Commits
+and its seven Commits cells; its Deployments cells are its own shares. The
+Weekend share column is gone (`WeekendShare`, `WeekendShareCell` and `DayCell`
+removed), as is the legend's paragraph on it; the reading line, the legend, the
+meta description and docs/pages-and-views.md follow. The fixture browser
+baseline rows of week.html land with the change: 1214 px at 390x844 (from 76
+px) and a new row of 324 px at 1280x800. Red first: the cells against stubs
+(`TestWeekShares*`, `TestWeekTotals*`), the page against the old template
+(`TestWeekPageHasTwoHeaderRows`, `TestWeekPageCellsAreTotalsAndPercentages`),
+the legend against the old text.
+
+forsgren issue 540, patch (before 1.29.0 ships).
+
 ## 2026-10-27 — A Week page: commits and deployments per weekday, and the weekend share ([#531](https://github.com/yveshanoulle/forsgren/issues/531), decisions [#532](https://github.com/yveshanoulle/forsgren/issues/532) A, [#533](https://github.com/yveshanoulle/forsgren/issues/533) A, [#534](https://github.com/yveshanoulle/forsgren/issues/534) A and [#539](https://github.com/yveshanoulle/forsgren/issues/539) A, step 4 of 4)
 
 Asked for by Yves: see on which weekdays the work happens and how much of it
 falls on a weekend. A new page, `week.html`, "Week", last in the menu after
 TBD. One table, a row per project and under it a row per label, service or
-rule (`sub_rows: false` leaves those out), with the columns Project, Mon to Sun
-and Weekend share, over the `dora_days` window; a sentence above it names the
+rule (`sub_rows: false` leaves those out), over the `dora_days` window
+(#540 replaced the columns Mon to Sun and Weekend share and the day cells
+below with a Total and weekday shares before the release); a sentence above it names the
 window, for example `The last 30 days, from 2026-09-03 to 2026-10-03, every
 weekday of that window counted (UTC).`, since every weekday of the window is
-counted, not one calendar week. A day cell reads `commits · deployments`
-(`0 · 0` for no activity, a thousands space from 1000, the dot between no-break
-spaces). A commit counts at its author date and a deployment at its time, both
+counted, not one calendar week. A day cell read `commits · deployments`
+(`0 · 0` for no activity); #540 replaced that. A commit counts at its author date and a deployment at its time, both
 UTC (#532 A). The commits of a total or repository row are the set of the TBD
 Commits column, the first-parent commits of the pushes of the window; the
 deployments are the successful ones of the window. A service or rule with
 `paths` counts its own commits, the ones Deployed commits counts on the TBD
-page; one without paths cannot tell, so its day cells read `– · 3`, an en dash
+page; one without paths cannot tell, so its commit cells read an en dash (`– · 3` before #540)
 for commits counted at repository level (Yves's ruling on #539, variant c:
 `Per repository` in every cell made the table 516 px wider than its box on a
-phone, the dash 76 px), its Weekend share says `Per repository`. Weekend share
-is the Saturday and Sunday commits out of all the commits of the row,
-deployments never mixed in, a dash for a row with no commits (#534 A). A new
+phone, the dash 76 px), its Weekend share said `Per repository`. Weekend share
+was the Saturday and Sunday commits out of all the commits of the row (#534 A);
+#540 removed the column. A new
 optional key, `week_page`, `true` by default and when left out, `false` takes the
 page out of the menu while it is still written and reachable at `week.html`
 with the noindex tag, as an unlisted page (#533 A; check-config, the settings

@@ -36,9 +36,14 @@ var update = flag.Bool("update", false, "rewrite testdata/*.golden.html")
 
 // calculated is the placeholder page data, calculated at 2026-10-03 12:00
 // UTC, that the golden pages start from.
+// footerReport is the footer's last sentence of calculated(): the calculated-at
+// time and the report period of the 30-day window (forsgren#542).
+const footerReport = "Calculated at 2026-10-03 12:00 UTC Report Start 2026-09-03 12:00 Report End 2026-10-03 12:00</p>"
+
 func calculated() Data {
 	data := Placeholder(testVersion)
 	data.AsOf = "2026-10-03 12:00"
+	data.ReportStart, data.ReportEnd = "2026-09-03 12:00", "2026-10-03 12:00"
 	return data
 }
 
@@ -493,7 +498,7 @@ func TestEveryPageEndsWithTheFooter(t *testing.T) {
 		data Data
 		want string
 	}{
-		"with data":    {acmeTable(), head + " Calculated at 2026-10-03 12:00 UTC</p>"},
+		"with data":    {acmeTable(), head + " " + footerReport},
 		"without data": {Placeholder(testVersion), head + "</p>"},
 	}
 	for name, c := range cases {
@@ -555,7 +560,7 @@ func TestNoPageShowsASiteNameLine(t *testing.T) {
 // forsgren#28's "the time with Rows only"): a page with an AsOf and no Rows
 // still says when it was calculated.
 func TestFooterShowsTheTimeWithoutRows(t *testing.T) {
-	wantOnEveryPage(t, calculated(), "Calculated at 2026-10-03 12:00 UTC</p>")
+	wantOnEveryPage(t, calculated(), footerReport)
 }
 
 // TestNoProjectsPageShowsAHowTo (forsgren#41, step 3): where the table would

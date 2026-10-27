@@ -887,7 +887,7 @@ Then check what the run did:
     (the retries of item 7), then quote in the report the rows it checks and
     every line of the Notes it sees, such as `Files still being read` (note 8)
     when it shows. Rule: never say a note is absent without quoting what the page
-    shows. The Week page (`week.html`) is not read for this check: its `– · n` cells for a service or rule without `paths` are by design.
+    shows. The Week page (`week.html`) is not read for this check: its `–` cells for a service or rule without `paths` are by design.
 11. No setup issue: `gh issue list -R OWNER/REPO -l forsgren-setup`
     lists no issue. An issue there: show the person its title and body
     (`gh issue view NUMBER -R OWNER/REPO`), stop and report.

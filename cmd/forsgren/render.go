@@ -86,12 +86,21 @@ func renderTime() (time.Time, error) {
 	return time.Unix(seconds, 0), nil
 }
 
+// setReportPeriod sets the footer's Report Start and Report End: the bounds
+// of the DORA window of data.DoraDays at the render time at, to the minute in
+// UTC like AsOf (forsgren#542, decision #543 A).
+func setReportPeriod(data *page.Data, at time.Time) {
+	start, end := metrics.ReportBounds(data.DoraDays, at)
+	data.ReportStart, data.ReportEnd = start.Format(calculatedLayout), end.Format(calculatedLayout)
+}
+
 // pageData is what the page shows for the options at the render time at; a
 // setting of the config that is not accepted is warned about on stderr.
 func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error) {
 	data := page.Placeholder(runningVersion())
 	data.DevCommit = devCommit(buildInfo())
 	data.AsOf = at.UTC().Format(calculatedLayout)
+	setReportPeriod(&data, at)
 	data.Latest, data.WaitingPR = o.latest, o.waitingPR
 	data.NeedsCheck, data.PRListCut = o.needsCheck, o.prCheck == statusTruncated
 	data.Settings = settingsOf(config.Config{})
@@ -106,6 +115,7 @@ func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error
 	data.View = cfg.View
 	data.WorkingHours, data.WorkingHoursSet = cfg.WorkingHours, cfg.WorkingHoursSet
 	data.DoraDays, data.DoraDaysSet = cfg.DoraDays, cfg.DoraDaysSet
+	setReportPeriod(&data, at)
 	data.Settings = settingsOf(cfg)
 	data.TbdFigures = cfg.TbdFigures
 	data.ThousandsSeparator = cfg.ThousandsSeparator

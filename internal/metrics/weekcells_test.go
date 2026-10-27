@@ -1,46 +1,83 @@
 package metrics
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
-// The Week table's cells (forsgren#531, step 2, decision #534 A): a day is
-// `commits · deployments` with the thousands rule of forsgren#528, 0 · 0 for
-// no activity, the dot between no-break spaces; a row Per repository writes
-// an en dash for its commits (decision #539 A); the weekend share is written as the TBD shares are.
+// The Week table's cells (forsgren#531, step 2, decision #534 A): the Total
+// is the row's counts with the thousands rule of forsgren#528; a weekday is
+// the share of the row's commits (or deployments) on it, written as the TBD
+// shares are (forsgren#540, decision #541), a dash when the row has none; a row Per
+// repository writes an en dash for its commits (decision #539 A).
 
-func TestWeekDayCellIsCommitsDotDeployments(t *testing.T) {
-	row := WeekRow{Commits: [weekdays]int{3, 0, 1234, 0, 0, 0, 0}, Deployments: [weekdays]int{4, 0, 0, 12, 0, 0, 0}}
-	for day, want := range []string{
-		"3 · 4", "0 · 0", "1 234 · 0", "0 · 12", "0 · 0",
-	} {
-		if got := row.DayCell(day); got != want {
-			t.Errorf("day %d: want %q, got %q", day, want, got)
+func TestWeekTotalsAreCountsWithTheThousandsRule(t *testing.T) {
+	row := WeekRow{Commits: [weekdays]int{1000, 300, 41, 0, 0, 0, 0}, Deployments: [weekdays]int{4, 0, 0, 12, 0, 0, 0}}
+	if got, want := row.CommitsTotalCell(), "1"+ThousandsSpace+"341"; got != want {
+		t.Errorf("commits total: want %q, got %q", want, got)
+	}
+	if got, want := row.DeploymentsTotalCell(), "16"; got != want {
+		t.Errorf("deployments total: want %q, got %q", want, got)
+	}
+}
+
+func TestWeekSharesAreTbdSharePercentsOfTheRowsTotal(t *testing.T) {
+	row := WeekRow{Commits: [weekdays]int{3, 0, 1, 0, 0, 0, 0}, Deployments: [weekdays]int{1, 2, 0, 0, 0, 0, 0}}
+	for day, want := range []string{"75%", "0%", "25%", "0%", "0%", "0%", "0%"} {
+		if got := row.CommitsShareCell(day); got != want {
+			t.Errorf("commits day %d: want %q, got %q", day, want, got)
+		}
+	}
+	for day, want := range []string{"33%", "66%", "0%"} {
+		if got := row.DeploymentsShareCell(day); got != want {
+			t.Errorf("deployments day %d: want %q, got %q", day, want, got)
 		}
 	}
 }
 
-func TestWeekDayCellOfARowPerRepositoryKeepsItsDeployments(t *testing.T) {
-	row := WeekRow{PerRepository: true, Deployments: [weekdays]int{0, 3, 0, 0, 0, 0, 0}}
-	if got, want := row.DayCell(1), "– · 3"; got != want {
-		t.Errorf("want %q, got %q", want, got)
+func TestWeekSharesOfTheCommitsSumToAHundredPercentLessRounding(t *testing.T) {
+	row := WeekRow{Commits: [weekdays]int{31, 40, 1234, 8, 17, 6, 2}}
+	sum := 0.0
+	for day := range row.Commits {
+		var share float64
+		if _, err := fmt.Sscanf(row.CommitsShareCell(day), "%f%%", &share); err != nil {
+			t.Fatal(err)
+		}
+		sum += share
 	}
-	if got, want := row.DayCell(0), "– · 0"; got != want {
-		t.Errorf("want %q, got %q", want, got)
+	if sum < 93 || sum > 100 {
+		t.Errorf("want the seven shares to sum to 100%% less rounding down, got %.2f", sum)
 	}
 }
 
-func TestWeekendShareCellIsAShareOfTheCommits(t *testing.T) {
-	for name, c := range map[string]struct {
-		row  WeekRow
-		want string
-	}{
-		"3 of 5":         {WeekRow{Commits: [weekdays]int{1, 0, 1, 0, 0, 2, 1}}, "60%"},
-		"none of 3":      {WeekRow{Commits: [weekdays]int{3, 0, 0, 0, 0, 0, 0}}, "0%"},
-		"1 of 200":       {WeekRow{Commits: [weekdays]int{199, 0, 0, 0, 0, 1, 0}}, "0.50%"},
-		"no commit":      {WeekRow{Deployments: [weekdays]int{0, 0, 0, 0, 0, 5, 0}}, "-"},
-		"per repository": {WeekRow{PerRepository: true}, "Per repository"},
-	} {
-		if got := c.row.WeekendShareCell(); got != c.want {
-			t.Errorf("%s: want %q, got %q", name, c.want, got)
+func TestWeekRowWithoutCommitsOrDeploymentsReadsZeroAndDashes(t *testing.T) {
+	row := WeekRow{Deployments: [weekdays]int{0, 0, 2, 0, 0, 0, 0}}
+	if got, want := row.CommitsTotalCell(), "0"; got != want {
+		t.Errorf("commits total: want %q, got %q", want, got)
+	}
+	if got, want := row.CommitsShareCell(2), "-"; got != want {
+		t.Errorf("commits share: want %q, got %q", want, got)
+	}
+	empty := WeekRow{Commits: [weekdays]int{1, 0, 0, 0, 0, 0, 0}}
+	if got, want := empty.DeploymentsTotalCell(), "0"; got != want {
+		t.Errorf("deployments total: want %q, got %q", want, got)
+	}
+	if got, want := empty.DeploymentsShareCell(0), "-"; got != want {
+		t.Errorf("deployments share: want %q, got %q", want, got)
+	}
+}
+
+func TestWeekRowPerRepositoryWritesAnEnDashForItsCommitsAndKeepsItsDeployments(t *testing.T) {
+	row := WeekRow{PerRepository: true, Deployments: [weekdays]int{0, 3, 1, 0, 0, 0, 0}}
+	for _, got := range []string{row.CommitsTotalCell(), row.CommitsShareCell(0), row.CommitsShareCell(1)} {
+		if want := "\u2013"; got != want {
+			t.Errorf("want an en dash %q, got %q", want, got)
 		}
+	}
+	if got, want := row.DeploymentsTotalCell(), "4"; got != want {
+		t.Errorf("deployments total: want %q, got %q", want, got)
+	}
+	if got, want := row.DeploymentsShareCell(1), "75%"; got != want {
+		t.Errorf("deployments share: want %q, got %q", want, got)
 	}
 }

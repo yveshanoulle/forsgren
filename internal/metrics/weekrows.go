@@ -26,10 +26,9 @@ package metrics
 //   - the deployments of every row are its successful deployments created in
 //     the window (as DeploymentFrequency.InWindow counts them), over the
 //     row's own data for a service or rule;
-//   - the weekend share is the Saturday and Sunday commits over all the
-//     row's commits, never mixing deployments (WeekRow.WeekendShare); a row
-//     with no commits, and a PerRepository row, has none (ok false), which
-//     the page shows as a dash.
+//   - the page shows a Total and, per weekday, the share of the row's commits
+//     and of its deployments (forsgren#540, decision #541; the weekend share
+//     column is gone).
 //
 // sub_rows: false is the page's to honour (Data.leavesOut), as for TbdRows.
 
@@ -57,20 +56,6 @@ type WeekRow struct {
 	Service bool
 }
 
-// WeekendShare is the weekend (Saturday and Sunday) commits over all the
-// row's commits; ok is false for a row with no commits and for a
-// PerRepository row.
-func (r WeekRow) WeekendShare() (share float64, ok bool) {
-	total := 0
-	for _, n := range r.Commits {
-		total += n
-	}
-	if total == 0 {
-		return 0, false
-	}
-	return float64(r.Commits[5]+r.Commits[6]) / float64(total), true
-}
-
 // Week is the Week table: the first and last day of the DORA window as UTC
 // dates, and the rows.
 type Week struct {
@@ -80,12 +65,6 @@ type Week struct {
 
 // weekdayOf is the column of t: 0 for Monday to 6 for Sunday, UTC.
 func weekdayOf(t time.Time) int { return (int(t.UTC().Weekday()) + weekdays - 1) % weekdays }
-
-// dateOf is the UTC date of t, at midnight.
-func dateOf(t time.Time) time.Time {
-	y, m, d := t.UTC().Date()
-	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
-}
 
 // weekSource is what the Week rows are counted from.
 type weekSource struct {
@@ -97,10 +76,8 @@ type weekSource struct {
 // config order, its total row, then a row per label its repositories give.
 func WeekOf(projects []config.Project, data Data, now time.Time) Week {
 	source := weekSource{data: data, now: now}
-	week := Week{
-		Start: dateOf(now.Add(-time.Duration(data.days()) * day)),
-		End:   dateOf(now),
-	}
+	week := Week{}
+	week.Start, week.End = ReportBounds(data.days(), now)
 	for _, p := range projects {
 		week.Rows = append(week.Rows, source.row(ProjectRow, p, p.Name))
 		week.Rows = append(week.Rows, source.labelRows(p)...)
@@ -181,41 +158,47 @@ func (s weekSource) deployedCommitDays(p config.Project, data Data, scope *pathS
 	return days
 }
 
-// perRepositoryWords is what a service or rule row without paths writes for
-// its commits (decision #534 A).
-const perRepositoryWords = "Per repository"
-
 // notAttributed is what a day cell of a row Per repository writes for its
 // commits: an en dash, the commits being counted at repository level, not
 // zero (decision #539 A, Yves 2026-10-27).
 const notAttributed = "\u2013"
 
-// dayDot joins the commits and the deployments of a day: a middle dot
-// between no-break spaces, so a cell never breaks inside.
-const dayDot = "\u00a0\u00b7\u00a0"
-
-// DayCell is the cell of weekday day (0 Monday to 6 Sunday): the commits,
-// a dot and the deployments, the counts grouped as forsgren#528 groups them,
-// 0 · 0 for no activity; an en dash in place of the commits for a
-// PerRepository row (notAttributed), its deployments still its own.
-func (r WeekRow) DayCell(day int) string {
-	commits := notAttributed
-	if !r.PerRepository {
-		commits = GroupDigits(r.Commits[day])
-	}
-	return commits + dayDot + GroupDigits(r.Deployments[day])
-}
-
-// WeekendShareCell is the weekend share written as the TBD shares are
-// (shareOf): a dash for a row with no commits, Per repository for a
-// PerRepository row.
-func (r WeekRow) WeekendShareCell() string {
-	if r.PerRepository {
-		return perRepositoryWords
-	}
+// sum is the total of the per-weekday counts.
+func sum(days [weekdays]int) int {
 	total := 0
-	for _, n := range r.Commits {
+	for _, n := range days {
 		total += n
 	}
-	return shareOf(r.Commits[5]+r.Commits[6], total)
+	return total
+}
+
+// CommitsTotalCell is the row's commits of the window as a count (the
+// thousands rule of forsgren#528); an en dash for a PerRepository row, whose
+// commits are counted at repository level (forsgren#540, decisions #539 A and
+// #541).
+func (r WeekRow) CommitsTotalCell() string {
+	if r.PerRepository {
+		return notAttributed
+	}
+	return GroupDigits(sum(r.Commits))
+}
+
+// DeploymentsTotalCell is the row's successful deployments of the window as
+// a count.
+func (r WeekRow) DeploymentsTotalCell() string { return GroupDigits(sum(r.Deployments)) }
+
+// CommitsShareCell is the share of the row's commits on weekday day (0
+// Monday to 6 Sunday), written as the TBD shares are (shareOf); a dash for a row with no commits, an en
+// dash for a PerRepository row.
+func (r WeekRow) CommitsShareCell(day int) string {
+	if r.PerRepository {
+		return notAttributed
+	}
+	return shareOf(r.Commits[day], sum(r.Commits))
+}
+
+// DeploymentsShareCell is the share of the row's deployments on weekday day,
+// as CommitsShareCell writes it; a dash for a row with none.
+func (r WeekRow) DeploymentsShareCell(day int) string {
+	return shareOf(r.Deployments[day], sum(r.Deployments))
 }

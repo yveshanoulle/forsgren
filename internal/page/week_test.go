@@ -10,16 +10,16 @@ import (
 
 // The Week page (forsgren#531, step 2, decisions #532 A, #533 A, #534 A): a
 // table with a row per project and per label, service and rule, the commits
-// and deployments of the DORA window per weekday, and a weekend share.
+// and deployments of the DORA window per weekday.
 
 // weekPageData is the Week page's data: Acme Shop's total, its Website
-// label, its API service without paths (commits Per repository), and Acme
+// label, its API service without paths (commits not attributed), and Acme
 // Docs with deployments and no commit. The made-up counts differ so no cell repeats.
 func weekPageData() Data {
 	data := calculated()
 	data.Week = metrics.Week{
-		Start: time.Date(2026, 9, 3, 0, 0, 0, 0, time.UTC),
-		End:   time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC),
+		Start: time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC),
+		End:   time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC),
 		Rows: []metrics.WeekRow{
 			{Level: metrics.ProjectRow, Name: "Acme Shop", Project: "Acme Shop",
 				Commits:     [7]int{31, 40, 1234, 8, 17, 6, 2},
@@ -30,7 +30,7 @@ func weekPageData() Data {
 			{Level: metrics.LabelRow, Name: "API", Project: "Acme Shop", Service: true, PerRepository: true,
 				Deployments: [7]int{0, 1, 0, 0, 12, 0, 0}},
 			{Level: metrics.ProjectRow, Name: "Acme Docs", Project: "Acme Docs",
-				Deployments: [7]int{0, 0, 1, 0, 2, 0, 0}},
+				Deployments: [7]int{1, 0, 3, 2, 6, 0, 5}},
 		},
 	}
 	return data
@@ -61,42 +61,61 @@ func TestWeekPageWithoutSubRowsMatchesGolden(t *testing.T) {
 func TestWeekPageSaysItsWindow(t *testing.T) {
 	got := rendered(t, "week.html", weekPageData())
 	wantAll(t, "week.html", got,
-		"The last 30 days, from 2026-09-03 to 2026-10-03, every weekday of that window counted (UTC).")
+		"The last 30 days, from 2026-09-03 12:00 to 2026-10-03 12:00, every weekday of that window counted (UTC).")
 	data := weekPageData()
 	data.DoraDays = 90
-	wantAll(t, "week.html", rendered(t, "week.html", data), "The last 90 days, from 2026-09-03 to 2026-10-03,")
+	wantAll(t, "week.html", rendered(t, "week.html", data), "The last 90 days, from 2026-09-03 12:00 to 2026-10-03 12:00,")
 }
 
-// TestWeekPageHasTheHeadersAndTheReadingLine: Project, the seven weekdays and
-// the weekend share, the figure columns classed num, and the line on reading
-// a cell under the h1.
-func TestWeekPageHasTheHeadersAndTheReadingLine(t *testing.T) {
+// TestWeekPageHasTwoHeaderRows (forsgren#540, decision #541): Project
+// spans both rows, Total and the seven weekdays in full are
+// column groups of two, and each group has Commits and Deploys under it, the
+// cell headers naming their group for a screen reader.
+func TestWeekPageHasTwoHeaderRows(t *testing.T) {
 	got := rendered(t, "week.html", weekPageData())
-	wantAll(t, "week.html", got, `<h1 id="week-heading">Week</h1>`, `<th scope="col">Project</th>`,
-		`<th scope="col" class="num">Mon</th>`, `<th scope="col" class="num">Thu</th>`,
-		`<th scope="col" class="num">Sun</th>`, `<th scope="col" class="num">Weekend share</th>`,
-		"Each day shows commits · deployments")
-	wantCount(t, got, `<th scope="col"`, 9)
+	wantAll(t, "week.html", got, `<h1 id="week-heading">Week</h1>`,
+		`<th scope="col" rowspan="2">Project</th>`,
+		`<th scope="colgroup" colspan="2">Total</th>`, `<th scope="colgroup" colspan="2">Monday</th>`,
+		`<th scope="colgroup" colspan="2">Thursday</th>`, `<th scope="colgroup" colspan="2">Sunday</th>`,
+		`<th scope="col" aria-label="Total commits" class="num">Commits</th>`,
+		`<th scope="col" aria-label="Total deployments" class="num">Deployments</th>`,
+		`<th scope="col" aria-label="Monday commits" class="num">Commits</th>`,
+		`<th scope="col" aria-label="Sunday deployments" class="num">Deployments</th>`)
+	wantNone(t, "week.html", got, ">Mon<", ">Sun<", "commits · deployments")
+	wantCount(t, got, `<th scope="colgroup" colspan="2">`, 8)
+	wantCount(t, got, `<th scope="col" aria-label=`, 16)
+	wantCount(t, got, `<th scope="col" rowspan="2"`, 1)
+	wantNone(t, "week.html", got, "Weekend share", "Deploys")
 }
 
-// TestWeekPageCellsAreCommitsAndDeployments: the day cells, 0 · 0 for a day
-// without activity, a thousands space for 1000 and more, the weekend share
-// as a percent, a dash for a row with no commits.
-func TestWeekPageCellsAreCommitsAndDeployments(t *testing.T) {
+// TestWeekPageReadingLineNamesTheNewTable: the line under the h1.
+func TestWeekPageReadingLineNamesTheNewTable(t *testing.T) {
 	got := rendered(t, "week.html", weekPageData())
 	wantAll(t, "week.html", got,
-		"<td class=\"num\">31 · 4</td>", "<td class=\"num\">1 234 · 9</td>",
-		"<td class=\"num\">0 · 0</td>", "<td class=\"num\">33%</td>", "<td class=\"num\">0.59%</td>",
+		"Total is the commits and the deployments of the window; each weekday shows its share of them as a percentage.")
+	wantNone(t, "week.html", got, "Each day shows")
+}
+
+// TestWeekPageCellsAreTotalsAndPercentages: the Total as counts with the
+// thousands space, the weekday cells as percents written as the TBD shares are, 0% for a
+// day without any, a dash for a row with no
+// commits.
+func TestWeekPageCellsAreTotalsAndPercentages(t *testing.T) {
+	got := rendered(t, "week.html", weekPageData())
+	wantAll(t, "week.html", got,
+		"<td class=\"num\">1"+metrics.ThousandsSpace+"338</td>", "<td class=\"num\">29</td>",
+		"<td class=\"num\">2.3%</td>", "<td class=\"num\">13%</td>",
+		"<td class=\"num\">92%</td>", "<td class=\"num\">0%</td>",
 		"<td class=\"num\">-</td>")
 }
 
-// TestWeekPageRowPerRepositoryKeepsItsDeployments: the commits side reads Per
-// repository, the deployments are the row's own, and the weekend share is the
-// repository's.
+// TestWeekPageRowPerRepositoryKeepsItsDeployments: the commits side reads an
+// en dash, the deployments are the row's own percentages, and the weekend
 func TestWeekPageRowPerRepositoryKeepsItsDeployments(t *testing.T) {
 	got := rendered(t, "week.html", weekPageData())
-	wantAll(t, "week.html", got, "<td>– · 1</td>", "<td>– · 12</td>",
-		"<td>Per repository</td>")
+	wantAll(t, "week.html", got, "<td>\u2013</td>", "<td class=\"num\">7.6%</td>",
+		"<td class=\"num\">92%</td>")
+	wantCount(t, got, "<td>\u2013</td>", 8)
 }
 
 // TestWeekPageHeadsLabelRowsAsTheTbdPageDoes: a label or service row is
@@ -113,7 +132,7 @@ func TestWeekPageLeavesOutSubRowsWithSubRowsOff(t *testing.T) {
 	data := weekPageData()
 	data.HideSubRows = true
 	got := rendered(t, "week.html", data)
-	wantNone(t, "week.html", got, "Website", "API", `class="label"`, "Per repository")
+	wantNone(t, "week.html", got, "Website", "API", `class="label"`, "\u2013")
 	wantAll(t, "week.html", got, `<th scope="row">Acme Shop</th>`, `<th scope="row">Acme Docs</th>`)
 }
 

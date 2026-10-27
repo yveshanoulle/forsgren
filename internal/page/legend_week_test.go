@@ -6,28 +6,29 @@ import (
 )
 
 // legendWeekText are the sentences of the legend's Week page section
-// (forsgren#531, step 4, decisions #532 A, #534 A, #539 A).
+// (forsgren#531, step 4, decisions #532 A, #534 A, #539 A; forsgren#540, decision #541).
 var legendWeekText = []string{
 	"the commits and the deployments of the last 30 days, per weekday from Monday to Sunday",
 	"every weekday of that window, not one calendar week",
 	"Days are in UTC.",
-	"Each day cell reads commits · deployments.",
+	"Total holds the counts of the commits and of the deployments of the window.",
+	"Under each weekday, Commits and Deployments are the share of the row's commits and of its deployments " +
+		"that fall on that weekday, written as the shares on the TBD page are, " +
+		"and the seven shares of a column add up to 100% before rounding.",
 	"A commit is counted at its author date and a deployment at its time.",
 	"the first-parent commits that the pushes to the main branch brought in the window",
 	"The deployments are the successful ones of the window.",
-	"A day without activity reads 0 · 0, and a 0 is zero.",
-	"Weekend share is the commits of Saturday and Sunday out of all the commits of the row.",
-	"Deployments are never mixed into it.",
-	"A dash means the row has no commits",
+	"A weekday without any reads 0%, and a 0 is zero.",
+	"A row with no commits, or no deployments, reads 0 in Total and a dash in its weekday cells, " +
+		"as there is nothing to divide.",
 	"counts its own commits: the commits of its deployments that change one of its paths, each once, " +
 		"as Deployed commits on the TBD page",
-	"Its day cells read – · 3",
+	"Its Total Commits and its Commits cells read –",
 	"the en dash stands for commits not attributed to this service or rule, which are counted at repository " +
 		"level on the project's row",
 	"It is not zero commits, and it does not mean deployment data is missing",
 	"The commits are the ones counted as Commits on the TBD page",
-	"the number after the dot is the deployments of the service or rule itself",
-	"Its Weekend share says Per repository.",
+	"its Deployments cells are the percentages of the deployments of the service or rule itself",
 	"Set week_page: false to take it out of the menu",
 	"it is still generated, can be opened at week.html, and search engines are asked to skip it",
 }
@@ -63,6 +64,12 @@ func TestLegendExplainsTheWeekPage(t *testing.T) {
 }
 
 // TestLegendWeekSectionNamesTheWindowInUse: dora_days 90 reads 90 days.
+func TestLegendWeekSectionHasNoWeekendShare(t *testing.T) {
+	if _, section, _ := weekSection(t, calculated()); strings.Contains(section, "Weekend share") {
+		t.Error("want no Weekend share in the Week page section")
+	}
+}
+
 func TestLegendWeekSectionNamesTheWindowInUse(t *testing.T) {
 	data := calculated()
 	data.DoraDays = 90

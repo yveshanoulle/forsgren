@@ -278,6 +278,7 @@ func TestViewPagesMatchGolden(t *testing.T) {
 func TestViewPagesWithoutDataMatchGolden(t *testing.T) {
 	data := Placeholder(testVersion)
 	data.AsOf = "2026-10-03 12:00"
+	data.ReportStart, data.ReportEnd = "2026-09-03 12:00", "2026-10-03 12:00"
 	checkPageGolden(t, "standard/index.html", "testdata/standard.placeholder.golden.html", data)
 	checkPageGolden(t, "numbers/index.html", "testdata/numbers.placeholder.golden.html", data)
 }
@@ -287,6 +288,7 @@ func TestViewPagesWithoutDataMatchGolden(t *testing.T) {
 func TestNumbersPageWithoutDeploymentsMatchesGolden(t *testing.T) {
 	data := Placeholder(testVersion)
 	data.AsOf = "2026-10-03 12:00"
+	data.ReportStart, data.ReportEnd = "2026-09-03 12:00", "2026-10-03 12:00"
 	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Empty"}})
 	checkPageGolden(t, "numbers/index.html", "testdata/numbers.no-data.golden.html", data)
 }
@@ -297,6 +299,7 @@ func TestNumbersPageWithoutDeploymentsMatchesGolden(t *testing.T) {
 func TestNumbersScoringPageWithoutDeploymentsMatchesGolden(t *testing.T) {
 	data := Placeholder(testVersion)
 	data.AsOf = "2026-10-03 12:00"
+	data.ReportStart, data.ReportEnd = "2026-09-03 12:00", "2026-10-03 12:00"
 	data.Rows = Table([]metrics.Row{{Level: metrics.ProjectRow, Name: "Acme Empty"}})
 	checkPageGolden(t, "numbers-scoring/index.html", "testdata/numbers-scoring.no-data.golden.html", data)
 }

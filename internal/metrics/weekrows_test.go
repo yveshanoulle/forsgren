@@ -150,19 +150,19 @@ func TestWeekRowsAreTotalsThenLabelsLikeTheTbdTable(t *testing.T) {
 	}
 }
 
-// TestWeekWindowIsTheDoraWindowAsUTCDates: the window's first and last day,
+// TestWeekWindowIsTheDoraWindowAsUTCDates: the window's first and last minute (forsgren#542),
 // 30 days back from now by default, and 90 for dora_days 90.
 func TestWeekWindowIsTheDoraWindowAsUTCDates(t *testing.T) {
 	w := WeekOf(weekProjects(), weekData(), now)
-	if want := utc(time.September, 3, 0, 0); !w.Start.Equal(want) {
+	if want := utc(time.September, 3, 12, 0); !w.Start.Equal(want) {
 		t.Errorf("start: want %v, got %v", want, w.Start)
 	}
-	if want := utc(time.October, 3, 0, 0); !w.End.Equal(want) {
+	if want := utc(time.October, 3, 12, 0); !w.End.Equal(want) {
 		t.Errorf("end: want %v, got %v", want, w.End)
 	}
 	data := weekData()
 	data.DoraDays = 90
-	if got, want := WeekOf(weekProjects(), data, now).Start, utc(time.July, 5, 0, 0); !got.Equal(want) {
+	if got, want := WeekOf(weekProjects(), data, now).Start, utc(time.July, 5, 12, 0); !got.Equal(want) {
 		t.Errorf("90-day start: want %v, got %v", want, got)
 	}
 }
@@ -233,9 +233,6 @@ func TestWeekServiceWithoutPathsIsPerRepositoryForCommits(t *testing.T) {
 	if !got.PerRepository || !got.Service {
 		t.Errorf("want Per repository, got PerRepository %v, Service %v", got.PerRepository, got.Service)
 	}
-	if share, ok := got.WeekendShare(); ok {
-		t.Errorf("want no weekend share for Per repository, got %v", share)
-	}
 }
 
 // TestWeekDeploymentRuleIsPerRepositoryWithoutPathsAndOwnWithPaths: a rule
@@ -259,21 +256,6 @@ func TestWeekDeploymentRuleIsPerRepositoryWithoutPathsAndOwnWithPaths(t *testing
 	}
 	if want := [weekdays]int{0, 0, 0, 1, 0, 0, 0}; paths.PerRepository || paths.Commits != want {
 		t.Errorf("Prod API: want its own commits %v, got %v (PerRepository %v)", want, paths.Commits, paths.PerRepository)
-	}
-}
-
-// TestWeekendShareIsWeekendCommitsOverAllCommits: Saturday and Sunday
-// commits of the row, deployments never mixed in; a row with no commits has
-// no share, which the page shows as a dash.
-func TestWeekendShareIsWeekendCommitsOverAllCommits(t *testing.T) {
-	w := WeekOf(weekProjects(), weekData(), now)
-	for name, want := range map[string]struct {
-		share float64
-		ok    bool
-	}{"Website": {0.6, true}, "API": {0, true}, "Extra": {0, false}} {
-		if share, ok := weekRowNamed(t, w, name).WeekendShare(); share != want.share || ok != want.ok {
-			t.Errorf("%s: want %v, %v, got %v, %v", name, want.share, want.ok, share, ok)
-		}
 	}
 }
 

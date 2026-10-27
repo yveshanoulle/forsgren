@@ -705,7 +705,7 @@ does the same for a new installation.
 
 **Upgrading to 1.29.0, which adds the Week page** (forsgren#531, decision #533). A
 minor release. A new page, `week.html`, shows the commits and deployments of
-each weekday of the `dora_days` window and the weekend share of the commits.
+each weekday of the `dora_days` window, as a total and as shares of it.
 The new key `week_page` is optional and `true` when left out, so an installation without `week_page` in its config gets the Week page in its menu, after TBD, with
 this release. To keep it out of the menu, set `week_page: false`: the page is
 still written and reachable by its address. Nothing new is needed: no

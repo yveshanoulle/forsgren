@@ -803,7 +803,7 @@ lists no projects makes the page show, in place of the table and besides
 without `--config` (the build above has no installation config) or with
 projects, the page is the placeholder. With `--data` as well (it needs `--config`), the
 page shows each project's deployment frequency from that history, counted
-back from the moment of the render, which the page names in its footer, "Calculated at 2026-10-03 12:00 UTC" (UTC, to the minute; forsgren#28: the
+back from the moment of the render, which the page names in its footer, "Calculated at 2026-10-03 12:00 UTC Report Start 2026-09-03 12:00 Report End 2026-10-03 12:00" (UTC, to the minute, the report period being the `dora_days` window back from the render time, forsgren#542; forsgren#28: the
 render time, not the time `collect` finished; forsgren#41: shown on every
 run, so two renders differ by their time, and `SOURCE_DATE_EPOCH`, Unix
 seconds as in reproducible builds, 0 or more (a negative or non-numeric value

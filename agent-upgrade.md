@@ -984,7 +984,7 @@ minute and run that check again, at most 5 times, before you report it.
    (step 3 ended and the retries above passed), then read it, and quote in the report
    the rows it checks and every line of the Notes it sees, such as note 8
    `Files still being read` (note 8) when it shows. Rule: never say a note is absent
-   without quoting what the page shows. The Week page (`week.html`) is not read for this check: its `– · n` cells for a service or rule without `paths` are by design.
+   without quoting what the page shows. The Week page (`week.html`) is not read for this check: its `–` cells for a service or rule without `paths` are by design.
 10. No setup issue stays open: `gh issue list -R OWNER/REPO -l forsgren-setup`
    lists no open issue. The run closes it by itself when nothing is missing
    any more. An issue still there: show the person its title and body

@@ -142,7 +142,7 @@ func TestEveryPageEndsWithTheSameFooter(t *testing.T) {
 	for name, data := range map[string]Data{"with data": viewData(), "placeholder": calculated()} {
 		for _, page := range PageNames() {
 			base := menuCases(menuCase{})[page].base
-			want := " Calculated at 2026-10-03 12:00 UTC</p>\n    <p><a href=\"" + base + "settings.html\">Settings</a> " +
+			want := " " + footerReport + "\n    <p><a href=\"" + base + "settings.html\">Settings</a> " +
 				"<a href=\"" + base + "legend.html\">Legend</a></p>\n  </footer>\n"
 			wantAll(t, name+" "+page, rendered(t, page, data), want)
 		}
