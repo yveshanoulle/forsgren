@@ -183,6 +183,8 @@ var legendTbdText = []string{
 	"The rows under the total are sorted by label, ignoring case",
 	"A label row is one repository, with every measure of that repository",
 	"A service row is one deployment task of a repository",
+	"A repository whose configuration lists several deployment rules has a service row for each rule, " +
+		"counted over the deployments of that rule",
 	"Time to deploy per commit, Deployments, Commits per deployment and Developers, counted over the " +
 		"deployments of that task and the commits they shipped",
 	"a service row says Per repository, once across each run of those columns",

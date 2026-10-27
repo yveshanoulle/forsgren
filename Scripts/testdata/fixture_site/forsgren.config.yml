@@ -10,7 +10,9 @@ projects:
           deploy-web: {label: Web, paths: [web/]}
           deploy-admin: Admin
       - name: acme/ios-app
-        deployment: workflow=testflight.yml
+        deployments:
+          workflow=testflight.yml: App
+          environment=beta: {label: Beta, paths: [beta/]}
   - name: Acme Tools
     repositories:
       - name: acme/cli

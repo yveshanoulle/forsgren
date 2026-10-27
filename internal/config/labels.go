@@ -148,6 +148,9 @@ func (c Config) LabelCount() int {
 // Labels are the labels the repository gives its project's rows, sorted:
 // its own, or those of its services.
 func (r Repository) Labels() []string {
+	if rules := r.ruleLabels(); len(rules) > 0 {
+		return slices.Sorted(slices.Values(rules))
+	}
 	if r.Label != "" {
 		return []string{r.Label}
 	}

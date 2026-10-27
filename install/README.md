@@ -47,6 +47,11 @@ Commits per deployment. forsgren reads the files of each commit once, which
 needs **Contents** read on the token; the service row says `Files still being
 read` until it has.
 
+A repository that deploys in more than one way can list its rules with
+`deployments:` in `forsgren.config.yml`, for example `release: Releases` and
+`environment=github-pages: {label: Website, paths: [website/]}`. Each rule is
+its own row on the page, counted as a service is.
+
 This template holds only forsgren's own files. Your configuration and your
 history are yours: they are never in the template, so installing a new
 version never overwrites them.

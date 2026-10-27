@@ -288,6 +288,17 @@ Then wait for the answers.
     commit once (it needs Contents read on the token). Show the `services`
     lines you would write and write them only with the person's yes. The key
     is described in [docs/configuration.md](docs/configuration.md).
+16. **Several ways to deploy.** Ask whether a repository deploys in more than
+    one way, such as releases and a website published to GitHub Pages. Default:
+    no, one `deployment` rule. If yes, ask for each way: what counts as a
+    deployment (`release`, `workflow=<file>.yml` or `environment=<name>`), the
+    label of its row, and, as in question 15, the folders it is built from.
+    A way with no folders shows `Per repository` for its Time to deploy per
+    commit and its Commits per deployment. Show the `deployments:` lines you
+    would write, for example `release: Releases` and
+    `environment=github-pages: {label: Website, paths: [website/]}`, and write
+    them only with the person's yes. The key is described in
+    [docs/configuration.md](docs/configuration.md).
 
 ## Step 3. Look at every measured repository (read only)
 
@@ -501,7 +512,11 @@ projects:
   `services:`, and the short form `deploy-api: API` only for a service the
   person gave no folders. A repository has either `label` or `services`,
   never both.
-- Write every repository's `deployment:` line, also for
+- Write `deployments:` (question 16) only when the person said yes to the
+  lines you showed, in place of the repository's `deployment:` line: never
+  beside `deployment`, `label` or `services`, each rule's value its label or
+  `{label: ..., paths: [...]}`.
+- Write every other repository's `deployment:` line, also for
   `environment=production`, so the file says what was chosen.
 - Indent with spaces only, as shown.
 - On a public data repository, check once more that every repository in

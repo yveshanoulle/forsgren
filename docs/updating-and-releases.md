@@ -687,6 +687,18 @@ No new permission or secret is required for an installation that adds no
 `paths`; `paths` is a new optional key. An agent following
 [agent-upgrade.md](../agent-upgrade.md) asks, for each installation with
 services, whether to add the folders now.
+services, whether to add the folders now.
+
+The same release brings `deployments:` (forsgren#498, decision #499): a
+repository can list several deployment rules with `deployments:`, a map of
+rule to label or to `{label: ..., paths: [...]}`, and each rule becomes its own
+service row, as forsgren's releases and its website could be. `deployment:`
+stays valid and nothing changes for an installation that does not use
+`deployments:`; both keys on one repository are refused. See
+[Configuration](configuration.md#configuration). No new permission or secret
+is required. An agent following [agent-upgrade.md](../agent-upgrade.md) asks
+nothing about it; [agent-installer.md](../agent-installer.md) asks a new
+installation whether a repository deploys in more than one way.
 
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the

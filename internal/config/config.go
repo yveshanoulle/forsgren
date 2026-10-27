@@ -143,6 +143,16 @@ type Deployment struct {
 	Name string
 }
 
+// Rule is one deployment rule of a repository with its row: what counts as a
+// deployment, the label of its row and the folders that belong to it
+// (forsgren#498). The one-rule form of a repository is one rule without a
+// label.
+type Rule struct {
+	Deployment Deployment
+	Label      string
+	Paths      []string
+}
+
 // Repository is one measured GitHub repository.
 type Repository struct {
 	// Name is owner/name, as written in the file.
@@ -158,6 +168,12 @@ type Repository struct {
 	// that belong to its service (forsgren#496); a task without paths has
 	// no entry.
 	Paths map[string][]string
+	// Rules are the deployment rules of a repository written with
+	// `deployments:`, one per entry in file order, nil for the `deployment:`
+	// form (forsgren#498). Deployment stays the first rule's. Read the rules
+	// with DeploymentRules, which gives the one rule of Deployment, without a
+	// label, when Rules is nil.
+	Rules []Rule
 }
 
 // Project groups the repositories that ship one product; the page shows
@@ -392,6 +408,9 @@ type fileRepository struct {
 	Deployment string           `yaml:"deployment"`
 	Label      *text            `yaml:"label"`
 	Services   map[text]service `yaml:"services"`
+	// Deployments is the `deployments:` map, nil when the key is left out
+	// (forsgren#498).
+	Deployments *ruleList `yaml:"deployments"`
 }
 
 // decode reads exactly one YAML document strictly: an unknown key or a value

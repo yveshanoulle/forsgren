@@ -178,6 +178,10 @@ func labelRows(p config.Project, data Data, now time.Time) []Row {
 			labelled.Name = label
 			rows = append(rows, rowOf(LabelRow, labelled, data.ofTask(r.Name, task), now))
 		}
+		for _, rule := range r.Rules {
+			labelled.Name = rule.Label
+			rows = append(rows, rowOf(LabelRow, labelled, data.ofRule(r.Name, rule.Deployment), now))
+		}
 	}
 	slices.SortFunc(rows, byLabel)
 	return rows
@@ -193,9 +197,36 @@ func byLabel(a, b Row) int {
 // case) with task, the commits they shipped, and no failure issue; every
 // other field, the settings of the data, is the parent's.
 func (d Data) ofTask(repository, task string) Data {
-	records := slices.DeleteFunc(slices.Clone(d.Records), func(r history.Record) bool {
-		return !strings.EqualFold(r.Repository, repository) || r.Task != task
+	return d.narrowed(func(r history.Record) bool {
+		return strings.EqualFold(r.Repository, repository) && r.Task == task
 	})
+}
+
+// ofRule is one deployment rule's data (forsgren#498): the deployments of
+// repository (ignoring case) of the rule's kind and name, a release having no
+// name, and the commits they shipped, as ofTask.
+func (d Data) ofRule(repository string, rule config.Deployment) Data {
+	kind := historyKind(rule.Kind)
+	return d.narrowed(func(r history.Record) bool {
+		return strings.EqualFold(r.Repository, repository) && r.Kind == kind && r.Name == rule.Name
+	})
+}
+
+// historyKind is the kind of stored deployment that a rule of kind makes.
+func historyKind(kind config.DeploymentKind) history.Kind {
+	switch kind {
+	case config.Workflow:
+		return history.KindWorkflow
+	case config.Release:
+		return history.KindRelease
+	}
+	return history.KindEnvironment
+}
+
+// narrowed is d over the deployments that keep says yes to and the commits
+// they shipped, without a failure issue.
+func (d Data) narrowed(keep func(history.Record) bool) Data {
+	records := slices.DeleteFunc(slices.Clone(d.Records), func(r history.Record) bool { return !keep(r) })
 	shipped := map[deploymentKey]bool{}
 	for _, r := range records {
 		shipped[keyOf(r.Repository, r.Kind, r.ID)] = true

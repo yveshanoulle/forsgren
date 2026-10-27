@@ -910,6 +910,13 @@ noindex tag (see Unlisted pages under [The page](#the-page), and
     until a commit's files are read it is left out of the service's figures,
     and a deployment with such a commit is left out of Commits per deployment,
     which the note `(8) Files still being read` says.
+  - *A rule row* (forsgren#498). A repository with `deployments:` has a service
+    row for each rule, headed by the rule's label and counted as a service row
+    is, over the deployments of its kind and name (a release having no name),
+    on this table and on the DORA tables; its `paths` are the rule's, and a
+    rule without `paths` says `Per repository` as a service does. The total
+    row counts all of the repository's deployments. `sub_rows: false` hides
+    them as it hides the other label and service rows.
   - *The order and the header.* The rows under a project are sorted by label,
     ignoring case, as on the other tables. A label or service row is
     `class="label"`, its header is the label alone and the project is in a

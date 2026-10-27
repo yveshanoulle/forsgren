@@ -20,11 +20,23 @@ import (
 type source struct {
 	repository string
 	kind       history.Kind
+	// name is the environment or the workflow file, empty for a release and
+	// for a source that stands for a repository and kind alone (idSource):
+	// several rules of one kind are several sources (forsgren#498).
+	name string
 }
 
-// sourceOf is the source of r's repository and kind.
+// sourceOf is the source of r's repository, kind and name: one deployment
+// rule.
 func sourceOf(r history.Record) source {
-	return source{strings.ToLower(r.Repository), r.Kind}
+	return source{strings.ToLower(r.Repository), r.Kind, r.Name}
+}
+
+// idSource is the source of r's repository and kind alone, under which the
+// IDs of the stored deployments are held: a commit knows no name, and a
+// deployment's ID is GitHub's, unique in its repository.
+func idSource(r history.Record) source {
+	return source{repository: strings.ToLower(r.Repository), kind: r.Kind}
 }
 
 // entry is one deployment in the history.
@@ -93,7 +105,7 @@ func loadHeld(path string) (held, error) {
 // hold notes one stored deployment.
 func (h held) hold(r history.Record) {
 	s := sourceOf(r)
-	h.ids[entry{s, r.ID}] = true
+	h.ids[entry{idSource(r), r.ID}] = true
 	if r.CreatedAt.After(h.newest[s]) {
 		h.newest[s] = r.CreatedAt
 	}
@@ -107,7 +119,7 @@ func (h held) hold(r history.Record) {
 
 // has says whether the deployment id of base's source is stored.
 func (h held) has(base history.Record, id int64) bool {
-	return h.ids[entry{sourceOf(base), id}]
+	return h.ids[entry{idSource(base), id}]
 }
 
 // later is the later of a and b.

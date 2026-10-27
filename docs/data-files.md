@@ -1010,6 +1010,15 @@ first, and its committer date (empty when GitHub gives none; forsgren#254).
   own previous deployment. A release's task is its tag, a new one with
   each release, so a repository's releases are one stream. Repository
   names are compared ignoring case.
+- **Several rules** (forsgren#498). A repository written with `deployments:`
+  has one stream for each rule: `collect` reads each rule on its own, one
+  after the other, and stores what they read together. With `deployments:` a
+  stored deployment belongs to the rule with its kind and name (`environment`
+  and its environment, `workflow` and its file, or `release`), which is how the
+  page finds the deployments of a rule's row; the history format does not
+  change. The repository has one reach in `data/reach.csv`, so it moves to the
+  latest reach the rules give, and a rule just added is read from its first
+  chunk.
 - **The previous** is the newest success of the stream before the
   deployment (by `created_at`, then ID), stored by an earlier run or found
   in the same run: a run takes its new deployments oldest first.

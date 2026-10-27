@@ -197,7 +197,8 @@ func (h held) keepCommits(commits []history.Commit, f found) []history.Commit {
 		kept[r.ID] = true
 	}
 	return slices.DeleteFunc(slices.Clone(commits), func(c history.Commit) bool {
-		return !kept[c.DeploymentID] && !h.ids[entry{source{strings.ToLower(c.Repository), c.Kind}, c.DeploymentID}]
+		id := entry{source{repository: strings.ToLower(c.Repository), kind: c.Kind}, c.DeploymentID}
+		return !kept[c.DeploymentID] && !h.ids[id]
 	})
 }
 
@@ -215,8 +216,22 @@ func (w whole) empty() bool { return len(w.records) == 0 && len(w.commits) == 0 
 // successes. A budget cut gives what is whole, with the cut as the error;
 // any other error gives nothing.
 func (o Options) deploymentsOf(ctx context.Context, h held, project string, r config.Repository) (whole, error) {
-	f, err := o.read(ctx, h, history.Record{Project: project, Repository: r.Name, Name: r.Deployment.Name},
-		r.Deployment.Kind)
+	if len(r.DeploymentRules()) > 1 {
+		return o.deploymentsOfRules(ctx, h, project, r)
+	}
+	return o.deploymentsOfRule(ctx, h, ruleRead{project, r.Name, r.Deployment})
+}
+
+// ruleRead is one deployment rule to read: of the repository repo in project.
+type ruleRead struct {
+	project, repo string
+	deployment    config.Deployment
+}
+
+// deploymentsOfRule is deploymentsOf for the one deployment rule x.
+func (o Options) deploymentsOfRule(ctx context.Context, h held, x ruleRead) (whole, error) {
+	f, err := o.read(ctx, h, history.Record{Project: x.project, Repository: x.repo, Name: x.deployment.Name},
+		x.deployment.Kind)
 	if _, cut := cutOf(err); err != nil && !cut {
 		return whole{}, err
 	}

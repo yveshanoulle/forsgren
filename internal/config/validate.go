@@ -349,6 +349,9 @@ func (r fileRepository) toRepository(project string, seen *names) (Repository, e
 	if err := seen.claimRepository(project, r.Name); err != nil {
 		return Repository{}, fmt.Errorf("%s: %w", where, err)
 	}
+	if r.Deployments != nil {
+		return r.toRuledRepository(where)
+	}
 	deployment, err := parseDeployment(r.Deployment)
 	if err != nil {
 		return Repository{}, fmt.Errorf("%s: %w %q: %w", where, ErrDeployment, r.Deployment, err)

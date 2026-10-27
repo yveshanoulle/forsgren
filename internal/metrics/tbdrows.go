@@ -92,7 +92,11 @@ func (s tbdSource) labelRows(p config.Project) []TbdRow {
 		}
 		for task, label := range r.Services {
 			labelled.Name = label
-			rows = append(rows, s.serviceRow(labelled, p.Name, task))
+			rows = append(rows, s.serviceRow(labelled, p.Name, s.data.ofTask(r.Name, task), r.Paths[task]))
+		}
+		for _, rule := range r.Rules {
+			labelled.Name = rule.Label
+			rows = append(rows, s.serviceRow(labelled, p.Name, s.data.ofRule(r.Name, rule.Deployment), rule.Paths))
 		}
 	}
 	slices.SortFunc(rows, func(a, b TbdRow) int {
@@ -114,12 +118,13 @@ func (s tbdSource) row(level Level, p config.Project, project string) TbdRow {
 	return row
 }
 
-// serviceRow is the row of the service task of the repository of p, p being
-// the only project: the measures per deployment over the task's data, the
-// others absent.
-func (s tbdSource) serviceRow(p config.Project, project, task string) TbdRow {
-	service := tbdSource{data: s.data.ofTask(p.Repositories[0].Name, task), now: s.now, groups: s.groups}
-	scope := scopeOf(p.Repositories[0].Paths[task], s.data.CommitFiles)
+// serviceRow is the row of a service of the repository of p, p being the
+// only project: the measures per deployment over the service's data (a task's
+// or a deployment rule's, forsgren#498), counting the commits that touch
+// paths, the others absent.
+func (s tbdSource) serviceRow(p config.Project, project string, data Data, paths []string) TbdRow {
+	service := tbdSource{data: data, now: s.now, groups: s.groups}
+	scope := scopeOf(paths, s.data.CommitFiles)
 	row := service.deployed([]config.Project{p}, LabelRow, project, scope)
 	row.IntervalAbsent, row.PushAbsent, row.Service = true, true, true
 	row.DeployPerRepository = scope == nil

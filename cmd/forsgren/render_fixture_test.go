@@ -58,3 +58,21 @@ func TestTheFixtureSiteShowsARepositoryLabelRow(t *testing.T) {
 		t.Errorf("want a label row with every measure of its own, got %q", row)
 	}
 }
+
+// TestTheFixtureSiteShowsTheRowsOfSeveralDeploymentRules (forsgren#498):
+// Acme Shop's acme/ios-app lists two rules, so App (no paths) and
+// Beta (the folder beta/) are service rows under its total, as services are:
+// App says Per repository for its Time to deploy and Commits per
+// deployment too, Beta shows its own.
+func TestTheFixtureSiteShowsTheRowsOfSeveralDeploymentRules(t *testing.T) {
+	page := fixtureTbd(t)
+	for rule, want := range map[string]int{"App": 6, "Beta": 4} {
+		row := rowOf(page, "Acme Shop", rule)
+		if row == "" {
+			t.Fatalf("want a service row %q under Acme Shop", rule)
+		}
+		if got := strings.Count(row, "Per repository"); got != want {
+			t.Errorf("%s: want %d per-repository cells, got %d in %q", rule, want, got, row)
+		}
+	}
+}

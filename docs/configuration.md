@@ -429,6 +429,41 @@ projects:
   absolute, has a `..` or `.` part, a backslash or a glob character
   (`* ? [ {`), and a path listed twice in one service.
 
+- **`deployments`** is the other form of `deployment` (forsgren#498, from
+  1.26.0), for a repository that deploys in more than one way, such as its
+  releases and the publishing of its website. It is a map of deployment rule
+  to label. Each rule is written as `deployment` writes it
+  (`environment=<name>`, `workflow=<file>.yml` or `release`), and its value is
+  a label, or `{label: ..., paths: [...]}` as a service's. Each entry is its
+  own row, labelled and counted as a service is (above): its own
+  Deployments, deployment frequency, Time to deploy per commit and Commits per
+  deployment, over the deployments of its rule. An entry in the short form has
+  no `paths`, so its Time to deploy per commit and its Commits per deployment
+  say `Per repository`; with `paths` they count only the commits that touch
+  them, as for a service. The total row counts every deployment of the
+  repository.
+
+  ```yaml
+  repositories:
+    - name: acme/site
+      deployments:
+        release: Releases
+        environment=github-pages: {label: Website, paths: [README.md, website/]}
+  ```
+
+  forsgren itself would write its releases and forsgren.be so:
+  `release: Releases` and
+  `environment=github-pages: {label: forsgren.be, paths: [README.md, cmd/readmepage/, internal/readmepage/, internal/page/styles.css]}`.
+  The one-rule form (`deployment`, `label`, `services`) stays valid and
+  unchanged. Refused: `deployment` and `deployments` on one repository,
+  `deployments` beside `label` or `services` (a rule is already the split), an
+  empty rule, a deployment rule listed twice, `deployments: {}`, an empty
+  label, a label used twice in the project (ignoring case) and the refusals
+  of `paths` above. `deployments:` without a value is the key left out. The
+  Settings page and `check-config` count the labels of the rules as they count
+  those of services. Which rule a stored deployment belongs to is its kind and
+  name (see [Data files](data-files.md#collecting-deployments-collect)).
+
 A **failure** is an issue labelled `failure` whose body carries the failure
 record block (see [How it gets its data](data-files.md#how-it-gets-its-data)); lead time runs from a change's first
 commit. Neither is configured per repository in version 1.

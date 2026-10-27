@@ -9,6 +9,17 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — A repository may list several deployment rules, each its own row ([#498](https://github.com/yveshanoulle/forsgren/issues/498), steps 1–4)
+
+forsgren issue 498, minor.
+
+- `deployments:` is a map of deployment rule to label or `{label, paths}` beside the one-rule `deployment:` (`internal/config/deployments.go`, decision #499 A); `Repository.DeploymentRules()` gives one shape for both. `deployment:` stays valid; `deployments:` beside `deployment`, `label` or `services` is refused, as are no rule, an empty or repeated rule and a repeated label.
+- `collect` reads each rule as a repository with that one rule is, one stream each (`internal/collect/rules.go`); a stored deployment's rule is its kind and name, the history format does not change; the reach moves to the latest the rules give.
+- Each rule is a service row on the DORA tables and the TBD page (`Data.ofRule`, `internal/metrics/rows.go`, `tbdrows.go`), with its own deployments and the `paths` of its rule (none: `Per repository`); the total row counts every deployment of the repository; `sub_rows: false` hides the rows. The fixture site shows two rules for one made-up repository.
+- The legend, `docs/configuration.md`, `docs/data-files.md`, `docs/pages-and-views.md`, `docs/updating-and-releases.md` (Upgrading to 1.26.0), `install/README.md` and `agent-installer.md` (asks whether a repository deploys in more than one way) say so; `agent-upgrade.md` and `agent-delete.md` are unchanged.
+
+---
+
 ## 2026-10-27 — A service counts only the commits that touch its folders ([#496](https://github.com/yveshanoulle/forsgren/issues/496), steps 1–5)
 
 forsgren issue 496, minor.

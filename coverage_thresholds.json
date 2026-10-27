@@ -1237,6 +1237,25 @@
     "github.com/yveshanoulle/forsgren/internal/page/tbdgroups.go:deployGroup": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/tbdnotes.go:filesNotes": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/maindirect.go:unreadAt": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/metrics/servicepaths.go:matches": 100.0
+    "github.com/yveshanoulle/forsgren/internal/metrics/servicepaths.go:matches": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/deployments.go:UnmarshalYAML": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/deployments.go:toRuledRepository": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/deployments.go:rules": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/deployments.go:check": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/deployments.go:parseRule": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/deployments.go:oneRule": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/deployments.go:DeploymentRules": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/config/deployments.go:ruleLabels": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/cutshort.go:deploymentsOfRule": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/held.go:idSource": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/rules.go:deploymentsOfRules": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/rules.go:join": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/rules.go:earliestSeen": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/rules.go:readingFrom": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/rules.go:reachAfter": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/collect/rules.go:reachesOr": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:ofRule": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:historyKind": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/rows.go:narrowed": 100.0
   }
 }

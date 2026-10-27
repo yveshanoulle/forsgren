@@ -43,6 +43,12 @@ func TestCheckConfig(t *testing.T) {
 	noKey := writeConfig(t, "version: 1\n")
 	labelled := writeConfig(t, strings.Replace(validConfig, "      - name: acme/api\n",
 		"      - name: acme/api\n        services:\n          deploy-api: API\n          deploy-admin: ADMIN\n", 1))
+	ruled := writeConfig(t, strings.Replace(validConfig, "      - name: acme/api\n",
+		"      - name: acme/api\n        deployments:\n          release: Releases\n"+
+			"          environment=github-pages: {label: Site, paths: [website/]}\n", 1))
+	bothKeys := writeConfig(t, strings.Replace(validConfig,
+		"      - name: acme/ios-app\n        deployment: workflow=testflight.yml\n",
+		"      - name: acme/ios-app\n        deployment: release\n        deployments:\n          release: R\n", 1))
 	emptyLabel := writeConfig(t, validConfig+"        label: \"\"\n")
 	cases := []struct {
 		name   string
@@ -55,6 +61,11 @@ func TestCheckConfig(t *testing.T) {
 			"OK: " + valid + " is a valid forsgren config (version 1): projects: 2, repositories: 3\n", ""},
 		{"labelled rows", []string{"check-config", "--config", labelled}, 0,
 			"OK: " + labelled + " is a valid forsgren config (version 1): projects: 2, repositories: 3, labels: 2\n", ""},
+		{"several rules", []string{"check-config", "--config", ruled}, 0,
+			"OK: " + ruled + " is a valid forsgren config (version 1): projects: 2, repositories: 3, labels: 2\n", ""},
+		{"both deployment keys", []string{"check-config", "--config", bothKeys}, 1, "",
+			"check-config: " + bothKeys + `: project "Acme Shop": repository "acme/ios-app": invalid deployment: ` +
+				"use deployment or deployments, not both"},
 		{"empty label", []string{"check-config", "--config", emptyLabel}, 1, "",
 			"check-config: " + emptyLabel + `: project "Acme Tools": repository "acme/cli": invalid label: a label is empty`},
 		{"no projects yet", []string{"check-config", "--config", none}, 0,
@@ -131,18 +142,29 @@ func TestCheckConfigReadsAutoUpdate(t *testing.T) {
 // a file error is still exit 1.
 func TestCheckConfigReportsARejectedSettingAndExitsZero(t *testing.T) {
 	path := writeConfig(t, "view: Numbers\nhistory_days: 0\n"+validConfig)
-	code, stdout, stderr := runCommand("check-config", "--config", path)
 	wantOut := "OK: " + path + " is a valid forsgren config (version 1): projects: 2, repositories: 3, " +
 		"settings not accepted: 2\n"
 	wantErr := "config: warning: " + path + `: invalid view "Numbers": use standard, numbers or scoring; ` +
 		"using the default standard\n" +
 		"config: warning: " + path + `: invalid history_days "0": use a whole number of days from 30 to 1825; ` +
 		"using the default 365\n"
-	if code != 0 || stdout != wantOut || stderr != wantErr {
-		t.Errorf("want exit 0, stdout %q and stderr %q, got %d, %q, %q", wantOut, wantErr, code, stdout, stderr)
+	if got, want := runCheckConfig(path), (checkConfigRun{0, wantOut, wantErr}); got != want {
+		t.Errorf("want %+v, got %+v", want, got)
 	}
 	broken := writeConfig(t, "view: Numbers\n"+strings.Replace(validConfig, "release", "releases", 1))
-	if code, _, _ := runCommand("check-config", "--config", broken); code != 1 {
-		t.Errorf("want exit 1 for a file error beside a rejected setting, got %d", code)
+	if got := runCheckConfig(broken).code; got != 1 {
+		t.Errorf("want exit 1 for a file error beside a rejected setting, got %d", got)
 	}
+}
+
+// checkConfigRun is what one run of check-config gave.
+type checkConfigRun struct {
+	code           int
+	stdout, stderr string
+}
+
+// runCheckConfig runs check-config on the config at path.
+func runCheckConfig(path string) checkConfigRun {
+	code, stdout, stderr := runCommand("check-config", "--config", path)
+	return checkConfigRun{code, stdout, stderr}
 }
