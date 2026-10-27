@@ -9,6 +9,20 @@ Active work lives in
 
 ---
 
+## 2026-10-27 — The upgrade agent proposes folders for an existing deployments rule or service without paths ([#525](https://github.com/yveshanoulle/forsgren/issues/525), step 1 of 1)
+
+Found by a fresh upgrade agent on an installation already on 1.27.0: the item
+on several ways to deploy applied only to a repository with a `deployment:`
+line or none, so a `release: Releases` rule without `paths` was skipped as
+"already a split". The item now also covers a repository whose `deployments:`
+map exists: for every rule and every service without `paths` the agent reads the
+workflow behind it and proposes its folders, as for a new split, and skips a
+repository only when every rule and service already has `paths`
+(`agent-upgrade.md` step 5, item 6). Tests:
+`internal/installerdoc/agent_upgrade_found_test.go`.
+
+forsgren issue 525, patch.
+
 ## 2026-10-27 — The upgrade agent asks about every item, names the paths columns, keeps its files in its work folder and reads each rule's workflow ([#522](https://github.com/yveshanoulle/forsgren/issues/522), [#520](https://github.com/yveshanoulle/forsgren/issues/520), [#521](https://github.com/yveshanoulle/forsgren/issues/521), [#523](https://github.com/yveshanoulle/forsgren/issues/523), step 1 of 1 each)
 
 Found by a fresh upgrade agent going from 1.26.0 to 1.26.8. An answer that

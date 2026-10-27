@@ -491,10 +491,14 @@ applies:
    reads the files of each commit once, which needs Contents read on a
    fine-grained `FORSGREN_TOKEN`, and that the service row says `Files still
    being read` until it has.
-6. **Several ways to deploy**, for every repository with a `deployment:` line
-   or with none (the default rule): a `deployment:` line does not exclude it,
-   it is what a `deployments:` entry replaces. Only `deployments:`, `label` or
-   `services:` exclude a repository (they are already the split). Always run
+6. **Several ways to deploy**, for every repository with a `deployment:` line,
+   with none (the default rule), or with a `deployments:` map that has a rule
+   or service without `paths`: a `deployment:` line does not exclude it,
+   it is what a `deployments:` entry replaces. A repository whose `deployments:`
+   map already exists is not skipped: for every rule and every service without
+   `paths` (such as `release: Releases`), read the workflow behind it and
+   propose its folders, as for a new split. Skip a repository only when every
+   rule and every service already has `paths`. Always run
    the three commands first and say what each showed; only from that output
    decide whether only one way is in use, and skip the question then, never
    before you have looked. Look yourself (read-only, with the person's `gh`,

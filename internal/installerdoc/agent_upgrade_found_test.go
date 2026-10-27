@@ -43,3 +43,14 @@ func TestUpgraderReadsTheWorkflowBehindEachRule(t *testing.T) {
 			"(for a `release` rule, the workflow that publishes the release), and propose its folders. "+
 			"Never skip the read, never say you have not read it")
 }
+
+// TestUpgraderCoversAnExistingDeploymentsRuleWithoutPaths (forsgren#525): the
+// item on several ways to deploy also covers a repository whose `deployments:`
+// map exists, and skips it only when every rule and service has paths.
+func TestUpgraderCoversAnExistingDeploymentsRuleWithoutPaths(t *testing.T) {
+	wantAll(t, "agent-upgrade.md step 5", upgraderSection(t, "Step 5."),
+		"A repository whose `deployments:` map already exists is not skipped: for every rule "+
+			"and every service without `paths` (such as `release: Releases`), read the workflow behind it "+
+			"and propose its folders, as for a new split. Skip a repository only when every rule "+
+			"and every service already has `paths`")
+}

@@ -10,9 +10,10 @@ import "testing"
 // it is for, then that the three commands run first and each is described.
 func TestUpgraderItem6IsForARepositoryWithADeploymentLine(t *testing.T) {
 	wantAll(t, "agent-upgrade.md step 5", upgraderSection(t, "Step 5."),
-		"for every repository with a `deployment:` line or with none (the default rule)",
+		"for every repository with a `deployment:` line, with none (the default rule), "+
+			"or with a `deployments:` map that has a rule or service without `paths`",
 		"a `deployment:` line does not exclude it",
-		"Only `deployments:`, `label` or `services:` exclude a repository",
+		"Skip a repository only when every rule and every service already has `paths`",
 		"Always run the three commands first and say what each showed",
 		"only from that output decide whether only one way is in use")
 }
