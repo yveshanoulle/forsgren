@@ -42,7 +42,14 @@ func serviceFailure(service string) history.Failure {
 // fake.
 func collectService(t *testing.T, repo config.Repository, service string) (result, string, *gitHub) {
 	t.Helper()
-	g := issuesOnly(t, issueJSON(42, "2026-09-20T08:00:00Z", "", serviceBody(service)))
+	return collectIssue(t, repo, issueJSON(42, "2026-09-20T08:00:00Z", "", serviceBody(service)))
+}
+
+// collectIssue collects the one issue item for repo, and returns the
+// result, the history path and the fake.
+func collectIssue(t *testing.T, repo config.Repository, item string) (result, string, *gitHub) {
+	t.Helper()
+	g := issuesOnly(t, item)
 	path := historyPath(t)
 	return g.collect(t, shop(repo), path, github.DefaultMaxPages), path, g
 }
@@ -165,9 +172,7 @@ func labelledIssue(name string) string {
 // 2): a `service:` label is matched ignoring case and stored as the config
 // spells it, as the record block's line is, with nothing said.
 func TestAServiceLabelOfTheIssueIsResolvedLikeTheServiceLine(t *testing.T) {
-	g := issuesOnly(t, labelledIssue("wEB"))
-	path := historyPath(t)
-	r := g.collect(t, shop(withServices()), path, github.DefaultMaxPages)
+	r, path, g := collectIssue(t, withServices(), labelledIssue("wEB"))
 	wantNoStderr(t, r)
 	wantFailures(t, path, serviceFailure("Web"))
 	g.wantReportOf(t, Report{})
@@ -177,9 +182,7 @@ func TestAServiceLabelOfTheIssueIsResolvedLikeTheServiceLine(t *testing.T) {
 // that names no row counts in the total only, is named on stderr and in the
 // report, and the run does not fail.
 func TestAnUnknownServiceLabelOfTheIssueIsReportedLikeTheServiceLine(t *testing.T) {
-	g := issuesOnly(t, labelledIssue("Mobile app"))
-	path := historyPath(t)
-	r := g.collect(t, shop(withServices()), path, github.DefaultMaxPages)
+	r, path, g := collectIssue(t, withServices(), labelledIssue("Mobile app"))
 	g.wantUnmatched(t, r, UnmatchedService{"acme/app", 42, ServiceUnknown, "Mobile app"},
 		"collect: acme/app: failure issue #42: service \"Mobile app\" is unknown in this repository; "+
 			"the failure was counted in the total only\n")

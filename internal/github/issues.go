@@ -158,11 +158,7 @@ const labelServicePrefix = "service:"
 func (i issue) serviceLabel() string {
 	var names []string
 	for _, l := range i.Labels {
-		if len(l.Name) < len(labelServicePrefix) {
-			continue
-		}
-		head, rest := l.Name[:len(labelServicePrefix)], l.Name[len(labelServicePrefix):]
-		if name := strings.TrimSpace(rest); strings.EqualFold(head, labelServicePrefix) && name != "" {
+		if name := labelService(l.Name); name != "" {
 			names = append(names, name)
 		}
 	}
@@ -172,6 +168,15 @@ func (i issue) serviceLabel() string {
 	return slices.MinFunc(names, func(a, b string) int {
 		return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
 	})
+}
+
+// labelService is the name a label `service:<name>` gives, the prefix in any
+// case and the name trimmed; "" for any other label or an empty name.
+func labelService(label string) string {
+	if len(label) < len(labelServicePrefix) || !strings.EqualFold(label[:len(labelServicePrefix)], labelServicePrefix) {
+		return ""
+	}
+	return strings.TrimSpace(label[len(labelServicePrefix):])
 }
 
 // The keys of the record block.

@@ -28,9 +28,9 @@ func (s span) startsAfter(end time.Time) bool { return !end.IsZero() && s.start.
 // duration is how long the incident lasted, never negative.
 func (s span) duration() time.Duration { return max(s.end.Sub(s.start), 0) }
 
-// spanOf is the issue's time: from its `failure-start:` line, or from its
+// issueSpan is the issue's time: from its `failure-start:` line, or from its
 // opening when it has none, to its closing.
-func spanOf(f history.Failure) span {
+func issueSpan(f history.Failure) span {
 	start := f.FailureStart
 	if start.IsZero() {
 		start = f.OpenedAt
@@ -46,7 +46,7 @@ func issueRecoveries(issues []history.Failure, runs []span, w window, now time.T
 	var times []time.Duration
 	open := 0
 	for _, f := range issues {
-		s := spanOf(f)
+		s := issueSpan(f)
 		if f.OpenedAt.After(now) || overlapsAny(s, runs) {
 			continue
 		}

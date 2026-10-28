@@ -11,12 +11,9 @@ import (
 // (zero: the issue's body names no failure-start), the issue was opened
 // opened before now and closed closed before now (zero: still open).
 func incident(start, opened, closed time.Duration) history.Failure {
-	f := history.Failure{Repository: "acme/app", Issue: 7, OpenedAt: now.Add(-opened)}
+	f := openFor("acme/app", opened, closed)
 	if start > 0 {
 		f.FailureStart = now.Add(-start)
-	}
-	if closed > 0 {
-		f.ClosedAt = now.Add(-closed)
 	}
 	return f
 }
