@@ -1,6 +1,9 @@
 package page
 
-import "testing"
+import (
+	"testing"
+	"unicode/utf8"
+)
 
 // generated ends every description, as Yves worded it (forsgren#208); the
 // test writes it out so a wrong constant in the page cannot pass.
@@ -17,8 +20,8 @@ const (
 	daysSentence    = "Issues opened, closed and reopened on each of the last 30 days"
 	historySentence = "The history of the DORA metrics per project: " +
 		"each half-year and the last 6 months"
-	tbdSentence = "Trunk-based development per project: PR Lead Time, Time to main and Time to deploy, " +
-		"commits per push and per deployment, the Mainline Interval and the developers"
+	tbdSentence = "Trunk-based development per project: the Mainline Interval, the lead times, " +
+		"commits per push and per deployment and the developers"
 	weekSentence = "Deployments, failed deployments and fail rate per weekday, " +
 		"with commits when week_commits is true"
 	legendSentence = "How the DORA numbers are counted and scored: " +
@@ -67,5 +70,24 @@ func TestEveryPageCarriesAMetaDescription(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			wantAll(t, c.page, rendered(t, c.page, c.data), `<meta name="description" content="`+c.sentence+generated+`">`)
 		})
+	}
+}
+
+// maxDescription is the most characters a meta description may have, the
+// suffix counted (forsgren#556): a search result shows about 160.
+const maxDescription = 160
+
+// TestEveryDescriptionFitsASearchResult (forsgren#556): every page's
+// description, its sentence and the suffix together, is 160 characters or
+// fewer, so no page can grow past what a search result shows.
+func TestEveryDescriptionFitsASearchResult(t *testing.T) {
+	if len(descriptions) == 0 {
+		t.Fatal("no descriptions to measure")
+	}
+	for key := range descriptions {
+		description := pageData{Page: key}.Description()
+		if n := utf8.RuneCountInString(description); n > maxDescription {
+			t.Errorf("%s: description is %d characters, want %d or fewer: %q", key, n, maxDescription, description)
+		}
 	}
 }

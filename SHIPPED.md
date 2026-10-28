@@ -9,6 +9,25 @@ Active work lives in
 
 ---
 
+## 2026-10-28 — The TBD page description fits 160 characters ([#556](https://github.com/yveshanoulle/forsgren/issues/556))
+
+Found while 551 was finished: the TBD page's meta description was 183
+characters with the suffix, over the 160 a search result shows, and the pages
+reference still listed an older sentence for `tbd.html` and said the longest
+description, the standard one, was 128 characters and the others 66 to 103.
+The TBD description now reads Trunk-based development per project: the
+Mainline Interval, the lead times, commits per push and per deployment and the
+developers (152 characters with the suffix). The pages reference lists it, and
+its length sentence says the longest, the TBD one, is 152 characters, the
+standard one 128 and the others 66 to 119. Tests: a new test fails any page
+whose description, the suffix counted, is longer than 160 characters; the
+description test wants the new TBD sentence, and the TBD golden pages carry it.
+Nothing to do for an installation.
+
+forsgren issue 556, patch (1.29.5).
+
+---
+
 ## 2026-10-28 — The Legend's Week section describes the default columns ([#555](https://github.com/yveshanoulle/forsgren/issues/555))
 
 Found while 551 was finished: the Legend's Week section still said that Total
