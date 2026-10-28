@@ -3,7 +3,7 @@
 # place of Scripts/required_tools.txt; the main quality job keeps the full list.
 #
 # ONLY what its gates and its own site build run: the browser process
-# self-test, the browser gate and the fixture-site pair drive
+# self-test, the browser gate and the fixture-site gate drive
 # Scripts/browser_gate.mjs with Node, and Scripts/build_site.sh and
 # Scripts/build_fixture_site.sh build forsgren with Go. Chrome comes with the
 # hosted image and puppeteer-core and axe-core with npm ci. A tool a gate calls

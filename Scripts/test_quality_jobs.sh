@@ -74,7 +74,7 @@
 #      secret scan and the exit-trap gate); quality_2, browser_1 and browser
 #      pass their own list, Scripts/required_tools_<job>_gates.txt, which
 #      exists and lists exactly the tools its gates need (go and node for the
-#      browser job, node alone for browser_1, go, node and jq for quality_2),
+#      browser job, go and node for browser_1, go, node and jq for quality_2),
 #      and no gate of a job names a tool of Scripts/required_tools.txt that
 #      the job's list lacks (a missing tool must fail the gate, not skip it)
 #   5b. the report job takes every gate job's result into QS_JOB_STATUS:
@@ -224,7 +224,7 @@ tools_file_findings() {
     fi
     case "$job" in
       quality_2) want='go jq node ' ;;
-      browser_1) want='node ' ;;
+      browser_1) want='go node ' ;;
       *) want='go node ' ;;
     esac
     listed="$(listed_tools "$file")"
@@ -441,7 +441,7 @@ Q2_ROWS=('quality_2|Go tests' 'quality_2|Go coverage'
 groups_findings() {
   local rows labels
   labels="$(printf '%s\n' 'isolation_1|git sandbox isolation self-test|--shard 1/2' 'isolation_2|git sandbox isolation self-test|--shard 2/2' 'summary|step summary isolation' \
-    'browser_1|browser gate self-test' 'browser|browser gate process self-test' 'browser|browser gate' 'browser|browser gate (fixture site) self-test' 'browser|browser gate (fixture site)' \
+    'browser_1|browser gate self-test' 'browser_1|browser gate (fixture site) self-test' 'browser|browser gate process self-test' 'browser|browser gate' 'browser|browser gate (fixture site)' \
     'lint|actionlint self-test' 'lint|actionlint forsgren cases self-test' 'lint|actionlint' \
     'lint|shellcheck self-test' 'lint|shellcheck' 'lint|yamllint self-test' 'lint|yamllint' \
     'lint|zizmor self-test' 'lint|zizmor' 'lint|Go lint self-test' 'lint|Go lint' \
@@ -454,7 +454,7 @@ groups_findings() {
   [[ -f "$GROUPS_FILE" ]] || { echo "groups: ${GROUPS_FILE} does not exist"; return 0; }
   rows="$(grep -v '^#' "$GROUPS_FILE" | grep . | LC_ALL=C sort | tr '\n' ';')"
   [[ "$rows" == "$labels" ]] \
-    || echo "groups: ${GROUPS_FILE} must give the two isolation jobs the git sandbox isolation self-test, one shard each (isolation_1 with --shard 1/2, isolation_2 with --shard 2/2), the summary job the step summary isolation gate, the browser_1 job the browser gate self-test alone, the browser job the two browser gates and the other two self-tests, the lint job actionlint, shellcheck, yamllint and zizmor with their self-tests and Go lint with its self-test, the quality_2 job the eleven gates of forsgren#447 (the Go tests with the Go coverage gate, nine more), and the workflows job gate wiring, the checkout pins mutations and the pins of the metrics, release, starter page, vulncheck, auto-update and preview workflows and of this job layout, go mod tidy and the Go test duplication and Go vulnerabilities self-tests, got: ${rows:-none}"
+    || echo "groups: ${GROUPS_FILE} must give the two isolation jobs the git sandbox isolation self-test, one shard each (isolation_1 with --shard 1/2, isolation_2 with --shard 2/2), the summary job the step summary isolation gate, the browser_1 job the browser gate self-test and the browser gate (fixture site) self-test, the browser job the two browser gates and the process self-test, the lint job actionlint, shellcheck, yamllint and zizmor with their self-tests and Go lint with its self-test, the quality_2 job the eleven gates of forsgren#447 (the Go tests with the Go coverage gate, nine more), and the workflows job gate wiring, the checkout pins mutations and the pins of the metrics, release, starter page, vulncheck, auto-update and preview workflows and of this job layout, go mod tidy and the Go test duplication and Go vulnerabilities self-tests, got: ${rows:-none}"
   while IFS='|' read -r job label _args; do
     awk -F'|' -v l="$label" '$1 == l && ($3 == "pre" || $3 == "post")' <(grep -v '^#' "$ORDER") | has . \
       || echo "groups: '${label}' is no pre or post row of ${ORDER}"
@@ -702,7 +702,10 @@ OUT="$(GROUPS_FILE="${VERDICT_TMP}/twojobs.txt" groups_findings)"
 expect_named "a gate in quality_2 and in another job" "union: a quality_2 or browser_1 gate is also in another job"
 sed 's/^browser_1|browser gate self-test$/browser|browser gate self-test/' "$GROUPS_FILE" > "${VERDICT_TMP}/nob1.txt"
 OUT="$(GROUPS_FILE="${VERDICT_TMP}/nob1.txt" groups_findings)"
-expect_named "a group file that leaves the browser gate self-test in the browser job" "the browser_1 job the browser gate self-test alone"
+expect_named "a group file that leaves the browser gate self-test in the browser job" "the browser_1 job the browser gate self-test and the browser gate (fixture site) self-test"
+sed 's/^browser_1|browser gate (fixture site) self-test$/browser|browser gate (fixture site) self-test/' "$GROUPS_FILE" > "${VERDICT_TMP}/nofx.txt"
+OUT="$(GROUPS_FILE="${VERDICT_TMP}/nofx.txt" groups_findings)"
+expect_named "a group file that leaves the fixture site self-test in the browser job" "the browser_1 job the browser gate self-test and the browser gate (fixture site) self-test"
 { cat "$GROUPS_FILE"; echo 'browser|browser gate self-test'; } > "${VERDICT_TMP}/b1twice.txt"
 OUT="$(GROUPS_FILE="${VERDICT_TMP}/b1twice.txt" groups_findings)"
 expect_named "the browser gate self-test in browser_1 and in the browser job" "union: a quality_2 or browser_1 gate is also in another job"
@@ -724,9 +727,12 @@ grep -vx 'node' "$(tools_file_of browser)" > "${VERDICT_TMP}/nonode/required_too
 OUT="$(TOOLS_DIR="${VERDICT_TMP}/nonode" tools_file_findings)"
 expect_named "a browser list without node" "lists 'go ', the browser job needs 'go node '"
 expect_named "the browser gate that calls node" "the browser gate gate_browser calls node"
-{ cat "$(tools_file_of browser_1)" 2> /dev/null || true; echo 'go'; } > "${VERDICT_TMP}/extra/required_tools_browser_1_gates.txt"
+{ cat "$(tools_file_of browser_1)" 2> /dev/null || true; echo 'jq'; } > "${VERDICT_TMP}/extra/required_tools_browser_1_gates.txt"
 OUT="$(TOOLS_DIR="${VERDICT_TMP}/extra" tools_file_findings)"
-expect_named "a browser_1 list with a tool its gate does not need" "lists 'go node ', the browser_1 job needs 'node '"
+expect_named "a browser_1 list with a tool its gate does not need" "lists 'go jq node ', the browser_1 job needs 'go node '"
+grep -vx 'go' "$(tools_file_of browser_1)" > "${VERDICT_TMP}/extra/required_tools_browser_1_gates.txt" || true
+OUT="$(TOOLS_DIR="${VERDICT_TMP}/extra" tools_file_findings)"
+expect_named "a browser_1 list without go, which its fixture site self-test needs to build the site" "lists 'node ', the browser_1 job needs 'go node '"
 : > "${VERDICT_TMP}/empty/required_tools_browser_1_gates.txt"
 OUT="$(TOOLS_DIR="${VERDICT_TMP}/empty" tools_file_findings)"
 expect_named "an empty browser_1 list" "required_tools_browser_1_gates.txt does not exist or is empty"

@@ -2,10 +2,14 @@
 # line. Read by Scripts/install_tools.sh, which the job runs with this file in
 # place of Scripts/required_tools.txt; the main quality job keeps the full list.
 #
-# ONLY what its one gate runs: the browser gate self-test
+# ONLY what its two gates run: the browser gate self-test
 # (Scripts/test_gate_browser.sh), which drives Scripts/browser_gate.mjs with
-# Node. It builds no site, so it needs no Go. Chrome comes with the hosted
-# image and puppeteer-core with npm ci. A tool the gate calls but this list
+# Node, and, since step 7, the fixture site self-test
+# (Scripts/test_gate_browser_fixture.sh), whose case 7 builds the fixture site
+# with Scripts/build_fixture_site.sh (go build), so it needs Go too. The job
+# builds no site of its own. Chrome comes with the hosted image and
+# puppeteer-core with npm ci. A tool the gate calls but this list
 # lacks fails the gate, never skips it; Scripts/test_quality_jobs.sh is red when
 # a listed gate names a tool of Scripts/required_tools.txt that is not here.
+go
 node

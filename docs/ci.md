@@ -57,7 +57,7 @@ secret scan (gitleaks) and the exit-trap gate. The other three macOS jobs pass
 the installer a list of their own, so a job installs only what its gates and
 its site build run, not the 75 to 219 seconds of the full set:
 `quality_2` takes `Scripts/required_tools_quality_2_gates.txt` (go, node, jq),
-`browser_1` takes `Scripts/required_tools_browser_1_gates.txt` (node) and
+`browser_1` takes `Scripts/required_tools_browser_1_gates.txt` (go, node) and
 `browser` takes `Scripts/required_tools_browser_gates.txt` (go, node). Each list
 was read from the scripts of the job's rows in `Scripts/ci_job_groups.txt` and
 the scripts those call. A tool a gate needs and its list lacks is not skipped:
@@ -188,16 +188,19 @@ and the two renderers write the one Quality report to its run page, with the
 status taken from the jobs' results. The `preview` job `needs:` all of them.
 The `browser` job (step 3) runs the browser gate process self-test (the exits,
 forsgren#386), the browser gate
-and the browser gate on the fixture site with its self-test, with the same
+and the browser gate on the fixture site (its self-test has the `browser_1`
+job since step 7), with the same
 setup (the hosted image's Chrome, puppeteer-core and axe-core from `npm ci`).
 The browser gate reads the built site, so the job runs its PRE rows, builds
 its own site with `Scripts/build_site.sh`, then runs its POST rows, all with
 the job name `browser`.
-The `browser_1` job (forsgren#447) runs the browser gate self-test alone, with
-the same setup and the job name `browser_1`. It was 256 s of the browser job's
-558 s of gates, so the browser job took about 10.6 minutes; split, `browser_1`
-is about 5.6 minutes and `browser` about 6.5. It builds no site: the self-test
-is a PRE row and reads no built site. The order file is unchanged. The report
+The `browser_1` job (forsgren#447) runs the browser gate self-test and, since
+step 7, the browser gate (fixture site) self-test (64 s on average, 101 s at
+most), with the same setup and the job name `browser_1`. The first was 256 s of
+the browser job's 558 s of gates, so the browser job took about 10.6 minutes;
+split, `browser_1` is about 5.6 minutes before step 7 and `browser` about 6.5.
+It builds no site: both self-tests are PRE rows and read no built site (the
+fixture self-test builds the fixture site itself, hence go in its tools list). The order file is unchanged. The report
 job's status takes its result too, and the `preview` job `needs:` it.
 The `lint` job (forsgren#282) runs actionlint, shellcheck, yamllint and zizmor
 with their self-tests, the lint rows of the order file's static block, with the
