@@ -72,7 +72,8 @@ func TestWeekPageHasNoExplanationLines(t *testing.T) {
 
 // TestWeekPageHasTwoHeaderRows (forsgren#540, decision #541): Project
 // spans both rows, Total and the seven weekdays in full are
-// column groups of four, and each group has Commits, Deployments, Failed and Fail rate under it, the
+// column groups of four, and each group has Commits, Deployments (Deploys
+// under a weekday, forsgren#552), Failed and Fail rate under it, the
 // cell headers naming their group for a screen reader.
 func TestWeekPageHasTwoHeaderRows(t *testing.T) {
 	got := rendered(t, "week.html", weekPageData())
@@ -83,7 +84,7 @@ func TestWeekPageHasTwoHeaderRows(t *testing.T) {
 		`<th scope="col" aria-label="Total commits" class="num">Commits</th>`,
 		`<th scope="col" aria-label="Total deployments" class="num">Deployments</th>`,
 		`<th scope="col" aria-label="Monday commits" class="num">Commits</th>`,
-		`<th scope="col" aria-label="Sunday deployments" class="num">Deployments</th>`,
+		`<th scope="col" aria-label="Sunday deployments" class="num">Deploys</th>`,
 		`<th scope="col" aria-label="Total failed deployments" class="num">Failed</th>`,
 		`<th scope="col" aria-label="Total fail rate" class="num">Fail rate</th>`,
 		`<th scope="col" aria-label="Monday failed deployments" class="num">Failed</th>`,
@@ -92,7 +93,7 @@ func TestWeekPageHasTwoHeaderRows(t *testing.T) {
 	wantCount(t, got, `<th scope="colgroup" colspan="4">`, 8)
 	wantCount(t, got, `<th scope="col" aria-label=`, 32)
 	wantCount(t, got, `<th scope="col" rowspan="2"`, 1)
-	wantNone(t, "week.html", got, "Weekend share", "Deploys")
+	wantNone(t, "week.html", got, "Weekend share")
 }
 
 // TestWeekPageCellsAreTotalsAndPercentages: the Total as counts with the

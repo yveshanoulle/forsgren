@@ -1376,6 +1376,9 @@ section.
   Deployments cell, each the share of the row's commits (or deployments) on
   that weekday, written like the shares on the TBD page (`13%`, `9.3%`,
   `0.22%`, `0%` for a weekday without any); the seven shares of a column add up to 100%, rounding aside.
+  The weekday groups head that column Deploys, which saves width (forsgren#552);
+  Total keeps Deployments, and every header's `aria-label` keeps the full
+  word (`Monday deployments`), so a screen reader hears deployments.
   A row with no commits reads `-` in its seven Commits cells, and one with no
   deployments in its seven Deployments cells, as there is nothing to divide.
   A commit counts at its author date and a deployment at its time, both in UTC
@@ -1401,8 +1404,11 @@ section.
   visually hidden word "highest" for a screen reader, so colour is never the
   only signal. The legend's Week page section says all of this in one
   paragraph.
-- **The Total row** (forsgren#552, decision #553), the last row of the table,
-  in its footer (`<tfoot>`): every project row added up, per weekday, the
+- **The Total row** (forsgren#552, decision #553, built as a header line on
+  Yves's reply), the first row of the table body, right under the column
+  headers and before the first project row (`<tr class="week-total">`, a row
+  header `Total` and data cells, so it stays a data row and not a header
+  row): every project row added up, per weekday, the
   commits (shown with `week_commits: true`), the successful deployments and
   the failed ones. A label, service or rule row is not added again, its
   project's row already counting it, so `sub_rows: false` leaves the Total
@@ -1410,8 +1416,15 @@ section.
   the shares of the sums under each weekday, and Fail rate the failed
   deployments of the sums out of their successful plus failed ones, not a
   mean of the projects' rates; its highest Failed and Fail rate weekdays are
-  red as in every row. A page without a table (no projects, or nothing
-  collected) has no Total row.
+  red as in every row. The row is shaded (Yves's ruling on #552): its
+  background is a little of the text colour, `color-mix(in srgb, currentcolor
+  8%, transparent)` on `tr.week-total` in `styles.css`, so it follows the light and
+  the dark scheme with no colour of its own, and its text and red marks keep
+  4.5:1 or more (`weektotalshade_test.go`). The Total row appears only with two project rows or
+  more (label, service and rule rows not counted; Yves's ruling on #552): with
+  one project it would only repeat that project's row, so the table has no
+  Total row. A page without a table (no projects, or nothing collected) has no
+  Total row.
 - **The commits** of a project's total row and of a repository's label row are
   the set of the Commits column of the TBD page: the first-parent commits
   that the pushes to the main branch brought in the window, each once. The

@@ -123,6 +123,15 @@ li {
   color: light-dark(#b3261e, #ff8a80);
 }
 
+/* The Total row of the Week page, the first row under the column headers, is
+   shaded (forsgren#552, Yves's ruling): a little of the text colour mixed into the
+   canvas, so it follows the light and the dark scheme with no colour of its
+   own; the text and the red of .highest still read at 4.5:1 or more on it,
+   which TestWeekTotalRowKeepsItsTextAndRedMarksReadable measures. */
+tr.week-total {
+  background-color: color-mix(in srgb, currentcolor 8%, transparent);
+}
+
 .trend-down {
   color: light-dark(#1b6e2f, #7fd98f);
 }

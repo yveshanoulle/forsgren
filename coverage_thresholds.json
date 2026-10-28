@@ -1201,6 +1201,7 @@
     "github.com/yveshanoulle/forsgren/internal/page/week.go:commitsCell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/week.go:WeekRows": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/week.go:WeekTotal": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/week.go:WeekHasTotal": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/weektotal.go:Total": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/weektotal.go:addDays": 100.0,
     "github.com/yveshanoulle/forsgren/cmd/forsgren/render.go:weekMode": 100.0,

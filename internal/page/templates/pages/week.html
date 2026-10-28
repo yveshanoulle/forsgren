@@ -10,21 +10,19 @@
 {{end}}          </tr>
           <tr>
 {{range .WeekGroups}}{{if $.WeekCommits}}            <th scope="col" aria-label="{{.CommitsLabel}}" class="num">Commits</th>
-{{end}}            <th scope="col" aria-label="{{.DeploymentsLabel}}" class="num">Deployments</th>
+{{end}}            <th scope="col" aria-label="{{.DeploymentsLabel}}" class="num">{{.DeploymentsHeader}}</th>
             <th scope="col" aria-label="{{.FailedLabel}}" class="num">Failed</th>
             <th scope="col" aria-label="{{.FailRateLabel}}" class="num">Fail rate</th>
 {{end}}          </tr>
         </thead>
         <tbody>
-{{range .WeekRows}}          <tr{{if .IsLabel}} class="label"{{end}}>
+{{if .WeekHasTotal}}          <tr class="week-total">
+            <th scope="row">{{.WeekTotal.Name}}</th>
+{{template "weekcells" .WeekTotal.Cells}}          </tr>
+{{end}}{{range .WeekRows}}          <tr{{if .IsLabel}} class="label"{{end}}>
             <th scope="row">{{if .IsLabel}}<span class="visually-hidden">{{.Project}}: </span>{{template "labelheader" (labelheader .Name)}}{{else}}{{.Name}}{{end}}</th>
 {{template "weekcells" .Cells}}          </tr>
 {{end}}        </tbody>
-        <tfoot>
-          <tr>
-            <th scope="row">{{.WeekTotal.Name}}</th>
-{{template "weekcells" .WeekTotal.Cells}}          </tr>
-        </tfoot>
       </table>
     </div>
 {{else}}    <p>{{.WeekMessage}}</p>

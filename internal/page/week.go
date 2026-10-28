@@ -20,9 +20,21 @@ var weekGroups = []string{"Total", "Monday", "Tuesday", "Wednesday", "Thursday",
 // weekDays is the number of weekdays among the groups.
 const weekDays = 7
 
-// WeekGroup is a column group of the header: its name, and the labels of its
-// Commits, Deployments, Failed and Fail rate headers for a screen reader.
-type WeekGroup struct{ Name, CommitsLabel, DeploymentsLabel, FailedLabel, FailRateLabel string }
+// WeekGroup is a column group of the header: its name, the labels of its
+// Commits, Deployments, Failed and Fail rate headers for a screen reader, and
+// the visible text of its deployments header: Deployments under Total,
+// Deploys under a weekday (forsgren#552), the label keeping the full word.
+type WeekGroup struct {
+	Name, CommitsLabel, DeploymentsLabel, FailedLabel, FailRateLabel string
+	DeploymentsHeader                                                string
+}
+
+// weekdayDeploymentsHeader is the shorter header of a weekday's deployments,
+// which saves width; totalDeploymentsHeader is the Total group's.
+const (
+	weekdayDeploymentsHeader = "Deploys"
+	totalDeploymentsHeader   = "Deployments"
+)
 
 // WeekTitle is weekTitle, for the templates that name the Week page.
 func (d Data) WeekTitle() string { return weekTitle }
@@ -32,8 +44,9 @@ func (d Data) WeekGroups() []WeekGroup {
 	groups := make([]WeekGroup, len(weekGroups))
 	for i, name := range weekGroups {
 		groups[i] = WeekGroup{name, name + " commits", name + " deployments",
-			name + " failed deployments", name + " fail rate"}
+			name + " failed deployments", name + " fail rate", weekdayDeploymentsHeader}
 	}
+	groups[0].DeploymentsHeader = totalDeploymentsHeader
 	return groups
 }
 
@@ -129,6 +142,20 @@ func (d Data) WeekRows() []WeekRow {
 	return rows
 }
 
-// WeekTotal is the Total row of the table's footer: the sum of every project
+// WeekTotal is the Total row, the first row under the column headers
+// (Yves's reply on #553): the sum of every project
 // row, with the cells of a project row (forsgren#552, decision #553 A).
 func (d Data) WeekTotal() WeekRow { return WeekRow{d.Week.Total(), d.WeekCommits} }
+
+// WeekHasTotal says whether the table has its Total row: only with two
+// project rows or more, label, service and rule rows not counted, since one
+// project's Total would only repeat its row (forsgren#552, Yves's ruling).
+func (d Data) WeekHasTotal() bool {
+	projects := 0
+	for _, row := range d.Week.Rows {
+		if row.Level == metrics.ProjectRow {
+			projects++
+		}
+	}
+	return projects >= 2
+}

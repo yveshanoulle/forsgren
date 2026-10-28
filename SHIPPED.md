@@ -9,6 +9,45 @@ Active work lives in
 
 ---
 
+## 2026-10-28 — The Week page adds up every project in a Total row, and heads the weekday deployments Deploys ([#552](https://github.com/yveshanoulle/forsgren/issues/552), decisions [#553](https://github.com/yveshanoulle/forsgren/issues/553) and [#554](https://github.com/yveshanoulle/forsgren/issues/554))
+
+Asked for by Yves: a total line on the Week page, to see the total number of
+deployments and failures, and the header Deployments shortened to Deploys
+under every weekday, not under Total, to save width; both in one release.
+Step 1: a Total row adds up every project row (decision #553 A): per weekday
+and in the Total group, the successful deployments, the failed ones and, with
+`week_commits: true`, the commits; its cells take the form of a project row's
+(counts in Total, the shares of the sums under each weekday) and its Fail rate
+is the failed deployments of the sums out of their successful plus failed
+ones, not a mean of the projects' rates. A label, service or rule row is not
+added again, as its project's row already counts it. Its highest Failed and
+Fail rate weekdays are red as in every row (decision #554 A). Step 2: the
+Total row moves from the table footer to the top, a header line (Yves's reply
+on #553): the first row of the body, right under the column headers and
+before the first project row, still a data row with Total as its row header;
+it appears only with two project rows or more (Yves's ruling; label,
+service and rule rows not counted), since with one project it would only
+repeat that project's row; it is shaded (Yves's ruling), its
+background a little of the text colour (`color-mix` with `currentcolor` on
+`tr.week-total`), so it follows the light and the dark scheme with no colour of
+its own and its text and red marks keep 4.5:1 or more; and the seven weekday groups head their
+deployments column Deploys, the Total group keeps Deployments, and every
+`aria-label` keeps the full word (`Monday deployments`), so a screen reader
+hears deployments. The legend's Week section says what the Total row adds up,
+that it is the first row, needs two projects or more and is shaded, and that Deploys stands for deployments,
+and so does the pages reference. The fixture site (three projects, so it keeps
+its Total row) has a narrower Week table: the browser baseline rows of
+`week.html` shrink to 187 and 1077 px (was 467 and 1357). Tests: the Total
+row's sums and cells (`metrics.Week.Total`), its place before the first
+project row with no footer, one project without and two
+projects with a Total row, the shade rule and its contrast in both schemes, the header test in both `week_commits` modes, the
+goldens of the Week page with and without commits and without sub-rows, the
+legend sentences and the docs. Nothing to do for an installation.
+
+forsgren issue 552, patch (1.29.4).
+
+---
+
 ## 2026-10-28 — The Week page's Commits columns are off unless week_commits is true ([#548](https://github.com/yveshanoulle/forsgren/issues/548), decision [#549](https://github.com/yveshanoulle/forsgren/issues/549))
 
 Asked for by Yves: an option to turn off all the Commits columns of the Week
