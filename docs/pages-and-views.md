@@ -204,7 +204,8 @@ can be reverted there):
   or edge counts, any stream, any age) is taken to be that incident and
   is left out: the run's recovery counts alone. An issue that overlaps no
   run is a recovery of its own. A service or deployment rule row counts
-  the issues whose `service:` line names its label (forsgren#515), as
+  the issues whose `service:` line or `service:<name>` label names its label
+  (forsgren#515, forsgren#53), as
   change fail rate does. Deployment rework rate reads the issues as it
   did and does not change.
 - **Recovered by the next success of its stream.** The stream is
@@ -296,8 +297,8 @@ can be reverted there):
   changes as deployments, so the rate is at most 100%; its counts still
   show what was found.
 - **A failure issue counts in the project's total row**, and in the row of a
-  service or deployment rule when its record block has a `service:` line
-  with that row's label as the page shows it, in any case (forsgren#515;
+  service or deployment rule when its record block has a `service:` line,
+  or the issue a GitHub label `service:<name>` (forsgren#53), with that row's label as the page shows it, in any case (forsgren#515;
   see [How it gets its data](data-files.md#how-it-gets-its-data)). Without
   the line, or with a label the repository does not have or two rows share,
   it counts in the total only, and the run's output names it. That is why a
@@ -451,7 +452,8 @@ a path on github.com (forsgren#172):
   (joined by repository, kind and deployment ID); a deployment rule's row
   likewise over its kind and name. A failure issue counts on the total and
   on a repository's label row, and on the row of the service or rule whose
-  label its `service:` line names (forsgren#515); one without that line, or
+  label its `service:` line or `service:<name>` label names (forsgren#515,
+  forsgren#53); one without either, or
   with a label no single row has, counts on the total only. Failed
   deployment recovery time reads failed deployments alone, so every row has
   its own.

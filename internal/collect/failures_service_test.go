@@ -1,6 +1,7 @@
 package collect
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -46,8 +47,8 @@ func collectService(t *testing.T, repo config.Repository, service string) (resul
 	return g.collect(t, shop(repo), path, github.DefaultMaxPages), path, g
 }
 
-// wantUnmatched fails unless the run reported exactly want, with no error.
-func wantUnmatched(t *testing.T, g *gitHub, r result, want UnmatchedService, stderr string) {
+// wantUnmatched (of g) fails unless the run reported exactly want, with no error.
+func (g *gitHub) wantUnmatched(t *testing.T, r result, want UnmatchedService, stderr string) {
 	t.Helper()
 	if r.err != nil || r.stderr != stderr {
 		t.Errorf("want no error and stderr %q, got %v, %q", stderr, r.err, r.stderr)
@@ -78,7 +79,7 @@ func TestADeploymentRuleLabelIsStoredAsTheConfigSpellsIt(t *testing.T) {
 // repository, the issue and the label, and the run does not fail.
 func TestAnUnknownServiceLabelCountsInTheTotalOnlyAndIsReported(t *testing.T) {
 	r, path, g := collectService(t, withServices(), "Mobile app")
-	wantUnmatched(t, g, r, UnmatchedService{"acme/app", 42, ServiceUnknown, "Mobile app"},
+	g.wantUnmatched(t, r, UnmatchedService{"acme/app", 42, ServiceUnknown, "Mobile app"},
 		"collect: acme/app: failure issue #42: service \"Mobile app\" is unknown in this repository; "+
 			"the failure was counted in the total only\n")
 	wantFailures(t, path, serviceFailure(""))
@@ -90,7 +91,7 @@ func TestAServiceLabelThatMatchesTwoRowsIsAmbiguousAndNeverGuessed(t *testing.T)
 	repo := production
 	repo.Services = map[string]string{"web": "Web", "site": "WEB"}
 	r, path, g := collectService(t, repo, "web")
-	wantUnmatched(t, g, r, UnmatchedService{"acme/app", 42, ServiceAmbiguous, "web"},
+	g.wantUnmatched(t, r, UnmatchedService{"acme/app", 42, ServiceAmbiguous, "web"},
 		"collect: acme/app: failure issue #42: service \"web\" is ambiguous in this repository "+
 			"(it matches more than one row); the failure was counted in the total only\n")
 	wantFailures(t, path, serviceFailure(""))
@@ -99,7 +100,7 @@ func TestAServiceLabelThatMatchesTwoRowsIsAmbiguousAndNeverGuessed(t *testing.T)
 // TestARepositoryWithoutRowsKnowsNoServiceLabel: any service line is unknown.
 func TestARepositoryWithoutRowsKnowsNoServiceLabel(t *testing.T) {
 	r, path, g := collectService(t, production, "Web")
-	wantUnmatched(t, g, r, UnmatchedService{"acme/app", 42, ServiceUnknown, "Web"},
+	g.wantUnmatched(t, r, UnmatchedService{"acme/app", 42, ServiceUnknown, "Web"},
 		"collect: acme/app: failure issue #42: service \"Web\" is unknown in this repository; "+
 			"the failure was counted in the total only\n")
 	wantFailures(t, path, serviceFailure(""))
@@ -150,4 +151,37 @@ func TestResolveServiceReadsTheRowsOfTheRepository(t *testing.T) {
 			}
 		})
 	}
+}
+
+// labelledIssue is issue 42 whose record block has no service line, with the
+// label `service:` followed by name next to `failure` (forsgren#53, step 2).
+func labelledIssue(name string) string {
+	plain := issueJSON(42, "2026-09-20T08:00:00Z", "", recordBlock)
+	return strings.Replace(plain, `[{"name": "failure"}]`,
+		`[{"name": "failure"}, {"name": "service:`+name+`"}]`, 1)
+}
+
+// TestAServiceLabelOfTheIssueIsResolvedLikeTheServiceLine (forsgren#53, step
+// 2): a `service:` label is matched ignoring case and stored as the config
+// spells it, as the record block's line is, with nothing said.
+func TestAServiceLabelOfTheIssueIsResolvedLikeTheServiceLine(t *testing.T) {
+	g := issuesOnly(t, labelledIssue("wEB"))
+	path := historyPath(t)
+	r := g.collect(t, shop(withServices()), path, github.DefaultMaxPages)
+	wantNoStderr(t, r)
+	wantFailures(t, path, serviceFailure("Web"))
+	g.wantReportOf(t, Report{})
+}
+
+// TestAnUnknownServiceLabelOfTheIssueIsReportedLikeTheServiceLine: a label
+// that names no row counts in the total only, is named on stderr and in the
+// report, and the run does not fail.
+func TestAnUnknownServiceLabelOfTheIssueIsReportedLikeTheServiceLine(t *testing.T) {
+	g := issuesOnly(t, labelledIssue("Mobile app"))
+	path := historyPath(t)
+	r := g.collect(t, shop(withServices()), path, github.DefaultMaxPages)
+	g.wantUnmatched(t, r, UnmatchedService{"acme/app", 42, ServiceUnknown, "Mobile app"},
+		"collect: acme/app: failure issue #42: service \"Mobile app\" is unknown in this repository; "+
+			"the failure was counted in the total only\n")
+	wantFailures(t, path, serviceFailure(""))
 }

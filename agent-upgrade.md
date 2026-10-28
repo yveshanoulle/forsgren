@@ -1043,10 +1043,12 @@ Tell them, in one message:
   `auto_update: false`, or beyond the level, Dependabot's pull request waits
   for them to merge it;
 - when `forsgren.config.yml` has `services:` or `deployments:`: failure issues
-  may now carry a line `service: <label>` in their failure record, the label
+  may now carry a line `service: <label>` in their failure record, or a GitHub
+  label `service:<label>`, the label
   of a service or a deployment rule of the issue's repository as the page shows
-  it, in any case. Such an issue counts in that row as well as in the total, in
-  change fail rate and rework rate; without the line, or with a label the
+  it, in any case (the line wins when both are there). Such an issue counts in
+  that row as well as in the total, in change fail rate, recovery time and
+  rework rate; without the line, or with a label the
   repository does not have, it counts in the total only, as before; no change
   to `forsgren.config.yml` is needed;
 - that `agent-upgrade.md` can be run again for the next release, and that

@@ -1,10 +1,12 @@
 package github
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 )
@@ -139,7 +141,37 @@ func (i issue) toIssue() Issue {
 	if i.Body != nil {
 		out.Record = parseRecord(*i.Body)
 	}
+	if out.Record.Service == "" {
+		out.Record.Service = i.serviceLabel()
+	}
 	return out
+}
+
+// labelServicePrefix starts the label that names a failure issue's service
+// (forsgren#53), in any case, as in `service:Web`.
+const labelServicePrefix = "service:"
+
+// serviceLabel is the name in the label `service:<name>` of the issue, the
+// prefix in any case and the name trimmed and kept as written; with several
+// such labels the first in alphabetical order, ignoring case, so the answer
+// does not depend on the order GitHub lists them in. "" when none names one.
+func (i issue) serviceLabel() string {
+	var names []string
+	for _, l := range i.Labels {
+		if len(l.Name) < len(labelServicePrefix) {
+			continue
+		}
+		head, rest := l.Name[:len(labelServicePrefix)], l.Name[len(labelServicePrefix):]
+		if name := strings.TrimSpace(rest); strings.EqualFold(head, labelServicePrefix) && name != "" {
+			names = append(names, name)
+		}
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	return slices.MinFunc(names, func(a, b string) int {
+		return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
+	})
 }
 
 // The keys of the record block.

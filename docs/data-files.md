@@ -1107,7 +1107,11 @@ as issues, with a `pull_request` field).
 - **The `service:` line** (forsgren#515, decisions #516 and #517) of the
   record block in the body names a row of the issue's repository as the page
   shows it: a service's label or a deployment rule's label, matched ignoring
-  case, and stored as the config spells it. A label that matches no row of
+  case, and stored as the config spells it. Instead of the line, the issue can
+  carry a GitHub label `service:<name>` (forsgren#53, the prefix in any case,
+  for example `service:Web shop`): it names the service the same way. The line
+  wins when both are there; with several such labels the first in alphabetical
+  order, ignoring case, is used. A label that matches no row of
   that repository (a repository without services or rules has none), or two
   or more, is stored with an empty `service`, so the failure counts in the
   total row only, and is named on stderr, `collect: acme/app: failure issue

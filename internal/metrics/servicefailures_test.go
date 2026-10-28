@@ -107,3 +107,25 @@ func TestARuleRowCountsTheFailuresNamingIt(t *testing.T) {
 		"Site":      {1, 1, 1, 1, 1},
 	})
 }
+
+// TestAServiceRowRecoveryCountsTheIssuesNamingIt (forsgren#53, step 2): API's
+// row has issue 1, open since yesterday, so one recovery not completed; ADMIN's
+// has issue 2, closed after a day, so one recovery of a day; the issue naming
+// no service is in the total only.
+func TestAServiceRowRecoveryCountsTheIssuesNamingIt(t *testing.T) {
+	rows := Rows(serviceProjects, serviceData(), now)
+	type figures struct {
+		recoveries, unrecovered int
+		median                  time.Duration
+	}
+	for name, want := range map[string]figures{
+		"Acme App": {1, 2, day},
+		"API":      {0, 1, 0},
+		"ADMIN":    {1, 0, day},
+	} {
+		r := rowNamed(t, rows, name).Recovery
+		if got := (figures{r.Recoveries, r.Unrecovered, r.Median}); got != want {
+			t.Errorf("%s: want %+v, got %+v", name, want, got)
+		}
+	}
+}

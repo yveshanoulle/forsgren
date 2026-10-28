@@ -2,9 +2,11 @@ package github
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -155,4 +157,51 @@ func TestTheFailureRecordBlock(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestAServiceLabelNamesTheService (forsgren#53, step 2): a label
+// `service:<name>` of the issue names the service as the body's `service:`
+// line does: the prefix in any case, the name trimmed and kept as written,
+// the line of the body winning over a label, and, with several labels, the
+// first in alphabetical order (ignoring case) so the answer does not depend on
+// the order GitHub lists them in. An empty name, or a label that only starts
+// like it, names nothing.
+func TestAServiceLabelNamesTheService(t *testing.T) {
+	for name, c := range map[string]struct {
+		labels string
+		body   string
+		want   string
+	}{
+		"a label":            {`"failure", "service:Web"`, "null", "Web"},
+		"name with spaces":   {`"failure", "service: Web shop "`, "null", "Web shop"},
+		"prefix in any case": {`"failure", "Service:Web"`, "null", "Web"},
+		"name keeps case":    {`"failure", "service:WebShop"`, "null", "WebShop"},
+		"body line wins":     {`"failure", "service:Web"`, `"service: Admin"`, "Admin"},
+		"first label wins":   {`"failure", "service:Web", "service:Admin"`, "null", "Admin"},
+		"order ignores case": {`"failure", "service:web", "service:Zed"`, "null", "web"},
+		"empty name":         {`"failure", "service:"`, "null", ""},
+		"other prefix":       {`"failure", "services:Web", "myservice:Web"`, "null", ""},
+		"no service label":   {`"failure", "bug"`, "null", ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var i issue
+			raw := `{"number": 5, "created_at": "2026-09-24T10:00:00Z", "body": ` + c.body +
+				`, "labels": [` + labelObjects(c.labels) + `]}`
+			if err := json.Unmarshal([]byte(raw), &i); err != nil {
+				t.Fatal(err)
+			}
+			if got := i.toIssue().Record.Service; got != c.want {
+				t.Errorf("want service %q, got %q", c.want, got)
+			}
+		})
+	}
+}
+
+// labelObjects turns `"a", "b"` into `{"name": "a"}, {"name": "b"}`.
+func labelObjects(names string) string {
+	var out []string
+	for _, n := range strings.Split(names, ", ") {
+		out = append(out, `{"name": `+n+`}`)
+	}
+	return strings.Join(out, ", ")
 }
