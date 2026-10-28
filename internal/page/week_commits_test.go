@@ -43,21 +43,22 @@ func TestWeekPageWithoutCommitsHasThreeColumnsPerGroup(t *testing.T) {
 }
 
 // TestWeekPageWithoutCommitsHasThreeCellsPerGroupInEveryRow: 24 figure cells
+// in every row and in the Total row
 // after the row header, none of them the en dash of a row Per repository, and
 // the deployments figures unchanged.
 func TestWeekPageWithoutCommitsHasThreeCellsPerGroupInEveryRow(t *testing.T) {
 	got := rendered(t, "week.html", weekPageDataWithoutCommits())
-	wantCount(t, got, "<td", 4*24)
+	wantCount(t, got, "<td", (4+1)*24) // four rows and the Total row
 	wantNone(t, "week.html", got, "<td>\u2013</td>", "1\u202f338")
 	wantAll(t, "week.html", got, `<td class="num">29</td>`, `<td class="num">2.7%</td>`, `<td class="num">19%</td>`)
 }
 
 // TestWeekPageWithCommitsHasFourColumnsPerGroup: week_commits true brings the
-// Commits columns back, 32 headers and 32 cells per row.
+// Commits columns back, 32 headers and 32 cells per row, the Total row's too.
 func TestWeekPageWithCommitsHasFourColumnsPerGroup(t *testing.T) {
 	got := rendered(t, "week.html", weekPageData())
 	wantCount(t, got, `<th scope="col" aria-label=`, 32)
-	wantCount(t, got, "<td", 4*32)
+	wantCount(t, got, "<td", (4+1)*32) // four rows and the Total row
 	if first, _, _ := strings.Cut(got, "Fail rate"); !strings.Contains(first, ">Commits<") {
 		t.Error("want Commits as the first header of the Total group")
 	}
@@ -67,7 +68,7 @@ func TestWeekPageWithCommitsHasFourColumnsPerGroup(t *testing.T) {
 // depend on the Commits columns.
 func TestWeekPageWithoutCommitsStillMarksTheHighest(t *testing.T) {
 	got := rendered(t, "week.html", weekPageDataWithoutCommits())
-	wantCount(t, got, `class="num highest"`, 9)
+	wantCount(t, got, `class="num highest"`, 9+2) // the Total row: Sunday Failed, Monday Fail rate
 }
 
 // TestSettingsPageListsWeekCommitsOffByDefault: the row shows false (not

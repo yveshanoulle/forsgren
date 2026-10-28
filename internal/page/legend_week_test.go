@@ -6,7 +6,7 @@ import (
 )
 
 // legendWeekText are the sentences of the legend's Week page section
-// (forsgren#531, step 4, decisions #532 A, #534 A, #539 A; forsgren#540, decision #541).
+// (forsgren#531, step 4, decisions #532 A, #534 A, #539 A; forsgren#540, decision #541; forsgren#552, decision #553).
 var legendWeekText = []string{
 	"the commits and the deployments of the last 30 days, per weekday from Monday to Sunday",
 	"It counts the period the footer names as Report Start and Report End, " +
@@ -31,6 +31,11 @@ var legendWeekText = []string{
 	"The commits are the ones counted as Commits on the TBD page",
 	"its Deployments cells are the percentages of the deployments of the service or rule itself",
 	"The Commits columns are off by default: set week_commits: true to show them under Total and under each weekday.",
+	"The last row, Total, adds up the rows of every project: its counts are the sums of all projects, " +
+		"per weekday and in Total, its shares are the shares of those sums, " +
+		"and its Fail rate is the failed deployments out of the successful plus failed deployments of all projects.",
+	"A label, service or rule row is not added again, as the row of its project already counts it.",
+	"Its highest weekdays are shown in red as in every row.",
 	"Set week_page: false to take it out of the menu",
 	"it is still generated, can be opened at week.html, and search engines are asked to skip it",
 }

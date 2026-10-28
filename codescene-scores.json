@@ -2857,6 +2857,30 @@
    "score": 10.0,
    "checkedAt": "2026-10-28",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/weektotal.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-28",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/weektotal_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-28",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/week_total_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-28",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/week_failed_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-28",
+   "minScore": 10.0
   }
  ]
 }

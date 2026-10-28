@@ -128,3 +128,7 @@ func (d Data) WeekRows() []WeekRow {
 	}
 	return rows
 }
+
+// WeekTotal is the Total row of the table's footer: the sum of every project
+// row, with the cells of a project row (forsgren#552, decision #553 A).
+func (d Data) WeekTotal() WeekRow { return WeekRow{d.Week.Total(), d.WeekCommits} }

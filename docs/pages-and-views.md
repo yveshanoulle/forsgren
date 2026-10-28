@@ -1401,6 +1401,17 @@ section.
   visually hidden word "highest" for a screen reader, so colour is never the
   only signal. The legend's Week page section says all of this in one
   paragraph.
+- **The Total row** (forsgren#552, decision #553), the last row of the table,
+  in its footer (`<tfoot>`): every project row added up, per weekday, the
+  commits (shown with `week_commits: true`), the successful deployments and
+  the failed ones. A label, service or rule row is not added again, its
+  project's row already counting it, so `sub_rows: false` leaves the Total
+  row as it is. Its cells take the form of a project row's: counts in Total,
+  the shares of the sums under each weekday, and Fail rate the failed
+  deployments of the sums out of their successful plus failed ones, not a
+  mean of the projects' rates; its highest Failed and Fail rate weekdays are
+  red as in every row. A page without a table (no projects, or nothing
+  collected) has no Total row.
 - **The commits** of a project's total row and of a repository's label row are
   the set of the Commits column of the TBD page: the first-parent commits
   that the pushes to the main branch brought in the window, each once. The

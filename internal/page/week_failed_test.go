@@ -27,13 +27,14 @@ func TestWeekPageFailedCellsAreACountInTotalAndSharesPerWeekday(t *testing.T) {
 // TestWeekPageMarksTheHighestFailedAndFailRateOfEachRow: every tied day of
 // Failed (Wednesday and Sunday of Acme Shop), the highest Fail rate (Sunday),
 // the Friday of API in Failed and its Wednesday in Fail rate, and nothing in a row without failures; the
-// hidden word says it for a screen reader.
+// hidden word says it for a screen reader. The Total row (forsgren#552) is marked as a project row:
+// Wednesday and Sunday in Failed, Wednesday in Fail rate.
 func TestWeekPageMarksTheHighestFailedAndFailRateOfEachRow(t *testing.T) {
 	got := rendered(t, "week.html", weekPageData())
 	wantAll(t, "week.html", got, highestCell("42%"), highestCell("30%"), highestCell("66%"), highestCell("20%"))
-	wantCount(t, got, highestCell("42%"), 2)
-	wantCount(t, got, `class="num highest"`, 5)
-	wantCount(t, got, `<span class="visually-hidden"> highest</span>`, 5)
+	wantCount(t, got, highestCell("42%"), 2+2)
+	wantCount(t, got, `class="num highest"`, 5+3)
+	wantCount(t, got, `<span class="visually-hidden"> highest</span>`, 5+3)
 }
 
 // TestWeekPageMarksNoTotalCellAndNoRowWithoutFailures: with the failures of

@@ -18,11 +18,17 @@
         <tbody>
 {{range .WeekRows}}          <tr{{if .IsLabel}} class="label"{{end}}>
             <th scope="row">{{if .IsLabel}}<span class="visually-hidden">{{.Project}}: </span>{{template "labelheader" (labelheader .Name)}}{{else}}{{.Name}}{{end}}</th>
-{{range .Cells}}            <td{{if .CellClass}} class="{{.CellClass}}"{{end}}>{{.Text}}{{if .Highest}}<span class="visually-hidden"> highest</span>{{end}}</td>
-{{end}}          </tr>
+{{template "weekcells" .Cells}}          </tr>
 {{end}}        </tbody>
+        <tfoot>
+          <tr>
+            <th scope="row">{{.WeekTotal.Name}}</th>
+{{template "weekcells" .WeekTotal.Cells}}          </tr>
+        </tfoot>
       </table>
     </div>
 {{else}}    <p>{{.WeekMessage}}</p>
 {{end}}  </main>
 {{template "footer" .}}
+{{define "weekcells"}}{{range .}}            <td{{if .CellClass}} class="{{.CellClass}}"{{end}}>{{.Text}}{{if .Highest}}<span class="visually-hidden"> highest</span>{{end}}</td>
+{{end}}{{end}}
