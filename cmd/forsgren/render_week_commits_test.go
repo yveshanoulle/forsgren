@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -15,12 +14,9 @@ import (
 func fixtureWeekPageWith(t *testing.T, extra string) string {
 	t.Helper()
 	pinNow(t)
-	file, err := os.ReadFile(filepath.Clean(fixtureSite + "/forsgren.config.yml"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	file := readFile(t, fixtureSite+"/forsgren.config.yml")
 	dir := filepath.Join(t.TempDir(), "site")
-	code, _, stderr := runCommand("render", "--out", dir, "--config", writeConfig(t, string(file)+extra),
+	code, _, stderr := runCommand("render", "--out", dir, "--config", writeConfig(t, file+extra),
 		"--data", fixtureSite+"/data/deployments.csv")
 	if code != 0 {
 		t.Fatalf("want exit 0, got %d (stderr %q)", code, stderr)
@@ -40,21 +36,28 @@ func TestTheWeekPageShowsItsCommitsColumnsOnlyWithWeekCommitsTrue(t *testing.T) 
 		"not accepted": {"week_commits: yes\n", false}, "true": {"week_commits: true\n", true},
 	} {
 		t.Run(name, func(t *testing.T) {
-			page := fixtureWeekPageWith(t, tc.line)
-			cols := `colspan="3"`
-			if tc.commits {
-				cols = `colspan="4"`
-			}
-			if !strings.Contains(page, cols) {
-				t.Errorf("want %s in the Week page", cols)
-			}
-			if strings.Contains(page, ">Commits<") != tc.commits {
-				t.Errorf("want a Commits header %v", tc.commits)
-			}
-			if strings.Contains(page, "<td>–</td>") != tc.commits {
-				t.Errorf("want the en dash of a row Per repository %v", tc.commits)
-			}
+			wantWeekCommitsColumns(t, fixtureWeekPageWith(t, tc.line), tc.commits)
 		})
+	}
+}
+
+// wantWeekCommitsColumns checks the Week page against one week_commits mode:
+// four columns per group, a Commits header and the en dash of a row Per
+// repository with commits, three columns and neither without.
+func wantWeekCommitsColumns(t *testing.T, page string, commits bool) {
+	t.Helper()
+	cols := `colspan="3"`
+	if commits {
+		cols = `colspan="4"`
+	}
+	if !strings.Contains(page, cols) {
+		t.Errorf("want %s in the Week page", cols)
+	}
+	if strings.Contains(page, ">Commits<") != commits {
+		t.Errorf("want a Commits header %v", commits)
+	}
+	if strings.Contains(page, "<td>–</td>") != commits {
+		t.Errorf("want the en dash of a row Per repository %v", commits)
 	}
 }
 
