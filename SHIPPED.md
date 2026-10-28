@@ -9,6 +9,26 @@ Active work lives in
 
 ---
 
+## 2026-10-28 — The Week page's two explanation lines move to the legend ([#544](https://github.com/yveshanoulle/forsgren/issues/544))
+
+Asked for by Yves: the Week page is its h1 and the table (or its one message
+when there are no projects or nothing is collected), as the TBD page is, whose
+explanation is the legend's. The reading line (`Total is the commits and the
+deployments of the window; each weekday shows its share of them as a
+percentage.`) and the window sentence moved into the legend's Week page
+section: the reading line is said by the section's Total paragraph already, so it
+adds nothing, and the window sentence is merged into the section's first paragraph, where it says that the window is the period the
+footer's Report Start and Report End name and that every weekday of it is
+counted, not one calendar week, so no run-specific dates stay on the page.
+`Data.WeekWindow`, its time layout and
+its coverage floor are gone. Red first: `TestWeekPageHasNoExplanationLines`
+(both sentences absent, the h1 directly followed by the table or the message)
+the merged window sentence once in `TestLegendExplainsTheWeekPage` and one
+paragraph starting with Total. Docs:
+docs/pages-and-views.md and CLAUDE.md.
+
+forsgren issue 544, patch (ships in 1.29.1 with #536 and #538).
+
 ## 2026-10-27 — The footer says the report period, start and end to the minute, next to the calculated-at time ([#542](https://github.com/yveshanoulle/forsgren/issues/542), decision [#543](https://github.com/yveshanoulle/forsgren/issues/543) A)
 
 Asked for by Yves: the footer of every page reads `Calculated at 2026-10-27

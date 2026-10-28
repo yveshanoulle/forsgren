@@ -1,10 +1,6 @@
 package page
 
-import (
-	"strconv"
-
-	"github.com/yveshanoulle/forsgren/internal/metrics"
-)
+import "github.com/yveshanoulle/forsgren/internal/metrics"
 
 // The Week page (forsgren#531, decisions #532 A, #533 A, #534 A; forsgren#540,
 // decision #541): one table with a row per project and per label, service
@@ -16,9 +12,6 @@ const WeekPage = "week"
 
 // weekTitle is the Week page's title and h1.
 const weekTitle = "Week"
-
-// minuteLayout is a UTC minute as the footer and the Week page write it.
-const minuteLayout = "2006-01-02 15:04"
 
 // weekGroups are the column groups of the table after Project: Total, then
 // the weekdays in full, Monday first (forsgren#540, decision #541).
@@ -41,14 +34,6 @@ func (d Data) WeekGroups() []WeekGroup {
 		groups[i] = WeekGroup{name, name + " commits", name + " deployments"}
 	}
 	return groups
-}
-
-// WeekWindow is the sentence above the table: the DORA window in days and
-// its first and last minute in UTC, and that every weekday of it counts, not one
-// calendar week.
-func (d Data) WeekWindow() string {
-	return "The last " + strconv.Itoa(d.Window()) + " days, from " + d.Week.Start.Format(minuteLayout) + " to " +
-		d.Week.End.Format(minuteLayout) + ", every weekday of that window counted (UTC)."
 }
 
 // WeekMessage is the one line the Week page shows in place of its table.

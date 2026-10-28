@@ -1,9 +1,7 @@
 {{define "title"}}{{.WeekTitle}} · {{.Title}}{{end -}}
 {{template "header" .}}  <main>
     <h1 id="week-heading">{{.WeekTitle}}</h1>
-    <p>Total is the commits and the deployments of the window; each weekday shows its share of them as a percentage.</p>
-{{if .Week.Rows}}    <p>{{.WeekWindow}}</p>
-    <div class="table-scroll" role="region" aria-labelledby="week-heading" tabindex="0">
+{{if .Week.Rows}}    <div class="table-scroll" role="region" aria-labelledby="week-heading" tabindex="0">
       <table class="wraps">
         <thead>
           <tr>

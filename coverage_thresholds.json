@@ -1184,7 +1184,6 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/weekrows.go:DeploymentsShareCell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/week.go:WeekTitle": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/week.go:WeekGroups": 100.0,
-    "github.com/yveshanoulle/forsgren/internal/page/week.go:WeekWindow": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/week.go:WeekMessage": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/week.go:IsLabel": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/week.go:Cells": 100.0,

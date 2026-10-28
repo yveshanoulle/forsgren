@@ -1361,10 +1361,12 @@ The Week page (`week.html`, forsgren#531, from 1.29.0) shows when the work
 happens (decisions #532, #533, #534 and #539). One table, a row per project and
 under it a row for each label, service or rule (`sub_rows: false` leaves those
 out, as on the other tables), with two header rows: Project, then Total and Monday to
-Sunday in full, each with Commits and Deployments under it. Above the table a sentence names the window, for example `The last 30
-days, from 2026-09-03 12:00 to 2026-10-03 12:00, every weekday of that window counted
-(UTC).`: the figures cover every weekday of the `dora_days` window, not one
-calendar week, so a Monday appears as often as the window holds Mondays.
+Sunday in full, each with Commits and Deployments under it. The figures cover every weekday of the `dora_days` window, not one
+calendar week, so a Monday appears as often as the window holds Mondays. The
+page says nothing else above the table (forsgren#544): how to read Total and
+the shares, and that the window is the last `dora_days` days, the period the
+footer names as Report Start and Report End, are in the legend's Week page
+section.
 
 - Total holds the row's commits and deployments of the window as counts,
   written as every count (a thousands space from 1000); `0` for a row with
@@ -1400,8 +1402,7 @@ calendar week, so a Monday appears as often as the window holds Mondays.
   to skip it; the page is still written and reachable at `week.html`. See
   [Configuration](configuration.md#configuration).
 
-The page has the heading, a line on how to read the Total and the weekdays, the window sentence
-and the table, or one line when there are no projects or nothing is collected
+The page has the heading and the table, or one line when there are no projects or nothing is collected
 yet. The legend has a Week page section for the reader.
 
 ## Privacy

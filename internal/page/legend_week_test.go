@@ -9,7 +9,8 @@ import (
 // (forsgren#531, step 4, decisions #532 A, #534 A, #539 A; forsgren#540, decision #541).
 var legendWeekText = []string{
 	"the commits and the deployments of the last 30 days, per weekday from Monday to Sunday",
-	"every weekday of that window, not one calendar week",
+	"It counts the period the footer names as Report Start and Report End, " +
+		"and every weekday of that window, not one calendar week, so a weekday appears as often as the window holds it.",
 	"Days are in UTC.",
 	"Total holds the counts of the commits and of the deployments of the window.",
 	"Under each weekday, Commits and Deployments are the share of the row's commits and of its deployments " +
@@ -60,6 +61,25 @@ func TestLegendExplainsTheWeekPage(t *testing.T) {
 		if !strings.Contains(section, want) {
 			t.Errorf("want %q in the Week page section", want)
 		}
+	}
+}
+
+// TestLegendSaysEveryWeekdayOfThatWindowOnce (forsgren#544): the window is described in one sentence.
+func TestLegendSaysEveryWeekdayOfThatWindowOnce(t *testing.T) {
+	_, section, _ := weekSection(t, calculated())
+	if got := strings.Count(section, "every weekday of that window"); got != 1 {
+		t.Errorf("want every weekday of that window once in the Week page section, got %d", got)
+	}
+}
+
+// TestLegendExplainsTotalAndSharesInOneParagraph (forsgren#544): one paragraph starts with Total.
+func TestLegendExplainsTotalAndSharesInOneParagraph(t *testing.T) {
+	_, section, _ := weekSection(t, calculated())
+	if got := strings.Count(section, "<p>Total "); got != 1 {
+		t.Errorf("want one paragraph starting with Total in the Week page section, got %d", got)
+	}
+	if strings.Contains(section, "Total is the commits") {
+		t.Error("want the Total sentence said once, in the Total holds paragraph")
 	}
 }
 

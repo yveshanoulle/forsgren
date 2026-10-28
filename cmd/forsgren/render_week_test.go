@@ -26,8 +26,8 @@ func fixtureWeekPage(t *testing.T) string {
 // Admin) with an en dash for its commits.
 func TestTheFixtureSiteWritesTheWeekPage(t *testing.T) {
 	page := fixtureWeekPage(t)
-	for _, want := range []string{`<h1 id="week-heading">Week</h1>`, "every weekday of that window counted (UTC).",
-		`<th scope="colgroup" colspan="2">Sunday</th>`, `<th scope="row">Acme Shop</th>`, "<td>–</td>"} {
+	for _, want := range []string{`<h1 id="week-heading">Week</h1>`, `<th scope="colgroup" colspan="2">Sunday</th>`,
+		`<th scope="row">Acme Shop</th>`, "<td>–</td>"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("want %q in the Week page of the fixture site", want)
 		}

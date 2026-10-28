@@ -56,15 +56,15 @@ func TestWeekPageWithoutSubRowsMatchesGolden(t *testing.T) {
 	checkPageGolden(t, "week.html", "testdata/week.no-sub-rows.golden.html", data)
 }
 
-// TestWeekPageSaysItsWindow: the date range of the DORA window above the
-// table, naming dora_days, and that every weekday of it is counted.
-func TestWeekPageSaysItsWindow(t *testing.T) {
+// TestWeekPageHasNoExplanationLines (forsgren#544): the reading line and the window
+// sentence are the legend's; the page is its h1 and the table, or its one message.
+func TestWeekPageHasNoExplanationLines(t *testing.T) {
 	got := rendered(t, "week.html", weekPageData())
-	wantAll(t, "week.html", got,
-		"The last 30 days, from 2026-09-03 12:00 to 2026-10-03 12:00, every weekday of that window counted (UTC).")
-	data := weekPageData()
-	data.DoraDays = 90
-	wantAll(t, "week.html", rendered(t, "week.html", data), "The last 90 days, from 2026-09-03 12:00 to 2026-10-03 12:00,")
+	wantNone(t, "week.html", got, "Total is the commits", "every weekday of that window", "The last 30 days")
+	wantAll(t, "week.html", got, "</h1>\n    <div class=\"table-scroll\"")
+	data := calculated()
+	data.NoProjects = true
+	wantAll(t, "week.html", rendered(t, "week.html", data), "</h1>\n    <p>No projects are listed yet")
 }
 
 // TestWeekPageHasTwoHeaderRows (forsgren#540, decision #541): Project
@@ -86,14 +86,6 @@ func TestWeekPageHasTwoHeaderRows(t *testing.T) {
 	wantCount(t, got, `<th scope="col" aria-label=`, 16)
 	wantCount(t, got, `<th scope="col" rowspan="2"`, 1)
 	wantNone(t, "week.html", got, "Weekend share", "Deploys")
-}
-
-// TestWeekPageReadingLineNamesTheNewTable: the line under the h1.
-func TestWeekPageReadingLineNamesTheNewTable(t *testing.T) {
-	got := rendered(t, "week.html", weekPageData())
-	wantAll(t, "week.html", got,
-		"Total is the commits and the deployments of the window; each weekday shows its share of them as a percentage.")
-	wantNone(t, "week.html", got, "Each day shows")
 }
 
 // TestWeekPageCellsAreTotalsAndPercentages: the Total as counts with the
