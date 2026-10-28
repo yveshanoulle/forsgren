@@ -1361,7 +1361,8 @@ The Week page (`week.html`, forsgren#531, from 1.29.0) shows when the work
 happens (decisions #532, #533, #534 and #539). One table, a row per project and
 under it a row for each label, service or rule (`sub_rows: false` leaves those
 out, as on the other tables), with two header rows: Project, then Total and Monday to
-Sunday in full, each with Commits and Deployments under it. The figures cover every weekday of the `dora_days` window, not one
+Sunday in full, each with Commits, Deployments, Failed and Fail rate under it
+(Failed and Fail rate from forsgren#545, decision #546). The figures cover every weekday of the `dora_days` window, not one
 calendar week, so a Monday appears as often as the window holds Mondays. The
 page says nothing else above the table (forsgren#544): how to read Total and
 the shares, and that the window is the last `dora_days` days, the period the
@@ -1380,6 +1381,25 @@ section.
   (decision #532): a commit authored on Sunday at 23:30 UTC is a Sunday
   commit, one authored at 00:30 on Monday a Monday commit, whenever it was
   pushed or deployed.
+- **Failed and Fail rate** (forsgren#545, decision #546). A failed deployment
+  is a deployment of state `failure` created in the window (state `other` is
+  finished, not failed), over the row's own deployments for a service or
+  rule. In Total, Failed is the count of the row's failed deployments and
+  Fail rate the failed deployments out of all finished deployments (success,
+  failure and other) of the window. Under a weekday, Failed is the share of the
+  row's failed deployments on that weekday, written like the other shares
+  (`-` for a row with no failed deployment), and Fail rate is the failed
+  deployments of that weekday out of all finished deployments of that
+  weekday (`0%` where it deployed and nothing failed, `-` for a weekday
+  without any finished deployment). The Deployments column keeps counting
+  the successful deployments only, so it is not the denominator. In each
+  row the weekday with the highest Failed and the one with the highest Fail
+  rate are red (class `highest`, one `light-dark()` rule in `styles.css`,
+  held at 4.5:1 or more in both modes by `trendcolours_test.go`), every tied
+  weekday, none for a row without failed deployments; the cell also holds the
+  visually hidden word "highest" for a screen reader, so colour is never the
+  only signal. The legend's Week page section says all of this in one
+  paragraph.
 - **The commits** of a project's total row and of a repository's label row are
   the set of the Commits column of the TBD page: the first-parent commits
   that the pushes to the main branch brought in the window, each once. The

@@ -23,14 +23,16 @@ func weekPageData() Data {
 		Rows: []metrics.WeekRow{
 			{Level: metrics.ProjectRow, Name: "Acme Shop", Project: "Acme Shop",
 				Commits:     [7]int{31, 40, 1234, 8, 17, 6, 2},
-				Deployments: [7]int{4, 5, 9, 1, 0, 3, 7}},
+				Deployments: [7]int{4, 5, 9, 1, 0, 3, 7},
+				Failed:      [7]int{1, 0, 3, 0, 0, 0, 3}, Finished: [7]int{5, 5, 12, 1, 0, 3, 10}},
 			{Level: metrics.LabelRow, Name: "Website", Project: "Acme Shop",
 				Commits:     [7]int{3, 0, 1, 0, 2, 2, 1},
-				Deployments: [7]int{1, 0, 0, 2, 0, 0, 5}},
+				Deployments: [7]int{2, 3, 1, 5, 4, 6, 7}, Finished: [7]int{2, 3, 1, 5, 4, 6, 7}},
 			{Level: metrics.LabelRow, Name: "API", Project: "Acme Shop", Service: true, PerRepository: true,
-				Deployments: [7]int{0, 1, 0, 0, 12, 0, 0}},
+				Deployments: [7]int{3, 1, 4, 2, 12, 5, 9},
+				Failed:      [7]int{0, 0, 1, 0, 2, 0, 0}, Finished: [7]int{3, 1, 5, 2, 14, 5, 9}},
 			{Level: metrics.ProjectRow, Name: "Acme Docs", Project: "Acme Docs",
-				Deployments: [7]int{1, 0, 3, 2, 6, 0, 5}},
+				Deployments: [7]int{1, 3, 2, 6, 5, 4, 8}, Finished: [7]int{1, 3, 2, 6, 5, 4, 8}},
 		},
 	}
 	return data
@@ -69,21 +71,25 @@ func TestWeekPageHasNoExplanationLines(t *testing.T) {
 
 // TestWeekPageHasTwoHeaderRows (forsgren#540, decision #541): Project
 // spans both rows, Total and the seven weekdays in full are
-// column groups of two, and each group has Commits and Deploys under it, the
+// column groups of four, and each group has Commits, Deployments, Failed and Fail rate under it, the
 // cell headers naming their group for a screen reader.
 func TestWeekPageHasTwoHeaderRows(t *testing.T) {
 	got := rendered(t, "week.html", weekPageData())
 	wantAll(t, "week.html", got, `<h1 id="week-heading">Week</h1>`,
 		`<th scope="col" rowspan="2">Project</th>`,
-		`<th scope="colgroup" colspan="2">Total</th>`, `<th scope="colgroup" colspan="2">Monday</th>`,
-		`<th scope="colgroup" colspan="2">Thursday</th>`, `<th scope="colgroup" colspan="2">Sunday</th>`,
+		`<th scope="colgroup" colspan="4">Total</th>`, `<th scope="colgroup" colspan="4">Monday</th>`,
+		`<th scope="colgroup" colspan="4">Thursday</th>`, `<th scope="colgroup" colspan="4">Sunday</th>`,
 		`<th scope="col" aria-label="Total commits" class="num">Commits</th>`,
 		`<th scope="col" aria-label="Total deployments" class="num">Deployments</th>`,
 		`<th scope="col" aria-label="Monday commits" class="num">Commits</th>`,
-		`<th scope="col" aria-label="Sunday deployments" class="num">Deployments</th>`)
+		`<th scope="col" aria-label="Sunday deployments" class="num">Deployments</th>`,
+		`<th scope="col" aria-label="Total failed deployments" class="num">Failed</th>`,
+		`<th scope="col" aria-label="Total fail rate" class="num">Fail rate</th>`,
+		`<th scope="col" aria-label="Monday failed deployments" class="num">Failed</th>`,
+		`<th scope="col" aria-label="Sunday fail rate" class="num">Fail rate</th>`)
 	wantNone(t, "week.html", got, ">Mon<", ">Sun<", "commits · deployments")
-	wantCount(t, got, `<th scope="colgroup" colspan="2">`, 8)
-	wantCount(t, got, `<th scope="col" aria-label=`, 16)
+	wantCount(t, got, `<th scope="colgroup" colspan="4">`, 8)
+	wantCount(t, got, `<th scope="col" aria-label=`, 32)
 	wantCount(t, got, `<th scope="col" rowspan="2"`, 1)
 	wantNone(t, "week.html", got, "Weekend share", "Deploys")
 }
@@ -97,7 +103,7 @@ func TestWeekPageCellsAreTotalsAndPercentages(t *testing.T) {
 	wantAll(t, "week.html", got,
 		"<td class=\"num\">1"+metrics.ThousandsSpace+"338</td>", "<td class=\"num\">29</td>",
 		"<td class=\"num\">2.3%</td>", "<td class=\"num\">13%</td>",
-		"<td class=\"num\">92%</td>", "<td class=\"num\">0%</td>",
+		"<td class=\"num\">33%</td>", "<td class=\"num\">0%</td>",
 		"<td class=\"num\">-</td>")
 }
 
@@ -105,8 +111,8 @@ func TestWeekPageCellsAreTotalsAndPercentages(t *testing.T) {
 // en dash, the deployments are the row's own percentages, and the weekend
 func TestWeekPageRowPerRepositoryKeepsItsDeployments(t *testing.T) {
 	got := rendered(t, "week.html", weekPageData())
-	wantAll(t, "week.html", got, "<td>\u2013</td>", "<td class=\"num\">7.6%</td>",
-		"<td class=\"num\">92%</td>")
+	wantAll(t, "week.html", got, "<td>\u2013</td>", "<td class=\"num\">2.7%</td>",
+		"<td class=\"num\">33%</td>")
 	wantCount(t, got, "<td>\u2013</td>", 8)
 }
 

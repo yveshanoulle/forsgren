@@ -6,17 +6,19 @@
         <thead>
           <tr>
             <th scope="col" rowspan="2">Project</th>
-{{range .WeekGroups}}            <th scope="colgroup" colspan="2">{{.Name}}</th>
+{{range .WeekGroups}}            <th scope="colgroup" colspan="4">{{.Name}}</th>
 {{end}}          </tr>
           <tr>
 {{range .WeekGroups}}            <th scope="col" aria-label="{{.CommitsLabel}}" class="num">Commits</th>
             <th scope="col" aria-label="{{.DeploymentsLabel}}" class="num">Deployments</th>
+            <th scope="col" aria-label="{{.FailedLabel}}" class="num">Failed</th>
+            <th scope="col" aria-label="{{.FailRateLabel}}" class="num">Fail rate</th>
 {{end}}          </tr>
         </thead>
         <tbody>
 {{range .WeekRows}}          <tr{{if .IsLabel}} class="label"{{end}}>
             <th scope="row">{{if .IsLabel}}<span class="visually-hidden">{{.Project}}: </span>{{template "labelheader" (labelheader .Name)}}{{else}}{{.Name}}{{end}}</th>
-{{range .Cells}}            <td{{if .Class}} class="{{.Class}}"{{end}}>{{.Text}}</td>
+{{range .Cells}}            <td{{if .CellClass}} class="{{.CellClass}}"{{end}}>{{.Text}}{{if .Highest}}<span class="visually-hidden"> highest</span>{{end}}</td>
 {{end}}          </tr>
 {{end}}        </tbody>
       </table>

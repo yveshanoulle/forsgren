@@ -49,6 +49,10 @@ type WeekRow struct {
 	Level                Level
 	Name, Project        string
 	Commits, Deployments [weekdays]int
+	// Failed are the deployments of state failure created in the window and
+	// Finished all finished ones (success, failure, other), per weekday
+	// (forsgren#545, decision #546).
+	Failed, Finished [weekdays]int
 	// PerRepository says a service or rule without paths: its commits are the
 	// repository's, so none is counted on the row.
 	PerRepository bool
@@ -98,7 +102,7 @@ func (s weekSource) labelRows(p config.Project) []WeekRow {
 // pushed commits and its deployments.
 func (s weekSource) row(level Level, p config.Project, project string) WeekRow {
 	row := WeekRow{Level: level, Name: p.Name, Project: project}
-	row.Deployments = s.deploymentDays(p, s.data)
+	row.Deployments, row.Failed, row.Finished = s.deploymentDays(p, s.data)
 	index := indexOf([]config.Project{p})
 	tips, _ := pushesInWindow([]PushMeasures{{}}, index, s.data, s.now)
 	for _, c := range commitsOfPushes(index, s.data, tips) {
@@ -111,7 +115,7 @@ func (s weekSource) row(level Level, p config.Project, project string) WeekRow {
 // its own data: its deployments, and its commits when it has paths.
 func (s weekSource) serviceRow(p config.Project, project string, own Data, paths []string) WeekRow {
 	row := WeekRow{Level: LabelRow, Name: p.Name, Project: project, Service: true}
-	row.Deployments = s.deploymentDays(p, own)
+	row.Deployments, row.Failed, row.Finished = s.deploymentDays(p, own)
 	scope := scopeOf(paths, own.CommitFiles)
 	row.PerRepository = scope == nil
 	if !row.PerRepository {
@@ -120,23 +124,27 @@ func (s weekSource) serviceRow(p config.Project, project string, own Data, paths
 	return row
 }
 
-// deploymentDays are the successful deployments of data's records of the
-// repositories of p created in the window, per weekday.
-func (s weekSource) deploymentDays(p config.Project, data Data) [weekdays]int {
-	var days [weekdays]int
+// deploymentDays are, per weekday, the successful deployments, the failed
+// ones (state failure) and all finished ones (success, failure and other) of
+// data's records of the repositories of p created in the window
+// (forsgren#545, decision #546).
+func (s weekSource) deploymentDays(p config.Project, data Data) (successes, failed, finished [weekdays]int) {
 	index, in := indexOf([]config.Project{p}), data.window()
 	for _, r := range data.Records {
 		_, listed := index.of(r.Repository)
-		if listed && successIn(r, in, s.now) {
-			days[weekdayOf(r.CreatedAt)]++
+		if !listed || !in.holds(r.CreatedAt, s.now) {
+			continue
+		}
+		day := weekdayOf(r.CreatedAt)
+		finished[day]++
+		switch r.State {
+		case history.StateSuccess:
+			successes[day]++
+		case history.StateFailure:
+			failed[day]++
 		}
 	}
-	return days
-}
-
-// successIn says whether r is a successful deployment created in w.
-func successIn(r history.Record, w window, now time.Time) bool {
-	return r.State == history.StateSuccess && w.holds(r.CreatedAt, now)
+	return successes, failed, finished
 }
 
 // deployedCommitDays are the commits of data's deployments that touch scope,

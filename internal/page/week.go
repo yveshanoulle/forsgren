@@ -21,8 +21,8 @@ var weekGroups = []string{"Total", "Monday", "Tuesday", "Wednesday", "Thursday",
 const weekDays = 7
 
 // WeekGroup is a column group of the header: its name, and the labels of its
-// Commits and Deployments headers for a screen reader.
-type WeekGroup struct{ Name, CommitsLabel, DeploymentsLabel string }
+// Commits, Deployments, Failed and Fail rate headers for a screen reader.
+type WeekGroup struct{ Name, CommitsLabel, DeploymentsLabel, FailedLabel, FailRateLabel string }
 
 // WeekTitle is weekTitle, for the templates that name the Week page.
 func (d Data) WeekTitle() string { return weekTitle }
@@ -31,7 +31,8 @@ func (d Data) WeekTitle() string { return weekTitle }
 func (d Data) WeekGroups() []WeekGroup {
 	groups := make([]WeekGroup, len(weekGroups))
 	for i, name := range weekGroups {
-		groups[i] = WeekGroup{name, name + " commits", name + " deployments"}
+		groups[i] = WeekGroup{name, name + " commits", name + " deployments",
+			name + " failed deployments", name + " fail rate"}
 	}
 	return groups
 }
@@ -51,8 +52,22 @@ type WeekRow struct{ metrics.WeekRow }
 // project's total.
 func (r WeekRow) IsLabel() bool { return r.Level == metrics.LabelRow }
 
-// WeekCell is a figure cell: its text and its class.
-type WeekCell struct{ Text, Class string }
+// WeekCell is a figure cell: its text and its class. Highest marks the
+// weekday cell of Failed or Fail rate with the highest value of its row
+// (forsgren#545): the class highest, red, and a visually hidden word.
+type WeekCell struct {
+	Text, Class string
+	Highest     bool
+}
+
+// CellClass is the cell's class attribute value: its class, with highest
+// after it when the cell is marked.
+func (c WeekCell) CellClass() string {
+	if c.Highest {
+		return "num highest"
+	}
+	return c.Class
+}
 
 // commitsClass is the class of the row's commit cells: num, except for a
 // row Per repository, whose commit cells hold an en dash.
@@ -63,14 +78,17 @@ func (r WeekRow) commitsClass() string {
 	return "num"
 }
 
-// Cells are the cells after the row header: the
-// Total's Commits and Deployments, then Commits and Deployments of each weekday,
-// Monday first.
+// Cells are the cells after the row header: the Total's Commits, Deployments,
+// Failed and Fail rate, then the four of each weekday, Monday first
+// (forsgren#545, decision #546).
 func (r WeekRow) Cells() []WeekCell {
-	cells := []WeekCell{{r.CommitsTotalCell(), r.commitsClass()}, {r.DeploymentsTotalCell(), "num"}}
+	cells := []WeekCell{{r.CommitsTotalCell(), r.commitsClass(), false}, {r.DeploymentsTotalCell(), "num", false},
+		{r.FailedTotalCell(), "num", false}, {r.FailRateTotalCell(), "num", false}}
 	for day := range weekDays {
-		cells = append(cells, WeekCell{r.CommitsShareCell(day), r.commitsClass()},
-			WeekCell{r.DeploymentsShareCell(day), "num"})
+		cells = append(cells, WeekCell{r.CommitsShareCell(day), r.commitsClass(), false},
+			WeekCell{r.DeploymentsShareCell(day), "num", false},
+			WeekCell{r.FailedShareCell(day), "num", r.FailedHighest(day)},
+			WeekCell{r.FailRateCell(day), "num", r.FailRateHighest(day)})
 	}
 	return cells
 }

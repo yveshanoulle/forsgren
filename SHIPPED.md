@@ -9,6 +9,31 @@ Active work lives in
 
 ---
 
+## 2026-10-28 — The Week page shows failed deployments per weekday, as a share of the failures and as a fail rate ([#545](https://github.com/yveshanoulle/forsgren/issues/545), decision [#546](https://github.com/yveshanoulle/forsgren/issues/546))
+
+Asked for by Yves: each weekday group of the Week table, and Total, has two more
+sub-columns after Commits and Deployments, Failed and Fail rate. A failed
+deployment is one of state `failure` (state `other` is finished, not failed).
+Under a weekday, Failed is the share of the row's failed deployments on it and
+Fail rate the failed deployments of that weekday out of all its finished
+deployments (success, failure and other); Total has the count and the rate over
+the window. Deployments still counts the successful ones only, which the
+legend's new paragraph says, with the dashes (`-` for a row with no failures,
+and for a weekday with no finished deployment). Also asked for by Yves: in each
+row the highest weekday Failed and the highest weekday Fail rate are red, every
+tied day, none for a row without failures, by the class `highest` and one
+`light-dark()` rule held at 4.5:1 in both modes, with a visually hidden word
+"highest" so colour is not the only signal. The fixture site has failed and
+other deployments of `acme/cli` on known weekdays, and the browser baseline rows
+of the Week page move with the wider table (reason naming #545 and #546). Red
+first: the metrics tests for the counts, cells and highest marks, the page tests
+for the headers, cells and marks, the legend paragraph, the contrast of
+`.highest` and the fixture row.
+
+forsgren issue 545, patch (1.29.2).
+
+---
+
 ## 2026-10-28 — The Week page's two explanation lines move to the legend ([#544](https://github.com/yveshanoulle/forsgren/issues/544))
 
 Asked for by Yves: the Week page is its h1 and the table (or its one message

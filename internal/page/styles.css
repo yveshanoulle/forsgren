@@ -116,6 +116,13 @@ li {
   color: light-dark(#b3261e, #ff8a80);
 }
 
+/* The highest weekday value of Failed and of Fail rate on the Week page is red
+   (forsgren#545), the red of .trend-up; the hidden word "highest" in the cell
+   says it without the colour. */
+.highest {
+  color: light-dark(#b3261e, #ff8a80);
+}
+
 .trend-down {
   color: light-dark(#1b6e2f, #7fd98f);
 }

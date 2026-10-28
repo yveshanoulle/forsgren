@@ -81,6 +81,8 @@ func weekData() Data {
 			weekDeployment("acme/web", 13, "deploy-web", history.StateSuccess, utc(time.October, 1, 12, 0)),
 			weekDeployment("acme/web", 14, "deploy-web", history.StateFailure, utc(time.September, 29, 12, 0)),
 			weekDeployment("acme/web", 15, "deploy-web", history.StateSuccess, utc(time.August, 20, 12, 0)),
+			weekDeployment("acme/web", 16, "deploy-web", history.StateOther, utc(time.October, 1, 13, 0)),
+			weekDeployment("acme/web", 17, "deploy-web", history.StateFailure, utc(time.August, 21, 12, 0)),
 			weekDeployment("acme/app", 1, "deploy-api", history.StateSuccess, utc(time.October, 2, 8, 0)),
 			weekDeployment("acme/app", 5, "deploy-api", history.StateSuccess, utc(time.October, 3, 7, 0)),
 			weekDeployment("acme/app", 4, "deploy-api", history.StateFailure, utc(time.September, 30, 8, 0)),
