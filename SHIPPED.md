@@ -9,6 +9,25 @@ Active work lives in
 
 ---
 
+## 2026-10-28 — The Week page's fail rate leaves other states out, failed over successful plus failed ([#547](https://github.com/yveshanoulle/forsgren/issues/547), decision [#546](https://github.com/yveshanoulle/forsgren/issues/546))
+
+Asked for by Yves, point 1 of his reply on #546: deployments of state `other`
+(cancelled, indeterminate) are left out of the Fail rate, numerator and
+denominator, so they cannot make it look better. Fail rate is the failed
+deployments out of the successful plus the failed ones, per weekday and in
+Total, as the change fail rate counts: 8 successes, 2 failures and 5 other are
+20%, not 13%. A weekday with only `other` reads `-`, one with successes and no
+failure `0%`. The red highest mark follows the new rate. Failed and
+Deployments are unchanged, and `other` stays in the stored records. The
+`Finished` count had no other use and is removed from `WeekRow`. The legend's
+Failed and Fail rate paragraph says it. Red first: the 8/2/5 example, the
+only-other weekday, the zero rate, the highest mark, the legend sentences and
+the fixture's CLI row (Total 3 of 5, 60%, was 50%).
+
+forsgren issue 547, patch (1.29.2).
+
+---
+
 ## 2026-10-28 — The Week page shows failed deployments per weekday, as a share of the failures and as a fail rate ([#545](https://github.com/yveshanoulle/forsgren/issues/545), decision [#546](https://github.com/yveshanoulle/forsgren/issues/546))
 
 Asked for by Yves: each weekday group of the Week table, and Total, has two more

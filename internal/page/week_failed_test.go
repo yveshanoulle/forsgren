@@ -4,8 +4,8 @@ import "testing"
 
 // The Failed and Fail rate columns of the Week page (forsgren#545, decision
 // #546), and the highest weekday value of each in red. weekPageData: Acme Shop
-// failed {1,0,3,0,0,0,3} of finished {5,5,12,1,0,3,10}; Website none; API
-// one on Friday of 13 finished; Acme Docs none.
+// failed {1,0,3,0,0,0,3} of successful plus failed {5,5,12,1,0,3,10}; Website none; API
+// one on Friday of 14; Acme Docs none.
 
 // highestCell is a cell marked highest: the class and the hidden word.
 func highestCell(text string) string {
@@ -14,7 +14,7 @@ func highestCell(text string) string {
 
 // TestWeekPageFailedCellsAreACountInTotalAndSharesPerWeekday: Total is the
 // count of failures and the rate over the window; a weekday is the share of
-// the failures and the failures over that weekday's finished deployments, a
+// the failures and the failures over that weekday's successful plus failed deployments, a
 // dash where there is nothing to divide.
 func TestWeekPageFailedCellsAreACountInTotalAndSharesPerWeekday(t *testing.T) {
 	got := rendered(t, "week.html", weekPageData())

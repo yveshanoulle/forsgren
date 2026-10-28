@@ -1188,6 +1188,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/weekfailed.go:FailRateCell": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/weekfailed.go:FailedHighest": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/weekfailed.go:FailRateHighest": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/weekfailed.go:rated": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/weekfailed.go:maxOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/week.go:WeekTitle": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/week.go:WeekGroups": 100.0,

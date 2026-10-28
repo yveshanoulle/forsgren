@@ -1381,17 +1381,17 @@ section.
   (decision #532): a commit authored on Sunday at 23:30 UTC is a Sunday
   commit, one authored at 00:30 on Monday a Monday commit, whenever it was
   pushed or deployed.
-- **Failed and Fail rate** (forsgren#545, decision #546). A failed deployment
+- **Failed and Fail rate** (forsgren#545, decision #546, forsgren#547). A failed deployment
   is a deployment of state `failure` created in the window (state `other` is
-  finished, not failed), over the row's own deployments for a service or
+  not failed, and is left out of Fail rate), over the row's own deployments for a service or
   rule. In Total, Failed is the count of the row's failed deployments and
-  Fail rate the failed deployments out of all finished deployments (success,
-  failure and other) of the window. Under a weekday, Failed is the share of the
+  Fail rate the failed deployments out of the successful plus failed ones
+  of the window. Under a weekday, Failed is the share of the
   row's failed deployments on that weekday, written like the other shares
   (`-` for a row with no failed deployment), and Fail rate is the failed
-  deployments of that weekday out of all finished deployments of that
-  weekday (`0%` where it deployed and nothing failed, `-` for a weekday
-  without any finished deployment). The Deployments column keeps counting
+  deployments of that weekday out of its successful plus failed ones
+  (`0%` where it deployed and nothing failed, `-` for a weekday without
+  any, also one with only `other`; the change fail rate counts the same). The Deployments column keeps counting
   the successful deployments only, so it is not the denominator. In each
   row the weekday with the highest Failed and the one with the highest Fail
   rate are red (class `highest`, one `light-dark()` rule in `styles.css`,
