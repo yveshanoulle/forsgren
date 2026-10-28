@@ -6,8 +6,10 @@
 #
 #   - the log file: the steps that do work append one line each,
 #     `<step id>: <what was done>`. The ids, in order: token, quality, plan,
-#     free, head, publish, verify-install, template, metrics-pr, metrics (the
-#     last one logs `PR #N merged, forsgren run <url> green`). A release makes
+#     free, head, publish, verify-install, template, metrics-pr, metrics (logs
+#     `PR #N merged, forsgren run <url> green`), preview (forsgren#246: a
+#     failed start leaves the release published; the advice names
+#     Scripts/dispatch_preview.sh with the sha of the publish line). A release makes
 #     no bump commit (forsgren#237): it tags main's Quality-green head.
 #   - the outcomes, in the environment variable RELEASE_STEP_OUTCOMES, one
 #     `<step id>=<outcome>` line per step of the job (the workflow passes
@@ -62,11 +64,11 @@ if [ "$LOG" = "--table" ]; then
   STATUS=table
 fi
 
-ALL_IDS="main checkout setup-go log token resume quality plan free head publish verify-install template metrics-pr metrics"
-LOGGED_IDS="token quality plan free head publish verify-install template metrics-pr metrics"
+ALL_IDS="main checkout setup-go log token resume quality plan free head publish verify-install template metrics-pr metrics preview"
+LOGGED_IDS="token quality plan free head publish verify-install template metrics-pr metrics preview"
 # A resumed run (RELEASE_RESUME=pins) skips everything between the token check
 # and the install check.
-if [ "${RELEASE_RESUME:-}" = pins ]; then LOGGED_IDS="token resume verify-install template metrics-pr metrics"; fi
+if [ "${RELEASE_RESUME:-}" = pins ]; then LOGGED_IDS="token resume verify-install template metrics-pr metrics preview"; fi
 
 # name_of <id>: the step's name in release.yml.
 name_of() {
@@ -86,6 +88,7 @@ name_of() {
     template) echo "Move the pins and README of forsgren-template" ;;
     metrics-pr) echo "Open the pin pull request in forsgren-metrics" ;;
     metrics) echo "Merge the pin pull request and run forsgren in forsgren-metrics" ;;
+    preview) echo "Start the preview deploy of the release" ;;
     *) echo "$1" ;;
   esac
 }
@@ -210,12 +213,18 @@ ADVICE=""
 NOTICE=""
 QUALITY_LINK="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-owner/forsgren}/actions/workflows/quality.yml"
 advise() {
-  local name bump version next
+  local name bump version sha next
   name="$(name_of "$failed_id")"
   bump="${RELEASE_BUMP:-the same}"
   version="$(line_value '^publish: ' | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true)"
   if [ -z "$version" ]; then version="$(line_value '^resume: tag=' | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true)"; fi
+  sha="$(line_value '^publish: |^resume: tag=' | grep -oE '[0-9a-f]{40}' | head -n 1 || true)"
   case "$failed_id" in
+    preview)
+      ADVICE="${version:-This release} is released and its pins are moved; only the start of the preview deploy failed.
+Next: start the preview with Scripts/dispatch_preview.sh ${sha:-<the release sha>}, or wait for the next push to main. Do not start Release again."
+      NOTICE="Release failed at the step '${name}': ${version:-this release} is released, only the preview deploy was not started. Start it with Scripts/dispatch_preview.sh ${sha:-<the release sha>}, or wait for the next push to main."
+      ;;
     template | metrics-pr | metrics)
       ADVICE="${version:-This release} is released.
 Next: fix the cause (for a 403: the token's Workflows permission), then start Release with resume = pins: gh workflow run release.yml -f resume=pins, or Actions → Release → Run workflow → resume: pins."

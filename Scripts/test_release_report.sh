@@ -50,7 +50,7 @@ LOGGED=(token quality plan free head publish verify-install template metrics-pr 
 unset GH_REPO
 export GITHUB_SERVER_URL=https://github.com GITHUB_REPOSITORY=acme/app RELEASE_BUMP=minor
 SHA40=0123456789abcdef0123456789abcdef01234567
-ALL_STEPS=(main checkout setup-go log token resume quality plan free head publish verify-install template metrics-pr metrics)
+ALL_STEPS=(main checkout setup-go log token resume quality plan free head publish verify-install template metrics-pr metrics preview)
 
 # logged <id>...: the log with those steps recorded.
 logged() {
@@ -308,6 +308,19 @@ want_said "$CASE: the step is named" "at the step 'Merge the pin pull request an
 want_said "$CASE: it is released" "v1.9.5 is released."
 want_said "$CASE: resume pins" "-f resume=pins"
 no_hand
+# released and pinned, the preview dispatch failed (forsgren#246)
+logged token quality plan free head
+echo "publish: tag and release v1.9.5 at ${SHA40}, Latest" >> "$LOG"
+outcomes preview failure
+report "$LOG" failure
+CASE="preview (the dispatch of the preview deploy)"
+want_said "$CASE: the step is named" "at the step 'Start the preview deploy of the release' (preview)."
+want_said "$CASE: it is released" "v1.9.5 is released and its pins are moved"
+want_said "$CASE: the command with the sha" "Scripts/dispatch_preview.sh ${SHA40}"
+want_said "$CASE: or the next push to main" "or wait for the next push to main"
+if grep -q 'resume=pins' <<< "$OUT"; then fail "$CASE: it must not send the maintainer to resume = pins. Output: ${OUT}"; else echo "  ok: $CASE: no resume advice"; fi
+one_notice
+no_hand
 # a resumed run that fails again
 logged token resume verify-install
 echo "resume: tag=v1.9.4 at ${SHA40}" >> "$LOG"
@@ -403,6 +416,18 @@ if mutant nopin 's/ Do not move a pin by hand\.//'; then
     fail "mutation proof: the mutant still says not to move a pin by hand"
   else
     echo "  ok: mutation proof: an install failure without the warning is what the verify-install case catches"
+  fi
+fi
+# The preview advice without the sha to dispatch must be caught.
+logged token quality plan free head
+echo "publish: tag and release v1.9.5 at ${SHA40}, Latest" >> "$LOG"
+outcomes preview failure
+if mutant nopreviewsha "s/dispatch_preview.sh \\\${sha:-<the release sha>}/dispatch_preview.sh/"; then
+  report "$LOG" failure
+  if grep -qF "dispatch_preview.sh ${SHA40}" <<< "$OUT"; then
+    fail "mutation proof: the mutant still names the sha to dispatch"
+  else
+    echo "  ok: mutation proof: preview advice without the sha is what the preview case catches"
   fi
 fi
 # A report that renders only the first blocking issue must be caught, naming

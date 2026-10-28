@@ -889,7 +889,10 @@ The last step runs whatever happened and prints what was done and what was not
 each step (`steps.<id>.outcome`, passed to it), not from the log, so a step that
 fails before it could record anything, like the token check, is still the one
 named. A run that fails halfway says so: a release pushes nothing to `main`,
-and a tag exists only together with its release. `SHIPPED.md` is still written by hand.
+and a tag exists only together with its release. When only the preview start
+failed (forsgren#246), it says the release is published and to start the preview
+with `Scripts/dispatch_preview.sh <sha of the release>`, or wait for the next
+push to `main`. `SHIPPED.md` is still written by hand.
 
 **The secret `FORSGREN_RELEASE_TOKEN`** is what steps 7 and 8 use, since the
 job's own token cannot write to another repository. It is a fine-grained
