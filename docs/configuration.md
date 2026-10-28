@@ -571,6 +571,15 @@ default 30`. `check-config` writes the same warnings, adds `, settings not
 accepted: N` to its OK line and exits 0. Up to 1.5.x such a value stopped
 the run.
 
+The setup issue lists the refused settings too (forsgren#538), so a
+maintainer who reads neither the log nor the settings page still sees them:
+one item per refused setting under the heading "Refused settings", with the
+key, the value as written, the reason and the default in use, and the item goes
+away on the next run after the value is corrected (see [The setup
+issue](updating-and-releases.md#the-setup-issue-check-needs)). The principle:
+a configuration error never prevents metrics from being generated, and never
+stays invisible to maintainers.
+
 What has no default still stops the run, and `check-config` exits 1 with the
 refusal: a file that cannot be read or is empty, YAML that does not parse,
 a missing or unsupported `version`, any key forsgren does not know, a second

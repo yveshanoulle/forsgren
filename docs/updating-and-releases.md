@@ -51,13 +51,37 @@ is then the failed run.
   the label and no marker is never touched, and if you remove the label from
   the managed issue, the next run opens a new one. Its title is "forsgren
   <version> needs more configuration" (the running version) and its body lists the
-  steps of each missing need; title and body are presentation, and a run
+  steps of each missing need and each refused setting; title and body are presentation, and a run
   rewrites them.
-- **What a run does with it.** Something missing and no issue: it opens one.
-  Missing and the issue open: it updates it. Missing and the issue closed:
-  it reopens and updates it, since the same issue is the installation's. Nothing
-  missing and the issue open: it closes it with the comment "All items are in
-  place as of forsgren <version>.". Nothing missing and no issue, or a closed
+- **Two headings: missing requirements and refused settings** (forsgren#538).
+  The body has a heading "Missing requirements" for what the running version
+  needs and is not in place, and a heading "Refused settings" for every
+  configuration setting forsgren refused. A list that is empty has no heading.
+  Each refused setting is its own item and names the key, the value as written,
+  why it is not accepted and the default forsgren uses instead, the facts the
+  settings page shows (the same list as `check-config`'s warnings):
+
+  ```
+  ## Refused settings
+
+  - [ ] `view`: `weekly` is not accepted: use standard, numbers or scoring. Using the default `standard`.
+  ```
+
+  The value is shown in a code span, one line, an empty one as `(empty)`. The
+  issue is rewritten on every run, so an item is gone on the next run after
+  the configuration is corrected. A refused setting never makes a metrics run
+  fail: forsgren runs with the default, and the setup issue is how a
+  maintainer who never opens the settings page sees it. It needs no new
+  permission (the issue already needs `issues: write`) and opens no second
+  issue. A config file that cannot be loaded at all is the metrics run's own
+  failure; `check-needs` notes it on stderr and lists no refused setting.
+- **What a run does with it.** Something missing or a setting refused, and no
+  issue: it opens one.
+  Missing or refused and the issue open: it updates it. Missing or refused and
+  the issue closed: it reopens and updates it, since the same issue is the
+  installation's. Nothing missing, no setting refused and the issue open: it
+  closes it with the comment "All items are in
+  place as of forsgren <version>.". Nothing to report and no issue, or a closed
   one: nothing.
 - **A development build checks nothing** (forsgren#340). A build that names no
   release (the version is `dev`: no `-ldflags` value and no release tag in its

@@ -17,22 +17,39 @@ func Title(version string) string {
 }
 
 // Body is the setup issue's body: the Marker as its first line, a sentence
-// naming the forsgren version that needs the items, then one task-list item
-// per missing need carrying its Steps text.
-func Body(version string, missing []Need) string {
+// naming the forsgren version, then the missing requirements under their
+// heading, one task-list item per need carrying its Steps text, and the
+// refused settings under theirs, one item per Refusal (forsgren#538). A list
+// that is empty has no heading; forsgren closes the issue once both are.
+func Body(version string, missing []Need, refused []Refusal) string {
 	var b strings.Builder
 	b.WriteString(Marker)
-	b.WriteString("\n\nforsgren " + version + " needs more configuration in this repository. ")
-	b.WriteString("Each item below is missing; forsgren closes this issue once all are in place.\n")
+	b.WriteString("\n\nforsgren " + version + " needs attention in this repository. ")
+	b.WriteString("Each item below is open; forsgren closes this issue once none is left.\n")
+	if len(missing) > 0 {
+		b.WriteString("\n## " + MissingHeading + "\n")
+	}
 	for _, n := range missing {
 		b.WriteString("\n- [ ] " + n.Steps)
 		if n.Hidden != "" {
 			b.WriteString(" " + n.Hidden)
 		}
 	}
+	if len(refused) > 0 {
+		b.WriteString("\n\n## " + RefusedHeading + "\n\nforsgren does not stop for these: it uses the default shown.\n")
+	}
+	for _, r := range refused {
+		b.WriteString("\n- [ ] " + r.Item())
+	}
 	b.WriteString("\n")
 	return b.String()
 }
+
+// The two headings of the setup issue's body.
+const (
+	MissingHeading = "Missing requirements"
+	RefusedHeading = "Refused settings"
+)
 
 // tokenExpiryMarkPattern finds the token expiry mark in a setup issue's body.
 var tokenExpiryMarkPattern = regexp.MustCompile(`<!-- forsgren:token_expiry (\S+) -->`)

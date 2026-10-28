@@ -25,7 +25,7 @@ func TestSetupIssueTextForTheDeclaredNeeds(t *testing.T) {
 	if got, want := Title("0.4.0"), "forsgren 0.4.0 needs more configuration"; got != want {
 		t.Errorf("Title: want %q, got %q", want, got)
 	}
-	body := Body("0.4.0", all)
+	body := Body("0.4.0", all, nil)
 	if !strings.HasPrefix(body, Marker) {
 		t.Errorf("Body: want it to start with %q, got %q", Marker, body)
 	}
@@ -44,14 +44,14 @@ func TestSetupIssueTextForTheDeclaredNeeds(t *testing.T) {
 func TestTheTokenExpiryMarkRoundTripsThroughTheBody(t *testing.T) {
 	expiry := time.Date(2026, 10, 10, 8, 35, 47, 0, time.UTC)
 	item := Need{Steps: "renew it", Hidden: TokenExpiryMark(expiry)}
-	body := Body("1.5.0", []Need{item})
+	body := Body("1.5.0", []Need{item}, nil)
 	if want := "- [ ] renew it <!-- forsgren:token_expiry 2026-10-10T08:35:47Z -->"; !strings.Contains(body, want) {
 		t.Errorf("Body: want %q, got %q", want, body)
 	}
 	if got, ok := TokenExpiryIn(body); !ok || !got.Equal(expiry) {
 		t.Errorf("TokenExpiryIn: want %v, got %v (%v)", expiry, got, ok)
 	}
-	for _, none := range []string{Body("1.5.0", nil), "<!-- forsgren:token_expiry soon -->"} {
+	for _, none := range []string{Body("1.5.0", nil, nil), "<!-- forsgren:token_expiry soon -->"} {
 		if got, ok := TokenExpiryIn(none); ok {
 			t.Errorf("TokenExpiryIn(%q): want none, got %v", none, got)
 		}

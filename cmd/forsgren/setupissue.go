@@ -47,11 +47,11 @@ func (s setupReport) find(ctx context.Context) (foundIssue, error) {
 // report makes the one call the run's missing needs call for on the setup
 // issue (forsgren#73), given what find found: create, update, reopen or
 // close it, or none.
-func (s setupReport) report(ctx context.Context, found foundIssue, missing []needs.Need) error {
-	if len(missing) == 0 {
+func (s setupReport) report(ctx context.Context, found foundIssue, items setupItems) error {
+	if items.empty() {
 		return s.closeIssue(ctx, found.issue, found.ok)
 	}
-	return s.openIssue(ctx, missing, found.issue, found.ok)
+	return s.openIssue(ctx, items, found.issue, found.ok)
 }
 
 // closeIssue closes the setup issue when it is open: nothing is missing, and
@@ -65,8 +65,8 @@ func (s setupReport) closeIssue(ctx context.Context, found github.SetupIssue, ok
 
 // openIssue creates the setup issue when there is none, updates it when it
 // is open and reopens it when it is closed: something is missing.
-func (s setupReport) openIssue(ctx context.Context, missing []needs.Need, found github.SetupIssue, ok bool) error {
-	text := github.IssueText{Title: needs.Title(s.version), Body: needs.Body(s.version, missing)}
+func (s setupReport) openIssue(ctx context.Context, items setupItems, found github.SetupIssue, ok bool) error {
+	text := github.IssueText{Title: needs.Title(s.version), Body: needs.Body(s.version, items.missing, items.refused)}
 	switch {
 	case !ok:
 		_, err := s.issues.CreateIssue(ctx, s.repo, text, []string{setupLabel})
@@ -88,3 +88,16 @@ func setupStatus(err error) string {
 	}
 	return lookupStatus(err)
 }
+
+// setupItems are what one run puts on the setup issue (forsgren#538): the
+// missing requirements and the refused settings, under their own headings.
+type setupItems struct {
+	missing []needs.Need
+	refused []needs.Refusal
+}
+
+// empty says whether there is nothing to report: the issue is then closed.
+func (i setupItems) empty() bool { return len(i.missing) == 0 && len(i.refused) == 0 }
+
+// count is the number of items.
+func (i setupItems) count() int { return len(i.missing) + len(i.refused) }

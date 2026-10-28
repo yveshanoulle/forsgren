@@ -365,7 +365,10 @@ notes are the only source of that; do not decide from the version numbers.
    person.
 4. The installation's own setup issue is a second source, never the first:
    `gh issue list -R OWNER/REPO -l forsgren-setup`. An open issue lists what
-   the running version found missing. Add each item to `WORK/asks.md`.
+   the running version found missing, under "Missing requirements", and every
+   configuration setting it refused, under "Refused settings". Add each item
+   of both to `WORK/asks.md`; a refused setting is run with its default
+   meanwhile and needs the person's correction of the value.
    forsgren only fills it for the version that runs, so an upgrade can need
    more than it says.
 
@@ -987,7 +990,7 @@ minute and run that check again, at most 5 times, before you report it.
    without quoting what the page shows. The Week page (`week.html`) is not read for this check: its `–` cells for a service or rule without `paths` are by design.
 10. No setup issue stays open: `gh issue list -R OWNER/REPO -l forsgren-setup`
    lists no open issue. The run closes it by itself when nothing is missing
-   any more. An issue still there: show the person its title and body
+   and no setting is refused any more. An issue still there: show the person its title and body
    (`gh issue view NUMBER -R OWNER/REPO`, with the number the list shows),
    say what it asks, stop and report.
 

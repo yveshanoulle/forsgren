@@ -77,7 +77,8 @@ func TestReportSetupMakesTheCallTheStateCallsFor(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			fake := &recordingIssues{found: c.found, ok: c.ok}
 			report := setupReport{issues: fake, repo: "acme/app", version: v}
-			if err := report.report(context.Background(), foundIssue{c.found, c.ok}, c.missing); err != nil {
+			items := setupItems{missing: c.missing}
+			if err := report.report(context.Background(), foundIssue{c.found, c.ok}, items); err != nil {
 				t.Fatalf("report: %v", err)
 			}
 			checkSetupCalls(t, fake, c.want)

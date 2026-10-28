@@ -53,6 +53,35 @@ the legend against the old text.
 
 forsgren issue 540, patch (before 1.29.0 ships).
 
+## 2026-10-27 — The setup issue reports every refused setting, under its own heading next to the missing requirements ([#538](https://github.com/yveshanoulle/forsgren/issues/538), step 1 of 1)
+
+Asked for by Yves: configuration errors never prevent metrics from being
+generated, and never stay invisible to maintainers. Until now a setting forsgren
+refused (a value that is not accepted, so its default is used) showed only on
+the settings page and in the log. `check-needs` now lists each one in the setup
+issue: one item per refused setting, naming the key, the value as written, the
+reason and the default in use, in the words of the settings page (`view:
+weekly` reads "`view`: `weekly` is not accepted: use standard, numbers or
+scoring. Using the default `standard`."). The body has two headings, "Missing
+requirements" and "Refused settings", each only when it has items. The issue is
+rewritten on every run, so an item goes once the value is corrected, and it
+closes only when nothing is missing and no setting is refused; a refused
+setting alone opens, updates or reopens it. A refused setting never fails a
+run, and no new permission or issue is involved. The items come from
+`Config.Rejected` (`needs.Refusal`, `refusedSettings`), so a further reason,
+such as the separator conflict of #536 (decision #537), is one more `Rejection`
+and shows as an item without change here. The value is shown in a code span on
+one line. Red first: `TestRefusalItem*` and
+`TestBodyHasTheMissingAndTheRefusedUnderTheirOwnHeadings` against a stub
+`Item` and the old `Body`, `TestCheckNeeds*Refused*` and
+`TestReportMakesTheCallTheRefusedSettingsCallFor` against a `refusedSettings`
+that returned nothing. Docs: The setup issue, the configuration reference,
+CLAUDE.md (with the principle), and the setup-issue checks of both agent files.
+
+forsgren issue 538, patch (Yves's ruling: #536 and #538 ship as 1.29.1).
+
+---
+
 ## 2026-10-27 — A Week page: commits and deployments per weekday, and the weekend share ([#531](https://github.com/yveshanoulle/forsgren/issues/531), decisions [#532](https://github.com/yveshanoulle/forsgren/issues/532) A, [#533](https://github.com/yveshanoulle/forsgren/issues/533) A, [#534](https://github.com/yveshanoulle/forsgren/issues/534) A and [#539](https://github.com/yveshanoulle/forsgren/issues/539) A, step 4 of 4)
 
 Asked for by Yves: see on which weekdays the work happens and how much of it

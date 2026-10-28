@@ -889,7 +889,8 @@ Then check what the run did:
     when it shows. Rule: never say a note is absent without quoting what the page
     shows. The Week page (`week.html`) is not read for this check: its `–` cells for a service or rule without `paths` are by design.
 11. No setup issue: `gh issue list -R OWNER/REPO -l forsgren-setup`
-    lists no issue. An issue there: show the person its title and body
+    lists no issue (it can list a missing requirement or a refused setting
+    of the config, each under its own heading). An issue there: show the person its title and body
     (`gh issue view NUMBER -R OWNER/REPO`), stop and report.
 
 Numbers such as "No deployments" or "No failed deployments" are not a

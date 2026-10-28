@@ -10,6 +10,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/yveshanoulle/forsgren/internal/config"
 	"github.com/yveshanoulle/forsgren/internal/github"
 	"github.com/yveshanoulle/forsgren/internal/needs"
 )
@@ -99,7 +100,8 @@ func reportNeeds(o checkNeedsOptions, stdout, stderr io.Writer) string {
 	if err != nil {
 		return noteFailed(stderr, err)
 	}
-	return writeSetup(setupReport{issues: client, repo: o.repository, version: runningVersion()}, missing, known, stderr)
+	items := setupItems{missing: missing, refused: refusedSettings(o.config, stderr)}
+	return writeSetup(setupReport{issues: client, repo: o.repository, version: runningVersion()}, items, known, stderr)
 }
 
 // gatherNeeds are the needs missing from the checkout, the token's renewal
@@ -123,16 +125,16 @@ func gatherNeeds(o checkNeedsOptions, stderr io.Writer) ([]needs.Need, bool, err
 // writeSetup writes the setup issue for the missing needs, looking it up
 // once, with the renewal item the open issue already carries when the
 // token's expiry is not known (withKeptToken), and returns how that went (writeOutcome).
-func writeSetup(s setupReport, missing []needs.Need, expiryKnown bool, stderr io.Writer) string {
+func writeSetup(s setupReport, items setupItems, expiryKnown bool, stderr io.Writer) string {
 	ctx := context.Background()
 	found, err := s.find(ctx)
 	if err == nil {
 		if !expiryKnown {
-			missing = withKeptToken(found, missing, now())
+			items.missing = withKeptToken(found, items.missing, now())
 		}
-		err = s.report(ctx, found, missing)
+		err = s.report(ctx, found, items)
 	}
-	return writeOutcome(len(missing), err, stderr)
+	return writeOutcome(items.count(), err, stderr)
 }
 
 // writeOutcome is the status of the setup issue's write and, when it failed,
@@ -193,4 +195,22 @@ func configKeys(name, path string, stderr io.Writer) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// refusedSettings are the settings of the config file at path that forsgren
+// refuses, each as the setup issue's item: the config's own rejected list,
+// the source the settings page shows (forsgren#538). A refused setting never
+// fails a run; a file that cannot be loaded at all has none to report here
+// (its failure is the metrics run's own), noted on stderr.
+func refusedSettings(path string, stderr io.Writer) []needs.Refusal {
+	cfg, err := config.Load(path)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "check-needs: the refused settings are unknown: %v\n", err)
+		return nil
+	}
+	refused := make([]needs.Refusal, 0, len(cfg.Rejected))
+	for _, r := range cfg.Rejected {
+		refused = append(refused, needs.Refusal{Key: r.Key, Written: r.Written, Reason: r.Reason, Default: r.Default})
+	}
+	return refused
 }
