@@ -175,20 +175,38 @@ one not completed yet, "— · 1 recovery not completed yet", the dash for the
 band and the median it does not have yet; with neither, "No failed
 deployments". The unit is the recovery, one per run of failures however
 many deployments failed in it (Yves's ruling on decision #35), never a
-failed deployment. It reads the deployments only, so a withdrawn failure
-issue (forsgren#155) does not change it.
+failed deployment. It also reads the failure issues (forsgren#53, below), less
+the withdrawn ones (forsgren#155).
 
 **What counts.** Rulings on forsgren#17, taken while Yves was away (each
 can be reverted there):
 
-- **Deployments only.** A failure is a line of `data/deployments.csv`
+- **Deployments.** A failure is a line of `data/deployments.csv`
   whose state is `failure`. The web-hosting and TestFlight recorders record
   a failure only once live was touched, which is DORA's "requires
   immediate intervention". A `workflow=` rule stores every run that
   concluded `failure` (see [Collecting deployments](data-files.md#collecting-deployments-collect)), so for such a
-  repository a run that failed before touching live counts too. Failure issues (the `failure` label with its
-  record block, see [How it gets its data](data-files.md#how-it-gets-its-data)) are the source of change fail
-  rate (forsgren#18), not of this number.
+  repository a run that failed before touching live counts too.
+- **Failure issues** (forsgren#53, Yves's ruling): an issue with the
+  `failure` label (with its record block, see [How it gets its data](data-files.md#how-it-gets-its-data))
+  is a recovery of its own, timed from its `failure-start:` line, or from its
+  opening when the line is missing, to its closing. An open issue is a
+  recovery not completed yet, counted whatever its age, as a run of failed
+  deployments with no success after it. A closed one counts when it was
+  closed in the window. A withdrawn issue (forsgren#155) is not there.
+- **Counted once.** Nothing stored links an issue to the deployment it is
+  about, and change fail rate takes, per repository, the larger of its
+  failed deployments and its failure issues so that an incident is not
+  counted twice. Here an issue whose time, from its start to its closing or
+  to now while it is open, overlaps the time of a run of failed
+  deployments of the same repository (from its first failure to the
+  success that recovered it, or to now while it is open; a shared moment
+  or edge counts, any stream, any age) is taken to be that incident and
+  is left out: the run's recovery counts alone. An issue that overlaps no
+  run is a recovery of its own. A service or deployment rule row counts
+  the issues whose `service:` line names its label (forsgren#515), as
+  change fail rate does. Deployment rework rate reads the issues as it
+  did and does not change.
 - **Recovered by the next success of its stream.** The stream is
   collect's (see [Collecting deployments](data-files.md#collecting-deployments-collect), The commits of each deployment):
   the same repository, compared ignoring case, the same kind, environment

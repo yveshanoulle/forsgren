@@ -102,7 +102,10 @@ func TestLegendSaysWhichRowAFailureIssueCountsIn(t *testing.T) {
 			"the deployments made while it was open are rework there. So the total rate can be "+
 			"higher than the rate of every row under it.")
 	wantAll(t, "recovery time section", legendSection(t, "Failed deployment recovery time"),
-		"Recovery time comes from failed deployments, so a service or deployment rule row has its own.")
+		"A failure issue starts at the failure-start: line of its record, or at its opening when it has none, "+
+			"and ends at its closing. An issue whose time overlaps a run of failed deployments of its repository "+
+			"is the same incident and counts once, as that run. A service or deployment rule row has its own "+
+			"failed deployments and the issues whose service: line names it, as for change fail rate.")
 }
 
 // legendLevelScoresText is the sentence under Scores that points at the scores

@@ -45,7 +45,9 @@ func writeFailures(t *testing.T, data string, failures []history.Failure) {
 // fail rate. Acme Shop's 13 final deployments of the last 30 days hold 1
 // failure, of acme/api; acme/api's failure issue is taken to be about it
 // and acme/ios-app's issue is a second failed change: 2 of 13, 15%, the
-// band 20%.
+// band 20%. Recovery time (forsgren#53) counts the two open issues of
+// acme/ios-app, whatever their age, as recoveries not completed yet, beside
+// acme/api's open run of failed deployments, which its issue overlaps: 3.
 func TestRenderShowsChangeFailRate(t *testing.T) {
 	pinNow(t)
 	data := writeHistory(t, acmeHistory())

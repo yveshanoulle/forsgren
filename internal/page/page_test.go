@@ -137,7 +137,8 @@ func TestChangeFailPageMatchesGolden(t *testing.T) {
 	changeFail := metrics.ChangeFailRate{
 		Deployments: 13, FailedDeployments: 1, FailureIssues: 2, Failed: 2, Band: metrics.TwentyPercent,
 	}
-	checkGolden(t, "testdata/index.changefail.golden.html", acmeProjects(metrics.LeadTime{}, unrecovered, changeFail,
+	checkGolden(t, "testdata/index.changefail.golden.html", acmeProjects(metrics.LeadTime{},
+		metrics.Recovery{Unrecovered: 3}, changeFail,
 		metrics.ReworkRate{Deployments: 12, Rework: 9, Band: metrics.EightyPercent}))
 }
 
@@ -535,7 +536,8 @@ func TestLegendPageSaysWhereEachMetricComesFrom(t *testing.T) {
 	wantAll(t, "legend.html", rendered(t, "legend.html", Placeholder(testVersion)),
 		"Every number counts back from the time in the footer: deployment frequency from the successful deployments",
 		"lead time for changes from the commits they shipped",
-		"failed deployment recovery time from the failed deployments and the successful ones after them",
+		"failed deployment recovery time from the failed deployments and the successful ones after them "+
+			"and from the issues labelled failure",
 		"change fail rate from the failed deployments and the issues labelled failure",
 		"deployment rework rate from the successful deployments that came after a failed deployment",
 	)

@@ -683,7 +683,13 @@
   {
    "path": "internal/metrics/recovery.go",
    "score": 10.0,
-   "checkedAt": "2026-10-15",
+   "checkedAt": "2026-10-28",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/metrics/recovery_issues_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-28",
    "minScore": 10.0
   },
   {
@@ -783,6 +789,12 @@
    "minScore": 10.0
   },
   {
+   "path": "internal/metrics/recoveryissues.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-28",
+   "minScore": 10.0
+  },
+  {
    "path": "internal/metrics/rework.go",
    "score": 10.0,
    "checkedAt": "2026-10-15",
@@ -809,7 +821,7 @@
   {
    "path": "internal/metrics/stream.go",
    "score": 10.0,
-   "checkedAt": "2026-10-04",
+   "checkedAt": "2026-10-28",
    "minScore": 10.0
   },
   {

@@ -35,10 +35,11 @@ type streamSuccess struct {
 }
 
 // eachSuccess walks one stream's deployments oldest first (by created_at,
-// then ID), calls each for every success, and returns 1 when the stream ends
-// in a run of failures not recovered yet, else 0. A deployment in another
-// final state neither starts nor ends a run.
-func eachSuccess(deployments []history.Record, each func(streamSuccess)) int {
+// then ID), calls each for every success, and returns the run the stream
+// ends in: open is 1 for a run of failures not recovered yet, since its
+// first failure, else 0. A deployment in another final state neither starts
+// nor ends a run.
+func eachSuccess(deployments []history.Record, each func(streamSuccess)) outage {
 	slices.SortStableFunc(deployments, history.Chronological)
 	var run outage
 	for _, d := range deployments {
@@ -50,7 +51,7 @@ func eachSuccess(deployments []history.Record, each func(streamSuccess)) int {
 			each(streamSuccess{at: d.CreatedAt, recovered: recovered, took: took})
 		}
 	}
-	return run.open
+	return run
 }
 
 // outage is a stream's current run of failures: open is 1 from its first

@@ -48,8 +48,8 @@ that shipped it;
 [change fail rate](pages-and-views.md#change-fail-rate) counts failed
 deployments and failure issues against the final deployments;
 [failed deployment recovery time](pages-and-views.md#failed-deployment-recovery-time)
-runs from a failed deployment to the next success of its stream, and reads
-deployments only.
+runs from a failed deployment to the next success of its stream, or from the
+start of a failure issue to its closing.
 
 ## Route A: record a GitHub Deployment from outside
 
@@ -235,10 +235,12 @@ these issues on every run.
 - [Deployment rework rate](pages-and-views.md#deployment-rework-rate) counts
   a successful deployment created while the issue was open as rework.
 - [Failed deployment recovery time](pages-and-views.md#failed-deployment-recovery-time)
-  reads deployments only, not issues. An incident after the hand-off reaches
-  it only when it is recorded as a failed deployment (a deployment with a
-  `failure` status, as in Route A) and a later success of the same stream
-  ends it.
+  also reads failure issues (forsgren#53): an incident after the hand-off
+  is a recovery from the issue's `failure-start:` line, or from its opening,
+  to its closing, and an open issue is a recovery not completed yet. When it
+  is also recorded as a failed deployment (a deployment with a `failure`
+  status, as in Route A) that overlaps the issue in time, the two count once,
+  as the deployments' recovery.
 - A `service:` line in the record block, with a row's label, counts the
   issue in that row too, and not only in the project's total.
 

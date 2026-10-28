@@ -191,7 +191,8 @@ func TestHalfYearIsBandedAs180DaysWhateverItsLength(t *testing.T) {
 // the period recovered inside it counts, as a rework deployment; a failure
 // still open at the end is not recovered, though a success followed at the
 // end or later; a success while a failure issue was open is rework, one after
-// it was closed is not.
+// it was closed is not. The issue, 20 days from opening to closing and
+// overlapping no run of failures, is a recovery too (forsgren#53).
 func TestRecoveryAndReworkInAPastPeriod(t *testing.T) {
 	end := now.Add(-10 * day)
 	start := end.Add(-184 * day)
@@ -215,7 +216,7 @@ func TestRecoveryAndReworkInAPastPeriod(t *testing.T) {
 	data.Reach = fullyRead()
 	shop := PeriodRows(tableProjects, data, Period{Label: "past", Start: start, End: end})[0]
 	r := shop.Recovery
-	if got, want := [3]any{r.Recoveries, r.Median, r.Unrecovered}, [3]any{1, 7 * day, 1}; got != want {
+	if got, want := [3]any{r.Recoveries, r.Median, r.Unrecovered}, [3]any{2, 13*day + 12*time.Hour, 1}; got != want {
 		t.Errorf("recoveries, median, unrecovered = %v, want %v", got, want)
 	}
 	if got, want := [2]int{shop.Rework.Rework, shop.Rework.Deployments}, [2]int{2, 4}; got != want {

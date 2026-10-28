@@ -141,7 +141,7 @@ func TestProjectRowsKeepTheirNumbers(t *testing.T) {
 		Records: data.Records, WorkingHours: config.DefaultWorkingHours, DoraDays: 30,
 	}, now)
 	leadTimes := LeadTimes(tableProjects, Data{Commits: data.Commits, DoraDays: 30}, now)
-	recoveries := RecoveryTimes(tableProjects, Data{Records: data.Records, DoraDays: 30}, now)
+	recoveries := RecoveryTimes(tableProjects, Data{Records: data.Records, Failures: data.Failures, DoraDays: 30}, now)
 	changeFails := ChangeFailRates(tableProjects, Data{
 		Records: data.Records, Failures: data.Failures, DoraDays: 30,
 	}, now)
