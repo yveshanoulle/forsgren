@@ -23,7 +23,8 @@
 # with their self-tests (forsgren#282), the jobs `isolation_1` and `isolation_2`
 # the git sandbox isolation self-test in two shards, one each (forsgren#426),
 # the `summary` job the step summary isolation gate
-# (forsgren#425) and the `browser` job
+# (forsgren#425), the `quality_2` job twelve gates of the main job and the Go
+# coverage gate (forsgren#447) and the `browser` job
 # the browser gates (with their own site build), and the `workflows` job the
 # pins of the workflows and the wiring of the gates (forsgren#408), all with
 # the same setup; the
@@ -268,6 +269,87 @@ jobs:
         run: |
           set -uo pipefail
           ./Scripts/report_baselines.sh image
+
+  # The quality_2 job (forsgren#447): thirteen rows that Scripts/ci_job_groups.txt
+  # gives to this job and Scripts/run_ci_phase.sh skips in the main job (the
+  # twelve slowest gates after the ones with a job of their own, about 306 s,
+  # and the Go coverage gate, which reads the profile the Go tests gate writes,
+  # so the two run together). The same setup as the main job, step for step:
+  # its comments are the main job's. No site build: all are PRE rows and none
+  # reads .build/site. No secret reaches it: none of its gates reads one or is
+  # secret-class. macos-latest: the exit-trap completion behaviour gate tests
+  # the bash 3.2 of macOS (/bin/bash).
+  quality_2:
+    name: Quality gates 2/2
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up the gate environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
+          toolchain="$(./Scripts/go_toolchain.sh)"
+          echo "GOTOOLCHAIN=${toolchain}" >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Install tools
+        shell: bash
+        env:
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
+        run: |
+          set -euo pipefail
+          ./Scripts/install_tools.sh
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start report
+        shell: bash
+        run: |
+          set -euo pipefail
+          rows="${RUNNER_TEMP}/quality_rows.md"
+          details="${RUNNER_TEMP}/quality_details"
+          : > "$rows"
+          rm -rf "$details" && mkdir -p "$details"
+          echo "ROWS=${rows}" >> "$GITHUB_ENV"
+          echo "DETAILS=${details}" >> "$GITHUB_ENV"
+
+      # The rows Scripts/ci_job_groups.txt gives to this job, in order-file
+      # order. A failing gate does not stop the phase, as in the main job.
+      - name: Quality gates 2/2
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/run_ci_phase.sh pre "$ROWS" "$DETAILS" quality_2
+
+      - name: Collect the gate report
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          ./Scripts/merge_quality_report.sh handover "${ROWS:-}" "${DETAILS:-}" "${RUNNER_TEMP}/handover"
+
+      - name: Hand over the gate report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: quality-report-quality_2
+          path: ${{ runner.temp }}/handover
+          retention-days: 1
+          if-no-files-found: error
 
   # The lint job (forsgren#282): actionlint, shellcheck, yamllint and zizmor
   # with their self-tests, the static lint rows of the order file's static
@@ -793,7 +875,7 @@ jobs:
   # job.
   report:
     name: Quality report
-    needs: [quality, lint, isolation_1, isolation_2, summary, browser, workflows]
+    needs: [quality, quality_2, lint, isolation_1, isolation_2, summary, browser, workflows]
     if: always()
     runs-on: macos-latest
 
@@ -813,6 +895,7 @@ jobs:
         shell: bash
         env:
           QS_QUALITY_RESULT: ${{ needs.quality.result }}
+          QS_QUALITY_2_RESULT: ${{ needs.quality_2.result }}
           QS_LINT_RESULT: ${{ needs.lint.result }}
           QS_ISOLATION_1_RESULT: ${{ needs.isolation_1.result }}
           QS_ISOLATION_2_RESULT: ${{ needs.isolation_2.result }}
@@ -834,7 +917,7 @@ jobs:
           mkdir -p "$art"
           ./Scripts/merge_quality_report.sh merge "$art" "$rows" "$details" || rc=$?
           QS_JOB_STATUS="$(./Scripts/merge_quality_report.sh status \
-            "$QS_QUALITY_RESULT" "$QS_LINT_RESULT" "$QS_ISOLATION_1_RESULT" "$QS_ISOLATION_2_RESULT" \
+            "$QS_QUALITY_RESULT" "$QS_QUALITY_2_RESULT" "$QS_LINT_RESULT" "$QS_ISOLATION_1_RESULT" "$QS_ISOLATION_2_RESULT" \
             "$QS_SUMMARY_RESULT" "$QS_BROWSER_RESULT" "$QS_WORKFLOWS_RESULT")"
           export QS_JOB_STATUS
           export SITE_PAGE_COUNT_FILE="${art}/quality-report-quality/page-count.log"
@@ -852,7 +935,7 @@ jobs:
   # This job only starts it: Scripts/dispatch_preview.sh POSTs a
   # workflow_dispatch and requires HTTP 204; any other answer fails the run.
   #
-  # needs: every other job (quality, lint, isolation_1, isolation_2, summary, browser, workflows and report), no `if: always()`: a failed,
+  # needs: every other job (quality, quality_2, lint, isolation_1, isolation_2, summary, browser, workflows and report), no `if: always()`: a failed,
   # cancelled or skipped gate job skips this one. The condition keeps it off
   # pull requests, where no secret exists. The secret PREVIEW_DISPATCH_TOKEN
   # (Actions read/write on the preview repository only) reaches this job's one
@@ -863,7 +946,7 @@ jobs:
   # Scripts/test_preview_workflow.sh pins this job.
   preview:
     name: Start the preview deploy
-    needs: [quality, lint, isolation_1, isolation_2, summary, browser, workflows, report]
+    needs: [quality, quality_2, lint, isolation_1, isolation_2, summary, browser, workflows, report]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: macos-latest
     permissions:

@@ -151,6 +151,19 @@ minutes, so the main job was the critical path at 13 to 15 minutes against 8
 for the next job; with them in their own job the main job is about 10 minutes.
 The order file is unchanged. The report job's status takes its result too, and
 the `preview` job `needs:` it.
+The `quality_2` job (forsgren#447) runs twelve of the main job's slower gates
+and the Go coverage gate, about 306 s together: the Go lint self-test and Go
+lint, the browser gate inputs self-test, golden pages, the git sandbox isolation
+scope self-test, the exit-trap completion behaviour, the CI phase runner
+self-test, Go tests, the quality-run summary, the markdown-links self-test, the
+HTMLHint self-test and the html duplication generated page self-test. Go tests
+and Go coverage stay together because the coverage gate reads the profile the
+Go tests gate writes. It has the same setup on `macos-latest`, builds no site
+(all are PRE rows and none reads `.build/site`) and has the job name
+`quality_2`. The order file is unchanged: every gate keeps its row, so the jobs'
+gates together are the order file's rows, each once
+(`Scripts/test_quality_jobs.sh` pins that). The report job's status takes its
+result too, and the `preview` job `needs:` it.
 The three baselines steps stay in the main job: they read the built site.
 `Scripts/test_quality_jobs.sh` pins the layout.
 

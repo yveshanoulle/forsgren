@@ -77,3 +77,24 @@ workflows|quality jobs pin
 workflows|preview workflow
 workflows|vulncheck workflow
 workflows|auto-update workflow
+#
+# The quality_2 job (forsgren#447): twelve of the longest gates of the main
+# job, about 306 s together (measured in forsgren#447 on three green Quality
+# runs of main), so the main job and the browser job are not the only long
+# ones. Go tests and Go coverage stay together: the coverage gate reads the
+# profile (.build/go-coverage.out) that the Go tests gate writes. All are PRE
+# rows and none reads the built site (.build/site). They keep their pre phase
+# and their place in the order file.
+quality_2|Go lint self-test
+quality_2|Go lint
+quality_2|Go tests
+quality_2|Go coverage
+quality_2|browser gate inputs self-test
+quality_2|golden pages
+quality_2|git sandbox isolation scope self-test
+quality_2|exit-trap completion behaviour
+quality_2|CI phase runner self-test
+quality_2|quality-run summary
+quality_2|markdown-links self-test
+quality_2|HTMLHint self-test
+quality_2|html duplication, generated page self-test
