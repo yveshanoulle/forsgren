@@ -14,8 +14,8 @@
 #   2. its if: is exactly the push-to-main condition (never a pull request,
 #      where no secret exists), and no status function (always(), failure(),
 #      cancelled(), success()) is in it: a failed gate skips the job
-#   3. runs-on: macos-latest, like every job of the file
-#      (Scripts/test_quality_runner_pins.sh)
+#   3. runs-on: macos-latest, like the gate jobs that stay on macOS
+#      (Scripts/test_quality_runner_pins.sh pins every job's image)
 #   4. the job grants contents: read only, and no write appears in it
 #   5. its own concurrency group, cancel-in-progress false (push order)
 #   6. only checkout, at the commit metrics.yml pins, no persisted credentials

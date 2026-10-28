@@ -30,8 +30,8 @@ token or a sha that is not 40 lower-case hex digits fails the run; the script
 never falls back to another token or login. The job `needs:` every other job,
 with no status function in its `if:`, so a commit that fails a gate never
 reaches the preview; its `if:` keeps it off pull requests, where no secret
-exists; it holds `contents: read` and runs on `macos-latest` like every job
-of the file but the lint job. Its own concurrency group never cancels a run in flight (the
+exists; it holds `contents: read` and runs on `macos-latest`; it starts
+after every gate job, so it takes none of their macOS slots. Its own concurrency group never cancels a run in flight (the
 shas are started in push order; of several waiting runs GitHub keeps the
 newest). It is not a `workflow_run` workflow: that is a dangerous trigger.
 
@@ -59,8 +59,8 @@ run's status and conclusion, never a job). The main job `quality` runs every gat
 and `isolation_2` (forsgren#426, named `Isolation gates 1/2` and `Isolation
 gates 2/2`) run the git sandbox isolation self-test in two shards, one each,
 with the same setup as the main job: checkout, the gate environment, Node,
-`Scripts/install_tools.sh` and `npm ci`. They build no site, since it is a PRE
-row. The `summary` job (forsgren#425, named `Summary isolation gates`) runs the
+the tool install and `npm ci` (on Linux since forsgren#447, below). They build
+no site, since it is a PRE row. The `summary` job (forsgren#425, named `Summary isolation gates`) runs the
 step summary isolation gate with the same setup: the two gates took 15 minutes
 in one job (the self-test 9 min 27 s, the gate 4 min 15 s, the setup 1.5
 minutes) and now run side by side, about 11 and 6 minutes; the self-test's own
@@ -71,9 +71,10 @@ isolation jobs and of the summary job too, and the `preview` job `needs:` them.
 **The Lint gates job runs on Linux** (forsgren#427). The `lint` job (actionlint,
 shellcheck, yamllint and zizmor with their self-tests) runs on `ubuntu-latest`,
 not `macos-latest`: these tools behave the same on Linux and read files only, and
-a Linux runner starts without the queue GitHub warns of for macOS arm64. Every
-other job stays on macOS, where the language gate needs `sandbox-exec`, the
-gates meet bash 3.2 and BSD tools, and the browser gates meet Chrome. The job
+a Linux runner starts without the queue GitHub warns of for macOS arm64. Since
+forsgren#447 five more jobs run on Linux (below); the gate jobs that stay on
+macOS are the ones where the language gate needs `sandbox-exec`, the gates meet
+bash 3.2 and BSD tools, and the browser gates meet Chrome. The job
 keeps the steps of the others, but its Install tools step is
 `Scripts/install_tools_linux.sh Scripts/required_tools_linux.txt` (the estate's
 `Scripts/install_tools.sh` stays the Homebrew installer, unchanged), which installs the
@@ -88,10 +89,51 @@ finding on CI is the finding `./sfl.sh` shows; the checksums are actionlint's
 published `checksums.txt` line and, for shellcheck and zizmor, which publish
 none, the sha256 of the release file when the pin was written. Raising a pin
 means changing its row there and the Homebrew formula's version in the same
-change. The runner pins gate allows `ubuntu-latest` for the `lint` job and for
-no other job; `Scripts/test_install_tools_linux.sh` runs the Linux installer on
-the Mac with the download stubbed. The workflow's permissions are unchanged
-(`contents: read`) and no secret is read by this job, as before.
+change. The runner pins gate names the image of every job (the Linux jobs
+below and this one on `ubuntu-latest`, every other job on `macos-latest`);
+`Scripts/test_install_tools_linux.sh` runs the Linux installer on the Mac with
+the download stubbed, for this job's list and for the list of the other Linux
+jobs. The workflow's permissions are unchanged (`contents: read`) and no secret
+is read by this job, as before.
+
+**The Linux gate jobs** (forsgren#447, step 3). GitHub runs at most 5 macOS
+jobs at once for the account, and Quality started 8 macOS gate jobs together,
+so 3 waited for a slot and the run grew by up to 5 minutes. The jobs whose
+gates need nothing of macOS now run on `ubuntu-latest`: `workflows`,
+`summary`, `isolation_1`, `isolation_2` and `report`, with `lint` six Linux
+jobs. Quality then starts 4 macOS gate jobs together (`quality`, `quality_2`,
+`browser_1` and `browser`), one slot under the limit, and the `preview` job,
+the fifth macOS job, starts only after every gate job. The runner pins gate is
+red on a Linux job back on macOS, a macOS job on Linux, another image, and on
+more than 5 `macos-latest` jobs with no `needs:`. What stays on macOS and why:
+the main job holds the secret scan (Homebrew's gitleaks), the language gate
+(`sandbox-exec`, LanguageTool and its Java) and the site build its POST gates
+read; `quality_2` holds the exit-trap completion behaviour gate, which proves
+the idiom against bash 3.2, the bash a Mac runs scripts with; the two browser
+jobs open the hosted image's Chrome. What moved and why it can: the `workflows`
+gates read the workflows and scripts with bash, awk, sed and grep, run the
+steps' scripts against stubs and build forsgren with Go, and the workflows they
+pin run on `ubuntu-latest` themselves (except Quality); the git sandbox
+isolation self-test (`isolation_1`, `isolation_2`) and the step summary
+isolation gate (`summary`) only check that a self-test leaves a decoy
+repository or a decoy step summary alone, whatever the self-test's own verdict;
+the `report` job merges and renders the hand-overs with bash and awk. The four
+gate jobs keep the steps of the others, but their Install tools step is
+`Scripts/install_tools_linux.sh Scripts/required_tools_linux_gates.txt`, the
+lint job's installer with its own list: shellcheck and yamllint, the two tools
+the isolation shards' self-tests run (the shellcheck and yamllint self-tests),
+from the same pinned, checksum-verified builds. Go, Node (from
+`actions/setup-node`), jq and Python ship with the image; the `report` job
+installs nothing. The scripts these jobs run were checked for the GNU and BSD
+differences (`sed -i`, `date`, `stat`, `grep -P`, `readlink -f`, `mktemp`,
+`xargs`, `find -printf`, `base64` line wrapping, `uniq -c` padding, `awk`
+being mawk on Linux, `/bin/sh` being dash); the one that differed, the checkout
+pins mutations' `sed -i ''`, now writes a copy with plain `sed`, the same on
+both. Expected minutes, before step 4 measures them (macOS medians in
+brackets): `workflows` about 7 to 8 (9.0), `summary` about 4 (4.7),
+`isolation_1` and `isolation_2` about 4 each (4.8 and 4.5), `report` about 0.3
+(0.3); the setup is shorter, the pinned install of two tools taking seconds
+where Homebrew took 41 to 93.
 
 **Shards** (forsgren#426). A gate that is too long for one job runs in several,
 each with a shard of its own. A row of `Scripts/ci_job_groups.txt` may carry a
@@ -164,7 +206,8 @@ scope self-test, the exit-trap completion behaviour, the CI phase runner
 self-test, Go tests, the quality-run summary, the markdown-links self-test, the
 HTMLHint self-test and the html duplication generated page self-test. Go tests
 and Go coverage stay together because the coverage gate reads the profile the
-Go tests gate writes. It has the same setup on `macos-latest`, builds no site
+Go tests gate writes. It has the same setup on `macos-latest` (the exit-trap
+completion behaviour gate needs bash 3.2), builds no site
 (all are PRE rows and none reads `.build/site`) and has the job name
 `quality_2`. The order file is unchanged: every gate keeps its row, so the jobs'
 gates together are the order file's rows, each once
@@ -233,11 +276,13 @@ grep '^gofmt|' Scripts/gate_report_order.txt   # gofmt|Scripts/check_gofmt.sh|pr
 
 A POST gate reads `.build/site`, so run `./Scripts/build_site.sh` first.
 
-**The runner.** The job runs on GitHub's hosted `macos-latest` image
-(`runs-on: macos-latest`), a fresh virtual machine per run, thrown away
-after it (Yves's ruling on forsgren#1, road to public: the runner swap). It
-has Homebrew and a Go to start from; everything else comes from
-`Scripts/install_tools.sh`, `npm ci`, the `go.mod` pins and the `.nvmrc` Node pin, as locally.
+**The runner.** Each job runs on a GitHub-hosted image, `macos-latest` or,
+for the Linux jobs above, `ubuntu-latest`, a fresh virtual machine per run,
+thrown away after it (Yves's ruling on forsgren#1, road to public: the runner
+swap). The macOS image has Homebrew and a Go to start from; everything else
+comes from `Scripts/install_tools.sh` (on Linux `Scripts/install_tools_linux.sh`
+with the job's list), `npm ci`, the `go.mod` pins and the `.nvmrc` Node pin, as
+locally.
 
 **On pull requests, safely.** Quality triggers on `pull_request` into
 `main`, so a contributor's pull request shows the same gate results as a
@@ -246,7 +291,8 @@ from a fork runs its own code here, which is safe only because of the two
 things the ruling pairs with the trigger: the machine is GitHub's and is
 thrown away after the job, and a fork's `pull_request` run gets a read-only
 token (`contents: read`) and no secrets. The **quality runner pins** gate
-pins this job to `macos-latest` (the lint job may use `ubuntu-latest`, forsgren#427),
+pins each job to its image (`macos-latest`, or `ubuntu-latest` for the Linux
+jobs, forsgren#427 and forsgren#447),
 and the rule holds for every workflow: the
 **workflow triggers** gate below is red on any of them that triggers on a
 pull-request event while one of its jobs runs anywhere but on a
@@ -501,9 +547,11 @@ Nine PRE gates keep the CI honest:
 - **quality runner pins** (`Scripts/test_quality_runner_pins.sh`, forsgren's
   own, forsgren#240): the workflow runs on every push to `main` and every `pull_request` into it,
   neither with a `paths` or `paths-ignore` filter, never on
-  `pull_request_target`, and on `workflow_dispatch`; and its job runs on
-  `macos-latest`, the GitHub-hosted image that makes the pull-request
-  trigger safe.
+  `pull_request_target`, and on `workflow_dispatch`; and each job runs on
+  the GitHub-hosted image it names, `ubuntu-latest` for the Linux jobs and
+  `macos-latest` for the others (a hosted image is what makes the
+  pull-request trigger safe), with at most 5 `macos-latest` jobs starting
+  together (forsgren#447).
 - **workflow triggers** (`Scripts/check_workflow_triggers.sh`, forsgren's
   own): no workflow in `.github/workflows` triggers on `pull_request`,
   `pull_request_target`, `pull_request_review` or

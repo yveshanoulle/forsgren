@@ -6,9 +6,12 @@
 # workflow, and stays one verdict. Steps 2 and 3: the isolation job and the
 # browser job; forsgren#282: the lint job. The pins, each proved by a mutant of the real file that breaks it
 # and must be named:
-#   1. an isolation job exists, on macos-latest, with the same setup as the
-#      main job: checkout at the same pin, the gate environment, Node, tool
-#      install and npm ci, in that order
+#   1. an isolation job exists, with the same setup as the main job:
+#      checkout at the same pin, the gate environment, Node, tool install and
+#      npm ci, in that order; on ubuntu-latest since forsgren#447, step 3, as
+#      the summary, workflows and report jobs, installing the tools of
+#      Scripts/required_tools_linux_gates.txt with Scripts/install_tools_linux.sh
+#      (the main, quality_2, browser_1 and browser jobs stay on macos-latest)
 #   2. it runs Scripts/run_ci_phase.sh pre for the job `isolation_1` and the job
 #      `isolation_2` (forsgren#426: the git sandbox isolation self-test in two
 #      shards, one job each); the main
@@ -127,7 +130,9 @@ pin_of() {
 # setup_findings <job file> <id> [runner] [install-command]: pin 1. The runner
 # is macos-latest unless given, the install command Scripts/install_tools.sh.
 # The lint job runs on ubuntu-latest (forsgren#427) and installs its four tools
-# with Scripts/install_tools_linux.sh and the Linux list.
+# with Scripts/install_tools_linux.sh and the Linux list; the workflows, summary
+# and isolation jobs run on ubuntu-latest too (forsgren#447, step 3) and install
+# with the same installer from their own list (LINUX_GATES_INSTALL).
 setup_findings() {
   local job="$1" id="$2" runner="${3:-macos-latest}" installer names want got
   installer="          ./${4:-Scripts/install_tools.sh}"
@@ -162,6 +167,12 @@ handover_findings() {
   grep -qxF "          name: quality-report-${id}" <<< "$text" \
     || echo "handover: the ${id} job does not upload the artifact quality-report-${id}"
 }
+
+# LINUX_GATES_INSTALL: the Install tools command of the Linux gate jobs other
+# than lint (forsgren#447, step 3): the pinned Linux installer with the list of
+# the tools their gates run (shellcheck and yamllint, for the self-tests the
+# isolation shards run), not the lint job's list.
+LINUX_GATES_INSTALL="Scripts/install_tools_linux.sh Scripts/required_tools_linux_gates.txt"
 
 # LINT_GATES: the scripts of the lint job's rows, which no step may name.
 LINT_GATES='(test_)?check_(actionlint|shellcheck|yamllint|zizmor)|test_check_actionlint_forsgren'
@@ -210,12 +221,12 @@ job_findings() {
   setup_findings "$q2" quality_2
   setup_findings "$lnt" lint ubuntu-latest "Scripts/install_tools_linux.sh Scripts/required_tools_linux.txt"
   for n in 1 2; do
-    setup_findings "${TMP}/isolation_${n}.yml" "isolation_${n}"
+    setup_findings "${TMP}/isolation_${n}.yml" "isolation_${n}" ubuntu-latest "$LINUX_GATES_INSTALL"
   done
-  setup_findings "$sum" summary
+  setup_findings "$sum" summary ubuntu-latest "$LINUX_GATES_INSTALL"
   setup_findings "$b1" browser_1
   setup_findings "$brw" browser
-  setup_findings "$wfl" workflows
+  setup_findings "$wfl" workflows ubuntu-latest "$LINUX_GATES_INSTALL"
   handover_findings "$main" quality
   handover_findings "$q2" quality_2
   handover_findings "$lnt" lint
@@ -312,7 +323,7 @@ job_findings() {
     done
     grep -qE '^    if: (always\(\)|\$\{\{ always\(\) \}\})[[:space:]]*$' "$rep" \
       || echo "report: the report job is not if: always(), so a red gate job leaves no report"
-    grep -qxF '    runs-on: macos-latest' "$rep" || echo "report: the report job is not on macos-latest"
+    grep -qxF '    runs-on: ubuntu-latest' "$rep" || echo "report: the report job is not on ubuntu-latest"
     grep -qE 'uses: actions/download-artifact@[0-9a-f]{40}  # v[0-9]' "$rep" \
       || echo "report: the report job does not download with a commit-pinned actions/download-artifact"
     grep -qxF '          pattern: quality-report-*' "$rep" || echo "report: the report job does not download every quality-report-* hand-over"
@@ -456,7 +467,8 @@ R='/^  report:/,/^  preview:/'
 for n in 1 2; do
   case "$n" in 1) I="$I1" ;; *) I="$I2" ;; esac
   mutant "no isolation_${n} job" "s/^  isolation_${n}:/  isolation_${n}_gone:/" "job: the file has no isolation_${n} job"
-  mutant "isolation_${n} on another runner" "${I}"'s/runs-on: macos-latest/runs-on: ubuntu-latest/' "runs-on: the isolation_${n} job is not on macos-latest"
+  mutant "isolation_${n} on another runner" "${I}"'s/runs-on: ubuntu-latest/runs-on: macos-latest/' "runs-on: the isolation_${n} job is not on ubuntu-latest"
+  mutant "isolation_${n} with the lint job's tools" "${I}"'s#required_tools_linux_gates\.txt#required_tools_linux.txt#' "setup: the isolation_${n} job does not run ${LINUX_GATES_INSTALL}"
   mutant "isolation_${n} without npm ci" "${I}"'s/run: npm ci/run: true/' "setup: the isolation_${n} job does not run npm ci"
   mutant "isolation_${n} without Node" "${I}"'s/- name: Set up Node/- name: Set up something/' "setup: the isolation_${n} job's steps start"
   mutant "isolation_${n} runs the main job's gates" "${I}s/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" isolation_${n}/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" main/" "isolation: the isolation_${n} job must run exactly"
@@ -467,13 +479,14 @@ for n in 1 2; do
   mutant "report without the isolation_${n} result" "${R}"'{/QS_ISOLATION_'"${n}"'_RESULT:/d;}' "report: the report job has no QS_ISOLATION_${n}_RESULT from needs.isolation_${n}.result"
   mutant "status without the isolation_${n} result" "${R}"'s/ "[$]QS_ISOLATION_'"${n}"'_RESULT"//' "report: the status call does not pass"
 done
-mutant "summary on another runner" "${S}"'s/runs-on: macos-latest/runs-on: ubuntu-latest/' "runs-on: the summary job is not on macos-latest"
+mutant "summary on another runner" "${S}"'s/runs-on: ubuntu-latest/runs-on: macos-latest/' "runs-on: the summary job is not on ubuntu-latest"
+mutant "summary using the Homebrew installer" "${S}"'s#install_tools_linux\.sh Scripts/required_tools_linux_gates\.txt#install_tools.sh#' "setup: the summary job does not run ${LINUX_GATES_INSTALL}"
 mutant "summary without npm ci" "${S}"'s/run: npm ci/run: true/' "setup: the summary job does not run npm ci"
 mutant "summary without Node" "${S}"'s/- name: Set up Node/- name: Set up something/' "setup: the summary job's steps start"
 mutant "no summary job" 's/^  summary:/  summary_gone:/' "job: the file has no summary job"
 mutant "summary runs the main job's gates" "${S}s/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" summary/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" main/" "summary: the summary job must run exactly"
 FIRST_SUM_GATE="$(gates_of summary | sed -n 1p)"
-mutant "a step naming the summary gate" "${S}"'s#\./Scripts/install_tools.sh#./Scripts/install_tools.sh; ./Scripts/'"${FIRST_SUM_GATE}"'.sh#' "isolation: a step names an isolation gate itself"
+mutant "a step naming the summary gate" "${S}"'s#\./Scripts/install_tools_linux\.sh Scripts/required_tools_linux_gates\.txt#./Scripts/install_tools_linux.sh Scripts/required_tools_linux_gates.txt; ./Scripts/'"${FIRST_SUM_GATE}"'.sh#' "isolation: a step names an isolation gate itself"
 mutant "summary hand-over not always" "${S}"'{/Hand over the gate report/,/uses:/s/if: always()/if: success()/;}' "handover: the summary job's"
 mutant "summary hand-over under another name" "${S}"'s/name: quality-report-summary/name: quality-report-other/' "handover: the summary job does not upload the artifact quality-report-summary"
 mutant "report without summary in needs" "${R}"'s/needs: \[quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser, workflows\]/needs: [quality, quality_2, lint, isolation_1, isolation_2, browser_1, browser, workflows]/' "report: the gate job summary is not in the report job's needs:"
@@ -481,7 +494,7 @@ mutant "report without the summary result" "${R}"'{/QS_SUMMARY_RESULT:/d;}' "rep
 mutant "status without the summary result" "${R}"'s/ "[$]QS_SUMMARY_RESULT"//' "report: the status call does not pass"
 mutant "main without its job name" "${Q}s/run_ci_phase.sh post \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" main/run_ci_phase.sh post \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\"/" "main: both run_ci_phase.sh calls of the main job"
 FIRST_ISO_GATE="$(gates_of isolation_1 | sed -n 1p)"
-mutant "a step naming an isolation gate" "${I1}"'s#\./Scripts/install_tools.sh#./Scripts/install_tools.sh; ./Scripts/'"${FIRST_ISO_GATE}"'.sh#' "isolation: a step names an isolation gate itself"
+mutant "a step naming an isolation gate" "${I1}"'s#\./Scripts/install_tools_linux\.sh Scripts/required_tools_linux_gates\.txt#./Scripts/install_tools_linux.sh Scripts/required_tools_linux_gates.txt; ./Scripts/'"${FIRST_ISO_GATE}"'.sh#' "isolation: a step names an isolation gate itself"
 mutant "main hand-over under another name" "${Q}"'s/name: quality-report-quality/name: quality-report-other/' "handover: the quality job does not upload the artifact quality-report-quality"
 mutant "report without browser in needs" "${R}"'s/needs: \[quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser, workflows\]/needs: [quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, workflows]/' "report: the gate job browser is not in the report job's needs:"
 mutant "report without lint in needs" "${R}"'s/needs: \[quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser, workflows\]/needs: [quality, quality_2, isolation_1, isolation_2, summary, browser_1, browser, workflows]/' "report: the gate job lint is not in the report job's needs:"
@@ -535,18 +548,20 @@ mutant "report without workflows in needs" "${R}"'s/needs: \[quality, quality_2,
 mutant "report without the workflows result" "${R}"'{/QS_WORKFLOWS_RESULT:/d;}' "report: the report job has no QS_WORKFLOWS_RESULT from needs.workflows.result"
 mutant "status without the workflows result" "${R}"'s/ "[$]QS_WORKFLOWS_RESULT"//' "report: the status call does not pass"
 mutant "no workflows job" 's/^  workflows:/  workflows_gone:/' "job: the file has no workflows job"
-mutant "workflows on another runner" "${W}"'s/runs-on: macos-latest/runs-on: ubuntu-latest/' "runs-on: the workflows job is not on macos-latest"
+mutant "workflows on another runner" "${W}"'s/runs-on: ubuntu-latest/runs-on: macos-latest/' "runs-on: the workflows job is not on ubuntu-latest"
+mutant "workflows using the Homebrew installer" "${W}"'s#install_tools_linux\.sh Scripts/required_tools_linux_gates\.txt#install_tools.sh#' "setup: the workflows job does not run ${LINUX_GATES_INSTALL}"
 mutant "workflows without npm ci" "${W}"'s/run: npm ci/run: true/' "setup: the workflows job does not run npm ci"
 mutant "workflows runs the main job's gates" "${W}s/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" workflows/run_ci_phase.sh pre \"${DOLLAR}ROWS\" \"${DOLLAR}DETAILS\" main/" "workflows: the workflows job must run exactly"
 FIRST_WF_GATE="$(workflows_gates | sed -n 1p)"
-mutant "a step naming a workflows gate" "${W}"'s#\./Scripts/install_tools.sh#./Scripts/install_tools.sh; ./Scripts/'"${FIRST_WF_GATE}"'.sh#' "workflows: a step names a workflows gate itself"
+mutant "a step naming a workflows gate" "${W}"'s#\./Scripts/install_tools_linux\.sh Scripts/required_tools_linux_gates\.txt#./Scripts/install_tools_linux.sh Scripts/required_tools_linux_gates.txt; ./Scripts/'"${FIRST_WF_GATE}"'.sh#' "workflows: a step names a workflows gate itself"
 mutant "workflows hand-over not always" "${W}"'{/Hand over the gate report/,/uses:/s/if: always()/if: success()/;}' "handover: the workflows job's"
 mutant "workflows hand-over under another name" "${W}"'s/name: quality-report-workflows/name: quality-report-other/' "handover: the workflows job does not upload the artifact quality-report-workflows"
 mutant "report not always" "${R}"'s/^    if: always()/    if: success()/' "report: the report job is not if: always()"
+mutant "report on another runner" "${R}"'s/runs-on: ubuntu-latest/runs-on: macos-latest/' "report: the report job is not on ubuntu-latest"
 mutant "report without the merge" "${R}"'s#merge_quality_report.sh merge#merge_quality_report.sh combine#' "report: the report job does not merge the hand-overs"
 mutant "report status not merged" "${R}"'s#merge_quality_report.sh status#merge_quality_report.sh state#' "report: QS_JOB_STATUS is not taken from"
-mutant "a softened job" "${I1}"'s/^    runs-on: macos-latest/    continue-on-error: true\
-    runs-on: macos-latest/' "verdict: continue-on-error softens a failure"
+mutant "a softened job" "${I1}"'s/^    runs-on: ubuntu-latest/    continue-on-error: true\
+    runs-on: ubuntu-latest/' "verdict: continue-on-error softens a failure"
 
 # expect_named <what> <finding>: OUT, the findings of the last mutant, names it.
 expect_named() {

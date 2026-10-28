@@ -20,7 +20,8 @@ cd "$(dirname "$0")/.."
 #   5. an empty tool list is red (a list that went empty must not read as done)
 #   6. a CPU other than x86_64 is red, naming it
 #   7. a requirements file with no --hash line is red
-#   8. the real pin list: a row per tool of Scripts/required_tools_linux.txt,
+#   8. the real pin list: a row per tool of Scripts/required_tools_linux.txt and
+#      of Scripts/required_tools_linux_gates.txt (forsgren#447, step 3),
 #      each with a version that is in its URL, a 64-hex sha256, an https GitHub
 #      release URL, and a requirements file with hashes; and each tool of the
 #      Linux list is also in the Homebrew list, so the two machines install the
@@ -176,48 +177,51 @@ write_pins "${TMP}/pins_nohash.txt" zizmor.tar.gz "" "${FIX}/reqs_nohash.txt"
 run_installer "${TMP}/pins_nohash.txt" "${TMP}/tools4.txt"
 want_red "is red for a requirements file with no --hash line" "carries no --hash line"
 
-# --- Case 8: the real pin list.
+# --- Case 8: the real pin list, for each Linux tool list: the lint job's and the
+# one of the other Linux gate jobs (forsgren#447, step 3).
 PINS=Scripts/linux_tool_pins.txt
-LIST=Scripts/required_tools_linux.txt
-real_tools=()
-while IFS= read -r line || [[ -n "$line" ]]; do
-  line="${line%%#*}"
-  line="$(printf '%s' "$line" | tr -d '[:space:]')"
-  [[ -n "$line" ]] && real_tools+=("$line")
-done < "$LIST"
-[[ "${#real_tools[@]}" -gt 0 ]] || selftest_abort "${LIST} declares no tools"
-# pin <tool> <field>: that field of the real pin list.
-pin() { sed -n "s/^$1|$2|//p" "$PINS"; }
-for t in "${real_tools[@]}"; do
-  version="$(pin "$t" version)"
-  kind="$(pin "$t" kind)"
-  if [[ -z "$version" ]]; then
-    fail "${t} (in ${LIST}) has no pin in ${PINS}"
-    continue
-  fi
-  if [[ "$kind" == archive ]]; then
-    url="$(pin "$t" release)/$(pin "$t" file)"
-    sha="$(pin "$t" sha256)"
-    gh_release='^https://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/releases/download/v'
-    [[ "$url" =~ $gh_release ]] || fail "${t}: the URL is not a GitHub release download: ${url}"
-    [[ "$url" == *"$version"* ]] || fail "${t}: the version ${version} is not in its URL ${url}"
-    [[ "$sha" =~ ^[0-9a-f]{64}$ ]] || fail "${t}: the sha256 '${sha}' is not 64 hex digits"
-    [[ -n "$(pin "$t" member)" ]] || fail "${t}: no archive member named"
-  elif [[ "$kind" == pip ]]; then
-    reqs="$(pin "$t" source)"
-    [[ -f "$reqs" ]] || fail "${t}: the requirements file ${reqs} does not exist"
-    grep -q -- "^${t}==${version} " "$reqs" || fail "${t}: ${reqs} does not pin ${t}==${version}"
-    if grep -v '^#' "$reqs" | grep -E '^[A-Za-z]' | has -vE '==[0-9]'; then
-      fail "${reqs}: a requirement is not pinned with =="
+for LIST in Scripts/required_tools_linux.txt Scripts/required_tools_linux_gates.txt; do
+  [[ -f "$LIST" ]] || selftest_abort "${LIST} does not exist"
+  real_tools=()
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%%#*}"
+    line="$(printf '%s' "$line" | tr -d '[:space:]')"
+    [[ -n "$line" ]] && real_tools+=("$line")
+  done < "$LIST"
+  [[ "${#real_tools[@]}" -gt 0 ]] || selftest_abort "${LIST} declares no tools"
+  # pin <tool> <field>: that field of the real pin list.
+  pin() { sed -n "s/^$1|$2|//p" "$PINS"; }
+  for t in "${real_tools[@]}"; do
+    version="$(pin "$t" version)"
+    kind="$(pin "$t" kind)"
+    if [[ -z "$version" ]]; then
+      fail "${t} (in ${LIST}) has no pin in ${PINS}"
+      continue
     fi
-    grep -q -- '--hash=sha256:[0-9a-f]\{64\}' "$reqs" || fail "${t}: ${reqs} carries no sha256 hash"
-  else
-    fail "${t}: kind '${kind}' is neither archive nor pip"
-  fi
-  grep -qxF "$t" <(grep -v '^#' Scripts/required_tools.txt | tr -d ' ') \
-    || fail "${t} is in ${LIST} but not in Scripts/required_tools.txt: the machines would install different tools"
+    if [[ "$kind" == archive ]]; then
+      url="$(pin "$t" release)/$(pin "$t" file)"
+      sha="$(pin "$t" sha256)"
+      gh_release='^https://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/releases/download/v'
+      [[ "$url" =~ $gh_release ]] || fail "${t}: the URL is not a GitHub release download: ${url}"
+      [[ "$url" == *"$version"* ]] || fail "${t}: the version ${version} is not in its URL ${url}"
+      [[ "$sha" =~ ^[0-9a-f]{64}$ ]] || fail "${t}: the sha256 '${sha}' is not 64 hex digits"
+      [[ -n "$(pin "$t" member)" ]] || fail "${t}: no archive member named"
+    elif [[ "$kind" == pip ]]; then
+      reqs="$(pin "$t" source)"
+      [[ -f "$reqs" ]] || fail "${t}: the requirements file ${reqs} does not exist"
+      grep -q -- "^${t}==${version} " "$reqs" || fail "${t}: ${reqs} does not pin ${t}==${version}"
+      if grep -v '^#' "$reqs" | grep -E '^[A-Za-z]' | has -vE '==[0-9]'; then
+        fail "${reqs}: a requirement is not pinned with =="
+      fi
+      grep -q -- '--hash=sha256:[0-9a-f]\{64\}' "$reqs" || fail "${t}: ${reqs} carries no sha256 hash"
+    else
+      fail "${t}: kind '${kind}' is neither archive nor pip"
+    fi
+    grep -qxF "$t" <(grep -v '^#' Scripts/required_tools.txt | tr -d ' ') \
+      || fail "${t} is in ${LIST} but not in Scripts/required_tools.txt: the machines would install different tools"
+  done
+  echo "  ok: the real pin list covers the ${#real_tools[@]} tools of ${LIST}"
 done
-echo "  ok: the real pin list covers the ${#real_tools[@]} tools of ${LIST}"
 
 # --- Case 9: an abort after the trap is set exits non-zero (bash 3.2 can end such an abort with 0).
 mkdir -p "${TMP}/abort/Scripts"

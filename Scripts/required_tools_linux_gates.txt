@@ -1,0 +1,17 @@
+# Tools the Linux gate jobs other than lint need (forsgren#447, step 3): the
+# workflows, summary, isolation_1 and isolation_2 jobs of quality.yml, one per
+# line. Read by Scripts/install_tools_linux.sh, which installs each from its
+# pinned build in Scripts/linux_tool_pins.txt (a name with no row there is red).
+#
+# ONLY what their gates run. The isolation shards run every git-using
+# self-test against a decoy repository, and two of those self-tests run a real
+# tool: the shellcheck self-test and the yamllint self-test. With the tool
+# installed they take the same path as on the Mac, so a git command on that
+# path still meets the decoy. The workflows and summary gates read files and
+# run bash, awk, sed and grep; they install the same two only so the four jobs
+# share one setup. go, node, jq, git and python3 ship with the hosted Linux
+# image (Node from actions/setup-node). actionlint and zizmor belong to the
+# lint job alone, and gitleaks, languagetool and Chrome to gates that stay on
+# macOS.
+shellcheck
+yamllint

@@ -34,6 +34,15 @@
 # Quality report; `preview` needs them all. Scripts/test_quality_jobs.sh pins
 # the layout.
 #
+# RUNNERS (forsgren#427, forsgren#447 step 3). GitHub runs at most 5 macOS jobs
+# at once for the account, so the jobs whose gates need no macOS run on
+# ubuntu-latest: `lint`, `workflows`, `summary`, `isolation_1`, `isolation_2`
+# and `report`. The four that start together on macos-latest are `quality`,
+# `quality_2`, `browser_1` and `browser` (the language gate's sandbox-exec and
+# LanguageTool, the secret scan's Homebrew gitleaks, the exit-trap gate's bash
+# 3.2, the browser gates' Chrome); `preview` waits for all of them.
+# Scripts/test_quality_runner_pins.sh pins each job's image and the count.
+#
 # CHECK-ONLY. Nothing here fixes: gofmt runs as `gofmt -l` (the gofmt row),
 # never with --fix, and Scripts/run_ci_phase.sh turns any gate that changes
 # the checked-out tree into a red row (npm_audit_check.sh's local heal, for
@@ -48,12 +57,14 @@ on:
   #
   # pull_request, NEVER pull_request_target (Yves's rulings on forsgren#1,
   # road to public): a contributor's pull request shows the same gate results
-  # as a local FBP run. It is safe because the job runs on GitHub's
-  # macos-latest, a fresh virtual machine per run that is thrown away after
-  # it, and a fork's pull_request run gets a read-only token and no secrets.
+  # as a local FBP run. It is safe because every job runs on a GitHub-hosted
+  # image (macos-latest or ubuntu-latest), a fresh virtual machine per run that
+  # is thrown away after it, and a fork's pull_request run gets a read-only
+  # token and no secrets.
   # Scripts/check_workflow_triggers.sh is red on a pull-request trigger in
   # any workflow with a job it cannot prove GitHub-hosted, and
-  # Scripts/test_quality_runner_pins.sh pins this job to macos-latest.
+  # Scripts/test_quality_runner_pins.sh pins each job to its hosted image
+  # (macos-latest, or ubuntu-latest for the Linux jobs).
   push:
     branches: ["main"]
   pull_request:
@@ -449,10 +460,15 @@ jobs:
   # site build: it is a PRE row. No secret reaches it: the gate reads none, and
   # the secret-class stop of PRE stays in the main job, whose exit 2 skips the
   # build there. isolation_2 is isolation_1 with the other shard: Scripts/test_quality_jobs.sh
-  # pins both.
+  # pins both. Both run on ubuntu-latest (forsgren#447, step 3): the gate only
+  # checks that no git-using self-test leaks into a decoy repository, whatever
+  # the self-tests' own verdicts, and needs no macOS tool. Its Install tools
+  # step installs the pinned Linux builds of Scripts/required_tools_linux_gates.txt
+  # (shellcheck and yamllint, which two of those self-tests run) with
+  # Scripts/install_tools_linux.sh, as the lint job does, not Homebrew.
   isolation_1:
     name: Isolation gates 1/2
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -477,12 +493,9 @@ jobs:
 
       - name: Install tools
         shell: bash
-        env:
-          HOMEBREW_NO_INSTALL_CLEANUP: "1"
-          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
         run: |
           set -euo pipefail
-          ./Scripts/install_tools.sh
+          ./Scripts/install_tools_linux.sh Scripts/required_tools_linux_gates.txt
 
       - name: Install dependencies
         run: npm ci
@@ -524,7 +537,7 @@ jobs:
 
   isolation_2:
     name: Isolation gates 2/2
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -549,12 +562,9 @@ jobs:
 
       - name: Install tools
         shell: bash
-        env:
-          HOMEBREW_NO_INSTALL_CLEANUP: "1"
-          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
         run: |
           set -euo pipefail
-          ./Scripts/install_tools.sh
+          ./Scripts/install_tools_linux.sh Scripts/required_tools_linux_gates.txt
 
       - name: Install dependencies
         run: npm ci
@@ -600,10 +610,12 @@ jobs:
   # main job, step for step, so the gates see the same environment: its
   # comments are the main job's. No site build: it is a PRE row. No secret
   # reaches it: the gate reads none, and the secret-class stop of PRE stays
-  # in the main job, whose exit 2 skips the build there.
+  # in the main job, whose exit 2 skips the build there. On ubuntu-latest with
+  # the isolation jobs' Linux tools (forsgren#447, step 3): the gate counts the
+  # bytes a self-test writes to a decoy step summary and needs no macOS tool.
   summary:
     name: Summary isolation gates
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -628,12 +640,9 @@ jobs:
 
       - name: Install tools
         shell: bash
-        env:
-          HOMEBREW_NO_INSTALL_CLEANUP: "1"
-          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
         run: |
           set -euo pipefail
-          ./Scripts/install_tools.sh
+          ./Scripts/install_tools_linux.sh Scripts/required_tools_linux_gates.txt
 
       - name: Install dependencies
         run: npm ci
@@ -864,9 +873,13 @@ jobs:
   # that kept the main job at 15 minutes. The same setup as the main job, step
   # for step: its comments are the main job's. No site build: all are PRE
   # rows. No secret reaches it: none of its gates reads one or is secret-class.
+  # On ubuntu-latest with the isolation jobs' Linux tools (forsgren#447, step
+  # 3): its gates read the workflows with bash, awk, sed and grep, run their
+  # steps' scripts against stubs, and build forsgren with Go; the workflows
+  # they pin run on ubuntu-latest themselves, except this one.
   workflows:
     name: Workflow gates
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -891,12 +904,9 @@ jobs:
 
       - name: Install tools
         shell: bash
-        env:
-          HOMEBREW_NO_INSTALL_CLEANUP: "1"
-          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
         run: |
           set -euo pipefail
-          ./Scripts/install_tools.sh
+          ./Scripts/install_tools_linux.sh Scripts/required_tools_linux_gates.txt
 
       - name: Install dependencies
         run: npm ci
@@ -941,7 +951,9 @@ jobs:
   # job added later must be added), `if: always()`: the run that most needs a
   # report is the one where a job failed, or was cancelled. It judges nothing
   # itself: a red gate job makes the run red on its own, and the run's
-  # conclusion, which the Release reads, comes from all the jobs.
+  # conclusion, which the Release reads, comes from all the jobs. On
+  # ubuntu-latest (forsgren#447, step 3): it installs nothing and runs the
+  # merge and the two renderers, bash and awk over the hand-overs.
   #
   # Nothing before the Render step writes the run page (forsgren#233):
   # Scripts/test_quality_summary_first.sh pins it. Blocks, in this order,
@@ -961,7 +973,7 @@ jobs:
     name: Quality report
     needs: [quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser, workflows]
     if: always()
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -1028,7 +1040,8 @@ jobs:
   # step as env:, nowhere else. Never workflow_run (a dangerous trigger).
   # The job group never cancels a run in flight; GitHub keeps the newest of
   # the waiting ones, and the preview workflow cancels an older deploy itself.
-  # macos-latest like every job here (Scripts/test_quality_runner_pins.sh).
+  # macos-latest (Scripts/test_quality_runner_pins.sh); it starts after every
+  # gate job, so it never takes one of the 5 macOS slots they need.
   # Scripts/test_preview_workflow.sh pins this job.
   preview:
     name: Start the preview deploy

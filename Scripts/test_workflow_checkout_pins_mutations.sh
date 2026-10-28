@@ -86,8 +86,13 @@ mutate() {
   local label="$1" reason="$2" expr="$3"
   local dir="${TMP}/wf"
   rm -rf "$dir"; mkdir -p "$dir"
-  cp .github/workflows/*.yml "$dir"/
-  sed -E -i '' "$expr" "$dir"/*.yml 2>/dev/null || sed -E -i "$expr" "$dir"/*.yml
+  # sed writes a copy, never -i: BSD sed takes `-i ''` and GNU sed (the
+  # workflows job runs on ubuntu-latest, forsgren#447) reads that '' as the
+  # script, so no in-place form is the same on both.
+  local wf
+  for wf in .github/workflows/*.yml; do
+    sed -E "$expr" "$wf" > "${dir}/${wf##*/}"
+  done
 
   if diff -rq .github/workflows "$dir" >/dev/null 2>&1; then
     fail "mutation '${label}' changed nothing — the sed no longer matches, so this case proves nothing"

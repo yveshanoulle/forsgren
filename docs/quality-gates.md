@@ -330,9 +330,11 @@ Seven PRE gates read the repository's own scripts and files:
   filter that lacks a glob the gates read, or no `pull_request` trigger (no
   filter at all passes and reads no settings). The pins are red on a missing
   push or `pull_request` trigger on `main`, any `paths` or `paths-ignore` on
-  either, a `pull_request_target`, no `workflow_dispatch`, and any job off
-  `macos-latest`; each is proven against a synthetic workflow that must be
-  rejected.
+  either, a `pull_request_target`, no `workflow_dispatch`, any job off the
+  image it names (`ubuntu-latest` for `lint`, `workflows`, `report`,
+  `summary`, `isolation_1` and `isolation_2`, `macos-latest` for the others,
+  forsgren#447), and more than 5 `macos-latest` jobs with no `needs:`; each is
+  proven against a synthetic workflow that must be rejected.
 - **stray tracked files** (`Scripts/test_no_stray_tracked_files.sh`,
   another estate repository's): red on a tracked `.DS_Store` at any depth, and on a
   tracked `.yml`/`.yaml` with a top-level `jobs:` key anywhere GitHub would
@@ -447,7 +449,8 @@ Seven PRE gates read the repository's own scripts and files:
   in the `summary` job, and actionlint, shellcheck, yamllint and zizmor with their self-tests in the
   `lint` job (forsgren#282; `Scripts/ci_job_groups.txt`; the order file is
   unchanged, and `sfl.sh` and FBP run every row as before).
-  The pin is red when an isolation job is missing, off `macos-latest` or
+  The pin is red when an isolation job is missing, off `ubuntu-latest`
+  (forsgren#447, step 3, with the summary, workflows and report jobs) or
   without the main job's setup (the lint and browser jobs likewise, the lint
   job running exactly its PRE rows, and the browser job must run
   PRE, its own site build, then POST), when a `run_ci_phase.sh` call lacks its job

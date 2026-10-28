@@ -439,7 +439,7 @@ for path in Scripts/*.sh; do
       ;;
 
     # THE LINUX PATH OF THE INSTALLER (forsgren#427), not a gate: forsgren's
-    # own. Only the lint job of quality.yml runs it, in its Install tools step
+    # own. The Linux jobs of quality.yml run it, in their Install tools step
     # (the estate's install_tools.sh stays byte-identical). Its own fixture
     # runs as a row of the order file.
     install_tools_linux.sh)
