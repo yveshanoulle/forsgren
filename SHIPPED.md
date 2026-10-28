@@ -9,6 +9,30 @@ Active work lives in
 
 ---
 
+## 2026-10-28 — The Legend's Week section describes the default columns ([#555](https://github.com/yveshanoulle/forsgren/issues/555))
+
+Found while 551 was finished: the Legend's Week section still said that Total
+holds the counts of the commits and of the deployments, and that under each
+weekday Commits and Deployments are shares, though the Commits columns are off
+by default (`week_commits: false`, #548) and the weekday column is headed
+Deploys (#552). The section now says the page shows the deployments, the
+failed deployments and the fail rate per weekday; that Total has the columns
+Deployments, Failed and Fail rate and each weekday the columns Deploys, Failed
+and Fail rate; that Deployments in Total is a count and Deploys under a
+weekday a share; and that with `week_commits: true` Commits comes first in
+Total and under each weekday. The sentences of #552 on the Total row stay.
+The pages reference's Week page section says the same: Total holds
+Deployments as a count, a weekday a Deploys share, and with
+`week_commits: true` a Commits cell comes first in both; the Week page's
+package comment follows. Tests: the legend Week section test wants the new
+sentences and none of the old claims, the legend golden page, and the pages
+reference test wants the new wording and no longer the old Total claim.
+Nothing to do for an installation.
+
+forsgren issue 555, patch (1.29.5).
+
+---
+
 ## 2026-10-28 — README and the Week page description say what the page shows by default ([#551](https://github.com/yveshanoulle/forsgren/issues/551))
 
 Found while 548 was finished: since the Week page leaves out its Commits

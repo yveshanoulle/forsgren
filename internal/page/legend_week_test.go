@@ -7,16 +7,20 @@ import (
 
 // legendWeekText are the sentences of the legend's Week page section
 // (forsgren#531, step 4, decisions #532 A, #534 A, #539 A; forsgren#540, decision #541;
-// forsgren#552, decision #553, step 2).
+// forsgren#552, decision #553, step 2; forsgren#555).
 var legendWeekText = []string{
-	"the commits and the deployments of the last 30 days, per weekday from Monday to Sunday",
+	"the deployments, the failed deployments and the fail rate of the last 30 days, per weekday from Monday to Sunday",
 	"It counts the period the footer names as Report Start and Report End, " +
 		"and every weekday of that window, not one calendar week, so a weekday appears as often as the window holds it.",
 	"Days are in UTC.",
-	"Total holds the counts of the commits and of the deployments of the window.",
-	"Under each weekday, Commits and Deployments are the share of the row's commits and of its deployments " +
-		"that fall on that weekday, written as the shares on the TBD page are, " +
+	"Total has the columns Deployments, Failed and Fail rate, " +
+		"and under each weekday the columns are Deploys, Failed and Fail rate.",
+	"In Total, Deployments is the count of the row's deployments of the window.",
+	"Under each weekday, Deploys is the share of the row's deployments that fall on that weekday, " +
+		"written as the shares on the TBD page are, " +
 		"and the seven shares of a column add up to 100% before rounding.",
+	"With week_commits: true, Commits comes first in Total and under each weekday: " +
+		"in Total the count of the row's commits, and under each weekday the share of them that fall on that weekday.",
 	"Under each weekday the header Deploys stands for deployments and saves width; " +
 		"a screen reader hears the full word.",
 	"A commit is counted at its author date and a deployment at its time.",
@@ -91,7 +95,27 @@ func TestLegendExplainsTotalAndSharesInOneParagraph(t *testing.T) {
 		t.Errorf("want one paragraph starting with Total in the Week page section, got %d", got)
 	}
 	if strings.Contains(section, "Total is the commits") {
-		t.Error("want the Total sentence said once, in the Total holds paragraph")
+		t.Error("want the Total sentence said once, in the Total has paragraph")
+	}
+}
+
+// legendWeekOldClaims are what the legend's Week page section said while the
+// Commits columns were shown by default (forsgren#555): since forsgren#548 they
+// are off unless week_commits is true.
+var legendWeekOldClaims = []string{
+	"the commits and the deployments of the last",
+	"Total holds the counts of the commits and of the deployments",
+	"Commits and Deployments are the share",
+}
+
+// TestLegendWeekSectionDescribesTheDefaultColumns (forsgren#555): the section
+// says none of legendWeekOldClaims.
+func TestLegendWeekSectionDescribesTheDefaultColumns(t *testing.T) {
+	_, section, _ := weekSection(t, calculated())
+	for _, old := range legendWeekOldClaims {
+		if strings.Contains(section, old) {
+			t.Errorf("want no %q in the Week page section", old)
+		}
 	}
 }
 

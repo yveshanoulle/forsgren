@@ -1370,15 +1370,17 @@ the shares, and that the window is the last `dora_days` days, the period the
 footer names as Report Start and Report End, are in the legend's Week page
 section.
 
-- Total holds the row's commits and deployments of the window as counts,
+- Total holds Deployments, the row's successful deployments of the window as a count,
   written as every count (a thousands space from 1000); `0` for a row with
-  none (forsgren#540, decision #541). **A weekday** has a Commits and a
-  Deployments cell, each the share of the row's commits (or deployments) on
-  that weekday, written like the shares on the TBD page (`13%`, `9.3%`,
+  none (forsgren#540, decision #541), then Failed and Fail rate (below).
+  **A weekday** has a Deploys cell, the share of the row's deployments on that weekday,
+  written like the shares on the TBD page (`13%`, `9.3%`,
   `0.22%`, `0%` for a weekday without any); the seven shares of a column add up to 100%, rounding aside.
   The weekday groups head that column Deploys, which saves width (forsgren#552);
   Total keeps Deployments, and every header's `aria-label` keeps the full
   word (`Monday deployments`), so a screen reader hears deployments.
+  With `week_commits: true` Total and every weekday also have a Commits cell first:
+  in Total the count of the row's commits, under a weekday the share of them on that weekday.
   A row with no commits reads `-` in its seven Commits cells, and one with no
   deployments in its seven Deployments cells, as there is nothing to divide.
   A commit counts at its author date and a deployment at its time, both in UTC

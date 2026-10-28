@@ -4,8 +4,9 @@ import "github.com/yveshanoulle/forsgren/internal/metrics"
 
 // The Week page (forsgren#531, decisions #532 A, #533 A, #534 A; forsgren#540,
 // decision #541): one table with a row per project and per label, service
-// and rule, the commits and deployments of the DORA window as a Total and as
-// the share on each weekday, Monday first, UTC; or one line that says why there is none.
+// and rule, the deployments, failed deployments and fail rate of the DORA
+// window as a Total and per weekday, Monday first, UTC, the commits too with
+// week_commits: true (forsgren#548, #555); or one line that says why there is none.
 
 // WeekPage is the name of the Week page, week.html (forsgren#531).
 const WeekPage = "week"
