@@ -127,13 +127,19 @@ and page count as the artifact `quality-report-<job>`; the `report` job
 red, a job that handed over nothing is named and its gates read as unmeasured)
 and the two renderers write the one Quality report to its run page, with the
 status taken from the jobs' results. The `preview` job `needs:` all of them.
-The `browser` job (step 3) runs the browser gate self-test and its process
-self-test (the exits, forsgren#386), the browser gate
+The `browser` job (step 3) runs the browser gate process self-test (the exits,
+forsgren#386), the browser gate
 and the browser gate on the fixture site with its self-test, with the same
 setup (the hosted image's Chrome, puppeteer-core and axe-core from `npm ci`).
 The browser gate reads the built site, so the job runs its PRE rows, builds
 its own site with `Scripts/build_site.sh`, then runs its POST rows, all with
 the job name `browser`.
+The `browser_1` job (forsgren#447) runs the browser gate self-test alone, with
+the same setup and the job name `browser_1`. It was 256 s of the browser job's
+558 s of gates, so the browser job took about 10.6 minutes; split, `browser_1`
+is about 5.6 minutes and `browser` about 6.5. It builds no site: the self-test
+is a PRE row and reads no built site. The order file is unchanged. The report
+job's status takes its result too, and the `preview` job `needs:` it.
 The `lint` job (forsgren#282) runs actionlint, shellcheck, yamllint and zizmor
 with their self-tests, the lint rows of the order file's static block, with the
 same setup and the job name `lint`, so a lint finding is its own red check on

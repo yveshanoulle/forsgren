@@ -39,11 +39,16 @@ isolation_2|git sandbox isolation self-test|--shard 2/2
 # runs beside the git sandbox self-test and not after it.
 summary|step summary isolation
 #
-# The browser job (forsgren#259, step 3): the browser gate self-test, the
-# process self-test split from it (forsgren#386) and the browser gate, and the
-# same pair for the fixture site, about 295 s together.
+# The browser_1 job (forsgren#447): the browser gate self-test alone, about
+# 256 s, 46 percent of the browser job's 558 s (measured in forsgren#447 on
+# three green Quality runs of main), so neither browser job is over 10
+# minutes. A PRE row that reads no built site: the job builds none.
+browser_1|browser gate self-test
+#
+# The browser job (forsgren#259, step 3): the process self-test split from the
+# browser gate self-test (forsgren#386) and the browser gate, and the same pair
+# for the fixture site, about 300 s together.
 # The job builds its own site between its pre and post rows.
-browser|browser gate self-test
 browser|browser gate process self-test
 browser|browser gate
 browser|browser gate (fixture site) self-test
