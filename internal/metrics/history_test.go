@@ -392,3 +392,24 @@ func TestFirstDeploymentIsTheOldestSuccessOfAListedRepository(t *testing.T) {
 		t.Errorf("want zero and false without records, got %s, %v", first, ok)
 	}
 }
+
+// TestIssueClosedAfterThePeriodIsNotCompletedYetInIt (forsgren#53): a failure
+// issue opened before the end of a past period and closed after it was still
+// open at the end, so that period counts it as a recovery not completed yet,
+// not as a recovery and not as nothing.
+func TestIssueClosedAfterThePeriodIsNotCompletedYetInIt(t *testing.T) {
+	end := now.Add(-10 * day)
+	start := end.Add(-184 * day)
+	data := Data{
+		Records: []history.Record{appDeployment(1, "", history.StateSuccess, now.Sub(start.Add(day)))},
+		Failures: []history.Failure{
+			{Repository: "acme/app", Issue: 1, OpenedAt: end.Add(-5 * day), ClosedAt: end.Add(3 * day)},
+		},
+	}
+	data.Reach = fullyRead()
+	shop := PeriodRows(tableProjects, data, Period{Label: "past", Start: start, End: end})[0]
+	r := shop.Recovery
+	if got, want := [2]int{r.Recoveries, r.Unrecovered}, [2]int{0, 1}; got != want {
+		t.Errorf("recoveries, not completed yet = %v, want %v", got, want)
+	}
+}

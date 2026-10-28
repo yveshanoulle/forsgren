@@ -74,8 +74,20 @@ func PeriodRows(projects []config.Project, data Data, p Period) []Row {
 	data.DoraDays, data.BandDays, data.UnreadBefore = int(p.End.Sub(p.Start)/day), RollingDays, p.Start
 	data.Records = seen(p, data.Records, func(r history.Record) time.Time { return r.CreatedAt })
 	data.Commits = seen(p, data.Commits, func(c history.Commit) time.Time { return c.DeployedAt })
-	data.Failures = seen(p, data.Failures, func(f history.Failure) time.Time { return f.OpenedAt })
+	data.Failures = stillOpenAt(p, seen(p, data.Failures, func(f history.Failure) time.Time { return f.OpenedAt }))
 	return Rows(projects, data, p.End)
+}
+
+// stillOpenAt is failures with the closing that came after the period left
+// out, as a deployment record created after it is: the issue was still open
+// at the end, so it is a recovery not completed yet there (forsgren#53).
+func stillOpenAt(p Period, failures []history.Failure) []history.Failure {
+	for i, f := range failures {
+		if p.over(f.ClosedAt) {
+			failures[i].ClosedAt = time.Time{}
+		}
+	}
+	return failures
 }
 
 // seen is a copy of the items that came before the period was over, each at
