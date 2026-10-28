@@ -588,6 +588,10 @@ second lists the states of one deployment, and `success` must be among
 them. For `workflow=`, look at the Actions tab; for `release`, run
 `gh release list -R acme/app`.
 
+When a workflow only hands the change to a system outside GitHub (a CD tool,
+a mobile pipeline), see [Hand-off pipelines](hand-off-pipelines.md): where
+the boundary lies, and three ways to give forsgren the records.
+
 ### A setting that is not accepted
 
 A setting with a default (`view`, `auto_update`, `auto_update_level`,

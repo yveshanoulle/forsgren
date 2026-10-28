@@ -9,6 +9,25 @@ Active work lives in
 
 ---
 
+## 2026-10-28 — A docs page on measuring deployments that a workflow hands off outside GitHub ([#557](https://github.com/yveshanoulle/forsgren/issues/557), 1 step)
+
+forsgren issue 557, feature, docs only: no release on its own, it ships with
+the next release. `docs/hand-off-pipelines.md` is a recipe for a repository
+whose workflow only hands the change to a system outside GitHub (a CD tool, a
+mobile pipeline): the boundary (a successful hand-off run means handed off,
+not live; received, synced or released, and what each does to the numbers);
+Route A, a GitHub Deployment and its status recorded from outside with the
+REST API, counted by the `environment=` rule and `services:`, with the
+commit mapping; Route B, a small workflow started by `repository_dispatch` or
+`workflow_dispatch` that records it with `deployments: write` only; Route C,
+the hand-off workflow itself, by `workflow=` or one deployment recorded right
+after the hand-off step, so a fan-out of targets stays out; and failures
+after the hand-off, through a failure issue, and withdrawing one. `README.md`,
+`docs/getting-started.md` and `docs/configuration.md` link it;
+`internal/installerdoc/hand_off_docs_test.go` pins the page and the links.
+
+---
+
 ## 2026-10-28 — The TBD page description fits 160 characters ([#556](https://github.com/yveshanoulle/forsgren/issues/556))
 
 Found while 551 was finished: the TBD page's meta description was 183
