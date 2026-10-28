@@ -79,6 +79,7 @@ browser gate self-test|in|package.json
 browser gate self-test|in|package-lock.json
 browser gate self-test|in|internal/page/required-pages.json
 browser gate self-test|in|Scripts/lib_has.sh
+browser gate self-test|in|Scripts/lib_parallel_mutants.sh
 
 # --- browser gate process self-test --------------------------------------
 # The exits of the browser gate (forsgren#386, decision #411 A): the wrapper, the
@@ -99,6 +100,7 @@ browser gate process self-test|in|Scripts/lib_has.sh
 browser gate process self-test|in|Scripts/browser_gate_baseline.txt
 browser gate process self-test|in|Scripts/browser_gate_exceptions.txt
 browser gate process self-test|in|Scripts/browser_gate_variants.txt
+browser gate process self-test|in|Scripts/lib_parallel_mutants.sh
 
 # --- browser gate -------------------------------------------------------
 # It opens the site the build wrote (Scripts/build_site.sh builds ./cmd/forsgren and renders).
@@ -122,6 +124,7 @@ browser gate|in|go.sum
 browser gate|in|package.json
 browser gate|in|package-lock.json
 browser gate|in|Scripts/lib_has.sh
+browser gate|in|Scripts/lib_parallel_mutants.sh
 browser gate|out|*_test.go
 browser gate|out|cmd/**/testdata/
 browser gate|out|internal/**/testdata/
@@ -151,6 +154,7 @@ browser gate (fixture site) self-test|in|go.sum
 browser gate (fixture site) self-test|in|package.json
 browser gate (fixture site) self-test|in|package-lock.json
 browser gate (fixture site) self-test|in|Scripts/lib_has.sh
+browser gate (fixture site) self-test|in|Scripts/lib_parallel_mutants.sh
 browser gate (fixture site) self-test|out|*_test.go
 browser gate (fixture site) self-test|out|cmd/**/testdata/
 browser gate (fixture site) self-test|out|internal/**/testdata/
@@ -179,6 +183,7 @@ browser gate (fixture site)|in|go.sum
 browser gate (fixture site)|in|package.json
 browser gate (fixture site)|in|package-lock.json
 browser gate (fixture site)|in|Scripts/lib_has.sh
+browser gate (fixture site)|in|Scripts/lib_parallel_mutants.sh
 browser gate (fixture site)|out|*_test.go
 browser gate (fixture site)|out|cmd/**/testdata/
 browser gate (fixture site)|out|internal/**/testdata/
@@ -301,6 +306,7 @@ step summary isolation|in|Scripts/test_render_quality_summary.sh
 step summary isolation|in|Scripts/test_report_baselines.sh
 step summary isolation|in|Scripts/test_step_summary_isolation.sh
 step summary isolation|in|Scripts/lib_has.sh
+step summary isolation|in|Scripts/lib_parallel_mutants.sh
 
 # --- metrics workflow (forsgren#402) --------------------------------------
 # Scripts/test_metrics_workflow.sh pins metrics.yml, runs its steps with stubs and

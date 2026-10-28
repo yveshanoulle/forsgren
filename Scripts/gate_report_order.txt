@@ -815,6 +815,12 @@ preview workflow|Scripts/test_preview_workflow.sh|pre|
 # missing baseline or variants file is exit 2. axe-core is an automated gate, not
 # proof of WCAG conformance. The self-test runs first, in pre; the gate opens the
 # site that the build wrote, so it is post.
+# The mutation-harness helper (forsgren#382). Scripts/lib_parallel_mutants.sh,
+# sourced and never run, runs a self-test's mutation proofs side by side, each in a
+# folder of its own, with their output in start order. Not a gate, so only its
+# self-test is a row, in pre, before the first self-test that sources it (the
+# browser gate self-test).
+parallel mutants library self-test|Scripts/test_lib_parallel_mutants.sh|pre|
 browser gate self-test|Scripts/test_gate_browser.sh|pre|
 #
 # The exits of the browser gate, split from its self-test (forsgren#386, decision

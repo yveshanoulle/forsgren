@@ -188,11 +188,12 @@ fi
 # into grep -q gate and its self-test (forsgren#428), up to 161 for the Linux
 # tool install self-test (forsgren#427), and up to 162 for the browser gate
 # process self-test split from the browser gate self-test (forsgren#386,
-# decision #411 A).
+# decision #411 A), and up to 163 for the parallel mutants library self-test
+# (forsgren#382).
 # The self-proof below removes one row and requires the count to fall under the
 # floor, so the floor has to track the current count exactly: a row cannot
 # land here without someone raising the ratchet on purpose.
-MIN_GATES=162
+MIN_GATES=163
 
 gate_count_of() {
   grep -v '^#' "$1" | grep -c . || true
@@ -866,6 +867,17 @@ the Lint gates job would have no way to install a tool"
         order_names "$consumer" \
           || fail "Scripts/${consumer} is not an order-file row — the browser gate helpers would be unproven"
       done
+      ;;
+
+    # SOURCED HELPER, not a gate (forsgren#382): runs a self-test's mutation
+    # proofs side by side. Its self-test is an order-file row, and the browser
+    # gate self-test must still source it, else its proofs would run one after
+    # the other again.
+    lib_parallel_mutants.sh)
+      runs_script "Scripts/test_gate_browser.sh" "$base" \
+        || fail "${base} holds the parallel mutants helper and Scripts/test_gate_browser.sh never sources it"
+      order_names "test_lib_parallel_mutants.sh" \
+        || fail "Scripts/test_lib_parallel_mutants.sh is not an order-file row — the parallel mutants helper would be unproven"
       ;;
 
     *)

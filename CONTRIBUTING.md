@@ -146,6 +146,7 @@ run report shows how many checks each of them ran.
 - vulncheck workflow (`Scripts/test_vulncheck_workflow.sh`, pre)
 - dispatch preview self-test (`Scripts/test_dispatch_preview.sh`, pre)
 - preview workflow (`Scripts/test_preview_workflow.sh`, pre)
+- parallel mutants library self-test (`Scripts/test_lib_parallel_mutants.sh`, pre)
 - browser gate self-test (`Scripts/test_gate_browser.sh`, pre)
 - browser gate process self-test (`Scripts/test_gate_browser_process.sh`, pre)
 - browser gate (`Scripts/gate_browser.sh`, post)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_gate_browser v9
+# canon: test_gate_browser v10
 # Scripts/test_gate_browser.sh (forsgren#205)
 #
 # Self-test for Scripts/gate_browser.sh, the browser gate, run in PRE before the
@@ -47,7 +47,9 @@
 #  35. a variants file that is missing, has no row, repeats a name, has an
 #      unknown how, or a malformed attr:               -> exit 2
 #  36. a baseline row naming no known variant, and the v1 row without one -> exit 2
-# Mutation proofs (each fixture is red BECAUSE of the line mutated):
+# Mutation proofs (each fixture is red BECAUSE of the line mutated; they run side by
+# side through Scripts/lib_parallel_mutants.sh, forsgren#382, each on its own copy of
+# the fixture and of the engine):
 #   A. the severity filter widened to ignore serious: case 2 turns green;
 #   B. the CLS compared rounded: case 19 turns green (a small growth passes);
 #   C. a 404 read only from network-failure events: case 7 stops saying 404;
@@ -126,6 +128,8 @@ ENGINE="${REPO_ROOT}/Scripts/browser_gate.mjs"
 source Scripts/lib_selftest.sh
 # shellcheck source=Scripts/lib_gate_browser_selftest.sh
 source Scripts/lib_gate_browser_selftest.sh
+# shellcheck source=Scripts/lib_parallel_mutants.sh
+source Scripts/lib_parallel_mutants.sh
 selftest_begin "browser gate self-test"
 
 browser_selftest_require "$GATE" "$ENGINE" \
@@ -505,92 +509,151 @@ want_green "50: the CLS is read before the axe run, not after it" "OK:"
 run_gate scrollbar
 want_red "51: a page scrollbar does not change the measurement" "FAIL: light /: scrolls sideways at 390x844: table 1 is 210 px wider than its box"
 
-# Mutation proofs: the engine copy is run directly, with the real node_modules.
-MUT="${TMP}/mutants"
+# Mutation proofs, run side by side (Scripts/lib_parallel_mutants.sh, forsgren#382).
+# Each proof is a mutant_<letter> function that works on its own copy of the
+# fixture (staged here, at the point of the run where the case left it) and on
+# its own engine copy under $MUTANT_DIR, so no two share a path. The engine copy
+# is run directly, with the real node_modules. Their output comes back in the
+# order they were started, each line with its own reason; a mutation that changes
+# nothing is a failed proof (selftest_mutant), and a proof that aborts fails too.
+mutants_init "$TMP"
+
+# stage <tag> <fixture>: the proof's own copy of the fixture as it is now.
+stage() {
+  rm -rf "${TMP}/fx_$1"
+  cp -R "${TMP}/$2" "${TMP}/fx_$1"
+}
+
+# at_fixture <fixture-dir> <command> [args...]: the command on that fixture, captured.
+at_fixture() {
+  local dir="$1"
+  shift
+  capture "$@" "${dir}/site" "${dir}/manifest.json" "${dir}/exceptions.txt" "${dir}/baseline.txt" "${dir}/variants.txt"
+}
+
+# run_mutant <engine> <fixture-dir>: the engine copy on the real setting.
 run_mutant() {
-  FORSGREN_NODE_ROOT="$REPO_ROOT" capture env -u FORSGREN_CLS_LOADS -u FORSGREN_CLS_INTERVAL_MS node "$1" "${TMP}/$2/site" "${TMP}/$2/manifest.json" "${TMP}/$2/exceptions.txt" "${TMP}/$2/baseline.txt" "${TMP}/$2/variants.txt"
+  FORSGREN_NODE_ROOT="$REPO_ROOT" at_fixture "$2" env -u FORSGREN_CLS_LOADS -u FORSGREN_CLS_INTERVAL_MS node "$1"
+}
+
+# mutant_engine <sed-expression>: this proof's engine copy, MUTANT_ENGINE, and the start
+# of its seconds; fails (returns 1) when the mutation changed nothing.
+mutant_engine() {
+  LAP=$SECONDS
+  MUTANT_ENGINE="${MUTANT_DIR}/engine.mjs"
+  selftest_mutant "$ENGINE" "$MUTANT_ENGINE" "$1"
 }
 
 # A: only critical gates -> the serious fixture turns green.
-if selftest_mutant "$ENGINE" "${MUT}/a.mjs" "s/\['serious', 'critical'\]/['critical']/"; then
-  run_mutant "${MUT}/a.mjs" serious
-  want_green "mutation proof A: ignoring serious turns case 2 green" "OK:"
-fi
+stage a serious
+mutant_a() {
+  if mutant_engine "s/\['serious', 'critical'\]/['critical']/"; then
+    run_mutant "$MUTANT_ENGINE" "${TMP}/fx_a"
+    want_green "mutation proof A: ignoring serious turns case 2 green" "OK:"
+  fi
+}
 
 # B: the CLS compared rounded -> a growth of 0.1 percent turns green (case 19).
 printf 'cls|light|/|%s|%s\n' "$(scaled 0.999)" "$REASON" > "${TMP}/shift/baseline.txt"
-if selftest_mutant "$ENGINE" "${MUT}/b.mjs" "s/^const compared = .*/const compared = (value) => Math.round(value * 100);/"; then
-  run_mutant "${MUT}/b.mjs" shift
-  want_green "mutation proof B: a rounded CLS comparison turns case 19 green" "OK:"
-fi
+stage b shift
+mutant_b() {
+  if mutant_engine "s/^const compared = .*/const compared = (value) => Math.round(value * 100);/"; then
+    run_mutant "$MUTANT_ENGINE" "${TMP}/fx_b"
+    want_green "mutation proof B: a rounded CLS comparison turns case 19 green" "OK:"
+  fi
+}
 
 # C: a 404 read only from network-failure events -> case 7 no longer says 404.
-if selftest_mutant "$ENGINE" "${MUT}/c.mjs" "s/page.on('response'/page.on('response-ignored'/"; then
-  run_mutant "${MUT}/c.mjs" notfound
-  if grep -qF -- "request /missing.png -> 404" <<< "$OUT"; then
-    fail "mutation proof C: the 404 was still named without the response status. Output: ${OUT}"
-  else
-    echo "  ok: mutation proof C: without the response status case 7 loses its 404"
+stage c notfound
+mutant_c() {
+  if mutant_engine "s/page.on('response'/page.on('response-ignored'/"; then
+    run_mutant "$MUTANT_ENGINE" "${TMP}/fx_c"
+    if grep -qF -- "request /missing.png -> 404" <<< "$OUT"; then
+      fail "mutation proof C: the 404 was still named without the response status. Output: ${OUT}"
+    else
+      echo "  ok: mutation proof C: without the response status case 7 loses its 404"
+    fi
   fi
-fi
+}
 
 # D: the baseline match ignores the selector -> a new element on a baselined
 # rule turns green. The fixture is case 17's: only #a is in the baseline.
 printf 'axe|light|/|color-contrast|#a|%s\n' "$REASON" > "${TMP}/two/baseline.txt"
-if selftest_mutant "$ENGINE" "${MUT}/d.mjs" 's/^\(const axeKey = .*\)[$]{selector}\(.*\)$/\1\2/'; then
-  run_mutant "${MUT}/d.mjs" two
-  want_green "mutation proof D: ignoring the selector turns case 17 green" "OK:"
-fi
+stage d two
+mutant_d() {
+  if mutant_engine 's/^\(const axeKey = .*\)[$]{selector}\(.*\)$/\1\2/'; then
+    run_mutant "$MUTANT_ENGINE" "${TMP}/fx_d"
+    want_green "mutation proof D: ignoring the selector turns case 17 green" "OK:"
+  fi
+}
 
 # E: the stale check removed -> a baselined finding that is gone turns green.
 printf 'axe|light|/|color-contrast|#a|%s\naxe|light|/|color-contrast|#b|%s\naxe|light|/|color-contrast|#gone|%s\n' "$REASON" "$REASON" "$REASON" > "${TMP}/two/baseline.txt"
-if selftest_mutant "$ENGINE" "${MUT}/e.mjs" "s/if (!row.seen)/if (false \&\& !row.seen)/"; then
-  run_mutant "${MUT}/e.mjs" two
-  want_green "mutation proof E: without the stale check case 18 turns green" "OK:"
-fi
+stage e two
+mutant_e() {
+  if mutant_engine "s/if (!row.seen)/if (false \&\& !row.seen)/"; then
+    run_mutant "$MUTANT_ENGINE" "${TMP}/fx_e"
+    want_green "mutation proof E: without the stale check case 18 turns green" "OK:"
+  fi
+}
 
 # F: an attr: variant not applied -> the dark look is never checked, case 30 green.
 : > "${TMP}/themed/baseline.txt"
-if selftest_mutant "$ENGINE" "${MUT}/f.mjs" "s/if (variant.attr) await/if (false \&\& variant.attr) await/"; then
-  run_mutant "${MUT}/f.mjs" themed
-  want_green "mutation proof F: an unapplied attr: variant turns case 30 green" "OK:"
-fi
+stage f themed
+mutant_f() {
+  if mutant_engine "s/if (variant.attr) await/if (false \&\& variant.attr) await/"; then
+    run_mutant "$MUTANT_ENGINE" "${TMP}/fx_f"
+    want_green "mutation proof F: an unapplied attr: variant turns case 30 green" "OK:"
+  fi
+}
 
 # G: the scheme not emulated per variant -> case 33 turns green.
-if selftest_mutant "$ENGINE" "${MUT}/g.mjs" "s/value: variant.scheme/value: 'light'/"; then
-  run_mutant "${MUT}/g.mjs" schemed
-  want_green "mutation proof G: an unemulated scheme turns case 33 green" "OK:"
-fi
+stage g schemed
+mutant_g() {
+  if mutant_engine "s/value: variant.scheme/value: 'light'/"; then
+    run_mutant "$MUTANT_ENGINE" "${TMP}/fx_g"
+    want_green "mutation proof G: an unemulated scheme turns case 33 green" "OK:"
+  fi
+}
 
 # H: the override ignored -> the 50 ms of case 37 is not read.
-if selftest_mutant "$ENGINE" "${MUT}/h.mjs" "s/envPositive('FORSGREN_CLS_INTERVAL_MS', 1000)/1000/"; then
-  FORSGREN_CLS_LOADS=2 FORSGREN_CLS_INTERVAL_MS=50 FORSGREN_NODE_ROOT="$REPO_ROOT" capture node "${MUT}/h.mjs" "${TMP}/clean/site" "${TMP}/clean/manifest.json" "${TMP}/clean/exceptions.txt" "${TMP}/clean/baseline.txt" "${TMP}/clean/variants.txt"
-  if grep -qF -- "interval 50 ms" <<< "$OUT"; then
-    fail "mutation proof H: the override was still read. Output: ${OUT}"
-  else
-    echo "  ok: mutation proof H: an ignored override loses case 37's 50 ms"
+stage h clean
+mutant_h() {
+  if mutant_engine "s/envPositive('FORSGREN_CLS_INTERVAL_MS', 1000)/1000/"; then
+    FORSGREN_CLS_LOADS=2 FORSGREN_CLS_INTERVAL_MS=50 FORSGREN_NODE_ROOT="$REPO_ROOT" at_fixture "${TMP}/fx_h" node "$MUTANT_ENGINE"
+    if grep -qF -- "interval 50 ms" <<< "$OUT"; then
+      fail "mutation proof H: the override was still read. Output: ${OUT}"
+    else
+      echo "  ok: mutation proof H: an ignored override loses case 37's 50 ms"
+    fi
   fi
-fi
+}
 
 # I: the default interval changed -> case 15 loses its 1000 ms.
-if selftest_mutant "$ENGINE" "${MUT}/i.mjs" "s/envPositive('FORSGREN_CLS_INTERVAL_MS', 1000)/envPositive('FORSGREN_CLS_INTERVAL_MS', 500)/"; then
-  run_mutant "${MUT}/i.mjs" clean
-  if grep -qF -- "interval 1000 ms" <<< "$OUT"; then
-    fail "mutation proof I: the default interval was still 1000 ms. Output: ${OUT}"
-  else
-    echo "  ok: mutation proof I: a changed default interval loses case 15's 1000 ms"
+stage i clean
+mutant_i() {
+  if mutant_engine "s/envPositive('FORSGREN_CLS_INTERVAL_MS', 1000)/envPositive('FORSGREN_CLS_INTERVAL_MS', 500)/"; then
+    run_mutant "$MUTANT_ENGINE" "${TMP}/fx_i"
+    if grep -qF -- "interval 1000 ms" <<< "$OUT"; then
+      fail "mutation proof I: the default interval was still 1000 ms. Output: ${OUT}"
+    else
+      echo "  ok: mutation proof I: a changed default interval loses case 15's 1000 ms"
+    fi
   fi
-fi
+}
 
 # J: the default loads changed -> case 8a loses its 5 cold loads.
-if selftest_mutant "$ENGINE" "${MUT}/j.mjs" "s/envPositive('FORSGREN_CLS_LOADS', 5)/envPositive('FORSGREN_CLS_LOADS', 3)/"; then
-  run_mutant "${MUT}/j.mjs" shift
-  if grep -qF -- "largest of 5 cold loads" <<< "$OUT"; then
-    fail "mutation proof J: the default was still 5 loads. Output: ${OUT}"
-  else
-    echo "  ok: mutation proof J: a changed default load count loses case 8a's 5 cold loads"
+stage j shift
+mutant_j() {
+  if mutant_engine "s/envPositive('FORSGREN_CLS_LOADS', 5)/envPositive('FORSGREN_CLS_LOADS', 3)/"; then
+    run_mutant "$MUTANT_ENGINE" "${TMP}/fx_j"
+    if grep -qF -- "largest of 5 cold loads" <<< "$OUT"; then
+      fail "mutation proof J: the default was still 5 loads. Output: ${OUT}"
+    else
+      echo "  ok: mutation proof J: a changed default load count loses case 8a's 5 cold loads"
+    fi
   fi
-fi
+}
 
 # K: a layout-shift case given a too short setting turns green: why cases 8 and
 # 19-23 keep the real values. Ordered by the test, not by the clock (forsgren#252,
@@ -600,55 +663,86 @@ fi
 # the one the gate ran with (the OK line says 1 ms) and the same code moving two
 # frames after the load is red on the real setting, so only the setting hid it.
 : > "${TMP}/lateshift/baseline.txt"
-FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL_MS=1 capture "$GATE" "${TMP}/lateshift/site" "${TMP}/lateshift/manifest.json" "${TMP}/lateshift/exceptions.txt" "${TMP}/lateshift/baseline.txt" "${TMP}/lateshift/variants.txt"
-want_green "mutation proof K: a shift case on a too short setting turns green" "interval 1 ms)"
-run_gate_real earlyshift
-want_red "mutation proof K, control: the same code moving after the load, on the real setting, is red" "CLS 0."
+stage k lateshift
+stage kcontrol earlyshift
+mutant_k() {
+  LAP=$SECONDS
+  FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL_MS=1 at_fixture "${TMP}/fx_k" "$GATE"
+  want_green "mutation proof K: a shift case on a too short setting turns green" "interval 1 ms)"
+  capture env -u FORSGREN_CLS_LOADS -u FORSGREN_CLS_INTERVAL_MS "$GATE" "${TMP}/fx_kcontrol/site" "${TMP}/fx_kcontrol/manifest.json" "${TMP}/fx_kcontrol/exceptions.txt" "${TMP}/fx_kcontrol/baseline.txt" "${TMP}/fx_kcontrol/variants.txt"
+  want_red "mutation proof K, control: the same code moving after the load, on the real setting, is red" "CLS 0."
+}
 # K with a delayed load (forsgren#275): the 1 ms read still misses the shift
 # that follows the read, whatever the load took.
 : > "${TMP}/lateshiftslow/baseline.txt"
-FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL_MS=1 capture "$GATE" "${TMP}/lateshiftslow/site" "${TMP}/lateshiftslow/manifest.json" "${TMP}/lateshiftslow/exceptions.txt" "${TMP}/lateshiftslow/baseline.txt" "${TMP}/lateshiftslow/variants.txt"
-want_green "mutation proof K, delayed load: a 1 ms read still misses the shift" "interval 1 ms)"
+stage kslow lateshiftslow
+mutant_kslow() {
+  LAP=$SECONDS
+  FORSGREN_CLS_LOADS=1 FORSGREN_CLS_INTERVAL_MS=1 at_fixture "${TMP}/fx_kslow" "$GATE"
+  want_green "mutation proof K, delayed load: a 1 ms read still misses the shift" "interval 1 ms)"
+}
 
 # L: the sideways-scroll check removed -> case 41 turns green.
-if selftest_mutant "$ENGINE" "${MUT}/l.mjs" "s/^    await check.checkSideways();/    \/\/ removed/"; then
-  run_mutant "${MUT}/l.mjs" phonewide
-  want_green "mutation proof L: without the sideways-scroll check case 41 turns green" "OK:"
-fi
+stage l phonewide
+mutant_l() {
+  if mutant_engine "s/^    await check.checkSideways();/    \/\/ removed/"; then
+    run_mutant "$MUTANT_ENGINE" "${TMP}/fx_l"
+    want_green "mutation proof L: without the sideways-scroll check case 41 turns green" "OK:"
+  fi
+}
 
 # M: the comparison loosened -> an overflow of 210 px passes, case 41 turns green.
-if selftest_mutant "$ENGINE" "${MUT}/m.mjs" "s/^const scrollsSideways = .*/const scrollsSideways = (px) => px > 1000;/"; then
-  run_mutant "${MUT}/m.mjs" phonewide
-  want_green "mutation proof M: a loosened comparison turns case 41 green" "OK:"
-fi
+stage m phonewide
+mutant_m() {
+  if mutant_engine "s/^const scrollsSideways = .*/const scrollsSideways = (px) => px > 1000;/"; then
+    run_mutant "$MUTANT_ENGINE" "${TMP}/fx_m"
+    want_green "mutation proof M: a loosened comparison turns case 41 green" "OK:"
+  fi
+}
 
 # N: the growth comparison dropped -> case 46 turns green.
 printf 'sideways|light|/|390x844|table 1|209|%s\n' "$REASON" > "${TMP}/phonewide/baseline.txt"
-if selftest_mutant "$ENGINE" "${MUT}/n.mjs" "s/^    if (px > row.px) {/    if (false) {/"; then
-  run_mutant "${MUT}/n.mjs" phonewide
-  want_green "mutation proof N: without the growth comparison case 46 turns green" "OK:"
-fi
+stage n phonewide
+mutant_n() {
+  if mutant_engine "s/^    if (px > row.px) {/    if (false) {/"; then
+    run_mutant "$MUTANT_ENGINE" "${TMP}/fx_n"
+    want_green "mutation proof N: without the growth comparison case 46 turns green" "OK:"
+  fi
+}
 
 # O: the stale check of the sideways rows removed -> case 48 turns green.
 printf 'sideways|light|/|390x844|table 1|210|%s\nsideways|light|/|1280x800|table 1|5|%s\n' "$REASON" "$REASON" > "${TMP}/phonewide/baseline.txt"
-if selftest_mutant "$ENGINE" "${MUT}/o.mjs" "s/if (!row.seen) findings.push(\`FAIL: stale baseline row: \${row.key}|\${row.text} no longer/if (false) findings.push(\`FAIL: stale baseline row: \${row.key}|\${row.text} no longer/"; then
-  run_mutant "${MUT}/o.mjs" phonewide
-  want_green "mutation proof O: without the sideways stale check case 48 turns green" "OK:"
-fi
-: > "${TMP}/phonewide/baseline.txt"
+stage o phonewide
+mutant_o() {
+  if mutant_engine "s/if (!row.seen) findings.push(\`FAIL: stale baseline row: \${row.key}|\${row.text} no longer/if (false) findings.push(\`FAIL: stale baseline row: \${row.key}|\${row.text} no longer/"; then
+    run_mutant "$MUTANT_ENGINE" "${TMP}/fx_o"
+    want_green "mutation proof O: without the sideways stale check case 48 turns green" "OK:"
+  fi
+}
 
 # P: the CLS read moved back after the axe run (the order before forsgren#377)
 # -> case 50 turns red. Asserted the other way round: the mutant is red on it.
-if selftest_mutant "$ENGINE" "${MUT}/p.mjs" "s/^    await check.checkLayoutShift();/    \/\/ moved/;s/^    await check.checkAxe();/    await check.checkAxe(); await check.checkLayoutShift();/"; then
-  FORSGREN_NODE_ROOT="$REPO_ROOT" FORSGREN_CLS_LOADS="$SHORT_CLS_LOADS" FORSGREN_CLS_INTERVAL_MS="$SHORT_CLS_INTERVAL_MS" capture node "${MUT}/p.mjs" "${TMP}/readorder/site" "${TMP}/readorder/manifest.json" "${TMP}/readorder/exceptions.txt" "${TMP}/readorder/baseline.txt" "${TMP}/readorder/variants.txt"
-  want_red "mutation proof P: a CLS read after the axe run turns case 50 red" "CLS 0.5"
-fi
+stage p readorder
+mutant_p() {
+  if mutant_engine "s/^    await check.checkLayoutShift();/    \/\/ moved/;s/^    await check.checkAxe();/    await check.checkAxe(); await check.checkLayoutShift();/"; then
+    FORSGREN_CLS_LOADS="$SHORT_CLS_LOADS" FORSGREN_CLS_INTERVAL_MS="$SHORT_CLS_INTERVAL_MS" FORSGREN_NODE_ROOT="$REPO_ROOT" at_fixture "${TMP}/fx_p" node "$MUTANT_ENGINE"
+    want_red "mutation proof P: a CLS read after the axe run turns case 50 red" "CLS 0.5"
+  fi
+}
 
 # Q: the page scrollbar not taken away while measuring -> case 51 says 225.
-if selftest_mutant "$ENGINE" "${MUT}/q.mjs" "s/^  html.style.setProperty('scrollbar-gutter', 'auto', 'important');/  \/\/ kept/"; then
-  run_mutant "${MUT}/q.mjs" scrollbar
-  want_said "mutation proof Q: with the scrollbar kept, case 51 measures 225 px" "table 1 is 225 px wider than its box"
-fi
+stage q scrollbar
+mutant_q() {
+  if mutant_engine "s/^  html.style.setProperty('scrollbar-gutter', 'auto', 'important');/  \/\/ kept/"; then
+    run_mutant "$MUTANT_ENGINE" "${TMP}/fx_q"
+    want_said "mutation proof Q: with the scrollbar kept, case 51 measures 225 px" "table 1 is 225 px wider than its box"
+  fi
+}
+
+for proof in a b c d e f g h i j k kslow l m n o p q; do
+  mutant_run "mutant_${proof}"
+done
+mutants_wait
 
 echo "browser gate self-test: ${SECONDS} s in total"
 selftest_end "the browser gate self-test failed" "browser gate: every case holds, seventeen mutations seen"
