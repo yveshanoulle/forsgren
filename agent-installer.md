@@ -340,6 +340,15 @@ For every repository the person named, replacing `acme/app`:
    - Otherwise a workflow whose name or file says it deploys or publishes:
      `workflow=<its file name>`, without the `.github/workflows/` folder.
      Ask the person which workflow it is when more than one could be.
+   - The workflow only hands off. When a deploy workflow you read ends by
+     handing the change to a system outside GitHub (it calls an external CD
+     tool, a mobile build pipeline or a service, and the change is not live
+     when the run ends), say so. Tell the person: `workflow=` counts the
+     hand-off, not the moment users have the change; recording a GitHub
+     Deployment from outside (Route A or B of
+     [Hand-off pipelines](docs/hand-off-pipelines.md)) counts the moment they
+     choose, such as received or synced. Ask which they want, and write the
+     rule only with their yes.
    - Otherwise published releases exist: `release`.
    - None of these: tell the person forsgren will find nothing to count for
      that repository, ask whether to keep it, and offer the help in item 4.

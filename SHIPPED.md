@@ -9,6 +9,22 @@ Active work lives in
 
 ---
 
+## 2026-10-28 — The agent files recognise a deploy workflow that only hands off ([#559](https://github.com/yveshanoulle/forsgren/issues/559), 1 step)
+
+forsgren issue 559, patch (1.29.6), docs only: no release on its own, it
+ships with the next release. When `agent-installer.md` (step 3, proposing the
+deployment rule) or `agent-upgrade.md` (step 5, item 6, several ways to
+deploy) reads a deploy workflow that ends by handing the change to a system
+outside GitHub, the agent says so, explains that `workflow=` counts the
+hand-off while a GitHub Deployment recorded from outside (Route A or B of
+`docs/hand-off-pipelines.md`) counts the moment the person chooses, links the
+page, asks which they want and writes the rule only with their yes.
+`agent-delete.md` describes no deployment rule and is unchanged.
+`internal/installerdoc/agent_deploy_look_test.go` pins the sentences and the
+link in both files.
+
+---
+
 ## 2026-10-28 — A docs page on measuring deployments that a workflow hands off outside GitHub ([#557](https://github.com/yveshanoulle/forsgren/issues/557), 1 step)
 
 forsgren issue 557, feature, docs only: no release on its own, it ships with

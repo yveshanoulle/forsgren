@@ -528,7 +528,14 @@ applies:
    Never skip the read, never say you have not read it. Name the
    other triggers of each rule's workflow and propose folders for a rule whose
    deployments have no paths filter (a release that ships the whole program),
-   both as item 5 says. Say what changes on the page: each rule is its own row, with its own Deployments,
+   both as item 5 says. When a deploy workflow you read ends by handing the
+   change to a system outside GitHub (it calls an external CD tool, a mobile
+   build pipeline or a service, and the change is not live when the run
+   ends), say so. Tell the person: `workflow=` counts the hand-off, not the
+   moment users have the change; recording a GitHub Deployment from outside
+   (Route A or B of [Hand-off pipelines](docs/hand-off-pipelines.md)) counts
+   the moment they choose, such as received or synced. Ask which they want,
+   and write the rule only with their yes. Say what changes on the page: each rule is its own row, with its own Deployments,
    and the total row counts every deployment of the repository; a rule
    without `paths` shows `Per repository` for its Time to deploy per commit
    and its Commits per deployment. `deployment:` and `deployments:` never
