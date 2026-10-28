@@ -30,6 +30,7 @@ var legendWeekText = []string{
 	"It is not zero commits, and it does not mean deployment data is missing",
 	"The commits are the ones counted as Commits on the TBD page",
 	"its Deployments cells are the percentages of the deployments of the service or rule itself",
+	"The Commits columns are off by default: set week_commits: true to show them under Total and under each weekday.",
 	"Set week_page: false to take it out of the menu",
 	"it is still generated, can be opened at week.html, and search engines are asked to skip it",
 }

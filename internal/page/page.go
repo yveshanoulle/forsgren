@@ -82,9 +82,8 @@ type Data struct {
 	// on-demand threshold from it (forsgren#71).
 	WorkingHours    int
 	WorkingHoursSet bool
-	// DoraDays is the DORA window in days and DoraDaysSet says whether the
-	// config sets it (accepted); the legend states both and derives the band
-	// edges from it, 0 being the default 30 (forsgren#178).
+	// DoraDays is the DORA window in days, 0 being the default 30, and DoraDaysSet
+	// says whether the config sets it; the legend derives the band edges (forsgren#178).
 	DoraDays    int
 	DoraDaysSet bool
 	// Settings are the config's optional keys with the values in use; the
@@ -112,8 +111,10 @@ type Data struct {
 	// label rows, each with all its measures; none while the render has not
 	// read them (forsgren#253, forsgren#422, step 4).
 	TbdMetrics []metrics.TbdRow
-	// Week is the Week page's table (forsgren#531); empty until read.
-	Week metrics.Week
+	// Week is the Week page's table (forsgren#531); empty until read. WeekCommits
+	// says it shows its Commits columns, the config's week_commits (forsgren#548).
+	Week        metrics.Week
+	WeekCommits bool
 	// PullsUncollected says there is no data/pulls.csv beside the history:
 	// no collect has stored pull requests yet, so the TBD page says so in
 	// place of each PR Lead Time (forsgren#256, step 2).
@@ -128,10 +129,9 @@ type Data struct {
 	ThousandsSeparator string
 	// DecimalSeparator is decimal_separator, "point" or "comma"; empty: point (#536).
 	DecimalSeparator string
-	// HideTbdTimeToMain, HideTbdPRLeadTime, HideTbdBotPRLeadTime and
-	// HideSubRows are true when the config turns the key tbd_time_to_main,
-	// tbd_pr_lead_time, tbd_bot_pr_lead_time or sub_rows off; the zero value
-	// shows everything (forsgren#482).
+	// HideTbdTimeToMain, HideTbdPRLeadTime, HideTbdBotPRLeadTime and HideSubRows are
+	// true when the config turns tbd_time_to_main, tbd_pr_lead_time,
+	// tbd_bot_pr_lead_time or sub_rows off; the zero value shows all (forsgren#482).
 	HideTbdTimeToMain, HideTbdPRLeadTime, HideTbdBotPRLeadTime, HideSubRows bool
 	// FirstDeployment is when the oldest successful deployment of the listed
 	// repositories was created, zero when there is none; the history page

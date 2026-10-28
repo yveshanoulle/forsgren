@@ -260,6 +260,9 @@ type Config struct {
 	// file writes week_page as false; the page is written all the same
 	// (forsgren#531, step 3, decision #533 A).
 	HideWeekPage bool
+	// WeekCommits says the Week page shows its Commits columns: true only when
+	// the file writes week_commits as true (forsgren#548, decision #549 A).
+	WeekCommits bool
 	// written is the optional keys the file writes, by key (forsgren#74).
 	written  map[string]bool
 	Projects []Project
@@ -335,6 +338,7 @@ var (
 	ErrTbdBotPRLeadTime    = errors.New("invalid tbd_bot_pr_lead_time")
 	ErrSubRows             = errors.New("invalid sub_rows")
 	ErrWeekPage            = errors.New("invalid week_page")
+	ErrWeekCommits         = errors.New("invalid week_commits")
 )
 
 // Load reads and validates the config file at path. Every error names the
@@ -414,6 +418,7 @@ type fileConfig struct {
 	TbdBotPRLeadTime yaml.Node     `yaml:"tbd_bot_pr_lead_time"`
 	SubRows          yaml.Node     `yaml:"sub_rows"`
 	WeekPage         yaml.Node     `yaml:"week_page"`
+	WeekCommits      yaml.Node     `yaml:"week_commits"`
 	Projects         []fileProject `yaml:"projects"`
 }
 
@@ -527,6 +532,7 @@ var settingKeys = []settingKey{
 	{"history_page", string(historyPage.def), func(c Config) string { return string(c.HistoryPage) }},
 	{"tbd_page", string(tbdPage.def), func(c Config) string { return string(c.TbdPage) }},
 	{"week_page", "true", func(c Config) string { return strconv.FormatBool(!c.HideWeekPage) }},
+	{"week_commits", "false", func(c Config) string { return strconv.FormatBool(c.WeekCommits) }},
 	{"tbd_figures", DefaultTbdFigures, func(c Config) string { return c.TbdFigures }},
 	{"tbd_time_to_main", "true", func(c Config) string { return strconv.FormatBool(!c.HideTbdTimeToMain) }},
 	{"tbd_pr_lead_time", "true", func(c Config) string { return strconv.FormatBool(!c.HideTbdPRLeadTime) }},

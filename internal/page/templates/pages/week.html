@@ -6,11 +6,11 @@
         <thead>
           <tr>
             <th scope="col" rowspan="2">Project</th>
-{{range .WeekGroups}}            <th scope="colgroup" colspan="4">{{.Name}}</th>
+{{range .WeekGroups}}            <th scope="colgroup" colspan="{{$.WeekColumns}}">{{.Name}}</th>
 {{end}}          </tr>
           <tr>
-{{range .WeekGroups}}            <th scope="col" aria-label="{{.CommitsLabel}}" class="num">Commits</th>
-            <th scope="col" aria-label="{{.DeploymentsLabel}}" class="num">Deployments</th>
+{{range .WeekGroups}}{{if $.WeekCommits}}            <th scope="col" aria-label="{{.CommitsLabel}}" class="num">Commits</th>
+{{end}}            <th scope="col" aria-label="{{.DeploymentsLabel}}" class="num">Deployments</th>
             <th scope="col" aria-label="{{.FailedLabel}}" class="num">Failed</th>
             <th scope="col" aria-label="{{.FailRateLabel}}" class="num">Fail rate</th>
 {{end}}          </tr>

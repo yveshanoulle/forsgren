@@ -31,6 +31,7 @@ var possibleValues = map[string]string{
 	"tbd_figures":          list(config.TbdFiguresMedian, config.TbdFiguresAll),
 	"sub_rows":             booleanValues,
 	"week_page":            booleanValues,
+	"week_commits":         booleanValues,
 	"tbd_time_to_main":     booleanValues,
 	"tbd_pr_lead_time":     booleanValues,
 	"tbd_bot_pr_lead_time": booleanValues,

@@ -21,6 +21,7 @@ var acceptedSets = map[string][]string{
 	"auto_update":          slices.Sorted(maps.Keys(booleans)),
 	"sub_rows":             slices.Sorted(maps.Keys(booleans)),
 	"week_page":            slices.Sorted(maps.Keys(booleans)),
+	"week_commits":         slices.Sorted(maps.Keys(booleans)),
 	"tbd_time_to_main":     slices.Sorted(maps.Keys(booleans)),
 	"tbd_pr_lead_time":     slices.Sorted(maps.Keys(booleans)),
 	"tbd_bot_pr_lead_time": slices.Sorted(maps.Keys(booleans)),

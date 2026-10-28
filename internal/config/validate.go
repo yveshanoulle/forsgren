@@ -67,7 +67,7 @@ func (f fileConfig) settings() Config {
 		TbdFigures: figures, ThousandsSeparator: separator, DecimalSeparator: decimal, SameDeveloper: groups,
 		HideTbdTimeToMain: !on.tbdTimeToMain, HideTbdPRLeadTime: !on.tbdPRLeadTime,
 		HideTbdBotPRLeadTime: !on.tbdBotPRLeadTime, HideSubRows: !on.subRows,
-		HideWeekPage: !on.weekPage, written: written, Rejected: rejected}
+		HideWeekPage: !on.weekPage, WeekCommits: on.weekCommits, written: written, Rejected: rejected}
 }
 
 // rejections are the non-nil rejections, in the order of settingKeys, the
@@ -96,7 +96,8 @@ func (f fileConfig) written(rejected []Rejection) map[string]bool {
 		"history_page": f.HistoryPage, "tbd_page": f.TbdPage, "tbd_figures": f.TbdFigures,
 		"thousands_separator": f.ThousandsSeparator, "decimal_separator": f.DecimalSeparator,
 		"same_developer": f.SameDeveloper, "tbd_time_to_main": f.TbdTimeToMain, "tbd_pr_lead_time": f.TbdPRLeadTime,
-		"tbd_bot_pr_lead_time": f.TbdBotPRLeadTime, "sub_rows": f.SubRows, "week_page": f.WeekPage} {
+		"tbd_bot_pr_lead_time": f.TbdBotPRLeadTime, "sub_rows": f.SubRows, "week_page": f.WeekPage,
+		"week_commits": f.WeekCommits} {
 		keys = mark(keys, key, hasValue(node))
 	}
 	for _, r := range rejected {

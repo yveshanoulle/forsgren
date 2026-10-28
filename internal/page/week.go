@@ -45,8 +45,22 @@ func (d Data) WeekMessage() string {
 	return "No commits or deployments have been collected yet, so there is no week to show."
 }
 
-// WeekRow is one row of the Week page: the metrics row with its cells.
-type WeekRow struct{ metrics.WeekRow }
+// WeekColumns is the number of columns of each header group: Deployments,
+// Failed and Fail rate, and Commits too with week_commits: true (forsgren#548,
+// decision #549 A).
+func (d Data) WeekColumns() int {
+	if d.WeekCommits {
+		return 4
+	}
+	return 3
+}
+
+// WeekRow is one row of the Week page: the metrics row with its cells, and
+// whether the page shows the Commits cells.
+type WeekRow struct {
+	metrics.WeekRow
+	commits bool
+}
 
 // IsLabel says whether the row is a label's, service's or rule's, under its
 // project's total.
@@ -78,17 +92,26 @@ func (r WeekRow) commitsClass() string {
 	return "num"
 }
 
-// Cells are the cells after the row header: the Total's Commits, Deployments,
-// Failed and Fail rate, then the four of each weekday, Monday first
-// (forsgren#545, decision #546).
+// Cells are the cells after the row header: the Total's Commits (with
+// week_commits: true), Deployments, Failed and Fail rate, then those of each
+// weekday, Monday first (forsgren#545, decision #546; forsgren#548).
 func (r WeekRow) Cells() []WeekCell {
-	cells := []WeekCell{{r.CommitsTotalCell(), r.commitsClass(), false}, {r.DeploymentsTotalCell(), "num", false},
-		{r.FailedTotalCell(), "num", false}, {r.FailRateTotalCell(), "num", false}}
+	cells := r.commitsCell(WeekCell{r.CommitsTotalCell(), r.commitsClass(), false}, nil)
+	cells = append(cells, WeekCell{r.DeploymentsTotalCell(), "num", false},
+		WeekCell{r.FailedTotalCell(), "num", false}, WeekCell{r.FailRateTotalCell(), "num", false})
 	for day := range weekDays {
-		cells = append(cells, WeekCell{r.CommitsShareCell(day), r.commitsClass(), false},
-			WeekCell{r.DeploymentsShareCell(day), "num", false},
+		cells = r.commitsCell(WeekCell{r.CommitsShareCell(day), r.commitsClass(), false}, cells)
+		cells = append(cells, WeekCell{r.DeploymentsShareCell(day), "num", false},
 			WeekCell{r.FailedShareCell(day), "num", r.FailedHighest(day)},
 			WeekCell{r.FailRateCell(day), "num", r.FailRateHighest(day)})
+	}
+	return cells
+}
+
+// commitsCell is cells with the Commits cell added when the page shows them.
+func (r WeekRow) commitsCell(cell WeekCell, cells []WeekCell) []WeekCell {
+	if r.commits {
+		return append(cells, cell)
 	}
 	return cells
 }
@@ -100,7 +123,7 @@ func (d Data) WeekRows() []WeekRow {
 	var rows []WeekRow
 	for _, m := range d.Week.Rows {
 		if !d.leavesOut(m.Level) {
-			rows = append(rows, WeekRow{m})
+			rows = append(rows, WeekRow{m, d.WeekCommits})
 		}
 	}
 	return rows

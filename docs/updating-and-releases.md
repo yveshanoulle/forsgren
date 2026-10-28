@@ -736,6 +736,16 @@ still written and reachable by its address. Nothing new is needed: no
 permission, secret or file. An agent following
 [agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing about it.
 
+**Upgrading to 1.29.3, which leaves the Week page's Commits columns out by
+default** (forsgren#548, decision #549). A patch release. The Week page shows
+Deployments, Failed and Fail rate under Total and under each weekday; the
+Commits columns are gone unless the config says `week_commits: true`. The new
+key `week_commits` is optional and `false` when left out, so an installation
+that wants the Commits columns back sets `week_commits: true`. The commits are
+still collected and computed. Nothing new is needed: no permission, secret or
+file. An agent following [agent-upgrade.md](../agent-upgrade.md) needs to ask
+you nothing about it.
+
 **An installation's page names a newer release** (forsgren#40). The page
 footer says "0.0.10 is available" when forsgren has a newer release than the
 one that built the page, and, when your caller grants `pull-requests: read`

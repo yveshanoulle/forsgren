@@ -41,13 +41,13 @@
   {
    "path": "internal/config/settings_test.go",
    "score": 9.38,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-28",
    "minScore": 9.28
   },
   {
    "path": "internal/installerdoc/agent_installer_test.go",
    "score": 9.38,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-10-28",
    "minScore": 9.28
   },
   {
@@ -203,7 +203,7 @@
   {
    "path": "internal/config/validate.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-28",
    "minScore": 10.0
   },
   {
@@ -299,7 +299,7 @@
   {
    "path": "cmd/forsgren/render.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-28",
    "minScore": 10.0
   },
   {
@@ -365,7 +365,7 @@
   {
    "path": "internal/config/config.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-28",
    "minScore": 10.0
   },
   {
@@ -635,7 +635,7 @@
   {
    "path": "internal/page/page.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-28",
    "minScore": 10.0
   },
   {
@@ -1475,7 +1475,7 @@
   {
    "path": "internal/page/settings.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-28",
    "minScore": 10.0
   },
   {
@@ -1685,7 +1685,7 @@
   {
    "path": "internal/installerdoc/history_page_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-10-28",
    "minScore": 10.0
   },
   {
@@ -1727,7 +1727,7 @@
   {
    "path": "internal/config/accepted.go",
    "score": 10.0,
-   "checkedAt": "2026-10-25",
+   "checkedAt": "2026-10-28",
    "minScore": 10.0
   },
   {
@@ -1751,7 +1751,7 @@
   {
    "path": "internal/config/switches.go",
    "score": 10.0,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-10-28",
    "minScore": 10.0
   },
   {
@@ -2471,13 +2471,13 @@
   {
    "path": "internal/page/week_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-27",
+   "checkedAt": "2026-10-28",
    "minScore": 10.0
   },
   {
    "path": "cmd/forsgren/render_week_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-27",
+   "checkedAt": "2026-10-28",
    "minScore": 10.0
   },
   {
@@ -2489,13 +2489,13 @@
   {
    "path": "internal/installerdoc/week_page_docs_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-27",
+   "checkedAt": "2026-10-28",
    "minScore": 10.0
   },
   {
    "path": "internal/page/legend_week_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-27",
+   "checkedAt": "2026-10-28",
    "minScore": 10.0
   },
   {
@@ -2830,6 +2830,30 @@
   },
   {
    "path": "cmd/forsgren/checkneeds_separators_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-28",
+   "minScore": 10.0
+  },
+  {
+   "path": "cmd/forsgren/render_week_commits_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-28",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/weekcommits_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-28",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/week_commits_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-28",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/installerdoc/week_commits_docs_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-28",
    "minScore": 10.0

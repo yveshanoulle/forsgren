@@ -35,6 +35,7 @@ func weekPageData() Data {
 				Deployments: [7]int{1, 3, 2, 6, 5, 4, 8}},
 		},
 	}
+	data.WeekCommits = true
 	return data
 }
 

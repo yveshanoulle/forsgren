@@ -9,6 +9,32 @@ Active work lives in
 
 ---
 
+## 2026-10-28 — The Week page's Commits columns are off unless week_commits is true ([#548](https://github.com/yveshanoulle/forsgren/issues/548), decision [#549](https://github.com/yveshanoulle/forsgren/issues/549))
+
+Asked for by Yves: an option to turn off all the Commits columns of the Week
+page, off by default (decision #549 A). The new key `week_commits`, `false`
+when left out, leaves the Commits columns out under Total and under each
+weekday, so each header group is Deployments, Failed and Fail rate, three
+columns (24 figure columns, was 32); `week_commits: true` brings them back.
+The commits are still computed, only the table changes, and the highest marks
+are unchanged. The key goes the full settings path: `config.Load` and
+check-config (a seventh boolean switch, the one that defaults to `false`; a
+refused value keeps `false`, and the setup issue lists it under Refused
+settings, #538), the settings page row and its possible values, the starter
+config commented out, docs/configuration.md, the pages reference, the
+installation README, agent-installer.md (twenty rows in the settings proof)
+and the upgrade note for 1.29.3. The legend's Week section says what the key
+does. The fixture site leaves the key out, so its Week page has the narrower
+table and the browser baseline rows of `week.html` shrink to 467 and 1357 px
+(was 1088 and 1978). Tests: the config tests (default, accepted values,
+refusals, settings order and row), the page tests and the golden of the page
+without commits, the fixture's render, check-config and check-needs, the
+legend sentence and the docs.
+
+forsgren issue 548, patch (1.29.3).
+
+---
+
 ## 2026-10-28 — The Week page's fail rate leaves other states out, failed over successful plus failed ([#547](https://github.com/yveshanoulle/forsgren/issues/547), decision [#546](https://github.com/yveshanoulle/forsgren/issues/546))
 
 Asked for by Yves, point 1 of his reply on #546: deployments of state `other`

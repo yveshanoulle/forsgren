@@ -121,7 +121,7 @@ func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error
 	data.ThousandsSeparator, data.DecimalSeparator = cfg.ThousandsSeparator, cfg.DecimalSeparator
 	data.HideTbdTimeToMain, data.HideTbdPRLeadTime = cfg.HideTbdTimeToMain, cfg.HideTbdPRLeadTime
 	data.HideTbdBotPRLeadTime, data.HideSubRows = cfg.HideTbdBotPRLeadTime, cfg.HideSubRows
-	data.HistoryDays = cfg.HistoryDays
+	data.HistoryDays, data.WeekCommits = cfg.HistoryDays, cfg.WeekCommits
 	data.Hidden, data.Unlisted = pagesInMode(cfg, config.PageOff), pagesInMode(cfg, config.PageUnlisted)
 	if o.data == "" {
 		return data, nil

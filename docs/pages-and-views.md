@@ -1361,8 +1361,9 @@ The Week page (`week.html`, forsgren#531, from 1.29.0) shows when the work
 happens (decisions #532, #533, #534 and #539). One table, a row per project and
 under it a row for each label, service or rule (`sub_rows: false` leaves those
 out, as on the other tables), with two header rows: Project, then Total and Monday to
-Sunday in full, each with Commits, Deployments, Failed and Fail rate under it
-(Failed and Fail rate from forsgren#545, decision #546). The figures cover every weekday of the `dora_days` window, not one
+Sunday in full, each with Deployments, Failed and Fail rate under it
+(Failed and Fail rate from forsgren#545, decision #546), and Commits before
+them with `week_commits: true` (forsgren#548, decision #549). The figures cover every weekday of the `dora_days` window, not one
 calendar week, so a Monday appears as often as the window holds Mondays. The
 page says nothing else above the table (forsgren#544): how to read Total and
 the shares, and that the window is the last `dora_days` days, the period the
@@ -1421,6 +1422,10 @@ section.
   `week_page: false`, which takes it out of the menu and asks search engines
   to skip it; the page is still written and reachable at `week.html`. See
   [Configuration](configuration.md#configuration).
+- **`week_commits`** (forsgren#548, decision #549): the Commits columns, under
+  Total and under each weekday, are shown only with `week_commits: true`; by
+  default each header group is Deployments, Failed and Fail rate. The commits
+  are still computed. See [Configuration](configuration.md#configuration).
 
 The page has the heading and the table, or one line when there are no projects or nothing is collected
 yet. The legend has a Week page section for the reader.

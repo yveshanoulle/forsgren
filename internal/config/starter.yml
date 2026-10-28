@@ -97,6 +97,14 @@
 #
 # week_page: true  # the Week page in the menu: true (default) or false
 #
+# The key week_commits is optional and false when left out. The Week page then
+# shows Deployments, Failed and Fail rate; set it to true to add the Commits
+# columns under Total and under each weekday. To write the key, remove the "# "
+# in front of the next line. A value that is neither true nor false is not used,
+# and the settings page says why.
+#
+# week_commits: false  # the Week page's Commits columns: false (default) or true
+#
 # same_developer: is optional. It lists groups of GitHub logins that count as
 # one developer, for an assistant account that works on someone's behalf or a
 # person with two accounts. The first login of a group names the developer,
