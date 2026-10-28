@@ -46,20 +46,23 @@
 #      forsgren#427, installing from Scripts/required_tools_linux.txt) and runs exactly
 #      run_ci_phase.sh pre for the job `lint`; no step names a lint gate
 #      itself; the group file gives it actionlint, shellcheck, yamllint and
-#      zizmor with their self-tests, so the main job no longer runs them (the
+#      zizmor with their self-tests and, since forsgren#447 step 5, Go lint
+#      with its self-test (Go ships with the Linux image), so the main job no longer runs them (the
 #      order file is unchanged: the rows keep their pre phase and place)
 #   3d. the workflows job (forsgren#408) has the same setup and runs exactly
 #      run_ci_phase.sh pre for the job `workflows`; no step names one of its
 #      gates itself; the group file gives it the gates that read only the
 #      workflows and the wiring of the gates (gate wiring, the checkout pins
 #      and their mutations, the metrics, release, starter page, vulncheck,
-#      auto-update and preview workflow pins and this pin), about 260 s that the
+#      auto-update and preview workflow pins and this pin, and, since
+#      forsgren#447 step 6, go mod tidy and the Go test duplication and Go
+#      vulnerabilities self-tests), about 260 s and 85 s that the
 #      main job no longer runs, so the main job is no longer the critical path
 #   3e. the quality_2 job (forsgren#447) has the same setup and runs exactly
 #      run_ci_phase.sh pre for the job `quality_2`; no step names one of its
-#      gates itself; the group file gives it twelve gates of the main job and
-#      the Go coverage gate (it reads the profile the Go tests gate writes, so
-#      the two stay together), about 306 s; the jobs' gates together are the
+#      gates itself; the group file gives it nine gates of the main job, the Go
+#      tests and the Go coverage gate (it reads the profile the Go tests gate writes, so
+#      the two stay together), about 180 s since step 5; the jobs' gates together are the
 #      order file's rows, each once (union_findings)
 #   3f. the browser_1 job (forsgren#447) has the same setup and runs exactly
 #      run_ci_phase.sh pre for the job `browser_1`, with no site build: the
@@ -422,11 +425,13 @@ status_findings() {
 }
 
 # groups_findings: pin 3.
-# Q2_ROWS: the gates the quality_2 job runs (forsgren#447): the Go lint pair,
-# the Go tests with the Go coverage gate that reads their profile
-# (.build/go-coverage.out), and the long tail of the main job, all PRE rows
-# that need no built site.
-Q2_ROWS=('quality_2|Go lint self-test' 'quality_2|Go lint' 'quality_2|Go tests' 'quality_2|Go coverage'
+# Q2_ROWS: the gates the quality_2 job runs (forsgren#447): the Go tests with
+# the Go coverage gate that reads their profile (.build/go-coverage.out), and
+# the long tail of the main job, all PRE rows that need no built site. The Go
+# lint pair is in the lint job and go mod tidy with the two self-tests of the
+# Go test duplication and Go vulnerabilities gates in the workflows job (steps
+# 5 and 6): Go-only gates that run on Linux.
+Q2_ROWS=('quality_2|Go tests' 'quality_2|Go coverage'
   'quality_2|browser gate inputs self-test' 'quality_2|golden pages'
   'quality_2|git sandbox isolation scope self-test' 'quality_2|exit-trap completion behaviour'
   'quality_2|CI phase runner self-test' 'quality_2|quality-run summary'
@@ -439,16 +444,17 @@ groups_findings() {
     'browser_1|browser gate self-test' 'browser|browser gate process self-test' 'browser|browser gate' 'browser|browser gate (fixture site) self-test' 'browser|browser gate (fixture site)' \
     'lint|actionlint self-test' 'lint|actionlint forsgren cases self-test' 'lint|actionlint' \
     'lint|shellcheck self-test' 'lint|shellcheck' 'lint|yamllint self-test' 'lint|yamllint' \
-    'lint|zizmor self-test' 'lint|zizmor' \
+    'lint|zizmor self-test' 'lint|zizmor' 'lint|Go lint self-test' 'lint|Go lint' \
     "${Q2_ROWS[@]}" \
     'workflows|gate wiring' 'workflows|mutation: checkout pins' 'workflows|metrics workflow' 'workflows|release workflow' \
     'workflows|starter page workflow' 'workflows|quality jobs pin' 'workflows|preview workflow' \
     'workflows|vulncheck workflow' 'workflows|auto-update workflow' \
+    'workflows|go mod tidy' 'workflows|Go test duplication self-test' 'workflows|Go vulnerabilities self-test' \
     | LC_ALL=C sort | tr '\n' ';')"
   [[ -f "$GROUPS_FILE" ]] || { echo "groups: ${GROUPS_FILE} does not exist"; return 0; }
   rows="$(grep -v '^#' "$GROUPS_FILE" | grep . | LC_ALL=C sort | tr '\n' ';')"
   [[ "$rows" == "$labels" ]] \
-    || echo "groups: ${GROUPS_FILE} must give the two isolation jobs the git sandbox isolation self-test, one shard each (isolation_1 with --shard 1/2, isolation_2 with --shard 2/2), the summary job the step summary isolation gate, the browser_1 job the browser gate self-test alone, the browser job the two browser gates and the other two self-tests, the lint job actionlint, shellcheck, yamllint and zizmor with their self-tests, the quality_2 job the twelve gates of forsgren#447 and the Go coverage gate, and the workflows job gate wiring, the checkout pins mutations and the pins of the metrics, release, starter page, vulncheck, auto-update and preview workflows and of this job layout, got: ${rows:-none}"
+    || echo "groups: ${GROUPS_FILE} must give the two isolation jobs the git sandbox isolation self-test, one shard each (isolation_1 with --shard 1/2, isolation_2 with --shard 2/2), the summary job the step summary isolation gate, the browser_1 job the browser gate self-test alone, the browser job the two browser gates and the other two self-tests, the lint job actionlint, shellcheck, yamllint and zizmor with their self-tests and Go lint with its self-test, the quality_2 job the eleven gates of forsgren#447 (the Go tests with the Go coverage gate, nine more), and the workflows job gate wiring, the checkout pins mutations and the pins of the metrics, release, starter page, vulncheck, auto-update and preview workflows and of this job layout, go mod tidy and the Go test duplication and Go vulnerabilities self-tests, got: ${rows:-none}"
   while IFS='|' read -r job label _args; do
     awk -F'|' -v l="$label" '$1 == l && ($3 == "pre" || $3 == "post")' <(grep -v '^#' "$ORDER") | has . \
       || echo "groups: '${label}' is no pre or post row of ${ORDER}"
@@ -687,10 +693,10 @@ OUT="$(GROUPS_FILE="${VERDICT_TMP}/noworkflows.txt" groups_findings)"
 expect_named "a group file that leaves the workflow pins in the main job" "and the workflows job gate wiring"
 grep -v '^quality_2|' "$GROUPS_FILE" > "${VERDICT_TMP}/noq2.txt"
 OUT="$(GROUPS_FILE="${VERDICT_TMP}/noq2.txt" groups_findings)"
-expect_named "a group file that leaves the quality_2 gates in the main job" "the quality_2 job the twelve gates"
+expect_named "a group file that leaves the quality_2 gates in the main job" "the quality_2 job the eleven gates"
 grep -v '^quality_2|Go coverage$' "$GROUPS_FILE" > "${VERDICT_TMP}/nocov.txt"
 OUT="$(GROUPS_FILE="${VERDICT_TMP}/nocov.txt" groups_findings)"
-expect_named "a group file that leaves Go coverage apart from Go tests" "the quality_2 job the twelve gates"
+expect_named "a group file that leaves Go coverage apart from Go tests" "the quality_2 job the eleven gates"
 { cat "$GROUPS_FILE"; echo 'lint|golden pages'; } > "${VERDICT_TMP}/twojobs.txt"
 OUT="$(GROUPS_FILE="${VERDICT_TMP}/twojobs.txt" groups_findings)"
 expect_named "a gate in quality_2 and in another job" "union: a quality_2 or browser_1 gate is also in another job"

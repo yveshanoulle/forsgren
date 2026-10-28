@@ -68,6 +68,14 @@ lint|yamllint
 lint|zizmor self-test
 lint|zizmor
 #
+# The Go lint pair (forsgren#447, step 5): Go lint and its self-test, about 124 s
+# on the Mac (146 s at most), moved from quality_2. Both are PRE rows that read
+# only Go sources and the go.mod tools, no built site. Go ships with the hosted
+# Linux image and GOTOOLCHAIN comes from go.mod (Scripts/go_toolchain.sh), so
+# the job needs no tool of its own list.
+lint|Go lint self-test
+lint|Go lint
+#
 # The workflows job (forsgren#408): the gates that read only the workflows and
 # the wiring of the gates, about 260 s together (measured in forsgren#408,
 # step 1, on three green Quality runs of main: the main job took 15 minutes,
@@ -83,15 +91,22 @@ workflows|preview workflow
 workflows|vulncheck workflow
 workflows|auto-update workflow
 #
-# The quality_2 job (forsgren#447): twelve of the longest gates of the main
-# job, about 306 s together (measured in forsgren#447 on three green Quality
+# Three Go-only gates of the main job (forsgren#447, step 6), about 85 s on the
+# Mac (106 s at most): go mod tidy, and the self-tests of the Go test
+# duplication and Go vulnerabilities gates (the gates themselves stay in the
+# main job). Go ships with the hosted Linux image, as for the Go lint pair.
+workflows|go mod tidy
+workflows|Go test duplication self-test
+workflows|Go vulnerabilities self-test
+#
+# The quality_2 job (forsgren#447): nine of the longest gates of the main
+# job, with Go tests and Go coverage (the Go lint pair moved to the lint job,
+# step 5), about 180 s together after step 5 (measured in forsgren#447 on three green Quality
 # runs of main), so the main job and the browser job are not the only long
 # ones. Go tests and Go coverage stay together: the coverage gate reads the
 # profile (.build/go-coverage.out) that the Go tests gate writes. All are PRE
 # rows and none reads the built site (.build/site). They keep their pre phase
 # and their place in the order file.
-quality_2|Go lint self-test
-quality_2|Go lint
 quality_2|Go tests
 quality_2|Go coverage
 quality_2|browser gate inputs self-test

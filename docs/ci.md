@@ -216,9 +216,9 @@ minutes, so the main job was the critical path at 13 to 15 minutes against 8
 for the next job; with them in their own job the main job is about 10 minutes.
 The order file is unchanged. The report job's status takes its result too, and
 the `preview` job `needs:` it.
-The `quality_2` job (forsgren#447) runs twelve of the main job's slower gates
-and the Go coverage gate, about 306 s together: the Go lint self-test and Go
-lint, the browser gate inputs self-test, golden pages, the git sandbox isolation
+The `quality_2` job (forsgren#447) runs nine of the main job's slower gates
+and the Go coverage gate, about 180 s together since step 5: the browser gate
+inputs self-test, golden pages, the git sandbox isolation
 scope self-test, the exit-trap completion behaviour, the CI phase runner
 self-test, Go tests, the quality-run summary, the markdown-links self-test, the
 HTMLHint self-test and the html duplication generated page self-test. Go tests
@@ -230,6 +230,19 @@ completion behaviour gate needs bash 3.2), builds no site
 gates together are the order file's rows, each once
 (`Scripts/test_quality_jobs.sh` pins that). The report job's status takes its
 result too, and the `preview` job `needs:` it.
+Go-only gates run on Linux (forsgren#447, steps 5 and 6). The `lint` job also
+runs Go lint and its self-test (124 s on the Mac, 146 s at most; they left
+`quality_2`), and the `workflows` job also runs go mod tidy, the Go test
+duplication self-test and the Go vulnerabilities self-test (85 s, 106 s at
+most; they left the main job; the two gates themselves stay in the main job).
+Go ships with the hosted Linux image and `GOTOOLCHAIN` comes from `go.mod`, as
+for the other Linux jobs, and the Go tools run from `go.mod` (`go tool`), so
+neither tools list changes. `quality_2` keeps Go tests and Go coverage together
+and so still needs go, node and jq. Expected: Quality gates 2/2 about 7.5
+minutes less 2 (measured 9.3, 7.5, 9.7), Quality gates about 1.4 minutes less,
+Lint and Workflow gates about 2 and 1.4 minutes more (Workflow gates measured
+4.8, 3.4, 5.4).
+
 The three baselines steps stay in the main job: they read the built site.
 `Scripts/test_quality_jobs.sh` pins the layout.
 
