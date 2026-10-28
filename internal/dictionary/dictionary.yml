@@ -1,0 +1,253 @@
+- name: "Deployment frequency"
+  kind: number
+  definition: "How often the project deploys successfully. The cell shows the DORA band and the number of successful deployments in the window, or in the last 180 days when the window holds none."
+  from: "Deployments of data/deployments.csv, over the window (dora_days, 30 days by default)."
+- name: "Weekend deployments"
+  kind: number
+  definition: "How many of the successful deployments that count were created on a Saturday or a Sunday (UTC). It is 0 when there are none."
+  from: "Deployments of data/deployments.csv, over the window, or the last 180 days when the window holds no deployment."
+- name: "Lead time for changes"
+  kind: number
+  definition: "The median time from a commit to the successful deployment that shipped it, with the number of commits deployed in the window in brackets."
+  from: "Commits of data/commits.csv and their deployments, over the window."
+- name: "Failed deployment recovery time"
+  kind: number
+  definition: "The median time from the first failed deployment of a run to the next successful deployment of the same stream, with the number of recoveries in brackets."
+  from: "Deployments of data/deployments.csv, over the window."
+- name: "Change fail rate"
+  kind: number
+  definition: "The failed changes out of the final deployments, in whole percent, rounded down. A failed change is a failed deployment, or an issue labelled failure opened in the window."
+  from: "Deployments of data/deployments.csv and issues of data/failures.csv, over the window."
+- name: "Deployment rework rate"
+  kind: number
+  definition: "The rework deployments out of the successful ones, in whole percent, rounded down. A rework deployment is the first success after a failure, or one made while a failure issue was open."
+  from: "Deployments of data/deployments.csv and issues of data/failures.csv, over the window."
+- name: "Overall Performance"
+  kind: number
+  definition: "The mean of the scored metrics, 0 to 10, to one decimal. A dash when no metric is scored."
+  from: "The scores of the five DORA metrics, over the window."
+- name: "Mainline Interval"
+  kind: number
+  definition: "The time between commits reaching the main branch, among the commits that deployments shipped. A shorter interval means changes are integrated more often."
+  from: "Commits of data/commits.csv, over the window."
+- name: "Mainline Lead Time"
+  kind: number
+  definition: "The time from the author date of every commit that reached main to the earliest push that brought it there, however it got there."
+  from: "Pushes and their commits (data/pushes.csv, data/push_commits.csv) and pull requests of data/pulls.csv, over the window."
+- name: "Time to main per commit"
+  kind: number
+  definition: "How old one change is when it reaches the main branch: from the author date of the commit to the push that brought it to main."
+  from: "Pushes of data/pushes.csv and data/push_commits.csv, over the window."
+- name: "PR Lead Time"
+  kind: number
+  definition: "The time from the first commit of a pull request opened by a person to its merge."
+  from: "Merged pull requests of data/pulls.csv and data/pull_commits.csv, over the window."
+- name: "Bot PR Lead Time"
+  kind: number
+  definition: "The same measure as PR Lead Time, over the merged pull requests that a bot opened."
+  from: "Merged pull requests of data/pulls.csv and data/pull_commits.csv, over the window."
+- name: "Time to deploy per commit"
+  kind: number
+  definition: "How old one change is when it is first deployed: from the author date of the commit to the first deployment that contains it."
+  from: "Commits of data/commits.csv and their deployments, over the window."
+- name: "Commits"
+  kind: number
+  definition: "On the TBD page, the commits the pushes of the window brought to the main branch, each counted once. On the Week page, the commits per weekday."
+  from: "Pushes of data/pushes.csv and data/push_commits.csv, over the window."
+- name: "Pushes"
+  kind: number
+  definition: "The pushes to the main branch."
+  from: "Pushes of data/pushes.csv, over the window."
+- name: "Deployments"
+  kind: number
+  shown: ["Deployments", "Deploys"]
+  definition: "The successful deployments. On the Week page, Deploys is the deployments per weekday."
+  from: "Deployments of data/deployments.csv, over the window."
+- name: "Deployed commits"
+  kind: number
+  definition: "The distinct commits that the deployments of the window shipped, each counted once at its first deployment."
+  from: "Commits of data/commits.csv, over the window."
+- name: "Commits per push"
+  kind: number
+  definition: "How many commits reach main in each push; a push whose commits could not be counted is left out."
+  from: "Pushes of data/pushes.csv, over the window."
+- name: "Commits per deployment"
+  kind: number
+  definition: "How many commits on the main line a deployment brought; a deployment without a known main line is left out."
+  from: "Commits of data/commits.csv and their deployments, over the window."
+- name: "Direct share"
+  kind: number
+  shown: ["Direct share", "Direct"]
+  definition: "The share of the commits that did not come through a pull request, such as a commit pushed directly to main."
+  from: "Pushes, push commits and pull requests, over the window."
+- name: "PR share"
+  kind: number
+  shown: ["PR share", "PR"]
+  definition: "The share of the commits that came through a pull request: a merge commit of a merged pull request, or a commit that a pull request merge brought to main."
+  from: "Pushes, push commits and pull requests, over the window."
+- name: "Unknown share"
+  kind: number
+  shown: ["Unknown share", "Unknown"]
+  definition: "The share of the commits whose author GitHub links to no account, or has the placeholder login invalid-email-address. It overlaps Direct and PR."
+  from: "Push commits (data/push_commits.csv), over the window."
+- name: "Bots share"
+  kind: number
+  shown: ["Bots share", "Bots"]
+  definition: "The share of the commits made by automated accounts, whose login ends in [bot]. It overlaps Direct and PR."
+  from: "Push commits (data/push_commits.csv), over the window."
+- name: "Developers"
+  kind: number
+  shown: ["Developers", "developers"]
+  definition: "The number of distinct people who authored the commits deployed in the window. A person with several email addresses counts once; bots and unknown authors are left out."
+  from: "Commits of data/commits.csv, over the window."
+- name: "Failed deployments"
+  kind: number
+  shown: ["Failed"]
+  definition: "On the Week page, the failed deployments, in total and per weekday."
+  from: "Deployments of data/deployments.csv, over the window."
+- name: "Fail rate"
+  kind: number
+  definition: "On the Week page, the failed deployments out of the finished deployments, in total and per weekday."
+  from: "Deployments of data/deployments.csv, over the window."
+- name: "Open"
+  kind: number
+  definition: "The issues open at the end of the period."
+  from: "Issue events of data/issues.csv."
+- name: "Total"
+  kind: number
+  definition: "On the Issues and Daily pages, the issues created up to the end of the period, open or closed. On the Week page, the total of the row over the window."
+  from: "Issue events of data/issues.csv; deployments and commits for the Week page."
+- name: "Open / Total"
+  kind: number
+  definition: "Open out of Total, in whole percent, rounded down; a dash when Total is 0."
+  from: "Issue events of data/issues.csv."
+- name: "New"
+  kind: number
+  definition: "The issues created in the period."
+  from: "Issue events of data/issues.csv."
+- name: "Completed"
+  kind: number
+  definition: "The issues closed in the period with the reason completed."
+  from: "Issue events of data/issues.csv."
+- name: "Not planned"
+  kind: number
+  definition: "The issues closed in the period with the reason not planned."
+  from: "Issue events of data/issues.csv."
+- name: "Duplicate"
+  kind: number
+  definition: "The issues closed in the period with the reason duplicate."
+  from: "Issue events of data/issues.csv."
+- name: "Other"
+  kind: number
+  definition: "The issues closed in the period with no reason, or a reason forsgren does not know."
+  from: "Issue events of data/issues.csv."
+- name: "Issue lead time"
+  kind: number
+  shown: ["Lead time"]
+  definition: "The median time from an issue's creation to its completed close, over the issues completed in the period."
+  from: "Issue events of data/issues.csv."
+- name: "Open bugs"
+  kind: number
+  definition: "The issues open at the end of the period that carry the GitHub label bug, as the label is at the latest collection."
+  from: "Issue events of data/issues.csv and bug flags of data/issue_bugs.csv."
+- name: "Bugs lead time"
+  kind: number
+  definition: "The same as the issue lead time, over the issues that carry the label bug."
+  from: "Issue events of data/issues.csv and bug flags of data/issue_bugs.csv."
+- name: "trunk"
+  kind: term
+  definition: "The main branch of a repository, where trunk-based development integrates small changes often."
+  from: "The default branch of each repository."
+- name: "mainline"
+  kind: term
+  definition: "The main branch seen as a line of commits: the commits that landed on it one after another, a merge commit included."
+  from: "The default branch of each repository."
+- name: "TBD"
+  kind: term
+  definition: "Trunk-based development: integrating small changes into the main branch often. The TBD page shows how often, how long and how large."
+  from: "The TBD page."
+- name: "DORA"
+  kind: term
+  definition: "The DevOps Research and Assessment programme, whose five delivery metrics and bands forsgren follows (DORA Quick Check, dora.dev)."
+  from: "DORA Quick Check, dora.dev."
+- name: "lead time"
+  kind: term
+  definition: "The time from a commit, an issue or a pull request to the event that finishes it. Which clock a figure uses is named in its own entry."
+  from: "See the entries of each lead time."
+- name: "rework"
+  kind: term
+  definition: "A deployment that follows a failure: the first success after a failed deployment, or one created while a failure issue was open."
+  from: "Deployments and failure issues."
+- name: "band"
+  kind: term
+  definition: "The DORA level a figure falls in, from On demand to Less than once per six months, each with a score from 10 to 0."
+  from: "Edges of the DORA Quick Check, scaled to the window."
+- name: "window"
+  kind: term
+  definition: "The days the figures count back over from the time in the footer: 30, 90 or 180 days (dora_days, 30 by default)."
+  from: "dora_days in forsgren.config.yml."
+- name: "bot"
+  kind: term
+  definition: "An automated account, whose GitHub login ends in [bot] or whose pull requests GitHub marks as made by a bot."
+  from: "GitHub account types and logins."
+- name: "unknown author"
+  kind: term
+  definition: "A commit whose author GitHub links to no account, or has the placeholder login invalid-email-address."
+  from: "Commit authors read from GitHub."
+- name: "cut"
+  kind: term
+  definition: "A list that GitHub gave only in part, so a figure built on it is a lower bound."
+  from: "Page limits of the GitHub answers."
+- name: "stand-in"
+  kind: term
+  definition: "A time used in place of an unknown one: the created time of a pull request stands in for its first commit time when no commit date can be read."
+  from: "Pull requests of data/pulls.csv."
+- name: "score"
+  kind: term
+  definition: "A level's number from 0 to 10 that the DORA Quick Check gives each band; the scoring view shows it."
+  from: "DORA Quick Check, dora.dev."
+- name: "mean"
+  kind: term
+  definition: "The average of the values, shown when tbd_figures is all."
+  from: "Settings: tbd_figures."
+- name: "median"
+  kind: term
+  definition: "The middle value of the values; the figure the pages show by default."
+  from: "Settings: tbd_figures."
+- name: "p90"
+  kind: term
+  definition: "The value that nine tenths of the values are no larger than."
+  from: "Settings: tbd_figures."
+- name: "lower bound"
+  kind: term
+  definition: "A figure that can only be too small: some of its data was cut, so the real value is at least this."
+  from: "Notes below the TBD table."
+- name: "final deployment"
+  kind: term
+  definition: "A deployment that ended, a failed one included; the base of Change fail rate."
+  from: "Deployments of data/deployments.csv."
+- name: "stream"
+  kind: term
+  definition: "The deployments of one repository and one environment, workflow or release, in time order."
+  from: "Deployments of data/deployments.csv."
+- name: "Calculated at"
+  kind: term
+  definition: "The UTC minute the numbers were calculated at, the moment the windows were counted back from."
+  from: "The footer of every page."
+- name: "Report Start"
+  kind: term
+  shown: ["Report Start", "Report End"]
+  definition: "The first and the last minute of the window, in UTC; Report End is the Calculated at time."
+  from: "The footer of every page."
+- name: "Volume"
+  kind: term
+  definition: "The TBD group of the four counts Commits, Pushes, Deployments and Deployed commits."
+  from: "The TBD page."
+- name: "Shares of commits"
+  kind: term
+  definition: "The TBD group of the four shares of the commits: Direct, PR, Unknown and Bots."
+  from: "The TBD page."
+- name: "Quick Check"
+  kind: term
+  definition: "The DORA Quick Check, the scale of bands and scores that forsgren uses (dora.dev, Google LLC, CC BY 4.0)."
+  from: "dora.dev."

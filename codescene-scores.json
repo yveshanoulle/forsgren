@@ -2893,6 +2893,18 @@
    "score": 10.0,
    "checkedAt": "2026-10-28",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/dictionary/dictionary.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-28",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/dictionary/dictionary_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-28",
+   "minScore": 10.0
   }
  ]
 }
