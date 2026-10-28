@@ -1,9 +1,22 @@
 package metrics
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
+
+// dec is want with each point of its decimals as the DecimalMark, which the
+// cells carry for the page renderer to swap (forsgren#536).
+func dec(want string) string { return strings.ReplaceAll(want, ".", DecimalMark) }
+
+// TestDecimalWritesTheMarkBetweenWholeAndFraction (forsgren#536): the one
+// writer of a decimal puts the DecimalMark, never a point, between the parts.
+func TestDecimalWritesTheMarkBetweenWholeAndFraction(t *testing.T) {
+	if got, want := Decimal("6", "0"), "6\ue0000"; got != want {
+		t.Errorf("want %q, got %q", want, got)
+	}
+}
 
 // TestGroupDigits (forsgren#528, decision #529 B): a narrow no-break space
 // between each group of three digits from 1000 on, the sign kept in front.

@@ -6,6 +6,11 @@ import (
 	"github.com/yveshanoulle/forsgren/internal/config"
 )
 
+// separatorConflict is the reason both separator rows give when both are the
+// comma (forsgren#536, decision #537 A).
+const separatorConflict = "thousands_separator comma and decimal_separator comma are both the mark \",\"; " +
+	"use different marks; both separators revert to their defaults, narrow_space and point"
+
 // withRejected is the calculated page with the settings of a config whose
 // history_days is 0 and whose view is written as written (forsgren#183).
 func withRejected(view string) Data {
@@ -19,6 +24,9 @@ func withRejected(view string) Data {
 		case "view":
 			data.Settings[i].Written = view
 			data.Settings[i].Reason = "use standard, numbers or scoring"
+		case "thousands_separator", "decimal_separator":
+			data.Settings[i].Written = "comma"
+			data.Settings[i].Reason = separatorConflict
 		}
 	}
 	return data
@@ -38,6 +46,23 @@ func TestSettingsPageSaysARejectedValue(t *testing.T) {
           </tr>`,
 		`<tr>
             <th scope="row">auto_update</th>`)
+}
+
+// TestSettingsPageShowsBothRowsOfASeparatorConflict (forsgren#536, decision
+// #537 A): each of the two separator rows says its value is not accepted, the
+// conflict as the reason, and the default in use.
+func TestSettingsPageShowsBothRowsOfASeparatorConflict(t *testing.T) {
+	html := rendered(t, "settings.html", withRejected("weekly"))
+	reason := "are both the mark &#34;,&#34;; use different marks; both separators revert to their defaults, " +
+		"narrow_space and point. Using the default <span class=\"default-in-force\">"
+	row := func(key, def, possible string) string {
+		return `<th scope="row">` + key + `</th>
+            <td><span class="written">comma</span> is not accepted: thousands_separator comma and ` +
+			`decimal_separator comma ` + reason + def + `</span>.</td>
+            <td>` + possible + `</td>`
+	}
+	wantAll(t, "settings.html", html, row("thousands_separator", "narrow_space", "narrow_space, comma, period, none"),
+		row("decimal_separator", "point", "point, comma"))
 }
 
 // TestSettingsPageShowsAWrittenValueAsText (forsgren#183): the value as written

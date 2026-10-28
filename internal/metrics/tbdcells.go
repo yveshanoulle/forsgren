@@ -10,6 +10,7 @@ package metrics
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"time"
 
 	"github.com/yveshanoulle/forsgren/internal/config"
@@ -80,13 +81,13 @@ func shareOf(part, total int) string {
 	case part == 0:
 		return "0%"
 	case hundredths == 0:
-		return "< 0.01%"
+		return "< " + Decimal("0", "01") + "%"
 	case hundredths >= 1000:
 		return fmt.Sprintf("%d%%", hundredths/100)
 	case hundredths >= 100:
-		return fmt.Sprintf("%d.%d%%", hundredths/100, hundredths/10%10)
+		return Decimal(strconv.Itoa(hundredths/100), strconv.Itoa(hundredths/10%10)) + "%"
 	default:
-		return fmt.Sprintf("%d.%02d%%", hundredths/100, hundredths%100)
+		return Decimal(strconv.Itoa(hundredths/100), fmt.Sprintf("%02d", hundredths%100)) + "%"
 	}
 }
 
@@ -133,7 +134,7 @@ func (s CountSpread) cell(shown bool, v float64) string {
 // half in float, which TestCountSpreadCellsShowTwoSignificantDigits pins.
 func countCell(v float64) string {
 	if tenths := int(math.Floor(v*10 + 0.5)); tenths < 100 {
-		return fmt.Sprintf("%d.%d", tenths/10, tenths%10)
+		return Decimal(strconv.Itoa(tenths/10), strconv.Itoa(tenths%10))
 	}
 	return GroupDigits(int(math.Floor(v + 0.5)))
 }

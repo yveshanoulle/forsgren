@@ -64,12 +64,22 @@ var companions = map[string]string{
 	"auto_update_level": "auto_update: true\n",
 }
 
+// companionOf is the line key set to value needs beside it: companions, and
+// for a period as the thousands separator a decimal comma, since the default
+// decimal point is the same mark (forsgren#536).
+func companionOf(key, value string) string {
+	if key == "thousands_separator" && value == "period" {
+		return "decimal_separator: comma\n"
+	}
+	return companions[key]
+}
+
 // wantLoads fails t unless a config file that sets key to value loads exactly
 // when ok says it should.
 func wantLoads(t *testing.T, key, value string, ok bool) {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "forsgren.config.yml")
-	content := fmt.Sprintf("version: 1\n%s: %s\n%sprojects: []\n", key, value, companions[key])
+	content := fmt.Sprintf("version: 1\n%s: %s\n%sprojects: []\n", key, value, companionOf(key, value))
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +141,7 @@ func TestEveryValueTheConfigAcceptsIsListedOnTheSettingsPage(t *testing.T) {
 	enumerated := []string{"view", "auto_update", "auto_update_level", "dora_days", "issues_page", "days_page",
 		"numbers_scoring_page", "history_page", "tbd_page", "week_page", "tbd_figures", "tbd_time_to_main",
 		"tbd_pr_lead_time",
-		"tbd_bot_pr_lead_time", "sub_rows", "thousands_separator"}
+		"tbd_bot_pr_lead_time", "sub_rows", "thousands_separator", "decimal_separator"}
 	for _, key := range enumerated {
 		wantListed(t, key, config.Accepted(key))
 	}

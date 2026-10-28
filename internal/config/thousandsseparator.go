@@ -10,12 +10,13 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// The separators: a narrow no-break space (the default), a comma, or none.
-// There is no period: the pages keep the decimal point, so a period would
-// clash with it.
+// The separators: a narrow no-break space (the default), a comma, a period or
+// none. A period or a comma that is also the decimal_separator's mark is a
+// conflict, refused with both defaults in force (forsgren#536, decision #537).
 const (
 	ThousandsNarrowSpace = "narrow_space"
 	ThousandsComma       = "comma"
+	ThousandsPeriod      = "period"
 	ThousandsNone        = "none"
 
 	// DefaultThousandsSeparator is the separator used when the file writes none.
@@ -28,7 +29,7 @@ var ErrThousandsSeparator = errors.New("invalid thousands_separator")
 
 // thousandsSeparatorValues are the values thousands_separator accepts, in the
 // order the settings page lists them.
-var thousandsSeparatorValues = []string{ThousandsNarrowSpace, ThousandsComma, ThousandsNone}
+var thousandsSeparatorValues = []string{ThousandsNarrowSpace, ThousandsComma, ThousandsPeriod, ThousandsNone}
 
 // thousandsSeparatorKey is thousands_separator as a Rejection names it.
 var thousandsSeparatorKey = refusable{ErrThousandsSeparator, "thousands_separator", DefaultThousandsSeparator}
@@ -44,5 +45,5 @@ func checkThousandsSeparator(n yaml.Node) (string, *Rejection) {
 		return n.Value, nil
 	}
 	return DefaultThousandsSeparator, thousandsSeparatorKey.reject(n,
-		"use "+ThousandsNarrowSpace+", "+ThousandsComma+" or "+ThousandsNone)
+		"use "+ThousandsNarrowSpace+", "+ThousandsComma+", "+ThousandsPeriod+" or "+ThousandsNone)
 }

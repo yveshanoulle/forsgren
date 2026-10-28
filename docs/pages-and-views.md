@@ -746,12 +746,17 @@ or a task's own name, a SHA or a commit message.
   written through one formatter with the separator the config key
   `thousands_separator` names ([configuration](configuration.md)): a narrow
   no-break space by default (`1 282`, so it never breaks a line), `comma`
-  (`1,282`) or `none` (`1282`). It covers the DORA cells and their `(N)`
+  (`1,282`), `period` (`1.282`, forsgren#536) or `none` (`1282`). It covers the DORA cells and their `(N)`
   counts, the TBD volumes, developers and notes, the Issues and Daily tables
   with their trend changes, and the example figures of the legend (the band
   edges, such as `1 441` deployments in 180 days at an 8 hour working day).
-  Decimals (`6.0`) keep their point and percentages and durations are
-  unchanged. The docs write figures plain. The pages do not sort in the
+  Decimals go through one formatter too (forsgren#536): the config key
+  `decimal_separator` writes their mark as a point (`6.0`, the default) or a
+  comma (`6,0`) on every page: the TBD figures and shares, the scores, Overall
+  Performance, the legend's figures and examples and the Week page's
+  percentages; durations such as `1 h 19` have none. The same mark for both
+  keys is refused and both revert to their defaults. The docs write figures
+  plain. The pages do not sort in the
   browser, so no order depends on the text.
 
 ### The History page

@@ -65,11 +65,15 @@
 #
 # thousands_separator: is optional and narrow_space when left out. It sets how
 # the pages write a count of 1000 or more: narrow_space (1 282, a narrow
-# no-break space), comma (1,282) or none (1282). There is no period, because
-# the pages keep the decimal point. To write the key, remove the "# " in front
-# of the next line.
+# no-break space), comma (1,282), period (1.282) or none (1282).
+# decimal_separator: is optional and point when left out. It sets the mark of
+# every decimal: point (6.0) or comma (6,0). The two may not be the same mark:
+# comma with comma, or period with point, is not accepted and both keys keep
+# their defaults, so a period for the thousands needs decimal_separator: comma.
+# To write a key, remove the "# " in front of its line.
 #
-# thousands_separator: narrow_space  # narrow_space (default), comma or none
+# thousands_separator: narrow_space  # narrow_space (default), comma, period or none
+# decimal_separator: point  # point (default) or comma
 #
 # tbd_time_to_main:, tbd_pr_lead_time:, tbd_bot_pr_lead_time: and sub_rows: are
 # optional and all true when left out. Each hides one thing when set to false:

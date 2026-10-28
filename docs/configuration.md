@@ -207,22 +207,46 @@ projects:
 - **`thousands_separator`** is optional (forsgren#528, decision #529 B): how the
   pages write a count of 1000 or more, on every page and view (the DORA table,
   the TBD page, the History page, the Issues and Daily tables, the legend). It
-  takes one of three values, written as plain literals:
+  takes one of four values, written as plain literals:
   - `narrow_space`: a narrow no-break space (U+202F), `1 282`, `12 345`,
     `1 234 567`. This is the default. The space never breaks a line.
   - `comma`: `1,282`.
+  - `period`: `1.282` (forsgren#536). It needs `decimal_separator: comma`, see
+    below.
   - `none`: no separator, `1282`.
 
-  There is no `period`: the pages keep the decimal point (`6.0`, `0.22%`), so a
-  period would clash with it. A decimal keeps its point whatever the key says,
-  and only whole counts get a separator; percentages and durations such as
-  `1 h 19` are unchanged. Left out, or without a value, the key is
-  `narrow_space`. A value that is none of the three is not accepted: forsgren
+  Only whole counts get a separator; percentages, decimals and durations such
+  as `1 h 19` are unchanged by it. Left out, or without a value, the key is
+  `narrow_space`. A value that is none of the four is not accepted: forsgren
   uses `narrow_space` and says so (see
   [A setting that is not accepted](#a-setting-that-is-not-accepted)), naming the
-  key: `invalid thousands_separator "period": use narrow_space, comma or none`.
+  key: `invalid thousands_separator "dot": use narrow_space, comma, period or none`.
   The pages are not sorted in the browser, so the separator never decides an
   order. The starter that `init-config` writes shows the key commented out.
+- **`decimal_separator`** is optional (forsgren#536, decision #537 A): the mark
+  of every decimal on every page: the TBD figures (`6.0`), the shares
+  (`0.22%`, `5.0%`), the scores and Overall Performance (`8.4`, `9 to 7.1` in
+  the legend), the legend's examples and the Week page's percentages. It takes
+  `point` (the default, `6.0`) or `comma` (`6,0`). Whole numbers are not
+  touched, and neither is a version, a date or a link. Left out, or without a
+  value, the key is `point`. A value that is neither is not accepted: forsgren
+  uses `point` and says so, naming the key:
+  `invalid decimal_separator "period": use point or comma`.
+
+  The two keys may not write the same mark. `comma` for both, and `period` for
+  `thousands_separator` with `point` for `decimal_separator` (written, or the
+  default when the key is left out), are the same character, so the page could
+  not tell `1,282` from a decimal. That pair is not accepted: `check-config`
+  names both values and the mark (`invalid thousands_separator "comma":
+  thousands_separator comma and decimal_separator comma are both the mark ",";
+  use different marks; both separators revert to their defaults, narrow_space
+  and point`), the settings page shows each key that was written as not
+  accepted with that reason, the setup issue lists each as a refused setting
+  (forsgren#538), and the page is written with both defaults, the narrow
+  no-break space and the point; metrics are generated all the same. The
+  accepted pairs are therefore `period` with `comma` (`1.282,5`), `comma` with
+  `point` (`1,282.5`), `narrow_space` or `none` with either, and `1 282,5` for
+  `narrow_space` with `comma`. The starter shows the key commented out.
 - **`tbd_time_to_main`**, **`tbd_pr_lead_time`** and **`tbd_bot_pr_lead_time`**
   are optional (forsgren#482, decisions #480 and #481): each shows or hides one
   column group of the TBD table. `tbd_time_to_main` is Time to main per
@@ -330,7 +354,7 @@ projects:
 - **The settings page** (`settings.html`, forsgren#74, moved out of the legend
   in forsgren#84, a table since forsgren#141) tabulates every optional key,
   `view`, `sub_rows`, `auto_update`, `auto_update_level`, `history_days`,
-  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `week_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`, `same_developer` and `thousands_separator`, twenty rows in four columns: **Parameter**;
+  `history_chunk_days`, `working_hours`, `dora_days`, `issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `week_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`, `same_developer`, `thousands_separator` and `decimal_separator`, twenty-one rows in four columns: **Parameter**;
   **Current value**, the value in use (`major` for an unset
   `auto_update_level`); **Possible values**, built from the config package's
   own constants and limits so the page cannot drift from what `check-config`
@@ -559,7 +583,7 @@ them. For `workflow=`, look at the Actions tab; for `release`, run
 
 A setting with a default (`view`, `auto_update`, `auto_update_level`,
 `history_days`, `history_chunk_days`, `working_hours`, `dora_days`,
-`issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `week_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`, `sub_rows`, `same_developer` and `thousands_separator`) whose value forsgren
+`issues_page`, `days_page`, `numbers_scoring_page`, `history_page`, `tbd_page`, `week_page`, `tbd_figures`, `tbd_time_to_main`, `tbd_pr_lead_time`, `tbd_bot_pr_lead_time`, `sub_rows`, `same_developer`, `thousands_separator` and `decimal_separator`) whose value forsgren
 does not accept, a list or
 a mapping included, does not stop the run (forsgren#183): forsgren uses that
 key's default instead, and says so in three places. The settings page's row

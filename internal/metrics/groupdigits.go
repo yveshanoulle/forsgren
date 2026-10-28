@@ -8,6 +8,17 @@ import "strconv"
 // or for nothing when the config's thousands_separator says so.
 const ThousandsSpace = " "
 
+// DecimalMark is what every decimal figure carries between its whole part and
+// its fraction: a private-use character no page text holds, which the page
+// renderer swaps for the point or the comma the config's decimal_separator
+// says (forsgren#536). Only decimals pass through it: Decimal writes them, so
+// no figure writes a point of its own.
+const DecimalMark = "\ue000"
+
+// Decimal is whole and fraction written with the DecimalMark between them,
+// "1" and "3" as "1<mark>3"; a decimal is never written by joining a point.
+func Decimal(whole, fraction string) string { return whole + DecimalMark + fraction }
+
 // GroupDigits is the count n written with a narrow no-break space between
 // each group of three digits, "1 282": the one writer of every count the pages
 // show. A minus sign stays in front of the digits. Only whole counts pass

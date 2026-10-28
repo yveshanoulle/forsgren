@@ -28,6 +28,7 @@ var acceptedSets = map[string][]string{
 	"dora_days":            numbersOf(doraWindows),
 	"tbd_figures":          tbdFiguresValues,
 	"thousands_separator":  thousandsSeparatorValues,
+	"decimal_separator":    decimalSeparatorValues,
 }
 
 // Accepted is the values the key accepts when they are a fixed set, sorted

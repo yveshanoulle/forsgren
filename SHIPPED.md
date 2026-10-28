@@ -82,6 +82,36 @@ forsgren issue 538, patch (Yves's ruling: #536 and #538 ship as 1.29.1).
 
 ---
 
+## 2026-10-28 — thousands_separator accepts period, and decimal_separator chooses point or comma ([#536](https://github.com/yveshanoulle/forsgren/issues/536), decision [#537](https://github.com/yveshanoulle/forsgren/issues/537) A, step 1 of 1)
+
+Asked for by Yves after #528. `thousands_separator` takes a fourth value,
+`period` (`1.282`), and a new optional key, `decimal_separator`, takes `point`
+(the default, `6.0`) or `comma` (`6,0`). Every decimal on every page goes
+through it: the TBD figures and shares (`5.0%`, `0.22%`), the scores and
+Overall Performance, the legend's figures and examples (`9 to 7.1`) and the
+Week page's percentages. Decimals are written by `metrics.Decimal` (or with
+`metrics.DecimalMark`), a placeholder the page renderer swaps (`withSeparators`)
+together with the thousands space, so `1.282` and `5,0%` can share a page and
+versions, dates and SVG coordinates are never touched. The two keys may not
+write the same mark (decision #537 A): `comma` with `comma`, or `period` with
+`point` (the default point counts), is refused. `check-config` names both
+values and the mark, both keys fall back to their defaults, the settings page
+shows each written key as not accepted with that reason, and the setup issue
+lists each as a refused setting saying both separators reverted (#538, no
+change there); metrics are generated all the same. The full settings path
+follows: `config.Load`, `Accepted`, the settings row and `possibleOf`,
+`TestPossibleValuesAreExactlyWhatCheckConfigAccepts`, the starter,
+docs/configuration.md, docs/pages-and-views.md and the agent installer. Red
+first: `TestDecimalSeparator*`, `TestTheSameMarkForBothSeparatorsIsRefusedAndBothRevert`,
+`TestDecimalSeparatorSettingDecidesTheMarkOnEveryPage`,
+`TestThousandsPeriodAndDecimalCommaTogether`,
+`TestCheckNeedsReportsASeparatorConflictAsRefusedSettings`; goldens of the
+settings page regenerated.
+
+forsgren issue 536, patch (Yves's ruling: #536 and #538 ship as 1.29.1).
+
+---
+
 ## 2026-10-27 — A Week page: commits and deployments per weekday, and the weekend share ([#531](https://github.com/yveshanoulle/forsgren/issues/531), decisions [#532](https://github.com/yveshanoulle/forsgren/issues/532) A, [#533](https://github.com/yveshanoulle/forsgren/issues/533) A, [#534](https://github.com/yveshanoulle/forsgren/issues/534) A and [#539](https://github.com/yveshanoulle/forsgren/issues/539) A, step 4 of 4)
 
 Asked for by Yves: see on which weekdays the work happens and how much of it

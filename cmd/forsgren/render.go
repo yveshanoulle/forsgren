@@ -118,7 +118,7 @@ func pageData(o renderOptions, at time.Time, stderr io.Writer) (page.Data, error
 	setReportPeriod(&data, at)
 	data.Settings = settingsOf(cfg)
 	data.TbdFigures = cfg.TbdFigures
-	data.ThousandsSeparator = cfg.ThousandsSeparator
+	data.ThousandsSeparator, data.DecimalSeparator = cfg.ThousandsSeparator, cfg.DecimalSeparator
 	data.HideTbdTimeToMain, data.HideTbdPRLeadTime = cfg.HideTbdTimeToMain, cfg.HideTbdPRLeadTime
 	data.HideTbdBotPRLeadTime, data.HideSubRows = cfg.HideTbdBotPRLeadTime, cfg.HideSubRows
 	data.HistoryDays = cfg.HistoryDays

@@ -39,7 +39,7 @@ func TestPushMeasuresCells(t *testing.T) {
 	m := PushMeasures{Pushes: 12, Commits: 200, PullRequests: 20, Direct: 180, UnknownAuthors: 199, Bots: 4}
 	got := [6]string{m.CommitsCell(), m.PushesCell(), m.DirectCell(), m.PullRequestCell(), m.UnknownAuthorCell(),
 		m.BotCell()}
-	if want := [6]string{"200", "12", "90%", "10%", "99%", "2.0%"}; got != want {
+	if want := [6]string{"200", "12", "90%", "10%", "99%", dec("2.0%")}; got != want {
 		t.Errorf("want %v, got %v", want, got)
 	}
 	none := PushMeasures{Pushes: 3}
@@ -78,7 +78,7 @@ func TestShareCellsShowTwoSignificantDigitsRoundedDown(t *testing.T) {
 	} {
 		m := PushMeasures{Commits: c.whole, Direct: c.part, PullRequests: c.part, UnknownAuthors: c.part, Bots: c.part}
 		got := [4]string{m.DirectCell(), m.PullRequestCell(), m.UnknownAuthorCell(), m.BotCell()}
-		if want := [4]string{c.want, c.want, c.want, c.want}; got != want {
+		if want := [4]string{dec(c.want), dec(c.want), dec(c.want), dec(c.want)}; got != want {
 			t.Errorf("%d of %d: want %s, got %v", c.part, c.whole, c.want, got)
 		}
 	}

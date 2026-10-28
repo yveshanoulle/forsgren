@@ -2797,6 +2797,36 @@
    "score": 10.0,
    "checkedAt": "2026-10-27",
    "minScore": 10.0
+  },
+  {
+   "path": "internal/config/decimalseparator.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-28",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/config/decimalseparator_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-28",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/decimal_test.go",
+   "score": 9.68,
+   "checkedAt": "2026-10-28",
+   "minScore": 9.58
+  },
+  {
+   "path": "cmd/forsgren/render_decimal_test.go",
+   "score": 9.38,
+   "checkedAt": "2026-10-28",
+   "minScore": 9.28
+  },
+  {
+   "path": "cmd/forsgren/checkneeds_separators_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-28",
+   "minScore": 10.0
   }
  ]
 }

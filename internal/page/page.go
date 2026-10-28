@@ -123,11 +123,11 @@ type Data struct {
 	// the 90th percentile; empty, as in a Data not made from a config, is the
 	// median (forsgren#423).
 	TbdFigures string
-	// ThousandsSeparator is the config's thousands_separator, "narrow_space",
-	// "comma" or "none": how every count of 1000 or more is written; empty, as
-	// in a Data not made from a config, is the narrow no-break space
-	// (forsgren#528).
+	// ThousandsSeparator is thousands_separator (narrow_space, comma, period or
+	// none); empty: the narrow no-break space (forsgren#528, #536).
 	ThousandsSeparator string
+	// DecimalSeparator is decimal_separator, "point" or "comma"; empty: point (#536).
+	DecimalSeparator string
 	// HideTbdTimeToMain, HideTbdPRLeadTime, HideTbdBotPRLeadTime and
 	// HideSubRows are true when the config turns the key tbd_time_to_main,
 	// tbd_pr_lead_time, tbd_bot_pr_lead_time or sub_rows off; the zero value
@@ -432,7 +432,7 @@ var pages = parsePages()
 // trusted (incomplete.go).
 var templateFuncs = template.FuncMap{"trend": trendViewOf, "bugtrend": bugTrendViewOf, "possible": possibleOf,
 	"beta": historyBeta, "incomplete": incompleteViewOf, "count": metrics.GroupDigits,
-	"labelheader": labelHeaderOf}
+	"labelheader": labelHeaderOf, "decimal": decimalText}
 
 // parsePages parses the layout once and clones it per page. A malformed
 // template fails at start-up through template.Must, never at render time.

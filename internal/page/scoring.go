@@ -7,6 +7,7 @@ package page
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/yveshanoulle/forsgren/internal/metrics"
 )
@@ -42,7 +43,9 @@ func (r Row) scores() []score {
 
 // scoreCell is a score as a cell shows it: "9.3", "10", "0", with no trailing
 // zero. The legend writes the score of a level the same way (forsgren#79).
-func scoreCell(value float64) string { return strconv.FormatFloat(value, 'f', -1, 64) }
+func scoreCell(value float64) string {
+	return strings.Replace(strconv.FormatFloat(value, 'f', -1, 64), ".", metrics.DecimalMark, 1)
+}
 
 // ScoreCells are the row's five scores as cells: "9.3", "10", "0", with no
 // trailing zero, and "-" for a metric without data.
@@ -78,7 +81,7 @@ func (r Row) OverallCell() string {
 	if !overall.ok {
 		return noScore
 	}
-	return fmt.Sprintf("%.1f", overall.value)
+	return strings.Replace(fmt.Sprintf("%.1f", overall.value), ".", metrics.DecimalMark, 1)
 }
 
 // separator joins a number and its score in a cell of the numbers and

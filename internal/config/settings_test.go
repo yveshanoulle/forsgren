@@ -31,17 +31,18 @@ func TestSettingsListsEveryKeyWithItsDefault(t *testing.T) {
 		{Key: "tbd_bot_pr_lead_time", Value: "true", Default: "true"},
 		{Key: "same_developer", Value: "[]", Default: "[]"},
 		{Key: "thousands_separator", Value: "narrow_space", Default: "narrow_space"},
+		{Key: "decimal_separator", Value: "point", Default: "point"},
 	})
 }
 
 // TestSettingsMarksEveryWrittenKeySet (forsgren#74): a file that writes all
-// twenty keys has all of them Set, with the written values.
+// twenty-one keys has all of them Set, with the written values.
 func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 	all := "view: numbers\nauto_update: true\nauto_update_level: minor\n" +
 		"history_days: 30\nhistory_chunk_days: 10\nworking_hours: 6\ndora_days: 30\nissues_page: false\ndays_page: true\n" +
 		"numbers_scoring_page: true\nhistory_page: false\ntbd_page: true\nweek_page: false\ntbd_figures: all\n" +
 		"tbd_time_to_main: false\ntbd_pr_lead_time: false\ntbd_bot_pr_lead_time: false\nsub_rows: false\n" +
-		"same_developer: [[maintainer, assistant-account]]\nthousands_separator: comma\n"
+		"same_developer: [[maintainer, assistant-account]]\nthousands_separator: comma\ndecimal_separator: point\n"
 	wantSettings(t, all, []Setting{
 		{Key: "view", Value: "numbers", Default: "standard", Set: true},
 		{Key: "sub_rows", Value: "false", Default: "true", Set: true},
@@ -63,6 +64,7 @@ func TestSettingsMarksEveryWrittenKeySet(t *testing.T) {
 		{Key: "tbd_bot_pr_lead_time", Value: "false", Default: "true", Set: true},
 		{Key: "same_developer", Value: "[[maintainer, assistant-account]]", Default: "[]", Set: true},
 		{Key: "thousands_separator", Value: "comma", Default: "narrow_space", Set: true},
+		{Key: "decimal_separator", Value: "point", Default: "point", Set: true},
 	})
 }
 
@@ -116,7 +118,8 @@ func TestAListOrMappingForASettingIsRejectedNotSyntax(t *testing.T) {
 		{"tbd_bot_pr_lead_time", "use true or false", "true", ErrTbdBotPRLeadTime},
 		{"sub_rows", "use true or false", "true", ErrSubRows},
 		{"same_developer", sameDeveloperShape, "[]", ErrSameDeveloper},
-		{"thousands_separator", "use narrow_space, comma or none", "narrow_space", ErrThousandsSeparator},
+		{"thousands_separator", "use narrow_space, comma, period or none", "narrow_space", ErrThousandsSeparator},
+		{"decimal_separator", "use point or comma", "point", ErrDecimalSeparator},
 	}
 	for _, k := range keys {
 		for written, yaml := range map[string]string{"[a, b]": "\n  - a\n  - b", "{a: b}": "\n  a: b"} {
@@ -183,6 +186,7 @@ func TestSettingsCarriesEachRejection(t *testing.T) {
 		{Key: "tbd_bot_pr_lead_time", Value: "true", Default: "true"},
 		{Key: "same_developer", Value: "[]", Default: "[]"},
 		{Key: "thousands_separator", Value: "narrow_space", Default: "narrow_space"},
+		{Key: "decimal_separator", Value: "point", Default: "point"},
 	})
 }
 
@@ -220,6 +224,7 @@ func TestSettingsExposeTheDefaultOfEveryKey(t *testing.T) {
 	want := []string{
 		"standard", "true", "false", "major", "365", "100", "8", "30",
 		"true", "false", "unlisted", "unlisted", "true", "true", "median", "true", "true", "true", "[]", "narrow_space",
+		"point",
 	}
 	for _, file := range []string{"", "history_days: 90\nview: numbers\n"} {
 		got, err := parse([]byte(file + valid))

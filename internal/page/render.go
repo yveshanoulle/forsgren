@@ -8,7 +8,8 @@ import (
 )
 
 // Render writes the named page, filled with data, to w, its counts of 1000 or
-// more written with the separator of data.ThousandsSeparator (forsgren#528).
+// more and its decimals written with the separators of data.ThousandsSeparator
+// and data.DecimalSeparator (forsgren#528, #536).
 func Render(w io.Writer, name string, data Data) error {
 	p, ok := pages[name]
 	if !ok {
@@ -17,6 +18,6 @@ func Render(w io.Writer, name string, data Data) error {
 	shown := pageData{Data: data, Base: p.base, View: p.viewShown(data), Page: p.name()}
 	var page bytes.Buffer
 	err := p.set.ExecuteTemplate(&page, p.file, shown)
-	_, werr := io.WriteString(w, withSeparator(page.String(), data.ThousandsSeparator))
+	_, werr := io.WriteString(w, withSeparators(page.String(), data))
 	return errors.Join(err, werr)
 }

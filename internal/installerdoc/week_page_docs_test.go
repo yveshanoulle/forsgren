@@ -13,7 +13,7 @@ func TestDocsSayWhatWeekPageDoes(t *testing.T) {
 		"`true`, the default, lists the Week page in the menu",
 		"`false` takes it out of the menu",
 		"still written and reachable by its address, `week.html`",
-		"`tbd_page`, `week_page`, `tbd_figures`", "twenty rows in four columns",
+		"`tbd_page`, `week_page`, `tbd_figures`", "twenty-one rows in four columns",
 		"and for `week_page`", "`true`, `true`, `median`")
 	wantAll(t, "install/README.md", readRepoFileAsOneLine(t, "install/README.md"),
 		"The Week page is in the menu by default (`week_page: true`)")

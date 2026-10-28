@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -40,7 +41,7 @@ func TestWeekSharesOfTheCommitsSumToAHundredPercentLessRounding(t *testing.T) {
 	sum := 0.0
 	for day := range row.Commits {
 		var share float64
-		if _, err := fmt.Sscanf(row.CommitsShareCell(day), "%f%%", &share); err != nil {
+		if _, err := fmt.Sscanf(strings.ReplaceAll(row.CommitsShareCell(day), DecimalMark, "."), "%f%%", &share); err != nil {
 			t.Fatal(err)
 		}
 		sum += share

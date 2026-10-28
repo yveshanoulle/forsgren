@@ -54,19 +54,20 @@ func (f fileConfig) settings() Config {
 	tbdOn, tbdRejection := tbdPage.mode(f.TbdPage)
 	figures, figuresRejection := checkTbdFigures(f.TbdFigures)
 	groups, groupsRejection := checkSameDeveloper(f.SameDeveloper)
-	separator, separatorRejection := checkThousandsSeparator(f.ThousandsSeparator)
+	separator, decimal, separatorRejections := f.separators()
 	on, onRejections := f.switches()
-	rejected := rejections(append([]*Rejection{viewRejection, autoRejection, levelRejection, daysRejection,
+	rejected := rejections(append(append([]*Rejection{viewRejection, autoRejection, levelRejection, daysRejection,
 		chunkRejection, hoursRejection, doraRejection, issuesRejection, daysOnRejection, numbersScoringRejection,
-		historyRejection, tbdRejection, figuresRejection, groupsRejection, separatorRejection}, onRejections...)...)
+		historyRejection, tbdRejection, figuresRejection, groupsRejection}, separatorRejections...), onRejections...)...)
 	written := f.written(rejected)
 	return Config{Version: FormatVersion, View: view, AutoUpdate: auto, AutoUpdateLevel: level,
 		HistoryDays: days, HistoryChunkDays: chunk, WorkingHours: hours, WorkingHoursSet: written["working_hours"],
 		DoraDays: doraDays, DoraDaysSet: written["dora_days"], IssuesPage: issues, DaysPage: daysOn,
 		NumbersScoringPage: numbersScoring, HistoryPage: historyOn, TbdPage: tbdOn,
-		TbdFigures: figures, ThousandsSeparator: separator, SameDeveloper: groups, HideTbdTimeToMain: !on.tbdTimeToMain,
-		HideTbdPRLeadTime: !on.tbdPRLeadTime, HideTbdBotPRLeadTime: !on.tbdBotPRLeadTime,
-		HideSubRows: !on.subRows, HideWeekPage: !on.weekPage, written: written, Rejected: rejected}
+		TbdFigures: figures, ThousandsSeparator: separator, DecimalSeparator: decimal, SameDeveloper: groups,
+		HideTbdTimeToMain: !on.tbdTimeToMain, HideTbdPRLeadTime: !on.tbdPRLeadTime,
+		HideTbdBotPRLeadTime: !on.tbdBotPRLeadTime, HideSubRows: !on.subRows,
+		HideWeekPage: !on.weekPage, written: written, Rejected: rejected}
 }
 
 // rejections are the non-nil rejections, in the order of settingKeys, the
@@ -93,8 +94,8 @@ func (f fileConfig) written(rejected []Rejection) map[string]bool {
 		"history_chunk_days": f.HistoryChunkDays, "working_hours": f.WorkingHours, "dora_days": f.DoraDays,
 		"issues_page": f.IssuesPage, "days_page": f.DaysPage, "numbers_scoring_page": f.NumbersScoringPage,
 		"history_page": f.HistoryPage, "tbd_page": f.TbdPage, "tbd_figures": f.TbdFigures,
-		"thousands_separator": f.ThousandsSeparator,
-		"same_developer":      f.SameDeveloper, "tbd_time_to_main": f.TbdTimeToMain, "tbd_pr_lead_time": f.TbdPRLeadTime,
+		"thousands_separator": f.ThousandsSeparator, "decimal_separator": f.DecimalSeparator,
+		"same_developer": f.SameDeveloper, "tbd_time_to_main": f.TbdTimeToMain, "tbd_pr_lead_time": f.TbdPRLeadTime,
 		"tbd_bot_pr_lead_time": f.TbdBotPRLeadTime, "sub_rows": f.SubRows, "week_page": f.WeekPage} {
 		keys = mark(keys, key, hasValue(node))
 	}

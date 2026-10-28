@@ -15,7 +15,7 @@ func TestCountSpreadCellsShowTwoSignificantDigitsRoundedToTheNearest(t *testing.
 		{10.49, "10"}, {10.5, "11"}, {55, "55"}, {1234.5, "1\u202f235"},
 	} {
 		s := CountSpread{Count: 1, Mean: c.in}
-		if got := s.MeanCell(); got != c.want {
+		if got := s.MeanCell(); got != dec(c.want) {
 			t.Errorf("%v: want %q, got %q", c.in, c.want, got)
 		}
 	}
@@ -35,6 +35,9 @@ func TestCountSpreadCells(t *testing.T) {
 		"big":   {CountSpread{Count: 10, Mean: 55, Median: 10.5, P90: 99.4}, [3]string{"55", "11", "99"}},
 	} {
 		got := [3]string{c.in.MeanCell(), c.in.MedianCell(), c.in.P90Cell()}
+		for i := range c.want {
+			c.want[i] = dec(c.want[i])
+		}
 		if got != c.want {
 			t.Errorf("%s: want %v, got %v", name, c.want, got)
 		}

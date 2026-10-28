@@ -262,7 +262,11 @@ func wantAcceptedValue(t *testing.T, key, value string) {
 	t.Helper()
 	companions := map[string]string{"auto_update": "auto_update_level: patch\n",
 		"auto_update_level": "auto_update: true\n"}
-	got, err := parse([]byte(key + ": " + value + "\n" + companions[key] + valid))
+	companion := companions[key]
+	if key == "thousands_separator" && value == "period" {
+		companion = "decimal_separator: comma\n" // the default point is the same mark (forsgren#536)
+	}
+	got, err := parse([]byte(key + ": " + value + "\n" + companion + valid))
 	if err != nil || len(got.Rejected) != 0 {
 		t.Errorf("%s: want %s accepted, got %v, %v", key, value, got.Rejected, err)
 	}

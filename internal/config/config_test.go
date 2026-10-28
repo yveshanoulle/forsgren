@@ -24,6 +24,7 @@ func TestLoadValid(t *testing.T) {
 				DoraDays:   DefaultDoraDays,
 				IssuesPage: PageOn, DaysPage: PageOff, NumbersScoringPage: PageUnlisted,
 				HistoryPage: PageUnlisted, TbdPage: PageOn, TbdFigures: TbdFiguresMedian, ThousandsSeparator: ThousandsNarrowSpace,
+				DecimalSeparator: DecimalPoint,
 				Projects: []Project{{
 					Name: "Acme",
 					Repositories: []Repository{
@@ -39,6 +40,7 @@ func TestLoadValid(t *testing.T) {
 				DoraDays:   DefaultDoraDays,
 				IssuesPage: PageOn, DaysPage: PageOff, NumbersScoringPage: PageUnlisted,
 				HistoryPage: PageUnlisted, TbdPage: PageOn, TbdFigures: TbdFiguresMedian, ThousandsSeparator: ThousandsNarrowSpace,
+				DecimalSeparator: DecimalPoint,
 				Projects: []Project{
 					{Name: "Acme Shop", Repositories: []Repository{
 						{Name: "acme/api", Deployment: Deployment{Kind: Environment, Name: "production"}},

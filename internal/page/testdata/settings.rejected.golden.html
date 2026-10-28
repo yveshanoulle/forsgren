@@ -137,11 +137,17 @@
             <td>groups of two or more GitHub logins</td>
             <td>[]</td>
           </tr>
-          <tr>
+          <tr class="not-accepted">
             <th scope="row">thousands_separator</th>
-            <td>narrow_space (not set)</td>
-            <td>narrow_space, comma, none</td>
+            <td><span class="written">comma</span> is not accepted: thousands_separator comma and decimal_separator comma are both the mark &#34;,&#34;; use different marks; both separators revert to their defaults, narrow_space and point. Using the default <span class="default-in-force">narrow_space</span>.</td>
+            <td>narrow_space, comma, period, none</td>
             <td>narrow_space</td>
+          </tr>
+          <tr class="not-accepted">
+            <th scope="row">decimal_separator</th>
+            <td><span class="written">comma</span> is not accepted: thousands_separator comma and decimal_separator comma are both the mark &#34;,&#34;; use different marks; both separators revert to their defaults, narrow_space and point. Using the default <span class="default-in-force">point</span>.</td>
+            <td>point, comma</td>
+            <td>point</td>
           </tr>
           <tr>
             <th scope="row">deployments</th>
