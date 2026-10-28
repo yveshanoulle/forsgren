@@ -9,6 +9,24 @@ Active work lives in
 
 ---
 
+## 2026-10-28 — README and the Week page description say what the page shows by default ([#551](https://github.com/yveshanoulle/forsgren/issues/551))
+
+Found while 548 was finished: since the Week page leaves out its Commits
+columns by default (`week_commits: false`, #548), two texts still described it
+as commits and deployments per weekday. The Week page's meta description now
+reads Deployments, failed deployments and fail rate per weekday, with commits
+when week_commits is true (119 characters with the suffix, under the 160 a
+search result shows), and README.md names a Week page with the deployments,
+failed deployments and fail rate of each weekday, and the commits when
+`week_commits` is true. The pages reference lists the new description, and the
+starter config's `week_page` comment says the same. Tests: the meta
+description test, the goldens of the Week page, and the docs test of the pages
+reference and the README. Nothing to do for an installation.
+
+forsgren issue 551, patch (1.29.5).
+
+---
+
 ## 2026-10-28 — The Week page adds up every project in a Total row, and heads the weekday deployments Deploys ([#552](https://github.com/yveshanoulle/forsgren/issues/552), decisions [#553](https://github.com/yveshanoulle/forsgren/issues/553) and [#554](https://github.com/yveshanoulle/forsgren/issues/554))
 
 Asked for by Yves: a total line on the Week page, to see the total number of

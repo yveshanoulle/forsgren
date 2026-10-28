@@ -55,7 +55,7 @@ time between one deployed commit and the next on the main line.
   one cell), the Issues and Daily pages with their Lead time and Bugs lead
   time columns and their Open and Open bugs columns with trend arrows, a History page in beta (each metric's number
   and score per half-year and for the last 6 months, with a trend chart per
-  row), a Week page (the commits and deployments of each weekday), and the Settings and Legend pages, safe to publish: numbers and
+  row), a Week page (the deployments, failed deployments and fail rate of each weekday, and the commits when `week_commits` is true), and the Settings and Legend pages, safe to publish: numbers and
   dates only, no issue titles, no links into private repositories. Each of
   the four optional pages has a key that takes `true` (in the menu),
   `unlisted` (generated, no menu entry, noindex) or `false` (not

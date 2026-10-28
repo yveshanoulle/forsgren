@@ -89,11 +89,11 @@
 # sub_rows: true  # the label and service rows of every table: true (default) or false
 #
 # The key week_page is optional and true when left out. The Week page (week.html)
-# shows the commits and deployments of each weekday. Set it to false to take the page
-# out of the menu; the page is still written and reachable by its address, and
-# asks search engines to skip it. To write the key, remove the "# " in front of
-# the next line. A value that is neither true nor false is not used, and the
-# settings page says why.
+# shows the deployments, failed deployments and fail rate of each weekday. Set it
+# to false to take the page out of the menu; the page is still written and
+# reachable by its address, and asks search engines to skip it. To write the key,
+# remove the "# " in front of the next line. A value that is neither true nor
+# false is not used, and the settings page says why.
 #
 # week_page: true  # the Week page in the menu: true (default) or false
 #
