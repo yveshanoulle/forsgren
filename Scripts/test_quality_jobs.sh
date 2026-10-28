@@ -66,6 +66,14 @@
 #      group file gives it the browser gate self-test alone (about 256 s, 46
 #      percent of the browser job), and the browser job keeps the other four
 #      browser rows and its site build; no gate is in browser_1 and another job
+#   3g. the tools each macOS job installs (forsgren#447, step 4): the main job
+#      runs the full ./Scripts/install_tools.sh (it runs the language gate, the
+#      secret scan and the exit-trap gate); quality_2, browser_1 and browser
+#      pass their own list, Scripts/required_tools_<job>_gates.txt, which
+#      exists and lists exactly the tools its gates need (go and node for the
+#      browser job, node alone for browser_1, go, node and jq for quality_2),
+#      and no gate of a job names a tool of Scripts/required_tools.txt that
+#      the job's list lacks (a missing tool must fail the gate, not skip it)
 #   5b. the report job takes every gate job's result into QS_JOB_STATUS:
 #      a QS_<JOB>_RESULT from needs.<job>.result per gate job, each passed to
 #      Scripts/merge_quality_report.sh status, so a red lint job is a failed
@@ -174,6 +182,63 @@ handover_findings() {
 # isolation shards run), not the lint job's list.
 LINUX_GATES_INSTALL="Scripts/install_tools_linux.sh Scripts/required_tools_linux_gates.txt"
 
+# tools_file_of <job>: the tools list of a macOS gate job (forsgren#447, step 4),
+# named after the job; the main job has none and installs the full list.
+tools_file_of() {
+  echo "Scripts/required_tools_${1}_gates.txt"
+}
+
+# TOOLS_DIR: where tools_file_findings reads the lists from (a mutant points it
+# at a copy); the lists are Scripts/required_tools_<job>_gates.txt.
+TOOLS_DIR="Scripts"
+
+# listed_tools <file>: the tools of a list as Scripts/install_tools.sh reads it
+# (comments and blanks left out), sorted, each followed by a space.
+listed_tools() {
+  { sed -e 's/#.*//' "$1" | tr -d '[:blank:]' | grep . | LC_ALL=C sort | tr '\n' ' '; } || true
+}
+
+# tool_pattern <tool>: how a gate script calls it. Node also reaches it as npm
+# or npx; Go is named by its subcommands, as the word go is also prose.
+tool_pattern() {
+  case "$1" in
+    go) printf '%s\n' '\bgo (run|test|build|list|vet|mod|tool|env|install)\b' ;;
+    node) printf '%s\n' '\b(node|npm|npx)\b' ;;
+    *) printf '\\b%s\\b\n' "$1" ;;
+  esac
+}
+
+# tools_file_findings: pin 3g, the lists. Each exists and holds exactly the
+# tools its job needs, and no gate of the job calls a tool of the full list
+# that the job's list lacks.
+tools_file_findings() {
+  local job file want listed tool script
+  for job in quality_2 browser_1 browser; do
+    file="${TOOLS_DIR}/$(basename "$(tools_file_of "$job")")"
+    if [[ ! -s "$file" ]]; then
+      echo "tools: ${file} does not exist or is empty"
+      continue
+    fi
+    case "$job" in
+      quality_2) want='go jq node ' ;;
+      browser_1) want='node ' ;;
+      *) want='go node ' ;;
+    esac
+    listed="$(listed_tools "$file")"
+    [[ "$listed" == "$want" ]] || echo "tools: ${file} lists '${listed}', the ${job} job needs '${want}'"
+    for tool in $(listed_tools Scripts/required_tools.txt); do
+      if [[ " ${listed}" == *" ${tool} "* ]]; then
+        continue
+      fi
+      for script in $(gates_of "$job"); do
+        if code "Scripts/${script}.sh" | has -E "$(tool_pattern "$tool")"; then
+          echo "tools: the ${job} gate ${script} calls ${tool}, which ${file} does not list"
+        fi
+      done
+    done
+  done
+}
+
 # LINT_GATES: the scripts of the lint job's rows, which no step may name.
 LINT_GATES='(test_)?check_(actionlint|shellcheck|yamllint|zizmor)|test_check_actionlint_forsgren'
 
@@ -218,14 +283,16 @@ job_findings() {
   job_of "$wf" workflows > "$wfl"
   job_of "$wf" report > "$rep"
 
-  setup_findings "$q2" quality_2
+  setup_findings "$q2" quality_2 macos-latest "Scripts/install_tools.sh $(tools_file_of quality_2)"
+  code "$main" | has -xF '          ./Scripts/install_tools.sh' \
+    || echo "tools: the main job must run the full ./Scripts/install_tools.sh with no tools file: it runs the language gate, the secret scan and the exit-trap gate"
   setup_findings "$lnt" lint ubuntu-latest "Scripts/install_tools_linux.sh Scripts/required_tools_linux.txt"
   for n in 1 2; do
     setup_findings "${TMP}/isolation_${n}.yml" "isolation_${n}" ubuntu-latest "$LINUX_GATES_INSTALL"
   done
   setup_findings "$sum" summary ubuntu-latest "$LINUX_GATES_INSTALL"
-  setup_findings "$b1" browser_1
-  setup_findings "$brw" browser
+  setup_findings "$b1" browser_1 macos-latest "Scripts/install_tools.sh $(tools_file_of browser_1)"
+  setup_findings "$brw" browser macos-latest "Scripts/install_tools.sh $(tools_file_of browser)"
   setup_findings "$wfl" workflows ubuntu-latest "$LINUX_GATES_INSTALL"
   handover_findings "$main" quality
   handover_findings "$q2" quality_2
@@ -438,6 +505,13 @@ else
   fail "the real workflow breaks a pin:"$'\n'"$OUT"
 fi
 
+OUT="$(tools_file_findings)"
+if [[ -z "$OUT" ]]; then
+  echo "  ok: the tools lists of the macOS gate jobs hold every pin"
+else
+  fail "the tools lists break a pin:"$'\n'"$OUT"
+fi
+
 # mutant <name> <sed-expression> <finding>
 mutant() {
   local file="${TMP}/$1.yml"
@@ -563,6 +637,19 @@ mutant "report status not merged" "${R}"'s#merge_quality_report.sh status#merge_
 mutant "a softened job" "${I1}"'s/^    runs-on: ubuntu-latest/    continue-on-error: true\
     runs-on: ubuntu-latest/' "verdict: continue-on-error softens a failure"
 
+# Pin 3g, the install commands: each of the three jobs on the full installer,
+# and the main job on a list.
+for j in quality_2:"$Q2" browser_1:"$B1" browser:"$B"; do
+  jid="${j%%:*}"
+  jrange="${j#*:}"
+  mutant "${jid} installing the full tool list" "${jrange}"'s#install_tools\.sh Scripts/required_tools_[a-z0-9_]*_gates\.txt#install_tools.sh#' \
+    "setup: the ${jid} job does not run Scripts/install_tools.sh $(tools_file_of "$jid")"
+  mutant "${jid} installing another job's list" "${jrange}"'s#required_tools_[a-z0-9_]*_gates\.txt#required_tools_linux_gates.txt#' \
+    "setup: the ${jid} job does not run Scripts/install_tools.sh $(tools_file_of "$jid")"
+done
+mutant "main installing a short tool list" "${Q}"'s#\./Scripts/install_tools\.sh#./Scripts/install_tools.sh Scripts/required_tools_browser_gates.txt#' \
+  "tools: the main job must run the full ./Scripts/install_tools.sh"
+
 # expect_named <what> <finding>: OUT, the findings of the last mutant, names it.
 expect_named() {
   if grep -qF -- "$2" <<< "$OUT"; then
@@ -613,6 +700,31 @@ expect_named "a group file that leaves the browser gate self-test in the browser
 { cat "$GROUPS_FILE"; echo 'browser|browser gate self-test'; } > "${VERDICT_TMP}/b1twice.txt"
 OUT="$(GROUPS_FILE="${VERDICT_TMP}/b1twice.txt" groups_findings)"
 expect_named "the browser gate self-test in browser_1 and in the browser job" "union: a quality_2 or browser_1 gate is also in another job"
+# Pin 3g, the lists: each mutant is a copy of the lists in a directory of its own.
+for f in "$(tools_file_of quality_2)" "$(tools_file_of browser_1)" "$(tools_file_of browser)"; do
+  [[ -f "$f" ]] && cp "$f" "${VERDICT_TMP}/"
+done
+mkdir -p "${VERDICT_TMP}/nojq" "${VERDICT_TMP}/nonode" "${VERDICT_TMP}/extra" "${VERDICT_TMP}/empty"
+for d in nojq nonode extra empty; do
+  cp "${VERDICT_TMP}"/required_tools_*_gates.txt "${VERDICT_TMP}/${d}/" 2> /dev/null || true
+done
+OUT="$(TOOLS_DIR="${VERDICT_TMP}/none" tools_file_findings)"
+expect_named "no tools lists" "does not exist or is empty"
+grep -vx 'jq' "$(tools_file_of quality_2)" > "${VERDICT_TMP}/nojq/required_tools_quality_2_gates.txt" || true
+OUT="$(TOOLS_DIR="${VERDICT_TMP}/nojq" tools_file_findings)"
+expect_named "a quality_2 list without jq" "lists 'go node ', the quality_2 job needs 'go jq node '"
+expect_named "the Go coverage gate that calls jq" "the quality_2 gate check_coverage calls jq"
+grep -vx 'node' "$(tools_file_of browser)" > "${VERDICT_TMP}/nonode/required_tools_browser_gates.txt" || true
+OUT="$(TOOLS_DIR="${VERDICT_TMP}/nonode" tools_file_findings)"
+expect_named "a browser list without node" "lists 'go ', the browser job needs 'go node '"
+expect_named "the browser gate that calls node" "the browser gate gate_browser calls node"
+{ cat "$(tools_file_of browser_1)" 2> /dev/null || true; echo 'go'; } > "${VERDICT_TMP}/extra/required_tools_browser_1_gates.txt"
+OUT="$(TOOLS_DIR="${VERDICT_TMP}/extra" tools_file_findings)"
+expect_named "a browser_1 list with a tool its gate does not need" "lists 'go node ', the browser_1 job needs 'node '"
+: > "${VERDICT_TMP}/empty/required_tools_browser_1_gates.txt"
+OUT="$(TOOLS_DIR="${VERDICT_TMP}/empty" tools_file_findings)"
+expect_named "an empty browser_1 list" "required_tools_browser_1_gates.txt does not exist or is empty"
+
 mkdir -p "${VERDICT_TMP}/order"
 sed 's/^shellcheck|Scripts\/check_shellcheck.sh|pre|/shellcheck|Scripts\/check_shellcheck.sh|post|/' "$ORDER" > "${VERDICT_TMP}/order/gate_report_order.txt"
 OUT="$(ORDER="${VERDICT_TMP}/order/gate_report_order.txt" groups_findings)"

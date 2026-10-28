@@ -250,6 +250,9 @@ step summary isolation|in|Scripts/install_tools_linux.sh
 step summary isolation|in|Scripts/linux_tool_pins.txt
 step summary isolation|in|Scripts/required_tools_linux.txt
 step summary isolation|in|Scripts/required_tools_linux_gates.txt
+step summary isolation|in|Scripts/required_tools_browser_1_gates.txt
+step summary isolation|in|Scripts/required_tools_browser_gates.txt
+step summary isolation|in|Scripts/required_tools_quality_2_gates.txt
 step summary isolation|in|Scripts/language_allowlist.txt
 step summary isolation|in|Scripts/language_baseline.txt
 step summary isolation|in|Scripts/language_settings.txt

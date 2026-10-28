@@ -316,6 +316,8 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
+      # Only the tools its gates run: go, node and jq (forsgren#447, step 4).
+      # A tool a gate calls and the list lacks fails that gate, never skips it.
       - name: Install tools
         shell: bash
         env:
@@ -323,7 +325,7 @@ jobs:
           HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
         run: |
           set -euo pipefail
-          ./Scripts/install_tools.sh
+          ./Scripts/install_tools.sh Scripts/required_tools_quality_2_gates.txt
 
       - name: Install dependencies
         run: npm ci
@@ -716,6 +718,7 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
+      # Only the tool its one gate runs: node (forsgren#447, step 4).
       - name: Install tools
         shell: bash
         env:
@@ -723,7 +726,7 @@ jobs:
           HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
         run: |
           set -euo pipefail
-          ./Scripts/install_tools.sh
+          ./Scripts/install_tools.sh Scripts/required_tools_browser_1_gates.txt
 
       - name: Install dependencies
         run: npm ci
@@ -800,6 +803,8 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
+      # Only the tools its gates and its site build run: go and node
+      # (forsgren#447, step 4).
       - name: Install tools
         shell: bash
         env:
@@ -807,7 +812,7 @@ jobs:
           HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
         run: |
           set -euo pipefail
-          ./Scripts/install_tools.sh
+          ./Scripts/install_tools.sh Scripts/required_tools_browser_gates.txt
 
       - name: Install dependencies
         run: npm ci

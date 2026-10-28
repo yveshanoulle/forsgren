@@ -1,0 +1,20 @@
+# Tools the quality_2 job of quality.yml needs (forsgren#447, step 4), one per
+# line. Read by Scripts/install_tools.sh, which the job runs with this file in
+# place of Scripts/required_tools.txt; the main quality job keeps the full list.
+#
+# ONLY what its gates run (Scripts/ci_job_groups.txt gives it the rows; read
+# from their scripts, and from the scripts those call). A tool a gate calls but
+# this list lacks is not skipped: the gate fails with `command not found`, and
+# Scripts/test_quality_jobs.sh is red when a listed gate names a tool of
+# Scripts/required_tools.txt that is not here.
+
+# go: the Go tests, Go lint (the go.mod tools run through it), Go coverage and
+# the site builds of the golden pages and the generated page gates.
+go
+
+# node: npm, for the HTMLHint self-test and the Go tests gate's npm use, and
+# the generated page duplication gate.
+node
+
+# jq: Scripts/check_coverage.sh reads the coverage profile's JSON.
+jq

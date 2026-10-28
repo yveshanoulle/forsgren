@@ -50,6 +50,23 @@ so the installer puts them there; installing and upgrading costs nothing
 lasting on a machine that is thrown away after the job. A tool still missing
 after it fails the Install tools step by name.
 
+**Which tools each macOS job installs** (forsgren#447, step 4). The main
+`quality` job runs the full `Scripts/install_tools.sh`, the whole of
+`Scripts/required_tools.txt`: it runs the language gate (LanguageTool), the
+secret scan (gitleaks) and the exit-trap gate. The other three macOS jobs pass
+the installer a list of their own, so a job installs only what its gates and
+its site build run, not the 75 to 219 seconds of the full set:
+`quality_2` takes `Scripts/required_tools_quality_2_gates.txt` (go, node, jq),
+`browser_1` takes `Scripts/required_tools_browser_1_gates.txt` (node) and
+`browser` takes `Scripts/required_tools_browser_gates.txt` (go, node). Each list
+was read from the scripts of the job's rows in `Scripts/ci_job_groups.txt` and
+the scripts those call. A tool a gate needs and its list lacks is not skipped:
+the gate fails with `command not found`. `Scripts/test_quality_jobs.sh` pins
+each job's install command, each list's content, and that no gate of a job
+names a tool of the full list that the job's list lacks; a gate moved to
+another job (forsgren#447, steps 5 to 7) therefore needs its tools in that
+job's list in the same change.
+
 **Jobs** (forsgren#259, decision #260). Quality is one workflow with parallel
 jobs and one verdict: the run's conclusion is success only when every job
 succeeded, and that conclusion is what the Release reads

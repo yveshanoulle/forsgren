@@ -1,0 +1,14 @@
+# Tools the browser job of quality.yml needs (forsgren#447, step 4), one per
+# line. Read by Scripts/install_tools.sh, which the job runs with this file in
+# place of Scripts/required_tools.txt; the main quality job keeps the full list.
+#
+# ONLY what its gates and its own site build run: the browser process
+# self-test, the browser gate and the fixture-site pair drive
+# Scripts/browser_gate.mjs with Node, and Scripts/build_site.sh and
+# Scripts/build_fixture_site.sh build forsgren with Go. Chrome comes with the
+# hosted image and puppeteer-core and axe-core with npm ci. A tool a gate calls
+# but this list lacks fails the gate, never skips it; Scripts/test_quality_jobs.sh
+# is red when a listed gate names a tool of Scripts/required_tools.txt that is
+# not here.
+go
+node
