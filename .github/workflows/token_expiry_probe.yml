@@ -1,9 +1,9 @@
 # .github/workflows/token_expiry_probe.yml
 #
 # The weekly token expiry probe (forsgren#269): Scripts/probe_token_expiry.sh
-# makes one cheap API call with each of forsgren's three fine-grained tokens
-# held as Actions secrets (FORSGREN_RELEASE_TOKEN, PREVIEW_DISPATCH_TOKEN,
-# FORSGREN_TOKEN), reads GitHub's github-authentication-token-expiration
+# makes one cheap API call with each of forsgren's two fine-grained tokens
+# held as Actions secrets (FORSGREN_RELEASE_TOKEN, PREVIEW_DISPATCH_TOKEN),
+# reads GitHub's github-authentication-token-expiration
 # header and writes token-probed.tsv: one line per secret,
 # <SECRET_NAME><TAB><YYYY-MM-DD | never | error: <reason>>. The file is the
 # artifact token-expiry-probe, uploaded even when the probe fails; a token
@@ -39,7 +39,6 @@ jobs:
         env:
           FORSGREN_RELEASE_TOKEN: ${{ secrets.FORSGREN_RELEASE_TOKEN }}
           PREVIEW_DISPATCH_TOKEN: ${{ secrets.PREVIEW_DISPATCH_TOKEN }}
-          FORSGREN_TOKEN: ${{ secrets.FORSGREN_TOKEN }}
         run: ./Scripts/probe_token_expiry.sh token-probed.tsv
 
       - name: Upload the probe result

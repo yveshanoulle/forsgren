@@ -638,8 +638,8 @@ Nine PRE gates keep the CI honest:
   own, forsgren#269): `token_expiry_probe.yml` runs weekly (Mondays, one cron
   entry at an off-peak minute) and by hand, with `contents: read` only.
   `Scripts/probe_token_expiry.sh` makes one `GET /user` call per token with
-  the Actions secrets `FORSGREN_RELEASE_TOKEN`, `PREVIEW_DISPATCH_TOKEN` and
-  `FORSGREN_TOKEN` (the token goes to curl on stdin, never in an argument or
+  the Actions secrets `FORSGREN_RELEASE_TOKEN` and
+  `PREVIEW_DISPATCH_TOKEN` (the two the repository holds; `FORSGREN_TOKEN` lives in the installations; the token goes to curl on stdin, never in an argument or
   the output), reads `github-authentication-token-expiration` and writes
   `token-probed.tsv`, one line per secret, `<SECRET_NAME><TAB><YYYY-MM-DD |
   never | error: <reason>>`, uploaded as the artifact `token-expiry-probe`

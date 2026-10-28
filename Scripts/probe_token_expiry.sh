@@ -4,8 +4,9 @@
 # The expiry of each fine-grained token forsgren's own workflows use, read
 # from GitHub's `github-authentication-token-expiration` response header on
 # one cheap authenticated call (GET /user) per token. The secrets arrive in
-# the environment, by name: FORSGREN_RELEASE_TOKEN, PREVIEW_DISPATCH_TOKEN and
-# FORSGREN_TOKEN. <out-file> gets one line per secret, in that order:
+# the environment, by name: FORSGREN_RELEASE_TOKEN and PREVIEW_DISPATCH_TOKEN, the two token secrets the forsgren
+# repository holds (FORSGREN_TOKEN lives in the installations that call metrics.yml,
+# not here). <out-file> gets one line per secret, in that order:
 #
 #   <SECRET_NAME><TAB><YYYY-MM-DD | never | error: <reason>>
 #
@@ -28,7 +29,7 @@ COMPLETED=0
 trap '[ "$COMPLETED" -eq 1 ] || { echo "❌ FAIL: probe_token_expiry.sh aborted before completing (COMPLETED was never set)" >&2; exit 1; }' EXIT
 
 if [ "$#" -ne 1 ]; then
-  echo "usage: Scripts/probe_token_expiry.sh <out-file>   (the three tokens in the environment)" >&2
+  echo "usage: Scripts/probe_token_expiry.sh <out-file>   (the two tokens in the environment)" >&2
   COMPLETED=1
   exit 2
 fi
@@ -36,7 +37,7 @@ fi
 OUT_FILE="$1"
 CURL="${PROBE_CURL:-curl}"
 URL="${PROBE_URL:-https://api.github.com/user}"
-NAMES="FORSGREN_RELEASE_TOKEN PREVIEW_DISPATCH_TOKEN FORSGREN_TOKEN"
+NAMES="FORSGREN_RELEASE_TOKEN PREVIEW_DISPATCH_TOKEN"
 DATE_RE='^([0-9]{4}-[0-9]{2}-[0-9]{2}) [0-9]{2}:[0-9]{2}:[0-9]{2} UTC$'
 
 # probe <name>: the value for the secret of that name, one line.
