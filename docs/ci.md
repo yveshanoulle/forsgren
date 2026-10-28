@@ -634,6 +634,21 @@ Nine PRE gates keep the CI honest:
   naming the IDs and the fixed version. A failed scheduled run is visible in
   Actions; no issue is opened. The real file must hold every pin and each
   pin is proved by a mutant that breaks it.
+- **token expiry probe** (`Scripts/test_probe_token_expiry.sh`, forsgren's
+  own, forsgren#269): `token_expiry_probe.yml` runs weekly (Mondays, one cron
+  entry at an off-peak minute) and by hand, with `contents: read` only.
+  `Scripts/probe_token_expiry.sh` makes one `GET /user` call per token with
+  the Actions secrets `FORSGREN_RELEASE_TOKEN`, `PREVIEW_DISPATCH_TOKEN` and
+  `FORSGREN_TOKEN` (the token goes to curl on stdin, never in an argument or
+  the output), reads `github-authentication-token-expiration` and writes
+  `token-probed.tsv`, one line per secret, `<SECRET_NAME><TAB><YYYY-MM-DD |
+  never | error: <reason>>`, uploaded as the artifact `token-expiry-probe`
+  even when the probe fails. A header `2026-12-27 10:00:00 UTC` is the date
+  `2026-12-27`; an answer with no header is `never` (GitHub sends the header
+  only for a token that expires); a secret not set, a refused call (HTTP 401),
+  a failed curl or an unreadable header is an `error:` line, never a skip, and
+  turns the run red with a `❌` line naming the secret after the artifact is
+  uploaded. The self-test uses a stub curl and pins the workflow.
 - **release workflow** (`Scripts/test_release_workflow.sh`, forsgren's own,
   forsgren#221): `release.yml` releases patch, minor or major in one run,
   started by hand or through the API (`workflow_dispatch` only, the input

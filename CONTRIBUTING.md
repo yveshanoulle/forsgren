@@ -165,6 +165,7 @@ run report shows how many checks each of them ran.
 - release check self-test (`Scripts/test_release_check.sh`, pre)
 - release resume self-test (`Scripts/test_release_resume.sh`, pre)
 - release token expiry self-test (`Scripts/test_release_token_expiry.sh`, pre)
+- token expiry probe self-test (`Scripts/test_probe_token_expiry.sh`, pre)
 - release verify pin self-test (`Scripts/test_release_verify_pin.sh`, pre)
 - release verify install self-test (`Scripts/test_release_verify_install.sh`, pre)
 - release agent proofs self-test (`Scripts/test_release_agent_proofs.sh`, pre)
