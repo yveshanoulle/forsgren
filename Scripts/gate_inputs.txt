@@ -392,6 +392,7 @@ gate wiring|in|.github/workflows/metrics.yml
 gate wiring|in|.github/workflows/quality.yml
 gate wiring|in|.github/workflows/release.yml
 gate wiring|in|.github/workflows/starter_page.yml
+gate wiring|in|.github/workflows/token_expiry_probe.yml
 gate wiring|in|.actionlint.yaml
 gate wiring|in|.yamllint.yml
 gate wiring|in|FBP.sh
