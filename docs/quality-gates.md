@@ -671,6 +671,20 @@ The POST gates, on the generated site:
   LanguageTool version than `language_tool_version` is red. CI installs
   LanguageTool with the other Homebrew tools (`Scripts/required_tools.txt`).
   `Scripts/report_baselines.sh` shows the baselines on the Quality run page.
+  The terms input (canon `gate_language` v3, forsgren#369, decision #372 A):
+  `gate_language.sh --terms <file>` takes a plain list, one term per line
+  (`#` comments), of the words a site uses on purpose. A match whose text, or
+  every word of it, is a term (case ignored) is allowed on every page with no
+  baseline row, for spelling and for the style rules named in `TERM_RULES` in
+  the gate, each with its reason (`TRUNK_BOOT`: LanguageTool reads `trunk` as
+  the boot of a car, and the feature is Trunk-based development). Every other
+  rule still applies to a term, a word not in the file is still flagged, and a
+  named file that is missing is exit 2. No `--terms`, or an empty file, is no
+  terms: the sites pass none. forsgren's list is its dictionary
+  (`internal/dictionary/dictionary.yml`, forsgren#370): the wrapper writes every
+  entry name and every `shown` label, once each, and reads only the file's own
+  shapes (a name that is not a double-quoted string, or a `shown` that is not a
+  list of them, is exit 2). `Scripts/language_allowlist.txt` keeps names only.
 - **browser gate** (`Scripts/gate_browser.sh`, engine `Scripts/browser_gate.mjs`,
   self-test `Scripts/test_gate_browser.sh` and, for the exits, `Scripts/test_gate_browser_process.sh`
   (forsgren#386, decision #411 A), forsgren#205, the estate's shared

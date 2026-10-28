@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: gate_language v2
+# canon: gate_language v3
 # Scripts/gate_language.sh (estate issue 300)
 #
 # The language gate (POST): the visible text of every built page, checked by
@@ -37,6 +37,20 @@
 #       lower the count). Add no row to clear a red unless the finding is judged
 #       a false positive or an accepted exception, with its reason.
 #
+# THE TERMS FILE (v3, optional): gate_language.sh --terms <file> names a plain
+# list, one term per line (# comments, blank lines): a name, a word or a phrase
+# a site uses on purpose on every page. A term is allowed everywhere, with no
+# baseline row: for SPELLING like an allowlist word, and for the style rules
+# listed in TERM_RULES in the findings block below, each with its reason
+# (TRUNK_BOOT first: LanguageTool reads trunk as the boot of a car). A match is
+# allowed when its text, or every word of it, is a term; case is ignored.
+# Every other rule still applies to a term, and a word not in the file is still
+# flagged. No --terms, or an empty file, is no terms: the sites pass none. A
+# named file that is missing is exit 2, never a waiver. A site's terms are a
+# list its own wrapper makes (forsgren: Scripts/gate_language_pages.sh, from its
+# dictionary), so this gate stays generic. The OK line counts a term allowance
+# with the allowlisted ones.
+#
 # MODE, language_mode in Scripts/language_settings.txt:
 #   enforce  a new finding or a stale row is red (exit 1)
 #   warn     the same are printed as warnings and the gate exits 0; the OK line
@@ -63,7 +77,8 @@
 # allowlist, baseline, LanguageTool, Java or sandbox. The baseline report uses it,
 # so the sentence it shows is from the very text this gate checks.
 #
-# Usage: gate_language.sh [site-dir [allowlist [baseline [language-settings]]]]
+# Usage: gate_language.sh [--terms <file>] [site-dir [allowlist [baseline
+#        [language-settings]]]]
 # Environment: GATE_LANGUAGE_TOOL names the languagetool command (default: the
 # one on PATH, else the Homebrew keg path, which a CI runner without the
 # Homebrew PATH still finds); JAVA_HOME defaults to the Homebrew openjdk@17
@@ -96,6 +111,12 @@ TEXT_OUT=""
 if [[ "${1:-}" == "--text" ]]; then
   TEXT_OUT="${2:-}"
   [[ -n "$TEXT_OUT" ]] || tool_fail "language gate: --text needs an output directory"
+  shift 2
+fi
+TERMS=""
+if [[ "${1:-}" == "--terms" ]]; then
+  TERMS="${2:-}"
+  [[ -n "$TERMS" ]] || tool_fail "language gate: --terms needs a file"
   shift 2
 fi
 SITE_DIR="${1:-}"
@@ -311,6 +332,7 @@ fi
 [[ -d "$SITE_DIR" ]] || tool_fail "language gate: site dir not found: ${SITE_DIR}"
 [[ -f "$ALLOWLIST" ]] || tool_fail "language gate: allowlist not found: ${ALLOWLIST}"
 [[ -f "$BASELINE" ]] || tool_fail "language gate: baseline not found: ${BASELINE}"
+[[ -z "$TERMS" || -f "$TERMS" ]] || tool_fail "language gate: terms file not found: ${TERMS}"
 
 # LanguageTool and Java: found, or the gate fails and says what is missing.
 LT_BIN="${GATE_LANGUAGE_TOOL:-}"
@@ -360,13 +382,13 @@ done < "${WORK}/langs.txt"
 
 # The findings against the allowlist and the baseline.
 set +e
-PYTHONIOENCODING=utf-8 python3 -I - "$WORK" "$MODE" "$LT_VERSION" "$ALLOWLIST" "$BASELINE" <<'PY'
+PYTHONIOENCODING=utf-8 python3 -I - "$WORK" "$MODE" "$LT_VERSION" "$ALLOWLIST" "$BASELINE" "$TERMS" <<'PY'
 import bisect
 import json
 import os
 import sys
 
-work, mode, version, allow_path, base_path = sys.argv[1:6]
+work, mode, version, allow_path, base_path, terms_path = sys.argv[1:7]
 enforcing = (mode == "enforce")
 WINDOW = 12
 MARK = "PAGEMARK "
@@ -390,6 +412,27 @@ with open(allow_path, encoding="utf-8") as handle:
         if word in allowed:
             config_error(allow_path + " line " + str(number) + ": " + word + " is listed twice")
         allowed.add(word)
+
+
+# The style rules a term is allowed for, each with its reason. Spelling is
+# always covered. Add a rule only with its reason.
+TERM_RULES = {
+    "TRUNK_BOOT": "LanguageTool reads trunk as the boot of a car (British English); "
+                  "for a site about trunk-based development it is the main branch",
+}
+
+terms = set()
+if terms_path:
+    with open(terms_path, encoding="utf-8") as handle:
+        for line in handle:
+            term = " ".join(line.split())
+            if term and not term.startswith("#"):
+                terms.add(term.lower())
+
+
+def termed(text):
+    words = text.lower().split()
+    return bool(words) and (" ".join(words) in terms or all(w in terms for w in words))
 
 
 def allowlisted(text):
@@ -462,6 +505,9 @@ for lang, locale in langs:
         text_clean = found_text
         issue = match["rule"].get("issueType", "")
         if issue == "misspelling" and allowlisted(piece(offset, offset + length).strip()):
+            allowlisted_n += 1
+            continue
+        if (issue == "misspelling" or rule in TERM_RULES) and termed(piece(offset, offset + length)):
             allowlisted_n += 1
             continue
         key = (page, locale, rule, text_clean, ctx)

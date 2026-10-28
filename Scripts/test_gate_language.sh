@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# canon: test_gate_language v2
+# canon: test_gate_language v3
 # Scripts/test_gate_language.sh (estate issue 300)
 #
 # Self-test for Scripts/gate_language.sh, the LanguageTool gate, run in PRE
@@ -28,6 +28,9 @@
 #  19. LanguageTool runs without network, never with a remote option
 #  22. --text mode (v2): the extracted text of the pages, per language, with no
 #      LanguageTool, Java, allowlist or baseline; the optional page roots key
+#  23. the terms file (v3), --terms <file>: a term is allowed for spelling and
+#      for the style rules the gate lists (TRUNK_BOOT); a word not in the file,
+#      a rule not on the list and a missing file are still red or exit 2
 #  20. the language settings file: an invalid mode, locale list or version, a
 #      missing, unknown or repeated key, a malformed line, no file -> exit 2 each
 # Mutation proofs (each fixture is red BECAUSE of the line mutated):
@@ -39,7 +42,9 @@
 #   F. the version pin not compared: case 12 turns green;
 #   G. the network sandbox removed: case 19 sees an open network;
 #   H. a page marker match kept: case 18 turns red;
-#   I. --text mode not recognised: case 22a no longer exits 0.
+#   I. --text mode not recognised: case 22a no longer exits 0;
+#   J. the terms file ignored: case 23a turns red;
+#   K. every rule allowed for a term: case 23d turns green.
 
 set -euo pipefail
 
@@ -132,10 +137,13 @@ mode() { sed -i.bak "s/^language_mode=.*/language_mode=$2/" "${TMP}/$1/settings.
 run_gate() {
   local d="${TMP}/$1"
   shift
+  local terms=()
+  [[ -f "$d/terms.txt" ]] && terms=(--terms "$d/terms.txt")
   capture env GATE_LANGUAGE_TOOL="${TMP}/bin/languagetool" JAVA_HOME="${TMP}/jh" \
     STUB_RULES="$d/rules" STUB_LOG="$d/log" "$@" \
-    "$TARGET" "$d/site" "$d/allow.txt" "$d/base.txt" "$d/settings.txt"
+    "$TARGET" ${terms[@]+"${terms[@]}"} "$d/site" "$d/allow.txt" "$d/base.txt" "$d/settings.txt"
 }
+term() { printf '%s\n' "$2" >> "${TMP}/$1/terms.txt"; }
 TARGET="$GATE"
 
 mk clean
@@ -308,6 +316,38 @@ mk badroots2; echo 'language_page_roots=/x//y,' >> "${TMP}/badroots2/settings.tx
 run_gate badroots2
 want_exit "22g: an invalid language_page_roots value" 2 "invalid value for 'language_page_roots'"
 
+# 23. The terms file: --terms <file>, one term per line.
+TRUNK_NL='nl-BE|TRUNK_BOOT|style|trunk|LanguageTool reads trunk as a car boot'
+TRUNK_BODY='Changes may go directly to the trunk.'
+mk trunkterm "$TRUNK_BODY"; rule trunkterm "$TRUNK_NL"; term trunkterm '# terms'; term trunkterm 'trunk'
+run_gate trunkterm
+want_green "23a: a style match (TRUNK_BOOT) of a term in the terms file passes with no baseline row" "1 matches, 1 allowlisted, 0 baselined, 0 new"
+mk trunkcase "Changes may go directly to the Trunk."; rule trunkcase 'nl-BE|TRUNK_BOOT|style|Trunk|car boot'; term trunkcase trunk
+run_gate trunkcase
+want_green "23a2: a term matches whatever its case" "1 allowlisted, 0 baselined, 0 new"
+mk trunkplain "$TRUNK_BODY"; rule trunkplain "$TRUNK_NL"
+run_gate trunkplain
+want_red "23b: with no terms file the same match is a new finding" "new finding: index.html [nl-BE] TRUNK_BOOT: \"trunk\""
+mk trunkother "$TRUNK_BODY"; rule trunkother "$TRUNK_NL"; term trunkother mainline
+run_gate trunkother
+want_red "23b2: a terms file without trunk still flags trunk" "new finding: index.html [nl-BE] TRUNK_BOOT: \"trunk\""
+mk termspell; rule termspell "${SPELL_NL}|Zorbo|Spelfout"; term termspell trunk
+run_gate termspell
+want_red "23c: a spelling finding of a word that is not a term still fails" "new finding: index.html [nl-BE] MORFOLOGIK_RULE_NL_NL: \"Zorbo\""
+mk termword; rule termword "${SPELL_NL}|Zorbo|Spelfout"; term termword Zorbo
+run_gate termword
+want_green "23c2: a spelling finding of a term passes" "1 matches, 1 allowlisted, 0 baselined, 0 new"
+mk termrule "$TRUNK_BODY"; rule termrule 'nl-BE|PASSIVE_VOICE|style|trunk|Passive voice'; term termrule trunk
+run_gate termrule
+want_red "23d: a term with a style rule that is not on the list still fails" "new finding: index.html [nl-BE] PASSIVE_VOICE: \"trunk\""
+mk noterms "$TRUNK_BODY"; rm -f "${TMP}/noterms/terms.txt"; : > "${TMP}/noterms/terms.txt"; rule noterms "$TRUNK_NL"
+run_gate noterms
+want_red "23e: an empty terms file is no terms" "new finding: index.html [nl-BE] TRUNK_BOOT"
+mk absentterms
+capture env GATE_LANGUAGE_TOOL="${TMP}/bin/languagetool" JAVA_HOME="${TMP}/jh" STUB_RULES="${TMP}/absentterms/rules" \
+  "$GATE" --terms "${TMP}/absent-terms.txt" "${TMP}/absentterms/site" "${TMP}/absentterms/allow.txt" "${TMP}/absentterms/base.txt" "${TMP}/absentterms/settings.txt"
+want_exit "23f: a terms file that is named and missing" 2 "terms file not found"
+
 # Mutation proofs: a copy of the gate runs on the same fixtures. The copy lives
 # in Scripts/ (it cd-s to its own parent), so it is removed again.
 MUT="${REPO_ROOT}/Scripts/.language_mutant.$$.sh"
@@ -377,5 +417,17 @@ if selftest_mutant "$GATE" "$MUT" 's/^if \[\[ -n ".TEXT_OUT" \]\]; then$/if fals
   fi
 fi
 
+# J: the terms are ignored -> the terms fixture turns red.
+if selftest_mutant "$GATE" "$MUT" 's/ and termed(piece(offset, offset + length)):/ and False:/'; then
+  TARGET="$MUT"; run_gate trunkterm
+  want_red "mutation proof J: the terms ignored turns case 23a red" "new finding"
+fi
+
+# K: a term is allowed for every rule -> the unlisted-rule fixture turns green.
+if selftest_mutant "$GATE" "$MUT" 's/or rule in TERM_RULES)/or True)/'; then
+  TARGET="$MUT"; run_gate termrule
+  want_green "mutation proof K: every rule allowed for a term turns case 23d green" "OK:"
+fi
+
 rm -f "$MUT"
-selftest_end "the language gate self-test failed" "language gate: every case holds, nine mutations seen"
+selftest_end "the language gate self-test failed" "language gate: every case holds, eleven mutations seen"
