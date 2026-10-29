@@ -13,6 +13,10 @@
 #   4. status: all success is success; a failure or a skipped job is failure;
 #      a cancelled job is cancelled, whatever else happened; no result is a
 #      usage error
+#   4b (forsgren#561). verdict: the report job fails after rendering when a
+#      gate job is not success: failure, cancelled or skipped (no gate job is
+#      skipped by design) exits 1 with a ❌ line naming the job; all success
+#      exits 0 with no ❌ line
 #   5. usage errors exit 64
 #   3b-3e (forsgren#426). the shard rows of one gate (`<gate> (shard N/M)`) are
 #      joined into the gate's one row: green only when every shard is green,
@@ -183,6 +187,20 @@ want_out "a cancelled job makes the run cancelled" cancelled
 capture "$SCRIPT" status ""
 want_rc "an empty result is a usage error" 64
 
+# --- 4b. verdict (forsgren#561)
+capture "$SCRIPT" verdict quality=success browser=success workflows=success
+want_green "4b: every gate job success passes the verdict" ""
+if grep -qF '❌' <<< "$OUT"; then fail "4b: an all-success verdict printed a ❌ line: ${OUT}"; else echo "  ok: 4b: an all-success verdict prints no ❌ line"; fi
+for bad in failure cancelled skipped; do
+  capture "$SCRIPT" verdict quality=success browser="$bad" workflows=success
+  want_red "4b: a ${bad} gate job fails the verdict" "❌ browser: ${bad}"
+  if grep -qF '❌ quality' <<< "$OUT" || grep -qF '❌ workflows' <<< "$OUT"; then fail "4b: the ${bad} verdict named a job that succeeded: ${OUT}"; fi
+done
+capture "$SCRIPT" verdict
+want_rc "4b: verdict without a job is a usage error" 64
+capture "$SCRIPT" verdict quality
+want_rc "4b: a verdict argument without = is a usage error" 64
+
 # --- 5. usage
 capture "$SCRIPT"
 want_rc "no command is a usage error" 64
@@ -205,6 +223,10 @@ fi
 if run_mutant cancel 's/^ *cancelled) any_cancelled=1 ;;$/cancelled) any_failed=1 ;;/'; then
   capture "$MUT" status failure cancelled
   if [[ "$OUT" != "cancelled" ]]; then echo "  ok: mutation proof: a status that lets failure outrank cancelled is caught"; else fail "mutation proof: the cancel mutant still printed cancelled"; fi
+fi
+if run_mutant verdictpass 's/^      \*) printf .*failed=1 ;;$/      *) ;;/'; then
+  capture "$MUT" verdict browser=failure
+  if [[ "$RC" -eq 0 ]]; then echo "  ok: mutation proof: a verdict that forgives a failed job is green on 4b, so 4b catches it"; else fail "mutation proof: the forgiving verdict mutant was still red"; fi
 fi
 
 # Shards (forsgren#426): a merge that never joins leaves the shard rows apart,

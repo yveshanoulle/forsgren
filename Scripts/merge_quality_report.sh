@@ -37,14 +37,21 @@
 #       cancelled when any job was cancelled, else failure when any job is not
 #       success (a skipped job included: it never judged its gates), else
 #       success. It is the QS_JOB_STATUS of the run summary.
+#   Scripts/merge_quality_report.sh verdict <job>=<result>...
+#       (forsgren#561) Whether the report job itself is red: a ❌ line `<job>:
+#       <result>` for every job whose result is not success (failure,
+#       cancelled or skipped: no gate job is skipped by design, and a skipped
+#       one never judged its gates), exit 1; all success prints nothing, exit
+#       0. The report job runs it after the report is rendered, so the check
+#       named Quality report is never green while a gate job is not.
 #
-# Exit: 0, 1 a gate reported twice, 64 usage. Self-test:
+# Exit: 0, 1 a gate reported twice or a gate job not success, 64 usage. Self-test:
 # Scripts/test_merge_quality_report.sh.
 
 set -uo pipefail
 
 usage() {
-  echo "usage: merge_quality_report.sh handover <rows> <details-dir> <out-dir> [page-count-file] | merge <artifacts-dir> <rows-out> <details-out> | status <result>..." >&2
+  echo "usage: merge_quality_report.sh handover <rows> <details-dir> <out-dir> [page-count-file] | merge <artifacts-dir> <rows-out> <details-out> | status <result>... | verdict <job>=<result>..." >&2
   exit 64
 }
 
@@ -66,6 +73,23 @@ status() {
   else
     echo success
   fi
+}
+
+# verdict <job>=<result>...: a ❌ line per job that is not success, exit 1.
+verdict() {
+  local arg name result failed=0
+  [ "$#" -ge 1 ] || usage
+  for arg in "$@"; do
+    case "$arg" in *=*) ;; *) usage ;; esac
+    name="${arg%%=*}"
+    result="${arg#*=}"
+    [ -n "$name" ] || usage
+    case "$result" in
+      success) ;;
+      *) printf '❌ %s: %s\n' "$name" "${result:-no result}"; failed=1 ;;
+    esac
+  done
+  return "$failed"
 }
 
 # shard_slug <label>: the details file name of a row (the runner's slug rule).
@@ -195,6 +219,10 @@ case "${1:-}" in
   status)
     shift
     status "$@"
+    ;;
+  verdict)
+    shift
+    verdict "$@"
     ;;
   *) usage ;;
 esac

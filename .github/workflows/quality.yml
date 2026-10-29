@@ -1025,6 +1025,11 @@ jobs:
           export SITE_PAGE_COUNT_FILE="${art}/quality-report-quality/page-count.log"
           ./Scripts/render_quality_summary.sh "$rows" "$details" >> "$GITHUB_STEP_SUMMARY" || rc=$?
           ./Scripts/render_quality_report.sh "$rows" "$details" >> "$GITHUB_STEP_SUMMARY" || rc=$?
+          # forsgren#561: the report is written; now the check turns red when a gate job did not succeed.
+          ./Scripts/merge_quality_report.sh verdict \
+            "quality=$QS_QUALITY_RESULT" "quality_2=$QS_QUALITY_2_RESULT" "lint=$QS_LINT_RESULT" \
+            "isolation_1=$QS_ISOLATION_1_RESULT" "isolation_2=$QS_ISOLATION_2_RESULT" "summary=$QS_SUMMARY_RESULT" \
+            "browser_1=$QS_BROWSER_1_RESULT" "browser=$QS_BROWSER_RESULT" "workflows=$QS_WORKFLOWS_RESULT" || rc=$?
           exit "$rc"
 
   # Starts the preview deploy (forsgren#222), only after every gate job
