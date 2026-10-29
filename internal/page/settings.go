@@ -28,6 +28,7 @@ var possibleValues = map[string]string{
 	"numbers_scoring_page": pageValues,
 	"history_page":         pageValues,
 	"tbd_page":             pageValues,
+	"data_page":            pageValues,
 	"tbd_figures":          list(config.TbdFiguresMedian, config.TbdFiguresAll),
 	"sub_rows":             booleanValues,
 	"week_page":            booleanValues,

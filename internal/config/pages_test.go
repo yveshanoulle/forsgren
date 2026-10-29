@@ -214,10 +214,22 @@ func TestTbdPageIsOnByDefaultAndRejectsOtherValues(t *testing.T) {
 	wantPageKey(t, "tbd_page", ErrTbdPage, PageOn, cases)
 }
 
+// TestDataPageIsOnByDefaultAndRejectsOtherValues (forsgren#579, step 3): the
+// optional data_page key is true when it is left out or has no value, and as
+// written otherwise, unlisted and false included; any other value is not
+// accepted: the page stays on and the rejection names the key, the valid
+// values and the default true.
+func TestDataPageIsOnByDefaultAndRejectsOtherValues(t *testing.T) {
+	cases := append(pageCasesWithDefault("data_page", PageOn),
+		unlistedPageCase{"unlisted", "data_page: unlisted\n" + valid, "", PageUnlisted})
+	wantPageKey(t, "data_page", ErrDataPage, PageOn, cases)
+}
+
 // pageModeOf is the PageMode the config holds for the page key.
 func pageModeOf(cfg Config, key string) PageMode {
 	return map[string]PageMode{"issues_page": cfg.IssuesPage, "days_page": cfg.DaysPage,
-		"numbers_scoring_page": cfg.NumbersScoringPage, "history_page": cfg.HistoryPage, "tbd_page": cfg.TbdPage}[key]
+		"numbers_scoring_page": cfg.NumbersScoringPage, "history_page": cfg.HistoryPage, "tbd_page": cfg.TbdPage,
+		"data_page": cfg.DataPage}[key]
 }
 
 // TestEveryPageKeyReadsUnlisted (forsgren#200): the literal unlisted is a value

@@ -232,6 +232,9 @@ type Config struct {
 	// TbdPage is how the TBD page is handled, PageOn when the file has no
 	// tbd_page key (forsgren#253, forsgren#409).
 	TbdPage PageMode
+	// DataPage is how the Data page is handled, PageOn when the file has no
+	// data_page key (forsgren#579).
+	DataPage PageMode
 	// TbdFigures is the figures the TBD table shows for each measure, as
 	// written: "median" or "all", DefaultTbdFigures when the file has no
 	// tbd_figures key, or an empty string in a Config not loaded from a file
@@ -331,6 +334,7 @@ var (
 	ErrNumbersScoringPage  = errors.New("invalid numbers_scoring_page")
 	ErrHistoryPage         = errors.New("invalid history_page")
 	ErrTbdPage             = errors.New("invalid tbd_page")
+	ErrDataPage            = errors.New("invalid data_page")
 	ErrTbdFigures          = errors.New("invalid tbd_figures")
 	ErrSameDeveloper       = errors.New("invalid same_developer")
 	ErrTbdTimeToMain       = errors.New("invalid tbd_time_to_main")
@@ -399,6 +403,7 @@ type fileConfig struct {
 	NumbersScoringPage yaml.Node `yaml:"numbers_scoring_page"`
 	HistoryPage        yaml.Node `yaml:"history_page"`
 	TbdPage            yaml.Node `yaml:"tbd_page"`
+	DataPage           yaml.Node `yaml:"data_page"`
 	// TbdFigures is the node as written, so a value that is not median or all
 	// is rejected by name (forsgren#423).
 	TbdFigures yaml.Node `yaml:"tbd_figures"`
@@ -533,6 +538,7 @@ var settingKeys = []settingKey{
 	{"tbd_page", string(tbdPage.def), func(c Config) string { return string(c.TbdPage) }},
 	{"week_page", "true", func(c Config) string { return strconv.FormatBool(!c.HideWeekPage) }},
 	{"week_commits", "false", func(c Config) string { return strconv.FormatBool(c.WeekCommits) }},
+	{"data_page", string(dataPage.def), func(c Config) string { return string(c.DataPage) }},
 	{"tbd_figures", DefaultTbdFigures, func(c Config) string { return c.TbdFigures }},
 	{"tbd_time_to_main", "true", func(c Config) string { return strconv.FormatBool(!c.HideTbdTimeToMain) }},
 	{"tbd_pr_lead_time", "true", func(c Config) string { return strconv.FormatBool(!c.HideTbdPRLeadTime) }},

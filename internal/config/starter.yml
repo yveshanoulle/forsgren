@@ -152,4 +152,5 @@ days_page: false  # the Daily page. true: generated and in the menu; unlisted: g
 numbers_scoring_page: unlisted  # the Numbers and scoring page. true: generated and in the menu; unlisted: generated, no menu entry; false: not generated
 history_page: unlisted  # the History page. true: generated and in the menu; unlisted: generated, no menu entry; false: not generated
 tbd_page: true  # the Trunk-based development (TBD) page. true: generated and in the menu; unlisted: generated, no menu entry; false: not generated
+data_page: true  # the Data page: the first stored data per project. true: generated and in the menu; unlisted: generated, no menu entry; false: not generated
 projects: []

@@ -43,10 +43,11 @@ var (
 	numbersScoringPage = pageKey{ErrNumbersScoringPage, "numbers_scoring_page", PageUnlisted}
 	historyPage        = pageKey{ErrHistoryPage, "history_page", PageUnlisted}
 	tbdPage            = pageKey{ErrTbdPage, "tbd_page", PageOn}
+	dataPage           = pageKey{ErrDataPage, "data_page", PageOn}
 )
 
 // pageKeys are the page keys, in the order of the settings page.
-var pageKeys = []pageKey{issuesPage, daysPage, numbersScoringPage, historyPage, tbdPage}
+var pageKeys = []pageKey{issuesPage, daysPage, numbersScoringPage, historyPage, tbdPage, dataPage}
 
 // isPageKey says whether key is one of the page keys.
 func isPageKey(key string) bool {

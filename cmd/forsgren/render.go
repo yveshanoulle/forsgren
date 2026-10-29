@@ -145,7 +145,7 @@ func pagesInMode(cfg config.Config, mode config.PageMode) map[string]bool {
 func pageModes(cfg config.Config) map[string]config.PageMode {
 	return map[string]config.PageMode{page.IssuesPage: cfg.IssuesPage, page.DaysPage: cfg.DaysPage,
 		page.NumbersScoringPage: cfg.NumbersScoringPage, page.HistoryPage: cfg.HistoryPage,
-		page.TbdPage: cfg.TbdPage, page.WeekPage: weekMode(cfg)}
+		page.TbdPage: cfg.TbdPage, page.WeekPage: weekMode(cfg), page.DataPage: cfg.DataPage}
 }
 
 // weekMode is how the Week page is handled (forsgren#531, step 3, decision

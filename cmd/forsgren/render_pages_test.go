@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -73,5 +74,35 @@ func wantPages(t *testing.T, dir string, issues, days bool) {
 		if _, err := os.Stat(filepath.Join(dir, page)); (err == nil) != want {
 			t.Errorf("want %s written: %v, got %v", page, want, err)
 		}
+	}
+}
+
+// TestRenderHandlesTheDataPageByItsKey (forsgren#579, step 3): data.html is
+// written and in the menu by default, written without a menu entry with
+// data_page: unlisted, and not written with data_page: false.
+func TestRenderHandlesTheDataPageByItsKey(t *testing.T) {
+	cases := map[string]struct {
+		keys            string
+		written, listed bool
+	}{
+		"default":  {"", true, true},
+		"unlisted": {"data_page: unlisted\n", true, false},
+		"off":      {"data_page: false\n", false, false},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			dir := renderInto(t, "--config", writeConfig(t, validConfig+tc.keys))
+			_, err := os.Stat(filepath.Join(dir, "data.html"))
+			if (err == nil) != tc.written {
+				t.Errorf("want data.html written: %v, got %v", tc.written, err)
+			}
+			index, err := os.ReadFile(filepath.Clean(filepath.Join(dir, "index.html")))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if listed := strings.Contains(string(index), `href="data.html">Data</a>`); listed != tc.listed {
+				t.Errorf("want Data in the menu: %v, got %v", tc.listed, listed)
+			}
+		})
 	}
 }

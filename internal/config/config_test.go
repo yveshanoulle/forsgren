@@ -23,7 +23,8 @@ func TestLoadValid(t *testing.T) {
 				HistoryChunkDays: DefaultHistoryChunkDays, WorkingHours: DefaultWorkingHours,
 				DoraDays:   DefaultDoraDays,
 				IssuesPage: PageOn, DaysPage: PageOff, NumbersScoringPage: PageUnlisted,
-				HistoryPage: PageUnlisted, TbdPage: PageOn, TbdFigures: TbdFiguresMedian, ThousandsSeparator: ThousandsNarrowSpace,
+				HistoryPage: PageUnlisted, TbdPage: PageOn, DataPage: PageOn,
+				TbdFigures: TbdFiguresMedian, ThousandsSeparator: ThousandsNarrowSpace,
 				DecimalSeparator: DecimalPoint,
 				Projects: []Project{{
 					Name: "Acme",
@@ -39,7 +40,8 @@ func TestLoadValid(t *testing.T) {
 				HistoryChunkDays: DefaultHistoryChunkDays, WorkingHours: DefaultWorkingHours,
 				DoraDays:   DefaultDoraDays,
 				IssuesPage: PageOn, DaysPage: PageOff, NumbersScoringPage: PageUnlisted,
-				HistoryPage: PageUnlisted, TbdPage: PageOn, TbdFigures: TbdFiguresMedian, ThousandsSeparator: ThousandsNarrowSpace,
+				HistoryPage: PageUnlisted, TbdPage: PageOn, DataPage: PageOn,
+				TbdFigures: TbdFiguresMedian, ThousandsSeparator: ThousandsNarrowSpace,
 				DecimalSeparator: DecimalPoint,
 				Projects: []Project{
 					{Name: "Acme Shop", Repositories: []Repository{

@@ -36,6 +36,7 @@ const starterConfig = "version: 1\nview: standard\nauto_update: true\n" +
 	"numbers_scoring_page: unlisted  # the Numbers and scoring page. " + pageValuesComment + "\n" +
 	"history_page: unlisted  # the History page. " + pageValuesComment + "\n" +
 	"tbd_page: true  # the Trunk-based development (TBD) page. " + pageValuesComment + "\n" +
+	"data_page: true  # the Data page: the first stored data per project. " + pageValuesComment + "\n" +
 	"projects: []\n"
 
 // isStarterLine says whether a line may stand in the starter: blank, a
