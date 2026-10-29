@@ -233,7 +233,7 @@
   {
    "path": "internal/page/views_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-05",
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   },
   {
@@ -1354,9 +1354,9 @@
   },
   {
    "path": "internal/page/menu_test.go",
-   "score": 9.68,
-   "checkedAt": "2026-10-13",
-   "minScore": 9.58
+   "score": 10.0,
+   "checkedAt": "2026-10-29",
+   "minScore": 10.0
   },
   {
    "path": "internal/collect/issueevents.go",
@@ -1769,7 +1769,7 @@
   {
    "path": "cmd/forsgren/render_pages_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   },
   {
@@ -1847,7 +1847,7 @@
   {
    "path": "internal/page/tbd_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-26",
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   },
   {
@@ -1871,7 +1871,7 @@
   {
    "path": "internal/page/history_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-18",
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   },
   {
@@ -1889,7 +1889,7 @@
   {
    "path": "internal/page/menu.go",
    "score": 10.0,
-   "checkedAt": "2026-10-16",
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   },
   {
@@ -2519,7 +2519,7 @@
   {
    "path": "internal/page/week_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-28",
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   },
   {

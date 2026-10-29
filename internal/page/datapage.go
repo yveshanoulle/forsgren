@@ -22,11 +22,11 @@ type dataKind struct{ Name, UsedBy string }
 // dataKinds are the Data page's columns after Project, in the order of the
 // cells of DataRow.Cells, and the list under the table.
 var dataKinds = []dataKind{
-	{"Deployments", "the five DORA metrics on the standard, numbers and scoring views, the History and the Week page"},
+	{"Issues", "the Issues and Daily pages"},
 	{"Commits", "lead time for changes and the TBD Mainline Interval and Time to deploy"},
 	{"Pushes", "the TBD Time to main, Commits per push and shares, and the commits of the Week page"},
+	{"Deployments", "the five DORA metrics on the standard, numbers and scoring views, the History and the Week page"},
 	{"Merged pull requests", "the TBD PR Lead Time and Bot PR Lead Time"},
-	{"Issues", "the Issues and Daily pages"},
 }
 
 // noData is the cell of a kind with nothing stored.
@@ -65,7 +65,7 @@ type DataCell struct {
 
 // Cells are the row's cells, one per kind of dataKinds.
 func (r DataRow) Cells() []DataCell {
-	starts := []metrics.DataStart{r.Deployments, r.Commits, r.Pushes, r.Pulls, r.Issues}
+	starts := []metrics.DataStart{r.Issues, r.Commits, r.Pushes, r.Deployments, r.Pulls}
 	cells := make([]DataCell, len(starts))
 	for i, s := range starts {
 		cells[i] = dataCell(s, r.start)

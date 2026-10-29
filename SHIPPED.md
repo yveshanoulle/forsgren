@@ -9,6 +9,22 @@ Active work lives in
 
 ---
 
+## 2026-10-29 — The Data page reads Issues first, counts pushed commits and sits in the footer ([#582](https://github.com/yveshanoulle/forsgren/issues/582), 2 steps)
+
+forsgren issue 582. The Data page of forsgren issue 579 had a Failure issues
+column, read Commits from the deployed commits alone and took a place in the
+view menu after Week. Its columns are now Issues, Commits, Pushes, Deployments
+and Merged pull requests. Commits is the oldest author date over the deployed
+commits and the pushed commits (`data/commits.csv` and `data/push_commits.csv`),
+so a repository whose pushes reach further back than its deployments shows
+that; a service or rule row keeps its own deployed commits, as push commits are
+per repository. The Failure issues column and its dictionary entry are gone.
+The page left the view menu, which ends with Week again: with `data_page: true`
+the footer of every page links it after Settings, Legend and Dictionary;
+`unlisted` writes it without the link and with the noindex tag, `false` does
+not write it. The legend, the docs, the agent installer, the installation
+README and the 1.31.0 upgrade note say so.
+
 ## 2026-10-29 — A Data page: the first stored data per project ([#579](https://github.com/yveshanoulle/forsgren/issues/579), 4 steps)
 
 forsgren issue 579. Nothing on the site said how far back an installation's

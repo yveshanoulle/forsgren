@@ -252,7 +252,7 @@ func TestHistoryPageIsMarkedBeta(t *testing.T) {
 	history := rendered(t, "history.html", historyData())
 	wantAll(t, "history.html", history, "<title>History (BETA) · ", `<h1 id="history-heading">History (BETA)</h1>`,
 		`<a href="days.html">Daily</a> · <span aria-current="page">History</span> · <a href="tbd.html">TBD</a>`+
-			` · <a href="week.html">Week</a> · <a href="data.html">Data</a></nav>`)
+			` · <a href="week.html">Week</a></nav>`)
 	wantAll(t, "legend.html", rendered(t, "legend.html", calculated()), "<h2>History page (BETA)</h2>")
 	wantNone(t, "index.html", rendered(t, "index.html", calculated()), "(BETA)")
 }

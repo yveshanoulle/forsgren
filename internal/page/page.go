@@ -273,10 +273,10 @@ type rootPage struct{ Name, Label string }
 // after the folderPages: the issues page (forsgren#123, forsgren#128: the
 // weeks, months and years), the days page (forsgren#76, forsgren#128: the
 // last 30 days, labelled Daily), the history page (forsgren#68) and the TBD
-// page (forsgren#253, labelled TBD), the Week page (forsgren#531, labelled
-// Week) and the Data page (forsgren#579, labelled Data).
+// page (forsgren#253, labelled TBD) and the Week page (forsgren#531, labelled
+// Week). The Data page is linked in the footer instead (forsgren#582).
 var rootPages = []rootPage{{IssuesPage, "Issues"}, {DaysPage, "Daily"}, {HistoryPage, "History"},
-	{TbdPage, "TBD"}, {WeekPage, "Week"}, {DataPage, "Data"}}
+	{TbdPage, "TBD"}, {WeekPage, "Week"}}
 
 // IssuesPage and DaysPage are the names of the two issue pages, keys of
 // Data.Hidden (forsgren#159).

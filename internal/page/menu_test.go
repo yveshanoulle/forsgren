@@ -15,7 +15,7 @@ var menuEntries = []menuEntry{
 	{"standard/", "Standard"}, {"numbers/", "Numbers"}, {"scoring/", "Scoring"},
 	{"numbers-scoring/", "Numbers and scoring"},
 	{"issues.html", "Issues"}, {"days.html", "Daily"}, {"history.html", "History"}, {"tbd.html", "TBD"},
-	{"week.html", "Week"}, {"data.html", "Data"},
+	{"week.html", "Week"},
 }
 
 // wantMenu is the menu of a page whose links start with base: the label of
@@ -37,8 +37,8 @@ func wantMenu(base, current, mark string) string {
 type menuCase struct{ base, current, mark string }
 
 // menuCases are the menus of the pages: a view's page and
-// the issues and days pages mark themselves, the settings and legend pages
-// nothing; root is the root's.
+// the issues and days pages mark themselves, the settings, legend,
+// dictionary and Data pages nothing; root is the root's.
 func menuCases(root menuCase) map[string]menuCase {
 	return map[string]menuCase{
 		"index.html":                 root,
@@ -51,7 +51,7 @@ func menuCases(root menuCase) map[string]menuCase {
 		"history.html":               {"", "History", "page"},
 		"tbd.html":                   {"", "TBD", "page"},
 		"week.html":                  {"", "Week", "page"},
-		"data.html":                  {"", "Data", "page"},
+		"data.html":                  {},
 		"settings.html":              {},
 		"legend.html":                {},
 		"dictionary.html":            {},
@@ -138,15 +138,16 @@ func TestNoPageLinksBackToTheTable(t *testing.T) {
 
 // TestEveryPageEndsWithTheSameFooter (forsgren#128, step 11; decision #133):
 // every page, with data or without, ends with one footer: the version line
-// with Calculated at, then Settings and Legend, linked through ../ one folder
-// down.
+// with Calculated at, then Settings, Legend, Dictionary and Data (forsgren#582),
+// linked through ../ one folder down.
 func TestEveryPageEndsWithTheSameFooter(t *testing.T) {
 	for name, data := range map[string]Data{"with data": viewData(), "placeholder": calculated()} {
 		for _, page := range PageNames() {
 			base := menuCases(menuCase{})[page].base
 			want := " " + footerReport + "\n    <p><a href=\"" + base + "settings.html\">Settings</a> " +
 				"<a href=\"" + base + "legend.html\">Legend</a> " +
-				"<a href=\"" + base + "dictionary.html\">Dictionary</a></p>\n  </footer>\n"
+				"<a href=\"" + base + "dictionary.html\">Dictionary</a> " +
+				"<a href=\"" + base + "data.html\">Data</a></p>\n  </footer>\n"
 			wantAll(t, name+" "+page, rendered(t, page, data), want)
 		}
 	}
@@ -170,11 +171,11 @@ func TestMenuEndsWithHistoryAndOmitsItWhenHidden(t *testing.T) {
 	data := viewData()
 	for page, want := range map[string]string{
 		"index.html": `<a href="days.html">Daily</a> · <a href="history.html">History</a> · ` +
-			`<a href="tbd.html">TBD</a> · <a href="week.html">Week</a> · <a href="data.html">Data</a></nav>`,
+			`<a href="tbd.html">TBD</a> · <a href="week.html">Week</a></nav>`,
 		"scoring/index.html": `<a href="../days.html">Daily</a> · <a href="../history.html">History</a> · ` +
-			`<a href="../tbd.html">TBD</a> · <a href="../week.html">Week</a> · <a href="../data.html">Data</a></nav>`,
+			`<a href="../tbd.html">TBD</a> · <a href="../week.html">Week</a></nav>`,
 		"history.html": `<a href="days.html">Daily</a> · <span aria-current="page">History</span> · ` +
-			`<a href="tbd.html">TBD</a> · <a href="week.html">Week</a> · <a href="data.html">Data</a></nav>`,
+			`<a href="tbd.html">TBD</a> · <a href="week.html">Week</a></nav>`,
 	} {
 		wantAll(t, page, rendered(t, page, data), want)
 	}

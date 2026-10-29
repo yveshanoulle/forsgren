@@ -881,8 +881,7 @@ Then check what the run did:
      `week_page` shows `true (not set)` (the Week page, `week.html`, is in the
      menu), `week_commits` shows `false (not set)` (the Week page leaves out its
      Commits columns; `week_commits: true` shows them), `data_page` shows
-     `true (not set)` (the Data page, `data.html`, is generated and in the
-     menu) and `tbd_figures` shows `median (not set)` (the TBD table shows the median
+     `true (not set)` (the Data page, `data.html`, is generated and linked in the footer) and `tbd_figures` shows `median (not set)` (the TBD table shows the median
      of each measure; `tbd_figures: all` shows the mean, the median and the
      90th percentile). `sub_rows`, `tbd_time_to_main`, `tbd_pr_lead_time` and
      `tbd_bot_pr_lead_time` each show `true (not set)` (every table shows its

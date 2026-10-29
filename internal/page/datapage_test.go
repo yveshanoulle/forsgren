@@ -84,3 +84,43 @@ func TestDataPageSaysWhatUsesEachKind(t *testing.T) {
 		}
 	}
 }
+
+// TestDataPageColumnsStartWithIssues (forsgren#582): the columns after Project
+// are Issues, Commits, Pushes, Deployments and Merged pull requests, and each
+// row's cells follow them.
+func TestDataPageColumnsStartWithIssues(t *testing.T) {
+	got := rendered(t, "data.html", dataPageData())
+	wantAll(t, "data.html", got, `<th scope="col">Project</th>
+            <th scope="col">Issues</th>
+            <th scope="col">Commits</th>
+            <th scope="col">Pushes</th>
+            <th scope="col">Deployments</th>
+            <th scope="col">Merged pull requests</th>
+          </tr>`,
+		`<td>2026-01-05</td>
+            <td>2026-02-27</td>
+            <td>2026-09-01</td>
+            <td>2026-03-02</td>
+            <td class="late">▲ 2026-09-21`)
+}
+
+// TestDataPageIsLinkedInTheFooterOnlyWhenOn (forsgren#582): the Data page is
+// in no menu; the footer links it after Dictionary while data_page is true,
+// and not when the page is unlisted, which keeps its noindex tag, or hidden.
+func TestDataPageIsLinkedInTheFooterOnlyWhenOn(t *testing.T) {
+	data := dataPageData()
+	wantAll(t, "scoring/index.html", rendered(t, "scoring/index.html", data),
+		`<a href="../dictionary.html">Dictionary</a> <a href="../data.html">Data</a></p>`)
+	for _, mode := range []map[string]bool{nil, {DataPage: true}} {
+		data.Unlisted, data.Hidden = mode, nil
+		wantNone(t, "data.html", rendered(t, "data.html", data), `data.html">Data</a></nav>`)
+		data.Unlisted, data.Hidden = nil, mode
+		if mode != nil {
+			wantNone(t, "index.html", rendered(t, "index.html", data), `data.html">Data</a>`)
+		}
+	}
+	data.Unlisted, data.Hidden = map[string]bool{DataPage: true}, nil
+	got := rendered(t, "data.html", data)
+	wantNone(t, "data.html unlisted", got, `data.html">Data</a>`)
+	wantAll(t, "data.html unlisted", got, `<meta name="robots" content="noindex">`)
+}

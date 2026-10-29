@@ -22,6 +22,10 @@ func (p pageData) listedAs() string {
 // writes (not Hidden) and lists (not Unlisted, forsgren#200).
 func (p pageData) listed(name string) bool { return !p.Hidden[name] && !p.Unlisted[name] }
 
+// DataLinked says the footer links the Data page (forsgren#582): the site
+// writes and lists it, data_page true.
+func (p pageData) DataLinked() bool { return p.listed(DataPage) }
+
 // menuItem is one entry of the menu: its address from the root, its label,
 // and its aria-current, empty for an entry that is a link.
 type menuItem struct{ Href, Label, Current string }

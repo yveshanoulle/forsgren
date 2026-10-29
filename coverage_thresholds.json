@@ -871,6 +871,7 @@
     "github.com/yveshanoulle/forsgren/internal/page/page.go:AnyIssueRowActive": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/menu.go:Menu": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/menu.go:Noindex": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/page/menu.go:DataLinked": 100.0,
     "github.com/yveshanoulle/forsgren/internal/page/history.go:historyBeta": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/history.go:HalfYearOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/history.go:FirstDeployment": 100.0,

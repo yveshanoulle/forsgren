@@ -9,7 +9,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
-  <nav class="views">View: <a href="standard/">Standard</a> · <a href="numbers/">Numbers</a> · <a href="scoring/">Scoring</a> · <a href="numbers-scoring/">Numbers and scoring</a> · <a href="issues.html">Issues</a> · <a href="days.html">Daily</a> · <a href="history.html">History</a> · <a href="tbd.html">TBD</a> · <a href="week.html">Week</a> · <a href="data.html">Data</a></nav>
+  <nav class="views">View: <a href="standard/">Standard</a> · <a href="numbers/">Numbers</a> · <a href="scoring/">Scoring</a> · <a href="numbers-scoring/">Numbers and scoring</a> · <a href="issues.html">Issues</a> · <a href="days.html">Daily</a> · <a href="history.html">History</a> · <a href="tbd.html">TBD</a> · <a href="week.html">Week</a></nav>
   <main>
     <h1>Dictionary</h1>
     <p>What each term and each number on the pages means, and where it comes from. The entries are in alphabetical order.</p>
@@ -103,8 +103,8 @@
       <dd>The failed changes out of the final deployments, in whole percent, rounded down. A failed change is a failed deployment, or an issue labelled failure opened in the window.</dd>
       <dd>From: Deployments of data/deployments.csv and issues of data/failures.csv, over the window.</dd>
       <dt id="commits">Commits</dt>
-      <dd>On the TBD page, the commits the pushes of the window brought to the main branch, each counted once. On the Week page, shown only with week_commits: true: under Total, the row&#39;s commits of the window; under each weekday, the share of them whose author date falls on that weekday. The Data page shows the oldest author date of the stored deployed commits.</dd>
-      <dd>From: Pushes of data/pushes.csv and data/push_commits.csv, over the window; on the Data page, data/commits.csv.</dd>
+      <dd>On the TBD page, the commits the pushes of the window brought to the main branch, each counted once. On the Week page, shown only with week_commits: true: under Total, the row&#39;s commits of the window; under each weekday, the share of them whose author date falls on that weekday. The Data page shows the oldest author date of the stored deployed and pushed commits; a service or rule row, of its own deployed commits.</dd>
+      <dd>From: Pushes of data/pushes.csv and data/push_commits.csv, over the window; on the Data page, every commit of data/commits.csv and data/push_commits.csv.</dd>
       <dt id="commits-per-deployment">Commits per deployment</dt>
       <dd>How many commits on the main line a deployment brought; a deployment without a known main line is left out.</dd>
       <dd>From: Commits of data/commits.csv and their deployments, over the window.</dd>
@@ -211,7 +211,7 @@
   </main>
   <footer>
     <p><a href="https://forsgren.be/">Forsgren</a> 9.9.9 Metrics from GitHub data. Calculated at 2026-10-03 12:00 UTC <strong>Report Start</strong> 2026-09-03 12:00 <strong>Report End</strong> 2026-10-03 12:00</p>
-    <p><a href="settings.html">Settings</a> <a href="legend.html">Legend</a> <a href="dictionary.html">Dictionary</a></p>
+    <p><a href="settings.html">Settings</a> <a href="legend.html">Legend</a> <a href="dictionary.html">Dictionary</a> <a href="data.html">Data</a></p>
   </footer>
 </body>
 </html>

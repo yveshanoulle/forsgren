@@ -188,11 +188,11 @@ projects:
   - **`data_page`**: the Data page (`data.html`, forsgren#579). One table,
     a row per project and under it a row for each label, service or rule
     (`sub_rows: false` leaves those out): the first date, in UTC, that
-    forsgren stored data of each kind, Deployments, Commits, Pushes, Merged
-    pull requests, Failure issues and Issues, a date after Report Start
-    marked ▲, and under the table which pages use which kind (see
-    [The Data page](pages-and-views.md#the-data-page)). `unlisted` keeps it
-    out of the menu; `false` does not write it.
+    forsgren stored data of each kind, Issues, Commits, Pushes, Deployments
+    and Merged pull requests, a date after Report Start marked ▲, and under
+    the table which pages use which kind (see
+    [The Data page](pages-and-views.md#the-data-page)). The page is in no
+    menu (forsgren#582): `true` links it in the footer, next to Settings, Legend and Dictionary; `unlisted` writes it without the link; `false` does not write it.
 - **`tbd_figures`** is optional (forsgren#423, from 1.22.0): which figures the
   TBD table shows for each measure. It takes one of two values, written as
   plain literals:

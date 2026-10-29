@@ -78,8 +78,8 @@ func wantPages(t *testing.T, dir string, issues, days bool) {
 }
 
 // TestRenderHandlesTheDataPageByItsKey (forsgren#579, step 3): data.html is
-// written and in the menu by default, written without a menu entry with
-// data_page: unlisted, and not written with data_page: false.
+// written and linked in the footer by default (forsgren#582), written without
+// a link with data_page: unlisted, and not written with data_page: false.
 func TestRenderHandlesTheDataPageByItsKey(t *testing.T) {
 	cases := map[string]struct {
 		keys            string
@@ -96,13 +96,23 @@ func TestRenderHandlesTheDataPageByItsKey(t *testing.T) {
 			if (err == nil) != tc.written {
 				t.Errorf("want data.html written: %v, got %v", tc.written, err)
 			}
-			index, err := os.ReadFile(filepath.Clean(filepath.Join(dir, "index.html")))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if listed := strings.Contains(string(index), `href="data.html">Data</a>`); listed != tc.listed {
-				t.Errorf("want Data in the menu: %v, got %v", tc.listed, listed)
-			}
+			wantDataLink(t, dir, tc.listed)
 		})
+	}
+}
+
+// wantDataLink fails unless dir's index.html links the Data page in its
+// footer exactly when listed, and never in its menu (forsgren#582).
+func wantDataLink(t *testing.T, dir string, listed bool) {
+	t.Helper()
+	index, err := os.ReadFile(filepath.Clean(filepath.Join(dir, "index.html")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Contains(string(index), `<a href="data.html">Data</a></p>`); got != listed {
+		t.Errorf("want Data linked in the footer: %v, got %v", listed, got)
+	}
+	if strings.Contains(string(index), `<a href="data.html">Data</a></nav>`) {
+		t.Error("want no Data entry in the menu")
 	}
 }

@@ -750,8 +750,8 @@ you nothing about it.
 release. A new page, `data.html`, shows for each project and its label,
 service and rule rows the first date forsgren stored each kind of data, a
 date after Report Start marked ▲. The new key `data_page` is optional and
-`true` when left out, so an installation without `data_page` in its config gets the Data page in its menu, after Week, with
-this release. To keep it out of the menu, set `data_page: unlisted` (the page
+`true` when left out, so an installation without `data_page` in its config gets a Data link in its footer, after Settings, Legend and Dictionary, with
+this release; the menu does not change. To leave the link out, set `data_page: unlisted` (the page
 is still written and reachable by its address); `data_page: false` does not
 write it. Nothing new is needed: no permission, secret or file. An agent
 following [agent-upgrade.md](../agent-upgrade.md) needs to ask you nothing
