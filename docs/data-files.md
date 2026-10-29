@@ -56,6 +56,30 @@ data repository, made from a template, and
 passes them to forsgren as paths. Test fixtures are made up (`acme/app`) and live only
 under `testdata/`.
 
+## The dictionary (`internal/dictionary/dictionary.yml`)
+
+Not an installation's data: one file built into the binary, so every
+installation's Dictionary page reads the same (forsgren#370, see [Pages and
+views](pages-and-views.md#pages-and-views)). It is a YAML list; each entry has
+these keys, every text in double quotes:
+
+- `name`: the entry's heading and, in lower case with hyphens, its anchor.
+- `kind`: `number` (a figure, a column or a row of numbers) or `term` (a word a
+  reader meets in the pages' text).
+- `shown` (optional): a list of the labels the pages use when they differ from
+  the name, such as a column head. The legend links the first mention of any of
+  these labels.
+- `definition`: one short definition.
+- `from`: the data file or the window it is counted over.
+
+To add an entry, add it to the list; the order of the file does not matter, the
+page sorts. A figure or term that a page shows without an entry fails
+`go test ./internal/dictionary`, and so does an entry that no page shows, so
+the test tells you when one is missing or stale. The entry names and labels are
+also the language gate's allowed terms (see [Quality
+gates](quality-gates.md)). A name listed twice, a kind that is neither of the two
+or a missing definition or `from` fails the build.
+
 ## History
 
 The deployments `forsgren collect` finds are kept in the installation's data

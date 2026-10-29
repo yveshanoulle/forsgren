@@ -183,6 +183,15 @@ run report shows how many checks each of them ran.
 - commit messages self-test (`Scripts/test_check_commit_messages.sh`, pre)
 <!-- gate-list:end -->
 
+## Adding a number or a term to the pages
+
+When a page shows a new figure (a column, a row) or a new term, add an entry for
+it to `internal/dictionary/dictionary.yml`: its name, kind, definition and where
+it comes from (see [The dictionary](docs/data-files.md#the-dictionary-internaldictionarydictionaryyml)).
+You need not remember it: `go test ./internal/dictionary` fails with the name
+of the missing entry, and with the name of an entry that no page shows any more.
+The Dictionary page and the legend's links to it are generated from the file.
+
 ## Reporting a vulnerability
 
 Never in a public issue or pull request: report it privately, as

@@ -9,6 +9,24 @@ Active work lives in
 
 ---
 
+## 2026-10-29 — A Dictionary page that defines every number and term, linked from the legend ([#370](https://github.com/yveshanoulle/forsgren/issues/370), 4 steps)
+
+forsgren issue 370, feature. The pages get a Dictionary page (`dictionary.html`,
+in every footer next to Settings and Legend): every number and every term the
+pages show, in two sections, each with a definition and where it comes from,
+generated from one embedded file, `internal/dictionary/dictionary.yml` (37
+numbers, 24 terms). The legend links the first mention of each entry in each of
+its sections to the entry, so a reader can follow a figure to its meaning.
+A test holds the file both ways against the golden pages (a shown figure or term
+without an entry is red, and so is an entry no page shows), and the language gate
+takes the entry names as its allowed terms (forsgren#369). To add one, add the
+entry; the tests say when it is missing. Nothing to do for an installation:
+the page appears with the next release, no config key, no workflow change, and
+`agent-installer.md`, `agent-upgrade.md` and `install/README.md` are unchanged.
+Steps: the data and its two-way test, the page, the legend links, these docs.
+
+---
+
 ## 2026-10-28 — The agent files recognise a deploy workflow that only hands off ([#559](https://github.com/yveshanoulle/forsgren/issues/559), 1 step)
 
 forsgren issue 559, patch (1.29.6), docs only: no release on its own, it
