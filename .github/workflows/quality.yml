@@ -385,6 +385,18 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # forsgren#573: the Go of go.mod's toolchain line, fetched and verified
+      # once by setup-go (module and build cache on), not by every gate through
+      # GOTOOLCHAIN: a sum.golang.org lookup failure made go mod tidy red in
+      # run 40811450730. A failed setup fails the job; no gate is skipped. The
+      # next step still exports GOTOOLCHAIN from go.mod, which now names the Go
+      # installed here, so go runs it from the machine and downloads nothing.
+      # Scripts/test_quality_jobs.sh pins this step in every Linux job.
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
+
       - name: Set up the gate environment
         shell: bash
         run: |
@@ -478,6 +490,18 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # forsgren#573: the Go of go.mod's toolchain line, fetched and verified
+      # once by setup-go (module and build cache on), not by every gate through
+      # GOTOOLCHAIN: a sum.golang.org lookup failure made go mod tidy red in
+      # run 40811450730. A failed setup fails the job; no gate is skipped. The
+      # next step still exports GOTOOLCHAIN from go.mod, which now names the Go
+      # installed here, so go runs it from the machine and downloads nothing.
+      # Scripts/test_quality_jobs.sh pins this step in every Linux job.
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
+
       - name: Set up the gate environment
         shell: bash
         run: |
@@ -546,6 +570,18 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      # forsgren#573: the Go of go.mod's toolchain line, fetched and verified
+      # once by setup-go (module and build cache on), not by every gate through
+      # GOTOOLCHAIN: a sum.golang.org lookup failure made go mod tidy red in
+      # run 40811450730. A failed setup fails the job; no gate is skipped. The
+      # next step still exports GOTOOLCHAIN from go.mod, which now names the Go
+      # installed here, so go runs it from the machine and downloads nothing.
+      # Scripts/test_quality_jobs.sh pins this step in every Linux job.
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
 
       - name: Set up the gate environment
         shell: bash
@@ -624,6 +660,18 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      # forsgren#573: the Go of go.mod's toolchain line, fetched and verified
+      # once by setup-go (module and build cache on), not by every gate through
+      # GOTOOLCHAIN: a sum.golang.org lookup failure made go mod tidy red in
+      # run 40811450730. A failed setup fails the job; no gate is skipped. The
+      # next step still exports GOTOOLCHAIN from go.mod, which now names the Go
+      # installed here, so go runs it from the machine and downloads nothing.
+      # Scripts/test_quality_jobs.sh pins this step in every Linux job.
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
 
       - name: Set up the gate environment
         shell: bash
@@ -891,6 +939,18 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      # forsgren#573: the Go of go.mod's toolchain line, fetched and verified
+      # once by setup-go (module and build cache on), not by every gate through
+      # GOTOOLCHAIN: a sum.golang.org lookup failure made go mod tidy red in
+      # run 40811450730. A failed setup fails the job; no gate is skipped. The
+      # next step still exports GOTOOLCHAIN from go.mod, which now names the Go
+      # installed here, so go runs it from the machine and downloads nothing.
+      # Scripts/test_quality_jobs.sh pins this step in every Linux job.
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
 
       - name: Set up the gate environment
         shell: bash

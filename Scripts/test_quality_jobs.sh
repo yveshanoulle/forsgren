@@ -141,6 +141,33 @@ pin_of() {
   grep -E 'uses: actions/checkout@' "$1" | grep -vE '^[[:space:]]*#' | head -1 | sed -E 's/.*@([0-9a-f]{40}).*/\1/'
 }
 
+# go_setup_findings <job file> <id> <step names>: forsgren#573. A Linux job
+# gets the go.mod toolchain ONCE, cached and verified, by actions/setup-go
+# (go-version-file: go.mod, its module and build cache on: no `cache: false`),
+# as the first step after the checkout and before the gate environment, so no
+# gate downloads the toolchain from the network (a sum.golang.org lookup failure
+# made go mod tidy red in run 40811450730). The gate environment step still
+# exports GOTOOLCHAIN from go.mod's toolchain line, which now names the Go that
+# setup-go installed, so go finds it locally. The step has no continue-on-error:
+# a failed setup is a red job, never a skipped gate.
+go_setup_findings() {
+  local job="$1" id="$2" names="$3" step
+  [[ "$names" == "Set up Go|Set up the gate environment|Set up Node|Install tools|Install dependencies|"* ]] \
+    || echo "setup: the ${id} job's steps start ${names}, not Set up Go, the gate environment, Node, tools and dependencies"
+  step="$(awk '/^      - name: Set up Go$/ { on = 1; print; next } on && /^      - / { exit } on { print }' "$job")"
+  grep -qE '^        uses: actions/setup-go@[0-9a-f]{40}( |$)' <<< "$step" \
+    || echo "setup-go: the ${id} job's Set up Go step does not use actions/setup-go pinned to a full commit"
+  grep -qxF '          go-version-file: go.mod' <<< "$step" \
+    || echo "setup-go: the ${id} job's Set up Go step does not read go.mod (go-version-file: go.mod)"
+  if grep -qE '^          cache: *false' <<< "$step"; then
+    echo "setup-go: the ${id} job's Set up Go step turns the cache off"
+  fi
+  if grep -q 'continue-on-error' <<< "$step"; then
+    echo "setup-go: the ${id} job's Set up Go step has continue-on-error, so a failed setup would not be a red job"
+  fi
+  return 0
+}
+
 # setup_findings <job file> <id> [runner] [install-command]: pin 1. The runner
 # is macos-latest unless given, the install command Scripts/install_tools.sh.
 # The lint job runs on ubuntu-latest (forsgren#427) and installs its four tools
@@ -161,8 +188,12 @@ setup_findings() {
   grep -qF 'fetch-depth: 0' "$job" || echo "checkout: the ${id} job does not fetch the full history, as the main job does"
   grep -qF 'persist-credentials: false' "$job" || echo "checkout: the ${id} job persists credentials"
   names="$(step_names "$job" | tr '\n' '|')"
-  [[ "$names" == "Set up the gate environment|Set up Node|Install tools|Install dependencies|"* ]] \
-    || echo "setup: the ${id} job's steps start ${names}, not the main job's gate environment, Node, tools and dependencies"
+  if [[ "$runner" == ubuntu-latest ]]; then
+    go_setup_findings "$job" "$id" "$names"
+  else
+    [[ "$names" == "Set up the gate environment|Set up Node|Install tools|Install dependencies|"* ]] \
+      || echo "setup: the ${id} job's steps start ${names}, not the main job's gate environment, Node, tools and dependencies"
+  fi
   code "$job" | has -F 'uses: actions/setup-node@' || echo "setup: the ${id} job does not set up Node"
   code "$job" | has -xF "$installer" || echo "setup: the ${id} job does not run ${4:-Scripts/install_tools.sh}"
   code "$job" | has -xF '        run: npm ci' || echo "setup: the ${id} job does not run npm ci"
@@ -576,6 +607,24 @@ for n in 1 2; do
   mutant "report without isolation_${n} in needs" "${R}"'s/needs: \[quality, quality_2, lint, isolation_1, isolation_2, summary, browser_1, browser, workflows\]/needs: [quality, quality_2, lint, '"$( [[ $n == 1 ]] && echo isolation_2 || echo isolation_1 )"', summary, browser_1, browser, workflows]/' "report: the gate job isolation_${n} is not in the report job's needs:"
   mutant "report without the isolation_${n} result" "${R}"'{/QS_ISOLATION_'"${n}"'_RESULT:/d;}' "report: the report job has no QS_ISOLATION_${n}_RESULT from needs.isolation_${n}.result"
   mutant "status without the isolation_${n} result" "${R}"'s/ "[$]QS_ISOLATION_'"${n}"'_RESULT"//' "report: the status call does not pass"
+done
+GO_JOBS=(
+  "isolation_1:${I1}"
+  "isolation_2:${I2}"
+  "lint:${L}"
+  "summary:${S}"
+  "workflows:${W}"
+)
+for entry in "${GO_JOBS[@]}"; do
+  j="${entry%%:*}"
+  range="${entry#*:}"
+  mutant "${j} without setup-go" "${range}"'s/- name: Set up Go$/- name: Set up something else/' "setup: the ${j} job's steps start"
+  mutant "${j} setup-go not reading go.mod" "${range}"'s/go-version-file: go.mod/go-version: 1.27.3/' "setup-go: the ${j} job's Set up Go step does not read go.mod"
+  mutant "${j} setup-go with the cache off" "${range}"'s/^\(          go-version-file: go.mod\)$/\1\
+          cache: false/' "setup-go: the ${j} job's Set up Go step turns the cache off"
+  mutant "${j} setup-go not pinned" "${range}"'s#\(actions/setup-go@\)[0-9a-f]\{40\}#\1v7#' "setup-go: the ${j} job's Set up Go step does not use actions/setup-go pinned"
+  mutant "${j} setup-go may fail silently" "${range}"'s/^\(        uses: actions\/setup-go@.*\)$/\1\
+        continue-on-error: true/' "setup-go: the ${j} job's Set up Go step has continue-on-error"
 done
 mutant "summary on another runner" "${S}"'s/runs-on: ubuntu-latest/runs-on: macos-latest/' "runs-on: the summary job is not on ubuntu-latest"
 mutant "summary using the Homebrew installer" "${S}"'s#install_tools_linux\.sh Scripts/required_tools_linux_gates\.txt#install_tools.sh#' "setup: the summary job does not run ${LINUX_GATES_INSTALL}"
