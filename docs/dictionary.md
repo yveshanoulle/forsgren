@@ -260,12 +260,6 @@ On the Week page, the deployments with the state failure; another way of ending 
 
 From: Deployments of data/deployments.csv, over the window.
 
-### Failure issues
-
-On the Data page, the date the first stored issue labelled failure was opened.
-
-From: Issues of data/failures.csv.
-
 ### Issue lead time
 
 The median time from an issue's creation to its completed close, over the issues completed in the period.

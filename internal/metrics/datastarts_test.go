@@ -36,10 +36,6 @@ func startsData() (Data, []history.IssueEvent) {
 			{Repository: "acme/app", Number: 7, MergedAt: utc(time.October, 1, 9, 0)},
 			{Repository: "acme/web", Number: 8, MergedAt: utc(time.September, 29, 9, 0)},
 		},
-		Failures: []history.Failure{
-			{Repository: "acme/app", Issue: 11, OpenedAt: utc(time.September, 26, 9, 0), Service: "API"},
-			{Repository: "acme/app", Issue: 12, OpenedAt: utc(time.September, 22, 9, 0)},
-		},
 	}
 	events := []history.IssueEvent{
 		{Repository: "acme/web", Issue: 21, Event: history.EventCreated, At: utc(time.September, 1, 6, 0)},
@@ -83,7 +79,6 @@ func TestDataStartsAreTheEarliestStoredTimePerKind(t *testing.T) {
 	wantStart(t, "commits", row.Commits, utc(time.September, 18, 8, 0))
 	wantStart(t, "pushes", row.Pushes, utc(time.September, 10, 7, 0))
 	wantStart(t, "pulls", row.Pulls, utc(time.September, 29, 9, 0))
-	wantStart(t, "failures", row.Failures, utc(time.September, 22, 9, 0))
 	wantStart(t, "issues", row.Issues, utc(time.September, 1, 6, 0))
 	if !starts.Start.Equal(utc(time.September, 3, 12, 0)) {
 		t.Errorf("want Report Start 3 September 12:00, got %s", starts.Start)
@@ -101,13 +96,13 @@ func TestDataStartsOfALabelledRepositoryRow(t *testing.T) {
 	wantStart(t, "Website deployments", web.Deployments, utc(time.August, 30, 9, 0))
 	wantStart(t, "Website pushes", web.Pushes, utc(time.September, 12, 7, 0))
 	wantStart(t, "Website issues", web.Issues, utc(time.September, 1, 6, 0))
-	if web.Commits.Stored() || web.Failures.Stored() {
-		t.Errorf("want no commits or failure issues stored for Website, got %+v", web)
+	if web.Commits.Stored() {
+		t.Errorf("want no commits stored for Website, got %+v", web)
 	}
 }
 
-// TestDataStartsOfAServiceRow: a service row has its own deployments, the
-// commits they shipped and the failure issues of its service, and Per
+// TestDataStartsOfAServiceRow: a service row has its own deployments and the
+// commits they shipped, and Per
 // repository for the pushes, the pull requests and the issues, which are read
 // per repository.
 func TestDataStartsOfAServiceRow(t *testing.T) {
@@ -115,7 +110,6 @@ func TestDataStartsOfAServiceRow(t *testing.T) {
 	api := startsRow(t, DataStartsOf(weekProjects(), data, events, now), "API")
 	wantStart(t, "API deployments", api.Deployments, utc(time.September, 20, 9, 0))
 	wantStart(t, "API commits", api.Commits, utc(time.September, 18, 8, 0))
-	wantStart(t, "API failures", api.Failures, utc(time.September, 26, 9, 0))
 	for kind, got := range map[string]DataStart{"pushes": api.Pushes, "pulls": api.Pulls, "issues": api.Issues} {
 		if !got.PerRepository {
 			t.Errorf("API %s: want Per repository, got %+v", kind, got)
@@ -170,9 +164,36 @@ func TestDataStartsWithNothingStoredAreEmpty(t *testing.T) {
 	projects := []config.Project{{Name: "Acme Old", Repositories: []config.Repository{{Name: "acme/archive"}}}}
 	row := startsRow(t, DataStartsOf(projects, Data{}, nil, now), "Acme Old")
 	for kind, got := range map[string]DataStart{"deployments": row.Deployments, "commits": row.Commits,
-		"pushes": row.Pushes, "pulls": row.Pulls, "failures": row.Failures, "issues": row.Issues} {
+		"pushes": row.Pushes, "pulls": row.Pulls, "issues": row.Issues} {
 		if got.Stored() || got.PerRepository {
 			t.Errorf("%s: want nothing stored, got %+v", kind, got)
 		}
 	}
+}
+
+// TestDataStartsCommitsTakeAnEarlierPushCommit (forsgren#582, step 1): the
+// Commits of a project row is the oldest author date over the deployed
+// commits and the push commits; a service row keeps its own deployed commits,
+// as push commits are per repository.
+func TestDataStartsCommitsTakeAnEarlierPushCommit(t *testing.T) {
+	data, events := startsData()
+	data.PushCommits = []history.PushCommit{
+		{Repository: "ACME/App", After: "a9", SHA: "p1", AuthoredAt: utc(time.September, 15, 8, 0)},
+		{Repository: "acme/other", After: "a8", SHA: "p2", AuthoredAt: utc(time.January, 1, 8, 0)},
+	}
+	starts := DataStartsOf(weekProjects(), data, events, now)
+	wantStart(t, "Acme Shop commits", startsRow(t, starts, "Acme Shop").Commits, utc(time.September, 15, 8, 0))
+	wantStart(t, "API commits", startsRow(t, starts, "API").Commits, utc(time.September, 18, 8, 0))
+}
+
+// TestDataStartsCommitsKeepAnOlderDeployedCommit (forsgren#582, step 1): a
+// deployed commit authored before every push commit is the Commits of its
+// project row.
+func TestDataStartsCommitsKeepAnOlderDeployedCommit(t *testing.T) {
+	data, events := startsData()
+	data.PushCommits = []history.PushCommit{
+		{Repository: "acme/app", After: "a9", SHA: "p1", AuthoredAt: utc(time.September, 19, 8, 0)},
+	}
+	row := startsRow(t, DataStartsOf(weekProjects(), data, events, now), "Acme Shop")
+	wantStart(t, "Acme Shop commits", row.Commits, utc(time.September, 18, 8, 0))
 }

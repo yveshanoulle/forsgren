@@ -80,10 +80,6 @@
   kind: number
   definition: "On the Data page, the date the first stored pull request was merged into the main branch."
   from: "Merged pull requests of data/pulls.csv."
-- name: "Failure issues"
-  kind: number
-  definition: "On the Data page, the date the first stored issue labelled failure was opened."
-  from: "Issues of data/failures.csv."
 - name: "Issues"
   kind: number
   definition: "On the Data page, the date of the oldest stored event of any issue of the row's repositories, whatever its labels."

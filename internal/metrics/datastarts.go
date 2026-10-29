@@ -33,11 +33,11 @@ type DataRow struct {
 	Level         Level
 	Name, Project string
 	// Deployments is the oldest created_at of the stored deployments, Commits
-	// the oldest author date of the stored deployed commits, Pushes the oldest
-	// pushed_at, Pulls the oldest merged_at of the merged pull requests,
-	// Failures the oldest opened_at of the failure issues and Issues the
-	// oldest issue event.
-	Deployments, Commits, Pushes, Pulls, Failures, Issues DataStart
+	// the oldest author date of the stored deployed commits and push commits
+	// (a service or rule row: its own deployed commits), Pushes the oldest
+	// pushed_at, Pulls the oldest merged_at of the merged pull requests and
+	// Issues the oldest issue event.
+	Deployments, Commits, Pushes, Pulls, Issues DataStart
 }
 
 // DataStarts is the Data page's table: Start is Report Start, the first
@@ -78,8 +78,9 @@ func (s startsSource) row(level Level, p config.Project, project string) DataRow
 	in := repositoriesOf(p)
 	row := DataRow{Level: level, Name: p.Name, Project: project}
 	row.Deployments, row.Commits = deployedStarts(s.data, in)
-	row.Failures = earliest(s.data.Failures, in,
-		func(f history.Failure) (string, time.Time) { return f.Repository, f.OpenedAt })
+	pushed := earliest(s.data.PushCommits, in,
+		func(c history.PushCommit) (string, time.Time) { return c.Repository, c.AuthoredAt })
+	row.Commits = earliestOf(row.Commits, pushed)
 	row.Pushes = earliest(s.data.Pushes, in,
 		func(p history.Push) (string, time.Time) { return p.Repository, p.PushedAt })
 	row.Pulls = earliest(s.data.Pulls, in,
@@ -89,15 +90,14 @@ func (s startsSource) row(level Level, p config.Project, project string) DataRow
 	return row
 }
 
-// serviceRow is a service's or a rule's row: its own deployments, the
-// commits they shipped and the failure issues of its label; the pushes, pull
-// requests and issues are read per repository.
+// serviceRow is a service's or a rule's row: its own deployments and the
+// commits they shipped; the pushes, pull requests and issues are read per
+// repository, and so are the push commits, which own still holds whole
+// (forsgren#582).
 func (s startsSource) serviceRow(only config.Project, project string, own Data, _ []string) DataRow {
 	in := repositoriesOf(only)
 	row := DataRow{Level: LabelRow, Name: only.Name, Project: project}
 	row.Deployments, row.Commits = deployedStarts(own, in)
-	row.Failures = earliest(s.data.failuresOf(only.Repositories[0].Name, only.Name), in,
-		func(f history.Failure) (string, time.Time) { return f.Repository, f.OpenedAt })
 	perRepository := DataStart{PerRepository: true}
 	row.Pushes, row.Pulls, row.Issues = perRepository, perRepository, perRepository
 	return row
@@ -111,6 +111,15 @@ func deployedStarts(data Data, in map[string]bool) (deployments, commits DataSta
 	commits = earliest(data.Commits, in,
 		func(c history.Commit) (string, time.Time) { return c.Repository, c.AuthoredAt })
 	return deployments, commits
+}
+
+// earliestOf is the older of two starts, either one when the other has
+// nothing stored.
+func earliestOf(a, b DataStart) DataStart {
+	if !b.Stored() {
+		return a
+	}
+	return DataStart{At: earlier(a.At, b.At)}
 }
 
 // repositoriesOf are p's repositories in lower case.

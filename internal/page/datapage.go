@@ -26,7 +26,6 @@ var dataKinds = []dataKind{
 	{"Commits", "lead time for changes and the TBD Mainline Interval and Time to deploy"},
 	{"Pushes", "the TBD Time to main, Commits per push and shares, and the commits of the Week page"},
 	{"Merged pull requests", "the TBD PR Lead Time and Bot PR Lead Time"},
-	{"Failure issues", "change fail rate, failed deployment recovery time and deployment rework rate"},
 	{"Issues", "the Issues and Daily pages"},
 }
 
@@ -66,7 +65,7 @@ type DataCell struct {
 
 // Cells are the row's cells, one per kind of dataKinds.
 func (r DataRow) Cells() []DataCell {
-	starts := []metrics.DataStart{r.Deployments, r.Commits, r.Pushes, r.Pulls, r.Failures, r.Issues}
+	starts := []metrics.DataStart{r.Deployments, r.Commits, r.Pushes, r.Pulls, r.Issues}
 	cells := make([]DataCell, len(starts))
 	for i, s := range starts {
 		cells[i] = dataCell(s, r.start)

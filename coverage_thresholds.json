@@ -802,6 +802,7 @@
     "github.com/yveshanoulle/forsgren/internal/metrics/datastarts.go:row": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/datastarts.go:serviceRow": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/datastarts.go:deployedStarts": 100.0,
+    "github.com/yveshanoulle/forsgren/internal/metrics/datastarts.go:earliestOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/datastarts.go:repositoriesOf": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/datastarts.go:earliest": 100.0,
     "github.com/yveshanoulle/forsgren/internal/metrics/history.go:Periods": 100.0,

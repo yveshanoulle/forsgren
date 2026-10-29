@@ -31,7 +31,6 @@ func dataPageData() Data {
 				Commits:     metrics.DataStart{At: stored(time.February, 27)},
 				Pushes:      metrics.DataStart{At: stored(time.September, 1)},
 				Pulls:       metrics.DataStart{At: stored(time.September, 21)},
-				Failures:    metrics.DataStart{At: stored(time.April, 14)},
 				Issues:      metrics.DataStart{At: stored(time.January, 5)}},
 			{Level: metrics.LabelRow, Name: "API", Project: "Acme Shop",
 				Deployments: metrics.DataStart{At: stored(time.September, 20)},
@@ -66,7 +65,7 @@ func TestDataPageCellsAreDatesMarkedWhenLate(t *testing.T) {
 	got := rendered(t, "data.html", dataPageData())
 	wantAll(t, "data.html", got,
 		"<h1 id=\"data-heading\">Data</h1>",
-		`<th scope="col">Merged pull requests</th>`, `<th scope="col">Failure issues</th>`,
+		`<th scope="col">Merged pull requests</th>`,
 		`<td>2026-03-02</td>`,
 		`<td class="late">▲ 2026-09-21<span class="visually-hidden"> (after Report Start)</span></td>`,
 		`<td>Per repository</td>`, `<td>-</td>`)
