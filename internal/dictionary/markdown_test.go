@@ -124,7 +124,7 @@ func TestDocsDictionaryIsTheGeneratedMarkdown(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	got, err := os.ReadFile(docsDictionary)
+	got, err := os.ReadFile(filepath.Clean(docsDictionary))
 	if err != nil {
 		t.Fatalf("read %s: %v (generate it with -update)", docsDictionary, err)
 	}
