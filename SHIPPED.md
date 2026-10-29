@@ -9,6 +9,25 @@ Active work lives in
 
 ---
 
+## 2026-10-29 — A Data page: the first stored data per project ([#579](https://github.com/yveshanoulle/forsgren/issues/579), 4 steps)
+
+forsgren issue 579. Nothing on the site said how far back an installation's
+data reaches, so a metric counted over a window that its data only partly
+covers looked complete. The new Data page, `data.html`, in the menu after
+Week, is one table: a row per project and under it a row for each label,
+service or rule, and for each kind of stored data (Deployments, Commits,
+Pushes, Merged pull requests, Failure issues and Issues) the first date, in
+UTC, that forsgren stored it, `-` for nothing stored. A date after Report
+Start is marked ▲: the window is only partly covered and the metrics of that
+kind count from that date on. A service or rule row has its own deployments,
+commits and failure issues, and reads Per repository for the kinds read per
+repository. Under the table, Which pages use which data names the pages each
+kind feeds. `metrics.DataStartsOf` computes the dates over the rows the Week
+page walks. The new page key `data_page` takes `true` (the default),
+`unlisted` or `false`, and `sub_rows: false` leaves the label rows out. The
+dictionary has entries for Merged pull requests, Failure issues and Issues,
+the legend has a Data page section, and the site is now fourteen pages.
+
 ## 2026-10-29 — The dictionary is in the documentation ([#578](https://github.com/yveshanoulle/forsgren/issues/578), 2 steps)
 
 forsgren issue 578. The dictionary was only a page of each installation's

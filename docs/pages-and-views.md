@@ -462,8 +462,8 @@ a path on github.com (forsgren#172):
   and the count it is over, "Less than one day · 2 h 7 min (48)"; the
   weekend deployments have their own column. Durations are in min, h and d,
   each part cut down, never rounded up.
-- **Pages:** up to thirteen pages are written: `index.html`, `legend.html`, `settings.html`, `dictionary.html`, `issues.html`, `days.html`, `history.html`, `tbd.html`, `week.html`, the three views and the Numbers and scoring page. Every page opens with one menu, "View: Standard · Numbers · Scoring · Numbers and scoring · Issues · Daily · History · TBD" (forsgren#128, decision #133, forsgren#55, forsgren#68, forsgren#253): the three views, then the Numbers and scoring page, `numbers-scoring/`, then the issues page, `issues.html`, the days page, `days.html`, labelled Daily, the History page, `history.html`, and the TBD page, `tbd.html`, labelled TBD; one folder down its links go through `../`. The current page is plain text marked `aria-current="page"`; the root marks the view it shows `aria-current="true"` (see Views), and the settings, legend and dictionary pages mark none. No page has a link back to the table, since the menu reaches it, and every page ends with the same footer, the version line and then Settings, Legend and Dictionary. Five pages have a key that takes `true`, `unlisted` or `false` (forsgren#159, #55, #68, #200, #253; see [Configuration](configuration.md#configuration)): `issues_page` for `issues.html`, `days_page` for `days.html`, `numbers_scoring_page` for `numbers-scoring/`, `history_page` for `history.html` and `tbd_page` for `tbd.html`. `true` generates the page and lists it in the menu. `false` does not generate it, removes it from the site if an earlier run wrote it (the Numbers and scoring page's folder too, once empty), and leaves it out of the menu. The defaults are `issues_page: true`, `days_page: false`, `numbers_scoring_page: unlisted`, `history_page: unlisted` (from 1.8.2) and `tbd_page: true` (it was `unlisted` before forsgren#409); the starter that `init-config` writes sets `issues_page: false` and `days_page: false`, so a new installation starts with both off (forsgren#285). A render without a config, as forsgren's own build, writes and lists all eleven. The legend explains the five keys and their three values on every page set.
-- **Unlisted pages** (forsgren#200, from 1.8.2): a page whose key is `unlisted` is generated, but no menu names it, not even its own, and its `<head>` carries `<meta name="robots" content="noindex">`. It is reachable by its address, `history.html`, `tbd.html` or `numbers-scoring/`, so you can look at it before you list it. Unlisted is discoverable, not private: noindex asks compliant search engines not to index the page; it does not enforce access control. Anyone who knows or guesses the address can open it. Only an unlisted page carries the tag; set the key to `true` and the next run lists the page and drops the tag. Up to 0.8.3 the days page was `issues.html` and the issues page `months.html`; 0.8.4 renamed them with no redirect (decision #133), and `months.html` is gone.
+- **Pages:** up to fourteen pages are written: `index.html`, `legend.html`, `settings.html`, `dictionary.html`, `issues.html`, `days.html`, `history.html`, `tbd.html`, `week.html`, `data.html`, the three views and the Numbers and scoring page. Every page opens with one menu, "View: Standard · Numbers · Scoring · Numbers and scoring · Issues · Daily · History · TBD · Week · Data" (forsgren#128, decision #133, forsgren#55, forsgren#68, forsgren#253, forsgren#531, forsgren#579): the three views, then the Numbers and scoring page, `numbers-scoring/`, then the issues page, `issues.html`, the days page, `days.html`, labelled Daily, the History page, `history.html`, the TBD page, `tbd.html`, labelled TBD, the Week page, `week.html`, and the Data page, `data.html`; one folder down its links go through `../`. The current page is plain text marked `aria-current="page"`; the root marks the view it shows `aria-current="true"` (see Views), and the settings, legend and dictionary pages mark none. No page has a link back to the table, since the menu reaches it, and every page ends with the same footer, the version line and then Settings, Legend and Dictionary. Six pages have a key that takes `true`, `unlisted` or `false` (forsgren#159, #55, #68, #200, #253, #579; see [Configuration](configuration.md#configuration)): `issues_page` for `issues.html`, `days_page` for `days.html`, `numbers_scoring_page` for `numbers-scoring/`, `history_page` for `history.html`, `tbd_page` for `tbd.html` and `data_page` for `data.html`. `true` generates the page and lists it in the menu. `false` does not generate it, removes it from the site if an earlier run wrote it (the Numbers and scoring page's folder too, once empty), and leaves it out of the menu. The defaults are `issues_page: true`, `days_page: false`, `numbers_scoring_page: unlisted`, `history_page: unlisted` (from 1.8.2), `tbd_page: true` (it was `unlisted` before forsgren#409) and `data_page: true`; the starter that `init-config` writes sets `issues_page: false` and `days_page: false`, so a new installation starts with both off (forsgren#285). A render without a config, as forsgren's own build, writes all fourteen and lists the ten menu pages (the four folders and the six root pages from Issues to Data; `index.html`, `legend.html`, `settings.html` and `dictionary.html` have no menu entry). A config that sets none of the keys writes thirteen (no `days.html`) and lists Standard, Numbers, Scoring, Issues, TBD, Week and Data, the Numbers and scoring and History pages being unlisted; the starter, with `issues_page: false` as well, writes twelve. The legend explains the six keys and their three values on every page set.
+- **Unlisted pages** (forsgren#200, from 1.8.2): a page whose key is `unlisted` is generated, but no menu names it, not even its own, and its `<head>` carries `<meta name="robots" content="noindex">`. It is reachable by its address, `history.html`, `tbd.html`, `data.html` or `numbers-scoring/`, so you can look at it before you list it. Unlisted is discoverable, not private: noindex asks compliant search engines not to index the page; it does not enforce access control. Anyone who knows or guesses the address can open it. Only an unlisted page carries the tag; set the key to `true` and the next run lists the page and drops the tag. Up to 0.8.3 the days page was `issues.html` and the issues page `months.html`; 0.8.4 renamed them with no redirect (decision #133), and `months.html` is gone.
 - **Meta description** (forsgren#208, from 1.9.2): every page's `<head>` carries `<meta name="description">`, the text a search result shows under the page's title. It is one fixed sentence per page, chosen by the page's name alone: it names no project, repository, number, date or title, so the head shows nothing the page does not, and two installations get the same sentences. Every sentence ends with the same words, " generated by Forsgren", with no comma before them and no closing period. The root, `index.html`, takes the sentence of the view it shows, so a root set to the numbers view has the numbers sentence, and a root without a view the standard one; the placeholder and no-projects pages read as their page does:
 
   | Page | Description |
@@ -477,6 +477,7 @@ a path on github.com (forsgren#172):
   | `history.html` | The history of the DORA metrics per project: each half-year and the last 6 months generated by Forsgren |
   | `tbd.html` | Trunk-based development per project: the Mainline Interval, the lead times, commits per push and per deployment and the developers generated by Forsgren |
   | `week.html` | Deployments, failed deployments and fail rate per weekday, with commits when week_commits is true generated by Forsgren |
+  | `data.html` | The first data stored for each project, per kind, and which pages use it generated by Forsgren |
   | `legend.html` | How the DORA numbers are counted and scored: the window, the bands and the scores generated by Forsgren |
   | `settings.html` | The settings of forsgren.config.yml and the value in use for each generated by Forsgren |
   | `dictionary.html` | What every number and term on the pages means, and where it comes from generated by Forsgren |
@@ -1495,6 +1496,45 @@ section.
 
 The page has the heading and the table, or one line when there are no projects or nothing is collected
 yet. The legend has a Week page section for the reader.
+
+### The Data page
+
+The Data page (`data.html`, forsgren#579) shows how far back the stored data
+reaches. One table, a row per project and under it a row for each label,
+service or rule (`sub_rows: false` leaves those out, as on the other tables):
+Project, then one column per kind of stored data, each cell the first time
+forsgren stored data of that kind for the row, as a UTC date:
+
+- **Deployments**: the oldest `created_at` of the stored deployments
+  (`data/deployments.csv`).
+- **Commits**: the oldest author date of the stored deployed commits
+  (`data/commits.csv`).
+- **Pushes**: the oldest `pushed_at` (`data/pushes.csv`).
+- **Merged pull requests**: the oldest `merged_at` (`data/pulls.csv`).
+- **Failure issues**: the oldest `opened_at` (`data/failures.csv`).
+- **Issues**: the oldest issue event (`data/issues.csv`).
+
+A project's date is the earliest over its repositories. A cell with nothing
+stored reads `-`. A date after Report Start, the start of the `dora_days`
+window the footer names, is marked `▲ 2026-09-21`, with a visually hidden
+"(after Report Start)" for a screen reader: the window is only partly
+covered, and the metrics of that kind count from that date on. One line above
+the table says what the marker means. A service or rule row has its own
+deployments, commits and failure issues, those of its label; pushes, merged
+pull requests and issues are read per repository, so its cells for them read
+`Per repository`. The first stored date is what forsgren collected, not when
+the repository started.
+
+Under the table, the heading "Which pages use which data" lists each kind with
+the pages that read it. With no projects, or nothing collected, the page shows
+one line in place of the table.
+
+- **`data_page`** (forsgren#579): `true`, the default, generates the page and
+  lists it in the menu, after Week; `unlisted` generates it without a menu
+  entry and with the noindex tag; `false` does not generate it. See
+  [Configuration](configuration.md#configuration).
+
+The legend has a Data page section that says how to read the table.
 
 ## Privacy
 

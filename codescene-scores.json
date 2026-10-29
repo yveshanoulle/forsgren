@@ -2555,7 +2555,7 @@
   {
    "path": "internal/page/legend_week_test.go",
    "score": 10.0,
-   "checkedAt": "2026-10-28",
+   "checkedAt": "2026-10-29",
    "minScore": 10.0
   },
   {
@@ -3022,6 +3022,12 @@
   },
   {
    "path": "internal/page/legendlinks_test.go",
+   "score": 10.0,
+   "checkedAt": "2026-10-29",
+   "minScore": 10.0
+  },
+  {
+   "path": "internal/page/legend_data_test.go",
    "score": 10.0,
    "checkedAt": "2026-10-29",
    "minScore": 10.0

@@ -63,15 +63,15 @@ func weekSection(t *testing.T, data Data) (before, section, after string) {
 }
 
 // TestLegendExplainsTheWeekPage: the legend has a Week page section, after
-// the TBD section and before the Settings page section, with the sentences of
+// the TBD section and before the Data page section, with the sentences of
 // legendWeekText.
 func TestLegendExplainsTheWeekPage(t *testing.T) {
 	before, section, after := weekSection(t, calculated())
 	if !strings.Contains(before, "<h2>Trunk-based development [TBD]</h2>") {
 		t.Error("want the Week page section after the TBD section")
 	}
-	if !strings.HasPrefix(after, "Settings page</h2>") {
-		t.Errorf("want the Settings page section right after, got %.40q", after)
+	if !strings.HasPrefix(after, "Data page</h2>") {
+		t.Errorf("want the Data page section right after, got %.40q", after)
 	}
 	for _, want := range legendWeekText {
 		if !strings.Contains(section, want) {
