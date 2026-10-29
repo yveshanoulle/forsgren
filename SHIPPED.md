@@ -9,6 +9,27 @@ Active work lives in
 
 ---
 
+## 2026-10-29 — Every Quality job runs in under 8 minutes ([#447](https://github.com/yveshanoulle/forsgren/issues/447), 10 steps)
+
+forsgren issue 447, tools: no release. Quality's slowest jobs ran 10 to 13
+minutes (Quality gates up to 10.3, Quality gates 2/2 up to 9.7, Browser gates up
+to 12.7) and GitHub runs at most 5 macOS jobs at once, so a long job that waited
+for a slot stretched the run. The gates now spread over more jobs by label in
+`Scripts/ci_job_groups.txt` (a gate not listed runs in the main job): a
+`quality_2` job and a `browser_1` job, and the gates that need nothing of macOS
+on `ubuntu-latest` (workflows, summary, isolation shards, report, and Go lint,
+go mod tidy, three Go self-tests and eleven tail self-tests moved there). The
+macOS jobs install only the tools their gates need (their own tools files); the
+main job keeps the full set. The derived tools check in
+`Scripts/test_quality_jobs.sh` follows the scripts a gate calls, so a tool two
+calls deep is found. After the last step every job is under 8 minutes (main
+Quality gates 6.0 to 7.3, Workflow gates 6.5 to 7.9, Browser gates about 4.5 to
+6.1), and at most 4 macOS gate jobs start together. `docs/ci.md` has the job
+table, why the macOS-only gates stay, and the before and after minutes; the
+pins are `Scripts/test_quality_jobs.sh` and `Scripts/test_quality_runner_pins.sh`.
+
+---
+
 ## 2026-10-29 — A Dictionary page that defines every number and term, linked from the legend ([#370](https://github.com/yveshanoulle/forsgren/issues/370), 4 steps)
 
 forsgren issue 370, feature. The pages get a Dictionary page (`dictionary.html`,

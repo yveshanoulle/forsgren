@@ -67,6 +67,55 @@ names a tool of the full list that the job's list lacks; a gate moved to
 another job (forsgren#447, steps 5 to 7) therefore needs its tools in that
 job's list in the same change.
 
+**The jobs at a glance** (forsgren#447, final layout). A gate not listed in
+`Scripts/ci_job_groups.txt` runs in the main job, so a new gate is in one job and
+never in none. The file names the groups below; the job ids are the keys of
+`quality.yml`.
+
+| Job (name) | OS | Install tools step | Gates it runs |
+|---|---|---|---|
+| `quality` (Quality gates) | macOS | full `Scripts/install_tools.sh` (`Scripts/required_tools.txt`) | every gate no group names: the language gate, the secret scan, the site build and the POST gates, the long tail of small gates |
+| `quality_2` (Quality gates 2/2) | macOS | `Scripts/required_tools_quality_2_gates.txt` (go, node, jq) | Go tests and Go coverage, golden pages, and the slower self-tests, among them the exit-trap completion behaviour |
+| `browser_1` (Browser gates 1/2) | macOS | `Scripts/required_tools_browser_1_gates.txt` (go, node) | the browser gate self-test and the fixture-site self-test |
+| `browser` (Browser gates) | macOS | `Scripts/required_tools_browser_gates.txt` (go, node) | the browser gate process self-test, the browser gate and the fixture-site gate, with its own site build |
+| `lint` (Lint gates) | Linux | `Scripts/required_tools_linux.txt` | actionlint, shellcheck, yamllint, zizmor and Go lint, each with its self-test |
+| `workflows` (Workflow gates) | Linux | `Scripts/required_tools_linux_gates.txt` | the gates that read only workflows and scripts, go mod tidy, three Go self-tests and eleven Linux-safe self-tests of the main job |
+| `isolation_1`, `isolation_2` | Linux | `Scripts/required_tools_linux_gates.txt` | the git sandbox isolation self-test, one shard each |
+| `summary` (Summary isolation gates) | Linux | `Scripts/required_tools_linux_gates.txt` | the step summary isolation gate |
+| `report` (Quality report) | Linux | none | merges and renders the hand-overs |
+| `preview` | macOS | none | starts the preview deploy; `needs:` every other job |
+
+**Why some gates stay on macOS.** The main job holds the secret scan (Homebrew's
+gitleaks) and the language gate (`sandbox-exec`, LanguageTool and its Java), and
+builds the site its POST gates read. `quality_2` holds the exit-trap completion
+behaviour gate, which proves the idiom against bash 3.2, the bash a Mac runs
+scripts with. The two browser jobs open the hosted macOS image's Chrome. Every
+other gate reads files with bash, awk, sed, grep and jq, or runs Go, and ran
+the same on Linux when it was moved. Quality starts 4 macOS gate jobs together
+(`quality`, `quality_2`, `browser_1`, `browser`), under GitHub's limit of 5.
+
+**The tools check is derived.** `Scripts/test_quality_jobs.sh` reads the scripts
+of each job's gates and the `Scripts/*.sh` those call, transitively (the
+closure of `Scripts/lib_gate_select.sh`), and is red when a gate of a macOS job
+names a tool of `Scripts/required_tools.txt` that the job's own list lacks. A
+tool needed two calls deep, such as go through `Scripts/build_fixture_site.sh`,
+is therefore found.
+
+**Measured minutes.** Longest job of three or four green Quality runs of `main`,
+before the rebalance (the step 4 measurement of the layout after steps 1 to 3) and after the last
+step (forsgren#447, step 8 and the runs after step 8b):
+
+| Job | Before | After |
+|---|---|---|
+| Quality gates (main) | up to 10.3 | 6.0 to 7.3 |
+| Quality gates 2/2 | up to 9.7 | 5.0 to 6.2 |
+| Browser gates | up to 12.7 | 4.5 to 6.1 |
+| Browser gates 1/2 | up to 6.7 | 4.2 to 6.0 |
+| Workflow gates | up to 5.4 | 6.5 to 7.9 |
+
+Every job is now under 8 minutes. The wall time is bounded by the macOS limit:
+total macOS work divided by 5 slots.
+
 **Jobs** (forsgren#259, decision #260). Quality is one workflow with parallel
 jobs and one verdict: the run's conclusion is success only when every job
 succeeded, and that conclusion is what the Release reads
@@ -146,11 +195,10 @@ differences (`sed -i`, `date`, `stat`, `grep -P`, `readlink -f`, `mktemp`,
 `xargs`, `find -printf`, `base64` line wrapping, `uniq -c` padding, `awk`
 being mawk on Linux, `/bin/sh` being dash); the one that differed, the checkout
 pins mutations' `sed -i ''`, now writes a copy with plain `sed`, the same on
-both. Expected minutes, before step 4 measures them (macOS medians in
-brackets): `workflows` about 7 to 8 (9.0), `summary` about 4 (4.7),
+both. Measured after step 3 (macOS medians in brackets): `summary` about 4 (4.7),
 `isolation_1` and `isolation_2` about 4 each (4.8 and 4.5), `report` about 0.3
 (0.3); the setup is shorter, the pinned install of two tools taking seconds
-where Homebrew took 41 to 93.
+where Homebrew took 41 to 93. The final minutes are in the table above.
 
 **Shards** (forsgren#426). A gate that is too long for one job runs in several,
 each with a shard of its own. A row of `Scripts/ci_job_groups.txt` may carry a
@@ -241,10 +289,9 @@ most; they left the main job; the two gates themselves stay in the main job).
 Go ships with the hosted Linux image and `GOTOOLCHAIN` comes from `go.mod`, as
 for the other Linux jobs, and the Go tools run from `go.mod` (`go tool`), so
 neither tools list changes. `quality_2` keeps Go tests and Go coverage together
-and so still needs go, node and jq. Expected: Quality gates 2/2 about 7.5
-minutes less 2 (measured 9.3, 7.5, 9.7), Quality gates about 1.4 minutes less,
-Lint and Workflow gates about 2 and 1.4 minutes more (Workflow gates measured
-4.8, 3.4, 5.4).
+and so still needs go, node and jq. Before the move Quality gates 2/2 measured
+9.3, 7.5 and 9.7 minutes and Workflow gates 4.8, 3.4 and 5.4; the results are in
+the table above.
 
 Eleven more tail gates left the main job in step 8b of forsgren#447 for the
 `workflows` job (about 85 s on the Mac, 100 s at most): the release pins,
@@ -254,9 +301,8 @@ self-tests, and the check that sfl drives from the order file. All read files
 and run bash, grep, awk, sed, jq and fixture repositories (or `go test` on a
 fixture module), with no BSD-only flag and no secret, so the Linux tools list
 does not change. After step 8 the main job measured 9.6, 10.0, 9.1 and 9.3
-minutes and Workflow gates 6.6, 6.6, 6.1 and 7.1. Expected: Quality gates about
-1.5 minutes less (7.6 to 8.5), Workflow gates about 1.5 minutes more (7.6 to
-8.6, a little less if the Linux runner is faster than the Mac).
+minutes and Workflow gates 6.6, 6.6, 6.1 and 7.1. After step 8b the main job
+measured 6.0 to 7.3 minutes and Workflow gates 6.5 to 7.9.
 
 The three baselines steps stay in the main job: they read the built site.
 `Scripts/test_quality_jobs.sh` pins the layout.
