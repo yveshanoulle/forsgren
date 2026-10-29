@@ -22,7 +22,8 @@ source Scripts/lib_has.sh
 # What the canon pins:
 #   - the target and the ceiling come from Scripts/site_settings.txt when no
 #     argument is given, and the arguments override them. A lowered ceiling in
-#     the settings turns the real site red; the settings' target is the one
+#     the settings turns a site above it red (the duplicated fixture, never the
+#     real target, whose measure may be 0.00%); the settings' target is the one
 #     measured;
 #   - zero files scanned is exit 2 NAMING that nothing was scanned (mutation
 #     proof B: without the zero-sources check the reason is no longer named);
@@ -213,17 +214,14 @@ check "the default run (target and ceiling from site_settings.txt) passes" 0 "$R
 WANT_TARGET="$(sed -n 's/^html_dupl_target=//p' Scripts/site_settings.txt)"
 check_says "the default target is the settings' html_dupl_target" "in ${WANT_TARGET} (ceiling"
 
-# A lowered ceiling in the settings turns the real site red. The real target is
-# copied into a throwaway root so the real settings file stays untouched.
-new_root lowered "$CHECK" "$WANT_TARGET" 0.1
-mkdir -p "$(dirname "${ROOT}/${WANT_TARGET}")"  # a nested target such as internal/page/templates
-cp -R "$WANT_TARGET" "${ROOT}/${WANT_TARGET}"
-# A site whose real target measures 0.00% has no ceiling to lower under it, so
-# the throwaway copy gets one page twice, a clone, and measures above 0.1.
-_first="$(find "${ROOT}/${WANT_TARGET}" -name '*.html' | LC_ALL=C sort | head -1)"
-cp "$_first" "${_first%.html}-copy.html"
+# A lowered ceiling in the settings turns a site above it red. The site is the
+# duplicated fixture, whose duplication is known, never the real target, whose
+# measure is whatever the templates hold today (it can be 0.00%, and then there
+# is nothing above any ceiling). The settings file is a throwaway one.
+new_root lowered "$CHECK" duplicated-site 0.1
+cp -R "$FIXTURE_DIR" "${ROOT}/duplicated-site"
 run_root
-check "a lowered ceiling in the settings turns the real site red" 1 "$RC"
+check "a lowered ceiling in the settings turns a site above it red" 1 "$RC"
 check_says "the red quotes the settings' ceiling" "EXCEEDS the 0.1% ceiling"
 LOWERED_ROOT="$ROOT"
 
